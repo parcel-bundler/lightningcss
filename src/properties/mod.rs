@@ -2,10 +2,12 @@ mod custom;
 
 use cssparser::*;
 use custom::*;
+use crate::values::{image::*};
 
 #[derive(Debug)]
 pub enum Property {
   BackgroundColor(Color),
+  BackgroundImage(Vec<Image>),
   Color(Color),
   Custom(CustomProperty)
 }
@@ -18,11 +20,17 @@ impl Property {
           return Ok(Property::$property(c))
         }
       };
-    }    
+      ($property: ident, $type: ident, $multi: expr) => {
+        if let Ok(c) = input.parse_comma_separated(|input| $type::parse(input)) {
+          return Ok(Property::$property(c))
+        }
+      }
+    }
     
     let state = input.state();
     match name.as_ref() {
       "background-color" => property!(BackgroundColor, Color),
+      "background-image" => property!(BackgroundImage, Image, true),
       "color" => property!(Color, Color),
       _ => {}
     }

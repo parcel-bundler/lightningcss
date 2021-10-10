@@ -8,7 +8,7 @@ css.transform({
 
 .foo + .bar:not(.baz) {
   background-color: blue;
-  // background: url(img.png), url('test.jpg');
+  background-image: url(img.png), url('test.jpg');
   color: blue;
 }
 

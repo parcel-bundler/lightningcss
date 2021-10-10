@@ -9,6 +9,7 @@ extern crate selectors;
 mod parser;
 mod media_query;
 mod properties;
+mod values;
 
 use napi::{CallContext, JsObject, JsUndefined};
 use serde::{Deserialize, Serialize};
