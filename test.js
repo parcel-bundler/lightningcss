@@ -7,7 +7,8 @@ css.transform({
 @import "foo.css" print;
 
 .foo + .bar:not(.baz) {
-  background: url(img.png), url('test.jpg');
+  background-color: blue;
+  // background: url(img.png), url('test.jpg');
   color: blue;
 }
 
@@ -15,7 +16,8 @@ css.transform({
 
 @media screen and (max-width: 250px) {
   .baz {
-    background: url(img.png);
+    // background: url(img.png) ;
+    color: var(--test);
   }
 }
 `)})

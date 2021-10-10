@@ -3,6 +3,7 @@ use selectors::{SelectorList, parser::SelectorImpl};
 use std::fmt;
 use std::cell::RefCell;
 use crate::media_query::*;
+use crate::properties::*;
 
 #[derive(Debug, Clone)]
 pub struct Selectors;
@@ -155,7 +156,7 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
   type PreludeNoBlock = AtRulePrelude;
   type PreludeBlock = AtRulePrelude;
   type AtRule = (SourcePosition, CssRule);
-  type Error = selectors::parser::SelectorParseErrorKind<'i>;
+  type Error = ();
 
   fn parse_prelude<'t>(
       &mut self,
@@ -288,7 +289,7 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
 impl<'a, 'i> QualifiedRuleParser<'i> for TopLevelRuleParser {
   type Prelude = SelectorList<Selectors>;
   type QualifiedRule = (SourcePosition, CssRule);
-  type Error = selectors::parser::SelectorParseErrorKind<'i>;
+  type Error = ();
 
   #[inline]
   fn parse_prelude<'t>(
@@ -358,7 +359,7 @@ impl ToCss for ImportRule {
 #[derive(Debug)]
 pub struct StyleRule {
   pub selectors: SelectorList<Selectors>,
-  pub declarations: Vec<(String, Vec<Value>)>
+  pub declarations: Vec<Property>
 }
 
 impl ToCss for StyleRule {
@@ -366,12 +367,12 @@ impl ToCss for StyleRule {
     // dest.write_str(&self.selectors)?;
     self.selectors.to_css(dest)?;
     dest.write_str(" { ")?;
-    for (key, val) in self.declarations.iter() {
-      dest.write_str("\n  ")?;
-      dest.write_str(key)?;
-      dest.write_str(": ")?;
-      // dest.write_str(val)?;
-    }
+    // for (key, val) in self.declarations.iter() {
+    //   dest.write_str("\n  ")?;
+    //   dest.write_str(key)?;
+    //   dest.write_str(": ")?;
+    //   // dest.write_str(val)?;
+    // }
     dest.write_str("\n}")
   }
 }
@@ -424,7 +425,7 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
   type PreludeNoBlock = AtRulePrelude;
   type PreludeBlock = AtRulePrelude;
   type AtRule = CssRule;
-  type Error = selectors::parser::SelectorParseErrorKind<'i>;
+  type Error = ();
 
   fn parse_prelude<'t>(
       &mut self,
@@ -648,33 +649,33 @@ pub enum Value {
   Url(String)
 }
 
-fn exhaust<'i>(input: &mut cssparser::Parser<'i, '_>) -> Vec<Value> {
+// fn exhaust<'i>(input: &mut cssparser::Parser<'i, '_>) -> Vec<Value> {
   // let start = input.position();
   // while input.next().is_ok() {}
   // input.slice_from(start)
-  let mut val = vec![];
-  loop {
-    if let Ok(tok) = input.next() {
-      println!("{:?}", tok);
-      match tok {
-        Token::UnquotedUrl(ref url) => val.push(Value::Url((&**url).into())),
-        Token::Function(ref name) if name.eq_ignore_ascii_case("url") => {
-          let url = input.parse_nested_block(|input| {
-              input.expect_string().map_err(Into::into).map(|s| s.clone())
-          })
-          .map_err(ParseError::<()>::basic);
-          if let Ok(url) = url {
-            val.push(Value::Url((&*url).into()));
-          }
-        },
-        _ => {}
-      }
-    } else {
-      break
-    }
-  }
-  val
-}
+  // let mut val = vec![];
+  // loop {
+  //   if let Ok(tok) = input.next() {
+  //     println!("{:?}", tok);
+  //     match tok {
+  //       Token::UnquotedUrl(ref url) => val.push(Value::Url((&**url).into())),
+  //       Token::Function(ref name) if name.eq_ignore_ascii_case("url") => {
+  //         let url = input.parse_nested_block(|input| {
+  //             input.expect_string().map_err(Into::into).map(|s| s.clone())
+  //         })
+  //         .map_err(ParseError::<()>::basic);
+  //         if let Ok(url) = url {
+  //           val.push(Value::Url((&*url).into()));
+  //         }
+  //       },
+  //       _ => {}
+  //     }
+  //   } else {
+  //     break
+  //   }
+  // }
+  // val
+// }
 
 struct SelectorParser;
 impl<'i> selectors::parser::Parser<'i> for SelectorParser {
@@ -685,7 +686,7 @@ impl<'i> selectors::parser::Parser<'i> for SelectorParser {
 impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser {
   type Prelude = SelectorList<Selectors>;
   type QualifiedRule = CssRule;
-  type Error = selectors::parser::SelectorParseErrorKind<'i>;
+  type Error = ();
 
   fn parse_prelude<'t>(
       &mut self,
@@ -696,7 +697,10 @@ impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser {
       //     namespaces: self.namespaces,
       //     url_data: Some(self.context.url_data),
       };
-      SelectorList::parse(&selector_parser, input)
+      match SelectorList::parse(&selector_parser, input) {
+        Ok(x) => Ok(x),
+        Err(_) => Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+      }
       // Ok(exhaust(input))
   }
 
@@ -727,15 +731,15 @@ struct PropertyDeclarationParser;
 
 /// Parse a declaration within {} block: `color: blue`
 impl<'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser {
-  type Declaration = (String, Vec<Value>);
-  type Error = selectors::parser::SelectorParseErrorKind<'i>;
+  type Declaration = Property;
+  type Error = ();
 
   fn parse_value<'t>(
       &mut self,
       name: CowRcStr<'i>,
       input: &mut cssparser::Parser<'i, 't>,
   ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
-      Ok((name.as_ref().into(), exhaust(input).into()))
+    Property::parse(name, input)
   }
 }
 
@@ -743,6 +747,6 @@ impl<'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser {
 impl<'i> AtRuleParser<'i> for PropertyDeclarationParser {
   type PreludeNoBlock = ();
   type PreludeBlock = ();
-  type AtRule = (String, Vec<Value>);
-  type Error = selectors::parser::SelectorParseErrorKind<'i>;
+  type AtRule = Property;
+  type Error = ();
 }
