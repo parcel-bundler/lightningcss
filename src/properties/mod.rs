@@ -46,7 +46,8 @@ impl Property {
       ($prop: literal, $value: expr) => {{
         dest.write_str($prop)?;
         dest.write_str(": ")?;
-        $value.to_css(dest)
+        $value.to_css(dest)?;
+        dest.write_str(";")
       }};
       ($prop: literal, $value: expr, $multi: expr) => {{
         dest.write_str($prop)?;
@@ -58,6 +59,7 @@ impl Property {
             dest.write_str(", ")?;
           }
         }
+        dest.write_str(";")?;
         Ok(())
       }};
     }
