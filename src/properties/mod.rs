@@ -38,4 +38,40 @@ impl Property {
     input.reset(&state);
     return Ok(Property::Custom(CustomProperty::parse(name, input)?))
   }
+
+  pub fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+    use Property::*;
+
+    macro_rules! property {
+      ($prop: literal, $value: expr) => {{
+        dest.write_str($prop)?;
+        dest.write_str(": ")?;
+        $value.to_css(dest)
+      }};
+      ($prop: literal, $value: expr, $multi: expr) => {{
+        dest.write_str($prop)?;
+        dest.write_str(": ")?;
+        let len = $value.len();
+        for (idx, val) in $value.iter().enumerate() {
+          val.to_css(dest)?;
+          if idx < len - 1 {
+            dest.write_str(", ")?;
+          }
+        }
+        Ok(())
+      }};
+    }
+
+    match self {
+      BackgroundColor(color) => property!("background-color", color),
+      BackgroundImage(image) => property!("background-image", image, true),
+      Color(color) => property!("color", color),
+      Custom(custom) => {
+        dest.write_str(custom.name.as_ref())?;
+        dest.write_str(": ")?;
+        dest.write_str(custom.value.as_ref())?;
+        dest.write_str(";")
+      }
+    }
+  }
 }

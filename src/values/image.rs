@@ -18,4 +18,14 @@ impl Image {
 
     Err(input.new_error_for_next_token())
   }
+
+  pub fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+    use Image::*;
+    match self {
+      None => dest.write_str("none"),
+      Url(url) => {
+        Token::UnquotedUrl(CowRcStr::from(url.as_ref())).to_css(dest)
+      }
+    }
+  }
 }

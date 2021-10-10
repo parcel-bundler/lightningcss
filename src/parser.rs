@@ -367,12 +367,10 @@ impl ToCss for StyleRule {
     // dest.write_str(&self.selectors)?;
     self.selectors.to_css(dest)?;
     dest.write_str(" { ")?;
-    // for (key, val) in self.declarations.iter() {
-    //   dest.write_str("\n  ")?;
-    //   dest.write_str(key)?;
-    //   dest.write_str(": ")?;
-    //   // dest.write_str(val)?;
-    // }
+    for prop in self.declarations.iter() {
+      dest.write_str("\n  ")?;
+      prop.to_css(dest)?;
+    }
     dest.write_str("\n}")
   }
 }
