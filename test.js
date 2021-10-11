@@ -10,6 +10,12 @@ css.transform({
   background-color: blue;
   background-image: url(img.png), url('test.jpg');
   color: blue;
+  width: 250px;
+  height: 50%;
+  min-block-size: min-content;
+  max-height: fit-content(50%);
+  top: auto;
+  bottom: 5%;
 }
 
 .hi {}
