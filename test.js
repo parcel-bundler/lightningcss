@@ -16,6 +16,13 @@ css.transform({
   max-height: fit-content(50%);
   top: auto;
   bottom: 5%;
+  border-top-width: thin;
+  border-bottom-width: 1in;
+  border-top-color: red;
+  border-bottom-style: dotted;
+  border-width: thin thick thin thick;
+  border: red dotted 2px;
+  border-block-start: solid #00ff00 medium;
 }
 
 .hi {}

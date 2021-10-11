@@ -2,13 +2,14 @@ mod custom;
 
 use cssparser::*;
 use custom::*;
-use crate::values::{image::*, length::*};
+use crate::values::{image::*, length::*, border::*, rect::*, color::*};
+use super::values::traits::Parse;
 
 #[derive(Debug)]
 pub enum Property {
-  BackgroundColor(Color),
+  BackgroundColor(CssColor),
   BackgroundImage(Vec<Image>),
-  Color(Color),
+  Color(CssColor),
   Custom(CustomProperty),
 
   Width(Size),
@@ -31,7 +32,48 @@ pub enum Property {
   InsetBlockStart(LengthPercentageOrAuto),
   InsetBlockEnd(LengthPercentageOrAuto),
   InsetInlineStart(LengthPercentageOrAuto),
-  InsetInlineEnd(LengthPercentageOrAuto)
+  InsetInlineEnd(LengthPercentageOrAuto),
+
+  BorderTopColor(CssColor),
+  BorderBottomColor(CssColor),
+  BorderLeftColor(CssColor),
+  BorderRightColor(CssColor),
+  BorderBlockStartColor(CssColor),
+  BorderBlockEndColor(CssColor),
+  BorderInlineStartColor(CssColor),
+  BorderInlineEndColor(CssColor),
+
+  BorderTopStyle(BorderStyle),
+  BorderBottomStyle(BorderStyle),
+  BorderLeftStyle(BorderStyle),
+  BorderRightStyle(BorderStyle),
+  BorderBlockStartStyle(BorderStyle),
+  BorderBlockEndStyle(BorderStyle),
+  BorderInlineStartStyle(BorderStyle),
+  BorderInlineEndStyle(BorderStyle),
+
+  BorderTopWidth(BorderSideWidth),
+  BorderBottomWidth(BorderSideWidth),
+  BorderLeftWidth(BorderSideWidth),
+  BorderRightWidth(BorderSideWidth),
+  BorderBlockStartWidth(BorderSideWidth),
+  BorderBlockEndWidth(BorderSideWidth),
+  BorderInlineStartWidth(BorderSideWidth),
+  BorderInlineEndWidth(BorderSideWidth),
+
+  BorderColor(Rect<CssColor>),
+  BorderStyle(Rect<BorderStyle>),
+  BorderWidth(Rect<BorderSideWidth>),
+
+  Border(Border),
+  BorderTop(Border),
+  BorderBottom(Border),
+  BorderLeft(Border),
+  BorderRight(Border),
+  BorderBlockStart(Border),
+  BorderBlockEnd(Border),
+  BorderInlineStart(Border),
+  BorderInlineEnd(Border)
 }
 
 impl Property {
@@ -51,9 +93,9 @@ impl Property {
     
     let state = input.state();
     match name.as_ref() {
-      "background-color" => property!(BackgroundColor, Color),
+      "background-color" => property!(BackgroundColor, CssColor),
       "background-image" => property!(BackgroundImage, Image, true),
-      "color" => property!(Color, Color),
+      "color" => property!(Color, CssColor),
       "width" => property!(Width, Size),
       "height" => property!(Height, Size),
       "min-width" => property!(MinWidth, MinMaxSize),
@@ -74,6 +116,42 @@ impl Property {
       "inset-block-end" => property!(InsetBlockEnd, LengthPercentageOrAuto),
       "inset-inline-start" => property!(InsetInlineStart, LengthPercentageOrAuto),
       "inset-inline-end" => property!(InsetInlineEnd, LengthPercentageOrAuto),
+      "border-top-color" => property!(BorderTopColor, CssColor),
+      "border-bottom-color" => property!(BorderBottomColor, CssColor),
+      "border-left-color" => property!(BorderLeftColor, CssColor),
+      "border-right-color" => property!(BorderRightColor, CssColor),
+      "border-block-start-color" => property!(BorderBlockStartColor, CssColor),
+      "border-block-end-color" => property!(BorderBlockEndColor, CssColor),
+      "border-inline-start-color" => property!(BorderInlineStartColor, CssColor),
+      "border-inline-end-color" => property!(BorderInlineEndColor, CssColor),
+      "border-top-style" => property!(BorderTopStyle, BorderStyle),
+      "border-bottom-style" => property!(BorderBottomStyle, BorderStyle),
+      "border-left-style" => property!(BorderLeftStyle, BorderStyle),
+      "border-right-style" => property!(BorderRightStyle, BorderStyle),
+      "border-block-start-style" => property!(BorderBlockStartStyle, BorderStyle),
+      "border-block-end-style" => property!(BorderBlockEndStyle, BorderStyle),
+      "border-inline-start-style" => property!(BorderInlineStartStyle, BorderStyle),
+      "border-inline-end-style" => property!(BorderInlineEndStyle, BorderStyle),
+      "border-top-width" => property!(BorderTopWidth, BorderSideWidth),
+      "border-bottom-width" => property!(BorderBottomWidth, BorderSideWidth),
+      "border-left-width" => property!(BorderLeftWidth, BorderSideWidth),
+      "border-right-width" => property!(BorderRightWidth, BorderSideWidth),
+      "border-block-start-width" => property!(BorderBlockStartWidth, BorderSideWidth),
+      "border-block-end-width" => property!(BorderBlockEndWidth, BorderSideWidth),
+      "border-inline-start-width" => property!(BorderInlineStartWidth, BorderSideWidth),
+      "border-inline-end-width" => property!(BorderInlineEndWidth, BorderSideWidth),
+      "border-color" => property!(BorderColor, Rect),
+      "border-style" => property!(BorderStyle, Rect),
+      "border-width" => property!(BorderWidth, Rect),
+      "border" => property!(Border, Border),
+      "border-top" => property!(BorderTop, Border),
+      "border-bottom" => property!(BorderBottom, Border),
+      "border-left" => property!(BorderLeft, Border),
+      "border-right" => property!(BorderRight, Border),
+      "border-block-start" => property!(BorderBlockStart, Border),
+      "border-block-end" => property!(BorderBlockEnd, Border),
+      "border-inline-start" => property!(BorderInlineStart, Border),
+      "border-inline-end" => property!(BorderInlineEnd, Border),
       _ => {}
     }
 
@@ -130,6 +208,42 @@ impl Property {
       InsetBlockEnd(val) => property!("inset-block-end", val),
       InsetInlineStart(val) => property!("inset-inline-start", val),
       InsetInlineEnd(val) => property!("inset-inline-end", val),
+      BorderTopColor(val) => property!("border-top-color", val),
+      BorderBottomColor(val) => property!("border-bottom-color", val),
+      BorderLeftColor(val) => property!("border-left-color", val),
+      BorderRightColor(val) => property!("border-right-color", val),
+      BorderBlockStartColor(val) => property!("border-block-start-color", val),
+      BorderBlockEndColor(val) => property!("border-block-end-color", val),
+      BorderInlineStartColor(val) => property!("border-inline-start-color", val),
+      BorderInlineEndColor(val) => property!("border-inline-end-color", val),
+      BorderTopStyle(val) => property!("border-top-style", val),
+      BorderBottomStyle(val) => property!("border-bottom-style", val),
+      BorderLeftStyle(val) => property!("border-left-style", val),
+      BorderRightStyle(val) => property!("border-right-style", val),
+      BorderBlockStartStyle(val) => property!("border-block-start-style", val),
+      BorderBlockEndStyle(val) => property!("border-block-end-style", val),
+      BorderInlineStartStyle(val) => property!("border-inline-start-style", val),
+      BorderInlineEndStyle(val) => property!("border-inline-end-style", val),
+      BorderTopWidth(val) => property!("border-top-width", val),
+      BorderBottomWidth(val) => property!("border-bottom-width", val),
+      BorderLeftWidth(val) => property!("border-left-width", val),
+      BorderRightWidth(val) => property!("border-right-width", val),
+      BorderBlockStartWidth(val) => property!("border-block-start-width", val),
+      BorderBlockEndWidth(val) => property!("border-block-end-width", val),
+      BorderInlineStartWidth(val) => property!("border-inline-start-width", val),
+      BorderInlineEndWidth(val) => property!("border-inline-end-width", val),
+      BorderColor(val) => property!("border-color", val),
+      BorderStyle(val) => property!("border-style", val),
+      BorderWidth(val) => property!("border-width", val),
+      Border(val) => property!("border", val),
+      BorderTop(val) => property!("border-top", val),
+      BorderBottom(val) => property!("border-bottom", val),
+      BorderLeft(val) => property!("border-left", val),
+      BorderRight(val) => property!("border-right", val),
+      BorderBlockStart(val) => property!("border-block-start", val),
+      BorderBlockEnd(val) => property!("border-block-end", val),
+      BorderInlineStart(val) => property!("border-inline-start", val),
+      BorderInlineEnd(val) => property!("border-inline-end", val),
       Custom(custom) => {
         dest.write_str(custom.name.as_ref())?;
         dest.write_str(": ")?;

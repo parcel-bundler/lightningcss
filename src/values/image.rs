@@ -1,4 +1,5 @@
 use cssparser::*;
+use super::traits::Parse;
 
 #[derive(Debug)]
 pub enum Image {
@@ -6,8 +7,8 @@ pub enum Image {
   Url(String)
 }
 
-impl Image {
-  pub fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+impl Parse for Image {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
       return Ok(Image::None)
     }
@@ -18,8 +19,10 @@ impl Image {
 
     Err(input.new_error_for_next_token())
   }
+}
 
-  pub fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+impl ToCss for Image {
+  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
     use Image::*;
     match self {
       None => dest.write_str("none"),

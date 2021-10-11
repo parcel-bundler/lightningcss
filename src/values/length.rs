@@ -1,9 +1,10 @@
 use cssparser::*;
+use super::traits::Parse;
 
 /// https://drafts.csswg.org/css-sizing-3/#specifying-sizes
 
 /// https://drafts.csswg.org/css-sizing-3/#preferred-size-properties
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Size {
   Auto,
   LengthPercentage(LengthPercentage),
@@ -12,8 +13,8 @@ pub enum Size {
   FitContent(LengthPercentage)
 }
 
-impl Size {
-  pub fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+impl Parse for Size {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     if input.try_parse(|i| i.expect_ident_matching("auto")).is_ok() {
       return Ok(Size::Auto);
     }
@@ -36,8 +37,10 @@ impl Size {
 
     Err(input.new_error_for_next_token())
   }
+}
 
-  pub fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+impl ToCss for Size {
+  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
     use Size::*;
     match self {
       Auto => dest.write_str("auto"),
@@ -56,7 +59,7 @@ impl Size {
 
 /// https://drafts.csswg.org/css-sizing-3/#min-size-properties
 /// https://drafts.csswg.org/css-sizing-3/#max-size-properties
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MinMaxSize {
   None,
   LengthPercentage(LengthPercentage),
@@ -65,8 +68,8 @@ pub enum MinMaxSize {
   FitContent(LengthPercentage)
 }
 
-impl MinMaxSize {
-  pub fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+impl Parse for MinMaxSize {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
       return Ok(MinMaxSize::None);
     }
@@ -89,8 +92,10 @@ impl MinMaxSize {
 
     Err(input.new_error_for_next_token())
   }
+}
 
-  pub fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+impl ToCss for MinMaxSize {
+  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
     use MinMaxSize::*;
     match self {
       None => dest.write_str("none"),
@@ -108,15 +113,15 @@ impl MinMaxSize {
 }
 
 /// https://drafts.csswg.org/css-values-4/#typedef-length-percentage
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LengthPercentage {
   Length(Length),
   Percentage(Percentage),
   // Calc()
 }
 
-impl LengthPercentage {
-  pub fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+impl Parse for LengthPercentage {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     if let Ok(length) = input.try_parse(|input| Length::parse(input)) {
       return Ok(LengthPercentage::Length(length))
     }
@@ -127,8 +132,10 @@ impl LengthPercentage {
 
     Err(input.new_error_for_next_token())
   }
+}
 
-  pub fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+impl ToCss for LengthPercentage {
+  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
     match self {
       LengthPercentage::Length(length) => length.to_css(dest),
       LengthPercentage::Percentage(percent) => percent.to_css(dest)
@@ -137,14 +144,14 @@ impl LengthPercentage {
 }
 
 /// `<length-percentage> | auto`
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LengthPercentageOrAuto {
   Auto,
   LengthPercentage(LengthPercentage)
 }
 
-impl LengthPercentageOrAuto {
-  pub fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+impl Parse for LengthPercentageOrAuto {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     if input.try_parse(|i| i.expect_ident_matching("auto")).is_ok() {
       return Ok(LengthPercentageOrAuto::Auto);
     }
@@ -155,8 +162,10 @@ impl LengthPercentageOrAuto {
 
     Err(input.new_error_for_next_token())
   }
+}
 
-  pub fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+impl ToCss for LengthPercentageOrAuto {
+  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
     use LengthPercentageOrAuto::*;
     match self {
       Auto => dest.write_str("auto"),
@@ -166,7 +175,7 @@ impl LengthPercentageOrAuto {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Unit {
   Px,
   In,
@@ -231,14 +240,14 @@ impl Unit {
 }
 
 /// https://drafts.csswg.org/css-values-4/#lengths
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Length {
   value: f32,
   unit: Unit
 }
 
-impl Length {
-  pub fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+impl Parse for Length {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     let location = input.current_source_location();
     let token = input.next()?;
     match *token {
@@ -260,8 +269,10 @@ impl Length {
       ref token => return Err(location.new_unexpected_token_error(token.clone())),
     }
   }
+}
 
-  pub fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+impl ToCss for Length {
+  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
     let token = Token::Dimension {
       has_sign: false,
       value: self.value,
@@ -273,16 +284,18 @@ impl Length {
 }
 
 /// https://drafts.csswg.org/css-values-4/#percentages
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Percentage(f32);
 
-impl Percentage {
-  pub fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+impl Parse for Percentage {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     let percent = input.expect_percentage()?;
     Ok(Percentage(percent))
   }
+}
 
-  pub fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+impl ToCss for Percentage {
+  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
     let percent = Token::Percentage {
       has_sign: false,
       unit_value: self.0,
