@@ -119,7 +119,7 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border: 2.0px solid #f00;
+        border: 2px solid #f00;
       }"#
     });
 
@@ -293,6 +293,44 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         border-block: thin dotted #f00;
+      }"#
+    });
+  }
+
+  #[test]
+  pub fn test_border_image() {
+    test(r#"
+      .foo {
+        border-image: url(test.png) 60;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-image: url(test.png) 60;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        border-image: url(test.png) 60;
+        border-image-source: url(foo.png);
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-image: url(foo.png) 60;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        border-image-source: url(foo.png);
+        border-image-slice: 10 40 10 40 fill;
+        border-image-width: 10px;
+        border-image-outset: 0;
+        border-image-repeat: round round;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-image: url(foo.png) 10 40 fill / 10px round;
       }"#
     });
   }

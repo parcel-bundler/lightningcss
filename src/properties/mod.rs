@@ -2,7 +2,7 @@ mod custom;
 
 use cssparser::*;
 use custom::*;
-use crate::values::{image::*, length::*, border::*, rect::*, color::*};
+use crate::values::{image::*, length::*, border::*, border_image::*, rect::*, color::*};
 use super::values::traits::Parse;
 
 #[derive(Debug, Clone)]
@@ -85,12 +85,18 @@ pub enum Property {
   // BorderEndEndRadius
   // BorderRadius
 
-  // BorderImageSource
-  // BorderImageOutset
-  // BorderImageRepeat
-  // BorderImageWidth
-  // BorderImageSlice
-  // BorderImage
+  /// https://www.w3.org/TR/css-backgrounds-3/#border-image-source
+  BorderImageSource(Image),
+  /// https://www.w3.org/TR/css-backgrounds-3/#border-image-outset
+  BorderImageOutset(Rect<LengthOrNumber>),
+  /// https://www.w3.org/TR/css-backgrounds-3/#border-image-repeat
+  BorderImageRepeat(BorderImageRepeat),
+  /// https://www.w3.org/TR/css-backgrounds-3/#border-image-width
+  BorderImageWidth(Rect<BorderImageSideWidth>),
+  /// https://www.w3.org/TR/css-backgrounds-3/#border-image-slice
+  BorderImageSlice(BorderImageSlice),
+  /// https://www.w3.org/TR/css-backgrounds-3/#border-image
+  BorderImage(BorderImage),
 
   BorderColor(Rect<CssColor>),
   BorderStyle(Rect<BorderStyle>),
@@ -208,6 +214,12 @@ impl Property {
       "border-inline" => property!(BorderInline, Border),
       "border-inline-start" => property!(BorderInlineStart, Border),
       "border-inline-end" => property!(BorderInlineEnd, Border),
+      "border-image-source" => property!(BorderImageSource, Image),
+      "border-image-outset" => property!(BorderImageOutset, Rect),
+      "border-image-repeat" => property!(BorderImageRepeat, BorderImageRepeat),
+      "border-image-width" => property!(BorderImageWidth, Rect),
+      "border-image-slice" => property!(BorderImageSlice, BorderImageSlice),
+      "border-image" => property!(BorderImage, BorderImage),
       _ => {}
     }
 
@@ -308,6 +320,12 @@ impl Property {
       BorderInline(val) => property!("border-inline", val),
       BorderInlineStart(val) => property!("border-inline-start", val),
       BorderInlineEnd(val) => property!("border-inline-end", val),
+      BorderImageSource(val) => property!("border-image-source", val),
+      BorderImageOutset(val) => property!("border-image-outset", val),
+      BorderImageRepeat(val) => property!("border-image-repeat", val),
+      BorderImageWidth(val) => property!("border-image-width", val),
+      BorderImageSlice(val) => property!("border-image-slice", val),
+      BorderImage(val) => property!("border-image", val),
       Custom(custom) => {
         dest.write_str(custom.name.as_ref())?;
         dest.write_str(": ")?;

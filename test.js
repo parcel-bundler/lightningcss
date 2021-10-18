@@ -29,6 +29,9 @@ css.transform({
 
   // border-left: solid #00ff00 medium;
   // border-top: solid #00ff00 medium;
+
+  border-image: url(test.png) 60;
+  border-image-source: url(foo.png);
 }
 
 // .hi {}

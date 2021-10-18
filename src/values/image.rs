@@ -1,10 +1,17 @@
 use cssparser::*;
 use super::traits::Parse;
 
-#[derive(Debug, Clone)]
+/// https://www.w3.org/TR/css-images-3/#typedef-image
+#[derive(Debug, Clone, PartialEq)]
 pub enum Image {
   None,
   Url(String)
+}
+
+impl Default for Image {
+  fn default() -> Image {
+    Image::None
+  }
 }
 
 impl Parse for Image {
@@ -16,6 +23,8 @@ impl Parse for Image {
     if let Ok(url) = input.try_parse(|input| input.expect_url()) {
       return Ok(Image::Url(url.as_ref().into()))
     }
+
+    // TODO: gradients
 
     Err(input.new_error_for_next_token())
   }

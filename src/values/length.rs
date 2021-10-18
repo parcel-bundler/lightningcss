@@ -273,10 +273,15 @@ impl Parse for Length {
 
 impl ToCss for Length {
   fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+    let int_value = if self.value.fract() == 0.0 {
+      Some(self.value as i32)
+    } else {
+      None
+    };
     let token = Token::Dimension {
       has_sign: false,
       value: self.value,
-      int_value: None,
+      int_value,
       unit: CowRcStr::from(self.unit.as_str())
     };
     token.to_css(dest)
@@ -285,7 +290,7 @@ impl ToCss for Length {
 
 /// https://drafts.csswg.org/css-values-4/#percentages
 #[derive(Debug, Clone, PartialEq)]
-pub struct Percentage(f32);
+pub struct Percentage(pub f32);
 
 impl Parse for Percentage {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
@@ -296,10 +301,15 @@ impl Parse for Percentage {
 
 impl ToCss for Percentage {
   fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+    let int_value = if self.0.fract() == 0.0 {
+      Some(self.0 as i32)
+    } else {
+      None
+    };
     let percent = Token::Percentage {
       has_sign: false,
       unit_value: self.0,
-      int_value: None
+      int_value
     };
     percent.to_css(dest)
   }
@@ -308,4 +318,77 @@ impl ToCss for Percentage {
 fn parse_fit_content<'i, 't>(input: &mut Parser<'i, 't>) -> Result<LengthPercentage, ParseError<'i, ()>> {
   input.expect_function_matching("fit-content")?;
   input.parse_nested_block(|input| LengthPercentage::parse(input))
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LengthOrNumber {
+  Length(Length),
+  Number(f32)
+}
+
+impl Parse for LengthOrNumber {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    // Parse number first so unitless numbers are not parsed as lengths.
+    if let Ok(number) = input.try_parse(|input| input.expect_number()) {
+      return Ok(LengthOrNumber::Number(number))
+    }
+
+    if let Ok(length) = Length::parse(input) {
+      return Ok(LengthOrNumber::Length(length))
+    }
+
+    Err(input.new_error_for_next_token())
+  }
+}
+
+impl ToCss for LengthOrNumber {
+  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+    match self {
+      LengthOrNumber::Length(length) => length.to_css(dest),
+      LengthOrNumber::Number(number) => serialize_number(*number, dest)
+    }
+  }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum NumberOrPercentage {
+  Percentage(Percentage),
+  Number(f32),
+}
+
+impl Parse for NumberOrPercentage {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    if let Ok(percent) = input.try_parse(|input| Percentage::parse(input)) {
+      return Ok(NumberOrPercentage::Percentage(percent))
+    }
+
+    if let Ok(number) = input.try_parse(|input| input.expect_number()) {
+      return Ok(NumberOrPercentage::Number(number))
+    }
+
+    Err(input.new_error_for_next_token())
+  }
+}
+
+impl ToCss for NumberOrPercentage {
+  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+    match self {
+      NumberOrPercentage::Percentage(percent) => percent.to_css(dest),
+      NumberOrPercentage::Number(number) => serialize_number(*number, dest)
+    }
+  }
+}
+
+pub fn serialize_number<W>(number: f32, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  let int_value = if number.fract() == 0.0 {
+    Some(number as i32)
+  } else {
+    None
+  };
+  let tok = Token::Number {
+    has_sign: false,
+    value: number,
+    int_value
+  };
+  tok.to_css(dest)
 }

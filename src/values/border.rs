@@ -4,6 +4,9 @@ use super::traits::Parse;
 use super::color::CssColor;
 use crate::properties::Property;
 use super::rect::Rect;
+#[macro_use]
+use super::macros::*;
+use super::border_image::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BorderSideWidth {
@@ -42,40 +45,6 @@ impl ToCss for BorderSideWidth {
       Length(length) => length.to_css(dest)
     }
   }
-}
-
-macro_rules! enum_property {
-  ($name: ident, $( $x: ident ),+) => {
-    #[derive(Debug, Clone, PartialEq)]
-    pub enum $name {
-      $(
-        $x,
-      )+
-    }
-
-    impl Parse for $name {
-      fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
-        let ident = input.expect_ident()?;
-        match &ident[..] {
-          $(
-            s if s.eq_ignore_ascii_case(stringify!($x)) => Ok($name::$x),
-          )+
-          _ => return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
-        }
-      }
-    }
-
-    impl ToCss for $name {
-      fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
-        use $name::*;
-        match self {
-          $(
-            $x => dest.write_str(&stringify!($x).to_lowercase()),
-          )+
-        }
-      }
-    }
-  };
 }
 
 enum_property!(BorderStyle,
@@ -224,7 +193,8 @@ pub struct BorderHandler {
   border_inline_start: BorderShorthand,
   border_inline_end: BorderShorthand,
   category: BorderCategory,
-  decls: Vec<Property>
+  decls: Vec<Property>,
+  border_image_handler: BorderImageHandler
 }
 
 impl BorderHandler {
@@ -333,13 +303,14 @@ impl BorderHandler {
         self.border_block_end.reset();
         self.border_inline_start.reset();
         self.border_inline_end.reset();
+
+        // Setting the `border` property resets `border-image`.
+        self.border_image_handler.reset();
       }
       _ => {
-        return false
+        return self.border_image_handler.handle_property(property)
       }
     }
-
-    println!("{:?}", self);
 
     true
   }
@@ -549,6 +520,7 @@ impl BorderHandler {
 
   pub fn finalize(&mut self) -> Vec<Property> {
     self.flush();
+    self.decls.extend(self.border_image_handler.finalize());
     std::mem::take(&mut self.decls)
   }
 }
