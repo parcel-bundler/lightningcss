@@ -5,10 +5,21 @@ use custom::*;
 use crate::values::{image::*, length::*, border::*, rect::*, color::*};
 use super::values::traits::Parse;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Property {
   BackgroundColor(CssColor),
   BackgroundImage(Vec<Image>),
+  // BackgroundPositionX
+  // BackgroundPositionY
+  // BackgroundPosition
+  // BackgroundSize
+  // BackgroundRepeat
+  // BackgroundAttachment
+  // BackgroundClip
+  // BackgroundOrigin
+  // BackgroundBlendMode
+  // Background
+
   Color(CssColor),
   Custom(CustomProperty),
 
@@ -61,19 +72,56 @@ pub enum Property {
   BorderInlineStartWidth(BorderSideWidth),
   BorderInlineEndWidth(BorderSideWidth),
 
+  // BorderBlock
+  // BorderInline
+
+  // BorderTopLeftRadius
+  // BorderTopRightRadius
+  // BorderBottomLeftRadius
+  // BorderBottomRightRadius
+  // BorderStartStartRadius
+  // BorderStartEndRadius
+  // BorderEndStartRadius
+  // BorderEndEndRadius
+  // BorderRadius
+
+  // BorderImageSource
+  // BorderImageOutset
+  // BorderImageRepeat
+  // BorderImageWidth
+  // BorderImageSlice
+  // BorderImage
+
   BorderColor(Rect<CssColor>),
   BorderStyle(Rect<BorderStyle>),
   BorderWidth(Rect<BorderSideWidth>),
+
+  BorderBlockColor(CssColor),
+  BorderBlockStyle(BorderStyle),
+  BorderBlockWidth(BorderSideWidth),
+
+  BorderInlineColor(CssColor),
+  BorderInlineStyle(BorderStyle),
+  BorderInlineWidth(BorderSideWidth),
 
   Border(Border),
   BorderTop(Border),
   BorderBottom(Border),
   BorderLeft(Border),
   BorderRight(Border),
+  BorderBlock(Border),
   BorderBlockStart(Border),
   BorderBlockEnd(Border),
+  BorderInline(Border),
   BorderInlineStart(Border),
   BorderInlineEnd(Border)
+
+  // Margin
+  // MarginBlock
+  // MarginInline
+  // Padding
+  // ScrollMargin
+  // ScrollPadding
 }
 
 impl Property {
@@ -143,13 +191,21 @@ impl Property {
       "border-color" => property!(BorderColor, Rect),
       "border-style" => property!(BorderStyle, Rect),
       "border-width" => property!(BorderWidth, Rect),
+      "border-block-color" => property!(BorderBlockColor, CssColor),
+      "border-block-style" => property!(BorderBlockStyle, BorderStyle),
+      "border-block-width" => property!(BorderBlockWidth, BorderSideWidth),
+      "border-inline-color" => property!(BorderInlineColor, CssColor),
+      "border-inline-style" => property!(BorderInlineStyle, BorderStyle),
+      "border-inline-width" => property!(BorderInlineWidth, BorderSideWidth),
       "border" => property!(Border, Border),
       "border-top" => property!(BorderTop, Border),
       "border-bottom" => property!(BorderBottom, Border),
       "border-left" => property!(BorderLeft, Border),
       "border-right" => property!(BorderRight, Border),
+      "border-block" => property!(BorderBlock, Border),
       "border-block-start" => property!(BorderBlockStart, Border),
       "border-block-end" => property!(BorderBlockEnd, Border),
+      "border-inline" => property!(BorderInline, Border),
       "border-inline-start" => property!(BorderInlineStart, Border),
       "border-inline-end" => property!(BorderInlineEnd, Border),
       _ => {}
@@ -235,13 +291,21 @@ impl Property {
       BorderColor(val) => property!("border-color", val),
       BorderStyle(val) => property!("border-style", val),
       BorderWidth(val) => property!("border-width", val),
+      BorderBlockColor(val) => property!("border-block-color", val),
+      BorderBlockStyle(val) => property!("border-block-style", val),
+      BorderBlockWidth(val) => property!("border-block-width", val),
+      BorderInlineColor(val) => property!("border-inline-color", val),
+      BorderInlineStyle(val) => property!("border-inline-style", val),
+      BorderInlineWidth(val) => property!("border-inline-width", val),
       Border(val) => property!("border", val),
       BorderTop(val) => property!("border-top", val),
       BorderBottom(val) => property!("border-bottom", val),
       BorderLeft(val) => property!("border-left", val),
       BorderRight(val) => property!("border-right", val),
+      BorderBlock(val) => property!("border-block", val),
       BorderBlockStart(val) => property!("border-block-start", val),
       BorderBlockEnd(val) => property!("border-block-end", val),
+      BorderInline(val) => property!("border-inline", val),
       BorderInlineStart(val) => property!("border-inline-start", val),
       BorderInlineEnd(val) => property!("border-inline-end", val),
       Custom(custom) => {

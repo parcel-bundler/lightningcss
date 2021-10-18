@@ -366,12 +366,30 @@ impl ToCss for StyleRule {
   fn to_css<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
     // dest.write_str(&self.selectors)?;
     self.selectors.to_css(dest)?;
-    dest.write_str(" { ")?;
+    dest.write_str(" {")?;
     for prop in self.declarations.iter() {
       dest.write_str("\n  ")?;
       prop.to_css(dest)?;
     }
     dest.write_str("\n}")
+  }
+}
+
+impl StyleRule {
+  pub fn minify(&mut self) {
+    use crate::values::border::*;
+
+    let mut border_handler = BorderHandler::default();
+
+    let mut decls = vec![];
+    for decl in self.declarations.iter() {
+      if !border_handler.handle_property(decl) {
+        decls.push(decl.clone());
+      }
+    }
+
+    decls.extend(border_handler.finalize());
+    self.declarations = decls;
   }
 }
 

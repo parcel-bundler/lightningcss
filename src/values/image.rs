@@ -1,7 +1,7 @@
 use cssparser::*;
 use super::traits::Parse;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Image {
   None,
   Url(String)
