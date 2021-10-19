@@ -1,5 +1,5 @@
 use cssparser::*;
-use super::traits::Parse;
+use super::traits::{Parse, ToCss};
 
 /// https://drafts.csswg.org/css-sizing-3/#specifying-sizes
 
@@ -54,6 +54,37 @@ impl ToCss for Size {
       LengthPercentage(l) => l.to_css(dest),
       _ => Ok(())
     }
+  }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Size2D {
+  pub width: LengthPercentage,
+  pub height: LengthPercentage
+}
+
+impl Size2D {
+  pub fn new(width: LengthPercentage, height: LengthPercentage) -> Size2D {
+    Size2D { width, height }
+  }
+}
+
+impl Parse for Size2D {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    let width = LengthPercentage::parse(input)?;
+    let height = input.try_parse(LengthPercentage::parse).unwrap_or_else(|_| width.clone());
+    Ok(Size2D { width, height })
+  }
+}
+
+impl ToCss for Size2D {
+  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+    self.width.to_css(dest)?;
+    if self.height != self.width {
+      dest.write_str(" ")?;
+      self.height.to_css(dest)?;
+    }
+    Ok(())
   }
 }
 
@@ -273,6 +304,7 @@ impl Parse for Length {
 
 impl ToCss for Length {
   fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+    use cssparser::ToCss;
     let int_value = if self.value.fract() == 0.0 {
       Some(self.value as i32)
     } else {
@@ -301,6 +333,7 @@ impl Parse for Percentage {
 
 impl ToCss for Percentage {
   fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+    use cssparser::ToCss;
     let int_value = if self.0.fract() == 0.0 {
       Some(self.0 as i32)
     } else {
@@ -380,6 +413,7 @@ impl ToCss for NumberOrPercentage {
 }
 
 pub fn serialize_number<W>(number: f32, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  use cssparser::ToCss;
   let int_value = if number.fract() == 0.0 {
     Some(number as i32)
   } else {

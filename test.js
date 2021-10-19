@@ -32,6 +32,12 @@ css.transform({
 
   border-image: url(test.png) 60;
   border-image-source: url(foo.png);
+  // border-radius: 10px 100px 10px 100px / 120px 120px;
+  border-top-left-radius: 10px 120px;
+  border-top-right-radius: 100px 120px;
+  border-bottom-left-radius: 10px 120px;
+  border-bottom-right-radius: 100px 120px;
+  border-start-start-radius: 10px;
 }
 
 // .hi {}

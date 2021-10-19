@@ -1,5 +1,5 @@
 use cssparser::*;
-use super::traits::Parse;
+use super::traits::{Parse, ToCss};
 
 /// https://www.w3.org/TR/css-images-3/#typedef-image
 #[derive(Debug, Clone, PartialEq)]
@@ -33,6 +33,7 @@ impl Parse for Image {
 impl ToCss for Image {
   fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
     use Image::*;
+    use cssparser::ToCss;
     match self {
       None => dest.write_str("none"),
       Url(url) => {

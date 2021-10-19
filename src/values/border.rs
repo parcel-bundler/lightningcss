@@ -1,12 +1,12 @@
 use super::length::*;
 use cssparser::*;
-use super::traits::Parse;
+use super::traits::{Parse, ToCss};
 use super::color::CssColor;
 use crate::properties::Property;
 use super::rect::Rect;
-#[macro_use]
 use super::macros::*;
 use super::border_image::*;
+use super::border_radius::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BorderSideWidth {
@@ -194,7 +194,8 @@ pub struct BorderHandler {
   border_inline_end: BorderShorthand,
   category: BorderCategory,
   decls: Vec<Property>,
-  border_image_handler: BorderImageHandler
+  border_image_handler: BorderImageHandler,
+  border_radius_handler: BorderRadiusHandler
 }
 
 impl BorderHandler {
@@ -308,7 +309,7 @@ impl BorderHandler {
         self.border_image_handler.reset();
       }
       _ => {
-        return self.border_image_handler.handle_property(property)
+        return self.border_image_handler.handle_property(property) || self.border_radius_handler.handle_property(property)
       }
     }
 
@@ -521,6 +522,7 @@ impl BorderHandler {
   pub fn finalize(&mut self) -> Vec<Property> {
     self.flush();
     self.decls.extend(self.border_image_handler.finalize());
+    self.decls.extend(self.border_radius_handler.finalize());
     std::mem::take(&mut self.decls)
   }
 }

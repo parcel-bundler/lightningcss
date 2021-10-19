@@ -334,4 +334,81 @@ mod tests {
       }"#
     });
   }
+
+  #[test]
+  pub fn test_border_radius() {
+    test(r#"
+      .foo {
+        border-radius: 10px 100px 10px 100px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-radius: 10px 100px;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        border-radius: 10px 100px 10px 100px / 120px 120px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-radius: 10px 100px / 120px;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        border-top-left-radius: 10px 120px;
+        border-top-right-radius: 100px 120px;
+        border-bottom-left-radius: 10px 120px;
+        border-bottom-right-radius: 100px 120px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-radius: 10px 100px / 120px;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        border-radius: 10px 100px 10px 100px / 120px 120px;
+        border-start-start-radius: 10px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-radius: 10px 100px / 120px;
+        border-start-start-radius: 10px;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        border-start-start-radius: 10px;
+        border-radius: 10px 100px 10px 100px / 120px 120px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-radius: 10px 100px / 120px;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        border-top-left-radius: 10px 120px;
+        border-top-right-radius: 100px 120px;
+        border-start-start-radius: 10px;
+        border-bottom-left-radius: 10px 120px;
+        border-bottom-right-radius: 100px 120px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-top-left-radius: 10px 120px;
+        border-top-right-radius: 100px 120px;
+        border-start-start-radius: 10px;
+        border-bottom-left-radius: 10px 120px;
+        border-bottom-right-radius: 100px 120px;
+      }"#
+    });
+  }
 }

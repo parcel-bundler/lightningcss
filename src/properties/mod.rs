@@ -2,8 +2,8 @@ mod custom;
 
 use cssparser::*;
 use custom::*;
-use crate::values::{image::*, length::*, border::*, border_image::*, rect::*, color::*};
-use super::values::traits::Parse;
+use crate::values::{image::*, length::*, border::*, border_image::*, border_radius::*, rect::*, color::*};
+use super::values::traits::{Parse, ToCss};
 
 #[derive(Debug, Clone)]
 pub enum Property {
@@ -72,18 +72,15 @@ pub enum Property {
   BorderInlineStartWidth(BorderSideWidth),
   BorderInlineEndWidth(BorderSideWidth),
 
-  // BorderBlock
-  // BorderInline
-
-  // BorderTopLeftRadius
-  // BorderTopRightRadius
-  // BorderBottomLeftRadius
-  // BorderBottomRightRadius
-  // BorderStartStartRadius
-  // BorderStartEndRadius
-  // BorderEndStartRadius
-  // BorderEndEndRadius
-  // BorderRadius
+  BorderTopLeftRadius(Size2D),
+  BorderTopRightRadius(Size2D),
+  BorderBottomLeftRadius(Size2D),
+  BorderBottomRightRadius(Size2D),
+  BorderStartStartRadius(Size2D),
+  BorderStartEndRadius(Size2D),
+  BorderEndStartRadius(Size2D),
+  BorderEndEndRadius(Size2D),
+  BorderRadius(BorderRadius),
 
   /// https://www.w3.org/TR/css-backgrounds-3/#border-image-source
   BorderImageSource(Image),
@@ -220,6 +217,15 @@ impl Property {
       "border-image-width" => property!(BorderImageWidth, Rect),
       "border-image-slice" => property!(BorderImageSlice, BorderImageSlice),
       "border-image" => property!(BorderImage, BorderImage),
+      "border-top-left-radius" => property!(BorderTopLeftRadius, Size2D),
+      "border-top-right-radius" => property!(BorderTopRightRadius, Size2D),
+      "border-bottom-left-radius" => property!(BorderBottomLeftRadius, Size2D),
+      "border-bottom-right-radius" => property!(BorderBottomRightRadius, Size2D),
+      "border-start-start-radius" => property!(BorderStartStartRadius, Size2D),
+      "border-start-end-radius" => property!(BorderStartEndRadius, Size2D),
+      "border-end-start-radius" => property!(BorderEndStartRadius, Size2D),
+      "border-end-end-radius" => property!(BorderEndEndRadius, Size2D),
+      "border-radius" => property!(BorderRadius, BorderRadius),
       _ => {}
     }
 
@@ -326,6 +332,15 @@ impl Property {
       BorderImageWidth(val) => property!("border-image-width", val),
       BorderImageSlice(val) => property!("border-image-slice", val),
       BorderImage(val) => property!("border-image", val),
+      BorderTopLeftRadius(val) => property!("border-top-left-radius", val),
+      BorderTopRightRadius(val) => property!("border-top-right-radius", val),
+      BorderBottomLeftRadius(val) => property!("border-bottom-left-radius", val),
+      BorderBottomRightRadius(val) => property!("border-bottom-right-radius", val),
+      BorderStartStartRadius(val) => property!("border-start-start-radius", val),
+      BorderStartEndRadius(val) => property!("border-start-end-radius", val),
+      BorderEndStartRadius(val) => property!("border-end-start-radius", val),
+      BorderEndEndRadius(val) => property!("border-end-end-radius", val),
+      BorderRadius(val) => property!("border-radius", val),
       Custom(custom) => {
         dest.write_str(custom.name.as_ref())?;
         dest.write_str(": ")?;

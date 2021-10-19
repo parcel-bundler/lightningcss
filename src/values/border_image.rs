@@ -1,6 +1,6 @@
 use super::length::{*, NumberOrPercentage};
 use cssparser::*;
-use super::traits::Parse;
+use super::traits::{Parse, ToCss};
 use crate::properties::Property;
 use super::rect::Rect;
 use super::image::Image;
@@ -280,33 +280,39 @@ impl BorderImageHandler {
 
   pub fn finalize(&mut self) -> Vec<Property> {
     let mut decls = vec![];
-    if self.source.is_some() && self.slice.is_some() && self.width.is_some() && self.outset.is_some() && self.repeat.is_some() {
+    let source = std::mem::take(&mut self.source);
+    let slice = std::mem::take(&mut self.slice);
+    let width = std::mem::take(&mut self.width);
+    let outset = std::mem::take(&mut self.outset);
+    let repeat = std::mem::take(&mut self.repeat);
+
+    if source.is_some() && slice.is_some() && width.is_some() && outset.is_some() && repeat.is_some() {
       decls.push(Property::BorderImage(BorderImage {
-        source: self.source.clone().unwrap(),
-        slice: self.slice.clone().unwrap(),
-        width: self.width.clone().unwrap(),
-        outset: self.outset.clone().unwrap(),
-        repeat: self.repeat.clone().unwrap()
+        source: source.unwrap(),
+        slice: slice.unwrap(),
+        width: width.unwrap(),
+        outset: outset.unwrap(),
+        repeat: repeat.unwrap()
       }))
     } else {
-      if let Some(source) = &self.source {
-        decls.push(Property::BorderImageSource(source.clone()))
+      if let Some(source) = source {
+        decls.push(Property::BorderImageSource(source))
       }
 
-      if let Some(slice) = &self.slice {
-        decls.push(Property::BorderImageSlice(slice.clone()))
+      if let Some(slice) = slice {
+        decls.push(Property::BorderImageSlice(slice))
       }
 
-      if let Some(width) = &self.width {
-        decls.push(Property::BorderImageWidth(width.clone()))
+      if let Some(width) = width {
+        decls.push(Property::BorderImageWidth(width))
       }
 
-      if let Some(outset) = &self.outset {
-        decls.push(Property::BorderImageOutset(outset.clone()))
+      if let Some(outset) = outset {
+        decls.push(Property::BorderImageOutset(outset))
       }
 
-      if let Some(repeat) = &self.repeat {
-        decls.push(Property::BorderImageRepeat(repeat.clone()))
+      if let Some(repeat) = repeat {
+        decls.push(Property::BorderImageRepeat(repeat))
       }
     }
 

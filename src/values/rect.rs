@@ -1,5 +1,5 @@
 use cssparser::*;
-use super::traits::Parse;
+use super::traits::{Parse, ToCss};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Rect<T>(pub T, pub T, pub T, pub T);
@@ -68,7 +68,7 @@ where
 
 impl<T> ToCss for Rect<T>
 where
-  T: Clone + PartialEq + ToCss
+  T: PartialEq + ToCss
 {
     fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
         self.0.to_css(dest)?;

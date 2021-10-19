@@ -1,5 +1,5 @@
 use cssparser::*;
-use super::traits::Parse;
+use super::traits::{Parse, ToCss};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CssColor(Color);
