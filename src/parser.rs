@@ -378,17 +378,22 @@ impl ToCss for StyleRule {
 impl StyleRule {
   pub fn minify(&mut self) {
     use crate::values::border::*;
+    use crate::properties::margin_padding::*;
 
     let mut border_handler = BorderHandler::default();
+    let mut margin_handler = MarginHandler::default();
+    let mut padding_handler = PaddingHandler::default();
 
     let mut decls = vec![];
     for decl in self.declarations.iter() {
-      if !border_handler.handle_property(decl) {
+      if !border_handler.handle_property(decl) && !margin_handler.handle_property(decl) && !padding_handler.handle_property(decl) {
         decls.push(decl.clone());
       }
     }
 
     decls.extend(border_handler.finalize());
+    decls.extend(margin_handler.finalize());
+    decls.extend(padding_handler.finalize());
     self.declarations = decls;
   }
 }

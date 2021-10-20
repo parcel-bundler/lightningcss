@@ -6,10 +6,10 @@ use super::rect::Rect;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BorderRadius {
-  top_left: Size2D,
-  top_right: Size2D,
-  bottom_left: Size2D,
-  bottom_right: Size2D
+  top_left: Size2D<LengthPercentage>,
+  top_right: Size2D<LengthPercentage>,
+  bottom_left: Size2D<LengthPercentage>,
+  bottom_right: Size2D<LengthPercentage>
 }
 
 impl Parse for BorderRadius {
@@ -22,18 +22,18 @@ impl Parse for BorderRadius {
     };
 
     Ok(BorderRadius {
-      top_left: Size2D::new(widths.0, heights.0),
-      top_right: Size2D::new(widths.1, heights.1),
-      bottom_left: Size2D::new(widths.2, heights.2),
-      bottom_right: Size2D::new(widths.3, heights.3)
+      top_left: Size2D(widths.0, heights.0),
+      top_right: Size2D(widths.1, heights.1),
+      bottom_left: Size2D(widths.2, heights.2),
+      bottom_right: Size2D(widths.3, heights.3)
     })
   }
 }
 
 impl ToCss for BorderRadius {
   fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
-    let widths = Rect::new(&self.top_left.width, &self.top_right.width, &self.bottom_left.width, &self.bottom_right.width);
-    let heights = Rect::new(&self.top_left.height, &self.top_right.height, &self.bottom_left.height, &self.bottom_right.height);
+    let widths = Rect::new(&self.top_left.0, &self.top_right.0, &self.bottom_left.0, &self.bottom_right.0);
+    let heights = Rect::new(&self.top_left.1, &self.top_right.1, &self.bottom_left.1, &self.bottom_right.1);
 
     widths.to_css(dest)?;
     if widths != heights {
@@ -47,10 +47,10 @@ impl ToCss for BorderRadius {
 
 #[derive(Default, Debug)]
 pub struct BorderRadiusHandler {
-  top_left: Option<Size2D>,
-  top_right: Option<Size2D>,
-  bottom_left: Option<Size2D>,
-  bottom_right: Option<Size2D>,
+  top_left: Option<Size2D<LengthPercentage>>,
+  top_right: Option<Size2D<LengthPercentage>>,
+  bottom_left: Option<Size2D<LengthPercentage>>,
+  bottom_right: Option<Size2D<LengthPercentage>>,
   decls: Vec<Property>
 }
 

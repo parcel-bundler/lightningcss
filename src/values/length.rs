@@ -58,31 +58,22 @@ impl ToCss for Size {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Size2D {
-  pub width: LengthPercentage,
-  pub height: LengthPercentage
-}
+pub struct Size2D<T>(pub T, pub T);
 
-impl Size2D {
-  pub fn new(width: LengthPercentage, height: LengthPercentage) -> Size2D {
-    Size2D { width, height }
-  }
-}
-
-impl Parse for Size2D {
+impl<T> Parse for Size2D<T> where T: Parse + Clone {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
-    let width = LengthPercentage::parse(input)?;
-    let height = input.try_parse(LengthPercentage::parse).unwrap_or_else(|_| width.clone());
-    Ok(Size2D { width, height })
+    let first = T::parse(input)?;
+    let second = input.try_parse(T::parse).unwrap_or_else(|_| first.clone());
+    Ok(Size2D(first, second))
   }
 }
 
-impl ToCss for Size2D {
+impl<T> ToCss for Size2D<T> where T: ToCss + PartialEq {
   fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
-    self.width.to_css(dest)?;
-    if self.height != self.width {
+    self.0.to_css(dest)?;
+    if self.1 != self.0 {
       dest.write_str(" ")?;
-      self.height.to_css(dest)?;
+      self.1.to_css(dest)?;
     }
     Ok(())
   }

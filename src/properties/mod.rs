@@ -1,4 +1,5 @@
 mod custom;
+pub mod margin_padding;
 
 use cssparser::*;
 use custom::*;
@@ -72,14 +73,14 @@ pub enum Property {
   BorderInlineStartWidth(BorderSideWidth),
   BorderInlineEndWidth(BorderSideWidth),
 
-  BorderTopLeftRadius(Size2D),
-  BorderTopRightRadius(Size2D),
-  BorderBottomLeftRadius(Size2D),
-  BorderBottomRightRadius(Size2D),
-  BorderStartStartRadius(Size2D),
-  BorderStartEndRadius(Size2D),
-  BorderEndStartRadius(Size2D),
-  BorderEndEndRadius(Size2D),
+  BorderTopLeftRadius(Size2D<LengthPercentage>),
+  BorderTopRightRadius(Size2D<LengthPercentage>),
+  BorderBottomLeftRadius(Size2D<LengthPercentage>),
+  BorderBottomRightRadius(Size2D<LengthPercentage>),
+  BorderStartStartRadius(Size2D<LengthPercentage>),
+  BorderStartEndRadius(Size2D<LengthPercentage>),
+  BorderEndStartRadius(Size2D<LengthPercentage>),
+  BorderEndEndRadius(Size2D<LengthPercentage>),
   BorderRadius(BorderRadius),
 
   /// https://www.w3.org/TR/css-backgrounds-3/#border-image-source
@@ -117,12 +118,32 @@ pub enum Property {
   BorderBlockEnd(Border),
   BorderInline(Border),
   BorderInlineStart(Border),
-  BorderInlineEnd(Border)
+  BorderInlineEnd(Border),
 
-  // Margin
-  // MarginBlock
-  // MarginInline
-  // Padding
+  MarginTop(LengthPercentageOrAuto),
+  MarginBottom(LengthPercentageOrAuto),
+  MarginLeft(LengthPercentageOrAuto),
+  MarginRight(LengthPercentageOrAuto),
+  MarginBlockStart(LengthPercentageOrAuto),
+  MarginBlockEnd(LengthPercentageOrAuto),
+  MarginInlineStart(LengthPercentageOrAuto),
+  MarginInlineEnd(LengthPercentageOrAuto),
+  MarginBlock(Size2D<LengthPercentageOrAuto>),
+  MarginInline(Size2D<LengthPercentageOrAuto>),
+  Margin(Rect<LengthPercentageOrAuto>),
+
+  PaddingTop(LengthPercentageOrAuto),
+  PaddingBottom(LengthPercentageOrAuto),
+  PaddingLeft(LengthPercentageOrAuto),
+  PaddingRight(LengthPercentageOrAuto),
+  PaddingBlockStart(LengthPercentageOrAuto),
+  PaddingBlockEnd(LengthPercentageOrAuto),
+  PaddingInlineStart(LengthPercentageOrAuto),
+  PaddingInlineEnd(LengthPercentageOrAuto),
+  PaddingBlock(Size2D<LengthPercentageOrAuto>),
+  PaddingInline(Size2D<LengthPercentageOrAuto>),
+  Padding(Rect<LengthPercentageOrAuto>),
+
   // ScrollMargin
   // ScrollPadding
 }
@@ -226,6 +247,28 @@ impl Property {
       "border-end-start-radius" => property!(BorderEndStartRadius, Size2D),
       "border-end-end-radius" => property!(BorderEndEndRadius, Size2D),
       "border-radius" => property!(BorderRadius, BorderRadius),
+      "margin-left" => property!(MarginLeft, LengthPercentageOrAuto),
+      "margin-right" => property!(MarginRight, LengthPercentageOrAuto),
+      "margin-top" => property!(MarginTop, LengthPercentageOrAuto),
+      "margin-bottom" => property!(MarginBottom, LengthPercentageOrAuto),
+      "margin-block-start" => property!(MarginBlockStart, LengthPercentageOrAuto),
+      "margin-block-end" => property!(MarginBlockEnd, LengthPercentageOrAuto),
+      "margin-inline-start" => property!(MarginInlineStart, LengthPercentageOrAuto),
+      "margin-inline-end" => property!(MarginInlineEnd, LengthPercentageOrAuto),
+      "margin-block" => property!(MarginBlock, Size2D),
+      "margin-inline" => property!(MarginInline, Size2D),
+      "margin" => property!(Margin, Rect),
+      "padding-left" => property!(PaddingLeft, LengthPercentageOrAuto),
+      "padding-right" => property!(PaddingRight, LengthPercentageOrAuto),
+      "padding-top" => property!(PaddingTop, LengthPercentageOrAuto),
+      "padding-bottom" => property!(PaddingBottom, LengthPercentageOrAuto),
+      "padding-block-start" => property!(PaddingBlockStart, LengthPercentageOrAuto),
+      "padding-block-end" => property!(PaddingBlockEnd, LengthPercentageOrAuto),
+      "padding-inline-start" => property!(PaddingInlineStart, LengthPercentageOrAuto),
+      "padding-inline-end" => property!(PaddingInlineEnd, LengthPercentageOrAuto),
+      "padding-block" => property!(PaddingBlock, Size2D),
+      "padding-inline" => property!(PaddingInline, Size2D),
+      "padding" => property!(Padding, Rect),
       _ => {}
     }
 
@@ -341,6 +384,28 @@ impl Property {
       BorderEndStartRadius(val) => property!("border-end-start-radius", val),
       BorderEndEndRadius(val) => property!("border-end-end-radius", val),
       BorderRadius(val) => property!("border-radius", val),
+      MarginLeft(val) => property!("margin-left", val),
+      MarginRight(val) => property!("margin-right", val),
+      MarginTop(val) => property!("margin-top", val),
+      MarginBottom(val) => property!("margin-bottom", val),
+      MarginBlockStart(val) => property!("margin-block-start", val),
+      MarginBlockEnd(val) => property!("margin-block-end", val),
+      MarginInlineStart(val) => property!("margin-inline-start", val),
+      MarginInlineEnd(val) => property!("margin-inline-end", val),
+      MarginBlock(val) => property!("margin-block", val),
+      MarginInline(val) => property!("margin-inline", val),
+      Margin(val) => property!("margin", val),
+      PaddingLeft(val) => property!("padding-left", val),
+      PaddingRight(val) => property!("padding-right", val),
+      PaddingTop(val) => property!("padding-top", val),
+      PaddingBottom(val) => property!("padding-bottom", val),
+      PaddingBlockStart(val) => property!("padding-block-start", val),
+      PaddingBlockEnd(val) => property!("padding-block-end", val),
+      PaddingInlineStart(val) => property!("padding-inline-start", val),
+      PaddingInlineEnd(val) => property!("padding-inline-end", val),
+      PaddingBlock(val) => property!("padding-block", val),
+      PaddingInline(val) => property!("padding-inline", val),
+      Padding(val) => property!("padding", val),
       Custom(custom) => {
         dest.write_str(custom.name.as_ref())?;
         dest.write_str(": ")?;

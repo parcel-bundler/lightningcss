@@ -38,6 +38,13 @@ css.transform({
   border-bottom-left-radius: 10px 120px;
   border-bottom-right-radius: 100px 120px;
   border-start-start-radius: 10px;
+
+  margin-left: 10px;
+  margin-right: 10px;
+  margin-block-start: 15px;
+  margin-block-end: 15px;
+  margin-top: 20px;
+  margin-bottom: 20px;
 }
 
 // .hi {}
