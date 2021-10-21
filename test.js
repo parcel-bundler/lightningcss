@@ -7,6 +7,8 @@ css.transform({
 .foo + .bar:not(.baz) {
   background-color: blue;
   background-image: url(img.png), url('test.jpg');
+  background-position-x: right 20px;
+  background-position-y: top 20px;
   color: blue;
   width: 250px;
   height: 50%;

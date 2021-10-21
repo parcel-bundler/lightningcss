@@ -1,8 +1,10 @@
 mod custom;
 pub mod margin_padding;
+pub mod background;
 
 use cssparser::*;
 use custom::*;
+use background::*;
 use crate::values::{image::*, length::*, border::*, border_image::*, border_radius::*, rect::*, color::*};
 use super::values::traits::{Parse, ToCss};
 
@@ -10,9 +12,9 @@ use super::values::traits::{Parse, ToCss};
 pub enum Property {
   BackgroundColor(CssColor),
   BackgroundImage(Vec<Image>),
-  // BackgroundPositionX
-  // BackgroundPositionY
-  // BackgroundPosition
+  BackgroundPositionX(HorizontalPosition),
+  BackgroundPositionY(VerticalPosition),
+  BackgroundPosition(BackgroundPosition),
   // BackgroundSize
   // BackgroundRepeat
   // BackgroundAttachment
@@ -191,6 +193,9 @@ impl Property {
     match name.as_ref() {
       "background-color" => property!(BackgroundColor, CssColor),
       "background-image" => property!(BackgroundImage, Image, true),
+      "background-position-x" => property!(BackgroundPositionX, HorizontalPosition),
+      "background-position-y" => property!(BackgroundPositionY, VerticalPosition),
+      "background-position" => property!(BackgroundPosition, BackgroundPosition),
       "color" => property!(Color, CssColor),
       "width" => property!(Width, Size),
       "height" => property!(Height, Size),
@@ -350,6 +355,9 @@ impl Property {
     match self {
       BackgroundColor(color) => property!("background-color", color),
       BackgroundImage(image) => property!("background-image", image, true),
+      BackgroundPositionX(val) => property!("background-position-x", val),
+      BackgroundPositionY(val) => property!("background-position-y", val),
+      BackgroundPosition(val) => property!("background-position", val),
       Color(color) => property!("color", color),
       Width(val) => property!("width", val),
       Height(val) => property!("height", val),
