@@ -1,6 +1,6 @@
 use super::length::*;
 use cssparser::*;
-use super::traits::{Parse, ToCss};
+use super::traits::{Parse, ToCss, PropertyHandler};
 use crate::properties::Property;
 use super::rect::Rect;
 
@@ -54,8 +54,8 @@ pub struct BorderRadiusHandler {
   decls: Vec<Property>
 }
 
-impl BorderRadiusHandler {
-  pub fn handle_property(&mut self, property: &Property) -> bool {
+impl PropertyHandler for BorderRadiusHandler {
+  fn handle_property(&mut self, property: &Property) -> bool {
     use Property::*;
     match property {
       BorderTopLeftRadius(val) => self.top_left = Some(val.clone()),
@@ -79,7 +79,14 @@ impl BorderRadiusHandler {
     true
   }
 
-  pub fn flush(&mut self) {
+  fn finalize(&mut self) -> Vec<Property> {
+    self.flush();
+    std::mem::take(&mut self.decls)
+  }
+}
+
+impl BorderRadiusHandler {
+  fn flush(&mut self) {
     let top_left = std::mem::take(&mut self.top_left);
     let top_right = std::mem::take(&mut self.top_right);
     let bottom_left = std::mem::take(&mut self.bottom_left);
@@ -109,10 +116,5 @@ impl BorderRadiusHandler {
         self.decls.push(Property::BorderBottomRightRadius(val))
       }
     }
-  }
-
-  pub fn finalize(&mut self) -> Vec<Property> {
-    self.flush();
-    std::mem::take(&mut self.decls)
   }
 }

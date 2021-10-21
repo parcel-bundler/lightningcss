@@ -4,6 +4,7 @@ use std::fmt;
 use std::cell::RefCell;
 use crate::media_query::*;
 use crate::properties::*;
+use crate::values::traits::PropertyHandler;
 
 #[derive(Debug, Clone)]
 pub struct Selectors;
@@ -380,13 +381,21 @@ impl StyleRule {
     use crate::values::border::*;
     use crate::properties::margin_padding::*;
 
+    // TODO: somehow macro-ify this
     let mut border_handler = BorderHandler::default();
     let mut margin_handler = MarginHandler::default();
     let mut padding_handler = PaddingHandler::default();
+    let mut scroll_margin_handler = MarginHandler::default();
+    let mut scroll_padding_handler = PaddingHandler::default();
 
     let mut decls = vec![];
     for decl in self.declarations.iter() {
-      if !border_handler.handle_property(decl) && !margin_handler.handle_property(decl) && !padding_handler.handle_property(decl) {
+      if !border_handler.handle_property(decl) && 
+        !margin_handler.handle_property(decl) && 
+        !padding_handler.handle_property(decl) &&
+        !scroll_margin_handler.handle_property(decl) && 
+        !scroll_padding_handler.handle_property(decl)
+      {
         decls.push(decl.clone());
       }
     }
@@ -394,6 +403,8 @@ impl StyleRule {
     decls.extend(border_handler.finalize());
     decls.extend(margin_handler.finalize());
     decls.extend(padding_handler.finalize());
+    decls.extend(scroll_margin_handler.finalize());
+    decls.extend(scroll_padding_handler.finalize());
     self.declarations = decls;
   }
 }

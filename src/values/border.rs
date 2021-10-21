@@ -1,6 +1,6 @@
 use super::length::*;
 use cssparser::*;
-use super::traits::{Parse, ToCss};
+use super::traits::{Parse, ToCss, PropertyHandler};
 use super::color::CssColor;
 use crate::properties::Property;
 use super::rect::Rect;
@@ -198,8 +198,8 @@ pub struct BorderHandler {
   border_radius_handler: BorderRadiusHandler
 }
 
-impl BorderHandler {
-  pub fn handle_property(&mut self, property: &Property) -> bool {
+impl PropertyHandler for BorderHandler {
+  fn handle_property(&mut self, property: &Property) -> bool {
     use Property::*;
     use BorderCategory::*;
 
@@ -316,6 +316,15 @@ impl BorderHandler {
     true
   }
 
+  fn finalize(&mut self) -> Vec<Property> {
+    self.flush();
+    self.decls.extend(self.border_image_handler.finalize());
+    self.decls.extend(self.border_radius_handler.finalize());
+    std::mem::take(&mut self.decls)
+  }
+}
+
+impl BorderHandler {
   fn flush(&mut self) {
     use Property::*;
 
@@ -517,12 +526,5 @@ impl BorderHandler {
     self.border_block_end.reset();
     self.border_inline_start.reset();
     self.border_inline_end.reset();
-  }
-
-  pub fn finalize(&mut self) -> Vec<Property> {
-    self.flush();
-    self.decls.extend(self.border_image_handler.finalize());
-    self.decls.extend(self.border_radius_handler.finalize());
-    std::mem::take(&mut self.decls)
   }
 }

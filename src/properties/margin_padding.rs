@@ -1,5 +1,6 @@
 use crate::values::{length::{Size2D, LengthPercentageOrAuto}, rect::Rect};
 use crate::properties::Property;
+use crate::values::traits::PropertyHandler;
 
 #[derive(Debug, PartialEq)]
 enum SideCategory {
@@ -29,8 +30,8 @@ macro_rules! side_handler {
       decls: Vec<Property>
     }
 
-    impl $name {
-      pub fn handle_property(&mut self, property: &Property) -> bool {
+    impl PropertyHandler for $name {
+      fn handle_property(&mut self, property: &Property) -> bool {
         use Property::*;
         use SideCategory::*;
 
@@ -83,6 +84,13 @@ macro_rules! side_handler {
         true
       }
 
+      fn finalize(&mut self) -> Vec<Property> {
+        self.flush();
+        std::mem::take(&mut self.decls)
+      }
+    }
+
+    impl $name {
       fn flush(&mut self) {
         use Property::*;
 
@@ -137,11 +145,6 @@ macro_rules! side_handler {
         logical_side!(block_start, block_end, $block_shorthand, $block_start, $block_end);
         logical_side!(inline_start, inline_end, $inline_shorthand, $inline_start, $inline_end);
       }
-
-      pub fn finalize(&mut self) -> Vec<Property> {
-        self.flush();
-        std::mem::take(&mut self.decls)
-      }
     }
   };
 }
@@ -174,4 +177,34 @@ side_handler!(
   Padding,
   PaddingBlock,
   PaddingInline
+);
+
+side_handler!(
+  ScrollMarginHandler,
+  ScrollMarginTop,
+  ScrollMarginBottom,
+  ScrollMarginLeft,
+  ScrollMarginRight,
+  ScrollMarginBlockStart,
+  ScrollMarginBlockEnd,
+  ScrollMarginInlineStart,
+  ScrollMarginInlineEnd,
+  ScrollMargin,
+  ScrollMarginBlock,
+  ScrollMarginInline
+);
+
+side_handler!(
+  ScrollPaddingHandler,
+  ScrollPaddingTop,
+  ScrollPaddingBottom,
+  ScrollPaddingLeft,
+  ScrollPaddingRight,
+  ScrollPaddingBlockStart,
+  ScrollPaddingBlockEnd,
+  ScrollPaddingInlineStart,
+  ScrollPaddingInlineEnd,
+  ScrollPadding,
+  ScrollPaddingBlock,
+  ScrollPaddingInline
 );

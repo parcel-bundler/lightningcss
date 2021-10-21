@@ -1,6 +1,6 @@
 use super::length::{*, NumberOrPercentage};
 use cssparser::*;
-use super::traits::{Parse, ToCss};
+use super::traits::{Parse, ToCss, PropertyHandler};
 use crate::properties::Property;
 use super::rect::Rect;
 use super::image::Image;
@@ -246,8 +246,8 @@ pub struct BorderImageHandler {
   repeat: Option<BorderImageRepeat>
 }
 
-impl BorderImageHandler {
-  pub fn handle_property(&mut self, property: &Property) -> bool {
+impl PropertyHandler for BorderImageHandler {
+  fn handle_property(&mut self, property: &Property) -> bool {
     use Property::*;
     match property {
       BorderImageSource(val) => self.source = Some(val.clone()),
@@ -262,23 +262,7 @@ impl BorderImageHandler {
     true
   }
 
-  pub fn reset(&mut self) {
-    self.source = None;
-    self.slice = None;
-    self.width = None;
-    self.outset = None;
-    self.repeat = None;
-  }
-
-  pub fn set_border_image(&mut self, border_image: &BorderImage) {
-    self.source = Some(border_image.source.clone());
-    self.slice = Some(border_image.slice.clone());
-    self.width = Some(border_image.width.clone());
-    self.outset = Some(border_image.outset.clone());
-    self.repeat = Some(border_image.repeat.clone());
-  }
-
-  pub fn finalize(&mut self) -> Vec<Property> {
+  fn finalize(&mut self) -> Vec<Property> {
     let mut decls = vec![];
     let source = std::mem::take(&mut self.source);
     let slice = std::mem::take(&mut self.slice);
@@ -317,5 +301,23 @@ impl BorderImageHandler {
     }
 
     decls
+  }
+}
+
+impl BorderImageHandler {
+  pub fn reset(&mut self) {
+    self.source = None;
+    self.slice = None;
+    self.width = None;
+    self.outset = None;
+    self.repeat = None;
+  }
+
+  pub fn set_border_image(&mut self, border_image: &BorderImage) {
+    self.source = Some(border_image.source.clone());
+    self.slice = Some(border_image.slice.clone());
+    self.width = Some(border_image.width.clone());
+    self.outset = Some(border_image.outset.clone());
+    self.repeat = Some(border_image.repeat.clone());
   }
 }

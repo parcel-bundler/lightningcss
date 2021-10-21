@@ -1,4 +1,5 @@
 use cssparser::*;
+use crate::properties::Property;
 
 pub trait Parse: Sized {
   /// Parse a value of this type.
@@ -32,4 +33,9 @@ where
     fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
       (*self).to_css(dest)
     }
+}
+
+pub trait PropertyHandler: Sized {
+  fn handle_property(&mut self, property: &Property) -> bool;
+  fn finalize(&mut self) -> Vec<Property>;
 }
