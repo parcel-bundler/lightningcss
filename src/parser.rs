@@ -380,8 +380,10 @@ impl StyleRule {
   pub fn minify(&mut self) {
     use crate::values::border::*;
     use crate::properties::margin_padding::*;
+    use crate::properties::background::BackgroundHandler;
 
     // TODO: somehow macro-ify this
+    let mut background_handler = BackgroundHandler::default();
     let mut border_handler = BorderHandler::default();
     let mut margin_handler = MarginHandler::default();
     let mut padding_handler = PaddingHandler::default();
@@ -390,7 +392,8 @@ impl StyleRule {
 
     let mut decls = vec![];
     for decl in self.declarations.iter() {
-      if !border_handler.handle_property(decl) && 
+      if !background_handler.handle_property(decl) &&
+        !border_handler.handle_property(decl) && 
         !margin_handler.handle_property(decl) && 
         !padding_handler.handle_property(decl) &&
         !scroll_margin_handler.handle_property(decl) && 
@@ -400,6 +403,7 @@ impl StyleRule {
       }
     }
 
+    decls.extend(background_handler.finalize());
     decls.extend(border_handler.finalize());
     decls.extend(margin_handler.finalize());
     decls.extend(padding_handler.finalize());

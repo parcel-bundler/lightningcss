@@ -326,7 +326,7 @@ impl Parse for Percentage {
 impl ToCss for Percentage {
   fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
     use cssparser::ToCss;
-    let int_value = if self.0.fract() == 0.0 {
+    let int_value = if (self.0 * 100.0).fract() == 0.0 {
       Some(self.0 as i32)
     } else {
       None
@@ -449,6 +449,7 @@ impl<S: ToCss> ToCss for Position<S> {
   fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
     use Position::*;
     match &self {
+      // TODO: 50% is shorter
       Center => dest.write_str("center"),
       Length(lp) => lp.to_css(dest),
       Side(s, lp) => {

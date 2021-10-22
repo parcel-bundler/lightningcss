@@ -5,6 +5,7 @@ extern crate serde;
 extern crate serde_bytes;
 extern crate cssparser;
 extern crate selectors;
+extern crate itertools;
 
 mod parser;
 mod media_query;
@@ -502,6 +503,71 @@ mod tests {
         padding-inline: 15px;
         padding-top: 20px;
         padding-bottom: 20px;
+      }"#
+    });
+  }
+
+  #[test]
+  pub fn test_background() {
+    test(r#"
+      .foo {
+        background: url(img.png);
+        background-position-x: 20px;
+        background-position-y: 10px;
+        background-size: 50px 100px;
+        background-repeat: repeat no-repeat;
+      }
+    "#, indoc! {r#"
+      .foo {
+        background: url(img.png) 20px 10px / 50px 100px repeat-x;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        background-color: red;
+        background-position: 0% 0%;
+        background-size: auto;
+        background-repeat: repeat;
+        background-clip: border-box;
+        background-origin: padding-box;
+        background-attachment: scroll;
+        background-image: none
+      }
+    "#, indoc! {r#"
+      .foo {
+        background: #f00;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        background-color: gray;
+        background-position: 40% 50%;
+        background-size: 10em auto;
+        background-repeat: round;
+        background-clip: border-box;
+        background-origin: border-box;
+        background-attachment: fixed;
+        background-image: url('chess.png');
+      }
+    "#, indoc! {r#"
+      .foo {
+        background: #808080 url(chess.png) 40% / 10em round fixed border-box;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        background: url(img.png), url(test.jpg) gray;
+        background-position-x: right 20px, 10px;
+        background-position-y: top 20px, 15px;
+        background-size: 50px 50px, auto;
+        background-repeat: repeat no-repeat, no-repeat;      
+      }
+    "#, indoc! {r#"
+      .foo {
+        background: url(img.png) right 20px top 20px / 50px 50px repeat-x, #808080 url(test.jpg) 10px 15px no-repeat;
       }"#
     });
   }

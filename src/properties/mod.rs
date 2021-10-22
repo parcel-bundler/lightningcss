@@ -12,16 +12,16 @@ use super::values::traits::{Parse, ToCss};
 pub enum Property {
   BackgroundColor(CssColor),
   BackgroundImage(Vec<Image>),
-  BackgroundPositionX(HorizontalPosition),
-  BackgroundPositionY(VerticalPosition),
-  BackgroundPosition(BackgroundPosition),
-  // BackgroundSize
-  // BackgroundRepeat
-  // BackgroundAttachment
-  // BackgroundClip
-  // BackgroundOrigin
+  BackgroundPositionX(Vec<HorizontalPosition>),
+  BackgroundPositionY(Vec<VerticalPosition>),
+  BackgroundPosition(Vec<BackgroundPosition>),
+  BackgroundSize(Vec<BackgroundSize>),
+  BackgroundRepeat(Vec<BackgroundRepeat>),
+  BackgroundAttachment(Vec<BackgroundAttachment>),
+  BackgroundClip(Vec<BackgroundBox>),
+  BackgroundOrigin(Vec<BackgroundBox>),
   // BackgroundBlendMode
-  // Background
+  Background(Vec<Background>),
 
   Color(CssColor),
   Custom(CustomProperty),
@@ -169,9 +169,6 @@ pub enum Property {
   ScrollPaddingBlock(Size2D<LengthPercentageOrAuto>),
   ScrollPaddingInline(Size2D<LengthPercentageOrAuto>),
   ScrollPadding(Rect<LengthPercentageOrAuto>),
-
-  // ScrollMargin
-  // ScrollPadding
 }
 
 impl Property {
@@ -193,9 +190,15 @@ impl Property {
     match name.as_ref() {
       "background-color" => property!(BackgroundColor, CssColor),
       "background-image" => property!(BackgroundImage, Image, true),
-      "background-position-x" => property!(BackgroundPositionX, HorizontalPosition),
-      "background-position-y" => property!(BackgroundPositionY, VerticalPosition),
-      "background-position" => property!(BackgroundPosition, BackgroundPosition),
+      "background-position-x" => property!(BackgroundPositionX, HorizontalPosition, true),
+      "background-position-y" => property!(BackgroundPositionY, VerticalPosition, true),
+      "background-position" => property!(BackgroundPosition, BackgroundPosition, true),
+      "background-size" => property!(BackgroundSize, BackgroundSize, true),
+      "background-repeat" => property!(BackgroundRepeat, BackgroundRepeat, true),
+      "background-attachment" => property!(BackgroundAttachment, BackgroundAttachment, true),
+      "background-origin" => property!(BackgroundOrigin, BackgroundBox, true),
+      "background-clip" => property!(BackgroundClip, BackgroundBox, true),
+      "background" => property!(Background, Background, true),
       "color" => property!(Color, CssColor),
       "width" => property!(Width, Size),
       "height" => property!(Height, Size),
@@ -355,9 +358,15 @@ impl Property {
     match self {
       BackgroundColor(color) => property!("background-color", color),
       BackgroundImage(image) => property!("background-image", image, true),
-      BackgroundPositionX(val) => property!("background-position-x", val),
-      BackgroundPositionY(val) => property!("background-position-y", val),
-      BackgroundPosition(val) => property!("background-position", val),
+      BackgroundPositionX(val) => property!("background-position-x", val, true),
+      BackgroundPositionY(val) => property!("background-position-y", val, true),
+      BackgroundPosition(val) => property!("background-position", val, true),
+      BackgroundRepeat(val) => property!("background-repeat", val, true),
+      BackgroundSize(val) => property!("background-size", val, true),
+      BackgroundAttachment(val) => property!("background-attachment", val, true),
+      BackgroundOrigin(val) => property!("background-origin", val, true),
+      BackgroundClip(val) => property!("background-clip", val, true),
+      Background(val) => property!("background", val, true),
       Color(color) => property!("color", color),
       Width(val) => property!("width", val),
       Height(val) => property!("height", val),

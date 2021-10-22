@@ -95,7 +95,7 @@ pub struct BorderImageSlice {
 impl Default for BorderImageSlice {
   fn default() -> BorderImageSlice {
     BorderImageSlice {
-      offsets: Rect::all(NumberOrPercentage::Percentage(Percentage(100.0))),
+      offsets: Rect::all(NumberOrPercentage::Percentage(Percentage(1.0))),
       fill: false
     }
   }

@@ -7,4 +7,4 @@ pub mod rect;
 pub mod color;
 pub mod traits;
 
-mod macros;
+pub mod macros;

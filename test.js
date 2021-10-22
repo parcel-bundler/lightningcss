@@ -6,9 +6,13 @@ css.transform({
 
 .foo + .bar:not(.baz) {
   background-color: blue;
-  background-image: url(img.png), url('test.jpg');
-  background-position-x: right 20px;
-  background-position-y: top 20px;
+  // background-image: url(img.png), url('test.jpg');
+  background: url(img.png), url(test.jpg) gray;
+  background-position-x: right 20px, 10px;
+  background-position-y: top 20px, 15px;
+  background-size: 50px 50px, auto;
+  background-repeat: repeat no-repeat, no-repeat;
+  // background: url("chess.png") 40% / 10em gray, url(img.png);
   color: blue;
   width: 250px;
   height: 50%;
@@ -43,8 +47,8 @@ css.transform({
 
   margin-left: 10px;
   margin-right: 10px;
-  margin-block-start: 15px;
-  margin-block-end: 15px;
+  // margin-block-start: 15px;
+  // margin-block-end: 15px;
   margin-top: 20px;
   margin-bottom: 20px;
 }

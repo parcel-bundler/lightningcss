@@ -8,6 +8,16 @@ impl CssColor {
   pub fn current_color() -> CssColor {
     CssColor(Color::CurrentColor)
   }
+
+  pub fn transparent() -> CssColor {
+    CssColor(Color::RGBA(RGBA::transparent()))
+  }
+}
+
+impl Default for CssColor {
+  fn default() -> CssColor {
+    CssColor::transparent()
+  }
 }
 
 impl Parse for CssColor {

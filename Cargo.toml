@@ -16,6 +16,7 @@ cssparser = "0.28.1"
 cssparser-macros = "*"
 selectors = "*"
 indoc = "*"
+itertools = "*"
 
 [build-dependencies]
 napi-build = { version = "1" }
