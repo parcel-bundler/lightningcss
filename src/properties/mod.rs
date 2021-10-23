@@ -14,6 +14,7 @@ use align::*;
 use crate::values::{image::*, length::*, border::*, border_image::*, border_radius::*, rect::*, color::*};
 use super::values::traits::{Parse, ToCss};
 use crate::printer::Printer;
+use std::fmt::Write;
 
 #[derive(Debug, Clone)]
 pub enum Property {
@@ -401,18 +402,18 @@ impl Property {
     macro_rules! property {
       ($prop: literal, $value: expr) => {{
         dest.write_str($prop)?;
-        dest.write_str(": ")?;
+        dest.delim(':', false)?;
         $value.to_css(dest)?;
         dest.write_str(";")
       }};
       ($prop: literal, $value: expr, $multi: expr) => {{
         dest.write_str($prop)?;
-        dest.write_str(": ")?;
+        dest.delim(':', false)?;
         let len = $value.len();
         for (idx, val) in $value.iter().enumerate() {
           val.to_css(dest)?;
           if idx < len - 1 {
-            dest.write_str(", ")?;
+            dest.delim(',', false)?;
           }
         }
         dest.write_str(";")?;

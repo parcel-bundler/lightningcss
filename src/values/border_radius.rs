@@ -38,7 +38,7 @@ impl ToCss for BorderRadius {
 
     widths.to_css(dest)?;
     if widths != heights {
-      dest.write_str(" / ")?;
+      dest.delim('/', true)?;
       heights.to_css(dest)?;
     }
 

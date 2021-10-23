@@ -22,7 +22,7 @@ pub trait ToCss {
   #[inline]
   fn to_css_string(&self) -> String {
       let mut s = String::new();
-      let mut printer = Printer::new(&mut s);
+      let mut printer = Printer::new(&mut s, false);
       self.to_css(&mut printer).unwrap();
       s
   }

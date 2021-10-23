@@ -7,6 +7,7 @@ use crate::properties::*;
 use crate::values::traits::PropertyHandler;
 use crate::printer::Printer;
 use crate::values::traits::ToCss;
+use std::fmt::Write;
 
 #[derive(Debug, Clone)]
 pub struct Selectors;
@@ -335,12 +336,17 @@ impl ToCss for MediaRule {
     dest.write_str("@media ")?;
     // serialize_string(&self.query, dest)?;
     // dest.write_str(";")
-    dest.write_str(" {")?;
+    // dest.write_str(" {")?;
+    dest.whitespace()?;
+    dest.write_char('{')?;
     for rule in self.rules.iter() {
-      dest.write_str("\n  ")?;
+      if !dest.minify {
+        dest.write_str("\n  ")?;
+      }
       rule.to_css(dest)?;
     }
-    dest.write_str("\n}")
+    dest.newline()?;
+    dest.write_char('}')
   }
 }
 
@@ -370,12 +376,16 @@ impl ToCss for StyleRule {
     // dest.write_str(&self.selectors)?;
     use crate::cssparser::ToCss;
     self.selectors.to_css(dest)?;
-    dest.write_str(" {")?;
+    dest.whitespace()?;
+    dest.write_char('{')?;
     for prop in self.declarations.iter() {
-      dest.write_str("\n  ")?;
+      if !dest.minify {
+        dest.write_str("\n  ")?;
+      }
       prop.to_css(dest)?;
     }
-    dest.write_str("\n}")
+    dest.newline()?;
+    dest.write_char('}')
   }
 }
 

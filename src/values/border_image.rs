@@ -217,14 +217,14 @@ impl ToCss for BorderImage {
       dest.write_str(" ")?;
       self.slice.to_css(dest)?;
       if has_width || has_outset {
-        dest.write_str(" / ")?;
+        dest.delim('/', true)?;
       }
       if has_width {
         self.width.to_css(dest)?;
       }
 
       if has_outset {
-        dest.write_str(" / ")?;
+        dest.delim('/', true)?;
         self.outset.to_css(dest)?;
       }
     }

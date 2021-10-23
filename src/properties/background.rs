@@ -418,7 +418,7 @@ impl ToCss for Background {
       self.position.to_css(dest)?;
 
       if self.size != BackgroundSize::default() {
-        dest.write_str(" / ")?;
+        dest.delim('/', true)?;
         self.size.to_css(dest)?;
       }
 

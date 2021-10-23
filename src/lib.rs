@@ -17,6 +17,8 @@ use napi::{CallContext, JsObject, JsUndefined};
 use serde::{Deserialize, Serialize};
 use cssparser::{Parser, ParserInput, RuleListParser};
 use values::traits::ToCss;
+use printer::Printer;
+use std::fmt::Write;
 
 use parser::TopLevelRuleParser;
 
@@ -53,7 +55,15 @@ fn compile(code: &str) -> String {
   //   println!("{:?}", declarations);
   // }
 
-  let res = rule_list.flatten().map(|(pos, rule)| {
+  let mut dest = String::new();
+  let mut printer = Printer::new(&mut dest, true);
+  let mut first = true;
+
+  for (pos, rule) in rule_list.flatten() {
+    if first {
+      printer.newline();
+      first = false;
+    }
     println!("{:?}", rule);
     let rule = match rule {
       parser::CssRule::Import(import) => {
@@ -87,10 +97,13 @@ fn compile(code: &str) -> String {
       },
       r => r
     };
-    rule.to_css_string()
-  }).collect::<Vec<String>>().join("\n\n");
+    rule.to_css(&mut printer);
+    if !printer.minify {
+      printer.newline();
+    }
+  }
 
-  res
+  dest
 }
 
 #[module_exports]
