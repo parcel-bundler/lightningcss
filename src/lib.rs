@@ -125,6 +125,11 @@ mod tests {
     assert_eq!(res, expected);
   }
 
+  fn minify_test(source: &str, expected: &str) {
+    let res = compile(source, true);
+    assert_eq!(res, expected);
+  }
+
   #[test]
   pub fn test_border() {
     test(r#"
@@ -326,6 +331,13 @@ mod tests {
         border-block: thin dotted red;
       }
     "#
+    });
+
+    minify_test(r#"
+      .foo {
+        border: none;
+      }
+    "#, indoc! {".foo{border:0;}"
     });
   }
 
@@ -658,6 +670,13 @@ mod tests {
         background: url(img.png) right 20px top 20px / 50px 50px repeat-x, gray url(test.jpg) 10px 15px no-repeat;
       }
     "#
+    });
+
+    minify_test(r#"
+      .foo {
+        background-position: center center;
+      }
+    "#, indoc! {".foo{background-position:50% 50%;}"
     });
   }
 

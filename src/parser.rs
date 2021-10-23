@@ -9,7 +9,7 @@ use crate::printer::Printer;
 use crate::values::traits::ToCss;
 use std::fmt::Write;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Selectors;
 
 #[derive(Eq, PartialEq, Clone)]
@@ -325,7 +325,7 @@ impl<'a, 'i> QualifiedRuleParser<'i> for TopLevelRuleParser {
 struct NestedRuleParser {
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct MediaRule {
   query: MediaList,
   rules: Vec<CssRule>
@@ -350,7 +350,7 @@ impl ToCss for MediaRule {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ImportRule {
   pub url: String,
   pub media: MediaList
@@ -365,7 +365,7 @@ impl ToCss for ImportRule {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct StyleRule {
   pub selectors: SelectorList<Selectors>,
   pub declarations: Vec<Property>
@@ -435,7 +435,7 @@ impl StyleRule {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum CssRule {
   Media(MediaRule),
   Import(ImportRule),

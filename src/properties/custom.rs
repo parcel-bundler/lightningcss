@@ -1,6 +1,6 @@
 use cssparser::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CustomProperty {
   pub name: String,
   pub value: String

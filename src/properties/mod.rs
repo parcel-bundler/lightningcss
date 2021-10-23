@@ -16,7 +16,7 @@ use super::values::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use std::fmt::Write;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Property {
   BackgroundColor(CssColor),
   BackgroundImage(Vec<Image>),

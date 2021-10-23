@@ -1,7 +1,7 @@
 use cssparser::*;
 
 /// A type that encapsulates a media query list.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct MediaList {
     /// The list of media queries.
     pub media_queries: Vec<MediaQuery>,
@@ -51,7 +51,7 @@ impl MediaList {
 }
 
 /// <https://drafts.csswg.org/mediaqueries/#mq-prefix>
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Qualifier {
     /// Hide a media query from legacy UAs:
     /// <https://drafts.csswg.org/mediaqueries/#mq-only>
@@ -78,7 +78,7 @@ impl Qualifier {
 }
 
 /// <http://dev.w3.org/csswg/mediaqueries-3/#media0>
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum MediaType {
     /// A media type that matches every device.
     All,
@@ -102,7 +102,7 @@ impl MediaType {
 /// A [media query][mq].
 ///
 /// [mq]: https://drafts.csswg.org/mediaqueries/
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct MediaQuery {
     /// The qualifier for this query.
     pub qualifier: Option<Qualifier>,
