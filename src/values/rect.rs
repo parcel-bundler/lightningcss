@@ -1,5 +1,6 @@
 use cssparser::*;
 use super::traits::{Parse, ToCss};
+use crate::printer::Printer;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Rect<T>(pub T, pub T, pub T, pub T);
@@ -70,7 +71,7 @@ impl<T> ToCss for Rect<T>
 where
   T: PartialEq + ToCss
 {
-    fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+    fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
         self.0.to_css(dest)?;
         let same_vertical = self.0 == self.2;
         let same_horizontal = self.1 == self.3;

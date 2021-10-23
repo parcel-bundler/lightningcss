@@ -5,6 +5,7 @@ use crate::properties::Property;
 use super::rect::Rect;
 use super::image::Image;
 use super::macros::*;
+use crate::printer::Printer;
 
 // https://www.w3.org/TR/css-backgrounds-3/#border-image-repeat
 enum_property!(BorderImageRepeatKeyword,
@@ -32,7 +33,7 @@ impl Parse for BorderImageRepeat {
 }
 
 impl ToCss for BorderImageRepeat {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     self.0.to_css(dest)?;
     if self.0 != self.1 {
       dest.write_str(" ")?;
@@ -75,7 +76,7 @@ impl Parse for BorderImageSideWidth {
 }
 
 impl ToCss for BorderImageSideWidth {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     use BorderImageSideWidth::*;
     match self {
       Auto => dest.write_str("auto"),
@@ -116,7 +117,7 @@ impl Parse for BorderImageSlice {
 }
 
 impl ToCss for BorderImageSlice {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     self.offsets.to_css(dest)?;
     if self.fill {
       dest.write_str(" fill")?;
@@ -205,7 +206,7 @@ impl Parse for BorderImage {
 }
 
 impl ToCss for BorderImage {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     if self.source != Image::default() {
       self.source.to_css(dest)?;
     }

@@ -3,6 +3,7 @@ use crate::values::macros::*;
 use crate::values::length::{LengthPercentageOrAuto, LengthPercentage, Length, Percentage};
 use crate::values::traits::{Parse, ToCss, PropertyHandler};
 use super::Property;
+use crate::printer::Printer;
 
 // https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#propdef-flex-direction
 enum_property!(FlexDirection,
@@ -66,7 +67,7 @@ impl Parse for FlexFlow {
 }
 
 impl ToCss for FlexFlow {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     let mut needs_space = false;
     if self.direction != FlexDirection::default() || self.wrap == FlexWrap::default() {
       self.direction.to_css(dest)?;
@@ -133,7 +134,7 @@ impl Parse for Flex {
 }
 
 impl ToCss for Flex {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     if self.grow == 0.0 && self.shrink == 0.0 && self.basis == LengthPercentageOrAuto::Auto {
       dest.write_str("none")?;
       return Ok(())

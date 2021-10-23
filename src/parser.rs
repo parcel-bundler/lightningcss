@@ -5,6 +5,8 @@ use std::cell::RefCell;
 use crate::media_query::*;
 use crate::properties::*;
 use crate::values::traits::PropertyHandler;
+use crate::printer::Printer;
+use crate::values::traits::ToCss;
 
 #[derive(Debug, Clone)]
 pub struct Selectors;
@@ -18,7 +20,7 @@ impl CssString {
   }
 }
 
-impl ToCss for CssString {
+impl cssparser::ToCss for CssString {
   fn to_css<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
     dest.write_str(self.0.borrow().as_ref())
   }
@@ -82,7 +84,7 @@ impl selectors::parser::NonTSPseudoClass for PseudoClass {
   }
 }
 
-impl ToCss for PseudoClass {
+impl cssparser::ToCss for PseudoClass {
   fn to_css<W>(&self, dest: &mut W) -> fmt::Result
   where
       W: fmt::Write,
@@ -94,13 +96,13 @@ impl ToCss for PseudoClass {
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub enum PseudoElement {}
 
-impl ToCss for PseudoElement {
-    fn to_css<W>(&self, _dest: &mut W) -> fmt::Result
-    where
-        W: fmt::Write,
-    {
-        match *self {}
-    }
+impl cssparser::ToCss for PseudoElement {
+  fn to_css<W>(&self, _dest: &mut W) -> fmt::Result
+  where
+      W: fmt::Write,
+  {
+      match *self {}
+  }
 }
 
 impl selectors::parser::PseudoElement for PseudoElement {
@@ -329,7 +331,7 @@ pub struct MediaRule {
 }
 
 impl ToCss for MediaRule {
-  fn to_css<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
     dest.write_str("@media ")?;
     // serialize_string(&self.query, dest)?;
     // dest.write_str(";")
@@ -349,7 +351,7 @@ pub struct ImportRule {
 }
 
 impl ToCss for ImportRule {
-  fn to_css<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
     dest.write_str("@import ")?;
     serialize_string(&self.url, dest)?;
     // dest.write_str(&self.media)?;
@@ -364,8 +366,9 @@ pub struct StyleRule {
 }
 
 impl ToCss for StyleRule {
-  fn to_css<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
     // dest.write_str(&self.selectors)?;
+    use crate::cssparser::ToCss;
     self.selectors.to_css(dest)?;
     dest.write_str(" {")?;
     for prop in self.declarations.iter() {
@@ -430,7 +433,7 @@ pub enum CssRule {
 }
 
 impl ToCss for CssRule {
-  fn to_css<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
     match self {
       CssRule::Media(media) => media.to_css(dest),
       CssRule::Import(import) => import.to_css(dest),

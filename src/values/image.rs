@@ -1,5 +1,6 @@
 use cssparser::*;
 use super::traits::{Parse, ToCss};
+use crate::printer::Printer;
 
 /// https://www.w3.org/TR/css-images-3/#typedef-image
 #[derive(Debug, Clone, PartialEq)]
@@ -31,7 +32,7 @@ impl Parse for Image {
 }
 
 impl ToCss for Image {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     use Image::*;
     use cssparser::ToCss;
     match self {

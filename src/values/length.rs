@@ -1,6 +1,7 @@
 use cssparser::*;
 use super::traits::{Parse, ToCss};
 use super::macros::enum_property;
+use crate::printer::Printer;
 
 /// https://drafts.csswg.org/css-sizing-3/#specifying-sizes
 
@@ -41,7 +42,7 @@ impl Parse for Size {
 }
 
 impl ToCss for Size {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     use Size::*;
     match self {
       Auto => dest.write_str("auto"),
@@ -70,7 +71,7 @@ impl<T> Parse for Size2D<T> where T: Parse + Clone {
 }
 
 impl<T> ToCss for Size2D<T> where T: ToCss + PartialEq {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     self.0.to_css(dest)?;
     if self.1 != self.0 {
       dest.write_str(" ")?;
@@ -118,7 +119,7 @@ impl Parse for MinMaxSize {
 }
 
 impl ToCss for MinMaxSize {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     use MinMaxSize::*;
     match self {
       None => dest.write_str("none"),
@@ -158,7 +159,7 @@ impl Parse for LengthPercentage {
 }
 
 impl ToCss for LengthPercentage {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     match self {
       LengthPercentage::Length(length) => length.to_css(dest),
       LengthPercentage::Percentage(percent) => percent.to_css(dest)
@@ -188,7 +189,7 @@ impl Parse for LengthPercentageOrAuto {
 }
 
 impl ToCss for LengthPercentageOrAuto {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     use LengthPercentageOrAuto::*;
     match self {
       Auto => dest.write_str("auto"),
@@ -295,7 +296,7 @@ impl Parse for Length {
 }
 
 impl ToCss for Length {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     use cssparser::ToCss;
     let int_value = if self.value.fract() == 0.0 {
       Some(self.value as i32)
@@ -324,7 +325,7 @@ impl Parse for Percentage {
 }
 
 impl ToCss for Percentage {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     use cssparser::ToCss;
     let int_value = if (self.0 * 100.0).fract() == 0.0 {
       Some(self.0 as i32)
@@ -367,7 +368,7 @@ impl Parse for LengthOrNumber {
 }
 
 impl ToCss for LengthOrNumber {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     match self {
       LengthOrNumber::Length(length) => length.to_css(dest),
       LengthOrNumber::Number(number) => serialize_number(*number, dest)
@@ -386,7 +387,7 @@ impl Parse for f32 {
 }
 
 impl ToCss for f32 {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     serialize_number(*self, dest)
   }
 }
@@ -412,7 +413,7 @@ impl Parse for NumberOrPercentage {
 }
 
 impl ToCss for NumberOrPercentage {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     match self {
       NumberOrPercentage::Percentage(percent) => percent.to_css(dest),
       NumberOrPercentage::Number(number) => serialize_number(*number, dest)
@@ -420,7 +421,7 @@ impl ToCss for NumberOrPercentage {
   }
 }
 
-pub fn serialize_number<W>(number: f32, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+pub fn serialize_number<W>(number: f32, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
   use cssparser::ToCss;
   let int_value = if number.fract() == 0.0 {
     Some(number as i32)
@@ -462,7 +463,7 @@ impl<S: Parse> Parse for Position<S> {
 }
 
 impl<S: ToCss> ToCss for Position<S> {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     use Position::*;
     match &self {
       // TODO: 50% is shorter

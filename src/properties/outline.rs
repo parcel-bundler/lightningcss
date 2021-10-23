@@ -3,6 +3,7 @@ use crate::values::border::{BorderStyle, GenericBorder, BorderSideWidth};
 use crate::values::traits::{Parse, ToCss, PropertyHandler};
 use crate::values::color::CssColor;
 use super::Property;
+use crate::printer::Printer;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum OutlineStyle {
@@ -22,7 +23,7 @@ impl Parse for OutlineStyle {
 }
 
 impl ToCss for OutlineStyle {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     match self {
       OutlineStyle::Auto => dest.write_str("auto"),
       OutlineStyle::BorderStyle(border_style) => border_style.to_css(dest)

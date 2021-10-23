@@ -13,6 +13,7 @@ use flex::*;
 use align::*;
 use crate::values::{image::*, length::*, border::*, border_image::*, border_radius::*, rect::*, color::*};
 use super::values::traits::{Parse, ToCss};
+use crate::printer::Printer;
 
 #[derive(Debug, Clone)]
 pub enum Property {
@@ -394,7 +395,7 @@ impl Property {
     return Ok(Property::Custom(CustomProperty::parse(name, input)?))
   }
 
-  pub fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  pub fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     use Property::*;
 
     macro_rules! property {

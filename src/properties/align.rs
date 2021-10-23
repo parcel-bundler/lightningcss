@@ -3,6 +3,7 @@ use crate::values::macros::*;
 use crate::values::length::{LengthPercentageOrAuto, LengthPercentage, Length, Percentage};
 use crate::values::traits::{Parse, ToCss, PropertyHandler};
 use super::Property;
+use crate::printer::Printer;
 
 /// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#typedef-baseline-position
 #[derive(Debug, Clone, PartialEq)]
@@ -33,7 +34,7 @@ impl Parse for BaselinePosition {
 }
 
 impl ToCss for BaselinePosition {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     match self {
       BaselinePosition::First => dest.write_str("baseline"),
       BaselinePosition::Last => dest.write_str("last baseline")
@@ -94,7 +95,7 @@ impl Parse for AlignContent {
 }
 
 impl ToCss for AlignContent {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     match self {
       AlignContent::Normal => dest.write_str("normal"),
       AlignContent::BaselinePosition(val) => val.to_css(dest),
@@ -149,7 +150,7 @@ impl Parse for JustifyContent {
 }
 
 impl ToCss for JustifyContent {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     match self {
       JustifyContent::Normal => dest.write_str("normal"),
       JustifyContent::ContentDistribution(val) => val.to_css(dest),
@@ -211,7 +212,7 @@ impl Parse for PlaceContent {
 }
 
 impl ToCss for PlaceContent {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     self.align.to_css(dest)?;
     let is_equal = match self.justify {
       JustifyContent::Normal if self.align == AlignContent::Normal => true,
@@ -275,7 +276,7 @@ impl Parse for AlignSelf {
 }
 
 impl ToCss for AlignSelf {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     match self {
       AlignSelf::Auto => dest.write_str("auto"),
       AlignSelf::Normal => dest.write_str("normal"),
@@ -341,7 +342,7 @@ impl Parse for JustifySelf {
 }
 
 impl ToCss for JustifySelf {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     match self {
       JustifySelf::Auto => dest.write_str("auto"),
       JustifySelf::Normal => dest.write_str("normal"),
@@ -404,7 +405,7 @@ impl Parse for PlaceSelf {
 }
 
 impl ToCss for PlaceSelf {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     self.align.to_css(dest)?;
     let is_equal = match &self.justify {
       JustifySelf::Auto => true,
@@ -454,7 +455,7 @@ impl Parse for AlignItems {
 }
 
 impl ToCss for AlignItems {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     match self {
       AlignItems::Normal => dest.write_str("normal"),
       AlignItems::Stretch => dest.write_str("stretch"),
@@ -515,7 +516,7 @@ impl Parse for LegacyJustify {
 }
 
 impl ToCss for LegacyJustify {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     dest.write_str("legacy ")?;
     match self {
       LegacyJustify::Left => dest.write_str("left"),
@@ -573,7 +574,7 @@ impl Parse for JustifyItems {
 }
 
 impl ToCss for JustifyItems {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     match self {
       JustifyItems::Normal => dest.write_str("normal"),
       JustifyItems::Stretch => dest.write_str("stretch"),
@@ -635,7 +636,7 @@ impl Parse for PlaceItems {
 }
 
 impl ToCss for PlaceItems {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     self.align.to_css(dest)?;
     let is_equal = match &self.justify {
       JustifyItems::Normal => self.align == AlignItems::Normal,
@@ -673,7 +674,7 @@ impl Parse for GapValue {
 }
 
 impl ToCss for GapValue {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     match self {
       GapValue::Normal => dest.write_str("normal"),
       GapValue::LengthPercentage(lp) => lp.to_css(dest)
@@ -697,7 +698,7 @@ impl Parse for Gap {
 }
 
 impl ToCss for Gap {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     self.row.to_css(dest)?;
     if self.column != self.row {
       dest.write_str(" ")?;

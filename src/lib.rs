@@ -11,10 +11,12 @@ mod parser;
 mod media_query;
 mod properties;
 mod values;
+mod printer;
 
 use napi::{CallContext, JsObject, JsUndefined};
 use serde::{Deserialize, Serialize};
-use cssparser::{Parser, ParserInput, RuleListParser, ToCss};
+use cssparser::{Parser, ParserInput, RuleListParser};
+use values::traits::ToCss;
 
 use parser::TopLevelRuleParser;
 

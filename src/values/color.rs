@@ -1,5 +1,7 @@
 use cssparser::*;
 use super::traits::{Parse, ToCss};
+use crate::printer::Printer;
+use std::fmt::Write;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CssColor(Color);
@@ -29,7 +31,7 @@ impl Parse for CssColor {
 }
 
 impl ToCss for CssColor {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     match self.0 {
       Color::CurrentColor => dest.write_str("currentColor"),
       Color::RGBA(color) => {

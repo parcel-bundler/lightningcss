@@ -3,6 +3,7 @@ use cssparser::*;
 use super::traits::{Parse, ToCss, PropertyHandler};
 use crate::properties::Property;
 use super::rect::Rect;
+use crate::printer::Printer;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BorderRadius {
@@ -31,7 +32,7 @@ impl Parse for BorderRadius {
 }
 
 impl ToCss for BorderRadius {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     let widths = Rect::new(&self.top_left.0, &self.top_right.0, &self.bottom_left.0, &self.bottom_right.0);
     let heights = Rect::new(&self.top_left.1, &self.top_right.1, &self.bottom_left.1, &self.bottom_right.1);
 
