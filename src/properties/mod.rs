@@ -2,11 +2,15 @@ mod custom;
 pub mod margin_padding;
 pub mod background;
 pub mod outline;
+pub mod flex;
+pub mod align;
 
 use cssparser::*;
 use custom::*;
 use background::*;
 use outline::*;
+use flex::*;
+use align::*;
 use crate::values::{image::*, length::*, border::*, border_image::*, border_radius::*, rect::*, color::*};
 use super::values::traits::{Parse, ToCss};
 
@@ -129,6 +133,29 @@ pub enum Property {
   OutlineStyle(OutlineStyle),
   OutlineWidth(BorderSideWidth),
 
+  // Flex properties: https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119
+  FlexDirection(FlexDirection),
+  FlexWrap(FlexWrap),
+  FlexFlow(FlexFlow),
+  FlexGrow(f32),
+  FlexShrink(f32),
+  FlexBasis(LengthPercentageOrAuto),
+  Flex(Flex),
+
+  // Align properties: https://www.w3.org/TR/2020/WD-css-align-3-20200421
+  AlignContent(AlignContent),
+  JustifyContent(JustifyContent),
+  PlaceContent(PlaceContent),
+  AlignSelf(AlignSelf),
+  JustifySelf(JustifySelf),
+  PlaceSelf(PlaceSelf),
+  AlignItems(AlignItems),
+  JustifyItems(JustifyItems),
+  PlaceItems(PlaceItems),
+  RowGap(GapValue),
+  ColumnGap(GapValue),
+  Gap(Gap),
+
   MarginTop(LengthPercentageOrAuto),
   MarginBottom(LengthPercentageOrAuto),
   MarginLeft(LengthPercentageOrAuto),
@@ -178,7 +205,7 @@ pub enum Property {
   ScrollPadding(Rect<LengthPercentageOrAuto>),
 
   // shorthands: transitions, animations, columns, font, font-variant, list-style
-  // flex, grid, gap, place-items, place-self, inset
+  // grid, inset
 }
 
 impl Property {
@@ -293,6 +320,29 @@ impl Property {
       "outline-color" => property!(OutlineColor, CssColor),
       "outline-style" => property!(OutlineStyle, OutlineStyle),
       "outline-width" => property!(OutlineWidth, BorderSideWidth),
+      "flex-direction" => property!(FlexDirection, FlexDirection),
+      "flex-wrap" => property!(FlexWrap, FlexWrap),
+      "flex-flow" => property!(FlexFlow, FlexFlow),
+      "flex-grow" => property!(FlexGrow, f32),
+      "flex-shrink" => property!(FlexShrink, f32),
+      "flex-basis" => property!(FlexBasis, LengthPercentageOrAuto),
+      "flex" => property!(Flex, Flex),
+      "align-content" => property!(AlignContent, AlignContent),
+      "justify-content" => property!(JustifyContent, JustifyContent),
+      "place-content" => property!(PlaceContent, PlaceContent),
+      "align-self" => property!(AlignSelf, AlignSelf),
+      "justify-self" => property!(JustifySelf, JustifySelf),
+      "place-self" => property!(PlaceSelf, PlaceSelf),
+      "align-items" => property!(AlignItems, AlignItems),
+      "justify-items" => property!(JustifyItems, JustifyItems),
+      "place-items" => property!(PlaceItems, PlaceItems),
+      "row-gap" => property!(RowGap, GapValue),
+      "column-gap" => property!(ColumnGap, GapValue),
+      "gap" => property!(Gap, Gap),
+      // https://www.w3.org/TR/2020/WD-css-align-3-20200421/#gap-legacy
+      "grid-row-gap" => property!(RowGap, GapValue),
+      "grid-column-gap" => property!(ColumnGap, GapValue),
+      "grid-gap" => property!(Gap, Gap),
       "margin-left" => property!(MarginLeft, LengthPercentageOrAuto),
       "margin-right" => property!(MarginRight, LengthPercentageOrAuto),
       "margin-top" => property!(MarginTop, LengthPercentageOrAuto),
@@ -465,6 +515,25 @@ impl Property {
       OutlineColor(val) => property!("outline-color", val),
       OutlineStyle(val) => property!("outline-style", val),
       OutlineWidth(val) => property!("outline-width", val),
+      FlexDirection(val) => property!("flex-direction", val),
+      FlexWrap(val) => property!("flex-wrap", val),
+      FlexFlow(val) => property!("flex-flow", val),
+      FlexGrow(val) => property!("flex-grow", val),
+      FlexShrink(val) => property!("flex-shrink", val),
+      FlexBasis(val) => property!("flex-basis", val),
+      Flex(val) => property!("flex", val),
+      AlignContent(val) => property!("align-content", val),
+      JustifyContent(val) => property!("justify-content", val),
+      PlaceContent(val) => property!("place-content", val),
+      AlignSelf(val) => property!("align-self", val),
+      JustifySelf(val) => property!("justify-self", val),
+      PlaceSelf(val) => property!("place-self", val),
+      AlignItems(val) => property!("align-items", val),
+      JustifyItems(val) => property!("justify-items", val),
+      PlaceItems(val) => property!("place-items", val),
+      RowGap(val) => property!("row-gap", val),
+      ColumnGap(val) => property!("column-gap", val),
+      Gap(val) => property!("gap", val),
       MarginLeft(val) => property!("margin-left", val),
       MarginRight(val) => property!("margin-right", val),
       MarginTop(val) => property!("margin-top", val),

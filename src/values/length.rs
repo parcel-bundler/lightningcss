@@ -265,8 +265,8 @@ impl Unit {
 /// https://drafts.csswg.org/css-values-4/#lengths
 #[derive(Debug, Clone, PartialEq)]
 pub struct Length {
-  value: f32,
-  unit: Unit
+  pub value: f32,
+  pub unit: Unit
 }
 
 impl Parse for Length {
@@ -372,6 +372,22 @@ impl ToCss for LengthOrNumber {
       LengthOrNumber::Length(length) => length.to_css(dest),
       LengthOrNumber::Number(number) => serialize_number(*number, dest)
     }
+  }
+}
+
+impl Parse for f32 {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    if let Ok(number) = input.try_parse(|input| input.expect_number()) {
+      return Ok(number)
+    }
+
+    Err(input.new_error_for_next_token())
+  }
+}
+
+impl ToCss for f32 {
+  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+    serialize_number(*self, dest)
   }
 }
 

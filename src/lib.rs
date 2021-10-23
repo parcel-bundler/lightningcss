@@ -607,4 +607,251 @@ mod tests {
       }"#
     });
   }
+
+  #[test]
+  pub fn test_flex() {
+    test(r#"
+      .foo {
+        flex-direction: column;
+        flex-wrap: wrap;
+      }
+    "#, indoc! {r#"
+      .foo {
+        flex-flow: column wrap;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+    "#, indoc! {r#"
+      .foo {
+        flex-flow: wrap;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        flex-direction: row;
+        flex-wrap: nowrap;
+      }
+    "#, indoc! {r#"
+      .foo {
+        flex-flow: row;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        flex-direction: column;
+        flex-wrap: nowrap;
+      }
+    "#, indoc! {r#"
+      .foo {
+        flex-flow: column;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        flex-grow: 1;
+        flex-shrink: 1;
+        flex-basis: 0%;
+      }
+    "#, indoc! {r#"
+      .foo {
+        flex: 1;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        flex-grow: 1;
+        flex-shrink: 0;
+        flex-basis: 0%;
+      }
+    "#, indoc! {r#"
+      .foo {
+        flex: 1 0;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        flex-grow: 1;
+        flex-shrink: 0;
+        flex-basis: auto;
+      }
+    "#, indoc! {r#"
+      .foo {
+        flex: 1 0 auto;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        flex-grow: 1;
+        flex-shrink: 1;
+        flex-basis: auto;
+      }
+    "#, indoc! {r#"
+      .foo {
+        flex: auto;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        flex: 0 0;
+        flex-grow: 1;
+      }
+    "#, indoc! {r#"
+      .foo {
+        flex: 1 0;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        align-content: center;
+        justify-content: center;
+      }
+    "#, indoc! {r#"
+      .foo {
+        place-content: center;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        align-content: first baseline;
+        justify-content: safe right;
+      }
+    "#, indoc! {r#"
+      .foo {
+        place-content: baseline safe right;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        place-content: first baseline unsafe left;
+      }
+    "#, indoc! {r#"
+      .foo {
+        place-content: baseline unsafe left;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        place-content: center center;
+      }
+    "#, indoc! {r#"
+      .foo {
+        place-content: center;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        align-self: center;
+        justify-self: center;
+      }
+    "#, indoc! {r#"
+      .foo {
+        place-self: center;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        align-self: center;
+        justify-self: unsafe left;
+      }
+    "#, indoc! {r#"
+      .foo {
+        place-self: center unsafe left;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        align-items: center;
+        justify-items: center;
+      }
+    "#, indoc! {r#"
+      .foo {
+        place-items: center;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        align-items: center;
+        justify-items: legacy left;
+      }
+    "#, indoc! {r#"
+      .foo {
+        place-items: center legacy left;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        row-gap: 10px;
+        column-gap: 20px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        gap: 10px 20px;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        row-gap: 10px;
+        column-gap: 10px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        gap: 10px;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        gap: 10px;
+        column-gap: 20px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        gap: 10px 20px;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        column-gap: 20px;
+        gap: 10px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        gap: 10px;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        row-gap: normal;
+        column-gap: 20px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        gap: normal 20px;
+      }"#
+    });
+  }
 }

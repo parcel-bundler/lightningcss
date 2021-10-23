@@ -379,13 +379,15 @@ impl ToCss for StyleRule {
 impl StyleRule {
   pub fn minify(&mut self) {
     use crate::values::border::*;
-    use crate::properties::{margin_padding::*, outline::*};
+    use crate::properties::{margin_padding::*, outline::*, flex::*, align::*};
     use crate::properties::background::BackgroundHandler;
 
     // TODO: somehow macro-ify this
     let mut background_handler = BackgroundHandler::default();
     let mut border_handler = BorderHandler::default();
     let mut outline_handler = OutlineHandler::default();
+    let mut flex_handler = FlexHandler::default();
+    let mut align_handler = AlignHandler::default();
     let mut margin_handler = MarginHandler::default();
     let mut padding_handler = PaddingHandler::default();
     let mut scroll_margin_handler = MarginHandler::default();
@@ -396,6 +398,8 @@ impl StyleRule {
       if !background_handler.handle_property(decl) &&
         !border_handler.handle_property(decl) && 
         !outline_handler.handle_property(decl) &&
+        !flex_handler.handle_property(decl) &&
+        !align_handler.handle_property(decl) &&
         !margin_handler.handle_property(decl) && 
         !padding_handler.handle_property(decl) &&
         !scroll_margin_handler.handle_property(decl) && 
@@ -408,6 +412,8 @@ impl StyleRule {
     decls.extend(background_handler.finalize());
     decls.extend(border_handler.finalize());
     decls.extend(outline_handler.finalize());
+    decls.extend(flex_handler.finalize());
+    decls.extend(align_handler.finalize());
     decls.extend(margin_handler.finalize());
     decls.extend(padding_handler.finalize());
     decls.extend(scroll_margin_handler.finalize());

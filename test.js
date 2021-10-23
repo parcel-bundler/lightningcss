@@ -55,6 +55,25 @@ css.transform({
   // margin-block-end: 15px;
   margin-top: 20px;
   margin-bottom: 20px;
+
+  flex-direction: row;
+  flex-wrap: wrap;
+
+  flex-grow: 1;
+  flex-shrink: 1;
+  flex-basis: 0%;
+
+  align-content: center;
+  justify-content: center;
+
+  align-self: center;
+  justify-self: center;
+
+  align-items: center;
+  justify-items: center;
+
+  row-gap: 10px;
+  column-gap: 20px;
 }
 
 // .hi {}
