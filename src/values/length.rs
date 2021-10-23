@@ -433,6 +433,7 @@ pub fn serialize_number<W>(number: f32, dest: &mut Printer<W>) -> std::fmt::Resu
     value: number,
     int_value
   };
+  // TODO: remove decimal point if not needed...
   tok.to_css(dest)
 }
 
@@ -466,8 +467,13 @@ impl<S: ToCss> ToCss for Position<S> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     use Position::*;
     match &self {
-      // TODO: 50% is shorter
-      Center => dest.write_str("center"),
+      Center => {
+        if dest.minify {
+          dest.write_str("50%")
+        } else {
+          dest.write_str("center")
+        }
+      }
       Length(lp) => lp.to_css(dest),
       Side(s, lp) => {
         s.to_css(dest)?;

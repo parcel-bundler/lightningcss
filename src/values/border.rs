@@ -8,6 +8,7 @@ use super::macros::*;
 use super::border_image::*;
 use super::border_radius::*;
 use crate::printer::Printer;
+use std::fmt::Write;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BorderSideWidth {
@@ -134,6 +135,16 @@ impl<S: Parse + Default> Parse for GenericBorder<S> {
 
 impl<S: ToCss + Default + PartialEq> ToCss for GenericBorder<S> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    // Assume the default is 'none'
+    if self.style == S::default() {
+      if dest.minify {
+        dest.write_char('0')?;
+      } else {
+        self.style.to_css(dest)?;
+      }
+      return Ok(())
+    }
+
     if self.width != BorderSideWidth::default() {
       self.width.to_css(dest)?;
       dest.write_str(" ")?;

@@ -40,13 +40,13 @@ fn transform(ctx: CallContext) -> napi::Result<JsUndefined> {
   //   println!("{:?}", declarations);
   // }
 
-  let res = compile(code);
+  let res = compile(code, true);
   println!("{}", res);
 
   ctx.env.get_undefined()
 }
 
-fn compile(code: &str) -> String {
+fn compile(code: &str, minify: bool) -> String {
   let mut input = ParserInput::new(&code);
   let mut parser = Parser::new(&mut input);
   let rule_list = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser {});
@@ -56,13 +56,14 @@ fn compile(code: &str) -> String {
   // }
 
   let mut dest = String::new();
-  let mut printer = Printer::new(&mut dest, true);
+  let mut printer = Printer::new(&mut dest, minify);
   let mut first = true;
 
   for (pos, rule) in rule_list.flatten() {
     if first {
-      printer.newline();
       first = false;
+    } else {
+      printer.newline();
     }
     println!("{:?}", rule);
     let rule = match rule {
@@ -120,7 +121,7 @@ mod tests {
   use self::indoc::indoc;
 
   fn test(source: &str, expected: &str) {
-    let res = compile(source);
+    let res = compile(source, false);
     assert_eq!(res, expected);
   }
 
@@ -135,8 +136,9 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border: 2px solid #f00;
-      }"#
+        border: 2px solid red;
+      }
+    "#
     });
 
     test(r#"
@@ -148,8 +150,9 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border-color: #f00;
-      }"#
+        border-color: red;
+      }
+    "#
     });
 
     test(r#"
@@ -162,7 +165,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         border-width: thin;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -175,7 +179,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         border-style: dotted;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -186,8 +191,9 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border-left: thin dotted #f00;
-      }"#
+        border-left: thin dotted red;
+      }
+    "#
     });
 
     test(r#"
@@ -197,8 +203,9 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border-left: thin dotted #f00;
-      }"#
+        border-left: thin dotted red;
+      }
+    "#
     });
 
     test(r#"
@@ -208,8 +215,9 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border: thin dotted #f00;
-      }"#
+        border: thin dotted red;
+      }
+    "#
     });
 
     test(r#"
@@ -219,9 +227,10 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border: thin dotted #f00;
+        border: thin dotted red;
         border-right-width: thick;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -231,9 +240,10 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border: thin dotted #f00;
+        border: thin dotted red;
         border-right-width: thick;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -244,9 +254,10 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border: thin dotted #f00;
-        border-right: thick solid #f00;
-      }"#
+        border: thin dotted red;
+        border-right: thick solid red;
+      }
+    "#
     });
 
     test(r#"
@@ -256,9 +267,10 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border-top: thin dotted #f00;
-        border-block-start: thick solid #008000;
-      }"#
+        border-top: thin dotted red;
+        border-block-start: thick solid green;
+      }
+    "#
     });
 
     test(r#"
@@ -269,10 +281,11 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border: thin dotted #f00;
+        border: thin dotted red;
         border-block-start-width: thick;
         border-left-width: medium;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -282,9 +295,10 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border-block-start: thin dotted #f00;
-        border-inline-end: thin dotted #f00;
-      }"#
+        border-block-start: thin dotted red;
+        border-inline-end: thin dotted red;
+      }
+    "#
     });
 
     test(r#"
@@ -292,13 +306,14 @@ mod tests {
         border-block-start-width: thin;
         border-block-start-style: dotted;
         border-block-start-color: red;
-        border-inline-end: thin dotted #f00;
+        border-inline-end: thin dotted red;
       }
     "#, indoc! {r#"
       .foo {
-        border-block-start: thin dotted #f00;
-        border-inline-end: thin dotted #f00;
-      }"#
+        border-block-start: thin dotted red;
+        border-inline-end: thin dotted red;
+      }
+    "#
     });
 
     test(r#"
@@ -308,8 +323,9 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border-block: thin dotted #f00;
-      }"#
+        border-block: thin dotted red;
+      }
+    "#
     });
   }
 
@@ -322,7 +338,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         border-image: url(test.png) 60;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -333,7 +350,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         border-image: url(foo.png) 60;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -347,7 +365,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         border-image: url(foo.png) 10 40 fill / 10px round;
-      }"#
+      }
+    "#
     });
   }
 
@@ -360,7 +379,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         border-radius: 10px 100px;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -370,7 +390,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         border-radius: 10px 100px / 120px;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -383,7 +404,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         border-radius: 10px 100px / 120px;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -395,7 +417,8 @@ mod tests {
       .foo {
         border-radius: 10px 100px / 120px;
         border-start-start-radius: 10px;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -406,7 +429,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         border-radius: 10px 100px / 120px;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -424,7 +448,8 @@ mod tests {
         border-start-start-radius: 10px;
         border-bottom-left-radius: 10px 120px;
         border-bottom-right-radius: 100px 120px;
-      }"#
+      }
+    "#
     });
   }
 
@@ -439,7 +464,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         outline: 2px solid #00f;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -449,7 +475,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         outline: 2px solid #00f;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -460,7 +487,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         outline: 2px solid #00f;
-      }"#
+      }
+    "#
     });
   }
 
@@ -476,7 +504,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         margin: 20px 10px;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -487,7 +516,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         margin-block: 15px;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -507,7 +537,8 @@ mod tests {
         margin-inline: 15px;
         margin-top: 20px;
         margin-bottom: 20px;
-      }"#
+      }
+    "#
     });
   }
 
@@ -523,7 +554,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         padding: 20px 10px;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -534,7 +566,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         padding-block: 15px;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -554,7 +587,8 @@ mod tests {
         padding-inline: 15px;
         padding-top: 20px;
         padding-bottom: 20px;
-      }"#
+      }
+    "#
     });
   }
 
@@ -571,7 +605,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         background: url(img.png) 20px 10px / 50px 100px repeat-x;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -587,8 +622,9 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        background: #f00;
-      }"#
+        background: red;
+      }
+    "#
     });
 
     test(r#"
@@ -604,8 +640,9 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        background: #808080 url(chess.png) 40% / 10em round fixed border-box;
-      }"#
+        background: gray url(chess.png) 40% / 10em round fixed border-box;
+      }
+    "#
     });
 
     test(r#"
@@ -618,8 +655,9 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        background: url(img.png) right 20px top 20px / 50px 50px repeat-x, #808080 url(test.jpg) 10px 15px no-repeat;
-      }"#
+        background: url(img.png) right 20px top 20px / 50px 50px repeat-x, gray url(test.jpg) 10px 15px no-repeat;
+      }
+    "#
     });
   }
 
@@ -633,7 +671,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         flex-flow: column wrap;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -644,7 +683,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         flex-flow: wrap;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -655,7 +695,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         flex-flow: row;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -666,7 +707,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         flex-flow: column;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -678,7 +720,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         flex: 1;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -690,7 +733,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         flex: 1 0;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -702,7 +746,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         flex: 1 0 auto;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -714,7 +759,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         flex: auto;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -725,7 +771,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         flex: 1 0;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -736,7 +783,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         place-content: center;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -747,7 +795,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         place-content: baseline safe right;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -757,7 +806,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         place-content: baseline unsafe left;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -767,7 +817,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         place-content: center;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -778,7 +829,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         place-self: center;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -789,7 +841,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         place-self: center unsafe left;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -800,7 +853,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         place-items: center;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -811,7 +865,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         place-items: center legacy left;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -822,7 +877,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         gap: 10px 20px;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -833,7 +889,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         gap: 10px;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -844,7 +901,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         gap: 10px 20px;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -855,7 +913,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         gap: 10px;
-      }"#
+      }
+    "#
     });
 
     test(r#"
@@ -866,7 +925,8 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         gap: normal 20px;
-      }"#
+      }
+    "#
     });
   }
 }
