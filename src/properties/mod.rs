@@ -1,10 +1,12 @@
 mod custom;
 pub mod margin_padding;
 pub mod background;
+pub mod outline;
 
 use cssparser::*;
 use custom::*;
 use background::*;
+use outline::*;
 use crate::values::{image::*, length::*, border::*, border_image::*, border_radius::*, rect::*, color::*};
 use super::values::traits::{Parse, ToCss};
 
@@ -122,6 +124,11 @@ pub enum Property {
   BorderInlineStart(Border),
   BorderInlineEnd(Border),
 
+  Outline(Outline),
+  OutlineColor(CssColor),
+  OutlineStyle(OutlineStyle),
+  OutlineWidth(BorderSideWidth),
+
   MarginTop(LengthPercentageOrAuto),
   MarginBottom(LengthPercentageOrAuto),
   MarginLeft(LengthPercentageOrAuto),
@@ -169,6 +176,9 @@ pub enum Property {
   ScrollPaddingBlock(Size2D<LengthPercentageOrAuto>),
   ScrollPaddingInline(Size2D<LengthPercentageOrAuto>),
   ScrollPadding(Rect<LengthPercentageOrAuto>),
+
+  // shorthands: transitions, animations, columns, font, font-variant, list-style
+  // flex, grid, gap, place-items, place-self, inset
 }
 
 impl Property {
@@ -279,6 +289,10 @@ impl Property {
       "border-end-start-radius" => property!(BorderEndStartRadius, Size2D),
       "border-end-end-radius" => property!(BorderEndEndRadius, Size2D),
       "border-radius" => property!(BorderRadius, BorderRadius),
+      "outline" => property!(Outline, Outline),
+      "outline-color" => property!(OutlineColor, CssColor),
+      "outline-style" => property!(OutlineStyle, OutlineStyle),
+      "outline-width" => property!(OutlineWidth, BorderSideWidth),
       "margin-left" => property!(MarginLeft, LengthPercentageOrAuto),
       "margin-right" => property!(MarginRight, LengthPercentageOrAuto),
       "margin-top" => property!(MarginTop, LengthPercentageOrAuto),
@@ -447,6 +461,10 @@ impl Property {
       BorderEndStartRadius(val) => property!("border-end-start-radius", val),
       BorderEndEndRadius(val) => property!("border-end-end-radius", val),
       BorderRadius(val) => property!("border-radius", val),
+      Outline(val) => property!("outline", val),
+      OutlineColor(val) => property!("outline-color", val),
+      OutlineStyle(val) => property!("outline-style", val),
+      OutlineWidth(val) => property!("outline-width", val),
       MarginLeft(val) => property!("margin-left", val),
       MarginRight(val) => property!("margin-right", val),
       MarginTop(val) => property!("margin-top", val),

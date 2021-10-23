@@ -12,6 +12,10 @@ css.transform({
   background-position-y: top 20px, 15px;
   background-size: 50px 50px, auto;
   background-repeat: repeat no-repeat, no-repeat;
+  // outline: 2px auto red;
+  outline-color: blue;
+  outline-width: 2px;
+  outline-style: solid;
   // background: url("chess.png") 40% / 10em gray, url(img.png);
   color: blue;
   width: 250px;

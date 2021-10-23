@@ -20,6 +20,12 @@ pub enum BorderSideWidth {
   Length(Length),
 }
 
+impl Default for BorderSideWidth {
+  fn default() -> BorderSideWidth {
+    BorderSideWidth::Medium
+  }
+}
+
 impl Parse for BorderSideWidth {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     if let Ok(length) = input.try_parse(|i| Length::parse(i)) {
@@ -60,24 +66,30 @@ enum_property!(BorderStyle,
   Double
 );
 
+impl Default for BorderStyle {
+  fn default() -> BorderStyle {
+    BorderStyle::None
+  }
+}
+
 #[derive(Debug, Clone, PartialEq)]
-pub struct Border {
+pub struct GenericBorder<S> {
   pub width: BorderSideWidth,
-  pub style: BorderStyle,
+  pub style: S,
   pub color: CssColor
 }
 
-impl Default for Border {
-  fn default() -> Border {
-    Border {
+impl<S: Default> Default for GenericBorder<S> {
+  fn default() -> GenericBorder<S> {
+    GenericBorder {
       width: BorderSideWidth::Medium,
-      style: BorderStyle::None,
+      style: S::default(),
       color: CssColor::current_color()
     }
   }
 }
 
-impl Parse for Border {
+impl<S: Parse + Default> Parse for GenericBorder<S> {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     // Order doesn't matter...
     let mut color = None;
@@ -92,7 +104,7 @@ impl Parse for Border {
             }
         }
         if style.is_none() {
-            if let Ok(value) = input.try_parse(BorderStyle::parse) {
+            if let Ok(value) = input.try_parse(S::parse) {
                 style = Some(value);
                 any = true;
                 continue
@@ -108,9 +120,9 @@ impl Parse for Border {
         break
     }
     if any {
-      Ok(Border {
+      Ok(GenericBorder {
         width: width.unwrap_or(BorderSideWidth::Medium),
-        style: style.unwrap_or(BorderStyle::None),
+        style: style.unwrap_or_default(),
         color: color.unwrap_or_else(|| CssColor::current_color())
       })
     } else {
@@ -119,13 +131,13 @@ impl Parse for Border {
   }
 }
 
-impl ToCss for Border {
+impl<S: ToCss + Default + PartialEq> ToCss for GenericBorder<S> {
   fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
-    if self.width != BorderSideWidth::Medium {
+    if self.width != BorderSideWidth::default() {
       self.width.to_css(dest)?;
       dest.write_str(" ")?;
     }
-    if self.style != BorderStyle::None {
+    if self.style != S::default() {
       self.style.to_css(dest)?;
       dest.write_str(" ")?;
     }
@@ -136,6 +148,7 @@ impl ToCss for Border {
   }
 }
 
+pub type Border = GenericBorder<BorderStyle>;
 
 #[derive(Default, Debug, PartialEq)]
 pub struct BorderShorthand {

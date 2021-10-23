@@ -414,6 +414,42 @@ mod tests {
   }
 
   #[test]
+  pub fn test_outline() {
+    test(r#"
+      .foo {
+        outline-width: 2px;
+        outline-style: solid;
+        outline-color: blue;
+      }
+    "#, indoc! {r#"
+      .foo {
+        outline: 2px solid #00f;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        outline: 2px solid blue;
+      }
+    "#, indoc! {r#"
+      .foo {
+        outline: 2px solid #00f;
+      }"#
+    });
+
+    test(r#"
+      .foo {
+        outline: 2px solid red;
+        outline-color: blue;
+      }
+    "#, indoc! {r#"
+      .foo {
+        outline: 2px solid #00f;
+      }"#
+    });
+  }
+
+  #[test]
   pub fn test_margin() {
     test(r#"
       .foo {
