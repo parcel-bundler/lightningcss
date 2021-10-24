@@ -2,6 +2,7 @@ use cssparser::*;
 use super::traits::{Parse, ToCss};
 use super::macros::enum_property;
 use crate::printer::Printer;
+use std::fmt::Write;
 
 /// https://drafts.csswg.org/css-sizing-3/#specifying-sizes
 
@@ -298,6 +299,10 @@ impl Parse for Length {
 impl ToCss for Length {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     use cssparser::ToCss;
+    if self.value == 0.0 {
+      return dest.write_char('0')
+    }
+
     let int_value = if self.value.fract() == 0.0 {
       Some(self.value as i32)
     } else {

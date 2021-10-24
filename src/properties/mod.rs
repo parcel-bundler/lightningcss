@@ -403,8 +403,7 @@ impl Property {
       ($prop: literal, $value: expr) => {{
         dest.write_str($prop)?;
         dest.delim(':', false)?;
-        $value.to_css(dest)?;
-        dest.write_str(";")
+        $value.to_css(dest)
       }};
       ($prop: literal, $value: expr, $multi: expr) => {{
         dest.write_str($prop)?;
@@ -416,7 +415,6 @@ impl Property {
             dest.delim(',', false)?;
           }
         }
-        dest.write_str(";")?;
         Ok(())
       }};
     }
@@ -582,9 +580,8 @@ impl Property {
       ScrollPadding(val) => property!("scroll-padding", val),
       Custom(custom) => {
         dest.write_str(custom.name.as_ref())?;
-        dest.write_str(": ")?;
-        dest.write_str(custom.value.as_ref())?;
-        dest.write_str(";")
+        dest.delim(':', false)?;
+        dest.write_str(custom.value.as_ref())
       }
     }
   }
