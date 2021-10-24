@@ -440,7 +440,7 @@ impl ToCss for StyleRule {
         dest.write_str("\n  ")?;
       }
       prop.to_css(dest)?;
-      if i != len - 1 {
+      if i != len - 1 || !dest.minify {
         dest.write_char(';')?;
       }
     }
@@ -452,7 +452,7 @@ impl ToCss for StyleRule {
 impl StyleRule {
   pub fn minify(&mut self) {
     use crate::values::border::*;
-    use crate::properties::{margin_padding::*, outline::*, flex::*, align::*};
+    use crate::properties::{margin_padding::*, outline::*, flex::*, align::*, font::*};
     use crate::properties::background::BackgroundHandler;
 
     // TODO: somehow macro-ify this
@@ -465,6 +465,7 @@ impl StyleRule {
     let mut padding_handler = PaddingHandler::default();
     let mut scroll_margin_handler = MarginHandler::default();
     let mut scroll_padding_handler = PaddingHandler::default();
+    let mut font_handler = FontHandler::default();
 
     let mut decls = vec![];
     for decl in self.declarations.iter() {
@@ -476,7 +477,8 @@ impl StyleRule {
         !margin_handler.handle_property(decl) && 
         !padding_handler.handle_property(decl) &&
         !scroll_margin_handler.handle_property(decl) && 
-        !scroll_padding_handler.handle_property(decl)
+        !scroll_padding_handler.handle_property(decl) &&
+        !font_handler.handle_property(decl)
       {
         decls.push(decl.clone());
       }
@@ -491,6 +493,7 @@ impl StyleRule {
     decls.extend(padding_handler.finalize());
     decls.extend(scroll_margin_handler.finalize());
     decls.extend(scroll_padding_handler.finalize());
+    decls.extend(font_handler.finalize());
     self.declarations = decls;
   }
 }

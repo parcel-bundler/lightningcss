@@ -74,6 +74,11 @@ css.transform({
 
   row-gap: 10px;
   column-gap: 20px;
+
+  font: 20px helvetica;
+  font-weight: bold;
+  font-size: 22px;
+  font-variant-caps: small-caps;
 }
 
 // .hi {}

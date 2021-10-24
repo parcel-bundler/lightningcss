@@ -337,7 +337,7 @@ mod tests {
       .foo {
         border: none;
       }
-    "#, indoc! {".foo{border:0;}"
+    "#, indoc! {".foo{border:0}"
     });
   }
 
@@ -676,7 +676,7 @@ mod tests {
       .foo {
         background-position: center center;
       }
-    "#, indoc! {".foo{background-position:50% 50%;}"
+    "#, indoc! {".foo{background-position:50% 50%}"
     });
   }
 
@@ -944,6 +944,78 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         gap: normal 20px;
+      }
+    "#
+    });
+  }
+
+  #[test]
+  fn test_font() {
+    test(r#"
+      .foo {
+        font-family: "Helvetica", "Times New Roman", sans-serif;
+        font-size: 12px;
+        font-weight: bold;
+        font-style: italic;
+        font-stretch: expanded;
+        font-variant-caps: small-caps;
+        line-height: 1.2em;
+      }
+    "#, indoc! {r#"
+      .foo {
+        font: italic small-caps bold expanded 12px / 1.2em Helvetica, Times New Roman, sans-serif;
+      }
+    "#
+    });
+
+    minify_test(r#"
+      .foo {
+        font-family: "Helvetica", "Times New Roman", sans-serif;
+        font-size: 12px;
+        font-weight: bold;
+        font-style: italic;
+        font-stretch: expanded;
+        font-variant-caps: small-caps;
+        line-height: 1.2em;
+      }
+    "#, indoc! {".foo{font:italic small-caps 700 50% 12px/1.2em Helvetica,Times New Roman,sans-serif}"
+    });
+
+    test(r#"
+      .foo {
+        font: 12px "Helvetica", "Times New Roman", sans-serif;
+        line-height: 1.2em;
+      }
+    "#, indoc! {r#"
+      .foo {
+        font: 12px / 1.2em Helvetica, Times New Roman, sans-serif;
+      }
+    "#
+    });
+
+    minify_test(r#"
+      .foo {
+        font-family: "Helvetica", "Times New Roman", sans-serif;
+        font-size: 12px;
+        font-stretch: expanded;
+      }
+    "#, indoc! {".foo{font-family:Helvetica,Times New Roman,sans-serif;font-size:12px;font-stretch:50%}"
+    });
+
+    test(r#"
+      .foo {
+        font-family: "Helvetica", "Times New Roman", sans-serif;
+        font-size: 12px;
+        font-weight: bold;
+        font-style: italic;
+        font-stretch: expanded;
+        font-variant-caps: all-small-caps;
+        line-height: 1.2em;
+      }
+    "#, indoc! {r#"
+      .foo {
+        font: italic bold expanded 12px / 1.2em Helvetica, Times New Roman, sans-serif;
+        font-variant-caps: all-small-caps;
       }
     "#
     });

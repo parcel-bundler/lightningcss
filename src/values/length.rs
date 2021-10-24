@@ -504,3 +504,55 @@ enum_property!(VerticalPositionKeyword,
 
 pub type HorizontalPosition = Position<HorizontalPositionKeyword>;
 pub type VerticalPosition = Position<VerticalPositionKeyword>;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Angle {
+  Deg(f32),
+  Grad(f32),
+  Rad(f32),
+  Turn(f32)
+}
+
+impl Parse for Angle {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    let location = input.current_source_location();
+    let token = input.next()?;
+    match *token {
+      Token::Dimension { value, ref unit, .. } => {
+        match_ignore_ascii_case! { unit,
+          "deg" => Ok(Angle::Deg(value)),
+          "grad" => Ok(Angle::Grad(value)),
+          "turn" => Ok(Angle::Turn(value)),
+          "rad" => Ok(Angle::Rad(value)),
+          _ => return Err(location.new_unexpected_token_error(token.clone())),
+        }
+      },
+      ref token => return Err(location.new_unexpected_token_error(token.clone())),
+    }
+  }
+}
+
+impl ToCss for Angle {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    let (value, unit) = match self {
+      Angle::Deg(val) => (*val, "deg"),
+      Angle::Grad(val) => (*val, "grad"),
+      Angle::Rad(val) => (*val, "rad"),
+      Angle::Turn(val) => (*val, "turn")
+    };
+
+    use cssparser::ToCss;
+    let int_value = if value.fract() == 0.0 {
+      Some(value as i32)
+    } else {
+      None
+    };
+    let token = Token::Dimension {
+      has_sign: false,
+      value,
+      int_value,
+      unit: CowRcStr::from(unit)
+    };
+    token.to_css(dest)
+  }
+}

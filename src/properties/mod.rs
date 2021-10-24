@@ -4,6 +4,7 @@ pub mod background;
 pub mod outline;
 pub mod flex;
 pub mod align;
+pub mod font;
 
 use cssparser::*;
 use custom::*;
@@ -11,6 +12,7 @@ use background::*;
 use outline::*;
 use flex::*;
 use align::*;
+use font::*;
 use crate::values::{image::*, length::*, border::*, border_image::*, border_radius::*, rect::*, color::*};
 use super::values::traits::{Parse, ToCss};
 use crate::printer::Printer;
@@ -208,6 +210,15 @@ pub enum Property {
 
   // shorthands: transitions, animations, columns, font, font-variant, list-style
   // grid, inset
+
+  FontWeight(FontWeight),
+  FontSize(FontSize),
+  FontStretch(FontStretch),
+  FontFamily(Vec<FontFamily>),
+  FontStyle(FontStyle),
+  FontVariantCaps(FontVariantCaps),
+  LineHeight(LineHeight),
+  Font(Font)
 }
 
 impl Property {
@@ -389,6 +400,14 @@ impl Property {
       "scroll-padding-block" => property!(ScrollPaddingBlock, Size2D),
       "scroll-padding-inline" => property!(ScrollPaddingInline, Size2D),
       "scroll-padding" => property!(ScrollPadding, Rect),
+      "font-weight" => property!(FontWeight, FontWeight),
+      "font-size" => property!(FontSize, FontSize),
+      "font-stretch" => property!(FontStretch, FontStretch),
+      "font-family" => property!(FontFamily, FontFamily, true),
+      "font-style" => property!(FontStyle, FontStyle),
+      "font-variant-caps" => property!(FontVariantCaps, FontVariantCaps),
+      "line-height" => property!(LineHeight, LineHeight),
+      "font" => property!(Font, Font),
       _ => {}
     }
 
@@ -578,6 +597,14 @@ impl Property {
       ScrollPaddingBlock(val) => property!("scroll-padding-block", val),
       ScrollPaddingInline(val) => property!("scroll-padding-inline", val),
       ScrollPadding(val) => property!("scroll-padding", val),
+      FontWeight(val) => property!("font-weight", val),
+      FontSize(val) => property!("font-size", val),
+      FontStretch(val) => property!("font-stretch", val),
+      FontFamily(val) => property!("font-family", val, true),
+      FontStyle(val) => property!("font-style", val),
+      FontVariantCaps(val) => property!("font-variant-caps", val),
+      LineHeight(val) => property!("line-height", val),
+      Font(val) => property!("font", val),
       Custom(custom) => {
         dest.write_str(custom.name.as_ref())?;
         dest.delim(':', false)?;
