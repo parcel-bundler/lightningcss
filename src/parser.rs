@@ -1,5 +1,5 @@
 use cssparser::*;
-use selectors::{SelectorList, parser::SelectorImpl};
+use selectors::SelectorList;
 use std::fmt;
 use std::cell::RefCell;
 use crate::media_query::*;
@@ -8,9 +8,7 @@ use crate::values::traits::PropertyHandler;
 use crate::printer::Printer;
 use crate::values::traits::ToCss;
 use std::fmt::Write;
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Selectors;
+use crate::selector::{Selectors, SelectorParser};
 
 #[derive(Eq, PartialEq, Clone)]
 pub struct CssString(RefCell<String>);
@@ -18,6 +16,16 @@ pub struct CssString(RefCell<String>);
 impl CssString {
   pub fn replace(&self, x: String) {
     self.0.replace(x);
+  }
+
+  pub fn write_identifier<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
+    serialize_identifier(self.0.borrow().as_ref(), dest)
+  }
+
+  pub fn write_string<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
+    let b = self.0.borrow();
+    let s: &str = b.as_ref();
+    write!(CssStringWriter::new(dest), "{}", s)
   }
 }
 
@@ -50,123 +58,6 @@ impl std::cmp::PartialEq<str> for CssString {
     self.0.borrow().eq(rhs)
   }
 }
-
-impl SelectorImpl for Selectors {
-    type AttrValue = CssString;
-    type Identifier = CssString;
-    type LocalName = CssString;
-    type NamespacePrefix = CssString;
-    type NamespaceUrl = String;
-    type BorrowedNamespaceUrl = String;
-    type BorrowedLocalName = String;
-
-    type NonTSPseudoClass = PseudoClass;
-    type PseudoElement = PseudoElement;
-
-    type ExtraMatchingData = ();
-}
-
-/// https://drafts.csswg.org/selectors-4/#structural-pseudos
-#[derive(Clone, Eq, PartialEq)]
-pub enum PseudoClass {
-  Active,
-  AnyLink,
-  Checked,
-  Defined,
-  Disabled,
-  Enabled,
-  Focus,
-  Fullscreen,
-  Hover,
-  Indeterminate,
-  Lang(Box<str>),
-  Link,
-  PlaceholderShown,
-  ReadWrite,
-  ReadOnly,
-  Target,
-  Visited,
-}
-
-impl selectors::parser::NonTSPseudoClass for PseudoClass {
-  type Impl = Selectors;
-
-  fn is_active_or_hover(&self) -> bool {
-      matches!(*self, PseudoClass::Active | PseudoClass::Hover)
-  }
-
-  fn is_user_action_state(&self) -> bool {
-      matches!(*self, PseudoClass::Active | PseudoClass::Hover | PseudoClass::Focus)
-  }
-}
-
-impl cssparser::ToCss for PseudoClass {
-  fn to_css<W>(&self, dest: &mut W) -> fmt::Result
-  where
-      W: fmt::Write,
-  {
-      use PseudoClass::*;
-      if let Lang(ref lang) = *self {
-        dest.write_str(":lang(")?;
-        serialize_identifier(lang, dest)?;
-        return dest.write_str(")");
-      }
-
-      dest.write_str(match *self {
-        Active => ":active",
-        AnyLink => ":any-link",
-        Checked => ":checked",
-        Defined => ":defined",
-        Disabled => ":disabled",
-        Enabled => ":enabled",
-        Focus => ":focus",
-        Fullscreen => ":fullscreen",
-        Hover => ":hover",
-        Indeterminate => ":indeterminate",
-        Link => ":link",
-        PlaceholderShown => ":placeholder-shown",
-        ReadWrite => ":read-write",
-        ReadOnly => ":read-only",
-        Target => ":target",
-        Visited => ":visited",
-        Lang(_) => unreachable!(),
-      })
-  }
-}
-
-
-#[derive(PartialEq, Eq, Clone, Debug, Hash)]
-pub enum PseudoElement {
-  After,
-  Before,
-  FirstLine,
-  FirstLetter,
-  Selection,
-}
-
-impl cssparser::ToCss for PseudoElement {
-  fn to_css<W>(&self, dest: &mut W) -> fmt::Result
-  where
-      W: fmt::Write,
-  {
-    use PseudoElement::*;
-    dest.write_str(match *self {
-      // CSS2 pseudo elements support a single colon syntax in addition
-      // to the more correct double colon for other pseudo elements.
-      // We use that here because it's supported everywhere and is shorter.
-      After => ":after",
-      Before => ":before",
-      FirstLine => ":first-line",
-      FirstLetter => ":first-letter",
-      Selection => "::selection"
-    })
-  }
-}
-
-impl selectors::parser::PseudoElement for PseudoElement {
-    type Impl = Selectors;
-}
-
 
 /// The parser for the top-level rules in a stylesheet.
 pub struct TopLevelRuleParser {
@@ -765,108 +656,6 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
   }
 }
 
-#[derive(Debug)]
-pub enum Value {
-  Url(String)
-}
-
-// fn exhaust<'i>(input: &mut cssparser::Parser<'i, '_>) -> Vec<Value> {
-  // let start = input.position();
-  // while input.next().is_ok() {}
-  // input.slice_from(start)
-  // let mut val = vec![];
-  // loop {
-  //   if let Ok(tok) = input.next() {
-  //     println!("{:?}", tok);
-  //     match tok {
-  //       Token::UnquotedUrl(ref url) => val.push(Value::Url((&**url).into())),
-  //       Token::Function(ref name) if name.eq_ignore_ascii_case("url") => {
-  //         let url = input.parse_nested_block(|input| {
-  //             input.expect_string().map_err(Into::into).map(|s| s.clone())
-  //         })
-  //         .map_err(ParseError::<()>::basic);
-  //         if let Ok(url) = url {
-  //           val.push(Value::Url((&*url).into()));
-  //         }
-  //       },
-  //       _ => {}
-  //     }
-  //   } else {
-  //     break
-  //   }
-  // }
-  // val
-// }
-
-struct SelectorParser;
-impl<'i> selectors::parser::Parser<'i> for SelectorParser {
-  type Impl = Selectors;
-  type Error = selectors::parser::SelectorParseErrorKind<'i>;
-
-  fn parse_non_ts_pseudo_class(
-    &self,
-    location: SourceLocation,
-    name: CowRcStr<'i>,
-  ) -> Result<PseudoClass, ParseError<'i, Self::Error>> {
-      use PseudoClass::*;
-      let pseudo_class = match_ignore_ascii_case! { &name,
-        "active" => Active,
-        "any-link" => AnyLink,
-        "checked" => Checked,
-        "defined" => Defined,
-        "disabled" => Disabled,
-        "enabled" => Enabled,
-        "focus" => Focus,
-        "fullscreen" => Fullscreen,
-        "hover" => Hover,
-        "indeterminate" => Indeterminate,
-        "link" => Link,
-        "placeholder-shown" => PlaceholderShown,
-        "read-write" => ReadWrite,
-        "read-only" => ReadOnly,
-        "target" => Target,
-        "visited" => Visited,
-        _ => return Err(location.new_custom_error(selectors::parser::SelectorParseErrorKind::UnexpectedIdent(name.clone()))),
-      };
-
-      Ok(pseudo_class)
-  }
-
-  fn parse_non_ts_functional_pseudo_class<'t>(
-      &self,
-      name: CowRcStr<'i>,
-      parser: &mut cssparser::Parser<'i, 't>,
-  ) -> Result<PseudoClass, ParseError<'i, Self::Error>> {
-      use PseudoClass::*;
-      let pseudo_class = match_ignore_ascii_case! { &name,
-        "lang" => {
-          Lang(parser.expect_ident_or_string()?.as_ref().into())
-        },
-        _ => return Err(parser.new_custom_error(selectors::parser::SelectorParseErrorKind::UnexpectedIdent(name.clone()))),
-      };
-
-      Ok(pseudo_class)
-  }
-
-  fn parse_pseudo_element(
-    &self,
-    location: SourceLocation,
-    name: CowRcStr<'i>,
-  ) -> Result<PseudoElement, ParseError<'i, Self::Error>> {
-    use PseudoElement::*;
-    let pseudo_element = match_ignore_ascii_case! { &name,
-      "before" => Before,
-      "after" => After,
-      "first-line" => FirstLine,
-      "first-letter" => FirstLetter,
-      "selection" => Selection,
-      _ => return Err(location.new_custom_error(selectors::parser::SelectorParseErrorKind::UnexpectedIdent(name.clone())))
-    };
-
-    Ok(pseudo_element)
-  }
-}
-
 impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser {
   type Prelude = SelectorList<Selectors>;
   type QualifiedRule = CssRule;
@@ -908,21 +697,6 @@ impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser {
         selectors,
         declarations
       }))
-  }
-}
-
-impl ToCss for SelectorList<Selectors> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
-    use cssparser::ToCss;
-    let mut first = true;
-    for selector in &self.0 {
-        if !first {
-          dest.delim(',', false)?;
-        }
-        first = false;
-        selector.to_css(dest)?;
-    }
-    Ok(())
   }
 }
 

@@ -9,6 +9,7 @@ extern crate itertools;
 
 mod parser;
 mod media_query;
+mod selector;
 mod properties;
 mod values;
 mod printer;
@@ -65,7 +66,7 @@ fn compile(code: &str, minify: bool) -> String {
     } else {
       printer.newline();
     }
-    println!("{:?}", rule);
+    // println!("{:?}", rule);
     let rule = match rule {
       parser::CssRule::Import(import) => {
         parser::CssRule::Import(parser::ImportRule {
@@ -1019,5 +1020,16 @@ mod tests {
       }
     "#
     });
+  }
+
+  #[test]
+  fn test_selectors() {
+    minify_test("[foo=\"baz\"] {}", "[foo=baz]{}");
+    minify_test("[foo=\"foo bar\"] {}", "[foo=foo\\ bar]{}");
+    minify_test("[foo=\"foo bar baz\"] {}", "[foo=\"foo bar baz\"]{}");
+    minify_test(".test:not([foo=\"bar\"]) {}", ".test:not([foo=bar]){}");
+    minify_test(".test + .foo {}", ".test+.foo{}");
+    minify_test(".test ~ .foo {}", ".test~.foo{}");
+    minify_test(".test .foo {}", ".test .foo{}");
   }
 }
