@@ -309,12 +309,23 @@ impl ToCss for Length {
       None
     };
     let token = Token::Dimension {
-      has_sign: false,
+      has_sign: self.value < 0.0,
       value: self.value,
       int_value,
       unit: CowRcStr::from(self.unit.as_str())
     };
-    token.to_css(dest)
+    if self.value.abs() < 1.0 {
+      let mut s = String::new();
+      token.to_css(&mut s)?;
+      if self.value < 0.0 {
+        dest.write_char('-')?;
+        dest.write_str(s.get(2..).unwrap_or(&s))
+      } else {
+        dest.write_str(s.get(1..).unwrap_or(&s))
+      }
+    } else {
+      token.to_css(dest)
+    }
   }
 }
 
@@ -338,11 +349,22 @@ impl ToCss for Percentage {
       None
     };
     let percent = Token::Percentage {
-      has_sign: false,
+      has_sign: self.0 < 0.0,
       unit_value: self.0,
       int_value
     };
-    percent.to_css(dest)
+    if self.0 != 0.0 && self.0.abs() < 0.01 {
+      let mut s = String::new();
+      percent.to_css(&mut s)?;
+      if self.0 < 0.0 {
+        dest.write_char('-')?;
+        dest.write_str(s.get(2..).unwrap_or(&s))
+      } else {
+        dest.write_str(s.get(1..).unwrap_or(&s))
+      }
+    } else {
+      percent.to_css(dest)
+    }
   }
 }
 
@@ -434,12 +456,17 @@ pub fn serialize_number<W>(number: f32, dest: &mut Printer<W>) -> std::fmt::Resu
     None
   };
   let tok = Token::Number {
-    has_sign: false,
+    has_sign: number < 0.0,
     value: number,
     int_value
   };
-  // TODO: remove decimal point if not needed...
-  tok.to_css(dest)
+  if number != 0.0 && number.abs() < 1.0 {
+    let mut s = String::new();
+    tok.to_css(&mut s)?;
+    dest.write_str(s.get(1..).unwrap_or(&s))
+  } else {
+    tok.to_css(dest)
+  }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -548,11 +575,22 @@ impl ToCss for Angle {
       None
     };
     let token = Token::Dimension {
-      has_sign: false,
+      has_sign: value < 0.0,
       value,
       int_value,
       unit: CowRcStr::from(unit)
     };
-    token.to_css(dest)
+    if value != 0.0 && value.abs() < 1.0 {
+      let mut s = String::new();
+      token.to_css(&mut s)?;
+      if value < 0.0 {
+        dest.write_char('-')?;
+        dest.write_str(s.get(2..).unwrap_or(&s))
+      } else {
+        dest.write_str(s.get(1..).unwrap_or(&s))
+      }
+    } else {
+      token.to_css(dest)
+    }
   }
 }
