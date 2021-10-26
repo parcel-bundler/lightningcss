@@ -6,10 +6,11 @@ use crate::media_query::*;
 use crate::properties::*;
 use crate::values::traits::PropertyHandler;
 use crate::printer::Printer;
-use crate::values::traits::ToCss;
+use crate::values::traits::{Parse, ToCss};
 use std::fmt::Write;
 use crate::selector::{Selectors, SelectorParser};
 use crate::rules::keyframes::{KeyframeListParser, KeyframesRule};
+use crate::declaration::{Declaration, DeclarationHandler};
 
 #[derive(Eq, PartialEq, Clone)]
 pub struct CssString(RefCell<String>);
@@ -331,7 +332,7 @@ impl ToCss for StyleRule {
 
 #[derive(Debug, PartialEq)]
 pub struct DeclarationBlock {
-  pub declarations: Vec<Property>
+  pub declarations: Vec<Declaration>
 }
 
 impl ToCss for DeclarationBlock {
@@ -339,11 +340,11 @@ impl ToCss for DeclarationBlock {
     dest.whitespace()?;
     dest.write_char('{')?;
     let len = self.declarations.len();
-    for (i, prop) in self.declarations.iter().enumerate() {
+    for (i, decl) in self.declarations.iter().enumerate() {
       if !dest.minify {
         dest.write_str("\n  ")?;
       }
-      prop.to_css(dest)?;
+      decl.to_css(dest)?;
       if i != len - 1 || !dest.minify {
         dest.write_char(';')?;
       }
@@ -355,49 +356,22 @@ impl ToCss for DeclarationBlock {
 
 impl DeclarationBlock {
   pub fn minify(&mut self) {
-    use crate::values::border::*;
-    use crate::properties::{margin_padding::*, outline::*, flex::*, align::*, font::*};
-    use crate::properties::background::BackgroundHandler;
+    let mut handler = DeclarationHandler::new(false);
+    let mut important_handler = DeclarationHandler::new(true);
 
-    // TODO: somehow macro-ify this
-    let mut background_handler = BackgroundHandler::default();
-    let mut border_handler = BorderHandler::default();
-    let mut outline_handler = OutlineHandler::default();
-    let mut flex_handler = FlexHandler::default();
-    let mut align_handler = AlignHandler::default();
-    let mut margin_handler = MarginHandler::default();
-    let mut padding_handler = PaddingHandler::default();
-    let mut scroll_margin_handler = MarginHandler::default();
-    let mut scroll_padding_handler = PaddingHandler::default();
-    let mut font_handler = FontHandler::default();
-
-    let mut decls = vec![];
+    let mut decls: Vec<Declaration> = vec![];
     for decl in self.declarations.iter() {
-      if !background_handler.handle_property(decl) &&
-        !border_handler.handle_property(decl) && 
-        !outline_handler.handle_property(decl) &&
-        !flex_handler.handle_property(decl) &&
-        !align_handler.handle_property(decl) &&
-        !margin_handler.handle_property(decl) && 
-        !padding_handler.handle_property(decl) &&
-        !scroll_margin_handler.handle_property(decl) && 
-        !scroll_padding_handler.handle_property(decl) &&
-        !font_handler.handle_property(decl)
-      {
+      let handled = 
+        (decl.important && important_handler.handle_property(decl)) ||
+        (!decl.important && handler.handle_property(decl));
+
+      if !handled {
         decls.push(decl.clone());
       }
     }
 
-    decls.extend(background_handler.finalize());
-    decls.extend(border_handler.finalize());
-    decls.extend(outline_handler.finalize());
-    decls.extend(flex_handler.finalize());
-    decls.extend(align_handler.finalize());
-    decls.extend(margin_handler.finalize());
-    decls.extend(padding_handler.finalize());
-    decls.extend(scroll_margin_handler.finalize());
-    decls.extend(scroll_padding_handler.finalize());
-    decls.extend(font_handler.finalize());
+    decls.extend(handler.finalize());
+    decls.extend(important_handler.finalize());
     self.declarations = decls;
   }
 }
@@ -729,7 +703,7 @@ pub struct PropertyDeclarationParser;
 
 /// Parse a declaration within {} block: `color: blue`
 impl<'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser {
-  type Declaration = Property;
+  type Declaration = Declaration;
   type Error = ();
 
   fn parse_value<'t>(
@@ -737,7 +711,7 @@ impl<'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser {
       name: CowRcStr<'i>,
       input: &mut cssparser::Parser<'i, 't>,
   ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
-    Property::parse(name, input)
+    Declaration::parse(name, input)
   }
 }
 
@@ -745,6 +719,6 @@ impl<'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser {
 impl<'i> AtRuleParser<'i> for PropertyDeclarationParser {
   type PreludeNoBlock = ();
   type PreludeBlock = ();
-  type AtRule = Property;
+  type AtRule = Declaration;
   type Error = ();
 }

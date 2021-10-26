@@ -9,6 +9,7 @@ extern crate itertools;
 
 mod parser;
 mod rules;
+mod declaration;
 mod media_query;
 mod selector;
 mod properties;
@@ -1069,5 +1070,32 @@ mod tests {
         }
       }
     "#, "@keyframes test{0%{background:red}to{background:#00f}}");
+  }
+
+  #[test]
+  fn test_important() {
+    test(r#"
+      .foo {
+        align-items: center;
+        justify-items: center !important;
+      }
+    "#, indoc! {r#"
+      .foo {
+        align-items: center;
+        justify-items: center !important;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        justify-items: center !important;
+        align-items: center;
+      }
+    "#, indoc! {r#"
+      .foo {
+        align-items: center;
+        justify-items: center !important;
+      }
+    "#});
   }
 }
