@@ -20,7 +20,7 @@ pub struct Declaration {
 
 impl Declaration {
   pub fn parse<'i, 't>(name: CowRcStr<'i>, input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
-    let property = Property::parse(name, input)?;
+    let property = input.parse_until_before(Delimiter::Bang, |input| Property::parse(name, input))?;
     let important = input.try_parse(|input| {
       input.expect_delim('!')?;
       input.expect_ident_matching("important")

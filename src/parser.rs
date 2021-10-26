@@ -3,8 +3,6 @@ use selectors::SelectorList;
 use std::fmt;
 use std::cell::RefCell;
 use crate::media_query::*;
-use crate::properties::*;
-use crate::values::traits::PropertyHandler;
 use crate::printer::Printer;
 use crate::values::traits::{Parse, ToCss};
 use std::fmt::Write;

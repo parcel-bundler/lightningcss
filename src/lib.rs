@@ -1097,5 +1097,11 @@ mod tests {
         justify-items: center !important;
       }
     "#});
+
+    minify_test(r#"
+      .foo {
+        font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+      }
+    "#, ".foo{font-family:SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace!important}");
   }
 }
