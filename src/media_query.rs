@@ -1,4 +1,8 @@
 use cssparser::*;
+use crate::values::traits::{ToCss, Parse};
+use crate::printer::Printer;
+use crate::values::macros::enum_property;
+use std::fmt::Write;
 
 /// A type that encapsulates a media query list.
 #[derive(Clone, Debug, PartialEq)]
@@ -50,32 +54,25 @@ impl MediaList {
   }
 }
 
-/// <https://drafts.csswg.org/mediaqueries/#mq-prefix>
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Qualifier {
-    /// Hide a media query from legacy UAs:
-    /// <https://drafts.csswg.org/mediaqueries/#mq-only>
-    Only,
-    /// Negate a media query:
-    /// <https://drafts.csswg.org/mediaqueries/#mq-not>
-    Not,
-}
-
-impl Qualifier {
-  pub fn parse<'i, 't>(
-    input: &mut Parser<'i, 't>,
-  ) -> Result<Self, ParseError<'i, ()>> {
-    let location = input.current_source_location();
-    let ident = input.expect_ident()?;
-    match_ignore_ascii_case! { &*ident,
-      "only" => Ok(Qualifier::Only),
-      "not" => Ok(Qualifier::Not),
-      _ => Err(location.new_unexpected_token_error(
-        cssparser::Token::Ident(ident.clone())
-      ))
+impl ToCss for MediaList {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    let mut first = true;
+    for query in &self.media_queries {
+      if !first {
+        dest.delim(',', false)?;
+      }
+      first = false;
+      query.to_css(dest)?;
     }
+    Ok(())
   }
 }
+
+// <https://drafts.csswg.org/mediaqueries/#mq-prefix>
+enum_property!(Qualifier,
+  Only,
+  Not
+);
 
 /// <http://dev.w3.org/csswg/mediaqueries-3/#media0>
 #[derive(Clone, Debug, PartialEq)]
@@ -146,29 +143,47 @@ impl MediaQuery {
   }
 }
 
-/// A binary `and` or `or` operator.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[allow(missing_docs)]
-pub enum Operator {
-    And,
-    Or,
-}
-
-impl Operator {
-  pub fn parse<'i, 't>(
-    input: &mut Parser<'i, 't>,
-  ) -> Result<Self, ParseError<'i, ()>> {
-    let location = input.current_source_location();
-    let ident = input.expect_ident()?;
-    match_ignore_ascii_case! { &*ident,
-      "and" => Ok(Operator::And),
-      "or" => Ok(Operator::Or),
-      _ => Err(location.new_unexpected_token_error(
-        cssparser::Token::Ident(ident.clone())
-      ))
+impl ToCss for MediaQuery {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    if let Some(qual) = self.qualifier {
+      qual.to_css(dest)?;
+      dest.write_char(' ')?;
     }
+
+    match self.media_type {
+      MediaType::All => {
+          // We need to print "all" if there's a qualifier, or there's
+          // just an empty list of expressions.
+          //
+          // Otherwise, we'd serialize media queries like "(min-width:
+          // 40px)" in "all (min-width: 40px)", which is unexpected.
+          if self.qualifier.is_some() || self.condition.is_none() {
+              dest.write_str("all")?;
+          }
+      },
+      MediaType::Print => dest.write_str("print")?,
+      MediaType::Screen => dest.write_str("screen")?,
+      MediaType::Custom(ref desc) => dest.write_str(desc)?,
+    }
+
+    let condition = match self.condition {
+      Some(ref c) => c,
+      None => return Ok(()),
+    };
+
+    if self.media_type != MediaType::All || self.qualifier.is_some() {
+      dest.write_str(" and ")?;
+    }
+
+    condition.to_css(dest)
   }
 }
+
+/// A binary `and` or `or` operator.
+enum_property!(Operator,
+  And,
+  Or
+);
 
 /// Represents a media condition.
 #[derive(Clone, Debug, PartialEq)]
@@ -254,6 +269,34 @@ impl MediaCondition {
           let expr = MediaFeatureExpression::parse_in_parenthesis_block(input)?;
           Ok(MediaCondition::Feature(expr))
       })
+  }
+}
+
+impl ToCss for MediaCondition {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    match *self {
+      MediaCondition::Feature(ref f) => f.to_css(dest),
+      MediaCondition::Not(ref c) => {
+        dest.write_str("not ")?;
+        c.to_css(dest)
+      },
+      MediaCondition::InParens(ref c) => {
+        dest.write_char('(')?;
+        c.to_css(dest)?;
+        dest.write_char(')')
+      },
+      MediaCondition::Operation(ref list, op) => {
+        let mut iter = list.iter();
+        iter.next().unwrap().to_css(dest)?;
+        for item in iter {
+            dest.write_char(' ')?;
+            op.to_css(dest)?;
+            dest.write_char(' ')?;
+            item.to_css(dest)?;
+        }
+        Ok(())
+      },
+    }
   }
 }
 
@@ -396,6 +439,46 @@ impl MediaFeatureExpression {
         operator,
         value: Some(value.into())
       })
+  }
+}
+
+impl ToCss for MediaFeatureExpression {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+      dest.write_str("(")?;
+
+      // let feature = self.feature();
+
+      // if feature
+      //     .requirements
+      //     .contains(ParsingRequirements::WEBKIT_PREFIX)
+      // {
+      //     dest.write_str("-webkit-")?;
+      // }
+
+      // if let Some(RangeOrOperator::Range(range)) = self.range_or_operator {
+      //     match range {
+      //         Range::Min => dest.write_str("min-")?,
+      //         Range::Max => dest.write_str("max-")?,
+      //     }
+      // }
+
+      dest.write_str(&self.name)?;
+
+      // if let Some(RangeOrOperator::Operator(op)) = self.range_or_operator {
+      //     dest.write_char(' ')?;
+      //     op.to_css(dest)?;
+      //     dest.write_char(' ')?;
+      // } else if self.value.is_some() {
+      //     dest.write_str(": ")?;
+      // }
+
+      if let Some(ref val) = self.value {
+        // val.to_css(dest, self)?;
+        dest.delim(':', false)?;
+        dest.write_str(val)?;
+      }
+
+      dest.write_str(")")
   }
 }
 

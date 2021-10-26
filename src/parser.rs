@@ -9,6 +9,7 @@ use crate::printer::Printer;
 use crate::values::traits::ToCss;
 use std::fmt::Write;
 use crate::selector::{Selectors, SelectorParser};
+use crate::rules::keyframes::{KeyframeListParser, KeyframesRule};
 
 #[derive(Eq, PartialEq, Clone)]
 pub struct CssString(RefCell<String>);
@@ -79,6 +80,7 @@ enum VendorPrefix {
 }
 
 /// A rule prelude for at-rule with block.
+#[derive(Debug)]
 pub enum AtRulePrelude {
   /// A @font-face rule prelude.
   FontFace,
@@ -93,7 +95,7 @@ pub enum AtRulePrelude {
   /// A @viewport rule prelude.
   Viewport,
   /// A @keyframes rule, with its animation name and vendor prefix if exists.
-  Keyframes,//(KeyframesName, Option<VendorPrefix>),
+  Keyframes(String),//(KeyframesName, Option<VendorPrefix>),
   /// A @page rule prelude.
   Page,
   /// A @document rule, with its conditional.
@@ -282,6 +284,7 @@ pub struct MediaRule {
 impl ToCss for MediaRule {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
     dest.write_str("@media ")?;
+    self.query.to_css(dest)?;
     // serialize_string(&self.query, dest)?;
     // dest.write_str(";")
     // dest.write_str(" {")?;
@@ -316,13 +319,23 @@ impl ToCss for ImportRule {
 #[derive(Debug, PartialEq)]
 pub struct StyleRule {
   pub selectors: SelectorList<Selectors>,
-  pub declarations: Vec<Property>
+  pub declarations: DeclarationBlock
 }
 
 impl ToCss for StyleRule {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
-    // dest.write_str(&self.selectors)?;
     self.selectors.to_css(dest)?;
+    self.declarations.to_css(dest)
+  }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct DeclarationBlock {
+  pub declarations: Vec<Property>
+}
+
+impl ToCss for DeclarationBlock {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
     dest.whitespace()?;
     dest.write_char('{')?;
     let len = self.declarations.len();
@@ -340,7 +353,7 @@ impl ToCss for StyleRule {
   }
 }
 
-impl StyleRule {
+impl DeclarationBlock {
   pub fn minify(&mut self) {
     use crate::values::border::*;
     use crate::properties::{margin_padding::*, outline::*, flex::*, align::*, font::*};
@@ -393,7 +406,8 @@ impl StyleRule {
 pub enum CssRule {
   Media(MediaRule),
   Import(ImportRule),
-  Style(StyleRule)
+  Style(StyleRule),
+  Keyframes(KeyframesRule)
 }
 
 impl ToCss for CssRule {
@@ -402,6 +416,7 @@ impl ToCss for CssRule {
       CssRule::Media(media) => media.to_css(dest),
       CssRule::Import(import) => import.to_css(dest),
       CssRule::Style(style) => style.to_css(dest),
+      CssRule::Keyframes(keyframes) => keyframes.to_css(dest)
     }
   }
 }
@@ -483,23 +498,24 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
           //         Err(input.new_custom_error(StyleParseErrorKind::UnsupportedAtRule(name.clone())))
           //     }
           // },
-          // "keyframes" | "-webkit-keyframes" | "-moz-keyframes" => {
-          //     let prefix = if starts_with_ignore_ascii_case(&*name, "-webkit-") {
-          //         Some(VendorPrefix::WebKit)
-          //     } else if starts_with_ignore_ascii_case(&*name, "-moz-") {
-          //         Some(VendorPrefix::Moz)
-          //     } else {
-          //         None
-          //     };
-          //     if cfg!(feature = "servo") &&
-          //        prefix.as_ref().map_or(false, |p| matches!(*p, VendorPrefix::Moz)) {
-          //         // Servo should not support @-moz-keyframes.
-          //         return Err(input.new_custom_error(StyleParseErrorKind::UnsupportedAtRule(name.clone())))
-          //     }
-          //     let name = KeyframesName::parse(self.context, input)?;
+          "keyframes" | "-webkit-keyframes" | "-moz-keyframes" => {
+              // let prefix = if starts_with_ignore_ascii_case(&*name, "-webkit-") {
+              //     Some(VendorPrefix::WebKit)
+              // } else if starts_with_ignore_ascii_case(&*name, "-moz-") {
+              //     Some(VendorPrefix::Moz)
+              // } else {
+              //     None
+              // };
+              // let name = KeyframesName::parse(self.context, input)?;
+              let location = input.current_source_location();
+              let name = match *input.next()? {
+                Token::Ident(ref s) => s.as_ref(),
+                Token::QuotedString(ref s) => s.as_ref(),
+                ref t => return Err(location.new_unexpected_token_error(t.clone())),
+              };
 
-          //     Ok(AtRuleType::WithBlock(AtRuleBlockPrelude::Keyframes(name, prefix)))
-          // },
+              Ok(AtRuleType::WithBlock(AtRulePrelude::Keyframes(name.into())))
+          },
           // "page" => {
           //     if cfg!(feature = "gecko") {
           //         Ok(AtRuleType::WithBlock(AtRuleBlockPrelude::Page))
@@ -518,7 +534,10 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
           //     Ok(AtRuleType::WithBlock(AtRuleBlockPrelude::Document(cond)))
           // },
           // _ => Err(input.new_custom_error(StyleParseErrorKind::UnsupportedAtRule(name.clone())))
-          _ => Ok(AtRuleType::WithBlock(AtRulePrelude::FontFeatureValues))
+          _ => {
+            print!("UNKNOWN AT RULE {}", name);
+            Ok(AtRuleType::WithBlock(AtRulePrelude::FontFeatureValues))
+          }
       }
   }
 
@@ -609,22 +628,23 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
           //         self.shared_lock.wrap(ViewportRule::parse(&context, input)?),
           //     )))
           // },
-          // AtRuleBlockPrelude::Keyframes(name, vendor_prefix) => {
-          //     let context = ParserContext::new_with_rule_type(
-          //         self.context,
-          //         CssRuleType::Keyframes,
-          //         self.namespaces,
-          //     );
+          AtRulePrelude::Keyframes(name) => {
+              // let context = ParserContext::new_with_rule_type(
+              //     self.context,
+              //     CssRuleType::Keyframes,
+              //     self.namespaces,
+              // );
 
-          //     Ok(CssRule::Keyframes(Arc::new(self.shared_lock.wrap(
-          //         KeyframesRule {
-          //             name,
-          //             keyframes: parse_keyframe_list(&context, input, self.shared_lock),
-          //             vendor_prefix,
-          //             source_location: start.source_location(),
-          //         },
-          //     ))))
-          // },
+              let iter = RuleListParser::new_for_nested_rule(input, KeyframeListParser);
+
+              Ok(CssRule::Keyframes(KeyframesRule {
+                name,
+                keyframes: iter.filter_map(Result::ok).collect()
+                // keyframes: parse_keyframe_list(&context, input, self.shared_lock),
+                // vendor_prefix,
+                // source_location: start.source_location(),
+              }))
+          },
           // AtRuleBlockPrelude::Page => {
           //     let context = ParserContext::new_with_rule_type(
           //         self.context,
@@ -651,7 +671,10 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
           //     ))))
           // },
           // _ => Ok()
-          _ => unreachable!()
+          _ => {
+            println!("{:?}", prelude);
+            unreachable!()
+          }
       }
   }
 }
@@ -695,12 +718,14 @@ impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser {
       // Ok((prelude, declarations))
       Ok(CssRule::Style(StyleRule {
         selectors,
-        declarations
+        declarations: DeclarationBlock {
+          declarations
+        }
       }))
   }
 }
 
-struct PropertyDeclarationParser;
+pub struct PropertyDeclarationParser;
 
 /// Parse a declaration within {} block: `color: blue`
 impl<'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser {

@@ -89,4 +89,18 @@ css.transform({
 //     color: var(--test);
 //   }
 // }
+
+@keyframes test {
+  from {
+    background: red;
+  }
+
+  50% {
+    background: blue;
+  }
+
+  to {
+    background: green;
+  }
+}
 `)})

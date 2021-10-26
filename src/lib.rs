@@ -8,6 +8,7 @@ extern crate selectors;
 extern crate itertools;
 
 mod parser;
+mod rules;
 mod media_query;
 mod selector;
 mod properties;
@@ -74,6 +75,12 @@ fn compile(code: &str, minify: bool) -> String {
           url: "test".into()
         })
       },
+      parser::CssRule::Keyframes(mut keyframes) => {
+        for keyframe in keyframes.keyframes.iter_mut() {
+          keyframe.declarations.minify();
+        }
+        parser::CssRule::Keyframes(keyframes)
+      }
       parser::CssRule::Style(mut style) => {
         for selector in style.selectors.0.iter() {
           for x in selector.iter() {
@@ -93,7 +100,7 @@ fn compile(code: &str, minify: bool) -> String {
           }
         }
 
-        style.minify();
+        style.declarations.minify();
 
         parser::CssRule::Style(style)
       },
@@ -1031,5 +1038,36 @@ mod tests {
     minify_test(".test + .foo {}", ".test+.foo{}");
     minify_test(".test ~ .foo {}", ".test~.foo{}");
     minify_test(".test .foo {}", ".test .foo{}");
+  }
+
+  #[test]
+  fn test_keyframes() {
+    minify_test(r#"
+      @keyframes test {
+        from {
+          background: green;
+        }
+
+        50% {
+          background: red;
+        }
+
+        100% {
+          background: blue
+        }
+      }
+    "#, "@keyframes test{0%{background:green}50%{background:red}to{background:#00f}}");
+    minify_test(r#"
+      @keyframes test {
+        from {
+          background: green;
+          background-color: red;
+        }
+
+        100% {
+          background: blue
+        }
+      }
+    "#, "@keyframes test{0%{background:red}to{background:#00f}}");
   }
 }
