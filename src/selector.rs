@@ -52,7 +52,7 @@ impl<'i> selectors::parser::Parser<'i> for SelectorParser {
         "read-only" => ReadOnly,
         "target" => Target,
         "visited" => Visited,
-        _ => return Err(location.new_custom_error(selectors::parser::SelectorParseErrorKind::UnexpectedIdent(name.clone()))),
+        _ => Custom(name.as_ref().into())
       };
 
       Ok(pseudo_class)
@@ -86,7 +86,7 @@ impl<'i> selectors::parser::Parser<'i> for SelectorParser {
       "first-line" => FirstLine,
       "first-letter" => FirstLetter,
       "selection" => Selection,
-      _ => return Err(location.new_custom_error(selectors::parser::SelectorParseErrorKind::UnexpectedIdent(name.clone())))
+      _ => Custom(name.as_ref().into())
     };
 
     Ok(pseudo_element)
@@ -113,6 +113,7 @@ pub enum PseudoClass {
   ReadOnly,
   Target,
   Visited,
+  Custom(String)
 }
 
 impl selectors::parser::NonTSPseudoClass for PseudoClass {
@@ -139,7 +140,7 @@ impl cssparser::ToCss for PseudoClass {
         return dest.write_str(")");
       }
 
-      dest.write_str(match *self {
+      dest.write_str(match &self {
         Active => ":active",
         AnyLink => ":any-link",
         Checked => ":checked",
@@ -157,6 +158,10 @@ impl cssparser::ToCss for PseudoClass {
         Target => ":target",
         Visited => ":visited",
         Lang(_) => unreachable!(),
+        Custom(val) => {
+          dest.write_char(':')?;
+          return dest.write_str(&val)
+        }
       })
   }
 }
@@ -169,6 +174,7 @@ pub enum PseudoElement {
   FirstLine,
   FirstLetter,
   Selection,
+  Custom(String)
 }
 
 impl cssparser::ToCss for PseudoElement {
@@ -177,7 +183,7 @@ impl cssparser::ToCss for PseudoElement {
       W: fmt::Write,
   {
     use PseudoElement::*;
-    dest.write_str(match *self {
+    dest.write_str(match &self {
       // CSS2 pseudo elements support a single colon syntax in addition
       // to the more correct double colon for other pseudo elements.
       // We use that here because it's supported everywhere and is shorter.
@@ -185,7 +191,11 @@ impl cssparser::ToCss for PseudoElement {
       Before => ":before",
       FirstLine => ":first-line",
       FirstLetter => ":first-letter",
-      Selection => "::selection"
+      Selection => "::selection",
+      Custom(val) => {
+        dest.write_str("::")?;
+        return dest.write_str(val)
+      }
     })
   }
 }
