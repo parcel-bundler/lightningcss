@@ -3,6 +3,7 @@ use super::traits::{Parse, ToCss};
 use super::macros::enum_property;
 use crate::printer::Printer;
 use std::fmt::Write;
+use super::calc::Calc;
 
 /// https://drafts.csswg.org/css-sizing-3/#specifying-sizes
 
@@ -142,7 +143,7 @@ impl ToCss for MinMaxSize {
 pub enum LengthPercentage {
   Length(Length),
   Percentage(Percentage),
-  // Calc()
+  Calc(Calc<LengthPercentage>)
 }
 
 impl Parse for LengthPercentage {
@@ -155,7 +156,117 @@ impl Parse for LengthPercentage {
       return Ok(LengthPercentage::Percentage(percent))
     }
 
+    let f = input.expect_function()?;
+    match_ignore_ascii_case! { &f,
+      "calc" => {
+        let calc = Calc::parse(input)?;
+        return Ok(LengthPercentage::Calc(calc))
+      },
+      _ => {}
+    }
+
     Err(input.new_error_for_next_token())
+  }
+}
+
+impl std::ops::Mul<f32> for LengthPercentage {
+  type Output = Self;
+
+  fn mul(self, other: f32) -> LengthPercentage {
+    match self {
+      LengthPercentage::Length(l) => LengthPercentage::Length(l * other),
+      LengthPercentage::Percentage(p) => LengthPercentage::Percentage(Percentage(p.0 * other)),
+      LengthPercentage::Calc(c) => LengthPercentage::Calc(c * other)
+    }
+  }
+}
+
+impl std::ops::Add<LengthPercentage> for LengthPercentage {
+  type Output = Self;
+
+  fn add(self, other: LengthPercentage) -> LengthPercentage {
+    match self.add_recursive(&other) {
+      Some(r) => r,
+      None => self.add(other)
+    }
+  }
+}
+
+impl LengthPercentage {
+  fn add_recursive(&self, other: &LengthPercentage) -> Option<LengthPercentage> {
+    match (self, other) {
+      (LengthPercentage::Length(a), LengthPercentage::Length(b)) if a.unit == b.unit => Some(LengthPercentage::Length(a.clone() + b.clone())),
+      (LengthPercentage::Percentage(a), LengthPercentage::Percentage(b)) => Some(LengthPercentage::Percentage(Percentage(a.0 + b.0))),
+      (LengthPercentage::Calc(Calc::Value(v)), other) => v.add_recursive(other),
+      (other, LengthPercentage::Calc(Calc::Value(v))) => other.add_recursive(v),
+      (LengthPercentage::Calc(Calc::Sum(a, b)), other) => {
+        if let Some(res) = LengthPercentage::Calc(*a.clone()).add_recursive(other) {
+          return Some(LengthPercentage::Calc(Calc::Value(Box::new(res)) + *b.clone()))
+        }
+
+        if let Some(res) = LengthPercentage::Calc(*b.clone()).add_recursive(other) {
+          return Some(LengthPercentage::Calc(*a.clone() + Calc::Value(Box::new(res))))
+        }
+
+        None
+      }
+      (other, LengthPercentage::Calc(Calc::Sum(a, b))) => {
+        if let Some(res) = other.add_recursive(&LengthPercentage::Calc(*a.clone())) {
+          return Some(LengthPercentage::Calc(Calc::Value(Box::new(res)) + *b.clone()))
+        }
+
+        if let Some(res) = other.add_recursive(&LengthPercentage::Calc(*b.clone())) {
+          return Some(LengthPercentage::Calc(*a.clone() + Calc::Value(Box::new(res))))
+        }
+
+        None
+      }
+      _ => None
+    }
+  }
+
+  fn add(self, other: LengthPercentage) -> LengthPercentage {
+    let mut a = self;
+    let mut b = other;
+
+    if a == 0.0 {
+      return b
+    }
+
+    if b == 0.0 {
+      return a
+    }
+
+    if a < 0.0 && b > 0.0 {
+      std::mem::swap(&mut a, &mut b);
+    }
+    
+    match (a, b) {
+      (LengthPercentage::Calc(a), LengthPercentage::Calc(b)) => LengthPercentage::Calc(a + b),
+      (LengthPercentage::Calc(a), b) => LengthPercentage::Calc(a + Calc::Value(Box::new(b))),
+      (a, LengthPercentage::Calc(b)) => LengthPercentage::Calc(Calc::Value(Box::new(a)) + b),
+      (a, b) => LengthPercentage::Calc(Calc::Sum(Box::new(Calc::Value(Box::new(a))), Box::new(Calc::Value(Box::new(b)))))
+    }
+  }
+}
+
+impl std::cmp::PartialEq<f32> for LengthPercentage {
+  fn eq(&self, other: &f32) -> bool {
+    match self {
+      LengthPercentage::Length(a) => a.value == *other,
+      LengthPercentage::Percentage(a) => a.0 == *other,
+      LengthPercentage::Calc(_) => false
+    }
+  }
+}
+
+impl std::cmp::PartialOrd<f32> for LengthPercentage {
+  fn partial_cmp(&self, other: &f32) -> Option<std::cmp::Ordering> {
+    match self {
+      LengthPercentage::Length(a) => a.value.partial_cmp(other),
+      LengthPercentage::Percentage(a) => a.0.partial_cmp(other),
+      LengthPercentage::Calc(_) => None
+    }
   }
 }
 
@@ -163,7 +274,16 @@ impl ToCss for LengthPercentage {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     match self {
       LengthPercentage::Length(length) => length.to_css(dest),
-      LengthPercentage::Percentage(percent) => percent.to_css(dest)
+      LengthPercentage::Percentage(percent) => percent.to_css(dest),
+      LengthPercentage::Calc(calc) => {
+        if let Calc::Value(v) = calc {
+          v.to_css(dest)
+        } else {
+          dest.write_str("calc(")?;
+          calc.to_css(dest)?;
+          dest.write_char(')')
+        }
+      }
     }
   }
 }
@@ -325,6 +445,28 @@ impl ToCss for Length {
       }
     } else {
       token.to_css(dest)
+    }
+  }
+}
+
+impl std::ops::Mul<f32> for Length {
+  type Output = Self;
+
+  fn mul(self, other: f32) -> Length {
+    Length {
+      value: self.value * other,
+      unit: self.unit
+    }
+  }
+}
+
+impl std::ops::Add<Length> for Length {
+  type Output = Self;
+
+  fn add(self, other: Length) -> Length {
+    Length {
+      value: self.value + other.value,
+      unit: self.unit
     }
   }
 }
