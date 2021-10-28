@@ -8,8 +8,6 @@ edition = "2018"
 crate-type = ["cdylib"]
 
 [dependencies]
-napi = { version = "1", features = ["serde-json"] }
-napi-derive = "1"
 serde = { version = "1.0.123", features = ["derive"] }
 serde_bytes = "0.11.5"
 cssparser = "0.28.1"
@@ -23,5 +21,18 @@ bitflags = "*"
 [target.'cfg(target_os = "macos")'.dependencies]
 jemallocator = { version = "0.3.2", features = ["disable_initial_exec_tls"] }
 
-[build-dependencies]
-napi-build = { version = "1" }
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+napi = { version = "1", features = ["serde-json"] }
+napi-derive = "1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = "0.3"
+serde-wasm-bindgen = "0.3.0"
+wasm-bindgen = "0.2"
+
+[target.'cfg(not(target_arch = "wasm32"))'.build-dependencies]
+napi-build = "1"
+
+[profile.release]
+lto = true
+opt-level = 's'
