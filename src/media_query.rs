@@ -432,6 +432,7 @@ impl MediaFeatureExpression {
       //     err.location
       //         .new_custom_error(StyleParseErrorKind::MediaQueryExpectedFeatureValue)
       // })?;
+      input.skip_whitespace();
       let value = exhaust(input);
 
       Ok(MediaFeatureExpression {
