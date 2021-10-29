@@ -61,13 +61,10 @@ fn compile(code: &str, minify: bool) -> String {
   let mut dest = String::new();
   let mut printer = Printer::new(&mut dest, minify);
   let mut first = true;
+  // let mut last_style_rule = None;
+  let mut rules = vec![];
 
   for (pos, rule) in rule_list.flatten() {
-    if first {
-      first = false;
-    } else {
-      printer.newline();
-    }
     // println!("{:?}", rule);
     let rule = match rule {
       parser::CssRule::Import(import) => {
@@ -103,14 +100,33 @@ fn compile(code: &str, minify: bool) -> String {
 
         style.declarations.minify();
 
+        if let Some(parser::CssRule::Style(last_style_rule)) = rules.last_mut() {
+          if style.selectors == last_style_rule.selectors {
+            last_style_rule.declarations.declarations.extend(style.declarations.declarations);
+            last_style_rule.declarations.minify();
+            continue
+          } else if style.declarations == last_style_rule.declarations {
+            last_style_rule.selectors.0.extend(style.selectors.0);
+            continue
+          }
+        }
+
         parser::CssRule::Style(style)
       },
       r => r
     };
-    rule.to_css(&mut printer);
-    if !printer.minify {
+    rules.push(rule);
+  }
+
+  for rule in rules {
+    if first {
+      first = false;
+    } else {
       printer.newline();
     }
+
+    rule.to_css(&mut printer);
+    printer.newline();
   }
 
   dest
@@ -1163,5 +1179,88 @@ mod tests {
   #[test]
   fn test_media() {
     minify_test("@media (min-width: 240px) { .foo { color: chartreuse }}", "@media (min-width:240px){.foo{color:#7fff00}}")
+  }
+
+  #[test]
+  fn test_merge_rules() {
+    test(r#"
+      .foo {
+        color: red;
+      }
+      .bar {
+        color: red;
+      }
+    "#, indoc! {r#"
+      .foo, .bar {
+        color: red;
+      }
+    "#});
+    test(r#"
+      .foo {
+        color: red;
+      }
+      .foo {
+        background: green;
+      }
+    "#, indoc! {r#"
+      .foo {
+        color: red;
+        background: green;
+      }
+    "#});
+    test(r#"
+      .foo {
+        background: red;
+      }
+      .foo {
+        background: green;
+      }
+    "#, indoc! {r#"
+      .foo {
+        background: green;
+      }
+    "#});
+    test(r#"
+      .foo {
+        color: red;
+      }
+
+      .bar {
+        background: green;
+      }
+    "#, indoc! {r#"
+      .foo {
+        color: red;
+      }
+
+      .bar {
+        background: green;
+      }
+    "#});
+    test(r#"
+      .foo {
+        color: red;
+      }
+
+      .baz {
+        color: blue;
+      }
+
+      .bar {
+        color: red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        color: red;
+      }
+
+      .baz {
+        color: #00f;
+      }
+      
+      .bar {
+        color: red;
+      }
+    "#});
   }
 }
