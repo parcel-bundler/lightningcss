@@ -1149,4 +1149,14 @@ mod tests {
     minify_test(".foo { width: calc(200px / +1) }", ".foo{width:200px}");
     minify_test(".foo { width: calc(1.1e+1px + 1.1e+1px) }", ".foo{width:22px}");
   }
+
+  #[test]
+  fn test_box_shadow() {
+    minify_test(".foo { box-shadow: 64px 64px 12px 40px rgba(0,0,0,0.4) }", ".foo{box-shadow:64px 64px 12px 40px #0006}");
+    minify_test(".foo { box-shadow: 12px 12px 0px 8px rgba(0,0,0,0.4) inset }", ".foo{box-shadow:inset 12px 12px 0 8px #0006}");
+    minify_test(".foo { box-shadow: inset 12px 12px 0px 8px rgba(0,0,0,0.4) }", ".foo{box-shadow:inset 12px 12px 0 8px #0006}");
+    minify_test(".foo { box-shadow: 12px 12px 8px 0px rgba(0,0,0,0.4) }", ".foo{box-shadow:12px 12px 8px #0006}");
+    minify_test(".foo { box-shadow: 12px 12px 0px 0px rgba(0,0,0,0.4) }", ".foo{box-shadow:12px 12px #0006}");
+    minify_test(".foo { box-shadow: 64px 64px 12px 40px rgba(0,0,0,0.4), 12px 12px 0px 8px rgba(0,0,0,0.4) inset }", ".foo{box-shadow:64px 64px 12px 40px #0006,inset 12px 12px 0 8px #0006}");
+  }
 }

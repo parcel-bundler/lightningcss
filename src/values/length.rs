@@ -391,6 +391,12 @@ pub struct Length {
   pub unit: Unit
 }
 
+impl Length {
+  pub fn zero() -> Length {
+    Length { value: 0.0, unit: Unit::Px }
+  }
+}
+
 impl Parse for Length {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     let location = input.current_source_location();

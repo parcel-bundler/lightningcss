@@ -5,6 +5,7 @@ pub mod outline;
 pub mod flex;
 pub mod align;
 pub mod font;
+pub mod box_shadow;
 
 use cssparser::*;
 use custom::*;
@@ -13,6 +14,7 @@ use outline::*;
 use flex::*;
 use align::*;
 use font::*;
+use box_shadow::*;
 use crate::values::{image::*, length::*, border::*, border_image::*, border_radius::*, rect::*, color::*};
 use super::values::traits::{Parse, ToCss};
 use crate::printer::Printer;
@@ -32,6 +34,8 @@ pub enum Property {
   BackgroundOrigin(Vec<BackgroundBox>),
   // BackgroundBlendMode
   Background(Vec<Background>),
+
+  BoxShadow(Vec<BoxShadow>),
 
   Color(CssColor),
   Custom(CustomProperty),
@@ -249,6 +253,7 @@ impl Property {
       "background-origin" => property!(BackgroundOrigin, BackgroundBox, true),
       "background-clip" => property!(BackgroundClip, BackgroundBox, true),
       "background" => property!(Background, Background, true),
+      "box-shadow" => property!(BoxShadow, BoxShadow, true),
       "color" => property!(Color, CssColor),
       "width" => property!(Width, Size),
       "height" => property!(Height, Size),
@@ -450,6 +455,7 @@ impl Property {
       BackgroundOrigin(val) => property!("background-origin", val, true),
       BackgroundClip(val) => property!("background-clip", val, true),
       Background(val) => property!("background", val, true),
+      BoxShadow(val) => property!("box-shadow", val, true),
       Color(color) => property!("color", color),
       Width(val) => property!("width", val),
       Height(val) => property!("height", val),
