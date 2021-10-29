@@ -4,7 +4,7 @@ use std::fmt;
 use std::cell::RefCell;
 use crate::media_query::*;
 use crate::printer::Printer;
-use crate::values::traits::{Parse, ToCss};
+use crate::traits::{Parse, ToCss};
 use std::fmt::Write;
 use crate::selector::{Selectors, SelectorParser};
 use crate::rules::keyframes::{KeyframeListParser, KeyframesRule};

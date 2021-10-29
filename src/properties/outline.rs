@@ -1,6 +1,6 @@
 use cssparser::*;
-use crate::values::border::{BorderStyle, GenericBorder, BorderSideWidth};
-use crate::values::traits::{Parse, ToCss, PropertyHandler};
+use super::border::{BorderStyle, GenericBorder, BorderSideWidth};
+use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::values::color::CssColor;
 use super::Property;
 use crate::printer::Printer;

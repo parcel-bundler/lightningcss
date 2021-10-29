@@ -15,11 +15,13 @@ mod selector;
 mod properties;
 mod values;
 mod printer;
+mod traits;
+mod macros;
 
 use napi::{CallContext, JsObject, JsUndefined};
 use serde::{Deserialize, Serialize};
 use cssparser::{Parser, ParserInput, RuleListParser};
-use values::traits::ToCss;
+use crate::traits::ToCss;
 use printer::Printer;
 use std::fmt::Write;
 

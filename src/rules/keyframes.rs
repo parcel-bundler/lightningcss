@@ -1,6 +1,6 @@
 use cssparser::*;
 use crate::values::length::Percentage;
-use crate::values::traits::{Parse, ToCss};
+use crate::traits::{Parse, ToCss};
 use crate::properties::Property;
 use crate::parser::{PropertyDeclarationParser, DeclarationBlock};
 use crate::printer::Printer;

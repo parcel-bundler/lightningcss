@@ -1,8 +1,8 @@
-use super::length::*;
+use crate::values::length::*;
 use cssparser::*;
-use super::traits::{Parse, ToCss, PropertyHandler};
+use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::properties::Property;
-use super::rect::Rect;
+use crate::values::rect::Rect;
 use crate::printer::Printer;
 
 #[derive(Debug, Clone, PartialEq)]

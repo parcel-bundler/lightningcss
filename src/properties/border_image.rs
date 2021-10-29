@@ -1,10 +1,10 @@
-use super::length::{*, NumberOrPercentage};
+use crate::values::length::{*, NumberOrPercentage};
 use cssparser::*;
-use super::traits::{Parse, ToCss, PropertyHandler};
+use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::properties::Property;
-use super::rect::Rect;
-use super::image::Image;
-use super::macros::*;
+use crate::values::rect::Rect;
+use crate::values::image::Image;
+use crate::macros::*;
 use crate::printer::Printer;
 
 // https://www.w3.org/TR/css-backgrounds-3/#border-image-repeat

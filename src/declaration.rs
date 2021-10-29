@@ -1,6 +1,6 @@
 use cssparser::*;
 use crate::properties::Property;
-use crate::values::traits::{PropertyHandler, ToCss};
+use crate::traits::{PropertyHandler, ToCss};
 use crate::printer::Printer;
 use crate::properties::{
   align::AlignHandler,
@@ -8,9 +8,9 @@ use crate::properties::{
   flex::FlexHandler,
   font::FontHandler,
   margin_padding::*,
-  outline::OutlineHandler
+  outline::OutlineHandler,
+  border::BorderHandler
 };
-use crate::values::{border::BorderHandler};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Declaration {

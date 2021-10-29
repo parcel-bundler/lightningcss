@@ -1,5 +1,5 @@
 use cssparser::*;
-use super::traits::{Parse, ToCss};
+use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use std::fmt::Write;
 

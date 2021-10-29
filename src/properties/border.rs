@@ -1,10 +1,10 @@
-use super::length::*;
+use crate::values::length::*;
 use cssparser::*;
-use super::traits::{Parse, ToCss, PropertyHandler};
-use super::color::CssColor;
+use crate::traits::{Parse, ToCss, PropertyHandler};
+use crate::values::color::CssColor;
 use crate::properties::Property;
-use super::rect::Rect;
-use super::macros::*;
+use crate::values::rect::Rect;
+use crate::macros::*;
 use super::border_image::*;
 use super::border_radius::*;
 use crate::printer::Printer;

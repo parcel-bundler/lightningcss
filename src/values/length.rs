@@ -1,6 +1,6 @@
 use cssparser::*;
-use super::traits::{Parse, ToCss};
-use super::macros::enum_property;
+use crate::traits::{Parse, ToCss};
+use crate::macros::enum_property;
 use crate::printer::Printer;
 use std::fmt::Write;
 use super::calc::Calc;

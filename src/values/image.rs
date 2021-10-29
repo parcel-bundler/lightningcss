@@ -1,5 +1,5 @@
 use cssparser::*;
-use super::traits::{Parse, ToCss};
+use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 
 /// https://www.w3.org/TR/css-images-3/#typedef-image

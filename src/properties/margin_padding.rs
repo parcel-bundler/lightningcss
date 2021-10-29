@@ -1,6 +1,6 @@
 use crate::values::{length::{Size2D, LengthPercentageOrAuto}, rect::Rect};
 use crate::properties::Property;
-use crate::values::traits::PropertyHandler;
+use crate::traits::PropertyHandler;
 
 #[derive(Debug, PartialEq)]
 enum SideCategory {

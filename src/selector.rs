@@ -2,7 +2,7 @@ use cssparser::*;
 use selectors::{SelectorList, parser::{SelectorImpl, Selector, Combinator, Component}};
 use std::fmt;
 use crate::printer::Printer;
-use crate::values::traits::ToCss;
+use crate::traits::ToCss;
 use std::fmt::Write;
 use super::parser::CssString;
 

@@ -1,7 +1,7 @@
 use cssparser::*;
-use crate::values::traits::{ToCss, Parse};
+use crate::traits::{ToCss, Parse};
 use crate::printer::Printer;
-use crate::values::macros::enum_property;
+use crate::macros::enum_property;
 use std::fmt::Write;
 
 /// A type that encapsulates a media query list.

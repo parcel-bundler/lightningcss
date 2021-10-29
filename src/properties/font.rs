@@ -1,7 +1,7 @@
 use cssparser::*;
-use crate::values::macros::*;
+use crate::macros::*;
 use crate::values::length::{LengthPercentage, Angle, Percentage};
-use crate::values::traits::{Parse, ToCss, PropertyHandler};
+use crate::traits::{Parse, ToCss, PropertyHandler};
 use super::Property;
 use crate::printer::Printer;
 use std::fmt::Write;

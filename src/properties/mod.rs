@@ -6,6 +6,9 @@ pub mod flex;
 pub mod align;
 pub mod font;
 pub mod box_shadow;
+pub mod border;
+pub mod border_image;
+pub mod border_radius;
 
 use cssparser::*;
 use custom::*;
@@ -15,8 +18,11 @@ use flex::*;
 use align::*;
 use font::*;
 use box_shadow::*;
-use crate::values::{image::*, length::*, border::*, border_image::*, border_radius::*, rect::*, color::*};
-use super::values::traits::{Parse, ToCss};
+use border::*;
+use border_image::*;
+use border_radius::*;
+use crate::values::{image::*, length::*, rect::*, color::*};
+use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use std::fmt::Write;
 
