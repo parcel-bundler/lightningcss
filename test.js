@@ -1,6 +1,8 @@
 const css = require('./native');
 
 css.transform({
+
+let res = css.transform({
   filename: __filename,
   code: Buffer.from(`
 
@@ -103,4 +105,6 @@ css.transform({
     background: green;
   }
 }
-`)})
+`)});
+
+console.log(res.toString());

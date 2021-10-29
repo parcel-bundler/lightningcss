@@ -18,7 +18,7 @@ mod printer;
 mod traits;
 mod macros;
 
-use napi::{CallContext, JsObject, JsUndefined};
+use napi::{CallContext, JsObject, JsBuffer};
 use serde::{Deserialize, Serialize};
 use cssparser::{Parser, ParserInput, RuleListParser};
 use crate::traits::ToCss;
@@ -35,7 +35,7 @@ struct Config {
 }
 
 #[js_function(1)]
-fn transform(ctx: CallContext) -> napi::Result<JsUndefined> {
+fn transform(ctx: CallContext) -> napi::Result<JsBuffer> {
   let opts = ctx.get::<JsObject>(0)?;
   let config: Config = ctx.env.from_js_value(opts)?;
 
@@ -46,9 +46,8 @@ fn transform(ctx: CallContext) -> napi::Result<JsUndefined> {
   // }
 
   let res = compile(code, true);
-  println!("{}", res);
 
-  ctx.env.get_undefined()
+  Ok(ctx.env.create_buffer_with_data(res.into_bytes())?.into_raw())
 }
 
 fn compile(code: &str, minify: bool) -> String {
