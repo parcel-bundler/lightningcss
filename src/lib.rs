@@ -1264,4 +1264,14 @@ mod tests {
       }
     "#});
   }
+
+  #[test]
+  fn test_opacity() {
+    minify_test(".foo { opacity: 0 }", ".foo{opacity:0}");
+    minify_test(".foo { opacity: 0% }", ".foo{opacity:0}");
+    minify_test(".foo { opacity: 0.5 }", ".foo{opacity:.5}");
+    minify_test(".foo { opacity: 50% }", ".foo{opacity:.5}");
+    minify_test(".foo { opacity: 1 }", ".foo{opacity:1}");
+    minify_test(".foo { opacity: 100% }", ".foo{opacity:1}");
+  }
 }

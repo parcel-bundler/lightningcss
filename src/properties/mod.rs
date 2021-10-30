@@ -42,6 +42,7 @@ pub enum Property {
   Background(Vec<Background>),
 
   BoxShadow(Vec<BoxShadow>),
+  Opacity(AlphaValue),
 
   Color(CssColor),
   Custom(CustomProperty),
@@ -260,6 +261,7 @@ impl Property {
       "background-clip" => property!(BackgroundClip, BackgroundBox, true),
       "background" => property!(Background, Background, true),
       "box-shadow" => property!(BoxShadow, BoxShadow, true),
+      "opacity" => property!(Opacity, AlphaValue),
       "color" => property!(Color, CssColor),
       "width" => property!(Width, Size),
       "height" => property!(Height, Size),
@@ -462,6 +464,7 @@ impl Property {
       BackgroundClip(val) => property!("background-clip", val, true),
       Background(val) => property!("background", val, true),
       BoxShadow(val) => property!("box-shadow", val, true),
+      Opacity(val) => property!("opacity", val),
       Color(color) => property!("color", color),
       Width(val) => property!("width", val),
       Height(val) => property!("height", val),
