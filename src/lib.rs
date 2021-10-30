@@ -1319,5 +1319,68 @@ mod tests {
     minify_test(".foo { transition: width 2s 1s }", ".foo{transition:width 2s 1s}");
     minify_test(".foo { transition: width 2s ease 1s }", ".foo{transition:width 2s 1s}");
     minify_test(".foo { transition: ease-in 1s width 4s }", ".foo{transition:width 1s ease-in 4s}");
+    test(r#"
+      .foo {
+        transition-property: opacity;
+        transition-duration: 0.09s;
+        transition-timing-function: ease-in-out;
+        transition-delay: 500ms;
+      }
+    "#, indoc! {r#"
+      .foo {
+        transition: opacity 90ms ease-in-out .5s;
+      }
+    "#});
+    test(r#"
+      .foo {
+        transition: opacity 2s;
+        transition-timing-function: ease;
+        transition-delay: 500ms;
+      }
+    "#, indoc! {r#"
+      .foo {
+        transition: opacity 2s .5s;
+      }
+    "#});
+    test(r#"
+      .foo {
+        transition-property: opacity;
+        transition-duration: 0.09s;
+        transition-timing-function: ease-in-out;
+        transition-delay: 500ms;
+        transition: color 2s;
+      }
+    "#, indoc! {r#"
+      .foo {
+        transition: color 2s;
+      }
+    "#});
+    test(r#"
+      .foo {
+        transition-property: opacity, color;
+        transition-duration: 2s, 4s;
+        transition-timing-function: ease-in-out, ease-in;
+        transition-delay: 500ms, 0s;
+      }
+    "#, indoc! {r#"
+      .foo {
+        transition: opacity 2s ease-in-out .5s, color 4s ease-in;
+      }
+    "#});
+    test(r#"
+      .foo {
+        transition-property: opacity, color;
+        transition-duration: 2s;
+        transition-timing-function: ease-in-out;
+        transition-delay: 500ms;
+      }
+    "#, indoc! {r#"
+      .foo {
+        transition-property: opacity, color;
+        transition-duration: 2s;
+        transition-delay: .5s;
+        transition-timing-function: ease-in-out;
+      }
+    "#});
   }
 }
