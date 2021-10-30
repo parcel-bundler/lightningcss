@@ -10,6 +10,7 @@ pub mod border;
 pub mod border_image;
 pub mod border_radius;
 pub mod transition;
+pub mod animation;
 
 use cssparser::*;
 use custom::*;
@@ -23,6 +24,7 @@ use border::*;
 use border_image::*;
 use border_radius::*;
 use transition::*;
+use animation::*;
 use crate::values::{image::*, length::*, rect::*, color::*, time::Time, ident::CustomIdent, easing::EasingFunction};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
@@ -237,7 +239,17 @@ pub enum Property {
   TransitionDuration(Vec<Time>),
   TransitionDelay(Vec<Time>),
   TransitionTimingFunction(Vec<EasingFunction>),
-  Transition(Vec<Transition>)
+  Transition(Vec<Transition>),
+
+  AnimationName(Vec<AnimationName>),
+  AnimationDuration(Vec<Time>),
+  AnimationTimingFunction(Vec<EasingFunction>),
+  AnimationIterationCount(Vec<AnimationIterationCount>),
+  AnimationDirection(Vec<AnimationDirection>),
+  AnimationPlayState(Vec<AnimationPlayState>),
+  AnimationDelay(Vec<Time>),
+  AnimationFillMode(Vec<AnimationFillMode>),
+  Animation(Vec<Animation>)
 }
 
 impl Property {
@@ -434,6 +446,15 @@ impl Property {
       "transition-delay" => property!(TransitionDelay, Time, true),
       "transition-timing-function" => property!(TransitionTimingFunction, EasingFunction, true),
       "transition" => property!(Transition, Transition, true),
+      "animation-name" => property!(AnimationName, AnimationName, true),
+      "animation-duration" => property!(AnimationDuration, Time, true),
+      "animation-timing-function" => property!(AnimationTimingFunction, EasingFunction, true),
+      "animation-iteration-count" => property!(AnimationIterationCount, AnimationIterationCount, true),
+      "animation-direction" => property!(AnimationDirection, AnimationDirection, true),
+      "animation-play-state" => property!(AnimationPlayState, AnimationPlayState, true),
+      "animation-delay" => property!(AnimationDelay, Time, true),
+      "animation-fill-mode" => property!(AnimationFillMode, AnimationFillMode, true),
+      "animation" => property!(Animation, Animation, true),
       _ => {}
     }
 
@@ -638,6 +659,15 @@ impl Property {
       TransitionDelay(val) => property!("transition-delay", val, true),
       TransitionTimingFunction(val) => property!("transition-timing-function", val, true),
       Transition(val) => property!("transition", val, true),
+      AnimationName(val) => property!("animation-name", val, true),
+      AnimationDuration(val) => property!("animation-duration", val, true),
+      AnimationTimingFunction(val) => property!("animation-timing-function", val, true),
+      AnimationIterationCount(val) => property!("animation-iteration-count", val, true),
+      AnimationDirection(val) => property!("animation-direction", val, true),
+      AnimationPlayState(val) => property!("animation-play-state", val, true),
+      AnimationDelay(val) => property!("animation-delay", val, true),
+      AnimationFillMode(val) => property!("animation-fill-mode", val, true),
+      Animation(val) => property!("animation", val, true),
       Custom(custom) => {
         dest.write_str(custom.name.as_ref())?;
         dest.delim(':', false)?;

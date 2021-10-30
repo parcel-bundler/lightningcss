@@ -10,7 +10,8 @@ use crate::properties::{
   margin_padding::*,
   outline::OutlineHandler,
   border::BorderHandler,
-  transition::TransitionHandler
+  transition::TransitionHandler,
+  animation::AnimationHandler
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -54,7 +55,8 @@ pub struct DeclarationHandler {
   scroll_margin: ScrollMarginHandler,
   scroll_padding: ScrollPaddingHandler,
   font: FontHandler,
-  transition: TransitionHandler
+  transition: TransitionHandler,
+  animation: AnimationHandler
 }
 
 impl DeclarationHandler {
@@ -77,7 +79,8 @@ impl DeclarationHandler {
     self.scroll_margin.handle_property(property) ||
     self.scroll_padding.handle_property(property) ||
     self.font.handle_property(property) ||
-    self.transition.handle_property(property)
+    self.transition.handle_property(property) ||
+    self.animation.handle_property(property)
   }
 
   pub fn finalize(&mut self) -> Vec<Declaration> {
@@ -93,6 +96,7 @@ impl DeclarationHandler {
       .chain(self.scroll_padding.finalize().drain(..))
       .chain(self.font.finalize().drain(..))
       .chain(self.transition.finalize().drain(..))
+      .chain(self.animation.finalize().drain(..))
       .map(|property| Declaration { property, important })
       .collect()
   }

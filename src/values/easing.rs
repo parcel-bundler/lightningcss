@@ -95,6 +95,15 @@ impl ToCss for EasingFunction {
   }
 }
 
+impl EasingFunction {
+  pub fn is_ident(s: &str) -> bool {
+    match s {
+      "linear" | "ease" | "ease-in" | "ease-out" | "ease-in-out" | "step-start" | "step-end" => true,
+      _ => false
+    }
+  }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum StepPosition {
   Start,

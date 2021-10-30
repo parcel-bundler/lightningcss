@@ -29,6 +29,17 @@ macro_rules! enum_property {
         }
       }
     }
+
+    impl $name {
+      pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+          $(
+            s if s.eq_ignore_ascii_case(stringify!($x)) => Some($name::$x),
+          )+
+          _ => None
+        }
+      }
+    }
   };
   ($name: ident, $( ($str: expr, $id: ident) ),+) => {
     #[derive(Debug, Clone, Copy, PartialEq)]
@@ -57,6 +68,17 @@ macro_rules! enum_property {
           $(
             $id => dest.write_str($str),
           )+
+        }
+      }
+    }
+
+    impl $name {
+      pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+          $(
+            s if s.eq_ignore_ascii_case($str) => Some($name::$id),
+          )+
+          _ => None
         }
       }
     }

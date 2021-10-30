@@ -1384,4 +1384,100 @@ mod tests {
       }
     "#});
   }
+
+  #[test]
+  fn test_animation() {
+    minify_test(".foo { animation-name: test }", ".foo{animation-name:test}");
+    minify_test(".foo { animation-name: \"test\" }", ".foo{animation-name:test}");
+    minify_test(".foo { animation-name: foo, bar }", ".foo{animation-name:foo,bar}");
+    minify_test(".foo { animation-duration: 100ms }", ".foo{animation-duration:.1s}");
+    minify_test(".foo { animation-duration: 100ms, 2000ms }", ".foo{animation-duration:.1s,2s}");
+    minify_test(".foo { animation-timing-function: ease }", ".foo{animation-timing-function:ease}");
+    minify_test(".foo { animation-timing-function: cubic-bezier(0.42, 0, 1, 1) }", ".foo{animation-timing-function:ease-in}");
+    minify_test(".foo { animation-timing-function: ease, cubic-bezier(0.42, 0, 1, 1) }", ".foo{animation-timing-function:ease,ease-in}");
+    minify_test(".foo { animation-iteration-count: 5 }", ".foo{animation-iteration-count:5}");
+    minify_test(".foo { animation-iteration-count: 2.5 }", ".foo{animation-iteration-count:2.5}");
+    minify_test(".foo { animation-iteration-count: 2.0 }", ".foo{animation-iteration-count:2}");
+    minify_test(".foo { animation-iteration-count: infinite }", ".foo{animation-iteration-count:infinite}");
+    minify_test(".foo { animation-iteration-count: 1, infinite }", ".foo{animation-iteration-count:1,infinite}");
+    minify_test(".foo { animation-direction: reverse }", ".foo{animation-direction:reverse}");
+    minify_test(".foo { animation-direction: alternate, reverse }", ".foo{animation-direction:alternate,reverse}");
+    minify_test(".foo { animation-play-state: paused }", ".foo{animation-play-state:paused}");
+    minify_test(".foo { animation-play-state: running, paused }", ".foo{animation-play-state:running,paused}");
+    minify_test(".foo { animation-delay: 100ms }", ".foo{animation-delay:.1s}");
+    minify_test(".foo { animation-delay: 100ms, 2000ms }", ".foo{animation-delay:.1s,2s}");
+    minify_test(".foo { animation-fill-mode: forwards }", ".foo{animation-fill-mode:forwards}");
+    minify_test(".foo { animation-fill-mode: Backwards,forwards }", ".foo{animation-fill-mode:backwards,forwards}");
+    minify_test(".foo { animation: 3s ease-in 1s infinite reverse both running slidein }", ".foo{animation:slidein 3s ease-in 1s infinite reverse both}");
+    minify_test(".foo { animation: 3s slidein paused ease 1s 1 reverse both }", ".foo{animation:slidein 3s 1s reverse both paused}");
+    minify_test(".foo { animation: 3s ease ease }", ".foo{animation:ease 3s ease}");
+    minify_test(".foo { animation: 3s cubic-bezier(0.25, 0.1, 0.25, 1) foo }", ".foo{animation:foo 3s}");
+    minify_test(".foo { animation: foo 0s 3s infinite }", ".foo{animation:foo 0s 3s infinite}");
+    minify_test(".foo { animation: none }", ".foo{animation:none}");
+    test(r#"
+      .foo {
+        animation-name: foo;
+        animation-duration: 0.09s;
+        animation-timing-function: ease-in-out;
+        animation-iteration-count: 2;
+        animation-direction: alternate;
+        animation-play-state: running;
+        animation-delay: 100ms;
+        animation-fill-mode: forwards;
+      }
+    "#, indoc! {r#"
+      .foo {
+        animation: foo 90ms ease-in-out .1s 2 alternate forwards;
+      }
+    "#});
+    test(r#"
+      .foo {
+        animation-name: foo, bar;
+        animation-duration: 0.09s, 200ms;
+        animation-timing-function: ease-in-out, ease;
+        animation-iteration-count: 2, 1;
+        animation-direction: alternate, normal;
+        animation-play-state: running, paused;
+        animation-delay: 100ms, 0s;
+        animation-fill-mode: forwards, none;
+      }
+    "#, indoc! {r#"
+      .foo {
+        animation: foo 90ms ease-in-out .1s 2 alternate forwards, bar .2s paused;
+      }
+    "#});
+    test(r#"
+      .foo {
+        animation: bar 200ms;
+        animation-timing-function: ease-in-out;
+      }
+    "#, indoc! {r#"
+      .foo {
+        animation: bar .2s ease-in-out;
+      }
+    "#});
+    test(r#"
+      .foo {
+        animation-name: foo, bar;
+        animation-duration: 0.09s;
+        animation-timing-function: ease-in-out;
+        animation-iteration-count: 2;
+        animation-direction: alternate;
+        animation-play-state: running;
+        animation-delay: 100ms;
+        animation-fill-mode: forwards;
+      }
+    "#, indoc! {r#"
+      .foo {
+        animation-name: foo, bar;
+        animation-duration: 90ms;
+        animation-timing-function: ease-in-out;
+        animation-iteration-count: 2;
+        animation-direction: alternate;
+        animation-play-state: running;
+        animation-delay: .1s;
+        animation-fill-mode: forwards;
+      }
+    "#});
+  }
 }
