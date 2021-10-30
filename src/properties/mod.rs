@@ -21,7 +21,7 @@ use box_shadow::*;
 use border::*;
 use border_image::*;
 use border_radius::*;
-use crate::values::{image::*, length::*, rect::*, color::*};
+use crate::values::{image::*, length::*, rect::*, color::*, time::Time};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use std::fmt::Write;
@@ -229,7 +229,10 @@ pub enum Property {
   FontStyle(FontStyle),
   FontVariantCaps(FontVariantCaps),
   LineHeight(LineHeight),
-  Font(Font)
+  Font(Font),
+
+  TransitionDuration(Vec<Time>),
+  TransitionDelay(Vec<Time>)
 }
 
 impl Property {
@@ -421,6 +424,8 @@ impl Property {
       "font-variant-caps" => property!(FontVariantCaps, FontVariantCaps),
       "line-height" => property!(LineHeight, LineHeight),
       "font" => property!(Font, Font),
+      "transition-duration" => property!(TransitionDuration, Time, true),
+      "transition-delay" => property!(TransitionDelay, Time, true),
       _ => {}
     }
 
@@ -620,6 +625,8 @@ impl Property {
       FontVariantCaps(val) => property!("font-variant-caps", val),
       LineHeight(val) => property!("line-height", val),
       Font(val) => property!("font", val),
+      TransitionDuration(val) => property!("transition-duration", val, true),
+      TransitionDelay(val) => property!("transition-delay", val, true),
       Custom(custom) => {
         dest.write_str(custom.name.as_ref())?;
         dest.delim(':', false)?;

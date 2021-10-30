@@ -1274,4 +1274,19 @@ mod tests {
     minify_test(".foo { opacity: 1 }", ".foo{opacity:1}");
     minify_test(".foo { opacity: 100% }", ".foo{opacity:1}");
   }
+
+  #[test]
+  fn test_transitions() {
+    minify_test(".foo { transition-duration: 500ms }", ".foo{transition-duration:.5s}");
+    minify_test(".foo { transition-duration: .5s }", ".foo{transition-duration:.5s}");
+    minify_test(".foo { transition-duration: 99ms }", ".foo{transition-duration:99ms}");
+    minify_test(".foo { transition-duration: .099s }", ".foo{transition-duration:99ms}");
+    minify_test(".foo { transition-duration: 2000ms }", ".foo{transition-duration:2s}");
+    minify_test(".foo { transition-duration: 2s }", ".foo{transition-duration:2s}");
+    minify_test(".foo { transition-duration: calc(1s - 50ms) }", ".foo{transition-duration:.95s}");
+    minify_test(".foo { transition-duration: calc(1s - 50ms + 2s) }", ".foo{transition-duration:2.95s}");
+    minify_test(".foo { transition-duration: calc((1s - 50ms) * 2) }", ".foo{transition-duration:1.9s}");
+    minify_test(".foo { transition-duration: calc(2 * (1s - 50ms)) }", ".foo{transition-duration:1.9s}");
+    minify_test(".foo { transition-duration: calc((2s + 50ms) - (1s - 50ms)) }", ".foo{transition-duration:1.1s}");
+  }
 }
