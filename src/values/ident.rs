@@ -5,7 +5,7 @@ use std::fmt::Write;
 
 /// https://www.w3.org/TR/css-values-4/#custom-idents
 #[derive(Debug, Clone, PartialEq)]
-pub struct CustomIdent(String);
+pub struct CustomIdent(pub String);
 
 impl Parse for CustomIdent {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {

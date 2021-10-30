@@ -1314,5 +1314,10 @@ mod tests {
     minify_test(".foo { transition-timing-function: ease-in-out, cubic-bezier(0.42, 0, 1, 1) }", ".foo{transition-timing-function:ease-in-out,ease-in}");
     minify_test(".foo { transition-timing-function: cubic-bezier(0.42, 0, 1, 1), cubic-bezier(0.58, 0.2, 0.11, 1.2) }", ".foo{transition-timing-function:ease-in,cubic-bezier(.58,.2,.11,1.2)}");
     minify_test(".foo { transition-timing-function: step-start, steps(5, jump-start) }", ".foo{transition-timing-function:step-start,steps(5,start)}");
+    minify_test(".foo { transition: width 2s ease }", ".foo{transition:width 2s}");
+    minify_test(".foo { transition: width 2s ease, height 1000ms cubic-bezier(0.25, 0.1, 0.25, 1) }", ".foo{transition:width 2s,height 1s}");
+    minify_test(".foo { transition: width 2s 1s }", ".foo{transition:width 2s 1s}");
+    minify_test(".foo { transition: width 2s ease 1s }", ".foo{transition:width 2s 1s}");
+    minify_test(".foo { transition: ease-in 1s width 4s }", ".foo{transition:width 1s ease-in 4s}");
   }
 }
