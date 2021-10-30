@@ -6,6 +6,7 @@ extern crate serde_bytes;
 extern crate cssparser;
 extern crate selectors;
 extern crate itertools;
+extern crate smallvec;
 
 mod parser;
 mod rules;

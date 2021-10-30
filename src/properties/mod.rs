@@ -29,23 +29,24 @@ use crate::values::{image::*, length::*, rect::*, color::*, time::Time, ident::C
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use std::fmt::Write;
+use smallvec::{SmallVec, smallvec};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Property {
   BackgroundColor(CssColor),
-  BackgroundImage(Vec<Image>),
-  BackgroundPositionX(Vec<HorizontalPosition>),
-  BackgroundPositionY(Vec<VerticalPosition>),
-  BackgroundPosition(Vec<BackgroundPosition>),
-  BackgroundSize(Vec<BackgroundSize>),
-  BackgroundRepeat(Vec<BackgroundRepeat>),
-  BackgroundAttachment(Vec<BackgroundAttachment>),
-  BackgroundClip(Vec<BackgroundBox>),
-  BackgroundOrigin(Vec<BackgroundBox>),
+  BackgroundImage(SmallVec<[Image; 1]>),
+  BackgroundPositionX(SmallVec<[HorizontalPosition; 1]>),
+  BackgroundPositionY(SmallVec<[VerticalPosition; 1]>),
+  BackgroundPosition(SmallVec<[BackgroundPosition; 1]>),
+  BackgroundSize(SmallVec<[BackgroundSize; 1]>),
+  BackgroundRepeat(SmallVec<[BackgroundRepeat; 1]>),
+  BackgroundAttachment(SmallVec<[BackgroundAttachment; 1]>),
+  BackgroundClip(SmallVec<[BackgroundBox; 1]>),
+  BackgroundOrigin(SmallVec<[BackgroundBox; 1]>),
   // BackgroundBlendMode
-  Background(Vec<Background>),
+  Background(SmallVec<[Background; 1]>),
 
-  BoxShadow(Vec<BoxShadow>),
+  BoxShadow(SmallVec<[BoxShadow; 1]>),
   Opacity(AlphaValue),
 
   Color(CssColor),
@@ -235,36 +236,55 @@ pub enum Property {
   LineHeight(LineHeight),
   Font(Font),
 
-  TransitionProperty(Vec<CustomIdent>),
-  TransitionDuration(Vec<Time>),
-  TransitionDelay(Vec<Time>),
-  TransitionTimingFunction(Vec<EasingFunction>),
-  Transition(Vec<Transition>),
+  TransitionProperty(SmallVec<[CustomIdent; 1]>),
+  TransitionDuration(SmallVec<[Time; 1]>),
+  TransitionDelay(SmallVec<[Time; 1]>),
+  TransitionTimingFunction(SmallVec<[EasingFunction; 1]>),
+  Transition(SmallVec<[Transition; 1]>),
 
-  AnimationName(Vec<AnimationName>),
-  AnimationDuration(Vec<Time>),
-  AnimationTimingFunction(Vec<EasingFunction>),
-  AnimationIterationCount(Vec<AnimationIterationCount>),
-  AnimationDirection(Vec<AnimationDirection>),
-  AnimationPlayState(Vec<AnimationPlayState>),
-  AnimationDelay(Vec<Time>),
-  AnimationFillMode(Vec<AnimationFillMode>),
-  Animation(Vec<Animation>)
+  AnimationName(SmallVec<[AnimationName; 1]>),
+  AnimationDuration(SmallVec<[Time; 1]>),
+  AnimationTimingFunction(SmallVec<[EasingFunction; 1]>),
+  AnimationIterationCount(SmallVec<[AnimationIterationCount; 1]>),
+  AnimationDirection(SmallVec<[AnimationDirection; 1]>),
+  AnimationPlayState(SmallVec<[AnimationPlayState; 1]>),
+  AnimationDelay(SmallVec<[Time; 1]>),
+  AnimationFillMode(SmallVec<[AnimationFillMode; 1]>),
+  Animation(SmallVec<[Animation; 1]>)
 }
 
 impl Property {
   pub fn parse<'i, 't>(name: CowRcStr<'i>, input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     macro_rules! property {
+      // font-family is special because it uses Vec rather than SmallVec
+      // It's likely that there will be more than one font family vs other
+      // properties where only one is the common case.
+      (FontFamily, $type: ident) => {
+        if let Ok(c) = input.parse_comma_separated(|input| $type::parse(input)) {
+          return Ok(Property::FontFamily(c))
+        }
+      };
       ($property: ident, $type: ident) => {
         if let Ok(c) = $type::parse(input) {
           return Ok(Property::$property(c))
         }
       };
-      ($property: ident, $type: ident, $multi: expr) => {
-        if let Ok(c) = input.parse_comma_separated(|input| $type::parse(input)) {
-          return Ok(Property::$property(c))
+      ($property: ident, $type: ident, $multi: expr) => {{
+        // Copied from cssparser `parse_comma_separated` but using SmallVec instead of Vec.
+        let mut values = smallvec![];
+        loop {
+          input.skip_whitespace(); // Unnecessary for correctness, but may help try() in parse_one rewind less.
+          match input.parse_until_before(Delimiter::Comma, &mut $type::parse) {
+            Ok(v) => values.push(v),
+            Err(_) => break
+          }
+          match input.next() {
+            Err(_) => return Ok(Property::$property(values)),
+            Ok(&Token::Comma) => continue,
+            Ok(_) => unreachable!(),
+          }
         }
-      }
+      }};
     }
     
     let state = input.state();
@@ -436,7 +456,7 @@ impl Property {
       "font-weight" => property!(FontWeight, FontWeight),
       "font-size" => property!(FontSize, FontSize),
       "font-stretch" => property!(FontStretch, FontStretch),
-      "font-family" => property!(FontFamily, FontFamily, true),
+      "font-family" => property!(FontFamily, FontFamily),
       "font-style" => property!(FontStyle, FontStyle),
       "font-variant-caps" => property!(FontVariantCaps, FontVariantCaps),
       "line-height" => property!(LineHeight, LineHeight),

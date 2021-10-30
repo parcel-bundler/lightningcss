@@ -207,6 +207,7 @@ dependencies = [
  "selectors",
  "serde",
  "serde_bytes",
+ "smallvec",
 ]
 
 [[package]]

@@ -5,6 +5,7 @@ use super::Property;
 use crate::printer::Printer;
 use std::fmt::Write;
 use itertools::izip;
+use smallvec::SmallVec;
 
 /// https://www.w3.org/TR/2018/WD-css-transitions-1-20181011/#transition-shorthand-property
 #[derive(Debug, Clone, PartialEq)]
@@ -87,10 +88,10 @@ impl ToCss for Transition {
 
 #[derive(Default)]
 pub struct TransitionHandler {
-  properties: Option<Vec<CustomIdent>>,
-  durations: Option<Vec<Time>>,
-  delays: Option<Vec<Time>>,
-  timing_functions: Option<Vec<EasingFunction>> 
+  properties: Option<SmallVec<[CustomIdent; 1]>>,
+  durations: Option<SmallVec<[Time; 1]>>,
+  delays: Option<SmallVec<[Time; 1]>>,
+  timing_functions: Option<SmallVec<[EasingFunction; 1]>> 
 }
 
 impl PropertyHandler for TransitionHandler {

@@ -6,6 +6,7 @@ use crate::values::{color::CssColor, image::Image};
 use crate::properties::Property;
 use itertools::izip;
 use crate::printer::Printer;
+use smallvec::SmallVec;
 
 /// https://www.w3.org/TR/css-backgrounds-3/#background-position
 #[derive(Debug, Clone, PartialEq)]
@@ -463,14 +464,14 @@ impl ToCss for Background {
 #[derive(Default)]
 pub struct BackgroundHandler {
   color: Option<CssColor>,
-  images: Option<Vec<Image>>,
-  x_positions: Option<Vec<HorizontalPosition>>,
-  y_positions: Option<Vec<VerticalPosition>>,
-  repeats: Option<Vec<BackgroundRepeat>>,
-  sizes: Option<Vec<BackgroundSize>>,
-  attachments: Option<Vec<BackgroundAttachment>>,
-  origins: Option<Vec<BackgroundBox>>,
-  clips: Option<Vec<BackgroundBox>>
+  images: Option<SmallVec<[Image; 1]>>,
+  x_positions: Option<SmallVec<[HorizontalPosition; 1]>>,
+  y_positions: Option<SmallVec<[VerticalPosition; 1]>>,
+  repeats: Option<SmallVec<[BackgroundRepeat; 1]>>,
+  sizes: Option<SmallVec<[BackgroundSize; 1]>>,
+  attachments: Option<SmallVec<[BackgroundAttachment; 1]>>,
+  origins: Option<SmallVec<[BackgroundBox; 1]>>,
+  clips: Option<SmallVec<[BackgroundBox; 1]>>
 }
 
 impl PropertyHandler for BackgroundHandler {

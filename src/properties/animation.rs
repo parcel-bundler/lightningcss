@@ -1,11 +1,12 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
-use crate::values::{ident::CustomIdent, time::Time, easing::EasingFunction};
+use crate::values::{time::Time, easing::EasingFunction};
 use super::Property;
 use crate::printer::Printer;
 use std::fmt::Write;
 use itertools::izip;
 use crate::macros::*;
+use smallvec::SmallVec;
 
 /// https://drafts.csswg.org/css-animations/#animation-name
 #[derive(Debug, Clone, PartialEq)]
@@ -197,14 +198,14 @@ impl ToCss for Animation {
 
 #[derive(Default)]
 pub struct AnimationHandler {
-  names: Option<Vec<AnimationName>>,
-  durations: Option<Vec<Time>>,
-  timing_functions: Option<Vec<EasingFunction>>,
-  iteration_counts: Option<Vec<AnimationIterationCount>>,
-  directions: Option<Vec<AnimationDirection>>,
-  play_states: Option<Vec<AnimationPlayState>>,
-  delays: Option<Vec<Time>>,
-  fill_modes: Option<Vec<AnimationFillMode>>
+  names: Option<SmallVec<[AnimationName; 1]>>,
+  durations: Option<SmallVec<[Time; 1]>>,
+  timing_functions: Option<SmallVec<[EasingFunction; 1]>>,
+  iteration_counts: Option<SmallVec<[AnimationIterationCount; 1]>>,
+  directions: Option<SmallVec<[AnimationDirection; 1]>>,
+  play_states: Option<SmallVec<[AnimationPlayState; 1]>>,
+  delays: Option<SmallVec<[Time; 1]>>,
+  fill_modes: Option<SmallVec<[AnimationFillMode; 1]>>
 }
 
 impl PropertyHandler for AnimationHandler {
