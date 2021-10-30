@@ -1292,5 +1292,27 @@ mod tests {
     minify_test(".foo { transition-delay: 500ms }", ".foo{transition-delay:.5s}");
     minify_test(".foo { transition-property: background }", ".foo{transition-property:background}");
     minify_test(".foo { transition-property: background, opacity }", ".foo{transition-property:background,opacity}");
+    minify_test(".foo { transition-timing-function: linear }", ".foo{transition-timing-function:linear}");
+    minify_test(".foo { transition-timing-function: ease }", ".foo{transition-timing-function:ease}");
+    minify_test(".foo { transition-timing-function: ease-in }", ".foo{transition-timing-function:ease-in}");
+    minify_test(".foo { transition-timing-function: ease-out }", ".foo{transition-timing-function:ease-out}");
+    minify_test(".foo { transition-timing-function: ease-in-out }", ".foo{transition-timing-function:ease-in-out}");
+    minify_test(".foo { transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1) }", ".foo{transition-timing-function:ease}");
+    minify_test(".foo { transition-timing-function: cubic-bezier(0.42, 0, 1, 1) }", ".foo{transition-timing-function:ease-in}");
+    minify_test(".foo { transition-timing-function: cubic-bezier(0, 0, 0.58, 1) }", ".foo{transition-timing-function:ease-out}");
+    minify_test(".foo { transition-timing-function: cubic-bezier(0.42, 0, 0.58, 1) }", ".foo{transition-timing-function:ease-in-out}");
+    minify_test(".foo { transition-timing-function: cubic-bezier(0.58, 0.2, 0.11, 1.2) }", ".foo{transition-timing-function:cubic-bezier(.58,.2,.11,1.2)}");
+    minify_test(".foo { transition-timing-function: step-start }", ".foo{transition-timing-function:step-start}");
+    minify_test(".foo { transition-timing-function: step-end }", ".foo{transition-timing-function:step-end}");
+    minify_test(".foo { transition-timing-function: steps(1, start) }", ".foo{transition-timing-function:step-start}");
+    minify_test(".foo { transition-timing-function: steps(1, jump-start) }", ".foo{transition-timing-function:step-start}");
+    minify_test(".foo { transition-timing-function: steps(1, end) }", ".foo{transition-timing-function:step-end}");
+    minify_test(".foo { transition-timing-function: steps(1, jump-end) }", ".foo{transition-timing-function:step-end}");
+    minify_test(".foo { transition-timing-function: steps(5, jump-start) }", ".foo{transition-timing-function:steps(5,start)}");
+    minify_test(".foo { transition-timing-function: steps(5, jump-end) }", ".foo{transition-timing-function:steps(5,end)}");
+    minify_test(".foo { transition-timing-function: steps(5, jump-both) }", ".foo{transition-timing-function:steps(5,jump-both)}");
+    minify_test(".foo { transition-timing-function: ease-in-out, cubic-bezier(0.42, 0, 1, 1) }", ".foo{transition-timing-function:ease-in-out,ease-in}");
+    minify_test(".foo { transition-timing-function: cubic-bezier(0.42, 0, 1, 1), cubic-bezier(0.58, 0.2, 0.11, 1.2) }", ".foo{transition-timing-function:ease-in,cubic-bezier(.58,.2,.11,1.2)}");
+    minify_test(".foo { transition-timing-function: step-start, steps(5, jump-start) }", ".foo{transition-timing-function:step-start,steps(5,start)}");
   }
 }

@@ -21,7 +21,7 @@ use box_shadow::*;
 use border::*;
 use border_image::*;
 use border_radius::*;
-use crate::values::{image::*, length::*, rect::*, color::*, time::Time, ident::CustomIdent};
+use crate::values::{image::*, length::*, rect::*, color::*, time::Time, ident::CustomIdent, easing::EasingFunction};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use std::fmt::Write;
@@ -233,7 +233,8 @@ pub enum Property {
 
   TransitionProperty(Vec<CustomIdent>),
   TransitionDuration(Vec<Time>),
-  TransitionDelay(Vec<Time>)
+  TransitionDelay(Vec<Time>),
+  TransitionTimingFunction(Vec<EasingFunction>)
 }
 
 impl Property {
@@ -428,6 +429,7 @@ impl Property {
       "transition-property" => property!(TransitionProperty, CustomIdent, true),
       "transition-duration" => property!(TransitionDuration, Time, true),
       "transition-delay" => property!(TransitionDelay, Time, true),
+      "transition-timing-function" => property!(TransitionTimingFunction, EasingFunction, true),
       _ => {}
     }
 
@@ -630,6 +632,7 @@ impl Property {
       TransitionProperty(val) => property!("transition-property", val, true),
       TransitionDuration(val) => property!("transition-duration", val, true),
       TransitionDelay(val) => property!("transition-delay", val, true),
+      TransitionTimingFunction(val) => property!("transition-timing-function", val, true),
       Custom(custom) => {
         dest.write_str(custom.name.as_ref())?;
         dest.delim(':', false)?;

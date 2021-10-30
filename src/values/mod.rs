@@ -5,3 +5,4 @@ pub mod color;
 pub mod calc;
 pub mod time;
 pub mod ident;
+pub mod easing;
