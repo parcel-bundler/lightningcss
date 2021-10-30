@@ -1319,6 +1319,7 @@ mod tests {
     minify_test(".foo { transition: width 2s 1s }", ".foo{transition:width 2s 1s}");
     minify_test(".foo { transition: width 2s ease 1s }", ".foo{transition:width 2s 1s}");
     minify_test(".foo { transition: ease-in 1s width 4s }", ".foo{transition:width 1s ease-in 4s}");
+    minify_test(".foo { transition: opacity 0s .6s }", ".foo{transition:opacity 0s .6s}");
     test(r#"
       .foo {
         transition-property: opacity;

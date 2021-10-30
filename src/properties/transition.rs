@@ -66,7 +66,7 @@ impl Parse for Transition {
 impl ToCss for Transition {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     self.property.to_css(dest)?;
-    if self.duration != 0.0 {
+    if self.duration != 0.0 || self.delay != 0.0 {
       dest.write_char(' ')?;
       self.duration.to_css(dest)?;
     }

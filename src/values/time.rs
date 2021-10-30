@@ -43,7 +43,7 @@ impl ToCss for Time {
     // anything smaller is longer
     match self {
       Time::Seconds(s) => {
-        if *s < 0.1 {
+        if *s > 0.0 && *s < 0.1 {
           (*s * 1000.0).to_css(dest)?;
           dest.write_str("ms")
         } else {
@@ -52,7 +52,7 @@ impl ToCss for Time {
         }
       }
       Time::Milliseconds(ms) => {
-        if *ms >= 100.0 {
+        if *ms == 0.0 || *ms >= 100.0 {
           (*ms / 1000.0).to_css(dest)?;
           dest.write_str("s")
         } else {
