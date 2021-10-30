@@ -1288,5 +1288,9 @@ mod tests {
     minify_test(".foo { transition-duration: calc((1s - 50ms) * 2) }", ".foo{transition-duration:1.9s}");
     minify_test(".foo { transition-duration: calc(2 * (1s - 50ms)) }", ".foo{transition-duration:1.9s}");
     minify_test(".foo { transition-duration: calc((2s + 50ms) - (1s - 50ms)) }", ".foo{transition-duration:1.1s}");
+    minify_test(".foo { transition-duration: 500ms, 50ms }", ".foo{transition-duration:.5s,50ms}");
+    minify_test(".foo { transition-delay: 500ms }", ".foo{transition-delay:.5s}");
+    minify_test(".foo { transition-property: background }", ".foo{transition-property:background}");
+    minify_test(".foo { transition-property: background, opacity }", ".foo{transition-property:background,opacity}");
   }
 }
