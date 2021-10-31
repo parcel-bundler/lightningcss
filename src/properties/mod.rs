@@ -11,6 +11,7 @@ pub mod border_image;
 pub mod border_radius;
 pub mod transition;
 pub mod animation;
+pub mod transform;
 
 use cssparser::*;
 use custom::*;
@@ -25,6 +26,7 @@ use border_image::*;
 use border_radius::*;
 use transition::*;
 use animation::*;
+use transform::*;
 use crate::values::{image::*, length::*, rect::*, color::*, time::Time, ident::CustomIdent, easing::EasingFunction};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
@@ -250,7 +252,9 @@ pub enum Property {
   AnimationPlayState(SmallVec<[AnimationPlayState; 1]>),
   AnimationDelay(SmallVec<[Time; 1]>),
   AnimationFillMode(SmallVec<[AnimationFillMode; 1]>),
-  Animation(SmallVec<[Animation; 1]>)
+  Animation(SmallVec<[Animation; 1]>),
+
+  Transform(TransformList)
 }
 
 impl Property {
@@ -475,6 +479,7 @@ impl Property {
       "animation-delay" => property!(AnimationDelay, Time, true),
       "animation-fill-mode" => property!(AnimationFillMode, AnimationFillMode, true),
       "animation" => property!(Animation, Animation, true),
+      "transform" => property!(Transform, TransformList),
       _ => {}
     }
 
@@ -688,6 +693,7 @@ impl Property {
       AnimationDelay(val) => property!("animation-delay", val, true),
       AnimationFillMode(val) => property!("animation-fill-mode", val, true),
       Animation(val) => property!("animation", val, true),
+      Transform(val) => property!("transform", val),
       Custom(custom) => {
         dest.write_str(custom.name.as_ref())?;
         dest.delim(':', false)?;

@@ -1481,4 +1481,37 @@ mod tests {
       }
     "#});
   }
+
+  #[test]
+  fn test_transform() {
+    minify_test(".foo { transform: translate(2px, 3px)", ".foo{transform:translate(2px,3px)}");
+    minify_test(".foo { transform: translate(2px, 0px)", ".foo{transform:translate(2px)}");
+    minify_test(".foo { transform: translate(0px, 2px)", ".foo{transform:translateY(2px)}");
+    minify_test(".foo { transform: translateX(2px)", ".foo{transform:translate(2px)}");
+    minify_test(".foo { transform: translateY(2px)", ".foo{transform:translateY(2px)}");
+    minify_test(".foo { transform: translateZ(2px)", ".foo{transform:translateZ(2px)}");
+    minify_test(".foo { transform: translate3d(2px, 3px, 4px)", ".foo{transform:translate3d(2px,3px,4px)}");
+    minify_test(".foo { transform: translate3d(10%, 20%, 4px)", ".foo{transform:translate3d(10%,20%,4px)}");
+    minify_test(".foo { transform: scale(2, 3)", ".foo{transform:scale(2,3)}");
+    minify_test(".foo { transform: scale(10%, 20%)", ".foo{transform:scale(10%,20%)}");
+    minify_test(".foo { transform: scale(2, 2)", ".foo{transform:scale(2)}");
+    minify_test(".foo { transform: scale(2, 1)", ".foo{transform:scaleX(2)}");
+    minify_test(".foo { transform: scale(1, 2)", ".foo{transform:scaleY(2)}");
+    minify_test(".foo { transform: scaleX(2)", ".foo{transform:scaleX(2)}");
+    minify_test(".foo { transform: scaleY(2)", ".foo{transform:scaleY(2)}");
+    minify_test(".foo { transform: scale3d(2, 3, 4)", ".foo{transform:scale3d(2,3,4)}");
+    minify_test(".foo { transform: rotate(20deg)", ".foo{transform:rotate(20deg)}");
+    minify_test(".foo { transform: rotateX(20deg)", ".foo{transform:rotateX(20deg)}");
+    minify_test(".foo { transform: rotateY(20deg)", ".foo{transform:rotateY(20deg)}");
+    minify_test(".foo { transform: rotateZ(20deg)", ".foo{transform:rotateZ(20deg)}");
+    minify_test(".foo { transform: rotate3d(2, 3, 4, 20deg)", ".foo{transform:rotate3d(2,3,4,20deg)}");
+    minify_test(".foo { transform: skew(20deg)", ".foo{transform:skew(20deg)}");
+    minify_test(".foo { transform: skew(20deg, 0deg)", ".foo{transform:skew(20deg)}");
+    minify_test(".foo { transform: skew(0deg, 20deg)", ".foo{transform:skewY(20deg)}");
+    minify_test(".foo { transform: skewX(20deg)", ".foo{transform:skew(20deg)}");
+    minify_test(".foo { transform: skewY(20deg)", ".foo{transform:skewY(20deg)}");
+    minify_test(".foo { transform: perspective(10px)", ".foo{transform:perspective(10px)}");
+    minify_test(".foo { transform: matrix(1, 2, -1, 1, 80, 80)", ".foo{transform:matrix(1,2,-1,1,80,80)}");
+    minify_test(".foo { transform: matrix3d(1, 0, 0, 0, 0, 1, 6, 0, 0, 0, 1, 0, 50, 100, 0, 1.1)", ".foo{transform:matrix3d(1,0,0,0,0,1,6,0,0,0,1,0,50,100,0,1.1)}");
+  }
 }

@@ -596,6 +596,15 @@ impl ToCss for NumberOrPercentage {
   }
 }
 
+impl std::cmp::PartialEq<f32> for NumberOrPercentage {
+  fn eq(&self, other: &f32) -> bool {
+    match self {
+      NumberOrPercentage::Number(a) => *a == *other,
+      NumberOrPercentage::Percentage(a) => a.0 == *other,
+    }
+  }
+}
+
 /// https://www.w3.org/TR/2021/WD-css-color-4-20210601/#typedef-alpha-value
 #[derive(Debug, Clone, PartialEq)]
 pub struct AlphaValue(f32);
@@ -758,6 +767,15 @@ impl ToCss for Angle {
       }
     } else {
       token.to_css(dest)
+    }
+  }
+}
+
+impl Angle {
+  pub fn is_zero(&self) -> bool {
+    use Angle::*;
+    match self {
+      Deg(v) | Rad(v) | Grad(v) | Turn(v) => *v == 0.0
     }
   }
 }
