@@ -197,6 +197,13 @@ impl LengthPercentage {
   fn add_recursive(&self, other: &LengthPercentage) -> Option<LengthPercentage> {
     match (self, other) {
       (LengthPercentage::Length(a), LengthPercentage::Length(b)) if a.unit == b.unit => Some(LengthPercentage::Length(a.clone() + b.clone())),
+      (LengthPercentage::Length(a), LengthPercentage::Length(b)) => {
+        if let (Some(a), Some(b)) = (a.to_px(), b.to_px()) {
+          Some(LengthPercentage::Length(Length { value: a + b, unit: Unit::Px }))
+        } else {
+          None
+        }
+      },
       (LengthPercentage::Percentage(a), LengthPercentage::Percentage(b)) => Some(LengthPercentage::Percentage(Percentage(a.0 + b.0))),
       (LengthPercentage::Calc(Calc::Value(v)), other) => v.add_recursive(other),
       (other, LengthPercentage::Calc(Calc::Value(v))) => other.add_recursive(v),
@@ -749,104 +756,3 @@ enum_property!(VerticalPositionKeyword,
 
 pub type HorizontalPosition = Position<HorizontalPositionKeyword>;
 pub type VerticalPosition = Position<VerticalPositionKeyword>;
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Angle {
-  Deg(f32),
-  Grad(f32),
-  Rad(f32),
-  Turn(f32)
-}
-
-impl Parse for Angle {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
-    let location = input.current_source_location();
-    let token = input.next()?;
-    match *token {
-      Token::Dimension { value, ref unit, .. } => {
-        match_ignore_ascii_case! { unit,
-          "deg" => Ok(Angle::Deg(value)),
-          "grad" => Ok(Angle::Grad(value)),
-          "turn" => Ok(Angle::Turn(value)),
-          "rad" => Ok(Angle::Rad(value)),
-          _ => return Err(location.new_unexpected_token_error(token.clone())),
-        }
-      },
-      ref token => return Err(location.new_unexpected_token_error(token.clone())),
-    }
-  }
-}
-
-impl ToCss for Angle {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-    let (value, unit) = match self {
-      Angle::Deg(val) => (*val, "deg"),
-      Angle::Grad(val) => (*val, "grad"),
-      Angle::Rad(val) => {
-        let deg = self.to_degrees();
-        // We print 5 digits of precision by default.
-        // Switch to degrees if there are an even number of them.
-        if (deg * 100000.0).round().fract() == 0.0 {
-          (deg, "deg")
-        } else {
-          (*val, "rad")
-        }
-      },
-      Angle::Turn(val) => (*val, "turn")
-    };
-
-    use cssparser::ToCss;
-    let int_value = if value.fract() == 0.0 {
-      Some(value as i32)
-    } else {
-      None
-    };
-    let token = Token::Dimension {
-      has_sign: value < 0.0,
-      value,
-      int_value,
-      unit: CowRcStr::from(unit)
-    };
-    if value != 0.0 && value.abs() < 1.0 {
-      let mut s = String::new();
-      token.to_css(&mut s)?;
-      if value < 0.0 {
-        dest.write_char('-')?;
-        dest.write_str(s.trim_start_matches("-0"))
-      } else {
-        dest.write_str(s.trim_start_matches('0'))
-      }
-    } else {
-      token.to_css(dest)
-    }
-  }
-}
-
-impl Angle {
-  pub fn is_zero(&self) -> bool {
-    use Angle::*;
-    match self {
-      Deg(v) | Rad(v) | Grad(v) | Turn(v) => *v == 0.0
-    }
-  }
-
-  pub fn to_radians(&self) -> f32 {
-    const RAD_PER_DEG: f32 = PI / 180.0;
-    match self {
-      Angle::Deg(deg) => deg * RAD_PER_DEG,
-      Angle::Rad(rad) => *rad,
-      Angle::Grad(grad) => grad * 180.0 / 200.0 * RAD_PER_DEG,
-      Angle::Turn(turn) => turn * 360.0 * RAD_PER_DEG
-    }
-  }
-
-  pub fn to_degrees(&self) -> f32 {
-    const DEG_PER_RAD: f32 = 180.0 / PI;
-    match self {
-      Angle::Deg(deg) => *deg,
-      Angle::Rad(rad) => rad * DEG_PER_RAD,
-      Angle::Grad(grad) => grad * 180.0 / 200.0,
-      Angle::Turn(turn) => turn * 360.0
-    }
-  }
-}

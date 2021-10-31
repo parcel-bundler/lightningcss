@@ -6,3 +6,4 @@ pub mod calc;
 pub mod time;
 pub mod ident;
 pub mod easing;
+pub mod angle;

@@ -1,6 +1,9 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss};
-use crate::values::length::{LengthPercentage, NumberOrPercentage, Length, Unit, Angle};
+use crate::values::{
+  angle::Angle,
+  length::{LengthPercentage, NumberOrPercentage, Length, Unit}
+};
 use crate::printer::Printer;
 use std::fmt::Write;
 
@@ -1093,25 +1096,39 @@ impl Transform {
         return Some(Matrix3d::scale(x.into(), y.into(), z.into()))
       }
       Transform::Rotate(angle) | Transform::RotateZ(angle) => {
-        return Some(Matrix3d::rotate(0.0, 0.0, 1.0, angle.to_radians()))
+        if let Some(a) = angle.to_radians() {
+          return Some(Matrix3d::rotate(0.0, 0.0, 1.0, a))
+        }
       }
       Transform::RotateX(angle) => {
-        return Some(Matrix3d::rotate(1.0, 0.0, 0.0, angle.to_radians()))
+        if let Some(a) = angle.to_radians() {
+          return Some(Matrix3d::rotate(1.0, 0.0, 0.0, a))
+        }
       }
       Transform::RotateY(angle) => {
-        return Some(Matrix3d::rotate(0.0, 1.0, 0.0, angle.to_radians()))
+        if let Some(a) = angle.to_radians() {
+          return Some(Matrix3d::rotate(0.0, 1.0, 0.0, a))
+        }
       }
       Transform::Rotate3d(x, y, z, angle) => {
-        return Some(Matrix3d::rotate(*x, *y, *z, angle.to_radians()))
+        if let Some(a) = angle.to_radians() {
+          return Some(Matrix3d::rotate(*x, *y, *z, a))
+        }
       }
       Transform::Skew(x, y) => {
-        return Some(Matrix3d::skew(x.to_radians(), y.to_radians()))
+        if let (Some(x), Some(y)) = (x.to_radians(), y.to_radians()) {
+          return Some(Matrix3d::skew(x, y))
+        }
       }
       Transform::SkewX(x) => {
-        return Some(Matrix3d::skew(x.to_radians(), 0.0))
+        if let Some(x) = x.to_radians() {
+          return Some(Matrix3d::skew(x, 0.0))
+        }
       }
       Transform::SkewY(y) => {
-        return Some(Matrix3d::skew(0.0, y.to_radians()))
+        if let Some(y) = y.to_radians() {
+          return Some(Matrix3d::skew(0.0, y))
+        }
       }
       Transform::Perspective(len) => {
         if let Some(len) = len.to_px() {

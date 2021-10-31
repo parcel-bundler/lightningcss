@@ -1,11 +1,13 @@
 use cssparser::*;
 use crate::macros::*;
-use crate::values::length::{LengthPercentage, Angle, Percentage};
+use crate::values::{
+  angle::Angle,
+  length::{LengthPercentage, Percentage}
+};
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use super::Property;
 use crate::printer::Printer;
 use std::fmt::Write;
-use smallvec::SmallVec;
 
 /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-weight-prop
 #[derive(Debug, Clone, PartialEq)]

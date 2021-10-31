@@ -1570,5 +1570,41 @@ mod tests {
       ".foo{transform:translateX(2in) translateX(50px)}",
       ".foo{transform:translate(242px)}"
     );
+    minify_test(
+      ".foo{transform:translateX(calc(2in + 50px))}",
+      ".foo{transform:translate(242px)}"
+    );
+    minify_test(
+      ".foo{transform:translateX(50%)}",
+      ".foo{transform:translate(50%)}"
+    );
+    minify_test(
+      ".foo{transform:translateX(calc(50% - 100px + 20px))}",
+      ".foo{transform:translate(calc(50% - 80px))}"
+    );
+    minify_test(
+      ".foo{transform:rotate(calc(10deg + 20deg))}",
+      ".foo{transform:rotate(30deg)}"
+    );
+    minify_test(
+      ".foo{transform:rotate(calc(10deg + 0.349066rad))}",
+      ".foo{transform:rotate(30deg)}"
+    );
+    minify_test(
+      ".foo{transform:rotate(calc(10deg + 1.5turn))}",
+      ".foo{transform:rotate(550deg)}"
+    );
+    minify_test(
+      ".foo{transform:rotate(calc(10deg * 2))}",
+      ".foo{transform:rotate(20deg)}"
+    );
+    minify_test(
+      ".foo{transform:rotate(calc(-10deg * 2))}",
+      ".foo{transform:rotate(-20deg)}"
+    );
+    minify_test(
+      ".foo{transform:rotate(calc(10deg + var(--test)))}",
+      ".foo{transform:rotate(calc(10deg + var(--test)))}"
+    );
   }
 }
