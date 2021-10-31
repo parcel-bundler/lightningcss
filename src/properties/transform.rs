@@ -612,6 +612,10 @@ impl Matrix3d<f32> {
     if a != 0.0 {
       transforms.push(Transform::Rotate3d(rotate_x, rotate_y, rotate_z, Angle::Rad(a)))
     }
+    
+    if transforms.is_empty() {
+      return None
+    }
 
     Some(TransformList(transforms))
   }

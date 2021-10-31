@@ -1513,6 +1513,7 @@ mod tests {
     minify_test(".foo { transform: rotateX(20deg)", ".foo{transform:rotateX(20deg)}");
     minify_test(".foo { transform: rotateY(20deg)", ".foo{transform:rotateY(20deg)}");
     minify_test(".foo { transform: rotateZ(20deg)", ".foo{transform:rotate(20deg)}");
+    minify_test(".foo { transform: rotate(360deg)", ".foo{transform:rotate(360deg)}");
     minify_test(".foo { transform: rotate3d(2, 3, 4, 20deg)", ".foo{transform:rotate3d(2,3,4,20deg)}");
     minify_test(".foo { transform: rotate3d(1, 0, 0, 20deg)", ".foo{transform:rotateX(20deg)}");
     minify_test(".foo { transform: rotate3d(0, 1, 0, 20deg)", ".foo{transform:rotateY(20deg)}");
