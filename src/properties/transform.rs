@@ -1,7 +1,6 @@
 use cssparser::*;
-use crate::traits::{Parse, ToCss, PropertyHandler};
-use crate::values::{length::{LengthPercentage, NumberOrPercentage, Length, Angle}, ident::CustomIdent, time::Time, easing::EasingFunction};
-use super::Property;
+use crate::traits::{Parse, ToCss};
+use crate::values::length::{LengthPercentage, NumberOrPercentage, Length, Unit, Angle};
 use crate::printer::Printer;
 use std::fmt::Write;
 
@@ -26,12 +25,24 @@ impl Parse for TransformList {
 
 impl ToCss for TransformList {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-    if dest.minify && self.0.len() > 1 {
-      // Attempt to combine into a single matrix() or matrix3d() if shorter
+    if dest.minify {
+      // Combine transforms into a single matrix.
       if let Some(matrix) = self.to_matrix() {
+        // Generate based on the original transforms.
         let mut base = String::new();
         self.to_css_base(&mut Printer::new(&mut base, true))?;
 
+        // Decompose the matrix into transform functions if possible.
+        // If the resulting length is shorter than the original, use it.
+        if let Some(d) = matrix.decompose() {
+          let mut decomposed = String::new();
+          d.to_css_base(&mut Printer::new(&mut decomposed, true))?;
+          if decomposed.len() < base.len() {
+            base = decomposed;
+          }
+        }
+
+        // Also generate a matrix() or matrix3d() representation and compare that.
         let mut mat = String::new();
         if let Some(matrix) = matrix.to_matrix2d() {
           Transform::Matrix(matrix).to_css(&mut Printer::new(&mut mat, true))?
@@ -60,9 +71,7 @@ impl TransformList {
     }
     Ok(())
   }
-}
 
-impl TransformList {
   pub fn to_matrix(&self) -> Option<Matrix3d<f32>> {
     let mut matrix = Matrix3d::identity();
     for transform in &self.0 {
@@ -105,6 +114,17 @@ pub enum Transform {
 pub struct Matrix<T> {
   pub a: T, pub b: T, pub c: T,
   pub d: T, pub e: T, pub f: T,
+}
+
+impl Matrix<f32> {
+  pub fn to_matrix3d(&self) -> Matrix3d<f32> {
+    Matrix3d {
+      m11: self.a, m12: self.b, m13: 0.0, m14: 0.0,
+      m21: self.c, m22: self.d, m23: 0.0, m24: 0.0,
+      m31: 0.0,    m32: 0.0,    m33: 1.0, m34: 0.0,
+      m41: self.e, m42: self.f, m43: 0.0, m44: 1.0
+    }
+  }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -249,6 +269,351 @@ impl Matrix3d<f32> {
       })
     }
     None
+  }
+
+  pub fn scale_by_factor(&mut self, scaling_factor: f32) {
+    self.m11 *= scaling_factor;
+    self.m12 *= scaling_factor;
+    self.m13 *= scaling_factor;
+    self.m14 *= scaling_factor;
+    self.m21 *= scaling_factor;
+    self.m22 *= scaling_factor;
+    self.m23 *= scaling_factor;
+    self.m24 *= scaling_factor;
+    self.m31 *= scaling_factor;
+    self.m32 *= scaling_factor;
+    self.m33 *= scaling_factor;
+    self.m34 *= scaling_factor;
+    self.m41 *= scaling_factor;
+    self.m42 *= scaling_factor;
+    self.m43 *= scaling_factor;
+    self.m44 *= scaling_factor;
+  }
+
+  pub fn determinant(&self) -> f32 {
+    self.m14 * self.m23 * self.m32 * self.m41 -
+    self.m13 * self.m24 * self.m32 * self.m41 -
+    self.m14 * self.m22 * self.m33 * self.m41 +
+    self.m12 * self.m24 * self.m33 * self.m41 +
+    self.m13 * self.m22 * self.m34 * self.m41 -
+    self.m12 * self.m23 * self.m34 * self.m41 -
+    self.m14 * self.m23 * self.m31 * self.m42 +
+    self.m13 * self.m24 * self.m31 * self.m42 +
+    self.m14 * self.m21 * self.m33 * self.m42 -
+    self.m11 * self.m24 * self.m33 * self.m42 -
+    self.m13 * self.m21 * self.m34 * self.m42 +
+    self.m11 * self.m23 * self.m34 * self.m42 +
+    self.m14 * self.m22 * self.m31 * self.m43 -
+    self.m12 * self.m24 * self.m31 * self.m43 -
+    self.m14 * self.m21 * self.m32 * self.m43 +
+    self.m11 * self.m24 * self.m32 * self.m43 +
+    self.m12 * self.m21 * self.m34 * self.m43 -
+    self.m11 * self.m22 * self.m34 * self.m43 -
+    self.m13 * self.m22 * self.m31 * self.m44 +
+    self.m12 * self.m23 * self.m31 * self.m44 +
+    self.m13 * self.m21 * self.m32 * self.m44 -
+    self.m11 * self.m23 * self.m32 * self.m44 -
+    self.m12 * self.m21 * self.m33 * self.m44 +
+    self.m11 * self.m22 * self.m33 * self.m44
+  }
+
+  pub fn inverse(&self) -> Option<Matrix3d<f32>> {
+    let mut det = self.determinant();
+    if det == 0.0 {
+      return None;
+    }
+
+    det = 1.0 / det;
+    Some(Matrix3d {
+      m11: det *
+      (self.m23 * self.m34 * self.m42 - self.m24 * self.m33 * self.m42 +
+        self.m24 * self.m32 * self.m43 - self.m22 * self.m34 * self.m43 -
+        self.m23 * self.m32 * self.m44 + self.m22 * self.m33 * self.m44),
+      m12: det *
+      (self.m14 * self.m33 * self.m42 - self.m13 * self.m34 * self.m42 -
+        self.m14 * self.m32 * self.m43 + self.m12 * self.m34 * self.m43 +
+        self.m13 * self.m32 * self.m44 - self.m12 * self.m33 * self.m44),
+      m13: det *
+      (self.m13 * self.m24 * self.m42 - self.m14 * self.m23 * self.m42 +
+        self.m14 * self.m22 * self.m43 - self.m12 * self.m24 * self.m43 -
+        self.m13 * self.m22 * self.m44 + self.m12 * self.m23 * self.m44),
+      m14: det *
+      (self.m14 * self.m23 * self.m32 - self.m13 * self.m24 * self.m32 -
+        self.m14 * self.m22 * self.m33 + self.m12 * self.m24 * self.m33 +
+        self.m13 * self.m22 * self.m34 - self.m12 * self.m23 * self.m34),
+      m21: det *
+      (self.m24 * self.m33 * self.m41 - self.m23 * self.m34 * self.m41 -
+        self.m24 * self.m31 * self.m43 + self.m21 * self.m34 * self.m43 +
+        self.m23 * self.m31 * self.m44 - self.m21 * self.m33 * self.m44),
+      m22: det *
+      (self.m13 * self.m34 * self.m41 - self.m14 * self.m33 * self.m41 +
+        self.m14 * self.m31 * self.m43 - self.m11 * self.m34 * self.m43 -
+        self.m13 * self.m31 * self.m44 + self.m11 * self.m33 * self.m44),
+      m23: det *
+      (self.m14 * self.m23 * self.m41 - self.m13 * self.m24 * self.m41 -
+        self.m14 * self.m21 * self.m43 + self.m11 * self.m24 * self.m43 +
+        self.m13 * self.m21 * self.m44 - self.m11 * self.m23 * self.m44),
+      m24: det *
+      (self.m13 * self.m24 * self.m31 - self.m14 * self.m23 * self.m31 +
+        self.m14 * self.m21 * self.m33 - self.m11 * self.m24 * self.m33 -
+        self.m13 * self.m21 * self.m34 + self.m11 * self.m23 * self.m34),
+      m31: det *
+      (self.m22 * self.m34 * self.m41 - self.m24 * self.m32 * self.m41 +
+        self.m24 * self.m31 * self.m42 - self.m21 * self.m34 * self.m42 -
+        self.m22 * self.m31 * self.m44 + self.m21 * self.m32 * self.m44),
+      m32: det *
+      (self.m14 * self.m32 * self.m41 - self.m12 * self.m34 * self.m41 -
+        self.m14 * self.m31 * self.m42 + self.m11 * self.m34 * self.m42 +
+        self.m12 * self.m31 * self.m44 - self.m11 * self.m32 * self.m44),
+      m33: det *
+      (self.m12 * self.m24 * self.m41 - self.m14 * self.m22 * self.m41 +
+        self.m14 * self.m21 * self.m42 - self.m11 * self.m24 * self.m42 -
+        self.m12 * self.m21 * self.m44 + self.m11 * self.m22 * self.m44),
+      m34: det *
+      (self.m14 * self.m22 * self.m31 - self.m12 * self.m24 * self.m31 -
+        self.m14 * self.m21 * self.m32 + self.m11 * self.m24 * self.m32 +
+        self.m12 * self.m21 * self.m34 - self.m11 * self.m22 * self.m34),
+      m41: det *
+      (self.m23 * self.m32 * self.m41 - self.m22 * self.m33 * self.m41 -
+        self.m23 * self.m31 * self.m42 + self.m21 * self.m33 * self.m42 +
+        self.m22 * self.m31 * self.m43 - self.m21 * self.m32 * self.m43),
+      m42: det *
+      (self.m12 * self.m33 * self.m41 - self.m13 * self.m32 * self.m41 +
+        self.m13 * self.m31 * self.m42 - self.m11 * self.m33 * self.m42 -
+        self.m12 * self.m31 * self.m43 + self.m11 * self.m32 * self.m43),
+      m43: det *
+      (self.m13 * self.m22 * self.m41 - self.m12 * self.m23 * self.m41 -
+        self.m13 * self.m21 * self.m42 + self.m11 * self.m23 * self.m42 +
+        self.m12 * self.m21 * self.m43 - self.m11 * self.m22 * self.m43),
+      m44: det *
+      (self.m12 * self.m23 * self.m31 - self.m13 * self.m22 * self.m31 +
+        self.m13 * self.m21 * self.m32 - self.m11 * self.m23 * self.m32 -
+        self.m12 * self.m21 * self.m33 + self.m11 * self.m22 * self.m33),
+    })
+  }
+
+  pub fn transpose(&self) -> Self {
+    Self {
+      m11: self.m11, m12: self.m21, m13: self.m31, m14: self.m41,
+      m21: self.m12, m22: self.m22, m23: self.m32, m24: self.m42,
+      m31: self.m13, m32: self.m23, m33: self.m33, m34: self.m43,
+      m41: self.m14, m42: self.m24, m43: self.m34, m44: self.m44,
+    }
+  }
+
+  pub fn multiply_vector(&self, pin: &[f32; 4]) -> [f32; 4] {
+    [
+      pin[0] * self.m11 + pin[1] * self.m21 + pin[2] * self.m31 + pin[3] * self.m41,
+      pin[0] * self.m12 + pin[1] * self.m22 + pin[2] * self.m32 + pin[3] * self.m42,
+      pin[0] * self.m13 + pin[1] * self.m23 + pin[2] * self.m33 + pin[3] * self.m43,
+      pin[0] * self.m14 + pin[1] * self.m24 + pin[2] * self.m34 + pin[3] * self.m44,
+    ]
+  }
+
+  // https://drafts.csswg.org/css-transforms-2/#decomposing-a-3d-matrix
+  pub fn decompose(&self) -> Option<TransformList> {
+    // Combine 2 point.
+    let combine = |a: [f32; 3], b: [f32; 3], ascl: f32, bscl: f32| {
+      [
+        (ascl * a[0]) + (bscl * b[0]),
+        (ascl * a[1]) + (bscl * b[1]),
+        (ascl * a[2]) + (bscl * b[2]),
+      ]
+    };
+
+    // Dot product.
+    let dot = |a: [f32; 3], b: [f32; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+
+    // Cross product.
+    let cross = |row1: [f32; 3], row2: [f32; 3]| {
+      [
+        row1[1] * row2[2] - row1[2] * row2[1],
+        row1[2] * row2[0] - row1[0] * row2[2],
+        row1[0] * row2[1] - row1[1] * row2[0],
+      ]
+    };
+
+    if self.m44 == 0.0 {
+      return None;
+    }
+
+    let scaling_factor = self.m44;
+
+    // Normalize the matrix.
+    let mut matrix = self.clone();
+    matrix.scale_by_factor(1.0 / scaling_factor);
+
+    // perspective_matrix is used to solve for perspective, but it also provides
+    // an easy way to test for singularity of the upper 3x3 component.
+    let mut perspective_matrix = matrix.clone();
+    perspective_matrix.m14 = 0.0;
+    perspective_matrix.m24 = 0.0;
+    perspective_matrix.m34 = 0.0;
+    perspective_matrix.m44 = 1.0;
+
+    if perspective_matrix.determinant() == 0.0 {
+      return None;
+    }
+
+    let mut transforms = vec![];
+
+    // First, isolate perspective.
+    if matrix.m14 != 0.0 || matrix.m24 != 0.0 || matrix.m34 != 0.0 {
+      let right_hand_side: [f32; 4] = [matrix.m14, matrix.m24, matrix.m34, matrix.m44];
+
+      perspective_matrix = perspective_matrix.inverse().unwrap().transpose();
+      let perspective = perspective_matrix.multiply_vector(&right_hand_side);
+      if perspective[0] == 0.0 && perspective[1] == 0.0 && perspective[3] == 0.0 {
+        transforms.push(Transform::Perspective(
+          Length { value: -1.0 / perspective[2], unit: Unit::Px }
+        ))
+      } else {
+        return None
+      }
+    }
+
+    // Next take care of translation (easy).
+    // let translate = Translate3D(matrix.m41, matrix.m42, matrix.m43);
+    if matrix.m41 != 0.0 || matrix.m42 != 0.0 || matrix.m43 != 0.0 {
+      transforms.push(Transform::Translate3d(
+        LengthPercentage::Length(Length { value: matrix.m41, unit: Unit::Px }),
+        LengthPercentage::Length(Length { value: matrix.m42, unit: Unit::Px }),
+        Length { value: matrix.m43, unit: Unit::Px },
+      ));
+    }
+
+    // Now get scale and shear. 'row' is a 3 element array of 3 component vectors
+    let mut row = [
+      [ matrix.m11, matrix.m12, matrix.m13 ],
+      [ matrix.m21, matrix.m22, matrix.m23 ],
+      [ matrix.m31, matrix.m32, matrix.m33 ],
+    ];
+
+    // Compute X scale factor and normalize first row.
+    let row0len = (row[0][0] * row[0][0] + row[0][1] * row[0][1] + row[0][2] * row[0][2]).sqrt();
+    let mut scale_x = row0len;
+    row[0] = [
+      row[0][0] / row0len,
+      row[0][1] / row0len,
+      row[0][2] / row0len,
+    ];
+
+    // Compute XY shear factor and make 2nd row orthogonal to 1st.
+    let mut skew_x = dot(row[0], row[1]);
+    row[1] = combine(row[1], row[0], 1.0, -skew_x);
+
+    // Now, compute Y scale and normalize 2nd row.
+    let row1len = (row[1][0] * row[1][0] + row[1][1] * row[1][1] + row[1][2] * row[1][2]).sqrt();
+    let mut scale_y = row1len;
+    row[1] = [
+      row[1][0] / row1len,
+      row[1][1] / row1len,
+      row[1][2] / row1len,
+    ];
+    skew_x /= scale_y;
+
+    // Compute XZ and YZ shears, orthogonalize 3rd row
+    let mut skew_y = dot(row[0], row[2]);
+    row[2] = combine(row[2], row[0], 1.0, -skew_y);
+    let mut skew_z = dot(row[1], row[2]);
+    row[2] = combine(row[2], row[1], 1.0, -skew_z);
+
+    // Next, get Z scale and normalize 3rd row.
+    let row2len = (row[2][0] * row[2][0] + row[2][1] * row[2][1] + row[2][2] * row[2][2]).sqrt();
+    let mut scale_z = row2len;
+    row[2] = [
+      row[2][0] / row2len,
+      row[2][1] / row2len,
+      row[2][2] / row2len,
+    ];
+    skew_y /= scale_z;
+    skew_z /= scale_z;
+
+    if skew_z != 0.0 {
+      return None // ???
+    }
+
+    // Round to 5 digits of precision, which is what we print.
+    macro_rules! round {
+      ($var: ident) => {
+        $var = ($var * 100000.0).round() / 100000.0;
+      };
+    }
+
+    round!(skew_x);
+    round!(skew_y);
+    round!(skew_z);
+
+    if skew_x != 0.0 || skew_y != 0.0 || skew_z != 0.0 {
+      transforms.push(Transform::Skew(
+        Angle::Rad(skew_x),
+        Angle::Rad(skew_y)
+      ));
+    }
+
+    // At this point, the matrix (in rows) is orthonormal.
+    // Check for a coordinate system flip.  If the determinant
+    // is -1, then negate the matrix and the scaling factors.
+    if dot(row[0], cross(row[1], row[2])) < 0.0 {
+      scale_x = -scale_x;
+      scale_y = -scale_y;
+      scale_z = -scale_z;
+      for i in 0..3 {
+        row[i][0] *= -1.0;
+        row[i][1] *= -1.0;
+        row[i][2] *= -1.0;
+      }
+    }
+
+    round!(scale_x);
+    round!(scale_y);
+    round!(scale_z);
+
+    if scale_x != 1.0 || scale_y != 1.0 || scale_z != 1.0 {
+      transforms.push(Transform::Scale3d(
+        NumberOrPercentage::Number(scale_x),
+        NumberOrPercentage::Number(scale_y),
+        NumberOrPercentage::Number(scale_z)
+      ))
+    }
+
+    // Now, get the rotations out.
+    let mut rotate_x = 0.5 * ((1.0 + row[0][0] - row[1][1] - row[2][2]).max(0.0)).sqrt();
+    let mut rotate_y = 0.5 * ((1.0 - row[0][0] + row[1][1] - row[2][2]).max(0.0)).sqrt();
+    let mut rotate_z = 0.5 * ((1.0 - row[0][0] - row[1][1] + row[2][2]).max(0.0)).sqrt();
+    let rotate_w = 0.5 * ((1.0 + row[0][0] + row[1][1] + row[2][2]).max(0.0)).sqrt();
+
+    if row[2][1] > row[1][2] {
+      rotate_x = -rotate_x
+    }
+
+    if row[0][2] > row[2][0] {
+      rotate_y = -rotate_y
+    }
+
+    if row[1][0] > row[0][1] {
+      rotate_z = -rotate_z
+    }
+
+    let len = (rotate_x * rotate_x + rotate_y * rotate_y + rotate_z * rotate_z).sqrt();
+    if len != 0.0 {
+      rotate_x /= len;
+      rotate_y /= len;
+      rotate_z /= len;
+    }
+    let a = 2.0 * len.atan2(rotate_w);
+
+    // normalize the vector so one of the values is 1
+    let max = rotate_x.max(rotate_y).max(rotate_z);
+    rotate_x /= max;
+    rotate_y /= max;
+    rotate_z /= max;
+
+    if a != 0.0 {
+      transforms.push(Transform::Rotate3d(rotate_x, rotate_y, rotate_z, Angle::Rad(a)))
+    }
+
+    Some(TransformList(transforms))
   }
 }
 
@@ -749,13 +1114,8 @@ impl Transform {
           return Some(Matrix3d::perspective(len))
         }
       }
-      Transform::Matrix(Matrix { a, b, c, d, e, f }) => {
-        return Some(Matrix3d {
-          m11: *a, m12: *c, m13: 0.0, m14: *e,
-          m21: *b, m22: *d, m23: 0.0, m24: *f,
-          m31: 0.0, m32: 0.0, m33: 1.0, m34: 0.0,
-          m41: 0.0, m42: 0.0, m43: 0.0, m44: 1.0
-        })
+      Transform::Matrix(m) => {
+        return Some(m.to_matrix3d())
       }
       Transform::Matrix3d(m) => return Some(m.clone()),
       _ => {}

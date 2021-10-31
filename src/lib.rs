@@ -1497,7 +1497,7 @@ mod tests {
     minify_test(".foo { transform: translate3d(0px, 0px, 2px)", ".foo{transform:translateZ(2px)}");
     minify_test(".foo { transform: translate3d(2px, 3px, 0px)", ".foo{transform:translate(2px,3px)}");
     minify_test(".foo { transform: scale(2, 3)", ".foo{transform:scale(2,3)}");
-    minify_test(".foo { transform: scale(10%, 20%)", ".foo{transform:scale(10%,20%)}");
+    minify_test(".foo { transform: scale(10%, 20%)", ".foo{transform:scale(.1,.2)}");
     minify_test(".foo { transform: scale(2, 2)", ".foo{transform:scale(2)}");
     minify_test(".foo { transform: scale(2, 1)", ".foo{transform:scaleX(2)}");
     minify_test(".foo { transform: scale(1, 2)", ".foo{transform:scaleY(2)}");
@@ -1544,6 +1544,30 @@ mod tests {
     minify_test(
       ".foo{transform:translate3d(100px, 100px, 10px) skew(10deg) scale3d(2, 3, 4)}",
       ".foo{transform:matrix3d(2,0,0,0,.528981,3,0,0,0,0,4,0,100,100,10,1)}"
+    );
+    minify_test(
+      ".foo{transform:matrix3d(0.804737854124365, 0.5058793634016805, -0.31061721752604554, 0, -0.31061721752604554, 0.804737854124365, 0.5058793634016805, 0, 0.5058793634016805, -0.31061721752604554, 0.804737854124365, 0, 100, 100, 10, 1)}",
+      ".foo{transform:translate3d(100px,100px,10px)rotate3d(1,1,1,45deg)}"
+    );
+    minify_test(
+      ".foo{transform:matrix3d(1, 0, 0, 0, 0, 0.7071067811865476, 0.7071067811865475, 0, 0, -0.7071067811865475, 0.7071067811865476, 0, 100, 100, 10, 1)}",
+      ".foo{transform:translate3d(100px,100px,10px)rotateX(45deg)}"
+    );
+    minify_test(
+      ".foo{transform:translate3d(100px, 200px, 10px) translate(100px, 100px)}",
+      ".foo{transform:translate3d(200px,300px,10px)}"
+    );
+    minify_test(
+      ".foo{transform:rotate(45deg) rotate(45deg)}",
+      ".foo{transform:rotate(90deg)}"
+    );
+    minify_test(
+      ".foo{transform:matrix(0.7071067811865476, 0.7071067811865475, -0.7071067811865475, 0.7071067811865476, 100, 100)}",
+      ".foo{transform:translate(100px,100px)rotate(45deg)}"
+    );
+    minify_test(
+      ".foo{transform:translateX(2in) translateX(50px)}",
+      ".foo{transform:translate(242px)}"
     );
   }
 }

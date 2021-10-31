@@ -450,9 +450,9 @@ impl ToCss for Length {
       token.to_css(&mut s)?;
       if self.value < 0.0 {
         dest.write_char('-')?;
-        dest.write_str(s.get(2..).unwrap_or(&s))
+        dest.write_str(s.trim_start_matches("-0"))
       } else {
-        dest.write_str(s.get(1..).unwrap_or(&s))
+        dest.write_str(s.trim_start_matches('0'))
       }
     } else {
       token.to_css(dest)
@@ -534,9 +534,9 @@ impl ToCss for Percentage {
       percent.to_css(&mut s)?;
       if self.0 < 0.0 {
         dest.write_char('-')?;
-        dest.write_str(s.get(2..).unwrap_or(&s))
+        dest.write_str(s.trim_start_matches("-0"))
       } else {
-        dest.write_str(s.get(1..).unwrap_or(&s))
+        dest.write_str(s.trim_start_matches('0'))
       }
     } else {
       percent.to_css(dest)
@@ -678,9 +678,9 @@ pub fn serialize_number<W>(number: f32, dest: &mut Printer<W>) -> std::fmt::Resu
     tok.to_css(&mut s)?;
     if number < 0.0 {
       dest.write_char('-')?;
-      dest.write_str(s.get(2..).unwrap_or(&s))
+      dest.write_str(s.trim_start_matches("-0"))
     } else {
-      dest.write_str(s.get(1..).unwrap_or(&s))
+      dest.write_str(s.trim_start_matches('0'))
     }
   } else {
     tok.to_css(dest)
@@ -782,7 +782,16 @@ impl ToCss for Angle {
     let (value, unit) = match self {
       Angle::Deg(val) => (*val, "deg"),
       Angle::Grad(val) => (*val, "grad"),
-      Angle::Rad(val) => (*val, "rad"),
+      Angle::Rad(val) => {
+        let deg = self.to_degrees();
+        // We print 5 digits of precision by default.
+        // Switch to degrees if there are an even number of them.
+        if (deg * 100000.0).round().fract() == 0.0 {
+          (deg, "deg")
+        } else {
+          (*val, "rad")
+        }
+      },
       Angle::Turn(val) => (*val, "turn")
     };
 
@@ -803,9 +812,9 @@ impl ToCss for Angle {
       token.to_css(&mut s)?;
       if value < 0.0 {
         dest.write_char('-')?;
-        dest.write_str(s.get(2..).unwrap_or(&s))
+        dest.write_str(s.trim_start_matches("-0"))
       } else {
-        dest.write_str(s.get(1..).unwrap_or(&s))
+        dest.write_str(s.trim_start_matches('0'))
       }
     } else {
       token.to_css(dest)
@@ -828,6 +837,16 @@ impl Angle {
       Angle::Rad(rad) => *rad,
       Angle::Grad(grad) => grad * 180.0 / 200.0 * RAD_PER_DEG,
       Angle::Turn(turn) => turn * 360.0 * RAD_PER_DEG
+    }
+  }
+
+  pub fn to_degrees(&self) -> f32 {
+    const DEG_PER_RAD: f32 = 180.0 / PI;
+    match self {
+      Angle::Deg(deg) => *deg,
+      Angle::Rad(rad) => rad * DEG_PER_RAD,
+      Angle::Grad(grad) => grad * 180.0 / 200.0,
+      Angle::Turn(turn) => turn * 360.0
     }
   }
 }
