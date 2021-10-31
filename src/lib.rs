@@ -1492,6 +1492,10 @@ mod tests {
     minify_test(".foo { transform: translateZ(2px)", ".foo{transform:translateZ(2px)}");
     minify_test(".foo { transform: translate3d(2px, 3px, 4px)", ".foo{transform:translate3d(2px,3px,4px)}");
     minify_test(".foo { transform: translate3d(10%, 20%, 4px)", ".foo{transform:translate3d(10%,20%,4px)}");
+    minify_test(".foo { transform: translate3d(2px, 0px, 0px)", ".foo{transform:translate(2px)}");
+    minify_test(".foo { transform: translate3d(0px, 2px, 0px)", ".foo{transform:translateY(2px)}");
+    minify_test(".foo { transform: translate3d(0px, 0px, 2px)", ".foo{transform:translateZ(2px)}");
+    minify_test(".foo { transform: translate3d(2px, 3px, 0px)", ".foo{transform:translate(2px,3px)}");
     minify_test(".foo { transform: scale(2, 3)", ".foo{transform:scale(2,3)}");
     minify_test(".foo { transform: scale(10%, 20%)", ".foo{transform:scale(10%,20%)}");
     minify_test(".foo { transform: scale(2, 2)", ".foo{transform:scale(2)}");
@@ -1499,12 +1503,20 @@ mod tests {
     minify_test(".foo { transform: scale(1, 2)", ".foo{transform:scaleY(2)}");
     minify_test(".foo { transform: scaleX(2)", ".foo{transform:scaleX(2)}");
     minify_test(".foo { transform: scaleY(2)", ".foo{transform:scaleY(2)}");
+    minify_test(".foo { transform: scaleZ(2)", ".foo{transform:scaleZ(2)}");
     minify_test(".foo { transform: scale3d(2, 3, 4)", ".foo{transform:scale3d(2,3,4)}");
+    minify_test(".foo { transform: scale3d(2, 1, 1)", ".foo{transform:scaleX(2)}");
+    minify_test(".foo { transform: scale3d(1, 2, 1)", ".foo{transform:scaleY(2)}");
+    minify_test(".foo { transform: scale3d(1, 1, 2)", ".foo{transform:scaleZ(2)}");
+    minify_test(".foo { transform: scale3d(2, 2, 1)", ".foo{transform:scale(2)}");
     minify_test(".foo { transform: rotate(20deg)", ".foo{transform:rotate(20deg)}");
     minify_test(".foo { transform: rotateX(20deg)", ".foo{transform:rotateX(20deg)}");
     minify_test(".foo { transform: rotateY(20deg)", ".foo{transform:rotateY(20deg)}");
-    minify_test(".foo { transform: rotateZ(20deg)", ".foo{transform:rotateZ(20deg)}");
+    minify_test(".foo { transform: rotateZ(20deg)", ".foo{transform:rotate(20deg)}");
     minify_test(".foo { transform: rotate3d(2, 3, 4, 20deg)", ".foo{transform:rotate3d(2,3,4,20deg)}");
+    minify_test(".foo { transform: rotate3d(1, 0, 0, 20deg)", ".foo{transform:rotateX(20deg)}");
+    minify_test(".foo { transform: rotate3d(0, 1, 0, 20deg)", ".foo{transform:rotateY(20deg)}");
+    minify_test(".foo { transform: rotate3d(0, 0, 1, 20deg)", ".foo{transform:rotate(20deg)}");
     minify_test(".foo { transform: skew(20deg)", ".foo{transform:skew(20deg)}");
     minify_test(".foo { transform: skew(20deg, 0deg)", ".foo{transform:skew(20deg)}");
     minify_test(".foo { transform: skew(0deg, 20deg)", ".foo{transform:skewY(20deg)}");
@@ -1513,5 +1525,25 @@ mod tests {
     minify_test(".foo { transform: perspective(10px)", ".foo{transform:perspective(10px)}");
     minify_test(".foo { transform: matrix(1, 2, -1, 1, 80, 80)", ".foo{transform:matrix(1,2,-1,1,80,80)}");
     minify_test(".foo { transform: matrix3d(1, 0, 0, 0, 0, 1, 6, 0, 0, 0, 1, 0, 50, 100, 0, 1.1)", ".foo{transform:matrix3d(1,0,0,0,0,1,6,0,0,0,1,0,50,100,0,1.1)}");
+    minify_test(
+      ".foo{transform:translate(100px,200px) rotate(45deg) skew(10deg) scale(2)}",
+      ".foo{transform:matrix(1.41421,1.41421,-1.16485,1.66358,100,200)}"
+    );
+    minify_test(
+      ".foo{transform:translate(200px,300px) translate(100px,200px) scale(2)}",
+      ".foo{transform:matrix(2,0,0,2,300,500)}"
+    );
+    minify_test(
+      ".foo{transform:translate(100px,200px) rotate(45deg)}",
+      ".foo{transform:translate(100px,200px)rotate(45deg)}"
+    );
+    minify_test(
+      ".foo{transform:rotate3d(1, 1, 1, 45deg) translate3d(100px, 100px, 10px)}",
+      ".foo{transform:rotate3d(1,1,1,45deg)translate3d(100px,100px,10px)}"
+    );
+    minify_test(
+      ".foo{transform:translate3d(100px, 100px, 10px) skew(10deg) scale3d(2, 3, 4)}",
+      ".foo{transform:matrix3d(2,0,0,0,.528981,3,0,0,0,0,4,0,100,100,10,1)}"
+    );
   }
 }

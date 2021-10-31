@@ -4,8 +4,6 @@ use crate::values::{length::{LengthPercentage, NumberOrPercentage, Length, Angle
 use super::Property;
 use crate::printer::Printer;
 use std::fmt::Write;
-use itertools::izip;
-use smallvec::SmallVec;
 
 /// https://www.w3.org/TR/2019/CR-css-transforms-1-20190214/#propdef-transform
 #[derive(Debug, Clone, PartialEq)]
@@ -28,16 +26,53 @@ impl Parse for TransformList {
 
 impl ToCss for TransformList {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-    let mut first = true;
-    for item in &self.0 {
-      if first {
-        first = false;
-      } else {
-        dest.delim(',', false)?;
+    if dest.minify && self.0.len() > 1 {
+      // Attempt to combine into a single matrix() or matrix3d() if shorter
+      if let Some(matrix) = self.to_matrix() {
+        let mut base = String::new();
+        self.to_css_base(&mut Printer::new(&mut base, true))?;
+
+        let mut mat = String::new();
+        if let Some(matrix) = matrix.to_matrix2d() {
+          Transform::Matrix(matrix).to_css(&mut Printer::new(&mut mat, true))?
+        } else {
+          Transform::Matrix3d(matrix).to_css(&mut Printer::new(&mut mat, true))?
+        }
+
+        if mat.len() < base.len() {
+          dest.write_str(&mat)?;
+        } else {
+          dest.write_str(&base)?;
+        }
+
+        return Ok(())
       }
+    }
+
+    self.to_css_base(dest)
+  }
+}
+
+impl TransformList {
+  fn to_css_base<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    for item in &self.0 {
       item.to_css(dest)?;
     }
     Ok(())
+  }
+}
+
+impl TransformList {
+  pub fn to_matrix(&self) -> Option<Matrix3d<f32>> {
+    let mut matrix = Matrix3d::identity();
+    for transform in &self.0 {
+      if let Some(m) = transform.to_matrix() {
+        matrix = m.multiply(&matrix);
+      } else {
+        return None
+      }
+    }
+    Some(matrix)
   }
 }
 
@@ -51,6 +86,7 @@ pub enum Transform {
   Scale(NumberOrPercentage, NumberOrPercentage),
   ScaleX(NumberOrPercentage),
   ScaleY(NumberOrPercentage),
+  ScaleZ(NumberOrPercentage),
   Scale3d(NumberOrPercentage, NumberOrPercentage, NumberOrPercentage),
   Rotate(Angle),
   RotateX(Angle),
@@ -77,6 +113,143 @@ pub struct Matrix3d<T> {
   pub m21: T, pub m22: T, pub m23: T, pub m24: T,
   pub m31: T, pub m32: T, pub m33: T, pub m34: T,
   pub m41: T, pub m42: T, pub m43: T, pub m44: T,
+}
+
+/// https://drafts.csswg.org/css-transforms-2/#mathematical-description
+impl Matrix3d<f32> {
+  pub fn identity() -> Matrix3d<f32> {
+    Matrix3d {
+      m11: 1.0, m12: 0.0, m13: 0.0, m14: 0.0,
+      m21: 0.0, m22: 1.0, m23: 0.0, m24: 0.0,
+      m31: 0.0, m32: 0.0, m33: 1.0, m34: 0.0,
+      m41: 0.0, m42: 0.0, m43: 0.0, m44: 1.0
+    }
+  }
+
+  pub fn translate(x: f32, y: f32, z: f32) -> Matrix3d<f32> {
+    Matrix3d {
+      m11: 1.0, m12: 0.0, m13: 0.0, m14: 0.0,
+      m21: 0.0, m22: 1.0, m23: 0.0, m24: 0.0,
+      m31: 0.0, m32: 0.0, m33: 1.0, m34: 0.0,
+      m41: x,   m42: y,   m43: z,   m44: 1.0
+    }
+  }
+
+  pub fn scale(x: f32, y: f32, z: f32) -> Matrix3d<f32> {
+    Matrix3d {
+      m11: x,   m12: 0.0, m13: 0.0, m14: 0.0,
+      m21: 0.0, m22: y,   m23: 0.0, m24: 0.0,
+      m31: 0.0, m32: 0.0, m33: z,   m34: 0.0,
+      m41: 0.0, m42: 0.0, m43: 0.0, m44: 1.0
+    }
+  }
+
+  pub fn rotate(x: f32, y: f32, z: f32, angle: f32) -> Matrix3d<f32> {
+    // Normalize the vector.
+    let length = (x * x + y * y + z * z).sqrt();
+    if length == 0.0 {
+      // A direction vector that cannot be normalized, such as [0,0,0], will cause the rotation to not be applied.
+      return Matrix3d::identity()
+    }
+
+    let x = x / length;
+    let y = y / length;
+    let z = z / length;
+
+    let half_angle = angle / 2.0;
+    let sin = half_angle.sin();
+    let sc = sin * half_angle.cos();
+    let sq = sin * sin;
+    let m11 = 1.0 - 2.0 * (y * y + z * z) * sq;
+    let m12 = 2.0 * (x * y * sq + z * sc);
+    let m13 = 2.0 * (x * z * sq - y * sc);
+    let m21 = 2.0 * (x * y * sq - z * sc);
+    let m22 = 1.0 - 2.0 * (x * x + z * z) * sq;
+    let m23 = 2.0 * (y * z * sq + x * sc);
+    let m31 = 2.0 * (x * z * sq + y * sc);
+    let m32 = 2.0 * (y * z * sq - x * sc);
+    let m33 = 1.0 - 2.0 * (x * x + y * y) * sq;
+    Matrix3d {
+      m11, m12, m13, m14: 0.0,
+      m21, m22, m23, m24: 0.0,
+      m31, m32, m33, m34: 0.0,
+      m41: 0.0, m42: 0.0, m43: 0.0, m44: 1.0
+    }
+  }
+
+  pub fn skew(a: f32, b: f32) -> Matrix3d<f32> {
+    Matrix3d {
+      m11: 1.0, m12: b.tan(), m13: 0.0, m14: 0.0,
+      m21: a.tan(), m22: 1.0, m23: 0.0, m24: 0.0,
+      m31: 0.0, m32: 0.0, m33: 1.0, m34: 0.0,
+      m41: 0.0, m42: 0.0, m43: 0.0, m44: 1.0
+    }
+  }
+
+  pub fn perspective(d: f32) -> Matrix3d<f32> {
+    Matrix3d {
+      m11: 1.0, m12: 0.0, m13: 0.0, m14: 0.0,
+      m21: 0.0, m22: 1.0, m23: 0.0, m24: 0.0,
+      m31: 0.0, m32: 0.0, m33: 1.0, m34: -1.0 / d,
+      m41: 0.0, m42: 0.0, m43: 0.0, m44: 1.0
+    }
+  }
+
+  pub fn multiply(&self, other: &Self) -> Self {
+    Matrix3d {
+      m11: self.m11 * other.m11 + self.m12 * other.m21 +
+           self.m13 * other.m31 + self.m14 * other.m41,
+      m12: self.m11 * other.m12 + self.m12 * other.m22 +
+           self.m13 * other.m32 + self.m14 * other.m42,
+      m13: self.m11 * other.m13 + self.m12 * other.m23 +
+           self.m13 * other.m33 + self.m14 * other.m43,
+      m14: self.m11 * other.m14 + self.m12 * other.m24 +
+           self.m13 * other.m34 + self.m14 * other.m44,
+      m21: self.m21 * other.m11 + self.m22 * other.m21 +
+           self.m23 * other.m31 + self.m24 * other.m41,
+      m22: self.m21 * other.m12 + self.m22 * other.m22 +
+           self.m23 * other.m32 + self.m24 * other.m42,
+      m23: self.m21 * other.m13 + self.m22 * other.m23 +
+           self.m23 * other.m33 + self.m24 * other.m43,
+      m24: self.m21 * other.m14 + self.m22 * other.m24 +
+           self.m23 * other.m34 + self.m24 * other.m44,
+      m31: self.m31 * other.m11 + self.m32 * other.m21 +
+           self.m33 * other.m31 + self.m34 * other.m41,
+      m32: self.m31 * other.m12 + self.m32 * other.m22 +
+           self.m33 * other.m32 + self.m34 * other.m42,
+      m33: self.m31 * other.m13 + self.m32 * other.m23 +
+           self.m33 * other.m33 + self.m34 * other.m43,
+      m34: self.m31 * other.m14 + self.m32 * other.m24 +
+           self.m33 * other.m34 + self.m34 * other.m44,
+      m41: self.m41 * other.m11 + self.m42 * other.m21 +
+           self.m43 * other.m31 + self.m44 * other.m41,
+      m42: self.m41 * other.m12 + self.m42 * other.m22 +
+           self.m43 * other.m32 + self.m44 * other.m42,
+      m43: self.m41 * other.m13 + self.m42 * other.m23 +
+           self.m43 * other.m33 + self.m44 * other.m43,
+      m44: self.m41 * other.m14 + self.m42 * other.m24 +
+           self.m43 * other.m34 + self.m44 * other.m44,
+    }
+  }
+
+  pub fn is_2d(&self) -> bool {
+    self.m31 == 0.0 && self.m32 == 0.0 &&
+    self.m13 == 0.0 && self.m23 == 0.0 &&
+    self.m43 == 0.0 && self.m14 == 0.0 &&
+    self.m24 == 0.0 && self.m34 == 0.0 &&
+    self.m33 == 1.0 && self.m44 == 1.0
+  }
+
+  pub fn to_matrix2d(&self) -> Option<Matrix<f32>> {
+    if self.is_2d() {
+      return Some(Matrix {
+        a: self.m11, b: self.m12,
+        c: self.m21, d: self.m22,
+        e: self.m41, f: self.m42
+      })
+    }
+    None
+  }
 }
 
 impl Parse for Transform {
@@ -184,6 +357,10 @@ impl Parse for Transform {
           let y = NumberOrPercentage::parse(input)?;
           Ok(Transform::ScaleY(y))
         },
+        "scalez" => {
+          let z = NumberOrPercentage::parse(input)?;
+          Ok(Transform::ScaleZ(z))
+        },
         "scale3d" => {
           let x = NumberOrPercentage::parse(input)?;
           input.expect_comma()?;
@@ -281,19 +458,35 @@ impl ToCss for Transform {
         dest.write_char(')')
       }
       Translate3d(x, y, z) => {
-        dest.write_str("translate3d(")?;
-        x.to_css(dest)?;
-        dest.delim(',', false)?;
-        y.to_css(dest)?;
-        dest.delim(',', false)?;
-        z.to_css(dest)?;
+        if dest.minify && *x != 0.0 && *y == 0.0 && z.is_zero() {
+          dest.write_str("translate(")?;
+          x.to_css(dest)?;
+        } else if dest.minify && *x == 0.0 && *y != 0.0 && z.is_zero() {
+          dest.write_str("translateY(")?;
+          y.to_css(dest)?;
+        } else if dest.minify && *x == 0.0 && *y == 0.0 && !z.is_zero() {
+          dest.write_str("translateZ(")?;
+          z.to_css(dest)?;
+        } else if dest.minify && z.is_zero() {
+          dest.write_str("translate(")?;
+          x.to_css(dest)?;
+          dest.delim(',', false)?;
+          y.to_css(dest)?;
+        } else {
+          dest.write_str("translate3d(")?;
+          x.to_css(dest)?;
+          dest.delim(',', false)?;
+          y.to_css(dest)?;
+          dest.delim(',', false)?;
+          z.to_css(dest)?;
+        }
         dest.write_char(')')
       }
       Scale(x, y) => {
-        if *x == 1.0 && *y != 1.0 {
+        if dest.minify && *x == 1.0 && *y != 1.0 {
           dest.write_str("scaleY(")?;
           y.to_css(dest)?;
-        } else if *x != 1.0 && *y == 1.0 {
+        } else if dest.minify && *x != 1.0 && *y == 1.0 {
           dest.write_str("scaleX(")?;
           x.to_css(dest)?;
         } else {
@@ -316,13 +509,42 @@ impl ToCss for Transform {
         y.to_css(dest)?;
         dest.write_char(')')
       }
-      Scale3d(x, y, z) => {
-        dest.write_str("scale3d(")?;
-        x.to_css(dest)?;
-        dest.delim(',', false)?;
-        y.to_css(dest)?;
-        dest.delim(',', false)?;
+      ScaleZ(z) => {
+        dest.write_str("scaleZ(")?;
         z.to_css(dest)?;
+        dest.write_char(')')
+      }
+      Scale3d(x, y, z) => {
+        if dest.minify && *z == 1.0 && *x == *y {
+          // scale3d(x, x, 1) => scale(x)
+          dest.write_str("scale(")?;
+          x.to_css(dest)?;
+        } else if dest.minify && *x != 1.0 && *y == 1.0 && *z == 1.0 {
+          // scale3d(x, 1, 1) => scaleX(x)
+          dest.write_str("scaleX(")?;
+          x.to_css(dest)?;
+        } else if dest.minify && *x == 1.0 && *y != 1.0 && *z == 1.0 {
+           // scale3d(1, y, 1) => scaleY(y)
+          dest.write_str("scaleY(")?;
+          y.to_css(dest)?;
+        } else if dest.minify && *x == 1.0 && *y == 1.0 && *z != 1.0 {
+          // scale3d(1, 1, z) => scaleZ(z)
+          dest.write_str("scaleZ(")?;
+          z.to_css(dest)?;
+        } else if dest.minify && *z == 1.0 {
+          // scale3d(x, y, 1) => scale(x, y)
+          dest.write_str("scale(")?;
+          x.to_css(dest)?;
+          dest.delim(',', false)?;
+          y.to_css(dest)?;
+        } else {
+          dest.write_str("scale3d(")?;
+          x.to_css(dest)?;
+          dest.delim(',', false)?;
+          y.to_css(dest)?;
+          dest.delim(',', false)?;
+          z.to_css(dest)?;
+        }
         dest.write_char(')')
       }
       Rotate(angle) => {
@@ -341,19 +563,33 @@ impl ToCss for Transform {
         dest.write_char(')')
       }
       RotateZ(angle) => {
-        dest.write_str("rotateZ(")?;
+        dest.write_str(if dest.minify { "rotate(" } else { "rotateZ(" })?;
         angle.to_css(dest)?;
         dest.write_char(')')
       }
       Rotate3d(x, y, z, angle) => {
-        dest.write_str("rotate3d(")?;
-        x.to_css(dest)?;
-        dest.delim(',', false)?;
-        y.to_css(dest)?;
-        dest.delim(',', false)?;
-        z.to_css(dest)?;
-        dest.delim(',', false)?;
-        angle.to_css(dest)?;
+        if dest.minify && *x == 1.0 && *y == 0.0 && *z == 0.0 {
+          // rotate3d(1, 0, 0, a) => rotateX(a)
+          dest.write_str("rotateX(")?;
+          angle.to_css(dest)?;
+        } else if dest.minify && *x == 0.0 && *y == 1.0 && *z == 0.0 {
+          // rotate3d(0, 1, 0, a) => rotateY(a)
+          dest.write_str("rotateY(")?;
+          angle.to_css(dest)?;
+        } else if dest.minify && *x == 0.0 && *y == 0.0 && *z == 1.0 {
+          // rotate3d(0, 0, 1, a) => rotate(a)
+          dest.write_str("rotate(")?;
+          angle.to_css(dest)?;
+        } else {
+          dest.write_str("rotate3d(")?;
+          x.to_css(dest)?;
+          dest.delim(',', false)?;
+          y.to_css(dest)?;
+          dest.delim(',', false)?;
+          z.to_css(dest)?;
+          dest.delim(',', false)?;
+          angle.to_css(dest)?;
+        }
         dest.write_char(')')
       }
       Skew(x, y) => {
@@ -441,5 +677,89 @@ impl ToCss for Transform {
         dest.write_char(')')
       }
     }
+  }
+}
+
+impl Transform {
+  pub fn to_matrix(&self) -> Option<Matrix3d<f32>> {
+    match &self {
+      Transform::Translate(LengthPercentage::Length(x), LengthPercentage::Length(y)) => {
+        if let (Some(x), Some(y)) = (x.to_px(), y.to_px()) {
+          return Some(Matrix3d::translate(x, y, 0.0))
+        }
+      }
+      Transform::TranslateX(LengthPercentage::Length(x)) => {
+        if let Some(x) = x.to_px() {
+          return Some(Matrix3d::translate(x, 0.0, 0.0))
+        }
+      }
+      Transform::TranslateY(LengthPercentage::Length(y)) => {
+        if let Some(y) = y.to_px() {
+          return Some(Matrix3d::translate(0.0, y, 0.0))
+        }
+      }
+      Transform::TranslateZ(z) => {
+        if let Some(z) = z.to_px() {
+          return Some(Matrix3d::translate(0.0, 0.0, z))
+        }
+      }
+      Transform::Translate3d(LengthPercentage::Length(x), LengthPercentage::Length(y), z) => {
+        if let (Some(x), Some(y), Some(z)) = (x.to_px(), y.to_px(), z.to_px()) {
+          return Some(Matrix3d::translate(x, y, z))
+        }
+      }
+      Transform::Scale(x, y) => {
+        return Some(Matrix3d::scale(x.into(), y.into(), 1.0))
+      }
+      Transform::ScaleX(x) => {
+        return Some(Matrix3d::scale(x.into(), 1.0, 1.0))
+      }
+      Transform::ScaleY(y) => {
+        return Some(Matrix3d::scale(1.0, y.into(), 1.0))
+      }
+      Transform::ScaleZ(z) => {
+        return Some(Matrix3d::scale(1.0, 1.0, z.into()))
+      }
+      Transform::Scale3d(x, y, z) => {
+        return Some(Matrix3d::scale(x.into(), y.into(), z.into()))
+      }
+      Transform::Rotate(angle) | Transform::RotateZ(angle) => {
+        return Some(Matrix3d::rotate(0.0, 0.0, 1.0, angle.to_radians()))
+      }
+      Transform::RotateX(angle) => {
+        return Some(Matrix3d::rotate(1.0, 0.0, 0.0, angle.to_radians()))
+      }
+      Transform::RotateY(angle) => {
+        return Some(Matrix3d::rotate(0.0, 1.0, 0.0, angle.to_radians()))
+      }
+      Transform::Rotate3d(x, y, z, angle) => {
+        return Some(Matrix3d::rotate(*x, *y, *z, angle.to_radians()))
+      }
+      Transform::Skew(x, y) => {
+        return Some(Matrix3d::skew(x.to_radians(), y.to_radians()))
+      }
+      Transform::SkewX(x) => {
+        return Some(Matrix3d::skew(x.to_radians(), 0.0))
+      }
+      Transform::SkewY(y) => {
+        return Some(Matrix3d::skew(0.0, y.to_radians()))
+      }
+      Transform::Perspective(len) => {
+        if let Some(len) = len.to_px() {
+          return Some(Matrix3d::perspective(len))
+        }
+      }
+      Transform::Matrix(Matrix { a, b, c, d, e, f }) => {
+        return Some(Matrix3d {
+          m11: *a, m12: *c, m13: 0.0, m14: *e,
+          m21: *b, m22: *d, m23: 0.0, m24: *f,
+          m31: 0.0, m32: 0.0, m33: 1.0, m34: 0.0,
+          m41: 0.0, m42: 0.0, m43: 0.0, m44: 1.0
+        })
+      }
+      Transform::Matrix3d(m) => return Some(m.clone()),
+      _ => {}
+    }
+    None
   }
 }

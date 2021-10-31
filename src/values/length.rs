@@ -4,6 +4,7 @@ use crate::macros::enum_property;
 use crate::printer::Printer;
 use std::fmt::Write;
 use super::calc::Calc;
+use std::f32::consts::PI;
 
 /// https://drafts.csswg.org/css-sizing-3/#specifying-sizes
 
@@ -395,6 +396,10 @@ impl Length {
   pub fn zero() -> Length {
     Length { value: 0.0, unit: Unit::Px }
   }
+
+  pub fn is_zero(&self) -> bool {
+    self.value == 0.0
+  }
 }
 
 impl Parse for Length {
@@ -473,6 +478,29 @@ impl std::ops::Add<Length> for Length {
     Length {
       value: self.value + other.value,
       unit: self.unit
+    }
+  }
+}
+
+// https://www.w3.org/TR/css-values-3/#absolute-lengths
+const PX_PER_IN: f32 = 96.0;
+const PX_PER_CM: f32 = PX_PER_IN / 2.54;
+const PX_PER_MM: f32 = PX_PER_CM / 10.0;
+const PX_PER_Q: f32 = PX_PER_CM / 40.0;
+const PX_PER_PT: f32 = PX_PER_IN / 72.0;
+const PX_PER_PC: f32 = PX_PER_IN / 6.0;
+
+impl Length {
+  pub fn to_px(&self) -> Option<f32> {
+    match self.unit {
+      Unit::Px => Some(self.value),
+      Unit::In => Some(self.value * PX_PER_IN),
+      Unit::Cm => Some(self.value * PX_PER_CM),
+      Unit::Mm => Some(self.value * PX_PER_MM),
+      Unit::Q => Some(self.value * PX_PER_Q),
+      Unit::Pt => Some(self.value * PX_PER_PT),
+      Unit::Pc => Some(self.value * PX_PER_PC),
+      _ => None
     }
   }
 }
@@ -605,6 +633,15 @@ impl std::cmp::PartialEq<f32> for NumberOrPercentage {
   }
 }
 
+impl std::convert::Into<f32> for &NumberOrPercentage {
+  fn into(self) -> f32 {
+    match self {
+      NumberOrPercentage::Number(a) => *a,
+      NumberOrPercentage::Percentage(a) => a.0
+    }
+  }
+}
+
 /// https://www.w3.org/TR/2021/WD-css-color-4-20210601/#typedef-alpha-value
 #[derive(Debug, Clone, PartialEq)]
 pub struct AlphaValue(f32);
@@ -639,7 +676,12 @@ pub fn serialize_number<W>(number: f32, dest: &mut Printer<W>) -> std::fmt::Resu
   if number != 0.0 && number.abs() < 1.0 {
     let mut s = String::new();
     tok.to_css(&mut s)?;
-    dest.write_str(s.get(1..).unwrap_or(&s))
+    if number < 0.0 {
+      dest.write_char('-')?;
+      dest.write_str(s.get(2..).unwrap_or(&s))
+    } else {
+      dest.write_str(s.get(1..).unwrap_or(&s))
+    }
   } else {
     tok.to_css(dest)
   }
@@ -776,6 +818,16 @@ impl Angle {
     use Angle::*;
     match self {
       Deg(v) | Rad(v) | Grad(v) | Turn(v) => *v == 0.0
+    }
+  }
+
+  pub fn to_radians(&self) -> f32 {
+    const RAD_PER_DEG: f32 = PI / 180.0;
+    match self {
+      Angle::Deg(deg) => deg * RAD_PER_DEG,
+      Angle::Rad(rad) => *rad,
+      Angle::Grad(grad) => grad * 180.0 / 200.0 * RAD_PER_DEG,
+      Angle::Turn(turn) => turn * 360.0 * RAD_PER_DEG
     }
   }
 }
