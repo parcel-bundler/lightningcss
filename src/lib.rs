@@ -1166,6 +1166,8 @@ mod tests {
     minify_test(".foo { width: calc(200px * +1) }", ".foo{width:200px}");
     minify_test(".foo { width: calc(200px / +1) }", ".foo{width:200px}");
     minify_test(".foo { width: calc(1.1e+1px + 1.1e+1px) }", ".foo{width:22px}");
+    minify_test(".foo { border-width: calc(1px + 2px) }", ".foo{border-width:3px}");
+    minify_test(".foo { border-width: calc(1em + 2px + 2em + 3px) }", ".foo{border-width:calc(3em + 5px)}");
   }
 
   #[test]

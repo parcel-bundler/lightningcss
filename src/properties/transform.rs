@@ -3,7 +3,7 @@ use crate::traits::{Parse, ToCss};
 use crate::values::{
   angle::Angle,
   percentage::NumberOrPercentage,
-  length::{LengthPercentage, Length, Unit}
+  length::{LengthPercentage, Length, AbsoluteLength}
 };
 use crate::printer::Printer;
 use std::fmt::Write;
@@ -469,7 +469,7 @@ impl Matrix3d<f32> {
       let perspective = perspective_matrix.multiply_vector(&right_hand_side);
       if perspective[0] == 0.0 && perspective[1] == 0.0 && perspective[3] == 0.0 {
         transforms.push(Transform::Perspective(
-          Length { value: -1.0 / perspective[2], unit: Unit::Px }
+          Length::px(-1.0 / perspective[2])
         ))
       } else {
         return None
@@ -480,9 +480,9 @@ impl Matrix3d<f32> {
     // let translate = Translate3D(matrix.m41, matrix.m42, matrix.m43);
     if matrix.m41 != 0.0 || matrix.m42 != 0.0 || matrix.m43 != 0.0 {
       transforms.push(Transform::Translate3d(
-        LengthPercentage::Length(Length { value: matrix.m41, unit: Unit::Px }),
-        LengthPercentage::Length(Length { value: matrix.m42, unit: Unit::Px }),
-        Length { value: matrix.m43, unit: Unit::Px },
+        LengthPercentage::Length(Length::px(matrix.m41)),
+        LengthPercentage::Length(Length::px(matrix.m42)),
+        Length::px(matrix.m43),
       ));
     }
 
@@ -831,16 +831,16 @@ impl ToCss for Transform {
         dest.write_char(')')
       }
       Translate3d(x, y, z) => {
-        if dest.minify && *x != 0.0 && *y == 0.0 && z.is_zero() {
+        if dest.minify && *x != 0.0 && *y == 0.0 && *z == 0.0 {
           dest.write_str("translate(")?;
           x.to_css(dest)?;
-        } else if dest.minify && *x == 0.0 && *y != 0.0 && z.is_zero() {
+        } else if dest.minify && *x == 0.0 && *y != 0.0 && *z == 0.0 {
           dest.write_str("translateY(")?;
           y.to_css(dest)?;
-        } else if dest.minify && *x == 0.0 && *y == 0.0 && !z.is_zero() {
+        } else if dest.minify && *x == 0.0 && *y == 0.0 && *z != 0.0 {
           dest.write_str("translateZ(")?;
           z.to_css(dest)?;
-        } else if dest.minify && z.is_zero() {
+        } else if dest.minify && *z == 0.0 {
           dest.write_str("translate(")?;
           x.to_css(dest)?;
           dest.delim(',', false)?;

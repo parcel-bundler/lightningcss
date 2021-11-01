@@ -144,8 +144,8 @@ impl ToCss for Flex {
     }
 
     let is_basis_zero = match &self.basis {
-      LengthPercentageOrAuto::LengthPercentage(LengthPercentage::Percentage(Percentage(b))) | 
-      LengthPercentageOrAuto::LengthPercentage(LengthPercentage::Length(Length {value: b, ..})) => *b == 0.0,
+      LengthPercentageOrAuto::LengthPercentage(LengthPercentage::Percentage(percentage)) => *percentage == 0.0,
+      LengthPercentageOrAuto::LengthPercentage(LengthPercentage::Length(length)) => *length == 0.0,
       _ => false
     };
 
