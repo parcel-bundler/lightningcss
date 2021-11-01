@@ -44,10 +44,10 @@ impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + 
     match_ignore_ascii_case! { &f,
       "calc" => {
         let calc = input.parse_nested_block(Calc::parse_sum)?;
-        if let Calc::Value(_) = calc {
-          return Ok(calc)
+        match calc {
+          Calc::Value(_) | Calc::Number(_) => Ok(calc),
+          _ => Ok(Calc::Function(Box::new(MathFunction::Calc(calc))))
         }
-        Ok(Calc::Function(Box::new(MathFunction::Calc(calc))))
       },
       _ => Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
     }

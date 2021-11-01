@@ -14,7 +14,7 @@ impl Parse for Percentage {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
       // Percentages are always compatible, so they will always compute to a value.
-      Ok(_) => unreachable!(),
+      Ok(_) => return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid)),
       _ => {}
     }
 
@@ -102,12 +102,12 @@ pub enum NumberOrPercentage {
 
 impl Parse for NumberOrPercentage {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
-    if let Ok(percent) = input.try_parse(|input| Percentage::parse(input)) {
-      return Ok(NumberOrPercentage::Percentage(percent))
+    if let Ok(number) = input.try_parse(f32::parse) {
+      return Ok(NumberOrPercentage::Number(number))
     }
 
-    if let Ok(number) = input.try_parse(|input| input.expect_number()) {
-      return Ok(NumberOrPercentage::Number(number))
+    if let Ok(percent) = input.try_parse(|input| Percentage::parse(input)) {
+      return Ok(NumberOrPercentage::Percentage(percent))
     }
 
     Err(input.new_error_for_next_token())

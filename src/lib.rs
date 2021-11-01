@@ -1607,5 +1607,6 @@ mod tests {
       ".foo{transform:rotate(calc(10deg + var(--test)))}"
     );
     minify_test(".foo { transform: scale(calc(10% + 20%))", ".foo{transform:scale(.3)}");
+    minify_test(".foo { transform: scale(calc(.1 + .2))", ".foo{transform:scale(.3)}");
   }
 }

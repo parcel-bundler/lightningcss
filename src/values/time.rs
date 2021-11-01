@@ -15,7 +15,7 @@ impl Parse for Time {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
       // Time is always compatible, so they will always compute to a value.
-      Ok(_) => unreachable!(),
+      Ok(_) => return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid)),
       _ => {}
     }
 
