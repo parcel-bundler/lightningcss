@@ -394,7 +394,7 @@ pub enum LengthOrNumber {
 impl Parse for LengthOrNumber {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     // Parse number first so unitless numbers are not parsed as lengths.
-    if let Ok(number) = input.try_parse(|input| input.expect_number()) {
+    if let Ok(number) = input.try_parse(f32::parse) {
       return Ok(LengthOrNumber::Number(number))
     }
 

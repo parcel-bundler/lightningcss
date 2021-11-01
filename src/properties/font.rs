@@ -407,7 +407,7 @@ impl Parse for LineHeight {
       return Ok(LineHeight::Normal)
     }
 
-    if let Ok(val) = input.try_parse(|input| input.expect_number()) {
+    if let Ok(val) = input.try_parse(f32::parse) {
       return Ok(LineHeight::Number(val))
     }
 

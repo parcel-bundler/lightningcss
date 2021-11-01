@@ -63,7 +63,7 @@ impl Parse for BorderImageSideWidth {
       return Ok(BorderImageSideWidth::Auto);
     }
 
-    if let Ok(number) = input.try_parse(|input| input.expect_number()) {
+    if let Ok(number) = input.try_parse(f32::parse) {
       return Ok(BorderImageSideWidth::Number(number))
     }
 
