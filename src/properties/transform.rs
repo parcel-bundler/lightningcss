@@ -1097,39 +1097,25 @@ impl Transform {
         return Some(Matrix3d::scale(x.into(), y.into(), z.into()))
       }
       Transform::Rotate(angle) | Transform::RotateZ(angle) => {
-        if let Some(a) = angle.to_radians() {
-          return Some(Matrix3d::rotate(0.0, 0.0, 1.0, a))
-        }
+        return Some(Matrix3d::rotate(0.0, 0.0, 1.0, angle.to_radians()))
       }
       Transform::RotateX(angle) => {
-        if let Some(a) = angle.to_radians() {
-          return Some(Matrix3d::rotate(1.0, 0.0, 0.0, a))
-        }
+        return Some(Matrix3d::rotate(1.0, 0.0, 0.0, angle.to_radians()))
       }
       Transform::RotateY(angle) => {
-        if let Some(a) = angle.to_radians() {
-          return Some(Matrix3d::rotate(0.0, 1.0, 0.0, a))
-        }
+        return Some(Matrix3d::rotate(0.0, 1.0, 0.0, angle.to_radians()))
       }
       Transform::Rotate3d(x, y, z, angle) => {
-        if let Some(a) = angle.to_radians() {
-          return Some(Matrix3d::rotate(*x, *y, *z, a))
-        }
+        return Some(Matrix3d::rotate(*x, *y, *z, angle.to_radians()))
       }
       Transform::Skew(x, y) => {
-        if let (Some(x), Some(y)) = (x.to_radians(), y.to_radians()) {
-          return Some(Matrix3d::skew(x, y))
-        }
+        return Some(Matrix3d::skew(x.to_radians(), y.to_radians()))
       }
       Transform::SkewX(x) => {
-        if let Some(x) = x.to_radians() {
-          return Some(Matrix3d::skew(x, 0.0))
-        }
+        return Some(Matrix3d::skew(x.to_radians(), 0.0))
       }
       Transform::SkewY(y) => {
-        if let Some(y) = y.to_radians() {
-          return Some(Matrix3d::skew(0.0, y))
-        }
+        return Some(Matrix3d::skew(0.0, y.to_radians()))
       }
       Transform::Perspective(len) => {
         if let Some(len) = len.to_px() {
