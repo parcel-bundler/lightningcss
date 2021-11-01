@@ -8,6 +8,7 @@ use crate::macros::*;
 use crate::printer::Printer;
 use std::fmt::Write;
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum MathFunction<V> {
   Calc(Calc<V>),
   Min,
@@ -15,21 +16,44 @@ pub enum MathFunction<V> {
   Clamp
 }
 
+impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clone + std::fmt::Debug> ToCss for MathFunction<V> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    match self {
+      MathFunction::Calc(calc) => {
+        dest.write_str("calc(")?;
+        calc.to_css(dest)?;
+        dest.write_char(')')
+      }
+      _ => todo!()
+    }
+  }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Calc<V> {
   Value(Box<V>),
   Number(f32),
   Sum(Box<Calc<V>>, Box<Calc<V>>),
-  // Function(Box<MathFunction<V>>)
+  Function(Box<MathFunction<V>>)
 }
 
-impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + std::fmt::Debug> Parse for Calc<V> {
+impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> + std::fmt::Debug> Parse for Calc<V> {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
-    input.parse_nested_block(Calc::parse_sum)
+    let f = input.expect_function()?;
+    match_ignore_ascii_case! { &f,
+      "calc" => {
+        let calc = input.parse_nested_block(Calc::parse_sum)?;
+        if let Calc::Value(_) = calc {
+          return Ok(calc)
+        }
+        Ok(Calc::Function(Box::new(MathFunction::Calc(calc))))
+      },
+      _ => Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+    }
   }
 }
 
-impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + std::fmt::Debug> Calc<V> {
+impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> + std::fmt::Debug> Calc<V> {
   fn parse_sum<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     let mut cur: Calc<V> = Calc::parse_product(input)?;
     loop {
@@ -101,6 +125,23 @@ impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + 
   }
 
   fn parse_value<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    // Parse nested calc() and other math functions.
+    if let Ok(calc) = input.try_parse(Self::parse) {
+      match calc {
+        Calc::Function(f) => {
+          return Ok(match *f {
+            MathFunction::Calc(c) => c,
+            _ => Calc::Function(f)
+          })
+        }
+        c => return Ok(c)
+      }
+    }
+
+    if input.try_parse(|input| input.expect_parenthesis_block()).is_ok() {
+      return input.parse_nested_block(Calc::parse_sum)
+    }
+
     if let Ok(num) = input.try_parse(|input| input.expect_number()) {
       return Ok(Calc::Number(num))
     }
@@ -109,12 +150,7 @@ impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + 
       return Ok(Calc::Value(Box::new(value)))
     }
 
-    let location = input.current_source_location();
-    match input.next()? {
-      Token::ParenthesisBlock => Calc::parse(input),
-      // Token::Function(ref name) => 
-      t => Err(location.new_unexpected_token_error(t.clone()))
-    }
+    Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
   }
 }
 
@@ -125,19 +161,27 @@ impl<V: std::ops::Mul<f32, Output = V>> std::ops::Mul<f32> for Calc<V> {
     match self {
       Calc::Value(v) => Calc::Value(Box::new(*v * other)),
       Calc::Number(n) => Calc::Number(n * other),
-      Calc::Sum(a, b) => Calc::Sum(Box::new(*a * other), Box::new(*b * other))
+      Calc::Sum(a, b) => Calc::Sum(Box::new(*a * other), Box::new(*b * other)),
+      Calc::Function(f) => {
+        match *f {
+          MathFunction::Calc(c) => Calc::Function(Box::new(MathFunction::Calc(c * other))),
+          _ => todo!()
+        }
+      }
     }
   }
 }
 
-impl<V: std::ops::Add<V, Output = V>> std::ops::Add<Calc<V>> for Calc<V> {
+impl<V: std::ops::Add<V, Output = V> + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> + std::fmt::Debug> std::ops::Add<Calc<V>> for Calc<V> {
   type Output = Self;
 
   fn add(self, other: Calc<V>) -> Calc<V> {
     match (self, other) {
-      (Calc::Value(a), Calc::Value(b)) => Calc::Value(Box::new(*a + *b)),
+      (Calc::Value(a), Calc::Value(b)) => (*a + *b).into(),
       (Calc::Number(a), Calc::Number(b)) => Calc::Number(a + b),
-      (a, b) => Calc::Sum(Box::new(a), Box::new(b))
+      (Calc::Value(a), b) => (*a + V::from(b)).into(),
+      (a, Calc::Value(b)) => (V::from(a) + *b).into(),
+      (a, b) => (V::from(a) + V::from(b)).into()
     }
   }
 }
@@ -162,7 +206,7 @@ impl<V: std::cmp::PartialOrd<f32>> std::cmp::PartialOrd<f32> for Calc<V> {
   }
 }
 
-impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clone> ToCss for Calc<V> {
+impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clone + std::fmt::Debug> ToCss for Calc<V> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     match self {
       Calc::Value(v) => v.to_css(dest),
@@ -180,7 +224,8 @@ impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clo
           b.to_css(dest)?;
         }
         Ok(())
-      }
+      },
+      Calc::Function(f) => f.to_css(dest)
     }
   }
 }

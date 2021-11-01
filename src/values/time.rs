@@ -14,21 +14,18 @@ pub enum Time {
 
 impl Parse for Time {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    match input.try_parse(Calc::parse) {
+      Ok(Calc::Value(v)) => return Ok(*v),
+      Ok(calc) => return Ok(Time::Calc(calc)),
+      _ => {}
+    }
+
     let location = input.current_source_location();
     match *input.next()? {
       Token::Dimension { value, ref unit, .. } => {
         match_ignore_ascii_case! { unit,
           "s" => Ok(Time::Seconds(value)),
           "ms" => Ok(Time::Milliseconds(value)),
-          _ => Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
-        }
-      }
-      Token::Function(ref name) => {
-        match_ignore_ascii_case! { name,
-          "calc" => {
-            let calc = Calc::parse(input)?;
-            Ok(Time::Calc(calc))
-          },
           _ => Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
         }
       }
@@ -60,16 +57,23 @@ impl ToCss for Time {
           dest.write_str("ms")
         }
       }
-      Time::Calc(calc) => {
-        if let Calc::Value(v) = calc {
-          v.to_css(dest)
-        } else {
-          dest.write_str("calc(")?;
-          calc.to_css(dest)?;
-          dest.write_char(')')
-        }
-      }
+      Time::Calc(calc) => calc.to_css(dest)
     }
+  }
+}
+
+impl std::convert::Into<Calc<Time>> for Time {
+  fn into(self) -> Calc<Time> {
+    match self {
+      Time::Calc(c) => c,
+      b => Calc::Value(Box::new(b))
+    }
+  }
+}
+
+impl std::convert::From<Calc<Time>> for Time {
+  fn from(calc: Calc<Time>) -> Time {
+    Time::Calc(calc)
   }
 }
 

@@ -16,6 +16,12 @@ pub enum Angle {
 
 impl Parse for Angle {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    match input.try_parse(Calc::parse) {
+      Ok(Calc::Value(v)) => return Ok(*v),
+      Ok(calc) => return Ok(Angle::Calc(calc)),
+      _ => {}
+    }
+    
     let location = input.current_source_location();
     let token = input.next()?;
     match *token {
@@ -28,17 +34,6 @@ impl Parse for Angle {
           _ => return Err(location.new_unexpected_token_error(token.clone())),
         }
       },
-      Token::Function(ref name) => {
-        match_ignore_ascii_case! { name,
-          "calc" => {
-            match Calc::parse(input)? {
-              Calc::Value(v) => Ok(*v),
-              v => Ok(Angle::Calc(v))
-            }
-          },
-          _ => Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
-        }
-      }
       ref token => return Err(location.new_unexpected_token_error(token.clone())),
     }
   }
@@ -63,16 +58,7 @@ impl ToCss for Angle {
         }
       },
       Angle::Turn(val) => (*val, "turn"),
-      Angle::Calc(calc) => {
-        if let Calc::Value(v) = calc {
-          v.to_css(dest)?;
-        } else {
-          dest.write_str("calc(")?;
-          calc.to_css(dest)?;
-          dest.write_char(')')?;
-        }
-        return Ok(())
-      }
+      Angle::Calc(calc) => return calc.to_css(dest)
     };
 
     use cssparser::ToCss;
@@ -133,6 +119,21 @@ impl Angle {
       Angle::Calc(_) => return None
     };
     Some(d)
+  }
+}
+
+impl std::convert::Into<Calc<Angle>> for Angle {
+  fn into(self) -> Calc<Angle> {
+    match self {
+      Angle::Calc(c) => c,
+      b => Calc::Value(Box::new(b))
+    }
+  }
+}
+
+impl std::convert::From<Calc<Angle>> for Angle {
+  fn from(calc: Calc<Angle>) -> Angle {
+    Angle::Calc(calc)
   }
 }
 

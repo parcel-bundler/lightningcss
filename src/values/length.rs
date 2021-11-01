@@ -3,7 +3,7 @@ use crate::traits::{Parse, ToCss};
 use crate::macros::enum_property;
 use crate::printer::Printer;
 use std::fmt::Write;
-use super::calc::Calc;
+use super::calc::{Calc, MathFunction};
 use std::f32::consts::PI;
 
 /// https://drafts.csswg.org/css-sizing-3/#specifying-sizes
@@ -157,12 +157,10 @@ impl Parse for LengthPercentage {
       return Ok(LengthPercentage::Percentage(percent))
     }
 
-    let f = input.expect_function()?;
-    match_ignore_ascii_case! { &f,
-      "calc" => {
-        let calc = Calc::parse(input)?;
-        return Ok(LengthPercentage::Calc(calc))
-      },
+    let c = input.try_parse(Calc::parse);
+    match c {
+      Ok(Calc::Value(v)) => return Ok(*v),
+      Ok(calc) => return Ok(LengthPercentage::Calc(calc)),
       _ => {}
     }
 
@@ -209,22 +207,22 @@ impl LengthPercentage {
       (other, LengthPercentage::Calc(Calc::Value(v))) => other.add_recursive(v),
       (LengthPercentage::Calc(Calc::Sum(a, b)), other) => {
         if let Some(res) = LengthPercentage::Calc(*a.clone()).add_recursive(other) {
-          return Some(LengthPercentage::Calc(Calc::Value(Box::new(res)) + *b.clone()))
+          return Some(res.add(LengthPercentage::from(*b.clone())))
         }
 
         if let Some(res) = LengthPercentage::Calc(*b.clone()).add_recursive(other) {
-          return Some(LengthPercentage::Calc(*a.clone() + Calc::Value(Box::new(res))))
+          return Some(LengthPercentage::from(*a.clone()).add(res))
         }
 
         None
       }
       (other, LengthPercentage::Calc(Calc::Sum(a, b))) => {
         if let Some(res) = other.add_recursive(&LengthPercentage::Calc(*a.clone())) {
-          return Some(LengthPercentage::Calc(Calc::Value(Box::new(res)) + *b.clone()))
+          return Some(res.add(LengthPercentage::from(*b.clone())))
         }
 
         if let Some(res) = other.add_recursive(&LengthPercentage::Calc(*b.clone())) {
-          return Some(LengthPercentage::Calc(*a.clone() + Calc::Value(Box::new(res))))
+          return Some(LengthPercentage::from(*a.clone()).add(res))
         }
 
         None
@@ -251,10 +249,25 @@ impl LengthPercentage {
     
     match (a, b) {
       (LengthPercentage::Calc(a), LengthPercentage::Calc(b)) => LengthPercentage::Calc(a + b),
-      (LengthPercentage::Calc(a), b) => LengthPercentage::Calc(a + Calc::Value(Box::new(b))),
-      (a, LengthPercentage::Calc(b)) => LengthPercentage::Calc(Calc::Value(Box::new(a)) + b),
-      (a, b) => LengthPercentage::Calc(Calc::Sum(Box::new(Calc::Value(Box::new(a))), Box::new(Calc::Value(Box::new(b)))))
+      (LengthPercentage::Calc(Calc::Value(a)), b) => a.add(b),
+      (a, LengthPercentage::Calc(Calc::Value(b))) => a.add(*b),
+      (a, b) => LengthPercentage::Calc(Calc::Sum(Box::new(a.into()), Box::new(b.into())))
     }
+  }
+}
+
+impl std::convert::Into<Calc<LengthPercentage>> for LengthPercentage {
+  fn into(self) -> Calc<LengthPercentage> {
+    match self {
+      LengthPercentage::Calc(c) => c,
+      b => Calc::Value(Box::new(b))
+    }
+  }
+}
+
+impl std::convert::From<Calc<LengthPercentage>> for LengthPercentage {
+  fn from(calc: Calc<LengthPercentage>) -> LengthPercentage {
+    LengthPercentage::Calc(calc)
   }
 }
 
@@ -283,15 +296,7 @@ impl ToCss for LengthPercentage {
     match self {
       LengthPercentage::Length(length) => length.to_css(dest),
       LengthPercentage::Percentage(percent) => percent.to_css(dest),
-      LengthPercentage::Calc(calc) => {
-        if let Calc::Value(v) = calc {
-          v.to_css(dest)
-        } else {
-          dest.write_str("calc(")?;
-          calc.to_css(dest)?;
-          dest.write_char(')')
-        }
-      }
+      LengthPercentage::Calc(calc) => calc.to_css(dest)
     }
   }
 }
