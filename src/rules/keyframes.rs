@@ -1,5 +1,5 @@
 use cssparser::*;
-use crate::values::length::Percentage;
+use crate::values::percentage::Percentage;
 use crate::traits::{Parse, ToCss};
 use crate::properties::Property;
 use crate::parser::{PropertyDeclarationParser, DeclarationBlock};

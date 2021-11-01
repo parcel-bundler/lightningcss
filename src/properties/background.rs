@@ -1,8 +1,13 @@
 use cssparser::*;
-use crate::values::length::{HorizontalPosition, HorizontalPositionKeyword, VerticalPosition, VerticalPositionKeyword, LengthPercentage, LengthPercentageOrAuto, Percentage};
+use crate::values::{
+  length::{LengthPercentage, LengthPercentageOrAuto},
+  position::*,
+  percentage::Percentage,
+  color::CssColor,
+  image::Image
+};
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::macros::*;
-use crate::values::{color::CssColor, image::Image};
 use crate::properties::Property;
 use itertools::izip;
 use crate::printer::Printer;

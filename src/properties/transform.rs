@@ -2,7 +2,8 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::values::{
   angle::Angle,
-  length::{LengthPercentage, NumberOrPercentage, Length, Unit}
+  percentage::NumberOrPercentage,
+  length::{LengthPercentage, Length, Unit}
 };
 use crate::printer::Printer;
 use std::fmt::Write;

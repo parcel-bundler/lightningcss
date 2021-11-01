@@ -1,10 +1,7 @@
 use cssparser::*;
-use crate::values::length::{HorizontalPosition, HorizontalPositionKeyword, VerticalPosition, VerticalPositionKeyword, Length, Unit, LengthPercentage, LengthPercentageOrAuto, Percentage};
-use crate::traits::{Parse, ToCss, PropertyHandler};
-use crate::macros::*;
-use crate::values::{color::CssColor, image::Image};
-use crate::properties::Property;
-use itertools::izip;
+use crate::values::length::Length;
+use crate::traits::{Parse, ToCss};
+use crate::values::color::CssColor;
 use crate::printer::Printer;
 use std::fmt::Write;
 

@@ -7,6 +7,7 @@ use super::rect::Rect;
 use crate::macros::*;
 use crate::printer::Printer;
 use std::fmt::Write;
+use super::number::serialize_number;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MathFunction<V> {

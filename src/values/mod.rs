@@ -7,3 +7,8 @@ pub mod time;
 pub mod ident;
 pub mod easing;
 pub mod angle;
+pub mod size;
+pub mod percentage;
+pub mod alpha;
+pub mod position;
+pub mod number;

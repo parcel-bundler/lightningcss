@@ -1,4 +1,5 @@
 use crate::values::length::*;
+use crate::values::size::Size2D;
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::properties::Property;

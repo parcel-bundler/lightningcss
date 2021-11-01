@@ -27,7 +27,7 @@ use border_radius::*;
 use transition::*;
 use animation::*;
 use transform::*;
-use crate::values::{image::*, length::*, rect::*, color::*, time::Time, ident::CustomIdent, easing::EasingFunction};
+use crate::values::{image::*, length::*, position::*, alpha::*, size::*, rect::*, color::*, time::Time, ident::CustomIdent, easing::EasingFunction};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use std::fmt::Write;

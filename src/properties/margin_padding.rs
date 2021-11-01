@@ -1,4 +1,8 @@
-use crate::values::{length::{Size2D, LengthPercentageOrAuto}, rect::Rect};
+use crate::values::{
+  size::Size2D,
+  length::LengthPercentageOrAuto,
+  rect::Rect
+};
 use crate::properties::Property;
 use crate::traits::PropertyHandler;
 

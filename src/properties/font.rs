@@ -2,7 +2,8 @@ use cssparser::*;
 use crate::macros::*;
 use crate::values::{
   angle::Angle,
-  length::{LengthPercentage, Percentage}
+  length::LengthPercentage,
+  percentage::Percentage
 };
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use super::Property;
