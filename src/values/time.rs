@@ -1,22 +1,21 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
-use std::fmt::Write;
 use super::calc::Calc;
 
 /// https://www.w3.org/TR/css3-values/#time-value
 #[derive(Debug, Clone, PartialEq)]
 pub enum Time {
   Seconds(f32),
-  Milliseconds(f32),
-  Calc(Calc<Time>)
+  Milliseconds(f32)
 }
 
 impl Parse for Time {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
-      Ok(calc) => return Ok(Time::Calc(calc)),
+      // Time is always compatible, so they will always compute to a value.
+      Ok(_) => unreachable!(),
       _ => {}
     }
 
@@ -57,23 +56,22 @@ impl ToCss for Time {
           dest.write_str("ms")
         }
       }
-      Time::Calc(calc) => calc.to_css(dest)
     }
   }
 }
 
 impl std::convert::Into<Calc<Time>> for Time {
   fn into(self) -> Calc<Time> {
-    match self {
-      Time::Calc(c) => c,
-      b => Calc::Value(Box::new(b))
-    }
+    Calc::Value(Box::new(self))
   }
 }
 
 impl std::convert::From<Calc<Time>> for Time {
   fn from(calc: Calc<Time>) -> Time {
-    Time::Calc(calc)
+    match calc {
+      Calc::Value(v) => *v,
+      _ => unreachable!()
+    }
   }
 }
 
@@ -84,7 +82,6 @@ impl std::ops::Mul<f32> for Time {
     match self {
       Time::Seconds(t) => Time::Seconds(t * other),
       Time::Milliseconds(t) => Time::Milliseconds(t * other),
-      Time::Calc(c) => Time::Calc(c * other)
     }
   }
 }
@@ -98,9 +95,6 @@ impl std::ops::Add<Time> for Time {
       (Time::Milliseconds(a), Time::Milliseconds(b)) => Time::Milliseconds(a + b),
       (Time::Seconds(a), Time::Milliseconds(b)) => Time::Seconds(a + b / 1000.0),
       (Time::Milliseconds(a), Time::Seconds(b)) => Time::Seconds(a + b * 1000.0),
-      (Time::Calc(a), Time::Calc(b)) => Time::Calc(a + b),
-      (Time::Calc(a), b) => Time::Calc(a + Calc::Value(Box::new(b))),
-      (a, Time::Calc(b)) => Time::Calc(Calc::Value(Box::new(a)) + b),
     }
   }
 }
@@ -109,7 +103,6 @@ impl std::cmp::PartialEq<f32> for Time {
   fn eq(&self, other: &f32) -> bool {
     match self {
       Time::Seconds(a) | Time::Milliseconds(a) => a == other,
-      Time::Calc(_) => false
     }
   }
 }
@@ -118,7 +111,6 @@ impl std::cmp::PartialOrd<f32> for Time {
   fn partial_cmp(&self, other: &f32) -> Option<std::cmp::Ordering> {
     match self {
       Time::Seconds(a) | Time::Milliseconds(a) => a.partial_cmp(other),
-      Time::Calc(_) => None
     }
   }
 }
