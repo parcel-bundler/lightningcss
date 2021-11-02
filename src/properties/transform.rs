@@ -3,7 +3,7 @@ use crate::traits::{Parse, ToCss};
 use crate::values::{
   angle::Angle,
   percentage::NumberOrPercentage,
-  length::{LengthPercentage, Length, AbsoluteLength}
+  length::{LengthPercentage, Length}
 };
 use crate::printer::Printer;
 use std::fmt::Write;
@@ -480,8 +480,8 @@ impl Matrix3d<f32> {
     // let translate = Translate3D(matrix.m41, matrix.m42, matrix.m43);
     if matrix.m41 != 0.0 || matrix.m42 != 0.0 || matrix.m43 != 0.0 {
       transforms.push(Transform::Translate3d(
-        LengthPercentage::Length(Length::px(matrix.m41)),
-        LengthPercentage::Length(Length::px(matrix.m42)),
+        LengthPercentage::px(matrix.m41),
+        LengthPercentage::px(matrix.m42),
         Length::px(matrix.m43),
       ));
     }
@@ -690,7 +690,7 @@ impl Parse for Transform {
             let y = LengthPercentage::parse(input)?;
             Ok(Transform::Translate(x, y))
           } else {
-            Ok(Transform::Translate(x, LengthPercentage::Length(Length::zero())))
+            Ok(Transform::Translate(x, LengthPercentage::zero()))
           }
         },
         "translatex" => {

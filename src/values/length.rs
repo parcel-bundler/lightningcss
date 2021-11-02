@@ -9,7 +9,7 @@ use super::number::serialize_number;
 /// https://drafts.csswg.org/css-values-4/#typedef-length-percentage
 #[derive(Debug, Clone, PartialEq)]
 pub enum LengthPercentage {
-  Length(Length),
+  Length(LengthValue),
   Percentage(Percentage),
   Calc(Box<Calc<LengthPercentage>>)
 }
@@ -22,7 +22,7 @@ impl Parse for LengthPercentage {
       _ => {}
     }
 
-    if let Ok(length) = input.try_parse(|input| Length::parse(input)) {
+    if let Ok(length) = input.try_parse(|input| LengthValue::parse(input)) {
       return Ok(LengthPercentage::Length(length))
     }
 
@@ -58,6 +58,14 @@ impl std::ops::Add<LengthPercentage> for LengthPercentage {
 }
 
 impl LengthPercentage {
+  pub fn zero() -> LengthPercentage {
+    LengthPercentage::px(0.0)
+  }
+
+  pub fn px(val: f32) -> LengthPercentage {
+    LengthPercentage::Length(LengthValue::Px(val))
+  }
+
   fn add_recursive(&self, other: &LengthPercentage) -> Option<LengthPercentage> {
     match (self, other) {
       (LengthPercentage::Length(a), LengthPercentage::Length(b)) => {
@@ -228,113 +236,15 @@ const PX_PER_Q: f32 = PX_PER_CM / 40.0;
 const PX_PER_PT: f32 = PX_PER_IN / 72.0;
 const PX_PER_PC: f32 = PX_PER_IN / 6.0;
 
-/// https://www.w3.org/TR/css-values-3/#absolute-lengths
 #[derive(Debug, Clone, PartialEq)]
-pub enum AbsoluteLength {
+pub enum LengthValue {
   Px(f32),
   In(f32),
   Cm(f32),
   Mm(f32),
   Q(f32),
   Pt(f32),
-  Pc(f32)
-}
-
-impl AbsoluteLength {
-  pub fn to_px(&self) -> f32 {
-    use AbsoluteLength::*;
-    match self {
-      Px(value) => *value,
-      In(value) => value * PX_PER_IN,
-      Cm(value) => value * PX_PER_CM,
-      Mm(value) => value * PX_PER_MM,
-      Q(value) => value * PX_PER_Q,
-      Pt(value) => value * PX_PER_PT,
-      Pc(value) => value * PX_PER_PC
-    }
-  }
-
-  pub fn to_unit_value(&self) -> (f32, &str) {
-    use AbsoluteLength::*;
-    match self {
-      Px(value) => (*value, "px"),
-      In(value) => (*value, "in"),
-      Cm(value) => (*value, "cm"),
-      Mm(value) => (*value, "mm"),
-      Q(value) => (*value, "q"),
-      Pt(value) => (*value, "pt"),
-      Pc(value) => (*value, "pc")
-    }
-  }
-}
-
-impl std::ops::Mul<f32> for AbsoluteLength {
-  type Output = Self;
-
-  fn mul(self, other: f32) -> AbsoluteLength {
-    use AbsoluteLength::*;
-    match self {
-      Px(value) => Px(value * other),
-      In(value) => In(value * other),
-      Cm(value) => Cm(value * other),
-      Mm(value) => Mm(value * other),
-      Q(value) => Q(value * other),
-      Pt(value) => Pt(value * other),
-      Pc(value) => Pc(value * other),
-    }
-  }
-}
-
-impl std::ops::Add<AbsoluteLength> for AbsoluteLength {
-  type Output = Self;
-
-  fn add(self, other: AbsoluteLength) -> AbsoluteLength {
-    use AbsoluteLength::*;
-    match (self, other) {
-      (Px(a), Px(b)) => Px(a + b),
-      (In(a), In(b)) => In(a + b),
-      (Cm(a), Cm(b)) => Cm(a + b),
-      (Mm(a), Mm(b)) => Mm(a + b),
-      (Q(a), Q(b)) => Q(a + b),
-      (Pt(a), Pt(b)) => Pt(a + b),
-      (Pc(a), Pc(b)) => Pc(a + b),
-      (a, b) => Px(a.to_px() + b.to_px())
-    }
-  }
-}
-
-impl std::cmp::PartialEq<f32> for AbsoluteLength {
-  fn eq(&self, other: &f32) -> bool {
-    use AbsoluteLength::*;
-    match self {
-      Px(value) => value == other,
-      In(value) => value == other,
-      Cm(value) => value == other,
-      Mm(value) => value == other,
-      Q(value) => value == other,
-      Pt(value) => value == other,
-      Pc(value) => value == other,
-    }
-  }
-}
-
-impl std::cmp::PartialOrd<f32> for AbsoluteLength {
-  fn partial_cmp(&self, other: &f32) -> Option<std::cmp::Ordering> {
-    use AbsoluteLength::*;
-    match self {
-      Px(value) => value.partial_cmp(other),
-      In(value) => value.partial_cmp(other),
-      Cm(value) => value.partial_cmp(other),
-      Mm(value) => value.partial_cmp(other),
-      Q(value) => value.partial_cmp(other),
-      Pt(value) => value.partial_cmp(other),
-      Pc(value) => value.partial_cmp(other),
-    }
-  }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum RelativeLength {
+  Pc(f32),
   Em(f32),
   Ex(f32),
   Ch(f32),
@@ -345,144 +255,45 @@ pub enum RelativeLength {
   Vmax(f32)
 }
 
-impl RelativeLength {
-  pub fn to_unit_value(&self) -> (f32, &str) {
-    use RelativeLength::*;
-    match self {
-      Em(value) => (*value, "em"),
-      Ex(value) => (*value, "ex"),
-      Ch(value) => (*value, "ch"),
-      Rem(value) => (*value, "rem"),
-      Vw(value) => (*value, "vw"),
-      Vh(value) => (*value, "vh"),
-      Vmin(value) => (*value, "vmin"),
-      Vmax(value) => (*value, "vmax")
-    }
-  }
-
-  fn add_recursive(&self, other: &RelativeLength) -> Option<RelativeLength> {
-    use RelativeLength::*;
-    match (self, other) {
-      (Em(a), Em(b)) => Some(Em(a + b)),
-      (Ex(a), Ex(b)) => Some(Ex(a + b)),
-      (Ch(a), Ch(b)) => Some(Ch(a + b)),
-      (Rem(a), Rem(b)) => Some(Rem(a + b)),
-      (Vw(a), Vw(b)) => Some(Vw(a + b)),
-      (Vh(a), Vh(b)) => Some(Vh(a + b)),
-      (Vmin(a), Vmin(b)) => Some(Vmin(a + b)),
-      (Vmax(a), Vmax(b)) => Some(Vmax(a + b)),
-      _ => None
-    }
-  }
-}
-
-impl std::ops::Mul<f32> for RelativeLength {
-  type Output = Self;
-
-  fn mul(self, other: f32) -> RelativeLength {
-    use RelativeLength::*;
-    match self {
-      Em(value) => Em(value * other),
-      Ex(value) => Ex(value * other),
-      Ch(value) => Ch(value * other),
-      Rem(value) => Rem(value * other),
-      Vw(value) => Vw(value * other),
-      Vh(value) => Vh(value * other),
-      Vmin(value) => Vmin(value * other),
-      Vmax(value) => Vmax(value * other),
-    }
-  }
-}
-
-impl std::cmp::PartialEq<f32> for RelativeLength {
-  fn eq(&self, other: &f32) -> bool {
-    use RelativeLength::*;
-    match self {
-      Em(value) => value == other,
-      Ex(value) => value == other,
-      Ch(value) => value == other,
-      Rem(value) => value == other,
-      Vw(value) => value == other,
-      Vh(value) => value == other,
-      Vmin(value) => value == other,
-      Vmax(value) => value == other,
-    }
-  }
-}
-
-impl std::cmp::PartialOrd<f32> for RelativeLength {
-  fn partial_cmp(&self, other: &f32) -> Option<std::cmp::Ordering> {
-    use RelativeLength::*;
-    match self {
-      Em(value) => value.partial_cmp(other),
-      Ex(value) => value.partial_cmp(other),
-      Ch(value) => value.partial_cmp(other),
-      Rem(value) => value.partial_cmp(other),
-      Vw(value) => value.partial_cmp(other),
-      Vh(value) => value.partial_cmp(other),
-      Vmin(value) => value.partial_cmp(other),
-      Vmax(value) => value.partial_cmp(other),
-    }
-  }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Length {
-  Absolute(AbsoluteLength),
-  Relative(RelativeLength),
-  Calc(Box<Calc<Length>>)
-}
-
-impl Parse for Length {
+impl Parse for LengthValue {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
-    match input.try_parse(Calc::parse) {
-      Ok(Calc::Value(v)) => return Ok(*v),
-      Ok(calc) => return Ok(Length::Calc(Box::new(calc))),
-      _ => {}
-    }
-
     let location = input.current_source_location();
     let token = input.next()?;
     match *token {
       Token::Dimension { value, ref unit, .. } => {
         Ok(match_ignore_ascii_case! { unit,
-          "px" => Length::Absolute(AbsoluteLength::Px(value)),
-          "in" => Length::Absolute(AbsoluteLength::In(value)),
-          "cm" => Length::Absolute(AbsoluteLength::Cm(value)),
-          "mm" => Length::Absolute(AbsoluteLength::Mm(value)),
-          "q" => Length::Absolute(AbsoluteLength::Q(value)),
-          "pt" => Length::Absolute(AbsoluteLength::Pt(value)),
-          "pc" => Length::Absolute(AbsoluteLength::Pc(value)),
-          "em" => Length::Relative(RelativeLength::Em(value)),
-          "ex" => Length::Relative(RelativeLength::Ex(value)),
-          "ch" => Length::Relative(RelativeLength::Ch(value)),
-          "rem" => Length::Relative(RelativeLength::Rem(value)),
-          "vw" => Length::Relative(RelativeLength::Vw(value)),
-          "vh" => Length::Relative(RelativeLength::Vh(value)),
-          "vmin" => Length::Relative(RelativeLength::Vmin(value)),
-          "vmax" => Length::Relative(RelativeLength::Vmax(value)),
+          "px" => LengthValue::Px(value),
+          "in" => LengthValue::In(value),
+          "cm" => LengthValue::Cm(value),
+          "mm" => LengthValue::Mm(value),
+          "q" => LengthValue::Q(value),
+          "pt" => LengthValue::Pt(value),
+          "pc" => LengthValue::Pc(value),
+          "em" => LengthValue::Em(value),
+          "ex" => LengthValue::Ex(value),
+          "ch" => LengthValue::Ch(value),
+          "rem" => LengthValue::Rem(value),
+          "vw" => LengthValue::Vw(value),
+          "vh" => LengthValue::Vh(value),
+          "vmin" => LengthValue::Vmin(value),
+          "vmax" => LengthValue::Vmax(value),
           _ => return Err(location.new_unexpected_token_error(token.clone())),
         })
       },
       Token::Number { value, .. } => {
         // TODO: quirks mode only?
-        Ok(Length::px(value))
+        Ok(LengthValue::Px(value))
       }
       ref token => return Err(location.new_unexpected_token_error(token.clone())),
     }
   }
 }
 
-impl ToCss for Length {
+impl ToCss for LengthValue {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     use cssparser::ToCss;
 
-    let (value, unit) = match self {
-      Length::Absolute(a) => a.to_unit_value(),
-      Length::Relative(r) => r.to_unit_value(),
-      Length::Calc(c) => return c.to_css(dest)
-    };
-
+    let (value, unit) = self.to_unit_value();
     if value == 0.0 {
       return dest.write_char('0')
     }
@@ -513,13 +324,180 @@ impl ToCss for Length {
   }
 }
 
+impl LengthValue {
+  pub fn zero() -> LengthValue {
+    LengthValue::Px(0.0)
+  }
+
+  pub fn to_px(&self) -> Option<f32> {
+    use LengthValue::*;
+    match self {
+      Px(value) => Some(*value),
+      In(value) => Some(value * PX_PER_IN),
+      Cm(value) => Some(value * PX_PER_CM),
+      Mm(value) => Some(value * PX_PER_MM),
+      Q(value) => Some(value * PX_PER_Q),
+      Pt(value) => Some(value * PX_PER_PT),
+      Pc(value) => Some(value * PX_PER_PC),
+      _ => None
+    }
+  }
+
+  pub fn to_unit_value(&self) -> (f32, &str) {
+    use LengthValue::*;
+    match self {
+      Px(value) => (*value, "px"),
+      In(value) => (*value, "in"),
+      Cm(value) => (*value, "cm"),
+      Mm(value) => (*value, "mm"),
+      Q(value) => (*value, "q"),
+      Pt(value) => (*value, "pt"),
+      Pc(value) => (*value, "pc"),
+      Em(value) => (*value, "em"),
+      Ex(value) => (*value, "ex"),
+      Ch(value) => (*value, "ch"),
+      Rem(value) => (*value, "rem"),
+      Vw(value) => (*value, "vw"),
+      Vh(value) => (*value, "vh"),
+      Vmin(value) => (*value, "vmin"),
+      Vmax(value) => (*value, "vmax")
+    }
+  }
+
+  fn add_recursive(&self, other: &LengthValue) -> Option<LengthValue> {
+    use LengthValue::*;
+    match (self, other) {
+      (Px(a), Px(b)) => Some(Px(a + b)),
+      (In(a), In(b)) => Some(In(a + b)),
+      (Cm(a), Cm(b)) => Some(Cm(a + b)),
+      (Mm(a), Mm(b)) => Some(Mm(a + b)),
+      (Q(a), Q(b)) => Some(Q(a + b)),
+      (Pt(a), Pt(b)) => Some(Pt(a + b)),
+      (Pc(a), Pc(b)) => Some(Pc(a + b)),
+      (Em(a), Em(b)) => Some(Em(a + b)),
+      (Ex(a), Ex(b)) => Some(Ex(a + b)),
+      (Ch(a), Ch(b)) => Some(Ch(a + b)),
+      (Rem(a), Rem(b)) => Some(Rem(a + b)),
+      (Vw(a), Vw(b)) => Some(Vw(a + b)),
+      (Vh(a), Vh(b)) => Some(Vh(a + b)),
+      (Vmin(a), Vmin(b)) => Some(Vmin(a + b)),
+      (Vmax(a), Vmax(b)) => Some(Vmax(a + b)),
+      (a, b) => {
+        if let (Some(a), Some(b)) = (a.to_px(), b.to_px()) {
+          Some(Px(a + b))
+        } else {
+          None
+        }
+      }
+    }
+  }
+}
+
+impl std::ops::Mul<f32> for LengthValue {
+  type Output = Self;
+
+  fn mul(self, other: f32) -> LengthValue {
+    use LengthValue::*;
+    match self {
+      Px(value) => Px(value * other),
+      In(value) => In(value * other),
+      Cm(value) => Cm(value * other),
+      Mm(value) => Mm(value * other),
+      Q(value) => Q(value * other),
+      Pt(value) => Pt(value * other),
+      Pc(value) => Pc(value * other),
+      Em(value) => Em(value * other),
+      Ex(value) => Ex(value * other),
+      Ch(value) => Ch(value * other),
+      Rem(value) => Rem(value * other),
+      Vw(value) => Vw(value * other),
+      Vh(value) => Vh(value * other),
+      Vmin(value) => Vmin(value * other),
+      Vmax(value) => Vmax(value * other),
+    }
+  }
+}
+
+impl std::cmp::PartialEq<f32> for LengthValue {
+  fn eq(&self, other: &f32) -> bool {
+    use LengthValue::*;
+    match self {
+      Px(value) => value == other,
+      In(value) => value == other,
+      Cm(value) => value == other,
+      Mm(value) => value == other,
+      Q(value) => value == other,
+      Pt(value) => value == other,
+      Pc(value) => value == other,
+      Em(value) => value == other,
+      Ex(value) => value == other,
+      Ch(value) => value == other,
+      Rem(value) => value == other,
+      Vw(value) => value == other,
+      Vh(value) => value == other,
+      Vmin(value) => value == other,
+      Vmax(value) => value == other,
+    }
+  }
+}
+
+impl std::cmp::PartialOrd<f32> for LengthValue {
+  fn partial_cmp(&self, other: &f32) -> Option<std::cmp::Ordering> {
+    use LengthValue::*;
+    match self {
+      Px(value) => value.partial_cmp(other),
+      In(value) => value.partial_cmp(other),
+      Cm(value) => value.partial_cmp(other),
+      Mm(value) => value.partial_cmp(other),
+      Q(value) => value.partial_cmp(other),
+      Pt(value) => value.partial_cmp(other),
+      Pc(value) => value.partial_cmp(other),
+      Em(value) => value.partial_cmp(other),
+      Ex(value) => value.partial_cmp(other),
+      Ch(value) => value.partial_cmp(other),
+      Rem(value) => value.partial_cmp(other),
+      Vw(value) => value.partial_cmp(other),
+      Vh(value) => value.partial_cmp(other),
+      Vmin(value) => value.partial_cmp(other),
+      Vmax(value) => value.partial_cmp(other),
+    }
+  }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Length {
+  Value(LengthValue),
+  Calc(Box<Calc<Length>>)
+}
+
+impl Parse for Length {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    match input.try_parse(Calc::parse) {
+      Ok(Calc::Value(v)) => return Ok(*v),
+      Ok(calc) => return Ok(Length::Calc(Box::new(calc))),
+      _ => {}
+    }
+
+    let len = LengthValue::parse(input)?;
+    Ok(Length::Value(len))
+  }
+}
+
+impl ToCss for Length {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    match self {
+      Length::Value(a) => a.to_css(dest),
+      Length::Calc(c) => c.to_css(dest)
+    }
+  }
+}
+
 impl std::ops::Mul<f32> for Length {
   type Output = Self;
 
   fn mul(self, other: f32) -> Length {
     match self {
-      Length::Absolute(a) => Length::Absolute(a * other),
-      Length::Relative(a) => Length::Relative(a * other),
+      Length::Value(a) => Length::Value(a * other),
       Length::Calc(a) => Length::Calc(Box::new(*a * other))
     }
   }
@@ -538,26 +516,25 @@ impl std::ops::Add<Length> for Length {
 
 impl Length {
   pub fn zero() -> Length {
-    Length::Absolute(AbsoluteLength::Px(0.0))
+    Length::Value(LengthValue::Px(0.0))
   }
 
   pub fn px(px: f32) -> Length {
-    Length::Absolute(AbsoluteLength::Px(px))
+    Length::Value(LengthValue::Px(px))
   }
 
   pub fn to_px(&self) -> Option<f32> {
     match self {
-      Length::Absolute(a) => Some(a.to_px()),
+      Length::Value(a) => a.to_px(),
       _ => None
     }
   }
 
   fn add_recursive(&self, other: &Length) -> Option<Length> {
     match (self, other) {
-      (Length::Absolute(a), Length::Absolute(b)) => Some(Length::Absolute(a.clone() + b.clone())),
-      (Length::Relative(a), Length::Relative(b)) => {
+      (Length::Value(a), Length::Value(b)) => {
         if let Some(res) = a.add_recursive(b) {
-          Some(Length::Relative(res))
+          Some(Length::Value(res))
         } else {
           None
         }
@@ -655,8 +632,7 @@ impl std::convert::From<Calc<Length>> for Length {
 impl std::cmp::PartialEq<f32> for Length {
   fn eq(&self, other: &f32) -> bool {
     match self {
-      Length::Absolute(a) => *a == *other,
-      Length::Relative(a) => *a == *other,
+      Length::Value(a) => *a == *other,
       Length::Calc(_) => false
     }
   }
@@ -665,8 +641,7 @@ impl std::cmp::PartialEq<f32> for Length {
 impl std::cmp::PartialOrd<f32> for Length {
   fn partial_cmp(&self, other: &f32) -> Option<std::cmp::Ordering> {
     match self {
-      Length::Absolute(a) => a.partial_cmp(other),
-      Length::Relative(a) => a.partial_cmp(other),
+      Length::Value(a) => a.partial_cmp(other),
       Length::Calc(_) => None
     }
   }
