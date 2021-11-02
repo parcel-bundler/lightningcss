@@ -11,14 +11,14 @@ use super::number::serialize_number;
 pub enum LengthPercentage {
   Length(Length),
   Percentage(Percentage),
-  Calc(Calc<LengthPercentage>)
+  Calc(Box<Calc<LengthPercentage>>)
 }
 
 impl Parse for LengthPercentage {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
-      Ok(calc) => return Ok(LengthPercentage::Calc(calc)),
+      Ok(calc) => return Ok(LengthPercentage::Calc(Box::new(calc))),
       _ => {}
     }
 
@@ -41,7 +41,7 @@ impl std::ops::Mul<f32> for LengthPercentage {
     match self {
       LengthPercentage::Length(l) => LengthPercentage::Length(l * other),
       LengthPercentage::Percentage(p) => LengthPercentage::Percentage(Percentage(p.0 * other)),
-      LengthPercentage::Calc(c) => LengthPercentage::Calc(c * other)
+      LengthPercentage::Calc(c) => LengthPercentage::Calc(Box::new(*c * other))
     }
   }
 }
@@ -68,30 +68,40 @@ impl LengthPercentage {
         }
       },
       (LengthPercentage::Percentage(a), LengthPercentage::Percentage(b)) => Some(LengthPercentage::Percentage(Percentage(a.0 + b.0))),
-      (LengthPercentage::Calc(Calc::Value(v)), other) => v.add_recursive(other),
-      (other, LengthPercentage::Calc(Calc::Value(v))) => other.add_recursive(v),
-      (LengthPercentage::Calc(Calc::Sum(a, b)), other) => {
-        if let Some(res) = LengthPercentage::Calc(*a.clone()).add_recursive(other) {
-          return Some(res.add(LengthPercentage::from(*b.clone())))
+      (LengthPercentage::Calc(a), other) => {
+        match &**a {
+          Calc::Value(v) => v.add_recursive(other),
+          Calc::Sum(a, b) => {
+            if let Some(res) = LengthPercentage::Calc(Box::new(*a.clone())).add_recursive(other) {
+              return Some(res.add(LengthPercentage::from(*b.clone())))
+            }
+    
+            if let Some(res) = LengthPercentage::Calc(Box::new(*b.clone())).add_recursive(other) {
+              return Some(LengthPercentage::from(*a.clone()).add(res))
+            }
+    
+            None
+          }
+          _ => None
         }
-
-        if let Some(res) = LengthPercentage::Calc(*b.clone()).add_recursive(other) {
-          return Some(LengthPercentage::from(*a.clone()).add(res))
-        }
-
-        None
       }
-      (other, LengthPercentage::Calc(Calc::Sum(a, b))) => {
-        if let Some(res) = other.add_recursive(&LengthPercentage::Calc(*a.clone())) {
-          return Some(res.add(LengthPercentage::from(*b.clone())))
+      (other, LengthPercentage::Calc(b)) => {
+        match &**b {
+          Calc::Value(v) => other.add_recursive(&*v),
+          Calc::Sum(a, b) => {
+            if let Some(res) = other.add_recursive(&LengthPercentage::Calc(Box::new(*a.clone()))) {
+              return Some(res.add(LengthPercentage::from(*b.clone())))
+            }
+    
+            if let Some(res) = other.add_recursive(&LengthPercentage::Calc(Box::new(*b.clone()))) {
+              return Some(LengthPercentage::from(*a.clone()).add(res))
+            }
+    
+            None
+          }
+          _ => None
         }
-
-        if let Some(res) = other.add_recursive(&LengthPercentage::Calc(*b.clone())) {
-          return Some(LengthPercentage::from(*a.clone()).add(res))
-        }
-
-        None
-      }
+      },
       _ => None
     }
   }
@@ -113,10 +123,24 @@ impl LengthPercentage {
     }
     
     match (a, b) {
-      (LengthPercentage::Calc(a), LengthPercentage::Calc(b)) => LengthPercentage::Calc(a + b),
-      (LengthPercentage::Calc(Calc::Value(a)), b) => a.add(b),
-      (a, LengthPercentage::Calc(Calc::Value(b))) => a.add(*b),
-      (a, b) => LengthPercentage::Calc(Calc::Sum(Box::new(a.into()), Box::new(b.into())))
+      (LengthPercentage::Calc(a), LengthPercentage::Calc(b)) => return LengthPercentage::Calc(Box::new(*a + *b)),
+      (LengthPercentage::Calc(calc), b) => {
+        if let Calc::Value(a) = *calc {
+          a.add(b)
+        } else {
+          LengthPercentage::Calc(Box::new(Calc::Sum(Box::new((*calc).into()), Box::new(b.into()))))
+        }
+      }
+      (a, LengthPercentage::Calc(calc)) => {
+        if let Calc::Value(b) = *calc {
+          a.add(*b)
+        } else {
+          LengthPercentage::Calc(Box::new(Calc::Sum(Box::new(a.into()), Box::new((*calc).into()))))
+        }
+      }
+      // (Length::Calc(Calc::Value(a)), b) => a.add(b),
+      // (a, Length::Calc(Calc::Value(b))) => a.add(*b),
+      (a, b) => LengthPercentage::Calc(Box::new(Calc::Sum(Box::new(a.into()), Box::new(b.into()))))
     }
   }
 }
@@ -124,7 +148,7 @@ impl LengthPercentage {
 impl std::convert::Into<Calc<LengthPercentage>> for LengthPercentage {
   fn into(self) -> Calc<LengthPercentage> {
     match self {
-      LengthPercentage::Calc(c) => c,
+      LengthPercentage::Calc(c) => *c,
       b => Calc::Value(Box::new(b))
     }
   }
@@ -132,7 +156,7 @@ impl std::convert::Into<Calc<LengthPercentage>> for LengthPercentage {
 
 impl std::convert::From<Calc<LengthPercentage>> for LengthPercentage {
   fn from(calc: Calc<LengthPercentage>) -> LengthPercentage {
-    LengthPercentage::Calc(calc)
+    LengthPercentage::Calc(Box::new(calc))
   }
 }
 
@@ -406,14 +430,14 @@ impl std::cmp::PartialOrd<f32> for RelativeLength {
 pub enum Length {
   Absolute(AbsoluteLength),
   Relative(RelativeLength),
-  Calc(Calc<Length>)
+  Calc(Box<Calc<Length>>)
 }
 
 impl Parse for Length {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
-      Ok(calc) => return Ok(Length::Calc(calc)),
+      Ok(calc) => return Ok(Length::Calc(Box::new(calc))),
       _ => {}
     }
 
@@ -496,7 +520,7 @@ impl std::ops::Mul<f32> for Length {
     match self {
       Length::Absolute(a) => Length::Absolute(a * other),
       Length::Relative(a) => Length::Relative(a * other),
-      Length::Calc(a) => Length::Calc(a * other)
+      Length::Calc(a) => Length::Calc(Box::new(*a * other))
     }
   }
 }
@@ -538,30 +562,40 @@ impl Length {
           None
         }
       },
-      (Length::Calc(Calc::Value(v)), other) => v.add_recursive(other),
-      (other, Length::Calc(Calc::Value(v))) => other.add_recursive(v),
-      (Length::Calc(Calc::Sum(a, b)), other) => {
-        if let Some(res) = Length::Calc(*a.clone()).add_recursive(other) {
-          return Some(res.add(Length::from(*b.clone())))
+      (Length::Calc(a), other) => {
+        match &**a {
+          Calc::Value(v) => v.add_recursive(other),
+          Calc::Sum(a, b) => {
+            if let Some(res) = Length::Calc(Box::new(*a.clone())).add_recursive(other) {
+              return Some(res.add(Length::from(*b.clone())))
+            }
+    
+            if let Some(res) = Length::Calc(Box::new(*b.clone())).add_recursive(other) {
+              return Some(Length::from(*a.clone()).add(res))
+            }
+    
+            None
+          }
+          _ => None
         }
-
-        if let Some(res) = Length::Calc(*b.clone()).add_recursive(other) {
-          return Some(Length::from(*a.clone()).add(res))
-        }
-
-        None
       }
-      (other, Length::Calc(Calc::Sum(a, b))) => {
-        if let Some(res) = other.add_recursive(&Length::Calc(*a.clone())) {
-          return Some(res.add(Length::from(*b.clone())))
+      (other, Length::Calc(b)) => {
+        match &**b {
+          Calc::Value(v) => other.add_recursive(&*v),
+          Calc::Sum(a, b) => {
+            if let Some(res) = other.add_recursive(&Length::Calc(Box::new(*a.clone()))) {
+              return Some(res.add(Length::from(*b.clone())))
+            }
+    
+            if let Some(res) = other.add_recursive(&Length::Calc(Box::new(*b.clone()))) {
+              return Some(Length::from(*a.clone()).add(res))
+            }
+    
+            None
+          }
+          _ => None
         }
-
-        if let Some(res) = other.add_recursive(&Length::Calc(*b.clone())) {
-          return Some(Length::from(*a.clone()).add(res))
-        }
-
-        None
-      }
+      },
       _ => None
     }
   }
@@ -583,10 +617,22 @@ impl Length {
     }
     
     match (a, b) {
-      (Length::Calc(a), Length::Calc(b)) => Length::Calc(a + b),
-      (Length::Calc(Calc::Value(a)), b) => a.add(b),
-      (a, Length::Calc(Calc::Value(b))) => a.add(*b),
-      (a, b) => Length::Calc(Calc::Sum(Box::new(a.into()), Box::new(b.into())))
+      (Length::Calc(a), Length::Calc(b)) => return Length::Calc(Box::new(*a + *b)),
+      (Length::Calc(calc), b) => {
+        if let Calc::Value(a) = *calc {
+          a.add(b)
+        } else {
+          Length::Calc(Box::new(Calc::Sum(Box::new((*calc).into()), Box::new(b.into()))))
+        }
+      }
+      (a, Length::Calc(calc)) => {
+        if let Calc::Value(b) = *calc {
+          a.add(*b)
+        } else {
+          Length::Calc(Box::new(Calc::Sum(Box::new(a.into()), Box::new((*calc).into()))))
+        }
+      }
+      (a, b) => Length::Calc(Box::new(Calc::Sum(Box::new(a.into()), Box::new(b.into()))))
     }
   }
 }
@@ -594,7 +640,7 @@ impl Length {
 impl std::convert::Into<Calc<Length>> for Length {
   fn into(self) -> Calc<Length> {
     match self {
-      Length::Calc(c) => c,
+      Length::Calc(c) => *c,
       b => Calc::Value(Box::new(b))
     }
   }
@@ -602,7 +648,7 @@ impl std::convert::Into<Calc<Length>> for Length {
 
 impl std::convert::From<Calc<Length>> for Length {
   fn from(calc: Calc<Length>) -> Length {
-    Length::Calc(calc)
+    Length::Calc(Box::new(calc))
   }
 }
 
