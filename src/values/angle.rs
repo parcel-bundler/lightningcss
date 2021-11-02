@@ -5,7 +5,7 @@ use std::fmt::Write;
 use super::calc::Calc;
 use std::f32::consts::PI;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Angle {
   Deg(f32),
   Grad(f32),
@@ -154,6 +154,12 @@ impl std::cmp::PartialEq<f32> for Angle {
     match self {
       Angle::Deg(a) | Angle::Rad(a) | Angle::Grad(a) | Angle::Turn(a) => a == other,
     }
+  }
+}
+
+impl std::cmp::PartialEq<Angle> for Angle {
+  fn eq(&self, other: &Angle) -> bool {
+    self.to_degrees() == other.to_degrees()
   }
 }
 

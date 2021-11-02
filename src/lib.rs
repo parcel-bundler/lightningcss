@@ -1611,4 +1611,84 @@ mod tests {
     minify_test(".foo { transform: scale(calc(10% + 20%))", ".foo{transform:scale(.3)}");
     minify_test(".foo { transform: scale(calc(.1 + .2))", ".foo{transform:scale(.3)}");
   }
+
+  #[test]
+  pub fn test_gradients() {
+    minify_test(
+      ".foo { background: linear-gradient(yellow, blue) }",
+      ".foo{background:linear-gradient(#ff0,#00f)}"
+    );
+    minify_test(
+      ".foo { background: linear-gradient(to bottom, yellow, blue); }",
+      ".foo{background:linear-gradient(#ff0,#00f)}"
+    );
+    minify_test(
+      ".foo { background: linear-gradient(180deg, yellow, blue); }",
+      ".foo{background:linear-gradient(#ff0,#00f)}"
+    );
+    minify_test(
+      ".foo { background: linear-gradient(0.5turn, yellow, blue); }",
+      ".foo{background:linear-gradient(#ff0,#00f)}"
+    );
+    minify_test(
+      ".foo { background: linear-gradient(yellow 10%, blue 20%) }",
+      ".foo{background:linear-gradient(#ff0 10%,#00f 20%)}"
+    );
+    minify_test(
+      ".foo { background: linear-gradient(to top, blue, yellow); }",
+      ".foo{background:linear-gradient(#ff0,#00f)}"
+    );
+    minify_test(
+      ".foo { background: linear-gradient(to top, blue 10%, yellow 20%); }",
+      ".foo{background:linear-gradient(#ff0 80%,#00f 90%)}"
+    );
+    minify_test(
+      ".foo { background: linear-gradient(to top, blue 10px, yellow 20px); }",
+      ".foo{background:linear-gradient(0deg,#00f 10px,#ff0 20px)}"
+    );
+    minify_test(
+      ".foo { background: linear-gradient(135deg, yellow, blue); }",
+      ".foo{background:linear-gradient(135deg,#ff0,#00f)}"
+    );
+    minify_test(
+      ".foo { background: linear-gradient(yellow, blue 20%, #0f0); }",
+      ".foo{background:linear-gradient(#ff0,#00f 20%,#0f0)}"
+    );
+    minify_test(
+      ".foo { background: linear-gradient(to top right, red, white, blue) }",
+      ".foo{background:linear-gradient(to top right,red,#fff,#00f)}"
+    );
+    minify_test(
+      ".foo { background: linear-gradient(yellow, blue calc(10% * 2), #0f0); }",
+      ".foo{background:linear-gradient(#ff0,#00f 20%,#0f0)}"
+    );
+    minify_test(
+      ".foo { background: linear-gradient(yellow, 20%, blue); }",
+      ".foo{background:linear-gradient(#ff0,20%,#00f)}"
+    );
+    minify_test(
+      ".foo { background: linear-gradient(yellow, 50%, blue); }",
+      ".foo{background:linear-gradient(#ff0,#00f)}"
+    );
+    minify_test(
+      ".foo { background: linear-gradient(yellow, 20px, blue); }",
+      ".foo{background:linear-gradient(#ff0,20px,#00f)}"
+    );
+    minify_test(
+      ".foo { background: linear-gradient(yellow, 50px, blue); }",
+      ".foo{background:linear-gradient(#ff0,50px,#00f)}"
+    );
+    minify_test(
+      ".foo { background: linear-gradient(yellow, 50px, blue); }",
+      ".foo{background:linear-gradient(#ff0,50px,#00f)}"
+    );
+    minify_test(
+      ".foo { background: linear-gradient(yellow, red 30% 40%, blue); }",
+      ".foo{background:linear-gradient(#ff0,red 30% 40%,#00f)}"
+    );
+    minify_test(
+      ".foo { background: linear-gradient(yellow, red 30%, red 40%, blue); }",
+      ".foo{background:linear-gradient(#ff0,red 30% 40%,#00f)}"
+    );
+  }
 }
