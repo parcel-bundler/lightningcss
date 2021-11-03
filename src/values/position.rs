@@ -144,11 +144,35 @@ impl ToCss for Position {
         x_lp.to_css(dest)
       },
       (
+        x_pos @ &HorizontalPosition::Side(_, None),
+        &VerticalPosition::Center,
+      ) => {
+        x_pos.to_css(dest)
+      },
+      (
+        &HorizontalPosition::Center,
+        y_pos @ &VerticalPosition::Side(_, None),
+      ) => {
+        y_pos.to_css(dest)
+      },
+      (
         &HorizontalPosition::Length(ref x_lp),
         &VerticalPosition::Length(LengthPercentage::Percentage(Percentage(y_lp)))
       ) if y_lp == 0.5 => {
         // 50% is equivalent to `center`, which may be omitted.
         x_lp.to_css(dest)
+      },
+      (
+        x_pos @ &HorizontalPosition::Side(_, None),
+        &VerticalPosition::Length(LengthPercentage::Percentage(Percentage(y_lp))),
+      ) if y_lp == 0.5 => {
+        x_pos.to_css(dest)
+      },
+      (
+        &HorizontalPosition::Length(LengthPercentage::Percentage(Percentage(x_lp))),
+        y_pos @ &VerticalPosition::Side(_, None),
+      ) if x_lp == 0.5 => {
+        y_pos.to_css(dest)
       },
       (x_pos, y_pos) => {
         x_pos.to_css(dest)?;
