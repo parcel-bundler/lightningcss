@@ -7,9 +7,9 @@ use super::number::serialize_number;
 #[derive(Debug, Clone, PartialEq)]
 pub enum MathFunction<V> {
   Calc(Calc<V>),
-  Min,
-  Max,
-  Clamp
+  Min(Vec<Calc<V>>),
+  Max(Vec<Calc<V>>),
+  Clamp(Calc<V>, Calc<V>, Calc<V>)
 }
 
 impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clone + std::fmt::Debug> ToCss for MathFunction<V> {
@@ -20,7 +20,41 @@ impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clo
         calc.to_css(dest)?;
         dest.write_char(')')
       }
-      _ => todo!()
+      MathFunction::Min(args) => {
+        dest.write_str("min(")?;
+        let mut first = true;
+        for arg in args {
+          if first {
+            first = false;
+          } else {
+            dest.delim(',', false)?;
+          }
+          arg.to_css(dest)?;
+        }
+        dest.write_char(')')
+      }
+      MathFunction::Max(args) => {
+        dest.write_str("max(")?;
+        let mut first = true;
+        for arg in args {
+          if first {
+            first = false;
+          } else {
+            dest.delim(',', false)?;
+          }
+          arg.to_css(dest)?;
+        }
+        dest.write_char(')')
+      }
+      MathFunction::Clamp(a, b, c) => {
+        dest.write_str("clamp(")?;
+        a.to_css(dest)?;
+        dest.delim(',', false)?;
+        b.to_css(dest)?;
+        dest.delim(',', false)?;
+        c.to_css(dest)?;
+        dest.write_char(')')
+      }
     }
   }
 }
@@ -33,7 +67,7 @@ pub enum Calc<V> {
   Function(Box<MathFunction<V>>)
 }
 
-impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> + std::fmt::Debug> Parse for Calc<V> {
+impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + std::cmp::PartialOrd<V> + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> + std::fmt::Debug> Parse for Calc<V> {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     let f = input.expect_function()?;
     match_ignore_ascii_case! { &f,
@@ -44,12 +78,28 @@ impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + 
           _ => Ok(Calc::Function(Box::new(MathFunction::Calc(calc))))
         }
       },
+      "min" => {
+        let mut args = input.parse_nested_block(|input| input.parse_comma_separated(Calc::parse_sum))?;
+        let mut reduced = Calc::reduce_args(&mut args, std::cmp::Ordering::Less);
+        if reduced.len() == 1 {
+          return Ok(reduced.remove(0))
+        }
+        Ok(Calc::Function(Box::new(MathFunction::Min(reduced))))
+      },
+      "max" => {
+        let mut args = input.parse_nested_block(|input| input.parse_comma_separated(Calc::parse_sum))?;
+        let mut reduced = Calc::reduce_args(&mut args, std::cmp::Ordering::Greater);
+        if reduced.len() == 1 {
+          return Ok(reduced.remove(0))
+        }
+        Ok(Calc::Function(Box::new(MathFunction::Max(reduced))))
+      },
       _ => Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
     }
   }
 }
 
-impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> + std::fmt::Debug> Calc<V> {
+impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + std::cmp::PartialOrd<V> + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> + std::fmt::Debug> Calc<V> {
   fn parse_sum<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     let mut cur: Calc<V> = Calc::parse_product(input)?;
     loop {
@@ -147,6 +197,43 @@ impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + 
     }
 
     Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+  }
+
+  fn reduce_args(args: &mut Vec<Calc<V>>, cmp: std::cmp::Ordering) -> Vec<Calc<V>> {
+    // Reduces the arguments of a min() or max() expression, combining compatible values.
+    // e.g. min(1px, 1em, 2px, 3in) => min(1px, 1em)
+    let mut reduced: Vec<Calc<V>> = vec![];
+    for arg in args.drain(..) {
+      let mut found = None;
+      match &arg {
+        Calc::Value(val) => {
+          for b in reduced.iter_mut() {
+            if let Calc::Value(v) = b {
+              match val.partial_cmp(v) {
+                Some(ord) if ord == cmp => {
+                  found = Some(Some(b));
+                  break
+                }
+                Some(_) => {
+                  found = Some(None);
+                  break
+                }
+                None => {}
+              }
+            }
+          }
+        }
+        _ => {}
+      }
+      if let Some(r) = found {
+        if let Some(r) = r {
+          *r = arg
+        }
+      } else {
+        reduced.push(arg)
+      }
+    }
+    reduced
   }
 }
 

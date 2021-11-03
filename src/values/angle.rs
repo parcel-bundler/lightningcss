@@ -178,5 +178,11 @@ impl std::cmp::PartialOrd<f32> for Angle {
   }
 }
 
+impl std::cmp::PartialOrd<Angle> for Angle {
+  fn partial_cmp(&self, other: &Angle) -> Option<std::cmp::Ordering> {
+    self.to_degrees().partial_cmp(&other.to_degrees())
+  }
+}
+
 /// https://drafts.csswg.org/css-values-4/#typedef-angle-percentage
 pub type AnglePercentage = DimensionPercentage<Angle>;

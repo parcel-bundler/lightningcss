@@ -287,6 +287,29 @@ impl std::cmp::PartialOrd<f32> for LengthValue {
   }
 }
 
+impl std::cmp::PartialOrd<LengthValue> for LengthValue {
+  fn partial_cmp(&self, other: &LengthValue) -> Option<std::cmp::Ordering> {
+    use LengthValue::*;
+    match (self, other) {
+      (Em(a), Em(b)) |
+      (Ex(a), Ex(b)) |
+      (Ch(a), Ch(b)) |
+      (Rem(a), Rem(b)) |
+      (Vw(a), Vw(b)) |
+      (Vh(a), Vh(b)) |
+      (Vmin(a), Vmin(b)) |
+      (Vmax(a), Vmax(b)) => a.partial_cmp(b),
+      (a, b) => {
+        if let (Some(a), Some(b)) = (a.to_px(), b.to_px()) {
+          a.partial_cmp(&b)
+        } else {
+          None
+        }
+      }
+    }
+  }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Length {
   Value(LengthValue),
@@ -468,6 +491,15 @@ impl std::cmp::PartialOrd<f32> for Length {
     match self {
       Length::Value(a) => a.partial_cmp(other),
       Length::Calc(_) => None
+    }
+  }
+}
+
+impl std::cmp::PartialOrd<Length> for Length {
+  fn partial_cmp(&self, other: &Length) -> Option<std::cmp::Ordering> {
+    match (self, other) {
+      (Length::Value(a), Length::Value(b)) => a.partial_cmp(b),
+      _ => None
     }
   }
 }

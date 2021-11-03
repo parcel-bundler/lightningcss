@@ -10,6 +10,15 @@ pub enum Time {
   Milliseconds(f32)
 }
 
+impl Time {
+  pub fn to_ms(&self) -> f32 {
+    match self {
+      Time::Seconds(s) => s * 1000.0,
+      Time::Milliseconds(ms) => *ms
+    }
+  }
+}
+
 impl Parse for Time {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     match input.try_parse(Calc::parse) {
@@ -112,5 +121,11 @@ impl std::cmp::PartialOrd<f32> for Time {
     match self {
       Time::Seconds(a) | Time::Milliseconds(a) => a.partial_cmp(other),
     }
+  }
+}
+
+impl std::cmp::PartialOrd<Time> for Time {
+  fn partial_cmp(&self, other: &Time) -> Option<std::cmp::Ordering> {
+    self.to_ms().partial_cmp(&other.to_ms())
   }
 }

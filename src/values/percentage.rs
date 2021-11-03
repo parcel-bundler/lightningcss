@@ -94,6 +94,12 @@ impl std::cmp::PartialOrd<f32> for Percentage {
   }
 }
 
+impl std::cmp::PartialOrd<Percentage> for Percentage {
+  fn partial_cmp(&self, other: &Percentage) -> Option<std::cmp::Ordering> {
+    self.0.partial_cmp(&other.0)
+  }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum NumberOrPercentage {
   Percentage(Percentage),
@@ -151,7 +157,7 @@ pub enum DimensionPercentage<D> {
   Calc(Box<Calc<DimensionPercentage<D>>>)
 }
 
-impl<D: Parse + std::ops::Mul<f32, Output = D> + TryAdd<D> + Clone + std::cmp::PartialEq<f32> + std::cmp::PartialOrd<f32> + std::fmt::Debug> Parse for DimensionPercentage<D> {
+impl<D: Parse + std::ops::Mul<f32, Output = D> + TryAdd<D> + Clone + std::cmp::PartialEq<f32> + std::cmp::PartialOrd<f32> + std::cmp::PartialOrd<D> + std::fmt::Debug> Parse for DimensionPercentage<D> {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
@@ -311,6 +317,16 @@ impl<D: std::cmp::PartialOrd<f32>> std::cmp::PartialOrd<f32> for DimensionPercen
       DimensionPercentage::Dimension(a) => a.partial_cmp(other),
       DimensionPercentage::Percentage(a) => a.partial_cmp(other),
       DimensionPercentage::Calc(_) => None
+    }
+  }
+}
+
+impl<D: std::cmp::PartialOrd<D>> std::cmp::PartialOrd<DimensionPercentage<D>> for DimensionPercentage<D> {
+  fn partial_cmp(&self, other: &DimensionPercentage<D>) -> Option<std::cmp::Ordering> {
+    match (self, other) {
+      (DimensionPercentage::Dimension(a), DimensionPercentage::Dimension(b)) => a.partial_cmp(b),
+      (DimensionPercentage::Percentage(a), DimensionPercentage::Percentage(b)) => a.partial_cmp(b),
+      _ => None
     }
   }
 }

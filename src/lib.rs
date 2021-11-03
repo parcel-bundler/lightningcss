@@ -1168,6 +1168,20 @@ mod tests {
     minify_test(".foo { width: calc(1.1e+1px + 1.1e+1px) }", ".foo{width:22px}");
     minify_test(".foo { border-width: calc(1px + 2px) }", ".foo{border-width:3px}");
     minify_test(".foo { border-width: calc(1em + 2px + 2em + 3px) }", ".foo{border-width:calc(3em + 5px)}");
+    
+    minify_test(".foo { border-width: min(1em, 2px) }", ".foo{border-width:min(1em,2px)}");
+    minify_test(".foo { border-width: min(1em + 2em, 2px + 2px) }", ".foo{border-width:min(3em,4px)}");
+    minify_test(".foo { border-width: min(1em + 2px, 2px + 1em) }", ".foo{border-width:min(1em + 2px,2px + 1em)}");
+    minify_test(".foo { border-width: min(1em + 2px + 2px, 2px + 1em + 1px) }", ".foo{border-width:min(1em + 4px,3px + 1em)}");
+    minify_test(".foo { border-width: min(2px + 1px, 3px + 4px) }", ".foo{border-width:3px}");
+    minify_test(".foo { border-width: min(1px, 1em, 2px, 3in) }", ".foo{border-width:min(1px,1em)}");
+
+    minify_test(".foo { border-width: max(1em, 2px) }", ".foo{border-width:max(1em,2px)}");
+    minify_test(".foo { border-width: max(1em + 2em, 2px + 2px) }", ".foo{border-width:max(3em,4px)}");
+    minify_test(".foo { border-width: max(1em + 2px, 2px + 1em) }", ".foo{border-width:max(1em + 2px,2px + 1em)}");
+    minify_test(".foo { border-width: max(1em + 2px + 2px, 2px + 1em + 1px) }", ".foo{border-width:max(1em + 4px,3px + 1em)}");
+    minify_test(".foo { border-width: max(2px + 1px, 3px + 4px) }", ".foo{border-width:7px}");
+    minify_test(".foo { border-width: max(1px, 1em, 2px, 3in) }", ".foo{border-width:max(3in,1em)}");
   }
 
   #[test]
