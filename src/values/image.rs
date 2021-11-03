@@ -2,9 +2,11 @@ use cssparser::*;
 use super::angle::Angle;
 use super::position::{HorizontalPositionKeyword, VerticalPositionKeyword};
 use super::color::CssColor;
-use super::length::LengthPercentage;
+use super::length::{Length, LengthPercentage};
 use super::percentage::Percentage;
+use super::position::Position;
 use crate::traits::{Parse, ToCss};
+use crate::macros::enum_property;
 use crate::printer::Printer;
 use std::fmt::Write;
 
@@ -54,15 +56,27 @@ impl ToCss for Image {
   }
 }
 
+/// https://www.w3.org/TR/css-images-3/#gradients
 #[derive(Debug, Clone, PartialEq)]
 pub enum Gradient {
   Linear(LinearGradient),
-  RepeatingLinear(LinearGradient)
+  RepeatingLinear(LinearGradient),
+  Radial(RadialGradient),
+  RepeatingRadial(RadialGradient)
 }
 
+/// https://www.w3.org/TR/css-images-3/#linear-gradients
 #[derive(Debug, Clone, PartialEq)]
 pub struct LinearGradient {
   direction: LineDirection,
+  items: Vec<GradientItem>,
+}
+
+/// https://www.w3.org/TR/css-images-3/#radial-gradients
+#[derive(Debug, Clone, PartialEq)]
+pub struct RadialGradient {
+  shape: EndingShape,
+  position: Position,
   items: Vec<GradientItem>,
 }
 
@@ -71,8 +85,10 @@ impl Parse for Gradient {
     let func = input.expect_function()?.clone();
     input.parse_nested_block(|input| {
       match_ignore_ascii_case! { &func,
-        "linear-gradient" => Ok(Gradient::Linear(Gradient::parse_linear(false, input)?)),
-        "repeating-linear-gradient" => Ok(Gradient::RepeatingLinear(Gradient::parse_linear(true, input)?)),
+        "linear-gradient" => Ok(Gradient::Linear(Gradient::parse_linear(input)?)),
+        "repeating-linear-gradient" => Ok(Gradient::RepeatingLinear(Gradient::parse_linear(input)?)),
+        "radial-gradient" => Ok(Gradient::Radial(Gradient::parse_radial(input)?)),
+        "repeating-radial-gradient" => Ok(Gradient::RepeatingRadial(Gradient::parse_radial(input)?)),
         _ => todo!()
       }
     })
@@ -80,7 +96,7 @@ impl Parse for Gradient {
 }
 
 impl Gradient {
-  fn parse_linear<'i, 't>(repeating: bool, input: &mut Parser<'i, 't>) -> Result<LinearGradient, ParseError<'i, ()>> {
+  fn parse_linear<'i, 't>(input: &mut Parser<'i, 't>) -> Result<LinearGradient, ParseError<'i, ()>> {
     let direction = if let Ok(direction) = input.try_parse(LineDirection::parse) {
       input.expect_comma()?;
       direction
@@ -93,20 +109,41 @@ impl Gradient {
       items
     })
   }
+
+  fn parse_radial<'i, 't>(input: &mut Parser<'i, 't>) -> Result<RadialGradient, ParseError<'i, ()>> {
+    let shape = input.try_parse(EndingShape::parse).ok();
+    let position = input.try_parse(|input| {
+      input.expect_ident_matching("at")?;
+      Position::parse(input)
+    }).ok();
+
+    if shape.is_some() || position.is_some() {
+      input.expect_comma()?;
+    }
+
+    let items = Self::parse_items(input)?;
+    Ok(RadialGradient {
+      shape: shape.unwrap_or_default(),
+      position: position.unwrap_or(Position::center()),
+      items
+    })
+  }
 }
 
 impl ToCss for Gradient {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     let f = match self {
       Gradient::Linear(_) => "linear-gradient(",
-      Gradient::RepeatingLinear(_) => "repeating-linear-gradient("
+      Gradient::RepeatingLinear(_) => "repeating-linear-gradient(",
+      Gradient::Radial(_) => "radial-gradient(",
+      Gradient::RepeatingRadial(_) => "repeating-radial-gradient("
     };
+
+    dest.write_str(f)?;
 
     match self {
       Gradient::Linear(LinearGradient { direction, items }) |
       Gradient::RepeatingLinear(LinearGradient { direction, items }) => {
-        dest.write_str(f)?;
-
         match direction {
           // We can omit `to bottom` or `180deg` because it is the default.
           LineDirection::Vertical(VerticalPositionKeyword::Bottom) |
@@ -142,6 +179,25 @@ impl ToCss for Gradient {
             serialize_items(items, dest)?;
           }
         }
+      }
+      Gradient::Radial(RadialGradient { shape, position, items }) |
+      Gradient::RepeatingRadial(RadialGradient { shape, position, items }) => {
+        if *shape != EndingShape::default() {
+          shape.to_css(dest)?;
+          if position.is_center() {
+            dest.delim(',', false)?;
+          } else {
+            dest.write_char(' ')?;
+          }
+        }
+
+        if !position.is_center() {
+          dest.write_str("at ")?;
+          position.to_css(dest)?;
+          dest.delim(',', false)?;
+        }
+
+        serialize_items(&items, dest)?;
       }
     }
 
@@ -294,6 +350,161 @@ impl ToCss for LineDirection {
     }
   }
 }
+
+/// https://www.w3.org/TR/css-images-3/#valdef-radial-gradient-ending-shape
+#[derive(Debug, Clone, PartialEq)]
+pub enum EndingShape {
+  Circle(Circle),
+  Ellipse(Ellipse)
+}
+
+impl Default for EndingShape {
+  fn default() -> EndingShape {
+    EndingShape::Ellipse(Ellipse::Extent(ShapeExtent::FarthestCorner))
+  }
+}
+
+impl Parse for EndingShape {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    // Note: Ellipse::parse MUST run before Circle::parse for this to be correct. 
+    if let Ok(ellipse) = input.try_parse(Ellipse::parse) {
+      return Ok(EndingShape::Ellipse(ellipse))
+    }
+
+    if let Ok(circle) = input.try_parse(Circle::parse) {
+      return Ok(EndingShape::Circle(circle))
+    }
+    
+    return Err(input.new_error_for_next_token())
+  }
+}
+
+impl ToCss for EndingShape {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    match self {
+      EndingShape::Circle(circle) => circle.to_css(dest),
+      EndingShape::Ellipse(ellipse) => ellipse.to_css(dest),
+    }
+  }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Circle {
+  Radius(Length),
+  Extent(ShapeExtent)
+}
+
+impl Parse for Circle {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    if let Ok(extent) = input.try_parse(ShapeExtent::parse) {
+      // The `circle` keyword is required. If it's not there, then it's an ellipse.
+      input.expect_ident_matching("circle")?;
+      return Ok(Circle::Extent(extent))
+    }
+
+    if let Ok(length) = input.try_parse(Length::parse) {
+      // The `circle` keyword is optional if there is only a single length.
+      // We are assuming here that Ellipse::parse ran first.
+      let _ = input.try_parse(|input| input.expect_ident_matching("circle"));
+      return Ok(Circle::Radius(length))
+    }
+
+    if input.try_parse(|input| input.expect_ident_matching("circle")).is_ok() {
+      if let Ok(extent) = input.try_parse(ShapeExtent::parse) {
+        return Ok(Circle::Extent(extent))
+      }
+
+      if let Ok(length) = input.try_parse(Length::parse) {
+        return Ok(Circle::Radius(length))
+      }
+
+      // If only the `circle` keyword was given, default to `farthest-corner`.
+      return Ok(Circle::Extent(ShapeExtent::FarthestCorner))
+    }
+
+    return Err(input.new_error_for_next_token())
+  }
+}
+
+impl ToCss for Circle {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    match self {
+      Circle::Radius(r) => r.to_css(dest),
+      Circle::Extent(extent) => {
+        dest.write_str("circle")?;
+        if *extent != ShapeExtent::FarthestCorner {
+          dest.write_char(' ')?;
+          extent.to_css(dest)?;
+        }
+        Ok(())
+      }
+    }
+  }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Ellipse {
+  Size(LengthPercentage, LengthPercentage),
+  Extent(ShapeExtent)
+}
+
+impl Parse for Ellipse {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    if let Ok(extent) = input.try_parse(ShapeExtent::parse) {
+      // The `ellipse` keyword is optional, but only if the `circle` keyword is not present.
+      // If it is, then we'll re-parse as a circle.
+      if input.try_parse(|input| input.expect_ident_matching("circle")).is_ok() {
+        return Err(input.new_error_for_next_token())
+      }
+      let _ = input.try_parse(|input| input.expect_ident_matching("ellipse"));
+      return Ok(Ellipse::Extent(extent))
+    }
+
+    if let Ok(x) = input.try_parse(LengthPercentage::parse) {
+      let y = LengthPercentage::parse(input)?;
+      // The `ellipse` keyword is optional if there are two lengths.
+      let _ = input.try_parse(|input| input.expect_ident_matching("ellipse"));
+      return Ok(Ellipse::Size(x, y))
+    }
+
+    if input.try_parse(|input| input.expect_ident_matching("ellipse")).is_ok() {
+      if let Ok(extent) = input.try_parse(ShapeExtent::parse) {
+        return Ok(Ellipse::Extent(extent))
+      }
+
+      if let Ok(x) = input.try_parse(LengthPercentage::parse) {
+        let y = LengthPercentage::parse(input)?;
+        return Ok(Ellipse::Size(x, y))
+      }
+
+      // Assume `farthest-corner` if only the `ellipse` keyword is present.
+      return Ok(Ellipse::Extent(ShapeExtent::FarthestCorner))
+    }
+
+    return Err(input.new_error_for_next_token())
+  }
+}
+
+impl ToCss for Ellipse {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    // The `ellipse` keyword is optional, so we don't emit it.
+    match self {
+      Ellipse::Size(x, y) => {
+        x.to_css(dest)?;
+        dest.write_char(' ')?;
+        y.to_css(dest)
+      },
+      Ellipse::Extent(extent) => extent.to_css(dest)
+    }
+  }
+}
+
+enum_property!(ShapeExtent,
+  ("closest-side", ClosestSide),
+  ("farthest-side", FarthestSide),
+  ("closest-corner", ClosestCorner),
+  ("farthest-corner", FarthestCorner)
+);
 
 /// https://www.w3.org/TR/css-images-4/#color-stop-syntax
 #[derive(Debug, Clone, PartialEq)]

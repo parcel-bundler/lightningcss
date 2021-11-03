@@ -20,6 +20,13 @@ impl Position {
       y: VerticalPosition::Center
     }
   }
+
+  pub fn is_center(&self) -> bool {
+    *self == Position::center() || *self == Position {
+      x: HorizontalPosition::Length(LengthPercentage::Percentage(Percentage(0.5))),
+      y: VerticalPosition::Length(LengthPercentage::Percentage(Percentage(0.5)))
+    }
+  }
 }
 
 impl Default for Position {

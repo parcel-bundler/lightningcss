@@ -1694,5 +1694,73 @@ mod tests {
       ".foo { background: repeating-linear-gradient(yellow 10px, blue 50px) }",
       ".foo{background:repeating-linear-gradient(#ff0 10px,#00f 50px)}"
     );
+    minify_test(
+      ".foo { background: radial-gradient(yellow, blue) }",
+      ".foo{background:radial-gradient(#ff0,#00f)}"
+    );
+    minify_test(
+      ".foo { background: radial-gradient(at top left, yellow, blue) }",
+      ".foo{background:radial-gradient(at left top,#ff0,#00f)}"
+    );
+    minify_test(
+      ".foo { background: radial-gradient(5em circle at top left, yellow, blue) }",
+      ".foo{background:radial-gradient(5em at left top,#ff0,#00f)}"
+    );
+    minify_test(
+      ".foo { background: radial-gradient(circle at 100%, #333, #333 50%, #eee 75%, #333 75%) }",
+      ".foo{background:radial-gradient(circle at 100%,#333,#333 50%,#eee 75%,#333 75%)}"
+    );
+    minify_test(
+      ".foo { background: radial-gradient(farthest-corner circle at 100% 50%, #333, #333 50%, #eee 75%, #333 75%) }",
+      ".foo{background:radial-gradient(circle at 100%,#333,#333 50%,#eee 75%,#333 75%)}"
+    );
+    minify_test(
+      ".foo { background: radial-gradient(farthest-corner circle at 50% 50%, #333, #333 50%, #eee 75%, #333 75%) }",
+      ".foo{background:radial-gradient(circle,#333,#333 50%,#eee 75%,#333 75%)}"
+    );
+    minify_test(
+      ".foo { background: radial-gradient(ellipse at top, #e66465, transparent) }",
+      ".foo{background:radial-gradient(at top,#e66465,#0000)}"
+    );
+    minify_test(
+      ".foo { background: radial-gradient(20px, yellow, blue) }",
+      ".foo{background:radial-gradient(20px,#ff0,#00f)}"
+    );
+    minify_test(
+      ".foo { background: radial-gradient(circle 20px, yellow, blue) }",
+      ".foo{background:radial-gradient(20px,#ff0,#00f)}"
+    );
+    minify_test(
+      ".foo { background: radial-gradient(20px 40px, yellow, blue) }",
+      ".foo{background:radial-gradient(20px 40px,#ff0,#00f)}"
+    );
+    minify_test(
+      ".foo { background: radial-gradient(ellipse 20px 40px, yellow, blue) }",
+      ".foo{background:radial-gradient(20px 40px,#ff0,#00f)}"
+    );
+    minify_test(
+      ".foo { background: radial-gradient(ellipse calc(20px + 10px) 40px, yellow, blue) }",
+      ".foo{background:radial-gradient(30px 40px,#ff0,#00f)}"
+    );
+    minify_test(
+      ".foo { background: radial-gradient(circle farthest-side, yellow, blue) }",
+      ".foo{background:radial-gradient(circle farthest-side,#ff0,#00f)}"
+    );
+    minify_test(
+      ".foo { background: radial-gradient(farthest-side circle, yellow, blue) }",
+      ".foo{background:radial-gradient(circle farthest-side,#ff0,#00f)}"
+    );
+    minify_test(
+      ".foo { background: radial-gradient(ellipse farthest-side, yellow, blue) }",
+      ".foo{background:radial-gradient(farthest-side,#ff0,#00f)}"
+    );
+    minify_test(
+      ".foo { background: radial-gradient(farthest-side ellipse, yellow, blue) }",
+      ".foo{background:radial-gradient(farthest-side,#ff0,#00f)}"
+    );
+    minify_test(
+      ".foo { background: repeating-radial-gradient(circle 20px, yellow, blue) }",
+      ".foo{background:repeating-radial-gradient(20px,#ff0,#00f)}"
+    );
   }
 }
