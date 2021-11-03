@@ -62,22 +62,7 @@ pub enum Gradient {
   Linear(LinearGradient),
   RepeatingLinear(LinearGradient),
   Radial(RadialGradient),
-  RepeatingRadial(RadialGradient)
-}
-
-/// https://www.w3.org/TR/css-images-3/#linear-gradients
-#[derive(Debug, Clone, PartialEq)]
-pub struct LinearGradient {
-  direction: LineDirection,
-  items: Vec<GradientItem>,
-}
-
-/// https://www.w3.org/TR/css-images-3/#radial-gradients
-#[derive(Debug, Clone, PartialEq)]
-pub struct RadialGradient {
-  shape: EndingShape,
-  position: Position,
-  items: Vec<GradientItem>,
+  RepeatingRadial(RadialGradient),
 }
 
 impl Parse for Gradient {
@@ -85,47 +70,12 @@ impl Parse for Gradient {
     let func = input.expect_function()?.clone();
     input.parse_nested_block(|input| {
       match_ignore_ascii_case! { &func,
-        "linear-gradient" => Ok(Gradient::Linear(Gradient::parse_linear(input)?)),
-        "repeating-linear-gradient" => Ok(Gradient::RepeatingLinear(Gradient::parse_linear(input)?)),
-        "radial-gradient" => Ok(Gradient::Radial(Gradient::parse_radial(input)?)),
-        "repeating-radial-gradient" => Ok(Gradient::RepeatingRadial(Gradient::parse_radial(input)?)),
+        "linear-gradient" => Ok(Gradient::Linear(LinearGradient::parse(input)?)),
+        "repeating-linear-gradient" => Ok(Gradient::RepeatingLinear(LinearGradient::parse(input)?)),
+        "radial-gradient" => Ok(Gradient::Radial(RadialGradient::parse(input)?)),
+        "repeating-radial-gradient" => Ok(Gradient::RepeatingRadial(RadialGradient::parse(input)?)),
         _ => todo!()
       }
-    })
-  }
-}
-
-impl Gradient {
-  fn parse_linear<'i, 't>(input: &mut Parser<'i, 't>) -> Result<LinearGradient, ParseError<'i, ()>> {
-    let direction = if let Ok(direction) = input.try_parse(LineDirection::parse) {
-      input.expect_comma()?;
-      direction
-    } else {
-      LineDirection::Vertical(VerticalPositionKeyword::Bottom)
-    };
-    let items = Self::parse_items(input)?;
-    Ok(LinearGradient {
-      direction,
-      items
-    })
-  }
-
-  fn parse_radial<'i, 't>(input: &mut Parser<'i, 't>) -> Result<RadialGradient, ParseError<'i, ()>> {
-    let shape = input.try_parse(EndingShape::parse).ok();
-    let position = input.try_parse(|input| {
-      input.expect_ident_matching("at")?;
-      Position::parse(input)
-    }).ok();
-
-    if shape.is_some() || position.is_some() {
-      input.expect_comma()?;
-    }
-
-    let items = Self::parse_items(input)?;
-    Ok(RadialGradient {
-      shape: shape.unwrap_or_default(),
-      position: position.unwrap_or(Position::center()),
-      items
     })
   }
 }
@@ -142,145 +92,124 @@ impl ToCss for Gradient {
     dest.write_str(f)?;
 
     match self {
-      Gradient::Linear(LinearGradient { direction, items }) |
-      Gradient::RepeatingLinear(LinearGradient { direction, items }) => {
-        match direction {
-          // We can omit `to bottom` or `180deg` because it is the default.
-          LineDirection::Vertical(VerticalPositionKeyword::Bottom) |
-          LineDirection::Angle(Angle::Deg(180.0)) => serialize_items(items, dest)?,
-          // If we have `to top` or `0deg`, and all of the positions and hints are percentages,
-          // we can flip the gradient the other direction and omit the direction.
-          LineDirection::Vertical(VerticalPositionKeyword::Top) |
-          LineDirection::Angle(Angle::Deg(0.0)) if dest.minify && items.iter().all(|item| matches!(item, GradientItem::Hint(LengthPercentage::Percentage(_)) | GradientItem::ColorStop(ColorStop { position: None | Some(LengthPercentage::Percentage(_)), .. }))) => {
-            let items = items.iter().rev().map(|item| {
-              // Flip percentages.
-              match item {
-                GradientItem::Hint(LengthPercentage::Percentage(p)) => GradientItem::Hint(LengthPercentage::Percentage(Percentage(1.0 - p.0))),
-                GradientItem::ColorStop(ColorStop { color, position }) => {
-                  GradientItem::ColorStop(ColorStop {
-                    color: color.clone(),
-                    position: position.clone().map(|p| match p {
-                      LengthPercentage::Percentage(p) => LengthPercentage::Percentage(Percentage(1.0 - p.0)),
-                      _ => unreachable!()
-                    })
-                  })
-                }
-                _ => unreachable!()
-              }
-            }).collect();
-            serialize_items(&items, dest)?;
-          },
-          _ => {
-            if *direction != LineDirection::Vertical(VerticalPositionKeyword::Bottom) && *direction != LineDirection::Angle(Angle::Deg(180.0)) {
-              direction.to_css(dest)?;
-              dest.delim(',', false)?;
-            }
-
-            serialize_items(items, dest)?;
-          }
-        }
-      }
-      Gradient::Radial(RadialGradient { shape, position, items }) |
-      Gradient::RepeatingRadial(RadialGradient { shape, position, items }) => {
-        if *shape != EndingShape::default() {
-          shape.to_css(dest)?;
-          if position.is_center() {
-            dest.delim(',', false)?;
-          } else {
-            dest.write_char(' ')?;
-          }
-        }
-
-        if !position.is_center() {
-          dest.write_str("at ")?;
-          position.to_css(dest)?;
-          dest.delim(',', false)?;
-        }
-
-        serialize_items(&items, dest)?;
-      }
+      Gradient::Linear(linear) | Gradient::RepeatingLinear(linear) => linear.to_css(dest)?,
+      Gradient::Radial(radial) | Gradient::RepeatingRadial(radial) => radial.to_css(dest)?
     }
 
     dest.write_char(')')
   }
 }
 
-fn serialize_items<W>(items: &Vec<GradientItem>, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-  let mut first = true;
-  let mut last: Option<&GradientItem> = None;
-  for item in items {
-    // Skip useless hints
-    if *item == GradientItem::Hint(LengthPercentage::Percentage(Percentage(0.5))) {
-      continue
-    }
-    
-    if let Some(prev) = last {
-      match (prev, item) {
-        (
-          GradientItem::ColorStop(ColorStop { position: Some(_), color: ca }),
-          GradientItem::ColorStop(ColorStop { position: Some(p), color: cb })
-        ) if ca == cb => {
-          dest.write_char(' ')?;
-          p.to_css(dest)?;
-          last = None;
-          continue
-        }
-        _ => {}
-      }
-    }
-    
-    if first {
-      first = false;
-    } else {
-      dest.delim(',', false)?;
-    }
-    item.to_css(dest)?;
-    last = Some(item)
-  }
-  Ok(())
+/// https://www.w3.org/TR/css-images-3/#linear-gradients
+#[derive(Debug, Clone, PartialEq)]
+pub struct LinearGradient {
+  direction: LineDirection,
+  items: Vec<GradientItem>,
 }
 
-impl Gradient {
-  fn parse_items<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Vec<GradientItem>, ParseError<'i, ()>> {
-    let mut items = Vec::new();
-    let mut seen_stop = false;
+impl Parse for LinearGradient {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<LinearGradient, ParseError<'i, ()>> {
+    let direction = if let Ok(direction) = input.try_parse(LineDirection::parse) {
+      input.expect_comma()?;
+      direction
+    } else {
+      LineDirection::Vertical(VerticalPositionKeyword::Bottom)
+    };
+    let items = parse_items(input)?;
+    Ok(LinearGradient {
+      direction,
+      items
+    })
+  }
+}
 
-    loop {
-      input.parse_until_before(Delimiter::Comma, |input| {
-        if seen_stop {
-          if let Ok(hint) = input.try_parse(LengthPercentage::parse) {
-            seen_stop = false;
-            items.push(GradientItem::Hint(hint));
-            return Ok(())
+impl ToCss for LinearGradient {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    match self.direction {
+      // We can omit `to bottom` or `180deg` because it is the default.
+      LineDirection::Vertical(VerticalPositionKeyword::Bottom) |
+      LineDirection::Angle(Angle::Deg(180.0)) => serialize_items(&self.items, dest),
+      // If we have `to top` or `0deg`, and all of the positions and hints are percentages,
+      // we can flip the gradient the other direction and omit the direction.
+      LineDirection::Vertical(VerticalPositionKeyword::Top) |
+      LineDirection::Angle(Angle::Deg(0.0)) if dest.minify && self.items.iter().all(|item| matches!(item, GradientItem::Hint(LengthPercentage::Percentage(_)) | GradientItem::ColorStop(ColorStop { position: None | Some(LengthPercentage::Percentage(_)), .. }))) => {
+        let items = self.items.iter().rev().map(|item| {
+          // Flip percentages.
+          match item {
+            GradientItem::Hint(LengthPercentage::Percentage(p)) => GradientItem::Hint(LengthPercentage::Percentage(Percentage(1.0 - p.0))),
+            GradientItem::ColorStop(ColorStop { color, position }) => {
+              GradientItem::ColorStop(ColorStop {
+                color: color.clone(),
+                position: position.clone().map(|p| match p {
+                  LengthPercentage::Percentage(p) => LengthPercentage::Percentage(Percentage(1.0 - p.0)),
+                  _ => unreachable!()
+                })
+              })
+            }
+            _ => unreachable!()
           }
+        }).collect();
+        serialize_items(&items, dest)
+      },
+      _ => {
+        if self.direction != LineDirection::Vertical(VerticalPositionKeyword::Bottom) && self.direction != LineDirection::Angle(Angle::Deg(180.0)) {
+          self.direction.to_css(dest)?;
+          dest.delim(',', false)?;
         }
 
-        let stop = ColorStop::parse(input)?;
-
-        if let Ok(position) = input.try_parse(LengthPercentage::parse) {
-          let color = stop.color.clone();
-          items.push(GradientItem::ColorStop(stop));
-
-          items.push(GradientItem::ColorStop(ColorStop {
-            color,
-            position: Some(position)
-          }))
-        } else {
-          items.push(GradientItem::ColorStop(stop));
-        }
-
-        seen_stop = true;
-        Ok(())
-      })?;
-
-      match input.next() {
-        Err(_) => break,
-        Ok(Token::Comma) => continue,
-        _ => unreachable!(),
+        serialize_items(&self.items, dest)
       }
     }
+  }
+}
 
-    Ok(items)
+/// https://www.w3.org/TR/css-images-3/#radial-gradients
+#[derive(Debug, Clone, PartialEq)]
+pub struct RadialGradient {
+  shape: EndingShape,
+  position: Position,
+  items: Vec<GradientItem>,
+}
+
+impl Parse for RadialGradient {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<RadialGradient, ParseError<'i, ()>> {
+    let shape = input.try_parse(EndingShape::parse).ok();
+    let position = input.try_parse(|input| {
+      input.expect_ident_matching("at")?;
+      Position::parse(input)
+    }).ok();
+
+    if shape.is_some() || position.is_some() {
+      input.expect_comma()?;
+    }
+
+    let items = parse_items(input)?;
+    Ok(RadialGradient {
+      shape: shape.unwrap_or_default(),
+      position: position.unwrap_or(Position::center()),
+      items
+    })
+  }
+}
+
+impl ToCss for RadialGradient {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    if self.shape != EndingShape::default() {
+      self.shape.to_css(dest)?;
+      if self.position.is_center() {
+        dest.delim(',', false)?;
+      } else {
+        dest.write_char(' ')?;
+      }
+    }
+    
+    if !self.position.is_center() {
+      dest.write_str("at ")?;
+      self.position.to_css(dest)?;
+      dest.delim(',', false)?;
+    }
+    
+    serialize_items(&self.items, dest)
   }
 }
 
@@ -545,4 +474,81 @@ impl ToCss for GradientItem {
       GradientItem::Hint(hint) => hint.to_css(dest)
     }
   }
+}
+
+fn parse_items<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Vec<GradientItem>, ParseError<'i, ()>> {
+  let mut items = Vec::new();
+  let mut seen_stop = false;
+
+  loop {
+    input.parse_until_before(Delimiter::Comma, |input| {
+      if seen_stop {
+        if let Ok(hint) = input.try_parse(LengthPercentage::parse) {
+          seen_stop = false;
+          items.push(GradientItem::Hint(hint));
+          return Ok(())
+        }
+      }
+
+      let stop = ColorStop::parse(input)?;
+
+      if let Ok(position) = input.try_parse(LengthPercentage::parse) {
+        let color = stop.color.clone();
+        items.push(GradientItem::ColorStop(stop));
+
+        items.push(GradientItem::ColorStop(ColorStop {
+          color,
+          position: Some(position)
+        }))
+      } else {
+        items.push(GradientItem::ColorStop(stop));
+      }
+
+      seen_stop = true;
+      Ok(())
+    })?;
+
+    match input.next() {
+      Err(_) => break,
+      Ok(Token::Comma) => continue,
+      _ => unreachable!(),
+    }
+  }
+
+  Ok(items)
+}
+
+fn serialize_items<W>(items: &Vec<GradientItem>, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  let mut first = true;
+  let mut last: Option<&GradientItem> = None;
+  for item in items {
+    // Skip useless hints
+    if *item == GradientItem::Hint(LengthPercentage::Percentage(Percentage(0.5))) {
+      continue
+    }
+    
+    if let Some(prev) = last {
+      match (prev, item) {
+        (
+          GradientItem::ColorStop(ColorStop { position: Some(_), color: ca }),
+          GradientItem::ColorStop(ColorStop { position: Some(p), color: cb })
+        ) if ca == cb => {
+          dest.write_char(' ')?;
+          p.to_css(dest)?;
+          last = None;
+          continue
+        }
+        _ => {}
+      }
+    }
+    
+    if first {
+      first = false;
+    } else {
+      dest.delim(',', false)?;
+    }
+    item.to_css(dest)?;
+    last = Some(item)
+  }
+  Ok(())
 }
