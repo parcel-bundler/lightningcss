@@ -41,3 +41,7 @@ pub trait PropertyHandler: Sized {
   fn handle_property(&mut self, property: &Property) -> bool;
   fn finalize(&mut self) -> Vec<Property>;
 }
+
+pub trait TryAdd<T> {
+  fn try_add(&self, other: &T) -> Option<T>;
+}

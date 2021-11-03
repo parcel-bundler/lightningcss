@@ -1056,17 +1056,17 @@ impl ToCss for Transform {
 impl Transform {
   pub fn to_matrix(&self) -> Option<Matrix3d<f32>> {
     match &self {
-      Transform::Translate(LengthPercentage::Length(x), LengthPercentage::Length(y)) => {
+      Transform::Translate(LengthPercentage::Dimension(x), LengthPercentage::Dimension(y)) => {
         if let (Some(x), Some(y)) = (x.to_px(), y.to_px()) {
           return Some(Matrix3d::translate(x, y, 0.0))
         }
       }
-      Transform::TranslateX(LengthPercentage::Length(x)) => {
+      Transform::TranslateX(LengthPercentage::Dimension(x)) => {
         if let Some(x) = x.to_px() {
           return Some(Matrix3d::translate(x, 0.0, 0.0))
         }
       }
-      Transform::TranslateY(LengthPercentage::Length(y)) => {
+      Transform::TranslateY(LengthPercentage::Dimension(y)) => {
         if let Some(y) = y.to_px() {
           return Some(Matrix3d::translate(0.0, y, 0.0))
         }
@@ -1076,7 +1076,7 @@ impl Transform {
           return Some(Matrix3d::translate(0.0, 0.0, z))
         }
       }
-      Transform::Translate3d(LengthPercentage::Length(x), LengthPercentage::Length(y), z) => {
+      Transform::Translate3d(LengthPercentage::Dimension(x), LengthPercentage::Dimension(y), z) => {
         if let (Some(x), Some(y), Some(z)) = (x.to_px(), y.to_px(), z.to_px()) {
           return Some(Matrix3d::translate(x, y, z))
         }

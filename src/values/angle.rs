@@ -4,6 +4,7 @@ use crate::printer::Printer;
 use std::fmt::Write;
 use super::calc::Calc;
 use std::f32::consts::PI;
+use super::percentage::DimensionPercentage;
 
 #[derive(Debug, Clone)]
 pub enum Angle {
@@ -170,3 +171,6 @@ impl std::cmp::PartialOrd<f32> for Angle {
     }
   }
 }
+
+/// https://drafts.csswg.org/css-values-4/#typedef-angle-percentage
+pub type AnglePercentage = DimensionPercentage<Angle>;

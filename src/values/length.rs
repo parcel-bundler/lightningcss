@@ -1,61 +1,13 @@
 use cssparser::*;
-use crate::traits::{Parse, ToCss};
+use crate::traits::{Parse, ToCss, TryAdd};
 use crate::printer::Printer;
 use std::fmt::Write;
 use super::calc::Calc;
-use super::percentage::Percentage;
+use super::percentage::DimensionPercentage;
 use super::number::serialize_number;
 
 /// https://drafts.csswg.org/css-values-4/#typedef-length-percentage
-#[derive(Debug, Clone, PartialEq)]
-pub enum LengthPercentage {
-  Length(LengthValue),
-  Percentage(Percentage),
-  Calc(Box<Calc<LengthPercentage>>)
-}
-
-impl Parse for LengthPercentage {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
-    match input.try_parse(Calc::parse) {
-      Ok(Calc::Value(v)) => return Ok(*v),
-      Ok(calc) => return Ok(LengthPercentage::Calc(Box::new(calc))),
-      _ => {}
-    }
-
-    if let Ok(length) = input.try_parse(|input| LengthValue::parse(input)) {
-      return Ok(LengthPercentage::Length(length))
-    }
-
-    if let Ok(percent) = input.try_parse(|input| Percentage::parse(input)) {
-      return Ok(LengthPercentage::Percentage(percent))
-    }
-
-    Err(input.new_error_for_next_token())
-  }
-}
-
-impl std::ops::Mul<f32> for LengthPercentage {
-  type Output = Self;
-
-  fn mul(self, other: f32) -> LengthPercentage {
-    match self {
-      LengthPercentage::Length(l) => LengthPercentage::Length(l * other),
-      LengthPercentage::Percentage(p) => LengthPercentage::Percentage(Percentage(p.0 * other)),
-      LengthPercentage::Calc(c) => LengthPercentage::Calc(Box::new(*c * other))
-    }
-  }
-}
-
-impl std::ops::Add<LengthPercentage> for LengthPercentage {
-  type Output = Self;
-
-  fn add(self, other: LengthPercentage) -> LengthPercentage {
-    match self.add_recursive(&other) {
-      Some(r) => r,
-      None => self.add(other)
-    }
-  }
-}
+pub type LengthPercentage = DimensionPercentage<LengthValue>;
 
 impl LengthPercentage {
   pub fn zero() -> LengthPercentage {
@@ -63,138 +15,7 @@ impl LengthPercentage {
   }
 
   pub fn px(val: f32) -> LengthPercentage {
-    LengthPercentage::Length(LengthValue::Px(val))
-  }
-
-  fn add_recursive(&self, other: &LengthPercentage) -> Option<LengthPercentage> {
-    match (self, other) {
-      (LengthPercentage::Length(a), LengthPercentage::Length(b)) => {
-        if let Some(res) = a.add_recursive(b) {
-          Some(LengthPercentage::Length(res))
-        } else {
-          None
-        }
-      },
-      (LengthPercentage::Percentage(a), LengthPercentage::Percentage(b)) => Some(LengthPercentage::Percentage(Percentage(a.0 + b.0))),
-      (LengthPercentage::Calc(a), other) => {
-        match &**a {
-          Calc::Value(v) => v.add_recursive(other),
-          Calc::Sum(a, b) => {
-            if let Some(res) = LengthPercentage::Calc(Box::new(*a.clone())).add_recursive(other) {
-              return Some(res.add(LengthPercentage::from(*b.clone())))
-            }
-    
-            if let Some(res) = LengthPercentage::Calc(Box::new(*b.clone())).add_recursive(other) {
-              return Some(LengthPercentage::from(*a.clone()).add(res))
-            }
-    
-            None
-          }
-          _ => None
-        }
-      }
-      (other, LengthPercentage::Calc(b)) => {
-        match &**b {
-          Calc::Value(v) => other.add_recursive(&*v),
-          Calc::Sum(a, b) => {
-            if let Some(res) = other.add_recursive(&LengthPercentage::Calc(Box::new(*a.clone()))) {
-              return Some(res.add(LengthPercentage::from(*b.clone())))
-            }
-    
-            if let Some(res) = other.add_recursive(&LengthPercentage::Calc(Box::new(*b.clone()))) {
-              return Some(LengthPercentage::from(*a.clone()).add(res))
-            }
-    
-            None
-          }
-          _ => None
-        }
-      },
-      _ => None
-    }
-  }
-
-  fn add(self, other: LengthPercentage) -> LengthPercentage {
-    let mut a = self;
-    let mut b = other;
-
-    if a == 0.0 {
-      return b
-    }
-
-    if b == 0.0 {
-      return a
-    }
-
-    if a < 0.0 && b > 0.0 {
-      std::mem::swap(&mut a, &mut b);
-    }
-    
-    match (a, b) {
-      (LengthPercentage::Calc(a), LengthPercentage::Calc(b)) => return LengthPercentage::Calc(Box::new(*a + *b)),
-      (LengthPercentage::Calc(calc), b) => {
-        if let Calc::Value(a) = *calc {
-          a.add(b)
-        } else {
-          LengthPercentage::Calc(Box::new(Calc::Sum(Box::new((*calc).into()), Box::new(b.into()))))
-        }
-      }
-      (a, LengthPercentage::Calc(calc)) => {
-        if let Calc::Value(b) = *calc {
-          a.add(*b)
-        } else {
-          LengthPercentage::Calc(Box::new(Calc::Sum(Box::new(a.into()), Box::new((*calc).into()))))
-        }
-      }
-      // (Length::Calc(Calc::Value(a)), b) => a.add(b),
-      // (a, Length::Calc(Calc::Value(b))) => a.add(*b),
-      (a, b) => LengthPercentage::Calc(Box::new(Calc::Sum(Box::new(a.into()), Box::new(b.into()))))
-    }
-  }
-}
-
-impl std::convert::Into<Calc<LengthPercentage>> for LengthPercentage {
-  fn into(self) -> Calc<LengthPercentage> {
-    match self {
-      LengthPercentage::Calc(c) => *c,
-      b => Calc::Value(Box::new(b))
-    }
-  }
-}
-
-impl std::convert::From<Calc<LengthPercentage>> for LengthPercentage {
-  fn from(calc: Calc<LengthPercentage>) -> LengthPercentage {
-    LengthPercentage::Calc(Box::new(calc))
-  }
-}
-
-impl std::cmp::PartialEq<f32> for LengthPercentage {
-  fn eq(&self, other: &f32) -> bool {
-    match self {
-      LengthPercentage::Length(a) => *a == *other,
-      LengthPercentage::Percentage(a) => *a == *other,
-      LengthPercentage::Calc(_) => false
-    }
-  }
-}
-
-impl std::cmp::PartialOrd<f32> for LengthPercentage {
-  fn partial_cmp(&self, other: &f32) -> Option<std::cmp::Ordering> {
-    match self {
-      LengthPercentage::Length(a) => a.partial_cmp(other),
-      LengthPercentage::Percentage(a) => a.partial_cmp(other),
-      LengthPercentage::Calc(_) => None
-    }
-  }
-}
-
-impl ToCss for LengthPercentage {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-    match self {
-      LengthPercentage::Length(length) => length.to_css(dest),
-      LengthPercentage::Percentage(percent) => percent.to_css(dest),
-      LengthPercentage::Calc(calc) => calc.to_css(dest)
-    }
+    LengthPercentage::Dimension(LengthValue::Px(val))
   }
 }
 
@@ -363,8 +184,10 @@ impl LengthValue {
       Vmax(value) => (*value, "vmax")
     }
   }
+}
 
-  fn add_recursive(&self, other: &LengthValue) -> Option<LengthValue> {
+impl TryAdd<LengthValue> for LengthValue {
+  fn try_add(&self, other: &LengthValue) -> Option<LengthValue> {
     use LengthValue::*;
     match (self, other) {
       (Px(a), Px(b)) => Some(Px(a + b)),
@@ -507,7 +330,7 @@ impl std::ops::Add<Length> for Length {
   type Output = Self;
 
   fn add(self, other: Length) -> Length {
-    match self.add_recursive(&other) {
+    match self.try_add(&other) {
       Some(r) => r,
       None => self.add(other)
     }
@@ -526,53 +349,6 @@ impl Length {
   pub fn to_px(&self) -> Option<f32> {
     match self {
       Length::Value(a) => a.to_px(),
-      _ => None
-    }
-  }
-
-  fn add_recursive(&self, other: &Length) -> Option<Length> {
-    match (self, other) {
-      (Length::Value(a), Length::Value(b)) => {
-        if let Some(res) = a.add_recursive(b) {
-          Some(Length::Value(res))
-        } else {
-          None
-        }
-      },
-      (Length::Calc(a), other) => {
-        match &**a {
-          Calc::Value(v) => v.add_recursive(other),
-          Calc::Sum(a, b) => {
-            if let Some(res) = Length::Calc(Box::new(*a.clone())).add_recursive(other) {
-              return Some(res.add(Length::from(*b.clone())))
-            }
-    
-            if let Some(res) = Length::Calc(Box::new(*b.clone())).add_recursive(other) {
-              return Some(Length::from(*a.clone()).add(res))
-            }
-    
-            None
-          }
-          _ => None
-        }
-      }
-      (other, Length::Calc(b)) => {
-        match &**b {
-          Calc::Value(v) => other.add_recursive(&*v),
-          Calc::Sum(a, b) => {
-            if let Some(res) = other.add_recursive(&Length::Calc(Box::new(*a.clone()))) {
-              return Some(res.add(Length::from(*b.clone())))
-            }
-    
-            if let Some(res) = other.add_recursive(&Length::Calc(Box::new(*b.clone()))) {
-              return Some(Length::from(*a.clone()).add(res))
-            }
-    
-            None
-          }
-          _ => None
-        }
-      },
       _ => None
     }
   }
@@ -610,6 +386,55 @@ impl Length {
         }
       }
       (a, b) => Length::Calc(Box::new(Calc::Sum(Box::new(a.into()), Box::new(b.into()))))
+    }
+  }
+}
+
+impl TryAdd<Length> for Length {
+  fn try_add(&self, other: &Length) -> Option<Length> {
+    match (self, other) {
+      (Length::Value(a), Length::Value(b)) => {
+        if let Some(res) = a.try_add(b) {
+          Some(Length::Value(res))
+        } else {
+          None
+        }
+      },
+      (Length::Calc(a), other) => {
+        match &**a {
+          Calc::Value(v) => v.try_add(other),
+          Calc::Sum(a, b) => {
+            if let Some(res) = Length::Calc(Box::new(*a.clone())).try_add(other) {
+              return Some(res.add(Length::from(*b.clone())))
+            }
+    
+            if let Some(res) = Length::Calc(Box::new(*b.clone())).try_add(other) {
+              return Some(Length::from(*a.clone()).add(res))
+            }
+    
+            None
+          }
+          _ => None
+        }
+      }
+      (other, Length::Calc(b)) => {
+        match &**b {
+          Calc::Value(v) => other.try_add(&*v),
+          Calc::Sum(a, b) => {
+            if let Some(res) = other.try_add(&Length::Calc(Box::new(*a.clone()))) {
+              return Some(res.add(Length::from(*b.clone())))
+            }
+    
+            if let Some(res) = other.try_add(&Length::Calc(Box::new(*b.clone()))) {
+              return Some(Length::from(*a.clone()).add(res))
+            }
+    
+            None
+          }
+          _ => None
+        }
+      },
+      _ => None
     }
   }
 }
