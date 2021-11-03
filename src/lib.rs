@@ -1762,5 +1762,41 @@ mod tests {
       ".foo { background: repeating-radial-gradient(circle 20px, yellow, blue) }",
       ".foo{background:repeating-radial-gradient(20px,#ff0,#00f)}"
     );
+    minify_test(
+      ".foo { background: conic-gradient(#f06, gold) }",
+      ".foo{background:conic-gradient(#f06,gold)}"
+    );
+    minify_test(
+      ".foo { background: conic-gradient(at 50% 50%, #f06, gold) }",
+      ".foo{background:conic-gradient(#f06,gold)}"
+    );
+    minify_test(
+      ".foo { background: conic-gradient(from 0deg, #f06, gold) }",
+      ".foo{background:conic-gradient(#f06,gold)}"
+    );
+    minify_test(
+      ".foo { background: conic-gradient(from 0deg at center, #f06, gold) }",
+      ".foo{background:conic-gradient(#f06,gold)}"
+    );
+    minify_test(
+      ".foo { background: conic-gradient(white -50%, black 150%) }",
+      ".foo{background:conic-gradient(#fff -50%,#000 150%)}"
+    );
+    minify_test(
+      ".foo { background: conic-gradient(white -180deg, black 540deg) }",
+      ".foo{background:conic-gradient(#fff -180deg,#000 540deg)}"
+    );
+    minify_test(
+      ".foo { background: conic-gradient(from 45deg, white, black, white) }",
+      ".foo{background:conic-gradient(from 45deg,#fff,#000,#fff)}"
+    );
+    minify_test(
+      ".foo { background: repeating-conic-gradient(from 45deg, white, black, white) }",
+      ".foo{background:repeating-conic-gradient(from 45deg,#fff,#000,#fff)}"
+    );
+    minify_test(
+      ".foo { background: repeating-conic-gradient(black 0deg 25%, white 0deg 50%) }",
+      ".foo{background:repeating-conic-gradient(#000 0deg 25%,#fff 0deg 50%)}"
+    );
   }
 }

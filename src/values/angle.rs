@@ -1,5 +1,5 @@
 use cssparser::*;
-use crate::traits::{Parse, ToCss};
+use crate::traits::{Parse, ToCss, TryAdd};
 use crate::printer::Printer;
 use std::fmt::Write;
 use super::calc::Calc;
@@ -147,6 +147,12 @@ impl std::ops::Add<Angle> for Angle {
 
   fn add(self, other: Angle) -> Angle {
     Angle::Deg(self.to_degrees() + other.to_degrees())
+  }
+}
+
+impl TryAdd<Angle> for Angle {
+  fn try_add(&self, other: &Angle) -> Option<Angle> {
+    Some(Angle::Deg(self.to_degrees() + other.to_degrees()))
   }
 }
 

@@ -1,9 +1,9 @@
 use cssparser::*;
-use super::angle::Angle;
+use super::angle::{Angle, AnglePercentage};
 use super::position::{HorizontalPositionKeyword, VerticalPositionKeyword};
 use super::color::CssColor;
 use super::length::{Length, LengthPercentage};
-use super::percentage::Percentage;
+use super::percentage::{Percentage, DimensionPercentage};
 use super::position::Position;
 use crate::traits::{Parse, ToCss};
 use crate::macros::enum_property;
@@ -63,10 +63,13 @@ pub enum Gradient {
   RepeatingLinear(LinearGradient),
   Radial(RadialGradient),
   RepeatingRadial(RadialGradient),
+  Conic(ConicGradient),
+  RepeatingConic(ConicGradient)
 }
 
 impl Parse for Gradient {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    let location = input.current_source_location();
     let func = input.expect_function()?.clone();
     input.parse_nested_block(|input| {
       match_ignore_ascii_case! { &func,
@@ -74,7 +77,9 @@ impl Parse for Gradient {
         "repeating-linear-gradient" => Ok(Gradient::RepeatingLinear(LinearGradient::parse(input)?)),
         "radial-gradient" => Ok(Gradient::Radial(RadialGradient::parse(input)?)),
         "repeating-radial-gradient" => Ok(Gradient::RepeatingRadial(RadialGradient::parse(input)?)),
-        _ => todo!()
+        "conic-gradient" => Ok(Gradient::Conic(ConicGradient::parse(input)?)),
+        "repeating-conic-gradient" => Ok(Gradient::RepeatingConic(ConicGradient::parse(input)?)),
+        _ => Err(location.new_unexpected_token_error(cssparser::Token::Ident(func.clone())))
       }
     })
   }
@@ -86,14 +91,17 @@ impl ToCss for Gradient {
       Gradient::Linear(_) => "linear-gradient(",
       Gradient::RepeatingLinear(_) => "repeating-linear-gradient(",
       Gradient::Radial(_) => "radial-gradient(",
-      Gradient::RepeatingRadial(_) => "repeating-radial-gradient("
+      Gradient::RepeatingRadial(_) => "repeating-radial-gradient(",
+      Gradient::Conic(_) => "conic-gradient(",
+      Gradient::RepeatingConic(_) => "repeating-conic-gradient("
     };
 
     dest.write_str(f)?;
 
     match self {
       Gradient::Linear(linear) | Gradient::RepeatingLinear(linear) => linear.to_css(dest)?,
-      Gradient::Radial(radial) | Gradient::RepeatingRadial(radial) => radial.to_css(dest)?
+      Gradient::Radial(radial) | Gradient::RepeatingRadial(radial) => radial.to_css(dest)?,
+      Gradient::Conic(conic) | Gradient::RepeatingConic(conic) => conic.to_css(dest)?
     }
 
     dest.write_char(')')
@@ -104,7 +112,7 @@ impl ToCss for Gradient {
 #[derive(Debug, Clone, PartialEq)]
 pub struct LinearGradient {
   direction: LineDirection,
-  items: Vec<GradientItem>,
+  items: Vec<GradientItem<LengthPercentage>>,
 }
 
 impl Parse for LinearGradient {
@@ -133,7 +141,7 @@ impl ToCss for LinearGradient {
       // we can flip the gradient the other direction and omit the direction.
       LineDirection::Vertical(VerticalPositionKeyword::Top) |
       LineDirection::Angle(Angle::Deg(0.0)) if dest.minify && self.items.iter().all(|item| matches!(item, GradientItem::Hint(LengthPercentage::Percentage(_)) | GradientItem::ColorStop(ColorStop { position: None | Some(LengthPercentage::Percentage(_)), .. }))) => {
-        let items = self.items.iter().rev().map(|item| {
+        let items: Vec<GradientItem<LengthPercentage>> = self.items.iter().rev().map(|item| {
           // Flip percentages.
           match item {
             GradientItem::Hint(LengthPercentage::Percentage(p)) => GradientItem::Hint(LengthPercentage::Percentage(Percentage(1.0 - p.0))),
@@ -168,7 +176,7 @@ impl ToCss for LinearGradient {
 pub struct RadialGradient {
   shape: EndingShape,
   position: Position,
-  items: Vec<GradientItem>,
+  items: Vec<GradientItem<LengthPercentage>>,
 }
 
 impl Parse for RadialGradient {
@@ -435,22 +443,78 @@ enum_property!(ShapeExtent,
   ("farthest-corner", FarthestCorner)
 );
 
-/// https://www.w3.org/TR/css-images-4/#color-stop-syntax
+/// https://www.w3.org/TR/css-images-4/#conic-gradients
 #[derive(Debug, Clone, PartialEq)]
-pub struct ColorStop {
-  color: CssColor,
-  position: Option<LengthPercentage>
+pub struct ConicGradient {
+  angle: Angle,
+  position: Position,
+  items: Vec<GradientItem<AnglePercentage>>,
 }
 
-impl Parse for ColorStop {
+impl ConicGradient {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    let angle = input.try_parse(|input| {
+      input.expect_ident_matching("from")?;
+      Angle::parse(input)
+    });
+    
+    let position = input.try_parse(|input| {
+      input.expect_ident_matching("at")?;
+      Position::parse(input)
+    });
+
+    if angle.is_ok() || position.is_ok() {
+      input.expect_comma()?;
+    }
+
+    let items = parse_items(input)?;
+    Ok(ConicGradient {
+      angle: angle.unwrap_or(Angle::Deg(0.0)),
+      position: position.unwrap_or(Position::center()),
+      items
+    })
+  }
+}
+
+impl ToCss for ConicGradient {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    if self.angle != 0.0 {
+      dest.write_str("from ")?;
+      self.angle.to_css(dest)?;
+
+      if self.position.is_center() {
+        dest.delim(',', false)?;
+      } else {
+        dest.write_char(' ')?;
+      }
+    }
+
+    if !self.position.is_center() {
+      dest.write_str("at ")?;
+      self.position.to_css(dest)?;
+      dest.delim(',', false)?;
+    }
+
+    serialize_items(&self.items, dest)
+  }
+}
+
+/// https://www.w3.org/TR/css-images-4/#color-stop-syntax
+#[derive(Debug, Clone, PartialEq)]
+pub struct ColorStop<D> {
+  color: CssColor,
+  position: Option<D>
+}
+
+impl<D: Parse> Parse for ColorStop<D> {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     let color = CssColor::parse(input)?;
-    let position = input.try_parse(LengthPercentage::parse).ok();
+    let position = input.try_parse(D::parse).ok();
     Ok(ColorStop {color, position })
   }
 }
 
-impl ToCss for ColorStop {
+impl<D: ToCss> ToCss for ColorStop<D> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     self.color.to_css(dest)?;
     if let Some(position) = &self.position {
@@ -462,12 +526,12 @@ impl ToCss for ColorStop {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum GradientItem {
-  ColorStop(ColorStop),
-  Hint(LengthPercentage)
+pub enum GradientItem<D> {
+  ColorStop(ColorStop<D>),
+  Hint(D)
 }
 
-impl ToCss for GradientItem {
+impl<D: ToCss> ToCss for GradientItem<D> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     match self {
       GradientItem::ColorStop(stop) => stop.to_css(dest),
@@ -476,14 +540,14 @@ impl ToCss for GradientItem {
   }
 }
 
-fn parse_items<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Vec<GradientItem>, ParseError<'i, ()>> {
+fn parse_items<'i, 't, D: Parse>(input: &mut Parser<'i, 't>) -> Result<Vec<GradientItem<D>>, ParseError<'i, ()>> {
   let mut items = Vec::new();
   let mut seen_stop = false;
 
   loop {
     input.parse_until_before(Delimiter::Comma, |input| {
       if seen_stop {
-        if let Ok(hint) = input.try_parse(LengthPercentage::parse) {
+        if let Ok(hint) = input.try_parse(D::parse) {
           seen_stop = false;
           items.push(GradientItem::Hint(hint));
           return Ok(())
@@ -492,7 +556,7 @@ fn parse_items<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Vec<GradientItem>, 
 
       let stop = ColorStop::parse(input)?;
 
-      if let Ok(position) = input.try_parse(LengthPercentage::parse) {
+      if let Ok(position) = input.try_parse(D::parse) {
         let color = stop.color.clone();
         items.push(GradientItem::ColorStop(stop));
 
@@ -518,12 +582,12 @@ fn parse_items<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Vec<GradientItem>, 
   Ok(items)
 }
 
-fn serialize_items<W>(items: &Vec<GradientItem>, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+fn serialize_items<D: ToCss + std::cmp::PartialOrd<f32> + std::cmp::PartialEq<D> + std::ops::Mul<f32, Output = D> + Clone + std::fmt::Debug, W>(items: &Vec<GradientItem<DimensionPercentage<D>>>, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
   let mut first = true;
-  let mut last: Option<&GradientItem> = None;
+  let mut last: Option<&GradientItem<DimensionPercentage<D>>> = None;
   for item in items {
     // Skip useless hints
-    if *item == GradientItem::Hint(LengthPercentage::Percentage(Percentage(0.5))) {
+    if *item == GradientItem::Hint(DimensionPercentage::Percentage(Percentage(0.5))) {
       continue
     }
     
