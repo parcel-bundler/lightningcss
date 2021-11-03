@@ -1,8 +1,7 @@
 use cssparser::*;
 use crate::values::{
-  length::{LengthPercentage, LengthPercentageOrAuto},
+  length::LengthPercentageOrAuto,
   position::*,
-  percentage::Percentage,
   color::CssColor,
   image::Image
 };
@@ -12,150 +11,6 @@ use crate::properties::Property;
 use itertools::izip;
 use crate::printer::Printer;
 use smallvec::SmallVec;
-
-/// https://www.w3.org/TR/css-backgrounds-3/#background-position
-#[derive(Debug, Clone, PartialEq)]
-pub struct BackgroundPosition {
-  x: HorizontalPosition,
-  y: VerticalPosition
-}
-
-impl Default for BackgroundPosition {
-  fn default() -> BackgroundPosition {
-    BackgroundPosition {
-      x: HorizontalPosition::Length(LengthPercentage::Percentage(Percentage(0.0))),
-      y: VerticalPosition::Length(LengthPercentage::Percentage(Percentage(0.0)))
-    }
-  }
-}
-
-impl Parse for BackgroundPosition {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
-    match input.try_parse(HorizontalPosition::parse) {
-      Ok(HorizontalPosition::Center) => {
-        // Try parsing a vertical position next.
-        if let Ok(y) = input.try_parse(VerticalPosition::parse) {
-          return Ok(BackgroundPosition {
-            x: HorizontalPosition::Center,
-            y
-          })
-        }
-
-        // If it didn't work, assume the first actually represents a y position,
-        // and the next is an x position. e.g. `center left` rather than `left center`.
-        let x = input
-          .try_parse(HorizontalPosition::parse)
-          .unwrap_or(HorizontalPosition::Center);
-        let y = VerticalPosition::Center;
-        return Ok(BackgroundPosition { x, y })
-      },
-      Ok(x @ HorizontalPosition::Length(_)) => {
-        // If we got a length as the first component, then the second must 
-        // be a keyword or length (not a side offset).
-        if let Ok(y_keyword) = input.try_parse(VerticalPositionKeyword::parse) {
-          let y = VerticalPosition::Side(y_keyword, None);
-          return Ok(BackgroundPosition { x, y });
-        }
-        if let Ok(y_lp) = input.try_parse(LengthPercentage::parse) {
-            let y = VerticalPosition::Length(y_lp);
-            return Ok(BackgroundPosition { x, y });
-        }
-        let y = VerticalPosition::Center;
-        let _ = input.try_parse(|i| i.expect_ident_matching("center"));
-        return Ok(BackgroundPosition { x, y });
-      }
-      Ok(HorizontalPosition::Side(x_keyword, lp)) => {
-        // If we got a horizontal side keyword (and optional offset), expect another for the vertical side.
-        // e.g. `left center` or `left 20px center`
-        if input.try_parse(|i| i.expect_ident_matching("center")).is_ok() {
-          let x = HorizontalPosition::Side(x_keyword, lp);
-          let y = VerticalPosition::Center;
-          return Ok(BackgroundPosition { x, y });
-        }
-
-        // e.g. `left top`, `left top 20px`, `left 20px top`, or `left 20px top 20px`
-        if let Ok(y_keyword) = input.try_parse(VerticalPositionKeyword::parse) {
-          let y_lp = input.try_parse(LengthPercentage::parse).ok();
-          let x = HorizontalPosition::Side(x_keyword, lp);
-          let y = VerticalPosition::Side(y_keyword, y_lp);
-          return Ok(BackgroundPosition { x, y });
-        }
-
-        // If we didn't get a vertical side keyword (e.g. `left 20px`), then apply the offset to the vertical side.
-        let x = HorizontalPosition::Side(x_keyword, None);
-        let y = lp.map_or(VerticalPosition::Center, VerticalPosition::Length);
-        return Ok(BackgroundPosition { x, y });
-      }
-      _ => {}
-    }
-
-    // If the horizontal position didn't parse, then it must be out of order. Try vertical position keyword.
-    let y_keyword = VerticalPositionKeyword::parse(input)?;
-    let lp_and_x_pos: Result<_, ParseError<()>> = input.try_parse(|i| {
-      let y_lp = i.try_parse(LengthPercentage::parse).ok();
-      if let Ok(x_keyword) = i.try_parse(HorizontalPositionKeyword::parse) {
-        let x_lp = i.try_parse(LengthPercentage::parse).ok();
-        let x_pos = HorizontalPosition::Side(x_keyword, x_lp);
-        return Ok((y_lp, x_pos));
-      }
-      i.expect_ident_matching("center")?;
-      let x_pos = HorizontalPosition::Center;
-      Ok((y_lp, x_pos))
-    });
-
-    if let Ok((y_lp, x)) = lp_and_x_pos {
-      let y = VerticalPosition::Side(y_keyword, y_lp);
-      return Ok(BackgroundPosition { x, y });
-    }
-
-    let x = HorizontalPosition::Center;
-    let y = VerticalPosition::Side(y_keyword, None);
-    Ok(BackgroundPosition { x, y })
-  }
-}
-
-impl ToCss for BackgroundPosition {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-    match (&self.x, &self.y) {
-      (
-        x_pos @ &HorizontalPosition::Side(_, Some(_)),
-        &VerticalPosition::Length(ref y_lp),
-      ) => {
-        x_pos.to_css(dest)?;
-        dest.write_str(" top ")?;
-        y_lp.to_css(dest)
-      },
-      (
-        &HorizontalPosition::Length(ref x_lp),
-        y_pos @ &VerticalPosition::Side(_, Some(_)),
-      ) => {
-        dest.write_str("left ")?;
-        x_lp.to_css(dest)?;
-        dest.write_str(" ")?;
-        y_pos.to_css(dest)
-      },
-      (
-        &HorizontalPosition::Length(ref x_lp),
-        &VerticalPosition::Center
-      ) => {
-        // `center` is assumed if omitted.
-        x_lp.to_css(dest)
-      },
-      (
-        &HorizontalPosition::Length(ref x_lp),
-        &VerticalPosition::Length(LengthPercentage::Percentage(Percentage(y_lp)))
-      ) if y_lp == 0.5 => {
-        // 50% is equivalent to `center`, which may be omitted.
-        x_lp.to_css(dest)
-      },
-      (x_pos, y_pos) => {
-        x_pos.to_css(dest)?;
-        dest.write_str(" ")?;
-        y_pos.to_css(dest)
-      },
-    }
-  }
-}
 
 /// https://www.w3.org/TR/css-backgrounds-3/#background-size
 #[derive(Debug, Clone, PartialEq)]
@@ -302,7 +157,7 @@ enum_property!(BackgroundBox,
 pub struct Background {
   image: Image,
   color: CssColor,
-  position: BackgroundPosition,
+  position: Position,
   repeat: BackgroundRepeat,
   size: BackgroundSize,
   attachment: BackgroundAttachment,
@@ -313,7 +168,7 @@ pub struct Background {
 impl Parse for Background {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     let mut color: Option<CssColor> = None;
-    let mut position: Option<BackgroundPosition> = None;
+    let mut position: Option<Position> = None;
     let mut size: Option<BackgroundSize> = None;
     let mut image: Option<Image> = None;
     let mut repeat: Option<BackgroundRepeat> = None;
@@ -331,7 +186,7 @@ impl Parse for Background {
       }
 
       if position.is_none() {
-        if let Ok(value) = input.try_parse(BackgroundPosition::parse) {
+        if let Ok(value) = input.try_parse(Position::parse) {
           position = Some(value);
 
           size = input.try_parse(|input| {
@@ -417,7 +272,7 @@ impl ToCss for Background {
       needs_space = true;
     }
 
-    if self.position != BackgroundPosition::default() || self.size != BackgroundSize::default() {
+    if self.position != Position::default() || self.size != BackgroundSize::default() {
       if needs_space {
         dest.write_str(" ")?;
       }
@@ -537,7 +392,7 @@ impl PropertyHandler for BackgroundHandler {
               CssColor::default()
             },
             image,
-            position: BackgroundPosition {
+            position: Position {
               x: x_position,
               y: y_position
             },
@@ -563,7 +418,7 @@ impl PropertyHandler for BackgroundHandler {
 
     match (&mut x_positions, &mut y_positions) {
       (Some(x_positions), Some(y_positions)) if x_positions.len() == y_positions.len() => {
-        let positions = izip!(x_positions.drain(..), y_positions.drain(..)).map(|(x, y)| BackgroundPosition {x, y}).collect();
+        let positions = izip!(x_positions.drain(..), y_positions.drain(..)).map(|(x, y)| Position {x, y}).collect();
         decls.push(Property::BackgroundPosition(positions))
       }
       _ => {
