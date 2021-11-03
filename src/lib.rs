@@ -1690,5 +1690,9 @@ mod tests {
       ".foo { background: linear-gradient(yellow, red 30%, red 40%, blue); }",
       ".foo{background:linear-gradient(#ff0,red 30% 40%,#00f)}"
     );
+    minify_test(
+      ".foo { background: repeating-linear-gradient(yellow 10px, blue 50px) }",
+      ".foo{background:repeating-linear-gradient(#ff0 10px,#00f 50px)}"
+    );
   }
 }

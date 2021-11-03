@@ -56,10 +56,14 @@ impl ToCss for Image {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Gradient {
-  Linear {
-    direction: LineDirection,
-    items: Vec<GradientItem>
-  }
+  Linear(LinearGradient),
+  RepeatingLinear(LinearGradient)
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LinearGradient {
+  direction: LineDirection,
+  items: Vec<GradientItem>,
 }
 
 impl Parse for Gradient {
@@ -67,30 +71,41 @@ impl Parse for Gradient {
     let func = input.expect_function()?.clone();
     input.parse_nested_block(|input| {
       match_ignore_ascii_case! { &func,
-        "linear-gradient" => {
-          let direction = if let Ok(direction) = input.try_parse(LineDirection::parse) {
-            input.expect_comma()?;
-            direction
-          } else {
-            LineDirection::Vertical(VerticalPositionKeyword::Bottom)
-          };
-          let items = Self::parse_items(input)?;
-          Ok(Gradient::Linear {
-            direction,
-            items
-          })
-        },
+        "linear-gradient" => Ok(Gradient::Linear(Gradient::parse_linear(false, input)?)),
+        "repeating-linear-gradient" => Ok(Gradient::RepeatingLinear(Gradient::parse_linear(true, input)?)),
         _ => todo!()
       }
     })
   }
 }
 
+impl Gradient {
+  fn parse_linear<'i, 't>(repeating: bool, input: &mut Parser<'i, 't>) -> Result<LinearGradient, ParseError<'i, ()>> {
+    let direction = if let Ok(direction) = input.try_parse(LineDirection::parse) {
+      input.expect_comma()?;
+      direction
+    } else {
+      LineDirection::Vertical(VerticalPositionKeyword::Bottom)
+    };
+    let items = Self::parse_items(input)?;
+    Ok(LinearGradient {
+      direction,
+      items
+    })
+  }
+}
+
 impl ToCss for Gradient {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    let f = match self {
+      Gradient::Linear(_) => "linear-gradient(",
+      Gradient::RepeatingLinear(_) => "repeating-linear-gradient("
+    };
+
     match self {
-      Gradient::Linear { direction, items } => {
-        dest.write_str("linear-gradient(")?;
+      Gradient::Linear(LinearGradient { direction, items }) |
+      Gradient::RepeatingLinear(LinearGradient { direction, items }) => {
+        dest.write_str(f)?;
 
         match direction {
           // We can omit `to bottom` or `180deg` because it is the default.
