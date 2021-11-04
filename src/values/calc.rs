@@ -94,6 +94,61 @@ impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + 
         }
         Ok(Calc::Function(Box::new(MathFunction::Max(reduced))))
       },
+      "clamp" => {
+        let (mut min, mut center, mut max) = input.parse_nested_block(|input| {
+          let min = Some(Calc::parse_sum(input)?);
+          input.expect_comma()?;
+          let center: Calc<V> = Calc::parse_sum(input)?;
+          input.expect_comma()?;
+          let max = Some(Calc::parse_sum(input)?);
+          Ok((min, center, max))
+        })?;
+
+        // According to the spec, the minimum should "win" over the maximum if they are in the wrong order.
+        let cmp = if let (Some(Calc::Value(max_val)), Calc::Value(center_val)) = (&max, &center) {
+          center_val.partial_cmp(&max_val)
+        } else {
+          None
+        };
+
+        // If center is known to be greater than the maximum, replace it with maximum and remove the max argument.
+        // Otherwise, if center is known to be less than the maximum, remove the max argument.
+        match cmp {
+          Some(std::cmp::Ordering::Greater) => {
+            center = std::mem::take(&mut max).unwrap();
+          }
+          Some(_) => {
+            max = None;
+          }
+          None => {}
+        }
+
+        let cmp = if let (Some(Calc::Value(min_val)), Calc::Value(center_val)) = (&min, &center) {
+          center_val.partial_cmp(&min_val)
+        } else {
+          None
+        };
+
+        // If center is known to be less than the minimum, replace it with minimum and remove the min argument.
+        // Otherwise, if center is known to be greater than the minimum, remove the min argument.
+        match cmp {
+          Some(std::cmp::Ordering::Less) => {
+            center = std::mem::take(&mut min).unwrap();
+          }
+          Some(_) => {
+            min = None;
+          }
+          None => {}
+        }
+
+        // Generate clamp(), min(), max(), or value depending on which arguments are left.
+        match (min, max) {
+          (None, None) => Ok(center),
+          (Some(min), None) => Ok(Calc::Function(Box::new(MathFunction::Max(vec![min, center])))),
+          (None, Some(max)) => Ok(Calc::Function(Box::new(MathFunction::Min(vec![center, max])))),
+          (Some(min), Some(max)) => Ok(Calc::Function(Box::new(MathFunction::Clamp(min, center, max))))
+        }
+      },
       _ => Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
     }
   }
