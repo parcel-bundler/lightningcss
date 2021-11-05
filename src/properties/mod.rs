@@ -1,4 +1,4 @@
-mod custom;
+pub mod custom;
 pub mod margin_padding;
 pub mod background;
 pub mod outline;

@@ -1847,4 +1847,16 @@ mod tests {
     minify_test("@font-face {src: url(\"test.woff\") format(woff supports palettes);}", "@font-face{src:url(test.woff)format(woff supports palettes)}");
     minify_test("@font-face {src: url(\"test.woff\") format(woff supports features(opentype) color(sbix));}", "@font-face{src:url(test.woff)format(woff supports features(opentype) color(sbix))}");
   }
+
+  #[test]
+  fn test_page_rule() {
+    minify_test("@page {margin: 0.5cm}", "@page{margin:.5cm}");
+    minify_test("@page :left {margin: 0.5cm}", "@page:left{margin:.5cm}");
+    minify_test("@page :right {margin: 0.5cm}", "@page:right{margin:.5cm}");
+    minify_test("@page LandscapeTable {margin: 0.5cm}", "@page LandscapeTable{margin:.5cm}");
+    minify_test("@page CompanyLetterHead:first {margin: 0.5cm}", "@page CompanyLetterHead:first{margin:.5cm}");
+    minify_test("@page:first {margin: 0.5cm}", "@page:first{margin:.5cm}");
+    minify_test("@page :blank:first {margin: 0.5cm}", "@page:blank:first{margin:.5cm}");
+    minify_test("@page toc, index {margin: 0.5cm}", "@page toc,index{margin:.5cm}");
+  }
 }

@@ -9,6 +9,7 @@ use std::fmt::Write;
 use crate::selector::{Selectors, SelectorParser};
 use crate::rules::keyframes::{KeyframeListParser, KeyframesRule};
 use crate::rules::font_face::{FontFaceRule, FontFaceDeclarationParser};
+use crate::rules::page::{PageSelector, PageRule};
 use crate::declaration::{Declaration, DeclarationHandler};
 
 #[derive(Eq, PartialEq, Clone)]
@@ -97,7 +98,7 @@ pub enum AtRulePrelude {
   /// A @keyframes rule, with its animation name and vendor prefix if exists.
   Keyframes(String),//(KeyframesName, Option<VendorPrefix>),
   /// A @page rule prelude.
-  Page,
+  Page(Vec<PageSelector>),
   /// A @document rule, with its conditional.
   Document,//(DocumentCondition),
   /// A @import rule prelude.
@@ -381,7 +382,8 @@ pub enum CssRule {
   Import(ImportRule),
   Style(StyleRule),
   Keyframes(KeyframesRule),
-  FontFace(FontFaceRule)
+  FontFace(FontFaceRule),
+  Page(PageRule)
 }
 
 impl ToCss for CssRule {
@@ -392,6 +394,7 @@ impl ToCss for CssRule {
       CssRule::Style(style) => style.to_css(dest),
       CssRule::Keyframes(keyframes) => keyframes.to_css(dest),
       CssRule::FontFace(font_face) => font_face.to_css(dest),
+      CssRule::Page(font_face) => font_face.to_css(dest),
     }
   }
 }
@@ -491,13 +494,10 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
 
               Ok(AtRuleType::WithBlock(AtRulePrelude::Keyframes(name.into())))
           },
-          // "page" => {
-          //     if cfg!(feature = "gecko") {
-          //         Ok(AtRuleType::WithBlock(AtRuleBlockPrelude::Page))
-          //     } else {
-          //         Err(input.new_custom_error(StyleParseErrorKind::UnsupportedAtRule(name.clone())))
-          //     }
-          // },
+          "page" => {
+            let selectors = input.try_parse(|input| input.parse_comma_separated(PageSelector::parse)).unwrap_or_default();
+            Ok(AtRuleType::WithBlock(AtRulePrelude::Page(selectors)))
+          },
           // "-moz-document" => {
           //     if !cfg!(feature = "gecko") {
           //         return Err(input.new_custom_error(
@@ -616,19 +616,16 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
                 // source_location: start.source_location(),
               }))
           },
-          // AtRuleBlockPrelude::Page => {
-          //     let context = ParserContext::new_with_rule_type(
-          //         self.context,
-          //         CssRuleType::Page,
-          //         self.namespaces,
-          //     );
-
-          //     let declarations = parse_property_declaration_list(&context, input, None);
-          //     Ok(CssRule::Page(Arc::new(self.shared_lock.wrap(PageRule {
-          //         block: Arc::new(self.shared_lock.wrap(declarations)),
-          //         source_location: start.source_location(),
-          //     }))))
-          // },
+          AtRulePrelude::Page(selectors) => {
+            let parser = DeclarationListParser::new(input, PropertyDeclarationParser);
+            let declarations: Vec<_> = parser.flatten().collect();
+            Ok(CssRule::Page(PageRule {
+              selectors,
+              declarations: DeclarationBlock {
+                declarations
+              }
+            }))
+          },
           // AtRuleBlockPrelude::Document(condition) => {
           //     if !cfg!(feature = "gecko") {
           //         unreachable!()
