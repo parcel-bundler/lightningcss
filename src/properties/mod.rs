@@ -32,6 +32,7 @@ use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use smallvec::{SmallVec, smallvec};
 use bitflags::bitflags;
+use std::fmt::Write;
 
 bitflags! {
   pub struct VendorPrefix: u8 {
@@ -109,24 +110,70 @@ macro_rules! define_properties {
         return Ok(Property::Custom(CustomProperty::parse(name, input)?))
       }
 
-      pub fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+      pub fn to_css<W>(&self, dest: &mut Printer<W>, important: bool) -> std::fmt::Result where W: std::fmt::Write {
         use Property::*;
 
         match self {
           $(
             $property(val, $($vp)?) => {
-              $($vp.to_css(dest)?;)?
-              dest.write_str($name)?;
-              dest.delim(':', false)?;
-              val.to_css(dest)
+              // If there are multiple vendor prefixes set, this expands them.
+              let mut first = true;
+              macro_rules! start {
+                () => {
+                  if first {
+                    first = false;
+                  } else {
+                    dest.write_char(';')?;
+                    if !dest.minify {
+                      dest.write_str("\n  ")?;
+                    }
+                  }
+                };
+              }
+
+              macro_rules! write {
+                () => {
+                  dest.write_str($name)?;
+                  dest.delim(':', false)?;
+                  val.to_css(dest)?;
+                  if important {
+                    dest.whitespace()?;
+                    dest.write_str("!important")?;
+                  }
+                };
+                ($p: expr) => {
+                  start!();
+                  write!();
+                };
+                ($v: ident, $p: expr) => {
+                  if $v.contains($p) {
+                    start!();
+                    $p.to_css(dest)?;
+                    write!();
+                  }
+                };
+              }
+              
+              $(
+                write!($vp, VendorPrefix::WebKit);
+                write!($vp, VendorPrefix::Moz);
+                write!($vp, VendorPrefix::Ms);  
+              )?
+
+              write!($($vp,)? VendorPrefix::None);
             }
           )+
           Custom(custom) => {
             dest.write_str(custom.name.as_ref())?;
             dest.delim(':', false)?;
-            dest.write_str(custom.value.as_ref())
+            dest.write_str(custom.value.as_ref())?;
+            if important {
+              dest.whitespace()?;
+              dest.write_str("!important")?;
+            }
           }
         }
+        Ok(())
       }
     }
   };

@@ -156,26 +156,6 @@ impl TransitionHandler {
     let mut delays = std::mem::take(&mut self.delays);
     let mut timing_functions = std::mem::take(&mut self.timing_functions);
 
-    macro_rules! expand {
-      ($prop: ident, $val: ident, $prefixes: ident) => {
-        if $prefixes.contains(VendorPrefix::WebKit) {
-          self.decls.push(Property::$prop($val.clone(), VendorPrefix::WebKit));
-        }
-
-        if $prefixes.contains(VendorPrefix::Moz) {
-          self.decls.push(Property::$prop($val.clone(), VendorPrefix::Moz));
-        }
-
-        if $prefixes.contains(VendorPrefix::Ms) {
-          self.decls.push(Property::$prop($val.clone(), VendorPrefix::Ms));
-        }
-
-        if $prefixes.contains(VendorPrefix::None) {
-          self.decls.push(Property::$prop($val, VendorPrefix::None));
-        }
-      };
-    }
-
     if let (Some((properties, property_prefixes)), Some((durations, duration_prefixes)), Some((delays, delay_prefixes)), Some((timing_functions, timing_prefixes))) = (&mut properties, &mut durations, &mut delays, &mut timing_functions) {
       // Only use shorthand syntax if the number of transitions matches on all properties.
       let len = properties.len();
@@ -189,41 +169,42 @@ impl TransitionHandler {
           }
         }).collect();
 
-        macro_rules! handle_prefix {
-          ($prefix: ident) => {
-            // If all properties have this vendor prefix, use the shorthand syntax.
-            // Otherwise, we'll fall through below to individual properties.
-            if property_prefixes.contains(VendorPrefix::$prefix) && duration_prefixes.contains(VendorPrefix::$prefix) && delay_prefixes.contains(VendorPrefix::$prefix) && timing_prefixes.contains(VendorPrefix::$prefix) {
-              self.decls.push(Property::Transition(transitions.clone(), VendorPrefix::$prefix));
-              property_prefixes.remove(VendorPrefix::$prefix);
-              duration_prefixes.remove(VendorPrefix::$prefix);
-              delay_prefixes.remove(VendorPrefix::$prefix);
-              timing_prefixes.remove(VendorPrefix::$prefix);
-            }
-          };
+        // Find the intersection of prefixes with the same value.
+        // Remove that from the prefixes of each of the properties. The remaining
+        // prefixes will be handled by outputing individual properties below.
+        let intersection = *property_prefixes & *duration_prefixes & *delay_prefixes & *timing_prefixes;
+        if !intersection.is_empty() {
+          self.decls.push(Property::Transition(transitions.clone(), intersection));
+          property_prefixes.remove(intersection);
+          duration_prefixes.remove(intersection);
+          delay_prefixes.remove(intersection);
+          timing_prefixes.remove(intersection);
         }
-
-        handle_prefix!(WebKit);
-        handle_prefix!(Moz);
-        handle_prefix!(Ms);
-        handle_prefix!(None);
       }
     }
 
     if let Some((properties, prefix)) = properties {
-      expand!(TransitionProperty, properties, prefix);
+      if !prefix.is_empty() {
+        self.decls.push(Property::TransitionProperty(properties, prefix));
+      }
     }
 
     if let Some((durations, prefix)) = durations {
-      expand!(TransitionDuration, durations, prefix);
+      if !prefix.is_empty() {
+        self.decls.push(Property::TransitionDuration(durations, prefix));
+      }
     }
 
     if let Some((delays, prefix)) = delays {
-      expand!(TransitionDelay, delays, prefix);
+      if !prefix.is_empty() {
+        self.decls.push(Property::TransitionDelay(delays, prefix));
+      }
     }
 
     if let Some((timing_functions, prefix)) = timing_functions {
-      expand!(TransitionTimingFunction, timing_functions, prefix);
+      if !prefix.is_empty() {
+        self.decls.push(Property::TransitionTimingFunction(timing_functions, prefix));
+      }
     }
 
     self.reset();

@@ -33,12 +33,7 @@ impl Declaration {
 
 impl ToCss for Declaration {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-    self.property.to_css(dest)?;
-    if self.important {
-      dest.whitespace()?;
-      dest.write_str("!important")?;
-    }
-    Ok(())
+    self.property.to_css(dest, self.important)
   }
 }
 
