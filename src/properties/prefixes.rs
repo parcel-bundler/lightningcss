@@ -3,17 +3,17 @@
 use serde::{Deserialize, Serialize};
 use super::VendorPrefix;
 
-#[derive(Serialize, Debug, Deserialize, Clone, Copy)]
+#[derive(Serialize, Debug, Deserialize, Clone, Copy, Default)]
 pub struct Browsers {
-  android: Option<u32>,
-  chrome: Option<u32>,
-  edge: Option<u32>,
-  firefox: Option<u32>,
-  ie: Option<u32>,
-  ios_saf: Option<u32>,
-  opera: Option<u32>,
-  safari: Option<u32>,
-  samsung: Option<u32>
+  pub android: Option<u32>,
+  pub chrome: Option<u32>,
+  pub edge: Option<u32>,
+  pub firefox: Option<u32>,
+  pub ie: Option<u32>,
+  pub ios_saf: Option<u32>,
+  pub opera: Option<u32>,
+  pub safari: Option<u32>,
+  pub samsung: Option<u32>
 }
 
 pub enum Feature {

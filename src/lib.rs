@@ -174,6 +174,11 @@ mod tests {
     assert_eq!(res, expected);
   }
 
+  fn prefix_test(source: &str, expected: &str, targets: Browsers) {
+    let res = compile(source, true, Some(targets));
+    assert_eq!(res, expected);
+  }
+
   #[test]
   pub fn test_border() {
     test(r#"
@@ -2041,5 +2046,33 @@ mod tests {
     minify_test("@page:first {margin: 0.5cm}", "@page:first{margin:.5cm}");
     minify_test("@page :blank:first {margin: 0.5cm}", "@page:blank:first{margin:.5cm}");
     minify_test("@page toc, index {margin: 0.5cm}", "@page toc,index{margin:.5cm}");
+  }
+
+  #[test]
+  fn test_prefixes() {
+    prefix_test(
+      r#"
+      .foo {
+        -webkit-transition: opacity 200ms;
+        -moz-transition: opacity 200ms;
+        transition: opacity 200ms;
+      }
+      "#, 
+      ".foo{transition:opacity .2s}",
+      Browsers {
+        chrome: Some(95 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo{transition:opacity 200ms}",
+      ".foo{-webkit-transition:opacity .2s;-moz-transition:opacity .2s;transition:opacity .2s}",
+      Browsers {
+        safari: Some(5 << 16),
+        firefox: Some(14 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 }
