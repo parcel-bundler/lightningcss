@@ -18,6 +18,7 @@ selectors = "*"
 indoc = "*"
 itertools = "*"
 smallvec = { version = "1.7.0", features = ["union"] }
+bitflags = "*"
 
 [build-dependencies]
 napi-build = { version = "1" }

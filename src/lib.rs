@@ -7,6 +7,7 @@ extern crate cssparser;
 extern crate selectors;
 extern crate itertools;
 extern crate smallvec;
+extern crate bitflags;
 
 mod parser;
 mod rules;
@@ -704,6 +705,35 @@ mod tests {
         background-position: center center;
       }
     "#, indoc! {".foo{background-position:50% 50%}"
+    });
+
+    test(r#"
+      .foo {
+        background: url(img.png) gray;
+        background-clip: content-box;
+        -webkit-background-clip: text;
+      }
+    "#, indoc! {r#"
+      .foo {
+        background: gray url(img.png) padding-box content-box;
+        -webkit-background-clip: text;
+      }
+    "#
+    });
+
+    test(r#"
+      .foo {
+        background: url(img.png) gray;
+        -webkit-background-clip: text;
+        background-clip: content-box;
+      }
+    "#, indoc! {r#"
+      .foo {
+        background: gray url(img.png);
+        -webkit-background-clip: text;
+        background-clip: content-box;
+      }
+    "#
     });
   }
 
@@ -1412,6 +1442,141 @@ mod tests {
         transition-timing-function: ease-in-out;
       }
     "#});
+
+    test(r#"
+      .foo {
+        -webkit-transition-property: opacity, color;
+        -webkit-transition-duration: 2s, 4s;
+        -webkit-transition-timing-function: ease-in-out, ease-in;
+        -webkit-transition-delay: 500ms, 0s;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-transition: opacity 2s ease-in-out .5s, color 4s ease-in;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        -webkit-transition-property: opacity, color;
+        -webkit-transition-duration: 2s, 4s;
+        -webkit-transition-timing-function: ease-in-out, ease-in;
+        -webkit-transition-delay: 500ms, 0s;
+        -moz-transition-property: opacity, color;
+        -moz-transition-duration: 2s, 4s;
+        -moz-transition-timing-function: ease-in-out, ease-in;
+        -moz-transition-delay: 500ms, 0s;
+        transition-property: opacity, color;
+        transition-duration: 2s, 4s;
+        transition-timing-function: ease-in-out, ease-in;
+        transition-delay: 500ms, 0s;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-transition: opacity 2s ease-in-out .5s, color 4s ease-in;
+        -moz-transition: opacity 2s ease-in-out .5s, color 4s ease-in;
+        transition: opacity 2s ease-in-out .5s, color 4s ease-in;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        -webkit-transition-property: opacity, color;
+        -moz-transition-property: opacity, color;
+        transition-property: opacity, color;
+        -webkit-transition-duration: 2s, 4s;
+        -moz-transition-duration: 2s, 4s;
+        transition-duration: 2s, 4s;
+        -webkit-transition-timing-function: ease-in-out, ease-in;
+        transition-timing-function: ease-in-out, ease-in;
+        -moz-transition-timing-function: ease-in-out, ease-in;
+        -webkit-transition-delay: 500ms, 0s;
+        -moz-transition-delay: 500ms, 0s;
+        transition-delay: 500ms, 0s;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-transition: opacity 2s ease-in-out .5s, color 4s ease-in;
+        -moz-transition: opacity 2s ease-in-out .5s, color 4s ease-in;
+        transition: opacity 2s ease-in-out .5s, color 4s ease-in;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        -webkit-transition-property: opacity;
+        -moz-transition-property: color;
+        transition-property: opacity, color;
+        -webkit-transition-duration: 2s;
+        -moz-transition-duration: 4s;
+        transition-duration: 2s, 4s;
+        -webkit-transition-timing-function: ease-in-out;
+        -moz-transition-timing-function: ease-in-out;
+        transition-timing-function: ease-in-out, ease-in;
+        -webkit-transition-delay: 500ms;
+        -moz-transition-delay: 0s;
+        transition-delay: 500ms, 0s;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-transition-property: opacity;
+        -moz-transition-property: color;
+        transition-property: opacity, color;
+        -webkit-transition-duration: 2s;
+        -moz-transition-duration: 4s;
+        transition-duration: 2s, 4s;
+        -webkit-transition-timing-function: ease-in-out;
+        -moz-transition-timing-function: ease-in-out;
+        -webkit-transition-delay: .5s;
+        transition-timing-function: ease-in-out, ease-in;
+        -moz-transition-delay: 0s;
+        transition-delay: .5s, 0s;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        -webkit-transition-property: opacity;
+        transition-property: opacity, color;
+        -moz-transition-property: color;
+        -webkit-transition-duration: 2s;
+        transition-duration: 2s, 4s;
+        -moz-transition-duration: 4s;
+        -webkit-transition-timing-function: ease-in-out;
+        transition-timing-function: ease-in-out, ease-in;
+        -moz-transition-timing-function: ease-in-out;
+        -webkit-transition-delay: 500ms;
+        transition-delay: 500ms, 0s;
+        -moz-transition-delay: 0s;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-transition-property: opacity;
+        transition-property: opacity, color;
+        -moz-transition-property: color;
+        -webkit-transition-duration: 2s;
+        transition-duration: 2s, 4s;
+        -moz-transition-duration: 4s;
+        -webkit-transition-timing-function: ease-in-out;
+        transition-timing-function: ease-in-out, ease-in;
+        -webkit-transition-delay: .5s;
+        -moz-transition-timing-function: ease-in-out;
+        transition-delay: .5s, 0s;
+        -moz-transition-delay: 0s;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        transition: opacity 2s;
+        -webkit-transition-duration: 2s;
+      }
+    "#, indoc! {r#"
+      .foo {
+        transition: opacity 2s;
+        -webkit-transition-duration: 2s;
+      }
+    "#});
   }
 
   #[test]
@@ -1636,6 +1801,8 @@ mod tests {
     );
     minify_test(".foo { transform: scale(calc(10% + 20%))", ".foo{transform:scale(.3)}");
     minify_test(".foo { transform: scale(calc(.1 + .2))", ".foo{transform:scale(.3)}");
+
+    minify_test(".foo { -webkit-transform: scale(calc(10% + 20%))", ".foo{-webkit-transform:scale(.3)}");
   }
 
   #[test]

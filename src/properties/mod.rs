@@ -31,15 +31,53 @@ use crate::values::{image::*, length::*, position::*, alpha::*, size::*, rect::*
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use smallvec::{SmallVec, smallvec};
+use bitflags::bitflags;
+
+bitflags! {
+  pub struct VendorPrefix: u8 {
+    const None   = 0b00000001;
+    const WebKit = 0b00000010;
+    const Moz    = 0b00000100;
+    const Ms     = 0b00001000;
+  }
+}
+
+impl Default for VendorPrefix {
+  fn default() -> VendorPrefix {
+    VendorPrefix::None
+  }
+}
+
+impl VendorPrefix {
+  pub fn from_str(s: &str) -> VendorPrefix {
+    match s {
+      "webkit" => VendorPrefix::WebKit,
+      "moz" => VendorPrefix::Moz,
+      "ms" => VendorPrefix::Ms,
+      _ => unreachable!()
+    }
+  }
+}
+
+impl ToCss for VendorPrefix {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    match *self {
+      VendorPrefix::WebKit => dest.write_str("-webkit-"),
+      VendorPrefix::Moz => dest.write_str("-moz-"),
+      VendorPrefix::Ms => dest.write_str("-ms-"),
+      _ => Ok(())
+    }
+  }
+}
 
 macro_rules! define_properties {
   (
-    $( $name: tt: $property: ident($type: ty), )+
+    $( $name: tt: $property: ident($type: ty $(, $vp: ident)?) $( / $prefix: tt )*, )+
   ) => {
     #[derive(Debug, Clone, PartialEq)]
     pub enum Property {
       $(
-        $property($type),
+        $property($type, $($vp)?),
       )+
       Custom(CustomProperty),
     }
@@ -51,10 +89,19 @@ macro_rules! define_properties {
           $(
             $name => {
               if let Ok(c) = <$type>::parse(input) {
-                return Ok(Property::$property(c))
+                return Ok(Property::$property(c, $(<$vp>::None)?))
               }
             }
           )+
+          $(
+            $(
+              concat!("-", $prefix, "-", $name) => {
+                if let Ok(c) = <$type>::parse(input) {
+                  return Ok(Property::$property(c, VendorPrefix::from_str($prefix)))
+                }
+              }
+            )*
+          )?
           _ => {}
         }
 
@@ -67,7 +114,8 @@ macro_rules! define_properties {
 
         match self {
           $(
-            $property(val) => {
+            $property(val, $($vp)?) => {
+              $($vp.to_css(dest)?;)?
               dest.write_str($name)?;
               dest.delim(':', false)?;
               val.to_css(dest)
@@ -93,7 +141,7 @@ define_properties! {
   "background-size": BackgroundSize(SmallVec<[BackgroundSize; 1]>),
   "background-repeat": BackgroundRepeat(SmallVec<[BackgroundRepeat; 1]>),
   "background-attachment": BackgroundAttachment(SmallVec<[BackgroundAttachment; 1]>),
-  "background-clip": BackgroundClip(SmallVec<[BackgroundBox; 1]>),
+  "background-clip": BackgroundClip(SmallVec<[BackgroundClip; 1]>, VendorPrefix) / "webkit" / "moz",
   "background-origin": BackgroundOrigin(SmallVec<[BackgroundBox; 1]>),
   "background": Background(SmallVec<[Background; 1]>),
 
@@ -280,11 +328,11 @@ define_properties! {
   "line-height": LineHeight(LineHeight),
   "font": Font(Font),
 
-  "transition-property": TransitionProperty(SmallVec<[CustomIdent; 1]>),
-  "transition-duration": TransitionDuration(SmallVec<[Time; 1]>),
-  "transition-delay": TransitionDelay(SmallVec<[Time; 1]>),
-  "transition-timing-function": TransitionTimingFunction(SmallVec<[EasingFunction; 1]>),
-  "transition": Transition(SmallVec<[Transition; 1]>),
+  "transition-property": TransitionProperty(SmallVec<[CustomIdent; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
+  "transition-duration": TransitionDuration(SmallVec<[Time; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
+  "transition-delay": TransitionDelay(SmallVec<[Time; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
+  "transition-timing-function": TransitionTimingFunction(SmallVec<[EasingFunction; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
+  "transition": Transition(SmallVec<[Transition; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
 
   "animation-name": AnimationName(SmallVec<[AnimationName; 1]>),
   "animation-duration": AnimationDuration(SmallVec<[Time; 1]>),
@@ -296,7 +344,7 @@ define_properties! {
   "animation-fill-mode": AnimationFillMode(SmallVec<[AnimationFillMode; 1]>),
   "animation": Animation(SmallVec<[Animation; 1]>),
 
-  "transform": Transform(TransformList),
+  "transform": Transform(TransformList, VendorPrefix) / "webkit" / "moz" / "ms",
 }
 
 impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {

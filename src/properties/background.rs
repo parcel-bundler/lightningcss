@@ -7,7 +7,7 @@ use crate::values::{
 };
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::macros::*;
-use crate::properties::Property;
+use crate::properties::{Property, VendorPrefix};
 use itertools::izip;
 use crate::printer::Printer;
 use smallvec::SmallVec;
@@ -152,6 +152,36 @@ enum_property!(BackgroundBox,
   ("content-box", ContentBox)
 );
 
+// https://drafts.csswg.org/css-backgrounds-4/#background-clip
+enum_property!(BackgroundClip,
+  ("border-box", BorderBox),
+  ("padding-box", PaddingBox),
+  ("content-box", ContentBox),
+  ("border", Border),
+  ("text", Text)
+);
+
+impl PartialEq<BackgroundBox> for BackgroundClip {
+  fn eq(&self, other: &BackgroundBox) -> bool {
+    match (self, other) {
+      (BackgroundClip::BorderBox, BackgroundBox::BorderBox) |
+      (BackgroundClip::PaddingBox, BackgroundBox::PaddingBox) |
+      (BackgroundClip::ContentBox, BackgroundBox::ContentBox) => true,
+      _ => false
+    }
+  }
+}
+
+impl Into<BackgroundClip> for BackgroundBox {
+  fn into(self) -> BackgroundClip {
+    match self {
+      BackgroundBox::BorderBox => BackgroundClip::BorderBox,
+      BackgroundBox::PaddingBox => BackgroundClip::PaddingBox,
+      BackgroundBox::ContentBox => BackgroundClip::ContentBox
+    }
+  }
+}
+
 // https://www.w3.org/TR/css-backgrounds-3/#background
 #[derive(Debug, Clone, PartialEq)]
 pub struct Background {
@@ -162,7 +192,7 @@ pub struct Background {
   size: BackgroundSize,
   attachment: BackgroundAttachment,
   origin: BackgroundBox,
-  clip: BackgroundBox
+  clip: BackgroundClip
 }
 
 impl Parse for Background {
@@ -174,7 +204,7 @@ impl Parse for Background {
     let mut repeat: Option<BackgroundRepeat> = None;
     let mut attachment: Option<BackgroundAttachment> = None;
     let mut origin: Option<BackgroundBox> = None;
-    let mut clip: Option<BackgroundBox> = None;
+    let mut clip: Option<BackgroundClip> = None;
 
     loop {
       // TODO: only allowed on the last background.
@@ -227,7 +257,7 @@ impl Parse for Background {
       }
 
       if clip.is_none() {
-        if let Ok(value) = input.try_parse(BackgroundBox::parse) {
+        if let Ok(value) = input.try_parse(BackgroundClip::parse) {
           clip = Some(value);
           continue;
         }
@@ -238,7 +268,7 @@ impl Parse for Background {
 
     if clip.is_none() {
       if let Some(origin) = origin {
-        clip = Some(origin.clone());
+        clip = Some(origin.into());
       }
     }
 
@@ -250,7 +280,7 @@ impl Parse for Background {
       size: size.unwrap_or_default(),
       attachment: attachment.unwrap_or_default(),
       origin: origin.unwrap_or(BackgroundBox::PaddingBox),
-      clip: clip.unwrap_or(BackgroundBox::BorderBox)
+      clip: clip.unwrap_or(BackgroundClip::BorderBox)
     })
   }
 }
@@ -331,7 +361,8 @@ pub struct BackgroundHandler {
   sizes: Option<SmallVec<[BackgroundSize; 1]>>,
   attachments: Option<SmallVec<[BackgroundAttachment; 1]>>,
   origins: Option<SmallVec<[BackgroundBox; 1]>>,
-  clips: Option<SmallVec<[BackgroundBox; 1]>>
+  clips: Option<SmallVec<[BackgroundClip; 1]>>,
+  decls: Vec<Property>
 }
 
 impl PropertyHandler for BackgroundHandler {
@@ -349,7 +380,14 @@ impl PropertyHandler for BackgroundHandler {
       Property::BackgroundSize(val) => self.sizes = Some(val.clone()),
       Property::BackgroundAttachment(val) => self.attachments = Some(val.clone()),
       Property::BackgroundOrigin(val) => self.origins = Some(val.clone()),
-      Property::BackgroundClip(val) => self.clips = Some(val.clone()),
+      Property::BackgroundClip(val, vendor_prefix) => {
+        if *vendor_prefix == VendorPrefix::None {
+          self.clips = Some(val.clone());
+        } else {
+          self.flush();
+          self.decls.push(property.clone())
+        }
+      },
       Property::Background(val) => {
         self.color = Some(val.last().unwrap().color.clone());
         self.images = Some(val.iter().map(|b| b.image.clone()).collect());
@@ -368,8 +406,13 @@ impl PropertyHandler for BackgroundHandler {
   }
 
   fn finalize(&mut self) -> Vec<Property> {
-    let mut decls = vec![];
-    
+    self.flush();
+    std::mem::take(&mut self.decls)
+  }
+}
+
+impl BackgroundHandler {
+  fn flush(&mut self) {    
     let color = std::mem::take(&mut self.color);
     let mut images = std::mem::take(&mut self.images);
     let mut x_positions = std::mem::take(&mut self.x_positions);
@@ -403,55 +446,68 @@ impl PropertyHandler for BackgroundHandler {
             clip
           }
         }).collect();
-        decls.push(Property::Background(backgrounds));
-        return decls
+        self.decls.push(Property::Background(backgrounds));
+        self.reset();
+        return
       }
     }
 
     if let Some(color) = color {
-      decls.push(Property::BackgroundColor(color))
+      self.decls.push(Property::BackgroundColor(color))
     }
 
     if let Some(images) = images {
-      decls.push(Property::BackgroundImage(images))
+      self.decls.push(Property::BackgroundImage(images))
     }
 
     match (&mut x_positions, &mut y_positions) {
       (Some(x_positions), Some(y_positions)) if x_positions.len() == y_positions.len() => {
         let positions = izip!(x_positions.drain(..), y_positions.drain(..)).map(|(x, y)| Position {x, y}).collect();
-        decls.push(Property::BackgroundPosition(positions))
+        self.decls.push(Property::BackgroundPosition(positions))
       }
       _ => {
         if let Some(x_positions) = x_positions {
-          decls.push(Property::BackgroundPositionX(x_positions))
+          self.decls.push(Property::BackgroundPositionX(x_positions))
         }
   
         if let Some(y_positions) = y_positions {
-          decls.push(Property::BackgroundPositionY(y_positions))
+          self.decls.push(Property::BackgroundPositionY(y_positions))
         }
       }
     }
 
     if let Some(repeats) = repeats {
-      decls.push(Property::BackgroundRepeat(repeats))
+      self.decls.push(Property::BackgroundRepeat(repeats))
     }
 
     if let Some(sizes) = sizes {
-      decls.push(Property::BackgroundSize(sizes))
+      self.decls.push(Property::BackgroundSize(sizes))
     }
 
     if let Some(attachments) = attachments {
-      decls.push(Property::BackgroundAttachment(attachments))
+      self.decls.push(Property::BackgroundAttachment(attachments))
     }
 
     if let Some(origins) = origins {
-      decls.push(Property::BackgroundOrigin(origins))
+      self.decls.push(Property::BackgroundOrigin(origins))
     }
 
     if let Some(clips) = clips {
-      decls.push(Property::BackgroundClip(clips))
+      self.decls.push(Property::BackgroundClip(clips, VendorPrefix::None))
     }
 
-    decls
+    self.reset();
+  }
+
+  fn reset(&mut self) {
+    self.color = None;
+    self.images = None;
+    self.x_positions = None;
+    self.y_positions = None;
+    self.repeats = None;
+    self.sizes = None;
+    self.attachments = None;
+    self.origins = None;
+    self.clips = None
   }
 }
