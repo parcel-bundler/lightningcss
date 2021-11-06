@@ -9,6 +9,10 @@ extern crate itertools;
 extern crate smallvec;
 extern crate bitflags;
 
+#[cfg(target_os = "macos")]
+#[global_allocator]
+static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
 mod parser;
 mod rules;
 mod declaration;
