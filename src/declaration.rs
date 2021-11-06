@@ -82,19 +82,32 @@ impl DeclarationHandler {
 
   pub fn finalize(&mut self) -> Vec<Declaration> {
     let important = self.important;
-    self.background.finalize().drain(..)
-      .chain(self.border.finalize().drain(..))
-      .chain(self.outline.finalize().drain(..))
-      .chain(self.flex.finalize().drain(..))
-      .chain(self.align.finalize().drain(..))
-      .chain(self.margin.finalize().drain(..))
-      .chain(self.padding.finalize().drain(..))
-      .chain(self.scroll_margin.finalize().drain(..))
-      .chain(self.scroll_padding.finalize().drain(..))
-      .chain(self.font.finalize().drain(..))
-      .chain(self.transition.finalize().drain(..))
-      .chain(self.animation.finalize().drain(..))
-      .map(|property| Declaration { property, important })
-      .collect()
+    let mut background = self.background.finalize();
+    let mut border = self.border.finalize();
+    let mut outline = self.outline.finalize();
+    let mut flex = self.flex.finalize();
+    let mut align = self.align.finalize();
+    let mut margin = self.margin.finalize();
+    let mut padding = self.padding.finalize();
+    let mut scroll_margin = self.scroll_margin.finalize();
+    let mut scroll_padding = self.scroll_padding.finalize();
+    let mut font = self.font.finalize();
+    let mut transition = self.transition.finalize();
+    let mut animation = self.animation.finalize();
+
+    let mut decls = Vec::with_capacity(background.len() + border.len() + outline.len() + flex.len() + align.len() + margin.len() + padding.len() + scroll_margin.len() + scroll_padding.len() + font.len() + transition.len() + animation.len());
+    decls.extend(background.drain(..).map(|property| Declaration { property, important }));
+    decls.extend(border.drain(..).map(|property| Declaration { property, important }));
+    decls.extend(outline.drain(..).map(|property| Declaration { property, important }));
+    decls.extend(flex.drain(..).map(|property| Declaration { property, important }));
+    decls.extend(align.drain(..).map(|property| Declaration { property, important }));
+    decls.extend(margin.drain(..).map(|property| Declaration { property, important }));
+    decls.extend(padding.drain(..).map(|property| Declaration { property, important }));
+    decls.extend(scroll_margin.drain(..).map(|property| Declaration { property, important }));
+    decls.extend(scroll_padding.drain(..).map(|property| Declaration { property, important }));
+    decls.extend(font.drain(..).map(|property| Declaration { property, important }));
+    decls.extend(transition.drain(..).map(|property| Declaration { property, important }));
+    decls.extend(animation.drain(..).map(|property| Declaration { property, important }));
+    decls
   }
 }
