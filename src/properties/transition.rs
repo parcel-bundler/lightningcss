@@ -6,6 +6,7 @@ use crate::printer::Printer;
 use std::fmt::Write;
 use itertools::izip;
 use smallvec::SmallVec;
+use super::prefixes::{Browsers, Feature};
 
 /// https://www.w3.org/TR/2018/WD-css-transitions-1-20181011/#transition-shorthand-property
 #[derive(Debug, Clone, PartialEq)]
@@ -88,6 +89,7 @@ impl ToCss for Transition {
 
 #[derive(Default)]
 pub struct TransitionHandler {
+  targets: Option<Browsers>,
   properties: Option<(SmallVec<[CustomIdent; 1]>, VendorPrefix)>,
   durations: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   delays: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
@@ -95,12 +97,21 @@ pub struct TransitionHandler {
   decls: Vec<Property>
 }
 
+impl TransitionHandler {
+  pub fn new(targets: Option<Browsers>) -> TransitionHandler {
+    TransitionHandler {
+      targets,
+      ..TransitionHandler::default()
+    }
+  }
+}
+
 impl PropertyHandler for TransitionHandler {
   fn handle_property(&mut self, property: &Property) -> bool {
     use Property::*;
 
     macro_rules! property {
-      ($prop: ident, $val: expr, $vp: ident) => {{
+      ($feature: ident, $prop: ident, $val: expr, $vp: ident) => {{
         // If two vendor prefixes for the same property have different
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
@@ -113,29 +124,43 @@ impl PropertyHandler for TransitionHandler {
         if let Some((val, prefixes)) = &mut self.$prop {
           *val = $val.clone();
           *prefixes |= *$vp;
+          if prefixes.contains(VendorPrefix::None) {
+            if let Some(targets) = self.targets {
+              *prefixes = VendorPrefix::None | Feature::$feature.prefixes_for(targets);
+            }
+          }
         } else {
-          self.$prop = Some(($val.clone(), *$vp))
+          let prefixes = if $vp.contains(VendorPrefix::None) {
+            if let Some(targets) = self.targets {
+              VendorPrefix::None | Feature::$feature.prefixes_for(targets)
+            } else {
+              *$vp
+            }
+          } else {
+            *$vp
+          };
+          self.$prop = Some(($val.clone(), prefixes))
         }
       }};
     }
 
     match property {
-      TransitionProperty(val, vp) => property!(properties, val, vp),
-      TransitionDuration(val, vp) => property!(durations, val, vp),
-      TransitionDelay(val, vp) => property!(delays, val, vp),
-      TransitionTimingFunction(val, vp) => property!(timing_functions, val, vp),
+      TransitionProperty(val, vp) => property!(TransitionProperty, properties, val, vp),
+      TransitionDuration(val, vp) => property!(TransitionDuration, durations, val, vp),
+      TransitionDelay(val, vp) => property!(TransitionDelay, delays, val, vp),
+      TransitionTimingFunction(val, vp) => property!(TransitionTimingFunction, timing_functions, val, vp),
       Transition(val, vp) => {
         let properties: SmallVec<[CustomIdent; 1]> = val.iter().map(|b| b.property.clone()).collect();
-        property!(properties, &properties, vp);
+        property!(TransitionProperty, properties, &properties, vp);
 
         let durations: SmallVec<[Time; 1]> = val.iter().map(|b| b.duration.clone()).collect();
-        property!(durations, &durations, vp);
+        property!(TransitionDuration, durations, &durations, vp);
 
         let delays: SmallVec<[Time; 1]> = val.iter().map(|b| b.delay.clone()).collect();
-        property!(delays, &delays, vp);
+        property!(TransitionDelay, delays, &delays, vp);
 
         let timing_functions: SmallVec<[EasingFunction; 1]> = val.iter().map(|b| b.timing_function.clone()).collect();
-        property!(timing_functions, &timing_functions, vp);
+        property!(TransitionTimingFunction, timing_functions, &timing_functions, vp);
       }
       _ => return false
     }

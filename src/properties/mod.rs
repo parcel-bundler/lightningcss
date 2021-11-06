@@ -12,6 +12,7 @@ pub mod border_radius;
 pub mod transition;
 pub mod animation;
 pub mod transform;
+pub mod prefixes;
 
 use cssparser::*;
 use custom::*;
@@ -40,6 +41,7 @@ bitflags! {
     const WebKit = 0b00000010;
     const Moz    = 0b00000100;
     const Ms     = 0b00001000;
+    const O      = 0b00010000;
   }
 }
 
@@ -55,6 +57,7 @@ impl VendorPrefix {
       "webkit" => VendorPrefix::WebKit,
       "moz" => VendorPrefix::Moz,
       "ms" => VendorPrefix::Ms,
+      "o" => VendorPrefix::O,
       _ => unreachable!()
     }
   }
@@ -66,6 +69,7 @@ impl ToCss for VendorPrefix {
       VendorPrefix::WebKit => dest.write_str("-webkit-"),
       VendorPrefix::Moz => dest.write_str("-moz-"),
       VendorPrefix::Ms => dest.write_str("-ms-"),
+      VendorPrefix::O => dest.write_str("-o-"),
       _ => Ok(())
     }
   }
@@ -157,7 +161,8 @@ macro_rules! define_properties {
               $(
                 write!($vp, VendorPrefix::WebKit);
                 write!($vp, VendorPrefix::Moz);
-                write!($vp, VendorPrefix::Ms);  
+                write!($vp, VendorPrefix::Ms);
+                write!($vp, VendorPrefix::O);
               )?
 
               write!($($vp,)? VendorPrefix::None);

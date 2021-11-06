@@ -11,6 +11,7 @@ use crate::rules::keyframes::{KeyframeListParser, KeyframesRule};
 use crate::rules::font_face::{FontFaceRule, FontFaceDeclarationParser};
 use crate::rules::page::{PageSelector, PageRule};
 use crate::declaration::{Declaration, DeclarationHandler};
+use crate::properties::prefixes::Browsers;
 
 #[derive(Eq, PartialEq, Clone)]
 pub struct CssString(RefCell<String>);
@@ -355,9 +356,9 @@ impl ToCss for DeclarationBlock {
 }
 
 impl DeclarationBlock {
-  pub fn minify(&mut self) {
-    let mut handler = DeclarationHandler::new(false);
-    let mut important_handler = DeclarationHandler::new(true);
+  pub fn minify(&mut self, targets: Option<Browsers>) {
+    let mut handler = DeclarationHandler::new(false, targets);
+    let mut important_handler = DeclarationHandler::new(true, targets);
 
     let mut decls: Vec<Declaration> = vec![];
     for decl in self.declarations.iter() {

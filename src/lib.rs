@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 use cssparser::{Parser, ParserInput, RuleListParser};
 use crate::traits::ToCss;
 use printer::Printer;
-use std::fmt::Write;
+use properties::prefixes::Browsers;
 
 use parser::TopLevelRuleParser;
 
@@ -34,6 +34,7 @@ struct Config {
   filename: String,
   #[serde(with = "serde_bytes")]
   code: Vec<u8>,
+  targets: Option<Browsers>
 }
 
 #[js_function(1)]
@@ -47,12 +48,12 @@ fn transform(ctx: CallContext) -> napi::Result<JsBuffer> {
   //   println!("{:?}", declarations);
   // }
 
-  let res = compile(code, true);
+  let res = compile(code, true, config.targets);
 
   Ok(ctx.env.create_buffer_with_data(res.into_bytes())?.into_raw())
 }
 
-fn compile(code: &str, minify: bool) -> String {
+fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> String {
   let mut input = ParserInput::new(&code);
   let mut parser = Parser::new(&mut input);
   let rule_list = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser {});
@@ -78,7 +79,7 @@ fn compile(code: &str, minify: bool) -> String {
       },
       parser::CssRule::Keyframes(mut keyframes) => {
         for keyframe in keyframes.keyframes.iter_mut() {
-          keyframe.declarations.minify();
+          keyframe.declarations.minify(targets);
         }
         parser::CssRule::Keyframes(keyframes)
       }
@@ -101,12 +102,12 @@ fn compile(code: &str, minify: bool) -> String {
           }
         }
 
-        style.declarations.minify();
+        style.declarations.minify(targets);
 
         if let Some(parser::CssRule::Style(last_style_rule)) = rules.last_mut() {
           if style.selectors == last_style_rule.selectors {
             last_style_rule.declarations.declarations.extend(style.declarations.declarations);
-            last_style_rule.declarations.minify();
+            last_style_rule.declarations.minify(targets);
             continue
           } else if style.declarations == last_style_rule.declarations {
             last_style_rule.selectors.0.extend(style.selectors.0);
@@ -149,12 +150,12 @@ mod tests {
   use self::indoc::indoc;
 
   fn test(source: &str, expected: &str) {
-    let res = compile(source, false);
+    let res = compile(source, false, None);
     assert_eq!(res, expected);
   }
 
   fn minify_test(source: &str, expected: &str) {
-    let res = compile(source, true);
+    let res = compile(source, true, None);
     assert_eq!(res, expected);
   }
 

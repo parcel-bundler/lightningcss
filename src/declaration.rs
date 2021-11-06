@@ -13,6 +13,7 @@ use crate::properties::{
   transition::TransitionHandler,
   animation::AnimationHandler
 };
+use crate::properties::prefixes::Browsers;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Declaration {
@@ -55,9 +56,10 @@ pub struct DeclarationHandler {
 }
 
 impl DeclarationHandler {
-  pub fn new(important: bool) -> Self {
+  pub fn new(important: bool, targets: Option<Browsers>) -> Self {
     DeclarationHandler {
       important,
+      transition: TransitionHandler::new(targets),
       ..DeclarationHandler::default()
     }
   }
