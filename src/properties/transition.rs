@@ -126,13 +126,13 @@ impl PropertyHandler for TransitionHandler {
           *prefixes |= *$vp;
           if prefixes.contains(VendorPrefix::None) {
             if let Some(targets) = self.targets {
-              *prefixes = VendorPrefix::None | Feature::$feature.prefixes_for(targets);
+              *prefixes = Feature::$feature.prefixes_for(targets);
             }
           }
         } else {
           let prefixes = if $vp.contains(VendorPrefix::None) {
             if let Some(targets) = self.targets {
-              VendorPrefix::None | Feature::$feature.prefixes_for(targets)
+              Feature::$feature.prefixes_for(targets)
             } else {
               *$vp
             }
