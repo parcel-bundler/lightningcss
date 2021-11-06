@@ -83,6 +83,17 @@ fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> String {
         }
         parser::CssRule::Keyframes(keyframes)
       }
+      parser::CssRule::Media(mut media) => {
+        for rule in media.rules.iter_mut() {
+          match rule {
+            parser::CssRule::Style(style) => {
+              style.declarations.minify(targets)
+            }
+            _ => {}
+          }
+        }
+        parser::CssRule::Media(media)
+      }
       parser::CssRule::Style(mut style) => {
         for selector in style.selectors.0.iter() {
           for x in selector.iter() {

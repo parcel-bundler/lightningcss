@@ -279,8 +279,8 @@ struct NestedRuleParser {
 
 #[derive(Debug, PartialEq)]
 pub struct MediaRule {
-  query: MediaList,
-  rules: Vec<CssRule>
+  pub query: MediaList,
+  pub rules: Vec<CssRule>
 }
 
 impl ToCss for MediaRule {
