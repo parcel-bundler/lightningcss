@@ -14,6 +14,10 @@ pub struct TransformList(pub Vec<Transform>);
 
 impl Parse for TransformList {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
+      return Ok(TransformList(vec![]))
+    }
+
     input.skip_whitespace();
     let mut results = vec![Transform::parse(input)?];
     loop {
@@ -29,6 +33,11 @@ impl Parse for TransformList {
 
 impl ToCss for TransformList {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    if self.0.is_empty() {
+      dest.write_str("none")?;
+      return Ok(())
+    }
+
     if dest.minify {
       // Combine transforms into a single matrix.
       if let Some(matrix) = self.to_matrix() {

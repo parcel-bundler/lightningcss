@@ -13,6 +13,7 @@ pub mod transition;
 pub mod animation;
 pub mod transform;
 pub mod prefixes;
+pub mod prefix_handler;
 
 use cssparser::*;
 use custom::*;

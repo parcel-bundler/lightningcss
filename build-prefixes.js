@@ -76,16 +76,16 @@ impl Feature {
       ${Object.entries(p).map(([name, versions]) => {
         return `Feature::${enumify(name)} => {
         ${Object.entries(versions).map(([name, prefixes]) => {
-          return Object.entries(prefixes).map(([prefix, [min, max]]) => {
+          return `if let Some(version) = browsers.${name} {
+          ${Object.entries(prefixes).map(([prefix, [min, max]]) => {
             if (!prefixMapping[prefix]) {
               throw new Error('Missing prefix ' + prefix);
             }
-            return `if let Some(version) = browsers.${name} {
-          if version > ${min} && version < ${max} {
+            return `if version > ${min} && version < ${max} {
             prefixes |= VendorPrefix::${prefixMapping[prefix]};
-          }
-        }`
-          }).join('\n        ');
+          }`
+          }).join('\n          ')}
+        }`;
         }).join('\n        ')}
       }`
       }).join(',\n      ')}

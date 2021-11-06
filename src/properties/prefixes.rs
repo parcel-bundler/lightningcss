@@ -392,8 +392,6 @@ impl Feature {
           if version > 786432 && version < 786432 {
             prefixes |= VendorPrefix::O;
           }
-        }
-        if let Some(version) = browsers.opera {
           if version > 983040 && version < 1900544 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -429,8 +427,6 @@ impl Feature {
           if version > 786432 && version < 786432 {
             prefixes |= VendorPrefix::O;
           }
-        }
-        if let Some(version) = browsers.opera {
           if version > 983040 && version < 1900544 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -466,8 +462,6 @@ impl Feature {
           if version > 786432 && version < 786432 {
             prefixes |= VendorPrefix::O;
           }
-        }
-        if let Some(version) = browsers.opera {
           if version > 983040 && version < 1900544 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -503,8 +497,6 @@ impl Feature {
           if version > 786432 && version < 786432 {
             prefixes |= VendorPrefix::O;
           }
-        }
-        if let Some(version) = browsers.opera {
           if version > 983040 && version < 1900544 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -540,8 +532,6 @@ impl Feature {
           if version > 786432 && version < 786432 {
             prefixes |= VendorPrefix::O;
           }
-        }
-        if let Some(version) = browsers.opera {
           if version > 983040 && version < 1900544 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -577,8 +567,6 @@ impl Feature {
           if version > 786432 && version < 786432 {
             prefixes |= VendorPrefix::O;
           }
-        }
-        if let Some(version) = browsers.opera {
           if version > 983040 && version < 1900544 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -614,8 +602,6 @@ impl Feature {
           if version > 786432 && version < 786432 {
             prefixes |= VendorPrefix::O;
           }
-        }
-        if let Some(version) = browsers.opera {
           if version > 983040 && version < 1900544 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -651,8 +637,6 @@ impl Feature {
           if version > 786432 && version < 786432 {
             prefixes |= VendorPrefix::O;
           }
-        }
-        if let Some(version) = browsers.opera {
           if version > 983040 && version < 1900544 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -688,8 +672,6 @@ impl Feature {
           if version > 786432 && version < 786432 {
             prefixes |= VendorPrefix::O;
           }
-        }
-        if let Some(version) = browsers.opera {
           if version > 983040 && version < 1900544 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -725,8 +707,6 @@ impl Feature {
           if version > 786432 && version < 786432 {
             prefixes |= VendorPrefix::O;
           }
-        }
-        if let Some(version) = browsers.opera {
           if version > 983040 && version < 1900544 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -927,8 +907,6 @@ impl Feature {
           if version > 656640 && version < 786432 {
             prefixes |= VendorPrefix::O;
           }
-        }
-        if let Some(version) = browsers.opera {
           if version > 983040 && version < 1441792 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -969,8 +947,6 @@ impl Feature {
           if version > 656640 && version < 786432 {
             prefixes |= VendorPrefix::O;
           }
-        }
-        if let Some(version) = browsers.opera {
           if version > 983040 && version < 1441792 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -2434,8 +2410,6 @@ impl Feature {
           if version > 786432 && version < 917504 {
             prefixes |= VendorPrefix::Ms;
           }
-        }
-        if let Some(version) = browsers.edge {
           if version > 5177344 && version < 6225920 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -2768,8 +2742,6 @@ impl Feature {
           if version > 4915200 && version < 4915200 {
             prefixes |= VendorPrefix::WebKit;
           }
-        }
-        if let Some(version) = browsers.opera {
           if version > 4128768 && version < 4128768 {
             prefixes |= VendorPrefix::O;
           }
@@ -2820,8 +2792,6 @@ impl Feature {
           if version > 655616 && version < 4259840 {
             prefixes |= VendorPrefix::O;
           }
-        }
-        if let Some(version) = browsers.opera {
           if version > 983040 && version < 5308416 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -4500,8 +4470,6 @@ impl Feature {
           if version > 786432 && version < 1179648 {
             prefixes |= VendorPrefix::Ms;
           }
-        }
-        if let Some(version) = browsers.edge {
           if version > 5177344 && version < 5439488 {
             prefixes |= VendorPrefix::WebKit;
           }

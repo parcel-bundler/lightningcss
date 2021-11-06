@@ -11,7 +11,8 @@ use crate::properties::{
   outline::OutlineHandler,
   border::BorderHandler,
   transition::TransitionHandler,
-  animation::AnimationHandler
+  animation::AnimationHandler,
+  prefix_handler::PrefixHandler,
 };
 use crate::properties::prefixes::Browsers;
 
@@ -52,7 +53,8 @@ pub struct DeclarationHandler {
   scroll_padding: ScrollPaddingHandler,
   font: FontHandler,
   transition: TransitionHandler,
-  animation: AnimationHandler
+  animation: AnimationHandler,
+  prefix: PrefixHandler
 }
 
 impl DeclarationHandler {
@@ -60,6 +62,7 @@ impl DeclarationHandler {
     DeclarationHandler {
       important,
       transition: TransitionHandler::new(targets),
+      prefix: PrefixHandler::new(targets),
       ..DeclarationHandler::default()
     }
   }
@@ -77,7 +80,8 @@ impl DeclarationHandler {
     self.scroll_padding.handle_property(property) ||
     self.font.handle_property(property) ||
     self.transition.handle_property(property) ||
-    self.animation.handle_property(property)
+    self.animation.handle_property(property) ||
+    self.prefix.handle_property(property)
   }
 
   pub fn finalize(&mut self) -> Vec<Declaration> {
@@ -94,8 +98,9 @@ impl DeclarationHandler {
     let mut font = self.font.finalize();
     let mut transition = self.transition.finalize();
     let mut animation = self.animation.finalize();
+    let mut prefixed = self.prefix.finalize();
 
-    let mut decls = Vec::with_capacity(background.len() + border.len() + outline.len() + flex.len() + align.len() + margin.len() + padding.len() + scroll_margin.len() + scroll_padding.len() + font.len() + transition.len() + animation.len());
+    let mut decls = Vec::with_capacity(background.len() + border.len() + outline.len() + flex.len() + align.len() + margin.len() + padding.len() + scroll_margin.len() + scroll_padding.len() + font.len() + transition.len() + animation.len() + prefixed.len());
     decls.extend(background.drain(..).map(|property| Declaration { property, important }));
     decls.extend(border.drain(..).map(|property| Declaration { property, important }));
     decls.extend(outline.drain(..).map(|property| Declaration { property, important }));
@@ -108,6 +113,7 @@ impl DeclarationHandler {
     decls.extend(font.drain(..).map(|property| Declaration { property, important }));
     decls.extend(transition.drain(..).map(|property| Declaration { property, important }));
     decls.extend(animation.drain(..).map(|property| Declaration { property, important }));
+    decls.extend(prefixed.drain(..).map(|property| Declaration { property, important }));
     decls
   }
 }
