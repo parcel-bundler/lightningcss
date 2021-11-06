@@ -397,7 +397,14 @@ define_properties! {
   "animation-fill-mode": AnimationFillMode(SmallVec<[AnimationFillMode; 1]>),
   "animation": Animation(SmallVec<[Animation; 1]>),
 
-  "transform": Transform(TransformList, VendorPrefix) / "webkit" / "moz" / "ms",
+  // https://drafts.csswg.org/css-transforms-2/
+  "transform": Transform(TransformList, VendorPrefix) / "webkit" / "moz" / "ms" / "o",
+  "transform-origin": TransformOrigin(Position, VendorPrefix) / "webkit" / "moz" / "ms" / "o", // TODO: handle z offset syntax
+  "transform-style": TransformStyle(TransformStyle, VendorPrefix) / "webkit" / "moz",
+  "transform-box": TransformBox(TransformBox),
+  "backface-visibility": BackfaceVisibility(BackfaceVisibility, VendorPrefix) / "webkit" / "moz",
+  "perspective": Perspective(Perspective, VendorPrefix) / "webkit" / "moz",
+  "perspective-origin": PerspectiveOrigin(Position, VendorPrefix) / "webkit" / "moz",
 }
 
 impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {

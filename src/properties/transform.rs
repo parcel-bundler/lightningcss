@@ -5,6 +5,7 @@ use crate::values::{
   percentage::NumberOrPercentage,
   length::{LengthPercentage, Length}
 };
+use crate::macros::enum_property;
 use crate::printer::Printer;
 use std::fmt::Write;
 
@@ -1138,5 +1139,52 @@ impl Transform {
       _ => {}
     }
     None
+  }
+}
+
+// https://drafts.csswg.org/css-transforms-2/#transform-style-property
+enum_property!(TransformStyle,
+  ("flat", Flat),
+  ("preserve-3d", Preserve3d)
+);
+
+// https://drafts.csswg.org/css-transforms-1/#transform-box
+enum_property!(TransformBox,
+  ("content-box", ContentBox),
+  ("border-box", BorderBox),
+  ("fill-box", FillBox),
+  ("stroke-box", StrokeBox),
+  ("view-box", ViewBox)
+);
+
+// https://drafts.csswg.org/css-transforms-2/#backface-visibility-property
+enum_property!(BackfaceVisibility,
+  Visible,
+  Hidden
+);
+
+/// https://drafts.csswg.org/css-transforms-2/#perspective-property
+#[derive(Debug, Clone, PartialEq)]
+pub enum Perspective {
+  None,
+  Length(Length)
+}
+
+impl Parse for Perspective {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
+      return Ok(Perspective::None)
+    }
+
+    Ok(Perspective::Length(Length::parse(input)?))
+  }
+}
+
+impl ToCss for Perspective {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    match self {
+      Perspective::None => dest.write_str("none"),
+      Perspective::Length(len) => len.to_css(dest)
+    }
   }
 }
