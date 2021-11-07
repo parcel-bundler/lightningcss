@@ -198,7 +198,7 @@ define_properties! {
   "background-origin": BackgroundOrigin(SmallVec<[BackgroundBox; 1]>),
   "background": Background(SmallVec<[Background; 1]>),
 
-  "box-shadow": BoxShadow(SmallVec<[BoxShadow; 1]>),
+  "box-shadow": BoxShadow(SmallVec<[BoxShadow; 1]>, VendorPrefix) / "webkit" / "moz",
   "opacity": Opacity(AlphaValue),
 
   "color": Color(CssColor),
@@ -215,6 +215,7 @@ define_properties! {
   "min-inline-size": MinInlineSize(MinMaxSize),
   "max-block-size": MaxBlockSize(MinMaxSize),
   "max-inline-size": MaxInlineSize(MinMaxSize),
+  "box-sizing": BoxSizing(BoxSizing, VendorPrefix) / "webkit" / "moz",
 
   "top": Top(LengthPercentageOrAuto),
   "bottom": Bottom(LengthPercentageOrAuto),

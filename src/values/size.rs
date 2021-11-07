@@ -2,6 +2,7 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use super::length::LengthPercentage;
+use crate::macros::enum_property;
 
 /// https://drafts.csswg.org/css-sizing-3/#specifying-sizes
 
@@ -140,3 +141,9 @@ fn parse_fit_content<'i, 't>(input: &mut Parser<'i, 't>) -> Result<LengthPercent
   input.expect_function_matching("fit-content")?;
   input.parse_nested_block(|input| LengthPercentage::parse(input))
 }
+
+// https://drafts.csswg.org/css-sizing-3/#box-sizing
+enum_property!(BoxSizing,
+  ("content-box", ContentBox),
+  ("border-box", BorderBox)
+);
