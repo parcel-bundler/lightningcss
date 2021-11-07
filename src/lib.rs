@@ -47,11 +47,6 @@ fn transform(ctx: CallContext) -> napi::Result<JsBuffer> {
   let config: Config = ctx.env.from_js_value(opts)?;
 
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
-
-  // for (pos, declarations) in rule_list.flatten() {
-  //   println!("{:?}", declarations);
-  // }
-
   let res = compile(code, true, config.targets);
 
   Ok(ctx.env.create_buffer_with_data(res.into_bytes())?.into_raw())
@@ -62,17 +57,17 @@ fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> String {
   let mut parser = Parser::new(&mut input);
   let rule_list = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser {});
 
-  // for (pos, declarations) in rule_list.flatten() {
-  //   println!("{:?}", declarations);
-  // }
-
   let mut dest = String::new();
   let mut printer = Printer::new(&mut dest, minify);
   let mut first = true;
-  // let mut last_style_rule = None;
   let mut rules = vec![];
 
-  for (pos, rule) in rule_list.flatten() {
+  for rule in rule_list {
+    let rule = if let Ok((_, rule)) = rule {
+      rule
+    } else {
+      continue
+    };
     // println!("{:?}", rule);
     let rule = match rule {
       parser::CssRule::Import(import) => {

@@ -1,11 +1,11 @@
 use cssparser::*;
 use crate::values::percentage::Percentage;
 use crate::traits::{Parse, ToCss};
-use crate::properties::Property;
 use crate::parser::{PropertyDeclarationParser, DeclarationBlock};
 use crate::printer::Printer;
 use std::fmt::Write;
 
+// TODO: preserve vendor prefix
 #[derive(Debug, PartialEq)]
 pub struct KeyframesRule {
   pub name: String,
@@ -122,8 +122,13 @@ impl<'a, 'i> QualifiedRuleParser<'i> for KeyframeListParser {
     start: &ParserState,
     input: &mut Parser<'i, 't>,
   ) -> Result<Self::QualifiedRule, ParseError<'i, ()>> {
-    let parser = DeclarationListParser::new(input, PropertyDeclarationParser);
-    let declarations: Vec<_> = parser.flatten().collect();
+    let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser);
+    let mut declarations = vec![];
+    while let Some(decl) = parser.next() {
+      if let Ok(decl) = decl {
+        declarations.push(decl);
+      }
+    }
     Ok(Keyframe {
       selectors,
       declarations: DeclarationBlock {

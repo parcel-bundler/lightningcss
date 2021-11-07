@@ -525,8 +525,13 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
   ) -> Result<CssRule, ParseError<'i, Self::Error>> {
       match prelude {
           AtRulePrelude::FontFace => {
-            let parser = DeclarationListParser::new(input, FontFaceDeclarationParser);
-            let properties: Vec<_> = parser.flatten().collect();
+            let mut parser = DeclarationListParser::new(input, FontFaceDeclarationParser);
+            let mut properties = vec![];
+            while let Some(decl) = parser.next() {
+              if let Ok(decl) = decl {
+                properties.push(decl);
+              }
+            }
             Ok(CssRule::FontFace(FontFaceRule {
               properties
             }))
@@ -618,8 +623,13 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
               }))
           },
           AtRulePrelude::Page(selectors) => {
-            let parser = DeclarationListParser::new(input, PropertyDeclarationParser);
-            let declarations: Vec<_> = parser.flatten().collect();
+            let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser);
+            let mut declarations = vec![];
+            while let Some(decl) = parser.next() {
+              if let Ok(decl) = decl {
+                declarations.push(decl);
+              }
+            }
             Ok(CssRule::Page(PageRule {
               selectors,
               declarations: DeclarationBlock {
@@ -682,8 +692,14 @@ impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser {
       //     block,
       //     source_location: start.source_location(),
       // }))))
-      let parser = DeclarationListParser::new(input, PropertyDeclarationParser);
-      let declarations: Vec<_> = parser.flatten().collect();
+      let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser);
+      let mut declarations = vec![];
+      while let Some(decl) = parser.next() {
+        if let Ok(decl) = decl {
+          declarations.push(decl);
+        }
+      }
+
       // Ok((prelude, declarations))
       Ok(CssRule::Style(StyleRule {
         selectors,
