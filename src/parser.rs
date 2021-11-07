@@ -356,10 +356,7 @@ impl ToCss for DeclarationBlock {
 }
 
 impl DeclarationBlock {
-  pub fn minify(&mut self, targets: Option<Browsers>) {
-    let mut handler = DeclarationHandler::new(false, targets);
-    let mut important_handler = DeclarationHandler::new(true, targets);
-
+  pub fn minify(&mut self, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
     let mut decls: Vec<Declaration> = vec![];
     for decl in self.declarations.iter() {
       let handled = 

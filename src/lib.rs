@@ -30,6 +30,7 @@ use cssparser::{Parser, ParserInput, RuleListParser};
 use crate::traits::ToCss;
 use printer::Printer;
 use properties::prefixes::Browsers;
+use declaration::DeclarationHandler;
 
 use parser::TopLevelRuleParser;
 
@@ -62,6 +63,9 @@ fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> String {
   let mut first = true;
   let mut rules = vec![];
 
+  let mut handler = DeclarationHandler::new(false, targets);
+  let mut important_handler = DeclarationHandler::new(true, targets);
+
   for rule in rule_list {
     let rule = if let Ok((_, rule)) = rule {
       rule
@@ -78,7 +82,7 @@ fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> String {
       },
       parser::CssRule::Keyframes(mut keyframes) => {
         for keyframe in keyframes.keyframes.iter_mut() {
-          keyframe.declarations.minify(targets);
+          keyframe.declarations.minify(&mut handler, &mut important_handler);
         }
         parser::CssRule::Keyframes(keyframes)
       }
@@ -86,7 +90,7 @@ fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> String {
         for rule in media.rules.iter_mut() {
           match rule {
             parser::CssRule::Style(style) => {
-              style.declarations.minify(targets)
+              style.declarations.minify(&mut handler, &mut important_handler)
             }
             _ => {}
           }
@@ -112,12 +116,12 @@ fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> String {
           }
         }
 
-        style.declarations.minify(targets);
+        style.declarations.minify(&mut handler, &mut important_handler);
 
         if let Some(parser::CssRule::Style(last_style_rule)) = rules.last_mut() {
           if style.selectors == last_style_rule.selectors {
             last_style_rule.declarations.declarations.extend(style.declarations.declarations);
-            last_style_rule.declarations.minify(targets);
+            last_style_rule.declarations.minify(&mut handler, &mut important_handler);
             continue
           } else if style.declarations == last_style_rule.declarations {
             last_style_rule.selectors.0.extend(style.selectors.0);
