@@ -15,11 +15,12 @@ const BROWSER_MAPPING = {
   op_mini: null,
 };
 
+let flexSpec = {};
 let p = new Map();
 for (let prop in prefixes) {
   let browserMap = {};
   for (let b of prefixes[prop].browsers) {
-    let [name, version] = b.split(' ');
+    let [name, version, flex_spec] = b.split(' ');
     if (BROWSER_MAPPING[name] === null) {
       continue;
     }
@@ -42,6 +43,21 @@ for (let prop in prefixes) {
         browserMap[name][prefix][1] = v;
       }
     }
+
+    if (flex_spec === '2009') {
+      // console.log(prop, name, version, flex_spec);
+      if (flexSpec[name] == null) {
+        flexSpec[name] = [v, v];
+      } else {
+        if (v < flexSpec[name][0]) {
+          flexSpec[name][0] = v;
+        }
+
+        if (v > flexSpec[name][1]) {
+          flexSpec[name][1] = v;
+        }
+      }
+    }
   }
   // p[prop] = browserMap;
   let s = JSON.stringify(browserMap);
@@ -58,7 +74,6 @@ for (let prop in prefixes) {
   }
 }
 
-console.log(p)
 
 let prefixMapping = {
   webkit: 'WebKit',
@@ -106,6 +121,17 @@ impl Feature {
     }
     prefixes
   }
+}
+
+pub fn is_flex_2009(browsers: Browsers) -> bool {
+  ${Object.entries(flexSpec).map(([name, [min, max]]) => {
+    return `if let Some(version) = browsers.${name} {
+    if version >= ${min} && version <= ${max} {
+      return true;
+    }
+  }`;
+  }).join('\n  ')}
+  false
 }
 `;
 

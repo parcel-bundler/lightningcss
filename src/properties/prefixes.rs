@@ -2151,3 +2151,27 @@ impl Feature {
     prefixes
   }
 }
+
+pub fn is_flex_2009(browsers: Browsers) -> bool {
+  if let Some(version) = browsers.android {
+    if version >= 131328 && version <= 262656 {
+      return true;
+    }
+  }
+  if let Some(version) = browsers.chrome {
+    if version >= 262144 && version <= 1310720 {
+      return true;
+    }
+  }
+  if let Some(version) = browsers.ios_saf {
+    if version >= 197120 && version <= 393216 {
+      return true;
+    }
+  }
+  if let Some(version) = browsers.safari {
+    if version >= 196864 && version <= 393216 {
+      return true;
+    }
+  }
+  false
+}

@@ -300,27 +300,50 @@ define_properties! {
   "outline-width": OutlineWidth(BorderSideWidth),
 
   // Flex properties: https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119
-  "flex-direction": FlexDirection(FlexDirection),
-  "flex-wrap": FlexWrap(FlexWrap),
-  "flex-flow": FlexFlow(FlexFlow),
-  "flex-grow": FlexGrow(f32),
-  "flex-shrink": FlexShrink(f32),
-  "flex-basis": FlexBasis(LengthPercentageOrAuto),
-  "flex": Flex(Flex),
+  "flex-direction": FlexDirection(FlexDirection, VendorPrefix) / "webkit" / "ms",
+  "flex-wrap": FlexWrap(FlexWrap, VendorPrefix) / "webkit" / "ms",
+  "flex-flow": FlexFlow(FlexFlow, VendorPrefix) / "webkit" / "ms",
+  "flex-grow": FlexGrow(f32, VendorPrefix) / "webkit",
+  "flex-shrink": FlexShrink(f32, VendorPrefix) / "webkit",
+  "flex-basis": FlexBasis(LengthPercentageOrAuto, VendorPrefix) / "webkit",
+  "flex": Flex(Flex, VendorPrefix) / "webkit" / "ms",
+  "order": Order(f32, VendorPrefix) / "webkit",
 
   // Align properties: https://www.w3.org/TR/2020/WD-css-align-3-20200421
-  "align-content": AlignContent(AlignContent),
-  "justify-content": JustifyContent(JustifyContent),
+  "align-content": AlignContent(AlignContent, VendorPrefix) / "webkit",
+  "justify-content": JustifyContent(JustifyContent, VendorPrefix) / "webkit",
   "place-content": PlaceContent(PlaceContent),
-  "align-self": AlignSelf(AlignSelf),
+  "align-self": AlignSelf(AlignSelf, VendorPrefix) / "webkit",
   "justify-self": JustifySelf(JustifySelf),
   "place-self": PlaceSelf(PlaceSelf),
-  "align-items": AlignItems(AlignItems),
+  "align-items": AlignItems(AlignItems, VendorPrefix) / "webkit",
   "justify-items": JustifyItems(JustifyItems),
   "place-items": PlaceItems(PlaceItems),
   "row-gap": RowGap(GapValue),
   "column-gap": ColumnGap(GapValue),
   "gap": Gap(Gap),
+
+  // Old flex (2009): https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/
+  "box-orient": BoxOrient(BoxOrient, VendorPrefix) / "webkit" / "moz",
+  "box-direction": BoxDirection(BoxDirection, VendorPrefix) / "webkit" / "moz",
+  "box-ordinal-group": BoxOrdinalGroup(f32, VendorPrefix) / "webkit" / "moz",
+  "box-align": BoxAlign(BoxAlign, VendorPrefix) / "webkit" / "moz",
+  "box-flex": BoxFlex(f32, VendorPrefix) / "webkit" / "moz",
+  "box-flex-group": BoxFlexGroup(f32, VendorPrefix) / "webkit",
+  "box-pack": BoxPack(BoxPack, VendorPrefix) / "webkit" / "moz",
+  "box-lines": BoxLines(BoxLines, VendorPrefix) / "webkit" / "moz",
+
+  // Old flex (2012): https://www.w3.org/TR/2012/WD-css3-flexbox-20120322/
+  "flex-pack": FlexPack(FlexPack, VendorPrefix) / "ms",
+  "flex-order": FlexOrder(f32, VendorPrefix) / "ms",
+  "flex-align": FlexAlign(BoxAlign, VendorPrefix) / "ms",
+  "flex-item-align": FlexItemAlign(FlexItemAlign, VendorPrefix) / "ms",
+  "flex-line-pack": FlexLinePack(FlexLinePack, VendorPrefix) / "ms",
+
+  // Microsoft extensions
+  "flex-positive": FlexPositive(f32, VendorPrefix) / "ms",
+  "flex-negative": FlexNegative(f32, VendorPrefix) / "ms",
+  "flex-preferred-size": FlexPreferredSize(LengthPercentageOrAuto, VendorPrefix) / "ms",
 
   "margin-top": MarginTop(LengthPercentageOrAuto),
   "margin-bottom": MarginBottom(LengthPercentageOrAuto),

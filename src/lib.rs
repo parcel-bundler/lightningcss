@@ -174,7 +174,7 @@ mod tests {
   }
 
   fn prefix_test(source: &str, expected: &str, targets: Browsers) {
-    let res = compile(source, true, Some(targets));
+    let res = compile(source, false, Some(targets));
     assert_eq!(res, expected);
   }
 
@@ -1023,6 +1023,585 @@ mod tests {
         gap: normal 20px;
       }
     "#
+    });
+
+    test(r#"
+      .foo {
+        -webkit-flex-grow: 1;
+        -webkit-flex-shrink: 1;
+        -webkit-flex-basis: auto;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-flex: auto;
+      }
+    "#
+    });
+    test(r#"
+      .foo {
+        -webkit-flex-grow: 1;
+        -webkit-flex-shrink: 1;
+        -webkit-flex-basis: auto;
+        flex-grow: 1;
+        flex-shrink: 1;
+        flex-basis: auto;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-flex: auto;
+        flex: auto;
+      }
+    "#
+    });
+    prefix_test(r#"
+      .foo {
+        -webkit-box-orient: horizontal;
+        -webkit-box-direction: normal;
+        flex-direction: row;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-box-orient: horizontal;
+        -webkit-box-direction: normal;
+        -webkit-flex-direction: row;
+        flex-direction: row;
+      }
+    "#},
+    Browsers {
+      safari: Some(4 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        flex-direction: row;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-box-orient: horizontal;
+        -moz-box-orient: horizontal;
+        -webkit-box-direction: normal;
+        -moz-box-direction: normal;
+        -webkit-flex-direction: row;
+        -ms-flex-direction: row;
+        flex-direction: row;
+      }
+    "#},
+    Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(4 << 16),
+      ie: Some(10 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        -webkit-box-orient: horizontal;
+        -webkit-box-direction: normal;
+        -moz-box-orient: horizontal;
+        -moz-box-direction: normal;
+        -webkit-flex-direction: row;
+        -ms-flex-direction: row;
+        flex-direction: row;
+      }
+    "#, indoc! {r#"
+      .foo {
+        flex-direction: row;
+      }
+    "#},
+    Browsers {
+      safari: Some(14 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        flex-wrap: wrap;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-box-lines: multiple;
+        -moz-box-lines: multiple;
+        -webkit-flex-wrap: wrap;
+        -ms-flex-wrap: wrap;
+        flex-wrap: wrap;
+      }
+    "#},
+    Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(4 << 16),
+      ie: Some(10 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        -webkit-box-lines: multiple;
+        -moz-box-lines: multiple;
+        -webkit-flex-wrap: wrap;
+        -ms-flex-wrap: wrap;
+        flex-wrap: wrap;
+      }
+    "#, indoc! {r#"
+      .foo {
+        flex-wrap: wrap;
+      }
+    "#},
+    Browsers {
+      safari: Some(11 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        flex-flow: row wrap;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-box-orient: horizontal;
+        -moz-box-orient: horizontal;
+        -webkit-box-direction: normal;
+        -moz-box-direction: normal;
+        -webkit-flex-flow: wrap;
+        -ms-flex-flow: wrap;
+        flex-flow: wrap;
+      }
+    "#},
+    Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(4 << 16),
+      ie: Some(10 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        -webkit-box-orient: horizontal;
+        -moz-box-orient: horizontal;
+        -webkit-box-direction: normal;
+        -moz-box-direction: normal;
+        -webkit-flex-flow: wrap;
+        -ms-flex-flow: wrap;
+        flex-flow: wrap;
+      }
+    "#, indoc! {r#"
+      .foo {
+        flex-flow: wrap;
+      }
+    "#},
+    Browsers {
+      safari: Some(11 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        flex-grow: 1;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-box-flex: 1;
+        -moz-box-flex: 1;
+        -ms-flex-positive: 1;
+        -webkit-flex-grow: 1;
+        flex-grow: 1;
+      }
+    "#},
+    Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(4 << 16),
+      ie: Some(10 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        -webkit-box-flex: 1;
+        -moz-box-flex: 1;
+        -ms-flex-positive: 1;
+        -webkit-flex-grow: 1;
+        flex-grow: 1;
+      }
+    "#, indoc! {r#"
+      .foo {
+        flex-grow: 1;
+      }
+    "#},
+    Browsers {
+      safari: Some(11 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        flex-shrink: 1;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -ms-flex-negative: 1;
+        -webkit-flex-shrink: 1;
+        flex-shrink: 1;
+      }
+    "#},
+    Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(4 << 16),
+      ie: Some(10 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        -ms-flex-negative: 1;
+        -webkit-flex-shrink: 1;
+        flex-shrink: 1;
+      }
+    "#, indoc! {r#"
+      .foo {
+        flex-shrink: 1;
+      }
+    "#},
+    Browsers {
+      safari: Some(11 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        flex-basis: 1px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -ms-flex-preferred-size: 1px;
+        -webkit-flex-basis: 1px;
+        flex-basis: 1px;
+      }
+    "#},
+    Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(4 << 16),
+      ie: Some(10 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        -ms-flex-preferred-size: 1px;
+        -webkit-flex-basis: 1px;
+        flex-basis: 1px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        flex-basis: 1px;
+      }
+    "#},
+    Browsers {
+      safari: Some(11 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        flex: 1;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-box-flex: 1;
+        -moz-box-flex: 1;
+        -webkit-flex: 1;
+        -ms-flex: 1;
+        flex: 1;
+      }
+    "#},
+    Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(4 << 16),
+      ie: Some(10 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        -webkit-box-flex: 1;
+        -moz-box-flex: 1;
+        -webkit-flex: 1;
+        -ms-flex: 1;
+        flex: 1;
+      }
+    "#, indoc! {r#"
+      .foo {
+        flex: 1;
+      }
+    "#},
+    Browsers {
+      safari: Some(11 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        align-content: space-between;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -ms-flex-line-pack: justify;
+        -webkit-align-content: space-between;
+        align-content: space-between;
+      }
+    "#},
+    Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(4 << 16),
+      ie: Some(10 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        -ms-flex-line-pack: justify;
+        -webkit-align-content: space-between;
+        align-content: space-between;
+      }
+    "#, indoc! {r#"
+      .foo {
+        align-content: space-between;
+      }
+    "#},
+    Browsers {
+      safari: Some(11 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        justify-content: space-between;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-box-pack: justify;
+        -moz-box-pack: justify;
+        -ms-flex-pack: justify;
+        -webkit-justify-content: space-between;
+        justify-content: space-between;
+      }
+    "#},
+    Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(4 << 16),
+      ie: Some(10 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        -webkit-box-pack: justify;
+        -moz-box-pack: justify;
+        -ms-flex-pack: justify;
+        -webkit-justify-content: space-between;
+        justify-content: space-between;
+      }
+    "#, indoc! {r#"
+      .foo {
+        justify-content: space-between;
+      }
+    "#},
+    Browsers {
+      safari: Some(11 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        place-content: space-between flex-end;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -ms-flex-line-pack: justify;
+        -webkit-box-pack: end;
+        -moz-box-pack: end;
+        -ms-flex-pack: end;
+        -webkit-align-content: space-between;
+        -webkit-justify-content: flex-end;
+        place-content: space-between flex-end;
+      }
+    "#},
+    Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(4 << 16),
+      ie: Some(10 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        -ms-flex-line-pack: justify;
+        -webkit-box-pack: end;
+        -moz-box-pack: end;
+        -ms-flex-pack: end;
+        -webkit-align-content: space-between;
+        -webkit-justify-content: flex-end;
+        place-content: space-between flex-end;
+      }
+    "#, indoc! {r#"
+      .foo {
+        place-content: space-between flex-end;
+      }
+    "#},
+    Browsers {
+      safari: Some(11 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        align-self: flex-end;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -ms-flex-item-align: end;
+        -webkit-align-self: flex-end;
+        align-self: flex-end;
+      }
+    "#},
+    Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(4 << 16),
+      ie: Some(10 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        -ms-flex-item-align: end;
+        -webkit-align-self: flex-end;
+        align-self: flex-end;
+      }
+    "#, indoc! {r#"
+      .foo {
+        align-self: flex-end;
+      }
+    "#},
+    Browsers {
+      safari: Some(11 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        place-self: center flex-end;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -ms-flex-item-align: center;
+        -webkit-align-self: center;
+        place-self: center flex-end;
+      }
+    "#},
+    Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(4 << 16),
+      ie: Some(10 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        -ms-flex-item-align: center;
+        -webkit-align-self: center;
+        place-self: center flex-end;
+      }
+    "#, indoc! {r#"
+      .foo {
+        place-self: center flex-end;
+      }
+    "#},
+    Browsers {
+      safari: Some(11 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        align-items: flex-end;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-box-align: end;
+        -moz-box-align: end;
+        -ms-flex-align: end;
+        -webkit-align-items: flex-end;
+        align-items: flex-end;
+      }
+    "#},
+    Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(4 << 16),
+      ie: Some(10 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        -webkit-box-align: end;
+        -moz-box-align: end;
+        -ms-flex-align: end;
+        -webkit-align-items: flex-end;
+        align-items: flex-end;
+      }
+    "#, indoc! {r#"
+      .foo {
+        align-items: flex-end;
+      }
+    "#},
+    Browsers {
+      safari: Some(11 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        place-items: flex-end center;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-box-align: end;
+        -moz-box-align: end;
+        -ms-flex-align: end;
+        -webkit-align-items: flex-end;
+        place-items: flex-end center;
+      }
+    "#},
+    Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(4 << 16),
+      ie: Some(10 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        -webkit-box-align: end;
+        -moz-box-align: end;
+        -ms-flex-align: end;
+        -webkit-align-items: flex-end;
+        place-items: flex-end center;
+      }
+    "#, indoc! {r#"
+      .foo {
+        place-items: flex-end center;
+      }
+    "#},
+    Browsers {
+      safari: Some(11 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        order: 1;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-box-ordinal-group: 1;
+        -moz-box-ordinal-group: 1;
+        -ms-flex-order: 1;
+        -webkit-order: 1;
+        order: 1;
+      }
+    "#},
+    Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(4 << 16),
+      ie: Some(10 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        -webkit-box-ordinal-group: 1;
+        -moz-box-ordinal-group: 1;
+        -ms-flex-order: 1;
+        -webkit-order: 1;
+        order: 1;
+      }
+    "#, indoc! {r#"
+      .foo {
+        order: 1;
+      }
+    "#},
+    Browsers {
+      safari: Some(11 << 16),
+      ..Browsers::default()
     });
   }
 
@@ -2056,8 +2635,12 @@ mod tests {
         -moz-transition: opacity 200ms;
         transition: opacity 200ms;
       }
-      "#, 
-      ".foo{transition:opacity .2s}",
+      "#,
+      indoc! {r#"
+      .foo {
+        transition: opacity .2s;
+      }
+      "#},
       Browsers {
         chrome: Some(95 << 16),
         ..Browsers::default()
@@ -2066,7 +2649,13 @@ mod tests {
 
     prefix_test(
       ".foo{transition:opacity 200ms}",
-      ".foo{-webkit-transition:opacity .2s;-moz-transition:opacity .2s;transition:opacity .2s}",
+      indoc! {r#"
+      .foo {
+        -webkit-transition: opacity .2s;
+        -moz-transition: opacity .2s;
+        transition: opacity .2s;
+      }
+      "#},
       Browsers {
         safari: Some(5 << 16),
         firefox: Some(14 << 16),

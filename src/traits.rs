@@ -45,3 +45,7 @@ pub trait PropertyHandler: Sized {
 pub trait TryAdd<T> {
   fn try_add(&self, other: &T) -> Option<T>;
 }
+
+pub trait FromStandard<T>: Sized {
+  fn from_standard(val: &T) -> Option<Self>;
+}
