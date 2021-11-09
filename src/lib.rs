@@ -583,6 +583,157 @@ mod tests {
       }
     "#
     });
+
+    test(r#"
+      .foo {
+        -webkit-border-radius: 10px 100px 10px 100px;
+        -moz-border-radius: 10px 100px 10px 100px;
+        border-radius: 10px 100px 10px 100px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-border-radius: 10px 100px;
+        -moz-border-radius: 10px 100px;
+        border-radius: 10px 100px;
+      }
+    "#
+    });
+
+    test(r#"
+      .foo {
+        -webkit-border-radius: 10px 100px 10px 100px;
+        -moz-border-radius: 20px;
+        border-radius: 30px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-border-radius: 10px 100px;
+        -moz-border-radius: 20px;
+        border-radius: 30px;
+      }
+    "#
+    });
+
+    test(r#"
+      .foo {
+        -webkit-border-top-left-radius: 10px;
+        -moz-border-top-left-radius: 10px;
+        border-top-left-radius: 10px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-border-top-left-radius: 10px;
+        -moz-border-top-left-radius: 10px;
+        border-top-left-radius: 10px;
+      }
+    "#
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-radius: 30px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-border-radius: 30px;
+        -moz-border-radius: 30px;
+        border-radius: 30px;
+      }
+    "#
+    }, Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(3 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-top-left-radius: 30px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-border-top-left-radius: 30px;
+        -moz-border-top-left-radius: 30px;
+        border-top-left-radius: 30px;
+      }
+    "#
+    }, Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(3 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        -webkit-border-radius: 30px;
+        -moz-border-radius: 30px;
+        border-radius: 30px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-radius: 30px;
+      }
+    "#
+    }, Browsers {
+      safari: Some(14 << 16),
+      firefox: Some(46 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        -webkit-border-top-left-radius: 30px;
+        -moz-border-top-left-radius: 30px;
+        border-top-left-radius: 30px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-top-left-radius: 30px;
+      }
+    "#
+    }, Browsers {
+      safari: Some(14 << 16),
+      firefox: Some(46 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        -webkit-border-radius: 30px;
+        -moz-border-radius: 30px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-border-radius: 30px;
+        -moz-border-radius: 30px;
+      }
+    "#
+    }, Browsers {
+      safari: Some(14 << 16),
+      firefox: Some(46 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        -webkit-border-top-left-radius: 30px;
+        -moz-border-top-right-radius: 30px;
+        border-bottom-left-radius: 30px;
+        border-bottom-right-radius: 30px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-border-top-left-radius: 30px;
+        -moz-border-top-right-radius: 30px;
+        border-bottom-left-radius: 30px;
+        border-bottom-right-radius: 30px;
+      }
+    "#
+    }, Browsers {
+      safari: Some(14 << 16),
+      firefox: Some(46 << 16),
+      ..Browsers::default()
+    })
   }
 
   #[test]

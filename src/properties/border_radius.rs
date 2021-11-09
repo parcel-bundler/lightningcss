@@ -2,7 +2,8 @@ use crate::values::length::*;
 use crate::values::size::Size2D;
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
-use crate::properties::Property;
+use super::prefixes::{Feature, Browsers};
+use crate::properties::{Property, VendorPrefix};
 use crate::values::rect::Rect;
 use crate::printer::Printer;
 
@@ -49,31 +50,63 @@ impl ToCss for BorderRadius {
 
 #[derive(Default, Debug)]
 pub struct BorderRadiusHandler {
-  top_left: Option<Size2D<LengthPercentage>>,
-  top_right: Option<Size2D<LengthPercentage>>,
-  bottom_left: Option<Size2D<LengthPercentage>>,
-  bottom_right: Option<Size2D<LengthPercentage>>,
+  targets: Option<Browsers>,
+  top_left: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
+  top_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
+  bottom_left: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
+  bottom_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
+  logical: Vec<Property>,
   decls: Vec<Property>
+}
+
+impl BorderRadiusHandler {
+  pub fn new(targets: Option<Browsers>) -> BorderRadiusHandler {
+    BorderRadiusHandler {
+      targets,
+      ..BorderRadiusHandler::default()
+    }
+  }
 }
 
 impl PropertyHandler for BorderRadiusHandler {
   fn handle_property(&mut self, property: &Property) -> bool {
     use Property::*;
+
+    macro_rules! property {
+      ($prop: ident, $val: expr, $vp: ident) => {{
+        // If two vendor prefixes for the same property have different
+        // values, we need to flush what we have immediately to preserve order.
+        if let Some((val, prefixes)) = &self.$prop {
+          if val != $val && !prefixes.contains(*$vp) {
+            self.flush();
+          }
+        }
+
+        // Otherwise, update the value and add the prefix.
+        if let Some((val, prefixes)) = &mut self.$prop {
+          *val = $val.clone();
+          *prefixes |= *$vp;
+        } else {
+          self.$prop = Some(($val.clone(), *$vp))
+        }
+      }};
+    }
+
     match property {
-      BorderTopLeftRadius(val) => self.top_left = Some(val.clone()),
-      BorderTopRightRadius(val) => self.top_right = Some(val.clone()),
-      BorderBottomLeftRadius(val) => self.bottom_left = Some(val.clone()),
-      BorderBottomRightRadius(val) => self.bottom_right = Some(val.clone()),
+      BorderTopLeftRadius(val, vp) => property!(top_left, val, vp),
+      BorderTopRightRadius(val, vp) => property!(top_right, val, vp),
+      BorderBottomLeftRadius(val, vp) => property!(bottom_left, val, vp),
+      BorderBottomRightRadius(val, vp) => property!(bottom_right, val, vp),
       BorderStartStartRadius(_) | BorderStartEndRadius(_) | BorderEndStartRadius(_) | BorderEndEndRadius(_) => {
         self.flush();
-        self.decls.push(property.clone());
+        self.logical.push(property.clone());
       }
-      BorderRadius(val) => {
-        self.decls.clear();
-        self.top_left = Some(val.top_left.clone());
-        self.top_right = Some(val.top_right.clone());
-        self.bottom_left = Some(val.bottom_left.clone());
-        self.bottom_right = Some(val.bottom_right.clone());
+      BorderRadius(val, vp) => {
+        self.logical.clear();
+        property!(top_left, &val.top_left, vp);
+        property!(top_right, &val.top_right, vp);
+        property!(bottom_left, &val.bottom_left, vp);
+        property!(bottom_right, &val.bottom_right, vp);
       }
       _ => return false
     }
@@ -89,34 +122,53 @@ impl PropertyHandler for BorderRadiusHandler {
 
 impl BorderRadiusHandler {
   fn flush(&mut self) {
-    let top_left = std::mem::take(&mut self.top_left);
-    let top_right = std::mem::take(&mut self.top_right);
-    let bottom_left = std::mem::take(&mut self.bottom_left);
-    let bottom_right = std::mem::take(&mut self.bottom_right);
+    let mut top_left = std::mem::take(&mut self.top_left);
+    let mut top_right = std::mem::take(&mut self.top_right);
+    let mut bottom_left = std::mem::take(&mut self.bottom_left);
+    let mut bottom_right = std::mem::take(&mut self.bottom_right);
 
-    if top_left.is_some() && top_right.is_some() && bottom_left.is_some() && bottom_right.is_some() {
-      self.decls.push(Property::BorderRadius(BorderRadius {
-        top_left: top_left.unwrap(),
-        top_right: top_right.unwrap(),
-        bottom_left: bottom_left.unwrap(),
-        bottom_right: bottom_right.unwrap(),
-      }))
-    } else {
-      if let Some(val) = top_left {
-        self.decls.push(Property::BorderTopLeftRadius(val))
-      }
+    self.decls.extend(self.logical.drain(..));
 
-      if let Some(val) = top_right {
-        self.decls.push(Property::BorderTopRightRadius(val))
-      }
-
-      if let Some(val) = bottom_left {
-        self.decls.push(Property::BorderBottomLeftRadius(val))
-      }
-
-      if let Some(val) = bottom_right {
-        self.decls.push(Property::BorderBottomRightRadius(val))
+    if let (Some((top_left, tl_prefix)), Some((top_right, tr_prefix)), Some((bottom_left, bl_prefix)), Some((bottom_right, br_prefix))) = (&mut top_left, &mut top_right, &mut bottom_left, &mut bottom_right) {
+      let intersection = *tl_prefix & *tr_prefix & *bl_prefix & *br_prefix;
+      if !intersection.is_empty() {
+        let mut prefix = intersection;
+        if prefix.contains(VendorPrefix::None) {
+          if let Some(targets) = self.targets {
+            prefix = Feature::BorderRadius.prefixes_for(targets)
+          }
+        }
+        self.decls.push(Property::BorderRadius(BorderRadius {
+          top_left: top_left.clone(),
+          top_right: top_right.clone(),
+          bottom_left: bottom_left.clone(),
+          bottom_right: bottom_right.clone(),
+        }, prefix));
+        tl_prefix.remove(intersection);
+        tr_prefix.remove(intersection);
+        bl_prefix.remove(intersection);
+        br_prefix.remove(intersection);
       }
     }
+
+    macro_rules! single_property {
+      ($prop: ident, $key: ident) => {
+        if let Some((val, mut vp)) = $key {
+          if !vp.is_empty() {
+            if vp.contains(VendorPrefix::None) {
+              if let Some(targets) = self.targets {
+                vp = Feature::$prop.prefixes_for(targets)
+              }
+            }
+            self.decls.push(Property::$prop(val, vp))
+          }
+        }
+      };
+    }
+
+    single_property!(BorderTopLeftRadius, top_left);
+    single_property!(BorderTopRightRadius, top_right);
+    single_property!(BorderBottomLeftRadius, bottom_left);
+    single_property!(BorderBottomRightRadius, bottom_right);
   }
 }

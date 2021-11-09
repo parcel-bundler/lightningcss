@@ -228,6 +228,7 @@ impl BorderHandler {
   pub fn new(targets: Option<Browsers>) -> BorderHandler {
     BorderHandler {
       border_image_handler: BorderImageHandler::new(targets),
+      border_radius_handler: BorderRadiusHandler::new(targets),
       ..BorderHandler::default()
     }
   }
