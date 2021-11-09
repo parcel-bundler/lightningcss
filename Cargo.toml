@@ -35,4 +35,3 @@ napi-build = "1"
 
 [profile.release]
 lto = true
-opt-level = 's'
