@@ -61,6 +61,7 @@ impl DeclarationHandler {
   pub fn new(important: bool, targets: Option<Browsers>) -> Self {
     DeclarationHandler {
       important,
+      border: BorderHandler::new(targets),
       flex: FlexHandler::new(targets),
       align: AlignHandler::new(targets),
       transition: TransitionHandler::new(targets),

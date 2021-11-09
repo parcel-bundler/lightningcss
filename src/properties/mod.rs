@@ -268,7 +268,7 @@ define_properties! {
   "border-image-repeat": BorderImageRepeat(BorderImageRepeat),
   "border-image-width": BorderImageWidth(Rect<BorderImageSideWidth>),
   "border-image-slice": BorderImageSlice(BorderImageSlice),
-  "border-image": BorderImage(BorderImage),
+  "border-image": BorderImage(BorderImage, VendorPrefix) / "webkit" / "moz" / "o",
 
   "border-color": BorderColor(Rect<CssColor>),
   "border-style": BorderStyle(Rect<BorderStyle>),

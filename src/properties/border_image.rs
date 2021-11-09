@@ -1,7 +1,8 @@
 use crate::values::{length::*, percentage::{Percentage, NumberOrPercentage}, number::serialize_number};
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
-use crate::properties::Property;
+use crate::properties::{Property, VendorPrefix};
+use super::prefixes::{Feature, Browsers};
 use crate::values::rect::Rect;
 use crate::values::image::Image;
 use crate::macros::*;
@@ -240,23 +241,49 @@ impl ToCss for BorderImage {
 
 #[derive(Default, Debug)]
 pub struct BorderImageHandler {
+  targets: Option<Browsers>,
   source: Option<Image>,
   slice: Option<BorderImageSlice>,
   width: Option<Rect<BorderImageSideWidth>>,
   outset: Option<Rect<LengthOrNumber>>,
-  repeat: Option<BorderImageRepeat>
+  repeat: Option<BorderImageRepeat>,
+  vendor_prefix: VendorPrefix,
+  decls: Vec<Property>
+}
+
+impl BorderImageHandler {
+  pub fn new(targets: Option<Browsers>) -> BorderImageHandler {
+    BorderImageHandler {
+      targets,
+      vendor_prefix: VendorPrefix::empty(),
+      ..BorderImageHandler::default()
+    }
+  }
 }
 
 impl PropertyHandler for BorderImageHandler {
   fn handle_property(&mut self, property: &Property) -> bool {
     use Property::*;
+    macro_rules! property {
+      ($name: ident, $val: ident) => {{
+        if self.vendor_prefix != VendorPrefix::None {
+          self.flush();
+        }
+        self.vendor_prefix = VendorPrefix::None;
+        self.$name = Some($val.clone());
+      }};
+    }
+
     match property {
-      BorderImageSource(val) => self.source = Some(val.clone()),
-      BorderImageSlice(val) => self.slice = Some(val.clone()),
-      BorderImageWidth(val) => self.width = Some(val.clone()),
-      BorderImageOutset(val) => self.outset = Some(val.clone()),
-      BorderImageRepeat(val) => self.repeat = Some(val.clone()),
-      BorderImage(val) => self.set_border_image(val),
+      BorderImageSource(val) => property!(source, val),
+      BorderImageSlice(val) => property!(slice, val),
+      BorderImageWidth(val) => property!(width, val),
+      BorderImageOutset(val) => property!(outset, val),
+      BorderImageRepeat(val) => property!(repeat, val),
+      BorderImage(val, vp) => {
+        self.set_border_image(val);
+        self.vendor_prefix |= *vp;
+      },
       _ => return false
     }
 
@@ -264,44 +291,8 @@ impl PropertyHandler for BorderImageHandler {
   }
 
   fn finalize(&mut self) -> Vec<Property> {
-    let mut decls = vec![];
-    let source = std::mem::take(&mut self.source);
-    let slice = std::mem::take(&mut self.slice);
-    let width = std::mem::take(&mut self.width);
-    let outset = std::mem::take(&mut self.outset);
-    let repeat = std::mem::take(&mut self.repeat);
-
-    if source.is_some() && slice.is_some() && width.is_some() && outset.is_some() && repeat.is_some() {
-      decls.push(Property::BorderImage(BorderImage {
-        source: source.unwrap(),
-        slice: slice.unwrap(),
-        width: width.unwrap(),
-        outset: outset.unwrap(),
-        repeat: repeat.unwrap()
-      }))
-    } else {
-      if let Some(source) = source {
-        decls.push(Property::BorderImageSource(source))
-      }
-
-      if let Some(slice) = slice {
-        decls.push(Property::BorderImageSlice(slice))
-      }
-
-      if let Some(width) = width {
-        decls.push(Property::BorderImageWidth(width))
-      }
-
-      if let Some(outset) = outset {
-        decls.push(Property::BorderImageOutset(outset))
-      }
-
-      if let Some(repeat) = repeat {
-        decls.push(Property::BorderImageRepeat(repeat))
-      }
-    }
-
-    decls
+    self.flush();
+    std::mem::take(&mut self.decls)
   }
 }
 
@@ -320,5 +311,53 @@ impl BorderImageHandler {
     self.width = Some(border_image.width.clone());
     self.outset = Some(border_image.outset.clone());
     self.repeat = Some(border_image.repeat.clone());
+  }
+
+  fn flush(&mut self) {
+    let source = std::mem::take(&mut self.source);
+    let slice = std::mem::take(&mut self.slice);
+    let width = std::mem::take(&mut self.width);
+    let outset = std::mem::take(&mut self.outset);
+    let repeat = std::mem::take(&mut self.repeat);
+
+    if source.is_some() && slice.is_some() && width.is_some() && outset.is_some() && repeat.is_some() {
+      let slice = slice.unwrap();
+      let mut prefix = self.vendor_prefix;
+      if prefix.contains(VendorPrefix::None) && !slice.fill {
+        if let Some(targets) = self.targets {
+          prefix = Feature::BorderImage.prefixes_for(targets)
+        }
+      }
+
+      self.decls.push(Property::BorderImage(BorderImage {
+        source: source.unwrap(),
+        slice,
+        width: width.unwrap(),
+        outset: outset.unwrap(),
+        repeat: repeat.unwrap()
+      }, prefix))
+    } else {
+      if let Some(source) = source {
+        self.decls.push(Property::BorderImageSource(source))
+      }
+
+      if let Some(slice) = slice {
+        self.decls.push(Property::BorderImageSlice(slice))
+      }
+
+      if let Some(width) = width {
+        self.decls.push(Property::BorderImageWidth(width))
+      }
+
+      if let Some(outset) = outset {
+        self.decls.push(Property::BorderImageOutset(outset))
+      }
+
+      if let Some(repeat) = repeat {
+        self.decls.push(Property::BorderImageRepeat(repeat))
+      }
+    }
+
+    self.vendor_prefix = VendorPrefix::empty();
   }
 }

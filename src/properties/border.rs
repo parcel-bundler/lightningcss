@@ -7,6 +7,7 @@ use crate::values::rect::Rect;
 use crate::macros::*;
 use super::border_image::*;
 use super::border_radius::*;
+use super::prefixes::Browsers;
 use crate::printer::Printer;
 use std::fmt::Write;
 
@@ -221,6 +222,15 @@ pub struct BorderHandler {
   decls: Vec<Property>,
   border_image_handler: BorderImageHandler,
   border_radius_handler: BorderRadiusHandler
+}
+
+impl BorderHandler {
+  pub fn new(targets: Option<Browsers>) -> BorderHandler {
+    BorderHandler {
+      border_image_handler: BorderImageHandler::new(targets),
+      ..BorderHandler::default()
+    }
+  }
 }
 
 impl PropertyHandler for BorderHandler {

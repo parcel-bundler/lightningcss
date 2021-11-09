@@ -428,6 +428,78 @@ mod tests {
       }
     "#
     });
+
+    test(r#"
+      .foo {
+        -webkit-border-image: url("test.png") 60;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-border-image: url(test.png) 60;
+      }
+    "#
+    });
+
+    test(r#"
+      .foo {
+        -webkit-border-image: url("test.png") 60;
+        border-image: url("test.png") 60;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-border-image: url(test.png) 60;
+        border-image: url(test.png) 60;
+      }
+    "#
+    });
+
+    test(r#"
+      .foo {
+        -webkit-border-image: url("test.png") 60;
+        border-image-source: url(foo.png);
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-border-image: url(test.png) 60;
+        border-image-source: url(foo.png);
+      }
+    "#
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-image: url("test.png") 60;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-border-image: url(test.png) 60;
+        -moz-border-image: url(test.png) 60;
+        -o-border-image: url(test.png) 60;
+        border-image: url(test.png) 60;
+      }
+    "#
+    }, Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(4 << 16),
+      opera: Some(12 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-image: url(foo.png) 10 40 fill / 10px round;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-image: url(foo.png) 10 40 fill / 10px round;
+      }
+    "#
+    }, Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(4 << 16),
+      opera: Some(12 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]
