@@ -2,3 +2,5 @@
 node_modules/
 target/
 pkg/
+dist/
+.parcel-cache

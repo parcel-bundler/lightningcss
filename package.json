@@ -27,12 +27,17 @@
     "caniuse-lite": "^1.0.30001272",
     "cssnano": "^5.0.8",
     "esbuild": "^0.13.10",
+    "parcel": "^2.0.1",
     "postcss": "^8.3.11"
   },
   "scripts": {
     "build": "napi build --platform",
     "build-release": "napi build --platform --release",
     "wasm:build": "wasm-pack build --target nodejs",
-    "wasm:build-release": "wasm-pack build --target nodejs --release"
+    "wasm:build-release": "wasm-pack build --target nodejs --release",
+    "wasm-browser:build": "wasm-pack build --target web",
+    "wasm-browser:build-release": "wasm-pack build --target web --release",
+    "playground:start": "parcel playground/index.html",
+    "playground:build": "yarn wasm-browser:build-release && parcel build playground/index.html"
   }
 }

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Parcel CSS Playground</title>
+    <style>
+      html, body {
+        margin: 0;
+        height: 100%;
+        box-sizing: border-box
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        padding: 10px;
+      }
+
+      .targets {
+        display: table;
+        margin-top: 10px;
+      }
+
+      .targets label {
+        display: table-row;
+      }
+
+      .targets label span,
+      .targets label input {
+        display: table-cell;
+      }
+
+      main {
+        display: flex;
+        flex: 1
+      }
+
+      textarea {
+        flex: 1;
+        font: 14px monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Parcel CSS Playground</h1>
+    <main>
+      <div>
+        <label><input id="minify" type="checkbox" checked> Minify</label>
+        <div class="targets">
+          <label><span>Chrome: </span><input id="chrome" type="number" value="95"></label>
+          <label><span>Firefox: </span><input id="firefox" type="number"></label>
+          <label><span>Safari: </span><input id="safari" type="number"></label>
+          <label><span>Opera: </span><input id="opera" type="number"></label>
+          <label><span>Edge: </span><input id="edge" type="number"></label>
+          <label><span>IE: </span><input id="ie" type="number"></label>
+          <label><span>iOS: </span><input id="ios_saf" type="number"></label>
+          <label><span>Android: </span><input id="android" type="number"></label>
+          <label><span>Samsung: </span><input id="samsung" type="number"></label>
+
+        </div>
+      </div>
+      <textarea id="source">
+.foo {
+  background: yellow;
+
+  -webkit-border-radius: 2px;
+  -moz-border-radius: 2px;
+  border-radius: 2px;
+  
+  -webkit-transition: background 200ms;
+  -moz-transition: background 200ms;
+  transition: background 200ms;
+}</textarea>
+      <textarea id="compiled"></textarea>
+    </main>
+    <script type="module" src="playground.js"></script>
+  </body>
+</html>
