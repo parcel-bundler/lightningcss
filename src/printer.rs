@@ -2,12 +2,13 @@ use std::fmt::*;
 
 pub struct Printer<'a, W> {
   dest: &'a mut W,
+  indent: u8,
   pub minify: bool
 }
 
 impl<'a, W: Write + Sized> Printer<'a, W> {
   pub fn new(dest: &mut W, minify: bool) -> Printer<W> {
-    Printer { dest, minify }
+    Printer { dest, indent: 0, minify }
   }
 
   pub fn write_str(&mut self, s: &str) -> Result {
@@ -35,7 +36,20 @@ impl<'a, W: Write + Sized> Printer<'a, W> {
       return Ok(())
     }
 
-    self.write_char('\n')
+    self.write_char('\n')?;
+    if self.indent > 0 {
+      self.write_str(&" ".repeat(self.indent as usize))?;
+    }
+
+    Ok(())
+  }
+
+  pub fn indent(&mut self) {
+    self.indent += 2;
+  }
+
+  pub fn dedent(&mut self) {
+    self.indent -= 2;
   }
 }
 

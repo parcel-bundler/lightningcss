@@ -29,8 +29,10 @@ use serde::{Deserialize, Serialize};
 use cssparser::{Parser, ParserInput, RuleListParser};
 use crate::traits::ToCss;
 use printer::Printer;
-use properties::prefixes::Browsers;
+use properties::VendorPrefix;
+use properties::prefixes::{Browsers, Feature};
 use declaration::DeclarationHandler;
+use std::collections::HashMap;
 
 use parser::TopLevelRuleParser;
 
@@ -65,6 +67,7 @@ fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> String {
 
   let mut handler = DeclarationHandler::new(false, targets);
   let mut important_handler = DeclarationHandler::new(true, targets);
+  let mut keyframe_rules = HashMap::new();
 
   for rule in rule_list {
     let rule = if let Ok((_, rule)) = rule {
@@ -84,6 +87,31 @@ fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> String {
         for keyframe in keyframes.keyframes.iter_mut() {
           keyframe.declarations.minify(&mut handler, &mut important_handler);
         }
+
+        macro_rules! set_prefix {
+          ($keyframes: ident) => {
+            if $keyframes.vendor_prefix.contains(VendorPrefix::None) {
+              if let Some(targets) = targets {
+                $keyframes.vendor_prefix = Feature::AtKeyframes.prefixes_for(targets)
+              }
+            }
+          };
+        }
+
+        // If there is an existing rule with the same name and identical keyframes,
+        // merge the vendor prefixes from this rule into it.
+        if let Some(existing_idx) = keyframe_rules.get(&keyframes.name) {
+          if let Some(parser::CssRule::Keyframes(existing)) = &mut rules.get_mut(*existing_idx) {
+            if existing.keyframes == keyframes.keyframes {
+              existing.vendor_prefix |= keyframes.vendor_prefix;
+              set_prefix!(existing);
+              continue;
+            }
+          }
+        }
+
+        set_prefix!(keyframes);
+        keyframe_rules.insert(keyframes.name.clone(), rules.len());
         parser::CssRule::Keyframes(keyframes)
       }
       parser::CssRule::Media(mut media) => {
@@ -1940,6 +1968,265 @@ mod tests {
         }
       }
     "#, "@keyframes test{0%{background:red}to{background:#00f}}");
+    minify_test(r#"
+      @-webkit-keyframes test {
+        from {
+          background: green;
+          background-color: red;
+        }
+
+        100% {
+          background: blue
+        }
+      }
+    "#, "@-webkit-keyframes test{0%{background:red}to{background:#00f}}");
+    minify_test(r#"
+      @-moz-keyframes test {
+        from {
+          background: green;
+          background-color: red;
+        }
+
+        100% {
+          background: blue
+        }
+      }
+    "#, "@-moz-keyframes test{0%{background:red}to{background:#00f}}");
+    minify_test(r#"
+      @-webkit-keyframes test {
+        from {
+          background: green;
+          background-color: red;
+        }
+
+        100% {
+          background: blue
+        }
+      }
+      @-moz-keyframes test {
+        from {
+          background: green;
+          background-color: red;
+        }
+
+        100% {
+          background: blue
+        }
+      }
+    "#, "@-webkit-keyframes test{0%{background:red}to{background:#00f}}@-moz-keyframes test{0%{background:red}to{background:#00f}}");
+
+    prefix_test(r#"
+      @keyframes test {
+        from {
+          background: green;
+        }
+        to {
+          background: blue
+        }
+      }
+    "#, indoc! { r#"
+      @-webkit-keyframes test {
+        from {
+          background: green;
+        }
+
+        to {
+          background: #00f;
+        }
+      }
+
+      @-moz-keyframes test {
+        from {
+          background: green;
+        }
+
+        to {
+          background: #00f;
+        }
+      }
+
+      @keyframes test {
+        from {
+          background: green;
+        }
+
+        to {
+          background: #00f;
+        }
+      }
+    "#}, Browsers {
+      safari: Some(5 << 16),
+      firefox: Some(6 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      @-webkit-keyframes test {
+        from {
+          background: green;
+        }
+
+        to {
+          background: blue;
+        }
+      }
+      @-moz-keyframes test {
+        from {
+          background: green;
+        }
+
+        to {
+          background: blue;
+        }
+      }
+      @keyframes test {
+        from {
+          background: green;
+        }
+        to {
+          background: blue
+        }
+      }
+    "#, indoc! { r#"
+      @keyframes test {
+        from {
+          background: green;
+        }
+
+        to {
+          background: #00f;
+        }
+      }
+    "#}, Browsers {
+      safari: Some(10 << 16),
+      firefox: Some(17 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      @-webkit-keyframes test1 {
+        from {
+          background: green;
+        }
+
+        to {
+          background: blue;
+        }
+      }
+
+      @-moz-keyframes test2 {
+        from {
+          background: green;
+        }
+
+        to {
+          background: blue;
+        }
+      }
+
+      @keyframes test3 {
+        from {
+          background: green;
+        }
+        to {
+          background: blue
+        }
+      }
+    "#, indoc! { r#"
+      @-webkit-keyframes test1 {
+        from {
+          background: green;
+        }
+
+        to {
+          background: #00f;
+        }
+      }
+
+      @-moz-keyframes test2 {
+        from {
+          background: green;
+        }
+
+        to {
+          background: #00f;
+        }
+      }
+
+      @keyframes test3 {
+        from {
+          background: green;
+        }
+
+        to {
+          background: #00f;
+        }
+      }
+    "#}, Browsers {
+      safari: Some(10 << 16),
+      firefox: Some(17 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      @-webkit-keyframes test {
+        from {
+          background: green;
+        }
+
+        to {
+          background: red;
+        }
+      }
+      @-moz-keyframes test {
+        from {
+          background: green;
+        }
+
+        to {
+          background: pink;
+        }
+      }
+      @keyframes test {
+        from {
+          background: green;
+        }
+        to {
+          background: blue
+        }
+      }
+    "#, indoc! { r#"
+      @-webkit-keyframes test {
+        from {
+          background: green;
+        }
+
+        to {
+          background: red;
+        }
+      }
+
+      @-moz-keyframes test {
+        from {
+          background: green;
+        }
+
+        to {
+          background: pink;
+        }
+      }
+
+      @keyframes test {
+        from {
+          background: green;
+        }
+
+        to {
+          background: #00f;
+        }
+      }
+    "#}, Browsers {
+      safari: Some(10 << 16),
+      firefox: Some(17 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]

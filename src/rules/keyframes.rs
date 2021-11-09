@@ -2,27 +2,60 @@ use cssparser::*;
 use crate::values::percentage::Percentage;
 use crate::traits::{Parse, ToCss};
 use crate::parser::{PropertyDeclarationParser, DeclarationBlock};
+use crate::properties::VendorPrefix;
 use crate::printer::Printer;
 use std::fmt::Write;
 
-// TODO: preserve vendor prefix
 #[derive(Debug, PartialEq)]
 pub struct KeyframesRule {
   pub name: String,
-  pub keyframes: Vec<Keyframe>
+  pub keyframes: Vec<Keyframe>,
+  pub vendor_prefix: VendorPrefix
 }
 
 impl ToCss for KeyframesRule {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-    dest.write_str("@keyframes ")?;
-    serialize_identifier(&self.name, dest)?;
-    dest.delim('{', true)?;
-    for keyframe in &self.keyframes {
-      dest.newline()?;
-      keyframe.to_css(dest)?;
+    let mut first_rule = true;
+    macro_rules! write_prefix {
+      ($prefix: ident) => {
+        if self.vendor_prefix.contains(VendorPrefix::$prefix) {
+          if first_rule {
+            first_rule = false;
+          } else {
+            if !dest.minify {
+              dest.write_char('\n')?; // no indent
+            }
+            dest.newline()?;
+          }
+          dest.write_char('@')?;
+          VendorPrefix::$prefix.to_css(dest)?;
+          dest.write_str("keyframes ")?;
+          serialize_identifier(&self.name, dest)?;
+          dest.whitespace()?;
+          dest.write_char('{')?;
+          dest.indent();
+          let mut first = true;
+          for keyframe in &self.keyframes {
+            if first {
+              first = false;
+            } else if !dest.minify {
+              dest.write_char('\n')?; // no indent
+            }
+            dest.newline()?;
+            keyframe.to_css(dest)?;
+          }
+          dest.dedent();
+          dest.newline()?;
+          dest.write_char('}')?;
+        }
+      };
     }
-    dest.newline()?;
-    dest.write_char('}')
+
+    write_prefix!(WebKit);
+    write_prefix!(Moz);
+    write_prefix!(O);
+    write_prefix!(None);
+    Ok(())
   }
 }
 

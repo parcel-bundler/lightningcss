@@ -295,17 +295,18 @@ impl<'i> AtRuleParser<'i> for FontFaceDeclarationParser {
 impl ToCss for FontFaceRule {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     dest.write_str("@font-face")?;
-    dest.delim('{', true)?;
+    dest.whitespace()?;
+    dest.write_char('{')?;
+    dest.indent();
     let len = self.properties.len();
     for (i, prop) in self.properties.iter().enumerate() {
-      if !dest.minify {
-        dest.write_str("\n  ")?;
-      }
+      dest.newline()?;
       prop.to_css(dest)?;
       if i != len - 1 || !dest.minify {
         dest.write_char(';')?;
       }
     }
+    dest.dedent();
     dest.newline()?;
     dest.write_char('}')
   }

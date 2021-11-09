@@ -11,7 +11,7 @@ use crate::rules::keyframes::{KeyframeListParser, KeyframesRule};
 use crate::rules::font_face::{FontFaceRule, FontFaceDeclarationParser};
 use crate::rules::page::{PageSelector, PageRule};
 use crate::declaration::{Declaration, DeclarationHandler};
-use crate::properties::prefixes::Browsers;
+use crate::properties::VendorPrefix;
 
 #[derive(Eq, PartialEq, Clone)]
 pub struct CssString(RefCell<String>);
@@ -72,15 +72,6 @@ impl<'b> TopLevelRuleParser {
   }
 }
 
-#[derive(Clone, Debug)]
-/// Vendor prefix.
-enum VendorPrefix {
-  /// -moz prefix.
-  Moz,
-  /// -webkit prefix.
-  WebKit,
-}
-
 /// A rule prelude for at-rule with block.
 #[derive(Debug)]
 pub enum AtRulePrelude {
@@ -97,7 +88,7 @@ pub enum AtRulePrelude {
   /// A @viewport rule prelude.
   Viewport,
   /// A @keyframes rule, with its animation name and vendor prefix if exists.
-  Keyframes(String),//(KeyframesName, Option<VendorPrefix>),
+  Keyframes(String, VendorPrefix),
   /// A @page rule prelude.
   Page(Vec<PageSelector>),
   /// A @document rule, with its conditional.
@@ -292,12 +283,12 @@ impl ToCss for MediaRule {
     // dest.write_str(" {")?;
     dest.whitespace()?;
     dest.write_char('{')?;
+    dest.indent();
     for rule in self.rules.iter() {
-      if !dest.minify {
-        dest.write_str("\n  ")?;
-      }
+      dest.newline()?;
       rule.to_css(dest)?;
     }
+    dest.dedent();
     dest.newline()?;
     dest.write_char('}')
   }
@@ -340,16 +331,16 @@ impl ToCss for DeclarationBlock {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
     dest.whitespace()?;
     dest.write_char('{')?;
+    dest.indent();
     let len = self.declarations.len();
     for (i, decl) in self.declarations.iter().enumerate() {
-      if !dest.minify {
-        dest.write_str("\n  ")?;
-      }
+      dest.newline()?;
       decl.to_css(dest)?;
       if i != len - 1 || !dest.minify {
         dest.write_char(';')?;
       }
     }
+    dest.dedent();
     dest.newline()?;
     dest.write_char('}')
   }
@@ -474,15 +465,17 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
           //         Err(input.new_custom_error(StyleParseErrorKind::UnsupportedAtRule(name.clone())))
           //     }
           // },
-          "keyframes" | "-webkit-keyframes" | "-moz-keyframes" => {
-              // let prefix = if starts_with_ignore_ascii_case(&*name, "-webkit-") {
-              //     Some(VendorPrefix::WebKit)
-              // } else if starts_with_ignore_ascii_case(&*name, "-moz-") {
-              //     Some(VendorPrefix::Moz)
-              // } else {
-              //     None
-              // };
-              // let name = KeyframesName::parse(self.context, input)?;
+          "keyframes" | "-webkit-keyframes" | "-moz-keyframes" | "-o-keyframes" => {
+              let prefix = if starts_with_ignore_ascii_case(&*name, "-webkit-") {
+                VendorPrefix::WebKit
+              } else if starts_with_ignore_ascii_case(&*name, "-moz-") {
+                VendorPrefix::Moz
+              } else if starts_with_ignore_ascii_case(&*name, "-o-") {
+                VendorPrefix::O
+              } else {
+                VendorPrefix::None
+              };
+
               let location = input.current_source_location();
               let name = match *input.next()? {
                 Token::Ident(ref s) => s.as_ref(),
@@ -490,7 +483,7 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
                 ref t => return Err(location.new_unexpected_token_error(t.clone())),
               };
 
-              Ok(AtRuleType::WithBlock(AtRulePrelude::Keyframes(name.into())))
+              Ok(AtRuleType::WithBlock(AtRulePrelude::Keyframes(name.into(), prefix)))
           },
           "page" => {
             let selectors = input.try_parse(|input| input.parse_comma_separated(PageSelector::parse)).unwrap_or_default();
@@ -602,22 +595,13 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
           //         self.shared_lock.wrap(ViewportRule::parse(&context, input)?),
           //     )))
           // },
-          AtRulePrelude::Keyframes(name) => {
-              // let context = ParserContext::new_with_rule_type(
-              //     self.context,
-              //     CssRuleType::Keyframes,
-              //     self.namespaces,
-              // );
-
-              let iter = RuleListParser::new_for_nested_rule(input, KeyframeListParser);
-
-              Ok(CssRule::Keyframes(KeyframesRule {
-                name,
-                keyframes: iter.filter_map(Result::ok).collect()
-                // keyframes: parse_keyframe_list(&context, input, self.shared_lock),
-                // vendor_prefix,
-                // source_location: start.source_location(),
-              }))
+          AtRulePrelude::Keyframes(name, vendor_prefix) => {
+            let iter = RuleListParser::new_for_nested_rule(input, KeyframeListParser);
+            Ok(CssRule::Keyframes(KeyframesRule {
+              name,
+              keyframes: iter.filter_map(Result::ok).collect(),
+              vendor_prefix,
+            }))
           },
           AtRulePrelude::Page(selectors) => {
             let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser);
@@ -729,4 +713,9 @@ impl<'i> AtRuleParser<'i> for PropertyDeclarationParser {
   type PreludeBlock = ();
   type AtRule = Declaration;
   type Error = ();
+}
+
+fn starts_with_ignore_ascii_case(string: &str, prefix: &str) -> bool {
+  string.len() >= prefix.len() &&
+      string.as_bytes()[0..prefix.len()].eq_ignore_ascii_case(prefix.as_bytes())
 }
