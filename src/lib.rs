@@ -2495,6 +2495,77 @@ mod tests {
         animation-fill-mode: forwards;
       }
     "#});
+    test(r#"
+      .foo {
+        -webkit-animation-name: foo;
+        -webkit-animation-duration: 0.09s;
+        -webkit-animation-timing-function: ease-in-out;
+        -webkit-animation-iteration-count: 2;
+        -webkit-animation-direction: alternate;
+        -webkit-animation-play-state: running;
+        -webkit-animation-delay: 100ms;
+        -webkit-animation-fill-mode: forwards;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-animation: foo 90ms ease-in-out .1s 2 alternate forwards;
+      }
+    "#});
+    test(r#"
+      .foo {
+        -moz-animation: bar 200ms;
+        -moz-animation-timing-function: ease-in-out;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -moz-animation: bar .2s ease-in-out;
+      }
+    "#});
+    test(r#"
+      .foo {
+        -webkit-animation: bar 200ms;
+        -webkit-animation-timing-function: ease-in-out;
+        -moz-animation: bar 200ms;
+        -moz-animation-timing-function: ease-in-out;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-animation: bar .2s ease-in-out;
+        -moz-animation: bar .2s ease-in-out;
+      }
+    "#});
+
+    prefix_test(r#"
+      .foo {
+        animation: bar .2s ease-in-out;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-animation: bar .2s ease-in-out;
+        -moz-animation: bar .2s ease-in-out;
+        animation: bar .2s ease-in-out;
+      }
+    "#}, Browsers {
+      firefox: Some(6 << 16),
+      safari: Some(6 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        -webkit-animation: bar .2s ease-in-out;
+        -moz-animation: bar .2s ease-in-out;
+        animation: bar .2s ease-in-out;
+      }
+    "#, indoc! {r#"
+      .foo {
+        animation: bar .2s ease-in-out;
+      }
+    "#}, Browsers {
+      firefox: Some(20 << 16),
+      safari: Some(14 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]

@@ -65,6 +65,7 @@ impl DeclarationHandler {
       flex: FlexHandler::new(targets),
       align: AlignHandler::new(targets),
       transition: TransitionHandler::new(targets),
+      animation: AnimationHandler::new(targets),
       prefix: PrefixHandler::new(targets),
       ..DeclarationHandler::default()
     }
