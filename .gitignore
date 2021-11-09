@@ -1,3 +1,4 @@
-node_modules
-target
 *.node
+node_modules/
+target/
+pkg/

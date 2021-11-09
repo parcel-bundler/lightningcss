@@ -1,6 +1,3 @@
-extern crate napi;
-#[macro_use]
-extern crate napi_derive;
 extern crate serde;
 extern crate serde_bytes;
 extern crate cssparser;
@@ -24,7 +21,6 @@ mod printer;
 mod traits;
 mod macros;
 
-use napi::{CallContext, JsObject, JsBuffer};
 use serde::{Deserialize, Serialize};
 use cssparser::{Parser, ParserInput, RuleListParser};
 use crate::traits::ToCss;
@@ -36,23 +32,60 @@ use std::collections::HashMap;
 
 use parser::TopLevelRuleParser;
 
-#[derive(Serialize, Debug, Deserialize)]
-struct Config {
-  filename: String,
-  #[serde(with = "serde_bytes")]
-  code: Vec<u8>,
-  targets: Option<Browsers>
+// ---------------------------------------------
+
+#[cfg(target_arch = "wasm32")]
+use serde_wasm_bindgen::{from_value};
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn transform(config_val: JsValue) -> Result<JsValue, JsValue> {
+  let config: Config = from_value(config_val).map_err(JsValue::from)?;
+
+  let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
+
+  Ok(compile(code, true, config.targets).into())
 }
 
+// ---------------------------------------------
+
+#[cfg(not(target_arch = "wasm32"))]
+extern crate napi;
+#[cfg(not(target_arch = "wasm32"))]
+#[macro_use]
+extern crate napi_derive;
+#[cfg(not(target_arch = "wasm32"))]
+use napi::{CallContext, JsObject, JsBuffer};
+
+#[cfg(not(target_arch = "wasm32"))]
 #[js_function(1)]
 fn transform(ctx: CallContext) -> napi::Result<JsBuffer> {
   let opts = ctx.get::<JsObject>(0)?;
   let config: Config = ctx.env.from_js_value(opts)?;
-
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
   let res = compile(code, true, config.targets);
 
   Ok(ctx.env.create_buffer_with_data(res.into_bytes())?.into_raw())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[module_exports]
+fn init(mut exports: JsObject) -> napi::Result<()> {
+  exports.create_named_method("transform", transform)?;
+
+  Ok(())
+}
+
+// ---------------------------------------------
+
+#[derive(Serialize, Debug, Deserialize)]
+struct Config {
+  pub filename: String,
+  #[serde(with = "serde_bytes")]
+  pub code: Vec<u8>,
+  pub targets: Option<Browsers>
 }
 
 fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> String {
@@ -176,13 +209,6 @@ fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> String {
   }
 
   dest
-}
-
-#[module_exports]
-fn init(mut exports: JsObject) -> napi::Result<()> {
-  exports.create_named_method("transform", transform)?;
-
-  Ok(())
 }
 
 #[cfg(test)]

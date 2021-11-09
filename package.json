@@ -31,6 +31,8 @@
   },
   "scripts": {
     "build": "napi build --platform",
-    "build-release": "napi build --platform --release"
+    "build-release": "napi build --platform --release",
+    "wasm:build": "wasm-pack build --target nodejs",
+    "wasm:build-release": "wasm-pack build --target nodejs --release"
   }
 }
