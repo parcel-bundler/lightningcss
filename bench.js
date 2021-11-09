@@ -5,7 +5,11 @@ const esbuild = require('esbuild');
 
 let opts = {
   filename: process.argv[process.argv.length - 1],
-  code: require('fs').readFileSync(process.argv[process.argv.length - 1])
+  code: require('fs').readFileSync(process.argv[process.argv.length - 1]),
+  minify: true,
+  targets: {
+    chrome: 95 << 16
+  }
 };
 
 async function run() {

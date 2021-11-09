@@ -46,7 +46,7 @@ pub fn transform(config_val: JsValue) -> Result<JsValue, JsValue> {
 
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
 
-  Ok(compile(code, true, config.targets).into())
+  Ok(compile(code, config.minify.unwrap_or(false), config.targets).into())
 }
 
 // ---------------------------------------------
@@ -65,7 +65,7 @@ fn transform(ctx: CallContext) -> napi::Result<JsBuffer> {
   let opts = ctx.get::<JsObject>(0)?;
   let config: Config = ctx.env.from_js_value(opts)?;
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
-  let res = compile(code, true, config.targets);
+  let res = compile(code, config.minify.unwrap_or(false), config.targets);
 
   Ok(ctx.env.create_buffer_with_data(res.into_bytes())?.into_raw())
 }
@@ -85,7 +85,8 @@ struct Config {
   pub filename: String,
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
-  pub targets: Option<Browsers>
+  pub targets: Option<Browsers>,
+  pub minify: Option<bool>
 }
 
 fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> String {
