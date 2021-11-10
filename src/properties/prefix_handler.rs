@@ -87,7 +87,6 @@ macro_rules! define_prefixes {
 }
 
 define_prefixes! {
-  Transform,
   TransformOrigin,
   TransformStyle,
   BackfaceVisibility,

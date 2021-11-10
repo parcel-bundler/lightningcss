@@ -1,5 +1,7 @@
 use cssparser::*;
-use crate::traits::{Parse, ToCss};
+use crate::traits::{Parse, ToCss, PropertyHandler};
+use super::{Property, VendorPrefix};
+use super::prefixes::{Feature, Browsers};
 use crate::values::{
   angle::Angle,
   percentage::NumberOrPercentage,
@@ -1194,7 +1196,7 @@ impl ToCss for Perspective {
 pub struct Translate {
   x: LengthPercentage,
   y: LengthPercentage,
-  z: LengthPercentage
+  z: Length
 }
 
 impl Parse for Translate {
@@ -1203,14 +1205,14 @@ impl Parse for Translate {
       return Ok(Translate {
         x: LengthPercentage::zero(),
         y: LengthPercentage::zero(),
-        z: LengthPercentage::zero()
+        z: Length::zero()
       });
     }
 
     let x = LengthPercentage::parse(input)?;
     let y = input.try_parse(LengthPercentage::parse);
     let z = if y.is_ok() {
-      input.try_parse(LengthPercentage::parse).ok()
+      input.try_parse(Length::parse).ok()
     } else {
       None
     };
@@ -1218,7 +1220,7 @@ impl Parse for Translate {
     Ok(Translate {
       x,
       y: y.unwrap_or(LengthPercentage::zero()),
-      z: z.unwrap_or(LengthPercentage::zero())
+      z: z.unwrap_or(Length::zero())
     })
   }
 }
@@ -1235,6 +1237,12 @@ impl ToCss for Translate {
       }
     }
     Ok(())
+  }
+}
+
+impl Translate {
+  pub fn to_transform(&self) -> Transform {
+    Transform::Translate3d(self.x.clone(), self.y.clone(), self.z.clone())
   }
 }
 
@@ -1307,6 +1315,13 @@ impl ToCss for Rotate {
   }
 }
 
+impl Rotate {
+  pub fn to_transform(&self) -> Transform {
+    Transform::Rotate3d(self.x, self.y, self.z, self.angle.clone())
+  }
+}
+
+
 /// https://drafts.csswg.org/css-transforms-2/#propdef-scale
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scale {
@@ -1359,5 +1374,111 @@ impl ToCss for Scale {
     }
 
     Ok(())
+  }
+}
+
+impl Scale {
+  pub fn to_transform(&self) -> Transform {
+    Transform::Scale3d(self.x.clone(), self.y.clone(), self.z.clone())
+  }
+}
+
+#[derive(Default)]
+pub struct TransformHandler {
+  targets: Option<Browsers>,
+  transform: Option<(TransformList, VendorPrefix)>,
+  translate: Option<Translate>,
+  rotate: Option<Rotate>,
+  scale: Option<Scale>,
+  decls: Vec<Property>
+}
+
+impl TransformHandler {
+  pub fn new(targets: Option<Browsers>) -> TransformHandler {
+    TransformHandler {
+      targets,
+      ..TransformHandler::default()
+    }
+  }
+}
+impl PropertyHandler for TransformHandler {
+  fn handle_property(&mut self, property: &Property) -> bool {
+    use Property::*;
+
+    macro_rules! individual_property {
+      ($prop: ident, $val: ident) => {
+        if let Some((transform, _)) = &mut self.transform {
+          transform.0.push($val.to_transform())
+        } else {
+          self.$prop = Some($val.clone())
+        }
+      };
+    }
+
+    match property {
+      Transform(val, vp) => {
+        // If two vendor prefixes for the same property have different
+        // values, we need to flush what we have immediately to preserve order.
+        if let Some((cur, prefixes)) = &self.transform {
+          if cur != val && !prefixes.contains(*vp) {
+            self.flush();
+          }
+        }
+
+        // Otherwise, update the value and add the prefix.
+        if let Some((val, prefixes)) = &mut self.transform {
+          *val = val.clone();
+          *prefixes |= *vp;
+        } else {
+          self.transform = Some((val.clone(), *vp))
+        }
+
+        self.translate = None;
+        self.rotate = None;
+        self.scale = None;
+      }
+      Translate(val) => individual_property!(translate, val),
+      Rotate(val) => individual_property!(rotate, val),
+      Scale(val) => individual_property!(scale, val),
+      _ => return false
+    }
+
+    true
+  }
+
+  fn finalize(&mut self) -> Vec<Property> {
+    self.flush();
+    std::mem::take(&mut self.decls)
+  }
+}
+
+impl TransformHandler {
+  fn flush(&mut self) {
+    let transform = std::mem::take(&mut self.transform);
+    let translate = std::mem::take(&mut self.translate);
+    let rotate = std::mem::take(&mut self.rotate);
+    let scale = std::mem::take(&mut self.scale);
+
+    if let Some((transform, prefix)) = transform {
+      let mut prefix = prefix;
+      if prefix.contains(VendorPrefix::None) {
+        if let Some(targets) = self.targets {
+          prefix = Feature::Transform.prefixes_for(targets)
+        }
+      }
+      self.decls.push(Property::Transform(transform, prefix))
+    }
+
+    if let Some(translate) = translate {
+      self.decls.push(Property::Translate(translate))
+    }
+
+    if let Some(rotate) = rotate {
+      self.decls.push(Property::Rotate(rotate))
+    }
+
+    if let Some(scale) = scale {
+      self.decls.push(Property::Scale(scale))
+    }
   }
 }

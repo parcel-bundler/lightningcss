@@ -3049,6 +3049,25 @@ mod tests {
     minify_test(".foo { scale: 1 0 }", ".foo{scale:1 0}");
     minify_test(".foo { scale: 1 0 1 }", ".foo{scale:1 0}");
     minify_test(".foo { scale: 1 0 0 }", ".foo{scale:1 0 0}");
+
+    minify_test(".foo { transform: scale(3); scale: 0.5 }", ".foo{transform:scale(1.5)}");
+    minify_test(".foo { scale: 0.5; transform: scale(3); }", ".foo{transform:scale(3)}");
+
+    prefix_test(r#"
+      .foo {
+        transform: scale(0.5);
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-transform: scale(.5);
+        -moz-transform: scale(.5);
+        transform: scale(.5);
+      }
+    "#}, Browsers {
+      firefox: Some(6 << 16),
+      safari: Some(6 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]

@@ -14,6 +14,7 @@ use crate::properties::{
   animation::AnimationHandler,
   prefix_handler::PrefixHandler,
   display::DisplayHandler,
+  transform::TransformHandler
 };
 use crate::properties::prefixes::Browsers;
 
@@ -56,6 +57,7 @@ pub struct DeclarationHandler {
   transition: TransitionHandler,
   animation: AnimationHandler,
   display: DisplayHandler,
+  transform: TransformHandler,
   prefix: PrefixHandler
 }
 
@@ -69,6 +71,7 @@ impl DeclarationHandler {
       transition: TransitionHandler::new(targets),
       animation: AnimationHandler::new(targets),
       display: DisplayHandler::new(targets),
+      transform: TransformHandler::new(targets),
       prefix: PrefixHandler::new(targets),
       ..DeclarationHandler::default()
     }
@@ -89,6 +92,7 @@ impl DeclarationHandler {
     self.transition.handle_property(property) ||
     self.animation.handle_property(property) ||
     self.display.handle_property(property) ||
+    self.transform.handle_property(property) ||
     self.prefix.handle_property(property)
   }
 
@@ -107,6 +111,7 @@ impl DeclarationHandler {
     let mut transition = self.transition.finalize();
     let mut animation = self.animation.finalize();
     let mut display = self.display.finalize();
+    let mut transform = self.transform.finalize();
     let mut prefixed = self.prefix.finalize();
 
     let mut decls = Vec::with_capacity(display.len() + background.len() + border.len() + outline.len() + flex.len() + align.len() + margin.len() + padding.len() + scroll_margin.len() + scroll_padding.len() + font.len() + transition.len() + animation.len() + prefixed.len());
@@ -123,6 +128,7 @@ impl DeclarationHandler {
     decls.extend(font.drain(..).map(|property| Declaration { property, important }));
     decls.extend(transition.drain(..).map(|property| Declaration { property, important }));
     decls.extend(animation.drain(..).map(|property| Declaration { property, important }));
+    decls.extend(transform.drain(..).map(|property| Declaration { property, important }));
     decls.extend(prefixed.drain(..).map(|property| Declaration { property, important }));
     decls
   }
