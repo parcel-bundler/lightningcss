@@ -402,7 +402,7 @@ impl PropertyHandler for FlexHandler {
   fn handle_property(&mut self, property: &Property) -> bool {
     use Property::*;
 
-    macro_rules! property {
+    macro_rules! maybe_flush {
       ($prop: ident, $val: expr, $vp: ident) => {{
         // If two vendor prefixes for the same property have different
         // values, we need to flush what we have immediately to preserve order.
@@ -411,6 +411,12 @@ impl PropertyHandler for FlexHandler {
             self.flush();
           }
         }
+      }};
+    }
+
+    macro_rules! property {
+      ($prop: ident, $val: expr, $vp: ident) => {{
+        maybe_flush!($prop, $val, $vp);
 
         // Otherwise, update the value and add the prefix.
         if let Some((val, prefixes)) = &mut self.$prop {
@@ -463,6 +469,9 @@ impl PropertyHandler for FlexHandler {
         self.flex_positive = None;
         self.flex_negative = None;
         self.preferred_size = None;
+        maybe_flush!(grow, &val.grow, vp);
+        maybe_flush!(shrink, &val.shrink, vp);
+        maybe_flush!(basis, &val.basis, vp);
         property!(grow, &val.grow, vp);
         property!(shrink, &val.shrink, vp);
         property!(basis, &val.basis, vp);

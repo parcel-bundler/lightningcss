@@ -1881,6 +1881,21 @@ mod tests {
       safari: Some(11 << 16),
       ..Browsers::default()
     });
+    prefix_test(r#"
+      .foo {
+        -ms-flex: 0 0 8%;
+        flex: 0 0 5%;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -ms-flex: 0 0 8%;
+        flex: 0 0 5%;
+      }
+    "#},
+    Browsers {
+      safari: Some(11 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]
