@@ -166,6 +166,16 @@ impl Parse for DisplayPair {
         inside: DisplayInside::Flex(VendorPrefix::Ms),
         is_list_item: false
       }),
+      "-webkit-inline-box" => Ok(DisplayPair {
+        outside: DisplayOutside::Inline,
+        inside: DisplayInside::Box(VendorPrefix::WebKit),
+        is_list_item: false
+      }),
+      "-moz-inline-box" => Ok(DisplayPair {
+        outside: DisplayOutside::Inline,
+        inside: DisplayInside::Box(VendorPrefix::Moz),
+        is_list_item: false
+      }),
       "inline-grid" => Ok(DisplayPair {
         outside: DisplayOutside::Inline,
         inside: DisplayInside::Grid,
@@ -190,6 +200,10 @@ impl ToCss for DisplayPair {
         } else {
           dest.write_str("inline-flex")
         }
+      },
+      DisplayPair { outside: DisplayOutside::Inline, inside: DisplayInside::Box(prefix), is_list_item: false } => {
+        prefix.to_css(dest)?;
+        dest.write_str("inline-box")
       },
       DisplayPair { outside: DisplayOutside::Inline, inside: DisplayInside::Grid, is_list_item: false } => dest.write_str("inline-grid"),
       DisplayPair { outside, inside, is_list_item } => {

@@ -3337,6 +3337,10 @@ mod tests {
       ".foo { display: flex; display: grid }",
       ".foo{display:grid}"
     );
+    minify_test(
+      ".foo { display: -webkit-inline-flex; display: -moz-inline-box; display: inline-flex }",
+      ".foo{display:-webkit-inline-flex;display:-moz-inline-box;display:inline-flex}"
+    );
     prefix_test(
       ".foo{ display: flex }",
       indoc! {r#"
@@ -3420,6 +3424,43 @@ mod tests {
         display: -moz-box;
         display: -webkit-flex;
         display: -ms-flexbox;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      ".foo{ display: inline-flex }",
+      indoc! {r#"
+      .foo {
+        display: -webkit-inline-box;
+        display: -moz-inline-box;
+        display: -webkit-inline-flex;
+        display: -ms-inline-flexbox;
+        display: inline-flex;
+      }
+      "#},
+      Browsers {
+        safari: Some(4 << 16),
+        firefox: Some(14 << 16),
+        ie: Some(10 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(r#"
+      .foo {
+        display: -webkit-inline-box;
+        display: -moz-inline-box;
+        display: -webkit-inline-flex;
+        display: -ms-inline-flexbox;
+        display: inline-flex;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        display: inline-flex;
       }
       "#},
       Browsers {
