@@ -1188,3 +1188,176 @@ impl ToCss for Perspective {
     }
   }
 }
+
+/// https://drafts.csswg.org/css-transforms-2/#propdef-translate
+#[derive(Debug, Clone, PartialEq)]
+pub struct Translate {
+  x: LengthPercentage,
+  y: LengthPercentage,
+  z: LengthPercentage
+}
+
+impl Parse for Translate {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
+      return Ok(Translate {
+        x: LengthPercentage::zero(),
+        y: LengthPercentage::zero(),
+        z: LengthPercentage::zero()
+      });
+    }
+
+    let x = LengthPercentage::parse(input)?;
+    let y = input.try_parse(LengthPercentage::parse);
+    let z = if y.is_ok() {
+      input.try_parse(LengthPercentage::parse).ok()
+    } else {
+      None
+    };
+
+    Ok(Translate {
+      x,
+      y: y.unwrap_or(LengthPercentage::zero()),
+      z: z.unwrap_or(LengthPercentage::zero())
+    })
+  }
+}
+
+impl ToCss for Translate {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    self.x.to_css(dest)?;
+    if self.y != 0.0 || self.z != 0.0 {
+      dest.write_char(' ')?;
+      self.y.to_css(dest)?;
+      if self.z != 0.0 {
+        dest.write_char(' ')?;
+        self.z.to_css(dest)?;
+      }
+    }
+    Ok(())
+  }
+}
+
+/// https://drafts.csswg.org/css-transforms-2/#propdef-rotate
+#[derive(Debug, Clone, PartialEq)]
+pub struct Rotate {
+  x: f32,
+  y: f32,
+  z: f32,
+  angle: Angle
+}
+
+impl Parse for Rotate {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
+      return Ok(Rotate {
+        x: 0.0,
+        y: 0.0,
+        z: 1.0,
+        angle: Angle::Deg(0.0)
+      });
+    }
+
+    let angle = input.try_parse(Angle::parse);
+    let (x, y, z) = input
+      .try_parse(|input| {
+        let location = input.current_source_location();
+        let ident = input.expect_ident()?;
+        match_ignore_ascii_case! { &*ident,
+          "x" => Ok((1.0, 0.0, 0.0)),
+          "y" => Ok((0.0, 1.0, 0.0)),
+          "z" => Ok((0.0, 0.0, 1.0)),
+          _ => Err(location.new_unexpected_token_error(
+            cssparser::Token::Ident(ident.clone())
+          ))
+        }
+      })
+      .or_else(|_: ParseError<'i, ()>| -> Result<_, ParseError<'i, ()>> {
+        input.try_parse(|input| {
+          Ok((f32::parse(input)?, f32::parse(input)?, f32::parse(input)?))
+        })
+      })
+      .unwrap_or((0.0, 0.0, 1.0));
+    let angle = angle.or_else(|_| Angle::parse(input))?;
+    Ok(Rotate { x, y, z, angle })
+  }
+}
+
+impl ToCss for Rotate {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    if self.x == 0.0 && self.y == 0.0 && self.z == 1.0 && self.angle == 0.0 {
+      dest.write_str("none")?;
+      return Ok(())
+    }
+
+    if self.x == 1.0 && self.y == 0.0 && self.z == 0.0 {
+      dest.write_str("x ")?;
+    } else if self.x == 0.0 && self.y == 1.0 && self.z == 0.0 {
+      dest.write_str("y ")?;
+    } else if !(self.x == 0.0 && self.y == 0.0 && self.z == 1.0) {
+      self.x.to_css(dest)?;
+      dest.write_char(' ')?;
+      self.y.to_css(dest)?;
+      dest.write_char(' ')?;
+      self.z.to_css(dest)?;
+      dest.write_char(' ')?;
+    }
+
+    self.angle.to_css(dest)
+  }
+}
+
+/// https://drafts.csswg.org/css-transforms-2/#propdef-scale
+#[derive(Debug, Clone, PartialEq)]
+pub struct Scale {
+  x: NumberOrPercentage,
+  y: NumberOrPercentage,
+  z: NumberOrPercentage
+}
+
+impl Parse for Scale {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
+      return Ok(Scale {
+        x: NumberOrPercentage::Number(0.0),
+        y: NumberOrPercentage::Number(0.0),
+        z: NumberOrPercentage::Number(1.0)
+      })
+    }
+
+    let x = NumberOrPercentage::parse(input)?;
+    let y = input.try_parse(NumberOrPercentage::parse);
+    let z = if y.is_ok() {
+      input.try_parse(NumberOrPercentage::parse).ok()
+    } else {
+      None
+    };
+
+    Ok(Scale {
+      x: x.clone(),
+      y: y.unwrap_or(x),
+      z: z.unwrap_or(NumberOrPercentage::Number(1.0))
+    })
+  }
+}
+
+impl ToCss for Scale {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    if self.x == 0.0 && self.y == 0.0 && self.z == 1.0 {
+      dest.write_str("none")?;
+      return Ok(())
+    }
+
+    self.x.to_css(dest)?;
+    if self.y != self.x || self.z != 1.0 {
+      dest.write_char(' ')?;
+      self.y.to_css(dest)?;
+      if self.z != 1.0 {
+        dest.write_char(' ')?;
+        self.z.to_css(dest)?;
+      }
+    }
+
+    Ok(())
+  }
+}

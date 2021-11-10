@@ -3025,6 +3025,30 @@ mod tests {
     minify_test(".foo { transform: scale(calc(.1 + .2))", ".foo{transform:scale(.3)}");
 
     minify_test(".foo { -webkit-transform: scale(calc(10% + 20%))", ".foo{-webkit-transform:scale(.3)}");
+
+    minify_test(".foo { translate: 1px 2px 3px }", ".foo{translate:1px 2px 3px}");
+    minify_test(".foo { translate: 1px 0px 0px }", ".foo{translate:1px}");
+    minify_test(".foo { translate: 1px 2px 0px }", ".foo{translate:1px 2px}");
+    minify_test(".foo { translate: 1px 0px 2px }", ".foo{translate:1px 0 2px}");
+    minify_test(".foo { translate: none }", ".foo{translate:0}");
+    minify_test(".foo { rotate: 10deg }", ".foo{rotate:10deg}");
+    minify_test(".foo { rotate: z 10deg }", ".foo{rotate:10deg}");
+    minify_test(".foo { rotate: 0 0 1 10deg }", ".foo{rotate:10deg}");
+    minify_test(".foo { rotate: x 10deg }", ".foo{rotate:x 10deg}");
+    minify_test(".foo { rotate: 1 0 0 10deg }", ".foo{rotate:x 10deg}");
+    minify_test(".foo { rotate: y 10deg }", ".foo{rotate:y 10deg}");
+    minify_test(".foo { rotate: 0 1 0 10deg }", ".foo{rotate:y 10deg}");
+    minify_test(".foo { rotate: 1 1 1 10deg }", ".foo{rotate:1 1 1 10deg}");
+    minify_test(".foo { rotate: 0 0 1 0deg }", ".foo{rotate:none}");
+    minify_test(".foo { rotate: none }", ".foo{rotate:none}");
+    minify_test(".foo { scale: 1 }", ".foo{scale:1}");
+    minify_test(".foo { scale: 1 1 }", ".foo{scale:1}");
+    minify_test(".foo { scale: 1 1 1 }", ".foo{scale:1}");
+    minify_test(".foo { scale: none }", ".foo{scale:none}");
+    minify_test(".foo { scale: 0 0 1 }", ".foo{scale:none}");
+    minify_test(".foo { scale: 1 0 }", ".foo{scale:1 0}");
+    minify_test(".foo { scale: 1 0 1 }", ".foo{scale:1 0}");
+    minify_test(".foo { scale: 1 0 0 }", ".foo{scale:1 0 0}");
   }
 
   #[test]

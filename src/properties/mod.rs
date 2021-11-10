@@ -431,6 +431,9 @@ define_properties! {
   "backface-visibility": BackfaceVisibility(BackfaceVisibility, VendorPrefix) / "webkit" / "moz",
   "perspective": Perspective(Perspective, VendorPrefix) / "webkit" / "moz",
   "perspective-origin": PerspectiveOrigin(Position, VendorPrefix) / "webkit" / "moz",
+  "translate": Translate(Translate),
+  "rotate": Rotate(Rotate),
+  "scale": Scale(Scale),
 }
 
 impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {
