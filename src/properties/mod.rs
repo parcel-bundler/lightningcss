@@ -14,6 +14,7 @@ pub mod animation;
 pub mod transform;
 pub mod prefixes;
 pub mod prefix_handler;
+pub mod display;
 
 use cssparser::*;
 use custom::*;
@@ -29,6 +30,7 @@ use border_radius::*;
 use transition::*;
 use animation::*;
 use transform::*;
+use display::*;
 use crate::values::{image::*, length::*, position::*, alpha::*, size::*, rect::*, color::*, time::Time, ident::CustomIdent, easing::EasingFunction};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
@@ -200,8 +202,8 @@ define_properties! {
 
   "box-shadow": BoxShadow(SmallVec<[BoxShadow; 1]>, VendorPrefix) / "webkit" / "moz",
   "opacity": Opacity(AlphaValue),
-
   "color": Color(CssColor),
+  "display": Display(Display),
 
   "width": Width(Size),
   "height": Height(Size),

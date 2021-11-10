@@ -3286,4 +3286,146 @@ mod tests {
       }
     );
   }
+
+  #[test]
+  fn test_display() {
+    minify_test(".foo { display: block }", ".foo{display:block}");
+    minify_test(".foo { display: block flow }", ".foo{display:block}");
+    minify_test(".foo { display: flow-root }", ".foo{display:flow-root}");
+    minify_test(".foo { display: block flow-root }", ".foo{display:flow-root}");
+    minify_test(".foo { display: inline }", ".foo{display:inline}");
+    minify_test(".foo { display: inline flow }", ".foo{display:inline}");
+    minify_test(".foo { display: inline-block }", ".foo{display:inline-block}");
+    minify_test(".foo { display: inline flow-root }", ".foo{display:inline-block}");
+    minify_test(".foo { display: run-in }", ".foo{display:run-in}");
+    minify_test(".foo { display: run-in flow }", ".foo{display:run-in}");
+    minify_test(".foo { display: list-item }", ".foo{display:list-item}");
+    minify_test(".foo { display: block flow list-item }", ".foo{display:list-item}");
+    minify_test(".foo { display: inline list-item }", ".foo{display:inline list-item}");
+    minify_test(".foo { display: inline flow list-item }", ".foo{display:inline list-item}");
+    minify_test(".foo { display: flex }", ".foo{display:flex}");
+    minify_test(".foo { display: block flex }", ".foo{display:flex}");
+    minify_test(".foo { display: inline-flex }", ".foo{display:inline-flex}");
+    minify_test(".foo { display: inline flex }", ".foo{display:inline-flex}");
+    minify_test(".foo { display: grid }", ".foo{display:grid}");
+    minify_test(".foo { display: block grid }", ".foo{display:grid}");
+    minify_test(".foo { display: inline-grid }", ".foo{display:inline-grid}");
+    minify_test(".foo { display: inline grid }", ".foo{display:inline-grid}");
+    minify_test(".foo { display: ruby }", ".foo{display:ruby}");
+    minify_test(".foo { display: inline ruby }", ".foo{display:ruby}");
+    minify_test(".foo { display: block ruby }", ".foo{display:block ruby}");
+    minify_test(".foo { display: table }", ".foo{display:table}");
+    minify_test(".foo { display: block table }", ".foo{display:table}");
+    minify_test(".foo { display: inline-table }", ".foo{display:inline-table}");
+    minify_test(".foo { display: inline table }", ".foo{display:inline-table}");
+    minify_test(".foo { display: table-row-group }", ".foo{display:table-row-group}");
+    minify_test(".foo { display: contents }", ".foo{display:contents}");
+    minify_test(".foo { display: none }", ".foo{display:none}");
+    minify_test(".foo { display: -webkit-flex }", ".foo{display:-webkit-flex}");
+    minify_test(".foo { display: -ms-flexbox }", ".foo{display:-ms-flexbox}");
+    minify_test(".foo { display: -webkit-box }", ".foo{display:-webkit-box}");
+    minify_test(".foo { display: -moz-box }", ".foo{display:-moz-box}");
+    minify_test(
+      ".foo { display: -webkit-flex; display: -moz-box; display: flex }",
+      ".foo{display:-webkit-flex;display:-moz-box;display:flex}"
+    );
+    minify_test(
+      ".foo { display: -webkit-flex; display: flex; display: -moz-box }",
+      ".foo{display:-webkit-flex;display:flex;display:-moz-box}"
+    );
+    minify_test(
+      ".foo { display: flex; display: grid }",
+      ".foo{display:grid}"
+    );
+    prefix_test(
+      ".foo{ display: flex }",
+      indoc! {r#"
+      .foo {
+        display: -webkit-box;
+        display: -moz-box;
+        display: -webkit-flex;
+        display: -ms-flexbox;
+        display: flex;
+      }
+      "#},
+      Browsers {
+        safari: Some(4 << 16),
+        firefox: Some(14 << 16),
+        ie: Some(10 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      ".foo{ display: flex; display: -webkit-box; }",
+      indoc! {r#"
+      .foo {
+        display: -webkit-box;
+      }
+      "#},
+      Browsers {
+        safari: Some(4 << 16),
+        firefox: Some(14 << 16),
+        ie: Some(10 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      ".foo{ display: -webkit-box; display: flex; }",
+      indoc! {r#"
+      .foo {
+        display: -webkit-box;
+        display: -moz-box;
+        display: -webkit-flex;
+        display: -ms-flexbox;
+        display: flex;
+      }
+      "#},
+      Browsers {
+        safari: Some(4 << 16),
+        firefox: Some(14 << 16),
+        ie: Some(10 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(r#"
+      .foo {
+        display: -webkit-box;
+        display: -moz-box;
+        display: -webkit-flex;
+        display: -ms-flexbox;
+        display: flex;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        display: flex;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(r#"
+      .foo {
+        display: -webkit-box;
+        display: flex;
+        display: -moz-box;
+        display: -webkit-flex;
+        display: -ms-flexbox;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        display: -moz-box;
+        display: -webkit-flex;
+        display: -ms-flexbox;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      }
+    );
+  }
 }
