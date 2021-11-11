@@ -245,10 +245,28 @@ enum_property!(HorizontalPositionKeyword,
   Right
 );
 
+impl Into<Percentage> for HorizontalPositionKeyword {
+  fn into(self) -> Percentage {
+    match self {
+      HorizontalPositionKeyword::Left => Percentage(0.0),
+      HorizontalPositionKeyword::Right => Percentage(1.0)
+    }
+  }
+}
+
 enum_property!(VerticalPositionKeyword,
   Top,
   Bottom
 );
+
+impl Into<Percentage> for VerticalPositionKeyword {
+  fn into(self) -> Percentage {
+    match self {
+      VerticalPositionKeyword::Top => Percentage(0.0),
+      VerticalPositionKeyword::Bottom => Percentage(1.0)
+    }
+  }
+}
 
 pub type HorizontalPosition = PositionComponent<HorizontalPositionKeyword>;
 pub type VerticalPosition = PositionComponent<VerticalPositionKeyword>;
