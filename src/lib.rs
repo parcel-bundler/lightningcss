@@ -3045,8 +3045,7 @@ mod tests {
     minify_test(".foo { scale: 1 }", ".foo{scale:1}");
     minify_test(".foo { scale: 1 1 }", ".foo{scale:1}");
     minify_test(".foo { scale: 1 1 1 }", ".foo{scale:1}");
-    minify_test(".foo { scale: none }", ".foo{scale:none}");
-    minify_test(".foo { scale: 0 0 1 }", ".foo{scale:none}");
+    minify_test(".foo { scale: none }", ".foo{scale:1}");
     minify_test(".foo { scale: 1 0 }", ".foo{scale:1 0}");
     minify_test(".foo { scale: 1 0 1 }", ".foo{scale:1 0}");
     minify_test(".foo { scale: 1 0 0 }", ".foo{scale:1 0 0}");

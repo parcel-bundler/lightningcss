@@ -1334,8 +1334,8 @@ impl Parse for Scale {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
       return Ok(Scale {
-        x: NumberOrPercentage::Number(0.0),
-        y: NumberOrPercentage::Number(0.0),
+        x: NumberOrPercentage::Number(1.0),
+        y: NumberOrPercentage::Number(1.0),
         z: NumberOrPercentage::Number(1.0)
       })
     }
@@ -1358,11 +1358,6 @@ impl Parse for Scale {
 
 impl ToCss for Scale {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-    if self.x == 0.0 && self.y == 0.0 && self.z == 1.0 {
-      dest.write_str("none")?;
-      return Ok(())
-    }
-
     self.x.to_css(dest)?;
     if self.y != self.x || self.z != 1.0 {
       dest.write_char(' ')?;
