@@ -1975,6 +1975,7 @@ mod tests {
     minify_test("[foo=\"baz\"] {}", "[foo=baz]{}");
     minify_test("[foo=\"foo bar\"] {}", "[foo=foo\\ bar]{}");
     minify_test("[foo=\"foo bar baz\"] {}", "[foo=\"foo bar baz\"]{}");
+    minify_test("[foo=\"\"] {}", "[foo=\"\"]{}");
     minify_test(".test:not([foo=\"bar\"]) {}", ".test:not([foo=bar]){}");
     minify_test(".test + .foo {}", ".test+.foo{}");
     minify_test(".test ~ .foo {}", ".test~.foo{}");

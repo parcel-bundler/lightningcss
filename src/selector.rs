@@ -375,7 +375,7 @@ impl ToCss for Component<Selectors> {
           let mut s = String::new();
           value.write_string(&mut s)?;
 
-          if id.len() < s.len() + 2 {
+          if id.len() > 0 && id.len() < s.len() + 2 {
             dest.write_str(&id)?;
           } else {
             dest.write_char('"')?;
