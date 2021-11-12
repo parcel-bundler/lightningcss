@@ -3344,6 +3344,279 @@ mod tests {
       ".foo { background: repeating-conic-gradient(black 0deg 25%, white 0deg 50%) }",
       ".foo{background:repeating-conic-gradient(#000 0deg 25%,#fff 0deg 50%)}"
     );
+
+    test(
+      r#"
+        .foo {
+          background: -webkit-gradient(linear, left top, left bottom, from(red), to(blue));
+          background: -webkit-linear-gradient(red, blue);
+          background: -moz-linear-gradient(red, blue);
+          background: -o-linear-gradient(red, blue);
+          background: linear-gradient(red, blue);
+        }
+      "#,
+      indoc! {r#"
+        .foo {
+          background: -webkit-gradient(linear, left top, left bottom, from(red), to(#00f));
+          background: -webkit-linear-gradient(red, #00f);
+          background: -moz-linear-gradient(red, #00f);
+          background: -o-linear-gradient(red, #00f);
+          background: linear-gradient(red, #00f);
+        }
+      "#}
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        background: -webkit-gradient(linear, left top, left bottom, from(red), to(blue));
+        background: -webkit-linear-gradient(red, blue);
+        background: -moz-linear-gradient(red, blue);
+        background: -o-linear-gradient(red, blue);
+        background: linear-gradient(red, blue);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        background: linear-gradient(red, #00f);
+      }
+      "#},
+      Browsers {
+        chrome: Some(95 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background-image: linear-gradient(red, blue);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        background-image: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#00f));
+        background-image: -webkit-linear-gradient(red, #00f);
+        background-image: linear-gradient(red, #00f);
+      }
+      "#},
+      Browsers {
+        chrome: Some(8 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background-image: linear-gradient(to right, red, blue);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        background-image: -webkit-gradient(linear, 0 0, 100% 0, from(red), to(#00f));
+        background-image: -webkit-linear-gradient(right, red, #00f);
+        background-image: linear-gradient(to right, red, #00f);
+      }
+      "#},
+      Browsers {
+        chrome: Some(8 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background-image: linear-gradient(to top, red, blue);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        background-image: -webkit-gradient(linear, 0 100%, 0 0, from(red), to(#00f));
+        background-image: -webkit-linear-gradient(top, red, #00f);
+        background-image: linear-gradient(to top, red, #00f);
+      }
+      "#},
+      Browsers {
+        chrome: Some(8 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background-image: linear-gradient(to left, red, blue);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        background-image: -webkit-gradient(linear, 100% 0, 0 0, from(red), to(#00f));
+        background-image: -webkit-linear-gradient(left, red, #00f);
+        background-image: linear-gradient(to left, red, #00f);
+      }
+      "#},
+      Browsers {
+        chrome: Some(8 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background-image: linear-gradient(to left bottom, red, blue);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        background-image: -webkit-gradient(linear, 100% 0, 0 100%, from(red), to(#00f));
+        background-image: -webkit-linear-gradient(bottom left, red, #00f);
+        background-image: linear-gradient(to bottom left, red, #00f);
+      }
+      "#},
+      Browsers {
+        chrome: Some(8 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background-image: linear-gradient(to top right, red, blue);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        background-image: -webkit-gradient(linear, 0 100%, 100% 0, from(red), to(#00f));
+        background-image: -webkit-linear-gradient(top right, red, #00f);
+        background-image: linear-gradient(to top right, red, #00f);
+      }
+      "#},
+      Browsers {
+        chrome: Some(8 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background-image: linear-gradient(90deg, red, blue);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        background-image: -webkit-gradient(linear, 0 0, 100% 0, from(red), to(#00f));
+        background-image: -webkit-linear-gradient(90deg, red, #00f);
+        background-image: linear-gradient(90deg, red, #00f);
+      }
+      "#},
+      Browsers {
+        chrome: Some(8 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background-image: linear-gradient(45deg, red, blue);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        background-image: -webkit-linear-gradient(45deg, red, #00f);
+        background-image: linear-gradient(45deg, red, #00f);
+      }
+      "#},
+      Browsers {
+        chrome: Some(8 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background-image: linear-gradient(red, blue);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        background-image: -webkit-linear-gradient(red, #00f);
+        background-image: linear-gradient(red, #00f);
+      }
+      "#},
+      Browsers {
+        chrome: Some(10 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background-image: radial-gradient(20px, red, blue);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        background-image: -webkit-gradient(radial, center center, 0, center center, 20, from(red), to(#00f));
+        background-image: -webkit-radial-gradient(20px, red, #00f);
+        background-image: radial-gradient(20px, red, #00f);
+      }
+      "#},
+      Browsers {
+        chrome: Some(8 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background-image: radial-gradient(20px at top left, red, blue);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        background-image: -webkit-gradient(radial, left top, 0, left top, 20, from(red), to(#00f));
+        background-image: -webkit-radial-gradient(20px at left top, red, #00f);
+        background-image: radial-gradient(20px at left top, red, #00f);
+      }
+      "#},
+      Browsers {
+        chrome: Some(8 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background-image: radial-gradient(red, blue);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        background-image: -webkit-radial-gradient(red, #00f);
+        background-image: radial-gradient(red, #00f);
+      }
+      "#},
+      Browsers {
+        chrome: Some(8 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background-image: -webkit-gradient(radial, left top, 0, left top, 20, from(red), to(#00f));
+        background-image: -webkit-radial-gradient(20px at left top, red, #00f);
+        background-image: radial-gradient(20px at left top, red, #00f);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        background-image: radial-gradient(20px at left top, red, #00f);
+      }
+      "#},
+      Browsers {
+        chrome: Some(30 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 
   #[test]

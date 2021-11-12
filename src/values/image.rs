@@ -4,8 +4,9 @@ use super::position::{HorizontalPositionKeyword, VerticalPositionKeyword};
 use super::color::CssColor;
 use super::length::{Length, LengthPercentage};
 use super::percentage::{Percentage, DimensionPercentage, NumberOrPercentage};
-use super::position::Position;
+use super::position::{Position, PositionComponent};
 use crate::properties::VendorPrefix;
+use crate::properties::prefixes::{Feature, Browsers};
 use crate::traits::{Parse, ToCss};
 use crate::macros::enum_property;
 use crate::printer::Printer;
@@ -22,6 +23,36 @@ pub enum Image {
 impl Default for Image {
   fn default() -> Image {
     Image::None
+  }
+}
+
+impl Image {
+  pub fn has_vendor_prefix(&self) -> bool {
+    match self {
+      Image::Gradient(a) => a.has_vendor_prefix(),
+      _ => false
+    }
+  }
+
+  pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+    match self {
+      Image::Gradient(grad) => grad.get_necessary_prefixes(targets),
+      _ => VendorPrefix::None
+    }
+  }
+
+  pub fn get_prefixed(&self, prefix: VendorPrefix) -> Image {
+    match self {
+      Image::Gradient(grad) => Image::Gradient(grad.get_prefixed(prefix)),
+      _ => self.clone()
+    }
+  }
+
+  pub fn get_legacy_webkit(&self) -> Result<Image, ()> {
+    match self {
+      Image::Gradient(grad) => Ok(Image::Gradient(grad.get_legacy_webkit()?)),
+      _ => Ok(self.clone())
+    }
   }
 }
 
@@ -67,6 +98,53 @@ pub enum Gradient {
   Conic(ConicGradient),
   RepeatingConic(ConicGradient),
   WebKitGradient(WebKitGradient)
+}
+
+impl Gradient {
+  pub fn has_vendor_prefix(&self) -> bool {
+    match self {
+      Gradient::Linear(_, prefix) | 
+      Gradient::RepeatingLinear(_, prefix) |
+      Gradient::Radial(_, prefix) | 
+      Gradient::RepeatingRadial(_, prefix) => *prefix != VendorPrefix::None,
+      Gradient::WebKitGradient(_) => true,
+      _ => false
+    }
+  }
+
+  pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+    macro_rules! get_prefixes {
+      ($feature: ident, $prefix: ident) => {
+        if *$prefix == VendorPrefix::None {
+          Feature::$feature.prefixes_for(targets)
+        } else {
+          *$prefix
+        }
+      };
+    }
+
+    match self {
+      Gradient::Linear(_, prefix) => get_prefixes!(LinearGradient, prefix),
+      Gradient::RepeatingLinear(_, prefix) => get_prefixes!(RepeatingLinearGradient, prefix),
+      Gradient::Radial(_, prefix) => get_prefixes!(RadialGradient, prefix),
+      Gradient::RepeatingRadial(_, prefix) => get_prefixes!(RepeatingRadialGradient, prefix),
+      _ => VendorPrefix::None
+    }
+  }
+
+  pub fn get_prefixed(&self, prefix: VendorPrefix) -> Gradient {
+    match self {
+      Gradient::Linear(linear, _) => Gradient::Linear(linear.clone(), prefix),
+      Gradient::RepeatingLinear(linear, _) => Gradient::RepeatingLinear(linear.clone(), prefix),
+      Gradient::Radial(radial, _) => Gradient::Radial(radial.clone(), prefix),
+      Gradient::RepeatingRadial(radial, _) => Gradient::RepeatingRadial(radial.clone(), prefix),
+      _ => self.clone()
+    }
+  }
+
+  pub fn get_legacy_webkit(&self) -> Result<Gradient, ()> {
+    Ok(Gradient::WebKitGradient(WebKitGradient::from_standard(self)?))
+  }
 }
 
 impl Parse for Gradient {
@@ -839,7 +917,13 @@ impl<S: ToCss + Clone + Into<Percentage>> ToCss for WebKitGradientPointComponent
           dest.write_str("center")
         }
       }
-      Number(lp) => lp.to_css(dest),
+      Number(lp) => {
+        if matches!(lp, NumberOrPercentage::Percentage(Percentage(0.0))) {
+          dest.write_char('0')
+        } else {
+          lp.to_css(dest)
+        }
+      },
       Side(s) => {
         if dest.minify {
           let percentage: Percentage = s.clone().into();
@@ -855,4 +939,179 @@ impl<S: ToCss + Clone + Into<Percentage>> ToCss for WebKitGradientPointComponent
       }
     }
   }
+}
+
+impl<S: Clone> WebKitGradientPointComponent<S> {
+  /// Attempts to convert a standard position to a webkit gradient point.
+  fn from_position(pos: &PositionComponent<S>) -> Result<WebKitGradientPointComponent<S>, ()> {
+    match pos {
+      PositionComponent::Center => Ok(WebKitGradientPointComponent::Center),
+      PositionComponent::Length(len) => {
+        Ok(WebKitGradientPointComponent::Number(match len {
+          LengthPercentage::Percentage(p) => NumberOrPercentage::Percentage(p.clone()),
+          LengthPercentage::Dimension(d) => {
+            // Webkit gradient points can only be specified in pixels.
+            if let Some(px) = d.to_px() {
+              NumberOrPercentage::Number(px)
+            } else {
+              return Err(())
+            }
+          },
+          _ => return Err(())
+        }))
+      }
+      PositionComponent::Side(s, o) => {
+        if o.is_some() {
+          return Err(())
+        }
+        Ok(WebKitGradientPointComponent::Side(s.clone()))
+      }
+    }
+  }
+}
+
+impl WebKitGradient {
+  /// Attempts to convert a standard gradient to a legacy -webkit-gradient()
+  pub fn from_standard(gradient: &Gradient) -> Result<WebKitGradient, ()> {
+    match gradient {
+      Gradient::Linear(linear, _) => {
+        // Convert from line direction to a from and to point, if possible.
+        let (from, to) = match &linear.direction {
+          LineDirection::Horizontal(horizontal) => {
+            match horizontal {
+              HorizontalPositionKeyword::Left => (
+                (1.0, 0.0),
+                (0.0, 0.0)
+              ),
+              HorizontalPositionKeyword::Right => (
+                (0.0, 0.0),
+                (1.0, 0.0)
+              )
+            }
+          }
+          LineDirection::Vertical(vertical) => {
+            match vertical {
+              VerticalPositionKeyword::Top => (
+                (0.0, 1.0),
+                (0.0, 0.0)
+              ),
+              VerticalPositionKeyword::Bottom => (
+                (0.0, 0.0),
+                (0.0, 1.0)
+              )
+            }
+          }
+          LineDirection::Corner(horizontal, vertical) => {
+            match (horizontal, vertical) {
+              (HorizontalPositionKeyword::Left, VerticalPositionKeyword::Top) => (
+                (1.0, 1.0),
+                (0.0, 0.0)
+              ),
+              (HorizontalPositionKeyword::Left, VerticalPositionKeyword::Bottom) => (
+                (1.0, 0.0),
+                (0.0, 1.0)
+              ),
+              (HorizontalPositionKeyword::Right, VerticalPositionKeyword::Top) => (
+                (0.0, 1.0),
+                (1.0, 0.0)
+              ),
+              (HorizontalPositionKeyword::Right, VerticalPositionKeyword::Bottom) => (
+                (0.0, 0.0),
+                (1.0, 1.0)
+              )
+            }
+          }
+          LineDirection::Angle(angle) => {
+            let degrees = angle.to_degrees();
+            if degrees == 0.0 {
+              (
+                (0.0, 1.0),
+                (0.0, 0.0)
+              )
+            } else if degrees == 90.0 {
+              (
+                (0.0, 0.0),
+                (1.0, 0.0)
+              )
+            } else if degrees == 180.0 {
+              (
+                (0.0, 0.0),
+                (0.0, 1.0)
+              )
+            } else if degrees == 270.0 {
+              (
+                (1.0, 0.0),
+                (0.0, 0.0)
+              )
+            } else {
+              return Err(())
+            }
+          }
+        };
+
+        Ok(WebKitGradient::Linear {
+          from: WebKitGradientPoint { x: WebKitGradientPointComponent::Number(NumberOrPercentage::Percentage(Percentage(from.0))), y: WebKitGradientPointComponent::Number(NumberOrPercentage::Percentage(Percentage(from.1))) },
+          to: WebKitGradientPoint { x: WebKitGradientPointComponent::Number(NumberOrPercentage::Percentage(Percentage(to.0))), y: WebKitGradientPointComponent::Number(NumberOrPercentage::Percentage(Percentage(to.1))) },
+          stops: convert_stops_to_webkit(&linear.items)?
+        })
+      },
+      Gradient::Radial(radial, _) => {
+        // Webkit radial gradients are always circles, not ellipses, and must be specified in pixels.
+        let radius = match &radial.shape {
+          EndingShape::Circle(Circle::Radius(radius)) => {
+            if let Some(r) = radius.to_px() {
+              r
+            } else {
+              return Err(())
+            }
+          },
+          _ => return Err(())
+        };
+
+        let x = WebKitGradientPointComponent::from_position(&radial.position.x)?;
+        let y = WebKitGradientPointComponent::from_position(&radial.position.y)?;
+        let point = WebKitGradientPoint { x, y };
+        Ok(WebKitGradient::Radial {
+          from: point.clone(),
+          r0: 0.0,
+          to: point,
+          r1: radius,
+          stops: convert_stops_to_webkit(&radial.items)?
+        })
+      }
+      _ => Err(())
+    }
+  }
+}
+
+fn convert_stops_to_webkit(items: &Vec<GradientItem<LengthPercentage>>) -> Result<Vec<WebKitColorStop>, ()> {
+  let mut stops = Vec::with_capacity(items.len());
+  for (i, item) in items.iter().enumerate() {
+    match item {
+      GradientItem::ColorStop(stop) => {
+        // webkit stops must always be percentage based, not length based.
+        let position = if let Some(pos) = &stop.position {
+          if let LengthPercentage::Percentage(position) = pos {
+            position.0
+          } else {
+            return Err(())
+          }
+        } else if i == 0 {
+          0.0
+        } else if i == items.len() - 1 {
+          1.0
+        } else {
+          return Err(())
+        };
+
+        stops.push(WebKitColorStop {
+          color: stop.color.clone(),
+          position
+        })
+      }
+      _ => return Err(())
+    }
+  }
+
+  Ok(stops)
 }

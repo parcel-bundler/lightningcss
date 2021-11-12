@@ -17,7 +17,7 @@ async function update() {
     filename: 'test.css',
     code: enc.encode(source.value),
     minify: minify.checked,
-    targets
+    targets: Object.keys(targets).length === 0 ? null : targets
   });
 
   compiled.value = res;

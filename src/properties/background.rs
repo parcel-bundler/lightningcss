@@ -5,6 +5,7 @@ use crate::values::{
   color::CssColor,
   image::Image
 };
+use super::prefixes::{Feature, Browsers, is_webkit_gradient};
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::macros::*;
 use crate::properties::{Property, VendorPrefix};
@@ -353,6 +354,7 @@ impl ToCss for Background {
 
 #[derive(Default)]
 pub struct BackgroundHandler {
+  targets: Option<Browsers>,
   color: Option<CssColor>,
   images: Option<SmallVec<[Image; 1]>>,
   x_positions: Option<SmallVec<[HorizontalPosition; 1]>>,
@@ -365,11 +367,35 @@ pub struct BackgroundHandler {
   decls: Vec<Property>
 }
 
+impl BackgroundHandler {
+  pub fn new(targets: Option<Browsers>) -> BackgroundHandler {
+    BackgroundHandler {
+      targets,
+      ..BackgroundHandler::default()
+    }
+  }
+}
+
 impl PropertyHandler for BackgroundHandler {
   fn handle_property(&mut self, property: &Property) -> bool {
+    macro_rules! background_image {
+      ($val: ident) => {
+        if let Some(images) = &self.images {
+          if self.targets.is_some() && $val.iter().all(|x| !x.has_vendor_prefix()) {
+            self.decls.clear();
+          } else if (self.targets.is_none() && images.iter().any(|x| matches!(x, Image::Gradient(_)))) || images.iter().any(|x| x.has_vendor_prefix()) {
+            self.flush();
+          }
+        }
+      };
+    }
+
     match &property {
       Property::BackgroundColor(val) => self.color = Some(val.clone()),
-      Property::BackgroundImage(val) => self.images = Some(val.clone()),
+      Property::BackgroundImage(val) => {
+        background_image!(val);
+        self.images = Some(val.clone())
+      },
       Property::BackgroundPosition(val) => {
         self.x_positions = Some(val.iter().map(|p| p.x.clone()).collect());
         self.y_positions = Some(val.iter().map(|p| p.y.clone()).collect());
@@ -389,8 +415,10 @@ impl PropertyHandler for BackgroundHandler {
         }
       },
       Property::Background(val) => {
+        let images: SmallVec<[Image; 1]> = val.iter().map(|b| b.image.clone()).collect();
+        background_image!(images);
         self.color = Some(val.last().unwrap().color.clone());
-        self.images = Some(val.iter().map(|b| b.image.clone()).collect());
+        self.images = Some(images);
         self.x_positions = Some(val.iter().map(|b| b.position.x.clone()).collect());
         self.y_positions = Some(val.iter().map(|b| b.position.y.clone()).collect());
         self.repeats = Some(val.iter().map(|b| b.repeat.clone()).collect());
@@ -457,7 +485,26 @@ impl BackgroundHandler {
     }
 
     if let Some(images) = images {
-      self.decls.push(Property::BackgroundImage(images))
+      if let Some(targets) = self.targets {
+        let prefixes = images.iter().fold(VendorPrefix::empty(), |acc, image| acc | image.get_necessary_prefixes(targets));
+        if prefixes.contains(VendorPrefix::WebKit) {
+          if is_webkit_gradient(targets) {
+            let images: SmallVec<[Image; 1]> = images.iter().map(|image| image.get_legacy_webkit()).flatten().collect();
+            if !images.is_empty() {
+              self.decls.push(Property::BackgroundImage(images))
+            }
+          }
+          let images = images.iter().map(|image| image.get_prefixed(VendorPrefix::WebKit)).collect();
+          self.decls.push(Property::BackgroundImage(images))
+        }
+
+        if prefixes.contains(VendorPrefix::None) {
+          let images = images.iter().map(|image| image.get_prefixed(VendorPrefix::None)).collect();
+          self.decls.push(Property::BackgroundImage(images))
+        }
+      } else {
+        self.decls.push(Property::BackgroundImage(images))
+      }
     }
 
     match (&mut x_positions, &mut y_positions) {

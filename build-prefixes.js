@@ -16,11 +16,12 @@ const BROWSER_MAPPING = {
 };
 
 let flexSpec = {};
+let oldGradient = {};
 let p = new Map();
 for (let prop in prefixes) {
   let browserMap = {};
   for (let b of prefixes[prop].browsers) {
-    let [name, version, flex_spec] = b.split(' ');
+    let [name, version, variant] = b.split(' ');
     if (BROWSER_MAPPING[name] === null) {
       continue;
     }
@@ -44,8 +45,7 @@ for (let prop in prefixes) {
       }
     }
 
-    if (flex_spec === '2009') {
-      // console.log(prop, name, version, flex_spec);
+    if (variant === '2009') {
       if (flexSpec[name] == null) {
         flexSpec[name] = [v, v];
       } else {
@@ -55,6 +55,18 @@ for (let prop in prefixes) {
 
         if (v > flexSpec[name][1]) {
           flexSpec[name][1] = v;
+        }
+      }
+    } else if (variant === 'old' && prop.includes('gradient')) {
+      if (oldGradient[name] == null) {
+        oldGradient[name] = [v, v];
+      } else {
+        if (v < oldGradient[name][0]) {
+          oldGradient[name][0] = v;
+        }
+
+        if (v > oldGradient[name][1]) {
+          oldGradient[name][1] = v;
         }
       }
     }
@@ -125,6 +137,17 @@ impl Feature {
 
 pub fn is_flex_2009(browsers: Browsers) -> bool {
   ${Object.entries(flexSpec).map(([name, [min, max]]) => {
+    return `if let Some(version) = browsers.${name} {
+    if version >= ${min} && version <= ${max} {
+      return true;
+    }
+  }`;
+  }).join('\n  ')}
+  false
+}
+
+pub fn is_webkit_gradient(browsers: Browsers) -> bool {
+  ${Object.entries(oldGradient).map(([name, [min, max]]) => {
     return `if let Some(version) = browsers.${name} {
     if version >= ${min} && version <= ${max} {
       return true;

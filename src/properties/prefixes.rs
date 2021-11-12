@@ -2175,3 +2175,27 @@ pub fn is_flex_2009(browsers: Browsers) -> bool {
   }
   false
 }
+
+pub fn is_webkit_gradient(browsers: Browsers) -> bool {
+  if let Some(version) = browsers.android {
+    if version >= 131328 && version <= 196608 {
+      return true;
+    }
+  }
+  if let Some(version) = browsers.chrome {
+    if version >= 262144 && version <= 589824 {
+      return true;
+    }
+  }
+  if let Some(version) = browsers.ios_saf {
+    if version >= 197120 && version <= 393216 {
+      return true;
+    }
+  }
+  if let Some(version) = browsers.safari {
+    if version >= 262144 && version <= 393216 {
+      return true;
+    }
+  }
+  false
+}
