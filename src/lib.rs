@@ -3952,4 +3952,15 @@ mod tests {
     minify_test(".foo { text-transform: uppercase full-width full-size-kana }", ".foo{text-transform:uppercase full-width full-size-kana}");
     minify_test(".foo { text-transform: full-width uppercase full-size-kana }", ".foo{text-transform:uppercase full-width full-size-kana}");
   }
+
+  #[test]
+  fn test_whitespace() {
+    minify_test(".foo { white-space: normal }", ".foo{white-space:normal}");
+    minify_test(".foo { white-space: pre }", ".foo{white-space:pre}");
+    minify_test(".foo { white-space: nowrap }", ".foo{white-space:nowrap}");
+    minify_test(".foo { white-space: pre-wrap }", ".foo{white-space:pre-wrap}");
+    minify_test(".foo { white-space: break-spaces }", ".foo{white-space:break-spaces}");
+    minify_test(".foo { white-space: pre-line }", ".foo{white-space:pre-line}");
+    minify_test(".foo { white-space: NoWrAp }", ".foo{white-space:nowrap}");
+  }
 }

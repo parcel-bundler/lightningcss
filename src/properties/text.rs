@@ -114,3 +114,12 @@ impl ToCss for TextTransform {
     Ok(())
   }
 }
+
+enum_property!(WhiteSpace,
+  ("normal", Normal),
+  ("pre", Pre),
+  ("nowrap", NoWrap),
+  ("pre-wrap", PreWrap),
+  ("break-spaces", BreakSpaces),
+  ("pre-line", PreLine)
+);
