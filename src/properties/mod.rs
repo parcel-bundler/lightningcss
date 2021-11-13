@@ -453,6 +453,12 @@ define_properties! {
   "word-spacing": WordSpacing(Spacing),
   "letter-spacing": LetterSpacing(Spacing),
   "text-indent": TextIndent(TextIndent),
+
+  "text-decoration-line": TextDecorationLine(TextDecorationLine, VendorPrefix) / "webkit" / "moz",
+  "text-decoration-style": TextDecorationStyle(TextDecorationStyle, VendorPrefix) / "webkit" / "moz",
+  "text-decoration-color": TextDecorationColor(CssColor, VendorPrefix) / "webkit" / "moz",
+  "text-decoration-thickness": TextDecorationThickness(TextDecorationThickness),
+  "text-decoration": TextDecoration(TextDecoration, VendorPrefix) / "webkit" / "moz",
 }
 
 impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {

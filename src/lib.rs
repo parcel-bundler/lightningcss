@@ -4177,4 +4177,35 @@ mod tests {
     minify_test(".foo { text-indent: each-line 3em hanging }", ".foo{text-indent:3em hanging each-line}");
     minify_test(".foo { text-indent: each-line hanging 3em }", ".foo{text-indent:3em hanging each-line}");
   }
+
+  #[test]
+  fn test_text_decoration() {
+    minify_test(".foo { text-decoration-line: none }", ".foo{text-decoration-line:none}");
+    minify_test(".foo { text-decoration-line: underline }", ".foo{text-decoration-line:underline}");
+    minify_test(".foo { text-decoration-line: overline }", ".foo{text-decoration-line:overline}");
+    minify_test(".foo { text-decoration-line: line-through }", ".foo{text-decoration-line:line-through}");
+    minify_test(".foo { text-decoration-line: blink }", ".foo{text-decoration-line:blink}");
+    minify_test(".foo { text-decoration-line: underline overline }", ".foo{text-decoration-line:underline overline}");
+    minify_test(".foo { text-decoration-line: overline underline }", ".foo{text-decoration-line:underline overline}");
+    minify_test(".foo { text-decoration-line: overline line-through underline }", ".foo{text-decoration-line:underline overline line-through}");
+    minify_test(".foo { text-decoration-line: spelling-error }", ".foo{text-decoration-line:spelling-error}");
+    minify_test(".foo { text-decoration-line: grammar-error }", ".foo{text-decoration-line:grammar-error}");
+    minify_test(".foo { -webkit-text-decoration-line: overline underline }", ".foo{-webkit-text-decoration-line:underline overline}");
+    minify_test(".foo { -moz-text-decoration-line: overline underline }", ".foo{-moz-text-decoration-line:underline overline}");
+
+    minify_test(".foo { text-decoration-style: solid }", ".foo{text-decoration-style:solid}");
+    minify_test(".foo { text-decoration-style: dotted }", ".foo{text-decoration-style:dotted}");
+    minify_test(".foo { -webkit-text-decoration-style: solid }", ".foo{-webkit-text-decoration-style:solid}");
+
+    minify_test(".foo { text-decoration-color: yellow }", ".foo{text-decoration-color:#ff0}");
+    minify_test(".foo { -webkit-text-decoration-color: yellow }", ".foo{-webkit-text-decoration-color:#ff0}");
+
+    minify_test(".foo { text-decoration: none }", ".foo{text-decoration:none}");
+    minify_test(".foo { text-decoration: underline dotted }", ".foo{text-decoration:underline dotted}");
+    minify_test(".foo { text-decoration: underline dotted yellow }", ".foo{text-decoration:underline dotted #ff0}");
+    minify_test(".foo { text-decoration: yellow dotted underline }", ".foo{text-decoration:underline dotted #ff0}");
+    minify_test(".foo { text-decoration: underline overline dotted yellow }", ".foo{text-decoration:underline overline dotted #ff0}");
+    minify_test(".foo { -webkit-text-decoration: yellow dotted underline }", ".foo{-webkit-text-decoration:underline dotted #ff0}");
+    minify_test(".foo { -moz-text-decoration: yellow dotted underline }", ".foo{-moz-text-decoration:underline dotted #ff0}");
+  }
 }
