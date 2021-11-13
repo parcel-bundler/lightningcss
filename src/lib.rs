@@ -4448,4 +4448,13 @@ mod tests {
       ..Browsers::default()
     });
   }
+
+  #[test]
+  fn test_text_shadow() {
+    minify_test(".foo { text-shadow: 1px 1px 2px yellow; }", ".foo{text-shadow:1px 1px 2px #ff0}");
+    minify_test(".foo { text-shadow: 1px 1px 2px 3px yellow; }", ".foo{text-shadow:1px 1px 2px 3px #ff0}");
+    minify_test(".foo { text-shadow: 1px 1px 0 yellow; }", ".foo{text-shadow:1px 1px #ff0}");
+    minify_test(".foo { text-shadow: 1px 1px yellow; }", ".foo{text-shadow:1px 1px #ff0}");
+    minify_test(".foo { text-shadow: 1px 1px yellow, 2px 3px red; }", ".foo{text-shadow:1px 1px #ff0,2px 3px red}");
+  }
 }
