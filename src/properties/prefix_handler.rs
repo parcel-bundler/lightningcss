@@ -94,4 +94,5 @@ define_prefixes! {
   PerspectiveOrigin,
   BoxShadow,
   BoxSizing,
+  TabSize,
 }

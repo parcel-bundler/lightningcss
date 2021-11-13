@@ -3963,4 +3963,48 @@ mod tests {
     minify_test(".foo { white-space: pre-line }", ".foo{white-space:pre-line}");
     minify_test(".foo { white-space: NoWrAp }", ".foo{white-space:nowrap}");
   }
+
+  #[test]
+  fn test_tab_size() {
+    minify_test(".foo { tab-size: 8 }", ".foo{tab-size:8}");
+    minify_test(".foo { tab-size: 4px }", ".foo{tab-size:4px}");
+    minify_test(".foo { -moz-tab-size: 4px }", ".foo{-moz-tab-size:4px}");
+    minify_test(".foo { -o-tab-size: 4px }", ".foo{-o-tab-size:4px}");
+    prefix_test(
+      ".foo{ tab-size: 4 }",
+      indoc! {r#"
+      .foo {
+        -moz-tab-size: 4;
+        -o-tab-size: 4;
+        tab-size: 4;
+      }
+      "#},
+      Browsers {
+        safari: Some(8 << 16),
+        firefox: Some(50 << 16),
+        opera: Some(12 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      r#"
+      .foo {
+        -moz-tab-size: 4;
+        -o-tab-size: 4;
+        tab-size: 4;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        tab-size: 4;
+      }
+      "#},
+      Browsers {
+        safari: Some(8 << 16),
+        firefox: Some(94 << 16),
+        opera: Some(30 << 16),
+        ..Browsers::default()
+      }
+    );
+  }
 }

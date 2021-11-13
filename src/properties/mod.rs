@@ -440,6 +440,8 @@ define_properties! {
 
   // https://www.w3.org/TR/2021/CRD-css-text-3-20210422
   "text-transform": TextTransform(TextTransform),
+  "white-space": WhiteSpace(WhiteSpace),
+  "tab-size": TabSize(LengthOrNumber, VendorPrefix) / "moz" / "o",
 }
 
 impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {
