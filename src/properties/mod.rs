@@ -464,6 +464,7 @@ define_properties! {
   "text-emphasis-style": TextEmphasisStyle(TextEmphasisStyle, VendorPrefix) / "webkit",
   "text-emphasis-color": TextEmphasisColor(CssColor, VendorPrefix) / "webkit",
   "text-emphasis": TextEmphasis(TextEmphasis, VendorPrefix) / "webkit",
+  "text-emphasis-position": TextEmphasisPosition(TextEmphasisPosition, VendorPrefix) / "webkit",
 }
 
 impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {

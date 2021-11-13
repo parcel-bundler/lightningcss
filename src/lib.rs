@@ -4409,5 +4409,43 @@ mod tests {
       firefox: Some(45 << 16),
       ..Browsers::default()
     });
+
+    minify_test(".foo { text-emphasis-position: over }", ".foo{text-emphasis-position:over}");
+    minify_test(".foo { text-emphasis-position: under }", ".foo{text-emphasis-position:under}");
+    minify_test(".foo { text-emphasis-position: over right }", ".foo{text-emphasis-position:over}");
+    minify_test(".foo { text-emphasis-position: over left }", ".foo{text-emphasis-position:over left}");
+
+    prefix_test(r#"
+      .foo {
+        text-emphasis-position: over;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-text-emphasis-position: over;
+        text-emphasis-position: over;
+      }
+    "#},
+    Browsers {
+      safari: Some(10 << 16),
+      chrome: Some(30 << 16),
+      firefox: Some(45 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        text-emphasis-position: over left;
+      }
+    "#, indoc! {r#"
+      .foo {
+        text-emphasis-position: over left;
+      }
+    "#},
+    Browsers {
+      safari: Some(10 << 16),
+      chrome: Some(30 << 16),
+      firefox: Some(45 << 16),
+      ..Browsers::default()
+    });
   }
 }

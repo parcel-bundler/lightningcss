@@ -590,6 +590,7 @@ impl ToCss for TextEmphasisStyle {
   }
 }
 
+/// https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-property
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextEmphasis {
   style: TextEmphasisStyle,
@@ -639,6 +640,47 @@ impl ToCss for TextEmphasis {
   }
 }
 
+enum_property!(TextEmphasisPositionVertical,
+  Over,
+  Under
+);
+
+enum_property!(TextEmphasisPositionHorizontal,
+  Left,
+  Right
+);
+
+/// https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-position-property
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextEmphasisPosition {
+  vertical: TextEmphasisPositionVertical,
+  horizontal: TextEmphasisPositionHorizontal
+}
+
+impl Parse for TextEmphasisPosition {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    if let Ok(horizontal) = input.try_parse(TextEmphasisPositionHorizontal::parse) {
+      let vertical = TextEmphasisPositionVertical::parse(input)?;
+      Ok(TextEmphasisPosition { horizontal, vertical })
+    } else {
+      let vertical = TextEmphasisPositionVertical::parse(input)?;
+      let horizontal = input.try_parse(TextEmphasisPositionHorizontal::parse).unwrap_or(TextEmphasisPositionHorizontal::Right);
+      Ok(TextEmphasisPosition { horizontal, vertical })
+    }
+  }
+}
+
+impl ToCss for TextEmphasisPosition {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    self.vertical.to_css(dest)?;
+    if self.horizontal != TextEmphasisPositionHorizontal::Right {
+      dest.write_char(' ')?;
+      self.horizontal.to_css(dest)?;
+    }
+    Ok(())
+  }
+}
+
 #[derive(Default)]
 pub struct TextDecorationHandler {
   targets: Option<Browsers>,
@@ -648,6 +690,7 @@ pub struct TextDecorationHandler {
   color: Option<(CssColor, VendorPrefix)>,
   emphasis_style: Option<(TextEmphasisStyle, VendorPrefix)>,
   emphasis_color: Option<(CssColor, VendorPrefix)>,
+  emphasis_position: Option<(TextEmphasisPosition, VendorPrefix)>,
   decls: Vec<Property>
 }
 
@@ -712,6 +755,7 @@ impl PropertyHandler for TextDecorationHandler {
         property!(emphasis_style, &val.style, vp);
         property!(emphasis_color, &val.color, vp);
       }
+      TextEmphasisPosition(val, vp) => property!(emphasis_position, val, vp),
       _ => return false
     }
     
@@ -732,6 +776,7 @@ impl TextDecorationHandler {
     let mut color = std::mem::take(&mut self.color);
     let mut emphasis_style = std::mem::take(&mut self.emphasis_style);
     let mut emphasis_color = std::mem::take(&mut self.emphasis_color);
+    let mut emphasis_position = std::mem::take(&mut self.emphasis_position);
 
     if let (Some((line, line_vp)), Some(thickness_val), Some((style, style_vp)), Some((color, color_vp))) = (&mut line, &mut thickness, &mut style, &mut color) {
       let intersection = *line_vp | *style_vp | *color_vp;
@@ -803,5 +848,21 @@ impl TextDecorationHandler {
 
     single_property!(emphasis_style, TextEmphasisStyle);
     single_property!(emphasis_color, TextEmphasisColor);
+
+    if let Some((pos, vp)) = emphasis_position {
+      if !vp.is_empty() {
+        let mut prefix = vp;
+        if prefix.contains(VendorPrefix::None) {
+          if let Some(targets) = self.targets {
+            prefix = Feature::TextEmphasisPosition.prefixes_for(targets);
+            // Prefixed version does not support horizontal keyword.
+            if pos.horizontal != TextEmphasisPositionHorizontal::Right {
+              prefix = VendorPrefix::None;
+            }
+          }
+        }
+        self.decls.push(Property::TextEmphasisPosition(pos, prefix))
+      }
+    }
   }
 }
