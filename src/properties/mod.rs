@@ -442,6 +442,11 @@ define_properties! {
   "text-transform": TextTransform(TextTransform),
   "white-space": WhiteSpace(WhiteSpace),
   "tab-size": TabSize(LengthOrNumber, VendorPrefix) / "moz" / "o",
+  "word-break": WordBreak(WordBreak),
+  "line-break": LineBreak(LineBreak),
+  "hyphens": Hyphens(Hyphens, VendorPrefix) / "webkit" / "moz" / "ms",
+  "overflow-wrap": OverflowWrap(OverflowWrap),
+  "word-wrap": WordWrap(OverflowWrap),
 }
 
 impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {

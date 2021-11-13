@@ -4007,4 +4007,100 @@ mod tests {
       }
     );
   }
+
+  #[test]
+  fn test_word_break() {
+    minify_test(".foo { word-break: normal }", ".foo{word-break:normal}");
+    minify_test(".foo { word-break: keep-all }", ".foo{word-break:keep-all}");
+    minify_test(".foo { word-break: break-all }", ".foo{word-break:break-all}");
+    minify_test(".foo { word-break: break-word }", ".foo{word-break:break-word}");
+  }
+
+  #[test]
+  fn test_line_break() {
+    minify_test(".foo { line-break: auto }", ".foo{line-break:auto}");
+    minify_test(".foo { line-break: Loose }", ".foo{line-break:loose}");
+    minify_test(".foo { line-break: anywhere }", ".foo{line-break:anywhere}");
+  }
+
+  #[test]
+  fn test_wrap() {
+    minify_test(".foo { overflow-wrap: nOrmal }", ".foo{overflow-wrap:normal}");
+    minify_test(".foo { overflow-wrap: break-Word }", ".foo{overflow-wrap:break-word}");
+    minify_test(".foo { overflow-wrap: Anywhere }", ".foo{overflow-wrap:anywhere}");
+    minify_test(".foo { word-wrap: Normal }", ".foo{word-wrap:normal}");
+    minify_test(".foo { word-wrap: Break-wOrd }", ".foo{word-wrap:break-word}");
+    minify_test(".foo { word-wrap: Anywhere }", ".foo{word-wrap:anywhere}");
+  }
+
+  #[test]
+  fn test_hyphens() {
+    minify_test(".foo { hyphens: manual }", ".foo{hyphens:manual}");
+    minify_test(".foo { hyphens: auto }", ".foo{hyphens:auto}");
+    minify_test(".foo { hyphens: none }", ".foo{hyphens:none}");
+    minify_test(".foo { -webkit-hyphens: manual }", ".foo{-webkit-hyphens:manual}");
+    minify_test(".foo { -moz-hyphens: manual }", ".foo{-moz-hyphens:manual}");
+    minify_test(".foo { -ms-hyphens: manual }", ".foo{-ms-hyphens:manual}");
+    prefix_test(
+      ".foo{ hyphens: manual }",
+      indoc! {r#"
+      .foo {
+        -webkit-hyphens: manual;
+        -moz-hyphens: manual;
+        -ms-hyphens: manual;
+        hyphens: manual;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        firefox: Some(40 << 16),
+        ie: Some(10 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      r#"
+      .foo {
+        -webkit-hyphens: manual;
+        -moz-hyphens: manual;
+        -ms-hyphens: manual;
+        hyphens: manual;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        -webkit-hyphens: manual;
+        hyphens: manual;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        chrome: Some(88 << 16),
+        firefox: Some(88 << 16),
+        edge: Some(79 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      r#"
+      .foo {
+        -webkit-hyphens: manual;
+        -moz-hyphens: manual;
+        -ms-hyphens: manual;
+        hyphens: manual;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        hyphens: manual;
+      }
+      "#},
+      Browsers {
+        chrome: Some(88 << 16),
+        firefox: Some(88 << 16),
+        edge: Some(79 << 16),
+        ..Browsers::default()
+      }
+    );
+  }
 }

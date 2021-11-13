@@ -95,4 +95,5 @@ define_prefixes! {
   BoxShadow,
   BoxSizing,
   TabSize,
+  Hyphens,
 }

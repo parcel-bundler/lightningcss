@@ -123,3 +123,30 @@ enum_property!(WhiteSpace,
   ("break-spaces", BreakSpaces),
   ("pre-line", PreLine)
 );
+
+enum_property!(WordBreak,
+  ("normal", Normal),
+  ("keep-all", KeepAll),
+  ("break-all", BreakAll),
+  ("break-word", BreakWord)
+);
+
+enum_property!(LineBreak,
+  Auto,
+  Loose,
+  Normal,
+  Strict,
+  Anywhere
+);
+
+enum_property!(Hyphens,
+  None,
+  Manual,
+  Auto
+);
+
+enum_property!(OverflowWrap,
+  ("normal", Normal),
+  ("break-word", BreakWord),
+  ("anywhere", Anywhere)
+);
