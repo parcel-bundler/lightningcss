@@ -15,6 +15,7 @@ pub mod transform;
 pub mod prefixes;
 pub mod prefix_handler;
 pub mod display;
+pub mod text;
 
 use cssparser::*;
 use custom::*;
@@ -31,6 +32,7 @@ use transition::*;
 use animation::*;
 use transform::*;
 use display::*;
+use text::*;
 use crate::values::{image::*, length::*, position::*, alpha::*, size::*, rect::*, color::*, time::Time, ident::CustomIdent, easing::EasingFunction};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
@@ -435,6 +437,9 @@ define_properties! {
   "translate": Translate(Translate),
   "rotate": Rotate(Rotate),
   "scale": Scale(Scale),
+
+  // https://www.w3.org/TR/2021/CRD-css-text-3-20210422
+  "text-transform": TextTransform(TextTransform),
 }
 
 impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {

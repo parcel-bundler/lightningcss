@@ -3938,4 +3938,18 @@ mod tests {
     minify_test(".foo { visibility: collapse }", ".foo{visibility:collapse}");
     minify_test(".foo { visibility: Visible }", ".foo{visibility:visible}");
   }
+
+  #[test]
+  fn test_text_transform() {
+    minify_test(".foo { text-transform: uppercase }", ".foo{text-transform:uppercase}");
+    minify_test(".foo { text-transform: lowercase }", ".foo{text-transform:lowercase}");
+    minify_test(".foo { text-transform: capitalize }", ".foo{text-transform:capitalize}");
+    minify_test(".foo { text-transform: none }", ".foo{text-transform:none}");
+    minify_test(".foo { text-transform: full-width }", ".foo{text-transform:full-width}");
+    minify_test(".foo { text-transform: full-size-kana }", ".foo{text-transform:full-size-kana}");
+    minify_test(".foo { text-transform: uppercase full-width }", ".foo{text-transform:uppercase full-width}");
+    minify_test(".foo { text-transform: full-width uppercase }", ".foo{text-transform:uppercase full-width}");
+    minify_test(".foo { text-transform: uppercase full-width full-size-kana }", ".foo{text-transform:uppercase full-width full-size-kana}");
+    minify_test(".foo { text-transform: full-width uppercase full-size-kana }", ".foo{text-transform:uppercase full-width full-size-kana}");
+  }
 }
