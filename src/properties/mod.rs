@@ -460,6 +460,10 @@ define_properties! {
   "text-decoration-color": TextDecorationColor(CssColor, VendorPrefix) / "webkit" / "moz",
   "text-decoration-thickness": TextDecorationThickness(TextDecorationThickness),
   "text-decoration": TextDecoration(TextDecoration, VendorPrefix) / "webkit" / "moz",
+  "text-decoration-skip-ink": TextDecorationSkipInk(TextDecorationSkipInk, VendorPrefix) / "webkit",
+  "text-emphasis-style": TextEmphasisStyle(TextEmphasisStyle, VendorPrefix) / "webkit",
+  "text-emphasis-color": TextEmphasisColor(CssColor, VendorPrefix) / "webkit",
+  "text-emphasis": TextEmphasis(TextEmphasis, VendorPrefix) / "webkit",
 }
 
 impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {

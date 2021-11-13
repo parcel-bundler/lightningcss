@@ -4342,5 +4342,72 @@ mod tests {
       firefox: Some(45 << 16),
       ..Browsers::default()
     });
+
+    minify_test(".foo { text-decoration-skip-ink: all }", ".foo{text-decoration-skip-ink:all}");
+    minify_test(".foo { -webkit-text-decoration-skip-ink: all }", ".foo{-webkit-text-decoration-skip-ink:all}");
+  }
+
+  #[test]
+  fn test_text_emphasis() {
+    minify_test(".foo { text-emphasis-style: none }", ".foo{text-emphasis-style:none}");
+    minify_test(".foo { text-emphasis-style: filled }", ".foo{text-emphasis-style:filled}");
+    minify_test(".foo { text-emphasis-style: open }", ".foo{text-emphasis-style:open}");
+    minify_test(".foo { text-emphasis-style: dot }", ".foo{text-emphasis-style:dot}");
+    minify_test(".foo { text-emphasis-style: filled dot }", ".foo{text-emphasis-style:dot}");
+    minify_test(".foo { text-emphasis-style: dot filled }", ".foo{text-emphasis-style:dot}");
+    minify_test(".foo { text-emphasis-style: open dot }", ".foo{text-emphasis-style:open dot}");
+    minify_test(".foo { text-emphasis-style: dot open }", ".foo{text-emphasis-style:open dot}");
+    minify_test(".foo { text-emphasis-style: \"x\" }", ".foo{text-emphasis-style:\"x\"}");
+    
+    minify_test(".foo { text-emphasis-color: yellow }", ".foo{text-emphasis-color:#ff0}");
+
+    minify_test(".foo { text-emphasis: none }", ".foo{text-emphasis:none}");
+    minify_test(".foo { text-emphasis: filled }", ".foo{text-emphasis:filled}");
+    minify_test(".foo { text-emphasis: filled yellow }", ".foo{text-emphasis:filled #ff0}");
+    minify_test(".foo { text-emphasis: dot filled yellow }", ".foo{text-emphasis:dot #ff0}");
+
+    test(r#"
+      .foo {
+        text-emphasis-style: filled;
+        text-emphasis-color: yellow;
+      }
+    "#, indoc! {r#"
+      .foo {
+        text-emphasis: filled #ff0;
+      }
+    "#});
+
+    prefix_test(r#"
+      .foo {
+        text-emphasis-style: filled;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-text-emphasis-style: filled;
+        text-emphasis-style: filled;
+      }
+    "#},
+    Browsers {
+      safari: Some(10 << 16),
+      chrome: Some(30 << 16),
+      firefox: Some(45 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        -webkit-text-emphasis-style: filled;
+        text-emphasis-style: filled;
+      }
+    "#, indoc! {r#"
+      .foo {
+        text-emphasis-style: filled;
+      }
+    "#},
+    Browsers {
+      safari: Some(10 << 16),
+      firefox: Some(45 << 16),
+      ..Browsers::default()
+    });
   }
 }

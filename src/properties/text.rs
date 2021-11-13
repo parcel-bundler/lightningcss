@@ -504,6 +504,141 @@ impl ToCss for TextDecoration {
   }
 }
 
+// https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-skip-ink-property
+enum_property!(TextDecorationSkipInk,
+  Auto,
+  None,
+  All
+);
+
+enum_property!(TextEmphasisFillMode,
+  Filled,
+  Open
+);
+
+enum_property!(TextEmphasisShape,
+  ("dot", Dot),
+  ("circle", Circle),
+  ("double-circle", DoubleCircle),
+  ("triangle", Triangle),
+  ("sesame", Sesame)
+);
+
+// https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-style-property
+#[derive(Debug, Clone, PartialEq)]
+pub enum TextEmphasisStyle {
+  None,
+  Keyword {
+    fill: TextEmphasisFillMode,
+    shape: Option<TextEmphasisShape>
+  },
+  String(String)
+}
+
+impl Default for TextEmphasisStyle {
+  fn default() -> TextEmphasisStyle {
+    TextEmphasisStyle::None
+  }
+}
+
+impl Parse for TextEmphasisStyle {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
+      return Ok(TextEmphasisStyle::None)
+    }
+
+    if let Ok(s) = input.try_parse(|input| input.expect_string().map(|s| s.as_ref().to_owned())) {
+      return Ok(TextEmphasisStyle::String(s))
+    }
+
+    let mut shape = input.try_parse(TextEmphasisShape::parse).ok();
+    let fill = input.try_parse(TextEmphasisFillMode::parse).ok();
+    if shape.is_none() {
+      shape = input.try_parse(TextEmphasisShape::parse).ok();
+    }
+
+    if shape.is_none() && fill.is_none() {
+      return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+    }
+
+    let fill = fill.unwrap_or(TextEmphasisFillMode::Filled);
+    Ok(TextEmphasisStyle::Keyword { fill, shape })
+  }
+}
+
+impl ToCss for TextEmphasisStyle {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    match self {
+      TextEmphasisStyle::None => dest.write_str("none"),
+      TextEmphasisStyle::String(s) => serialize_string(&s, dest),
+      TextEmphasisStyle::Keyword { fill, shape } => {
+        let mut needs_space = false;
+        if *fill != TextEmphasisFillMode::Filled || shape.is_none() {
+          fill.to_css(dest)?;
+          needs_space = true;
+        }
+
+        if let Some(shape) = shape {
+          if needs_space {
+            dest.write_char(' ')?;
+          }
+          shape.to_css(dest)?;
+        }
+        Ok(())
+      }
+    }
+  }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextEmphasis {
+  style: TextEmphasisStyle,
+  color: CssColor
+}
+
+impl Parse for TextEmphasis {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    let mut style = None;
+    let mut color = None;
+
+    loop {
+      if style.is_none() {
+        if let Ok(s) = input.try_parse(TextEmphasisStyle::parse) {
+          style = Some(s);
+          continue
+        }
+      }
+
+      if color.is_none() {
+        if let Ok(c) = input.try_parse(CssColor::parse) {
+          color = Some(c);
+          continue
+        }
+      }
+
+      break
+    }
+
+    Ok(TextEmphasis {
+      style: style.unwrap_or_default(),
+      color: color.unwrap_or(CssColor::current_color())
+    })
+  }
+}
+
+impl ToCss for TextEmphasis {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    self.style.to_css(dest)?;
+
+    if self.style != TextEmphasisStyle::None && self.color != CssColor::current_color() {
+      dest.write_char(' ')?;
+      self.color.to_css(dest)?;
+    }
+
+    Ok(())
+  }
+}
+
 #[derive(Default)]
 pub struct TextDecorationHandler {
   targets: Option<Browsers>,
@@ -511,6 +646,8 @@ pub struct TextDecorationHandler {
   thickness: Option<TextDecorationThickness>,
   style: Option<(TextDecorationStyle, VendorPrefix)>,
   color: Option<(CssColor, VendorPrefix)>,
+  emphasis_style: Option<(TextEmphasisStyle, VendorPrefix)>,
+  emphasis_color: Option<(CssColor, VendorPrefix)>,
   decls: Vec<Property>
 }
 
@@ -567,6 +704,14 @@ impl PropertyHandler for TextDecorationHandler {
         property!(style, &val.style, vp);
         property!(color, &val.color, vp);
       }
+      TextEmphasisStyle(val, vp) => property!(emphasis_style, val, vp),
+      TextEmphasisColor(val, vp) => property!(emphasis_color, val, vp),
+      TextEmphasis(val, vp) => {
+        maybe_flush!(emphasis_style, &val.style, vp);
+        maybe_flush!(emphasis_color, &val.color, vp);
+        property!(emphasis_style, &val.style, vp);
+        property!(emphasis_color, &val.color, vp);
+      }
       _ => return false
     }
     
@@ -585,6 +730,8 @@ impl TextDecorationHandler {
     let mut thickness = std::mem::take(&mut self.thickness);
     let mut style = std::mem::take(&mut self.style);
     let mut color = std::mem::take(&mut self.color);
+    let mut emphasis_style = std::mem::take(&mut self.emphasis_style);
+    let mut emphasis_color = std::mem::take(&mut self.emphasis_color);
 
     if let (Some((line, line_vp)), Some(thickness_val), Some((style, style_vp)), Some((color, color_vp))) = (&mut line, &mut thickness, &mut style, &mut color) {
       let intersection = *line_vp | *style_vp | *color_vp;
@@ -634,5 +781,27 @@ impl TextDecorationHandler {
     if let Some(thickness) = thickness {
       self.decls.push(Property::TextDecorationThickness(thickness))
     }
+
+    if let (Some((style, style_vp)), Some((color, color_vp))) = (&mut emphasis_style, &mut emphasis_color) {
+      let intersection = *style_vp | *color_vp;
+      if !intersection.is_empty() {
+        let mut prefix = intersection;
+        if prefix.contains(VendorPrefix::None) {
+          if let Some(targets) = self.targets {
+            prefix = Feature::TextEmphasis.prefixes_for(targets)
+          }
+        }
+
+        self.decls.push(Property::TextEmphasis(TextEmphasis {
+          style: style.clone(),
+          color: color.clone()
+        }, prefix));
+        style_vp.remove(intersection);
+        color_vp.remove(intersection);
+      }
+    }
+
+    single_property!(emphasis_style, TextEmphasisStyle);
+    single_property!(emphasis_color, TextEmphasisColor);
   }
 }

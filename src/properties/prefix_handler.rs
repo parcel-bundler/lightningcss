@@ -97,4 +97,5 @@ define_prefixes! {
   TabSize,
   Hyphens,
   TextAlignLast,
+  TextDecorationSkipInk,
 }
