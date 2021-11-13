@@ -447,6 +447,12 @@ define_properties! {
   "hyphens": Hyphens(Hyphens, VendorPrefix) / "webkit" / "moz" / "ms",
   "overflow-wrap": OverflowWrap(OverflowWrap),
   "word-wrap": WordWrap(OverflowWrap),
+  "text-align": TextAlign(TextAlign),
+  "text-align-last": TextAlignLast(TextAlignLast, VendorPrefix) / "moz",
+  "text-justify": TextJustify(TextJustify),
+  "word-spacing": WordSpacing(Spacing),
+  "letter-spacing": LetterSpacing(Spacing),
+  "text-indent": TextIndent(TextIndent),
 }
 
 impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {

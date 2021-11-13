@@ -4103,4 +4103,78 @@ mod tests {
       }
     );
   }
+
+  #[test]
+  fn test_text_align() {
+    minify_test(".foo { text-align: left }", ".foo{text-align:left}");
+    minify_test(".foo { text-align: Left }", ".foo{text-align:left}");
+    minify_test(".foo { text-align: END }", ".foo{text-align:end}");
+    minify_test(".foo { text-align: left }", ".foo{text-align:left}");
+  }
+
+  #[test]
+  fn test_text_align_last() {
+    minify_test(".foo { text-align-last: left }", ".foo{text-align-last:left}");
+    minify_test(".foo { text-align-last: justify }", ".foo{text-align-last:justify}");
+    prefix_test(
+      ".foo{ text-align-last: left }",
+      indoc! {r#"
+      .foo {
+        -moz-text-align-last: left;
+        text-align-last: left;
+      }
+      "#},
+      Browsers {
+        firefox: Some(40 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      r#"
+      .foo {
+        -moz-text-align-last: left;
+        text-align-last: left;
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        text-align-last: left;
+      }
+      "#},
+      Browsers {
+        firefox: Some(88 << 16),
+        ..Browsers::default()
+      }
+    );
+  }
+
+  #[test]
+  fn test_text_justify() {
+    minify_test(".foo { text-justify: auto }", ".foo{text-justify:auto}");
+    minify_test(".foo { text-justify: inter-word }", ".foo{text-justify:inter-word}");
+  }
+
+  #[test]
+  fn test_word_spacing() {
+    minify_test(".foo { word-spacing: normal }", ".foo{word-spacing:normal}");
+    minify_test(".foo { word-spacing: 3px }", ".foo{word-spacing:3px}");
+  }
+
+  #[test]
+  fn test_letter_spacing() {
+    minify_test(".foo { letter-spacing: normal }", ".foo{letter-spacing:normal}");
+    minify_test(".foo { letter-spacing: 3px }", ".foo{letter-spacing:3px}");
+  }
+
+  #[test]
+  fn test_text_indent() {
+    minify_test(".foo { text-indent: 20px }", ".foo{text-indent:20px}");
+    minify_test(".foo { text-indent: 10% }", ".foo{text-indent:10%}");
+    minify_test(".foo { text-indent: 3em hanging }", ".foo{text-indent:3em hanging}");
+    minify_test(".foo { text-indent: 3em each-line }", ".foo{text-indent:3em each-line}");
+    minify_test(".foo { text-indent: 3em hanging each-line }", ".foo{text-indent:3em hanging each-line}");
+    minify_test(".foo { text-indent: 3em each-line hanging }", ".foo{text-indent:3em hanging each-line}");
+    minify_test(".foo { text-indent: each-line 3em hanging }", ".foo{text-indent:3em hanging each-line}");
+    minify_test(".foo { text-indent: each-line hanging 3em }", ".foo{text-indent:3em hanging each-line}");
+  }
 }

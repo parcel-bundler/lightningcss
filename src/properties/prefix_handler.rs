@@ -96,4 +96,5 @@ define_prefixes! {
   BoxSizing,
   TabSize,
   Hyphens,
+  TextAlignLast,
 }
