@@ -381,6 +381,9 @@ impl PropertyHandler for BackgroundHandler {
     macro_rules! background_image {
       ($val: ident) => {
         if let Some(images) = &self.images {
+          // If we have targets, and there is no vendor prefix, clear the existing
+          // declarations. The prefixes will be filled in later. Otherwise, if there
+          // are no targets, or there is a vendor prefix, add a new declaration.
           if self.targets.is_some() && $val.iter().all(|x| !x.has_vendor_prefix()) {
             self.decls.clear();
           } else if (self.targets.is_none() && images.iter().any(|x| matches!(x, Image::Gradient(_)))) || images.iter().any(|x| x.has_vendor_prefix()) {
@@ -455,7 +458,13 @@ impl BackgroundHandler {
       // Only use shorthand syntax if the number of layers matches on all properties.
       let len = images.len();
       if x_positions.len() == len && y_positions.len() == len && repeats.len() == len && sizes.len() == len && attachments.len() == len && origins.len() == len && clips.len() == len {
-        let backgrounds = izip!(images.drain(..), x_positions.drain(..), y_positions.drain(..), repeats.drain(..), sizes.drain(..), attachments.drain(..), origins.drain(..), clips.drain(..)).enumerate().map(|(i, (image, x_position, y_position, repeat, size, attachment, origin, clip))| {
+        let prefixes = if let Some(targets) = self.targets {
+          images.iter().fold(VendorPrefix::empty(), |acc, image| acc | image.get_necessary_prefixes(targets))
+        } else {
+          VendorPrefix::None
+        };
+        
+        let backgrounds: SmallVec<[Background; 1]> = izip!(images.drain(..), x_positions.drain(..), y_positions.drain(..), repeats.drain(..), sizes.drain(..), attachments.drain(..), origins.drain(..), clips.drain(..)).enumerate().map(|(i, (image, x_position, y_position, repeat, size, attachment, origin, clip))| {
           Background {
             color: if i == len - 1 {
               color.clone()
@@ -474,7 +483,41 @@ impl BackgroundHandler {
             clip
           }
         }).collect();
-        self.decls.push(Property::Background(backgrounds));
+
+        if let Some(targets) = self.targets {
+          // Legacy -webkit-gradient()
+          if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) {
+            let backgrounds: SmallVec<[Background; 1]> = backgrounds
+              .iter()
+              .map(|bg| -> Result<Background, ()> { Ok(Background { image: bg.image.get_legacy_webkit()?, ..bg.clone() })})
+              .flatten()
+              .collect();
+            if !backgrounds.is_empty() {
+              self.decls.push(Property::Background(backgrounds))
+            }
+          }
+
+          // Standard syntax, with prefixes.
+          macro_rules! prefix {
+            ($prefix: ident) => {
+              if prefixes.contains(VendorPrefix::$prefix) {
+                let backgrounds = backgrounds
+                  .iter()
+                  .map(|bg| Background { image: bg.image.get_prefixed(VendorPrefix::$prefix), ..bg.clone() })
+                  .collect();
+                self.decls.push(Property::Background(backgrounds))
+              }
+            };
+          }
+
+          prefix!(WebKit);
+          prefix!(Moz);
+          prefix!(O);
+          prefix!(None);
+        } else {
+          self.decls.push(Property::Background(backgrounds))
+        }
+
         self.reset();
         return
       }
@@ -487,21 +530,29 @@ impl BackgroundHandler {
     if let Some(images) = images {
       if let Some(targets) = self.targets {
         let prefixes = images.iter().fold(VendorPrefix::empty(), |acc, image| acc | image.get_necessary_prefixes(targets));
-        if prefixes.contains(VendorPrefix::WebKit) {
-          if is_webkit_gradient(targets) {
-            let images: SmallVec<[Image; 1]> = images.iter().map(|image| image.get_legacy_webkit()).flatten().collect();
-            if !images.is_empty() {
-              self.decls.push(Property::BackgroundImage(images))
-            }
+      
+        // Legacy -webkit-gradient()
+        if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) {
+          let images: SmallVec<[Image; 1]> = images.iter().map(|image| image.get_legacy_webkit()).flatten().collect();
+          if !images.is_empty() {
+            self.decls.push(Property::BackgroundImage(images))
           }
-          let images = images.iter().map(|image| image.get_prefixed(VendorPrefix::WebKit)).collect();
-          self.decls.push(Property::BackgroundImage(images))
         }
 
-        if prefixes.contains(VendorPrefix::None) {
-          let images = images.iter().map(|image| image.get_prefixed(VendorPrefix::None)).collect();
-          self.decls.push(Property::BackgroundImage(images))
+        // Standard syntax, with prefixes.
+        macro_rules! prefix {
+          ($prefix: ident) => {
+            if prefixes.contains(VendorPrefix::$prefix) {
+              let images = images.iter().map(|image| image.get_prefixed(VendorPrefix::$prefix)).collect();
+            self.decls.push(Property::BackgroundImage(images))
+            }
+          };
         }
+
+        prefix!(WebKit);
+        prefix!(Moz);
+        prefix!(O);
+        prefix!(None);
       } else {
         self.decls.push(Property::BackgroundImage(images))
       }

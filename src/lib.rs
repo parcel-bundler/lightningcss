@@ -3617,6 +3617,63 @@ mod tests {
         ..Browsers::default()
       }
     );
+    prefix_test(
+      r#"
+      .foo {
+        background: -webkit-gradient(radial, left top, 0, left top, 20, from(red), to(#00f));
+        background: -webkit-radial-gradient(20px at left top, red, #00f);
+        background: radial-gradient(20px at left top, red, #00f);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        background: radial-gradient(20px at left top, red, #00f);
+      }
+      "#},
+      Browsers {
+        chrome: Some(30 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background: radial-gradient(red, blue);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        background: -webkit-radial-gradient(red, #00f);
+        background: radial-gradient(red, #00f);
+      }
+      "#},
+      Browsers {
+        chrome: Some(8 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background: radial-gradient(red, blue), linear-gradient(yellow, red), url(bg.jpg);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        background: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0), to(red)), url(bg.jpg);
+        background: -webkit-radial-gradient(red, #00f), -webkit-linear-gradient(#ff0, red), url(bg.jpg);
+        background: -moz-radial-gradient(red, #00f), -moz-linear-gradient(#ff0, red), url(bg.jpg);
+        background: -o-radial-gradient(red, #00f), -o-linear-gradient(#ff0, red), url(bg.jpg);
+        background: radial-gradient(red, #00f), linear-gradient(#ff0, red), url(bg.jpg);
+      }
+      "#},
+      Browsers {
+        chrome: Some(8 << 16),
+        firefox: Some(4 << 16),
+        opera: Some(11 << 16 | 5 << 8),
+        ..Browsers::default()
+      }
+    );
   }
 
   #[test]
