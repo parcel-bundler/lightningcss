@@ -3930,4 +3930,12 @@ mod tests {
       }
     );
   }
+
+  #[test]
+  fn test_visibility() {
+    minify_test(".foo { visibility: visible }", ".foo{visibility:visible}");
+    minify_test(".foo { visibility: hidden }", ".foo{visibility:hidden}");
+    minify_test(".foo { visibility: collapse }", ".foo{visibility:collapse}");
+    minify_test(".foo { visibility: Visible }", ".foo{visibility:visible}");
+  }
 }

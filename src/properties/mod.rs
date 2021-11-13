@@ -204,6 +204,7 @@ define_properties! {
   "opacity": Opacity(AlphaValue),
   "color": Color(CssColor),
   "display": Display(Display),
+  "visibility": Visibility(Visibility),
 
   "width": Width(Size),
   "height": Height(Size),

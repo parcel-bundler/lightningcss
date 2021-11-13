@@ -282,6 +282,13 @@ impl ToCss for Display {
   }
 }
 
+// https://drafts.csswg.org/css-display-3/#visibility
+enum_property!(Visibility,
+  Visible,
+  Hidden,
+  Collapse
+);
+
 #[derive(Default)]
 pub struct DisplayHandler {
   targets: Option<Browsers>,
