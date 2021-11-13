@@ -14,7 +14,8 @@ use crate::properties::{
   animation::AnimationHandler,
   prefix_handler::PrefixHandler,
   display::DisplayHandler,
-  transform::TransformHandler
+  transform::TransformHandler,
+  text::TextDecorationHandler
 };
 use crate::properties::prefixes::Browsers;
 
@@ -54,6 +55,7 @@ pub struct DeclarationHandler {
   scroll_margin: ScrollMarginHandler,
   scroll_padding: ScrollPaddingHandler,
   font: FontHandler,
+  text: TextDecorationHandler,
   transition: TransitionHandler,
   animation: AnimationHandler,
   display: DisplayHandler,
@@ -73,6 +75,7 @@ impl DeclarationHandler {
       animation: AnimationHandler::new(targets),
       display: DisplayHandler::new(targets),
       transform: TransformHandler::new(targets),
+      text: TextDecorationHandler::new(targets),
       prefix: PrefixHandler::new(targets),
       ..DeclarationHandler::default()
     }
@@ -84,6 +87,7 @@ impl DeclarationHandler {
     self.border.handle_property(property) ||
     self.outline.handle_property(property) ||
     self.flex.handle_property(property) ||
+    self.text.handle_property(property) ||
     self.align.handle_property(property) ||
     self.margin.handle_property(property) ||
     self.padding.handle_property(property) ||
@@ -109,13 +113,14 @@ impl DeclarationHandler {
     let mut scroll_margin = self.scroll_margin.finalize();
     let mut scroll_padding = self.scroll_padding.finalize();
     let mut font = self.font.finalize();
+    let mut text = self.text.finalize();
     let mut transition = self.transition.finalize();
     let mut animation = self.animation.finalize();
     let mut display = self.display.finalize();
     let mut transform = self.transform.finalize();
     let mut prefixed = self.prefix.finalize();
 
-    let mut decls = Vec::with_capacity(display.len() + background.len() + border.len() + outline.len() + flex.len() + align.len() + margin.len() + padding.len() + scroll_margin.len() + scroll_padding.len() + font.len() + transition.len() + animation.len() + prefixed.len());
+    let mut decls = Vec::with_capacity(display.len() + background.len() + border.len() + outline.len() + flex.len() + text.len() + align.len() + margin.len() + padding.len() + scroll_margin.len() + scroll_padding.len() + font.len() + transition.len() + animation.len() + prefixed.len());
     decls.extend(display.drain(..).map(|property| Declaration { property, important }));
     decls.extend(background.drain(..).map(|property| Declaration { property, important }));
     decls.extend(border.drain(..).map(|property| Declaration { property, important }));
@@ -127,6 +132,7 @@ impl DeclarationHandler {
     decls.extend(scroll_margin.drain(..).map(|property| Declaration { property, important }));
     decls.extend(scroll_padding.drain(..).map(|property| Declaration { property, important }));
     decls.extend(font.drain(..).map(|property| Declaration { property, important }));
+    decls.extend(text.drain(..).map(|property| Declaration { property, important }));
     decls.extend(transition.drain(..).map(|property| Declaration { property, important }));
     decls.extend(animation.drain(..).map(|property| Declaration { property, important }));
     decls.extend(transform.drain(..).map(|property| Declaration { property, important }));

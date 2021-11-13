@@ -454,6 +454,7 @@ define_properties! {
   "letter-spacing": LetterSpacing(Spacing),
   "text-indent": TextIndent(TextIndent),
 
+  // https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506
   "text-decoration-line": TextDecorationLine(TextDecorationLine, VendorPrefix) / "webkit" / "moz",
   "text-decoration-style": TextDecorationStyle(TextDecorationStyle, VendorPrefix) / "webkit" / "moz",
   "text-decoration-color": TextDecorationColor(CssColor, VendorPrefix) / "webkit" / "moz",

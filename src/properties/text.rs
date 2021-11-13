@@ -1,5 +1,7 @@
 use cssparser::*;
-use crate::traits::{Parse, ToCss};
+use crate::traits::{Parse, ToCss, PropertyHandler};
+use super::{Property, VendorPrefix};
+use super::prefixes::{Browsers, Feature};
 use crate::macros::enum_property;
 use crate::values::length::{Length, LengthPercentage};
 use crate::values::color::CssColor;
@@ -499,5 +501,138 @@ impl ToCss for TextDecoration {
     }
 
     Ok(())
+  }
+}
+
+#[derive(Default)]
+pub struct TextDecorationHandler {
+  targets: Option<Browsers>,
+  line: Option<(TextDecorationLine, VendorPrefix)>,
+  thickness: Option<TextDecorationThickness>,
+  style: Option<(TextDecorationStyle, VendorPrefix)>,
+  color: Option<(CssColor, VendorPrefix)>,
+  decls: Vec<Property>
+}
+
+impl TextDecorationHandler {
+  pub fn new(targets: Option<Browsers>) -> TextDecorationHandler {
+    TextDecorationHandler {
+      targets,
+      ..TextDecorationHandler::default()
+    }
+  }
+}
+
+impl PropertyHandler for TextDecorationHandler {
+  fn handle_property(&mut self, property: &Property) -> bool {
+    use Property::*;
+
+    macro_rules! maybe_flush {
+      ($prop: ident, $val: expr, $vp: expr) => {{
+        // If two vendor prefixes for the same property have different
+        // values, we need to flush what we have immediately to preserve order.
+        if let Some((val, prefixes)) = &self.$prop {
+          if val != $val && !prefixes.contains(*$vp) {
+            self.flush();
+          }
+        }
+      }};
+    }
+
+    macro_rules! property {
+      ($prop: ident, $val: expr, $vp: expr) => {{
+        maybe_flush!($prop, $val, $vp);
+
+        // Otherwise, update the value and add the prefix.
+        if let Some((val, prefixes)) = &mut self.$prop {
+          *val = $val.clone();
+          *prefixes |= *$vp;
+        } else {
+          self.$prop = Some(($val.clone(), *$vp))
+        }
+      }};
+    }
+
+    match property {
+      TextDecorationLine(val, vp) => property!(line, val, vp),
+      TextDecorationThickness(val) => self.thickness = Some(val.clone()),
+      TextDecorationStyle(val, vp) => property!(style, val, vp),
+      TextDecorationColor(val, vp) => property!(color, val, vp),
+      TextDecoration(val, vp) => {
+        maybe_flush!(line, &val.line, vp);
+        maybe_flush!(style, &val.style, vp);
+        maybe_flush!(color, &val.color, vp);
+        property!(line, &val.line, vp);
+        self.thickness = Some(val.thickness.clone());
+        property!(style, &val.style, vp);
+        property!(color, &val.color, vp);
+      }
+      _ => return false
+    }
+    
+    true
+  }
+
+  fn finalize(&mut self) -> Vec<Property> {
+    self.flush();
+    std::mem::take(&mut self.decls)
+  }
+}
+
+impl TextDecorationHandler {
+  fn flush(&mut self) {
+    let mut line = std::mem::take(&mut self.line);
+    let mut thickness = std::mem::take(&mut self.thickness);
+    let mut style = std::mem::take(&mut self.style);
+    let mut color = std::mem::take(&mut self.color);
+
+    if let (Some((line, line_vp)), Some(thickness_val), Some((style, style_vp)), Some((color, color_vp))) = (&mut line, &mut thickness, &mut style, &mut color) {
+      let intersection = *line_vp | *style_vp | *color_vp;
+      if !intersection.is_empty() {
+        let mut prefix = intersection;
+        
+        // Only add prefixes if one of the new sub-properties was used
+        if prefix.contains(VendorPrefix::None) && (*style != TextDecorationStyle::default() || *color != CssColor::current_color()) {
+          if let Some(targets) = self.targets {
+            prefix = Feature::TextDecoration.prefixes_for(targets)
+          }
+        }
+
+        self.decls.push(Property::TextDecoration(TextDecoration {
+          line: line.clone(),
+          thickness: thickness_val.clone(),
+          style: style.clone(),
+          color: color.clone()
+        }, prefix));
+        line_vp.remove(intersection);
+        style_vp.remove(intersection);
+        color_vp.remove(intersection);
+        thickness = None;
+      }
+    }
+
+    macro_rules! single_property {
+      ($key: ident, $prop: ident) => {
+        if let Some((val, vp)) = $key {
+          if !vp.is_empty() {
+            let mut prefix = vp;
+            if prefix.contains(VendorPrefix::None) {
+              if let Some(targets) = self.targets {
+                prefix = Feature::$prop.prefixes_for(targets);
+              }
+            }
+            self.decls.push(Property::$prop(val, prefix))
+          }
+        }
+      };
+    }
+
+    single_property!(line, TextDecorationLine);
+    single_property!(style, TextDecorationStyle);
+    single_property!(color, TextDecorationColor);
+
+    if let Some(thickness) = thickness {
+      self.decls.push(Property::TextDecorationThickness(thickness))
+    }
   }
 }

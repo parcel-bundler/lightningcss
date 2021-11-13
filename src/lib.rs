@@ -4207,5 +4207,140 @@ mod tests {
     minify_test(".foo { text-decoration: underline overline dotted yellow }", ".foo{text-decoration:underline overline dotted #ff0}");
     minify_test(".foo { -webkit-text-decoration: yellow dotted underline }", ".foo{-webkit-text-decoration:underline dotted #ff0}");
     minify_test(".foo { -moz-text-decoration: yellow dotted underline }", ".foo{-moz-text-decoration:underline dotted #ff0}");
+
+    test(r#"
+      .foo {
+        text-decoration-line: underline;
+        text-decoration-style: dotted;
+        text-decoration-color: yellow;
+        text-decoration-thickness: 2px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        text-decoration: underline 2px dotted #ff0;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        text-decoration: underline;
+        text-decoration-style: dotted;
+      }
+    "#, indoc! {r#"
+      .foo {
+        text-decoration: underline dotted;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        -webkit-text-decoration: underline;
+        -webkit-text-decoration-style: dotted;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-text-decoration: underline dotted;
+      }
+    "#});
+
+    prefix_test(r#"
+      .foo {
+        text-decoration: underline dotted;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-text-decoration: underline dotted;
+        -moz-text-decoration: underline dotted;
+        text-decoration: underline dotted;
+      }
+    "#},
+    Browsers {
+      safari: Some(8 << 16),
+      firefox: Some(30 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        text-decoration-line: underline;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-text-decoration-line: underline;
+        -moz-text-decoration-line: underline;
+        text-decoration-line: underline;
+      }
+    "#},
+    Browsers {
+      safari: Some(8 << 16),
+      firefox: Some(30 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        text-decoration-style: dotted;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-text-decoration-style: dotted;
+        -moz-text-decoration-style: dotted;
+        text-decoration-style: dotted;
+      }
+    "#},
+    Browsers {
+      safari: Some(8 << 16),
+      firefox: Some(30 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        text-decoration-color: yellow;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-text-decoration-color: #ff0;
+        -moz-text-decoration-color: #ff0;
+        text-decoration-color: #ff0;
+      }
+    "#},
+    Browsers {
+      safari: Some(8 << 16),
+      firefox: Some(30 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        text-decoration: underline;
+      }
+    "#, indoc! {r#"
+      .foo {
+        text-decoration: underline;
+      }
+    "#},
+    Browsers {
+      safari: Some(8 << 16),
+      firefox: Some(30 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        -webkit-text-decoration: underline dotted;
+        -moz-text-decoration: underline dotted;
+        text-decoration: underline dotted;
+      }
+    "#, indoc! {r#"
+      .foo {
+        text-decoration: underline dotted;
+      }
+    "#},
+    Browsers {
+      safari: Some(14 << 16),
+      firefox: Some(45 << 16),
+      ..Browsers::default()
+    });
   }
 }
