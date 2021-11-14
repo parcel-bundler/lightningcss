@@ -94,8 +94,7 @@ pub struct TransitionHandler {
   properties: Option<(SmallVec<[CustomIdent; 1]>, VendorPrefix)>,
   durations: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   delays: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
-  timing_functions: Option<(SmallVec<[EasingFunction; 1]>, VendorPrefix)>,
-  decls: Vec<Property>
+  timing_functions: Option<(SmallVec<[EasingFunction; 1]>, VendorPrefix)>
 }
 
 impl TransitionHandler {

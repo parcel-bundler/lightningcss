@@ -45,7 +45,7 @@ impl ToCss for Declaration {
 #[derive(Default)]
 pub struct DeclarationList {
   important: bool,
-  declarations: Vec<Declaration>
+  pub declarations: Vec<Declaration>
 }
 
 impl DeclarationList {
@@ -63,10 +63,6 @@ impl DeclarationList {
   pub fn extend(&mut self, properties: &mut Vec<Property>) {
     let important = self.important;
     self.declarations.extend(properties.drain(..).map(|property| Declaration { property, important }))
-  }
-
-  pub fn extend_declarations(&mut self, decls: &mut DeclarationList) {
-    self.declarations.extend(decls.declarations.drain(..))
   }
 }
 

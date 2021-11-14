@@ -12,7 +12,7 @@ macro_rules! define_prefixes {
     pub struct PrefixHandler {
       targets: Option<Browsers>,
       $(
-        $name: Option<Property>,
+        $name: Option<usize>,
       )+
     }
 
@@ -30,35 +30,40 @@ macro_rules! define_prefixes {
         match property {
           $(
             Property::$name(val, prefix) => {
-              // If two vendor prefixes for the same property have different
-              // values, we need to flush what we have immediately to preserve order.
-              if let Some(Property::$name(cur, prefixes)) = &self.$name {
-                if val != cur && !prefixes.contains(*prefix) {
-                  self.flush(dest);
+              if let Some(i) = self.$name {
+                if let Some(decl) = dest.declarations.get_mut(i) {
+                  if let Property::$name(cur, prefixes) = &mut decl.property {
+                    // If the value is the same, update the prefix.
+                    // If the prefix is the same, then update the value.
+                    if val == cur || prefixes.contains(*prefix) {
+                      *cur = val.clone();
+                      *prefixes |= *prefix;
+                      if prefixes.contains(VendorPrefix::None) {
+                        if let Some(targets) = self.targets {
+                          *prefixes = Feature::$name.prefixes_for(targets);
+                        }
+                      }
+
+                      return true
+                    }
+                  }
                 }
               }
 
-              // Otherwise, update the value and add the prefix.
-              if let Some(Property::$name(val, prefixes)) = &mut self.$name {
-                *val = val.clone();
-                *prefixes |= *prefix;
-                if prefixes.contains(VendorPrefix::None) {
-                  if let Some(targets) = self.targets {
-                    *prefixes = Feature::$name.prefixes_for(targets);
-                  }
-                }
-              } else {
-                let prefixes = if prefix.contains(VendorPrefix::None) {
-                  if let Some(targets) = self.targets {
-                    Feature::$name.prefixes_for(targets)
-                  } else {
-                    *prefix
-                  }
+              // Update the prefixes based on the targets.
+              let prefixes = if prefix.contains(VendorPrefix::None) {
+                if let Some(targets) = self.targets {
+                  Feature::$name.prefixes_for(targets)
                 } else {
                   *prefix
-                };
-                self.$name = Some(Property::$name(val.clone(), prefixes))
-              }
+                }
+              } else {
+                *prefix
+              };
+
+              // Store the index of the property, so we can update it later.
+              self.$name = Some(dest.declarations.len());
+              dest.push(Property::$name(val.clone(), prefixes))
             }
           )+
           _ => return false
@@ -67,20 +72,7 @@ macro_rules! define_prefixes {
         true
       }
 
-      fn finalize(&mut self, dest: &mut DeclarationList) {
-        self.flush(dest);
-      }
-    }
-
-    impl PrefixHandler {
-      fn flush(&mut self, dest: &mut DeclarationList) {
-        $(
-          let $name = std::mem::take(&mut self.$name);
-          if let Some(p) = $name {
-            dest.push(p)
-          }
-        )+
-      }
+      fn finalize(&mut self, _: &mut DeclarationList) {}
     }
   };
 }
