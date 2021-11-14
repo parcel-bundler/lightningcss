@@ -1971,6 +1971,12 @@ mod tests {
   }
 
   #[test]
+  fn test_vertical_align() {
+    minify_test(".foo { vertical-align: middle }", ".foo{vertical-align:middle}");
+    minify_test(".foo { vertical-align: 0.3em }", ".foo{vertical-align:.3em}");
+  }
+
+  #[test]
   fn test_selectors() {
     minify_test("[foo=\"baz\"] {}", "[foo=baz]{}");
     minify_test("[foo=\"foo bar\"] {}", "[foo=foo\\ bar]{}");

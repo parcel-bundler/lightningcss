@@ -426,6 +426,45 @@ impl ToCss for LineHeight {
   }
 }
 
+enum_property!(VerticalAlignKeyword,
+  ("baseline", Baseline),
+  ("sub", Sub),
+  ("super", Super),
+  ("top", Top),
+  ("text-top", TextTop),
+  ("middle", Middle),
+  ("bottom", Bottom),
+  ("text-bottom", TextBottom)
+);
+
+/// https://drafts.csswg.org/css2/#propdef-vertical-align
+// TODO: there is a more extensive spec in CSS3 but it doesn't seem any browser implements it? https://www.w3.org/TR/css-inline-3/#transverse-alignment
+#[derive(Debug, Clone, PartialEq)]
+pub enum VerticalAlign {
+  Keyword(VerticalAlignKeyword),
+  Length(LengthPercentage)
+}
+
+impl Parse for VerticalAlign {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    if let Ok(len) = input.try_parse(LengthPercentage::parse) {
+      return Ok(VerticalAlign::Length(len))
+    }
+
+    let kw = VerticalAlignKeyword::parse(input)?;
+    Ok(VerticalAlign::Keyword(kw))
+  }
+}
+
+impl ToCss for VerticalAlign {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    match self {
+      VerticalAlign::Keyword(kw) => kw.to_css(dest),
+      VerticalAlign::Length(len) => len.to_css(dest)
+    }
+  }
+}
+
 /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-prop
 #[derive(Debug, Clone, PartialEq)]
 pub struct Font {

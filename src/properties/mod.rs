@@ -409,6 +409,7 @@ define_properties! {
   "font-variant-caps": FontVariantCaps(FontVariantCaps),
   "line-height": LineHeight(LineHeight),
   "font": Font(Font),
+  "vertical-align": VerticalAlign(VerticalAlign),
 
   "transition-property": TransitionProperty(SmallVec<[CustomIdent; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
   "transition-duration": TransitionDuration(SmallVec<[Time; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
