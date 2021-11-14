@@ -1,6 +1,7 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use super::{Property, VendorPrefix};
+use crate::declaration::DeclarationList;
 use super::prefixes::{Feature, Browsers};
 use crate::values::{
   angle::Angle,
@@ -1396,8 +1397,9 @@ impl TransformHandler {
     }
   }
 }
+
 impl PropertyHandler for TransformHandler {
-  fn handle_property(&mut self, property: &Property) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
     use Property::*;
 
     macro_rules! individual_property {
@@ -1416,7 +1418,7 @@ impl PropertyHandler for TransformHandler {
         // values, we need to flush what we have immediately to preserve order.
         if let Some((cur, prefixes)) = &self.transform {
           if cur != val && !prefixes.contains(*vp) {
-            self.flush();
+            self.flush(dest);
           }
         }
 
@@ -1441,14 +1443,13 @@ impl PropertyHandler for TransformHandler {
     true
   }
 
-  fn finalize(&mut self) -> Vec<Property> {
-    self.flush();
-    std::mem::take(&mut self.decls)
+  fn finalize(&mut self, dest: &mut DeclarationList) {
+    self.flush(dest);
   }
 }
 
 impl TransformHandler {
-  fn flush(&mut self) {
+  fn flush(&mut self, dest: &mut DeclarationList) {
     let transform = std::mem::take(&mut self.transform);
     let translate = std::mem::take(&mut self.translate);
     let rotate = std::mem::take(&mut self.rotate);
@@ -1461,19 +1462,19 @@ impl TransformHandler {
           prefix = Feature::Transform.prefixes_for(targets)
         }
       }
-      self.decls.push(Property::Transform(transform, prefix))
+      dest.push(Property::Transform(transform, prefix))
     }
 
     if let Some(translate) = translate {
-      self.decls.push(Property::Translate(translate))
+      dest.push(Property::Translate(translate))
     }
 
     if let Some(rotate) = rotate {
-      self.decls.push(Property::Rotate(rotate))
+      dest.push(Property::Rotate(rotate))
     }
 
     if let Some(scale) = scale {
-      self.decls.push(Property::Scale(scale))
+      dest.push(Property::Scale(scale))
     }
   }
 }

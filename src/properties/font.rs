@@ -7,6 +7,7 @@ use crate::values::{
 };
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use super::Property;
+use crate::declaration::DeclarationList;
 use crate::printer::Printer;
 use std::fmt::Write;
 
@@ -556,7 +557,7 @@ pub struct FontHandler {
 }
 
 impl PropertyHandler for FontHandler {
-  fn handle_property(&mut self, property: &Property) -> bool {
+  fn handle_property(&mut self, property: &Property, _: &mut DeclarationList) -> bool {
     use Property::*;
 
     match property {
@@ -583,8 +584,7 @@ impl PropertyHandler for FontHandler {
     true
   }
 
-  fn finalize(&mut self) -> Vec<Property> {
-    let mut decls = vec![];
+  fn finalize(&mut self, decls: &mut DeclarationList) {
     let family = std::mem::take(&mut self.family);
     let size = std::mem::take(&mut self.size);
     let style = std::mem::take(&mut self.style);
@@ -639,7 +639,5 @@ impl PropertyHandler for FontHandler {
         decls.push(Property::LineHeight(val))
       }
     }
-
-    decls
   }
 }

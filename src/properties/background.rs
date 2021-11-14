@@ -9,6 +9,7 @@ use super::prefixes::{Feature, Browsers, is_webkit_gradient};
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::macros::*;
 use crate::properties::{Property, VendorPrefix};
+use crate::declaration::DeclarationList;
 use itertools::izip;
 use crate::printer::Printer;
 use smallvec::SmallVec;
@@ -357,6 +358,7 @@ pub struct BackgroundHandler {
   targets: Option<Browsers>,
   color: Option<CssColor>,
   images: Option<SmallVec<[Image; 1]>>,
+  has_prefix: bool,
   x_positions: Option<SmallVec<[HorizontalPosition; 1]>>,
   y_positions: Option<SmallVec<[VerticalPosition; 1]>>,
   repeats: Option<SmallVec<[BackgroundRepeat; 1]>>,
@@ -377,18 +379,16 @@ impl BackgroundHandler {
 }
 
 impl PropertyHandler for BackgroundHandler {
-  fn handle_property(&mut self, property: &Property) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
     macro_rules! background_image {
       ($val: ident) => {
-        if let Some(images) = &self.images {
-          // If we have targets, and there is no vendor prefix, clear the existing
-          // declarations. The prefixes will be filled in later. Otherwise, if there
-          // are no targets, or there is a vendor prefix, add a new declaration.
-          if self.targets.is_some() && $val.iter().all(|x| !x.has_vendor_prefix()) {
-            self.decls.clear();
-          } else if (self.targets.is_none() && images.iter().any(|x| matches!(x, Image::Gradient(_)))) || images.iter().any(|x| x.has_vendor_prefix()) {
-            self.flush();
-          }
+        // Store prefixed properties. Clear if we hit an unprefixed property and we have
+        // targets. In this case, the necessary prefixes will be generated.
+        self.has_prefix = $val.iter().any(|x| x.has_vendor_prefix());
+        if self.has_prefix {
+          self.decls.push(property.clone())
+        } else if self.targets.is_some() {
+          self.decls.clear();
         }
       };
     }
@@ -413,8 +413,8 @@ impl PropertyHandler for BackgroundHandler {
         if *vendor_prefix == VendorPrefix::None {
           self.clips = Some(val.clone());
         } else {
-          self.flush();
-          self.decls.push(property.clone())
+          self.flush(dest);
+          dest.push(property.clone())
         }
       },
       Property::Background(val) => {
@@ -436,14 +436,20 @@ impl PropertyHandler for BackgroundHandler {
     true
   }
 
-  fn finalize(&mut self) -> Vec<Property> {
-    self.flush();
-    std::mem::take(&mut self.decls)
+  fn finalize(&mut self, dest: &mut DeclarationList) {
+    // If the last declaration is prefixed, pop the last value
+    // so it isn't duplicated when we flush.
+    if self.has_prefix {
+      self.decls.pop();
+    }
+
+    dest.extend(&mut self.decls);
+    self.flush(dest);
   }
 }
 
 impl BackgroundHandler {
-  fn flush(&mut self) {    
+  fn flush(&mut self, dest: &mut DeclarationList) {    
     let color = std::mem::take(&mut self.color);
     let mut images = std::mem::take(&mut self.images);
     let mut x_positions = std::mem::take(&mut self.x_positions);
@@ -459,11 +465,15 @@ impl BackgroundHandler {
       let len = images.len();
       if x_positions.len() == len && y_positions.len() == len && repeats.len() == len && sizes.len() == len && attachments.len() == len && origins.len() == len && clips.len() == len {
         let prefixes = if let Some(targets) = self.targets {
-          images.iter().fold(VendorPrefix::empty(), |acc, image| acc | image.get_necessary_prefixes(targets))
+          let mut prefixes = VendorPrefix::empty();
+          for image in images.iter() {
+            prefixes |= image.get_necessary_prefixes(targets);
+          }
+          prefixes
         } else {
           VendorPrefix::None
         };
-        
+
         let backgrounds: SmallVec<[Background; 1]> = izip!(images.drain(..), x_positions.drain(..), y_positions.drain(..), repeats.drain(..), sizes.drain(..), attachments.drain(..), origins.drain(..), clips.drain(..)).enumerate().map(|(i, (image, x_position, y_position, repeat, size, attachment, origin, clip))| {
           Background {
             color: if i == len - 1 {
@@ -493,7 +503,7 @@ impl BackgroundHandler {
               .flatten()
               .collect();
             if !backgrounds.is_empty() {
-              self.decls.push(Property::Background(backgrounds))
+              dest.push(Property::Background(backgrounds))
             }
           }
 
@@ -505,7 +515,7 @@ impl BackgroundHandler {
                   .iter()
                   .map(|bg| Background { image: bg.image.get_prefixed(VendorPrefix::$prefix), ..bg.clone() })
                   .collect();
-                self.decls.push(Property::Background(backgrounds))
+                dest.push(Property::Background(backgrounds))
               }
             };
           }
@@ -513,29 +523,33 @@ impl BackgroundHandler {
           prefix!(WebKit);
           prefix!(Moz);
           prefix!(O);
-          prefix!(None);
-        } else {
-          self.decls.push(Property::Background(backgrounds))
         }
 
+        if prefixes.contains(VendorPrefix::None) {
+          dest.push(Property::Background(backgrounds));
+        }
+        
         self.reset();
         return
       }
     }
 
     if let Some(color) = color {
-      self.decls.push(Property::BackgroundColor(color))
+      dest.push(Property::BackgroundColor(color))
     }
 
     if let Some(images) = images {
       if let Some(targets) = self.targets {
-        let prefixes = images.iter().fold(VendorPrefix::empty(), |acc, image| acc | image.get_necessary_prefixes(targets));
+        let mut prefixes = VendorPrefix::empty();
+        for image in images.iter() {
+          prefixes |= image.get_necessary_prefixes(targets);
+        }
       
         // Legacy -webkit-gradient()
         if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) {
           let images: SmallVec<[Image; 1]> = images.iter().map(|image| image.get_legacy_webkit()).flatten().collect();
           if !images.is_empty() {
-            self.decls.push(Property::BackgroundImage(images))
+            dest.push(Property::BackgroundImage(images))
           }
         }
 
@@ -544,7 +558,7 @@ impl BackgroundHandler {
           ($prefix: ident) => {
             if prefixes.contains(VendorPrefix::$prefix) {
               let images = images.iter().map(|image| image.get_prefixed(VendorPrefix::$prefix)).collect();
-            self.decls.push(Property::BackgroundImage(images))
+            dest.push(Property::BackgroundImage(images))
             }
           };
         }
@@ -552,46 +566,48 @@ impl BackgroundHandler {
         prefix!(WebKit);
         prefix!(Moz);
         prefix!(O);
-        prefix!(None);
+        if prefixes.contains(VendorPrefix::None) {
+          dest.push(Property::BackgroundImage(images))
+        }
       } else {
-        self.decls.push(Property::BackgroundImage(images))
+        dest.push(Property::BackgroundImage(images))
       }
     }
 
     match (&mut x_positions, &mut y_positions) {
       (Some(x_positions), Some(y_positions)) if x_positions.len() == y_positions.len() => {
         let positions = izip!(x_positions.drain(..), y_positions.drain(..)).map(|(x, y)| Position {x, y}).collect();
-        self.decls.push(Property::BackgroundPosition(positions))
+        dest.push(Property::BackgroundPosition(positions))
       }
       _ => {
         if let Some(x_positions) = x_positions {
-          self.decls.push(Property::BackgroundPositionX(x_positions))
+          dest.push(Property::BackgroundPositionX(x_positions))
         }
   
         if let Some(y_positions) = y_positions {
-          self.decls.push(Property::BackgroundPositionY(y_positions))
+          dest.push(Property::BackgroundPositionY(y_positions))
         }
       }
     }
 
     if let Some(repeats) = repeats {
-      self.decls.push(Property::BackgroundRepeat(repeats))
+      dest.push(Property::BackgroundRepeat(repeats))
     }
 
     if let Some(sizes) = sizes {
-      self.decls.push(Property::BackgroundSize(sizes))
+      dest.push(Property::BackgroundSize(sizes))
     }
 
     if let Some(attachments) = attachments {
-      self.decls.push(Property::BackgroundAttachment(attachments))
+      dest.push(Property::BackgroundAttachment(attachments))
     }
 
     if let Some(origins) = origins {
-      self.decls.push(Property::BackgroundOrigin(origins))
+      dest.push(Property::BackgroundOrigin(origins))
     }
 
     if let Some(clips) = clips {
-      self.decls.push(Property::BackgroundClip(clips, VendorPrefix::None))
+      dest.push(Property::BackgroundClip(clips, VendorPrefix::None))
     }
 
     self.reset();

@@ -43,8 +43,35 @@ impl ToCss for Declaration {
 }
 
 #[derive(Default)]
-pub struct DeclarationHandler {
+pub struct DeclarationList {
   important: bool,
+  declarations: Vec<Declaration>
+}
+
+impl DeclarationList {
+  pub fn new(important: bool) -> DeclarationList {
+    DeclarationList {
+      important,
+      declarations: Vec::new()
+    }
+  }
+
+  pub fn push(&mut self, property: Property) {
+    self.declarations.push(Declaration { property, important: self.important })
+  }
+
+  pub fn extend(&mut self, properties: &mut Vec<Property>) {
+    let important = self.important;
+    self.declarations.extend(properties.drain(..).map(|property| Declaration { property, important }))
+  }
+
+  pub fn extend_declarations(&mut self, decls: &mut DeclarationList) {
+    self.declarations.extend(decls.declarations.drain(..))
+  }
+}
+
+#[derive(Default)]
+pub struct DeclarationHandler {
   background: BackgroundHandler,
   border: BorderHandler,
   outline: OutlineHandler,
@@ -60,13 +87,13 @@ pub struct DeclarationHandler {
   animation: AnimationHandler,
   display: DisplayHandler,
   transform: TransformHandler,
-  prefix: PrefixHandler
+  prefix: PrefixHandler,
+  decls: DeclarationList
 }
 
-impl DeclarationHandler {
+impl DeclarationHandler{
   pub fn new(important: bool, targets: Option<Browsers>) -> Self {
     DeclarationHandler {
-      important,
       background: BackgroundHandler::new(targets),
       border: BorderHandler::new(targets),
       flex: FlexHandler::new(targets),
@@ -77,66 +104,48 @@ impl DeclarationHandler {
       transform: TransformHandler::new(targets),
       text: TextDecorationHandler::new(targets),
       prefix: PrefixHandler::new(targets),
+      decls: DeclarationList::new(important),
       ..DeclarationHandler::default()
     }
   }
 
   pub fn handle_property(&mut self, decl: &Declaration) -> bool {
     let property = &decl.property;
-    self.background.handle_property(property) ||
-    self.border.handle_property(property) ||
-    self.outline.handle_property(property) ||
-    self.flex.handle_property(property) ||
-    self.text.handle_property(property) ||
-    self.align.handle_property(property) ||
-    self.margin.handle_property(property) ||
-    self.padding.handle_property(property) ||
-    self.scroll_margin.handle_property(property) ||
-    self.scroll_padding.handle_property(property) ||
-    self.font.handle_property(property) ||
-    self.transition.handle_property(property) ||
-    self.animation.handle_property(property) ||
-    self.display.handle_property(property) ||
-    self.transform.handle_property(property) ||
-    self.prefix.handle_property(property)
+    self.background.handle_property(property, &mut self.decls) ||
+    self.border.handle_property(property, &mut self.decls) ||
+    self.outline.handle_property(property, &mut self.decls) ||
+    self.flex.handle_property(property, &mut self.decls) ||
+    self.align.handle_property(property, &mut self.decls) ||
+    self.margin.handle_property(property, &mut self.decls) ||
+    self.padding.handle_property(property, &mut self.decls) ||
+    self.scroll_margin.handle_property(property, &mut self.decls) ||
+    self.scroll_padding.handle_property(property, &mut self.decls) ||
+    self.font.handle_property(property, &mut self.decls) ||
+    self.text.handle_property(property, &mut self.decls) ||
+    self.transition.handle_property(property, &mut self.decls) ||
+    self.animation.handle_property(property, &mut self.decls) ||
+    self.display.handle_property(property, &mut self.decls) ||
+    self.transform.handle_property(property, &mut self.decls) ||
+    self.prefix.handle_property(property, &mut self.decls)
   }
 
   pub fn finalize(&mut self) -> Vec<Declaration> {
-    let important = self.important;
-    let mut background = self.background.finalize();
-    let mut border = self.border.finalize();
-    let mut outline = self.outline.finalize();
-    let mut flex = self.flex.finalize();
-    let mut align = self.align.finalize();
-    let mut margin = self.margin.finalize();
-    let mut padding = self.padding.finalize();
-    let mut scroll_margin = self.scroll_margin.finalize();
-    let mut scroll_padding = self.scroll_padding.finalize();
-    let mut font = self.font.finalize();
-    let mut text = self.text.finalize();
-    let mut transition = self.transition.finalize();
-    let mut animation = self.animation.finalize();
-    let mut display = self.display.finalize();
-    let mut transform = self.transform.finalize();
-    let mut prefixed = self.prefix.finalize();
-
-    let mut decls = Vec::with_capacity(display.len() + background.len() + border.len() + outline.len() + flex.len() + text.len() + align.len() + margin.len() + padding.len() + scroll_margin.len() + scroll_padding.len() + font.len() + transition.len() + animation.len() + prefixed.len());
-    decls.extend(display.drain(..).map(|property| Declaration { property, important }));
-    decls.extend(background.drain(..).map(|property| Declaration { property, important }));
-    decls.extend(border.drain(..).map(|property| Declaration { property, important }));
-    decls.extend(outline.drain(..).map(|property| Declaration { property, important }));
-    decls.extend(flex.drain(..).map(|property| Declaration { property, important }));
-    decls.extend(align.drain(..).map(|property| Declaration { property, important }));
-    decls.extend(margin.drain(..).map(|property| Declaration { property, important }));
-    decls.extend(padding.drain(..).map(|property| Declaration { property, important }));
-    decls.extend(scroll_margin.drain(..).map(|property| Declaration { property, important }));
-    decls.extend(scroll_padding.drain(..).map(|property| Declaration { property, important }));
-    decls.extend(font.drain(..).map(|property| Declaration { property, important }));
-    decls.extend(text.drain(..).map(|property| Declaration { property, important }));
-    decls.extend(transition.drain(..).map(|property| Declaration { property, important }));
-    decls.extend(animation.drain(..).map(|property| Declaration { property, important }));
-    decls.extend(transform.drain(..).map(|property| Declaration { property, important }));
-    decls.extend(prefixed.drain(..).map(|property| Declaration { property, important }));
-    decls
+    self.background.finalize(&mut self.decls);
+    self.border.finalize(&mut self.decls);
+    self.outline.finalize(&mut self.decls);
+    self.flex.finalize(&mut self.decls);
+    self.align.finalize(&mut self.decls);
+    self.margin.finalize(&mut self.decls);
+    self.padding.finalize(&mut self.decls);
+    self.scroll_margin.finalize(&mut self.decls);
+    self.scroll_padding.finalize(&mut self.decls);
+    self.font.finalize(&mut self.decls);
+    self.text.finalize(&mut self.decls);
+    self.transition.finalize(&mut self.decls);
+    self.animation.finalize(&mut self.decls);
+    self.display.finalize(&mut self.decls);
+    self.transform.finalize(&mut self.decls);
+    self.prefix.finalize(&mut self.decls);
+    std::mem::take(&mut self.decls.declarations)
   }
 }

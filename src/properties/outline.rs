@@ -3,6 +3,7 @@ use super::border::{BorderStyle, GenericBorder, BorderSideWidth};
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::values::color::CssColor;
 use super::Property;
+use crate::declaration::DeclarationList;
 use crate::printer::Printer;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -47,7 +48,7 @@ pub struct OutlineHandler {
 }
 
 impl PropertyHandler for OutlineHandler {
-  fn handle_property(&mut self, property: &Property) -> bool {
+  fn handle_property(&mut self, property: &Property, _: &mut DeclarationList) -> bool {
     use Property::*;
 
     match property {
@@ -65,8 +66,7 @@ impl PropertyHandler for OutlineHandler {
     true
   }
 
-  fn finalize(&mut self) -> Vec<Property> {
-    let mut decls = vec![];
+  fn finalize(&mut self, decls: &mut DeclarationList) {
     let width = std::mem::take(&mut self.width);
     let style = std::mem::take(&mut self.style);
     let color = std::mem::take(&mut self.color);
@@ -89,7 +89,5 @@ impl PropertyHandler for OutlineHandler {
         decls.push(Property::OutlineWidth(width))
       }
     }
-
-    decls
   }
 }

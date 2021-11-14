@@ -2,6 +2,7 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::values::{ident::CustomIdent, time::Time, easing::EasingFunction};
 use super::{Property, VendorPrefix};
+use crate::declaration::DeclarationList;
 use crate::printer::Printer;
 use std::fmt::Write;
 use itertools::izip;
@@ -107,7 +108,7 @@ impl TransitionHandler {
 }
 
 impl PropertyHandler for TransitionHandler {
-  fn handle_property(&mut self, property: &Property) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
     use Property::*;
 
     macro_rules! property {
@@ -116,7 +117,7 @@ impl PropertyHandler for TransitionHandler {
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
           if val != $val && !prefixes.contains(*$vp) {
-            self.flush();
+            self.flush(dest);
           }
         }
 
@@ -168,14 +169,13 @@ impl PropertyHandler for TransitionHandler {
     true
   }
 
-  fn finalize(&mut self) -> Vec<Property> {
-    self.flush();
-    std::mem::take(&mut self.decls)
+  fn finalize(&mut self, dest: &mut DeclarationList) {
+    self.flush(dest);
   }
 }
 
 impl TransitionHandler {
-  fn flush(&mut self) {
+  fn flush(&mut self, dest: &mut DeclarationList) {
     let mut properties = std::mem::take(&mut self.properties);
     let mut durations = std::mem::take(&mut self.durations);
     let mut delays = std::mem::take(&mut self.delays);
@@ -199,7 +199,7 @@ impl TransitionHandler {
         // prefixes will be handled by outputing individual properties below.
         let intersection = *property_prefixes & *duration_prefixes & *delay_prefixes & *timing_prefixes;
         if !intersection.is_empty() {
-          self.decls.push(Property::Transition(transitions.clone(), intersection));
+          dest.push(Property::Transition(transitions.clone(), intersection));
           property_prefixes.remove(intersection);
           duration_prefixes.remove(intersection);
           delay_prefixes.remove(intersection);
@@ -210,25 +210,25 @@ impl TransitionHandler {
 
     if let Some((properties, prefix)) = properties {
       if !prefix.is_empty() {
-        self.decls.push(Property::TransitionProperty(properties, prefix));
+        dest.push(Property::TransitionProperty(properties, prefix));
       }
     }
 
     if let Some((durations, prefix)) = durations {
       if !prefix.is_empty() {
-        self.decls.push(Property::TransitionDuration(durations, prefix));
+        dest.push(Property::TransitionDuration(durations, prefix));
       }
     }
 
     if let Some((delays, prefix)) = delays {
       if !prefix.is_empty() {
-        self.decls.push(Property::TransitionDelay(delays, prefix));
+        dest.push(Property::TransitionDelay(delays, prefix));
       }
     }
 
     if let Some((timing_functions, prefix)) = timing_functions {
       if !prefix.is_empty() {
-        self.decls.push(Property::TransitionTimingFunction(timing_functions, prefix));
+        dest.push(Property::TransitionTimingFunction(timing_functions, prefix));
       }
     }
 

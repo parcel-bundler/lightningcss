@@ -1,5 +1,6 @@
 use cssparser::*;
 use crate::properties::Property;
+use crate::declaration::DeclarationList;
 use crate::printer::Printer;
 
 pub trait Parse: Sized {
@@ -38,8 +39,8 @@ where
 }
 
 pub trait PropertyHandler: Sized {
-  fn handle_property(&mut self, property: &Property) -> bool;
-  fn finalize(&mut self) -> Vec<Property>;
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool;
+  fn finalize(&mut self, dest: &mut DeclarationList);
 }
 
 pub trait TryAdd<T> {

@@ -1,5 +1,6 @@
 use cssparser::*;
 use super::{Property, VendorPrefix};
+use crate::declaration::DeclarationList;
 use super::prefixes::{Feature, Browsers, is_flex_2009};
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::printer::Printer;
@@ -306,7 +307,7 @@ impl DisplayHandler {
 }
 
 impl PropertyHandler for DisplayHandler {
-  fn handle_property(&mut self, property: &Property) -> bool {
+  fn handle_property(&mut self, property: &Property, _: &mut DeclarationList) -> bool {
     if let Property::Display(display) = property {
       match (&self.display, display) {
         (Some(Display::Pair(cur)), Display::Pair(new)) => {
@@ -336,7 +337,9 @@ impl PropertyHandler for DisplayHandler {
     false
   }
 
-  fn finalize(&mut self) -> Vec<Property> {
+  fn finalize(&mut self, dest: &mut DeclarationList) {
+    dest.extend(&mut self.decls);
+
     if let Some(display) = std::mem::take(&mut self.display) {
       // If we have an unprefixed `flex` value, then add the necessary prefixed values.
       if let Display::Pair(DisplayPair { inside: DisplayInside::Flex(VendorPrefix::None), outside, .. }) = display {
@@ -346,7 +349,7 @@ impl PropertyHandler for DisplayHandler {
           // Handle legacy -webkit-box/-moz-box values if needed.
           if is_flex_2009(targets) {
             if prefixes.contains(VendorPrefix::WebKit) {
-              self.decls.push(Property::Display(Display::Pair(DisplayPair {
+              dest.push(Property::Display(Display::Pair(DisplayPair {
                 inside: DisplayInside::Box(VendorPrefix::WebKit),
                 outside: outside.clone(),
                 is_list_item: false
@@ -354,7 +357,7 @@ impl PropertyHandler for DisplayHandler {
             }
 
             if prefixes.contains(VendorPrefix::Moz) {
-              self.decls.push(Property::Display(Display::Pair(DisplayPair {
+              dest.push(Property::Display(Display::Pair(DisplayPair {
                 inside: DisplayInside::Box(VendorPrefix::Moz),
                 outside: outside.clone(),
                 is_list_item: false
@@ -363,7 +366,7 @@ impl PropertyHandler for DisplayHandler {
           }
 
           if prefixes.contains(VendorPrefix::WebKit) {
-            self.decls.push(Property::Display(Display::Pair(DisplayPair {
+            dest.push(Property::Display(Display::Pair(DisplayPair {
               inside: DisplayInside::Flex(VendorPrefix::WebKit),
               outside: outside.clone(),
               is_list_item: false
@@ -371,7 +374,7 @@ impl PropertyHandler for DisplayHandler {
           }
 
           if prefixes.contains(VendorPrefix::Ms) {
-            self.decls.push(Property::Display(Display::Pair(DisplayPair {
+            dest.push(Property::Display(Display::Pair(DisplayPair {
               inside: DisplayInside::Flex(VendorPrefix::Ms),
               outside: outside.clone(),
               is_list_item: false
@@ -380,9 +383,7 @@ impl PropertyHandler for DisplayHandler {
         }
       }
 
-      self.decls.push(Property::Display(display))
+      dest.push(Property::Display(display))
     }
-
-    std::mem::take(&mut self.decls)
   }
 }

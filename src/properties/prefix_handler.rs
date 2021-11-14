@@ -2,6 +2,7 @@
 use super::prefixes::{Browsers, Feature};
 use super::{Property, VendorPrefix};
 use crate::traits::{PropertyHandler};
+use crate::declaration::DeclarationList;
 
 macro_rules! define_prefixes {
   (
@@ -13,7 +14,6 @@ macro_rules! define_prefixes {
       $(
         $name: Option<Property>,
       )+
-      decls: Vec<Property>
     }
 
     impl PrefixHandler {
@@ -26,7 +26,7 @@ macro_rules! define_prefixes {
     }
 
     impl PropertyHandler for PrefixHandler {
-      fn handle_property(&mut self, property: &Property) -> bool {
+      fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
         match property {
           $(
             Property::$name(val, prefix) => {
@@ -34,7 +34,7 @@ macro_rules! define_prefixes {
               // values, we need to flush what we have immediately to preserve order.
               if let Some(Property::$name(cur, prefixes)) = &self.$name {
                 if val != cur && !prefixes.contains(*prefix) {
-                  self.flush();
+                  self.flush(dest);
                 }
               }
 
@@ -67,18 +67,17 @@ macro_rules! define_prefixes {
         true
       }
 
-      fn finalize(&mut self) -> Vec<Property> {
-        self.flush();
-        std::mem::take(&mut self.decls)
+      fn finalize(&mut self, dest: &mut DeclarationList) {
+        self.flush(dest);
       }
     }
 
     impl PrefixHandler {
-      fn flush(&mut self) {
+      fn flush(&mut self, dest: &mut DeclarationList) {
         $(
           let $name = std::mem::take(&mut self.$name);
           if let Some(p) = $name {
-            self.decls.push(p)
+            dest.push(p)
           }
         )+
       }

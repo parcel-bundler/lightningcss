@@ -3,6 +3,7 @@ use crate::macros::*;
 use crate::values::length::LengthPercentage;
 use crate::traits::{Parse, ToCss, PropertyHandler, FromStandard};
 use super::{Property, VendorPrefix};
+use crate::declaration::DeclarationList;
 use super::flex::{BoxAlign, FlexLinePack, BoxPack, FlexPack, FlexAlign, FlexItemAlign};
 use super::prefixes::{Browsers, Feature, is_flex_2009};
 use crate::printer::Printer;
@@ -726,8 +727,7 @@ pub struct AlignHandler {
   flex_align: Option<(FlexAlign, VendorPrefix)>,
   justify_items: Option<JustifyItems>,
   row_gap: Option<GapValue>,
-  column_gap: Option<GapValue>,
-  decls: Vec<Property>
+  column_gap: Option<GapValue>
 }
 
 impl AlignHandler {
@@ -740,7 +740,7 @@ impl AlignHandler {
 }
 
 impl PropertyHandler for AlignHandler {
-  fn handle_property(&mut self, property: &Property) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
     use Property::*;
 
     macro_rules! property {
@@ -749,7 +749,7 @@ impl PropertyHandler for AlignHandler {
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
           if val != $val && !prefixes.contains(*$vp) {
-            self.flush();
+            self.flush(dest);
           }
         }
 
@@ -820,14 +820,13 @@ impl PropertyHandler for AlignHandler {
     true
   }
 
-  fn finalize(&mut self) -> Vec<Property> {
-    self.flush();
-    std::mem::take(&mut self.decls)
+  fn finalize(&mut self, dest: &mut DeclarationList) {
+    self.flush(dest);
   }
 }
 
 impl AlignHandler {
-  fn flush(&mut self) {
+  fn flush(&mut self, dest: &mut DeclarationList) {
     let mut align_content = std::mem::take(&mut self.align_content);
     let mut justify_content = std::mem::take(&mut self.justify_content);
     let mut align_self = std::mem::take(&mut self.align_self);
@@ -866,7 +865,7 @@ impl AlignHandler {
           } else {
             prefix
           };
-          self.decls.push(Property::$prop(val, prefix))
+          dest.push(Property::$prop(val, prefix))
         }
       };
     }
@@ -891,7 +890,7 @@ impl AlignHandler {
                 }
                 if !prefixes_2009.is_empty() {
                   if let Some(v) = $prop_2009::from_standard(&val) {
-                    self.decls.push(Property::$prop_2009(v, prefixes_2009));
+                    dest.push(Property::$prop_2009(v, prefixes_2009));
                   }
                 }
               )?
@@ -899,7 +898,7 @@ impl AlignHandler {
               // 2012 spec, implemented by microsoft.
               if prefix.contains(VendorPrefix::Ms) {
                 if let Some(v) = $prop_2012::from_standard(&val) {
-                  self.decls.push(Property::$prop_2012(v, VendorPrefix::Ms));
+                  dest.push(Property::$prop_2012(v, VendorPrefix::Ms));
                 }
               }
 
@@ -914,7 +913,7 @@ impl AlignHandler {
     macro_rules! prefixed_property {
       ($prop: ident, $key: expr) => {
         if let Some((val, prefix)) = $key {
-          self.decls.push(Property::$prop(val, prefix))
+          dest.push(Property::$prop(val, prefix))
         }
       };
     }
@@ -922,7 +921,7 @@ impl AlignHandler {
     macro_rules! unprefixed_property {
       ($prop: ident, $key: expr) => {
         if let Some(val) = $key {
-          self.decls.push(Property::$prop(val))
+          dest.push(Property::$prop(val))
         }
       };
     }
@@ -943,7 +942,7 @@ impl AlignHandler {
             *align_prefix = prefixes!($align_prop);
             align_prefix.remove(VendorPrefix::None);
             if !align_prefix.is_empty() {
-              self.decls.push(Property::$align_prop(align.clone(), *align_prefix))
+              dest.push(Property::$align_prop(align.clone(), *align_prefix))
             }
 
             $(
@@ -952,12 +951,12 @@ impl AlignHandler {
               justify_prefix.remove(VendorPrefix::None);
 
               if !justify_prefix.is_empty() {
-                self.decls.push(Property::$justify_prop(justify.clone(), *justify_prefix))
+                dest.push(Property::$justify_prop(justify.clone(), *justify_prefix))
               }
             )?
             
             // Add shorthand.
-            self.decls.push(Property::$prop($prop {
+            dest.push(Property::$prop($prop {
               align: align.clone(),
               justify: justify.clone()
             }));
@@ -996,17 +995,17 @@ impl AlignHandler {
     unprefixed_property!(JustifyItems, justify_items);
 
     if row_gap.is_some() && column_gap.is_some() {
-      self.decls.push(Property::Gap(Gap {
+      dest.push(Property::Gap(Gap {
         row: row_gap.unwrap(),
         column: column_gap.unwrap()
       }))
     } else {
       if let Some(gap) = row_gap {
-        self.decls.push(Property::RowGap(gap))
+        dest.push(Property::RowGap(gap))
       }
 
       if let Some(gap) = column_gap {
-        self.decls.push(Property::ColumnGap(gap))
+        dest.push(Property::ColumnGap(gap))
       }
     }
   }

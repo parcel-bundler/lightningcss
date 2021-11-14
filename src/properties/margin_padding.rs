@@ -4,6 +4,7 @@ use crate::values::{
   rect::Rect
 };
 use crate::properties::Property;
+use crate::declaration::DeclarationList;
 use crate::traits::PropertyHandler;
 
 #[derive(Debug, PartialEq)]
@@ -30,19 +31,18 @@ macro_rules! side_handler {
       block_end: Option<LengthPercentageOrAuto>,
       inline_start: Option<LengthPercentageOrAuto>,
       inline_end: Option<LengthPercentageOrAuto>,
-      category: SideCategory,
-      decls: Vec<Property>
+      category: SideCategory
     }
 
     impl PropertyHandler for $name {
-      fn handle_property(&mut self, property: &Property) -> bool {
+      fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
         use Property::*;
         use SideCategory::*;
 
         macro_rules! property {
           ($key: ident, $val: ident, $category: ident) => {{
             if $category != self.category {
-              self.flush();
+              self.flush(dest);
             }
             self.$key = Some($val.clone());
             self.category = $category;
@@ -52,7 +52,7 @@ macro_rules! side_handler {
         macro_rules! set_shorthand {
           ($start: ident, $end: ident, $val: ident) => {{
             if self.category != Logical {
-              self.flush();
+              self.flush(dest);
             }
             self.$start = Some($val.0.clone());
             self.$end = Some($val.1.clone());
@@ -72,7 +72,7 @@ macro_rules! side_handler {
           $block_shorthand(val) => set_shorthand!(block_start, block_end, val),
           $inline_shorthand(val) => set_shorthand!(inline_start, inline_end, val),
           $shorthand(val) => {
-            self.decls.clear();
+            // dest.clear();
             self.top = Some(val.0.clone());
             self.right = Some(val.1.clone());
             self.bottom = Some(val.2.clone());
@@ -88,14 +88,13 @@ macro_rules! side_handler {
         true
       }
 
-      fn finalize(&mut self) -> Vec<Property> {
-        self.flush();
-        std::mem::take(&mut self.decls)
+      fn finalize(&mut self, dest: &mut DeclarationList) {
+        self.flush(dest);
       }
     }
 
     impl $name {
-      fn flush(&mut self) {
+      fn flush(&mut self, dest: &mut DeclarationList) {
         use Property::*;
 
         let top = std::mem::take(&mut self.top);
@@ -105,22 +104,22 @@ macro_rules! side_handler {
 
         if top.is_some() && bottom.is_some() && left.is_some() && right.is_some() {
           let rect = Rect::new(top.unwrap(), right.unwrap(), bottom.unwrap(), left.unwrap());
-          self.decls.push($shorthand(rect));
+          dest.push($shorthand(rect));
         } else {
           if let Some(val) = top {
-            self.decls.push($top(val));
+            dest.push($top(val));
           }
 
           if let Some(val) = bottom {
-            self.decls.push($bottom(val));
+            dest.push($bottom(val));
           }
 
           if let Some(val) = left {
-            self.decls.push($left(val));
+            dest.push($left(val));
           }
 
           if let Some(val) = right {
-            self.decls.push($right(val));
+            dest.push($right(val));
           }
         }
 
@@ -133,14 +132,14 @@ macro_rules! side_handler {
           ($start: ident, $end: ident, $shorthand_prop: ident, $start_prop: ident, $end_prop: ident) => {
             if ($start.is_some() && $end.is_some()) {
               let size = Size2D($start.unwrap(), $end.unwrap());
-              self.decls.push($shorthand_prop(size));
+              dest.push($shorthand_prop(size));
             } else {
               if let Some(val) = $start {
-                self.decls.push($start_prop(val));
+                dest.push($start_prop(val));
               }
     
               if let Some(val) = $end {
-                self.decls.push($end_prop(val));
+                dest.push($end_prop(val));
               }
             }    
           };

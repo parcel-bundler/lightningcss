@@ -4,6 +4,7 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use super::prefixes::{Feature, Browsers};
 use crate::properties::{Property, VendorPrefix};
+use crate::declaration::DeclarationList;
 use crate::values::rect::Rect;
 use crate::printer::Printer;
 
@@ -69,7 +70,7 @@ impl BorderRadiusHandler {
 }
 
 impl PropertyHandler for BorderRadiusHandler {
-  fn handle_property(&mut self, property: &Property) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
     use Property::*;
 
     macro_rules! property {
@@ -78,7 +79,7 @@ impl PropertyHandler for BorderRadiusHandler {
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
           if val != $val && !prefixes.contains(*$vp) {
-            self.flush();
+            self.flush(dest);
           }
         }
 
@@ -98,7 +99,7 @@ impl PropertyHandler for BorderRadiusHandler {
       BorderBottomLeftRadius(val, vp) => property!(bottom_left, val, vp),
       BorderBottomRightRadius(val, vp) => property!(bottom_right, val, vp),
       BorderStartStartRadius(_) | BorderStartEndRadius(_) | BorderEndStartRadius(_) | BorderEndEndRadius(_) => {
-        self.flush();
+        self.flush(dest);
         self.logical.push(property.clone());
       }
       BorderRadius(val, vp) => {
@@ -114,20 +115,19 @@ impl PropertyHandler for BorderRadiusHandler {
     true
   }
 
-  fn finalize(&mut self) -> Vec<Property> {
-    self.flush();
-    std::mem::take(&mut self.decls)
+  fn finalize(&mut self, dest: &mut DeclarationList) {
+    self.flush(dest);
   }
 }
 
 impl BorderRadiusHandler {
-  fn flush(&mut self) {
+  fn flush(&mut self, dest: &mut DeclarationList) {
     let mut top_left = std::mem::take(&mut self.top_left);
     let mut top_right = std::mem::take(&mut self.top_right);
     let mut bottom_left = std::mem::take(&mut self.bottom_left);
     let mut bottom_right = std::mem::take(&mut self.bottom_right);
 
-    self.decls.extend(self.logical.drain(..));
+    dest.extend(&mut self.logical);
 
     if let (Some((top_left, tl_prefix)), Some((top_right, tr_prefix)), Some((bottom_left, bl_prefix)), Some((bottom_right, br_prefix))) = (&mut top_left, &mut top_right, &mut bottom_left, &mut bottom_right) {
       let intersection = *tl_prefix & *tr_prefix & *bl_prefix & *br_prefix;
@@ -138,7 +138,7 @@ impl BorderRadiusHandler {
             prefix = Feature::BorderRadius.prefixes_for(targets)
           }
         }
-        self.decls.push(Property::BorderRadius(BorderRadius {
+        dest.push(Property::BorderRadius(BorderRadius {
           top_left: top_left.clone(),
           top_right: top_right.clone(),
           bottom_left: bottom_left.clone(),
@@ -160,7 +160,7 @@ impl BorderRadiusHandler {
                 vp = Feature::$prop.prefixes_for(targets)
               }
             }
-            self.decls.push(Property::$prop(val, vp))
+            dest.push(Property::$prop(val, vp))
           }
         }
       };

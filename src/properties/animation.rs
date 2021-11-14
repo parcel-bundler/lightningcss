@@ -3,6 +3,7 @@ use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::values::{time::Time, easing::EasingFunction};
 use super::prefixes::{Feature, Browsers};
 use crate::properties::{Property, VendorPrefix};
+use crate::declaration::DeclarationList;
 use crate::printer::Printer;
 use std::fmt::Write;
 use itertools::izip;
@@ -207,8 +208,7 @@ pub struct AnimationHandler {
   directions: Option<(SmallVec<[AnimationDirection; 1]>, VendorPrefix)>,
   play_states: Option<(SmallVec<[AnimationPlayState; 1]>, VendorPrefix)>,
   delays: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
-  fill_modes: Option<(SmallVec<[AnimationFillMode; 1]>, VendorPrefix)>,
-  decls: Vec<Property>
+  fill_modes: Option<(SmallVec<[AnimationFillMode; 1]>, VendorPrefix)>
 }
 
 impl AnimationHandler {
@@ -221,7 +221,7 @@ impl AnimationHandler {
 }
 
 impl PropertyHandler for AnimationHandler {
-  fn handle_property(&mut self, property: &Property) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -230,7 +230,7 @@ impl PropertyHandler for AnimationHandler {
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
           if val != $val && !prefixes.contains(*$vp) {
-            self.flush();
+            self.flush(dest);
           }
         }
       }};
@@ -299,14 +299,13 @@ impl PropertyHandler for AnimationHandler {
     true
   }
 
-  fn finalize(&mut self) -> Vec<Property> {
-    self.flush();
-    std::mem::take(&mut self.decls)
+  fn finalize(&mut self, dest: &mut DeclarationList) {
+    self.flush(dest);
   }
 }
 
 impl AnimationHandler {
-  fn flush(&mut self) {
+  fn flush(&mut self, dest: &mut DeclarationList) {
     let mut names = std::mem::take(&mut self.names);
     let mut durations = std::mem::take(&mut self.durations);
     let mut timing_functions = std::mem::take(&mut self.timing_functions);
@@ -339,7 +338,7 @@ impl AnimationHandler {
             prefix = Feature::Animation.prefixes_for(targets)
           }
         }
-        self.decls.push(Property::Animation(animations, prefix));
+        dest.push(Property::Animation(animations, prefix));
         names_vp.remove(intersection);
         durations_vp.remove(intersection);
         timing_functions_vp.remove(intersection);
@@ -361,7 +360,7 @@ impl AnimationHandler {
                 prefix = Feature::$property.prefixes_for(targets)
               }
             }
-            self.decls.push(Property::$property(val, prefix))
+            dest.push(Property::$property(val, prefix))
           }
         }
       };

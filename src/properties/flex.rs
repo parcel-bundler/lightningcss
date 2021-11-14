@@ -6,6 +6,7 @@ use crate::values::{
 };
 use crate::traits::{Parse, ToCss, PropertyHandler, FromStandard};
 use super::{Property, VendorPrefix};
+use crate::declaration::DeclarationList;
 use super::align::{JustifyContent, ContentDistribution, ContentPosition, AlignItems, SelfPosition, AlignSelf, AlignContent};
 use crate::printer::Printer;
 use super::prefixes::{Browsers, Feature, is_flex_2009};
@@ -399,7 +400,7 @@ impl FlexHandler {
 }
 
 impl PropertyHandler for FlexHandler {
-  fn handle_property(&mut self, property: &Property) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -408,7 +409,7 @@ impl PropertyHandler for FlexHandler {
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
           if val != $val && !prefixes.contains(*$vp) {
-            self.flush();
+            self.flush(dest);
           }
         }
       }};
@@ -489,15 +490,14 @@ impl PropertyHandler for FlexHandler {
     true
   }
 
-  fn finalize(&mut self) -> Vec<Property> {
-    self.flush();
-    std::mem::take(&mut self.decls)
+  fn finalize(&mut self, dest: &mut DeclarationList) {
+    self.flush(dest);
   }
 }
 
 
 impl FlexHandler {
-  fn flush(&mut self) {
+  fn flush(&mut self, dest: &mut DeclarationList) {
     let mut direction = std::mem::take(&mut self.direction);
     let mut wrap = std::mem::take(&mut self.wrap);
     let mut grow = std::mem::take(&mut self.grow);
@@ -534,7 +534,7 @@ impl FlexHandler {
                   }
                   if !prefixes_2009.is_empty() {
                     if let Some(v) = $prop_2009::from_standard(&val) {
-                      self.decls.push(Property::$prop_2009(v, prefixes_2009));
+                      dest.push(Property::$prop_2009(v, prefixes_2009));
                     }
                   }
                 )?
@@ -542,7 +542,7 @@ impl FlexHandler {
                 $(
                   let mut ms = true;
                   if prefix.contains(VendorPrefix::Ms) {
-                    self.decls.push(Property::$prop_2012(val.clone(), VendorPrefix::Ms));
+                    dest.push(Property::$prop_2012(val.clone(), VendorPrefix::Ms));
                     ms = false;
                   }
                   if !ms {
@@ -554,7 +554,7 @@ impl FlexHandler {
                 prefix.remove(VendorPrefix::Moz);
               }
             }
-            self.decls.push(Property::$prop(val, prefix))
+            dest.push(Property::$prop(val, prefix))
           }
         }
       };
@@ -564,7 +564,7 @@ impl FlexHandler {
       ($prop: ident, $key: expr) => {
         if let Some((val, prefix)) = $key {
           if !prefix.is_empty() {
-            self.decls.push(Property::$prop(val, prefix))
+            dest.push(Property::$prop(val, prefix))
           }
         }
       };
@@ -593,8 +593,8 @@ impl FlexHandler {
         }
         if !prefixes_2009.is_empty() {
           let (orient, dir) = direction.to_2009();
-          self.decls.push(Property::BoxOrient(orient, prefixes_2009));
-          self.decls.push(Property::BoxDirection(dir, prefixes_2009));
+          dest.push(Property::BoxOrient(orient, prefixes_2009));
+          dest.push(Property::BoxDirection(dir, prefixes_2009));
         }
       }
     }
@@ -610,7 +610,7 @@ impl FlexHandler {
             prefix.remove(VendorPrefix::Moz);
           }
         }
-        self.decls.push(Property::FlexFlow(FlexFlow {
+        dest.push(Property::FlexFlow(FlexFlow {
           direction: *direction,
           wrap: *wrap
         }, prefix));
@@ -633,7 +633,7 @@ impl FlexHandler {
           prefixes_2009 |= VendorPrefix::Moz;
         }
         if !prefixes_2009.is_empty() {
-          self.decls.push(Property::BoxFlex(grow, prefixes_2009));
+          dest.push(Property::BoxFlex(grow, prefixes_2009));
         }
       }
     }
@@ -649,7 +649,7 @@ impl FlexHandler {
             prefix.remove(VendorPrefix::Moz);
           }
         }
-        self.decls.push(Property::Flex(Flex {
+        dest.push(Property::Flex(Flex {
           grow: *grow,
           shrink: *shrink,
           basis: basis.clone()

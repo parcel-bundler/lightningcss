@@ -2,6 +2,7 @@ use crate::values::{length::*, percentage::{Percentage, NumberOrPercentage}, num
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::properties::{Property, VendorPrefix};
+use crate::declaration::DeclarationList;
 use super::prefixes::{Feature, Browsers};
 use crate::values::rect::Rect;
 use crate::values::image::Image;
@@ -262,12 +263,12 @@ impl BorderImageHandler {
 }
 
 impl PropertyHandler for BorderImageHandler {
-  fn handle_property(&mut self, property: &Property) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
     use Property::*;
     macro_rules! property {
       ($name: ident, $val: ident) => {{
         if self.vendor_prefix != VendorPrefix::None {
-          self.flush();
+          self.flush(dest);
         }
         self.vendor_prefix = VendorPrefix::None;
         self.$name = Some($val.clone());
@@ -290,9 +291,8 @@ impl PropertyHandler for BorderImageHandler {
     true
   }
 
-  fn finalize(&mut self) -> Vec<Property> {
-    self.flush();
-    std::mem::take(&mut self.decls)
+  fn finalize(&mut self, dest: &mut DeclarationList) {
+    self.flush(dest);
   }
 }
 
@@ -313,7 +313,7 @@ impl BorderImageHandler {
     self.repeat = Some(border_image.repeat.clone());
   }
 
-  fn flush(&mut self) {
+  fn flush(&mut self, dest: &mut DeclarationList) {
     let source = std::mem::take(&mut self.source);
     let slice = std::mem::take(&mut self.slice);
     let width = std::mem::take(&mut self.width);
@@ -329,7 +329,7 @@ impl BorderImageHandler {
         }
       }
 
-      self.decls.push(Property::BorderImage(BorderImage {
+      dest.push(Property::BorderImage(BorderImage {
         source: source.unwrap(),
         slice,
         width: width.unwrap(),
@@ -338,23 +338,23 @@ impl BorderImageHandler {
       }, prefix))
     } else {
       if let Some(source) = source {
-        self.decls.push(Property::BorderImageSource(source))
+        dest.push(Property::BorderImageSource(source))
       }
 
       if let Some(slice) = slice {
-        self.decls.push(Property::BorderImageSlice(slice))
+        dest.push(Property::BorderImageSlice(slice))
       }
 
       if let Some(width) = width {
-        self.decls.push(Property::BorderImageWidth(width))
+        dest.push(Property::BorderImageWidth(width))
       }
 
       if let Some(outset) = outset {
-        self.decls.push(Property::BorderImageOutset(outset))
+        dest.push(Property::BorderImageOutset(outset))
       }
 
       if let Some(repeat) = repeat {
-        self.decls.push(Property::BorderImageRepeat(repeat))
+        dest.push(Property::BorderImageRepeat(repeat))
       }
     }
 

@@ -1,6 +1,7 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use super::{Property, VendorPrefix};
+use crate::declaration::DeclarationList;
 use super::prefixes::{Browsers, Feature};
 use crate::macros::enum_property;
 use crate::values::length::{Length, LengthPercentage};
@@ -690,8 +691,7 @@ pub struct TextDecorationHandler {
   color: Option<(CssColor, VendorPrefix)>,
   emphasis_style: Option<(TextEmphasisStyle, VendorPrefix)>,
   emphasis_color: Option<(CssColor, VendorPrefix)>,
-  emphasis_position: Option<(TextEmphasisPosition, VendorPrefix)>,
-  decls: Vec<Property>
+  emphasis_position: Option<(TextEmphasisPosition, VendorPrefix)>
 }
 
 impl TextDecorationHandler {
@@ -704,7 +704,7 @@ impl TextDecorationHandler {
 }
 
 impl PropertyHandler for TextDecorationHandler {
-  fn handle_property(&mut self, property: &Property) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -713,7 +713,7 @@ impl PropertyHandler for TextDecorationHandler {
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
           if val != $val && !prefixes.contains(*$vp) {
-            self.flush();
+            self.finalize(dest);
           }
         }
       }};
@@ -762,21 +762,14 @@ impl PropertyHandler for TextDecorationHandler {
     true
   }
 
-  fn finalize(&mut self) -> Vec<Property> {
-    self.flush();
-    std::mem::take(&mut self.decls)
-  }
-}
-
-impl TextDecorationHandler {
-  fn flush(&mut self) {
+  fn finalize(&mut self, dest: &mut DeclarationList) {
     let mut line = std::mem::take(&mut self.line);
     let mut thickness = std::mem::take(&mut self.thickness);
     let mut style = std::mem::take(&mut self.style);
     let mut color = std::mem::take(&mut self.color);
     let mut emphasis_style = std::mem::take(&mut self.emphasis_style);
     let mut emphasis_color = std::mem::take(&mut self.emphasis_color);
-    let mut emphasis_position = std::mem::take(&mut self.emphasis_position);
+    let emphasis_position = std::mem::take(&mut self.emphasis_position);
 
     if let (Some((line, line_vp)), Some(thickness_val), Some((style, style_vp)), Some((color, color_vp))) = (&mut line, &mut thickness, &mut style, &mut color) {
       let intersection = *line_vp | *style_vp | *color_vp;
@@ -790,7 +783,7 @@ impl TextDecorationHandler {
           }
         }
 
-        self.decls.push(Property::TextDecoration(TextDecoration {
+        dest.push(Property::TextDecoration(TextDecoration {
           line: line.clone(),
           thickness: thickness_val.clone(),
           style: style.clone(),
@@ -813,7 +806,7 @@ impl TextDecorationHandler {
                 prefix = Feature::$prop.prefixes_for(targets);
               }
             }
-            self.decls.push(Property::$prop(val, prefix))
+            dest.push(Property::$prop(val, prefix))
           }
         }
       };
@@ -824,7 +817,7 @@ impl TextDecorationHandler {
     single_property!(color, TextDecorationColor);
 
     if let Some(thickness) = thickness {
-      self.decls.push(Property::TextDecorationThickness(thickness))
+      dest.push(Property::TextDecorationThickness(thickness))
     }
 
     if let (Some((style, style_vp)), Some((color, color_vp))) = (&mut emphasis_style, &mut emphasis_color) {
@@ -837,7 +830,7 @@ impl TextDecorationHandler {
           }
         }
 
-        self.decls.push(Property::TextEmphasis(TextEmphasis {
+        dest.push(Property::TextEmphasis(TextEmphasis {
           style: style.clone(),
           color: color.clone()
         }, prefix));
@@ -861,7 +854,7 @@ impl TextDecorationHandler {
             }
           }
         }
-        self.decls.push(Property::TextEmphasisPosition(pos, prefix))
+        dest.push(Property::TextEmphasisPosition(pos, prefix))
       }
     }
   }

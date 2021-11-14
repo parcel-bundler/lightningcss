@@ -3389,6 +3389,28 @@ mod tests {
     prefix_test(
       r#"
       .foo {
+        background: -webkit-gradient(linear, left top, left bottom, from(red), to(blue));
+        background: -webkit-linear-gradient(red, blue);
+        background: -moz-linear-gradient(red, blue);
+        background: -o-linear-gradient(red, blue);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        background: -webkit-gradient(linear, left top, left bottom, from(red), to(#00f));
+        background: -webkit-linear-gradient(red, #00f);
+        background: -moz-linear-gradient(red, #00f);
+        background: -o-linear-gradient(red, #00f);
+      }
+      "#},
+      Browsers {
+        chrome: Some(95 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      r#"
+      .foo {
         background-image: linear-gradient(red, blue);
       }
       "#,
