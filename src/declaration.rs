@@ -18,6 +18,7 @@ use crate::properties::{
   text::TextDecorationHandler,
   position::PositionHandler,
   overflow::OverflowHandler,
+  list::ListStyleHandler,
 };
 use crate::properties::prefixes::Browsers;
 
@@ -81,6 +82,7 @@ pub struct DeclarationHandler {
   scroll_padding: ScrollPaddingHandler,
   font: FontHandler,
   text: TextDecorationHandler,
+  list: ListStyleHandler,
   transition: TransitionHandler,
   animation: AnimationHandler,
   display: DisplayHandler,
@@ -124,6 +126,7 @@ impl DeclarationHandler{
     self.scroll_padding.handle_property(property, &mut self.decls) ||
     self.font.handle_property(property, &mut self.decls) ||
     self.text.handle_property(property, &mut self.decls) ||
+    self.list.handle_property(property, &mut self.decls) ||
     self.transition.handle_property(property, &mut self.decls) ||
     self.animation.handle_property(property, &mut self.decls) ||
     self.display.handle_property(property, &mut self.decls) ||
@@ -146,6 +149,7 @@ impl DeclarationHandler{
     self.scroll_padding.finalize(&mut self.decls);
     self.font.finalize(&mut self.decls);
     self.text.finalize(&mut self.decls);
+    self.list.finalize(&mut self.decls);
     self.transition.finalize(&mut self.decls);
     self.animation.finalize(&mut self.decls);
     self.display.finalize(&mut self.decls);

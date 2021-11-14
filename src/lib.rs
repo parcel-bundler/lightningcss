@@ -4831,4 +4831,40 @@ mod tests {
       ..Browsers::default()
     });
   }
+
+  #[test]
+  fn test_list() {
+    minify_test(".foo { list-style-type: disc; }", ".foo{list-style-type:disc}");
+    minify_test(".foo { list-style-type: \"★\"; }", ".foo{list-style-type:\"★\"}");
+    minify_test(".foo { list-style-type: symbols(cyclic '○' '●'); }", ".foo{list-style-type:symbols(cyclic \"○\" \"●\")}");
+    minify_test(".foo { list-style-type: symbols('○' '●'); }", ".foo{list-style-type:symbols(\"○\" \"●\")}");
+    minify_test(".foo { list-style-type: symbols(symbolic '○' '●'); }", ".foo{list-style-type:symbols(\"○\" \"●\")}");
+    minify_test(".foo { list-style-type: symbols(symbolic url('ellipse.png')); }", ".foo{list-style-type:symbols(url(ellipse.png))}");
+    minify_test(".foo { list-style-image: url('ellipse.png'); }", ".foo{list-style-image:url(ellipse.png)}");
+    minify_test(".foo { list-style-position: outside; }", ".foo{list-style-position:outside}");
+    minify_test(".foo { list-style: \"★\" url(ellipse.png) outside; }", ".foo{list-style:\"★\" url(ellipse.png)}");
+
+    test(r#"
+      .foo {
+        list-style-type: disc;
+        list-style-image: url(ellipse.png);
+        list-style-position: outside;
+      }
+    "#, indoc! {r#"
+      .foo {
+        list-style: url(ellipse.png);
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        list-style: \"★\" url(ellipse.png) outside;
+        list-style-image: none;
+      }
+    "#, indoc! {r#"
+      .foo {
+        list-style: \"★\";
+      }
+    "#});
+  }
 }

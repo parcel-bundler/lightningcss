@@ -164,3 +164,57 @@ macro_rules! shorthand_property {
 }
 
 pub (crate) use shorthand_property;
+
+macro_rules! shorthand_handler {
+  (
+    $name: ident -> $shorthand: ident
+    { $( $key: ident: $prop: ident($type: ty), )+ }
+  ) => {
+    #[derive(Default)]
+    pub struct $name {
+      $(
+        pub $key: Option<$type>,
+      )*
+    }
+
+    impl PropertyHandler for $name {
+      fn handle_property(&mut self, property: &Property, _: &mut DeclarationList) -> bool {
+        match property {
+          $(
+            Property::$prop(val) => self.$key = Some(val.clone()),
+          )+
+          Property::$shorthand(val) => {
+            $(
+              self.$key = Some(val.$key.clone());
+            )+
+          }
+          _ => return false
+        }
+
+        true
+      }
+
+      fn finalize(&mut self, dest: &mut DeclarationList) {
+        $(
+          let $key = std::mem::take(&mut self.$key);
+        )+
+
+        if $( $key.is_some() && )* true {
+          dest.push(Property::$shorthand($shorthand {
+            $(
+              $key: $key.unwrap(),
+            )+
+          }))
+        } else {
+          $(
+            if let Some(val) = $key {
+              dest.push(Property::$prop(val))
+            }
+          )+
+        }
+      }
+    }
+  };
+}
+
+pub (crate) use shorthand_handler;

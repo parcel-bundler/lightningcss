@@ -19,6 +19,7 @@ pub mod text;
 pub mod position;
 pub mod overflow;
 pub mod ui;
+pub mod list;
 
 use cssparser::*;
 use custom::*;
@@ -38,6 +39,7 @@ use display::*;
 use text::*;
 use overflow::*;
 use ui::*;
+use list::*;
 use crate::values::{image::*, length::*, position::*, alpha::*, size::*, rect::*, color::*, time::Time, ident::CustomIdent, easing::EasingFunction};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
@@ -492,6 +494,13 @@ define_properties! {
   "user-select": UserSelect(UserSelect, VendorPrefix) / "webkit" / "moz" / "ms",
   "accent-color": AccentColor(ColorOrAuto),
   "appearance": Appearance(Appearance, VendorPrefix) / "webkit" / "moz" / "ms",
+
+  // https://www.w3.org/TR/2020/WD-css-lists-3-20201117
+  "list-style-type": ListStyleType(ListStyleType),
+  "list-style-image": ListStyleImage(Image),
+  "list-style-position": ListStylePosition(ListStylePosition),
+  "list-style": ListStyle(ListStyle),
+  "marker-side": MarkerSide(MarkerSide),
 }
 
 impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {
