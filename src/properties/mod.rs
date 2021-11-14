@@ -16,6 +16,7 @@ pub mod prefixes;
 pub mod prefix_handler;
 pub mod display;
 pub mod text;
+pub mod position;
 
 use cssparser::*;
 use custom::*;
@@ -222,6 +223,8 @@ define_properties! {
   "max-inline-size": MaxInlineSize(MinMaxSize),
   "box-sizing": BoxSizing(BoxSizing, VendorPrefix) / "webkit" / "moz",
 
+  // https://www.w3.org/TR/2020/WD-css-position-3-20200519
+  "position": Position(position::Position),
   "top": Top(LengthPercentageOrAuto),
   "bottom": Bottom(LengthPercentageOrAuto),
   "left": Left(LengthPercentageOrAuto),

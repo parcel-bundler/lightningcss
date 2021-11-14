@@ -4485,4 +4485,60 @@ mod tests {
     minify_test(".foo { text-shadow: 1px 1px yellow; }", ".foo{text-shadow:1px 1px #ff0}");
     minify_test(".foo { text-shadow: 1px 1px yellow, 2px 3px red; }", ".foo{text-shadow:1px 1px #ff0,2px 3px red}");
   }
+
+  #[test]
+  fn test_position() {
+    test(r#"
+      .foo {
+        position: relative;
+        position: absolute;
+      }
+    "#, indoc! {r#"
+      .foo {
+        position: absolute;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        position: -webkit-sticky;
+        position: sticky;
+      }
+    "#, indoc! {r#"
+      .foo {
+        position: -webkit-sticky;
+        position: sticky;
+      }
+    "#});
+
+    prefix_test(r#"
+      .foo {
+        position: sticky;
+      }
+    "#, indoc! {r#"
+      .foo {
+        position: -webkit-sticky;
+        position: sticky;
+      }
+    "#},
+    Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        position: -webkit-sticky;
+        position: sticky;
+      }
+    "#, indoc! {r#"
+      .foo {
+        position: sticky;
+      }
+    "#},
+    Browsers {
+      safari: Some(13 << 16),
+      ..Browsers::default()
+    });
+  }
 }

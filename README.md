@@ -24,34 +24,34 @@ A WIP CSS parser, transformer, and minifier written in Rust.
 
 ```
 $ node bench.js bootstrap-4.css 
-cssnano: 557.216ms
+cssnano: 539.997ms
 159636 bytes
 
-esbuild: 17.79ms
+esbuild: 17.399ms
 160332 bytes
 
-parcel-css: 5.231ms
-144293 bytes
+parcel-css: 4.975ms
+144254 bytes
 
 
 $ node bench.js animate.css
-cssnano: 279.961ms
+cssnano: 283.105ms
 71723 bytes
 
-esbuild: 11.781ms
+esbuild: 11.858ms
 72183 bytes
 
-parcel-css: 2.029ms
+parcel-css: 2.039ms
 23707 bytes
 
 
 $ node bench.js tailwind.css 
-cssnano: 2.193s
+cssnano: 2.200s
 1925626 bytes
 
-esbuild: 106.392ms
+esbuild: 109.223ms
 1961642 bytes
 
-parcel-css: 43.564ms
-1906588 bytes
+parcel-css: 41.589ms
+1906468 bytes
 ```

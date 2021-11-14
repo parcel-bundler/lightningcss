@@ -15,7 +15,8 @@ use crate::properties::{
   prefix_handler::PrefixHandler,
   display::DisplayHandler,
   transform::TransformHandler,
-  text::TextDecorationHandler
+  text::TextDecorationHandler,
+  position::PositionHandler,
 };
 use crate::properties::prefixes::Browsers;
 
@@ -82,6 +83,7 @@ pub struct DeclarationHandler {
   transition: TransitionHandler,
   animation: AnimationHandler,
   display: DisplayHandler,
+  position: PositionHandler,
   transform: TransformHandler,
   prefix: PrefixHandler,
   decls: DeclarationList
@@ -97,6 +99,7 @@ impl DeclarationHandler{
       transition: TransitionHandler::new(targets),
       animation: AnimationHandler::new(targets),
       display: DisplayHandler::new(targets),
+      position: PositionHandler::new(targets),
       transform: TransformHandler::new(targets),
       text: TextDecorationHandler::new(targets),
       prefix: PrefixHandler::new(targets),
@@ -121,6 +124,7 @@ impl DeclarationHandler{
     self.transition.handle_property(property, &mut self.decls) ||
     self.animation.handle_property(property, &mut self.decls) ||
     self.display.handle_property(property, &mut self.decls) ||
+    self.position.handle_property(property, &mut self.decls) ||
     self.transform.handle_property(property, &mut self.decls) ||
     self.prefix.handle_property(property, &mut self.decls)
   }
@@ -140,6 +144,7 @@ impl DeclarationHandler{
     self.transition.finalize(&mut self.decls);
     self.animation.finalize(&mut self.decls);
     self.display.finalize(&mut self.decls);
+    self.position.finalize(&mut self.decls);
     self.transform.finalize(&mut self.decls);
     self.prefix.finalize(&mut self.decls);
     std::mem::take(&mut self.decls.declarations)
