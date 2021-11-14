@@ -89,4 +89,5 @@ define_prefixes! {
   Hyphens,
   TextAlignLast,
   TextDecorationSkipInk,
+  TextOverflow,
 }

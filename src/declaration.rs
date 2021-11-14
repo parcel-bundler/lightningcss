@@ -17,6 +17,7 @@ use crate::properties::{
   transform::TransformHandler,
   text::TextDecorationHandler,
   position::PositionHandler,
+  overflow::OverflowHandler,
 };
 use crate::properties::prefixes::Browsers;
 
@@ -84,6 +85,7 @@ pub struct DeclarationHandler {
   animation: AnimationHandler,
   display: DisplayHandler,
   position: PositionHandler,
+  overflow: OverflowHandler,
   transform: TransformHandler,
   prefix: PrefixHandler,
   decls: DeclarationList
@@ -125,6 +127,7 @@ impl DeclarationHandler{
     self.animation.handle_property(property, &mut self.decls) ||
     self.display.handle_property(property, &mut self.decls) ||
     self.position.handle_property(property, &mut self.decls) ||
+    self.overflow.handle_property(property, &mut self.decls) ||
     self.transform.handle_property(property, &mut self.decls) ||
     self.prefix.handle_property(property, &mut self.decls)
   }
@@ -145,6 +148,7 @@ impl DeclarationHandler{
     self.animation.finalize(&mut self.decls);
     self.display.finalize(&mut self.decls);
     self.position.finalize(&mut self.decls);
+    self.overflow.finalize(&mut self.decls);
     self.transform.finalize(&mut self.decls);
     self.prefix.finalize(&mut self.decls);
     std::mem::take(&mut self.decls.declarations)

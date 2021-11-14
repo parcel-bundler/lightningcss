@@ -4541,4 +4541,66 @@ mod tests {
       ..Browsers::default()
     });
   }
+
+  #[test]
+  fn test_overflow() {
+    minify_test(".foo { overflow: hidden }", ".foo{overflow:hidden}");
+    minify_test(".foo { overflow: hidden hidden }", ".foo{overflow:hidden}");
+    minify_test(".foo { overflow: hidden auto }", ".foo{overflow:hidden auto}");
+
+    test(r#"
+      .foo {
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+    "#, indoc! {r#"
+      .foo {
+        overflow: hidden auto;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        overflow: hidden;
+        overflow-y: auto;
+      }
+    "#, indoc! {r#"
+      .foo {
+        overflow: hidden auto;
+      }
+    "#});
+
+    minify_test(".foo { text-overflow: ellipsis }", ".foo{text-overflow:ellipsis}");
+    prefix_test(r#"
+      .foo {
+        text-overflow: ellipsis;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -o-text-overflow: ellipsis;
+        text-overflow: ellipsis;
+      }
+    "#},
+    Browsers {
+      safari: Some(4 << 16),
+      opera: Some(10 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        -o-text-overflow: ellipsis;
+        text-overflow: ellipsis;
+      }
+    "#, indoc! {r#"
+      .foo {
+        text-overflow: ellipsis;
+      }
+    "#},
+    Browsers {
+      safari: Some(4 << 16),
+      opera: Some(14 << 16),
+      ..Browsers::default()
+    });
+  }
 }

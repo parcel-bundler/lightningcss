@@ -17,6 +17,7 @@ pub mod prefix_handler;
 pub mod display;
 pub mod text;
 pub mod position;
+pub mod overflow;
 
 use cssparser::*;
 use custom::*;
@@ -34,6 +35,7 @@ use animation::*;
 use transform::*;
 use display::*;
 use text::*;
+use overflow::*;
 use crate::values::{image::*, length::*, position::*, alpha::*, size::*, rect::*, color::*, time::Time, ident::CustomIdent, easing::EasingFunction};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
@@ -222,6 +224,11 @@ define_properties! {
   "max-block-size": MaxBlockSize(MinMaxSize),
   "max-inline-size": MaxInlineSize(MinMaxSize),
   "box-sizing": BoxSizing(BoxSizing, VendorPrefix) / "webkit" / "moz",
+
+  "overflow": Overflow(Overflow),
+  "overflow-x": OverflowX(OverflowKeyword),
+  "overflow-y": OverflowY(OverflowKeyword),
+  "text-overflow": TextOverflow(TextOverflow, VendorPrefix) / "o",
 
   // https://www.w3.org/TR/2020/WD-css-position-3-20200519
   "position": Position(position::Position),
