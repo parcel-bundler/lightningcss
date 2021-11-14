@@ -166,6 +166,7 @@ impl Default for FontStretchKeyword {
 
 impl FontStretchKeyword {
   fn to_percentage(&self) -> Percentage {
+    use FontStretchKeyword::*;
     let val = match self {
       UltraCondensed => 0.5,
       ExtraCondensed => 0.625,
@@ -482,7 +483,7 @@ impl Parse for Font {
     let mut style = None;
     let mut weight = None;
     let mut stretch = None;
-    let mut size = None;
+    let size;
     let mut variant_caps = None;
 
     loop {

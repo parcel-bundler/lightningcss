@@ -1,7 +1,5 @@
 use cssparser::*;
-use crate::values::percentage::Percentage;
 use crate::traits::{Parse, ToCss};
-use crate::parser::{PropertyDeclarationParser, DeclarationBlock};
 use crate::printer::Printer;
 use crate::properties::font::{FontFamily, FontStyle, FontWeight, FontStretch};
 use crate::properties::custom::CustomProperty;

@@ -43,17 +43,17 @@ impl ToCss for CssColor {
 
           let compact = compact_hex(hex);
           if hex == expand_hex(compact) {
-            write!(dest, "#{:03x}", compact);
+            write!(dest, "#{:03x}", compact)?;
           } else {
-            write!(dest, "#{:06x}", hex);
+            write!(dest, "#{:06x}", hex)?;
           }
         } else {
           let hex: u32 = ((color.red as u32) << 24) | ((color.green as u32) << 16) | ((color.blue as u32) << 8) | (color.alpha as u32);
           let compact = compact_hex(hex);
           if hex == expand_hex(compact) {
-            write!(dest, "#{:04x}", compact);
+            write!(dest, "#{:04x}", compact)?;
           } else {
-            write!(dest, "#{:08x}", hex);
+            write!(dest, "#{:08x}", hex)?;
           }
         }
         Ok(())

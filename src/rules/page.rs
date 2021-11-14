@@ -1,7 +1,6 @@
 use cssparser::*;
-use crate::values::percentage::Percentage;
 use crate::traits::{Parse, ToCss};
-use crate::parser::{PropertyDeclarationParser, DeclarationBlock};
+use crate::parser::{DeclarationBlock};
 use crate::printer::Printer;
 use crate::macros::enum_property;
 use std::fmt::Write;

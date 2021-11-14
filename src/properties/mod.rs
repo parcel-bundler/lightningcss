@@ -1,3 +1,5 @@
+#![allow(non_upper_case_globals)]
+
 pub mod custom;
 pub mod margin_padding;
 pub mod background;
@@ -89,7 +91,7 @@ impl ToCss for VendorPrefix {
 
 macro_rules! define_properties {
   (
-    $( $name: tt: $property: ident($type: ty $(, $vp: ident)?) $( / $prefix: tt )*, )+
+    $( $name: tt: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: tt )*, )+
   ) => {
     #[derive(Debug, Clone, PartialEq)]
     pub enum Property {
@@ -129,13 +131,20 @@ macro_rules! define_properties {
       pub fn to_css<W>(&self, dest: &mut Printer<W>, important: bool) -> std::fmt::Result where W: std::fmt::Write {
         use Property::*;
 
+        macro_rules! vp_name {
+          ($x: ty, $n: ident) => {
+            $n
+          };
+        }
+
         match self {
           $(
-            $property(val, $($vp)?) => {
+            $property(val, $(vp_name!($vp, prefix))?) => {
               // If there are multiple vendor prefixes set, this expands them.
               let mut first = true;
               macro_rules! start {
                 () => {
+                  #[allow(unused_assignments)]
                   if first {
                     first = false;
                   } else {
@@ -161,8 +170,8 @@ macro_rules! define_properties {
                   start!();
                   write!();
                 };
-                ($v: ident, $p: expr) => {
-                  if $v.contains($p) {
+                ($v: ty, $p: expr) => {
+                  if prefix.contains($p) {
                     start!();
                     $p.to_css(dest)?;
                     write!();

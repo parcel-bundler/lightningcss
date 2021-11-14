@@ -19,6 +19,7 @@ impl ToCss for KeyframesRule {
     macro_rules! write_prefix {
       ($prefix: ident) => {
         if self.vendor_prefix.contains(VendorPrefix::$prefix) {
+          #[allow(unused_assignments)]
           if first_rule {
             first_rule = false;
           } else {
@@ -152,7 +153,7 @@ impl<'a, 'i> QualifiedRuleParser<'i> for KeyframeListParser {
   fn parse_block<'t>(
     &mut self,
     selectors: Self::Prelude,
-    start: &ParserState,
+    _: &ParserState,
     input: &mut Parser<'i, 't>,
   ) -> Result<Self::QualifiedRule, ParseError<'i, ()>> {
     let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser);

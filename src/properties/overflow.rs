@@ -53,7 +53,7 @@ pub struct OverflowHandler {
 }
 
 impl PropertyHandler for OverflowHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
+  fn handle_property(&mut self, property: &Property, _: &mut DeclarationList) -> bool {
     use Property::*;
 
     match property {

@@ -230,40 +230,44 @@ impl LinearGradient {
   }
 
   fn to_css<W>(&self, dest: &mut Printer<W>, is_prefixed: bool) -> std::fmt::Result where W: std::fmt::Write {
-    match self.direction {
-      // We can omit `to bottom` or `180deg` because it is the default.
-      LineDirection::Vertical(VerticalPositionKeyword::Bottom) |
-      LineDirection::Angle(Angle::Deg(180.0)) => serialize_items(&self.items, dest),
-      // If we have `to top` or `0deg`, and all of the positions and hints are percentages,
-      // we can flip the gradient the other direction and omit the direction.
-      LineDirection::Vertical(VerticalPositionKeyword::Top) |
-      LineDirection::Angle(Angle::Deg(0.0)) if dest.minify && self.items.iter().all(|item| matches!(item, GradientItem::Hint(LengthPercentage::Percentage(_)) | GradientItem::ColorStop(ColorStop { position: None | Some(LengthPercentage::Percentage(_)), .. }))) => {
-        let items: Vec<GradientItem<LengthPercentage>> = self.items.iter().rev().map(|item| {
-          // Flip percentages.
-          match item {
-            GradientItem::Hint(LengthPercentage::Percentage(p)) => GradientItem::Hint(LengthPercentage::Percentage(Percentage(1.0 - p.0))),
-            GradientItem::ColorStop(ColorStop { color, position }) => {
-              GradientItem::ColorStop(ColorStop {
-                color: color.clone(),
-                position: position.clone().map(|p| match p {
-                  LengthPercentage::Percentage(p) => LengthPercentage::Percentage(Percentage(1.0 - p.0)),
-                  _ => unreachable!()
-                })
-              })
-            }
-            _ => unreachable!()
-          }
-        }).collect();
-        serialize_items(&items, dest)
-      },
-      _ => {
-        if self.direction != LineDirection::Vertical(VerticalPositionKeyword::Bottom) && self.direction != LineDirection::Angle(Angle::Deg(180.0)) {
-          self.direction.to_css(dest, is_prefixed)?;
-          dest.delim(',', false)?;
-        }
+    let angle = match &self.direction {
+      LineDirection::Vertical(VerticalPositionKeyword::Bottom) => 180.0,
+      LineDirection::Vertical(VerticalPositionKeyword::Top) => 0.0,
+      LineDirection::Angle(angle) => angle.to_degrees(),
+      _ => -1.0
+    };
 
-        serialize_items(&self.items, dest)
+    // We can omit `to bottom` or `180deg` because it is the default.
+    if angle == 180.0 {
+      serialize_items(&self.items, dest)
+
+    // If we have `to top` or `0deg`, and all of the positions and hints are percentages,
+    // we can flip the gradient the other direction and omit the direction.
+    } else if angle == 0.0 && dest.minify && self.items.iter().all(|item| matches!(item, GradientItem::Hint(LengthPercentage::Percentage(_)) | GradientItem::ColorStop(ColorStop { position: None | Some(LengthPercentage::Percentage(_)), .. }))) {
+      let items: Vec<GradientItem<LengthPercentage>> = self.items.iter().rev().map(|item| {
+        // Flip percentages.
+        match item {
+          GradientItem::Hint(LengthPercentage::Percentage(p)) => GradientItem::Hint(LengthPercentage::Percentage(Percentage(1.0 - p.0))),
+          GradientItem::ColorStop(ColorStop { color, position }) => {
+            GradientItem::ColorStop(ColorStop {
+              color: color.clone(),
+              position: position.clone().map(|p| match p {
+                LengthPercentage::Percentage(p) => LengthPercentage::Percentage(Percentage(1.0 - p.0)),
+                _ => unreachable!()
+              })
+            })
+          }
+          _ => unreachable!()
+        }
+      }).collect();
+      serialize_items(&items, dest)
+    } else {
+      if self.direction != LineDirection::Vertical(VerticalPositionKeyword::Bottom) && self.direction != LineDirection::Angle(Angle::Deg(180.0)) {
+        self.direction.to_css(dest, is_prefixed)?;
+        dest.delim(',', false)?;
       }
+
+      serialize_items(&self.items, dest)
     }
   }
 }
@@ -918,7 +922,7 @@ impl<S: ToCss + Clone + Into<Percentage>> ToCss for WebKitGradientPointComponent
         }
       }
       Number(lp) => {
-        if matches!(lp, NumberOrPercentage::Percentage(Percentage(0.0))) {
+        if matches!(lp, NumberOrPercentage::Percentage(Percentage(p)) if *p == 0.0) {
           dest.write_char('0')
         } else {
           lp.to_css(dest)

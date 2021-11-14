@@ -2,7 +2,6 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::macros::enum_property;
 use crate::printer::Printer;
-use std::fmt::Write;
 use super::length::LengthPercentage;
 use super::percentage::Percentage;
 

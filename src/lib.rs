@@ -65,7 +65,7 @@ fn transform(ctx: CallContext) -> napi::Result<JsBuffer> {
   let opts = ctx.get::<JsObject>(0)?;
   let config: Config = ctx.env.from_js_value(opts)?;
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
-  let res = compile(code, config.minify.unwrap_or(false), config.targets);
+  let res = compile(code, config.minify.unwrap_or(false), config.targets).unwrap();
 
   Ok(ctx.env.create_buffer_with_data(res.into_bytes())?.into_raw())
 }
@@ -89,7 +89,7 @@ struct Config {
   pub minify: Option<bool>
 }
 
-fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> String {
+fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> Result<String, std::fmt::Error> {
   let mut input = ParserInput::new(&code);
   let mut parser = Parser::new(&mut input);
   let rule_list = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser {});
@@ -202,14 +202,14 @@ fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> String {
     if first {
       first = false;
     } else {
-      printer.newline();
+      printer.newline()?;
     }
 
-    rule.to_css(&mut printer);
-    printer.newline();
+    rule.to_css(&mut printer)?;
+    printer.newline()?;
   }
 
-  dest
+  Ok(dest)
 }
 
 #[cfg(test)]
@@ -219,17 +219,17 @@ mod tests {
   use self::indoc::indoc;
 
   fn test(source: &str, expected: &str) {
-    let res = compile(source, false, None);
+    let res = compile(source, false, None).unwrap();
     assert_eq!(res, expected);
   }
 
   fn minify_test(source: &str, expected: &str) {
-    let res = compile(source, true, None);
+    let res = compile(source, true, None).unwrap();
     assert_eq!(res, expected);
   }
 
   fn prefix_test(source: &str, expected: &str, targets: Browsers) {
-    let res = compile(source, false, Some(targets));
+    let res = compile(source, false, Some(targets)).unwrap();
     assert_eq!(res, expected);
   }
 
@@ -1927,7 +1927,7 @@ mod tests {
         font-variant-caps: small-caps;
         line-height: 1.2em;
       }
-    "#, indoc! {".foo{font:italic small-caps 700 50% 12px/1.2em Helvetica,Times New Roman,sans-serif}"
+    "#, indoc! {".foo{font:italic small-caps 700 125% 12px/1.2em Helvetica,Times New Roman,sans-serif}"
     });
 
     test(r#"
@@ -1948,7 +1948,7 @@ mod tests {
         font-size: 12px;
         font-stretch: expanded;
       }
-    "#, indoc! {".foo{font-family:Helvetica,Times New Roman,sans-serif;font-size:12px;font-stretch:50%}"
+    "#, indoc! {".foo{font-family:Helvetica,Times New Roman,sans-serif;font-size:12px;font-stretch:125%}"
     });
 
     test(r#"

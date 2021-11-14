@@ -31,6 +31,7 @@ macro_rules! enum_property {
     }
 
     impl $name {
+      #[allow(dead_code)]
       pub fn from_str(s: &str) -> Option<Self> {
         match s {
           $(
@@ -73,6 +74,7 @@ macro_rules! enum_property {
     }
 
     impl $name {
+      #[allow(dead_code)]
       pub fn from_str(s: &str) -> Option<Self> {
         match s {
           $(

@@ -74,6 +74,7 @@ impl<'b> TopLevelRuleParser {
 
 /// A rule prelude for at-rule with block.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum AtRulePrelude {
   /// A @font-face rule prelude.
   FontFace,
@@ -403,10 +404,8 @@ impl<'a, 'b> NestedRuleParser {
       while let Some(result) = iter.next() {
           match result {
               Ok(rule) => rules.push(rule),
-              Err((error, slice)) => {
-                  let location = error.location;
-                  // let error = ContextualParseError::InvalidRule(slice, error);
-                  // self.context.log_css_error(location, error);
+              Err(_) => {
+                // TODO
               },
           }
       }
@@ -510,7 +509,7 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
   fn parse_block<'t>(
       &mut self,
       prelude: AtRulePrelude,
-      start: &ParserState,
+      _: &ParserState,
       input: &mut Parser<'i, 't>,
   ) -> Result<CssRule, ParseError<'i, Self::Error>> {
       match prelude {
@@ -663,7 +662,7 @@ impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser {
   fn parse_block<'t>(
       &mut self,
       selectors: Self::Prelude,
-      start: &ParserState,
+      _: &ParserState,
       input: &mut Parser<'i, 't>,
   ) -> Result<CssRule, ParseError<'i, Self::Error>> {
       // let declarations = parse_property_declaration_list(&context, input, Some(&selectors));

@@ -1,7 +1,6 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
-use std::fmt::Write;
 
 /// https://www.w3.org/TR/css-values-4/#custom-idents
 #[derive(Debug, Clone, PartialEq)]

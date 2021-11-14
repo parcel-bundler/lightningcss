@@ -1385,8 +1385,7 @@ pub struct TransformHandler {
   transform: Option<(TransformList, VendorPrefix)>,
   translate: Option<Translate>,
   rotate: Option<Rotate>,
-  scale: Option<Scale>,
-  decls: Vec<Property>
+  scale: Option<Scale>
 }
 
 impl TransformHandler {

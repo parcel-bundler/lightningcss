@@ -31,7 +31,7 @@ impl<'i> selectors::parser::Parser<'i> for SelectorParser {
 
   fn parse_non_ts_pseudo_class(
     &self,
-    location: SourceLocation,
+    _: SourceLocation,
     name: CowRcStr<'i>,
   ) -> Result<PseudoClass, ParseError<'i, Self::Error>> {
       use PseudoClass::*;
@@ -76,7 +76,7 @@ impl<'i> selectors::parser::Parser<'i> for SelectorParser {
 
   fn parse_pseudo_element(
     &self,
-    location: SourceLocation,
+    _: SourceLocation,
     name: CowRcStr<'i>,
   ) -> Result<PseudoElement, ParseError<'i, Self::Error>> {
     use PseudoElement::*;

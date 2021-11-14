@@ -1,7 +1,7 @@
 use cssparser::*;
 use crate::macros::*;
 use crate::values::{
-  length::{LengthPercentageOrAuto, LengthPercentage, Length},
+  length::{LengthPercentageOrAuto, LengthPercentage},
   percentage::Percentage
 };
 use crate::traits::{Parse, ToCss, PropertyHandler, FromStandard};

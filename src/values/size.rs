@@ -54,8 +54,7 @@ impl ToCss for Size {
         l.to_css(dest)?;
         dest.write_str(")")
       }
-      LengthPercentage(l) => l.to_css(dest),
-      _ => Ok(())
+      LengthPercentage(l) => l.to_css(dest)
     }
   }
 }
@@ -131,8 +130,7 @@ impl ToCss for MinMaxSize {
         l.to_css(dest)?;
         dest.write_str(")")
       }
-      LengthPercentage(l) => l.to_css(dest),
-      _ => Ok(())
+      LengthPercentage(l) => l.to_css(dest)
     }
   }
 }

@@ -26,7 +26,7 @@ impl MediaList {
 
       let mut media_queries = vec![];
       loop {
-          let start_position = input.position();
+          // let start_position = input.position();
           match input.parse_until_before(Delimiter::Comma, |i| MediaQuery::parse(i)) {
               Ok(mq) => {
                   media_queries.push(mq);
@@ -179,7 +179,7 @@ impl ToCss for MediaQuery {
   }
 }
 
-/// A binary `and` or `or` operator.
+// A binary `and` or `or` operator.
 enum_property!(Operator,
   And,
   Or
@@ -334,7 +334,7 @@ impl MediaFeatureExpression {
       input: &mut Parser<'i, 't>,
   ) -> Result<Self, ParseError<'i, ()>> {
       // let mut requirements = ParsingRequirements::empty();
-      let location = input.current_source_location();
+      // let location = input.current_source_location();
       let ident = input.expect_ident()?;
 
       // if context.in_ua_or_chrome_sheet() {

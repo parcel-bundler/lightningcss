@@ -5,7 +5,7 @@ use crate::values::{
   color::CssColor,
   image::Image
 };
-use super::prefixes::{Feature, Browsers, is_webkit_gradient};
+use super::prefixes::{Browsers, is_webkit_gradient};
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::macros::*;
 use crate::properties::{Property, VendorPrefix};
@@ -528,7 +528,7 @@ impl BackgroundHandler {
         if prefixes.contains(VendorPrefix::None) {
           dest.push(Property::Background(backgrounds));
         }
-        
+
         self.reset();
         return
       }

@@ -357,6 +357,7 @@ impl ToCss for TextDecorationLine {
     let mut needs_space = false;
     macro_rules! val {
       ($val: ident, $str: expr) => {
+        #[allow(unused_assignments)]
         if self.contains(TextDecorationLine::$val) {
           if needs_space {
             dest.write_char(' ')?;

@@ -16,6 +16,7 @@ pub struct Browsers {
   pub samsung: Option<u32>
 }
 
+#[allow(dead_code)]
 pub enum Feature {
   AlignContent,
   AlignItems,

@@ -146,10 +146,6 @@ impl ToCss for LengthValue {
 }
 
 impl LengthValue {
-  pub fn zero() -> LengthValue {
-    LengthValue::Px(0.0)
-  }
-
   pub fn to_px(&self) -> Option<f32> {
     use LengthValue::*;
     match self {
@@ -456,8 +452,7 @@ impl TryAdd<Length> for Length {
           }
           _ => None
         }
-      },
-      _ => None
+      }
     }
   }
 }
