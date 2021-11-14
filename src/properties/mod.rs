@@ -242,6 +242,9 @@ define_properties! {
   "inset-block-end": InsetBlockEnd(LengthPercentageOrAuto),
   "inset-inline-start": InsetInlineStart(LengthPercentageOrAuto),
   "inset-inline-end": InsetInlineEnd(LengthPercentageOrAuto),
+  "inset-block": InsetBlock(Size2D<LengthPercentageOrAuto>),
+  "inset-inline": InsetInline(Size2D<LengthPercentageOrAuto>),
+  "inset": Inset(Rect<LengthPercentageOrAuto>),
 
   "border-top-color": BorderTopColor(CssColor),
   "border-bottom-color": BorderBottomColor(CssColor),

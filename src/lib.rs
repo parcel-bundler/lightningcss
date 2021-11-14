@@ -4540,6 +4540,88 @@ mod tests {
       safari: Some(13 << 16),
       ..Browsers::default()
     });
+
+    test(r#"
+      .foo {
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: 0;
+      }
+    "#, indoc! {r#"
+      .foo {
+        inset: 0;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        top: 2px;
+        left: 4px;
+        bottom: 2px;
+        right: 4px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        inset: 2px 4px;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        top: 1px;
+        left: 2px;
+        bottom: 3px;
+        right: 4px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        inset: 1px 4px 3px 2px;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        inset-block-start: 2px;
+        inset-block-end: 2px;
+        inset-inline-start: 4px;
+        inset-inline-end: 4px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        inset-block: 2px;
+        inset-inline: 4px;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        inset-block-start: 2px;
+        inset-block-end: 3px;
+        inset-inline-start: 4px;
+        inset-inline-end: 5px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        inset-block: 2px 3px;
+        inset-inline: 4px 5px;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        inset-block-start: 2px;
+        inset-block-end: 3px;
+        inset: 4px;
+        inset-inline-start: 4px;
+        inset-inline-end: 5px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        inset: 4px;
+        inset-inline: 4px 5px;
+      }
+    "#});
   }
 
   #[test]

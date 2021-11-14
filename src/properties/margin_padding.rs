@@ -211,3 +211,18 @@ side_handler!(
   ScrollPaddingBlock,
   ScrollPaddingInline
 );
+
+side_handler!(
+  InsetHandler,
+  Top,
+  Bottom,
+  Left,
+  Right,
+  InsetBlockStart,
+  InsetBlockEnd,
+  InsetInlineStart,
+  InsetInlineEnd,
+  Inset,
+  InsetBlock,
+  InsetInline
+);

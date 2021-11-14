@@ -85,6 +85,7 @@ pub struct DeclarationHandler {
   animation: AnimationHandler,
   display: DisplayHandler,
   position: PositionHandler,
+  inset: InsetHandler,
   overflow: OverflowHandler,
   transform: TransformHandler,
   prefix: PrefixHandler,
@@ -127,6 +128,7 @@ impl DeclarationHandler{
     self.animation.handle_property(property, &mut self.decls) ||
     self.display.handle_property(property, &mut self.decls) ||
     self.position.handle_property(property, &mut self.decls) ||
+    self.inset.handle_property(property, &mut self.decls) ||
     self.overflow.handle_property(property, &mut self.decls) ||
     self.transform.handle_property(property, &mut self.decls) ||
     self.prefix.handle_property(property, &mut self.decls)
@@ -148,6 +150,7 @@ impl DeclarationHandler{
     self.animation.finalize(&mut self.decls);
     self.display.finalize(&mut self.decls);
     self.position.finalize(&mut self.decls);
+    self.inset.finalize(&mut self.decls);
     self.overflow.finalize(&mut self.decls);
     self.transform.finalize(&mut self.decls);
     self.prefix.finalize(&mut self.decls);
