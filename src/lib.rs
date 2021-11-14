@@ -4603,4 +4603,150 @@ mod tests {
       ..Browsers::default()
     });
   }
+
+  #[test]
+  fn test_ui() {
+    minify_test(".foo { resize: both }", ".foo{resize:both}");
+    minify_test(".foo { resize: Horizontal }", ".foo{resize:horizontal}");
+    minify_test(".foo { cursor: ew-resize }", ".foo{cursor:ew-resize}");
+    minify_test(".foo { cursor: url(\"test.cur\"), ew-resize }", ".foo{cursor:url(test.cur),ew-resize}");
+    minify_test(".foo { cursor: url(\"test.cur\"), url(\"foo.cur\"), ew-resize }", ".foo{cursor:url(test.cur),url(foo.cur),ew-resize}");
+    minify_test(".foo { caret-color: auto }", ".foo{caret-color:auto}");
+    minify_test(".foo { caret-color: yellow }", ".foo{caret-color:#ff0}");
+    minify_test(".foo { caret-shape: block }", ".foo{caret-shape:block}");
+    minify_test(".foo { caret: yellow block }", ".foo{caret:#ff0 block}");
+    minify_test(".foo { caret: block yellow }", ".foo{caret:#ff0 block}");
+    minify_test(".foo { caret: block }", ".foo{caret:block}");
+    minify_test(".foo { caret: yellow }", ".foo{caret:#ff0}");
+    minify_test(".foo { caret: auto auto }", ".foo{caret:auto}");
+    minify_test(".foo { caret: auto }", ".foo{caret:auto}");
+    minify_test(".foo { caret: yellow auto }", ".foo{caret:#ff0}");
+    minify_test(".foo { caret: auto block }", ".foo{caret:block}");
+    minify_test(".foo { user-select: none }", ".foo{user-select:none}");
+    minify_test(".foo { -webkit-user-select: none }", ".foo{-webkit-user-select:none}");
+    minify_test(".foo { accent-color: auto }", ".foo{accent-color:auto}");
+    minify_test(".foo { accent-color: yellow }", ".foo{accent-color:#ff0}");
+    minify_test(".foo { appearance: None }", ".foo{appearance:none}");
+    minify_test(".foo { -webkit-appearance: textfield }", ".foo{-webkit-appearance:textfield}");
+
+    prefix_test(r#"
+      .foo {
+        user-select: none;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+    "#},
+    Browsers {
+      safari: Some(8 << 16),
+      opera: Some(5 << 16),
+      firefox: Some(10 << 16),
+      ie: Some(10 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-user-select: none;
+        user-select: none;
+      }
+    "#},
+    Browsers {
+      safari: Some(8 << 16),
+      opera: Some(80 << 16),
+      firefox: Some(80 << 16),
+      edge: Some(80 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+    "#, indoc! {r#"
+      .foo {
+        user-select: none;
+      }
+    "#},
+    Browsers {
+      opera: Some(80 << 16),
+      firefox: Some(80 << 16),
+      edge: Some(80 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        appearance: none;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        -ms-appearance: none;
+        appearance: none;
+      }
+    "#},
+    Browsers {
+      safari: Some(8 << 16),
+      chrome: Some(80 << 16),
+      firefox: Some(10 << 16),
+      ie: Some(11 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        -ms-appearance: none;
+        appearance: none;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-appearance: none;
+        appearance: none;
+      }
+    "#},
+    Browsers {
+      safari: Some(15 << 16),
+      chrome: Some(85 << 16),
+      firefox: Some(80 << 16),
+      edge: Some(85 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        -ms-appearance: none;
+        appearance: none;
+      }
+    "#, indoc! {r#"
+      .foo {
+        appearance: none;
+      }
+    "#},
+    Browsers {
+      chrome: Some(85 << 16),
+      firefox: Some(80 << 16),
+      edge: Some(85 << 16),
+      ..Browsers::default()
+    });
+  }
 }

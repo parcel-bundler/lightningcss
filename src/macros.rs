@@ -86,3 +86,81 @@ macro_rules! enum_property {
 }
 
 pub(crate) use enum_property;
+
+macro_rules! shorthand_property {
+  (
+    $name: ident
+    { $first_key: ident: $first_type: ty, $( $key: ident: $type: ty, )* }
+  ) => {
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct $name {
+      pub $first_key: $first_type,
+      $(
+        pub $key: $type,
+      )*
+    }
+
+    impl Parse for $name {
+      fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+        let mut $first_key = None;
+        $(
+          let mut $key = None;
+        )*
+
+        macro_rules! parse_one {
+          ($k: ident, $t: ty) => {
+            if $k.is_none() {
+              if let Ok(val) = input.try_parse(<$t>::parse) {
+                $k = Some(val);
+                continue
+              }
+            }
+          };
+        }
+
+        loop {
+          parse_one!($first_key, $first_type);
+          $(
+            parse_one!($key, $type);
+          )*
+          break
+        }
+
+        Ok($name {
+          $first_key: $first_key.unwrap_or_default(),
+          $(
+            $key: $key.unwrap_or_default(),
+          )*
+        })
+      }
+    }
+
+    impl ToCss for $name {
+      fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+        let mut needs_space = false;
+        macro_rules! print_one {
+          ($k: ident, $t: ty) => {
+            if self.$k != <$t>::default() {
+              if needs_space {
+                dest.write_char(' ')?;
+              }
+              self.$k.to_css(dest)?;
+              needs_space = true;
+            }
+          };
+        }
+
+        print_one!($first_key, $first_type);
+        $(
+          print_one!($key, $type);
+        )*
+        if !needs_space {
+          self.$first_key.to_css(dest)?;
+        }
+        Ok(())
+      }
+    }
+  };
+}
+
+pub (crate) use shorthand_property;

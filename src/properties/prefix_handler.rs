@@ -90,4 +90,6 @@ define_prefixes! {
   TextAlignLast,
   TextDecorationSkipInk,
   TextOverflow,
+  UserSelect,
+  Appearance,
 }

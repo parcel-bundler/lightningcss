@@ -18,6 +18,7 @@ pub mod display;
 pub mod text;
 pub mod position;
 pub mod overflow;
+pub mod ui;
 
 use cssparser::*;
 use custom::*;
@@ -36,6 +37,7 @@ use transform::*;
 use display::*;
 use text::*;
 use overflow::*;
+use ui::*;
 use crate::values::{image::*, length::*, position::*, alpha::*, size::*, rect::*, color::*, time::Time, ident::CustomIdent, easing::EasingFunction};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
@@ -477,6 +479,16 @@ define_properties! {
   "text-emphasis": TextEmphasis(TextEmphasis, VendorPrefix) / "webkit",
   "text-emphasis-position": TextEmphasisPosition(TextEmphasisPosition, VendorPrefix) / "webkit",
   "text-shadow": TextShadow(SmallVec<[TextShadow; 1]>),
+
+  // https://www.w3.org/TR/2021/WD-css-ui-4-20210316
+  "resize": Resize(Resize),
+  "cursor": Cursor(Cursor),
+  "caret-color": CaretColor(ColorOrAuto),
+  "caret-shape": CaretShape(CaretShape),
+  "caret": Caret(Caret),
+  "user-select": UserSelect(UserSelect, VendorPrefix) / "webkit" / "moz" / "ms",
+  "accent-color": AccentColor(ColorOrAuto),
+  "appearance": Appearance(Appearance, VendorPrefix) / "webkit" / "moz" / "ms",
 }
 
 impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {
