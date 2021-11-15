@@ -155,6 +155,10 @@ jobs:
       - uses: bahmutov/npm-install@v1.1.0
       - name: Download artifacts
         uses: actions/download-artifact@v2
+        with:
+          path: artifacts
+      - name: Move artifacts
+        run: cp artifacts/*/*.node .
       - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
