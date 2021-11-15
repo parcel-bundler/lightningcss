@@ -46,7 +46,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: bindings-${{ matrix.target }}
-          path: *.node
+          path: '*.node'
 
   build-apple-silicon:
     name: build-apple-silicon
@@ -79,7 +79,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: bindings-aarch64-apple-darwin
-          path: *.node
+          path: '*.node'
 
   build-linux:
     strategy:
@@ -141,7 +141,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: bindings-${{ matrix.target }}
-          path: *.node
+          path: '*.node'
 
   release:
     runs-on: ubuntu-latest
