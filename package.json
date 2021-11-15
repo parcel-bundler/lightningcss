@@ -2,6 +2,7 @@
   "name": "@parcel/css",
   "version": "1.0.0-alpha.0",
   "license": "MIT",
+  "main": "native.js",
   "publishConfig": {
     "access": "public"
   },
