@@ -1,6 +1,6 @@
 {
   "name": "@parcel/css",
-  "version": "1.0.0-alpha.0",
+  "version": "1.0.0-alpha.1",
   "license": "MIT",
   "main": "native.js",
   "publishConfig": {
@@ -21,6 +21,10 @@
   "napi": {
     "name": "parcel-css"
   },
+  "files": [
+    "native.js",
+    "*.node"
+  ],
   "dependencies": {},
   "devDependencies": {
     "@napi-rs/cli": "1.0.4",
