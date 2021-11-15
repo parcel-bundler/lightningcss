@@ -106,6 +106,7 @@ pub struct Browsers {
   pub ${Object.keys(browsers).filter(b => !(b in BROWSER_MAPPING)).sort().join(': Option<u32>,\n  pub ')}: Option<u32>
 }
 
+#[allow(dead_code)]
 pub enum Feature {
   ${[...p.keys()].flat().map(enumify).sort().join(',\n  ')}
 }
