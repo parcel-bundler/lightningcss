@@ -1,6 +1,6 @@
 use cssparser::*;
 use crate::properties::VendorPrefix;
-use crate::properties::prefixes::{Browsers};
+use crate::properties::prefixes::{Feature, Browsers};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use super::gradient::*;
@@ -26,6 +26,7 @@ impl Image {
   pub fn has_vendor_prefix(&self) -> bool {
     match self {
       Image::Gradient(a) => a.has_vendor_prefix(),
+      Image::ImageSet(a) => a.has_vendor_prefix(),
       _ => false
     }
   }
@@ -33,6 +34,7 @@ impl Image {
   pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
     match self {
       Image::Gradient(grad) => grad.get_necessary_prefixes(targets),
+      Image::ImageSet(image_set) => image_set.get_necessary_prefixes(targets),
       _ => VendorPrefix::None
     }
   }
@@ -40,6 +42,7 @@ impl Image {
   pub fn get_prefixed(&self, prefix: VendorPrefix) -> Image {
     match self {
       Image::Gradient(grad) => Image::Gradient(grad.get_prefixed(prefix)),
+      Image::ImageSet(image_set) => Image::ImageSet(image_set.get_prefixed(prefix)),
       _ => self.clone()
     }
   }
@@ -93,6 +96,23 @@ impl ToCss for Image {
 pub struct ImageSet {
   options: Vec<ImageSetOption>,
   vendor_prefix: VendorPrefix
+}
+
+impl ImageSet {
+  pub fn has_vendor_prefix(&self) -> bool {
+    self.vendor_prefix != VendorPrefix::None
+  }
+
+  pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+    Feature::ImageSet.prefixes_for(targets)
+  }
+
+  pub fn get_prefixed(&self, prefix: VendorPrefix) -> ImageSet {
+    ImageSet {
+      options: self.options.clone(),
+      vendor_prefix: prefix
+    }
+  }
 }
 
 impl Parse for ImageSet {

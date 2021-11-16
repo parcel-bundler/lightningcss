@@ -4873,5 +4873,48 @@ mod tests {
     minify_test(".foo { background: image-set(\"foo.png\" 2x, url(bar.png) 1x) }", ".foo{background:image-set(\"foo.png\" 2x,\"bar.png\")}");
     minify_test(".foo { background: image-set('foo.webp' type('webp'), url(foo.jpg)) }", ".foo{background:image-set(\"foo.webp\" type(\"webp\"),\"foo.jpg\")}");
     minify_test(".foo { background: -webkit-image-set(url(\"foo.png\") 2x, url(bar.png) 1x) }", ".foo{background:-webkit-image-set(url(foo.png) 2x,url(bar.png))}");
+  
+    test(r#"
+      .foo {
+        background: -webkit-image-set(url("foo.png") 2x, url(bar.png) 1x);
+        background: image-set(url("foo.png") 2x, url(bar.png) 1x);
+      }
+    "#, indoc! {r#"
+      .foo {
+        background: -webkit-image-set(url(foo.png) 2x, url(bar.png));
+        background: image-set("foo.png" 2x, "bar.png");
+      }
+    "#});
+
+    prefix_test(r#"
+      .foo {
+        background: image-set(url("foo.png") 2x, url(bar.png) 1x);
+      }
+    "#, indoc! {r#"
+      .foo {
+        background: -webkit-image-set(url(foo.png) 2x, url(bar.png));
+        background: image-set("foo.png" 2x, "bar.png");
+      }
+    "#},
+    Browsers {
+      chrome: Some(85 << 16),
+      firefox: Some(80 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        background: -webkit-image-set(url("foo.png") 2x, url(bar.png) 1x);
+        background: image-set(url("foo.png") 2x, url(bar.png) 1x);
+      }
+    "#, indoc! {r#"
+      .foo {
+        background: image-set("foo.png" 2x, "bar.png");
+      }
+    "#},
+    Browsers {
+      firefox: Some(80 << 16),
+      ..Browsers::default()
+    });
   }
 }

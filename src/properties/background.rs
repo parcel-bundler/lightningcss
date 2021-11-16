@@ -496,7 +496,7 @@ impl BackgroundHandler {
 
         if let Some(targets) = self.targets {
           // Legacy -webkit-gradient()
-          if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) {
+          if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) && backgrounds.iter().any(|bg| matches!(bg.image, Image::Gradient(_))) {
             let backgrounds: SmallVec<[Background; 1]> = backgrounds
               .iter()
               .map(|bg| -> Result<Background, ()> { Ok(Background { image: bg.image.get_legacy_webkit()?, ..bg.clone() })})
