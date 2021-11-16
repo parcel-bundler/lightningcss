@@ -4872,5 +4872,6 @@ mod tests {
   fn test_image_set() {
     minify_test(".foo { background: image-set(\"foo.png\" 2x, url(bar.png) 1x) }", ".foo{background:image-set(\"foo.png\" 2x,\"bar.png\")}");
     minify_test(".foo { background: image-set('foo.webp' type('webp'), url(foo.jpg)) }", ".foo{background:image-set(\"foo.webp\" type(\"webp\"),\"foo.jpg\")}");
+    minify_test(".foo { background: -webkit-image-set(url(\"foo.png\") 2x, url(bar.png) 1x) }", ".foo{background:-webkit-image-set(url(foo.png) 2x,url(bar.png))}");
   }
 }

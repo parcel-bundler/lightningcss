@@ -90,29 +90,45 @@ impl ToCss for Image {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ImageSet(Vec<ImageSetOption>);
+pub struct ImageSet {
+  options: Vec<ImageSetOption>,
+  vendor_prefix: VendorPrefix
+}
 
 impl Parse for ImageSet {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
-    input.expect_function_matching("image-set")?;
+    let location = input.current_source_location();
+    let f = input.expect_function()?;
+    let vendor_prefix = match_ignore_ascii_case! { &*f,
+      "image-set" => VendorPrefix::None,
+      "-webkit-image-set" => VendorPrefix::WebKit,
+      _ => return Err(location.new_unexpected_token_error(
+        cssparser::Token::Ident(f.clone())
+      ))
+    };
+
     let options = input.parse_nested_block(|input| {
       input.parse_comma_separated(ImageSetOption::parse)
     })?;
-    Ok(ImageSet(options))
+    Ok(ImageSet {
+      options,
+      vendor_prefix
+    })
   }
 }
 
 impl ToCss for ImageSet {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    self.vendor_prefix.to_css(dest)?;
     dest.write_str("image-set(")?;
     let mut first = true;
-    for option in &self.0 {
+    for option in &self.options {
       if first {
         first = false;
       } else {
         dest.delim(',', false)?;
       }
-      option.to_css(dest)?;
+      option.to_css(dest, self.vendor_prefix != VendorPrefix::None)?;
     }
     dest.write_char(')')
   }
@@ -146,12 +162,12 @@ impl Parse for ImageSetOption {
   }
 }
 
-impl ToCss for ImageSetOption {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-    if let Image::Url(url) = &self.image {
-      serialize_string(&url, dest)?;
-    } else {
-      self.image.to_css(dest)?;
+impl ImageSetOption {
+  fn to_css<W>(&self, dest: &mut Printer<W>, is_prefixed: bool) -> std::fmt::Result where W: std::fmt::Write {
+    match &self.image {
+      // Prefixed syntax didn't allow strings, only url()
+      Image::Url(url) if !is_prefixed => serialize_string(&url, dest)?,
+      _ => self.image.to_css(dest)?
     }
 
     if self.resolution != Resolution::Dppx(1.0) {
