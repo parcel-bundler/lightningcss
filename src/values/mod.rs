@@ -12,3 +12,4 @@ pub mod percentage;
 pub mod alpha;
 pub mod position;
 pub mod number;
+pub mod gradient;

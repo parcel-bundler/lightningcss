@@ -1,0 +1,1045 @@
+use cssparser::*;
+use super::angle::{Angle, AnglePercentage};
+use super::position::{HorizontalPositionKeyword, VerticalPositionKeyword};
+use super::color::CssColor;
+use super::length::{Length, LengthPercentage};
+use super::percentage::{Percentage, DimensionPercentage, NumberOrPercentage};
+use super::position::{Position, PositionComponent};
+use crate::properties::VendorPrefix;
+use crate::properties::prefixes::{Feature, Browsers};
+use crate::traits::{Parse, ToCss};
+use crate::macros::enum_property;
+use crate::printer::Printer;
+use std::fmt::Write;
+
+/// https://www.w3.org/TR/css-images-3/#gradients
+#[derive(Debug, Clone, PartialEq)]
+pub enum Gradient {
+  Linear(LinearGradient, VendorPrefix),
+  RepeatingLinear(LinearGradient, VendorPrefix),
+  Radial(RadialGradient, VendorPrefix),
+  RepeatingRadial(RadialGradient, VendorPrefix),
+  Conic(ConicGradient),
+  RepeatingConic(ConicGradient),
+  WebKitGradient(WebKitGradient)
+}
+
+impl Gradient {
+  pub fn has_vendor_prefix(&self) -> bool {
+    match self {
+      Gradient::Linear(_, prefix) | 
+      Gradient::RepeatingLinear(_, prefix) |
+      Gradient::Radial(_, prefix) | 
+      Gradient::RepeatingRadial(_, prefix) => *prefix != VendorPrefix::None,
+      Gradient::WebKitGradient(_) => true,
+      _ => false
+    }
+  }
+
+  pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+    macro_rules! get_prefixes {
+      ($feature: ident, $prefix: ident) => {
+        if *$prefix == VendorPrefix::None {
+          Feature::$feature.prefixes_for(targets)
+        } else {
+          *$prefix
+        }
+      };
+    }
+
+    match self {
+      Gradient::Linear(_, prefix) => get_prefixes!(LinearGradient, prefix),
+      Gradient::RepeatingLinear(_, prefix) => get_prefixes!(RepeatingLinearGradient, prefix),
+      Gradient::Radial(_, prefix) => get_prefixes!(RadialGradient, prefix),
+      Gradient::RepeatingRadial(_, prefix) => get_prefixes!(RepeatingRadialGradient, prefix),
+      _ => VendorPrefix::None
+    }
+  }
+
+  pub fn get_prefixed(&self, prefix: VendorPrefix) -> Gradient {
+    match self {
+      Gradient::Linear(linear, _) => Gradient::Linear(linear.clone(), prefix),
+      Gradient::RepeatingLinear(linear, _) => Gradient::RepeatingLinear(linear.clone(), prefix),
+      Gradient::Radial(radial, _) => Gradient::Radial(radial.clone(), prefix),
+      Gradient::RepeatingRadial(radial, _) => Gradient::RepeatingRadial(radial.clone(), prefix),
+      _ => self.clone()
+    }
+  }
+
+  pub fn get_legacy_webkit(&self) -> Result<Gradient, ()> {
+    Ok(Gradient::WebKitGradient(WebKitGradient::from_standard(self)?))
+  }
+}
+
+impl Parse for Gradient {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    let location = input.current_source_location();
+    let func = input.expect_function()?.clone();
+    input.parse_nested_block(|input| {
+      match_ignore_ascii_case! { &func,
+        "linear-gradient" => Ok(Gradient::Linear(LinearGradient::parse(input, false)?, VendorPrefix::None)),
+        "repeating-linear-gradient" => Ok(Gradient::RepeatingLinear(LinearGradient::parse(input, false)?, VendorPrefix::None)),
+        "radial-gradient" => Ok(Gradient::Radial(RadialGradient::parse(input)?, VendorPrefix::None)),
+        "repeating-radial-gradient" => Ok(Gradient::RepeatingRadial(RadialGradient::parse(input)?, VendorPrefix::None)),
+        "conic-gradient" => Ok(Gradient::Conic(ConicGradient::parse(input)?)),
+        "repeating-conic-gradient" => Ok(Gradient::RepeatingConic(ConicGradient::parse(input)?)),
+        "-webkit-linear-gradient" => Ok(Gradient::Linear(LinearGradient::parse(input, true)?, VendorPrefix::WebKit)),
+        "-webkit-repeating-linear-gradient" => Ok(Gradient::RepeatingLinear(LinearGradient::parse(input, true)?, VendorPrefix::WebKit)),
+        "-webkit-radial-gradient" => Ok(Gradient::Radial(RadialGradient::parse(input)?, VendorPrefix::WebKit)),
+        "-webkit-repeating-radial-gradient" => Ok(Gradient::RepeatingRadial(RadialGradient::parse(input)?, VendorPrefix::WebKit)),
+        "-moz-linear-gradient" => Ok(Gradient::Linear(LinearGradient::parse(input, true)?, VendorPrefix::Moz)),
+        "-moz-repeating-linear-gradient" => Ok(Gradient::RepeatingLinear(LinearGradient::parse(input, true)?, VendorPrefix::Moz)),
+        "-moz-radial-gradient" => Ok(Gradient::Radial(RadialGradient::parse(input)?, VendorPrefix::Moz)),
+        "-moz-repeating-radial-gradient" => Ok(Gradient::RepeatingRadial(RadialGradient::parse(input)?, VendorPrefix::Moz)),
+        "-o-linear-gradient" => Ok(Gradient::Linear(LinearGradient::parse(input, true)?, VendorPrefix::O)),
+        "-o-repeating-linear-gradient" => Ok(Gradient::RepeatingLinear(LinearGradient::parse(input, true)?, VendorPrefix::O)),
+        "-o-radial-gradient" => Ok(Gradient::Radial(RadialGradient::parse(input)?, VendorPrefix::O)),
+        "-o-repeating-radial-gradient" => Ok(Gradient::RepeatingRadial(RadialGradient::parse(input)?, VendorPrefix::O)),
+        "-webkit-gradient" => Ok(Gradient::WebKitGradient(WebKitGradient::parse(input)?)),
+        _ => Err(location.new_unexpected_token_error(cssparser::Token::Ident(func.clone())))
+      }
+    })
+  }
+}
+
+impl ToCss for Gradient {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    let (f, prefix) = match self {
+      Gradient::Linear(_, prefix) => ("linear-gradient(", Some(prefix)),
+      Gradient::RepeatingLinear(_, prefix) => ("repeating-linear-gradient(", Some(prefix)),
+      Gradient::Radial(_, prefix) => ("radial-gradient(", Some(prefix)),
+      Gradient::RepeatingRadial(_, prefix) => ("repeating-radial-gradient(", Some(prefix)),
+      Gradient::Conic(_) => ("conic-gradient(", None),
+      Gradient::RepeatingConic(_) => ("repeating-conic-gradient(", None),
+      Gradient::WebKitGradient(_) => ("-webkit-gradient(", None)
+    };
+
+    if let Some(prefix) = prefix {
+      prefix.to_css(dest)?;
+    }
+
+    dest.write_str(f)?;
+
+    match self {
+      Gradient::Linear(linear, prefix) | Gradient::RepeatingLinear(linear, prefix) => linear.to_css(dest, *prefix != VendorPrefix::None)?,
+      Gradient::Radial(radial, _) | Gradient::RepeatingRadial(radial, _) => radial.to_css(dest)?,
+      Gradient::Conic(conic) | Gradient::RepeatingConic(conic) => conic.to_css(dest)?,
+      Gradient::WebKitGradient(g) => g.to_css(dest)?
+    }
+
+    dest.write_char(')')
+  }
+}
+
+/// https://www.w3.org/TR/css-images-3/#linear-gradients
+#[derive(Debug, Clone, PartialEq)]
+pub struct LinearGradient {
+  direction: LineDirection,
+  items: Vec<GradientItem<LengthPercentage>>,
+}
+
+impl LinearGradient {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>, is_prefixed: bool) -> Result<LinearGradient, ParseError<'i, ()>> {
+    let direction = if let Ok(direction) = input.try_parse(|input| LineDirection::parse(input, is_prefixed)) {
+      input.expect_comma()?;
+      direction
+    } else {
+      LineDirection::Vertical(VerticalPositionKeyword::Bottom)
+    };
+    let items = parse_items(input)?;
+    Ok(LinearGradient {
+      direction,
+      items
+    })
+  }
+
+  fn to_css<W>(&self, dest: &mut Printer<W>, is_prefixed: bool) -> std::fmt::Result where W: std::fmt::Write {
+    let angle = match &self.direction {
+      LineDirection::Vertical(VerticalPositionKeyword::Bottom) => 180.0,
+      LineDirection::Vertical(VerticalPositionKeyword::Top) => 0.0,
+      LineDirection::Angle(angle) => angle.to_degrees(),
+      _ => -1.0
+    };
+
+    // We can omit `to bottom` or `180deg` because it is the default.
+    if angle == 180.0 {
+      serialize_items(&self.items, dest)
+
+    // If we have `to top` or `0deg`, and all of the positions and hints are percentages,
+    // we can flip the gradient the other direction and omit the direction.
+    } else if angle == 0.0 && dest.minify && self.items.iter().all(|item| matches!(item, GradientItem::Hint(LengthPercentage::Percentage(_)) | GradientItem::ColorStop(ColorStop { position: None | Some(LengthPercentage::Percentage(_)), .. }))) {
+      let items: Vec<GradientItem<LengthPercentage>> = self.items.iter().rev().map(|item| {
+        // Flip percentages.
+        match item {
+          GradientItem::Hint(LengthPercentage::Percentage(p)) => GradientItem::Hint(LengthPercentage::Percentage(Percentage(1.0 - p.0))),
+          GradientItem::ColorStop(ColorStop { color, position }) => {
+            GradientItem::ColorStop(ColorStop {
+              color: color.clone(),
+              position: position.clone().map(|p| match p {
+                LengthPercentage::Percentage(p) => LengthPercentage::Percentage(Percentage(1.0 - p.0)),
+                _ => unreachable!()
+              })
+            })
+          }
+          _ => unreachable!()
+        }
+      }).collect();
+      serialize_items(&items, dest)
+    } else {
+      if self.direction != LineDirection::Vertical(VerticalPositionKeyword::Bottom) && self.direction != LineDirection::Angle(Angle::Deg(180.0)) {
+        self.direction.to_css(dest, is_prefixed)?;
+        dest.delim(',', false)?;
+      }
+
+      serialize_items(&self.items, dest)
+    }
+  }
+}
+
+/// https://www.w3.org/TR/css-images-3/#radial-gradients
+#[derive(Debug, Clone, PartialEq)]
+pub struct RadialGradient {
+  shape: EndingShape,
+  position: Position,
+  items: Vec<GradientItem<LengthPercentage>>,
+}
+
+impl Parse for RadialGradient {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<RadialGradient, ParseError<'i, ()>> {
+    let shape = input.try_parse(EndingShape::parse).ok();
+    let position = input.try_parse(|input| {
+      input.expect_ident_matching("at")?;
+      Position::parse(input)
+    }).ok();
+
+    if shape.is_some() || position.is_some() {
+      input.expect_comma()?;
+    }
+
+    let items = parse_items(input)?;
+    Ok(RadialGradient {
+      shape: shape.unwrap_or_default(),
+      position: position.unwrap_or(Position::center()),
+      items
+    })
+  }
+}
+
+impl ToCss for RadialGradient {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    if self.shape != EndingShape::default() {
+      self.shape.to_css(dest)?;
+      if self.position.is_center() {
+        dest.delim(',', false)?;
+      } else {
+        dest.write_char(' ')?;
+      }
+    }
+    
+    if !self.position.is_center() {
+      dest.write_str("at ")?;
+      self.position.to_css(dest)?;
+      dest.delim(',', false)?;
+    }
+    
+    serialize_items(&self.items, dest)
+  }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LineDirection {
+  Angle(Angle),
+  Horizontal(HorizontalPositionKeyword),
+  Vertical(VerticalPositionKeyword),
+  Corner(HorizontalPositionKeyword, VerticalPositionKeyword)
+}
+
+impl LineDirection {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>, is_prefixed: bool) -> Result<Self, ParseError<'i, ()>> {
+    if let Ok(angle) = input.try_parse(Angle::parse) {
+      return Ok(LineDirection::Angle(angle))
+    }
+
+    if !is_prefixed {
+      input.expect_ident_matching("to")?;
+    }
+
+    if let Ok(x) = input.try_parse(HorizontalPositionKeyword::parse) {
+      if let Ok(y) = input.try_parse(VerticalPositionKeyword::parse) {
+        return Ok(LineDirection::Corner(x, y));
+      }
+      return Ok(LineDirection::Horizontal(x));
+    }
+
+    let y = VerticalPositionKeyword::parse(input)?;
+    if let Ok(x) = input.try_parse(HorizontalPositionKeyword::parse) {
+      return Ok(LineDirection::Corner(x, y));
+    }
+    Ok(LineDirection::Vertical(y))
+  }
+
+  fn to_css<W>(&self, dest: &mut Printer<W>, is_prefixed: bool) -> std::fmt::Result where W: std::fmt::Write {
+    match self {
+      LineDirection::Angle(angle) => angle.to_css(dest),
+      LineDirection::Horizontal(k) => {
+        if dest.minify {
+          match k {
+            HorizontalPositionKeyword::Left => dest.write_str("270deg"),
+            HorizontalPositionKeyword::Right => dest.write_str("90deg"),
+          }
+        } else {
+          if !is_prefixed {
+            dest.write_str("to ")?;
+          }
+          k.to_css(dest)
+        }
+      },
+      LineDirection::Vertical(k) => {
+        if dest.minify {
+          match k {
+            VerticalPositionKeyword::Top => dest.write_str("0deg"),
+            VerticalPositionKeyword::Bottom => dest.write_str("180deg"),
+          }
+        } else {
+          if !is_prefixed {
+            dest.write_str("to ")?;
+          }
+          k.to_css(dest)
+        }
+      },
+      LineDirection::Corner(x, y) => {
+        if !is_prefixed {
+          dest.write_str("to ")?;
+        }
+        y.to_css(dest)?;
+        dest.write_char(' ')?;
+        x.to_css(dest)
+      }
+    }
+  }
+}
+
+/// https://www.w3.org/TR/css-images-3/#valdef-radial-gradient-ending-shape
+#[derive(Debug, Clone, PartialEq)]
+pub enum EndingShape {
+  Circle(Circle),
+  Ellipse(Ellipse)
+}
+
+impl Default for EndingShape {
+  fn default() -> EndingShape {
+    EndingShape::Ellipse(Ellipse::Extent(ShapeExtent::FarthestCorner))
+  }
+}
+
+impl Parse for EndingShape {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    // Note: Ellipse::parse MUST run before Circle::parse for this to be correct. 
+    if let Ok(ellipse) = input.try_parse(Ellipse::parse) {
+      return Ok(EndingShape::Ellipse(ellipse))
+    }
+
+    if let Ok(circle) = input.try_parse(Circle::parse) {
+      return Ok(EndingShape::Circle(circle))
+    }
+    
+    return Err(input.new_error_for_next_token())
+  }
+}
+
+impl ToCss for EndingShape {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    match self {
+      EndingShape::Circle(circle) => circle.to_css(dest),
+      EndingShape::Ellipse(ellipse) => ellipse.to_css(dest),
+    }
+  }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Circle {
+  Radius(Length),
+  Extent(ShapeExtent)
+}
+
+impl Parse for Circle {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    if let Ok(extent) = input.try_parse(ShapeExtent::parse) {
+      // The `circle` keyword is required. If it's not there, then it's an ellipse.
+      input.expect_ident_matching("circle")?;
+      return Ok(Circle::Extent(extent))
+    }
+
+    if let Ok(length) = input.try_parse(Length::parse) {
+      // The `circle` keyword is optional if there is only a single length.
+      // We are assuming here that Ellipse::parse ran first.
+      let _ = input.try_parse(|input| input.expect_ident_matching("circle"));
+      return Ok(Circle::Radius(length))
+    }
+
+    if input.try_parse(|input| input.expect_ident_matching("circle")).is_ok() {
+      if let Ok(extent) = input.try_parse(ShapeExtent::parse) {
+        return Ok(Circle::Extent(extent))
+      }
+
+      if let Ok(length) = input.try_parse(Length::parse) {
+        return Ok(Circle::Radius(length))
+      }
+
+      // If only the `circle` keyword was given, default to `farthest-corner`.
+      return Ok(Circle::Extent(ShapeExtent::FarthestCorner))
+    }
+
+    return Err(input.new_error_for_next_token())
+  }
+}
+
+impl ToCss for Circle {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    match self {
+      Circle::Radius(r) => r.to_css(dest),
+      Circle::Extent(extent) => {
+        dest.write_str("circle")?;
+        if *extent != ShapeExtent::FarthestCorner {
+          dest.write_char(' ')?;
+          extent.to_css(dest)?;
+        }
+        Ok(())
+      }
+    }
+  }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Ellipse {
+  Size(LengthPercentage, LengthPercentage),
+  Extent(ShapeExtent)
+}
+
+impl Parse for Ellipse {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    if let Ok(extent) = input.try_parse(ShapeExtent::parse) {
+      // The `ellipse` keyword is optional, but only if the `circle` keyword is not present.
+      // If it is, then we'll re-parse as a circle.
+      if input.try_parse(|input| input.expect_ident_matching("circle")).is_ok() {
+        return Err(input.new_error_for_next_token())
+      }
+      let _ = input.try_parse(|input| input.expect_ident_matching("ellipse"));
+      return Ok(Ellipse::Extent(extent))
+    }
+
+    if let Ok(x) = input.try_parse(LengthPercentage::parse) {
+      let y = LengthPercentage::parse(input)?;
+      // The `ellipse` keyword is optional if there are two lengths.
+      let _ = input.try_parse(|input| input.expect_ident_matching("ellipse"));
+      return Ok(Ellipse::Size(x, y))
+    }
+
+    if input.try_parse(|input| input.expect_ident_matching("ellipse")).is_ok() {
+      if let Ok(extent) = input.try_parse(ShapeExtent::parse) {
+        return Ok(Ellipse::Extent(extent))
+      }
+
+      if let Ok(x) = input.try_parse(LengthPercentage::parse) {
+        let y = LengthPercentage::parse(input)?;
+        return Ok(Ellipse::Size(x, y))
+      }
+
+      // Assume `farthest-corner` if only the `ellipse` keyword is present.
+      return Ok(Ellipse::Extent(ShapeExtent::FarthestCorner))
+    }
+
+    return Err(input.new_error_for_next_token())
+  }
+}
+
+impl ToCss for Ellipse {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    // The `ellipse` keyword is optional, so we don't emit it.
+    match self {
+      Ellipse::Size(x, y) => {
+        x.to_css(dest)?;
+        dest.write_char(' ')?;
+        y.to_css(dest)
+      },
+      Ellipse::Extent(extent) => extent.to_css(dest)
+    }
+  }
+}
+
+enum_property!(ShapeExtent,
+  ("closest-side", ClosestSide),
+  ("farthest-side", FarthestSide),
+  ("closest-corner", ClosestCorner),
+  ("farthest-corner", FarthestCorner)
+);
+
+/// https://www.w3.org/TR/css-images-4/#conic-gradients
+#[derive(Debug, Clone, PartialEq)]
+pub struct ConicGradient {
+  angle: Angle,
+  position: Position,
+  items: Vec<GradientItem<AnglePercentage>>,
+}
+
+impl ConicGradient {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    let angle = input.try_parse(|input| {
+      input.expect_ident_matching("from")?;
+      Angle::parse(input)
+    });
+    
+    let position = input.try_parse(|input| {
+      input.expect_ident_matching("at")?;
+      Position::parse(input)
+    });
+
+    if angle.is_ok() || position.is_ok() {
+      input.expect_comma()?;
+    }
+
+    let items = parse_items(input)?;
+    Ok(ConicGradient {
+      angle: angle.unwrap_or(Angle::Deg(0.0)),
+      position: position.unwrap_or(Position::center()),
+      items
+    })
+  }
+}
+
+impl ToCss for ConicGradient {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    if self.angle != 0.0 {
+      dest.write_str("from ")?;
+      self.angle.to_css(dest)?;
+
+      if self.position.is_center() {
+        dest.delim(',', false)?;
+      } else {
+        dest.write_char(' ')?;
+      }
+    }
+
+    if !self.position.is_center() {
+      dest.write_str("at ")?;
+      self.position.to_css(dest)?;
+      dest.delim(',', false)?;
+    }
+
+    serialize_items(&self.items, dest)
+  }
+}
+
+/// https://www.w3.org/TR/css-images-4/#color-stop-syntax
+#[derive(Debug, Clone, PartialEq)]
+pub struct ColorStop<D> {
+  color: CssColor,
+  position: Option<D>
+}
+
+impl<D: Parse> Parse for ColorStop<D> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    let color = CssColor::parse(input)?;
+    let position = input.try_parse(D::parse).ok();
+    Ok(ColorStop {color, position })
+  }
+}
+
+impl<D: ToCss> ToCss for ColorStop<D> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    self.color.to_css(dest)?;
+    if let Some(position) = &self.position {
+      dest.write_char(' ')?;
+      position.to_css(dest)?;
+    }
+    Ok(())
+  }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum GradientItem<D> {
+  ColorStop(ColorStop<D>),
+  Hint(D)
+}
+
+impl<D: ToCss> ToCss for GradientItem<D> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    match self {
+      GradientItem::ColorStop(stop) => stop.to_css(dest),
+      GradientItem::Hint(hint) => hint.to_css(dest)
+    }
+  }
+}
+
+fn parse_items<'i, 't, D: Parse>(input: &mut Parser<'i, 't>) -> Result<Vec<GradientItem<D>>, ParseError<'i, ()>> {
+  let mut items = Vec::new();
+  let mut seen_stop = false;
+
+  loop {
+    input.parse_until_before(Delimiter::Comma, |input| {
+      if seen_stop {
+        if let Ok(hint) = input.try_parse(D::parse) {
+          seen_stop = false;
+          items.push(GradientItem::Hint(hint));
+          return Ok(())
+        }
+      }
+
+      let stop = ColorStop::parse(input)?;
+
+      if let Ok(position) = input.try_parse(D::parse) {
+        let color = stop.color.clone();
+        items.push(GradientItem::ColorStop(stop));
+
+        items.push(GradientItem::ColorStop(ColorStop {
+          color,
+          position: Some(position)
+        }))
+      } else {
+        items.push(GradientItem::ColorStop(stop));
+      }
+
+      seen_stop = true;
+      Ok(())
+    })?;
+
+    match input.next() {
+      Err(_) => break,
+      Ok(Token::Comma) => continue,
+      _ => unreachable!(),
+    }
+  }
+
+  Ok(items)
+}
+
+fn serialize_items<D: ToCss + std::cmp::PartialOrd<f32> + std::cmp::PartialEq<D> + std::ops::Mul<f32, Output = D> + Clone + std::fmt::Debug, W>(items: &Vec<GradientItem<DimensionPercentage<D>>>, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  let mut first = true;
+  let mut last: Option<&GradientItem<DimensionPercentage<D>>> = None;
+  for item in items {
+    // Skip useless hints
+    if *item == GradientItem::Hint(DimensionPercentage::Percentage(Percentage(0.5))) {
+      continue
+    }
+    
+    if let Some(prev) = last {
+      match (prev, item) {
+        (
+          GradientItem::ColorStop(ColorStop { position: Some(_), color: ca }),
+          GradientItem::ColorStop(ColorStop { position: Some(p), color: cb })
+        ) if ca == cb => {
+          dest.write_char(' ')?;
+          p.to_css(dest)?;
+          last = None;
+          continue
+        }
+        _ => {}
+      }
+    }
+    
+    if first {
+      first = false;
+    } else {
+      dest.delim(',', false)?;
+    }
+    item.to_css(dest)?;
+    last = Some(item)
+  }
+  Ok(())
+}
+
+// Old pre-standard -webkit-gradient() syntax.
+#[derive(Debug, Clone, PartialEq)]
+pub enum WebKitGradient {
+  Linear {
+    from: WebKitGradientPoint,
+    to: WebKitGradientPoint,
+    stops: Vec<WebKitColorStop>
+  },
+  Radial {
+    from: WebKitGradientPoint,
+    r0: f32,
+    to: WebKitGradientPoint,
+    r1: f32,
+    stops: Vec<WebKitColorStop>
+  }
+}
+
+impl Parse for WebKitGradient {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    let location = input.current_source_location();
+    let ident = input.expect_ident_cloned()?;
+    input.expect_comma()?;
+
+    match_ignore_ascii_case! { &ident,
+      "linear" => {
+        let from = WebKitGradientPoint::parse(input)?;
+        input.expect_comma()?;
+        let to = WebKitGradientPoint::parse(input)?;
+        input.expect_comma()?;
+        let stops = input.parse_comma_separated(WebKitColorStop::parse)?;
+        Ok(WebKitGradient::Linear {
+          from,
+          to,
+          stops
+        })
+      },
+      "radial" => {
+        let from = WebKitGradientPoint::parse(input)?;
+        input.expect_comma()?;
+        let r0 = f32::parse(input)?;
+        input.expect_comma()?;
+        let to = WebKitGradientPoint::parse(input)?;
+        input.expect_comma()?;
+        let r1 = f32::parse(input)?;
+        input.expect_comma()?;
+        let stops = input.parse_comma_separated(WebKitColorStop::parse)?;
+        Ok(WebKitGradient::Radial {
+          from,
+          r0,
+          to,
+          r1,
+          stops
+        })
+      },
+      _ => Err(location.new_unexpected_token_error(cssparser::Token::Ident(ident.clone())))
+    }
+  }
+}
+
+impl ToCss for WebKitGradient {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    match self {
+      WebKitGradient::Linear { from, to, stops } => {
+        dest.write_str("linear")?;
+        dest.delim(',', false)?;
+        from.to_css(dest)?;
+        dest.delim(',', false)?;
+        to.to_css(dest)?;
+        for stop in stops {
+          dest.delim(',', false)?;
+          stop.to_css(dest)?;
+        }
+        Ok(())
+      }
+      WebKitGradient::Radial { from, r0, to, r1, stops } => {
+        dest.write_str("radial")?;
+        dest.delim(',', false)?;
+        from.to_css(dest)?;
+        dest.delim(',', false)?;
+        r0.to_css(dest)?;
+        dest.delim(',', false)?;
+        to.to_css(dest)?;
+        dest.delim(',', false)?;
+        r1.to_css(dest)?;
+        for stop in stops {
+          dest.delim(',', false)?;
+          stop.to_css(dest)?;
+        }
+        Ok(())
+      }
+    }
+  }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct WebKitColorStop {
+  color: CssColor,
+  position: f32
+}
+
+impl Parse for WebKitColorStop {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    let location = input.current_source_location();
+    let function = input.expect_function()?.clone();
+    input.parse_nested_block(|input| {
+      let position = match_ignore_ascii_case! { &function,
+        "color-stop" => {
+          let p = NumberOrPercentage::parse(input)?;
+          input.expect_comma()?;
+          (&p).into()
+        },
+        "from" => 0.0,
+        "to" => 1.0,
+        _ => return Err(location.new_unexpected_token_error(cssparser::Token::Ident(function.clone())))
+      };
+      let color = CssColor::parse(input)?;
+      Ok(WebKitColorStop {
+        color,
+        position
+      })
+    })
+  }
+}
+
+impl ToCss for WebKitColorStop {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    if self.position == 0.0 {
+      dest.write_str("from(")?;
+      self.color.to_css(dest)?;
+    } else if self.position == 1.0 {
+      dest.write_str("to(")?;
+      self.color.to_css(dest)?;
+    } else {
+      dest.write_str("color-stop(")?;
+      self.position.to_css(dest)?;
+      dest.delim(',', false)?;
+      self.color.to_css(dest)?;
+    }
+    dest.write_char(')')
+  }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct WebKitGradientPoint {
+  x: WebKitGradientPointComponent<HorizontalPositionKeyword>,
+  y: WebKitGradientPointComponent<VerticalPositionKeyword>
+}
+
+impl Parse for WebKitGradientPoint {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    let x = WebKitGradientPointComponent::parse(input)?;
+    let y = WebKitGradientPointComponent::parse(input)?;
+    Ok(WebKitGradientPoint { x, y })
+  }
+}
+
+impl ToCss for WebKitGradientPoint {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    self.x.to_css(dest)?;
+    dest.write_char(' ')?;
+    self.y.to_css(dest)
+  }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum WebKitGradientPointComponent<S> {
+  Center,
+  Number(NumberOrPercentage),
+  Side(S),
+}
+
+impl<S: Parse> Parse for WebKitGradientPointComponent<S> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    if input.try_parse(|i| i.expect_ident_matching("center")).is_ok() {
+      return Ok(WebKitGradientPointComponent::Center);
+    }
+
+    if let Ok(lp) = input.try_parse(NumberOrPercentage::parse) {
+      return Ok(WebKitGradientPointComponent::Number(lp));
+    }
+
+    let keyword = S::parse(input)?;
+    Ok(WebKitGradientPointComponent::Side(keyword))
+  }
+}
+
+impl<S: ToCss + Clone + Into<Percentage>> ToCss for WebKitGradientPointComponent<S> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    use WebKitGradientPointComponent::*;
+    match &self {
+      Center => {
+        if dest.minify {
+          dest.write_str("50%")
+        } else {
+          dest.write_str("center")
+        }
+      }
+      Number(lp) => {
+        if matches!(lp, NumberOrPercentage::Percentage(Percentage(p)) if *p == 0.0) {
+          dest.write_char('0')
+        } else {
+          lp.to_css(dest)
+        }
+      },
+      Side(s) => {
+        if dest.minify {
+          let percentage: Percentage = s.clone().into();
+          if percentage == 0.0 {
+            dest.write_char('0')?;
+          } else {
+            percentage.to_css(dest)?;
+          }
+        } else {
+          s.to_css(dest)?;
+        }
+        Ok(())
+      }
+    }
+  }
+}
+
+impl<S: Clone> WebKitGradientPointComponent<S> {
+  /// Attempts to convert a standard position to a webkit gradient point.
+  fn from_position(pos: &PositionComponent<S>) -> Result<WebKitGradientPointComponent<S>, ()> {
+    match pos {
+      PositionComponent::Center => Ok(WebKitGradientPointComponent::Center),
+      PositionComponent::Length(len) => {
+        Ok(WebKitGradientPointComponent::Number(match len {
+          LengthPercentage::Percentage(p) => NumberOrPercentage::Percentage(p.clone()),
+          LengthPercentage::Dimension(d) => {
+            // Webkit gradient points can only be specified in pixels.
+            if let Some(px) = d.to_px() {
+              NumberOrPercentage::Number(px)
+            } else {
+              return Err(())
+            }
+          },
+          _ => return Err(())
+        }))
+      }
+      PositionComponent::Side(s, o) => {
+        if o.is_some() {
+          return Err(())
+        }
+        Ok(WebKitGradientPointComponent::Side(s.clone()))
+      }
+    }
+  }
+}
+
+impl WebKitGradient {
+  /// Attempts to convert a standard gradient to a legacy -webkit-gradient()
+  pub fn from_standard(gradient: &Gradient) -> Result<WebKitGradient, ()> {
+    match gradient {
+      Gradient::Linear(linear, _) => {
+        // Convert from line direction to a from and to point, if possible.
+        let (from, to) = match &linear.direction {
+          LineDirection::Horizontal(horizontal) => {
+            match horizontal {
+              HorizontalPositionKeyword::Left => (
+                (1.0, 0.0),
+                (0.0, 0.0)
+              ),
+              HorizontalPositionKeyword::Right => (
+                (0.0, 0.0),
+                (1.0, 0.0)
+              )
+            }
+          }
+          LineDirection::Vertical(vertical) => {
+            match vertical {
+              VerticalPositionKeyword::Top => (
+                (0.0, 1.0),
+                (0.0, 0.0)
+              ),
+              VerticalPositionKeyword::Bottom => (
+                (0.0, 0.0),
+                (0.0, 1.0)
+              )
+            }
+          }
+          LineDirection::Corner(horizontal, vertical) => {
+            match (horizontal, vertical) {
+              (HorizontalPositionKeyword::Left, VerticalPositionKeyword::Top) => (
+                (1.0, 1.0),
+                (0.0, 0.0)
+              ),
+              (HorizontalPositionKeyword::Left, VerticalPositionKeyword::Bottom) => (
+                (1.0, 0.0),
+                (0.0, 1.0)
+              ),
+              (HorizontalPositionKeyword::Right, VerticalPositionKeyword::Top) => (
+                (0.0, 1.0),
+                (1.0, 0.0)
+              ),
+              (HorizontalPositionKeyword::Right, VerticalPositionKeyword::Bottom) => (
+                (0.0, 0.0),
+                (1.0, 1.0)
+              )
+            }
+          }
+          LineDirection::Angle(angle) => {
+            let degrees = angle.to_degrees();
+            if degrees == 0.0 {
+              (
+                (0.0, 1.0),
+                (0.0, 0.0)
+              )
+            } else if degrees == 90.0 {
+              (
+                (0.0, 0.0),
+                (1.0, 0.0)
+              )
+            } else if degrees == 180.0 {
+              (
+                (0.0, 0.0),
+                (0.0, 1.0)
+              )
+            } else if degrees == 270.0 {
+              (
+                (1.0, 0.0),
+                (0.0, 0.0)
+              )
+            } else {
+              return Err(())
+            }
+          }
+        };
+
+        Ok(WebKitGradient::Linear {
+          from: WebKitGradientPoint { x: WebKitGradientPointComponent::Number(NumberOrPercentage::Percentage(Percentage(from.0))), y: WebKitGradientPointComponent::Number(NumberOrPercentage::Percentage(Percentage(from.1))) },
+          to: WebKitGradientPoint { x: WebKitGradientPointComponent::Number(NumberOrPercentage::Percentage(Percentage(to.0))), y: WebKitGradientPointComponent::Number(NumberOrPercentage::Percentage(Percentage(to.1))) },
+          stops: convert_stops_to_webkit(&linear.items)?
+        })
+      },
+      Gradient::Radial(radial, _) => {
+        // Webkit radial gradients are always circles, not ellipses, and must be specified in pixels.
+        let radius = match &radial.shape {
+          EndingShape::Circle(Circle::Radius(radius)) => {
+            if let Some(r) = radius.to_px() {
+              r
+            } else {
+              return Err(())
+            }
+          },
+          _ => return Err(())
+        };
+
+        let x = WebKitGradientPointComponent::from_position(&radial.position.x)?;
+        let y = WebKitGradientPointComponent::from_position(&radial.position.y)?;
+        let point = WebKitGradientPoint { x, y };
+        Ok(WebKitGradient::Radial {
+          from: point.clone(),
+          r0: 0.0,
+          to: point,
+          r1: radius,
+          stops: convert_stops_to_webkit(&radial.items)?
+        })
+      }
+      _ => Err(())
+    }
+  }
+}
+
+fn convert_stops_to_webkit(items: &Vec<GradientItem<LengthPercentage>>) -> Result<Vec<WebKitColorStop>, ()> {
+  let mut stops = Vec::with_capacity(items.len());
+  for (i, item) in items.iter().enumerate() {
+    match item {
+      GradientItem::ColorStop(stop) => {
+        // webkit stops must always be percentage based, not length based.
+        let position = if let Some(pos) = &stop.position {
+          if let LengthPercentage::Percentage(position) = pos {
+            position.0
+          } else {
+            return Err(())
+          }
+        } else if i == 0 {
+          0.0
+        } else if i == items.len() - 1 {
+          1.0
+        } else {
+          return Err(())
+        };
+
+        stops.push(WebKitColorStop {
+          color: stop.color.clone(),
+          position
+        })
+      }
+      _ => return Err(())
+    }
+  }
+
+  Ok(stops)
+}
