@@ -112,36 +112,39 @@ impl Parse for LengthValue {
 
 impl ToCss for LengthValue {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-    use cssparser::ToCss;
-
     let (value, unit) = self.to_unit_value();
     if value == 0.0 {
       return dest.write_char('0')
     }
 
-    let int_value = if value.fract() == 0.0 {
-      Some(value as i32)
+    serialize_dimension(value, unit, dest)
+  }
+}
+
+pub fn serialize_dimension<W>(value: f32, unit: &str, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  use cssparser::ToCss;
+  let int_value = if value.fract() == 0.0 {
+    Some(value as i32)
+  } else {
+    None
+  };
+  let token = Token::Dimension {
+    has_sign: value < 0.0,
+    value,
+    int_value,
+    unit: CowRcStr::from(unit)
+  };
+  if value != 0.0 && value.abs() < 1.0 {
+    let mut s = String::new();
+    token.to_css(&mut s)?;
+    if value < 0.0 {
+      dest.write_char('-')?;
+      dest.write_str(s.trim_start_matches("-0"))
     } else {
-      None
-    };
-    let token = Token::Dimension {
-      has_sign: value < 0.0,
-      value: value,
-      int_value,
-      unit: CowRcStr::from(unit)
-    };
-    if value.abs() < 1.0 {
-      let mut s = String::new();
-      token.to_css(&mut s)?;
-      if value < 0.0 {
-        dest.write_char('-')?;
-        dest.write_str(s.trim_start_matches("-0"))
-      } else {
-        dest.write_str(s.trim_start_matches('0'))
-      }
-    } else {
-      token.to_css(dest)
+      dest.write_str(s.trim_start_matches('0'))
     }
+  } else {
+    token.to_css(dest)
   }
 }
 

@@ -13,3 +13,4 @@ pub mod alpha;
 pub mod position;
 pub mod number;
 pub mod gradient;
+pub mod resolution;

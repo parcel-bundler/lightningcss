@@ -1,10 +1,10 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss, TryAdd};
 use crate::printer::Printer;
-use std::fmt::Write;
 use super::calc::Calc;
 use std::f32::consts::PI;
 use super::percentage::DimensionPercentage;
+use super::length::serialize_dimension;
 
 #[derive(Debug, Clone)]
 pub enum Angle {
@@ -58,30 +58,7 @@ impl ToCss for Angle {
       Angle::Turn(val) => (*val, "turn")
     };
 
-    use cssparser::ToCss;
-    let int_value = if value.fract() == 0.0 {
-      Some(value as i32)
-    } else {
-      None
-    };
-    let token = Token::Dimension {
-      has_sign: value < 0.0,
-      value,
-      int_value,
-      unit: CowRcStr::from(unit)
-    };
-    if value != 0.0 && value.abs() < 1.0 {
-      let mut s = String::new();
-      token.to_css(&mut s)?;
-      if value < 0.0 {
-        dest.write_char('-')?;
-        dest.write_str(s.trim_start_matches("-0"))
-      } else {
-        dest.write_str(s.trim_start_matches('0'))
-      }
-    } else {
-      token.to_css(dest)
-    }
+    serialize_dimension(value, unit, dest)
   }
 }
 
