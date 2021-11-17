@@ -3726,6 +3726,115 @@ mod tests {
   }
 
   #[test]
+  fn test_supports_rule() {
+    test(r#"
+      @supports (foo: bar) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#, indoc! { r#"
+      @supports (foo: bar) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#});
+    test(r#"
+      @supports not (foo: bar) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#, indoc! { r#"
+      @supports not (foo: bar) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#});
+    test(r#"
+      @supports (foo: bar) or (bar: baz) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#, indoc! { r#"
+      @supports (foo: bar) or (bar: baz) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#});
+    test(r#"
+      @supports (foo: bar) and (bar: baz) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#, indoc! { r#"
+      @supports (foo: bar) and (bar: baz) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#});
+    test(r#"
+      @supports selector(a > b) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#, indoc! { r#"
+      @supports selector(a > b) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#});
+    test(r#"
+      @supports unknown(test) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#, indoc! { r#"
+      @supports unknown(test) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#});
+    test(r#"
+      @supports (unknown) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#, indoc! { r#"
+      @supports (unknown) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#});
+    test(r#"
+      @supports (display: grid) and (not (display: inline-grid)) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#, indoc! { r#"
+      @supports (display: grid) and (not (display: inline-grid)) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#});
+    
+  }
+
+  #[test]
   fn test_prefixes() {
     prefix_test(
       r#"

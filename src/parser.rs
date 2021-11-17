@@ -10,6 +10,7 @@ use crate::selector::{Selectors, SelectorParser};
 use crate::rules::keyframes::{KeyframeListParser, KeyframesRule};
 use crate::rules::font_face::{FontFaceRule, FontFaceDeclarationParser};
 use crate::rules::page::{PageSelector, PageRule};
+use crate::rules::supports::{SupportsCondition, SupportsRule};
 use crate::declaration::{Declaration, DeclarationHandler};
 use crate::properties::VendorPrefix;
 
@@ -85,7 +86,7 @@ pub enum AtRulePrelude {
   /// A @media rule prelude, with its media queries.
   Media(MediaList),//(Arc<Locked<MediaList>>),
   /// An @supports rule, with its conditional
-  Supports,//(SupportsCondition),
+  Supports(SupportsCondition),
   /// A @viewport rule prelude.
   Viewport,
   /// A @keyframes rule, with its animation name and vendor prefix if exists.
@@ -328,7 +329,8 @@ pub enum CssRule {
   Style(StyleRule),
   Keyframes(KeyframesRule),
   FontFace(FontFaceRule),
-  Page(PageRule)
+  Page(PageRule),
+  Supports(SupportsRule)
 }
 
 impl ToCss for CssRule {
@@ -340,6 +342,7 @@ impl ToCss for CssRule {
       CssRule::Keyframes(keyframes) => keyframes.to_css(dest),
       CssRule::FontFace(font_face) => font_face.to_css(dest),
       CssRule::Page(font_face) => font_face.to_css(dest),
+      CssRule::Supports(supports) => supports.to_css(dest),
     }
   }
 }
@@ -379,10 +382,10 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
         let media = MediaList::parse(input);
         Ok(AtRuleType::WithBlock(AtRulePrelude::Media(media)))
       },
-      // "supports" => {
-      //     let cond = SupportsCondition::parse(input)?;
-      //     Ok(AtRuleType::WithBlock(AtRuleBlockPrelude::Supports(cond)))
-      // },
+      "supports" => {
+        let cond = SupportsCondition::parse(input)?;
+        Ok(AtRuleType::WithBlock(AtRulePrelude::Supports(cond)))
+      },
       "font-face" => {
         Ok(AtRuleType::WithBlock(AtRulePrelude::FontFace))
       },
@@ -506,23 +509,12 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
           rules: self.parse_nested_rules(input)
         }))
       },
-      // AtRuleBlockPrelude::Supports(condition) => {
-      //     let eval_context = ParserContext::new_with_rule_type(
-      //         self.context,
-      //         CssRuleType::Style,
-      //         self.namespaces,
-      //     );
-
-      //     let enabled = condition.eval(&eval_context, self.namespaces);
-      //     Ok(CssRule::Supports(Arc::new(self.shared_lock.wrap(
-      //         SupportsRule {
-      //             condition,
-      //             rules: self.parse_nested_rules(input, CssRuleType::Supports),
-      //             enabled,
-      //             source_location: start.source_location(),
-      //         },
-      //     ))))
-      // },
+      AtRulePrelude::Supports(condition) => {
+        Ok(CssRule::Supports(SupportsRule {
+          condition,
+          rules: self.parse_nested_rules(input),
+        }))
+      },
       // AtRuleBlockPrelude::Viewport => {
       //     let context = ParserContext::new_with_rule_type(
       //         self.context,
