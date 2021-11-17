@@ -11,6 +11,8 @@ use crate::rules::keyframes::{KeyframeListParser, KeyframesRule};
 use crate::rules::font_face::{FontFaceRule, FontFaceDeclarationParser};
 use crate::rules::page::{PageSelector, PageRule};
 use crate::rules::supports::{SupportsCondition, SupportsRule};
+use crate::rules::counter_style::CounterStyleRule;
+use crate::values::ident::CustomIdent;
 use crate::declaration::{Declaration, DeclarationHandler};
 use crate::properties::VendorPrefix;
 
@@ -82,7 +84,7 @@ pub enum AtRulePrelude {
   /// A @font-feature-values rule prelude, with its FamilyName list.
   FontFeatureValues,//(Vec<FamilyName>),
   /// A @counter-style rule prelude, with its counter style name.
-  CounterStyle,//(CustomIdent),
+  CounterStyle(CustomIdent),
   /// A @media rule prelude, with its media queries.
   Media(MediaList),//(Arc<Locked<MediaList>>),
   /// An @supports rule, with its conditional
@@ -330,7 +332,8 @@ pub enum CssRule {
   Keyframes(KeyframesRule),
   FontFace(FontFaceRule),
   Page(PageRule),
-  Supports(SupportsRule)
+  Supports(SupportsRule),
+  CounterStyle(CounterStyleRule)
 }
 
 impl ToCss for CssRule {
@@ -343,6 +346,7 @@ impl ToCss for CssRule {
       CssRule::FontFace(font_face) => font_face.to_css(dest),
       CssRule::Page(font_face) => font_face.to_css(dest),
       CssRule::Supports(supports) => supports.to_css(dest),
+      CssRule::CounterStyle(counter_style) => counter_style.to_css(dest)
     }
   }
 }
@@ -397,14 +401,10 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
       //     let family_names = parse_family_name_list(self.context, input)?;
       //     Ok(AtRuleType::WithBlock(AtRuleBlockPrelude::FontFeatureValues(family_names)))
       // },
-      // "counter-style" => {
-      //     if !cfg!(feature = "gecko") {
-      //         // Support for this rule is not fully implemented in Servo yet.
-      //         return Err(input.new_custom_error(StyleParseErrorKind::UnsupportedAtRule(name.clone())))
-      //     }
-      //     let name = parse_counter_style_name_definition(input)?;
-      //     Ok(AtRuleType::WithBlock(AtRuleBlockPrelude::CounterStyle(name)))
-      // },
+      "counter-style" => {
+        let name = CustomIdent::parse(input)?;
+        Ok(AtRuleType::WithBlock(AtRulePrelude::CounterStyle(name)))
+      },
       // "viewport" => {
       //     if viewport_rule::enabled() {
       //         Ok(AtRuleType::WithBlock(AtRuleBlockPrelude::Viewport))
@@ -489,20 +489,22 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
       //         ),
       //     ))))
       // },
-      // AtRuleBlockPrelude::CounterStyle(name) => {
-      //     let context = ParserContext::new_with_rule_type(
-      //         self.context,
-      //         CssRuleType::CounterStyle,
-      //         self.namespaces,
-      //     );
+      AtRulePrelude::CounterStyle(name) => {
+        let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser);
+        let mut declarations = vec![];
+        while let Some(decl) = parser.next() {
+          if let Ok(decl) = decl {
+            declarations.push(decl);
+          }
+        }
 
-      //     Ok(CssRule::CounterStyle(Arc::new(
-      //         self.shared_lock.wrap(
-      //             parse_counter_style_body(name, &context, input, start.source_location())?
-      //                 .into(),
-      //         ),
-      //     )))
-      // },
+        Ok(CssRule::CounterStyle(CounterStyleRule {
+          name,
+          declarations: DeclarationBlock {
+            declarations
+          }
+        }))
+      },
       AtRulePrelude::Media(query) => {
         Ok(CssRule::Media(MediaRule {
           query,

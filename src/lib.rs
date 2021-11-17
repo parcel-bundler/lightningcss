@@ -3831,7 +3831,23 @@ mod tests {
         }
       }
     "#});
-    
+  }
+
+  #[test]
+  fn test_counter_style() {
+    test(r#"
+      @counter-style circled-alpha {
+        system: fixed;
+        symbols: Ⓐ Ⓑ Ⓒ;
+        suffix: " ";
+      }
+    "#, indoc! { r#"
+      @counter-style circled-alpha {
+        system: fixed;
+        symbols: Ⓐ Ⓑ Ⓒ;
+        suffix: " ";
+      }
+    "#});
   }
 
   #[test]
