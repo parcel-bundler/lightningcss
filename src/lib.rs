@@ -3851,6 +3851,14 @@ mod tests {
   }
 
   #[test]
+  fn test_namespace() {
+    minify_test("@namespace url(http://toto.example.org);", "@namespace \"http://toto.example.org\";");
+    minify_test("@namespace \"http://toto.example.org\";", "@namespace \"http://toto.example.org\";");
+    minify_test("@namespace toto \"http://toto.example.org\";", "@namespace toto \"http://toto.example.org\";");
+    minify_test("@namespace toto url(http://toto.example.org);", "@namespace toto \"http://toto.example.org\";");
+  }
+
+  #[test]
   fn test_prefixes() {
     prefix_test(
       r#"

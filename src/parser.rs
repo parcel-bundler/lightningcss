@@ -12,6 +12,7 @@ use crate::rules::font_face::{FontFaceRule, FontFaceDeclarationParser};
 use crate::rules::page::{PageSelector, PageRule};
 use crate::rules::supports::{SupportsCondition, SupportsRule};
 use crate::rules::counter_style::CounterStyleRule;
+use crate::rules::namespace::NamespaceRule;
 use crate::values::ident::CustomIdent;
 use crate::declaration::{Declaration, DeclarationHandler};
 use crate::properties::VendorPrefix;
@@ -100,7 +101,7 @@ pub enum AtRulePrelude {
   /// A @import rule prelude.
   Import(String, MediaList),//(CssUrl, Arc<Locked<MediaList>>),
   /// A @namespace rule prelude.
-  Namespace,//(Option<Prefix>, Namespace),
+  Namespace(Option<String>, String),
 }
 
 impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
@@ -120,24 +121,12 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
           let media = MediaList::parse(input);
           return Ok(AtRuleType::WithoutBlock(AtRulePrelude::Import(url_string, media)));
         },
-        // "namespace" => {
-        //     if !self.check_state(State::Namespaces) {
-        //         return Err(input.new_custom_error(StyleParseErrorKind::UnexpectedNamespaceRule))
-        //     }
-
-        //     let prefix = input.try_parse(|i| i.expect_ident_cloned())
-        //                       .map(|s| Prefix::from(s.as_ref())).ok();
-        //     let maybe_namespace = match input.expect_url_or_string() {
-        //         Ok(url_or_string) => url_or_string,
-        //         Err(BasicParseError { kind: BasicParseErrorKind::UnexpectedToken(t), location }) => {
-        //             return Err(location.new_custom_error(StyleParseErrorKind::UnexpectedTokenWithinNamespace(t)))
-        //         }
-        //         Err(e) => return Err(e.into()),
-        //     };
-        //     let url = Namespace::from(maybe_namespace.as_ref());
-        //     let prelude = AtRuleNonBlockPrelude::Namespace(prefix, url);
-        //     return Ok(AtRuleType::WithoutBlock(prelude));
-        // },
+        "namespace" => {
+          let prefix = input.try_parse(|input| input.expect_ident_cloned()).map(|v| v.as_ref().to_owned()).ok();
+          let namespace = input.expect_url_or_string()?.as_ref().to_owned();
+          let prelude = AtRulePrelude::Namespace(prefix, namespace);
+          return Ok(AtRuleType::WithoutBlock(prelude));
+        },
         // // @charset is removed by rust-cssparser if it’s the first rule in the stylesheet
         // // anything left is invalid.
         // "charset" => {
@@ -178,22 +167,12 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
             media
           })
         },
-        // AtRuleNonBlockPrelude::Namespace(prefix, url) => {
-        //     let prefix = if let Some(prefix) = prefix {
-        //         self.namespaces.prefixes.insert(prefix.clone(), url.clone());
-        //         Some(prefix)
-        //     } else {
-        //         self.namespaces.default = Some(url.clone());
-        //         None
-        //     };
-
-        //     self.state = State::Namespaces;
-        //     CssRule::Namespace(Arc::new(self.shared_lock.wrap(NamespaceRule {
-        //         prefix,
-        //         url,
-        //         source_location: start.source_location(),
-        //     })))
-        // },
+        AtRulePrelude::Namespace(prefix, url) => {
+          CssRule::Namespace(NamespaceRule {
+            prefix,
+            url
+          })
+        },
         _ => unreachable!()
       };
 
@@ -333,7 +312,8 @@ pub enum CssRule {
   FontFace(FontFaceRule),
   Page(PageRule),
   Supports(SupportsRule),
-  CounterStyle(CounterStyleRule)
+  CounterStyle(CounterStyleRule),
+  Namespace(NamespaceRule)
 }
 
 impl ToCss for CssRule {
@@ -346,7 +326,8 @@ impl ToCss for CssRule {
       CssRule::FontFace(font_face) => font_face.to_css(dest),
       CssRule::Page(font_face) => font_face.to_css(dest),
       CssRule::Supports(supports) => supports.to_css(dest),
-      CssRule::CounterStyle(counter_style) => counter_style.to_css(dest)
+      CssRule::CounterStyle(counter_style) => counter_style.to_css(dest),
+      CssRule::Namespace(namespace) => namespace.to_css(dest)
     }
   }
 }
