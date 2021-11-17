@@ -1,11 +1,3 @@
-extern crate serde;
-extern crate serde_bytes;
-extern crate cssparser;
-extern crate selectors;
-extern crate itertools;
-extern crate smallvec;
-extern crate bitflags;
-
 #[cfg(target_os = "macos")]
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
@@ -29,7 +21,6 @@ use properties::VendorPrefix;
 use properties::prefixes::{Browsers, Feature};
 use declaration::DeclarationHandler;
 use std::collections::HashMap;
-
 use parser::TopLevelRuleParser;
 
 // ---------------------------------------------
@@ -52,10 +43,7 @@ pub fn transform(config_val: JsValue) -> Result<JsValue, JsValue> {
 // ---------------------------------------------
 
 #[cfg(not(target_arch = "wasm32"))]
-extern crate napi;
-#[cfg(not(target_arch = "wasm32"))]
-#[macro_use]
-extern crate napi_derive;
+use napi_derive::{js_function, module_exports};
 #[cfg(not(target_arch = "wasm32"))]
 use napi::{CallContext, JsObject, JsBuffer};
 
@@ -214,9 +202,8 @@ fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> Result<String
 
 #[cfg(test)]
 mod tests {
-  use super::*;
-  extern crate indoc;
-  use self::indoc::indoc;
+    use super::*;
+    use indoc::indoc;
 
   fn test(source: &str, expected: &str) {
     let res = compile(source, false, None).unwrap();
