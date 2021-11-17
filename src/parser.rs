@@ -7,12 +7,15 @@ use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use std::fmt::Write;
 use crate::selector::{Selectors, SelectorParser};
-use crate::rules::keyframes::{KeyframeListParser, KeyframesRule};
-use crate::rules::font_face::{FontFaceRule, FontFaceDeclarationParser};
-use crate::rules::page::{PageSelector, PageRule};
-use crate::rules::supports::{SupportsCondition, SupportsRule};
-use crate::rules::counter_style::CounterStyleRule;
-use crate::rules::namespace::NamespaceRule;
+use crate::rules::{
+  keyframes::{KeyframeListParser, KeyframesRule},
+  font_face::{FontFaceRule, FontFaceDeclarationParser},
+  page::{PageSelector, PageRule},
+  supports::{SupportsCondition, SupportsRule},
+  counter_style::CounterStyleRule,
+  namespace::NamespaceRule,
+  import::ImportRule
+};
 use crate::values::ident::CustomIdent;
 use crate::declaration::{Declaration, DeclarationHandler};
 use crate::properties::VendorPrefix;
@@ -99,7 +102,7 @@ pub enum AtRulePrelude {
   /// A @document rule, with its conditional.
   Document,//(DocumentCondition),
   /// A @import rule prelude.
-  Import(String, MediaList),//(CssUrl, Arc<Locked<MediaList>>),
+  Import(String, MediaList, Option<SupportsCondition>),
   /// A @namespace rule prelude.
   Namespace(Option<String>, String),
 }
@@ -118,8 +121,15 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
       match_ignore_ascii_case! { &*name,
         "import" => {
           let url_string = input.expect_url_or_string()?.as_ref().to_owned();
+          let supports = if input.try_parse(|input| input.expect_function_matching("supports")).is_ok() {
+            Some(input.parse_nested_block(|input| {
+              input.try_parse(SupportsCondition::parse).or_else(|_| SupportsCondition::parse_declaration(input))
+            })?)
+          } else {
+            None
+          };
           let media = MediaList::parse(input);
-          return Ok(AtRuleType::WithoutBlock(AtRulePrelude::Import(url_string, media)));
+          return Ok(AtRuleType::WithoutBlock(AtRulePrelude::Import(url_string, media, supports)));
         },
         "namespace" => {
           let prefix = input.try_parse(|input| input.expect_ident_cloned()).map(|v| v.as_ref().to_owned()).ok();
@@ -127,18 +137,13 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
           let prelude = AtRulePrelude::Namespace(prefix, namespace);
           return Ok(AtRuleType::WithoutBlock(prelude));
         },
-        // // @charset is removed by rust-cssparser if it’s the first rule in the stylesheet
-        // // anything left is invalid.
-        // "charset" => {
-        //     self.dom_error = Some(RulesMutateError::HierarchyRequest);
-        //     return Err(input.new_custom_error(StyleParseErrorKind::UnexpectedCharsetRule))
-        // },
+        // @charset is removed by rust-cssparser if it’s the first rule in the stylesheet
+        // anything left is invalid.
+        "charset" => {
+          return Err(input.new_error(BasicParseErrorKind::AtRuleInvalid(name)))
+        },
         _ => {}
       }
-
-      // if !self.check_state(State::Body) {
-      //     return Err(input.new_custom_error(StyleParseErrorKind::UnspecifiedError));
-      // }
 
       AtRuleParser::parse_prelude(&mut self.nested(), name, input)
   }
@@ -161,9 +166,10 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
       start: &ParserState,
   ) -> Self::AtRule {
       let rule = match prelude {
-        AtRulePrelude::Import(url, media) => {
+        AtRulePrelude::Import(url, media, supports) => {
           CssRule::Import(ImportRule {
             url,
+            supports,
             media
           })
         },
@@ -229,21 +235,6 @@ impl ToCss for MediaRule {
     dest.dedent();
     dest.newline()?;
     dest.write_char('}')
-  }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct ImportRule {
-  pub url: String,
-  pub media: MediaList
-}
-
-impl ToCss for ImportRule {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
-    dest.write_str("@import ")?;
-    serialize_string(&self.url, dest)?;
-    // dest.write_str(&self.media)?;
-    dest.write_str(";")
   }
 }
 

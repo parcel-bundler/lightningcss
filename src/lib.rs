@@ -99,12 +99,6 @@ fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> Result<String
     };
     // println!("{:?}", rule);
     let rule = match rule {
-      parser::CssRule::Import(import) => {
-        parser::CssRule::Import(parser::ImportRule {
-          media: import.media,
-          url: "test".into()
-        })
-      },
       parser::CssRule::Keyframes(mut keyframes) => {
         for keyframe in keyframes.keyframes.iter_mut() {
           keyframe.declarations.minify(&mut handler, &mut important_handler);
@@ -3856,6 +3850,19 @@ mod tests {
     minify_test("@namespace \"http://toto.example.org\";", "@namespace \"http://toto.example.org\";");
     minify_test("@namespace toto \"http://toto.example.org\";", "@namespace toto \"http://toto.example.org\";");
     minify_test("@namespace toto url(http://toto.example.org);", "@namespace toto \"http://toto.example.org\";");
+  }
+
+  #[test]
+  fn test_import() {
+    minify_test("@import url(foo.css);", "@import \"foo.css\";");
+    minify_test("@import \"foo.css\";", "@import \"foo.css\";");
+    minify_test("@import url(foo.css) print;", "@import \"foo.css\" print;");
+    minify_test("@import \"foo.css\" print;", "@import \"foo.css\" print;");
+    minify_test("@import \"foo.css\" screen and (orientation: landscape);", "@import \"foo.css\" screen and (orientation:landscape);");
+    minify_test("@import url(foo.css) supports(display: flex);", "@import \"foo.css\" supports(display: flex);");
+    minify_test("@import url(foo.css) supports(display: flex) print;", "@import \"foo.css\" supports(display: flex) print;");
+    minify_test("@import url(foo.css) supports(not (display: flex));", "@import \"foo.css\" supports(not (display: flex));");
+    minify_test("@import url(foo.css) supports((display: flex));", "@import \"foo.css\" supports(display: flex);");
   }
 
   #[test]

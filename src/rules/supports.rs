@@ -123,11 +123,7 @@ impl SupportsCondition {
               return Ok(SupportsCondition::Parens(Box::new(condition)))
             }
       
-            let pos = input.position();
-            input.expect_ident()?;
-            input.expect_colon()?;
-            input.expect_no_error_token()?;
-            Ok(SupportsCondition::Declaration(input.slice_from(pos).to_owned()))
+            Self::parse_declaration(input)
           })
         });
         if res.is_ok() {
@@ -139,6 +135,14 @@ impl SupportsCondition {
 
     input.parse_nested_block(|input| input.expect_no_error_token().map_err(|err| err.into()))?;
     Ok(SupportsCondition::Unknown(input.slice_from(pos).to_owned()))
+  }
+
+  pub fn parse_declaration<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    let pos = input.position();
+    input.expect_ident()?;
+    input.expect_colon()?;
+    input.expect_no_error_token()?;
+    Ok(SupportsCondition::Declaration(input.slice_from(pos).to_owned()))
   }
 }
 
