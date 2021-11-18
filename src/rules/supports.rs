@@ -2,7 +2,7 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use std::fmt::Write;
-use crate::parser::CssRule;
+use super::CssRule;
 
 #[derive(Debug, PartialEq)]
 pub struct SupportsRule {

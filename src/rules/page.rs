@@ -1,6 +1,6 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss};
-use crate::parser::{DeclarationBlock};
+use crate::declaration::DeclarationBlock;
 use crate::printer::Printer;
 use crate::macros::enum_property;
 use std::fmt::Write;

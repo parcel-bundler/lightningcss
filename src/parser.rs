@@ -3,21 +3,23 @@ use selectors::SelectorList;
 use std::fmt;
 use std::cell::RefCell;
 use crate::media_query::*;
-use crate::printer::Printer;
-use crate::traits::{Parse, ToCss};
+use crate::traits::Parse;
 use std::fmt::Write;
 use crate::selector::{Selectors, SelectorParser};
 use crate::rules::{
+  CssRule,
   keyframes::{KeyframeListParser, KeyframesRule},
   font_face::{FontFaceRule, FontFaceDeclarationParser},
   page::{PageSelector, PageRule},
   supports::{SupportsCondition, SupportsRule},
   counter_style::CounterStyleRule,
   namespace::NamespaceRule,
-  import::ImportRule
+  import::ImportRule,
+  media::MediaRule,
+  style::StyleRule
 };
 use crate::values::ident::CustomIdent;
-use crate::declaration::{Declaration, DeclarationHandler};
+use crate::declaration::{Declaration, DeclarationBlock};
 use crate::properties::VendorPrefix;
 
 #[derive(Eq, PartialEq, Clone)]
@@ -70,8 +72,7 @@ impl std::cmp::PartialEq<str> for CssString {
 }
 
 /// The parser for the top-level rules in a stylesheet.
-pub struct TopLevelRuleParser {
-}
+pub struct TopLevelRuleParser {}
 
 impl<'b> TopLevelRuleParser {
   fn nested<'a: 'b>(&'a self) -> NestedRuleParser {
@@ -212,116 +213,7 @@ impl<'a, 'i> QualifiedRuleParser<'i> for TopLevelRuleParser {
 }
 
 #[derive(Clone)]
-struct NestedRuleParser {
-}
-
-#[derive(Debug, PartialEq)]
-pub struct MediaRule {
-  pub query: MediaList,
-  pub rules: Vec<CssRule>
-}
-
-impl ToCss for MediaRule {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
-    dest.write_str("@media ")?;
-    self.query.to_css(dest)?;
-    dest.whitespace()?;
-    dest.write_char('{')?;
-    dest.indent();
-    for rule in self.rules.iter() {
-      dest.newline()?;
-      rule.to_css(dest)?;
-    }
-    dest.dedent();
-    dest.newline()?;
-    dest.write_char('}')
-  }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct StyleRule {
-  pub selectors: SelectorList<Selectors>,
-  pub declarations: DeclarationBlock
-}
-
-impl ToCss for StyleRule {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
-    self.selectors.to_css(dest)?;
-    self.declarations.to_css(dest)
-  }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct DeclarationBlock {
-  pub declarations: Vec<Declaration>
-}
-
-impl ToCss for DeclarationBlock {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
-    dest.whitespace()?;
-    dest.write_char('{')?;
-    dest.indent();
-    let len = self.declarations.len();
-    for (i, decl) in self.declarations.iter().enumerate() {
-      dest.newline()?;
-      decl.to_css(dest)?;
-      if i != len - 1 || !dest.minify {
-        dest.write_char(';')?;
-      }
-    }
-    dest.dedent();
-    dest.newline()?;
-    dest.write_char('}')
-  }
-}
-
-impl DeclarationBlock {
-  pub fn minify(&mut self, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
-    let mut decls: Vec<Declaration> = vec![];
-    for decl in self.declarations.iter() {
-      let handled = 
-        (decl.important && important_handler.handle_property(decl)) ||
-        (!decl.important && handler.handle_property(decl));
-
-      if !handled {
-        decls.push(decl.clone());
-      }
-    }
-
-    decls.extend(handler.finalize());
-    decls.extend(important_handler.finalize());
-    self.declarations = decls;
-  }
-}
-
-#[derive(Debug, PartialEq)]
-pub enum CssRule {
-  Media(MediaRule),
-  Import(ImportRule),
-  Style(StyleRule),
-  Keyframes(KeyframesRule),
-  FontFace(FontFaceRule),
-  Page(PageRule),
-  Supports(SupportsRule),
-  CounterStyle(CounterStyleRule),
-  Namespace(NamespaceRule)
-}
-
-impl ToCss for CssRule {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
-    match self {
-      CssRule::Media(media) => media.to_css(dest),
-      CssRule::Import(import) => import.to_css(dest),
-      CssRule::Style(style) => style.to_css(dest),
-      CssRule::Keyframes(keyframes) => keyframes.to_css(dest),
-      CssRule::FontFace(font_face) => font_face.to_css(dest),
-      CssRule::Page(font_face) => font_face.to_css(dest),
-      CssRule::Supports(supports) => supports.to_css(dest),
-      CssRule::CounterStyle(counter_style) => counter_style.to_css(dest),
-      CssRule::Namespace(namespace) => namespace.to_css(dest)
-    }
-  }
-}
+struct NestedRuleParser {}
 
 impl<'a, 'b> NestedRuleParser {
   fn parse_nested_rules(&mut self, input: &mut Parser) -> Vec<CssRule> {

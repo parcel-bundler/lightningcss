@@ -22,6 +22,7 @@ use properties::prefixes::{Browsers, Feature};
 use declaration::DeclarationHandler;
 use std::collections::HashMap;
 use parser::TopLevelRuleParser;
+use rules::CssRule;
 
 // ---------------------------------------------
 
@@ -99,7 +100,7 @@ fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> Result<String
     };
     // println!("{:?}", rule);
     let rule = match rule {
-      parser::CssRule::Keyframes(mut keyframes) => {
+      CssRule::Keyframes(mut keyframes) => {
         for keyframe in keyframes.keyframes.iter_mut() {
           keyframe.declarations.minify(&mut handler, &mut important_handler);
         }
@@ -117,7 +118,7 @@ fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> Result<String
         // If there is an existing rule with the same name and identical keyframes,
         // merge the vendor prefixes from this rule into it.
         if let Some(existing_idx) = keyframe_rules.get(&keyframes.name) {
-          if let Some(parser::CssRule::Keyframes(existing)) = &mut rules.get_mut(*existing_idx) {
+          if let Some(CssRule::Keyframes(existing)) = &mut rules.get_mut(*existing_idx) {
             if existing.keyframes == keyframes.keyframes {
               existing.vendor_prefix |= keyframes.vendor_prefix;
               set_prefix!(existing);
@@ -128,20 +129,20 @@ fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> Result<String
 
         set_prefix!(keyframes);
         keyframe_rules.insert(keyframes.name.clone(), rules.len());
-        parser::CssRule::Keyframes(keyframes)
+        CssRule::Keyframes(keyframes)
       }
-      parser::CssRule::Media(mut media) => {
+      CssRule::Media(mut media) => {
         for rule in media.rules.iter_mut() {
           match rule {
-            parser::CssRule::Style(style) => {
+            CssRule::Style(style) => {
               style.declarations.minify(&mut handler, &mut important_handler)
             }
             _ => {}
           }
         }
-        parser::CssRule::Media(media)
+        CssRule::Media(media)
       }
-      parser::CssRule::Style(mut style) => {
+      CssRule::Style(mut style) => {
         for selector in style.selectors.0.iter() {
           for x in selector.iter() {
             match x {
@@ -162,7 +163,7 @@ fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> Result<String
 
         style.declarations.minify(&mut handler, &mut important_handler);
 
-        if let Some(parser::CssRule::Style(last_style_rule)) = rules.last_mut() {
+        if let Some(CssRule::Style(last_style_rule)) = rules.last_mut() {
           if style.selectors == last_style_rule.selectors {
             last_style_rule.declarations.declarations.extend(style.declarations.declarations);
             last_style_rule.declarations.minify(&mut handler, &mut important_handler);
@@ -173,7 +174,7 @@ fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> Result<String
           }
         }
 
-        parser::CssRule::Style(style)
+        CssRule::Style(style)
       },
       r => r
     };

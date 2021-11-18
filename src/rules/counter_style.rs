@@ -1,5 +1,5 @@
 use crate::traits::ToCss;
-use crate::parser::{DeclarationBlock};
+use crate::declaration::DeclarationBlock;
 use crate::printer::Printer;
 use crate::values::ident::CustomIdent;
 

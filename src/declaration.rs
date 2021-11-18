@@ -22,6 +22,49 @@ use crate::properties::{
 };
 use crate::properties::prefixes::Browsers;
 
+#[derive(Debug, PartialEq)]
+pub struct DeclarationBlock {
+  pub declarations: Vec<Declaration>
+}
+
+impl ToCss for DeclarationBlock {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    dest.whitespace()?;
+    dest.write_char('{')?;
+    dest.indent();
+    let len = self.declarations.len();
+    for (i, decl) in self.declarations.iter().enumerate() {
+      dest.newline()?;
+      decl.to_css(dest)?;
+      if i != len - 1 || !dest.minify {
+        dest.write_char(';')?;
+      }
+    }
+    dest.dedent();
+    dest.newline()?;
+    dest.write_char('}')
+  }
+}
+
+impl DeclarationBlock {
+  pub fn minify(&mut self, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
+    let mut decls: Vec<Declaration> = vec![];
+    for decl in self.declarations.iter() {
+      let handled = 
+        (decl.important && important_handler.handle_property(decl)) ||
+        (!decl.important && handler.handle_property(decl));
+
+      if !handled {
+        decls.push(decl.clone());
+      }
+    }
+
+    decls.extend(handler.finalize());
+    decls.extend(important_handler.finalize());
+    self.declarations = decls;
+  }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Declaration {
   pub property: Property,
@@ -94,7 +137,7 @@ pub struct DeclarationHandler {
   decls: DeclarationList
 }
 
-impl DeclarationHandler{
+impl DeclarationHandler {
   pub fn new(important: bool, targets: Option<Browsers>) -> Self {
     DeclarationHandler {
       background: BackgroundHandler::new(targets),
