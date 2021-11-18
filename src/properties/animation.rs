@@ -5,7 +5,6 @@ use super::prefixes::{Feature, Browsers};
 use crate::properties::{Property, VendorPrefix};
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
-use std::fmt::Write;
 use itertools::izip;
 use crate::macros::*;
 use smallvec::SmallVec;

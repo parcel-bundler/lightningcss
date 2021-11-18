@@ -1,4 +1,5 @@
 use cssparser::{Parser, ParserInput, RuleListParser};
+use parcel_sourcemap::SourceMap;
 use crate::rules::CssRuleList;
 use crate::parser::TopLevelRuleParser;
 use crate::printer::Printer;
@@ -7,11 +8,12 @@ use crate::properties::prefixes::Browsers;
 use crate::declaration::DeclarationHandler;
 
 pub struct StyleSheet {
-  rules: CssRuleList
+  pub filename: String,
+  pub rules: CssRuleList
 }
 
 impl StyleSheet {
-  pub fn parse<'i>(code: &str) -> StyleSheet{
+  pub fn parse<'i>(filename: String, code: &str) -> StyleSheet {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
     let rule_list_parser = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser {});
@@ -28,6 +30,7 @@ impl StyleSheet {
     }
 
     StyleSheet {
+      filename,
       rules: CssRuleList(rules)
     }
   }
@@ -38,9 +41,17 @@ impl StyleSheet {
     self.rules.minify(targets, &mut handler, &mut important_handler);
   }
 
-  pub fn to_css(&self, minify: bool) -> Result<String, std::fmt::Error> {
+  pub fn to_css(&self, minify: bool, source_map: bool) -> Result<(String, Option<SourceMap>), std::fmt::Error> {
     let mut dest = String::new();
-    let mut printer = Printer::new(&mut dest, minify);
+    let mut source_map = if source_map {
+      let mut sm = SourceMap::new("/");
+      sm.add_source(&self.filename);
+      Some(sm)
+    } else {
+      None
+    };
+
+    let mut printer = Printer::new(&mut dest, source_map.as_mut(), minify);
     let mut first = true;
 
     for rule in &self.rules.0 {
@@ -54,6 +65,6 @@ impl StyleSheet {
       printer.newline()?;
     }
 
-    Ok(dest)
+    Ok((dest, source_map))
   }
 }

@@ -4,7 +4,6 @@ use crate::values::{ident::CustomIdent, time::Time, easing::EasingFunction};
 use super::{Property, VendorPrefix};
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
-use std::fmt::Write;
 use itertools::izip;
 use smallvec::SmallVec;
 use super::prefixes::{Browsers, Feature};

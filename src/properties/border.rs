@@ -10,7 +10,6 @@ use super::border_image::*;
 use super::border_radius::*;
 use super::prefixes::Browsers;
 use crate::printer::Printer;
-use std::fmt::Write;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BorderSideWidth {

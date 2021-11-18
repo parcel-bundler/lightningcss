@@ -10,7 +10,6 @@ use crate::properties::prefixes::{Feature, Browsers};
 use crate::traits::{Parse, ToCss};
 use crate::macros::enum_property;
 use crate::printer::Printer;
-use std::fmt::Write;
 
 /// https://www.w3.org/TR/css-images-3/#gradients
 #[derive(Debug, Clone, PartialEq)]

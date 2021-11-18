@@ -8,7 +8,6 @@ use crate::values::length::{Length, LengthPercentage};
 use crate::values::color::CssColor;
 use crate::printer::Printer;
 use bitflags::bitflags;
-use std::fmt::Write;
 
 // https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-transform-property
 enum_property!(TextTransformCase,

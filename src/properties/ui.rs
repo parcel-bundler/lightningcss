@@ -3,7 +3,6 @@ use crate::traits::{Parse, ToCss};
 use crate::values::color::CssColor;
 use crate::macros::{enum_property, shorthand_property};
 use crate::printer::Printer;
-use std::fmt::Write;
 use smallvec::SmallVec;
 
 // https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#resize

@@ -5,13 +5,13 @@ use crate::parser::{PropertyDeclarationParser};
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::properties::VendorPrefix;
 use crate::printer::Printer;
-use std::fmt::Write;
 
 #[derive(Debug, PartialEq)]
 pub struct KeyframesRule {
   pub name: String,
   pub keyframes: Vec<Keyframe>,
-  pub vendor_prefix: VendorPrefix
+  pub vendor_prefix: VendorPrefix,
+  pub loc: SourceLocation
 }
 
 impl KeyframesRule {
@@ -24,6 +24,7 @@ impl KeyframesRule {
 
 impl ToCss for KeyframesRule {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    dest.add_mapping(self.loc);
     let mut first_rule = true;
     macro_rules! write_prefix {
       ($prefix: ident) => {

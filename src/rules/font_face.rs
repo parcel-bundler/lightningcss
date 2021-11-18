@@ -4,11 +4,11 @@ use crate::printer::Printer;
 use crate::properties::font::{FontFamily, FontStyle, FontWeight, FontStretch};
 use crate::properties::custom::CustomProperty;
 use crate::macros::enum_property;
-use std::fmt::Write;
 
 #[derive(Debug, PartialEq)]
 pub struct FontFaceRule {
-  pub properties: Vec<FontFaceProperty>
+  pub properties: Vec<FontFaceProperty>,
+  pub loc: SourceLocation
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -292,6 +292,7 @@ impl<'i> AtRuleParser<'i> for FontFaceDeclarationParser {
 
 impl ToCss for FontFaceRule {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    dest.add_mapping(self.loc);
     dest.write_str("@font-face")?;
     dest.whitespace()?;
     dest.write_char('{')?;

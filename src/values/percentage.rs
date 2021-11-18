@@ -1,7 +1,6 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss, TryAdd};
 use crate::printer::Printer;
-use std::fmt::Write;
 use super::calc::Calc;
 use super::number::serialize_number;
 

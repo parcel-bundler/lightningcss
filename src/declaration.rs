@@ -21,7 +21,6 @@ use crate::properties::{
   list::ListStyleHandler,
 };
 use crate::properties::prefixes::Browsers;
-use std::fmt::Write;
 
 #[derive(Debug, PartialEq)]
 pub struct DeclarationBlock {

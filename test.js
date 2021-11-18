@@ -1,10 +1,12 @@
 const css = require('./native');
+const fs = require('fs');
 
 if (process.argv[process.argv.length - 1] !== __filename) {
   let opts = {
     filename: process.argv[process.argv.length - 1],
-    code: require('fs').readFileSync(process.argv[process.argv.length - 1]),
+    code: fs.readFileSync(process.argv[process.argv.length - 1]),
     minify: true,
+    source_map: true,
     targets: {
       chrome: 95 << 16
     }
@@ -13,7 +15,16 @@ if (process.argv[process.argv.length - 1] !== __filename) {
   console.time('optimize');
   let r = css.transform(opts);
   console.timeEnd('optimize')
-  console.log(r.toString());
+  // console.log(r.toString());
+  console.log(r);
+  let code = r.code;
+  if (r.map) {
+    code = code.toString() + `\n/*# sourceMappingURL=out.css.map */\n`;
+  }
+  fs.writeFileSync('out.css', code);
+  if (r.map) {
+    fs.writeFileSync('out.css.map', r.map);
+  }
   return;
 }
 

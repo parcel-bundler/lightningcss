@@ -3,7 +3,6 @@ use crate::traits::{Parse, ToCss};
 use crate::declaration::DeclarationBlock;
 use crate::printer::Printer;
 use crate::macros::enum_property;
-use std::fmt::Write;
 
 /// https://www.w3.org/TR/css-page-3/#typedef-page-selector
 #[derive(Debug, PartialEq)]
@@ -53,11 +52,13 @@ impl Parse for PageSelector {
 #[derive(Debug, PartialEq)]
 pub struct PageRule {
   pub selectors: Vec<PageSelector>,
-  pub declarations: DeclarationBlock
+  pub declarations: DeclarationBlock,
+  pub loc: SourceLocation
 }
 
 impl ToCss for PageRule {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    dest.add_mapping(self.loc);
     dest.write_str("@page")?;
     if let Some(first) = self.selectors.first() {
       // Space is only required if the first selector has a name.

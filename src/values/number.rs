@@ -1,7 +1,6 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
-use std::fmt::Write;
 use super::calc::Calc;
 
 impl Parse for f32 {

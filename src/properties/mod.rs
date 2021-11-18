@@ -47,7 +47,6 @@ use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use smallvec::{SmallVec, smallvec};
 use bitflags::bitflags;
-use std::fmt::Write;
 
 bitflags! {
   pub struct VendorPrefix: u8 {
@@ -149,9 +148,7 @@ macro_rules! define_properties {
                     first = false;
                   } else {
                     dest.write_char(';')?;
-                    if !dest.minify {
-                      dest.write_str("\n  ")?;
-                    }
+                    dest.newline()?;
                   }
                 };
               }

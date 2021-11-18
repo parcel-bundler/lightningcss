@@ -4,7 +4,6 @@ use super::Property;
 use crate::declaration::DeclarationList;
 use crate::macros::enum_property;
 use crate::printer::Printer;
-use std::fmt::Write;
 
 enum_property!(OverflowKeyword,
   Visible,

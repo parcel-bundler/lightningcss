@@ -9,7 +9,6 @@ use crate::traits::{Parse, ToCss, PropertyHandler};
 use super::Property;
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
-use std::fmt::Write;
 
 /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-weight-prop
 #[derive(Debug, Clone, PartialEq)]

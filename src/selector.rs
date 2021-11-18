@@ -3,7 +3,6 @@ use selectors::{SelectorList, parser::{SelectorImpl, Selector, Combinator, Compo
 use std::fmt;
 use crate::printer::Printer;
 use crate::traits::ToCss;
-use std::fmt::Write;
 use super::parser::CssString;
 
 #[derive(Debug, Clone, PartialEq)]

@@ -10,7 +10,6 @@ use crate::values::{
 };
 use crate::macros::enum_property;
 use crate::printer::Printer;
-use std::fmt::Write;
 
 /// https://www.w3.org/TR/2019/CR-css-transforms-1-20190214/#propdef-transform
 #[derive(Debug, Clone, PartialEq)]
@@ -47,13 +46,13 @@ impl ToCss for TransformList {
       if let Some(matrix) = self.to_matrix() {
         // Generate based on the original transforms.
         let mut base = String::new();
-        self.to_css_base(&mut Printer::new(&mut base, true))?;
+        self.to_css_base(&mut Printer::new(&mut base, None, true))?;
 
         // Decompose the matrix into transform functions if possible.
         // If the resulting length is shorter than the original, use it.
         if let Some(d) = matrix.decompose() {
           let mut decomposed = String::new();
-          d.to_css_base(&mut Printer::new(&mut decomposed, true))?;
+          d.to_css_base(&mut Printer::new(&mut decomposed, None, true))?;
           if decomposed.len() < base.len() {
             base = decomposed;
           }
@@ -62,9 +61,9 @@ impl ToCss for TransformList {
         // Also generate a matrix() or matrix3d() representation and compare that.
         let mut mat = String::new();
         if let Some(matrix) = matrix.to_matrix2d() {
-          Transform::Matrix(matrix).to_css(&mut Printer::new(&mut mat, true))?
+          Transform::Matrix(matrix).to_css(&mut Printer::new(&mut mat, None, true))?
         } else {
-          Transform::Matrix3d(matrix).to_css(&mut Printer::new(&mut mat, true))?
+          Transform::Matrix3d(matrix).to_css(&mut Printer::new(&mut mat, None, true))?
         }
 
         if mat.len() < base.len() {

@@ -5,7 +5,6 @@ use super::prefixes::{Feature, Browsers, is_flex_2009};
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::printer::Printer;
 use crate::macros::enum_property;
-use std::fmt::Write;
 
 enum_property!(DisplayOutside,
   ("block", Block),

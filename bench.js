@@ -7,6 +7,7 @@ let opts = {
   filename: process.argv[process.argv.length - 1],
   code: require('fs').readFileSync(process.argv[process.argv.length - 1]),
   minify: true,
+  // source_map: true,
   targets: {
     chrome: 95 << 16
   }
@@ -28,7 +29,7 @@ async function run() {
   console.time('parcel-css');
   let res = css.transform(opts);
   console.timeEnd('parcel-css');
-  console.log(res.length + ' bytes');
+  console.log(res.code.length + ' bytes');
 }
 
 async function doCssNano() {

@@ -21,7 +21,7 @@ use stylesheet::StyleSheet;
 // ---------------------------------------------
 
 #[cfg(target_arch = "wasm32")]
-use serde_wasm_bindgen::{from_value};
+use serde_wasm_bindgen::{from_value, Serializer};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -29,10 +29,9 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub fn transform(config_val: JsValue) -> Result<JsValue, JsValue> {
   let config: Config = from_value(config_val).map_err(JsValue::from)?;
-
-  let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
-
-  Ok(compile(code, config.minify.unwrap_or(false), config.targets).into())
+  let res = compile(config).unwrap();
+  let serializer = Serializer::new().serialize_maps_as_objects(true);
+  res.serialize(&serializer).map_err(JsValue::from)
 }
 
 // ---------------------------------------------
@@ -40,17 +39,33 @@ pub fn transform(config_val: JsValue) -> Result<JsValue, JsValue> {
 #[cfg(not(target_arch = "wasm32"))]
 use napi_derive::{js_function, module_exports};
 #[cfg(not(target_arch = "wasm32"))]
-use napi::{CallContext, JsObject, JsBuffer};
+use napi::{CallContext, JsObject, JsUnknown};
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SourceMapJson<'a> {
+  version: u8,
+  mappings: String,
+  sources: &'a Vec<String>,
+  sources_content: &'a Vec<String>,
+  names: &'a Vec<String>
+}
+
+#[derive(Serialize)]
+struct TransformResult {
+  #[serde(with = "serde_bytes")]
+  code: Vec<u8>,
+  #[serde(with = "serde_bytes")]
+  map: Option<Vec<u8>>
+}
 
 #[cfg(not(target_arch = "wasm32"))]
 #[js_function(1)]
-fn transform(ctx: CallContext) -> napi::Result<JsBuffer> {
+fn transform(ctx: CallContext) -> napi::Result<JsUnknown> {
   let opts = ctx.get::<JsObject>(0)?;
   let config: Config = ctx.env.from_js_value(opts)?;
-  let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
-  let res = compile(code, config.minify.unwrap_or(false), config.targets).unwrap();
-
-  Ok(ctx.env.create_buffer_with_data(res.into_bytes())?.into_raw())
+  let res = compile(config).unwrap();
+  ctx.env.to_js_value(&res)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -69,13 +84,38 @@ struct Config {
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
   pub targets: Option<Browsers>,
-  pub minify: Option<bool>
+  pub minify: Option<bool>,
+  pub source_map: Option<bool>
 }
 
-fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> Result<String, std::fmt::Error> {
-  let mut stylesheet = StyleSheet::parse(code);
-  stylesheet.minify(targets); // TODO: should this be conditional?
-  stylesheet.to_css(minify)
+fn compile(config: Config) -> Result<TransformResult, ()> {
+  let code = unsafe { std::str::from_utf8_unchecked(&config.code) };  
+  let mut stylesheet = StyleSheet::parse(config.filename, code);
+  stylesheet.minify(config.targets); // TODO: should this be conditional?
+  let (res, source_map) = stylesheet.to_css(config.minify.unwrap_or(false), config.source_map.unwrap_or(false)).map_err(|_| ())?;
+
+  let map = if let Some(mut source_map) = source_map {
+    source_map.set_source_content(0, code).map_err(|_| ())?;
+    let mut vlq_output: Vec<u8> = Vec::new();
+    source_map.write_vlq(&mut vlq_output).map_err(|_| ())?;
+
+    let sm = SourceMapJson {
+      version: 3,
+      mappings: unsafe { String::from_utf8_unchecked(vlq_output) },
+      sources: source_map.get_sources(),
+      sources_content: source_map.get_sources_content(),
+      names: source_map.get_names()
+    };
+
+    serde_json::to_vec(&sm).ok()
+  } else {
+    None
+  };
+
+  Ok(TransformResult {
+    code: res.into_bytes(),
+    map
+  })
 }
 
 #[cfg(test)]
@@ -84,17 +124,23 @@ mod tests {
   use indoc::indoc;
 
   fn test(source: &str, expected: &str) {
-    let res = compile(source, false, None).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source);
+    stylesheet.minify(None);
+    let (res, _) = stylesheet.to_css(false, false).unwrap();
     assert_eq!(res, expected);
   }
 
   fn minify_test(source: &str, expected: &str) {
-    let res = compile(source, true, None).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source);
+    stylesheet.minify(None);
+    let (res, _) = stylesheet.to_css(true, false).unwrap();
     assert_eq!(res, expected);
   }
 
   fn prefix_test(source: &str, expected: &str, targets: Browsers) {
-    let res = compile(source, false, Some(targets)).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source);
+    stylesheet.minify(Some(targets));
+    let (res, _) = stylesheet.to_css(false, false).unwrap();
     assert_eq!(res, expected);
   }
 

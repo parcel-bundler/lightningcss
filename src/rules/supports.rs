@@ -1,7 +1,6 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
-use std::fmt::Write;
 use super::CssRuleList;
 use crate::declaration::DeclarationHandler;
 use crate::properties::prefixes::Browsers;
@@ -9,7 +8,8 @@ use crate::properties::prefixes::Browsers;
 #[derive(Debug, PartialEq)]
 pub struct SupportsRule {
   pub condition: SupportsCondition,
-  pub rules: CssRuleList
+  pub rules: CssRuleList,
+  pub loc: SourceLocation
 }
 
 impl SupportsRule {
@@ -20,6 +20,7 @@ impl SupportsRule {
 
 impl ToCss for SupportsRule {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    dest.add_mapping(self.loc);
     dest.write_str("@supports ")?;
     self.condition.to_css(dest)?;
     dest.whitespace()?;

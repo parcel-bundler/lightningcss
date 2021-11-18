@@ -3,6 +3,9 @@
   "version": "1.0.0-alpha.2",
   "license": "MIT",
   "main": "native.js",
+  "targets": {
+    "main": false
+  },
   "publishConfig": {
     "access": "public"
   },

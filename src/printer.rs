@@ -1,18 +1,34 @@
 use std::fmt::*;
+use cssparser::SourceLocation;
+use parcel_sourcemap::{SourceMap, OriginalLocation};
 
 pub struct Printer<'a, W> {
   dest: &'a mut W,
+  source_map: Option<&'a mut SourceMap>,
   indent: u8,
+  line: u32,
+  col: u32,
   pub minify: bool
 }
 
 impl<'a, W: Write + Sized> Printer<'a, W> {
-  pub fn new(dest: &mut W, minify: bool) -> Printer<W> {
-    Printer { dest, indent: 0, minify }
+  pub fn new(dest: &'a mut W, source_map: Option<&'a mut SourceMap>, minify: bool) -> Printer<'a, W> {
+    Printer { dest, source_map, indent: 0, line: 0, col: 0, minify }
   }
 
   pub fn write_str(&mut self, s: &str) -> Result {
+    self.col += s.len() as u32;
     self.dest.write_str(s)
+  }
+
+  pub fn write_char(&mut self, c: char) -> Result {
+    if c == '\n' {
+      self.line += 1;
+      self.col = 0;
+    } else {
+      self.col += 1;
+    }
+    self.dest.write_char(c)
   }
 
   pub fn whitespace(&mut self) -> Result {
@@ -51,10 +67,22 @@ impl<'a, W: Write + Sized> Printer<'a, W> {
   pub fn dedent(&mut self) {
     self.indent -= 2;
   }
+
+  pub fn add_mapping(&mut self, loc: SourceLocation) {
+    if let Some(map) = &mut self.source_map {
+      map.add_mapping(self.line, self.col, Some(OriginalLocation {
+        original_line: loc.line,
+        original_column: loc.column - 1,
+        source: 0,
+        name: None
+      }))
+    }
+  }
 }
 
 impl<'a, W: Write + Sized> Write for Printer<'a, W> {
   fn write_str(&mut self, s: &str) -> Result {
+    self.col += s.len() as u32;
     self.dest.write_str(s)
   }
 }

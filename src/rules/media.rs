@@ -1,7 +1,7 @@
+use cssparser::SourceLocation;
 use crate::media_query::MediaList;
 use crate::traits::ToCss;
 use crate::printer::Printer;
-use std::fmt::Write;
 use super::CssRuleList;
 use crate::declaration::DeclarationHandler;
 use crate::properties::prefixes::Browsers;
@@ -9,7 +9,8 @@ use crate::properties::prefixes::Browsers;
 #[derive(Debug, PartialEq)]
 pub struct MediaRule {
   pub query: MediaList,
-  pub rules: CssRuleList
+  pub rules: CssRuleList,
+  pub loc: SourceLocation
 }
 
 impl MediaRule {
@@ -20,6 +21,7 @@ impl MediaRule {
 
 impl ToCss for MediaRule {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    dest.add_mapping(self.loc);
     dest.write_str("@media ")?;
     self.query.to_css(dest)?;
     dest.whitespace()?;

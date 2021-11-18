@@ -3,7 +3,6 @@ use crate::values::length::Length;
 use crate::traits::{Parse, ToCss};
 use crate::values::color::CssColor;
 use crate::printer::Printer;
-use std::fmt::Write;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BoxShadow {

@@ -1,6 +1,7 @@
 import init, {transform} from '../pkg';
 
 let enc = new TextEncoder();
+let dec = new TextDecoder();
 let inputs = document.querySelectorAll('input[type=number]');
 
 async function update() {
@@ -20,7 +21,7 @@ async function update() {
     targets: Object.keys(targets).length === 0 ? null : targets
   });
 
-  compiled.value = res;
+  compiled.value = dec.decode(res.code);
 }
 
 update();

@@ -5,7 +5,6 @@ use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use super::gradient::*;
 use super::resolution::Resolution;
-use std::fmt::Write;
 
 /// https://www.w3.org/TR/css-images-3/#typedef-image
 #[derive(Debug, Clone, PartialEq)]

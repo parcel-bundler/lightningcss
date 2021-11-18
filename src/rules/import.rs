@@ -1,7 +1,6 @@
 use cssparser::*;
 use crate::traits::ToCss;
 use crate::printer::Printer;
-use std::fmt::Write;
 use crate::media_query::MediaList;
 use super::supports::SupportsCondition;
 
@@ -10,11 +9,13 @@ use super::supports::SupportsCondition;
 pub struct ImportRule {
   pub url: String,
   pub supports: Option<SupportsCondition>,
-  pub media: MediaList
+  pub media: MediaList,
+  pub loc: SourceLocation
 }
 
 impl ToCss for ImportRule {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    dest.add_mapping(self.loc);
     dest.write_str("@import ")?;
     serialize_string(&self.url, dest)?;
     if let Some(supports) = &self.supports {
