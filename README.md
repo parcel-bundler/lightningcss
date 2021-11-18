@@ -24,14 +24,14 @@ A WIP CSS parser, transformer, and minifier written in Rust.
 
 ```
 $ node bench.js bootstrap-4.css 
-cssnano: 545.799ms
+cssnano: 542.956ms
 159636 bytes
 
-esbuild: 17.003ms
+esbuild: 17.411ms
 160332 bytes
 
-parcel-css: 4.964ms
-143688 bytes
+parcel-css: 4.961ms
+143662 bytes
 
 
 $ node bench.js animate.css

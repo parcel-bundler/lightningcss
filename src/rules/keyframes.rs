@@ -2,7 +2,7 @@ use cssparser::*;
 use crate::values::percentage::Percentage;
 use crate::traits::{Parse, ToCss};
 use crate::parser::{PropertyDeclarationParser};
-use crate::declaration::DeclarationBlock;
+use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::properties::VendorPrefix;
 use crate::printer::Printer;
 use std::fmt::Write;
@@ -12,6 +12,14 @@ pub struct KeyframesRule {
   pub name: String,
   pub keyframes: Vec<Keyframe>,
   pub vendor_prefix: VendorPrefix
+}
+
+impl KeyframesRule {
+  pub fn minify(&mut self, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
+    for keyframe in &mut self.keyframes {
+      keyframe.declarations.minify(handler, important_handler)
+    }
+  }
 }
 
 impl ToCss for KeyframesRule {

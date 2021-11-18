@@ -12,17 +12,11 @@ mod values;
 mod printer;
 mod traits;
 mod macros;
+mod stylesheet;
 
 use serde::{Deserialize, Serialize};
-use cssparser::{Parser, ParserInput, RuleListParser};
-use crate::traits::ToCss;
-use printer::Printer;
-use properties::VendorPrefix;
-use properties::prefixes::{Browsers, Feature};
-use declaration::DeclarationHandler;
-use std::collections::HashMap;
-use parser::TopLevelRuleParser;
-use rules::CssRule;
+use properties::prefixes::Browsers;
+use stylesheet::StyleSheet;
 
 // ---------------------------------------------
 
@@ -79,126 +73,15 @@ struct Config {
 }
 
 fn compile(code: &str, minify: bool, targets: Option<Browsers>) -> Result<String, std::fmt::Error> {
-  let mut input = ParserInput::new(&code);
-  let mut parser = Parser::new(&mut input);
-  let rule_list = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser {});
-
-  let mut dest = String::new();
-  let mut printer = Printer::new(&mut dest, minify);
-  let mut first = true;
-  let mut rules = vec![];
-
-  let mut handler = DeclarationHandler::new(false, targets);
-  let mut important_handler = DeclarationHandler::new(true, targets);
-  let mut keyframe_rules = HashMap::new();
-
-  for rule in rule_list {
-    let rule = if let Ok((_, rule)) = rule {
-      rule
-    } else {
-      continue
-    };
-    // println!("{:?}", rule);
-    let rule = match rule {
-      CssRule::Keyframes(mut keyframes) => {
-        for keyframe in keyframes.keyframes.iter_mut() {
-          keyframe.declarations.minify(&mut handler, &mut important_handler);
-        }
-
-        macro_rules! set_prefix {
-          ($keyframes: ident) => {
-            if $keyframes.vendor_prefix.contains(VendorPrefix::None) {
-              if let Some(targets) = targets {
-                $keyframes.vendor_prefix = Feature::AtKeyframes.prefixes_for(targets)
-              }
-            }
-          };
-        }
-
-        // If there is an existing rule with the same name and identical keyframes,
-        // merge the vendor prefixes from this rule into it.
-        if let Some(existing_idx) = keyframe_rules.get(&keyframes.name) {
-          if let Some(CssRule::Keyframes(existing)) = &mut rules.get_mut(*existing_idx) {
-            if existing.keyframes == keyframes.keyframes {
-              existing.vendor_prefix |= keyframes.vendor_prefix;
-              set_prefix!(existing);
-              continue;
-            }
-          }
-        }
-
-        set_prefix!(keyframes);
-        keyframe_rules.insert(keyframes.name.clone(), rules.len());
-        CssRule::Keyframes(keyframes)
-      }
-      CssRule::Media(mut media) => {
-        for rule in media.rules.iter_mut() {
-          match rule {
-            CssRule::Style(style) => {
-              style.declarations.minify(&mut handler, &mut important_handler)
-            }
-            _ => {}
-          }
-        }
-        CssRule::Media(media)
-      }
-      CssRule::Style(mut style) => {
-        for selector in style.selectors.0.iter() {
-          for x in selector.iter() {
-            match x {
-              selectors::parser::Component::Class(c) => {
-                // if c == "hi" {
-                //   selectors::parser::Component::Class("RENAMED".into())
-                // } else {
-                //   selectors::parser::Component::Class(c.clone())
-                // }
-                if c == "hi" {
-                  c.replace("RENAMED".into());
-                }
-              },
-              _ => {}
-            }
-          }
-        }
-
-        style.declarations.minify(&mut handler, &mut important_handler);
-
-        if let Some(CssRule::Style(last_style_rule)) = rules.last_mut() {
-          if style.selectors == last_style_rule.selectors {
-            last_style_rule.declarations.declarations.extend(style.declarations.declarations);
-            last_style_rule.declarations.minify(&mut handler, &mut important_handler);
-            continue
-          } else if style.declarations == last_style_rule.declarations {
-            last_style_rule.selectors.0.extend(style.selectors.0);
-            continue
-          }
-        }
-
-        CssRule::Style(style)
-      },
-      r => r
-    };
-    rules.push(rule);
-  }
-
-  for rule in rules {
-    if first {
-      first = false;
-    } else {
-      printer.newline()?;
-    }
-
-    rule.to_css(&mut printer)?;
-    printer.newline()?;
-  }
-
-  Ok(dest)
+  let mut stylesheet = StyleSheet::parse(code);
+  stylesheet.minify(targets); // TODO: should this be conditional?
+  stylesheet.to_css(minify)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use indoc::indoc;
+  use super::*;
+  use indoc::indoc;
 
   fn test(source: &str, expected: &str) {
     let res = compile(source, false, None).unwrap();

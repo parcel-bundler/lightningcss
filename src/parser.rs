@@ -8,6 +8,7 @@ use std::fmt::Write;
 use crate::selector::{Selectors, SelectorParser};
 use crate::rules::{
   CssRule,
+  CssRuleList,
   keyframes::{KeyframeListParser, KeyframesRule},
   font_face::{FontFaceRule, FontFaceDeclarationParser},
   page::{PageSelector, PageRule},
@@ -26,9 +27,9 @@ use crate::properties::VendorPrefix;
 pub struct CssString(RefCell<String>);
 
 impl CssString {
-  pub fn replace(&self, x: String) {
-    self.0.replace(x);
-  }
+  // pub fn replace(&self, x: String) {
+  //   self.0.replace(x);
+  // }
 
   pub fn write_identifier<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
     serialize_identifier(self.0.borrow().as_ref(), dest)
@@ -216,7 +217,7 @@ impl<'a, 'i> QualifiedRuleParser<'i> for TopLevelRuleParser {
 struct NestedRuleParser {}
 
 impl<'a, 'b> NestedRuleParser {
-  fn parse_nested_rules(&mut self, input: &mut Parser) -> Vec<CssRule> {
+  fn parse_nested_rules(&mut self, input: &mut Parser) -> CssRuleList {
     let nested_parser = NestedRuleParser {};
 
     let mut iter = RuleListParser::new_for_nested_rule(input, nested_parser);
@@ -230,7 +231,7 @@ impl<'a, 'b> NestedRuleParser {
       }
     }
 
-    rules
+    CssRuleList(rules)
   }
 }
 
