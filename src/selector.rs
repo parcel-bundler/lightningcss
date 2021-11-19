@@ -1,9 +1,11 @@
 use cssparser::*;
-use selectors::{SelectorList, parser::{SelectorImpl, Selector, Combinator, Component}};
+use selectors::{SelectorList, parser::{SelectorImpl, Selector, Combinator, Component}, attr::{AttrSelectorOperator, ParsedAttrSelectorOperation, ParsedCaseSensitivity}};
 use std::fmt;
 use crate::printer::Printer;
 use crate::traits::ToCss;
 use super::parser::CssString;
+use crate::compat::Feature;
+use crate::properties::prefixes::Browsers;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Selectors;
@@ -35,22 +37,63 @@ impl<'i> selectors::parser::Parser<'i> for SelectorParser {
   ) -> Result<PseudoClass, ParseError<'i, Self::Error>> {
       use PseudoClass::*;
       let pseudo_class = match_ignore_ascii_case! { &name,
-        "active" => Active,
-        "any-link" => AnyLink,
-        "checked" => Checked,
-        "defined" => Defined,
-        "disabled" => Disabled,
-        "enabled" => Enabled,
-        "focus" => Focus,
-        "fullscreen" => Fullscreen,
+        // https://drafts.csswg.org/selectors-4/#useraction-pseudos
         "hover" => Hover,
-        "indeterminate" => Indeterminate,
+        "active" => Active,
+        "focus" => Focus,
+        "focus-visible" => FocusVisible,
+        "focus-within" => FocusWithin,
+
+        // https://drafts.csswg.org/selectors-4/#time-pseudos
+        "current" => Current,
+        "past" => Past,
+        "future" => Future,
+
+        // https://drafts.csswg.org/selectors-4/#resource-pseudos
+        "playing" => Playing,
+        "paused" => Paused,
+        "seeking" => Seeking,
+        "buffering" => Buffering,
+        "stalled" => Stalled,
+        "muted" => Muted,
+        "volume-locked" => VolumeLocked,
+
+        // https://fullscreen.spec.whatwg.org/#:fullscreen-pseudo-class
+        "fullscreen" => Fullscreen,
+
+        // https://drafts.csswg.org/selectors-4/#the-defined-pseudo
+        "defined" => Defined,
+
+        // https://drafts.csswg.org/selectors-4/#location
+        "any-link" => AnyLink,
         "link" => Link,
-        "placeholder-shown" => PlaceholderShown,
-        "read-write" => ReadWrite,
-        "read-only" => ReadOnly,
+        "local-link" => LocalLink,
         "target" => Target,
+        "target-within" => TargetWithin,
         "visited" => Visited,
+
+        // https://drafts.csswg.org/selectors-4/#input-pseudos
+        "enabled" => Enabled,
+        "disabled" => Disabled,
+        "read-only" => ReadOnly,
+        "read-write" => ReadWrite,
+        "placeholder-shown" => PlaceholderShown,
+        "default" => Default,
+        "checked" => Checked,
+        "indeterminate" => Indeterminate,
+        "blank" => Blank,
+        "valid" => Valid,
+        "invalid" => Invalid,
+        "in-range" => InRange,
+        "out-of-range" => OutOfRange,
+        "required" => Required,
+        "optional" => Optional,
+        "user-valid" => UserValid,
+        "user-invalid" => UserInvalid,
+
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
+        "autofill" => Autofill,
+
         _ => Custom(name.as_ref().into())
       };
 
@@ -64,9 +107,8 @@ impl<'i> selectors::parser::Parser<'i> for SelectorParser {
   ) -> Result<PseudoClass, ParseError<'i, Self::Error>> {
       use PseudoClass::*;
       let pseudo_class = match_ignore_ascii_case! { &name,
-        "lang" => {
-          Lang(parser.expect_ident_or_string()?.as_ref().into())
-        },
+        "lang" => Lang(parser.expect_ident_or_string()?.as_ref().into()),
+        "dir" => Dir(parser.expect_ident_or_string()?.as_ref().into()),
         _ => return Err(parser.new_custom_error(selectors::parser::SelectorParseErrorKind::UnexpectedIdent(name.clone()))),
       };
 
@@ -85,6 +127,9 @@ impl<'i> selectors::parser::Parser<'i> for SelectorParser {
       "first-line" => FirstLine,
       "first-letter" => FirstLetter,
       "selection" => Selection,
+      "placeholder" => Placeholder,
+      "marker" => Marker,
+      "backdrop" => Backdrop,
       _ => Custom(name.as_ref().into())
     };
 
@@ -95,23 +140,67 @@ impl<'i> selectors::parser::Parser<'i> for SelectorParser {
 /// https://drafts.csswg.org/selectors-4/#structural-pseudos
 #[derive(Clone, Eq, PartialEq)]
 pub enum PseudoClass {
-  Active,
-  AnyLink,
-  Checked,
-  Defined,
-  Disabled,
-  Enabled,
-  Focus,
-  Fullscreen,
-  Hover,
-  Indeterminate,
+  // https://drafts.csswg.org/selectors-4/#linguistic-pseudos
   Lang(Box<str>),
+  Dir(Box<str>),
+
+  // https://drafts.csswg.org/selectors-4/#useraction-pseudos
+  Hover,
+  Active,
+  Focus,
+  FocusVisible,
+  FocusWithin,
+
+  // https://drafts.csswg.org/selectors-4/#time-pseudos
+  Current,
+  Past,
+  Future,
+
+  // https://drafts.csswg.org/selectors-4/#resource-pseudos
+  Playing,
+  Paused,
+  Seeking,
+  Buffering,
+  Stalled,
+  Muted,
+  VolumeLocked,
+
+  // https://fullscreen.spec.whatwg.org/#:fullscreen-pseudo-class
+  Fullscreen,
+
+  // https://drafts.csswg.org/selectors-4/#the-defined-pseudo
+  Defined,
+
+  // https://drafts.csswg.org/selectors-4/#location
+  AnyLink,
   Link,
-  PlaceholderShown,
-  ReadWrite,
-  ReadOnly,
+  LocalLink,
   Target,
+  TargetWithin,
   Visited,
+
+  // https://drafts.csswg.org/selectors-4/#input-pseudos
+  Enabled,
+  Disabled,
+  ReadOnly,
+  ReadWrite,
+  PlaceholderShown,
+  Default,
+  Checked,
+  Indeterminate,
+  Blank,
+  Valid,
+  Invalid,
+  InRange,
+  OutOfRange,
+  Required,
+  Optional,
+  UserValid,
+  UserInvalid,
+
+  // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
+  Autofill,
+
   Custom(String)
 }
 
@@ -133,30 +222,79 @@ impl cssparser::ToCss for PseudoClass {
       W: fmt::Write,
   {
       use PseudoClass::*;
-      if let Lang(ref lang) = *self {
-        dest.write_str(":lang(")?;
-        serialize_identifier(lang, dest)?;
-        return dest.write_str(")");
+      match &self {
+        Lang(lang) => {
+          dest.write_str(":lang(")?;
+          serialize_identifier(lang, dest)?;
+          return dest.write_str(")");
+        }
+        Dir(dir) => {
+          dest.write_str(":dir(")?;
+          serialize_identifier(dir, dest)?;
+          return dest.write_str(")");
+        }
+        _ => {}
       }
 
       dest.write_str(match &self {
-        Active => ":active",
-        AnyLink => ":any-link",
-        Checked => ":checked",
-        Defined => ":defined",
-        Disabled => ":disabled",
-        Enabled => ":enabled",
-        Focus => ":focus",
-        Fullscreen => ":fullscreen",
+        // https://drafts.csswg.org/selectors-4/#useraction-pseudos
         Hover => ":hover",
-        Indeterminate => ":indeterminate",
+        Active => ":active",
+        Focus => ":focus",
+        FocusVisible => ":focus-visible",
+        FocusWithin => ":focus-within",
+
+        // https://drafts.csswg.org/selectors-4/#time-pseudos
+        Current => ":current",
+        Past => ":past",
+        Future => ":future",
+
+        // https://drafts.csswg.org/selectors-4/#resource-pseudos
+        Playing => ":playing",
+        Paused => ":paused",
+        Seeking => ":seeking",
+        Buffering => ":buffering",
+        Stalled => ":stalled",
+        Muted => ":muted",
+        VolumeLocked => ":volume-locked",
+
+        // https://fullscreen.spec.whatwg.org/#:fullscreen-pseudo-class
+        Fullscreen => ":fullscreen",
+
+        // https://drafts.csswg.org/selectors-4/#the-defined-pseudo
+        Defined => ":defined",
+
+        // https://drafts.csswg.org/selectors-4/#location
+        AnyLink => ":any-link",
         Link => ":link",
-        PlaceholderShown => ":placeholder-shown",
-        ReadWrite => ":read-write",
-        ReadOnly => ":read-only",
+        LocalLink => ":local-link",
         Target => ":target",
+        TargetWithin => ":target-within",
         Visited => ":visited",
-        Lang(_) => unreachable!(),
+
+        // https://drafts.csswg.org/selectors-4/#input-pseudos
+        Enabled => ":enabled",
+        Disabled => ":disabled",
+        ReadOnly => ":read-only",
+        ReadWrite => ":read-write",
+        PlaceholderShown => ":placeholder-shown",
+        Default => ":default",
+        Checked => ":checked",
+        Indeterminate => ":indeterminate",
+        Blank => ":blank",
+        Valid => ":valid",
+        Invalid => ":invalid",
+        InRange => ":in-range",
+        OutOfRange => ":out-of-range",
+        Required => ":required",
+        Optional => ":optional",
+        UserValid => ":user-valid",
+        UserInvalid => ":user-invalid",
+
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
+        Autofill => ":autofill",
+
+        Lang(_) | Dir(_) => unreachable!(),
         Custom(val) => {
           dest.write_char(':')?;
           return dest.write_str(&val)
@@ -173,6 +311,9 @@ pub enum PseudoElement {
   FirstLine,
   FirstLetter,
   Selection,
+  Placeholder,
+  Marker,
+  Backdrop,
   Custom(String)
 }
 
@@ -191,6 +332,9 @@ impl cssparser::ToCss for PseudoElement {
       FirstLine => ":first-line",
       FirstLetter => ":first-letter",
       Selection => "::selection",
+      Placeholder => "::placeholder",
+      Marker => "::marker",
+      Backdrop => "::backdrop",
       Custom(val) => {
         dest.write_str("::")?;
         return dest.write_str(val)
@@ -425,4 +569,174 @@ where
     selector.to_css(dest)?;
   }
   Ok(())
+}
+
+pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browsers>) -> bool {
+  for selector in &selectors.0 {
+    let iter = selector.iter();
+    for component in iter {
+      let feature = match component {
+        Component::ID(_) |
+        Component::Class(_) |
+        Component::LocalName(_) => continue,
+
+        Component::ExplicitAnyNamespace |
+        Component::ExplicitNoNamespace |
+        Component::DefaultNamespace(_) |
+        Component::Namespace(_, _) => Feature::CssNamespaces,
+
+        Component::ExplicitUniversalType => Feature::CssSel2,
+
+        Component::AttributeInNoNamespaceExists { .. } => Feature::CssSel2,
+        Component::AttributeInNoNamespace { operator, case_sensitivity, .. } => {
+          if *case_sensitivity != ParsedCaseSensitivity::CaseSensitive {
+            Feature::CssCaseInsensitive
+          } else {
+            match operator {
+              AttrSelectorOperator::Equal |
+              AttrSelectorOperator::Includes |
+              AttrSelectorOperator::DashMatch => Feature::CssSel2,
+              AttrSelectorOperator::Prefix |
+              AttrSelectorOperator::Substring |
+              AttrSelectorOperator::Suffix => Feature::CssSel3,
+            }
+          }
+        }
+        Component::AttributeOther(attr) => {
+          match attr.operation {
+            ParsedAttrSelectorOperation::Exists => Feature::CssSel2,
+            ParsedAttrSelectorOperation::WithValue { operator, case_sensitivity, .. } => {
+              if case_sensitivity != ParsedCaseSensitivity::CaseSensitive {
+                Feature::CssCaseInsensitive
+              } else {
+                match operator {
+                  AttrSelectorOperator::Equal |
+                  AttrSelectorOperator::Includes |
+                  AttrSelectorOperator::DashMatch => Feature::CssSel2,
+                  AttrSelectorOperator::Prefix |
+                  AttrSelectorOperator::Substring |
+                  AttrSelectorOperator::Suffix => Feature::CssSel3,
+                }
+              }
+            }
+          }
+        }
+
+        Component::FirstChild => Feature::CssSel2,
+
+        Component::Empty |
+        Component::FirstOfType |
+        Component::LastChild |
+        Component::LastOfType |
+        Component::Negation(_) |
+        Component::NthChild(_, _) |
+        Component::NthLastChild(_, _) |
+        Component::NthLastOfType(_, _) |
+        Component::NthOfType(_, _) |
+        Component::OnlyChild |
+        Component::OnlyOfType |
+        Component::Root => Feature::CssSel3,
+
+        Component::Is(_) => Feature::CssMatchesPseudo,
+
+        Component::Scope |
+        Component::Host(_) |
+        Component::Slotted(_) => Feature::Shadowdomv1,
+
+        Component::Part(_) |
+        Component::Where(_) => return false, // TODO: find this data in caniuse-lite
+
+        Component::NonTSPseudoClass(pseudo) => {
+          match pseudo {
+            PseudoClass::Link |
+            PseudoClass::Visited |
+            PseudoClass::Active |
+            PseudoClass::Hover |
+            PseudoClass::Focus |
+            PseudoClass::Lang(_) => Feature::CssSel2,
+
+            PseudoClass::Checked |
+            PseudoClass::Disabled |
+            PseudoClass::Enabled |
+            PseudoClass::Target => Feature::CssSel3,
+
+            PseudoClass::AnyLink => Feature::CssAnyLink,
+            PseudoClass::Indeterminate => Feature::CssIndeterminatePseudo,
+            
+            PseudoClass::Fullscreen => Feature::Fullscreen,
+            
+            PseudoClass::FocusVisible => Feature::CssFocusVisible,
+            PseudoClass::FocusWithin => Feature::CssFocusWithin,
+            PseudoClass::Default => Feature::CssDefaultPseudo,
+            PseudoClass::Dir(_) => Feature::CssDirPseudo,
+            PseudoClass::Optional => Feature::CssOptionalPseudo,
+            PseudoClass::PlaceholderShown => Feature::CssPlaceholderShown,
+
+            PseudoClass::ReadOnly |
+            PseudoClass::ReadWrite => Feature::CssReadOnlyWrite,
+
+            PseudoClass::Valid |
+            PseudoClass::Invalid |
+            PseudoClass::Required => Feature::FormValidation,
+
+            PseudoClass::InRange |
+            PseudoClass::OutOfRange => Feature::CssInOutOfRange,
+
+            PseudoClass::Autofill => Feature::CssAutofill,
+
+            // Experimental, no browser support.
+            PseudoClass::Current |
+            PseudoClass::Past |
+            PseudoClass::Future |
+            PseudoClass::Playing |
+            PseudoClass::Paused |
+            PseudoClass::Seeking |
+            PseudoClass::Stalled |
+            PseudoClass::Buffering |
+            PseudoClass::Muted |
+            PseudoClass::VolumeLocked |
+            PseudoClass::TargetWithin |
+            PseudoClass::LocalLink |
+            PseudoClass::Blank |
+            PseudoClass::UserInvalid |
+            PseudoClass::UserValid |
+            PseudoClass::Defined => return false,
+
+            PseudoClass::Custom(_) => return false
+          }
+        }
+
+        Component::PseudoElement(pseudo) => {
+          match pseudo {
+            PseudoElement::After |
+            PseudoElement::Before => Feature::CssGencontent,
+            PseudoElement::FirstLine => Feature::CssFirstLine,
+            PseudoElement::FirstLetter => Feature::CssFirstLetter,
+            PseudoElement::Selection => Feature::CssSelection,
+            PseudoElement::Placeholder => Feature::CssPlaceholder,
+            PseudoElement::Marker => Feature::CssMarkerPseudo,
+            PseudoElement::Backdrop => Feature::Dialog,
+            PseudoElement::Custom(_) => return false
+          }
+        }
+
+        Component::Combinator(combinator) => {
+          match combinator {
+            Combinator::Child | Combinator::NextSibling => Feature::CssSel2,
+            Combinator::LaterSibling => Feature::CssSel3,
+            _ => continue
+          }
+        }
+      };
+
+      if let Some(targets) = targets {
+        if !feature.is_compatible(targets) {
+          return false
+        }
+      } else {
+        return false
+      }
+    }
+  }
+  true
 }

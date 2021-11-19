@@ -13,6 +13,7 @@ mod printer;
 mod traits;
 mod macros;
 mod stylesheet;
+mod compat;
 
 use serde::{Deserialize, Serialize};
 use properties::prefixes::Browsers;
@@ -2391,6 +2392,88 @@ mod tests {
         color: red;
       }
     "#});
+
+    test(r#"
+      [foo="bar"] {
+        color: red;
+      }
+      .bar {
+        color: red;
+      }
+    "#, indoc! {r#"
+      [foo="bar"] {
+        color: red;
+      }
+
+      .bar {
+        color: red;
+      }
+    "#});
+
+    prefix_test(r#"
+      [foo="bar"] {
+        color: red;
+      }
+      .bar {
+        color: red;
+      }
+    "#, indoc! {r#"
+      [foo="bar"] {
+        color: red;
+      }
+      
+      .bar {
+        color: red;
+      }
+    "#}, Browsers {
+      ie: Some(6 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      [foo="bar"] {
+        color: red;
+      }
+      .bar {
+        color: red;
+      }
+    "#, indoc! {r#"
+      [foo="bar"], .bar {
+        color: red;
+      }
+    "#}, Browsers {
+      ie: Some(10 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .form-input:-moz-placeholder-shown {
+        color: black;
+      }
+      .form-input:-ms-input-placeholder {
+        color: black;
+      }
+      .form-input:placeholder-shown {
+        color: black;
+      }
+    "#, indoc! {r#"
+      .form-input:-moz-placeholder-shown {
+        color: #000;
+      }
+
+      .form-input:-ms-input-placeholder {
+        color: #000;
+      }
+      
+      .form-input:placeholder-shown {
+        color: #000;
+      }
+    "#}, Browsers {
+      firefox: Some(85 << 16),
+      chrome: Some(90 << 16),
+      edge: Some(85 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]

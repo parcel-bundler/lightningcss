@@ -96,11 +96,11 @@ impl CssRuleList {
           style.minify(handler, important_handler);
 
           if let Some(CssRule::Style(last_style_rule)) = rules.last_mut() {
-            if style.selectors == last_style_rule.selectors {
+            if style.selectors == last_style_rule.selectors && style.is_compatible(targets) && last_style_rule.is_compatible(targets) {
               last_style_rule.declarations.declarations.extend(style.declarations.declarations.drain(..));
               last_style_rule.declarations.minify(handler, important_handler);
               continue
-            } else if style.declarations == last_style_rule.declarations {
+            } else if style.declarations == last_style_rule.declarations && style.is_compatible(targets) && last_style_rule.is_compatible(targets) {
               last_style_rule.selectors.0.extend(style.selectors.0.drain(..));
               continue
             }

@@ -1,9 +1,10 @@
 use cssparser::SourceLocation;
 use selectors::SelectorList;
-use crate::selector::Selectors;
+use crate::selector::{Selectors, is_compatible};
 use crate::traits::ToCss;
 use crate::printer::Printer;
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
+use crate::properties::prefixes::Browsers;
 
 #[derive(Debug, PartialEq)]
 pub struct StyleRule {
@@ -15,6 +16,10 @@ pub struct StyleRule {
 impl StyleRule {
   pub fn minify(&mut self, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
     self.declarations.minify(handler, important_handler);
+  }
+
+  pub fn is_compatible(&self, targets: Option<Browsers>) -> bool {
+    is_compatible(&self.selectors, targets)
   }
 }
 
