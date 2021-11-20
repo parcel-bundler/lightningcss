@@ -480,6 +480,7 @@ impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser {
 
     Ok(CssRule::Style(StyleRule {
       selectors,
+      vendor_prefix: VendorPrefix::empty(),
       declarations: DeclarationBlock {
         declarations
       },

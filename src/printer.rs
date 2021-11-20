@@ -1,6 +1,7 @@
 use std::fmt::*;
 use cssparser::SourceLocation;
 use parcel_sourcemap::{SourceMap, OriginalLocation};
+use crate::properties::VendorPrefix;
 
 pub struct Printer<'a, W> {
   dest: &'a mut W,
@@ -8,12 +9,15 @@ pub struct Printer<'a, W> {
   indent: u8,
   line: u32,
   col: u32,
-  pub minify: bool
+  pub minify: bool,
+  /// Vendor prefix override. When non-empty, it overrides 
+  /// the vendor prefix of whatever is being printed.
+  pub vendor_prefix: VendorPrefix
 }
 
 impl<'a, W: Write + Sized> Printer<'a, W> {
   pub fn new(dest: &'a mut W, source_map: Option<&'a mut SourceMap>, minify: bool) -> Printer<'a, W> {
-    Printer { dest, source_map, indent: 0, line: 0, col: 0, minify }
+    Printer { dest, source_map, indent: 0, line: 0, col: 0, minify, vendor_prefix: VendorPrefix::empty() }
   }
 
   pub fn write_str(&mut self, s: &str) -> Result {

@@ -2446,32 +2446,191 @@ mod tests {
       ..Browsers::default()
     });
 
-    prefix_test(r#"
-      .form-input:-moz-placeholder-shown {
-        color: black;
-      }
-      .form-input:-ms-input-placeholder {
-        color: black;
-      }
-      .form-input:placeholder-shown {
-        color: black;
+    test(r#"
+      .foo:-moz-read-only {
+        color: red;
       }
     "#, indoc! {r#"
-      .form-input:-moz-placeholder-shown {
-        color: #000;
+      .foo:-moz-read-only {
+        color: red;
       }
+    "#});
 
-      .form-input:-ms-input-placeholder {
-        color: #000;
+    test(r#"
+      .foo:-moz-read-only {
+        color: red;
       }
       
-      .form-input:placeholder-shown {
-        color: #000;
+      .foo:read-only {
+        color: red;
+      }
+    "#, indoc! {r#"
+      .foo:-moz-read-only {
+        color: red;
+      }
+      
+      .foo:read-only {
+        color: red;
+      }
+    "#});
+
+    prefix_test(r#"
+      .foo:-moz-read-only {
+        color: red;
+      }
+      
+      .foo:read-only {
+        color: red;
+      }
+    "#, indoc! {r#"
+      .foo:read-only {
+        color: red;
       }
     "#}, Browsers {
       firefox: Some(85 << 16),
-      chrome: Some(90 << 16),
-      edge: Some(85 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo:-moz-read-only {
+        color: red;
+      }
+
+      .bar {
+        color: yellow;
+      }
+      
+      .foo:read-only {
+        color: red;
+      }
+    "#, indoc! {r#"
+      .foo:-moz-read-only {
+        color: red;
+      }
+
+      .bar {
+        color: #ff0;
+      }
+      
+      .foo:read-only {
+        color: red;
+      }
+    "#}, Browsers {
+      firefox: Some(85 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo:-moz-read-only {
+        color: red;
+      }
+      
+      .foo:read-only {
+        color: red;
+      }
+    "#, indoc! {r#"
+      .foo:-moz-read-only {
+        color: red;
+      }
+      
+      .foo:read-only {
+        color: red;
+      }
+    "#}, Browsers {
+      firefox: Some(36 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo:read-only {
+        color: red;
+      }
+    "#, indoc! {r#"
+      .foo:-moz-read-only {
+        color: red;
+      }
+      
+      .foo:read-only {
+        color: red;
+      }
+    "#}, Browsers {
+      firefox: Some(36 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo:-webkit-full-screen {
+        color: red;
+      }
+      .foo:-moz-full-screen {
+        color: red;
+      }
+      .foo:-ms-fullscreen {
+        color: red;
+      }
+      .foo:fullscreen {
+        color: red;
+      }
+    "#, indoc! {r#"
+      .foo:fullscreen {
+        color: red;
+      }
+    "#}, Browsers {
+      chrome: Some(96 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo:fullscreen {
+        color: red;
+      }
+    "#, indoc! {r#"
+      .foo:-webkit-full-screen {
+        color: red;
+      }
+
+      .foo:-moz-full-screen {
+        color: red;
+      }
+
+      .foo:-ms-fullscreen {
+        color: red;
+      }
+
+      .foo:fullscreen {
+        color: red;
+      }
+    "#}, Browsers {
+      chrome: Some(45 << 16),
+      firefox: Some(45 << 16),
+      ie: Some(11 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo::placeholder {
+        color: red;
+      }
+    "#, indoc! {r#"
+      .foo::-webkit-input-placeholder {
+        color: red;
+      }
+
+      .foo::-moz-placeholder {
+        color: red;
+      }
+
+      .foo::-ms-input-placeholder {
+        color: red;
+      }
+      
+      .foo::placeholder {
+        color: red;
+      }
+    "#}, Browsers {
+      chrome: Some(45 << 16),
+      firefox: Some(45 << 16),
+      ie: Some(11 << 16),
       ..Browsers::default()
     });
   }

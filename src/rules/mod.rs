@@ -23,6 +23,7 @@ use crate::declaration::DeclarationHandler;
 use crate::properties::VendorPrefix;
 use crate::properties::prefixes::{Feature, Browsers};
 use std::collections::HashMap;
+use crate::selector::{is_equivalent, get_prefix, get_necessary_prefixes};
 
 #[derive(Debug, PartialEq)]
 pub enum CssRule {
@@ -95,14 +96,41 @@ impl CssRuleList {
         CssRule::Style(style) => {
           style.minify(handler, important_handler);
 
+          if let Some(targets) = targets {
+            style.vendor_prefix = get_prefix(&style.selectors);
+            if style.vendor_prefix.contains(VendorPrefix::None) {
+              style.vendor_prefix = get_necessary_prefixes(&style.selectors, targets);
+            }
+          }
+
           if let Some(CssRule::Style(last_style_rule)) = rules.last_mut() {
+            // Merge declarations if the selectors are equivalent, and both are compatible with all targets.
             if style.selectors == last_style_rule.selectors && style.is_compatible(targets) && last_style_rule.is_compatible(targets) {
               last_style_rule.declarations.declarations.extend(style.declarations.declarations.drain(..));
               last_style_rule.declarations.minify(handler, important_handler);
               continue
-            } else if style.declarations == last_style_rule.declarations && style.is_compatible(targets) && last_style_rule.is_compatible(targets) {
-              last_style_rule.selectors.0.extend(style.selectors.0.drain(..));
-              continue
+            } else if style.declarations == last_style_rule.declarations {
+              // Append the selectors to the last rule if the declarations are the same, and all selectors are compatible.
+              if style.is_compatible(targets) && last_style_rule.is_compatible(targets) {
+                last_style_rule.selectors.0.extend(style.selectors.0.drain(..));
+                continue
+              }
+
+              // If both selectors are potentially vendor prefixable, and they are 
+              // equivalent minus prefixes, add the prefix to the last rule.
+              if !style.vendor_prefix.is_empty() && 
+                !last_style_rule.vendor_prefix.is_empty() &&
+                is_equivalent(&style.selectors, &last_style_rule.selectors)
+              {
+                // If the new rule is unprefixed, replace the prefixes of the last rule.
+                // Otherwise, add the new prefix.
+                if style.vendor_prefix.contains(VendorPrefix::None) {
+                  last_style_rule.vendor_prefix = style.vendor_prefix;
+                } else {
+                  last_style_rule.vendor_prefix |= style.vendor_prefix;
+                }
+                continue
+              }
             }
           }
         },

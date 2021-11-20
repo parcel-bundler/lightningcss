@@ -5,6 +5,7 @@ use crate::printer::Printer;
 use crate::traits::ToCss;
 use super::parser::CssString;
 use crate::compat::Feature;
+use crate::properties::VendorPrefix;
 use crate::properties::prefixes::Browsers;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -59,13 +60,18 @@ impl<'i> selectors::parser::Parser<'i> for SelectorParser {
         "volume-locked" => VolumeLocked,
 
         // https://fullscreen.spec.whatwg.org/#:fullscreen-pseudo-class
-        "fullscreen" => Fullscreen,
+        "fullscreen" => Fullscreen(VendorPrefix::None),
+        "-webkit-full-screen" => Fullscreen(VendorPrefix::WebKit),
+        "-moz-full-screen" => Fullscreen(VendorPrefix::Moz),
+        "-ms-fullscreen" => Fullscreen(VendorPrefix::Ms),
 
         // https://drafts.csswg.org/selectors-4/#the-defined-pseudo
         "defined" => Defined,
 
         // https://drafts.csswg.org/selectors-4/#location
-        "any-link" => AnyLink,
+        "any-link" => AnyLink(VendorPrefix::None),
+        "-webkit-any-link" => AnyLink(VendorPrefix::WebKit),
+        "-moz-any-link" => AnyLink(VendorPrefix::Moz),
         "link" => Link,
         "local-link" => LocalLink,
         "target" => Target,
@@ -75,9 +81,13 @@ impl<'i> selectors::parser::Parser<'i> for SelectorParser {
         // https://drafts.csswg.org/selectors-4/#input-pseudos
         "enabled" => Enabled,
         "disabled" => Disabled,
-        "read-only" => ReadOnly,
-        "read-write" => ReadWrite,
-        "placeholder-shown" => PlaceholderShown,
+        "read-only" => ReadOnly(VendorPrefix::None),
+        "-moz-read-only" => ReadOnly(VendorPrefix::Moz),
+        "read-write" => ReadWrite(VendorPrefix::None),
+        "-moz-read-write" => ReadWrite(VendorPrefix::Moz),
+        "placeholder-shown" => PlaceholderShown(VendorPrefix::None),
+        "-moz-placeholder-shown" => PlaceholderShown(VendorPrefix::Moz),
+        "-ms-placeholder-shown" => PlaceholderShown(VendorPrefix::Ms),
         "default" => Default,
         "checked" => Checked,
         "indeterminate" => Indeterminate,
@@ -92,7 +102,9 @@ impl<'i> selectors::parser::Parser<'i> for SelectorParser {
         "user-invalid" => UserInvalid,
 
         // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
-        "autofill" => Autofill,
+        "autofill" => Autofill(VendorPrefix::None),
+        "-webkit-autofill" => Autofill(VendorPrefix::WebKit),
+        "-o-autofill" => Autofill(VendorPrefix::O),
 
         _ => Custom(name.as_ref().into())
       };
@@ -126,10 +138,15 @@ impl<'i> selectors::parser::Parser<'i> for SelectorParser {
       "after" => After,
       "first-line" => FirstLine,
       "first-letter" => FirstLetter,
-      "selection" => Selection,
-      "placeholder" => Placeholder,
+      "selection" => Selection(VendorPrefix::None),
+      "-moz-selection" => Selection(VendorPrefix::Moz),
+      "placeholder" => Placeholder(VendorPrefix::None),
+      "-webkit-input-placeholder" => Placeholder(VendorPrefix::WebKit),
+      "-moz-placeholder" => Placeholder(VendorPrefix::Moz),
+      "-ms-input-placeholder" => Placeholder(VendorPrefix::Moz),
       "marker" => Marker,
-      "backdrop" => Backdrop,
+      "backdrop" => Backdrop(VendorPrefix::None),
+      "-webkit-backdrop" => Backdrop(VendorPrefix::WebKit),
       _ => Custom(name.as_ref().into())
     };
 
@@ -166,13 +183,13 @@ pub enum PseudoClass {
   VolumeLocked,
 
   // https://fullscreen.spec.whatwg.org/#:fullscreen-pseudo-class
-  Fullscreen,
+  Fullscreen(VendorPrefix),
 
   // https://drafts.csswg.org/selectors-4/#the-defined-pseudo
   Defined,
 
   // https://drafts.csswg.org/selectors-4/#location
-  AnyLink,
+  AnyLink(VendorPrefix),
   Link,
   LocalLink,
   Target,
@@ -182,9 +199,9 @@ pub enum PseudoClass {
   // https://drafts.csswg.org/selectors-4/#input-pseudos
   Enabled,
   Disabled,
-  ReadOnly,
-  ReadWrite,
-  PlaceholderShown,
+  ReadOnly(VendorPrefix),
+  ReadWrite(VendorPrefix),
+  PlaceholderShown(VendorPrefix),
   Default,
   Checked,
   Indeterminate,
@@ -199,7 +216,7 @@ pub enum PseudoClass {
   UserInvalid,
 
   // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
-  Autofill,
+  Autofill(VendorPrefix),
 
   Custom(String)
 }
@@ -217,10 +234,13 @@ impl selectors::parser::NonTSPseudoClass for PseudoClass {
 }
 
 impl cssparser::ToCss for PseudoClass {
-  fn to_css<W>(&self, dest: &mut W) -> fmt::Result
-  where
-      W: fmt::Write,
-  {
+  fn to_css<W>(&self, _: &mut W) -> fmt::Result where W: fmt::Write {
+    unreachable!();
+  }
+}
+
+impl ToCss for PseudoClass {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
       use PseudoClass::*;
       match &self {
         Lang(lang) => {
@@ -236,70 +256,141 @@ impl cssparser::ToCss for PseudoClass {
         _ => {}
       }
 
-      dest.write_str(match &self {
+      macro_rules! write_prefixed {
+        ($prefix: ident, $val: expr) => {{
+          dest.write_char(':')?;
+          // If the printer has a vendor prefix override, use that.
+          let vp = if !dest.vendor_prefix.is_empty() {
+            dest.vendor_prefix
+          } else {
+            *$prefix
+          };
+          vp.to_css(dest)?;
+          dest.write_str($val)
+        }};
+      }
+
+      match &self {
         // https://drafts.csswg.org/selectors-4/#useraction-pseudos
-        Hover => ":hover",
-        Active => ":active",
-        Focus => ":focus",
-        FocusVisible => ":focus-visible",
-        FocusWithin => ":focus-within",
+        Hover => dest.write_str(":hover"),
+        Active => dest.write_str(":active"),
+        Focus => dest.write_str(":focus"),
+        FocusVisible => dest.write_str(":focus-visible"),
+        FocusWithin => dest.write_str(":focus-within"),
 
         // https://drafts.csswg.org/selectors-4/#time-pseudos
-        Current => ":current",
-        Past => ":past",
-        Future => ":future",
+        Current => dest.write_str(":current"),
+        Past => dest.write_str(":past"),
+        Future => dest.write_str(":future"),
 
         // https://drafts.csswg.org/selectors-4/#resource-pseudos
-        Playing => ":playing",
-        Paused => ":paused",
-        Seeking => ":seeking",
-        Buffering => ":buffering",
-        Stalled => ":stalled",
-        Muted => ":muted",
-        VolumeLocked => ":volume-locked",
+        Playing => dest.write_str(":playing"),
+        Paused => dest.write_str(":paused"),
+        Seeking => dest.write_str(":seeking"),
+        Buffering => dest.write_str(":buffering"),
+        Stalled => dest.write_str(":stalled"),
+        Muted => dest.write_str(":muted"),
+        VolumeLocked => dest.write_str(":volume-locked"),
 
         // https://fullscreen.spec.whatwg.org/#:fullscreen-pseudo-class
-        Fullscreen => ":fullscreen",
+        Fullscreen(prefix) => {
+          dest.write_char(':')?;
+          let vp = if !dest.vendor_prefix.is_empty() {
+            dest.vendor_prefix
+          } else {
+            *prefix
+          };
+          vp.to_css(dest)?;
+          if vp == VendorPrefix::WebKit || vp == VendorPrefix::Moz {
+            dest.write_str("full-screen")
+          } else {
+            dest.write_str("fullscreen")
+          }
+        },
 
         // https://drafts.csswg.org/selectors-4/#the-defined-pseudo
-        Defined => ":defined",
+        Defined => dest.write_str(":defined"),
 
         // https://drafts.csswg.org/selectors-4/#location
-        AnyLink => ":any-link",
-        Link => ":link",
-        LocalLink => ":local-link",
-        Target => ":target",
-        TargetWithin => ":target-within",
-        Visited => ":visited",
+        AnyLink(prefix) => write_prefixed!(prefix, "any-link"),
+        Link => dest.write_str(":link"),
+        LocalLink => dest.write_str(":local-link"),
+        Target => dest.write_str(":target"),
+        TargetWithin => dest.write_str(":target-within"),
+        Visited => dest.write_str(":visited"),
 
         // https://drafts.csswg.org/selectors-4/#input-pseudos
-        Enabled => ":enabled",
-        Disabled => ":disabled",
-        ReadOnly => ":read-only",
-        ReadWrite => ":read-write",
-        PlaceholderShown => ":placeholder-shown",
-        Default => ":default",
-        Checked => ":checked",
-        Indeterminate => ":indeterminate",
-        Blank => ":blank",
-        Valid => ":valid",
-        Invalid => ":invalid",
-        InRange => ":in-range",
-        OutOfRange => ":out-of-range",
-        Required => ":required",
-        Optional => ":optional",
-        UserValid => ":user-valid",
-        UserInvalid => ":user-invalid",
+        Enabled => dest.write_str(":enabled"),
+        Disabled => dest.write_str(":disabled"),
+        ReadOnly(prefix) => write_prefixed!(prefix, "read-only"),
+        ReadWrite(prefix) => write_prefixed!(prefix, "read-write"),
+        PlaceholderShown(prefix) => write_prefixed!(prefix, "placeholder-shown"),
+        Default => dest.write_str(":default"),
+        Checked => dest.write_str(":checked"),
+        Indeterminate => dest.write_str(":indeterminate"),
+        Blank => dest.write_str(":blank"),
+        Valid => dest.write_str(":valid"),
+        Invalid => dest.write_str(":invalid"),
+        InRange => dest.write_str(":in-range"),
+        OutOfRange => dest.write_str(":out-of-range"),
+        Required => dest.write_str(":required"),
+        Optional => dest.write_str(":optional"),
+        UserValid => dest.write_str(":user-valid"),
+        UserInvalid => dest.write_str(":user-invalid"),
 
         // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
-        Autofill => ":autofill",
+        Autofill(prefix) => write_prefixed!(prefix, "autofill"),
 
         Lang(_) | Dir(_) => unreachable!(),
         Custom(val) => {
           dest.write_char(':')?;
           return dest.write_str(&val)
         }
-      })
+      }
+  }
+}
+
+impl PseudoClass {
+  pub fn is_equivalent(&self, other: &PseudoClass) -> bool {
+    use PseudoClass::*;
+    match (self, other) {
+      (Fullscreen(_), Fullscreen(_)) |
+      (AnyLink(_), AnyLink(_)) |
+      (ReadOnly(_), ReadOnly(_)) |
+      (ReadWrite(_), ReadWrite(_)) |
+      (PlaceholderShown(_), PlaceholderShown(_)) |
+      (Autofill(_), Autofill(_)) => true,
+      (a, b) => a == b
+    }
+  }
+
+  pub fn get_prefix(&self) -> VendorPrefix {
+    use PseudoClass::*;
+    match self {
+      Fullscreen(p) |
+      AnyLink(p) |
+      ReadOnly(p) |
+      ReadWrite(p) |
+      PlaceholderShown(p) |
+      Autofill(p) => *p,
+      _ => VendorPrefix::empty()
+    }
+  }
+
+  pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+    use PseudoClass::*;
+    use crate::properties::prefixes::Feature;
+    let feature = match self {
+      Fullscreen(p) if *p == VendorPrefix::None => Feature::PseudoClassFullscreen,
+      AnyLink(p) if *p == VendorPrefix::None => Feature::PseudoClassAnyLink,
+      ReadOnly(p) if *p == VendorPrefix::None => Feature::PseudoClassReadOnly,
+      ReadWrite(p) if *p == VendorPrefix::None => Feature::PseudoClassReadWrite,
+      PlaceholderShown(p) if *p == VendorPrefix::None => Feature::PseudoClassPlaceholderShown,
+      Autofill(p) if *p == VendorPrefix::None => Feature::PseudoClassAutofill,
+      _ => return VendorPrefix::empty()
+    };
+
+    feature.prefixes_for(targets)
   }
 }
 
@@ -310,41 +401,107 @@ pub enum PseudoElement {
   Before,
   FirstLine,
   FirstLetter,
-  Selection,
-  Placeholder,
+  Selection(VendorPrefix),
+  Placeholder(VendorPrefix),
   Marker,
-  Backdrop,
+  Backdrop(VendorPrefix),
   Custom(String)
 }
 
 impl cssparser::ToCss for PseudoElement {
-  fn to_css<W>(&self, dest: &mut W) -> fmt::Result
-  where
-      W: fmt::Write,
-  {
+  fn to_css<W>(&self, _: &mut W) -> fmt::Result where W: fmt::Write {
+    unreachable!();
+  }
+}
+
+impl ToCss for PseudoElement {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
     use PseudoElement::*;
-    dest.write_str(match &self {
+
+    macro_rules! write_prefixed {
+      ($prefix: ident, $val: expr) => {{
+        dest.write_str("::")?;
+        // If the printer has a vendor prefix override, use that.
+        let vp = if !dest.vendor_prefix.is_empty() {
+          dest.vendor_prefix
+        } else {
+          *$prefix
+        };
+        vp.to_css(dest)?;
+        dest.write_str($val)
+      }};
+    }
+
+    match &self {
       // CSS2 pseudo elements support a single colon syntax in addition
       // to the more correct double colon for other pseudo elements.
       // We use that here because it's supported everywhere and is shorter.
-      After => ":after",
-      Before => ":before",
-      FirstLine => ":first-line",
-      FirstLetter => ":first-letter",
-      Selection => "::selection",
-      Placeholder => "::placeholder",
-      Marker => "::marker",
-      Backdrop => "::backdrop",
+      After => dest.write_str(":after"),
+      Before => dest.write_str(":before"),
+      FirstLine => dest.write_str(":first-line"),
+      FirstLetter => dest.write_str(":first-letter"),
+      Marker => dest.write_str("::marker"),
+      Selection(prefix) => write_prefixed!(prefix, "selection"),
+      Placeholder(prefix) => {
+        dest.write_str("::")?;
+        let vp = if !dest.vendor_prefix.is_empty() {
+          dest.vendor_prefix
+        } else {
+          *prefix
+        };
+        vp.to_css(dest)?;
+        if vp == VendorPrefix::WebKit || vp == VendorPrefix::Ms {
+          dest.write_str("input-placeholder")
+        } else {
+          dest.write_str("placeholder")
+        }
+      },
+      Backdrop(prefix) => write_prefixed!(prefix, "backdrop"),
       Custom(val) => {
         dest.write_str("::")?;
         return dest.write_str(val)
       }
-    })
+    }
   }
 }
 
 impl selectors::parser::PseudoElement for PseudoElement {
   type Impl = Selectors;
+}
+
+impl PseudoElement {
+  pub fn is_equivalent(&self, other: &PseudoElement) -> bool {
+    use PseudoElement::*;
+    match (self, other) {
+      (Selection(_), Selection(_)) |
+      (Placeholder(_), Placeholder(_)) |
+      (Backdrop(_), Backdrop(_)) => true,
+      (a, b) => a == b
+    }
+  }
+
+  pub fn get_prefix(&self) -> VendorPrefix {
+    use PseudoElement::*;
+    match self {
+      Selection(p) |
+      Placeholder(p) |
+      Backdrop(p) => *p,
+      _ => VendorPrefix::empty()
+    }
+  }
+
+  pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+    use PseudoElement::*;
+    use crate::properties::prefixes::Feature;
+    let feature = match self {
+      Selection(p) if *p == VendorPrefix::None => Feature::PseudoElementSelection,
+      Placeholder(p) if *p == VendorPrefix::None => Feature::PseudoElementPlaceholder,
+      Backdrop(p) if *p == VendorPrefix::None => Feature::PseudoElementBackdrop,
+      _ => return VendorPrefix::empty()
+    };
+
+    feature.prefixes_for(targets)
+  }
 }
 
 impl ToCss for SelectorList<Selectors> {
@@ -549,6 +706,12 @@ impl ToCss for Component<Selectors> {
         serialize_selector_list(list.iter(), dest)?;
         dest.write_str(")")
       },
+      NonTSPseudoClass(pseudo) => {
+        pseudo.to_css(dest)
+      },
+      PseudoElement(pseudo) => {
+        pseudo.to_css(dest)
+      },
       _ => {
         cssparser::ToCss::to_css(self, dest)
       }
@@ -560,7 +723,8 @@ fn serialize_selector_list<'a, I, W>(iter: I, dest: &mut Printer<W>) -> fmt::Res
 where
     I: Iterator<Item = &'a Selector<Selectors>>,
     W: fmt::Write,
-{  let mut first = true;
+{
+  let mut first = true;
   for selector in iter {
     if !first {
       dest.delim(',', false)?;
@@ -660,20 +824,20 @@ pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browse
             PseudoClass::Enabled |
             PseudoClass::Target => Feature::CssSel3,
 
-            PseudoClass::AnyLink => Feature::CssAnyLink,
+            PseudoClass::AnyLink(prefix) if *prefix == VendorPrefix::None => Feature::CssAnyLink,
             PseudoClass::Indeterminate => Feature::CssIndeterminatePseudo,
             
-            PseudoClass::Fullscreen => Feature::Fullscreen,
+            PseudoClass::Fullscreen(prefix) if *prefix == VendorPrefix::None => Feature::Fullscreen,
             
             PseudoClass::FocusVisible => Feature::CssFocusVisible,
             PseudoClass::FocusWithin => Feature::CssFocusWithin,
             PseudoClass::Default => Feature::CssDefaultPseudo,
             PseudoClass::Dir(_) => Feature::CssDirPseudo,
             PseudoClass::Optional => Feature::CssOptionalPseudo,
-            PseudoClass::PlaceholderShown => Feature::CssPlaceholderShown,
+            PseudoClass::PlaceholderShown(prefix) if *prefix == VendorPrefix::None => Feature::CssPlaceholderShown,
 
-            PseudoClass::ReadOnly |
-            PseudoClass::ReadWrite => Feature::CssReadOnlyWrite,
+            PseudoClass::ReadOnly(prefix) |
+            PseudoClass::ReadWrite(prefix) if *prefix == VendorPrefix::None => Feature::CssReadOnlyWrite,
 
             PseudoClass::Valid |
             PseudoClass::Invalid |
@@ -682,7 +846,7 @@ pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browse
             PseudoClass::InRange |
             PseudoClass::OutOfRange => Feature::CssInOutOfRange,
 
-            PseudoClass::Autofill => Feature::CssAutofill,
+            PseudoClass::Autofill(prefix) if *prefix == VendorPrefix::None => Feature::CssAutofill,
 
             // Experimental, no browser support.
             PseudoClass::Current |
@@ -702,7 +866,7 @@ pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browse
             PseudoClass::UserValid |
             PseudoClass::Defined => return false,
 
-            PseudoClass::Custom(_) => return false
+            PseudoClass::Custom(_) | _ => return false
           }
         }
 
@@ -712,11 +876,11 @@ pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browse
             PseudoElement::Before => Feature::CssGencontent,
             PseudoElement::FirstLine => Feature::CssFirstLine,
             PseudoElement::FirstLetter => Feature::CssFirstLetter,
-            PseudoElement::Selection => Feature::CssSelection,
-            PseudoElement::Placeholder => Feature::CssPlaceholder,
+            PseudoElement::Selection(prefix) if *prefix == VendorPrefix::None => Feature::CssSelection,
+            PseudoElement::Placeholder(prefix) if *prefix == VendorPrefix::None => Feature::CssPlaceholder,
             PseudoElement::Marker => Feature::CssMarkerPseudo,
-            PseudoElement::Backdrop => Feature::Dialog,
-            PseudoElement::Custom(_) => return false
+            PseudoElement::Backdrop(prefix) if *prefix == VendorPrefix::None => Feature::Dialog,
+            PseudoElement::Custom(_) | _ => return false
           }
         }
 
@@ -738,5 +902,77 @@ pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browse
       }
     }
   }
+
   true
+}
+
+/// Returns whether two selector lists are equivalent, i.e. the same minus any vendor prefix differences.
+pub fn is_equivalent(selectors: &SelectorList<Selectors>, other: &SelectorList<Selectors>) -> bool {
+  if selectors.0.len() != other.0.len() {
+    return false
+  }
+
+  for (i, a) in selectors.0.iter().enumerate() {
+    let b = &other.0[i];
+    if a.len() != b.len() {
+      return false
+    }
+
+    for (a, b) in a.iter().zip(b.iter()) {
+      let is_equivalent = match (a, b) {
+        (Component::NonTSPseudoClass(a_ps), Component::NonTSPseudoClass(b_ps)) => a_ps.is_equivalent(b_ps),
+        (Component::PseudoElement(a_pe), Component::PseudoElement(b_pe)) => a_pe.is_equivalent(b_pe),
+        (a, b) => a == b
+      };
+  
+      if !is_equivalent {
+        return false
+      }
+    }
+  }
+
+  true
+}
+
+/// Returns the vendor prefix (if any) used in the given selector list.
+/// If multiple vendor prefixes are seen, this is invalid, and an empty result is returned.
+pub fn get_prefix(selectors: &SelectorList<Selectors>) -> VendorPrefix {
+  let mut prefix = VendorPrefix::empty();
+  for selector in &selectors.0 {
+    for component in selector.iter() {
+      let p = match component {
+        Component::NonTSPseudoClass(pc) => pc.get_prefix(),
+        Component::PseudoElement(pe) => pe.get_prefix(),
+        _ => VendorPrefix::empty()
+      };
+
+      if !p.is_empty() {
+        if prefix.is_empty() || prefix == p {
+          prefix = p;
+        } else {
+          return VendorPrefix::empty();
+        }
+      }
+    }
+  }
+
+  prefix
+}
+
+/// Returns the necessary vendor prefixes for a given selector list to meet the provided browser targets.
+pub fn get_necessary_prefixes(selectors: &SelectorList<Selectors>, targets: Browsers) -> VendorPrefix {
+  let mut necessary_prefixes = VendorPrefix::empty();
+  for selector in &selectors.0 {
+    for component in selector.iter() {
+      let prefixes = match component {
+        Component::NonTSPseudoClass(pc) => pc.get_necessary_prefixes(targets),
+        Component::PseudoElement(pe) => pe.get_necessary_prefixes(targets),
+        _ => VendorPrefix::empty()
+      };
+
+      necessary_prefixes |= prefixes;
+    }
+  }
+
+  necessary_prefixes
 }
