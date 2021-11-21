@@ -67,9 +67,7 @@ fn transform(ctx: CallContext) -> napi::Result<JsUnknown> {
   let opts = ctx.get::<JsObject>(0)?;
   let config: Config = ctx.env.from_js_value(opts)?;
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) }; 
-  let res = {
-    compile(code, &config)
-  };
+  let res = compile(code, &config);
 
   match res {
     Ok(res) => ctx.env.to_js_value(&res),
