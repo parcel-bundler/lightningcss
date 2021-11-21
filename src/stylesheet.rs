@@ -1,4 +1,4 @@
-use cssparser::{Parser, ParserInput, RuleListParser};
+use cssparser::{Parser, ParserInput, RuleListParser, ParseError};
 use parcel_sourcemap::SourceMap;
 use crate::rules::CssRuleList;
 use crate::parser::TopLevelRuleParser;
@@ -13,26 +13,25 @@ pub struct StyleSheet {
 }
 
 impl StyleSheet {
-  pub fn parse<'i>(filename: String, code: &str) -> StyleSheet {
+  pub fn parse<'i>(filename: String, code: &'i str) -> Result<StyleSheet, ParseError<'i, ()>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
     let rule_list_parser = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser {});
 
     let mut rules = vec![];
     for rule in rule_list_parser {
-      let rule = if let Ok((_, rule)) = rule {
-        rule
-      } else {
-        continue
+      let rule = match rule {
+        Ok((_, rule)) => rule,
+        Err((e, _)) => return Err(e)
       };
 
       rules.push(rule)
     }
 
-    StyleSheet {
+    Ok(StyleSheet {
       filename,
       rules: CssRuleList(rules)
-    }
+    })
   }
 
   pub fn minify(&mut self, targets: Option<Browsers>) {

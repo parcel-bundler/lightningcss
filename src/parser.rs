@@ -315,10 +315,7 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
       //     Ok(AtRuleType::WithBlock(AtRuleBlockPrelude::Document(cond)))
       // },
       // _ => Err(input.new_custom_error(StyleParseErrorKind::UnsupportedAtRule(name.clone())))
-      _ => {
-        print!("UNKNOWN AT RULE {}", name);
-        Ok(AtRuleType::WithBlock(AtRulePrelude::FontFeatureValues))
-      }
+      _ => Err(input.new_error(BasicParseErrorKind::AtRuleInvalid(name)))
     }
   }
 

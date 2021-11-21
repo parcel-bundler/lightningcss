@@ -30,7 +30,8 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub fn transform(config_val: JsValue) -> Result<JsValue, JsValue> {
   let config: Config = from_value(config_val).map_err(JsValue::from)?;
-  let res = compile(config).unwrap();
+  let code = unsafe { std::str::from_utf8_unchecked(&config.code) };  
+  let res = compile(code, &config).unwrap();
   let serializer = Serializer::new().serialize_maps_as_objects(true);
   res.serialize(&serializer).map_err(JsValue::from)
 }
@@ -65,8 +66,38 @@ struct TransformResult {
 fn transform(ctx: CallContext) -> napi::Result<JsUnknown> {
   let opts = ctx.get::<JsObject>(0)?;
   let config: Config = ctx.env.from_js_value(opts)?;
-  let res = compile(config).unwrap();
-  ctx.env.to_js_value(&res)
+  let code = unsafe { std::str::from_utf8_unchecked(&config.code) }; 
+  let res = {
+    compile(code, &config)
+  };
+
+  match res {
+    Ok(res) => ctx.env.to_js_value(&res),
+    Err(err) => {
+      match &err {
+        CompileError::ParseError(e) => {
+          // Generate an error with location information.
+          let syntax_error = ctx.env.get_global()?
+            .get_named_property::<napi::JsFunction>("SyntaxError")?;
+          let reason = ctx.env.create_string_from_std(err.reason())?;
+          let line = ctx.env.create_int32((e.location.line + 1) as i32)?;
+          let col = ctx.env.create_int32(e.location.column as i32)?;
+          let mut obj = syntax_error.new(&[reason])?;
+          let filename = ctx.env.create_string_from_std(config.filename)?;
+          obj.set_named_property("fileName", filename)?;
+          let source = ctx.env.create_string(code)?;
+          obj.set_named_property("source", source)?;
+          let mut loc = ctx.env.create_object()?;
+          loc.set_named_property("line", line)?;
+          loc.set_named_property("column", col)?;
+          obj.set_named_property("loc", loc)?;
+          ctx.env.throw(obj)?;
+          Ok(ctx.env.get_undefined()?.into_unknown())
+        }
+        _ => Err(err.into())
+      }
+    }
+  }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -89,16 +120,15 @@ struct Config {
   pub source_map: Option<bool>
 }
 
-fn compile(config: Config) -> Result<TransformResult, ()> {
-  let code = unsafe { std::str::from_utf8_unchecked(&config.code) };  
-  let mut stylesheet = StyleSheet::parse(config.filename, code);
+fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, CompileError<'i>> {
+  let mut stylesheet = StyleSheet::parse(config.filename.clone(), &code)?;
   stylesheet.minify(config.targets); // TODO: should this be conditional?
-  let (res, source_map) = stylesheet.to_css(config.minify.unwrap_or(false), config.source_map.unwrap_or(false)).map_err(|_| ())?;
+  let (res, source_map) = stylesheet.to_css(config.minify.unwrap_or(false), config.source_map.unwrap_or(false))?;
 
   let map = if let Some(mut source_map) = source_map {
-    source_map.set_source_content(0, code).map_err(|_| ())?;
+    source_map.set_source_content(0, code)?;
     let mut vlq_output: Vec<u8> = Vec::new();
-    source_map.write_vlq(&mut vlq_output).map_err(|_| ())?;
+    source_map.write_vlq(&mut vlq_output)?;
 
     let sm = SourceMapJson {
       version: 3,
@@ -119,27 +149,84 @@ fn compile(config: Config) -> Result<TransformResult, ()> {
   })
 }
 
+enum CompileError<'i> {
+  ParseError(cssparser::ParseError<'i, ()>),
+  PrinterError,
+  SourceMapError(parcel_sourcemap::SourceMapError)
+}
+
+impl<'i> CompileError<'i> {
+  fn reason(&self) -> String {
+    match self {
+      CompileError::ParseError(e) => {
+        match &e.kind {
+          cssparser::ParseErrorKind::Basic(b) => {
+            use cssparser::BasicParseErrorKind::*;
+            match b {
+              AtRuleBodyInvalid => "Invalid at rule body".into(),
+              EndOfInput => "Unexpected end of input".into(),
+              AtRuleInvalid(name) => format!("Unknown at rule: @{}", name),
+              QualifiedRuleInvalid => "Invalid qualified rule".into(),
+              UnexpectedToken(token) => format!("Unexpected token {:?}", token)
+            }
+          },
+          _ => "Unknown error".into()
+        }
+      }
+      CompileError::PrinterError => "Printer error".into(),
+      _ => "Unknown error".into()
+    }
+  }
+}
+
+impl<'i> From<cssparser::ParseError<'i, ()>> for CompileError<'i> {
+  fn from(e: cssparser::ParseError<'i, ()>) -> CompileError<'i> {
+    CompileError::ParseError(e)
+  }
+}
+
+impl<'i> From<std::fmt::Error> for CompileError<'i> {
+  fn from(_: std::fmt::Error) -> CompileError<'i> {
+    CompileError::PrinterError
+  }
+}
+
+impl<'i> From<parcel_sourcemap::SourceMapError> for CompileError<'i> {
+  fn from(e: parcel_sourcemap::SourceMapError) -> CompileError<'i> {
+    CompileError::SourceMapError(e)
+  }
+}
+
+impl<'i> From<CompileError<'i>> for napi::Error {
+  fn from(e: CompileError) -> napi::Error {
+    match e {
+      CompileError::SourceMapError(e) => e.into(),
+      _ => napi::Error::new(napi::Status::GenericFailure, e.reason())
+    }
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
   use indoc::indoc;
 
   fn test(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source);
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source).unwrap();
     stylesheet.minify(None);
     let (res, _) = stylesheet.to_css(false, false).unwrap();
     assert_eq!(res, expected);
   }
 
   fn minify_test(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source);
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source).unwrap();
     stylesheet.minify(None);
     let (res, _) = stylesheet.to_css(true, false).unwrap();
     assert_eq!(res, expected);
   }
 
   fn prefix_test(source: &str, expected: &str, targets: Browsers) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source);
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source).unwrap();
     stylesheet.minify(Some(targets));
     let (res, _) = stylesheet.to_css(false, false).unwrap();
     assert_eq!(res, expected);
