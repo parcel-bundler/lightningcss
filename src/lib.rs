@@ -1898,6 +1898,7 @@ mod tests {
     minify_test(".test + .foo {}", ".test+.foo{}");
     minify_test(".test ~ .foo {}", ".test~.foo{}");
     minify_test(".test .foo {}", ".test .foo{}");
+    minify_test(".custom-range::-webkit-slider-thumb:active {}", ".custom-range::-webkit-slider-thumb:active{}");
   }
 
   #[test]

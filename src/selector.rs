@@ -482,6 +482,25 @@ impl ToCss for PseudoElement {
 
 impl selectors::parser::PseudoElement for PseudoElement {
   type Impl = Selectors;
+
+  fn accepts_state_pseudo_classes(&self) -> bool {
+    // Be lenient.
+    true
+  }
+
+  fn valid_after_slotted(&self) -> bool {
+    // ::slotted() should support all tree-abiding pseudo-elements, see
+    // https://drafts.csswg.org/css-scoping/#slotted-pseudo
+    // https://drafts.csswg.org/css-pseudo-4/#treelike
+    matches!(
+      *self,
+      PseudoElement::Before |
+      PseudoElement::After |
+      PseudoElement::Marker |
+      PseudoElement::Placeholder(_) |
+      PseudoElement::FileSelectorButton(_)
+    )
+  }
 }
 
 impl PseudoElement {
