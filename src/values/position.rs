@@ -150,10 +150,11 @@ impl ToCss for Position {
         x_lp.to_css(dest)
       },
       (
-        x_pos @ &HorizontalPosition::Side(_, None),
+        &HorizontalPosition::Side(side, None),
         &VerticalPosition::Center,
       ) => {
-        x_pos.to_css(dest)
+        let p: Percentage = side.into();
+        p.to_css(dest)
       },
       (
         &HorizontalPosition::Center,
@@ -169,16 +170,27 @@ impl ToCss for Position {
         x_lp.to_css(dest)
       },
       (
-        x_pos @ &HorizontalPosition::Side(_, None),
+        &HorizontalPosition::Side(side, None),
         &VerticalPosition::Length(LengthPercentage::Percentage(Percentage(y_lp))),
       ) if y_lp == 0.5 => {
-        x_pos.to_css(dest)
+        let p: Percentage = side.into();
+        p.to_css(dest)
       },
       (
         &HorizontalPosition::Length(LengthPercentage::Percentage(Percentage(x_lp))),
         y_pos @ &VerticalPosition::Side(_, None),
       ) if x_lp == 0.5 => {
         y_pos.to_css(dest)
+      },
+      (
+        &HorizontalPosition::Side(x, None),
+        &VerticalPosition::Side(y, None)
+      ) => {
+        let x: Percentage = x.into();
+        let y: Percentage = y.into();
+        x.to_css(dest)?;
+        dest.write_str(" ")?;
+        y.to_css(dest)
       },
       (x_pos, y_pos) => {
         x_pos.to_css(dest)?;

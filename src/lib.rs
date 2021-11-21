@@ -1030,6 +1030,8 @@ mod tests {
       }
     "#
     });
+
+    minify_test(".foo { background-position: bottom left }", ".foo{background-position:0% 100%}");
   }
 
   #[test]
@@ -3485,11 +3487,11 @@ mod tests {
     );
     minify_test(
       ".foo { background: radial-gradient(at top left, yellow, blue) }",
-      ".foo{background:radial-gradient(at left top,#ff0,#00f)}"
+      ".foo{background:radial-gradient(at 0% 0%,#ff0,#00f)}"
     );
     minify_test(
       ".foo { background: radial-gradient(5em circle at top left, yellow, blue) }",
-      ".foo{background:radial-gradient(5em at left top,#ff0,#00f)}"
+      ".foo{background:radial-gradient(5em at 0% 0%,#ff0,#00f)}"
     );
     minify_test(
       ".foo { background: radial-gradient(circle at 100%, #333, #333 50%, #eee 75%, #333 75%) }",
@@ -3862,8 +3864,8 @@ mod tests {
       indoc! {r#"
       .foo {
         background-image: -webkit-gradient(radial, left top, 0, left top, 20, from(red), to(#00f));
-        background-image: -webkit-radial-gradient(20px at left top, red, #00f);
-        background-image: radial-gradient(20px at left top, red, #00f);
+        background-image: -webkit-radial-gradient(20px at 0% 0%, red, #00f);
+        background-image: radial-gradient(20px at 0% 0%, red, #00f);
       }
       "#},
       Browsers {
@@ -3892,13 +3894,13 @@ mod tests {
       r#"
       .foo {
         background-image: -webkit-gradient(radial, left top, 0, left top, 20, from(red), to(#00f));
-        background-image: -webkit-radial-gradient(20px at left top, red, #00f);
-        background-image: radial-gradient(20px at left top, red, #00f);
+        background-image: -webkit-radial-gradient(20px at 0% 0%, red, #00f);
+        background-image: radial-gradient(20px at 0% 0%, red, #00f);
       }
       "#,
       indoc! {r#"
       .foo {
-        background-image: radial-gradient(20px at left top, red, #00f);
+        background-image: radial-gradient(20px at 0% 0%, red, #00f);
       }
       "#},
       Browsers {
@@ -3910,13 +3912,13 @@ mod tests {
       r#"
       .foo {
         background: -webkit-gradient(radial, left top, 0, left top, 20, from(red), to(#00f));
-        background: -webkit-radial-gradient(20px at left top, red, #00f);
-        background: radial-gradient(20px at left top, red, #00f);
+        background: -webkit-radial-gradient(20px at 0% 0%, red, #00f);
+        background: radial-gradient(20px at 0% 0%, red, #00f);
       }
       "#,
       indoc! {r#"
       .foo {
-        background: radial-gradient(20px at left top, red, #00f);
+        background: radial-gradient(20px at 0% 0%, red, #00f);
       }
       "#},
       Browsers {
