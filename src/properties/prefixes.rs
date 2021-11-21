@@ -1075,45 +1075,40 @@ impl Feature {
       },
       Feature::PseudoElementFileSelectorButton => {
         if let Some(version) = browsers.chrome {
-          if version >= 5832704 && version <= 5832704 {
+          if version >= 65536 && version <= 5767168 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5832704 && version <= 5832704 {
+          if version >= 786432 && version <= 786432 {
+            prefixes |= VendorPrefix::Ms;
+          }
+          if version >= 5767168 && version <= 5767168 {
             prefixes |= VendorPrefix::WebKit;
-          }
-        }
-        if let Some(version) = browsers.firefox {
-          if version >= 5373952 && version <= 5373952 {
-            prefixes |= VendorPrefix::Moz;
-          }
-        }
-        if let Some(version) = browsers.opera {
-          if version >= 4915200 && version <= 4915200 {
-            prefixes |= VendorPrefix::WebKit;
-          }
-          if version >= 4128768 && version <= 4128768 {
-            prefixes |= VendorPrefix::O;
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 917760 && version <= 917760 {
+          if version >= 196608 && version <= 917504 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
-        if let Some(version) = browsers.android {
-          if version >= 5832704 && version <= 5832704 {
-            prefixes |= VendorPrefix::WebKit;
+        if let Some(version) = browsers.ie {
+          if version >= 655360 && version <= 720896 {
+            prefixes |= VendorPrefix::Ms;
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 918784 && version <= 918784 {
+          if version >= 65536 && version <= 917504 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version >= 983040 && version <= 4849664 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 983040 && version <= 983040 {
+          if version >= 65536 && version <= 917504 {
             prefixes |= VendorPrefix::WebKit;
           }
         }

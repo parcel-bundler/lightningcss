@@ -2623,7 +2623,7 @@ mod tests {
       .foo::-ms-input-placeholder {
         color: red;
       }
-      
+
       .foo::placeholder {
         color: red;
       }
@@ -2631,6 +2631,28 @@ mod tests {
       chrome: Some(45 << 16),
       firefox: Some(45 << 16),
       ie: Some(11 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo::file-selector-button {
+        color: red;
+      }
+    "#, indoc! {r#"
+      .foo::-webkit-file-upload-button {
+        color: red;
+      }
+
+      .foo::-ms-browse {
+        color: red;
+      }
+
+      .foo::file-selector-button {
+        color: red;
+      }
+    "#}, Browsers {
+      chrome: Some(84 << 16),
+      ie: Some(10 << 16),
       ..Browsers::default()
     });
   }

@@ -147,6 +147,9 @@ impl<'i> selectors::parser::Parser<'i> for SelectorParser {
       "marker" => Marker,
       "backdrop" => Backdrop(VendorPrefix::None),
       "-webkit-backdrop" => Backdrop(VendorPrefix::WebKit),
+      "file-selector-button" => FileSelectorButton(VendorPrefix::None),
+      "-webkit-file-upload-button" => FileSelectorButton(VendorPrefix::WebKit),
+      "-ms-browse" => FileSelectorButton(VendorPrefix::Ms),
       _ => Custom(name.as_ref().into())
     };
 
@@ -405,6 +408,7 @@ pub enum PseudoElement {
   Placeholder(VendorPrefix),
   Marker,
   Backdrop(VendorPrefix),
+  FileSelectorButton(VendorPrefix),
   Custom(String)
 }
 
@@ -418,8 +422,8 @@ impl ToCss for PseudoElement {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
     use PseudoElement::*;
 
-    macro_rules! write_prefixed {
-      ($prefix: ident, $val: expr) => {{
+    macro_rules! write_prefix {
+      ($prefix: ident) => {{
         dest.write_str("::")?;
         // If the printer has a vendor prefix override, use that.
         let vp = if !dest.vendor_prefix.is_empty() {
@@ -428,6 +432,13 @@ impl ToCss for PseudoElement {
           *$prefix
         };
         vp.to_css(dest)?;
+        vp
+      }};
+    }
+
+    macro_rules! write_prefixed {
+      ($prefix: ident, $val: expr) => {{
+        write_prefix!($prefix);
         dest.write_str($val)
       }};
     }
@@ -443,13 +454,7 @@ impl ToCss for PseudoElement {
       Marker => dest.write_str("::marker"),
       Selection(prefix) => write_prefixed!(prefix, "selection"),
       Placeholder(prefix) => {
-        dest.write_str("::")?;
-        let vp = if !dest.vendor_prefix.is_empty() {
-          dest.vendor_prefix
-        } else {
-          *prefix
-        };
-        vp.to_css(dest)?;
+        let vp = write_prefix!(prefix);
         if vp == VendorPrefix::WebKit || vp == VendorPrefix::Ms {
           dest.write_str("input-placeholder")
         } else {
@@ -457,6 +462,16 @@ impl ToCss for PseudoElement {
         }
       },
       Backdrop(prefix) => write_prefixed!(prefix, "backdrop"),
+      FileSelectorButton(prefix) => {
+        let vp = write_prefix!(prefix);
+        if vp == VendorPrefix::WebKit {
+          dest.write_str("file-upload-button")
+        } else if vp == VendorPrefix::Ms {
+          dest.write_str("browse")
+        } else {
+          dest.write_str("file-selector-button")
+        }
+      }
       Custom(val) => {
         dest.write_str("::")?;
         return dest.write_str(val)
@@ -475,7 +490,8 @@ impl PseudoElement {
     match (self, other) {
       (Selection(_), Selection(_)) |
       (Placeholder(_), Placeholder(_)) |
-      (Backdrop(_), Backdrop(_)) => true,
+      (Backdrop(_), Backdrop(_)) |
+      (FileSelectorButton(_), FileSelectorButton(_)) => true,
       (a, b) => a == b
     }
   }
@@ -485,7 +501,8 @@ impl PseudoElement {
     match self {
       Selection(p) |
       Placeholder(p) |
-      Backdrop(p) => *p,
+      Backdrop(p) |
+      FileSelectorButton(p) => *p,
       _ => VendorPrefix::empty()
     }
   }
@@ -497,6 +514,7 @@ impl PseudoElement {
       Selection(p) if *p == VendorPrefix::None => Feature::PseudoElementSelection,
       Placeholder(p) if *p == VendorPrefix::None => Feature::PseudoElementPlaceholder,
       Backdrop(p) if *p == VendorPrefix::None => Feature::PseudoElementBackdrop,
+      FileSelectorButton(p) if *p == VendorPrefix::None => Feature::PseudoElementFileSelectorButton,
       _ => return VendorPrefix::empty()
     };
 

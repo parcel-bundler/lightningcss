@@ -17,6 +17,25 @@ const BROWSER_MAPPING = {
   op_mini: null,
 };
 
+// Fix data, autoprefixer seems wrong.
+// See https://developer.mozilla.org/en-US/docs/Web/CSS/::file-selector-button
+prefixes['::file-selector-button'].browsers = [
+  'chrome 1',
+  'chrome 88',
+  'edge 12',
+  'edge 88',
+  'safari 3',
+  'safari 14',
+  'ie 10',
+  'ie 11',
+  'ios_saf 1',
+  'ios_saf 14',
+  'opera 15',
+  'opera 74',
+  'samsung 1',
+  'samsung 14'
+];
+
 let flexSpec = {};
 let oldGradient = {};
 let p = new Map();
