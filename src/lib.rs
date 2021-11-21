@@ -31,7 +31,7 @@ use wasm_bindgen::prelude::*;
 pub fn transform(config_val: JsValue) -> Result<JsValue, JsValue> {
   let config: Config = from_value(config_val).map_err(JsValue::from)?;
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };  
-  let res = compile(code, &config).unwrap();
+  let res = compile(code, &config)?;
   let serializer = Serializer::new().serialize_maps_as_objects(true);
   res.serialize(&serializer).map_err(JsValue::from)
 }
@@ -195,11 +195,22 @@ impl<'i> From<parcel_sourcemap::SourceMapError> for CompileError<'i> {
   }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl<'i> From<CompileError<'i>> for napi::Error {
   fn from(e: CompileError) -> napi::Error {
     match e {
       CompileError::SourceMapError(e) => e.into(),
       _ => napi::Error::new(napi::Status::GenericFailure, e.reason())
+    }
+  }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl<'i> From<CompileError<'i>> for wasm_bindgen::JsValue {
+  fn from(e: CompileError) -> wasm_bindgen::JsValue {
+    match e {
+      CompileError::SourceMapError(e) => e.into(),
+      _ => js_sys::Error::new(&e.reason()).into()
     }
   }
 }
