@@ -31,7 +31,6 @@ impl MediaList {
                   media_queries.push(mq);
               },
               Err(err) => {
-                println!("{:?}", err);
                   // media_queries.push(MediaQuery::never_matching());
                   // let location = err.location;
                   // let error = ContextualParseError::InvalidMediaRule(
