@@ -28,7 +28,9 @@
     "native.js",
     "*.node"
   ],
-  "dependencies": {},
+  "dependencies": {
+    "detect-libc": "^1.0.3"
+  },
   "devDependencies": {
     "@napi-rs/cli": "1.0.4",
     "autoprefixer": "^10.4.0",
