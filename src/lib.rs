@@ -2407,7 +2407,32 @@ mod tests {
 
   #[test]
   fn test_media() {
-    minify_test("@media (min-width: 240px) { .foo { color: chartreuse }}", "@media (min-width:240px){.foo{color:#7fff00}}")
+    minify_test("@media (min-width: 240px) { .foo { color: chartreuse }}", "@media (min-width:240px){.foo{color:#7fff00}}");
+    minify_test("@media (width < 240px) { .foo { color: chartreuse }}", "@media (width<240px){.foo{color:#7fff00}}");
+    minify_test("@media (width <= 240px) { .foo { color: chartreuse }}", "@media (width<=240px){.foo{color:#7fff00}}");
+    minify_test("@media (width > 240px) { .foo { color: chartreuse }}", "@media (width>240px){.foo{color:#7fff00}}");
+    minify_test("@media (width >= 240px) { .foo { color: chartreuse }}", "@media (width>=240px){.foo{color:#7fff00}}");
+    minify_test("@media (240px < width) { .foo { color: chartreuse }}", "@media (width>240px){.foo{color:#7fff00}}");
+    minify_test("@media (240px <= width) { .foo { color: chartreuse }}", "@media (width>=240px){.foo{color:#7fff00}}");
+    minify_test("@media (240px > width) { .foo { color: chartreuse }}", "@media (width<240px){.foo{color:#7fff00}}");
+    minify_test("@media (240px >= width) { .foo { color: chartreuse }}", "@media (width<=240px){.foo{color:#7fff00}}");
+    minify_test("@media (100px < width < 200px) { .foo { color: chartreuse }}", "@media (100px<width<200px){.foo{color:#7fff00}}");
+    minify_test("@media (100px <= width <= 200px) { .foo { color: chartreuse }}", "@media (100px<=width<=200px){.foo{color:#7fff00}}");
+    minify_test("@media (min-width: 30em) and (max-width: 50em) { .foo { color: chartreuse }}", "@media (min-width:30em) and (max-width:50em){.foo{color:#7fff00}}");
+    minify_test("@media screen, print { .foo { color: chartreuse }}", "@media screen,print{.foo{color:#7fff00}}");
+    minify_test("@media (hover: hover) { .foo { color: chartreuse }}", "@media (hover:hover){.foo{color:#7fff00}}");
+    minify_test("@media (hover) { .foo { color: chartreuse }}", "@media (hover){.foo{color:#7fff00}}");
+    minify_test("@media (aspect-ratio: 11/5) { .foo { color: chartreuse }}", "@media (aspect-ratio:11/5){.foo{color:#7fff00}}");
+    minify_test("@media (aspect-ratio: 2/1) { .foo { color: chartreuse }}", "@media (aspect-ratio:2){.foo{color:#7fff00}}");
+    minify_test("@media (aspect-ratio: 2) { .foo { color: chartreuse }}", "@media (aspect-ratio:2){.foo{color:#7fff00}}");
+    minify_test("@media not screen and (color) { .foo { color: chartreuse }}", "@media not screen and (color){.foo{color:#7fff00}}");
+    minify_test("@media only screen and (color) { .foo { color: chartreuse }}", "@media only screen and (color){.foo{color:#7fff00}}");
+    minify_test("@media (update: slow) or (hover: none) { .foo { color: chartreuse }}", "@media (update:slow) or (hover:none){.foo{color:#7fff00}}");
+    minify_test("@media (width < 600px) and (height < 600px) { .foo { color: chartreuse }}", "@media (width<600px) and (height<600px){.foo{color:#7fff00}}");
+    minify_test("@media (not (color)) or (hover) { .foo { color: chartreuse }}", "@media (not (color)) or (hover){.foo{color:#7fff00}}");
+    minify_test("@media (example, all,), speech { .foo { color: chartreuse }}", "@media speech{.foo{color:#7fff00}}");
+    minify_test("@media &test, speech { .foo { color: chartreuse }}", "@media speech{.foo{color:#7fff00}}");
+    minify_test("@media &test { .foo { color: chartreuse }}", "@media not all{.foo{color:#7fff00}}");
   }
 
   #[test]

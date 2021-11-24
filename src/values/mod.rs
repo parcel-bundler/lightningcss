@@ -14,3 +14,4 @@ pub mod position;
 pub mod number;
 pub mod gradient;
 pub mod resolution;
+pub mod ratio;

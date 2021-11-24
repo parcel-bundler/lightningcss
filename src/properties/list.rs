@@ -57,7 +57,6 @@ impl Parse for CounterStyle {
     if input.try_parse(|input| input.expect_function_matching("symbols")).is_ok() {
       return input.parse_nested_block(|input| {
         let t = input.try_parse(SymbolsType::parse).unwrap_or(SymbolsType::Symbolic);
-        println!("{:?}", t);
 
         let mut symbols = Vec::new();
         while let Ok(s) = input.try_parse(Symbol::parse) {
