@@ -133,7 +133,8 @@ let cssFeatures = [
   'css-read-only-write',
   'css-autofill',
   'css-namespaces',
-  'shadowdomv1'
+  'shadowdomv1',
+  'css-rrggbbaa'
 ];
 
 let compat = {};
@@ -253,15 +254,15 @@ impl Feature {
         `Feature::${enumify(name)} => {
         ${Object.entries(browsers).map(([browser, min]) => 
             `if let Some(version) = browsers.${browser} {
-          if version < ${min} {
-            return false
+          if version >= ${min} {
+            return true
           }
         }`
           ).join('\n        ')}
       }`
       ).join('\n      ')}
     }
-    true
+    false
   }
 }
 `;

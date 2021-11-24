@@ -40,7 +40,7 @@ impl StyleSheet {
     self.rules.minify(targets, &mut handler, &mut important_handler);
   }
 
-  pub fn to_css(&self, minify: bool, source_map: bool) -> Result<(String, Option<SourceMap>), std::fmt::Error> {
+  pub fn to_css(&self, minify: bool, source_map: bool, targets: Option<Browsers>) -> Result<(String, Option<SourceMap>), std::fmt::Error> {
     let mut dest = String::new();
     let mut source_map = if source_map {
       let mut sm = SourceMap::new("/");
@@ -50,7 +50,7 @@ impl StyleSheet {
       None
     };
 
-    let mut printer = Printer::new(&mut dest, source_map.as_mut(), minify);
+    let mut printer = Printer::new(&mut dest, source_map.as_mut(), minify, targets);
     let mut first = true;
 
     for rule in &self.rules.0 {

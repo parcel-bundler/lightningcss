@@ -2,6 +2,7 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use std::fmt::Write;
+use crate::compat::Feature;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CssColor(Color);
@@ -48,6 +49,30 @@ impl ToCss for CssColor {
             write!(dest, "#{:06x}", hex)?;
           }
         } else {
+          // If the #rrggbbaa syntax is not supported by the browser targets, output rgba()
+          if let Some(targets) = dest.targets {
+            if !Feature::CssRrggbbaa.is_compatible(targets) {
+              dest.write_str("rgba(")?;
+              write!(dest, "{}", color.red)?;
+              dest.delim(',', false)?;
+              write!(dest, "{}", color.green)?;
+              dest.delim(',', false)?;
+              write!(dest, "{}", color.blue)?;
+              dest.delim(',', false)?;
+
+              // Try first with two decimal places, then with three.
+              let mut rounded_alpha = (color.alpha_f32() * 100.0).round() / 100.0;
+              let clamped = (rounded_alpha * 255.0).round().max(0.).min(255.0) as u8;
+              if clamped != color.alpha {
+                rounded_alpha = (color.alpha_f32() * 1000.).round() / 1000.;
+              }
+
+              rounded_alpha.to_css(dest)?;
+              dest.write_char(')')?;
+              return Ok(())
+            }
+          }
+  
           let hex: u32 = ((color.red as u32) << 24) | ((color.green as u32) << 16) | ((color.blue as u32) << 8) | (color.alpha as u32);
           let compact = compact_hex(hex);
           if hex == expand_hex(compact) {

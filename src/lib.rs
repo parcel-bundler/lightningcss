@@ -121,7 +121,11 @@ struct Config {
 fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, CompileError<'i>> {
   let mut stylesheet = StyleSheet::parse(config.filename.clone(), &code)?;
   stylesheet.minify(config.targets); // TODO: should this be conditional?
-  let (res, source_map) = stylesheet.to_css(config.minify.unwrap_or(false), config.source_map.unwrap_or(false))?;
+  let (res, source_map) = stylesheet.to_css(
+    config.minify.unwrap_or(false),
+    config.source_map.unwrap_or(false),
+    config.targets
+  )?;
 
   let map = if let Some(mut source_map) = source_map {
     source_map.set_source_content(0, code)?;
@@ -223,21 +227,21 @@ mod tests {
   fn test(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source).unwrap();
     stylesheet.minify(None);
-    let (res, _) = stylesheet.to_css(false, false).unwrap();
+    let (res, _) = stylesheet.to_css(false, false, None).unwrap();
     assert_eq!(res, expected);
   }
 
   fn minify_test(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source).unwrap();
     stylesheet.minify(None);
-    let (res, _) = stylesheet.to_css(true, false).unwrap();
+    let (res, _) = stylesheet.to_css(true, false, None).unwrap();
     assert_eq!(res, expected);
   }
 
   fn prefix_test(source: &str, expected: &str, targets: Browsers) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source).unwrap();
     stylesheet.minify(Some(targets));
-    let (res, _) = stylesheet.to_css(false, false).unwrap();
+    let (res, _) = stylesheet.to_css(false, false, Some(targets)).unwrap();
     assert_eq!(res, expected);
   }
 
@@ -5361,5 +5365,55 @@ mod tests {
       firefox: Some(80 << 16),
       ..Browsers::default()
     });
+  }
+
+  #[test]
+  fn test_color() {
+    minify_test(".foo { color: yellow }", ".foo{color:#ff0}");
+    minify_test(".foo { color: rgb(255, 255, 0) }", ".foo{color:#ff0}");
+    minify_test(".foo { color: rgba(255, 255, 0, 1) }", ".foo{color:#ff0}");
+    minify_test(".foo { color: rgba(255, 255, 0, 0.8) }", ".foo{color:#ff0c}");
+    minify_test(".foo { color: rgb(128, 128, 128) }", ".foo{color:gray}");
+    minify_test(".foo { color: rgb(123, 255, 255) }", ".foo{color:#7bffff}");
+    minify_test(".foo { color: rgba(123, 255, 255, 0.5) }", ".foo{color:#7bffff80}");
+    minify_test(".foo { color: rgb(123 255 255) }", ".foo{color:#7bffff}");
+    minify_test(".foo { color: rgb(123 255 255 / .5) }", ".foo{color:#7bffff80}");
+    minify_test(".foo { color: rgb(123 255 255 / 50%) }", ".foo{color:#7bffff80}");
+    minify_test(".foo { color: rgb(48% 100% 100% / 50%) }", ".foo{color:#7affff80}");
+    minify_test(".foo { color: hsl(100deg, 100%, 50%) }", ".foo{color:#5f0}");
+    minify_test(".foo { color: hsl(100, 100%, 50%) }", ".foo{color:#5f0}");
+    minify_test(".foo { color: hsl(100 100% 50%) }", ".foo{color:#5f0}");
+    minify_test(".foo { color: hsl(100, 100%, 50%, .8) }", ".foo{color:#5f0c}");
+    minify_test(".foo { color: hsl(100 100% 50% / .8) }", ".foo{color:#5f0c}");
+    minify_test(".foo { color: hsla(100, 100%, 50%, .8) }", ".foo{color:#5f0c}");
+    minify_test(".foo { color: hsla(100 100% 50% / .8) }", ".foo{color:#5f0c}");
+    minify_test(".foo { color: transparent }", ".foo{color:#0000}");
+    minify_test(".foo { color: currentColor }", ".foo{color:currentColor}");
+
+    prefix_test(
+      ".foo { color: rgba(123, 456, 789, 0.5) }",
+      indoc! { r#"
+        .foo {
+          color: #7bffff80;
+        }
+      "#},
+      Browsers {
+        chrome: Some(95 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { color: rgba(123, 255, 255, 0.5) }",
+      indoc! { r#"
+        .foo {
+          color: rgba(123, 255, 255, .5);
+        }
+      "#},
+      Browsers {
+        ie: Some(11 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 }
