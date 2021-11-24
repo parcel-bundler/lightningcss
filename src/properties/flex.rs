@@ -431,45 +431,59 @@ impl PropertyHandler for FlexHandler {
 
     match property {
       FlexDirection(val, vp) => {
-        self.box_direction = None;
-        self.box_orient = None;
+        if self.targets.is_some() {
+          self.box_direction = None;
+          self.box_orient = None;
+        }
         property!(direction, val, vp);
       },
       BoxOrient(val, vp) => property!(box_orient, val, vp),
       BoxDirection(val, vp) => property!(box_direction, val, vp),
       FlexWrap(val, vp) => {
-        self.box_lines = None;
+        if self.targets.is_some() {
+          self.box_lines = None;
+        }
         property!(wrap, val, vp);
       },
       BoxLines(val, vp) => property!(box_lines, val, vp),
       FlexFlow(val, vp) => {
-        self.box_direction = None;
-        self.box_orient = None;
+        if self.targets.is_some() {
+          self.box_direction = None;
+          self.box_orient = None;
+        }
         property!(direction, &val.direction, vp);
         property!(wrap, &val.wrap, vp);
       }
       FlexGrow(val, vp) => {
-        self.box_flex = None;
-        self.flex_positive = None;
+        if self.targets.is_some() {
+          self.box_flex = None;
+          self.flex_positive = None;
+        }
         property!(grow, val, vp);
       },
       BoxFlex(val, vp) => property!(box_flex, val, vp),
       FlexPositive(val, vp) => property!(flex_positive, val, vp),
       FlexShrink(val, vp) => {
-        self.flex_negative = None;
+        if self.targets.is_some() {
+          self.flex_negative = None;
+        }
         property!(shrink, val, vp);
       },
       FlexNegative(val, vp) => property!(flex_negative, val, vp),
       FlexBasis(val, vp) => {
-        self.preferred_size = None;
+        if self.targets.is_some() {
+          self.preferred_size = None;
+        }
         property!(basis, val, vp);
       }
       FlexPreferredSize(val, vp) => property!(preferred_size, val, vp),
       Flex(val, vp) => {
-        self.box_flex = None;
-        self.flex_positive = None;
-        self.flex_negative = None;
-        self.preferred_size = None;
+        if self.targets.is_some() {
+          self.box_flex = None;
+          self.flex_positive = None;
+          self.flex_negative = None;
+          self.preferred_size = None;
+        }
         maybe_flush!(grow, &val.grow, vp);
         maybe_flush!(shrink, &val.shrink, vp);
         maybe_flush!(basis, &val.basis, vp);
@@ -478,8 +492,10 @@ impl PropertyHandler for FlexHandler {
         property!(basis, &val.basis, vp);
       }
       Order(val, vp) => {
-        self.box_ordinal_group = None;
-        self.flex_order = None;
+        if self.targets.is_some() {
+          self.box_ordinal_group = None;
+          self.flex_order = None;
+        }
         property!(order, val, vp);
       }
       BoxOrdinalGroup(val, vp) => property!(box_ordinal_group, val, vp),
