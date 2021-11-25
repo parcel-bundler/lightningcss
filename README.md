@@ -22,6 +22,7 @@ A WIP CSS parser, transformer, and minifier written in Rust.
   - CSS Level 4 Color syntax
     - Space separated components in `rgb` and `hsl` functions
     - Hex with alpha syntax
+    - `hwb()` color syntax
     - Percent syntax for opacity
   - Double position gradient stops (e.g. `red 40% 80%`)
   - `clamp()` function

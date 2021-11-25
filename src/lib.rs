@@ -5568,6 +5568,12 @@ mod tests {
     minify_test(".foo { color: hsla(100 100% 50% / .8) }", ".foo{color:#5f0c}");
     minify_test(".foo { color: transparent }", ".foo{color:#0000}");
     minify_test(".foo { color: currentColor }", ".foo{color:currentColor}");
+    minify_test(".foo { color: hwb(194 0% 0%) }", ".foo{color:#00c4ff}");
+    minify_test(".foo { color: hwb(194 0% 0% / 50%) }", ".foo{color:#00c4ff80}");
+    minify_test(".foo { color: hwb(194 0% 50%) }", ".foo{color:#006280}");
+    minify_test(".foo { color: hwb(194 50% 0%) }", ".foo{color:#80e1ff}");
+    minify_test(".foo { color: hwb(194, 50%, 0%) }", ".foo{color:#80e1ff}");
+    minify_test(".foo { color: hwb(194, 50%, 50%) }", ".foo{color:gray}");
 
     prefix_test(
       ".foo { color: rgba(123, 456, 789, 0.5) }",
@@ -5584,6 +5590,19 @@ mod tests {
 
     prefix_test(
       ".foo { color: rgba(123, 255, 255, 0.5) }",
+      indoc! { r#"
+        .foo {
+          color: rgba(123, 255, 255, .5);
+        }
+      "#},
+      Browsers {
+        ie: Some(11 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { color: #7bffff80 }",
       indoc! { r#"
         .foo {
           color: rgba(123, 255, 255, .5);
