@@ -2397,6 +2397,32 @@ mod tests {
     minify_test(".foo { border-width: clamp(1em, 2vh, 4vh) }", ".foo{border-width:max(1em,2vh)}");
     minify_test(".foo { border-width: clamp(1px, 1px + 2em, 4px) }", ".foo{border-width:clamp(1px,1px + 2em,4px)}");
     minify_test(".foo { border-width: clamp(1px, 2pt, 1in) }", ".foo{border-width:2pt}");
+
+    prefix_test(
+      ".foo { border-width: clamp(1em, 2px, 4vh) }",
+      indoc! { r#"
+        .foo {
+          border-width: max(1em, min(2px, 4vh));
+        }
+      "#},
+      Browsers {
+        safari: Some(12 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { border-width: clamp(1em, 2px, 4vh) }",
+      indoc! { r#"
+        .foo {
+          border-width: clamp(1em, 2px, 4vh);
+        }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 
   #[test]

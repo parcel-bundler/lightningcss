@@ -2,6 +2,7 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use super::number::serialize_number;
+use crate::compat::Feature;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MathFunction<V> {
@@ -46,6 +47,21 @@ impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clo
         dest.write_char(')')
       }
       MathFunction::Clamp(a, b, c) => {
+        // If clamp() is unsupported by targets, output min()/max()
+        if let Some(targets) = dest.targets {
+          if !Feature::Clamp.is_compatible(targets) {
+            dest.write_str("max(")?;
+            a.to_css(dest)?;
+            dest.delim(',', false)?;
+            dest.write_str("min(")?;
+            b.to_css(dest)?;
+            dest.delim(',', false)?;
+            c.to_css(dest)?;
+            dest.write_str("))")?;
+            return Ok(())
+          }
+        }
+
         dest.write_str("clamp(")?;
         a.to_css(dest)?;
         dest.delim(',', false)?;

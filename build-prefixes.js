@@ -176,7 +176,8 @@ for (let feature of cssFeatures) {
 }
 
 let mdnFeatures = {
-  doublePositionGradients: mdn.css.types.image.gradient['radial-gradient'].doubleposition.__compat.support
+  doublePositionGradients: mdn.css.types.image.gradient['radial-gradient'].doubleposition.__compat.support,
+  clamp: mdn.css.types.clamp.__compat.support
 };
 
 for (let feature in mdnFeatures) {
@@ -190,7 +191,7 @@ for (let feature in mdnFeatures) {
     if (!version) {
       continue;
     }
-    
+
     let v = parseVersion(version);
     if (v == null) {
       console.log('BAD VERSION', feature, name, version);
