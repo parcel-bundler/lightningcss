@@ -7,6 +7,7 @@ use crate::declaration::DeclarationList;
 use super::flex::{BoxAlign, FlexLinePack, BoxPack, FlexPack, FlexAlign, FlexItemAlign};
 use super::prefixes::{Browsers, Feature, is_flex_2009};
 use crate::printer::Printer;
+use crate::compat;
 
 /// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#typedef-baseline-position
 #[derive(Debug, Clone, PartialEq)]
@@ -980,17 +981,23 @@ impl AlignHandler {
 
     legacy_property!(AlignContent, align_content, , FlexLinePack);
     legacy_property!(JustifyContent, justify_content, BoxPack, FlexPack);
-    shorthand!(PlaceContent, AlignContent, align_content, justify_content, JustifyContent);
+    if self.targets.is_none() || compat::Feature::PlaceContent.is_compatible(self.targets.unwrap()) {
+      shorthand!(PlaceContent, AlignContent, align_content, justify_content, JustifyContent);
+    }
     standard_property!(AlignContent, align_content);
     standard_property!(JustifyContent, justify_content);
 
     legacy_property!(AlignSelf, align_self, , FlexItemAlign);
-    shorthand!(PlaceSelf, AlignSelf, align_self, justify_self);
+    if self.targets.is_none() || compat::Feature::PlaceSelf.is_compatible(self.targets.unwrap()) {
+      shorthand!(PlaceSelf, AlignSelf, align_self, justify_self);
+    }
     standard_property!(AlignSelf, align_self);
     unprefixed_property!(JustifySelf, justify_self);
 
     legacy_property!(AlignItems, align_items, BoxAlign, FlexAlign);
-    shorthand!(PlaceItems, AlignItems, align_items, justify_items);
+    if self.targets.is_none() || compat::Feature::PlaceItems.is_compatible(self.targets.unwrap()) {
+      shorthand!(PlaceItems, AlignItems, align_items, justify_items);
+    }
     standard_property!(AlignItems, align_items);
     unprefixed_property!(JustifyItems, justify_items);
 

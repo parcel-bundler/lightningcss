@@ -1694,8 +1694,9 @@ mod tests {
         -moz-box-pack: end;
         -ms-flex-pack: end;
         -webkit-align-content: space-between;
+        align-content: space-between;
         -webkit-justify-content: flex-end;
-        place-content: space-between flex-end;
+        justify-content: flex-end;
       }
     "#},
     Browsers {
@@ -1725,6 +1726,33 @@ mod tests {
     });
     prefix_test(r#"
       .foo {
+        place-content: space-between flex-end;
+      }
+    "#, indoc! {r#"
+      .foo {
+        align-content: space-between;
+        justify-content: flex-end;
+      }
+    "#},
+    Browsers {
+      chrome: Some(30 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        place-content: space-between flex-end;
+      }
+    "#, indoc! {r#"
+      .foo {
+        place-content: space-between flex-end;
+      }
+    "#},
+    Browsers {
+      chrome: Some(60 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
         align-self: flex-end;
       }
     "#, indoc! {r#"
@@ -1763,7 +1791,8 @@ mod tests {
       .foo {
         -ms-flex-item-align: center;
         -webkit-align-self: center;
-        place-self: center flex-end;
+        align-self: center;
+        justify-self: flex-end;
       }
     "#},
     Browsers {
@@ -1789,6 +1818,33 @@ mod tests {
     });
     prefix_test(r#"
       .foo {
+        place-self: center flex-end;
+      }
+    "#, indoc! {r#"
+      .foo {
+        align-self: center;
+        justify-self: flex-end;
+      }
+    "#},
+    Browsers {
+      chrome: Some(57 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        place-self: center flex-end;
+      }
+    "#, indoc! {r#"
+      .foo {
+        place-self: center flex-end;
+      }
+    "#},
+    Browsers {
+      chrome: Some(59 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
         align-items: flex-end;
       }
     "#, indoc! {r#"
@@ -1833,7 +1889,8 @@ mod tests {
         -moz-box-align: end;
         -ms-flex-align: end;
         -webkit-align-items: flex-end;
-        place-items: flex-end center;
+        align-items: flex-end;
+        justify-items: center;
       }
     "#},
     Browsers {
@@ -1857,6 +1914,20 @@ mod tests {
     "#},
     Browsers {
       safari: Some(11 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        place-items: flex-end center;
+      }
+    "#, indoc! {r#"
+      .foo {
+        align-items: flex-end;
+        justify-items: center;
+      }
+    "#},
+    Browsers {
+      safari: Some(10 << 16),
       ..Browsers::default()
     });
     prefix_test(r#"

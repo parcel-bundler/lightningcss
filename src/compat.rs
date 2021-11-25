@@ -31,6 +31,9 @@ pub enum Feature {
   DoublePositionGradients,
   FormValidation,
   Fullscreen,
+  PlaceContent,
+  PlaceItems,
+  PlaceSelf,
   Shadowdomv1
 }
 
@@ -131,7 +134,8 @@ impl Feature {
           }
         }
       }
-      Feature::CssGencontent => {
+      Feature::CssGencontent |
+      Feature::CssFirstLine => {
         if let Some(version) = browsers.ie {
           if version >= 589824 {
             return true
@@ -216,53 +220,6 @@ impl Feature {
         }
         if let Some(version) = browsers.android {
           if version >= 196608 {
-            return true
-          }
-        }
-        if let Some(version) = browsers.samsung {
-          if version >= 262144 {
-            return true
-          }
-        }
-      }
-      Feature::CssFirstLine => {
-        if let Some(version) = browsers.ie {
-          if version >= 589824 {
-            return true
-          }
-        }
-        if let Some(version) = browsers.edge {
-          if version >= 786432 {
-            return true
-          }
-        }
-        if let Some(version) = browsers.firefox {
-          if version >= 131072 {
-            return true
-          }
-        }
-        if let Some(version) = browsers.chrome {
-          if version >= 262144 {
-            return true
-          }
-        }
-        if let Some(version) = browsers.safari {
-          if version >= 196864 {
-            return true
-          }
-        }
-        if let Some(version) = browsers.opera {
-          if version >= 589824 {
-            return true
-          }
-        }
-        if let Some(version) = browsers.ios_saf {
-          if version >= 197120 {
-            return true
-          }
-        }
-        if let Some(version) = browsers.android {
-          if version >= 131328 {
             return true
           }
         }
@@ -1196,6 +1153,91 @@ impl Feature {
         }
         if let Some(version) = browsers.android {
           if version >= 5177344 {
+            return true
+          }
+        }
+      }
+      Feature::PlaceSelf |
+      Feature::PlaceItems => {
+        if let Some(version) = browsers.chrome {
+          if version >= 3866624 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version >= 5177344 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version >= 2949120 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version >= 2818048 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version >= 720896 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version >= 720896 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version >= 458752 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version >= 3866624 {
+            return true
+          }
+        }
+      }
+      Feature::PlaceContent => {
+        if let Some(version) = browsers.chrome {
+          if version >= 3866624 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version >= 5177344 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version >= 2949120 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version >= 2818048 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version >= 589824 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version >= 589824 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version >= 458752 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version >= 3866624 {
             return true
           }
         }
