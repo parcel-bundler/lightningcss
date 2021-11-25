@@ -2072,6 +2072,14 @@ mod tests {
     minify_test(".test ~ .foo {}", ".test~.foo{}");
     minify_test(".test .foo {}", ".test .foo{}");
     minify_test(".custom-range::-webkit-slider-thumb:active {}", ".custom-range::-webkit-slider-thumb:active{}");
+    minify_test(".test:not(.foo, .bar) {}", ".test:not(.foo,.bar){}");
+    minify_test(".test:is(.foo, .bar) {}", ".test:is(.foo,.bar){}");
+    minify_test(".test:where(.foo, .bar) {}", ".test:where(.foo,.bar){}");
+    minify_test(".test:where(.foo, .bar) {}", ".test:where(.foo,.bar){}");
+    minify_test(":host {}", ":host{}");
+    minify_test(":host(.foo) {}", ":host(.foo){}");
+    minify_test("::slotted(span) {}", "::slotted(span){}");
+    minify_test("custom-element::part(foo) {}", "custom-element::part(foo){}");
   }
 
   #[test]

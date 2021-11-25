@@ -155,6 +155,26 @@ impl<'i> selectors::parser::Parser<'i> for SelectorParser {
 
     Ok(pseudo_element)
   }
+
+  #[inline]
+  fn parse_slotted(&self) -> bool {
+    true
+  }
+
+  #[inline]
+  fn parse_host(&self) -> bool {
+    true
+  }
+
+  #[inline]
+  fn parse_is_and_where(&self) -> bool {
+    true
+  }
+
+  #[inline]
+  fn parse_part(&self) -> bool {
+    true
+  }
 }
 
 /// https://drafts.csswg.org/selectors-4/#structural-pseudos
