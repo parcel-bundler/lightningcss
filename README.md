@@ -8,7 +8,7 @@ A WIP CSS parser, transformer, and minifier written in Rust.
 - **Typed property values** – many other CSS parsers treat property values as an untyped series of tokens. This means that each transformer that wants to do something with these values must interpret them itself, leading to duplicate work and inconsistencies. `parcel-css` parses all values using the grammar from the CSS specification, and exposes a specific value type for each property.
 - **Minification** – One of the main purposes of `parcel-css` is to minify CSS to make it smaller. This includes many optimizations including:
   - Combining longhand properties into shorthands where possible.
-  - Merging adjacent rules with the same selectors or declarations.
+  - Merging adjacent rules with the same selectors or declarations when it is safe to do so.
   - Combining CSS transforms into a single matrix or visa versa when smaller.
   - Removing vendor prefixes that are not needed, based on the provided browser targets.
   - Reducing `calc()` expressions where possible.
@@ -18,6 +18,15 @@ A WIP CSS parser, transformer, and minifier written in Rust.
   - Removing default property sub-values which will be inferred by browsers.
   - Many micro-optimizations, e.g. converting to shorter units, removing unnecessary quotation marks, etc.
 - **Vendor prefixing** – `parcel-css` accepts a list of browser targets, and automatically adds (and removes) vendor prefixes.
+- **Syntax lowering** – `parcel-css` parses modern CSS syntax, and generates more compatible output where needed, based on browser targets.
+  - CSS Level 4 Color syntax
+    - Space separated components in `rgb` and `hsl` functions
+    - Hex with alpha syntax
+    - Percent syntax for opacity
+  - Double position gradient stops (e.g. `red 40% 80%`)
+  - `clamp()` function
+  - Alignment shorthands (e.g. `place-items`)
+  - Two-value `overflow` shorthand
 - **CSS modules** – TODO
 
 ## Benchmarks
