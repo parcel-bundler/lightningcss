@@ -4,6 +4,8 @@ use super::Property;
 use crate::declaration::DeclarationList;
 use crate::macros::enum_property;
 use crate::printer::Printer;
+use crate::properties::prefixes::Browsers;
+use crate::compat::Feature;
 
 enum_property!(OverflowKeyword,
   Visible,
@@ -47,9 +49,20 @@ enum_property!(TextOverflow,
 
 #[derive(Default)]
 pub struct OverflowHandler {
+  targets: Option<Browsers>,
   x: Option<OverflowKeyword>,
   y: Option<OverflowKeyword>
 }
+
+impl OverflowHandler {
+  pub fn new(targets: Option<Browsers>) -> OverflowHandler {
+    OverflowHandler {
+      targets,
+      ..OverflowHandler::default()
+    }
+  }
+}
+
 
 impl PropertyHandler for OverflowHandler {
   fn handle_property(&mut self, property: &Property, _: &mut DeclarationList) -> bool {
@@ -72,15 +85,20 @@ impl PropertyHandler for OverflowHandler {
     let x = std::mem::take(&mut self.x);
     let y = std::mem::take(&mut self.y);
 
-    if let (Some(x), Some(y)) = (x, y) {
-      dest.push(Property::Overflow(Overflow { x, y }))
-    } else {
-      if let Some(x) = x {
-        dest.push(Property::OverflowX(x))
+    match (x, y) {
+      // Only use shorthand syntax if the x and y values are the 
+      // same or the two-value syntax is supported by all targets.
+      (Some(x), Some(y)) if x == y || self.targets.is_none() || Feature::OverflowShorthand.is_compatible(self.targets.unwrap()) => {
+        dest.push(Property::Overflow(Overflow { x, y }))
       }
-
-      if let Some(y) = y {
-        dest.push(Property::OverflowY(y))
+      _ => {
+        if let Some(x) = x {
+          dest.push(Property::OverflowX(x))
+        }
+  
+        if let Some(y) = y {
+          dest.push(Property::OverflowY(y))
+        }
       }
     }
   }

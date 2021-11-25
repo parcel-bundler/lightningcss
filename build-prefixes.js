@@ -183,7 +183,8 @@ let mdnFeatures = {
   clamp: mdn.css.types.clamp.__compat.support,
   placeSelf: mdn.css.properties['place-self'].__compat.support,
   placeContent: mdn.css.properties['place-content'].__compat.support,
-  placeItems: mdn.css.properties['place-items'].__compat.support
+  placeItems: mdn.css.properties['place-items'].__compat.support,
+  overflowShorthand: mdn.css.properties['overflow'].multiple_keywords.__compat.support
 };
 
 for (let feature in mdnFeatures) {

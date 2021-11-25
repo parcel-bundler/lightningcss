@@ -148,6 +148,7 @@ impl DeclarationHandler {
       animation: AnimationHandler::new(targets),
       display: DisplayHandler::new(targets),
       position: PositionHandler::new(targets),
+      overflow: OverflowHandler::new(targets),
       transform: TransformHandler::new(targets),
       text: TextDecorationHandler::new(targets),
       prefix: PrefixHandler::new(targets),

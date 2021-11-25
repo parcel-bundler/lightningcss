@@ -5231,6 +5231,46 @@ mod tests {
         overflow: hidden auto;
       }
     "#});
+    prefix_test(r#"
+      .foo {
+        overflow: hidden auto;
+      }
+    "#, indoc! {r#"
+      .foo {
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+    "#},
+    Browsers {
+      chrome: Some(67 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        overflow: hidden hidden;
+      }
+    "#, indoc! {r#"
+      .foo {
+        overflow: hidden;
+      }
+    "#},
+    Browsers {
+      chrome: Some(67 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        overflow: hidden auto;
+      }
+    "#, indoc! {r#"
+      .foo {
+        overflow: hidden auto;
+      }
+    "#},
+    Browsers {
+      chrome: Some(68 << 16),
+      ..Browsers::default()
+    });
 
     minify_test(".foo { text-overflow: ellipsis }", ".foo{text-overflow:ellipsis}");
     prefix_test(r#"
