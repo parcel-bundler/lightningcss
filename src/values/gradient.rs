@@ -10,6 +10,7 @@ use crate::properties::prefixes::{Feature, Browsers};
 use crate::traits::{Parse, ToCss};
 use crate::macros::enum_property;
 use crate::printer::Printer;
+use crate::compat;
 
 /// https://www.w3.org/TR/css-images-3/#gradients
 #[derive(Debug, Clone, PartialEq)]
@@ -621,18 +622,21 @@ fn serialize_items<D: ToCss + std::cmp::PartialOrd<f32> + std::cmp::PartialEq<D>
       continue
     }
     
+    // Use double position stop if the last stop is the same color and all targets support it.
     if let Some(prev) = last {
-      match (prev, item) {
-        (
-          GradientItem::ColorStop(ColorStop { position: Some(_), color: ca }),
-          GradientItem::ColorStop(ColorStop { position: Some(p), color: cb })
-        ) if ca == cb => {
-          dest.write_char(' ')?;
-          p.to_css(dest)?;
-          last = None;
-          continue
+      if dest.targets.is_none() || compat::Feature::DoublePositionGradients.is_compatible(dest.targets.unwrap()) {
+        match (prev, item) {
+          (
+            GradientItem::ColorStop(ColorStop { position: Some(_), color: ca }),
+            GradientItem::ColorStop(ColorStop { position: Some(p), color: cb })
+          ) if ca == cb => {
+            dest.write_char(' ')?;
+            p.to_css(dest)?;
+            last = None;
+            continue
+          }
+          _ => {}
         }
-        _ => {}
       }
     }
     

@@ -32,6 +32,7 @@
     "detect-libc": "^1.0.3"
   },
   "devDependencies": {
+    "@mdn/browser-compat-data": "^4.0.12",
     "@napi-rs/cli": "1.0.4",
     "autoprefixer": "^10.4.0",
     "caniuse-lite": "^1.0.30001272",

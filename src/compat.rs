@@ -27,6 +27,7 @@ pub enum Feature {
   CssSel3,
   CssSelection,
   Dialog,
+  DoublePositionGradients,
   FormValidation,
   Fullscreen,
   Shadowdomv1
@@ -1110,6 +1111,48 @@ impl Feature {
         }
         if let Some(version) = browsers.samsung {
           if version >= 524800 {
+            return true
+          }
+        }
+      }
+      Feature::DoublePositionGradients => {
+        if let Some(version) = browsers.chrome {
+          if version >= 4653056 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version >= 5177344 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version >= 4194304 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version >= 3276800 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version >= 786688 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version >= 786944 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version >= 655360 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version >= 4653056 {
             return true
           }
         }

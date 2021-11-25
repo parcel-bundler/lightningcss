@@ -4005,6 +4005,40 @@ mod tests {
         ..Browsers::default()
       }
     );
+
+    prefix_test(
+      r#"
+      .foo {
+        background: linear-gradient(yellow, red 30% 40%, blue);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        background: linear-gradient(#ff0, red 30%, red 40%, #00f);
+      }
+      "#},
+      Browsers {
+        chrome: Some(70 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        background: linear-gradient(yellow, red 30% 40%, blue);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        background: linear-gradient(#ff0, red 30% 40%, #00f);
+      }
+      "#},
+      Browsers {
+        chrome: Some(71 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 
   #[test]

@@ -2,6 +2,7 @@ const prefixes = require('autoprefixer/data/prefixes');
 const browsers = require('caniuse-lite').agents;
 const unpack = require('caniuse-lite').feature;
 const features = require('caniuse-lite').features;
+const mdn = require('@mdn/browser-compat-data');
 const fs = require('fs');
 
 const BROWSER_MAPPING = {
@@ -15,6 +16,15 @@ const BROWSER_MAPPING = {
   bb: null,
   kaios: null,
   op_mini: null,
+};
+
+const MDN_BROWSER_MAPPING = {
+  chrome_android: 'chrome',
+  firefox_android: 'firefox',
+  opera_android: 'opera',
+  safari_ios: 'ios_saf',
+  samsunginternet_android: 'samsung',
+  webview_android: 'android'
 };
 
 // Fix data, autoprefixer seems wrong.
@@ -160,6 +170,35 @@ for (let feature of cssFeatures) {
         }
       }
     }
+  }
+
+  compat[feature] = browserMap;
+}
+
+let mdnFeatures = {
+  doublePositionGradients: mdn.css.types.image.gradient['radial-gradient'].doubleposition.__compat.support
+};
+
+for (let feature in mdnFeatures) {
+  let browserMap = {};
+  for (let name in mdnFeatures[feature]) {
+    if (MDN_BROWSER_MAPPING[name] === null) {
+      continue;
+    }
+  
+    let version = mdnFeatures[feature][name].version_added;
+    if (!version) {
+      continue;
+    }
+    
+    let v = parseVersion(version);
+    if (v == null) {
+      console.log('BAD VERSION', feature, name, version);
+      continue;
+    }
+
+    name = MDN_BROWSER_MAPPING[name] || name;
+    browserMap[name] = v;
   }
 
   compat[feature] = browserMap;
