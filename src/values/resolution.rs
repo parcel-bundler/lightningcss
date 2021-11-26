@@ -39,3 +39,15 @@ impl ToCss for Resolution {
     serialize_dimension(value, unit, dest)
   }
 }
+
+impl std::ops::Add<f32> for Resolution {
+  type Output = Self;
+  
+  fn add(self, other: f32) -> Resolution {
+    match self {
+      Resolution::Dpi(dpi) => Resolution::Dpi(dpi + other),
+      Resolution::Dpcm(dpcm) => Resolution::Dpcm(dpcm + other),
+      Resolution::Dppx(dppx) => Resolution::Dppx(dppx + other)
+    }
+  }
+}

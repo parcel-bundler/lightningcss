@@ -7,6 +7,7 @@ use crate::values::{
   resolution::Resolution,
   ratio::Ratio
 };
+use crate::compat::Feature;
 
 /// A type that encapsulates a media query list.
 #[derive(Clone, Debug, PartialEq)]
@@ -323,6 +324,18 @@ impl ToCss for MediaFeatureComparison {
   }
 }
 
+impl MediaFeatureComparison {
+  fn opposite(&self) -> MediaFeatureComparison {
+    match self {
+      MediaFeatureComparison::GreaterThan => MediaFeatureComparison::LessThan,
+      MediaFeatureComparison::GreaterThanEqual => MediaFeatureComparison::LessThanEqual,
+      MediaFeatureComparison::LessThan => MediaFeatureComparison::GreaterThan,
+      MediaFeatureComparison::LessThanEqual => MediaFeatureComparison::GreaterThanEqual,
+      MediaFeatureComparison::Equal => MediaFeatureComparison::Equal
+    }
+  }
+}
+
 /// https://drafts.csswg.org/mediaqueries/#typedef-media-feature
 #[derive(Clone, Debug, PartialEq)]
 pub enum MediaFeature {
@@ -414,14 +427,7 @@ impl MediaFeature {
         end_operator
       })
     } else {
-      // Flip operator.
-      let operator = match operator.unwrap() {
-        MediaFeatureComparison::GreaterThan => MediaFeatureComparison::LessThan,
-        MediaFeatureComparison::GreaterThanEqual => MediaFeatureComparison::LessThanEqual,
-        MediaFeatureComparison::LessThan => MediaFeatureComparison::GreaterThan,
-        MediaFeatureComparison::LessThanEqual => MediaFeatureComparison::GreaterThanEqual,
-        MediaFeatureComparison::Equal => MediaFeatureComparison::Equal
-      };
+      let operator = operator.unwrap().opposite();
       Ok(MediaFeature::Range {
         name,
         operator,
@@ -445,11 +451,26 @@ impl ToCss for MediaFeature {
         value.to_css(dest)?;
       }
       MediaFeature::Range { name, operator, value } => {
+        // If range syntax is unsupported, use min/max prefix if possible.
+        if let Some(targets) = dest.targets {
+          if !Feature::MediaRangeSyntax.is_compatible(targets) {
+            return write_min_max(operator, name, value, dest)
+          }
+        }
+
         serialize_identifier(name, dest)?;
         operator.to_css(dest)?;
         value.to_css(dest)?;
       }
       MediaFeature::Interval { name, start, start_operator, end, end_operator } => {
+        if let Some(targets) = dest.targets {
+          if !Feature::MediaIntervalSyntax.is_compatible(targets) {
+            write_min_max(&start_operator.opposite(), name, start, dest)?;
+            dest.write_str(" and (")?;
+            return write_min_max(end_operator, name, end, dest)
+          }
+        }
+
         start.to_css(dest)?;
         start_operator.to_css(dest)?;
         serialize_identifier(name, dest)?;
@@ -460,6 +481,39 @@ impl ToCss for MediaFeature {
     
     dest.write_char(')')
   }
+}
+
+#[inline]
+fn write_min_max<W>(operator: &MediaFeatureComparison, name: &str, value: &MediaFeatureValue, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  let prefix = match operator {
+    MediaFeatureComparison::GreaterThan |
+    MediaFeatureComparison::GreaterThanEqual => Some("min-"),
+    MediaFeatureComparison::LessThan |
+    MediaFeatureComparison::LessThanEqual => Some("max-"),
+    MediaFeatureComparison::Equal => None
+  };
+
+  if let Some(prefix) = prefix {
+    dest.write_str(prefix)?;
+  }
+
+  serialize_identifier(name, dest)?;
+  dest.delim(':', false)?;
+
+  let adjusted = match operator {
+    MediaFeatureComparison::GreaterThan => Some(value.clone() + 0.001),
+    MediaFeatureComparison::LessThan => Some(value.clone() + -0.001),
+    _ => None
+  };
+
+  if let Some(value) = adjusted {
+    value.to_css(dest)?;
+  } else {
+    value.to_css(dest)?;
+  }
+
+  dest.write_char(')')?;
+  Ok(())
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -506,6 +560,20 @@ impl ToCss for MediaFeatureValue {
       MediaFeatureValue::Resolution(res) => res.to_css(dest),
       MediaFeatureValue::Ratio(ratio) => ratio.to_css(dest),
       MediaFeatureValue::Ident(id) => serialize_identifier(id, dest)
+    }
+  }
+}
+
+impl std::ops::Add<f32> for MediaFeatureValue {
+  type Output = Self;
+
+  fn add(self, other: f32) -> MediaFeatureValue {
+    match self {
+      MediaFeatureValue::Length(len) => MediaFeatureValue::Length(len + Length::px(other)),
+      MediaFeatureValue::Number(num) => MediaFeatureValue::Number(num + other),
+      MediaFeatureValue::Resolution(res) => MediaFeatureValue::Resolution(res + other),
+      MediaFeatureValue::Ratio(ratio) => MediaFeatureValue::Ratio(ratio + other),
+      MediaFeatureValue::Ident(id) => MediaFeatureValue::Ident(id)
     }
   }
 }

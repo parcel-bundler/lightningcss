@@ -2542,6 +2542,197 @@ mod tests {
     minify_test("@media (example, all,), speech { .foo { color: chartreuse }}", "@media speech{.foo{color:#7fff00}}");
     minify_test("@media &test, speech { .foo { color: chartreuse }}", "@media speech{.foo{color:#7fff00}}");
     minify_test("@media &test { .foo { color: chartreuse }}", "@media not all{.foo{color:#7fff00}}");
+    minify_test("@media (min-width: calc(200px + 40px)) { .foo { color: chartreuse }}", "@media (min-width:240px){.foo{color:#7fff00}}");
+    minify_test("@media (min-width: calc(1em + 5px)) { .foo { color: chartreuse }}", "@media (min-width:calc(1em + 5px)){.foo{color:#7fff00}}");
+
+    prefix_test(
+      r#"
+        @media (width >= 240px) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (min-width: 240px) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(60 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      r#"
+        @media (width >= 240px) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (width >= 240px) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(64 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      r#"
+        @media (width > 240px) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (min-width: 240.001px) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(60 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      r#"
+        @media (width <= 240px) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (max-width: 240px) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(60 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      r#"
+        @media (width <= 240px) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (width <= 240px) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(64 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      r#"
+        @media (width < 240px) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (max-width: 239.999px) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(60 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      r#"
+        @media (100px <= width <= 200px) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (min-width: 100px) and (max-width: 200px) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(85 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      r#"
+        @media (100px < width < 200px) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (min-width: 100.001px) and (max-width: 199.999px) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(85 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      r#"
+        @media (200px >= width >= 100px) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (max-width: 200px) and (min-width: 100px) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(85 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 
   #[test]

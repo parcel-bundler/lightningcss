@@ -28,6 +28,7 @@ A WIP CSS parser, transformer, and minifier written in Rust.
   - `clamp()` function
   - Alignment shorthands (e.g. `place-items`)
   - Two-value `overflow` shorthand
+  - Media query range syntax (e.g. `@media (width <= 100px)` or `@media (100px < width < 500px)`)
 - **CSS modules** – TODO
 
 ## Benchmarks

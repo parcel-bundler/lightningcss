@@ -31,6 +31,8 @@ pub enum Feature {
   DoublePositionGradients,
   FormValidation,
   Fullscreen,
+  MediaIntervalSyntax,
+  MediaRangeSyntax,
   OverflowShorthand,
   PlaceContent,
   PlaceItems,
@@ -1275,6 +1277,14 @@ impl Feature {
           }
         }
       }
+      Feature::MediaRangeSyntax => {
+        if let Some(version) = browsers.firefox {
+          if version >= 4128768 {
+            return true
+          }
+        }
+      }
+      Feature::MediaIntervalSyntax => {}
     }
     false
   }

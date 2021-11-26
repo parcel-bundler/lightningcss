@@ -38,3 +38,11 @@ impl ToCss for Ratio {
     Ok(())
   }
 }
+
+impl std::ops::Add<f32> for Ratio {
+  type Output = Self;
+  
+  fn add(self, other: f32) -> Ratio {
+    Ratio(self.0 + other, self.1)
+  }
+}

@@ -184,7 +184,9 @@ let mdnFeatures = {
   placeSelf: mdn.css.properties['place-self'].__compat.support,
   placeContent: mdn.css.properties['place-content'].__compat.support,
   placeItems: mdn.css.properties['place-items'].__compat.support,
-  overflowShorthand: mdn.css.properties['overflow'].multiple_keywords.__compat.support
+  overflowShorthand: mdn.css.properties['overflow'].multiple_keywords.__compat.support,
+  mediaRangeSyntax: mdn.css['at-rules'].media.range_syntax.__compat.support,
+  mediaIntervalSyntax: {} // currently no browsers
 };
 
 for (let feature in mdnFeatures) {
@@ -298,7 +300,7 @@ impl Feature {
   pub fn is_compatible(&self, browsers: Browsers) -> bool {
     match self {
       ${[...compat].map(([features, browsers]) => 
-        `${features.map(name => `Feature::${enumify(name)}`).join(' |\n      ')} => {
+        `${features.map(name => `Feature::${enumify(name)}`).join(' |\n      ')} => {` + (Object.entries(browsers).length === 0 ? '}' : `
         ${Object.entries(browsers).map(([browser, min]) => 
             `if let Some(version) = browsers.${browser} {
           if version >= ${min} {
@@ -307,7 +309,7 @@ impl Feature {
         }`
           ).join('\n        ')}
       }`
-      ).join('\n      ')}
+      )).join('\n      ')}
     }
     false
   }
