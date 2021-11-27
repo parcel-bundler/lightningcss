@@ -5,8 +5,9 @@ use super::color::CssColor;
 use super::length::{Length, LengthPercentage};
 use super::percentage::{Percentage, DimensionPercentage, NumberOrPercentage};
 use super::position::{Position, PositionComponent};
-use crate::properties::VendorPrefix;
-use crate::properties::prefixes::{Feature, Browsers};
+use crate::vendor_prefix::VendorPrefix;
+use crate::prefixes::Feature;
+use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
 use crate::macros::enum_property;
 use crate::printer::Printer;
@@ -134,8 +135,8 @@ impl ToCss for Gradient {
 /// https://www.w3.org/TR/css-images-3/#linear-gradients
 #[derive(Debug, Clone, PartialEq)]
 pub struct LinearGradient {
-  direction: LineDirection,
-  items: Vec<GradientItem<LengthPercentage>>,
+  pub direction: LineDirection,
+  pub items: Vec<GradientItem<LengthPercentage>>,
 }
 
 impl LinearGradient {
@@ -199,9 +200,9 @@ impl LinearGradient {
 /// https://www.w3.org/TR/css-images-3/#radial-gradients
 #[derive(Debug, Clone, PartialEq)]
 pub struct RadialGradient {
-  shape: EndingShape,
-  position: Position,
-  items: Vec<GradientItem<LengthPercentage>>,
+  pub shape: EndingShape,
+  pub position: Position,
+  pub items: Vec<GradientItem<LengthPercentage>>,
 }
 
 impl Parse for RadialGradient {
@@ -477,9 +478,9 @@ enum_property!(ShapeExtent,
 /// https://www.w3.org/TR/css-images-4/#conic-gradients
 #[derive(Debug, Clone, PartialEq)]
 pub struct ConicGradient {
-  angle: Angle,
-  position: Position,
-  items: Vec<GradientItem<AnglePercentage>>,
+  pub angle: Angle,
+  pub position: Position,
+  pub items: Vec<GradientItem<AnglePercentage>>,
 }
 
 impl ConicGradient {
@@ -533,8 +534,8 @@ impl ToCss for ConicGradient {
 /// https://www.w3.org/TR/css-images-4/#color-stop-syntax
 #[derive(Debug, Clone, PartialEq)]
 pub struct ColorStop<D> {
-  color: CssColor,
-  position: Option<D>
+  pub color: CssColor,
+  pub position: Option<D>
 }
 
 impl<D: Parse> Parse for ColorStop<D> {
@@ -747,8 +748,8 @@ impl ToCss for WebKitGradient {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct WebKitColorStop {
-  color: CssColor,
-  position: f32
+  pub color: CssColor,
+  pub position: f32
 }
 
 impl Parse for WebKitColorStop {
@@ -795,8 +796,8 @@ impl ToCss for WebKitColorStop {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct WebKitGradientPoint {
-  x: WebKitGradientPointComponent<HorizontalPositionKeyword>,
-  y: WebKitGradientPointComponent<VerticalPositionKeyword>
+  pub x: WebKitGradientPointComponent<HorizontalPositionKeyword>,
+  pub y: WebKitGradientPointComponent<VerticalPositionKeyword>
 }
 
 impl Parse for WebKitGradientPoint {

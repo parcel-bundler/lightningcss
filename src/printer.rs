@@ -1,8 +1,8 @@
 use std::fmt::*;
 use cssparser::SourceLocation;
 use parcel_sourcemap::{SourceMap, OriginalLocation};
-use crate::properties::VendorPrefix;
-use crate::properties::prefixes::Browsers;
+use crate::vendor_prefix::VendorPrefix;
+use crate::targets::Browsers;
 
 pub struct Printer<'a, W> {
   dest: &'a mut W,

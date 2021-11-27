@@ -12,7 +12,7 @@ async function build() {
   }
 
   await new Promise((resolve, reject) => {
-    let args = ['build', '--platform'];
+    let args = ['build', '--platform', '--cargo-cwd', 'node'];
     if (release) {
       args.push('--release');
     }

@@ -4,7 +4,7 @@ use crate::rules::CssRuleList;
 use crate::parser::TopLevelRuleParser;
 use crate::printer::Printer;
 use crate::traits::ToCss;
-use crate::properties::prefixes::Browsers;
+use crate::targets::Browsers;
 use crate::declaration::DeclarationHandler;
 
 pub struct StyleSheet {

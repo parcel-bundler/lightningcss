@@ -173,7 +173,7 @@ macro_rules! shorthand_handler {
     { $( $key: ident: $prop: ident($type: ty), )+ }
   ) => {
     #[derive(Default)]
-    pub struct $name {
+    pub(crate) struct $name {
       $(
         pub $key: Option<$type>,
       )*

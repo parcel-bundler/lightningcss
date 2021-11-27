@@ -1,20 +1,22 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::values::{ident::CustomIdent, time::Time, easing::EasingFunction};
-use super::{Property, VendorPrefix};
+use super::Property;
+use crate::vendor_prefix::VendorPrefix;
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
 use itertools::izip;
 use smallvec::SmallVec;
-use super::prefixes::{Browsers, Feature};
+use crate::targets::Browsers;
+use crate::prefixes::Feature;
 
 /// https://www.w3.org/TR/2018/WD-css-transitions-1-20181011/#transition-shorthand-property
 #[derive(Debug, Clone, PartialEq)]
 pub struct Transition {
-  property: CustomIdent,
-  duration: Time,
-  delay: Time,
-  timing_function: EasingFunction 
+  pub property: CustomIdent,
+  pub duration: Time,
+  pub delay: Time,
+  pub timing_function: EasingFunction 
 }
 
 impl Parse for Transition {
@@ -88,7 +90,7 @@ impl ToCss for Transition {
 }
 
 #[derive(Default)]
-pub struct TransitionHandler {
+pub(crate) struct TransitionHandler {
   targets: Option<Browsers>,
   properties: Option<(SmallVec<[CustomIdent; 1]>, VendorPrefix)>,
   durations: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,

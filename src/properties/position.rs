@@ -1,7 +1,9 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
-use super::{Property, VendorPrefix};
-use super::prefixes::{Feature, Browsers};
+use super::Property;
+use crate::vendor_prefix::VendorPrefix;
+use crate::targets::Browsers;
+use crate::prefixes::Feature;
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
 
@@ -49,7 +51,7 @@ impl ToCss for Position {
 }
 
 #[derive(Default)]
-pub struct PositionHandler {
+pub(crate) struct PositionHandler {
   targets: Option<Browsers>,
   position: Option<Position>
 }

@@ -1,6 +1,7 @@
 use cssparser::*;
-use crate::properties::VendorPrefix;
-use crate::properties::prefixes::{Feature, Browsers};
+use crate::vendor_prefix::VendorPrefix;
+use crate::prefixes::Feature;
+use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use super::gradient::*;
@@ -93,8 +94,8 @@ impl ToCss for Image {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImageSet {
-  options: Vec<ImageSetOption>,
-  vendor_prefix: VendorPrefix
+  pub options: Vec<ImageSetOption>,
+  pub vendor_prefix: VendorPrefix
 }
 
 impl ImageSet {
@@ -155,9 +156,9 @@ impl ToCss for ImageSet {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImageSetOption {
-  image: Image,
-  resolution: Resolution,
-  file_type: Option<String>
+  pub image: Image,
+  pub resolution: Resolution,
+  pub file_type: Option<String>
 }
 
 impl Parse for ImageSetOption {

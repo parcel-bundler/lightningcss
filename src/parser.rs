@@ -21,7 +21,7 @@ use crate::rules::{
 };
 use crate::values::ident::CustomIdent;
 use crate::declaration::{Declaration, DeclarationBlock};
-use crate::properties::VendorPrefix;
+use crate::vendor_prefix::VendorPrefix;
 
 #[derive(Eq, PartialEq, Clone)]
 pub struct CssString(RefCell<String>);

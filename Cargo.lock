@@ -277,18 +277,28 @@ dependencies = [
  "cssparser-macros",
  "indoc",
  "itertools",
+ "parcel_sourcemap",
+ "selectors",
+ "serde",
+ "smallvec",
+]
+
+[[package]]
+name = "parcel-css-node"
+version = "0.1.0"
+dependencies = [
+ "cssparser",
  "jemallocator",
  "js-sys",
  "napi",
  "napi-build",
  "napi-derive",
+ "parcel-css",
  "parcel_sourcemap",
- "selectors",
  "serde",
  "serde-wasm-bindgen",
  "serde_bytes",
  "serde_json",
- "smallvec",
  "wasm-bindgen",
 ]
 

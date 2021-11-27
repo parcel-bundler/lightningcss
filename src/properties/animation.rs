@@ -1,7 +1,8 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::values::{time::Time, easing::EasingFunction};
-use super::prefixes::{Feature, Browsers};
+use crate::targets::Browsers;
+use crate::prefixes::Feature;
 use crate::properties::{Property, VendorPrefix};
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
@@ -93,14 +94,14 @@ enum_property!(AnimationFillMode,
 /// https://drafts.csswg.org/css-animations/#animation
 #[derive(Debug, Clone, PartialEq)]
 pub struct Animation {
-  name: AnimationName,
-  duration: Time,
-  timing_function: EasingFunction,
-  iteration_count: AnimationIterationCount,
-  direction: AnimationDirection,
-  play_state: AnimationPlayState,
-  delay: Time,
-  fill_mode: AnimationFillMode
+  pub name: AnimationName,
+  pub duration: Time,
+  pub timing_function: EasingFunction,
+  pub iteration_count: AnimationIterationCount,
+  pub direction: AnimationDirection,
+  pub play_state: AnimationPlayState,
+  pub delay: Time,
+  pub fill_mode: AnimationFillMode
 }
 
 impl Parse for Animation {
@@ -198,7 +199,7 @@ impl ToCss for Animation {
 }
 
 #[derive(Default)]
-pub struct AnimationHandler {
+pub(crate) struct AnimationHandler {
   targets: Option<Browsers>,
   names: Option<(SmallVec<[AnimationName; 1]>, VendorPrefix)>,
   durations: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,

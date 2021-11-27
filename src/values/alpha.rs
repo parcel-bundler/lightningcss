@@ -5,7 +5,7 @@ use super::percentage::NumberOrPercentage;
 
 /// https://www.w3.org/TR/2021/WD-css-color-4-20210601/#typedef-alpha-value
 #[derive(Debug, Clone, PartialEq)]
-pub struct AlphaValue(f32);
+pub struct AlphaValue(pub f32);
 
 impl Parse for AlphaValue {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {

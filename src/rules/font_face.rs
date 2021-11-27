@@ -89,8 +89,8 @@ impl ToCss for UrlSource {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Format {
-  format: FontFormat,
-  supports: Vec<FontTechnology>
+  pub format: FontFormat,
+  pub supports: Vec<FontTechnology>
 }
 
 impl Parse for Format {
@@ -243,7 +243,7 @@ impl ToCss for FontTechnology {
   }
 }
 
-pub struct FontFaceDeclarationParser;
+pub(crate) struct FontFaceDeclarationParser;
 
 /// Parse a declaration within {} block: `color: blue`
 impl<'i> cssparser::DeclarationParser<'i> for FontFaceDeclarationParser {

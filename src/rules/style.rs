@@ -4,8 +4,8 @@ use crate::selector::{Selectors, is_compatible};
 use crate::traits::ToCss;
 use crate::printer::Printer;
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
-use crate::properties::VendorPrefix;
-use crate::properties::prefixes::Browsers;
+use crate::vendor_prefix::VendorPrefix;
+use crate::targets::Browsers;
 
 #[derive(Debug, PartialEq)]
 pub struct StyleRule {
@@ -16,7 +16,7 @@ pub struct StyleRule {
 }
 
 impl StyleRule {
-  pub fn minify(&mut self, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
+  pub(crate) fn minify(&mut self, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
     self.declarations.minify(handler, important_handler);
   }
 

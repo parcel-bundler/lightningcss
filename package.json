@@ -44,10 +44,10 @@
   "scripts": {
     "build": "node build.js",
     "build-release": "node build.js --release",
-    "wasm:build": "wasm-pack build --target nodejs",
-    "wasm:build-release": "wasm-pack build --target nodejs --release",
-    "wasm-browser:build": "wasm-pack build --target web",
-    "wasm-browser:build-release": "wasm-pack build --target web --release",
+    "wasm:build": "wasm-pack build node --target nodejs",
+    "wasm:build-release": "wasm-pack build node --target nodejs --release",
+    "wasm-browser:build": "wasm-pack build node --target web",
+    "wasm-browser:build-release": "wasm-pack build node --target web --release",
     "playground:start": "parcel playground/index.html",
     "playground:build": "yarn wasm-browser:build-release && parcel build playground/index.html"
   }

@@ -468,13 +468,13 @@ impl ToCss for VerticalAlign {
 /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-prop
 #[derive(Debug, Clone, PartialEq)]
 pub struct Font {
-  family: Vec<FontFamily>,
-  size: FontSize,
-  style: FontStyle,
-  weight: FontWeight,
-  stretch: FontStretch,
-  line_height: LineHeight,
-  variant_caps: FontVariantCapsCSS2
+  pub family: Vec<FontFamily>,
+  pub size: FontSize,
+  pub style: FontStyle,
+  pub weight: FontWeight,
+  pub stretch: FontStretch,
+  pub line_height: LineHeight,
+  pub variant_caps: FontVariantCapsCSS2
 }
 
 impl Parse for Font {
@@ -585,7 +585,7 @@ impl ToCss for Font {
 }
 
 #[derive(Default, Debug)]
-pub struct FontHandler {
+pub(crate) struct FontHandler {
   family: Option<Vec<FontFamily>>,
   size: Option<FontSize>,
   style: Option<FontStyle>,

@@ -1,8 +1,10 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
-use super::{Property, VendorPrefix};
+use super::Property;
+use crate::vendor_prefix::VendorPrefix;
 use crate::declaration::DeclarationList;
-use super::prefixes::{Feature, Browsers};
+use crate::targets::Browsers;
+use crate::prefixes::Feature;
 use crate::values::{
   angle::Angle,
   percentage::NumberOrPercentage,
@@ -1194,9 +1196,9 @@ impl ToCss for Perspective {
 /// https://drafts.csswg.org/css-transforms-2/#propdef-translate
 #[derive(Debug, Clone, PartialEq)]
 pub struct Translate {
-  x: LengthPercentage,
-  y: LengthPercentage,
-  z: Length
+  pub x: LengthPercentage,
+  pub y: LengthPercentage,
+  pub z: Length
 }
 
 impl Parse for Translate {
@@ -1249,10 +1251,10 @@ impl Translate {
 /// https://drafts.csswg.org/css-transforms-2/#propdef-rotate
 #[derive(Debug, Clone, PartialEq)]
 pub struct Rotate {
-  x: f32,
-  y: f32,
-  z: f32,
-  angle: Angle
+  pub x: f32,
+  pub y: f32,
+  pub z: f32,
+  pub angle: Angle
 }
 
 impl Parse for Rotate {
@@ -1325,9 +1327,9 @@ impl Rotate {
 /// https://drafts.csswg.org/css-transforms-2/#propdef-scale
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scale {
-  x: NumberOrPercentage,
-  y: NumberOrPercentage,
-  z: NumberOrPercentage
+  pub x: NumberOrPercentage,
+  pub y: NumberOrPercentage,
+  pub z: NumberOrPercentage
 }
 
 impl Parse for Scale {
@@ -1379,7 +1381,7 @@ impl Scale {
 }
 
 #[derive(Default)]
-pub struct TransformHandler {
+pub(crate) struct TransformHandler {
   targets: Option<Browsers>,
   transform: Option<(TransformList, VendorPrefix)>,
   translate: Option<Translate>,

@@ -5,8 +5,8 @@ use crate::printer::Printer;
 use crate::traits::ToCss;
 use super::parser::CssString;
 use crate::compat::Feature;
-use crate::properties::VendorPrefix;
-use crate::properties::prefixes::Browsers;
+use crate::vendor_prefix::VendorPrefix;
+use crate::targets::Browsers;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Selectors;
@@ -402,7 +402,7 @@ impl PseudoClass {
 
   pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
     use PseudoClass::*;
-    use crate::properties::prefixes::Feature;
+    use crate::prefixes::Feature;
     let feature = match self {
       Fullscreen(p) if *p == VendorPrefix::None => Feature::PseudoClassFullscreen,
       AnyLink(p) if *p == VendorPrefix::None => Feature::PseudoClassAnyLink,
@@ -548,7 +548,7 @@ impl PseudoElement {
 
   pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
     use PseudoElement::*;
-    use crate::properties::prefixes::Feature;
+    use crate::prefixes::Feature;
     let feature = match self {
       Selection(p) if *p == VendorPrefix::None => Feature::PseudoElementSelection,
       Placeholder(p) if *p == VendorPrefix::None => Feature::PseudoElementPlaceholder,

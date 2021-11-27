@@ -1,7 +1,9 @@
 use cssparser::*;
-use super::{Property, VendorPrefix};
+use super::Property;
+use crate::vendor_prefix::VendorPrefix;
 use crate::declaration::DeclarationList;
-use super::prefixes::{Feature, Browsers, is_flex_2009};
+use crate::targets::Browsers;
+use crate::prefixes::{Feature, is_flex_2009};
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::printer::Printer;
 use crate::macros::enum_property;
@@ -83,9 +85,9 @@ impl DisplayInside {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DisplayPair {
-  outside: DisplayOutside,
-  inside: DisplayInside,
-  is_list_item: bool
+  pub outside: DisplayOutside,
+  pub inside: DisplayInside,
+  pub is_list_item: bool
 }
 
 impl Parse for DisplayPair {
@@ -290,7 +292,7 @@ enum_property!(Visibility,
 );
 
 #[derive(Default)]
-pub struct DisplayHandler {
+pub(crate) struct DisplayHandler {
   targets: Option<Browsers>,
   decls: Vec<Property>,
   display: Option<Display>

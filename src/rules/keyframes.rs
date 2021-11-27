@@ -3,7 +3,7 @@ use crate::values::percentage::Percentage;
 use crate::traits::{Parse, ToCss};
 use crate::parser::{PropertyDeclarationParser};
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
-use crate::properties::VendorPrefix;
+use crate::vendor_prefix::VendorPrefix;
 use crate::printer::Printer;
 
 #[derive(Debug, PartialEq)]
@@ -15,7 +15,7 @@ pub struct KeyframesRule {
 }
 
 impl KeyframesRule {
-  pub fn minify(&mut self, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
+  pub(crate) fn minify(&mut self, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
     for keyframe in &mut self.keyframes {
       keyframe.declarations.minify(handler, important_handler)
     }
@@ -139,7 +139,7 @@ impl ToCss for Keyframe {
   }
 }
 
-pub struct KeyframeListParser;
+pub(crate) struct KeyframeListParser;
 
 impl<'a, 'i> AtRuleParser<'i> for KeyframeListParser {
   type PreludeNoBlock = ();

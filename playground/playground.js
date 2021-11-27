@@ -1,4 +1,4 @@
-import init, {transform} from '../pkg';
+import init, {transform} from '../node/pkg';
 
 let enc = new TextEncoder();
 let dec = new TextDecoder();

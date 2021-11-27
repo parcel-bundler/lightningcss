@@ -4,7 +4,7 @@ use super::Property;
 use crate::declaration::DeclarationList;
 use crate::macros::enum_property;
 use crate::printer::Printer;
-use crate::properties::prefixes::Browsers;
+use crate::targets::Browsers;
 use crate::compat::Feature;
 
 enum_property!(OverflowKeyword,
@@ -18,8 +18,8 @@ enum_property!(OverflowKeyword,
 /// https://www.w3.org/TR/2020/WD-css-overflow-3-20200603/#overflow-properties
 #[derive(Debug, Clone, PartialEq)]
 pub struct Overflow {
-  x: OverflowKeyword,
-  y: OverflowKeyword
+  pub x: OverflowKeyword,
+  pub y: OverflowKeyword
 }
 
 impl Parse for Overflow {
@@ -48,7 +48,7 @@ enum_property!(TextOverflow,
 );
 
 #[derive(Default)]
-pub struct OverflowHandler {
+pub(crate) struct OverflowHandler {
   targets: Option<Browsers>,
   x: Option<OverflowKeyword>,
   y: Option<OverflowKeyword>

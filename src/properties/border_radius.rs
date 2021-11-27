@@ -2,7 +2,8 @@ use crate::values::length::*;
 use crate::values::size::Size2D;
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
-use super::prefixes::{Feature, Browsers};
+use crate::targets::Browsers;
+use crate::prefixes::Feature;
 use crate::properties::{Property, VendorPrefix};
 use crate::declaration::DeclarationList;
 use crate::values::rect::Rect;
@@ -10,10 +11,10 @@ use crate::printer::Printer;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BorderRadius {
-  top_left: Size2D<LengthPercentage>,
-  top_right: Size2D<LengthPercentage>,
-  bottom_left: Size2D<LengthPercentage>,
-  bottom_right: Size2D<LengthPercentage>
+  pub top_left: Size2D<LengthPercentage>,
+  pub top_right: Size2D<LengthPercentage>,
+  pub bottom_left: Size2D<LengthPercentage>,
+  pub bottom_right: Size2D<LengthPercentage>
 }
 
 impl Parse for BorderRadius {
@@ -50,7 +51,7 @@ impl ToCss for BorderRadius {
 }
 
 #[derive(Default, Debug)]
-pub struct BorderRadiusHandler {
+pub(crate) struct BorderRadiusHandler {
   targets: Option<Browsers>,
   top_left: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
   top_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,

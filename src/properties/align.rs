@@ -2,10 +2,12 @@ use cssparser::*;
 use crate::macros::*;
 use crate::values::length::LengthPercentage;
 use crate::traits::{Parse, ToCss, PropertyHandler, FromStandard};
-use super::{Property, VendorPrefix};
+use super::Property;
+use crate::vendor_prefix::VendorPrefix;
 use crate::declaration::DeclarationList;
 use super::flex::{BoxAlign, FlexLinePack, BoxPack, FlexPack, FlexAlign, FlexItemAlign};
-use super::prefixes::{Browsers, Feature, is_flex_2009};
+use crate::targets::Browsers;
+use crate::prefixes::{Feature, is_flex_2009};
 use crate::printer::Printer;
 use crate::compat;
 
@@ -189,8 +191,8 @@ impl ToCss for JustifyContent {
 /// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#place-content
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlaceContent {
-  align: AlignContent,
-  justify: JustifyContent
+  pub align: AlignContent,
+  pub justify: JustifyContent
 }
 
 impl Parse for PlaceContent {
@@ -383,8 +385,8 @@ impl ToCss for JustifySelf {
 /// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#place-self-property
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlaceSelf {
-  align: AlignSelf,
-  justify: JustifySelf
+  pub align: AlignSelf,
+  pub justify: JustifySelf
 }
 
 impl Parse for PlaceSelf {
@@ -615,8 +617,8 @@ impl ToCss for JustifyItems {
 /// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#place-items-property
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlaceItems {
-  align: AlignItems,
-  justify: JustifyItems
+  pub align: AlignItems,
+  pub justify: JustifyItems
 }
 
 impl Parse for PlaceItems {
@@ -689,8 +691,8 @@ impl ToCss for GapValue {
 /// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#gap-shorthand
 #[derive(Debug, Clone, PartialEq)]
 pub struct Gap {
-  row: GapValue,
-  column: GapValue
+  pub row: GapValue,
+  pub column: GapValue
 }
 
 impl Parse for Gap {
@@ -713,7 +715,7 @@ impl ToCss for Gap {
 }
 
 #[derive(Default, Debug)]
-pub struct AlignHandler {
+pub(crate) struct AlignHandler {
   targets: Option<Browsers>,
   align_content: Option<(AlignContent, VendorPrefix)>,
   flex_line_pack: Option<(FlexLinePack, VendorPrefix)>,

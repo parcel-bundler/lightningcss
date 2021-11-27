@@ -1,8 +1,12 @@
+#![allow(non_upper_case_globals)]
+
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
-use super::{Property, VendorPrefix};
+use super::Property;
+use crate::vendor_prefix::VendorPrefix;
 use crate::declaration::DeclarationList;
-use super::prefixes::{Browsers, Feature};
+use crate::targets::Browsers;
+use crate::prefixes::Feature;
 use crate::macros::enum_property;
 use crate::values::length::{Length, LengthPercentage};
 use crate::values::color::CssColor;
@@ -65,8 +69,8 @@ impl ToCss for TextTransformOther {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextTransform {
-  case: TextTransformCase,
-  other: TextTransformOther
+  pub case: TextTransformCase,
+  pub other: TextTransformOther
 }
 
 impl Parse for TextTransform {
@@ -221,9 +225,9 @@ impl ToCss for Spacing {
 /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-indent-property
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextIndent {
-  value: LengthPercentage,
-  hanging: bool,
-  each_line: bool
+  pub value: LengthPercentage,
+  pub hanging: bool,
+  pub each_line: bool
 }
 
 impl Parse for TextIndent {
@@ -431,10 +435,10 @@ impl ToCss for TextDecorationThickness {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextDecoration {
-  line: TextDecorationLine,
-  thickness: TextDecorationThickness,
-  style: TextDecorationStyle,
-  color: CssColor
+  pub line: TextDecorationLine,
+  pub thickness: TextDecorationThickness,
+  pub style: TextDecorationStyle,
+  pub color: CssColor
 }
 
 impl Parse for TextDecoration {
@@ -594,8 +598,8 @@ impl ToCss for TextEmphasisStyle {
 /// https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-property
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextEmphasis {
-  style: TextEmphasisStyle,
-  color: CssColor
+  pub style: TextEmphasisStyle,
+  pub color: CssColor
 }
 
 impl Parse for TextEmphasis {
@@ -654,8 +658,8 @@ enum_property!(TextEmphasisPositionHorizontal,
 /// https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-position-property
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextEmphasisPosition {
-  vertical: TextEmphasisPositionVertical,
-  horizontal: TextEmphasisPositionHorizontal
+  pub vertical: TextEmphasisPositionVertical,
+  pub horizontal: TextEmphasisPositionHorizontal
 }
 
 impl Parse for TextEmphasisPosition {
@@ -683,7 +687,7 @@ impl ToCss for TextEmphasisPosition {
 }
 
 #[derive(Default)]
-pub struct TextDecorationHandler {
+pub(crate) struct TextDecorationHandler {
   targets: Option<Browsers>,
   line: Option<(TextDecorationLine, VendorPrefix)>,
   thickness: Option<TextDecorationThickness>,

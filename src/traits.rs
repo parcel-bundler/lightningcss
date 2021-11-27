@@ -38,7 +38,7 @@ where
     }
 }
 
-pub trait PropertyHandler: Sized {
+pub(crate) trait PropertyHandler: Sized {
   fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool;
   fn finalize(&mut self, dest: &mut DeclarationList);
 }

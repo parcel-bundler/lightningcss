@@ -7,8 +7,8 @@ use crate::macros::enum_property;
 /// https://www.w3.org/TR/css-page-3/#typedef-page-selector
 #[derive(Debug, PartialEq)]
 pub struct PageSelector {
-  name: Option<String>,
-  pseudo_classes: Vec<PagePseudoClass>
+  pub name: Option<String>,
+  pub pseudo_classes: Vec<PagePseudoClass>
 }
 
 enum_property!(PagePseudoClass,

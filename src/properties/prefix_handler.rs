@@ -1,6 +1,8 @@
 #![allow(non_snake_case)]
-use super::prefixes::{Browsers, Feature};
-use super::{Property, VendorPrefix};
+use crate::targets::Browsers;
+use crate::prefixes::Feature;
+use super::Property;
+use crate::vendor_prefix::VendorPrefix;
 use crate::traits::{PropertyHandler};
 use crate::declaration::DeclarationList;
 
@@ -9,7 +11,7 @@ macro_rules! define_prefixes {
     $( $name: ident, )+
   ) => {
     #[derive(Default)]
-    pub struct PrefixHandler {
+    pub(crate) struct PrefixHandler {
       targets: Option<Browsers>,
       $(
         $name: Option<usize>,

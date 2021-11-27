@@ -20,8 +20,9 @@ use namespace::NamespaceRule;
 use crate::traits::ToCss;
 use crate::printer::Printer;
 use crate::declaration::DeclarationHandler;
-use crate::properties::VendorPrefix;
-use crate::properties::prefixes::{Feature, Browsers};
+use crate::vendor_prefix::VendorPrefix;
+use crate::prefixes::Feature;
+use crate::targets::Browsers;
 use std::collections::HashMap;
 use crate::selector::{is_equivalent, get_prefix, get_necessary_prefixes};
 
@@ -58,7 +59,7 @@ impl ToCss for CssRule {
 pub struct CssRuleList(pub Vec<CssRule>);
 
 impl CssRuleList {
-  pub fn minify(&mut self, targets: Option<Browsers>, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
+  pub(crate) fn minify(&mut self, targets: Option<Browsers>, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
     let mut keyframe_rules = HashMap::new();
     let mut rules = Vec::new();
     for mut rule in self.0.drain(..) {

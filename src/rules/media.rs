@@ -4,7 +4,7 @@ use crate::traits::ToCss;
 use crate::printer::Printer;
 use super::CssRuleList;
 use crate::declaration::DeclarationHandler;
-use crate::properties::prefixes::Browsers;
+use crate::targets::Browsers;
 
 #[derive(Debug, PartialEq)]
 pub struct MediaRule {
@@ -14,7 +14,7 @@ pub struct MediaRule {
 }
 
 impl MediaRule {
-  pub fn minify(&mut self, targets: Option<Browsers>, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
+  pub(crate) fn minify(&mut self, targets: Option<Browsers>, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
     self.rules.minify(targets, handler, important_handler)
   }
 }

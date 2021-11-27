@@ -5,7 +5,7 @@ use std::fmt::Write;
 use crate::compat::Feature;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct CssColor(Color);
+pub struct CssColor(pub Color);
 
 impl CssColor {
   pub fn current_color() -> CssColor {

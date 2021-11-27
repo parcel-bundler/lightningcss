@@ -5,7 +5,8 @@ use crate::values::{
   color::CssColor,
   image::Image
 };
-use super::prefixes::{Browsers, is_webkit_gradient};
+use crate::targets::Browsers;
+use crate::prefixes::is_webkit_gradient;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::macros::*;
 use crate::properties::{Property, VendorPrefix};
@@ -83,8 +84,8 @@ enum_property!(BackgroundRepeatKeyword,
 /// https://www.w3.org/TR/css-backgrounds-3/#background-repeat
 #[derive(Debug, Clone, PartialEq)]
 pub struct BackgroundRepeat {
-  x: BackgroundRepeatKeyword,
-  y: BackgroundRepeatKeyword
+  pub x: BackgroundRepeatKeyword,
+  pub y: BackgroundRepeatKeyword
 }
 
 impl Default for BackgroundRepeat {
@@ -184,17 +185,17 @@ impl Into<BackgroundClip> for BackgroundBox {
   }
 }
 
-// https://www.w3.org/TR/css-backgrounds-3/#background
+/// https://www.w3.org/TR/css-backgrounds-3/#background
 #[derive(Debug, Clone, PartialEq)]
 pub struct Background {
-  image: Image,
-  color: CssColor,
-  position: Position,
-  repeat: BackgroundRepeat,
-  size: BackgroundSize,
-  attachment: BackgroundAttachment,
-  origin: BackgroundBox,
-  clip: BackgroundClip
+  pub image: Image,
+  pub color: CssColor,
+  pub position: Position,
+  pub repeat: BackgroundRepeat,
+  pub size: BackgroundSize,
+  pub attachment: BackgroundAttachment,
+  pub origin: BackgroundBox,
+  pub clip: BackgroundClip
 }
 
 impl Parse for Background {
@@ -354,7 +355,7 @@ impl ToCss for Background {
 }
 
 #[derive(Default)]
-pub struct BackgroundHandler {
+pub(crate) struct BackgroundHandler {
   targets: Option<Browsers>,
   color: Option<CssColor>,
   images: Option<SmallVec<[Image; 1]>>,

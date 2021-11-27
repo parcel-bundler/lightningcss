@@ -22,7 +22,7 @@ impl Default for SideCategory {
 macro_rules! side_handler {
   ($name: ident, $top: ident, $bottom: ident, $left: ident, $right: ident, $block_start: ident, $block_end: ident, $inline_start: ident, $inline_end: ident, $shorthand: ident, $block_shorthand: ident, $inline_shorthand: ident) => {
     #[derive(Debug, Default)]
-    pub struct $name {
+    pub(crate) struct $name {
       top: Option<LengthPercentageOrAuto>,
       bottom: Option<LengthPercentageOrAuto>,
       left: Option<LengthPercentageOrAuto>,

@@ -20,7 +20,7 @@ use crate::properties::{
   overflow::OverflowHandler,
   list::ListStyleHandler,
 };
-use crate::properties::prefixes::Browsers;
+use crate::targets::Browsers;
 
 #[derive(Debug, PartialEq)]
 pub struct DeclarationBlock {
@@ -47,7 +47,7 @@ impl ToCss for DeclarationBlock {
 }
 
 impl DeclarationBlock {
-  pub fn minify(&mut self, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
+  pub(crate) fn minify(&mut self, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
     let mut decls: Vec<Declaration> = vec![];
     for decl in self.declarations.iter() {
       let handled = 
@@ -89,7 +89,7 @@ impl ToCss for Declaration {
 }
 
 #[derive(Default)]
-pub struct DeclarationList {
+pub(crate) struct DeclarationList {
   important: bool,
   pub declarations: Vec<Declaration>
 }
@@ -113,7 +113,7 @@ impl DeclarationList {
 }
 
 #[derive(Default)]
-pub struct DeclarationHandler {
+pub(crate) struct DeclarationHandler {
   background: BackgroundHandler,
   border: BorderHandler,
   outline: OutlineHandler,

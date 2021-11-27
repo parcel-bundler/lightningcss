@@ -41,7 +41,7 @@ impl Default for OutlineStyle {
 pub type Outline = GenericBorder<OutlineStyle>;
 
 #[derive(Default, Debug)]
-pub struct OutlineHandler {
+pub(crate) struct OutlineHandler {
   pub width: Option<BorderSideWidth>,
   pub style: Option<OutlineStyle>,
   pub color: Option<CssColor>

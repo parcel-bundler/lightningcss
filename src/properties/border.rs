@@ -8,7 +8,7 @@ use crate::values::rect::Rect;
 use crate::macros::*;
 use super::border_image::*;
 use super::border_radius::*;
-use super::prefixes::Browsers;
+use crate::targets::Browsers;
 use crate::printer::Printer;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -209,7 +209,7 @@ impl Default for BorderCategory {
 }
 
 #[derive(Default, Debug)]
-pub struct BorderHandler {
+pub(crate) struct BorderHandler {
   border_top: BorderShorthand,
   border_bottom: BorderShorthand,
   border_left: BorderShorthand,

@@ -3,7 +3,8 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::properties::{Property, VendorPrefix};
 use crate::declaration::DeclarationList;
-use super::prefixes::{Feature, Browsers};
+use crate::targets::Browsers;
+use crate::prefixes::Feature;
 use crate::values::rect::Rect;
 use crate::values::image::Image;
 use crate::macros::*;
@@ -131,11 +132,11 @@ impl ToCss for BorderImageSlice {
 /// https://www.w3.org/TR/css-backgrounds-3/#border-image
 #[derive(Debug, Clone, PartialEq)]
 pub struct BorderImage {
-  source: Image,
-  slice: BorderImageSlice,
-  width: Rect<BorderImageSideWidth>,
-  outset: Rect<LengthOrNumber>,
-  repeat: BorderImageRepeat
+  pub source: Image,
+  pub slice: BorderImageSlice,
+  pub width: Rect<BorderImageSideWidth>,
+  pub outset: Rect<LengthOrNumber>,
+  pub repeat: BorderImageRepeat
 }
 
 impl Parse for BorderImage {
@@ -241,7 +242,7 @@ impl ToCss for BorderImage {
 }
 
 #[derive(Default, Debug)]
-pub struct BorderImageHandler {
+pub(crate) struct BorderImageHandler {
   targets: Option<Browsers>,
   source: Option<Image>,
   slice: Option<BorderImageSlice>,

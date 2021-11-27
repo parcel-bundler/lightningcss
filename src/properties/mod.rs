@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 pub mod custom;
 pub mod margin_padding;
 pub mod background;
@@ -14,7 +12,6 @@ pub mod border_radius;
 pub mod transition;
 pub mod animation;
 pub mod transform;
-pub mod prefixes;
 pub mod prefix_handler;
 pub mod display;
 pub mod text;
@@ -46,47 +43,7 @@ use crate::values::{image::*, length::*, position::*, alpha::*, size::*, rect::*
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use smallvec::{SmallVec, smallvec};
-use bitflags::bitflags;
-
-bitflags! {
-  pub struct VendorPrefix: u8 {
-    const None   = 0b00000001;
-    const WebKit = 0b00000010;
-    const Moz    = 0b00000100;
-    const Ms     = 0b00001000;
-    const O      = 0b00010000;
-  }
-}
-
-impl Default for VendorPrefix {
-  fn default() -> VendorPrefix {
-    VendorPrefix::None
-  }
-}
-
-impl VendorPrefix {
-  pub fn from_str(s: &str) -> VendorPrefix {
-    match s {
-      "webkit" => VendorPrefix::WebKit,
-      "moz" => VendorPrefix::Moz,
-      "ms" => VendorPrefix::Ms,
-      "o" => VendorPrefix::O,
-      _ => unreachable!()
-    }
-  }
-}
-
-impl ToCss for VendorPrefix {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-    match *self {
-      VendorPrefix::WebKit => dest.write_str("-webkit-"),
-      VendorPrefix::Moz => dest.write_str("-moz-"),
-      VendorPrefix::Ms => dest.write_str("-ms-"),
-      VendorPrefix::O => dest.write_str("-o-"),
-      _ => Ok(())
-    }
-  }
-}
+use crate::vendor_prefix::VendorPrefix;
 
 macro_rules! define_properties {
   (

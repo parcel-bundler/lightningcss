@@ -5,11 +5,13 @@ use crate::values::{
   percentage::Percentage
 };
 use crate::traits::{Parse, ToCss, PropertyHandler, FromStandard};
-use super::{Property, VendorPrefix};
+use super::Property;
+use crate::vendor_prefix::VendorPrefix;
 use crate::declaration::DeclarationList;
 use super::align::{JustifyContent, ContentDistribution, ContentPosition, AlignItems, SelfPosition, AlignSelf, AlignContent};
 use crate::printer::Printer;
-use super::prefixes::{Browsers, Feature, is_flex_2009};
+use crate::targets::Browsers;
+use crate::prefixes::{Feature, is_flex_2009};
 
 // https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#propdef-flex-direction
 enum_property!(FlexDirection,
@@ -47,8 +49,8 @@ impl FromStandard<FlexWrap> for FlexWrap {
 /// https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#flex-flow-property
 #[derive(Debug, Clone, PartialEq)]
 pub struct FlexFlow {
-  direction: FlexDirection,
-  wrap: FlexWrap
+  pub direction: FlexDirection,
+  pub wrap: FlexWrap
 }
 
 impl Parse for FlexFlow {
@@ -370,7 +372,7 @@ impl FromStandard<AlignContent> for FlexLinePack {
 }
 
 #[derive(Default, Debug)]
-pub struct FlexHandler {
+pub(crate) struct FlexHandler {
   targets: Option<Browsers>,
   direction: Option<(FlexDirection, VendorPrefix)>,
   box_orient: Option<(BoxOrient, VendorPrefix)>,
