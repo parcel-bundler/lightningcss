@@ -19,6 +19,7 @@ stylesheet.replaceSync(`
 
 console.log(rules.length)
 console.log(rules.item(0) instanceof CSSStyleRule, rules.item(0) instanceof CSSRule);
+console.log(rules.item(0) === rules.item(0));
 console.log(rules.item(0).cssText);
 console.log(rules.item(0).selectorText);
 
