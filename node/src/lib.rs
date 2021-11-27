@@ -1,6 +1,18 @@
+#[macro_use]
+extern crate napi_derive;
+
 #[cfg(target_os = "macos")]
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod stylesheet;
+mod rule_list;
+mod rule;
+mod style_rule;
+
+mod error;
+use error::CompileError;
 
 use serde::{Serialize, Deserialize};
 use parcel_css::stylesheet::StyleSheet;
@@ -28,7 +40,7 @@ pub fn transform(config_val: JsValue) -> Result<JsValue, JsValue> {
 #[cfg(not(target_arch = "wasm32"))]
 use napi_derive::{js_function, module_exports};
 #[cfg(not(target_arch = "wasm32"))]
-use napi::{CallContext, JsObject, JsUnknown};
+use napi::{CallContext, JsObject, JsUnknown, Env};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -87,8 +99,12 @@ fn transform(ctx: CallContext) -> napi::Result<JsUnknown> {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[module_exports]
-fn init(mut exports: JsObject) -> napi::Result<()> {
+fn init(mut exports: JsObject, env: Env) -> napi::Result<()> {
   exports.create_named_method("transform", transform)?;
+  stylesheet::init(&mut exports, env)?;
+  rule_list::init(&mut exports, env)?;
+  rule::init(&mut exports, env)?;
+  style_rule::init(&mut exports, env)?;
 
   Ok(())
 }
@@ -136,72 +152,4 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
     code: res.into_bytes(),
     map
   })
-}
-
-enum CompileError<'i> {
-  ParseError(cssparser::ParseError<'i, ()>),
-  PrinterError,
-  SourceMapError(parcel_sourcemap::SourceMapError)
-}
-
-impl<'i> CompileError<'i> {
-  fn reason(&self) -> String {
-    match self {
-      CompileError::ParseError(e) => {
-        match &e.kind {
-          cssparser::ParseErrorKind::Basic(b) => {
-            use cssparser::BasicParseErrorKind::*;
-            match b {
-              AtRuleBodyInvalid => "Invalid at rule body".into(),
-              EndOfInput => "Unexpected end of input".into(),
-              AtRuleInvalid(name) => format!("Unknown at rule: @{}", name),
-              QualifiedRuleInvalid => "Invalid qualified rule".into(),
-              UnexpectedToken(token) => format!("Unexpected token {:?}", token)
-            }
-          },
-          _ => "Unknown error".into()
-        }
-      }
-      CompileError::PrinterError => "Printer error".into(),
-      _ => "Unknown error".into()
-    }
-  }
-}
-
-impl<'i> From<cssparser::ParseError<'i, ()>> for CompileError<'i> {
-  fn from(e: cssparser::ParseError<'i, ()>) -> CompileError<'i> {
-    CompileError::ParseError(e)
-  }
-}
-
-impl<'i> From<std::fmt::Error> for CompileError<'i> {
-  fn from(_: std::fmt::Error) -> CompileError<'i> {
-    CompileError::PrinterError
-  }
-}
-
-impl<'i> From<parcel_sourcemap::SourceMapError> for CompileError<'i> {
-  fn from(e: parcel_sourcemap::SourceMapError) -> CompileError<'i> {
-    CompileError::SourceMapError(e)
-  }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl<'i> From<CompileError<'i>> for napi::Error {
-  fn from(e: CompileError) -> napi::Error {
-    match e {
-      CompileError::SourceMapError(e) => e.into(),
-      _ => napi::Error::new(napi::Status::GenericFailure, e.reason())
-    }
-  }
-}
-
-#[cfg(target_arch = "wasm32")]
-impl<'i> From<CompileError<'i>> for wasm_bindgen::JsValue {
-  fn from(e: CompileError) -> wasm_bindgen::JsValue {
-    match e {
-      CompileError::SourceMapError(e) => e.into(),
-      _ => js_sys::Error::new(&e.reason()).into()
-    }
-  }
 }
