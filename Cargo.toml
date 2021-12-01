@@ -5,9 +5,13 @@ members = [
 
 [package]
 authors = ["Devon Govett <devongovett@gmail.com>"]
-name = "parcel-css"
-version = "0.1.0"
+name = "parcel_css"
+version = "1.0.0-alpha.5"
+desription = "A CSS parser, transformer, and minifier"
+license = "MIT"
 edition = "2018"
+keywords = [ "CSS", "minifier", "Parcel" ]
+repository = "https://github.com/parcel-bundler/parcel-css"
 
 [lib]
 crate-type = ["rlib"]

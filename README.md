@@ -29,6 +29,7 @@ A WIP CSS parser, transformer, and minifier written in Rust.
   - Alignment shorthands (e.g. `place-items`)
   - Two-value `overflow` shorthand
   - Media query range syntax (e.g. `@media (width <= 100px)` or `@media (100px < width < 500px)`)
+  - Multi-value `display` property (e.g. `inline flex`)
 - **CSS modules** – TODO
 
 ## Benchmarks

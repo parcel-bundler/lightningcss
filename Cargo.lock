@@ -269,8 +269,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
 
 [[package]]
-name = "parcel-css"
-version = "0.1.0"
+name = "parcel_css"
+version = "1.0.0-alpha.5"
 dependencies = [
  "bitflags",
  "cssparser",
@@ -284,7 +284,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "parcel-css-node"
+name = "parcel_css_node"
 version = "0.1.0"
 dependencies = [
  "cssparser",
@@ -293,7 +293,7 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
- "parcel-css",
+ "parcel_css",
  "parcel_sourcemap",
  "serde",
  "serde-wasm-bindgen",
