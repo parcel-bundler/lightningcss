@@ -3,166 +3,166 @@ on:
   workflow_dispatch:
 
 jobs:
-  # build:
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       include:
-  #         # Windows
-  #         - os: windows-latest
-  #           target: x86_64-pc-windows-msvc
-  #         # Mac OS
-  #         - os: macos-latest
-  #           target: x86_64-apple-darwin
-  #           strip: strip -x # Must use -x on macOS. This produces larger results on linux.
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          # Mac OS
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            strip: strip -x # Must use -x on macOS. This produces larger results on linux.
 
-  #   name: build-${{ matrix.target }}
-  #   runs-on: ${{ matrix.os }}
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #     - name: Install Node.JS
-  #       uses: actions/setup-node@v2
-  #       with:
-  #         node-version: 14
-  #     - name: Install Rust
-  #       uses: actions-rs/toolchain@v1
-  #       with:
-  #         toolchain: stable
-  #         profile: minimal
-  #         override: true
+    name: build-${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Node.JS
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
 
-  #     - name: Setup rust target
-  #       run: rustup target add ${{ matrix.target }}
+      - name: Setup rust target
+        run: rustup target add ${{ matrix.target }}
 
-  #     - uses: bahmutov/npm-install@v1.1.0
-  #     - name: Build release
-  #       run: yarn build-release
-  #       env:
-  #         RUST_TARGET: ${{ matrix.target }}
-  #     - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
-  #       if: ${{ matrix.strip }}
-  #       run: ${{ matrix.strip }} *.node
-  #     - name: Upload artifacts
-  #       uses: actions/upload-artifact@v2
-  #       with:
-  #         name: bindings-${{ matrix.target }}
-  #         path: '*.node'
+      - uses: bahmutov/npm-install@v1.1.0
+      - name: Build release
+        run: yarn build-release
+        env:
+          RUST_TARGET: ${{ matrix.target }}
+      - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
+        if: ${{ matrix.strip }}
+        run: ${{ matrix.strip }} *.node
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings-${{ matrix.target }}
+          path: '*.node'
 
-  # build-apple-silicon:
-  #   name: build-apple-silicon
-  #   runs-on: macos-latest
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #     - name: Install Node.JS
-  #       uses: actions/setup-node@v2
-  #       with:
-  #         node-version: 14
-  #     - name: Install Rust
-  #       uses: actions-rs/toolchain@v1
-  #       with:
-  #         toolchain: stable
-  #         profile: minimal
-  #         override: true
+  build-apple-silicon:
+    name: build-apple-silicon
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Node.JS
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
 
-  #     - name: Setup rust target
-  #       run: rustup target add aarch64-apple-darwin
+      - name: Setup rust target
+        run: rustup target add aarch64-apple-darwin
 
-  #     - uses: bahmutov/npm-install@v1.1.0
-  #     - name: Build release
-  #       run: yarn build-release
-  #       env:
-  #         RUST_TARGET: aarch64-apple-darwin
-  #         JEMALLOC_SYS_WITH_LG_PAGE: 14
-  #     - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
-  #       run: strip -x *.node
-  #     - name: Upload artifacts
-  #       uses: actions/upload-artifact@v2
-  #       with:
-  #         name: bindings-aarch64-apple-darwin
-  #         path: '*.node'
+      - uses: bahmutov/npm-install@v1.1.0
+      - name: Build release
+        run: yarn build-release
+        env:
+          RUST_TARGET: aarch64-apple-darwin
+          JEMALLOC_SYS_WITH_LG_PAGE: 14
+      - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
+        run: strip -x *.node
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings-aarch64-apple-darwin
+          path: '*.node'
 
-  # build-linux:
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       include:
-  #         - target: x86_64-unknown-linux-gnu
-  #           strip: strip
-  #           image: docker.io/centos/nodejs-12-centos7
-  #           setup: npm install --global yarn@1
-  #         - target: aarch64-unknown-linux-gnu
-  #           strip: aarch64-linux-gnu-strip
-  #           image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
-  #         - target: armv7-unknown-linux-gnueabihf
-  #           strip: arm-linux-gnueabihf-strip
-  #           image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
-  #           setup: apt install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf -y
-  #         - target: aarch64-unknown-linux-musl
-  #           image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-  #           strip: aarch64-linux-musl-strip
-  #         - target: x86_64-unknown-linux-musl
-  #           image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-  #           strip: strip
+  build-linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            strip: strip
+            image: docker.io/centos/nodejs-12-centos7
+            setup: npm install --global yarn@1
+          - target: aarch64-unknown-linux-gnu
+            strip: aarch64-linux-gnu-strip
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
+          - target: armv7-unknown-linux-gnueabihf
+            strip: arm-linux-gnueabihf-strip
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
+            setup: apt install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf -y
+          - target: aarch64-unknown-linux-musl
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+            strip: aarch64-linux-musl-strip
+          - target: x86_64-unknown-linux-musl
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+            strip: strip
 
-  #   name: build-${{ matrix.target }}
-  #   runs-on: ubuntu-latest
-  #   container:
-  #     image: ${{ matrix.image }}
+    name: build-${{ matrix.target }}
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.image }}
 
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #     - name: Install Node.JS
-  #       uses: actions/setup-node@v2
-  #       with:
-  #         node-version: 14
-  #     - name: Install Rust
-  #       uses: actions-rs/toolchain@v1
-  #       with:
-  #         toolchain: stable
-  #         profile: minimal
-  #         override: true
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Node.JS
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
 
-  #     - name: Setup cross compile toolchain
-  #       if: ${{ matrix.setup }}
-  #       run: ${{ matrix.setup }}
+      - name: Setup cross compile toolchain
+        if: ${{ matrix.setup }}
+        run: ${{ matrix.setup }}
 
-  #     - name: Setup rust target
-  #       run: rustup target add ${{ matrix.target }}
+      - name: Setup rust target
+        run: rustup target add ${{ matrix.target }}
 
-  #     - uses: bahmutov/npm-install@v1.1.0
-  #     - name: Build release
-  #       run: yarn build-release
-  #       env:
-  #         RUST_TARGET: ${{ matrix.target }}
-  #     - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
-  #       if: ${{ matrix.strip }}
-  #       run: ${{ matrix.strip }} *.node
-  #     - name: Upload artifacts
-  #       uses: actions/upload-artifact@v2
-  #       with:
-  #         name: bindings-${{ matrix.target }}
-  #         path: '*.node'
+      - uses: bahmutov/npm-install@v1.1.0
+      - name: Build release
+        run: yarn build-release
+        env:
+          RUST_TARGET: ${{ matrix.target }}
+      - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
+        if: ${{ matrix.strip }}
+        run: ${{ matrix.strip }} *.node
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings-${{ matrix.target }}
+          path: '*.node'
 
-  # release:
-  #   runs-on: ubuntu-latest
-  #   name: Build and release
-  #   needs:
-  #     - build
-  #     - build-linux
-  #     - build-apple-silicon
-  #   steps:
-  #     - uses: actions/checkout@v1
-  #     - uses: bahmutov/npm-install@v1.1.0
-  #     - name: Download artifacts
-  #       uses: actions/download-artifact@v2
-  #       with:
-  #         path: artifacts
-  #     - name: Move artifacts
-  #       run: cp artifacts/*/*.node .
-  #     - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
-  #       env:
-  #         NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-  #     - run: npm publish
+  release:
+    runs-on: ubuntu-latest
+    name: Build and release
+    needs:
+      - build
+      - build-linux
+      - build-apple-silicon
+    steps:
+      - uses: actions/checkout@v1
+      - uses: bahmutov/npm-install@v1.1.0
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: artifacts
+      - name: Move artifacts
+        run: cp artifacts/*/*.node .
+      - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: npm publish
 
   release-crates:
     runs-on: ubuntu-latest

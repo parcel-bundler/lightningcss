@@ -32,6 +32,32 @@ A WIP CSS parser, transformer, and minifier written in Rust.
   - Multi-value `display` property (e.g. `inline flex`)
 - **CSS modules** – TODO
 
+## Documentation
+
+### From JavaScript
+
+More docs to come, but here is a simple example:
+
+```js
+const css = require('@parcel/css');
+
+let {code, map} = css.transform({
+  filename: 'style.css',
+  code: Buffer.from('.foo { color: red }'),
+  minify: true,
+  source_map: true,
+  targets: {
+    // Semver versions are represented using a single 24-bit number, with one component per byte.
+    // e.g. to represent 13.2.0, the following could be used.
+    safari: (13 << 16) | (2 << 8)
+  }
+});
+```
+
+### From Rust
+
+See the Rust API docs on [docs.rs](https://docs.rs/parcel_css).
+
 ## Benchmarks
 
 ```
