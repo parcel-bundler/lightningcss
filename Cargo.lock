@@ -274,7 +274,6 @@ version = "1.0.0-alpha.5"
 dependencies = [
  "bitflags",
  "cssparser",
- "cssparser-macros",
  "indoc",
  "itertools",
  "parcel_sourcemap",
