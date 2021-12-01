@@ -4,6 +4,7 @@
   "license": "MIT",
   "description": "A CSS parser, transformer, and minifier written in Rust",
   "main": "native.js",
+  "types": "node/index.d.ts",
   "targets": {
     "main": false
   },

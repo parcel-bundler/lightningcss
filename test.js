@@ -1,4 +1,4 @@
-const css = require('./native');
+const css = require('./');
 const fs = require('fs');
 
 if (process.argv[process.argv.length - 1] !== __filename) {
@@ -45,4 +45,4 @@ let res = css.transform({
 }
 `)});
 
-console.log(res.toString());
+console.log(res.code.toString());
