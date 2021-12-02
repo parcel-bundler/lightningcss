@@ -5627,5 +5627,15 @@ mod tests {
     minify_test(".foo { grid-template-columns: 200px repeat(auto-fill, 100px) 300px; }", ".foo{grid-template-columns:200px repeat(auto-fill,100px) 300px}");
     minify_test(".foo { grid-template-columns: [linename1 linename2] 100px repeat(auto-fit, [linename1] 300px) [linename3]; }", ".foo{grid-template-columns:[linename1 linename2]100px repeat(auto-fit,[linename1]300px)[linename3]}");
     minify_test(".foo { grid-template-rows: [linename1 linename2] 100px repeat(auto-fit, [linename1] 300px) [linename3]; }", ".foo{grid-template-rows:[linename1 linename2]100px repeat(auto-fit,[linename1]300px)[linename3]}");
+
+    minify_test(".foo { grid-auto-rows: auto; }", ".foo{grid-auto-rows:auto}");
+    minify_test(".foo { grid-auto-rows: 1fr; }", ".foo{grid-auto-rows:1fr}");
+    minify_test(".foo { grid-auto-rows: 100px; }", ".foo{grid-auto-rows:100px}");
+    minify_test(".foo { grid-auto-rows: min-content; }", ".foo{grid-auto-rows:min-content}");
+    minify_test(".foo { grid-auto-rows: max-content; }", ".foo{grid-auto-rows:max-content}");
+    minify_test(".foo { grid-auto-rows: minmax(100px,auto); }", ".foo{grid-auto-rows:minmax(100px,auto)}");
+    minify_test(".foo { grid-auto-rows: fit-content(20%); }", ".foo{grid-auto-rows:fit-content(20%)}");
+    minify_test(".foo { grid-auto-rows: 100px minmax(100px, auto) 10% 0.5fr fit-content(400px); }", ".foo{grid-auto-rows:100px minmax(100px,auto) 10% .5fr fit-content(400px)}");
+    minify_test(".foo { grid-auto-columns: 100px minmax(100px, auto) 10% 0.5fr fit-content(400px); }", ".foo{grid-auto-columns:100px minmax(100px,auto) 10% .5fr fit-content(400px)}");
   }
 }

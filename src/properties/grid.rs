@@ -36,6 +36,10 @@ pub enum TrackSize {
   FitContent(LengthPercentage)
 }
 
+/// https://drafts.csswg.org/css-grid-2/#auto-tracks
+#[derive(Debug, Clone, PartialEq)]
+pub struct TrackSizeList(pub SmallVec<[TrackSize; 1]>);
+
 /// https://drafts.csswg.org/css-grid-2/#typedef-track-breadth
 #[derive(Debug, Clone, PartialEq)]
 pub enum TrackBreadth {
@@ -345,5 +349,30 @@ impl ToCss for TrackSizing {
       TrackSizing::None => dest.write_str("none"),
       TrackSizing::TrackList(list) => list.to_css(dest)
     }
+  }
+}
+
+impl Parse for TrackSizeList {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    let mut res = SmallVec::new();
+    while let Ok(size) = input.try_parse(TrackSize::parse) {
+      res.push(size)
+    }
+    Ok(TrackSizeList(res))
+  }
+}
+
+impl ToCss for TrackSizeList {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    let mut first = true;
+    for item in &self.0 {
+      if first {
+        first = false;
+      } else {
+        dest.write_char(' ')?;
+      }
+      item.to_css(dest)?;
+    }
+    Ok(())
   }
 }

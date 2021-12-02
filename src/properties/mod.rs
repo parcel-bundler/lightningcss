@@ -334,6 +334,8 @@ define_properties! {
 
   "grid-template-columns": GridTemplateColumns(TrackSizing),
   "grid-template-rows": GridTemplateRows(TrackSizing),
+  "grid-auto-columns": GridAutoColumns(TrackSizeList),
+  "grid-auto-rows": GridAutoRows(TrackSizeList),
 
   "margin-top": MarginTop(LengthPercentageOrAuto),
   "margin-bottom": MarginBottom(LengthPercentageOrAuto),
