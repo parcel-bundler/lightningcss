@@ -19,6 +19,7 @@ pub mod position;
 pub mod overflow;
 pub mod ui;
 pub mod list;
+pub mod grid;
 
 use cssparser::*;
 use custom::*;
@@ -39,6 +40,7 @@ use text::*;
 use overflow::*;
 use ui::*;
 use list::*;
+use grid::*;
 use crate::values::{image::*, length::*, position::*, alpha::*, size::*, rect::*, color::*, time::Time, ident::CustomIdent, easing::EasingFunction};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
@@ -329,6 +331,9 @@ define_properties! {
   "flex-positive": FlexPositive(f32, VendorPrefix) / "ms",
   "flex-negative": FlexNegative(f32, VendorPrefix) / "ms",
   "flex-preferred-size": FlexPreferredSize(LengthPercentageOrAuto, VendorPrefix) / "ms",
+
+  "grid-template-columns": GridTemplateColumns(TrackSizing),
+  "grid-template-rows": GridTemplateRows(TrackSizing),
 
   "margin-top": MarginTop(LengthPercentageOrAuto),
   "margin-bottom": MarginBottom(LengthPercentageOrAuto),
