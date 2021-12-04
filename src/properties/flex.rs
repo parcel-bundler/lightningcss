@@ -388,8 +388,7 @@ pub(crate) struct FlexHandler {
   preferred_size: Option<(LengthPercentageOrAuto, VendorPrefix)>,
   order: Option<(f32, VendorPrefix)>,
   box_ordinal_group: Option<(BoxOrdinalGroup, VendorPrefix)>,
-  flex_order: Option<(f32, VendorPrefix)>,
-  decls: Vec<Property>
+  flex_order: Option<(f32, VendorPrefix)>
 }
 
 impl FlexHandler {

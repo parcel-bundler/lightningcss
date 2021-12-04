@@ -265,24 +265,48 @@ impl PropertyHandler for BorderHandler {
       BorderRightColor(val) => property!(border_right, color, val, Physical),
       BorderBlockStartColor(val) => property!(border_block_start, color, val, Logical),
       BorderBlockEndColor(val) => property!(border_block_end, color, val, Logical),
+      BorderBlockColor(val) => {
+        property!(border_block_start, color, val, Logical);
+        property!(border_block_end, color, val, Logical);
+      }
       BorderInlineStartColor(val) => property!(border_inline_start, color, val, Logical),
       BorderInlineEndColor(val) => property!(border_inline_end, color, val, Logical),
+      BorderInlineColor(val) => {
+        property!(border_inline_start, color, val, Logical);
+        property!(border_inline_end, color, val, Logical);
+      }
       BorderTopWidth(val) => property!(border_top, width, val, Physical),
       BorderBottomWidth(val) => property!(border_bottom, width, val, Physical),
       BorderLeftWidth(val) => property!(border_left, width, val, Physical),
       BorderRightWidth(val) => property!(border_right, width, val, Physical),
       BorderBlockStartWidth(val) => property!(border_block_start, width, val, Logical),
       BorderBlockEndWidth(val) => property!(border_block_end, width, val, Logical),
+      BorderBlockWidth(val) => {
+        property!(border_block_start, width, val, Logical);
+        property!(border_block_end, width, val, Logical);
+      }
       BorderInlineStartWidth(val) => property!(border_inline_start, width, val, Logical),
       BorderInlineEndWidth(val) => property!(border_inline_end, width, val, Logical),
+      BorderInlineWidth(val) => {
+        property!(border_inline_start, width, val, Logical);
+        property!(border_inline_end, width, val, Logical);
+      }
       BorderTopStyle(val) => property!(border_top, style, val, Physical),
       BorderBottomStyle(val) => property!(border_bottom, style, val, Physical),
       BorderLeftStyle(val) => property!(border_left, style, val, Physical),
       BorderRightStyle(val) => property!(border_right, style, val, Physical),
       BorderBlockStartStyle(val) => property!(border_block_start, style, val, Logical),
       BorderBlockEndStyle(val) => property!(border_block_end, style, val, Logical),
+      BorderBlockStyle(val) => {
+        property!(border_block_start, style, val, Logical);
+        property!(border_block_end, style, val, Logical);
+      }
       BorderInlineStartStyle(val) => property!(border_inline_start, style, val, Logical),
       BorderInlineEndStyle(val) => property!(border_inline_end, style, val, Logical),
+      BorderInlineStyle(val) => {
+        property!(border_inline_start, style, val, Logical);
+        property!(border_inline_end, style, val, Logical);
+      }
       BorderTop(val) => set_border!(border_top, val, Physical),
       BorderBottom(val) => set_border!(border_bottom, val, Physical),
       BorderLeft(val) => set_border!(border_left, val, Physical),
@@ -451,37 +475,49 @@ impl BorderHandler {
             ($prop: expr, $key: ident) => {{
               let has_prop = $block_start.$key.is_some() && $block_end.$key.is_some() && $inline_start.$key.is_some() && $inline_end.$key.is_some();
               if has_prop {
-                dest.push($prop(Rect::new($block_start.$key.clone().unwrap(), $block_end.$key.clone().unwrap(), $inline_start.$key.clone().unwrap(), $inline_end.$key.clone().unwrap())));
+                if !$is_logical || ($block_start.$key == $block_end.$key && $block_end.$key == $inline_start.$key && $inline_start.$key == $inline_end.$key) {
+                  let rect = Rect::new(
+                    std::mem::take(&mut $block_start.$key).unwrap(),
+                    std::mem::take(&mut $inline_end.$key).unwrap(),
+                    std::mem::take(&mut $block_end.$key).unwrap(),
+                    std::mem::take(&mut $inline_start.$key).unwrap()
+                  );
+                  dest.push($prop(rect));
+                }
+              }
+            }};
+          }
+
+          macro_rules! logical_shorthand {
+            ($prop: expr, $key: ident, $start: expr, $end: expr) => {{
+              let has_prop = $start.$key.is_some() && $start.$key == $end.$key;
+              if has_prop {
+                dest.push($prop(std::mem::take(&mut $start.$key).unwrap()));
+                $end.$key = None;
               }
               has_prop
             }};
           }
     
-          let has_style = shorthand!(BorderStyle, style);
-          let has_width = shorthand!(BorderWidth, width);
-          let has_color = shorthand!(BorderColor, color);
+          shorthand!(BorderStyle, style);
+          shorthand!(BorderWidth, width);
+          shorthand!(BorderColor, color);
     
           macro_rules! side {
             ($val: expr, $shorthand: ident, $width: ident, $style: ident, $color: ident) => {
               if $val.is_valid() {
                 dest.push(Property::$shorthand($val.to_border()));
               } else {
-                if !has_style {
-                  if let Some(style) = &$val.style {
-                    dest.push($style(style.clone()));
-                  }
+                if let Some(style) = &$val.style {
+                  dest.push($style(style.clone()));
                 }
         
-                if !has_width {
-                  if let Some(width) = &$val.width {
-                    dest.push($width(width.clone()));
-                  }
+                if let Some(width) = &$val.width {
+                  dest.push($width(width.clone()));
                 }
         
-                if !has_color {
-                  if let Some(color) = &$val.color {
-                    dest.push($color(color.clone()));
-                  }
+                if let Some(color) = &$val.color {
+                  dest.push($color(color.clone()));
                 }
               }
             };
@@ -490,6 +526,12 @@ impl BorderHandler {
           if $is_logical && $block_start == $block_end && $block_start.is_valid() {
             dest.push(BorderBlock($block_start.to_border()))
           } else {
+            if $is_logical && !$block_start.is_valid() && !$block_end.is_valid() {
+              logical_shorthand!(BorderBlockStyle, style, $block_start, $block_end);
+              logical_shorthand!(BorderBlockWidth, width, $block_start, $block_end);
+              logical_shorthand!(BorderBlockColor, color, $block_start, $block_end);
+            }
+
             side!($block_start, $block_start_prop, $block_start_width, $block_start_style, $block_start_color);
             side!($block_end, $block_end_prop, $block_end_width, $block_end_style, $block_end_color);
           }
@@ -497,6 +539,12 @@ impl BorderHandler {
           if $is_logical && $inline_start == $inline_end && $inline_start.is_valid() {
             dest.push(BorderBlock($block_start.to_border()))
           } else {
+            if $is_logical && !$inline_start.is_valid() && !$inline_end.is_valid() {
+              logical_shorthand!(BorderInlineStyle, style, $inline_start, $inline_end);
+              logical_shorthand!(BorderInlineWidth, width, $inline_start, $inline_end);
+              logical_shorthand!(BorderInlineColor, color, $inline_start, $inline_end);
+            }
+
             side!($inline_start, $inline_start_prop, $inline_start_width, $inline_start_style, $inline_start_color);
             side!($inline_end, $inline_end_prop, $inline_end_width, $inline_end_style, $inline_end_color);
           }

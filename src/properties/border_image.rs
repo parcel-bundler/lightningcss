@@ -249,8 +249,7 @@ pub(crate) struct BorderImageHandler {
   width: Option<Rect<BorderImageSideWidth>>,
   outset: Option<Rect<LengthOrNumber>>,
   repeat: Option<BorderImageRepeat>,
-  vendor_prefix: VendorPrefix,
-  decls: Vec<Property>
+  vendor_prefix: VendorPrefix
 }
 
 impl BorderImageHandler {

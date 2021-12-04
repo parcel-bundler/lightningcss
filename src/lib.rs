@@ -250,6 +250,61 @@ mod tests {
       }
     "#, indoc! {".foo{border:0}"
     });
+
+    minify_test(".foo { border-width: 0 0 1px; }", ".foo{border-width:0 0 1px}");
+    test(r#"
+      .foo {
+        border-block-width: 1px;
+        border-inline-width: 1px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-width: 1px;
+      }
+    "#
+    });
+    test(r#"
+      .foo {
+        border-block-start-width: 1px;
+        border-block-end-width: 1px;
+        border-inline-start-width: 1px;
+        border-inline-end-width: 1px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-width: 1px;
+      }
+    "#
+    });
+    test(r#"
+      .foo {
+        border-block-start-width: 1px;
+        border-block-end-width: 1px;
+        border-inline-start-width: 2px;
+        border-inline-end-width: 2px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-block-width: 1px;
+        border-inline-width: 2px;
+      }
+    "#
+    });
+    test(r#"
+      .foo {
+        border-block-start-width: 1px;
+        border-block-end-width: 1px;
+        border-inline-start-width: 2px;
+        border-inline-end-width: 3px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-block-width: 1px;
+        border-inline-start-width: 2px;
+        border-inline-end-width: 3px;
+      }
+    "#
+    });
   }
 
   #[test]

@@ -57,8 +57,7 @@ pub(crate) struct BorderRadiusHandler {
   top_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
   bottom_left: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
   bottom_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
-  logical: Vec<Property>,
-  decls: Vec<Property>
+  logical: Vec<Property>
 }
 
 impl BorderRadiusHandler {
