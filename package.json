@@ -36,12 +36,16 @@
   "devDependencies": {
     "@mdn/browser-compat-data": "^4.0.12",
     "@napi-rs/cli": "1.0.4",
+    "animate.css": "^4.1.1",
     "autoprefixer": "^10.4.0",
+    "bootstrap": "^4.6.1",
     "caniuse-lite": "^1.0.30001272",
     "cssnano": "^5.0.8",
+    "csso": "^5.0.0",
     "esbuild": "^0.13.10",
     "parcel": "^2.0.1",
-    "postcss": "^8.3.11"
+    "postcss": "^8.3.11",
+    "tailwindcss": "^2.2.19"
   },
   "scripts": {
     "build": "node build.js",
