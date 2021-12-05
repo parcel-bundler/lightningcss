@@ -4201,13 +4201,13 @@ mod tests {
     minify_test("@font-face {src: local(\"Foo Bar\");}", "@font-face{src:local(Foo Bar)}");
     minify_test("@font-face {src: local(Test);}", "@font-face{src:local(Test)}");
     minify_test("@font-face {src: local(Foo Bar);}", "@font-face{src:local(Foo Bar)}");
-    minify_test("@font-face {src: url(\"test.woff\") format(woff);}", "@font-face{src:url(test.woff)format(woff)}");
-    minify_test("@font-face {src: url(\"test.woff\") format(woff), url(test.ttf) format(truetype);}", "@font-face{src:url(test.woff)format(woff),url(test.ttf)format(truetype)}");
-    minify_test("@font-face {src: url(\"test.woff\") format(woff supports features(opentype));}", "@font-face{src:url(test.woff)format(woff supports features(opentype))}");
-    minify_test("@font-face {src: url(\"test.woff\") format(woff supports color(COLRv1));}", "@font-face{src:url(test.woff)format(woff supports color(colrv1))}");
-    minify_test("@font-face {src: url(\"test.woff\") format(woff supports variations);}", "@font-face{src:url(test.woff)format(woff supports variations)}");
-    minify_test("@font-face {src: url(\"test.woff\") format(woff supports palettes);}", "@font-face{src:url(test.woff)format(woff supports palettes)}");
-    minify_test("@font-face {src: url(\"test.woff\") format(woff supports features(opentype) color(sbix));}", "@font-face{src:url(test.woff)format(woff supports features(opentype) color(sbix))}");
+    minify_test("@font-face {src: url(\"test.woff\") format(woff);}", "@font-face{src:url(test.woff)format(\"woff\")}");
+    minify_test("@font-face {src: url(\"test.woff\") format(woff), url(test.ttf) format(truetype);}", "@font-face{src:url(test.woff)format(\"woff\"),url(test.ttf)format(\"truetype\")}");
+    minify_test("@font-face {src: url(\"test.woff\") format(woff supports features(opentype));}", "@font-face{src:url(test.woff)format(\"woff\" supports features(opentype))}");
+    minify_test("@font-face {src: url(\"test.woff\") format(woff supports color(COLRv1));}", "@font-face{src:url(test.woff)format(\"woff\" supports color(colrv1))}");
+    minify_test("@font-face {src: url(\"test.woff\") format(woff supports variations);}", "@font-face{src:url(test.woff)format(\"woff\" supports variations)}");
+    minify_test("@font-face {src: url(\"test.woff\") format(woff supports palettes);}", "@font-face{src:url(test.woff)format(\"woff\" supports palettes)}");
+    minify_test("@font-face {src: url(\"test.woff\") format(woff supports features(opentype) color(sbix));}", "@font-face{src:url(test.woff)format(\"woff\" supports features(opentype) color(sbix))}");
   }
 
   #[test]

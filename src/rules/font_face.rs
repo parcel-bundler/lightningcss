@@ -169,9 +169,11 @@ impl ToCss for FontFormat {
       EmbeddedOpenType => "embedded-opentype",
       Collection => "collection",
       SVG => "svg",
-      String(s) => return serialize_string(&s, dest)
+      String(s) => &s
     };
-    dest.write_str(s)
+    // Browser support for keywords rather than strings is very limited.
+    // https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/src
+    serialize_string(&s, dest)
   }
 }
 
