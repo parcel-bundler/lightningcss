@@ -40,8 +40,11 @@
     "caniuse-lite": "^1.0.30001272",
     "cssnano": "^5.0.8",
     "esbuild": "^0.13.10",
+    "jest-diff": "^27.4.2",
+    "node-fetch": "^3.1.0",
     "parcel": "^2.0.1",
-    "postcss": "^8.3.11"
+    "postcss": "^8.3.11",
+    "puppeteer": "^12.0.1"
   },
   "scripts": {
     "build": "node build.js",
