@@ -51,11 +51,30 @@ macro_rules! define_properties {
   (
     $( $name: tt: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: tt )*, )+
   ) => {
+    #[derive(Debug, Clone, Copy, PartialEq)]
+    pub enum PropertyId {
+      $(
+        $property,
+      )+
+    }
+
+    impl ToCss for PropertyId {
+      fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+        use PropertyId::*;
+        match self {
+          $(
+            $property => dest.write_str(&$name),
+          )+
+        }
+      }
+    }
+
     #[derive(Debug, Clone, PartialEq)]
     pub enum Property {
       $(
         $property($type, $($vp)?),
       )+
+      Unparsed(UnparsedProperty),
       Custom(CustomProperty),
     }
 
@@ -70,16 +89,27 @@ macro_rules! define_properties {
                   return Ok(Property::$property(c, $(<$vp>::None)?))
                 }
               }
+
+              // If a value was unable to be parsed, treat as an unparsed property.
+              // This is different from a custom property, handled below, in that the property name is known
+              // and stored as an enum rather than a string. This lets property handlers more easily deal with it.
+              // Ideally we'd only do this if var() or env() references were seen, but err on the safe side for now.
+              input.reset(&state);
+              return Ok(Property::Unparsed(UnparsedProperty::parse(PropertyId::$property, VendorPrefix::None, input)?))
             }
           )+
           $(
             $(
               concat!("-", $prefix, "-", $name) => {
+                let prefix = VendorPrefix::from_str($prefix);
                 if let Ok(c) = <$type>::parse(input) {
                   if input.expect_exhausted().is_ok() {
-                    return Ok(Property::$property(c, VendorPrefix::from_str($prefix)))
+                    return Ok(Property::$property(c, prefix))
                   }
                 }
+
+                input.reset(&state);
+                return Ok(Property::Unparsed(UnparsedProperty::parse(PropertyId::$property, prefix, input)?))  
               }
             )*
           )?
@@ -99,23 +129,23 @@ macro_rules! define_properties {
           };
         }
 
+        let mut first = true;
+        macro_rules! start {
+          () => {
+            #[allow(unused_assignments)]
+            if first {
+              first = false;
+            } else {
+              dest.write_char(';')?;
+              dest.newline()?;
+            }
+          };
+        }
+
         match self {
           $(
             $property(val, $(vp_name!($vp, prefix))?) => {
               // If there are multiple vendor prefixes set, this expands them.
-              let mut first = true;
-              macro_rules! start {
-                () => {
-                  #[allow(unused_assignments)]
-                  if first {
-                    first = false;
-                  } else {
-                    dest.write_char(';')?;
-                    dest.newline()?;
-                  }
-                };
-              }
-
               macro_rules! write {
                 () => {
                   dest.write_str($name)?;
@@ -149,6 +179,29 @@ macro_rules! define_properties {
               write!($($vp,)? VendorPrefix::None);
             }
           )+
+          Unparsed(unparsed) => {
+            macro_rules! write {
+              ($p: expr) => {
+                if unparsed.vendor_prefix.contains($p) {
+                  start!();
+                  $p.to_css(dest)?;
+                  unparsed.property_id.to_css(dest)?;
+                  dest.delim(':', false)?;
+                  dest.write_str(unparsed.value.as_ref())?;
+                  if important {
+                    dest.whitespace()?;
+                    dest.write_str("!important")?;
+                  }
+                }
+              };
+            }
+            
+            write!(VendorPrefix::WebKit);
+            write!(VendorPrefix::Moz);
+            write!(VendorPrefix::Ms);
+            write!(VendorPrefix::O);
+            write!(VendorPrefix::None);
+          }
           Custom(custom) => {
             dest.write_str(custom.name.as_ref())?;
             dest.delim(':', false)?;

@@ -1,7 +1,7 @@
 use crate::values::{length::*, percentage::{Percentage, NumberOrPercentage}, number::serialize_number};
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
-use crate::properties::{Property, VendorPrefix};
+use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::declaration::DeclarationList;
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
@@ -285,6 +285,25 @@ impl PropertyHandler for BorderImageHandler {
         self.set_border_image(val);
         self.vendor_prefix |= *vp;
       },
+      Unparsed(val) if is_border_image_property(&val.property_id) => {
+        self.flush(dest);
+
+        // Even if we weren't able to parse the value (e.g. due to var() references),
+        // we can still add vendor prefixes to the property itself.
+        let prop = if val.property_id == PropertyId::BorderImage && val.vendor_prefix.contains(VendorPrefix::None) {
+          if let Some(targets) = self.targets {
+            let mut val = val.clone();
+            val.vendor_prefix = Feature::BorderImage.prefixes_for(targets);
+            Property::Unparsed(val)
+          } else {
+            property.clone()
+          }
+        } else {
+          property.clone()
+        };
+
+        dest.push(prop);
+      }
       _ => return false
     }
 
@@ -359,5 +378,17 @@ impl BorderImageHandler {
     }
 
     self.vendor_prefix = VendorPrefix::empty();
+  }
+}
+
+fn is_border_image_property(property_id: &PropertyId) -> bool {
+  match property_id {
+    PropertyId::BorderImageSource |
+    PropertyId::BorderImageSlice |
+    PropertyId::BorderImageWidth |
+    PropertyId::BorderImageOutset |
+    PropertyId::BorderImageRepeat |
+    PropertyId::BorderImage => true,
+    _ => false
   }
 }

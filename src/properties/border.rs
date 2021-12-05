@@ -2,7 +2,7 @@ use crate::values::length::*;
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::values::color::CssColor;
-use crate::properties::Property;
+use crate::properties::{Property, PropertyId};
 use crate::declaration::DeclarationList;
 use crate::values::rect::Rect;
 use crate::macros::*;
@@ -367,6 +367,10 @@ impl PropertyHandler for BorderHandler {
         // Setting the `border` property resets `border-image`.
         self.border_image_handler.reset();
       }
+      Unparsed(val) if is_border_property(&val.property_id) => {
+        self.flush(dest);
+        dest.push(property.clone());
+      }
       _ => {
         return self.border_image_handler.handle_property(property, dest) || self.border_radius_handler.handle_property(property, dest)
       }
@@ -608,5 +612,55 @@ impl BorderHandler {
     self.border_block_end.reset();
     self.border_inline_start.reset();
     self.border_inline_end.reset();
+  }
+}
+
+fn is_border_property(property_id: &PropertyId) -> bool {
+  match property_id {
+    PropertyId::BorderTopColor |
+    PropertyId::BorderBottomColor |
+    PropertyId::BorderLeftColor |
+    PropertyId::BorderRightColor |
+    PropertyId::BorderBlockStartColor |
+    PropertyId::BorderBlockEndColor |
+    PropertyId::BorderBlockColor |
+    PropertyId::BorderInlineStartColor |
+    PropertyId::BorderInlineEndColor |
+    PropertyId::BorderInlineColor |
+    PropertyId::BorderTopWidth |
+    PropertyId::BorderBottomWidth |
+    PropertyId::BorderLeftWidth |
+    PropertyId::BorderRightWidth |
+    PropertyId::BorderBlockStartWidth |
+    PropertyId::BorderBlockEndWidth |
+    PropertyId::BorderBlockWidth |
+    PropertyId::BorderInlineStartWidth |
+    PropertyId::BorderInlineEndWidth |
+    PropertyId::BorderInlineWidth |
+    PropertyId::BorderTopStyle |
+    PropertyId::BorderBottomStyle |
+    PropertyId::BorderLeftStyle |
+    PropertyId::BorderRightStyle |
+    PropertyId::BorderBlockStartStyle |
+    PropertyId::BorderBlockEndStyle |
+    PropertyId::BorderBlockStyle |
+    PropertyId::BorderInlineStartStyle |
+    PropertyId::BorderInlineEndStyle |
+    PropertyId::BorderInlineStyle |
+    PropertyId::BorderTop |
+    PropertyId::BorderBottom |
+    PropertyId::BorderLeft |
+    PropertyId::BorderRight |
+    PropertyId::BorderBlockStart |
+    PropertyId::BorderBlockEnd |
+    PropertyId::BorderInlineStart |
+    PropertyId::BorderInlineEnd |
+    PropertyId::BorderBlock |
+    PropertyId::BorderInline |
+    PropertyId::BorderWidth |
+    PropertyId::BorderStyle |
+    PropertyId::BorderColor |
+    PropertyId::Border => true,
+    _ => false
   }
 }

@@ -307,6 +307,18 @@ mod tests {
     });
 
     minify_test(".foo { border-bottom: 1px solid var(--spectrum-global-color-gray-200)}", ".foo{border-bottom:1px solid var(--spectrum-global-color-gray-200)}");
+    test(r#"
+      .foo {
+        border-width: 0;
+        border-bottom: var(--test, 1px) solid;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-width: 0;
+        border-bottom: var(--test, 1px) solid;
+      }
+    "#
+    });
   }
 
   #[test]
@@ -345,6 +357,19 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         border-image: url(foo.png) 10 40 fill / 10px round;
+      }
+    "#
+    });
+
+    test(r#"
+      .foo {
+        border-image: url(foo.png) 60;
+        border-image-source: var(--test);
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-image: url(foo.png) 60;
+        border-image-source: var(--test);
       }
     "#
     });
@@ -412,6 +437,25 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         border-image: url(foo.png) 10 40 fill / 10px round;
+      }
+    "#
+    }, Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(4 << 16),
+      opera: Some(12 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-image: var(--test) 60;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-border-image: var(--test) 60;
+        -moz-border-image: var(--test) 60;
+        -o-border-image: var(--test) 60;
+        border-image: var(--test) 60;
       }
     "#
     }, Browsers {
