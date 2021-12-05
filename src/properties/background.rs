@@ -112,7 +112,7 @@ impl Parse for BackgroundRepeat {
     input.reset(&state);
 
     let x = BackgroundRepeatKeyword::parse(input)?;
-    let y = BackgroundRepeatKeyword::parse(input).ok().unwrap_or(x.clone());
+    let y = input.try_parse(BackgroundRepeatKeyword::parse).unwrap_or(x.clone());
     Ok(BackgroundRepeat { x, y })
   }
 }
@@ -559,7 +559,7 @@ impl BackgroundHandler {
           ($prefix: ident) => {
             if prefixes.contains(VendorPrefix::$prefix) {
               let images = images.iter().map(|image| image.get_prefixed(VendorPrefix::$prefix)).collect();
-            dest.push(Property::BackgroundImage(images))
+              dest.push(Property::BackgroundImage(images))
             }
           };
         }
