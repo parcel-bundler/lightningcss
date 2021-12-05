@@ -838,7 +838,7 @@ impl<S: Parse> Parse for WebKitGradientPointComponent<S> {
   }
 }
 
-impl<S: ToCss + Clone + Into<Percentage>> ToCss for WebKitGradientPointComponent<S> {
+impl<S: ToCss + Clone + Into<LengthPercentage>> ToCss for WebKitGradientPointComponent<S> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     use WebKitGradientPointComponent::*;
     match &self {
@@ -858,12 +858,8 @@ impl<S: ToCss + Clone + Into<Percentage>> ToCss for WebKitGradientPointComponent
       },
       Side(s) => {
         if dest.minify {
-          let percentage: Percentage = s.clone().into();
-          if percentage == 0.0 {
-            dest.write_char('0')?;
-          } else {
-            percentage.to_css(dest)?;
-          }
+          let lp: LengthPercentage = s.clone().into();
+          lp.to_css(dest)?;
         } else {
           s.to_css(dest)?;
         }

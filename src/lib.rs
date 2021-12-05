@@ -897,7 +897,13 @@ mod tests {
     "#
     });
 
-    minify_test(".foo { background-position: bottom left }", ".foo{background-position:0% 100%}");
+    minify_test(".foo { background-position: bottom left }", ".foo{background-position:0 100%}");
+    minify_test(".foo { background-position: left 10px center }", ".foo{background-position:10px 50%}");
+    minify_test(".foo { background-position: right 10px center }", ".foo{background-position:right 10px center}");
+    minify_test(".foo { background-position: right 10px top 20px }", ".foo{background-position:right 10px top 20px}");
+    minify_test(".foo { background-position: left 10px top 20px }", ".foo{background-position:10px 20px}");
+    minify_test(".foo { background-position: left 10px bottom 20px }", ".foo{background-position:left 10px bottom 20px}");
+    minify_test(".foo { background-position: left 10px top }", ".foo{background-position:10px 0}");
   }
 
   #[test]
@@ -3674,11 +3680,11 @@ mod tests {
     );
     minify_test(
       ".foo { background: radial-gradient(at top left, yellow, blue) }",
-      ".foo{background:radial-gradient(at 0% 0%,#ff0,#00f)}"
+      ".foo{background:radial-gradient(at 0 0,#ff0,#00f)}"
     );
     minify_test(
       ".foo { background: radial-gradient(5em circle at top left, yellow, blue) }",
-      ".foo{background:radial-gradient(5em at 0% 0%,#ff0,#00f)}"
+      ".foo{background:radial-gradient(5em at 0 0,#ff0,#00f)}"
     );
     minify_test(
       ".foo { background: radial-gradient(circle at 100%, #333, #333 50%, #eee 75%, #333 75%) }",
@@ -4051,8 +4057,8 @@ mod tests {
       indoc! {r#"
       .foo {
         background-image: -webkit-gradient(radial, left top, 0, left top, 20, from(red), to(#00f));
-        background-image: -webkit-radial-gradient(20px at 0% 0%, red, #00f);
-        background-image: radial-gradient(20px at 0% 0%, red, #00f);
+        background-image: -webkit-radial-gradient(20px at 0 0, red, #00f);
+        background-image: radial-gradient(20px at 0 0, red, #00f);
       }
       "#},
       Browsers {

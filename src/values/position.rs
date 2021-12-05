@@ -2,7 +2,7 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::macros::enum_property;
 use crate::printer::Printer;
-use super::length::LengthPercentage;
+use super::length::{LengthPercentage, LengthValue};
 use super::percentage::Percentage;
 
 /// https://www.w3.org/TR/css-backgrounds-3/#background-position
@@ -126,17 +126,25 @@ impl ToCss for Position {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     match (&self.x, &self.y) {
       (
-        x_pos @ &HorizontalPosition::Side(_, Some(_)),
+        x_pos @ &HorizontalPosition::Side(side, Some(_)),
         &VerticalPosition::Length(ref y_lp),
-      ) => {
+      ) if side != HorizontalPositionKeyword::Left => {
         x_pos.to_css(dest)?;
         dest.write_str(" top ")?;
         y_lp.to_css(dest)
       },
       (
+        x_pos @ &HorizontalPosition::Side(side, Some(_)),
+        &VerticalPosition::Center
+      ) if side != HorizontalPositionKeyword::Left => {
+        // If there is a side keyword with an offset, "center" must be a keyword not a percentage.
+        x_pos.to_css(dest)?;
+        dest.write_str(" center")
+      },
+      (
         &HorizontalPosition::Length(ref x_lp),
-        y_pos @ &VerticalPosition::Side(_, Some(_)),
-      ) => {
+        y_pos @ &VerticalPosition::Side(side, Some(_)),
+      ) if side != VerticalPositionKeyword::Top => {
         dest.write_str("left ")?;
         x_lp.to_css(dest)?;
         dest.write_str(" ")?;
@@ -153,7 +161,7 @@ impl ToCss for Position {
         &HorizontalPosition::Side(side, None),
         &VerticalPosition::Center,
       ) => {
-        let p: Percentage = side.into();
+        let p: LengthPercentage = side.into();
         p.to_css(dest)
       },
       (
@@ -173,7 +181,7 @@ impl ToCss for Position {
         &HorizontalPosition::Side(side, None),
         &VerticalPosition::Length(LengthPercentage::Percentage(Percentage(y_lp))),
       ) if y_lp == 0.5 => {
-        let p: Percentage = side.into();
+        let p: LengthPercentage = side.into();
         p.to_css(dest)
       },
       (
@@ -186,16 +194,50 @@ impl ToCss for Position {
         &HorizontalPosition::Side(x, None),
         &VerticalPosition::Side(y, None)
       ) => {
-        let x: Percentage = x.into();
-        let y: Percentage = y.into();
+        let x: LengthPercentage = x.into();
+        let y: LengthPercentage = y.into();
         x.to_css(dest)?;
         dest.write_str(" ")?;
         y.to_css(dest)
       },
       (x_pos, y_pos) => {
-        x_pos.to_css(dest)?;
-        dest.write_str(" ")?;
-        y_pos.to_css(dest)
+        let zero = LengthPercentage::Dimension(LengthValue::Px(0.0));
+        let fifty = LengthPercentage::Percentage(Percentage(0.5));
+        let x_len = match &x_pos {
+          HorizontalPosition::Side(HorizontalPositionKeyword::Left, len) => {
+            if let Some(len) = len {
+              Some(len)
+            } else {
+              Some(&zero)
+            }
+          },
+          HorizontalPosition::Length(len) => Some(len),
+          HorizontalPosition::Center => Some(&fifty),
+          _ => None
+        };
+
+        let y_len = match &y_pos {
+          VerticalPosition::Side(VerticalPositionKeyword::Top, len) => {
+            if let Some(len) = len {
+              Some(len)
+            } else {
+              Some(&zero)
+            }
+          },
+          VerticalPosition::Length(len) => Some(len),
+          VerticalPosition::Center => Some(&fifty),
+          _ => None
+        };
+
+        if let (Some(x), Some(y)) = (x_len, y_len) {
+          x.to_css(dest)?;
+          dest.write_str(" ")?;
+          y.to_css(dest)
+        } else {
+          x_pos.to_css(dest)?;
+          dest.write_str(" ")?;
+          y_pos.to_css(dest)
+        }
       },
     }
   }
@@ -256,11 +298,11 @@ enum_property!(HorizontalPositionKeyword,
   Right
 );
 
-impl Into<Percentage> for HorizontalPositionKeyword {
-  fn into(self) -> Percentage {
+impl Into<LengthPercentage> for HorizontalPositionKeyword {
+  fn into(self) -> LengthPercentage {
     match self {
-      HorizontalPositionKeyword::Left => Percentage(0.0),
-      HorizontalPositionKeyword::Right => Percentage(1.0)
+      HorizontalPositionKeyword::Left => LengthPercentage::Dimension(LengthValue::Px(0.0)),
+      HorizontalPositionKeyword::Right => LengthPercentage::Percentage(Percentage(1.0))
     }
   }
 }
@@ -270,11 +312,11 @@ enum_property!(VerticalPositionKeyword,
   Bottom
 );
 
-impl Into<Percentage> for VerticalPositionKeyword {
-  fn into(self) -> Percentage {
+impl Into<LengthPercentage> for VerticalPositionKeyword {
+  fn into(self) -> LengthPercentage {
     match self {
-      VerticalPositionKeyword::Top => Percentage(0.0),
-      VerticalPositionKeyword::Bottom => Percentage(1.0)
+      VerticalPositionKeyword::Top => LengthPercentage::Dimension(LengthValue::Px(0.0)),
+      VerticalPositionKeyword::Bottom => LengthPercentage::Percentage(Percentage(1.0))
     }
   }
 }
