@@ -280,13 +280,15 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
       //         Err(input.new_custom_error(StyleParseErrorKind::UnsupportedAtRule(name.clone())))
       //     }
       // },
-      "keyframes" | "-webkit-keyframes" | "-moz-keyframes" | "-o-keyframes" => {
+      "keyframes" | "-webkit-keyframes" | "-moz-keyframes" | "-o-keyframes" | "-ms-keyframes" => {
         let prefix = if starts_with_ignore_ascii_case(&*name, "-webkit-") {
           VendorPrefix::WebKit
         } else if starts_with_ignore_ascii_case(&*name, "-moz-") {
           VendorPrefix::Moz
         } else if starts_with_ignore_ascii_case(&*name, "-o-") {
           VendorPrefix::O
+        } else if starts_with_ignore_ascii_case(&*name, "-ms-") {
+          VendorPrefix::Ms
         } else {
           VendorPrefix::None
         };
