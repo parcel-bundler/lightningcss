@@ -305,6 +305,8 @@ mod tests {
       }
     "#
     });
+
+    minify_test(".foo { border-bottom: 1px solid var(--spectrum-global-color-gray-200)}", ".foo{border-bottom:1px solid var(--spectrum-global-color-gray-200)}");
   }
 
   #[test]

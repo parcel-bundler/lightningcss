@@ -66,7 +66,9 @@ macro_rules! define_properties {
           $(
             $name => {
               if let Ok(c) = <$type>::parse(input) {
-                return Ok(Property::$property(c, $(<$vp>::None)?))
+                if input.expect_exhausted().is_ok() {
+                  return Ok(Property::$property(c, $(<$vp>::None)?))
+                }
               }
             }
           )+
@@ -74,7 +76,9 @@ macro_rules! define_properties {
             $(
               concat!("-", $prefix, "-", $name) => {
                 if let Ok(c) = <$type>::parse(input) {
-                  return Ok(Property::$property(c, VendorPrefix::from_str($prefix)))
+                  if input.expect_exhausted().is_ok() {
+                    return Ok(Property::$property(c, VendorPrefix::from_str($prefix)))
+                  }
                 }
               }
             )*
