@@ -290,23 +290,23 @@ impl Parse for Background {
 
 impl ToCss for Background {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-    let mut needs_space = false;
+    let mut has_output = false;
 
     if self.color != CssColor::default() {
       self.color.to_css(dest)?;
-      needs_space = true;
+      has_output = true;
     }
 
     if self.image != Image::default() {
-      if needs_space {
+      if has_output {
         dest.write_str(" ")?;
       }
       self.image.to_css(dest)?;
-      needs_space = true;
+      has_output = true;
     }
 
     if self.position != Position::default() || self.size != BackgroundSize::default() {
-      if needs_space {
+      if has_output {
         dest.write_str(" ")?;
       }
       self.position.to_css(dest)?;
@@ -316,29 +316,29 @@ impl ToCss for Background {
         self.size.to_css(dest)?;
       }
 
-      needs_space = true;
+      has_output = true;
     }
 
     if self.repeat != BackgroundRepeat::default() {
-      if needs_space {
+      if has_output {
         dest.write_str(" ")?;
       }
 
       self.repeat.to_css(dest)?;
-      needs_space = true;
+      has_output = true;
     }
 
     if self.attachment != BackgroundAttachment::default() {
-      if needs_space {
+      if has_output {
         dest.write_str(" ")?;
       }
 
       self.attachment.to_css(dest)?;
-      needs_space = true;
+      has_output = true;
     }
 
     if self.origin != BackgroundBox::PaddingBox || self.clip != BackgroundBox::BorderBox {
-      if needs_space {
+      if has_output {
         dest.write_str(" ")?;
       }
 
@@ -348,6 +348,13 @@ impl ToCss for Background {
         dest.write_str(" ")?;
         self.clip.to_css(dest)?;
       }
+
+      has_output = true;
+    }
+
+    // If nothing was output, then this is the initial value, e.g. background: transparent
+    if !has_output {
+      self.color.to_css(dest)?;
     }
 
     Ok(())

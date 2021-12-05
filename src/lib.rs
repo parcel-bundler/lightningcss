@@ -907,6 +907,7 @@ mod tests {
     minify_test(".foo { background-position: bottom right }", ".foo{background-position:100% 100%}");
 
     minify_test(".foo { background: url('img-sprite.png') no-repeat bottom right }", ".foo{background:url(img-sprite.png) 100% 100% no-repeat}");
+    minify_test(".foo { background: transparent }", ".foo{background:#0000}");
   }
 
   #[test]
