@@ -6,7 +6,7 @@ use crate::values::{
   percentage::Percentage
 };
 use crate::traits::{Parse, ToCss, PropertyHandler};
-use super::Property;
+use super::{Property, PropertyId};
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
 
@@ -597,7 +597,7 @@ pub(crate) struct FontHandler {
 }
 
 impl PropertyHandler for FontHandler {
-  fn handle_property(&mut self, property: &Property, _: &mut DeclarationList) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
     use Property::*;
 
     macro_rules! property {
@@ -625,6 +625,10 @@ impl PropertyHandler for FontHandler {
         self.variant_caps = Some(val.variant_caps.to_font_variant_caps());
         self.has_any = true;
         // TODO: reset other properties
+      }
+      Unparsed(val) if is_font_property(&val.property_id) => {
+        self.finalize(dest);
+        dest.push(property.clone());
       }
       _ => return false
     }
@@ -693,5 +697,20 @@ impl PropertyHandler for FontHandler {
         decls.push(Property::LineHeight(val))
       }
     }
+  }
+}
+
+#[inline]
+fn is_font_property(property_id: &PropertyId) -> bool {
+  match property_id {
+    PropertyId::FontFamily |
+    PropertyId::FontSize |
+    PropertyId::FontStyle |
+    PropertyId::FontWeight |
+    PropertyId::FontStretch |
+    PropertyId::FontVariantCaps |
+    PropertyId::LineHeight |
+    PropertyId::Font => true,
+    _ => false
   }
 }

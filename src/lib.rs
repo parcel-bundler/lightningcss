@@ -2053,6 +2053,19 @@ mod tests {
     "#
     });
 
+    test(r#"
+      .foo {
+        font: 12px "Helvetica", "Times New Roman", sans-serif;
+        line-height: var(--lh);
+      }
+    "#, indoc! {r#"
+      .foo {
+        font: 12px Helvetica, Times New Roman, sans-serif;
+        line-height: var(--lh);
+      }
+    "#
+    });
+
     minify_test(r#"
       .foo {
         font-family: "Helvetica", "Times New Roman", sans-serif;
