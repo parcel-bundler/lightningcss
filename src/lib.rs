@@ -550,6 +550,31 @@ mod tests {
 
     test(r#"
       .foo {
+        border-radius: 10px;
+        border-top-left-radius: 20px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-radius: 20px 10px 10px;
+      }
+    "#
+    });
+
+    test(r#"
+      .foo {
+        border-radius: 10px;
+        border-top-left-radius: var(--test);
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-radius: 10px;
+        border-top-left-radius: var(--test);
+      }
+    "#
+    });
+
+    test(r#"
+      .foo {
         -webkit-border-radius: 10px 100px 10px 100px;
         -moz-border-radius: 10px 100px 10px 100px;
         border-radius: 10px 100px 10px 100px;
@@ -697,7 +722,24 @@ mod tests {
       safari: Some(14 << 16),
       firefox: Some(46 << 16),
       ..Browsers::default()
-    })
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-radius: var(--test);
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-border-radius: var(--test);
+        -moz-border-radius: var(--test);
+        border-radius: var(--test);
+      }
+    "#
+    }, Browsers {
+      safari: Some(4 << 16),
+      firefox: Some(3 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]

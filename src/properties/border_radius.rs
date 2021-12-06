@@ -4,7 +4,7 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
-use crate::properties::{Property, VendorPrefix};
+use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::declaration::DeclarationList;
 use crate::values::rect::Rect;
 use crate::printer::Printer;
@@ -109,6 +109,25 @@ impl PropertyHandler for BorderRadiusHandler {
         property!(bottom_left, &val.bottom_left, vp);
         property!(bottom_right, &val.bottom_right, vp);
       }
+      Unparsed(val) if is_border_radius_property(&val.property_id) => {
+        self.flush(dest);
+
+        // Even if we weren't able to parse the value (e.g. due to var() references),
+        // we can still add vendor prefixes to the property itself.
+        let prop = if val.vendor_prefix.contains(VendorPrefix::None) && !is_logical_border_radius_property(&val.property_id) {
+          if let Some(targets) = self.targets {
+            let mut val = val.clone();
+            val.vendor_prefix = Feature::BorderRadius.prefixes_for(targets);
+            Property::Unparsed(val)
+          } else {
+            property.clone()
+          }
+        } else {
+          property.clone()
+        };
+
+        dest.push(prop);
+      }
       _ => return false
     }
 
@@ -170,5 +189,30 @@ impl BorderRadiusHandler {
     single_property!(BorderTopRightRadius, top_right);
     single_property!(BorderBottomLeftRadius, bottom_left);
     single_property!(BorderBottomRightRadius, bottom_right);
+  }
+}
+
+fn is_border_radius_property(property_id: &PropertyId) -> bool {
+  if is_logical_border_radius_property(property_id) {
+    return true
+  }
+
+  match property_id {
+    PropertyId::BorderTopLeftRadius |
+    PropertyId::BorderTopRightRadius |
+    PropertyId::BorderBottomLeftRadius |
+    PropertyId::BorderBottomRightRadius |
+    PropertyId::BorderRadius => true,
+    _ => false
+  }
+}
+
+fn is_logical_border_radius_property(property_id: &PropertyId) -> bool {
+  match property_id {
+    PropertyId::BorderStartStartRadius |
+    PropertyId::BorderStartEndRadius |
+    PropertyId::BorderEndStartRadius | 
+    PropertyId::BorderEndEndRadius => true,
+    _ => false
   }
 }
