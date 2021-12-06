@@ -31,6 +31,7 @@ macro_rules! side_handler {
       block_end: Option<LengthPercentageOrAuto>,
       inline_start: Option<LengthPercentageOrAuto>,
       inline_end: Option<LengthPercentageOrAuto>,
+      has_any: bool,
       category: SideCategory
     }
 
@@ -46,6 +47,7 @@ macro_rules! side_handler {
             }
             self.$key = Some($val.clone());
             self.category = $category;
+            self.has_any = true;
           }};
         }
 
@@ -57,6 +59,7 @@ macro_rules! side_handler {
             self.$start = Some($val.0.clone());
             self.$end = Some($val.1.clone());
             self.category = Logical;
+            self.has_any = true;
           }};
         }
 
@@ -81,6 +84,7 @@ macro_rules! side_handler {
             self.block_end = None;
             self.inline_start = None;
             self.inline_end = None;
+            self.has_any = true;
           }
           Unparsed(val) if matches!(val.property_id, PropertyId::$top | PropertyId::$bottom | PropertyId::$left | PropertyId::$right | PropertyId::$block_start | PropertyId::$block_end | PropertyId::$inline_start | PropertyId::$inline_end | PropertyId::$block_shorthand | PropertyId::$inline_shorthand | PropertyId::$shorthand) => {
             self.flush(dest);
@@ -100,6 +104,12 @@ macro_rules! side_handler {
     impl $name {
       fn flush(&mut self, dest: &mut DeclarationList) {
         use Property::*;
+
+        if !self.has_any {
+          return
+        }
+
+        self.has_any = false;
 
         let top = std::mem::take(&mut self.top);
         let bottom = std::mem::take(&mut self.bottom);

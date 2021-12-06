@@ -249,7 +249,8 @@ pub(crate) struct BorderImageHandler {
   width: Option<Rect<BorderImageSideWidth>>,
   outset: Option<Rect<LengthOrNumber>>,
   repeat: Option<BorderImageRepeat>,
-  vendor_prefix: VendorPrefix
+  vendor_prefix: VendorPrefix,
+  has_any: bool
 }
 
 impl BorderImageHandler {
@@ -272,6 +273,7 @@ impl PropertyHandler for BorderImageHandler {
         }
         self.vendor_prefix = VendorPrefix::None;
         self.$name = Some($val.clone());
+        self.has_any = true;
       }};
     }
 
@@ -284,6 +286,7 @@ impl PropertyHandler for BorderImageHandler {
       BorderImage(val, vp) => {
         self.set_border_image(val);
         self.vendor_prefix |= *vp;
+        self.has_any = true;
       },
       Unparsed(val) if is_border_image_property(&val.property_id) => {
         self.flush(dest);
@@ -327,6 +330,12 @@ impl BorderImageHandler {
   }
 
   fn flush(&mut self, dest: &mut DeclarationList) {
+    if !self.has_any {
+      return
+    }
+
+    self.has_any = false;
+
     let source = std::mem::take(&mut self.source);
     let slice = std::mem::take(&mut self.slice);
     let width = std::mem::take(&mut self.width);

@@ -208,7 +208,8 @@ pub(crate) struct AnimationHandler {
   directions: Option<(SmallVec<[AnimationDirection; 1]>, VendorPrefix)>,
   play_states: Option<(SmallVec<[AnimationPlayState; 1]>, VendorPrefix)>,
   delays: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
-  fill_modes: Option<(SmallVec<[AnimationFillMode; 1]>, VendorPrefix)>
+  fill_modes: Option<(SmallVec<[AnimationFillMode; 1]>, VendorPrefix)>,
+  has_any: bool
 }
 
 impl AnimationHandler {
@@ -245,7 +246,8 @@ impl PropertyHandler for AnimationHandler {
           *val = $val.clone();
           *prefixes |= *$vp;
         } else {
-          self.$prop = Some(($val.clone(), *$vp))
+          self.$prop = Some(($val.clone(), *$vp));
+          self.has_any = true;
         }
       }};
     }
@@ -310,6 +312,12 @@ impl PropertyHandler for AnimationHandler {
 
 impl AnimationHandler {
   fn flush(&mut self, dest: &mut DeclarationList) {
+    if !self.has_any {
+      return
+    }
+
+    self.has_any = false;
+
     let mut names = std::mem::take(&mut self.names);
     let mut durations = std::mem::take(&mut self.durations);
     let mut timing_functions = std::mem::take(&mut self.timing_functions);

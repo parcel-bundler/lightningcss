@@ -71,6 +71,10 @@ impl PropertyHandler for OutlineHandler {
   }
 
   fn finalize(&mut self, decls: &mut DeclarationList) {
+    if self.width.is_none() && self.style.is_none() && self.color.is_none() {
+      return
+    }
+
     let width = std::mem::take(&mut self.width);
     let style = std::mem::take(&mut self.style);
     let color = std::mem::take(&mut self.color);

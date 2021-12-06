@@ -220,7 +220,8 @@ pub(crate) struct BorderHandler {
   border_inline_end: BorderShorthand,
   category: BorderCategory,
   border_image_handler: BorderImageHandler,
-  border_radius_handler: BorderRadiusHandler
+  border_radius_handler: BorderRadiusHandler,
+  has_any: bool
 }
 
 impl BorderHandler {
@@ -245,6 +246,7 @@ impl PropertyHandler for BorderHandler {
         }
         self.$key.$prop = Some($val.clone());
         self.category = $category;
+        self.has_any = true;
       }};
     }
 
@@ -255,6 +257,7 @@ impl PropertyHandler for BorderHandler {
         }
         self.$key.set_border($val);
         self.category = $category;
+        self.has_any = true;
       }};
     }
 
@@ -332,6 +335,7 @@ impl PropertyHandler for BorderHandler {
         self.border_block_end.width = None;
         self.border_inline_start.width = None;
         self.border_inline_end.width = None;
+        self.has_any = true;
       }
       BorderStyle(val) => {
         self.border_top.style = Some(val.0.clone());
@@ -342,6 +346,7 @@ impl PropertyHandler for BorderHandler {
         self.border_block_end.style = None;
         self.border_inline_start.style = None;
         self.border_inline_end.style = None;
+        self.has_any = true;
       }
       BorderColor(val) => {
         self.border_top.color = Some(val.0.clone());
@@ -352,6 +357,7 @@ impl PropertyHandler for BorderHandler {
         self.border_block_end.color = None;
         self.border_inline_start.color = None;
         self.border_inline_end.color = None;
+        self.has_any = true;
       }
       Border(val) => {
         // dest.clear();
@@ -366,6 +372,7 @@ impl PropertyHandler for BorderHandler {
 
         // Setting the `border` property resets `border-image`.
         self.border_image_handler.reset();
+        self.has_any = true;
       }
       Unparsed(val) if is_border_property(&val.property_id) => {
         self.flush(dest);
@@ -388,6 +395,12 @@ impl PropertyHandler for BorderHandler {
 
 impl BorderHandler {
   fn flush(&mut self, dest: &mut DeclarationList) {
+    if !self.has_any {
+      return
+    }
+
+    self.has_any = false;
+
     use Property::*;
 
     macro_rules! flush_category {

@@ -95,7 +95,8 @@ pub(crate) struct TransitionHandler {
   properties: Option<(SmallVec<[CustomIdent; 1]>, VendorPrefix)>,
   durations: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   delays: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
-  timing_functions: Option<(SmallVec<[EasingFunction; 1]>, VendorPrefix)>
+  timing_functions: Option<(SmallVec<[EasingFunction; 1]>, VendorPrefix)>,
+  has_any: bool
 }
 
 impl TransitionHandler {
@@ -140,7 +141,8 @@ impl PropertyHandler for TransitionHandler {
           } else {
             *$vp
           };
-          self.$prop = Some(($val.clone(), prefixes))
+          self.$prop = Some(($val.clone(), prefixes));
+          self.has_any = true;
         }
       }};
     }
@@ -180,6 +182,12 @@ impl PropertyHandler for TransitionHandler {
 
 impl TransitionHandler {
   fn flush(&mut self, dest: &mut DeclarationList) {
+    if !self.has_any {
+      return
+    }
+
+    self.has_any = false;
+
     let mut properties = std::mem::take(&mut self.properties);
     let mut durations = std::mem::take(&mut self.durations);
     let mut delays = std::mem::take(&mut self.delays);

@@ -86,6 +86,10 @@ impl PropertyHandler for OverflowHandler {
   }
 
   fn finalize(&mut self, dest: &mut DeclarationList) {
+    if self.x.is_none() && self.y.is_none() {
+      return
+    }
+
     let x = std::mem::take(&mut self.x);
     let y = std::mem::take(&mut self.y);
 

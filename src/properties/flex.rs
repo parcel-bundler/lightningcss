@@ -388,7 +388,8 @@ pub(crate) struct FlexHandler {
   preferred_size: Option<(LengthPercentageOrAuto, VendorPrefix)>,
   order: Option<(f32, VendorPrefix)>,
   box_ordinal_group: Option<(BoxOrdinalGroup, VendorPrefix)>,
-  flex_order: Option<(f32, VendorPrefix)>
+  flex_order: Option<(f32, VendorPrefix)>,
+  has_any: bool
 }
 
 impl FlexHandler {
@@ -425,7 +426,8 @@ impl PropertyHandler for FlexHandler {
           *val = $val.clone();
           *prefixes |= *$vp;
         } else {
-          self.$prop = Some(($val.clone(), *$vp))
+          self.$prop = Some(($val.clone(), *$vp));
+          self.has_any = true;
         }
       }};
     }
@@ -519,6 +521,12 @@ impl PropertyHandler for FlexHandler {
 
 impl FlexHandler {
   fn flush(&mut self, dest: &mut DeclarationList) {
+    if !self.has_any {
+      return
+    }
+
+    self.has_any = false;
+
     let mut direction = std::mem::take(&mut self.direction);
     let mut wrap = std::mem::take(&mut self.wrap);
     let mut grow = std::mem::take(&mut self.grow);

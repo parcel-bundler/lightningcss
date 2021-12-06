@@ -81,6 +81,10 @@ impl PropertyHandler for PositionHandler {
   }
 
   fn finalize(&mut self, dest: &mut DeclarationList) {
+    if self.position.is_none() {
+      return
+    }
+    
     if let Some(position) = std::mem::take(&mut self.position) {
       match position {
         Position::Sticky(mut prefix) => {

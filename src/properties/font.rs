@@ -592,21 +592,29 @@ pub(crate) struct FontHandler {
   weight: Option<FontWeight>,
   stretch: Option<FontStretch>,
   line_height: Option<LineHeight>,
-  variant_caps: Option<FontVariantCaps>
+  variant_caps: Option<FontVariantCaps>,
+  has_any: bool
 }
 
 impl PropertyHandler for FontHandler {
   fn handle_property(&mut self, property: &Property, _: &mut DeclarationList) -> bool {
     use Property::*;
 
+    macro_rules! property {
+      ($prop: ident, $val: ident) => {{
+        self.$prop = Some($val.clone());
+        self.has_any = true;
+      }};
+    }
+
     match property {
-      FontFamily(val) => self.family = Some(val.clone()),
-      FontSize(val) => self.size = Some(val.clone()),
-      FontStyle(val) => self.style = Some(val.clone()),
-      FontWeight(val) => self.weight = Some(val.clone()),
-      FontStretch(val) => self.stretch = Some(val.clone()),
-      FontVariantCaps(val) => self.variant_caps = Some(val.clone()),
-      LineHeight(val) => self.line_height = Some(val.clone()),
+      FontFamily(val) => property!(family, val),
+      FontSize(val) => property!(size, val),
+      FontStyle(val) => property!(style, val),
+      FontWeight(val) => property!(weight, val),
+      FontStretch(val) => property!(stretch, val),
+      FontVariantCaps(val) => property!(variant_caps, val),
+      LineHeight(val) => property!(line_height, val),
       Font(val) => {
         self.family = Some(val.family.clone());
         self.size = Some(val.size.clone());
@@ -615,6 +623,7 @@ impl PropertyHandler for FontHandler {
         self.stretch = Some(val.stretch.clone());
         self.line_height = Some(val.line_height.clone());
         self.variant_caps = Some(val.variant_caps.to_font_variant_caps());
+        self.has_any = true;
         // TODO: reset other properties
       }
       _ => return false
@@ -624,6 +633,12 @@ impl PropertyHandler for FontHandler {
   }
 
   fn finalize(&mut self, decls: &mut DeclarationList) {
+    if !self.has_any {
+      return
+    }
+
+    self.has_any = false;
+
     let family = std::mem::take(&mut self.family);
     let size = std::mem::take(&mut self.size);
     let style = std::mem::take(&mut self.style);

@@ -1386,7 +1386,8 @@ pub(crate) struct TransformHandler {
   transform: Option<(TransformList, VendorPrefix)>,
   translate: Option<Translate>,
   rotate: Option<Rotate>,
-  scale: Option<Scale>
+  scale: Option<Scale>,
+  has_any: bool
 }
 
 impl TransformHandler {
@@ -1407,7 +1408,8 @@ impl PropertyHandler for TransformHandler {
         if let Some((transform, _)) = &mut self.transform {
           transform.0.push($val.to_transform())
         } else {
-          self.$prop = Some($val.clone())
+          self.$prop = Some($val.clone());
+          self.has_any = true;
         }
       };
     }
@@ -1427,7 +1429,8 @@ impl PropertyHandler for TransformHandler {
           *val = val.clone();
           *prefixes |= *vp;
         } else {
-          self.transform = Some((val.clone(), *vp))
+          self.transform = Some((val.clone(), *vp));
+          self.has_any = true;
         }
 
         self.translate = None;
@@ -1459,6 +1462,12 @@ impl PropertyHandler for TransformHandler {
 
 impl TransformHandler {
   fn flush(&mut self, dest: &mut DeclarationList) {
+    if !self.has_any {
+      return
+    }
+
+    self.has_any = false;
+
     let transform = std::mem::take(&mut self.transform);
     let translate = std::mem::take(&mut self.translate);
     let rotate = std::mem::take(&mut self.rotate);

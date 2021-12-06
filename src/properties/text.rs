@@ -695,7 +695,8 @@ pub(crate) struct TextDecorationHandler {
   color: Option<(CssColor, VendorPrefix)>,
   emphasis_style: Option<(TextEmphasisStyle, VendorPrefix)>,
   emphasis_color: Option<(CssColor, VendorPrefix)>,
-  emphasis_position: Option<(TextEmphasisPosition, VendorPrefix)>
+  emphasis_position: Option<(TextEmphasisPosition, VendorPrefix)>,
+  has_any: bool
 }
 
 impl TextDecorationHandler {
@@ -732,7 +733,8 @@ impl PropertyHandler for TextDecorationHandler {
           *val = $val.clone();
           *prefixes |= *$vp;
         } else {
-          self.$prop = Some(($val.clone(), *$vp))
+          self.$prop = Some(($val.clone(), *$vp));
+          self.has_any = true;
         }
       }};
     }
@@ -775,6 +777,12 @@ impl PropertyHandler for TextDecorationHandler {
   }
 
   fn finalize(&mut self, dest: &mut DeclarationList) {
+    if !self.has_any {
+      return
+    }
+
+    self.has_any = false;
+
     let mut line = std::mem::take(&mut self.line);
     let mut thickness = std::mem::take(&mut self.thickness);
     let mut style = std::mem::take(&mut self.style);

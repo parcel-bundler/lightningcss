@@ -339,6 +339,10 @@ impl PropertyHandler for DisplayHandler {
   }
 
   fn finalize(&mut self, dest: &mut DeclarationList) {
+    if self.display.is_none() {
+      return
+    }
+    
     dest.extend(&mut self.decls);
 
     if let Some(display) = std::mem::take(&mut self.display) {

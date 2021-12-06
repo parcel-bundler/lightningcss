@@ -374,7 +374,8 @@ pub(crate) struct BackgroundHandler {
   attachments: Option<SmallVec<[BackgroundAttachment; 1]>>,
   origins: Option<SmallVec<[BackgroundBox; 1]>>,
   clips: Option<SmallVec<[BackgroundClip; 1]>>,
-  decls: Vec<Property>
+  decls: Vec<Property>,
+  has_any: bool
 }
 
 impl BackgroundHandler {
@@ -445,6 +446,7 @@ impl PropertyHandler for BackgroundHandler {
       _ => return false
     }
 
+    self.has_any = true;
     true
   }
 
@@ -462,6 +464,12 @@ impl PropertyHandler for BackgroundHandler {
 
 impl BackgroundHandler {
   fn flush(&mut self, dest: &mut DeclarationList) {    
+    if !self.has_any {
+      return
+    }
+
+    self.has_any = false;
+
     let color = std::mem::take(&mut self.color);
     let mut images = std::mem::take(&mut self.images);
     let mut x_positions = std::mem::take(&mut self.x_positions);

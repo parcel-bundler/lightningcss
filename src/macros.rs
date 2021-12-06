@@ -177,18 +177,23 @@ macro_rules! shorthand_handler {
       $(
         pub $key: Option<$type>,
       )*
+      has_any: bool
     }
 
     impl PropertyHandler for $name {
       fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
         match property {
           $(
-            Property::$prop(val) => self.$key = Some(val.clone()),
+            Property::$prop(val) => {
+              self.$key = Some(val.clone());
+              self.has_any = true;
+            },
           )+
           Property::$shorthand(val) => {
             $(
               self.$key = Some(val.$key.clone());
             )+
+            self.has_any = true;
           }
           Property::Unparsed(val) if matches!(val.property_id, $( PropertyId::$prop | )+ PropertyId::$shorthand) => {
             self.finalize(dest);
@@ -201,6 +206,12 @@ macro_rules! shorthand_handler {
       }
 
       fn finalize(&mut self, dest: &mut DeclarationList) {
+        if !self.has_any {
+          return
+        }
+
+        self.has_any = false;
+
         $(
           let $key = std::mem::take(&mut self.$key);
         )+

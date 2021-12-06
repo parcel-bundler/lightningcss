@@ -57,7 +57,8 @@ pub(crate) struct BorderRadiusHandler {
   top_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
   bottom_left: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
   bottom_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
-  logical: Vec<Property>
+  logical: Vec<Property>,
+  has_any: bool
 }
 
 impl BorderRadiusHandler {
@@ -88,7 +89,8 @@ impl PropertyHandler for BorderRadiusHandler {
           *val = $val.clone();
           *prefixes |= *$vp;
         } else {
-          self.$prop = Some(($val.clone(), *$vp))
+          self.$prop = Some(($val.clone(), *$vp));
+          self.has_any = true;
         }
       }};
     }
@@ -101,6 +103,7 @@ impl PropertyHandler for BorderRadiusHandler {
       BorderStartStartRadius(_) | BorderStartEndRadius(_) | BorderEndStartRadius(_) | BorderEndEndRadius(_) => {
         self.flush(dest);
         self.logical.push(property.clone());
+        self.has_any = true;
       }
       BorderRadius(val, vp) => {
         self.logical.clear();
@@ -135,6 +138,12 @@ impl PropertyHandler for BorderRadiusHandler {
 
 impl BorderRadiusHandler {
   fn flush(&mut self, dest: &mut DeclarationList) {
+    if !self.has_any {
+      return
+    }
+
+    self.has_any = true;
+
     let mut top_left = std::mem::take(&mut self.top_left);
     let mut top_right = std::mem::take(&mut self.top_right);
     let mut bottom_left = std::mem::take(&mut self.bottom_left);

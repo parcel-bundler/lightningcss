@@ -730,7 +730,8 @@ pub(crate) struct AlignHandler {
   flex_align: Option<(FlexAlign, VendorPrefix)>,
   justify_items: Option<JustifyItems>,
   row_gap: Option<GapValue>,
-  column_gap: Option<GapValue>
+  column_gap: Option<GapValue>,
+  has_any: bool
 }
 
 impl AlignHandler {
@@ -761,7 +762,8 @@ impl PropertyHandler for AlignHandler {
           *val = $val.clone();
           *prefixes |= *$vp;
         } else {
-          self.$prop = Some(($val.clone(), *$vp))
+          self.$prop = Some(($val.clone(), *$vp));
+          self.has_any = true;
         }
       }};
     }
@@ -791,7 +793,10 @@ impl PropertyHandler for AlignHandler {
         property!(align_self, val, vp);
       },
       FlexItemAlign(val, vp) => property!(flex_item_align, val, vp),
-      JustifySelf(val) => self.justify_self = Some(val.clone()),
+      JustifySelf(val) => {
+        self.justify_self = Some(val.clone());
+        self.has_any = true;
+      },
       PlaceSelf(val) => {
         self.flex_item_align = None;
         property!(align_self, &val.align, &VendorPrefix::None);
@@ -804,18 +809,28 @@ impl PropertyHandler for AlignHandler {
       },
       BoxAlign(val, vp) => property!(box_align, val, vp),
       FlexAlign(val, vp) => property!(flex_align, val, vp),
-      JustifyItems(val) => self.justify_items = Some(val.clone()),
+      JustifyItems(val) => {
+        self.justify_items = Some(val.clone());
+        self.has_any = true;
+      },
       PlaceItems(val) => {
         self.box_align = None;
         self.flex_align = None;
         property!(align_items, &val.align, &VendorPrefix::None);
         self.justify_items = Some(val.justify.clone());
       }
-      RowGap(val) => self.row_gap = Some(val.clone()),
-      ColumnGap(val) => self.column_gap = Some(val.clone()),
+      RowGap(val) => {
+        self.row_gap = Some(val.clone());
+        self.has_any = true;
+      },
+      ColumnGap(val) => {
+        self.column_gap = Some(val.clone());
+        self.has_any = true;
+      },
       Gap(val) => {
         self.row_gap = Some(val.row.clone());
         self.column_gap = Some(val.column.clone());
+        self.has_any = true;
       }
       Unparsed(val) if is_align_property(&val.property_id) => {
         self.flush(dest);
@@ -834,6 +849,12 @@ impl PropertyHandler for AlignHandler {
 
 impl AlignHandler {
   fn flush(&mut self, dest: &mut DeclarationList) {
+    if !self.has_any {
+      return
+    }
+
+    self.has_any = false;
+
     let mut align_content = std::mem::take(&mut self.align_content);
     let mut justify_content = std::mem::take(&mut self.justify_content);
     let mut align_self = std::mem::take(&mut self.align_self);
