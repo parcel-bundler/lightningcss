@@ -3,7 +3,7 @@ use crate::values::{
   length::LengthPercentageOrAuto,
   rect::Rect
 };
-use crate::properties::Property;
+use crate::properties::{Property, PropertyId};
 use crate::declaration::DeclarationList;
 use crate::traits::PropertyHandler;
 
@@ -81,6 +81,10 @@ macro_rules! side_handler {
             self.block_end = None;
             self.inline_start = None;
             self.inline_end = None;
+          }
+          Unparsed(val) if matches!(val.property_id, PropertyId::$top | PropertyId::$bottom | PropertyId::$left | PropertyId::$right | PropertyId::$block_start | PropertyId::$block_end | PropertyId::$inline_start | PropertyId::$inline_end | PropertyId::$block_shorthand | PropertyId::$inline_shorthand | PropertyId::$shorthand) => {
+            self.flush(dest);
+            dest.push(property.clone());
           }
           _ => return false
         }

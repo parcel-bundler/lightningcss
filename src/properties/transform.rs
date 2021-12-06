@@ -1,6 +1,6 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
-use super::Property;
+use super::{Property, PropertyId};
 use crate::vendor_prefix::VendorPrefix;
 use crate::declaration::DeclarationList;
 use crate::targets::Browsers;
@@ -1437,6 +1437,15 @@ impl PropertyHandler for TransformHandler {
       Translate(val) => individual_property!(translate, val),
       Rotate(val) => individual_property!(rotate, val),
       Scale(val) => individual_property!(scale, val),
+      Unparsed(val) if matches!(val.property_id, PropertyId::Transform | PropertyId::Translate | PropertyId::Rotate | PropertyId::Scale) => {
+        self.flush(dest);
+        let prop = if val.property_id == PropertyId::Transform {
+          Property::Unparsed(val.get_prefixed(self.targets, Feature::Transform))
+        } else {
+          property.clone()
+        };
+        dest.push(prop)
+      }
       _ => return false
     }
 

@@ -180,7 +180,7 @@ macro_rules! shorthand_handler {
     }
 
     impl PropertyHandler for $name {
-      fn handle_property(&mut self, property: &Property, _: &mut DeclarationList) -> bool {
+      fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
         match property {
           $(
             Property::$prop(val) => self.$key = Some(val.clone()),
@@ -189,6 +189,10 @@ macro_rules! shorthand_handler {
             $(
               self.$key = Some(val.$key.clone());
             )+
+          }
+          Property::Unparsed(val) if matches!(val.property_id, $( PropertyId::$prop | )+ PropertyId::$shorthand) => {
+            self.finalize(dest);
+            dest.push(property.clone());
           }
           _ => return false
         }

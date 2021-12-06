@@ -5,7 +5,7 @@ use crate::values::{
   percentage::Percentage
 };
 use crate::traits::{Parse, ToCss, PropertyHandler, FromStandard};
-use super::Property;
+use super::{Property, PropertyId};
 use crate::vendor_prefix::VendorPrefix;
 use crate::declaration::DeclarationList;
 use super::align::{JustifyContent, ContentDistribution, ContentPosition, AlignItems, SelfPosition, AlignSelf, AlignContent};
@@ -501,6 +501,10 @@ impl PropertyHandler for FlexHandler {
       }
       BoxOrdinalGroup(val, vp) => property!(box_ordinal_group, val, vp),
       FlexOrder(val, vp) => property!(flex_order, val, vp),
+      Unparsed(val) if is_flex_property(&val.property_id) => {
+        self.flush(dest);
+        dest.push(property.clone()) // TODO: prefix?
+      }
       _ => return false
     }
 
@@ -681,5 +685,29 @@ impl FlexHandler {
     single_property!(FlexShrink, shrink, 2012: FlexNegative);
     single_property!(FlexBasis, basis, 2012: FlexPreferredSize);
     single_property!(Order, order, 2012: FlexOrder, 2009: BoxOrdinalGroup);
+  }
+}
+
+#[inline]
+fn is_flex_property(property_id: &PropertyId) -> bool {
+  match property_id {
+    PropertyId::FlexDirection |
+    PropertyId::BoxOrient |
+    PropertyId::BoxDirection |
+    PropertyId::FlexWrap |
+    PropertyId::BoxLines |
+    PropertyId::FlexFlow |
+    PropertyId::FlexGrow |
+    PropertyId::BoxFlex |
+    PropertyId::FlexPositive |
+    PropertyId::FlexShrink |
+    PropertyId::FlexNegative |
+    PropertyId::FlexBasis |
+    PropertyId::FlexPreferredSize |
+    PropertyId::Flex |
+    PropertyId::Order |
+    PropertyId::BoxOrdinalGroup |
+    PropertyId::FlexOrder => true,
+    _ => false
   }
 }

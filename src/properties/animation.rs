@@ -3,7 +3,7 @@ use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::values::{time::Time, easing::EasingFunction};
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
-use crate::properties::{Property, VendorPrefix};
+use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
 use itertools::izip;
@@ -293,6 +293,10 @@ impl PropertyHandler for AnimationHandler {
         property!(delays, &delays, vp);
         property!(fill_modes, &fill_modes, vp);
       }
+      Unparsed(val) if is_animation_property(&val.property_id) => {
+        self.flush(dest);
+        dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::Animation)));
+      }
       _ => return false
     }
 
@@ -374,5 +378,21 @@ impl AnimationHandler {
     prop!(play_states, AnimationPlayState);
     prop!(delays, AnimationDelay);
     prop!(fill_modes, AnimationFillMode);
+  }
+}
+
+#[inline]
+fn is_animation_property(property_id: &PropertyId) -> bool {
+  match property_id {
+    PropertyId::AnimationName |
+    PropertyId::AnimationDuration |
+    PropertyId::AnimationTimingFunction |
+    PropertyId::AnimationIterationCount |
+    PropertyId::AnimationDirection |
+    PropertyId::AnimationPlayState |
+    PropertyId::AnimationDelay |
+    PropertyId::AnimationFillMode |
+    PropertyId::Animation => true,
+    _ => false
   }
 }

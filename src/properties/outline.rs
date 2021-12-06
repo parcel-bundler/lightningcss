@@ -2,7 +2,7 @@ use cssparser::*;
 use super::border::{BorderStyle, GenericBorder, BorderSideWidth};
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::values::color::CssColor;
-use super::Property;
+use super::{Property, PropertyId};
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
 
@@ -48,7 +48,7 @@ pub(crate) struct OutlineHandler {
 }
 
 impl PropertyHandler for OutlineHandler {
-  fn handle_property(&mut self, property: &Property, _: &mut DeclarationList) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
     use Property::*;
 
     match property {
@@ -59,6 +59,10 @@ impl PropertyHandler for OutlineHandler {
         self.color = Some(val.color.clone());
         self.style = Some(val.style.clone());
         self.width = Some(val.width.clone());
+      }
+      Unparsed(val) if is_outline_property(&val.property_id) => {
+        self.finalize(dest);
+        dest.push(property.clone());
       }
       _ => return false
     }
@@ -89,5 +93,16 @@ impl PropertyHandler for OutlineHandler {
         decls.push(Property::OutlineWidth(width))
       }
     }
+  }
+}
+
+#[inline]
+fn is_outline_property(property_id: &PropertyId) -> bool {
+  match property_id {
+    PropertyId::OutlineColor |
+    PropertyId::OutlineStyle |
+    PropertyId::OutlineWidth |
+    PropertyId::Outline => true,
+    _ => false
   }
 }

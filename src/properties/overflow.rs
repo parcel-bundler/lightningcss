@@ -1,6 +1,6 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
-use super::Property;
+use super::{Property, PropertyId};
 use crate::declaration::DeclarationList;
 use crate::macros::enum_property;
 use crate::printer::Printer;
@@ -65,7 +65,7 @@ impl OverflowHandler {
 
 
 impl PropertyHandler for OverflowHandler {
-  fn handle_property(&mut self, property: &Property, _: &mut DeclarationList) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
     use Property::*;
 
     match property {
@@ -74,7 +74,11 @@ impl PropertyHandler for OverflowHandler {
       Overflow(val) => {
         self.x = Some(val.x);
         self.y = Some(val.y);
-      },
+      }
+      Unparsed(val) if matches!(val.property_id, PropertyId::OverflowX | PropertyId::OverflowY | PropertyId::Overflow) => {
+        self.finalize(dest);
+        dest.push(property.clone());
+      }
       _ => return false
     }
 

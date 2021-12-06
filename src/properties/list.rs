@@ -1,6 +1,6 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
-use super::Property;
+use super::{Property, PropertyId};
 use crate::values::{image::Image, ident::CustomIdent};
 use crate::declaration::DeclarationList;
 use crate::macros::{enum_property, shorthand_property, shorthand_handler};

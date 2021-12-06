@@ -114,14 +114,8 @@ impl PropertyHandler for BorderRadiusHandler {
 
         // Even if we weren't able to parse the value (e.g. due to var() references),
         // we can still add vendor prefixes to the property itself.
-        let prop = if val.vendor_prefix.contains(VendorPrefix::None) && !is_logical_border_radius_property(&val.property_id) {
-          if let Some(targets) = self.targets {
-            let mut val = val.clone();
-            val.vendor_prefix = Feature::BorderRadius.prefixes_for(targets);
-            Property::Unparsed(val)
-          } else {
-            property.clone()
-          }
+        let prop = if !is_logical_border_radius_property(&val.property_id) {
+          Property::Unparsed(val.get_prefixed(self.targets, Feature::BorderRadius))
         } else {
           property.clone()
         };
@@ -192,6 +186,7 @@ impl BorderRadiusHandler {
   }
 }
 
+#[inline]
 fn is_border_radius_property(property_id: &PropertyId) -> bool {
   if is_logical_border_radius_property(property_id) {
     return true
@@ -207,6 +202,7 @@ fn is_border_radius_property(property_id: &PropertyId) -> bool {
   }
 }
 
+#[inline]
 fn is_logical_border_radius_property(property_id: &PropertyId) -> bool {
   match property_id {
     PropertyId::BorderStartStartRadius |

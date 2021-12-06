@@ -1,6 +1,8 @@
 use cssparser::*;
 use crate::properties::PropertyId;
 use crate::vendor_prefix::VendorPrefix;
+use crate::targets::Browsers;
+use crate::prefixes::Feature;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CustomProperty {
@@ -40,6 +42,16 @@ impl UnparsedProperty {
       vendor_prefix,
       value
     })
+  }
+
+  pub fn get_prefixed(&self, targets: Option<Browsers>, feature: Feature) -> UnparsedProperty {
+    let mut clone = self.clone();
+    if self.vendor_prefix.contains(VendorPrefix::None) {
+      if let Some(targets) = targets {
+        clone.vendor_prefix = feature.prefixes_for(targets)
+      }
+    }
+    clone
   }
 }
 

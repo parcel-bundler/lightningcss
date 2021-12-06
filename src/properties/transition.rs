@@ -1,7 +1,7 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::values::{ident::CustomIdent, time::Time, easing::EasingFunction};
-use super::Property;
+use super::{Property, PropertyId};
 use crate::vendor_prefix::VendorPrefix;
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
@@ -163,6 +163,10 @@ impl PropertyHandler for TransitionHandler {
         let timing_functions: SmallVec<[EasingFunction; 1]> = val.iter().map(|b| b.timing_function.clone()).collect();
         property!(TransitionTimingFunction, timing_functions, &timing_functions, vp);
       }
+      Unparsed(val) if is_transition_property(&val.property_id) => {
+        self.flush(dest);
+        dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::Transition)));
+      }
       _ => return false
     }
 
@@ -240,5 +244,17 @@ impl TransitionHandler {
     self.durations = None;
     self.delays = None;
     self.timing_functions = None;
+  }
+}
+
+#[inline]
+fn is_transition_property(property_id: &PropertyId) -> bool {
+  match property_id {
+    PropertyId::TransitionProperty |
+    PropertyId::TransitionDuration |
+    PropertyId::TransitionDelay |
+    PropertyId::TransitionTimingFunction |
+    PropertyId::Transition => true,
+    _ => false
   }
 }

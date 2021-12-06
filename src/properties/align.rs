@@ -2,7 +2,7 @@ use cssparser::*;
 use crate::macros::*;
 use crate::values::length::LengthPercentage;
 use crate::traits::{Parse, ToCss, PropertyHandler, FromStandard};
-use super::Property;
+use super::{Property, PropertyId};
 use crate::vendor_prefix::VendorPrefix;
 use crate::declaration::DeclarationList;
 use super::flex::{BoxAlign, FlexLinePack, BoxPack, FlexPack, FlexAlign, FlexItemAlign};
@@ -817,6 +817,10 @@ impl PropertyHandler for AlignHandler {
         self.row_gap = Some(val.row.clone());
         self.column_gap = Some(val.column.clone());
       }
+      Unparsed(val) if is_align_property(&val.property_id) => {
+        self.flush(dest);
+        dest.push(property.clone()) // TODO: prefix?
+      }
       _ => return false
     }
 
@@ -1017,5 +1021,30 @@ impl AlignHandler {
         dest.push(Property::ColumnGap(gap))
       }
     }
+  }
+}
+
+#[inline]
+fn is_align_property(property_id: &PropertyId) -> bool {
+  match property_id {
+    PropertyId::AlignContent |
+    PropertyId::FlexLinePack |
+    PropertyId::JustifyContent |
+    PropertyId::BoxPack |
+    PropertyId::FlexPack |
+    PropertyId::PlaceContent |
+    PropertyId::AlignSelf |
+    PropertyId::FlexItemAlign |
+    PropertyId::JustifySelf |
+    PropertyId::PlaceSelf |
+    PropertyId::AlignItems |
+    PropertyId::BoxAlign |
+    PropertyId::FlexAlign |
+    PropertyId::JustifyItems |
+    PropertyId::PlaceItems |
+    PropertyId::RowGap |
+    PropertyId::ColumnGap |
+    PropertyId::Gap => true,
+    _ => false
   }
 }

@@ -779,6 +779,19 @@ mod tests {
       }
     "#
     });
+
+    test(r#"
+      .foo {
+        outline: 2px solid yellow;
+        outline-color: var(--color);
+      }
+    "#, indoc! {r#"
+      .foo {
+        outline: 2px solid #ff0;
+        outline-color: var(--color);
+      }
+    "#
+    });
   }
 
   #[test]
@@ -826,6 +839,31 @@ mod tests {
         margin-inline: 15px;
         margin-top: 20px;
         margin-bottom: 20px;
+      }
+    "#
+    });
+
+    test(r#"
+      .foo {
+        margin: 10px;
+        margin-top: 20px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        margin: 20px 10px 10px;
+      }
+    "#
+    });
+
+    test(r#"
+      .foo {
+        margin: 10px;
+        margin-top: var(--top);
+      }
+    "#, indoc! {r#"
+      .foo {
+        margin: 10px;
+        margin-top: var(--top);
       }
     "#
     });
@@ -985,6 +1023,19 @@ mod tests {
     "#
     });
 
+    test(r#"
+      .foo {
+        background: url(img.png) gray;
+        background-position: var(--pos);
+      }
+    "#, indoc! {r#"
+      .foo {
+        background: gray url(img.png);
+        background-position: var(--pos);
+      }
+    "#
+    });
+
     minify_test(".foo { background-position: bottom left }", ".foo{background-position:0 100%}");
     minify_test(".foo { background-position: left 10px center }", ".foo{background-position:10px 50%}");
     minify_test(".foo { background-position: right 10px center }", ".foo{background-position:right 10px center}");
@@ -1114,6 +1165,19 @@ mod tests {
 
     test(r#"
       .foo {
+        flex: 0 0;
+        flex-grow: var(--grow);
+      }
+    "#, indoc! {r#"
+      .foo {
+        flex: 0 0;
+        flex-grow: var(--grow);
+      }
+    "#
+    });
+
+    test(r#"
+      .foo {
         align-content: center;
         justify-content: center;
       }
@@ -1202,6 +1266,19 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         place-items: center legacy left;
+      }
+    "#
+    });
+
+    test(r#"
+      .foo {
+        place-items: center;
+        justify-items: var(--justify);
+      }
+    "#, indoc! {r#"
+      .foo {
+        place-items: center;
+        justify-items: var(--justify);
       }
     "#
     });
@@ -3110,6 +3187,17 @@ mod tests {
     "#});
     test(r#"
       .foo {
+        transition: opacity 500ms;
+        transition-timing-function: var(--ease);
+      }
+    "#, indoc! {r#"
+      .foo {
+        transition: opacity .5s;
+        transition-timing-function: var(--ease);
+      }
+    "#});
+    test(r#"
+      .foo {
         transition-property: opacity;
         transition-duration: 0.09s;
         transition-timing-function: ease-in-out;
@@ -3358,6 +3446,17 @@ mod tests {
     "#});
     test(r#"
       .foo {
+        animation: bar 200ms;
+        animation-timing-function: var(--ease);
+      }
+    "#, indoc! {r#"
+      .foo {
+        animation: bar .2s;
+        animation-timing-function: var(--ease);
+      }
+    "#});
+    test(r#"
+      .foo {
         animation-name: foo, bar;
         animation-duration: 0.09s;
         animation-timing-function: ease-in-out;
@@ -3448,6 +3547,21 @@ mod tests {
     "#}, Browsers {
       firefox: Some(20 << 16),
       safari: Some(14 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"
+      .foo {
+        animation: bar 200ms var(--ease);
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-animation: bar 200ms var(--ease);
+        -moz-animation: bar 200ms var(--ease);
+        animation: bar 200ms var(--ease);
+      }
+    "#}, Browsers {
+      firefox: Some(6 << 16),
+      safari: Some(6 << 16),
       ..Browsers::default()
     });
   }
@@ -3616,6 +3730,22 @@ mod tests {
         -webkit-transform: scale(.5);
         -moz-transform: scale(.5);
         transform: scale(.5);
+      }
+    "#}, Browsers {
+      firefox: Some(6 << 16),
+      safari: Some(6 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        transform: var(--transform);
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-transform: var(--transform);
+        -moz-transform: var(--transform);
+        transform: var(--transform);
       }
     "#}, Browsers {
       firefox: Some(6 << 16),
@@ -4990,6 +5120,18 @@ mod tests {
 
     test(r#"
       .foo {
+        text-decoration: underline;
+        text-decoration-style: var(--style);
+      }
+    "#, indoc! {r#"
+      .foo {
+        text-decoration: underline;
+        text-decoration-style: var(--style);
+      }
+    "#});
+
+    test(r#"
+      .foo {
         -webkit-text-decoration: underline;
         -webkit-text-decoration-style: dotted;
       }
@@ -5099,6 +5241,23 @@ mod tests {
       ..Browsers::default()
     });
 
+    prefix_test(r#"
+      .foo {
+        text-decoration: var(--test);
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-text-decoration: var(--test);
+        -moz-text-decoration: var(--test);
+        text-decoration: var(--test);
+      }
+    "#},
+    Browsers {
+      safari: Some(8 << 16),
+      firefox: Some(30 << 16),
+      ..Browsers::default()
+    });
+
     minify_test(".foo { text-decoration-skip-ink: all }", ".foo{text-decoration-skip-ink:all}");
     minify_test(".foo { -webkit-text-decoration-skip-ink: all }", ".foo{-webkit-text-decoration-skip-ink:all}");
   }
@@ -5130,6 +5289,29 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         text-emphasis: filled #ff0;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        text-emphasis: filled red;
+        text-emphasis-color: yellow;
+      }
+    "#, indoc! {r#"
+      .foo {
+        text-emphasis: filled #ff0;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        text-emphasis: filled yellow;
+        text-emphasis-color: var(--color);
+      }
+    "#, indoc! {r#"
+      .foo {
+        text-emphasis: filled #ff0;
+        text-emphasis-color: var(--color);
       }
     "#});
 
@@ -5195,6 +5377,23 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         text-emphasis-position: over left;
+      }
+    "#},
+    Browsers {
+      safari: Some(10 << 16),
+      chrome: Some(30 << 16),
+      firefox: Some(45 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        text-emphasis-position: var(--test);
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-text-emphasis-position: var(--test);
+        text-emphasis-position: var(--test);
       }
     "#},
     Browsers {
@@ -5377,6 +5576,17 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         overflow: hidden auto;
+      }
+    "#});
+    test(r#"
+      .foo {
+        overflow: hidden;
+        overflow-y: var(--y);
+      }
+    "#, indoc! {r#"
+      .foo {
+        overflow: hidden;
+        overflow-y: var(--y);
       }
     "#});
     prefix_test(r#"
@@ -5632,6 +5842,18 @@ mod tests {
     "#, indoc! {r#"
       .foo {
         list-style: \"★\";
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        list-style: \"★\" url(ellipse.png) outside;
+        list-style-image: var(--img);
+      }
+    "#, indoc! {r#"
+      .foo {
+        list-style: \"★\" url(ellipse.png);
+        list-style-image: var(--img);
       }
     "#});
   }

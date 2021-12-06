@@ -9,7 +9,7 @@ use crate::targets::Browsers;
 use crate::prefixes::is_webkit_gradient;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::macros::*;
-use crate::properties::{Property, VendorPrefix};
+use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::declaration::DeclarationList;
 use itertools::izip;
 use crate::printer::Printer;
@@ -438,6 +438,10 @@ impl PropertyHandler for BackgroundHandler {
         self.origins = Some(val.iter().map(|b| b.origin.clone()).collect());
         self.clips = Some(val.iter().map(|b| b.clip.clone()).collect());
       }
+      Property::Unparsed(val) if is_background_property(&val.property_id) => {
+        self.flush(dest);
+        dest.push(property.clone())
+      }
       _ => return false
     }
 
@@ -631,5 +635,23 @@ impl BackgroundHandler {
     self.attachments = None;
     self.origins = None;
     self.clips = None
+  }
+}
+
+#[inline]
+fn is_background_property(property_id: &PropertyId) -> bool {
+  match property_id {
+    PropertyId::BackgroundColor |
+    PropertyId::BackgroundImage |
+    PropertyId::BackgroundPosition |
+    PropertyId::BackgroundPositionX |
+    PropertyId::BackgroundPositionY |
+    PropertyId::BackgroundRepeat |
+    PropertyId::BackgroundSize |
+    PropertyId::BackgroundAttachment |
+    PropertyId::BackgroundOrigin |
+    PropertyId::BackgroundClip |
+    PropertyId::Background => true,
+    _ => false
   }
 }

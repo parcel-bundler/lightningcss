@@ -2,7 +2,7 @@
 
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
-use super::Property;
+use super::{Property, PropertyId};
 use crate::vendor_prefix::VendorPrefix;
 use crate::declaration::DeclarationList;
 use crate::targets::Browsers;
@@ -760,6 +760,14 @@ impl PropertyHandler for TextDecorationHandler {
         property!(emphasis_color, &val.color, vp);
       }
       TextEmphasisPosition(val, vp) => property!(emphasis_position, val, vp),
+      Unparsed(val) if is_text_decoration_property(&val.property_id) => {
+        self.finalize(dest);
+        dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::TextDecoration)))
+      }
+      Unparsed(val) if is_text_emphasis_property(&val.property_id) => {
+        self.finalize(dest);
+        dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::TextEmphasis)))
+      }
       _ => return false
     }
     
@@ -937,5 +945,28 @@ impl ToCss for TextShadow {
     }
 
     Ok(())
+  }
+}
+
+#[inline]
+fn is_text_decoration_property(property_id: &PropertyId) -> bool {
+  match property_id {
+    PropertyId::TextDecorationLine |
+    PropertyId::TextDecorationThickness |
+    PropertyId::TextDecorationStyle |
+    PropertyId::TextDecorationColor |
+    PropertyId::TextDecoration => true,
+    _ => false
+  }
+}
+
+#[inline]
+fn is_text_emphasis_property(property_id: &PropertyId) -> bool {
+  match property_id {
+    PropertyId::TextEmphasisStyle |
+    PropertyId::TextEmphasisColor |
+    PropertyId::TextEmphasis |
+    PropertyId::TextEmphasisPosition => true,
+    _ => false
   }
 }
