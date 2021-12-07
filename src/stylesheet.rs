@@ -13,7 +13,20 @@ pub struct StyleSheet {
 }
 
 impl StyleSheet {
+  pub fn empty(filename: String) -> StyleSheet {
+    StyleSheet {
+      filename,
+      rules: CssRuleList(Vec::new())
+    }
+  }
+
   pub fn parse<'i>(filename: String, code: &'i str) -> Result<StyleSheet, ParseError<'i, ()>> {
+    let mut sheet = StyleSheet::empty(filename);
+    sheet.replace(code)?;
+    Ok(sheet)
+  }
+
+  pub fn replace<'i>(&mut self, code: &'i str) -> Result<(), ParseError<'i, ()>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
     let rule_list_parser = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser {});
@@ -28,10 +41,8 @@ impl StyleSheet {
       rules.push(rule)
     }
 
-    Ok(StyleSheet {
-      filename,
-      rules: CssRuleList(rules)
-    })
+    self.rules = CssRuleList(rules);
+    Ok(())
   }
 
   pub fn minify(&mut self, targets: Option<Browsers>) {

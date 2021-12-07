@@ -1,6 +1,30 @@
 const css = require('./');
 const fs = require('fs');
 
+console.log(css);
+let {CSSStyleSheet, CSSStyleRule, CSSRule} = css;
+let stylesheet = new CSSStyleSheet();
+let rules = stylesheet.cssRules;
+console.log(rules.length)
+
+stylesheet.replaceSync(`
+.foo {
+  color: red;
+}
+
+.bar {
+  color: green;
+}
+`);
+
+console.log(rules.length)
+console.log(rules.item(0) instanceof CSSStyleRule, rules.item(0) instanceof CSSRule);
+console.log(rules.item(0) === rules.item(0));
+console.log(rules.item(0).cssText);
+console.log(rules.item(0).selectorText);
+
+return;
+
 if (process.argv[process.argv.length - 1] !== __filename) {
   let opts = {
     filename: process.argv[process.argv.length - 1],

@@ -24,34 +24,45 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::prefixes::Feature;
 use crate::targets::Browsers;
 use std::collections::HashMap;
+use std::cell::RefCell;
+use std::rc::Rc;
 use crate::selector::{is_equivalent, get_prefix, get_necessary_prefixes};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum CssRule {
-  Media(MediaRule),
-  Import(ImportRule),
-  Style(StyleRule),
-  Keyframes(KeyframesRule),
-  FontFace(FontFaceRule),
-  Page(PageRule),
-  Supports(SupportsRule),
-  CounterStyle(CounterStyleRule),
-  Namespace(NamespaceRule)
+  Media(Rc<RefCell<MediaRule>>),
+  Import(Rc<RefCell<ImportRule>>),
+  Style(Rc<RefCell<StyleRule>>),
+  Keyframes(Rc<RefCell<KeyframesRule>>),
+  FontFace(Rc<RefCell<FontFaceRule>>),
+  Page(Rc<RefCell<PageRule>>),
+  Supports(Rc<RefCell<SupportsRule>>),
+  CounterStyle(Rc<RefCell<CounterStyleRule>>),
+  Namespace(Rc<RefCell<NamespaceRule>>)
 }
 
 impl ToCss for CssRule {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     match self {
-      CssRule::Media(media) => media.to_css(dest),
-      CssRule::Import(import) => import.to_css(dest),
-      CssRule::Style(style) => style.to_css(dest),
-      CssRule::Keyframes(keyframes) => keyframes.to_css(dest),
-      CssRule::FontFace(font_face) => font_face.to_css(dest),
-      CssRule::Page(font_face) => font_face.to_css(dest),
-      CssRule::Supports(supports) => supports.to_css(dest),
-      CssRule::CounterStyle(counter_style) => counter_style.to_css(dest),
-      CssRule::Namespace(namespace) => namespace.to_css(dest)
+      CssRule::Media(media) => media.borrow().to_css(dest),
+      CssRule::Import(import) => import.borrow().to_css(dest),
+      CssRule::Style(style) => style.borrow().to_css(dest),
+      CssRule::Keyframes(keyframes) => keyframes.borrow().to_css(dest),
+      CssRule::FontFace(font_face) => font_face.borrow().to_css(dest),
+      CssRule::Page(font_face) => font_face.borrow().to_css(dest),
+      CssRule::Supports(supports) => supports.borrow().to_css(dest),
+      CssRule::CounterStyle(counter_style) => counter_style.borrow().to_css(dest),
+      CssRule::Namespace(namespace) => namespace.borrow().to_css(dest)
     }
+  }
+}
+
+impl CssRule {
+  pub fn to_css_string(&self) -> String {
+    let mut s = String::new();
+    let mut printer = Printer::new(&mut s, None, false, None);
+    self.to_css(&mut printer).unwrap();
+    s
   }
 }
 
@@ -65,6 +76,7 @@ impl CssRuleList {
     for mut rule in self.0.drain(..) {
       match &mut rule {
         CssRule::Keyframes(keyframes) => {
+          let mut keyframes = keyframes.borrow_mut();
           keyframes.minify(handler, important_handler);
 
           macro_rules! set_prefix {
@@ -81,6 +93,7 @@ impl CssRuleList {
           // merge the vendor prefixes from this rule into it.
           if let Some(existing_idx) = keyframe_rules.get(&keyframes.name) {
             if let Some(CssRule::Keyframes(existing)) = &mut rules.get_mut(*existing_idx) {
+              let mut existing = existing.borrow_mut();
               if existing.keyframes == keyframes.keyframes {
                 existing.vendor_prefix |= keyframes.vendor_prefix;
                 set_prefix!(existing);
@@ -92,9 +105,10 @@ impl CssRuleList {
           set_prefix!(keyframes);
           keyframe_rules.insert(keyframes.name.clone(), rules.len());
         },
-        CssRule::Media(media) => media.minify(targets, handler, important_handler),
-        CssRule::Supports(supports) => supports.minify(targets, handler, important_handler),
+        CssRule::Media(media) => media.borrow_mut().minify(targets, handler, important_handler),
+        CssRule::Supports(supports) => supports.borrow_mut().minify(targets, handler, important_handler),
         CssRule::Style(style) => {
+          let mut style = style.borrow_mut();
           style.minify(handler, important_handler);
 
           if let Some(targets) = targets {
@@ -105,6 +119,7 @@ impl CssRuleList {
           }
 
           if let Some(CssRule::Style(last_style_rule)) = rules.last_mut() {
+            let mut last_style_rule = last_style_rule.borrow_mut();
             // Merge declarations if the selectors are equivalent, and both are compatible with all targets.
             if style.selectors == last_style_rule.selectors && style.is_compatible(targets) && last_style_rule.is_compatible(targets) {
               last_style_rule.declarations.declarations.extend(style.declarations.declarations.drain(..));

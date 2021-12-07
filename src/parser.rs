@@ -22,6 +22,7 @@ use crate::rules::{
 use crate::values::ident::CustomIdent;
 use crate::declaration::{Declaration, DeclarationBlock};
 use crate::vendor_prefix::VendorPrefix;
+use std::rc::Rc;
 
 #[derive(Eq, PartialEq, Clone)]
 pub struct CssString(RefCell<String>);
@@ -170,19 +171,19 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
       let loc = start.source_location();
       let rule = match prelude {
         AtRulePrelude::Import(url, media, supports) => {
-          CssRule::Import(ImportRule {
+          CssRule::Import(Rc::new(RefCell::new(ImportRule {
             url,
             supports,
             media,
             loc
-          })
+          })))
         },
         AtRulePrelude::Namespace(prefix, url) => {
-          CssRule::Namespace(NamespaceRule {
+          CssRule::Namespace(Rc::new(RefCell::new(NamespaceRule {
             prefix,
             url,
             loc
-          })
+          })))
         },
         _ => unreachable!()
       };
@@ -337,10 +338,10 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
             properties.push(decl);
           }
         }
-        Ok(CssRule::FontFace(FontFaceRule {
+        Ok(CssRule::FontFace(Rc::new(RefCell::new(FontFaceRule {
           properties,
           loc
-        }))
+        }))))
       },
       // AtRuleBlockPrelude::FontFeatureValues(family_names) => {
       //     let context = ParserContext::new_with_rule_type(
@@ -367,27 +368,27 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
           }
         }
 
-        Ok(CssRule::CounterStyle(CounterStyleRule {
+        Ok(CssRule::CounterStyle(Rc::new(RefCell::new(CounterStyleRule {
           name,
           declarations: DeclarationBlock {
             declarations
           },
           loc
-        }))
+        }))))
       },
       AtRulePrelude::Media(query) => {
-        Ok(CssRule::Media(MediaRule {
+        Ok(CssRule::Media(Rc::new(RefCell::new(MediaRule {
           query,
           rules: self.parse_nested_rules(input),
           loc
-        }))
+        }))))
       },
       AtRulePrelude::Supports(condition) => {
-        Ok(CssRule::Supports(SupportsRule {
+        Ok(CssRule::Supports(Rc::new(RefCell::new(SupportsRule {
           condition,
           rules: self.parse_nested_rules(input),
           loc
-        }))
+        }))))
       },
       // AtRuleBlockPrelude::Viewport => {
       //     let context = ParserContext::new_with_rule_type(
@@ -402,12 +403,12 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
       // },
       AtRulePrelude::Keyframes(name, vendor_prefix) => {
         let iter = RuleListParser::new_for_nested_rule(input, KeyframeListParser);
-        Ok(CssRule::Keyframes(KeyframesRule {
+        Ok(CssRule::Keyframes(Rc::new(RefCell::new(KeyframesRule {
           name,
           keyframes: iter.filter_map(Result::ok).collect(),
           vendor_prefix,
           loc
-        }))
+        }))))
       },
       AtRulePrelude::Page(selectors) => {
         let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser);
@@ -417,13 +418,13 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
             declarations.push(decl);
           }
         }
-        Ok(CssRule::Page(PageRule {
+        Ok(CssRule::Page(Rc::new(RefCell::new(PageRule {
           selectors,
           declarations: DeclarationBlock {
             declarations
           },
           loc
-        }))
+        }))))
       },
       // AtRuleBlockPrelude::Document(condition) => {
       //     if !cfg!(feature = "gecko") {
@@ -477,14 +478,14 @@ impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser {
       }
     }
 
-    Ok(CssRule::Style(StyleRule {
+    Ok(CssRule::Style(Rc::new(RefCell::new(StyleRule {
       selectors,
       vendor_prefix: VendorPrefix::empty(),
       declarations: DeclarationBlock {
         declarations
       },
       loc
-    }))
+    }))))
   }
 }
 
