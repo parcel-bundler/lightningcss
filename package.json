@@ -6,7 +6,8 @@
   "main": "native.js",
   "types": "node/index.d.ts",
   "targets": {
-    "main": false
+    "main": false,
+    "types": false
   },
   "publishConfig": {
     "access": "public"
