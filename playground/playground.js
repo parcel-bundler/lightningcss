@@ -1,4 +1,4 @@
-import init, {transform} from '../node/pkg/parcel_css_node.js';
+import init, {transform} from '../node/pkg';
 
 let enc = new TextEncoder();
 let dec = new TextDecoder();
