@@ -4450,6 +4450,10 @@ mod tests {
     minify_test("@font-face {src: url(\"test.woff\") format(woff supports variations);}", "@font-face{src:url(test.woff)format(\"woff\" supports variations)}");
     minify_test("@font-face {src: url(\"test.woff\") format(woff supports palettes);}", "@font-face{src:url(test.woff)format(\"woff\" supports palettes)}");
     minify_test("@font-face {src: url(\"test.woff\") format(woff supports features(opentype) color(sbix));}", "@font-face{src:url(test.woff)format(\"woff\" supports features(opentype) color(sbix))}");
+    minify_test("@font-face {font-weight: 200 400}", "@font-face{font-weight:200 400}");
+    minify_test("@font-face {font-weight: 400 400}", "@font-face{font-weight:400}");
+    minify_test("@font-face {font-stretch: 50% 200%}", "@font-face{font-stretch:50% 200%}");
+    minify_test("@font-face {font-stretch: 50% 50%}", "@font-face{font-stretch:50%}");
   }
 
   #[test]

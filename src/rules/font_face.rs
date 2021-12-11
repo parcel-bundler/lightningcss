@@ -2,6 +2,7 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use crate::properties::font::{FontFamily, FontStyle, FontWeight, FontStretch};
+use crate::values::size::Size2D;
 use crate::properties::custom::CustomProperty;
 use crate::macros::enum_property;
 
@@ -16,8 +17,8 @@ pub enum FontFaceProperty {
   Source(Vec<Source>),
   FontFamily(FontFamily),
   FontStyle(FontStyle),
-  FontWeight(FontWeight),
-  FontStretch(FontStretch),
+  FontWeight(Size2D<FontWeight>),
+  FontStretch(Size2D<FontStretch>),
   Custom(CustomProperty)
 }
 
@@ -258,8 +259,8 @@ impl<'i> cssparser::DeclarationParser<'i> for FontFaceDeclarationParser {
       input: &mut cssparser::Parser<'i, 't>,
   ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
     macro_rules! property {
-      ($property: ident, $type: ident) => {
-        if let Ok(c) = $type::parse(input) {
+      ($property: ident, $type: ty) => {
+        if let Ok(c) = <$type>::parse(input) {
           return Ok(FontFaceProperty::$property(c))
         }
       };
@@ -273,9 +274,9 @@ impl<'i> cssparser::DeclarationParser<'i> for FontFaceDeclarationParser {
         }
       },
       "font-family" => property!(FontFamily, FontFamily),
-      "font-weight" => property!(FontWeight, FontWeight),
+      "font-weight" => property!(FontWeight, Size2D<FontWeight>),
       "font-style" => property!(FontStyle, FontStyle),
-      "font-stretch" => property!(FontStretch, FontStretch),
+      "font-stretch" => property!(FontStretch, Size2D<FontStretch>),
       _ => {}
     }
 
