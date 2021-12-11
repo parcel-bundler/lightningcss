@@ -7,6 +7,7 @@ pub mod namespace;
 pub mod import;
 pub mod media;
 pub mod style;
+pub mod document;
 
 use media::MediaRule;
 use import::ImportRule;
@@ -17,6 +18,7 @@ use page::PageRule;
 use supports::SupportsRule;
 use counter_style::CounterStyleRule;
 use namespace::NamespaceRule;
+use document::MozDocumentRule;
 use crate::traits::ToCss;
 use crate::printer::Printer;
 use crate::declaration::DeclarationHandler;
@@ -36,7 +38,8 @@ pub enum CssRule {
   Page(PageRule),
   Supports(SupportsRule),
   CounterStyle(CounterStyleRule),
-  Namespace(NamespaceRule)
+  Namespace(NamespaceRule),
+  MozDocument(MozDocumentRule)
 }
 
 impl ToCss for CssRule {
@@ -50,7 +53,8 @@ impl ToCss for CssRule {
       CssRule::Page(font_face) => font_face.to_css(dest),
       CssRule::Supports(supports) => supports.to_css(dest),
       CssRule::CounterStyle(counter_style) => counter_style.to_css(dest),
-      CssRule::Namespace(namespace) => namespace.to_css(dest)
+      CssRule::Namespace(namespace) => namespace.to_css(dest),
+      CssRule::MozDocument(document) => document.to_css(dest)
     }
   }
 }
@@ -94,6 +98,7 @@ impl CssRuleList {
         },
         CssRule::Media(media) => media.minify(targets, handler, important_handler),
         CssRule::Supports(supports) => supports.minify(targets, handler, important_handler),
+        CssRule::MozDocument(document) => document.minify(targets, handler, important_handler),
         CssRule::Style(style) => {
           style.minify(handler, important_handler);
 

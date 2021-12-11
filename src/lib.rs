@@ -6026,4 +6026,15 @@ mod tests {
     minify_test(".foo { grid-auto-rows: 100px minmax(100px, auto) 10% 0.5fr fit-content(400px); }", ".foo{grid-auto-rows:100px minmax(100px,auto) 10% .5fr fit-content(400px)}");
     minify_test(".foo { grid-auto-columns: 100px minmax(100px, auto) 10% 0.5fr fit-content(400px); }", ".foo{grid-auto-columns:100px minmax(100px,auto) 10% .5fr fit-content(400px)}");
   }
+
+  #[test]
+  fn test_moz_document() {
+    minify_test(r#"
+      @-moz-document url-prefix() {
+        h1 {
+          color: yellow;
+        }
+      }
+    "#, "@-moz-document url-prefix(){h1{color:#ff0}}");
+  }
 }

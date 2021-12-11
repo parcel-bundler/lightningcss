@@ -17,7 +17,8 @@ use crate::rules::{
   namespace::NamespaceRule,
   import::ImportRule,
   media::MediaRule,
-  style::StyleRule
+  style::StyleRule,
+  document::MozDocumentRule
 };
 use crate::values::ident::CustomIdent;
 use crate::declaration::{Declaration, DeclarationBlock};
@@ -101,8 +102,8 @@ pub enum AtRulePrelude {
   Keyframes(String, VendorPrefix),
   /// A @page rule prelude.
   Page(Vec<PageSelector>),
-  /// A @document rule, with its conditional.
-  Document,//(DocumentCondition),
+  /// A @-moz-document rule.
+  MozDocument,
   /// A @import rule prelude.
   Import(String, MediaList, Option<SupportsCondition>),
   /// A @namespace rule prelude.
@@ -306,17 +307,14 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
         let selectors = input.try_parse(|input| input.parse_comma_separated(PageSelector::parse)).unwrap_or_default();
         Ok(AtRuleType::WithBlock(AtRulePrelude::Page(selectors)))
       },
-      // "-moz-document" => {
-      //     if !cfg!(feature = "gecko") {
-      //         return Err(input.new_custom_error(
-      //             StyleParseErrorKind::UnsupportedAtRule(name.clone())
-      //         ))
-      //     }
+      "-moz-document" => {
+        // Firefox only supports the url-prefix() function with no arguments as a legacy CSS hack.
+        // See https://css-tricks.com/snippets/css/css-hacks-targeting-firefox/
+        input.expect_function_matching("url-prefix")?;
+        input.parse_nested_block(|input| input.expect_exhausted().map_err(|e| e.into()))?;
 
-      //     let cond = DocumentCondition::parse(self.context, input)?;
-      //     Ok(AtRuleType::WithBlock(AtRuleBlockPrelude::Document(cond)))
-      // },
-      // _ => Err(input.new_custom_error(StyleParseErrorKind::UnsupportedAtRule(name.clone())))
+        Ok(AtRuleType::WithBlock(AtRulePrelude::MozDocument))
+      },
       _ => Err(input.new_error(BasicParseErrorKind::AtRuleInvalid(name)))
     }
   }
@@ -425,18 +423,12 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
           loc
         }))
       },
-      // AtRuleBlockPrelude::Document(condition) => {
-      //     if !cfg!(feature = "gecko") {
-      //         unreachable!()
-      //     }
-      //     Ok(CssRule::Document(Arc::new(self.shared_lock.wrap(
-      //         DocumentRule {
-      //             condition,
-      //             rules: self.parse_nested_rules(input, CssRuleType::Document),
-      //             source_location: start.source_location(),
-      //         },
-      //     ))))
-      // },
+      AtRulePrelude::MozDocument => {
+        Ok(CssRule::MozDocument(MozDocumentRule {
+          rules: self.parse_nested_rules(input),
+          loc
+        }))
+      },
       // _ => Ok()
       _ => {
         println!("{:?}", prelude);
