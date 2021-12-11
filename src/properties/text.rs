@@ -741,7 +741,10 @@ impl PropertyHandler for TextDecorationHandler {
 
     match property {
       TextDecorationLine(val, vp) => property!(line, val, vp),
-      TextDecorationThickness(val) => self.thickness = Some(val.clone()),
+      TextDecorationThickness(val) => {
+        self.thickness = Some(val.clone());
+        self.has_any = true;
+      },
       TextDecorationStyle(val, vp) => property!(style, val, vp),
       TextDecorationColor(val, vp) => property!(color, val, vp),
       TextDecoration(val, vp) => {
