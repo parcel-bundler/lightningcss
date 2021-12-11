@@ -6044,4 +6044,16 @@ mod tests {
       }
     "#, "@-moz-document url-prefix(){h1{color:#ff0}}");
   }
+
+  #[test]
+  fn test_custom_properties() {
+    minify_test(".foo { --test: ; }", ".foo{--test: }");
+    minify_test(".foo { --test:  ; }", ".foo{--test:  }");
+    minify_test(".foo { --test: foo; }", ".foo{--test:foo}");
+    minify_test(".foo { --test:  foo; }", ".foo{--test:foo}");
+    minify_test(".foo { --test: foo ; }", ".foo{--test:foo}");
+    minify_test(".foo { --test: foo  ; }", ".foo{--test:foo}");
+    minify_test(".foo { --test:foo; }", ".foo{--test:foo}");
+    minify_test(".foo { --test:foo ; }", ".foo{--test:foo}");
+  }
 }

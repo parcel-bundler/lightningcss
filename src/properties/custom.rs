@@ -56,19 +56,33 @@ impl UnparsedProperty {
 }
 
 fn parse_unknown_value<'i, 't>(input: &mut Parser<'i, 't>) -> Result<String, ParseError<'i, ()>> {
-  input.skip_whitespace();
   input.parse_until_before(Delimiter::Bang | Delimiter::Semicolon, |input| {
     // Need at least one token
-    let start = input.state();
-    input.next_including_whitespace()?;
-    input.reset(&start);
+    let before_first = input.position();
+    let first_is_whitespace = {
+      let first = input.next_including_whitespace()?;
+      matches!(first, Token::WhiteSpace(_))
+    };
 
-    let start = input.position();
+    let after_first = input.position();
+    let mut has_two = false;
     loop {
       match input.next_including_whitespace_and_comments() {
-        Ok(_) => {},
+        Ok(_) => {
+          has_two = true;
+        },
         Err(..) => {
-          return Ok(input.slice_from(start).trim_end().into())
+          // If there is only one token, preserve it, even if it is whitespace.
+          // e.g. `--foo: ;` is valid. 
+          let mut slice = if !has_two || !first_is_whitespace {
+            input.slice_from(before_first)
+          } else {
+            input.slice_from(after_first)
+          };
+          if has_two {
+            slice = slice.trim_end();
+          }
+          return Ok(slice.into())
         },
       };
     }
