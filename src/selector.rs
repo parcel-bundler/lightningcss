@@ -1,9 +1,9 @@
 use cssparser::*;
 use selectors::{SelectorList, parser::{SelectorImpl, Selector, Combinator, Component}, attr::{AttrSelectorOperator, ParsedAttrSelectorOperation, ParsedCaseSensitivity}};
 use std::fmt;
+use std::fmt::Write;
 use crate::printer::Printer;
 use crate::traits::ToCss;
-use super::parser::CssString;
 use crate::compat::Feature;
 use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
@@ -11,14 +11,50 @@ use crate::targets::Browsers;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Selectors;
 
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct SelectorString(pub String);
+
+impl<'a> std::convert::From<&'a str> for SelectorString {
+  fn from(s: &str) -> SelectorString {
+    SelectorString(s.into())
+  }
+}
+
+impl cssparser::ToCss for SelectorString {
+  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+    write!(CssStringWriter::new(dest), "{}", &self.0)
+  }
+}
+
+impl SelectorString {
+  pub fn write_identifier<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
+    serialize_identifier(&self.0, dest)
+  }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct SelectorIdent(pub String);
+
+impl<'a> std::convert::From<&'a str> for SelectorIdent {
+  fn from(s: &str) -> SelectorIdent {
+    SelectorIdent(s.into())
+  }
+}
+
+impl cssparser::ToCss for SelectorIdent {
+  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+    serialize_identifier(&self.0, dest)
+  }
+}
+
 impl SelectorImpl for Selectors {
-  type AttrValue = CssString;
-  type Identifier = CssString;
-  type LocalName = CssString;
-  type NamespacePrefix = CssString;
-  type NamespaceUrl = String;
-  type BorrowedNamespaceUrl = String;
-  type BorrowedLocalName = String;
+  type AttrValue = SelectorString;
+  type Identifier = SelectorIdent;
+  type LocalName = SelectorIdent;
+  type NamespacePrefix = SelectorIdent;
+  type NamespaceUrl = SelectorIdent;
+  type BorrowedNamespaceUrl = SelectorIdent;
+  type BorrowedLocalName = SelectorIdent;
 
   type NonTSPseudoClass = PseudoClass;
   type PseudoElement = PseudoElement;
@@ -720,8 +756,9 @@ impl ToCss for Component<Selectors> {
         case_sensitivity,
         ..
     } => {
+        use cssparser::ToCss;
         dest.write_char('[')?;
-        local_name.write_identifier(dest)?;
+        local_name.to_css(dest)?;
         cssparser::ToCss::to_css(operator, dest)?;
 
         if dest.minify {
@@ -730,7 +767,7 @@ impl ToCss for Component<Selectors> {
           value.write_identifier(&mut id)?;
 
           let mut s = String::new();
-          value.write_string(&mut s)?;
+          value.to_css(&mut s)?;
 
           if id.len() > 0 && id.len() < s.len() + 2 {
             dest.write_str(&id)?;
@@ -741,7 +778,7 @@ impl ToCss for Component<Selectors> {
           }
         } else {
           dest.write_char('"')?;
-          value.write_string(dest)?;
+          value.to_css(dest)?;
           dest.write_char('"')?;
         }
 

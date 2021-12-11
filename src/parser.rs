@@ -1,10 +1,7 @@
 use cssparser::*;
 use selectors::SelectorList;
-use std::fmt;
-use std::cell::RefCell;
 use crate::media_query::*;
 use crate::traits::Parse;
-use std::fmt::Write;
 use crate::selector::{Selectors, SelectorParser};
 use crate::rules::{
   CssRule,
@@ -23,55 +20,6 @@ use crate::rules::{
 use crate::values::ident::CustomIdent;
 use crate::declaration::{Declaration, DeclarationBlock};
 use crate::vendor_prefix::VendorPrefix;
-
-#[derive(Eq, PartialEq, Clone)]
-pub struct CssString(RefCell<String>);
-
-impl CssString {
-  // pub fn replace(&self, x: String) {
-  //   self.0.replace(x);
-  // }
-
-  pub fn write_identifier<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
-    serialize_identifier(self.0.borrow().as_ref(), dest)
-  }
-
-  pub fn write_string<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
-    let b = self.0.borrow();
-    let s: &str = b.as_ref();
-    write!(CssStringWriter::new(dest), "{}", s)
-  }
-}
-
-impl cssparser::ToCss for CssString {
-  fn to_css<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
-    dest.write_str(self.0.borrow().as_ref())
-  }
-}
-
-impl<'a> std::convert::From<&'a str> for CssString {
-  fn from(s: &str) -> CssString {
-    CssString(RefCell::new(s.into()))
-  }
-}
-
-impl std::borrow::Borrow<String> for CssString {
-  fn borrow(&self) -> &String {
-    unsafe { self.0.try_borrow_unguarded() }.unwrap()
-  }
-}
-
-impl std::default::Default for CssString {
-  fn default() -> CssString {
-    CssString(RefCell::new(String::default()))
-  }
-}
-
-impl std::cmp::PartialEq<str> for CssString {
-  fn eq(&self, rhs: &str) -> bool {
-    self.0.borrow().eq(rhs)
-  }
-}
 
 /// The parser for the top-level rules in a stylesheet.
 pub struct TopLevelRuleParser {}

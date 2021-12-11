@@ -2119,6 +2119,7 @@ mod tests {
     minify_test(":host(.foo) {}", ":host(.foo){}");
     minify_test("::slotted(span) {}", "::slotted(span){}");
     minify_test("custom-element::part(foo) {}", "custom-element::part(foo){}");
+    minify_test(".sm\\:text-5xl { font-size: 3rem }", ".sm\\:text-5xl{font-size:3rem}");
   }
 
   #[test]
