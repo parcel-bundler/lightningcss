@@ -84,7 +84,26 @@ impl ToCss for Image {
     match self {
       None => dest.write_str("none"),
       Url(url) => {
-        Token::UnquotedUrl(CowRcStr::from(url.as_ref())).to_css(dest)
+        if dest.minify {
+          let mut buf = String::new();
+          Token::UnquotedUrl(CowRcStr::from(url.as_ref())).to_css(&mut buf)?;
+
+          // If the unquoted url is longer than it would be quoted (e.g. `url("...")`)
+          // then serialize as a string and choose the shorter version.
+          if buf.len() > url.len() + 7 {
+            let mut buf2 = String::new();
+            serialize_string(url, &mut buf2)?;
+            if buf2.len() + 5 < buf.len() {
+              dest.write_str("url(")?;
+              dest.write_str(&buf2)?;
+              return dest.write_char(')')
+            }
+          }
+
+          dest.write_str(&buf)
+        } else {
+          Token::UnquotedUrl(CowRcStr::from(url.as_ref())).to_css(dest)
+        }
       }
       Gradient(grad) => grad.to_css(dest),
       ImageSet(image_set) => image_set.to_css(dest)

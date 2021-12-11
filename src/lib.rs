@@ -1047,6 +1047,8 @@ mod tests {
 
     minify_test(".foo { background: url('img-sprite.png') no-repeat bottom right }", ".foo{background:url(img-sprite.png) 100% 100% no-repeat}");
     minify_test(".foo { background: transparent }", ".foo{background:#0000}");
+
+    minify_test(".foo { background: url(\"data:image/svg+xml,%3Csvg width='168' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E\") }", ".foo{background:url(\"data:image/svg+xml,%3Csvg width='168' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E\")}");
   }
 
   #[test]
