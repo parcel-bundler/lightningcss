@@ -2519,6 +2519,19 @@ mod tests {
     minify_test(".foo { border-width: clamp(1px, 1px + 2em, 4px) }", ".foo{border-width:clamp(1px,1px + 2em,4px)}");
     minify_test(".foo { border-width: clamp(1px, 2pt, 1in) }", ".foo{border-width:2pt}");
 
+    minify_test(".foo { top: calc(-1 * clamp(1.75rem, 8vw, 4rem)) }", ".foo{top:calc(-1*clamp(1.75rem,8vw,4rem))}");
+    minify_test(".foo { top: calc(-1 * min(1.75rem, 8vw, 4rem)) }", ".foo{top:calc(-1*min(1.75rem,8vw))}");
+    minify_test(".foo { top: calc(-1 * max(1.75rem, 8vw, 4rem)) }", ".foo{top:calc(-1*max(4rem,8vw))}");
+    minify_test(".foo { top: calc(clamp(1.75rem, 8vw, 4rem) * -1) }", ".foo{top:calc(-1*clamp(1.75rem,8vw,4rem))}");
+    minify_test(".foo { top: calc(min(1.75rem, 8vw, 4rem) * -1) }", ".foo{top:calc(-1*min(1.75rem,8vw))}");
+    minify_test(".foo { top: calc(max(1.75rem, 8vw, 4rem) * -1) }", ".foo{top:calc(-1*max(4rem,8vw))}");
+    minify_test(".foo { top: calc(clamp(1.75rem, 8vw, 4rem) / 2) }", ".foo{top:calc(clamp(1.75rem,8vw,4rem)/2)}");
+    minify_test(".foo { top: calc(min(1.75rem, 8vw, 4rem) / 2) }", ".foo{top:calc(min(1.75rem,8vw)/2)}");
+    minify_test(".foo { top: calc(max(1.75rem, 8vw, 4rem) / 2) }", ".foo{top:calc(max(4rem,8vw)/2)}");
+    minify_test(".foo { top: calc(0.5 * clamp(1.75rem, 8vw, 4rem)) }", ".foo{top:calc(clamp(1.75rem,8vw,4rem)/2)}");
+    minify_test(".foo { top: calc(1 * clamp(1.75rem, 8vw, 4rem)) }", ".foo{top:calc(clamp(1.75rem,8vw,4rem))}");
+    minify_test(".foo { top: calc(2 * clamp(1.75rem, 8vw, 4rem) / 2) }", ".foo{top:calc(clamp(1.75rem,8vw,4rem))}");
+
     prefix_test(
       ".foo { border-width: clamp(1em, 2px, 4vh) }",
       indoc! { r#"

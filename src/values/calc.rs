@@ -79,6 +79,7 @@ pub enum Calc<V> {
   Value(Box<V>),
   Number(f32),
   Sum(Box<Calc<V>>, Box<Calc<V>>),
+  Product(f32, Box<Calc<V>>),
   Function(Box<MathFunction<V>>)
 }
 
@@ -311,14 +312,25 @@ impl<V: std::ops::Mul<f32, Output = V>> std::ops::Mul<f32> for Calc<V> {
   type Output = Self;
 
   fn mul(self, other: f32) -> Self {
+    if other == 1.0 {
+      return self
+    }
+
     match self {
       Calc::Value(v) => Calc::Value(Box::new(*v * other)),
       Calc::Number(n) => Calc::Number(n * other),
       Calc::Sum(a, b) => Calc::Sum(Box::new(*a * other), Box::new(*b * other)),
+      Calc::Product(num, calc) => {
+        let num = num * other;
+        if num == 1.0 {
+          return *calc
+        }
+        Calc::Product(num, calc)
+      },
       Calc::Function(f) => {
         match *f {
           MathFunction::Calc(c) => Calc::Function(Box::new(MathFunction::Calc(c * other))),
-          _ => todo!()
+          _ => Calc::Product(other, Box::new(Calc::Function(f)))
         }
       }
     }
@@ -377,7 +389,19 @@ impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clo
           b.to_css(dest)?;
         }
         Ok(())
-      },
+      }
+      Calc::Product(num, calc) => {
+        if num.abs() < 1.0 {
+          let div = 1.0 / num;
+          calc.to_css(dest)?;
+          dest.delim('/', true)?;
+          div.to_css(dest)
+        } else {
+          num.to_css(dest)?;
+          dest.delim('*', true)?;
+          calc.to_css(dest)
+        }
+      }
       Calc::Function(f) => f.to_css(dest)
     }
   }
