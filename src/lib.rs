@@ -6017,6 +6017,7 @@ mod tests {
     );
   }
 
+  #[cfg(feature = "grid")]
   #[test]
   fn test_grid() {
     minify_test(".foo { grid-template-columns: [first nav-start]  150px [main-start] 1fr [last]; }", ".foo{grid-template-columns:[first nav-start]150px[main-start]1fr[last]}");

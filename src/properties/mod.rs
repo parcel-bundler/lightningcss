@@ -19,6 +19,7 @@ pub mod position;
 pub mod overflow;
 pub mod ui;
 pub mod list;
+#[cfg(feature = "grid")]
 pub mod grid;
 
 use cssparser::*;
@@ -40,6 +41,7 @@ use text::*;
 use overflow::*;
 use ui::*;
 use list::*;
+#[cfg(feature = "grid")]
 use grid::*;
 use crate::values::{image::*, length::*, position::*, alpha::*, size::*, rect::*, color::*, time::Time, ident::CustomIdent, easing::EasingFunction};
 use crate::traits::{Parse, ToCss};
@@ -49,11 +51,15 @@ use crate::vendor_prefix::VendorPrefix;
 
 macro_rules! define_properties {
   (
-    $( $name: tt: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: tt )*, )+
+    $(
+      $(#[$meta: meta])*
+      $name: literal: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: tt )*,
+    )+
   ) => {
     #[derive(Debug, Clone, Copy, PartialEq)]
     pub enum PropertyId {
       $(
+        $(#[$meta])*
         $property,
       )+
     }
@@ -63,6 +69,7 @@ macro_rules! define_properties {
         use PropertyId::*;
         match self {
           $(
+            $(#[$meta])*
             $property => dest.write_str(&$name),
           )+
         }
@@ -72,6 +79,7 @@ macro_rules! define_properties {
     #[derive(Debug, Clone, PartialEq)]
     pub enum Property {
       $(
+        $(#[$meta])*
         $property($type, $($vp)?),
       )+
       Unparsed(UnparsedProperty),
@@ -83,6 +91,7 @@ macro_rules! define_properties {
         let state = input.state();
         match name.as_ref() {
           $(
+            $(#[$meta])*
             $name => {
               if let Ok(c) = <$type>::parse(input) {
                 if input.expect_exhausted().is_ok() {
@@ -97,9 +106,9 @@ macro_rules! define_properties {
               input.reset(&state);
               return Ok(Property::Unparsed(UnparsedProperty::parse(PropertyId::$property, VendorPrefix::None, input)?))
             }
-          )+
-          $(
+
             $(
+              // TODO: figure out how to handle attributes on prefixed properties...
               concat!("-", $prefix, "-", $name) => {
                 let prefix = VendorPrefix::from_str($prefix);
                 if let Ok(c) = <$type>::parse(input) {
@@ -112,7 +121,7 @@ macro_rules! define_properties {
                 return Ok(Property::Unparsed(UnparsedProperty::parse(PropertyId::$property, prefix, input)?))  
               }
             )*
-          )?
+          )+
           _ => {}
         }
 
@@ -144,6 +153,7 @@ macro_rules! define_properties {
 
         match self {
           $(
+            $(#[$meta])*
             $property(val, $(vp_name!($vp, prefix))?) => {
               // If there are multiple vendor prefixes set, this expands them.
               macro_rules! write {
@@ -389,9 +399,13 @@ define_properties! {
   "flex-negative": FlexNegative(f32, VendorPrefix) / "ms",
   "flex-preferred-size": FlexPreferredSize(LengthPercentageOrAuto, VendorPrefix) / "ms",
 
+  #[cfg(feature = "grid")]
   "grid-template-columns": GridTemplateColumns(TrackSizing),
+  #[cfg(feature = "grid")]
   "grid-template-rows": GridTemplateRows(TrackSizing),
+  #[cfg(feature = "grid")]
   "grid-auto-columns": GridAutoColumns(TrackSizeList),
+  #[cfg(feature = "grid")]
   "grid-auto-rows": GridAutoRows(TrackSizeList),
 
   "margin-top": MarginTop(LengthPercentageOrAuto),

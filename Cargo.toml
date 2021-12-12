@@ -13,6 +13,9 @@ edition = "2018"
 keywords = [ "CSS", "minifier", "Parcel" ]
 repository = "https://github.com/parcel-bundler/parcel-css"
 
+[features]
+grid = []
+
 [lib]
 crate-type = ["rlib"]
 
