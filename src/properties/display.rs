@@ -1,5 +1,6 @@
 use cssparser::*;
-use super::Property;
+use super::{Property, PropertyId};
+use super::custom::UnparsedProperty;
 use crate::vendor_prefix::VendorPrefix;
 use crate::declaration::DeclarationList;
 use crate::targets::Browsers;
@@ -308,7 +309,7 @@ impl DisplayHandler {
 }
 
 impl PropertyHandler for DisplayHandler {
-  fn handle_property(&mut self, property: &Property, _: &mut DeclarationList) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
     if let Property::Display(display) = property {
       match (&self.display, display) {
         (Some(Display::Pair(cur)), Display::Pair(new)) => {
@@ -334,6 +335,12 @@ impl PropertyHandler for DisplayHandler {
       self.display = Some(display.clone());
       return true
     }
+    
+    if matches!(property, Property::Unparsed(UnparsedProperty { property_id: PropertyId::Display, .. })) {
+      self.finalize(dest);
+      dest.push(property.clone());
+      return true
+    }
 
     false
   }
@@ -342,7 +349,7 @@ impl PropertyHandler for DisplayHandler {
     if self.display.is_none() {
       return
     }
-    
+
     dest.extend(&mut self.decls);
 
     if let Some(display) = std::mem::take(&mut self.display) {

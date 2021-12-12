@@ -4723,6 +4723,10 @@ mod tests {
       ".foo { display: -webkit-inline-flex; display: -moz-inline-box; display: inline-flex }",
       ".foo{display:-webkit-inline-flex;display:-moz-inline-box;display:inline-flex}"
     );
+    minify_test(
+      ".foo { display: flex; display: var(--grid); }",
+      ".foo{display:flex;display:var(--grid)}"
+    );
     prefix_test(
       ".foo{ display: flex }",
       indoc! {r#"
