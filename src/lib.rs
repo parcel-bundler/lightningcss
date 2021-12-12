@@ -2532,6 +2532,8 @@ mod tests {
     minify_test(".foo { top: calc(1 * clamp(1.75rem, 8vw, 4rem)) }", ".foo{top:calc(clamp(1.75rem,8vw,4rem))}");
     minify_test(".foo { top: calc(2 * clamp(1.75rem, 8vw, 4rem) / 2) }", ".foo{top:calc(clamp(1.75rem,8vw,4rem))}");
 
+    minify_test(".foo { width: max(0px, 1vw) }", ".foo{width:max(0px,1vw)}");
+
     prefix_test(
       ".foo { border-width: clamp(1em, 2px, 4vh) }",
       indoc! { r#"

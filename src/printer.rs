@@ -14,7 +14,8 @@ pub struct Printer<'a, W> {
   pub targets: Option<Browsers>,
   /// Vendor prefix override. When non-empty, it overrides 
   /// the vendor prefix of whatever is being printed.
-  pub vendor_prefix: VendorPrefix
+  pub vendor_prefix: VendorPrefix,
+  pub in_calc: bool
 }
 
 impl<'a, W: Write + Sized> Printer<'a, W> {
@@ -32,7 +33,8 @@ impl<'a, W: Write + Sized> Printer<'a, W> {
       col: 0,
       minify,
       targets,
-      vendor_prefix: VendorPrefix::empty()
+      vendor_prefix: VendorPrefix::empty(),
+      in_calc: false
     }
   }
 

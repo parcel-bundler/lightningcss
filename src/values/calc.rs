@@ -373,7 +373,10 @@ impl<V: std::cmp::PartialOrd<f32>> std::cmp::PartialOrd<f32> for Calc<V> {
 
 impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clone + std::fmt::Debug> ToCss for Calc<V> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-    match self {
+    let was_in_calc = dest.in_calc;
+    dest.in_calc = true;
+    
+    let res = match self {
       Calc::Value(v) => v.to_css(dest),
       Calc::Number(n) => serialize_number(*n, dest),
       Calc::Sum(a, b) => {
@@ -383,12 +386,11 @@ impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clo
         if *b < 0.0 {
           dest.write_str(" - ")?;
           let b = b.clone() * -1.0;
-          b.to_css(dest)?;
+          b.to_css(dest)
         } else {
           dest.write_str(" + ")?;
-          b.to_css(dest)?;
+          b.to_css(dest)
         }
-        Ok(())
       }
       Calc::Product(num, calc) => {
         if num.abs() < 1.0 {
@@ -403,6 +405,9 @@ impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clo
         }
       }
       Calc::Function(f) => f.to_css(dest)
-    }
+    };
+
+    dest.in_calc = was_in_calc;
+    res
   }
 }

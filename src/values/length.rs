@@ -112,7 +112,10 @@ impl Parse for LengthValue {
 impl ToCss for LengthValue {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     let (value, unit) = self.to_unit_value();
-    if value == 0.0 {
+
+    // The unit can be omitted if the value is zero, except inside calc()
+    // expressions, where unitless numbers won't be parsed as dimensions.
+    if !dest.in_calc && value == 0.0 {
       return dest.write_char('0')
     }
 
