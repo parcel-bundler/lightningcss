@@ -56,6 +56,8 @@ pub enum AtRulePrelude {
   Import(String, MediaList, Option<SupportsCondition>),
   /// A @namespace rule prelude.
   Namespace(Option<String>, String),
+  /// A @charset rule prelude.
+  Charset
 }
 
 impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
@@ -88,10 +90,12 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
           let prelude = AtRulePrelude::Namespace(prefix, namespace);
           return Ok(AtRuleType::WithoutBlock(prelude));
         },
-        // @charset is removed by rust-cssparser if it’s the first rule in the stylesheet
-        // anything left is invalid.
         "charset" => {
-          return Err(input.new_error(BasicParseErrorKind::AtRuleInvalid(name)))
+          // @charset is removed by rust-cssparser if it’s the first rule in the stylesheet.
+          // Anything left is technically invalid, however, users often concatenate CSS files
+          // together, so we are more lenient and simply ignore @charset rules in the middle of a file.
+          input.expect_string()?;
+          return Ok(AtRuleType::WithoutBlock(AtRulePrelude::Charset))
         },
         _ => {}
       }
@@ -133,6 +137,7 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
             loc
           })
         },
+        AtRulePrelude::Charset => CssRule::Ignored,
         _ => unreachable!()
       };
 
@@ -176,6 +181,7 @@ impl<'a, 'b> NestedRuleParser {
     let mut rules = Vec::new();
     while let Some(result) = iter.next() {
       match result {
+        Ok(CssRule::Ignored) => {},
         Ok(rule) => rules.push(rule),
         Err(_) => {
           // TODO

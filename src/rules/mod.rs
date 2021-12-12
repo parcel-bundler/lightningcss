@@ -39,7 +39,8 @@ pub enum CssRule {
   Supports(SupportsRule),
   CounterStyle(CounterStyleRule),
   Namespace(NamespaceRule),
-  MozDocument(MozDocumentRule)
+  MozDocument(MozDocumentRule),
+  Ignored
 }
 
 impl ToCss for CssRule {
@@ -54,7 +55,8 @@ impl ToCss for CssRule {
       CssRule::Supports(supports) => supports.to_css(dest),
       CssRule::CounterStyle(counter_style) => counter_style.to_css(dest),
       CssRule::Namespace(namespace) => namespace.to_css(dest),
-      CssRule::MozDocument(document) => document.to_css(dest)
+      CssRule::MozDocument(document) => document.to_css(dest),
+      CssRule::Ignored => Ok(())
     }
   }
 }

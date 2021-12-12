@@ -1,6 +1,6 @@
 use cssparser::{Parser, ParserInput, RuleListParser, ParseError};
 use parcel_sourcemap::SourceMap;
-use crate::rules::CssRuleList;
+use crate::rules::{CssRule, CssRuleList};
 use crate::parser::TopLevelRuleParser;
 use crate::printer::Printer;
 use crate::traits::ToCss;
@@ -21,6 +21,7 @@ impl StyleSheet {
     let mut rules = vec![];
     for rule in rule_list_parser {
       let rule = match rule {
+        Ok((_, CssRule::Ignored)) => continue,
         Ok((_, rule)) => rule,
         Err((e, _)) => return Err(e)
       };

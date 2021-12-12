@@ -6076,4 +6076,29 @@ mod tests {
     minify_test(".foo { --test:foo; }", ".foo{--test:foo}");
     minify_test(".foo { --test:foo ; }", ".foo{--test:foo}");
   }
+
+  #[test]
+  fn test_charset() {
+    test(r#"
+      @charset "UTF-8";
+
+      .foo {
+        color: red;
+      }
+
+      @charset "UTF-8";
+
+      .bar {
+        color: yellow;
+      }
+    "#, indoc! { r#"
+      .foo {
+        color: red;
+      }
+
+      .bar {
+        color: #ff0;
+      }
+    "#})
+  }
 }
