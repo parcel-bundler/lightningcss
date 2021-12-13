@@ -3,7 +3,7 @@
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 use serde::{Serialize, Deserialize};
-use parcel_css::stylesheet::StyleSheet;
+use parcel_css::stylesheet::{StyleSheet, StyleAttribute};
 use parcel_css::targets::Browsers;
 
 // ---------------------------------------------
@@ -21,6 +21,15 @@ pub fn transform(config_val: JsValue) -> Result<JsValue, JsValue> {
   let res = compile(code, &config)?;
   let serializer = Serializer::new().serialize_maps_as_objects(true);
   res.serialize(&serializer).map_err(JsValue::from)
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(js_name = "transformStyleAttribute")]
+pub fn transform_style_attribute(config_val: JsValue) -> Result<Vec<u8>, JsValue> {
+  let config: AttrConfig = from_value(config_val).map_err(JsValue::from)?;
+  let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
+  let res = compile_attr(code, &config)?;
+  Ok(res)
 }
 
 // ---------------------------------------------
@@ -58,30 +67,21 @@ fn transform(ctx: CallContext) -> napi::Result<JsUnknown> {
 
   match res {
     Ok(res) => ctx.env.to_js_value(&res),
-    Err(err) => {
-      match &err {
-        CompileError::ParseError(e) => {
-          // Generate an error with location information.
-          let syntax_error = ctx.env.get_global()?
-            .get_named_property::<napi::JsFunction>("SyntaxError")?;
-          let reason = ctx.env.create_string_from_std(err.reason())?;
-          let line = ctx.env.create_int32((e.location.line + 1) as i32)?;
-          let col = ctx.env.create_int32(e.location.column as i32)?;
-          let mut obj = syntax_error.new(&[reason])?;
-          let filename = ctx.env.create_string_from_std(config.filename)?;
-          obj.set_named_property("fileName", filename)?;
-          let source = ctx.env.create_string(code)?;
-          obj.set_named_property("source", source)?;
-          let mut loc = ctx.env.create_object()?;
-          loc.set_named_property("line", line)?;
-          loc.set_named_property("column", col)?;
-          obj.set_named_property("loc", loc)?;
-          ctx.env.throw(obj)?;
-          Ok(ctx.env.get_undefined()?.into_unknown())
-        }
-        _ => Err(err.into())
-      }
-    }
+    Err(err) => err.throw(ctx, Some(config.filename), code)
+  }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[js_function(1)]
+fn transform_style_attribute(ctx: CallContext) -> napi::Result<JsUnknown> {
+  let opts = ctx.get::<JsObject>(0)?;
+  let config: AttrConfig = ctx.env.from_js_value(opts)?;
+  let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
+  let res = compile_attr(code, &config);
+
+  match res {
+    Ok(res) => Ok(ctx.env.create_buffer_with_data(res)?.into_unknown()),
+    Err(err) => err.throw(ctx, None, code)
   }
 }
 
@@ -89,6 +89,7 @@ fn transform(ctx: CallContext) -> napi::Result<JsUnknown> {
 #[module_exports]
 fn init(mut exports: JsObject) -> napi::Result<()> {
   exports.create_named_method("transform", transform)?;
+  exports.create_named_method("transformStyleAttribute", transform_style_attribute)?;
 
   Ok(())
 }
@@ -138,6 +139,21 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
   })
 }
 
+#[derive(Serialize, Debug, Deserialize)]
+struct AttrConfig {
+  #[serde(with = "serde_bytes")]
+  pub code: Vec<u8>,
+  pub targets: Option<Browsers>,
+  pub minify: Option<bool>
+}
+
+fn compile_attr<'i>(code: &'i str, config: &AttrConfig) -> Result<Vec<u8>, CompileError<'i>> {
+  let mut attr = StyleAttribute::parse(&code)?;
+  attr.minify(config.targets); // TODO: should this be conditional?
+  let res = attr.to_css(config.minify.unwrap_or(false), config.targets)?;
+  Ok(res.into_bytes())
+}
+
 enum CompileError<'i> {
   ParseError(cssparser::ParseError<'i, ()>),
   PrinterError,
@@ -164,6 +180,34 @@ impl<'i> CompileError<'i> {
       }
       CompileError::PrinterError => "Printer error".into(),
       _ => "Unknown error".into()
+    }
+  }
+
+  #[cfg(not(target_arch = "wasm32"))]
+  fn throw(self, ctx: CallContext, filename: Option<String>, code: &str) -> napi::Result<JsUnknown> {
+    match &self {
+      CompileError::ParseError(e) => {
+        // Generate an error with location information.
+        let syntax_error = ctx.env.get_global()?
+          .get_named_property::<napi::JsFunction>("SyntaxError")?;
+        let reason = ctx.env.create_string_from_std(self.reason())?;
+        let line = ctx.env.create_int32((e.location.line + 1) as i32)?;
+        let col = ctx.env.create_int32(e.location.column as i32)?;
+        let mut obj = syntax_error.new(&[reason])?;
+        if let Some(filename) = filename {
+          let filename = ctx.env.create_string_from_std(filename)?;
+          obj.set_named_property("fileName", filename)?;
+        }
+        let source = ctx.env.create_string(code)?;
+        obj.set_named_property("source", source)?;
+        let mut loc = ctx.env.create_object()?;
+        loc.set_named_property("line", line)?;
+        loc.set_named_property("column", col)?;
+        obj.set_named_property("loc", loc)?;
+        ctx.env.throw(obj)?;
+        Ok(ctx.env.get_undefined()?.into_unknown())
+      }
+      _ => Err(self.into())
     }
   }
 }

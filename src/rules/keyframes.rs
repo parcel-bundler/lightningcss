@@ -1,7 +1,6 @@
 use cssparser::*;
 use crate::values::percentage::Percentage;
 use crate::traits::{Parse, ToCss};
-use crate::parser::{PropertyDeclarationParser};
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::vendor_prefix::VendorPrefix;
 use crate::printer::Printer;
@@ -166,18 +165,9 @@ impl<'a, 'i> QualifiedRuleParser<'i> for KeyframeListParser {
     _: &ParserState,
     input: &mut Parser<'i, 't>,
   ) -> Result<Self::QualifiedRule, ParseError<'i, ()>> {
-    let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser);
-    let mut declarations = vec![];
-    while let Some(decl) = parser.next() {
-      if let Ok(decl) = decl {
-        declarations.push(decl);
-      }
-    }
     Ok(Keyframe {
       selectors,
-      declarations: DeclarationBlock {
-        declarations
-      }
+      declarations: DeclarationBlock::parse(input)?
     })
   }
 }

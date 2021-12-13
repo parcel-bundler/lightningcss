@@ -41,6 +41,13 @@ mod tests {
     assert_eq!(res, expected);
   }
 
+  fn attr_test(source: &str, expected: &str, minify: bool) {
+    let mut attr = StyleAttribute::parse(source).unwrap();
+    attr.minify(None);
+    let res = attr.to_css(minify, None).unwrap();
+    assert_eq!(res, expected);
+  }
+
   #[test]
   pub fn test_border() {
     test(r#"
@@ -6100,5 +6107,11 @@ mod tests {
         color: #ff0;
       }
     "#})
+  }
+
+  #[test]
+  fn test_style_attr() {
+    attr_test("color: yellow; flex: 1 1 auto", "color: #ff0; flex: auto", false);
+    attr_test("color: yellow; flex: 1 1 auto", "color:#ff0;flex:auto", true);
   }
 }

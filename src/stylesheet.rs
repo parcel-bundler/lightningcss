@@ -5,7 +5,8 @@ use crate::parser::TopLevelRuleParser;
 use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::targets::Browsers;
-use crate::declaration::DeclarationHandler;
+use crate::declaration::{DeclarationHandler, DeclarationBlock};
+use crate::traits::Parse;
 
 pub struct StyleSheet {
   pub filename: String,
@@ -66,5 +67,42 @@ impl StyleSheet {
     }
 
     Ok((dest, source_map))
+  }
+}
+
+pub struct StyleAttribute {
+  pub declarations: DeclarationBlock
+}
+
+impl StyleAttribute {
+  pub fn parse<'i>(code: &'i str) -> Result<StyleAttribute, ParseError<'i, ()>> {
+    let mut input = ParserInput::new(&code);
+    let mut parser = Parser::new(&mut input);
+    Ok(StyleAttribute {
+      declarations: DeclarationBlock::parse(&mut parser)?
+    })
+  }
+
+  pub fn minify(&mut self, targets: Option<Browsers>) {
+    let mut handler = DeclarationHandler::new(false, targets);
+    let mut important_handler = DeclarationHandler::new(true, targets);
+    self.declarations.minify(&mut handler, &mut important_handler);
+  }
+
+  pub fn to_css(&self, minify: bool, targets: Option<Browsers>) -> Result<String, std::fmt::Error> {
+    let mut dest = String::new();
+    let mut printer = Printer::new(&mut dest, None, minify, targets);
+
+    let declarations = &self.declarations.declarations;
+    let len = declarations.len();
+    for (i, decl) in declarations.iter().enumerate() {
+      decl.to_css(&mut printer)?;
+      if i != len - 1 {
+        printer.write_char(';')?;
+        printer.whitespace()?;
+      }
+    }
+
+    Ok(dest)
   }
 }

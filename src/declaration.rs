@@ -1,6 +1,6 @@
 use cssparser::*;
 use crate::properties::Property;
-use crate::traits::{PropertyHandler, ToCss};
+use crate::traits::{PropertyHandler, Parse, ToCss};
 use crate::printer::Printer;
 use crate::properties::{
   align::AlignHandler,
@@ -25,6 +25,22 @@ use crate::targets::Browsers;
 #[derive(Debug, PartialEq)]
 pub struct DeclarationBlock {
   pub declarations: Vec<Declaration>
+}
+
+impl Parse for DeclarationBlock {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser);
+    let mut declarations = vec![];
+    while let Some(decl) = parser.next() {
+      if let Ok(decl) = decl {
+        declarations.push(decl);
+      }
+    }
+
+    Ok(DeclarationBlock {
+      declarations
+    })
+  }
 }
 
 impl ToCss for DeclarationBlock {
@@ -63,6 +79,30 @@ impl DeclarationBlock {
     decls.extend(important_handler.finalize());
     self.declarations = decls;
   }
+}
+
+struct PropertyDeclarationParser;
+
+/// Parse a declaration within {} block: `color: blue`
+impl<'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser {
+  type Declaration = Declaration;
+  type Error = ();
+
+  fn parse_value<'t>(
+    &mut self,
+    name: CowRcStr<'i>,
+    input: &mut cssparser::Parser<'i, 't>,
+  ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
+    Declaration::parse(name, input)
+  }
+}
+
+/// Default methods reject all at rules.
+impl<'i> AtRuleParser<'i> for PropertyDeclarationParser {
+  type PreludeNoBlock = ();
+  type PreludeBlock = ();
+  type AtRule = Declaration;
+  type Error = ();
 }
 
 #[derive(Debug, Clone, PartialEq)]

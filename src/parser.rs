@@ -18,7 +18,7 @@ use crate::rules::{
   document::MozDocumentRule
 };
 use crate::values::ident::CustomIdent;
-use crate::declaration::{Declaration, DeclarationBlock};
+use crate::declaration::DeclarationBlock;
 use crate::vendor_prefix::VendorPrefix;
 
 /// The parser for the top-level rules in a stylesheet.
@@ -311,19 +311,9 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
       //     ))))
       // },
       AtRulePrelude::CounterStyle(name) => {
-        let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser);
-        let mut declarations = vec![];
-        while let Some(decl) = parser.next() {
-          if let Ok(decl) = decl {
-            declarations.push(decl);
-          }
-        }
-
         Ok(CssRule::CounterStyle(CounterStyleRule {
           name,
-          declarations: DeclarationBlock {
-            declarations
-          },
+          declarations: DeclarationBlock::parse(input)?,
           loc
         }))
       },
@@ -362,18 +352,9 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
         }))
       },
       AtRulePrelude::Page(selectors) => {
-        let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser);
-        let mut declarations = vec![];
-        while let Some(decl) = parser.next() {
-          if let Ok(decl) = decl {
-            declarations.push(decl);
-          }
-        }
         Ok(CssRule::Page(PageRule {
           selectors,
-          declarations: DeclarationBlock {
-            declarations
-          },
+          declarations: DeclarationBlock::parse(input)?,
           loc
         }))
       },
@@ -415,47 +396,13 @@ impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser {
     input: &mut Parser<'i, 't>,
   ) -> Result<CssRule, ParseError<'i, Self::Error>> {
     let loc = start.source_location();
-    let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser);
-    let mut declarations = vec![];
-    while let Some(decl) = parser.next() {
-      if let Ok(decl) = decl {
-        declarations.push(decl);
-      }
-    }
-
     Ok(CssRule::Style(StyleRule {
       selectors,
       vendor_prefix: VendorPrefix::empty(),
-      declarations: DeclarationBlock {
-        declarations
-      },
+      declarations: DeclarationBlock::parse(input)?,
       loc
     }))
   }
-}
-
-pub struct PropertyDeclarationParser;
-
-/// Parse a declaration within {} block: `color: blue`
-impl<'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser {
-  type Declaration = Declaration;
-  type Error = ();
-
-  fn parse_value<'t>(
-    &mut self,
-    name: CowRcStr<'i>,
-    input: &mut cssparser::Parser<'i, 't>,
-  ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
-    Declaration::parse(name, input)
-  }
-}
-
-/// Default methods reject all at rules.
-impl<'i> AtRuleParser<'i> for PropertyDeclarationParser {
-  type PreludeNoBlock = ();
-  type PreludeBlock = ();
-  type AtRule = Declaration;
-  type Error = ();
 }
 
 fn starts_with_ignore_ascii_case(string: &str, prefix: &str) -> bool {
