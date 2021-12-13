@@ -6,7 +6,7 @@ use crate::values::{
   image::Image
 };
 use crate::targets::Browsers;
-use crate::prefixes::is_webkit_gradient;
+use crate::prefixes::{Feature, is_webkit_gradient};
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::macros::*;
 use crate::properties::{Property, PropertyId, VendorPrefix};
@@ -185,6 +185,18 @@ impl Into<BackgroundClip> for BackgroundBox {
   }
 }
 
+impl Default for BackgroundClip {
+  fn default() -> BackgroundClip {
+    BackgroundClip::BorderBox
+  }
+}
+
+impl BackgroundClip {
+  fn is_background_box(&self) -> bool {
+    matches!(self, BackgroundClip::BorderBox | BackgroundClip::PaddingBox | BackgroundClip::ContentBox)
+  }
+}
+
 /// https://www.w3.org/TR/css-backgrounds-3/#background
 #[derive(Debug, Clone, PartialEq)]
 pub struct Background {
@@ -337,18 +349,22 @@ impl ToCss for Background {
       has_output = true;
     }
 
-    if self.origin != BackgroundBox::PaddingBox || self.clip != BackgroundBox::BorderBox {
+    let output_padding_box = self.origin != BackgroundBox::PaddingBox || (self.clip != BackgroundBox::BorderBox && self.clip.is_background_box());
+    if output_padding_box {
       if has_output {
         dest.write_str(" ")?;
       }
 
       self.origin.to_css(dest)?;
+      has_output = true;
+    }
 
-      if self.clip != self.origin {
+    if (output_padding_box && self.clip != self.origin) || self.clip != BackgroundBox::BorderBox {
+      if has_output {
         dest.write_str(" ")?;
-        self.clip.to_css(dest)?;
       }
 
+      self.clip.to_css(dest)?;
       has_output = true;
     }
 
@@ -484,14 +500,25 @@ impl BackgroundHandler {
       // Only use shorthand syntax if the number of layers matches on all properties.
       let len = images.len();
       if x_positions.len() == len && y_positions.len() == len && repeats.len() == len && sizes.len() == len && attachments.len() == len && origins.len() == len && clips.len() == len {
-        let prefixes = if let Some(targets) = self.targets {
+        let (prefixes, clip_prefixes) = if let Some(targets) = self.targets {
           let mut prefixes = VendorPrefix::empty();
           for image in images.iter() {
             prefixes |= image.get_necessary_prefixes(targets);
           }
-          prefixes
+          let clip_prefixes = if clips.iter().any(|clip| *clip == BackgroundClip::Text) {
+            Feature::BackgroundClip.prefixes_for(targets)
+          } else {
+            VendorPrefix::None
+          };
+          (prefixes, clip_prefixes)
         } else {
-          VendorPrefix::None
+          (VendorPrefix::None, VendorPrefix::None)
+        };
+
+        let clip_property = if clip_prefixes != VendorPrefix::None {
+          Some(Property::BackgroundClip(clips.clone(), clip_prefixes))
+        } else {
+          None
         };
 
         let backgrounds: SmallVec<[Background; 1]> = izip!(images.drain(..), x_positions.drain(..), y_positions.drain(..), repeats.drain(..), sizes.drain(..), attachments.drain(..), origins.drain(..), clips.drain(..)).enumerate().map(|(i, (image, x_position, y_position, repeat, size, attachment, origin, clip))| {
@@ -510,7 +537,11 @@ impl BackgroundHandler {
             size,
             attachment,
             origin,
-            clip
+            clip: if clip_prefixes == VendorPrefix::None {
+              clip
+            } else {
+              BackgroundClip::default()
+            }
           }
         }).collect();
 
@@ -547,6 +578,10 @@ impl BackgroundHandler {
 
         if prefixes.contains(VendorPrefix::None) {
           dest.push(Property::Background(backgrounds));
+        }
+
+        if let Some(clip) = clip_property {
+          dest.push(clip)
         }
 
         self.reset();
@@ -627,7 +662,16 @@ impl BackgroundHandler {
     }
 
     if let Some(clips) = clips {
-      dest.push(Property::BackgroundClip(clips, VendorPrefix::None))
+      let prefixes = if let Some(targets) = self.targets {
+        if clips.iter().any(|clip| *clip == BackgroundClip::Text) {
+          Feature::BackgroundClip.prefixes_for(targets)
+        } else {
+          VendorPrefix::None
+        }
+      } else {
+        VendorPrefix::None
+      };
+      dest.push(Property::BackgroundClip(clips, prefixes))
     }
 
     self.reset();

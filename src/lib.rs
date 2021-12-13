@@ -1056,6 +1056,101 @@ mod tests {
     minify_test(".foo { background: transparent }", ".foo{background:#0000}");
 
     minify_test(".foo { background: url(\"data:image/svg+xml,%3Csvg width='168' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E\") }", ".foo{background:url(\"data:image/svg+xml,%3Csvg width='168' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E\")}");
+  
+    test(r#"
+      .foo {
+        background: url(img.png);
+        background-clip: text;
+      }
+    "#, indoc! {r#"
+      .foo {
+        background: url(img.png) text;
+      }
+    "#
+    });
+
+    prefix_test(r#"
+      .foo {
+        background: url(img.png);
+        background-clip: text;
+      }
+    "#, indoc! {r#"
+      .foo {
+        background: url(img.png);
+        -webkit-background-clip: text;
+        background-clip: text;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        background: url(img.png);
+        background-clip: text;
+      }
+    "#, indoc! {r#"
+      .foo {
+        background: url(img.png) text;
+      }
+    "#
+    }, Browsers {
+      safari: Some(14 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        background: url(img.png);
+        background-clip: text;
+      }
+    "#, indoc! {r#"
+      .foo {
+        background: url(img.png);
+        -webkit-background-clip: text;
+        background-clip: text;
+      }
+    "#
+    }, Browsers {
+      safari: Some(14 << 16),
+      chrome: Some(95 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        background-image: url(img.png);
+        background-clip: text;
+      }
+    "#, indoc! {r#"
+      .foo {
+        background-image: url(img.png);
+        -webkit-background-clip: text;
+        background-clip: text;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        background-image: url(img.png);
+        background-clip: text;
+      }
+    "#, indoc! {r#"
+      .foo {
+        background-image: url(img.png);
+        background-clip: text;
+      }
+    "#
+    }, Browsers {
+      safari: Some(14 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]

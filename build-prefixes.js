@@ -46,6 +46,14 @@ prefixes['::file-selector-button'].browsers = [
   'samsung 14'
 ];
 
+// Safari 14+ supports background-clip: text unprefixed. Both MDN and caniuse are incorrect.
+// https://github.com/mdn/browser-compat-data/issues/13977
+// https://github.com/Fyrd/caniuse/issues/6106
+prefixes['background-clip'].browsers = prefixes['background-clip'].browsers.filter(x => {
+  let m = /^(?:safari|ios_saf) (\d+)/.exec(x);
+  return !m || parseInt(m[1]) < 14;
+});
+
 let flexSpec = {};
 let oldGradient = {};
 let p = new Map();

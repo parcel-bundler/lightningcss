@@ -805,7 +805,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 393216 && version <= 983040 {
+          if version >= 393216 && version <= 852992 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -815,7 +815,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 262144 && version <= 983040 {
+          if version >= 262144 && version <= 852224 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
