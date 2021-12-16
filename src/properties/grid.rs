@@ -376,3 +376,135 @@ impl ToCss for TrackSizeList {
     Ok(())
   }
 }
+
+/// https://drafts.csswg.org/css-grid-2/#grid-template-areas-property
+#[derive(Debug, Clone, PartialEq)]
+pub enum GridTemplateAreas {
+  None,
+  Areas {
+    columns: u32,
+    areas: Vec<Option<String>>
+  }
+}
+
+impl Parse for GridTemplateAreas {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
+      return Ok(GridTemplateAreas::None)
+    }
+
+    let mut tokens = Vec::new();
+    let mut row = 0;
+    let mut columns = 0;
+    while let Ok(s) = input.try_parse(|input| input.expect_string().map(|s| s.as_ref().to_owned())) {
+      let mut string: &str = &s;
+      let mut column = 0;
+      loop {
+        let rest = string.trim_start_matches(HTML_SPACE_CHARACTERS);
+        if rest.is_empty() {
+          // Each string must produce a valid token.
+          if column == 0 {
+            return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+          }
+          break
+        }
+
+        column += 1;
+
+        if rest.starts_with('.') {
+          string = &rest[rest.find(|c| c != '.').unwrap_or(rest.len())..];
+          tokens.push(None);
+          continue
+        }
+
+        if !rest.starts_with(is_name_code_point) {
+          return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+        }
+
+        let token_len = rest.find(|c| !is_name_code_point(c)).unwrap_or(rest.len());
+        let token = &rest[..token_len];
+        tokens.push(Some(token.into()));
+        string = &rest[token_len..];
+      }
+
+      if row == 0 {
+        columns = column;
+      } else if column != columns {
+        return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+      }
+
+      row += 1;
+    }
+
+    Ok(GridTemplateAreas::Areas {
+      columns,
+      areas: tokens
+    })
+  }
+}
+
+static HTML_SPACE_CHARACTERS: &'static [char] = &['\u{0020}', '\u{0009}', '\u{000a}', '\u{000c}', '\u{000d}'];
+
+fn is_name_code_point(c: char) -> bool {
+  c >= 'A' && c <= 'Z' ||
+    c >= 'a' && c <= 'z' ||
+    c >= '\u{80}' ||
+    c == '_' ||
+    c >= '0' && c <= '9' ||
+    c == '-'
+}
+
+impl ToCss for GridTemplateAreas {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    match self {
+      GridTemplateAreas::None => dest.write_str("none"),
+      GridTemplateAreas::Areas { columns, areas } => {
+        let mut iter = areas.iter();
+        let mut next = iter.next();
+        let mut first = true;
+        while next.is_some() {
+          if !first && !dest.minify {
+            dest.newline()?;
+          }
+          dest.write_char('"')?;
+
+          let mut last_was_null = false;
+          for i in 0..*columns {
+            if let Some(token) = next {
+              if let Some(string) = token {
+                if i > 0 && (!last_was_null || !dest.minify) {
+                  dest.write_char(' ')?;
+                }
+                dest.write_str(string)?;
+                last_was_null = false;
+              } else {
+                if last_was_null || !dest.minify {
+                  dest.write_char(' ')?;
+                }
+                dest.write_char('.')?;
+                last_was_null = true;
+              }
+            }
+
+            next = iter.next();
+          }
+
+          dest.write_char('"')?;
+          if first {
+            first = false;
+            if !dest.minify {
+              // Indent by the width of "grid-template-areas: ", so the rows line up.
+              dest.indent_by(21);
+            }
+          }
+        }
+
+        if !dest.minify {
+          dest.dedent_by(21);
+        }
+        
+        Ok(())
+      }
+    }
+  }
+}

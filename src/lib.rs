@@ -6154,6 +6154,40 @@ mod tests {
     minify_test(".foo { grid-auto-rows: fit-content(20%); }", ".foo{grid-auto-rows:fit-content(20%)}");
     minify_test(".foo { grid-auto-rows: 100px minmax(100px, auto) 10% 0.5fr fit-content(400px); }", ".foo{grid-auto-rows:100px minmax(100px,auto) 10% .5fr fit-content(400px)}");
     minify_test(".foo { grid-auto-columns: 100px minmax(100px, auto) 10% 0.5fr fit-content(400px); }", ".foo{grid-auto-columns:100px minmax(100px,auto) 10% .5fr fit-content(400px)}");
+  
+    minify_test(r#"
+      .foo {
+        grid-template-areas: "head head"
+                             "nav  main"
+                             "foot ....";
+      }
+    "#, ".foo{grid-template-areas:\"head head\"\"nav main\"\"foot.\"}");
+    minify_test(r#"
+      .foo {
+        grid-template-areas: "head head"
+                             "nav  main"
+                             ".... foot";
+      }
+    "#, ".foo{grid-template-areas:\"head head\"\"nav main\"\".foot\"}");
+    minify_test(r#"
+      .foo {
+        grid-template-areas: "head head"
+                             "nav  main"
+                             ".... ....";
+      }
+    "#, ".foo{grid-template-areas:\"head head\"\"nav main\"\". .\"}");
+
+    test(r#"
+      .foo {
+        grid-template-areas: "head head" "nav  main" "foot ....";
+      }
+    "#, indoc! { r#"
+      .foo {
+        grid-template-areas: "head head"
+                             "nav main"
+                             "foot .";
+      }
+    "#});
   }
 
   #[test]

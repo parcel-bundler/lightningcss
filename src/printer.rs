@@ -90,6 +90,14 @@ impl<'a, W: Write + Sized> Printer<'a, W> {
     self.indent -= 2;
   }
 
+  pub fn indent_by(&mut self, amt: u8) {
+    self.indent += amt;
+  }
+
+  pub fn dedent_by(&mut self, amt: u8) {
+    self.indent -= amt;
+  }
+
   pub fn add_mapping(&mut self, loc: SourceLocation) {
     if let Some(map) = &mut self.source_map {
       map.add_mapping(self.line, self.col, Some(OriginalLocation {

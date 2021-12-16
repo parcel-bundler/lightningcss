@@ -407,6 +407,8 @@ define_properties! {
   "grid-auto-columns": GridAutoColumns(TrackSizeList),
   #[cfg(feature = "grid")]
   "grid-auto-rows": GridAutoRows(TrackSizeList),
+  #[cfg(feature = "grid")]
+  "grid-template-areas": GridTemplateAreas(GridTemplateAreas),
 
   "margin-top": MarginTop(LengthPercentageOrAuto),
   "margin-bottom": MarginBottom(LengthPercentageOrAuto),
