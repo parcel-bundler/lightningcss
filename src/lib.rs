@@ -6215,6 +6215,27 @@ mod tests {
       ".foo { grid-template: [linename1 linename2] 100px repeat(auto-fit, [linename1] 300px) [linename3] / [linename1 linename2] 100px repeat(auto-fit, [linename1] 300px) [linename3]; }",
       ".foo{grid-template:[linename1 linename2]100px repeat(auto-fit,[linename1]300px)[linename3]/[linename1 linename2]100px repeat(auto-fit,[linename1]300px)[linename3]}"
     );
+
+    test(
+      ".foo{grid-template:[header-top]\"a a a\"[header-bottom main-top]\"b b b\"1fr[main-bottom]/auto 1fr auto}",
+      indoc!{r#"
+        .foo {
+          grid-template: [header-top] "a a a" [header-bottom]
+                         [main-top] "b b b" 1fr [main-bottom]
+                         / auto 1fr auto;
+        }
+      "#}
+    );
+    test(
+      ".foo{grid-template:[header-top]\"a a a\"[main-top]\"b b b\"1fr/auto 1fr auto}",
+      indoc!{r#"
+        .foo {
+          grid-template: [header-top] "a a a"
+                         [main-top] "b b b" 1fr
+                         / auto 1fr auto;
+        }
+      "#}
+    );
   }
 
   #[test]

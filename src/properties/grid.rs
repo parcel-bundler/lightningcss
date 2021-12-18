@@ -266,7 +266,7 @@ fn parse_line_names<'i, 't>(input: &mut Parser<'i, 't>) -> Result<SmallVec<[Cust
   })
 }
 
-fn serialize_line_names<W>(names: &SmallVec<[CustomIdent; 1]>, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+fn serialize_line_names<W>(names: &[CustomIdent], dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
   dest.write_char('[')?;
   let mut first = true;
   for name in names {
@@ -655,11 +655,41 @@ impl ToCss for GridTemplate {
         let mut items_iter = track_list.items.iter();
 
         let mut next = areas_iter.next();
+        let mut first = true;
+        let mut indented = false;
         while next.is_some() {
+          macro_rules! newline {
+            () => {    
+              if !dest.minify {
+                if !indented {
+                  // Indent by the width of "grid-template: ", so the rows line up.
+                  dest.indent_by(15);
+                  indented = true;
+                }   
+                dest.newline()?; 
+              }
+            };
+          }
+  
           if let Some(line_names) = line_names_iter.next() {
             if !line_names.is_empty() {
-              serialize_line_names(line_names, dest)?;
+              if !dest.minify && line_names.len() == 2 {
+                dest.whitespace()?;
+                serialize_line_names(&line_names[0..1], dest)?;
+                newline!();
+                serialize_line_names(&line_names[1..], dest)?;
+              } else {
+                if !first {
+                  newline!();
+                }
+                serialize_line_names(line_names, dest)?;
+              }
+              dest.whitespace()?;
+            } else {
+              newline!();
             }
+          } else {
+            newline!();
           }
 
           self.areas.write_string(dest, &mut areas_iter, &mut next)?;
@@ -673,17 +703,25 @@ impl ToCss for GridTemplate {
               }
             }
           }
+
+          first = false;
         }
 
         if let Some(line_names) = line_names_iter.next() {
           if !line_names.is_empty() {
+            dest.whitespace()?;
             serialize_line_names(line_names, dest)?;
           }
         }
 
         if let TrackSizing::TrackList(track_list) = &self.columns {
-          dest.delim('/', true)?;
+          dest.newline()?;
+          dest.delim('/', false)?;
           track_list.to_css(dest)?;
+        }
+
+        if indented {
+          dest.dedent_by(15);
         }
       }
     }
