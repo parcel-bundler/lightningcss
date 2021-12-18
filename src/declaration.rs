@@ -19,6 +19,7 @@ use crate::properties::{
   position::PositionHandler,
   overflow::OverflowHandler,
   list::ListStyleHandler,
+  grid::GridHandler,
 };
 use crate::targets::Browsers;
 
@@ -158,6 +159,7 @@ pub(crate) struct DeclarationHandler {
   border: BorderHandler,
   outline: OutlineHandler,
   flex: FlexHandler,
+  grid: GridHandler,
   align: AlignHandler,
   margin: MarginHandler,
   padding: PaddingHandler,
@@ -203,6 +205,7 @@ impl DeclarationHandler {
     self.border.handle_property(property, &mut self.decls) ||
     self.outline.handle_property(property, &mut self.decls) ||
     self.flex.handle_property(property, &mut self.decls) ||
+    self.grid.handle_property(property, &mut self.decls) ||
     self.align.handle_property(property, &mut self.decls) ||
     self.margin.handle_property(property, &mut self.decls) ||
     self.padding.handle_property(property, &mut self.decls) ||
@@ -226,6 +229,7 @@ impl DeclarationHandler {
     self.border.finalize(&mut self.decls);
     self.outline.finalize(&mut self.decls);
     self.flex.finalize(&mut self.decls);
+    self.grid.finalize(&mut self.decls);
     self.align.finalize(&mut self.decls);
     self.margin.finalize(&mut self.decls);
     self.padding.finalize(&mut self.decls);

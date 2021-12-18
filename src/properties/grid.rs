@@ -4,13 +4,15 @@ use cssparser::*;
 use crate::values::{
   length::{LengthPercentage}
 };
-use crate::traits::{Parse, ToCss};
+use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::printer::Printer;
 use crate::values::ident::CustomIdent;
 use smallvec::SmallVec;
 use crate::values::length::serialize_dimension;
 use bitflags::bitflags;
 use crate::values::number::serialize_integer;
+use crate::declaration::DeclarationList;
+use crate::properties::{Property, PropertyId};
 
 /// https://drafts.csswg.org/css-grid-2/#track-sizing
 #[derive(Debug, Clone, PartialEq)]
@@ -346,6 +348,12 @@ impl ToCss for TrackList {
   }
 }
 
+impl TrackList {
+  fn is_explicit(&self) -> bool {
+    self.items.iter().all(|item| matches!(item, TrackListItem::TrackSize(_)))
+  }
+}
+
 impl Parse for TrackSizing {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
@@ -366,11 +374,23 @@ impl ToCss for TrackSizing {
   }
 }
 
+impl TrackSizing {
+  fn is_explicit(&self) -> bool {
+    match self {
+      TrackSizing::None => true,
+      TrackSizing::TrackList(list) => list.is_explicit()
+    }
+  }
+}
+
 impl Parse for TrackSizeList {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     let mut res = SmallVec::new();
     while let Ok(size) = input.try_parse(TrackSize::parse) {
       res.push(size)
+    }
+    if res.len() == 1 && res[0] == TrackSize::default() {
+      res.clear();
     }
     Ok(TrackSizeList(res))
   }
@@ -378,6 +398,10 @@ impl Parse for TrackSizeList {
 
 impl ToCss for TrackSizeList {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    if self.0.len() == 0 {
+      return dest.write_str("auto")
+    }
+
     let mut first = true;
     for item in &self.0 {
       if first {
@@ -643,6 +667,12 @@ impl Parse for GridTemplate {
 
 impl ToCss for GridTemplate {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    self.to_css_with_indent(dest, 15)
+  }
+}
+
+impl GridTemplate {
+  fn to_css_with_indent<W>(&self, dest: &mut Printer<W>, indent: u8) -> std::fmt::Result where W: std::fmt::Write {
     match &self.areas {
       GridTemplateAreas::None => {
         if self.rows == TrackSizing::None && self.columns == TrackSizing::None {
@@ -672,7 +702,7 @@ impl ToCss for GridTemplate {
               if !dest.minify {
                 if !indented {
                   // Indent by the width of "grid-template: ", so the rows line up.
-                  dest.indent_by(15);
+                  dest.indent_by(indent);
                   indented = true;
                 }   
                 dest.newline()?; 
@@ -730,7 +760,7 @@ impl ToCss for GridTemplate {
         }
 
         if indented {
-          dest.dedent_by(15);
+          dest.dedent_by(indent);
         }
       }
     }
@@ -903,16 +933,24 @@ fn parse_grid_auto_flow<'i, 't>(input: &mut Parser<'i, 't>, flow: GridAutoFlow) 
 
 impl ToCss for Grid {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    let is_auto_initial = self.auto_rows == TrackSizeList::default() && self.auto_columns == TrackSizeList::default() && self.auto_flow == GridAutoFlow::default();
+
     if self.areas != GridTemplateAreas::None ||
       (self.rows != TrackSizing::None && self.columns != TrackSizing::None) ||
-      (self.areas == GridTemplateAreas::None && self.auto_rows == TrackSizeList::default() && self.auto_columns == TrackSizeList::default() && self.auto_flow == GridAutoFlow::default()) {
+      (self.areas == GridTemplateAreas::None && is_auto_initial) {
+      if !is_auto_initial {
+        unreachable!("invalid grid shorthand: mixed implicit and explicit values");
+      }
       let template = GridTemplate {
         rows: self.rows.clone(),
         columns: self.columns.clone(),
         areas: self.areas.clone()
       };
-      template.to_css(dest)?;
+      template.to_css_with_indent(dest, 6)?;
     } else if self.auto_flow.direction() == GridAutoFlow::Column {
+      if self.columns != TrackSizing::None || self.auto_rows != TrackSizeList::default() {
+        unreachable!("invalid grid shorthand: mixed implicit and explicit values");
+      }
       self.rows.to_css(dest)?;
       dest.delim('/', true)?;
       dest.write_str("auto-flow")?;
@@ -924,6 +962,9 @@ impl ToCss for Grid {
         self.auto_columns.to_css(dest)?;
       }
     } else {
+      if self.rows != TrackSizing::None || self.auto_columns != TrackSizeList::default() {
+        unreachable!("invalid grid shorthand: mixed implicit and explicit values");
+      }
       dest.write_str("auto-flow")?;
       if self.auto_flow.contains(GridAutoFlow::Dense) {
         dest.write_str(" dense")?;
@@ -1162,5 +1203,205 @@ impl ToCss for GridArea {
     }
 
     Ok(())
+  }
+}
+
+#[derive(Default, Debug)]
+pub(crate) struct GridHandler {
+  rows: Option<TrackSizing>,
+  columns: Option<TrackSizing>,
+  areas: Option<GridTemplateAreas>,
+  auto_rows: Option<TrackSizeList>,
+  auto_columns: Option<TrackSizeList>,
+  auto_flow: Option<GridAutoFlow>,
+  row_start: Option<GridLine>,
+  column_start: Option<GridLine>,
+  row_end: Option<GridLine>,
+  column_end: Option<GridLine>,
+  has_any: bool
+}
+
+impl PropertyHandler for GridHandler {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
+    use Property::*;
+
+    match property {
+      GridTemplateColumns(columns) => self.columns = Some(columns.clone()),
+      GridTemplateRows(rows) => self.rows = Some(rows.clone()),
+      GridTemplateAreas(areas) => self.areas = Some(areas.clone()),
+      GridAutoColumns(auto_columns) => self.auto_columns = Some(auto_columns.clone()),
+      GridAutoRows(auto_rows) => self.auto_rows = Some(auto_rows.clone()),
+      GridAutoFlow(auto_flow) => self.auto_flow = Some(auto_flow.clone()),
+      GridTemplate(template) => {
+        self.rows = Some(template.rows.clone());
+        self.columns = Some(template.columns.clone());
+        self.areas = Some(template.areas.clone());
+      }
+      Grid(grid) => {
+        self.rows = Some(grid.rows.clone());
+        self.columns = Some(grid.columns.clone());
+        self.areas = Some(grid.areas.clone());
+        self.auto_rows = Some(grid.auto_rows.clone());
+        self.auto_columns = Some(grid.auto_columns.clone());
+        self.auto_flow = Some(grid.auto_flow.clone());
+      }
+      GridRowStart(row_start) => self.row_start = Some(row_start.clone()),
+      GridRowEnd(row_end) => self.row_end = Some(row_end.clone()),
+      GridColumnStart(column_start) => self.column_start = Some(column_start.clone()),
+      GridColumnEnd(column_end) => self.column_end = Some(column_end.clone()),
+      GridRow(row) => {
+        self.row_start = Some(row.start.clone());
+        self.row_end = Some(row.end.clone());
+      }
+      GridColumn(column) => {
+        self.column_start = Some(column.start.clone());
+        self.column_end = Some(column.end.clone());
+      }
+      GridArea(area) => {
+        self.row_start = Some(area.row_start.clone());
+        self.row_end = Some(area.row_end.clone());
+        self.column_start = Some(area.column_start.clone());
+        self.column_end = Some(area.column_end.clone());
+      }
+      Unparsed(val) if is_grid_property(&val.property_id) => {
+        self.finalize(dest);
+        dest.push(property.clone());
+      }
+      _ => return false
+    }
+
+    self.has_any = true;
+    true
+  }
+
+  fn finalize(&mut self, dest: &mut DeclarationList) {
+    if !self.has_any {
+      return
+    }
+
+    self.has_any = false;
+
+    let mut rows = std::mem::take(&mut self.rows);
+    let mut columns = std::mem::take(&mut self.columns);
+    let mut areas = std::mem::take(&mut self.areas);
+    let mut auto_rows = std::mem::take(&mut self.auto_rows);
+    let mut auto_columns = std::mem::take(&mut self.auto_columns);
+    let mut auto_flow = std::mem::take(&mut self.auto_flow);
+    let mut row_start = std::mem::take(&mut self.row_start);
+    let mut row_end = std::mem::take(&mut self.row_end);
+    let mut column_start = std::mem::take(&mut self.column_start);
+    let mut column_end = std::mem::take(&mut self.column_end);
+
+    if let (Some(rows_val), Some(columns_val), Some(areas_val)) = (&rows, &columns, &areas) {
+      // The `grid-template` shorthand supports only explicit track values (i.e. no `repeat()`)
+      // combined with grid-template-areas. If there are no areas, then any track values are allowed.
+      let is_template = *areas_val == GridTemplateAreas::None || (*rows_val != TrackSizing::None && rows_val.is_explicit() && columns_val.is_explicit());
+
+      let mut has_template = true;
+      if let (Some(auto_rows_val), Some(auto_columns_val), Some(auto_flow_val)) = (&auto_rows, &auto_columns, &auto_flow) {
+        // The `grid` shorthand can either be fully explicit (e.g. same as `grid-template`), 
+        // or explicit along a single axis. If there are auto rows, then there cannot be explicit rows, for example.
+        let default_track_size_list = TrackSizeList::default();
+        let is_explicit = *auto_rows_val == default_track_size_list && *auto_columns_val == default_track_size_list && *auto_flow_val == GridAutoFlow::default();
+        let is_auto_rows = auto_flow_val.direction() == GridAutoFlow::Row && *rows_val == TrackSizing::None && *auto_columns_val == default_track_size_list;
+        let is_auto_columns = auto_flow_val.direction() == GridAutoFlow::Column && *columns_val == TrackSizing::None && *auto_rows_val == default_track_size_list;
+        
+        if (is_template && is_explicit) || is_auto_rows || is_auto_columns {
+          dest.push(Property::Grid(Grid {
+            rows: rows_val.clone(),
+            columns: columns_val.clone(),
+            areas: areas_val.clone(),
+            auto_rows: auto_rows_val.clone(),
+            auto_columns: auto_columns_val.clone(),
+            auto_flow: auto_flow_val.clone()
+          }));
+
+          has_template = false;
+          auto_rows = None;
+          auto_columns = None;
+          auto_flow = None;
+        }
+      }
+
+      if is_template && has_template {
+        dest.push(Property::GridTemplate(GridTemplate {
+          rows: rows_val.clone(),
+          columns: columns_val.clone(),
+          areas: areas_val.clone()
+        }));
+
+        has_template = false;
+      }
+
+      if !has_template {
+        rows = None;
+        columns = None;
+        areas = None;
+      }
+    }
+
+    if row_start.is_some() && row_end.is_some() && column_start.is_some() && column_end.is_some() {
+      dest.push(Property::GridArea(GridArea {
+        row_start: std::mem::take(&mut row_start).unwrap(),
+        row_end: std::mem::take(&mut row_end).unwrap(),
+        column_start: std::mem::take(&mut column_start).unwrap(),
+        column_end: std::mem::take(&mut column_end).unwrap(),
+      }))
+    } else {
+      if row_start.is_some() && row_end.is_some() {
+        dest.push(Property::GridRow(GridPlacement {
+          start: std::mem::take(&mut row_start).unwrap(),
+          end: std::mem::take(&mut row_end).unwrap(),
+        }))
+      }
+
+      if column_start.is_some() && column_end.is_some() {
+        dest.push(Property::GridColumn(GridPlacement {
+          start: std::mem::take(&mut column_start).unwrap(),
+          end: std::mem::take(&mut column_end).unwrap(),
+        }))
+      }
+    }
+
+    macro_rules! single_property {
+      ($prop: ident, $key: ident) => {
+        if let Some(val) = $key {
+          dest.push(Property::$prop(val))
+        }
+      };
+    }
+
+    single_property!(GridTemplateRows, rows);
+    single_property!(GridTemplateColumns, columns);
+    single_property!(GridTemplateAreas, areas);
+    single_property!(GridAutoRows, auto_rows);
+    single_property!(GridAutoColumns, auto_columns);
+    single_property!(GridAutoFlow, auto_flow);
+    single_property!(GridRowStart, row_start);
+    single_property!(GridRowEnd, row_end);
+    single_property!(GridColumnStart, column_start);
+    single_property!(GridColumnEnd, column_end);
+  }
+}
+
+#[inline]
+fn is_grid_property(property_id: &PropertyId) -> bool {
+  match property_id {
+    PropertyId::GridTemplateColumns |
+    PropertyId::GridTemplateRows |
+    PropertyId::GridTemplateAreas |
+    PropertyId::GridAutoColumns |
+    PropertyId::GridAutoRows |
+    PropertyId::GridAutoFlow |
+    PropertyId::GridTemplate |
+    PropertyId::Grid |
+    PropertyId::GridRowStart |
+    PropertyId::GridRowEnd |
+    PropertyId::GridColumnStart |
+    PropertyId::GridColumnEnd |
+    PropertyId::GridRow |
+    PropertyId::GridColumn |
+    PropertyId::GridArea => true,
+    _ => false
   }
 }

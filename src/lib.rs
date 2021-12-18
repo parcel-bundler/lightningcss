@@ -6301,6 +6301,415 @@ mod tests {
     minify_test(".foo { grid-area: 1 / auto }", ".foo{grid-area:1}");
     minify_test(".foo { grid-area: 1 / 2 / 3 / 4 }", ".foo{grid-area:1/2/3/4}");
     minify_test(".foo { grid-area: 1 / 1 / 1 / 1 }", ".foo{grid-area:1/1/1/1}");
+
+    test(
+      r#"
+        .foo{
+          grid-template-rows: auto 1fr;
+          grid-template-columns: auto 1fr auto;
+          grid-template-areas: none;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid-template: auto 1fr / auto 1fr auto;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-template-areas: "a a a"
+                               "b b b";
+          grid-template-rows: [header-top] auto [header-bottom main-top] 1fr [main-bottom];
+          grid-template-columns: auto 1fr auto;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid-template: [header-top] "a a a" [header-bottom]
+                         [main-top] "b b b" 1fr [main-bottom]
+                         / auto 1fr auto;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-template-areas: "a a a"
+                               "b b b";
+          grid-template-columns: repeat(3, 1fr);
+          grid-template-rows: auto 1fr;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid-template-rows: auto 1fr;
+          grid-template-columns: repeat(3, 1fr);
+          grid-template-areas: "a a a"
+                               "b b b";
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-template-areas: "a a a"
+                               "b b b";
+          grid-template-columns: auto 1fr auto;
+          grid-template-rows: repeat(2, 1fr);
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid-template-rows: repeat(2, 1fr);
+          grid-template-columns: auto 1fr auto;
+          grid-template-areas: "a a a"
+                               "b b b";
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-template-areas: none;
+          grid-template-columns: auto 1fr auto;
+          grid-template-rows: repeat(2, 1fr);
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid-template: repeat(2, 1fr) / auto 1fr auto;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-template-areas: none;
+          grid-template-columns: none;
+          grid-template-rows: none;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid-template: none;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-template-areas: "a a a"
+                               "b b b";
+          grid-template-rows: [header-top] auto [header-bottom main-top] 1fr [main-bottom];
+          grid-template-columns: auto 1fr auto;
+          grid-auto-flow: row;
+          grid-auto-rows: auto;
+          grid-auto-columns: auto;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid: [header-top] "a a a" [header-bottom]
+                [main-top] "b b b" 1fr [main-bottom]
+                / auto 1fr auto;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-template-areas: none;
+          grid-template-columns: auto 1fr auto;
+          grid-template-rows: repeat(2, 1fr);
+          grid-auto-flow: row;
+          grid-auto-rows: auto;
+          grid-auto-columns: auto;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid: repeat(2, 1fr) / auto 1fr auto;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-template-areas: none;
+          grid-template-columns: none;
+          grid-template-rows: none;
+          grid-auto-flow: row;
+          grid-auto-rows: auto;
+          grid-auto-columns: auto;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid: none;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-template-areas: "a a a"
+                               "b b b";
+          grid-template-rows: [header-top] auto [header-bottom main-top] 1fr [main-bottom];
+          grid-template-columns: auto 1fr auto;
+          grid-auto-flow: column;
+          grid-auto-rows: 1fr;
+          grid-auto-columns: 1fr;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid-template: [header-top] "a a a" [header-bottom]
+                         [main-top] "b b b" 1fr [main-bottom]
+                         / auto 1fr auto;
+          grid-auto-rows: 1fr;
+          grid-auto-columns: 1fr;
+          grid-auto-flow: column;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-template-rows: auto 1fr;
+          grid-template-columns: auto 1fr auto;
+          grid-template-areas: none;
+          grid-auto-flow: row;
+          grid-auto-rows: auto;
+          grid-auto-columns: auto;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid: auto 1fr / auto 1fr auto;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-template-rows: auto 1fr;
+          grid-template-columns: auto 1fr auto;
+          grid-template-areas: none;
+          grid-auto-flow: column;
+          grid-auto-rows: 1fr;
+          grid-auto-columns: 1fr;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid-template: auto 1fr / auto 1fr auto;
+          grid-auto-rows: 1fr;
+          grid-auto-columns: 1fr;
+          grid-auto-flow: column;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-template-rows: none;
+          grid-template-columns: auto 1fr auto;
+          grid-template-areas: none;
+          grid-auto-flow: column;
+          grid-auto-rows: 1fr;
+          grid-auto-columns: 1fr;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid-template: none / auto 1fr auto;
+          grid-auto-rows: 1fr;
+          grid-auto-columns: 1fr;
+          grid-auto-flow: column;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-template-rows: none;
+          grid-template-columns: auto 1fr auto;
+          grid-template-areas: none;
+          grid-auto-flow: row;
+          grid-auto-rows: 1fr;
+          grid-auto-columns: auto;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid: auto-flow 1fr / auto 1fr auto;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-template-rows: none;
+          grid-template-columns: auto 1fr auto;
+          grid-template-areas: none;
+          grid-auto-flow: row dense;
+          grid-auto-rows: 1fr;
+          grid-auto-columns: auto;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid: auto-flow dense 1fr / auto 1fr auto;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-template-rows: auto 1fr auto;
+          grid-template-columns: none;
+          grid-template-areas: none;
+          grid-auto-flow: column;
+          grid-auto-rows: auto;
+          grid-auto-columns: 1fr;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid: auto 1fr auto / auto-flow 1fr;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-template-rows: auto 1fr auto;
+          grid-template-columns: none;
+          grid-template-areas: none;
+          grid-auto-flow: column dense;
+          grid-auto-rows: auto;
+          grid-auto-columns: 1fr;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid: auto 1fr auto / auto-flow dense 1fr;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-template-rows: auto 1fr auto;
+          grid-template-columns: none;
+          grid-template-areas: none;
+          grid-auto-flow: var(--auto-flow);
+          grid-auto-rows: auto;
+          grid-auto-columns: 1fr;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid-template: auto 1fr auto / none;
+          grid-auto-flow: var(--auto-flow);
+          grid-auto-rows: auto;
+          grid-auto-columns: 1fr;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid: auto 1fr auto / auto-flow dense 1fr;
+          grid-template-rows: 1fr 1fr 1fr;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid: 1fr 1fr 1fr / auto-flow dense 1fr;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-row-start: a;
+          grid-row-end: a;
+          grid-column-start: a;
+          grid-column-end: a;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid-area: a;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-row-start: 1;
+          grid-row-end: 2;
+          grid-column-start: 3;
+          grid-column-end: 4;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid-area: 1 / 3 / 2 / 4;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-row-start: a;
+          grid-row-end: a;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid-row: a;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
+          grid-column-start: a;
+          grid-column-end: a;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid-column: a;
+        }
+      "#}
+    );
   }
 
   #[test]
