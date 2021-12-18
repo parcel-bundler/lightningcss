@@ -415,6 +415,14 @@ define_properties! {
   "grid-template": GridTemplate(GridTemplate),
   #[cfg(feature = "grid")]
   "grid": Grid(Grid),
+  #[cfg(feature = "grid")]
+  "grid-row-start": GridRowStart(GridLine),
+  #[cfg(feature = "grid")]
+  "grid-row-end": GridRowEnd(GridLine),
+  #[cfg(feature = "grid")]
+  "grid-column-start": GridColumnStart(GridLine),
+  #[cfg(feature = "grid")]
+  "grid-column-end": GridColumnEnd(GridLine),
 
   "margin-top": MarginTop(LengthPercentageOrAuto),
   "margin-bottom": MarginBottom(LengthPercentageOrAuto),

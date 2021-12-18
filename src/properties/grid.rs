@@ -10,6 +10,7 @@ use crate::values::ident::CustomIdent;
 use smallvec::SmallVec;
 use crate::values::length::serialize_dimension;
 use bitflags::bitflags;
+use crate::values::number::serialize_integer;
 
 /// https://drafts.csswg.org/css-grid-2/#track-sizing
 #[derive(Debug, Clone, PartialEq)]
@@ -739,6 +740,7 @@ impl ToCss for GridTemplate {
 }
 
 bitflags! {
+  /// https://drafts.csswg.org/css-grid-2/#grid-auto-flow-property
   pub struct GridAutoFlow: u8 {
     const Row    = 0b00;
     const Column = 0b01;
@@ -828,6 +830,7 @@ impl ToCss for GridAutoFlow {
   }
 }
 
+/// https://drafts.csswg.org/css-grid-2/#grid-shorthand
 #[derive(Debug, Clone, PartialEq)]
 pub struct Grid {
   rows: TrackSizing,
@@ -842,7 +845,6 @@ impl Parse for Grid {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     // <'grid-template'>
     if let Ok(template) = input.try_parse(GridTemplate::parse) {
-      println!("{:?}", template);
       Ok(Grid {
         rows: template.rows,
         columns: template.columns,
@@ -901,7 +903,6 @@ fn parse_grid_auto_flow<'i, 't>(input: &mut Parser<'i, 't>, flow: GridAutoFlow) 
 
 impl ToCss for Grid {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-    println!("{:?}", self);
     if self.areas != GridTemplateAreas::None ||
       (self.rows != TrackSizing::None && self.columns != TrackSizing::None) ||
       (self.areas == GridTemplateAreas::None && self.auto_rows == TrackSizeList::default() && self.auto_columns == TrackSizeList::default() && self.auto_flow == GridAutoFlow::default()) {
@@ -936,5 +937,90 @@ impl ToCss for Grid {
     }
 
     Ok(())
+  }
+}
+
+/// https://drafts.csswg.org/css-grid-2/#typedef-grid-row-start-grid-line
+#[derive(Debug, Clone, PartialEq)]
+pub enum GridLine {
+  Auto,
+  Ident(CustomIdent),
+  Line(i32, Option<CustomIdent>),
+  Span(i32, Option<CustomIdent>)
+}
+
+impl Parse for GridLine {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
+      return Ok(GridLine::Auto)
+    }
+
+    if input.try_parse(|input| input.expect_ident_matching("span")).is_ok() {
+      // TODO: is calc() supported here??
+      let (line_number, ident) = if let Ok(line_number) = input.try_parse(|input| input.expect_integer()) {
+        let ident = input.try_parse(CustomIdent::parse).ok();
+        (line_number, ident)
+      } else if let Ok(ident) = input.try_parse(CustomIdent::parse) {
+        let line_number = input.try_parse(|input| input.expect_integer()).unwrap_or(1);
+        (line_number, Some(ident))
+      } else {
+        return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+      };
+
+      if line_number == 0 {
+        return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+      }
+
+      return Ok(GridLine::Span(line_number, ident))
+    }
+
+    if let Ok(line_number) = input.try_parse(|input| input.expect_integer()) {
+      if line_number == 0 {
+        return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+      }
+      let ident = input.try_parse(CustomIdent::parse).ok();
+      return Ok(GridLine::Line(line_number, ident))
+    }
+
+    let ident = CustomIdent::parse(input)?;
+    if let Ok(line_number) = input.try_parse(|input| input.expect_integer()) {
+      if line_number == 0 {
+        return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+      }
+      return Ok(GridLine::Line(line_number, Some(ident)))
+    }
+
+    Ok(GridLine::Ident(ident))
+  }
+}
+
+impl ToCss for GridLine {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    match self {
+      GridLine::Auto => dest.write_str("auto"),
+      GridLine::Ident(id) => id.to_css(dest),
+      GridLine::Line(line_number, id) => {
+        serialize_integer(*line_number, dest)?;
+        if let Some(id) = id {
+          dest.write_char(' ')?;
+          id.to_css(dest)?;
+        }
+        Ok(())
+      }
+      GridLine::Span(line_number, id) => {
+        dest.write_str("span ")?;
+        if *line_number != 1 || id.is_none() {
+          serialize_integer(*line_number, dest)?;
+          if id.is_some() {
+            dest.write_char(' ')?;
+          }
+        }
+
+        if let Some(id) = id {
+          id.to_css(dest)?;
+        }
+        Ok(())
+      }
+    }
   }
 }

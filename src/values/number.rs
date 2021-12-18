@@ -42,7 +42,7 @@ impl std::convert::From<Calc<f32>> for f32 {
   }
 }
 
-pub fn serialize_number<W>(number: f32, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+pub(crate) fn serialize_number<W>(number: f32, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
   use cssparser::ToCss;
   let int_value = if number.fract() == 0.0 {
     Some(number as i32)
@@ -66,4 +66,14 @@ pub fn serialize_number<W>(number: f32, dest: &mut Printer<W>) -> std::fmt::Resu
   } else {
     tok.to_css(dest)
   }
+}
+
+pub(crate) fn serialize_integer<W>(integer: i32, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  use cssparser::ToCss;
+  let tok = Token::Number {
+    has_sign: integer < 0,
+    value: integer as f32,
+    int_value: Some(integer)
+  };
+  tok.to_css(dest)
 }

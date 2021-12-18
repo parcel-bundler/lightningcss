@@ -6264,6 +6264,22 @@ mod tests {
     minify_test(".foo { grid: dense auto-flow / 30% }", ".foo{grid:auto-flow dense/30%}");
     minify_test(".foo { grid: auto-flow 300px / repeat(3, [line1 line2 line3] 200px) }", ".foo{grid:auto-flow 300px/repeat(3,[line1 line2 line3]200px)}");
     minify_test(".foo { grid: auto-flow dense 40% / [line1] minmax(20em, max-content) }", ".foo{grid:auto-flow dense 40%/[line1]minmax(20em,max-content)}");
+
+    minify_test(".foo { grid-row-start: auto }", ".foo{grid-row-start:auto}");
+    minify_test(".foo { grid-row-start: some-area }", ".foo{grid-row-start:some-area}");
+    minify_test(".foo { grid-row-start: 2 }", ".foo{grid-row-start:2}");
+    minify_test(".foo { grid-row-start: 2 some-line }", ".foo{grid-row-start:2 some-line}");
+    minify_test(".foo { grid-row-start: some-line 2 }", ".foo{grid-row-start:2 some-line}");
+    minify_test(".foo { grid-row-start: span 3 }", ".foo{grid-row-start:span 3}");
+    minify_test(".foo { grid-row-start: span some-line }", ".foo{grid-row-start:span some-line}");
+    minify_test(".foo { grid-row-start: span some-line 1 }", ".foo{grid-row-start:span some-line}");
+    minify_test(".foo { grid-row-start: span 1 some-line }", ".foo{grid-row-start:span some-line}");
+    minify_test(".foo { grid-row-start: span 5 some-line }", ".foo{grid-row-start:span 5 some-line}");
+    minify_test(".foo { grid-row-start: span some-line 5 }", ".foo{grid-row-start:span 5 some-line}");
+
+    minify_test(".foo { grid-row-end: span 1 some-line }", ".foo{grid-row-end:span some-line}");
+    minify_test(".foo { grid-column-start: span 1 some-line }", ".foo{grid-column-start:span some-line}");
+    minify_test(".foo { grid-column-end: span 1 some-line }", ".foo{grid-column-end:span some-line}");
   }
 
   #[test]
