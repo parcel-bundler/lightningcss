@@ -46,7 +46,7 @@ impl Default for TrackSize {
 }
 
 /// https://drafts.csswg.org/css-grid-2/#auto-tracks
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct TrackSizeList(pub SmallVec<[TrackSize; 1]>);
 
 /// https://drafts.csswg.org/css-grid-2/#typedef-track-breadth
@@ -303,6 +303,10 @@ impl Parse for TrackList {
       }
     }
 
+    if items.is_empty() {
+      return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+    }
+
     Ok(TrackList {
       line_names,
       items
@@ -551,6 +555,7 @@ pub struct GridTemplate {
 impl Parse for GridTemplate {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
+      input.expect_exhausted()?;
       return Ok(GridTemplate {
         rows: TrackSizing::None,
         columns: TrackSizing::None,
@@ -741,6 +746,18 @@ bitflags! {
   }
 }
 
+impl Default for GridAutoFlow {
+  fn default() -> GridAutoFlow {
+    GridAutoFlow::Row
+  }
+}
+
+impl GridAutoFlow {
+  fn direction(self) -> GridAutoFlow {
+    self & GridAutoFlow::Column
+  }
+}
+
 impl Parse for GridAutoFlow {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
     let mut flow = GridAutoFlow::Row;
@@ -808,5 +825,116 @@ impl ToCss for GridAutoFlow {
     };
 
     dest.write_str(s)
+  }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Grid {
+  rows: TrackSizing,
+  columns: TrackSizing,
+  areas: GridTemplateAreas,
+  auto_rows: TrackSizeList,
+  auto_columns: TrackSizeList,
+  auto_flow: GridAutoFlow
+}
+
+impl Parse for Grid {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    // <'grid-template'>
+    if let Ok(template) = input.try_parse(GridTemplate::parse) {
+      println!("{:?}", template);
+      Ok(Grid {
+        rows: template.rows,
+        columns: template.columns,
+        areas: template.areas,
+        auto_rows: TrackSizeList::default(),
+        auto_columns: TrackSizeList::default(),
+        auto_flow: GridAutoFlow::default()
+      })
+
+    // <'grid-template-rows'> / [ auto-flow && dense? ] <'grid-auto-columns'>?
+    } else if let Ok(rows) = input.try_parse(TrackSizing::parse) {
+      input.expect_delim('/')?;
+      let auto_flow = parse_grid_auto_flow(input, GridAutoFlow::Column)?;
+      let auto_columns = TrackSizeList::parse(input).unwrap_or_default();
+      Ok(Grid {
+        rows,
+        columns: TrackSizing::None,
+        areas: GridTemplateAreas::None,
+        auto_rows: TrackSizeList::default(),
+        auto_columns,
+        auto_flow
+      })
+
+    // [ auto-flow && dense? ] <'grid-auto-rows'>? / <'grid-template-columns'>
+    } else {
+      let auto_flow = parse_grid_auto_flow(input, GridAutoFlow::Row)?;
+      let auto_rows = input.try_parse(TrackSizeList::parse).unwrap_or_default();
+      input.expect_delim('/')?;
+      let columns = TrackSizing::parse(input)?;
+      Ok(Grid {
+        rows: TrackSizing::None,
+        columns,
+        areas: GridTemplateAreas::None,
+        auto_rows,
+        auto_columns: TrackSizeList::default(),
+        auto_flow
+      })
+    }
+  }
+}
+
+fn parse_grid_auto_flow<'i, 't>(input: &mut Parser<'i, 't>, flow: GridAutoFlow) -> Result<GridAutoFlow, ParseError<'i, ()>> {
+  if input.try_parse(|input| input.expect_ident_matching("auto-flow")).is_ok() {
+    if input.try_parse(|input| input.expect_ident_matching("dense")).is_ok() {
+      Ok(flow | GridAutoFlow::Dense)
+    } else {
+      Ok(flow)
+    }
+  } else if input.try_parse(|input| input.expect_ident_matching("dense")).is_ok() {
+    input.expect_ident_matching("auto-flow")?;
+    Ok(flow | GridAutoFlow::Dense)
+  } else {
+    Err(input.new_error_for_next_token())
+  }
+}
+
+impl ToCss for Grid {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    println!("{:?}", self);
+    if self.areas != GridTemplateAreas::None ||
+      (self.rows != TrackSizing::None && self.columns != TrackSizing::None) ||
+      (self.areas == GridTemplateAreas::None && self.auto_rows == TrackSizeList::default() && self.auto_columns == TrackSizeList::default() && self.auto_flow == GridAutoFlow::default()) {
+      let template = GridTemplate {
+        rows: self.rows.clone(),
+        columns: self.columns.clone(),
+        areas: self.areas.clone()
+      };
+      template.to_css(dest)?;
+    } else if self.auto_flow.direction() == GridAutoFlow::Column {
+      self.rows.to_css(dest)?;
+      dest.delim('/', true)?;
+      dest.write_str("auto-flow")?;
+      if self.auto_flow.contains(GridAutoFlow::Dense) {
+        dest.write_str(" dense")?;
+      }
+      if self.auto_columns != TrackSizeList::default() {
+        dest.write_char(' ')?;
+        self.auto_columns.to_css(dest)?;
+      }
+    } else {
+      dest.write_str("auto-flow")?;
+      if self.auto_flow.contains(GridAutoFlow::Dense) {
+        dest.write_str(" dense")?;
+      }
+      if self.auto_rows != TrackSizeList::default() {
+        dest.write_char(' ')?;
+        self.auto_rows.to_css(dest)?;
+      }
+      dest.delim('/', true)?;
+      self.columns.to_css(dest)?;
+    }
+
+    Ok(())
   }
 }

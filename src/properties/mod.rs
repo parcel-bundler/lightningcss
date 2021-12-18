@@ -413,6 +413,8 @@ define_properties! {
   "grid-template-areas": GridTemplateAreas(GridTemplateAreas),
   #[cfg(feature = "grid")]
   "grid-template": GridTemplate(GridTemplate),
+  #[cfg(feature = "grid")]
+  "grid": Grid(Grid),
 
   "margin-top": MarginTop(LengthPercentageOrAuto),
   "margin-bottom": MarginBottom(LengthPercentageOrAuto),
