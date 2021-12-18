@@ -36,6 +36,12 @@ pub enum TrackSize {
   FitContent(LengthPercentage)
 }
 
+impl Default for TrackSize {
+  fn default() -> TrackSize {
+    TrackSize::TrackBreadth(TrackBreadth::Auto)
+  }
+}
+
 /// https://drafts.csswg.org/css-grid-2/#auto-tracks
 #[derive(Debug, Clone, PartialEq)]
 pub struct TrackSizeList(pub SmallVec<[TrackSize; 1]>);
@@ -397,39 +403,12 @@ impl Parse for GridTemplateAreas {
     let mut row = 0;
     let mut columns = 0;
     while let Ok(s) = input.try_parse(|input| input.expect_string().map(|s| s.as_ref().to_owned())) {
-      let mut string: &str = &s;
-      let mut column = 0;
-      loop {
-        let rest = string.trim_start_matches(HTML_SPACE_CHARACTERS);
-        if rest.is_empty() {
-          // Each string must produce a valid token.
-          if column == 0 {
-            return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
-          }
-          break
-        }
-
-        column += 1;
-
-        if rest.starts_with('.') {
-          string = &rest[rest.find(|c| c != '.').unwrap_or(rest.len())..];
-          tokens.push(None);
-          continue
-        }
-
-        if !rest.starts_with(is_name_code_point) {
-          return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
-        }
-
-        let token_len = rest.find(|c| !is_name_code_point(c)).unwrap_or(rest.len());
-        let token = &rest[..token_len];
-        tokens.push(Some(token.into()));
-        string = &rest[token_len..];
-      }
+      let parsed_columns = Self::parse_string(&s, &mut tokens)
+        .map_err(|()| input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))?;
 
       if row == 0 {
-        columns = column;
-      } else if column != columns {
+        columns = parsed_columns;
+      } else if parsed_columns != columns {
         return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
       }
 
@@ -440,6 +419,42 @@ impl Parse for GridTemplateAreas {
       columns,
       areas: tokens
     })
+  }
+}
+
+impl GridTemplateAreas {
+  fn parse_string(string: &str, tokens: &mut Vec<Option<String>>) -> Result<u32, ()> {
+    let mut string = string;
+    let mut column = 0;
+    loop {
+      let rest = string.trim_start_matches(HTML_SPACE_CHARACTERS);
+      if rest.is_empty() {
+        // Each string must produce a valid token.
+        if column == 0 {
+          return Err(())
+        }
+        break
+      }
+
+      column += 1;
+
+      if rest.starts_with('.') {
+        string = &rest[rest.find(|c| c != '.').unwrap_or(rest.len())..];
+        tokens.push(None);
+        continue
+      }
+
+      if !rest.starts_with(is_name_code_point) {
+        return Err(())
+      }
+
+      let token_len = rest.find(|c| !is_name_code_point(c)).unwrap_or(rest.len());
+      let token = &rest[..token_len];
+      tokens.push(Some(token.into()));
+      string = &rest[token_len..];
+    }
+
+    Ok(column)
   }
 }
 
@@ -458,7 +473,7 @@ impl ToCss for GridTemplateAreas {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     match self {
       GridTemplateAreas::None => dest.write_str("none"),
-      GridTemplateAreas::Areas { columns, areas } => {
+      GridTemplateAreas::Areas { areas, .. } => {
         let mut iter = areas.iter();
         let mut next = iter.next();
         let mut first = true;
@@ -466,30 +481,9 @@ impl ToCss for GridTemplateAreas {
           if !first && !dest.minify {
             dest.newline()?;
           }
-          dest.write_char('"')?;
 
-          let mut last_was_null = false;
-          for i in 0..*columns {
-            if let Some(token) = next {
-              if let Some(string) = token {
-                if i > 0 && (!last_was_null || !dest.minify) {
-                  dest.write_char(' ')?;
-                }
-                dest.write_str(string)?;
-                last_was_null = false;
-              } else {
-                if last_was_null || !dest.minify {
-                  dest.write_char(' ')?;
-                }
-                dest.write_char('.')?;
-                last_was_null = true;
-              }
-            }
+          self.write_string(dest, &mut iter, &mut next)?;
 
-            next = iter.next();
-          }
-
-          dest.write_char('"')?;
           if first {
             first = false;
             if !dest.minify {
@@ -506,5 +500,194 @@ impl ToCss for GridTemplateAreas {
         Ok(())
       }
     }
+  }
+}
+
+impl GridTemplateAreas {
+  fn write_string<'a, W>(&self, dest: &mut Printer<W>, iter: &mut std::slice::Iter<'a, Option<String>>, next: &mut Option<&'a Option<String>>) -> std::fmt::Result where W: std::fmt::Write {
+    let columns = match self {
+      GridTemplateAreas::Areas { columns, .. } => *columns,
+      _ => unreachable!()
+    };
+
+    dest.write_char('"')?;
+
+    let mut last_was_null = false;
+    for i in 0..columns {
+      if let Some(token) = next {
+        if let Some(string) = token {
+          if i > 0 && (!last_was_null || !dest.minify) {
+            dest.write_char(' ')?;
+          }
+          dest.write_str(string)?;
+          last_was_null = false;
+        } else {
+          if last_was_null || !dest.minify {
+            dest.write_char(' ')?;
+          }
+          dest.write_char('.')?;
+          last_was_null = true;
+        }
+      }
+
+      *next = iter.next();
+    }
+
+    dest.write_char('"')
+  }
+}
+
+/// https://drafts.csswg.org/css-grid-2/#explicit-grid-shorthand
+#[derive(Debug, Clone, PartialEq)]
+pub struct GridTemplate {
+  rows: TrackSizing,
+  columns: TrackSizing,
+  areas: GridTemplateAreas
+}
+
+impl Parse for GridTemplate {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
+      return Ok(GridTemplate {
+        rows: TrackSizing::None,
+        columns: TrackSizing::None,
+        areas: GridTemplateAreas::None
+      })
+    }
+
+    let start = input.state();
+    let mut line_names: Vec<SmallVec<[CustomIdent; 1]>> = Vec::new();
+    let mut items = Vec::new();
+    let mut columns = 0;
+    let mut row = 0;
+    let mut tokens = Vec::new();
+    
+    loop {
+      if let Ok(first_names) = input.try_parse(parse_line_names) {
+        if let Some(last_names) = line_names.last_mut() {
+          last_names.extend(first_names);
+        } else {
+          line_names.push(first_names);
+        }
+      }
+
+      if let Ok(string) = input.try_parse(|input| input.expect_string().map(|s| s.as_ref().to_owned())) {
+        let parsed_columns = GridTemplateAreas::parse_string(&string, &mut tokens)
+          .map_err(|()| input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))?;
+
+        if row == 0 {
+          columns = parsed_columns;
+        } else if parsed_columns != columns {
+          return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+        }
+  
+        row += 1;
+
+        let track_size = input.try_parse(TrackSize::parse).unwrap_or_default();
+        items.push(TrackListItem::TrackSize(track_size));
+
+        let last_names = input.try_parse(parse_line_names).unwrap_or_default();
+        line_names.push(last_names);
+      } else {
+        break
+      }
+    }
+
+    if !tokens.is_empty() {
+      if line_names.len() == items.len() {
+        line_names.push(Default::default());
+      }
+
+      let areas = GridTemplateAreas::Areas {
+        columns,
+        areas: tokens
+      };
+      let rows = TrackSizing::TrackList(TrackList {
+        line_names,
+        items
+      });
+      let columns = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
+        let list = TrackList::parse(input)?;
+        // TODO: check explicit
+        TrackSizing::TrackList(list)
+      } else {
+        TrackSizing::None
+      };
+      Ok(GridTemplate {
+        rows,
+        columns,
+        areas
+      })
+    } else {
+      input.reset(&start);
+      let rows = TrackSizing::parse(input)?;
+      input.expect_delim('/')?;
+      let columns = TrackSizing::parse(input)?;
+      Ok(GridTemplate {
+        rows,
+        columns,
+        areas: GridTemplateAreas::None
+      })
+    }
+  }
+}
+
+impl ToCss for GridTemplate {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    match &self.areas {
+      GridTemplateAreas::None => {
+        if self.rows == TrackSizing::None && self.columns == TrackSizing::None {
+          dest.write_str("none")?;
+        } else {
+          self.rows.to_css(dest)?;
+          dest.delim('/', true)?;
+          self.columns.to_css(dest)?;
+        }
+      },
+      GridTemplateAreas::Areas { areas, .. } => {
+        let track_list = match &self.rows {
+          TrackSizing::TrackList(list) => list,
+          _ => unreachable!()
+        };
+
+        let mut areas_iter = areas.iter();
+        let mut line_names_iter = track_list.line_names.iter();
+        let mut items_iter = track_list.items.iter();
+
+        let mut next = areas_iter.next();
+        while next.is_some() {
+          if let Some(line_names) = line_names_iter.next() {
+            if !line_names.is_empty() {
+              serialize_line_names(line_names, dest)?;
+            }
+          }
+
+          self.areas.write_string(dest, &mut areas_iter, &mut next)?;
+
+          if let Some(item) = items_iter.next() {
+            if *item != TrackListItem::TrackSize(TrackSize::default()) {
+              dest.whitespace()?;
+              match item {
+                TrackListItem::TrackSize(size) => size.to_css(dest)?,
+                _ => unreachable!()
+              }
+            }
+          }
+        }
+
+        if let Some(line_names) = line_names_iter.next() {
+          if !line_names.is_empty() {
+            serialize_line_names(line_names, dest)?;
+          }
+        }
+
+        if let TrackSizing::TrackList(track_list) = &self.columns {
+          dest.delim('/', true)?;
+          track_list.to_css(dest)?;
+        }
+      }
+    }
+
+    Ok(())
   }
 }

@@ -6188,6 +6188,33 @@ mod tests {
                              "foot .";
       }
     "#});
+
+    minify_test(r#"
+      .foo {
+        grid-template: [header-top] "a   a   a"     [header-bottom]
+                       [main-top] "b   b   b" 1fr [main-bottom];
+      }
+    "#, ".foo{grid-template:[header-top]\"a a a\"[header-bottom main-top]\"b b b\"1fr[main-bottom]}");
+    minify_test(r#"
+      .foo {
+        grid-template: "head head"
+                       "nav  main" 1fr
+                       "foot ....";
+      }
+    "#, ".foo{grid-template:\"head head\"\"nav main\"1fr\"foot.\"}");
+    minify_test(r#"
+      .foo {
+        grid-template: [header-top] "a   a   a"     [header-bottom]
+                         [main-top] "b   b   b" 1fr [main-bottom]
+                                  / auto 1fr auto;
+      }
+    "#, ".foo{grid-template:[header-top]\"a a a\"[header-bottom main-top]\"b b b\"1fr[main-bottom]/auto 1fr auto}");
+
+    minify_test(".foo { grid-template: auto 1fr / auto 1fr auto; }", ".foo{grid-template:auto 1fr/auto 1fr auto}");
+    minify_test(
+      ".foo { grid-template: [linename1 linename2] 100px repeat(auto-fit, [linename1] 300px) [linename3] / [linename1 linename2] 100px repeat(auto-fit, [linename1] 300px) [linename3]; }",
+      ".foo{grid-template:[linename1 linename2]100px repeat(auto-fit,[linename1]300px)[linename3]/[linename1 linename2]100px repeat(auto-fit,[linename1]300px)[linename3]}"
+    );
   }
 
   #[test]
