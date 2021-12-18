@@ -423,6 +423,12 @@ define_properties! {
   "grid-column-start": GridColumnStart(GridLine),
   #[cfg(feature = "grid")]
   "grid-column-end": GridColumnEnd(GridLine),
+  #[cfg(feature = "grid")]
+  "grid-row": GridRow(GridPlacement),
+  #[cfg(feature = "grid")]
+  "grid-column": GridColumn(GridPlacement),
+  #[cfg(feature = "grid")]
+  "grid-area": GridArea(GridArea),
 
   "margin-top": MarginTop(LengthPercentageOrAuto),
   "margin-bottom": MarginBottom(LengthPercentageOrAuto),

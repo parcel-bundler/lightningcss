@@ -1024,3 +1024,143 @@ impl ToCss for GridLine {
     }
   }
 }
+
+impl GridLine {
+  fn default_end_value(&self) -> GridLine {
+    if matches!(self, GridLine::Ident(_)) {
+      self.clone()
+    } else {
+      GridLine::Auto
+    }
+  }
+
+  fn can_omit_end(&self, end: &GridLine) -> bool {
+    if let GridLine::Ident(start_id) = &self {
+      matches!(end, GridLine::Ident(end_id) if end_id == start_id)
+    } else if matches!(end, GridLine::Auto) {
+      true
+    } else {
+      false
+    }
+  }
+}
+
+/// https://drafts.csswg.org/css-grid-2/#placement-shorthands
+#[derive(Debug, Clone, PartialEq)]
+pub struct GridPlacement {
+  start: GridLine,
+  end: GridLine
+}
+
+impl Parse for GridPlacement {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    let start = GridLine::parse(input)?;
+    let end = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
+      GridLine::parse(input)?
+    } else {
+      start.default_end_value()
+    };
+
+    Ok(GridPlacement {
+      start,
+      end
+    })
+  }
+}
+
+impl ToCss for GridPlacement {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    self.start.to_css(dest)?;
+
+    if !self.start.can_omit_end(&self.end) {
+      dest.delim('/', true)?;
+      self.end.to_css(dest)?;
+    }
+    Ok(())
+  }
+}
+
+/// https://drafts.csswg.org/css-grid-2/#propdef-grid-area
+#[derive(Debug, Clone, PartialEq)]
+pub struct GridArea {
+  row_start: GridLine,
+  column_start: GridLine,
+  row_end: GridLine,
+  column_end: GridLine
+}
+
+impl Parse for GridArea {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    let row_start = GridLine::parse(input)?;
+    let column_start = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
+      GridLine::parse(input)?
+    } else {
+      let opposite = row_start.default_end_value();
+      return Ok(GridArea {
+        row_start,
+        column_start: opposite.clone(),
+        row_end: opposite.clone(),
+        column_end: opposite
+      })
+    };
+
+    let row_end = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
+      GridLine::parse(input)?
+    } else {
+      let row_end = row_start.default_end_value();
+      let column_end = column_start.default_end_value();
+      return Ok(GridArea {
+        row_start,
+        column_start,
+        row_end,
+        column_end
+      })
+    };
+
+    let column_end = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
+      GridLine::parse(input)?
+    } else {
+      let column_end = column_start.default_end_value();
+      return Ok(GridArea {
+        row_start,
+        column_start,
+        row_end,
+        column_end
+      })
+    };
+
+    Ok(GridArea {
+      row_start,
+      column_start,
+      row_end,
+      column_end
+    })
+  }
+}
+
+impl ToCss for GridArea {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    self.row_start.to_css(dest)?;
+
+    let can_omit_column_end = self.column_start.can_omit_end(&self.column_end);
+    let can_omit_row_end = can_omit_column_end && self.row_start.can_omit_end(&self.row_end);
+    let can_omit_column_start = can_omit_row_end && self.row_start.can_omit_end(&self.column_start);
+
+    if !can_omit_column_start {
+      dest.delim('/', true)?;
+      self.column_start.to_css(dest)?;
+    }
+
+    if !can_omit_row_end {
+      dest.delim('/', true)?;
+      self.row_end.to_css(dest)?;
+    }
+
+    if !can_omit_column_end {
+      dest.delim('/', true)?;
+      self.column_end.to_css(dest)?;
+    }
+
+    Ok(())
+  }
+}

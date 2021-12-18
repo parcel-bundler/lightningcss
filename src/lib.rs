@@ -6280,6 +6280,27 @@ mod tests {
     minify_test(".foo { grid-row-end: span 1 some-line }", ".foo{grid-row-end:span some-line}");
     minify_test(".foo { grid-column-start: span 1 some-line }", ".foo{grid-column-start:span some-line}");
     minify_test(".foo { grid-column-end: span 1 some-line }", ".foo{grid-column-end:span some-line}");
+
+    minify_test(".foo { grid-row: 1 }", ".foo{grid-row:1}");
+    minify_test(".foo { grid-row: 1 / auto }", ".foo{grid-row:1}");
+    minify_test(".foo { grid-row: 1 / 1 }", ".foo{grid-row:1/1}");
+    minify_test(".foo { grid-row: 1 / 3 }", ".foo{grid-row:1/3}");
+    minify_test(".foo { grid-row: 1 / span 2 }", ".foo{grid-row:1/span 2}");
+    minify_test(".foo { grid-row: main-start }", ".foo{grid-row:main-start}");
+    minify_test(".foo { grid-row: main-start / main-end }", ".foo{grid-row:main-start/main-end}");
+    minify_test(".foo { grid-row: main-start / main-start }", ".foo{grid-row:main-start}");
+    minify_test(".foo { grid-column: 1 / auto }", ".foo{grid-column:1}");
+
+    minify_test(".foo { grid-area: a }", ".foo{grid-area:a}");
+    minify_test(".foo { grid-area: a / a / a / a }", ".foo{grid-area:a}");
+    minify_test(".foo { grid-area: a / b / a / b }", ".foo{grid-area:a/b}");
+    minify_test(".foo { grid-area: a / b / c / b }", ".foo{grid-area:a/b/c}");
+    minify_test(".foo { grid-area: a / b / c / d }", ".foo{grid-area:a/b/c/d}");
+
+    minify_test(".foo { grid-area: auto / auto / auto / auto }", ".foo{grid-area:auto}");
+    minify_test(".foo { grid-area: 1 / auto }", ".foo{grid-area:1}");
+    minify_test(".foo { grid-area: 1 / 2 / 3 / 4 }", ".foo{grid-area:1/2/3/4}");
+    minify_test(".foo { grid-area: 1 / 1 / 1 / 1 }", ".foo{grid-area:1/1/1/1}");
   }
 
   #[test]
