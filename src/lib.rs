@@ -6236,6 +6236,13 @@ mod tests {
         }
       "#}
     );
+
+    minify_test(".foo { grid-auto-flow: row }", ".foo{grid-auto-flow:row}");
+    minify_test(".foo { grid-auto-flow: column }", ".foo{grid-auto-flow:column}");
+    minify_test(".foo { grid-auto-flow: row dense }", ".foo{grid-auto-flow:dense}");
+    minify_test(".foo { grid-auto-flow: dense row }", ".foo{grid-auto-flow:dense}");
+    minify_test(".foo { grid-auto-flow: column dense }", ".foo{grid-auto-flow:column dense}");
+    minify_test(".foo { grid-auto-flow: dense column }", ".foo{grid-auto-flow:column dense}");
   }
 
   #[test]

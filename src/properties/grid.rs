@@ -1,3 +1,5 @@
+#![allow(non_upper_case_globals)]
+
 use cssparser::*;
 use crate::values::{
   length::{LengthPercentage}
@@ -7,6 +9,7 @@ use crate::printer::Printer;
 use crate::values::ident::CustomIdent;
 use smallvec::SmallVec;
 use crate::values::length::serialize_dimension;
+use bitflags::bitflags;
 
 /// https://drafts.csswg.org/css-grid-2/#track-sizing
 #[derive(Debug, Clone, PartialEq)]
@@ -727,5 +730,83 @@ impl ToCss for GridTemplate {
     }
 
     Ok(())
+  }
+}
+
+bitflags! {
+  pub struct GridAutoFlow: u8 {
+    const Row    = 0b00;
+    const Column = 0b01;
+    const Dense  = 0b10;
+  }
+}
+
+impl Parse for GridAutoFlow {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+    let mut flow = GridAutoFlow::Row;
+
+    macro_rules! match_dense {
+      () => {
+        if input.try_parse(|input| input.expect_ident_matching("dense")).is_ok() {
+          flow |= GridAutoFlow::Dense;
+        }
+      };
+    }
+
+    let location = input.current_source_location();
+    let ident = input.expect_ident()?;
+    match_ignore_ascii_case! { &ident,
+      "row" => {
+        match_dense!();
+      },
+      "column" => {
+        flow = GridAutoFlow::Column;
+        match_dense!();
+      },
+      "dense" => {
+        let location = input.current_source_location();
+        input.try_parse(|input| {
+          let ident = input.expect_ident()?;
+          match_ignore_ascii_case! { &ident,
+            "row" => {},
+            "column" => {
+              flow = GridAutoFlow::Column;
+            },
+            _ => return Err(location.new_unexpected_token_error(
+              cssparser::Token::Ident(ident.clone())
+            ))
+          }
+          Ok(())
+        })?;
+        flow |= GridAutoFlow::Dense;
+      },
+      _ => return Err(location.new_unexpected_token_error(
+        cssparser::Token::Ident(ident.clone())
+      ))
+    }
+
+    Ok(flow)
+  }
+}
+
+impl ToCss for GridAutoFlow {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    let s = if *self == GridAutoFlow::Row {
+      "row"
+    } else if *self == GridAutoFlow::Column {
+      "column"
+    } else if *self == GridAutoFlow::Row | GridAutoFlow::Dense {
+      if dest.minify {
+        "dense"
+      } else {
+        "row dense"
+      }
+    } else if *self == GridAutoFlow::Column | GridAutoFlow::Dense {
+      "column dense"
+    } else {
+      unreachable!();
+    };
+
+    dest.write_str(s)
   }
 }

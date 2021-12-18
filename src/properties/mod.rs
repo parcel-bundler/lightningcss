@@ -408,6 +408,8 @@ define_properties! {
   #[cfg(feature = "grid")]
   "grid-auto-rows": GridAutoRows(TrackSizeList),
   #[cfg(feature = "grid")]
+  "grid-auto-flow": GridAutoFlow(GridAutoFlow),
+  #[cfg(feature = "grid")]
   "grid-template-areas": GridTemplateAreas(GridTemplateAreas),
   #[cfg(feature = "grid")]
   "grid-template": GridTemplate(GridTemplate),
