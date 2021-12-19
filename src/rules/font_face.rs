@@ -287,8 +287,7 @@ impl<'i> cssparser::DeclarationParser<'i> for FontFaceDeclarationParser {
 
 /// Default methods reject all at rules.
 impl<'i> AtRuleParser<'i> for FontFaceDeclarationParser {
-  type PreludeNoBlock = ();
-  type PreludeBlock = ();
+  type Prelude = ();
   type AtRule = FontFaceProperty;
   type Error = ();
 }

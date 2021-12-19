@@ -1,5 +1,5 @@
 use cssparser::*;
-use selectors::{SelectorList, parser::{SelectorImpl, Selector, Combinator, Component}, attr::{AttrSelectorOperator, ParsedAttrSelectorOperation, ParsedCaseSensitivity}};
+use parcel_selectors::{SelectorList, parser::{SelectorImpl, Selector, Combinator, Component}, attr::{AttrSelectorOperator, ParsedAttrSelectorOperation, ParsedCaseSensitivity}};
 use std::fmt;
 use std::fmt::Write;
 use crate::printer::Printer;
@@ -63,9 +63,9 @@ impl SelectorImpl for Selectors {
 }
 
 pub struct SelectorParser;
-impl<'i> selectors::parser::Parser<'i> for SelectorParser {
+impl<'i> parcel_selectors::parser::Parser<'i> for SelectorParser {
   type Impl = Selectors;
-  type Error = selectors::parser::SelectorParseErrorKind<'i>;
+  type Error = parcel_selectors::parser::SelectorParseErrorKind<'i>;
 
   fn parse_non_ts_pseudo_class(
     &self,
@@ -157,7 +157,7 @@ impl<'i> selectors::parser::Parser<'i> for SelectorParser {
       let pseudo_class = match_ignore_ascii_case! { &name,
         "lang" => Lang(parser.expect_ident_or_string()?.as_ref().into()),
         "dir" => Dir(parser.expect_ident_or_string()?.as_ref().into()),
-        _ => return Err(parser.new_custom_error(selectors::parser::SelectorParseErrorKind::UnexpectedIdent(name.clone()))),
+        _ => return Err(parser.new_custom_error(parcel_selectors::parser::SelectorParseErrorKind::UnexpectedIdent(name.clone()))),
       };
 
       Ok(pseudo_class)
@@ -280,7 +280,7 @@ pub enum PseudoClass {
   Custom(String)
 }
 
-impl selectors::parser::NonTSPseudoClass for PseudoClass {
+impl parcel_selectors::parser::NonTSPseudoClass for PseudoClass {
   type Impl = Selectors;
 
   fn is_active_or_hover(&self) -> bool {
@@ -536,7 +536,7 @@ impl ToCss for PseudoElement {
   }
 }
 
-impl selectors::parser::PseudoElement for PseudoElement {
+impl parcel_selectors::parser::PseudoElement for PseudoElement {
   type Impl = Selectors;
 
   fn accepts_state_pseudo_classes(&self) -> bool {
@@ -619,12 +619,12 @@ impl ToCss for Combinator {
 }
 
 // Copied from the selectors crate and modified to override to_css implementation.
-impl ToCss for selectors::parser::Selector<Selectors> {
+impl ToCss for parcel_selectors::parser::Selector<Selectors> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result
   where
       W: fmt::Write,
   {
-    use selectors::parser::*;
+    use parcel_selectors::parser::*;
       // Compound selectors invert the order of their contents, so we need to
       // undo that during serialization.
       //
@@ -783,10 +783,10 @@ impl ToCss for Component<Selectors> {
         }
 
         match case_sensitivity {
-          selectors::attr::ParsedCaseSensitivity::CaseSensitive |
-          selectors::attr::ParsedCaseSensitivity::AsciiCaseInsensitiveIfInHtmlElementInHtmlDocument => {},
-          selectors::attr::ParsedCaseSensitivity::AsciiCaseInsensitive => dest.write_str(" i")?,
-          selectors::attr::ParsedCaseSensitivity::ExplicitCaseSensitive => dest.write_str(" s")?,
+          parcel_selectors::attr::ParsedCaseSensitivity::CaseSensitive |
+          parcel_selectors::attr::ParsedCaseSensitivity::AsciiCaseInsensitiveIfInHtmlElementInHtmlDocument => {},
+          parcel_selectors::attr::ParsedCaseSensitivity::AsciiCaseInsensitive => dest.write_str(" i")?,
+          parcel_selectors::attr::ParsedCaseSensitivity::ExplicitCaseSensitive => dest.write_str(" s")?,
         }
         dest.write_char(']')
       },

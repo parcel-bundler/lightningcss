@@ -1,5 +1,5 @@
 use cssparser::SourceLocation;
-use selectors::SelectorList;
+use parcel_selectors::SelectorList;
 use crate::selector::{Selectors, is_compatible};
 use crate::traits::ToCss;
 use crate::printer::Printer;

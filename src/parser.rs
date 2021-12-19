@@ -1,5 +1,5 @@
 use cssparser::*;
-use selectors::SelectorList;
+use parcel_selectors::SelectorList;
 use crate::media_query::*;
 use crate::traits::Parse;
 use crate::selector::{Selectors, SelectorParser};
@@ -61,8 +61,7 @@ pub enum AtRulePrelude {
 }
 
 impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
-  type PreludeNoBlock = AtRulePrelude;
-  type PreludeBlock = AtRulePrelude;
+  type Prelude = AtRulePrelude;
   type AtRule = (SourcePosition, CssRule);
   type Error = ();
 
@@ -70,7 +69,7 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
       &mut self,
       name: CowRcStr<'i>,
       input: &mut Parser<'i, 't>,
-  ) -> Result<AtRuleType<AtRulePrelude, AtRulePrelude>, ParseError<'i, Self::Error>> {
+  ) -> Result<AtRulePrelude, ParseError<'i, Self::Error>> {
       match_ignore_ascii_case! { &*name,
         "import" => {
           let url_string = input.expect_url_or_string()?.as_ref().to_owned();
@@ -82,20 +81,20 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
             None
           };
           let media = MediaList::parse(input);
-          return Ok(AtRuleType::WithoutBlock(AtRulePrelude::Import(url_string, media, supports)));
+          return Ok(AtRulePrelude::Import(url_string, media, supports));
         },
         "namespace" => {
           let prefix = input.try_parse(|input| input.expect_ident_cloned()).map(|v| v.as_ref().to_owned()).ok();
           let namespace = input.expect_url_or_string()?.as_ref().to_owned();
           let prelude = AtRulePrelude::Namespace(prefix, namespace);
-          return Ok(AtRuleType::WithoutBlock(prelude));
+          return Ok(prelude);
         },
         "charset" => {
           // @charset is removed by rust-cssparser if it’s the first rule in the stylesheet.
           // Anything left is technically invalid, however, users often concatenate CSS files
           // together, so we are more lenient and simply ignore @charset rules in the middle of a file.
           input.expect_string()?;
-          return Ok(AtRuleType::WithoutBlock(AtRulePrelude::Charset))
+          return Ok(AtRulePrelude::Charset)
         },
         _ => {}
       }
@@ -119,7 +118,7 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
       &mut self,
       prelude: AtRulePrelude,
       start: &ParserState,
-  ) -> Self::AtRule {
+  ) -> Result<Self::AtRule, ()> {
       let loc = start.source_location();
       let rule = match prelude {
         AtRulePrelude::Import(url, media, supports) => {
@@ -138,10 +137,10 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
           })
         },
         AtRulePrelude::Charset => CssRule::Ignored,
-        _ => unreachable!()
+        _ => return Err(())
       };
 
-      (start.position(), rule)
+      Ok((start.position(), rule))
   }
 }
 
@@ -194,8 +193,7 @@ impl<'a, 'b> NestedRuleParser {
 }
 
 impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
-  type PreludeNoBlock = AtRulePrelude;
-  type PreludeBlock = AtRulePrelude;
+  type Prelude = AtRulePrelude;
   type AtRule = CssRule;
   type Error = ();
 
@@ -203,18 +201,18 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
       &mut self,
       name: CowRcStr<'i>,
       input: &mut Parser<'i, 't>,
-  ) -> Result<AtRuleType<AtRulePrelude, AtRulePrelude>, ParseError<'i, Self::Error>> {
+  ) -> Result<AtRulePrelude, ParseError<'i, Self::Error>> {
     match_ignore_ascii_case! { &*name,
       "media" => {
         let media = MediaList::parse(input);
-        Ok(AtRuleType::WithBlock(AtRulePrelude::Media(media)))
+        Ok(AtRulePrelude::Media(media))
       },
       "supports" => {
         let cond = SupportsCondition::parse(input)?;
-        Ok(AtRuleType::WithBlock(AtRulePrelude::Supports(cond)))
+        Ok(AtRulePrelude::Supports(cond))
       },
       "font-face" => {
-        Ok(AtRuleType::WithBlock(AtRulePrelude::FontFace))
+        Ok(AtRulePrelude::FontFace)
       },
       // "font-feature-values" => {
       //     if !cfg!(feature = "gecko") {
@@ -226,7 +224,7 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
       // },
       "counter-style" => {
         let name = CustomIdent::parse(input)?;
-        Ok(AtRuleType::WithBlock(AtRulePrelude::CounterStyle(name)))
+        Ok(AtRulePrelude::CounterStyle(name))
       },
       // "viewport" => {
       //     if viewport_rule::enabled() {
@@ -255,11 +253,11 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
           ref t => return Err(location.new_unexpected_token_error(t.clone())),
         };
 
-        Ok(AtRuleType::WithBlock(AtRulePrelude::Keyframes(name.into(), prefix)))
+        Ok(AtRulePrelude::Keyframes(name.into(), prefix))
       },
       "page" => {
         let selectors = input.try_parse(|input| input.parse_comma_separated(PageSelector::parse)).unwrap_or_default();
-        Ok(AtRuleType::WithBlock(AtRulePrelude::Page(selectors)))
+        Ok(AtRulePrelude::Page(selectors))
       },
       "-moz-document" => {
         // Firefox only supports the url-prefix() function with no arguments as a legacy CSS hack.
@@ -267,7 +265,7 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
         input.expect_function_matching("url-prefix")?;
         input.parse_nested_block(|input| input.expect_exhausted().map_err(|e| e.into()))?;
 
-        Ok(AtRuleType::WithBlock(AtRulePrelude::MozDocument))
+        Ok(AtRulePrelude::MozDocument)
       },
       _ => Err(input.new_error(BasicParseErrorKind::AtRuleInvalid(name)))
     }

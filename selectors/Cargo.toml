@@ -1,0 +1,32 @@
+[package]
+name = "parcel_selectors"
+version = "0.24.0"
+authors = ["The Servo Project Developers"]
+documentation = "https://docs.rs/selectors/"
+description = "CSS Selectors matching for Rust - forked for parcel_css"
+repository = "https://github.com/servo/servo"
+readme = "README.md"
+keywords = ["css", "selectors"]
+license = "MPL-2.0"
+build = "build.rs"
+
+[lib]
+name = "parcel_selectors"
+path = "lib.rs"
+
+[features]
+bench = []
+
+[dependencies]
+bitflags = "1.0"
+cssparser = "0.29"
+derive_more = "0.99"
+fxhash = "0.2"
+log = "0.4"
+phf = "0.8"
+precomputed-hash = "0.1"
+servo_arc = "0.1"
+smallvec = "1.0"
+
+[build-dependencies]
+phf_codegen = "0.8"

@@ -100,8 +100,7 @@ impl<'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser {
 
 /// Default methods reject all at rules.
 impl<'i> AtRuleParser<'i> for PropertyDeclarationParser {
-  type PreludeNoBlock = ();
-  type PreludeBlock = ();
+  type Prelude = ();
   type AtRule = Declaration;
   type Error = ();
 }

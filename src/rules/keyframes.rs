@@ -141,8 +141,7 @@ impl ToCss for Keyframe {
 pub(crate) struct KeyframeListParser;
 
 impl<'a, 'i> AtRuleParser<'i> for KeyframeListParser {
-  type PreludeNoBlock = ();
-  type PreludeBlock = ();
+  type Prelude = ();
   type AtRule = Keyframe;
   type Error = ();
 }
