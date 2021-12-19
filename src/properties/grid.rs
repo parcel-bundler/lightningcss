@@ -554,7 +554,7 @@ impl GridTemplateAreas {
           dest.write_str(string)?;
           last_was_null = false;
         } else {
-          if last_was_null || !dest.minify {
+          if i > 0 && (last_was_null || !dest.minify) {
             dest.write_char(' ')?;
           }
           dest.write_char('.')?;
@@ -641,7 +641,9 @@ impl Parse for GridTemplate {
       });
       let columns = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
         let list = TrackList::parse(input)?;
-        // TODO: check explicit
+        if !list.is_explicit() {
+          return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+        }
         TrackSizing::TrackList(list)
       } else {
         TrackSizing::None
@@ -724,10 +726,10 @@ impl GridTemplate {
                 serialize_line_names(line_names, dest)?;
               }
               dest.whitespace()?;
-            } else {
+            } else if !first {
               newline!();
             }
-          } else {
+          } else if !first {
             newline!();
           }
 

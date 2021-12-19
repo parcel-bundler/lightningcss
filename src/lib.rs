@@ -6376,6 +6376,24 @@ mod tests {
     test(
       r#"
         .foo{
+          grid-template-areas: ". a a ."
+                               ". b b .";
+          grid-template-rows: auto 1fr;
+          grid-template-columns: 10px 1fr 1fr 10px;
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          grid-template: ". a a ."
+                         ". b b ." 1fr
+                         / 10px 1fr 1fr 10px;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo{
           grid-template-areas: none;
           grid-template-columns: auto 1fr auto;
           grid-template-rows: repeat(2, 1fr);
