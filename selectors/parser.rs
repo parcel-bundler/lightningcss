@@ -110,6 +110,8 @@ bitflags! {
 
         /// Whether we explicitly disallow pseudo-element-like things.
         const DISALLOW_PSEUDOS = 1 << 6;
+
+        const AFTER_NESTING = 1 << 7;
     }
 }
 
@@ -167,6 +169,7 @@ pub enum SelectorParseErrorKind<'i> {
     InvalidPseudoElementAfterSlotted,
     InvalidPseudoElementInsideWhere,
     InvalidState,
+    MissingNestingSelector,
     UnexpectedTokenInAttributeSelector(Token<'i>),
     PseudoElementExpectedColon(Token<'i>),
     PseudoElementExpectedIdent(Token<'i>),
@@ -343,6 +346,13 @@ pub enum ParseErrorRecovery {
     IgnoreInvalidSelector,
 }
 
+#[derive(Eq, PartialEq, Clone, Copy)]
+pub enum NestingRequirement {
+    None,
+    Prefixed,
+    Contained
+}
+
 impl<Impl: SelectorImpl> SelectorList<Impl> {
     /// Parse a comma-separated list of Selectors.
     /// <https://drafts.csswg.org/selectors/#grouping>
@@ -351,6 +361,7 @@ impl<Impl: SelectorImpl> SelectorList<Impl> {
     pub fn parse<'i, 't, P>(
         parser: &P,
         input: &mut CssParser<'i, 't>,
+        nesting_requirement: NestingRequirement,
     ) -> Result<Self, ParseError<'i, P::Error>>
     where
         P: Parser<'i, Impl = Impl>,
@@ -358,8 +369,9 @@ impl<Impl: SelectorImpl> SelectorList<Impl> {
         Self::parse_with_state(
             parser,
             input,
-            SelectorParsingState::empty(),
+            &mut SelectorParsingState::empty(),
             ParseErrorRecovery::DiscardList,
+            nesting_requirement,
         )
     }
 
@@ -367,16 +379,23 @@ impl<Impl: SelectorImpl> SelectorList<Impl> {
     fn parse_with_state<'i, 't, P>(
         parser: &P,
         input: &mut CssParser<'i, 't>,
-        state: SelectorParsingState,
+        state: &mut SelectorParsingState,
         recovery: ParseErrorRecovery,
+        nesting_requirement: NestingRequirement,
     ) -> Result<Self, ParseError<'i, P::Error>>
     where
         P: Parser<'i, Impl = Impl>,
     {
+        let original_state = *state;
         let mut values = SmallVec::new();
         loop {
             let selector = input.parse_until_before(Delimiter::Comma, |input| {
-                parse_selector(parser, input, state)
+                let mut selector_state = original_state;
+                let result = parse_selector(parser, input, &mut selector_state, nesting_requirement);
+                if selector_state.contains(SelectorParsingState::AFTER_NESTING) {
+                    state.insert(SelectorParsingState::AFTER_NESTING)
+                }
+                result
             });
 
             let was_ok = selector.is_ok();
@@ -410,17 +429,23 @@ impl<Impl: SelectorImpl> SelectorList<Impl> {
 fn parse_inner_compound_selector<'i, 't, P, Impl>(
     parser: &P,
     input: &mut CssParser<'i, 't>,
-    state: SelectorParsingState,
+    state: &mut SelectorParsingState,
 ) -> Result<Selector<Impl>, ParseError<'i, P::Error>>
 where
     P: Parser<'i, Impl = Impl>,
     Impl: SelectorImpl,
 {
-    parse_selector(
+    let mut child_state = *state | SelectorParsingState::DISALLOW_PSEUDOS | SelectorParsingState::DISALLOW_COMBINATORS;
+    let result = parse_selector(
         parser,
         input,
-        state | SelectorParsingState::DISALLOW_PSEUDOS | SelectorParsingState::DISALLOW_COMBINATORS,
-    )
+        &mut child_state,
+        NestingRequirement::None,
+    )?;
+    if child_state.contains(SelectorParsingState::AFTER_NESTING) {
+        state.insert(SelectorParsingState::AFTER_NESTING)
+    }
+    Ok(result)
 }
 
 /// Ancestor hashes for the bloom filter. We precompute these and store them
@@ -740,6 +765,18 @@ impl<Impl: SelectorImpl> Selector<Impl> {
         }
         let spec = SpecificityAndFlags { specificity, flags };
         Selector(builder.build_with_specificity_and_flags(spec))
+    }
+
+    pub fn from_vec2(vec: Vec<Component<Impl>>) -> Self {
+        let mut builder = SelectorBuilder::default();
+        for component in vec.into_iter() {
+            if let Some(combinator) = component.as_combinator() {
+                builder.push_combinator(combinator);
+            } else {
+                builder.push_simple_selector(component);
+            }
+        }
+        Selector(builder.build(false, false, false))
     }
 
     /// Returns count of simple selectors and combinators in the Selector.
@@ -1072,6 +1109,12 @@ pub enum Component<Impl: SelectorImpl> {
     Is(Box<[Selector<Impl>]>),
     /// An implementation-dependent pseudo-element selector.
     PseudoElement(Impl::PseudoElement),
+    /// A nesting selector:
+    /// 
+    /// https://drafts.csswg.org/css-nesting-1/#nest-selector
+    /// 
+    /// NOTE: This is a parcel_css addition.
+    Nesting
 }
 
 impl<Impl: SelectorImpl> Component<Impl> {
@@ -1542,6 +1585,7 @@ impl<Impl: SelectorImpl> ToCss for Component<Impl> {
                 dest.write_str(")")
             },
             NonTSPseudoClass(ref pseudo) => pseudo.to_css(dest),
+            Nesting => dest.write_char('&')
         }
     }
 }
@@ -1600,12 +1644,19 @@ impl<Impl: SelectorImpl> ToCss for LocalName<Impl> {
 fn parse_selector<'i, 't, P, Impl>(
     parser: &P,
     input: &mut CssParser<'i, 't>,
-    mut state: SelectorParsingState,
+    state: &mut SelectorParsingState,
+    nesting_requirement: NestingRequirement,
 ) -> Result<Selector<Impl>, ParseError<'i, P::Error>>
 where
     P: Parser<'i, Impl = Impl>,
     Impl: SelectorImpl,
 {
+    if nesting_requirement == NestingRequirement::Prefixed {
+        let state = input.state();
+        input.expect_delim('&')?;
+        input.reset(&state);
+    }
+
     let mut builder = SelectorBuilder::default();
 
     let mut has_pseudo_element = false;
@@ -1613,7 +1664,7 @@ where
     let mut part = false;
     'outer_loop: loop {
         // Parse a sequence of simple selectors.
-        let empty = parse_compound_selector(parser, &mut state, input, &mut builder)?;
+        let empty = parse_compound_selector(parser, state, input, &mut builder)?;
         if empty {
             return Err(input.new_custom_error(if builder.has_combinators() {
                 SelectorParseErrorKind::DanglingCombinator
@@ -1669,6 +1720,10 @@ where
         builder.push_combinator(combinator);
     }
 
+    if nesting_requirement == NestingRequirement::Contained && !state.contains(SelectorParsingState::AFTER_NESTING) {
+        return Err(input.new_custom_error(SelectorParseErrorKind::MissingNestingSelector))
+    }
+
     Ok(Selector(builder.build(has_pseudo_element, slotted, part)))
 }
 
@@ -1682,7 +1737,7 @@ impl<Impl: SelectorImpl> Selector<Impl> {
     where
         P: Parser<'i, Impl = Impl>,
     {
-        parse_selector(parser, input, SelectorParsingState::empty())
+        parse_selector(parser, input, &mut SelectorParsingState::empty(), NestingRequirement::None)
     }
 }
 
@@ -2081,20 +2136,26 @@ fn parse_attribute_flags<'i, 't>(
 fn parse_negation<'i, 't, P, Impl>(
     parser: &P,
     input: &mut CssParser<'i, 't>,
-    state: SelectorParsingState,
+    state: &mut SelectorParsingState,
 ) -> Result<Component<Impl>, ParseError<'i, P::Error>>
 where
     P: Parser<'i, Impl = Impl>,
     Impl: SelectorImpl,
 {
+    let mut child_state = *state |
+        SelectorParsingState::SKIP_DEFAULT_NAMESPACE |
+        SelectorParsingState::DISALLOW_PSEUDOS;
     let list = SelectorList::parse_with_state(
         parser,
         input,
-        state |
-            SelectorParsingState::SKIP_DEFAULT_NAMESPACE |
-            SelectorParsingState::DISALLOW_PSEUDOS,
+        &mut child_state,
         ParseErrorRecovery::DiscardList,
+        NestingRequirement::None,
     )?;
+
+    if child_state.contains(SelectorParsingState::AFTER_NESTING) {
+        state.insert(SelectorParsingState::AFTER_NESTING)
+    }
 
     Ok(Component::Negation(list.0.into_vec().into_boxed_slice()))
 }
@@ -2123,7 +2184,7 @@ where
     }
 
     loop {
-        let result = match parse_one_simple_selector(parser, input, *state)? {
+        let result = match parse_one_simple_selector(parser, input, state)? {
             None => break,
             Some(result) => result,
         };
@@ -2201,7 +2262,7 @@ where
 fn parse_is_or_where<'i, 't, P, Impl>(
     parser: &P,
     input: &mut CssParser<'i, 't>,
-    state: SelectorParsingState,
+    state: &mut SelectorParsingState,
     component: impl FnOnce(Box<[Selector<Impl>]>) -> Component<Impl>,
 ) -> Result<Component<Impl>, ParseError<'i, P::Error>>
 where
@@ -2214,14 +2275,19 @@ where
     //     Pseudo-elements cannot be represented by the matches-any
     //     pseudo-class; they are not valid within :is().
     //
+    let mut child_state = *state |
+        SelectorParsingState::SKIP_DEFAULT_NAMESPACE |
+        SelectorParsingState::DISALLOW_PSEUDOS;
     let inner = SelectorList::parse_with_state(
         parser,
         input,
-        state |
-            SelectorParsingState::SKIP_DEFAULT_NAMESPACE |
-            SelectorParsingState::DISALLOW_PSEUDOS,
+        &mut child_state,
         parser.is_and_where_error_recovery(),
+        NestingRequirement::None,
     )?;
+    if child_state.contains(SelectorParsingState::AFTER_NESTING) {
+        state.insert(SelectorParsingState::AFTER_NESTING)
+    }
     Ok(component(inner.0.into_vec().into_boxed_slice()))
 }
 
@@ -2229,17 +2295,17 @@ fn parse_functional_pseudo_class<'i, 't, P, Impl>(
     parser: &P,
     input: &mut CssParser<'i, 't>,
     name: CowRcStr<'i>,
-    state: SelectorParsingState,
+    state: &mut SelectorParsingState,
 ) -> Result<Component<Impl>, ParseError<'i, P::Error>>
 where
     P: Parser<'i, Impl = Impl>,
     Impl: SelectorImpl,
 {
     match_ignore_ascii_case! { &name,
-        "nth-child" => return parse_nth_pseudo_class(parser, input, state, Component::NthChild),
-        "nth-of-type" => return parse_nth_pseudo_class(parser, input, state, Component::NthOfType),
-        "nth-last-child" => return parse_nth_pseudo_class(parser, input, state, Component::NthLastChild),
-        "nth-last-of-type" => return parse_nth_pseudo_class(parser, input, state, Component::NthLastOfType),
+        "nth-child" => return parse_nth_pseudo_class(parser, input, *state, Component::NthChild),
+        "nth-of-type" => return parse_nth_pseudo_class(parser, input, *state, Component::NthOfType),
+        "nth-last-child" => return parse_nth_pseudo_class(parser, input, *state, Component::NthLastChild),
+        "nth-last-of-type" => return parse_nth_pseudo_class(parser, input, *state, Component::NthLastOfType),
         "is" if parser.parse_is_and_where() => return parse_is_or_where(parser, input, state, Component::Is),
         "where" if parser.parse_is_and_where() => return parse_is_or_where(parser, input, state, Component::Where),
         "host" => {
@@ -2302,7 +2368,7 @@ fn is_css2_pseudo_element(name: &str) -> bool {
 fn parse_one_simple_selector<'i, 't, P, Impl>(
     parser: &P,
     input: &mut CssParser<'i, 't>,
-    state: SelectorParsingState,
+    state: &mut SelectorParsingState,
 ) -> Result<Option<SimpleSelectorParseResult<Impl>>, ParseError<'i, P::Error>>
 where
     P: Parser<'i, Impl = Impl>,
@@ -2413,10 +2479,14 @@ where
                         parse_functional_pseudo_class(parser, input, name, state)
                     })?
                 } else {
-                    parse_simple_pseudo_class(parser, location, name, state)?
+                    parse_simple_pseudo_class(parser, location, name, *state)?
                 };
                 SimpleSelectorParseResult::SimpleSelector(pseudo_class)
             }
+        },
+        Token::Delim('&') => {
+            *state |= SelectorParsingState::AFTER_NESTING;
+            SimpleSelectorParseResult::SimpleSelector(Component::Nesting)
         },
         _ => {
             input.reset(&start);
@@ -2725,7 +2795,7 @@ pub mod tests {
         expected: Option<&'a str>,
     ) -> Result<SelectorList<DummySelectorImpl>, SelectorParseError<'i>> {
         let mut parser_input = ParserInput::new(input);
-        let result = SelectorList::parse(parser, &mut CssParser::new(&mut parser_input));
+        let result = SelectorList::parse(parser, &mut CssParser::new(&mut parser_input), NestingRequirement::None);
         if let Ok(ref selectors) = result {
             assert_eq!(selectors.0.len(), 1);
             // We can't assume that the serialized parsed selector will equal
@@ -2749,7 +2819,7 @@ pub mod tests {
     #[test]
     fn test_empty() {
         let mut input = ParserInput::new(":empty");
-        let list = SelectorList::parse(&DummyParser::default(), &mut CssParser::new(&mut input));
+        let list = SelectorList::parse(&DummyParser::default(), &mut CssParser::new(&mut input), NestingRequirement::None);
         assert!(list.is_ok());
     }
 

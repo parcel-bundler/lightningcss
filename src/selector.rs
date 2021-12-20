@@ -985,6 +985,8 @@ pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browse
             _ => continue
           }
         }
+
+        Component::Nesting => return false, // TODO
       };
 
       if let Some(targets) = targets {

@@ -6,12 +6,14 @@ use crate::printer::Printer;
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
+use crate::rules::CssRuleList;
 
 #[derive(Debug, PartialEq)]
 pub struct StyleRule {
   pub selectors: SelectorList<Selectors>,
   pub vendor_prefix: VendorPrefix,
   pub declarations: DeclarationBlock,
+  pub rules: CssRuleList,
   pub loc: SourceLocation
 }
 
@@ -65,6 +67,30 @@ impl StyleRule {
   fn to_css_base<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     dest.add_mapping(self.loc);
     self.selectors.to_css(dest)?;
-    self.declarations.to_css(dest)
+    // self.declarations.to_css(dest)
+    dest.whitespace()?;
+    dest.write_char('{')?;
+    dest.indent();
+    let len = self.declarations.declarations.len();
+    for (i, decl) in self.declarations.declarations.iter().enumerate() {
+      dest.newline()?;
+      decl.to_css(dest)?;
+      if i != len - 1 || !dest.minify {
+        dest.write_char(';')?;
+      }
+    }
+
+    if self.rules.0.len() > 0 {
+      dest.newline()?;
+    }
+
+    for rule in &self.rules.0 {
+      dest.newline()?;
+      rule.to_css(dest)?;
+    }
+
+    dest.dedent();
+    dest.newline()?;
+    dest.write_char('}')
   }
 }

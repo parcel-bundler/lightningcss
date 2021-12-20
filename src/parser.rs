@@ -1,5 +1,5 @@
 use cssparser::*;
-use parcel_selectors::SelectorList;
+use parcel_selectors::{SelectorList, parser::NestingRequirement};
 use crate::media_query::*;
 use crate::traits::Parse;
 use crate::selector::{Selectors, SelectorParser};
@@ -15,10 +15,11 @@ use crate::rules::{
   import::ImportRule,
   media::MediaRule,
   style::StyleRule,
-  document::MozDocumentRule
+  document::MozDocumentRule,
+  nesting::NestingRule
 };
 use crate::values::ident::CustomIdent;
-use crate::declaration::DeclarationBlock;
+use crate::declaration::{DeclarationBlock, Declaration};
 use crate::vendor_prefix::VendorPrefix;
 
 /// The parser for the top-level rules in a stylesheet.
@@ -26,7 +27,9 @@ pub struct TopLevelRuleParser {}
 
 impl<'b> TopLevelRuleParser {
   fn nested<'a: 'b>(&'a self) -> NestedRuleParser {
-      NestedRuleParser {}
+      NestedRuleParser {
+        nesting_requirement: NestingRequirement::None
+      }
   }
 }
 
@@ -57,7 +60,9 @@ pub enum AtRulePrelude {
   /// A @namespace rule prelude.
   Namespace(Option<String>, String),
   /// A @charset rule prelude.
-  Charset
+  Charset,
+  /// A @nest prelude.
+  Nest(SelectorList<Selectors>)
 }
 
 impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
@@ -170,11 +175,15 @@ impl<'a, 'i> QualifiedRuleParser<'i> for TopLevelRuleParser {
 }
 
 #[derive(Clone)]
-struct NestedRuleParser {}
+struct NestedRuleParser {
+  nesting_requirement: NestingRequirement
+}
 
 impl<'a, 'b> NestedRuleParser {
   fn parse_nested_rules(&mut self, input: &mut Parser) -> CssRuleList {
-    let nested_parser = NestedRuleParser {};
+    let nested_parser = NestedRuleParser {
+      nesting_requirement: NestingRequirement::None
+    };
 
     let mut iter = RuleListParser::new_for_nested_rule(input, nested_parser);
     let mut rules = Vec::new();
@@ -381,7 +390,7 @@ impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser {
     input: &mut Parser<'i, 't>,
   ) -> Result<Self::Prelude, ParseError<'i, Self::Error>> {
     let selector_parser = SelectorParser {};
-    match SelectorList::parse(&selector_parser, input) {
+    match SelectorList::parse(&selector_parser, input, self.nesting_requirement) {
       Ok(x) => Ok(x),
       Err(_) => Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
     }
@@ -394,15 +403,199 @@ impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser {
     input: &mut Parser<'i, 't>,
   ) -> Result<CssRule, ParseError<'i, Self::Error>> {
     let loc = start.source_location();
+    let (declarations, rules) = parse_declaration_list(input)?;
     Ok(CssRule::Style(StyleRule {
       selectors,
       vendor_prefix: VendorPrefix::empty(),
-      declarations: DeclarationBlock::parse(input)?,
+      declarations,
+      rules,
       loc
     }))
   }
 }
 
+#[derive(Debug)]
+pub enum DeclarationOrRule {
+  Declaration(Declaration),
+  Rule(CssRule)
+}
+
+fn parse_declaration_list<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(DeclarationBlock, CssRuleList), ParseError<'i, ()>> {
+  let mut declarations = vec![];
+  let mut rules = vec![];
+  loop {
+    let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser);
+    let mut last = parser.input.state();
+    while let Some(decl) = parser.next() {
+      println!("DECL {:?}", decl);
+      match decl {
+        Ok(DeclarationOrRule::Declaration(decl)) => {
+          if rules.len() > 0 {
+            // Declarations cannot come after nested rules.
+            return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+          }
+
+          declarations.push(decl);
+        }
+        Ok(DeclarationOrRule::Rule(rule)) => rules.push(rule),
+        _ => {
+          parser.input.reset(&last);
+          break
+        }
+      }
+
+      last = parser.input.state();
+    }
+
+    println!("BREAK {:?} {:?}", declarations, rules);
+
+    let mut parser = NestedRuleParser {
+      nesting_requirement: NestingRequirement::Prefixed
+    };
+
+    let mut parsed_one = false;
+    loop {
+      println!("HERE");
+      let state = input.state();
+      let rule = parse_qualified_rule(input, &mut parser);
+      if let Ok(rule) = rule {
+        println!("RULE {:?}", rule);
+        rules.push(rule);
+        parsed_one = true;
+      } else {
+        println!("ERR {:?}", rule);
+        input.reset(&state);
+        break
+      }
+    }
+
+    if !parsed_one {
+      break
+    }
+  }
+
+  Ok((DeclarationBlock { declarations }, CssRuleList(rules)))
+}
+
+pub struct PropertyDeclarationParser;
+
+/// Parse a declaration within {} block: `color: blue`
+impl<'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser {
+  type Declaration = DeclarationOrRule;
+  type Error = ();
+
+  fn parse_value<'t>(
+    &mut self,
+    name: CowRcStr<'i>,
+    input: &mut cssparser::Parser<'i, 't>,
+  ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
+    Ok(DeclarationOrRule::Declaration(Declaration::parse(name, input)?))
+  }
+}
+
+impl<'i> AtRuleParser<'i> for PropertyDeclarationParser {
+  type Prelude = AtRulePrelude;
+  type AtRule = DeclarationOrRule;
+  type Error = ();
+
+  fn parse_prelude<'t>(
+    &mut self,
+    name: CowRcStr<'i>,
+    input: &mut Parser<'i, 't>,
+  ) -> Result<AtRulePrelude, ParseError<'i, Self::Error>> {
+    println!("{:?}", name);
+    match_ignore_ascii_case! { &*name,
+      "media" => {
+        let media = MediaList::parse(input);
+        Ok(AtRulePrelude::Media(media))
+      },
+      "nest" => {
+        let selector_parser = SelectorParser {};
+        // TODO: require nesting selector to be contained in every selector
+        let selectors = match SelectorList::parse(&selector_parser, input, NestingRequirement::Contained) {
+          Ok(x) => x,
+          Err(_) => return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+        };
+        Ok(AtRulePrelude::Nest(selectors))
+      },
+      _ => Err(input.new_error(BasicParseErrorKind::AtRuleInvalid(name)))
+    }
+  }
+
+  fn parse_block<'t>(
+    &mut self,
+    prelude: AtRulePrelude,
+    start: &ParserState,
+    input: &mut Parser<'i, 't>,
+  ) -> Result<DeclarationOrRule, ParseError<'i, Self::Error>> {
+    let loc = start.source_location();
+    match prelude {
+      AtRulePrelude::Media(query) => {
+        let (declarations, mut rules) = parse_declaration_list(input)?;
+
+        println!("{:?}", declarations);
+
+        if declarations.declarations.len() > 0 {
+          rules.0.insert(0, CssRule::Style(StyleRule {
+            selectors: SelectorList(smallvec::smallvec![parcel_selectors::parser::Selector::from_vec2(vec![parcel_selectors::parser::Component::Nesting])]),
+            declarations,
+            vendor_prefix: VendorPrefix::empty(),
+            rules: CssRuleList(vec![]),
+            loc: loc.clone()
+          }))
+        }
+        
+        Ok(DeclarationOrRule::Rule(CssRule::Media(MediaRule {
+          query,
+          rules,
+          loc
+        })))
+      },
+      AtRulePrelude::Nest(selectors) => {
+        let (declarations, rules) = parse_declaration_list(input)?;
+        Ok(DeclarationOrRule::Rule(CssRule::Nesting(NestingRule {
+          style: StyleRule {
+            selectors,
+            declarations,
+            vendor_prefix: VendorPrefix::empty(),
+            rules,
+            loc
+          },
+          loc
+        })))
+      },
+      _ => {
+        println!("{:?}", prelude);
+        unreachable!()
+      }
+    }
+  }
+}
+
 fn starts_with_ignore_ascii_case(string: &str, prefix: &str) -> bool {
   string.len() >= prefix.len() && string.as_bytes()[0..prefix.len()].eq_ignore_ascii_case(prefix.as_bytes())
+}
+
+// copied from cssparser
+fn parse_qualified_rule<'i, 't, P, E>(
+  input: &mut Parser<'i, 't>,
+  parser: &mut P,
+) -> Result<<P as QualifiedRuleParser<'i>>::QualifiedRule, ParseError<'i, E>>
+where
+  P: QualifiedRuleParser<'i, Error = E>,
+{
+  let start = input.state();
+  // FIXME: https://github.com/servo/rust-cssparser/issues/254
+  let callback = |input: &mut Parser<'i, '_>| parser.parse_prelude(input);
+  let prelude = input.parse_until_before(Delimiter::CurlyBracketBlock, callback);
+  match *input.next()? {
+      Token::CurlyBracketBlock => {
+          // Do this here so that we consume the `{` even if the prelude is `Err`.
+          let prelude = prelude?;
+          // FIXME: https://github.com/servo/rust-cssparser/issues/254
+          let callback = |input: &mut Parser<'i, '_>| parser.parse_block(prelude, &start, input);
+          input.parse_nested_block(callback)
+      }
+      _ => unreachable!(),
+  }
 }

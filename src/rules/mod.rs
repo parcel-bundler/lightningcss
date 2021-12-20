@@ -8,6 +8,7 @@ pub mod import;
 pub mod media;
 pub mod style;
 pub mod document;
+pub mod nesting;
 
 use media::MediaRule;
 use import::ImportRule;
@@ -19,6 +20,7 @@ use supports::SupportsRule;
 use counter_style::CounterStyleRule;
 use namespace::NamespaceRule;
 use document::MozDocumentRule;
+use nesting::NestingRule;
 use crate::traits::ToCss;
 use crate::printer::Printer;
 use crate::declaration::DeclarationHandler;
@@ -40,6 +42,7 @@ pub enum CssRule {
   CounterStyle(CounterStyleRule),
   Namespace(NamespaceRule),
   MozDocument(MozDocumentRule),
+  Nesting(NestingRule),
   Ignored
 }
 
@@ -56,6 +59,7 @@ impl ToCss for CssRule {
       CssRule::CounterStyle(counter_style) => counter_style.to_css(dest),
       CssRule::Namespace(namespace) => namespace.to_css(dest),
       CssRule::MozDocument(document) => document.to_css(dest),
+      CssRule::Nesting(nesting) => nesting.to_css(dest),
       CssRule::Ignored => Ok(())
     }
   }
@@ -142,6 +146,7 @@ impl CssRuleList {
             }
           }
         },
+        CssRule::Nesting(nesting) => nesting.minify(handler, important_handler),
         _ => {}
       }
 
