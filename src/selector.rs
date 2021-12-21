@@ -7,6 +7,7 @@ use crate::traits::ToCss;
 use crate::compat::Feature;
 use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
+use crate::rules::{ToCssWithContext, StyleContext};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Selectors;
@@ -293,8 +294,8 @@ impl parcel_selectors::parser::NonTSPseudoClass for PseudoClass {
 }
 
 impl cssparser::ToCss for PseudoClass {
-  fn to_css<W>(&self, _: &mut W) -> fmt::Result where W: fmt::Write {
-    unreachable!();
+  fn to_css<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
+    ToCss::to_css(self, &mut Printer::new(dest, None, false, None))
   }
 }
 
@@ -597,9 +598,9 @@ impl PseudoElement {
   }
 }
 
-impl ToCss for SelectorList<Selectors> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
-    serialize_selector_list(self.0.iter(), dest)
+impl ToCssWithContext for SelectorList<Selectors> {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> fmt::Result where W: fmt::Write {
+    serialize_selector_list(self.0.iter(), dest, context)
   }
 }
 
@@ -619,8 +620,8 @@ impl ToCss for Combinator {
 }
 
 // Copied from the selectors crate and modified to override to_css implementation.
-impl ToCss for parcel_selectors::parser::Selector<Selectors> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result
+impl ToCssWithContext for parcel_selectors::parser::Selector<Selectors> {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> fmt::Result
   where
       W: fmt::Write,
   {
@@ -690,7 +691,7 @@ impl ToCss for parcel_selectors::parser::Selector<Selectors> {
                       // Iterate over everything so we serialize the namespace
                       // too.
                       for simple in compound.iter() {
-                          simple.to_css(dest)?;
+                          simple.to_css_with_context(dest, context)?;
                       }
                       // Skip step 2, which is an "otherwise".
                       perform_step_2 = false;
@@ -719,7 +720,7 @@ impl ToCss for parcel_selectors::parser::Selector<Selectors> {
                           continue;
                       }
                   }
-                  simple.to_css(dest)?;
+                  simple.to_css_with_context(dest, context)?;
               }
           }
 
@@ -744,8 +745,8 @@ impl ToCss for parcel_selectors::parser::Selector<Selectors> {
   }
 }
 
-impl ToCss for Component<Selectors> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
+impl ToCssWithContext for Component<Selectors> {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> fmt::Result where W: fmt::Write {
     use Component::*;
     match &self {
       Combinator(ref c) => c.to_css(dest),
@@ -797,7 +798,7 @@ impl ToCss for Component<Selectors> {
           Negation(..) => dest.write_str(":not(")?,
           _ => unreachable!(),
         }
-        serialize_selector_list(list.iter(), dest)?;
+        serialize_selector_list(list.iter(), dest, context)?;
         dest.write_str(")")
       },
       NonTSPseudoClass(pseudo) => {
@@ -806,6 +807,22 @@ impl ToCss for Component<Selectors> {
       PseudoElement(pseudo) => {
         pseudo.to_css(dest)
       },
+      Nesting => {
+        if let Some(ctx) = context {
+          // If there's only one selector, just serialize it directly.
+          // Otherwise, use an :is() pseudo class.
+          // TODO: this isn't always safe, e.g. &div or div&
+          if ctx.rule.selectors.0.len() == 1 {
+            ctx.rule.selectors.0.first().unwrap().to_css_with_context(dest, ctx.parent)
+          } else {
+            dest.write_str(":is(")?;
+            serialize_selector_list(ctx.rule.selectors.0.iter(), dest, ctx.parent)?;
+            dest.write_char(')')
+          }
+        } else {
+          dest.write_char('&')
+        }
+      },
       _ => {
         cssparser::ToCss::to_css(self, dest)
       }
@@ -813,7 +830,7 @@ impl ToCss for Component<Selectors> {
   }
 }
 
-fn serialize_selector_list<'a, I, W>(iter: I, dest: &mut Printer<W>) -> fmt::Result
+fn serialize_selector_list<'a, I, W>(iter: I, dest: &mut Printer<W>, context: Option<&StyleContext>) -> fmt::Result
 where
     I: Iterator<Item = &'a Selector<Selectors>>,
     W: fmt::Write,
@@ -824,7 +841,7 @@ where
       dest.delim(',', false)?;
     }
     first = false;
-    selector.to_css(dest)?;
+    selector.to_css_with_context(dest, context)?;
   }
   Ok(())
 }
@@ -895,7 +912,7 @@ pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browse
         Component::OnlyOfType |
         Component::Root => Feature::CssSel3,
 
-        Component::Is(_) => Feature::CssMatchesPseudo,
+        Component::Is(_) | Component::Nesting => Feature::CssMatchesPseudo,
 
         Component::Scope |
         Component::Host(_) |
@@ -985,8 +1002,6 @@ pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browse
             _ => continue
           }
         }
-
-        Component::Nesting => return false, // TODO
       };
 
       if let Some(targets) = targets {

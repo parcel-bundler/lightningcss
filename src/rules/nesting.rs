@@ -6,6 +6,7 @@ use super::CssRuleList;
 use crate::declaration::DeclarationHandler;
 use crate::targets::Browsers;
 use super::style::StyleRule;
+use crate::rules::{ToCssWithContext, StyleContext};
 
 #[derive(Debug, PartialEq)]
 pub struct NestingRule {
@@ -19,10 +20,10 @@ impl NestingRule {
   }
 }
 
-impl ToCss for NestingRule {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+impl ToCssWithContext for NestingRule {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write {
     dest.add_mapping(self.loc);
-    dest.write_str("@nest ")?;
-    self.style.to_css(dest)
+    // dest.write_str("@nest ")?;
+    self.style.to_css_with_context(dest, context)
   }
 }

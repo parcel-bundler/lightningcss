@@ -6,7 +6,7 @@ use crate::printer::Printer;
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
-use crate::rules::CssRuleList;
+use crate::rules::{CssRuleList, ToCssWithContext, StyleContext};
 
 #[derive(Debug, PartialEq)]
 pub struct StyleRule {
@@ -27,10 +27,10 @@ impl StyleRule {
   }
 }
 
-impl ToCss for StyleRule {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+impl ToCssWithContext for StyleRule {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write {
     if self.vendor_prefix.is_empty() {
-      self.to_css_base(dest)
+      self.to_css_base(dest, context)
     } else {
       let mut first_rule = true;
       macro_rules! prefix {
@@ -46,7 +46,7 @@ impl ToCss for StyleRule {
               dest.newline()?;
             }
             dest.vendor_prefix = VendorPrefix::$prefix;
-            self.to_css_base(dest)?;
+            self.to_css_base(dest, context)?;
           }
         };
       }
@@ -64,33 +64,44 @@ impl ToCss for StyleRule {
 }
 
 impl StyleRule {
-  fn to_css_base<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-    dest.add_mapping(self.loc);
-    self.selectors.to_css(dest)?;
-    // self.declarations.to_css(dest)
-    dest.whitespace()?;
-    dest.write_char('{')?;
-    dest.indent();
-    let len = self.declarations.declarations.len();
-    for (i, decl) in self.declarations.declarations.iter().enumerate() {
-      dest.newline()?;
-      decl.to_css(dest)?;
-      if i != len - 1 || !dest.minify {
-        dest.write_char(';')?;
-      }
+  fn to_css_base<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write {
+    let has_declarations = self.declarations.declarations.len() > 0 || self.rules.0.is_empty();
+    if self.declarations.declarations.len() > 0 || self.rules.0.is_empty() {
+      dest.add_mapping(self.loc);
+      self.selectors.to_css_with_context(dest, context)?;
+      self.declarations.to_css(dest)?;
     }
+    // dest.whitespace()?;
+    // dest.write_char('{')?;
+    // dest.indent();
+    // let len = self.declarations.declarations.len();
+    // for (i, decl) in self.declarations.declarations.iter().enumerate() {
+    //   dest.newline()?;
+    //   decl.to_css(dest)?;
+    //   if i != len - 1 || !dest.minify {
+    //     dest.write_char(';')?;
+    //   }
+    // }
 
-    if self.rules.0.len() > 0 {
-      dest.newline()?;
-    }
+    // if self.rules.0.len() > 0 {
+    //   dest.newline()?;
+    // }
 
+    let mut newline = has_declarations;
     for rule in &self.rules.0 {
-      dest.newline()?;
-      rule.to_css(dest)?;
+      if newline {
+        dest.newline()?;
+      }
+      rule.to_css_with_context(dest, Some(&StyleContext {
+        rule: self,
+        parent: context
+      }))?;
+      newline = true;
     }
 
-    dest.dedent();
-    dest.newline()?;
-    dest.write_char('}')
+    // dest.dedent();
+    // dest.newline()?;
+    // dest.write_char('}')
+    Ok(())
   }
 }

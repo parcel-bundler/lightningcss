@@ -6783,4 +6783,297 @@ mod tests {
     attr_test("color: yellow; flex: 1 1 auto", "color: #ff0; flex: auto", false);
     attr_test("color: yellow; flex: 1 1 auto", "color:#ff0;flex:auto", true);
   }
+
+  #[test]
+  fn test_nesting() {
+    test(
+      r#"
+        .foo {
+          color: blue;
+          & > .bar { color: red; }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: #00f;
+        }
+        .foo > .bar {
+          color: red;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo {
+          color: blue;
+          &.bar { color: red; }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: #00f;
+        }
+        .foo.bar {
+          color: red;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo, .bar {
+          color: blue;
+          & + .baz, &.qux { color: red; }
+        }
+      "#,
+      indoc!{r#"
+        .foo, .bar {
+          color: #00f;
+        }
+        :is(.foo, .bar) + .baz, :is(.foo, .bar).qux {
+          color: red;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo {
+          color: blue;
+          & .bar & .baz & .qux { color: red; }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: #00f;
+        }
+        .foo .bar .foo .baz .foo .qux {
+          color: red;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo {
+          color: blue;
+          & { padding: 2ch; }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: #00f;
+        }
+        .foo {
+          padding: 2ch;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo {
+          color: blue;
+          && { padding: 2ch; }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: #00f;
+        }
+        .foo.foo {
+          padding: 2ch;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .error, .invalid {
+          &:hover > .baz { color: red; }
+        }
+      "#,
+      indoc!{r#"
+        :is(.error, .invalid):hover > .baz {
+          color: red;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo {
+          &:is(.bar, &.baz) { color: red; }
+        }
+      "#,
+      indoc!{r#"
+        .foo:is(.bar, .foo.baz) {
+          color: red;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        figure {
+          margin: 0;
+        
+          & > figcaption {
+            background: hsl(0 0% 0% / 50%);
+        
+            & > p {
+              font-size: .9rem;
+            }
+          }
+        }
+      "#,
+      indoc!{r#"
+        figure {
+          margin: 0;
+        }
+        figure > figcaption {
+          background: #00000080;
+        }
+        figure > figcaption > p {
+          font-size: .9rem;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo {
+          color: red;
+          @nest & > .bar {
+            color: blue;
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: red;
+        }
+        .foo > .bar {
+          color: #00f;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo {
+          color: red;
+          @nest .parent & {
+            color: blue;
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: red;
+        }
+        .parent .foo {
+          color: #00f;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo {
+          color: red;
+          @nest :not(&) {
+            color: blue;
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: red;
+        }
+        :not(.foo) {
+          color: #00f;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo {
+          color: blue;
+          @nest .bar & {
+            color: red;
+            &.baz {
+              color: green;
+            }
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: #00f;
+        }
+        .bar .foo {
+          color: red;
+        }
+        .bar .foo.baz {
+          color: green;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo {
+          display: grid;
+        
+          @media (orientation: landscape) {
+            grid-auto-flow: column;
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          display: grid;
+        }
+        @media (orientation: landscape) {
+          .foo {
+            grid-auto-flow: column;
+          }
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo {
+          display: grid;
+        
+          @media (orientation: landscape) {
+            grid-auto-flow: column;
+        
+            @media (min-inline-size > 1024px) {
+              max-inline-size: 1024px;
+            }
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          display: grid;
+        }
+        @media (orientation: landscape) {
+          .foo {
+            grid-auto-flow: column;
+          }
+          @media (min-inline-size > 1024px) {
+            .foo {
+              max-inline-size: 1024px;
+            }
+          }
+        }
+      "#}
+    );
+  }
 }

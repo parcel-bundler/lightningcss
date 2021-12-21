@@ -30,6 +30,15 @@ use crate::targets::Browsers;
 use std::collections::HashMap;
 use crate::selector::{is_equivalent, get_prefix, get_necessary_prefixes};
 
+pub(crate) trait ToCssWithContext {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write;
+}
+
+pub(crate) struct StyleContext<'a> {
+  pub rule: &'a StyleRule,
+  pub parent: Option<&'a StyleContext<'a>>
+}
+
 #[derive(Debug, PartialEq)]
 pub enum CssRule {
   Media(MediaRule),
@@ -46,12 +55,12 @@ pub enum CssRule {
   Ignored
 }
 
-impl ToCss for CssRule {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+impl ToCssWithContext for CssRule {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write {
     match self {
-      CssRule::Media(media) => media.to_css(dest),
+      CssRule::Media(media) => media.to_css_with_context(dest, context),
       CssRule::Import(import) => import.to_css(dest),
-      CssRule::Style(style) => style.to_css(dest),
+      CssRule::Style(style) => style.to_css_with_context(dest, context),
       CssRule::Keyframes(keyframes) => keyframes.to_css(dest),
       CssRule::FontFace(font_face) => font_face.to_css(dest),
       CssRule::Page(font_face) => font_face.to_css(dest),
@@ -59,9 +68,15 @@ impl ToCss for CssRule {
       CssRule::CounterStyle(counter_style) => counter_style.to_css(dest),
       CssRule::Namespace(namespace) => namespace.to_css(dest),
       CssRule::MozDocument(document) => document.to_css(dest),
-      CssRule::Nesting(nesting) => nesting.to_css(dest),
+      CssRule::Nesting(nesting) => nesting.to_css_with_context(dest, context),
       CssRule::Ignored => Ok(())
     }
+  }
+}
+
+impl ToCss for CssRule {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    self.to_css_with_context(dest, None)
   }
 }
 
