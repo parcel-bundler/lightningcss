@@ -426,7 +426,7 @@ impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser<'a> {
     input: &mut Parser<'i, 't>,
   ) -> Result<CssRule, ParseError<'i, Self::Error>> {
     let loc = start.source_location();
-    let (declarations, rules) = parse_declaration_list(input, self.default_namespace, self.namespace_prefixes)?;
+    let (declarations, rules) = parse_declarations_and_nested_rules(input, self.default_namespace, self.namespace_prefixes)?;
     Ok(CssRule::Style(StyleRule {
       selectors,
       vendor_prefix: VendorPrefix::empty(),
@@ -443,14 +443,14 @@ pub enum DeclarationOrRule {
   Rule(CssRule)
 }
 
-fn parse_declaration_list<'a, 'i, 't>(
+fn parse_declarations_and_nested_rules<'a, 'i, 't>(
   input: &mut Parser<'i, 't>,
   default_namespace: &'a Option<String>,
   namespace_prefixes: &'a HashMap<String, String>
 ) -> Result<(DeclarationBlock, CssRuleList), ParseError<'i, ()>> {
   let mut declarations = vec![];
   let mut rules = vec![];
-  let parser = PropertyDeclarationParser {
+  let parser = StyleRuleParser {
     default_namespace,
     namespace_prefixes
   };
@@ -492,13 +492,13 @@ fn parse_declaration_list<'a, 'i, 't>(
   Ok((DeclarationBlock { declarations }, CssRuleList(rules)))
 }
 
-pub struct PropertyDeclarationParser<'a> {
+pub struct StyleRuleParser<'a> {
   default_namespace: &'a Option<String>,
   namespace_prefixes: &'a HashMap<String, String>
 }
 
 /// Parse a declaration within {} block: `color: blue`
-impl<'a, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a> {
+impl<'a, 'i> cssparser::DeclarationParser<'i> for StyleRuleParser<'a> {
   type Declaration = DeclarationOrRule;
   type Error = ();
 
@@ -511,7 +511,7 @@ impl<'a, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a> 
   }
 }
 
-impl<'a, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a> {
+impl<'a, 'i> AtRuleParser<'i> for StyleRuleParser<'a> {
   type Prelude = AtRulePrelude;
   type AtRule = DeclarationOrRule;
   type Error = ();
@@ -550,7 +550,9 @@ impl<'a, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a> {
     let loc = start.source_location();
     match prelude {
       AtRulePrelude::Media(query) => {
-        let (declarations, mut rules) = parse_declaration_list(input, self.default_namespace, self.namespace_prefixes)?;
+        // Declarations can be immediately within @media blocks that are nested within a parent style rule.
+        // These act the same way as if they were nested within a `& { ... }` block.
+        let (declarations, mut rules) = parse_declarations_and_nested_rules(input, self.default_namespace, self.namespace_prefixes)?;
 
         if declarations.declarations.len() > 0 {
           rules.0.insert(0, CssRule::Style(StyleRule {
@@ -569,7 +571,7 @@ impl<'a, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a> {
         })))
       },
       AtRulePrelude::Nest(selectors) => {
-        let (declarations, rules) = parse_declaration_list(input, self.default_namespace, self.namespace_prefixes)?;
+        let (declarations, rules) = parse_declarations_and_nested_rules(input, self.default_namespace, self.namespace_prefixes)?;
         Ok(DeclarationOrRule::Rule(CssRule::Nesting(NestingRule {
           style: StyleRule {
             selectors,
@@ -589,7 +591,7 @@ impl<'a, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a> {
   }
 }
 
-impl<'a, 'b, 'i> QualifiedRuleParser<'i> for PropertyDeclarationParser<'a> {
+impl<'a, 'b, 'i> QualifiedRuleParser<'i> for StyleRuleParser<'a> {
   type Prelude = SelectorList<Selectors>;
   type QualifiedRule = DeclarationOrRule;
   type Error = ();
@@ -615,7 +617,7 @@ impl<'a, 'b, 'i> QualifiedRuleParser<'i> for PropertyDeclarationParser<'a> {
     input: &mut Parser<'i, 't>,
   ) -> Result<DeclarationOrRule, ParseError<'i, Self::Error>> {
     let loc = start.source_location();
-    let (declarations, rules) = parse_declaration_list(input, self.default_namespace, self.namespace_prefixes)?;
+    let (declarations, rules) = parse_declarations_and_nested_rules(input, self.default_namespace, self.namespace_prefixes)?;
     Ok(DeclarationOrRule::Rule(CssRule::Style(StyleRule {
       selectors,
       vendor_prefix: VendorPrefix::empty(),
