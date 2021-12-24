@@ -2179,6 +2179,12 @@ where
     input.skip_whitespace();
 
     let mut empty = true;
+    if input.try_parse(|input| input.expect_delim('&')).is_ok() {
+        state.insert(SelectorParsingState::AFTER_NESTING);
+        builder.push_simple_selector(Component::Nesting);
+        empty = false;
+    }
+
     if parse_type_selector(parser, input, *state, builder)? {
         empty = false;
     }

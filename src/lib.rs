@@ -7075,5 +7075,95 @@ mod tests {
         }
       "#}
     );
+
+    test(
+      r#"
+        .foo {
+          &div {
+            color: red;
+          }
+        }
+      "#,
+      indoc!{r#"
+        div.foo {
+          color: red;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo {
+          &article > figure {
+            color: red;
+          }
+        }
+      "#,
+      indoc!{r#"
+        article.foo > figure {
+          color: red;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        div {
+          @nest .foo& {
+            color: red;
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo:is(div) {
+          color: red;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        div {
+          &.bar {
+            background: green;
+          }
+        }
+      "#,
+      indoc!{r#"
+        div.bar {
+          background: green;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        div > .foo {
+          &span {
+            background: green;
+          }
+        }
+      "#,
+      indoc!{r#"
+        span:is(div > .foo) {
+          background: green;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo {
+          & h1 {
+            background: green;
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo h1 {
+          background: green;
+        }
+      "#}
+    );
   }
 }

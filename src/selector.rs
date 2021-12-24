@@ -657,6 +657,9 @@ impl ToCssWithContext for parcel_selectors::parser::Selector<Selectors> {
               continue;
           }
 
+          let has_leading_nesting = matches!(compound[0], Component::Nesting);
+          let first_index = if has_leading_nesting { 1 } else { 0 };
+
           // 1. If there is only one simple selector in the compound selectors
           //    which is a universal selector, append the result of
           //    serializing the universal selector to s.
@@ -667,12 +670,12 @@ impl ToCssWithContext for parcel_selectors::parser::Selector<Selectors> {
           //
           // If we are in this case, after we have serialized the universal
           // selector, we skip Step 2 and continue with the algorithm.
-          let (can_elide_namespace, first_non_namespace) = match compound[0] {
-              Component::ExplicitAnyNamespace |
-              Component::ExplicitNoNamespace |
-              Component::Namespace(..) => (false, 1),
-              Component::DefaultNamespace(..) => (true, 1),
-              _ => (true, 0),
+          let (can_elide_namespace, first_non_namespace) = match compound.get(first_index) {
+              Some(Component::ExplicitAnyNamespace) |
+              Some(Component::ExplicitNoNamespace) |
+              Some(Component::Namespace(..)) => (false, first_index + 1),
+              Some(Component::DefaultNamespace(..)) => (true, first_index + 1),
+              _ => (true, first_index),
           };
           let mut perform_step_2 = true;
           let next_combinator = combinators.next();
@@ -710,7 +713,21 @@ impl ToCssWithContext for parcel_selectors::parser::Selector<Selectors> {
           // in cssom/serialize-namespaced-type-selectors.html, which the
           // following code tries to match.
           if perform_step_2 {
-              for simple in compound.iter() {
+              let mut iter = compound.iter();
+              if has_leading_nesting && matches!(compound.get(first_non_namespace), Some(Component::LocalName(_))) {
+                // Swap nesting and type selector (e.g. &div -> div&).
+                // This ensures that the compiled selector is valid. e.g. (div.foo is valid, .foodiv is not).
+                let nesting = iter.next().unwrap();
+                let local = iter.next().unwrap();
+                local.to_css_with_context(dest, context)?;
+                nesting.to_css_with_context(dest, context)?;
+              } else if has_leading_nesting {
+                // Nesting selector may serialize differently if it is leading, due to type selectors.
+                iter.next();
+                serialize_nesting(dest, context, true)?;
+              }
+
+              for simple in iter {
                   if let Component::ExplicitUniversalType = *simple {
                       // Can't have a namespace followed by a pseudo-element
                       // selector followed by a universal selector in the same
@@ -808,25 +825,43 @@ impl ToCssWithContext for Component<Selectors> {
         pseudo.to_css(dest)
       },
       Nesting => {
-        if let Some(ctx) = context {
-          // If there's only one selector, just serialize it directly.
-          // Otherwise, use an :is() pseudo class.
-          // TODO: this isn't always safe, e.g. &div or div&
-          if ctx.rule.selectors.0.len() == 1 {
-            ctx.rule.selectors.0.first().unwrap().to_css_with_context(dest, ctx.parent)
-          } else {
-            dest.write_str(":is(")?;
-            serialize_selector_list(ctx.rule.selectors.0.iter(), dest, ctx.parent)?;
-            dest.write_char(')')
-          }
-        } else {
-          dest.write_char('&')
-        }
+        serialize_nesting(dest, context, false)
       },
       _ => {
         cssparser::ToCss::to_css(self, dest)
       }
     }
+  }
+}
+
+fn serialize_nesting<W>(dest: &mut Printer<W>, context: Option<&StyleContext>, first: bool) -> fmt::Result where W: fmt::Write {
+  if let Some(ctx) = context {
+    // If there's only one selector, just serialize it directly.
+    // Otherwise, use an :is() pseudo class.
+    // Type selectors are only allowed at the start of a compound selector,
+    // so use :is() if that is not the case.
+    if ctx.rule.selectors.0.len() == 1 && (first || !has_type_selector(&ctx.rule.selectors.0[0])) {
+      ctx.rule.selectors.0.first().unwrap().to_css_with_context(dest, ctx.parent)
+    } else {
+      dest.write_str(":is(")?;
+      serialize_selector_list(ctx.rule.selectors.0.iter(), dest, ctx.parent)?;
+      dest.write_char(')')
+    }
+  } else {
+    dest.write_char('&')
+  }
+}
+
+fn has_type_selector(selector: &parcel_selectors::parser::Selector<Selectors>) -> bool {
+  let mut iter = selector.iter_raw_parse_order_from(0);
+  let first = iter.next();
+  match first {
+    Some(Component::ExplicitAnyNamespace) |
+    Some(Component::ExplicitNoNamespace) |
+    Some(Component::Namespace(..)) |
+    Some(Component::DefaultNamespace(_)) |
+    Some(Component::LocalName(_)) => true,
+    _ => false
   }
 }
 
