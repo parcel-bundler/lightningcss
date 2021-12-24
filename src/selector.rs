@@ -8,6 +8,7 @@ use crate::compat::Feature;
 use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
 use crate::rules::{ToCssWithContext, StyleContext};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Selectors;
@@ -33,7 +34,7 @@ impl SelectorString {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
 pub struct SelectorIdent(pub String);
 
 impl<'a> std::convert::From<&'a str> for SelectorIdent {
@@ -63,8 +64,12 @@ impl SelectorImpl for Selectors {
   type ExtraMatchingData = ();
 }
 
-pub struct SelectorParser;
-impl<'i> parcel_selectors::parser::Parser<'i> for SelectorParser {
+pub struct SelectorParser<'a> {
+  pub default_namespace: &'a Option<String>,
+  pub namespace_prefixes: &'a HashMap<String, String>
+}
+
+impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a> {
   type Impl = Selectors;
   type Error = parcel_selectors::parser::SelectorParseErrorKind<'i>;
 
@@ -211,6 +216,14 @@ impl<'i> parcel_selectors::parser::Parser<'i> for SelectorParser {
   #[inline]
   fn parse_part(&self) -> bool {
     true
+  }
+
+  fn default_namespace(&self) -> Option<SelectorIdent> {
+    self.default_namespace.clone().map(SelectorIdent)
+  }
+
+  fn namespace_for_prefix(&self, prefix: &SelectorIdent) -> Option<SelectorIdent> {
+    self.namespace_prefixes.get(&prefix.0).cloned().map(SelectorIdent)
   }
 }
 
@@ -693,9 +706,21 @@ impl ToCssWithContext for parcel_selectors::parser::Selector<Selectors> {
                   (_, &Component::ExplicitUniversalType) => {
                       // Iterate over everything so we serialize the namespace
                       // too.
-                      for simple in compound.iter() {
+                      let mut iter = compound.iter();
+                      let swap_nesting = has_leading_nesting && is_type_selector(compound.get(first_index));
+                      if swap_nesting {
+                        // Swap nesting and type selector (e.g. &div -> div&).
+                        iter.next();
+                      }
+                      
+                      for simple in iter {
                           simple.to_css_with_context(dest, context)?;
                       }
+
+                      if swap_nesting {
+                        serialize_nesting(dest, context, false)?;
+                      }
+                      
                       // Skip step 2, which is an "otherwise".
                       perform_step_2 = false;
                   },
@@ -714,12 +739,19 @@ impl ToCssWithContext for parcel_selectors::parser::Selector<Selectors> {
           // following code tries to match.
           if perform_step_2 {
               let mut iter = compound.iter();
-              if has_leading_nesting && matches!(compound.get(first_non_namespace), Some(Component::LocalName(_))) {
+              if has_leading_nesting && is_type_selector(compound.get(first_index)) {
                 // Swap nesting and type selector (e.g. &div -> div&).
                 // This ensures that the compiled selector is valid. e.g. (div.foo is valid, .foodiv is not).
                 let nesting = iter.next().unwrap();
                 let local = iter.next().unwrap();
                 local.to_css_with_context(dest, context)?;
+
+                // Also check the next item in case of namespaces.
+                if is_type_selector(compound.get(first_index + 1)) {
+                  let local = iter.next().unwrap();
+                  local.to_css_with_context(dest, context)?;
+                }
+
                 nesting.to_css_with_context(dest, context)?;
               } else if has_leading_nesting {
                 // Nesting selector may serialize differently if it is leading, due to type selectors.
@@ -855,14 +887,19 @@ fn serialize_nesting<W>(dest: &mut Printer<W>, context: Option<&StyleContext>, f
 fn has_type_selector(selector: &parcel_selectors::parser::Selector<Selectors>) -> bool {
   let mut iter = selector.iter_raw_parse_order_from(0);
   let first = iter.next();
-  match first {
-    Some(Component::ExplicitAnyNamespace) |
+  is_type_selector(first)
+}
+
+fn is_type_selector(component: Option<&Component<Selectors>>) -> bool {
+  matches!(
+    component,
+    Some(Component::ExplicitAnyNamespace) | 
     Some(Component::ExplicitNoNamespace) |
     Some(Component::Namespace(..)) |
     Some(Component::DefaultNamespace(_)) |
-    Some(Component::LocalName(_)) => true,
-    _ => false
-  }
+    Some(Component::LocalName(_)) |
+    Some(Component::ExplicitUniversalType)
+  )
 }
 
 fn serialize_selector_list<'a, I, W>(iter: I, dest: &mut Printer<W>, context: Option<&StyleContext>) -> fmt::Result

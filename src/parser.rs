@@ -21,14 +21,27 @@ use crate::rules::{
 use crate::values::ident::CustomIdent;
 use crate::declaration::{DeclarationBlock, Declaration};
 use crate::vendor_prefix::VendorPrefix;
+use std::collections::HashMap;
 
 /// The parser for the top-level rules in a stylesheet.
-pub struct TopLevelRuleParser {}
+pub struct TopLevelRuleParser {
+  default_namespace: Option<String>,
+  namespace_prefixes: HashMap<String, String>
+}
 
 impl<'b> TopLevelRuleParser {
-  fn nested<'a: 'b>(&'a self) -> NestedRuleParser {
+  pub fn new() -> TopLevelRuleParser {
+    TopLevelRuleParser {
+      default_namespace: None,
+      namespace_prefixes: HashMap::new()
+    }
+  }
+
+  fn nested<'a: 'b>(&'a mut self) -> NestedRuleParser {
       NestedRuleParser {
-        nesting_requirement: NestingRequirement::None
+        nesting_requirement: NestingRequirement::None,
+        default_namespace: &mut self.default_namespace,
+        namespace_prefixes: &mut self.namespace_prefixes
       }
   }
 }
@@ -135,6 +148,12 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
           })
         },
         AtRulePrelude::Namespace(prefix, url) => {
+          if let Some(prefix) = &prefix {
+            self.namespace_prefixes.insert(prefix.clone(), url.clone());
+          } else {
+            self.default_namespace = Some(url.clone());
+          }
+
           CssRule::Namespace(NamespaceRule {
             prefix,
             url,
@@ -175,14 +194,18 @@ impl<'a, 'i> QualifiedRuleParser<'i> for TopLevelRuleParser {
 }
 
 #[derive(Clone)]
-struct NestedRuleParser {
-  nesting_requirement: NestingRequirement
+struct NestedRuleParser<'a> {
+  nesting_requirement: NestingRequirement,
+  default_namespace: &'a Option<String>,
+  namespace_prefixes: &'a HashMap<String, String>
 }
 
-impl<'a, 'b> NestedRuleParser {
+impl<'a, 'b> NestedRuleParser<'a> {
   fn parse_nested_rules(&mut self, input: &mut Parser) -> CssRuleList {
     let nested_parser = NestedRuleParser {
-      nesting_requirement: NestingRequirement::None
+      nesting_requirement: NestingRequirement::None,
+      default_namespace: self.default_namespace,
+      namespace_prefixes: self.namespace_prefixes
     };
 
     let mut iter = RuleListParser::new_for_nested_rule(input, nested_parser);
@@ -201,7 +224,7 @@ impl<'a, 'b> NestedRuleParser {
   }
 }
 
-impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
+impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a> {
   type Prelude = AtRulePrelude;
   type AtRule = CssRule;
   type Error = ();
@@ -380,7 +403,7 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser {
   }
 }
 
-impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser {
+impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser<'a> {
   type Prelude = SelectorList<Selectors>;
   type QualifiedRule = CssRule;
   type Error = ();
@@ -389,7 +412,10 @@ impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser {
     &mut self,
     input: &mut Parser<'i, 't>,
   ) -> Result<Self::Prelude, ParseError<'i, Self::Error>> {
-    let selector_parser = SelectorParser {};
+    let selector_parser = SelectorParser {
+      default_namespace: self.default_namespace,
+      namespace_prefixes: self.namespace_prefixes
+    };
     match SelectorList::parse(&selector_parser, input, self.nesting_requirement) {
       Ok(x) => Ok(x),
       Err(_) => Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
@@ -403,7 +429,7 @@ impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser {
     input: &mut Parser<'i, 't>,
   ) -> Result<CssRule, ParseError<'i, Self::Error>> {
     let loc = start.source_location();
-    let (declarations, rules) = parse_declaration_list(input)?;
+    let (declarations, rules) = parse_declaration_list(input, self.default_namespace, self.namespace_prefixes)?;
     Ok(CssRule::Style(StyleRule {
       selectors,
       vendor_prefix: VendorPrefix::empty(),
@@ -420,11 +446,18 @@ pub enum DeclarationOrRule {
   Rule(CssRule)
 }
 
-fn parse_declaration_list<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(DeclarationBlock, CssRuleList), ParseError<'i, ()>> {
+fn parse_declaration_list<'a, 'i, 't>(
+  input: &mut Parser<'i, 't>,
+  default_namespace: &'a Option<String>,
+  namespace_prefixes: &'a HashMap<String, String>
+) -> Result<(DeclarationBlock, CssRuleList), ParseError<'i, ()>> {
   let mut declarations = vec![];
   let mut rules = vec![];
   loop {
-    let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser);
+    let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser {
+      default_namespace,
+      namespace_prefixes
+    });
     let mut last = parser.input.state();
     while let Some(decl) = parser.next() {
       println!("DECL {:?}", decl);
@@ -450,7 +483,9 @@ fn parse_declaration_list<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(Declara
     println!("BREAK {:?} {:?}", declarations, rules);
 
     let mut parser = NestedRuleParser {
-      nesting_requirement: NestingRequirement::Prefixed
+      nesting_requirement: NestingRequirement::Prefixed,
+      default_namespace,
+      namespace_prefixes
     };
 
     let mut parsed_one = false;
@@ -477,10 +512,13 @@ fn parse_declaration_list<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(Declara
   Ok((DeclarationBlock { declarations }, CssRuleList(rules)))
 }
 
-pub struct PropertyDeclarationParser;
+pub struct PropertyDeclarationParser<'a> {
+  default_namespace: &'a Option<String>,
+  namespace_prefixes: &'a HashMap<String, String>
+}
 
 /// Parse a declaration within {} block: `color: blue`
-impl<'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser {
+impl<'a, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a> {
   type Declaration = DeclarationOrRule;
   type Error = ();
 
@@ -493,7 +531,7 @@ impl<'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser {
   }
 }
 
-impl<'i> AtRuleParser<'i> for PropertyDeclarationParser {
+impl<'a, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a> {
   type Prelude = AtRulePrelude;
   type AtRule = DeclarationOrRule;
   type Error = ();
@@ -510,7 +548,10 @@ impl<'i> AtRuleParser<'i> for PropertyDeclarationParser {
         Ok(AtRulePrelude::Media(media))
       },
       "nest" => {
-        let selector_parser = SelectorParser {};
+        let selector_parser = SelectorParser {
+          default_namespace: self.default_namespace,
+          namespace_prefixes: self.namespace_prefixes
+        };
         // TODO: require nesting selector to be contained in every selector
         let selectors = match SelectorList::parse(&selector_parser, input, NestingRequirement::Contained) {
           Ok(x) => x,
@@ -531,7 +572,7 @@ impl<'i> AtRuleParser<'i> for PropertyDeclarationParser {
     let loc = start.source_location();
     match prelude {
       AtRulePrelude::Media(query) => {
-        let (declarations, mut rules) = parse_declaration_list(input)?;
+        let (declarations, mut rules) = parse_declaration_list(input, self.default_namespace, self.namespace_prefixes)?;
 
         println!("{:?}", declarations);
 
@@ -552,7 +593,7 @@ impl<'i> AtRuleParser<'i> for PropertyDeclarationParser {
         })))
       },
       AtRulePrelude::Nest(selectors) => {
-        let (declarations, rules) = parse_declaration_list(input)?;
+        let (declarations, rules) = parse_declaration_list(input, self.default_namespace, self.namespace_prefixes)?;
         Ok(DeclarationOrRule::Rule(CssRule::Nesting(NestingRule {
           style: StyleRule {
             selectors,

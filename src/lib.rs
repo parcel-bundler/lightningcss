@@ -4718,6 +4718,86 @@ mod tests {
     minify_test("@namespace \"http://toto.example.org\";", "@namespace \"http://toto.example.org\";");
     minify_test("@namespace toto \"http://toto.example.org\";", "@namespace toto \"http://toto.example.org\";");
     minify_test("@namespace toto url(http://toto.example.org);", "@namespace toto \"http://toto.example.org\";");
+
+    test(r#"
+      @namespace "http://example.com/foo";
+
+      x {
+        color: red;
+      }
+    "#, indoc! {r#"
+      @namespace "http://example.com/foo";
+
+      x {
+        color: red;
+      }
+    "#});
+
+    test(r#"
+      @namespace toto "http://toto.example.org";
+
+      toto|x {
+        color: red;
+      }
+
+      [toto|att=val] {
+        color: blue
+      }
+    "#, indoc! {r#"
+      @namespace toto "http://toto.example.org";
+      
+      toto|x {
+        color: red;
+      }
+
+      [toto|att="val"] {
+        color: #00f;
+      }
+    "#});
+
+    test(r#"
+      @namespace "http://example.com/foo";
+
+      |x {
+        color: red;
+      }
+
+      [|att=val] {
+        color: blue
+      }
+    "#, indoc! {r#"
+      @namespace "http://example.com/foo";
+      
+      |x {
+        color: red;
+      }
+
+      [att="val"] {
+        color: #00f;
+      }
+    "#});
+
+    test(r#"
+      @namespace "http://example.com/foo";
+
+      *|x {
+        color: red;
+      }
+
+      [*|att=val] {
+        color: blue
+      }
+    "#, indoc! {r#"
+      @namespace "http://example.com/foo";
+      
+      *|x {
+        color: red;
+      }
+
+      [*|att="val"] {
+        color: #00f;
+      }
+    "#});
   }
 
   #[test]
@@ -7078,14 +7158,48 @@ mod tests {
 
     test(
       r#"
+        @namespace "http://example.com/foo";
+        @namespace toto "http://toto.example.org";
+
         .foo {
           &div {
+            color: red;
+          }
+
+          &* {
+            color: red;
+          }
+
+          &|x {
+            color: red;
+          }
+
+          &*|x {
+            color: red;
+          }
+
+          &toto|x {
             color: red;
           }
         }
       "#,
       indoc!{r#"
+        @namespace "http://example.com/foo";
+        @namespace toto "http://toto.example.org";
+
         div.foo {
+          color: red;
+        }
+        *.foo {
+          color: red;
+        }
+        |x.foo {
+          color: red;
+        }
+        *|x.foo {
+          color: red;
+        }
+        toto|x.foo {
           color: red;
         }
       "#}
@@ -7108,14 +7222,60 @@ mod tests {
 
     test(
       r#"
+        @namespace "http://example.com/foo";
+        @namespace toto "http://toto.example.org";
+
         div {
+          @nest .foo& {
+            color: red;
+          }
+        }
+
+        * {
+          @nest .foo& {
+            color: red;
+          }
+        }
+
+        |x {
+          @nest .foo& {
+            color: red;
+          }
+        }
+
+        *|x {
+          @nest .foo& {
+            color: red;
+          }
+        }
+
+        toto|x {
           @nest .foo& {
             color: red;
           }
         }
       "#,
       indoc!{r#"
+        @namespace "http://example.com/foo";
+        @namespace toto "http://toto.example.org";
+
         .foo:is(div) {
+          color: red;
+        }
+
+        .foo:is(*) {
+          color: red;
+        }
+
+        .foo:is(|x) {
+          color: red;
+        }
+
+        .foo:is(*|x) {
+          color: red;
+        }
+
+        .foo:is(toto|x) {
           color: red;
         }
       "#}

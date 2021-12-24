@@ -17,7 +17,7 @@ impl StyleSheet {
   pub fn parse<'i>(filename: String, code: &'i str) -> Result<StyleSheet, ParseError<'i, ()>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
-    let rule_list_parser = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser {});
+    let rule_list_parser = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new());
 
     let mut rules = vec![];
     for rule in rule_list_parser {
@@ -54,16 +54,18 @@ impl StyleSheet {
 
     let mut printer = Printer::new(&mut dest, source_map.as_mut(), minify, targets);
     let mut first = true;
+    let mut last_without_block = false;
 
     for rule in &self.rules.0 {
       if first {
         first = false;
-      } else {
+      } else if !(last_without_block && matches!(rule, CssRule::Import(..) | CssRule::Namespace(..))) {
         printer.newline()?;
       }
   
       rule.to_css(&mut printer)?;
       printer.newline()?;
+      last_without_block = matches!(rule, CssRule::Import(..) | CssRule::Namespace(..));
     }
 
     Ok((dest, source_map))
