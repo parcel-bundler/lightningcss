@@ -39,7 +39,6 @@ impl<'b> TopLevelRuleParser {
 
   fn nested<'a: 'b>(&'a mut self) -> NestedRuleParser {
       NestedRuleParser {
-        nesting_requirement: NestingRequirement::None,
         default_namespace: &mut self.default_namespace,
         namespace_prefixes: &mut self.namespace_prefixes
       }
@@ -195,7 +194,6 @@ impl<'a, 'i> QualifiedRuleParser<'i> for TopLevelRuleParser {
 
 #[derive(Clone)]
 struct NestedRuleParser<'a> {
-  nesting_requirement: NestingRequirement,
   default_namespace: &'a Option<String>,
   namespace_prefixes: &'a HashMap<String, String>
 }
@@ -203,7 +201,6 @@ struct NestedRuleParser<'a> {
 impl<'a, 'b> NestedRuleParser<'a> {
   fn parse_nested_rules(&mut self, input: &mut Parser) -> CssRuleList {
     let nested_parser = NestedRuleParser {
-      nesting_requirement: NestingRequirement::None,
       default_namespace: self.default_namespace,
       namespace_prefixes: self.namespace_prefixes
     };
@@ -416,7 +413,7 @@ impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser<'a> {
       default_namespace: self.default_namespace,
       namespace_prefixes: self.namespace_prefixes
     };
-    match SelectorList::parse(&selector_parser, input, self.nesting_requirement) {
+    match SelectorList::parse(&selector_parser, input, NestingRequirement::None) {
       Ok(x) => Ok(x),
       Err(_) => Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
     }
@@ -453,59 +450,42 @@ fn parse_declaration_list<'a, 'i, 't>(
 ) -> Result<(DeclarationBlock, CssRuleList), ParseError<'i, ()>> {
   let mut declarations = vec![];
   let mut rules = vec![];
-  loop {
-    let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser {
-      default_namespace,
-      namespace_prefixes
-    });
-    let mut last = parser.input.state();
-    while let Some(decl) = parser.next() {
-      println!("DECL {:?}", decl);
-      match decl {
-        Ok(DeclarationOrRule::Declaration(decl)) => {
-          if rules.len() > 0 {
-            // Declarations cannot come after nested rules.
-            return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
-          }
+  let parser = PropertyDeclarationParser {
+    default_namespace,
+    namespace_prefixes
+  };
 
-          declarations.push(decl);
+  let mut declaration_parser = DeclarationListParser::new(input, parser);
+  let mut last = declaration_parser.input.state();
+  while let Some(decl) = declaration_parser.next() {
+    match decl {
+      Ok(DeclarationOrRule::Declaration(decl)) => {
+        if rules.len() > 0 {
+          // Declarations cannot come after nested rules.
+          return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
         }
-        Ok(DeclarationOrRule::Rule(rule)) => rules.push(rule),
-        _ => {
-          parser.input.reset(&last);
-          break
-        }
+
+        declarations.push(decl);
       }
-
-      last = parser.input.state();
-    }
-
-    println!("BREAK {:?} {:?}", declarations, rules);
-
-    let mut parser = NestedRuleParser {
-      nesting_requirement: NestingRequirement::Prefixed,
-      default_namespace,
-      namespace_prefixes
-    };
-
-    let mut parsed_one = false;
-    loop {
-      println!("HERE");
-      let state = input.state();
-      let rule = parse_qualified_rule(input, &mut parser);
-      if let Ok(rule) = rule {
-        println!("RULE {:?}", rule);
-        rules.push(rule);
-        parsed_one = true;
-      } else {
-        println!("ERR {:?}", rule);
-        input.reset(&state);
+      Ok(DeclarationOrRule::Rule(rule)) => rules.push(rule),
+      _ => {
+        declaration_parser.input.reset(&last);
         break
       }
     }
 
-    if !parsed_one {
-      break
+    last = declaration_parser.input.state();
+  }
+
+  let mut iter = RuleListParser::new_for_nested_rule(declaration_parser.input, declaration_parser.parser);
+  while let Some(result) = iter.next() {
+    match result {
+      Ok(DeclarationOrRule::Rule(CssRule::Ignored)) => {},
+      Ok(DeclarationOrRule::Rule(rule)) => rules.push(rule),
+      Ok(DeclarationOrRule::Declaration(_)) => unreachable!(),
+      Err(_) => {
+        // TODO
+      },
     }
   }
 
@@ -541,7 +521,6 @@ impl<'a, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a> {
     name: CowRcStr<'i>,
     input: &mut Parser<'i, 't>,
   ) -> Result<AtRulePrelude, ParseError<'i, Self::Error>> {
-    println!("{:?}", name);
     match_ignore_ascii_case! { &*name,
       "media" => {
         let media = MediaList::parse(input);
@@ -552,7 +531,6 @@ impl<'a, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a> {
           default_namespace: self.default_namespace,
           namespace_prefixes: self.namespace_prefixes
         };
-        // TODO: require nesting selector to be contained in every selector
         let selectors = match SelectorList::parse(&selector_parser, input, NestingRequirement::Contained) {
           Ok(x) => x,
           Err(_) => return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
@@ -573,8 +551,6 @@ impl<'a, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a> {
     match prelude {
       AtRulePrelude::Media(query) => {
         let (declarations, mut rules) = parse_declaration_list(input, self.default_namespace, self.namespace_prefixes)?;
-
-        println!("{:?}", declarations);
 
         if declarations.declarations.len() > 0 {
           rules.0.insert(0, CssRule::Style(StyleRule {
@@ -613,30 +589,43 @@ impl<'a, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a> {
   }
 }
 
-fn starts_with_ignore_ascii_case(string: &str, prefix: &str) -> bool {
-  string.len() >= prefix.len() && string.as_bytes()[0..prefix.len()].eq_ignore_ascii_case(prefix.as_bytes())
+impl<'a, 'b, 'i> QualifiedRuleParser<'i> for PropertyDeclarationParser<'a> {
+  type Prelude = SelectorList<Selectors>;
+  type QualifiedRule = DeclarationOrRule;
+  type Error = ();
+
+  fn parse_prelude<'t>(
+    &mut self,
+    input: &mut Parser<'i, 't>,
+  ) -> Result<Self::Prelude, ParseError<'i, Self::Error>> {
+    let selector_parser = SelectorParser {
+      default_namespace: self.default_namespace,
+      namespace_prefixes: self.namespace_prefixes
+    };
+    match SelectorList::parse(&selector_parser, input, NestingRequirement::Prefixed) {
+      Ok(x) => Ok(x),
+      Err(_) => Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+    }
+  }
+
+  fn parse_block<'t>(
+    &mut self,
+    selectors: Self::Prelude,
+    start: &ParserState,
+    input: &mut Parser<'i, 't>,
+  ) -> Result<DeclarationOrRule, ParseError<'i, Self::Error>> {
+    let loc = start.source_location();
+    let (declarations, rules) = parse_declaration_list(input, self.default_namespace, self.namespace_prefixes)?;
+    Ok(DeclarationOrRule::Rule(CssRule::Style(StyleRule {
+      selectors,
+      vendor_prefix: VendorPrefix::empty(),
+      declarations,
+      rules,
+      loc
+    })))
+  }
 }
 
-// copied from cssparser
-fn parse_qualified_rule<'i, 't, P, E>(
-  input: &mut Parser<'i, 't>,
-  parser: &mut P,
-) -> Result<<P as QualifiedRuleParser<'i>>::QualifiedRule, ParseError<'i, E>>
-where
-  P: QualifiedRuleParser<'i, Error = E>,
-{
-  let start = input.state();
-  // FIXME: https://github.com/servo/rust-cssparser/issues/254
-  let callback = |input: &mut Parser<'i, '_>| parser.parse_prelude(input);
-  let prelude = input.parse_until_before(Delimiter::CurlyBracketBlock, callback);
-  match *input.next()? {
-      Token::CurlyBracketBlock => {
-          // Do this here so that we consume the `{` even if the prelude is `Err`.
-          let prelude = prelude?;
-          // FIXME: https://github.com/servo/rust-cssparser/issues/254
-          let callback = |input: &mut Parser<'i, '_>| parser.parse_block(prelude, &start, input);
-          input.parse_nested_block(callback)
-      }
-      _ => unreachable!(),
-  }
+fn starts_with_ignore_ascii_case(string: &str, prefix: &str) -> bool {
+  string.len() >= prefix.len() && string.as_bytes()[0..prefix.len()].eq_ignore_ascii_case(prefix.as_bytes())
 }

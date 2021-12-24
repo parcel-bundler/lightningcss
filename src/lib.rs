@@ -7325,5 +7325,49 @@ mod tests {
         }
       "#}
     );
+
+    test(
+      r#"
+        .foo {
+          @nest :not(&) {
+            color: red;
+          }
+
+          & h1 {
+            background: green;
+          }
+        }
+      "#,
+      indoc!{r#"
+        :not(.foo) {
+          color: red;
+        }
+        .foo h1 {
+          background: green;
+        }
+      "#}
+    );
+
+    test(
+      r#"
+        .foo {
+          & h1 {
+            background: green;
+          }
+
+          @nest :not(&) {
+            color: red;
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo h1 {
+          background: green;
+        }
+        :not(.foo) {
+          color: red;
+        }
+      "#}
+    );
   }
 }
