@@ -11,22 +11,10 @@ function loadPlaygroundState() {
     reflectPlaygroundState(playgroundState);
   } catch {
     const initialPlaygroundState = {
-      minify: true,
-      nesting: true,
-      targets: {
-        chrome: 95 << 16,
-      },
-      source: `.foo {
-  background: yellow;
-      
-  -webkit-border-radius: 2px;
-  -moz-border-radius: 2px;
-  border-radius: 2px;
-  
-  -webkit-transition: background 200ms;
-  -moz-transition: background 200ms;
-  transition: background 200ms;
-}`,
+      minify: minify.checked,
+      nesting: nesting.checked,
+      targets: getTargets(),
+      source: source.value,
     };
 
     reflectPlaygroundState(initialPlaygroundState);
