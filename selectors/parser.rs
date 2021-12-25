@@ -111,6 +111,7 @@ bitflags! {
         /// Whether we explicitly disallow pseudo-element-like things.
         const DISALLOW_PSEUDOS = 1 << 6;
 
+        /// Whether we have seen a nesting selector.
         const AFTER_NESTING = 1 << 7;
     }
 }

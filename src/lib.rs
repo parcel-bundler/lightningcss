@@ -22,7 +22,7 @@ mod tests {
   use indoc::indoc;
 
   fn test(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true }).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
     stylesheet.minify(None);
     let (res, _) = stylesheet.to_css(false, false, None).unwrap();
     assert_eq!(res, expected);
@@ -46,6 +46,13 @@ mod tests {
     let mut attr = StyleAttribute::parse(source).unwrap();
     attr.minify(None);
     let res = attr.to_css(minify, None).unwrap();
+    assert_eq!(res, expected);
+  }
+
+  fn nesting_test(source: &str, expected: &str) {
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true }).unwrap();
+    stylesheet.minify(None);
+    let (res, _) = stylesheet.to_css(false, false, None).unwrap();
     assert_eq!(res, expected);
   }
 
@@ -6867,7 +6874,7 @@ mod tests {
 
   #[test]
   fn test_nesting() {
-    test(
+    nesting_test(
       r#"
         .foo {
           color: blue;
@@ -6884,7 +6891,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         .foo {
           color: blue;
@@ -6901,7 +6908,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         .foo, .bar {
           color: blue;
@@ -6918,7 +6925,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         .foo {
           color: blue;
@@ -6935,7 +6942,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         .foo {
           color: blue;
@@ -6952,7 +6959,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         .foo {
           color: blue;
@@ -6969,7 +6976,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         .error, .invalid {
           &:hover > .baz { color: red; }
@@ -6982,7 +6989,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         .foo {
           &:is(.bar, &.baz) { color: red; }
@@ -6995,7 +7002,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         figure {
           margin: 0;
@@ -7022,7 +7029,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         .foo {
           color: red;
@@ -7041,7 +7048,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         .foo {
           color: red;
@@ -7060,7 +7067,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         .foo {
           color: red;
@@ -7079,7 +7086,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         .foo {
           color: blue;
@@ -7104,7 +7111,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         .foo {
           display: grid;
@@ -7126,7 +7133,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         .foo {
           display: grid;
@@ -7157,7 +7164,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         .foo {
           display: grid;
@@ -7179,7 +7186,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         @namespace "http://example.com/foo";
         @namespace toto "http://toto.example.org";
@@ -7228,7 +7235,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         .foo {
           &article > figure {
@@ -7243,7 +7250,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         @namespace "http://example.com/foo";
         @namespace toto "http://toto.example.org";
@@ -7304,7 +7311,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         div {
           &.bar {
@@ -7319,7 +7326,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         div > .foo {
           &span {
@@ -7334,7 +7341,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         .foo {
           & h1 {
@@ -7349,7 +7356,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         .foo {
           @nest :not(&) {
@@ -7371,7 +7378,7 @@ mod tests {
       "#}
     );
 
-    test(
+    nesting_test(
       r#"
         .foo {
           & h1 {

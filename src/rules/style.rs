@@ -66,27 +66,15 @@ impl ToCssWithContext for StyleRule {
 impl StyleRule {
   fn to_css_base<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write {
     let has_declarations = self.declarations.declarations.len() > 0 || self.rules.0.is_empty();
+
+    // If there are any declarations in the rule, or no child rules, write the parent.
     if self.declarations.declarations.len() > 0 || self.rules.0.is_empty() {
       dest.add_mapping(self.loc);
       self.selectors.to_css_with_context(dest, context)?;
       self.declarations.to_css(dest)?;
     }
-    // dest.whitespace()?;
-    // dest.write_char('{')?;
-    // dest.indent();
-    // let len = self.declarations.declarations.len();
-    // for (i, decl) in self.declarations.declarations.iter().enumerate() {
-    //   dest.newline()?;
-    //   decl.to_css(dest)?;
-    //   if i != len - 1 || !dest.minify {
-    //     dest.write_char(';')?;
-    //   }
-    // }
 
-    // if self.rules.0.len() > 0 {
-    //   dest.newline()?;
-    // }
-
+    // Write nested rules after the parent.
     let mut newline = has_declarations;
     for rule in &self.rules.0 {
       if newline {
@@ -98,10 +86,7 @@ impl StyleRule {
       }))?;
       newline = true;
     }
-
-    // dest.dedent();
-    // dest.newline()?;
-    // dest.write_char('}')
+    
     Ok(())
   }
 }
