@@ -10,7 +10,14 @@ export interface TransformOptions {
   /** Whether to output a source map. */
   source_map?: boolean,
   /** The browser targets for the generated code. */
-  targets?: Targets
+  targets?: Targets,
+  /** Whether to enable various draft syntax. */
+  drafts?: Drafts
+}
+
+export interface Drafts {
+  /** Whether to enable CSS nesting. */
+  nesting?: boolean
 }
 
 export interface TransformResult {

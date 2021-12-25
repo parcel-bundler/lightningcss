@@ -12,6 +12,7 @@ function loadPlaygroundState() {
   } catch {
     const initialPlaygroundState = {
       minify: true,
+      nesting: true,
       targets: {
         chrome: 95 << 16,
       },
@@ -37,6 +38,10 @@ function reflectPlaygroundState(playgroundState) {
     minify.checked = playgroundState.minify;
   }
 
+  if (typeof playgroundState.nesting !== 'undefined') {
+    nesting.checked = playgroundState.nesting;
+  }
+
   if (playgroundState.targets) {
     const {targets} = playgroundState;
     for (const target in targets) {
@@ -59,6 +64,7 @@ function reflectPlaygroundState(playgroundState) {
 function savePlaygroundState() {
   const playgroundState = {
     minify: minify.checked,
+    nesting: nesting.checked,
     targets: getTargets(),
     source: source.value,
   };
@@ -98,6 +104,9 @@ async function update() {
     code: enc.encode(source.value),
     minify: minify.checked,
     targets: Object.keys(targets).length === 0 ? null : targets,
+    drafts: {
+      nesting: nesting.checked
+    }
   });
 
   compiled.value = dec.decode(res.code);
