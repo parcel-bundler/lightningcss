@@ -64,7 +64,7 @@ impl ToCssWithContext for CssRule {
       CssRule::Keyframes(keyframes) => keyframes.to_css(dest),
       CssRule::FontFace(font_face) => font_face.to_css(dest),
       CssRule::Page(font_face) => font_face.to_css(dest),
-      CssRule::Supports(supports) => supports.to_css(dest),
+      CssRule::Supports(supports) => supports.to_css_with_context(dest, context),
       CssRule::CounterStyle(counter_style) => counter_style.to_css(dest),
       CssRule::Namespace(namespace) => namespace.to_css(dest),
       CssRule::MozDocument(document) => document.to_css(dest),
@@ -132,11 +132,11 @@ impl CssRuleList {
 
           if let Some(CssRule::Style(last_style_rule)) = rules.last_mut() {
             // Merge declarations if the selectors are equivalent, and both are compatible with all targets.
-            if style.selectors == last_style_rule.selectors && style.is_compatible(targets) && last_style_rule.is_compatible(targets) {
+            if style.selectors == last_style_rule.selectors && style.is_compatible(targets) && last_style_rule.is_compatible(targets) && style.rules.0.is_empty() && last_style_rule.rules.0.is_empty() {
               last_style_rule.declarations.declarations.extend(style.declarations.declarations.drain(..));
               last_style_rule.declarations.minify(handler, important_handler);
               continue
-            } else if style.declarations == last_style_rule.declarations {
+            } else if style.declarations == last_style_rule.declarations && style.rules.0.is_empty() && last_style_rule.rules.0.is_empty() {
               // Append the selectors to the last rule if the declarations are the same, and all selectors are compatible.
               if style.is_compatible(targets) && last_style_rule.is_compatible(targets) {
                 last_style_rule.selectors.0.extend(style.selectors.0.drain(..));

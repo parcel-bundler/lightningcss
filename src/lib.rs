@@ -7159,6 +7159,28 @@ mod tests {
 
     test(
       r#"
+        .foo {
+          display: grid;
+        
+          @supports (foo: bar) {
+            grid-auto-flow: column;
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          display: grid;
+        }
+        @supports (foo: bar) {
+          .foo {
+            grid-auto-flow: column;
+          }
+        }
+      "#}
+    );
+
+    test(
+      r#"
         @namespace "http://example.com/foo";
         @namespace toto "http://toto.example.org";
 

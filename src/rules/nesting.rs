@@ -1,10 +1,6 @@
 use cssparser::SourceLocation;
-use crate::media_query::MediaList;
-use crate::traits::ToCss;
 use crate::printer::Printer;
-use super::CssRuleList;
 use crate::declaration::DeclarationHandler;
-use crate::targets::Browsers;
 use super::style::StyleRule;
 use crate::rules::{ToCssWithContext, StyleContext};
 

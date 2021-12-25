@@ -541,6 +541,10 @@ impl<'a, 'i> AtRuleParser<'i> for StyleRuleParser<'a> {
         let media = MediaList::parse(input);
         Ok(AtRulePrelude::Media(media))
       },
+      "supports" => {
+        let cond = SupportsCondition::parse(input)?;
+        Ok(AtRulePrelude::Supports(cond))
+      },
       "nest" => {
         let selector_parser = SelectorParser {
           default_namespace: self.default_namespace,
@@ -566,23 +570,16 @@ impl<'a, 'i> AtRuleParser<'i> for StyleRuleParser<'a> {
     let loc = start.source_location();
     match prelude {
       AtRulePrelude::Media(query) => {
-        // Declarations can be immediately within @media blocks that are nested within a parent style rule.
-        // These act the same way as if they were nested within a `& { ... }` block.
-        let (declarations, mut rules) = parse_declarations_and_nested_rules(input, self.default_namespace, self.namespace_prefixes)?;
-
-        if declarations.declarations.len() > 0 {
-          rules.0.insert(0, CssRule::Style(StyleRule {
-            selectors: SelectorList(smallvec::smallvec![parcel_selectors::parser::Selector::from_vec2(vec![parcel_selectors::parser::Component::Nesting])]),
-            declarations,
-            vendor_prefix: VendorPrefix::empty(),
-            rules: CssRuleList(vec![]),
-            loc: loc.clone()
-          }))
-        }
-        
         Ok(DeclarationOrRule::Rule(CssRule::Media(MediaRule {
           query,
-          rules,
+          rules: parse_nested_at_rule(input, self.default_namespace, self.namespace_prefixes)?,
+          loc
+        })))
+      },
+      AtRulePrelude::Supports(condition) => {
+        Ok(DeclarationOrRule::Rule(CssRule::Supports(SupportsRule {
+          condition,
+          rules: parse_nested_at_rule(input, self.default_namespace, self.namespace_prefixes)?,
           loc
         })))
       },
@@ -605,6 +602,31 @@ impl<'a, 'i> AtRuleParser<'i> for StyleRuleParser<'a> {
       }
     }
   }
+}
+
+#[inline]
+fn parse_nested_at_rule<'a, 'i, 't>(
+  input: &mut Parser<'i, 't>,
+  default_namespace: &'a Option<String>,
+  namespace_prefixes: &'a HashMap<String, String>
+) -> Result<CssRuleList, ParseError<'i, ()>> {
+  let loc = input.current_source_location();
+
+  // Declarations can be immediately within @media and @supports blocks that are nested within a parent style rule.
+  // These act the same way as if they were nested within a `& { ... }` block.
+  let (declarations, mut rules) = parse_declarations_and_nested_rules(input, default_namespace, namespace_prefixes)?;
+
+  if declarations.declarations.len() > 0 {
+    rules.0.insert(0, CssRule::Style(StyleRule {
+      selectors: SelectorList(smallvec::smallvec![parcel_selectors::parser::Selector::from_vec2(vec![parcel_selectors::parser::Component::Nesting])]),
+      declarations,
+      vendor_prefix: VendorPrefix::empty(),
+      rules: CssRuleList(vec![]),
+      loc
+    }))
+  }
+
+  Ok(rules)
 }
 
 impl<'a, 'b, 'i> QualifiedRuleParser<'i> for StyleRuleParser<'a> {
