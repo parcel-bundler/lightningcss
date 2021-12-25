@@ -66,7 +66,8 @@ impl SelectorImpl for Selectors {
 
 pub struct SelectorParser<'a> {
   pub default_namespace: &'a Option<String>,
-  pub namespace_prefixes: &'a HashMap<String, String>
+  pub namespace_prefixes: &'a HashMap<String, String>,
+  pub is_nesting_allowed: bool
 }
 
 impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a> {
@@ -224,6 +225,11 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a> {
 
   fn namespace_for_prefix(&self, prefix: &SelectorIdent) -> Option<SelectorIdent> {
     self.namespace_prefixes.get(&prefix.0).cloned().map(SelectorIdent)
+  }
+
+  #[inline]
+  fn is_nesting_allowed(&self) -> bool {
+    self.is_nesting_allowed
   }
 }
 

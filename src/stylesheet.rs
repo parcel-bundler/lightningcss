@@ -8,16 +8,18 @@ use crate::targets::Browsers;
 use crate::declaration::{DeclarationHandler, DeclarationBlock};
 use crate::traits::Parse;
 
+pub use crate::parser::ParserOptions;
+
 pub struct StyleSheet {
   pub filename: String,
   pub rules: CssRuleList
 }
 
 impl StyleSheet {
-  pub fn parse<'i>(filename: String, code: &'i str) -> Result<StyleSheet, ParseError<'i, ()>> {
+  pub fn parse<'i>(filename: String, code: &'i str, options: ParserOptions) -> Result<StyleSheet, ParseError<'i, ()>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
-    let rule_list_parser = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new());
+    let rule_list_parser = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(options));
 
     let mut rules = vec![];
     for rule in rule_list_parser {

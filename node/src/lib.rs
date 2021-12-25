@@ -3,7 +3,7 @@
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 use serde::{Serialize, Deserialize};
-use parcel_css::stylesheet::{StyleSheet, StyleAttribute};
+use parcel_css::stylesheet::{StyleSheet, StyleAttribute, ParserOptions};
 use parcel_css::targets::Browsers;
 
 // ---------------------------------------------
@@ -103,11 +103,23 @@ struct Config {
   pub code: Vec<u8>,
   pub targets: Option<Browsers>,
   pub minify: Option<bool>,
-  pub source_map: Option<bool>
+  pub source_map: Option<bool>,
+  pub drafts: Option<Drafts>
+}
+
+#[derive(Serialize, Debug, Deserialize, Default)]
+struct Drafts {
+  nesting: bool
 }
 
 fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, CompileError<'i>> {
-  let mut stylesheet = StyleSheet::parse(config.filename.clone(), &code)?;
+  let options = config.drafts.as_ref();
+  let mut stylesheet = StyleSheet::parse(config.filename.clone(), &code, ParserOptions {
+    nesting: match options {
+      Some(o) => o.nesting,
+      None => false
+    }
+  })?;
   stylesheet.minify(config.targets); // TODO: should this be conditional?
   let (res, source_map) = stylesheet.to_css(
     config.minify.unwrap_or(false),

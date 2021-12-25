@@ -17,25 +17,26 @@ pub mod targets;
 #[cfg(test)]
 mod tests {
   use crate::stylesheet::*;
+  use crate::parser::ParserOptions;
   use crate::targets::Browsers;
   use indoc::indoc;
 
   fn test(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true }).unwrap();
     stylesheet.minify(None);
     let (res, _) = stylesheet.to_css(false, false, None).unwrap();
     assert_eq!(res, expected);
   }
 
   fn minify_test(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
     stylesheet.minify(None);
     let (res, _) = stylesheet.to_css(true, false, None).unwrap();
     assert_eq!(res, expected);
   }
 
   fn prefix_test(source: &str, expected: &str, targets: Browsers) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
     stylesheet.minify(Some(targets));
     let (res, _) = stylesheet.to_css(false, false, Some(targets)).unwrap();
     assert_eq!(res, expected);
