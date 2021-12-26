@@ -6896,6 +6896,7 @@ mod tests {
         .foo {
           color: #00f;
         }
+
         .foo > .bar {
           color: red;
         }
@@ -6913,6 +6914,7 @@ mod tests {
         .foo {
           color: #00f;
         }
+
         .foo.bar {
           color: red;
         }
@@ -6930,6 +6932,7 @@ mod tests {
         .foo, .bar {
           color: #00f;
         }
+
         :is(.foo, .bar) + .baz, :is(.foo, .bar).qux {
           color: red;
         }
@@ -6947,6 +6950,7 @@ mod tests {
         .foo {
           color: #00f;
         }
+
         .foo .bar .foo .baz .foo .qux {
           color: red;
         }
@@ -6964,6 +6968,7 @@ mod tests {
         .foo {
           color: #00f;
         }
+
         .foo {
           padding: 2ch;
         }
@@ -6981,6 +6986,7 @@ mod tests {
         .foo {
           color: #00f;
         }
+
         .foo.foo {
           padding: 2ch;
         }
@@ -7031,9 +7037,11 @@ mod tests {
         figure {
           margin: 0;
         }
+
         figure > figcaption {
           background: #00000080;
         }
+
         figure > figcaption > p {
           font-size: .9rem;
         }
@@ -7053,6 +7061,7 @@ mod tests {
         .foo {
           color: red;
         }
+
         .foo > .bar {
           color: #00f;
         }
@@ -7072,6 +7081,7 @@ mod tests {
         .foo {
           color: red;
         }
+
         .parent .foo {
           color: #00f;
         }
@@ -7091,6 +7101,7 @@ mod tests {
         .foo {
           color: red;
         }
+
         :not(.foo) {
           color: #00f;
         }
@@ -7113,9 +7124,11 @@ mod tests {
         .foo {
           color: #00f;
         }
+
         .bar .foo {
           color: red;
         }
+
         .bar .foo.baz {
           color: green;
         }
@@ -7136,6 +7149,7 @@ mod tests {
         .foo {
           display: grid;
         }
+
         @media (orientation: landscape) {
           .foo {
             grid-auto-flow: column;
@@ -7162,10 +7176,12 @@ mod tests {
         .foo {
           display: grid;
         }
+
         @media (orientation: landscape) {
           .foo {
             grid-auto-flow: column;
           }
+
           @media (min-width: 1024px) {
             .foo {
               max-inline-size: 1024px;
@@ -7189,6 +7205,7 @@ mod tests {
         .foo {
           display: grid;
         }
+
         @supports (foo: bar) {
           .foo {
             grid-auto-flow: column;
@@ -7231,15 +7248,19 @@ mod tests {
         div.foo {
           color: red;
         }
+
         *.foo {
           color: red;
         }
+
         |x.foo {
           color: red;
         }
+
         *|x.foo {
           color: red;
         }
+
         toto|x.foo {
           color: red;
         }
@@ -7383,6 +7404,7 @@ mod tests {
         :not(.foo) {
           color: red;
         }
+
         .foo h1 {
           background: green;
         }
@@ -7405,6 +7427,7 @@ mod tests {
         .foo h1 {
           background: green;
         }
+
         :not(.foo) {
           color: red;
         }
@@ -7445,6 +7468,10 @@ mod tests {
           &div {
             color: red;
           }
+
+          &span {
+            color: purple;
+          }
         }
       "#,
       indoc!{r#"
@@ -7453,6 +7480,10 @@ mod tests {
 
           &div {
             color: red;
+          }
+
+          &span {
+            color: purple;
           }
         }
       "#}

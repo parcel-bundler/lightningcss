@@ -67,7 +67,7 @@ impl ToCssWithContext for StyleRule {
 impl StyleRule {
   fn to_css_base<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write {
     // If supported, or there are no targets, preserve nesting. Otherwise, write nested rules after parent.
-    if !self.rules.0.is_empty() && (dest.targets.is_none() || Feature::CssNesting.is_compatible(dest.targets.unwrap())) {
+    if self.rules.0.is_empty() || (dest.targets.is_none() || Feature::CssNesting.is_compatible(dest.targets.unwrap())) {
       dest.add_mapping(self.loc);
       self.selectors.to_css_with_context(dest, context)?;
       dest.whitespace()?;
@@ -82,14 +82,12 @@ impl StyleRule {
         }
       }
 
-      if self.rules.0.len() > 0 && !dest.minify {
+      if !dest.minify && len > 0 && !self.rules.0.is_empty() {
         dest.write_char('\n')?;
+        dest.newline()?;
       }
 
-      for rule in &self.rules.0 {
-        dest.newline()?;
-        rule.to_css(dest)?;
-      }
+      self.rules.to_css(dest)?;
 
       dest.dedent();
       dest.newline()?;
@@ -102,20 +100,17 @@ impl StyleRule {
         dest.add_mapping(self.loc);
         self.selectors.to_css_with_context(dest, context)?;
         self.declarations.to_css(dest)?;
+        if !dest.minify && !self.rules.0.is_empty() {
+          dest.write_char('\n')?;
+          dest.newline()?;
+        }
       }
 
       // Write nested rules after the parent.
-      let mut newline = has_declarations;
-      for rule in &self.rules.0 {
-        if newline {
-          dest.newline()?;
-        }
-        rule.to_css_with_context(dest, Some(&StyleContext {
-          rule: self,
-          parent: context
-        }))?;
-        newline = true;
-      }
+      self.rules.to_css_with_context(dest, Some(&StyleContext {
+        rule: self,
+        parent: context
+      }))?;
     }
     
     Ok(())

@@ -171,3 +171,31 @@ impl CssRuleList {
     self.0 = rules;
   }
 }
+
+impl ToCss for CssRuleList {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    self.to_css_with_context(dest, None)
+  }
+}
+
+impl ToCssWithContext for CssRuleList {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write {
+    let mut first = true;
+    let mut last_without_block = false;
+
+    for rule in &self.0 {
+      if first {
+        first = false;
+      } else {
+        if !dest.minify && !(last_without_block && matches!(rule, CssRule::Import(..) | CssRule::Namespace(..))) {
+          dest.write_char('\n')?;
+        }
+        dest.newline()?;
+      }
+      rule.to_css_with_context(dest, context)?;
+      last_without_block = matches!(rule, CssRule::Import(..) | CssRule::Namespace(..));
+    }
+
+    Ok(())
+  }
+}

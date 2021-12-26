@@ -28,10 +28,8 @@ impl ToCssWithContext for MediaRule {
     dest.whitespace()?;
     dest.write_char('{')?;
     dest.indent();
-    for rule in self.rules.0.iter() {
-      dest.newline()?;
-      rule.to_css_with_context(dest, context)?;
-    }
+    dest.newline()?;
+    self.rules.to_css_with_context(dest, context)?;
     dest.dedent();
     dest.newline()?;
     dest.write_char('}')

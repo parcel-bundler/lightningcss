@@ -55,20 +55,8 @@ impl StyleSheet {
     };
 
     let mut printer = Printer::new(&mut dest, source_map.as_mut(), minify, targets);
-    let mut first = true;
-    let mut last_without_block = false;
-
-    for rule in &self.rules.0 {
-      if first {
-        first = false;
-      } else if !(last_without_block && matches!(rule, CssRule::Import(..) | CssRule::Namespace(..))) {
-        printer.newline()?;
-      }
-  
-      rule.to_css(&mut printer)?;
-      printer.newline()?;
-      last_without_block = matches!(rule, CssRule::Import(..) | CssRule::Namespace(..));
-    }
+    self.rules.to_css(&mut printer)?;
+    printer.newline()?;
 
     Ok((dest, source_map))
   }
