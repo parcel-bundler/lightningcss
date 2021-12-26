@@ -346,6 +346,9 @@ where
             Component::Namespace(..) => {
                 // Does not affect specificity
             },
+            Component::Nesting => {
+                // TODO
+            }
         }
     }
 

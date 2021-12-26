@@ -7,6 +7,8 @@ use crate::traits::ToCss;
 use crate::compat::Feature;
 use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
+use crate::rules::{ToCssWithContext, StyleContext};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Selectors;
@@ -32,7 +34,7 @@ impl SelectorString {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
 pub struct SelectorIdent(pub String);
 
 impl<'a> std::convert::From<&'a str> for SelectorIdent {
@@ -62,8 +64,13 @@ impl SelectorImpl for Selectors {
   type ExtraMatchingData = ();
 }
 
-pub struct SelectorParser;
-impl<'i> parcel_selectors::parser::Parser<'i> for SelectorParser {
+pub struct SelectorParser<'a> {
+  pub default_namespace: &'a Option<String>,
+  pub namespace_prefixes: &'a HashMap<String, String>,
+  pub is_nesting_allowed: bool
+}
+
+impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a> {
   type Impl = Selectors;
   type Error = parcel_selectors::parser::SelectorParseErrorKind<'i>;
 
@@ -211,6 +218,19 @@ impl<'i> parcel_selectors::parser::Parser<'i> for SelectorParser {
   fn parse_part(&self) -> bool {
     true
   }
+
+  fn default_namespace(&self) -> Option<SelectorIdent> {
+    self.default_namespace.clone().map(SelectorIdent)
+  }
+
+  fn namespace_for_prefix(&self, prefix: &SelectorIdent) -> Option<SelectorIdent> {
+    self.namespace_prefixes.get(&prefix.0).cloned().map(SelectorIdent)
+  }
+
+  #[inline]
+  fn is_nesting_allowed(&self) -> bool {
+    self.is_nesting_allowed
+  }
 }
 
 /// https://drafts.csswg.org/selectors-4/#structural-pseudos
@@ -293,8 +313,8 @@ impl parcel_selectors::parser::NonTSPseudoClass for PseudoClass {
 }
 
 impl cssparser::ToCss for PseudoClass {
-  fn to_css<W>(&self, _: &mut W) -> fmt::Result where W: fmt::Write {
-    unreachable!();
+  fn to_css<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
+    ToCss::to_css(self, &mut Printer::new(dest, None, false, None))
   }
 }
 
@@ -597,9 +617,9 @@ impl PseudoElement {
   }
 }
 
-impl ToCss for SelectorList<Selectors> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
-    serialize_selector_list(self.0.iter(), dest)
+impl ToCssWithContext for SelectorList<Selectors> {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> fmt::Result where W: fmt::Write {
+    serialize_selector_list(self.0.iter(), dest, context)
   }
 }
 
@@ -619,8 +639,8 @@ impl ToCss for Combinator {
 }
 
 // Copied from the selectors crate and modified to override to_css implementation.
-impl ToCss for parcel_selectors::parser::Selector<Selectors> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result
+impl ToCssWithContext for parcel_selectors::parser::Selector<Selectors> {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> fmt::Result
   where
       W: fmt::Write,
   {
@@ -656,6 +676,9 @@ impl ToCss for parcel_selectors::parser::Selector<Selectors> {
               continue;
           }
 
+          let has_leading_nesting = matches!(compound[0], Component::Nesting);
+          let first_index = if has_leading_nesting { 1 } else { 0 };
+
           // 1. If there is only one simple selector in the compound selectors
           //    which is a universal selector, append the result of
           //    serializing the universal selector to s.
@@ -666,12 +689,12 @@ impl ToCss for parcel_selectors::parser::Selector<Selectors> {
           //
           // If we are in this case, after we have serialized the universal
           // selector, we skip Step 2 and continue with the algorithm.
-          let (can_elide_namespace, first_non_namespace) = match compound[0] {
-              Component::ExplicitAnyNamespace |
-              Component::ExplicitNoNamespace |
-              Component::Namespace(..) => (false, 1),
-              Component::DefaultNamespace(..) => (true, 1),
-              _ => (true, 0),
+          let (can_elide_namespace, first_non_namespace) = match compound.get(first_index) {
+              Some(Component::ExplicitAnyNamespace) |
+              Some(Component::ExplicitNoNamespace) |
+              Some(Component::Namespace(..)) => (false, first_index + 1),
+              Some(Component::DefaultNamespace(..)) => (true, first_index + 1),
+              _ => (true, first_index),
           };
           let mut perform_step_2 = true;
           let next_combinator = combinators.next();
@@ -689,9 +712,21 @@ impl ToCss for parcel_selectors::parser::Selector<Selectors> {
                   (_, &Component::ExplicitUniversalType) => {
                       // Iterate over everything so we serialize the namespace
                       // too.
-                      for simple in compound.iter() {
-                          simple.to_css(dest)?;
+                      let mut iter = compound.iter();
+                      let swap_nesting = has_leading_nesting && context.is_some() && is_type_selector(compound.get(first_index));
+                      if swap_nesting {
+                        // Swap nesting and type selector (e.g. &div -> div&).
+                        iter.next();
                       }
+                      
+                      for simple in iter {
+                          simple.to_css_with_context(dest, context)?;
+                      }
+
+                      if swap_nesting {
+                        serialize_nesting(dest, context, false)?;
+                      }
+                      
                       // Skip step 2, which is an "otherwise".
                       perform_step_2 = false;
                   },
@@ -709,7 +744,28 @@ impl ToCss for parcel_selectors::parser::Selector<Selectors> {
           // in cssom/serialize-namespaced-type-selectors.html, which the
           // following code tries to match.
           if perform_step_2 {
-              for simple in compound.iter() {
+              let mut iter = compound.iter();
+              if has_leading_nesting && context.is_some() && is_type_selector(compound.get(first_index)) {
+                // Swap nesting and type selector (e.g. &div -> div&).
+                // This ensures that the compiled selector is valid. e.g. (div.foo is valid, .foodiv is not).
+                let nesting = iter.next().unwrap();
+                let local = iter.next().unwrap();
+                local.to_css_with_context(dest, context)?;
+
+                // Also check the next item in case of namespaces.
+                if is_type_selector(compound.get(first_index + 1)) {
+                  let local = iter.next().unwrap();
+                  local.to_css_with_context(dest, context)?;
+                }
+
+                nesting.to_css_with_context(dest, context)?;
+              } else if has_leading_nesting && context.is_some() {
+                // Nesting selector may serialize differently if it is leading, due to type selectors.
+                iter.next();
+                serialize_nesting(dest, context, true)?;
+              }
+
+              for simple in iter {
                   if let Component::ExplicitUniversalType = *simple {
                       // Can't have a namespace followed by a pseudo-element
                       // selector followed by a universal selector in the same
@@ -719,7 +775,7 @@ impl ToCss for parcel_selectors::parser::Selector<Selectors> {
                           continue;
                       }
                   }
-                  simple.to_css(dest)?;
+                  simple.to_css_with_context(dest, context)?;
               }
           }
 
@@ -744,8 +800,8 @@ impl ToCss for parcel_selectors::parser::Selector<Selectors> {
   }
 }
 
-impl ToCss for Component<Selectors> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
+impl ToCssWithContext for Component<Selectors> {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> fmt::Result where W: fmt::Write {
     use Component::*;
     match &self {
       Combinator(ref c) => c.to_css(dest),
@@ -797,7 +853,7 @@ impl ToCss for Component<Selectors> {
           Negation(..) => dest.write_str(":not(")?,
           _ => unreachable!(),
         }
-        serialize_selector_list(list.iter(), dest)?;
+        serialize_selector_list(list.iter(), dest, context)?;
         dest.write_str(")")
       },
       NonTSPseudoClass(pseudo) => {
@@ -806,6 +862,9 @@ impl ToCss for Component<Selectors> {
       PseudoElement(pseudo) => {
         pseudo.to_css(dest)
       },
+      Nesting => {
+        serialize_nesting(dest, context, false)
+      },
       _ => {
         cssparser::ToCss::to_css(self, dest)
       }
@@ -813,7 +872,43 @@ impl ToCss for Component<Selectors> {
   }
 }
 
-fn serialize_selector_list<'a, I, W>(iter: I, dest: &mut Printer<W>) -> fmt::Result
+fn serialize_nesting<W>(dest: &mut Printer<W>, context: Option<&StyleContext>, first: bool) -> fmt::Result where W: fmt::Write {
+  if let Some(ctx) = context {
+    // If there's only one selector, just serialize it directly.
+    // Otherwise, use an :is() pseudo class.
+    // Type selectors are only allowed at the start of a compound selector,
+    // so use :is() if that is not the case.
+    if ctx.rule.selectors.0.len() == 1 && (first || !has_type_selector(&ctx.rule.selectors.0[0])) {
+      ctx.rule.selectors.0.first().unwrap().to_css_with_context(dest, ctx.parent)
+    } else {
+      dest.write_str(":is(")?;
+      serialize_selector_list(ctx.rule.selectors.0.iter(), dest, ctx.parent)?;
+      dest.write_char(')')
+    }
+  } else {
+    dest.write_char('&')
+  }
+}
+
+fn has_type_selector(selector: &parcel_selectors::parser::Selector<Selectors>) -> bool {
+  let mut iter = selector.iter_raw_parse_order_from(0);
+  let first = iter.next();
+  is_type_selector(first)
+}
+
+fn is_type_selector(component: Option<&Component<Selectors>>) -> bool {
+  matches!(
+    component,
+    Some(Component::ExplicitAnyNamespace) | 
+    Some(Component::ExplicitNoNamespace) |
+    Some(Component::Namespace(..)) |
+    Some(Component::DefaultNamespace(_)) |
+    Some(Component::LocalName(_)) |
+    Some(Component::ExplicitUniversalType)
+  )
+}
+
+fn serialize_selector_list<'a, I, W>(iter: I, dest: &mut Printer<W>, context: Option<&StyleContext>) -> fmt::Result
 where
     I: Iterator<Item = &'a Selector<Selectors>>,
     W: fmt::Write,
@@ -824,7 +919,7 @@ where
       dest.delim(',', false)?;
     }
     first = false;
-    selector.to_css(dest)?;
+    selector.to_css_with_context(dest, context)?;
   }
   Ok(())
 }
@@ -895,7 +990,7 @@ pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browse
         Component::OnlyOfType |
         Component::Root => Feature::CssSel3,
 
-        Component::Is(_) => Feature::CssMatchesPseudo,
+        Component::Is(_) | Component::Nesting => Feature::CssMatchesPseudo,
 
         Component::Scope |
         Component::Host(_) |

@@ -19,6 +19,7 @@ pub enum Feature {
   CssMarkerPseudo,
   CssMatchesPseudo,
   CssNamespaces,
+  CssNesting,
   CssOptionalPseudo,
   CssPlaceholder,
   CssPlaceholderShown,
@@ -1076,6 +1077,8 @@ impl Feature {
           }
         }
       }
+      Feature::CssNesting |
+      Feature::MediaIntervalSyntax => {}
       Feature::DoublePositionGradients => {
         if let Some(version) = browsers.chrome {
           if version >= 4653056 {
@@ -1284,7 +1287,6 @@ impl Feature {
           }
         }
       }
-      Feature::MediaIntervalSyntax => {}
     }
     false
   }

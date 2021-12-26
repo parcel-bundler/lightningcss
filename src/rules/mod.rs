@@ -8,6 +8,7 @@ pub mod import;
 pub mod media;
 pub mod style;
 pub mod document;
+pub mod nesting;
 
 use media::MediaRule;
 use import::ImportRule;
@@ -19,6 +20,7 @@ use supports::SupportsRule;
 use counter_style::CounterStyleRule;
 use namespace::NamespaceRule;
 use document::MozDocumentRule;
+use nesting::NestingRule;
 use crate::traits::ToCss;
 use crate::printer::Printer;
 use crate::declaration::DeclarationHandler;
@@ -27,6 +29,15 @@ use crate::prefixes::Feature;
 use crate::targets::Browsers;
 use std::collections::HashMap;
 use crate::selector::{is_equivalent, get_prefix, get_necessary_prefixes};
+
+pub(crate) trait ToCssWithContext {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write;
+}
+
+pub(crate) struct StyleContext<'a> {
+  pub rule: &'a StyleRule,
+  pub parent: Option<&'a StyleContext<'a>>
+}
 
 #[derive(Debug, PartialEq)]
 pub enum CssRule {
@@ -40,24 +51,32 @@ pub enum CssRule {
   CounterStyle(CounterStyleRule),
   Namespace(NamespaceRule),
   MozDocument(MozDocumentRule),
+  Nesting(NestingRule),
   Ignored
+}
+
+impl ToCssWithContext for CssRule {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write {
+    match self {
+      CssRule::Media(media) => media.to_css_with_context(dest, context),
+      CssRule::Import(import) => import.to_css(dest),
+      CssRule::Style(style) => style.to_css_with_context(dest, context),
+      CssRule::Keyframes(keyframes) => keyframes.to_css(dest),
+      CssRule::FontFace(font_face) => font_face.to_css(dest),
+      CssRule::Page(font_face) => font_face.to_css(dest),
+      CssRule::Supports(supports) => supports.to_css_with_context(dest, context),
+      CssRule::CounterStyle(counter_style) => counter_style.to_css(dest),
+      CssRule::Namespace(namespace) => namespace.to_css(dest),
+      CssRule::MozDocument(document) => document.to_css(dest),
+      CssRule::Nesting(nesting) => nesting.to_css_with_context(dest, context),
+      CssRule::Ignored => Ok(())
+    }
+  }
 }
 
 impl ToCss for CssRule {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-    match self {
-      CssRule::Media(media) => media.to_css(dest),
-      CssRule::Import(import) => import.to_css(dest),
-      CssRule::Style(style) => style.to_css(dest),
-      CssRule::Keyframes(keyframes) => keyframes.to_css(dest),
-      CssRule::FontFace(font_face) => font_face.to_css(dest),
-      CssRule::Page(font_face) => font_face.to_css(dest),
-      CssRule::Supports(supports) => supports.to_css(dest),
-      CssRule::CounterStyle(counter_style) => counter_style.to_css(dest),
-      CssRule::Namespace(namespace) => namespace.to_css(dest),
-      CssRule::MozDocument(document) => document.to_css(dest),
-      CssRule::Ignored => Ok(())
-    }
+    self.to_css_with_context(dest, None)
   }
 }
 
@@ -113,11 +132,11 @@ impl CssRuleList {
 
           if let Some(CssRule::Style(last_style_rule)) = rules.last_mut() {
             // Merge declarations if the selectors are equivalent, and both are compatible with all targets.
-            if style.selectors == last_style_rule.selectors && style.is_compatible(targets) && last_style_rule.is_compatible(targets) {
+            if style.selectors == last_style_rule.selectors && style.is_compatible(targets) && last_style_rule.is_compatible(targets) && style.rules.0.is_empty() && last_style_rule.rules.0.is_empty() {
               last_style_rule.declarations.declarations.extend(style.declarations.declarations.drain(..));
               last_style_rule.declarations.minify(handler, important_handler);
               continue
-            } else if style.declarations == last_style_rule.declarations {
+            } else if style.declarations == last_style_rule.declarations && style.rules.0.is_empty() && last_style_rule.rules.0.is_empty() {
               // Append the selectors to the last rule if the declarations are the same, and all selectors are compatible.
               if style.is_compatible(targets) && last_style_rule.is_compatible(targets) {
                 last_style_rule.selectors.0.extend(style.selectors.0.drain(..));
@@ -142,6 +161,7 @@ impl CssRuleList {
             }
           }
         },
+        CssRule::Nesting(nesting) => nesting.minify(handler, important_handler),
         _ => {}
       }
 
@@ -149,5 +169,33 @@ impl CssRuleList {
     }
 
     self.0 = rules;
+  }
+}
+
+impl ToCss for CssRuleList {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    self.to_css_with_context(dest, None)
+  }
+}
+
+impl ToCssWithContext for CssRuleList {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write {
+    let mut first = true;
+    let mut last_without_block = false;
+
+    for rule in &self.0 {
+      if first {
+        first = false;
+      } else {
+        if !dest.minify && !(last_without_block && matches!(rule, CssRule::Import(..) | CssRule::Namespace(..))) {
+          dest.write_char('\n')?;
+        }
+        dest.newline()?;
+      }
+      rule.to_css_with_context(dest, context)?;
+      last_without_block = matches!(rule, CssRule::Import(..) | CssRule::Namespace(..));
+    }
+
+    Ok(())
   }
 }

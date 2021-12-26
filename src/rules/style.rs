@@ -6,12 +6,15 @@ use crate::printer::Printer;
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
+use crate::rules::{CssRuleList, ToCssWithContext, StyleContext};
+use crate::compat::Feature;
 
 #[derive(Debug, PartialEq)]
 pub struct StyleRule {
   pub selectors: SelectorList<Selectors>,
   pub vendor_prefix: VendorPrefix,
   pub declarations: DeclarationBlock,
+  pub rules: CssRuleList,
   pub loc: SourceLocation
 }
 
@@ -25,10 +28,10 @@ impl StyleRule {
   }
 }
 
-impl ToCss for StyleRule {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+impl ToCssWithContext for StyleRule {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write {
     if self.vendor_prefix.is_empty() {
-      self.to_css_base(dest)
+      self.to_css_base(dest, context)
     } else {
       let mut first_rule = true;
       macro_rules! prefix {
@@ -44,7 +47,7 @@ impl ToCss for StyleRule {
               dest.newline()?;
             }
             dest.vendor_prefix = VendorPrefix::$prefix;
-            self.to_css_base(dest)?;
+            self.to_css_base(dest, context)?;
           }
         };
       }
@@ -62,9 +65,54 @@ impl ToCss for StyleRule {
 }
 
 impl StyleRule {
-  fn to_css_base<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-    dest.add_mapping(self.loc);
-    self.selectors.to_css(dest)?;
-    self.declarations.to_css(dest)
+  fn to_css_base<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write {
+    // If supported, or there are no targets, preserve nesting. Otherwise, write nested rules after parent.
+    if self.rules.0.is_empty() || (dest.targets.is_none() || Feature::CssNesting.is_compatible(dest.targets.unwrap())) {
+      dest.add_mapping(self.loc);
+      self.selectors.to_css_with_context(dest, context)?;
+      dest.whitespace()?;
+      dest.write_char('{')?;
+      dest.indent();
+      let len = self.declarations.declarations.len();
+      for (i, decl) in self.declarations.declarations.iter().enumerate() {
+        dest.newline()?;
+        decl.to_css(dest)?;
+        if i != len - 1 || !dest.minify {
+          dest.write_char(';')?;
+        }
+      }
+
+      if !dest.minify && len > 0 && !self.rules.0.is_empty() {
+        dest.write_char('\n')?;
+        dest.newline()?;
+      }
+
+      self.rules.to_css(dest)?;
+
+      dest.dedent();
+      dest.newline()?;
+      dest.write_char('}')?;
+    } else {
+      let has_declarations = self.declarations.declarations.len() > 0 || self.rules.0.is_empty();
+
+      // If there are any declarations in the rule, or no child rules, write the parent.
+      if has_declarations {
+        dest.add_mapping(self.loc);
+        self.selectors.to_css_with_context(dest, context)?;
+        self.declarations.to_css(dest)?;
+        if !dest.minify && !self.rules.0.is_empty() {
+          dest.write_char('\n')?;
+          dest.newline()?;
+        }
+      }
+
+      // Write nested rules after the parent.
+      self.rules.to_css_with_context(dest, Some(&StyleContext {
+        rule: self,
+        parent: context
+      }))?;
+    }
+    
+    Ok(())
   }
 }

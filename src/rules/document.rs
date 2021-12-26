@@ -24,10 +24,8 @@ impl ToCss for MozDocumentRule {
     dest.whitespace()?;
     dest.write_char('{')?;
     dest.indent();
-    for rule in self.rules.0.iter() {
-      dest.newline()?;
-      rule.to_css(dest)?;
-    }
+    dest.newline()?;
+    self.rules.to_css(dest)?;
     dest.dedent();
     dest.newline()?;
     dest.write_char('}')

@@ -30,7 +30,7 @@ if (process.argv[process.argv.length - 1] !== __filename) {
 
 let res = css.transform({
   filename: __filename,
-  minify: true,
+  minify: false,
   targets: {
     safari: 4 << 16,
     firefox: 3 << 16 | 5 << 8,
@@ -38,11 +38,25 @@ let res = css.transform({
   },
   code: Buffer.from(`
 
-.foo + .bar:not(.baz) {
-  -webkit-box-shadow: 2px 0 0 blue;
-  box-shadow: 2px 0 0 red;
-  box-sizing: border-box;
-}
+  .foo {
+    display: grid;
+
+    & h1, & h2, &.bar {
+      color: red;
+    }
+  
+    @media (orientation: landscape) {
+      grid-auto-flow: column;
+
+      & h1, & h2, &.bar {
+        color: red;
+      }
+    }
+
+    @nest :not(&), .bar & {
+      color: blue;
+    }
+  }
 `)});
 
 console.log(res.code.toString());

@@ -17,25 +17,26 @@ pub mod targets;
 #[cfg(test)]
 mod tests {
   use crate::stylesheet::*;
+  use crate::parser::ParserOptions;
   use crate::targets::Browsers;
   use indoc::indoc;
 
   fn test(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
     stylesheet.minify(None);
     let (res, _) = stylesheet.to_css(false, false, None).unwrap();
     assert_eq!(res, expected);
   }
 
   fn minify_test(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
     stylesheet.minify(None);
     let (res, _) = stylesheet.to_css(true, false, None).unwrap();
     assert_eq!(res, expected);
   }
 
   fn prefix_test(source: &str, expected: &str, targets: Browsers) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
     stylesheet.minify(Some(targets));
     let (res, _) = stylesheet.to_css(false, false, Some(targets)).unwrap();
     assert_eq!(res, expected);
@@ -45,6 +46,24 @@ mod tests {
     let mut attr = StyleAttribute::parse(source).unwrap();
     attr.minify(None);
     let res = attr.to_css(minify, None).unwrap();
+    assert_eq!(res, expected);
+  }
+
+  fn nesting_test(source: &str, expected: &str) {
+    let targets = Some(Browsers {
+      chrome: Some(95 << 16),
+      ..Browsers::default()
+    });
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true }).unwrap();
+    stylesheet.minify(targets);
+    let (res, _) = stylesheet.to_css(false, false, targets).unwrap();
+    assert_eq!(res, expected);
+  }
+
+  fn nesting_test_no_targets(source: &str, expected: &str) {
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true }).unwrap();
+    stylesheet.minify(None);
+    let (res, _) = stylesheet.to_css(false, false, None).unwrap();
     assert_eq!(res, expected);
   }
 
@@ -4718,6 +4737,86 @@ mod tests {
     minify_test("@namespace \"http://toto.example.org\";", "@namespace \"http://toto.example.org\";");
     minify_test("@namespace toto \"http://toto.example.org\";", "@namespace toto \"http://toto.example.org\";");
     minify_test("@namespace toto url(http://toto.example.org);", "@namespace toto \"http://toto.example.org\";");
+
+    test(r#"
+      @namespace "http://example.com/foo";
+
+      x {
+        color: red;
+      }
+    "#, indoc! {r#"
+      @namespace "http://example.com/foo";
+
+      x {
+        color: red;
+      }
+    "#});
+
+    test(r#"
+      @namespace toto "http://toto.example.org";
+
+      toto|x {
+        color: red;
+      }
+
+      [toto|att=val] {
+        color: blue
+      }
+    "#, indoc! {r#"
+      @namespace toto "http://toto.example.org";
+      
+      toto|x {
+        color: red;
+      }
+
+      [toto|att="val"] {
+        color: #00f;
+      }
+    "#});
+
+    test(r#"
+      @namespace "http://example.com/foo";
+
+      |x {
+        color: red;
+      }
+
+      [|att=val] {
+        color: blue
+      }
+    "#, indoc! {r#"
+      @namespace "http://example.com/foo";
+      
+      |x {
+        color: red;
+      }
+
+      [att="val"] {
+        color: #00f;
+      }
+    "#});
+
+    test(r#"
+      @namespace "http://example.com/foo";
+
+      *|x {
+        color: red;
+      }
+
+      [*|att=val] {
+        color: blue
+      }
+    "#, indoc! {r#"
+      @namespace "http://example.com/foo";
+      
+      *|x {
+        color: red;
+      }
+
+      [*|att="val"] {
+        color: #00f;
+      }
+    "#});
   }
 
   #[test]
@@ -6782,5 +6881,612 @@ mod tests {
   fn test_style_attr() {
     attr_test("color: yellow; flex: 1 1 auto", "color: #ff0; flex: auto", false);
     attr_test("color: yellow; flex: 1 1 auto", "color:#ff0;flex:auto", true);
+  }
+
+  #[test]
+  fn test_nesting() {
+    nesting_test(
+      r#"
+        .foo {
+          color: blue;
+          & > .bar { color: red; }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: #00f;
+        }
+
+        .foo > .bar {
+          color: red;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          color: blue;
+          &.bar { color: red; }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: #00f;
+        }
+
+        .foo.bar {
+          color: red;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo, .bar {
+          color: blue;
+          & + .baz, &.qux { color: red; }
+        }
+      "#,
+      indoc!{r#"
+        .foo, .bar {
+          color: #00f;
+        }
+
+        :is(.foo, .bar) + .baz, :is(.foo, .bar).qux {
+          color: red;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          color: blue;
+          & .bar & .baz & .qux { color: red; }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: #00f;
+        }
+
+        .foo .bar .foo .baz .foo .qux {
+          color: red;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          color: blue;
+          & { padding: 2ch; }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: #00f;
+        }
+
+        .foo {
+          padding: 2ch;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          color: blue;
+          && { padding: 2ch; }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: #00f;
+        }
+
+        .foo.foo {
+          padding: 2ch;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .error, .invalid {
+          &:hover > .baz { color: red; }
+        }
+      "#,
+      indoc!{r#"
+        :is(.error, .invalid):hover > .baz {
+          color: red;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          &:is(.bar, &.baz) { color: red; }
+        }
+      "#,
+      indoc!{r#"
+        .foo:is(.bar, .foo.baz) {
+          color: red;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        figure {
+          margin: 0;
+        
+          & > figcaption {
+            background: hsl(0 0% 0% / 50%);
+        
+            & > p {
+              font-size: .9rem;
+            }
+          }
+        }
+      "#,
+      indoc!{r#"
+        figure {
+          margin: 0;
+        }
+
+        figure > figcaption {
+          background: #00000080;
+        }
+
+        figure > figcaption > p {
+          font-size: .9rem;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          color: red;
+          @nest & > .bar {
+            color: blue;
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: red;
+        }
+
+        .foo > .bar {
+          color: #00f;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          color: red;
+          @nest .parent & {
+            color: blue;
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: red;
+        }
+
+        .parent .foo {
+          color: #00f;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          color: red;
+          @nest :not(&) {
+            color: blue;
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: red;
+        }
+
+        :not(.foo) {
+          color: #00f;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          color: blue;
+          @nest .bar & {
+            color: red;
+            &.baz {
+              color: green;
+            }
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: #00f;
+        }
+
+        .bar .foo {
+          color: red;
+        }
+
+        .bar .foo.baz {
+          color: green;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          display: grid;
+        
+          @media (orientation: landscape) {
+            grid-auto-flow: column;
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          display: grid;
+        }
+
+        @media (orientation: landscape) {
+          .foo {
+            grid-auto-flow: column;
+          }
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          display: grid;
+        
+          @media (orientation: landscape) {
+            grid-auto-flow: column;
+        
+            @media (width > 1024px) {
+              max-inline-size: 1024px;
+            }
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          display: grid;
+        }
+
+        @media (orientation: landscape) {
+          .foo {
+            grid-auto-flow: column;
+          }
+
+          @media (min-width: 1024px) {
+            .foo {
+              max-inline-size: 1024px;
+            }
+          }
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          display: grid;
+        
+          @supports (foo: bar) {
+            grid-auto-flow: column;
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          display: grid;
+        }
+
+        @supports (foo: bar) {
+          .foo {
+            grid-auto-flow: column;
+          }
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        @namespace "http://example.com/foo";
+        @namespace toto "http://toto.example.org";
+
+        .foo {
+          &div {
+            color: red;
+          }
+
+          &* {
+            color: red;
+          }
+
+          &|x {
+            color: red;
+          }
+
+          &*|x {
+            color: red;
+          }
+
+          &toto|x {
+            color: red;
+          }
+        }
+      "#,
+      indoc!{r#"
+        @namespace "http://example.com/foo";
+        @namespace toto "http://toto.example.org";
+
+        div.foo {
+          color: red;
+        }
+
+        *.foo {
+          color: red;
+        }
+
+        |x.foo {
+          color: red;
+        }
+
+        *|x.foo {
+          color: red;
+        }
+
+        toto|x.foo {
+          color: red;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          &article > figure {
+            color: red;
+          }
+        }
+      "#,
+      indoc!{r#"
+        article.foo > figure {
+          color: red;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        @namespace "http://example.com/foo";
+        @namespace toto "http://toto.example.org";
+
+        div {
+          @nest .foo& {
+            color: red;
+          }
+        }
+
+        * {
+          @nest .foo& {
+            color: red;
+          }
+        }
+
+        |x {
+          @nest .foo& {
+            color: red;
+          }
+        }
+
+        *|x {
+          @nest .foo& {
+            color: red;
+          }
+        }
+
+        toto|x {
+          @nest .foo& {
+            color: red;
+          }
+        }
+      "#,
+      indoc!{r#"
+        @namespace "http://example.com/foo";
+        @namespace toto "http://toto.example.org";
+
+        .foo:is(div) {
+          color: red;
+        }
+
+        .foo:is(*) {
+          color: red;
+        }
+
+        .foo:is(|x) {
+          color: red;
+        }
+
+        .foo:is(*|x) {
+          color: red;
+        }
+
+        .foo:is(toto|x) {
+          color: red;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        div {
+          &.bar {
+            background: green;
+          }
+        }
+      "#,
+      indoc!{r#"
+        div.bar {
+          background: green;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        div > .foo {
+          &span {
+            background: green;
+          }
+        }
+      "#,
+      indoc!{r#"
+        span:is(div > .foo) {
+          background: green;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          & h1 {
+            background: green;
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo h1 {
+          background: green;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          @nest :not(&) {
+            color: red;
+          }
+
+          & h1 {
+            background: green;
+          }
+        }
+      "#,
+      indoc!{r#"
+        :not(.foo) {
+          color: red;
+        }
+
+        .foo h1 {
+          background: green;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          & h1 {
+            background: green;
+          }
+
+          @nest :not(&) {
+            color: red;
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo h1 {
+          background: green;
+        }
+
+        :not(.foo) {
+          color: red;
+        }
+      "#}
+    );
+
+    nesting_test_no_targets(
+      r#"
+        .foo {
+          color: blue;
+          @nest .bar & {
+            color: red;
+            &.baz {
+              color: green;
+            }
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: #00f;
+
+          @nest .bar & {
+            color: red;
+
+            &.baz {
+              color: green;
+            }
+          }
+        }
+      "#}
+    );
+
+    nesting_test_no_targets(
+      r#"
+        .foo {
+          color: blue;
+          &div {
+            color: red;
+          }
+
+          &span {
+            color: purple;
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: #00f;
+
+          &div {
+            color: red;
+          }
+
+          &span {
+            color: purple;
+          }
+        }
+      "#}
+    );
   }
 }

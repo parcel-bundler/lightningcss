@@ -11,21 +11,10 @@ function loadPlaygroundState() {
     reflectPlaygroundState(playgroundState);
   } catch {
     const initialPlaygroundState = {
-      minify: true,
-      targets: {
-        chrome: 95 << 16,
-      },
-      source: `.foo {
-  background: yellow;
-      
-  -webkit-border-radius: 2px;
-  -moz-border-radius: 2px;
-  border-radius: 2px;
-  
-  -webkit-transition: background 200ms;
-  -moz-transition: background 200ms;
-  transition: background 200ms;
-}`,
+      minify: minify.checked,
+      nesting: nesting.checked,
+      targets: getTargets(),
+      source: source.value,
     };
 
     reflectPlaygroundState(initialPlaygroundState);
@@ -37,17 +26,15 @@ function reflectPlaygroundState(playgroundState) {
     minify.checked = playgroundState.minify;
   }
 
+  if (typeof playgroundState.nesting !== 'undefined') {
+    nesting.checked = playgroundState.nesting;
+  }
+
   if (playgroundState.targets) {
     const {targets} = playgroundState;
-    for (const target in targets) {
-      const value = targets[target];
-      if (value) {
-        for (const input of Array.from(inputs)) {
-          if (input.id === target) {
-            input.value = value >> 16;
-          }
-        }
-      }
+    for (let input of inputs) {
+      let value = targets[input.id];
+      input.value = value == null ? '' : value >> 16;
     }
   }
 
@@ -59,6 +46,7 @@ function reflectPlaygroundState(playgroundState) {
 function savePlaygroundState() {
   const playgroundState = {
     minify: minify.checked,
+    nesting: nesting.checked,
     targets: getTargets(),
     source: source.value,
   };
@@ -98,6 +86,9 @@ async function update() {
     code: enc.encode(source.value),
     minify: minify.checked,
     targets: Object.keys(targets).length === 0 ? null : targets,
+    drafts: {
+      nesting: nesting.checked
+    }
   });
 
   compiled.value = dec.decode(res.code);

@@ -858,6 +858,7 @@ where
             }
             true
         }),
+        Component::Nesting => unreachable!()
     }
 }
 
