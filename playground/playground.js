@@ -32,15 +32,9 @@ function reflectPlaygroundState(playgroundState) {
 
   if (playgroundState.targets) {
     const {targets} = playgroundState;
-    for (const target in targets) {
-      const value = targets[target];
-      if (value) {
-        for (const input of Array.from(inputs)) {
-          if (input.id === target) {
-            input.value = value >> 16;
-          }
-        }
-      }
+    for (let input of inputs) {
+      let value = targets[input.id];
+      input.value = value == null ? '' : value >> 16;
     }
   }
 

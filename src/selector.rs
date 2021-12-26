@@ -713,7 +713,7 @@ impl ToCssWithContext for parcel_selectors::parser::Selector<Selectors> {
                       // Iterate over everything so we serialize the namespace
                       // too.
                       let mut iter = compound.iter();
-                      let swap_nesting = has_leading_nesting && is_type_selector(compound.get(first_index));
+                      let swap_nesting = has_leading_nesting && context.is_some() && is_type_selector(compound.get(first_index));
                       if swap_nesting {
                         // Swap nesting and type selector (e.g. &div -> div&).
                         iter.next();
@@ -745,7 +745,7 @@ impl ToCssWithContext for parcel_selectors::parser::Selector<Selectors> {
           // following code tries to match.
           if perform_step_2 {
               let mut iter = compound.iter();
-              if has_leading_nesting && is_type_selector(compound.get(first_index)) {
+              if has_leading_nesting && context.is_some() && is_type_selector(compound.get(first_index)) {
                 // Swap nesting and type selector (e.g. &div -> div&).
                 // This ensures that the compiled selector is valid. e.g. (div.foo is valid, .foodiv is not).
                 let nesting = iter.next().unwrap();
@@ -759,7 +759,7 @@ impl ToCssWithContext for parcel_selectors::parser::Selector<Selectors> {
                 }
 
                 nesting.to_css_with_context(dest, context)?;
-              } else if has_leading_nesting {
+              } else if has_leading_nesting && context.is_some() {
                 // Nesting selector may serialize differently if it is leading, due to type selectors.
                 iter.next();
                 serialize_nesting(dest, context, true)?;

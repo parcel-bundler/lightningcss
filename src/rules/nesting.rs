@@ -19,7 +19,9 @@ impl NestingRule {
 impl ToCssWithContext for NestingRule {
   fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write {
     dest.add_mapping(self.loc);
-    // dest.write_str("@nest ")?;
+    if context.is_none() {
+      dest.write_str("@nest ")?;
+    }
     self.style.to_css_with_context(dest, context)
   }
 }

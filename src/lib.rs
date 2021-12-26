@@ -50,6 +50,17 @@ mod tests {
   }
 
   fn nesting_test(source: &str, expected: &str) {
+    let targets = Some(Browsers {
+      chrome: Some(95 << 16),
+      ..Browsers::default()
+    });
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true }).unwrap();
+    stylesheet.minify(targets);
+    let (res, _) = stylesheet.to_css(false, false, targets).unwrap();
+    assert_eq!(res, expected);
+  }
+
+  fn nesting_test_no_targets(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true }).unwrap();
     stylesheet.minify(None);
     let (res, _) = stylesheet.to_css(false, false, None).unwrap();
@@ -7141,7 +7152,7 @@ mod tests {
           @media (orientation: landscape) {
             grid-auto-flow: column;
         
-            @media (min-inline-size > 1024px) {
+            @media (width > 1024px) {
               max-inline-size: 1024px;
             }
           }
@@ -7155,7 +7166,7 @@ mod tests {
           .foo {
             grid-auto-flow: column;
           }
-          @media (min-inline-size > 1024px) {
+          @media (min-width: 1024px) {
             .foo {
               max-inline-size: 1024px;
             }
@@ -7396,6 +7407,53 @@ mod tests {
         }
         :not(.foo) {
           color: red;
+        }
+      "#}
+    );
+
+    nesting_test_no_targets(
+      r#"
+        .foo {
+          color: blue;
+          @nest .bar & {
+            color: red;
+            &.baz {
+              color: green;
+            }
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: #00f;
+
+          @nest .bar & {
+            color: red;
+
+            &.baz {
+              color: green;
+            }
+          }
+        }
+      "#}
+    );
+
+    nesting_test_no_targets(
+      r#"
+        .foo {
+          color: blue;
+          &div {
+            color: red;
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo {
+          color: #00f;
+
+          &div {
+            color: red;
+          }
         }
       "#}
     );

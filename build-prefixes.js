@@ -155,7 +155,8 @@ let cssFeatures = [
   'css-autofill',
   'css-namespaces',
   'shadowdomv1',
-  'css-rrggbbaa'
+  'css-rrggbbaa',
+  'css-nesting'
 ];
 
 let compat = new Map();
