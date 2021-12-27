@@ -13,6 +13,7 @@ mod compat;
 mod prefixes;
 pub mod vendor_prefix;
 pub mod targets;
+mod css_modules;
 
 #[cfg(test)]
 mod tests {
@@ -20,7 +21,8 @@ mod tests {
   use crate::parser::ParserOptions;
   use crate::targets::Browsers;
   use indoc::indoc;
-  use std::collections::HashMap;
+  use std::collections::{HashMap, HashSet};
+  use crate::css_modules::CssModuleExport;
 
   fn test(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
@@ -68,7 +70,7 @@ mod tests {
     assert_eq!(res, expected);
   }
 
-  fn css_modules_test(source: &str, expected: &str, expected_exports: HashMap<String, String>) {
+  fn css_modules_test(source: &str, expected: &str, expected_exports: HashMap<String, HashSet<CssModuleExport>>) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
     stylesheet.minify(None);
     let (res, _, exports) = stylesheet.to_css_module(false, false, None).unwrap();
@@ -77,12 +79,27 @@ mod tests {
   }
 
   macro_rules! map(
-    { $($key:expr => $value:expr),* } => {
+    { $($key:expr => $($value:literal $(from $from:literal)?)+),* } => {
       {
         #[allow(unused_mut)]
         let mut m = HashMap::new();
         $(
-          m.insert($key.into(), $value.into());
+          let mut v = HashSet::new();
+          macro_rules! insert {
+            ($local:literal, $specifier:literal) => {
+              v.insert(CssModuleExport::Dependency {
+                name: $local.into(),
+                specifier: $specifier.into()
+              });
+            };
+            ($local:literal) => {
+              v.insert(CssModuleExport::Local($local.into()));
+            };
+          }
+          $(
+            insert!($value$(, $from)?);
+          )+
+          m.insert($key.into(), v);
         )*
         m
       }
@@ -7510,6 +7527,21 @@ mod tests {
         }
       "#}
     );
+
+    nesting_test_no_targets(
+      r#"
+        .error, .invalid {
+          &:hover > .baz { color: red; }
+        }
+      "#,
+      indoc!{r#"
+        .error, .invalid {
+          &:hover > .baz {
+            color: red;
+          }
+        }
+      "#}
+    );
   }
 
   #[test]
@@ -7642,6 +7674,107 @@ mod tests {
       }
     "#}, map! {
       "bar" => "bar_EgL3uq"
+    });
+
+
+    // :global(:local(.hi)) {
+    //   color: green;
+    // }
+
+
+    css_modules_test(r#"
+      .test {
+        composes: foo;
+        background: white;
+      }
+
+      .foo {
+        color: red;
+      }
+    "#, indoc!{r#"
+      .test_EgL3uq {
+        background: #fff;
+      }
+
+      .foo_EgL3uq {
+        color: red;
+      }
+    "#}, map! {
+      "test" => "test_EgL3uq" "foo_EgL3uq",
+      "foo" => "foo_EgL3uq"
+    });
+
+    css_modules_test(r#"
+      .a, .b {
+        composes: foo;
+        background: white;
+      }
+
+      .foo {
+        color: red;
+      }
+    "#, indoc!{r#"
+      .a_EgL3uq, .b_EgL3uq {
+        background: #fff;
+      }
+
+      .foo_EgL3uq {
+        color: red;
+      }
+    "#}, map! {
+      "a" => "a_EgL3uq" "foo_EgL3uq",
+      "b" => "b_EgL3uq" "foo_EgL3uq",
+      "foo" => "foo_EgL3uq"
+    });
+
+    css_modules_test(r#"
+      .test {
+        composes: foo from global;
+        background: white;
+      }
+    "#, indoc!{r#"
+      .test_EgL3uq {
+        background: #fff;
+      }
+    "#}, map! {
+      "test" => "test_EgL3uq" "foo"
+    });
+
+    css_modules_test(r#"
+      .test {
+        composes: foo from "foo.css";
+        background: white;
+      }
+    "#, indoc!{r#"
+      .test_EgL3uq {
+        background: #fff;
+      }
+    "#}, map! {
+      "test" => "test_EgL3uq" "foo" from "foo.css"
+    });
+
+    css_modules_test(r#"
+      .test {
+        composes: foo;
+        composes: foo from "foo.css";
+        composes: bar from "bar.css";
+        background: white;
+      }
+
+      .foo {
+        color: red;
+      }
+    "#, indoc!{r#"
+      .test_EgL3uq {
+        background: #fff;
+      }
+
+      .foo_EgL3uq {
+        color: red;
+      }
+    "#}, map! {
+      "test" => "test_EgL3uq" "foo_EgL3uq" "foo" from "foo.css" "bar" from "bar.css",
+      "foo" => "foo_EgL3uq"
     });
   }
 }

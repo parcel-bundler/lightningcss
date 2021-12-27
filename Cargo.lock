@@ -283,6 +283,7 @@ dependencies = [
  "data-encoding",
  "indoc",
  "itertools",
+ "lazy_static",
  "parcel_selectors",
  "parcel_sourcemap",
  "serde",

@@ -7,18 +7,8 @@ use crate::traits::ToCss;
 use crate::targets::Browsers;
 use crate::declaration::{DeclarationHandler, DeclarationBlock};
 use crate::traits::Parse;
-use std::collections::HashMap;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-use data_encoding::Specification;
-
-macro_rules! hash {
-  ($str:expr) => {{
-    let mut hasher = DefaultHasher::new();
-    $str.hash(&mut hasher);
-    hasher.finish()
-  }};
-}
+use crate::css_modules::{hash, CssModule, CssModuleExport};
+use std::collections::{HashMap, HashSet};
 
 pub use crate::parser::ParserOptions;
 
@@ -73,7 +63,7 @@ impl StyleSheet {
     Ok((dest, source_map))
   }
 
-  pub fn to_css_module(&self, minify: bool, source_map: bool, targets: Option<Browsers>) -> Result<(String, Option<SourceMap>, HashMap<String, String>), std::fmt::Error> {
+  pub fn to_css_module(&self, minify: bool, source_map: bool, targets: Option<Browsers>) -> Result<(String, Option<SourceMap>, HashMap<String, HashSet<CssModuleExport>>), std::fmt::Error> {
     let mut dest = String::new();
     let mut source_map = if source_map {
       let mut sm = SourceMap::new("/");
@@ -83,18 +73,11 @@ impl StyleSheet {
       None
     };
 
-    let encoder = {
-      let mut spec = Specification::new();
-      spec.symbols.push_str("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_-");
-      spec.encoding().unwrap()
-    };
-
-    let hash = encoder.encode(&(hash!(self.filename) as u32).to_le_bytes());
-
+    let h = hash(&self.filename);
     let mut exports = HashMap::new();
     let mut printer = Printer::new(&mut dest, source_map.as_mut(), minify, targets);
-    printer.css_module = Some(CssModuleData {
-      hash: &hash,
+    printer.css_module = Some(CssModule {
+      hash: &h,
       exports: &mut exports
     });
     self.rules.to_css(&mut printer)?;
@@ -139,9 +122,4 @@ impl StyleAttribute {
 
     Ok(dest)
   }
-}
-
-pub struct CssModuleData<'a> {
-  pub hash: &'a str,
-  pub exports: &'a mut HashMap<String, String>
 }

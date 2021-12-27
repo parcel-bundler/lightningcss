@@ -319,7 +319,7 @@ impl parcel_selectors::parser::NonTSPseudoClass for PseudoClass {
 }
 
 impl cssparser::ToCss for PseudoClass {
-  fn to_css<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
+  fn to_css<W>(&self, _: &mut W) -> fmt::Result where W: fmt::Write {
     unreachable!()
   }
 }

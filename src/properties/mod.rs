@@ -21,6 +21,7 @@ pub mod ui;
 pub mod list;
 #[cfg(feature = "grid")]
 pub mod grid;
+pub mod css_modules;
 
 use cssparser::*;
 use custom::*;
@@ -43,6 +44,7 @@ use ui::*;
 use list::*;
 #[cfg(feature = "grid")]
 use grid::*;
+use css_modules::*;
 use crate::values::{image::*, length::*, position::*, alpha::*, size::*, rect::*, color::*, time::Time, easing::EasingFunction};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
@@ -670,6 +672,9 @@ define_properties! {
   "list-style-position": ListStylePosition(ListStylePosition),
   "list-style": ListStyle(ListStyle),
   "marker-side": MarkerSide(MarkerSide),
+
+  // CSS modules
+  "composes": Composes(Composes),
 }
 
 impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {

@@ -3,7 +3,7 @@ use cssparser::{SourceLocation, serialize_identifier};
 use parcel_sourcemap::{SourceMap, OriginalLocation};
 use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
-use crate::stylesheet::CssModuleData;
+use crate::css_modules::CssModule;
 
 pub struct Printer<'a, W> {
   dest: &'a mut W,
@@ -17,7 +17,7 @@ pub struct Printer<'a, W> {
   /// the vendor prefix of whatever is being printed.
   pub vendor_prefix: VendorPrefix,
   pub in_calc: bool,
-  pub css_module: Option<CssModuleData<'a>>
+  pub css_module: Option<CssModule<'a>>
 }
 
 impl<'a, W: Write + Sized> Printer<'a, W> {
@@ -126,7 +126,7 @@ impl<'a, W: Write + Sized> Printer<'a, W> {
     }
 
     if let Some(css_module) = &mut self.css_module {
-      css_module.exports.insert(ident.into(), format!("{}_{}", ident, css_module.hash));
+      css_module.add_local(&ident, &ident);
     }
 
     Ok(())
