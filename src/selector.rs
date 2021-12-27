@@ -67,7 +67,8 @@ impl SelectorImpl for Selectors {
 pub struct SelectorParser<'a> {
   pub default_namespace: &'a Option<String>,
   pub namespace_prefixes: &'a HashMap<String, String>,
-  pub is_nesting_allowed: bool
+  pub is_nesting_allowed: bool,
+  pub css_modules: bool
 }
 
 impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a> {
@@ -164,8 +165,8 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a> {
       let pseudo_class = match_ignore_ascii_case! { &name,
         "lang" => Lang(parser.expect_ident_or_string()?.as_ref().into()),
         "dir" => Dir(parser.expect_ident_or_string()?.as_ref().into()),
-        "local" => Local(Box::new(parcel_selectors::parser::Selector::parse(self, parser)?)),
-        "global" => Global(Box::new(parcel_selectors::parser::Selector::parse(self, parser)?)),
+        "local" if self.css_modules => Local(Box::new(parcel_selectors::parser::Selector::parse(self, parser)?)),
+        "global" if self.css_modules => Global(Box::new(parcel_selectors::parser::Selector::parse(self, parser)?)),
         _ => return Err(parser.new_custom_error(parcel_selectors::parser::SelectorParseErrorKind::UnexpectedIdent(name.clone()))),
       };
 

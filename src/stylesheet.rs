@@ -6,7 +6,6 @@ use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::targets::Browsers;
 use crate::declaration::{DeclarationHandler, DeclarationBlock};
-use crate::traits::Parse;
 use crate::css_modules::{hash, CssModule, CssModuleExport};
 use std::collections::{HashMap, HashSet};
 
@@ -95,8 +94,9 @@ impl StyleAttribute {
   pub fn parse<'i>(code: &'i str) -> Result<StyleAttribute, ParseError<'i, ()>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
+    let options = ParserOptions::default();
     Ok(StyleAttribute {
-      declarations: DeclarationBlock::parse(&mut parser)?
+      declarations: DeclarationBlock::parse(&mut parser, &options)?
     })
   }
 

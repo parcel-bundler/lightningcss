@@ -50,12 +50,13 @@ use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use smallvec::{SmallVec, smallvec};
 use crate::vendor_prefix::VendorPrefix;
+use crate::parser::ParserOptions;
 
 macro_rules! define_properties {
   (
     $(
       $(#[$meta: meta])*
-      $name: literal: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: tt )*,
+      $name: literal: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: tt )* $( if $condition: ident )?,
     )+
   ) => {
     #[derive(Debug, Clone, PartialEq)]
@@ -202,12 +203,12 @@ macro_rules! define_properties {
     }
 
     impl Property {
-      pub fn parse<'i, 't>(name: CowRcStr<'i>, input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+      pub fn parse<'i, 't>(name: CowRcStr<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Self, ParseError<'i, ()>> {
         let state = input.state();
         match name.as_ref() {
           $(
             $(#[$meta])*
-            $name => {
+            $name $(if options.$condition)? => {
               if let Ok(c) = <$type>::parse(input) {
                 if input.expect_exhausted().is_ok() {
                   return Ok(Property::$property(c, $(<$vp>::None)?))
@@ -674,7 +675,7 @@ define_properties! {
   "marker-side": MarkerSide(MarkerSide),
 
   // CSS modules
-  "composes": Composes(Composes),
+  "composes": Composes(Composes) if css_modules,
 }
 
 impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {

@@ -57,21 +57,21 @@ mod tests {
       chrome: Some(95 << 16),
       ..Browsers::default()
     });
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true }).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(targets);
     let (res, _) = stylesheet.to_css(false, false, targets).unwrap();
     assert_eq!(res, expected);
   }
 
   fn nesting_test_no_targets(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true }).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(None);
     let (res, _) = stylesheet.to_css(false, false, None).unwrap();
     assert_eq!(res, expected);
   }
 
   fn css_modules_test(source: &str, expected: &str, expected_exports: HashMap<String, HashSet<CssModuleExport>>) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { css_modules: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(None);
     let (res, _, exports) = stylesheet.to_css_module(false, false, None).unwrap();
     assert_eq!(res, expected);
