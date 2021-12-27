@@ -699,23 +699,23 @@ impl FlexHandler {
 #[inline]
 fn is_flex_property(property_id: &PropertyId) -> bool {
   match property_id {
-    PropertyId::FlexDirection |
-    PropertyId::BoxOrient |
-    PropertyId::BoxDirection |
-    PropertyId::FlexWrap |
-    PropertyId::BoxLines |
-    PropertyId::FlexFlow |
-    PropertyId::FlexGrow |
-    PropertyId::BoxFlex |
-    PropertyId::FlexPositive |
-    PropertyId::FlexShrink |
-    PropertyId::FlexNegative |
-    PropertyId::FlexBasis |
-    PropertyId::FlexPreferredSize |
-    PropertyId::Flex |
-    PropertyId::Order |
-    PropertyId::BoxOrdinalGroup |
-    PropertyId::FlexOrder => true,
+    PropertyId::FlexDirection(_) |
+    PropertyId::BoxOrient(_) |
+    PropertyId::BoxDirection(_) |
+    PropertyId::FlexWrap(_) |
+    PropertyId::BoxLines(_) |
+    PropertyId::FlexFlow(_) |
+    PropertyId::FlexGrow(_) |
+    PropertyId::BoxFlex(_) |
+    PropertyId::FlexPositive(_) |
+    PropertyId::FlexShrink(_) |
+    PropertyId::FlexNegative(_) |
+    PropertyId::FlexBasis(_) |
+    PropertyId::FlexPreferredSize(_) |
+    PropertyId::Flex(_) |
+    PropertyId::Order(_) |
+    PropertyId::BoxOrdinalGroup(_) |
+    PropertyId::FlexOrder(_) => true,
     _ => false
   }
 }

@@ -26,29 +26,26 @@ impl CustomProperty {
 #[derive(Debug, Clone, PartialEq)]
 pub struct UnparsedProperty {
   pub property_id: PropertyId,
-  pub vendor_prefix: VendorPrefix,
   pub value: String
 }
 
 impl UnparsedProperty {
   pub fn parse<'i, 't>(
     property_id: PropertyId,
-    vendor_prefix: VendorPrefix,
     input: &mut Parser<'i, 't>
   ) -> Result<Self, ParseError<'i, ()>> {
     let value = parse_unknown_value(input)?;
     Ok(UnparsedProperty {
       property_id,
-      vendor_prefix,
       value
     })
   }
 
   pub fn get_prefixed(&self, targets: Option<Browsers>, feature: Feature) -> UnparsedProperty {
     let mut clone = self.clone();
-    if self.vendor_prefix.contains(VendorPrefix::None) {
+    if self.property_id.prefix().contains(VendorPrefix::None) {
       if let Some(targets) = targets {
-        clone.vendor_prefix = feature.prefixes_for(targets)
+        clone.property_id = clone.property_id.with_prefix(feature.prefixes_for(targets))
       }
     }
     clone

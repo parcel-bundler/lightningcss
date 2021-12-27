@@ -140,3 +140,8 @@ impl StyleAttribute {
     Ok(dest)
   }
 }
+
+pub struct CssModuleData<'a> {
+  pub hash: &'a str,
+  pub exports: &'a mut HashMap<String, String>
+}

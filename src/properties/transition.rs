@@ -1,6 +1,6 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
-use crate::values::{ident::CustomIdent, time::Time, easing::EasingFunction};
+use crate::values::{time::Time, easing::EasingFunction};
 use super::{Property, PropertyId};
 use crate::vendor_prefix::VendorPrefix;
 use crate::declaration::DeclarationList;
@@ -13,7 +13,7 @@ use crate::prefixes::Feature;
 /// https://www.w3.org/TR/2018/WD-css-transitions-1-20181011/#transition-shorthand-property
 #[derive(Debug, Clone, PartialEq)]
 pub struct Transition {
-  pub property: CustomIdent,
+  pub property: PropertyId,
   pub duration: Time,
   pub delay: Time,
   pub timing_function: EasingFunction 
@@ -49,7 +49,7 @@ impl Parse for Transition {
       }
 
       if property.is_none() {
-        if let Ok(value) = input.try_parse(CustomIdent::parse) {
+        if let Ok(value) = input.try_parse(PropertyId::parse) {
           property = Some(value);
           continue
         }
@@ -59,7 +59,7 @@ impl Parse for Transition {
     }
 
     Ok(Transition {
-      property: property.unwrap_or(CustomIdent("all".into())),
+      property: property.unwrap_or(PropertyId::All),
       duration: duration.unwrap_or(Time::Seconds(0.0)),
       delay: delay.unwrap_or(Time::Seconds(0.0)),
       timing_function: timing_function.unwrap_or(EasingFunction::Ease)
@@ -92,7 +92,7 @@ impl ToCss for Transition {
 #[derive(Default)]
 pub(crate) struct TransitionHandler {
   targets: Option<Browsers>,
-  properties: Option<(SmallVec<[CustomIdent; 1]>, VendorPrefix)>,
+  properties: Option<(SmallVec<[PropertyId; 1]>, VendorPrefix)>,
   durations: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   delays: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   timing_functions: Option<(SmallVec<[EasingFunction; 1]>, VendorPrefix)>,
@@ -153,7 +153,7 @@ impl PropertyHandler for TransitionHandler {
       TransitionDelay(val, vp) => property!(TransitionDelay, delays, val, vp),
       TransitionTimingFunction(val, vp) => property!(TransitionTimingFunction, timing_functions, val, vp),
       Transition(val, vp) => {
-        let properties: SmallVec<[CustomIdent; 1]> = val.iter().map(|b| b.property.clone()).collect();
+        let properties: SmallVec<[PropertyId; 1]> = val.iter().map(|b| b.property.clone()).collect();
         property!(TransitionProperty, properties, &properties, vp);
 
         let durations: SmallVec<[Time; 1]> = val.iter().map(|b| b.duration.clone()).collect();
@@ -258,11 +258,11 @@ impl TransitionHandler {
 #[inline]
 fn is_transition_property(property_id: &PropertyId) -> bool {
   match property_id {
-    PropertyId::TransitionProperty |
-    PropertyId::TransitionDuration |
-    PropertyId::TransitionDelay |
-    PropertyId::TransitionTimingFunction |
-    PropertyId::Transition => true,
+    PropertyId::TransitionProperty(_) |
+    PropertyId::TransitionDuration(_) |
+    PropertyId::TransitionDelay(_) |
+    PropertyId::TransitionTimingFunction(_) |
+    PropertyId::Transition(_) => true,
     _ => false
   }
 }
