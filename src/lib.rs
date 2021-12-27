@@ -7615,5 +7615,33 @@ mod tests {
         transition-property: opacity;
       }
     "#}, map! {});
+
+    css_modules_test(r#"
+      :global(.foo) {
+        color: red;
+      }
+
+      :local(.bar) {
+        color: yellow;
+      }
+
+      .bar :global(.baz) {
+        color: purple;
+      }
+    "#, indoc!{r#"
+      .foo {
+        color: red;
+      }
+
+      .bar_EgL3uq {
+        color: #ff0;
+      }
+
+      .bar_EgL3uq .baz {
+        color: purple;
+      }
+    "#}, map! {
+      "bar" => "bar_EgL3uq"
+    });
   }
 }

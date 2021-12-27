@@ -10,7 +10,7 @@ use crate::targets::Browsers;
 use crate::rules::{ToCssWithContext, StyleContext};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Selectors;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -164,6 +164,8 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a> {
       let pseudo_class = match_ignore_ascii_case! { &name,
         "lang" => Lang(parser.expect_ident_or_string()?.as_ref().into()),
         "dir" => Dir(parser.expect_ident_or_string()?.as_ref().into()),
+        "local" => Local(Box::new(parcel_selectors::parser::Selector::parse(self, parser)?)),
+        "global" => Global(Box::new(parcel_selectors::parser::Selector::parse(self, parser)?)),
         _ => return Err(parser.new_custom_error(parcel_selectors::parser::SelectorParseErrorKind::UnexpectedIdent(name.clone()))),
       };
 
@@ -297,6 +299,10 @@ pub enum PseudoClass {
   // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
   Autofill(VendorPrefix),
 
+  // CSS modules
+  Local(Box<parcel_selectors::parser::Selector<Selectors>>),
+  Global(Box<parcel_selectors::parser::Selector<Selectors>>),
+
   Custom(String)
 }
 
@@ -314,7 +320,7 @@ impl parcel_selectors::parser::NonTSPseudoClass for PseudoClass {
 
 impl cssparser::ToCss for PseudoClass {
   fn to_css<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
-    ToCss::to_css(self, &mut Printer::new(dest, None, false, None))
+    unreachable!()
   }
 }
 
@@ -419,6 +425,14 @@ impl ToCss for PseudoClass {
 
         // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
         Autofill(prefix) => write_prefixed!(prefix, "autofill"),
+
+        Local(selector) => selector.to_css_with_context(dest, None), // TODO: context
+        Global(selector) => {
+          let css_module = std::mem::take(&mut dest.css_module);
+          selector.to_css_with_context(dest, None)?;
+          dest.css_module = css_module;
+          Ok(())
+        },
 
         Lang(_) | Dir(_) => unreachable!(),
         Custom(val) => {
