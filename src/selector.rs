@@ -865,6 +865,14 @@ impl ToCssWithContext for Component<Selectors> {
       Nesting => {
         serialize_nesting(dest, context, false)
       },
+      Class(ref class) => {
+        dest.write_char('.')?;
+        dest.write_ident(&class.0)
+      }
+      ID(ref id) => {
+        dest.write_char('#')?;
+        dest.write_ident(&id.0)
+      }
       _ => {
         cssparser::ToCss::to_css(self, dest)
       }

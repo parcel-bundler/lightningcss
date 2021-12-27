@@ -1,8 +1,9 @@
 use std::fmt::*;
-use cssparser::SourceLocation;
+use cssparser::{SourceLocation, serialize_identifier};
 use parcel_sourcemap::{SourceMap, OriginalLocation};
 use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
+use crate::stylesheet::CssModuleData;
 
 pub struct Printer<'a, W> {
   dest: &'a mut W,
@@ -15,7 +16,8 @@ pub struct Printer<'a, W> {
   /// Vendor prefix override. When non-empty, it overrides 
   /// the vendor prefix of whatever is being printed.
   pub vendor_prefix: VendorPrefix,
-  pub in_calc: bool
+  pub in_calc: bool,
+  pub css_module: Option<CssModuleData<'a>>
 }
 
 impl<'a, W: Write + Sized> Printer<'a, W> {
@@ -34,7 +36,8 @@ impl<'a, W: Write + Sized> Printer<'a, W> {
       minify,
       targets,
       vendor_prefix: VendorPrefix::empty(),
-      in_calc: false
+      in_calc: false,
+      css_module: None
     }
   }
 
@@ -107,6 +110,26 @@ impl<'a, W: Write + Sized> Printer<'a, W> {
         name: None
       }))
     }
+  }
+
+  pub fn write_ident(&mut self, ident: &str) -> Result {
+    serialize_identifier(ident, self)?;
+    let hash = if let Some(css_module) = &self.css_module {
+      Some(css_module.hash)
+    } else {
+      None
+    };
+
+    if let Some(hash) = hash {
+      self.write_char('_')?;
+      self.write_str(hash)?;
+    }
+
+    if let Some(css_module) = &mut self.css_module {
+      css_module.exports.insert(ident.into(), format!("{}_{}", ident, css_module.hash));
+    }
+
+    Ok(())
   }
 }
 

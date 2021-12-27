@@ -4,10 +4,11 @@ use crate::traits::{Parse, ToCss};
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::vendor_prefix::VendorPrefix;
 use crate::printer::Printer;
+use crate::values::ident::CustomIdent;
 
 #[derive(Debug, PartialEq)]
 pub struct KeyframesRule {
-  pub name: String,
+  pub name: CustomIdent,
   pub keyframes: Vec<Keyframe>,
   pub vendor_prefix: VendorPrefix,
   pub loc: SourceLocation
@@ -40,7 +41,7 @@ impl ToCss for KeyframesRule {
           dest.write_char('@')?;
           VendorPrefix::$prefix.to_css(dest)?;
           dest.write_str("keyframes ")?;
-          serialize_identifier(&self.name, dest)?;
+          self.name.to_css(dest)?;
           dest.whitespace()?;
           dest.write_char('{')?;
           dest.indent();

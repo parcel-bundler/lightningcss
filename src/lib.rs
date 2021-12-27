@@ -20,6 +20,7 @@ mod tests {
   use crate::parser::ParserOptions;
   use crate::targets::Browsers;
   use indoc::indoc;
+  use std::collections::HashMap;
 
   fn test(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
@@ -66,6 +67,27 @@ mod tests {
     let (res, _) = stylesheet.to_css(false, false, None).unwrap();
     assert_eq!(res, expected);
   }
+
+  fn css_modules_test(source: &str, expected: &str, expected_exports: HashMap<String, String>) {
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
+    stylesheet.minify(None);
+    let (res, _, exports) = stylesheet.to_css_module(false, false, None).unwrap();
+    assert_eq!(res, expected);
+    assert_eq!(exports, expected_exports);
+  }
+
+  macro_rules! map(
+    { $($key:expr => $value:expr),* } => {
+      {
+        #[allow(unused_mut)]
+        let mut m = HashMap::new();
+        $(
+          m.insert($key.into(), $value.into());
+        )*
+        m
+      }
+    };
+  );
 
   #[test]
   pub fn test_border() {
@@ -7488,5 +7510,110 @@ mod tests {
         }
       "#}
     );
+  }
+
+  #[test]
+  fn test_css_modules() {
+    css_modules_test(r#"
+      .foo {
+        color: red;
+      }
+      
+      #id {
+        animation: 2s test;
+      }
+
+      @keyframes test {
+        from { color: red }
+        to { color: yellow }
+      }
+
+      @counter-style circles {
+        symbols: Ⓐ Ⓑ Ⓒ;
+      }
+
+      ul {
+        list-style: circles;
+      }
+    "#, indoc!{r#"
+      .foo_EgL3uq {
+        color: red;
+      }
+
+      #id_EgL3uq {
+        animation: test_EgL3uq 2s;
+      }
+
+      @keyframes test_EgL3uq {
+        from {
+          color: red;
+        }
+
+        to {
+          color: #ff0;
+        }
+      }
+
+      @counter-style circles_EgL3uq {
+        symbols: Ⓐ Ⓑ Ⓒ;
+      }
+
+      ul {
+        list-style: circles_EgL3uq;
+      }
+    "#}, map! {
+      "foo" => "foo_EgL3uq",
+      "id" => "id_EgL3uq",
+      "test" => "test_EgL3uq",
+      "circles" => "circles_EgL3uq"
+    });
+
+    #[cfg(feature = "grid")]
+    css_modules_test(r#"
+      body {
+        grid: [header-top] "a a a" [header-bottom]
+              [main-top] "b b b" 1fr [main-bottom]
+              / auto 1fr auto;
+      }
+
+      header {
+        grid-area: a;
+      }
+
+      main {
+        grid-row: main-top / main-bottom;
+      }
+    "#, indoc!{r#"
+      body {
+        grid: [header-top_EgL3uq] "a_EgL3uq a_EgL3uq a_EgL3uq" [header-bottom_EgL3uq]
+              [main-top_EgL3uq] "b_EgL3uq b_EgL3uq b_EgL3uq" 1fr [main-bottom_EgL3uq]
+              / auto 1fr auto;
+      }
+
+      header {
+        grid-area: a_EgL3uq;
+      }
+
+      main {
+        grid-row: main-top_EgL3uq / main-bottom_EgL3uq;
+      }
+    "#}, map! {
+      "header-top" => "header-top_EgL3uq",
+      "header-bottom" => "header-bottom_EgL3uq",
+      "main-top" => "main-top_EgL3uq",
+      "main-bottom" => "main-bottom_EgL3uq",
+      "a" => "a_EgL3uq",
+      "b" => "b_EgL3uq"
+    });
+
+    css_modules_test(r#"
+      test {
+        transition-property: opacity;
+      }
+    "#, indoc!{r#"
+      test {
+        transition-property: opacity;
+      }
+    "#}, map! {});
   }
 }

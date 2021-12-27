@@ -70,7 +70,7 @@ pub enum AtRulePrelude {
   /// A @viewport rule prelude.
   Viewport,
   /// A @keyframes rule, with its animation name and vendor prefix if exists.
-  Keyframes(String, VendorPrefix),
+  Keyframes(CustomIdent, VendorPrefix),
   /// A @page rule prelude.
   Page(Vec<PageSelector>),
   /// A @-moz-document rule.
@@ -292,7 +292,7 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a> {
           ref t => return Err(location.new_unexpected_token_error(t.clone())),
         };
 
-        Ok(AtRulePrelude::Keyframes(name.into(), prefix))
+        Ok(AtRulePrelude::Keyframes(CustomIdent(name.into()), prefix))
       },
       "page" => {
         let selectors = input.try_parse(|input| input.parse_comma_separated(PageSelector::parse)).unwrap_or_default();
