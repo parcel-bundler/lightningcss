@@ -13,33 +13,35 @@ mod compat;
 mod prefixes;
 pub mod vendor_prefix;
 pub mod targets;
+pub mod css_modules;
 
 #[cfg(test)]
 mod tests {
   use crate::stylesheet::*;
-  use crate::parser::ParserOptions;
   use crate::targets::Browsers;
   use indoc::indoc;
+  use std::collections::HashMap;
+  use crate::css_modules::{CssModuleExports, CssModuleExport};
 
   fn test(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
     stylesheet.minify(None);
-    let (res, _) = stylesheet.to_css(false, false, None).unwrap();
-    assert_eq!(res, expected);
+    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    assert_eq!(res.code, expected);
   }
 
   fn minify_test(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
     stylesheet.minify(None);
-    let (res, _) = stylesheet.to_css(true, false, None).unwrap();
-    assert_eq!(res, expected);
+    let res = stylesheet.to_css(PrinterOptions { minify: true, ..PrinterOptions::default() }).unwrap();
+    assert_eq!(res.code, expected);
   }
 
   fn prefix_test(source: &str, expected: &str, targets: Browsers) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
     stylesheet.minify(Some(targets));
-    let (res, _) = stylesheet.to_css(false, false, Some(targets)).unwrap();
-    assert_eq!(res, expected);
+    let res = stylesheet.to_css(PrinterOptions { targets: Some(targets), ..PrinterOptions::default() }).unwrap();
+    assert_eq!(res.code, expected);
   }
 
   fn attr_test(source: &str, expected: &str, minify: bool) {
@@ -54,18 +56,54 @@ mod tests {
       chrome: Some(95 << 16),
       ..Browsers::default()
     });
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true }).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(targets);
-    let (res, _) = stylesheet.to_css(false, false, targets).unwrap();
-    assert_eq!(res, expected);
+    let res = stylesheet.to_css(PrinterOptions { targets, ..PrinterOptions::default() }).unwrap();
+    assert_eq!(res.code, expected);
   }
 
   fn nesting_test_no_targets(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true }).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(None);
-    let (res, _) = stylesheet.to_css(false, false, None).unwrap();
-    assert_eq!(res, expected);
+    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    assert_eq!(res.code, expected);
   }
+
+  fn css_modules_test(source: &str, expected: &str, expected_exports: CssModuleExports) {
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { css_modules: true, ..ParserOptions::default() }).unwrap();
+    stylesheet.minify(None);
+    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    assert_eq!(res.code, expected);
+    assert_eq!(res.exports.unwrap(), expected_exports);
+  }
+
+  macro_rules! map(
+    { $($key:expr => $($value:literal $(from $from:literal)?)+),* } => {
+      {
+        #[allow(unused_mut)]
+        let mut m = HashMap::new();
+        $(
+          let mut v = Vec::new();
+          macro_rules! insert {
+            ($local:literal, $specifier:literal) => {
+              v.push(CssModuleExport::Dependency {
+                name: $local.into(),
+                specifier: $specifier.into()
+              });
+            };
+            ($local:literal) => {
+              v.push(CssModuleExport::Local($local.into()));
+            };
+          }
+          $(
+            insert!($value$(, $from)?);
+          )+
+          m.insert($key.into(), v);
+        )*
+        m
+      }
+    };
+  );
 
   #[test]
   pub fn test_border() {
@@ -7488,5 +7526,311 @@ mod tests {
         }
       "#}
     );
+
+    nesting_test_no_targets(
+      r#"
+        .error, .invalid {
+          &:hover > .baz { color: red; }
+        }
+      "#,
+      indoc!{r#"
+        .error, .invalid {
+          &:hover > .baz {
+            color: red;
+          }
+        }
+      "#}
+    );
+  }
+
+  #[test]
+  fn test_css_modules() {
+    css_modules_test(r#"
+      .foo {
+        color: red;
+      }
+      
+      #id {
+        animation: 2s test;
+      }
+
+      @keyframes test {
+        from { color: red }
+        to { color: yellow }
+      }
+
+      @counter-style circles {
+        symbols: Ⓐ Ⓑ Ⓒ;
+      }
+
+      ul {
+        list-style: circles;
+      }
+    "#, indoc!{r#"
+      .foo_EgL3uq {
+        color: red;
+      }
+
+      #id_EgL3uq {
+        animation: test_EgL3uq 2s;
+      }
+
+      @keyframes test_EgL3uq {
+        from {
+          color: red;
+        }
+
+        to {
+          color: #ff0;
+        }
+      }
+
+      @counter-style circles_EgL3uq {
+        symbols: Ⓐ Ⓑ Ⓒ;
+      }
+
+      ul {
+        list-style: circles_EgL3uq;
+      }
+    "#}, map! {
+      "foo" => "foo_EgL3uq",
+      "id" => "id_EgL3uq",
+      "test" => "test_EgL3uq",
+      "circles" => "circles_EgL3uq"
+    });
+
+    #[cfg(feature = "grid")]
+    css_modules_test(r#"
+      body {
+        grid: [header-top] "a a a" [header-bottom]
+              [main-top] "b b b" 1fr [main-bottom]
+              / auto 1fr auto;
+      }
+
+      header {
+        grid-area: a;
+      }
+
+      main {
+        grid-row: main-top / main-bottom;
+      }
+    "#, indoc!{r#"
+      body {
+        grid: [header-top_EgL3uq] "a_EgL3uq a_EgL3uq a_EgL3uq" [header-bottom_EgL3uq]
+              [main-top_EgL3uq] "b_EgL3uq b_EgL3uq b_EgL3uq" 1fr [main-bottom_EgL3uq]
+              / auto 1fr auto;
+      }
+
+      header {
+        grid-area: a_EgL3uq;
+      }
+
+      main {
+        grid-row: main-top_EgL3uq / main-bottom_EgL3uq;
+      }
+    "#}, map! {
+      "header-top" => "header-top_EgL3uq",
+      "header-bottom" => "header-bottom_EgL3uq",
+      "main-top" => "main-top_EgL3uq",
+      "main-bottom" => "main-bottom_EgL3uq",
+      "a" => "a_EgL3uq",
+      "b" => "b_EgL3uq"
+    });
+
+    css_modules_test(r#"
+      test {
+        transition-property: opacity;
+      }
+    "#, indoc!{r#"
+      test {
+        transition-property: opacity;
+      }
+    "#}, map! {});
+
+    css_modules_test(r#"
+      :global(.foo) {
+        color: red;
+      }
+
+      :local(.bar) {
+        color: yellow;
+      }
+
+      .bar :global(.baz) {
+        color: purple;
+      }
+    "#, indoc!{r#"
+      .foo {
+        color: red;
+      }
+
+      .bar_EgL3uq {
+        color: #ff0;
+      }
+
+      .bar_EgL3uq .baz {
+        color: purple;
+      }
+    "#}, map! {
+      "bar" => "bar_EgL3uq"
+    });
+
+
+    // :global(:local(.hi)) {
+    //   color: green;
+    // }
+
+
+    css_modules_test(r#"
+      .test {
+        composes: foo;
+        background: white;
+      }
+
+      .foo {
+        color: red;
+      }
+    "#, indoc!{r#"
+      .test_EgL3uq {
+        background: #fff;
+      }
+
+      .foo_EgL3uq {
+        color: red;
+      }
+    "#}, map! {
+      "test" => "test_EgL3uq" "foo_EgL3uq",
+      "foo" => "foo_EgL3uq"
+    });
+
+    css_modules_test(r#"
+      .a, .b {
+        composes: foo;
+        background: white;
+      }
+
+      .foo {
+        color: red;
+      }
+    "#, indoc!{r#"
+      .a_EgL3uq, .b_EgL3uq {
+        background: #fff;
+      }
+
+      .foo_EgL3uq {
+        color: red;
+      }
+    "#}, map! {
+      "a" => "a_EgL3uq" "foo_EgL3uq",
+      "b" => "b_EgL3uq" "foo_EgL3uq",
+      "foo" => "foo_EgL3uq"
+    });
+
+    css_modules_test(r#"
+      .test {
+        composes: foo bar;
+        background: white;
+      }
+
+      .foo {
+        color: red;
+      }
+
+      .bar {
+        color: yellow;
+      }
+    "#, indoc!{r#"
+      .test_EgL3uq {
+        background: #fff;
+      }
+
+      .foo_EgL3uq {
+        color: red;
+      }
+
+      .bar_EgL3uq {
+        color: #ff0;
+      }
+    "#}, map! {
+      "test" => "test_EgL3uq" "foo_EgL3uq" "bar_EgL3uq",
+      "foo" => "foo_EgL3uq",
+      "bar" => "bar_EgL3uq"
+    });
+
+    css_modules_test(r#"
+      .test {
+        composes: foo from global;
+        background: white;
+      }
+    "#, indoc!{r#"
+      .test_EgL3uq {
+        background: #fff;
+      }
+    "#}, map! {
+      "test" => "test_EgL3uq" "foo"
+    });
+
+    css_modules_test(r#"
+      .test {
+        composes: foo bar from global;
+        background: white;
+      }
+    "#, indoc!{r#"
+      .test_EgL3uq {
+        background: #fff;
+      }
+    "#}, map! {
+      "test" => "test_EgL3uq" "foo" "bar"
+    });
+
+    css_modules_test(r#"
+      .test {
+        composes: foo from "foo.css";
+        background: white;
+      }
+    "#, indoc!{r#"
+      .test_EgL3uq {
+        background: #fff;
+      }
+    "#}, map! {
+      "test" => "test_EgL3uq" "foo" from "foo.css"
+    });
+
+    css_modules_test(r#"
+      .test {
+        composes: foo bar from "foo.css";
+        background: white;
+      }
+    "#, indoc!{r#"
+      .test_EgL3uq {
+        background: #fff;
+      }
+    "#}, map! {
+      "test" => "test_EgL3uq" "foo" from "foo.css" "bar" from "foo.css"
+    });
+
+    css_modules_test(r#"
+      .test {
+        composes: foo;
+        composes: foo from "foo.css";
+        composes: bar from "bar.css";
+        background: white;
+      }
+
+      .foo {
+        color: red;
+      }
+    "#, indoc!{r#"
+      .test_EgL3uq {
+        background: #fff;
+      }
+
+      .foo_EgL3uq {
+        color: red;
+      }
+    "#}, map! {
+      "test" => "test_EgL3uq" "foo_EgL3uq" "foo" from "foo.css" "bar" from "bar.css",
+      "foo" => "foo_EgL3uq"
+    });
   }
 }

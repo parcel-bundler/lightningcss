@@ -293,7 +293,7 @@ impl PropertyHandler for BorderImageHandler {
 
         // Even if we weren't able to parse the value (e.g. due to var() references),
         // we can still add vendor prefixes to the property itself.
-        let prop = if val.property_id == PropertyId::BorderImage {
+        let prop = if matches!(val.property_id, PropertyId::BorderImage(_)) {
           Property::Unparsed(val.get_prefixed(self.targets, Feature::BorderImage))
         } else {
           property.clone()
@@ -392,7 +392,7 @@ fn is_border_image_property(property_id: &PropertyId) -> bool {
     PropertyId::BorderImageWidth |
     PropertyId::BorderImageOutset |
     PropertyId::BorderImageRepeat |
-    PropertyId::BorderImage => true,
+    PropertyId::BorderImage(_) => true,
     _ => false
   }
 }

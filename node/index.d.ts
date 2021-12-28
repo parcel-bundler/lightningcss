@@ -8,11 +8,13 @@ export interface TransformOptions {
   /** Whether to enable minification. */
   minify?: boolean,
   /** Whether to output a source map. */
-  source_map?: boolean,
+  sourceMap?: boolean,
   /** The browser targets for the generated code. */
   targets?: Targets,
   /** Whether to enable various draft syntax. */
-  drafts?: Drafts
+  drafts?: Drafts,
+  /** Whether to compile this file as a CSS module. */
+  cssModules?: boolean
 }
 
 export interface Drafts {
@@ -24,7 +26,32 @@ export interface TransformResult {
   /** The transformed code. */
   code: Buffer,
   /** The generated source map, if enabled. */
-  map: Buffer | void
+  map: Buffer | void,
+  /** CSS module exports, if enabled. */
+  exports: CSSModuleExports | void
+}
+
+export type CSSModuleExports = {
+  /** Maps exported (i.e. original) names to local names. */
+  [name: string]: CSSModuleExport[]
+};
+
+export type CSSModuleExport = LocalCSSModuleExport | DependencyCSSModuleExport;
+
+export interface LocalCSSModuleExport {
+  type: 'local',
+  /** The local (compiled) name for this export. */
+  value: string
+}
+
+export interface DependencyCSSModuleExport {
+  type: 'dependency',
+  value: {
+    /** The name to reference within the dependency. */
+    name: string,
+    /** The dependency specifier for the referenced file. */
+    specifier: string
+  }
 }
 
 /**

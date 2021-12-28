@@ -962,11 +962,11 @@ impl ToCss for TextShadow {
 #[inline]
 fn is_text_decoration_property(property_id: &PropertyId) -> bool {
   match property_id {
-    PropertyId::TextDecorationLine |
+    PropertyId::TextDecorationLine(_) |
     PropertyId::TextDecorationThickness |
-    PropertyId::TextDecorationStyle |
-    PropertyId::TextDecorationColor |
-    PropertyId::TextDecoration => true,
+    PropertyId::TextDecorationStyle(_) |
+    PropertyId::TextDecorationColor(_) |
+    PropertyId::TextDecoration(_) => true,
     _ => false
   }
 }
@@ -974,10 +974,10 @@ fn is_text_decoration_property(property_id: &PropertyId) -> bool {
 #[inline]
 fn is_text_emphasis_property(property_id: &PropertyId) -> bool {
   match property_id {
-    PropertyId::TextEmphasisStyle |
-    PropertyId::TextEmphasisColor |
-    PropertyId::TextEmphasis |
-    PropertyId::TextEmphasisPosition => true,
+    PropertyId::TextEmphasisStyle(_) |
+    PropertyId::TextEmphasisColor(_) |
+    PropertyId::TextEmphasis(_) |
+    PropertyId::TextEmphasisPosition(_) => true,
     _ => false
   }
 }

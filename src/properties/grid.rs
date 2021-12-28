@@ -551,7 +551,7 @@ impl GridTemplateAreas {
           if i > 0 && (!last_was_null || !dest.minify) {
             dest.write_char(' ')?;
           }
-          dest.write_str(string)?;
+          dest.write_ident(string)?;
           last_was_null = false;
         } else {
           if i > 0 && (last_was_null || !dest.minify) {

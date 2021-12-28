@@ -1,6 +1,6 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
-use crate::values::{time::Time, easing::EasingFunction};
+use crate::values::{time::Time, easing::EasingFunction, ident::CustomIdent};
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
 use crate::properties::{Property, PropertyId, VendorPrefix};
@@ -14,7 +14,7 @@ use smallvec::SmallVec;
 #[derive(Debug, Clone, PartialEq)]
 pub enum AnimationName {
   None,
-  String(String)
+  Ident(CustomIdent)
 }
 
 impl Parse for AnimationName {
@@ -29,7 +29,7 @@ impl Parse for AnimationName {
       Token::QuotedString(ref s) => s.as_ref(),
       ref t => return Err(location.new_unexpected_token_error(t.clone())),
     };
-    Ok(AnimationName::String(name.into()))
+    Ok(AnimationName::Ident(CustomIdent(name.into())))
   }
 }
 
@@ -37,7 +37,7 @@ impl ToCss for AnimationName {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
     match self {
       AnimationName::None => dest.write_str("none"),
-      AnimationName::String(s) => serialize_identifier(&s, dest)
+      AnimationName::Ident(s) => s.to_css(dest)
     }
   }
 }
@@ -156,13 +156,13 @@ impl ToCss for Animation {
     self.name.to_css(dest)?;
     match &self.name {
       AnimationName::None => return Ok(()),
-      AnimationName::String(name) => {
+      AnimationName::Ident(name) => {
         if self.duration != 0.0 || self.delay != 0.0 {
           dest.write_char(' ')?;
           self.duration.to_css(dest)?;
         }
     
-        if (self.timing_function != EasingFunction::Ease && self.timing_function != EasingFunction::CubicBezier(0.25, 0.1, 0.25, 1.0)) || EasingFunction::is_ident(&name) {
+        if (self.timing_function != EasingFunction::Ease && self.timing_function != EasingFunction::CubicBezier(0.25, 0.1, 0.25, 1.0)) || EasingFunction::is_ident(&name.0) {
           dest.write_char(' ')?;
           self.timing_function.to_css(dest)?;
         }
@@ -172,22 +172,22 @@ impl ToCss for Animation {
           self.delay.to_css(dest)?;
         }
     
-        if self.iteration_count != AnimationIterationCount::Number(1.0) || name == "infinite" {
+        if self.iteration_count != AnimationIterationCount::Number(1.0) || name.0 == "infinite" {
           dest.write_char(' ')?;
           self.iteration_count.to_css(dest)?;
         }
     
-        if self.direction != AnimationDirection::Normal || AnimationDirection::from_str(&name).is_some() {
+        if self.direction != AnimationDirection::Normal || AnimationDirection::from_str(&name.0).is_some() {
           dest.write_char(' ')?;
           self.direction.to_css(dest)?;
         }
     
-        if self.fill_mode != AnimationFillMode::None || AnimationFillMode::from_str(&name).is_some() {
+        if self.fill_mode != AnimationFillMode::None || AnimationFillMode::from_str(&name.0).is_some() {
           dest.write_char(' ')?;
           self.fill_mode.to_css(dest)?;
         }
     
-        if self.play_state != AnimationPlayState::Running || AnimationPlayState::from_str(&name).is_some() {
+        if self.play_state != AnimationPlayState::Running || AnimationPlayState::from_str(&name.0).is_some() {
           dest.write_char(' ')?;
           self.play_state.to_css(dest)?;
         }
@@ -392,15 +392,15 @@ impl AnimationHandler {
 #[inline]
 fn is_animation_property(property_id: &PropertyId) -> bool {
   match property_id {
-    PropertyId::AnimationName |
-    PropertyId::AnimationDuration |
-    PropertyId::AnimationTimingFunction |
-    PropertyId::AnimationIterationCount |
-    PropertyId::AnimationDirection |
-    PropertyId::AnimationPlayState |
-    PropertyId::AnimationDelay |
-    PropertyId::AnimationFillMode |
-    PropertyId::Animation => true,
+    PropertyId::AnimationName(_) |
+    PropertyId::AnimationDuration(_) |
+    PropertyId::AnimationTimingFunction(_) |
+    PropertyId::AnimationIterationCount(_) |
+    PropertyId::AnimationDirection(_) |
+    PropertyId::AnimationPlayState(_) |
+    PropertyId::AnimationDelay(_) |
+    PropertyId::AnimationFillMode(_) |
+    PropertyId::Animation(_) => true,
     _ => false
   }
 }

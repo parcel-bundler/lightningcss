@@ -1048,19 +1048,19 @@ impl AlignHandler {
 #[inline]
 fn is_align_property(property_id: &PropertyId) -> bool {
   match property_id {
-    PropertyId::AlignContent |
-    PropertyId::FlexLinePack |
-    PropertyId::JustifyContent |
-    PropertyId::BoxPack |
-    PropertyId::FlexPack |
+    PropertyId::AlignContent(_) |
+    PropertyId::FlexLinePack(_) |
+    PropertyId::JustifyContent(_) |
+    PropertyId::BoxPack(_) |
+    PropertyId::FlexPack(_) |
     PropertyId::PlaceContent |
-    PropertyId::AlignSelf |
-    PropertyId::FlexItemAlign |
+    PropertyId::AlignSelf(_) |
+    PropertyId::FlexItemAlign(_) |
     PropertyId::JustifySelf |
     PropertyId::PlaceSelf |
-    PropertyId::AlignItems |
-    PropertyId::BoxAlign |
-    PropertyId::FlexAlign |
+    PropertyId::AlignItems(_) |
+    PropertyId::BoxAlign(_) |
+    PropertyId::FlexAlign(_) |
     PropertyId::JustifyItems |
     PropertyId::PlaceItems |
     PropertyId::RowGap |

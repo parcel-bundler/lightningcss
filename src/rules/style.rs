@@ -67,52 +67,71 @@ impl ToCssWithContext for StyleRule {
 impl StyleRule {
   fn to_css_base<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write {
     // If supported, or there are no targets, preserve nesting. Otherwise, write nested rules after parent.
-    if self.rules.0.is_empty() || (dest.targets.is_none() || Feature::CssNesting.is_compatible(dest.targets.unwrap())) {
+    let supports_nesting = self.rules.0.is_empty() || dest.targets.is_none() || Feature::CssNesting.is_compatible(dest.targets.unwrap());
+    let len = self.declarations.declarations.len();
+    let has_declarations = supports_nesting || len > 0 || self.rules.0.is_empty();
+
+    if has_declarations {
       dest.add_mapping(self.loc);
       self.selectors.to_css_with_context(dest, context)?;
       dest.whitespace()?;
       dest.write_char('{')?;
       dest.indent();
-      let len = self.declarations.declarations.len();
+
       for (i, decl) in self.declarations.declarations.iter().enumerate() {
+        // The CSS modules `composes` property is handled specially, and omitted during printing.
+        // We need to add the classes it references to the list for the selectors in this rule.
+        if let crate::properties::Property::Composes(composes) = &decl.property {
+          if let Some(css_module) = &mut dest.css_module {
+            css_module.handle_composes(&self.selectors, &composes)
+              .map_err(|_| std::fmt::Error)?; // TODO: error
+            continue;
+          }
+        }
+
         dest.newline()?;
         decl.to_css(dest)?;
         if i != len - 1 || !dest.minify {
           dest.write_char(';')?;
         }
       }
+    }
 
-      if !dest.minify && len > 0 && !self.rules.0.is_empty() {
-        dest.write_char('\n')?;
-        dest.newline()?;
-      }
-
-      self.rules.to_css(dest)?;
-
-      dest.dedent();
-      dest.newline()?;
-      dest.write_char('}')?;
-    } else {
-      let has_declarations = self.declarations.declarations.len() > 0 || self.rules.0.is_empty();
-
-      // If there are any declarations in the rule, or no child rules, write the parent.
-      if has_declarations {
-        dest.add_mapping(self.loc);
-        self.selectors.to_css_with_context(dest, context)?;
-        self.declarations.to_css(dest)?;
-        if !dest.minify && !self.rules.0.is_empty() {
-          dest.write_char('\n')?;
+    macro_rules! newline {
+      () => {
+        if !dest.minify && (supports_nesting || len > 0) && !self.rules.0.is_empty() {
+          if len > 0 {
+            dest.write_char('\n')?;
+          }
           dest.newline()?;
         }
-      }
+      };
+    }
 
-      // Write nested rules after the parent.
+    macro_rules! end {
+      () => {
+        if has_declarations {
+          dest.dedent();
+          dest.newline()?;
+          dest.write_char('}')?;
+        }
+      };
+    }
+
+    // Write nested rules after the parent.
+    if supports_nesting {
+      newline!();
+      self.rules.to_css(dest)?;
+      end!();
+    } else {
+      end!();
+      newline!();
       self.rules.to_css_with_context(dest, Some(&StyleContext {
         rule: self,
         parent: context
       }))?;
     }
-    
+
     Ok(())
   }
 }

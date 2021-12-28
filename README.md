@@ -54,7 +54,7 @@ let {code, map} = css.transform({
   filename: 'style.css',
   code: Buffer.from('.foo { color: red }'),
   minify: true,
-  source_map: true,
+  sourceMap: true,
   targets: {
     // Semver versions are represented using a single 24-bit number, with one component per byte.
     // e.g. to represent 13.2.0, the following could be used.

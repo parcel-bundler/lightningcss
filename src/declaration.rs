@@ -1,6 +1,6 @@
 use cssparser::*;
 use crate::properties::Property;
-use crate::traits::{PropertyHandler, Parse, ToCss};
+use crate::traits::{PropertyHandler, ToCss};
 use crate::printer::Printer;
 use crate::properties::{
   align::AlignHandler,
@@ -22,15 +22,16 @@ use crate::properties::{
   grid::GridHandler,
 };
 use crate::targets::Browsers;
+use crate::parser::ParserOptions;
 
 #[derive(Debug, PartialEq)]
 pub struct DeclarationBlock {
   pub declarations: Vec<Declaration>
 }
 
-impl Parse for DeclarationBlock {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
-    let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser);
+impl DeclarationBlock {
+  pub fn parse<'i, 't>(input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Self, ParseError<'i, ()>> {
+    let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser { options });
     let mut declarations = vec![];
     while let Some(decl) = parser.next() {
       if let Ok(decl) = decl {
@@ -82,10 +83,12 @@ impl DeclarationBlock {
   }
 }
 
-struct PropertyDeclarationParser;
+struct PropertyDeclarationParser<'a> {
+  options: &'a ParserOptions
+}
 
 /// Parse a declaration within {} block: `color: blue`
-impl<'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser {
+impl<'a, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a> {
   type Declaration = Declaration;
   type Error = ();
 
@@ -94,12 +97,12 @@ impl<'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser {
     name: CowRcStr<'i>,
     input: &mut cssparser::Parser<'i, 't>,
   ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
-    Declaration::parse(name, input)
+    Declaration::parse(name, input, self.options)
   }
 }
 
 /// Default methods reject all at rules.
-impl<'i> AtRuleParser<'i> for PropertyDeclarationParser {
+impl<'a, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a> {
   type Prelude = ();
   type AtRule = Declaration;
   type Error = ();
@@ -112,8 +115,8 @@ pub struct Declaration {
 }
 
 impl Declaration {
-  pub fn parse<'i, 't>(name: CowRcStr<'i>, input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
-    let property = input.parse_until_before(Delimiter::Bang, |input| Property::parse(name, input))?;
+  pub fn parse<'i, 't>(name: CowRcStr<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Self, ParseError<'i, ()>> {
+    let property = input.parse_until_before(Delimiter::Bang, |input| Property::parse(name, input, options))?;
     let important = input.try_parse(|input| {
       input.expect_delim('!')?;
       input.expect_ident_matching("important")

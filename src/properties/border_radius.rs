@@ -202,11 +202,11 @@ fn is_border_radius_property(property_id: &PropertyId) -> bool {
   }
 
   match property_id {
-    PropertyId::BorderTopLeftRadius |
-    PropertyId::BorderTopRightRadius |
-    PropertyId::BorderBottomLeftRadius |
-    PropertyId::BorderBottomRightRadius |
-    PropertyId::BorderRadius => true,
+    PropertyId::BorderTopLeftRadius(_) |
+    PropertyId::BorderTopRightRadius(_) |
+    PropertyId::BorderBottomLeftRadius(_) |
+    PropertyId::BorderBottomRightRadius(_) |
+    PropertyId::BorderRadius(_) => true,
     _ => false
   }
 }
