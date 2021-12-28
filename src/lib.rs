@@ -7728,6 +7728,37 @@ mod tests {
 
     css_modules_test(r#"
       .test {
+        composes: foo bar;
+        background: white;
+      }
+
+      .foo {
+        color: red;
+      }
+
+      .bar {
+        color: yellow;
+      }
+    "#, indoc!{r#"
+      .test_EgL3uq {
+        background: #fff;
+      }
+
+      .foo_EgL3uq {
+        color: red;
+      }
+
+      .bar_EgL3uq {
+        color: #ff0;
+      }
+    "#}, map! {
+      "test" => "test_EgL3uq" "foo_EgL3uq" "bar_EgL3uq",
+      "foo" => "foo_EgL3uq",
+      "bar" => "bar_EgL3uq"
+    });
+
+    css_modules_test(r#"
+      .test {
         composes: foo from global;
         background: white;
       }
@@ -7741,6 +7772,19 @@ mod tests {
 
     css_modules_test(r#"
       .test {
+        composes: foo bar from global;
+        background: white;
+      }
+    "#, indoc!{r#"
+      .test_EgL3uq {
+        background: #fff;
+      }
+    "#}, map! {
+      "test" => "test_EgL3uq" "foo" "bar"
+    });
+
+    css_modules_test(r#"
+      .test {
         composes: foo from "foo.css";
         background: white;
       }
@@ -7750,6 +7794,19 @@ mod tests {
       }
     "#}, map! {
       "test" => "test_EgL3uq" "foo" from "foo.css"
+    });
+
+    css_modules_test(r#"
+      .test {
+        composes: foo bar from "foo.css";
+        background: white;
+      }
+    "#, indoc!{r#"
+      .test_EgL3uq {
+        background: #fff;
+      }
+    "#}, map! {
+      "test" => "test_EgL3uq" "foo" from "foo.css" "bar" from "foo.css"
     });
 
     css_modules_test(r#"

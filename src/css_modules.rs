@@ -73,10 +73,12 @@ impl<'a> CssModule<'a> {
       if sel.len() == 1 {
         match sel.iter_raw_match_order().next().unwrap() {
           parcel_selectors::parser::Component::Class(ref id) => {
-            match &composes.from {
-              None => self.add_local(&id.0, &composes.name.0),
-              Some(ComposesFrom::Global) => self.add_global(&id.0, &composes.name.0),
-              Some(ComposesFrom::File(file)) => self.add_dependency(&id.0, &composes.name.0, &file)
+            for name in &composes.names {
+              match &composes.from {
+                None => self.add_local(&id.0, &name.0),
+                Some(ComposesFrom::Global) => self.add_global(&id.0, &name.0),
+                Some(ComposesFrom::File(file)) => self.add_dependency(&id.0, &name.0, &file)
+              }
             }
             continue;
           }
