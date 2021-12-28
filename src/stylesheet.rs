@@ -6,20 +6,35 @@ use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::targets::Browsers;
 use crate::declaration::{DeclarationHandler, DeclarationBlock};
-use crate::traits::Parse;
+use crate::css_modules::{hash, CssModule, CssModuleExports};
+use std::collections::HashMap;
 
 pub use crate::parser::ParserOptions;
 
 pub struct StyleSheet {
   pub filename: String,
-  pub rules: CssRuleList
+  pub rules: CssRuleList,
+  options: ParserOptions
+}
+
+#[derive(Default)]
+pub struct PrinterOptions {
+  pub minify: bool,
+  pub source_map: bool,
+  pub targets: Option<Browsers>
+}
+
+pub struct ToCssResult {
+  pub code: String,
+  pub source_map: Option<SourceMap>,
+  pub exports: Option<CssModuleExports>
 }
 
 impl StyleSheet {
   pub fn parse<'i>(filename: String, code: &'i str, options: ParserOptions) -> Result<StyleSheet, ParseError<'i, ()>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
-    let rule_list_parser = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(options));
+    let rule_list_parser = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(&options));
 
     let mut rules = vec![];
     for rule in rule_list_parser {
@@ -34,7 +49,8 @@ impl StyleSheet {
 
     Ok(StyleSheet {
       filename,
-      rules: CssRuleList(rules)
+      rules: CssRuleList(rules),
+      options
     })
   }
 
@@ -44,9 +60,9 @@ impl StyleSheet {
     self.rules.minify(targets, &mut handler, &mut important_handler);
   }
 
-  pub fn to_css(&self, minify: bool, source_map: bool, targets: Option<Browsers>) -> Result<(String, Option<SourceMap>), std::fmt::Error> {
+  pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, std::fmt::Error> {
     let mut dest = String::new();
-    let mut source_map = if source_map {
+    let mut source_map = if options.source_map {
       let mut sm = SourceMap::new("/");
       sm.add_source(&self.filename);
       Some(sm)
@@ -54,11 +70,33 @@ impl StyleSheet {
       None
     };
 
-    let mut printer = Printer::new(&mut dest, source_map.as_mut(), minify, targets);
-    self.rules.to_css(&mut printer)?;
-    printer.newline()?;
+    let mut printer = Printer::new(&mut dest, source_map.as_mut(), options.minify, options.targets);
 
-    Ok((dest, source_map))
+    if self.options.css_modules {
+      let h = hash(&self.filename);
+      let mut exports = HashMap::new();
+      printer.css_module = Some(CssModule {
+        hash: &h,
+        exports: &mut exports
+      });
+
+      self.rules.to_css(&mut printer)?;
+      printer.newline()?;
+
+      Ok(ToCssResult {
+        code: dest,
+        source_map,
+        exports: Some(exports)
+      })
+    } else {
+      self.rules.to_css(&mut printer)?;
+      printer.newline()?;
+      Ok(ToCssResult {
+        code: dest,
+        source_map,
+        exports: None
+      })
+    }
   }
 }
 
@@ -70,8 +108,9 @@ impl StyleAttribute {
   pub fn parse<'i>(code: &'i str) -> Result<StyleAttribute, ParseError<'i, ()>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
+    let options = ParserOptions::default();
     Ok(StyleAttribute {
-      declarations: DeclarationBlock::parse(&mut parser)?
+      declarations: DeclarationBlock::parse(&mut parser, &options)?
     })
   }
 

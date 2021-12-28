@@ -26,6 +26,10 @@ function reflectPlaygroundState(playgroundState) {
     minify.checked = playgroundState.minify;
   }
 
+  if (typeof playgroundState.cssModules !== 'undefined') {
+    cssModules.checked = playgroundState.cssModules;
+  }
+
   if (typeof playgroundState.nesting !== 'undefined') {
     nesting.checked = playgroundState.nesting;
   }
@@ -47,6 +51,7 @@ function savePlaygroundState() {
   const playgroundState = {
     minify: minify.checked,
     nesting: nesting.checked,
+    cssModules: cssModules.checked,
     targets: getTargets(),
     source: source.value,
   };
@@ -88,10 +93,12 @@ async function update() {
     targets: Object.keys(targets).length === 0 ? null : targets,
     drafts: {
       nesting: nesting.checked
-    }
+    },
+    cssModules: cssModules.checked
   });
 
   compiled.value = dec.decode(res.code);
+  console.log(res.exports)
 
   savePlaygroundState();
 }

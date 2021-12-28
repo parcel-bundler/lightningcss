@@ -123,7 +123,7 @@ impl ToCss for LengthValue {
   }
 }
 
-pub fn serialize_dimension<W>(value: f32, unit: &str, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+pub(crate) fn serialize_dimension<W>(value: f32, unit: &str, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
   use cssparser::ToCss;
   let int_value = if value.fract() == 0.0 {
     Some(value as i32)

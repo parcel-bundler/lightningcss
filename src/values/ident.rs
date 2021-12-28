@@ -3,7 +3,7 @@ use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 
 /// https://www.w3.org/TR/css-values-4/#custom-idents
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CustomIdent(pub String);
 
 impl Parse for CustomIdent {
@@ -25,6 +25,6 @@ impl Parse for CustomIdent {
 
 impl ToCss for CustomIdent {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-    serialize_identifier(&self.0, dest)
+    dest.write_ident(&self.0)
   }
 }

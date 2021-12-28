@@ -21,6 +21,7 @@ pub mod ui;
 pub mod list;
 #[cfg(feature = "grid")]
 pub mod grid;
+pub mod css_modules;
 
 use cssparser::*;
 use custom::*;
@@ -43,25 +44,56 @@ use ui::*;
 use list::*;
 #[cfg(feature = "grid")]
 use grid::*;
-use crate::values::{image::*, length::*, position::*, alpha::*, size::*, rect::*, color::*, time::Time, ident::CustomIdent, easing::EasingFunction};
+use css_modules::*;
+use crate::values::{image::*, length::*, position::*, alpha::*, size::*, rect::*, color::*, time::Time, easing::EasingFunction};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use smallvec::{SmallVec, smallvec};
 use crate::vendor_prefix::VendorPrefix;
+use crate::parser::ParserOptions;
 
 macro_rules! define_properties {
   (
     $(
       $(#[$meta: meta])*
-      $name: literal: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: tt )*,
+      $name: literal: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: tt )* $( if $condition: ident )?,
     )+
   ) => {
-    #[derive(Debug, Clone, Copy, PartialEq)]
+    #[derive(Debug, Clone, PartialEq)]
     pub enum PropertyId {
       $(
         $(#[$meta])*
-        $property,
+        $property$(($vp))?,
       )+
+      All,
+      Custom(String)
+    }
+
+    macro_rules! vp_name {
+      ($x: ty, $n: ident) => {
+        $n
+      };
+    }
+
+    impl Parse for PropertyId {
+      fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+        let name = input.expect_ident()?;
+        match name.as_ref() {
+          $(
+            $(#[$meta])*
+            $name => Ok(PropertyId::$property$((<$vp>::None))?),
+            $(
+              // TODO: figure out how to handle attributes on prefixed properties...
+              concat!("-", $prefix, "-", $name) => {
+                let prefix = VendorPrefix::from_str($prefix);
+                Ok(PropertyId::$property(prefix))
+              }
+            )*
+          )+
+          "all" => Ok(PropertyId::All),
+          name => Ok(PropertyId::Custom(name.into()))
+        }
+      }
     }
 
     impl ToCss for PropertyId {
@@ -70,8 +102,92 @@ macro_rules! define_properties {
         match self {
           $(
             $(#[$meta])*
-            $property => dest.write_str(&$name),
+            $property$((vp_name!($vp, prefix)))? => {
+              // TODO: this assumes there is only one prefix. How should we handle multiple?
+              $(
+                macro_rules! write_prefix {
+                  ($v: ty) => {
+                    prefix.to_css(dest)?;
+                  };
+                }
+  
+                write_prefix!($vp);
+              )?
+              dest.write_str(&$name)
+            },
           )+
+          All => dest.write_str("all"),
+          Custom(name) => dest.write_str(&name)
+        }
+      }
+    }
+
+    impl PropertyId {
+      fn prefix(&self) -> VendorPrefix {
+        use PropertyId::*;
+        match self {
+          $(
+            $(#[$meta])*
+            $property$((vp_name!($vp, prefix)))? => {
+              $(
+                macro_rules! return_prefix {
+                  ($v: ty) => {
+                    return *prefix;
+                  };
+                }
+  
+                return_prefix!($vp);
+              )?
+              #[allow(unreachable_code)]
+              VendorPrefix::None
+            },
+          )+
+          _ => VendorPrefix::None
+        }
+      }
+
+      fn with_prefix(&self, prefix: VendorPrefix) -> PropertyId {
+        use PropertyId::*;
+        match self {
+          $(
+            $(#[$meta])*
+            $property$((vp_name!($vp, _p)))? => {
+              macro_rules! get_prefixed {
+                ($v: ty) => {
+                  PropertyId::$property(prefix)
+                };
+                () => {
+                  PropertyId::$property
+                }
+              }
+
+              get_prefixed!($($vp)?)
+            },
+          )+
+          _ => self.clone()
+        }
+      }
+
+      fn to_css_with_prefix<W>(&self, dest: &mut Printer<W>, prefix: VendorPrefix) -> std::fmt::Result where W: std::fmt::Write {
+        use PropertyId::*;
+        match self {
+          $(
+            $(#[$meta])*
+            $property$((vp_name!($vp, _p)))? => {
+              $(
+                macro_rules! write_prefix {
+                  ($v: ty) => {
+                    prefix.to_css(dest)?;
+                  };
+                }
+  
+                write_prefix!($vp);
+              )?
+              dest.write_str(&$name)
+            },
+          )+
+          All => dest.write_str("all"),
+          Custom(name) => dest.write_str(&name)
         }
       }
     }
@@ -87,12 +203,12 @@ macro_rules! define_properties {
     }
 
     impl Property {
-      pub fn parse<'i, 't>(name: CowRcStr<'i>, input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+      pub fn parse<'i, 't>(name: CowRcStr<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Self, ParseError<'i, ()>> {
         let state = input.state();
         match name.as_ref() {
           $(
             $(#[$meta])*
-            $name => {
+            $name $(if options.$condition)? => {
               if let Ok(c) = <$type>::parse(input) {
                 if input.expect_exhausted().is_ok() {
                   return Ok(Property::$property(c, $(<$vp>::None)?))
@@ -104,7 +220,7 @@ macro_rules! define_properties {
               // and stored as an enum rather than a string. This lets property handlers more easily deal with it.
               // Ideally we'd only do this if var() or env() references were seen, but err on the safe side for now.
               input.reset(&state);
-              return Ok(Property::Unparsed(UnparsedProperty::parse(PropertyId::$property, VendorPrefix::None, input)?))
+              return Ok(Property::Unparsed(UnparsedProperty::parse(PropertyId::$property$((<$vp>::None))?, input)?))
             }
 
             $(
@@ -118,7 +234,7 @@ macro_rules! define_properties {
                 }
 
                 input.reset(&state);
-                return Ok(Property::Unparsed(UnparsedProperty::parse(PropertyId::$property, prefix, input)?))  
+                return Ok(Property::Unparsed(UnparsedProperty::parse(PropertyId::$property(prefix), input)?))  
               }
             )*
           )+
@@ -129,14 +245,8 @@ macro_rules! define_properties {
         return Ok(Property::Custom(CustomProperty::parse(name, input)?))
       }
 
-      pub fn to_css<W>(&self, dest: &mut Printer<W>, important: bool) -> std::fmt::Result where W: std::fmt::Write {
+      pub(crate) fn to_css<W>(&self, dest: &mut Printer<W>, important: bool) -> std::fmt::Result where W: std::fmt::Write {
         use Property::*;
-
-        macro_rules! vp_name {
-          ($x: ty, $n: ident) => {
-            $n
-          };
-        }
 
         let mut first = true;
         macro_rules! start {
@@ -192,10 +302,9 @@ macro_rules! define_properties {
           Unparsed(unparsed) => {
             macro_rules! write {
               ($p: expr) => {
-                if unparsed.vendor_prefix.contains($p) {
+                if unparsed.property_id.prefix().contains($p) {
                   start!();
-                  $p.to_css(dest)?;
-                  unparsed.property_id.to_css(dest)?;
+                  unparsed.property_id.to_css_with_prefix(dest, $p)?;
                   dest.delim(':', false)?;
                   dest.write_str(unparsed.value.as_ref())?;
                   if important {
@@ -491,7 +600,7 @@ define_properties! {
   "font": Font(Font),
   "vertical-align": VerticalAlign(VerticalAlign),
 
-  "transition-property": TransitionProperty(SmallVec<[CustomIdent; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
+  "transition-property": TransitionProperty(SmallVec<[PropertyId; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
   "transition-duration": TransitionDuration(SmallVec<[Time; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
   "transition-delay": TransitionDelay(SmallVec<[Time; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
   "transition-timing-function": TransitionTimingFunction(SmallVec<[EasingFunction; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
@@ -564,6 +673,9 @@ define_properties! {
   "list-style-position": ListStylePosition(ListStylePosition),
   "list-style": ListStyle(ListStyle),
   "marker-side": MarkerSide(MarkerSide),
+
+  // CSS modules
+  "composes": Composes(Composes) if css_modules,
 }
 
 impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {

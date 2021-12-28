@@ -10,7 +10,7 @@ use crate::targets::Browsers;
 use crate::rules::{ToCssWithContext, StyleContext};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Selectors;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -67,7 +67,8 @@ impl SelectorImpl for Selectors {
 pub struct SelectorParser<'a> {
   pub default_namespace: &'a Option<String>,
   pub namespace_prefixes: &'a HashMap<String, String>,
-  pub is_nesting_allowed: bool
+  pub is_nesting_allowed: bool,
+  pub css_modules: bool
 }
 
 impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a> {
@@ -164,6 +165,8 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a> {
       let pseudo_class = match_ignore_ascii_case! { &name,
         "lang" => Lang(parser.expect_ident_or_string()?.as_ref().into()),
         "dir" => Dir(parser.expect_ident_or_string()?.as_ref().into()),
+        "local" if self.css_modules => Local(Box::new(parcel_selectors::parser::Selector::parse(self, parser)?)),
+        "global" if self.css_modules => Global(Box::new(parcel_selectors::parser::Selector::parse(self, parser)?)),
         _ => return Err(parser.new_custom_error(parcel_selectors::parser::SelectorParseErrorKind::UnexpectedIdent(name.clone()))),
       };
 
@@ -297,6 +300,10 @@ pub enum PseudoClass {
   // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
   Autofill(VendorPrefix),
 
+  // CSS modules
+  Local(Box<parcel_selectors::parser::Selector<Selectors>>),
+  Global(Box<parcel_selectors::parser::Selector<Selectors>>),
+
   Custom(String)
 }
 
@@ -313,13 +320,13 @@ impl parcel_selectors::parser::NonTSPseudoClass for PseudoClass {
 }
 
 impl cssparser::ToCss for PseudoClass {
-  fn to_css<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
-    ToCss::to_css(self, &mut Printer::new(dest, None, false, None))
+  fn to_css<W>(&self, _: &mut W) -> fmt::Result where W: fmt::Write {
+    unreachable!()
   }
 }
 
-impl ToCss for PseudoClass {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
+impl ToCssWithContext for PseudoClass {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> fmt::Result where W: fmt::Write {
       use PseudoClass::*;
       match &self {
         Lang(lang) => {
@@ -419,6 +426,14 @@ impl ToCss for PseudoClass {
 
         // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
         Autofill(prefix) => write_prefixed!(prefix, "autofill"),
+
+        Local(selector) => selector.to_css_with_context(dest, context),
+        Global(selector) => {
+          let css_module = std::mem::take(&mut dest.css_module);
+          selector.to_css_with_context(dest, context)?;
+          dest.css_module = css_module;
+          Ok(())
+        },
 
         Lang(_) | Dir(_) => unreachable!(),
         Custom(val) => {
@@ -857,7 +872,7 @@ impl ToCssWithContext for Component<Selectors> {
         dest.write_str(")")
       },
       NonTSPseudoClass(pseudo) => {
-        pseudo.to_css(dest)
+        pseudo.to_css_with_context(dest, context)
       },
       PseudoElement(pseudo) => {
         pseudo.to_css(dest)
@@ -865,6 +880,14 @@ impl ToCssWithContext for Component<Selectors> {
       Nesting => {
         serialize_nesting(dest, context, false)
       },
+      Class(ref class) => {
+        dest.write_char('.')?;
+        dest.write_ident(&class.0)
+      }
+      ID(ref id) => {
+        dest.write_char('#')?;
+        dest.write_ident(&id.0)
+      }
       _ => {
         cssparser::ToCss::to_css(self, dest)
       }

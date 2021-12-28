@@ -702,7 +702,7 @@ fn is_background_property(property_id: &PropertyId) -> bool {
     PropertyId::BackgroundSize |
     PropertyId::BackgroundAttachment |
     PropertyId::BackgroundOrigin |
-    PropertyId::BackgroundClip |
+    PropertyId::BackgroundClip(_) |
     PropertyId::Background => true,
     _ => false
   }

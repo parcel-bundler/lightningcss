@@ -4,10 +4,12 @@ use crate::traits::{Parse, ToCss};
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::vendor_prefix::VendorPrefix;
 use crate::printer::Printer;
+use crate::values::ident::CustomIdent;
+use crate::parser::ParserOptions;
 
 #[derive(Debug, PartialEq)]
 pub struct KeyframesRule {
-  pub name: String,
+  pub name: CustomIdent,
   pub keyframes: Vec<Keyframe>,
   pub vendor_prefix: VendorPrefix,
   pub loc: SourceLocation
@@ -40,7 +42,7 @@ impl ToCss for KeyframesRule {
           dest.write_char('@')?;
           VendorPrefix::$prefix.to_css(dest)?;
           dest.write_str("keyframes ")?;
-          serialize_identifier(&self.name, dest)?;
+          self.name.to_css(dest)?;
           dest.whitespace()?;
           dest.write_char('{')?;
           dest.indent();
@@ -164,9 +166,11 @@ impl<'a, 'i> QualifiedRuleParser<'i> for KeyframeListParser {
     _: &ParserState,
     input: &mut Parser<'i, 't>,
   ) -> Result<Self::QualifiedRule, ParseError<'i, ()>> {
+    // For now there are no options that apply within @keyframes
+    let options = ParserOptions::default();
     Ok(Keyframe {
       selectors,
-      declarations: DeclarationBlock::parse(input)?
+      declarations: DeclarationBlock::parse(input, &options)?
     })
   }
 }
