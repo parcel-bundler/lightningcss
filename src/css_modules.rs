@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use data_encoding::{Specification, Encoding};
@@ -18,7 +18,7 @@ pub enum CssModuleExport {
   }
 }
 
-pub type CssModuleExports = HashMap<String, HashSet<CssModuleExport>>;
+pub type CssModuleExports = HashMap<String, Vec<CssModuleExport>>;
 
 lazy_static! {
   static ref ENCODER: Encoding = {
@@ -37,12 +37,12 @@ impl<'a> CssModule<'a> {
   pub fn add_export(&mut self, name: String, export: CssModuleExport) {
     match self.exports.entry(name) {
       std::collections::hash_map::Entry::Occupied(mut entry) => {
-        entry.get_mut().insert(export);
+        entry.get_mut().push(export);
       }
       std::collections::hash_map::Entry::Vacant(entry) => {
-        let mut set = HashSet::new();
-        set.insert(export);
-        entry.insert(set);
+        let mut items = Vec::new();
+        items.push(export);
+        entry.insert(items);
       }
     }
   }

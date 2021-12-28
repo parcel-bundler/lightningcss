@@ -5,7 +5,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
 use crate::css_modules::CssModule;
 
-pub struct Printer<'a, W> {
+pub(crate) struct Printer<'a, W> {
   dest: &'a mut W,
   source_map: Option<&'a mut SourceMap>,
   indent: u8,

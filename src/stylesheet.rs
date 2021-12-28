@@ -7,7 +7,7 @@ use crate::traits::ToCss;
 use crate::targets::Browsers;
 use crate::declaration::{DeclarationHandler, DeclarationBlock};
 use crate::css_modules::{hash, CssModule, CssModuleExports};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 pub use crate::parser::ParserOptions;
 

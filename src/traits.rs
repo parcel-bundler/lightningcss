@@ -13,7 +13,7 @@ pub trait Parse: Sized {
 }
 
 /// Trait for things the can serialize themselves in CSS syntax.
-pub trait ToCss {
+pub(crate) trait ToCss {
   /// Serialize `self` in CSS syntax, writing to `dest`.
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write;
 

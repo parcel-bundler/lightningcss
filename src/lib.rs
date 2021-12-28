@@ -20,8 +20,8 @@ mod tests {
   use crate::stylesheet::*;
   use crate::targets::Browsers;
   use indoc::indoc;
-  use std::collections::{HashMap, HashSet};
-  use crate::css_modules::CssModuleExport;
+  use std::collections::HashMap;
+  use crate::css_modules::{CssModuleExports, CssModuleExport};
 
   fn test(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
@@ -69,7 +69,7 @@ mod tests {
     assert_eq!(res.code, expected);
   }
 
-  fn css_modules_test(source: &str, expected: &str, expected_exports: HashMap<String, HashSet<CssModuleExport>>) {
+  fn css_modules_test(source: &str, expected: &str, expected_exports: CssModuleExports) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { css_modules: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(None);
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
@@ -83,16 +83,16 @@ mod tests {
         #[allow(unused_mut)]
         let mut m = HashMap::new();
         $(
-          let mut v = HashSet::new();
+          let mut v = Vec::new();
           macro_rules! insert {
             ($local:literal, $specifier:literal) => {
-              v.insert(CssModuleExport::Dependency {
+              v.push(CssModuleExport::Dependency {
                 name: $local.into(),
                 specifier: $specifier.into()
               });
             };
             ($local:literal) => {
-              v.insert(CssModuleExport::Local($local.into()));
+              v.push(CssModuleExport::Local($local.into()));
             };
           }
           $(
