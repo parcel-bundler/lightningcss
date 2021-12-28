@@ -37,11 +37,15 @@ impl<'a> CssModule<'a> {
   pub fn add_export(&mut self, name: String, export: CssModuleExport) {
     match self.exports.entry(name) {
       std::collections::hash_map::Entry::Occupied(mut entry) => {
-        entry.get_mut().push(export);
+        if !entry.get().contains(&export) {
+          entry.get_mut().push(export);
+        }
       }
       std::collections::hash_map::Entry::Vacant(entry) => {
         let mut items = Vec::new();
-        items.push(export);
+        if !items.contains(&export) {
+          items.push(export);
+        }
         entry.insert(items);
       }
     }

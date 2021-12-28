@@ -325,8 +325,8 @@ impl cssparser::ToCss for PseudoClass {
   }
 }
 
-impl ToCss for PseudoClass {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
+impl ToCssWithContext for PseudoClass {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> fmt::Result where W: fmt::Write {
       use PseudoClass::*;
       match &self {
         Lang(lang) => {
@@ -427,10 +427,10 @@ impl ToCss for PseudoClass {
         // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
         Autofill(prefix) => write_prefixed!(prefix, "autofill"),
 
-        Local(selector) => selector.to_css_with_context(dest, None), // TODO: context
+        Local(selector) => selector.to_css_with_context(dest, context),
         Global(selector) => {
           let css_module = std::mem::take(&mut dest.css_module);
-          selector.to_css_with_context(dest, None)?;
+          selector.to_css_with_context(dest, context)?;
           dest.css_module = css_module;
           Ok(())
         },
@@ -872,7 +872,7 @@ impl ToCssWithContext for Component<Selectors> {
         dest.write_str(")")
       },
       NonTSPseudoClass(pseudo) => {
-        pseudo.to_css(dest)
+        pseudo.to_css_with_context(dest, context)
       },
       PseudoElement(pseudo) => {
         pseudo.to_css(dest)
