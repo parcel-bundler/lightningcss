@@ -15,11 +15,13 @@ A CSS parser, transformer, and minifier written in Rust.
   - Reducing `calc()` expressions where possible.
   - Converting colors to shorter hex notation where possible.
   - Minifying gradients.
+  - Minifying CSS grid templates.
   - Normalizing property value order.
   - Removing default property sub-values which will be inferred by browsers.
   - Many micro-optimizations, e.g. converting to shorter units, removing unnecessary quotation marks, etc.
 - **Vendor prefixing** – `@parcel/css` accepts a list of browser targets, and automatically adds (and removes) vendor prefixes.
 - **Syntax lowering** – `@parcel/css` parses modern CSS syntax, and generates more compatible output where needed, based on browser targets.
+  - CSS Nesting (draft spec)
   - CSS Level 4 Color syntax
     - Space separated components in `rgb` and `hsl` functions
     - Hex with alpha syntax
@@ -31,7 +33,11 @@ A CSS parser, transformer, and minifier written in Rust.
   - Two-value `overflow` shorthand
   - Media query range syntax (e.g. `@media (width <= 100px)` or `@media (100px < width < 500px)`)
   - Multi-value `display` property (e.g. `inline flex`)
-- **CSS modules** – TODO
+- **CSS modules** – `@parcel/css` supports compiling a subset of [CSS modules](https://github.com/css-modules/css-modules) features.
+  - Locally scoped class and id selectors
+  - Locally scoped custom identifiers, e.g. `@keyframes` names, grid lines/areas, `@counter-style` names, etc.
+  - `:local()` and `:global()` selectors
+  - The `composes` property
 
 ## Documentation
 
