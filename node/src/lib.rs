@@ -3,8 +3,9 @@
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 use serde::{Serialize, Deserialize};
-use parcel_css::stylesheet::{StyleSheet, StyleAttribute, ParserOptions};
+use parcel_css::stylesheet::{StyleSheet, StyleAttribute, ParserOptions, PrinterOptions};
 use parcel_css::targets::Browsers;
+use parcel_css::css_modules::CssModuleExports;
 
 // ---------------------------------------------
 
@@ -54,7 +55,8 @@ struct TransformResult {
   #[serde(with = "serde_bytes")]
   code: Vec<u8>,
   #[serde(with = "serde_bytes")]
-  map: Option<Vec<u8>>
+  map: Option<Vec<u8>>,
+  css_module_exports: Option<CssModuleExports>
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -104,7 +106,8 @@ struct Config {
   pub targets: Option<Browsers>,
   pub minify: Option<bool>,
   pub source_map: Option<bool>,
-  pub drafts: Option<Drafts>
+  pub drafts: Option<Drafts>,
+  pub css_modules: Option<bool>
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
@@ -118,16 +121,17 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
     nesting: match options {
       Some(o) => o.nesting,
       None => false
-    }
+    },
+    css_modules: config.css_modules.unwrap_or(false)
   })?;
   stylesheet.minify(config.targets); // TODO: should this be conditional?
-  let (res, source_map) = stylesheet.to_css(
-    config.minify.unwrap_or(false),
-    config.source_map.unwrap_or(false),
-    config.targets
-  )?;
+  let res = stylesheet.to_css(PrinterOptions {
+    minify: config.minify.unwrap_or(false),
+    source_map: config.source_map.unwrap_or(false),
+    targets: config.targets
+  })?;
 
-  let map = if let Some(mut source_map) = source_map {
+  let map = if let Some(mut source_map) = res.source_map {
     source_map.set_source_content(0, code)?;
     let mut vlq_output: Vec<u8> = Vec::new();
     source_map.write_vlq(&mut vlq_output)?;
@@ -146,8 +150,9 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
   };
 
   Ok(TransformResult {
-    code: res.into_bytes(),
-    map
+    code: res.code.into_bytes(),
+    map,
+    css_module_exports: res.css_module_exports
   })
 }
 

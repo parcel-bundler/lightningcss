@@ -6,6 +6,19 @@ use lazy_static::lazy_static;
 use crate::properties::css_modules::{Composes, ComposesFrom};
 use parcel_selectors::SelectorList;
 use crate::selector::Selectors;
+use serde::Serialize;
+
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Serialize)]
+#[serde(tag = "type", content = "value", rename_all = "lowercase")]
+pub enum CssModuleExport {
+  Local(String),
+  Dependency {
+    name: String,
+    specifier: String
+  }
+}
+
+pub type CssModuleExports = HashMap<String, HashSet<CssModuleExport>>;
 
 lazy_static! {
   static ref ENCODER: Encoding = {
@@ -15,9 +28,9 @@ lazy_static! {
   };
 }
 
-pub struct CssModule<'a> {
+pub(crate) struct CssModule<'a> {
   pub hash: &'a str,
-  pub exports: &'a mut HashMap<String, HashSet<CssModuleExport>>
+  pub exports: &'a mut CssModuleExports
 }
 
 impl<'a> CssModule<'a> {
@@ -75,16 +88,7 @@ impl<'a> CssModule<'a> {
   }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
-pub enum CssModuleExport {
-  Local(String),
-  Dependency {
-    name: String,
-    specifier: String
-  }
-}
-
-pub fn hash(s: &str) -> String {
+pub(crate) fn hash(s: &str) -> String {
   let mut hasher = DefaultHasher::new();
   s.hash(&mut hasher);
   let hash = hasher.finish() as u32;

@@ -13,12 +13,11 @@ mod compat;
 mod prefixes;
 pub mod vendor_prefix;
 pub mod targets;
-mod css_modules;
+pub mod css_modules;
 
 #[cfg(test)]
 mod tests {
   use crate::stylesheet::*;
-  use crate::parser::ParserOptions;
   use crate::targets::Browsers;
   use indoc::indoc;
   use std::collections::{HashMap, HashSet};
@@ -27,22 +26,22 @@ mod tests {
   fn test(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
     stylesheet.minify(None);
-    let (res, _) = stylesheet.to_css(false, false, None).unwrap();
-    assert_eq!(res, expected);
+    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    assert_eq!(res.code, expected);
   }
 
   fn minify_test(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
     stylesheet.minify(None);
-    let (res, _) = stylesheet.to_css(true, false, None).unwrap();
-    assert_eq!(res, expected);
+    let res = stylesheet.to_css(PrinterOptions { minify: true, ..PrinterOptions::default() }).unwrap();
+    assert_eq!(res.code, expected);
   }
 
   fn prefix_test(source: &str, expected: &str, targets: Browsers) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
     stylesheet.minify(Some(targets));
-    let (res, _) = stylesheet.to_css(false, false, Some(targets)).unwrap();
-    assert_eq!(res, expected);
+    let res = stylesheet.to_css(PrinterOptions { targets: Some(targets), ..PrinterOptions::default() }).unwrap();
+    assert_eq!(res.code, expected);
   }
 
   fn attr_test(source: &str, expected: &str, minify: bool) {
@@ -59,23 +58,23 @@ mod tests {
     });
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(targets);
-    let (res, _) = stylesheet.to_css(false, false, targets).unwrap();
-    assert_eq!(res, expected);
+    let res = stylesheet.to_css(PrinterOptions { targets, ..PrinterOptions::default() }).unwrap();
+    assert_eq!(res.code, expected);
   }
 
   fn nesting_test_no_targets(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(None);
-    let (res, _) = stylesheet.to_css(false, false, None).unwrap();
-    assert_eq!(res, expected);
+    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    assert_eq!(res.code, expected);
   }
 
   fn css_modules_test(source: &str, expected: &str, expected_exports: HashMap<String, HashSet<CssModuleExport>>) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { css_modules: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(None);
-    let (res, _, exports) = stylesheet.to_css_module(false, false, None).unwrap();
-    assert_eq!(res, expected);
-    assert_eq!(exports, expected_exports);
+    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    assert_eq!(res.code, expected);
+    assert_eq!(res.css_module_exports.unwrap(), expected_exports);
   }
 
   macro_rules! map(

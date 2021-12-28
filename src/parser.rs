@@ -30,14 +30,14 @@ pub struct ParserOptions {
 }
 
 /// The parser for the top-level rules in a stylesheet.
-pub struct TopLevelRuleParser {
+pub struct TopLevelRuleParser<'a> {
   default_namespace: Option<String>,
   namespace_prefixes: HashMap<String, String>,
-  options: ParserOptions
+  options: &'a ParserOptions
 }
 
-impl<'b> TopLevelRuleParser {
-  pub fn new(options: ParserOptions) -> TopLevelRuleParser {
+impl<'a, 'b> TopLevelRuleParser<'a> {
+  pub fn new(options: &'a ParserOptions) -> TopLevelRuleParser<'a> {
     TopLevelRuleParser {
       default_namespace: None,
       namespace_prefixes: HashMap::new(),
@@ -45,7 +45,7 @@ impl<'b> TopLevelRuleParser {
     }
   }
 
-  fn nested<'a: 'b>(&'a mut self) -> NestedRuleParser {
+  fn nested<'x: 'b>(&'x mut self) -> NestedRuleParser {
       NestedRuleParser {
         default_namespace: &mut self.default_namespace,
         namespace_prefixes: &mut self.namespace_prefixes,
@@ -86,7 +86,7 @@ pub enum AtRulePrelude {
   Nest(SelectorList<Selectors>)
 }
 
-impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
+impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a> {
   type Prelude = AtRulePrelude;
   type AtRule = (SourcePosition, CssRule);
   type Error = ();
@@ -176,7 +176,7 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser {
   }
 }
 
-impl<'a, 'i> QualifiedRuleParser<'i> for TopLevelRuleParser {
+impl<'a, 'i> QualifiedRuleParser<'i> for TopLevelRuleParser<'a> {
   type Prelude = SelectorList<Selectors>;
   type QualifiedRule = (SourcePosition, CssRule);
   type Error = ();

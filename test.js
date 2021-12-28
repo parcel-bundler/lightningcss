@@ -39,24 +39,20 @@ let res = css.transform({
   code: Buffer.from(`
 
   .foo {
-    display: grid;
-
-    & h1, & h2, &.bar {
-      color: red;
-    }
-  
-    @media (orientation: landscape) {
-      grid-auto-flow: column;
-
-      & h1, & h2, &.bar {
-        color: red;
-      }
-    }
-
-    @nest :not(&), .bar & {
-      color: blue;
-    }
+    composes: bar;
+    composes: baz from "baz.css";
+    color: pink;
   }
-`)});
+
+  .bar {
+    color: red;
+  }
+`),
+  drafts: {
+    nesting: true
+  },
+  css_modules: true
+});
 
 console.log(res.code.toString());
+console.log(res.css_module_exports);
