@@ -14,7 +14,7 @@ export interface TransformOptions {
   /** Whether to enable various draft syntax. */
   drafts?: Drafts,
   /** Whether to compile this file as a CSS module. */
-  module?: boolean
+  cssModules?: boolean
 }
 
 export interface Drafts {
@@ -33,7 +33,7 @@ export interface TransformResult {
 
 export type CSSModuleExports = {
   /** Maps exported (i.e. original) names to local names. */
-  [name: string]: CSSModuleExport
+  [name: string]: CSSModuleExport[]
 };
 
 export type CSSModuleExport = LocalCSSModuleExport | DependencyCSSModuleExport;

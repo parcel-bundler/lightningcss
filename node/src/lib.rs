@@ -109,7 +109,7 @@ struct Config {
   pub minify: Option<bool>,
   pub source_map: Option<bool>,
   pub drafts: Option<Drafts>,
-  pub module: Option<bool>
+  pub css_modules: Option<bool>
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
@@ -124,7 +124,7 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
       Some(o) => o.nesting,
       None => false
     },
-    css_modules: config.module.unwrap_or(false)
+    css_modules: config.css_modules.unwrap_or(false)
   })?;
   stylesheet.minify(config.targets); // TODO: should this be conditional?
   let res = stylesheet.to_css(PrinterOptions {
