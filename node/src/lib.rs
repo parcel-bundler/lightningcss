@@ -51,12 +51,13 @@ struct SourceMapJson<'a> {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct TransformResult {
   #[serde(with = "serde_bytes")]
   code: Vec<u8>,
   #[serde(with = "serde_bytes")]
   map: Option<Vec<u8>>,
-  css_module_exports: Option<CssModuleExports>
+  exports: Option<CssModuleExports>
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -99,6 +100,7 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
 // ---------------------------------------------
 
 #[derive(Serialize, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct Config {
   pub filename: String,
   #[serde(with = "serde_bytes")]
@@ -152,7 +154,7 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
   Ok(TransformResult {
     code: res.code.into_bytes(),
     map,
-    css_module_exports: res.css_module_exports
+    exports: res.exports
   })
 }
 

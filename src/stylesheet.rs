@@ -27,7 +27,7 @@ pub struct PrinterOptions {
 pub struct ToCssResult {
   pub code: String,
   pub source_map: Option<SourceMap>,
-  pub css_module_exports: Option<CssModuleExports>
+  pub exports: Option<CssModuleExports>
 }
 
 impl StyleSheet {
@@ -86,7 +86,7 @@ impl StyleSheet {
       Ok(ToCssResult {
         code: dest,
         source_map,
-        css_module_exports: Some(exports)
+        exports: Some(exports)
       })
     } else {
       self.rules.to_css(&mut printer)?;
@@ -94,7 +94,7 @@ impl StyleSheet {
       Ok(ToCssResult {
         code: dest,
         source_map,
-        css_module_exports: None
+        exports: None
       })
     }
   }

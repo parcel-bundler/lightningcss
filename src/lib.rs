@@ -74,7 +74,7 @@ mod tests {
     stylesheet.minify(None);
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
-    assert_eq!(res.css_module_exports.unwrap(), expected_exports);
+    assert_eq!(res.exports.unwrap(), expected_exports);
   }
 
   macro_rules! map(

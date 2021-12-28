@@ -6,7 +6,7 @@ if (process.argv[process.argv.length - 1] !== __filename) {
     filename: process.argv[process.argv.length - 1],
     code: fs.readFileSync(process.argv[process.argv.length - 1]),
     minify: true,
-    source_map: true,
+    sourceMap: true,
     targets: {
       chrome: 95 << 16
     }
@@ -51,8 +51,8 @@ let res = css.transform({
   drafts: {
     nesting: true
   },
-  css_modules: true
+  cssModules: true
 });
 
 console.log(res.code.toString());
-console.log(res.css_module_exports);
+console.log(res.exports);
