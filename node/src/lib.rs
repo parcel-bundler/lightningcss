@@ -6,6 +6,7 @@ use serde::{Serialize, Deserialize};
 use parcel_css::stylesheet::{StyleSheet, StyleAttribute, ParserOptions, PrinterOptions};
 use parcel_css::targets::Browsers;
 use parcel_css::css_modules::CssModuleExports;
+use parcel_css::dependencies::Dependency;
 
 // ---------------------------------------------
 
@@ -26,11 +27,12 @@ pub fn transform(config_val: JsValue) -> Result<JsValue, JsValue> {
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(js_name = "transformStyleAttribute")]
-pub fn transform_style_attribute(config_val: JsValue) -> Result<Vec<u8>, JsValue> {
+pub fn transform_style_attribute(config_val: JsValue) -> Result<JsValue, JsValue> {
   let config: AttrConfig = from_value(config_val).map_err(JsValue::from)?;
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
   let res = compile_attr(code, &config)?;
-  Ok(res)
+  let serializer = Serializer::new().serialize_maps_as_objects(true);
+  res.serialize(&serializer).map_err(JsValue::from)
 }
 
 // ---------------------------------------------
@@ -57,7 +59,8 @@ struct TransformResult {
   code: Vec<u8>,
   #[serde(with = "serde_bytes")]
   map: Option<Vec<u8>>,
-  exports: Option<CssModuleExports>
+  exports: Option<CssModuleExports>,
+  dependencies: Option<Vec<Dependency>>
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -83,7 +86,7 @@ fn transform_style_attribute(ctx: CallContext) -> napi::Result<JsUnknown> {
   let res = compile_attr(code, &config);
 
   match res {
-    Ok(res) => Ok(ctx.env.create_buffer_with_data(res)?.into_unknown()),
+    Ok(res) => ctx.env.to_js_value(&res),
     Err(err) => err.throw(ctx, None, code)
   }
 }
@@ -109,7 +112,8 @@ struct Config {
   pub minify: Option<bool>,
   pub source_map: Option<bool>,
   pub drafts: Option<Drafts>,
-  pub css_modules: Option<bool>
+  pub css_modules: Option<bool>,
+  pub analyze_dependencies: Option<bool>
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
@@ -130,7 +134,8 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
   let res = stylesheet.to_css(PrinterOptions {
     minify: config.minify.unwrap_or(false),
     source_map: config.source_map.unwrap_or(false),
-    targets: config.targets
+    targets: config.targets,
+    analyze_dependencies: config.analyze_dependencies.unwrap_or(false)
   })?;
 
   let map = if let Some(mut source_map) = res.source_map {
@@ -154,23 +159,42 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
   Ok(TransformResult {
     code: res.code.into_bytes(),
     map,
-    exports: res.exports
+    exports: res.exports,
+    dependencies: res.dependencies
   })
 }
 
 #[derive(Serialize, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct AttrConfig {
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
   pub targets: Option<Browsers>,
-  pub minify: Option<bool>
+  pub minify: Option<bool>,
+  pub analyze_dependencies: Option<bool>
 }
 
-fn compile_attr<'i>(code: &'i str, config: &AttrConfig) -> Result<Vec<u8>, CompileError<'i>> {
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AttrResult {
+  #[serde(with = "serde_bytes")]
+  code: Vec<u8>,
+  dependencies: Option<Vec<Dependency>>
+}
+
+fn compile_attr<'i>(code: &'i str, config: &AttrConfig) -> Result<AttrResult, CompileError<'i>> {
   let mut attr = StyleAttribute::parse(&code)?;
   attr.minify(config.targets); // TODO: should this be conditional?
-  let res = attr.to_css(config.minify.unwrap_or(false), config.targets)?;
-  Ok(res.into_bytes())
+  let res = attr.to_css(PrinterOptions {
+    minify: config.minify.unwrap_or(false),
+    source_map: false,
+    targets: config.targets,
+    analyze_dependencies: config.analyze_dependencies.unwrap_or(false)
+  })?;
+  Ok(AttrResult {
+    code: res.code.into_bytes(),
+    dependencies: res.dependencies
+  })
 }
 
 enum CompileError<'i> {

@@ -5,6 +5,7 @@ use crate::properties::font::{FontFamily, FontStyle, FontWeight, FontStretch};
 use crate::values::size::Size2D;
 use crate::properties::custom::CustomProperty;
 use crate::macros::enum_property;
+use crate::values::url::Url;
 
 #[derive(Debug, PartialEq)]
 pub struct FontFaceRule {
@@ -56,13 +57,13 @@ impl ToCss for Source {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct UrlSource {
-  pub url: String,
+  pub url: Url,
   pub format: Option<Format>
 }
 
 impl Parse for UrlSource {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
-    let url = input.expect_url()?.as_ref().to_owned();
+    let url = Url::parse(input)?;
 
     let format = if input.try_parse(|input| input.expect_function_matching("format")).is_ok() {
       Some(input.parse_nested_block(Format::parse)?)
@@ -76,8 +77,7 @@ impl Parse for UrlSource {
 
 impl ToCss for UrlSource {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-    use cssparser::ToCss;
-    Token::UnquotedUrl(CowRcStr::from(self.url.as_ref())).to_css(dest)?;
+    self.url.to_css(dest)?;
     if let Some(format) = &self.format {
       dest.whitespace()?;
       dest.write_str("format(")?;

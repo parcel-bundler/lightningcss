@@ -14,6 +14,7 @@ mod prefixes;
 pub mod vendor_prefix;
 pub mod targets;
 pub mod css_modules;
+pub mod dependencies;
 
 #[cfg(test)]
 mod tests {
@@ -47,8 +48,8 @@ mod tests {
   fn attr_test(source: &str, expected: &str, minify: bool) {
     let mut attr = StyleAttribute::parse(source).unwrap();
     attr.minify(None);
-    let res = attr.to_css(minify, None).unwrap();
-    assert_eq!(res, expected);
+    let res = attr.to_css(PrinterOptions { minify, ..PrinterOptions::default() }).unwrap();
+    assert_eq!(res.code, expected);
   }
 
   fn nesting_test(source: &str, expected: &str) {

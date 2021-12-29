@@ -184,6 +184,14 @@ impl ToCssWithContext for CssRuleList {
     let mut last_without_block = false;
 
     for rule in &self.0 {
+      // Skip @import rules if collecting dependencies.
+      if let CssRule::Import(rule) = &rule {
+        if let Some(dependencies) = &mut dest.dependencies {
+          dependencies.push(rule.into());
+          continue;
+        }
+      }
+
       if first {
         first = false;
       } else {

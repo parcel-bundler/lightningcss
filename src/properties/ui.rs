@@ -4,6 +4,7 @@ use crate::values::color::CssColor;
 use crate::macros::{enum_property, shorthand_property};
 use crate::printer::Printer;
 use smallvec::SmallVec;
+use crate::values::url::Url;
 
 // https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#resize
 enum_property!(Resize,
@@ -18,13 +19,13 @@ enum_property!(Resize,
 /// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#cursor
 #[derive(Debug, Clone, PartialEq)]
 pub struct CursorImage {
-  pub url: String,
+  pub url: Url,
   pub hotspot: Option<(f32, f32)>
 }
 
 impl Parse for CursorImage {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
-    let url = input.expect_url()?.as_ref().to_owned();
+    let url = Url::parse(input)?;
     let hotspot = if let Ok(x) = input.try_parse(f32::parse) {
       let y = f32::parse(input)?;
       Some((x, y))
@@ -41,10 +42,7 @@ impl Parse for CursorImage {
 
 impl ToCss for CursorImage {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
-    {
-      use cssparser::ToCss;
-      Token::UnquotedUrl(CowRcStr::from(self.url.as_ref())).to_css(dest)?;
-    }
+    self.url.to_css(dest)?;
 
     if let Some((x, y)) = self.hotspot {
       dest.write_char(' ')?;
