@@ -15,6 +15,7 @@ keywords = [ "CSS", "minifier", "Parcel" ]
 repository = "https://github.com/parcel-bundler/parcel-css"
 
 [features]
+default = ["grid"]
 grid = []
 
 [lib]
