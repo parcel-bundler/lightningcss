@@ -180,7 +180,5 @@ jobs:
         env:
           CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
       - run: |
-          cd selectors
-          cargo publish
-          cd ..
-          cargo publish
+          cargo install cargo-workspaces
+          cargo workspaces publish --from-git -y
