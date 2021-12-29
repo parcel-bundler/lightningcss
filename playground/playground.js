@@ -28,6 +28,7 @@ function reflectPlaygroundState(playgroundState) {
 
   if (typeof playgroundState.cssModules !== 'undefined') {
     cssModules.checked = playgroundState.cssModules;
+    compiledModules.hidden = !playgroundState.cssModules;
   }
 
   if (typeof playgroundState.nesting !== 'undefined') {
@@ -98,7 +99,8 @@ async function update() {
   });
 
   compiled.value = dec.decode(res.code);
-  console.log(res.exports)
+  compiledModules.value = JSON.stringify(res.exports, false, 2);
+  compiledModules.hidden = !cssModules.checked;
 
   savePlaygroundState();
 }
