@@ -180,7 +180,7 @@ jobs:
         env:
           CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
       - run: |
-        cd selectors
-        cargo publish
-        cd ..
-        cargo publish
+          cd selectors
+          cargo publish
+          cd ..
+          cargo publish
