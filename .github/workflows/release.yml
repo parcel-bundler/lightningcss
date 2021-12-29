@@ -179,4 +179,8 @@ jobs:
       - run: cargo login ${CRATES_IO_TOKEN}
         env:
           CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
-      - run: cargo publish
+      - run: |
+        cd selectors
+        cargo publish
+        cd ..
+        cargo publish
