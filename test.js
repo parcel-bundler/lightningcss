@@ -37,6 +37,9 @@ let res = css.transform({
     opera: 10 << 16 | 5 << 8
   },
   code: Buffer.from(`
+  @import "foo.css";
+  @import "bar.css" print;
+  @import "baz.css" supports(display: grid);
 
   .foo {
     composes: bar;
@@ -46,13 +49,16 @@ let res = css.transform({
 
   .bar {
     color: red;
+    background: url(test.jpg);
   }
 `),
   drafts: {
     nesting: true
   },
-  cssModules: true
+  cssModules: true,
+  analyzeDependencies: true
 });
 
 console.log(res.code.toString());
 console.log(res.exports);
+console.log(require('util').inspect(res.dependencies, { colors: true, depth: 50 }));

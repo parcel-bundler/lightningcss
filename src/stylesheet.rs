@@ -8,6 +8,7 @@ use crate::targets::Browsers;
 use crate::declaration::{DeclarationHandler, DeclarationBlock};
 use crate::css_modules::{hash, CssModule, CssModuleExports};
 use std::collections::HashMap;
+use crate::dependencies::Dependency;
 
 pub use crate::parser::ParserOptions;
 
@@ -21,13 +22,15 @@ pub struct StyleSheet {
 pub struct PrinterOptions {
   pub minify: bool,
   pub source_map: bool,
-  pub targets: Option<Browsers>
+  pub targets: Option<Browsers>,
+  pub analyze_dependencies: bool
 }
 
 pub struct ToCssResult {
   pub code: String,
   pub source_map: Option<SourceMap>,
-  pub exports: Option<CssModuleExports>
+  pub exports: Option<CssModuleExports>,
+  pub dependencies: Option<Vec<Dependency>>
 }
 
 impl StyleSheet {
@@ -70,7 +73,15 @@ impl StyleSheet {
       None
     };
 
-    let mut printer = Printer::new(&mut dest, source_map.as_mut(), options.minify, options.targets);
+    let mut printer = Printer::new(&self.filename, &mut dest, source_map.as_mut(), options.minify, options.targets);
+
+   let mut dependencies = if options.analyze_dependencies {
+      Some(Vec::new())
+    } else {
+      None
+    };
+
+    printer.dependencies = dependencies.as_mut();
 
     if self.options.css_modules {
       let h = hash(&self.filename);
@@ -86,7 +97,8 @@ impl StyleSheet {
       Ok(ToCssResult {
         code: dest,
         source_map,
-        exports: Some(exports)
+        exports: Some(exports),
+        dependencies
       })
     } else {
       self.rules.to_css(&mut printer)?;
@@ -94,7 +106,8 @@ impl StyleSheet {
       Ok(ToCssResult {
         code: dest,
         source_map,
-        exports: None
+        exports: None,
+        dependencies
       })
     }
   }
@@ -122,7 +135,7 @@ impl StyleAttribute {
 
   pub fn to_css(&self, minify: bool, targets: Option<Browsers>) -> Result<String, std::fmt::Error> {
     let mut dest = String::new();
-    let mut printer = Printer::new(&mut dest, None, minify, targets);
+    let mut printer = Printer::new("", &mut dest, None, minify, targets);
 
     let declarations = &self.declarations.declarations;
     let len = declarations.len();

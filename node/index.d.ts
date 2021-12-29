@@ -14,7 +14,9 @@ export interface TransformOptions {
   /** Whether to enable various draft syntax. */
   drafts?: Drafts,
   /** Whether to compile this file as a CSS module. */
-  cssModules?: boolean
+  cssModules?: boolean,
+  /** Whether to analyze dependencies (e.g. `@import` and `url()`). */
+  analyzeDependencies?: boolean
 }
 
 export interface Drafts {
@@ -28,7 +30,9 @@ export interface TransformResult {
   /** The generated source map, if enabled. */
   map: Buffer | void,
   /** CSS module exports, if enabled. */
-  exports: CSSModuleExports | void
+  exports: CSSModuleExports | void,
+  /** `@import` and `url()` dependencies, if enabled. */
+  dependencies: Dependency[] | void
 }
 
 export type CSSModuleExports = {
@@ -52,6 +56,32 @@ export interface DependencyCSSModuleExport {
     /** The dependency specifier for the referenced file. */
     specifier: string
   }
+}
+
+export type Dependency = ImportDependency | UrlDependency;
+
+export interface ImportDependency {
+  type: 'import',
+  url: string,
+  media: string | null,
+  supports: string | null,
+  loc: SourceLocation
+}
+
+export interface UrlDependency {
+  type: 'url',
+  url: string,
+  loc: SourceLocation
+}
+
+export interface SourceLocation {
+  start: Location,
+  end: Location
+}
+
+export interface Location {
+  line: number,
+  column: number
 }
 
 /**

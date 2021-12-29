@@ -14,6 +14,7 @@ mod prefixes;
 pub mod vendor_prefix;
 pub mod targets;
 pub mod css_modules;
+pub mod dependencies;
 
 #[cfg(test)]
 mod tests {

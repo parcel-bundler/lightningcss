@@ -4,8 +4,10 @@ use parcel_sourcemap::{SourceMap, OriginalLocation};
 use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
 use crate::css_modules::CssModule;
+use crate::dependencies::Dependency;
 
 pub(crate) struct Printer<'a, W> {
+  pub filename: &'a str,
   dest: &'a mut W,
   source_map: Option<&'a mut SourceMap>,
   indent: u8,
@@ -17,17 +19,20 @@ pub(crate) struct Printer<'a, W> {
   /// the vendor prefix of whatever is being printed.
   pub vendor_prefix: VendorPrefix,
   pub in_calc: bool,
-  pub css_module: Option<CssModule<'a>>
+  pub css_module: Option<CssModule<'a>>,
+  pub dependencies: Option<&'a mut Vec<Dependency>>
 }
 
 impl<'a, W: Write + Sized> Printer<'a, W> {
   pub fn new(
+    filename: &'a str,
     dest: &'a mut W,
     source_map: Option<&'a mut SourceMap>,
     minify: bool,
     targets: Option<Browsers>
   ) -> Printer<'a, W> {
     Printer {
+      filename,
       dest,
       source_map,
       indent: 0,
@@ -37,7 +42,8 @@ impl<'a, W: Write + Sized> Printer<'a, W> {
       targets,
       vendor_prefix: VendorPrefix::empty(),
       in_calc: false,
-      css_module: None
+      css_module: None,
+      dependencies: None
     }
   }
 

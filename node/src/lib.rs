@@ -6,6 +6,7 @@ use serde::{Serialize, Deserialize};
 use parcel_css::stylesheet::{StyleSheet, StyleAttribute, ParserOptions, PrinterOptions};
 use parcel_css::targets::Browsers;
 use parcel_css::css_modules::CssModuleExports;
+use parcel_css::dependencies::Dependency;
 
 // ---------------------------------------------
 
@@ -57,7 +58,8 @@ struct TransformResult {
   code: Vec<u8>,
   #[serde(with = "serde_bytes")]
   map: Option<Vec<u8>>,
-  exports: Option<CssModuleExports>
+  exports: Option<CssModuleExports>,
+  dependencies: Option<Vec<Dependency>>
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -109,7 +111,8 @@ struct Config {
   pub minify: Option<bool>,
   pub source_map: Option<bool>,
   pub drafts: Option<Drafts>,
-  pub css_modules: Option<bool>
+  pub css_modules: Option<bool>,
+  pub analyze_dependencies: Option<bool>
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
@@ -130,7 +133,8 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
   let res = stylesheet.to_css(PrinterOptions {
     minify: config.minify.unwrap_or(false),
     source_map: config.source_map.unwrap_or(false),
-    targets: config.targets
+    targets: config.targets,
+    analyze_dependencies: config.analyze_dependencies.unwrap_or(false)
   })?;
 
   let map = if let Some(mut source_map) = res.source_map {
@@ -154,7 +158,8 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
   Ok(TransformResult {
     code: res.code.into_bytes(),
     map,
-    exports: res.exports
+    exports: res.exports,
+    dependencies: res.dependencies
   })
 }
 
