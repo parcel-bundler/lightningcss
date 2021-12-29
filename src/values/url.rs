@@ -2,7 +2,6 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use crate::dependencies::{Dependency, UrlDependency};
-use crate::css_modules::hash;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Url {

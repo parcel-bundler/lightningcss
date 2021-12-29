@@ -75,7 +75,7 @@ impl StyleSheet {
 
     let mut printer = Printer::new(&self.filename, &mut dest, source_map.as_mut(), options.minify, options.targets);
 
-   let mut dependencies = if options.analyze_dependencies {
+    let mut dependencies = if options.analyze_dependencies {
       Some(Vec::new())
     } else {
       None
@@ -133,9 +133,19 @@ impl StyleAttribute {
     self.declarations.minify(&mut handler, &mut important_handler);
   }
 
-  pub fn to_css(&self, minify: bool, targets: Option<Browsers>) -> Result<String, std::fmt::Error> {
+  pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, std::fmt::Error> {
+    assert_eq!(options.source_map, false, "Source maps are not supported for style attributes");
+
     let mut dest = String::new();
-    let mut printer = Printer::new("", &mut dest, None, minify, targets);
+    let mut printer = Printer::new("", &mut dest, None, options.minify, options.targets);
+
+    let mut dependencies = if options.analyze_dependencies {
+      Some(Vec::new())
+    } else {
+      None
+    };
+
+    printer.dependencies = dependencies.as_mut();
 
     let declarations = &self.declarations.declarations;
     let len = declarations.len();
@@ -147,6 +157,11 @@ impl StyleAttribute {
       }
     }
 
-    Ok(dest)
+    Ok(ToCssResult {
+      code: dest,
+      source_map: None,
+      exports: None,
+      dependencies
+    })
   }
 }

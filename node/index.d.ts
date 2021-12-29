@@ -111,10 +111,24 @@ export interface TransformAttributeOptions {
   /** Whether to enable minification. */
   minify?: boolean,
   /** The browser targets for the generated code. */
-  targets?: Targets
+  targets?: Targets,
+  /**
+   * Whether to analyze `url()` dependencies.
+   * When enabled, `url()` dependencies are replaced with hashed placeholders 
+   * that can be replaced with the final urls later (after bundling).
+   * Dependencies are returned as part of the result.
+   */
+   analyzeDependencies?: boolean
+}
+
+export interface TransformAttributeResult {
+  /** The transformed code. */
+  code: Buffer,
+  /** `@import` and `url()` dependencies, if enabled. */
+  dependencies: Dependency[] | void  
 }
 
 /**
  * Compiles a single CSS declaration list, such as an inline style attribute in HTML.
  */
-export declare function transformStyleAttribute(options: TransformAttributeOptions): Buffer;
+export declare function transformStyleAttribute(options: TransformAttributeOptions): TransformAttributeResult;
