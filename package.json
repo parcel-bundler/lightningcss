@@ -1,6 +1,6 @@
 {
   "name": "@parcel/css",
-  "version": "1.0.0-alpha.7",
+  "version": "1.0.0-alpha.8",
   "license": "MIT",
   "description": "A CSS parser, transformer, and minifier written in Rust",
   "main": "native.js",
