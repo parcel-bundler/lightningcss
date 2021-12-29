@@ -15,7 +15,12 @@ export interface TransformOptions {
   drafts?: Drafts,
   /** Whether to compile this file as a CSS module. */
   cssModules?: boolean,
-  /** Whether to analyze dependencies (e.g. `@import` and `url()`). */
+  /**
+   * Whether to analyze dependencies (e.g. `@import` and `url()`).
+   * When enabled, `@import` rules are removed, and `url()` dependencies
+   * are replaced with hashed placeholders that can be replaced with the final
+   * urls later (after bundling). Dependencies are returned as part of the result.
+   */
   analyzeDependencies?: boolean
 }
 
@@ -62,25 +67,35 @@ export type Dependency = ImportDependency | UrlDependency;
 
 export interface ImportDependency {
   type: 'import',
+  /** The url of the `@import` dependency. */
   url: string,
+  /** The media query for the `@import` rule. */
   media: string | null,
+  /** The `supports()` query for the `@import` rule. */
   supports: string | null,
+  /** The source location where the `@import` rule was found. */
   loc: SourceLocation
 }
 
 export interface UrlDependency {
   type: 'url',
+  /** The url of the dependency. */
   url: string,
+  /** The source location where the `url()` was found. */
   loc: SourceLocation
 }
 
 export interface SourceLocation {
+  /** The start location of the dependency. */
   start: Location,
+  /** The end location (inclusive) of the dependency. */
   end: Location
 }
 
 export interface Location {
+  /** The line number (1-based). */
   line: number,
+  /** The column number (0-based). */
   column: number
 }
 
