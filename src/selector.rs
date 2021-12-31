@@ -9,6 +9,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
 use crate::rules::{ToCssWithContext, StyleContext};
 use std::collections::HashMap;
+use crate::error::ParserError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Selectors;
@@ -73,7 +74,7 @@ pub struct SelectorParser<'a> {
 
 impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a> {
   type Impl = Selectors;
-  type Error = parcel_selectors::parser::SelectorParseErrorKind<'i>;
+  type Error = ParserError<'i>;
 
   fn parse_non_ts_pseudo_class(
     &self,

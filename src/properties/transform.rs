@@ -12,13 +12,14 @@ use crate::values::{
 };
 use crate::macros::enum_property;
 use crate::printer::Printer;
+use crate::error::ParserError;
 
 /// https://www.w3.org/TR/2019/CR-css-transforms-1-20190214/#propdef-transform
 #[derive(Debug, Clone, PartialEq)]
 pub struct TransformList(pub Vec<Transform>);
 
 impl Parse for TransformList {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(TransformList(vec![]))
     }
@@ -640,7 +641,7 @@ impl Matrix3d<f32> {
 }
 
 impl Parse for Transform {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let function = input.expect_function()?.clone();
     input.parse_nested_block(|input| {
       let location = input.current_source_location();
@@ -1175,7 +1176,7 @@ pub enum Perspective {
 }
 
 impl Parse for Perspective {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(Perspective::None)
     }
@@ -1202,7 +1203,7 @@ pub struct Translate {
 }
 
 impl Parse for Translate {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
       return Ok(Translate {
         x: LengthPercentage::zero(),
@@ -1258,7 +1259,7 @@ pub struct Rotate {
 }
 
 impl Parse for Rotate {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
       return Ok(Rotate {
         x: 0.0,
@@ -1282,7 +1283,7 @@ impl Parse for Rotate {
           ))
         }
       })
-      .or_else(|_: ParseError<'i, ()>| -> Result<_, ParseError<'i, ()>> {
+      .or_else(|_: ParseError<'i, ParserError<'i>>| -> Result<_, ParseError<'i, ParserError<'i>>> {
         input.try_parse(|input| {
           Ok((f32::parse(input)?, f32::parse(input)?, f32::parse(input)?))
         })
@@ -1333,7 +1334,7 @@ pub struct Scale {
 }
 
 impl Parse for Scale {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
       return Ok(Scale {
         x: NumberOrPercentage::Number(1.0),

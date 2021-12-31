@@ -6,6 +6,7 @@ use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::targets::Browsers;
 use crate::compat::Feature;
+use crate::error::ParserError;
 
 enum_property!(OverflowKeyword,
   Visible,
@@ -23,7 +24,7 @@ pub struct Overflow {
 }
 
 impl Parse for Overflow {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let x = OverflowKeyword::parse(input)?;
     let y = input.try_parse(OverflowKeyword::parse).unwrap_or_else(|_| x.clone());
     Ok(Overflow { x, y })

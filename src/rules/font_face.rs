@@ -6,6 +6,7 @@ use crate::values::size::Size2D;
 use crate::properties::custom::CustomProperty;
 use crate::macros::enum_property;
 use crate::values::url::Url;
+use crate::error::ParserError;
 
 #[derive(Debug, PartialEq)]
 pub struct FontFaceRule {
@@ -31,7 +32,7 @@ pub enum Source {
 }
 
 impl Parse for Source {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(url) = input.try_parse(UrlSource::parse) {
       return Ok(Source::Url(url))
     }
@@ -62,7 +63,7 @@ pub struct UrlSource {
 }
 
 impl Parse for UrlSource {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let url = Url::parse(input)?;
 
     let format = if input.try_parse(|input| input.expect_function_matching("format")).is_ok() {
@@ -95,7 +96,7 @@ pub struct Format {
 }
 
 impl Parse for Format {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let format = FontFormat::parse(input)?;
     let mut supports = vec![];
     if input.try_parse(|input| input.expect_ident_matching("supports")).is_ok() {
@@ -144,7 +145,7 @@ pub enum FontFormat {
 }
 
 impl Parse for FontFormat {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let s = input.expect_ident_or_string()?;
     match_ignore_ascii_case! { &s,
       "woff" => Ok(FontFormat::WOFF),
@@ -201,7 +202,7 @@ pub enum FontTechnology {
 }
 
 impl Parse for FontTechnology {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     match input.next()? {
       Token::Function(f) => {
@@ -251,7 +252,7 @@ pub(crate) struct FontFaceDeclarationParser;
 /// Parse a declaration within {} block: `color: blue`
 impl<'i> cssparser::DeclarationParser<'i> for FontFaceDeclarationParser {
   type Declaration = FontFaceProperty;
-  type Error = ();
+  type Error = ParserError<'i>;
 
   fn parse_value<'t>(
       &mut self,
@@ -289,7 +290,7 @@ impl<'i> cssparser::DeclarationParser<'i> for FontFaceDeclarationParser {
 impl<'i> AtRuleParser<'i> for FontFaceDeclarationParser {
   type Prelude = ();
   type AtRule = FontFaceProperty;
-  type Error = ();
+  type Error = ParserError<'i>;
 }
 
 impl ToCss for FontFaceRule {

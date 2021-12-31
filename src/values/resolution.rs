@@ -2,6 +2,7 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use super::length::serialize_dimension;
+use crate::error::ParserError;
 
 /// https://drafts.csswg.org/css-values-4/#resolution-value
 #[derive(Debug, Clone, PartialEq)]
@@ -12,7 +13,7 @@ pub enum Resolution {
 }
 
 impl Parse for Resolution {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     match *input.next()? {
       Token::Dimension { value, ref unit, .. } => {
@@ -20,7 +21,7 @@ impl Parse for Resolution {
           "dpi" => Ok(Resolution::Dpi(value)),
           "dpcm" => Ok(Resolution::Dpcm(value)),
           "dppx" | "x" => Ok(Resolution::Dppx(value)),
-          _ => Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+          _ => Err(location.new_unexpected_token_error(Token::Ident(unit.clone())))
         }
       }
       ref t => Err(location.new_unexpected_token_error(t.clone())),

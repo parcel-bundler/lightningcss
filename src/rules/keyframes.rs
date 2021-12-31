@@ -6,6 +6,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::printer::Printer;
 use crate::values::ident::CustomIdent;
 use crate::parser::ParserOptions;
+use crate::error::ParserError;
 
 #[derive(Debug, PartialEq)]
 pub struct KeyframesRule {
@@ -80,7 +81,7 @@ pub enum KeyframeSelector {
 }
 
 impl Parse for KeyframeSelector {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(val) = input.try_parse(Percentage::parse) {
       return Ok(KeyframeSelector::Percentage(val))
     }
@@ -145,18 +146,18 @@ pub(crate) struct KeyframeListParser;
 impl<'a, 'i> AtRuleParser<'i> for KeyframeListParser {
   type Prelude = ();
   type AtRule = Keyframe;
-  type Error = ();
+  type Error = ParserError<'i>;
 }
 
 impl<'a, 'i> QualifiedRuleParser<'i> for KeyframeListParser {
   type Prelude = Vec<KeyframeSelector>;
   type QualifiedRule = Keyframe;
-  type Error = ();
+  type Error = ParserError<'i>;
 
   fn parse_prelude<'t>(
     &mut self,
     input: &mut Parser<'i, 't>,
-  ) -> Result<Self::Prelude, ParseError<'i, ()>> {
+  ) -> Result<Self::Prelude, ParseError<'i, ParserError<'i>>> {
     input.parse_comma_separated(KeyframeSelector::parse)
   }
 
@@ -165,7 +166,7 @@ impl<'a, 'i> QualifiedRuleParser<'i> for KeyframeListParser {
     selectors: Self::Prelude,
     _: &ParserState,
     input: &mut Parser<'i, 't>,
-  ) -> Result<Self::QualifiedRule, ParseError<'i, ()>> {
+  ) -> Result<Self::QualifiedRule, ParseError<'i, ParserError<'i>>> {
     // For now there are no options that apply within @keyframes
     let options = ParserOptions::default();
     Ok(Keyframe {

@@ -2,6 +2,7 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use std::fmt::Write;
+use crate::error::ParserError;
 
 /// https://www.w3.org/TR/css-easing-1/#easing-functions
 #[derive(Debug, Clone, PartialEq)]
@@ -16,7 +17,7 @@ pub enum EasingFunction {
 }
 
 impl Parse for EasingFunction {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     if let Ok(ident) = input.try_parse(|i| i.expect_ident_cloned()) {
       let keyword = match_ignore_ascii_case! { &ident,
@@ -113,7 +114,7 @@ pub enum StepPosition {
 }
 
 impl Parse for StepPosition {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let ident = input.expect_ident()?;
     let keyword = match_ignore_ascii_case! { &ident,

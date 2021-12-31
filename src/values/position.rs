@@ -4,6 +4,7 @@ use crate::macros::enum_property;
 use crate::printer::Printer;
 use super::length::{LengthPercentage, LengthValue};
 use super::percentage::Percentage;
+use crate::error::ParserError;
 
 /// https://www.w3.org/TR/css-backgrounds-3/#background-position
 #[derive(Debug, Clone, PartialEq)]
@@ -38,7 +39,7 @@ impl Default for Position {
 }
 
 impl Parse for Position {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(HorizontalPosition::parse) {
       Ok(HorizontalPosition::Center) => {
         // Try parsing a vertical position next.
@@ -254,7 +255,7 @@ pub enum PositionComponent<S> {
 }
 
 impl<S: Parse> Parse for PositionComponent<S> {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("center")).is_ok() {
       return Ok(PositionComponent::Center);
     }

@@ -14,6 +14,7 @@ use crate::declaration::DeclarationList;
 use itertools::izip;
 use crate::printer::Printer;
 use smallvec::SmallVec;
+use crate::error::ParserError;
 
 /// https://www.w3.org/TR/css-backgrounds-3/#background-size
 #[derive(Debug, Clone, PartialEq)]
@@ -36,7 +37,7 @@ impl Default for BackgroundSize {
 }
 
 impl Parse for BackgroundSize {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(width) = input.try_parse(LengthPercentageOrAuto::parse) {
       let height = input.try_parse(LengthPercentageOrAuto::parse).unwrap_or(LengthPercentageOrAuto::Auto);
       return Ok(BackgroundSize::Explicit { width, height });
@@ -98,7 +99,7 @@ impl Default for BackgroundRepeat {
 }
 
 impl Parse for BackgroundRepeat {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     use BackgroundRepeatKeyword::*;
     let state = input.state();
     let ident = input.expect_ident()?;
@@ -211,7 +212,7 @@ pub struct Background {
 }
 
 impl Parse for Background {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut color: Option<CssColor> = None;
     let mut position: Option<Position> = None;
     let mut size: Option<BackgroundSize> = None;

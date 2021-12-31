@@ -8,7 +8,7 @@ macro_rules! enum_property {
     }
 
     impl Parse for $name {
-      fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+      fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let ident = input.expect_ident()?;
         match &ident[..] {
           $(
@@ -51,7 +51,7 @@ macro_rules! enum_property {
     }
 
     impl Parse for $name {
-      fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+      fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let ident = input.expect_ident()?;
         match &ident[..] {
           $(
@@ -103,7 +103,7 @@ macro_rules! shorthand_property {
     }
 
     impl Parse for $name {
-      fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+      fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let mut $first_key = None;
         $(
           let mut $key = None;

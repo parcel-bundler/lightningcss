@@ -3,6 +3,7 @@ use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use std::fmt::Write;
 use crate::compat::Feature;
+use crate::error::ParserError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CssColor(pub Color);
@@ -24,7 +25,7 @@ impl Default for CssColor {
 }
 
 impl Parse for CssColor {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(color) = input.try_parse(Color::parse) {
       return Ok(CssColor(color))
     }

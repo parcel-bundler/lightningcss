@@ -8,6 +8,7 @@ use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::declaration::DeclarationList;
 use crate::values::rect::Rect;
 use crate::printer::Printer;
+use crate::error::ParserError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BorderRadius {
@@ -18,7 +19,7 @@ pub struct BorderRadius {
 }
 
 impl Parse for BorderRadius {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let widths: Rect<LengthPercentage> = Rect::parse(input)?;
     let heights = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
       Rect::parse(input)?

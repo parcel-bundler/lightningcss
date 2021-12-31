@@ -3,6 +3,7 @@ use crate::properties::PropertyId;
 use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
+use crate::error::ParserError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CustomProperty {
@@ -14,7 +15,7 @@ impl CustomProperty {
   pub fn parse<'i, 't>(
     name: CowRcStr<'i>,
     input: &mut Parser<'i, 't>,
-  ) -> Result<Self, ParseError<'i, ()>> {
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let value = parse_unknown_value(input)?;
     Ok(CustomProperty {
       name: name.as_ref().into(),
@@ -33,7 +34,7 @@ impl UnparsedProperty {
   pub fn parse<'i, 't>(
     property_id: PropertyId,
     input: &mut Parser<'i, 't>
-  ) -> Result<Self, ParseError<'i, ()>> {
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let value = parse_unknown_value(input)?;
     Ok(UnparsedProperty {
       property_id,
@@ -52,7 +53,7 @@ impl UnparsedProperty {
   }
 }
 
-fn parse_unknown_value<'i, 't>(input: &mut Parser<'i, 't>) -> Result<String, ParseError<'i, ()>> {
+fn parse_unknown_value<'i, 't>(input: &mut Parser<'i, 't>) -> Result<String, ParseError<'i, ParserError<'i>>> {
   input.parse_until_before(Delimiter::Bang | Delimiter::Semicolon, |input| {
     // Need at least one token
     let before_first = input.position();

@@ -13,6 +13,7 @@ use bitflags::bitflags;
 use crate::values::number::serialize_integer;
 use crate::declaration::DeclarationList;
 use crate::properties::{Property, PropertyId};
+use crate::error::ParserError;
 
 /// https://drafts.csswg.org/css-grid-2/#track-sizing
 #[derive(Debug, Clone, PartialEq)]
@@ -79,7 +80,7 @@ pub enum RepeatCount {
 }
 
 impl Parse for TrackSize {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(breadth) = input.try_parse(TrackBreadth::parse) {
       return Ok(TrackSize::TrackBreadth(breadth))
     }
@@ -122,13 +123,13 @@ impl ToCss for TrackSize {
 }
 
 impl Parse for TrackBreadth {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Self::parse_internal(input, true)
   }
 }
 
 impl TrackBreadth {
-  fn parse_internal<'i, 't>(input: &mut Parser<'i, 't>, allow_flex: bool) -> Result<Self, ParseError<'i, ()>> {
+  fn parse_internal<'i, 't>(input: &mut Parser<'i, 't>, allow_flex: bool) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(len) = input.try_parse(LengthPercentage::parse) {
       return Ok(TrackBreadth::Length(len))
     }
@@ -151,7 +152,7 @@ impl TrackBreadth {
     }
   }
 
-  fn parse_flex<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ()>> {
+  fn parse_flex<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     match *input.next()? {
       Token::Dimension { value, ref unit, .. } if unit.eq_ignore_ascii_case("fr") && value.is_sign_positive() => Ok(value),
@@ -173,7 +174,7 @@ impl ToCss for TrackBreadth {
 }
 
 impl Parse for TrackRepeat {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.expect_function_matching("repeat")?;
     input.parse_nested_block(|input| {
       let count = RepeatCount::parse(input)?;
@@ -234,7 +235,7 @@ impl ToCss for TrackRepeat {
 }
 
 impl Parse for RepeatCount {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(num) = input.try_parse(f32::parse) {
       return Ok(RepeatCount::Number(num))
     }
@@ -261,7 +262,7 @@ impl ToCss for RepeatCount {
   }
 }
 
-fn parse_line_names<'i, 't>(input: &mut Parser<'i, 't>) -> Result<SmallVec<[CustomIdent; 1]>, ParseError<'i, ()>> {
+fn parse_line_names<'i, 't>(input: &mut Parser<'i, 't>) -> Result<SmallVec<[CustomIdent; 1]>, ParseError<'i, ParserError<'i>>> {
   input.expect_square_bracket_block()?;
   input.parse_nested_block(|input| {
     let mut values = SmallVec::new();
@@ -287,7 +288,7 @@ fn serialize_line_names<W>(names: &[CustomIdent], dest: &mut Printer<W>) -> std:
 }
 
 impl Parse for TrackList {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut line_names = Vec::new();
     let mut items = Vec::new();
 
@@ -307,7 +308,7 @@ impl Parse for TrackList {
     }
 
     if items.is_empty() {
-      return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+      return Err(input.new_custom_error(ParserError::InvalidDeclaration))
     }
 
     Ok(TrackList {
@@ -355,7 +356,7 @@ impl TrackList {
 }
 
 impl Parse for TrackSizing {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(TrackSizing::None)
     }
@@ -384,7 +385,7 @@ impl TrackSizing {
 }
 
 impl Parse for TrackSizeList {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut res = SmallVec::new();
     while let Ok(size) = input.try_parse(TrackSize::parse) {
       res.push(size)
@@ -426,7 +427,7 @@ pub enum GridTemplateAreas {
 }
 
 impl Parse for GridTemplateAreas {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(GridTemplateAreas::None)
     }
@@ -441,7 +442,7 @@ impl Parse for GridTemplateAreas {
       if row == 0 {
         columns = parsed_columns;
       } else if parsed_columns != columns {
-        return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+        return Err(input.new_custom_error(ParserError::InvalidDeclaration))
       }
 
       row += 1;
@@ -578,7 +579,7 @@ pub struct GridTemplate {
 }
 
 impl Parse for GridTemplate {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       input.expect_exhausted()?;
       return Ok(GridTemplate {
@@ -606,12 +607,12 @@ impl Parse for GridTemplate {
 
       if let Ok(string) = input.try_parse(|input| input.expect_string().map(|s| s.as_ref().to_owned())) {
         let parsed_columns = GridTemplateAreas::parse_string(&string, &mut tokens)
-          .map_err(|()| input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))?;
+          .map_err(|()| input.new_custom_error(ParserError::InvalidDeclaration))?;
 
         if row == 0 {
           columns = parsed_columns;
         } else if parsed_columns != columns {
-          return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+          return Err(input.new_custom_error(ParserError::InvalidDeclaration))
         }
   
         row += 1;
@@ -642,7 +643,7 @@ impl Parse for GridTemplate {
       let columns = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
         let list = TrackList::parse(input)?;
         if !list.is_explicit() {
-          return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+          return Err(input.new_custom_error(ParserError::InvalidDeclaration))
         }
         TrackSizing::TrackList(list)
       } else {
@@ -793,7 +794,7 @@ impl GridAutoFlow {
 }
 
 impl Parse for GridAutoFlow {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut flow = GridAutoFlow::Row;
 
     macro_rules! match_dense {
@@ -874,7 +875,7 @@ pub struct Grid {
 }
 
 impl Parse for Grid {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // <'grid-template'>
     if let Ok(template) = input.try_parse(GridTemplate::parse) {
       Ok(Grid {
@@ -918,7 +919,7 @@ impl Parse for Grid {
   }
 }
 
-fn parse_grid_auto_flow<'i, 't>(input: &mut Parser<'i, 't>, flow: GridAutoFlow) -> Result<GridAutoFlow, ParseError<'i, ()>> {
+fn parse_grid_auto_flow<'i, 't>(input: &mut Parser<'i, 't>, flow: GridAutoFlow) -> Result<GridAutoFlow, ParseError<'i, ParserError<'i>>> {
   if input.try_parse(|input| input.expect_ident_matching("auto-flow")).is_ok() {
     if input.try_parse(|input| input.expect_ident_matching("dense")).is_ok() {
       Ok(flow | GridAutoFlow::Dense)
@@ -993,7 +994,7 @@ pub enum GridLine {
 }
 
 impl Parse for GridLine {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
       return Ok(GridLine::Auto)
     }
@@ -1007,11 +1008,11 @@ impl Parse for GridLine {
         let line_number = input.try_parse(|input| input.expect_integer()).unwrap_or(1);
         (line_number, Some(ident))
       } else {
-        return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+        return Err(input.new_custom_error(ParserError::InvalidDeclaration))
       };
 
       if line_number == 0 {
-        return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+        return Err(input.new_custom_error(ParserError::InvalidDeclaration))
       }
 
       return Ok(GridLine::Span(line_number, ident))
@@ -1019,7 +1020,7 @@ impl Parse for GridLine {
 
     if let Ok(line_number) = input.try_parse(|input| input.expect_integer()) {
       if line_number == 0 {
-        return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+        return Err(input.new_custom_error(ParserError::InvalidDeclaration))
       }
       let ident = input.try_parse(CustomIdent::parse).ok();
       return Ok(GridLine::Line(line_number, ident))
@@ -1028,7 +1029,7 @@ impl Parse for GridLine {
     let ident = CustomIdent::parse(input)?;
     if let Ok(line_number) = input.try_parse(|input| input.expect_integer()) {
       if line_number == 0 {
-        return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+        return Err(input.new_custom_error(ParserError::InvalidDeclaration))
       }
       return Ok(GridLine::Line(line_number, Some(ident)))
     }
@@ -1096,7 +1097,7 @@ pub struct GridPlacement {
 }
 
 impl Parse for GridPlacement {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let start = GridLine::parse(input)?;
     let end = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
       GridLine::parse(input)?
@@ -1133,7 +1134,7 @@ pub struct GridArea {
 }
 
 impl Parse for GridArea {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let row_start = GridLine::parse(input)?;
     let column_start = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
       GridLine::parse(input)?

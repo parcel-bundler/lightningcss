@@ -10,6 +10,7 @@ use crate::targets::Browsers;
 use crate::prefixes::{Feature, is_flex_2009};
 use crate::printer::Printer;
 use crate::compat;
+use crate::error::ParserError;
 
 /// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#typedef-baseline-position
 #[derive(Debug, Clone, PartialEq)]
@@ -19,7 +20,7 @@ pub enum BaselinePosition {
 }
 
 impl Parse for BaselinePosition {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let ident = input.expect_ident()?;
     match_ignore_ascii_case! { &*ident,
@@ -81,7 +82,7 @@ pub enum AlignContent {
 }
 
 impl Parse for AlignContent {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(AlignContent::Normal)
     }
@@ -129,7 +130,7 @@ pub enum JustifyContent {
 }
 
 impl Parse for JustifyContent {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(JustifyContent::Normal)
     }
@@ -196,7 +197,7 @@ pub struct PlaceContent {
 }
 
 impl Parse for PlaceContent {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let align = AlignContent::parse(input)?;
     let justify = match input.try_parse(JustifyContent::parse) {
       Ok(j) => j,
@@ -258,7 +259,7 @@ pub enum AlignSelf {
 }
 
 impl Parse for AlignSelf {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
       return Ok(AlignSelf::Auto)
     }
@@ -313,7 +314,7 @@ pub enum JustifySelf {
 }
 
 impl Parse for JustifySelf {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
       return Ok(JustifySelf::Auto)
     }
@@ -390,7 +391,7 @@ pub struct PlaceSelf {
 }
 
 impl Parse for PlaceSelf {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let align = AlignSelf::parse(input)?;
     let justify = match input.try_parse(JustifySelf::parse) {
       Ok(j) => j,
@@ -441,7 +442,7 @@ pub enum AlignItems {
 }
 
 impl Parse for AlignItems {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(AlignItems::Normal)
     }
@@ -486,7 +487,7 @@ pub enum LegacyJustify {
 }
 
 impl Parse for LegacyJustify {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let ident = input.expect_ident()?;
     match_ignore_ascii_case! { &*ident,
@@ -545,7 +546,7 @@ pub enum JustifyItems {
 }
 
 impl Parse for JustifyItems {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(JustifyItems::Normal)
     }
@@ -622,7 +623,7 @@ pub struct PlaceItems {
 }
 
 impl Parse for PlaceItems {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let align = AlignItems::parse(input)?;
     let justify = match input.try_parse(JustifyItems::parse) {
       Ok(j) => j,
@@ -669,7 +670,7 @@ pub enum GapValue {
 }
 
 impl Parse for GapValue {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(GapValue::Normal)
     }
@@ -696,7 +697,7 @@ pub struct Gap {
 }
 
 impl Parse for Gap {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let row = GapValue::parse(input)?;
     let column = input.try_parse(GapValue::parse).unwrap_or(row.clone());
     Ok(Gap { row, column })

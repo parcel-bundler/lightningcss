@@ -3,6 +3,7 @@ use crate::traits::{Parse, ToCss};
 use crate::declaration::DeclarationBlock;
 use crate::printer::Printer;
 use crate::macros::enum_property;
+use crate::error::ParserError;
 
 /// https://www.w3.org/TR/css-page-3/#typedef-page-selector
 #[derive(Debug, PartialEq)]
@@ -20,7 +21,7 @@ enum_property!(PagePseudoClass,
 );
 
 impl Parse for PageSelector {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let name = input.try_parse(|input| input.expect_ident_cloned()).ok().map(|s| s.as_ref().to_owned());
     let mut pseudo_classes = vec![];
     
@@ -39,7 +40,7 @@ impl Parse for PageSelector {
     }
 
     if name.is_none() && pseudo_classes.is_empty() {
-      return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+      return Err(input.new_custom_error(ParserError::InvalidPageSelector))
     }
 
     Ok(PageSelector {

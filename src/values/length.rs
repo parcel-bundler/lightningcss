@@ -4,6 +4,7 @@ use crate::printer::Printer;
 use super::calc::Calc;
 use super::percentage::DimensionPercentage;
 use super::number::serialize_number;
+use crate::error::ParserError;
 
 /// https://drafts.csswg.org/css-values-4/#typedef-length-percentage
 pub type LengthPercentage = DimensionPercentage<LengthValue>;
@@ -26,7 +27,7 @@ pub enum LengthPercentageOrAuto {
 }
 
 impl Parse for LengthPercentageOrAuto {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("auto")).is_ok() {
       return Ok(LengthPercentageOrAuto::Auto);
     }
@@ -76,7 +77,7 @@ pub enum LengthValue {
 }
 
 impl Parse for LengthValue {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let token = input.next()?;
     match *token {
@@ -318,7 +319,7 @@ pub enum Length {
 }
 
 impl Parse for Length {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
       Ok(calc) => return Ok(Length::Calc(Box::new(calc))),
@@ -511,7 +512,7 @@ pub enum LengthOrNumber {
 }
 
 impl Parse for LengthOrNumber {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // Parse number first so unitless numbers are not parsed as lengths.
     if let Ok(number) = input.try_parse(f32::parse) {
       return Ok(LengthOrNumber::Number(number))

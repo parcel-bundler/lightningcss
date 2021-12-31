@@ -5,6 +5,7 @@ use crate::values::{image::Image, ident::CustomIdent};
 use crate::declaration::DeclarationList;
 use crate::macros::{enum_property, shorthand_property, shorthand_handler};
 use crate::printer::Printer;
+use crate::error::ParserError;
 
 /// https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#text-markers
 #[derive(Debug, Clone, PartialEq)]
@@ -21,7 +22,7 @@ impl Default for ListStyleType {
 }
 
 impl Parse for ListStyleType {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(val) = input.try_parse(CounterStyle::parse) {
       return Ok(ListStyleType::CounterStyle(val))
     }
@@ -53,7 +54,7 @@ pub enum CounterStyle {
 }
 
 impl Parse for CounterStyle {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_function_matching("symbols")).is_ok() {
       return input.parse_nested_block(|input| {
         let t = input.try_parse(SymbolsType::parse).unwrap_or(SymbolsType::Symbolic);
@@ -113,7 +114,7 @@ pub enum Symbol {
 }
 
 impl Parse for Symbol {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(img) = input.try_parse(Image::parse) {
       return Ok(Symbol::Image(img))
     }

@@ -12,6 +12,7 @@ use crate::values::length::{Length, LengthPercentage};
 use crate::values::color::CssColor;
 use crate::printer::Printer;
 use bitflags::bitflags;
+use crate::error::ParserError;
 
 // https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-transform-property
 enum_property!(TextTransformCase,
@@ -35,7 +36,7 @@ bitflags! {
 }
 
 impl Parse for TextTransformOther {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let ident = input.expect_ident()?;
     match_ignore_ascii_case! { &ident,
@@ -74,7 +75,7 @@ pub struct TextTransform {
 }
 
 impl Parse for TextTransform {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut case = None;
     let mut other = TextTransformOther::empty();
 
@@ -203,7 +204,7 @@ pub enum Spacing {
 }
 
 impl Parse for Spacing {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(Spacing::Normal)
     }
@@ -231,7 +232,7 @@ pub struct TextIndent {
 }
 
 impl Parse for TextIndent {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut value = None;
     let mut hanging = false;
     let mut each_line = false;
@@ -268,7 +269,7 @@ impl Parse for TextIndent {
         each_line
       })
     } else {
-      Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+      Err(input.new_custom_error(ParserError::InvalidDeclaration))
     }
   }
 }
@@ -305,12 +306,12 @@ impl Default for TextDecorationLine {
 }
 
 impl Parse for TextDecorationLine {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut value = TextDecorationLine::empty();
     let mut any = false;
 
     loop {
-      let flag: Result<_, ParseError<'i, ()>> = input.try_parse(|input| {
+      let flag: Result<_, ParseError<'i, ParserError<'i>>> = input.try_parse(|input| {
         let location = input.current_source_location();
         let ident = input.expect_ident()?;
         Ok(match_ignore_ascii_case! { &ident,
@@ -336,7 +337,7 @@ impl Parse for TextDecorationLine {
     }
 
     if !any {
-      return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+      return Err(input.new_custom_error(ParserError::InvalidDeclaration))
     }
 
     Ok(value)
@@ -409,7 +410,7 @@ impl Default for TextDecorationThickness {
 }
 
 impl Parse for TextDecorationThickness {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
       return Ok(TextDecorationThickness::Auto)
     }
@@ -442,7 +443,7 @@ pub struct TextDecoration {
 }
 
 impl Parse for TextDecoration {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut line = None;
     let mut thickness = None;
     let mut style = None;
@@ -547,7 +548,7 @@ impl Default for TextEmphasisStyle {
 }
 
 impl Parse for TextEmphasisStyle {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(TextEmphasisStyle::None)
     }
@@ -563,7 +564,7 @@ impl Parse for TextEmphasisStyle {
     }
 
     if shape.is_none() && fill.is_none() {
-      return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+      return Err(input.new_custom_error(ParserError::InvalidDeclaration))
     }
 
     let fill = fill.unwrap_or(TextEmphasisFillMode::Filled);
@@ -603,7 +604,7 @@ pub struct TextEmphasis {
 }
 
 impl Parse for TextEmphasis {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut style = None;
     let mut color = None;
 
@@ -663,7 +664,7 @@ pub struct TextEmphasisPosition {
 }
 
 impl Parse for TextEmphasisPosition {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(horizontal) = input.try_parse(TextEmphasisPositionHorizontal::parse) {
       let vertical = TextEmphasisPositionVertical::parse(input)?;
       Ok(TextEmphasisPosition { horizontal, vertical })
@@ -893,13 +894,13 @@ pub struct TextShadow {
 }
 
 impl Parse for TextShadow {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut color = None;
     let mut lengths = None;
 
     loop {
       if lengths.is_none() {
-        let value = input.try_parse::<_, _, ParseError<()>>(|input| {
+        let value = input.try_parse::<_, _, ParseError<ParserError<'i>>>(|input| {
           let horizontal = Length::parse(input)?;
           let vertical = Length::parse(input)?;
           let blur = input.try_parse(Length::parse).unwrap_or(Length::zero());

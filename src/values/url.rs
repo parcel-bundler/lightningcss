@@ -2,6 +2,7 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use crate::dependencies::{Dependency, UrlDependency};
+use crate::error::ParserError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Url {
@@ -10,7 +11,7 @@ pub struct Url {
 }
 
 impl Parse for Url {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let loc = input.current_source_location();
     let url = input.expect_url()?.as_ref().to_owned();
     Ok(Url { url, loc })

@@ -3,6 +3,7 @@ use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use super::number::serialize_number;
 use crate::compat::Feature;
+use crate::error::ParserError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MathFunction<V> {
@@ -84,7 +85,8 @@ pub enum Calc<V> {
 }
 
 impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + std::cmp::PartialOrd<V> + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> + std::fmt::Debug> Parse for Calc<V> {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let location = input.current_source_location();
     let f = input.expect_function()?;
     match_ignore_ascii_case! { &f,
       "calc" => {
@@ -165,13 +167,13 @@ impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + 
           (Some(min), Some(max)) => Ok(Calc::Function(Box::new(MathFunction::Clamp(min, center, max))))
         }
       },
-      _ => Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+      _ => Err(location.new_unexpected_token_error(Token::Ident(f.clone()))),
     }
   }
 }
 
 impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + std::cmp::PartialOrd<V> + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> + std::fmt::Debug> Calc<V> {
-  fn parse_sum<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse_sum<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut cur: Calc<V> = Calc::parse_product(input)?;
     loop {
       let start = input.state();
@@ -205,7 +207,7 @@ impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + 
     Ok(cur)
   }
 
-  fn parse_product<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse_product<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut node = Calc::parse_value(input)?;
     loop {
       let start = input.state();
@@ -230,7 +232,7 @@ impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + 
               continue
             }
           }
-          return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+          return Err(input.new_custom_error(ParserError::InvalidValue))
         }
         _ => {
           input.reset(&start);
@@ -241,7 +243,7 @@ impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + 
     Ok(node)
   }
 
-  fn parse_value<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse_value<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // Parse nested calc() and other math functions.
     if let Ok(calc) = input.try_parse(Self::parse) {
       match calc {
@@ -267,7 +269,7 @@ impl<V: Parse + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + 
       return Ok(Calc::Value(Box::new(value)))
     }
 
-    Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+    Err(input.new_error_for_next_token())
   }
 
   fn reduce_args(args: &mut Vec<Calc<V>>, cmp: std::cmp::Ordering) -> Vec<Calc<V>> {

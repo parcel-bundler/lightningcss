@@ -2,14 +2,15 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use super::calc::Calc;
+use crate::error::ParserError;
 
 impl Parse for f32 {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
       Ok(Calc::Number(n)) => return Ok(n),
       // Numbers are always compatible, so they will always compute to a value.
-      Ok(_) => return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid)),
+      Ok(_) => unreachable!(),
       _ => {}
     }
 

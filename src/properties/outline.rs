@@ -5,6 +5,7 @@ use crate::values::color::CssColor;
 use super::{Property, PropertyId};
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
+use crate::error::ParserError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum OutlineStyle {
@@ -13,7 +14,7 @@ pub enum OutlineStyle {
 }
 
 impl Parse for OutlineStyle {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(border_style) = input.try_parse(BorderStyle::parse) {
       return Ok(OutlineStyle::BorderStyle(border_style))
     }

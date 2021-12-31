@@ -8,6 +8,7 @@ use crate::prefixes::{Feature, is_flex_2009};
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::printer::Printer;
 use crate::macros::enum_property;
+use crate::error::ParserError;
 
 enum_property!(DisplayOutside,
   ("block", Block),
@@ -27,7 +28,7 @@ pub enum DisplayInside {
 }
 
 impl Parse for DisplayInside {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let ident = input.expect_ident()?;
     match_ignore_ascii_case! { &*ident,
@@ -92,7 +93,7 @@ pub struct DisplayPair {
 }
 
 impl Parse for DisplayPair {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut list_item = false;
     let mut outside = None;
     let mut inside = None;
@@ -131,7 +132,7 @@ impl Parse for DisplayPair {
       });
 
       if list_item && !matches!(inside, DisplayInside::Flow | DisplayInside::FlowRoot) {
-        return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+        return Err(input.new_custom_error(ParserError::InvalidDeclaration))
       }
 
       return Ok(DisplayPair {
@@ -266,7 +267,7 @@ pub enum Display {
 }
 
 impl Parse for Display {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(pair) = input.try_parse(DisplayPair::parse) {
       return Ok(Display::Pair(pair))
     }

@@ -5,6 +5,7 @@ use crate::macros::{enum_property, shorthand_property};
 use crate::printer::Printer;
 use smallvec::SmallVec;
 use crate::values::url::Url;
+use crate::error::ParserError;
 
 // https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#resize
 enum_property!(Resize,
@@ -24,7 +25,7 @@ pub struct CursorImage {
 }
 
 impl Parse for CursorImage {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let url = Url::parse(input)?;
     let hotspot = if let Ok(x) = input.try_parse(f32::parse) {
       let y = f32::parse(input)?;
@@ -101,7 +102,7 @@ pub struct Cursor {
 }
 
 impl Parse for Cursor {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut images = SmallVec::new();
     loop {
       match input.try_parse(CursorImage::parse) {
@@ -142,7 +143,7 @@ impl Default for ColorOrAuto {
 }
 
 impl Parse for ColorOrAuto {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
       return Ok(ColorOrAuto::Auto)
     }
@@ -213,7 +214,7 @@ pub enum Appearance {
 }
 
 impl Parse for Appearance {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let ident = input.expect_ident()?;
     match_ignore_ascii_case! { &*ident,
       "none" => Ok(Appearance::None),

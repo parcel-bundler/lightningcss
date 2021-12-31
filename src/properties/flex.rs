@@ -12,6 +12,7 @@ use super::align::{JustifyContent, ContentDistribution, ContentPosition, AlignIt
 use crate::printer::Printer;
 use crate::targets::Browsers;
 use crate::prefixes::{Feature, is_flex_2009};
+use crate::error::ParserError;
 
 // https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#propdef-flex-direction
 enum_property!(FlexDirection,
@@ -54,7 +55,7 @@ pub struct FlexFlow {
 }
 
 impl Parse for FlexFlow {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut direction = None;
     let mut wrap = None;
     loop {
@@ -107,7 +108,7 @@ pub struct Flex {
 }
 
 impl Parse for Flex {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(Flex {
         grow: 0.0,

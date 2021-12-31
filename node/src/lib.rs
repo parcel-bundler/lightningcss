@@ -7,6 +7,7 @@ use parcel_css::stylesheet::{StyleSheet, StyleAttribute, ParserOptions, PrinterO
 use parcel_css::targets::Browsers;
 use parcel_css::css_modules::CssModuleExports;
 use parcel_css::dependencies::Dependency;
+use parcel_css::error::ParserError;
 
 // ---------------------------------------------
 
@@ -223,7 +224,7 @@ fn compile_attr<'i>(code: &'i str, config: &AttrConfig) -> Result<AttrResult, Co
 }
 
 enum CompileError<'i> {
-  ParseError(cssparser::ParseError<'i, ()>),
+  ParseError(cssparser::ParseError<'i, ParserError<'i>>),
   PrinterError,
   SourceMapError(parcel_sourcemap::SourceMapError)
 }
@@ -243,6 +244,19 @@ impl<'i> CompileError<'i> {
               UnexpectedToken(token) => format!("Unexpected token {:?}", token)
             }
           },
+          cssparser::ParseErrorKind::Custom(e) => {
+            use ParserError::*;
+            match e {
+              ParserError::InvalidDeclaration => "Invalid declaration".into(),
+              ParserError::InvalidMediaQuery => "Invalid media query".into(),
+              ParserError::InvalidNesting => "Invalid nesting".into(),
+              ParserError::InvalidPageSelector => "Invalid page selector".into(),
+              ParserError::InvalidValue => "Invalid value".into(),
+              ParserError::SelectorError(s) => {
+                format!("{:?}", s)
+              }
+            }
+          }
           _ => "Unknown error".into()
         }
       }
@@ -280,8 +294,8 @@ impl<'i> CompileError<'i> {
   }
 }
 
-impl<'i> From<cssparser::ParseError<'i, ()>> for CompileError<'i> {
-  fn from(e: cssparser::ParseError<'i, ()>) -> CompileError<'i> {
+impl<'i> From<cssparser::ParseError<'i, ParserError<'i>>> for CompileError<'i> {
+  fn from(e: cssparser::ParseError<'i, ParserError<'i>>) -> CompileError<'i> {
     CompileError::ParseError(e)
   }
 }

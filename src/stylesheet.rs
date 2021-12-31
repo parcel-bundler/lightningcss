@@ -9,6 +9,7 @@ use crate::declaration::{DeclarationHandler, DeclarationBlock};
 use crate::css_modules::{hash, CssModule, CssModuleExports};
 use std::collections::HashMap;
 use crate::dependencies::Dependency;
+use crate::error::ParserError;
 
 pub use crate::parser::ParserOptions;
 pub use crate::printer::PseudoClasses;
@@ -36,7 +37,7 @@ pub struct ToCssResult {
 }
 
 impl StyleSheet {
-  pub fn parse<'i>(filename: String, code: &'i str, options: ParserOptions) -> Result<StyleSheet, ParseError<'i, ()>> {
+  pub fn parse<'i>(filename: String, code: &'i str, options: ParserOptions) -> Result<StyleSheet, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
     let rule_list_parser = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(&options));
@@ -121,7 +122,7 @@ pub struct StyleAttribute {
 }
 
 impl StyleAttribute {
-  pub fn parse<'i>(code: &'i str) -> Result<StyleAttribute, ParseError<'i, ()>> {
+  pub fn parse<'i>(code: &'i str) -> Result<StyleAttribute, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
     let options = ParserOptions::default();

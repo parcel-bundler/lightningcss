@@ -2,6 +2,7 @@ use cssparser::*;
 use crate::properties::Property;
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
+use crate::error::ParserError;
 
 pub trait Parse: Sized {
   /// Parse a value of this type.
@@ -9,7 +10,7 @@ pub trait Parse: Sized {
   /// Returns an error on failure.
   fn parse<'i, 't>(
       input: &mut Parser<'i, 't>,
-  ) -> Result<Self, ParseError<'i, ()>>;
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>>;
 }
 
 /// Trait for things the can serialize themselves in CSS syntax.

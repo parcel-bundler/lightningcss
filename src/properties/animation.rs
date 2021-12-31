@@ -9,6 +9,7 @@ use crate::printer::Printer;
 use itertools::izip;
 use crate::macros::*;
 use smallvec::SmallVec;
+use crate::error::ParserError;
 
 /// https://drafts.csswg.org/css-animations/#animation-name
 #[derive(Debug, Clone, PartialEq)]
@@ -18,7 +19,7 @@ pub enum AnimationName {
 }
 
 impl Parse for AnimationName {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(AnimationName::None)
     }
@@ -50,7 +51,7 @@ pub enum AnimationIterationCount {
 }
 
 impl Parse for AnimationIterationCount {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("infinite")).is_ok() {
       return Ok(AnimationIterationCount::Infinite)
     }
@@ -105,7 +106,7 @@ pub struct Animation {
 }
 
 impl Parse for Animation {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut name = None;
     let mut duration = None;
     let mut timing_function = None;

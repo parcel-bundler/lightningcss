@@ -15,6 +15,7 @@ pub mod vendor_prefix;
 pub mod targets;
 pub mod css_modules;
 pub mod dependencies;
+pub mod error;
 
 #[cfg(test)]
 mod tests {

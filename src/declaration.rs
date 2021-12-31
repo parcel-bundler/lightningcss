@@ -23,6 +23,7 @@ use crate::properties::{
 };
 use crate::targets::Browsers;
 use crate::parser::ParserOptions;
+use crate::error::ParserError;
 
 #[derive(Debug, PartialEq)]
 pub struct DeclarationBlock {
@@ -30,12 +31,13 @@ pub struct DeclarationBlock {
 }
 
 impl DeclarationBlock {
-  pub fn parse<'i, 't>(input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Self, ParseError<'i, ()>> {
+  pub fn parse<'i, 't>(input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser { options });
     let mut declarations = vec![];
     while let Some(decl) = parser.next() {
-      if let Ok(decl) = decl {
-        declarations.push(decl);
+      match decl {
+        Ok(decl) => declarations.push(decl),
+        Err((err, _)) => return Err(err)
       }
     }
 
@@ -90,7 +92,7 @@ struct PropertyDeclarationParser<'a> {
 /// Parse a declaration within {} block: `color: blue`
 impl<'a, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a> {
   type Declaration = Declaration;
-  type Error = ();
+  type Error = ParserError<'i>;
 
   fn parse_value<'t>(
     &mut self,
@@ -105,7 +107,7 @@ impl<'a, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a> 
 impl<'a, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a> {
   type Prelude = ();
   type AtRule = Declaration;
-  type Error = ();
+  type Error = ParserError<'i>;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -115,7 +117,7 @@ pub struct Declaration {
 }
 
 impl Declaration {
-  pub fn parse<'i, 't>(name: CowRcStr<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Self, ParseError<'i, ()>> {
+  pub fn parse<'i, 't>(name: CowRcStr<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let property = input.parse_until_before(Delimiter::Bang, |input| Property::parse(name, input, options))?;
     let important = input.try_parse(|input| {
       input.expect_delim('!')?;

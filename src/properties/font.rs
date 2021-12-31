@@ -9,6 +9,7 @@ use crate::traits::{Parse, ToCss, PropertyHandler};
 use super::{Property, PropertyId};
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
+use crate::error::ParserError;
 
 /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-weight-prop
 #[derive(Debug, Clone, PartialEq)]
@@ -25,7 +26,7 @@ impl Default for FontWeight {
 }
 
 impl Parse for FontWeight {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(val) = input.try_parse(AbsoluteFontWeight::parse) {
       return Ok(FontWeight::Absolute(val))
     }
@@ -68,7 +69,7 @@ impl Default for AbsoluteFontWeight {
 }
 
 impl Parse for AbsoluteFontWeight {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(val) = input.try_parse(f32::parse) {
       return Ok(AbsoluteFontWeight::Weight(val))
     }
@@ -120,7 +121,7 @@ pub enum FontSize {
 }
 
 impl Parse for FontSize {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(val) = input.try_parse(LengthPercentage::parse) {
       return Ok(FontSize::Length(val))
     }
@@ -195,7 +196,7 @@ impl Default for FontStretch {
 }
 
 impl Parse for FontStretch {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(val) = input.try_parse(Percentage::parse) {
       return Ok(FontStretch::Percentage(val))
     }
@@ -253,7 +254,7 @@ pub enum FontFamily {
 }
 
 impl Parse for FontFamily {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(value) = input.try_parse(|i| i.expect_string_cloned()) {
       return Ok(FontFamily::FamilyName(value.as_ref().into()))
     }
@@ -312,7 +313,7 @@ impl Default for FontStyle {
 }
 
 impl Parse for FontStyle {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let ident = input.expect_ident()?;
     match_ignore_ascii_case! { &*ident,
@@ -403,7 +404,7 @@ impl Default for LineHeight {
 }
 
 impl Parse for LineHeight {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(LineHeight::Normal)
     }
@@ -446,7 +447,7 @@ pub enum VerticalAlign {
 }
 
 impl Parse for VerticalAlign {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(len) = input.try_parse(LengthPercentage::parse) {
       return Ok(VerticalAlign::Length(len))
     }
@@ -478,7 +479,7 @@ pub struct Font {
 }
 
 impl Parse for Font {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut style = None;
     let mut weight = None;
     let mut stretch = None;
@@ -518,7 +519,7 @@ impl Parse for Font {
     let size = match size {
       Some(s) => s,
       None => {
-        return  Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+        return Err(input.new_custom_error(ParserError::InvalidDeclaration))
       }
     };
 

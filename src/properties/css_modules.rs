@@ -3,6 +3,7 @@ use crate::values::ident::CustomIdent;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use smallvec::SmallVec;
+use crate::error::ParserError;
 
 /// The `composes` property from CSS modules.
 /// https://github.com/css-modules/css-modules/#dependencies
@@ -19,14 +20,14 @@ pub enum ComposesFrom {
 }
 
 impl Parse for Composes {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut names = SmallVec::new();
     while let Ok(name) = input.try_parse(parse_one_ident) {
       names.push(name);
     }
 
     if names.is_empty() {
-      return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+      return Err(input.new_custom_error(ParserError::InvalidDeclaration))
     }
 
     let from = if input.try_parse(|input| input.expect_ident_matching("from")).is_ok() {
@@ -47,7 +48,7 @@ impl Parse for Composes {
   }
 }
 
-fn parse_one_ident<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CustomIdent, ParseError<'i, ()>> {
+fn parse_one_ident<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CustomIdent, ParseError<'i, ParserError<'i>>> {
   let name = CustomIdent::parse(input)?;
   if name.0.eq_ignore_ascii_case("from") {
     return Err(input.new_error_for_next_token())
