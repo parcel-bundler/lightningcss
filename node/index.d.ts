@@ -21,12 +21,25 @@ export interface TransformOptions {
    * are replaced with hashed placeholders that can be replaced with the final
    * urls later (after bundling). Dependencies are returned as part of the result.
    */
-  analyzeDependencies?: boolean
+  analyzeDependencies?: boolean,
+  /** 
+   * Replaces user action pseudo classes with class names that can be applied from JavaScript.
+   * This is useful for polyfills, for example.
+   */
+  pseudoClasses?: PseudoClasses
 }
 
 export interface Drafts {
   /** Whether to enable CSS nesting. */
   nesting?: boolean
+}
+
+export interface PseudoClasses {
+  hover?: string,
+  active?: string,
+  focus?: string,
+  focusVisible?: string,
+  focusWithin?: string
 }
 
 export interface TransformResult {

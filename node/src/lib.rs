@@ -3,7 +3,7 @@
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 use serde::{Serialize, Deserialize};
-use parcel_css::stylesheet::{StyleSheet, StyleAttribute, ParserOptions, PrinterOptions};
+use parcel_css::stylesheet::{StyleSheet, StyleAttribute, ParserOptions, PrinterOptions, PseudoClasses};
 use parcel_css::targets::Browsers;
 use parcel_css::css_modules::CssModuleExports;
 use parcel_css::dependencies::Dependency;
@@ -102,7 +102,7 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
 
 // ---------------------------------------------
 
-#[derive(Serialize, Debug, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Config {
   pub filename: String,
@@ -113,7 +113,30 @@ struct Config {
   pub source_map: Option<bool>,
   pub drafts: Option<Drafts>,
   pub css_modules: Option<bool>,
-  pub analyze_dependencies: Option<bool>
+  pub analyze_dependencies: Option<bool>,
+  pub pseudo_classes: Option<OwnedPseudoClasses>
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct OwnedPseudoClasses {
+  pub hover: Option<String>,
+  pub active: Option<String>,
+  pub focus: Option<String>,
+  pub focus_visible: Option<String>,
+  pub focus_within: Option<String>
+}
+
+impl<'a> Into<PseudoClasses<'a>> for &'a OwnedPseudoClasses {
+  fn into(self) -> PseudoClasses<'a> {
+    PseudoClasses {
+      hover: self.hover.as_deref(),
+      active: self.active.as_deref(),
+      focus: self.focus.as_deref(),
+      focus_visible: self.focus_visible.as_deref(),
+      focus_within: self.focus_within.as_deref()
+    }
+  }
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
@@ -135,7 +158,8 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
     minify: config.minify.unwrap_or(false),
     source_map: config.source_map.unwrap_or(false),
     targets: config.targets,
-    analyze_dependencies: config.analyze_dependencies.unwrap_or(false)
+    analyze_dependencies: config.analyze_dependencies.unwrap_or(false),
+    pseudo_classes: config.pseudo_classes.as_ref().map(|p| p.into())
   })?;
 
   let map = if let Some(mut source_map) = res.source_map {
@@ -189,7 +213,8 @@ fn compile_attr<'i>(code: &'i str, config: &AttrConfig) -> Result<AttrResult, Co
     minify: config.minify.unwrap_or(false),
     source_map: false,
     targets: config.targets,
-    analyze_dependencies: config.analyze_dependencies.unwrap_or(false)
+    analyze_dependencies: config.analyze_dependencies.unwrap_or(false),
+    pseudo_classes: None
   })?;
   Ok(AttrResult {
     code: res.code.into_bytes(),

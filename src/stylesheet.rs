@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use crate::dependencies::Dependency;
 
 pub use crate::parser::ParserOptions;
+pub use crate::printer::PseudoClasses;
 
 pub struct StyleSheet {
   pub filename: String,
@@ -19,11 +20,12 @@ pub struct StyleSheet {
 }
 
 #[derive(Default)]
-pub struct PrinterOptions {
+pub struct PrinterOptions<'a> {
   pub minify: bool,
   pub source_map: bool,
   pub targets: Option<Browsers>,
-  pub analyze_dependencies: bool
+  pub analyze_dependencies: bool,
+  pub pseudo_classes: Option<PseudoClasses<'a>>
 }
 
 pub struct ToCssResult {
@@ -82,6 +84,7 @@ impl StyleSheet {
     };
 
     printer.dependencies = dependencies.as_mut();
+    printer.pseudo_classes = options.pseudo_classes;
 
     if self.options.css_modules {
       let h = hash(&self.filename);

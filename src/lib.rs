@@ -7834,4 +7834,69 @@ mod tests {
       "foo" => "foo_EgL3uq"
     });
   }
+
+  #[test]
+  fn test_pseudo_replacement() {
+    let source = r#"
+      .foo:hover {
+        color: red;
+      }
+
+      .foo:active {
+        color: yellow;
+      }
+
+      .foo:focus-visible {
+        color: purple;
+      }
+    "#;
+
+    let expected = indoc! { r#"
+      .foo.is-hovered {
+        color: red;
+      }
+
+      .foo.is-active {
+        color: #ff0;
+      }
+
+      .foo.focus-visible {
+        color: purple;
+      }
+    "#};
+
+    let stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
+    let res = stylesheet.to_css(PrinterOptions {
+      pseudo_classes: Some(PseudoClasses {
+        hover: Some("is-hovered"),
+        active: Some("is-active"),
+        focus_visible: Some("focus-visible"),
+        ..PseudoClasses::default()
+      }),
+      ..PrinterOptions::default()
+    }).unwrap();
+    assert_eq!(res.code, expected);
+
+    let source = r#"
+      .foo:hover {
+        color: red;
+      }
+    "#;
+
+    let expected = indoc! { r#"
+      .foo_EgL3uq.is-hovered_EgL3uq {
+        color: red;
+      }
+    "#};
+
+    let stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { css_modules: true, ..ParserOptions::default() }).unwrap();
+    let res = stylesheet.to_css(PrinterOptions {
+      pseudo_classes: Some(PseudoClasses {
+        hover: Some("is-hovered"),
+        ..PseudoClasses::default()
+      }),
+      ..PrinterOptions::default()
+    }).unwrap();
+    assert_eq!(res.code, expected);
+  }
 }

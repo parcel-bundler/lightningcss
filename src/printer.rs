@@ -6,6 +6,15 @@ use crate::targets::Browsers;
 use crate::css_modules::CssModule;
 use crate::dependencies::Dependency;
 
+#[derive(Default, Debug)]
+pub struct PseudoClasses<'a> {
+  pub hover: Option<&'a str>,
+  pub active: Option<&'a str>,
+  pub focus: Option<&'a str>,
+  pub focus_visible: Option<&'a str>,
+  pub focus_within: Option<&'a str>
+}
+
 pub(crate) struct Printer<'a, W> {
   pub filename: &'a str,
   dest: &'a mut W,
@@ -20,7 +29,8 @@ pub(crate) struct Printer<'a, W> {
   pub vendor_prefix: VendorPrefix,
   pub in_calc: bool,
   pub css_module: Option<CssModule<'a>>,
-  pub dependencies: Option<&'a mut Vec<Dependency>>
+  pub dependencies: Option<&'a mut Vec<Dependency>>,
+  pub pseudo_classes: Option<PseudoClasses<'a>>
 }
 
 impl<'a, W: Write + Sized> Printer<'a, W> {
@@ -43,7 +53,8 @@ impl<'a, W: Write + Sized> Printer<'a, W> {
       vendor_prefix: VendorPrefix::empty(),
       in_calc: false,
       css_module: None,
-      dependencies: None
+      dependencies: None,
+      pseudo_classes: None
     }
   }
 

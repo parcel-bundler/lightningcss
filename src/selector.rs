@@ -356,13 +356,30 @@ impl ToCssWithContext for PseudoClass {
         }};
       }
 
+      macro_rules! pseudo {
+        ($key: ident, $s: literal) => {{
+          let class = if let Some(pseudo_classes) = &dest.pseudo_classes {
+            pseudo_classes.$key
+          } else {
+            None
+          };
+
+          if let Some(class) = class {
+            dest.write_char('.')?;
+            dest.write_ident(class)
+          } else {
+            dest.write_str($s)
+          }
+        }};
+      }
+
       match &self {
         // https://drafts.csswg.org/selectors-4/#useraction-pseudos
-        Hover => dest.write_str(":hover"),
-        Active => dest.write_str(":active"),
-        Focus => dest.write_str(":focus"),
-        FocusVisible => dest.write_str(":focus-visible"),
-        FocusWithin => dest.write_str(":focus-within"),
+        Hover => pseudo!(hover, ":hover"),
+        Active => pseudo!(active, ":active"),
+        Focus => pseudo!(focus, ":focus"),
+        FocusVisible => pseudo!(focus_visible, ":focus-visible"),
+        FocusWithin => pseudo!(focus_within, ":focus-within"),
 
         // https://drafts.csswg.org/selectors-4/#time-pseudos
         Current => dest.write_str(":current"),
