@@ -1,6 +1,7 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
+use crate::error::{ParserError, PrinterError};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Rect<T>(pub T, pub T, pub T, pub T);
@@ -25,9 +26,9 @@ where
     pub fn parse_with<'i, 't, Parse>(
         input: &mut Parser<'i, 't>,
         parse: Parse,
-    ) -> Result<Self, ParseError<'i, ()>>
+    ) -> Result<Self, ParseError<'i, ParserError<'i>>>
     where
-        Parse: Fn(&mut Parser<'i, 't>) -> Result<T, ParseError<'i, ()>>,
+        Parse: Fn(&mut Parser<'i, 't>) -> Result<T, ParseError<'i, ParserError<'i>>>,
     {
         let first = parse(input)?;
         let second = if let Ok(second) = input.try_parse(|i| parse(i)) {
@@ -62,7 +63,7 @@ impl<T> Parse for Rect<T>
 where
   T: Clone + PartialEq + Parse
 {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Self::parse_with(input, T::parse)
   }
 }
@@ -71,7 +72,7 @@ impl<T> ToCss for Rect<T>
 where
   T: PartialEq + ToCss
 {
-    fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
         self.0.to_css(dest)?;
         let same_vertical = self.0 == self.2;
         let same_horizontal = self.1 == self.3;

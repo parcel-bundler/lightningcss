@@ -1,13 +1,14 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
+use crate::error::{ParserError, PrinterError};
 
 /// https://drafts.csswg.org/css-values-4/#ratios
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ratio(pub f32, pub f32);
 
 impl Parse for Ratio {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let first = f32::parse(input)?;
     let second = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
       f32::parse(input)?
@@ -20,7 +21,7 @@ impl Parse for Ratio {
 }
 
 impl Ratio {
-  pub fn parse_required<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  pub fn parse_required<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let first = f32::parse(input)?;
     input.expect_delim('/')?;
     let second = f32::parse(input)?;
@@ -29,7 +30,7 @@ impl Ratio {
 }
 
 impl ToCss for Ratio {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.0.to_css(dest)?;
     if self.1 != 1.0 {
       dest.delim('/', true)?;

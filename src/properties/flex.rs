@@ -12,6 +12,7 @@ use super::align::{JustifyContent, ContentDistribution, ContentPosition, AlignIt
 use crate::printer::Printer;
 use crate::targets::Browsers;
 use crate::prefixes::{Feature, is_flex_2009};
+use crate::error::{ParserError, PrinterError};
 
 // https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#propdef-flex-direction
 enum_property!(FlexDirection,
@@ -54,7 +55,7 @@ pub struct FlexFlow {
 }
 
 impl Parse for FlexFlow {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut direction = None;
     let mut wrap = None;
     loop {
@@ -81,7 +82,7 @@ impl Parse for FlexFlow {
 }
 
 impl ToCss for FlexFlow {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let mut needs_space = false;
     if self.direction != FlexDirection::default() || self.wrap == FlexWrap::default() {
       self.direction.to_css(dest)?;
@@ -107,7 +108,7 @@ pub struct Flex {
 }
 
 impl Parse for Flex {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(Flex {
         grow: 0.0,
@@ -148,7 +149,7 @@ impl Parse for Flex {
 }
 
 impl ToCss for Flex {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if self.grow == 0.0 && self.shrink == 0.0 && self.basis == LengthPercentageOrAuto::Auto {
       dest.write_str("none")?;
       return Ok(())

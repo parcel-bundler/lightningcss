@@ -5,6 +5,7 @@ use super::calc::Calc;
 use std::f32::consts::PI;
 use super::percentage::DimensionPercentage;
 use super::length::serialize_dimension;
+use crate::error::{ParserError, PrinterError};
 
 #[derive(Debug, Clone)]
 pub enum Angle {
@@ -15,11 +16,11 @@ pub enum Angle {
 }
 
 impl Parse for Angle {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
       // Angles are always compatible, so they will always compute to a value.
-      Ok(_) => return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid)),
+      Ok(_) => unreachable!(),
       _ => {}
     }
     
@@ -41,7 +42,7 @@ impl Parse for Angle {
 }
 
 impl ToCss for Angle {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let (value, unit) = match self {
       Angle::Deg(val) => (*val, "deg"),
       Angle::Grad(val) => (*val, "grad"),

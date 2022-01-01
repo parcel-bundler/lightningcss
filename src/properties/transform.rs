@@ -12,13 +12,14 @@ use crate::values::{
 };
 use crate::macros::enum_property;
 use crate::printer::Printer;
+use crate::error::{ParserError, PrinterError};
 
 /// https://www.w3.org/TR/2019/CR-css-transforms-1-20190214/#propdef-transform
 #[derive(Debug, Clone, PartialEq)]
 pub struct TransformList(pub Vec<Transform>);
 
 impl Parse for TransformList {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(TransformList(vec![]))
     }
@@ -37,7 +38,7 @@ impl Parse for TransformList {
 }
 
 impl ToCss for TransformList {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if self.0.is_empty() {
       dest.write_str("none")?;
       return Ok(())
@@ -83,7 +84,7 @@ impl ToCss for TransformList {
 }
 
 impl TransformList {
-  fn to_css_base<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css_base<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     for item in &self.0 {
       item.to_css(dest)?;
     }
@@ -640,7 +641,7 @@ impl Matrix3d<f32> {
 }
 
 impl Parse for Transform {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let function = input.expect_function()?.clone();
     input.parse_nested_block(|input| {
       let location = input.current_source_location();
@@ -812,7 +813,7 @@ impl Parse for Transform {
 }
 
 impl ToCss for Transform {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use Transform::*;
     match self {
       Translate(x, y) => {
@@ -1175,7 +1176,7 @@ pub enum Perspective {
 }
 
 impl Parse for Perspective {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(Perspective::None)
     }
@@ -1185,7 +1186,7 @@ impl Parse for Perspective {
 }
 
 impl ToCss for Perspective {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       Perspective::None => dest.write_str("none"),
       Perspective::Length(len) => len.to_css(dest)
@@ -1202,7 +1203,7 @@ pub struct Translate {
 }
 
 impl Parse for Translate {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
       return Ok(Translate {
         x: LengthPercentage::zero(),
@@ -1228,7 +1229,7 @@ impl Parse for Translate {
 }
 
 impl ToCss for Translate {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.x.to_css(dest)?;
     if self.y != 0.0 || self.z != 0.0 {
       dest.write_char(' ')?;
@@ -1258,7 +1259,7 @@ pub struct Rotate {
 }
 
 impl Parse for Rotate {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
       return Ok(Rotate {
         x: 0.0,
@@ -1282,7 +1283,7 @@ impl Parse for Rotate {
           ))
         }
       })
-      .or_else(|_: ParseError<'i, ()>| -> Result<_, ParseError<'i, ()>> {
+      .or_else(|_: ParseError<'i, ParserError<'i>>| -> Result<_, ParseError<'i, ParserError<'i>>> {
         input.try_parse(|input| {
           Ok((f32::parse(input)?, f32::parse(input)?, f32::parse(input)?))
         })
@@ -1294,7 +1295,7 @@ impl Parse for Rotate {
 }
 
 impl ToCss for Rotate {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if self.x == 0.0 && self.y == 0.0 && self.z == 1.0 && self.angle == 0.0 {
       dest.write_str("none")?;
       return Ok(())
@@ -1333,7 +1334,7 @@ pub struct Scale {
 }
 
 impl Parse for Scale {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
       return Ok(Scale {
         x: NumberOrPercentage::Number(1.0),
@@ -1359,7 +1360,7 @@ impl Parse for Scale {
 }
 
 impl ToCss for Scale {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.x.to_css(dest)?;
     if self.y != self.x || self.z != 1.0 {
       dest.write_char(' ')?;

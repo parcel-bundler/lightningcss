@@ -12,6 +12,7 @@ use crate::values::length::{Length, LengthPercentage};
 use crate::values::color::CssColor;
 use crate::printer::Printer;
 use bitflags::bitflags;
+use crate::error::{ParserError, PrinterError};
 
 // https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-transform-property
 enum_property!(TextTransformCase,
@@ -35,7 +36,7 @@ bitflags! {
 }
 
 impl Parse for TextTransformOther {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let ident = input.expect_ident()?;
     match_ignore_ascii_case! { &ident,
@@ -49,7 +50,7 @@ impl Parse for TextTransformOther {
 }
 
 impl ToCss for TextTransformOther {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let mut needs_space = false;
     if self.contains(TextTransformOther::FullWidth) {
       dest.write_str("full-width")?;
@@ -74,7 +75,7 @@ pub struct TextTransform {
 }
 
 impl Parse for TextTransform {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut case = None;
     let mut other = TextTransformOther::empty();
 
@@ -106,7 +107,7 @@ impl Parse for TextTransform {
 }
 
 impl ToCss for TextTransform {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let mut needs_space = false;
     if self.case != TextTransformCase::None || self.other.is_empty() {
       self.case.to_css(dest)?;
@@ -203,7 +204,7 @@ pub enum Spacing {
 }
 
 impl Parse for Spacing {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(Spacing::Normal)
     }
@@ -214,7 +215,7 @@ impl Parse for Spacing {
 }
 
 impl ToCss for Spacing {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       Spacing::Normal => dest.write_str("normal"),
       Spacing::Length(len) => len.to_css(dest)
@@ -231,7 +232,7 @@ pub struct TextIndent {
 }
 
 impl Parse for TextIndent {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut value = None;
     let mut hanging = false;
     let mut each_line = false;
@@ -268,13 +269,13 @@ impl Parse for TextIndent {
         each_line
       })
     } else {
-      Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+      Err(input.new_custom_error(ParserError::InvalidDeclaration))
     }
   }
 }
 
 impl ToCss for TextIndent {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.value.to_css(dest)?;
     if self.hanging {
       dest.write_str(" hanging")?;
@@ -305,12 +306,12 @@ impl Default for TextDecorationLine {
 }
 
 impl Parse for TextDecorationLine {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut value = TextDecorationLine::empty();
     let mut any = false;
 
     loop {
-      let flag: Result<_, ParseError<'i, ()>> = input.try_parse(|input| {
+      let flag: Result<_, ParseError<'i, ParserError<'i>>> = input.try_parse(|input| {
         let location = input.current_source_location();
         let ident = input.expect_ident()?;
         Ok(match_ignore_ascii_case! { &ident,
@@ -336,7 +337,7 @@ impl Parse for TextDecorationLine {
     }
 
     if !any {
-      return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+      return Err(input.new_custom_error(ParserError::InvalidDeclaration))
     }
 
     Ok(value)
@@ -344,7 +345,7 @@ impl Parse for TextDecorationLine {
 }
 
 impl ToCss for TextDecorationLine {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if self.is_empty() {
       return dest.write_str("none")
     }
@@ -409,7 +410,7 @@ impl Default for TextDecorationThickness {
 }
 
 impl Parse for TextDecorationThickness {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
       return Ok(TextDecorationThickness::Auto)
     }
@@ -424,7 +425,7 @@ impl Parse for TextDecorationThickness {
 }
 
 impl ToCss for TextDecorationThickness {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       TextDecorationThickness::Auto => dest.write_str("auto"),
       TextDecorationThickness::FromFont => dest.write_str("from-font"),
@@ -442,7 +443,7 @@ pub struct TextDecoration {
 }
 
 impl Parse for TextDecoration {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut line = None;
     let mut thickness = None;
     let mut style = None;
@@ -477,7 +478,7 @@ impl Parse for TextDecoration {
 }
 
 impl ToCss for TextDecoration {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.line.to_css(dest)?;
     if self.line.is_empty() {
       return Ok(())
@@ -547,7 +548,7 @@ impl Default for TextEmphasisStyle {
 }
 
 impl Parse for TextEmphasisStyle {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(TextEmphasisStyle::None)
     }
@@ -563,7 +564,7 @@ impl Parse for TextEmphasisStyle {
     }
 
     if shape.is_none() && fill.is_none() {
-      return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+      return Err(input.new_custom_error(ParserError::InvalidDeclaration))
     }
 
     let fill = fill.unwrap_or(TextEmphasisFillMode::Filled);
@@ -572,10 +573,13 @@ impl Parse for TextEmphasisStyle {
 }
 
 impl ToCss for TextEmphasisStyle {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       TextEmphasisStyle::None => dest.write_str("none"),
-      TextEmphasisStyle::String(s) => serialize_string(&s, dest),
+      TextEmphasisStyle::String(s) => {
+        serialize_string(&s, dest)?;
+        Ok(())
+      },
       TextEmphasisStyle::Keyword { fill, shape } => {
         let mut needs_space = false;
         if *fill != TextEmphasisFillMode::Filled || shape.is_none() {
@@ -603,7 +607,7 @@ pub struct TextEmphasis {
 }
 
 impl Parse for TextEmphasis {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut style = None;
     let mut color = None;
 
@@ -633,7 +637,7 @@ impl Parse for TextEmphasis {
 }
 
 impl ToCss for TextEmphasis {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.style.to_css(dest)?;
 
     if self.style != TextEmphasisStyle::None && self.color != CssColor::current_color() {
@@ -663,7 +667,7 @@ pub struct TextEmphasisPosition {
 }
 
 impl Parse for TextEmphasisPosition {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(horizontal) = input.try_parse(TextEmphasisPositionHorizontal::parse) {
       let vertical = TextEmphasisPositionVertical::parse(input)?;
       Ok(TextEmphasisPosition { horizontal, vertical })
@@ -676,7 +680,7 @@ impl Parse for TextEmphasisPosition {
 }
 
 impl ToCss for TextEmphasisPosition {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.vertical.to_css(dest)?;
     if self.horizontal != TextEmphasisPositionHorizontal::Right {
       dest.write_char(' ')?;
@@ -893,13 +897,13 @@ pub struct TextShadow {
 }
 
 impl Parse for TextShadow {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut color = None;
     let mut lengths = None;
 
     loop {
       if lengths.is_none() {
-        let value = input.try_parse::<_, _, ParseError<()>>(|input| {
+        let value = input.try_parse::<_, _, ParseError<ParserError<'i>>>(|input| {
           let horizontal = Length::parse(input)?;
           let vertical = Length::parse(input)?;
           let blur = input.try_parse(Length::parse).unwrap_or(Length::zero());
@@ -935,7 +939,7 @@ impl Parse for TextShadow {
 }
 
 impl ToCss for TextShadow {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.x_offset.to_css(dest)?;
     dest.write_char(' ')?;
     self.y_offset.to_css(dest)?;

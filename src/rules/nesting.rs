@@ -3,6 +3,7 @@ use crate::printer::Printer;
 use crate::declaration::DeclarationHandler;
 use super::style::StyleRule;
 use crate::rules::{ToCssWithContext, StyleContext};
+use crate::error::PrinterError;
 
 #[derive(Debug, PartialEq)]
 pub struct NestingRule {
@@ -17,7 +18,7 @@ impl NestingRule {
 }
 
 impl ToCssWithContext for NestingRule {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.add_mapping(self.loc);
     if context.is_none() {
       dest.write_str("@nest ")?;

@@ -10,6 +10,7 @@ use super::border_image::*;
 use super::border_radius::*;
 use crate::targets::Browsers;
 use crate::printer::Printer;
+use crate::error::{ParserError, PrinterError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BorderSideWidth {
@@ -30,22 +31,23 @@ impl Default for BorderSideWidth {
 }
 
 impl Parse for BorderSideWidth {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(length) = input.try_parse(|i| Length::parse(i)) {
       return Ok(BorderSideWidth::Length(length));
     }
+    let location = input.current_source_location();
     let ident = input.expect_ident_cloned()?;
     match_ignore_ascii_case! { &ident,
       "thin" => Ok(BorderSideWidth::Thin),
       "medium" => Ok(BorderSideWidth::Medium),
       "thick" => Ok(BorderSideWidth::Thick),
-      _ => return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+      _ => return Err(location.new_unexpected_token_error(Token::Ident(ident)))
     }
   }
 }
 
 impl ToCss for BorderSideWidth {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use BorderSideWidth::*;
     match self {
       Thin => dest.write_str("thin"),
@@ -93,7 +95,7 @@ impl<S: Default> Default for GenericBorder<S> {
 }
 
 impl<S: Parse + Default> Parse for GenericBorder<S> {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // Order doesn't matter...
     let mut color = None;
     let mut style = None;
@@ -129,13 +131,13 @@ impl<S: Parse + Default> Parse for GenericBorder<S> {
         color: color.unwrap_or_else(|| CssColor::current_color())
       })
     } else {
-      Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+      Err(input.new_custom_error(ParserError::InvalidDeclaration))
     }
   }
 }
 
 impl<S: ToCss + Default + PartialEq> ToCss for GenericBorder<S> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     // Assume the default is 'none'
     if self.style == S::default() {
       if dest.minify {

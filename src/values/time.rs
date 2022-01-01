@@ -2,6 +2,7 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use super::calc::Calc;
+use crate::error::{ParserError, PrinterError};
 
 /// https://www.w3.org/TR/css3-values/#time-value
 #[derive(Debug, Clone, PartialEq)]
@@ -20,11 +21,11 @@ impl Time {
 }
 
 impl Parse for Time {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
       // Time is always compatible, so they will always compute to a value.
-      Ok(_) => return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid)),
+      Ok(_) => unreachable!(),
       _ => {}
     }
 
@@ -34,7 +35,7 @@ impl Parse for Time {
         match_ignore_ascii_case! { unit,
           "s" => Ok(Time::Seconds(value)),
           "ms" => Ok(Time::Milliseconds(value)),
-          _ => Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+          _ => Err(location.new_unexpected_token_error(Token::Ident(unit.clone())))
         }
       }
       ref t => Err(location.new_unexpected_token_error(t.clone())),
@@ -43,7 +44,7 @@ impl Parse for Time {
 }
 
 impl ToCss for Time {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     // 0.1s is shorter than 100ms
     // anything smaller is longer
     match self {

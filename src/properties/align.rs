@@ -10,6 +10,7 @@ use crate::targets::Browsers;
 use crate::prefixes::{Feature, is_flex_2009};
 use crate::printer::Printer;
 use crate::compat;
+use crate::error::{ParserError, PrinterError};
 
 /// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#typedef-baseline-position
 #[derive(Debug, Clone, PartialEq)]
@@ -19,7 +20,7 @@ pub enum BaselinePosition {
 }
 
 impl Parse for BaselinePosition {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let ident = input.expect_ident()?;
     match_ignore_ascii_case! { &*ident,
@@ -40,7 +41,7 @@ impl Parse for BaselinePosition {
 }
 
 impl ToCss for BaselinePosition {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       BaselinePosition::First => dest.write_str("baseline"),
       BaselinePosition::Last => dest.write_str("last baseline")
@@ -81,7 +82,7 @@ pub enum AlignContent {
 }
 
 impl Parse for AlignContent {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(AlignContent::Normal)
     }
@@ -101,7 +102,7 @@ impl Parse for AlignContent {
 }
 
 impl ToCss for AlignContent {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       AlignContent::Normal => dest.write_str("normal"),
       AlignContent::BaselinePosition(val) => val.to_css(dest),
@@ -129,7 +130,7 @@ pub enum JustifyContent {
 }
 
 impl Parse for JustifyContent {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(JustifyContent::Normal)
     }
@@ -156,7 +157,7 @@ impl Parse for JustifyContent {
 }
 
 impl ToCss for JustifyContent {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       JustifyContent::Normal => dest.write_str("normal"),
       JustifyContent::ContentDistribution(val) => val.to_css(dest),
@@ -196,7 +197,7 @@ pub struct PlaceContent {
 }
 
 impl Parse for PlaceContent {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let align = AlignContent::parse(input)?;
     let justify = match input.try_parse(JustifyContent::parse) {
       Ok(j) => j,
@@ -218,7 +219,7 @@ impl Parse for PlaceContent {
 }
 
 impl ToCss for PlaceContent {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.align.to_css(dest)?;
     let is_equal = match self.justify {
       JustifyContent::Normal if self.align == AlignContent::Normal => true,
@@ -258,7 +259,7 @@ pub enum AlignSelf {
 }
 
 impl Parse for AlignSelf {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
       return Ok(AlignSelf::Auto)
     }
@@ -282,7 +283,7 @@ impl Parse for AlignSelf {
 }
 
 impl ToCss for AlignSelf {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       AlignSelf::Auto => dest.write_str("auto"),
       AlignSelf::Normal => dest.write_str("normal"),
@@ -313,7 +314,7 @@ pub enum JustifySelf {
 }
 
 impl Parse for JustifySelf {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
       return Ok(JustifySelf::Auto)
     }
@@ -348,7 +349,7 @@ impl Parse for JustifySelf {
 }
 
 impl ToCss for JustifySelf {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       JustifySelf::Auto => dest.write_str("auto"),
       JustifySelf::Normal => dest.write_str("normal"),
@@ -390,7 +391,7 @@ pub struct PlaceSelf {
 }
 
 impl Parse for PlaceSelf {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let align = AlignSelf::parse(input)?;
     let justify = match input.try_parse(JustifySelf::parse) {
       Ok(j) => j,
@@ -411,7 +412,7 @@ impl Parse for PlaceSelf {
 }
 
 impl ToCss for PlaceSelf {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.align.to_css(dest)?;
     let is_equal = match &self.justify {
       JustifySelf::Auto => true,
@@ -441,7 +442,7 @@ pub enum AlignItems {
 }
 
 impl Parse for AlignItems {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(AlignItems::Normal)
     }
@@ -461,7 +462,7 @@ impl Parse for AlignItems {
 }
 
 impl ToCss for AlignItems {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       AlignItems::Normal => dest.write_str("normal"),
       AlignItems::Stretch => dest.write_str("stretch"),
@@ -486,7 +487,7 @@ pub enum LegacyJustify {
 }
 
 impl Parse for LegacyJustify {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let ident = input.expect_ident()?;
     match_ignore_ascii_case! { &*ident,
@@ -522,7 +523,7 @@ impl Parse for LegacyJustify {
 }
 
 impl ToCss for LegacyJustify {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.write_str("legacy ")?;
     match self {
       LegacyJustify::Left => dest.write_str("left"),
@@ -545,7 +546,7 @@ pub enum JustifyItems {
 }
 
 impl Parse for JustifyItems {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(JustifyItems::Normal)
     }
@@ -580,7 +581,7 @@ impl Parse for JustifyItems {
 }
 
 impl ToCss for JustifyItems {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       JustifyItems::Normal => dest.write_str("normal"),
       JustifyItems::Stretch => dest.write_str("stretch"),
@@ -622,7 +623,7 @@ pub struct PlaceItems {
 }
 
 impl Parse for PlaceItems {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let align = AlignItems::parse(input)?;
     let justify = match input.try_parse(JustifyItems::parse) {
       Ok(j) => j,
@@ -642,7 +643,7 @@ impl Parse for PlaceItems {
 }
 
 impl ToCss for PlaceItems {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.align.to_css(dest)?;
     let is_equal = match &self.justify {
       JustifyItems::Normal => self.align == AlignItems::Normal,
@@ -669,7 +670,7 @@ pub enum GapValue {
 }
 
 impl Parse for GapValue {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(GapValue::Normal)
     }
@@ -680,7 +681,7 @@ impl Parse for GapValue {
 }
 
 impl ToCss for GapValue {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       GapValue::Normal => dest.write_str("normal"),
       GapValue::LengthPercentage(lp) => lp.to_css(dest)
@@ -696,7 +697,7 @@ pub struct Gap {
 }
 
 impl Parse for Gap {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let row = GapValue::parse(input)?;
     let column = input.try_parse(GapValue::parse).unwrap_or(row.clone());
     Ok(Gap { row, column })
@@ -704,7 +705,7 @@ impl Parse for Gap {
 }
 
 impl ToCss for Gap {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.row.to_css(dest)?;
     if self.column != self.row {
       dest.write_str(" ")?;

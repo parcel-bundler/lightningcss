@@ -9,6 +9,7 @@ use crate::declaration::{DeclarationHandler, DeclarationBlock};
 use crate::css_modules::{hash, CssModule, CssModuleExports};
 use std::collections::HashMap;
 use crate::dependencies::Dependency;
+use crate::error::{ParserError, PrinterError};
 
 pub use crate::parser::ParserOptions;
 pub use crate::printer::PseudoClasses;
@@ -36,7 +37,7 @@ pub struct ToCssResult {
 }
 
 impl StyleSheet {
-  pub fn parse<'i>(filename: String, code: &'i str, options: ParserOptions) -> Result<StyleSheet, ParseError<'i, ()>> {
+  pub fn parse<'i>(filename: String, code: &'i str, options: ParserOptions) -> Result<StyleSheet, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
     let rule_list_parser = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(&options));
@@ -65,7 +66,7 @@ impl StyleSheet {
     self.rules.minify(targets, &mut handler, &mut important_handler);
   }
 
-  pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, std::fmt::Error> {
+  pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, PrinterError> {
     let mut dest = String::new();
     let mut source_map = if options.source_map {
       let mut sm = SourceMap::new("/");
@@ -121,7 +122,7 @@ pub struct StyleAttribute {
 }
 
 impl StyleAttribute {
-  pub fn parse<'i>(code: &'i str) -> Result<StyleAttribute, ParseError<'i, ()>> {
+  pub fn parse<'i>(code: &'i str) -> Result<StyleAttribute, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
     let options = ParserOptions::default();
@@ -136,7 +137,7 @@ impl StyleAttribute {
     self.declarations.minify(&mut handler, &mut important_handler);
   }
 
-  pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, std::fmt::Error> {
+  pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, PrinterError> {
     assert_eq!(options.source_map, false, "Source maps are not supported for style attributes");
 
     let mut dest = String::new();

@@ -8,7 +8,7 @@ macro_rules! enum_property {
     }
 
     impl Parse for $name {
-      fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+      fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let ident = input.expect_ident()?;
         match &ident[..] {
           $(
@@ -20,7 +20,7 @@ macro_rules! enum_property {
     }
 
     impl ToCss for $name {
-      fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+      fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
         use $name::*;
         match self {
           $(
@@ -51,7 +51,7 @@ macro_rules! enum_property {
     }
 
     impl Parse for $name {
-      fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+      fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let ident = input.expect_ident()?;
         match &ident[..] {
           $(
@@ -63,7 +63,7 @@ macro_rules! enum_property {
     }
 
     impl ToCss for $name {
-      fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+      fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
         use $name::*;
         match self {
           $(
@@ -103,7 +103,7 @@ macro_rules! shorthand_property {
     }
 
     impl Parse for $name {
-      fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+      fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let mut $first_key = None;
         $(
           let mut $key = None;
@@ -138,7 +138,7 @@ macro_rules! shorthand_property {
     }
 
     impl ToCss for $name {
-      fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+      fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
         let mut needs_space = false;
         macro_rules! print_one {
           ($k: ident, $t: ty) => {

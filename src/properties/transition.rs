@@ -9,6 +9,7 @@ use itertools::izip;
 use smallvec::SmallVec;
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
+use crate::error::{ParserError, PrinterError};
 
 /// https://www.w3.org/TR/2018/WD-css-transitions-1-20181011/#transition-shorthand-property
 #[derive(Debug, Clone, PartialEq)]
@@ -20,7 +21,7 @@ pub struct Transition {
 }
 
 impl Parse for Transition {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut property = None;
     let mut duration = None;
     let mut delay = None;
@@ -68,7 +69,7 @@ impl Parse for Transition {
 }
 
 impl ToCss for Transition {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.property.to_css(dest)?;
     if self.duration != 0.0 || self.delay != 0.0 {
       dest.write_char(' ')?;

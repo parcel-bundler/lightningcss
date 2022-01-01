@@ -1,6 +1,7 @@
 use cssparser::*;
 use crate::traits::ToCss;
 use crate::printer::Printer;
+use crate::error::PrinterError;
 
 #[derive(Debug, PartialEq)]
 pub struct NamespaceRule {
@@ -10,7 +11,7 @@ pub struct NamespaceRule {
 }
 
 impl ToCss for NamespaceRule {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.add_mapping(self.loc);
     dest.write_str("@namespace ")?;
     if let Some(prefix) = &self.prefix {

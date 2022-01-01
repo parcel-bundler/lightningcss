@@ -5,6 +5,7 @@ use crate::values::{image::Image, ident::CustomIdent};
 use crate::declaration::DeclarationList;
 use crate::macros::{enum_property, shorthand_property, shorthand_handler};
 use crate::printer::Printer;
+use crate::error::{ParserError, PrinterError};
 
 /// https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#text-markers
 #[derive(Debug, Clone, PartialEq)]
@@ -21,7 +22,7 @@ impl Default for ListStyleType {
 }
 
 impl Parse for ListStyleType {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(val) = input.try_parse(CounterStyle::parse) {
       return Ok(ListStyleType::CounterStyle(val))
     }
@@ -36,11 +37,14 @@ impl Parse for ListStyleType {
 }
 
 impl ToCss for ListStyleType {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       ListStyleType::None => dest.write_str("none"),
       ListStyleType::CounterStyle(style) => style.to_css(dest),
-      ListStyleType::String(s) => serialize_string(&s, dest)
+      ListStyleType::String(s) => {
+        serialize_string(&s, dest)?;
+        Ok(())
+      }
     }
   }
 }
@@ -53,7 +57,7 @@ pub enum CounterStyle {
 }
 
 impl Parse for CounterStyle {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_function_matching("symbols")).is_ok() {
       return input.parse_nested_block(|input| {
         let t = input.try_parse(SymbolsType::parse).unwrap_or(SymbolsType::Symbolic);
@@ -73,7 +77,7 @@ impl Parse for CounterStyle {
 }
 
 impl ToCss for CounterStyle {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       CounterStyle::Name(name) => name.to_css(dest),
       CounterStyle::Symbols(t, symbols) => {
@@ -113,7 +117,7 @@ pub enum Symbol {
 }
 
 impl Parse for Symbol {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(img) = input.try_parse(Image::parse) {
       return Ok(Symbol::Image(img))
     }
@@ -124,9 +128,12 @@ impl Parse for Symbol {
 }
 
 impl ToCss for Symbol {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
-      Symbol::String(s) => serialize_string(&s, dest),
+      Symbol::String(s) => {
+        serialize_string(&s, dest)?;
+        Ok(())
+      },
       Symbol::Image(img) => img.to_css(dest)
     }
   }

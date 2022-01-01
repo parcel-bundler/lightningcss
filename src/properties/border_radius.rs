@@ -8,6 +8,7 @@ use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::declaration::DeclarationList;
 use crate::values::rect::Rect;
 use crate::printer::Printer;
+use crate::error::{ParserError, PrinterError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BorderRadius {
@@ -18,7 +19,7 @@ pub struct BorderRadius {
 }
 
 impl Parse for BorderRadius {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let widths: Rect<LengthPercentage> = Rect::parse(input)?;
     let heights = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
       Rect::parse(input)?
@@ -36,7 +37,7 @@ impl Parse for BorderRadius {
 }
 
 impl ToCss for BorderRadius {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let widths = Rect::new(&self.top_left.0, &self.top_right.0, &self.bottom_left.0, &self.bottom_right.0);
     let heights = Rect::new(&self.top_left.1, &self.top_right.1, &self.bottom_left.1, &self.bottom_right.1);
 

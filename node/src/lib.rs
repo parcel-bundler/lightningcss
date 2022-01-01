@@ -7,6 +7,7 @@ use parcel_css::stylesheet::{StyleSheet, StyleAttribute, ParserOptions, PrinterO
 use parcel_css::targets::Browsers;
 use parcel_css::css_modules::CssModuleExports;
 use parcel_css::dependencies::Dependency;
+use parcel_css::error::{ParserError, PrinterError};
 
 // ---------------------------------------------
 
@@ -223,8 +224,8 @@ fn compile_attr<'i>(code: &'i str, config: &AttrConfig) -> Result<AttrResult, Co
 }
 
 enum CompileError<'i> {
-  ParseError(cssparser::ParseError<'i, ()>),
-  PrinterError,
+  ParseError(cssparser::ParseError<'i, ParserError<'i>>),
+  PrinterError(PrinterError),
   SourceMapError(parcel_sourcemap::SourceMapError)
 }
 
@@ -243,10 +244,10 @@ impl<'i> CompileError<'i> {
               UnexpectedToken(token) => format!("Unexpected token {:?}", token)
             }
           },
-          _ => "Unknown error".into()
+          cssparser::ParseErrorKind::Custom(e) => e.reason()
         }
       }
-      CompileError::PrinterError => "Printer error".into(),
+      CompileError::PrinterError(err) => err.reason(),
       _ => "Unknown error".into()
     }
   }
@@ -255,40 +256,48 @@ impl<'i> CompileError<'i> {
   fn throw(self, ctx: CallContext, filename: Option<String>, code: &str) -> napi::Result<JsUnknown> {
     match &self {
       CompileError::ParseError(e) => {
-        // Generate an error with location information.
-        let syntax_error = ctx.env.get_global()?
-          .get_named_property::<napi::JsFunction>("SyntaxError")?;
-        let reason = ctx.env.create_string_from_std(self.reason())?;
-        let line = ctx.env.create_int32((e.location.line + 1) as i32)?;
-        let col = ctx.env.create_int32(e.location.column as i32)?;
-        let mut obj = syntax_error.new(&[reason])?;
-        if let Some(filename) = filename {
-          let filename = ctx.env.create_string_from_std(filename)?;
-          obj.set_named_property("fileName", filename)?;
-        }
-        let source = ctx.env.create_string(code)?;
-        obj.set_named_property("source", source)?;
-        let mut loc = ctx.env.create_object()?;
-        loc.set_named_property("line", line)?;
-        loc.set_named_property("column", col)?;
-        obj.set_named_property("loc", loc)?;
-        ctx.env.throw(obj)?;
-        Ok(ctx.env.get_undefined()?.into_unknown())
+        throw_syntax_error(ctx, filename, code, self.reason(), &e.location)
+      },
+      CompileError::PrinterError(PrinterError::InvalidComposesSelector(loc)) |
+      CompileError::PrinterError(PrinterError::InvalidComposesNesting(loc)) => {
+        throw_syntax_error(ctx, filename, code, self.reason(), loc)
       }
       _ => Err(self.into())
     }
   }
 }
 
-impl<'i> From<cssparser::ParseError<'i, ()>> for CompileError<'i> {
-  fn from(e: cssparser::ParseError<'i, ()>) -> CompileError<'i> {
+fn throw_syntax_error(ctx: CallContext, filename: Option<String>, code: &str, message: String, loc: &cssparser::SourceLocation) -> napi::Result<JsUnknown> {
+  // Generate an error with location information.
+  let syntax_error = ctx.env.get_global()?
+    .get_named_property::<napi::JsFunction>("SyntaxError")?;
+  let reason = ctx.env.create_string_from_std(message)?;
+  let line = ctx.env.create_int32((loc.line + 1) as i32)?;
+  let col = ctx.env.create_int32(loc.column as i32)?;
+  let mut obj = syntax_error.new(&[reason])?;
+  if let Some(filename) = filename {
+    let filename = ctx.env.create_string_from_std(filename)?;
+    obj.set_named_property("fileName", filename)?;
+  }
+  let source = ctx.env.create_string(code)?;
+  obj.set_named_property("source", source)?;
+  let mut loc = ctx.env.create_object()?;
+  loc.set_named_property("line", line)?;
+  loc.set_named_property("column", col)?;
+  obj.set_named_property("loc", loc)?;
+  ctx.env.throw(obj)?;
+  Ok(ctx.env.get_undefined()?.into_unknown())
+}
+
+impl<'i> From<cssparser::ParseError<'i, ParserError<'i>>> for CompileError<'i> {
+  fn from(e: cssparser::ParseError<'i, ParserError<'i>>) -> CompileError<'i> {
     CompileError::ParseError(e)
   }
 }
 
-impl<'i> From<std::fmt::Error> for CompileError<'i> {
-  fn from(_: std::fmt::Error) -> CompileError<'i> {
-    CompileError::PrinterError
+impl<'i> From<PrinterError> for CompileError<'i> {
+  fn from(err: PrinterError) -> CompileError<'i> {
+    CompileError::PrinterError(err)
   }
 }
 

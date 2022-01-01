@@ -9,6 +9,7 @@ use crate::values::rect::Rect;
 use crate::values::image::Image;
 use crate::macros::*;
 use crate::printer::Printer;
+use crate::error::{ParserError, PrinterError};
 
 // https://www.w3.org/TR/css-backgrounds-3/#border-image-repeat
 enum_property!(BorderImageRepeatKeyword,
@@ -28,7 +29,7 @@ impl Default for BorderImageRepeat {
 }
 
 impl Parse for BorderImageRepeat {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let horizontal = BorderImageRepeatKeyword::parse(input)?;
     let vertical = input.try_parse(BorderImageRepeatKeyword::parse).ok();
     Ok(BorderImageRepeat(horizontal, vertical.unwrap_or(horizontal)))
@@ -36,7 +37,7 @@ impl Parse for BorderImageRepeat {
 }
 
 impl ToCss for BorderImageRepeat {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.0.to_css(dest)?;
     if self.0 != self.1 {
       dest.write_str(" ")?;
@@ -61,7 +62,7 @@ impl Default for BorderImageSideWidth {
 }
 
 impl Parse for BorderImageSideWidth {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("auto")).is_ok() {
       return Ok(BorderImageSideWidth::Auto);
     }
@@ -79,7 +80,7 @@ impl Parse for BorderImageSideWidth {
 }
 
 impl ToCss for BorderImageSideWidth {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use BorderImageSideWidth::*;
     match self {
       Auto => dest.write_str("auto"),
@@ -106,7 +107,7 @@ impl Default for BorderImageSlice {
 }
 
 impl Parse for BorderImageSlice {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut fill = input.try_parse(|i| i.expect_ident_matching("fill")).is_ok();
     let offsets = Rect::parse(input)?;
     if !fill {
@@ -120,7 +121,7 @@ impl Parse for BorderImageSlice {
 }
 
 impl ToCss for BorderImageSlice {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.offsets.to_css(dest)?;
     if self.fill {
       dest.write_str(" fill")?;
@@ -140,7 +141,7 @@ pub struct BorderImage {
 }
 
 impl Parse for BorderImage {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut source: Option<Image> = None;
     let mut slice: Option<BorderImageSlice> = None;
     let mut width: Option<Rect<BorderImageSideWidth>> = None;
@@ -151,7 +152,7 @@ impl Parse for BorderImage {
         if let Ok(value) = input.try_parse(|input| BorderImageSlice::parse(input)) {
           slice = Some(value);
           // Parse border image width and outset, if applicable.
-          let maybe_width_outset: Result<_, cssparser::ParseError<'_, ()>> = input.try_parse(|input| {
+          let maybe_width_outset: Result<_, cssparser::ParseError<'_, ParserError<'i>>> = input.try_parse(|input| {
             input.expect_delim('/')?;
 
             // Parse border image width, if applicable.
@@ -163,7 +164,7 @@ impl Parse for BorderImage {
               Rect::parse(input)
             }).ok();
             if w.is_none() && o.is_none() {
-              Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+              Err(input.new_custom_error(ParserError::InvalidDeclaration))
             }
             else {
               Ok((w, o))
@@ -203,13 +204,13 @@ impl Parse for BorderImage {
         repeat: repeat.unwrap_or_default()
       })
     } else {
-      Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+      Err(input.new_custom_error(ParserError::InvalidDeclaration))
     }
   }
 }
 
 impl ToCss for BorderImage {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if self.source != Image::default() {
       self.source.to_css(dest)?;
     }

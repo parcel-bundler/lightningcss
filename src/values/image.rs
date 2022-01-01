@@ -7,6 +7,7 @@ use crate::printer::Printer;
 use super::gradient::*;
 use super::resolution::Resolution;
 use crate::values::url::Url;
+use crate::error::{ParserError, PrinterError};
 
 /// https://www.w3.org/TR/css-images-3/#typedef-image
 #[derive(Debug, Clone, PartialEq)]
@@ -57,7 +58,7 @@ impl Image {
 }
 
 impl Parse for Image {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
       return Ok(Image::None)
     }
@@ -79,7 +80,7 @@ impl Parse for Image {
 }
 
 impl ToCss for Image {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       Image::None => dest.write_str("none"),
       Image::Url(url) => url.to_css(dest),
@@ -113,7 +114,7 @@ impl ImageSet {
 }
 
 impl Parse for ImageSet {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let f = input.expect_function()?;
     let vendor_prefix = match_ignore_ascii_case! { &*f,
@@ -135,7 +136,7 @@ impl Parse for ImageSet {
 }
 
 impl ToCss for ImageSet {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.vendor_prefix.to_css(dest)?;
     dest.write_str("image-set(")?;
     let mut first = true;
@@ -159,7 +160,7 @@ pub struct ImageSetOption {
 }
 
 impl Parse for ImageSetOption {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let loc = input.current_source_location();
     let image = if let Ok(url) = input.try_parse(|input| input.expect_url_or_string()) {
       Image::Url(Url {
@@ -184,7 +185,7 @@ impl Parse for ImageSetOption {
 }
 
 impl ImageSetOption {
-  fn to_css<W>(&self, dest: &mut Printer<W>, is_prefixed: bool) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>, is_prefixed: bool) -> Result<(), PrinterError> where W: std::fmt::Write {
     match &self.image {
       // Prefixed syntax didn't allow strings, only url()
       Image::Url(url) if !is_prefixed => serialize_string(&url.url, dest)?,
@@ -206,7 +207,7 @@ impl ImageSetOption {
   }
 }
 
-fn parse_file_type<'i, 't>(input: &mut Parser<'i, 't>) -> Result<String, ParseError<'i, ()>> {
+fn parse_file_type<'i, 't>(input: &mut Parser<'i, 't>) -> Result<String, ParseError<'i, ParserError<'i>>> {
   input.expect_function_matching("type")?;
   input.parse_nested_block(|input| Ok(input.expect_string()?.as_ref().to_owned()))
 }

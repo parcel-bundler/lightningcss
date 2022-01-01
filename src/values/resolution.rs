@@ -2,6 +2,7 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use super::length::serialize_dimension;
+use crate::error::{ParserError, PrinterError};
 
 /// https://drafts.csswg.org/css-values-4/#resolution-value
 #[derive(Debug, Clone, PartialEq)]
@@ -12,7 +13,7 @@ pub enum Resolution {
 }
 
 impl Parse for Resolution {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     match *input.next()? {
       Token::Dimension { value, ref unit, .. } => {
@@ -20,7 +21,7 @@ impl Parse for Resolution {
           "dpi" => Ok(Resolution::Dpi(value)),
           "dpcm" => Ok(Resolution::Dpcm(value)),
           "dppx" | "x" => Ok(Resolution::Dppx(value)),
-          _ => Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+          _ => Err(location.new_unexpected_token_error(Token::Ident(unit.clone())))
         }
       }
       ref t => Err(location.new_unexpected_token_error(t.clone())),
@@ -29,7 +30,7 @@ impl Parse for Resolution {
 }
 
 impl ToCss for Resolution {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let (value, unit) = match self {
       Resolution::Dpi(dpi) => (*dpi, "dpi"),
       Resolution::Dpcm(dpcm) => (*dpcm, "dpcm"),

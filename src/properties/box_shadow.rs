@@ -3,6 +3,7 @@ use crate::values::length::Length;
 use crate::traits::{Parse, ToCss};
 use crate::values::color::CssColor;
 use crate::printer::Printer;
+use crate::error::{ParserError, PrinterError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BoxShadow {
@@ -15,7 +16,7 @@ pub struct BoxShadow {
 }
 
 impl Parse for BoxShadow {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut color = None;
     let mut lengths = None;
     let mut inset = false;
@@ -29,7 +30,7 @@ impl Parse for BoxShadow {
       }
 
       if lengths.is_none() {
-        let value = input.try_parse::<_, _, ParseError<()>>(|input| {
+        let value = input.try_parse::<_, _, ParseError<ParserError<'i>>>(|input| {
           let horizontal = Length::parse(input)?;
           let vertical = Length::parse(input)?;
           let blur = input.try_parse(Length::parse).unwrap_or(Length::zero());
@@ -66,7 +67,7 @@ impl Parse for BoxShadow {
 }
 
 impl ToCss for BoxShadow {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if self.inset {
       dest.write_str("inset ")?;
     }

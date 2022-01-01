@@ -8,6 +8,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
 use crate::rules::{CssRuleList, ToCssWithContext, StyleContext};
 use crate::compat::Feature;
+use crate::error::PrinterError;
 
 #[derive(Debug, PartialEq)]
 pub struct StyleRule {
@@ -29,7 +30,7 @@ impl StyleRule {
 }
 
 impl ToCssWithContext for StyleRule {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if self.vendor_prefix.is_empty() {
       self.to_css_base(dest, context)
     } else {
@@ -65,7 +66,7 @@ impl ToCssWithContext for StyleRule {
 }
 
 impl StyleRule {
-  fn to_css_base<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css_base<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> Result<(), PrinterError> where W: std::fmt::Write {
     // If supported, or there are no targets, preserve nesting. Otherwise, write nested rules after parent.
     let supports_nesting = self.rules.0.is_empty() || dest.targets.is_none() || Feature::CssNesting.is_compatible(dest.targets.unwrap());
     let len = self.declarations.declarations.len();
@@ -82,9 +83,12 @@ impl StyleRule {
         // The CSS modules `composes` property is handled specially, and omitted during printing.
         // We need to add the classes it references to the list for the selectors in this rule.
         if let crate::properties::Property::Composes(composes) = &decl.property {
+          if dest.is_nested() && dest.css_module.is_some() {
+            return Err(PrinterError::InvalidComposesNesting(composes.loc))
+          }
+
           if let Some(css_module) = &mut dest.css_module {
-            css_module.handle_composes(&self.selectors, &composes)
-              .map_err(|_| std::fmt::Error)?; // TODO: error
+            css_module.handle_composes(&self.selectors, &composes)?;
             continue;
           }
         }

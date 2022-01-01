@@ -3,6 +3,7 @@ use crate::traits::ToCss;
 use crate::printer::Printer;
 use crate::media_query::MediaList;
 use super::supports::SupportsCondition;
+use crate::error::PrinterError;
 
 /// https://drafts.csswg.org/css-cascade/#at-import
 #[derive(Debug, PartialEq)]
@@ -14,7 +15,7 @@ pub struct ImportRule {
 }
 
 impl ToCss for ImportRule {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.add_mapping(self.loc);
     dest.write_str("@import ")?;
     serialize_string(&self.url, dest)?;

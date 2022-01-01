@@ -8,6 +8,7 @@ use crate::values::{
   ratio::Ratio
 };
 use crate::compat::Feature;
+use crate::error::{ParserError, PrinterError};
 
 /// A type that encapsulates a media query list.
 #[derive(Clone, Debug, PartialEq)]
@@ -42,7 +43,7 @@ impl MediaList {
 }
     
 impl ToCss for MediaList {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if self.media_queries.is_empty() {
       dest.write_str("not all")?;
       return Ok(())
@@ -106,7 +107,7 @@ impl MediaQuery {
   /// Returns an error if any of the expressions is unknown.
   pub fn parse<'i, 't>(
     input: &mut Parser<'i, 't>,
-  ) -> Result<Self, ParseError<'i, ()>> {
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let (qualifier, explicit_media_type) = input
       .try_parse(|input| -> Result<_, ()> {
         let qualifier = input.try_parse(Qualifier::parse).ok();
@@ -134,7 +135,7 @@ impl MediaQuery {
 }
 
 impl ToCss for MediaQuery {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if let Some(qual) = self.qualifier {
       qual.to_css(dest)?;
       dest.write_char(' ')?;
@@ -193,7 +194,7 @@ impl MediaCondition {
   pub fn parse<'i, 't>(
     input: &mut Parser<'i, 't>,
     allow_or: bool
-  ) -> Result<Self, ParseError<'i, ()>> {
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let is_negation = match *input.next()? {
       Token::ParenthesisBlock => false,
@@ -214,7 +215,7 @@ impl MediaCondition {
     };
     
     if !allow_or && operator == Operator::Or {
-      return Err(location.new_custom_error(()));
+      return Err(location.new_custom_error(ParserError::InvalidMediaQuery));
     }
     
     let mut conditions = vec![];
@@ -241,14 +242,14 @@ impl MediaCondition {
   /// Parse a media condition in parentheses.
   pub fn parse_in_parens<'i, 't>(
     input: &mut Parser<'i, 't>,
-  ) -> Result<Self, ParseError<'i, ()>> {
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.expect_parenthesis_block()?;
     Self::parse_paren_block(input)
   }
   
   fn parse_paren_block<'i, 't>(
     input: &mut Parser<'i, 't>,
-  ) -> Result<Self, ParseError<'i, ()>> {
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.parse_nested_block(|input| {
       if let Ok(inner) = input.try_parse(|i| Self::parse(i, true)) {
         return Ok(MediaCondition::InParens(Box::new(inner)));
@@ -261,7 +262,7 @@ impl MediaCondition {
 }
 
 impl ToCss for MediaCondition {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match *self {
       MediaCondition::Feature(ref f) => f.to_css(dest),
       MediaCondition::Not(ref c) => {
@@ -304,7 +305,7 @@ pub enum MediaFeatureComparison {
 }
 
 impl ToCss for MediaFeatureComparison {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use MediaFeatureComparison::*;
     match self {
       Equal => dest.delim('=', true),
@@ -363,7 +364,7 @@ pub enum MediaFeature {
 }
 
 impl Parse for MediaFeature {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(res) = input.try_parse(Self::parse_name_first) {
       return Ok(res)
     }
@@ -373,7 +374,7 @@ impl Parse for MediaFeature {
 }
 
 impl MediaFeature {
-  fn parse_name_first<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse_name_first<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let name = input.expect_ident()?.as_ref().to_owned();
     
     let operator = input.try_parse(|input| consume_operation_or_colon(input, true));
@@ -398,7 +399,7 @@ impl MediaFeature {
     }
   }
   
-  fn parse_value_first<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse_value_first<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let value = MediaFeatureValue::parse(input)?;
     let operator = consume_operation_or_colon(input, false)?;
     let name = input.expect_ident()?.as_ref().to_owned();
@@ -416,7 +417,7 @@ impl MediaFeature {
         (MediaFeatureComparison::LessThan, MediaFeatureComparison::LessThanEqual) |
         (MediaFeatureComparison::LessThanEqual, MediaFeatureComparison::LessThanEqual) |
         (MediaFeatureComparison::LessThanEqual, MediaFeatureComparison::LessThan) => {},
-        _ => return Err(input.new_custom_error(()))
+        _ => return Err(input.new_custom_error(ParserError::InvalidMediaQuery))
       };
       let end_value = MediaFeatureValue::parse(input)?;
       Ok(MediaFeature::Interval {
@@ -438,7 +439,7 @@ impl MediaFeature {
 }
 
 impl ToCss for MediaFeature {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.write_char('(')?;
     
     match self {
@@ -484,7 +485,7 @@ impl ToCss for MediaFeature {
 }
 
 #[inline]
-fn write_min_max<W>(operator: &MediaFeatureComparison, name: &str, value: &MediaFeatureValue, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+fn write_min_max<W>(operator: &MediaFeatureComparison, name: &str, value: &MediaFeatureValue, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
   let prefix = match operator {
     MediaFeatureComparison::GreaterThan |
     MediaFeatureComparison::GreaterThanEqual => Some("min-"),
@@ -526,7 +527,7 @@ pub enum MediaFeatureValue {
 }
 
 impl Parse for MediaFeatureValue {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // Ratios are ambigous with numbers because the second param is optional (e.g. 2/1 == 2).
     // We require the / delimeter when parsing ratios so that 2/1 ends up as a ratio and 2 is
     // parsed as a number.
@@ -553,13 +554,16 @@ impl Parse for MediaFeatureValue {
 }
 
 impl ToCss for MediaFeatureValue {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       MediaFeatureValue::Length(len) => len.to_css(dest),
       MediaFeatureValue::Number(num) => num.to_css(dest),
       MediaFeatureValue::Resolution(res) => res.to_css(dest),
       MediaFeatureValue::Ratio(ratio) => ratio.to_css(dest),
-      MediaFeatureValue::Ident(id) => serialize_identifier(id, dest)
+      MediaFeatureValue::Ident(id) => {
+        serialize_identifier(id, dest)?;
+        Ok(())
+      }
     }
   }
 }
@@ -579,7 +583,7 @@ impl std::ops::Add<f32> for MediaFeatureValue {
 }
 
 /// Consumes an operation or a colon, or returns an error.
-fn consume_operation_or_colon<'i, 't>(input: &mut Parser<'i, 't>, allow_colon: bool) -> Result<Option<MediaFeatureComparison>, ParseError<'i, ()>> {
+fn consume_operation_or_colon<'i, 't>(input: &mut Parser<'i, 't>, allow_colon: bool) -> Result<Option<MediaFeatureComparison>, ParseError<'i, ParserError<'i>>> {
   let location = input.current_source_location();
   let first_delim = {
     let location = input.current_source_location();

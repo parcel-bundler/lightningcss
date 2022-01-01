@@ -5,6 +5,7 @@ use super::CssRuleList;
 use crate::declaration::DeclarationHandler;
 use crate::targets::Browsers;
 use crate::rules::{ToCssWithContext, StyleContext};
+use crate::error::{ParserError, PrinterError};
 
 #[derive(Debug, PartialEq)]
 pub struct SupportsRule {
@@ -20,7 +21,7 @@ impl SupportsRule {
 }
 
 impl ToCssWithContext for SupportsRule {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.add_mapping(self.loc);
     dest.write_str("@supports ")?;
     self.condition.to_css(dest)?;
@@ -48,7 +49,7 @@ pub enum SupportsCondition {
 }
 
 impl Parse for SupportsCondition {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("not")).is_ok() {
       let in_parens = Self::parse_in_parens(input)?;
       return Ok(SupportsCondition::Not(Box::new(in_parens)))
@@ -102,7 +103,7 @@ impl Parse for SupportsCondition {
 }
 
 impl SupportsCondition {
-  fn parse_in_parens<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse_in_parens<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.skip_whitespace();
     let location = input.current_source_location();
     let pos = input.position();
@@ -145,7 +146,7 @@ impl SupportsCondition {
     Ok(SupportsCondition::Unknown(input.slice_from(pos).to_owned()))
   }
 
-  pub fn parse_declaration<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  pub fn parse_declaration<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let pos = input.position();
     input.expect_ident()?;
     input.expect_colon()?;
@@ -155,7 +156,7 @@ impl SupportsCondition {
 }
 
 impl ToCss for SupportsCondition {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       SupportsCondition::Not(condition) => {
         dest.write_str("not ")?;

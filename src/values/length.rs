@@ -4,6 +4,7 @@ use crate::printer::Printer;
 use super::calc::Calc;
 use super::percentage::DimensionPercentage;
 use super::number::serialize_number;
+use crate::error::{ParserError, PrinterError};
 
 /// https://drafts.csswg.org/css-values-4/#typedef-length-percentage
 pub type LengthPercentage = DimensionPercentage<LengthValue>;
@@ -26,7 +27,7 @@ pub enum LengthPercentageOrAuto {
 }
 
 impl Parse for LengthPercentageOrAuto {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("auto")).is_ok() {
       return Ok(LengthPercentageOrAuto::Auto);
     }
@@ -40,7 +41,7 @@ impl Parse for LengthPercentageOrAuto {
 }
 
 impl ToCss for LengthPercentageOrAuto {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use LengthPercentageOrAuto::*;
     match self {
       Auto => dest.write_str("auto"),
@@ -76,7 +77,7 @@ pub enum LengthValue {
 }
 
 impl Parse for LengthValue {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let token = input.next()?;
     match *token {
@@ -110,7 +111,7 @@ impl Parse for LengthValue {
 }
 
 impl ToCss for LengthValue {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let (value, unit) = self.to_unit_value();
 
     // The unit can be omitted if the value is zero, except inside calc()
@@ -123,7 +124,7 @@ impl ToCss for LengthValue {
   }
 }
 
-pub(crate) fn serialize_dimension<W>(value: f32, unit: &str, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+pub(crate) fn serialize_dimension<W>(value: f32, unit: &str, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
   use cssparser::ToCss;
   let int_value = if value.fract() == 0.0 {
     Some(value as i32)
@@ -146,7 +147,8 @@ pub(crate) fn serialize_dimension<W>(value: f32, unit: &str, dest: &mut Printer<
       dest.write_str(s.trim_start_matches('0'))
     }
   } else {
-    token.to_css(dest)
+    token.to_css(dest)?;
+    Ok(())
   }
 }
 
@@ -318,7 +320,7 @@ pub enum Length {
 }
 
 impl Parse for Length {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
       Ok(calc) => return Ok(Length::Calc(Box::new(calc))),
@@ -331,7 +333,7 @@ impl Parse for Length {
 }
 
 impl ToCss for Length {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       Length::Value(a) => a.to_css(dest),
       Length::Calc(c) => c.to_css(dest)
@@ -511,7 +513,7 @@ pub enum LengthOrNumber {
 }
 
 impl Parse for LengthOrNumber {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // Parse number first so unitless numbers are not parsed as lengths.
     if let Ok(number) = input.try_parse(f32::parse) {
       return Ok(LengthOrNumber::Number(number))
@@ -526,7 +528,7 @@ impl Parse for LengthOrNumber {
 }
 
 impl ToCss for LengthOrNumber {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       LengthOrNumber::Length(length) => length.to_css(dest),
       LengthOrNumber::Number(number) => serialize_number(*number, dest)

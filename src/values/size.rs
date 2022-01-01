@@ -3,6 +3,7 @@ use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use super::length::LengthPercentage;
 use crate::macros::enum_property;
+use crate::error::{ParserError, PrinterError};
 
 /// https://drafts.csswg.org/css-sizing-3/#specifying-sizes
 
@@ -17,7 +18,7 @@ pub enum Size {
 }
 
 impl Parse for Size {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("auto")).is_ok() {
       return Ok(Size::Auto);
     }
@@ -43,7 +44,7 @@ impl Parse for Size {
 }
 
 impl ToCss for Size {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use Size::*;
     match self {
       Auto => dest.write_str("auto"),
@@ -63,7 +64,7 @@ impl ToCss for Size {
 pub struct Size2D<T>(pub T, pub T);
 
 impl<T> Parse for Size2D<T> where T: Parse + Clone {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let first = T::parse(input)?;
     let second = input.try_parse(T::parse).unwrap_or_else(|_| first.clone());
     Ok(Size2D(first, second))
@@ -71,7 +72,7 @@ impl<T> Parse for Size2D<T> where T: Parse + Clone {
 }
 
 impl<T> ToCss for Size2D<T> where T: ToCss + PartialEq {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.0.to_css(dest)?;
     if self.1 != self.0 {
       dest.write_str(" ")?;
@@ -93,7 +94,7 @@ pub enum MinMaxSize {
 }
 
 impl Parse for MinMaxSize {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ()>> {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
       return Ok(MinMaxSize::None);
     }
@@ -119,7 +120,7 @@ impl Parse for MinMaxSize {
 }
 
 impl ToCss for MinMaxSize {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use MinMaxSize::*;
     match self {
       None => dest.write_str("none"),
@@ -135,7 +136,7 @@ impl ToCss for MinMaxSize {
   }
 }
 
-fn parse_fit_content<'i, 't>(input: &mut Parser<'i, 't>) -> Result<LengthPercentage, ParseError<'i, ()>> {
+fn parse_fit_content<'i, 't>(input: &mut Parser<'i, 't>) -> Result<LengthPercentage, ParseError<'i, ParserError<'i>>> {
   input.expect_function_matching("fit-content")?;
   input.parse_nested_block(|input| LengthPercentage::parse(input))
 }
