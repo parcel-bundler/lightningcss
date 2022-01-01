@@ -3,14 +3,15 @@ use crate::values::ident::CustomIdent;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use smallvec::SmallVec;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 /// The `composes` property from CSS modules.
 /// https://github.com/css-modules/css-modules/#dependencies
 #[derive(Debug, Clone, PartialEq)]
 pub struct Composes {
   pub names: SmallVec<[CustomIdent; 1]>,
-  pub from: Option<ComposesFrom>
+  pub from: Option<ComposesFrom>,
+  pub loc: SourceLocation
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -21,6 +22,7 @@ pub enum ComposesFrom {
 
 impl Parse for Composes {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let loc = input.current_source_location();
     let mut names = SmallVec::new();
     while let Ok(name) = input.try_parse(parse_one_ident) {
       names.push(name);
@@ -43,7 +45,8 @@ impl Parse for Composes {
 
     Ok(Composes {
       names,
-      from
+      from,
+      loc
     })
   }
 }
@@ -58,7 +61,7 @@ fn parse_one_ident<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CustomIdent, Pa
 }
 
 impl ToCss for Composes {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let mut first = true;
     for name in &self.names {
       if first {

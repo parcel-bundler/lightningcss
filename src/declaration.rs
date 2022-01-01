@@ -23,7 +23,7 @@ use crate::properties::{
 };
 use crate::targets::Browsers;
 use crate::parser::ParserOptions;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 #[derive(Debug, PartialEq)]
 pub struct DeclarationBlock {
@@ -48,7 +48,7 @@ impl DeclarationBlock {
 }
 
 impl ToCss for DeclarationBlock {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.whitespace()?;
     dest.write_char('{')?;
     dest.indent();
@@ -128,7 +128,7 @@ impl Declaration {
 }
 
 impl ToCss for Declaration {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.property.to_css(dest, self.important)
   }
 }

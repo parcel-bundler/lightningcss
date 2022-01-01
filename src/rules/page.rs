@@ -3,7 +3,7 @@ use crate::traits::{Parse, ToCss};
 use crate::declaration::DeclarationBlock;
 use crate::printer::Printer;
 use crate::macros::enum_property;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 /// https://www.w3.org/TR/css-page-3/#typedef-page-selector
 #[derive(Debug, PartialEq)]
@@ -58,7 +58,7 @@ pub struct PageRule {
 }
 
 impl ToCss for PageRule {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.add_mapping(self.loc);
     dest.write_str("@page")?;
     if let Some(first) = self.selectors.first() {
@@ -81,7 +81,7 @@ impl ToCss for PageRule {
 }
 
 impl ToCss for PageSelector {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if let Some(name) = &self.name {
       dest.write_str(&name)?;
     }

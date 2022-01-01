@@ -14,7 +14,7 @@ use crate::declaration::DeclarationList;
 use itertools::izip;
 use crate::printer::Printer;
 use smallvec::SmallVec;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 /// https://www.w3.org/TR/css-backgrounds-3/#background-size
 #[derive(Debug, Clone, PartialEq)]
@@ -56,7 +56,7 @@ impl Parse for BackgroundSize {
 }
 
 impl ToCss for BackgroundSize {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use BackgroundSize::*;
 
     match &self {
@@ -119,7 +119,7 @@ impl Parse for BackgroundRepeat {
 }
 
 impl ToCss for BackgroundRepeat {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use BackgroundRepeatKeyword::*;
     match (&self.x, &self.y) {
       (Repeat, NoRepeat) => dest.write_str("repeat-x"),
@@ -302,7 +302,7 @@ impl Parse for Background {
 }
 
 impl ToCss for Background {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let mut has_output = false;
 
     if self.color != CssColor::default() {

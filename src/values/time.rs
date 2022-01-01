@@ -2,7 +2,7 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use super::calc::Calc;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 /// https://www.w3.org/TR/css3-values/#time-value
 #[derive(Debug, Clone, PartialEq)]
@@ -44,7 +44,7 @@ impl Parse for Time {
 }
 
 impl ToCss for Time {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     // 0.1s is shorter than 100ms
     // anything smaller is longer
     match self {

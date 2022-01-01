@@ -2,7 +2,7 @@ use cssparser::*;
 use crate::properties::Property;
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 pub trait Parse: Sized {
   /// Parse a value of this type.
@@ -16,7 +16,7 @@ pub trait Parse: Sized {
 /// Trait for things the can serialize themselves in CSS syntax.
 pub(crate) trait ToCss {
   /// Serialize `self` in CSS syntax, writing to `dest`.
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write;
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write;
 
   /// Serialize `self` in CSS syntax and return a string.
   ///
@@ -34,7 +34,7 @@ impl<'a, T> ToCss for &'a T
 where
     T: ToCss + ?Sized,
 {
-    fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+    fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
       (*self).to_css(dest)
     }
 }

@@ -12,7 +12,7 @@ use crate::values::{
 };
 use crate::macros::enum_property;
 use crate::printer::Printer;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 /// https://www.w3.org/TR/2019/CR-css-transforms-1-20190214/#propdef-transform
 #[derive(Debug, Clone, PartialEq)]
@@ -38,7 +38,7 @@ impl Parse for TransformList {
 }
 
 impl ToCss for TransformList {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if self.0.is_empty() {
       dest.write_str("none")?;
       return Ok(())
@@ -84,7 +84,7 @@ impl ToCss for TransformList {
 }
 
 impl TransformList {
-  fn to_css_base<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css_base<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     for item in &self.0 {
       item.to_css(dest)?;
     }
@@ -813,7 +813,7 @@ impl Parse for Transform {
 }
 
 impl ToCss for Transform {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use Transform::*;
     match self {
       Translate(x, y) => {
@@ -1186,7 +1186,7 @@ impl Parse for Perspective {
 }
 
 impl ToCss for Perspective {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       Perspective::None => dest.write_str("none"),
       Perspective::Length(len) => len.to_css(dest)
@@ -1229,7 +1229,7 @@ impl Parse for Translate {
 }
 
 impl ToCss for Translate {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.x.to_css(dest)?;
     if self.y != 0.0 || self.z != 0.0 {
       dest.write_char(' ')?;
@@ -1295,7 +1295,7 @@ impl Parse for Rotate {
 }
 
 impl ToCss for Rotate {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if self.x == 0.0 && self.y == 0.0 && self.z == 1.0 && self.angle == 0.0 {
       dest.write_str("none")?;
       return Ok(())
@@ -1360,7 +1360,7 @@ impl Parse for Scale {
 }
 
 impl ToCss for Scale {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.x.to_css(dest)?;
     if self.y != self.x || self.z != 1.0 {
       dest.write_char(' ')?;

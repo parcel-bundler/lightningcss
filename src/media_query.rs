@@ -8,7 +8,7 @@ use crate::values::{
   ratio::Ratio
 };
 use crate::compat::Feature;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 /// A type that encapsulates a media query list.
 #[derive(Clone, Debug, PartialEq)]
@@ -43,7 +43,7 @@ impl MediaList {
 }
     
 impl ToCss for MediaList {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if self.media_queries.is_empty() {
       dest.write_str("not all")?;
       return Ok(())
@@ -135,7 +135,7 @@ impl MediaQuery {
 }
 
 impl ToCss for MediaQuery {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if let Some(qual) = self.qualifier {
       qual.to_css(dest)?;
       dest.write_char(' ')?;
@@ -262,7 +262,7 @@ impl MediaCondition {
 }
 
 impl ToCss for MediaCondition {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match *self {
       MediaCondition::Feature(ref f) => f.to_css(dest),
       MediaCondition::Not(ref c) => {
@@ -305,7 +305,7 @@ pub enum MediaFeatureComparison {
 }
 
 impl ToCss for MediaFeatureComparison {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use MediaFeatureComparison::*;
     match self {
       Equal => dest.delim('=', true),
@@ -439,7 +439,7 @@ impl MediaFeature {
 }
 
 impl ToCss for MediaFeature {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.write_char('(')?;
     
     match self {
@@ -485,7 +485,7 @@ impl ToCss for MediaFeature {
 }
 
 #[inline]
-fn write_min_max<W>(operator: &MediaFeatureComparison, name: &str, value: &MediaFeatureValue, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+fn write_min_max<W>(operator: &MediaFeatureComparison, name: &str, value: &MediaFeatureValue, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
   let prefix = match operator {
     MediaFeatureComparison::GreaterThan |
     MediaFeatureComparison::GreaterThanEqual => Some("min-"),
@@ -554,13 +554,16 @@ impl Parse for MediaFeatureValue {
 }
 
 impl ToCss for MediaFeatureValue {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       MediaFeatureValue::Length(len) => len.to_css(dest),
       MediaFeatureValue::Number(num) => num.to_css(dest),
       MediaFeatureValue::Resolution(res) => res.to_css(dest),
       MediaFeatureValue::Ratio(ratio) => ratio.to_css(dest),
-      MediaFeatureValue::Ident(id) => serialize_identifier(id, dest)
+      MediaFeatureValue::Ident(id) => {
+        serialize_identifier(id, dest)?;
+        Ok(())
+      }
     }
   }
 }

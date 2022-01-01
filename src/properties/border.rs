@@ -10,7 +10,7 @@ use super::border_image::*;
 use super::border_radius::*;
 use crate::targets::Browsers;
 use crate::printer::Printer;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BorderSideWidth {
@@ -47,7 +47,7 @@ impl Parse for BorderSideWidth {
 }
 
 impl ToCss for BorderSideWidth {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use BorderSideWidth::*;
     match self {
       Thin => dest.write_str("thin"),
@@ -137,7 +137,7 @@ impl<S: Parse + Default> Parse for GenericBorder<S> {
 }
 
 impl<S: ToCss + Default + PartialEq> ToCss for GenericBorder<S> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     // Assume the default is 'none'
     if self.style == S::default() {
       if dest.minify {

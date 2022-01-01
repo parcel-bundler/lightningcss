@@ -6,7 +6,7 @@ use crate::values::size::Size2D;
 use crate::properties::custom::CustomProperty;
 use crate::macros::enum_property;
 use crate::values::url::Url;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 #[derive(Debug, PartialEq)]
 pub struct FontFaceRule {
@@ -44,7 +44,7 @@ impl Parse for Source {
 }
 
 impl ToCss for Source {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       Source::Url(url) => url.to_css(dest),
       Source::Local(local) => {
@@ -77,7 +77,7 @@ impl Parse for UrlSource {
 }
 
 impl ToCss for UrlSource {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.url.to_css(dest)?;
     if let Some(format) = &self.format {
       dest.whitespace()?;
@@ -114,7 +114,7 @@ impl Parse for Format {
 
 
 impl ToCss for Format {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.format.to_css(dest)?;
     if !self.supports.is_empty() {
       dest.write_str(" supports ")?;
@@ -161,7 +161,7 @@ impl Parse for FontFormat {
 }
 
 impl ToCss for FontFormat {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use FontFormat::*;
     let s = match self {
       WOFF => "woff",
@@ -175,7 +175,8 @@ impl ToCss for FontFormat {
     };
     // Browser support for keywords rather than strings is very limited.
     // https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/src
-    serialize_string(&s, dest)
+    serialize_string(&s, dest)?;
+    Ok(())
   }
 }
 
@@ -229,7 +230,7 @@ impl Parse for FontTechnology {
 }
 
 impl ToCss for FontTechnology {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       FontTechnology::Features(f) => {
         dest.write_str("features(")?;
@@ -294,7 +295,7 @@ impl<'i> AtRuleParser<'i> for FontFaceDeclarationParser {
 }
 
 impl ToCss for FontFaceRule {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.add_mapping(self.loc);
     dest.write_str("@font-face")?;
     dest.whitespace()?;
@@ -315,7 +316,7 @@ impl ToCss for FontFaceRule {
 }
 
 impl ToCss for FontFaceProperty {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use FontFaceProperty::*;
     macro_rules! property {
       ($prop: literal, $value: expr) => {{

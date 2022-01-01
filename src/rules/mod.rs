@@ -29,9 +29,10 @@ use crate::prefixes::Feature;
 use crate::targets::Browsers;
 use std::collections::HashMap;
 use crate::selector::{is_equivalent, get_prefix, get_necessary_prefixes};
+use crate::error::PrinterError;
 
 pub(crate) trait ToCssWithContext {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write;
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> Result<(), PrinterError> where W: std::fmt::Write;
 }
 
 pub(crate) struct StyleContext<'a> {
@@ -56,7 +57,7 @@ pub enum CssRule {
 }
 
 impl ToCssWithContext for CssRule {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       CssRule::Media(media) => media.to_css_with_context(dest, context),
       CssRule::Import(import) => import.to_css(dest),
@@ -75,7 +76,7 @@ impl ToCssWithContext for CssRule {
 }
 
 impl ToCss for CssRule {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.to_css_with_context(dest, None)
   }
 }
@@ -173,13 +174,13 @@ impl CssRuleList {
 }
 
 impl ToCss for CssRuleList {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.to_css_with_context(dest, None)
   }
 }
 
 impl ToCssWithContext for CssRuleList {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let mut first = true;
     let mut last_without_block = false;
 

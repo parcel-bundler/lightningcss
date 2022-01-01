@@ -9,7 +9,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
 use crate::rules::{ToCssWithContext, StyleContext};
 use std::collections::HashMap;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Selectors;
@@ -30,8 +30,9 @@ impl cssparser::ToCss for SelectorString {
 }
 
 impl SelectorString {
-  pub fn write_identifier<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
-    serialize_identifier(&self.0, dest)
+  pub fn write_identifier<W>(&self, dest: &mut W)-> Result<(), PrinterError> where W: fmt::Write {
+    serialize_identifier(&self.0, dest)?;
+    Ok(())
   }
 }
 
@@ -321,13 +322,13 @@ impl parcel_selectors::parser::NonTSPseudoClass for PseudoClass {
 }
 
 impl cssparser::ToCss for PseudoClass {
-  fn to_css<W>(&self, _: &mut W) -> fmt::Result where W: fmt::Write {
+  fn to_css<W>(&self, _: &mut W)-> std::fmt::Result where W: fmt::Write {
     unreachable!()
   }
 }
 
 impl ToCssWithContext for PseudoClass {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> fmt::Result where W: fmt::Write {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> Result<(), PrinterError> where W: fmt::Write {
       use PseudoClass::*;
       match &self {
         Lang(lang) => {
@@ -522,13 +523,13 @@ pub enum PseudoElement {
 }
 
 impl cssparser::ToCss for PseudoElement {
-  fn to_css<W>(&self, _: &mut W) -> fmt::Result where W: fmt::Write {
+  fn to_css<W>(&self, _: &mut W)-> std::fmt::Result where W: fmt::Write {
     unreachable!();
   }
 }
 
 impl ToCss for PseudoElement {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result where W: fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: fmt::Write {
     use PseudoElement::*;
 
     macro_rules! write_prefix {
@@ -651,13 +652,13 @@ impl PseudoElement {
 }
 
 impl ToCssWithContext for SelectorList<Selectors> {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> fmt::Result where W: fmt::Write {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>)-> Result<(), PrinterError> where W: fmt::Write {
     serialize_selector_list(self.0.iter(), dest, context)
   }
 }
 
 impl ToCss for Combinator {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> fmt::Result
+  fn to_css<W>(&self, dest: &mut Printer<W>)-> Result<(), PrinterError>
   where
       W: fmt::Write,
   {
@@ -673,7 +674,7 @@ impl ToCss for Combinator {
 
 // Copied from the selectors crate and modified to override to_css implementation.
 impl ToCssWithContext for parcel_selectors::parser::Selector<Selectors> {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> fmt::Result
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>)-> Result<(), PrinterError>
   where
       W: fmt::Write,
   {
@@ -834,7 +835,7 @@ impl ToCssWithContext for parcel_selectors::parser::Selector<Selectors> {
 }
 
 impl ToCssWithContext for Component<Selectors> {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> fmt::Result where W: fmt::Write {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>)-> Result<(), PrinterError> where W: fmt::Write {
     use Component::*;
     match &self {
       Combinator(ref c) => c.to_css(dest),
@@ -907,13 +908,14 @@ impl ToCssWithContext for Component<Selectors> {
         dest.write_ident(&id.0)
       }
       _ => {
-        cssparser::ToCss::to_css(self, dest)
+        cssparser::ToCss::to_css(self, dest)?;
+        Ok(())
       }
     }
   }
 }
 
-fn serialize_nesting<W>(dest: &mut Printer<W>, context: Option<&StyleContext>, first: bool) -> fmt::Result where W: fmt::Write {
+fn serialize_nesting<W>(dest: &mut Printer<W>, context: Option<&StyleContext>, first: bool)-> Result<(), PrinterError> where W: fmt::Write {
   if let Some(ctx) = context {
     // If there's only one selector, just serialize it directly.
     // Otherwise, use an :is() pseudo class.
@@ -949,7 +951,7 @@ fn is_type_selector(component: Option<&Component<Selectors>>) -> bool {
   )
 }
 
-fn serialize_selector_list<'a, I, W>(iter: I, dest: &mut Printer<W>, context: Option<&StyleContext>) -> fmt::Result
+fn serialize_selector_list<'a, I, W>(iter: I, dest: &mut Printer<W>, context: Option<&StyleContext>)-> Result<(), PrinterError>
 where
     I: Iterator<Item = &'a Selector<Selectors>>,
     W: fmt::Write,

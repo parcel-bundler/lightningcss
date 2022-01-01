@@ -12,7 +12,7 @@ use crate::values::length::{Length, LengthPercentage};
 use crate::values::color::CssColor;
 use crate::printer::Printer;
 use bitflags::bitflags;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 // https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-transform-property
 enum_property!(TextTransformCase,
@@ -50,7 +50,7 @@ impl Parse for TextTransformOther {
 }
 
 impl ToCss for TextTransformOther {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let mut needs_space = false;
     if self.contains(TextTransformOther::FullWidth) {
       dest.write_str("full-width")?;
@@ -107,7 +107,7 @@ impl Parse for TextTransform {
 }
 
 impl ToCss for TextTransform {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let mut needs_space = false;
     if self.case != TextTransformCase::None || self.other.is_empty() {
       self.case.to_css(dest)?;
@@ -215,7 +215,7 @@ impl Parse for Spacing {
 }
 
 impl ToCss for Spacing {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       Spacing::Normal => dest.write_str("normal"),
       Spacing::Length(len) => len.to_css(dest)
@@ -275,7 +275,7 @@ impl Parse for TextIndent {
 }
 
 impl ToCss for TextIndent {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.value.to_css(dest)?;
     if self.hanging {
       dest.write_str(" hanging")?;
@@ -345,7 +345,7 @@ impl Parse for TextDecorationLine {
 }
 
 impl ToCss for TextDecorationLine {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if self.is_empty() {
       return dest.write_str("none")
     }
@@ -425,7 +425,7 @@ impl Parse for TextDecorationThickness {
 }
 
 impl ToCss for TextDecorationThickness {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       TextDecorationThickness::Auto => dest.write_str("auto"),
       TextDecorationThickness::FromFont => dest.write_str("from-font"),
@@ -478,7 +478,7 @@ impl Parse for TextDecoration {
 }
 
 impl ToCss for TextDecoration {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.line.to_css(dest)?;
     if self.line.is_empty() {
       return Ok(())
@@ -573,10 +573,13 @@ impl Parse for TextEmphasisStyle {
 }
 
 impl ToCss for TextEmphasisStyle {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       TextEmphasisStyle::None => dest.write_str("none"),
-      TextEmphasisStyle::String(s) => serialize_string(&s, dest),
+      TextEmphasisStyle::String(s) => {
+        serialize_string(&s, dest)?;
+        Ok(())
+      },
       TextEmphasisStyle::Keyword { fill, shape } => {
         let mut needs_space = false;
         if *fill != TextEmphasisFillMode::Filled || shape.is_none() {
@@ -634,7 +637,7 @@ impl Parse for TextEmphasis {
 }
 
 impl ToCss for TextEmphasis {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.style.to_css(dest)?;
 
     if self.style != TextEmphasisStyle::None && self.color != CssColor::current_color() {
@@ -677,7 +680,7 @@ impl Parse for TextEmphasisPosition {
 }
 
 impl ToCss for TextEmphasisPosition {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.vertical.to_css(dest)?;
     if self.horizontal != TextEmphasisPositionHorizontal::Right {
       dest.write_char(' ')?;
@@ -936,7 +939,7 @@ impl Parse for TextShadow {
 }
 
 impl ToCss for TextShadow {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.x_offset.to_css(dest)?;
     dest.write_char(' ')?;
     self.y_offset.to_css(dest)?;

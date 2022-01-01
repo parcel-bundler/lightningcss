@@ -7,7 +7,7 @@ use crate::printer::Printer;
 use super::gradient::*;
 use super::resolution::Resolution;
 use crate::values::url::Url;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 /// https://www.w3.org/TR/css-images-3/#typedef-image
 #[derive(Debug, Clone, PartialEq)]
@@ -80,7 +80,7 @@ impl Parse for Image {
 }
 
 impl ToCss for Image {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       Image::None => dest.write_str("none"),
       Image::Url(url) => url.to_css(dest),
@@ -136,7 +136,7 @@ impl Parse for ImageSet {
 }
 
 impl ToCss for ImageSet {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.vendor_prefix.to_css(dest)?;
     dest.write_str("image-set(")?;
     let mut first = true;
@@ -185,7 +185,7 @@ impl Parse for ImageSetOption {
 }
 
 impl ImageSetOption {
-  fn to_css<W>(&self, dest: &mut Printer<W>, is_prefixed: bool) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>, is_prefixed: bool) -> Result<(), PrinterError> where W: std::fmt::Write {
     match &self.image {
       // Prefixed syntax didn't allow strings, only url()
       Image::Url(url) if !is_prefixed => serialize_string(&url.url, dest)?,

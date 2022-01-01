@@ -171,6 +171,7 @@ pub enum SelectorParseErrorKind<'i> {
     InvalidPseudoElementInsideWhere,
     InvalidState,
     MissingNestingSelector,
+    MissingNestingPrefix,
     UnexpectedTokenInAttributeSelector(Token<'i>),
     PseudoElementExpectedColon(Token<'i>),
     PseudoElementExpectedIdent(Token<'i>),
@@ -1658,7 +1659,9 @@ where
 {
     if nesting_requirement == NestingRequirement::Prefixed {
         let state = input.state();
-        input.expect_delim('&')?;
+        if !input.expect_delim('&').is_ok() {
+            return Err(input.new_custom_error(SelectorParseErrorKind::MissingNestingPrefix))
+        }
         input.reset(&state);
     }
 

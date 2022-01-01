@@ -1,10 +1,10 @@
-use std::fmt::*;
 use cssparser::{SourceLocation, serialize_identifier};
 use parcel_sourcemap::{SourceMap, OriginalLocation};
 use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
 use crate::css_modules::CssModule;
 use crate::dependencies::Dependency;
+use crate::error::PrinterError;
 
 #[derive(Default, Debug)]
 pub struct PseudoClasses<'a> {
@@ -33,7 +33,7 @@ pub(crate) struct Printer<'a, W> {
   pub pseudo_classes: Option<PseudoClasses<'a>>
 }
 
-impl<'a, W: Write + Sized> Printer<'a, W> {
+impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
   pub fn new(
     filename: &'a str,
     dest: &'a mut W,
@@ -58,22 +58,24 @@ impl<'a, W: Write + Sized> Printer<'a, W> {
     }
   }
 
-  pub fn write_str(&mut self, s: &str) -> Result {
+  pub fn write_str(&mut self, s: &str) -> Result<(), PrinterError> {
     self.col += s.len() as u32;
-    self.dest.write_str(s)
+    self.dest.write_str(s)?;
+    Ok(())
   }
 
-  pub fn write_char(&mut self, c: char) -> Result {
+  pub fn write_char(&mut self, c: char) -> Result<(), PrinterError> {
     if c == '\n' {
       self.line += 1;
       self.col = 0;
     } else {
       self.col += 1;
     }
-    self.dest.write_char(c)
+    self.dest.write_char(c)?;
+    Ok(())
   }
 
-  pub fn whitespace(&mut self) -> Result {
+  pub fn whitespace(&mut self) -> Result<(), PrinterError> {
     if self.minify {
       return Ok(())
     }
@@ -81,7 +83,7 @@ impl<'a, W: Write + Sized> Printer<'a, W> {
     self.write_char(' ')
   }
 
-  pub fn delim(&mut self, delim: char, ws_before: bool) -> Result {
+  pub fn delim(&mut self, delim: char, ws_before: bool) -> Result<(), PrinterError> {
     if ws_before {
       self.whitespace()?;
     }
@@ -89,7 +91,7 @@ impl<'a, W: Write + Sized> Printer<'a, W> {
     self.whitespace()
   }
 
-  pub fn newline(&mut self) -> Result {
+  pub fn newline(&mut self) -> Result<(), PrinterError> {
     if self.minify {
       return Ok(())
     }
@@ -118,6 +120,10 @@ impl<'a, W: Write + Sized> Printer<'a, W> {
     self.indent -= amt;
   }
 
+  pub fn is_nested(&self) -> bool {
+    self.indent > 2
+  }
+
   pub fn add_mapping(&mut self, loc: SourceLocation) {
     if let Some(map) = &mut self.source_map {
       map.add_mapping(self.line, self.col, Some(OriginalLocation {
@@ -129,7 +135,7 @@ impl<'a, W: Write + Sized> Printer<'a, W> {
     }
   }
 
-  pub fn write_ident(&mut self, ident: &str) -> Result {
+  pub fn write_ident(&mut self, ident: &str) -> Result<(), PrinterError> {
     serialize_identifier(ident, self)?;
     let hash = if let Some(css_module) = &self.css_module {
       Some(css_module.hash)
@@ -150,8 +156,8 @@ impl<'a, W: Write + Sized> Printer<'a, W> {
   }
 }
 
-impl<'a, W: Write + Sized> Write for Printer<'a, W> {
-  fn write_str(&mut self, s: &str) -> Result {
+impl<'a, W: std::fmt::Write + Sized> std::fmt::Write for Printer<'a, W> {
+  fn write_str(&mut self, s: &str) -> std::fmt::Result {
     self.col += s.len() as u32;
     self.dest.write_str(s)
   }

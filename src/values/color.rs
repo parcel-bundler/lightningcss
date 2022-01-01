@@ -3,7 +3,7 @@ use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use std::fmt::Write;
 use crate::compat::Feature;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CssColor(pub Color);
@@ -35,7 +35,7 @@ impl Parse for CssColor {
 }
 
 impl ToCss for CssColor {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self.0 {
       Color::CurrentColor => dest.write_str("currentColor"),
       Color::RGBA(color) => {

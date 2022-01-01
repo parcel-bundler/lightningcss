@@ -5,7 +5,7 @@ use crate::values::{image::Image, ident::CustomIdent};
 use crate::declaration::DeclarationList;
 use crate::macros::{enum_property, shorthand_property, shorthand_handler};
 use crate::printer::Printer;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 /// https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#text-markers
 #[derive(Debug, Clone, PartialEq)]
@@ -37,11 +37,14 @@ impl Parse for ListStyleType {
 }
 
 impl ToCss for ListStyleType {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       ListStyleType::None => dest.write_str("none"),
       ListStyleType::CounterStyle(style) => style.to_css(dest),
-      ListStyleType::String(s) => serialize_string(&s, dest)
+      ListStyleType::String(s) => {
+        serialize_string(&s, dest)?;
+        Ok(())
+      }
     }
   }
 }
@@ -74,7 +77,7 @@ impl Parse for CounterStyle {
 }
 
 impl ToCss for CounterStyle {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       CounterStyle::Name(name) => name.to_css(dest),
       CounterStyle::Symbols(t, symbols) => {
@@ -125,9 +128,12 @@ impl Parse for Symbol {
 }
 
 impl ToCss for Symbol {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
-      Symbol::String(s) => serialize_string(&s, dest),
+      Symbol::String(s) => {
+        serialize_string(&s, dest)?;
+        Ok(())
+      },
       Symbol::Image(img) => img.to_css(dest)
     }
   }

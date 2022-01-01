@@ -5,7 +5,7 @@ use crate::values::color::CssColor;
 use super::{Property, PropertyId};
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum OutlineStyle {
@@ -25,7 +25,7 @@ impl Parse for OutlineStyle {
 }
 
 impl ToCss for OutlineStyle {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       OutlineStyle::Auto => dest.write_str("auto"),
       OutlineStyle::BorderStyle(border_style) => border_style.to_css(dest)

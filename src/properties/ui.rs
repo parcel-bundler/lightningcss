@@ -5,7 +5,7 @@ use crate::macros::{enum_property, shorthand_property};
 use crate::printer::Printer;
 use smallvec::SmallVec;
 use crate::values::url::Url;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 // https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#resize
 enum_property!(Resize,
@@ -42,7 +42,7 @@ impl Parse for CursorImage {
 }
 
 impl ToCss for CursorImage {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.url.to_css(dest)?;
 
     if let Some((x, y)) = self.hotspot {
@@ -120,7 +120,7 @@ impl Parse for Cursor {
 }
 
 impl ToCss for Cursor {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     for image in &self.images {
       image.to_css(dest)?;
       dest.delim(',', false)?;
@@ -154,7 +154,7 @@ impl Parse for ColorOrAuto {
 }
 
 impl ToCss for ColorOrAuto {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       ColorOrAuto::Auto => dest.write_str("auto"),
       ColorOrAuto::Color(color) => color.to_css(dest)
@@ -239,7 +239,7 @@ impl Parse for Appearance {
 }
 
 impl ToCss for Appearance {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       Appearance::None => dest.write_str("none"),
       Appearance::Auto => dest.write_str("auto"),

@@ -9,7 +9,7 @@ use crate::declaration::{DeclarationHandler, DeclarationBlock};
 use crate::css_modules::{hash, CssModule, CssModuleExports};
 use std::collections::HashMap;
 use crate::dependencies::Dependency;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 pub use crate::parser::ParserOptions;
 pub use crate::printer::PseudoClasses;
@@ -66,7 +66,7 @@ impl StyleSheet {
     self.rules.minify(targets, &mut handler, &mut important_handler);
   }
 
-  pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, std::fmt::Error> {
+  pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, PrinterError> {
     let mut dest = String::new();
     let mut source_map = if options.source_map {
       let mut sm = SourceMap::new("/");
@@ -137,7 +137,7 @@ impl StyleAttribute {
     self.declarations.minify(&mut handler, &mut important_handler);
   }
 
-  pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, std::fmt::Error> {
+  pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, PrinterError> {
     assert_eq!(options.source_map, false, "Source maps are not supported for style attributes");
 
     let mut dest = String::new();

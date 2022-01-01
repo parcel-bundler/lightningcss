@@ -2,7 +2,7 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use super::percentage::NumberOrPercentage;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 /// https://www.w3.org/TR/2021/WD-css-color-4-20210601/#typedef-alpha-value
 #[derive(Debug, Clone, PartialEq)]
@@ -18,7 +18,7 @@ impl Parse for AlphaValue {
 }
 
 impl ToCss for AlphaValue {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.0.to_css(dest)
   }
 }

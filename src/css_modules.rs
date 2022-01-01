@@ -7,6 +7,7 @@ use crate::properties::css_modules::{Composes, ComposesFrom};
 use parcel_selectors::SelectorList;
 use crate::selector::Selectors;
 use serde::Serialize;
+use crate::error::PrinterError;
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Serialize)]
 #[serde(tag = "type", content = "value", rename_all = "lowercase")]
@@ -68,7 +69,7 @@ impl<'a> CssModule<'a> {
     self.add_export(exported.into(), dependency)
   }
 
-  pub fn handle_composes(&mut self, selectors: &SelectorList<Selectors>, composes: &Composes) -> Result<(), ()> {
+  pub fn handle_composes(&mut self, selectors: &SelectorList<Selectors>, composes: &Composes) -> Result<(), PrinterError> {
     for sel in &selectors.0 {
       if sel.len() == 1 {
         match sel.iter_raw_match_order().next().unwrap() {
@@ -87,7 +88,7 @@ impl<'a> CssModule<'a> {
       }
 
       // The composes property can only be used within a simple class selector.
-      return Err(()) // TODO: custom error
+      return Err(PrinterError::InvalidComposesSelector(composes.loc))
     }
 
     Ok(())

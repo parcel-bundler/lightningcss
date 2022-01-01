@@ -51,7 +51,7 @@ use crate::printer::Printer;
 use smallvec::{SmallVec, smallvec};
 use crate::vendor_prefix::VendorPrefix;
 use crate::parser::ParserOptions;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 macro_rules! define_properties {
   (
@@ -98,7 +98,7 @@ macro_rules! define_properties {
     }
 
     impl ToCss for PropertyId {
-      fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+      fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
         use PropertyId::*;
         match self {
           $(
@@ -169,7 +169,7 @@ macro_rules! define_properties {
         }
       }
 
-      fn to_css_with_prefix<W>(&self, dest: &mut Printer<W>, prefix: VendorPrefix) -> std::fmt::Result where W: std::fmt::Write {
+      fn to_css_with_prefix<W>(&self, dest: &mut Printer<W>, prefix: VendorPrefix) -> Result<(), PrinterError> where W: std::fmt::Write {
         use PropertyId::*;
         match self {
           $(
@@ -246,7 +246,7 @@ macro_rules! define_properties {
         return Ok(Property::Custom(CustomProperty::parse(name, input)?))
       }
 
-      pub(crate) fn to_css<W>(&self, dest: &mut Printer<W>, important: bool) -> std::fmt::Result where W: std::fmt::Write {
+      pub(crate) fn to_css<W>(&self, dest: &mut Printer<W>, important: bool) -> Result<(), PrinterError> where W: std::fmt::Write {
         use Property::*;
 
         let mut first = true;
@@ -699,7 +699,7 @@ impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {
 }
 
 impl<T: smallvec::Array<Item = V>, V: ToCss> ToCss for SmallVec<T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let len = self.len();
     for (idx, val) in self.iter().enumerate() {
       val.to_css(dest)?;
@@ -718,7 +718,7 @@ impl<T: Parse> Parse for Vec<T> {
 }
 
 impl <T: ToCss> ToCss for Vec<T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let len = self.len();
     for (idx, val) in self.iter().enumerate() {
       val.to_css(dest)?;

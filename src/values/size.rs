@@ -3,7 +3,7 @@ use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use super::length::LengthPercentage;
 use crate::macros::enum_property;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 /// https://drafts.csswg.org/css-sizing-3/#specifying-sizes
 
@@ -44,7 +44,7 @@ impl Parse for Size {
 }
 
 impl ToCss for Size {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use Size::*;
     match self {
       Auto => dest.write_str("auto"),
@@ -72,7 +72,7 @@ impl<T> Parse for Size2D<T> where T: Parse + Clone {
 }
 
 impl<T> ToCss for Size2D<T> where T: ToCss + PartialEq {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.0.to_css(dest)?;
     if self.1 != self.0 {
       dest.write_str(" ")?;
@@ -120,7 +120,7 @@ impl Parse for MinMaxSize {
 }
 
 impl ToCss for MinMaxSize {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use MinMaxSize::*;
     match self {
       None => dest.write_str("none"),

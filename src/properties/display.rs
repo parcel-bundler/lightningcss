@@ -8,7 +8,7 @@ use crate::prefixes::{Feature, is_flex_2009};
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::printer::Printer;
 use crate::macros::enum_property;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 enum_property!(DisplayOutside,
   ("block", Block),
@@ -50,7 +50,7 @@ impl Parse for DisplayInside {
 }
 
 impl ToCss for DisplayInside {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       DisplayInside::Flow => dest.write_str("flow"),
       DisplayInside::FlowRoot => dest.write_str("flow-root"),
@@ -193,7 +193,7 @@ impl Parse for DisplayPair {
 }
 
 impl ToCss for DisplayPair {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       DisplayPair { outside: DisplayOutside::Inline, inside: DisplayInside::FlowRoot, is_list_item: false } => dest.write_str("inline-block"),
       DisplayPair { outside: DisplayOutside::Inline, inside: DisplayInside::Table, is_list_item: false } => dest.write_str("inline-table"),
@@ -278,7 +278,7 @@ impl Parse for Display {
 }
 
 impl ToCss for Display {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       Display::Keyword(keyword) => keyword.to_css(dest),
       Display::Pair(pair) => pair.to_css(dest)

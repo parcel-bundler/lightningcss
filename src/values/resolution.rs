@@ -2,7 +2,7 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use super::length::serialize_dimension;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 /// https://drafts.csswg.org/css-values-4/#resolution-value
 #[derive(Debug, Clone, PartialEq)]
@@ -30,7 +30,7 @@ impl Parse for Resolution {
 }
 
 impl ToCss for Resolution {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let (value, unit) = match self {
       Resolution::Dpi(dpi) => (*dpi, "dpi"),
       Resolution::Dpcm(dpcm) => (*dpcm, "dpcm"),

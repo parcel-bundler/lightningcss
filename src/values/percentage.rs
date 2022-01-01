@@ -3,7 +3,7 @@ use crate::traits::{Parse, ToCss, TryAdd};
 use crate::printer::Printer;
 use super::calc::Calc;
 use super::number::serialize_number;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 /// https://drafts.csswg.org/css-values-4/#percentages
 #[derive(Debug, Clone, PartialEq)]
@@ -24,7 +24,7 @@ impl Parse for Percentage {
 }
 
 impl ToCss for Percentage {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use cssparser::ToCss;
     let int_value = if (self.0 * 100.0).fract() == 0.0 {
       Some(self.0 as i32)
@@ -46,7 +46,8 @@ impl ToCss for Percentage {
         dest.write_str(s.trim_start_matches('0'))
       }
     } else {
-      percent.to_css(dest)
+      percent.to_css(dest)?;
+      Ok(())
     }
   }
 }
@@ -121,7 +122,7 @@ impl Parse for NumberOrPercentage {
 }
 
 impl ToCss for NumberOrPercentage {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       NumberOrPercentage::Percentage(percent) => percent.to_css(dest),
       NumberOrPercentage::Number(number) => serialize_number(*number, dest)
@@ -332,7 +333,7 @@ impl<D: std::cmp::PartialOrd<D>> std::cmp::PartialOrd<DimensionPercentage<D>> fo
 }
 
 impl<D: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = D> + Clone + std::fmt::Debug> ToCss for DimensionPercentage<D> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       DimensionPercentage::Dimension(length) => length.to_css(dest),
       DimensionPercentage::Percentage(percent) => percent.to_css(dest),

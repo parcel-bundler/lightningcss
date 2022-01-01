@@ -2,7 +2,7 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use std::fmt::Write;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 /// https://www.w3.org/TR/css-easing-1/#easing-functions
 #[derive(Debug, Clone, PartialEq)]
@@ -61,7 +61,7 @@ impl Parse for EasingFunction {
 }
 
 impl ToCss for EasingFunction {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       EasingFunction::Linear => dest.write_str("linear"),
       EasingFunction::Ease => dest.write_str("ease"),
@@ -131,7 +131,7 @@ impl Parse for StepPosition {
 }
 
 impl ToCss for StepPosition {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       StepPosition::Start => dest.write_str("start"),
       StepPosition::End => dest.write_str("end"),

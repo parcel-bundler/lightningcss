@@ -3,6 +3,7 @@
 use bitflags::bitflags;
 use crate::traits::ToCss;
 use crate::printer::Printer;
+use crate::error::PrinterError;
 
 bitflags! {
   pub struct VendorPrefix: u8 {
@@ -33,7 +34,7 @@ impl VendorPrefix {
 }
 
 impl ToCss for VendorPrefix {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match *self {
       VendorPrefix::WebKit => dest.write_str("-webkit-"),
       VendorPrefix::Moz => dest.write_str("-moz-"),

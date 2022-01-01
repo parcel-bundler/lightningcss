@@ -6,7 +6,7 @@ use crate::targets::Browsers;
 use crate::prefixes::Feature;
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 /// https://www.w3.org/TR/2020/WD-css-position-3-20200519/#position-property
 #[derive(Debug, Clone, PartialEq)]
@@ -37,7 +37,7 @@ impl Parse for Position {
 }
 
 impl ToCss for Position {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       Position::Static => dest.write_str("static"),
       Position::Relative => dest.write_str("relative"),

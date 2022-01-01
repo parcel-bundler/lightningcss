@@ -9,7 +9,7 @@ use crate::printer::Printer;
 use itertools::izip;
 use crate::macros::*;
 use smallvec::SmallVec;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 /// https://drafts.csswg.org/css-animations/#animation-name
 #[derive(Debug, Clone, PartialEq)]
@@ -35,7 +35,7 @@ impl Parse for AnimationName {
 }
 
 impl ToCss for AnimationName {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       AnimationName::None => dest.write_str("none"),
       AnimationName::Ident(s) => s.to_css(dest)
@@ -62,7 +62,7 @@ impl Parse for AnimationIterationCount {
 }
 
 impl ToCss for AnimationIterationCount {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       AnimationIterationCount::Number(val) => val.to_css(dest),
       AnimationIterationCount::Infinite => dest.write_str("infinite")
@@ -153,7 +153,7 @@ impl Parse for Animation {
 }
 
 impl ToCss for Animation {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.name.to_css(dest)?;
     match &self.name {
       AnimationName::None => return Ok(()),

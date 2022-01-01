@@ -3,7 +3,7 @@ use crate::values::length::Length;
 use crate::traits::{Parse, ToCss};
 use crate::values::color::CssColor;
 use crate::printer::Printer;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BoxShadow {
@@ -67,7 +67,7 @@ impl Parse for BoxShadow {
 }
 
 impl ToCss for BoxShadow {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if self.inset {
       dest.write_str("inset ")?;
     }

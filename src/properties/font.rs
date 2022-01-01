@@ -9,7 +9,7 @@ use crate::traits::{Parse, ToCss, PropertyHandler};
 use super::{Property, PropertyId};
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-weight-prop
 #[derive(Debug, Clone, PartialEq)]
@@ -44,7 +44,7 @@ impl Parse for FontWeight {
 }
 
 impl ToCss for FontWeight {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use FontWeight::*;
     match self {
       Absolute(val) => val.to_css(dest),
@@ -87,7 +87,7 @@ impl Parse for AbsoluteFontWeight {
 }
 
 impl ToCss for AbsoluteFontWeight {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use AbsoluteFontWeight::*;
     match self {
       Weight(val) => val.to_css(dest),
@@ -136,7 +136,7 @@ impl Parse for FontSize {
 }
 
 impl ToCss for FontSize {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use FontSize::*;
     match self {
       Absolute(val) => val.to_css(dest),
@@ -216,7 +216,7 @@ impl FontStretch {
 }
 
 impl ToCss for FontStretch {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use FontStretch::*;
     if dest.minify {
       return self.to_percentage().to_css(dest)
@@ -275,7 +275,7 @@ impl Parse for FontFamily {
 }
 
 impl ToCss for FontFamily {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       FontFamily::Generic(val) => val.to_css(dest),
       FontFamily::FamilyName(val) => {
@@ -292,7 +292,8 @@ impl ToCss for FontFamily {
         if id.len() < val.len() + 2 {
           return dest.write_str(&id)
         }
-        serialize_string(&val, dest)
+        serialize_string(&val, dest)?;
+        Ok(())
       }
     }
   }
@@ -331,7 +332,7 @@ impl Parse for FontStyle {
 }
 
 impl ToCss for FontStyle {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       FontStyle::Normal => dest.write_str("normal"),
       FontStyle::Italic => dest.write_str("italic"),
@@ -418,7 +419,7 @@ impl Parse for LineHeight {
 }
 
 impl ToCss for LineHeight {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       LineHeight::Normal => dest.write_str("normal"),
       LineHeight::Number(val) => val.to_css(dest),
@@ -458,7 +459,7 @@ impl Parse for VerticalAlign {
 }
 
 impl ToCss for VerticalAlign {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       VerticalAlign::Keyword(kw) => kw.to_css(dest),
       VerticalAlign::Length(len) => len.to_css(dest)
@@ -543,7 +544,7 @@ impl Parse for Font {
 }
 
 impl ToCss for Font {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if self.style != FontStyle::default() {
       self.style.to_css(dest)?;
       dest.write_char(' ')?;

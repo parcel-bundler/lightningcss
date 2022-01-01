@@ -12,7 +12,7 @@ use super::align::{JustifyContent, ContentDistribution, ContentPosition, AlignIt
 use crate::printer::Printer;
 use crate::targets::Browsers;
 use crate::prefixes::{Feature, is_flex_2009};
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 // https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#propdef-flex-direction
 enum_property!(FlexDirection,
@@ -82,7 +82,7 @@ impl Parse for FlexFlow {
 }
 
 impl ToCss for FlexFlow {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let mut needs_space = false;
     if self.direction != FlexDirection::default() || self.wrap == FlexWrap::default() {
       self.direction.to_css(dest)?;
@@ -149,7 +149,7 @@ impl Parse for Flex {
 }
 
 impl ToCss for Flex {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if self.grow == 0.0 && self.shrink == 0.0 && self.basis == LengthPercentageOrAuto::Auto {
       dest.write_str("none")?;
       return Ok(())

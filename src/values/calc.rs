@@ -3,7 +3,7 @@ use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use super::number::serialize_number;
 use crate::compat::Feature;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MathFunction<V> {
@@ -14,7 +14,7 @@ pub enum MathFunction<V> {
 }
 
 impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clone + std::fmt::Debug> ToCss for MathFunction<V> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       MathFunction::Calc(calc) => {
         dest.write_str("calc(")?;
@@ -374,7 +374,7 @@ impl<V: std::cmp::PartialOrd<f32>> std::cmp::PartialOrd<f32> for Calc<V> {
 }
 
 impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clone + std::fmt::Debug> ToCss for Calc<V> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let was_in_calc = dest.in_calc;
     dest.in_calc = true;
     

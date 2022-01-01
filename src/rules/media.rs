@@ -6,6 +6,7 @@ use super::CssRuleList;
 use crate::declaration::DeclarationHandler;
 use crate::targets::Browsers;
 use crate::rules::{ToCssWithContext, StyleContext};
+use crate::error::PrinterError;
 
 #[derive(Debug, PartialEq)]
 pub struct MediaRule {
@@ -21,7 +22,7 @@ impl MediaRule {
 }
 
 impl ToCssWithContext for MediaRule {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.add_mapping(self.loc);
     dest.write_str("@media ")?;
     self.query.to_css(dest)?;

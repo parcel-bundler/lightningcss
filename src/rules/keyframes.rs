@@ -6,7 +6,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::printer::Printer;
 use crate::values::ident::CustomIdent;
 use crate::parser::ParserOptions;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 #[derive(Debug, PartialEq)]
 pub struct KeyframesRule {
@@ -25,7 +25,7 @@ impl KeyframesRule {
 }
 
 impl ToCss for KeyframesRule {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.add_mapping(self.loc);
     let mut first_rule = true;
     macro_rules! write_prefix {
@@ -99,7 +99,7 @@ impl Parse for KeyframeSelector {
 }
 
 impl ToCss for KeyframeSelector {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       KeyframeSelector::Percentage(p) => {
         if dest.minify && *p == Percentage(1.0) {
@@ -127,7 +127,7 @@ pub struct Keyframe {
 }
 
 impl ToCss for Keyframe {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let mut first = true;
     for selector in &self.selectors {
       if !first {

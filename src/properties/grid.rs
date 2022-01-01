@@ -13,7 +13,7 @@ use bitflags::bitflags;
 use crate::values::number::serialize_integer;
 use crate::declaration::DeclarationList;
 use crate::properties::{Property, PropertyId};
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 /// https://drafts.csswg.org/css-grid-2/#track-sizing
 #[derive(Debug, Clone, PartialEq)]
@@ -103,7 +103,7 @@ impl Parse for TrackSize {
 }
 
 impl ToCss for TrackSize {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       TrackSize::TrackBreadth(breadth) => breadth.to_css(dest),
       TrackSize::MinMax(a, b) => {
@@ -162,7 +162,7 @@ impl TrackBreadth {
 }
 
 impl ToCss for TrackBreadth {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       TrackBreadth::Auto => dest.write_str("auto"),
       TrackBreadth::MinContent => dest.write_str("min-content"),
@@ -205,7 +205,7 @@ impl Parse for TrackRepeat {
 }
 
 impl ToCss for TrackRepeat {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.write_str("repeat(")?;
     self.count.to_css(dest)?;
     dest.delim(',', false)?;
@@ -253,7 +253,7 @@ impl Parse for RepeatCount {
 }
 
 impl ToCss for RepeatCount {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       RepeatCount::AutoFill => dest.write_str("auto-fill"),
       RepeatCount::AutoFit => dest.write_str("auto-fit"),
@@ -273,7 +273,7 @@ fn parse_line_names<'i, 't>(input: &mut Parser<'i, 't>) -> Result<SmallVec<[Cust
   })
 }
 
-fn serialize_line_names<W>(names: &[CustomIdent], dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+fn serialize_line_names<W>(names: &[CustomIdent], dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
   dest.write_char('[')?;
   let mut first = true;
   for name in names {
@@ -319,7 +319,7 @@ impl Parse for TrackList {
 }
 
 impl ToCss for TrackList {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let mut items_iter = self.items.iter();
     let line_names_iter = self.line_names.iter();
     let mut first = true;
@@ -367,7 +367,7 @@ impl Parse for TrackSizing {
 }
 
 impl ToCss for TrackSizing {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       TrackSizing::None => dest.write_str("none"),
       TrackSizing::TrackList(list) => list.to_css(dest)
@@ -398,7 +398,7 @@ impl Parse for TrackSizeList {
 }
 
 impl ToCss for TrackSizeList {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if self.0.len() == 0 {
       return dest.write_str("auto")
     }
@@ -503,7 +503,7 @@ fn is_name_code_point(c: char) -> bool {
 }
 
 impl ToCss for GridTemplateAreas {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       GridTemplateAreas::None => dest.write_str("none"),
       GridTemplateAreas::Areas { areas, .. } => {
@@ -537,7 +537,7 @@ impl ToCss for GridTemplateAreas {
 }
 
 impl GridTemplateAreas {
-  fn write_string<'a, W>(&self, dest: &mut Printer<W>, iter: &mut std::slice::Iter<'a, Option<String>>, next: &mut Option<&'a Option<String>>) -> std::fmt::Result where W: std::fmt::Write {
+  fn write_string<'a, W>(&self, dest: &mut Printer<W>, iter: &mut std::slice::Iter<'a, Option<String>>, next: &mut Option<&'a Option<String>>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let columns = match self {
       GridTemplateAreas::Areas { columns, .. } => *columns,
       _ => unreachable!()
@@ -669,13 +669,13 @@ impl Parse for GridTemplate {
 }
 
 impl ToCss for GridTemplate {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.to_css_with_indent(dest, 15)
   }
 }
 
 impl GridTemplate {
-  fn to_css_with_indent<W>(&self, dest: &mut Printer<W>, indent: u8) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css_with_indent<W>(&self, dest: &mut Printer<W>, indent: u8) -> Result<(), PrinterError> where W: std::fmt::Write {
     match &self.areas {
       GridTemplateAreas::None => {
         if self.rows == TrackSizing::None && self.columns == TrackSizing::None {
@@ -842,7 +842,7 @@ impl Parse for GridAutoFlow {
 }
 
 impl ToCss for GridAutoFlow {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let s = if *self == GridAutoFlow::Row {
       "row"
     } else if *self == GridAutoFlow::Column {
@@ -935,7 +935,7 @@ fn parse_grid_auto_flow<'i, 't>(input: &mut Parser<'i, 't>, flow: GridAutoFlow) 
 }
 
 impl ToCss for Grid {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let is_auto_initial = self.auto_rows == TrackSizeList::default() && self.auto_columns == TrackSizeList::default() && self.auto_flow == GridAutoFlow::default();
 
     if self.areas != GridTemplateAreas::None ||
@@ -1039,7 +1039,7 @@ impl Parse for GridLine {
 }
 
 impl ToCss for GridLine {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       GridLine::Auto => dest.write_str("auto"),
       GridLine::Ident(id) => id.to_css(dest),
@@ -1113,7 +1113,7 @@ impl Parse for GridPlacement {
 }
 
 impl ToCss for GridPlacement {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.start.to_css(dest)?;
 
     if !self.start.can_omit_end(&self.end) {
@@ -1183,7 +1183,7 @@ impl Parse for GridArea {
 }
 
 impl ToCss for GridArea {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.row_start.to_css(dest)?;
 
     let can_omit_column_end = self.column_start.can_omit_end(&self.column_end);

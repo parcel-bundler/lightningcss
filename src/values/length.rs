@@ -4,7 +4,7 @@ use crate::printer::Printer;
 use super::calc::Calc;
 use super::percentage::DimensionPercentage;
 use super::number::serialize_number;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 /// https://drafts.csswg.org/css-values-4/#typedef-length-percentage
 pub type LengthPercentage = DimensionPercentage<LengthValue>;
@@ -41,7 +41,7 @@ impl Parse for LengthPercentageOrAuto {
 }
 
 impl ToCss for LengthPercentageOrAuto {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use LengthPercentageOrAuto::*;
     match self {
       Auto => dest.write_str("auto"),
@@ -111,7 +111,7 @@ impl Parse for LengthValue {
 }
 
 impl ToCss for LengthValue {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let (value, unit) = self.to_unit_value();
 
     // The unit can be omitted if the value is zero, except inside calc()
@@ -124,7 +124,7 @@ impl ToCss for LengthValue {
   }
 }
 
-pub(crate) fn serialize_dimension<W>(value: f32, unit: &str, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+pub(crate) fn serialize_dimension<W>(value: f32, unit: &str, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
   use cssparser::ToCss;
   let int_value = if value.fract() == 0.0 {
     Some(value as i32)
@@ -147,7 +147,8 @@ pub(crate) fn serialize_dimension<W>(value: f32, unit: &str, dest: &mut Printer<
       dest.write_str(s.trim_start_matches('0'))
     }
   } else {
-    token.to_css(dest)
+    token.to_css(dest)?;
+    Ok(())
   }
 }
 
@@ -332,7 +333,7 @@ impl Parse for Length {
 }
 
 impl ToCss for Length {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       Length::Value(a) => a.to_css(dest),
       Length::Calc(c) => c.to_css(dest)
@@ -527,7 +528,7 @@ impl Parse for LengthOrNumber {
 }
 
 impl ToCss for LengthOrNumber {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       LengthOrNumber::Length(length) => length.to_css(dest),
       LengthOrNumber::Number(number) => serialize_number(*number, dest)

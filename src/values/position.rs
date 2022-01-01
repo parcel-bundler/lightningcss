@@ -4,7 +4,7 @@ use crate::macros::enum_property;
 use crate::printer::Printer;
 use super::length::{LengthPercentage, LengthValue};
 use super::percentage::Percentage;
-use crate::error::ParserError;
+use crate::error::{ParserError, PrinterError};
 
 /// https://www.w3.org/TR/css-backgrounds-3/#background-position
 #[derive(Debug, Clone, PartialEq)]
@@ -124,7 +124,7 @@ impl Parse for Position {
 }
 
 impl ToCss for Position {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match (&self.x, &self.y) {
       (
         x_pos @ &HorizontalPosition::Side(side, Some(_)),
@@ -271,7 +271,7 @@ impl<S: Parse> Parse for PositionComponent<S> {
 }
 
 impl<S: ToCss> ToCss for PositionComponent<S> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use PositionComponent::*;
     match &self {
       Center => {

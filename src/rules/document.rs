@@ -4,6 +4,7 @@ use crate::printer::Printer;
 use super::CssRuleList;
 use crate::declaration::DeclarationHandler;
 use crate::targets::Browsers;
+use crate::error::PrinterError;
 
 #[derive(Debug, PartialEq)]
 pub struct MozDocumentRule {
@@ -18,7 +19,7 @@ impl MozDocumentRule {
 }
 
 impl ToCss for MozDocumentRule {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> std::fmt::Result where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.add_mapping(self.loc);
     dest.write_str("@-moz-document url-prefix()")?;
     dest.whitespace()?;
