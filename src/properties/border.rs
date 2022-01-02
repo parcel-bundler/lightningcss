@@ -15,6 +15,7 @@ use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
 use crate::compat::Feature;
 use bitflags::bitflags;
+use crate::properties::custom::UnparsedProperty;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BorderSideWidth {
@@ -215,6 +216,7 @@ impl Default for BorderCategory {
 }
 
 bitflags! {
+  /// Tracks which physical properties have already been emitted.
   struct PhysicalProperties: u16 {
     const BorderTop = 1 << 0;
     const BorderTopColor = 1 << 1;
@@ -248,7 +250,8 @@ pub(crate) struct BorderHandler {
   category: BorderCategory,
   border_image_handler: BorderImageHandler,
   border_radius_handler: BorderRadiusHandler,
-  has_any: bool
+  has_any: bool,
+  physical_properties: PhysicalProperties
 }
 
 impl<'a> BorderHandler {
@@ -265,7 +268,8 @@ impl<'a> BorderHandler {
       category: BorderCategory::default(),
       border_image_handler: BorderImageHandler::new(targets),
       border_radius_handler: BorderRadiusHandler::new(targets),
-      has_any: false
+      has_any: false,
+      physical_properties: PhysicalProperties::empty()
     }
   }
 }
@@ -412,7 +416,7 @@ impl PropertyHandler for BorderHandler {
       }
       Unparsed(val) if is_border_property(&val.property_id) => {
         self.flush(dest, logical);
-        dest.push(property.clone());
+        self.flush_unparsed(&val, dest, logical);
       }
       _ => {
         return self.border_image_handler.handle_property(property, dest, logical) || self.border_radius_handler.handle_property(property, dest, logical)
@@ -426,6 +430,7 @@ impl PropertyHandler for BorderHandler {
     self.border_image_handler.finalize(dest, logical);
     self.border_radius_handler.finalize(dest, logical);
     self.flush(dest, logical);
+    self.physical_properties = PhysicalProperties::empty();
   }
 }
 
@@ -440,19 +445,18 @@ impl BorderHandler {
     use Property::*;
 
     let logical_supported = logical_properties.is_supported(Feature::LogicalBorders);
-    let mut physical_properties = PhysicalProperties::empty();
     macro_rules! logical_prop {
       ($ltr: ident, $rtl: ident, $val: expr) => {{
         logical_properties.add(
           Property::$ltr($val.clone()),
           Property::$rtl($val.clone()),
-          if physical_properties.contains(PhysicalProperties::$ltr) {
+          if self.physical_properties.contains(PhysicalProperties::$ltr) {
             None
           } else {
             Some(dest)
           }
         );
-        physical_properties |= PhysicalProperties::$ltr | PhysicalProperties::$rtl;
+        self.physical_properties |= PhysicalProperties::$ltr | PhysicalProperties::$rtl;
       }};
     }
 
@@ -806,6 +810,67 @@ impl BorderHandler {
     self.border_block_end.reset();
     self.border_inline_start.reset();
     self.border_inline_end.reset();
+  }
+
+  fn flush_unparsed(&mut self, unparsed: &UnparsedProperty, dest: &mut DeclarationList, logical_properties: &mut LogicalProperties) {
+    let logical_supported = logical_properties.is_supported(Feature::LogicalBorders);
+    if logical_supported {
+      dest.push(Property::Unparsed(unparsed.clone()));
+      return
+    }
+
+    macro_rules! value {
+      ($id: ident) => {
+        Property::Unparsed(UnparsedProperty {
+          property_id: PropertyId::$id,
+          value: unparsed.value.clone()
+        })
+      };
+    }
+
+    macro_rules! prop {
+      ($id: ident) => {{
+        dest.push(value!($id));
+      }};
+    }
+
+    macro_rules! logical_prop {
+      ($ltr: ident, $rtl: ident) => {{
+        logical_properties.add(
+          value!($ltr),
+          value!($rtl),
+          if self.physical_properties.contains(PhysicalProperties::$ltr) {
+            None
+          } else {
+            Some(dest)
+          }
+        );
+        self.physical_properties |= PhysicalProperties::$ltr | PhysicalProperties::$rtl;
+      }};
+    }
+
+    use PropertyId::*;
+    match &unparsed.property_id {
+      BorderInlineStart => logical_prop!(BorderLeft, BorderRight),
+      BorderInlineStartWidth => logical_prop!(BorderLeftWidth, BorderRightWidth),
+      BorderInlineStartColor => logical_prop!(BorderLeftColor, BorderRightColor),
+      BorderInlineStartStyle => logical_prop!(BorderLeftStyle, BorderRightStyle),
+      BorderInlineEnd => logical_prop!(BorderRight, BorderLeft),
+      BorderInlineEndWidth => logical_prop!(BorderRightWidth, BorderLeftWidth),
+      BorderInlineEndColor => logical_prop!(BorderRightColor, BorderLeftColor),
+      BorderInlineEndStyle => logical_prop!(BorderRightStyle, BorderLeftStyle),
+      BorderBlockStart => prop!(BorderTop),
+      BorderBlockStartWidth => prop!(BorderTopWidth),
+      BorderBlockStartColor => prop!(BorderTopColor),
+      BorderBlockStartStyle => prop!(BorderTopStyle),
+      BorderBlockEnd => prop!(BorderBottom),
+      BorderBlockEndWidth => prop!(BorderBottomWidth),
+      BorderBlockEndColor => prop!(BorderBottomColor),
+      BorderBlockEndStyle => prop!(BorderBottomStyle),
+      _ => {
+        dest.push(Property::Unparsed(unparsed.clone()));
+      }
+    }
   }
 }
 

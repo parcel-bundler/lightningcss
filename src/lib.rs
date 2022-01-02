@@ -585,6 +585,57 @@ mod tests {
       safari: Some(8 << 16),
       ..Browsers::default()
     });
+
+    prefix_test(r#"
+      .foo {
+        border-inline-end: var(--test);
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-right: var(--border-right-EgL3uq-1);
+        border-left: var(--border-left-EgL3uq-1);
+      }
+
+      [dir="ltr"] {
+        --border-left-EgL3uq-1: ;
+        --border-right-EgL3uq-1: var(--test);
+      }
+
+      [dir="rtl"] {
+        --border-left-EgL3uq-1: var(--test);
+        --border-right-EgL3uq-1: ;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-inline-start: var(--start);
+        border-inline-end: var(--end);
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-left: var(--border-left-EgL3uq-1);
+        border-right: var(--border-right-EgL3uq-1);
+      }
+
+      [dir="ltr"] {
+        --border-left-EgL3uq-1: var(--start);
+        --border-right-EgL3uq-1: var(--end);
+      }
+
+      [dir="rtl"] {
+        --border-left-EgL3uq-1: var(--end);
+        --border-right-EgL3uq-1: var(--start);
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]
