@@ -9,6 +9,7 @@ use crate::declaration::DeclarationList;
 use crate::values::rect::Rect;
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
+use crate::logical::LogicalProperties;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BorderRadius {
@@ -72,7 +73,7 @@ impl BorderRadiusHandler {
 }
 
 impl PropertyHandler for BorderRadiusHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, _: &mut LogicalProperties) -> bool {
     use Property::*;
 
     macro_rules! property {
@@ -132,7 +133,7 @@ impl PropertyHandler for BorderRadiusHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList) {
+  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
     self.flush(dest);
   }
 }

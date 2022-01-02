@@ -4,6 +4,7 @@ use crate::declaration::DeclarationHandler;
 use super::style::StyleRule;
 use crate::rules::{ToCssWithContext, StyleContext};
 use crate::error::PrinterError;
+use crate::logical::LogicalProperties;
 
 #[derive(Debug, PartialEq)]
 pub struct NestingRule {
@@ -12,8 +13,13 @@ pub struct NestingRule {
 }
 
 impl NestingRule {
-  pub(crate) fn minify(&mut self, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
-    self.style.minify(handler, important_handler)
+  pub(crate) fn minify(
+    &mut self,
+    handler: &mut DeclarationHandler,
+    important_handler: &mut DeclarationHandler,
+    logical_properties: &mut LogicalProperties
+  ) {
+    self.style.minify(handler, important_handler, logical_properties)
   }
 }
 

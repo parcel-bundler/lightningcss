@@ -10,6 +10,7 @@ use smallvec::SmallVec;
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
 use crate::error::{ParserError, PrinterError};
+use crate::logical::LogicalProperties;
 
 /// https://www.w3.org/TR/2018/WD-css-transitions-1-20181011/#transition-shorthand-property
 #[derive(Debug, Clone, PartialEq)]
@@ -110,7 +111,7 @@ impl TransitionHandler {
 }
 
 impl PropertyHandler for TransitionHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, _: &mut LogicalProperties) -> bool {
     use Property::*;
 
     macro_rules! property {
@@ -176,7 +177,7 @@ impl PropertyHandler for TransitionHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList) {
+  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
     self.flush(dest);
   }
 }

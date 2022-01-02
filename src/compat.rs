@@ -32,6 +32,7 @@ pub enum Feature {
   DoublePositionGradients,
   FormValidation,
   Fullscreen,
+  LogicalBorders,
   MediaIntervalSyntax,
   MediaRangeSyntax,
   OverflowShorthand,
@@ -1283,6 +1284,48 @@ impl Feature {
       Feature::MediaRangeSyntax => {
         if let Some(version) = browsers.firefox {
           if version >= 4128768 {
+            return true
+          }
+        }
+      }
+      Feature::LogicalBorders => {
+        if let Some(version) = browsers.chrome {
+          if version >= 4521984 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version >= 5177344 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version >= 2686976 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version >= 3145728 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version >= 786688 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version >= 786944 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version >= 655360 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version >= 4521984 {
             return true
           }
         }

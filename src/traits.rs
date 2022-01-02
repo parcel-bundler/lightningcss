@@ -3,6 +3,7 @@ use crate::properties::Property;
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
+use crate::logical::LogicalProperties;
 
 pub trait Parse: Sized {
   /// Parse a value of this type.
@@ -40,8 +41,8 @@ where
 }
 
 pub(crate) trait PropertyHandler: Sized {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool;
-  fn finalize(&mut self, dest: &mut DeclarationList);
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical_properties: &mut LogicalProperties) -> bool;
+  fn finalize(&mut self, dest: &mut DeclarationList, logical_properties: &mut LogicalProperties);
 }
 
 pub trait TryAdd<T> {

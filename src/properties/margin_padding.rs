@@ -6,6 +6,7 @@ use crate::values::{
 use crate::properties::{Property, PropertyId};
 use crate::declaration::DeclarationList;
 use crate::traits::PropertyHandler;
+use crate::logical::LogicalProperties;
 
 #[derive(Debug, PartialEq)]
 enum SideCategory {
@@ -36,7 +37,7 @@ macro_rules! side_handler {
     }
 
     impl PropertyHandler for $name {
-      fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
+      fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, _: &mut LogicalProperties) -> bool {
         use Property::*;
         use SideCategory::*;
 
@@ -96,7 +97,7 @@ macro_rules! side_handler {
         true
       }
 
-      fn finalize(&mut self, dest: &mut DeclarationList) {
+      fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
         self.flush(dest);
       }
     }

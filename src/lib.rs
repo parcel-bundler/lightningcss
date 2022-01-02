@@ -16,6 +16,7 @@ pub mod targets;
 pub mod css_modules;
 pub mod dependencies;
 pub mod error;
+mod logical;
 
 #[cfg(test)]
 mod tests {
@@ -46,10 +47,10 @@ mod tests {
     assert_eq!(res.code, expected);
   }
 
-  fn attr_test(source: &str, expected: &str, minify: bool) {
+  fn attr_test(source: &str, expected: &str, minify: bool, targets: Option<Browsers>) {
     let mut attr = StyleAttribute::parse(source).unwrap();
-    attr.minify(None);
-    let res = attr.to_css(PrinterOptions { minify, ..PrinterOptions::default() }).unwrap();
+    attr.minify(targets);
+    let res = attr.to_css(PrinterOptions { targets, minify, ..PrinterOptions::default() }).unwrap();
     assert_eq!(res.code, expected);
   }
 
@@ -384,6 +385,205 @@ mod tests {
         border-bottom: var(--test, 1px) solid;
       }
     "#
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-block: 2px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-top: 2px solid red;
+        border-bottom: 2px solid red;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-block-start: 2px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-top: 2px solid red;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-block-end: 2px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-bottom: 2px solid red;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-inline: 2px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-left: 2px solid red;
+        border-right: 2px solid red;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-inline-start: 2px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-left: var(--border-left-EgL3uq-1);
+        border-right: var(--border-right-EgL3uq-1);
+      }
+
+      [dir="ltr"] {
+        --border-left-EgL3uq-1: 2px solid red;
+        --border-right-EgL3uq-1: ;
+      }
+
+      [dir="rtl"] {
+        --border-left-EgL3uq-1: ;
+        --border-right-EgL3uq-1: 2px solid red;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-inline-start-width: 2px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-left-width: var(--border-left-width-EgL3uq-1);
+        border-right-width: var(--border-right-width-EgL3uq-1);
+      }
+
+      [dir="ltr"] {
+        --border-left-width-EgL3uq-1: 2px;
+        --border-right-width-EgL3uq-1: ;
+      }
+
+      [dir="rtl"] {
+        --border-left-width-EgL3uq-1: ;
+        --border-right-width-EgL3uq-1: 2px;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-inline-end: 2px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-right: var(--border-right-EgL3uq-1);
+        border-left: var(--border-left-EgL3uq-1);
+      }
+
+      [dir="ltr"] {
+        --border-left-EgL3uq-1: ;
+        --border-right-EgL3uq-1: 2px solid red;
+      }
+
+      [dir="rtl"] {
+        --border-left-EgL3uq-1: 2px solid red;
+        --border-right-EgL3uq-1: ;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-inline-start: 2px solid red;
+        border-inline-end: 5px solid green;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-left: var(--border-left-EgL3uq-1);
+        border-right: var(--border-right-EgL3uq-1);
+      }
+
+      [dir="ltr"] {
+        --border-left-EgL3uq-1: 2px solid red;
+        --border-right-EgL3uq-1: 5px solid green;
+      }
+
+      [dir="rtl"] {
+        --border-left-EgL3uq-1: 5px solid green;
+        --border-right-EgL3uq-1: 2px solid red;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-inline-start: 2px solid red;
+        border-inline-end: 5px solid green;
+      }
+
+      .bar {
+        border-inline-start: 1px dotted gray;
+        border-inline-end: 1px solid black;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-left: var(--border-left-EgL3uq-1);
+        border-right: var(--border-right-EgL3uq-1);
+      }
+
+      .bar {
+        border-left: var(--border-left-EgL3uq-2);
+        border-right: var(--border-right-EgL3uq-2);
+      }
+
+      [dir="ltr"] {
+        --border-left-EgL3uq-1: 2px solid red;
+        --border-left-EgL3uq-2: 1px dotted gray;
+        --border-right-EgL3uq-1: 5px solid green;
+        --border-right-EgL3uq-2: 1px solid #000;
+      }
+
+      [dir="rtl"] {
+        --border-left-EgL3uq-1: 5px solid green;
+        --border-left-EgL3uq-2: 1px solid #000;
+        --border-right-EgL3uq-1: 2px solid red;
+        --border-right-EgL3uq-2: 1px dotted gray;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
     });
   }
 
@@ -6919,8 +7119,9 @@ mod tests {
 
   #[test]
   fn test_style_attr() {
-    attr_test("color: yellow; flex: 1 1 auto", "color: #ff0; flex: auto", false);
-    attr_test("color: yellow; flex: 1 1 auto", "color:#ff0;flex:auto", true);
+    attr_test("color: yellow; flex: 1 1 auto", "color: #ff0; flex: auto", false, None);
+    attr_test("color: yellow; flex: 1 1 auto", "color:#ff0;flex:auto", true, None);
+    attr_test("border-inline-start: 2px solid red", "border-inline-start: 2px solid red", false, Some(Browsers { safari: Some(12 << 16), ..Browsers::default() }));
   }
 
   #[test]

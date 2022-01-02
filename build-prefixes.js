@@ -195,7 +195,8 @@ let mdnFeatures = {
   placeItems: mdn.css.properties['place-items'].__compat.support,
   overflowShorthand: mdn.css.properties['overflow'].multiple_keywords.__compat.support,
   mediaRangeSyntax: mdn.css['at-rules'].media.range_syntax.__compat.support,
-  mediaIntervalSyntax: {} // currently no browsers
+  mediaIntervalSyntax: {}, // currently no browsers
+  logicalBorders: mdn.css.properties['border-inline-start'].__compat.support
 };
 
 for (let feature in mdnFeatures) {

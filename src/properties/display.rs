@@ -9,6 +9,7 @@ use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::printer::Printer;
 use crate::macros::enum_property;
 use crate::error::{ParserError, PrinterError};
+use crate::logical::LogicalProperties;
 
 enum_property!(DisplayOutside,
   ("block", Block),
@@ -310,7 +311,7 @@ impl DisplayHandler {
 }
 
 impl PropertyHandler for DisplayHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
     if let Property::Display(display) = property {
       match (&self.display, display) {
         (Some(Display::Pair(cur)), Display::Pair(new)) => {
@@ -338,7 +339,7 @@ impl PropertyHandler for DisplayHandler {
     }
     
     if matches!(property, Property::Unparsed(UnparsedProperty { property_id: PropertyId::Display, .. })) {
-      self.finalize(dest);
+      self.finalize(dest, logical);
       dest.push(property.clone());
       return true
     }
@@ -346,7 +347,7 @@ impl PropertyHandler for DisplayHandler {
     false
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList) {
+  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
     if self.display.is_none() {
       return
     }

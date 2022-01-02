@@ -191,6 +191,19 @@ macro_rules! define_properties {
           Custom(name) => dest.write_str(&name)
         }
       }
+
+      pub(crate) fn name(&self) -> &str {
+        use PropertyId::*;
+
+        match self {
+          $(
+            $(#[$meta])*
+            $property$((vp_name!($vp, _p)))? => $name,
+          )+
+          All => "all",
+          Custom(name) => &name
+        }
+      }
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -201,6 +214,7 @@ macro_rules! define_properties {
       )+
       Unparsed(UnparsedProperty),
       Custom(CustomProperty),
+      CustomWithValue(CustomPropertyWithValue)
     }
 
     impl Property {
@@ -244,6 +258,42 @@ macro_rules! define_properties {
 
         input.reset(&state);
         return Ok(Property::Custom(CustomProperty::parse(name, input)?))
+      }
+
+      pub(crate) fn name(&self) -> &str {
+        use Property::*;
+
+        match self {
+          $(
+            $(#[$meta])*
+            $property(_, $(vp_name!($vp, _p))?) => $name,
+          )+
+          Unparsed(unparsed) => unparsed.property_id.name(),
+          Custom(custom) => &custom.name,
+          CustomWithValue(custom) => &custom.name
+        }
+      }
+
+      pub(crate) fn value_to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+        use Property::*;
+
+        match self {
+          $(
+            $(#[$meta])*
+            $property(val, $(vp_name!($vp, _p))?) => {
+              val.to_css(dest)
+            }
+          )+
+          Unparsed(unparsed) => {
+            dest.write_str(unparsed.value.as_ref())
+          }
+          Custom(custom) => {
+            dest.write_str(custom.value.as_ref())
+          }
+          CustomWithValue(custom) => {
+            custom.value.value_to_css(dest)
+          }
+        }
       }
 
       pub(crate) fn to_css<W>(&self, dest: &mut Printer<W>, important: bool) -> Result<(), PrinterError> where W: std::fmt::Write {
@@ -325,7 +375,18 @@ macro_rules! define_properties {
           Custom(custom) => {
             dest.write_str(custom.name.as_ref())?;
             dest.delim(':', false)?;
-            dest.write_str(custom.value.as_ref())?;
+            if dest.minify || custom.value != " " {
+              dest.write_str(custom.value.as_ref())?;
+            }
+            if important {
+              dest.whitespace()?;
+              dest.write_str("!important")?;
+            }
+          }
+          CustomWithValue(custom) => {
+            dest.write_str(custom.name.as_ref())?;
+            dest.delim(':', false)?;
+            custom.value.value_to_css(dest)?;
             if important {
               dest.whitespace()?;
               dest.write_str("!important")?;

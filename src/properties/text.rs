@@ -13,6 +13,7 @@ use crate::values::color::CssColor;
 use crate::printer::Printer;
 use bitflags::bitflags;
 use crate::error::{ParserError, PrinterError};
+use crate::logical::LogicalProperties;
 
 // https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-transform-property
 enum_property!(TextTransformCase,
@@ -713,7 +714,7 @@ impl TextDecorationHandler {
 }
 
 impl PropertyHandler for TextDecorationHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -722,7 +723,7 @@ impl PropertyHandler for TextDecorationHandler {
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
           if val != $val && !prefixes.contains(*$vp) {
-            self.finalize(dest);
+            self.finalize(dest, logical);
           }
         }
       }};
@@ -770,11 +771,11 @@ impl PropertyHandler for TextDecorationHandler {
       }
       TextEmphasisPosition(val, vp) => property!(emphasis_position, val, vp),
       Unparsed(val) if is_text_decoration_property(&val.property_id) => {
-        self.finalize(dest);
+        self.finalize(dest, logical);
         dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::TextDecoration)))
       }
       Unparsed(val) if is_text_emphasis_property(&val.property_id) => {
-        self.finalize(dest);
+        self.finalize(dest, logical);
         dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::TextEmphasis)))
       }
       _ => return false
@@ -783,7 +784,7 @@ impl PropertyHandler for TextDecorationHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList) {
+  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
     if !self.has_any {
       return
     }
