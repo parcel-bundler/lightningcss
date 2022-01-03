@@ -1,15 +1,18 @@
+#![allow(non_upper_case_globals)]
 use crate::values::length::*;
 use crate::values::size::Size2D;
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
-use crate::properties::{Property, PropertyId, VendorPrefix};
+use crate::properties::{Property, PropertyId, VendorPrefix, custom::UnparsedProperty};
 use crate::declaration::DeclarationList;
 use crate::values::rect::Rect;
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
 use crate::logical::LogicalProperties;
+use crate::compat;
+use bitflags::bitflags;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BorderRadius {
@@ -52,6 +55,29 @@ impl ToCss for BorderRadius {
   }
 }
 
+#[derive(Debug, PartialEq)]
+enum PropertyCategory {
+  Logical,
+  Physical
+}
+
+impl Default for PropertyCategory {
+  fn default() -> PropertyCategory {
+    PropertyCategory::Physical
+  }
+}
+
+bitflags! {
+  /// Tracks which physical properties have already been emitted.
+  #[derive(Default)]
+  struct PhysicalProperties: u8 {
+    const BorderTopLeftRadius = 1 << 0;
+    const BorderTopRightRadius = 1 << 1;
+    const BorderBottomLeftRadius = 1 << 2;
+    const BorderBottomRightRadius = 1 << 3;
+  }
+}
+
 #[derive(Default, Debug)]
 pub(crate) struct BorderRadiusHandler {
   targets: Option<Browsers>,
@@ -59,8 +85,13 @@ pub(crate) struct BorderRadiusHandler {
   top_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
   bottom_left: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
   bottom_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
-  logical: Vec<Property>,
-  has_any: bool
+  start_start: Option<Size2D<LengthPercentage>>,
+  start_end: Option<Size2D<LengthPercentage>>,
+  end_start: Option<Size2D<LengthPercentage>>,
+  end_end: Option<Size2D<LengthPercentage>>,
+  category: PropertyCategory,
+  has_any: bool,
+  physical_properties: PhysicalProperties
 }
 
 impl BorderRadiusHandler {
@@ -73,16 +104,20 @@ impl BorderRadiusHandler {
 }
 
 impl PropertyHandler for BorderRadiusHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, _: &mut LogicalProperties) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
     use Property::*;
 
     macro_rules! property {
       ($prop: ident, $val: expr, $vp: ident) => {{
+        if self.category != PropertyCategory::Physical {
+          self.flush(dest, logical);
+        }
+
         // If two vendor prefixes for the same property have different
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
           if val != $val && !prefixes.contains(*$vp) {
-            self.flush(dest);
+            self.flush(dest, logical);
           }
         }
 
@@ -94,6 +129,20 @@ impl PropertyHandler for BorderRadiusHandler {
           self.$prop = Some(($val.clone(), *$vp));
           self.has_any = true;
         }
+
+        self.category = PropertyCategory::Physical;
+      }};
+    }
+
+    macro_rules! logical_property {
+      ($prop: ident, $val: expr) => {{
+        if self.category != PropertyCategory::Logical {
+          self.flush(dest, logical);
+        }
+
+        self.$prop = Some($val.clone());
+        self.category = PropertyCategory::Logical;
+        self.has_any = true;
       }};
     }
 
@@ -102,30 +151,30 @@ impl PropertyHandler for BorderRadiusHandler {
       BorderTopRightRadius(val, vp) => property!(top_right, val, vp),
       BorderBottomLeftRadius(val, vp) => property!(bottom_left, val, vp),
       BorderBottomRightRadius(val, vp) => property!(bottom_right, val, vp),
-      BorderStartStartRadius(_) | BorderStartEndRadius(_) | BorderEndStartRadius(_) | BorderEndEndRadius(_) => {
-        self.flush(dest);
-        self.logical.push(property.clone());
-        self.has_any = true;
-      }
+      BorderStartStartRadius(val) => logical_property!(start_start, val),
+      BorderStartEndRadius(val) => logical_property!(start_end, val),
+      BorderEndStartRadius(val) => logical_property!(end_start, val),
+      BorderEndEndRadius(val) => logical_property!(end_end, val),
       BorderRadius(val, vp) => {
-        self.logical.clear();
+        self.start_start = None;
+        self.start_end = None;
+        self.end_start = None;
+        self.end_end = None;
         property!(top_left, &val.top_left, vp);
         property!(top_right, &val.top_right, vp);
         property!(bottom_left, &val.bottom_left, vp);
         property!(bottom_right, &val.bottom_right, vp);
       }
       Unparsed(val) if is_border_radius_property(&val.property_id) => {
-        self.flush(dest);
+        self.flush(dest, logical);
 
         // Even if we weren't able to parse the value (e.g. due to var() references),
         // we can still add vendor prefixes to the property itself.
-        let prop = if !is_logical_border_radius_property(&val.property_id) {
-          Property::Unparsed(val.get_prefixed(self.targets, Feature::BorderRadius))
+        if !is_logical_border_radius_property(&val.property_id) {
+          dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::BorderRadius)));
         } else {
-          property.clone()
-        };
-
-        dest.push(prop);
+          self.flush_unparsed(val, dest, logical);
+        }
       }
       _ => return false
     }
@@ -133,13 +182,14 @@ impl PropertyHandler for BorderRadiusHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
-    self.flush(dest);
+  fn finalize(&mut self, dest: &mut DeclarationList, logical: &mut LogicalProperties) {
+    self.flush(dest, logical);
+    self.physical_properties = PhysicalProperties::empty();
   }
 }
 
 impl BorderRadiusHandler {
-  fn flush(&mut self, dest: &mut DeclarationList) {
+  fn flush(&mut self, dest: &mut DeclarationList, logical: &mut LogicalProperties) {
     if !self.has_any {
       return
     }
@@ -150,8 +200,10 @@ impl BorderRadiusHandler {
     let mut top_right = std::mem::take(&mut self.top_right);
     let mut bottom_left = std::mem::take(&mut self.bottom_left);
     let mut bottom_right = std::mem::take(&mut self.bottom_right);
-
-    dest.extend(&mut self.logical);
+    let start_start = std::mem::take(&mut self.start_start);
+    let start_end = std::mem::take(&mut self.start_end);
+    let end_start = std::mem::take(&mut self.end_start);
+    let end_end = std::mem::take(&mut self.end_end);
 
     if let (Some((top_left, tl_prefix)), Some((top_right, tr_prefix)), Some((bottom_left, bl_prefix)), Some((bottom_right, br_prefix))) = (&mut top_left, &mut top_right, &mut bottom_left, &mut bottom_right) {
       let intersection = *tl_prefix & *tr_prefix & *bl_prefix & *br_prefix;
@@ -190,10 +242,81 @@ impl BorderRadiusHandler {
       };
     }
 
+    let logical_supported = logical.is_supported(compat::Feature::LogicalBorderRadius);
+
+    macro_rules! logical_property {
+      ($prop: ident, $key: ident, $ltr: ident, $rtl: ident) => {
+        if let Some(val) = $key {
+          if logical_supported {
+            dest.push(Property::$prop(val))
+          } else {
+            let vp = if let Some(targets) = self.targets {
+              Feature::$ltr.prefixes_for(targets)
+            } else {
+              VendorPrefix::None
+            };
+            logical.add(
+              Property::$ltr(val.clone(), vp),
+              Property::$rtl(val.clone(), vp),
+              if self.physical_properties.contains(PhysicalProperties::$ltr) {
+                None
+              } else {
+                Some(dest)
+              }
+            );
+            self.physical_properties |= PhysicalProperties::$ltr | PhysicalProperties::$rtl;
+          }
+        }
+      };
+    }
+
     single_property!(BorderTopLeftRadius, top_left);
     single_property!(BorderTopRightRadius, top_right);
     single_property!(BorderBottomLeftRadius, bottom_left);
     single_property!(BorderBottomRightRadius, bottom_right);
+    logical_property!(BorderStartStartRadius, start_start, BorderTopLeftRadius, BorderTopRightRadius);
+    logical_property!(BorderStartEndRadius, start_end, BorderTopRightRadius, BorderTopLeftRadius);
+    logical_property!(BorderEndStartRadius, end_start, BorderBottomLeftRadius, BorderBottomRightRadius);
+    logical_property!(BorderEndEndRadius, end_end, BorderBottomRightRadius, BorderBottomLeftRadius);
+  }
+
+  fn flush_unparsed(&mut self, unparsed: &UnparsedProperty, dest: &mut DeclarationList, logical: &mut LogicalProperties) {
+    let logical_supported = logical.is_supported(compat::Feature::LogicalBorderRadius);
+    if logical_supported {
+      dest.push(Property::Unparsed(unparsed.clone()));
+      return
+    }
+
+    macro_rules! logical_prop {
+      ($ltr: ident, $rtl: ident) => {{
+        let vp = if let Some(targets) = self.targets {
+          Feature::$ltr.prefixes_for(targets)
+        } else {
+          VendorPrefix::None
+        };
+        logical.add(
+          Property::Unparsed(unparsed.with_property_id(PropertyId::$ltr(vp))),
+          Property::Unparsed(unparsed.with_property_id(PropertyId::$rtl(vp))),
+          if self.physical_properties.contains(PhysicalProperties::$ltr) {
+            None
+          } else {
+            Some(dest)
+          }
+        );
+        self.physical_properties |= PhysicalProperties::$ltr | PhysicalProperties::$rtl;
+      }};
+    }
+
+    use PropertyId::*;
+    match &unparsed.property_id {
+      BorderStartStartRadius => logical_prop!(BorderTopLeftRadius, BorderTopRightRadius),
+      BorderStartEndRadius => logical_prop!(BorderTopRightRadius, BorderTopLeftRadius),
+      BorderEndStartRadius => logical_prop!(BorderBottomLeftRadius, BorderBottomRightRadius),
+      BorderEndEndRadius => logical_prop!(BorderBottomRightRadius, BorderBottomLeftRadius),
+      _ => {
+        dest.push(Property::Unparsed(unparsed.clone()));
+      }
+    }
   }
 }
 

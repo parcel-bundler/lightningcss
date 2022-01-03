@@ -196,7 +196,8 @@ let mdnFeatures = {
   overflowShorthand: mdn.css.properties['overflow'].multiple_keywords.__compat.support,
   mediaRangeSyntax: mdn.css['at-rules'].media.range_syntax.__compat.support,
   mediaIntervalSyntax: {}, // currently no browsers
-  logicalBorders: mdn.css.properties['border-inline-start'].__compat.support
+  logicalBorders: mdn.css.properties['border-inline-start'].__compat.support,
+  logicalBorderRadius: mdn.css.properties['border-start-start-radius'].__compat.support
 };
 
 for (let feature in mdnFeatures) {

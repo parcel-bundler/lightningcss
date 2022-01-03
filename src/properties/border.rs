@@ -819,26 +819,17 @@ impl BorderHandler {
       return
     }
 
-    macro_rules! value {
-      ($id: ident) => {
-        Property::Unparsed(UnparsedProperty {
-          property_id: PropertyId::$id,
-          value: unparsed.value.clone()
-        })
-      };
-    }
-
     macro_rules! prop {
       ($id: ident) => {{
-        dest.push(value!($id));
+        dest.push(Property::Unparsed(unparsed.with_property_id(PropertyId::$id)));
       }};
     }
 
     macro_rules! logical_prop {
       ($ltr: ident, $rtl: ident) => {{
         logical_properties.add(
-          value!($ltr),
-          value!($rtl),
+          Property::Unparsed(unparsed.with_property_id(PropertyId::$ltr)),
+          Property::Unparsed(unparsed.with_property_id(PropertyId::$rtl)),
           if self.physical_properties.contains(PhysicalProperties::$ltr) {
             None
           } else {

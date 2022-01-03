@@ -32,6 +32,7 @@ pub enum Feature {
   DoublePositionGradients,
   FormValidation,
   Fullscreen,
+  LogicalBorderRadius,
   LogicalBorders,
   MediaIntervalSyntax,
   MediaRangeSyntax,
@@ -1326,6 +1327,48 @@ impl Feature {
         }
         if let Some(version) = browsers.android {
           if version >= 4521984 {
+            return true
+          }
+        }
+      }
+      Feature::LogicalBorderRadius => {
+        if let Some(version) = browsers.chrome {
+          if version >= 5832704 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version >= 5832704 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version >= 4325376 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version >= 4915200 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version >= 983040 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version >= 983040 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version >= 983040 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version >= 5832704 {
             return true
           }
         }

@@ -1057,6 +1057,134 @@ mod tests {
       firefox: Some(3 << 16),
       ..Browsers::default()
     });
+
+    prefix_test(r#"
+      .foo {
+        border-start-start-radius: 5px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-top-left-radius: var(--border-top-left-radius-EgL3uq-1);
+        border-top-right-radius: var(--border-top-right-radius-EgL3uq-1);
+      }
+
+      [dir="ltr"] {
+        --border-top-left-radius-EgL3uq-1: 5px;
+        --border-top-right-radius-EgL3uq-1: ;
+      }
+
+      [dir="rtl"] {
+        --border-top-left-radius-EgL3uq-1: ;
+        --border-top-right-radius-EgL3uq-1: 5px;
+      }
+    "#
+    }, Browsers {
+      safari: Some(12 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-start-start-radius: 5px;
+        border-start-end-radius: 10px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-top-left-radius: var(--border-top-left-radius-EgL3uq-1);
+        border-top-right-radius: var(--border-top-right-radius-EgL3uq-1);
+      }
+
+      [dir="ltr"] {
+        --border-top-left-radius-EgL3uq-1: 5px;
+        --border-top-right-radius-EgL3uq-1: 10px;
+      }
+
+      [dir="rtl"] {
+        --border-top-left-radius-EgL3uq-1: 10px;
+        --border-top-right-radius-EgL3uq-1: 5px;
+      }
+    "#
+    }, Browsers {
+      safari: Some(12 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-end-start-radius: 5px;
+        border-end-end-radius: 10px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-bottom-left-radius: var(--border-bottom-left-radius-EgL3uq-1);
+        border-bottom-right-radius: var(--border-bottom-right-radius-EgL3uq-1);
+      }
+
+      [dir="ltr"] {
+        --border-bottom-left-radius-EgL3uq-1: 5px;
+        --border-bottom-right-radius-EgL3uq-1: 10px;
+      }
+
+      [dir="rtl"] {
+        --border-bottom-left-radius-EgL3uq-1: 10px;
+        --border-bottom-right-radius-EgL3uq-1: 5px;
+      }
+    "#
+    }, Browsers {
+      safari: Some(12 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-start-start-radius: var(--radius);
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-top-left-radius: var(--border-top-left-radius-EgL3uq-1);
+        border-top-right-radius: var(--border-top-right-radius-EgL3uq-1);
+      }
+
+      [dir="ltr"] {
+        --border-top-left-radius-EgL3uq-1: var(--radius);
+        --border-top-right-radius-EgL3uq-1: ;
+      }
+
+      [dir="rtl"] {
+        --border-top-left-radius-EgL3uq-1: ;
+        --border-top-right-radius-EgL3uq-1: var(--radius);
+      }
+    "#
+    }, Browsers {
+      safari: Some(12 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-start-start-radius: var(--start);
+        border-start-end-radius: var(--end);
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-top-left-radius: var(--border-top-left-radius-EgL3uq-1);
+        border-top-right-radius: var(--border-top-right-radius-EgL3uq-1);
+      }
+
+      [dir="ltr"] {
+        --border-top-left-radius-EgL3uq-1: var(--start);
+        --border-top-right-radius-EgL3uq-1: var(--end);
+      }
+
+      [dir="rtl"] {
+        --border-top-left-radius-EgL3uq-1: var(--end);
+        --border-top-right-radius-EgL3uq-1: var(--start);
+      }
+    "#
+    }, Browsers {
+      safari: Some(12 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]
