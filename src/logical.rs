@@ -1,21 +1,23 @@
 use cssparser::SourceLocation;
-use std::collections::BTreeMap;
 use crate::rules::{CssRule, CssRuleList, style::StyleRule};
 use parcel_selectors::SelectorList;
 use crate::selector::{SelectorIdent, SelectorString};
-use crate::declaration::{Declaration, DeclarationList, DeclarationBlock};
+use crate::declaration::{Declaration, DeclarationBlock};
 use crate::css_modules::hash;
 use crate::vendor_prefix::VendorPrefix;
 use crate::compat::Feature;
 use crate::targets::Browsers;
+use crate::traits::ToCss;
+use crate::printer::Printer;
+use crate::error::PrinterError;
 use parcel_selectors::{
   parser::{Selector, Component},
   attr::{AttrSelectorOperator, ParsedCaseSensitivity}
 };
 use crate::properties::{
   Property,
+  PropertyId,
   custom::CustomProperty,
-  custom::CustomPropertyWithValue,
 };
 
 #[derive(Debug)]
@@ -23,18 +25,16 @@ pub(crate) struct LogicalProperties {
   targets: Option<Browsers>,
   hash: String,
   count: u32,
-  ltr: BTreeMap<String, Property>,
-  rtl: BTreeMap<String, Property>
+  pub used: bool
 }
 
 impl LogicalProperties {
   pub fn new(filename: &str, targets: Option<Browsers>) -> LogicalProperties {
     LogicalProperties {
+      used: false,
       targets,
       hash: hash(filename),
       count: 0,
-      ltr: BTreeMap::new(),
-      rtl: BTreeMap::new()
     }
   }
 
@@ -50,49 +50,10 @@ impl LogicalProperties {
     self.count += 1;
   }
 
-  pub fn add(&mut self, ltr: Property, rtl: Property, dest: Option<&mut DeclarationList>) {
-    // Generate unique variable names based on the property names, a hash of the filename, and a count.
-    let ltr_name = ltr.name();
-    let rtl_name = rtl.name();
-    let left_name = format!("--{}-{}-{}", ltr_name, self.hash, self.count);
-    let right_name = format!("--{}-{}-{}", rtl_name, self.hash, self.count);
-
-    // If a declaration list is passed, then add variable references for the original property names.
-    if let Some(dest) = dest {
-      dest.push(Property::Custom(CustomProperty {
-        name: ltr_name.into(),
-        value: format!("var({})", left_name)
-      }));
-      dest.push(Property::Custom(CustomProperty {
-        name: rtl_name.into(),
-        value: format!("var({})", right_name)
-      }));
-    }
-
-    // Set the ltr and rtl variables to the values. Also insert an invalid value for the opposite
-    // variable if needed. This ensures it is overridden so that nested `dir` attributes are supported.
-    self.ltr.insert(left_name.clone(), Property::CustomWithValue(CustomPropertyWithValue {
-      name: left_name.clone(),
-      value: Box::new(ltr)
-    }));
-    self.ltr.entry(right_name.clone()).or_insert_with(|| Property::Custom(CustomProperty {
-      name: right_name.clone(),
-      value: " ".into()
-    }));
-    self.rtl.insert(right_name.clone(), Property::CustomWithValue(CustomPropertyWithValue {
-      name: right_name.clone(),
-      value: Box::new(rtl)
-    }));
-    self.rtl.entry(left_name.clone()).or_insert_with(|| Property::Custom(CustomProperty {
-      name: left_name.clone(),
-      value: " ".into()
-    }));
-  }
-
   pub fn to_rules(&mut self, dest: &mut CssRuleList) {
-    // Generate rules for `[dir="ltr"]` and `[dir="rtl"]` containing the declared variables.
+    // Generate rules for [dir="ltr"] and [dir="rtl"] to define --ltr and --rtl vars.
     macro_rules! style_rule {
-      ($dir: ident) => {
+      ($dir: ident, $ltr: expr, $rtl: expr) => {
         dest.0.push(CssRule::Style(StyleRule {
           selectors: SelectorList(smallvec::smallvec![
             Selector::from_vec2(vec![
@@ -108,10 +69,22 @@ impl LogicalProperties {
           rules: CssRuleList(vec![]),
           vendor_prefix: VendorPrefix::empty(),
           declarations: DeclarationBlock {
-            declarations: std::mem::take(&mut self.$dir)
-              .into_values()
-              .map(|p| Declaration { property: p, important: false })
-              .collect()
+            declarations: vec![
+              Declaration {
+                property: Property::Custom(CustomProperty {
+                  name: "--ltr".into(),
+                  value: $ltr.into()
+                }),
+                important: false
+              },
+              Declaration {
+                property: Property::Custom(CustomProperty {
+                  name: "--rtl".into(),
+                  value: $rtl.into()
+                }),
+                important: false
+              }
+            ]
           },
           loc: SourceLocation {
             line: 0,
@@ -121,12 +94,40 @@ impl LogicalProperties {
       };
     }
 
-    if !self.ltr.is_empty() {
-      style_rule!(ltr);
+    if self.used {
+      style_rule!(ltr, "initial", " ");
+      style_rule!(rtl, " ", "initial");
+    }
+  }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LogicalProperty {
+  pub property_id: PropertyId,
+  pub ltr: Option<Box<Property>>,
+  pub rtl: Option<Box<Property>>
+}
+
+impl ToCss for LogicalProperty {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+    if let Some(ltr) = &self.ltr {
+      dest.write_str("var(--ltr,")?;
+      dest.whitespace()?;
+      ltr.value_to_css(dest)?;
+      dest.write_char(')')?;
     }
 
-    if !self.rtl.is_empty() {
-      style_rule!(rtl);
+    if self.ltr.is_some() && self.rtl.is_some() {
+      dest.whitespace()?;
     }
+
+    if let Some(rtl) = &self.rtl {
+      dest.write_str("var(--rtl,")?;
+      dest.whitespace()?;
+      rtl.value_to_css(dest)?;
+      dest.write_char(')')?;
+    }
+
+    Ok(())
   }
 }

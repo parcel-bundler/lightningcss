@@ -52,6 +52,7 @@ use smallvec::{SmallVec, smallvec};
 use crate::vendor_prefix::VendorPrefix;
 use crate::parser::ParserOptions;
 use crate::error::{ParserError, PrinterError};
+use crate::logical::LogicalProperty;
 
 macro_rules! define_properties {
   (
@@ -192,6 +193,7 @@ macro_rules! define_properties {
         }
       }
 
+      #[allow(dead_code)]
       pub(crate) fn name(&self) -> &str {
         use PropertyId::*;
 
@@ -214,7 +216,8 @@ macro_rules! define_properties {
       )+
       Unparsed(UnparsedProperty),
       Custom(CustomProperty),
-      CustomWithValue(CustomPropertyWithValue)
+      CustomWithValue(CustomPropertyWithValue),
+      Logical(LogicalProperty)
     }
 
     impl Property {
@@ -260,6 +263,7 @@ macro_rules! define_properties {
         return Ok(Property::Custom(CustomProperty::parse(name, input)?))
       }
 
+      #[allow(dead_code)]
       pub(crate) fn name(&self) -> &str {
         use Property::*;
 
@@ -269,6 +273,7 @@ macro_rules! define_properties {
             $property(_, $(vp_name!($vp, _p))?) => $name,
           )+
           Unparsed(unparsed) => unparsed.property_id.name(),
+          Logical(logical) => logical.property_id.name(),
           Custom(custom) => &custom.name,
           CustomWithValue(custom) => &custom.name
         }
@@ -292,6 +297,9 @@ macro_rules! define_properties {
           }
           CustomWithValue(custom) => {
             custom.value.value_to_css(dest)
+          },
+          Logical(logical) => {
+            logical.to_css(dest)
           }
         }
       }
@@ -358,6 +366,28 @@ macro_rules! define_properties {
                   unparsed.property_id.to_css_with_prefix(dest, $p)?;
                   dest.delim(':', false)?;
                   dest.write_str(unparsed.value.as_ref())?;
+                  if important {
+                    dest.whitespace()?;
+                    dest.write_str("!important")?;
+                  }
+                }
+              };
+            }
+            
+            write!(VendorPrefix::WebKit);
+            write!(VendorPrefix::Moz);
+            write!(VendorPrefix::Ms);
+            write!(VendorPrefix::O);
+            write!(VendorPrefix::None);
+          }
+          Logical(logical) => {
+            macro_rules! write {
+              ($p: expr) => {
+                if logical.property_id.prefix().contains($p) {
+                  start!();
+                  logical.property_id.to_css_with_prefix(dest, $p)?;
+                  dest.delim(':', false)?;
+                  logical.to_css(dest)?;
                   if important {
                     dest.whitespace()?;
                     dest.write_str("!important")?;

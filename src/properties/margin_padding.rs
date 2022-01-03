@@ -39,27 +39,26 @@ macro_rules! side_handler {
     impl PropertyHandler for $name {
       fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, _: &mut LogicalProperties) -> bool {
         use Property::*;
-        use SideCategory::*;
 
         macro_rules! property {
           ($key: ident, $val: ident, $category: ident) => {{
-            if $category != self.category {
+            if SideCategory::$category != self.category {
               self.flush(dest);
             }
             self.$key = Some($val.clone());
-            self.category = $category;
+            self.category = SideCategory::$category;
             self.has_any = true;
           }};
         }
 
         macro_rules! set_shorthand {
           ($start: ident, $end: ident, $val: ident) => {{
-            if self.category != Logical {
+            if self.category != SideCategory::Logical {
               self.flush(dest);
             }
             self.$start = Some($val.0.clone());
             self.$end = Some($val.1.clone());
-            self.category = Logical;
+            self.category = SideCategory::Logical;
             self.has_any = true;
           }};
         }
