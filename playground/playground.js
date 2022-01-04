@@ -30,6 +30,11 @@ function reflectPlaygroundState(playgroundState) {
     cssModules.checked = playgroundState.cssModules;
     compiledModules.hidden = !playgroundState.cssModules;
   }
+  
+  if (typeof playgroundState.analyzeDependencies !== 'undefined') {
+    analyzeDependencies.checked = playgroundState.analyzeDependencies;
+    compiledDependencies.hidden = !playgroundState.analyzeDependencies;
+  }
 
   if (typeof playgroundState.nesting !== 'undefined') {
     nesting.checked = playgroundState.nesting;
@@ -53,6 +58,7 @@ function savePlaygroundState() {
     minify: minify.checked,
     nesting: nesting.checked,
     cssModules: cssModules.checked,
+    analyzeDependencies: analyzeDependencies.checked,
     targets: getTargets(),
     source: source.value,
   };
@@ -95,12 +101,15 @@ async function update() {
     drafts: {
       nesting: nesting.checked
     },
-    cssModules: cssModules.checked
+    cssModules: cssModules.checked,
+    analyzeDependencies: analyzeDependencies.checked
   });
 
   compiled.value = dec.decode(res.code);
   compiledModules.value = JSON.stringify(res.exports, false, 2);
   compiledModules.hidden = !cssModules.checked;
+  compiledDependencies.value = JSON.stringify(res.dependencies, false, 2);
+  compiledDependencies.hidden = !analyzeDependencies.checked;
 
   savePlaygroundState();
 }
