@@ -69,7 +69,7 @@ impl StyleRule {
   fn to_css_base<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> Result<(), PrinterError> where W: std::fmt::Write {
     // If supported, or there are no targets, preserve nesting. Otherwise, write nested rules after parent.
     let supports_nesting = self.rules.0.is_empty() || dest.targets.is_none() || Feature::CssNesting.is_compatible(dest.targets.unwrap());
-    let len = self.declarations.declarations.len();
+    let len = self.declarations.declarations.len() + self.declarations.important_declarations.len();
     let has_declarations = supports_nesting || len > 0 || self.rules.0.is_empty();
 
     if has_declarations {
@@ -79,26 +79,36 @@ impl StyleRule {
       dest.write_char('{')?;
       dest.indent();
 
-      for (i, decl) in self.declarations.declarations.iter().enumerate() {
-        // The CSS modules `composes` property is handled specially, and omitted during printing.
-        // We need to add the classes it references to the list for the selectors in this rule.
-        if let crate::properties::Property::Composes(composes) = &decl.property {
-          if dest.is_nested() && dest.css_module.is_some() {
-            return Err(PrinterError::InvalidComposesNesting(composes.loc))
+      let mut i = 0;
+      macro_rules! write {
+        ($decls: ident, $important: literal) => {
+          for decl in &self.declarations.$decls {
+            // The CSS modules `composes` property is handled specially, and omitted during printing.
+            // We need to add the classes it references to the list for the selectors in this rule.
+            if let crate::properties::Property::Composes(composes) = &decl {
+              if dest.is_nested() && dest.css_module.is_some() {
+                return Err(PrinterError::InvalidComposesNesting(composes.loc))
+              }
+    
+              if let Some(css_module) = &mut dest.css_module {
+                css_module.handle_composes(&self.selectors, &composes)?;
+                continue;
+              }
+            }
+    
+            dest.newline()?;
+            decl.to_css(dest, $important)?;
+            if i != len - 1 || !dest.minify {
+              dest.write_char(';')?;
+            }
+    
+            i += 1;
           }
-
-          if let Some(css_module) = &mut dest.css_module {
-            css_module.handle_composes(&self.selectors, &composes)?;
-            continue;
-          }
-        }
-
-        dest.newline()?;
-        decl.to_css(dest)?;
-        if i != len - 1 || !dest.minify {
-          dest.write_char(';')?;
-        }
+        };
       }
+      
+      write!(declarations, false);
+      write!(important_declarations, true);
     }
 
     macro_rules! newline {

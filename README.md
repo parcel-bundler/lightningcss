@@ -90,8 +90,8 @@ cssnano: 542.956ms
 esbuild: 17.411ms
 160332 bytes
 
-parcel-css: 4.74ms
-143985 bytes
+parcel-css: 4.602ms
+143154 bytes
 
 
 $ node bench.js animate.css
@@ -101,7 +101,7 @@ cssnano: 283.105ms
 esbuild: 11.858ms
 72183 bytes
 
-parcel-css: 1.989ms
+parcel-css: 1.973ms
 23666 bytes
 
 
@@ -112,6 +112,6 @@ cssnano: 2.198s
 esbuild: 107.668ms
 1961642 bytes
 
-parcel-css: 45.701ms
-1799209 bytes
+parcel-css: 43.368ms
+1824130 bytes
 ```

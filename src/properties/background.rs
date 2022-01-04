@@ -474,7 +474,7 @@ impl PropertyHandler for BackgroundHandler {
       self.decls.pop();
     }
 
-    dest.extend(&mut self.decls);
+    dest.extend(self.decls.drain(..));
     self.flush(dest);
   }
 }

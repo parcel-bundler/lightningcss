@@ -351,7 +351,7 @@ impl PropertyHandler for DisplayHandler {
       return
     }
 
-    dest.extend(&mut self.decls);
+    dest.extend(self.decls.drain(..));
 
     if let Some(display) = std::mem::take(&mut self.display) {
       // If we have an unprefixed `flex` value, then add the necessary prefixed values.

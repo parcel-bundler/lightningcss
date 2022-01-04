@@ -27,21 +27,27 @@ use crate::error::{ParserError, PrinterError};
 
 #[derive(Debug, PartialEq)]
 pub struct DeclarationBlock {
-  pub declarations: Vec<Declaration>
+  pub important_declarations: Vec<Property>,
+  pub declarations: Vec<Property>
 }
 
 impl DeclarationBlock {
   pub fn parse<'i, 't>(input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser { options });
-    let mut declarations = vec![];
-    while let Some(decl) = parser.next() {
-      match decl {
-        Ok(decl) => declarations.push(decl),
-        Err((err, _)) => return Err(err)
+    let mut important_declarations = DeclarationList::new();
+    let mut declarations = DeclarationList::new();
+    let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser {
+      important_declarations: &mut important_declarations,
+      declarations: &mut declarations,
+      options
+    });
+    while let Some(res) = parser.next() {
+      if let Err((err, _)) = res {
+        return Err(err)
       }
     }
 
     Ok(DeclarationBlock {
+      important_declarations,
       declarations
     })
   }
@@ -52,14 +58,26 @@ impl ToCss for DeclarationBlock {
     dest.whitespace()?;
     dest.write_char('{')?;
     dest.indent();
-    let len = self.declarations.len();
-    for (i, decl) in self.declarations.iter().enumerate() {
-      dest.newline()?;
-      decl.to_css(dest)?;
-      if i != len - 1 || !dest.minify {
-        dest.write_char(';')?;
-      }
+
+    let mut i = 0;
+    let len = self.declarations.len() + self.important_declarations.len();
+
+    macro_rules! write {
+      ($decls: expr, $important: literal) => {
+        for decl in &$decls {
+          dest.newline()?;
+          decl.to_css(dest, $important)?;
+          if i != len - 1 || !dest.minify {
+            dest.write_char(';')?;
+          }
+          i += 1;
+        }
+      };
     }
+
+    write!(self.declarations, false);
+    write!(self.important_declarations, true);
+    
     dest.dedent();
     dest.newline()?;
     dest.write_char('}')
@@ -68,30 +86,37 @@ impl ToCss for DeclarationBlock {
 
 impl DeclarationBlock {
   pub(crate) fn minify(&mut self, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
-    let mut decls: Vec<Declaration> = vec![];
-    for decl in self.declarations.iter() {
-      let handled = 
-        (decl.important && important_handler.handle_property(decl)) ||
-        (!decl.important && handler.handle_property(decl));
-
-      if !handled {
-        decls.push(decl.clone());
-      }
+    macro_rules! handle {
+      ($decls: expr, $handler: expr) => {
+        for decl in $decls.iter() {
+          let handled = $handler.handle_property(decl);
+    
+          if !handled {
+            $handler.decls.push(decl.clone());
+          }
+        }
+      };
     }
 
-    decls.extend(handler.finalize());
-    decls.extend(important_handler.finalize());
-    self.declarations = decls;
+    handle!(self.important_declarations, important_handler);
+    handle!(self.declarations, handler);
+
+    handler.finalize();
+    important_handler.finalize();
+    self.important_declarations = std::mem::take(&mut important_handler.decls);
+    self.declarations = std::mem::take(&mut handler.decls);
   }
 }
 
 struct PropertyDeclarationParser<'a> {
+  important_declarations: &'a mut Vec<Property>,
+  declarations: &'a mut Vec<Property>,
   options: &'a ParserOptions
 }
 
 /// Parse a declaration within {} block: `color: blue`
 impl<'a, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a> {
-  type Declaration = Declaration;
+  type Declaration = ();
   type Error = ParserError<'i>;
 
   fn parse_value<'t>(
@@ -99,63 +124,38 @@ impl<'a, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a> 
     name: CowRcStr<'i>,
     input: &mut cssparser::Parser<'i, 't>,
   ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
-    Declaration::parse(name, input, self.options)
+    parse_declaration(name, input, &mut self.declarations, &mut self.important_declarations, &self.options)
   }
 }
 
 /// Default methods reject all at rules.
 impl<'a, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a> {
   type Prelude = ();
-  type AtRule = Declaration;
+  type AtRule = ();
   type Error = ParserError<'i>;
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Declaration {
-  pub property: Property,
-  pub important: bool
+pub(crate) fn parse_declaration<'i, 't>(
+  name: CowRcStr<'i>,
+  input: &mut cssparser::Parser<'i, 't>,
+  declarations: &mut DeclarationList,
+  important_declarations: &mut DeclarationList,
+  options: &ParserOptions
+) -> Result<(), cssparser::ParseError<'i, ParserError<'i>>> {
+  let property = input.parse_until_before(Delimiter::Bang, |input| Property::parse(name, input, options))?;
+  let important = input.try_parse(|input| {
+    input.expect_delim('!')?;
+    input.expect_ident_matching("important")
+  }).is_ok();
+  if important {
+    important_declarations.push(property);
+  } else {
+    declarations.push(property);
+  }
+  Ok(())
 }
 
-impl Declaration {
-  pub fn parse<'i, 't>(name: CowRcStr<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let property = input.parse_until_before(Delimiter::Bang, |input| Property::parse(name, input, options))?;
-    let important = input.try_parse(|input| {
-      input.expect_delim('!')?;
-      input.expect_ident_matching("important")
-    }).is_ok();
-    Ok(Declaration { property, important })
-  }
-}
-
-impl ToCss for Declaration {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
-    self.property.to_css(dest, self.important)
-  }
-}
-
-#[derive(Default)]
-pub(crate) struct DeclarationList {
-  important: bool,
-  pub declarations: Vec<Declaration>
-}
-
-impl DeclarationList {
-  pub fn new(important: bool) -> DeclarationList {
-    DeclarationList {
-      important,
-      declarations: Vec::new()
-    }
-  }
-
-  pub fn push(&mut self, property: Property) {
-    self.declarations.push(Declaration { property, important: self.important })
-  }
-
-  pub fn extend(&mut self, properties: &mut Vec<Property>) {
-    let important = self.important;
-    self.declarations.extend(properties.drain(..).map(|property| Declaration { property, important }))
-  }
-}
+pub(crate) type DeclarationList = Vec<Property>;
 
 #[derive(Default)]
 pub(crate) struct DeclarationHandler {
@@ -184,7 +184,7 @@ pub(crate) struct DeclarationHandler {
 }
 
 impl DeclarationHandler {
-  pub fn new(important: bool, targets: Option<Browsers>) -> Self {
+  pub fn new(targets: Option<Browsers>) -> Self {
     DeclarationHandler {
       background: BackgroundHandler::new(targets),
       border: BorderHandler::new(targets),
@@ -198,13 +198,12 @@ impl DeclarationHandler {
       transform: TransformHandler::new(targets),
       text: TextDecorationHandler::new(targets),
       prefix: PrefixHandler::new(targets),
-      decls: DeclarationList::new(important),
+      decls: DeclarationList::new(),
       ..DeclarationHandler::default()
     }
   }
 
-  pub fn handle_property(&mut self, decl: &Declaration) -> bool {
-    let property = &decl.property;
+  pub fn handle_property(&mut self, property: &Property) -> bool {
     self.background.handle_property(property, &mut self.decls) ||
     self.border.handle_property(property, &mut self.decls) ||
     self.outline.handle_property(property, &mut self.decls) ||
@@ -228,7 +227,7 @@ impl DeclarationHandler {
     self.prefix.handle_property(property, &mut self.decls)
   }
 
-  pub fn finalize(&mut self) -> Vec<Declaration> {
+  pub fn finalize(&mut self) {
     self.background.finalize(&mut self.decls);
     self.border.finalize(&mut self.decls);
     self.outline.finalize(&mut self.decls);
@@ -250,6 +249,5 @@ impl DeclarationHandler {
     self.overflow.finalize(&mut self.decls);
     self.transform.finalize(&mut self.decls);
     self.prefix.finalize(&mut self.decls);
-    std::mem::take(&mut self.decls.declarations)
   }
 }

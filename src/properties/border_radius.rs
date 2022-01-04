@@ -143,14 +143,14 @@ impl BorderRadiusHandler {
       return
     }
 
-    self.has_any = true;
+    self.has_any = false;
 
     let mut top_left = std::mem::take(&mut self.top_left);
     let mut top_right = std::mem::take(&mut self.top_right);
     let mut bottom_left = std::mem::take(&mut self.bottom_left);
     let mut bottom_right = std::mem::take(&mut self.bottom_right);
 
-    dest.extend(&mut self.logical);
+    dest.extend(self.logical.drain(..));
 
     if let (Some((top_left, tl_prefix)), Some((top_right, tr_prefix)), Some((bottom_left, bl_prefix)), Some((bottom_right, br_prefix))) = (&mut top_left, &mut top_right, &mut bottom_left, &mut bottom_right) {
       let intersection = *tl_prefix & *tr_prefix & *bl_prefix & *br_prefix;
