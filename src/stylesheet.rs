@@ -63,8 +63,8 @@ impl StyleSheet {
 
   pub fn minify(&mut self, targets: Option<Browsers>) {
     let mut logical_properties = LogicalProperties::new(&self.filename, targets);
-    let mut handler = DeclarationHandler::new(false, targets);
-    let mut important_handler = DeclarationHandler::new(true, targets);
+    let mut handler = DeclarationHandler::new(targets);
+    let mut important_handler = DeclarationHandler::new(targets);
     self.rules.minify(targets, &mut handler, &mut important_handler, &mut logical_properties);
     logical_properties.to_rules(&mut self.rules);
   }
@@ -136,8 +136,8 @@ impl StyleAttribute {
 
   pub fn minify(&mut self, targets: Option<Browsers>) {
     let mut logical_properties = LogicalProperties::new("", None);
-    let mut handler = DeclarationHandler::new(false, targets);
-    let mut important_handler = DeclarationHandler::new(true, targets);
+    let mut handler = DeclarationHandler::new(targets);
+    let mut important_handler = DeclarationHandler::new(targets);
     self.declarations.minify(&mut handler, &mut important_handler, &mut logical_properties);
   }
 
@@ -155,15 +155,24 @@ impl StyleAttribute {
 
     printer.dependencies = dependencies.as_mut();
 
-    let declarations = &self.declarations.declarations;
-    let len = declarations.len();
-    for (i, decl) in declarations.iter().enumerate() {
-      decl.to_css(&mut printer)?;
-      if i != len - 1 {
-        printer.write_char(';')?;
-        printer.whitespace()?;
-      }
+    let len = self.declarations.declarations.len() + self.declarations.important_declarations.len();
+    let mut i = 0;
+
+    macro_rules! write {
+      ($decls: expr, $important: literal) => {
+        for decl in &$decls {
+          decl.to_css(&mut printer, $important)?;
+          if i != len - 1 {
+            printer.write_char(';')?;
+            printer.whitespace()?;
+          }
+          i += 1;
+        }
+      };
     }
+
+    write!(self.declarations.declarations, false);
+    write!(self.declarations.important_declarations, true);
 
     Ok(ToCssResult {
       code: dest,

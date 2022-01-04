@@ -252,7 +252,7 @@ struct PhysicalToLogical {
 macro_rules! get_physical {
   ($physical_to_logical: expr, $key: ident, $dest: ident) => {
     if let Some(index) = $physical_to_logical.$key {
-      $dest.declarations.get_mut(index).map(|x| &mut x.property)
+      $dest.get_mut(index)
     } else {
       None
     }
@@ -474,7 +474,7 @@ impl BorderHandler {
         if let Some(Property::Logical(property)) = get_physical!(self.physical_to_logical, $ltr_key, dest) {
           property.ltr = Some(Box::new(Property::$ltr($val.clone())));
         } else {
-          self.physical_to_logical.$ltr_key = Some(dest.declarations.len());
+          self.physical_to_logical.$ltr_key = Some(dest.len());
           dest.push(Property::Logical(LogicalProperty {
             property_id: PropertyId::$ltr,
             ltr: Some(Box::new(Property::$ltr($val.clone()))),
@@ -485,7 +485,7 @@ impl BorderHandler {
         if let Some(Property::Logical(property)) = get_physical!(self.physical_to_logical, $rtl_key, dest) {
           property.rtl = Some(Box::new(Property::$rtl($val.clone())));
         } else {
-          self.physical_to_logical.$rtl_key = Some(dest.declarations.len());
+          self.physical_to_logical.$rtl_key = Some(dest.len());
           dest.push(Property::Logical(LogicalProperty {
             property_id: PropertyId::$rtl,
             ltr: None,
@@ -868,7 +868,7 @@ impl BorderHandler {
         if let Some(Property::Logical(property)) = get_physical!(self.physical_to_logical, $ltr_key, dest) {
           property.ltr = ltr;
         } else {
-          self.physical_to_logical.$ltr_key = Some(dest.declarations.len());
+          self.physical_to_logical.$ltr_key = Some(dest.len());
           dest.push(Property::Logical(LogicalProperty {
             property_id: PropertyId::$ltr,
             ltr,
@@ -879,7 +879,7 @@ impl BorderHandler {
         if let Some(Property::Logical(property)) = get_physical!(self.physical_to_logical, $rtl_key, dest) {
           property.rtl = rtl;
         } else {
-          self.physical_to_logical.$rtl_key = Some(dest.declarations.len());
+          self.physical_to_logical.$rtl_key = Some(dest.len());
           dest.push(Property::Logical(LogicalProperty {
             property_id: PropertyId::$rtl,
             ltr: None,

@@ -34,8 +34,8 @@ macro_rules! define_prefixes {
           $(
             Property::$name(val, prefix) => {
               if let Some(i) = self.$name {
-                if let Some(decl) = dest.declarations.get_mut(i) {
-                  if let Property::$name(cur, prefixes) = &mut decl.property {
+                if let Some(decl) = dest.get_mut(i) {
+                  if let Property::$name(cur, prefixes) = decl {
                     // If the value is the same, update the prefix.
                     // If the prefix is the same, then update the value.
                     if val == cur || prefixes.contains(*prefix) {
@@ -65,7 +65,7 @@ macro_rules! define_prefixes {
               };
 
               // Store the index of the property, so we can update it later.
-              self.$name = Some(dest.declarations.len());
+              self.$name = Some(dest.len());
               dest.push(Property::$name(val.clone(), prefixes))
             }
           )+

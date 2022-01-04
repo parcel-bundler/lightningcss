@@ -2,7 +2,7 @@ use cssparser::SourceLocation;
 use crate::rules::{CssRule, CssRuleList, style::StyleRule};
 use parcel_selectors::SelectorList;
 use crate::selector::{SelectorIdent, SelectorString};
-use crate::declaration::{Declaration, DeclarationBlock};
+use crate::declaration::DeclarationBlock;
 use crate::css_modules::hash;
 use crate::vendor_prefix::VendorPrefix;
 use crate::compat::Feature;
@@ -69,21 +69,16 @@ impl LogicalProperties {
           rules: CssRuleList(vec![]),
           vendor_prefix: VendorPrefix::empty(),
           declarations: DeclarationBlock {
+            important_declarations: vec![],
             declarations: vec![
-              Declaration {
-                property: Property::Custom(CustomProperty {
-                  name: "--ltr".into(),
-                  value: $ltr.into()
-                }),
-                important: false
-              },
-              Declaration {
-                property: Property::Custom(CustomProperty {
-                  name: "--rtl".into(),
-                  value: $rtl.into()
-                }),
-                important: false
-              }
+              Property::Custom(CustomProperty {
+                name: "--ltr".into(),
+                value: $ltr.into()
+              }),
+              Property::Custom(CustomProperty {
+                name: "--rtl".into(),
+                value: $rtl.into()
+              })
             ]
           },
           loc: SourceLocation {

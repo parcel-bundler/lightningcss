@@ -183,7 +183,7 @@ impl BorderRadiusHandler {
       return
     }
 
-    self.has_any = true;
+    self.has_any = false;
 
     let mut top_left = std::mem::take(&mut self.top_left);
     let mut top_right = std::mem::take(&mut self.top_right);
