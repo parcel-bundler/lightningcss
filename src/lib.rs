@@ -1546,6 +1546,39 @@ mod tests {
       safari: Some(8 << 16),
       ..Browsers::default()
     });
+
+    prefix_test(r#"
+      .foo {
+        padding-top: 1px;
+        padding-left: 2px;
+        padding-bottom: 3px;
+        padding-right: 4px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        padding: 1px 4px 3px 2px;
+      }
+    "#}, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+  }
+
+  #[test]
+  fn test_scroll_padding() {
+    prefix_test(r#"
+      .foo {
+        scroll-padding-inline: 2px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        scroll-padding-inline: 2px;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]
@@ -6392,6 +6425,119 @@ mod tests {
         inset-inline: 4px 5px;
       }
     "#});
+
+    prefix_test(r#"
+      .foo {
+        inset-inline-start: 2px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        left: var(--ltr, 2px);
+        right: var(--rtl, 2px);
+      }
+
+      [dir="ltr"] {
+        --ltr: initial;
+        --rtl: ;
+      }
+
+      [dir="rtl"] {
+        --ltr: ;
+        --rtl: initial;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        inset-inline-start: 2px;
+        inset-inline-end: 4px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        left: var(--ltr, 2px) var(--rtl, 4px);
+        right: var(--ltr, 4px) var(--rtl, 2px);
+      }
+
+      [dir="ltr"] {
+        --ltr: initial;
+        --rtl: ;
+      }
+
+      [dir="rtl"] {
+        --ltr: ;
+        --rtl: initial;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        inset-inline: 2px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        left: 2px;
+        right: 2px;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        inset-block-start: 2px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        top: 2px;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        inset-block-end: 2px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        bottom: 2px;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        top: 1px;
+        left: 2px;
+        bottom: 3px;
+        right: 4px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        top: 1px;
+        bottom: 3px;
+        left: 2px;
+        right: 4px;
+      }
+    "#}, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]

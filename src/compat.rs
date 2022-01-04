@@ -34,7 +34,9 @@ pub enum Feature {
   Fullscreen,
   LogicalBorderRadius,
   LogicalBorders,
+  LogicalInset,
   LogicalMargin,
+  LogicalPadding,
   MediaIntervalSyntax,
   MediaRangeSyntax,
   OverflowShorthand,
@@ -1291,7 +1293,8 @@ impl Feature {
         }
       }
       Feature::LogicalBorders |
-      Feature::LogicalMargin => {
+      Feature::LogicalMargin |
+      Feature::LogicalPadding => {
         if let Some(version) = browsers.chrome {
           if version >= 4521984 {
             return true
@@ -1371,6 +1374,48 @@ impl Feature {
         }
         if let Some(version) = browsers.android {
           if version >= 5832704 {
+            return true
+          }
+        }
+      }
+      Feature::LogicalInset => {
+        if let Some(version) = browsers.chrome {
+          if version >= 5701632 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version >= 5701632 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version >= 4128768 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version >= 4063232 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version >= 917760 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version >= 918784 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version >= 917504 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version >= 5701632 {
             return true
           }
         }

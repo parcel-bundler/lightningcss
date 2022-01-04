@@ -22,7 +22,7 @@ impl Default for SideCategory {
 }
 
 macro_rules! side_handler {
-  ($name: ident, $top: ident, $bottom: ident, $left: ident, $right: ident, $block_start: ident, $block_end: ident, $inline_start: ident, $inline_end: ident, $shorthand: ident, $block_shorthand: ident, $inline_shorthand: ident) => {
+  ($name: ident, $top: ident, $bottom: ident, $left: ident, $right: ident, $block_start: ident, $block_end: ident, $inline_start: ident, $inline_end: ident, $shorthand: ident, $block_shorthand: ident, $inline_shorthand: ident, $logical_shorthand: literal $(, $feature: ident)?) => {
     #[derive(Debug, Default)]
     pub(crate) struct $name {
       top: Option<LengthPercentageOrAuto>,
@@ -116,8 +116,9 @@ macro_rules! side_handler {
         let bottom = std::mem::take(&mut self.bottom);
         let left = std::mem::take(&mut self.left);
         let right = std::mem::take(&mut self.right);
+        let logical_supported = true $(&& logical_properties.is_supported(Feature::$feature))?;
 
-        if top.is_some() && bottom.is_some() && left.is_some() && right.is_some() {
+        if (!$logical_shorthand || logical_supported) && top.is_some() && bottom.is_some() && left.is_some() && right.is_some() {
           let rect = Rect::new(top.unwrap(), right.unwrap(), bottom.unwrap(), left.unwrap());
           dest.push($shorthand(rect));
         } else {
@@ -160,7 +161,6 @@ macro_rules! side_handler {
           };
         }
 
-        let logical_supported = logical_properties.is_supported(Feature::LogicalMargin);
         if logical_supported {
           logical_side!(block_start, block_end, $block_shorthand, $block_start, $block_end);
         } else {
@@ -227,7 +227,9 @@ side_handler!(
   MarginInlineEnd,
   Margin,
   MarginBlock,
-  MarginInline
+  MarginInline,
+  false,
+  LogicalMargin
 );
 
 side_handler!(
@@ -242,7 +244,9 @@ side_handler!(
   PaddingInlineEnd,
   Padding,
   PaddingBlock,
-  PaddingInline
+  PaddingInline,
+  false,
+  LogicalPadding
 );
 
 side_handler!(
@@ -257,7 +261,8 @@ side_handler!(
   ScrollMarginInlineEnd,
   ScrollMargin,
   ScrollMarginBlock,
-  ScrollMarginInline
+  ScrollMarginInline,
+  false
 );
 
 side_handler!(
@@ -272,7 +277,8 @@ side_handler!(
   ScrollPaddingInlineEnd,
   ScrollPadding,
   ScrollPaddingBlock,
-  ScrollPaddingInline
+  ScrollPaddingInline,
+  false
 );
 
 side_handler!(
@@ -287,5 +293,7 @@ side_handler!(
   InsetInlineEnd,
   Inset,
   InsetBlock,
-  InsetInline
+  InsetInline,
+  true,
+  LogicalInset
 );
