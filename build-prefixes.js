@@ -197,7 +197,8 @@ let mdnFeatures = {
   mediaRangeSyntax: mdn.css['at-rules'].media.range_syntax.__compat.support,
   mediaIntervalSyntax: {}, // currently no browsers
   logicalBorders: mdn.css.properties['border-inline-start'].__compat.support,
-  logicalBorderRadius: mdn.css.properties['border-start-start-radius'].__compat.support
+  logicalBorderRadius: mdn.css.properties['border-start-start-radius'].__compat.support,
+  logicalMargin: mdn.css.properties['margin-inline-start'].__compat.support
 };
 
 for (let feature in mdnFeatures) {
@@ -206,8 +207,15 @@ for (let feature in mdnFeatures) {
     if (MDN_BROWSER_MAPPING[name] === null) {
       continue;
     }
+
+    let feat = mdnFeatures[feature][name];
+    let version;
+    if (Array.isArray(feat)) {
+      version = feat.find(x => x.version_added && !x.alternative_name).version_added;
+    } else {
+      version = feat.version_added;
+    }
   
-    let version = mdnFeatures[feature][name].version_added;
     if (!version) {
       continue;
     }

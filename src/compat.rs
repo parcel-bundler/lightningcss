@@ -34,6 +34,7 @@ pub enum Feature {
   Fullscreen,
   LogicalBorderRadius,
   LogicalBorders,
+  LogicalMargin,
   MediaIntervalSyntax,
   MediaRangeSyntax,
   OverflowShorthand,
@@ -1289,7 +1290,8 @@ impl Feature {
           }
         }
       }
-      Feature::LogicalBorders => {
+      Feature::LogicalBorders |
+      Feature::LogicalMargin => {
         if let Some(version) = browsers.chrome {
           if version >= 4521984 {
             return true

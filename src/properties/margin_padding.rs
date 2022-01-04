@@ -6,7 +6,8 @@ use crate::values::{
 use crate::properties::{Property, PropertyId};
 use crate::declaration::DeclarationList;
 use crate::traits::PropertyHandler;
-use crate::logical::LogicalProperties;
+use crate::logical::{LogicalProperties, LogicalProperty};
+use crate::compat::Feature;
 
 #[derive(Debug, PartialEq)]
 enum SideCategory {
@@ -37,13 +38,13 @@ macro_rules! side_handler {
     }
 
     impl PropertyHandler for $name {
-      fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, _: &mut LogicalProperties) -> bool {
+      fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
         use Property::*;
 
         macro_rules! property {
           ($key: ident, $val: ident, $category: ident) => {{
             if SideCategory::$category != self.category {
-              self.flush(dest);
+              self.flush(dest, logical);
             }
             self.$key = Some($val.clone());
             self.category = SideCategory::$category;
@@ -54,7 +55,7 @@ macro_rules! side_handler {
         macro_rules! set_shorthand {
           ($start: ident, $end: ident, $val: ident) => {{
             if self.category != SideCategory::Logical {
-              self.flush(dest);
+              self.flush(dest, logical);
             }
             self.$start = Some($val.0.clone());
             self.$end = Some($val.1.clone());
@@ -87,7 +88,7 @@ macro_rules! side_handler {
             self.has_any = true;
           }
           Unparsed(val) if matches!(val.property_id, PropertyId::$top | PropertyId::$bottom | PropertyId::$left | PropertyId::$right | PropertyId::$block_start | PropertyId::$block_end | PropertyId::$inline_start | PropertyId::$inline_end | PropertyId::$block_shorthand | PropertyId::$inline_shorthand | PropertyId::$shorthand) => {
-            self.flush(dest);
+            self.flush(dest, logical);
             dest.push(property.clone());
           }
           _ => return false
@@ -96,13 +97,13 @@ macro_rules! side_handler {
         true
       }
 
-      fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
-        self.flush(dest);
+      fn finalize(&mut self, dest: &mut DeclarationList, logical: &mut LogicalProperties) {
+        self.flush(dest, logical);
       }
     }
 
     impl $name {
-      fn flush(&mut self, dest: &mut DeclarationList) {
+      fn flush(&mut self, dest: &mut DeclarationList, logical_properties: &mut LogicalProperties) {
         use Property::*;
 
         if !self.has_any {
@@ -155,12 +156,55 @@ macro_rules! side_handler {
               if let Some(val) = $end {
                 dest.push($end_prop(val));
               }
-            }    
+            }
           };
         }
 
-        logical_side!(block_start, block_end, $block_shorthand, $block_start, $block_end);
-        logical_side!(inline_start, inline_end, $inline_shorthand, $inline_start, $inline_end);
+        let logical_supported = logical_properties.is_supported(Feature::LogicalMargin);
+        if logical_supported {
+          logical_side!(block_start, block_end, $block_shorthand, $block_start, $block_end);
+        } else {
+          if let Some(val) = block_start {
+            dest.push($top(val));
+          }
+
+          if let Some(val) = block_end {
+            dest.push($bottom(val));
+          }
+        }
+
+        if logical_supported {
+          logical_side!(inline_start, inline_end, $inline_shorthand, $inline_start, $inline_end);
+        } else if inline_start.is_some() || inline_end.is_some() {
+          logical_properties.used = true;
+          dest.push(Property::Logical(LogicalProperty {
+            property_id: PropertyId::$left,
+            ltr: if let Some(val) = &inline_start {
+              Some(Box::new(Property::$left(val.clone())))
+            } else {
+              None
+            },
+            rtl: if let Some(val) = &inline_end {
+              Some(Box::new(Property::$right(val.clone())))
+            } else {
+              None
+            }
+          }));
+
+          dest.push(Property::Logical(LogicalProperty {
+            property_id: PropertyId::$right,
+            ltr: if let Some(val) = &inline_end {
+              Some(Box::new(Property::$left(val.clone())))
+            } else {
+              None
+            },
+            rtl: if let Some(val) = &inline_start {
+              Some(Box::new(Property::$right(val.clone())))
+            } else {
+              None
+            }
+          }));
+        }
       }
     }
   };
