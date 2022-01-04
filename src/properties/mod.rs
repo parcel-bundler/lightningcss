@@ -22,6 +22,7 @@ pub mod list;
 #[cfg(feature = "grid")]
 pub mod grid;
 pub mod css_modules;
+pub mod size;
 
 use cssparser::*;
 use custom::*;
@@ -45,7 +46,8 @@ use list::*;
 #[cfg(feature = "grid")]
 use grid::*;
 use css_modules::*;
-use crate::values::{image::*, length::*, position::*, alpha::*, size::*, rect::*, color::*, time::Time, easing::EasingFunction};
+use size::*;
+use crate::values::{image::*, length::*, position::*, alpha::*, size::Size2D, rect::*, color::*, time::Time, easing::EasingFunction};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use smallvec::{SmallVec, smallvec};

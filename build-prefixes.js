@@ -198,7 +198,10 @@ let mdnFeatures = {
   mediaIntervalSyntax: {}, // currently no browsers
   logicalBorders: mdn.css.properties['border-inline-start'].__compat.support,
   logicalBorderRadius: mdn.css.properties['border-start-start-radius'].__compat.support,
-  logicalMargin: mdn.css.properties['margin-inline-start'].__compat.support
+  logicalMargin: mdn.css.properties['margin-inline-start'].__compat.support,
+  logicalPadding: mdn.css.properties['padding-inline-start'].__compat.support,
+  logicalInset: mdn.css.properties['inset-inline-start'].__compat.support,
+  logicalSize: mdn.css.properties['inline-size'].__compat.support
 };
 
 for (let feature in mdnFeatures) {

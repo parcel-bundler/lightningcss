@@ -20,6 +20,7 @@ use crate::properties::{
   overflow::OverflowHandler,
   list::ListStyleHandler,
   grid::GridHandler,
+  size::SizeHandler,
 };
 use crate::targets::Browsers;
 use crate::parser::ParserOptions;
@@ -170,6 +171,7 @@ pub(crate) struct DeclarationHandler {
   flex: FlexHandler,
   grid: GridHandler,
   align: AlignHandler,
+  size: SizeHandler,
   margin: MarginHandler,
   padding: PaddingHandler,
   scroll_margin: ScrollMarginHandler,
@@ -197,6 +199,7 @@ impl DeclarationHandler {
       flex: FlexHandler::new(targets),
       grid: GridHandler::default(),
       align: AlignHandler::new(targets),
+      size: SizeHandler::default(),
       margin: MarginHandler::default(),
       padding: PaddingHandler::default(),
       scroll_margin: ScrollMarginHandler::default(),
@@ -223,6 +226,7 @@ impl DeclarationHandler {
     self.flex.handle_property(property, &mut self.decls, logical_properties) ||
     self.grid.handle_property(property, &mut self.decls, logical_properties) ||
     self.align.handle_property(property, &mut self.decls, logical_properties) ||
+    self.size.handle_property(property, &mut self.decls, logical_properties) ||
     self.margin.handle_property(property, &mut self.decls, logical_properties) ||
     self.padding.handle_property(property, &mut self.decls, logical_properties) ||
     self.scroll_margin.handle_property(property, &mut self.decls, logical_properties) ||
@@ -247,6 +251,7 @@ impl DeclarationHandler {
     self.flex.finalize(&mut self.decls, logical_properties);
     self.grid.finalize(&mut self.decls, logical_properties);
     self.align.finalize(&mut self.decls, logical_properties);
+    self.size.finalize(&mut self.decls, logical_properties);
     self.margin.finalize(&mut self.decls, logical_properties);
     self.padding.finalize(&mut self.decls, logical_properties);
     self.scroll_margin.finalize(&mut self.decls, logical_properties);

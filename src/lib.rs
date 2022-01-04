@@ -1582,6 +1582,66 @@ mod tests {
   }
 
   #[test]
+  fn test_size() {
+    prefix_test(r#"
+      .foo {
+        block-size: 25px;
+        inline-size: 25px;
+        min-block-size: 25px;
+        min-inline-size: 25px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        height: 25px;
+        width: 25px;
+        min-height: 25px;
+        min-width: 25px;
+      }
+    "#}, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        block-size: 25px;
+        inline-size: 25px;
+        min-block-size: 25px;
+        min-inline-size: 25px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        block-size: 25px;
+        inline-size: 25px;
+        min-block-size: 25px;
+        min-inline-size: 25px;
+      }
+    "#}, Browsers {
+      safari: Some(14 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        block-size: var(--size);
+        inline-size: var(--size);
+        min-block-size: var(--size);
+        min-inline-size: var(--size);
+      }
+    "#, indoc! {r#"
+      .foo {
+        height: var(--size);
+        width: var(--size);
+        min-height: var(--size);
+        min-width: var(--size);
+      }
+    "#}, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+  }
+
+  #[test]
   pub fn test_background() {
     test(r#"
       .foo {

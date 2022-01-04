@@ -37,6 +37,7 @@ pub enum Feature {
   LogicalInset,
   LogicalMargin,
   LogicalPadding,
+  LogicalSize,
   MediaIntervalSyntax,
   MediaRangeSyntax,
   OverflowShorthand,
@@ -1416,6 +1417,48 @@ impl Feature {
         }
         if let Some(version) = browsers.android {
           if version >= 5701632 {
+            return true
+          }
+        }
+      }
+      Feature::LogicalSize => {
+        if let Some(version) = browsers.chrome {
+          if version >= 3735552 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version >= 5177344 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version >= 2686976 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version >= 2818048 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version >= 786688 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version >= 786944 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version >= 327680 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version >= 3735552 {
             return true
           }
         }
