@@ -1362,6 +1362,21 @@ mod tests {
 
     prefix_test(r#"
       .foo {
+        margin-inline: 2px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        margin-left: 2px;
+        margin-right: 2px;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
         margin-block-start: 2px;
       }
     "#, indoc! {r#"
@@ -1482,6 +1497,21 @@ mod tests {
       [dir="rtl"] {
         --ltr: ;
         --rtl: initial;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        padding-inline: 2px;
+      }
+    "#, indoc! {r#"
+      .foo {
+        padding-left: 2px;
+        padding-right: 2px;
       }
     "#
     }, Browsers {

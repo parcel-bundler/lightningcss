@@ -176,34 +176,39 @@ macro_rules! side_handler {
         if logical_supported {
           logical_side!(inline_start, inline_end, $inline_shorthand, $inline_start, $inline_end);
         } else if inline_start.is_some() || inline_end.is_some() {
-          logical_properties.used = true;
-          dest.push(Property::Logical(LogicalProperty {
-            property_id: PropertyId::$left,
-            ltr: if let Some(val) = &inline_start {
-              Some(Box::new(Property::$left(val.clone())))
-            } else {
-              None
-            },
-            rtl: if let Some(val) = &inline_end {
-              Some(Box::new(Property::$right(val.clone())))
-            } else {
-              None
-            }
-          }));
+          if inline_start == inline_end {
+            dest.push($left(inline_start.unwrap()));
+            dest.push($right(inline_end.unwrap()));
+          } else {
+            logical_properties.used = true;
+            dest.push(Property::Logical(LogicalProperty {
+              property_id: PropertyId::$left,
+              ltr: if let Some(val) = &inline_start {
+                Some(Box::new(Property::$left(val.clone())))
+              } else {
+                None
+              },
+              rtl: if let Some(val) = &inline_end {
+                Some(Box::new(Property::$right(val.clone())))
+              } else {
+                None
+              }
+            }));
 
-          dest.push(Property::Logical(LogicalProperty {
-            property_id: PropertyId::$right,
-            ltr: if let Some(val) = &inline_end {
-              Some(Box::new(Property::$left(val.clone())))
-            } else {
-              None
-            },
-            rtl: if let Some(val) = &inline_start {
-              Some(Box::new(Property::$right(val.clone())))
-            } else {
-              None
-            }
-          }));
+            dest.push(Property::Logical(LogicalProperty {
+              property_id: PropertyId::$right,
+              ltr: if let Some(val) = &inline_end {
+                Some(Box::new(Property::$left(val.clone())))
+              } else {
+                None
+              },
+              rtl: if let Some(val) = &inline_start {
+                Some(Box::new(Property::$right(val.clone())))
+              } else {
+                None
+              }
+            }));
+          }
         }
       }
     }
