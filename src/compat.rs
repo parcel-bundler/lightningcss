@@ -38,6 +38,7 @@ pub enum Feature {
   LogicalMargin,
   LogicalPadding,
   LogicalSize,
+  LogicalTextAlign,
   MediaIntervalSyntax,
   MediaRangeSyntax,
   OverflowShorthand,
@@ -1459,6 +1460,48 @@ impl Feature {
         }
         if let Some(version) = browsers.android {
           if version >= 3735552 {
+            return true
+          }
+        }
+      }
+      Feature::LogicalTextAlign => {
+        if let Some(version) = browsers.chrome {
+          if version >= 1179648 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version >= 5177344 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version >= 262144 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version >= 917504 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version >= 196864 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version >= 131072 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version >= 65536 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version >= 2424832 {
             return true
           }
         }

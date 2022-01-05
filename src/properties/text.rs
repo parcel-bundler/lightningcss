@@ -13,7 +13,8 @@ use crate::values::color::CssColor;
 use crate::printer::Printer;
 use bitflags::bitflags;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::logical::{LogicalProperties, LogicalProperty};
+use crate::compat;
 
 // https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-transform-property
 enum_property!(TextTransformCase,
@@ -770,6 +771,30 @@ impl PropertyHandler for TextDecorationHandler {
         property!(emphasis_color, &val.color, vp);
       }
       TextEmphasisPosition(val, vp) => property!(emphasis_position, val, vp),
+      TextAlign(align) => {
+        use super::text::*;
+        macro_rules! logical {
+          ($ltr: ident, $rtl: ident) => {{
+            let logical_supported = logical.is_supported(compat::Feature::LogicalTextAlign);
+            if logical_supported {
+              dest.push(property.clone());
+            } else {
+              logical.used = true;
+              dest.push(Property::Logical(LogicalProperty {
+                property_id: PropertyId::TextAlign,
+                ltr: Some(Box::new(Property::TextAlign(TextAlign::$ltr))),
+                rtl: Some(Box::new(Property::TextAlign(TextAlign::$rtl)))
+              }));
+            }
+          }};
+        }
+
+        match align {
+          TextAlign::Start => logical!(Left, Right),
+          TextAlign::End => logical!(Right, Left),
+          _ => dest.push(property.clone())
+        }
+      }
       Unparsed(val) if is_text_decoration_property(&val.property_id) => {
         self.finalize(dest, logical);
         dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::TextDecoration)))

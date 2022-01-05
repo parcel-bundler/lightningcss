@@ -5932,6 +5932,68 @@ mod tests {
     minify_test(".foo { text-align: Left }", ".foo{text-align:left}");
     minify_test(".foo { text-align: END }", ".foo{text-align:end}");
     minify_test(".foo { text-align: left }", ".foo{text-align:left}");
+
+    prefix_test(r#"
+      .foo {
+        text-align: start;
+      }
+    "#, indoc! {r#"
+      .foo {
+        text-align: var(--ltr, left) var(--rtl, right);
+      }
+
+      [dir="ltr"] {
+        --ltr: initial;
+        --rtl: ;
+      }
+
+      [dir="rtl"] {
+        --ltr: ;
+        --rtl: initial;
+      }
+    "#
+    }, Browsers {
+      safari: Some(2 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        text-align: end;
+      }
+    "#, indoc! {r#"
+      .foo {
+        text-align: var(--ltr, right) var(--rtl, left);
+      }
+
+      [dir="ltr"] {
+        --ltr: initial;
+        --rtl: ;
+      }
+
+      [dir="rtl"] {
+        --ltr: ;
+        --rtl: initial;
+      }
+    "#
+    }, Browsers {
+      safari: Some(2 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        text-align: start;
+      }
+    "#, indoc! {r#"
+      .foo {
+        text-align: start;
+      }
+    "#
+    }, Browsers {
+      safari: Some(14 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]
