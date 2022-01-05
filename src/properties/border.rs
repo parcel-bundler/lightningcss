@@ -1,11 +1,10 @@
-#![allow(non_upper_case_globals)]
 use crate::values::length::*;
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::values::color::CssColor;
 use crate::properties::{Property, PropertyId};
 use crate::declaration::DeclarationList;
-use crate::logical::{LogicalProperties, LogicalProperty};
+use crate::logical::{LogicalProperties, LogicalProperty, PropertyCategory};
 use crate::values::rect::Rect;
 use crate::macros::*;
 use super::border_image::*;
@@ -14,7 +13,6 @@ use crate::targets::Browsers;
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
 use crate::compat::Feature;
-use bitflags::bitflags;
 use crate::properties::custom::UnparsedProperty;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -203,40 +201,6 @@ impl BorderShorthand {
   }
 }
 
-#[derive(Debug, PartialEq)]
-enum BorderCategory {
-  Logical,
-  Physical
-}
-
-impl Default for BorderCategory {
-  fn default() -> BorderCategory {
-    BorderCategory::Physical
-  }
-}
-
-bitflags! {
-  /// Tracks which physical properties have already been emitted.
-  struct PhysicalProperties: u16 {
-    const BorderTop = 1 << 0;
-    const BorderTopColor = 1 << 1;
-    const BorderTopStyle = 1 << 2;
-    const BorderTopWidth = 1 << 3;
-    const BorderBottom = 1 << 4;
-    const BorderBottomColor = 1 << 5;
-    const BorderBottomStyle = 1 << 6;
-    const BorderBottomWidth = 1 << 7;
-    const BorderLeft = 1 << 8;
-    const BorderLeftColor = 1 << 9;
-    const BorderLeftStyle = 1 << 10;
-    const BorderLeftWidth = 1 << 11;
-    const BorderRight = 1 << 12;
-    const BorderRightColor = 1 << 13;
-    const BorderRightStyle = 1 << 14;
-    const BorderRightWidth = 1 << 15;
-  }
-}
-
 #[derive(Default, Debug)]
 struct PhysicalToLogical {
   border_left: Option<usize>,
@@ -269,15 +233,14 @@ pub(crate) struct BorderHandler {
   border_block_end: BorderShorthand,
   border_inline_start: BorderShorthand,
   border_inline_end: BorderShorthand,
-  category: BorderCategory,
+  category: PropertyCategory,
   border_image_handler: BorderImageHandler,
   border_radius_handler: BorderRadiusHandler,
   has_any: bool,
-  physical_properties: PhysicalProperties,
   physical_to_logical: PhysicalToLogical
 }
 
-impl<'a> BorderHandler {
+impl BorderHandler {
   pub fn new(targets: Option<Browsers>) -> BorderHandler {
     BorderHandler {
       border_top: BorderShorthand::default(),
@@ -288,11 +251,10 @@ impl<'a> BorderHandler {
       border_block_end: BorderShorthand::default(),
       border_inline_start: BorderShorthand::default(),
       border_inline_end: BorderShorthand::default(),
-      category: BorderCategory::default(),
+      category: PropertyCategory::default(),
       border_image_handler: BorderImageHandler::new(targets),
       border_radius_handler: BorderRadiusHandler::new(targets),
       has_any: false,
-      physical_properties: PhysicalProperties::empty(),
       physical_to_logical: PhysicalToLogical::default()
     }
   }
@@ -304,22 +266,22 @@ impl PropertyHandler for BorderHandler {
 
     macro_rules! property {
       ($key: ident, $prop: ident, $val: ident, $category: ident) => {{
-        if BorderCategory::$category != self.category {
+        if PropertyCategory::$category != self.category {
           self.flush(dest, logical);
         }
         self.$key.$prop = Some($val.clone());
-        self.category = BorderCategory::$category;
+        self.category = PropertyCategory::$category;
         self.has_any = true;
       }};
     }
 
     macro_rules! set_border {
       ($key: ident, $val: ident, $category: ident) => {{
-        if BorderCategory::$category != self.category {
+        if PropertyCategory::$category != self.category {
           self.flush(dest, logical);
         }
         self.$key.set_border($val);
-        self.category = BorderCategory::$category;
+        self.category = PropertyCategory::$category;
         self.has_any = true;
       }};
     }
@@ -453,7 +415,6 @@ impl PropertyHandler for BorderHandler {
     self.border_image_handler.finalize(dest, logical);
     self.border_radius_handler.finalize(dest, logical);
     self.flush(dest, logical);
-    self.physical_properties = PhysicalProperties::empty();
   }
 }
 

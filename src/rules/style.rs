@@ -27,7 +27,6 @@ impl StyleRule {
     important_handler: &mut DeclarationHandler,
     logical_properties: &mut LogicalProperties
   ) {
-    logical_properties.next_rule();
     self.declarations.minify(handler, important_handler, logical_properties);
   }
 

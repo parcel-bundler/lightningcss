@@ -62,7 +62,7 @@ impl StyleSheet {
   }
 
   pub fn minify(&mut self, targets: Option<Browsers>) {
-    let mut logical_properties = LogicalProperties::new(&self.filename, targets);
+    let mut logical_properties = LogicalProperties::new(targets);
     let mut handler = DeclarationHandler::new(targets);
     let mut important_handler = DeclarationHandler::new(targets);
     self.rules.minify(targets, &mut handler, &mut important_handler, &mut logical_properties);
@@ -135,7 +135,7 @@ impl StyleAttribute {
   }
 
   pub fn minify(&mut self, targets: Option<Browsers>) {
-    let mut logical_properties = LogicalProperties::new("", None);
+    let mut logical_properties = LogicalProperties::new(None);
     let mut handler = DeclarationHandler::new(targets);
     let mut important_handler = DeclarationHandler::new(targets);
     self.declarations.minify(&mut handler, &mut important_handler, &mut logical_properties);

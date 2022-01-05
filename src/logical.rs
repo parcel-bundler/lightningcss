@@ -2,8 +2,7 @@ use cssparser::SourceLocation;
 use crate::rules::{CssRule, CssRuleList, style::StyleRule};
 use parcel_selectors::SelectorList;
 use crate::selector::{SelectorIdent, SelectorString};
-use crate::declaration::DeclarationBlock;
-use crate::css_modules::hash;
+use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::vendor_prefix::VendorPrefix;
 use crate::compat::Feature;
 use crate::targets::Browsers;
@@ -23,18 +22,14 @@ use crate::properties::{
 #[derive(Debug)]
 pub(crate) struct LogicalProperties {
   targets: Option<Browsers>,
-  hash: String,
-  count: u32,
   pub used: bool
 }
 
 impl LogicalProperties {
-  pub fn new(filename: &str, targets: Option<Browsers>) -> LogicalProperties {
+  pub fn new(targets: Option<Browsers>) -> LogicalProperties {
     LogicalProperties {
       used: false,
       targets,
-      hash: hash(filename),
-      count: 0,
     }
   }
 
@@ -46,8 +41,28 @@ impl LogicalProperties {
     }
   }
 
-  pub fn next_rule(&mut self) {
-    self.count += 1;
+  pub fn add(&mut self, dest: &mut DeclarationList, property_id: PropertyId, ltr: Property, rtl: Property) {
+    self.used = true;
+    dest.push(Property::Logical(LogicalProperty {
+      property_id,
+      ltr: Some(Box::new(ltr)),
+      rtl: Some(Box::new(rtl))
+    }));
+  }
+
+  pub fn add_inline(&mut self, dest: &mut DeclarationList, left: PropertyId, right: PropertyId, start: Option<Property>, end: Option<Property>) {
+    self.used = true;
+    dest.push(Property::Logical(LogicalProperty {
+      property_id: left,
+      ltr: start.clone().map(|v| Box::new(v)),
+      rtl: end.clone().map(|v| Box::new(v)),
+    }));
+
+    dest.push(Property::Logical(LogicalProperty {
+      property_id: right,
+      ltr: end.map(|v| Box::new(v)),
+      rtl: start.map(|v| Box::new(v)),
+    }));
   }
 
   pub fn to_rules(&mut self, dest: &mut CssRuleList) {
@@ -124,5 +139,17 @@ impl ToCss for LogicalProperty {
     }
 
     Ok(())
+  }
+}
+
+#[derive(Debug, PartialEq)]
+pub(crate) enum PropertyCategory {
+  Logical,
+  Physical
+}
+
+impl Default for PropertyCategory {
+  fn default() -> PropertyCategory {
+    PropertyCategory::Physical
   }
 }

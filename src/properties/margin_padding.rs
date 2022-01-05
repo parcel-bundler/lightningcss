@@ -6,20 +6,8 @@ use crate::values::{
 use crate::properties::{Property, PropertyId};
 use crate::declaration::DeclarationList;
 use crate::traits::PropertyHandler;
-use crate::logical::{LogicalProperties, LogicalProperty};
+use crate::logical::{LogicalProperties, PropertyCategory};
 use crate::compat::Feature;
-
-#[derive(Debug, PartialEq)]
-enum SideCategory {
-  Logical,
-  Physical
-}
-
-impl Default for SideCategory {
-  fn default() -> SideCategory {
-    SideCategory::Physical
-  }
-}
 
 macro_rules! side_handler {
   ($name: ident, $top: ident, $bottom: ident, $left: ident, $right: ident, $block_start: ident, $block_end: ident, $inline_start: ident, $inline_end: ident, $shorthand: ident, $block_shorthand: ident, $inline_shorthand: ident, $logical_shorthand: literal $(, $feature: ident)?) => {
@@ -34,7 +22,7 @@ macro_rules! side_handler {
       inline_start: Option<LengthPercentageOrAuto>,
       inline_end: Option<LengthPercentageOrAuto>,
       has_any: bool,
-      category: SideCategory
+      category: PropertyCategory
     }
 
     impl PropertyHandler for $name {
@@ -43,23 +31,23 @@ macro_rules! side_handler {
 
         macro_rules! property {
           ($key: ident, $val: ident, $category: ident) => {{
-            if SideCategory::$category != self.category {
+            if PropertyCategory::$category != self.category {
               self.flush(dest, logical);
             }
             self.$key = Some($val.clone());
-            self.category = SideCategory::$category;
+            self.category = PropertyCategory::$category;
             self.has_any = true;
           }};
         }
 
         macro_rules! set_shorthand {
           ($start: ident, $end: ident, $val: ident) => {{
-            if self.category != SideCategory::Logical {
+            if self.category != PropertyCategory::Logical {
               self.flush(dest, logical);
             }
             self.$start = Some($val.0.clone());
             self.$end = Some($val.1.clone());
-            self.category = SideCategory::Logical;
+            self.category = PropertyCategory::Logical;
             self.has_any = true;
           }};
         }
@@ -180,34 +168,13 @@ macro_rules! side_handler {
             dest.push($left(inline_start.unwrap()));
             dest.push($right(inline_end.unwrap()));
           } else {
-            logical_properties.used = true;
-            dest.push(Property::Logical(LogicalProperty {
-              property_id: PropertyId::$left,
-              ltr: if let Some(val) = &inline_start {
-                Some(Box::new(Property::$left(val.clone())))
-              } else {
-                None
-              },
-              rtl: if let Some(val) = &inline_end {
-                Some(Box::new(Property::$right(val.clone())))
-              } else {
-                None
-              }
-            }));
-
-            dest.push(Property::Logical(LogicalProperty {
-              property_id: PropertyId::$right,
-              ltr: if let Some(val) = &inline_end {
-                Some(Box::new(Property::$left(val.clone())))
-              } else {
-                None
-              },
-              rtl: if let Some(val) = &inline_start {
-                Some(Box::new(Property::$right(val.clone())))
-              } else {
-                None
-              }
-            }));
+            logical_properties.add_inline(
+              dest,
+              PropertyId::$left,
+              PropertyId::$right,
+              inline_start.map(|v| Property::$inline_start(v)),
+              inline_end.map(|v| Property::$inline_end(v)),
+            );
           }
         }
       }

@@ -1,5 +1,5 @@
 use cssparser::*;
-use crate::properties::{Property, PropertyId};
+use crate::properties::PropertyId;
 use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
@@ -22,12 +22,6 @@ impl CustomProperty {
       value
     })
   }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct CustomPropertyWithValue {
-  pub name: String,
-  pub value: Box<Property>
 }
 
 #[derive(Debug, Clone, PartialEq)]

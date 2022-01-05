@@ -269,7 +269,6 @@ macro_rules! define_properties {
       )+
       Unparsed(UnparsedProperty),
       Custom(CustomProperty),
-      CustomWithValue(CustomPropertyWithValue),
       Logical(LogicalProperty)
     }
 
@@ -328,7 +327,6 @@ macro_rules! define_properties {
           Unparsed(unparsed) => unparsed.property_id.name(),
           Logical(logical) => logical.property_id.name(),
           Custom(custom) => &custom.name,
-          CustomWithValue(custom) => &custom.name
         }
       }
 
@@ -348,9 +346,6 @@ macro_rules! define_properties {
           Custom(custom) => {
             dest.write_str(custom.value.as_ref())
           }
-          CustomWithValue(custom) => {
-            custom.value.value_to_css(dest)
-          },
           Logical(logical) => {
             logical.to_css(dest)
           }
@@ -461,15 +456,6 @@ macro_rules! define_properties {
             if dest.minify || custom.value != " " {
               dest.write_str(custom.value.as_ref())?;
             }
-            if important {
-              dest.whitespace()?;
-              dest.write_str("!important")?;
-            }
-          }
-          CustomWithValue(custom) => {
-            dest.write_str(custom.name.as_ref())?;
-            dest.delim(':', false)?;
-            custom.value.value_to_css(dest)?;
             if important {
               dest.whitespace()?;
               dest.write_str("!important")?;

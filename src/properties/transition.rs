@@ -10,7 +10,7 @@ use smallvec::SmallVec;
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::{LogicalProperties, LogicalProperty};
+use crate::logical::LogicalProperties;
 use crate::compat;
 
 /// https://www.w3.org/TR/2018/WD-css-transitions-1-20181011/#transition-shorthand-property
@@ -228,12 +228,12 @@ impl TransitionHandler {
 
           if let Some(rtl_properties) = &rtl_properties {
             let rtl_transitions = get_transitions!(rtl_properties);
-            logical_properties.used = true;
-            dest.push(Property::Logical(LogicalProperty {
-              property_id: PropertyId::Transition(intersection),
-              ltr: Some(Box::new(Property::Transition(transitions, intersection))),
-              rtl: Some(Box::new(Property::Transition(rtl_transitions, intersection)))
-            }));
+            logical_properties.add(
+              dest,
+              PropertyId::Transition(intersection),
+              Property::Transition(transitions, intersection),
+              Property::Transition(rtl_transitions, intersection)
+            );
           } else {
             dest.push(Property::Transition(transitions.clone(), intersection));
           }
@@ -249,12 +249,12 @@ impl TransitionHandler {
     if let Some((properties, prefix)) = properties {
       if !prefix.is_empty() {
         if let Some(rtl_properties) = rtl_properties {
-          logical_properties.used = true;
-          dest.push(Property::Logical(LogicalProperty {
-            property_id: PropertyId::TransitionProperty(prefix),
-            ltr: Some(Box::new(Property::TransitionProperty(properties, prefix))),
-            rtl: Some(Box::new(Property::TransitionProperty(rtl_properties, prefix)))
-          }));
+          logical_properties.add(
+            dest,
+            PropertyId::TransitionProperty(prefix),
+            Property::TransitionProperty(properties, prefix),
+            Property::TransitionProperty(rtl_properties, prefix)
+          );
         } else {
           dest.push(Property::TransitionProperty(properties, prefix));
         }

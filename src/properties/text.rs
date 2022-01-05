@@ -13,7 +13,7 @@ use crate::values::color::CssColor;
 use crate::printer::Printer;
 use bitflags::bitflags;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::{LogicalProperties, LogicalProperty};
+use crate::logical::LogicalProperties;
 use crate::compat;
 
 // https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-transform-property
@@ -779,12 +779,12 @@ impl PropertyHandler for TextDecorationHandler {
             if logical_supported {
               dest.push(property.clone());
             } else {
-              logical.used = true;
-              dest.push(Property::Logical(LogicalProperty {
-                property_id: PropertyId::TextAlign,
-                ltr: Some(Box::new(Property::TextAlign(TextAlign::$ltr))),
-                rtl: Some(Box::new(Property::TextAlign(TextAlign::$rtl)))
-              }));
+              logical.add(
+                dest,
+                PropertyId::TextAlign,
+                Property::TextAlign(TextAlign::$ltr),
+                Property::TextAlign(TextAlign::$rtl)
+              );
             }
           }};
         }

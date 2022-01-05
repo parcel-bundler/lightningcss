@@ -1,4 +1,3 @@
-#![allow(non_upper_case_globals)]
 use crate::values::length::*;
 use crate::values::size::Size2D;
 use cssparser::*;
@@ -10,7 +9,7 @@ use crate::declaration::DeclarationList;
 use crate::values::rect::Rect;
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::{LogicalProperties, LogicalProperty};
+use crate::logical::{LogicalProperties, PropertyCategory};
 use crate::compat;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -51,18 +50,6 @@ impl ToCss for BorderRadius {
     }
 
     Ok(())
-  }
-}
-
-#[derive(Debug, PartialEq)]
-enum PropertyCategory {
-  Logical,
-  Physical
-}
-
-impl Default for PropertyCategory {
-  fn default() -> PropertyCategory {
-    PropertyCategory::Physical
   }
 }
 
@@ -249,34 +236,13 @@ impl BorderRadiusHandler {
             VendorPrefix::None
           };
 
-          logical.used = true;
-          dest.push(Property::Logical(LogicalProperty {
-            property_id: PropertyId::$ltr(vp),
-            ltr: if let Some(val) = &$key {
-              Some(Box::new(val.clone()))
-            } else {
-              None
-            },
-            rtl: if let Some(val) = &$opposite_key {
-              Some(Box::new(val.clone()))
-            } else {
-              None
-            }
-          }));
-
-          dest.push(Property::Logical(LogicalProperty {
-            property_id: PropertyId::$rtl(vp),
-            ltr: if let Some(val) = &$opposite_key {
-              Some(Box::new(val.clone()))
-            } else {
-              None
-            },
-            rtl: if let Some(val) = &$key {
-              Some(Box::new(val.clone()))
-            } else {
-              None
-            }
-          }));
+          logical.add_inline(
+            dest,
+            PropertyId::$ltr(vp),
+            PropertyId::$rtl(vp),
+            $key,
+            $opposite_key
+          );
         }
       };
     }
