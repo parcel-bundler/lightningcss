@@ -201,7 +201,8 @@ let mdnFeatures = {
   logicalMargin: mdn.css.properties['margin-inline-start'].__compat.support,
   logicalPadding: mdn.css.properties['padding-inline-start'].__compat.support,
   logicalInset: mdn.css.properties['inset-inline-start'].__compat.support,
-  logicalSize: mdn.css.properties['inline-size'].__compat.support
+  logicalSize: mdn.css.properties['inline-size'].__compat.support,
+  logicalTextAlign: mdn.css.properties['text-align']['flow_relative_values_start_and_end'].__compat.support
 };
 
 for (let feature in mdnFeatures) {

@@ -55,12 +55,14 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::parser::ParserOptions;
 use crate::error::{ParserError, PrinterError};
 use crate::logical::LogicalProperty;
+use crate::targets::Browsers;
+use crate::prefixes::Feature;
 
 macro_rules! define_properties {
   (
     $(
       $(#[$meta: meta])*
-      $name: literal: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: tt )* $( if $condition: ident )?,
+      $name: literal: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: tt )* $( unprefixed: $unprefixed: literal )? $( if $condition: ident )?,
     )+
   ) => {
     #[derive(Debug, Clone, PartialEq)]
@@ -107,17 +109,41 @@ macro_rules! define_properties {
           $(
             $(#[$meta])*
             $property$((vp_name!($vp, prefix)))? => {
-              // TODO: this assumes there is only one prefix. How should we handle multiple?
+              let mut first = true;
+              macro_rules! delim {
+                () => {
+                  #[allow(unused_assignments)]
+                  if first {
+                    first = false;
+                  } else {
+                    dest.delim(',', false)?;
+                  }
+                };
+              }
+
+              macro_rules! write {
+                ($p: expr) => {
+                  delim!();
+                  dest.write_str(&$name)?;
+                };
+                ($v: ty, $p: expr) => {
+                  if prefix.contains($p) {
+                    delim!();
+                    $p.to_css(dest)?;
+                    dest.write_str(&$name)?;
+                  }
+                };
+              }
+              
               $(
-                macro_rules! write_prefix {
-                  ($v: ty) => {
-                    prefix.to_css(dest)?;
-                  };
-                }
-  
-                write_prefix!($vp);
+                write!($vp, VendorPrefix::WebKit);
+                write!($vp, VendorPrefix::Moz);
+                write!($vp, VendorPrefix::Ms);
+                write!($vp, VendorPrefix::O);
               )?
-              dest.write_str(&$name)
+
+              write!($($vp,)? VendorPrefix::None);
+              Ok(())
             },
           )+
           All => dest.write_str("all"),
@@ -169,6 +195,31 @@ macro_rules! define_properties {
             },
           )+
           _ => self.clone()
+        }
+      }
+
+      fn set_prefixes_for_targets(&mut self, targets: Option<Browsers>) {
+        match self {
+          $(
+            $(#[$meta])*
+            #[allow(unused_variables)]
+            PropertyId::$property$((vp_name!($vp, prefix)))? => {
+              macro_rules! get_prefixed {
+                ($v: ty, $u: literal) => {};
+                ($v: ty) => {{
+                  if prefix.contains(VendorPrefix::None) {
+                    if let Some(targets) = targets {
+                      *prefix = Feature::$property.prefixes_for(targets);
+                    }
+                  };
+                }};
+                () => {};
+              }
+
+              get_prefixed!($($vp)? $(, $unprefixed)?);
+            },
+          )+
+          _ => {}
         }
       }
 
@@ -228,7 +279,7 @@ macro_rules! define_properties {
         match name.as_ref() {
           $(
             $(#[$meta])*
-            $name $(if options.$condition)? => {
+            $name $(if $unprefixed)? $(if options.$condition)? => {
               if let Ok(c) = <$type>::parse(input) {
                 if input.expect_exhausted().is_ok() {
                   return Ok(Property::$property(c, $(<$vp>::None)?))
@@ -581,26 +632,26 @@ define_properties! {
   "gap": Gap(Gap),
 
   // Old flex (2009): https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/
-  "box-orient": BoxOrient(BoxOrient, VendorPrefix) / "webkit" / "moz",
-  "box-direction": BoxDirection(BoxDirection, VendorPrefix) / "webkit" / "moz",
-  "box-ordinal-group": BoxOrdinalGroup(f32, VendorPrefix) / "webkit" / "moz",
-  "box-align": BoxAlign(BoxAlign, VendorPrefix) / "webkit" / "moz",
-  "box-flex": BoxFlex(f32, VendorPrefix) / "webkit" / "moz",
-  "box-flex-group": BoxFlexGroup(f32, VendorPrefix) / "webkit",
-  "box-pack": BoxPack(BoxPack, VendorPrefix) / "webkit" / "moz",
-  "box-lines": BoxLines(BoxLines, VendorPrefix) / "webkit" / "moz",
+  "box-orient": BoxOrient(BoxOrient, VendorPrefix) / "webkit" / "moz" unprefixed: false,
+  "box-direction": BoxDirection(BoxDirection, VendorPrefix) / "webkit" / "moz" unprefixed: false,
+  "box-ordinal-group": BoxOrdinalGroup(f32, VendorPrefix) / "webkit" / "moz" unprefixed: false,
+  "box-align": BoxAlign(BoxAlign, VendorPrefix) / "webkit" / "moz" unprefixed: false,
+  "box-flex": BoxFlex(f32, VendorPrefix) / "webkit" / "moz" unprefixed: false,
+  "box-flex-group": BoxFlexGroup(f32, VendorPrefix) / "webkit" unprefixed: false,
+  "box-pack": BoxPack(BoxPack, VendorPrefix) / "webkit" / "moz" unprefixed: false,
+  "box-lines": BoxLines(BoxLines, VendorPrefix) / "webkit" / "moz" unprefixed: false,
 
   // Old flex (2012): https://www.w3.org/TR/2012/WD-css3-flexbox-20120322/
-  "flex-pack": FlexPack(FlexPack, VendorPrefix) / "ms",
-  "flex-order": FlexOrder(f32, VendorPrefix) / "ms",
-  "flex-align": FlexAlign(BoxAlign, VendorPrefix) / "ms",
-  "flex-item-align": FlexItemAlign(FlexItemAlign, VendorPrefix) / "ms",
-  "flex-line-pack": FlexLinePack(FlexLinePack, VendorPrefix) / "ms",
+  "flex-pack": FlexPack(FlexPack, VendorPrefix) / "ms" unprefixed: false,
+  "flex-order": FlexOrder(f32, VendorPrefix) / "ms" unprefixed: false,
+  "flex-align": FlexAlign(BoxAlign, VendorPrefix) / "ms" unprefixed: false,
+  "flex-item-align": FlexItemAlign(FlexItemAlign, VendorPrefix) / "ms" unprefixed: false,
+  "flex-line-pack": FlexLinePack(FlexLinePack, VendorPrefix) / "ms" unprefixed: false,
 
   // Microsoft extensions
-  "flex-positive": FlexPositive(f32, VendorPrefix) / "ms",
-  "flex-negative": FlexNegative(f32, VendorPrefix) / "ms",
-  "flex-preferred-size": FlexPreferredSize(LengthPercentageOrAuto, VendorPrefix) / "ms",
+  "flex-positive": FlexPositive(f32, VendorPrefix) / "ms" unprefixed: false,
+  "flex-negative": FlexNegative(f32, VendorPrefix) / "ms" unprefixed: false,
+  "flex-preferred-size": FlexPreferredSize(LengthPercentageOrAuto, VendorPrefix) / "ms" unprefixed: false,
 
   #[cfg(feature = "grid")]
   "grid-template-columns": GridTemplateColumns(TrackSizing),

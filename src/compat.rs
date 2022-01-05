@@ -2,6 +2,7 @@
 
 use crate::targets::Browsers;
 
+#[derive(Clone, Copy)]
 pub enum Feature {
   Clamp,
   CssAnyLink,

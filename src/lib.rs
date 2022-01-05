@@ -4219,6 +4219,194 @@ mod tests {
         -webkit-transition-duration: 2s;
       }
     "#});
+
+    prefix_test(r#"
+      .foo {
+        transition-property: margin-inline-start;
+      }
+    "#, indoc! {r#"
+      .foo {
+        transition-property: var(--ltr, margin-left) var(--rtl, margin-right);
+      }
+
+      [dir="ltr"] {
+        --ltr: initial;
+        --rtl: ;
+      }
+
+      [dir="rtl"] {
+        --ltr: ;
+        --rtl: initial;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        transition-property: margin-inline-start, padding-inline-start;
+      }
+    "#, indoc! {r#"
+      .foo {
+        transition-property: var(--ltr, margin-left, padding-left) var(--rtl, margin-right, padding-right);
+      }
+
+      [dir="ltr"] {
+        --ltr: initial;
+        --rtl: ;
+      }
+
+      [dir="rtl"] {
+        --ltr: ;
+        --rtl: initial;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        transition-property: margin-inline-start, opacity, padding-inline-start, color;
+      }
+    "#, indoc! {r#"
+      .foo {
+        transition-property: var(--ltr, margin-left, opacity, padding-left, color) var(--rtl, margin-right, opacity, padding-right, color);
+      }
+
+      [dir="ltr"] {
+        --ltr: initial;
+        --rtl: ;
+      }
+
+      [dir="rtl"] {
+        --ltr: ;
+        --rtl: initial;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        transition-property: margin-block;
+      }
+    "#, indoc! {r#"
+      .foo {
+        transition-property: margin-top, margin-bottom;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        transition: margin-inline-start 2s;
+      }
+    "#, indoc! {r#"
+      .foo {
+        transition: var(--ltr, margin-left 2s) var(--rtl, margin-right 2s);
+      }
+
+      [dir="ltr"] {
+        --ltr: initial;
+        --rtl: ;
+      }
+
+      [dir="rtl"] {
+        --ltr: ;
+        --rtl: initial;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        transition: margin-inline-start 2s, padding-inline-start 2s;
+      }
+    "#, indoc! {r#"
+      .foo {
+        transition: var(--ltr, margin-left 2s, padding-left 2s) var(--rtl, margin-right 2s, padding-right 2s);
+      }
+
+      [dir="ltr"] {
+        --ltr: initial;
+        --rtl: ;
+      }
+
+      [dir="rtl"] {
+        --ltr: ;
+        --rtl: initial;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        transition: margin-block-start 2s;
+      }
+    "#, indoc! {r#"
+      .foo {
+        transition: margin-top 2s;
+      }
+    "#
+    }, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        transition: transform;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-transition: -webkit-transform, transform;
+        transition: -webkit-transform, transform;
+      }
+    "#
+    }, Browsers {
+      safari: Some(6 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        transition: border-start-start-radius;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-transition: var(--ltr, border-top-left-radius) var(--rtl, border-top-right-radius);
+        transition: var(--ltr, border-top-left-radius) var(--rtl, border-top-right-radius);
+      }
+
+      [dir="ltr"] {
+        --ltr: initial;
+        --rtl: ;
+      }
+
+      [dir="rtl"] {
+        --ltr: ;
+        --rtl: initial;
+      }
+    "#
+    }, Browsers {
+      safari: Some(4 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]
