@@ -267,6 +267,7 @@ impl<'i> CompileError<'i> {
   }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn throw_syntax_error(ctx: CallContext, filename: Option<String>, code: &str, message: String, loc: &cssparser::SourceLocation) -> napi::Result<JsUnknown> {
   // Generate an error with location information.
   let syntax_error = ctx.env.get_global()?
