@@ -195,7 +195,14 @@ let mdnFeatures = {
   placeItems: mdn.css.properties['place-items'].__compat.support,
   overflowShorthand: mdn.css.properties['overflow'].multiple_keywords.__compat.support,
   mediaRangeSyntax: mdn.css['at-rules'].media.range_syntax.__compat.support,
-  mediaIntervalSyntax: {} // currently no browsers
+  mediaIntervalSyntax: {}, // currently no browsers
+  logicalBorders: mdn.css.properties['border-inline-start'].__compat.support,
+  logicalBorderRadius: mdn.css.properties['border-start-start-radius'].__compat.support,
+  logicalMargin: mdn.css.properties['margin-inline-start'].__compat.support,
+  logicalPadding: mdn.css.properties['padding-inline-start'].__compat.support,
+  logicalInset: mdn.css.properties['inset-inline-start'].__compat.support,
+  logicalSize: mdn.css.properties['inline-size'].__compat.support,
+  logicalTextAlign: mdn.css.properties['text-align']['flow_relative_values_start_and_end'].__compat.support
 };
 
 for (let feature in mdnFeatures) {
@@ -204,8 +211,15 @@ for (let feature in mdnFeatures) {
     if (MDN_BROWSER_MAPPING[name] === null) {
       continue;
     }
+
+    let feat = mdnFeatures[feature][name];
+    let version;
+    if (Array.isArray(feat)) {
+      version = feat.find(x => x.version_added && !x.alternative_name).version_added;
+    } else {
+      version = feat.version_added;
+    }
   
-    let version = mdnFeatures[feature][name].version_added;
     if (!version) {
       continue;
     }

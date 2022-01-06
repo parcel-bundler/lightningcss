@@ -6,6 +6,7 @@ use super::{Property, PropertyId};
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
+use crate::logical::LogicalProperties;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum OutlineStyle {
@@ -49,7 +50,7 @@ pub(crate) struct OutlineHandler {
 }
 
 impl PropertyHandler for OutlineHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
     use Property::*;
 
     match property {
@@ -62,7 +63,7 @@ impl PropertyHandler for OutlineHandler {
         self.width = Some(val.width.clone());
       }
       Unparsed(val) if is_outline_property(&val.property_id) => {
-        self.finalize(dest);
+        self.finalize(dest, logical);
         dest.push(property.clone());
       }
       _ => return false
@@ -71,7 +72,7 @@ impl PropertyHandler for OutlineHandler {
     true
   }
 
-  fn finalize(&mut self, decls: &mut DeclarationList) {
+  fn finalize(&mut self, decls: &mut DeclarationList, _: &mut LogicalProperties) {
     if self.width.is_none() && self.style.is_none() && self.color.is_none() {
       return
     }

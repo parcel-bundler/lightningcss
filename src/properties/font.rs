@@ -10,6 +10,7 @@ use super::{Property, PropertyId};
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
+use crate::logical::LogicalProperties;
 
 /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-weight-prop
 #[derive(Debug, Clone, PartialEq)]
@@ -599,7 +600,7 @@ pub(crate) struct FontHandler {
 }
 
 impl PropertyHandler for FontHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
     use Property::*;
 
     macro_rules! property {
@@ -629,7 +630,7 @@ impl PropertyHandler for FontHandler {
         // TODO: reset other properties
       }
       Unparsed(val) if is_font_property(&val.property_id) => {
-        self.finalize(dest);
+        self.finalize(dest, logical);
         dest.push(property.clone());
       }
       _ => return false
@@ -638,7 +639,7 @@ impl PropertyHandler for FontHandler {
     true
   }
 
-  fn finalize(&mut self, decls: &mut DeclarationList) {
+  fn finalize(&mut self, decls: &mut DeclarationList, _: &mut LogicalProperties) {
     if !self.has_any {
       return
     }

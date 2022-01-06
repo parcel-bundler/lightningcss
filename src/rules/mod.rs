@@ -30,6 +30,7 @@ use crate::targets::Browsers;
 use std::collections::HashMap;
 use crate::selector::{is_equivalent, get_prefix, get_necessary_prefixes};
 use crate::error::PrinterError;
+use crate::logical::LogicalProperties;
 
 pub(crate) trait ToCssWithContext {
   fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> Result<(), PrinterError> where W: std::fmt::Write;
@@ -85,13 +86,19 @@ impl ToCss for CssRule {
 pub struct CssRuleList(pub Vec<CssRule>);
 
 impl CssRuleList {
-  pub(crate) fn minify(&mut self, targets: Option<Browsers>, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
+  pub(crate) fn minify(
+    &mut self,
+    targets: Option<Browsers>,
+    handler: &mut DeclarationHandler,
+    important_handler: &mut DeclarationHandler,
+    logical_properties: &mut LogicalProperties
+  ) {
     let mut keyframe_rules = HashMap::new();
     let mut rules = Vec::new();
     for mut rule in self.0.drain(..) {
       match &mut rule {
         CssRule::Keyframes(keyframes) => {
-          keyframes.minify(handler, important_handler);
+          keyframes.minify(handler, important_handler, logical_properties);
 
           macro_rules! set_prefix {
             ($keyframes: ident) => {
@@ -118,11 +125,11 @@ impl CssRuleList {
           set_prefix!(keyframes);
           keyframe_rules.insert(keyframes.name.clone(), rules.len());
         },
-        CssRule::Media(media) => media.minify(targets, handler, important_handler),
-        CssRule::Supports(supports) => supports.minify(targets, handler, important_handler),
-        CssRule::MozDocument(document) => document.minify(targets, handler, important_handler),
+        CssRule::Media(media) => media.minify(targets, handler, important_handler, logical_properties),
+        CssRule::Supports(supports) => supports.minify(targets, handler, important_handler, logical_properties),
+        CssRule::MozDocument(document) => document.minify(targets, handler, important_handler, logical_properties),
         CssRule::Style(style) => {
-          style.minify(handler, important_handler);
+          style.minify(handler, important_handler, logical_properties);
 
           if let Some(targets) = targets {
             style.vendor_prefix = get_prefix(&style.selectors);
@@ -135,7 +142,7 @@ impl CssRuleList {
             // Merge declarations if the selectors are equivalent, and both are compatible with all targets.
             if style.selectors == last_style_rule.selectors && style.is_compatible(targets) && last_style_rule.is_compatible(targets) && style.rules.0.is_empty() && last_style_rule.rules.0.is_empty() {
               last_style_rule.declarations.declarations.extend(style.declarations.declarations.drain(..));
-              last_style_rule.declarations.minify(handler, important_handler);
+              last_style_rule.declarations.minify(handler, important_handler, logical_properties);
               continue
             } else if style.declarations == last_style_rule.declarations && style.rules.0.is_empty() && last_style_rule.rules.0.is_empty() {
               // Append the selectors to the last rule if the declarations are the same, and all selectors are compatible.
@@ -162,7 +169,7 @@ impl CssRuleList {
             }
           }
         },
-        CssRule::Nesting(nesting) => nesting.minify(handler, important_handler),
+        CssRule::Nesting(nesting) => nesting.minify(handler, important_handler, logical_properties),
         _ => {}
       }
 

@@ -6,21 +6,11 @@ use crate::values::{
 use crate::properties::{Property, PropertyId};
 use crate::declaration::DeclarationList;
 use crate::traits::PropertyHandler;
-
-#[derive(Debug, PartialEq)]
-enum SideCategory {
-  Logical,
-  Physical
-}
-
-impl Default for SideCategory {
-  fn default() -> SideCategory {
-    SideCategory::Physical
-  }
-}
+use crate::logical::{LogicalProperties, PropertyCategory};
+use crate::compat::Feature;
 
 macro_rules! side_handler {
-  ($name: ident, $top: ident, $bottom: ident, $left: ident, $right: ident, $block_start: ident, $block_end: ident, $inline_start: ident, $inline_end: ident, $shorthand: ident, $block_shorthand: ident, $inline_shorthand: ident) => {
+  ($name: ident, $top: ident, $bottom: ident, $left: ident, $right: ident, $block_start: ident, $block_end: ident, $inline_start: ident, $inline_end: ident, $shorthand: ident, $block_shorthand: ident, $inline_shorthand: ident, $logical_shorthand: literal $(, $feature: ident)?) => {
     #[derive(Debug, Default)]
     pub(crate) struct $name {
       top: Option<LengthPercentageOrAuto>,
@@ -32,33 +22,32 @@ macro_rules! side_handler {
       inline_start: Option<LengthPercentageOrAuto>,
       inline_end: Option<LengthPercentageOrAuto>,
       has_any: bool,
-      category: SideCategory
+      category: PropertyCategory
     }
 
     impl PropertyHandler for $name {
-      fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
+      fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
         use Property::*;
-        use SideCategory::*;
 
         macro_rules! property {
           ($key: ident, $val: ident, $category: ident) => {{
-            if $category != self.category {
-              self.flush(dest);
+            if PropertyCategory::$category != self.category {
+              self.flush(dest, logical);
             }
             self.$key = Some($val.clone());
-            self.category = $category;
+            self.category = PropertyCategory::$category;
             self.has_any = true;
           }};
         }
 
         macro_rules! set_shorthand {
           ($start: ident, $end: ident, $val: ident) => {{
-            if self.category != Logical {
-              self.flush(dest);
+            if self.category != PropertyCategory::Logical {
+              self.flush(dest, logical);
             }
             self.$start = Some($val.0.clone());
             self.$end = Some($val.1.clone());
-            self.category = Logical;
+            self.category = PropertyCategory::Logical;
             self.has_any = true;
           }};
         }
@@ -87,7 +76,7 @@ macro_rules! side_handler {
             self.has_any = true;
           }
           Unparsed(val) if matches!(val.property_id, PropertyId::$top | PropertyId::$bottom | PropertyId::$left | PropertyId::$right | PropertyId::$block_start | PropertyId::$block_end | PropertyId::$inline_start | PropertyId::$inline_end | PropertyId::$block_shorthand | PropertyId::$inline_shorthand | PropertyId::$shorthand) => {
-            self.flush(dest);
+            self.flush(dest, logical);
             dest.push(property.clone());
           }
           _ => return false
@@ -96,13 +85,13 @@ macro_rules! side_handler {
         true
       }
 
-      fn finalize(&mut self, dest: &mut DeclarationList) {
-        self.flush(dest);
+      fn finalize(&mut self, dest: &mut DeclarationList, logical: &mut LogicalProperties) {
+        self.flush(dest, logical);
       }
     }
 
     impl $name {
-      fn flush(&mut self, dest: &mut DeclarationList) {
+      fn flush(&mut self, dest: &mut DeclarationList, logical_properties: &mut LogicalProperties) {
         use Property::*;
 
         if !self.has_any {
@@ -115,8 +104,9 @@ macro_rules! side_handler {
         let bottom = std::mem::take(&mut self.bottom);
         let left = std::mem::take(&mut self.left);
         let right = std::mem::take(&mut self.right);
+        let logical_supported = true $(&& logical_properties.is_supported(Feature::$feature))?;
 
-        if top.is_some() && bottom.is_some() && left.is_some() && right.is_some() {
+        if (!$logical_shorthand || logical_supported) && top.is_some() && bottom.is_some() && left.is_some() && right.is_some() {
           let rect = Rect::new(top.unwrap(), right.unwrap(), bottom.unwrap(), left.unwrap());
           dest.push($shorthand(rect));
         } else {
@@ -155,12 +145,38 @@ macro_rules! side_handler {
               if let Some(val) = $end {
                 dest.push($end_prop(val));
               }
-            }    
+            }
           };
         }
 
-        logical_side!(block_start, block_end, $block_shorthand, $block_start, $block_end);
-        logical_side!(inline_start, inline_end, $inline_shorthand, $inline_start, $inline_end);
+        if logical_supported {
+          logical_side!(block_start, block_end, $block_shorthand, $block_start, $block_end);
+        } else {
+          if let Some(val) = block_start {
+            dest.push($top(val));
+          }
+
+          if let Some(val) = block_end {
+            dest.push($bottom(val));
+          }
+        }
+
+        if logical_supported {
+          logical_side!(inline_start, inline_end, $inline_shorthand, $inline_start, $inline_end);
+        } else if inline_start.is_some() || inline_end.is_some() {
+          if inline_start == inline_end {
+            dest.push($left(inline_start.unwrap()));
+            dest.push($right(inline_end.unwrap()));
+          } else {
+            logical_properties.add_inline(
+              dest,
+              PropertyId::$left,
+              PropertyId::$right,
+              inline_start.map(|v| Property::$inline_start(v)),
+              inline_end.map(|v| Property::$inline_end(v)),
+            );
+          }
+        }
       }
     }
   };
@@ -178,7 +194,9 @@ side_handler!(
   MarginInlineEnd,
   Margin,
   MarginBlock,
-  MarginInline
+  MarginInline,
+  false,
+  LogicalMargin
 );
 
 side_handler!(
@@ -193,7 +211,9 @@ side_handler!(
   PaddingInlineEnd,
   Padding,
   PaddingBlock,
-  PaddingInline
+  PaddingInline,
+  false,
+  LogicalPadding
 );
 
 side_handler!(
@@ -208,7 +228,8 @@ side_handler!(
   ScrollMarginInlineEnd,
   ScrollMargin,
   ScrollMarginBlock,
-  ScrollMarginInline
+  ScrollMarginInline,
+  false
 );
 
 side_handler!(
@@ -223,7 +244,8 @@ side_handler!(
   ScrollPaddingInlineEnd,
   ScrollPadding,
   ScrollPaddingBlock,
-  ScrollPaddingInline
+  ScrollPaddingInline,
+  false
 );
 
 side_handler!(
@@ -238,5 +260,7 @@ side_handler!(
   InsetInlineEnd,
   Inset,
   InsetBlock,
-  InsetInline
+  InsetInline,
+  true,
+  LogicalInset
 );

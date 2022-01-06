@@ -20,10 +20,12 @@ use crate::properties::{
   overflow::OverflowHandler,
   list::ListStyleHandler,
   grid::GridHandler,
+  size::SizeHandler,
 };
 use crate::targets::Browsers;
 use crate::parser::ParserOptions;
 use crate::error::{ParserError, PrinterError};
+use crate::logical::LogicalProperties;
 
 #[derive(Debug, PartialEq)]
 pub struct DeclarationBlock {
@@ -85,11 +87,16 @@ impl ToCss for DeclarationBlock {
 }
 
 impl DeclarationBlock {
-  pub(crate) fn minify(&mut self, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
+  pub(crate) fn minify(
+    &mut self,
+    handler: &mut DeclarationHandler,
+    important_handler: &mut DeclarationHandler,
+    logical_properties: &mut LogicalProperties
+  ) {
     macro_rules! handle {
       ($decls: expr, $handler: expr) => {
         for decl in $decls.iter() {
-          let handled = $handler.handle_property(decl);
+          let handled = $handler.handle_property(decl, logical_properties);
     
           if !handled {
             $handler.decls.push(decl.clone());
@@ -101,8 +108,8 @@ impl DeclarationBlock {
     handle!(self.important_declarations, important_handler);
     handle!(self.declarations, handler);
 
-    handler.finalize();
-    important_handler.finalize();
+    handler.finalize(logical_properties);
+    important_handler.finalize(logical_properties);
     self.important_declarations = std::mem::take(&mut important_handler.decls);
     self.declarations = std::mem::take(&mut handler.decls);
   }
@@ -157,7 +164,6 @@ pub(crate) fn parse_declaration<'i, 't>(
 
 pub(crate) type DeclarationList = Vec<Property>;
 
-#[derive(Default)]
 pub(crate) struct DeclarationHandler {
   background: BackgroundHandler,
   border: BorderHandler,
@@ -165,6 +171,7 @@ pub(crate) struct DeclarationHandler {
   flex: FlexHandler,
   grid: GridHandler,
   align: AlignHandler,
+  size: SizeHandler,
   margin: MarginHandler,
   padding: PaddingHandler,
   scroll_margin: ScrollMarginHandler,
@@ -188,66 +195,77 @@ impl DeclarationHandler {
     DeclarationHandler {
       background: BackgroundHandler::new(targets),
       border: BorderHandler::new(targets),
+      outline: OutlineHandler::default(),
       flex: FlexHandler::new(targets),
+      grid: GridHandler::default(),
       align: AlignHandler::new(targets),
+      size: SizeHandler::default(),
+      margin: MarginHandler::default(),
+      padding: PaddingHandler::default(),
+      scroll_margin: ScrollMarginHandler::default(),
+      scroll_padding: ScrollPaddingHandler::default(),
+      font: FontHandler::default(),
+      text: TextDecorationHandler::new(targets),
+      list: ListStyleHandler::default(),
       transition: TransitionHandler::new(targets),
       animation: AnimationHandler::new(targets),
       display: DisplayHandler::new(targets),
       position: PositionHandler::new(targets),
+      inset: InsetHandler::default(),
       overflow: OverflowHandler::new(targets),
       transform: TransformHandler::new(targets),
-      text: TextDecorationHandler::new(targets),
       prefix: PrefixHandler::new(targets),
-      decls: DeclarationList::new(),
-      ..DeclarationHandler::default()
+      decls: DeclarationList::new()
     }
   }
 
-  pub fn handle_property(&mut self, property: &Property) -> bool {
-    self.background.handle_property(property, &mut self.decls) ||
-    self.border.handle_property(property, &mut self.decls) ||
-    self.outline.handle_property(property, &mut self.decls) ||
-    self.flex.handle_property(property, &mut self.decls) ||
-    self.grid.handle_property(property, &mut self.decls) ||
-    self.align.handle_property(property, &mut self.decls) ||
-    self.margin.handle_property(property, &mut self.decls) ||
-    self.padding.handle_property(property, &mut self.decls) ||
-    self.scroll_margin.handle_property(property, &mut self.decls) ||
-    self.scroll_padding.handle_property(property, &mut self.decls) ||
-    self.font.handle_property(property, &mut self.decls) ||
-    self.text.handle_property(property, &mut self.decls) ||
-    self.list.handle_property(property, &mut self.decls) ||
-    self.transition.handle_property(property, &mut self.decls) ||
-    self.animation.handle_property(property, &mut self.decls) ||
-    self.display.handle_property(property, &mut self.decls) ||
-    self.position.handle_property(property, &mut self.decls) ||
-    self.inset.handle_property(property, &mut self.decls) ||
-    self.overflow.handle_property(property, &mut self.decls) ||
-    self.transform.handle_property(property, &mut self.decls) ||
-    self.prefix.handle_property(property, &mut self.decls)
+  pub fn handle_property(&mut self, property: &Property, logical_properties: &mut LogicalProperties) -> bool {
+    self.background.handle_property(property, &mut self.decls, logical_properties) ||
+    self.border.handle_property(property, &mut self.decls, logical_properties) ||
+    self.outline.handle_property(property, &mut self.decls, logical_properties) ||
+    self.flex.handle_property(property, &mut self.decls, logical_properties) ||
+    self.grid.handle_property(property, &mut self.decls, logical_properties) ||
+    self.align.handle_property(property, &mut self.decls, logical_properties) ||
+    self.size.handle_property(property, &mut self.decls, logical_properties) ||
+    self.margin.handle_property(property, &mut self.decls, logical_properties) ||
+    self.padding.handle_property(property, &mut self.decls, logical_properties) ||
+    self.scroll_margin.handle_property(property, &mut self.decls, logical_properties) ||
+    self.scroll_padding.handle_property(property, &mut self.decls, logical_properties) ||
+    self.font.handle_property(property, &mut self.decls, logical_properties) ||
+    self.text.handle_property(property, &mut self.decls, logical_properties) ||
+    self.list.handle_property(property, &mut self.decls, logical_properties) ||
+    self.transition.handle_property(property, &mut self.decls, logical_properties) ||
+    self.animation.handle_property(property, &mut self.decls, logical_properties) ||
+    self.display.handle_property(property, &mut self.decls, logical_properties) ||
+    self.position.handle_property(property, &mut self.decls, logical_properties) ||
+    self.inset.handle_property(property, &mut self.decls, logical_properties) ||
+    self.overflow.handle_property(property, &mut self.decls, logical_properties) ||
+    self.transform.handle_property(property, &mut self.decls, logical_properties) ||
+    self.prefix.handle_property(property, &mut self.decls, logical_properties)
   }
 
-  pub fn finalize(&mut self) {
-    self.background.finalize(&mut self.decls);
-    self.border.finalize(&mut self.decls);
-    self.outline.finalize(&mut self.decls);
-    self.flex.finalize(&mut self.decls);
-    self.grid.finalize(&mut self.decls);
-    self.align.finalize(&mut self.decls);
-    self.margin.finalize(&mut self.decls);
-    self.padding.finalize(&mut self.decls);
-    self.scroll_margin.finalize(&mut self.decls);
-    self.scroll_padding.finalize(&mut self.decls);
-    self.font.finalize(&mut self.decls);
-    self.text.finalize(&mut self.decls);
-    self.list.finalize(&mut self.decls);
-    self.transition.finalize(&mut self.decls);
-    self.animation.finalize(&mut self.decls);
-    self.display.finalize(&mut self.decls);
-    self.position.finalize(&mut self.decls);
-    self.inset.finalize(&mut self.decls);
-    self.overflow.finalize(&mut self.decls);
-    self.transform.finalize(&mut self.decls);
-    self.prefix.finalize(&mut self.decls);
+  pub fn finalize(&mut self, logical_properties: &mut LogicalProperties) {
+    self.background.finalize(&mut self.decls, logical_properties);
+    self.border.finalize(&mut self.decls, logical_properties);
+    self.outline.finalize(&mut self.decls, logical_properties);
+    self.flex.finalize(&mut self.decls, logical_properties);
+    self.grid.finalize(&mut self.decls, logical_properties);
+    self.align.finalize(&mut self.decls, logical_properties);
+    self.size.finalize(&mut self.decls, logical_properties);
+    self.margin.finalize(&mut self.decls, logical_properties);
+    self.padding.finalize(&mut self.decls, logical_properties);
+    self.scroll_margin.finalize(&mut self.decls, logical_properties);
+    self.scroll_padding.finalize(&mut self.decls, logical_properties);
+    self.font.finalize(&mut self.decls, logical_properties);
+    self.text.finalize(&mut self.decls, logical_properties);
+    self.list.finalize(&mut self.decls, logical_properties);
+    self.transition.finalize(&mut self.decls, logical_properties);
+    self.animation.finalize(&mut self.decls, logical_properties);
+    self.display.finalize(&mut self.decls, logical_properties);
+    self.position.finalize(&mut self.decls, logical_properties);
+    self.inset.finalize(&mut self.decls, logical_properties);
+    self.overflow.finalize(&mut self.decls, logical_properties);
+    self.transform.finalize(&mut self.decls, logical_properties);
+    self.prefix.finalize(&mut self.decls, logical_properties);
   }
 }

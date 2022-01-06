@@ -11,6 +11,7 @@ use crate::prefixes::{Feature, is_flex_2009};
 use crate::printer::Printer;
 use crate::compat;
 use crate::error::{ParserError, PrinterError};
+use crate::logical::LogicalProperties;
 
 /// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#typedef-baseline-position
 #[derive(Debug, Clone, PartialEq)]
@@ -745,7 +746,7 @@ impl AlignHandler {
 }
 
 impl PropertyHandler for AlignHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, _: &mut LogicalProperties) -> bool {
     use Property::*;
 
     macro_rules! property {
@@ -843,7 +844,7 @@ impl PropertyHandler for AlignHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList) {
+  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
     self.flush(dest);
   }
 }

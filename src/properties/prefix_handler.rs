@@ -5,6 +5,7 @@ use super::Property;
 use crate::vendor_prefix::VendorPrefix;
 use crate::traits::{PropertyHandler};
 use crate::declaration::DeclarationList;
+use crate::logical::LogicalProperties;
 
 macro_rules! define_prefixes {
   (
@@ -28,7 +29,7 @@ macro_rules! define_prefixes {
     }
 
     impl PropertyHandler for PrefixHandler {
-      fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
+      fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, _: &mut LogicalProperties) -> bool {
         match property {
           $(
             Property::$name(val, prefix) => {
@@ -74,7 +75,7 @@ macro_rules! define_prefixes {
         true
       }
 
-      fn finalize(&mut self, _: &mut DeclarationList) {}
+      fn finalize(&mut self, _: &mut DeclarationList, _: &mut LogicalProperties) {}
     }
   };
 }

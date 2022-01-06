@@ -51,6 +51,13 @@ impl UnparsedProperty {
     }
     clone
   }
+
+  pub fn with_property_id(&self, property_id: PropertyId) -> UnparsedProperty {
+    UnparsedProperty {
+      property_id,
+      value: self.value.clone()
+    }
+  }
 }
 
 fn parse_unknown_value<'i, 't>(input: &mut Parser<'i, 't>) -> Result<String, ParseError<'i, ParserError<'i>>> {

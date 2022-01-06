@@ -10,6 +10,7 @@ use itertools::izip;
 use crate::macros::*;
 use smallvec::SmallVec;
 use crate::error::{ParserError, PrinterError};
+use crate::logical::LogicalProperties;
 
 /// https://drafts.csswg.org/css-animations/#animation-name
 #[derive(Debug, Clone, PartialEq)]
@@ -223,7 +224,7 @@ impl AnimationHandler {
 }
 
 impl PropertyHandler for AnimationHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, _: &mut LogicalProperties) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -306,7 +307,7 @@ impl PropertyHandler for AnimationHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList) {
+  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
     self.flush(dest);
   }
 }

@@ -5,6 +5,7 @@ use super::CssRuleList;
 use crate::declaration::DeclarationHandler;
 use crate::targets::Browsers;
 use crate::error::PrinterError;
+use crate::logical::LogicalProperties;
 
 #[derive(Debug, PartialEq)]
 pub struct MozDocumentRule {
@@ -13,8 +14,14 @@ pub struct MozDocumentRule {
 }
 
 impl MozDocumentRule {
-  pub(crate) fn minify(&mut self, targets: Option<Browsers>, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
-    self.rules.minify(targets, handler, important_handler)
+  pub(crate) fn minify(
+    &mut self,
+    targets: Option<Browsers>,
+    handler: &mut DeclarationHandler,
+    important_handler: &mut DeclarationHandler,
+    logical_properties: &mut LogicalProperties
+  ) {
+    self.rules.minify(targets, handler, important_handler, logical_properties)
   }
 }
 

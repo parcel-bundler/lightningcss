@@ -15,6 +15,7 @@ use itertools::izip;
 use crate::printer::Printer;
 use smallvec::SmallVec;
 use crate::error::{ParserError, PrinterError};
+use crate::logical::LogicalProperties;
 
 /// https://www.w3.org/TR/css-backgrounds-3/#background-size
 #[derive(Debug, Clone, PartialEq)]
@@ -405,7 +406,7 @@ impl BackgroundHandler {
 }
 
 impl PropertyHandler for BackgroundHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, _: &mut LogicalProperties) -> bool {
     macro_rules! background_image {
       ($val: ident) => {
         // Store prefixed properties. Clear if we hit an unprefixed property and we have
@@ -467,7 +468,7 @@ impl PropertyHandler for BackgroundHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList) {
+  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
     // If the last declaration is prefixed, pop the last value
     // so it isn't duplicated when we flush.
     if self.has_prefix {

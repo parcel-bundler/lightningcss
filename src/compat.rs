@@ -2,6 +2,7 @@
 
 use crate::targets::Browsers;
 
+#[derive(Clone, Copy)]
 pub enum Feature {
   Clamp,
   CssAnyLink,
@@ -32,6 +33,13 @@ pub enum Feature {
   DoublePositionGradients,
   FormValidation,
   Fullscreen,
+  LogicalBorderRadius,
+  LogicalBorders,
+  LogicalInset,
+  LogicalMargin,
+  LogicalPadding,
+  LogicalSize,
+  LogicalTextAlign,
   MediaIntervalSyntax,
   MediaRangeSyntax,
   OverflowShorthand,
@@ -1283,6 +1291,218 @@ impl Feature {
       Feature::MediaRangeSyntax => {
         if let Some(version) = browsers.firefox {
           if version >= 4128768 {
+            return true
+          }
+        }
+      }
+      Feature::LogicalBorders |
+      Feature::LogicalMargin |
+      Feature::LogicalPadding => {
+        if let Some(version) = browsers.chrome {
+          if version >= 4521984 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version >= 5177344 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version >= 2686976 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version >= 3145728 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version >= 786688 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version >= 786944 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version >= 655360 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version >= 4521984 {
+            return true
+          }
+        }
+      }
+      Feature::LogicalBorderRadius => {
+        if let Some(version) = browsers.chrome {
+          if version >= 5832704 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version >= 5832704 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version >= 4325376 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version >= 4915200 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version >= 983040 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version >= 983040 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version >= 983040 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version >= 5832704 {
+            return true
+          }
+        }
+      }
+      Feature::LogicalInset => {
+        if let Some(version) = browsers.chrome {
+          if version >= 5701632 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version >= 5701632 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version >= 4128768 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version >= 4063232 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version >= 917760 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version >= 918784 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version >= 917504 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version >= 5701632 {
+            return true
+          }
+        }
+      }
+      Feature::LogicalSize => {
+        if let Some(version) = browsers.chrome {
+          if version >= 3735552 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version >= 5177344 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version >= 2686976 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version >= 2818048 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version >= 786688 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version >= 786944 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version >= 327680 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version >= 3735552 {
+            return true
+          }
+        }
+      }
+      Feature::LogicalTextAlign => {
+        if let Some(version) = browsers.chrome {
+          if version >= 1179648 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version >= 5177344 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version >= 262144 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version >= 917504 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version >= 196864 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version >= 131072 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version >= 65536 {
+            return true
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version >= 2424832 {
             return true
           }
         }

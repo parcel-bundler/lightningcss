@@ -9,6 +9,8 @@ use crate::declaration::DeclarationList;
 use crate::values::rect::Rect;
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
+use crate::logical::{LogicalProperties, PropertyCategory};
+use crate::compat;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BorderRadius {
@@ -58,7 +60,11 @@ pub(crate) struct BorderRadiusHandler {
   top_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
   bottom_left: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
   bottom_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
-  logical: Vec<Property>,
+  start_start: Option<Property>,
+  start_end: Option<Property>,
+  end_start: Option<Property>,
+  end_end: Option<Property>,
+  category: PropertyCategory,
   has_any: bool
 }
 
@@ -72,16 +78,20 @@ impl BorderRadiusHandler {
 }
 
 impl PropertyHandler for BorderRadiusHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
     use Property::*;
 
     macro_rules! property {
       ($prop: ident, $val: expr, $vp: ident) => {{
+        if self.category != PropertyCategory::Physical {
+          self.flush(dest, logical);
+        }
+
         // If two vendor prefixes for the same property have different
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
           if val != $val && !prefixes.contains(*$vp) {
-            self.flush(dest);
+            self.flush(dest, logical);
           }
         }
 
@@ -93,6 +103,20 @@ impl PropertyHandler for BorderRadiusHandler {
           self.$prop = Some(($val.clone(), *$vp));
           self.has_any = true;
         }
+
+        self.category = PropertyCategory::Physical;
+      }};
+    }
+
+    macro_rules! logical_property {
+      ($prop: ident) => {{
+        if self.category != PropertyCategory::Logical {
+          self.flush(dest, logical);
+        }
+
+        self.$prop = Some(property.clone());
+        self.category = PropertyCategory::Logical;
+        self.has_any = true;
       }};
     }
 
@@ -101,30 +125,33 @@ impl PropertyHandler for BorderRadiusHandler {
       BorderTopRightRadius(val, vp) => property!(top_right, val, vp),
       BorderBottomLeftRadius(val, vp) => property!(bottom_left, val, vp),
       BorderBottomRightRadius(val, vp) => property!(bottom_right, val, vp),
-      BorderStartStartRadius(_) | BorderStartEndRadius(_) | BorderEndStartRadius(_) | BorderEndEndRadius(_) => {
-        self.flush(dest);
-        self.logical.push(property.clone());
-        self.has_any = true;
-      }
+      BorderStartStartRadius(_) => logical_property!(start_start),
+      BorderStartEndRadius(_) => logical_property!(start_end),
+      BorderEndStartRadius(_) => logical_property!(end_start),
+      BorderEndEndRadius(_) => logical_property!(end_end),
       BorderRadius(val, vp) => {
-        self.logical.clear();
+        self.start_start = None;
+        self.start_end = None;
+        self.end_start = None;
+        self.end_end = None;
         property!(top_left, &val.top_left, vp);
         property!(top_right, &val.top_right, vp);
         property!(bottom_left, &val.bottom_left, vp);
         property!(bottom_right, &val.bottom_right, vp);
       }
       Unparsed(val) if is_border_radius_property(&val.property_id) => {
-        self.flush(dest);
-
         // Even if we weren't able to parse the value (e.g. due to var() references),
         // we can still add vendor prefixes to the property itself.
-        let prop = if !is_logical_border_radius_property(&val.property_id) {
-          Property::Unparsed(val.get_prefixed(self.targets, Feature::BorderRadius))
-        } else {
-          property.clone()
-        };
-
-        dest.push(prop);
+        match &val.property_id {
+          PropertyId::BorderStartStartRadius => logical_property!(start_start),
+          PropertyId::BorderStartEndRadius => logical_property!(start_end),
+          PropertyId::BorderEndStartRadius => logical_property!(end_start),
+          PropertyId::BorderEndEndRadius => logical_property!(end_end),
+          _ => {
+            self.flush(dest, logical);
+            dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::BorderRadius)));
+          }
+        }
       }
       _ => return false
     }
@@ -132,13 +159,13 @@ impl PropertyHandler for BorderRadiusHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList) {
-    self.flush(dest);
+  fn finalize(&mut self, dest: &mut DeclarationList, logical: &mut LogicalProperties) {
+    self.flush(dest, logical);
   }
 }
 
 impl BorderRadiusHandler {
-  fn flush(&mut self, dest: &mut DeclarationList) {
+  fn flush(&mut self, dest: &mut DeclarationList, logical: &mut LogicalProperties) {
     if !self.has_any {
       return
     }
@@ -149,8 +176,10 @@ impl BorderRadiusHandler {
     let mut top_right = std::mem::take(&mut self.top_right);
     let mut bottom_left = std::mem::take(&mut self.bottom_left);
     let mut bottom_right = std::mem::take(&mut self.bottom_right);
-
-    dest.extend(self.logical.drain(..));
+    let start_start = std::mem::take(&mut self.start_start);
+    let start_end = std::mem::take(&mut self.start_end);
+    let end_start = std::mem::take(&mut self.end_start);
+    let end_end = std::mem::take(&mut self.end_end);
 
     if let (Some((top_left, tl_prefix)), Some((top_right, tr_prefix)), Some((bottom_left, bl_prefix)), Some((bottom_right, br_prefix))) = (&mut top_left, &mut top_right, &mut bottom_left, &mut bottom_right) {
       let intersection = *tl_prefix & *tr_prefix & *bl_prefix & *br_prefix;
@@ -189,10 +218,41 @@ impl BorderRadiusHandler {
       };
     }
 
+    let logical_supported = logical.is_supported(compat::Feature::LogicalBorderRadius);
+
+    macro_rules! logical_property {
+      ($prop: ident, $opposite_prop: ident, $key: ident, $opposite_key: ident, $ltr: ident, $rtl: ident) => {
+        if logical_supported {
+          if let Some(val) = $key {
+            dest.push(val);
+          }
+          if let Some(val) = $opposite_key {
+            dest.push(val);
+          }
+        } else if $key.is_some() || $opposite_key.is_some() {
+          let vp = if let Some(targets) = self.targets {
+            Feature::$ltr.prefixes_for(targets)
+          } else {
+            VendorPrefix::None
+          };
+
+          logical.add_inline(
+            dest,
+            PropertyId::$ltr(vp),
+            PropertyId::$rtl(vp),
+            $key,
+            $opposite_key
+          );
+        }
+      };
+    }
+
     single_property!(BorderTopLeftRadius, top_left);
     single_property!(BorderTopRightRadius, top_right);
     single_property!(BorderBottomLeftRadius, bottom_left);
     single_property!(BorderBottomRightRadius, bottom_right);
+    logical_property!(BorderStartStartRadius, BorderStartEndRadius, start_start, start_end, BorderTopLeftRadius, BorderTopRightRadius);
+    logical_property!(BorderEndStartRadius, BorderEndEndRadius, end_start, end_end, BorderBottomLeftRadius, BorderBottomRightRadius);
   }
 }
 

@@ -10,6 +10,7 @@ use crate::css_modules::{hash, CssModule, CssModuleExports};
 use std::collections::HashMap;
 use crate::dependencies::Dependency;
 use crate::error::{ParserError, PrinterError};
+use crate::logical::LogicalProperties;
 
 pub use crate::parser::ParserOptions;
 pub use crate::printer::PseudoClasses;
@@ -61,9 +62,11 @@ impl StyleSheet {
   }
 
   pub fn minify(&mut self, targets: Option<Browsers>) {
+    let mut logical_properties = LogicalProperties::new(targets);
     let mut handler = DeclarationHandler::new(targets);
     let mut important_handler = DeclarationHandler::new(targets);
-    self.rules.minify(targets, &mut handler, &mut important_handler);
+    self.rules.minify(targets, &mut handler, &mut important_handler, &mut logical_properties);
+    logical_properties.to_rules(&mut self.rules);
   }
 
   pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, PrinterError> {
@@ -132,9 +135,10 @@ impl StyleAttribute {
   }
 
   pub fn minify(&mut self, targets: Option<Browsers>) {
+    let mut logical_properties = LogicalProperties::new(None);
     let mut handler = DeclarationHandler::new(targets);
     let mut important_handler = DeclarationHandler::new(targets);
-    self.declarations.minify(&mut handler, &mut important_handler);
+    self.declarations.minify(&mut handler, &mut important_handler, &mut logical_properties);
   }
 
   pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, PrinterError> {

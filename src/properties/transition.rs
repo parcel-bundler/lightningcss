@@ -10,6 +10,8 @@ use smallvec::SmallVec;
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
 use crate::error::{ParserError, PrinterError};
+use crate::logical::LogicalProperties;
+use crate::compat;
 
 /// https://www.w3.org/TR/2018/WD-css-transitions-1-20181011/#transition-shorthand-property
 #[derive(Debug, Clone, PartialEq)]
@@ -110,7 +112,7 @@ impl TransitionHandler {
 }
 
 impl PropertyHandler for TransitionHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList) -> bool {
+  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
     use Property::*;
 
     macro_rules! property {
@@ -119,7 +121,7 @@ impl PropertyHandler for TransitionHandler {
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
           if val != $val && !prefixes.contains(*$vp) {
-            self.flush(dest);
+            self.flush(dest, logical);
           }
         }
 
@@ -167,7 +169,7 @@ impl PropertyHandler for TransitionHandler {
         property!(TransitionTimingFunction, timing_functions, &timing_functions, vp);
       }
       Unparsed(val) if is_transition_property(&val.property_id) => {
-        self.flush(dest);
+        self.flush(dest, logical);
         dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::Transition)));
       }
       _ => return false
@@ -176,13 +178,13 @@ impl PropertyHandler for TransitionHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList) {
-    self.flush(dest);
+  fn finalize(&mut self, dest: &mut DeclarationList, logical: &mut LogicalProperties) {
+    self.flush(dest, logical);
   }
 }
 
 impl TransitionHandler {
-  fn flush(&mut self, dest: &mut DeclarationList) {
+  fn flush(&mut self, dest: &mut DeclarationList, logical_properties: &mut LogicalProperties) {
     if !self.has_any {
       return
     }
@@ -194,25 +196,48 @@ impl TransitionHandler {
     let mut delays = std::mem::take(&mut self.delays);
     let mut timing_functions = std::mem::take(&mut self.timing_functions);
 
+    let rtl_properties = if let Some((properties, _)) = &mut properties {
+      expand_properties(properties, self.targets, logical_properties)
+    } else {
+      None
+    };
+
     if let (Some((properties, property_prefixes)), Some((durations, duration_prefixes)), Some((delays, delay_prefixes)), Some((timing_functions, timing_prefixes))) = (&mut properties, &mut durations, &mut delays, &mut timing_functions) {
       // Only use shorthand syntax if the number of transitions matches on all properties.
       let len = properties.len();
-      if durations.len() == len && delays.len() == len && timing_functions.len() == len {
-        let transitions: SmallVec<[Transition; 1]> = izip!(properties, durations, delays, timing_functions).map(|(property, duration, delay, timing_function)| {
-          Transition {
-            property: property.clone(),
-            duration: duration.clone(),
-            delay: delay.clone(),
-            timing_function: timing_function.clone()
-          }
-        }).collect();
-
+      if durations.len() == len && delays.len() == len && timing_functions.len() == len {        
         // Find the intersection of prefixes with the same value.
         // Remove that from the prefixes of each of the properties. The remaining
         // prefixes will be handled by outputing individual properties below.
         let intersection = *property_prefixes & *duration_prefixes & *delay_prefixes & *timing_prefixes;
         if !intersection.is_empty() {
-          dest.push(Property::Transition(transitions.clone(), intersection));
+          macro_rules! get_transitions {
+            ($properties: ident) => {
+              izip!($properties, durations.iter(), delays.iter(), timing_functions.iter()).map(|(property, duration, delay, timing_function)| {
+                Transition {
+                  property: property.clone(),
+                  duration: duration.clone(),
+                  delay: delay.clone(),
+                  timing_function: timing_function.clone()
+                }
+              }).collect()
+            };
+          }
+          
+          let transitions: SmallVec<[Transition; 1]> = get_transitions!(properties);
+
+          if let Some(rtl_properties) = &rtl_properties {
+            let rtl_transitions = get_transitions!(rtl_properties);
+            logical_properties.add(
+              dest,
+              PropertyId::Transition(intersection),
+              Property::Transition(transitions, intersection),
+              Property::Transition(rtl_transitions, intersection)
+            );
+          } else {
+            dest.push(Property::Transition(transitions.clone(), intersection));
+          }
+
           property_prefixes.remove(intersection);
           duration_prefixes.remove(intersection);
           delay_prefixes.remove(intersection);
@@ -223,7 +248,16 @@ impl TransitionHandler {
 
     if let Some((properties, prefix)) = properties {
       if !prefix.is_empty() {
-        dest.push(Property::TransitionProperty(properties, prefix));
+        if let Some(rtl_properties) = rtl_properties {
+          logical_properties.add(
+            dest,
+            PropertyId::TransitionProperty(prefix),
+            Property::TransitionProperty(properties, prefix),
+            Property::TransitionProperty(rtl_properties, prefix)
+          );
+        } else {
+          dest.push(Property::TransitionProperty(properties, prefix));
+        }
       }
     }
 
@@ -265,5 +299,142 @@ fn is_transition_property(property_id: &PropertyId) -> bool {
     PropertyId::TransitionTimingFunction(_) |
     PropertyId::Transition(_) => true,
     _ => false
+  }
+}
+
+fn expand_properties(
+  properties: &mut SmallVec<[PropertyId; 1]>,
+  targets: Option<Browsers>,
+  logical_properties: &mut LogicalProperties
+) -> Option<SmallVec<[PropertyId; 1]>> {
+  let mut rtl_properties: Option<SmallVec<[PropertyId; 1]>> = None;
+  let len = properties.len();
+  let mut i = 0;
+
+  macro_rules! replace {
+    ($properties: ident, $props: ident) => {
+      $properties[i] = $props[0].clone();
+      if $props.len() > 1 {
+        $properties.insert_many(i + 1, $props[1..].into_iter().cloned());
+      }
+    };
+  }
+
+  // Expand logical properties in place.
+  while i < len {
+    match get_logical_properties(&properties[i]) {
+      LogicalPropertyId::Block(feature, props) if !logical_properties.is_supported(feature) => {
+        replace!(properties, props);
+        if let Some(rtl_properties) = &mut rtl_properties {
+          replace!(rtl_properties, props);
+        }
+        i += props.len();
+      }
+      LogicalPropertyId::Inline(feature, ltr, rtl) if !logical_properties.is_supported(feature) => {
+        // Clone properties to create RTL version only when needed.
+        if rtl_properties.is_none() {
+          rtl_properties = Some(properties.clone());
+        }
+
+        replace!(properties, ltr);
+        if let Some(rtl_properties) = &mut rtl_properties {
+          replace!(rtl_properties, rtl);
+        }
+
+        i += ltr.len();
+      }
+      _ => {
+        // Expand vendor prefixes for targets.
+        properties[i].set_prefixes_for_targets(targets);
+        if let Some(rtl_properties) = &mut rtl_properties {
+          rtl_properties[i].set_prefixes_for_targets(targets);
+        }
+        i += 1;
+      }
+    }
+  }
+
+  rtl_properties
+}
+
+enum LogicalPropertyId {
+  None,
+  Block(compat::Feature, &'static [PropertyId]),
+  Inline(compat::Feature, &'static [PropertyId], &'static [PropertyId])
+}
+
+#[inline]
+fn get_logical_properties(property_id: &PropertyId) -> LogicalPropertyId {
+  use PropertyId::*;
+  use LogicalPropertyId::*;
+  use compat::Feature::*;
+  match property_id {
+    BlockSize => Block(LogicalSize, &[Height]),
+    InlineSize => Inline(LogicalSize, &[Width], &[Height]),
+    MinBlockSize => Block(LogicalSize, &[MinHeight]),
+    MaxBlockSize => Block(LogicalSize, &[MaxHeight]),
+    MinInlineSize => Inline(LogicalSize, &[MinWidth], &[MinHeight]),
+    MaxInlineSize => Inline(LogicalSize, &[MaxWidth], &[MaxHeight]),
+    
+    InsetBlockStart => Block(LogicalInset, &[Top]),
+    InsetBlockEnd => Block(LogicalInset, &[Bottom]),
+    InsetInlineStart => Inline(LogicalInset, &[Left], &[Right]),
+    InsetInlineEnd => Inline(LogicalInset, &[Right], &[Left]),
+    InsetBlock => Block(LogicalInset, &[Top, Bottom]),
+    InsetInline => Block(LogicalInset, &[Left, Right]),
+    Inset => Block(LogicalInset, &[Top, Bottom, Left, Right]),
+
+    MarginBlockStart => Block(LogicalMargin, &[MarginTop]),
+    MarginBlockEnd => Block(LogicalMargin, &[MarginBottom]),
+    MarginInlineStart => Inline(LogicalMargin, &[MarginLeft], &[MarginRight]),
+    MarginInlineEnd => Inline(LogicalMargin, &[MarginRight], &[MarginLeft]),
+    MarginBlock => Block(LogicalMargin, &[MarginTop, MarginBottom]),
+    MarginInline => Block(LogicalMargin, &[MarginLeft, MarginRight]),
+
+    PaddingBlockStart => Block(LogicalPadding, &[PaddingTop]),
+    PaddingBlockEnd => Block(LogicalPadding, &[PaddingBottom]),
+    PaddingInlineStart => Inline(LogicalPadding, &[PaddingLeft], &[PaddingRight]),
+    PaddingInlineEnd => Inline(LogicalPadding, &[PaddingRight], &[PaddingLeft]),
+    PaddingBlock => Block(LogicalPadding, &[PaddingTop, PaddingBottom]),
+    PaddingInline => Block(LogicalPadding, &[PaddingLeft, PaddingRight]),
+
+    BorderBlockStart => Block(LogicalBorders, &[BorderTop]),
+    BorderBlockStartWidth => Block(LogicalBorders, &[BorderTopWidth]),
+    BorderBlockStartColor => Block(LogicalBorders, &[BorderTopColor]),
+    BorderBlockStartStyle => Block(LogicalBorders, &[BorderTopStyle]),
+
+    BorderBlockEnd => Block(LogicalBorders, &[BorderBottom]),
+    BorderBlockEndWidth => Block(LogicalBorders, &[BorderBottomWidth]),
+    BorderBlockEndColor => Block(LogicalBorders, &[BorderBottomColor]),
+    BorderBlockEndStyle => Block(LogicalBorders, &[BorderBottomStyle]),
+
+    BorderInlineStart => Inline(LogicalBorders, &[BorderLeft], &[BorderRight]),
+    BorderInlineStartWidth => Inline(LogicalBorders, &[BorderLeftWidth], &[BorderRightWidth]),
+    BorderInlineStartColor => Inline(LogicalBorders, &[BorderLeftColor], &[BorderRightColor]),
+    BorderInlineStartStyle => Inline(LogicalBorders, &[BorderLeftStyle], &[BorderRightStyle]),
+
+    BorderInlineEnd => Inline(LogicalBorders, &[BorderRight], &[BorderLeft]),
+    BorderInlineEndWidth => Inline(LogicalBorders, &[BorderRightWidth], &[BorderLeftWidth]),
+    BorderInlineEndColor => Inline(LogicalBorders, &[BorderRightColor], &[BorderLeftColor]),
+    BorderInlineEndStyle => Inline(LogicalBorders, &[BorderRightStyle], &[BorderLeftStyle]),
+
+    BorderBlock => Block(LogicalBorders, &[BorderTop, BorderBottom]),
+    BorderBlockColor => Block(LogicalBorders, &[BorderTopColor, BorderBottomColor]),
+    BorderBlockWidth => Block(LogicalBorders, &[BorderTopWidth, BorderBottomWidth]),
+    BorderBlockStyle => Block(LogicalBorders, &[BorderTopStyle, BorderBottomStyle]),
+    
+    BorderInline => Block(LogicalBorders, &[BorderLeft, BorderRight]),
+    BorderInlineColor => Block(LogicalBorders, &[BorderLeftColor, BorderRightColor]),
+    BorderInlineWidth => Block(LogicalBorders, &[BorderLeftWidth, BorderRightWidth]),
+    BorderInlineStyle => Block(LogicalBorders, &[BorderLeftStyle, BorderRightStyle]),
+
+    // Not worth using vendor prefixes for these since border-radius is supported
+    // everywhere custom properties (which are used to polyfill logical properties) are.
+    BorderStartStartRadius => Inline(LogicalBorders, &[BorderTopLeftRadius(VendorPrefix::None)], &[BorderTopRightRadius(VendorPrefix::None)]),
+    BorderStartEndRadius => Inline(LogicalBorders, &[BorderTopRightRadius(VendorPrefix::None)], &[BorderTopLeftRadius(VendorPrefix::None)]),
+    BorderEndStartRadius => Inline(LogicalBorders, &[BorderBottomLeftRadius(VendorPrefix::None)], &[BorderBottomRightRadius(VendorPrefix::None)]),
+    BorderEndEndRadius => Inline(LogicalBorders, &[BorderBottomRightRadius(VendorPrefix::None)], &[BorderBottomLeftRadius(VendorPrefix::None)]),
+
+    _ => None
   }
 }

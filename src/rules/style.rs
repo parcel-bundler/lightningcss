@@ -9,6 +9,7 @@ use crate::targets::Browsers;
 use crate::rules::{CssRuleList, ToCssWithContext, StyleContext};
 use crate::compat::Feature;
 use crate::error::PrinterError;
+use crate::logical::LogicalProperties;
 
 #[derive(Debug, PartialEq)]
 pub struct StyleRule {
@@ -20,8 +21,13 @@ pub struct StyleRule {
 }
 
 impl StyleRule {
-  pub(crate) fn minify(&mut self, handler: &mut DeclarationHandler, important_handler: &mut DeclarationHandler) {
-    self.declarations.minify(handler, important_handler);
+  pub(crate) fn minify(
+    &mut self,
+    handler: &mut DeclarationHandler,
+    important_handler: &mut DeclarationHandler,
+    logical_properties: &mut LogicalProperties
+  ) {
+    self.declarations.minify(handler, important_handler, logical_properties);
   }
 
   pub fn is_compatible(&self, targets: Option<Browsers>) -> bool {
