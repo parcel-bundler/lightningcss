@@ -39,7 +39,12 @@ impl ToCss for AnimationName {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       AnimationName::None => dest.write_str("none"),
-      AnimationName::Ident(s) => s.to_css(dest)
+      AnimationName::Ident(s) => {
+        if let Some(css_module) = &mut dest.css_module {
+          css_module.reference(&s.0)
+        }
+        s.to_css(dest)
+      }
     }
   }
 }

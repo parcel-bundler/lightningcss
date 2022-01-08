@@ -10,6 +10,7 @@ use crate::targets::Browsers;
 use crate::rules::{ToCssWithContext, StyleContext};
 use std::collections::HashMap;
 use crate::error::{ParserError, PrinterError};
+use std::collections::HashSet;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Selectors;
@@ -1207,4 +1208,32 @@ pub fn get_necessary_prefixes(selectors: &SelectorList<Selectors>, targets: Brow
   }
 
   necessary_prefixes
+}
+
+/// Determines whether a selector list contains only unused selectors.
+/// A selector is considered unused if it contains a class or id component that exists in the set of unsed symbols.
+pub fn is_unused(selectors: &mut std::slice::Iter<Selector<Selectors>>, unused_symbols: &HashSet<String>) -> bool {
+  if unused_symbols.is_empty() {
+    return false
+  }
+  
+  selectors.all(|selector| {
+    for component in selector.iter_raw_match_order() {
+      match component {
+        Component::Class(name) | Component::ID(name) => {
+          if unused_symbols.contains(&name.0) {
+            return true
+          }
+        }
+        Component::Is(is) | Component::Where(is) => {
+          if is_unused(&mut is.iter(), unused_symbols) {
+            return true
+          }
+        }
+        _ => {}
+      }
+    }
+
+    false
+  })
 }

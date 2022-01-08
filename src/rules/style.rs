@@ -3,13 +3,13 @@ use parcel_selectors::SelectorList;
 use crate::selector::{Selectors, is_compatible};
 use crate::traits::ToCss;
 use crate::printer::Printer;
-use crate::declaration::{DeclarationBlock, DeclarationHandler};
+use crate::declaration::DeclarationBlock;
 use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
 use crate::rules::{CssRuleList, ToCssWithContext, StyleContext};
 use crate::compat::Feature;
 use crate::error::PrinterError;
-use crate::logical::LogicalProperties;
+use super::MinifyContext;
 
 #[derive(Debug, PartialEq)]
 pub struct StyleRule {
@@ -21,13 +21,8 @@ pub struct StyleRule {
 }
 
 impl StyleRule {
-  pub(crate) fn minify(
-    &mut self,
-    handler: &mut DeclarationHandler,
-    important_handler: &mut DeclarationHandler,
-    logical_properties: &mut LogicalProperties
-  ) {
-    self.declarations.minify(handler, important_handler, logical_properties);
+  pub(crate) fn minify(&mut self, context: &mut MinifyContext) {
+    self.declarations.minify(context.handler, context.important_handler, context.logical_properties);
   }
 
   pub fn is_compatible(&self, targets: Option<Browsers>) -> bool {

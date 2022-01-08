@@ -1,10 +1,9 @@
 use cssparser::SourceLocation;
 use crate::printer::Printer;
-use crate::declaration::DeclarationHandler;
 use super::style::StyleRule;
 use crate::rules::{ToCssWithContext, StyleContext};
 use crate::error::PrinterError;
-use crate::logical::LogicalProperties;
+use super::MinifyContext;
 
 #[derive(Debug, PartialEq)]
 pub struct NestingRule {
@@ -13,13 +12,8 @@ pub struct NestingRule {
 }
 
 impl NestingRule {
-  pub(crate) fn minify(
-    &mut self,
-    handler: &mut DeclarationHandler,
-    important_handler: &mut DeclarationHandler,
-    logical_properties: &mut LogicalProperties
-  ) {
-    self.style.minify(handler, important_handler, logical_properties)
+  pub(crate) fn minify(&mut self, context: &mut MinifyContext) {
+    self.style.minify(context)
   }
 }
 

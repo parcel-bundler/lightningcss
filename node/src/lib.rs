@@ -2,8 +2,9 @@
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
+use std::collections::HashSet;
 use serde::{Serialize, Deserialize};
-use parcel_css::stylesheet::{StyleSheet, StyleAttribute, ParserOptions, PrinterOptions, PseudoClasses};
+use parcel_css::stylesheet::{StyleSheet, StyleAttribute, ParserOptions, PrinterOptions, MinifyOptions, PseudoClasses};
 use parcel_css::targets::Browsers;
 use parcel_css::css_modules::CssModuleExports;
 use parcel_css::dependencies::Dependency;
@@ -115,7 +116,8 @@ struct Config {
   pub drafts: Option<Drafts>,
   pub css_modules: Option<bool>,
   pub analyze_dependencies: Option<bool>,
-  pub pseudo_classes: Option<OwnedPseudoClasses>
+  pub pseudo_classes: Option<OwnedPseudoClasses>,
+  pub unused_symbols: Option<HashSet<String>>
 }
 
 #[derive(Debug, Deserialize)]
@@ -154,7 +156,10 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
     },
     css_modules: config.css_modules.unwrap_or(false)
   })?;
-  stylesheet.minify(config.targets); // TODO: should this be conditional?
+  stylesheet.minify(MinifyOptions {
+    targets: config.targets,
+    unused_symbols: config.unused_symbols.clone().unwrap_or_default()
+  });
   let res = stylesheet.to_css(PrinterOptions {
     minify: config.minify.unwrap_or(false),
     source_map: config.source_map.unwrap_or(false),
@@ -209,7 +214,10 @@ struct AttrResult {
 
 fn compile_attr<'i>(code: &'i str, config: &AttrConfig) -> Result<AttrResult, CompileError<'i>> {
   let mut attr = StyleAttribute::parse(&code)?;
-  attr.minify(config.targets); // TODO: should this be conditional?
+  attr.minify(MinifyOptions {
+    targets: config.targets,
+    ..MinifyOptions::default()
+  });
   let res = attr.to_css(PrinterOptions {
     minify: config.minify.unwrap_or(false),
     source_map: false,

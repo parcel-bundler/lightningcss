@@ -55,25 +55,38 @@ export interface TransformResult {
 
 export type CSSModuleExports = {
   /** Maps exported (i.e. original) names to local names. */
-  [name: string]: CSSModuleExport[]
+  [name: string]: CSSModuleExport
 };
 
-export type CSSModuleExport = LocalCSSModuleExport | DependencyCSSModuleExport;
-
-export interface LocalCSSModuleExport {
-  type: 'local',
+export interface CSSModuleExport {
   /** The local (compiled) name for this export. */
-  value: string
+  name: string,
+  /** Whether the export is referenced in this file. */
+  isReferenced: boolean,
+  /** Other names that are composed by this export. */
+  composes: CSSModuleReference[]
 }
 
-export interface DependencyCSSModuleExport {
+export type CSSModuleReference = LocalCSSModuleReference | GlobalCSSModuleReference | DependencyCSSModuleReference;
+
+export interface LocalCSSModuleReference {
+  type: 'local',
+  /** The local (compiled) name for the reference. */
+  name: string,
+}
+
+export interface GlobalCSSModuleReference {
+  type: 'global',
+  /** The referenced global name. */
+  name: string,
+}
+
+export interface DependencyCSSModuleReference {
   type: 'dependency',
-  value: {
-    /** The name to reference within the dependency. */
-    name: string,
-    /** The dependency specifier for the referenced file. */
-    specifier: string
-  }
+  /** The name to reference within the dependency. */
+  name: string,
+  /** The dependency specifier for the referenced file. */
+  specifier: string
 }
 
 export type Dependency = ImportDependency | UrlDependency;

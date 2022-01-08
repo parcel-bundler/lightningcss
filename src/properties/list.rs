@@ -80,7 +80,12 @@ impl Parse for CounterStyle {
 impl ToCss for CounterStyle {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
-      CounterStyle::Name(name) => name.to_css(dest),
+      CounterStyle::Name(name) => {
+        if let Some(css_module) = &mut dest.css_module {
+          css_module.reference(&name.0)
+        }
+        name.to_css(dest)
+      },
       CounterStyle::Symbols(t, symbols) => {
         dest.write_str("symbols(")?;
         let mut needs_space = false;

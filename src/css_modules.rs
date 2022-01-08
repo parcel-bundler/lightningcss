@@ -9,17 +9,30 @@ use crate::selector::Selectors;
 use serde::Serialize;
 use crate::error::PrinterError;
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone, Serialize)]
-#[serde(tag = "type", content = "value", rename_all = "lowercase")]
-pub enum CssModuleExport {
-  Local(String),
+#[derive(PartialEq, Debug, Clone, Serialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum CssModuleReference {
+  Local {
+    name: String,
+  },
+  Global {
+    name: String
+  },
   Dependency {
     name: String,
     specifier: String
   }
 }
 
-pub type CssModuleExports = HashMap<String, Vec<CssModuleExport>>;
+#[derive(PartialEq, Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CssModuleExport {
+  pub name: String,
+  pub composes: Vec<CssModuleReference>,
+  pub is_referenced: bool
+}
+
+pub type CssModuleExports = HashMap<String, CssModuleExport>;
 
 lazy_static! {
   static ref ENCODER: Encoding = {
@@ -35,38 +48,29 @@ pub(crate) struct CssModule<'a> {
 }
 
 impl<'a> CssModule<'a> {
-  pub fn add_export(&mut self, name: String, export: CssModuleExport) {
-    match self.exports.entry(name) {
+  pub fn add_local(&mut self, exported: &str, local: &str) {
+    let hash = &self.hash;
+    self.exports.entry(exported.into())
+      .or_insert_with(|| CssModuleExport {
+        name: format!("{}_{}", local, hash),
+        composes: vec![],
+        is_referenced: false
+      });
+  }
+
+  pub fn reference(&mut self, name: &str) {
+    match self.exports.entry(name.into()) {
       std::collections::hash_map::Entry::Occupied(mut entry) => {
-        if !entry.get().contains(&export) {
-          entry.get_mut().push(export);
-        }
+        entry.get_mut().is_referenced = true;
       }
       std::collections::hash_map::Entry::Vacant(entry) => {
-        let mut items = Vec::new();
-        if !items.contains(&export) {
-          items.push(export);
-        }
-        entry.insert(items);
+        entry.insert(CssModuleExport {
+          name: format!("{}_{}", name, self.hash),
+          composes: vec![],
+          is_referenced: true
+        });
       }
     }
-  }
-
-  pub fn add_local(&mut self, exported: &str, local: &str) {
-    let local = CssModuleExport::Local(format!("{}_{}", local, self.hash));
-    self.add_export(exported.into(), local);
-  }
-
-  pub fn add_global(&mut self, exported: &str, global: &str) {
-    self.add_export(exported.into(), CssModuleExport::Local(global.into()))
-  }
-
-  pub fn add_dependency(&mut self, exported: &str, name: &str, specifier: &str) {
-    let dependency = CssModuleExport::Dependency {
-      name: name.into(),
-      specifier: specifier.into()
-    };
-    self.add_export(exported.into(), dependency)
   }
 
   pub fn handle_composes(&mut self, selectors: &SelectorList<Selectors>, composes: &Composes) -> Result<(), PrinterError> {
@@ -75,10 +79,18 @@ impl<'a> CssModule<'a> {
         match sel.iter_raw_match_order().next().unwrap() {
           parcel_selectors::parser::Component::Class(ref id) => {
             for name in &composes.names {
-              match &composes.from {
-                None => self.add_local(&id.0, &name.0),
-                Some(ComposesFrom::Global) => self.add_global(&id.0, &name.0),
-                Some(ComposesFrom::File(file)) => self.add_dependency(&id.0, &name.0, &file)
+              let reference = match &composes.from {
+                None => CssModuleReference::Local { name: format!("{}_{}", name.0, self.hash) },
+                Some(ComposesFrom::Global) => CssModuleReference::Global { name: name.0.clone() },
+                Some(ComposesFrom::File(file)) => CssModuleReference::Dependency {
+                  name: name.0.clone(),
+                  specifier: file.clone()
+                }
+              };
+
+              let export = self.exports.get_mut(&id.0).unwrap();
+              if !export.composes.contains(&reference) {
+                export.composes.push(reference);
               }
             }
             continue;

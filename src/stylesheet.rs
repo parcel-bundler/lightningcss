@@ -1,13 +1,13 @@
 use cssparser::{Parser, ParserInput, RuleListParser, ParseError};
 use parcel_sourcemap::SourceMap;
-use crate::rules::{CssRule, CssRuleList};
+use crate::rules::{CssRule, CssRuleList, MinifyContext};
 use crate::parser::TopLevelRuleParser;
 use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::targets::Browsers;
 use crate::declaration::{DeclarationHandler, DeclarationBlock};
 use crate::css_modules::{hash, CssModule, CssModuleExports};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use crate::dependencies::Dependency;
 use crate::error::{ParserError, PrinterError};
 use crate::logical::LogicalProperties;
@@ -28,6 +28,12 @@ pub struct PrinterOptions<'a> {
   pub targets: Option<Browsers>,
   pub analyze_dependencies: bool,
   pub pseudo_classes: Option<PseudoClasses<'a>>
+}
+
+#[derive(Default)]
+pub struct MinifyOptions {
+  pub targets: Option<Browsers>,
+  pub unused_symbols: HashSet<String>
 }
 
 pub struct ToCssResult {
@@ -61,11 +67,17 @@ impl StyleSheet {
     })
   }
 
-  pub fn minify(&mut self, targets: Option<Browsers>) {
-    let mut logical_properties = LogicalProperties::new(targets);
-    let mut handler = DeclarationHandler::new(targets);
-    let mut important_handler = DeclarationHandler::new(targets);
-    self.rules.minify(targets, &mut handler, &mut important_handler, &mut logical_properties);
+  pub fn minify(&mut self, options: MinifyOptions) {
+    let mut logical_properties = LogicalProperties::new(options.targets);
+    let mut handler = DeclarationHandler::new(options.targets);
+    let mut important_handler = DeclarationHandler::new(options.targets);
+    self.rules.minify(&mut MinifyContext {
+      targets: &options.targets,
+      handler: &mut handler,
+      important_handler: &mut important_handler,
+      logical_properties: &mut logical_properties,
+      unused_symbols: &options.unused_symbols
+    });
     logical_properties.to_rules(&mut self.rules);
   }
 
@@ -134,10 +146,10 @@ impl StyleAttribute {
     })
   }
 
-  pub fn minify(&mut self, targets: Option<Browsers>) {
+  pub fn minify(&mut self, options: MinifyOptions) {
     let mut logical_properties = LogicalProperties::new(None);
-    let mut handler = DeclarationHandler::new(targets);
-    let mut important_handler = DeclarationHandler::new(targets);
+    let mut handler = DeclarationHandler::new(options.targets);
+    let mut important_handler = DeclarationHandler::new(options.targets);
     self.declarations.minify(&mut handler, &mut important_handler, &mut logical_properties);
   }
 

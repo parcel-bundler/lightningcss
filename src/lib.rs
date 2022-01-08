@@ -24,32 +24,32 @@ mod tests {
   use crate::targets::Browsers;
   use indoc::indoc;
   use std::collections::HashMap;
-  use crate::css_modules::{CssModuleExports, CssModuleExport};
+  use crate::css_modules::{CssModuleExports, CssModuleExport, CssModuleReference};
 
   fn test(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
-    stylesheet.minify(None);
+    stylesheet.minify(MinifyOptions::default());
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
   }
 
   fn minify_test(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
-    stylesheet.minify(None);
+    stylesheet.minify(MinifyOptions::default());
     let res = stylesheet.to_css(PrinterOptions { minify: true, ..PrinterOptions::default() }).unwrap();
     assert_eq!(res.code, expected);
   }
 
   fn prefix_test(source: &str, expected: &str, targets: Browsers) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
-    stylesheet.minify(Some(targets));
+    stylesheet.minify(MinifyOptions { targets: Some(targets), ..MinifyOptions::default() });
     let res = stylesheet.to_css(PrinterOptions { targets: Some(targets), ..PrinterOptions::default() }).unwrap();
     assert_eq!(res.code, expected);
   }
 
   fn attr_test(source: &str, expected: &str, minify: bool, targets: Option<Browsers>) {
     let mut attr = StyleAttribute::parse(source).unwrap();
-    attr.minify(targets);
+    attr.minify(MinifyOptions { targets, ..MinifyOptions::default() });
     let res = attr.to_css(PrinterOptions { targets, minify, ..PrinterOptions::default() }).unwrap();
     assert_eq!(res.code, expected);
   }
@@ -60,48 +60,71 @@ mod tests {
       ..Browsers::default()
     });
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
-    stylesheet.minify(targets);
+    stylesheet.minify(MinifyOptions { targets, ..MinifyOptions::default() });
     let res = stylesheet.to_css(PrinterOptions { targets, ..PrinterOptions::default() }).unwrap();
     assert_eq!(res.code, expected);
   }
 
   fn nesting_test_no_targets(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
-    stylesheet.minify(None);
+    stylesheet.minify(MinifyOptions::default());
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
   }
 
   fn css_modules_test(source: &str, expected: &str, expected_exports: CssModuleExports) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { css_modules: true, ..ParserOptions::default() }).unwrap();
-    stylesheet.minify(None);
+    stylesheet.minify(MinifyOptions::default());
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
     assert_eq!(res.exports.unwrap(), expected_exports);
   }
 
   macro_rules! map(
-    { $($key:expr => $($value:literal $(from $from:literal)?)+),* } => {
+    { $($key:expr => $name:literal $(referenced: $referenced: literal)? $($value:literal $(global: $global: literal)? $(from $from:literal)?)*),* } => {
       {
         #[allow(unused_mut)]
         let mut m = HashMap::new();
         $(
+          #[allow(unused_mut)]
           let mut v = Vec::new();
+          #[allow(unused_macros)]
           macro_rules! insert {
-            ($local:literal, $specifier:literal) => {
-              v.push(CssModuleExport::Dependency {
+            ($local:literal from $specifier:literal) => {
+              v.push(CssModuleReference::Dependency {
                 name: $local.into(),
                 specifier: $specifier.into()
               });
             };
+            ($local:literal global: $is_global: literal) => {
+              v.push(CssModuleReference::Global {
+                name: $local.into()
+              });
+            };
             ($local:literal) => {
-              v.push(CssModuleExport::Local($local.into()));
+              v.push(CssModuleReference::Local {
+                name: $local.into()
+              });
             };
           }
           $(
-            insert!($value$(, $from)?);
-          )+
-          m.insert($key.into(), v);
+            insert!($value $(global: $global)? $(from $from)?);
+          )*
+
+          macro_rules! is_referenced {
+            ($ref: literal) => {
+              $ref
+            };
+            () => {
+              false
+            };
+          }
+
+          m.insert($key.into(), CssModuleExport {
+            name: $name.into(),
+            composes: v,
+            is_referenced: is_referenced!($($referenced)?)
+          });
         )*
         m
       }
@@ -8588,6 +8611,11 @@ mod tests {
       ul {
         list-style: circles;
       }
+
+      @keyframes fade {
+        from { opacity: 0 }
+        to { opacity: 1 }
+      }
     "#, indoc!{r#"
       .foo_EgL3uq {
         color: red;
@@ -8614,11 +8642,22 @@ mod tests {
       ul {
         list-style: circles_EgL3uq;
       }
+
+      @keyframes fade_EgL3uq {
+        from {
+          opacity: 0;
+        }
+
+        to {
+          opacity: 1;
+        }
+      }
     "#}, map! {
       "foo" => "foo_EgL3uq",
       "id" => "id_EgL3uq",
-      "test" => "test_EgL3uq",
-      "circles" => "circles_EgL3uq"
+      "test" => "test_EgL3uq" referenced: true,
+      "circles" => "circles_EgL3uq" referenced: true,
+      "fade" => "fade_EgL3uq"
     });
 
     #[cfg(feature = "grid")]
@@ -8789,7 +8828,7 @@ mod tests {
         background: #fff;
       }
     "#}, map! {
-      "test" => "test_EgL3uq" "foo"
+      "test" => "test_EgL3uq" "foo" global: true
     });
 
     css_modules_test(r#"
@@ -8802,7 +8841,7 @@ mod tests {
         background: #fff;
       }
     "#}, map! {
-      "test" => "test_EgL3uq" "foo" "bar"
+      "test" => "test_EgL3uq" "foo" global: true "bar" global: true
     });
 
     css_modules_test(r#"
@@ -8918,6 +8957,81 @@ mod tests {
       }),
       ..PrinterOptions::default()
     }).unwrap();
+    assert_eq!(res.code, expected);
+  }
+
+  #[test]
+  fn test_unused_symbols() {
+    let source = r#"
+      .foo {
+        color: red;
+      }
+
+      .bar {
+        color: green;
+      }
+
+      .bar:hover {
+        color: purple;
+      }
+
+      .bar .baz {
+        background: red;
+      }
+
+      .baz:is(.bar) {
+        background: green;
+      }
+      
+      #id {
+        animation: 2s test;
+      }
+
+      #other_id {
+        color: red;
+      }
+
+      @keyframes test {
+        from { color: red }
+        to { color: yellow }
+      }
+
+      @counter-style circles {
+        symbols: Ⓐ Ⓑ Ⓒ;
+      }
+
+      @keyframes fade {
+        from { opacity: 0 }
+        to { opacity: 1 }
+      }
+    "#;
+
+    let expected = indoc!{r#"
+      .foo {
+        color: red;
+      }
+      
+      #id {
+        animation: test 2s;
+      }
+
+      @keyframes test {
+        from {
+          color: red;
+        }
+
+        to {
+          color: #ff0;
+        }
+      }
+    "#};
+
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
+    stylesheet.minify(MinifyOptions {
+      unused_symbols: vec!["bar", "other_id", "fade", "circles"].iter().map(|s| String::from(*s)).collect(),
+      ..MinifyOptions::default()
+    });
+    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
   }
 }

@@ -1,13 +1,13 @@
 use cssparser::*;
 use crate::values::percentage::Percentage;
 use crate::traits::{Parse, ToCss};
-use crate::declaration::{DeclarationBlock, DeclarationHandler};
+use crate::declaration::DeclarationBlock;
 use crate::vendor_prefix::VendorPrefix;
 use crate::printer::Printer;
 use crate::values::ident::CustomIdent;
 use crate::parser::ParserOptions;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use super::MinifyContext;
 
 #[derive(Debug, PartialEq)]
 pub struct KeyframesRule {
@@ -18,14 +18,9 @@ pub struct KeyframesRule {
 }
 
 impl KeyframesRule {
-  pub(crate) fn minify(
-    &mut self,
-    handler: &mut DeclarationHandler,
-    important_handler: &mut DeclarationHandler,
-    logical_properties: &mut LogicalProperties
-  ) {
+  pub(crate) fn minify(&mut self, context: &mut MinifyContext) {
     for keyframe in &mut self.keyframes {
-      keyframe.declarations.minify(handler, important_handler, logical_properties)
+      keyframe.declarations.minify(context.handler, context.important_handler, context.logical_properties)
     }
   }
 }
