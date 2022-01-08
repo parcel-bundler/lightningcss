@@ -8308,7 +8308,7 @@ mod tests {
           }
 
           &* {
-            color: red;
+            color: green;
           }
 
           &|x {
@@ -8316,7 +8316,7 @@ mod tests {
           }
 
           &*|x {
-            color: red;
+            color: green;
           }
 
           &toto|x {
@@ -8333,7 +8333,7 @@ mod tests {
         }
 
         *.foo {
-          color: red;
+          color: green;
         }
 
         |x.foo {
@@ -8341,7 +8341,7 @@ mod tests {
         }
 
         *|x.foo {
-          color: red;
+          color: green;
         }
 
         toto|x.foo {
@@ -9056,6 +9056,53 @@ mod tests {
       ..MinifyOptions::default()
     });
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    assert_eq!(res.code, expected);
+
+    let source = r#"
+      .foo {
+        color: red;
+
+        &.bar {
+          color: purple;
+        }
+
+        @nest &.bar {
+          color: orange;
+        }
+
+        @nest :not(&) {
+          color: green;
+        }
+
+        @media (orientation: portrait) {
+          color: brown;
+        }
+      }
+
+      .x {
+        color: purple;
+        
+        &.y {
+          color: green;
+        }
+      }
+    "#;
+
+    let expected = indoc!{r#"
+      :not(.foo) {
+        color: green;
+      }
+    "#};
+
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
+    stylesheet.minify(MinifyOptions {
+      unused_symbols: vec!["foo", "x"].iter().map(|s| String::from(*s)).collect(),
+      ..MinifyOptions::default()
+    });
+    let res = stylesheet.to_css(PrinterOptions {
+      targets: Some(Browsers { chrome: Some(95 << 16), ..Browsers::default() }),
+      ..PrinterOptions::default()
+    }).unwrap();
     assert_eq!(res.code, expected);
   }
 }

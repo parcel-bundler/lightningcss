@@ -12,7 +12,7 @@ pub struct MozDocumentRule {
 
 impl MozDocumentRule {
   pub(crate) fn minify(&mut self, context: &mut MinifyContext) {
-    self.rules.minify(context)
+    self.rules.minify(context, false)
   }
 }
 

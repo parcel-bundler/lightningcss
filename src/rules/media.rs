@@ -14,8 +14,8 @@ pub struct MediaRule {
 }
 
 impl MediaRule {
-  pub(crate) fn minify(&mut self, context: &mut MinifyContext) {
-    self.rules.minify(context)
+  pub(crate) fn minify(&mut self, context: &mut MinifyContext, parent_is_unused: bool) {
+    self.rules.minify(context, parent_is_unused);
   }
 }
 

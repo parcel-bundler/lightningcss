@@ -6,7 +6,7 @@ use crate::printer::Printer;
 use crate::declaration::DeclarationBlock;
 use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
-use crate::rules::{CssRuleList, CssRule, ToCssWithContext, StyleContext};
+use crate::rules::{CssRuleList, ToCssWithContext, StyleContext};
 use crate::compat::Feature;
 use crate::error::PrinterError;
 use super::MinifyContext;
@@ -21,17 +21,30 @@ pub struct StyleRule {
 }
 
 impl StyleRule {
-  pub(crate) fn minify(&mut self, context: &mut MinifyContext) {
+  pub(crate) fn minify(&mut self, context: &mut MinifyContext, parent_is_unused: bool) -> bool {
+    let mut unused = false;
+    if !context.unused_symbols.is_empty() {
+      if is_unused(&mut self.selectors.0.iter(), &context.unused_symbols, parent_is_unused) {
+        if self.rules.0.is_empty() {
+          return true
+        }
+
+        self.declarations.declarations.clear();
+        self.declarations.important_declarations.clear();
+        unused = true;
+      }
+    }
+
     self.declarations.minify(context.handler, context.important_handler, context.logical_properties);
 
-    if !context.unused_symbols.is_empty() {
-      self.rules.0.retain(|rule| {
-        match rule {
-          CssRule::Style(style) => !is_unused(&mut style.selectors.0.iter(), &context.unused_symbols),
-          _ => true
-        }
-      });
+    if !self.rules.0.is_empty() {
+      self.rules.minify(context, unused);
+      if unused && self.rules.0.is_empty() {
+        return true
+      }
     }
+
+    false
   }
 
   pub fn is_compatible(&self, targets: Option<Browsers>) -> bool {

@@ -12,8 +12,8 @@ pub struct NestingRule {
 }
 
 impl NestingRule {
-  pub(crate) fn minify(&mut self, context: &mut MinifyContext) {
-    self.style.minify(context)
+  pub(crate) fn minify(&mut self, context: &mut MinifyContext, parent_is_unused: bool) -> bool {
+    self.style.minify(context, parent_is_unused)
   }
 }
 

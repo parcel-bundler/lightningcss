@@ -77,7 +77,7 @@ impl StyleSheet {
       important_handler: &mut important_handler,
       logical_properties: &mut logical_properties,
       unused_symbols: &options.unused_symbols
-    });
+    }, false);
     logical_properties.to_rules(&mut self.rules);
   }
 

@@ -94,7 +94,7 @@ pub(crate) struct MinifyContext<'a> {
 }
 
 impl CssRuleList {
-  pub(crate) fn minify(&mut self, context: &mut MinifyContext) {
+  pub(crate) fn minify(&mut self, context: &mut MinifyContext, parent_is_unused: bool) {
     let mut keyframe_rules = HashMap::new();
     let mut rules = Vec::new();
     for mut rule in self.0.drain(..) {
@@ -130,15 +130,23 @@ impl CssRuleList {
           set_prefix!(keyframes);
           keyframe_rules.insert(keyframes.name.clone(), rules.len());
         },
-        CssRule::Media(media) => media.minify(context),
-        CssRule::Supports(supports) => supports.minify(context),
-        CssRule::MozDocument(document) => document.minify(context),
-        CssRule::Style(style) => {
-          if is_unused(&mut style.selectors.0.iter(), &context.unused_symbols) {
+        CssRule::Media(media) => {
+          media.minify(context, parent_is_unused);
+          if media.rules.0.is_empty() {
             continue
           }
-
-          style.minify(context);
+        },
+        CssRule::Supports(supports) => {
+          supports.minify(context, parent_is_unused);
+          if supports.rules.0.is_empty() {
+            continue
+          }
+        },
+        CssRule::MozDocument(document) => document.minify(context),
+        CssRule::Style(style) => {
+          if parent_is_unused || style.minify(context, parent_is_unused) {
+            continue
+          }
 
           if let Some(targets) = context.targets {
             style.vendor_prefix = get_prefix(&style.selectors);
@@ -183,7 +191,11 @@ impl CssRuleList {
             continue
           }
         }
-        CssRule::Nesting(nesting) => nesting.minify(context),
+        CssRule::Nesting(nesting) => {
+          if nesting.minify(context, parent_is_unused) {
+            continue
+          }
+        }
         _ => {}
       }
 
