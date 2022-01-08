@@ -28,7 +28,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::prefixes::Feature;
 use crate::targets::Browsers;
 use std::collections::{HashMap, HashSet};
-use crate::selector::{is_equivalent, get_prefix, get_necessary_prefixes, is_unused};
+use crate::selector::{is_equivalent, get_prefix, get_necessary_prefixes};
 use crate::error::PrinterError;
 use crate::logical::LogicalProperties;
 

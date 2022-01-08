@@ -45,7 +45,9 @@ A CSS parser, transformer, and minifier written in Rust.
 
 ### From JavaScript
 
-More docs to come, but here is a simple example:
+See the [TypeScript definitions](blob/master/node/index.d.ts) for full API docs.
+
+Here is a simple example that compiles the input CSS for Safari 13.2, and minifies the output.
 
 ```js
 const css = require('@parcel/css');
@@ -61,6 +63,15 @@ let {code, map} = css.transform({
     safari: (13 << 16) | (2 << 8)
   }
 });
+```
+
+You can also convert the results of running `browserslist` into targets which can be passed to `@parcel/css`:
+
+```js
+const browserslist = require('browserslist');
+const css = require('@parcel/css');
+
+let targets = css.browserslistToTargets(browserslist('>= 0.25%'));
 ```
 
 ### From Rust

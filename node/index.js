@@ -14,7 +14,9 @@ if (process.platform === 'linux') {
 
 let name = `parcel-css.${parts.join('-')}.node`;
 if (process.env.CSS_TRANSFORMER_WASM) {
-  module.exports = require(`./pkg`);
+  module.exports = require(`../pkg`);
 } else {
-  module.exports = require(`./${name}`);
+  module.exports = require(`../${name}`);
 }
+
+module.exports.browserslistToTargets = require('./browserslistToTargets');

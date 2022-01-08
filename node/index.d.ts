@@ -163,3 +163,9 @@ export interface TransformAttributeResult {
  * Compiles a single CSS declaration list, such as an inline style attribute in HTML.
  */
 export declare function transformStyleAttribute(options: TransformAttributeOptions): TransformAttributeResult;
+
+/**
+ * Converts a browserslist result into targets that can be passed to @parcel/css.
+ * @param browserslist the result of calling `browserslist`
+ */
+export declare function browserslistToTargets(browserslist: string[]): Targets;

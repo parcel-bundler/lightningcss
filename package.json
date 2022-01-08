@@ -3,7 +3,7 @@
   "version": "1.0.0-alpha.8",
   "license": "MIT",
   "description": "A CSS parser, transformer, and minifier written in Rust",
-  "main": "native.js",
+  "main": "node/index.js",
   "types": "node/index.d.ts",
   "targets": {
     "main": false,
@@ -28,7 +28,8 @@
     "name": "parcel-css"
   },
   "files": [
-    "native.js",
+    "node/*.js",
+    "node/*.d.ts",
     "*.node"
   ],
   "dependencies": {

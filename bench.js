@@ -1,4 +1,4 @@
-const css = require('./native');
+const css = require('./');
 const cssnano = require('cssnano');
 const postcss = require('postcss');
 const esbuild = require('esbuild');
