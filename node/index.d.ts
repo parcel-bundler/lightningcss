@@ -26,7 +26,12 @@ export interface TransformOptions {
    * Replaces user action pseudo classes with class names that can be applied from JavaScript.
    * This is useful for polyfills, for example.
    */
-  pseudoClasses?: PseudoClasses
+  pseudoClasses?: PseudoClasses,
+  /**
+   * A list of class names, ids, and custom identifiers (e.g. @keyframes) that are known
+   * to be unused. These will be removed during minification.
+   */
+  unusedSymbols?: string[]
 }
 
 export interface Drafts {

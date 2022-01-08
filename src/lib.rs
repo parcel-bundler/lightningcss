@@ -9033,5 +9033,29 @@ mod tests {
     });
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
+
+    let source = r#"
+      .foo {
+        color: red;
+
+        &.bar {
+          color: green;
+        }
+      }
+    "#;
+
+    let expected = indoc!{r#"
+      .foo {
+        color: red;
+      }
+    "#};
+
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
+    stylesheet.minify(MinifyOptions {
+      unused_symbols: vec!["bar"].iter().map(|s| String::from(*s)).collect(),
+      ..MinifyOptions::default()
+    });
+    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    assert_eq!(res.code, expected);
   }
 }
