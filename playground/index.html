@@ -50,7 +50,7 @@
         margin-bottom: 4px;
       }
 
-      h3:first-child {
+      div > h3:first-child {
         margin-top: 0;
       }
     </style>
@@ -77,6 +77,10 @@
           <label><span>Android: </span><input id="android" type="number"></label>
           <label><span>Samsung: </span><input id="samsung" type="number"></label>
         </div>
+        <label>
+          <h3>Unused symbols</h3>
+          <textarea id="unusedSymbols" rows="4" placeholder="Separate items with newlines"></textarea>
+        </label>
       </div>
       <textarea id="source">
 .foo {

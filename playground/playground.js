@@ -51,6 +51,10 @@ function reflectPlaygroundState(playgroundState) {
   if (playgroundState.source) {
     source.value = playgroundState.source;
   }
+
+  if (playgroundState.unusedSymbols) {
+    unusedSymbols.value = playgroundState.unusedSymbols.join('\n');
+  }
 }
 
 function savePlaygroundState() {
@@ -61,6 +65,7 @@ function savePlaygroundState() {
     analyzeDependencies: analyzeDependencies.checked,
     targets: getTargets(),
     source: source.value,
+    unusedSymbols: unusedSymbols.value.split('\n').map(v => v.trim()).filter(Boolean)
   };
 
   const hash = encodeURIComponent(JSON.stringify(playgroundState));
@@ -102,7 +107,8 @@ async function update() {
       nesting: nesting.checked
     },
     cssModules: cssModules.checked,
-    analyzeDependencies: analyzeDependencies.checked
+    analyzeDependencies: analyzeDependencies.checked,
+    unusedSymbols: unusedSymbols.value.split('\n').map(v => v.trim()).filter(Boolean)
   });
 
   compiled.value = dec.decode(res.code);
@@ -118,6 +124,7 @@ loadPlaygroundState();
 
 update();
 source.oninput = update;
+unusedSymbols.oninput = update;
 for (let input of document.querySelectorAll('input')) {
   input.oninput = update;
 }
