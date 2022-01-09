@@ -16,3 +16,4 @@ pub mod gradient;
 pub mod resolution;
 pub mod ratio;
 pub mod url;
+pub mod shape;

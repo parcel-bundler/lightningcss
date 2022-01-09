@@ -9140,5 +9140,29 @@ mod tests {
     minify_test(".foo { mask: url(masks.svg#star) stroke-box stroke-box }", ".foo{mask:url(masks.svg#star) stroke-box}");
     minify_test(".foo { mask: url(masks.svg#star) border-box }", ".foo{mask:url(masks.svg#star)}");
     minify_test(".foo { mask: url(masks.svg#star) left / 16px repeat-y, url(masks.svg#circle) right / 16px repeat-y }", ".foo{mask:url(masks.svg#star) 0/16px repeat-y,url(masks.svg#circle) 100%/16px repeat-y}");
+  
+    minify_test(".foo { clip-path: url('clip.svg#star'); }", ".foo{clip-path:url(clip.svg#star)}");
+    minify_test(".foo { clip-path: margin-box; }", ".foo{clip-path:margin-box}");
+    minify_test(".foo { clip-path: inset(100px 50px); }", ".foo{clip-path:inset(100px 50px)}");
+    minify_test(".foo { clip-path: inset(100px 50px round 5px); }", ".foo{clip-path:inset(100px 50px round 5px)}");
+    minify_test(".foo { clip-path: inset(100px 50px round 5px 5px 5px 5px); }", ".foo{clip-path:inset(100px 50px round 5px)}");
+    minify_test(".foo { clip-path: circle(50px); }", ".foo{clip-path:circle(50px)}");
+    minify_test(".foo { clip-path: circle(50px at center center); }", ".foo{clip-path:circle(50px)}");
+    minify_test(".foo { clip-path: circle(50px at 50% 50%); }", ".foo{clip-path:circle(50px)}");
+    minify_test(".foo { clip-path: circle(50px at 0 100px); }", ".foo{clip-path:circle(50px at 0 100px)}");
+    minify_test(".foo { clip-path: circle(closest-side at 0 100px); }", ".foo{clip-path:circle(at 0 100px)}");
+    minify_test(".foo { clip-path: circle(farthest-side at 0 100px); }", ".foo{clip-path:circle(farthest-side at 0 100px)}");
+    minify_test(".foo { clip-path: circle(closest-side at 50% 50%); }", ".foo{clip-path:circle()}");
+    minify_test(".foo { clip-path: ellipse(50px 60px at 0 10% 20%); }", ".foo{clip-path:ellipse(50px 60px at 0 10% 20%)}");
+    minify_test(".foo { clip-path: ellipse(50px 60px at center center); }", ".foo{clip-path:ellipse(50px 60px)}");
+    minify_test(".foo { clip-path: ellipse(closest-side closest-side at 50% 50%); }", ".foo{clip-path:ellipse()}");
+    minify_test(".foo { clip-path: ellipse(closest-side closest-side at 10% 20%); }", ".foo{clip-path:ellipse(at 10% 20%)}");
+    minify_test(".foo { clip-path: ellipse(farthest-side closest-side at 10% 20%); }", ".foo{clip-path:ellipse(farthest-side closest-side at 10% 20%)}");
+    minify_test(".foo { clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); }", ".foo{clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%)}");
+    minify_test(".foo { clip-path: polygon(nonzero, 50% 0%, 100% 50%, 50% 100%, 0% 50%); }", ".foo{clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%)}");
+    minify_test(".foo { clip-path: polygon(evenodd, 50% 0%, 100% 50%, 50% 100%, 0% 50%); }", ".foo{clip-path:polygon(evenodd,50% 0%,100% 50%,50% 100%,0% 50%)}");
+    minify_test(".foo { clip-path: padding-box circle(50px at 0 100px); }", ".foo{clip-path:circle(50px at 0 100px) padding-box}");
+    minify_test(".foo { clip-path: circle(50px at 0 100px) padding-box; }", ".foo{clip-path:circle(50px at 0 100px) padding-box}");
+    minify_test(".foo { clip-path: circle(50px at 0 100px) border-box; }", ".foo{clip-path:circle(50px at 0 100px)}");
   }
 }

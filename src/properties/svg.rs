@@ -84,11 +84,6 @@ impl ToCss for SVGPaintFallback {
   }
 }
 
-enum_property!(FillRule,
-  Nonzero,
-  Evenodd
-);
-
 enum_property!(StrokeLinecap,
   Butt,
   Round,

@@ -20,6 +20,18 @@ pub struct BorderRadius {
   pub bottom_right: Size2D<LengthPercentage>
 }
 
+impl Default for BorderRadius {
+  fn default() -> BorderRadius {
+    let zero = Size2D(LengthPercentage::zero(), LengthPercentage::zero());
+    BorderRadius {
+      top_left: zero.clone(),
+      top_right: zero.clone(),
+      bottom_left: zero.clone(),
+      bottom_right: zero
+    }
+  }
+}
+
 impl Parse for BorderRadius {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let widths: Rect<LengthPercentage> = Rect::parse(input)?;

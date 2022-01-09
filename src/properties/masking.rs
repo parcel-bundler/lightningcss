@@ -6,6 +6,8 @@ use crate::error::{ParserError, PrinterError};
 use crate::values::{
   image::Image,
   position::Position,
+  url::Url,
+  shape::BasicShape,
 };
 use super::background::{BackgroundSize, BackgroundRepeat};
 
@@ -22,37 +24,53 @@ enum_property!(MaskMode,
   ("match-source", MatchSource)
 );
 
-// https://www.w3.org/TR/css-masking-1/#the-mask-clip
-enum_property!(MaskClip,
+// https://www.w3.org/TR/css-masking-1/#typedef-geometry-box
+enum_property!(GeometryBox,
   ("border-box", BorderBox),
   ("padding-box", PaddingBox),
   ("content-box", ContentBox),
-  ("fill-box", FillBox),
-  ("stroke-box", StrokeBox),
-  ("view-box", ViewBox),
-  ("no-clip", NoClip)
-);
-
-// https://www.w3.org/TR/css-masking-1/#the-mask-origin
-enum_property!(MaskOrigin,
-  ("border-box", BorderBox),
-  ("padding-box", PaddingBox),
-  ("content-box", ContentBox),
+  ("margin-box", MarginBox),
   ("fill-box", FillBox),
   ("stroke-box", StrokeBox),
   ("view-box", ViewBox)
 );
 
-impl Into<MaskClip> for MaskOrigin {
-  fn into(self) -> MaskClip {
-    match self {
-      MaskOrigin::BorderBox => MaskClip::BorderBox,
-      MaskOrigin::PaddingBox => MaskClip::PaddingBox,
-      MaskOrigin::ContentBox => MaskClip::ContentBox,
-      MaskOrigin::FillBox => MaskClip::FillBox,
-      MaskOrigin::StrokeBox => MaskClip::StrokeBox,
-      MaskOrigin::ViewBox => MaskClip::ViewBox
+impl Default for GeometryBox {
+  fn default() -> GeometryBox {
+    GeometryBox::BorderBox
+  }
+}
+
+/// https://www.w3.org/TR/css-masking-1/#the-mask-clip
+#[derive(Debug, Clone, PartialEq)]
+pub enum MaskClip {
+  GeometryBox(GeometryBox),
+  NoClip
+}
+
+impl Parse for MaskClip {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if let Ok(b) = input.try_parse(GeometryBox::parse) {
+      return Ok(MaskClip::GeometryBox(b))
     }
+
+    input.expect_ident_matching("no-clip")?;
+    Ok(MaskClip::NoClip)
+  }
+}
+
+impl ToCss for MaskClip {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+    match self {
+      MaskClip::GeometryBox(b) => b.to_css(dest),
+      MaskClip::NoClip => dest.write_str("no-clip")
+    }
+  }
+}
+
+impl Into<MaskClip> for GeometryBox {
+  fn into(self) -> MaskClip {
+    MaskClip::GeometryBox(self.clone())
   }
 }
 
@@ -72,7 +90,7 @@ pub struct Mask {
   pub size: BackgroundSize,
   pub repeat: BackgroundRepeat,
   pub clip: MaskClip,
-  pub origin: MaskOrigin,
+  pub origin: GeometryBox,
   pub composite: MaskComposite,
   pub mode: MaskMode
 }
@@ -84,7 +102,7 @@ impl Parse for Mask {
     let mut size: Option<BackgroundSize> = None;
     let mut repeat: Option<BackgroundRepeat> = None;
     let mut clip: Option<MaskClip> = None;
-    let mut origin: Option<MaskOrigin> = None;
+    let mut origin: Option<GeometryBox> = None;
     let mut composite: Option<MaskComposite> = None;
     let mut mode: Option<MaskMode> = None;
 
@@ -115,7 +133,7 @@ impl Parse for Mask {
       }
 
       if origin.is_none() {
-        if let Ok(value) = input.try_parse(MaskOrigin::parse) {
+        if let Ok(value) = input.try_parse(GeometryBox::parse) {
           origin = Some(value);
           continue;
         }
@@ -156,8 +174,8 @@ impl Parse for Mask {
       position: position.unwrap_or_default(),
       repeat: repeat.unwrap_or_default(),
       size: size.unwrap_or_default(),
-      origin: origin.unwrap_or(MaskOrigin::BorderBox),
-      clip: clip.unwrap_or(MaskClip::BorderBox),
+      origin: origin.unwrap_or(GeometryBox::BorderBox),
+      clip: clip.unwrap_or(GeometryBox::BorderBox.into()),
       composite: composite.unwrap_or(MaskComposite::Add),
       mode: mode.unwrap_or(MaskMode::MatchSource)
     })
@@ -183,7 +201,7 @@ impl ToCss for Mask {
       self.repeat.to_css(dest)?;
     }
 
-    if self.origin != MaskOrigin::BorderBox || self.clip != MaskClip::BorderBox {
+    if self.origin != GeometryBox::BorderBox || self.clip != GeometryBox::BorderBox.into() {
       dest.write_char(' ')?;
       self.origin.to_css(dest)?;
 
@@ -204,5 +222,55 @@ impl ToCss for Mask {
     }
 
     Ok(())
+  }
+}
+
+/// https://www.w3.org/TR/css-masking-1/#the-clip-path
+#[derive(Debug, Clone, PartialEq)]
+pub enum ClipPath {
+  None,
+  Url(Url),
+  Shape(Box<BasicShape>, GeometryBox),
+  Box(GeometryBox)
+}
+
+impl Parse for ClipPath {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if let Ok(url) = input.try_parse(Url::parse) {
+      return Ok(ClipPath::Url(url))
+    }
+
+    if let Ok(shape) = input.try_parse(BasicShape::parse) {
+      let b = input.try_parse(GeometryBox::parse).unwrap_or_default();
+      return Ok(ClipPath::Shape(Box::new(shape), b))
+    }
+
+    if let Ok(b) = input.try_parse(GeometryBox::parse) {
+      if let Ok(shape) = input.try_parse(BasicShape::parse) {
+        return Ok(ClipPath::Shape(Box::new(shape), b))
+      }
+      return Ok(ClipPath::Box(b))
+    }
+
+    input.expect_ident_matching("none")?;
+    Ok(ClipPath::None)
+  }
+}
+
+impl ToCss for ClipPath {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+    match self {
+      ClipPath::None => dest.write_str("none"),
+      ClipPath::Url(url) => url.to_css(dest),
+      ClipPath::Shape(shape, b) => {
+        shape.to_css(dest)?;
+        if *b != GeometryBox::default() {
+          dest.write_char(' ')?;
+          b.to_css(dest)?;
+        }
+        Ok(())
+      }
+      ClipPath::Box(b) => b.to_css(dest)
+    }
   }
 }

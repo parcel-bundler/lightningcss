@@ -51,7 +51,7 @@ use css_modules::*;
 use size::*;
 use svg::*;
 use masking::*;
-use crate::values::{image::*, length::*, position::*, alpha::*, size::Size2D, rect::*, color::*, time::Time, easing::EasingFunction};
+use crate::values::{image::*, length::*, position::*, alpha::*, size::Size2D, rect::*, color::*, time::Time, easing::EasingFunction, shape::FillRule};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use smallvec::{SmallVec, smallvec};
@@ -836,7 +836,7 @@ define_properties! {
   "image-rendering": ImageRendering(ImageRendering),
 
   // https://www.w3.org/TR/css-masking-1/
-  // "clip-path": 
+  "clip-path": ClipPath(ClipPath),
   "clip-rule": ClipRule(FillRule),
   "mask-image": MaskImage(SmallVec<[Image; 1]>),
   "mask-mode": MaskMode(SmallVec<[MaskMode; 1]>),
@@ -845,7 +845,7 @@ define_properties! {
   "mask-position-y": MaskPositionY(SmallVec<[VerticalPosition; 1]>),
   "mask-position": MaskPosition(SmallVec<[Position; 1]>),
   "mask-clip": MaskClip(SmallVec<[MaskClip; 1]>),
-  "mask-origin": MaskOrigin(SmallVec<[MaskOrigin; 1]>),
+  "mask-origin": MaskOrigin(SmallVec<[GeometryBox; 1]>),
   "mask-size": MaskSize(SmallVec<[BackgroundSize; 1]>),
   "mask-composite": MaskComposite(SmallVec<[MaskComposite; 1]>),
   "mask-type": MaskType(MaskType),
