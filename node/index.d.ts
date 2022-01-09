@@ -113,10 +113,14 @@ export interface UrlDependency {
   /** The url of the dependency. */
   url: string,
   /** The source location where the `url()` was found. */
-  loc: SourceLocation
+  loc: SourceLocation,
+  /** The placeholder that the url was replaced with. */
+  placeholder: string
 }
 
 export interface SourceLocation {
+  /** The file path in which the dependency exists. */
+  filePath: string,
   /** The start location of the dependency. */
   start: Location,
   /** The end location (inclusive) of the dependency. */

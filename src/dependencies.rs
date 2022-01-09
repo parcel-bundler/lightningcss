@@ -13,12 +13,6 @@ pub enum Dependency {
   Url(UrlDependency)
 }
 
-impl From<&ImportRule> for Dependency {
-  fn from(rule: &ImportRule) -> Dependency {
-    Dependency::Import(rule.into())
-  }
-}
-
 #[derive(Serialize)]
 pub struct ImportDependency {
   pub url: String,
@@ -27,8 +21,8 @@ pub struct ImportDependency {
   pub loc: SourceRange
 }
 
-impl From<&ImportRule> for ImportDependency {
-  fn from(rule: &ImportRule) -> ImportDependency {
+impl ImportDependency {
+  pub fn new(rule: &ImportRule, filename: &str) -> ImportDependency {
     let supports = if let Some(supports) = &rule.supports {
       let mut s = String::new();
       let mut printer = Printer::new("", &mut s, None, false, None);
@@ -51,7 +45,7 @@ impl From<&ImportRule> for ImportDependency {
       url: rule.url.clone(),
       supports,
       media,
-      loc: SourceRange::new(rule.loc, 8, rule.url.len() + 2) // TODO: what about @import url(...)?
+      loc: SourceRange::new(filename, rule.loc, 8, rule.url.len() + 2) // TODO: what about @import url(...)?
     }
   }
 }
@@ -69,13 +63,15 @@ impl UrlDependency {
     UrlDependency {
       url: url.url.clone(),
       placeholder,
-      loc: SourceRange::new(url.loc, 4, url.url.len())
+      loc: SourceRange::new(filename, url.loc, 4, url.url.len())
     }
   }
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SourceRange {
+  pub file_path: String,
   pub start: Location,
   pub end: Location,
 }
@@ -87,8 +83,9 @@ pub struct Location {
 }
 
 impl SourceRange {
-  fn new(loc: SourceLocation, offset: u32, len: usize) -> SourceRange {
+  fn new(filename: &str, loc: SourceLocation, offset: u32, len: usize) -> SourceRange {
     SourceRange {
+      file_path: filename.into(),
       start: Location {
         line: loc.line + 1,
         column: loc.column + offset

@@ -31,6 +31,7 @@ use std::collections::{HashMap, HashSet};
 use crate::selector::{is_equivalent, get_prefix, get_necessary_prefixes};
 use crate::error::PrinterError;
 use crate::logical::LogicalProperties;
+use crate::dependencies::{Dependency, ImportDependency};
 
 pub(crate) trait ToCssWithContext {
   fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> Result<(), PrinterError> where W: std::fmt::Write;
@@ -221,7 +222,7 @@ impl ToCssWithContext for CssRuleList {
       // Skip @import rules if collecting dependencies.
       if let CssRule::Import(rule) = &rule {
         if let Some(dependencies) = &mut dest.dependencies {
-          dependencies.push(rule.into());
+          dependencies.push(Dependency::Import(ImportDependency::new(&rule, &dest.filename)));
           continue;
         }
       }
