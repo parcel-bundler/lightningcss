@@ -22,6 +22,7 @@ A CSS parser, transformer, and minifier written in Rust.
 - **Vendor prefixing** – `@parcel/css` accepts a list of browser targets, and automatically adds (and removes) vendor prefixes.
 - **Syntax lowering** – `@parcel/css` parses modern CSS syntax, and generates more compatible output where needed, based on browser targets.
   - CSS Nesting (draft spec)
+  - Logical properties
   - CSS Level 4 Color syntax
     - Space separated components in `rgb` and `hsl` functions
     - Hex with alpha syntax

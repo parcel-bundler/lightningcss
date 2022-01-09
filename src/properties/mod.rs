@@ -850,6 +850,13 @@ define_properties! {
   "mask-composite": MaskComposite(SmallVec<[MaskComposite; 1]>),
   "mask-type": MaskType(MaskType),
   "mask": Mask(SmallVec<[Mask; 1]>),
+  "mask-border-source": MaskBorderSource(Image),
+  "mask-border-mode": MaskBorderMode(MaskBorderMode),
+  "mask-border-slice": MaskBorderSlice(BorderImageSlice),
+  "mask-border-width": MaskBorderWidth(Rect<BorderImageSideWidth>),
+  "mask-border-outset": MaskBorderOutset(Rect<LengthOrNumber>),
+  "mask-border-repeat": MaskBorderRepeat(BorderImageRepeat),
+  "mask-border": MaskBorder(MaskBorder),
 }
 
 impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {

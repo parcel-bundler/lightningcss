@@ -10,6 +10,7 @@ use crate::values::{
   shape::BasicShape,
 };
 use super::background::{BackgroundSize, BackgroundRepeat};
+use super::border_image::BorderImage;
 
 // https://www.w3.org/TR/css-masking-1/#the-mask-type
 enum_property!(MaskType,
@@ -272,5 +273,59 @@ impl ToCss for ClipPath {
       }
       ClipPath::Box(b) => b.to_css(dest)
     }
+  }
+}
+
+// https://www.w3.org/TR/css-masking-1/#the-mask-border-mode
+enum_property!(MaskBorderMode,
+  ("luminance", Luminance),
+  ("alpha", Alpha)
+);
+
+impl Default for MaskBorderMode {
+  fn default() -> MaskBorderMode {
+    MaskBorderMode::Alpha
+  }
+}
+
+/// https://www.w3.org/TR/css-masking-1/#the-mask-border
+#[derive(Debug, Clone, PartialEq)]
+pub struct MaskBorder {
+  pub border_image: BorderImage,
+  pub mode: MaskBorderMode
+}
+
+impl Parse for MaskBorder {
+  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let mut mode: Option<MaskBorderMode> = None;
+    let border_image = BorderImage::parse_with_callback(input, |input| {
+      if mode.is_none() {
+        if let Ok(value) = input.try_parse(MaskBorderMode::parse) {
+          mode = Some(value);
+          return true
+        }
+      }
+      false
+    });
+
+    if border_image.is_ok() || mode.is_some() {
+      Ok(MaskBorder {
+        border_image: border_image.unwrap_or_default(),
+        mode: mode.unwrap_or_default()
+      })
+    } else {
+      Err(input.new_custom_error(ParserError::InvalidDeclaration))
+    }
+  }
+}
+
+impl ToCss for MaskBorder {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+    self.border_image.to_css(dest)?;
+    if self.mode != MaskBorderMode::default() {
+      dest.write_char(' ')?;
+      self.mode.to_css(dest)?;
+    }
+    Ok(())
   }
 }

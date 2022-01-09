@@ -13,6 +13,12 @@ impl<T> Rect<T> {
     }
 }
 
+impl<T: Default + Clone> Default for Rect<T> {
+    fn default() -> Rect<T> {
+        Rect::all(T::default())
+    }
+}
+
 impl<T> Rect<T>
 where
     T: Clone

@@ -132,7 +132,7 @@ impl ToCss for BorderImageSlice {
 }
 
 /// https://www.w3.org/TR/css-backgrounds-3/#border-image
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct BorderImage {
   pub source: Image,
   pub slice: BorderImageSlice,
@@ -143,6 +143,15 @@ pub struct BorderImage {
 
 impl Parse for BorderImage {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    BorderImage::parse_with_callback(input, |_| false)
+  }
+}
+
+impl BorderImage {
+  pub(crate) fn parse_with_callback<'i, 't, F>(input: &mut Parser<'i, 't>, mut callback: F) -> Result<Self, ParseError<'i, ParserError<'i>>>
+  where
+    F: FnMut(&mut Parser<'i, 't>) -> bool
+  {
     let mut source: Option<Image> = None;
     let mut slice: Option<BorderImageSlice> = None;
     let mut width: Option<Rect<BorderImageSideWidth>> = None;
@@ -193,6 +202,10 @@ impl Parse for BorderImage {
         }
       }
 
+      if callback(input) {
+        continue
+      }
+
       break
     }
 
@@ -201,7 +214,7 @@ impl Parse for BorderImage {
         source: source.unwrap_or_default(),
         slice: slice.unwrap_or_default(),
         width: width.unwrap_or(Rect::all(BorderImageSideWidth::default())),
-        outset: outset.unwrap_or(Rect::all(LengthOrNumber::Number(0.0))),
+        outset: outset.unwrap_or(Rect::all(LengthOrNumber::default())),
         repeat: repeat.unwrap_or_default()
       })
     } else {

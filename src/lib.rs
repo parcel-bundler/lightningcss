@@ -9140,7 +9140,12 @@ mod tests {
     minify_test(".foo { mask: url(masks.svg#star) stroke-box stroke-box }", ".foo{mask:url(masks.svg#star) stroke-box}");
     minify_test(".foo { mask: url(masks.svg#star) border-box }", ".foo{mask:url(masks.svg#star)}");
     minify_test(".foo { mask: url(masks.svg#star) left / 16px repeat-y, url(masks.svg#circle) right / 16px repeat-y }", ".foo{mask:url(masks.svg#star) 0/16px repeat-y,url(masks.svg#circle) 100%/16px repeat-y}");
-  
+
+    minify_test(".foo { mask-border: url('border-mask.png') 25; }", ".foo{mask-border:url(border-mask.png) 25}");
+    minify_test(".foo { mask-border: url('border-mask.png') 25 / 35px / 12px space alpha; }", ".foo{mask-border:url(border-mask.png) 25/35px/12px space}");
+    minify_test(".foo { mask-border: url('border-mask.png') 25 / 35px / 12px space luminance; }", ".foo{mask-border:url(border-mask.png) 25/35px/12px space luminance}");
+    minify_test(".foo { mask-border: url('border-mask.png') luminance 25 / 35px / 12px space; }", ".foo{mask-border:url(border-mask.png) 25/35px/12px space luminance}");
+
     minify_test(".foo { clip-path: url('clip.svg#star'); }", ".foo{clip-path:url(clip.svg#star)}");
     minify_test(".foo { clip-path: margin-box; }", ".foo{clip-path:margin-box}");
     minify_test(".foo { clip-path: inset(100px 50px); }", ".foo{clip-path:inset(100px 50px)}");

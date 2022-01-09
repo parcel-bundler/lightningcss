@@ -528,6 +528,12 @@ pub enum LengthOrNumber {
   Number(f32)
 }
 
+impl Default for LengthOrNumber {
+  fn default() -> LengthOrNumber {
+    LengthOrNumber::Number(0.0)
+  }
+}
+
 impl Parse for LengthOrNumber {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // Parse number first so unitless numbers are not parsed as lengths.
