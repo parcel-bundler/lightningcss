@@ -24,6 +24,7 @@ pub mod grid;
 pub mod css_modules;
 pub mod size;
 pub mod svg;
+pub mod masking;
 
 use cssparser::*;
 use custom::*;
@@ -49,6 +50,7 @@ use grid::*;
 use css_modules::*;
 use size::*;
 use svg::*;
+use masking::*;
 use crate::values::{image::*, length::*, position::*, alpha::*, size::Size2D, rect::*, color::*, time::Time, easing::EasingFunction};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
@@ -833,9 +835,21 @@ define_properties! {
   "text-rendering": TextRendering(TextRendering),
   "image-rendering": ImageRendering(ImageRendering),
 
-  // https://www.w3.org/TR/2012/WD-SVG2-20120828/masking.html
+  // https://www.w3.org/TR/css-masking-1/
   // "clip-path": 
   "clip-rule": ClipRule(FillRule),
+  "mask-image": MaskImage(SmallVec<[Image; 1]>),
+  "mask-mode": MaskMode(SmallVec<[MaskMode; 1]>),
+  "mask-repeat": MaskRepeat(SmallVec<[BackgroundRepeat; 1]>),
+  "mask-position-x": MaskPositionX(SmallVec<[HorizontalPosition; 1]>),
+  "mask-position-y": MaskPositionY(SmallVec<[VerticalPosition; 1]>),
+  "mask-position": MaskPosition(SmallVec<[Position; 1]>),
+  "mask-clip": MaskClip(SmallVec<[MaskClip; 1]>),
+  "mask-origin": MaskOrigin(SmallVec<[MaskOrigin; 1]>),
+  "mask-size": MaskSize(SmallVec<[BackgroundSize; 1]>),
+  "mask-composite": MaskComposite(SmallVec<[MaskComposite; 1]>),
+  "mask-type": MaskType(MaskType),
+  "mask": Mask(SmallVec<[Mask; 1]>),
 }
 
 impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {

@@ -9130,5 +9130,15 @@ mod tests {
     minify_test(".foo { stroke-dasharray: 4,1,2; }", ".foo{stroke-dasharray:4 1 2}");
     minify_test(".foo { stroke-dasharray: 4, 1, 2; }", ".foo{stroke-dasharray:4 1 2}");
     minify_test(".foo { stroke-dasharray: 4px, 1px, 2px; }", ".foo{stroke-dasharray:4 1 2}");
+
+    minify_test(".foo { mask: url('foo.svg'); }", ".foo{mask:url(foo.svg)}");
+    minify_test(".foo { mask: url(masks.svg#star) luminance }", ".foo{mask:url(masks.svg#star) luminance}");
+    minify_test(".foo { mask: url(masks.svg#star) 40px 20px }", ".foo{mask:url(masks.svg#star) 40px 20px}");
+    minify_test(".foo { mask: url(masks.svg#star) 0 0 / 50px 50px }", ".foo{mask:url(masks.svg#star) 0 0/50px 50px}");
+    minify_test(".foo { mask: url(masks.svg#star) repeat-x }", ".foo{mask:url(masks.svg#star) repeat-x}");
+    minify_test(".foo { mask: url(masks.svg#star) stroke-box }", ".foo{mask:url(masks.svg#star) stroke-box}");
+    minify_test(".foo { mask: url(masks.svg#star) stroke-box stroke-box }", ".foo{mask:url(masks.svg#star) stroke-box}");
+    minify_test(".foo { mask: url(masks.svg#star) border-box }", ".foo{mask:url(masks.svg#star)}");
+    minify_test(".foo { mask: url(masks.svg#star) left / 16px repeat-y, url(masks.svg#circle) right / 16px repeat-y }", ".foo{mask:url(masks.svg#star) 0/16px repeat-y,url(masks.svg#circle) 100%/16px repeat-y}");
   }
 }
