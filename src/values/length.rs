@@ -17,6 +17,13 @@ impl LengthPercentage {
   pub fn px(val: f32) -> LengthPercentage {
     LengthPercentage::Dimension(LengthValue::Px(val))
   }
+
+  pub(crate) fn to_css_unitless<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+    match self {
+      DimensionPercentage::Dimension(d) => d.to_css_unitless(dest),
+      _ => self.to_css(dest)
+    }
+  }
 }
 
 /// `<length-percentage> | auto`
@@ -121,6 +128,15 @@ impl ToCss for LengthValue {
     }
 
     serialize_dimension(value, unit, dest)
+  }
+}
+
+impl LengthValue {
+  pub(crate) fn to_css_unitless<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+    match self {
+      LengthValue::Px(value) => serialize_number(*value, dest),
+      _ => self.to_css(dest)
+    }
   }
 }
 

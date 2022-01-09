@@ -9081,7 +9081,7 @@ mod tests {
 
       .x {
         color: purple;
-        
+
         &.y {
           color: green;
         }
@@ -9104,5 +9104,31 @@ mod tests {
       ..PrinterOptions::default()
     }).unwrap();
     assert_eq!(res.code, expected);
+  }
+
+  #[test]
+  fn test_svg() {
+    minify_test(".foo { fill: yellow; }", ".foo{fill:#ff0}");
+    minify_test(".foo { fill: url(#foo); }", ".foo{fill:url(#foo)}");
+    minify_test(".foo { fill: url(#foo) none; }", ".foo{fill:url(#foo) none}");
+    minify_test(".foo { fill: url(#foo) yellow; }", ".foo{fill:url(#foo) #ff0}");
+    minify_test(".foo { fill: none; }", ".foo{fill:none}");
+    minify_test(".foo { fill: context-fill; }", ".foo{fill:context-fill}");
+    minify_test(".foo { fill: context-stroke; }", ".foo{fill:context-stroke}");
+
+    minify_test(".foo { stroke: yellow; }", ".foo{stroke:#ff0}");
+    minify_test(".foo { stroke: url(#foo); }", ".foo{stroke:url(#foo)}");
+    minify_test(".foo { stroke: url(#foo) none; }", ".foo{stroke:url(#foo) none}");
+    minify_test(".foo { stroke: url(#foo) yellow; }", ".foo{stroke:url(#foo) #ff0}");
+    minify_test(".foo { stroke: none; }", ".foo{stroke:none}");
+    minify_test(".foo { stroke: context-fill; }", ".foo{stroke:context-fill}");
+    minify_test(".foo { stroke: context-stroke; }", ".foo{stroke:context-stroke}");
+
+    minify_test(".foo { marker-start: url(#foo); }", ".foo{marker-start:url(#foo)}");
+
+    minify_test(".foo { stroke-dasharray: 4 1 2; }", ".foo{stroke-dasharray:4 1 2}");
+    minify_test(".foo { stroke-dasharray: 4,1,2; }", ".foo{stroke-dasharray:4 1 2}");
+    minify_test(".foo { stroke-dasharray: 4, 1, 2; }", ".foo{stroke-dasharray:4 1 2}");
+    minify_test(".foo { stroke-dasharray: 4px, 1px, 2px; }", ".foo{stroke-dasharray:4 1 2}");
   }
 }

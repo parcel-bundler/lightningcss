@@ -23,6 +23,7 @@ pub mod list;
 pub mod grid;
 pub mod css_modules;
 pub mod size;
+pub mod svg;
 
 use cssparser::*;
 use custom::*;
@@ -47,6 +48,7 @@ use list::*;
 use grid::*;
 use css_modules::*;
 use size::*;
+use svg::*;
 use crate::values::{image::*, length::*, position::*, alpha::*, size::Size2D, rect::*, color::*, time::Time, easing::EasingFunction};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
@@ -807,6 +809,33 @@ define_properties! {
 
   // CSS modules
   "composes": Composes(Composes) if css_modules,
+
+  // https://www.w3.org/TR/SVG2/painting.html
+  "fill": Fill(SVGPaint),
+  "fill-rule": FillRule(FillRule),
+  "fill-opacity": FillOpacity(AlphaValue),
+  "stroke": Stroke(SVGPaint),
+  "stroke-opacity": StrokeOpacity(AlphaValue),
+  "stroke-width": StrokeWidth(LengthPercentage),
+  "stroke-linecap": StrokeLinecap(StrokeLinecap),
+  "stroke-linejoin": StrokeLinejoin(StrokeLinejoin),
+  "stroke-miterlimit": StrokeMiterlimit(f32),
+  "stroke-dasharray": StrokeDasharray(StrokeDasharray),
+  "stroke-dashoffset": StrokeDashoffset(LengthPercentage),
+  "marker-start": MarkerStart(Marker),
+  "marker-mid": MarkerMid(Marker),
+  "marker-end": MarkerEnd(Marker),
+  "marker": Marker(Marker),
+  "color-interpolation": ColorInterpolation(ColorInterpolation),
+  "color-interpolation-filters": ColorInterpolationFilters(ColorInterpolation),
+  "color-rendering": ColorRendering(ColorRendering),
+  "shape-rendering": ShapeRendering(ShapeRendering),
+  "text-rendering": TextRendering(TextRendering),
+  "image-rendering": ImageRendering(ImageRendering),
+
+  // https://www.w3.org/TR/2012/WD-SVG2-20120828/masking.html
+  // "clip-path": 
+  "clip-rule": ClipRule(FillRule),
 }
 
 impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {
