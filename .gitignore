@@ -4,3 +4,4 @@ target/
 pkg/
 dist/
 .parcel-cache
+node/*.flow

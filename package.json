@@ -30,6 +30,7 @@
   "files": [
     "node/*.js",
     "node/*.d.ts",
+    "node/*.flow",
     "*.node"
   ],
   "dependencies": {
