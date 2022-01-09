@@ -9170,4 +9170,15 @@ mod tests {
     minify_test(".foo { clip-path: circle(50px at 0 100px) padding-box; }", ".foo{clip-path:circle(50px at 0 100px) padding-box}");
     minify_test(".foo { clip-path: circle(50px at 0 100px) border-box; }", ".foo{clip-path:circle(50px at 0 100px)}");
   }
+
+  #[test]
+  fn test_filter() {
+    minify_test(".foo { filter: url('filters.svg#filter-id'); }", ".foo{filter:url(filters.svg#filter-id)}");
+    minify_test(".foo { filter: blur(5px); }", ".foo{filter:blur(5px)}");
+    minify_test(".foo { filter: blur(0px); }", ".foo{filter:blur()}");
+    minify_test(".foo { filter: brightness(10%); }", ".foo{filter:brightness(10%)}");
+    minify_test(".foo { filter: brightness(100%); }", ".foo{filter:brightness()}");
+    minify_test(".foo { filter: drop-shadow(16px 16px 20px yellow); }", ".foo{filter:drop-shadow(16px 16px 20px #ff0)}");
+    minify_test(".foo { filter: contrast(175%) brightness(3%); }", ".foo{filter:contrast(175%)brightness(3%)}");
+  }
 }

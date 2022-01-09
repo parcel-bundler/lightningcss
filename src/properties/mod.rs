@@ -25,6 +25,7 @@ pub mod css_modules;
 pub mod size;
 pub mod svg;
 pub mod masking;
+pub mod effects;
 
 use cssparser::*;
 use custom::*;
@@ -51,6 +52,7 @@ use css_modules::*;
 use size::*;
 use svg::*;
 use masking::*;
+use effects::*;
 use crate::values::{image::*, length::*, position::*, alpha::*, size::Size2D, rect::*, color::*, time::Time, easing::EasingFunction, shape::FillRule};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
@@ -857,6 +859,10 @@ define_properties! {
   "mask-border-outset": MaskBorderOutset(Rect<LengthOrNumber>),
   "mask-border-repeat": MaskBorderRepeat(BorderImageRepeat),
   "mask-border": MaskBorder(MaskBorder),
+
+  // https://drafts.fxtf.org/filter-effects-1/
+  "filter": Filter(FilterList),
+  "backdrop-filter": BackdropFilter(FilterList),
 }
 
 impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {
