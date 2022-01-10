@@ -46,7 +46,7 @@ A CSS parser, transformer, and minifier written in Rust.
 
 ### From JavaScript
 
-See the [TypeScript definitions](blob/master/node/index.d.ts) for full API docs.
+See the [TypeScript definitions](https://github.com/parcel-bundler/parcel-css/blob/master/node/index.d.ts) for full API docs.
 
 Here is a simple example that compiles the input CSS for Safari 13.2, and minifies the output.
 
