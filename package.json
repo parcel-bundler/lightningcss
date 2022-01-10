@@ -50,8 +50,9 @@
     "puppeteer": "^12.0.1"
   },
   "scripts": {
-    "build": "node build.js",
-    "build-release": "node build.js --release",
+    "build": "node build.js && node build-flow.js",
+    "build-release": "node build.js --release && node build-flow.js",
+    "prepublishOnly": "node build-flow.js",
     "wasm:build": "wasm-pack build node --target nodejs",
     "wasm:build-release": "wasm-pack build node --target nodejs --release",
     "wasm-browser:build": "wasm-pack build node --target web",
