@@ -77,7 +77,7 @@ let targets = css.browserslistToTargets(browserslist('>= 0.25%'));
 
 ### From Rust
 
-See the Rust API docs on [docs.rs](https://docs.rs/parcel_css).
+See the Rust API docs on [docs.rs](https://docs.rs/parcel_css). More docs and examples are coming soon. For now, start with the [StyleSheet](https://docs.rs/parcel_css/1.0.0-alpha.10/parcel_css/stylesheet/struct.StyleSheet.html) API.
 
 ### With Parcel
 
@@ -86,13 +86,38 @@ Add the following to your `.parcelrc`:
 ```json
 {
   "extends": "@parcel/config-default",
+  "transformers": {
+    "*.css": ["@parcel/transformer-css-experimental"]
+  },
   "optimizers": {
     "*.css": ["@parcel/optimizer-css"]
   }
 }
 ```
 
+You should also add a `browserslist` property to your `package.json`, which defines the target browsers that your CSS will be compiled for.
+
+While Parcel CSS handles the most commonly used PostCSS plugins like `autoprefixer`, `postcss-preset-env`, and CSS modules, you may still need PostCSS for more custom plugins like TailwindCSS. If that's the case, just add @parcel/transformer-postcss before @parcel/transformer-css-experimental, and your PostCSS config will be picked up automatically. You can remove the plugins listed above from your PostCSS config, and they'll be handled by Parcel CSS.
+
+You can also configure, Parcel CSS in the `package.json` in the root of your project. Currently, two options are supported: `drafts`, which can be used to enable CSS nesting, and `pseudoClasses`, which allows replacing some pseudo classes like `:focus-visible` with normal classes that can be applied via JavaScript (e.g. polyfills).
+
+```json
+{
+  "@parcel/transformer-css": {
+    "drafts": {
+      "nesting": true
+    },
+    "pseudoClasses": {
+      "focusVisible": "focus-ring"
+    }
+  }
+}
+```
+
 ## Benchmarks
+
+<img width="665" alt="image" src="https://user-images.githubusercontent.com/19409/149051257-3370fd3b-123c-4027-820f-fbc9050ba1d1.png#gh-light-mode-only">
+<img width="665" alt="image" src="https://user-images.githubusercontent.com/19409/149051290-4a6cf0b7-906e-4f79-8226-405d53804df7.png#gh-dark-mode-only">
 
 ```
 $ node bench.js bootstrap-4.css 
