@@ -99,7 +99,7 @@ You should also add a `browserslist` property to your `package.json`, which defi
 
 While Parcel CSS handles the most commonly used PostCSS plugins like `autoprefixer`, `postcss-preset-env`, and CSS modules, you may still need PostCSS for more custom plugins like TailwindCSS. If that's the case, just add @parcel/transformer-postcss before @parcel/transformer-css-experimental, and your PostCSS config will be picked up automatically. You can remove the plugins listed above from your PostCSS config, and they'll be handled by Parcel CSS.
 
-You can also configure, Parcel CSS in the `package.json` in the root of your project. Currently, two options are supported: `drafts`, which can be used to enable CSS nesting, and `pseudoClasses`, which allows replacing some pseudo classes like `:focus-visible` with normal classes that can be applied via JavaScript (e.g. polyfills).
+You can also configure Parcel CSS in the `package.json` in the root of your project. Currently, two options are supported: `drafts`, which can be used to enable CSS nesting, and `pseudoClasses`, which allows replacing some pseudo classes like `:focus-visible` with normal classes that can be applied via JavaScript (e.g. polyfills).
 
 ```json
 {
