@@ -10,7 +10,7 @@ A CSS parser, transformer, and minifier written in Rust.
 - **Minification** – One of the main purposes of `@parcel/css` is to minify CSS to make it smaller. This includes many optimizations including:
   - Combining longhand properties into shorthands where possible.
   - Merging adjacent rules with the same selectors or declarations when it is safe to do so.
-  - Combining CSS transforms into a single matrix or visa versa when smaller.
+  - Combining CSS transforms into a single matrix or vice versa when smaller.
   - Removing vendor prefixes that are not needed, based on the provided browser targets.
   - Reducing `calc()` expressions where possible.
   - Converting colors to shorter hex notation where possible.
