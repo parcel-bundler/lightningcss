@@ -117,8 +117,8 @@ You can also configure Parcel CSS in the `package.json` in the root of your proj
 
 ## Benchmarks
 
-<img width="665" alt="image" src="https://user-images.githubusercontent.com/19409/149051257-3370fd3b-123c-4027-820f-fbc9050ba1d1.png#gh-light-mode-only">
-<img width="665" alt="image" src="https://user-images.githubusercontent.com/19409/149051290-4a6cf0b7-906e-4f79-8226-405d53804df7.png#gh-dark-mode-only">
+<img width="666" alt="chart" src="https://user-images.githubusercontent.com/19409/149202953-fe174902-aba1-4f3e-babb-f02a30f92b91.png#gh-light-mode-only">
+<img width="666" alt="chart" src="https://user-images.githubusercontent.com/19409/149202998-861c738d-70d6-454c-9cb0-7cdc6733b5c0.png#gh-dark-mode-only">
 
 ```
 $ node bench.js bootstrap-4.css 
