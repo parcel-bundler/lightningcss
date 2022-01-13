@@ -27,6 +27,10 @@ const sysToNodePlatform = {
 
 let optionalDependencies = {};
 
+try {
+  fs.mkdirSync(dir + '/npm');
+} catch (err) {}
+
 for (let triple of triples) {
   let [cpu, , os, abi] = triple.split('-');
   cpu = cpuToNodeArch[cpu] || cpu;
