@@ -159,7 +159,7 @@ jobs:
           path: artifacts
       - name: Build npm packages
         run: node scripts/build-npm.js
-      - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
+      - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > ~/.npmrc
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish to npm
