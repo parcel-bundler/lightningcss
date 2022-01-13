@@ -157,12 +157,21 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           path: artifacts
-      - name: Move artifacts
-        run: cp artifacts/*/*.node .
+      - name: Build npm packages
+        run: node scripts/build-npm.js
       - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - run: npm publish
+      - name: Publish to npm
+        run: |
+          for pkg in npm/*; do
+            echo "Publishing $pkg..."
+            cd $pkg;
+            npm publish;
+            cd ../..;
+          done
+          echo "Publishing @parcel/css...";
+          npm publish
 
   release-crates:
     runs-on: ubuntu-latest

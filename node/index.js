@@ -12,11 +12,14 @@ if (process.platform === 'linux') {
   parts.push('msvc');
 }
 
-let name = `parcel-css.${parts.join('-')}.node`;
 if (process.env.CSS_TRANSFORMER_WASM) {
   module.exports = require(`../pkg`);
 } else {
-  module.exports = require(`../${name}`);
+  try {
+    module.exports = require(`@parcel/css-${parts.join('-')}`);
+  } catch (err) {
+    module.exports = require(`../parcel-css.${parts.join('-')}.node`);
+  }
 }
 
 module.exports.browserslistToTargets = require('./browserslistToTargets');

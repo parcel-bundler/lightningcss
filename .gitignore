@@ -5,3 +5,5 @@ pkg/
 dist/
 .parcel-cache
 node/*.flow
+artifacts
+npm

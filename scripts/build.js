@@ -23,7 +23,7 @@ async function build() {
 
     let yarn = spawn('napi', args, {
       stdio: 'inherit',
-      cwd: __dirname,
+      cwd: __dirname + '/../',
       shell: true,
     });
 
