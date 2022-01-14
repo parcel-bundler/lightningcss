@@ -29,7 +29,8 @@ export interface TransformOptions {
   pseudoClasses?: PseudoClasses,
   /**
    * A list of class names, ids, and custom identifiers (e.g. @keyframes) that are known
-   * to be unused. These will be removed during minification.
+   * to be unused. These will be removed during minification. Note that these are not
+   * selectors but individual names (without any . or # prefixes).
    */
   unusedSymbols?: string[]
 }
