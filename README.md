@@ -120,7 +120,7 @@ You can also configure Parcel CSS in the `package.json` in the root of your proj
 The `@parcel/css-wasm` package can be used in Deno or directly in browsers. This uses a WebAssembly build of Parcel CSS. Use `TextEncoder` and `TextDecoder` convert code from a string to a typed array and back.
 
 ```js
-import init, {transform} from 'https://cdn.skypack.dev/@parcel/css-wasm';
+import init, {transform} from 'https://unpkg.com/@parcel/css-wasm';
 
 await init();
 
