@@ -6,6 +6,7 @@ use parcel_css::stylesheet::{StyleSheet, MinifyOptions, PrinterOptions, ParserOp
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 enum Cli {
+    ///Minify a given CSS file
     Minify {input_file: String }
 }
 
