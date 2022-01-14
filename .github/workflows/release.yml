@@ -193,9 +193,6 @@ jobs:
           done
           echo "Publishing @parcel/css...";
           npm publish
-          echo "Publishing @parcel/css-wasm..."
-          cd npm/wasm
-          npm publish
 
   release-crates:
     runs-on: ubuntu-latest
