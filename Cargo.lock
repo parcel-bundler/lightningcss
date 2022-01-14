@@ -276,7 +276,7 @@ checksum = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
 
 [[package]]
 name = "parcel_css"
-version = "1.0.0-alpha.7"
+version = "1.0.0-alpha.11"
 dependencies = [
  "bitflags",
  "cssparser",

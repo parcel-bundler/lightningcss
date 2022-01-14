@@ -57,7 +57,7 @@ for (let triple of triples) {
   delete pkg2.scripts;
   delete pkg2.types;
 
-  optionalDependencies[pkg2.name] = '^' + pkg.version;
+  optionalDependencies[pkg2.name] = pkg.version;
   
   try {
     fs.mkdirSync(dir + '/npm/' + t);

@@ -143,6 +143,24 @@ jobs:
           name: bindings-${{ matrix.target }}
           path: '*.node'
 
+  build-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Node.JS
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Build wasm
+        run: yarn wasm-browser:build
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: wasm
+          path: node/pkg
+
   release:
     runs-on: ubuntu-latest
     name: Build and release
@@ -150,6 +168,7 @@ jobs:
       - build
       - build-linux
       - build-apple-silicon
+      - build-wasm
     steps:
       - uses: actions/checkout@v1
       - uses: bahmutov/npm-install@v1.1.0
@@ -158,7 +177,9 @@ jobs:
         with:
           path: artifacts
       - name: Build npm packages
-        run: node scripts/build-npm.js
+        run: |
+          node scripts/build-npm.js
+          node scripts/build-wasm.js
       - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > ~/.npmrc
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -171,6 +192,9 @@ jobs:
             cd ../..;
           done
           echo "Publishing @parcel/css...";
+          npm publish
+          echo "Publishing @parcel/css-wasm..."
+          cd npm/wasm
           npm publish
 
   release-crates:

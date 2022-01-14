@@ -44,7 +44,7 @@ A CSS parser, transformer, and minifier written in Rust.
 
 `@parcel/css` can be used from [Parcel](https://parceljs.org), as a standalone library from JavaScript or Rust, or wrapped as a plugin within any other tool.
 
-### From JavaScript
+### From Node
 
 See the [TypeScript definitions](https://github.com/parcel-bundler/parcel-css/blob/master/node/index.d.ts) for full API docs.
 
@@ -113,6 +113,24 @@ You can also configure Parcel CSS in the `package.json` in the root of your proj
     }
   }
 }
+```
+
+### From Deno or in browser
+
+The `@parcel/css-wasm` package can be used in Deno or directly in browsers. This uses a WebAssembly build of Parcel CSS. Use `TextEncoder` and `TextDecoder` convert code from a string to a typed array and back.
+
+```js
+import init, {transform} from 'https://cdn.skypack.dev/@parcel/css-wasm';
+
+await init();
+
+let {code, map} = transform({
+  filename: 'style.css',
+  code: new TextEncoder().encode('.foo { color: red }'),
+  minify: true,
+});
+
+console.log(new TextDecoder().decode(code));
 ```
 
 ## Benchmarks
