@@ -487,23 +487,32 @@ impl Parse for Font {
     let mut stretch = None;
     let size;
     let mut variant_caps = None;
+    let mut count = 0;
 
     loop {
+      // Skip "normal" since it is valid for several properties, but we don't know which ones it will be used for yet.
+      if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
+        count += 1;
+        continue
+      }
       if style.is_none() {
         if let Ok(value) = input.try_parse(FontStyle::parse) {
           style = Some(value);
+          count += 1;
           continue
         }
       }
       if weight.is_none() {
         if let Ok(value) = input.try_parse(FontWeight::parse) {
           weight = Some(value);
+          count += 1;
           continue
         }
       }
       if variant_caps.is_none() {
         if let Ok(value) = input.try_parse(FontVariantCapsCSS2::parse) {
           variant_caps = Some(value);
+          count += 1;
           continue
         }
       }
@@ -511,12 +520,17 @@ impl Parse for Font {
       if stretch.is_none() {
         if let Ok(value) = input.try_parse(FontStretchKeyword::parse) {
           stretch = Some(FontStretch::Keyword(value));
+          count += 1;
           continue
         }
       }
       size = Some(FontSize::parse(input)?);
       break
     }
+
+    if count > 4 {
+      return Err(input.new_custom_error(ParserError::InvalidDeclaration))
+    } 
 
     let size = match size {
       Some(s) => s,
