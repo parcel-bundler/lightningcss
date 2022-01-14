@@ -2,7 +2,7 @@ use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::macros::enum_property;
 use crate::printer::Printer;
-use super::length::{LengthPercentage, LengthValue};
+use super::length::{LengthPercentage};
 use super::percentage::Percentage;
 use crate::error::{ParserError, PrinterError};
 
@@ -22,10 +22,11 @@ impl Position {
   }
 
   pub fn is_center(&self) -> bool {
-    *self == Position::center() || *self == Position {
-      x: HorizontalPosition::Length(LengthPercentage::Percentage(Percentage(0.5))),
-      y: VerticalPosition::Length(LengthPercentage::Percentage(Percentage(0.5)))
-    }
+    self.x.is_center() && self.y.is_center()
+  }
+
+  pub fn is_zero(&self) -> bool {
+    self.x.is_zero() && self.y.is_zero()
   }
 }
 
@@ -136,8 +137,8 @@ impl ToCss for Position {
       },
       (
         x_pos @ &HorizontalPosition::Side(side, Some(_)),
-        &VerticalPosition::Center
-      ) if side != HorizontalPositionKeyword::Left => {
+        y
+      ) if side != HorizontalPositionKeyword::Left && y.is_center() => {
         // If there is a side keyword with an offset, "center" must be a keyword not a percentage.
         x_pos.to_css(dest)?;
         dest.write_str(" center")
@@ -151,44 +152,28 @@ impl ToCss for Position {
         dest.write_str(" ")?;
         y_pos.to_css(dest)
       },
+      (x, y) if x.is_center() && y.is_center() => {
+        // `center center` => 50%
+        x.to_css(dest)
+      },
       (
         &HorizontalPosition::Length(ref x_lp),
-        &VerticalPosition::Center
-      ) => {
+        y
+      ) if y.is_center() => {
         // `center` is assumed if omitted.
         x_lp.to_css(dest)
       },
       (
         &HorizontalPosition::Side(side, None),
-        &VerticalPosition::Center,
-      ) => {
+        y,
+      ) if y.is_center() => {
         let p: LengthPercentage = side.into();
         p.to_css(dest)
       },
       (
-        &HorizontalPosition::Center,
+        x,
         y_pos @ &VerticalPosition::Side(_, None),
-      ) => {
-        y_pos.to_css(dest)
-      },
-      (
-        &HorizontalPosition::Length(ref x_lp),
-        &VerticalPosition::Length(LengthPercentage::Percentage(Percentage(y_lp)))
-      ) if y_lp == 0.5 => {
-        // 50% is equivalent to `center`, which may be omitted.
-        x_lp.to_css(dest)
-      },
-      (
-        &HorizontalPosition::Side(side, None),
-        &VerticalPosition::Length(LengthPercentage::Percentage(Percentage(y_lp))),
-      ) if y_lp == 0.5 => {
-        let p: LengthPercentage = side.into();
-        p.to_css(dest)
-      },
-      (
-        &HorizontalPosition::Length(LengthPercentage::Percentage(Percentage(x_lp))),
-        y_pos @ &VerticalPosition::Side(_, None),
-      ) if x_lp == 0.5 => {
+      ) if x.is_center() => {
         y_pos.to_css(dest)
       },
       (
@@ -202,16 +187,21 @@ impl ToCss for Position {
         y.to_css(dest)
       },
       (x_pos, y_pos) => {
-        let zero = LengthPercentage::Dimension(LengthValue::Px(0.0));
+        let zero = LengthPercentage::zero();
         let fifty = LengthPercentage::Percentage(Percentage(0.5));
         let x_len = match &x_pos {
           HorizontalPosition::Side(HorizontalPositionKeyword::Left, len) => {
             if let Some(len) = len {
-              Some(len)
+              if *len == 0.0 {
+                Some(&zero)
+              } else {
+                Some(len)
+              }
             } else {
               Some(&zero)
             }
           },
+          HorizontalPosition::Length(len) if *len == 0.0 => Some(&zero),
           HorizontalPosition::Length(len) => Some(len),
           HorizontalPosition::Center => Some(&fifty),
           _ => None
@@ -220,11 +210,16 @@ impl ToCss for Position {
         let y_len = match &y_pos {
           VerticalPosition::Side(VerticalPositionKeyword::Top, len) => {
             if let Some(len) = len {
-              Some(len)
+              if *len == 0.0 {
+                Some(&zero)
+              } else {
+                Some(len)
+              }
             } else {
               Some(&zero)
             }
           },
+          VerticalPosition::Length(len) if *len == 0.0 => Some(&zero),
           VerticalPosition::Length(len) => Some(len),
           VerticalPosition::Center => Some(&fifty),
           _ => None
@@ -252,6 +247,20 @@ pub enum PositionComponent<S> {
   Length(LengthPercentage),
   /// `<side> <length-percentage>?`
   Side(S, Option<LengthPercentage>),
+}
+
+impl<S> PositionComponent<S> {
+  fn is_center(&self) -> bool {
+    match self {
+      PositionComponent::Center => true,
+      PositionComponent::Length(LengthPercentage::Percentage(Percentage(p))) => *p == 0.5,
+      _ => false
+    }
+  }
+
+  fn is_zero(&self) -> bool {
+    matches!(self, PositionComponent::Length(len) if *len == 0.0)
+  }
 }
 
 impl<S: Parse> Parse for PositionComponent<S> {
@@ -302,7 +311,7 @@ enum_property!(HorizontalPositionKeyword,
 impl Into<LengthPercentage> for HorizontalPositionKeyword {
   fn into(self) -> LengthPercentage {
     match self {
-      HorizontalPositionKeyword::Left => LengthPercentage::Dimension(LengthValue::Px(0.0)),
+      HorizontalPositionKeyword::Left => LengthPercentage::zero(),
       HorizontalPositionKeyword::Right => LengthPercentage::Percentage(Percentage(1.0))
     }
   }
@@ -316,7 +325,7 @@ enum_property!(VerticalPositionKeyword,
 impl Into<LengthPercentage> for VerticalPositionKeyword {
   fn into(self) -> LengthPercentage {
     match self {
-      VerticalPositionKeyword::Top => LengthPercentage::Dimension(LengthValue::Px(0.0)),
+      VerticalPositionKeyword::Top => LengthPercentage::zero(),
       VerticalPositionKeyword::Bottom => LengthPercentage::Percentage(Percentage(1.0))
     }
   }

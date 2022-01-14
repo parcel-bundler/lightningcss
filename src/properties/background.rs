@@ -319,7 +319,7 @@ impl ToCss for Background {
       has_output = true;
     }
 
-    if self.position != Position::default() || self.size != BackgroundSize::default() {
+    if !self.position.is_zero() || self.size != BackgroundSize::default() {
       if has_output {
         dest.write_str(" ")?;
       }
@@ -372,7 +372,12 @@ impl ToCss for Background {
 
     // If nothing was output, then this is the initial value, e.g. background: transparent
     if !has_output {
-      self.color.to_css(dest)?;
+      if dest.minify {
+        // `0 0` is the shortest valid background value
+        self.position.to_css(dest)?;
+      } else {
+        dest.write_str("none")?;
+      }
     }
 
     Ok(())

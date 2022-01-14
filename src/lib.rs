@@ -1736,7 +1736,7 @@ mod tests {
       .foo {
         background-position: center center;
       }
-    "#, indoc! {".foo{background-position:50% 50%}"
+    "#, indoc! {".foo{background-position:50%}"
     });
 
     test(r#"
@@ -1791,7 +1791,7 @@ mod tests {
     minify_test(".foo { background-position: bottom right }", ".foo{background-position:100% 100%}");
 
     minify_test(".foo { background: url('img-sprite.png') no-repeat bottom right }", ".foo{background:url(img-sprite.png) 100% 100% no-repeat}");
-    minify_test(".foo { background: transparent }", ".foo{background:#0000}");
+    minify_test(".foo { background: transparent }", ".foo{background:0 0}");
 
     minify_test(".foo { background: url(\"data:image/svg+xml,%3Csvg width='168' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E\") }", ".foo{background:url(\"data:image/svg+xml,%3Csvg width='168' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E\")}");
   
@@ -1889,6 +1889,9 @@ mod tests {
       safari: Some(14 << 16),
       ..Browsers::default()
     });
+
+    minify_test(".foo { background: none center }", ".foo{background:50%}");
+    minify_test(".foo { background: none }", ".foo{background:0 0}");
   }
 
   #[test]
@@ -5374,7 +5377,7 @@ mod tests {
       "#,
       indoc! {r#"
       .foo {
-        background-image: radial-gradient(20px at 0% 0%, red, #00f);
+        background-image: radial-gradient(20px at 0 0, red, #00f);
       }
       "#},
       Browsers {
@@ -5392,7 +5395,7 @@ mod tests {
       "#,
       indoc! {r#"
       .foo {
-        background: radial-gradient(20px at 0% 0%, red, #00f);
+        background: radial-gradient(20px at 0 0, red, #00f);
       }
       "#},
       Browsers {
