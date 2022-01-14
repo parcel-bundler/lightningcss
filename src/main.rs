@@ -13,7 +13,10 @@ enum Cli {
 #[derive(Args, Debug)]
 struct MinifyArgs {
     ///The CSS file to minify
-    input_file: String
+    input_file: String,
+    ///The name of the output file
+    #[clap(short, long)]
+    output_file: Option<String>
 }
 
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -23,7 +26,15 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut stylesheet = StyleSheet::parse(cli_args.input_file.to_string(), &source, ParserOptions::default()).unwrap();
             stylesheet.minify(MinifyOptions::default());
             let res = stylesheet.to_css(PrinterOptions { minify: true, ..PrinterOptions::default() }).unwrap();
-            write_file(&output_filename(&cli_args.input_file), &res.code)?;
+
+            let output_filename = if let Some(output_file) = cli_args.output_file {
+                output_file
+            }
+            else {
+                generate_output_filename(&cli_args.input_file)
+            };
+
+            write_file(&output_filename, &res.code)?;
         }
     }
 
@@ -36,7 +47,7 @@ fn write_file(output_filename: &str, file_content: &str) -> Result<(), std::io::
     Ok(())
 }
 
-fn output_filename(input_file: &str) ->String {
+fn generate_output_filename(input_file: &str) ->String {
     let path = Path::new(input_file);
 
     let extension = path.extension().unwrap();
