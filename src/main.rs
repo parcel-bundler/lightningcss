@@ -1,23 +1,29 @@
 use std::{fs::{self, File}, io::{Read, Write}, path::Path};
 
-use clap::Parser;
+use clap::{Parser, Args};
 use parcel_css::stylesheet::{StyleSheet, MinifyOptions, PrinterOptions, ParserOptions};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 enum Cli {
     ///Minify a given CSS file
-    Minify {input_file: String }
+    Minify(MinifyArgs)
+}
+
+#[derive(Args, Debug)]
+struct MinifyArgs {
+    ///The CSS file to minify
+    input_file: String
 }
 
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     match Cli::parse() {
-        Cli::Minify { input_file } => {
-            let source = read_file(&input_file)?;
-            let mut stylesheet = StyleSheet::parse(input_file.to_string(), &source, ParserOptions::default()).unwrap();
+        Cli::Minify(cli_args) => {
+            let source = read_file(&cli_args.input_file)?;
+            let mut stylesheet = StyleSheet::parse(cli_args.input_file.to_string(), &source, ParserOptions::default()).unwrap();
             stylesheet.minify(MinifyOptions::default());
             let res = stylesheet.to_css(PrinterOptions { minify: true, ..PrinterOptions::default() }).unwrap();
-            write_file(&output_filename(&input_file), &res.code)?;
+            write_file(&output_filename(&cli_args.input_file), &res.code)?;
         }
     }
 
