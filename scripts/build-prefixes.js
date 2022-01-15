@@ -289,6 +289,11 @@ impl Feature {
             if (!prefixMapping[prefix]) {
               throw new Error('Missing prefix ' + prefix);
             }
+            if (min === max) {
+              return `if version == ${min} {
+            prefixes |= VendorPrefix::${prefixMapping[prefix]};
+          }`
+            }
             return `if version >= ${min} && version <= ${max} {
             prefixes |= VendorPrefix::${prefixMapping[prefix]};
           }`
