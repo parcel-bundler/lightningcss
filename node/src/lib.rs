@@ -117,7 +117,8 @@ struct Config {
   pub css_modules: Option<bool>,
   pub analyze_dependencies: Option<bool>,
   pub pseudo_classes: Option<OwnedPseudoClasses>,
-  pub unused_symbols: Option<HashSet<String>>
+  pub unused_symbols: Option<HashSet<String>>,
+  pub remove_unused_vars: Option<bool>
 }
 
 #[derive(Debug, Deserialize)]
@@ -154,7 +155,8 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
       Some(o) => o.nesting,
       None => false
     },
-    css_modules: config.css_modules.unwrap_or(false)
+    css_modules: config.css_modules.unwrap_or(false),
+    collect_used_vars: config.remove_unused_vars.unwrap_or(false)
   })?;
   stylesheet.minify(MinifyOptions {
     targets: config.targets,

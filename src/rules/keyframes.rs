@@ -8,6 +8,7 @@ use crate::values::ident::CustomIdent;
 use crate::parser::ParserOptions;
 use crate::error::{ParserError, PrinterError};
 use super::MinifyContext;
+use std::collections::HashSet;
 
 #[derive(Debug, PartialEq)]
 pub struct KeyframesRule {
@@ -20,7 +21,7 @@ pub struct KeyframesRule {
 impl KeyframesRule {
   pub(crate) fn minify(&mut self, context: &mut MinifyContext) {
     for keyframe in &mut self.keyframes {
-      keyframe.declarations.minify(context.handler, context.important_handler, context.logical_properties)
+      keyframe.declarations.minify(context.handler, context.important_handler, context.logical_properties, context.used_vars)
     }
   }
 }
@@ -142,15 +143,17 @@ impl ToCss for Keyframe {
   }
 }
 
-pub(crate) struct KeyframeListParser;
+pub(crate) struct KeyframeListParser<'a> {
+  pub used_vars: &'a mut Option<HashSet<String>>
+}
 
-impl<'a, 'i> AtRuleParser<'i> for KeyframeListParser {
+impl<'a, 'i> AtRuleParser<'i> for KeyframeListParser<'a> {
   type Prelude = ();
   type AtRule = Keyframe;
   type Error = ParserError<'i>;
 }
 
-impl<'a, 'i> QualifiedRuleParser<'i> for KeyframeListParser {
+impl<'a, 'i> QualifiedRuleParser<'i> for KeyframeListParser<'a> {
   type Prelude = Vec<KeyframeSelector>;
   type QualifiedRule = Keyframe;
   type Error = ParserError<'i>;
@@ -172,7 +175,7 @@ impl<'a, 'i> QualifiedRuleParser<'i> for KeyframeListParser {
     let options = ParserOptions::default();
     Ok(Keyframe {
       selectors,
-      declarations: DeclarationBlock::parse(input, &options)?
+      declarations: DeclarationBlock::parse(input, &options, self.used_vars)?
     })
   }
 }

@@ -63,6 +63,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::logical::LogicalProperty;
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
+use std::collections::HashSet;
 
 macro_rules! define_properties {
   (
@@ -279,7 +280,7 @@ macro_rules! define_properties {
     }
 
     impl Property {
-      pub fn parse<'i, 't>(name: CowRcStr<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+      pub fn parse<'i, 't>(name: CowRcStr<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions, used_vars: &mut Option<HashSet<String>>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let state = input.state();
         match name.as_ref() {
           $(
@@ -296,7 +297,7 @@ macro_rules! define_properties {
               // and stored as an enum rather than a string. This lets property handlers more easily deal with it.
               // Ideally we'd only do this if var() or env() references were seen, but err on the safe side for now.
               input.reset(&state);
-              return Ok(Property::Unparsed(UnparsedProperty::parse(PropertyId::$property$((<$vp>::None))?, input)?))
+              return Ok(Property::Unparsed(UnparsedProperty::parse(PropertyId::$property$((<$vp>::None))?, input, used_vars)?))
             }
 
             $(
@@ -310,7 +311,7 @@ macro_rules! define_properties {
                 }
 
                 input.reset(&state);
-                return Ok(Property::Unparsed(UnparsedProperty::parse(PropertyId::$property(prefix), input)?))  
+                return Ok(Property::Unparsed(UnparsedProperty::parse(PropertyId::$property(prefix), input, used_vars)?))  
               }
             )*
           )+
@@ -318,7 +319,7 @@ macro_rules! define_properties {
         }
 
         input.reset(&state);
-        return Ok(Property::Custom(CustomProperty::parse(name, input)?))
+        return Ok(Property::Custom(CustomProperty::parse(name, input, used_vars)?))
       }
 
       #[allow(dead_code)]

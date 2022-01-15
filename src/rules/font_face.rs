@@ -287,7 +287,7 @@ impl<'i> cssparser::DeclarationParser<'i> for FontFaceDeclarationParser {
     }
 
     input.reset(&state);
-    return Ok(FontFaceProperty::Custom(CustomProperty::parse(name, input)?))
+    return Ok(FontFaceProperty::Custom(CustomProperty::parse(name, input, &mut None)?))
   }
 }
 

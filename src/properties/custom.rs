@@ -4,6 +4,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
 use crate::error::ParserError;
+use std::collections::HashSet;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CustomProperty {
@@ -15,8 +16,9 @@ impl CustomProperty {
   pub fn parse<'i, 't>(
     name: CowRcStr<'i>,
     input: &mut Parser<'i, 't>,
+    used_vars: &mut Option<HashSet<String>>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let value = parse_unknown_value(input)?;
+    let value = parse_unknown_value(input, used_vars)?;
     Ok(CustomProperty {
       name: name.as_ref().into(),
       value
@@ -33,9 +35,10 @@ pub struct UnparsedProperty {
 impl UnparsedProperty {
   pub fn parse<'i, 't>(
     property_id: PropertyId,
-    input: &mut Parser<'i, 't>
+    input: &mut Parser<'i, 't>,
+    used_vars: &mut Option<HashSet<String>>
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let value = parse_unknown_value(input)?;
+    let value = parse_unknown_value(input, used_vars)?;
     Ok(UnparsedProperty {
       property_id,
       value
@@ -60,7 +63,10 @@ impl UnparsedProperty {
   }
 }
 
-fn parse_unknown_value<'i, 't>(input: &mut Parser<'i, 't>) -> Result<String, ParseError<'i, ParserError<'i>>> {
+fn parse_unknown_value<'i, 't>(
+  input: &mut Parser<'i, 't>,
+  used_vars: &mut Option<HashSet<String>>,
+) -> Result<String, ParseError<'i, ParserError<'i>>> {
   input.parse_until_before(Delimiter::Bang | Delimiter::Semicolon, |input| {
     // Need at least one token
     let before_first = input.position();
@@ -73,8 +79,14 @@ fn parse_unknown_value<'i, 't>(input: &mut Parser<'i, 't>) -> Result<String, Par
     let mut has_two = false;
     loop {
       match input.next_including_whitespace_and_comments() {
-        Ok(_) => {
+        Ok(token) => {
           has_two = true;
+          if let Some(vars) = used_vars {
+            if is_var(token) {
+              // Ignore errors.
+              let _ = parse_var(input, vars);
+            }
+          }
         },
         Err(..) => {
           // If there is only one token, preserve it, even if it is whitespace.
@@ -92,4 +104,35 @@ fn parse_unknown_value<'i, 't>(input: &mut Parser<'i, 't>) -> Result<String, Par
       };
     }
   })
+}
+
+#[inline]
+fn is_var(token: &Token) -> bool {
+  matches!(token, Token::Function(f) if f.eq_ignore_ascii_case("var"))
+}
+
+fn parse_var<'i, 't>(
+  input: &mut Parser<'i, 't>,
+  used_vars: &mut HashSet<String>,
+) -> Result<(), ParseError<'i, ParserError<'i>>> {
+  input.parse_nested_block(|input| -> Result<(), ParseError<'i, ParserError<'i>>> {
+    let name = input.expect_ident()?.as_ref().to_owned();
+    used_vars.insert(name);
+    if input.try_parse(|input| input.expect_comma()).is_ok() {
+      parse_fallback(input, used_vars)?;
+    }
+    Ok(())
+  })
+}
+
+fn parse_fallback<'i, 't>(
+  input: &mut Parser<'i, 't>,
+  used_vars: &mut HashSet<String>,
+) -> Result<(), ParseError<'i, ParserError<'i>>> {
+  while let Ok(token) = input.next() {
+    if is_var(token) {
+      parse_var(input, used_vars)?;
+    }
+  }
+  Ok(())
 }

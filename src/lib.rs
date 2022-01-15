@@ -80,6 +80,13 @@ mod tests {
     assert_eq!(res.exports.unwrap(), expected_exports);
   }
 
+  fn unused_vars_test(source: &str, expected: &str) {
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { collect_used_vars: true, ..ParserOptions::default()}).unwrap();
+    stylesheet.minify(MinifyOptions::default());
+    let res = stylesheet.to_css(PrinterOptions { minify: true, ..PrinterOptions::default() }).unwrap();
+    assert_eq!(res.code, expected);
+  }
+
   macro_rules! map(
     { $($key:expr => $name:literal $(referenced: $referenced: literal)? $($value:literal $(global: $global: literal)? $(from $from:literal)?)*),* } => {
       {
@@ -9199,5 +9206,50 @@ mod tests {
     @-ms-viewport {
       width: device-width;
     }"#, "@-ms-viewport{width:device-width}");
+  }
+
+  #[test]
+  fn test_removed_unused_vars() {
+    unused_vars_test(r#"
+      .foo {
+        --used: blue;
+        --unused: red;
+      }
+
+      .bar {
+        color: var(--used);
+      }
+    "#, ".foo{--used:blue}.bar{color:var(--used)}");
+    unused_vars_test(r#"
+      .foo {
+        --used: blue;
+        --unused: red;
+      }
+
+      .bar {
+        color: var(--unknown, var(--used));
+      }
+    "#, ".foo{--used:blue}.bar{color:var(--unknown, var(--used))}");
+    unused_vars_test(r#"
+      .foo {
+        --used: blue;
+        --unused: red;
+      }
+
+      .bar {
+        color: yo var(--unknown, yo var(--used));
+      }
+    "#, ".foo{--used:blue}.bar{color:yo var(--unknown, yo var(--used))}");
+    unused_vars_test(r#"
+      .foo {
+        --used: blue;
+        --unused: red;
+        --foo: var(--used);
+      }
+
+      .bar {
+        color: var(--foo);
+      }
+    "#, ".foo{--used:blue;--foo:var(--used)}.bar{color:var(--foo)}");
   }
 }

@@ -18,7 +18,8 @@ pub use crate::printer::PseudoClasses;
 pub struct StyleSheet {
   pub filename: String,
   pub rules: CssRuleList,
-  options: ParserOptions
+  options: ParserOptions,
+  pub used_vars: Option<HashSet<String>>
 }
 
 #[derive(Default)]
@@ -48,14 +49,23 @@ impl StyleSheet {
     StyleSheet {
       filename,
       rules,
-      options
+      options,
+      used_vars: None
     }
   }
 
   pub fn parse<'i>(filename: String, code: &'i str, options: ParserOptions) -> Result<StyleSheet, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
-    let rule_list_parser = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(&options));
+    let mut used_vars = if options.collect_used_vars {
+      Some(HashSet::new())
+    } else {
+      None
+    };
+    let rule_list_parser = RuleListParser::new_for_stylesheet(
+      &mut parser, 
+      TopLevelRuleParser::new(&options, &mut used_vars)
+    );
 
     let mut rules = vec![];
     for rule in rule_list_parser {
@@ -71,7 +81,8 @@ impl StyleSheet {
     Ok(StyleSheet {
       filename,
       rules: CssRuleList(rules),
-      options
+      options,
+      used_vars
     })
   }
 
@@ -84,7 +95,8 @@ impl StyleSheet {
       handler: &mut handler,
       important_handler: &mut important_handler,
       logical_properties: &mut logical_properties,
-      unused_symbols: &options.unused_symbols
+      unused_symbols: &options.unused_symbols,
+      used_vars: &self.used_vars
     }, false);
     logical_properties.to_rules(&mut self.rules);
   }
@@ -150,7 +162,7 @@ impl StyleAttribute {
     let mut parser = Parser::new(&mut input);
     let options = ParserOptions::default();
     Ok(StyleAttribute {
-      declarations: DeclarationBlock::parse(&mut parser, &options)?
+      declarations: DeclarationBlock::parse(&mut parser, &options, &mut None)?
     })
   }
 
@@ -158,7 +170,7 @@ impl StyleAttribute {
     let mut logical_properties = LogicalProperties::new(None);
     let mut handler = DeclarationHandler::new(options.targets);
     let mut important_handler = DeclarationHandler::new(options.targets);
-    self.declarations.minify(&mut handler, &mut important_handler, &mut logical_properties);
+    self.declarations.minify(&mut handler, &mut important_handler, &mut logical_properties, &mut None);
   }
 
   pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, PrinterError> {

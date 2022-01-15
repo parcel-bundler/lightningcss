@@ -26,6 +26,7 @@ use crate::targets::Browsers;
 use crate::parser::ParserOptions;
 use crate::error::{ParserError, PrinterError};
 use crate::logical::LogicalProperties;
+use std::collections::HashSet;
 
 #[derive(Debug, PartialEq)]
 pub struct DeclarationBlock {
@@ -34,12 +35,13 @@ pub struct DeclarationBlock {
 }
 
 impl DeclarationBlock {
-  pub fn parse<'i, 't>(input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  pub fn parse<'i, 't>(input: &mut Parser<'i, 't>, options: &ParserOptions, used_vars: &mut Option<HashSet<String>>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut important_declarations = DeclarationList::new();
     let mut declarations = DeclarationList::new();
     let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser {
       important_declarations: &mut important_declarations,
       declarations: &mut declarations,
+      used_vars,
       options
     });
     while let Some(res) = parser.next() {
@@ -91,7 +93,8 @@ impl DeclarationBlock {
     &mut self,
     handler: &mut DeclarationHandler,
     important_handler: &mut DeclarationHandler,
-    logical_properties: &mut LogicalProperties
+    logical_properties: &mut LogicalProperties,
+    used_vars: &Option<HashSet<String>>
   ) {
     macro_rules! handle {
       ($decls: expr, $handler: expr) => {
@@ -99,6 +102,13 @@ impl DeclarationBlock {
           let handled = $handler.handle_property(decl, logical_properties);
     
           if !handled {
+            if let Some(used_vars) = &used_vars {
+              if let Property::Custom(custom) = &decl {
+                if custom.name.starts_with("--") && !used_vars.contains(&custom.name) {
+                  continue
+                }
+              }
+            }
             $handler.decls.push(decl.clone());
           }
         }
@@ -118,6 +128,7 @@ impl DeclarationBlock {
 struct PropertyDeclarationParser<'a> {
   important_declarations: &'a mut Vec<Property>,
   declarations: &'a mut Vec<Property>,
+  used_vars: &'a mut Option<HashSet<String>>,
   options: &'a ParserOptions
 }
 
@@ -131,7 +142,7 @@ impl<'a, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a> 
     name: CowRcStr<'i>,
     input: &mut cssparser::Parser<'i, 't>,
   ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
-    parse_declaration(name, input, &mut self.declarations, &mut self.important_declarations, &self.options)
+    parse_declaration(name, input, &mut self.declarations, &mut self.important_declarations, self.used_vars, &self.options)
   }
 }
 
@@ -147,9 +158,12 @@ pub(crate) fn parse_declaration<'i, 't>(
   input: &mut cssparser::Parser<'i, 't>,
   declarations: &mut DeclarationList,
   important_declarations: &mut DeclarationList,
+  used_vars: &mut Option<HashSet<String>>,
   options: &ParserOptions
 ) -> Result<(), cssparser::ParseError<'i, ParserError<'i>>> {
-  let property = input.parse_until_before(Delimiter::Bang, |input| Property::parse(name, input, options))?;
+  let property = input.parse_until_before(Delimiter::Bang, |input| 
+    Property::parse(name, input, options, used_vars)
+  )?;
   let important = input.try_parse(|input| {
     input.expect_delim('!')?;
     input.expect_ident_matching("important")

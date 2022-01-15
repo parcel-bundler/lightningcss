@@ -35,7 +35,7 @@ impl StyleRule {
       }
     }
 
-    self.declarations.minify(context.handler, context.important_handler, context.logical_properties);
+    self.declarations.minify(context.handler, context.important_handler, context.logical_properties, context.used_vars);
 
     if !self.rules.0.is_empty() {
       self.rules.minify(context, unused);

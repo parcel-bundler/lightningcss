@@ -95,7 +95,8 @@ pub(crate) struct MinifyContext<'a> {
   pub handler: &'a mut DeclarationHandler,
   pub important_handler: &'a mut DeclarationHandler,
   pub logical_properties: &'a mut LogicalProperties,
-  pub unused_symbols: &'a HashSet<String>
+  pub unused_symbols: &'a HashSet<String>,
+  pub used_vars: &'a Option<HashSet<String>>
 }
 
 impl CssRuleList {
@@ -164,7 +165,7 @@ impl CssRuleList {
             // Merge declarations if the selectors are equivalent, and both are compatible with all targets.
             if style.selectors == last_style_rule.selectors && style.is_compatible(*context.targets) && last_style_rule.is_compatible(*context.targets) && style.rules.0.is_empty() && last_style_rule.rules.0.is_empty() {
               last_style_rule.declarations.declarations.extend(style.declarations.declarations.drain(..));
-              last_style_rule.declarations.minify(context.handler, context.important_handler, context.logical_properties);
+              last_style_rule.declarations.minify(context.handler, context.important_handler, context.logical_properties, context.used_vars);
               continue
             } else if style.declarations == last_style_rule.declarations && style.rules.0.is_empty() && last_style_rule.rules.0.is_empty() {
               // Append the selectors to the last rule if the declarations are the same, and all selectors are compatible.
