@@ -27,14 +27,12 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             stylesheet.minify(MinifyOptions::default());
             let res = stylesheet.to_css(PrinterOptions { minify: true, ..PrinterOptions::default() }).unwrap();
 
-            let output_filename = if let Some(output_file) = cli_args.output_file {
-                output_file
+            if let Some(output_file) = cli_args.output_file {
+                write_file(&output_file, &res.code)?;
             }
             else {
-                generate_output_filename(&cli_args.input_file)
-            };
-
-            write_file(&output_filename, &res.code)?;
+                println!("{}", res.code);
+            }
         }
     }
 
