@@ -44,6 +44,14 @@ pub struct ToCssResult {
 }
 
 impl StyleSheet {
+  pub fn new(filename: String, rules: CssRuleList, options: ParserOptions) -> StyleSheet {
+    StyleSheet {
+      filename,
+      rules,
+      options
+    }
+  }
+
   pub fn parse<'i>(filename: String, code: &'i str, options: ParserOptions) -> Result<StyleSheet, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
