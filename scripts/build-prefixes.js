@@ -219,7 +219,7 @@ for (let feature in mdnFeatures) {
     } else {
       version = feat.version_added;
     }
-  
+
     if (!version) {
       continue;
     }
@@ -289,12 +289,7 @@ impl Feature {
             if (!prefixMapping[prefix]) {
               throw new Error('Missing prefix ' + prefix);
             }
-            if (min === max) {
-              return `if version == ${min} {
-            prefixes |= VendorPrefix::${prefixMapping[prefix]};
-          }`
-            }
-            return `if version >= ${min} && version <= ${max} {
+              return `if ${min === max ? `version == ${min}` : `version >= ${min} && version <= ${max}`} {
             prefixes |= VendorPrefix::${prefixMapping[prefix]};
           }`
           }).join('\n          ')}
@@ -344,9 +339,9 @@ pub enum Feature {
 impl Feature {
   pub fn is_compatible(&self, browsers: Browsers) -> bool {
     match self {
-      ${[...compat].map(([features, browsers]) => 
+      ${[...compat].map(([features, browsers]) =>
         `${features.map(name => `Feature::${enumify(name)}`).join(' |\n      ')} => {` + (Object.entries(browsers).length === 0 ? '}' : `
-        ${Object.entries(browsers).map(([browser, min]) => 
+        ${Object.entries(browsers).map(([browser, min]) =>
             `if let Some(version) = browsers.${browser} {
           if version >= ${min} {
             return true
