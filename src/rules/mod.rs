@@ -9,6 +9,7 @@ pub mod media;
 pub mod style;
 pub mod document;
 pub mod nesting;
+pub mod viewport;
 
 use media::MediaRule;
 use import::ImportRule;
@@ -21,6 +22,7 @@ use counter_style::CounterStyleRule;
 use namespace::NamespaceRule;
 use document::MozDocumentRule;
 use nesting::NestingRule;
+use viewport::ViewportRule;
 use crate::traits::ToCss;
 use crate::printer::Printer;
 use crate::declaration::DeclarationHandler;
@@ -55,6 +57,7 @@ pub enum CssRule {
   Namespace(NamespaceRule),
   MozDocument(MozDocumentRule),
   Nesting(NestingRule),
+  Viewport(ViewportRule),
   Ignored
 }
 
@@ -72,6 +75,7 @@ impl ToCssWithContext for CssRule {
       CssRule::Namespace(namespace) => namespace.to_css(dest),
       CssRule::MozDocument(document) => document.to_css(dest),
       CssRule::Nesting(nesting) => nesting.to_css_with_context(dest, context),
+      CssRule::Viewport(viewport) => viewport.to_css(dest),
       CssRule::Ignored => Ok(())
     }
   }

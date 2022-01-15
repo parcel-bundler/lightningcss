@@ -9188,4 +9188,16 @@ mod tests {
     minify_test(".foo { filter: drop-shadow(16px 16px 20px yellow); }", ".foo{filter:drop-shadow(16px 16px 20px #ff0)}");
     minify_test(".foo { filter: contrast(175%) brightness(3%); }", ".foo{filter:contrast(175%)brightness(3%)}");
   }
+
+  #[test]
+  fn test_viewport() {
+    minify_test(r#"
+    @viewport {
+      width: 100vw;
+    }"#, "@viewport{width:100vw}");
+    minify_test(r#"
+    @-ms-viewport {
+      width: device-width;
+    }"#, "@-ms-viewport{width:device-width}");
+  }
 }

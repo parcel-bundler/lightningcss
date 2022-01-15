@@ -1,6 +1,7 @@
 use cssparser::*;
 use parcel_selectors::{SelectorList, parser::NestingRequirement};
 use crate::media_query::*;
+use crate::rules::viewport::ViewportRule;
 use crate::traits::Parse;
 use crate::selector::{Selectors, SelectorParser};
 use crate::rules::{
@@ -70,7 +71,7 @@ pub enum AtRulePrelude {
   /// An @supports rule, with its conditional
   Supports(SupportsCondition),
   /// A @viewport rule prelude.
-  Viewport,
+  Viewport(VendorPrefix),
   /// A @keyframes rule, with its animation name and vendor prefix if exists.
   Keyframes(CustomIdent, VendorPrefix),
   /// A @page rule prelude.
@@ -267,13 +268,14 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a> {
         let name = CustomIdent::parse(input)?;
         Ok(AtRulePrelude::CounterStyle(name))
       },
-      // "viewport" => {
-      //     if viewport_rule::enabled() {
-      //         Ok(AtRuleType::WithBlock(AtRuleBlockPrelude::Viewport))
-      //     } else {
-      //         Err(input.new_custom_error(StyleParseErrorKind::UnsupportedAtRule(name.clone())))
-      //     }
-      // },
+      "viewport" | "-ms-viewport" => {
+        let prefix = if starts_with_ignore_ascii_case(&*name, "-ms") {
+          VendorPrefix::Ms
+        } else {
+          VendorPrefix::None
+        };
+        Ok(AtRulePrelude::Viewport(prefix))
+      },
       "keyframes" | "-webkit-keyframes" | "-moz-keyframes" | "-o-keyframes" | "-ms-keyframes" => {
         let prefix = if starts_with_ignore_ascii_case(&*name, "-webkit-") {
           VendorPrefix::WebKit
@@ -370,17 +372,15 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a> {
           loc
         }))
       },
-      // AtRuleBlockPrelude::Viewport => {
-      //     let context = ParserContext::new_with_rule_type(
-      //         self.context,
-      //         CssRuleType::Viewport,
-      //         self.namespaces,
-      //     );
-
-      //     Ok(CssRule::Viewport(Arc::new(
-      //         self.shared_lock.wrap(ViewportRule::parse(&context, input)?),
-      //     )))
-      // },
+      AtRulePrelude::Viewport(vendor_prefix) => {
+        Ok(CssRule::Viewport(ViewportRule {
+          vendor_prefix,
+          // TODO: parse viewport descriptors rather than properties
+          // https://drafts.csswg.org/css-device-adapt/#viewport-desc
+          declarations: DeclarationBlock::parse(input, self.options)?,
+          loc
+        }))
+      },
       AtRulePrelude::Keyframes(name, vendor_prefix) => {
         let iter = RuleListParser::new_for_nested_rule(input, KeyframeListParser);
         Ok(CssRule::Keyframes(KeyframesRule {
