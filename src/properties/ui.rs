@@ -7,15 +7,17 @@ use smallvec::SmallVec;
 use crate::values::url::Url;
 use crate::error::{ParserError, PrinterError};
 
-// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#resize
-enum_property!(Resize,
-  None,
-  Both,
-  Horizontal,
-  Vertical,
-  Block,
-  Inline
-);
+enum_property! {
+  /// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#resize
+  pub enum Resize {
+    None,
+    Both,
+    Horizontal,
+    Vertical,
+    Block,
+    Inline,
+  }
+}
 
 /// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#cursor
 #[derive(Debug, Clone, PartialEq)]
@@ -55,44 +57,46 @@ impl ToCss for CursorImage {
   }
 }
 
-enum_property!(CursorKeyword,
-  ("auto", Auto),
-  ("default", Default),
-  ("none", None),
-  ("context-menu", ContextMenu),
-  ("help", Help),
-  ("pointer", Pointer),
-  ("progress", Progress),
-  ("wait", Wait),
-  ("cell", Cell),
-  ("crosshair", Crosshair),
-  ("text", Text),
-  ("vertical-text", VerticalText),
-  ("alias", Alias),
-  ("copy", Copy),
-  ("move", Move),
-  ("no-drop", NoDrop),
-  ("not-allowed", NotAllowed),
-  ("grab", Grab),
-  ("grabbing", Grabbing),
-  ("e-resize", EResize),
-  ("n-resize", NResize),
-  ("ne-resize", NeResize),
-  ("nw-resize", NwResize),
-  ("s-resize", SResize),
-  ("se-resize", SeResize),
-  ("sw-resize", SwResize),
-  ("w-resize", WResize),
-  ("ew-resize", EwResize),
-  ("ns-resize", NsResize),
-  ("nesw-resize", NeswResize),
-  ("nwse-resize", NwseResize),
-  ("col-resize", ColResize),
-  ("row-resize", RowResize),
-  ("all-scroll", AllScroll),
-  ("zoom-in", ZoomIn),
-  ("zoom-out", ZoomOut)
-);
+enum_property! {
+  pub enum CursorKeyword {
+    "auto": Auto,
+    "default": Default,
+    "none": None,
+    "context-menu": ContextMenu,
+    "help": Help,
+    "pointer": Pointer,
+    "progress": Progress,
+    "wait": Wait,
+    "cell": Cell,
+    "crosshair": Crosshair,
+    "text": Text,
+    "vertical-text": VerticalText,
+    "alias": Alias,
+    "copy": Copy,
+    "move": Move,
+    "no-drop": NoDrop,
+    "not-allowed": NotAllowed,
+    "grab": Grab,
+    "grabbing": Grabbing,
+    "e-resize": EResize,
+    "n-resize": NResize,
+    "ne-resize": NeResize,
+    "nw-resize": NwResize,
+    "s-resize": SResize,
+    "se-resize": SeResize,
+    "sw-resize": SwResize,
+    "w-resize": WResize,
+    "ew-resize": EwResize,
+    "ns-resize": NsResize,
+    "nesw-resize": NeswResize,
+    "nwse-resize": NwseResize,
+    "col-resize": ColResize,
+    "row-resize": RowResize,
+    "all-scroll": AllScroll,
+    "zoom-in": ZoomIn,
+    "zoom-out": ZoomOut,
+  }
+}
 
 /// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#cursor
 #[derive(Debug, Clone, PartialEq)]
@@ -162,13 +166,15 @@ impl ToCss for ColorOrAuto {
   }
 }
 
-// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret-shape
-enum_property!(CaretShape,
-  Auto,
-  Bar,
-  Block,
-  Underscore
-);
+enum_property! {
+  /// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret-shape
+  pub enum CaretShape {
+    Auto,
+    Bar,
+    Block,
+    Underscore,
+  }
+}
 
 impl Default for CaretShape {
   fn default() -> CaretShape {
@@ -182,14 +188,16 @@ shorthand_property!(Caret {
   shape: CaretShape,
 });
 
-// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#content-selection
-enum_property!(UserSelect,
-  Auto,
-  Text,
-  None,
-  Contain,
-  All
-);
+enum_property! {
+  /// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#content-selection
+  pub enum UserSelect {
+    Auto,
+    Text,
+    None,
+    Contain,
+    All,
+  }
+}
 
 /// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#appearance-switching
 #[derive(Debug, Clone, PartialEq)]

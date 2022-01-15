@@ -15,13 +15,15 @@ use crate::prefixes::{Feature, is_flex_2009};
 use crate::error::{ParserError, PrinterError};
 use crate::logical::LogicalProperties;
 
-// https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#propdef-flex-direction
-enum_property!(FlexDirection,
-  ("row", Row),
-  ("row-reverse", RowReverse),
-  ("column", Column),
-  ("column-reverse", ColumnReverse)
-);
+enum_property! {
+  /// https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#propdef-flex-direction
+  pub enum FlexDirection {
+    "row": Row,
+    "row-reverse": RowReverse,
+    "column": Column,
+    "column-reverse": ColumnReverse,
+  }
+}
 
 impl Default for FlexDirection {
   fn default() -> FlexDirection {
@@ -29,12 +31,14 @@ impl Default for FlexDirection {
   }
 }
 
-// https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#flex-wrap-property
-enum_property!(FlexWrap,
-  ("nowrap", NoWrap),
-  ("wrap", Wrap),
-  ("wrap-reverse", WrapReverse)
-);
+enum_property! {
+  /// https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#flex-wrap-property
+  pub enum FlexWrap {
+    "nowrap": NoWrap,
+    "wrap": Wrap,
+    "wrap-reverse": WrapReverse,
+  }
+}
 
 impl Default for FlexWrap {
   fn default() -> FlexWrap {
@@ -182,12 +186,14 @@ impl ToCss for Flex {
 
 // Old flex (2009): https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/
 
-enum_property!(BoxOrient,
-  ("horizontal", Horizontal),
-  ("vertical", Vertical),
-  ("inline-axis", InlineAxis),
-  ("block-axis", BlockAxis)
-);
+enum_property! {
+  pub enum BoxOrient {
+    "horizontal": Horizontal,
+    "vertical": Vertical,
+    "inline-axis": InlineAxis,
+    "block-axis": BlockAxis,
+  }
+}
 
 impl FlexDirection {
   fn to_2009(&self) -> (BoxOrient, BoxDirection) {
@@ -200,18 +206,22 @@ impl FlexDirection {
   }
 }
 
-enum_property!(BoxDirection,
-  Normal,
-  Reverse
-);
+enum_property! {
+  pub enum BoxDirection {
+    Normal,
+    Reverse,
+  }
+}
 
-enum_property!(BoxAlign,
-  Start,
-  End,
-  Center,
-  Baseline,
-  Stretch
-);
+enum_property! {
+  pub enum BoxAlign {
+    Start,
+    End,
+    Center,
+    Baseline,
+    Stretch,
+  }
+}
 
 impl FromStandard<AlignItems> for BoxAlign {
   fn from_standard(align: &AlignItems) -> Option<BoxAlign> {
@@ -230,12 +240,14 @@ impl FromStandard<AlignItems> for BoxAlign {
   }
 }
 
-enum_property!(BoxPack,
-  Start,
-  End,
-  Center,
-  Justify
-);
+enum_property! {
+  pub enum BoxPack {
+    Start,
+    End,
+    Center,
+    Justify,
+  }
+}
 
 impl FromStandard<JustifyContent> for BoxPack {
   fn from_standard(justify: &JustifyContent) -> Option<BoxPack> {
@@ -258,10 +270,12 @@ impl FromStandard<JustifyContent> for BoxPack {
   }
 }
 
-enum_property!(BoxLines,
-  Single,
-  Multiple
-);
+enum_property! {
+  pub enum BoxLines {
+    Single,
+    Multiple,
+  }
+}
 
 impl FromStandard<FlexWrap> for BoxLines {
   fn from_standard(wrap: &FlexWrap) -> Option<BoxLines> {
@@ -282,13 +296,15 @@ impl FromStandard<f32> for BoxOrdinalGroup {
 
 // Old flex (2012): https://www.w3.org/TR/2012/WD-css3-flexbox-20120322/
 
-enum_property!(FlexPack,
-  Start,
-  End,
-  Center,
-  Justify,
-  Distribute
-);
+enum_property! {
+  pub enum FlexPack {
+    Start,
+    End,
+    Center,
+    Justify,
+    Distribute,
+  }
+}
 
 impl FromStandard<JustifyContent> for FlexPack {
   fn from_standard(justify: &JustifyContent) -> Option<FlexPack> {
@@ -314,14 +330,16 @@ impl FromStandard<JustifyContent> for FlexPack {
 
 pub type FlexAlign = BoxAlign;
 
-enum_property!(FlexItemAlign,
-  Auto,
-  Start,
-  End,
-  Center,
-  Baseline,
-  Stretch
-);
+enum_property! {
+  pub enum FlexItemAlign {
+    Auto,
+    Start,
+    End,
+    Center,
+    Baseline,
+    Stretch,
+  }
+}
 
 impl FromStandard<AlignSelf> for FlexItemAlign {
   fn from_standard(justify: &AlignSelf) -> Option<FlexItemAlign> {
@@ -341,14 +359,16 @@ impl FromStandard<AlignSelf> for FlexItemAlign {
   }
 }
 
-enum_property!(FlexLinePack,
-  Start,
-  End,
-  Center,
-  Justify,
-  Distribute,
-  Stretch
-);
+enum_property! {
+  pub enum FlexLinePack {
+    Start,
+    End,
+    Center,
+    Justify,
+    Distribute,
+    Stretch,
+  }
+}
 
 impl FromStandard<AlignContent> for FlexLinePack {
   fn from_standard(justify: &AlignContent) -> Option<FlexLinePack> {

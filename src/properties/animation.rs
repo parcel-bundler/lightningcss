@@ -76,27 +76,33 @@ impl ToCss for AnimationIterationCount {
   }
 }
 
-// https://drafts.csswg.org/css-animations/#animation-direction
-enum_property!(AnimationDirection,
-  ("normal", Normal),
-  ("reverse", Reverse),
-  ("alternate", Alternate),
-  ("alternate-reverse", AlternateReverse)
-);
+enum_property! {
+  /// https://drafts.csswg.org/css-animations/#animation-direction
+  pub enum AnimationDirection {
+    "normal": Normal,
+    "reverse": Reverse,
+    "alternate": Alternate,
+    "alternate-reverse": AlternateReverse,
+  }
+}
 
-// https://drafts.csswg.org/css-animations/#animation-play-state
-enum_property!(AnimationPlayState,
-  Running,
-  Paused
-);
+enum_property! {
+  /// https://drafts.csswg.org/css-animations/#animation-play-state
+  pub enum AnimationPlayState {
+    Running,
+    Paused,
+  }
+}
 
-// https://drafts.csswg.org/css-animations/#animation-fill-mode
-enum_property!(AnimationFillMode,
-  None,
-  Forwards,
-  Backwards,
-  Both
-);
+enum_property! {
+  /// https://drafts.csswg.org/css-animations/#animation-fill-mode
+  pub enum AnimationFillMode {
+    None,
+    Forwards,
+    Backwards,
+    Both,
+  }
+}
 
 /// https://drafts.csswg.org/css-animations/#animation
 #[derive(Debug, Clone, PartialEq)]

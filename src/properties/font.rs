@@ -98,20 +98,24 @@ impl ToCss for AbsoluteFontWeight {
   }
 }
 
-enum_property!(AbsoluteFontSize,
-  ("xx-small", XXSmall),
-  ("x-small", XSmall),
-  ("small", Small),
-  ("medium", Medium),
-  ("large", Large),
-  ("x-large", XLarge),
-  ("xx-large", XXLarge)
-);
+enum_property! {
+  pub enum AbsoluteFontSize {
+    "xx-small": XXSmall,
+    "x-small": XSmall,
+    "small": Small,
+    "medium": Medium,
+    "large": Large,
+    "x-large": XLarge,
+    "xx-large": XXLarge,
+  }
+}
 
-enum_property!(RelativeFontSize,
-  Smaller,
-  Larger
-);
+enum_property! {
+  pub enum RelativeFontSize {
+    Smaller,
+    Larger,
+  }
+}
 
 /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-size-prop
 #[derive(Debug, Clone, PartialEq)]
@@ -147,17 +151,19 @@ impl ToCss for FontSize {
   }
 }
 
-enum_property!(FontStretchKeyword,
-  ("normal", Normal),
-  ("ultra-condensed", UltraCondensed),
-  ("extra-condensed", ExtraCondensed),
-  ("condensed", Condensed),
-  ("semi-condensed", SemiCondensed),
-  ("semi-expanded", SemiExpanded),
-  ("expanded", Expanded),
-  ("extra-expanded", ExtraExpanded),
-  ("ultra-expanded", UltraExpanded)
-);
+enum_property! {
+  pub enum FontStretchKeyword {
+    "normal": Normal,
+    "ultra-condensed": UltraCondensed,
+    "extra-condensed": ExtraCondensed,
+    "condensed": Condensed,
+    "semi-condensed": SemiCondensed,
+    "semi-expanded": SemiExpanded,
+    "expanded": Expanded,
+    "extra-expanded": ExtraExpanded,
+    "ultra-expanded": UltraExpanded,
+  }
+}
 
 impl Default for FontStretchKeyword {
   fn default() -> FontStretchKeyword {
@@ -230,22 +236,24 @@ impl ToCss for FontStretch {
   }
 }
 
-// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#generic-font-families
-enum_property!(GenericFontFamily,
-  ("serif", Serif),
-  ("sans-serif", SansSerif),
-  ("cursive", Cursive),
-  ("fantasy", Fantasy),
-  ("monospace", Monospace),
-  ("system-ui", SystemUI),
-  ("emoji", Emoji),
-  ("math", Math),
-  ("fangsong", FangSong),
-  ("ui-serif", UISerif),
-  ("ui-sans-serif", UISansSerif),
-  ("ui-monospace", UIMonospace),
-  ("ui-rounded", UIRounded)
-);
+enum_property! {
+  /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#generic-font-families
+  pub enum GenericFontFamily {
+    "serif": Serif,
+    "sans-serif": SansSerif,
+    "cursive": Cursive,
+    "fantasy": Fantasy,
+    "monospace": Monospace,
+    "system-ui": SystemUI,
+    "emoji": Emoji,
+    "math": Math,
+    "fangsong": FangSong,
+    "ui-serif": UISerif,
+    "ui-sans-serif": UISansSerif,
+    "ui-monospace": UIMonospace,
+    "ui-rounded": UIRounded,
+  }
+}
 
 /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-family-prop
 #[derive(Debug, Clone, PartialEq)]
@@ -349,16 +357,18 @@ impl ToCss for FontStyle {
   }
 }
 
-// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-variant-caps-prop
-enum_property!(FontVariantCaps,
-  ("normal", Normal),
-  ("small-caps", SmallCaps),
-  ("all-small-caps", AllSmallCaps),
-  ("petite-caps", PetiteCaps),
-  ("all-petite-caps", AllPetiteCaps),
-  ("unicase", Unicase),
-  ("titling-caps", TitlingCaps)
-);
+enum_property! {
+  /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-variant-caps-prop
+  pub enum FontVariantCaps {
+    "normal": Normal,
+    "small-caps": SmallCaps,
+    "all-small-caps": AllSmallCaps,
+    "petite-caps": PetiteCaps,
+    "all-petite-caps": AllPetiteCaps,
+    "unicase": Unicase,
+    "titling-caps": TitlingCaps,
+  }
+}
 
 impl FontVariantCaps {
   pub fn to_css2(&self) -> Option<FontVariantCapsCSS2> {
@@ -370,11 +380,13 @@ impl FontVariantCaps {
   }
 }
 
-// The `font` property only supports font-variant-caps values from CSS 2.1
-enum_property!(FontVariantCapsCSS2,
-  ("normal", Normal),
-  ("small-caps", SmallCaps)
-);
+enum_property! {
+  /// The `font` property only supports font-variant-caps values from CSS 2.1
+  pub enum FontVariantCapsCSS2 {
+    "normal": Normal,
+    "small-caps": SmallCaps,
+  }
+}
 
 impl Default for FontVariantCapsCSS2 {
   fn default() -> FontVariantCapsCSS2 {
@@ -429,16 +441,18 @@ impl ToCss for LineHeight {
   }
 }
 
-enum_property!(VerticalAlignKeyword,
-  ("baseline", Baseline),
-  ("sub", Sub),
-  ("super", Super),
-  ("top", Top),
-  ("text-top", TextTop),
-  ("middle", Middle),
-  ("bottom", Bottom),
-  ("text-bottom", TextBottom)
-);
+enum_property! {
+  pub enum VerticalAlignKeyword {
+    "baseline": Baseline,
+    "sub": Sub,
+    "super": Super,
+    "top": Top,
+    "text-top": TextTop,
+    "middle": Middle,
+    "bottom": Bottom,
+    "text-bottom": TextBottom,
+  }
+}
 
 /// https://drafts.csswg.org/css2/#propdef-vertical-align
 // TODO: there is a more extensive spec in CSS3 but it doesn't seem any browser implements it? https://www.w3.org/TR/css-inline-3/#transverse-alignment

@@ -1148,26 +1148,32 @@ impl Transform {
   }
 }
 
-// https://drafts.csswg.org/css-transforms-2/#transform-style-property
-enum_property!(TransformStyle,
-  ("flat", Flat),
-  ("preserve-3d", Preserve3d)
-);
+enum_property! {
+  /// https://drafts.csswg.org/css-transforms-2/#transform-style-property
+  pub enum TransformStyle {
+    "flat": Flat,
+    "preserve-3d": Preserve3d,
+  }
+}
 
-// https://drafts.csswg.org/css-transforms-1/#transform-box
-enum_property!(TransformBox,
-  ("content-box", ContentBox),
-  ("border-box", BorderBox),
-  ("fill-box", FillBox),
-  ("stroke-box", StrokeBox),
-  ("view-box", ViewBox)
-);
+enum_property! {
+  /// https://drafts.csswg.org/css-transforms-1/#transform-box
+  pub enum TransformBox {
+    "content-box": ContentBox,
+    "border-box": BorderBox,
+    "fill-box": FillBox,
+    "stroke-box": StrokeBox,
+    "view-box": ViewBox,
+  }
+}
 
-// https://drafts.csswg.org/css-transforms-2/#backface-visibility-property
-enum_property!(BackfaceVisibility,
-  Visible,
-  Hidden
-);
+enum_property! {
+  /// https://drafts.csswg.org/css-transforms-2/#backface-visibility-property
+  pub enum BackfaceVisibility {
+    Visible,
+    Hidden,
+  }
+}
 
 /// https://drafts.csswg.org/css-transforms-2/#perspective-property
 #[derive(Debug, Clone, PartialEq)]

@@ -9,13 +9,15 @@ use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
 use crate::logical::LogicalProperties;
 
-enum_property!(OverflowKeyword,
-  Visible,
-  Hidden,
-  Clip,
-  Scroll,
-  Auto
-);
+enum_property! {
+  pub enum OverflowKeyword {
+    Visible,
+    Hidden,
+    Clip,
+    Scroll,
+    Auto,
+  }
+}
 
 /// https://www.w3.org/TR/2020/WD-css-overflow-3-20200603/#overflow-properties
 #[derive(Debug, Clone, PartialEq)]
@@ -43,11 +45,13 @@ impl ToCss for Overflow {
   }
 }
 
-// https://www.w3.org/TR/2020/WD-css-overflow-3-20200603/#text-overflow
-enum_property!(TextOverflow,
-  Clip,
-  Ellipsis
-);
+enum_property! {
+  /// https://www.w3.org/TR/2020/WD-css-overflow-3-20200603/#text-overflow
+  pub enum TextOverflow {
+    Clip,
+    Ellipsis,
+  }
+}
 
 #[derive(Default)]
 pub(crate) struct OverflowHandler {

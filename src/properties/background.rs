@@ -75,13 +75,15 @@ impl ToCss for BackgroundSize {
   }
 }
 
-// https://www.w3.org/TR/css-backgrounds-3/#typedef-repeat-style
-enum_property!(BackgroundRepeatKeyword,
-  ("repeat", Repeat),
-  ("space", Space),
-  ("round", Round),
-  ("no-repeat", NoRepeat)
-);
+enum_property! {
+  /// https://www.w3.org/TR/css-backgrounds-3/#typedef-repeat-style
+  pub enum BackgroundRepeatKeyword {
+    "repeat": Repeat,
+    "space": Space,
+    "round": Round,
+    "no-repeat": NoRepeat,
+  }
+}
 
 /// https://www.w3.org/TR/css-backgrounds-3/#background-repeat
 #[derive(Debug, Clone, PartialEq)]
@@ -137,12 +139,14 @@ impl ToCss for BackgroundRepeat {
   }
 }
 
-// https://www.w3.org/TR/css-backgrounds-3/#background-attachment
-enum_property!(BackgroundAttachment,
-  Scroll,
-  Fixed,
-  Local
-);
+enum_property! {
+  /// https://www.w3.org/TR/css-backgrounds-3/#background-attachment
+  pub enum BackgroundAttachment {
+    Scroll,
+    Fixed,
+    Local,
+  }
+}
 
 impl Default for BackgroundAttachment {
   fn default() -> BackgroundAttachment {
@@ -150,21 +154,25 @@ impl Default for BackgroundAttachment {
   }
 }
 
-// https://www.w3.org/TR/css-backgrounds-3/#typedef-box
-enum_property!(BackgroundBox,
-  ("border-box", BorderBox),
-  ("padding-box", PaddingBox),
-  ("content-box", ContentBox)
-);
+enum_property! {
+  /// https://www.w3.org/TR/css-backgrounds-3/#typedef-box
+  pub enum BackgroundBox {
+    "border-box": BorderBox,
+    "padding-box": PaddingBox,
+    "content-box": ContentBox,
+  }
+}
 
-// https://drafts.csswg.org/css-backgrounds-4/#background-clip
-enum_property!(BackgroundClip,
-  ("border-box", BorderBox),
-  ("padding-box", PaddingBox),
-  ("content-box", ContentBox),
-  ("border", Border),
-  ("text", Text)
-);
+enum_property! {
+  /// https://drafts.csswg.org/css-backgrounds-4/#background-clip
+  pub enum BackgroundClip {
+    "border-box": BorderBox,
+    "padding-box": PaddingBox,
+    "content-box": ContentBox,
+    "border": Border,
+    "text": Text,
+  }
+}
 
 impl PartialEq<BackgroundBox> for BackgroundClip {
   fn eq(&self, other: &BackgroundBox) -> bool {

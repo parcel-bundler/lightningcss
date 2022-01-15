@@ -60,10 +60,12 @@ pub struct Point {
   y: LengthPercentage
 }
 
-enum_property!(FillRule,
-  Nonzero,
-  Evenodd
-);
+enum_property! {
+  pub enum FillRule {
+    Nonzero,
+    Evenodd,
+  }
+}
 
 impl Default for FillRule {
   fn default() -> FillRule {

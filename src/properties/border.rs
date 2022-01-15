@@ -61,18 +61,20 @@ impl ToCss for BorderSideWidth {
   }
 }
 
-enum_property!(BorderStyle,
-  Hidden,
-  None,
-  Inset,
-  Groove,
-  Outset,
-  Ridge,
-  Dotted,
-  Dashed,
-  Solid,
-  Double
-);
+enum_property! {
+  pub enum BorderStyle {
+    Hidden,
+    None,
+    Inset,
+    Groove,
+    Outset,
+    Ridge,
+    Dotted,
+    Dashed,
+    Solid,
+    Double,
+  }
+}
 
 impl Default for BorderStyle {
   fn default() -> BorderStyle {

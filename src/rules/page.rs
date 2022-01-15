@@ -12,13 +12,15 @@ pub struct PageSelector {
   pub pseudo_classes: Vec<PagePseudoClass>
 }
 
-enum_property!(PagePseudoClass,
-  Left,
-  Right,
-  First,
-  Last,
-  Blank
-);
+enum_property! {
+  pub enum PagePseudoClass {
+    Left,
+    Right,
+    First,
+    Last,
+    Blank,
+  }
+}
 
 impl Parse for PageSelector {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {

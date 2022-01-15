@@ -1,7 +1,13 @@
 macro_rules! enum_property {
-  ($name: ident, $( $x: ident ),+) => {
+  (
+    $(#[$outer:meta])*
+    $vis:vis enum $name:ident {
+      $( $x: ident, )+
+    }
+  ) => {
+    $(#[$outer])*
     #[derive(Debug, Clone, Copy, PartialEq)]
-    pub enum $name {
+    $vis enum $name {
       $(
         $x,
       )+
@@ -42,9 +48,15 @@ macro_rules! enum_property {
       }
     }
   };
-  ($name: ident, $( ($str: expr, $id: ident) ),+) => {
+  (
+    $(#[$outer:meta])*
+    $vis:vis enum $name:ident {
+      $( $str: literal: $id: ident, )+
+    }
+  ) => {
+    $(#[$outer])*
     #[derive(Debug, Clone, Copy, PartialEq)]
-    pub enum $name {
+    $vis enum $name {
       $(
         $id,
       )+

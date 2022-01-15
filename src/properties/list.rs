@@ -107,13 +107,15 @@ impl ToCss for CounterStyle {
   }
 }
 
-enum_property!(SymbolsType,
-  Cyclic,
-  Numeric,
-  Alphabetic,
-  Symbolic,
-  Fixed
-);
+enum_property! {
+  pub enum SymbolsType {
+    Cyclic,
+    Numeric,
+    Alphabetic,
+    Symbolic,
+    Fixed,
+  }
+}
 
 /// https://www.w3.org/TR/css-counter-styles-3/#funcdef-symbols
 #[derive(Debug, Clone, PartialEq)]
@@ -145,11 +147,13 @@ impl ToCss for Symbol {
   }
 }
 
-// https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#list-style-position-property
-enum_property!(ListStylePosition,
-  Inside,
-  Outside
-);
+enum_property! {
+  /// https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#list-style-position-property
+  pub enum ListStylePosition {
+    Inside,
+    Outside,
+  }
+}
 
 impl Default for ListStylePosition {
   fn default() -> ListStylePosition {
@@ -157,11 +161,13 @@ impl Default for ListStylePosition {
   }
 }
 
-// https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#marker-side
-enum_property!(MarkerSide,
-  ("match-self", MatchSelf),
-  ("match-parent", MatchParent)
-);
+enum_property! {
+  /// https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#marker-side
+  pub enum MarkerSide {
+    "match-self": MatchSelf,
+    "match-parent": MatchParent,
+  }
+}
 
 // https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#list-style-property
 shorthand_property!(ListStyle {

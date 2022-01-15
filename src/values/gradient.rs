@@ -469,12 +469,14 @@ impl ToCss for Ellipse {
   }
 }
 
-enum_property!(ShapeExtent,
-  ("closest-side", ClosestSide),
-  ("farthest-side", FarthestSide),
-  ("closest-corner", ClosestCorner),
-  ("farthest-corner", FarthestCorner)
-);
+enum_property! {
+  pub enum ShapeExtent {
+    "closest-side": ClosestSide,
+    "farthest-side": FarthestSide,
+    "closest-corner": ClosestCorner,
+    "farthest-corner": FarthestCorner,
+  }
+}
 
 /// https://www.w3.org/TR/css-images-4/#conic-gradients
 #[derive(Debug, Clone, PartialEq)]

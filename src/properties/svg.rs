@@ -84,19 +84,23 @@ impl ToCss for SVGPaintFallback {
   }
 }
 
-enum_property!(StrokeLinecap,
-  Butt,
-  Round,
-  Square
-);
+enum_property! {
+  pub enum StrokeLinecap {
+    Butt,
+    Round,
+    Square,
+  }
+}
 
-enum_property!(StrokeLinejoin,
-  ("miter", Miter),
-  ("miter-clip", MiterClip),
-  ("round", Round),
-  ("bevel", Bevel),
-  ("arcs", Arcs)
-);
+enum_property! {
+  pub enum StrokeLinejoin {
+    "miter": Miter,
+    "miter-clip": MiterClip,
+    "round": Round,
+    "bevel": Bevel,
+    "arcs": Arcs,
+  }
+}
 
 /// https://www.w3.org/TR/SVG2/painting.html#StrokeDashing
 #[derive(Debug, Clone, PartialEq)]
@@ -177,34 +181,44 @@ impl ToCss for Marker {
   }
 }
 
-enum_property!(ColorInterpolation,
-  Auto,
-  SRGB,
-  LinearRGB
-);
+enum_property! {
+  pub enum ColorInterpolation {
+    Auto,
+    SRGB,
+    LinearRGB,
+  }
+}
 
-enum_property!(ColorRendering,
-  Auto,
-  OptimizeSpeed,
-  OptimizeQuality
-);
+enum_property! {
+  pub enum ColorRendering {
+    Auto,
+    OptimizeSpeed,
+    OptimizeQuality,
+  }
+}
 
-enum_property!(ShapeRendering,
-  Auto,
-  OptimizeSpeed,
-  CrispEdges,
-  GeometricPrecision
-);
+enum_property! {
+  pub enum ShapeRendering {
+    Auto,
+    OptimizeSpeed,
+    CrispEdges,
+    GeometricPrecision,
+  }
+}
 
-enum_property!(TextRendering,
-  Auto,
-  OptimizeSpeed,
-  OptimizeLegibility,
-  GeometricPrecision
-);
+enum_property! {
+  pub enum TextRendering {
+    Auto,
+    OptimizeSpeed,
+    OptimizeLegibility,
+    GeometricPrecision,
+  }
+}
 
-enum_property!(ImageRendering,
-  Auto,
-  OptimizeSpeed,
-  OptimizeQuality
-);
+enum_property! {
+  pub enum ImageRendering {
+    Auto,
+    OptimizeSpeed,
+    OptimizeQuality,
+  }
+}

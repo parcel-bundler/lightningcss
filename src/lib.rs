@@ -7264,8 +7264,7 @@ mod tests {
     minify_test(".foo { color: hwb(194 0% 0% / 50%) }", ".foo{color:#00c4ff80}");
     minify_test(".foo { color: hwb(194 0% 50%) }", ".foo{color:#006280}");
     minify_test(".foo { color: hwb(194 50% 0%) }", ".foo{color:#80e1ff}");
-    minify_test(".foo { color: hwb(194, 50%, 0%) }", ".foo{color:#80e1ff}");
-    minify_test(".foo { color: hwb(194, 50%, 50%) }", ".foo{color:gray}");
+    minify_test(".foo { color: hwb(194 50% 50%) }", ".foo{color:gray}");
     // minify_test(".foo { color: ActiveText }", ".foo{color:ActiveTet}");
 
     prefix_test(

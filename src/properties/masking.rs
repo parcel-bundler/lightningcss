@@ -12,29 +12,35 @@ use crate::values::{
 use super::background::{BackgroundSize, BackgroundRepeat};
 use super::border_image::BorderImage;
 
-// https://www.w3.org/TR/css-masking-1/#the-mask-type
-enum_property!(MaskType,
-  Luminance,
-  Alpha
-);
+enum_property! {
+  /// https://www.w3.org/TR/css-masking-1/#the-mask-type
+  pub enum MaskType {
+    Luminance,
+    Alpha,
+  }
+}
 
-// https://www.w3.org/TR/css-masking-1/#the-mask-mode
-enum_property!(MaskMode,
-  ("luminance", Luminance),
-  ("alpha", Alpha),
-  ("match-source", MatchSource)
-);
+enum_property! {
+  /// https://www.w3.org/TR/css-masking-1/#the-mask-mode
+  pub enum MaskMode {
+    "luminance": Luminance,
+    "alpha": Alpha,
+    "match-source": MatchSource,
+  }
+}
 
-// https://www.w3.org/TR/css-masking-1/#typedef-geometry-box
-enum_property!(GeometryBox,
-  ("border-box", BorderBox),
-  ("padding-box", PaddingBox),
-  ("content-box", ContentBox),
-  ("margin-box", MarginBox),
-  ("fill-box", FillBox),
-  ("stroke-box", StrokeBox),
-  ("view-box", ViewBox)
-);
+enum_property! {
+  /// https://www.w3.org/TR/css-masking-1/#typedef-geometry-box
+  pub enum GeometryBox {
+    "border-box": BorderBox,
+    "padding-box": PaddingBox,
+    "content-box": ContentBox,
+    "margin-box": MarginBox,
+    "fill-box": FillBox,
+    "stroke-box": StrokeBox,
+    "view-box": ViewBox,
+  }
+}
 
 impl Default for GeometryBox {
   fn default() -> GeometryBox {
@@ -75,13 +81,15 @@ impl Into<MaskClip> for GeometryBox {
   }
 }
 
-// https://www.w3.org/TR/css-masking-1/#the-mask-composite
-enum_property!(MaskComposite,
-  Add,
-  Subtract,
-  Intersect,
-  Exclude
-);
+enum_property! {
+  /// https://www.w3.org/TR/css-masking-1/#the-mask-composite
+  pub enum MaskComposite {
+    Add,
+    Subtract,
+    Intersect,
+    Exclude,
+  }
+}
 
 /// https://www.w3.org/TR/css-masking-1/#the-mask
 #[derive(Debug, Clone, PartialEq)]
@@ -276,11 +284,13 @@ impl ToCss for ClipPath {
   }
 }
 
-// https://www.w3.org/TR/css-masking-1/#the-mask-border-mode
-enum_property!(MaskBorderMode,
-  ("luminance", Luminance),
-  ("alpha", Alpha)
-);
+enum_property! {
+  /// https://www.w3.org/TR/css-masking-1/#the-mask-border-mode
+  pub enum MaskBorderMode {
+    "luminance": Luminance,
+    "alpha": Alpha,
+  }
+}
 
 impl Default for MaskBorderMode {
   fn default() -> MaskBorderMode {

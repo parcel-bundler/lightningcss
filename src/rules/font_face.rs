@@ -180,19 +180,23 @@ impl ToCss for FontFormat {
   }
 }
 
-enum_property!(FontFeatureTechnology,
-  OpenType,
-  AAT,
-  Graphite
-);
+enum_property! {
+  pub enum FontFeatureTechnology {
+    OpenType,
+    AAT,
+    Graphite,
+  }
+}
 
-enum_property!(ColorFontTechnology,
-  COLRv0,
-  COLRv1,
-  SVG,
-  SBIX,
-  CBDT
-);
+enum_property! {
+  pub enum ColorFontTechnology {
+    COLRv0,
+    COLRv1,
+    SVG,
+    SBIX,
+    CBDT,
+  }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FontTechnology {

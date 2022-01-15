@@ -11,11 +11,13 @@ use crate::macros::enum_property;
 use crate::error::{ParserError, PrinterError};
 use crate::logical::LogicalProperties;
 
-enum_property!(DisplayOutside,
-  ("block", Block),
-  ("inline", Inline),
-  ("run-in", RunIn)
-);
+enum_property! {
+  pub enum DisplayOutside {
+    "block": Block,
+    "inline": Inline,
+    "run-in": RunIn,
+  }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DisplayInside {
@@ -244,22 +246,24 @@ impl ToCss for DisplayPair {
   }
 }
 
-enum_property!(DisplayKeyword,
-  ("none", None),
-  ("contents", Contents),
-  ("table-row-group", TableRowGroup),
-  ("table-header-group", TableHeaderGroup),
-  ("table-footer-group", TableFooterGroup),
-  ("table-row", TableRow),
-  ("table-cell", TableCell),
-  ("table-column-group", TableColumnGroup),
-  ("table-column", TableColumn),
-  ("table-caption", TableCaption),
-  ("ruby-base", RubyBase),
-  ("ruby-text", RubyText),
-  ("ruby-base-container", RubyBaseContainer),
-  ("ruby-text-container", RubyTextContainer)
-);
+enum_property! {
+  pub enum DisplayKeyword {
+    "none": None,
+    "contents": Contents,
+    "table-row-group": TableRowGroup,
+    "table-header-group": TableHeaderGroup,
+    "table-footer-group": TableFooterGroup,
+    "table-row": TableRow,
+    "table-cell": TableCell,
+    "table-column-group": TableColumnGroup,
+    "table-column": TableColumn,
+    "table-caption": TableCaption,
+    "ruby-base": RubyBase,
+    "ruby-text": RubyText,
+    "ruby-base-container": RubyBaseContainer,
+    "ruby-text-container": RubyTextContainer,
+  }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Display {
@@ -287,12 +291,14 @@ impl ToCss for Display {
   }
 }
 
-// https://drafts.csswg.org/css-display-3/#visibility
-enum_property!(Visibility,
-  Visible,
-  Hidden,
-  Collapse
-);
+enum_property! {
+  /// https://drafts.csswg.org/css-display-3/#visibility
+  pub enum Visibility {
+    Visible,
+    Hidden,
+    Collapse,
+  }
+}
 
 #[derive(Default)]
 pub(crate) struct DisplayHandler {

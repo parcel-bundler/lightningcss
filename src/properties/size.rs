@@ -123,11 +123,13 @@ fn parse_fit_content<'i, 't>(input: &mut Parser<'i, 't>) -> Result<LengthPercent
   input.parse_nested_block(|input| LengthPercentage::parse(input))
 }
 
-// https://drafts.csswg.org/css-sizing-3/#box-sizing
-enum_property!(BoxSizing,
-  ("content-box", ContentBox),
-  ("border-box", BorderBox)
-);
+enum_property! {
+  /// https://drafts.csswg.org/css-sizing-3/#box-sizing
+  pub enum BoxSizing {
+    "content-box": ContentBox,
+    "border-box": BorderBox,
+  }
+}
 
 #[derive(Default)]
 pub(crate) struct SizeHandler;

@@ -16,13 +16,15 @@ use crate::error::{ParserError, PrinterError};
 use crate::logical::LogicalProperties;
 use crate::compat;
 
-// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-transform-property
-enum_property!(TextTransformCase,
-  None,
-  Uppercase,
-  Lowercase,
-  Capitalize
-);
+enum_property! {
+  /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-transform-property
+  pub enum TextTransformCase {
+    None,
+    Uppercase,
+    Lowercase,
+    Capitalize,
+  }
+}
 
 impl Default for TextTransformCase {
   fn default() -> TextTransformCase {
@@ -126,77 +128,93 @@ impl ToCss for TextTransform {
   }
 }
 
-// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#white-space-property
-enum_property!(WhiteSpace,
-  ("normal", Normal),
-  ("pre", Pre),
-  ("nowrap", NoWrap),
-  ("pre-wrap", PreWrap),
-  ("break-spaces", BreakSpaces),
-  ("pre-line", PreLine)
-);
+enum_property! {
+  /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#white-space-property
+  pub enum WhiteSpace {
+    "normal": Normal,
+    "pre": Pre,
+    "nowrap": NoWrap,
+    "pre-wrap": PreWrap,
+    "break-spaces": BreakSpaces,
+    "pre-line": PreLine,
+  }
+}
 
-// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#word-break-property
-enum_property!(WordBreak,
-  ("normal", Normal),
-  ("keep-all", KeepAll),
-  ("break-all", BreakAll),
-  ("break-word", BreakWord)
-);
+enum_property! {
+  /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#word-break-property
+  pub enum WordBreak {
+    "normal": Normal,
+    "keep-all": KeepAll,
+    "break-all": BreakAll,
+    "break-word": BreakWord,
+  }
+}
 
-// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#line-break-property
-enum_property!(LineBreak,
-  Auto,
-  Loose,
-  Normal,
-  Strict,
-  Anywhere
-);
-// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#hyphenation
-enum_property!(Hyphens,
-  None,
-  Manual,
-  Auto
-);
+enum_property! {
+  /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#line-break-property
+  pub enum LineBreak {
+    Auto,
+    Loose,
+    Normal,
+    Strict,
+    Anywhere,
+  }
+}
+enum_property! {
+  /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#hyphenation
+  pub enum Hyphens {
+    None,
+    Manual,
+    Auto,
+  }
+}
 
-// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#overflow-wrap-property
-enum_property!(OverflowWrap,
-  ("normal", Normal),
-  ("break-word", BreakWord),
-  ("anywhere", Anywhere)
-);
+enum_property! {
+  /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#overflow-wrap-property
+  pub enum OverflowWrap {
+    "normal": Normal,
+    "break-word": BreakWord,
+    "anywhere": Anywhere,
+  }
+}
 
-// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-align-property
-enum_property!(TextAlign,
-  ("start", Start),
-  ("end", End),
-  ("left", Left),
-  ("right", Right),
-  ("center", Center),
-  ("justify", Justify),
-  ("match-parent", MatchParent),
-  ("justify-all", JustifyAll)
-);
+enum_property! {
+  /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-align-property
+  pub enum TextAlign {
+    "start": Start,
+    "end": End,
+    "left": Left,
+    "right": Right,
+    "center": Center,
+    "justify": Justify,
+    "match-parent": MatchParent,
+    "justify-all": JustifyAll,
+  }
+}
 
-// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-align-last-property
-enum_property!(TextAlignLast,
-  ("auto", Auto),
-  ("start", Start),
-  ("end", End),
-  ("left", Left),
-  ("right", Right),
-  ("center", Center),
-  ("justify", Justify),
-  ("match-parent", MatchParent)
-);
+enum_property! {
+  /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-align-last-property
+  pub enum TextAlignLast {
+    "auto": Auto,
+    "start": Start,
+    "end": End,
+    "left": Left,
+    "right": Right,
+    "center": Center,
+    "justify": Justify,
+    "match-parent": MatchParent,
+  }
+}
 
-// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-justify-property
-enum_property!(TextJustify,
-  ("auto", Auto),
-  ("none", None),
-  ("inter-word", InterWord),
-  ("inter-character", InterCharacter)
-);
+enum_property! {
+  /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-justify-property
+  pub enum TextJustify {
+    "auto": Auto,
+    "none": None,
+    "inter-word": InterWord,
+    "inter-character": InterCharacter,
+  }
+}
 
 /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#word-spacing-property
 #[derive(Debug, Clone, PartialEq)]
@@ -382,14 +400,16 @@ impl ToCss for TextDecorationLine {
   }
 }
 
-// https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-style-property
-enum_property!(TextDecorationStyle,
-  Solid,
-  Double,
-  Dotted,
-  Dashed,
-  Wavy
-);
+enum_property! {
+  /// https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-style-property
+  pub enum TextDecorationStyle {
+    Solid,
+    Double,
+    Dotted,
+    Dashed,
+    Wavy,
+  }
+}
 
 impl Default for TextDecorationStyle {
   fn default() -> TextDecorationStyle {
@@ -512,25 +532,31 @@ impl ToCss for TextDecoration {
   }
 }
 
-// https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-skip-ink-property
-enum_property!(TextDecorationSkipInk,
-  Auto,
-  None,
-  All
-);
+enum_property! {
+  /// https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-skip-ink-property
+  pub enum TextDecorationSkipInk {
+    Auto,
+    None,
+    All,
+  }
+}
 
-enum_property!(TextEmphasisFillMode,
-  Filled,
-  Open
-);
+enum_property! {
+  pub enum TextEmphasisFillMode {
+    Filled,
+    Open,
+  }
+}
 
-enum_property!(TextEmphasisShape,
-  ("dot", Dot),
-  ("circle", Circle),
-  ("double-circle", DoubleCircle),
-  ("triangle", Triangle),
-  ("sesame", Sesame)
-);
+enum_property! {
+  pub enum TextEmphasisShape {
+    "dot": Dot,
+    "circle": Circle,
+    "double-circle": DoubleCircle,
+    "triangle": Triangle,
+    "sesame": Sesame,
+  }
+}
 
 // https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-style-property
 #[derive(Debug, Clone, PartialEq)]
@@ -651,15 +677,19 @@ impl ToCss for TextEmphasis {
   }
 }
 
-enum_property!(TextEmphasisPositionVertical,
-  Over,
-  Under
-);
+enum_property! {
+  pub enum TextEmphasisPositionVertical {
+    Over,
+    Under,
+  }
+}
 
-enum_property!(TextEmphasisPositionHorizontal,
-  Left,
-  Right
-);
+enum_property! {
+  pub enum TextEmphasisPositionHorizontal {
+    Left,
+    Right,
+  }
+}
 
 /// https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-position-property
 #[derive(Debug, Clone, PartialEq)]

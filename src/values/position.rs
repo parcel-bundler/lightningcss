@@ -303,10 +303,12 @@ impl<S: ToCss> ToCss for PositionComponent<S> {
   }
 }
 
-enum_property!(HorizontalPositionKeyword,
-  Left,
-  Right
-);
+enum_property! {
+  pub enum HorizontalPositionKeyword {
+    Left,
+    Right,
+  }
+}
 
 impl Into<LengthPercentage> for HorizontalPositionKeyword {
   fn into(self) -> LengthPercentage {
@@ -317,10 +319,12 @@ impl Into<LengthPercentage> for HorizontalPositionKeyword {
   }
 }
 
-enum_property!(VerticalPositionKeyword,
-  Top,
-  Bottom
-);
+enum_property! {
+  pub enum VerticalPositionKeyword {
+    Top,
+    Bottom,
+  }
+}
 
 impl Into<LengthPercentage> for VerticalPositionKeyword {
   fn into(self) -> LengthPercentage {

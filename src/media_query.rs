@@ -61,11 +61,13 @@ impl ToCss for MediaList {
   }
 }
 
-// <https://drafts.csswg.org/mediaqueries/#mq-prefix>
-enum_property!(Qualifier,
-  Only,
-  Not
-);
+enum_property! {
+  /// <https://drafts.csswg.org/mediaqueries/#mq-prefix>
+  pub enum Qualifier {
+    Only,
+    Not,
+  }
+}
 
 /// <http://dev.w3.org/csswg/mediaqueries-3/#media0>
 #[derive(Clone, Debug, PartialEq)]
@@ -170,11 +172,13 @@ impl ToCss for MediaQuery {
   }
 }
 
-// A binary `and` or `or` operator.
-enum_property!(Operator,
-  And,
-  Or
-);
+enum_property! {
+  /// A binary `and` or `or` operator.
+  pub enum Operator {
+    And,
+    Or,
+  }
+}
 
 /// Represents a media condition.
 #[derive(Clone, Debug, PartialEq)]

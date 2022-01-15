@@ -50,28 +50,34 @@ impl ToCss for BaselinePosition {
   }
 }
 
-// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#typedef-content-distribution
-enum_property!(ContentDistribution,
-  ("space-between", SpaceBetween),
-  ("space-around", SpaceAround),
-  ("space-evenly", SpaceEvenly),
-  ("stretch", Stretch)
-);
+enum_property! {
+  /// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#typedef-content-distribution
+  pub enum ContentDistribution {
+    "space-between": SpaceBetween,
+    "space-around": SpaceAround,
+    "space-evenly": SpaceEvenly,
+    "stretch": Stretch,
+  }
+}
 
-// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#typedef-overflow-position
-enum_property!(OverflowPosition,
-  Safe,
-  Unsafe
-);
+enum_property! {
+  /// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#typedef-overflow-position
+  pub enum OverflowPosition {
+    Safe,
+    Unsafe,
+  }
+}
 
-// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#typedef-content-position
-enum_property!(ContentPosition,
-  ("center", Center),
-  ("start", Start),
-  ("end", End),
-  ("flex-start", FlexStart),
-  ("flex-end", FlexEnd)
-);
+enum_property! {
+  /// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#typedef-content-position
+  pub enum ContentPosition {
+    "center": Center,
+    "start": Start,
+    "end": End,
+    "flex-start": FlexStart,
+    "flex-end": FlexEnd,
+  }
+}
 
 /// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#propdef-align-content
 #[derive(Debug, Clone, PartialEq)]
@@ -238,16 +244,18 @@ impl ToCss for PlaceContent {
   }
 }
 
-// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#typedef-self-position
-enum_property!(SelfPosition,
-  ("center", Center),
-  ("start", Start),
-  ("end", End),
-  ("self-start", SelfStart),
-  ("self-end", SelfEnd),
-  ("flex-start", FlexStart),
-  ("flex-end", FlexEnd)
-);
+enum_property! {
+  /// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#typedef-self-position
+  pub enum SelfPosition {
+    "center": Center,
+    "start": Start,
+    "end": End,
+    "self-start": SelfStart,
+    "self-end": SelfEnd,
+    "flex-start": FlexStart,
+    "flex-end": FlexEnd,
+  }
+}
 
 /// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#propdef-align-self
 #[derive(Debug, Clone, PartialEq)]

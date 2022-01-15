@@ -12,13 +12,15 @@ use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
 use crate::logical::LogicalProperties;
 
-// https://www.w3.org/TR/css-backgrounds-3/#border-image-repeat
-enum_property!(BorderImageRepeatKeyword,
-  Stretch,
-  Repeat,
-  Round,
-  Space
-);
+enum_property! {
+  /// https://www.w3.org/TR/css-backgrounds-3/#border-image-repeat
+  pub enum BorderImageRepeatKeyword {
+    Stretch,
+    Repeat,
+    Round,
+    Space,
+  }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BorderImageRepeat(pub BorderImageRepeatKeyword, pub BorderImageRepeatKeyword);
