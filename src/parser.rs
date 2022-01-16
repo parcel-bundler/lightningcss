@@ -130,6 +130,9 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a> {
         },
         "custom-media" if self.options.custom_media => {
           let name = input.expect_ident()?.as_ref().to_owned();
+          if !name.starts_with("--") {
+            return Err(input.new_unexpected_token_error(Token::Ident(name.into())));
+          }
           let media = MediaList::parse(input);
           return Ok(AtRulePrelude::CustomMedia(name, media))
         },
