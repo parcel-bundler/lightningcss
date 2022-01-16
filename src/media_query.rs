@@ -1,4 +1,5 @@
 use cssparser::*;
+use crate::rules::custom_media::CustomMediaRule;
 use crate::traits::{ToCss, Parse};
 use crate::printer::Printer;
 use crate::macros::enum_property;
@@ -8,7 +9,9 @@ use crate::values::{
   ratio::Ratio
 };
 use crate::compat::Feature;
-use crate::error::{ParserError, PrinterError};
+use crate::error::{ParserError, MinifyError, PrinterError};
+use std::collections::{HashMap, HashSet};
+use retain_mut::RetainMut;
 
 /// A type that encapsulates a media query list.
 #[derive(Clone, Debug, PartialEq)]
@@ -39,6 +42,18 @@ impl MediaList {
     }
       
     MediaList { media_queries }
+  }
+
+  pub(crate) fn transform_custom_media(&mut self, loc: SourceLocation, custom_media: &HashMap<String, CustomMediaRule>) -> Result<(), MinifyError> {
+    for query in self.media_queries.iter_mut() {
+      query.transform_custom_media(loc, custom_media)?;
+    }
+    Ok(())
+  }
+
+  pub fn never_matches(&self) -> bool {
+    self.media_queries.is_empty() 
+      || self.media_queries.iter().all(|mq| mq.never_matches())
   }
 }
     
@@ -134,6 +149,27 @@ impl MediaQuery {
       condition,
     })
   }
+
+  fn transform_custom_media(&mut self, loc: SourceLocation, custom_media: &HashMap<String, CustomMediaRule>) -> Result<(), MinifyError> {
+    if let Some(condition) = &mut self.condition {
+      let used = process_condition(
+        loc,
+        custom_media,
+        &mut self.media_type,
+        &mut self.qualifier,
+        condition,
+        &mut HashSet::new()
+      )?;
+      if !used {
+        self.condition = None;
+      }
+    }
+    Ok(())
+  }
+
+  pub fn never_matches(&self) -> bool {
+    self.qualifier == Some(Qualifier::Not) && self.media_type == MediaType::All
+  }
 }
 
 impl ToCss for MediaQuery {
@@ -188,7 +224,7 @@ pub enum MediaCondition {
   /// A negation of a condition.
   Not(Box<MediaCondition>),
   /// A set of joint operations.
-  Operation(Box<[MediaCondition]>, Operator),
+  Operation(Vec<MediaCondition>, Operator),
   /// A condition wrapped in parenthesis.
   InParens(Box<MediaCondition>),
 }
@@ -234,7 +270,7 @@ impl MediaCondition {
     loop {
       if input.try_parse(|i| i.expect_ident_matching(delim)).is_err() {
         return Ok(MediaCondition::Operation(
-          conditions.into_boxed_slice(),
+          conditions,
           operator,
         ));
       }
@@ -616,4 +652,129 @@ fn consume_operation_or_colon<'i, 't>(input: &mut Parser<'i, 't>, allow_colon: b
     },
     d => return Err(location.new_unexpected_token_error(Token::Delim(*d))),
   }))
+}
+
+fn process_condition(
+  loc: SourceLocation,
+  custom_media: &HashMap<String, CustomMediaRule>,
+  media_type: &mut MediaType,
+  qualifier: &mut Option<Qualifier>,
+  condition: &mut MediaCondition,
+  seen: &mut HashSet<String>
+) -> Result<bool, MinifyError> {
+  match condition {
+    MediaCondition::Not(cond) => {
+      let used = process_condition(loc, custom_media, media_type, qualifier, &mut *cond, seen)?;
+      if !used {
+        // If unused, only a media type remains so apply a not qualifier.
+        // If it is already not, then it cancels out.
+        *qualifier = if *qualifier == Some(Qualifier::Not) {
+          None
+        } else {
+          Some(Qualifier::Not)
+        };
+        return Ok(false)
+      }
+
+      // Unwrap nested nots
+      if let MediaCondition::Not(cond) = &**cond {
+        *condition = (**cond).clone();
+      }
+    }
+    MediaCondition::InParens(cond) => {
+      let res = process_condition(loc, custom_media, media_type, qualifier, &mut *cond, seen);
+      if let MediaCondition::InParens(cond) = &**cond {
+        *condition = (**cond).clone();
+      }
+      return res;
+    }
+    MediaCondition::Operation(conditions, _) => {
+      let mut res = Ok(true);
+      conditions.retain_mut(|condition| {
+        let r = process_condition(loc, custom_media, media_type, qualifier, condition, seen);
+        if let Ok(used) = r {
+          used
+        } else {
+          res = r;
+          false
+        }
+      });
+      return res;
+    }
+    MediaCondition::Feature(MediaFeature::Boolean(name)) => {
+      if !name.starts_with("--") {
+        return Ok(true)
+      }
+
+      if seen.contains(name) {
+        return Err(MinifyError::CircularCustomMedia {
+          name: name.clone(),
+          loc
+        });
+      }
+      
+      let rule = custom_media.get(name)
+        .ok_or_else(|| MinifyError::CustomMediaNotDefined {
+          name: name.clone(),
+          loc
+        })?;
+
+      seen.insert(name.clone());
+
+      let mut res = Ok(true);
+      let mut conditions: Vec<MediaCondition> = rule.query.media_queries.iter().filter_map(|query| {
+        if query.media_type != MediaType::All || query.qualifier != None {
+          if *media_type == MediaType::All {
+            // `not all` will never match.
+            if *qualifier == Some(Qualifier::Not) {
+              res = Ok(false);
+              return None
+            }
+            
+            // Propagate media type and qualifier to @media rule.
+            *media_type = query.media_type.clone();
+            *qualifier = query.qualifier.clone();
+          } else if query.media_type != *media_type || query.qualifier != *qualifier {
+            // Boolean logic with media types is hard to emulate, so we error for now.
+            res = Err(MinifyError::UnsupportedCustomMediaBooleanLogic {
+              media_loc: loc,
+              custom_media_loc: rule.loc
+            })
+          }
+        }
+        
+        if let Some(condition) = &query.condition {
+          let mut condition = condition.clone();
+          let r = process_condition(loc, custom_media, media_type, qualifier, &mut condition, seen);
+          if r.is_err() {
+            res = r;
+          }
+          Some(condition)
+        } else {
+          None
+        }
+      }).collect();
+
+      seen.remove(name);
+
+      if res.is_err() {
+        return res;
+      }
+
+      if conditions.is_empty() {
+        return Ok(false)
+      }
+
+      if conditions.len() == 1 {
+        *condition = conditions.pop().unwrap();
+      } else {
+        *condition = MediaCondition::InParens(
+          Box::new(MediaCondition::Operation(conditions, Operator::Or))
+        );
+      }
+    }
+    _ => {}
+  }
+
+  Ok(true)
 }

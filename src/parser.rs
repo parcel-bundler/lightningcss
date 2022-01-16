@@ -17,7 +17,8 @@ use crate::rules::{
   media::MediaRule,
   style::StyleRule,
   document::MozDocumentRule,
-  nesting::NestingRule
+  nesting::NestingRule,
+  custom_media::CustomMediaRule
 };
 use crate::values::ident::CustomIdent;
 use crate::declaration::{DeclarationBlock, DeclarationList, parse_declaration};
@@ -28,6 +29,7 @@ use crate::error::ParserError;
 #[derive(Default)]
 pub struct ParserOptions {
   pub nesting: bool,
+  pub custom_media: bool,
   pub css_modules: bool
 }
 
@@ -67,7 +69,9 @@ pub enum AtRulePrelude {
   /// A @counter-style rule prelude, with its counter style name.
   CounterStyle(CustomIdent),
   /// A @media rule prelude, with its media queries.
-  Media(MediaList),//(Arc<Locked<MediaList>>),
+  Media(MediaList),
+  /// A @custom-media rule prelude.
+  CustomMedia(String, MediaList),
   /// An @supports rule, with its conditional
   Supports(SupportsCondition),
   /// A @viewport rule prelude.
@@ -124,6 +128,11 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a> {
           input.expect_string()?;
           return Ok(AtRulePrelude::Charset)
         },
+        "custom-media" if self.options.custom_media => {
+          let name = input.expect_ident()?.as_ref().to_owned();
+          let media = MediaList::parse(input);
+          return Ok(AtRulePrelude::CustomMedia(name, media))
+        },
         _ => {}
       }
 
@@ -167,6 +176,13 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a> {
           CssRule::Namespace(NamespaceRule {
             prefix,
             url,
+            loc
+          })
+        },
+        AtRulePrelude::CustomMedia(name, query) => {
+          CssRule::CustomMedia(CustomMediaRule {
+            name,
+            query,
             loc
           })
         },

@@ -37,7 +37,9 @@ export interface TransformOptions {
 
 export interface Drafts {
   /** Whether to enable CSS nesting. */
-  nesting?: boolean
+  nesting?: boolean,
+  /** Whether to enable @custom-media rules. */
+  customMedia?: boolean
 }
 
 export interface PseudoClasses {

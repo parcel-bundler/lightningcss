@@ -2,7 +2,7 @@ use cssparser::SourceLocation;
 use crate::traits::ToCss;
 use crate::printer::Printer;
 use super::{CssRuleList, MinifyContext};
-use crate::error::PrinterError;
+use crate::error::{MinifyError, PrinterError};
 
 #[derive(Debug, PartialEq)]
 pub struct MozDocumentRule {
@@ -11,7 +11,7 @@ pub struct MozDocumentRule {
 }
 
 impl MozDocumentRule {
-  pub(crate) fn minify(&mut self, context: &mut MinifyContext) {
+  pub(crate) fn minify(&mut self, context: &mut MinifyContext) -> Result<(), MinifyError> {
     self.rules.minify(context, false)
   }
 }

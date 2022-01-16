@@ -10,6 +10,7 @@ pub mod style;
 pub mod document;
 pub mod nesting;
 pub mod viewport;
+pub mod custom_media;
 
 use media::MediaRule;
 use import::ImportRule;
@@ -23,6 +24,7 @@ use namespace::NamespaceRule;
 use document::MozDocumentRule;
 use nesting::NestingRule;
 use viewport::ViewportRule;
+use custom_media::CustomMediaRule;
 use crate::traits::ToCss;
 use crate::printer::Printer;
 use crate::declaration::DeclarationHandler;
@@ -31,7 +33,7 @@ use crate::prefixes::Feature;
 use crate::targets::Browsers;
 use std::collections::{HashMap, HashSet};
 use crate::selector::{is_equivalent, get_prefix, get_necessary_prefixes};
-use crate::error::PrinterError;
+use crate::error::{MinifyError, PrinterError};
 use crate::logical::LogicalProperties;
 use crate::dependencies::{Dependency, ImportDependency};
 
@@ -58,6 +60,7 @@ pub enum CssRule {
   MozDocument(MozDocumentRule),
   Nesting(NestingRule),
   Viewport(ViewportRule),
+  CustomMedia(CustomMediaRule),
   Ignored
 }
 
@@ -76,6 +79,7 @@ impl ToCssWithContext for CssRule {
       CssRule::MozDocument(document) => document.to_css(dest),
       CssRule::Nesting(nesting) => nesting.to_css_with_context(dest, context),
       CssRule::Viewport(viewport) => viewport.to_css(dest),
+      CssRule::CustomMedia(custom_media) => custom_media.to_css(dest),
       CssRule::Ignored => Ok(())
     }
   }
@@ -95,11 +99,12 @@ pub(crate) struct MinifyContext<'a> {
   pub handler: &'a mut DeclarationHandler,
   pub important_handler: &'a mut DeclarationHandler,
   pub logical_properties: &'a mut LogicalProperties,
-  pub unused_symbols: &'a HashSet<String>
+  pub unused_symbols: &'a HashSet<String>,
+  pub custom_media: Option<HashMap<String, CustomMediaRule>>
 }
 
 impl CssRuleList {
-  pub(crate) fn minify(&mut self, context: &mut MinifyContext, parent_is_unused: bool) {
+  pub(crate) fn minify(&mut self, context: &mut MinifyContext, parent_is_unused: bool) -> Result<(), MinifyError> {
     let mut keyframe_rules = HashMap::new();
     let mut rules = Vec::new();
     for mut rule in self.0.drain(..) {
@@ -135,21 +140,26 @@ impl CssRuleList {
           set_prefix!(keyframes);
           keyframe_rules.insert(keyframes.name.clone(), rules.len());
         },
+        CssRule::CustomMedia(rule) => {
+          if let Some(custom_media) = &mut context.custom_media {
+            custom_media.insert(rule.name.clone(), rule.clone());
+            continue;
+          }
+        },
         CssRule::Media(media) => {
-          media.minify(context, parent_is_unused);
-          if media.rules.0.is_empty() {
+          if media.minify(context, parent_is_unused)? {
             continue
           }
         },
         CssRule::Supports(supports) => {
-          supports.minify(context, parent_is_unused);
+          supports.minify(context, parent_is_unused)?;
           if supports.rules.0.is_empty() {
             continue
           }
         },
-        CssRule::MozDocument(document) => document.minify(context),
+        CssRule::MozDocument(document) => document.minify(context)?,
         CssRule::Style(style) => {
-          if parent_is_unused || style.minify(context, parent_is_unused) {
+          if parent_is_unused || style.minify(context, parent_is_unused)? {
             continue
           }
 
@@ -197,7 +207,7 @@ impl CssRuleList {
           }
         }
         CssRule::Nesting(nesting) => {
-          if nesting.minify(context, parent_is_unused) {
+          if nesting.minify(context, parent_is_unused)? {
             continue
           }
         }
@@ -208,6 +218,7 @@ impl CssRuleList {
     }
 
     self.0 = rules;
+    Ok(())
   }
 }
 

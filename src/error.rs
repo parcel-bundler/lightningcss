@@ -50,6 +50,41 @@ impl<'i> ParserError<'i> {
   }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum MinifyError {
+  UnsupportedCustomMediaBooleanLogic {
+    media_loc: SourceLocation,
+    custom_media_loc: SourceLocation
+  },
+  CustomMediaNotDefined {
+    name: String,
+    loc: SourceLocation
+  },
+  CircularCustomMedia {
+    name: String,
+    loc: SourceLocation
+  }
+}
+
+impl MinifyError {
+  pub fn reason(&self) -> String {
+    match self {
+      MinifyError::UnsupportedCustomMediaBooleanLogic {..} => "Boolean logic with media types in @custom-media rules is not supported by Parcel CSS.".into(),
+      MinifyError::CustomMediaNotDefined { name, .. } => format!("Custom media query {} is not defined.", name),
+      MinifyError::CircularCustomMedia { name, .. } => format!("Circular custom media query {} detected.", name)
+    }
+  }
+
+  pub fn loc(&self) -> SourceLocation {
+    match self {
+      MinifyError::UnsupportedCustomMediaBooleanLogic { media_loc, .. } => *media_loc,
+      MinifyError::CustomMediaNotDefined { loc, .. } => *loc,
+      MinifyError::CircularCustomMedia { loc, .. } => *loc
+    }
+  }
+}
+
+
 #[derive(Debug)]
 pub enum PrinterError {
   FmtError,

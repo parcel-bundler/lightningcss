@@ -9,7 +9,7 @@ use crate::declaration::{DeclarationHandler, DeclarationBlock};
 use crate::css_modules::{hash, CssModule, CssModuleExports};
 use std::collections::{HashMap, HashSet};
 use crate::dependencies::Dependency;
-use crate::error::{ParserError, PrinterError};
+use crate::error::{ParserError, MinifyError, PrinterError};
 use crate::logical::LogicalProperties;
 
 pub use crate::parser::ParserOptions;
@@ -75,7 +75,7 @@ impl StyleSheet {
     })
   }
 
-  pub fn minify(&mut self, options: MinifyOptions) {
+  pub fn minify(&mut self, options: MinifyOptions) -> Result<(), MinifyError> {
     let mut logical_properties = LogicalProperties::new(options.targets);
     let mut handler = DeclarationHandler::new(options.targets);
     let mut important_handler = DeclarationHandler::new(options.targets);
@@ -84,9 +84,15 @@ impl StyleSheet {
       handler: &mut handler,
       important_handler: &mut important_handler,
       logical_properties: &mut logical_properties,
-      unused_symbols: &options.unused_symbols
-    }, false);
+      unused_symbols: &options.unused_symbols,
+      custom_media: if self.options.custom_media {
+        Some(HashMap::new())
+      } else {
+        None
+      }
+    }, false)?;
     logical_properties.to_rules(&mut self.rules);
+    Ok(())
   }
 
   pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, PrinterError> {
