@@ -83,7 +83,10 @@ mod tests {
 
   fn custom_media_test(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { custom_media: true, ..ParserOptions::default() }).unwrap();
-    stylesheet.minify(MinifyOptions::default()).unwrap();
+    stylesheet.minify(MinifyOptions {
+      targets: Some(Browsers { chrome: Some(95 << 16), ..Browsers::default() }),
+      ..MinifyOptions::default()
+    }).unwrap();
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
   }
@@ -9530,7 +9533,10 @@ mod tests {
 
     fn custom_media_error_test(source: &str, err: MinifyError) {
       let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { custom_media: true, ..ParserOptions::default() }).unwrap();
-      let res = stylesheet.minify(MinifyOptions::default());
+      let res = stylesheet.minify(MinifyOptions {
+        targets: Some(Browsers { chrome: Some(95 << 16), ..Browsers::default() }),
+        ..MinifyOptions::default()
+      });
       assert_eq!(res, Err(err))
     }
 

@@ -11,6 +11,7 @@ use std::collections::{HashMap, HashSet};
 use crate::dependencies::Dependency;
 use crate::error::{ParserError, MinifyError, PrinterError};
 use crate::logical::LogicalProperties;
+use crate::compat::Feature;
 
 pub use crate::parser::ParserOptions;
 pub use crate::printer::PseudoClasses;
@@ -85,7 +86,7 @@ impl StyleSheet {
       important_handler: &mut important_handler,
       logical_properties: &mut logical_properties,
       unused_symbols: &options.unused_symbols,
-      custom_media: if self.options.custom_media {
+      custom_media: if self.options.custom_media && options.targets.is_some() && !Feature::CustomMediaQueries.is_compatible(options.targets.unwrap()) {
         Some(HashMap::new())
       } else {
         None
