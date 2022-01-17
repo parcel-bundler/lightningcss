@@ -13,9 +13,12 @@ struct CliArgs {
   /// The destination file for the output
   #[clap(short, long)]
   output_file: Option<String>,
-  /// Enable CSS nesting in output
+  /// Enable nesting in output
   #[clap(short, long)]
   nesting: bool,
+  /// Enable CSS modules in output
+  #[clap(short, long)]
+  css_modules: bool,
 }
 
 pub fn main() -> Result<(), std::io::Error> {
@@ -24,6 +27,7 @@ pub fn main() -> Result<(), std::io::Error> {
 
   let mut stylesheet = StyleSheet::parse(cli_args.input_file.to_string(), &source, ParserOptions {
     nesting: cli_args.nesting,
+    css_modules: cli_args.css_modules,
     ..ParserOptions::default()
   }).unwrap();
 
