@@ -5,20 +5,21 @@ use parcel_css::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, Style
 #[derive(Parser, Debug)]
 #[clap(author, about, long_about = None)]
 struct CliArgs {
-  /// The CSS file to minify
+  /// Target CSS file
   input_file: String,
+  /// Destination file for the output
+  #[clap(short, long)]
+  output_file: Option<String>,
   /// Minify the output 
   #[clap(short, long)]
   minify: bool,
-  /// The destination file for the output
-  #[clap(short, long)]
-  output_file: Option<String>,
-  /// Enable nesting in output
+  /// Enable parsing CSS nesting
   #[clap(short, long)]
   nesting: bool,
   /// Enable CSS modules in output
   #[clap(short, long, group = "css_modules")]
   css_modules: bool,
+  /// Default: <output_file>.json
   #[clap(long, requires = "css_modules")]
   css_modules_output_file: Option<String>,
 }
