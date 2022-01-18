@@ -32,7 +32,9 @@ pub fn main() -> Result<(), std::io::Error> {
   let cli_args = CliArgs::parse();
   let source = fs::read_to_string(&cli_args.input_file)?;
 
-  let mut stylesheet = StyleSheet::parse(cli_args.input_file.to_string(), &source, ParserOptions {
+  let filename = path::Path::new(&cli_args.input_file)
+    .file_name().unwrap().to_str().unwrap().into();
+  let mut stylesheet = StyleSheet::parse(filename, &source, ParserOptions {
     nesting: cli_args.nesting,
     css_modules: cli_args.css_modules,
     ..ParserOptions::default()
