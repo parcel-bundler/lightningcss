@@ -1,4 +1,4 @@
-use std::fs;
+use std::{fs, path, io, ffi};
 use clap::Parser;
 use parcel_css::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
 
@@ -53,7 +53,7 @@ pub fn main() -> Result<(), std::io::Error> {
     fs::write(output_file, res.code.as_bytes())?;
 
     if cli_args.css_modules {
-      let css_modules_filename = infer_css_modules_filename(cli_args.output_file);
+      let css_modules_filename = infer_css_modules_filename(cli_args.output_file)?;
       if let Some(exports) = res.exports {
         let css_modules_json = serde_json::to_string(&exports)?;
         fs::write(css_modules_filename, css_modules_json)?;
@@ -70,7 +70,17 @@ pub fn main() -> Result<(), std::io::Error> {
   Ok(())
 }
 
-fn infer_css_modules_filename(_output_file: Option<String>) -> String {
-  // TODO ... actually infer
-  "styles.json".into()
+fn infer_css_modules_filename(output_file: Option<String>) -> Result<String, std::io::Error> {
+  if let Some(file) = output_file {
+    let path = path::Path::new(&file);
+    if path.extension() == Some(ffi::OsStr::new("json")) {
+      Err(io::Error::new(io::ErrorKind::Other, "Cannot infer a css modules json filename, since the output file extension is '.json'"))
+    } else {
+      // unwrap is justifiable for now; the filename option is a string, from clap, so is valid
+      // utf-8
+      Ok(path.with_extension("json").to_str().unwrap().into())
+    }
+  } else {
+    Ok("styles.json".into())
+  }
 }
