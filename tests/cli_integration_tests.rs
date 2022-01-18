@@ -1,31 +1,69 @@
 use assert_cmd::prelude::*;
-use predicates::prelude::*;
-use std::process::Command;
-use std::collections::HashMap;
-use assert_fs::prelude::*;
 use assert_fs::fixture::FixtureError;
+use assert_fs::prelude::*;
 use indoc::indoc;
 use parcel_css::css_modules::CssModuleExport;
+use predicates::prelude::*;
+use std::collections::HashMap;
+use std::process::Command;
 
 fn test_file() -> Result<assert_fs::NamedTempFile, FixtureError> {
     let file = assert_fs::NamedTempFile::new("test.css")?;
-    file.write_str(r#"
+    file.write_str(
+        r#"
       .foo {
         border: none;
       }
-    "#)?;
+    "#,
+    )?;
     Ok(file)
 }
 
 fn css_module_test_vals() -> (String, String, String) {
     let exports: HashMap<&str, CssModuleExport> = HashMap::from([
-        ("fade", CssModuleExport { name: "fade_EgL3uq".into(), composes: vec![], is_referenced: false}),
-        ("foo", CssModuleExport { name: "foo_EgL3uq".into(), composes: vec![], is_referenced: false}),
-        ("circles", CssModuleExport { name: "circles_EgL3uq".into(), composes: vec![], is_referenced: true}),
-        ("id", CssModuleExport { name: "id_EgL3uq".into(), composes: vec![], is_referenced: false}),
-        ("test", CssModuleExport { name: "test_EgL3uq".into(), composes: vec![], is_referenced: true }),
-        ]);
-    (r#"
+        (
+            "fade",
+            CssModuleExport {
+                name: "fade_EgL3uq".into(),
+                composes: vec![],
+                is_referenced: false,
+            },
+        ),
+        (
+            "foo",
+            CssModuleExport {
+                name: "foo_EgL3uq".into(),
+                composes: vec![],
+                is_referenced: false,
+            },
+        ),
+        (
+            "circles",
+            CssModuleExport {
+                name: "circles_EgL3uq".into(),
+                composes: vec![],
+                is_referenced: true,
+            },
+        ),
+        (
+            "id",
+            CssModuleExport {
+                name: "id_EgL3uq".into(),
+                composes: vec![],
+                is_referenced: false,
+            },
+        ),
+        (
+            "test",
+            CssModuleExport {
+                name: "test_EgL3uq".into(),
+                composes: vec![],
+                is_referenced: true,
+            },
+        ),
+    ]);
+    (
+        r#"
       .foo {
         color: red;
       }
@@ -51,7 +89,9 @@ fn css_module_test_vals() -> (String, String, String) {
         from { opacity: 0 }
         to { opacity: 1 }
       }
-    "#.into(), indoc!{r#"
+    "#
+        .into(),
+        indoc! {r#"
       .foo_EgL3uq {
         color: red;
       }
@@ -87,20 +127,22 @@ fn css_module_test_vals() -> (String, String, String) {
           opacity: 1;
         }
       }
-    "#}.into(),
-    serde_json::to_string(&exports).unwrap()
+    "#}
+        .into(),
+        serde_json::to_string(&exports).unwrap(),
     )
 }
 
 #[test]
 fn valid_input_file() -> Result<(), Box<dyn std::error::Error>> {
     let file = assert_fs::NamedTempFile::new("test.css")?;
-    file.write_str(r#"
+    file.write_str(
+        r#"
       .foo {
         border: none;
       }
-    "#)?;
-
+    "#,
+    )?;
 
     let mut cmd = Command::cargo_bin("parcel_css")?;
     cmd.arg(file.path());
@@ -117,9 +159,9 @@ fn valid_input_file() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn no_input_file() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("parcel_css")?;
-    cmd.assert()
-        .failure()
-        .stderr(predicate::str::contains("The following required arguments were not provided:\n    <INPUT_FILE>"));
+    cmd.assert().failure().stderr(predicate::str::contains(
+        "The following required arguments were not provided:\n    <INPUT_FILE>",
+    ));
 
     Ok(())
 }
@@ -129,11 +171,9 @@ fn empty_input_file() -> Result<(), Box<dyn std::error::Error>> {
     let file = assert_fs::NamedTempFile::new("test.css")?;
     file.write_str("")?;
 
-
     let mut cmd = Command::cargo_bin("parcel_css")?;
     cmd.arg(file.path());
-    cmd.assert()
-        .success();
+    cmd.assert().success();
 
     Ok(())
 }
@@ -169,22 +209,24 @@ fn minify_option() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 // nesting doesn't do anything with the default targets. until cli supports more targets, this option is a noop
-#[ignore] 
+#[ignore]
 fn nesting_option() -> Result<(), Box<dyn std::error::Error>> {
     let infile = assert_fs::NamedTempFile::new("test.css")?;
-    infile.write_str(r#"
+    infile.write_str(
+        r#"
         .foo {
           color: blue;
           & > .bar { color: red; }
         }
-      "#)?;
-      
+      "#,
+    )?;
+
     let mut cmd = Command::cargo_bin("parcel_css")?;
     cmd.arg(infile.path());
     cmd.arg("--nesting");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(indoc!{r#"
+        .stdout(predicate::str::contains(indoc! {r#"
         .foo {
           color: #00f;
         }
@@ -193,7 +235,6 @@ fn nesting_option() -> Result<(), Box<dyn std::error::Error>> {
           color: red;
         }
       "#}));
-
 
     Ok(())
 }
@@ -213,7 +254,7 @@ fn css_modules_stdout() -> Result<(), Box<dyn std::error::Error>> {
     let assert = cmd.assert();
     let output = String::from_utf8(assert.get_output().stdout.clone())?;
     let module_json_line = output.lines().next_back().unwrap();
-    let expected: serde_json::Value = serde_json::from_str(&exports)?; 
+    let expected: serde_json::Value = serde_json::from_str(&exports)?;
     let actual: serde_json::Value = serde_json::from_str(&module_json_line)?;
     assert_eq!(expected, actual);
 
@@ -235,10 +276,10 @@ fn css_modules_infer_output_file() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(output));
 
-    let expected: serde_json::Value = serde_json::from_str(&exports)?; 
-    let actual: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(outfile.path().with_extension("json"))?
-    )?;
+    let expected: serde_json::Value = serde_json::from_str(&exports)?;
+    let actual: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(
+        outfile.path().with_extension("json"),
+    )?)?;
     assert_eq!(expected, actual);
 
     Ok(())
@@ -255,13 +296,13 @@ fn css_modules_output_target_option() -> Result<(), Box<dyn std::error::Error>> 
     cmd.arg(infile.path());
     cmd.arg("-o").arg(outfile.path());
     cmd.arg("--css-modules");
-    cmd.arg("--css-modules-output-file").arg(modules_file.path());
+    cmd.arg("--css-modules-output-file")
+        .arg(modules_file.path());
     cmd.assert().success();
 
-    let expected: serde_json::Value = serde_json::from_str(&exports)?; 
-    let actual: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(modules_file.path())?
-    )?;
+    let expected: serde_json::Value = serde_json::from_str(&exports)?;
+    let actual: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(modules_file.path())?)?;
     assert_eq!(expected, actual);
 
     Ok(())
