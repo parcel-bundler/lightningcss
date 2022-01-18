@@ -37,6 +37,9 @@ serde_json = "*"
 
 [dev-dependencies]
 indoc = "1.0.3"
+assert_cmd = "2.0"
+assert_fs = "1.0"
+predicates = "2.1"
 
 [profile.release]
 lto = true

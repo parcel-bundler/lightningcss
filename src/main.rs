@@ -22,6 +22,10 @@ struct CliArgs {
   /// Default: <output_file>.json
   #[clap(long, requires = "css_modules")]
   css_modules_output_file: Option<String>,
+  // cli integration tests
+  // --targets
+  // --sourcemap
+  // multiple input files
 }
 
 pub fn main() -> Result<(), std::io::Error> {
