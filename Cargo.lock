@@ -382,6 +382,7 @@ dependencies = [
  "parcel_sourcemap",
  "retain_mut",
  "serde",
+ "serde_json",
  "smallvec",
 ]
 

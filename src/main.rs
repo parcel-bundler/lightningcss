@@ -40,11 +40,37 @@ pub fn main() -> Result<(), std::io::Error> {
     ..PrinterOptions::default()
   }).unwrap();
 
-  if let Some(output_file) = cli_args.output_file {
+  // if options.css_modules
+  // write a css modules exports file, as json
+  // or print the css modules to the command line
+  // question: how to specify the output location for the css modules file?
+  // heuristics: if there's an output file has a postfix other than .json, use its prefix plus .json
+  // if it ends in .json... exit with an error, informing the user to use the option
+  // if we're printing to the command line, then...
+  // the css should get shown, and then the css modules file? Or, need to use an output file in
+  // order to use css modules?
+  if let Some(output_file) = &cli_args.output_file {
     fs::write(output_file, res.code.as_bytes())?;
+
+    if cli_args.css_modules {
+      let css_modules_filename = infer_css_modules_filename(cli_args.output_file);
+      if let Some(exports) = res.exports {
+        let css_modules_json = serde_json::to_string(&exports)?;
+        fs::write(css_modules_filename, css_modules_json)?;
+      }
+    }
   } else {
     println!("{}", res.code);
+    if cli_args.css_modules {
+      let css_modules_json = serde_json::to_string(&res.exports)?;
+      println!("{}", css_modules_json);
+    }
   }
 
   Ok(())
+}
+
+fn infer_css_modules_filename(_output_file: Option<String>) -> String {
+  // TODO ... actually infer
+  "styles.json".into()
 }
