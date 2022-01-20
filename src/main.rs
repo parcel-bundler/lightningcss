@@ -1,6 +1,7 @@
 use clap::Parser;
 use parcel_css::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
 use std::{ffi, fs, io, path};
+use serde::Serialize;
 
 #[derive(Parser, Debug)]
 #[clap(author, about, long_about = None)]
@@ -8,7 +9,7 @@ struct CliArgs {
     /// Target CSS file
     input_file: String,
     /// Destination file for the output
-    #[clap(short, long)]
+    #[clap(short, long, group = "output_file")]
     output_file: Option<String>,
     /// Minify the output
     #[clap(short, long)]
@@ -22,6 +23,19 @@ struct CliArgs {
     /// Default: <output_file>.json
     #[clap(long, requires = "css_modules")]
     css_modules_output_file: Option<String>,
+    /// Enable sourcemap, at <output_file>.map
+    #[clap(short, long, requires = "output_file")]
+    sourcemap: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SourceMapJson<'a> {
+  version: u8,
+  mappings: String,
+  sources: &'a Vec<String>,
+  sources_content: &'a Vec<String>,
+  names: &'a Vec<String>
 }
 
 pub fn main() -> Result<(), std::io::Error> {
@@ -49,15 +63,42 @@ pub fn main() -> Result<(), std::io::Error> {
         stylesheet.minify(MinifyOptions::default()).unwrap();
     }
 
-    let res = stylesheet
+    let mut res = stylesheet
         .to_css(PrinterOptions {
             minify: cli_args.minify,
+            source_map: cli_args.sourcemap,
             ..PrinterOptions::default()
         })
         .unwrap();
 
+    let map = if let Some(ref mut source_map) = res.source_map {
+        source_map.set_source_content(0, &res.code).map_err(|_| io::Error::new(io::ErrorKind::Other, "Error setting sourcemap"))?;
+        let mut vlq_output: Vec<u8> = Vec::new();
+        source_map.write_vlq(&mut vlq_output).map_err(|_| io::Error::new(io::ErrorKind::Other, "Error writing sourcemap vlq"))?;
+
+        let sm = SourceMapJson {
+            version: 3,
+            mappings: unsafe { String::from_utf8_unchecked(vlq_output) },
+            sources: source_map.get_sources(),
+            sources_content: source_map.get_sources_content(),
+            names: source_map.get_names()
+        };
+
+        serde_json::to_vec(&sm).ok()
+    } else {
+        None
+    };
     if let Some(output_file) = &cli_args.output_file {
-        fs::write(output_file, res.code.as_bytes())?;
+        let mut code = res.code;
+        if cli_args.sourcemap {
+            if let Some(map_buf) = map {
+                let map_filename: String = output_file.to_owned() + ".map";
+                code += &format!("\n/*# sourceMappingURL={} */\n", map_filename);
+                fs::write(map_filename, map_buf)?;
+            }
+        }
+
+        fs::write(output_file, code.as_bytes())?;
 
         if cli_args.css_modules {
             let css_modules_filename = cli_args
@@ -68,6 +109,8 @@ pub fn main() -> Result<(), std::io::Error> {
                 fs::write(css_modules_filename, css_modules_json)?;
             }
         }
+
+
     } else {
         println!("{}", res.code);
         if cli_args.css_modules {

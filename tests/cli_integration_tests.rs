@@ -262,9 +262,8 @@ fn css_modules_stdout() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-#[ignore]
 fn css_modules_infer_output_file() -> Result<(), Box<dyn std::error::Error>> {
-    let (input, output, exports) = css_module_test_vals();
+    let (input, _, exports) = css_module_test_vals();
     let infile = assert_fs::NamedTempFile::new("test.css")?;
     let outfile = assert_fs::NamedTempFile::new("out.css")?;
     infile.write_str(&input)?;
@@ -273,8 +272,7 @@ fn css_modules_infer_output_file() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("--css-modules");
     cmd.arg("-o").arg(outfile.path());
     cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(output));
+        .success();
 
     let expected: serde_json::Value = serde_json::from_str(&exports)?;
     let actual: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(
@@ -287,7 +285,7 @@ fn css_modules_infer_output_file() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn css_modules_output_target_option() -> Result<(), Box<dyn std::error::Error>> {
-    let (input, output, exports) = css_module_test_vals();
+    let (input, _, exports) = css_module_test_vals();
     let infile = assert_fs::NamedTempFile::new("test.css")?;
     let outfile = assert_fs::NamedTempFile::new("out.css")?;
     let modules_file = assert_fs::NamedTempFile::new("module.json")?;
@@ -304,6 +302,28 @@ fn css_modules_output_target_option() -> Result<(), Box<dyn std::error::Error>> 
     let actual: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(modules_file.path())?)?;
     assert_eq!(expected, actual);
+
+    Ok(())
+}
+
+#[test]
+fn sourcemap() -> Result<(), Box<dyn std::error::Error>> {
+    let (input, _, _) = css_module_test_vals();
+    let infile = assert_fs::NamedTempFile::new("test.css")?;
+    let outdir = assert_fs::TempDir::new()?;
+    let outfile = outdir.child("out.css");
+    infile.write_str(&input)?;
+    let mut cmd = Command::cargo_bin("parcel_css")?;
+    cmd.arg(infile.path());
+    cmd.arg("-o").arg(outfile.path());
+    cmd.arg("--sourcemap");
+    cmd.assert().success();
+
+    outfile.assert(predicate::str::contains(&format!("/*# sourceMappingURL={}.map */", outfile.path().to_str().unwrap())));
+    let mapfile = outdir.child("out.css.map");
+    mapfile.assert(predicate::str::contains(r#""version":3"#));
+    mapfile.assert(predicate::str::contains(r#""sources":["test.css"]"#));
+    mapfile.assert(predicate::str::contains(r#""mappings":"AACM;;;;AAIA;;;;AAIA;;;;;;;;;;AAKA;;;;AAIA;;;;AAIA""#));
 
     Ok(())
 }
