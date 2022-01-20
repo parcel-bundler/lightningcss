@@ -17,7 +17,7 @@ impl MediaRule {
   pub(crate) fn minify(&mut self, context: &mut MinifyContext, parent_is_unused: bool) -> Result<bool, MinifyError> {
     self.rules.minify(context, parent_is_unused)?;
 
-    if let Some(custom_media) = &mut context.custom_media {
+    if let Some(custom_media) = &context.custom_media {
       self.query.transform_custom_media(self.loc, custom_media)?;
     }
 

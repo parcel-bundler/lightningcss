@@ -9531,6 +9531,25 @@ mod tests {
       "\n"
     );
 
+    custom_media_test(
+      r#"
+      @media (--print) {
+        .a {
+          color: green;
+        }
+      }
+
+      @custom-media --print print;
+      "#,
+      indoc! {r#"
+      @media print {
+        .a {
+          color: green;
+        }
+      }
+      "#}
+    );
+
     fn custom_media_error_test(source: &str, err: MinifyError) {
       let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { custom_media: true, ..ParserOptions::default() }).unwrap();
       let res = stylesheet.minify(MinifyOptions {

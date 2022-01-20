@@ -141,8 +141,7 @@ impl CssRuleList {
           keyframe_rules.insert(keyframes.name.clone(), rules.len());
         },
         CssRule::CustomMedia(rule) => {
-          if let Some(custom_media) = &mut context.custom_media {
-            custom_media.insert(rule.name.clone(), rule.clone());
+          if context.custom_media.is_some() {
             continue;
           }
         },
