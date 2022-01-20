@@ -26,22 +26,30 @@ impl ToCss for Url {
       None
     };
 
-    let url = if let Some(dep) = &dep {
-      &dep.placeholder
-    } else {
-      &self.url
-    };
+    // If adding dependencies, always write url() with quotes so that the placeholder can
+    // be replaced without escaping more easily. Quotes may be removed later during minification.
+    if let Some(dep) = dep {
+      dest.write_str("url(")?;
+      serialize_string(&dep.placeholder, dest)?;
+      dest.write_char(')')?;
+
+      if let Some(dependencies) = &mut dest.dependencies {
+        dependencies.push(Dependency::Url(dep))
+      }
+
+      return Ok(())
+    }
 
     use cssparser::ToCss;
     if dest.minify {
       let mut buf = String::new();
-      Token::UnquotedUrl(CowRcStr::from(url.as_ref())).to_css(&mut buf)?;
+      Token::UnquotedUrl(CowRcStr::from(self.url.as_ref())).to_css(&mut buf)?;
 
       // If the unquoted url is longer than it would be quoted (e.g. `url("...")`)
       // then serialize as a string and choose the shorter version.
-      if buf.len() > url.len() + 7 {
+      if buf.len() > self.url.len() + 7 {
         let mut buf2 = String::new();
-        serialize_string(&url, &mut buf2)?;
+        serialize_string(&self.url, &mut buf2)?;
         if buf2.len() + 5 < buf.len() {
           dest.write_str("url(")?;
           dest.write_str(&buf2)?;
@@ -51,11 +59,7 @@ impl ToCss for Url {
 
       dest.write_str(&buf)?;
     } else {
-      Token::UnquotedUrl(CowRcStr::from(url.as_ref())).to_css(dest)?;
-    }
-
-    if let Some(dependencies) = &mut dest.dependencies {
-      dependencies.push(Dependency::Url(dep.unwrap()))
+      Token::UnquotedUrl(CowRcStr::from(self.url.as_ref())).to_css(dest)?;
     }
 
     Ok(())
