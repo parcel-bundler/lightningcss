@@ -8,7 +8,7 @@ use parcel_css::stylesheet::{StyleSheet, StyleAttribute, ParserOptions, PrinterO
 use parcel_css::targets::Browsers;
 use parcel_css::css_modules::CssModuleExports;
 use parcel_css::dependencies::Dependency;
-use parcel_css::error::{ParserError, PrinterError};
+use parcel_css::error::{ParserError, PrinterError, MinifyError};
 
 // ---------------------------------------------
 
@@ -143,23 +143,25 @@ impl<'a> Into<PseudoClasses<'a>> for &'a OwnedPseudoClasses {
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 struct Drafts {
-  nesting: bool
+  #[serde(default)]
+  nesting: bool,
+  #[serde(default)]
+  custom_media: bool
 }
 
 fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, CompileError<'i>> {
-  let options = config.drafts.as_ref();
+  let drafts = config.drafts.as_ref();
   let mut stylesheet = StyleSheet::parse(config.filename.clone(), &code, ParserOptions {
-    nesting: match options {
-      Some(o) => o.nesting,
-      None => false
-    },
+    nesting: matches!(drafts, Some(d) if d.nesting),
+    custom_media: matches!(drafts, Some(d) if d.custom_media),
     css_modules: config.css_modules.unwrap_or(false)
   })?;
   stylesheet.minify(MinifyOptions {
     targets: config.targets,
     unused_symbols: config.unused_symbols.clone().unwrap_or_default()
-  });
+  })?;
   let res = stylesheet.to_css(PrinterOptions {
     minify: config.minify.unwrap_or(false),
     source_map: config.source_map.unwrap_or(false),
@@ -233,6 +235,7 @@ fn compile_attr<'i>(code: &'i str, config: &AttrConfig) -> Result<AttrResult, Co
 
 enum CompileError<'i> {
   ParseError(cssparser::ParseError<'i, ParserError<'i>>),
+  MinifyError(MinifyError),
   PrinterError(PrinterError),
   SourceMapError(parcel_sourcemap::SourceMapError)
 }
@@ -255,6 +258,7 @@ impl<'i> CompileError<'i> {
           cssparser::ParseErrorKind::Custom(e) => e.reason()
         }
       }
+      CompileError::MinifyError(err) => err.reason(),
       CompileError::PrinterError(err) => err.reason(),
       _ => "Unknown error".into()
     }
@@ -269,6 +273,9 @@ impl<'i> CompileError<'i> {
       CompileError::PrinterError(PrinterError::InvalidComposesSelector(loc)) |
       CompileError::PrinterError(PrinterError::InvalidComposesNesting(loc)) => {
         throw_syntax_error(ctx, filename, code, self.reason(), loc)
+      }
+      CompileError::MinifyError(err) => {
+        throw_syntax_error(ctx, filename, code, self.reason(), &err.loc())
       }
       _ => Err(self.into())
     }
@@ -301,6 +308,12 @@ fn throw_syntax_error(ctx: CallContext, filename: Option<String>, code: &str, me
 impl<'i> From<cssparser::ParseError<'i, ParserError<'i>>> for CompileError<'i> {
   fn from(e: cssparser::ParseError<'i, ParserError<'i>>) -> CompileError<'i> {
     CompileError::ParseError(e)
+  }
+}
+
+impl<'i> From<MinifyError> for CompileError<'i> {
+  fn from(err: MinifyError) -> CompileError<'i> {
+    CompileError::MinifyError(err)
   }
 }
 

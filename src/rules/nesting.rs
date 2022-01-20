@@ -2,7 +2,7 @@ use cssparser::SourceLocation;
 use crate::printer::Printer;
 use super::style::StyleRule;
 use crate::rules::{ToCssWithContext, StyleContext};
-use crate::error::PrinterError;
+use crate::error::{PrinterError, MinifyError};
 use super::MinifyContext;
 
 #[derive(Debug, PartialEq)]
@@ -12,7 +12,7 @@ pub struct NestingRule {
 }
 
 impl NestingRule {
-  pub(crate) fn minify(&mut self, context: &mut MinifyContext, parent_is_unused: bool) -> bool {
+  pub(crate) fn minify(&mut self, context: &mut MinifyContext, parent_is_unused: bool) -> Result<bool, MinifyError> {
     self.style.minify(context, parent_is_unused)
   }
 }

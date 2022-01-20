@@ -29,7 +29,7 @@ pub fn main() -> Result<(), std::io::Error> {
 fn minify_css(cli_args: MinifyArgs) -> Result<(), std::io::Error> {
   let source = fs::read_to_string(&cli_args.input_file)?;
   let mut stylesheet = StyleSheet::parse(cli_args.input_file.to_string(), &source, ParserOptions::default()).unwrap();
-  stylesheet.minify(MinifyOptions::default());
+  stylesheet.minify(MinifyOptions::default()).unwrap();
   let res = stylesheet.to_css(PrinterOptions { minify: true, ..PrinterOptions::default()}).unwrap();
 
   if let Some(output_file) = cli_args.output_file {

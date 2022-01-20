@@ -40,6 +40,10 @@ function reflectPlaygroundState(playgroundState) {
     nesting.checked = playgroundState.nesting;
   }
 
+  if (typeof playgroundState.customMedia !== 'undefined') {
+    customMedia.checked = playgroundState.customMedia;
+  }
+
   if (playgroundState.targets) {
     const {targets} = playgroundState;
     for (let input of inputs) {
@@ -61,6 +65,7 @@ function savePlaygroundState() {
   const playgroundState = {
     minify: minify.checked,
     nesting: nesting.checked,
+    customMedia: customMedia.checked,
     cssModules: cssModules.checked,
     analyzeDependencies: analyzeDependencies.checked,
     targets: getTargets(),
@@ -104,7 +109,8 @@ async function update() {
     minify: minify.checked,
     targets: Object.keys(targets).length === 0 ? null : targets,
     drafts: {
-      nesting: nesting.checked
+      nesting: nesting.checked,
+      customMedia: customMedia.checked
     },
     cssModules: cssModules.checked,
     analyzeDependencies: analyzeDependencies.checked,

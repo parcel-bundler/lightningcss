@@ -20,29 +20,30 @@ mod logical;
 
 #[cfg(test)]
 mod tests {
-  use crate::stylesheet::*;
+  use crate::{stylesheet::*, error::MinifyError};
   use crate::targets::Browsers;
+  use cssparser::SourceLocation;
   use indoc::indoc;
-  use std::collections::HashMap;
+  use std::{collections::HashMap};
   use crate::css_modules::{CssModuleExports, CssModuleExport, CssModuleReference};
 
   fn test(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
-    stylesheet.minify(MinifyOptions::default());
+    stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
   }
 
   fn minify_test(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
-    stylesheet.minify(MinifyOptions::default());
+    stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet.to_css(PrinterOptions { minify: true, ..PrinterOptions::default() }).unwrap();
     assert_eq!(res.code, expected);
   }
 
   fn prefix_test(source: &str, expected: &str, targets: Browsers) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
-    stylesheet.minify(MinifyOptions { targets: Some(targets), ..MinifyOptions::default() });
+    stylesheet.minify(MinifyOptions { targets: Some(targets), ..MinifyOptions::default() }).unwrap();
     let res = stylesheet.to_css(PrinterOptions { targets: Some(targets), ..PrinterOptions::default() }).unwrap();
     assert_eq!(res.code, expected);
   }
@@ -60,24 +61,34 @@ mod tests {
       ..Browsers::default()
     });
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
-    stylesheet.minify(MinifyOptions { targets, ..MinifyOptions::default() });
+    stylesheet.minify(MinifyOptions { targets, ..MinifyOptions::default() }).unwrap();
     let res = stylesheet.to_css(PrinterOptions { targets, ..PrinterOptions::default() }).unwrap();
     assert_eq!(res.code, expected);
   }
 
   fn nesting_test_no_targets(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
-    stylesheet.minify(MinifyOptions::default());
+    stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
   }
 
   fn css_modules_test(source: &str, expected: &str, expected_exports: CssModuleExports) {
     let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { css_modules: true, ..ParserOptions::default() }).unwrap();
-    stylesheet.minify(MinifyOptions::default());
+    stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
     assert_eq!(res.exports.unwrap(), expected_exports);
+  }
+
+  fn custom_media_test(source: &str, expected: &str) {
+    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { custom_media: true, ..ParserOptions::default() }).unwrap();
+    stylesheet.minify(MinifyOptions {
+      targets: Some(Browsers { chrome: Some(95 << 16), ..Browsers::default() }),
+      ..MinifyOptions::default()
+    }).unwrap();
+    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    assert_eq!(res.code, expected);
   }
 
   macro_rules! map(
@@ -3446,7 +3457,7 @@ mod tests {
     minify_test("@media (not (color)) or (hover) { .foo { color: chartreuse }}", "@media (not (color)) or (hover){.foo{color:#7fff00}}");
     minify_test("@media (example, all,), speech { .foo { color: chartreuse }}", "@media speech{.foo{color:#7fff00}}");
     minify_test("@media &test, speech { .foo { color: chartreuse }}", "@media speech{.foo{color:#7fff00}}");
-    minify_test("@media &test { .foo { color: chartreuse }}", "@media not all{.foo{color:#7fff00}}");
+    minify_test("@media &test { .foo { color: chartreuse }}", "");
     minify_test("@media (min-width: calc(200px + 40px)) { .foo { color: chartreuse }}", "@media (min-width:240px){.foo{color:#7fff00}}");
     minify_test("@media (min-width: calc(1em + 5px)) { .foo { color: chartreuse }}", "@media (min-width:calc(1em + 5px)){.foo{color:#7fff00}}");
 
@@ -9037,7 +9048,7 @@ mod tests {
     stylesheet.minify(MinifyOptions {
       unused_symbols: vec!["bar", "other_id", "fade", "circles"].iter().map(|s| String::from(*s)).collect(),
       ..MinifyOptions::default()
-    });
+    }).unwrap();
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
 
@@ -9061,7 +9072,7 @@ mod tests {
     stylesheet.minify(MinifyOptions {
       unused_symbols: vec!["bar"].iter().map(|s| String::from(*s)).collect(),
       ..MinifyOptions::default()
-    });
+    }).unwrap();
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
 
@@ -9105,7 +9116,7 @@ mod tests {
     stylesheet.minify(MinifyOptions {
       unused_symbols: vec!["foo", "x"].iter().map(|s| String::from(*s)).collect(),
       ..MinifyOptions::default()
-    });
+    }).unwrap();
     let res = stylesheet.to_css(PrinterOptions {
       targets: Some(Browsers { chrome: Some(95 << 16), ..Browsers::default() }),
       ..PrinterOptions::default()
@@ -9199,5 +9210,536 @@ mod tests {
     @-ms-viewport {
       width: device-width;
     }"#, "@-ms-viewport{width:device-width}");
+  }
+
+  #[test]
+  fn test_custom_media() {
+    custom_media_test(
+      r#"
+      @custom-media --modern (color), (hover);
+
+      @media (--modern) and (width > 1024px) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @media ((color) or (hover)) and (width > 1024px) {
+        .a {
+          color: green;
+        }
+      }
+      "#}
+    );
+
+    custom_media_test(
+      r#"
+      @custom-media --color (color);
+
+      @media (--color) and (width > 1024px) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @media (color) and (width > 1024px) {
+        .a {
+          color: green;
+        }
+      }
+      "#}
+    );
+
+    custom_media_test(
+      r#"
+      @custom-media --a (color);
+      @custom-media --b (--a);
+
+      @media (--b) and (width > 1024px) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @media (color) and (width > 1024px) {
+        .a {
+          color: green;
+        }
+      }
+      "#}
+    );
+
+    custom_media_test(
+      r#"
+      @custom-media --not-color not (color);
+
+      @media not (--not-color) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @media (color) {
+        .a {
+          color: green;
+        }
+      }
+      "#}
+    );
+
+    custom_media_test(
+      r#"
+      @custom-media --color-print print and (color);
+
+      @media (--color-print) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @media print and (color) {
+        .a {
+          color: green;
+        }
+      }
+      "#}
+    );
+
+    custom_media_test(
+      r#"
+      @custom-media --color-print print and (color);
+
+      @media print and (--color-print) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @media print and (color) {
+        .a {
+          color: green;
+        }
+      }
+      "#}
+    );
+
+    custom_media_test(
+      r#"
+      @custom-media --not-color-print not print and (color);
+
+      @media not print and (--not-color-print) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @media not print and (color) {
+        .a {
+          color: green;
+        }
+      }
+      "#}
+    );
+
+    custom_media_test(
+      r#"
+      @custom-media --print print;
+
+      @media (--print) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @media print {
+        .a {
+          color: green;
+        }
+      }
+      "#}
+    );
+
+    custom_media_test(
+      r#"
+      @custom-media --print print;
+
+      @media not (--print) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @media not print {
+        .a {
+          color: green;
+        }
+      }
+      "#}
+    );
+
+    custom_media_test(
+      r#"
+      @custom-media --print not print;
+
+      @media not (--print) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @media print {
+        .a {
+          color: green;
+        }
+      }
+      "#}
+    );
+
+    custom_media_test(
+      r#"
+      @custom-media --print print;
+
+      @media ((--print)) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @media print {
+        .a {
+          color: green;
+        }
+      }
+      "#}
+    );
+
+    custom_media_test(
+      r#"
+      @custom-media --color (color);
+      @custom-media --print print;
+
+      @media (--print) and (--color) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @media print and (color) {
+        .a {
+          color: green;
+        }
+      }
+      "#}
+    );
+
+    custom_media_test(
+      r#"
+      @custom-media --color (color);
+      @custom-media --not-print not print;
+
+      @media (--not-print) and (--color) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @media not print and (color) {
+        .a {
+          color: green;
+        }
+      }
+      "#}
+    );
+
+    custom_media_test(
+      r#"
+      @custom-media --color (color);
+      @custom-media --screen screen;
+      @custom-media --print print;
+
+      @media (--print) and (--color), (--screen) and (--color) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @media print and (color), screen and (color) {
+        .a {
+          color: green;
+        }
+      }
+      "#}
+    );
+
+    custom_media_test(
+      r#"
+      @custom-media --color print and (color), print and (script);
+
+      @media (--color) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @media print and ((color) or (script)) {
+        .a {
+          color: green;
+        }
+      }
+      "#}
+    );
+
+    custom_media_test(
+      r#"
+      @custom-media --color (color);
+      @custom-media --not-color not all and (--color);
+
+      @media (--not-color) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      "\n"
+    );
+
+    custom_media_test(
+      r#"
+      @custom-media --color (color);
+
+      @media not all and (--color) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      "\n"
+    );
+
+    custom_media_test(
+      r#"
+      @media (--print) {
+        .a {
+          color: green;
+        }
+      }
+
+      @custom-media --print print;
+      "#,
+      indoc! {r#"
+      @media print {
+        .a {
+          color: green;
+        }
+      }
+      "#}
+    );
+
+    fn custom_media_error_test(source: &str, err: MinifyError) {
+      let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { custom_media: true, ..ParserOptions::default() }).unwrap();
+      let res = stylesheet.minify(MinifyOptions {
+        targets: Some(Browsers { chrome: Some(95 << 16), ..Browsers::default() }),
+        ..MinifyOptions::default()
+      });
+      assert_eq!(res, Err(err))
+    }
+
+    custom_media_error_test(
+      r#"
+      @custom-media --color-print print and (color);
+
+      @media screen and (--color-print) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      MinifyError::UnsupportedCustomMediaBooleanLogic {
+        media_loc: SourceLocation {
+          line: 3,
+          column: 7
+        },
+        custom_media_loc: SourceLocation {
+          line: 1,
+          column: 7
+        }
+      }
+    );
+
+    custom_media_error_test(
+      r#"
+      @custom-media --color-print print and (color);
+
+      @media not print and (--color-print) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      MinifyError::UnsupportedCustomMediaBooleanLogic {
+        media_loc: SourceLocation {
+          line: 3,
+          column: 7
+        },
+        custom_media_loc: SourceLocation {
+          line: 1,
+          column: 7
+        }
+      }
+    );
+
+    custom_media_error_test(
+      r#"
+      @custom-media --color-print print and (color);
+      @custom-media --color-screen screen and (color);
+
+      @media (--color-print) or (--color-screen) {}
+      "#,
+      MinifyError::UnsupportedCustomMediaBooleanLogic {
+        media_loc: SourceLocation {
+          line: 4,
+          column: 7
+        },
+        custom_media_loc: SourceLocation {
+          line: 2,
+          column: 7
+        }
+      }
+    );
+
+    custom_media_error_test(
+      r#"
+      @custom-media --color-print print and (color);
+      @custom-media --color-screen screen and (color);
+
+      @media (--color-print) and (--color-screen) {}
+      "#,
+      MinifyError::UnsupportedCustomMediaBooleanLogic {
+        media_loc: SourceLocation {
+          line: 4,
+          column: 7
+        },
+        custom_media_loc: SourceLocation {
+          line: 2,
+          column: 7
+        }
+      }
+    );
+
+    custom_media_error_test(
+      r#"
+      @custom-media --screen screen;
+      @custom-media --print print;
+
+      @media (--print) and (--screen) {}
+      "#,
+      MinifyError::UnsupportedCustomMediaBooleanLogic {
+        media_loc: SourceLocation {
+          line: 4,
+          column: 7
+        },
+        custom_media_loc: SourceLocation {
+          line: 1,
+          column: 7
+        }
+      }
+    );
+
+    custom_media_error_test(
+      r#"
+      @custom-media --not-print not print and (color);
+      @custom-media --not-screen not screen and (color);
+
+      @media ((script) or ((--not-print) and (--not-screen))) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      MinifyError::UnsupportedCustomMediaBooleanLogic {
+        media_loc: SourceLocation {
+          line: 4,
+          column: 7
+        },
+        custom_media_loc: SourceLocation {
+          line: 2,
+          column: 7
+        }
+      }
+    );
+
+    custom_media_error_test(
+      r#"
+      @custom-media --color screen and (color), print and (color);
+
+      @media (--color) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      MinifyError::UnsupportedCustomMediaBooleanLogic {
+        media_loc: SourceLocation {
+          line: 3,
+          column: 7
+        },
+        custom_media_loc: SourceLocation {
+          line: 1,
+          column: 7
+        }
+      }
+    );
+
+    custom_media_error_test(
+      r#"
+      @media (--not-defined) {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      MinifyError::CustomMediaNotDefined {
+        name: "--not-defined".into(),
+        loc: SourceLocation {
+          line: 1,
+          column: 7
+        }
+      }
+    );
+
+    custom_media_error_test(
+      r#"
+      @custom-media --circular-mq-a (--circular-mq-b);
+      @custom-media --circular-mq-b (--circular-mq-a);
+
+      @media (--circular-mq-a) {
+        body {
+          order: 3;
+        }
+      }
+      "#,
+      MinifyError::CircularCustomMedia {
+        name: "--circular-mq-a".into(),
+        loc: SourceLocation {
+          line: 4,
+          column: 7
+        }
+      }
+    );
   }
 }

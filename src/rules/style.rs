@@ -8,7 +8,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
 use crate::rules::{CssRuleList, ToCssWithContext, StyleContext};
 use crate::compat::Feature;
-use crate::error::PrinterError;
+use crate::error::{PrinterError, MinifyError};
 use super::MinifyContext;
 
 #[derive(Debug, PartialEq)]
@@ -21,12 +21,12 @@ pub struct StyleRule {
 }
 
 impl StyleRule {
-  pub(crate) fn minify(&mut self, context: &mut MinifyContext, parent_is_unused: bool) -> bool {
+  pub(crate) fn minify(&mut self, context: &mut MinifyContext, parent_is_unused: bool) -> Result<bool, MinifyError> {
     let mut unused = false;
     if !context.unused_symbols.is_empty() {
       if is_unused(&mut self.selectors.0.iter(), &context.unused_symbols, parent_is_unused) {
         if self.rules.0.is_empty() {
-          return true
+          return Ok(true)
         }
 
         self.declarations.declarations.clear();
@@ -38,13 +38,13 @@ impl StyleRule {
     self.declarations.minify(context.handler, context.important_handler, context.logical_properties);
 
     if !self.rules.0.is_empty() {
-      self.rules.minify(context, unused);
+      self.rules.minify(context, unused)?;
       if unused && self.rules.0.is_empty() {
-        return true
+        return Ok(true)
       }
     }
 
-    false
+    Ok(false)
   }
 
   pub fn is_compatible(&self, targets: Option<Browsers>) -> bool {

@@ -3,7 +3,7 @@ use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use super::{CssRuleList, MinifyContext};
 use crate::rules::{ToCssWithContext, StyleContext};
-use crate::error::{ParserError, PrinterError};
+use crate::error::{ParserError, MinifyError, PrinterError};
 
 #[derive(Debug, PartialEq)]
 pub struct SupportsRule {
@@ -13,7 +13,7 @@ pub struct SupportsRule {
 }
 
 impl SupportsRule {
-  pub(crate) fn minify(&mut self, context: &mut MinifyContext, parent_is_unused: bool) {
+  pub(crate) fn minify(&mut self, context: &mut MinifyContext, parent_is_unused: bool) -> Result<(), MinifyError> {
     self.rules.minify(context, parent_is_unused)
   }
 }

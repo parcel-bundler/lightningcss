@@ -187,6 +187,9 @@ for (let feature of cssFeatures) {
   addValue(compat, browserMap, feature);
 }
 
+// No browser supports custom media queries yet.
+addValue(compat, {}, 'custom-media-queries');
+
 let mdnFeatures = {
   doublePositionGradients: mdn.css.types.image.gradient['radial-gradient'].doubleposition.__compat.support,
   clamp: mdn.css.types.clamp.__compat.support,

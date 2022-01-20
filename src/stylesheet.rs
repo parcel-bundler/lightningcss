@@ -9,8 +9,9 @@ use crate::declaration::{DeclarationHandler, DeclarationBlock};
 use crate::css_modules::{hash, CssModule, CssModuleExports};
 use std::collections::{HashMap, HashSet};
 use crate::dependencies::Dependency;
-use crate::error::{ParserError, PrinterError};
+use crate::error::{ParserError, MinifyError, PrinterError};
 use crate::logical::LogicalProperties;
+use crate::compat::Feature;
 
 pub use crate::parser::ParserOptions;
 pub use crate::printer::PseudoClasses;
@@ -75,18 +76,35 @@ impl StyleSheet {
     })
   }
 
-  pub fn minify(&mut self, options: MinifyOptions) {
+  pub fn minify(&mut self, options: MinifyOptions) -> Result<(), MinifyError> {
     let mut logical_properties = LogicalProperties::new(options.targets);
     let mut handler = DeclarationHandler::new(options.targets);
     let mut important_handler = DeclarationHandler::new(options.targets);
+
+    // @custom-media rules may be defined after they are referenced, but may only be defined at the top level
+    // of a stylesheet. Do a pre-scan here and create a lookup table by name.
+    let custom_media = if self.options.custom_media && options.targets.is_some() && !Feature::CustomMediaQueries.is_compatible(options.targets.unwrap()) {
+      let mut custom_media = HashMap::new();
+      for rule in &self.rules.0 {
+        if let CssRule::CustomMedia(rule) = rule {
+          custom_media.insert(rule.name.clone(), rule.clone());
+        }
+      }
+      Some(custom_media)
+    } else {
+      None
+    };
+
     self.rules.minify(&mut MinifyContext {
       targets: &options.targets,
       handler: &mut handler,
       important_handler: &mut important_handler,
       logical_properties: &mut logical_properties,
-      unused_symbols: &options.unused_symbols
-    }, false);
+      unused_symbols: &options.unused_symbols,
+      custom_media
+    }, false)?;
     logical_properties.to_rules(&mut self.rules);
+    Ok(())
   }
 
   pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, PrinterError> {

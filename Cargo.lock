@@ -380,6 +380,7 @@ dependencies = [
  "lazy_static",
  "parcel_selectors",
  "parcel_sourcemap",
+ "retain_mut",
  "serde",
  "smallvec",
 ]
@@ -616,6 +617,12 @@ checksum = "16abd0c1b639e9eb4d7c50c0b8100b0d0f849be2349829c740fe8e6eb4816429"
 dependencies = [
  "rand_core",
 ]
+
+[[package]]
+name = "retain_mut"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11000e6ba5020e53e7cc26f73b91ae7d5496b4977851479edb66b694c0675c21"
 
 [[package]]
 name = "rkyv"

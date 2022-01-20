@@ -29,6 +29,7 @@ pub enum Feature {
   CssSel2,
   CssSel3,
   CssSelection,
+  CustomMediaQueries,
   Dialog,
   DoublePositionGradients,
   FormValidation,
@@ -1086,6 +1087,7 @@ impl Feature {
         }
       }
       Feature::CssNesting |
+      Feature::CustomMediaQueries |
       Feature::MediaIntervalSyntax => {}
       Feature::DoublePositionGradients => {
         if let Some(version) = browsers.chrome {

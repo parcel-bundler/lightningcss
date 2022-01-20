@@ -4,7 +4,7 @@ use crate::traits::ToCss;
 use crate::printer::Printer;
 use super::{CssRuleList, MinifyContext};
 use crate::rules::{ToCssWithContext, StyleContext};
-use crate::error::PrinterError;
+use crate::error::{MinifyError, PrinterError};
 
 #[derive(Debug, PartialEq)]
 pub struct MediaRule {
@@ -14,8 +14,14 @@ pub struct MediaRule {
 }
 
 impl MediaRule {
-  pub(crate) fn minify(&mut self, context: &mut MinifyContext, parent_is_unused: bool) {
-    self.rules.minify(context, parent_is_unused);
+  pub(crate) fn minify(&mut self, context: &mut MinifyContext, parent_is_unused: bool) -> Result<bool, MinifyError> {
+    self.rules.minify(context, parent_is_unused)?;
+
+    if let Some(custom_media) = &context.custom_media {
+      self.query.transform_custom_media(self.loc, custom_media)?;
+    }
+
+    Ok(self.rules.0.is_empty() || self.query.never_matches())
   }
 }
 
