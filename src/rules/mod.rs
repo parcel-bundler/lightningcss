@@ -140,7 +140,7 @@ impl CssRuleList {
           set_prefix!(keyframes);
           keyframe_rules.insert(keyframes.name.clone(), rules.len());
         },
-        CssRule::CustomMedia(rule) => {
+        CssRule::CustomMedia(_) => {
           if context.custom_media.is_some() {
             continue;
           }

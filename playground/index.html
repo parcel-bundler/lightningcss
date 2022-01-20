@@ -103,6 +103,8 @@
         </label>
       </div>
       <textarea id="source">
+@custom-media --modern (color), (hover);
+
 .foo {
   background: yellow;
 
@@ -115,6 +117,12 @@
   transition: background 200ms;
 
   &.bar {
+    color: green;
+  }
+}
+
+@media (--modern) and (width > 1024px) {
+  .a {
     color: green;
   }
 }</textarea>

@@ -739,7 +739,8 @@ fn process_condition(
             res = Err(MinifyError::UnsupportedCustomMediaBooleanLogic {
               media_loc: loc,
               custom_media_loc: rule.loc
-            })
+            });
+            return None
           }
         }
         
