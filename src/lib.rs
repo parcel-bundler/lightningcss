@@ -8535,6 +8535,126 @@ mod tests {
       "#}
     );
 
+    nesting_test(
+      r#"
+        .foo .bar {
+          &h1 {
+            background: green;
+          }
+        }
+      "#,
+      indoc!{r#"
+        h1:is(.foo .bar) {
+          background: green;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo .bar {
+          @nest h1& {
+            background: green;
+          }
+        }
+      "#,
+      indoc!{r#"
+        h1:is(.foo .bar) {
+          background: green;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo.bar {
+          &h1 {
+            background: green;
+          }
+        }
+      "#,
+      indoc!{r#"
+        h1.foo.bar {
+          background: green;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo .bar {
+          &h1 .baz {
+            background: green;
+          }
+        }
+      "#,
+      indoc!{r#"
+        h1:is(.foo .bar) .baz {
+          background: green;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo .bar {
+          @nest h1 .baz& {
+            background: green;
+          }
+        }
+      "#,
+      indoc!{r#"
+        h1 .baz:is(.foo .bar) {
+          background: green;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo .bar {
+          &.baz {
+            background: green;
+          }
+        }
+      "#,
+      indoc!{r#"
+        .foo .bar.baz {
+          background: green;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo .bar {
+          @nest .baz& {
+            background: green;
+          }
+        }
+      "#,
+      indoc!{r#"
+        .baz:is(.foo .bar) {
+          background: green;
+        }
+      "#}
+    );
+
+    nesting_test(
+      r#"
+        .foo .bar {
+          @nest .baz & {
+            background: green;
+          }
+        }
+      "#,
+      indoc!{r#"
+        .baz .foo .bar {
+          background: green;
+        }
+      "#}
+    );
+
     nesting_test_no_targets(
       r#"
         .foo {
