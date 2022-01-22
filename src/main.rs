@@ -92,6 +92,7 @@ pub fn main() -> Result<(), std::io::Error> {
   } else {
     None
   };
+
   if let Some(output_file) = &cli_args.output_file {
     let mut code = res.code;
     if cli_args.sourcemap {
@@ -107,7 +108,7 @@ pub fn main() -> Result<(), std::io::Error> {
     if cli_args.css_modules {
       let css_modules_filename = cli_args
         .css_modules_output_file
-        .unwrap_or(infer_css_modules_filename(cli_args.output_file)?);
+        .unwrap_or(infer_css_modules_filename(&output_file)?);
       if let Some(exports) = res.exports {
         let css_modules_json = serde_json::to_string(&exports)?;
         fs::write(css_modules_filename, css_modules_json)?;
@@ -124,19 +125,15 @@ pub fn main() -> Result<(), std::io::Error> {
   Ok(())
 }
 
-fn infer_css_modules_filename(output_file: Option<String>) -> Result<String, std::io::Error> {
-  if let Some(file) = output_file {
-    let path = path::Path::new(&file);
-    if path.extension() == Some(ffi::OsStr::new("json")) {
-      Err(io::Error::new(
-        io::ErrorKind::Other,
-        "Cannot infer a css modules json filename, since the output file extension is '.json'",
-      ))
-    } else {
-      // unwrap: the filename option is a String from clap, so is valid utf-8
-      Ok(path.with_extension("json").to_str().unwrap().into())
-    }
+fn infer_css_modules_filename(output_file: &str) -> Result<String, std::io::Error> {
+  let path = path::Path::new(output_file);
+  if path.extension() == Some(ffi::OsStr::new("json")) {
+    Err(io::Error::new(
+      io::ErrorKind::Other,
+      "Cannot infer a css modules json filename, since the output file extension is '.json'",
+    ))
   } else {
-    Ok("styles.json".into())
+    // unwrap: the filename option is a String from clap, so is valid utf-8
+    Ok(path.with_extension("json").to_str().unwrap().into())
   }
 }
