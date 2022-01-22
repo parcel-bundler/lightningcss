@@ -237,27 +237,6 @@ fn nesting_option() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn css_modules_stdout() -> Result<(), Box<dyn std::error::Error>> {
-  let (input, output, exports) = css_module_test_vals();
-  let infile = assert_fs::NamedTempFile::new("test.css")?;
-  infile.write_str(&input)?;
-  let mut cmd = Command::cargo_bin("parcel_css")?;
-  cmd.current_dir(infile.path().parent().unwrap());
-  cmd.arg(infile.path());
-  cmd.arg("--css-modules");
-  cmd.assert().success().stdout(predicate::str::contains(output));
-
-  let assert = cmd.assert();
-  let output = String::from_utf8(assert.get_output().stdout.clone())?;
-  let module_json_line = output.lines().next_back().unwrap();
-  let expected: serde_json::Value = serde_json::from_str(&exports)?;
-  let actual: serde_json::Value = serde_json::from_str(&module_json_line)?;
-  assert_eq!(expected, actual);
-
-  Ok(())
-}
-
-#[test]
 fn css_modules_infer_output_file() -> Result<(), Box<dyn std::error::Error>> {
   let (input, _, exports) = css_module_test_vals();
   let infile = assert_fs::NamedTempFile::new("test.css")?;
@@ -289,8 +268,7 @@ fn css_modules_output_target_option() -> Result<(), Box<dyn std::error::Error>> 
   cmd.current_dir(infile.path().parent().unwrap());
   cmd.arg(infile.path());
   cmd.arg("-o").arg(outfile.path());
-  cmd.arg("--css-modules");
-  cmd.arg("--css-modules-output-file").arg(modules_file.path());
+  cmd.arg("--css-modules").arg(modules_file.path());
   cmd.assert().success();
 
   let expected: serde_json::Value = serde_json::from_str(&exports)?;

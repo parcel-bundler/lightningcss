@@ -15,16 +15,17 @@ struct CliArgs {
   #[clap(short, long)]
   minify: bool,
   /// Enable parsing CSS nesting
-  #[clap(short, long)]
+  #[clap(long)]
   nesting: bool,
-  /// Enable CSS modules in output
-  #[clap(short, long, group = "css_modules")]
-  css_modules: bool,
-  /// Default: <output_file>.json
-  #[clap(long, requires = "css_modules")]
-  css_modules_output_file: Option<String>,
+  /// Enable parsing custom media queries
+  #[clap(long)]
+  custom_media: bool,
+  /// Enable CSS modules in output.
+  /// If no filename is provided, <output_file>.json will be used.
+  #[clap(long, group = "css_modules", requires = "output_file")]
+  css_modules: Option<Option<String>>,
   /// Enable sourcemap, at <output_file>.map
-  #[clap(short, long, requires = "output_file")]
+  #[clap(long, requires = "output_file")]
   sourcemap: bool,
 }
 
@@ -53,7 +54,8 @@ pub fn main() -> Result<(), std::io::Error> {
     &source,
     ParserOptions {
       nesting: cli_args.nesting,
-      css_modules: cli_args.css_modules,
+      css_modules: cli_args.css_modules.is_some(),
+      custom_media: cli_args.custom_media,
       ..ParserOptions::default()
     },
   )
@@ -105,10 +107,12 @@ pub fn main() -> Result<(), std::io::Error> {
 
     fs::write(output_file, code.as_bytes())?;
 
-    if cli_args.css_modules {
-      let css_modules_filename = cli_args
-        .css_modules_output_file
-        .unwrap_or(infer_css_modules_filename(&output_file)?);
+    if let Some(css_modules) = cli_args.css_modules {
+      let css_modules_filename = if let Some(name) = css_modules {
+        name
+      } else {
+        infer_css_modules_filename(&output_file)?
+      };
       if let Some(exports) = res.exports {
         let css_modules_json = serde_json::to_string(&exports)?;
         fs::write(css_modules_filename, css_modules_json)?;
@@ -116,10 +120,6 @@ pub fn main() -> Result<(), std::io::Error> {
     }
   } else {
     println!("{}", res.code);
-    if cli_args.css_modules {
-      let css_modules_json = serde_json::to_string(&res.exports)?;
-      println!("{}", css_modules_json);
-    }
   }
 
   Ok(())
