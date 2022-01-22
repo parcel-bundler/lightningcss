@@ -34,6 +34,7 @@ lazy_static = "1.4.0"
 clap = { version = "3.0.6", features = ["derive"] }
 retain_mut = "0.1.5"
 serde_json = "*"
+pathdiff = "0.2.1"
 
 [dev-dependencies]
 indoc = "1.0.3"

@@ -42,8 +42,8 @@ pub fn main() -> Result<(), std::io::Error> {
   let cli_args = CliArgs::parse();
   let source = fs::read_to_string(&cli_args.input_file)?;
 
-  let filename = path::Path::new(&cli_args.input_file)
-    .file_name()
+  let absolute_path = fs::canonicalize(cli_args.input_file)?;
+  let filename = pathdiff::diff_paths(absolute_path, std::env::current_dir()?)
     .unwrap()
     .to_str()
     .unwrap()

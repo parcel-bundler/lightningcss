@@ -242,6 +242,7 @@ fn css_modules_stdout() -> Result<(), Box<dyn std::error::Error>> {
   let infile = assert_fs::NamedTempFile::new("test.css")?;
   infile.write_str(&input)?;
   let mut cmd = Command::cargo_bin("parcel_css")?;
+  cmd.current_dir(infile.path().parent().unwrap());
   cmd.arg(infile.path());
   cmd.arg("--css-modules");
   cmd.assert().success().stdout(predicate::str::contains(output));
@@ -263,6 +264,7 @@ fn css_modules_infer_output_file() -> Result<(), Box<dyn std::error::Error>> {
   let outfile = assert_fs::NamedTempFile::new("out.css")?;
   infile.write_str(&input)?;
   let mut cmd = Command::cargo_bin("parcel_css")?;
+  cmd.current_dir(infile.path().parent().unwrap());
   cmd.arg(infile.path());
   cmd.arg("--css-modules");
   cmd.arg("-o").arg(outfile.path());
@@ -284,6 +286,7 @@ fn css_modules_output_target_option() -> Result<(), Box<dyn std::error::Error>> 
   let modules_file = assert_fs::NamedTempFile::new("module.json")?;
   infile.write_str(&input)?;
   let mut cmd = Command::cargo_bin("parcel_css")?;
+  cmd.current_dir(infile.path().parent().unwrap());
   cmd.arg(infile.path());
   cmd.arg("-o").arg(outfile.path());
   cmd.arg("--css-modules");
@@ -305,6 +308,7 @@ fn sourcemap() -> Result<(), Box<dyn std::error::Error>> {
   let outfile = outdir.child("out.css");
   infile.write_str(&input)?;
   let mut cmd = Command::cargo_bin("parcel_css")?;
+  cmd.current_dir(infile.path().parent().unwrap());
   cmd.arg(infile.path());
   cmd.arg("-o").arg(outfile.path());
   cmd.arg("--sourcemap");
