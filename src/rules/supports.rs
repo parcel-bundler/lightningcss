@@ -5,7 +5,7 @@ use super::{CssRuleList, MinifyContext};
 use crate::rules::{ToCssWithContext, StyleContext};
 use crate::error::{ParserError, MinifyError, PrinterError};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct SupportsRule {
   pub condition: SupportsCondition,
   pub rules: CssRuleList,

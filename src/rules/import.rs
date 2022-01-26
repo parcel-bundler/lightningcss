@@ -6,7 +6,7 @@ use super::supports::SupportsCondition;
 use crate::error::PrinterError;
 
 /// https://drafts.csswg.org/css-cascade/#at-import
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ImportRule {
   pub url: String,
   pub supports: Option<SupportsCondition>,

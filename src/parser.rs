@@ -26,7 +26,7 @@ use crate::vendor_prefix::VendorPrefix;
 use std::collections::HashMap;
 use crate::error::ParserError;
 
-#[derive(Default)]
+#[derive(Default, Clone, Debug)]
 pub struct ParserOptions {
   pub nesting: bool,
   pub custom_media: bool,

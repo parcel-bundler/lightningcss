@@ -16,6 +16,7 @@ use crate::compat::Feature;
 pub use crate::parser::ParserOptions;
 pub use crate::printer::PseudoClasses;
 
+#[derive(Debug)]
 pub struct StyleSheet {
   pub filename: String,
   pub rules: CssRuleList,

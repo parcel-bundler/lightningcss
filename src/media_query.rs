@@ -21,6 +21,12 @@ pub struct MediaList {
 }
 
 impl MediaList {
+  pub fn new() -> MediaList {
+    MediaList {
+      media_queries: vec![]
+    }
+  }
+
   /// Parse a media query list from CSS.
   ///
   /// Always returns a media query list. Invalid media queries are

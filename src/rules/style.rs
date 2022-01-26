@@ -11,7 +11,7 @@ use crate::compat::Feature;
 use crate::error::{PrinterError, MinifyError};
 use super::MinifyContext;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct StyleRule {
   pub selectors: SelectorList<Selectors>,
   pub vendor_prefix: VendorPrefix,

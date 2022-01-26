@@ -6,7 +6,7 @@ use super::{CssRuleList, MinifyContext};
 use crate::rules::{ToCssWithContext, StyleContext};
 use crate::error::{MinifyError, PrinterError};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct MediaRule {
   pub query: MediaList,
   pub rules: CssRuleList,

@@ -9,7 +9,7 @@ use crate::parser::ParserOptions;
 use crate::error::{ParserError, PrinterError};
 use super::MinifyContext;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct KeyframesRule {
   pub name: CustomIdent,
   pub keyframes: Vec<Keyframe>,
@@ -74,7 +74,7 @@ impl ToCss for KeyframesRule {
 }
 
 /// https://drafts.csswg.org/css-animations/#typedef-keyframe-selector
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum KeyframeSelector {
   Percentage(Percentage),
   From,
@@ -121,7 +121,7 @@ impl ToCss for KeyframeSelector {
   }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Keyframe {
   pub selectors: Vec<KeyframeSelector>,
   pub declarations: DeclarationBlock

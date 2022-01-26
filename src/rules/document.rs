@@ -4,7 +4,7 @@ use crate::printer::Printer;
 use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, PrinterError};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct MozDocumentRule {
   pub rules: CssRuleList,
   pub loc: SourceLocation

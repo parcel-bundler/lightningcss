@@ -17,6 +17,7 @@ pub mod css_modules;
 pub mod dependencies;
 pub mod error;
 mod logical;
+pub mod bundler;
 
 #[cfg(test)]
 mod tests {

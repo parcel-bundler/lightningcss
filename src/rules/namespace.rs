@@ -3,7 +3,7 @@ use crate::traits::ToCss;
 use crate::printer::Printer;
 use crate::error::PrinterError;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct NamespaceRule {
   pub prefix: Option<String>,
   pub url: String,

@@ -27,7 +27,7 @@ use crate::parser::ParserOptions;
 use crate::error::{ParserError, PrinterError};
 use crate::logical::LogicalProperties;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct DeclarationBlock {
   pub important_declarations: Vec<Property>,
   pub declarations: Vec<Property>

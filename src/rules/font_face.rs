@@ -8,7 +8,7 @@ use crate::macros::enum_property;
 use crate::values::url::Url;
 use crate::error::{ParserError, PrinterError};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct FontFaceRule {
   pub properties: Vec<FontFaceProperty>,
   pub loc: SourceLocation

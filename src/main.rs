@@ -1,5 +1,6 @@
 use clap::Parser;
 use parcel_css::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
+use parcel_css::bundler::Bundler;
 use serde::Serialize;
 use std::{ffi, fs, io, path};
 
@@ -27,6 +28,8 @@ struct CliArgs {
   /// Enable sourcemap, at <output_file>.map
   #[clap(long, requires = "output_file")]
   sourcemap: bool,
+  #[clap(long)]
+  bundle: bool
 }
 
 #[derive(Serialize)]
@@ -43,23 +46,28 @@ pub fn main() -> Result<(), std::io::Error> {
   let cli_args = CliArgs::parse();
   let source = fs::read_to_string(&cli_args.input_file)?;
 
-  let absolute_path = fs::canonicalize(cli_args.input_file)?;
+  let absolute_path = fs::canonicalize(&cli_args.input_file)?;
   let filename = pathdiff::diff_paths(absolute_path, std::env::current_dir()?)
     .unwrap()
     .to_str()
     .unwrap()
     .into();
-  let mut stylesheet = StyleSheet::parse(
-    filename,
-    &source,
-    ParserOptions {
-      nesting: cli_args.nesting,
-      css_modules: cli_args.css_modules.is_some(),
-      custom_media: cli_args.custom_media,
-      ..ParserOptions::default()
-    },
-  )
-  .unwrap();
+  let options = ParserOptions {
+    nesting: cli_args.nesting,
+    css_modules: cli_args.css_modules.is_some(),
+    custom_media: cli_args.custom_media,
+    ..ParserOptions::default()
+  };
+  let mut stylesheet = if cli_args.bundle {
+    Bundler::bundle(&cli_args.input_file, options).unwrap()
+  } else {
+    StyleSheet::parse(
+      filename,
+      &source,
+      options,
+    )
+    .unwrap()
+  };
 
   if cli_args.minify {
     stylesheet.minify(MinifyOptions::default()).unwrap();

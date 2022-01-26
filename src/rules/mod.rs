@@ -46,7 +46,7 @@ pub(crate) struct StyleContext<'a> {
   pub parent: Option<&'a StyleContext<'a>>
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum CssRule {
   Media(MediaRule),
   Import(ImportRule),
@@ -91,7 +91,7 @@ impl ToCss for CssRule {
   }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct CssRuleList(pub Vec<CssRule>);
 
 pub(crate) struct MinifyContext<'a> {
@@ -233,6 +233,10 @@ impl ToCssWithContext for CssRuleList {
     let mut last_without_block = false;
 
     for rule in &self.0 {
+      if let CssRule::Ignored = &rule {
+        continue
+      }
+
       // Skip @import rules if collecting dependencies.
       if let CssRule::Import(rule) = &rule {
         if let Some(dependencies) = &mut dest.dependencies {

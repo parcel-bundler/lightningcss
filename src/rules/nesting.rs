@@ -5,7 +5,7 @@ use crate::rules::{ToCssWithContext, StyleContext};
 use crate::error::{PrinterError, MinifyError};
 use super::MinifyContext;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct NestingRule {
   pub style: StyleRule,
   pub loc: SourceLocation

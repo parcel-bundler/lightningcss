@@ -5,7 +5,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::declaration::DeclarationBlock;
 use crate::error::PrinterError;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ViewportRule {
   pub vendor_prefix: VendorPrefix,
   pub declarations: DeclarationBlock,

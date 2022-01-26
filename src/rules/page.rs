@@ -6,7 +6,7 @@ use crate::macros::enum_property;
 use crate::error::{ParserError, PrinterError};
 
 /// https://www.w3.org/TR/css-page-3/#typedef-page-selector
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct PageSelector {
   pub name: Option<String>,
   pub pseudo_classes: Vec<PagePseudoClass>
@@ -52,7 +52,7 @@ impl Parse for PageSelector {
   }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct PageRule {
   pub selectors: Vec<PageSelector>,
   pub declarations: DeclarationBlock,

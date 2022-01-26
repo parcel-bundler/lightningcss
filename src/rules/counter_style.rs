@@ -5,7 +5,7 @@ use crate::printer::Printer;
 use crate::values::ident::CustomIdent;
 use crate::error::PrinterError;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct CounterStyleRule {
   pub name: CustomIdent,
   // TODO: eventually parse these properties
