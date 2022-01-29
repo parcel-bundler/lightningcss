@@ -13,24 +13,24 @@ use crate::parser::{Combinator, Component, Selector, SelectorImpl};
 ///
 /// All the `visit_foo` methods return a boolean indicating whether the
 /// traversal should continue or not.
-pub trait SelectorVisitor: Sized {
+pub trait SelectorVisitor<'i>: Sized {
     /// The selector implementation this visitor wants to visit.
-    type Impl: SelectorImpl;
+    type Impl: SelectorImpl<'i>;
 
     /// Visit an attribute selector that may match (there are other selectors
     /// that may never match, like those containing whitespace or the empty
     /// string).
     fn visit_attribute_selector(
         &mut self,
-        _namespace: &NamespaceConstraint<&<Self::Impl as SelectorImpl>::NamespaceUrl>,
-        _local_name: &<Self::Impl as SelectorImpl>::LocalName,
-        _local_name_lower: &<Self::Impl as SelectorImpl>::LocalName,
+        _namespace: &NamespaceConstraint<&<Self::Impl as SelectorImpl<'i>>::NamespaceUrl>,
+        _local_name: &<Self::Impl as SelectorImpl<'i>>::LocalName,
+        _local_name_lower: &<Self::Impl as SelectorImpl<'i>>::LocalName,
     ) -> bool {
         true
     }
 
     /// Visit a simple selector.
-    fn visit_simple_selector(&mut self, _: &Component<Self::Impl>) -> bool {
+    fn visit_simple_selector(&mut self, _: &Component<'i, Self::Impl>) -> bool {
         true
     }
 
@@ -38,7 +38,7 @@ pub trait SelectorVisitor: Sized {
     /// into the internal selectors if / as needed.
     ///
     /// The default implementation does this.
-    fn visit_selector_list(&mut self, list: &[Selector<Self::Impl>]) -> bool {
+    fn visit_selector_list(&mut self, list: &[Selector<'i, Self::Impl>]) -> bool {
         for nested in list {
             if !nested.visit(self) {
                 return false;

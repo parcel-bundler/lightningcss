@@ -16,9 +16,9 @@ use crate::compat::Feature;
 pub use crate::parser::ParserOptions;
 pub use crate::printer::PseudoClasses;
 
-pub struct StyleSheet {
+pub struct StyleSheet<'i> {
   pub filename: String,
-  pub rules: CssRuleList,
+  pub rules: CssRuleList<'i>,
   options: ParserOptions
 }
 
@@ -44,7 +44,7 @@ pub struct ToCssResult {
   pub dependencies: Option<Vec<Dependency>>
 }
 
-impl StyleSheet {
+impl<'i> StyleSheet<'i> {
   pub fn new(filename: String, rules: CssRuleList, options: ParserOptions) -> StyleSheet {
     StyleSheet {
       filename,
@@ -53,7 +53,7 @@ impl StyleSheet {
     }
   }
 
-  pub fn parse<'i>(filename: String, code: &'i str, options: ParserOptions) -> Result<StyleSheet, ParseError<'i, ParserError<'i>>> {
+  pub fn parse(filename: String, code: &'i str, options: ParserOptions) -> Result<StyleSheet<'i>, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
     let rule_list_parser = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(&options));
@@ -158,12 +158,12 @@ impl StyleSheet {
   }
 }
 
-pub struct StyleAttribute {
-  pub declarations: DeclarationBlock
+pub struct StyleAttribute<'i> {
+  pub declarations: DeclarationBlock<'i>
 }
 
-impl StyleAttribute {
-  pub fn parse<'i>(code: &'i str) -> Result<StyleAttribute, ParseError<'i, ParserError<'i>>> {
+impl<'i> StyleAttribute<'i> {
+  pub fn parse(code: &'i str) -> Result<StyleAttribute, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
     let options = ParserOptions::default();

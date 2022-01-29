@@ -39,8 +39,8 @@ impl Default for Position {
   }
 }
 
-impl Parse for Position {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Position {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(HorizontalPosition::parse) {
       Ok(HorizontalPosition::Center) => {
         // Try parsing a vertical position next.
@@ -263,8 +263,8 @@ impl<S> PositionComponent<S> {
   }
 }
 
-impl<S: Parse> Parse for PositionComponent<S> {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i, S: Parse<'i>> Parse<'i> for PositionComponent<S> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("center")).is_ok() {
       return Ok(PositionComponent::Center);
     }

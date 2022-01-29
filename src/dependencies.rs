@@ -42,7 +42,7 @@ impl ImportDependency {
     };
 
     ImportDependency {
-      url: rule.url.clone(),
+      url: rule.url.as_ref().to_owned(),
       supports,
       media,
       loc: SourceRange::new(filename, rule.loc, 8, rule.url.len() + 2) // TODO: what about @import url(...)?
@@ -61,7 +61,7 @@ impl UrlDependency {
   pub fn new(url: &Url, filename: &str) -> UrlDependency {
     let placeholder = hash(&format!("{}_{}", filename, url.url));
     UrlDependency {
-      url: url.url.clone(),
+      url: url.url.to_string(),
       placeholder,
       loc: SourceRange::new(filename, url.loc, 4, url.url.len())
     }

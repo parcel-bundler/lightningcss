@@ -12,8 +12,8 @@ pub enum Resolution {
   Dppx(f32)
 }
 
-impl Parse for Resolution {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Resolution {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     match *input.next()? {
       Token::Dimension { value, ref unit, .. } => {

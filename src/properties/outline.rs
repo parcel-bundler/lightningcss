@@ -14,8 +14,8 @@ pub enum OutlineStyle {
   BorderStyle(BorderStyle)
 }
 
-impl Parse for OutlineStyle {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for OutlineStyle {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(border_style) = input.try_parse(BorderStyle::parse) {
       return Ok(OutlineStyle::BorderStyle(border_style))
     }
@@ -49,8 +49,8 @@ pub(crate) struct OutlineHandler {
   pub color: Option<CssColor>
 }
 
-impl PropertyHandler for OutlineHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
+impl<'i> PropertyHandler<'i> for OutlineHandler {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
     use Property::*;
 
     match property {

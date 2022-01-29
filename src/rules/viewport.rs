@@ -5,14 +5,14 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::declaration::DeclarationBlock;
 use crate::error::PrinterError;
 
-#[derive(Debug, PartialEq)]
-pub struct ViewportRule {
+#[derive(Debug, PartialEq, Clone)]
+pub struct ViewportRule<'i> {
   pub vendor_prefix: VendorPrefix,
-  pub declarations: DeclarationBlock,
+  pub declarations: DeclarationBlock<'i>,
   pub loc: SourceLocation
 }
 
-impl ToCss for ViewportRule {
+impl<'i> ToCss for ViewportRule<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.add_mapping(self.loc);
     dest.write_char('@')?;

@@ -16,8 +16,8 @@ pub enum EasingFunction {
   Steps(i32, StepPosition)
 }
 
-impl Parse for EasingFunction {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for EasingFunction {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     if let Ok(ident) = input.try_parse(|i| i.expect_ident_cloned()) {
       let keyword = match_ignore_ascii_case! { &ident,
@@ -113,8 +113,8 @@ pub enum StepPosition {
   JumpBoth
 }
 
-impl Parse for StepPosition {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for StepPosition {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let ident = input.expect_ident()?;
     let keyword = match_ignore_ascii_case! { &ident,

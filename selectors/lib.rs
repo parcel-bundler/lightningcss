@@ -16,7 +16,6 @@ extern crate fxhash;
 extern crate log;
 extern crate phf;
 extern crate precomputed_hash;
-extern crate servo_arc;
 extern crate smallvec;
 
 pub mod attr;

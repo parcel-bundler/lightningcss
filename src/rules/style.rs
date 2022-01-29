@@ -11,17 +11,17 @@ use crate::compat::Feature;
 use crate::error::{PrinterError, MinifyError};
 use super::MinifyContext;
 
-#[derive(Debug, PartialEq)]
-pub struct StyleRule {
-  pub selectors: SelectorList<Selectors>,
+#[derive(Debug, PartialEq, Clone)]
+pub struct StyleRule<'i> {
+  pub selectors: SelectorList<'i, Selectors>,
   pub vendor_prefix: VendorPrefix,
-  pub declarations: DeclarationBlock,
-  pub rules: CssRuleList,
+  pub declarations: DeclarationBlock<'i>,
+  pub rules: CssRuleList<'i>,
   pub loc: SourceLocation
 }
 
-impl StyleRule {
-  pub(crate) fn minify(&mut self, context: &mut MinifyContext, parent_is_unused: bool) -> Result<bool, MinifyError> {
+impl<'i> StyleRule<'i> {
+  pub(crate) fn minify(&mut self, context: &mut MinifyContext<'_, 'i>, parent_is_unused: bool) -> Result<bool, MinifyError> {
     let mut unused = false;
     if !context.unused_symbols.is_empty() {
       if is_unused(&mut self.selectors.0.iter(), &context.unused_symbols, parent_is_unused) {
@@ -52,8 +52,8 @@ impl StyleRule {
   }
 }
 
-impl ToCssWithContext for StyleRule {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> Result<(), PrinterError> where W: std::fmt::Write {
+impl<'a, 'i> ToCssWithContext<'a, 'i> for StyleRule<'i> {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext<'a, 'i>>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if self.vendor_prefix.is_empty() {
       self.to_css_base(dest, context)
     } else {
@@ -88,8 +88,8 @@ impl ToCssWithContext for StyleRule {
   }
 }
 
-impl StyleRule {
-  fn to_css_base<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> Result<(), PrinterError> where W: std::fmt::Write {
+impl<'a, 'i> StyleRule<'i> {
+  fn to_css_base<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext<'a, 'i>>) -> Result<(), PrinterError> where W: std::fmt::Write {
     // If supported, or there are no targets, preserve nesting. Otherwise, write nested rules after parent.
     let supports_nesting = self.rules.0.is_empty() || dest.targets.is_none() || Feature::CssNesting.is_compatible(dest.targets.unwrap());
     let len = self.declarations.declarations.len() + self.declarations.important_declarations.len();

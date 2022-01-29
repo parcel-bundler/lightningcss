@@ -27,14 +27,14 @@ use crate::parser::ParserOptions;
 use crate::error::{ParserError, PrinterError};
 use crate::logical::LogicalProperties;
 
-#[derive(Debug, PartialEq)]
-pub struct DeclarationBlock {
-  pub important_declarations: Vec<Property>,
-  pub declarations: Vec<Property>
+#[derive(Debug, PartialEq, Clone)]
+pub struct DeclarationBlock<'i> {
+  pub important_declarations: Vec<Property<'i>>,
+  pub declarations: Vec<Property<'i>>
 }
 
-impl DeclarationBlock {
-  pub fn parse<'i, 't>(input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> DeclarationBlock<'i> {
+  pub fn parse<'t>(input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut important_declarations = DeclarationList::new();
     let mut declarations = DeclarationList::new();
     let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser {
@@ -55,7 +55,7 @@ impl DeclarationBlock {
   }
 }
 
-impl ToCss for DeclarationBlock {
+impl<'i> ToCss for DeclarationBlock<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.whitespace()?;
     dest.write_char('{')?;
@@ -86,11 +86,11 @@ impl ToCss for DeclarationBlock {
   }
 }
 
-impl DeclarationBlock {
+impl<'i> DeclarationBlock<'i> {
   pub(crate) fn minify(
     &mut self,
-    handler: &mut DeclarationHandler,
-    important_handler: &mut DeclarationHandler,
+    handler: &mut DeclarationHandler<'i>,
+    important_handler: &mut DeclarationHandler<'i>,
     logical_properties: &mut LogicalProperties
   ) {
     macro_rules! handle {
@@ -115,14 +115,14 @@ impl DeclarationBlock {
   }
 }
 
-struct PropertyDeclarationParser<'a> {
-  important_declarations: &'a mut Vec<Property>,
-  declarations: &'a mut Vec<Property>,
+struct PropertyDeclarationParser<'a, 'i> {
+  important_declarations: &'a mut Vec<Property<'i>>,
+  declarations: &'a mut Vec<Property<'i>>,
   options: &'a ParserOptions
 }
 
 /// Parse a declaration within {} block: `color: blue`
-impl<'a, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a> {
+impl<'a, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a, 'i> {
   type Declaration = ();
   type Error = ParserError<'i>;
 
@@ -136,7 +136,7 @@ impl<'a, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a> 
 }
 
 /// Default methods reject all at rules.
-impl<'a, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a> {
+impl<'a, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a, 'i> {
   type Prelude = ();
   type AtRule = ();
   type Error = ParserError<'i>;
@@ -145,8 +145,8 @@ impl<'a, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a> {
 pub(crate) fn parse_declaration<'i, 't>(
   name: CowRcStr<'i>,
   input: &mut cssparser::Parser<'i, 't>,
-  declarations: &mut DeclarationList,
-  important_declarations: &mut DeclarationList,
+  declarations: &mut DeclarationList<'i>,
+  important_declarations: &mut DeclarationList<'i>,
   options: &ParserOptions
 ) -> Result<(), cssparser::ParseError<'i, ParserError<'i>>> {
   let property = input.parse_until_before(Delimiter::Bang, |input| Property::parse(name, input, options))?;
@@ -162,35 +162,35 @@ pub(crate) fn parse_declaration<'i, 't>(
   Ok(())
 }
 
-pub(crate) type DeclarationList = Vec<Property>;
+pub(crate) type DeclarationList<'i> = Vec<Property<'i>>;
 
-pub(crate) struct DeclarationHandler {
-  background: BackgroundHandler,
-  border: BorderHandler,
+pub(crate) struct DeclarationHandler<'i> {
+  background: BackgroundHandler<'i>,
+  border: BorderHandler<'i>,
   outline: OutlineHandler,
   flex: FlexHandler,
-  grid: GridHandler,
+  grid: GridHandler<'i>,
   align: AlignHandler,
   size: SizeHandler,
   margin: MarginHandler,
   padding: PaddingHandler,
   scroll_margin: ScrollMarginHandler,
   scroll_padding: ScrollPaddingHandler,
-  font: FontHandler,
-  text: TextDecorationHandler,
-  list: ListStyleHandler,
-  transition: TransitionHandler,
-  animation: AnimationHandler,
-  display: DisplayHandler,
+  font: FontHandler<'i>,
+  text: TextDecorationHandler<'i>,
+  list: ListStyleHandler<'i>,
+  transition: TransitionHandler<'i>,
+  animation: AnimationHandler<'i>,
+  display: DisplayHandler<'i>,
   position: PositionHandler,
   inset: InsetHandler,
   overflow: OverflowHandler,
   transform: TransformHandler,
   prefix: PrefixHandler,
-  decls: DeclarationList
+  decls: DeclarationList<'i>
 }
 
-impl DeclarationHandler {
+impl<'i> DeclarationHandler<'i> {
   pub fn new(targets: Option<Browsers>) -> Self {
     DeclarationHandler {
       background: BackgroundHandler::new(targets),
@@ -219,7 +219,7 @@ impl DeclarationHandler {
     }
   }
 
-  pub fn handle_property(&mut self, property: &Property, logical_properties: &mut LogicalProperties) -> bool {
+  pub fn handle_property(&mut self, property: &Property<'i>, logical_properties: &mut LogicalProperties) -> bool {
     self.background.handle_property(property, &mut self.decls, logical_properties) ||
     self.border.handle_property(property, &mut self.decls, logical_properties) ||
     self.outline.handle_property(property, &mut self.decls, logical_properties) ||

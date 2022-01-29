@@ -28,21 +28,21 @@ mod tests {
   use crate::css_modules::{CssModuleExports, CssModuleExport, CssModuleReference};
 
   fn test(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions::default()).unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
   }
 
   fn minify_test(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions::default()).unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet.to_css(PrinterOptions { minify: true, ..PrinterOptions::default() }).unwrap();
     assert_eq!(res.code, expected);
   }
 
   fn prefix_test(source: &str, expected: &str, targets: Browsers) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions::default()).unwrap();
     stylesheet.minify(MinifyOptions { targets: Some(targets), ..MinifyOptions::default() }).unwrap();
     let res = stylesheet.to_css(PrinterOptions { targets: Some(targets), ..PrinterOptions::default() }).unwrap();
     assert_eq!(res.code, expected);
@@ -60,21 +60,21 @@ mod tests {
       chrome: Some(95 << 16),
       ..Browsers::default()
     });
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(MinifyOptions { targets, ..MinifyOptions::default() }).unwrap();
     let res = stylesheet.to_css(PrinterOptions { targets, ..PrinterOptions::default() }).unwrap();
     assert_eq!(res.code, expected);
   }
 
   fn nesting_test_no_targets(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
   }
 
   fn css_modules_test(source: &str, expected: &str, expected_exports: CssModuleExports) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { css_modules: true, ..ParserOptions::default() }).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions { css_modules: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
@@ -82,7 +82,7 @@ mod tests {
   }
 
   fn custom_media_test(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { custom_media: true, ..ParserOptions::default() }).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions { custom_media: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(MinifyOptions {
       targets: Some(Browsers { chrome: Some(95 << 16), ..Browsers::default() }),
       ..MinifyOptions::default()
@@ -7943,13 +7943,16 @@ mod tests {
   #[test]
   fn test_custom_properties() {
     minify_test(".foo { --test: ; }", ".foo{--test: }");
-    minify_test(".foo { --test:  ; }", ".foo{--test:  }");
+    minify_test(".foo { --test:  ; }", ".foo{--test: }");
     minify_test(".foo { --test: foo; }", ".foo{--test:foo}");
     minify_test(".foo { --test:  foo; }", ".foo{--test:foo}");
     minify_test(".foo { --test: foo ; }", ".foo{--test:foo}");
     minify_test(".foo { --test: foo  ; }", ".foo{--test:foo}");
     minify_test(".foo { --test:foo; }", ".foo{--test:foo}");
     minify_test(".foo { --test:foo ; }", ".foo{--test:foo}");
+    minify_test(".foo { --test: var(--foo, 20px); }", ".foo{--test:var(--foo,20px)}");
+    minify_test(".foo { transition: var(--foo, 20px),\nvar(--bar, 40px); }", ".foo{transition:var(--foo,20px),var(--bar,40px)}");
+    minify_test(".foo { background: var(--color) var(--image); }", ".foo{background:var(--color)var(--image)}");
   }
 
   #[test]
@@ -9063,7 +9066,7 @@ mod tests {
       }
     "#};
 
-    let stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
+    let stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions::default()).unwrap();
     let res = stylesheet.to_css(PrinterOptions {
       pseudo_classes: Some(PseudoClasses {
         hover: Some("is-hovered"),
@@ -9087,7 +9090,7 @@ mod tests {
       }
     "#};
 
-    let stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { css_modules: true, ..ParserOptions::default() }).unwrap();
+    let stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions { css_modules: true, ..ParserOptions::default() }).unwrap();
     let res = stylesheet.to_css(PrinterOptions {
       pseudo_classes: Some(PseudoClasses {
         hover: Some("is-hovered"),
@@ -9164,7 +9167,7 @@ mod tests {
       }
     "#};
 
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions::default()).unwrap();
     stylesheet.minify(MinifyOptions {
       unused_symbols: vec!["bar", "other_id", "fade", "circles"].iter().map(|s| String::from(*s)).collect(),
       ..MinifyOptions::default()
@@ -9188,7 +9191,7 @@ mod tests {
       }
     "#};
 
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(MinifyOptions {
       unused_symbols: vec!["bar"].iter().map(|s| String::from(*s)).collect(),
       ..MinifyOptions::default()
@@ -9232,7 +9235,7 @@ mod tests {
       }
     "#};
 
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(MinifyOptions {
       unused_symbols: vec!["foo", "x"].iter().map(|s| String::from(*s)).collect(),
       ..MinifyOptions::default()
@@ -9671,7 +9674,7 @@ mod tests {
     );
 
     fn custom_media_error_test(source: &str, err: MinifyError) {
-      let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { custom_media: true, ..ParserOptions::default() }).unwrap();
+      let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions { custom_media: true, ..ParserOptions::default() }).unwrap();
       let res = stylesheet.minify(MinifyOptions {
         targets: Some(Browsers { chrome: Some(95 << 16), ..Browsers::default() }),
         ..MinifyOptions::default()

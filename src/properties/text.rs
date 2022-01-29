@@ -39,8 +39,8 @@ bitflags! {
   }
 }
 
-impl Parse for TextTransformOther {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for TextTransformOther {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let ident = input.expect_ident()?;
     match_ignore_ascii_case! { &ident,
@@ -78,8 +78,8 @@ pub struct TextTransform {
   pub other: TextTransformOther
 }
 
-impl Parse for TextTransform {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for TextTransform {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut case = None;
     let mut other = TextTransformOther::empty();
 
@@ -223,8 +223,8 @@ pub enum Spacing {
   Length(Length)
 }
 
-impl Parse for Spacing {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Spacing {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(Spacing::Normal)
     }
@@ -251,8 +251,8 @@ pub struct TextIndent {
   pub each_line: bool
 }
 
-impl Parse for TextIndent {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for TextIndent {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut value = None;
     let mut hanging = false;
     let mut each_line = false;
@@ -325,8 +325,8 @@ impl Default for TextDecorationLine {
   }
 }
 
-impl Parse for TextDecorationLine {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for TextDecorationLine {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut value = TextDecorationLine::empty();
     let mut any = false;
 
@@ -431,8 +431,8 @@ impl Default for TextDecorationThickness {
   }
 }
 
-impl Parse for TextDecorationThickness {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for TextDecorationThickness {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
       return Ok(TextDecorationThickness::Auto)
     }
@@ -464,8 +464,8 @@ pub struct TextDecoration {
   pub color: CssColor
 }
 
-impl Parse for TextDecoration {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for TextDecoration {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut line = None;
     let mut thickness = None;
     let mut style = None;
@@ -560,28 +560,28 @@ enum_property! {
 
 // https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-style-property
 #[derive(Debug, Clone, PartialEq)]
-pub enum TextEmphasisStyle {
+pub enum TextEmphasisStyle<'i> {
   None,
   Keyword {
     fill: TextEmphasisFillMode,
     shape: Option<TextEmphasisShape>
   },
-  String(String)
+  String(CowRcStr<'i>)
 }
 
-impl Default for TextEmphasisStyle {
-  fn default() -> TextEmphasisStyle {
+impl<'i> Default for TextEmphasisStyle<'i> {
+  fn default() -> TextEmphasisStyle<'i> {
     TextEmphasisStyle::None
   }
 }
 
-impl Parse for TextEmphasisStyle {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for TextEmphasisStyle<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(TextEmphasisStyle::None)
     }
 
-    if let Ok(s) = input.try_parse(|input| input.expect_string().map(|s| s.as_ref().to_owned())) {
+    if let Ok(s) = input.try_parse(|input| input.expect_string_cloned()) {
       return Ok(TextEmphasisStyle::String(s))
     }
 
@@ -600,7 +600,7 @@ impl Parse for TextEmphasisStyle {
   }
 }
 
-impl ToCss for TextEmphasisStyle {
+impl<'i> ToCss for TextEmphasisStyle<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       TextEmphasisStyle::None => dest.write_str("none"),
@@ -629,13 +629,13 @@ impl ToCss for TextEmphasisStyle {
 
 /// https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-property
 #[derive(Debug, Clone, PartialEq)]
-pub struct TextEmphasis {
-  pub style: TextEmphasisStyle,
+pub struct TextEmphasis<'i> {
+  pub style: TextEmphasisStyle<'i>,
   pub color: CssColor
 }
 
-impl Parse for TextEmphasis {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for TextEmphasis<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut style = None;
     let mut color = None;
 
@@ -664,7 +664,7 @@ impl Parse for TextEmphasis {
   }
 }
 
-impl ToCss for TextEmphasis {
+impl<'i> ToCss for TextEmphasis<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.style.to_css(dest)?;
 
@@ -698,8 +698,8 @@ pub struct TextEmphasisPosition {
   pub horizontal: TextEmphasisPositionHorizontal
 }
 
-impl Parse for TextEmphasisPosition {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for TextEmphasisPosition {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(horizontal) = input.try_parse(TextEmphasisPositionHorizontal::parse) {
       let vertical = TextEmphasisPositionVertical::parse(input)?;
       Ok(TextEmphasisPosition { horizontal, vertical })
@@ -723,20 +723,20 @@ impl ToCss for TextEmphasisPosition {
 }
 
 #[derive(Default)]
-pub(crate) struct TextDecorationHandler {
+pub(crate) struct TextDecorationHandler<'i> {
   targets: Option<Browsers>,
   line: Option<(TextDecorationLine, VendorPrefix)>,
   thickness: Option<TextDecorationThickness>,
   style: Option<(TextDecorationStyle, VendorPrefix)>,
   color: Option<(CssColor, VendorPrefix)>,
-  emphasis_style: Option<(TextEmphasisStyle, VendorPrefix)>,
+  emphasis_style: Option<(TextEmphasisStyle<'i>, VendorPrefix)>,
   emphasis_color: Option<(CssColor, VendorPrefix)>,
   emphasis_position: Option<(TextEmphasisPosition, VendorPrefix)>,
   has_any: bool
 }
 
-impl TextDecorationHandler {
-  pub fn new(targets: Option<Browsers>) -> TextDecorationHandler {
+impl<'i> TextDecorationHandler<'i> {
+  pub fn new(targets: Option<Browsers>) -> TextDecorationHandler<'i> {
     TextDecorationHandler {
       targets,
       ..TextDecorationHandler::default()
@@ -744,8 +744,8 @@ impl TextDecorationHandler {
   }
 }
 
-impl PropertyHandler for TextDecorationHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
+impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -839,7 +839,7 @@ impl PropertyHandler for TextDecorationHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) {
     if !self.has_any {
       return
     }
@@ -952,8 +952,8 @@ pub struct TextShadow {
   pub spread: Length, // added in Level 4 spec
 }
 
-impl Parse for TextShadow {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for TextShadow {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut color = None;
     let mut lengths = None;
 

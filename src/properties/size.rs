@@ -21,8 +21,8 @@ pub enum Size {
   FitContent(LengthPercentage)
 }
 
-impl Parse for Size {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Size {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("auto")).is_ok() {
       return Ok(Size::Auto);
     }
@@ -75,8 +75,8 @@ pub enum MinMaxSize {
   FitContent(LengthPercentage)
 }
 
-impl Parse for MinMaxSize {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for MinMaxSize {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
       return Ok(MinMaxSize::None);
     }
@@ -134,8 +134,8 @@ enum_property! {
 #[derive(Default)]
 pub(crate) struct SizeHandler;
 
-impl PropertyHandler for SizeHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
+impl<'i> PropertyHandler<'i> for SizeHandler {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
     let logical_supported = logical.is_supported(Feature::LogicalSize);
     
     macro_rules! logical {

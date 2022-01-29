@@ -24,8 +24,8 @@ impl Default for CssColor {
   }
 }
 
-impl Parse for CssColor {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for CssColor {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(color) = input.try_parse(Color::parse) {
       return Ok(CssColor(color))
     }

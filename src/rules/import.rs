@@ -6,15 +6,15 @@ use super::supports::SupportsCondition;
 use crate::error::PrinterError;
 
 /// https://drafts.csswg.org/css-cascade/#at-import
-#[derive(Debug, PartialEq)]
-pub struct ImportRule {
-  pub url: String,
-  pub supports: Option<SupportsCondition>,
-  pub media: MediaList,
+#[derive(Debug, PartialEq, Clone)]
+pub struct ImportRule<'i> {
+  pub url: CowRcStr<'i>,
+  pub supports: Option<SupportsCondition<'i>>,
+  pub media: MediaList<'i>,
   pub loc: SourceLocation
 }
 
-impl ToCss for ImportRule {
+impl<'i> ToCss for ImportRule<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.add_mapping(self.loc);
     dest.write_str("@import ")?;

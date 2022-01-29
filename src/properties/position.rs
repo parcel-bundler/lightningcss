@@ -19,8 +19,8 @@ pub enum Position {
   Fixed
 }
 
-impl Parse for Position {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Position {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let ident = input.expect_ident()?;
     match_ignore_ascii_case! { &*ident,
@@ -67,8 +67,8 @@ impl PositionHandler {
   }
 }
 
-impl PropertyHandler for PositionHandler {
-  fn handle_property(&mut self, property: &Property, _: &mut DeclarationList, _: &mut LogicalProperties) -> bool {
+impl<'i> PropertyHandler<'i> for PositionHandler {
+  fn handle_property(&mut self, property: &Property<'i>, _: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
     if let Property::Position(position) = property {
       if let (Some(Position::Sticky(cur)), Position::Sticky(new)) = (&mut self.position, position) {
         *cur |= *new;

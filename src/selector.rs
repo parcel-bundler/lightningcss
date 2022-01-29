@@ -16,21 +16,21 @@ use std::collections::HashSet;
 pub struct Selectors;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct SelectorString(pub String);
+pub struct SelectorString<'a>(pub CowRcStr<'a>);
 
-impl<'a> std::convert::From<&'a str> for SelectorString {
-  fn from(s: &str) -> SelectorString {
-    SelectorString(s.into())
+impl<'a> std::convert::From<CowRcStr<'a>> for SelectorString<'a> {
+  fn from(s: CowRcStr<'a>) -> SelectorString<'a> {
+    SelectorString(s)
   }
 }
 
-impl cssparser::ToCss for SelectorString {
+impl<'a> cssparser::ToCss for SelectorString<'a> {
   fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
     write!(CssStringWriter::new(dest), "{}", &self.0)
   }
 }
 
-impl SelectorString {
+impl<'a> SelectorString<'a> {
   pub fn write_identifier<W>(&self, dest: &mut W)-> Result<(), PrinterError> where W: fmt::Write {
     serialize_identifier(&self.0, dest)?;
     Ok(())
@@ -38,43 +38,43 @@ impl SelectorString {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
-pub struct SelectorIdent(pub String);
+pub struct SelectorIdent<'i>(pub CowRcStr<'i>);
 
-impl<'a> std::convert::From<&'a str> for SelectorIdent {
-  fn from(s: &str) -> SelectorIdent {
-    SelectorIdent(s.into())
+impl<'a> std::convert::From<CowRcStr<'a>> for SelectorIdent<'a> {
+  fn from(s: CowRcStr<'a>) -> SelectorIdent {
+    SelectorIdent(s)
   }
 }
 
-impl cssparser::ToCss for SelectorIdent {
+impl<'i> cssparser::ToCss for SelectorIdent<'i> {
   fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
     serialize_identifier(&self.0, dest)
   }
 }
 
-impl SelectorImpl for Selectors {
-  type AttrValue = SelectorString;
-  type Identifier = SelectorIdent;
-  type LocalName = SelectorIdent;
-  type NamespacePrefix = SelectorIdent;
-  type NamespaceUrl = SelectorIdent;
-  type BorrowedNamespaceUrl = SelectorIdent;
-  type BorrowedLocalName = SelectorIdent;
+impl<'i> SelectorImpl<'i> for Selectors {
+  type AttrValue = SelectorString<'i>;
+  type Identifier = SelectorIdent<'i>;
+  type LocalName = SelectorIdent<'i>;
+  type NamespacePrefix = SelectorIdent<'i>;
+  type NamespaceUrl = SelectorIdent<'i>;
+  type BorrowedNamespaceUrl = SelectorIdent<'i>;
+  type BorrowedLocalName = SelectorIdent<'i>;
 
-  type NonTSPseudoClass = PseudoClass;
-  type PseudoElement = PseudoElement;
+  type NonTSPseudoClass = PseudoClass<'i>;
+  type PseudoElement = PseudoElement<'i>;
 
   type ExtraMatchingData = ();
 }
 
-pub struct SelectorParser<'a> {
-  pub default_namespace: &'a Option<String>,
-  pub namespace_prefixes: &'a HashMap<String, String>,
+pub struct SelectorParser<'a, 'i> {
+  pub default_namespace: &'a Option<CowRcStr<'i>>,
+  pub namespace_prefixes: &'a HashMap<CowRcStr<'i>, CowRcStr<'i>>,
   pub is_nesting_allowed: bool,
   pub css_modules: bool
 }
 
-impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a> {
+impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
   type Impl = Selectors;
   type Error = ParserError<'i>;
 
@@ -82,7 +82,7 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a> {
     &self,
     _: SourceLocation,
     name: CowRcStr<'i>,
-  ) -> Result<PseudoClass, ParseError<'i, Self::Error>> {
+  ) -> Result<PseudoClass<'i>, ParseError<'i, Self::Error>> {
       use PseudoClass::*;
       let pseudo_class = match_ignore_ascii_case! { &name,
         // https://drafts.csswg.org/selectors-4/#useraction-pseudos
@@ -153,7 +153,7 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a> {
         "-webkit-autofill" => Autofill(VendorPrefix::WebKit),
         "-o-autofill" => Autofill(VendorPrefix::O),
 
-        _ => Custom(name.as_ref().into())
+        _ => Custom(name)
       };
 
       Ok(pseudo_class)
@@ -163,7 +163,7 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a> {
       &self,
       name: CowRcStr<'i>,
       parser: &mut cssparser::Parser<'i, 't>,
-  ) -> Result<PseudoClass, ParseError<'i, Self::Error>> {
+  ) -> Result<PseudoClass<'i>, ParseError<'i, Self::Error>> {
       use PseudoClass::*;
       let pseudo_class = match_ignore_ascii_case! { &name,
         "lang" => Lang(parser.expect_ident_or_string()?.as_ref().into()),
@@ -180,7 +180,7 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a> {
     &self,
     _: SourceLocation,
     name: CowRcStr<'i>,
-  ) -> Result<PseudoElement, ParseError<'i, Self::Error>> {
+  ) -> Result<PseudoElement<'i>, ParseError<'i, Self::Error>> {
     use PseudoElement::*;
     let pseudo_element = match_ignore_ascii_case! { &name,
       "before" => Before,
@@ -199,7 +199,7 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a> {
       "file-selector-button" => FileSelectorButton(VendorPrefix::None),
       "-webkit-file-upload-button" => FileSelectorButton(VendorPrefix::WebKit),
       "-ms-browse" => FileSelectorButton(VendorPrefix::Ms),
-      _ => Custom(name.as_ref().into())
+      _ => Custom(name)
     };
 
     Ok(pseudo_element)
@@ -225,11 +225,11 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a> {
     true
   }
 
-  fn default_namespace(&self) -> Option<SelectorIdent> {
+  fn default_namespace(&self) -> Option<SelectorIdent<'i>> {
     self.default_namespace.clone().map(SelectorIdent)
   }
 
-  fn namespace_for_prefix(&self, prefix: &SelectorIdent) -> Option<SelectorIdent> {
+  fn namespace_for_prefix(&self, prefix: &SelectorIdent<'i>) -> Option<SelectorIdent<'i>> {
     self.namespace_prefixes.get(&prefix.0).cloned().map(SelectorIdent)
   }
 
@@ -241,7 +241,7 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a> {
 
 /// https://drafts.csswg.org/selectors-4/#structural-pseudos
 #[derive(Clone, Eq, PartialEq)]
-pub enum PseudoClass {
+pub enum PseudoClass<'i> {
   // https://drafts.csswg.org/selectors-4/#linguistic-pseudos
   Lang(Box<str>),
   Dir(Box<str>),
@@ -304,13 +304,13 @@ pub enum PseudoClass {
   Autofill(VendorPrefix),
 
   // CSS modules
-  Local(Box<parcel_selectors::parser::Selector<Selectors>>),
-  Global(Box<parcel_selectors::parser::Selector<Selectors>>),
+  Local(Box<parcel_selectors::parser::Selector<'i, Selectors>>),
+  Global(Box<parcel_selectors::parser::Selector<'i, Selectors>>),
 
-  Custom(String)
+  Custom(CowRcStr<'i>)
 }
 
-impl parcel_selectors::parser::NonTSPseudoClass for PseudoClass {
+impl<'i> parcel_selectors::parser::NonTSPseudoClass<'i> for PseudoClass<'i> {
   type Impl = Selectors;
 
   fn is_active_or_hover(&self) -> bool {
@@ -322,14 +322,14 @@ impl parcel_selectors::parser::NonTSPseudoClass for PseudoClass {
   }
 }
 
-impl cssparser::ToCss for PseudoClass {
+impl<'i> cssparser::ToCss for PseudoClass<'i> {
   fn to_css<W>(&self, _: &mut W)-> std::fmt::Result where W: fmt::Write {
     unreachable!()
   }
 }
 
-impl ToCssWithContext for PseudoClass {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> Result<(), PrinterError> where W: fmt::Write {
+impl<'a, 'i> ToCssWithContext<'a, 'i> for PseudoClass<'i> {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext<'a, 'i>>) -> Result<(), PrinterError> where W: fmt::Write {
       use PseudoClass::*;
       match &self {
         Lang(lang) => {
@@ -464,8 +464,8 @@ impl ToCssWithContext for PseudoClass {
   }
 }
 
-impl PseudoClass {
-  pub fn is_equivalent(&self, other: &PseudoClass) -> bool {
+impl<'i> PseudoClass<'i> {
+  pub fn is_equivalent(&self, other: &PseudoClass<'i>) -> bool {
     use PseudoClass::*;
     match (self, other) {
       (Fullscreen(_), Fullscreen(_)) |
@@ -510,7 +510,7 @@ impl PseudoClass {
 
 
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
-pub enum PseudoElement {
+pub enum PseudoElement<'i> {
   After,
   Before,
   FirstLine,
@@ -520,16 +520,16 @@ pub enum PseudoElement {
   Marker,
   Backdrop(VendorPrefix),
   FileSelectorButton(VendorPrefix),
-  Custom(String)
+  Custom(CowRcStr<'i>)
 }
 
-impl cssparser::ToCss for PseudoElement {
+impl<'i> cssparser::ToCss for PseudoElement<'i> {
   fn to_css<W>(&self, _: &mut W)-> std::fmt::Result where W: fmt::Write {
     unreachable!();
   }
 }
 
-impl ToCss for PseudoElement {
+impl<'i> ToCss for PseudoElement<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: fmt::Write {
     use PseudoElement::*;
 
@@ -591,7 +591,7 @@ impl ToCss for PseudoElement {
   }
 }
 
-impl parcel_selectors::parser::PseudoElement for PseudoElement {
+impl<'i> parcel_selectors::parser::PseudoElement<'i> for PseudoElement<'i> {
   type Impl = Selectors;
 
   fn accepts_state_pseudo_classes(&self) -> bool {
@@ -614,7 +614,7 @@ impl parcel_selectors::parser::PseudoElement for PseudoElement {
   }
 }
 
-impl PseudoElement {
+impl<'i> PseudoElement<'i> {
   pub fn is_equivalent(&self, other: &PseudoElement) -> bool {
     use PseudoElement::*;
     match (self, other) {
@@ -652,8 +652,8 @@ impl PseudoElement {
   }
 }
 
-impl ToCssWithContext for SelectorList<Selectors> {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>)-> Result<(), PrinterError> where W: fmt::Write {
+impl<'a, 'i> ToCssWithContext<'a, 'i> for SelectorList<'i, Selectors> {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext<'a, 'i>>)-> Result<(), PrinterError> where W: fmt::Write {
     serialize_selector_list(self.0.iter(), dest, context)
   }
 }
@@ -674,8 +674,8 @@ impl ToCss for Combinator {
 }
 
 // Copied from the selectors crate and modified to override to_css implementation.
-impl ToCssWithContext for parcel_selectors::parser::Selector<Selectors> {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>)-> Result<(), PrinterError>
+impl<'a, 'i> ToCssWithContext<'a, 'i> for parcel_selectors::parser::Selector<'i, Selectors> {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext<'a, 'i>>)-> Result<(), PrinterError>
   where
       W: fmt::Write,
   {
@@ -835,8 +835,8 @@ impl ToCssWithContext for parcel_selectors::parser::Selector<Selectors> {
   }
 }
 
-impl ToCssWithContext for Component<Selectors> {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>)-> Result<(), PrinterError> where W: fmt::Write {
+impl<'a, 'i> ToCssWithContext<'a, 'i> for Component<'i, Selectors> {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext<'a, 'i>>)-> Result<(), PrinterError> where W: fmt::Write {
     use Component::*;
     match &self {
       Combinator(ref c) => c.to_css(dest),
@@ -972,9 +972,9 @@ fn is_namespace(component: Option<&Component<Selectors>>) -> bool {
   )
 }
 
-fn serialize_selector_list<'a, I, W>(iter: I, dest: &mut Printer<W>, context: Option<&StyleContext>)-> Result<(), PrinterError>
+fn serialize_selector_list<'a, 'i: 'a, I, W>(iter: I, dest: &mut Printer<W>, context: Option<&StyleContext<'_, 'i>>)-> Result<(), PrinterError>
 where
-    I: Iterator<Item = &'a Selector<Selectors>>,
+    I: Iterator<Item = &'a Selector<'i, Selectors>>,
     W: fmt::Write,
 {
   let mut first = true;
@@ -1160,7 +1160,7 @@ pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browse
 }
 
 /// Returns whether two selector lists are equivalent, i.e. the same minus any vendor prefix differences.
-pub fn is_equivalent(selectors: &SelectorList<Selectors>, other: &SelectorList<Selectors>) -> bool {
+pub fn is_equivalent<'i>(selectors: &SelectorList<'i, Selectors>, other: &SelectorList<'i, Selectors>) -> bool {
   if selectors.0.len() != other.0.len() {
     return false
   }
@@ -1241,7 +1241,7 @@ pub fn is_unused(selectors: &mut std::slice::Iter<Selector<Selectors>>, unused_s
     for component in selector.iter_raw_match_order() {
       match component {
         Component::Class(name) | Component::ID(name) => {
-          if unused_symbols.contains(&name.0) {
+          if unused_symbols.contains(&name.0.to_string()) {
             return true
           }
         }

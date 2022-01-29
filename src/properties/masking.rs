@@ -55,8 +55,8 @@ pub enum MaskClip {
   NoClip
 }
 
-impl Parse for MaskClip {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for MaskClip {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(b) = input.try_parse(GeometryBox::parse) {
       return Ok(MaskClip::GeometryBox(b))
     }
@@ -93,8 +93,8 @@ enum_property! {
 
 /// https://www.w3.org/TR/css-masking-1/#the-mask
 #[derive(Debug, Clone, PartialEq)]
-pub struct Mask {
-  pub image: Image,
+pub struct Mask<'i> {
+  pub image: Image<'i>,
   pub position: Position,
   pub size: BackgroundSize,
   pub repeat: BackgroundRepeat,
@@ -104,8 +104,8 @@ pub struct Mask {
   pub mode: MaskMode
 }
 
-impl Parse for Mask {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Mask<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut image: Option<Image> = None;
     let mut position: Option<Position> = None;
     let mut size: Option<BackgroundSize> = None;
@@ -191,7 +191,7 @@ impl Parse for Mask {
   }
 }
 
-impl ToCss for Mask {
+impl<'i> ToCss for Mask<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.image.to_css(dest)?;
 
@@ -236,15 +236,15 @@ impl ToCss for Mask {
 
 /// https://www.w3.org/TR/css-masking-1/#the-clip-path
 #[derive(Debug, Clone, PartialEq)]
-pub enum ClipPath {
+pub enum ClipPath<'i> {
   None,
-  Url(Url),
+  Url(Url<'i>),
   Shape(Box<BasicShape>, GeometryBox),
   Box(GeometryBox)
 }
 
-impl Parse for ClipPath {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for ClipPath<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(url) = input.try_parse(Url::parse) {
       return Ok(ClipPath::Url(url))
     }
@@ -266,7 +266,7 @@ impl Parse for ClipPath {
   }
 }
 
-impl ToCss for ClipPath {
+impl<'i> ToCss for ClipPath<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       ClipPath::None => dest.write_str("none"),
@@ -300,13 +300,13 @@ impl Default for MaskBorderMode {
 
 /// https://www.w3.org/TR/css-masking-1/#the-mask-border
 #[derive(Debug, Clone, PartialEq)]
-pub struct MaskBorder {
-  pub border_image: BorderImage,
+pub struct MaskBorder<'i> {
+  pub border_image: BorderImage<'i>,
   pub mode: MaskBorderMode
 }
 
-impl Parse for MaskBorder {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for MaskBorder<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut mode: Option<MaskBorderMode> = None;
     let border_image = BorderImage::parse_with_callback(input, |input| {
       if mode.is_none() {
@@ -329,7 +329,7 @@ impl Parse for MaskBorder {
   }
 }
 
-impl ToCss for MaskBorder {
+impl<'i> ToCss for MaskBorder<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.border_image.to_css(dest)?;
     if self.mode != MaskBorderMode::default() {

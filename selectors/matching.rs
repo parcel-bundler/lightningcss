@@ -59,19 +59,19 @@ impl ElementSelectorFlags {
 }
 
 /// Holds per-compound-selector data.
-struct LocalMatchingContext<'a, 'b: 'a, Impl: SelectorImpl> {
-    shared: &'a mut MatchingContext<'b, Impl>,
+struct LocalMatchingContext<'a, 'b: 'a, 'i, Impl: SelectorImpl<'i>> {
+    shared: &'a mut MatchingContext<'b, 'i, Impl>,
     matches_hover_and_active_quirk: MatchesHoverAndActiveQuirk,
 }
 
 #[inline(always)]
-pub fn matches_selector_list<E>(
-    selector_list: &SelectorList<E::Impl>,
+pub fn matches_selector_list<'i, E>(
+    selector_list: &SelectorList<'i, E::Impl>,
     element: &E,
-    context: &mut MatchingContext<E::Impl>,
+    context: &mut MatchingContext<'_, 'i, E::Impl>,
 ) -> bool
 where
-    E: Element,
+    E: Element<'i>,
 {
     // This is pretty much any(..) but manually inlined because the compiler
     // refuses to do so from querySelector / querySelectorAll.
@@ -182,16 +182,16 @@ enum MatchesHoverAndActiveQuirk {
 /// unncessary cache miss for cases when we can fast-reject with AncestorHashes
 /// (which the caller can store inline with the selector pointer).
 #[inline(always)]
-pub fn matches_selector<E, F>(
-    selector: &Selector<E::Impl>,
+pub fn matches_selector<'i, E, F>(
+    selector: &Selector<'i, E::Impl>,
     offset: usize,
     hashes: Option<&AncestorHashes>,
     element: &E,
-    context: &mut MatchingContext<E::Impl>,
+    context: &mut MatchingContext<'_, 'i, E::Impl>,
     flags_setter: &mut F,
 ) -> bool
 where
-    E: Element,
+    E: Element<'i>,
     F: FnMut(&E, ElementSelectorFlags),
 {
     // Use the bloom filter to fast-reject.
@@ -225,14 +225,14 @@ pub enum CompoundSelectorMatchingResult {
 ///
 /// NOTE(emilio): This doesn't allow to match in the leftmost sequence of the
 /// complex selector, but it happens to be the case we don't need it.
-pub fn matches_compound_selector_from<E>(
-    selector: &Selector<E::Impl>,
+pub fn matches_compound_selector_from<'i, E>(
+    selector: &Selector<'i, E::Impl>,
     mut from_offset: usize,
-    context: &mut MatchingContext<E::Impl>,
+    context: &mut MatchingContext<'_, 'i, E::Impl>,
     element: &E,
 ) -> CompoundSelectorMatchingResult
 where
-    E: Element,
+    E: Element<'i>,
 {
     if cfg!(debug_assertions) && from_offset != 0 {
         selector.combinator_at_parse_order(from_offset - 1); // This asserts.
@@ -291,14 +291,14 @@ where
 
 /// Matches a complex selector.
 #[inline(always)]
-pub fn matches_complex_selector<E, F>(
-    mut iter: SelectorIter<E::Impl>,
+pub fn matches_complex_selector<'i, E, F>(
+    mut iter: SelectorIter<'_, 'i, E::Impl>,
     element: &E,
-    context: &mut MatchingContext<E::Impl>,
+    context: &mut MatchingContext<'_, 'i, E::Impl>,
     flags_setter: &mut F,
 ) -> bool
 where
-    E: Element,
+    E: Element<'i>,
     F: FnMut(&E, ElementSelectorFlags),
 {
     // If this is the special pseudo-element mode, consume the ::pseudo-element
@@ -338,9 +338,9 @@ where
 }
 
 #[inline]
-fn matches_hover_and_active_quirk<Impl: SelectorImpl>(
-    selector_iter: &SelectorIter<Impl>,
-    context: &MatchingContext<Impl>,
+fn matches_hover_and_active_quirk<'i, Impl: SelectorImpl<'i>>(
+    selector_iter: &SelectorIter<'_, 'i, Impl>,
+    context: &MatchingContext<'_, 'i, Impl>,
     rightmost: Rightmost,
 ) -> MatchesHoverAndActiveQuirk {
     if context.quirks_mode() != QuirksMode::Quirks {
@@ -397,14 +397,14 @@ enum Rightmost {
 }
 
 #[inline(always)]
-fn next_element_for_combinator<E>(
+fn next_element_for_combinator<'i, E>(
     element: &E,
     combinator: Combinator,
-    selector: &SelectorIter<E::Impl>,
-    context: &MatchingContext<E::Impl>,
+    selector: &SelectorIter<'_, 'i, E::Impl>,
+    context: &MatchingContext<'_, 'i, E::Impl>,
 ) -> Option<E>
 where
-    E: Element,
+    E: Element<'i>,
 {
     match combinator {
         Combinator::NextSibling | Combinator::LaterSibling => element.prev_sibling_element(),
@@ -456,15 +456,15 @@ where
     }
 }
 
-fn matches_complex_selector_internal<E, F>(
-    mut selector_iter: SelectorIter<E::Impl>,
+fn matches_complex_selector_internal<'i, E, F>(
+    mut selector_iter: SelectorIter<'_, 'i, E::Impl>,
     element: &E,
-    context: &mut MatchingContext<E::Impl>,
+    context: &mut MatchingContext<'_, 'i, E::Impl>,
     flags_setter: &mut F,
     rightmost: Rightmost,
 ) -> SelectorMatchingResult
 where
-    E: Element,
+    E: Element<'i>,
     F: FnMut(&E, ElementSelectorFlags),
 {
     debug!(
@@ -578,9 +578,9 @@ where
 }
 
 #[inline]
-fn matches_local_name<E>(element: &E, local_name: &LocalName<E::Impl>) -> bool
+fn matches_local_name<'i, E>(element: &E, local_name: &LocalName<'i, E::Impl>) -> bool
 where
-    E: Element,
+    E: Element<'i>,
 {
     let name = select_name(
         element.is_html_element_in_html_document(),
@@ -593,15 +593,15 @@ where
 
 /// Determines whether the given element matches the given compound selector.
 #[inline]
-fn matches_compound_selector<E, F>(
-    selector_iter: &mut SelectorIter<E::Impl>,
+fn matches_compound_selector<'i, E, F>(
+    selector_iter: &mut SelectorIter<'_, 'i, E::Impl>,
     element: &E,
-    context: &mut MatchingContext<E::Impl>,
+    context: &mut MatchingContext<'_, 'i, E::Impl>,
     flags_setter: &mut F,
     rightmost: Rightmost,
 ) -> bool
 where
-    E: Element,
+    E: Element<'i>,
     F: FnMut(&E, ElementSelectorFlags),
 {
     let matches_hover_and_active_quirk =
@@ -645,14 +645,14 @@ where
 }
 
 /// Determines whether the given element matches the given single selector.
-fn matches_simple_selector<E, F>(
-    selector: &Component<E::Impl>,
+fn matches_simple_selector<'i, E, F>(
+    selector: &Component<'i, E::Impl>,
     element: &E,
-    context: &mut LocalMatchingContext<E::Impl>,
+    context: &mut LocalMatchingContext<'_, '_, 'i, E::Impl>,
     flags_setter: &mut F,
 ) -> bool
 where
-    E: Element,
+    E: Element<'i>,
     F: FnMut(&E, ElementSelectorFlags),
 {
     debug_assert!(context.shared.is_nested() || !context.shared.in_negation());
@@ -872,9 +872,9 @@ fn select_name<'a, T>(is_html: bool, local_name: &'a T, local_name_lower: &'a T)
 }
 
 #[inline]
-fn matches_generic_nth_child<E, F>(
+fn matches_generic_nth_child<'i, E, F>(
     element: &E,
-    context: &mut LocalMatchingContext<E::Impl>,
+    context: &mut LocalMatchingContext<'_, '_, 'i, E::Impl>,
     a: i32,
     b: i32,
     is_of_type: bool,
@@ -882,7 +882,7 @@ fn matches_generic_nth_child<E, F>(
     flags_setter: &mut F,
 ) -> bool
 where
-    E: Element,
+    E: Element<'i>,
     F: FnMut(&E, ElementSelectorFlags),
 {
     if element.ignores_nth_child_selectors() {
@@ -932,14 +932,14 @@ where
 }
 
 #[inline]
-fn nth_child_index<E>(
+fn nth_child_index<'i, E>(
     element: &E,
     is_of_type: bool,
     is_from_end: bool,
     mut cache: Option<&mut NthIndexCacheInner>,
 ) -> i32
 where
-    E: Element,
+    E: Element<'i>,
 {
     // The traversal mostly processes siblings left to right. So when we walk
     // siblings to the right when computing NthLast/NthLastOfType we're unlikely
@@ -991,9 +991,9 @@ where
 }
 
 #[inline]
-fn matches_first_child<E, F>(element: &E, flags_setter: &mut F) -> bool
+fn matches_first_child<'i, E, F>(element: &E, flags_setter: &mut F) -> bool
 where
-    E: Element,
+    E: Element<'i>,
     F: FnMut(&E, ElementSelectorFlags),
 {
     flags_setter(element, ElementSelectorFlags::HAS_EDGE_CHILD_SELECTOR);
@@ -1001,9 +1001,9 @@ where
 }
 
 #[inline]
-fn matches_last_child<E, F>(element: &E, flags_setter: &mut F) -> bool
+fn matches_last_child<'i, E, F>(element: &E, flags_setter: &mut F) -> bool
 where
-    E: Element,
+    E: Element<'i>,
     F: FnMut(&E, ElementSelectorFlags),
 {
     flags_setter(element, ElementSelectorFlags::HAS_EDGE_CHILD_SELECTOR);

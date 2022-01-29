@@ -5,20 +5,20 @@ use crate::dependencies::{Dependency, UrlDependency};
 use crate::error::{ParserError, PrinterError};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Url {
-  pub url: String,
+pub struct Url<'i> {
+  pub url: CowRcStr<'i>,
   pub loc: SourceLocation
 }
 
-impl Parse for Url {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Url<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let loc = input.current_source_location();
-    let url = input.expect_url()?.as_ref().to_owned();
+    let url = input.expect_url()?;
     Ok(Url { url, loc })
   }
 }
 
-impl ToCss for Url {
+impl<'i> ToCss for Url<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let dep = if dest.dependencies.is_some() {
       Some(UrlDependency::new(self, dest.filename))

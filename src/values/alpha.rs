@@ -8,8 +8,8 @@ use crate::error::{ParserError, PrinterError};
 #[derive(Debug, Clone, PartialEq)]
 pub struct AlphaValue(pub f32);
 
-impl Parse for AlphaValue {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for AlphaValue {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match NumberOrPercentage::parse(input)? {
       NumberOrPercentage::Percentage(percent) => Ok(AlphaValue(percent.0)),
       NumberOrPercentage::Number(number) => Ok(AlphaValue(number))

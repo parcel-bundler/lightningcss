@@ -32,8 +32,8 @@ impl Default for BorderRadius {
   }
 }
 
-impl Parse for BorderRadius {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for BorderRadius {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let widths: Rect<LengthPercentage> = Rect::parse(input)?;
     let heights = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
       Rect::parse(input)?
@@ -66,22 +66,22 @@ impl ToCss for BorderRadius {
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct BorderRadiusHandler {
+pub(crate) struct BorderRadiusHandler<'i> {
   targets: Option<Browsers>,
   top_left: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
   top_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
   bottom_left: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
   bottom_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
-  start_start: Option<Property>,
-  start_end: Option<Property>,
-  end_start: Option<Property>,
-  end_end: Option<Property>,
+  start_start: Option<Property<'i>>,
+  start_end: Option<Property<'i>>,
+  end_start: Option<Property<'i>>,
+  end_end: Option<Property<'i>>,
   category: PropertyCategory,
   has_any: bool
 }
 
-impl BorderRadiusHandler {
-  pub fn new(targets: Option<Browsers>) -> BorderRadiusHandler {
+impl<'i> BorderRadiusHandler<'i> {
+  pub fn new(targets: Option<Browsers>) -> Self {
     BorderRadiusHandler {
       targets,
       ..BorderRadiusHandler::default()
@@ -89,8 +89,8 @@ impl BorderRadiusHandler {
   }
 }
 
-impl PropertyHandler for BorderRadiusHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
+impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
     use Property::*;
 
     macro_rules! property {
@@ -171,13 +171,13 @@ impl PropertyHandler for BorderRadiusHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, logical: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) {
     self.flush(dest, logical);
   }
 }
 
-impl BorderRadiusHandler {
-  fn flush(&mut self, dest: &mut DeclarationList, logical: &mut LogicalProperties) {
+impl<'i> BorderRadiusHandler<'i> {
+  fn flush(&mut self, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) {
     if !self.has_any {
       return
     }

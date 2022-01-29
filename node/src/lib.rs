@@ -333,7 +333,7 @@ impl<'i> From<parcel_sourcemap::SourceMapError> for CompileError<'i> {
 impl<'i> From<CompileError<'i>> for napi::Error {
   fn from(e: CompileError) -> napi::Error {
     match e {
-      CompileError::SourceMapError(e) => e.into(),
+      CompileError::SourceMapError(e) => napi::Error::from_reason(e.to_string()),
       _ => napi::Error::new(napi::Status::GenericFailure, e.reason())
     }
   }

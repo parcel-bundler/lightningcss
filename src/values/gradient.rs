@@ -73,8 +73,8 @@ impl Gradient {
   }
 }
 
-impl Parse for Gradient {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Gradient {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let func = input.expect_function()?.clone();
     input.parse_nested_block(|input| {
@@ -206,8 +206,8 @@ pub struct RadialGradient {
   pub items: Vec<GradientItem<LengthPercentage>>,
 }
 
-impl Parse for RadialGradient {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<RadialGradient, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for RadialGradient {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<RadialGradient, ParseError<'i, ParserError<'i>>> {
     let shape = input.try_parse(EndingShape::parse).ok();
     let position = input.try_parse(|input| {
       input.expect_ident_matching("at")?;
@@ -334,8 +334,8 @@ impl Default for EndingShape {
   }
 }
 
-impl Parse for EndingShape {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for EndingShape {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // Note: Ellipse::parse MUST run before Circle::parse for this to be correct. 
     if let Ok(ellipse) = input.try_parse(Ellipse::parse) {
       return Ok(EndingShape::Ellipse(ellipse))
@@ -364,8 +364,8 @@ pub enum Circle {
   Extent(ShapeExtent)
 }
 
-impl Parse for Circle {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Circle {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(extent) = input.try_parse(ShapeExtent::parse) {
       // The `circle` keyword is required. If it's not there, then it's an ellipse.
       input.expect_ident_matching("circle")?;
@@ -418,8 +418,8 @@ pub enum Ellipse {
   Extent(ShapeExtent)
 }
 
-impl Parse for Ellipse {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Ellipse {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(extent) = input.try_parse(ShapeExtent::parse) {
       // The `ellipse` keyword is optional, but only if the `circle` keyword is not present.
       // If it is, then we'll re-parse as a circle.
@@ -541,8 +541,8 @@ pub struct ColorStop<D> {
   pub position: Option<D>
 }
 
-impl<D: Parse> Parse for ColorStop<D> {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i, D: Parse<'i>> Parse<'i> for ColorStop<D> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let color = CssColor::parse(input)?;
     let position = input.try_parse(D::parse).ok();
     Ok(ColorStop {color, position })
@@ -575,7 +575,7 @@ impl<D: ToCss> ToCss for GradientItem<D> {
   }
 }
 
-fn parse_items<'i, 't, D: Parse>(input: &mut Parser<'i, 't>) -> Result<Vec<GradientItem<D>>, ParseError<'i, ParserError<'i>>> {
+fn parse_items<'i, 't, D: Parse<'i>>(input: &mut Parser<'i, 't>) -> Result<Vec<GradientItem<D>>, ParseError<'i, ParserError<'i>>> {
   let mut items = Vec::new();
   let mut seen_stop = false;
 
@@ -672,8 +672,8 @@ pub enum WebKitGradient {
   }
 }
 
-impl Parse for WebKitGradient {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for WebKitGradient {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let ident = input.expect_ident_cloned()?;
     input.expect_comma()?;
@@ -755,8 +755,8 @@ pub struct WebKitColorStop {
   pub position: f32
 }
 
-impl Parse for WebKitColorStop {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for WebKitColorStop {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let function = input.expect_function()?.clone();
     input.parse_nested_block(|input| {
@@ -803,8 +803,8 @@ pub struct WebKitGradientPoint {
   pub y: WebKitGradientPointComponent<VerticalPositionKeyword>
 }
 
-impl Parse for WebKitGradientPoint {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for WebKitGradientPoint {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let x = WebKitGradientPointComponent::parse(input)?;
     let y = WebKitGradientPointComponent::parse(input)?;
     Ok(WebKitGradientPoint { x, y })
@@ -826,8 +826,8 @@ pub enum WebKitGradientPointComponent<S> {
   Side(S),
 }
 
-impl<S: Parse> Parse for WebKitGradientPointComponent<S> {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i, S: Parse<'i>> Parse<'i> for WebKitGradientPointComponent<S> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("center")).is_ok() {
       return Ok(WebKitGradientPointComponent::Center);
     }

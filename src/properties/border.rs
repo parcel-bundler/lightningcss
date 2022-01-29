@@ -33,8 +33,8 @@ impl Default for BorderSideWidth {
   }
 }
 
-impl Parse for BorderSideWidth {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for BorderSideWidth {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(length) = input.try_parse(|i| Length::parse(i)) {
       return Ok(BorderSideWidth::Length(length));
     }
@@ -99,8 +99,8 @@ impl<S: Default> Default for GenericBorder<S> {
   }
 }
 
-impl<S: Parse + Default> Parse for GenericBorder<S> {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i, S: Parse<'i> + Default> Parse<'i> for GenericBorder<S> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // Order doesn't matter...
     let mut color = None;
     let mut style = None;
@@ -226,7 +226,7 @@ macro_rules! get_physical {
 }
 
 #[derive(Debug)]
-pub(crate) struct BorderHandler {
+pub(crate) struct BorderHandler<'i> {
   border_top: BorderShorthand,
   border_bottom: BorderShorthand,
   border_left: BorderShorthand,
@@ -236,14 +236,14 @@ pub(crate) struct BorderHandler {
   border_inline_start: BorderShorthand,
   border_inline_end: BorderShorthand,
   category: PropertyCategory,
-  border_image_handler: BorderImageHandler,
-  border_radius_handler: BorderRadiusHandler,
+  border_image_handler: BorderImageHandler<'i>,
+  border_radius_handler: BorderRadiusHandler<'i>,
   has_any: bool,
   physical_to_logical: PhysicalToLogical
 }
 
-impl BorderHandler {
-  pub fn new(targets: Option<Browsers>) -> BorderHandler {
+impl<'i> BorderHandler<'i> {
+  pub fn new(targets: Option<Browsers>) -> Self {
     BorderHandler {
       border_top: BorderShorthand::default(),
       border_bottom: BorderShorthand::default(),
@@ -262,8 +262,8 @@ impl BorderHandler {
   }
 }
 
-impl PropertyHandler for BorderHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
+impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
     use Property::*;
 
     macro_rules! property {
@@ -413,14 +413,14 @@ impl PropertyHandler for BorderHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, logical: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) {
     self.border_image_handler.finalize(dest, logical);
     self.border_radius_handler.finalize(dest, logical);
     self.flush(dest, logical);
   }
 }
 
-impl BorderHandler {
+impl<'i> BorderHandler<'i> {
   fn flush(&mut self, dest: &mut DeclarationList, logical_properties: &mut LogicalProperties) {
     if !self.has_any {
       return
@@ -810,7 +810,7 @@ impl BorderHandler {
     self.border_inline_end.reset();
   }
 
-  fn flush_unparsed(&mut self, unparsed: &UnparsedProperty, dest: &mut DeclarationList, logical_properties: &mut LogicalProperties) {
+  fn flush_unparsed(&mut self, unparsed: &UnparsedProperty<'i>, dest: &mut DeclarationList<'i>, logical_properties: &mut LogicalProperties) {
     let logical_supported = logical_properties.is_supported(Feature::LogicalBorders);
     if logical_supported {
       dest.push(Property::Unparsed(unparsed.clone()));

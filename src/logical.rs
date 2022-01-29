@@ -1,4 +1,4 @@
-use cssparser::SourceLocation;
+use cssparser::{Token, SourceLocation};
 use crate::rules::{CssRule, CssRuleList, style::StyleRule};
 use parcel_selectors::SelectorList;
 use crate::selector::{SelectorIdent, SelectorString};
@@ -16,7 +16,7 @@ use parcel_selectors::{
 use crate::properties::{
   Property,
   PropertyId,
-  custom::CustomProperty,
+  custom::{CustomProperty, TokenList},
 };
 
 #[derive(Debug)]
@@ -41,7 +41,7 @@ impl LogicalProperties {
     }
   }
 
-  pub fn add(&mut self, dest: &mut DeclarationList, property_id: PropertyId, ltr: Property, rtl: Property) {
+  pub fn add<'i>(&mut self, dest: &mut DeclarationList<'i>, property_id: PropertyId<'i>, ltr: Property<'i>, rtl: Property<'i>) {
     self.used = true;
     dest.push(Property::Logical(LogicalProperty {
       property_id,
@@ -50,7 +50,7 @@ impl LogicalProperties {
     }));
   }
 
-  pub fn add_inline(&mut self, dest: &mut DeclarationList, left: PropertyId, right: PropertyId, start: Option<Property>, end: Option<Property>) {
+  pub fn add_inline<'i>(&mut self, dest: &mut DeclarationList<'i>, left: PropertyId<'i>, right: PropertyId<'i>, start: Option<Property<'i>>, end: Option<Property<'i>>) {
     self.used = true;
     dest.push(Property::Logical(LogicalProperty {
       property_id: left,
@@ -88,11 +88,11 @@ impl LogicalProperties {
             declarations: vec![
               Property::Custom(CustomProperty {
                 name: "--ltr".into(),
-                value: $ltr.into()
+                value: TokenList(vec![$ltr])
               }),
               Property::Custom(CustomProperty {
                 name: "--rtl".into(),
-                value: $rtl.into()
+                value: TokenList(vec![$rtl])
               })
             ]
           },
@@ -105,20 +105,20 @@ impl LogicalProperties {
     }
 
     if self.used {
-      style_rule!(ltr, "initial", " ");
-      style_rule!(rtl, " ", "initial");
+      style_rule!(ltr, Token::Ident("initial".into()), Token::WhiteSpace(" "));
+      style_rule!(rtl, Token::WhiteSpace(" "), Token::Ident("initial".into()));
     }
   }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct LogicalProperty {
-  pub property_id: PropertyId,
-  pub ltr: Option<Box<Property>>,
-  pub rtl: Option<Box<Property>>
+pub struct LogicalProperty<'i> {
+  pub property_id: PropertyId<'i>,
+  pub ltr: Option<Box<Property<'i>>>,
+  pub rtl: Option<Box<Property<'i>>>
 }
 
-impl ToCss for LogicalProperty {
+impl<'i> ToCss for LogicalProperty<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if let Some(ltr) = &self.ltr {
       dest.write_str("var(--ltr,")?;

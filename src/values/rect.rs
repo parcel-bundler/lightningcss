@@ -65,11 +65,11 @@ where
     }
   }
 
-impl<T> Parse for Rect<T>
+impl<'i, T> Parse<'i> for Rect<T>
 where
-  T: Clone + PartialEq + Parse
+  T: Clone + PartialEq + Parse<'i>
 {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Self::parse_with(input, T::parse)
   }
 }

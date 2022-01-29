@@ -9,8 +9,8 @@ use crate::error::{ParserError, PrinterError};
 #[derive(Debug, Clone, PartialEq)]
 pub struct Percentage(pub f32);
 
-impl Parse for Percentage {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Percentage {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
       // Percentages are always compatible, so they will always compute to a value.
@@ -107,8 +107,8 @@ pub enum NumberOrPercentage {
   Number(f32),
 }
 
-impl Parse for NumberOrPercentage {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for NumberOrPercentage {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(number) = input.try_parse(f32::parse) {
       return Ok(NumberOrPercentage::Number(number))
     }
@@ -158,8 +158,8 @@ pub enum DimensionPercentage<D> {
   Calc(Box<Calc<DimensionPercentage<D>>>)
 }
 
-impl<D: Parse + std::ops::Mul<f32, Output = D> + TryAdd<D> + Clone + std::cmp::PartialEq<f32> + std::cmp::PartialOrd<f32> + std::cmp::PartialOrd<D> + std::fmt::Debug> Parse for DimensionPercentage<D> {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i, D: Parse<'i> + std::ops::Mul<f32, Output = D> + TryAdd<D> + Clone + std::cmp::PartialEq<f32> + std::cmp::PartialOrd<f32> + std::cmp::PartialOrd<D> + std::fmt::Debug> Parse<'i> for DimensionPercentage<D> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
       Ok(calc) => return Ok(DimensionPercentage::Calc(Box::new(calc))),

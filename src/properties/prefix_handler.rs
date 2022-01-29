@@ -28,8 +28,8 @@ macro_rules! define_prefixes {
       }
     }
 
-    impl PropertyHandler for PrefixHandler {
-      fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, _: &mut LogicalProperties) -> bool {
+    impl<'i> PropertyHandler<'i> for PrefixHandler {
+      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
         match property {
           $(
             Property::$name(val, prefix) => {

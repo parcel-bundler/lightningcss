@@ -25,8 +25,8 @@ macro_rules! side_handler {
       category: PropertyCategory
     }
 
-    impl PropertyHandler for $name {
-      fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
+    impl<'i> PropertyHandler<'i> for $name {
+      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
         use Property::*;
 
         macro_rules! property {

@@ -142,14 +142,14 @@ console.log(new TextDecoder().decode(code));
 
 ```
 $ node bench.js bootstrap-4.css 
-cssnano: 542.956ms
+cssnano: 542.879ms
 159636 bytes
 
-esbuild: 17.411ms
+esbuild: 16.839ms
 160332 bytes
 
-parcel-css: 4.602ms
-143154 bytes
+parcel-css: 4.345ms
+143121 bytes
 
 
 $ node bench.js animate.css

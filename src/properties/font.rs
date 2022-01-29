@@ -26,8 +26,8 @@ impl Default for FontWeight {
   }
 }
 
-impl Parse for FontWeight {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for FontWeight {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(val) = input.try_parse(AbsoluteFontWeight::parse) {
       return Ok(FontWeight::Absolute(val))
     }
@@ -69,8 +69,8 @@ impl Default for AbsoluteFontWeight {
   }
 }
 
-impl Parse for AbsoluteFontWeight {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for AbsoluteFontWeight {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(val) = input.try_parse(f32::parse) {
       return Ok(AbsoluteFontWeight::Weight(val))
     }
@@ -125,8 +125,8 @@ pub enum FontSize {
   Relative(RelativeFontSize)
 }
 
-impl Parse for FontSize {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for FontSize {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(val) = input.try_parse(LengthPercentage::parse) {
       return Ok(FontSize::Length(val))
     }
@@ -202,8 +202,8 @@ impl Default for FontStretch {
   }
 }
 
-impl Parse for FontStretch {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for FontStretch {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(val) = input.try_parse(Percentage::parse) {
       return Ok(FontStretch::Percentage(val))
     }
@@ -257,33 +257,45 @@ enum_property! {
 
 /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-family-prop
 #[derive(Debug, Clone, PartialEq)]
-pub enum FontFamily {
-  FamilyName(String),
+pub enum FontFamily<'i> {
+  FamilyName(CowRcStr<'i>),
   Generic(GenericFontFamily)
 }
 
-impl Parse for FontFamily {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for FontFamily<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(value) = input.try_parse(|i| i.expect_string_cloned()) {
-      return Ok(FontFamily::FamilyName(value.as_ref().into()))
+      return Ok(FontFamily::FamilyName(value))
     }
 
     if let Ok(value) = input.try_parse(GenericFontFamily::parse) {
       return Ok(FontFamily::Generic(value))
     }
 
-    let first_ident = input.expect_ident_cloned()?;
-    let mut value = first_ident.as_ref().to_owned();
+    let value = input.expect_ident_cloned()?;
+    let mut string = None;
     while let Ok(ident) = input.try_parse(|i| i.expect_ident_cloned()) {
-      value.push(' ');
-      value.push_str(&ident);
+      if string.is_none() {
+        string = Some(value.to_string());
+      }
+
+      if let Some(string) = &mut string {
+        string.push(' ');
+        string.push_str(&ident);
+      }
     }
+
+    let value = if let Some(string) = string {
+      CowRcStr::from(string)
+    } else {
+      value
+    };
 
     Ok(FontFamily::FamilyName(value))
   }
 }
 
-impl ToCss for FontFamily {
+impl<'i> ToCss for FontFamily<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       FontFamily::Generic(val) => val.to_css(dest),
@@ -322,8 +334,8 @@ impl Default for FontStyle {
   }
 }
 
-impl Parse for FontStyle {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for FontStyle {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let ident = input.expect_ident()?;
     match_ignore_ascii_case! { &*ident,
@@ -417,8 +429,8 @@ impl Default for LineHeight {
   }
 }
 
-impl Parse for LineHeight {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for LineHeight {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(LineHeight::Normal)
     }
@@ -462,8 +474,8 @@ pub enum VerticalAlign {
   Length(LengthPercentage)
 }
 
-impl Parse for VerticalAlign {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for VerticalAlign {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(len) = input.try_parse(LengthPercentage::parse) {
       return Ok(VerticalAlign::Length(len))
     }
@@ -484,8 +496,8 @@ impl ToCss for VerticalAlign {
 
 /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-prop
 #[derive(Debug, Clone, PartialEq)]
-pub struct Font {
-  pub family: Vec<FontFamily>,
+pub struct Font<'i> {
+  pub family: Vec<FontFamily<'i>>,
   pub size: FontSize,
   pub style: FontStyle,
   pub weight: FontWeight,
@@ -494,8 +506,8 @@ pub struct Font {
   pub variant_caps: FontVariantCapsCSS2
 }
 
-impl Parse for Font {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Font<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut style = None;
     let mut weight = None;
     let mut stretch = None;
@@ -572,7 +584,7 @@ impl Parse for Font {
   }
 }
 
-impl ToCss for Font {
+impl<'i> ToCss for Font<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if self.style != FontStyle::default() {
       self.style.to_css(dest)?;
@@ -616,8 +628,8 @@ impl ToCss for Font {
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct FontHandler {
-  family: Option<Vec<FontFamily>>,
+pub(crate) struct FontHandler<'i> {
+  family: Option<Vec<FontFamily<'i>>>,
   size: Option<FontSize>,
   style: Option<FontStyle>,
   weight: Option<FontWeight>,
@@ -627,8 +639,8 @@ pub(crate) struct FontHandler {
   has_any: bool
 }
 
-impl PropertyHandler for FontHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
+impl<'i> PropertyHandler<'i> for FontHandler<'i> {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
     use Property::*;
 
     macro_rules! property {
@@ -667,7 +679,7 @@ impl PropertyHandler for FontHandler {
     true
   }
 
-  fn finalize(&mut self, decls: &mut DeclarationList, _: &mut LogicalProperties) {
+  fn finalize(&mut self, decls: &mut DeclarationList<'i>, _: &mut LogicalProperties) {
     if !self.has_any {
       return
     }
