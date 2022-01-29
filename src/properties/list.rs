@@ -24,12 +24,12 @@ impl Default for ListStyleType<'_> {
 
 impl<'i> Parse<'i> for ListStyleType<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(val) = input.try_parse(CounterStyle::parse) {
-      return Ok(ListStyleType::CounterStyle(val))
-    }
-
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(ListStyleType::None)
+    }
+
+    if let Ok(val) = input.try_parse(CounterStyle::parse) {
+      return Ok(ListStyleType::CounterStyle(val))
     }
 
     let s = input.expect_string_cloned()?;
