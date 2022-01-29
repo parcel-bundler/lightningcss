@@ -8753,6 +8753,10 @@ mod tests {
         list-style: circles;
       }
 
+      ol {
+        list-style-type: none;
+      }
+
       @keyframes fade {
         from { opacity: 0 }
         to { opacity: 1 }
@@ -8782,6 +8786,10 @@ mod tests {
 
       ul {
         list-style: circles_EgL3uq;
+      }
+
+      ol {
+        list-style-type: none;
       }
 
       @keyframes fade_EgL3uq {
