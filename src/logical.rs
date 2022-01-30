@@ -88,11 +88,11 @@ impl LogicalProperties {
             declarations: vec![
               Property::Custom(CustomProperty {
                 name: "--ltr".into(),
-                value: TokenList(vec![$ltr])
+                value: TokenList(vec![$ltr.into()])
               }),
               Property::Custom(CustomProperty {
                 name: "--rtl".into(),
-                value: TokenList(vec![$rtl])
+                value: TokenList(vec![$rtl.into()])
               })
             ]
           },

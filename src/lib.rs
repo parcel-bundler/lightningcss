@@ -7954,6 +7954,10 @@ mod tests {
     minify_test(".foo { transition: var(--foo, 20px),\nvar(--bar, 40px); }", ".foo{transition:var(--foo,20px),var(--bar,40px)}");
     minify_test(".foo { background: var(--color) var(--image); }", ".foo{background:var(--color)var(--image)}");
     minify_test(".foo { height: calc(var(--spectrum-global-dimension-size-300) / 2);", ".foo{height:calc(var(--spectrum-global-dimension-size-300)/2)}");
+    minify_test(".foo { color: var(--color, rgb(255, 255, 0)); }", ".foo{color:var(--color,#ff0)}");
+    minify_test(".foo { color: var(--color, #ffff00); }", ".foo{color:var(--color,#ff0)}");
+    minify_test(".foo { color: var(--color, rgb(var(--red), var(--green), 0)); }", ".foo{color:var(--color,rgb(var(--red),var(--green),0))}");
+    minify_test(".foo { --test: .5s; }", ".foo{--test:.5s}");
   }
 
   #[test]

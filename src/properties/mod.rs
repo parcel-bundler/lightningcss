@@ -459,7 +459,7 @@ macro_rules! define_properties {
           Custom(custom) => {
             dest.write_str(custom.name.as_ref())?;
             dest.delim(':', false)?;
-            if dest.minify || (custom.value.0.len() != 1 || !matches!(custom.value.0.first(), Some(Token::WhiteSpace(_)))) {
+            if dest.minify || (custom.value.0.len() != 1 || !matches!(custom.value.0.first(), Some(token) if token.is_whitespace())) {
               custom.value.to_css(dest)?;
             }
             if important {
