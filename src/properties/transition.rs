@@ -115,8 +115,8 @@ impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
   fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
     use Property::*;
 
-    macro_rules! property {
-      ($feature: ident, $prop: ident, $val: expr, $vp: ident) => {{
+    macro_rules! maybe_flush {
+      ($prop: ident, $val: expr, $vp: ident) => {{
         // If two vendor prefixes for the same property have different
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
@@ -124,6 +124,12 @@ impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
             self.flush(dest, logical);
           }
         }
+      }};
+    }
+
+    macro_rules! property {
+      ($feature: ident, $prop: ident, $val: expr, $vp: ident) => {{
+        maybe_flush!($prop, $val, $vp);
 
         // Otherwise, update the value and add the prefix.
         if let Some((val, prefixes)) = &mut self.$prop {
@@ -157,15 +163,20 @@ impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
       TransitionTimingFunction(val, vp) => property!(TransitionTimingFunction, timing_functions, val, vp),
       Transition(val, vp) => {
         let properties: SmallVec<[PropertyId; 1]> = val.iter().map(|b| b.property.clone()).collect();
-        property!(TransitionProperty, properties, &properties, vp);
+        maybe_flush!(properties, &properties, vp);
 
         let durations: SmallVec<[Time; 1]> = val.iter().map(|b| b.duration.clone()).collect();
-        property!(TransitionDuration, durations, &durations, vp);
+        maybe_flush!(durations, &durations, vp);
 
         let delays: SmallVec<[Time; 1]> = val.iter().map(|b| b.delay.clone()).collect();
-        property!(TransitionDelay, delays, &delays, vp);
+        maybe_flush!(delays, &delays, vp);
 
         let timing_functions: SmallVec<[EasingFunction; 1]> = val.iter().map(|b| b.timing_function.clone()).collect();
+        maybe_flush!(timing_functions, &timing_functions, vp);
+        
+        property!(TransitionProperty, properties, &properties, vp);
+        property!(TransitionDuration, durations, &durations, vp);
+        property!(TransitionDelay, delays, &delays, vp);
         property!(TransitionTimingFunction, timing_functions, &timing_functions, vp);
       }
       Unparsed(val) if is_transition_property(&val.property_id) => {

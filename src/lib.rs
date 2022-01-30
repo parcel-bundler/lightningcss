@@ -4451,6 +4451,37 @@ mod tests {
       safari: Some(4 << 16),
       ..Browsers::default()
     });
+
+    test(r#"
+      .foo {
+        -webkit-transition: background 200ms;
+        -moz-transition: background 200ms;
+        transition: background 230ms;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-transition: background .2s;
+        -moz-transition: background .2s;
+        transition: background .23s;
+      }
+    "#});
+
+    prefix_test(r#"
+      .foo {
+        -webkit-transition: background 200ms;
+        -moz-transition: background 200ms;
+        transition: background 230ms;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-transition: background .2s;
+        -moz-transition: background .2s;
+        transition: background .23s;
+      }
+    "#}, Browsers {
+      chrome: Some(95 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]

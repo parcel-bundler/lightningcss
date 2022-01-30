@@ -93,12 +93,8 @@ impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
   fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
     use Property::*;
 
-    macro_rules! property {
-      ($prop: ident, $val: expr, $vp: ident) => {{
-        if self.category != PropertyCategory::Physical {
-          self.flush(dest, logical);
-        }
-
+    macro_rules! maybe_flush {
+      ($prop: ident, $val: expr, $vp: expr) => {{
         // If two vendor prefixes for the same property have different
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
@@ -106,6 +102,16 @@ impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
             self.flush(dest, logical);
           }
         }
+      }};
+    }
+
+    macro_rules! property {
+      ($prop: ident, $val: expr, $vp: ident) => {{
+        if self.category != PropertyCategory::Physical {
+          self.flush(dest, logical);
+        }
+
+        maybe_flush!($prop, $val, $vp);
 
         // Otherwise, update the value and add the prefix.
         if let Some((val, prefixes)) = &mut self.$prop {
@@ -146,6 +152,10 @@ impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
         self.start_end = None;
         self.end_start = None;
         self.end_end = None;
+        maybe_flush!(top_left, &val.top_left, vp);
+        maybe_flush!(top_right, &val.top_right, vp);
+        maybe_flush!(bottom_left, &val.bottom_left, vp);
+        maybe_flush!(bottom_right, &val.bottom_right, vp);
         property!(top_left, &val.top_left, vp);
         property!(top_right, &val.top_right, vp);
         property!(bottom_left, &val.bottom_left, vp);

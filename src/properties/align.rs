@@ -757,7 +757,7 @@ impl<'i> PropertyHandler<'i> for AlignHandler {
   fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
     use Property::*;
 
-    macro_rules! property {
+    macro_rules! maybe_flush {
       ($prop: ident, $val: expr, $vp: expr) => {{
         // If two vendor prefixes for the same property have different
         // values, we need to flush what we have immediately to preserve order.
@@ -766,6 +766,12 @@ impl<'i> PropertyHandler<'i> for AlignHandler {
             self.flush(dest);
           }
         }
+      }};
+    }
+
+    macro_rules! property {
+      ($prop: ident, $val: expr, $vp: expr) => {{
+        maybe_flush!($prop, $val, $vp);
 
         // Otherwise, update the value and add the prefix.
         if let Some((val, prefixes)) = &mut self.$prop {
@@ -795,6 +801,8 @@ impl<'i> PropertyHandler<'i> for AlignHandler {
         self.flex_line_pack = None;
         self.box_pack = None;
         self.flex_pack = None;
+        maybe_flush!(align_content, &val.align, &VendorPrefix::None);
+        maybe_flush!(justify_content, &val.justify, &VendorPrefix::None);
         property!(align_content, &val.align, &VendorPrefix::None);
         property!(justify_content, &val.justify, &VendorPrefix::None);
       }
