@@ -274,7 +274,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6160384 {
+          if version >= 6356992 {
             return true
           }
         }
@@ -363,7 +363,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6160384 {
+          if version >= 6356992 {
             return true
           }
         }
@@ -405,7 +405,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6160384 {
+          if version >= 6356992 {
             return true
           }
         }
@@ -454,7 +454,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6160384 {
+          if version >= 6356992 {
             return true
           }
         }
@@ -486,7 +486,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6160384 {
+          if version >= 6356992 {
             return true
           }
         }
@@ -528,7 +528,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6160384 {
+          if version >= 6356992 {
             return true
           }
         }
@@ -570,7 +570,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6160384 {
+          if version >= 6356992 {
             return true
           }
         }
@@ -659,7 +659,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6160384 {
+          if version >= 6356992 {
             return true
           }
         }
@@ -675,6 +675,11 @@ impl Feature {
             return true
           }
         }
+        if let Some(version) = browsers.firefox {
+          if version >= 6422528 {
+            return true
+          }
+        }
         if let Some(version) = browsers.chrome {
           if version >= 2424832 {
             return true
@@ -686,7 +691,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6160384 {
+          if version >= 6356992 {
             return true
           }
         }
@@ -750,7 +755,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6160384 {
+          if version >= 6356992 {
             return true
           }
         }
@@ -792,7 +797,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6160384 {
+          if version >= 6356992 {
             return true
           }
         }
@@ -876,7 +881,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6160384 {
+          if version >= 6356992 {
             return true
           }
         }
@@ -918,7 +923,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6160384 {
+          if version >= 6356992 {
             return true
           }
         }
@@ -950,7 +955,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6291456 {
+          if version >= 6356992 {
             return true
           }
         }
@@ -1034,7 +1039,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6160384 {
+          if version >= 6356992 {
             return true
           }
         }
@@ -1076,7 +1081,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6160384 {
+          if version >= 6356992 {
             return true
           }
         }

@@ -27,33 +27,6 @@ const MDN_BROWSER_MAPPING = {
   webview_android: 'android'
 };
 
-// Fix data, autoprefixer seems wrong.
-// See https://developer.mozilla.org/en-US/docs/Web/CSS/::file-selector-button
-prefixes['::file-selector-button'].browsers = [
-  'chrome 1',
-  'chrome 88',
-  'edge 12',
-  'edge 88',
-  'safari 3',
-  'safari 14',
-  'ie 10',
-  'ie 11',
-  'ios_saf 1',
-  'ios_saf 14',
-  'opera 15',
-  'opera 74',
-  'samsung 1',
-  'samsung 14'
-];
-
-// Safari 14+ supports background-clip: text unprefixed. Both MDN and caniuse are incorrect.
-// https://github.com/mdn/browser-compat-data/issues/13977
-// https://github.com/Fyrd/caniuse/issues/6106
-prefixes['background-clip'].browsers = prefixes['background-clip'].browsers.filter(x => {
-  let m = /^(?:safari|ios_saf) (\d+)/.exec(x);
-  return !m || parseInt(m[1]) < 14;
-});
-
 let flexSpec = {};
 let oldGradient = {};
 let p = new Map();
