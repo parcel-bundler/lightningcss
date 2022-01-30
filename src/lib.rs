@@ -423,6 +423,160 @@ mod tests {
     "#
     });
 
+    test(r#"
+      .foo {
+        border: 1px solid black;
+        border-width: 1px 1px 0 0;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 1px solid #000;
+        border-width: 1px 1px 0 0;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        border-top: 1px solid black;
+        border-bottom: 1px solid black;
+        border-left: 2px solid black;
+        border-right: 2px solid black;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 1px solid #000;
+        border-width: 1px 2px;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        border-top: 1px solid black;
+        border-bottom: 1px solid black;
+        border-left: 2px solid black;
+        border-right: 1px solid black;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 1px solid #000;
+        border-left-width: 2px;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        border-top: 1px solid black;
+        border-bottom: 1px solid black;
+        border-left: 1px solid red;
+        border-right: 1px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 1px solid #000;
+        border-color: #000 red;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        border-block-start: 1px solid black;
+        border-block-end: 1px solid black;
+        border-inline-start: 1px solid red;
+        border-inline-end: 1px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 1px solid #000;
+        border-inline-color: red;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        border-block-start: 1px solid black;
+        border-block-end: 1px solid black;
+        border-inline-start: 2px solid black;
+        border-inline-end: 2px solid black;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 1px solid #000;
+        border-inline-width: 2px;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        border-block-start: 1px solid black;
+        border-block-end: 1px solid black;
+        border-inline-start: 2px solid red;
+        border-inline-end: 2px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 1px solid #000;
+        border-inline: 2px solid red;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        border-block-start: 1px solid black;
+        border-block-end: 1px solid black;
+        border-inline-start: 2px solid red;
+        border-inline-end: 3px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 1px solid #000;
+        border-inline-start: 2px solid red;
+        border-inline-end: 3px solid red;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        border-block-start: 2px solid black;
+        border-block-end: 1px solid black;
+        border-inline-start: 2px solid red;
+        border-inline-end: 2px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 2px solid red;
+        border-block-start-color: #000;
+        border-block-end: 1px solid #000;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        border-block-start: 2px solid red;
+        border-block-end: 1px solid red;
+        border-inline-start: 2px solid red;
+        border-inline-end: 2px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 2px solid red;
+        border-block-end-width: 1px;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        border-block-start: 2px solid red;
+        border-block-end: 2px solid red;
+        border-inline-start: 2px solid red;
+        border-inline-end: 1px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 2px solid red;
+        border-inline-end-width: 1px;
+      }
+    "#});
+
     prefix_test(r#"
       .foo {
         border-block: 2px solid red;
