@@ -97,10 +97,9 @@ impl<'i> TokenList<'i> {
           // Skip whitespace if the last token was a delimeter.
           // Otherwise, replace all whitespace and comments with a single space character.
           if !last_is_delim {
-            tokens.push(Token::WhiteSpace(" "))
+            tokens.push(Token::WhiteSpace(" "));
+            last_is_whitespace = true;
           }
-
-          last_is_whitespace = true;
         }
         Token::Function(_) | Token::ParenthesisBlock | Token::SquareBracketBlock | Token::CurlyBracketBlock => {
           tokens.push(token.clone());

@@ -7953,6 +7953,7 @@ mod tests {
     minify_test(".foo { --test: var(--foo, 20px); }", ".foo{--test:var(--foo,20px)}");
     minify_test(".foo { transition: var(--foo, 20px),\nvar(--bar, 40px); }", ".foo{transition:var(--foo,20px),var(--bar,40px)}");
     minify_test(".foo { background: var(--color) var(--image); }", ".foo{background:var(--color)var(--image)}");
+    minify_test(".foo { height: calc(var(--spectrum-global-dimension-size-300) / 2);", ".foo{height:calc(var(--spectrum-global-dimension-size-300)/2)}");
   }
 
   #[test]
