@@ -213,6 +213,10 @@ macro_rules! with_all_bounds {
 
             /// pseudo-elements
             type PseudoElement: $($CommonBounds)* + PseudoElement<'i, Impl = Self>;
+
+            fn to_css<W: fmt::Write>(selectors: &SelectorList<'i, Self>, dest: &mut W) -> fmt::Result {
+                serialize_selector_list(selectors.0.iter(), dest)
+            }
         }
     }
 }
@@ -1313,6 +1317,12 @@ impl<'i, Impl: SelectorImpl<'i>> ToCss for SelectorList<'i, Impl> {
         W: fmt::Write,
     {
         serialize_selector_list(self.0.iter(), dest)
+    }
+}
+
+impl<'i, Impl: SelectorImpl<'i>> fmt::Display for SelectorList<'i, Impl> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+        Impl::to_css(self, f)
     }
 }
 

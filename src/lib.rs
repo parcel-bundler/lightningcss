@@ -21,6 +21,7 @@ mod logical;
 #[cfg(test)]
 mod tests {
   use crate::dependencies::Dependency;
+  use crate::rules::CssRule;
   use crate::{stylesheet::*, error::MinifyError};
   use crate::targets::Browsers;
   use cssparser::SourceLocation;
@@ -9935,5 +9936,16 @@ mod tests {
         ("./img21x.png", "5TkpBa")
       ]
     );
+  }
+
+  #[test]
+  fn test_api() {
+    let stylesheet = StyleSheet::parse("test.css".into(), ".foo:hover { color: red }", ParserOptions::default()).unwrap();
+    match &stylesheet.rules.0[0] {
+      CssRule::Style(s) => {
+        assert_eq!(&s.selectors.to_string(), ".foo:hover");
+      },
+      _ => unreachable!()
+    }
   }
 }

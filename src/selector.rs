@@ -65,6 +65,11 @@ impl<'i> SelectorImpl<'i> for Selectors {
   type PseudoElement = PseudoElement<'i>;
 
   type ExtraMatchingData = ();
+
+  fn to_css<W: fmt::Write>(selectors: &SelectorList<'i, Self>, dest: &mut W) -> std::fmt::Result {
+    let mut printer = Printer::new("", dest, None, false, None);
+    serialize_selector_list(selectors.0.iter(), &mut printer, None).map_err(|_| std::fmt::Error)
+  }
 }
 
 pub struct SelectorParser<'a, 'i> {
