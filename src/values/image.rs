@@ -103,7 +103,11 @@ impl<'i> ImageSet<'i> {
   }
 
   pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
-    Feature::ImageSet.prefixes_for(targets)
+    if self.vendor_prefix.contains(VendorPrefix::None) {
+      Feature::ImageSet.prefixes_for(targets)
+    } else {
+      self.vendor_prefix
+    }
   }
 
   pub fn get_prefixed(&self, prefix: VendorPrefix) -> ImageSet<'i> {

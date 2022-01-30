@@ -7248,6 +7248,20 @@ mod tests {
       firefox: Some(80 << 16),
       ..Browsers::default()
     });
+
+    prefix_test(r#"
+      .foo {
+        background: -webkit-image-set(url("foo.png") 2x, url(bar.png) 1x);
+      }
+    "#, indoc! {r#"
+      .foo {
+        background: -webkit-image-set(url(foo.png) 2x, url(bar.png));
+      }
+    "#},
+    Browsers {
+      chrome: Some(95 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]
