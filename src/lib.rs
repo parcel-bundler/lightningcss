@@ -20,6 +20,7 @@ mod logical;
 
 #[cfg(test)]
 mod tests {
+  use crate::dependencies::Dependency;
   use crate::{stylesheet::*, error::MinifyError};
   use crate::targets::Browsers;
   use cssparser::SourceLocation;
@@ -9876,6 +9877,49 @@ mod tests {
           column: 7
         }
       }
+    );
+  }
+
+  #[test]
+  fn test_dependencies() {
+    fn dep_test(source: &str, expected: &str, deps: Vec<(&str, &str)>) {
+      let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions::default()).unwrap();
+      stylesheet.minify(MinifyOptions::default()).unwrap();
+      let res = stylesheet.to_css(PrinterOptions {
+        analyze_dependencies: true,
+        minify: true,
+        ..PrinterOptions::default()
+      }).unwrap();
+      assert_eq!(res.code, expected);
+      let dependencies = res.dependencies.unwrap();
+      assert_eq!(dependencies.len(), deps.len());
+      for (i, (url, placeholder)) in deps.into_iter().enumerate() {
+        match &dependencies[i] {
+          Dependency::Url(dep) => {
+            assert_eq!(dep.url, url);
+            assert_eq!(dep.placeholder, placeholder);    
+          }
+          _ => unreachable!()
+        }
+      }
+    }
+
+    dep_test(
+      ".foo { background: image-set('./img12x.png', './img21x.png' 2x)}",
+      ".foo{background:image-set(\"hXFI8W\",\"5TkpBa\" 2x)}",
+      vec![
+        ("./img12x.png", "hXFI8W"),
+        ("./img21x.png", "5TkpBa")
+      ]
+    );
+
+    dep_test(
+      ".foo { background: image-set(url(./img12x.png), url('./img21x.png') 2x)}",
+      ".foo{background:image-set(\"hXFI8W\",\"5TkpBa\" 2x)}",
+      vec![
+        ("./img12x.png", "hXFI8W"),
+        ("./img21x.png", "5TkpBa")
+      ]
     );
   }
 }

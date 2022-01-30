@@ -1,4 +1,5 @@
 use cssparser::*;
+use crate::dependencies::{UrlDependency, Dependency};
 use crate::vendor_prefix::VendorPrefix;
 use crate::prefixes::Feature;
 use crate::targets::Browsers;
@@ -188,7 +189,22 @@ impl<'i> ImageSetOption<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>, is_prefixed: bool) -> Result<(), PrinterError> where W: std::fmt::Write {
     match &self.image {
       // Prefixed syntax didn't allow strings, only url()
-      Image::Url(url) if !is_prefixed => serialize_string(&url.url, dest)?,
+      Image::Url(url) if !is_prefixed => {
+        // Add dependency if needed. Normally this is handled by the Url type.
+        let dep = if dest.dependencies.is_some() {
+          Some(UrlDependency::new(url, dest.filename))
+        } else {
+          None
+        };
+        if let Some(dep) = dep {
+          serialize_string(&dep.placeholder, dest)?;
+          if let Some(dependencies) = &mut dest.dependencies {
+            dependencies.push(Dependency::Url(dep))
+          }
+        } else {
+          serialize_string(&url.url, dest)?;
+        }
+      },
       _ => self.image.to_css(dest)?
     }
 
