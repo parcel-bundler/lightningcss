@@ -55,1466 +55,1558 @@ impl Feature {
     match self {
       Feature::CssSel2 => {
         if let Some(version) = browsers.ie {
-          if version >= 458752 {
-            return true
+          if version < 458752 {
+            return false
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 786432 {
-            return true
+          if version < 786432 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 131072 {
-            return true
+          if version < 131072 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 196864 {
-            return true
+          if version < 196864 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 589824 {
-            return true
+          if version < 589824 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 197120 {
-            return true
+          if version < 197120 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 131328 {
-            return true
+          if version < 131328 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
         }
       }
       Feature::CssSel3 => {
         if let Some(version) = browsers.ie {
-          if version >= 589824 {
-            return true
+          if version < 589824 {
+            return false
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 786432 {
-            return true
+          if version < 786432 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 197888 {
-            return true
+          if version < 197888 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 197120 {
-            return true
+          if version < 197120 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 591104 {
-            return true
+          if version < 591104 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 197120 {
-            return true
+          if version < 197120 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 131328 {
-            return true
+          if version < 131328 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
         }
       }
       Feature::CssGencontent |
       Feature::CssFirstLine => {
         if let Some(version) = browsers.ie {
-          if version >= 589824 {
-            return true
+          if version < 589824 {
+            return false
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 786432 {
-            return true
+          if version < 786432 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 131072 {
-            return true
+          if version < 131072 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 196864 {
-            return true
+          if version < 196864 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 589824 {
-            return true
+          if version < 589824 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 197120 {
-            return true
+          if version < 197120 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 131328 {
-            return true
+          if version < 131328 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
         }
       }
       Feature::CssFirstLetter => {
         if let Some(version) = browsers.ie {
-          if version >= 589824 {
-            return true
+          if version < 589824 {
+            return false
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 786432 {
-            return true
+          if version < 786432 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 197888 {
-            return true
+          if version < 197888 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 589824 {
-            return true
+          if version < 589824 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 327936 {
-            return true
+          if version < 327936 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 722432 {
-            return true
+          if version < 722432 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 327680 {
-            return true
+          if version < 327680 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 196608 {
-            return true
+          if version < 196608 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
         }
       }
       Feature::CssInOutOfRange => {
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 3276800 {
-            return true
+          if version < 3276800 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 3473408 {
-            return true
+          if version < 3473408 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 655616 {
-            return true
+          if version < 655616 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 2621440 {
-            return true
+          if version < 2621440 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 656128 {
-            return true
+          if version < 656128 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6356992 {
-            return true
+          if version < 6356992 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 327680 {
-            return true
+          if version < 327680 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
       Feature::FormValidation => {
         if let Some(version) = browsers.ie {
-          if version >= 655360 {
-            return true
+          if version < 655360 {
+            return false
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 786432 {
-            return true
+          if version < 786432 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 655360 {
-            return true
+          if version < 655360 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 655616 {
-            return true
+          if version < 655616 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 655360 {
-            return true
+          if version < 655360 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 656128 {
-            return true
+          if version < 656128 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263171 {
-            return true
+          if version < 263171 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
         }
       }
       Feature::CssAnyLink => {
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 3276800 {
-            return true
+          if version < 3276800 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 4259840 {
-            return true
+          if version < 4259840 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 589824 {
-            return true
+          if version < 589824 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 3407872 {
-            return true
+          if version < 3407872 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 589824 {
-            return true
+          if version < 589824 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6356992 {
-            return true
+          if version < 6356992 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 590336 {
-            return true
+          if version < 590336 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
       Feature::CssDefaultPseudo => {
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 3342336 {
-            return true
+          if version < 3342336 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 655616 {
-            return true
+          if version < 655616 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 2490368 {
-            return true
+          if version < 2490368 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 656128 {
-            return true
+          if version < 656128 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6356992 {
-            return true
+          if version < 6356992 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 327680 {
-            return true
+          if version < 327680 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
       Feature::CssDirPseudo => {
         if let Some(version) = browsers.firefox {
-          if version >= 3211264 {
-            return true
+          if version < 3211264 {
+            return false
           }
+        }
+        if browsers.android.is_some() || browsers.chrome.is_some() || browsers.edge.is_some() || browsers.ie.is_some() || browsers.ios_saf.is_some() || browsers.opera.is_some() || browsers.safari.is_some() || browsers.samsung.is_some() {
+          return false
         }
       }
       Feature::CssFocusWithin => {
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 3407872 {
-            return true
+          if version < 3407872 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 3932160 {
-            return true
+          if version < 3932160 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 655616 {
-            return true
+          if version < 655616 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 3080192 {
-            return true
+          if version < 3080192 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 656128 {
-            return true
+          if version < 656128 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6356992 {
-            return true
+          if version < 6356992 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 524800 {
-            return true
+          if version < 524800 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
       Feature::CssFocusVisible => {
         if let Some(version) = browsers.edge {
-          if version >= 5636096 {
-            return true
+          if version < 5636096 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 5570560 {
-            return true
+          if version < 5570560 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 5636096 {
-            return true
+          if version < 5636096 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 4718592 {
-            return true
+          if version < 4718592 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6356992 {
-            return true
+          if version < 6356992 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 917504 {
-            return true
+          if version < 917504 {
+            return false
           }
+        }
+        if browsers.ie.is_some() || browsers.ios_saf.is_some() || browsers.safari.is_some() {
+          return false
         }
       }
       Feature::CssIndeterminatePseudo => {
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 3342336 {
-            return true
+          if version < 3342336 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 2555904 {
-            return true
+          if version < 2555904 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 655616 {
-            return true
+          if version < 655616 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 1703936 {
-            return true
+          if version < 1703936 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 656128 {
-            return true
+          if version < 656128 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6356992 {
-            return true
+          if version < 6356992 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
       Feature::CssMatchesPseudo => {
         if let Some(version) = browsers.edge {
-          if version >= 5767168 {
-            return true
+          if version < 5767168 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 5111808 {
-            return true
+          if version < 5111808 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 5767168 {
-            return true
+          if version < 5767168 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 917504 {
-            return true
+          if version < 917504 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 4915200 {
-            return true
+          if version < 4915200 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 917504 {
-            return true
+          if version < 917504 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6356992 {
-            return true
+          if version < 6356992 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 983040 {
-            return true
+          if version < 983040 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
       Feature::CssOptionalPseudo => {
         if let Some(version) = browsers.ie {
-          if version >= 655360 {
-            return true
+          if version < 655360 {
+            return false
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 786432 {
-            return true
+          if version < 786432 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 983040 {
-            return true
+          if version < 983040 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 327680 {
-            return true
+          if version < 327680 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 983040 {
-            return true
+          if version < 983040 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 327680 {
-            return true
+          if version < 327680 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 131840 {
-            return true
+          if version < 131840 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
         }
       }
       Feature::CssPlaceholderShown => {
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 3342336 {
-            return true
+          if version < 3342336 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 3080192 {
-            return true
+          if version < 3080192 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 589824 {
-            return true
+          if version < 589824 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 2228224 {
-            return true
+          if version < 2228224 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 589824 {
-            return true
+          if version < 589824 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6356992 {
-            return true
+          if version < 6356992 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 327680 {
-            return true
+          if version < 327680 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
       Feature::Dialog => {
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 6422528 {
-            return true
+          if version < 6422528 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 2424832 {
-            return true
+          if version < 2424832 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 1572864 {
-            return true
+          if version < 1572864 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6356992 {
-            return true
+          if version < 6356992 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
+        }
+        if browsers.ie.is_some() || browsers.ios_saf.is_some() || browsers.safari.is_some() {
+          return false
         }
       }
       Feature::Fullscreen => {
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 4194304 {
-            return true
+          if version < 4194304 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 4653056 {
-            return true
+          if version < 4653056 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 786688 {
-            return true
+          if version < 786688 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 655616 {
-            return true
+          if version < 655616 {
+            return false
           }
+        }
+        if browsers.android.is_some() || browsers.ie.is_some() || browsers.ios_saf.is_some() || browsers.safari.is_some() {
+          return false
         }
       }
       Feature::CssMarkerPseudo => {
         if let Some(version) = browsers.edge {
-          if version >= 5636096 {
-            return true
+          if version < 5636096 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 4456448 {
-            return true
+          if version < 4456448 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 5636096 {
-            return true
+          if version < 5636096 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 4718592 {
-            return true
+          if version < 4718592 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 721664 {
-            return true
+          if version < 721664 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6356992 {
-            return true
+          if version < 6356992 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 917504 {
-            return true
+          if version < 917504 {
+            return false
           }
+        }
+        if browsers.ie.is_some() || browsers.safari.is_some() {
+          return false
         }
       }
       Feature::CssPlaceholder => {
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 3342336 {
-            return true
+          if version < 3342336 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 3735552 {
-            return true
+          if version < 3735552 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 655616 {
-            return true
+          if version < 655616 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 2883584 {
-            return true
+          if version < 2883584 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 656128 {
-            return true
+          if version < 656128 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6356992 {
-            return true
+          if version < 6356992 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 459264 {
-            return true
+          if version < 459264 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
       Feature::CssSelection => {
         if let Some(version) = browsers.ie {
-          if version >= 589824 {
-            return true
+          if version < 589824 {
+            return false
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 786432 {
-            return true
+          if version < 786432 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 4063232 {
-            return true
+          if version < 4063232 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 196864 {
-            return true
+          if version < 196864 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 591104 {
-            return true
+          if version < 591104 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 {
-            return true
+          if version < 263168 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
+        }
+        if browsers.ios_saf.is_some() {
+          return false
         }
       }
       Feature::CssCaseInsensitive => {
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 3080192 {
-            return true
+          if version < 3080192 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 3211264 {
-            return true
+          if version < 3211264 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 589824 {
-            return true
+          if version < 589824 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 2359296 {
-            return true
+          if version < 2359296 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 589824 {
-            return true
+          if version < 589824 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6356992 {
-            return true
+          if version < 6356992 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 327680 {
-            return true
+          if version < 327680 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
       Feature::CssReadOnlyWrite => {
         if let Some(version) = browsers.edge {
-          if version >= 851968 {
-            return true
+          if version < 851968 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 5111808 {
-            return true
+          if version < 5111808 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 2359296 {
-            return true
+          if version < 2359296 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 589824 {
-            return true
+          if version < 589824 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 1507328 {
-            return true
+          if version < 1507328 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 589824 {
-            return true
+          if version < 589824 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6356992 {
-            return true
+          if version < 6356992 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
       Feature::CssAutofill => {
         if let Some(version) = browsers.chrome {
-          if version >= 6291456 {
-            return true
+          if version < 6291456 {
+            return false
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 6291456 {
-            return true
+          if version < 6291456 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 5636096 {
-            return true
+          if version < 5636096 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 5373952 {
-            return true
+          if version < 5373952 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6356992 {
-            return true
+          if version < 6356992 {
+            return false
           }
+        }
+        if browsers.ie.is_some() || browsers.ios_saf.is_some() || browsers.safari.is_some() || browsers.samsung.is_some() {
+          return false
         }
       }
       Feature::CssNamespaces => {
         if let Some(version) = browsers.ie {
-          if version >= 589824 {
-            return true
+          if version < 589824 {
+            return false
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 786432 {
-            return true
+          if version < 786432 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 131072 {
-            return true
+          if version < 131072 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 589824 {
-            return true
+          if version < 589824 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 262656 {
-            return true
+          if version < 262656 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 131328 {
-            return true
+          if version < 131328 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
         }
       }
       Feature::Shadowdomv1 => {
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 4128768 {
-            return true
+          if version < 4128768 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 3473408 {
-            return true
+          if version < 3473408 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 655360 {
-            return true
+          if version < 655360 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 2621440 {
-            return true
+          if version < 2621440 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 720896 {
-            return true
+          if version < 720896 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6356992 {
-            return true
+          if version < 6356992 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 393728 {
-            return true
+          if version < 393728 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
       Feature::CssRrggbbaa => {
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 3211264 {
-            return true
+          if version < 3211264 {
+            return false
           }
         }
         if let Some(version) = browsers.chrome {
-          if version >= 4063232 {
-            return true
+          if version < 4063232 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 655360 {
-            return true
+          if version < 655360 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 3407872 {
-            return true
+          if version < 3407872 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 655360 {
-            return true
+          if version < 655360 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 6356992 {
-            return true
+          if version < 6356992 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 524800 {
-            return true
+          if version < 524800 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
       Feature::CssNesting |
       Feature::CustomMediaQueries |
-      Feature::MediaIntervalSyntax => {}
+      Feature::MediaIntervalSyntax => {
+        return false
+      }
       Feature::DoublePositionGradients => {
         if let Some(version) = browsers.chrome {
-          if version >= 4653056 {
-            return true
+          if version < 4653056 {
+            return false
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 4194304 {
-            return true
+          if version < 4194304 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 3276800 {
-            return true
+          if version < 3276800 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 786688 {
-            return true
+          if version < 786688 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 786944 {
-            return true
+          if version < 786944 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 655360 {
-            return true
+          if version < 655360 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 4653056 {
-            return true
+          if version < 4653056 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
       Feature::Clamp => {
         if let Some(version) = browsers.chrome {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 3735552 {
-            return true
+          if version < 3735552 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 852224 {
-            return true
+          if version < 852224 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 852992 {
-            return true
+          if version < 852992 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 786432 {
-            return true
+          if version < 786432 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
       Feature::PlaceSelf |
       Feature::PlaceItems => {
         if let Some(version) = browsers.chrome {
-          if version >= 3866624 {
-            return true
+          if version < 3866624 {
+            return false
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 2949120 {
-            return true
+          if version < 2949120 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 2818048 {
-            return true
+          if version < 2818048 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 720896 {
-            return true
+          if version < 720896 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 720896 {
-            return true
+          if version < 720896 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 458752 {
-            return true
+          if version < 458752 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 3866624 {
-            return true
+          if version < 3866624 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
       Feature::PlaceContent => {
         if let Some(version) = browsers.chrome {
-          if version >= 3866624 {
-            return true
+          if version < 3866624 {
+            return false
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 2949120 {
-            return true
+          if version < 2949120 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 2818048 {
-            return true
+          if version < 2818048 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 589824 {
-            return true
+          if version < 589824 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 589824 {
-            return true
+          if version < 589824 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 458752 {
-            return true
+          if version < 458752 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 3866624 {
-            return true
+          if version < 3866624 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
       Feature::OverflowShorthand => {
         if let Some(version) = browsers.chrome {
-          if version >= 4456448 {
-            return true
+          if version < 4456448 {
+            return false
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 3997696 {
-            return true
+          if version < 3997696 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 3145728 {
-            return true
+          if version < 3145728 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 655360 {
-            return true
+          if version < 655360 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 4456448 {
-            return true
+          if version < 4456448 {
+            return false
           }
+        }
+        if browsers.ie.is_some() || browsers.ios_saf.is_some() || browsers.safari.is_some() {
+          return false
         }
       }
       Feature::MediaRangeSyntax => {
         if let Some(version) = browsers.firefox {
-          if version >= 4128768 {
-            return true
+          if version < 4128768 {
+            return false
           }
+        }
+        if browsers.android.is_some() || browsers.chrome.is_some() || browsers.edge.is_some() || browsers.ie.is_some() || browsers.ios_saf.is_some() || browsers.opera.is_some() || browsers.safari.is_some() || browsers.samsung.is_some() {
+          return false
         }
       }
       Feature::LogicalBorders |
       Feature::LogicalMargin |
       Feature::LogicalPadding => {
         if let Some(version) = browsers.chrome {
-          if version >= 4521984 {
-            return true
+          if version < 4521984 {
+            return false
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 2686976 {
-            return true
+          if version < 2686976 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 3145728 {
-            return true
+          if version < 3145728 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 786688 {
-            return true
+          if version < 786688 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 786944 {
-            return true
+          if version < 786944 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 655360 {
-            return true
+          if version < 655360 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 4521984 {
-            return true
+          if version < 4521984 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
       Feature::LogicalBorderRadius => {
         if let Some(version) = browsers.chrome {
-          if version >= 5832704 {
-            return true
+          if version < 5832704 {
+            return false
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5832704 {
-            return true
+          if version < 5832704 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 4325376 {
-            return true
+          if version < 4325376 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 4915200 {
-            return true
+          if version < 4915200 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 983040 {
-            return true
+          if version < 983040 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 983040 {
-            return true
+          if version < 983040 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 983040 {
-            return true
+          if version < 983040 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 5832704 {
-            return true
+          if version < 5832704 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
       Feature::LogicalInset => {
         if let Some(version) = browsers.chrome {
-          if version >= 5701632 {
-            return true
+          if version < 5701632 {
+            return false
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5701632 {
-            return true
+          if version < 5701632 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 4128768 {
-            return true
+          if version < 4128768 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 4063232 {
-            return true
+          if version < 4063232 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 917760 {
-            return true
+          if version < 917760 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 918784 {
-            return true
+          if version < 918784 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 917504 {
-            return true
+          if version < 917504 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 5701632 {
-            return true
+          if version < 5701632 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
       Feature::LogicalSize => {
         if let Some(version) = browsers.chrome {
-          if version >= 3735552 {
-            return true
+          if version < 3735552 {
+            return false
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 2686976 {
-            return true
+          if version < 2686976 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 2818048 {
-            return true
+          if version < 2818048 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 786688 {
-            return true
+          if version < 786688 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 786944 {
-            return true
+          if version < 786944 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 327680 {
-            return true
+          if version < 327680 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 3735552 {
-            return true
+          if version < 3735552 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
       Feature::LogicalTextAlign => {
         if let Some(version) = browsers.chrome {
-          if version >= 1179648 {
-            return true
+          if version < 1179648 {
+            return false
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 {
-            return true
+          if version < 5177344 {
+            return false
           }
         }
         if let Some(version) = browsers.firefox {
-          if version >= 262144 {
-            return true
+          if version < 262144 {
+            return false
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 917504 {
-            return true
+          if version < 917504 {
+            return false
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 196864 {
-            return true
+          if version < 196864 {
+            return false
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 131072 {
-            return true
+          if version < 131072 {
+            return false
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 65536 {
-            return true
+          if version < 65536 {
+            return false
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 2424832 {
-            return true
+          if version < 2424832 {
+            return false
           }
+        }
+        if browsers.ie.is_some() {
+          return false
         }
       }
     }
-    false
+    true
   }
 }

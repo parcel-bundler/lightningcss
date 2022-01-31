@@ -7517,6 +7517,36 @@ mod tests {
         ..Browsers::default()
       }
     );
+
+    prefix_test(
+      ".foo { color: rgba(123, 456, 789, 0.5) }",
+      indoc! { r#"
+        .foo {
+          color: rgba(123, 255, 255, .5);
+        }
+      "#},
+      Browsers {
+        firefox: Some(48 << 16),
+        safari: Some(10 << 16),
+        ios_saf: Some(9 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { color: rgba(123, 456, 789, 0.5) }",
+      indoc! { r#"
+        .foo {
+          color: #7bffff80;
+        }
+      "#},
+      Browsers {
+        firefox: Some(49 << 16),
+        safari: Some(10 << 16),
+        ios_saf: Some(10 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 
   #[cfg(feature = "grid")]
