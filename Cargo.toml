@@ -37,7 +37,7 @@ lazy_static = "1.4.0"
 retain_mut = "0.1.5"
 # CLI deps
 clap = { version = "3.0.6", features = ["derive"], optional = true }
-serde_json = { version = "*", optional = true }
+serde_json = { version = "1.0.78", optional = true }
 pathdiff = { version = "0.2.1", optional = true }
 
 [dev-dependencies]
