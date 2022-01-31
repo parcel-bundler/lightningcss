@@ -7,7 +7,7 @@ members = [
 [package]
 authors = ["Devon Govett <devongovett@gmail.com>"]
 name = "parcel_css"
-version = "1.0.0-alpha.13"
+version = "1.0.0-alpha.14"
 description = "A CSS parser, transformer, and minifier"
 license = "MPL-2.0"
 edition = "2018"
