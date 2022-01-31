@@ -343,7 +343,7 @@ impl<'i> From<CompileError<'i>> for napi::Error {
 impl<'i> From<CompileError<'i>> for wasm_bindgen::JsValue {
   fn from(e: CompileError) -> wasm_bindgen::JsValue {
     match e {
-      CompileError::SourceMapError(e) => e.into(),
+      CompileError::SourceMapError(e) => js_sys::Error::new(&e.to_string()).into(),
       _ => js_sys::Error::new(&e.reason()).into()
     }
   }
