@@ -565,7 +565,7 @@ dependencies = [
 
 [[package]]
 name = "parcel_selectors"
-version = "0.24.0"
+version = "0.24.1"
 dependencies = [
  "bitflags",
  "cssparser",
