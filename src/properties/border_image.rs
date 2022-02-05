@@ -31,8 +31,8 @@ impl Default for BorderImageRepeat {
   }
 }
 
-impl Parse for BorderImageRepeat {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for BorderImageRepeat {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let horizontal = BorderImageRepeatKeyword::parse(input)?;
     let vertical = input.try_parse(BorderImageRepeatKeyword::parse).ok();
     Ok(BorderImageRepeat(horizontal, vertical.unwrap_or(horizontal)))
@@ -64,8 +64,8 @@ impl Default for BorderImageSideWidth {
   }
 }
 
-impl Parse for BorderImageSideWidth {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for BorderImageSideWidth {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("auto")).is_ok() {
       return Ok(BorderImageSideWidth::Auto);
     }
@@ -109,8 +109,8 @@ impl Default for BorderImageSlice {
   }
 }
 
-impl Parse for BorderImageSlice {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for BorderImageSlice {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut fill = input.try_parse(|i| i.expect_ident_matching("fill")).is_ok();
     let offsets = Rect::parse(input)?;
     if !fill {
@@ -135,22 +135,22 @@ impl ToCss for BorderImageSlice {
 
 /// https://www.w3.org/TR/css-backgrounds-3/#border-image
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct BorderImage {
-  pub source: Image,
+pub struct BorderImage<'i> {
+  pub source: Image<'i>,
   pub slice: BorderImageSlice,
   pub width: Rect<BorderImageSideWidth>,
   pub outset: Rect<LengthOrNumber>,
   pub repeat: BorderImageRepeat
 }
 
-impl Parse for BorderImage {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for BorderImage<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     BorderImage::parse_with_callback(input, |_| false)
   }
 }
 
-impl BorderImage {
-  pub(crate) fn parse_with_callback<'i, 't, F>(input: &mut Parser<'i, 't>, mut callback: F) -> Result<Self, ParseError<'i, ParserError<'i>>>
+impl<'i> BorderImage<'i> {
+  pub(crate) fn parse_with_callback<'t, F>(input: &mut Parser<'i, 't>, mut callback: F) -> Result<Self, ParseError<'i, ParserError<'i>>>
   where
     F: FnMut(&mut Parser<'i, 't>) -> bool
   {
@@ -225,7 +225,7 @@ impl BorderImage {
   }
 }
 
-impl ToCss for BorderImage {
+impl<'i> ToCss for BorderImage<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if self.source != Image::default() {
       self.source.to_css(dest)?;
@@ -259,9 +259,9 @@ impl ToCss for BorderImage {
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct BorderImageHandler {
+pub(crate) struct BorderImageHandler<'i> {
   targets: Option<Browsers>,
-  source: Option<Image>,
+  source: Option<Image<'i>>,
   slice: Option<BorderImageSlice>,
   width: Option<Rect<BorderImageSideWidth>>,
   outset: Option<Rect<LengthOrNumber>>,
@@ -270,8 +270,8 @@ pub(crate) struct BorderImageHandler {
   has_any: bool
 }
 
-impl BorderImageHandler {
-  pub fn new(targets: Option<Browsers>) -> BorderImageHandler {
+impl<'i> BorderImageHandler<'i> {
+  pub fn new(targets: Option<Browsers>) -> BorderImageHandler<'i> {
     BorderImageHandler {
       targets,
       vendor_prefix: VendorPrefix::empty(),
@@ -280,8 +280,8 @@ impl BorderImageHandler {
   }
 }
 
-impl PropertyHandler for BorderImageHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, _: &mut LogicalProperties) -> bool {
+impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
     use Property::*;
     macro_rules! property {
       ($name: ident, $val: ident) => {{
@@ -324,12 +324,12 @@ impl PropertyHandler for BorderImageHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) {
     self.flush(dest);
   }
 }
 
-impl BorderImageHandler {
+impl<'i> BorderImageHandler<'i> {
   pub fn reset(&mut self) {
     self.source = None;
     self.slice = None;
@@ -338,7 +338,7 @@ impl BorderImageHandler {
     self.repeat = None;
   }
 
-  pub fn set_border_image(&mut self, border_image: &BorderImage) {
+  pub fn set_border_image(&mut self, border_image: &BorderImage<'i>) {
     self.source = Some(border_image.source.clone());
     self.slice = Some(border_image.slice.clone());
     self.width = Some(border_image.width.clone());
@@ -346,7 +346,7 @@ impl BorderImageHandler {
     self.repeat = Some(border_image.repeat.clone());
   }
 
-  fn flush(&mut self, dest: &mut DeclarationList) {
+  fn flush(&mut self, dest: &mut DeclarationList<'i>) {
     if !self.has_any {
       return
     }

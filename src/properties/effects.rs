@@ -13,7 +13,7 @@ use crate::values::{
 
 /// https://drafts.fxtf.org/filter-effects-1/#FilterProperty
 #[derive(Debug, Clone, PartialEq)]
-pub enum Filter {
+pub enum Filter<'i> {
   Blur(Length),
   Brightness(NumberOrPercentage),
   Contrast(NumberOrPercentage),
@@ -24,11 +24,11 @@ pub enum Filter {
   Saturate(NumberOrPercentage),
   Sepia(NumberOrPercentage),
   DropShadow(DropShadow),
-  Url(Url)
+  Url(Url<'i>)
 }
 
-impl Parse for Filter {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Filter<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(url) = input.try_parse(Url::parse) {
       return Ok(Filter::Url(url))
     }
@@ -93,7 +93,7 @@ impl Parse for Filter {
   }
 }
 
-impl ToCss for Filter {
+impl<'i> ToCss for Filter<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       Filter::Blur(val) => {
@@ -178,8 +178,8 @@ pub struct DropShadow {
   pub blur: Length
 }
 
-impl Parse for DropShadow {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for DropShadow {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut color = None;
     let mut lengths = None;
 
@@ -239,13 +239,13 @@ impl ToCss for DropShadow {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum FilterList {
+pub enum FilterList<'i> {
   None,
-  Filters(SmallVec<[Filter; 1]>)
+  Filters(SmallVec<[Filter<'i>; 1]>)
 }
 
-impl Parse for FilterList {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for FilterList<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(FilterList::None)
     }
@@ -259,7 +259,7 @@ impl Parse for FilterList {
   }
 }
 
-impl ToCss for FilterList {
+impl<'i> ToCss for FilterList<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       FilterList::None => dest.write_str("none"),

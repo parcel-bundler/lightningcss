@@ -94,9 +94,9 @@ impl QuirksMode {
 /// Data associated with the matching process for a element.  This context is
 /// used across many selectors for an element, so it's not appropriate for
 /// transient data that applies to only a single selector.
-pub struct MatchingContext<'a, Impl>
+pub struct MatchingContext<'a, 'i, Impl>
 where
-    Impl: SelectorImpl,
+    Impl: SelectorImpl<'i>,
 {
     /// Input with the matching mode we should use when matching selectors.
     matching_mode: MatchingMode,
@@ -144,9 +144,9 @@ where
     _impl: ::std::marker::PhantomData<Impl>,
 }
 
-impl<'a, Impl> MatchingContext<'a, Impl>
+impl<'a, 'i, Impl> MatchingContext<'a, 'i, Impl>
 where
-    Impl: SelectorImpl,
+    Impl: SelectorImpl<'i>,
 {
     /// Constructs a new `MatchingContext`.
     pub fn new(
@@ -272,7 +272,7 @@ where
     #[inline]
     pub fn with_shadow_host<F, E, R>(&mut self, host: Option<E>, f: F) -> R
     where
-        E: Element,
+        E: Element<'i>,
         F: FnOnce(&mut Self) -> R,
     {
         let original_host = self.current_host.take();

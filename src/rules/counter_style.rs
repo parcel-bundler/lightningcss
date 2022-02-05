@@ -6,14 +6,14 @@ use crate::values::ident::CustomIdent;
 use crate::error::PrinterError;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct CounterStyleRule {
-  pub name: CustomIdent,
+pub struct CounterStyleRule<'i> {
+  pub name: CustomIdent<'i>,
   // TODO: eventually parse these properties
-  pub declarations: DeclarationBlock,
+  pub declarations: DeclarationBlock<'i>,
   pub loc: SourceLocation
 }
 
-impl ToCss for CounterStyleRule {
+impl<'i> ToCss for CounterStyleRule<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.add_mapping(self.loc);
     dest.write_str("@counter-style ")?;

@@ -20,8 +20,8 @@ pub enum BaselinePosition {
   Last
 }
 
-impl Parse for BaselinePosition {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for BaselinePosition {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let ident = input.expect_ident()?;
     match_ignore_ascii_case! { &*ident,
@@ -88,8 +88,8 @@ pub enum AlignContent {
   ContentPosition(Option<OverflowPosition>, ContentPosition)
 }
 
-impl Parse for AlignContent {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for AlignContent {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(AlignContent::Normal)
     }
@@ -136,8 +136,8 @@ pub enum JustifyContent {
   Right(Option<OverflowPosition>)
 }
 
-impl Parse for JustifyContent {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for JustifyContent {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(JustifyContent::Normal)
     }
@@ -203,8 +203,8 @@ pub struct PlaceContent {
   pub justify: JustifyContent
 }
 
-impl Parse for PlaceContent {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for PlaceContent {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let align = AlignContent::parse(input)?;
     let justify = match input.try_parse(JustifyContent::parse) {
       Ok(j) => j,
@@ -267,8 +267,8 @@ pub enum AlignSelf {
   SelfPosition(Option<OverflowPosition>, SelfPosition)
 }
 
-impl Parse for AlignSelf {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for AlignSelf {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
       return Ok(AlignSelf::Auto)
     }
@@ -322,8 +322,8 @@ pub enum JustifySelf {
   Right(Option<OverflowPosition>)
 }
 
-impl Parse for JustifySelf {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for JustifySelf {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
       return Ok(JustifySelf::Auto)
     }
@@ -399,8 +399,8 @@ pub struct PlaceSelf {
   pub justify: JustifySelf
 }
 
-impl Parse for PlaceSelf {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for PlaceSelf {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let align = AlignSelf::parse(input)?;
     let justify = match input.try_parse(JustifySelf::parse) {
       Ok(j) => j,
@@ -450,8 +450,8 @@ pub enum AlignItems {
   SelfPosition(Option<OverflowPosition>, SelfPosition)
 }
 
-impl Parse for AlignItems {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for AlignItems {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(AlignItems::Normal)
     }
@@ -495,8 +495,8 @@ pub enum LegacyJustify {
   Center
 }
 
-impl Parse for LegacyJustify {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for LegacyJustify {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let ident = input.expect_ident()?;
     match_ignore_ascii_case! { &*ident,
@@ -554,8 +554,8 @@ pub enum JustifyItems {
   Legacy(LegacyJustify)
 }
 
-impl Parse for JustifyItems {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for JustifyItems {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(JustifyItems::Normal)
     }
@@ -631,8 +631,8 @@ pub struct PlaceItems {
   pub justify: JustifyItems
 }
 
-impl Parse for PlaceItems {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for PlaceItems {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let align = AlignItems::parse(input)?;
     let justify = match input.try_parse(JustifyItems::parse) {
       Ok(j) => j,
@@ -678,8 +678,8 @@ pub enum GapValue {
   LengthPercentage(LengthPercentage)
 }
 
-impl Parse for GapValue {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for GapValue {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
       return Ok(GapValue::Normal)
     }
@@ -705,8 +705,8 @@ pub struct Gap {
   pub column: GapValue
 }
 
-impl Parse for Gap {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Gap {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let row = GapValue::parse(input)?;
     let column = input.try_parse(GapValue::parse).unwrap_or(row.clone());
     Ok(Gap { row, column })
@@ -753,11 +753,11 @@ impl AlignHandler {
   }
 }
 
-impl PropertyHandler for AlignHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, _: &mut LogicalProperties) -> bool {
+impl<'i> PropertyHandler<'i> for AlignHandler {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
     use Property::*;
 
-    macro_rules! property {
+    macro_rules! maybe_flush {
       ($prop: ident, $val: expr, $vp: expr) => {{
         // If two vendor prefixes for the same property have different
         // values, we need to flush what we have immediately to preserve order.
@@ -766,6 +766,12 @@ impl PropertyHandler for AlignHandler {
             self.flush(dest);
           }
         }
+      }};
+    }
+
+    macro_rules! property {
+      ($prop: ident, $val: expr, $vp: expr) => {{
+        maybe_flush!($prop, $val, $vp);
 
         // Otherwise, update the value and add the prefix.
         if let Some((val, prefixes)) = &mut self.$prop {
@@ -795,6 +801,8 @@ impl PropertyHandler for AlignHandler {
         self.flex_line_pack = None;
         self.box_pack = None;
         self.flex_pack = None;
+        maybe_flush!(align_content, &val.align, &VendorPrefix::None);
+        maybe_flush!(justify_content, &val.justify, &VendorPrefix::None);
         property!(align_content, &val.align, &VendorPrefix::None);
         property!(justify_content, &val.justify, &VendorPrefix::None);
       }

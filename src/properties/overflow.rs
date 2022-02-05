@@ -26,8 +26,8 @@ pub struct Overflow {
   pub y: OverflowKeyword
 }
 
-impl Parse for Overflow {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Overflow {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let x = OverflowKeyword::parse(input)?;
     let y = input.try_parse(OverflowKeyword::parse).unwrap_or_else(|_| x.clone());
     Ok(Overflow { x, y })
@@ -70,8 +70,8 @@ impl OverflowHandler {
 }
 
 
-impl PropertyHandler for OverflowHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
+impl<'i> PropertyHandler<'i> for OverflowHandler {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
     use Property::*;
 
     match property {

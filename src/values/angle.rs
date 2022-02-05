@@ -15,8 +15,8 @@ pub enum Angle {
   Turn(f32)
 }
 
-impl Parse for Angle {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Angle {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
       // Angles are always compatible, so they will always compute to a value.

@@ -5,11 +5,11 @@ use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
 use crate::logical::LogicalProperties;
 
-pub trait Parse: Sized {
+pub trait Parse<'i>: Sized {
   /// Parse a value of this type.
   ///
   /// Returns an error on failure.
-  fn parse<'i, 't>(
+  fn parse<'t>(
       input: &mut Parser<'i, 't>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>>;
 }
@@ -40,9 +40,9 @@ where
     }
 }
 
-pub(crate) trait PropertyHandler: Sized {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical_properties: &mut LogicalProperties) -> bool;
-  fn finalize(&mut self, dest: &mut DeclarationList, logical_properties: &mut LogicalProperties);
+pub(crate) trait PropertyHandler<'i>: Sized {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical_properties: &mut LogicalProperties) -> bool;
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, logical_properties: &mut LogicalProperties);
 }
 
 pub trait TryAdd<T> {

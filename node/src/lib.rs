@@ -333,7 +333,7 @@ impl<'i> From<parcel_sourcemap::SourceMapError> for CompileError<'i> {
 impl<'i> From<CompileError<'i>> for napi::Error {
   fn from(e: CompileError) -> napi::Error {
     match e {
-      CompileError::SourceMapError(e) => e.into(),
+      CompileError::SourceMapError(e) => napi::Error::from_reason(e.to_string()),
       _ => napi::Error::new(napi::Status::GenericFailure, e.reason())
     }
   }
@@ -343,7 +343,7 @@ impl<'i> From<CompileError<'i>> for napi::Error {
 impl<'i> From<CompileError<'i>> for wasm_bindgen::JsValue {
   fn from(e: CompileError) -> wasm_bindgen::JsValue {
     match e {
-      CompileError::SourceMapError(e) => e.into(),
+      CompileError::SourceMapError(e) => js_sys::Error::new(&e.to_string()).into(),
       _ => js_sys::Error::new(&e.reason()).into()
     }
   }

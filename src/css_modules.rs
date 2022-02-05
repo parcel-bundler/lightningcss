@@ -81,14 +81,14 @@ impl<'a> CssModule<'a> {
             for name in &composes.names {
               let reference = match &composes.from {
                 None => CssModuleReference::Local { name: format!("{}_{}", name.0, self.hash) },
-                Some(ComposesFrom::Global) => CssModuleReference::Global { name: name.0.clone() },
+                Some(ComposesFrom::Global) => CssModuleReference::Global { name: name.0.as_ref().into() },
                 Some(ComposesFrom::File(file)) => CssModuleReference::Dependency {
-                  name: name.0.clone(),
-                  specifier: file.clone()
+                  name: name.0.to_string(),
+                  specifier: file.to_string()
                 }
               };
 
-              let export = self.exports.get_mut(&id.0).unwrap();
+              let export = self.exports.get_mut(&id.0.as_ref().to_owned()).unwrap();
               if !export.composes.contains(&reference) {
                 export.composes.push(reference);
               }

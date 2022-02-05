@@ -8,9 +8,9 @@ use crate::values::{url::Url, color::CssColor};
 
 /// https://www.w3.org/TR/SVG2/painting.html#SpecifyingPaint
 #[derive(Debug, Clone, PartialEq)]
-pub enum SVGPaint {
+pub enum SVGPaint<'i> {
   None,
-  Url(Url, Option<SVGPaintFallback>),
+  Url(Url<'i>, Option<SVGPaintFallback>),
   Color(CssColor),
   ContextFill,
   ContextStroke
@@ -22,8 +22,8 @@ pub enum SVGPaintFallback {
   Color(CssColor)
 }
 
-impl Parse for SVGPaint {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for SVGPaint<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(url) = input.try_parse(Url::parse) {
       let fallback = input.try_parse(SVGPaintFallback::parse).ok();
       return Ok(SVGPaint::Url(url, fallback))
@@ -46,7 +46,7 @@ impl Parse for SVGPaint {
   }
 }
 
-impl ToCss for SVGPaint {
+impl<'i> ToCss for SVGPaint<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       SVGPaint::None => dest.write_str("none"),
@@ -65,8 +65,8 @@ impl ToCss for SVGPaint {
   }
 }
 
-impl Parse for SVGPaintFallback {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for SVGPaintFallback {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(SVGPaintFallback::None)
     }
@@ -109,8 +109,8 @@ pub enum StrokeDasharray {
   Values(Vec<LengthPercentage>)
 }
 
-impl Parse for StrokeDasharray {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for StrokeDasharray {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(StrokeDasharray::None)
     }
@@ -156,13 +156,13 @@ impl ToCss for StrokeDasharray {
 
 /// https://www.w3.org/TR/SVG2/painting.html#VertexMarkerProperties
 #[derive(Debug, Clone, PartialEq)]
-pub enum Marker {
+pub enum Marker<'i> {
   None,
-  Url(Url)
+  Url(Url<'i>)
 }
 
-impl Parse for Marker {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Marker<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(url) = input.try_parse(Url::parse) {
       return Ok(Marker::Url(url))
     }
@@ -172,7 +172,7 @@ impl Parse for Marker {
   }
 }
 
-impl ToCss for Marker {
+impl<'i> ToCss for Marker<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       Marker::None => dest.write_str("none"),

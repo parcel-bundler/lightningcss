@@ -33,8 +33,8 @@ impl Default for BorderSideWidth {
   }
 }
 
-impl Parse for BorderSideWidth {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for BorderSideWidth {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(length) = input.try_parse(|i| Length::parse(i)) {
       return Ok(BorderSideWidth::Length(length));
     }
@@ -99,8 +99,8 @@ impl<S: Default> Default for GenericBorder<S> {
   }
 }
 
-impl<S: Parse + Default> Parse for GenericBorder<S> {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i, S: Parse<'i> + Default> Parse<'i> for GenericBorder<S> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // Order doesn't matter...
     let mut color = None;
     let mut style = None;
@@ -226,7 +226,7 @@ macro_rules! get_physical {
 }
 
 #[derive(Debug)]
-pub(crate) struct BorderHandler {
+pub(crate) struct BorderHandler<'i> {
   border_top: BorderShorthand,
   border_bottom: BorderShorthand,
   border_left: BorderShorthand,
@@ -236,14 +236,14 @@ pub(crate) struct BorderHandler {
   border_inline_start: BorderShorthand,
   border_inline_end: BorderShorthand,
   category: PropertyCategory,
-  border_image_handler: BorderImageHandler,
-  border_radius_handler: BorderRadiusHandler,
+  border_image_handler: BorderImageHandler<'i>,
+  border_radius_handler: BorderRadiusHandler<'i>,
   has_any: bool,
   physical_to_logical: PhysicalToLogical
 }
 
-impl BorderHandler {
-  pub fn new(targets: Option<Browsers>) -> BorderHandler {
+impl<'i> BorderHandler<'i> {
+  pub fn new(targets: Option<Browsers>) -> Self {
     BorderHandler {
       border_top: BorderShorthand::default(),
       border_bottom: BorderShorthand::default(),
@@ -262,8 +262,8 @@ impl BorderHandler {
   }
 }
 
-impl PropertyHandler for BorderHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
+impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
     use Property::*;
 
     macro_rules! property {
@@ -413,14 +413,14 @@ impl PropertyHandler for BorderHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, logical: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) {
     self.border_image_handler.finalize(dest, logical);
     self.border_radius_handler.finalize(dest, logical);
     self.flush(dest, logical);
   }
 }
 
-impl BorderHandler {
+impl<'i> BorderHandler<'i> {
   fn flush(&mut self, dest: &mut DeclarationList, logical_properties: &mut LogicalProperties) {
     if !self.has_any {
       return
@@ -600,6 +600,34 @@ impl BorderHandler {
         $inline_end: expr,
         $is_logical: expr
       ) => {
+        macro_rules! shorthand {
+          ($prop: ident, $key: ident) => {{
+            let has_prop = $block_start.$key.is_some() && $block_end.$key.is_some() && $inline_start.$key.is_some() && $inline_end.$key.is_some();
+            if has_prop {
+              if !$is_logical || ($block_start.$key == $block_end.$key && $block_end.$key == $inline_start.$key && $inline_start.$key == $inline_end.$key) {
+                let rect = Rect::new(
+                  std::mem::take(&mut $block_start.$key).unwrap(),
+                  std::mem::take(&mut $inline_end.$key).unwrap(),
+                  std::mem::take(&mut $block_end.$key).unwrap(),
+                  std::mem::take(&mut $inline_start.$key).unwrap()
+                );
+                prop!($prop => rect);
+              }
+            }
+          }};
+        }
+
+        macro_rules! logical_shorthand {
+          ($prop: ident, $key: ident, $start: expr, $end: expr) => {{
+            let has_prop = $start.$key.is_some() && $start.$key == $end.$key;
+            if has_prop {
+              prop!($prop => std::mem::take(&mut $start.$key).unwrap());
+              $end.$key = None;
+            }
+            has_prop
+          }};
+        }
+
         if $block_start.is_valid() && $block_end.is_valid() && $inline_start.is_valid() && $inline_end.is_valid() {
           let top_eq_bottom = $block_start == $block_end;
           let left_eq_right = $inline_start == $inline_end;
@@ -607,6 +635,34 @@ impl BorderHandler {
           let top_eq_right = $block_start == $inline_end;
           let bottom_eq_left = $block_end == $inline_start;
           let bottom_eq_right = $block_end == $inline_end;
+
+          macro_rules! is_eq {
+            ($key: ident) => {
+              $block_start.$key == $block_end.$key && 
+              $inline_start.$key == $inline_end.$key &&
+              $inline_start.$key == $block_start.$key
+            };
+          }
+
+          macro_rules! prop_diff {
+            ($border: expr, $fallback: expr, $border_fallback: literal) => {
+              if !$is_logical && is_eq!(color) && is_eq!(style) {
+                dest.push(Property::Border($border.to_border()));
+                shorthand!(BorderWidth, width);
+              } else if !$is_logical && is_eq!(width) && is_eq!(style) {
+                dest.push(Property::Border($border.to_border()));
+                shorthand!(BorderColor, color);
+              } else if !$is_logical && is_eq!(width) && is_eq!(color) {
+                dest.push(Property::Border($border.to_border()));
+                shorthand!(BorderStyle, style);
+              } else {
+                if $border_fallback {
+                  dest.push(Property::Border($border.to_border()));
+                }
+                $fallback
+              }
+            };
+          }
 
           macro_rules! side_diff {
             ($border: expr, $other: expr, $prop: ident, $width: ident, $style: ident, $color: ident) => {
@@ -643,52 +699,63 @@ impl BorderHandler {
             dest.push(Property::Border($inline_start.to_border()));
             side_diff!($inline_start, $block_end, $block_end_prop, $block_end_width, $block_end_style, $block_end_color);
           } else if top_eq_bottom {
-            dest.push(Property::Border($block_start.to_border()));
-            side_diff!($block_start, $inline_start, $inline_start_prop, $inline_start_width, $inline_start_style, $inline_start_color);
-            side_diff!($block_start, $inline_end, $inline_end_prop, $inline_end_width, $inline_end_style, $inline_end_color);
-          } else if left_eq_right {
-            dest.push(Property::Border($inline_start.to_border()));
-            side_diff!($inline_start, $block_start, $block_start_prop, $block_start_width, $block_start_style, $block_start_color);
-            side_diff!($inline_start, $block_end, $block_end_prop, $block_end_width, $block_end_style, $block_end_color);
-          } else if bottom_eq_right {
-            dest.push(Property::Border($block_end.to_border()));
-            side_diff!($block_end, $block_start, $block_start_prop, $block_start_width, $block_start_style, $block_start_color);
-            side_diff!($block_end, $inline_start, $inline_start_prop, $inline_start_width, $inline_start_style, $inline_start_color);
-          } else {
-            prop!($block_start_prop => $block_start.to_border());
-            prop!($block_end_prop => $block_end.to_border());
-            prop!($inline_start_prop => $inline_start.to_border());
-            prop!($inline_end_prop => $inline_end.to_border());
-          }
-        } else {
-          macro_rules! shorthand {
-            ($prop: ident, $key: ident) => {{
-              let has_prop = $block_start.$key.is_some() && $block_end.$key.is_some() && $inline_start.$key.is_some() && $inline_end.$key.is_some();
-              if has_prop {
-                if !$is_logical || ($block_start.$key == $block_end.$key && $block_end.$key == $inline_start.$key && $inline_start.$key == $inline_end.$key) {
-                  let rect = Rect::new(
-                    std::mem::take(&mut $block_start.$key).unwrap(),
-                    std::mem::take(&mut $inline_end.$key).unwrap(),
-                    std::mem::take(&mut $block_end.$key).unwrap(),
-                    std::mem::take(&mut $inline_start.$key).unwrap()
-                  );
-                  prop!($prop => rect);
+            prop_diff!($block_start, {
+              // Try to use border-inline shorthands for the opposide direction if possible.
+              let mut handled = false;
+              if $is_logical {
+                let mut diff = 0;
+                if $inline_start.width != $block_start.width || $inline_end.width != $block_start.width {
+                  diff += 1;
+                }
+                if $inline_start.style != $block_start.style || $inline_end.style != $block_start.style {
+                  diff += 1;
+                }
+                if $inline_start.color != $block_start.color || $inline_end.color != $block_start.color {
+                  diff += 1;
+                }
+
+                if diff == 1 {
+                  if $inline_start.width != $block_start.width && $inline_start.width == $inline_end.width {
+                    prop!(BorderInlineWidth => $inline_start.width.clone().unwrap());
+                    handled = true;
+                  } else if $inline_start.style != $block_start.style && $inline_start.style == $inline_end.style {
+                    prop!(BorderInlineStyle => $inline_start.style.clone().unwrap());
+                    handled = true;
+                  } else if $inline_start.color != $block_start.color && $inline_start.color == $inline_end.color {
+                    prop!(BorderInlineColor => $inline_start.color.clone().unwrap());
+                    handled = true;
+                  }
+                } else if diff > 1 && $inline_start.width == $inline_end.width && $inline_start.style == $inline_end.style && $inline_start.color == $inline_end.color {
+                  prop!(BorderInline => $inline_start.to_border());
+                  handled = true;
                 }
               }
-            }};
-          }
 
-          macro_rules! logical_shorthand {
-            ($prop: ident, $key: ident, $start: expr, $end: expr) => {{
-              let has_prop = $start.$key.is_some() && $start.$key == $end.$key;
-              if has_prop {
-                prop!($prop => std::mem::take(&mut $start.$key).unwrap());
-                $end.$key = None;
+              if !handled {
+                side_diff!($block_start, $inline_start, $inline_start_prop, $inline_start_width, $inline_start_style, $inline_start_color);
+                side_diff!($block_start, $inline_end, $inline_end_prop, $inline_end_width, $inline_end_style, $inline_end_color);
               }
-              has_prop
-            }};
+            }, true);
+          } else if left_eq_right {
+            prop_diff!($inline_start, {
+              // We know already that top != bottom, so no need to try to use border-block.
+              side_diff!($inline_start, $block_start, $block_start_prop, $block_start_width, $block_start_style, $block_start_color);
+              side_diff!($inline_start, $block_end, $block_end_prop, $block_end_width, $block_end_style, $block_end_color);
+            }, true);
+          } else if bottom_eq_right {
+            prop_diff!($block_end, {
+              side_diff!($block_end, $block_start, $block_start_prop, $block_start_width, $block_start_style, $block_start_color);
+              side_diff!($block_end, $inline_start, $inline_start_prop, $inline_start_width, $inline_start_style, $inline_start_color);
+            }, true);
+          } else {
+            prop_diff!($block_start, {
+              prop!($block_start_prop => $block_start.to_border());
+              prop!($block_end_prop => $block_end.to_border());
+              prop!($inline_start_prop => $inline_start.to_border());
+              prop!($inline_end_prop => $inline_end.to_border());
+            }, false);
           }
-    
+        } else {    
           shorthand!(BorderStyle, style);
           shorthand!(BorderWidth, width);
           shorthand!(BorderColor, color);
@@ -810,7 +877,7 @@ impl BorderHandler {
     self.border_inline_end.reset();
   }
 
-  fn flush_unparsed(&mut self, unparsed: &UnparsedProperty, dest: &mut DeclarationList, logical_properties: &mut LogicalProperties) {
+  fn flush_unparsed(&mut self, unparsed: &UnparsedProperty<'i>, dest: &mut DeclarationList<'i>, logical_properties: &mut LogicalProperties) {
     let logical_supported = logical_properties.is_supported(Feature::LogicalBorders);
     if logical_supported {
       dest.push(Property::Unparsed(unparsed.clone()));

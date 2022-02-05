@@ -21,6 +21,8 @@ pub mod bundler;
 
 #[cfg(test)]
 mod tests {
+  use crate::dependencies::Dependency;
+  use crate::rules::CssRule;
   use crate::{stylesheet::*, error::MinifyError};
   use crate::targets::Browsers;
   use cssparser::SourceLocation;
@@ -29,21 +31,21 @@ mod tests {
   use crate::css_modules::{CssModuleExports, CssModuleExport, CssModuleReference};
 
   fn test(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions::default()).unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
   }
 
   fn minify_test(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions::default()).unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet.to_css(PrinterOptions { minify: true, ..PrinterOptions::default() }).unwrap();
     assert_eq!(res.code, expected);
   }
 
   fn prefix_test(source: &str, expected: &str, targets: Browsers) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions::default()).unwrap();
     stylesheet.minify(MinifyOptions { targets: Some(targets), ..MinifyOptions::default() }).unwrap();
     let res = stylesheet.to_css(PrinterOptions { targets: Some(targets), ..PrinterOptions::default() }).unwrap();
     assert_eq!(res.code, expected);
@@ -61,21 +63,21 @@ mod tests {
       chrome: Some(95 << 16),
       ..Browsers::default()
     });
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(MinifyOptions { targets, ..MinifyOptions::default() }).unwrap();
     let res = stylesheet.to_css(PrinterOptions { targets, ..PrinterOptions::default() }).unwrap();
     assert_eq!(res.code, expected);
   }
 
   fn nesting_test_no_targets(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
   }
 
   fn css_modules_test(source: &str, expected: &str, expected_exports: CssModuleExports) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { css_modules: true, ..ParserOptions::default() }).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions { css_modules: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
@@ -83,7 +85,7 @@ mod tests {
   }
 
   fn custom_media_test(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { custom_media: true, ..ParserOptions::default() }).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions { custom_media: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(MinifyOptions {
       targets: Some(Browsers { chrome: Some(95 << 16), ..Browsers::default() }),
       ..MinifyOptions::default()
@@ -421,6 +423,160 @@ mod tests {
       }
     "#
     });
+
+    test(r#"
+      .foo {
+        border: 1px solid black;
+        border-width: 1px 1px 0 0;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 1px solid #000;
+        border-width: 1px 1px 0 0;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        border-top: 1px solid black;
+        border-bottom: 1px solid black;
+        border-left: 2px solid black;
+        border-right: 2px solid black;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 1px solid #000;
+        border-width: 1px 2px;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        border-top: 1px solid black;
+        border-bottom: 1px solid black;
+        border-left: 2px solid black;
+        border-right: 1px solid black;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 1px solid #000;
+        border-left-width: 2px;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        border-top: 1px solid black;
+        border-bottom: 1px solid black;
+        border-left: 1px solid red;
+        border-right: 1px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 1px solid #000;
+        border-color: #000 red;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        border-block-start: 1px solid black;
+        border-block-end: 1px solid black;
+        border-inline-start: 1px solid red;
+        border-inline-end: 1px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 1px solid #000;
+        border-inline-color: red;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        border-block-start: 1px solid black;
+        border-block-end: 1px solid black;
+        border-inline-start: 2px solid black;
+        border-inline-end: 2px solid black;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 1px solid #000;
+        border-inline-width: 2px;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        border-block-start: 1px solid black;
+        border-block-end: 1px solid black;
+        border-inline-start: 2px solid red;
+        border-inline-end: 2px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 1px solid #000;
+        border-inline: 2px solid red;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        border-block-start: 1px solid black;
+        border-block-end: 1px solid black;
+        border-inline-start: 2px solid red;
+        border-inline-end: 3px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 1px solid #000;
+        border-inline-start: 2px solid red;
+        border-inline-end: 3px solid red;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        border-block-start: 2px solid black;
+        border-block-end: 1px solid black;
+        border-inline-start: 2px solid red;
+        border-inline-end: 2px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 2px solid red;
+        border-block-start-color: #000;
+        border-block-end: 1px solid #000;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        border-block-start: 2px solid red;
+        border-block-end: 1px solid red;
+        border-inline-start: 2px solid red;
+        border-inline-end: 2px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 2px solid red;
+        border-block-end-width: 1px;
+      }
+    "#});
+
+    test(r#"
+      .foo {
+        border-block-start: 2px solid red;
+        border-block-end: 2px solid red;
+        border-inline-start: 2px solid red;
+        border-inline-end: 1px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 2px solid red;
+        border-inline-end-width: 1px;
+      }
+    "#});
 
     prefix_test(r#"
       .foo {
@@ -4450,6 +4606,37 @@ mod tests {
       safari: Some(4 << 16),
       ..Browsers::default()
     });
+
+    test(r#"
+      .foo {
+        -webkit-transition: background 200ms;
+        -moz-transition: background 200ms;
+        transition: background 230ms;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-transition: background .2s;
+        -moz-transition: background .2s;
+        transition: background .23s;
+      }
+    "#});
+
+    prefix_test(r#"
+      .foo {
+        -webkit-transition: background 200ms;
+        -moz-transition: background 200ms;
+        transition: background 230ms;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-transition: background .2s;
+        -moz-transition: background .2s;
+        transition: background .23s;
+      }
+    "#}, Browsers {
+      chrome: Some(95 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]
@@ -7248,6 +7435,20 @@ mod tests {
       firefox: Some(80 << 16),
       ..Browsers::default()
     });
+
+    prefix_test(r#"
+      .foo {
+        background: -webkit-image-set(url("foo.png") 2x, url(bar.png) 1x);
+      }
+    "#, indoc! {r#"
+      .foo {
+        background: -webkit-image-set(url(foo.png) 2x, url(bar.png));
+      }
+    "#},
+    Browsers {
+      chrome: Some(95 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]
@@ -7314,6 +7515,36 @@ mod tests {
       "#},
       Browsers {
         ie: Some(11 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { color: rgba(123, 456, 789, 0.5) }",
+      indoc! { r#"
+        .foo {
+          color: rgba(123, 255, 255, .5);
+        }
+      "#},
+      Browsers {
+        firefox: Some(48 << 16),
+        safari: Some(10 << 16),
+        ios_saf: Some(9 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { color: rgba(123, 456, 789, 0.5) }",
+      indoc! { r#"
+        .foo {
+          color: #7bffff80;
+        }
+      "#},
+      Browsers {
+        firefox: Some(49 << 16),
+        safari: Some(10 << 16),
+        ios_saf: Some(10 << 16),
         ..Browsers::default()
       }
     );
@@ -7944,13 +8175,21 @@ mod tests {
   #[test]
   fn test_custom_properties() {
     minify_test(".foo { --test: ; }", ".foo{--test: }");
-    minify_test(".foo { --test:  ; }", ".foo{--test:  }");
+    minify_test(".foo { --test:  ; }", ".foo{--test: }");
     minify_test(".foo { --test: foo; }", ".foo{--test:foo}");
     minify_test(".foo { --test:  foo; }", ".foo{--test:foo}");
     minify_test(".foo { --test: foo ; }", ".foo{--test:foo}");
     minify_test(".foo { --test: foo  ; }", ".foo{--test:foo}");
     minify_test(".foo { --test:foo; }", ".foo{--test:foo}");
     minify_test(".foo { --test:foo ; }", ".foo{--test:foo}");
+    minify_test(".foo { --test: var(--foo, 20px); }", ".foo{--test:var(--foo,20px)}");
+    minify_test(".foo { transition: var(--foo, 20px),\nvar(--bar, 40px); }", ".foo{transition:var(--foo,20px),var(--bar,40px)}");
+    minify_test(".foo { background: var(--color) var(--image); }", ".foo{background:var(--color)var(--image)}");
+    minify_test(".foo { height: calc(var(--spectrum-global-dimension-size-300) / 2);", ".foo{height:calc(var(--spectrum-global-dimension-size-300)/2)}");
+    minify_test(".foo { color: var(--color, rgb(255, 255, 0)); }", ".foo{color:var(--color,#ff0)}");
+    minify_test(".foo { color: var(--color, #ffff00); }", ".foo{color:var(--color,#ff0)}");
+    minify_test(".foo { color: var(--color, rgb(var(--red), var(--green), 0)); }", ".foo{color:var(--color,rgb(var(--red),var(--green),0))}");
+    minify_test(".foo { --test: .5s; }", ".foo{--test:.5s}");
   }
 
   #[test]
@@ -8751,6 +8990,10 @@ mod tests {
         list-style: circles;
       }
 
+      ol {
+        list-style-type: none;
+      }
+
       @keyframes fade {
         from { opacity: 0 }
         to { opacity: 1 }
@@ -8780,6 +9023,10 @@ mod tests {
 
       ul {
         list-style: circles_EgL3uq;
+      }
+
+      ol {
+        list-style-type: none;
       }
 
       @keyframes fade_EgL3uq {
@@ -9064,7 +9311,7 @@ mod tests {
       }
     "#};
 
-    let stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
+    let stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions::default()).unwrap();
     let res = stylesheet.to_css(PrinterOptions {
       pseudo_classes: Some(PseudoClasses {
         hover: Some("is-hovered"),
@@ -9088,7 +9335,7 @@ mod tests {
       }
     "#};
 
-    let stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { css_modules: true, ..ParserOptions::default() }).unwrap();
+    let stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions { css_modules: true, ..ParserOptions::default() }).unwrap();
     let res = stylesheet.to_css(PrinterOptions {
       pseudo_classes: Some(PseudoClasses {
         hover: Some("is-hovered"),
@@ -9165,7 +9412,7 @@ mod tests {
       }
     "#};
 
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions::default()).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions::default()).unwrap();
     stylesheet.minify(MinifyOptions {
       unused_symbols: vec!["bar", "other_id", "fade", "circles"].iter().map(|s| String::from(*s)).collect(),
       ..MinifyOptions::default()
@@ -9189,7 +9436,7 @@ mod tests {
       }
     "#};
 
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(MinifyOptions {
       unused_symbols: vec!["bar"].iter().map(|s| String::from(*s)).collect(),
       ..MinifyOptions::default()
@@ -9233,7 +9480,7 @@ mod tests {
       }
     "#};
 
-    let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions { nesting: true, ..ParserOptions::default() }).unwrap();
     stylesheet.minify(MinifyOptions {
       unused_symbols: vec!["foo", "x"].iter().map(|s| String::from(*s)).collect(),
       ..MinifyOptions::default()
@@ -9672,7 +9919,7 @@ mod tests {
     );
 
     fn custom_media_error_test(source: &str, err: MinifyError) {
-      let mut stylesheet = StyleSheet::parse("test.css".into(), source, ParserOptions { custom_media: true, ..ParserOptions::default() }).unwrap();
+      let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions { custom_media: true, ..ParserOptions::default() }).unwrap();
       let res = stylesheet.minify(MinifyOptions {
         targets: Some(Browsers { chrome: Some(95 << 16), ..Browsers::default() }),
         ..MinifyOptions::default()
@@ -9862,5 +10109,59 @@ mod tests {
         }
       }
     );
+  }
+
+  #[test]
+  fn test_dependencies() {
+    fn dep_test(source: &str, expected: &str, deps: Vec<(&str, &str)>) {
+      let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions::default()).unwrap();
+      stylesheet.minify(MinifyOptions::default()).unwrap();
+      let res = stylesheet.to_css(PrinterOptions {
+        analyze_dependencies: true,
+        minify: true,
+        ..PrinterOptions::default()
+      }).unwrap();
+      assert_eq!(res.code, expected);
+      let dependencies = res.dependencies.unwrap();
+      assert_eq!(dependencies.len(), deps.len());
+      for (i, (url, placeholder)) in deps.into_iter().enumerate() {
+        match &dependencies[i] {
+          Dependency::Url(dep) => {
+            assert_eq!(dep.url, url);
+            assert_eq!(dep.placeholder, placeholder);    
+          }
+          _ => unreachable!()
+        }
+      }
+    }
+
+    dep_test(
+      ".foo { background: image-set('./img12x.png', './img21x.png' 2x)}",
+      ".foo{background:image-set(\"hXFI8W\",\"5TkpBa\" 2x)}",
+      vec![
+        ("./img12x.png", "hXFI8W"),
+        ("./img21x.png", "5TkpBa")
+      ]
+    );
+
+    dep_test(
+      ".foo { background: image-set(url(./img12x.png), url('./img21x.png') 2x)}",
+      ".foo{background:image-set(\"hXFI8W\",\"5TkpBa\" 2x)}",
+      vec![
+        ("./img12x.png", "hXFI8W"),
+        ("./img21x.png", "5TkpBa")
+      ]
+    );
+  }
+
+  #[test]
+  fn test_api() {
+    let stylesheet = StyleSheet::parse("test.css".into(), ".foo:hover { color: red }", ParserOptions::default()).unwrap();
+    match &stylesheet.rules.0[0] {
+      CssRule::Style(s) => {
+        assert_eq!(&s.selectors.to_string(), ".foo:hover");
+      },
+      _ => unreachable!()
+    }
   }
 }

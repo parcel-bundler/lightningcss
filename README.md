@@ -137,19 +137,19 @@ console.log(new TextDecoder().decode(code));
 
 ## Benchmarks
 
-<img width="666" alt="chart" src="https://user-images.githubusercontent.com/19409/149202953-fe174902-aba1-4f3e-babb-f02a30f92b91.png#gh-light-mode-only">
-<img width="666" alt="chart" src="https://user-images.githubusercontent.com/19409/149202998-861c738d-70d6-454c-9cb0-7cdc6733b5c0.png#gh-dark-mode-only">
+<img width="666" alt="image" src="https://user-images.githubusercontent.com/19409/151679661-67fbd0a1-45ed-4df0-a5f4-73f84fd4e868.png#gh-light-mode-only">
+<img width="666" alt="image" src="https://user-images.githubusercontent.com/19409/151679672-8d5fb384-b359-445c-b116-7cfd7ff0b9b9.png#gh-dark-mode-only">
 
 ```
 $ node bench.js bootstrap-4.css 
-cssnano: 542.956ms
+cssnano: 542.879ms
 159636 bytes
 
-esbuild: 17.411ms
+esbuild: 16.839ms
 160332 bytes
 
-parcel-css: 4.602ms
-143154 bytes
+parcel-css: 4.345ms
+143121 bytes
 
 
 $ node bench.js animate.css

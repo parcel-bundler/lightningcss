@@ -2,7 +2,8 @@
 
 use cssparser::*;
 use crate::values::{
-  length::{LengthPercentage}
+  length::{LengthPercentage},
+  ident::CustomIdentList
 };
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::printer::Printer;
@@ -18,22 +19,22 @@ use crate::logical::LogicalProperties;
 
 /// https://drafts.csswg.org/css-grid-2/#track-sizing
 #[derive(Debug, Clone, PartialEq)]
-pub enum TrackSizing {
+pub enum TrackSizing<'i> {
   None,
-  TrackList(TrackList),
+  TrackList(TrackList<'i>),
 }
 
 /// https://drafts.csswg.org/css-grid-2/#typedef-track-list
 #[derive(Debug, Clone, PartialEq)]
-pub struct TrackList {
-  pub line_names: Vec<SmallVec<[CustomIdent; 1]>>,
-  pub items: Vec<TrackListItem>
+pub struct TrackList<'i> {
+  pub line_names: Vec<CustomIdentList<'i>>,
+  pub items: Vec<TrackListItem<'i>>
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum TrackListItem {
+pub enum TrackListItem<'i> {
   TrackSize(TrackSize),
-  TrackRepeat(TrackRepeat)
+  TrackRepeat(TrackRepeat<'i>)
 }
 
 /// https://drafts.csswg.org/css-grid-2/#typedef-track-size
@@ -66,9 +67,9 @@ pub enum TrackBreadth {
 
 /// https://drafts.csswg.org/css-grid-2/#typedef-track-repeat
 #[derive(Debug, Clone, PartialEq)]
-pub struct TrackRepeat {
+pub struct TrackRepeat<'i> {
   count: RepeatCount,
-  line_names: Vec<SmallVec<[CustomIdent; 1]>>,
+  line_names: Vec<CustomIdentList<'i>>,
   track_sizes: Vec<TrackSize>
 }
 
@@ -80,8 +81,8 @@ pub enum RepeatCount {
   AutoFit
 }
 
-impl Parse for TrackSize {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for TrackSize {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(breadth) = input.try_parse(TrackBreadth::parse) {
       return Ok(TrackSize::TrackBreadth(breadth))
     }
@@ -123,8 +124,8 @@ impl ToCss for TrackSize {
   }
 }
 
-impl Parse for TrackBreadth {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for TrackBreadth {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Self::parse_internal(input, true)
   }
 }
@@ -174,8 +175,8 @@ impl ToCss for TrackBreadth {
   }
 }
 
-impl Parse for TrackRepeat {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for TrackRepeat<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.expect_function_matching("repeat")?;
     input.parse_nested_block(|input| {
       let count = RepeatCount::parse(input)?;
@@ -205,7 +206,7 @@ impl Parse for TrackRepeat {
   }
 }
 
-impl ToCss for TrackRepeat {
+impl<'i> ToCss for TrackRepeat<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.write_str("repeat(")?;
     self.count.to_css(dest)?;
@@ -235,8 +236,8 @@ impl ToCss for TrackRepeat {
   }
 }
 
-impl Parse for RepeatCount {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for RepeatCount {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(num) = input.try_parse(f32::parse) {
       return Ok(RepeatCount::Number(num))
     }
@@ -263,7 +264,7 @@ impl ToCss for RepeatCount {
   }
 }
 
-fn parse_line_names<'i, 't>(input: &mut Parser<'i, 't>) -> Result<SmallVec<[CustomIdent; 1]>, ParseError<'i, ParserError<'i>>> {
+fn parse_line_names<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CustomIdentList<'i>, ParseError<'i, ParserError<'i>>> {
   input.expect_square_bracket_block()?;
   input.parse_nested_block(|input| {
     let mut values = SmallVec::new();
@@ -288,8 +289,8 @@ fn serialize_line_names<W>(names: &[CustomIdent], dest: &mut Printer<W>) -> Resu
   dest.write_char(']')
 }
 
-impl Parse for TrackList {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for TrackList<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut line_names = Vec::new();
     let mut items = Vec::new();
 
@@ -319,7 +320,7 @@ impl Parse for TrackList {
   }
 }
 
-impl ToCss for TrackList {
+impl<'i> ToCss for TrackList<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let mut items_iter = self.items.iter();
     let line_names_iter = self.line_names.iter();
@@ -350,14 +351,14 @@ impl ToCss for TrackList {
   }
 }
 
-impl TrackList {
+impl<'i> TrackList<'i> {
   fn is_explicit(&self) -> bool {
     self.items.iter().all(|item| matches!(item, TrackListItem::TrackSize(_)))
   }
 }
 
-impl Parse for TrackSizing {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for TrackSizing<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(TrackSizing::None)
     }
@@ -367,7 +368,7 @@ impl Parse for TrackSizing {
   }
 }
 
-impl ToCss for TrackSizing {
+impl<'i> ToCss for TrackSizing<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       TrackSizing::None => dest.write_str("none"),
@@ -376,7 +377,7 @@ impl ToCss for TrackSizing {
   }
 }
 
-impl TrackSizing {
+impl<'i> TrackSizing<'i> {
   fn is_explicit(&self) -> bool {
     match self {
       TrackSizing::None => true,
@@ -385,8 +386,8 @@ impl TrackSizing {
   }
 }
 
-impl Parse for TrackSizeList {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for TrackSizeList {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut res = SmallVec::new();
     while let Ok(size) = input.try_parse(TrackSize::parse) {
       res.push(size)
@@ -427,8 +428,8 @@ pub enum GridTemplateAreas {
   }
 }
 
-impl Parse for GridTemplateAreas {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for GridTemplateAreas {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(GridTemplateAreas::None)
     }
@@ -573,14 +574,14 @@ impl GridTemplateAreas {
 
 /// https://drafts.csswg.org/css-grid-2/#explicit-grid-shorthand
 #[derive(Debug, Clone, PartialEq)]
-pub struct GridTemplate {
-  rows: TrackSizing,
-  columns: TrackSizing,
+pub struct GridTemplate<'i> {
+  rows: TrackSizing<'i>,
+  columns: TrackSizing<'i>,
   areas: GridTemplateAreas
 }
 
-impl Parse for GridTemplate {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for GridTemplate<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       input.expect_exhausted()?;
       return Ok(GridTemplate {
@@ -591,7 +592,7 @@ impl Parse for GridTemplate {
     }
 
     let start = input.state();
-    let mut line_names: Vec<SmallVec<[CustomIdent; 1]>> = Vec::new();
+    let mut line_names: Vec<CustomIdentList<'i>> = Vec::new();
     let mut items = Vec::new();
     let mut columns = 0;
     let mut row = 0;
@@ -669,13 +670,13 @@ impl Parse for GridTemplate {
   }
 }
 
-impl ToCss for GridTemplate {
+impl ToCss for GridTemplate<'_> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.to_css_with_indent(dest, 15)
   }
 }
 
-impl GridTemplate {
+impl GridTemplate<'_> {
   fn to_css_with_indent<W>(&self, dest: &mut Printer<W>, indent: u8) -> Result<(), PrinterError> where W: std::fmt::Write {
     match &self.areas {
       GridTemplateAreas::None => {
@@ -794,8 +795,8 @@ impl GridAutoFlow {
   }
 }
 
-impl Parse for GridAutoFlow {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for GridAutoFlow {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut flow = GridAutoFlow::Row;
 
     macro_rules! match_dense {
@@ -866,17 +867,17 @@ impl ToCss for GridAutoFlow {
 
 /// https://drafts.csswg.org/css-grid-2/#grid-shorthand
 #[derive(Debug, Clone, PartialEq)]
-pub struct Grid {
-  rows: TrackSizing,
-  columns: TrackSizing,
+pub struct Grid<'i> {
+  rows: TrackSizing<'i>,
+  columns: TrackSizing<'i>,
   areas: GridTemplateAreas,
   auto_rows: TrackSizeList,
   auto_columns: TrackSizeList,
   auto_flow: GridAutoFlow
 }
 
-impl Parse for Grid {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Grid<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // <'grid-template'>
     if let Ok(template) = input.try_parse(GridTemplate::parse) {
       Ok(Grid {
@@ -935,7 +936,7 @@ fn parse_grid_auto_flow<'i, 't>(input: &mut Parser<'i, 't>, flow: GridAutoFlow) 
   }
 }
 
-impl ToCss for Grid {
+impl ToCss for Grid<'_> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let is_auto_initial = self.auto_rows == TrackSizeList::default() && self.auto_columns == TrackSizeList::default() && self.auto_flow == GridAutoFlow::default();
 
@@ -987,15 +988,15 @@ impl ToCss for Grid {
 
 /// https://drafts.csswg.org/css-grid-2/#typedef-grid-row-start-grid-line
 #[derive(Debug, Clone, PartialEq)]
-pub enum GridLine {
+pub enum GridLine<'i> {
   Auto,
-  Ident(CustomIdent),
-  Line(i32, Option<CustomIdent>),
-  Span(i32, Option<CustomIdent>)
+  Ident(CustomIdent<'i>),
+  Line(i32, Option<CustomIdent<'i>>),
+  Span(i32, Option<CustomIdent<'i>>)
 }
 
-impl Parse for GridLine {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for GridLine<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
       return Ok(GridLine::Auto)
     }
@@ -1039,7 +1040,7 @@ impl Parse for GridLine {
   }
 }
 
-impl ToCss for GridLine {
+impl ToCss for GridLine<'_> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       GridLine::Auto => dest.write_str("auto"),
@@ -1070,8 +1071,8 @@ impl ToCss for GridLine {
   }
 }
 
-impl GridLine {
-  fn default_end_value(&self) -> GridLine {
+impl<'i> GridLine<'i> {
+  fn default_end_value(&self) -> GridLine<'i> {
     if matches!(self, GridLine::Ident(_)) {
       self.clone()
     } else {
@@ -1092,13 +1093,13 @@ impl GridLine {
 
 /// https://drafts.csswg.org/css-grid-2/#placement-shorthands
 #[derive(Debug, Clone, PartialEq)]
-pub struct GridPlacement {
-  start: GridLine,
-  end: GridLine
+pub struct GridPlacement<'i> {
+  start: GridLine<'i>,
+  end: GridLine<'i>
 }
 
-impl Parse for GridPlacement {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for GridPlacement<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let start = GridLine::parse(input)?;
     let end = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
       GridLine::parse(input)?
@@ -1113,7 +1114,7 @@ impl Parse for GridPlacement {
   }
 }
 
-impl ToCss for GridPlacement {
+impl ToCss for GridPlacement<'_> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.start.to_css(dest)?;
 
@@ -1127,15 +1128,15 @@ impl ToCss for GridPlacement {
 
 /// https://drafts.csswg.org/css-grid-2/#propdef-grid-area
 #[derive(Debug, Clone, PartialEq)]
-pub struct GridArea {
-  row_start: GridLine,
-  column_start: GridLine,
-  row_end: GridLine,
-  column_end: GridLine
+pub struct GridArea<'i> {
+  row_start: GridLine<'i>,
+  column_start: GridLine<'i>,
+  row_end: GridLine<'i>,
+  column_end: GridLine<'i>
 }
 
-impl Parse for GridArea {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for GridArea<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let row_start = GridLine::parse(input)?;
     let column_start = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
       GridLine::parse(input)?
@@ -1183,7 +1184,7 @@ impl Parse for GridArea {
   }
 }
 
-impl ToCss for GridArea {
+impl ToCss for GridArea<'_> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.row_start.to_css(dest)?;
 
@@ -1211,22 +1212,22 @@ impl ToCss for GridArea {
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct GridHandler {
-  rows: Option<TrackSizing>,
-  columns: Option<TrackSizing>,
+pub(crate) struct GridHandler<'i> {
+  rows: Option<TrackSizing<'i>>,
+  columns: Option<TrackSizing<'i>>,
   areas: Option<GridTemplateAreas>,
   auto_rows: Option<TrackSizeList>,
   auto_columns: Option<TrackSizeList>,
   auto_flow: Option<GridAutoFlow>,
-  row_start: Option<GridLine>,
-  column_start: Option<GridLine>,
-  row_end: Option<GridLine>,
-  column_end: Option<GridLine>,
+  row_start: Option<GridLine<'i>>,
+  column_start: Option<GridLine<'i>>,
+  row_end: Option<GridLine<'i>>,
+  column_end: Option<GridLine<'i>>,
   has_any: bool
 }
 
-impl PropertyHandler for GridHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
+impl<'i> PropertyHandler<'i> for GridHandler<'i> {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
     use Property::*;
 
     match property {
@@ -1278,7 +1279,7 @@ impl PropertyHandler for GridHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) {
     if !self.has_any {
       return
     }

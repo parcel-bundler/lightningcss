@@ -14,28 +14,28 @@ use crate::logical::LogicalProperties;
 
 /// https://drafts.csswg.org/css-animations/#animation-name
 #[derive(Debug, Clone, PartialEq)]
-pub enum AnimationName {
+pub enum AnimationName<'i> {
   None,
-  Ident(CustomIdent)
+  Ident(CustomIdent<'i>)
 }
 
-impl Parse for AnimationName {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for AnimationName<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(AnimationName::None)
     }
 
     let location = input.current_source_location();
     let name = match *input.next()? {
-      Token::Ident(ref s) => s.as_ref(),
-      Token::QuotedString(ref s) => s.as_ref(),
+      Token::Ident(ref s) => s.clone(),
+      Token::QuotedString(ref s) => s.clone(),
       ref t => return Err(location.new_unexpected_token_error(t.clone())),
     };
-    Ok(AnimationName::Ident(CustomIdent(name.into())))
+    Ok(AnimationName::Ident(CustomIdent(name)))
   }
 }
 
-impl ToCss for AnimationName {
+impl<'i> ToCss for AnimationName<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       AnimationName::None => dest.write_str("none"),
@@ -49,6 +49,8 @@ impl ToCss for AnimationName {
   }
 }
 
+pub type AnimationNameList<'i> = SmallVec<[AnimationName<'i>; 1]>;
+
 /// https://drafts.csswg.org/css-animations/#animation-iteration-count
 #[derive(Debug, Clone, PartialEq)]
 pub enum AnimationIterationCount {
@@ -56,8 +58,8 @@ pub enum AnimationIterationCount {
   Infinite
 }
 
-impl Parse for AnimationIterationCount {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for AnimationIterationCount {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("infinite")).is_ok() {
       return Ok(AnimationIterationCount::Infinite)
     }
@@ -106,8 +108,8 @@ enum_property! {
 
 /// https://drafts.csswg.org/css-animations/#animation
 #[derive(Debug, Clone, PartialEq)]
-pub struct Animation {
-  pub name: AnimationName,
+pub struct Animation<'i> {
+  pub name: AnimationName<'i>,
   pub duration: Time,
   pub timing_function: EasingFunction,
   pub iteration_count: AnimationIterationCount,
@@ -117,8 +119,8 @@ pub struct Animation {
   pub fill_mode: AnimationFillMode
 }
 
-impl Parse for Animation {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Animation<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut name = None;
     let mut duration = None;
     let mut timing_function = None;
@@ -164,7 +166,7 @@ impl Parse for Animation {
   }
 }
 
-impl ToCss for Animation {
+impl<'i> ToCss for Animation<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.name.to_css(dest)?;
     match &self.name {
@@ -211,10 +213,12 @@ impl ToCss for Animation {
   }
 }
 
+pub type AnimationList<'i> = SmallVec<[Animation<'i>; 1]>;
+
 #[derive(Default)]
-pub(crate) struct AnimationHandler {
+pub(crate) struct AnimationHandler<'i> {
   targets: Option<Browsers>,
-  names: Option<(SmallVec<[AnimationName; 1]>, VendorPrefix)>,
+  names: Option<(SmallVec<[AnimationName<'i>; 1]>, VendorPrefix)>,
   durations: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   timing_functions: Option<(SmallVec<[EasingFunction; 1]>, VendorPrefix)>,
   iteration_counts: Option<(SmallVec<[AnimationIterationCount; 1]>, VendorPrefix)>,
@@ -225,8 +229,8 @@ pub(crate) struct AnimationHandler {
   has_any: bool
 }
 
-impl AnimationHandler {
-  pub fn new(targets: Option<Browsers>) -> AnimationHandler {
+impl<'i> AnimationHandler<'i> {
+  pub fn new(targets: Option<Browsers>) -> Self {
     AnimationHandler {
       targets,
       ..AnimationHandler::default()
@@ -234,8 +238,8 @@ impl AnimationHandler {
   }
 }
 
-impl PropertyHandler for AnimationHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, _: &mut LogicalProperties) -> bool {
+impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -318,13 +322,13 @@ impl PropertyHandler for AnimationHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) {
     self.flush(dest);
   }
 }
 
-impl AnimationHandler {
-  fn flush(&mut self, dest: &mut DeclarationList) {
+impl<'i> AnimationHandler<'i> {
+  fn flush(&mut self, dest: &mut DeclarationList<'i>) {
     if !self.has_any {
       return
     }

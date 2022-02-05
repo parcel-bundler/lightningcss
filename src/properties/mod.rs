@@ -72,13 +72,13 @@ macro_rules! define_properties {
     )+
   ) => {
     #[derive(Debug, Clone, PartialEq)]
-    pub enum PropertyId {
+    pub enum PropertyId<'i> {
       $(
         $(#[$meta])*
         $property$(($vp))?,
       )+
       All,
-      Custom(String)
+      Custom(CowRcStr<'i>)
     }
 
     macro_rules! vp_name {
@@ -87,8 +87,8 @@ macro_rules! define_properties {
       };
     }
 
-    impl Parse for PropertyId {
-      fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    impl<'i> Parse<'i> for PropertyId<'i> {
+      fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let name = input.expect_ident()?;
         match name.as_ref() {
           $(
@@ -103,12 +103,12 @@ macro_rules! define_properties {
             )*
           )+
           "all" => Ok(PropertyId::All),
-          name => Ok(PropertyId::Custom(name.into()))
+          _ => Ok(PropertyId::Custom(name.clone()))
         }
       }
     }
 
-    impl ToCss for PropertyId {
+    impl<'i> ToCss for PropertyId<'i> {
       fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
         use PropertyId::*;
         match self {
@@ -158,7 +158,7 @@ macro_rules! define_properties {
       }
     }
 
-    impl PropertyId {
+    impl<'i> PropertyId<'i> {
       fn prefix(&self) -> VendorPrefix {
         use PropertyId::*;
         match self {
@@ -182,7 +182,7 @@ macro_rules! define_properties {
         }
       }
 
-      fn with_prefix(&self, prefix: VendorPrefix) -> PropertyId {
+      fn with_prefix(&self, prefix: VendorPrefix) -> PropertyId<'i> {
         use PropertyId::*;
         match self {
           $(
@@ -268,18 +268,18 @@ macro_rules! define_properties {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub enum Property {
+    pub enum Property<'i> {
       $(
         $(#[$meta])*
         $property($type, $($vp)?),
       )+
-      Unparsed(UnparsedProperty),
-      Custom(CustomProperty),
-      Logical(LogicalProperty)
+      Unparsed(UnparsedProperty<'i>),
+      Custom(CustomProperty<'i>),
+      Logical(LogicalProperty<'i>)
     }
 
-    impl Property {
-      pub fn parse<'i, 't>(name: CowRcStr<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    impl<'i> Property<'i> {
+      pub fn parse<'t>(name: CowRcStr<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Property<'i>, ParseError<'i, ParserError<'i>>> {
         let state = input.state();
         match name.as_ref() {
           $(
@@ -347,10 +347,10 @@ macro_rules! define_properties {
             }
           )+
           Unparsed(unparsed) => {
-            dest.write_str(unparsed.value.as_ref())
+            unparsed.value.to_css(dest)
           }
           Custom(custom) => {
-            dest.write_str(custom.value.as_ref())
+            custom.value.to_css(dest)
           }
           Logical(logical) => {
             logical.to_css(dest)
@@ -419,7 +419,7 @@ macro_rules! define_properties {
                   start!();
                   unparsed.property_id.to_css_with_prefix(dest, $p)?;
                   dest.delim(':', false)?;
-                  dest.write_str(unparsed.value.as_ref())?;
+                  unparsed.value.to_css(dest)?;
                   if important {
                     dest.whitespace()?;
                     dest.write_str("!important")?;
@@ -459,8 +459,8 @@ macro_rules! define_properties {
           Custom(custom) => {
             dest.write_str(custom.name.as_ref())?;
             dest.delim(':', false)?;
-            if dest.minify || custom.value != " " {
-              dest.write_str(custom.value.as_ref())?;
+            if dest.minify || (custom.value.0.len() != 1 || !matches!(custom.value.0.first(), Some(token) if token.is_whitespace())) {
+              custom.value.to_css(dest)?;
             }
             if important {
               dest.whitespace()?;
@@ -476,7 +476,7 @@ macro_rules! define_properties {
 
 define_properties! {
   "background-color": BackgroundColor(CssColor),
-  "background-image": BackgroundImage(SmallVec<[Image; 1]>),
+  "background-image": BackgroundImage(SmallVec<[Image<'i>; 1]>),
   "background-position-x": BackgroundPositionX(SmallVec<[HorizontalPosition; 1]>),
   "background-position-y": BackgroundPositionY(SmallVec<[VerticalPosition; 1]>),
   "background-position": BackgroundPosition(SmallVec<[Position; 1]>),
@@ -485,7 +485,7 @@ define_properties! {
   "background-attachment": BackgroundAttachment(SmallVec<[BackgroundAttachment; 1]>),
   "background-clip": BackgroundClip(SmallVec<[BackgroundClip; 1]>, VendorPrefix) / "webkit" / "moz",
   "background-origin": BackgroundOrigin(SmallVec<[BackgroundBox; 1]>),
-  "background": Background(SmallVec<[Background; 1]>),
+  "background": Background(SmallVec<[Background<'i>; 1]>),
 
   "box-shadow": BoxShadow(SmallVec<[BoxShadow; 1]>, VendorPrefix) / "webkit" / "moz",
   "opacity": Opacity(AlphaValue),
@@ -563,12 +563,12 @@ define_properties! {
   "border-end-end-radius": BorderEndEndRadius(Size2D<LengthPercentage>),
   "border-radius": BorderRadius(BorderRadius, VendorPrefix) / "webkit" / "moz",
 
-  "border-image-source": BorderImageSource(Image),
+  "border-image-source": BorderImageSource(Image<'i>),
   "border-image-outset": BorderImageOutset(Rect<LengthOrNumber>),
   "border-image-repeat": BorderImageRepeat(BorderImageRepeat),
   "border-image-width": BorderImageWidth(Rect<BorderImageSideWidth>),
   "border-image-slice": BorderImageSlice(BorderImageSlice),
-  "border-image": BorderImage(BorderImage, VendorPrefix) / "webkit" / "moz" / "o",
+  "border-image": BorderImage(BorderImage<'i>, VendorPrefix) / "webkit" / "moz" / "o",
 
   "border-color": BorderColor(Rect<CssColor>),
   "border-style": BorderStyle(Rect<BorderStyle>),
@@ -646,9 +646,9 @@ define_properties! {
   "flex-preferred-size": FlexPreferredSize(LengthPercentageOrAuto, VendorPrefix) / "ms" unprefixed: false,
 
   #[cfg(feature = "grid")]
-  "grid-template-columns": GridTemplateColumns(TrackSizing),
+  "grid-template-columns": GridTemplateColumns(TrackSizing<'i>),
   #[cfg(feature = "grid")]
-  "grid-template-rows": GridTemplateRows(TrackSizing),
+  "grid-template-rows": GridTemplateRows(TrackSizing<'i>),
   #[cfg(feature = "grid")]
   "grid-auto-columns": GridAutoColumns(TrackSizeList),
   #[cfg(feature = "grid")]
@@ -658,23 +658,23 @@ define_properties! {
   #[cfg(feature = "grid")]
   "grid-template-areas": GridTemplateAreas(GridTemplateAreas),
   #[cfg(feature = "grid")]
-  "grid-template": GridTemplate(GridTemplate),
+  "grid-template": GridTemplate(GridTemplate<'i>),
   #[cfg(feature = "grid")]
-  "grid": Grid(Grid),
+  "grid": Grid(Grid<'i>),
   #[cfg(feature = "grid")]
-  "grid-row-start": GridRowStart(GridLine),
+  "grid-row-start": GridRowStart(GridLine<'i>),
   #[cfg(feature = "grid")]
-  "grid-row-end": GridRowEnd(GridLine),
+  "grid-row-end": GridRowEnd(GridLine<'i>),
   #[cfg(feature = "grid")]
-  "grid-column-start": GridColumnStart(GridLine),
+  "grid-column-start": GridColumnStart(GridLine<'i>),
   #[cfg(feature = "grid")]
-  "grid-column-end": GridColumnEnd(GridLine),
+  "grid-column-end": GridColumnEnd(GridLine<'i>),
   #[cfg(feature = "grid")]
-  "grid-row": GridRow(GridPlacement),
+  "grid-row": GridRow(GridPlacement<'i>),
   #[cfg(feature = "grid")]
-  "grid-column": GridColumn(GridPlacement),
+  "grid-column": GridColumn(GridPlacement<'i>),
   #[cfg(feature = "grid")]
-  "grid-area": GridArea(GridArea),
+  "grid-area": GridArea(GridArea<'i>),
 
   "margin-top": MarginTop(LengthPercentageOrAuto),
   "margin-bottom": MarginBottom(LengthPercentageOrAuto),
@@ -730,20 +730,20 @@ define_properties! {
   "font-weight": FontWeight(FontWeight),
   "font-size": FontSize(FontSize),
   "font-stretch": FontStretch(FontStretch),
-  "font-family": FontFamily(Vec<FontFamily>),
+  "font-family": FontFamily(Vec<FontFamily<'i>>),
   "font-style": FontStyle(FontStyle),
   "font-variant-caps": FontVariantCaps(FontVariantCaps),
   "line-height": LineHeight(LineHeight),
-  "font": Font(Font),
+  "font": Font(Font<'i>),
   "vertical-align": VerticalAlign(VerticalAlign),
 
-  "transition-property": TransitionProperty(SmallVec<[PropertyId; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
+  "transition-property": TransitionProperty(SmallVec<[PropertyId<'i>; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
   "transition-duration": TransitionDuration(SmallVec<[Time; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
   "transition-delay": TransitionDelay(SmallVec<[Time; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
   "transition-timing-function": TransitionTimingFunction(SmallVec<[EasingFunction; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
-  "transition": Transition(SmallVec<[Transition; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
+  "transition": Transition(SmallVec<[Transition<'i>; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
 
-  "animation-name": AnimationName(SmallVec<[AnimationName; 1]>, VendorPrefix) / "webkit" / "moz" / "o",
+  "animation-name": AnimationName(AnimationNameList<'i>, VendorPrefix) / "webkit" / "moz" / "o",
   "animation-duration": AnimationDuration(SmallVec<[Time; 1]>, VendorPrefix) / "webkit" / "moz" / "o",
   "animation-timing-function": AnimationTimingFunction(SmallVec<[EasingFunction; 1]>, VendorPrefix) / "webkit" / "moz" / "o",
   "animation-iteration-count": AnimationIterationCount(SmallVec<[AnimationIterationCount; 1]>, VendorPrefix) / "webkit" / "moz" / "o",
@@ -751,7 +751,7 @@ define_properties! {
   "animation-play-state": AnimationPlayState(SmallVec<[AnimationPlayState; 1]>, VendorPrefix) / "webkit" / "moz" / "o",
   "animation-delay": AnimationDelay(SmallVec<[Time; 1]>, VendorPrefix) / "webkit" / "moz" / "o",
   "animation-fill-mode": AnimationFillMode(SmallVec<[AnimationFillMode; 1]>, VendorPrefix) / "webkit" / "moz" / "o",
-  "animation": Animation(SmallVec<[Animation; 1]>, VendorPrefix) / "webkit" / "moz" / "o",
+  "animation": Animation(AnimationList<'i>, VendorPrefix) / "webkit" / "moz" / "o",
 
   // https://drafts.csswg.org/css-transforms-2/
   "transform": Transform(TransformList, VendorPrefix) / "webkit" / "moz" / "ms" / "o",
@@ -788,37 +788,37 @@ define_properties! {
   "text-decoration-thickness": TextDecorationThickness(TextDecorationThickness),
   "text-decoration": TextDecoration(TextDecoration, VendorPrefix) / "webkit" / "moz",
   "text-decoration-skip-ink": TextDecorationSkipInk(TextDecorationSkipInk, VendorPrefix) / "webkit",
-  "text-emphasis-style": TextEmphasisStyle(TextEmphasisStyle, VendorPrefix) / "webkit",
+  "text-emphasis-style": TextEmphasisStyle(TextEmphasisStyle<'i>, VendorPrefix) / "webkit",
   "text-emphasis-color": TextEmphasisColor(CssColor, VendorPrefix) / "webkit",
-  "text-emphasis": TextEmphasis(TextEmphasis, VendorPrefix) / "webkit",
+  "text-emphasis": TextEmphasis(TextEmphasis<'i>, VendorPrefix) / "webkit",
   "text-emphasis-position": TextEmphasisPosition(TextEmphasisPosition, VendorPrefix) / "webkit",
   "text-shadow": TextShadow(SmallVec<[TextShadow; 1]>),
 
   // https://www.w3.org/TR/2021/WD-css-ui-4-20210316
   "resize": Resize(Resize),
-  "cursor": Cursor(Cursor),
+  "cursor": Cursor(Cursor<'i>),
   "caret-color": CaretColor(ColorOrAuto),
   "caret-shape": CaretShape(CaretShape),
   "caret": Caret(Caret),
   "user-select": UserSelect(UserSelect, VendorPrefix) / "webkit" / "moz" / "ms",
   "accent-color": AccentColor(ColorOrAuto),
-  "appearance": Appearance(Appearance, VendorPrefix) / "webkit" / "moz" / "ms",
+  "appearance": Appearance(Appearance<'i>, VendorPrefix) / "webkit" / "moz" / "ms",
 
   // https://www.w3.org/TR/2020/WD-css-lists-3-20201117
-  "list-style-type": ListStyleType(ListStyleType),
-  "list-style-image": ListStyleImage(Image),
+  "list-style-type": ListStyleType(ListStyleType<'i>),
+  "list-style-image": ListStyleImage(Image<'i>),
   "list-style-position": ListStylePosition(ListStylePosition),
-  "list-style": ListStyle(ListStyle),
+  "list-style": ListStyle(ListStyle<'i>),
   "marker-side": MarkerSide(MarkerSide),
 
   // CSS modules
-  "composes": Composes(Composes) if css_modules,
+  "composes": Composes(Composes<'i>) if css_modules,
 
   // https://www.w3.org/TR/SVG2/painting.html
-  "fill": Fill(SVGPaint),
+  "fill": Fill(SVGPaint<'i>),
   "fill-rule": FillRule(FillRule),
   "fill-opacity": FillOpacity(AlphaValue),
-  "stroke": Stroke(SVGPaint),
+  "stroke": Stroke(SVGPaint<'i>),
   "stroke-opacity": StrokeOpacity(AlphaValue),
   "stroke-width": StrokeWidth(LengthPercentage),
   "stroke-linecap": StrokeLinecap(StrokeLinecap),
@@ -826,10 +826,10 @@ define_properties! {
   "stroke-miterlimit": StrokeMiterlimit(f32),
   "stroke-dasharray": StrokeDasharray(StrokeDasharray),
   "stroke-dashoffset": StrokeDashoffset(LengthPercentage),
-  "marker-start": MarkerStart(Marker),
-  "marker-mid": MarkerMid(Marker),
-  "marker-end": MarkerEnd(Marker),
-  "marker": Marker(Marker),
+  "marker-start": MarkerStart(Marker<'i>),
+  "marker-mid": MarkerMid(Marker<'i>),
+  "marker-end": MarkerEnd(Marker<'i>),
+  "marker": Marker(Marker<'i>),
   "color-interpolation": ColorInterpolation(ColorInterpolation),
   "color-interpolation-filters": ColorInterpolationFilters(ColorInterpolation),
   "color-rendering": ColorRendering(ColorRendering),
@@ -838,9 +838,9 @@ define_properties! {
   "image-rendering": ImageRendering(ImageRendering),
 
   // https://www.w3.org/TR/css-masking-1/
-  "clip-path": ClipPath(ClipPath),
+  "clip-path": ClipPath(ClipPath<'i>),
   "clip-rule": ClipRule(FillRule),
-  "mask-image": MaskImage(SmallVec<[Image; 1]>),
+  "mask-image": MaskImage(SmallVec<[Image<'i>; 1]>),
   "mask-mode": MaskMode(SmallVec<[MaskMode; 1]>),
   "mask-repeat": MaskRepeat(SmallVec<[BackgroundRepeat; 1]>),
   "mask-position-x": MaskPositionX(SmallVec<[HorizontalPosition; 1]>),
@@ -851,22 +851,22 @@ define_properties! {
   "mask-size": MaskSize(SmallVec<[BackgroundSize; 1]>),
   "mask-composite": MaskComposite(SmallVec<[MaskComposite; 1]>),
   "mask-type": MaskType(MaskType),
-  "mask": Mask(SmallVec<[Mask; 1]>),
-  "mask-border-source": MaskBorderSource(Image),
+  "mask": Mask(SmallVec<[Mask<'i>; 1]>),
+  "mask-border-source": MaskBorderSource(Image<'i>),
   "mask-border-mode": MaskBorderMode(MaskBorderMode),
   "mask-border-slice": MaskBorderSlice(BorderImageSlice),
   "mask-border-width": MaskBorderWidth(Rect<BorderImageSideWidth>),
   "mask-border-outset": MaskBorderOutset(Rect<LengthOrNumber>),
   "mask-border-repeat": MaskBorderRepeat(BorderImageRepeat),
-  "mask-border": MaskBorder(MaskBorder),
+  "mask-border": MaskBorder(MaskBorder<'i>),
 
   // https://drafts.fxtf.org/filter-effects-1/
-  "filter": Filter(FilterList),
-  "backdrop-filter": BackdropFilter(FilterList),
+  "filter": Filter(FilterList<'i>),
+  "backdrop-filter": BackdropFilter(FilterList<'i>),
 }
 
-impl<T: smallvec::Array<Item = V>, V: Parse> Parse for SmallVec<T> {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i, T: smallvec::Array<Item = V>, V: Parse<'i>> Parse<'i> for SmallVec<T> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // Copied from cssparser `parse_comma_separated` but using SmallVec instead of Vec.
     let mut values = smallvec![];
     loop {
@@ -897,8 +897,8 @@ impl<T: smallvec::Array<Item = V>, V: ToCss> ToCss for SmallVec<T> {
   }
 }
 
-impl<T: Parse> Parse for Vec<T> {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i, T: Parse<'i>> Parse<'i> for Vec<T> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.parse_comma_separated(|input| T::parse(input))
   }
 }

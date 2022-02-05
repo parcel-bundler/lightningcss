@@ -73,8 +73,8 @@ impl Default for FillRule {
   }
 }
 
-impl Parse for BasicShape {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for BasicShape {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let f = input.expect_function()?;
     match_ignore_ascii_case! { &f,
@@ -87,8 +87,8 @@ impl Parse for BasicShape {
   }
 }
 
-impl Parse for InsetRect {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for InsetRect {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let rect = Rect::parse(input)?;
     let radius = if input.try_parse(|input| input.expect_ident_matching("round")).is_ok() {
       BorderRadius::parse(input)?
@@ -99,8 +99,8 @@ impl Parse for InsetRect {
   }
 }
 
-impl Parse for Circle {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Circle {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let radius = input.try_parse(ShapeRadius::parse).unwrap_or_default();
     let position = if input.try_parse(|input| input.expect_ident_matching("at")).is_ok() {
       Position::parse(input)?
@@ -112,8 +112,8 @@ impl Parse for Circle {
   }
 }
 
-impl Parse for ShapeRadius {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for ShapeRadius {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(len) = input.try_parse(LengthPercentage::parse) {
       return Ok(ShapeRadius::LengthPercentage(len))
     }
@@ -133,8 +133,8 @@ impl Default for ShapeRadius {
   }
 }
 
-impl Parse for Ellipse {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Ellipse {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let (x, y) = input.try_parse(|input| -> Result<_, ParseError<'i, ParserError<'i>>> {
       Ok((ShapeRadius::parse(input)?, ShapeRadius::parse(input)?))
     }).unwrap_or_default();
@@ -153,8 +153,8 @@ impl Parse for Ellipse {
   }
 }
 
-impl Parse for Polygon {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Polygon {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let fill_rule = input.try_parse(FillRule::parse);
     if fill_rule.is_ok() {
       input.expect_comma()?;
@@ -168,8 +168,8 @@ impl Parse for Polygon {
   }
 }
 
-impl Parse for Point {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Point {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let x = LengthPercentage::parse(input)?;
     let y = LengthPercentage::parse(input)?;
     Ok(Point { x, y })

@@ -15,15 +15,15 @@ use crate::compat;
 
 /// https://www.w3.org/TR/2018/WD-css-transitions-1-20181011/#transition-shorthand-property
 #[derive(Debug, Clone, PartialEq)]
-pub struct Transition {
-  pub property: PropertyId,
+pub struct Transition<'i> {
+  pub property: PropertyId<'i>,
   pub duration: Time,
   pub delay: Time,
   pub timing_function: EasingFunction 
 }
 
-impl Parse for Transition {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Transition<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut property = None;
     let mut duration = None;
     let mut delay = None;
@@ -70,7 +70,7 @@ impl Parse for Transition {
   }
 }
 
-impl ToCss for Transition {
+impl<'i> ToCss for Transition<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.property.to_css(dest)?;
     if self.duration != 0.0 || self.delay != 0.0 {
@@ -93,17 +93,17 @@ impl ToCss for Transition {
 }
 
 #[derive(Default)]
-pub(crate) struct TransitionHandler {
+pub(crate) struct TransitionHandler<'i> {
   targets: Option<Browsers>,
-  properties: Option<(SmallVec<[PropertyId; 1]>, VendorPrefix)>,
+  properties: Option<(SmallVec<[PropertyId<'i>; 1]>, VendorPrefix)>,
   durations: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   delays: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   timing_functions: Option<(SmallVec<[EasingFunction; 1]>, VendorPrefix)>,
   has_any: bool
 }
 
-impl TransitionHandler {
-  pub fn new(targets: Option<Browsers>) -> TransitionHandler {
+impl<'i> TransitionHandler<'i> {
+  pub fn new(targets: Option<Browsers>) -> Self {
     TransitionHandler {
       targets,
       ..TransitionHandler::default()
@@ -111,12 +111,12 @@ impl TransitionHandler {
   }
 }
 
-impl PropertyHandler for TransitionHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
+impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
     use Property::*;
 
-    macro_rules! property {
-      ($feature: ident, $prop: ident, $val: expr, $vp: ident) => {{
+    macro_rules! maybe_flush {
+      ($prop: ident, $val: expr, $vp: ident) => {{
         // If two vendor prefixes for the same property have different
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
@@ -124,6 +124,12 @@ impl PropertyHandler for TransitionHandler {
             self.flush(dest, logical);
           }
         }
+      }};
+    }
+
+    macro_rules! property {
+      ($feature: ident, $prop: ident, $val: expr, $vp: ident) => {{
+        maybe_flush!($prop, $val, $vp);
 
         // Otherwise, update the value and add the prefix.
         if let Some((val, prefixes)) = &mut self.$prop {
@@ -157,15 +163,20 @@ impl PropertyHandler for TransitionHandler {
       TransitionTimingFunction(val, vp) => property!(TransitionTimingFunction, timing_functions, val, vp),
       Transition(val, vp) => {
         let properties: SmallVec<[PropertyId; 1]> = val.iter().map(|b| b.property.clone()).collect();
-        property!(TransitionProperty, properties, &properties, vp);
+        maybe_flush!(properties, &properties, vp);
 
         let durations: SmallVec<[Time; 1]> = val.iter().map(|b| b.duration.clone()).collect();
-        property!(TransitionDuration, durations, &durations, vp);
+        maybe_flush!(durations, &durations, vp);
 
         let delays: SmallVec<[Time; 1]> = val.iter().map(|b| b.delay.clone()).collect();
-        property!(TransitionDelay, delays, &delays, vp);
+        maybe_flush!(delays, &delays, vp);
 
         let timing_functions: SmallVec<[EasingFunction; 1]> = val.iter().map(|b| b.timing_function.clone()).collect();
+        maybe_flush!(timing_functions, &timing_functions, vp);
+        
+        property!(TransitionProperty, properties, &properties, vp);
+        property!(TransitionDuration, durations, &durations, vp);
+        property!(TransitionDelay, delays, &delays, vp);
         property!(TransitionTimingFunction, timing_functions, &timing_functions, vp);
       }
       Unparsed(val) if is_transition_property(&val.property_id) => {
@@ -178,13 +189,13 @@ impl PropertyHandler for TransitionHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, logical: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) {
     self.flush(dest, logical);
   }
 }
 
-impl TransitionHandler {
-  fn flush(&mut self, dest: &mut DeclarationList, logical_properties: &mut LogicalProperties) {
+impl<'i> TransitionHandler<'i> {
+  fn flush(&mut self, dest: &mut DeclarationList<'i>, logical_properties: &mut LogicalProperties) {
     if !self.has_any {
       return
     }
@@ -302,11 +313,11 @@ fn is_transition_property(property_id: &PropertyId) -> bool {
   }
 }
 
-fn expand_properties(
-  properties: &mut SmallVec<[PropertyId; 1]>,
+fn expand_properties<'i>(
+  properties: &mut SmallVec<[PropertyId<'i>; 1]>,
   targets: Option<Browsers>,
   logical_properties: &mut LogicalProperties
-) -> Option<SmallVec<[PropertyId; 1]>> {
+) -> Option<SmallVec<[PropertyId<'i>; 1]>> {
   let mut rtl_properties: Option<SmallVec<[PropertyId; 1]>> = None;
   let len = properties.len();
   let mut i = 0;
@@ -359,8 +370,8 @@ fn expand_properties(
 
 enum LogicalPropertyId {
   None,
-  Block(compat::Feature, &'static [PropertyId]),
-  Inline(compat::Feature, &'static [PropertyId], &'static [PropertyId])
+  Block(compat::Feature, &'static [PropertyId<'static>]),
+  Inline(compat::Feature, &'static [PropertyId<'static>], &'static [PropertyId<'static>])
 }
 
 #[inline]

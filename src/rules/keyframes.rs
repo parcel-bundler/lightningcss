@@ -10,22 +10,22 @@ use crate::error::{ParserError, PrinterError};
 use super::MinifyContext;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct KeyframesRule {
-  pub name: CustomIdent,
-  pub keyframes: Vec<Keyframe>,
+pub struct KeyframesRule<'i> {
+  pub name: CustomIdent<'i>,
+  pub keyframes: Vec<Keyframe<'i>>,
   pub vendor_prefix: VendorPrefix,
   pub loc: SourceLocation
 }
 
-impl KeyframesRule {
-  pub(crate) fn minify(&mut self, context: &mut MinifyContext) {
+impl<'i> KeyframesRule<'i> {
+  pub(crate) fn minify(&mut self, context: &mut MinifyContext<'_, 'i>) {
     for keyframe in &mut self.keyframes {
       keyframe.declarations.minify(context.handler, context.important_handler, context.logical_properties)
     }
   }
 }
 
-impl ToCss for KeyframesRule {
+impl<'i> ToCss for KeyframesRule<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.add_mapping(self.loc);
     let mut first_rule = true;
@@ -81,8 +81,8 @@ pub enum KeyframeSelector {
   To
 }
 
-impl Parse for KeyframeSelector {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for KeyframeSelector {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(val) = input.try_parse(Percentage::parse) {
       return Ok(KeyframeSelector::Percentage(val))
     }
@@ -122,12 +122,12 @@ impl ToCss for KeyframeSelector {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Keyframe {
+pub struct Keyframe<'i> {
   pub selectors: Vec<KeyframeSelector>,
-  pub declarations: DeclarationBlock
+  pub declarations: DeclarationBlock<'i>
 }
 
-impl ToCss for Keyframe {
+impl<'i> ToCss for Keyframe<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let mut first = true;
     for selector in &self.selectors {
@@ -146,13 +146,13 @@ pub(crate) struct KeyframeListParser;
 
 impl<'a, 'i> AtRuleParser<'i> for KeyframeListParser {
   type Prelude = ();
-  type AtRule = Keyframe;
+  type AtRule = Keyframe<'i>;
   type Error = ParserError<'i>;
 }
 
 impl<'a, 'i> QualifiedRuleParser<'i> for KeyframeListParser {
   type Prelude = Vec<KeyframeSelector>;
-  type QualifiedRule = Keyframe;
+  type QualifiedRule = Keyframe<'i>;
   type Error = ParserError<'i>;
 
   fn parse_prelude<'t>(

@@ -10,34 +10,34 @@ use crate::logical::LogicalProperties;
 
 /// https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#text-markers
 #[derive(Debug, Clone, PartialEq)]
-pub enum ListStyleType {
+pub enum ListStyleType<'i> {
   None,
-  CounterStyle(CounterStyle),
-  String(String)
+  CounterStyle(CounterStyle<'i>),
+  String(CowRcStr<'i>)
 }
 
-impl Default for ListStyleType {
-  fn default() -> ListStyleType {
+impl Default for ListStyleType<'_> {
+  fn default() -> Self {
     ListStyleType::CounterStyle(CounterStyle::Name(CustomIdent("disc".into())))
   }
 }
 
-impl Parse for ListStyleType {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(val) = input.try_parse(CounterStyle::parse) {
-      return Ok(ListStyleType::CounterStyle(val))
-    }
-
+impl<'i> Parse<'i> for ListStyleType<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(ListStyleType::None)
     }
 
-    let s = input.expect_string()?.as_ref().to_owned();
+    if let Ok(val) = input.try_parse(CounterStyle::parse) {
+      return Ok(ListStyleType::CounterStyle(val))
+    }
+
+    let s = input.expect_string_cloned()?;
     Ok(ListStyleType::String(s))
   }
 }
 
-impl ToCss for ListStyleType {
+impl ToCss for ListStyleType<'_> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       ListStyleType::None => dest.write_str("none"),
@@ -52,13 +52,13 @@ impl ToCss for ListStyleType {
 
 /// https://www.w3.org/TR/css-counter-styles-3/#typedef-counter-style
 #[derive(Debug, Clone, PartialEq)]
-pub enum CounterStyle {
-  Name(CustomIdent),
-  Symbols(SymbolsType, Vec<Symbol>)
+pub enum CounterStyle<'i> {
+  Name(CustomIdent<'i>),
+  Symbols(SymbolsType, Vec<Symbol<'i>>)
 }
 
-impl Parse for CounterStyle {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for CounterStyle<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_function_matching("symbols")).is_ok() {
       return input.parse_nested_block(|input| {
         let t = input.try_parse(SymbolsType::parse).unwrap_or(SymbolsType::Symbolic);
@@ -77,7 +77,7 @@ impl Parse for CounterStyle {
   }
 }
 
-impl ToCss for CounterStyle {
+impl ToCss for CounterStyle<'_> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       CounterStyle::Name(name) => {
@@ -119,23 +119,23 @@ enum_property! {
 
 /// https://www.w3.org/TR/css-counter-styles-3/#funcdef-symbols
 #[derive(Debug, Clone, PartialEq)]
-pub enum Symbol {
-  String(String),
-  Image(Image)
+pub enum Symbol<'i> {
+  String(CowRcStr<'i>),
+  Image(Image<'i>)
 }
 
-impl Parse for Symbol {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Symbol<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(img) = input.try_parse(Image::parse) {
       return Ok(Symbol::Image(img))
     }
 
-    let s = input.expect_string()?.as_ref().to_owned();
+    let s = input.expect_string_cloned()?;
     Ok(Symbol::String(s))
   }
 }
 
-impl ToCss for Symbol {
+impl<'i> ToCss for Symbol<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       Symbol::String(s) => {
@@ -170,14 +170,14 @@ enum_property! {
 }
 
 // https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#list-style-property
-shorthand_property!(ListStyle {
-  list_style_type: ListStyleType,
-  image: Image,
+shorthand_property!(ListStyle<'i> {
+  list_style_type: ListStyleType<'i>,
+  image: Image<'i>,
   position: ListStylePosition,
 });
 
 shorthand_handler!(ListStyleHandler -> ListStyle {
-  list_style_type: ListStyleType(ListStyleType),
-  image: ListStyleImage(Image),
+  list_style_type: ListStyleType(ListStyleType<'i>),
+  image: ListStyleImage(Image<'i>),
   position: ListStylePosition(ListStylePosition),
 });

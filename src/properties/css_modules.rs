@@ -1,5 +1,5 @@
 use cssparser::*;
-use crate::values::ident::CustomIdent;
+use crate::values::ident::{CustomIdent, CustomIdentList};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use smallvec::SmallVec;
@@ -8,20 +8,20 @@ use crate::error::{ParserError, PrinterError};
 /// The `composes` property from CSS modules.
 /// https://github.com/css-modules/css-modules/#dependencies
 #[derive(Debug, Clone, PartialEq)]
-pub struct Composes {
-  pub names: SmallVec<[CustomIdent; 1]>,
-  pub from: Option<ComposesFrom>,
+pub struct Composes<'i> {
+  pub names: CustomIdentList<'i>,
+  pub from: Option<ComposesFrom<'i>>,
   pub loc: SourceLocation
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ComposesFrom {
+pub enum ComposesFrom<'i> {
   Global,
-  File(String)
+  File(CowRcStr<'i>)
 }
 
-impl Parse for Composes {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Composes<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let loc = input.current_source_location();
     let mut names = SmallVec::new();
     while let Ok(name) = input.try_parse(parse_one_ident) {
@@ -33,7 +33,7 @@ impl Parse for Composes {
     }
 
     let from = if input.try_parse(|input| input.expect_ident_matching("from")).is_ok() {
-      if let Ok(file) = input.try_parse(|input| input.expect_string().map(|s| s.as_ref().to_owned())) {
+      if let Ok(file) = input.try_parse(|input| input.expect_string_cloned()) {
         Some(ComposesFrom::File(file))
       } else {
         input.expect_ident_matching("global")?;
@@ -51,7 +51,7 @@ impl Parse for Composes {
   }
 }
 
-fn parse_one_ident<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CustomIdent, ParseError<'i, ParserError<'i>>> {
+fn parse_one_ident<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CustomIdent<'i>, ParseError<'i, ParserError<'i>>> {
   let name = CustomIdent::parse(input)?;
   if name.0.eq_ignore_ascii_case("from") {
     return Err(input.new_error_for_next_token())
@@ -60,7 +60,7 @@ fn parse_one_ident<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CustomIdent, Pa
   Ok(name)
 }
 
-impl ToCss for Composes {
+impl ToCss for Composes<'_> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let mut first = true;
     for name in &self.names {

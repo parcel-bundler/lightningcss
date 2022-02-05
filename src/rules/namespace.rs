@@ -4,13 +4,13 @@ use crate::printer::Printer;
 use crate::error::PrinterError;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct NamespaceRule {
-  pub prefix: Option<String>,
-  pub url: String,
+pub struct NamespaceRule<'i> {
+  pub prefix: Option<CowRcStr<'i>>,
+  pub url: CowRcStr<'i>,
   pub loc: SourceLocation
 }
 
-impl ToCss for NamespaceRule {
+impl<'i> ToCss for NamespaceRule<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.add_mapping(self.loc);
     dest.write_str("@namespace ")?;

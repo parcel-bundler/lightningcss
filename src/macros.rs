@@ -13,8 +13,8 @@ macro_rules! enum_property {
       )+
     }
 
-    impl Parse for $name {
-      fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    impl<'i> Parse<'i> for $name {
+      fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let ident = input.expect_ident()?;
         match &ident[..] {
           $(
@@ -62,8 +62,8 @@ macro_rules! enum_property {
       )+
     }
 
-    impl Parse for $name {
-      fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    impl<'i> Parse<'i> for $name {
+      fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let ident = input.expect_ident()?;
         match &ident[..] {
           $(
@@ -103,19 +103,19 @@ pub(crate) use enum_property;
 
 macro_rules! shorthand_property {
   (
-    $name: ident
+    $name: ident$(<$l: lifetime>)?
     { $first_key: ident: $first_type: ty, $( $key: ident: $type: ty, )* }
   ) => {
     #[derive(Debug, Clone, PartialEq)]
-    pub struct $name {
+    pub struct $name$(<$l>)? {
       pub $first_key: $first_type,
       $(
         pub $key: $type,
       )*
     }
 
-    impl Parse for $name {
-      fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    impl<'i> Parse<'i> for $name$(<$l>)? {
+      fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let mut $first_key = None;
         $(
           let mut $key = None;
@@ -149,7 +149,7 @@ macro_rules! shorthand_property {
       }
     }
 
-    impl ToCss for $name {
+    impl$(<$l>)? ToCss for $name$(<$l>)? {
       fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
         let mut needs_space = false;
         macro_rules! print_one {
@@ -185,15 +185,15 @@ macro_rules! shorthand_handler {
     { $( $key: ident: $prop: ident($type: ty), )+ }
   ) => {
     #[derive(Default)]
-    pub(crate) struct $name {
+    pub(crate) struct $name<'i> {
       $(
         pub $key: Option<$type>,
       )*
       has_any: bool
     }
 
-    impl PropertyHandler for $name {
-      fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
+    impl<'i> PropertyHandler<'i> for $name<'i> {
+      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
         match property {
           $(
             Property::$prop(val) => {
@@ -217,7 +217,7 @@ macro_rules! shorthand_handler {
         true
       }
 
-      fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
+      fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) {
         if !self.has_any {
           return
         }

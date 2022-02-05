@@ -7,8 +7,8 @@ use crate::error::{ParserError, PrinterError};
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ratio(pub f32, pub f32);
 
-impl Parse for Ratio {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Ratio {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let first = f32::parse(input)?;
     let second = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
       f32::parse(input)?

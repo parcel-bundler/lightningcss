@@ -59,8 +59,8 @@ pub struct FlexFlow {
   pub wrap: FlexWrap
 }
 
-impl Parse for FlexFlow {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for FlexFlow {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut direction = None;
     let mut wrap = None;
     loop {
@@ -112,8 +112,8 @@ pub struct Flex {
   pub basis: LengthPercentageOrAuto
 }
 
-impl Parse for Flex {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Flex {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(Flex {
         grow: 0.0,
@@ -423,8 +423,8 @@ impl FlexHandler {
   }
 }
 
-impl PropertyHandler for FlexHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, _: &mut LogicalProperties) -> bool {
+impl<'i> PropertyHandler<'i> for FlexHandler {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {

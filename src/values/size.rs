@@ -6,8 +6,8 @@ use crate::error::{ParserError, PrinterError};
 #[derive(Debug, Clone, PartialEq)]
 pub struct Size2D<T>(pub T, pub T);
 
-impl<T> Parse for Size2D<T> where T: Parse + Clone {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i, T> Parse<'i> for Size2D<T> where T: Parse<'i> + Clone {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let first = T::parse(input)?;
     let second = input.try_parse(T::parse).unwrap_or_else(|_| first.clone());
     Ok(Size2D(first, second))

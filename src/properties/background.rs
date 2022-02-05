@@ -37,8 +37,8 @@ impl Default for BackgroundSize {
   }
 }
 
-impl Parse for BackgroundSize {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for BackgroundSize {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(width) = input.try_parse(LengthPercentageOrAuto::parse) {
       let height = input.try_parse(LengthPercentageOrAuto::parse).unwrap_or(LengthPercentageOrAuto::Auto);
       return Ok(BackgroundSize::Explicit { width, height });
@@ -101,8 +101,8 @@ impl Default for BackgroundRepeat {
   }
 }
 
-impl Parse for BackgroundRepeat {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for BackgroundRepeat {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     use BackgroundRepeatKeyword::*;
     let state = input.state();
     let ident = input.expect_ident()?;
@@ -209,8 +209,8 @@ impl BackgroundClip {
 
 /// https://www.w3.org/TR/css-backgrounds-3/#background
 #[derive(Debug, Clone, PartialEq)]
-pub struct Background {
-  pub image: Image,
+pub struct Background<'i> {
+  pub image: Image<'i>,
   pub color: CssColor,
   pub position: Position,
   pub repeat: BackgroundRepeat,
@@ -220,8 +220,8 @@ pub struct Background {
   pub clip: BackgroundClip
 }
 
-impl Parse for Background {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Background<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut color: Option<CssColor> = None;
     let mut position: Option<Position> = None;
     let mut size: Option<BackgroundSize> = None;
@@ -310,7 +310,7 @@ impl Parse for Background {
   }
 }
 
-impl ToCss for Background {
+impl<'i> ToCss for Background<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let mut has_output = false;
 
@@ -393,10 +393,10 @@ impl ToCss for Background {
 }
 
 #[derive(Default)]
-pub(crate) struct BackgroundHandler {
+pub(crate) struct BackgroundHandler<'i> {
   targets: Option<Browsers>,
   color: Option<CssColor>,
-  images: Option<SmallVec<[Image; 1]>>,
+  images: Option<SmallVec<[Image<'i>; 1]>>,
   has_prefix: bool,
   x_positions: Option<SmallVec<[HorizontalPosition; 1]>>,
   y_positions: Option<SmallVec<[VerticalPosition; 1]>>,
@@ -405,12 +405,12 @@ pub(crate) struct BackgroundHandler {
   attachments: Option<SmallVec<[BackgroundAttachment; 1]>>,
   origins: Option<SmallVec<[BackgroundBox; 1]>>,
   clips: Option<SmallVec<[BackgroundClip; 1]>>,
-  decls: Vec<Property>,
+  decls: Vec<Property<'i>>,
   has_any: bool
 }
 
-impl BackgroundHandler {
-  pub fn new(targets: Option<Browsers>) -> BackgroundHandler {
+impl<'i> BackgroundHandler<'i> {
+  pub fn new(targets: Option<Browsers>) -> Self {
     BackgroundHandler {
       targets,
       ..BackgroundHandler::default()
@@ -418,8 +418,8 @@ impl BackgroundHandler {
   }
 }
 
-impl PropertyHandler for BackgroundHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, _: &mut LogicalProperties) -> bool {
+impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
     macro_rules! background_image {
       ($val: ident) => {
         // Store prefixed properties. Clear if we hit an unprefixed property and we have
@@ -481,7 +481,7 @@ impl PropertyHandler for BackgroundHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) {
     // If the last declaration is prefixed, pop the last value
     // so it isn't duplicated when we flush.
     if self.has_prefix {
@@ -493,8 +493,8 @@ impl PropertyHandler for BackgroundHandler {
   }
 }
 
-impl BackgroundHandler {
-  fn flush(&mut self, dest: &mut DeclarationList) {    
+impl<'i> BackgroundHandler<'i> {
+  fn flush(&mut self, dest: &mut DeclarationList<'i>) {    
     if !self.has_any {
       return
     }
@@ -536,7 +536,7 @@ impl BackgroundHandler {
           None
         };
 
-        let backgrounds: SmallVec<[Background; 1]> = izip!(images.drain(..), x_positions.drain(..), y_positions.drain(..), repeats.drain(..), sizes.drain(..), attachments.drain(..), origins.drain(..), clips.drain(..)).enumerate().map(|(i, (image, x_position, y_position, repeat, size, attachment, origin, clip))| {
+        let backgrounds: SmallVec<[Background<'i>; 1]> = izip!(images.drain(..), x_positions.drain(..), y_positions.drain(..), repeats.drain(..), sizes.drain(..), attachments.drain(..), origins.drain(..), clips.drain(..)).enumerate().map(|(i, (image, x_position, y_position, repeat, size, attachment, origin, clip))| {
           Background {
             color: if i == len - 1 {
               color.clone()
@@ -563,9 +563,9 @@ impl BackgroundHandler {
         if let Some(targets) = self.targets {
           // Legacy -webkit-gradient()
           if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) && backgrounds.iter().any(|bg| matches!(bg.image, Image::Gradient(_))) {
-            let backgrounds: SmallVec<[Background; 1]> = backgrounds
+            let backgrounds: SmallVec<[Background<'i>; 1]> = backgrounds
               .iter()
-              .map(|bg| -> Result<Background, ()> { Ok(Background { image: bg.image.get_legacy_webkit()?, ..bg.clone() })})
+              .map(|bg| -> Result<Background<'i>, ()> { Ok(Background { image: bg.image.get_legacy_webkit()?, ..bg.clone() })})
               .flatten()
               .collect();
             if !backgrounds.is_empty() {
@@ -617,7 +617,7 @@ impl BackgroundHandler {
       
         // Legacy -webkit-gradient()
         if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) {
-          let images: SmallVec<[Image; 1]> = images.iter().map(|image| image.get_legacy_webkit()).flatten().collect();
+          let images: SmallVec<[Image<'i>; 1]> = images.iter().map(|image| image.get_legacy_webkit()).flatten().collect();
           if !images.is_empty() {
             dest.push(Property::BackgroundImage(images))
           }

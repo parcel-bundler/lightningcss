@@ -19,7 +19,7 @@
 
 use crate::parser::{Combinator, Component, SelectorImpl};
 use crate::sink::Push;
-use servo_arc::{Arc, HeaderWithLength, ThinArc};
+// use servo_arc::{Arc, HeaderWithLength, ThinArc};
 use smallvec::{self, SmallVec};
 use std::cmp;
 use std::iter;
@@ -36,21 +36,21 @@ use std::slice;
 /// build(), which transforms the contents of the SelectorBuilder into a heap-
 /// allocated Selector and leaves the builder in a drained state.
 #[derive(Debug)]
-pub struct SelectorBuilder<Impl: SelectorImpl> {
+pub struct SelectorBuilder<'i, Impl: SelectorImpl<'i>> {
     /// The entire sequence of simple selectors, from left to right, without combinators.
     ///
     /// We make this large because the result of parsing a selector is fed into a new
     /// Arc-ed allocation, so any spilled vec would be a wasted allocation. Also,
     /// Components are large enough that we don't have much cache locality benefit
     /// from reserving stack space for fewer of them.
-    simple_selectors: SmallVec<[Component<Impl>; 32]>,
+    simple_selectors: SmallVec<[Component<'i, Impl>; 32]>,
     /// The combinators, and the length of the compound selector to their left.
     combinators: SmallVec<[(Combinator, usize); 16]>,
     /// The length of the current compount selector.
     current_len: usize,
 }
 
-impl<Impl: SelectorImpl> Default for SelectorBuilder<Impl> {
+impl<'i, Impl: SelectorImpl<'i>> Default for SelectorBuilder<'i, Impl> {
     #[inline(always)]
     fn default() -> Self {
         SelectorBuilder {
@@ -61,16 +61,16 @@ impl<Impl: SelectorImpl> Default for SelectorBuilder<Impl> {
     }
 }
 
-impl<Impl: SelectorImpl> Push<Component<Impl>> for SelectorBuilder<Impl> {
-    fn push(&mut self, value: Component<Impl>) {
+impl<'i, Impl: SelectorImpl<'i>> Push<Component<'i, Impl>> for SelectorBuilder<'i, Impl> {
+    fn push(&mut self, value: Component<'i, Impl>) {
         self.push_simple_selector(value);
     }
 }
 
-impl<Impl: SelectorImpl> SelectorBuilder<Impl> {
+impl<'i, Impl: SelectorImpl<'i>> SelectorBuilder<'i, Impl> {
     /// Pushes a simple selector onto the current compound selector.
     #[inline(always)]
-    pub fn push_simple_selector(&mut self, ss: Component<Impl>) {
+    pub fn push_simple_selector(&mut self, ss: Component<'i, Impl>) {
         assert!(!ss.is_combinator());
         self.simple_selectors.push(ss);
         self.current_len += 1;
@@ -97,7 +97,7 @@ impl<Impl: SelectorImpl> SelectorBuilder<Impl> {
         parsed_pseudo: bool,
         parsed_slotted: bool,
         parsed_part: bool,
-    ) -> ThinArc<SpecificityAndFlags, Component<Impl>> {
+    ) -> (SpecificityAndFlags, Vec<Component<'i, Impl>>) {
         // Compute the specificity and flags.
         let specificity = specificity(self.simple_selectors.iter());
         let mut flags = SelectorFlags::empty();
@@ -119,16 +119,7 @@ impl<Impl: SelectorImpl> SelectorBuilder<Impl> {
     pub fn build_with_specificity_and_flags(
         &mut self,
         spec: SpecificityAndFlags,
-    ) -> ThinArc<SpecificityAndFlags, Component<Impl>> {
-        // First, compute the total number of Components we'll need to allocate
-        // space for.
-        let full_len = self.simple_selectors.len() + self.combinators.len();
-
-        // Create the header.
-        let header = HeaderWithLength::new(spec, full_len);
-
-        // Create the Arc using an iterator that drains our buffers.
-
+    ) -> (SpecificityAndFlags, Vec<Component<'i, Impl>>) {
         // Use a raw pointer to be able to call set_len despite "borrowing" the slice.
         // This is similar to SmallVec::drain, but we use a slice here because
         // we’re gonna traverse it non-linearly.
@@ -145,17 +136,17 @@ impl<Impl: SelectorImpl> SelectorBuilder<Impl> {
             combinators: self.combinators.drain(..).rev(),
         };
 
-        Arc::into_thin(Arc::from_header_and_iter(header, iter))
+        (spec, iter.collect())
     }
 }
 
-struct SelectorBuilderIter<'a, Impl: SelectorImpl> {
-    current_simple_selectors: slice::Iter<'a, Component<Impl>>,
-    rest_of_simple_selectors: &'a [Component<Impl>],
+struct SelectorBuilderIter<'a, 'i, Impl: SelectorImpl<'i>> {
+    current_simple_selectors: slice::Iter<'a, Component<'i, Impl>>,
+    rest_of_simple_selectors: &'a [Component<'i, Impl>],
     combinators: iter::Rev<smallvec::Drain<'a, [(Combinator, usize); 16]>>,
 }
 
-impl<'a, Impl: SelectorImpl> ExactSizeIterator for SelectorBuilderIter<'a, Impl> {
+impl<'a, 'i, Impl: SelectorImpl<'i>> ExactSizeIterator for SelectorBuilderIter<'a, 'i, Impl> {
     fn len(&self) -> usize {
         self.current_simple_selectors.len() +
             self.rest_of_simple_selectors.len() +
@@ -163,8 +154,8 @@ impl<'a, Impl: SelectorImpl> ExactSizeIterator for SelectorBuilderIter<'a, Impl>
     }
 }
 
-impl<'a, Impl: SelectorImpl> Iterator for SelectorBuilderIter<'a, Impl> {
-    type Item = Component<Impl>;
+impl<'a, 'i, Impl: SelectorImpl<'i>> Iterator for SelectorBuilderIter<'a, 'i, Impl> {
+    type Item = Component<'i, Impl>;
     #[inline(always)]
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(simple_selector_ref) = self.current_simple_selectors.next() {
@@ -262,22 +253,22 @@ impl From<Specificity> for u32 {
     }
 }
 
-fn specificity<Impl>(iter: slice::Iter<Component<Impl>>) -> u32
+fn specificity<'i, Impl>(iter: slice::Iter<Component<'i, Impl>>) -> u32
 where
-    Impl: SelectorImpl,
+    Impl: SelectorImpl<'i>,
 {
     complex_selector_specificity(iter).into()
 }
 
-fn complex_selector_specificity<Impl>(iter: slice::Iter<Component<Impl>>) -> Specificity
+fn complex_selector_specificity<'i, Impl>(iter: slice::Iter<Component<'i, Impl>>) -> Specificity
 where
-    Impl: SelectorImpl,
+    Impl: SelectorImpl<'i>,
 {
-    fn simple_selector_specificity<Impl>(
-        simple_selector: &Component<Impl>,
+    fn simple_selector_specificity<'i, Impl>(
+        simple_selector: &Component<'i, Impl>,
         specificity: &mut Specificity,
     ) where
-        Impl: SelectorImpl,
+        Impl: SelectorImpl<'i>,
     {
         match *simple_selector {
             Component::Combinator(..) => {

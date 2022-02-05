@@ -1,4 +1,5 @@
 use cssparser::*;
+use crate::dependencies::{UrlDependency, Dependency};
 use crate::vendor_prefix::VendorPrefix;
 use crate::prefixes::Feature;
 use crate::targets::Browsers;
@@ -11,20 +12,20 @@ use crate::error::{ParserError, PrinterError};
 
 /// https://www.w3.org/TR/css-images-3/#typedef-image
 #[derive(Debug, Clone, PartialEq)]
-pub enum Image {
+pub enum Image<'i> {
   None,
-  Url(Url),
-  Gradient(Gradient),
-  ImageSet(ImageSet)
+  Url(Url<'i>),
+  Gradient(Box<Gradient>),
+  ImageSet(ImageSet<'i>)
 }
 
-impl Default for Image {
-  fn default() -> Image {
+impl<'i> Default for Image<'i> {
+  fn default() -> Image<'i> {
     Image::None
   }
 }
 
-impl Image {
+impl<'i> Image<'i> {
   pub fn has_vendor_prefix(&self) -> bool {
     match self {
       Image::Gradient(a) => a.has_vendor_prefix(),
@@ -41,24 +42,24 @@ impl Image {
     }
   }
 
-  pub fn get_prefixed(&self, prefix: VendorPrefix) -> Image {
+  pub fn get_prefixed(&self, prefix: VendorPrefix) -> Image<'i> {
     match self {
-      Image::Gradient(grad) => Image::Gradient(grad.get_prefixed(prefix)),
+      Image::Gradient(grad) => Image::Gradient(Box::new(grad.get_prefixed(prefix))),
       Image::ImageSet(image_set) => Image::ImageSet(image_set.get_prefixed(prefix)),
       _ => self.clone()
     }
   }
 
-  pub fn get_legacy_webkit(&self) -> Result<Image, ()> {
+  pub fn get_legacy_webkit(&self) -> Result<Image<'i>, ()> {
     match self {
-      Image::Gradient(grad) => Ok(Image::Gradient(grad.get_legacy_webkit()?)),
+      Image::Gradient(grad) => Ok(Image::Gradient(Box::new(grad.get_legacy_webkit()?))),
       _ => Ok(self.clone())
     }
   }
 }
 
-impl Parse for Image {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Image<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
       return Ok(Image::None)
     }
@@ -68,7 +69,7 @@ impl Parse for Image {
     }
 
     if let Ok(grad) = input.try_parse(Gradient::parse) {
-      return Ok(Image::Gradient(grad))
+      return Ok(Image::Gradient(Box::new(grad)))
     }
 
     if let Ok(image_set) = input.try_parse(ImageSet::parse) {
@@ -79,7 +80,7 @@ impl Parse for Image {
   }
 }
 
-impl ToCss for Image {
+impl<'i> ToCss for Image<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       Image::None => dest.write_str("none"),
@@ -91,21 +92,25 @@ impl ToCss for Image {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ImageSet {
-  pub options: Vec<ImageSetOption>,
+pub struct ImageSet<'i> {
+  pub options: Vec<ImageSetOption<'i>>,
   pub vendor_prefix: VendorPrefix
 }
 
-impl ImageSet {
+impl<'i> ImageSet<'i> {
   pub fn has_vendor_prefix(&self) -> bool {
     self.vendor_prefix != VendorPrefix::None
   }
 
   pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
-    Feature::ImageSet.prefixes_for(targets)
+    if self.vendor_prefix.contains(VendorPrefix::None) {
+      Feature::ImageSet.prefixes_for(targets)
+    } else {
+      self.vendor_prefix
+    }
   }
 
-  pub fn get_prefixed(&self, prefix: VendorPrefix) -> ImageSet {
+  pub fn get_prefixed(&self, prefix: VendorPrefix) -> ImageSet<'i> {
     ImageSet {
       options: self.options.clone(),
       vendor_prefix: prefix
@@ -113,8 +118,8 @@ impl ImageSet {
   }
 }
 
-impl Parse for ImageSet {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for ImageSet<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let f = input.expect_function()?;
     let vendor_prefix = match_ignore_ascii_case! { &*f,
@@ -135,7 +140,7 @@ impl Parse for ImageSet {
   }
 }
 
-impl ToCss for ImageSet {
+impl<'i> ToCss for ImageSet<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.vendor_prefix.to_css(dest)?;
     dest.write_str("image-set(")?;
@@ -153,18 +158,18 @@ impl ToCss for ImageSet {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ImageSetOption {
-  pub image: Image,
+pub struct ImageSetOption<'i> {
+  pub image: Image<'i>,
   pub resolution: Resolution,
-  pub file_type: Option<String>
+  pub file_type: Option<CowRcStr<'i>>
 }
 
-impl Parse for ImageSetOption {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for ImageSetOption<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let loc = input.current_source_location();
     let image = if let Ok(url) = input.try_parse(|input| input.expect_url_or_string()) {
       Image::Url(Url {
-        url: url.as_ref().into(),
+        url,
         loc
       })
     } else {
@@ -184,11 +189,26 @@ impl Parse for ImageSetOption {
   }
 }
 
-impl ImageSetOption {
+impl<'i> ImageSetOption<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>, is_prefixed: bool) -> Result<(), PrinterError> where W: std::fmt::Write {
     match &self.image {
       // Prefixed syntax didn't allow strings, only url()
-      Image::Url(url) if !is_prefixed => serialize_string(&url.url, dest)?,
+      Image::Url(url) if !is_prefixed => {
+        // Add dependency if needed. Normally this is handled by the Url type.
+        let dep = if dest.dependencies.is_some() {
+          Some(UrlDependency::new(url, dest.filename))
+        } else {
+          None
+        };
+        if let Some(dep) = dep {
+          serialize_string(&dep.placeholder, dest)?;
+          if let Some(dependencies) = &mut dest.dependencies {
+            dependencies.push(Dependency::Url(dep))
+          }
+        } else {
+          serialize_string(&url.url, dest)?;
+        }
+      },
       _ => self.image.to_css(dest)?
     }
 
@@ -207,7 +227,7 @@ impl ImageSetOption {
   }
 }
 
-fn parse_file_type<'i, 't>(input: &mut Parser<'i, 't>) -> Result<String, ParseError<'i, ParserError<'i>>> {
+fn parse_file_type<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CowRcStr<'i>, ParseError<'i, ParserError<'i>>> {
   input.expect_function_matching("type")?;
-  input.parse_nested_block(|input| Ok(input.expect_string()?.as_ref().to_owned()))
+  input.parse_nested_block(|input| Ok(input.expect_string_cloned()?))
 }

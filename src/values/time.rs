@@ -20,8 +20,8 @@ impl Time {
   }
 }
 
-impl Parse for Time {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Time {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
       // Time is always compatible, so they will always compute to a value.

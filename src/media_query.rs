@@ -15,25 +15,24 @@ use retain_mut::RetainMut;
 
 /// A type that encapsulates a media query list.
 #[derive(Clone, Debug, PartialEq)]
-pub struct MediaList {
+pub struct MediaList<'i> {
   /// The list of media queries.
-  pub media_queries: Vec<MediaQuery>,
+  pub media_queries: Vec<MediaQuery<'i>>,
 }
 
-impl MediaList {
-  pub fn new() -> MediaList {
+impl<'i> MediaList<'i> {
+  pub fn new() -> Self {
     MediaList {
       media_queries: vec![]
     }
   }
-
   /// Parse a media query list from CSS.
   ///
   /// Always returns a media query list. Invalid media queries are
   /// omitted. If the list is empty, it is equivalent to "not all".
   ///
   /// <https://drafts.csswg.org/mediaqueries/#error-handling>
-  pub fn parse(input: &mut Parser) -> Self {
+  pub fn parse<'t>(input: &mut Parser<'i, 't>) -> Self {
     let mut media_queries = vec![];
     loop {
       if let Ok(mq) = input.parse_until_before(Delimiter::Comma, |i| MediaQuery::parse(i)) {
@@ -50,7 +49,7 @@ impl MediaList {
     MediaList { media_queries }
   }
 
-  pub(crate) fn transform_custom_media(&mut self, loc: SourceLocation, custom_media: &HashMap<String, CustomMediaRule>) -> Result<(), MinifyError> {
+  pub(crate) fn transform_custom_media(&mut self, loc: SourceLocation, custom_media: &HashMap<CowRcStr<'i>, CustomMediaRule<'i>>) -> Result<(), MinifyError> {
     for query in self.media_queries.iter_mut() {
       query.transform_custom_media(loc, custom_media)?;
     }
@@ -63,7 +62,7 @@ impl MediaList {
   }
 }
     
-impl ToCss for MediaList {
+impl<'i> ToCss for MediaList<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if self.media_queries.is_empty() {
       dest.write_str("not all")?;
@@ -92,50 +91,50 @@ enum_property! {
 
 /// <http://dev.w3.org/csswg/mediaqueries-3/#media0>
 #[derive(Clone, Debug, PartialEq)]
-pub enum MediaType {
+pub enum MediaType<'i> {
   /// A media type that matches every device.
   All,
   Print,
   Screen,
   /// A specific media type.
-  Custom(String),
+  Custom(CowRcStr<'i>),
 }
 
-impl MediaType {
-  fn parse(name: &str) -> Result<Self, ()> {
+impl<'i> Parse<'i> for MediaType<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let name = input.expect_ident()?;
     match_ignore_ascii_case! { &*name,
       "all" => Ok(MediaType::All),
       "print" => Ok(MediaType::Print),
       "screen" => Ok(MediaType::Screen),
-      _ => Ok(MediaType::Custom(name.into()))
+      _ => Ok(MediaType::Custom(name.clone()))
     }
   }
 }
 
 /// https://drafts.csswg.org/mediaqueries/
 #[derive(Clone, Debug, PartialEq)]
-pub struct MediaQuery {
+pub struct MediaQuery<'i> {
   /// The qualifier for this query.
   pub qualifier: Option<Qualifier>,
   /// The media type for this query, that can be known, unknown, or "all".
-  pub media_type: MediaType,
+  pub media_type: MediaType<'i>,
   /// The condition that this media query contains. This cannot have `or`
   /// in the first level.
-  pub condition: Option<MediaCondition>,
+  pub condition: Option<MediaCondition<'i>>,
 }
 
-impl MediaQuery {
+impl<'i> MediaQuery<'i> {
   /// Parse a media query given css input.
   ///
   /// Returns an error if any of the expressions is unknown.
-  pub fn parse<'i, 't>(
+  pub fn parse<'t>(
     input: &mut Parser<'i, 't>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let (qualifier, explicit_media_type) = input
-      .try_parse(|input| -> Result<_, ()> {
+      .try_parse(|input| -> Result<_, ParseError<'i, ParserError<'i>>> {
         let qualifier = input.try_parse(Qualifier::parse).ok();
-        let ident = input.expect_ident().map_err(|_| ())?;
-        let media_type = MediaType::parse(&ident)?;
+        let media_type = MediaType::parse(input)?;
         Ok((qualifier, Some(media_type)))
       })
       .unwrap_or_default();
@@ -156,7 +155,7 @@ impl MediaQuery {
     })
   }
 
-  fn transform_custom_media(&mut self, loc: SourceLocation, custom_media: &HashMap<String, CustomMediaRule>) -> Result<(), MinifyError> {
+  fn transform_custom_media(&mut self, loc: SourceLocation, custom_media: &HashMap<CowRcStr<'i>, CustomMediaRule<'i>>) -> Result<(), MinifyError> {
     if let Some(condition) = &mut self.condition {
       let used = process_condition(
         loc,
@@ -178,7 +177,7 @@ impl MediaQuery {
   }
 }
 
-impl ToCss for MediaQuery {
+impl<'i> ToCss for MediaQuery<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     if let Some(qual) = self.qualifier {
       qual.to_css(dest)?;
@@ -224,20 +223,20 @@ enum_property! {
 
 /// Represents a media condition.
 #[derive(Clone, Debug, PartialEq)]
-pub enum MediaCondition {
+pub enum MediaCondition<'i> {
   /// A media feature, implicitly parenthesized.
-  Feature(MediaFeature),
+  Feature(MediaFeature<'i>),
   /// A negation of a condition.
-  Not(Box<MediaCondition>),
+  Not(Box<MediaCondition<'i>>),
   /// A set of joint operations.
-  Operation(Vec<MediaCondition>, Operator),
+  Operation(Vec<MediaCondition<'i>>, Operator),
   /// A condition wrapped in parenthesis.
-  InParens(Box<MediaCondition>),
+  InParens(Box<MediaCondition<'i>>),
 }
 
-impl MediaCondition {
+impl<'i> MediaCondition<'i> {
   /// Parse a single media condition.
-  pub fn parse<'i, 't>(
+  pub fn parse<'t>(
     input: &mut Parser<'i, 't>,
     allow_or: bool
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
@@ -286,14 +285,14 @@ impl MediaCondition {
   }
   
   /// Parse a media condition in parentheses.
-  pub fn parse_in_parens<'i, 't>(
+  pub fn parse_in_parens<'t>(
     input: &mut Parser<'i, 't>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.expect_parenthesis_block()?;
     Self::parse_paren_block(input)
   }
   
-  fn parse_paren_block<'i, 't>(
+  fn parse_paren_block<'t>(
     input: &mut Parser<'i, 't>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.parse_nested_block(|input| {
@@ -307,7 +306,7 @@ impl MediaCondition {
   }
 }
 
-impl ToCss for MediaCondition {
+impl<'i> ToCss for MediaCondition<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match *self {
       MediaCondition::Feature(ref f) => f.to_css(dest),
@@ -385,32 +384,32 @@ impl MediaFeatureComparison {
 
 /// https://drafts.csswg.org/mediaqueries/#typedef-media-feature
 #[derive(Clone, Debug, PartialEq)]
-pub enum MediaFeature {
+pub enum MediaFeature<'i> {
   // e.g. (min-width: 240px)
   Plain {
-    name: String,
-    value: MediaFeatureValue
+    name: CowRcStr<'i>,
+    value: MediaFeatureValue<'i>
   },
   // e.g. (hover)
-  Boolean(String),
+  Boolean(CowRcStr<'i>),
   // e.g. (width > 240px)
   Range {
-    name: String,
+    name: CowRcStr<'i>,
     operator: MediaFeatureComparison,
-    value: MediaFeatureValue
+    value: MediaFeatureValue<'i>
   },
   /// e.g. (120px < width < 240px)
   Interval {
-    name: String,
-    start: MediaFeatureValue,
+    name: CowRcStr<'i>,
+    start: MediaFeatureValue<'i>,
     start_operator: MediaFeatureComparison,
-    end: MediaFeatureValue,
+    end: MediaFeatureValue<'i>,
     end_operator: MediaFeatureComparison
   }
 }
 
-impl Parse for MediaFeature {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for MediaFeature<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(res) = input.try_parse(Self::parse_name_first) {
       return Ok(res)
     }
@@ -419,9 +418,9 @@ impl Parse for MediaFeature {
   }
 }
 
-impl MediaFeature {
-  fn parse_name_first<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let name = input.expect_ident()?.as_ref().to_owned();
+impl<'i> MediaFeature<'i> {
+  fn parse_name_first<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let name = input.expect_ident_cloned()?;
     
     let operator = input.try_parse(|input| consume_operation_or_colon(input, true));
     let operator = match operator {
@@ -445,10 +444,10 @@ impl MediaFeature {
     }
   }
   
-  fn parse_value_first<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  fn parse_value_first<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let value = MediaFeatureValue::parse(input)?;
     let operator = consume_operation_or_colon(input, false)?;
-    let name = input.expect_ident()?.as_ref().to_owned();
+    let name = input.expect_ident_cloned()?;
     
     if let Ok(end_operator) = input.try_parse(|input| consume_operation_or_colon(input, false)) {
       let start_operator = operator.unwrap();
@@ -484,7 +483,7 @@ impl MediaFeature {
   }
 }
 
-impl ToCss for MediaFeature {
+impl<'i> ToCss for MediaFeature<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.write_char('(')?;
     
@@ -564,16 +563,16 @@ fn write_min_max<W>(operator: &MediaFeatureComparison, name: &str, value: &Media
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum MediaFeatureValue {
+pub enum MediaFeatureValue<'i> {
   Length(Length),
   Number(f32),
   Resolution(Resolution),
   Ratio(Ratio),
-  Ident(String)
+  Ident(CowRcStr<'i>)
 }
 
-impl Parse for MediaFeatureValue {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for MediaFeatureValue<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // Ratios are ambigous with numbers because the second param is optional (e.g. 2/1 == 2).
     // We require the / delimeter when parsing ratios so that 2/1 ends up as a ratio and 2 is
     // parsed as a number.
@@ -594,12 +593,12 @@ impl Parse for MediaFeatureValue {
       return Ok(MediaFeatureValue::Resolution(res))
     }
     
-    let ident = input.expect_ident()?.as_ref().to_owned();
+    let ident = input.expect_ident_cloned()?;
     Ok(MediaFeatureValue::Ident(ident))
   }
 }
 
-impl ToCss for MediaFeatureValue {
+impl<'i> ToCss for MediaFeatureValue<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       MediaFeatureValue::Length(len) => len.to_css(dest),
@@ -614,10 +613,10 @@ impl ToCss for MediaFeatureValue {
   }
 }
 
-impl std::ops::Add<f32> for MediaFeatureValue {
+impl<'i> std::ops::Add<f32> for MediaFeatureValue<'i> {
   type Output = Self;
 
-  fn add(self, other: f32) -> MediaFeatureValue {
+  fn add(self, other: f32) -> Self {
     match self {
       MediaFeatureValue::Length(len) => MediaFeatureValue::Length(len + Length::px(other)),
       MediaFeatureValue::Number(num) => MediaFeatureValue::Number(num + other),
@@ -660,13 +659,13 @@ fn consume_operation_or_colon<'i, 't>(input: &mut Parser<'i, 't>, allow_colon: b
   }))
 }
 
-fn process_condition(
+fn process_condition<'i>(
   loc: SourceLocation,
-  custom_media: &HashMap<String, CustomMediaRule>,
-  media_type: &mut MediaType,
+  custom_media: &HashMap<CowRcStr<'i>, CustomMediaRule<'i>>,
+  media_type: &mut MediaType<'i>,
   qualifier: &mut Option<Qualifier>,
-  condition: &mut MediaCondition,
-  seen: &mut HashSet<String>
+  condition: &mut MediaCondition<'i>,
+  seen: &mut HashSet<CowRcStr<'i>>
 ) -> Result<bool, MinifyError> {
   match condition {
     MediaCondition::Not(cond) => {
@@ -714,14 +713,14 @@ fn process_condition(
 
       if seen.contains(name) {
         return Err(MinifyError::CircularCustomMedia {
-          name: name.clone(),
+          name: name.to_string(),
           loc
         });
       }
       
       let rule = custom_media.get(name)
         .ok_or_else(|| MinifyError::CustomMediaNotDefined {
-          name: name.clone(),
+          name: name.to_string(),
           loc
         })?;
 

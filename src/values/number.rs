@@ -4,8 +4,8 @@ use crate::printer::Printer;
 use super::calc::Calc;
 use crate::error::{ParserError, PrinterError};
 
-impl Parse for f32 {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for f32 {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
       Ok(Calc::Number(n)) => return Ok(n),

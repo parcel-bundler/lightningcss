@@ -12,6 +12,7 @@ pub mod nesting;
 pub mod viewport;
 pub mod custom_media;
 
+use cssparser::CowRcStr;
 use media::MediaRule;
 use import::ImportRule;
 use style::StyleRule;
@@ -37,35 +38,35 @@ use crate::error::{MinifyError, PrinterError};
 use crate::logical::LogicalProperties;
 use crate::dependencies::{Dependency, ImportDependency};
 
-pub(crate) trait ToCssWithContext {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> Result<(), PrinterError> where W: std::fmt::Write;
+pub(crate) trait ToCssWithContext<'a, 'i> {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext<'a, 'i>>) -> Result<(), PrinterError> where W: std::fmt::Write;
 }
 
-pub(crate) struct StyleContext<'a> {
-  pub rule: &'a StyleRule,
-  pub parent: Option<&'a StyleContext<'a>>
+pub(crate) struct StyleContext<'a, 'i> {
+  pub rule: &'a StyleRule<'i>,
+  pub parent: Option<&'a StyleContext<'a, 'i>>
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum CssRule {
-  Media(MediaRule),
-  Import(ImportRule),
-  Style(StyleRule),
-  Keyframes(KeyframesRule),
-  FontFace(FontFaceRule),
-  Page(PageRule),
-  Supports(SupportsRule),
-  CounterStyle(CounterStyleRule),
-  Namespace(NamespaceRule),
-  MozDocument(MozDocumentRule),
-  Nesting(NestingRule),
-  Viewport(ViewportRule),
-  CustomMedia(CustomMediaRule),
+pub enum CssRule<'i> {
+  Media(MediaRule<'i>),
+  Import(ImportRule<'i>),
+  Style(StyleRule<'i>),
+  Keyframes(KeyframesRule<'i>),
+  FontFace(FontFaceRule<'i>),
+  Page(PageRule<'i>),
+  Supports(SupportsRule<'i>),
+  CounterStyle(CounterStyleRule<'i>),
+  Namespace(NamespaceRule<'i>),
+  MozDocument(MozDocumentRule<'i>),
+  Nesting(NestingRule<'i>),
+  Viewport(ViewportRule<'i>),
+  CustomMedia(CustomMediaRule<'i>),
   Ignored
 }
 
-impl ToCssWithContext for CssRule {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> Result<(), PrinterError> where W: std::fmt::Write {
+impl<'a, 'i> ToCssWithContext<'a, 'i> for CssRule<'i> {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext<'a, 'i>>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       CssRule::Media(media) => media.to_css_with_context(dest, context),
       CssRule::Import(import) => import.to_css(dest),
@@ -85,32 +86,32 @@ impl ToCssWithContext for CssRule {
   }
 }
 
-impl ToCss for CssRule {
+impl<'i> ToCss for CssRule<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.to_css_with_context(dest, None)
   }
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct CssRuleList(pub Vec<CssRule>);
+pub struct CssRuleList<'i>(pub Vec<CssRule<'i>>);
 
-pub(crate) struct MinifyContext<'a> {
+pub(crate) struct MinifyContext<'a, 'i> {
   pub targets: &'a Option<Browsers>,
-  pub handler: &'a mut DeclarationHandler,
-  pub important_handler: &'a mut DeclarationHandler,
+  pub handler: &'a mut DeclarationHandler<'i>,
+  pub important_handler: &'a mut DeclarationHandler<'i>,
   pub logical_properties: &'a mut LogicalProperties,
   pub unused_symbols: &'a HashSet<String>,
-  pub custom_media: Option<HashMap<String, CustomMediaRule>>
+  pub custom_media: Option<HashMap<CowRcStr<'i>, CustomMediaRule<'i>>>
 }
 
-impl CssRuleList {
-  pub(crate) fn minify(&mut self, context: &mut MinifyContext, parent_is_unused: bool) -> Result<(), MinifyError> {
+impl<'i> CssRuleList<'i> {
+  pub(crate) fn minify(&mut self, context: &mut MinifyContext<'_, 'i>, parent_is_unused: bool) -> Result<(), MinifyError> {
     let mut keyframe_rules = HashMap::new();
     let mut rules = Vec::new();
     for mut rule in self.0.drain(..) {
       match &mut rule {
         CssRule::Keyframes(keyframes) => {
-          if context.unused_symbols.contains(&keyframes.name.0) {
+          if context.unused_symbols.contains(keyframes.name.0.as_ref()) {
             continue
           }
           keyframes.minify(context);
@@ -201,7 +202,7 @@ impl CssRuleList {
           }
         },
         CssRule::CounterStyle(counter_style) => {
-          if context.unused_symbols.contains(&counter_style.name.0) {
+          if context.unused_symbols.contains(counter_style.name.0.as_ref()) {
             continue
           }
         }
@@ -221,14 +222,14 @@ impl CssRuleList {
   }
 }
 
-impl ToCss for CssRuleList {
+impl<'i> ToCss for CssRuleList<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.to_css_with_context(dest, None)
   }
 }
 
-impl ToCssWithContext for CssRuleList {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext>) -> Result<(), PrinterError> where W: std::fmt::Write {
+impl<'a, 'i> ToCssWithContext<'a, 'i> for CssRuleList<'i> {
+  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext<'a, 'i>>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let mut first = true;
     let mut last_without_block = false;
 

@@ -9,30 +9,30 @@ use crate::values::url::Url;
 use crate::error::{ParserError, PrinterError};
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct FontFaceRule {
-  pub properties: Vec<FontFaceProperty>,
+pub struct FontFaceRule<'i> {
+  pub properties: Vec<FontFaceProperty<'i>>,
   pub loc: SourceLocation
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum FontFaceProperty {
-  Source(Vec<Source>),
-  FontFamily(FontFamily),
+pub enum FontFaceProperty<'i> {
+  Source(Vec<Source<'i>>),
+  FontFamily(FontFamily<'i>),
   FontStyle(FontStyle),
   FontWeight(Size2D<FontWeight>),
   FontStretch(Size2D<FontStretch>),
-  Custom(CustomProperty)
+  Custom(CustomProperty<'i>)
 }
 
 /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-face-src-parsing
 #[derive(Debug, Clone, PartialEq)]
-pub enum Source {
-  Url(UrlSource),
-  Local(FontFamily)
+pub enum Source<'i> {
+  Url(UrlSource<'i>),
+  Local(FontFamily<'i>)
 }
 
-impl Parse for Source {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Source<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(url) = input.try_parse(UrlSource::parse) {
       return Ok(Source::Url(url))
     }
@@ -43,7 +43,7 @@ impl Parse for Source {
   }
 }
 
-impl ToCss for Source {
+impl<'i> ToCss for Source<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       Source::Url(url) => url.to_css(dest),
@@ -57,13 +57,13 @@ impl ToCss for Source {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct UrlSource {
-  pub url: Url,
-  pub format: Option<Format>
+pub struct UrlSource<'i> {
+  pub url: Url<'i>,
+  pub format: Option<Format<'i>>
 }
 
-impl Parse for UrlSource {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for UrlSource<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let url = Url::parse(input)?;
 
     let format = if input.try_parse(|input| input.expect_function_matching("format")).is_ok() {
@@ -76,7 +76,7 @@ impl Parse for UrlSource {
   }
 }
 
-impl ToCss for UrlSource {
+impl<'i> ToCss for UrlSource<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.url.to_css(dest)?;
     if let Some(format) = &self.format {
@@ -90,13 +90,13 @@ impl ToCss for UrlSource {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Format {
-  pub format: FontFormat,
+pub struct Format<'i> {
+  pub format: FontFormat<'i>,
   pub supports: Vec<FontTechnology>
 }
 
-impl Parse for Format {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Format<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let format = FontFormat::parse(input)?;
     let mut supports = vec![];
     if input.try_parse(|input| input.expect_ident_matching("supports")).is_ok() {
@@ -113,7 +113,7 @@ impl Parse for Format {
 }
 
 
-impl ToCss for Format {
+impl<'i> ToCss for Format<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.format.to_css(dest)?;
     if !self.supports.is_empty() {
@@ -133,7 +133,7 @@ impl ToCss for Format {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum FontFormat {
+pub enum FontFormat<'i> {
   WOFF,
   WOFF2,
   TrueType,
@@ -141,11 +141,11 @@ pub enum FontFormat {
   EmbeddedOpenType,
   Collection,
   SVG,
-  String(String)
+  String(CowRcStr<'i>)
 }
 
-impl Parse for FontFormat {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for FontFormat<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let s = input.expect_ident_or_string()?;
     match_ignore_ascii_case! { &s,
       "woff" => Ok(FontFormat::WOFF),
@@ -155,12 +155,12 @@ impl Parse for FontFormat {
       "embedded-opentype" => Ok(FontFormat::EmbeddedOpenType),
       "collection" => Ok(FontFormat::Collection),
       "svg" => Ok(FontFormat::SVG),
-      _ => Ok(FontFormat::String(s.as_ref().to_owned()))
+      _ => Ok(FontFormat::String(s.clone()))
     }
   }
 }
 
-impl ToCss for FontFormat {
+impl<'i> ToCss for FontFormat<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use FontFormat::*;
     let s = match self {
@@ -206,8 +206,8 @@ pub enum FontTechnology {
   Palettes
 }
 
-impl Parse for FontTechnology {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for FontTechnology {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     match input.next()? {
       Token::Function(f) => {
@@ -256,7 +256,7 @@ pub(crate) struct FontFaceDeclarationParser;
 
 /// Parse a declaration within {} block: `color: blue`
 impl<'i> cssparser::DeclarationParser<'i> for FontFaceDeclarationParser {
-  type Declaration = FontFaceProperty;
+  type Declaration = FontFaceProperty<'i>;
   type Error = ParserError<'i>;
 
   fn parse_value<'t>(
@@ -294,11 +294,11 @@ impl<'i> cssparser::DeclarationParser<'i> for FontFaceDeclarationParser {
 /// Default methods reject all at rules.
 impl<'i> AtRuleParser<'i> for FontFaceDeclarationParser {
   type Prelude = ();
-  type AtRule = FontFaceProperty;
+  type AtRule = FontFaceProperty<'i>;
   type Error = ParserError<'i>;
 }
 
-impl ToCss for FontFaceRule {
+impl<'i> ToCss for FontFaceRule<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.add_mapping(self.loc);
     dest.write_str("@font-face")?;
@@ -319,7 +319,7 @@ impl ToCss for FontFaceRule {
   }
 }
 
-impl ToCss for FontFaceProperty {
+impl<'i> ToCss for FontFaceProperty<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     use FontFaceProperty::*;
     macro_rules! property {
@@ -351,7 +351,7 @@ impl ToCss for FontFaceProperty {
       Custom(custom) => {
         dest.write_str(custom.name.as_ref())?;
         dest.delim(':', false)?;
-        dest.write_str(custom.value.as_ref())
+        custom.value.to_css(dest)
       }
     }
   }

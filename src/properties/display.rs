@@ -30,8 +30,8 @@ pub enum DisplayInside {
   Ruby
 }
 
-impl Parse for DisplayInside {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for DisplayInside {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let ident = input.expect_ident()?;
     match_ignore_ascii_case! { &*ident,
@@ -95,8 +95,8 @@ pub struct DisplayPair {
   pub is_list_item: bool
 }
 
-impl Parse for DisplayPair {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for DisplayPair {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut list_item = false;
     let mut outside = None;
     let mut inside = None;
@@ -271,8 +271,8 @@ pub enum Display {
   Pair(DisplayPair)
 }
 
-impl Parse for Display {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Display {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(pair) = input.try_parse(DisplayPair::parse) {
       return Ok(Display::Pair(pair))
     }
@@ -301,14 +301,14 @@ enum_property! {
 }
 
 #[derive(Default)]
-pub(crate) struct DisplayHandler {
+pub(crate) struct DisplayHandler<'i> {
   targets: Option<Browsers>,
-  decls: Vec<Property>,
+  decls: Vec<Property<'i>>,
   display: Option<Display>
 }
 
-impl DisplayHandler {
-  pub fn new(targets: Option<Browsers>) -> DisplayHandler {
+impl<'i> DisplayHandler<'i> {
+  pub fn new(targets: Option<Browsers>) -> Self {
     DisplayHandler {
       targets,
       ..DisplayHandler::default()
@@ -316,8 +316,8 @@ impl DisplayHandler {
   }
 }
 
-impl PropertyHandler for DisplayHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
+impl<'i> PropertyHandler<'i> for DisplayHandler<'i> {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
     if let Property::Display(display) = property {
       match (&self.display, display) {
         (Some(Display::Pair(cur)), Display::Pair(new)) => {
@@ -353,7 +353,7 @@ impl PropertyHandler for DisplayHandler {
     false
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) {
     if self.display.is_none() {
       return
     }

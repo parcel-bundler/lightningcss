@@ -15,17 +15,16 @@ use cssparser::{BasicParseError, BasicParseErrorKind, ParseError, ParseErrorKind
 use cssparser::{CowRcStr, Delimiter, SourceLocation};
 use cssparser::{Parser as CssParser, ToCss, Token};
 use precomputed_hash::PrecomputedHash;
-use servo_arc::ThinArc;
 use smallvec::SmallVec;
-use std::borrow::{Borrow, Cow};
+use std::borrow::{Borrow};
 use std::fmt::{self, Debug};
 use std::iter::Rev;
 use std::slice;
 
 /// A trait that represents a pseudo-element.
-pub trait PseudoElement: Sized + ToCss {
+pub trait PseudoElement<'i>: Sized + ToCss {
     /// The `SelectorImpl` this pseudo-element is used for.
-    type Impl: SelectorImpl;
+    type Impl: SelectorImpl<'i>;
 
     /// Whether the pseudo-element supports a given state selector to the right
     /// of it.
@@ -40,9 +39,9 @@ pub trait PseudoElement: Sized + ToCss {
 }
 
 /// A trait that represents a pseudo-class.
-pub trait NonTSPseudoClass: Sized + ToCss {
+pub trait NonTSPseudoClass<'i>: Sized + ToCss {
     /// The `SelectorImpl` this pseudo-element is used for.
-    type Impl: SelectorImpl;
+    type Impl: SelectorImpl<'i>;
 
     /// Whether this pseudo-class is :active or :hover.
     fn is_active_or_hover(&self) -> bool;
@@ -54,7 +53,7 @@ pub trait NonTSPseudoClass: Sized + ToCss {
 
     fn visit<V>(&self, _visitor: &mut V) -> bool
     where
-        V: SelectorVisitor<Impl = Self::Impl>,
+        V: SelectorVisitor<'i, Impl = Self::Impl>,
     {
         true
     }
@@ -62,13 +61,13 @@ pub trait NonTSPseudoClass: Sized + ToCss {
 
 /// Returns a Cow::Borrowed if `s` is already ASCII lowercase, and a
 /// Cow::Owned if `s` had to be converted into ASCII lowercase.
-fn to_ascii_lowercase(s: &str) -> Cow<str> {
+fn to_ascii_lowercase<'i>(s: CowRcStr<'i>) -> CowRcStr<'i> {
     if let Some(first_uppercase) = s.bytes().position(|byte| byte >= b'A' && byte <= b'Z') {
-        let mut string = s.to_owned();
+        let mut string = s.to_string();
         string[first_uppercase..].make_ascii_lowercase();
         string.into()
     } else {
-        s.into()
+        s
     }
 }
 
@@ -198,7 +197,7 @@ macro_rules! with_all_bounds {
         /// NB: We need Clone so that we can derive(Clone) on struct with that
         /// are parameterized on SelectorImpl. See
         /// <https://github.com/rust-lang/rust/issues/26925>
-        pub trait SelectorImpl: Clone + Debug + Sized + 'static {
+        pub trait SelectorImpl<'i>: Clone + Debug + Sized + 'static {
             type ExtraMatchingData: Sized + Default + 'static;
             type AttrValue: $($InSelector)*;
             type Identifier: $($InSelector)*;
@@ -210,10 +209,14 @@ macro_rules! with_all_bounds {
 
             /// non tree-structural pseudo-classes
             /// (see: https://drafts.csswg.org/selectors/#structural-pseudos)
-            type NonTSPseudoClass: $($CommonBounds)* + NonTSPseudoClass<Impl = Self>;
+            type NonTSPseudoClass: $($CommonBounds)* + NonTSPseudoClass<'i, Impl = Self>;
 
             /// pseudo-elements
-            type PseudoElement: $($CommonBounds)* + PseudoElement<Impl = Self>;
+            type PseudoElement: $($CommonBounds)* + PseudoElement<'i, Impl = Self>;
+
+            fn to_css<W: fmt::Write>(selectors: &SelectorList<'i, Self>, dest: &mut W) -> fmt::Result {
+                serialize_selector_list(selectors.0.iter(), dest)
+            }
         }
     }
 }
@@ -230,11 +233,11 @@ macro_rules! with_bounds {
 
 with_bounds! {
     [Clone + Eq]
-    [for<'a> From<&'a str>]
+    [From<CowRcStr<'i>>]
 }
 
 pub trait Parser<'i> {
-    type Impl: SelectorImpl;
+    type Impl: SelectorImpl<'i>;
     type Error: 'i + From<SelectorParseErrorKind<'i>>;
 
     /// Whether to parse the `::slotted()` pseudo-element.
@@ -276,7 +279,7 @@ pub trait Parser<'i> {
         &self,
         location: SourceLocation,
         name: CowRcStr<'i>,
-    ) -> Result<<Self::Impl as SelectorImpl>::NonTSPseudoClass, ParseError<'i, Self::Error>> {
+    ) -> Result<<Self::Impl as SelectorImpl<'i>>::NonTSPseudoClass, ParseError<'i, Self::Error>> {
         Err(
             location.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(
                 name,
@@ -288,7 +291,7 @@ pub trait Parser<'i> {
         &self,
         name: CowRcStr<'i>,
         arguments: &mut CssParser<'i, 't>,
-    ) -> Result<<Self::Impl as SelectorImpl>::NonTSPseudoClass, ParseError<'i, Self::Error>> {
+    ) -> Result<<Self::Impl as SelectorImpl<'i>>::NonTSPseudoClass, ParseError<'i, Self::Error>> {
         Err(
             arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(
                 name,
@@ -300,7 +303,7 @@ pub trait Parser<'i> {
         &self,
         location: SourceLocation,
         name: CowRcStr<'i>,
-    ) -> Result<<Self::Impl as SelectorImpl>::PseudoElement, ParseError<'i, Self::Error>> {
+    ) -> Result<<Self::Impl as SelectorImpl<'i>>::PseudoElement, ParseError<'i, Self::Error>> {
         Err(
             location.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(
                 name,
@@ -312,7 +315,7 @@ pub trait Parser<'i> {
         &self,
         name: CowRcStr<'i>,
         arguments: &mut CssParser<'i, 't>,
-    ) -> Result<<Self::Impl as SelectorImpl>::PseudoElement, ParseError<'i, Self::Error>> {
+    ) -> Result<<Self::Impl as SelectorImpl<'i>>::PseudoElement, ParseError<'i, Self::Error>> {
         Err(
             arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(
                 name,
@@ -320,14 +323,14 @@ pub trait Parser<'i> {
         )
     }
 
-    fn default_namespace(&self) -> Option<<Self::Impl as SelectorImpl>::NamespaceUrl> {
+    fn default_namespace(&self) -> Option<<Self::Impl as SelectorImpl<'i>>::NamespaceUrl> {
         None
     }
 
     fn namespace_for_prefix(
         &self,
-        _prefix: &<Self::Impl as SelectorImpl>::NamespacePrefix,
-    ) -> Option<<Self::Impl as SelectorImpl>::NamespaceUrl> {
+        _prefix: &<Self::Impl as SelectorImpl<'i>>::NamespacePrefix,
+    ) -> Option<<Self::Impl as SelectorImpl<'i>>::NamespaceUrl> {
         None
     }
 
@@ -337,8 +340,8 @@ pub trait Parser<'i> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SelectorList<Impl: SelectorImpl>(
-    pub SmallVec<[Selector<Impl>; 1]>,
+pub struct SelectorList<'i, Impl: SelectorImpl<'i>>(
+    pub SmallVec<[Selector<'i, Impl>; 1]>,
 );
 
 /// How to treat invalid selectors in a selector list.
@@ -359,12 +362,12 @@ pub enum NestingRequirement {
     Contained
 }
 
-impl<Impl: SelectorImpl> SelectorList<Impl> {
+impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
     /// Parse a comma-separated list of Selectors.
     /// <https://drafts.csswg.org/selectors/#grouping>
     ///
     /// Return the Selectors or Err if there is an invalid selector.
-    pub fn parse<'i, 't, P>(
+    pub fn parse<'t, P>(
         parser: &P,
         input: &mut CssParser<'i, 't>,
         nesting_requirement: NestingRequirement,
@@ -382,7 +385,7 @@ impl<Impl: SelectorImpl> SelectorList<Impl> {
     }
 
     #[inline]
-    fn parse_with_state<'i, 't, P>(
+    fn parse_with_state<'t, P>(
         parser: &P,
         input: &mut CssParser<'i, 't>,
         state: &mut SelectorParsingState,
@@ -426,7 +429,7 @@ impl<Impl: SelectorImpl> SelectorList<Impl> {
     }
 
     /// Creates a SelectorList from a Vec of selectors. Used in tests.
-    pub fn from_vec(v: Vec<Selector<Impl>>) -> Self {
+    pub fn from_vec(v: Vec<Selector<'i, Impl>>) -> Self {
         SelectorList(SmallVec::from_vec(v))
     }
 }
@@ -436,10 +439,10 @@ fn parse_inner_compound_selector<'i, 't, P, Impl>(
     parser: &P,
     input: &mut CssParser<'i, 't>,
     state: &mut SelectorParsingState,
-) -> Result<Selector<Impl>, ParseError<'i, P::Error>>
+) -> Result<Selector<'i, Impl>, ParseError<'i, P::Error>>
 where
     P: Parser<'i, Impl = Impl>,
-    Impl: SelectorImpl,
+    Impl: SelectorImpl<'i>,
 {
     let mut child_state = *state | SelectorParsingState::DISALLOW_PSEUDOS | SelectorParsingState::DISALLOW_COMBINATORS;
     let result = parse_selector(
@@ -474,8 +477,8 @@ pub struct AncestorHashes {
     pub packed_hashes: [u32; 3],
 }
 
-fn collect_ancestor_hashes<Impl: SelectorImpl>(
-    iter: SelectorIter<Impl>,
+fn collect_ancestor_hashes<'i, Impl: SelectorImpl<'i>>(
+    iter: SelectorIter<'_, 'i, Impl>,
     quirks_mode: QuirksMode,
     hashes: &mut [u32; 4],
     len: &mut usize,
@@ -532,7 +535,7 @@ where
 }
 
 impl AncestorHashes {
-    pub fn new<Impl: SelectorImpl>(selector: &Selector<Impl>, quirks_mode: QuirksMode) -> Self
+    pub fn new<'i, Impl: SelectorImpl<'i>>(selector: &Selector<'i, Impl>, quirks_mode: QuirksMode) -> Self
     where
         Impl::Identifier: PrecomputedHash,
         Impl::LocalName: PrecomputedHash,
@@ -566,7 +569,7 @@ impl AncestorHashes {
     }
 }
 
-pub fn namespace_empty_string<Impl: SelectorImpl>() -> Impl::NamespaceUrl {
+pub fn namespace_empty_string<'i, Impl: SelectorImpl<'i>>() -> Impl::NamespaceUrl {
     // Rust type’s default, not default namespace
     Impl::NamespaceUrl::default()
 }
@@ -586,29 +589,30 @@ pub fn namespace_empty_string<Impl: SelectorImpl>() -> Impl::NamespaceUrl {
 /// This reordering doesn't change the semantics of selector matching, and we
 /// handle it in to_css to make it invisible to serialization.
 #[derive(Clone, Eq, PartialEq)]
-pub struct Selector<Impl: SelectorImpl>(
-    ThinArc<SpecificityAndFlags, Component<Impl>>,
+pub struct Selector<'i, Impl: SelectorImpl<'i>>(
+    SpecificityAndFlags,
+    Vec<Component<'i, Impl>>,
 );
 
-impl<Impl: SelectorImpl> Selector<Impl> {
+impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
     #[inline]
     pub fn specificity(&self) -> u32 {
-        self.0.header.header.specificity()
+        self.0.specificity()
     }
 
     #[inline]
     pub fn has_pseudo_element(&self) -> bool {
-        self.0.header.header.has_pseudo_element()
+        self.0.has_pseudo_element()
     }
 
     #[inline]
     pub fn is_slotted(&self) -> bool {
-        self.0.header.header.is_slotted()
+        self.0.is_slotted()
     }
 
     #[inline]
     pub fn is_part(&self) -> bool {
-        self.0.header.header.is_part()
+        self.0.is_part()
     }
 
     #[inline]
@@ -672,7 +676,7 @@ impl<Impl: SelectorImpl> Selector<Impl> {
     /// When a combinator is reached, the iterator will return None, and
     /// next_sequence() may be called to continue to the next sequence.
     #[inline]
-    pub fn iter(&self) -> SelectorIter<Impl> {
+    pub fn iter(&self) -> SelectorIter<'_, 'i, Impl> {
         SelectorIter {
             iter: self.iter_raw_match_order(),
             next_combinator: None,
@@ -705,8 +709,8 @@ impl<Impl: SelectorImpl> Selector<Impl> {
     /// Returns an iterator over this selector in matching order (right-to-left),
     /// skipping the rightmost |offset| Components.
     #[inline]
-    pub fn iter_from(&self, offset: usize) -> SelectorIter<Impl> {
-        let iter = self.0.slice[offset..].iter();
+    pub fn iter_from(&self, offset: usize) -> SelectorIter<'_, 'i, Impl> {
+        let iter = self.1[offset..].iter();
         SelectorIter {
             iter,
             next_combinator: None,
@@ -717,7 +721,7 @@ impl<Impl: SelectorImpl> Selector<Impl> {
     /// or panics if the component is not a combinator.
     #[inline]
     pub fn combinator_at_match_order(&self, index: usize) -> Combinator {
-        match self.0.slice[index] {
+        match self.1[index] {
             Component::Combinator(c) => c,
             ref other => panic!(
                 "Not a combinator: {:?}, {:?}, index: {}",
@@ -729,15 +733,15 @@ impl<Impl: SelectorImpl> Selector<Impl> {
     /// Returns an iterator over the entire sequence of simple selectors and
     /// combinators, in matching order (from right to left).
     #[inline]
-    pub fn iter_raw_match_order(&self) -> slice::Iter<Component<Impl>> {
-        self.0.slice.iter()
+    pub fn iter_raw_match_order(&self) -> slice::Iter<Component<'i, Impl>> {
+        self.1.iter()
     }
 
     /// Returns the combinator at index `index` (zero-indexed from the left),
     /// or panics if the component is not a combinator.
     #[inline]
     pub fn combinator_at_parse_order(&self, index: usize) -> Combinator {
-        match self.0.slice[self.len() - index - 1] {
+        match self.1[self.len() - index - 1] {
             Component::Combinator(c) => c,
             ref other => panic!(
                 "Not a combinator: {:?}, {:?}, index: {}",
@@ -750,14 +754,14 @@ impl<Impl: SelectorImpl> Selector<Impl> {
     /// combinators, in parse order (from left to right), starting from
     /// `offset`.
     #[inline]
-    pub fn iter_raw_parse_order_from(&self, offset: usize) -> Rev<slice::Iter<Component<Impl>>> {
-        self.0.slice[..self.len() - offset].iter().rev()
+    pub fn iter_raw_parse_order_from(&self, offset: usize) -> Rev<slice::Iter<Component<'i, Impl>>> {
+        self.1[..self.len() - offset].iter().rev()
     }
 
     /// Creates a Selector from a vec of Components, specified in parse order. Used in tests.
     #[allow(unused)]
     pub(crate) fn from_vec(
-        vec: Vec<Component<Impl>>,
+        vec: Vec<Component<'i, Impl>>,
         specificity: u32,
         flags: SelectorFlags,
     ) -> Self {
@@ -770,10 +774,11 @@ impl<Impl: SelectorImpl> Selector<Impl> {
             }
         }
         let spec = SpecificityAndFlags { specificity, flags };
-        Selector(builder.build_with_specificity_and_flags(spec))
+        let (spec, components) = builder.build_with_specificity_and_flags(spec);
+        Selector(spec, components)
     }
 
-    pub fn from_vec2(vec: Vec<Component<Impl>>) -> Self {
+    pub fn from_vec2(vec: Vec<Component<'i, Impl>>) -> Self {
         let mut builder = SelectorBuilder::default();
         for component in vec.into_iter() {
             if let Some(combinator) = component.as_combinator() {
@@ -782,18 +787,14 @@ impl<Impl: SelectorImpl> Selector<Impl> {
                 builder.push_simple_selector(component);
             }
         }
-        Selector(builder.build(false, false, false))
+        let (spec, components) = builder.build(false, false, false);
+        Selector(spec, components)
     }
 
     /// Returns count of simple selectors and combinators in the Selector.
     #[inline]
     pub fn len(&self) -> usize {
-        self.0.slice.len()
-    }
-
-    /// Returns the address on the heap of the ThinArc for memory reporting.
-    pub fn thin_arc_heap_ptr(&self) -> *const ::std::os::raw::c_void {
-        self.0.heap_ptr()
+        self.1.len()
     }
 
     /// Traverse selector components inside `self`.
@@ -816,7 +817,7 @@ impl<Impl: SelectorImpl> Selector<Impl> {
     /// ```
     pub fn visit<V>(&self, visitor: &mut V) -> bool
     where
-        V: SelectorVisitor<Impl = Impl>,
+        V: SelectorVisitor<'i, Impl = Impl>,
     {
         let mut current = self.iter();
         let mut combinator = None;
@@ -842,12 +843,12 @@ impl<Impl: SelectorImpl> Selector<Impl> {
 }
 
 #[derive(Clone)]
-pub struct SelectorIter<'a, Impl: 'a + SelectorImpl> {
-    iter: slice::Iter<'a, Component<Impl>>,
+pub struct SelectorIter<'a, 'i, Impl: 'a + SelectorImpl<'i>> {
+    iter: slice::Iter<'a, Component<'i, Impl>>,
     next_combinator: Option<Combinator>,
 }
 
-impl<'a, Impl: 'a + SelectorImpl> SelectorIter<'a, Impl> {
+impl<'a, 'i, Impl: 'a + SelectorImpl<'i>> SelectorIter<'a, 'i, Impl> {
     /// Prepares this iterator to point to the next sequence to the left,
     /// returning the combinator if the sequence was found.
     #[inline]
@@ -876,7 +877,7 @@ impl<'a, Impl: 'a + SelectorImpl> SelectorIter<'a, Impl> {
     }
 
     #[inline(never)]
-    fn matches_for_stateless_pseudo_element_internal(&mut self, first: &Component<Impl>) -> bool {
+    fn matches_for_stateless_pseudo_element_internal(&mut self, first: &Component<'i, Impl>) -> bool {
         if !first.matches_for_stateless_pseudo_element() {
             return false;
         }
@@ -898,8 +899,8 @@ impl<'a, Impl: 'a + SelectorImpl> SelectorIter<'a, Impl> {
     }
 }
 
-impl<'a, Impl: SelectorImpl> Iterator for SelectorIter<'a, Impl> {
-    type Item = &'a Component<Impl>;
+impl<'a, 'i, Impl: SelectorImpl<'i>> Iterator for SelectorIter<'a, 'i, Impl> {
+    type Item = &'a Component<'i, Impl>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -917,7 +918,7 @@ impl<'a, Impl: SelectorImpl> Iterator for SelectorIter<'a, Impl> {
     }
 }
 
-impl<'a, Impl: SelectorImpl> fmt::Debug for SelectorIter<'a, Impl> {
+impl<'a, 'i, Impl: SelectorImpl<'i>> fmt::Debug for SelectorIter<'a, 'i, Impl> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let iter = self.iter.clone().rev();
         for component in iter {
@@ -928,11 +929,11 @@ impl<'a, Impl: SelectorImpl> fmt::Debug for SelectorIter<'a, Impl> {
 }
 
 /// An iterator over all simple selectors belonging to ancestors.
-struct AncestorIter<'a, Impl: 'a + SelectorImpl>(SelectorIter<'a, Impl>);
-impl<'a, Impl: 'a + SelectorImpl> AncestorIter<'a, Impl> {
+struct AncestorIter<'a, 'i, Impl: 'a + SelectorImpl<'i>>(SelectorIter<'a, 'i, Impl>);
+impl<'a, 'i, Impl: 'a + SelectorImpl<'i>> AncestorIter<'a, 'i, Impl> {
     /// Creates an AncestorIter. The passed-in iterator is assumed to point to
     /// the beginning of the child sequence, which will be skipped.
-    fn new(inner: SelectorIter<'a, Impl>) -> Self {
+    fn new(inner: SelectorIter<'a, 'i, Impl>) -> Self {
         let mut result = AncestorIter(inner);
         result.skip_until_ancestor();
         result
@@ -955,8 +956,8 @@ impl<'a, Impl: 'a + SelectorImpl> AncestorIter<'a, Impl> {
     }
 }
 
-impl<'a, Impl: SelectorImpl> Iterator for AncestorIter<'a, Impl> {
-    type Item = &'a Component<Impl>;
+impl<'a, 'i, Impl: SelectorImpl<'i>> Iterator for AncestorIter<'a, 'i, Impl> {
+    type Item = &'a Component<'i, Impl>;
     fn next(&mut self) -> Option<Self::Item> {
         // Grab the next simple selector in the sequence if available.
         let next = self.0.next();
@@ -1027,7 +1028,7 @@ impl Combinator {
 ///
 /// [1] https://bugzilla.mozilla.org/show_bug.cgi?id=1357973
 #[derive(Clone, Eq, PartialEq)]
-pub enum Component<Impl: SelectorImpl> {
+pub enum Component<'i, Impl: SelectorImpl<'i>> {
     Combinator(Combinator),
 
     ExplicitAnyNamespace,
@@ -1039,7 +1040,7 @@ pub enum Component<Impl: SelectorImpl> {
     ),
 
     ExplicitUniversalType,
-    LocalName(LocalName<Impl>),
+    LocalName(LocalName<'i, Impl>),
 
     ID(Impl::Identifier),
     Class(Impl::Identifier),
@@ -1057,10 +1058,10 @@ pub enum Component<Impl: SelectorImpl> {
         never_matches: bool,
     },
     // Use a Box in the less common cases with more data to keep size_of::<Component>() small.
-    AttributeOther(Box<AttrSelectorWithOptionalNamespace<Impl>>),
+    AttributeOther(Box<AttrSelectorWithOptionalNamespace<'i, Impl>>),
 
     /// Pseudo-classes
-    Negation(Box<[Selector<Impl>]>),
+    Negation(Box<[Selector<'i, Impl>]>),
     FirstChild,
     LastChild,
     OnlyChild,
@@ -1086,7 +1087,7 @@ pub enum Component<Impl: SelectorImpl> {
     /// in the rule hash, so we do that too.
     ///
     /// See https://github.com/w3c/csswg-drafts/issues/2158
-    Slotted(Selector<Impl>),
+    Slotted(Selector<'i, Impl>),
     /// The `::part` pseudo-element.
     ///   https://drafts.csswg.org/css-shadow-parts/#part
     Part(Box<[Impl::Identifier]>),
@@ -1099,20 +1100,20 @@ pub enum Component<Impl: SelectorImpl> {
     /// in the rule hash, so we do that too.
     ///
     /// See https://github.com/w3c/csswg-drafts/issues/2158
-    Host(Option<Selector<Impl>>),
+    Host(Option<Selector<'i, Impl>>),
     /// The `:where` pseudo-class.
     ///
     /// https://drafts.csswg.org/selectors/#zero-matches
     ///
     /// The inner argument is conceptually a SelectorList, but we move the
     /// selectors to the heap to keep Component small.
-    Where(Box<[Selector<Impl>]>),
+    Where(Box<[Selector<'i, Impl>]>),
     /// The `:is` pseudo-class.
     ///
     /// https://drafts.csswg.org/selectors/#matches-pseudo
     ///
     /// Same comment as above re. the argument.
-    Is(Box<[Selector<Impl>]>),
+    Is(Box<[Selector<'i, Impl>]>),
     /// An implementation-dependent pseudo-element selector.
     PseudoElement(Impl::PseudoElement),
     /// A nesting selector:
@@ -1123,7 +1124,7 @@ pub enum Component<Impl: SelectorImpl> {
     Nesting
 }
 
-impl<Impl: SelectorImpl> Component<Impl> {
+impl<'i, Impl: SelectorImpl<'i>> Component<'i, Impl> {
     /// Returns true if this is a combinator.
     pub fn is_combinator(&self) -> bool {
         matches!(*self, Component::Combinator(_))
@@ -1184,7 +1185,7 @@ impl<Impl: SelectorImpl> Component<Impl> {
 
     pub fn visit<V>(&self, visitor: &mut V) -> bool
     where
-        V: SelectorVisitor<Impl = Impl>,
+        V: SelectorVisitor<'i, Impl = Impl>,
     {
         use self::Component::*;
         if !visitor.visit_simple_selector(self) {
@@ -1264,12 +1265,12 @@ impl<Impl: SelectorImpl> Component<Impl> {
 }
 
 #[derive(Clone, Eq, PartialEq)]
-pub struct LocalName<Impl: SelectorImpl> {
+pub struct LocalName<'i, Impl: SelectorImpl<'i>> {
     pub name: Impl::LocalName,
     pub lower_name: Impl::LocalName,
 }
 
-impl<Impl: SelectorImpl> Debug for Selector<Impl> {
+impl<'i, Impl: SelectorImpl<'i>> Debug for Selector<'i, Impl> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str("Selector(")?;
         self.to_css(f)?;
@@ -1277,26 +1278,26 @@ impl<Impl: SelectorImpl> Debug for Selector<Impl> {
     }
 }
 
-impl<Impl: SelectorImpl> Debug for Component<Impl> {
+impl<'i, Impl: SelectorImpl<'i>> Debug for Component<'i, Impl> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.to_css(f)
     }
 }
-impl<Impl: SelectorImpl> Debug for AttrSelectorWithOptionalNamespace<Impl> {
+impl<'i, Impl: SelectorImpl<'i>> Debug for AttrSelectorWithOptionalNamespace<'i, Impl> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.to_css(f)
     }
 }
-impl<Impl: SelectorImpl> Debug for LocalName<Impl> {
+impl<'i, Impl: SelectorImpl<'i>> Debug for LocalName<'i, Impl> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.to_css(f)
     }
 }
 
-fn serialize_selector_list<'a, Impl, I, W>(iter: I, dest: &mut W) -> fmt::Result
+fn serialize_selector_list<'a, 'i: 'a, Impl, I, W>(iter: I, dest: &mut W) -> fmt::Result
 where
-    Impl: SelectorImpl,
-    I: Iterator<Item = &'a Selector<Impl>>,
+    Impl: SelectorImpl<'i>,
+    I: Iterator<Item = &'a Selector<'i, Impl>>,
     W: fmt::Write,
 {
     let mut first = true;
@@ -1310,7 +1311,7 @@ where
     Ok(())
 }
 
-impl<Impl: SelectorImpl> ToCss for SelectorList<Impl> {
+impl<'i, Impl: SelectorImpl<'i>> ToCss for SelectorList<'i, Impl> {
     fn to_css<W>(&self, dest: &mut W) -> fmt::Result
     where
         W: fmt::Write,
@@ -1319,7 +1320,13 @@ impl<Impl: SelectorImpl> ToCss for SelectorList<Impl> {
     }
 }
 
-impl<Impl: SelectorImpl> ToCss for Selector<Impl> {
+impl<'i, Impl: SelectorImpl<'i>> fmt::Display for SelectorList<'i, Impl> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+        Impl::to_css(self, f)
+    }
+}
+
+impl<'i, Impl: SelectorImpl<'i>> ToCss for Selector<'i, Impl> {
     fn to_css<W>(&self, dest: &mut W) -> fmt::Result
     where
         W: fmt::Write,
@@ -1458,7 +1465,7 @@ impl ToCss for Combinator {
     }
 }
 
-impl<Impl: SelectorImpl> ToCss for Component<Impl> {
+impl<'i, Impl: SelectorImpl<'i>> ToCss for Component<'i, Impl> {
     fn to_css<W>(&self, dest: &mut W) -> fmt::Result
     where
         W: fmt::Write,
@@ -1596,7 +1603,7 @@ impl<Impl: SelectorImpl> ToCss for Component<Impl> {
     }
 }
 
-impl<Impl: SelectorImpl> ToCss for AttrSelectorWithOptionalNamespace<Impl> {
+impl<'i, Impl: SelectorImpl<'i>> ToCss for AttrSelectorWithOptionalNamespace<'i, Impl> {
     fn to_css<W>(&self, dest: &mut W) -> fmt::Result
     where
         W: fmt::Write,
@@ -1634,7 +1641,7 @@ impl<Impl: SelectorImpl> ToCss for AttrSelectorWithOptionalNamespace<Impl> {
     }
 }
 
-impl<Impl: SelectorImpl> ToCss for LocalName<Impl> {
+impl<'i, Impl: SelectorImpl<'i>> ToCss for LocalName<'i, Impl> {
     fn to_css<W>(&self, dest: &mut W) -> fmt::Result
     where
         W: fmt::Write,
@@ -1652,10 +1659,10 @@ fn parse_selector<'i, 't, P, Impl>(
     input: &mut CssParser<'i, 't>,
     state: &mut SelectorParsingState,
     nesting_requirement: NestingRequirement,
-) -> Result<Selector<Impl>, ParseError<'i, P::Error>>
+) -> Result<Selector<'i, Impl>, ParseError<'i, P::Error>>
 where
     P: Parser<'i, Impl = Impl>,
-    Impl: SelectorImpl,
+    Impl: SelectorImpl<'i>,
 {
     if nesting_requirement == NestingRequirement::Prefixed {
         let state = input.state();
@@ -1732,13 +1739,14 @@ where
         return Err(input.new_custom_error(SelectorParseErrorKind::MissingNestingSelector))
     }
 
-    Ok(Selector(builder.build(has_pseudo_element, slotted, part)))
+    let (spec, components) = builder.build(has_pseudo_element, slotted, part);
+    Ok(Selector(spec, components))
 }
 
-impl<Impl: SelectorImpl> Selector<Impl> {
+impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
     /// Parse a selector, without any pseudo-element.
     #[inline]
-    pub fn parse<'i, 't, P>(
+    pub fn parse<'t, P>(
         parser: &P,
         input: &mut CssParser<'i, 't>,
     ) -> Result<Self, ParseError<'i, P::Error>>
@@ -1760,8 +1768,8 @@ fn parse_type_selector<'i, 't, P, Impl, S>(
 ) -> Result<bool, ParseError<'i, P::Error>>
 where
     P: Parser<'i, Impl = Impl>,
-    Impl: SelectorImpl,
-    S: Push<Component<Impl>>,
+    Impl: SelectorImpl<'i>,
+    S: Push<Component<'i, Impl>>,
 {
     match parse_qualified_name(parser, input, /* in_attr_selector = */ false) {
         Err(ParseError {
@@ -1810,8 +1818,8 @@ where
             }
             match local_name {
                 Some(name) => sink.push(Component::LocalName(LocalName {
-                    lower_name: to_ascii_lowercase(&name).as_ref().into(),
-                    name: name.as_ref().into(),
+                    lower_name: to_ascii_lowercase(name.clone()).into(),
+                    name: name.into(),
                 })),
                 None => sink.push(Component::ExplicitUniversalType),
             }
@@ -1822,15 +1830,15 @@ where
 }
 
 #[derive(Debug)]
-enum SimpleSelectorParseResult<Impl: SelectorImpl> {
-    SimpleSelector(Component<Impl>),
+enum SimpleSelectorParseResult<'i, Impl: SelectorImpl<'i>> {
+    SimpleSelector(Component<'i, Impl>),
     PseudoElement(Impl::PseudoElement),
-    SlottedPseudo(Selector<Impl>),
+    SlottedPseudo(Selector<'i, Impl>),
     PartPseudo(Box<[Impl::Identifier]>),
 }
 
 #[derive(Debug)]
-enum QNamePrefix<Impl: SelectorImpl> {
+enum QNamePrefix<'i, Impl: SelectorImpl<'i>> {
     ImplicitNoNamespace,                          // `foo` in attr selectors
     ImplicitAnyNamespace,                         // `foo` in type selectors, without a default ns
     ImplicitDefaultNamespace(Impl::NamespaceUrl), // `foo` in type selectors, with a default ns
@@ -1839,8 +1847,8 @@ enum QNamePrefix<Impl: SelectorImpl> {
     ExplicitNamespace(Impl::NamespacePrefix, Impl::NamespaceUrl), // `prefix|foo`
 }
 
-enum OptionalQName<'i, Impl: SelectorImpl> {
-    Some(QNamePrefix<Impl>, Option<CowRcStr<'i>>),
+enum OptionalQName<'i, Impl: SelectorImpl<'i>> {
+    Some(QNamePrefix<'i, Impl>, Option<CowRcStr<'i>>),
     None(Token<'i>),
 }
 
@@ -1855,7 +1863,7 @@ fn parse_qualified_name<'i, 't, P, Impl>(
 ) -> Result<OptionalQName<'i, Impl>, ParseError<'i, P::Error>>
 where
     P: Parser<'i, Impl = Impl>,
-    Impl: SelectorImpl,
+    Impl: SelectorImpl<'i>,
 {
     let default_namespace = |local_name| {
         let namespace = match parser.default_namespace() {
@@ -1890,7 +1898,7 @@ where
             let after_ident = input.state();
             match input.next_including_whitespace() {
                 Ok(&Token::Delim('|')) => {
-                    let prefix = value.as_ref().into();
+                    let prefix = value.clone().into();
                     let result = parser.namespace_for_prefix(&prefix);
                     let url = result.ok_or(
                         after_ident
@@ -1949,10 +1957,10 @@ where
 fn parse_attribute_selector<'i, 't, P, Impl>(
     parser: &P,
     input: &mut CssParser<'i, 't>,
-) -> Result<Component<Impl>, ParseError<'i, P::Error>>
+) -> Result<Component<'i, Impl>, ParseError<'i, P::Error>>
 where
     P: Parser<'i, Impl = Impl>,
-    Impl: SelectorImpl,
+    Impl: SelectorImpl<'i>,
 {
     let namespace;
     let local_name;
@@ -1985,8 +1993,8 @@ where
     let operator = match input.next() {
         // [foo]
         Err(_) => {
-            let local_name_lower = to_ascii_lowercase(&local_name).as_ref().into();
-            let local_name = local_name.as_ref().into();
+            let local_name_lower = to_ascii_lowercase(local_name.clone()).into();
+            let local_name = local_name.into();
             if let Some(namespace) = namespace {
                 return Ok(Component::AttributeOther(Box::new(
                     AttrSelectorWithOptionalNamespace {
@@ -2044,18 +2052,20 @@ where
 
     let attribute_flags = parse_attribute_flags(input)?;
 
-    let value = value.as_ref().into();
-    let local_name_lower;
-    let local_name_is_ascii_lowercase;
+    let value = value.into();
     let case_sensitivity;
-    {
-        let local_name_lower_cow = to_ascii_lowercase(&local_name);
-        case_sensitivity =
-            attribute_flags.to_case_sensitivity(local_name_lower_cow.as_ref(), namespace.is_some());
-        local_name_lower = local_name_lower_cow.as_ref().into();
-        local_name_is_ascii_lowercase = matches!(local_name_lower_cow, Cow::Borrowed(..));
-    }
-    let local_name = local_name.as_ref().into();
+    // copied from to_ascii_lowercase function, so we can know whether it is already lower case.
+    let (local_name_lower_cow, local_name_is_ascii_lowercase) = if let Some(first_uppercase) = local_name.bytes().position(|byte| byte >= b'A' && byte <= b'Z') {
+        let mut string = local_name.to_string();
+        string[first_uppercase..].make_ascii_lowercase();
+        (string.into(), false)
+    } else {
+        (local_name.clone(), true)
+    };
+    case_sensitivity =
+        attribute_flags.to_case_sensitivity(local_name_lower_cow.as_ref(), namespace.is_some());
+    let local_name_lower = local_name_lower_cow.into();
+    let local_name = local_name.into();
     if namespace.is_some() || !local_name_is_ascii_lowercase {
         Ok(Component::AttributeOther(Box::new(
             AttrSelectorWithOptionalNamespace {
@@ -2145,10 +2155,10 @@ fn parse_negation<'i, 't, P, Impl>(
     parser: &P,
     input: &mut CssParser<'i, 't>,
     state: &mut SelectorParsingState,
-) -> Result<Component<Impl>, ParseError<'i, P::Error>>
+) -> Result<Component<'i, Impl>, ParseError<'i, P::Error>>
 where
     P: Parser<'i, Impl = Impl>,
-    Impl: SelectorImpl,
+    Impl: SelectorImpl<'i>,
 {
     let mut child_state = *state |
         SelectorParsingState::SKIP_DEFAULT_NAMESPACE |
@@ -2178,11 +2188,11 @@ fn parse_compound_selector<'i, 't, P, Impl>(
     parser: &P,
     state: &mut SelectorParsingState,
     input: &mut CssParser<'i, 't>,
-    builder: &mut SelectorBuilder<Impl>,
+    builder: &mut SelectorBuilder<'i, Impl>,
 ) -> Result<bool, ParseError<'i, P::Error>>
 where
     P: Parser<'i, Impl = Impl>,
-    Impl: SelectorImpl,
+    Impl: SelectorImpl<'i>,
 {
     input.skip_whitespace();
 
@@ -2277,11 +2287,11 @@ fn parse_is_or_where<'i, 't, P, Impl>(
     parser: &P,
     input: &mut CssParser<'i, 't>,
     state: &mut SelectorParsingState,
-    component: impl FnOnce(Box<[Selector<Impl>]>) -> Component<Impl>,
-) -> Result<Component<Impl>, ParseError<'i, P::Error>>
+    component: impl FnOnce(Box<[Selector<'i, Impl>]>) -> Component<'i, Impl>,
+) -> Result<Component<'i, Impl>, ParseError<'i, P::Error>>
 where
     P: Parser<'i, Impl = Impl>,
-    Impl: SelectorImpl,
+    Impl: SelectorImpl<'i>,
 {
     debug_assert!(parser.parse_is_and_where());
     // https://drafts.csswg.org/selectors/#matches-pseudo:
@@ -2310,10 +2320,10 @@ fn parse_functional_pseudo_class<'i, 't, P, Impl>(
     input: &mut CssParser<'i, 't>,
     name: CowRcStr<'i>,
     state: &mut SelectorParsingState,
-) -> Result<Component<Impl>, ParseError<'i, P::Error>>
+) -> Result<Component<'i, Impl>, ParseError<'i, P::Error>>
 where
     P: Parser<'i, Impl = Impl>,
-    Impl: SelectorImpl,
+    Impl: SelectorImpl<'i>,
 {
     match_ignore_ascii_case! { &name,
         "nth-child" => return parse_nth_pseudo_class(parser, input, *state, Component::NthChild),
@@ -2350,11 +2360,11 @@ fn parse_nth_pseudo_class<'i, 't, P, Impl, F>(
     input: &mut CssParser<'i, 't>,
     state: SelectorParsingState,
     selector: F,
-) -> Result<Component<Impl>, ParseError<'i, P::Error>>
+) -> Result<Component<'i, Impl>, ParseError<'i, P::Error>>
 where
     P: Parser<'i, Impl = Impl>,
-    Impl: SelectorImpl,
-    F: FnOnce(i32, i32) -> Component<Impl>,
+    Impl: SelectorImpl<'i>,
+    F: FnOnce(i32, i32) -> Component<'i, Impl>,
 {
     if !state.allows_tree_structural_pseudo_classes() {
         return Err(input.new_custom_error(SelectorParseErrorKind::InvalidState));
@@ -2383,10 +2393,10 @@ fn parse_one_simple_selector<'i, 't, P, Impl>(
     parser: &P,
     input: &mut CssParser<'i, 't>,
     state: &mut SelectorParsingState,
-) -> Result<Option<SimpleSelectorParseResult<Impl>>, ParseError<'i, P::Error>>
+) -> Result<Option<SimpleSelectorParseResult<'i, Impl>>, ParseError<'i, P::Error>>
 where
     P: Parser<'i, Impl = Impl>,
-    Impl: SelectorImpl,
+    Impl: SelectorImpl<'i>,
 {
     let start = input.state();
     let token = match input.next_including_whitespace().map(|t| t.clone()) {
@@ -2402,7 +2412,7 @@ where
             if state.intersects(SelectorParsingState::AFTER_PSEUDO) {
                 return Err(input.new_custom_error(SelectorParseErrorKind::InvalidState));
             }
-            let id = Component::ID(id.as_ref().into());
+            let id = Component::ID(id.into());
             SimpleSelectorParseResult::SimpleSelector(id)
         },
         Token::Delim('.') => {
@@ -2411,13 +2421,13 @@ where
             }
             let location = input.current_source_location();
             let class = match *input.next_including_whitespace()? {
-                Token::Ident(ref class) => class,
+                Token::Ident(ref class) => class.clone(),
                 ref t => {
                     let e = SelectorParseErrorKind::ClassNeedsIdent(t.clone());
                     return Err(location.new_custom_error(e));
                 },
             };
-            let class = Component::Class(class.as_ref().into());
+            let class = Component::Class(class.into());
             SimpleSelectorParseResult::SimpleSelector(class)
         },
         Token::SquareBracketBlock => {
@@ -2455,9 +2465,9 @@ where
                         }
                         let names = input.parse_nested_block(|input| {
                             let mut result = Vec::with_capacity(1);
-                            result.push(input.expect_ident()?.as_ref().into());
+                            result.push(input.expect_ident_cloned()?.into());
                             while !input.is_exhausted() {
-                                result.push(input.expect_ident()?.as_ref().into());
+                                result.push(input.expect_ident_cloned()?.into());
                             }
                             Ok(result.into_boxed_slice())
                         })?;
@@ -2514,10 +2524,10 @@ fn parse_simple_pseudo_class<'i, P, Impl>(
     location: SourceLocation,
     name: CowRcStr<'i>,
     state: SelectorParsingState,
-) -> Result<Component<Impl>, ParseError<'i, P::Error>>
+) -> Result<Component<'i, Impl>, ParseError<'i, P::Error>>
 where
     P: Parser<'i, Impl = Impl>,
-    Impl: SelectorImpl,
+    Impl: SelectorImpl<'i>,
 {
     if !state.allows_non_functional_pseudo_classes() {
         return Err(location.new_custom_error(SelectorParseErrorKind::InvalidState));
@@ -2571,7 +2581,7 @@ pub mod tests {
         After,
     }
 
-    impl parser::PseudoElement for PseudoElement {
+    impl<'i> parser::PseudoElement<'i> for PseudoElement {
         type Impl = DummySelectorImpl;
 
         fn accepts_state_pseudo_classes(&self) -> bool {
@@ -2583,7 +2593,7 @@ pub mod tests {
         }
     }
 
-    impl parser::NonTSPseudoClass for PseudoClass {
+    impl<'i> parser::NonTSPseudoClass<'i> for PseudoClass {
         type Impl = DummySelectorImpl;
 
         #[inline]
@@ -2644,7 +2654,7 @@ pub mod tests {
         }
     }
 
-    impl SelectorImpl for DummySelectorImpl {
+    impl<'i> SelectorImpl<'i> for DummySelectorImpl {
         type ExtraMatchingData = ();
         type AttrValue = DummyAttrValue;
         type Identifier = DummyAtom;
@@ -2677,6 +2687,12 @@ pub mod tests {
         }
     }
 
+    impl<'a> From<CowRcStr<'a>> for DummyAttrValue {
+        fn from(string: CowRcStr<'a>) -> Self {
+            Self(string.to_string())
+        }
+    }
+
     #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
     pub struct DummyAtom(String);
 
@@ -2698,6 +2714,12 @@ pub mod tests {
     impl<'a> From<&'a str> for DummyAtom {
         fn from(string: &'a str) -> Self {
             DummyAtom(string.into())
+        }
+    }
+
+    impl<'a> From<CowRcStr<'a>> for DummyAtom {
+        fn from(string: CowRcStr<'a>) -> Self {
+            DummyAtom(string.to_string())
         }
     }
 
@@ -2792,14 +2814,14 @@ pub mod tests {
     fn parse_expected<'i, 'a>(
         input: &'i str,
         expected: Option<&'a str>,
-    ) -> Result<SelectorList<DummySelectorImpl>, SelectorParseError<'i>> {
+    ) -> Result<SelectorList<'i, DummySelectorImpl>, SelectorParseError<'i>> {
         parse_ns_expected(input, &DummyParser::default(), expected)
     }
 
     fn parse_ns<'i>(
         input: &'i str,
         parser: &DummyParser,
-    ) -> Result<SelectorList<DummySelectorImpl>, SelectorParseError<'i>> {
+    ) -> Result<SelectorList<'i, DummySelectorImpl>, SelectorParseError<'i>> {
         parse_ns_expected(input, parser, None)
     }
 
@@ -2807,7 +2829,7 @@ pub mod tests {
         input: &'i str,
         parser: &DummyParser,
         expected: Option<&'a str>,
-    ) -> Result<SelectorList<DummySelectorImpl>, SelectorParseError<'i>> {
+    ) -> Result<SelectorList<'i, DummySelectorImpl>, SelectorParseError<'i>> {
         let mut parser_input = ParserInput::new(input);
         let result = SelectorList::parse(parser, &mut CssParser::new(&mut parser_input), NestingRequirement::None);
         if let Ok(ref selectors) = result {

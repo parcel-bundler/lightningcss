@@ -33,8 +33,8 @@ pub enum LengthPercentageOrAuto {
   LengthPercentage(LengthPercentage)
 }
 
-impl Parse for LengthPercentageOrAuto {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for LengthPercentageOrAuto {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("auto")).is_ok() {
       return Ok(LengthPercentageOrAuto::Auto);
     }
@@ -83,8 +83,8 @@ pub enum LengthValue {
   Vmax(f32)
 }
 
-impl Parse for LengthValue {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for LengthValue {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let token = input.next()?;
     match *token {
@@ -335,8 +335,8 @@ pub enum Length {
   Calc(Box<Calc<Length>>)
 }
 
-impl Parse for Length {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Length {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
       Ok(calc) => return Ok(Length::Calc(Box::new(calc))),
@@ -534,8 +534,8 @@ impl Default for LengthOrNumber {
   }
 }
 
-impl Parse for LengthOrNumber {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for LengthOrNumber {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // Parse number first so unitless numbers are not parsed as lengths.
     if let Ok(number) = input.try_parse(f32::parse) {
       return Ok(LengthOrNumber::Number(number))

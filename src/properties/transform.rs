@@ -19,8 +19,8 @@ use crate::logical::LogicalProperties;
 #[derive(Debug, Clone, PartialEq)]
 pub struct TransformList(pub Vec<Transform>);
 
-impl Parse for TransformList {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for TransformList {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(TransformList(vec![]))
     }
@@ -641,8 +641,8 @@ impl Matrix3d<f32> {
   }
 }
 
-impl Parse for Transform {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Transform {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let function = input.expect_function()?.clone();
     input.parse_nested_block(|input| {
       let location = input.current_source_location();
@@ -1182,8 +1182,8 @@ pub enum Perspective {
   Length(Length)
 }
 
-impl Parse for Perspective {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Perspective {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
       return Ok(Perspective::None)
     }
@@ -1209,8 +1209,8 @@ pub struct Translate {
   pub z: Length
 }
 
-impl Parse for Translate {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Translate {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
       return Ok(Translate {
         x: LengthPercentage::zero(),
@@ -1265,8 +1265,8 @@ pub struct Rotate {
   pub angle: Angle
 }
 
-impl Parse for Rotate {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Rotate {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
       return Ok(Rotate {
         x: 0.0,
@@ -1340,8 +1340,8 @@ pub struct Scale {
   pub z: NumberOrPercentage
 }
 
-impl Parse for Scale {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Scale {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
       return Ok(Scale {
         x: NumberOrPercentage::Number(1.0),
@@ -1407,8 +1407,8 @@ impl TransformHandler {
   }
 }
 
-impl PropertyHandler for TransformHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, _: &mut LogicalProperties) -> bool {
+impl<'i> PropertyHandler<'i> for TransformHandler {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
     use Property::*;
 
     macro_rules! individual_property {

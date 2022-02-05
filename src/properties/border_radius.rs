@@ -32,8 +32,8 @@ impl Default for BorderRadius {
   }
 }
 
-impl Parse for BorderRadius {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for BorderRadius {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let widths: Rect<LengthPercentage> = Rect::parse(input)?;
     let heights = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
       Rect::parse(input)?
@@ -66,22 +66,22 @@ impl ToCss for BorderRadius {
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct BorderRadiusHandler {
+pub(crate) struct BorderRadiusHandler<'i> {
   targets: Option<Browsers>,
   top_left: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
   top_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
   bottom_left: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
   bottom_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
-  start_start: Option<Property>,
-  start_end: Option<Property>,
-  end_start: Option<Property>,
-  end_end: Option<Property>,
+  start_start: Option<Property<'i>>,
+  start_end: Option<Property<'i>>,
+  end_start: Option<Property<'i>>,
+  end_end: Option<Property<'i>>,
   category: PropertyCategory,
   has_any: bool
 }
 
-impl BorderRadiusHandler {
-  pub fn new(targets: Option<Browsers>) -> BorderRadiusHandler {
+impl<'i> BorderRadiusHandler<'i> {
+  pub fn new(targets: Option<Browsers>) -> Self {
     BorderRadiusHandler {
       targets,
       ..BorderRadiusHandler::default()
@@ -89,16 +89,12 @@ impl BorderRadiusHandler {
   }
 }
 
-impl PropertyHandler for BorderRadiusHandler {
-  fn handle_property(&mut self, property: &Property, dest: &mut DeclarationList, logical: &mut LogicalProperties) -> bool {
+impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
     use Property::*;
 
-    macro_rules! property {
-      ($prop: ident, $val: expr, $vp: ident) => {{
-        if self.category != PropertyCategory::Physical {
-          self.flush(dest, logical);
-        }
-
+    macro_rules! maybe_flush {
+      ($prop: ident, $val: expr, $vp: expr) => {{
         // If two vendor prefixes for the same property have different
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
@@ -106,6 +102,16 @@ impl PropertyHandler for BorderRadiusHandler {
             self.flush(dest, logical);
           }
         }
+      }};
+    }
+
+    macro_rules! property {
+      ($prop: ident, $val: expr, $vp: ident) => {{
+        if self.category != PropertyCategory::Physical {
+          self.flush(dest, logical);
+        }
+
+        maybe_flush!($prop, $val, $vp);
 
         // Otherwise, update the value and add the prefix.
         if let Some((val, prefixes)) = &mut self.$prop {
@@ -146,6 +152,10 @@ impl PropertyHandler for BorderRadiusHandler {
         self.start_end = None;
         self.end_start = None;
         self.end_end = None;
+        maybe_flush!(top_left, &val.top_left, vp);
+        maybe_flush!(top_right, &val.top_right, vp);
+        maybe_flush!(bottom_left, &val.bottom_left, vp);
+        maybe_flush!(bottom_right, &val.bottom_right, vp);
         property!(top_left, &val.top_left, vp);
         property!(top_right, &val.top_right, vp);
         property!(bottom_left, &val.bottom_left, vp);
@@ -171,13 +181,13 @@ impl PropertyHandler for BorderRadiusHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, logical: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) {
     self.flush(dest, logical);
   }
 }
 
-impl BorderRadiusHandler {
-  fn flush(&mut self, dest: &mut DeclarationList, logical: &mut LogicalProperties) {
+impl<'i> BorderRadiusHandler<'i> {
+  fn flush(&mut self, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) {
     if !self.has_any {
       return
     }

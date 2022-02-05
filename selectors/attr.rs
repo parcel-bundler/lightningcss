@@ -7,7 +7,7 @@ use cssparser::ToCss;
 use std::fmt;
 
 #[derive(Clone, Eq, PartialEq)]
-pub struct AttrSelectorWithOptionalNamespace<Impl: SelectorImpl> {
+pub struct AttrSelectorWithOptionalNamespace<'i, Impl: SelectorImpl<'i>> {
     pub namespace: Option<NamespaceConstraint<(Impl::NamespacePrefix, Impl::NamespaceUrl)>>,
     pub local_name: Impl::LocalName,
     pub local_name_lower: Impl::LocalName,
@@ -15,7 +15,7 @@ pub struct AttrSelectorWithOptionalNamespace<Impl: SelectorImpl> {
     pub never_matches: bool,
 }
 
-impl<Impl: SelectorImpl> AttrSelectorWithOptionalNamespace<Impl> {
+impl<'i, Impl: SelectorImpl<'i>> AttrSelectorWithOptionalNamespace<'i, Impl> {
     pub fn namespace(&self) -> Option<NamespaceConstraint<&Impl::NamespaceUrl>> {
         self.namespace.as_ref().map(|ns| match ns {
             NamespaceConstraint::Any => NamespaceConstraint::Any,

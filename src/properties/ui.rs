@@ -21,13 +21,13 @@ enum_property! {
 
 /// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#cursor
 #[derive(Debug, Clone, PartialEq)]
-pub struct CursorImage {
-  pub url: Url,
+pub struct CursorImage<'i> {
+  pub url: Url<'i>,
   pub hotspot: Option<(f32, f32)>
 }
 
-impl Parse for CursorImage {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for CursorImage<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let url = Url::parse(input)?;
     let hotspot = if let Ok(x) = input.try_parse(f32::parse) {
       let y = f32::parse(input)?;
@@ -43,7 +43,7 @@ impl Parse for CursorImage {
   }
 }
 
-impl ToCss for CursorImage {
+impl<'i> ToCss for CursorImage<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     self.url.to_css(dest)?;
 
@@ -100,13 +100,13 @@ enum_property! {
 
 /// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#cursor
 #[derive(Debug, Clone, PartialEq)]
-pub struct Cursor {
-  pub images: SmallVec<[CursorImage; 1]>,
+pub struct Cursor<'i> {
+  pub images: SmallVec<[CursorImage<'i>; 1]>,
   pub keyword: CursorKeyword
 }
 
-impl Parse for Cursor {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Cursor<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut images = SmallVec::new();
     loop {
       match input.try_parse(CursorImage::parse) {
@@ -123,7 +123,7 @@ impl Parse for Cursor {
   }
 }
 
-impl ToCss for Cursor {
+impl<'i> ToCss for Cursor<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     for image in &self.images {
       image.to_css(dest)?;
@@ -146,8 +146,8 @@ impl Default for ColorOrAuto {
   }
 }
 
-impl Parse for ColorOrAuto {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for ColorOrAuto {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
       return Ok(ColorOrAuto::Auto)
     }
@@ -201,7 +201,7 @@ enum_property! {
 
 /// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#appearance-switching
 #[derive(Debug, Clone, PartialEq)]
-pub enum Appearance {
+pub enum Appearance<'i> {
   None,
   Auto,
   Textfield,
@@ -218,11 +218,11 @@ pub enum Appearance {
   SliderHorizontal,
   SquareButton,
   Textarea,
-  NonStandard(String)
+  NonStandard(CowRcStr<'i>)
 }
 
-impl Parse for Appearance {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for Appearance<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let ident = input.expect_ident()?;
     match_ignore_ascii_case! { &*ident,
       "none" => Ok(Appearance::None),
@@ -241,12 +241,12 @@ impl Parse for Appearance {
       "slider-horizontal" => Ok(Appearance::SliderHorizontal),
       "square-button" => Ok(Appearance::SquareButton),
       "textarea" => Ok(Appearance::Textarea),
-      _ => Ok(Appearance::NonStandard(ident.as_ref().to_owned()))
+      _ => Ok(Appearance::NonStandard(ident.clone()))
     }
   }
 }
 
-impl ToCss for Appearance {
+impl<'i> ToCss for Appearance<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
       Appearance::None => dest.write_str("none"),

@@ -15,8 +15,8 @@ pub struct BoxShadow {
   pub inset: bool
 }
 
-impl Parse for BoxShadow {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for BoxShadow {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut color = None;
     let mut lengths = None;
     let mut inset = false;
