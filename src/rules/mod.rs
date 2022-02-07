@@ -65,6 +65,10 @@ pub enum CssRule<'i> {
   Ignored
 }
 
+// TODO remove
+unsafe impl<'i> Send for CssRule<'i> {}
+unsafe impl<'i> Sync for CssRule<'i> {}
+
 impl<'a, 'i> ToCssWithContext<'a, 'i> for CssRule<'i> {
   fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext<'a, 'i>>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {

@@ -1,8 +1,8 @@
 use clap::Parser;
 use parcel_css::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
-use parcel_css::bundler::Bundler;
+use parcel_css::bundler::{FileProvider, Bundler};
 use serde::Serialize;
-use std::{ffi, fs, io, path};
+use std::{ffi, fs, io, path, path::Path};
 
 #[derive(Parser, Debug)]
 #[clap(author, about, long_about = None)]
@@ -58,8 +58,11 @@ pub fn main() -> Result<(), std::io::Error> {
     custom_media: cli_args.custom_media,
     ..ParserOptions::default()
   };
+
+  let fs = FileProvider::new();
   let mut stylesheet = if cli_args.bundle {
-    Bundler::bundle(&cli_args.input_file, options).unwrap()
+    let mut bundler = Bundler::new(&fs, options);
+    bundler.bundle(Path::new(&cli_args.input_file)).unwrap()
   } else {
     StyleSheet::parse(
       filename,

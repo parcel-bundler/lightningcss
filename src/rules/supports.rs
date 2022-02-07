@@ -1,4 +1,5 @@
 use cssparser::*;
+use std::borrow::Cow;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use super::{CssRuleList, MinifyContext};
@@ -39,11 +40,33 @@ pub enum SupportsCondition<'i> {
   Not(Box<SupportsCondition<'i>>),
   And(Vec<SupportsCondition<'i>>),
   Or(Vec<SupportsCondition<'i>>),
-  Declaration(CowRcStr<'i>),
-  Selector(CowRcStr<'i>),
+  Declaration(Cow<'i, str>),
+  Selector(Cow<'i, str>),
   // FontTechnology()
   Parens(Box<SupportsCondition<'i>>),
-  Unknown(CowRcStr<'i>)
+  Unknown(Cow<'i, str>)
+}
+
+impl<'i> SupportsCondition<'i> {
+  pub fn and(&mut self, b: &SupportsCondition<'i>) {
+    if let SupportsCondition::And(a) = self {
+      if !a.contains(&b) {
+        a.push(b.clone());
+      }
+    } else if self != b {
+      *self = SupportsCondition::Parens(Box::new(SupportsCondition::And(vec![self.clone(), b.clone()])))
+    }
+  }
+
+  pub fn or(&mut self, b: &SupportsCondition<'i>) {
+    if let SupportsCondition::Or(a) = self {
+      if !a.contains(&b) {
+        a.push(b.clone());
+      }
+    } else if self != b {
+      *self = SupportsCondition::Parens(Box::new(SupportsCondition::Or(vec![self.clone(), b.clone()])))
+    }
+  }
 }
 
 impl<'i> Parse<'i> for SupportsCondition<'i> {

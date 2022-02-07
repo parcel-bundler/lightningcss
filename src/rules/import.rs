@@ -14,6 +14,10 @@ pub struct ImportRule<'i> {
   pub loc: SourceLocation
 }
 
+// TODO: remove
+unsafe impl<'i> Send for ImportRule<'i> {}
+unsafe impl<'i> Sync for ImportRule<'i> {}
+
 impl<'i> ToCss for ImportRule<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.add_mapping(self.loc);

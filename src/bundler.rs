@@ -1,67 +1,110 @@
 use cssparser::SourceLocation;
-use std::{collections::{HashMap, VecDeque}, path::{Path, PathBuf}, sync::RwLock, ptr::read, borrow::BorrowMut};
+use std::{fs, path::{Path, PathBuf}};
 use rayon::prelude::*;
-use crate::{stylesheet::{StyleSheet, ParserOptions}, rules::{CssRule, CssRuleList, media::MediaRule, supports::{SupportsRule, SupportsCondition}, import::ImportRule}, error::ParserError, media_query::{MediaList, MediaType, MediaCondition, Operator, Qualifier}};
-use std::fs;
-use itertools::Itertools;
-use dashmap::{DashMap, DashSet};
+use dashmap::DashMap;
+use crate::{
+  stylesheet::{StyleSheet, ParserOptions},
+  rules::{CssRule, CssRuleList,
+    media::MediaRule,
+    supports::{SupportsRule, SupportsCondition},
+    import::ImportRule
+  },
+  media_query::MediaList
+};
 
-#[derive(Debug)]
-pub struct Bundler {
-  loaded: DashMap<PathBuf, ImportRule>,
-  stylesheets: DashMap<PathBuf, BundleStyleSheet>
+pub struct Bundler<'a, P> {
+  fs: &'a P,
+  loaded: DashMap<PathBuf, ImportRule<'a>>,
+  stylesheets: DashMap<PathBuf, BundleStyleSheet<'a>>,
+  options: ParserOptions
+}
+
+pub trait SourceProvider: Send + Sync {
+  fn read<'a>(&'a self, file: &Path) -> &'a str;
+}
+
+pub struct FileProvider {
+  inputs: DashMap<PathBuf, String>
+}
+
+impl FileProvider {
+  pub fn new() -> FileProvider {
+    FileProvider {
+      inputs: DashMap::new()
+    }
+  }
+}
+
+impl SourceProvider for FileProvider {
+  fn read<'a>(&'a self, file: &Path) -> &'a str {
+    let source = fs::read_to_string(file).unwrap();
+    self.inputs.entry(file.to_owned())
+      .or_insert(source)
+      .downgrade()
+      .value()
+  }
 }
 
 #[derive(Debug)]
-struct BundleStyleSheet {
-  stylesheet: StyleSheet,
+struct BundleStyleSheet<'a> {
+  stylesheet: StyleSheet<'a>,
   dependencies: Vec<PathBuf>
 }
 
-impl Bundler {
-  pub fn bundle(entry: &str, options: ParserOptions) -> Result<StyleSheet, ()> {
-    let bundler = Bundler {
+impl<'a, P: SourceProvider> Bundler<'a, P> {
+  pub fn new(fs: &'a P, options: ParserOptions) -> Self {
+    Bundler {
+      fs,
       loaded: DashMap::new(),
-      stylesheets: DashMap::new()
-    };
-    let entry_path = PathBuf::from(entry);
-    bundler.load_file(entry_path.clone(), ImportRule {
-      url: entry.into(),
+      stylesheets: DashMap::new(),
+      options
+    }
+  }
+
+  pub fn bundle(&mut self, entry: &'a Path) -> Result<StyleSheet<'a>, ()> {
+    // Phase 1: load and parse all files.
+    self.load_file(entry, ImportRule {
+      url: entry.to_str().unwrap().into(),
       supports: None,
       media: MediaList::new(),
       loc: SourceLocation {
         line: 1,
         column: 0
       }
-    }, options.clone());
+    });
 
-    let mut rules = Vec::new();
-    bundler.inline(entry_path, &mut rules);
-    Ok(StyleSheet::new("bundle.css".into(), CssRuleList(rules), options))
+    // Phase 2: concatenate rules in the right order.
+    let mut rules: Vec<CssRule<'a>> = Vec::new();
+    self.inline(entry, &mut rules);
+    Ok(StyleSheet::new(
+      "bundle.css".into(), 
+      CssRuleList(rules), 
+      self.options.clone()
+    ))
   }
 
-  fn load_file(&self, file: PathBuf, parent: ImportRule, options: ParserOptions) {
+  fn load_file(&self, file: &Path, parent: ImportRule<'a>) {
     use dashmap::mapref::entry::Entry;
 
-    match self.loaded.entry(file.clone()) {
+    // Check if we already loaded this file. This is stored in a separate
+    // map from the stylesheet itself so we don't hold a lock while parsing.
+    match self.loaded.entry(file.to_owned()) {
       Entry::Occupied(mut entry) => {
+        // If we already loaded this file, combine the media queries and supports conditions
+        // from this import rule with the existing ones using a logical or operator.
+        let entry = entry.get_mut();
         if parent.media.media_queries.is_empty() {
-          entry.get_mut().media.media_queries.clear();
-        } else if !entry.get().media.media_queries.is_empty() {
-          let entry = entry.get_mut();
-          for mq in parent.media.media_queries {
-            if !entry.media.media_queries.contains(&mq) {
-              entry.media.media_queries.push(mq)
-            }
-          }
+          entry.media.media_queries.clear();
+        } else if !entry.media.media_queries.is_empty() {
+          entry.media.or(&parent.media);
         }
 
         if let Some(supports) = parent.supports {
-          if let Some(existing_supports) = &mut entry.get_mut().supports {
-            *existing_supports = SupportsCondition::Or(vec![existing_supports.clone(), supports]);
+          if let Some(existing_supports) = &mut entry.supports {
+            existing_supports.or(&supports)
           }
         } else {
-          entry.get_mut().supports = None;
+          entry.supports = None;
         }
         
         return;
@@ -71,23 +114,31 @@ impl Bundler {
       }
     }
 
-    let source = fs::read_to_string(&file).unwrap();
     let mut stylesheet = StyleSheet::parse(
       file.to_str().unwrap().into(),
-      &source,
-      options.clone(),
+      self.fs.read(file),
+      self.options.clone(),
     ).unwrap();
 
+    // Collect and load dependencies for this stylesheet in parallel.
     let dependencies = stylesheet.rules.0.par_iter_mut()
       .filter_map(|rule| {
         if let CssRule::Import(import) = rule {
-          let path = file.with_file_name(import.url.clone());
-          self.load_file(path.clone(), ImportRule {
-            media: combine_media(parent.media.clone(), import.media.clone()),
-            supports: combine_supports(parent.supports.clone(), import.supports.clone()),
-            url: import.url.clone(),
+          let path = file.with_file_name(&*import.url);
+
+          // Combine media queries and supports conditions from parent 
+          // stylesheet with @import rule using a logical and operator.
+          let mut media = parent.media.clone();
+          media.and(&import.media);
+          
+          self.load_file(&path, ImportRule {
+            media,
+            supports: combine_supports(parent.supports.clone(), &import.supports),
+            // url: import.url.clone(),
+            url: "".into(),
             loc: import.loc
-          }, options.clone());
+          });
+
           *rule = CssRule::Ignored;
           Some(path)
         } else {
@@ -96,38 +147,42 @@ impl Bundler {
       })
       .collect();
 
-    self.stylesheets.insert(file, BundleStyleSheet {
+    self.stylesheets.insert(file.to_owned(), BundleStyleSheet {
       stylesheet,
       dependencies
     });
   }
 
-  fn inline(&self, file: PathBuf, dest: &mut Vec<CssRule>) {
-    let stylesheet = match self.stylesheets.remove(&file) {
+  fn inline(&self, file: &Path, dest: &mut Vec<CssRule<'a>>) {
+    // Retrieve the stylesheet for this file from the map and remove it.
+    // If it doesn't exist, then we already inlined it (e.g. circular dep).
+    let stylesheet = match self.stylesheets.remove(file) {
       Some((_, s)) => s,
       None => return
     };
 
-    for path in stylesheet.dependencies {
+    // Include all dependencies first.
+    for path in &stylesheet.dependencies {
       self.inline(path, dest)
     }
 
-    let mut rules = stylesheet.stylesheet.rules.0;
-    let loaded = self.loaded.get(&file).unwrap();
+    // Wrap rules in the appropriate @media and @supports rules.
+    let mut rules: Vec<CssRule<'a>> = stylesheet.stylesheet.rules.0;
+    let (_, loaded) = self.loaded.remove(file).unwrap();
     if !loaded.media.media_queries.is_empty() {
       rules = vec![
         CssRule::Media(MediaRule {
-          query: loaded.media.clone(),
+          query: loaded.media,
           rules: CssRuleList(rules),
           loc: loaded.loc
         })
       ]
     }
 
-    if let Some(supports) = &loaded.supports {
+    if let Some(supports) = loaded.supports {
       rules = vec![
         CssRule::Supports(SupportsRule {
-          condition: supports.clone(),
+          condition: supports,
           rules: CssRuleList(rules),
           loc: loaded.loc
         })
@@ -138,61 +193,138 @@ impl Bundler {
   }
 }
 
-fn combine_media(mut a: MediaList, b: MediaList) -> MediaList {
-  if a.media_queries.is_empty() {
-    return b;
-  }
-
-  for b in b.media_queries {
-    if a.media_queries.contains(&b) {
-      continue;
+fn combine_supports<'a>(a: Option<SupportsCondition<'a>>, b: &Option<SupportsCondition<'a>>) -> Option<SupportsCondition<'a>> {
+  if let Some(mut a) = a {
+    if let Some(b) = b {
+      a.and(b)
     }
-
-    for a in &mut a.media_queries {
-      if b.media_type != MediaType::All || b.qualifier != None {
-        if a.media_type != MediaType::All {
-          if a.qualifier != Some(Qualifier::Not) {
-            a.media_type = MediaType::All;
-            a.qualifier = Some(Qualifier::Not);
-          } else {
-            // TODO (e.g. not print and not screen)
-          }
-        } else {
-          a.media_type = b.media_type.clone();
-          a.qualifier = b.qualifier.clone();
-        }
-      }
-
-      if let Some(cond) = &b.condition {
-        a.condition = if let Some(condition) = &a.condition {
-          Some(MediaCondition::Operation(vec![condition.clone(), cond.clone()], Operator::And))
-        } else {
-          Some(cond.clone())
-        }
-      }
-    }
+    Some(a)
+  } else {
+    b.clone()
   }
-
-  a
 }
 
-fn combine_supports(a: Option<SupportsCondition>, b: Option<SupportsCondition>) -> Option<SupportsCondition> {
-  if let Some(a) = a {
-    if let Some(b) = b {
-      if let SupportsCondition::And(mut a) = a {
-        if !a.contains(&b) {
-          a.push(b);
-        }
-        Some(SupportsCondition::And(a))
-      } else if a != b {
-        Some(SupportsCondition::Parens(Box::new(SupportsCondition::And(vec![a, b]))))
-      } else {
-        Some(a)
-      }
-    } else {
-      Some(a)
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::stylesheet::PrinterOptions;
+  use indoc::indoc;
+
+  struct TestProvider {
+    map: DashMap<PathBuf, String>
+  }
+
+  impl SourceProvider for TestProvider {
+    fn read<'a>(&'a self, file: &Path) -> &'a str {
+      self.map.get(file).unwrap().value()
     }
-  } else {
-    b
+  }
+
+  macro_rules! fs(
+    { $($key:literal: $value:expr),* } => {
+      {
+        #[allow(unused_mut)]
+        let mut m = DashMap::new();
+        $(
+          m.insert(PathBuf::from($key), $value.to_owned());
+        )*
+        TestProvider {
+          map: m
+        }
+      }
+    };
+  );
+
+  fn bundle(fs: TestProvider, entry: &str) -> String {
+    let mut bundler = Bundler::new(&fs, ParserOptions::default());
+    let stylesheet = bundler.bundle(Path::new(entry)).unwrap();
+    stylesheet.to_css(PrinterOptions::default()).unwrap().code
+  }
+
+  #[test]
+  fn test_bundle() {
+    let res = bundle(fs! {
+      "/a.css": r#"
+        @import "b.css";
+        .a { color: red }
+      "#,
+      "/b.css": r#"
+        .b { color: green }
+      "#
+    }, "/a.css");
+    assert_eq!(res, indoc! { r#"
+      .b {
+        color: green;
+      }
+      
+      .a {
+        color: red;
+      }
+    "#});
+
+    let res = bundle(fs! {
+      "/a.css": r#"
+        @import "b.css" print;
+        .a { color: red }
+      "#,
+      "/b.css": r#"
+        .b { color: green }
+      "#
+    }, "/a.css");
+    assert_eq!(res, indoc! { r#"
+      @media print {
+        .b {
+          color: green;
+        }
+      }
+      
+      .a {
+        color: red;
+      }
+    "#});
+
+    let res = bundle(fs! {
+      "/a.css": r#"
+        @import "b.css" supports(color: green);
+        .a { color: red }
+      "#,
+      "/b.css": r#"
+        .b { color: green }
+      "#
+    }, "/a.css");
+    assert_eq!(res, indoc! { r#"
+      @supports (color: green) {
+        .b {
+          color: green;
+        }
+      }
+      
+      .a {
+        color: red;
+      }
+    "#});
+
+    let res = bundle(fs! {
+      "/a.css": r#"
+        @import "b.css" supports(color: green) print;
+        .a { color: red }
+      "#,
+      "/b.css": r#"
+        .b { color: green }
+      "#
+    }, "/a.css");
+    assert_eq!(res, indoc! { r#"
+      @supports (color: green) {
+        @media print {
+          .b {
+            color: green;
+          }
+        }
+      }
+      
+      .a {
+        color: red;
+      }
+    "#});
   }
 }

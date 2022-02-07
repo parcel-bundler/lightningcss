@@ -60,7 +60,35 @@ impl<'i> MediaList<'i> {
     self.media_queries.is_empty() 
       || self.media_queries.iter().all(|mq| mq.never_matches())
   }
+
+  pub fn and(&mut self, b: &MediaList<'i>) {
+    if self.media_queries.is_empty() {
+      self.media_queries.extend(b.media_queries.iter().cloned());
+      return
+    }
+  
+    for b in &b.media_queries {
+      if self.media_queries.contains(&b) {
+        continue;
+      }
+  
+      for a in &mut self.media_queries {
+        a.and(&b)
+      }
+    }
+  }
+
+  pub fn or(&mut self, b: &MediaList<'i>) {
+    for mq in &b.media_queries {
+      if !self.media_queries.contains(&mq) {
+        self.media_queries.push(mq.clone())
+      }
+    }
+  }
 }
+
+unsafe impl<'i> Send for MediaList<'i> {}
+unsafe impl<'i> Sync for MediaList<'i> {}
     
 impl<'i> ToCss for MediaList<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
@@ -174,6 +202,63 @@ impl<'i> MediaQuery<'i> {
 
   pub fn never_matches(&self) -> bool {
     self.qualifier == Some(Qualifier::Not) && self.media_type == MediaType::All
+  }
+
+  pub fn and<'a>(&mut self, b: &MediaQuery<'i>) {
+    let at = (&self.qualifier, &self.media_type);
+    let bt = (&b.qualifier, &b.media_type);
+    let (qualifier, media_type) = match (at, bt) {
+      // `not all and screen` => not all
+      // `screen and not all` => not all
+      ((&Some(Qualifier::Not), &MediaType::All), _) |
+      (_, (&Some(Qualifier::Not), &MediaType::All)) => (Some(Qualifier::Not), MediaType::All),
+      // `not screen and not print` => ERROR
+      // `not screen and not screen` => not screen
+      ((&Some(Qualifier::Not), a), (&Some(Qualifier::Not), b)) => {
+        if a == b {
+          (Some(Qualifier::Not), a.clone())
+        } else {
+          // ERROR
+          todo!()
+        }
+      },
+      // `all and print` => print
+      // `print and all` => print
+      // `all and not print` => not print
+      ((_, MediaType::All), (q, t)) |
+      ((q, t), (_, MediaType::All)) |
+      // `not screen and print` => print
+      // `print and not screen` => print
+      ((&Some(Qualifier::Not), _), (q, t)) |
+      ((q, t), (&Some(Qualifier::Not), _)) => (q.clone(), t.clone()),
+      // `print and screen` => not all
+      ((_, a), (_, b)) if a != b => (Some(Qualifier::Not), MediaType::All),
+      ((_, a), _) => (None, a.clone())
+    };
+
+    self.qualifier = qualifier;
+    self.media_type = media_type;
+
+    if let Some(cond) = &b.condition {
+      self.condition = if let Some(condition) = &self.condition {
+        if condition != cond {
+          macro_rules! parenthesize {
+            ($condition: ident) => {
+              if matches!($condition, MediaCondition::Operation(_, Operator::Or)) {
+                MediaCondition::InParens(Box::new($condition.clone()))
+              } else {
+                $condition.clone()
+              }
+            }
+          }
+          Some(MediaCondition::Operation(vec![parenthesize!(condition), parenthesize!(cond)], Operator::And))
+        } else {
+          Some(condition.clone())
+        }
+      } else {
+        Some(cond.clone())
+      }
+    }
   }
 }
 
@@ -783,4 +868,46 @@ fn process_condition<'i>(
   }
 
   Ok(true)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn parse(s: &str) -> MediaQuery {
+    let mut input = ParserInput::new(&s);
+    let mut parser = Parser::new(&mut input);
+    MediaQuery::parse(&mut parser).unwrap()
+  }
+
+  fn and(a: &str, b: &str) -> String {
+    let mut a = parse(a);
+    let b = parse(b);
+    a.and(&b);
+    a.to_css_string()
+  }
+
+  #[test]
+  fn test_and() {
+    assert_eq!(and("(min-width: 250px)", "(color)"), "(min-width: 250px) and (color)");
+    assert_eq!(and("(min-width: 250px) or (color)", "(orientation: landscape)"), "((min-width: 250px) or (color)) and (orientation: landscape)");
+    assert_eq!(and("(min-width: 250px) and (color)", "(orientation: landscape)"), "(min-width: 250px) and (color) and (orientation: landscape)");
+    assert_eq!(and("all", "print"), "print");
+    assert_eq!(and("print", "all"), "print");
+    assert_eq!(and("all", "not print"), "not print");
+    assert_eq!(and("not print", "all"), "not print");
+    assert_eq!(and("not all", "print"), "not all");
+    assert_eq!(and("print", "not all"), "not all");
+    assert_eq!(and("print", "screen"), "not all");
+    assert_eq!(and("not print", "screen"), "screen");
+    assert_eq!(and("print", "not screen"), "print");
+    assert_eq!(and("not screen", "print"), "print");
+    assert_eq!(and("not screen", "not all"), "not all");
+    assert_eq!(and("print", "(min-width: 250px)"), "print and (min-width: 250px)");
+    assert_eq!(and("(min-width: 250px)", "print"), "print and (min-width: 250px)");
+    assert_eq!(and("print and (min-width: 250px)", "(color)"), "print and (min-width: 250px) and (color)");
+    assert_eq!(and("all", "only screen"), "only screen");
+    assert_eq!(and("only screen", "all"), "only screen");
+    assert_eq!(and("print", "print"), "print");
+  }
 }
