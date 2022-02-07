@@ -83,7 +83,7 @@ impl<'a, P: SourceProvider> Bundler<'a, P> {
     ))
   }
 
-  fn load_file(&self, file: &Path, parent: ImportRule<'a>) {
+  fn load_file(&self, file: &Path, rule: ImportRule<'a>) {
     use dashmap::mapref::entry::Entry;
 
     // Check if we already loaded this file. This is stored in a separate
@@ -93,13 +93,22 @@ impl<'a, P: SourceProvider> Bundler<'a, P> {
         // If we already loaded this file, combine the media queries and supports conditions
         // from this import rule with the existing ones using a logical or operator.
         let entry = entry.get_mut();
-        if parent.media.media_queries.is_empty() {
-          entry.media.media_queries.clear();
-        } else if !entry.media.media_queries.is_empty() {
-          entry.media.or(&parent.media);
+
+        // We cannot combine a media query and a supports query from different @import rules.
+        // e.g. @import "a.css" print; @import "a.css" supports(color: red);
+        // This would require duplicating the actual rules in the file.
+        if (!rule.media.media_queries.is_empty() && !entry.supports.is_none()) || 
+          (!entry.media.media_queries.is_empty() && !rule.supports.is_none()) {
+          todo!()
         }
 
-        if let Some(supports) = parent.supports {
+        if rule.media.media_queries.is_empty() {
+          entry.media.media_queries.clear();
+        } else if !entry.media.media_queries.is_empty() {
+          entry.media.or(&rule.media);
+        }
+
+        if let Some(supports) = rule.supports {
           if let Some(existing_supports) = &mut entry.supports {
             existing_supports.or(&supports)
           }
@@ -110,7 +119,7 @@ impl<'a, P: SourceProvider> Bundler<'a, P> {
         return;
       }
       Entry::Vacant(entry) => {
-        entry.insert(parent.clone());
+        entry.insert(rule.clone());
       }
     }
 
@@ -122,24 +131,24 @@ impl<'a, P: SourceProvider> Bundler<'a, P> {
 
     // Collect and load dependencies for this stylesheet in parallel.
     let dependencies = stylesheet.rules.0.par_iter_mut()
-      .filter_map(|rule| {
-        if let CssRule::Import(import) = rule {
+      .filter_map(|r| {
+        if let CssRule::Import(import) = r {
           let path = file.with_file_name(&*import.url);
 
           // Combine media queries and supports conditions from parent 
           // stylesheet with @import rule using a logical and operator.
-          let mut media = parent.media.clone();
+          let mut media = rule.media.clone();
           media.and(&import.media);
           
           self.load_file(&path, ImportRule {
             media,
-            supports: combine_supports(parent.supports.clone(), &import.supports),
+            supports: combine_supports(rule.supports.clone(), &import.supports),
             // url: import.url.clone(),
             url: "".into(),
             loc: import.loc
           });
 
-          *rule = CssRule::Ignored;
+          *r = CssRule::Ignored;
           Some(path)
         } else {
           None
@@ -326,5 +335,128 @@ mod tests {
         color: red;
       }
     "#});
+
+    let res = bundle(fs! {
+      "/a.css": r#"
+        @import "b.css" print;
+        @import "b.css" screen;
+        .a { color: red }
+      "#,
+      "/b.css": r#"
+        .b { color: green }
+      "#
+    }, "/a.css");
+    assert_eq!(res, indoc! { r#"
+      @media print, screen {
+        .b {
+          color: green;
+        }
+      }
+      
+      .a {
+        color: red;
+      }
+    "#});
+
+    let res = bundle(fs! {
+      "/a.css": r#"
+        @import "b.css" supports(color: red);
+        @import "b.css" supports(foo: bar);
+        .a { color: red }
+      "#,
+      "/b.css": r#"
+        .b { color: green }
+      "#
+    }, "/a.css");
+    assert_eq!(res, indoc! { r#"
+      @supports ((color: red) or (foo: bar)) {
+        .b {
+          color: green;
+        }
+      }
+      
+      .a {
+        color: red;
+      }
+    "#});
+
+    let res = bundle(fs! {
+      "/a.css": r#"
+        @import "b.css" print;
+        .a { color: red }
+      "#,
+      "/b.css": r#"
+        @import "c.css" (color);
+        .b { color: yellow }
+      "#,
+      "/c.css": r#"
+        .c { color: green }
+      "#
+    }, "/a.css");
+    assert_eq!(res, indoc! { r#"
+      @media print and (color) {
+        .c {
+          color: green;
+        }
+      }
+      
+      @media print {
+        .b {
+          color: #ff0;
+        }
+      }
+
+      .a {
+        color: red;
+      }
+    "#});
+
+    let res = bundle(fs! {
+      "/a.css": r#"
+        @import "b.css";
+        .a { color: red }
+      "#,
+      "/b.css": r#"
+        @import "c.css";
+      "#,
+      "/c.css": r#"
+        @import "a.css";
+        .c { color: green }
+      "#
+    }, "/a.css");
+    assert_eq!(res, indoc! { r#"
+      .c {
+        color: green;
+      }
+
+      .a {
+        color: red;
+      }
+    "#});
+
+    // let res = bundle(fs! {
+    //   "/a.css": r#"
+    //     @import "b.css" supports(color: red) (color);
+    //     @import "b.css" supports(foo: bar) (orientation: horizontal);
+    //     .a { color: red }
+    //   "#,
+    //   "/b.css": r#"
+    //     .b { color: green }
+    //   "#
+    // }, "/a.css");
+
+    // let res = bundle(fs! {
+    //   "/a.css": r#"
+    //     @import "b.css" not print;
+    //     .a { color: red }
+    //   "#,
+    //   "/b.css": r#"
+    //     @import "c.css" not screen;
+    //     .b { color: green }
+    //   "#,
+    //   "/c.css": r#"
+    //     .c { color: yellow }
+    //   "#
+    // }, "/a.css");
   }
 }
