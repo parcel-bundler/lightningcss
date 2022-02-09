@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use super::{Property, PropertyId};
@@ -7,13 +8,14 @@ use crate::macros::{enum_property, shorthand_property, shorthand_handler};
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
 use crate::logical::LogicalProperties;
+use crate::values::string::to_cow;
 
 /// https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#text-markers
 #[derive(Debug, Clone, PartialEq)]
 pub enum ListStyleType<'i> {
   None,
   CounterStyle(CounterStyle<'i>),
-  String(CowRcStr<'i>)
+  String(Cow<'i, str>)
 }
 
 impl Default for ListStyleType<'_> {
@@ -33,7 +35,7 @@ impl<'i> Parse<'i> for ListStyleType<'i> {
     }
 
     let s = input.expect_string_cloned()?;
-    Ok(ListStyleType::String(s))
+    Ok(ListStyleType::String(to_cow(s)))
   }
 }
 
@@ -120,7 +122,7 @@ enum_property! {
 /// https://www.w3.org/TR/css-counter-styles-3/#funcdef-symbols
 #[derive(Debug, Clone, PartialEq)]
 pub enum Symbol<'i> {
-  String(CowRcStr<'i>),
+  String(Cow<'i, str>),
   Image(Image<'i>)
 }
 
@@ -131,7 +133,7 @@ impl<'i> Parse<'i> for Symbol<'i> {
     }
 
     let s = input.expect_string_cloned()?;
-    Ok(Symbol::String(s))
+    Ok(Symbol::String(to_cow(s)))
   }
 }
 

@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
@@ -5,7 +6,7 @@ use crate::properties::font::{FontFamily, FontStyle, FontWeight, FontStretch};
 use crate::values::size::Size2D;
 use crate::properties::custom::CustomProperty;
 use crate::macros::enum_property;
-use crate::values::url::Url;
+use crate::values::{url::Url, string::to_cow};
 use crate::error::{ParserError, PrinterError};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -141,7 +142,7 @@ pub enum FontFormat<'i> {
   EmbeddedOpenType,
   Collection,
   SVG,
-  String(CowRcStr<'i>)
+  String(Cow<'i, str>)
 }
 
 impl<'i> Parse<'i> for FontFormat<'i> {
@@ -155,7 +156,7 @@ impl<'i> Parse<'i> for FontFormat<'i> {
       "embedded-opentype" => Ok(FontFormat::EmbeddedOpenType),
       "collection" => Ok(FontFormat::Collection),
       "svg" => Ok(FontFormat::SVG),
-      _ => Ok(FontFormat::String(s.clone()))
+      _ => Ok(FontFormat::String(to_cow(s.clone())))
     }
   }
 }

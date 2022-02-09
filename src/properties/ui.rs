@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::values::color::CssColor;
@@ -6,6 +7,7 @@ use crate::printer::Printer;
 use smallvec::SmallVec;
 use crate::values::url::Url;
 use crate::error::{ParserError, PrinterError};
+use crate::values::string::to_cow;
 
 enum_property! {
   /// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#resize
@@ -218,7 +220,7 @@ pub enum Appearance<'i> {
   SliderHorizontal,
   SquareButton,
   Textarea,
-  NonStandard(CowRcStr<'i>)
+  NonStandard(Cow<'i, str>)
 }
 
 impl<'i> Parse<'i> for Appearance<'i> {
@@ -241,7 +243,7 @@ impl<'i> Parse<'i> for Appearance<'i> {
       "slider-horizontal" => Ok(Appearance::SliderHorizontal),
       "square-button" => Ok(Appearance::SquareButton),
       "textarea" => Ok(Appearance::Textarea),
-      _ => Ok(Appearance::NonStandard(ident.clone()))
+      _ => Ok(Appearance::NonStandard(to_cow(ident.clone())))
     }
   }
 }

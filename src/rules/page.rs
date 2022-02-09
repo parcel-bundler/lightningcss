@@ -1,14 +1,16 @@
+use std::borrow::Cow;
 use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::declaration::DeclarationBlock;
 use crate::printer::Printer;
 use crate::macros::enum_property;
 use crate::error::{ParserError, PrinterError};
+use crate::values::string::to_cow;
 
 /// https://www.w3.org/TR/css-page-3/#typedef-page-selector
 #[derive(Debug, PartialEq, Clone)]
 pub struct PageSelector<'i> {
-  pub name: Option<CowRcStr<'i>>,
+  pub name: Option<Cow<'i, str>>,
   pub pseudo_classes: Vec<PagePseudoClass>
 }
 
@@ -46,7 +48,7 @@ impl<'i> Parse<'i> for PageSelector<'i> {
     }
 
     Ok(PageSelector {
-      name,
+      name: name.map(to_cow),
       pseudo_classes
     })
   }

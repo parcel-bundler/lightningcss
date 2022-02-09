@@ -1,9 +1,11 @@
+use std::borrow::Cow;
 use cssparser::*;
 use crate::values::ident::{CustomIdent, CustomIdentList};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use smallvec::SmallVec;
 use crate::error::{ParserError, PrinterError};
+use crate::values::string::to_cow;
 
 /// The `composes` property from CSS modules.
 /// https://github.com/css-modules/css-modules/#dependencies
@@ -17,7 +19,7 @@ pub struct Composes<'i> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ComposesFrom<'i> {
   Global,
-  File(CowRcStr<'i>)
+  File(Cow<'i, str>)
 }
 
 impl<'i> Parse<'i> for Composes<'i> {
@@ -34,7 +36,7 @@ impl<'i> Parse<'i> for Composes<'i> {
 
     let from = if input.try_parse(|input| input.expect_ident_matching("from")).is_ok() {
       if let Ok(file) = input.try_parse(|input| input.expect_string_cloned()) {
-        Some(ComposesFrom::File(file))
+        Some(ComposesFrom::File(to_cow(file)))
       } else {
         input.expect_ident_matching("global")?;
         Some(ComposesFrom::Global)

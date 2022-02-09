@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use cssparser::*;
 use parcel_selectors::{SelectorList, parser::{SelectorImpl, Selector, Combinator, Component}, attr::{AttrSelectorOperator, ParsedAttrSelectorOperation, ParsedCaseSensitivity}};
 use std::fmt;
@@ -11,16 +12,17 @@ use crate::rules::{ToCssWithContext, StyleContext};
 use std::collections::HashMap;
 use crate::error::{ParserError, PrinterError};
 use std::collections::HashSet;
+use crate::values::string::to_cow;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Selectors;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct SelectorString<'a>(pub CowRcStr<'a>);
+pub struct SelectorString<'a>(pub Cow<'a, str>);
 
 impl<'a> std::convert::From<CowRcStr<'a>> for SelectorString<'a> {
   fn from(s: CowRcStr<'a>) -> SelectorString<'a> {
-    SelectorString(s)
+    SelectorString(to_cow(s))
   }
 }
 
@@ -38,11 +40,11 @@ impl<'a> SelectorString<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
-pub struct SelectorIdent<'i>(pub CowRcStr<'i>);
+pub struct SelectorIdent<'i>(pub Cow<'i, str>);
 
 impl<'a> std::convert::From<CowRcStr<'a>> for SelectorIdent<'a> {
   fn from(s: CowRcStr<'a>) -> SelectorIdent {
-    SelectorIdent(s)
+    SelectorIdent(to_cow(s))
   }
 }
 
@@ -73,8 +75,8 @@ impl<'i> SelectorImpl<'i> for Selectors {
 }
 
 pub struct SelectorParser<'a, 'i> {
-  pub default_namespace: &'a Option<CowRcStr<'i>>,
-  pub namespace_prefixes: &'a HashMap<CowRcStr<'i>, CowRcStr<'i>>,
+  pub default_namespace: &'a Option<Cow<'i, str>>,
+  pub namespace_prefixes: &'a HashMap<Cow<'i, str>, Cow<'i, str>>,
   pub is_nesting_allowed: bool,
   pub css_modules: bool
 }
@@ -158,7 +160,7 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
         "-webkit-autofill" => Autofill(VendorPrefix::WebKit),
         "-o-autofill" => Autofill(VendorPrefix::O),
 
-        _ => Custom(name)
+        _ => Custom(to_cow(name))
       };
 
       Ok(pseudo_class)
@@ -204,7 +206,7 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
       "file-selector-button" => FileSelectorButton(VendorPrefix::None),
       "-webkit-file-upload-button" => FileSelectorButton(VendorPrefix::WebKit),
       "-ms-browse" => FileSelectorButton(VendorPrefix::Ms),
-      _ => Custom(name)
+      _ => Custom(to_cow(name))
     };
 
     Ok(pseudo_element)
@@ -312,7 +314,7 @@ pub enum PseudoClass<'i> {
   Local(Box<parcel_selectors::parser::Selector<'i, Selectors>>),
   Global(Box<parcel_selectors::parser::Selector<'i, Selectors>>),
 
-  Custom(CowRcStr<'i>)
+  Custom(Cow<'i, str>)
 }
 
 impl<'i> parcel_selectors::parser::NonTSPseudoClass<'i> for PseudoClass<'i> {
@@ -525,7 +527,7 @@ pub enum PseudoElement<'i> {
   Marker,
   Backdrop(VendorPrefix),
   FileSelectorButton(VendorPrefix),
-  Custom(CowRcStr<'i>)
+  Custom(Cow<'i, str>)
 }
 
 impl<'i> cssparser::ToCss for PseudoElement<'i> {

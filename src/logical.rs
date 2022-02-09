@@ -1,4 +1,4 @@
-use cssparser::{Token, SourceLocation};
+use cssparser::{SourceLocation};
 use crate::rules::{CssRule, CssRuleList, style::StyleRule};
 use parcel_selectors::SelectorList;
 use crate::selector::{SelectorIdent, SelectorString};
@@ -16,7 +16,7 @@ use parcel_selectors::{
 use crate::properties::{
   Property,
   PropertyId,
-  custom::{CustomProperty, TokenList},
+  custom::{CustomProperty, TokenList, Token},
 };
 
 #[derive(Debug)]

@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use cssparser::*;
 use crate::traits::ToCss;
 use crate::printer::Printer;
@@ -8,15 +9,11 @@ use crate::error::PrinterError;
 /// https://drafts.csswg.org/css-cascade/#at-import
 #[derive(Debug, PartialEq, Clone)]
 pub struct ImportRule<'i> {
-  pub url: CowRcStr<'i>,
+  pub url: Cow<'i, str>,
   pub supports: Option<SupportsCondition<'i>>,
   pub media: MediaList<'i>,
   pub loc: SourceLocation
 }
-
-// TODO: remove
-unsafe impl<'i> Send for ImportRule<'i> {}
-unsafe impl<'i> Sync for ImportRule<'i> {}
 
 impl<'i> ToCss for ImportRule<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {

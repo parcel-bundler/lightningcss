@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use std::borrow::Cow;
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use super::{Property, PropertyId};
@@ -15,6 +16,7 @@ use bitflags::bitflags;
 use crate::error::{ParserError, PrinterError};
 use crate::logical::LogicalProperties;
 use crate::compat;
+use crate::values::string::to_cow;
 
 enum_property! {
   /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-transform-property
@@ -566,7 +568,7 @@ pub enum TextEmphasisStyle<'i> {
     fill: TextEmphasisFillMode,
     shape: Option<TextEmphasisShape>
   },
-  String(CowRcStr<'i>)
+  String(Cow<'i, str>)
 }
 
 impl<'i> Default for TextEmphasisStyle<'i> {
@@ -582,7 +584,7 @@ impl<'i> Parse<'i> for TextEmphasisStyle<'i> {
     }
 
     if let Ok(s) = input.try_parse(|input| input.expect_string_cloned()) {
-      return Ok(TextEmphasisStyle::String(s))
+      return Ok(TextEmphasisStyle::String(to_cow(s)))
     }
 
     let mut shape = input.try_parse(TextEmphasisShape::parse).ok();

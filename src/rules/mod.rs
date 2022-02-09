@@ -12,7 +12,7 @@ pub mod nesting;
 pub mod viewport;
 pub mod custom_media;
 
-use cssparser::CowRcStr;
+use std::borrow::Cow;
 use media::MediaRule;
 use import::ImportRule;
 use style::StyleRule;
@@ -65,10 +65,6 @@ pub enum CssRule<'i> {
   Ignored
 }
 
-// TODO remove
-unsafe impl<'i> Send for CssRule<'i> {}
-unsafe impl<'i> Sync for CssRule<'i> {}
-
 impl<'a, 'i> ToCssWithContext<'a, 'i> for CssRule<'i> {
   fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext<'a, 'i>>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
@@ -105,7 +101,7 @@ pub(crate) struct MinifyContext<'a, 'i> {
   pub important_handler: &'a mut DeclarationHandler<'i>,
   pub logical_properties: &'a mut LogicalProperties,
   pub unused_symbols: &'a HashSet<String>,
-  pub custom_media: Option<HashMap<CowRcStr<'i>, CustomMediaRule<'i>>>
+  pub custom_media: Option<HashMap<Cow<'i, str>, CustomMediaRule<'i>>>
 }
 
 impl<'i> CssRuleList<'i> {

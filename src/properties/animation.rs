@@ -1,6 +1,6 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
-use crate::values::{time::Time, easing::EasingFunction, ident::CustomIdent};
+use crate::values::{time::Time, easing::EasingFunction, ident::CustomIdent, string::to_cow};
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
 use crate::properties::{Property, PropertyId, VendorPrefix};
@@ -31,7 +31,7 @@ impl<'i> Parse<'i> for AnimationName<'i> {
       Token::QuotedString(ref s) => s.clone(),
       ref t => return Err(location.new_unexpected_token_error(t.clone())),
     };
-    Ok(AnimationName::Ident(CustomIdent(name)))
+    Ok(AnimationName::Ident(CustomIdent(to_cow(name))))
   }
 }
 

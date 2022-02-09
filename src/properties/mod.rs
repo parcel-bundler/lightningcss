@@ -27,6 +27,7 @@ pub mod svg;
 pub mod masking;
 pub mod effects;
 
+use std::borrow::Cow;
 use cssparser::*;
 use custom::*;
 use background::*;
@@ -63,6 +64,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::logical::LogicalProperty;
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
+use crate::values::string::to_cow;
 
 macro_rules! define_properties {
   (
@@ -78,7 +80,7 @@ macro_rules! define_properties {
         $property$(($vp))?,
       )+
       All,
-      Custom(CowRcStr<'i>)
+      Custom(Cow<'i, str>)
     }
 
     macro_rules! vp_name {
@@ -103,7 +105,7 @@ macro_rules! define_properties {
             )*
           )+
           "all" => Ok(PropertyId::All),
-          _ => Ok(PropertyId::Custom(name.clone()))
+          _ => Ok(PropertyId::Custom(to_cow(name.clone())))
         }
       }
     }

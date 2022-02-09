@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use cssparser::*;
 use crate::traits::ToCss;
 use crate::printer::Printer;
@@ -5,8 +6,8 @@ use crate::error::PrinterError;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct NamespaceRule<'i> {
-  pub prefix: Option<CowRcStr<'i>>,
-  pub url: CowRcStr<'i>,
+  pub prefix: Option<Cow<'i, str>>,
+  pub url: Cow<'i, str>,
   pub loc: SourceLocation
 }
 
