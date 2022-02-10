@@ -135,6 +135,10 @@ let {code, map} = transform({
 console.log(new TextDecoder().decode(code));
 ```
 
+### With webpack
+
+css-minimizer-webpack-plugin has builtin support for `@parcel/css`. Install `@parcel/css` in your project, and configure the plugin as documented [here](https://github.com/webpack-contrib/css-minimizer-webpack-plugin#using-custom-minifier-parcelcss).
+
 ## Benchmarks
 
 <img width="666" alt="image" src="https://user-images.githubusercontent.com/19409/151679661-67fbd0a1-45ed-4df0-a5f4-73f84fd4e868.png#gh-light-mode-only">
