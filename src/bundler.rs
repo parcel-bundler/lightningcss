@@ -1,4 +1,4 @@
-use cssparser::SourceLocation;
+use cssparser::{SourceLocation, ParseError};
 use std::{fs, path::{Path, PathBuf}};
 use rayon::prelude::*;
 use dashmap::DashMap;
@@ -9,7 +9,8 @@ use crate::{
     supports::{SupportsRule, SupportsCondition},
     import::ImportRule
   },
-  media_query::MediaList
+  media_query::MediaList,
+  error::{Error, ParserError}
 };
 
 pub struct Bundler<'a, P> {
@@ -20,7 +21,7 @@ pub struct Bundler<'a, P> {
 }
 
 pub trait SourceProvider: Send + Sync {
-  fn read<'a>(&'a self, file: &Path) -> &'a str;
+  fn read<'a>(&'a self, file: &Path) -> std::io::Result<&'a str>;
 }
 
 pub struct FileProvider {
@@ -36,12 +37,30 @@ impl FileProvider {
 }
 
 impl SourceProvider for FileProvider {
-  fn read<'a>(&'a self, file: &Path) -> &'a str {
-    let source = fs::read_to_string(file).unwrap();
-    self.inputs.entry(file.to_owned())
+  fn read<'a>(&'a self, file: &Path) -> std::io::Result<&'a str> {
+    let source = fs::read_to_string(file)?;
+    let res = self.inputs.entry(file.to_owned())
       .or_insert(source)
       .downgrade()
-      .value()
+      .value();
+    Ok(res)
+  }
+}
+
+#[derive(Debug)]
+pub enum BundleErrorKind<'i> {
+  IOError(std::io::Error),
+  ParserError(ParserError<'i>),
+  UnsupportedImportCondition,
+  UnsupportedMediaBooleanLogic
+}
+
+impl<'i> From<Error<ParserError<'i>>> for Error<BundleErrorKind<'i>> {
+  fn from(err: Error<ParserError<'i>>) -> Self {
+    Error {
+      kind: BundleErrorKind::ParserError(err.kind),
+      loc: err.loc
+    }
   }
 }
 
@@ -61,7 +80,7 @@ impl<'a, P: SourceProvider> Bundler<'a, P> {
     }
   }
 
-  pub fn bundle(&mut self, entry: &'a Path) -> Result<StyleSheet<'a>, ()> {
+  pub fn bundle(&mut self, entry: &'a Path) -> Result<StyleSheet<'a>, Error<BundleErrorKind<'a>>> {
     // Phase 1: load and parse all files.
     self.load_file(entry, ImportRule {
       url: entry.to_str().unwrap().into(),
@@ -71,7 +90,7 @@ impl<'a, P: SourceProvider> Bundler<'a, P> {
         line: 1,
         column: 0
       }
-    });
+    })?;
 
     // Phase 2: concatenate rules in the right order.
     let mut rules: Vec<CssRule<'a>> = Vec::new();
@@ -83,7 +102,7 @@ impl<'a, P: SourceProvider> Bundler<'a, P> {
     ))
   }
 
-  fn load_file(&self, file: &Path, rule: ImportRule<'a>) {
+  fn load_file(&self, file: &Path, rule: ImportRule<'a>) -> Result<(), Error<BundleErrorKind<'a>>> {
     use dashmap::mapref::entry::Entry;
 
     // Check if we already loaded this file. This is stored in a separate
@@ -99,7 +118,10 @@ impl<'a, P: SourceProvider> Bundler<'a, P> {
         // This would require duplicating the actual rules in the file.
         if (!rule.media.media_queries.is_empty() && !entry.supports.is_none()) || 
           (!entry.media.media_queries.is_empty() && !rule.supports.is_none()) {
-          todo!()
+          return Err(Error {
+            kind: BundleErrorKind::UnsupportedImportCondition,
+            loc: rule.loc
+          })
         }
 
         if rule.media.media_queries.is_empty() {
@@ -116,7 +138,7 @@ impl<'a, P: SourceProvider> Bundler<'a, P> {
           entry.supports = None;
         }
         
-        return;
+        return Ok(());
       }
       Entry::Vacant(entry) => {
         entry.insert(rule.clone());
@@ -125,12 +147,15 @@ impl<'a, P: SourceProvider> Bundler<'a, P> {
 
     let mut stylesheet = StyleSheet::parse(
       file.to_str().unwrap().into(),
-      self.fs.read(file),
+      self.fs.read(file).map_err(|e| Error {
+        kind: BundleErrorKind::IOError(e),
+        loc: rule.loc
+      })?,
       self.options.clone(),
-    ).unwrap();
+    )?;
 
     // Collect and load dependencies for this stylesheet in parallel.
-    let dependencies = stylesheet.rules.0.par_iter_mut()
+    let dependencies: Result<Vec<PathBuf>, _> = stylesheet.rules.0.par_iter_mut()
       .filter_map(|r| {
         if let CssRule::Import(import) = r {
           let path = file.with_file_name(&*import.url);
@@ -138,18 +163,28 @@ impl<'a, P: SourceProvider> Bundler<'a, P> {
           // Combine media queries and supports conditions from parent 
           // stylesheet with @import rule using a logical and operator.
           let mut media = rule.media.clone();
-          media.and(&import.media);
+          let result = media.and(&import.media).map_err(|_| Error {
+            kind: BundleErrorKind::UnsupportedMediaBooleanLogic,
+            loc: import.loc
+          });
+
+          if let Err(e) = result {
+            return Some(Err(e))
+          }
           
-          self.load_file(&path, ImportRule {
+          let result = self.load_file(&path, ImportRule {
             media,
             supports: combine_supports(rule.supports.clone(), &import.supports),
-            // url: import.url.clone(),
             url: "".into(),
             loc: import.loc
           });
 
+          if let Err(e) = result {
+            return Some(Err(e))
+          }
+
           *r = CssRule::Ignored;
-          Some(path)
+          Some(Ok(path))
         } else {
           None
         }
@@ -158,8 +193,10 @@ impl<'a, P: SourceProvider> Bundler<'a, P> {
 
     self.stylesheets.insert(file.to_owned(), BundleStyleSheet {
       stylesheet,
-      dependencies
+      dependencies: dependencies?
     });
+
+    Ok(())
   }
 
   fn inline(&self, file: &Path, dest: &mut Vec<CssRule<'a>>) {
@@ -224,8 +261,8 @@ mod tests {
   }
 
   impl SourceProvider for TestProvider {
-    fn read<'a>(&'a self, file: &Path) -> &'a str {
-      self.map.get(file).unwrap().value()
+    fn read<'a>(&'a self, file: &Path) -> std::io::Result<&'a str> {
+      Ok(self.map.get(file).unwrap().value())
     }
   }
 

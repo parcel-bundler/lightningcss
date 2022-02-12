@@ -62,10 +62,10 @@ impl<'i> MediaList<'i> {
       || self.media_queries.iter().all(|mq| mq.never_matches())
   }
 
-  pub fn and(&mut self, b: &MediaList<'i>) {
+  pub fn and(&mut self, b: &MediaList<'i>) -> Result<(), ()> {
     if self.media_queries.is_empty() {
       self.media_queries.extend(b.media_queries.iter().cloned());
-      return
+      return Ok(())
     }
   
     for b in &b.media_queries {
@@ -74,9 +74,11 @@ impl<'i> MediaList<'i> {
       }
   
       for a in &mut self.media_queries {
-        a.and(&b)
+        a.and(&b)?;
       }
     }
+
+    Ok(())
   }
 
   pub fn or(&mut self, b: &MediaList<'i>) {
@@ -202,7 +204,7 @@ impl<'i> MediaQuery<'i> {
     self.qualifier == Some(Qualifier::Not) && self.media_type == MediaType::All
   }
 
-  pub fn and<'a>(&mut self, b: &MediaQuery<'i>) {
+  pub fn and<'a>(&mut self, b: &MediaQuery<'i>) -> Result<(), ()> {
     let at = (&self.qualifier, &self.media_type);
     let bt = (&b.qualifier, &b.media_type);
     let (qualifier, media_type) = match (at, bt) {
@@ -216,8 +218,7 @@ impl<'i> MediaQuery<'i> {
         if a == b {
           (Some(Qualifier::Not), a.clone())
         } else {
-          // ERROR
-          todo!()
+          return Err(())
         }
       },
       // `all and print` => print
@@ -257,6 +258,8 @@ impl<'i> MediaQuery<'i> {
         Some(cond.clone())
       }
     }
+
+    Ok(())
   }
 }
 

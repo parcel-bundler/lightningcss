@@ -9,7 +9,7 @@ use crate::declaration::{DeclarationHandler, DeclarationBlock};
 use crate::css_modules::{hash, CssModule, CssModuleExports};
 use std::collections::{HashMap, HashSet};
 use crate::dependencies::Dependency;
-use crate::error::{ParserError, MinifyError, PrinterError};
+use crate::error::{Error, ParserError, MinifyError, PrinterError};
 use crate::logical::LogicalProperties;
 use crate::compat::Feature;
 
@@ -54,7 +54,7 @@ impl<'i> StyleSheet<'i> {
     }
   }
 
-  pub fn parse(filename: String, code: &'i str, options: ParserOptions) -> Result<StyleSheet<'i>, ParseError<'i, ParserError<'i>>> {
+  pub fn parse(filename: String, code: &'i str, options: ParserOptions) -> Result<StyleSheet<'i>, Error<ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
     let rule_list_parser = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(&options));
@@ -64,7 +64,7 @@ impl<'i> StyleSheet<'i> {
       let rule = match rule {
         Ok((_, CssRule::Ignored)) => continue,
         Ok((_, rule)) => rule,
-        Err((e, _)) => return Err(e)
+        Err((e, _)) => return Err(Error::from(e))
       };
 
       rules.push(rule)
@@ -164,7 +164,7 @@ pub struct StyleAttribute<'i> {
 }
 
 impl<'i> StyleAttribute<'i> {
-  pub fn parse(code: &'i str) -> Result<StyleAttribute, ParseError<'i, ParserError<'i>>> {
+  pub fn parse(code: &'i str) -> Result<StyleAttribute, Error<ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
     let options = ParserOptions::default();

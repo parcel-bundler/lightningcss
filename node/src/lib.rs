@@ -8,7 +8,7 @@ use parcel_css::stylesheet::{StyleSheet, StyleAttribute, ParserOptions, PrinterO
 use parcel_css::targets::Browsers;
 use parcel_css::css_modules::CssModuleExports;
 use parcel_css::dependencies::Dependency;
-use parcel_css::error::{ParserError, PrinterError, MinifyError};
+use parcel_css::error::{ParserError, PrinterError, MinifyError, Error};
 
 // ---------------------------------------------
 
@@ -234,7 +234,7 @@ fn compile_attr<'i>(code: &'i str, config: &AttrConfig) -> Result<AttrResult, Co
 }
 
 enum CompileError<'i> {
-  ParseError(cssparser::ParseError<'i, ParserError<'i>>),
+  ParseError(Error<ParserError<'i>>),
   MinifyError(MinifyError),
   PrinterError(PrinterError),
   SourceMapError(parcel_sourcemap::SourceMapError)
@@ -243,21 +243,7 @@ enum CompileError<'i> {
 impl<'i> CompileError<'i> {
   fn reason(&self) -> String {
     match self {
-      CompileError::ParseError(e) => {
-        match &e.kind {
-          cssparser::ParseErrorKind::Basic(b) => {
-            use cssparser::BasicParseErrorKind::*;
-            match b {
-              AtRuleBodyInvalid => "Invalid at rule body".into(),
-              EndOfInput => "Unexpected end of input".into(),
-              AtRuleInvalid(name) => format!("Unknown at rule: @{}", name),
-              QualifiedRuleInvalid => "Invalid qualified rule".into(),
-              UnexpectedToken(token) => format!("Unexpected token {:?}", token)
-            }
-          },
-          cssparser::ParseErrorKind::Custom(e) => e.reason()
-        }
-      }
+      CompileError::ParseError(e) => e.kind.reason(),
       CompileError::MinifyError(err) => err.reason(),
       CompileError::PrinterError(err) => err.reason(),
       _ => "Unknown error".into()
@@ -268,7 +254,7 @@ impl<'i> CompileError<'i> {
   fn throw(self, ctx: CallContext, filename: Option<String>, code: &str) -> napi::Result<JsUnknown> {
     match &self {
       CompileError::ParseError(e) => {
-        throw_syntax_error(ctx, filename, code, self.reason(), &e.location)
+        throw_syntax_error(ctx, filename, code, self.reason(), &e.loc)
       },
       CompileError::PrinterError(PrinterError::InvalidComposesSelector(loc)) |
       CompileError::PrinterError(PrinterError::InvalidComposesNesting(loc)) => {
@@ -305,8 +291,8 @@ fn throw_syntax_error(ctx: CallContext, filename: Option<String>, code: &str, me
   Ok(ctx.env.get_undefined()?.into_unknown())
 }
 
-impl<'i> From<cssparser::ParseError<'i, ParserError<'i>>> for CompileError<'i> {
-  fn from(e: cssparser::ParseError<'i, ParserError<'i>>) -> CompileError<'i> {
+impl<'i> From<Error<ParserError<'i>>> for CompileError<'i> {
+  fn from(e: Error<ParserError<'i>>) -> CompileError<'i> {
     CompileError::ParseError(e)
   }
 }
