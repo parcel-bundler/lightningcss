@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use crate::values::string::CowArcStr;
 use cssparser::*;
 use crate::macros::*;
 use crate::values::{
@@ -12,7 +12,6 @@ use crate::declaration::DeclarationList;
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
 use crate::logical::LogicalProperties;
-use crate::values::string::to_cow;
 
 /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-weight-prop
 #[derive(Debug, Clone, PartialEq)]
@@ -260,21 +259,21 @@ enum_property! {
 /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-family-prop
 #[derive(Debug, Clone, PartialEq)]
 pub enum FontFamily<'i> {
-  FamilyName(Cow<'i, str>),
+  FamilyName(CowArcStr<'i>),
   Generic(GenericFontFamily)
 }
 
 impl<'i> Parse<'i> for FontFamily<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(value) = input.try_parse(|i| i.expect_string_cloned()) {
-      return Ok(FontFamily::FamilyName(to_cow(value)))
+      return Ok(FontFamily::FamilyName(value.into()))
     }
 
     if let Ok(value) = input.try_parse(GenericFontFamily::parse) {
       return Ok(FontFamily::Generic(value))
     }
 
-    let value = input.expect_ident_cloned()?;
+    let value: CowArcStr<'i> = input.expect_ident()?.into();
     let mut string = None;
     while let Ok(ident) = input.try_parse(|i| i.expect_ident_cloned()) {
       if string.is_none() {
@@ -290,7 +289,7 @@ impl<'i> Parse<'i> for FontFamily<'i> {
     let value = if let Some(string) = string {
       string.into()
     } else {
-      to_cow(value)
+      value
     };
 
     Ok(FontFamily::FamilyName(value))

@@ -12,7 +12,7 @@ pub mod nesting;
 pub mod viewport;
 pub mod custom_media;
 
-use std::borrow::Cow;
+use crate::values::string::CowArcStr;
 use media::MediaRule;
 use import::ImportRule;
 use style::StyleRule;
@@ -101,7 +101,7 @@ pub(crate) struct MinifyContext<'a, 'i> {
   pub important_handler: &'a mut DeclarationHandler<'i>,
   pub logical_properties: &'a mut LogicalProperties,
   pub unused_symbols: &'a HashSet<String>,
-  pub custom_media: Option<HashMap<Cow<'i, str>, CustomMediaRule<'i>>>
+  pub custom_media: Option<HashMap<CowArcStr<'i>, CustomMediaRule<'i>>>
 }
 
 impl<'i> CssRuleList<'i> {

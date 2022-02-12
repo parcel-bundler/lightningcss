@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use crate::values::string::CowArcStr;
 use cssparser::*;
 use parcel_selectors::{SelectorList, parser::NestingRequirement};
 use crate::media_query::*;
@@ -22,7 +22,6 @@ use crate::rules::{
   custom_media::CustomMediaRule
 };
 use crate::values::ident::CustomIdent;
-use crate::values::string::to_cow;
 use crate::declaration::{DeclarationBlock, DeclarationList, parse_declaration};
 use crate::vendor_prefix::VendorPrefix;
 use std::collections::HashMap;
@@ -37,8 +36,8 @@ pub struct ParserOptions {
 
 /// The parser for the top-level rules in a stylesheet.
 pub struct TopLevelRuleParser<'a, 'i> {
-  default_namespace: Option<Cow<'i, str>>,
-  namespace_prefixes: HashMap<Cow<'i, str>, Cow<'i, str>>,
+  default_namespace: Option<CowArcStr<'i>>,
+  namespace_prefixes: HashMap<CowArcStr<'i>, CowArcStr<'i>>,
   options: &'a ParserOptions
 }
 
@@ -165,7 +164,7 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
       let rule = match prelude {
         AtRulePrelude::Import(url, media, supports) => {
           CssRule::Import(ImportRule {
-            url: to_cow(url),
+            url: url.into(),
             supports,
             media,
             loc
@@ -173,20 +172,20 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
         },
         AtRulePrelude::Namespace(prefix, url) => {
           if let Some(prefix) = &prefix {
-            self.namespace_prefixes.insert(to_cow(prefix.clone()), to_cow(url.clone()));
+            self.namespace_prefixes.insert(prefix.into(), url.clone().into());
           } else {
-            self.default_namespace = Some(to_cow(url.clone()));
+            self.default_namespace = Some(url.clone().into());
           }
 
           CssRule::Namespace(NamespaceRule {
-            prefix: prefix.map(to_cow),
-            url: to_cow(url),
+            prefix: prefix.map(|x| x.into()),
+            url: url.into(),
             loc
           })
         },
         AtRulePrelude::CustomMedia(name, query) => {
           CssRule::CustomMedia(CustomMediaRule {
-            name: to_cow(name),
+            name: name.into(),
             query,
             loc
           })
@@ -226,8 +225,8 @@ impl<'a, 'i> QualifiedRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
 
 #[derive(Clone)]
 struct NestedRuleParser<'a, 'i> {
-  default_namespace: &'a Option<Cow<'i, str>>,
-  namespace_prefixes: &'a HashMap<Cow<'i, str>, Cow<'i, str>>,
+  default_namespace: &'a Option<CowArcStr<'i>>,
+  namespace_prefixes: &'a HashMap<CowArcStr<'i>, CowArcStr<'i>>,
   options: &'a ParserOptions
 }
 
@@ -312,12 +311,12 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'i> {
 
         let location = input.current_source_location();
         let name = match *input.next()? {
-          Token::Ident(ref s) => s.clone(),
-          Token::QuotedString(ref s) => s.clone(),
+          Token::Ident(ref s) => s.into(),
+          Token::QuotedString(ref s) => s.into(),
           ref t => return Err(location.new_unexpected_token_error(t.clone())),
         };
 
-        Ok(AtRulePrelude::Keyframes(CustomIdent(to_cow(name)), prefix))
+        Ok(AtRulePrelude::Keyframes(CustomIdent(name), prefix))
       },
       "page" => {
         let selectors = input.try_parse(|input| input.parse_comma_separated(PageSelector::parse)).unwrap_or_default();
@@ -475,8 +474,8 @@ impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser<'a, 'i> {
 
 fn parse_declarations_and_nested_rules<'a, 'i, 't>(
   input: &mut Parser<'i, 't>,
-  default_namespace: &'a Option<Cow<'i, str>>,
-  namespace_prefixes: &'a HashMap<Cow<'i, str>, Cow<'i, str>>,
+  default_namespace: &'a Option<CowArcStr<'i>>,
+  namespace_prefixes: &'a HashMap<CowArcStr<'i>, CowArcStr<'i>>,
   options: &'a ParserOptions
 ) -> Result<(DeclarationBlock<'i>, CssRuleList<'i>), ParseError<'i, ParserError<'i>>> {
   let mut important_declarations = DeclarationList::new();
@@ -516,8 +515,8 @@ fn parse_declarations_and_nested_rules<'a, 'i, 't>(
 }
 
 pub struct StyleRuleParser<'a, 'i> {
-  default_namespace: &'a Option<Cow<'i, str>>,
-  namespace_prefixes: &'a HashMap<Cow<'i, str>, Cow<'i, str>>,
+  default_namespace: &'a Option<CowArcStr<'i>>,
+  namespace_prefixes: &'a HashMap<CowArcStr<'i>, CowArcStr<'i>>,
   options: &'a ParserOptions,
   declarations: &'a mut DeclarationList<'i>,
   important_declarations: &'a mut DeclarationList<'i>,
@@ -624,8 +623,8 @@ impl<'a, 'i> AtRuleParser<'i> for StyleRuleParser<'a, 'i> {
 #[inline]
 fn parse_nested_at_rule<'a, 'i, 't>(
   input: &mut Parser<'i, 't>,
-  default_namespace: &'a Option<Cow<'i, str>>,
-  namespace_prefixes: &'a HashMap<Cow<'i, str>, Cow<'i, str>>,
+  default_namespace: &'a Option<CowArcStr<'i>>,
+  namespace_prefixes: &'a HashMap<CowArcStr<'i>, CowArcStr<'i>>,
   options: &'a ParserOptions
 ) -> Result<CssRuleList<'i>, ParseError<'i, ParserError<'i>>> {
   let loc = input.current_source_location();

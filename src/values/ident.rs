@@ -1,19 +1,18 @@
-use std::borrow::Cow;
+use crate::values::string::CowArcStr;
 use cssparser::*;
 use smallvec::SmallVec;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
-use crate::values::string::to_cow;
 
 /// https://www.w3.org/TR/css-values-4/#custom-idents
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct CustomIdent<'i>(pub Cow<'i, str>);
+pub struct CustomIdent<'i>(pub CowArcStr<'i>);
 
 impl<'i> Parse<'i> for CustomIdent<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
-    let ident = input.expect_ident_cloned()?;
+    let ident = input.expect_ident()?;
     let valid = match_ignore_ascii_case! { &ident,
       "initial" | "inherit" | "unset" | "default" | "revert" => false,
       _ => true
@@ -23,7 +22,7 @@ impl<'i> Parse<'i> for CustomIdent<'i> {
       return Err(location.new_unexpected_token_error(Token::Ident(ident.clone())))
     }
 
-    Ok(CustomIdent(to_cow(ident)))
+    Ok(CustomIdent(ident.into()))
   }
 }
 

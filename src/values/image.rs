@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use crate::values::string::CowArcStr;
 use cssparser::*;
 use crate::dependencies::{UrlDependency, Dependency};
 use crate::vendor_prefix::VendorPrefix;
@@ -8,7 +8,6 @@ use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use super::gradient::*;
 use super::resolution::Resolution;
-use super::string::to_cow;
 use crate::values::url::Url;
 use crate::error::{ParserError, PrinterError};
 
@@ -163,7 +162,7 @@ impl<'i> ToCss for ImageSet<'i> {
 pub struct ImageSetOption<'i> {
   pub image: Image<'i>,
   pub resolution: Resolution,
-  pub file_type: Option<Cow<'i, str>>
+  pub file_type: Option<CowArcStr<'i>>
 }
 
 impl<'i> Parse<'i> for ImageSetOption<'i> {
@@ -171,7 +170,7 @@ impl<'i> Parse<'i> for ImageSetOption<'i> {
     let loc = input.current_source_location();
     let image = if let Ok(url) = input.try_parse(|input| input.expect_url_or_string()) {
       Image::Url(Url {
-        url: to_cow(url),
+        url: url.into(),
         loc
       })
     } else {
@@ -187,7 +186,7 @@ impl<'i> Parse<'i> for ImageSetOption<'i> {
       (resolution, file_type)
     };
 
-    Ok(ImageSetOption { image, resolution, file_type: file_type.map(to_cow) })
+    Ok(ImageSetOption { image, resolution, file_type: file_type.map(|x| x.into()) })
   }
 }
 

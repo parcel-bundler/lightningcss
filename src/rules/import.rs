@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use crate::values::string::CowArcStr;
 use cssparser::*;
 use crate::traits::ToCss;
 use crate::printer::Printer;
@@ -9,7 +9,7 @@ use crate::error::PrinterError;
 /// https://drafts.csswg.org/css-cascade/#at-import
 #[derive(Debug, PartialEq, Clone)]
 pub struct ImportRule<'i> {
-  pub url: Cow<'i, str>,
+  pub url: CowArcStr<'i>,
   pub supports: Option<SupportsCondition<'i>>,
   pub media: MediaList<'i>,
   pub loc: SourceLocation

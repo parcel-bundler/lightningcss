@@ -1,21 +1,20 @@
-use std::borrow::Cow;
+use crate::values::string::CowArcStr;
 use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use crate::dependencies::{Dependency, UrlDependency};
 use crate::error::{ParserError, PrinterError};
-use crate::values::string::to_cow;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Url<'i> {
-  pub url: Cow<'i, str>,
+  pub url: CowArcStr<'i>,
   pub loc: SourceLocation
 }
 
 impl<'i> Parse<'i> for Url<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let loc = input.current_source_location();
-    let url = to_cow(input.expect_url()?);
+    let url = input.expect_url()?.into();
     Ok(Url { url, loc })
   }
 }

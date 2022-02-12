@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use crate::values::string::CowArcStr;
 use cssparser::*;
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
@@ -9,11 +9,10 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
 use crate::error::{ParserError, PrinterError};
-use crate::values::string::to_cow;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CustomProperty<'i> {
-  pub name: Cow<'i, str>,
+  pub name: CowArcStr<'i>,
   pub value: TokenList<'i>
 }
 
@@ -24,7 +23,7 @@ impl<'i> CustomProperty<'i> {
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let value = TokenList::parse(input)?;
     Ok(CustomProperty {
-      name: to_cow(name),
+      name: name.into(),
       value
     })
   }
@@ -126,13 +125,13 @@ impl<'i> TokenList<'i> {
         }
         Ok(&cssparser::Token::Function(ref f)) => {
           // Attempt to parse embedded color values into hex tokens.
-          let f = f.clone();
+          let f = f.into();
           if let Some(color) = try_parse_color_token(&f, &state, input) {
             tokens.push(TokenOrValue::Color(color));
             last_is_delim = false;
             last_is_whitespace = false;
           } else {
-            tokens.push(Token::Function(to_cow(f)).into()); 
+            tokens.push(Token::Function(f).into()); 
             input.parse_nested_block(|input| {
               TokenList::parse_into(input, tokens)
             })?;
@@ -145,7 +144,7 @@ impl<'i> TokenList<'i> {
           if let Ok(color) = Color::parse_hash(h.as_bytes()) {
             tokens.push(TokenOrValue::Color(CssColor(color)));
           } else {
-            tokens.push(Token::Hash(to_cow(h.clone())).into());
+            tokens.push(Token::Hash(h.into()).into());
           }
           last_is_delim = false;
           last_is_whitespace = false;
@@ -153,7 +152,7 @@ impl<'i> TokenList<'i> {
         Ok(token @ &cssparser::Token::ParenthesisBlock) | 
         Ok(token @ &cssparser::Token::SquareBracketBlock) | 
         Ok(token @ &cssparser::Token::CurlyBracketBlock) => {
-          tokens.push(Token::from(token.clone()).into()); 
+          tokens.push(Token::from(token).into()); 
           let closing_delimiter = match token {
             cssparser::Token::ParenthesisBlock => Token::CloseParenthesis,
             cssparser::Token::SquareBracketBlock => Token::CloseSquareBracket,
@@ -176,9 +175,9 @@ impl<'i> TokenList<'i> {
           // replace the whitespace with the delimeter since both are not required.
           if last_is_delim && last_is_whitespace {
             let last = tokens.last_mut().unwrap();
-            *last = Token::from(token.clone()).into();
+            *last = Token::from(token).into();
           } else {
-            tokens.push(Token::from(token.clone()).into());
+            tokens.push(Token::from(token).into());
           }
 
           last_is_whitespace = false;
@@ -194,7 +193,7 @@ impl<'i> TokenList<'i> {
 }
 
 #[inline]
-fn try_parse_color_token<'i, 't>(f: &CowRcStr<'i>, state: &ParserState, input: &mut Parser<'i, 't>) -> Option<CssColor> {
+fn try_parse_color_token<'i, 't>(f: &CowArcStr<'i>, state: &ParserState, input: &mut Parser<'i, 't>) -> Option<CssColor> {
   match_ignore_ascii_case! { &*f,
     "rgb" | "rgba" | "hsl" | "hsla" | "hwb" => {
       let s = input.state();
@@ -257,33 +256,33 @@ impl<'i> ToCss for TokenList<'i> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token<'a> {
   /// A [`<ident-token>`](https://drafts.csswg.org/css-syntax/#ident-token-diagram)
-  Ident(Cow<'a, str>),
+  Ident(CowArcStr<'a>),
 
   /// A [`<at-keyword-token>`](https://drafts.csswg.org/css-syntax/#at-keyword-token-diagram)
   ///
   /// The value does not include the `@` marker.
-  AtKeyword(Cow<'a, str>),
+  AtKeyword(CowArcStr<'a>),
 
   /// A [`<hash-token>`](https://drafts.csswg.org/css-syntax/#hash-token-diagram) with the type flag set to "unrestricted"
   ///
   /// The value does not include the `#` marker.
-  Hash(Cow<'a, str>),
+  Hash(CowArcStr<'a>),
 
   /// A [`<hash-token>`](https://drafts.csswg.org/css-syntax/#hash-token-diagram) with the type flag set to "id"
   ///
   /// The value does not include the `#` marker.
-  IDHash(Cow<'a, str>), // Hash that is a valid ID selector.
+  IDHash(CowArcStr<'a>), // Hash that is a valid ID selector.
 
   /// A [`<string-token>`](https://drafts.csswg.org/css-syntax/#string-token-diagram)
   ///
   /// The value does not include the quotes.
-  QuotedString(Cow<'a, str>),
+  QuotedString(CowArcStr<'a>),
 
   /// A [`<url-token>`](https://drafts.csswg.org/css-syntax/#url-token-diagram)
   ///
   /// The value does not include the `url(` `)` markers.  Note that `url( <string-token> )` is represented by a
   /// `Function` token.
-  UnquotedUrl(Cow<'a, str>),
+  UnquotedUrl(CowArcStr<'a>),
 
   /// A `<delim-token>`
   Delim(char),
@@ -329,7 +328,7 @@ pub enum Token<'a> {
     int_value: Option<i32>,
 
     /// The unit, e.g. "px" in `12px`
-    unit: Cow<'a, str>,
+    unit: CowArcStr<'a>,
   },
 
   /// A [`<whitespace-token>`](https://drafts.csswg.org/css-syntax/#whitespace-token-diagram)
@@ -376,7 +375,7 @@ pub enum Token<'a> {
   /// A [`<function-token>`](https://drafts.csswg.org/css-syntax/#function-token-diagram)
   ///
   /// The value (name) does not include the `(` marker.
-  Function(Cow<'a, str>),
+  Function(CowArcStr<'a>),
 
   /// A `<(-token>`
   ParenthesisBlock,
@@ -390,12 +389,12 @@ pub enum Token<'a> {
   /// A `<bad-url-token>`
   ///
   /// This token always indicates a parse error.
-  BadUrl(Cow<'a, str>),
+  BadUrl(CowArcStr<'a>),
 
   /// A `<bad-string-token>`
   ///
   /// This token always indicates a parse error.
-  BadString(Cow<'a, str>),
+  BadString(CowArcStr<'a>),
 
   /// A `<)-token>`
   ///
@@ -416,23 +415,23 @@ pub enum Token<'a> {
   CloseCurlyBracket,
 }
 
-impl<'a> From<cssparser::Token<'a>> for Token<'a> {
+impl<'a> From<&cssparser::Token<'a>> for Token<'a> {
   #[inline]
-  fn from(t: cssparser::Token<'a>) -> Token<'a> {
+  fn from(t: &cssparser::Token<'a>) -> Token<'a> {
     match t {
-      cssparser::Token::Ident(x) => Token::Ident(to_cow(x)),
-      cssparser::Token::AtKeyword(x) => Token::AtKeyword(to_cow(x)),
-      cssparser::Token::Hash(x) => Token::Hash(to_cow(x)),
-      cssparser::Token::IDHash(x) => Token::IDHash(to_cow(x)),
-      cssparser::Token::QuotedString(x) => Token::QuotedString(to_cow(x)),
-      cssparser::Token::UnquotedUrl(x) => Token::UnquotedUrl(to_cow(x)),
-      cssparser::Token::Function(x) => Token::Function(to_cow(x)),
-      cssparser::Token::BadUrl(x) => Token::BadUrl(to_cow(x)),
-      cssparser::Token::BadString(x) => Token::BadString(to_cow(x)),
-      cssparser::Token::Delim(c) => Token::Delim(c),
-      cssparser::Token::Number { has_sign, value, int_value } => Token::Number { has_sign, value, int_value },
-      cssparser::Token::Dimension { has_sign, value, int_value, unit } => Token::Dimension { has_sign, value, int_value, unit: to_cow(unit) },
-      cssparser::Token::Percentage { has_sign, unit_value, int_value } => Token::Percentage { has_sign, unit_value, int_value },
+      cssparser::Token::Ident(x) => Token::Ident(x.into()),
+      cssparser::Token::AtKeyword(x) => Token::AtKeyword(x.into()),
+      cssparser::Token::Hash(x) => Token::Hash(x.into()),
+      cssparser::Token::IDHash(x) => Token::IDHash(x.into()),
+      cssparser::Token::QuotedString(x) => Token::QuotedString(x.into()),
+      cssparser::Token::UnquotedUrl(x) => Token::UnquotedUrl(x.into()),
+      cssparser::Token::Function(x) => Token::Function(x.into()),
+      cssparser::Token::BadUrl(x) => Token::BadUrl(x.into()),
+      cssparser::Token::BadString(x) => Token::BadString(x.into()),
+      cssparser::Token::Delim(c) => Token::Delim(*c),
+      cssparser::Token::Number { has_sign, value, int_value } => Token::Number { has_sign: *has_sign, value: *value, int_value: *int_value },
+      cssparser::Token::Dimension { has_sign, value, int_value, unit } => Token::Dimension { has_sign: *has_sign, value: *value, int_value: *int_value, unit: unit.into() },
+      cssparser::Token::Percentage { has_sign, unit_value, int_value } => Token::Percentage { has_sign: *has_sign, unit_value: *unit_value, int_value: *int_value },
       cssparser::Token::WhiteSpace(w) => Token::WhiteSpace(w),
       cssparser::Token::Comment(c) => Token::Comment(c),
       cssparser::Token::Colon => Token::Colon,

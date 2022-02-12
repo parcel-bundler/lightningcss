@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use crate::values::string::CowArcStr;
 use cssparser::*;
 use crate::rules::custom_media::CustomMediaRule;
 use crate::traits::{ToCss, Parse};
@@ -7,8 +7,7 @@ use crate::macros::enum_property;
 use crate::values::{
   length::Length,
   resolution::Resolution,
-  ratio::Ratio,
-  string::to_cow
+  ratio::Ratio
 };
 use crate::compat::Feature;
 use crate::error::{ParserError, MinifyError, PrinterError};
@@ -51,7 +50,7 @@ impl<'i> MediaList<'i> {
     MediaList { media_queries }
   }
 
-  pub(crate) fn transform_custom_media(&mut self, loc: SourceLocation, custom_media: &HashMap<Cow<'i, str>, CustomMediaRule<'i>>) -> Result<(), MinifyError> {
+  pub(crate) fn transform_custom_media(&mut self, loc: SourceLocation, custom_media: &HashMap<CowArcStr<'i>, CustomMediaRule<'i>>) -> Result<(), MinifyError> {
     for query in self.media_queries.iter_mut() {
       query.transform_custom_media(loc, custom_media)?;
     }
@@ -124,7 +123,7 @@ pub enum MediaType<'i> {
   Print,
   Screen,
   /// A specific media type.
-  Custom(Cow<'i, str>),
+  Custom(CowArcStr<'i>),
 }
 
 impl<'i> Parse<'i> for MediaType<'i> {
@@ -134,7 +133,7 @@ impl<'i> Parse<'i> for MediaType<'i> {
       "all" => Ok(MediaType::All),
       "print" => Ok(MediaType::Print),
       "screen" => Ok(MediaType::Screen),
-      _ => Ok(MediaType::Custom(to_cow(name.clone())))
+      _ => Ok(MediaType::Custom(name.into()))
     }
   }
 }
@@ -182,7 +181,7 @@ impl<'i> MediaQuery<'i> {
     })
   }
 
-  fn transform_custom_media(&mut self, loc: SourceLocation, custom_media: &HashMap<Cow<'i, str>, CustomMediaRule<'i>>) -> Result<(), MinifyError> {
+  fn transform_custom_media(&mut self, loc: SourceLocation, custom_media: &HashMap<CowArcStr<'i>, CustomMediaRule<'i>>) -> Result<(), MinifyError> {
     if let Some(condition) = &mut self.condition {
       let used = process_condition(
         loc,
@@ -471,20 +470,20 @@ impl MediaFeatureComparison {
 pub enum MediaFeature<'i> {
   // e.g. (min-width: 240px)
   Plain {
-    name: Cow<'i, str>,
+    name: CowArcStr<'i>,
     value: MediaFeatureValue<'i>
   },
   // e.g. (hover)
-  Boolean(Cow<'i, str>),
+  Boolean(CowArcStr<'i>),
   // e.g. (width > 240px)
   Range {
-    name: Cow<'i, str>,
+    name: CowArcStr<'i>,
     operator: MediaFeatureComparison,
     value: MediaFeatureValue<'i>
   },
   /// e.g. (120px < width < 240px)
   Interval {
-    name: Cow<'i, str>,
+    name: CowArcStr<'i>,
     start: MediaFeatureValue<'i>,
     start_operator: MediaFeatureComparison,
     end: MediaFeatureValue<'i>,
@@ -504,7 +503,7 @@ impl<'i> Parse<'i> for MediaFeature<'i> {
 
 impl<'i> MediaFeature<'i> {
   fn parse_name_first<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let name = to_cow(input.expect_ident_cloned()?);
+    let name = input.expect_ident()?.into();
     
     let operator = input.try_parse(|input| consume_operation_or_colon(input, true));
     let operator = match operator {
@@ -531,7 +530,7 @@ impl<'i> MediaFeature<'i> {
   fn parse_value_first<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let value = MediaFeatureValue::parse(input)?;
     let operator = consume_operation_or_colon(input, false)?;
-    let name = to_cow(input.expect_ident_cloned()?);
+    let name = input.expect_ident()?.into();
     
     if let Ok(end_operator) = input.try_parse(|input| consume_operation_or_colon(input, false)) {
       let start_operator = operator.unwrap();
@@ -652,7 +651,7 @@ pub enum MediaFeatureValue<'i> {
   Number(f32),
   Resolution(Resolution),
   Ratio(Ratio),
-  Ident(Cow<'i, str>)
+  Ident(CowArcStr<'i>)
 }
 
 impl<'i> Parse<'i> for MediaFeatureValue<'i> {
@@ -677,8 +676,8 @@ impl<'i> Parse<'i> for MediaFeatureValue<'i> {
       return Ok(MediaFeatureValue::Resolution(res))
     }
     
-    let ident = input.expect_ident_cloned()?;
-    Ok(MediaFeatureValue::Ident(to_cow(ident)))
+    let ident = input.expect_ident()?;
+    Ok(MediaFeatureValue::Ident(ident.into()))
   }
 }
 
@@ -745,11 +744,11 @@ fn consume_operation_or_colon<'i, 't>(input: &mut Parser<'i, 't>, allow_colon: b
 
 fn process_condition<'i>(
   loc: SourceLocation,
-  custom_media: &HashMap<Cow<'i, str>, CustomMediaRule<'i>>,
+  custom_media: &HashMap<CowArcStr<'i>, CustomMediaRule<'i>>,
   media_type: &mut MediaType<'i>,
   qualifier: &mut Option<Qualifier>,
   condition: &mut MediaCondition<'i>,
-  seen: &mut HashSet<Cow<'i, str>>
+  seen: &mut HashSet<CowArcStr<'i>>
 ) -> Result<bool, MinifyError> {
   match condition {
     MediaCondition::Not(cond) => {

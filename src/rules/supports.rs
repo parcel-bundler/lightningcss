@@ -1,5 +1,5 @@
 use cssparser::*;
-use std::borrow::Cow;
+use crate::values::string::CowArcStr;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use super::{CssRuleList, MinifyContext};
@@ -40,11 +40,11 @@ pub enum SupportsCondition<'i> {
   Not(Box<SupportsCondition<'i>>),
   And(Vec<SupportsCondition<'i>>),
   Or(Vec<SupportsCondition<'i>>),
-  Declaration(Cow<'i, str>),
-  Selector(Cow<'i, str>),
+  Declaration(CowArcStr<'i>),
+  Selector(CowArcStr<'i>),
   // FontTechnology()
   Parens(Box<SupportsCondition<'i>>),
-  Unknown(Cow<'i, str>)
+  Unknown(CowArcStr<'i>)
 }
 
 impl<'i> SupportsCondition<'i> {

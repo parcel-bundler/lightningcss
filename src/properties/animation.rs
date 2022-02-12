@@ -1,6 +1,6 @@
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
-use crate::values::{time::Time, easing::EasingFunction, ident::CustomIdent, string::to_cow};
+use crate::values::{time::Time, easing::EasingFunction, ident::CustomIdent};
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
 use crate::properties::{Property, PropertyId, VendorPrefix};
@@ -27,11 +27,11 @@ impl<'i> Parse<'i> for AnimationName<'i> {
 
     let location = input.current_source_location();
     let name = match *input.next()? {
-      Token::Ident(ref s) => s.clone(),
-      Token::QuotedString(ref s) => s.clone(),
+      Token::Ident(ref s) => s.into(),
+      Token::QuotedString(ref s) => s.into(),
       ref t => return Err(location.new_unexpected_token_error(t.clone())),
     };
-    Ok(AnimationName::Ident(CustomIdent(to_cow(name))))
+    Ok(AnimationName::Ident(CustomIdent(name)))
   }
 }
 
