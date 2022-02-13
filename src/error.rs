@@ -4,7 +4,7 @@ use crate::rules::Location;
 use crate::properties::custom::Token;
 use crate::values::string::CowArcStr;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Error<T> {
   pub kind: T,
   pub filename: String,

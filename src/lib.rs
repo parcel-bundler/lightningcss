@@ -22,8 +22,9 @@ pub mod bundler;
 #[cfg(test)]
 mod tests {
   use crate::dependencies::Dependency;
+  use crate::error::{Error, MinifyErrorKind};
   use crate::rules::CssRule;
-  use crate::{stylesheet::*, error::MinifyError};
+  use crate::stylesheet::*;
   use crate::targets::Browsers;
   use crate::rules::Location;
   use indoc::indoc;
@@ -9918,7 +9919,7 @@ mod tests {
       "#}
     );
 
-    fn custom_media_error_test(source: &str, err: MinifyError) {
+    fn custom_media_error_test(source: &str, err: Error<MinifyErrorKind>) {
       let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions { custom_media: true, ..ParserOptions::default() }).unwrap();
       let res = stylesheet.minify(MinifyOptions {
         targets: Some(Browsers { chrome: Some(95 << 16), ..Browsers::default() }),
@@ -9937,17 +9938,20 @@ mod tests {
         }
       }
       "#,
-      MinifyError::UnsupportedCustomMediaBooleanLogic {
-        media_loc: Location {
+      Error {
+        kind: MinifyErrorKind::UnsupportedCustomMediaBooleanLogic {
+          custom_media_loc: Location {
+            source_index: 0,
+            line: 1,
+            column: 7
+          }
+        },
+        filename: "test.css".into(),
+        loc: Location {
           source_index: 0,
           line: 3,
           column: 7
         },
-        custom_media_loc: Location {
-          source_index: 0,
-          line: 1,
-          column: 7
-        }
       }
     );
 
@@ -9961,17 +9965,20 @@ mod tests {
         }
       }
       "#,
-      MinifyError::UnsupportedCustomMediaBooleanLogic {
-        media_loc: Location {
+      Error {
+        kind: MinifyErrorKind::UnsupportedCustomMediaBooleanLogic {
+          custom_media_loc: Location {
+            source_index: 0,
+            line: 1,
+            column: 7
+          }
+        },
+        filename: "test.css".into(),
+        loc: Location {
           source_index: 0,
           line: 3,
           column: 7
         },
-        custom_media_loc: Location {
-          source_index: 0,
-          line: 1,
-          column: 7
-        }
       }
     );
 
@@ -9982,17 +9989,20 @@ mod tests {
 
       @media (--color-print) or (--color-screen) {}
       "#,
-      MinifyError::UnsupportedCustomMediaBooleanLogic {
-        media_loc: Location {
+      Error {
+        kind: MinifyErrorKind::UnsupportedCustomMediaBooleanLogic {
+          custom_media_loc: Location {
+            source_index: 0,
+            line: 2,
+            column: 7
+          }
+        },
+        filename: "test.css".into(),
+        loc: Location {
           source_index: 0,
           line: 4,
           column: 7
         },
-        custom_media_loc: Location {
-          source_index: 0,
-          line: 2,
-          column: 7
-        }
       }
     );
 
@@ -10003,17 +10013,20 @@ mod tests {
 
       @media (--color-print) and (--color-screen) {}
       "#,
-      MinifyError::UnsupportedCustomMediaBooleanLogic {
-        media_loc: Location {
+      Error {
+        kind: MinifyErrorKind::UnsupportedCustomMediaBooleanLogic {
+          custom_media_loc: Location {
+            source_index: 0,
+            line: 2,
+            column: 7
+          }
+        },
+        filename: "test.css".into(),
+        loc: Location {
           source_index: 0,
           line: 4,
           column: 7
         },
-        custom_media_loc: Location {
-          source_index: 0,
-          line: 2,
-          column: 7
-        }
       }
     );
 
@@ -10024,17 +10037,20 @@ mod tests {
 
       @media (--print) and (--screen) {}
       "#,
-      MinifyError::UnsupportedCustomMediaBooleanLogic {
-        media_loc: Location {
+      Error {
+        kind: MinifyErrorKind::UnsupportedCustomMediaBooleanLogic {
+          custom_media_loc: Location {
+            source_index: 0,
+            line: 1,
+            column: 7
+          }
+        },
+        filename: "test.css".into(),
+        loc: Location {
           source_index: 0,
           line: 4,
           column: 7
         },
-        custom_media_loc: Location {
-          source_index: 0,
-          line: 1,
-          column: 7
-        }
       }
     );
 
@@ -10049,17 +10065,20 @@ mod tests {
         }
       }
       "#,
-      MinifyError::UnsupportedCustomMediaBooleanLogic {
-        media_loc: Location {
+      Error {
+        kind: MinifyErrorKind::UnsupportedCustomMediaBooleanLogic {
+          custom_media_loc: Location {
+            source_index: 0,
+            line: 2,
+            column: 7
+          }
+        },
+        filename: "test.css".into(),
+        loc: Location {
           source_index: 0,
           line: 4,
           column: 7
         },
-        custom_media_loc: Location {
-          source_index: 0,
-          line: 2,
-          column: 7
-        }
       }
     );
 
@@ -10073,17 +10092,20 @@ mod tests {
         }
       }
       "#,
-      MinifyError::UnsupportedCustomMediaBooleanLogic {
-        media_loc: Location {
+      Error {
+        kind: MinifyErrorKind::UnsupportedCustomMediaBooleanLogic {
+          custom_media_loc: Location {
+            source_index: 0,
+            line: 1,
+            column: 7
+          }
+        },
+        filename: "test.css".into(),
+        loc: Location {
           source_index: 0,
           line: 3,
           column: 7
         },
-        custom_media_loc: Location {
-          source_index: 0,
-          line: 1,
-          column: 7
-        }
       }
     );
 
@@ -10095,13 +10117,16 @@ mod tests {
         }
       }
       "#,
-      MinifyError::CustomMediaNotDefined {
-        name: "--not-defined".into(),
+      Error {
+        kind: MinifyErrorKind::CustomMediaNotDefined {
+          name: "--not-defined".into(),
+        },
+        filename: "test.css".into(),
         loc: Location {
           source_index: 0,
           line: 1,
           column: 7
-        }
+        },
       }
     );
 
@@ -10116,13 +10141,16 @@ mod tests {
         }
       }
       "#,
-      MinifyError::CircularCustomMedia {
-        name: "--circular-mq-a".into(),
+      Error {
+        kind: MinifyErrorKind::CircularCustomMedia {
+          name: "--circular-mq-a".into(),
+        },
+        filename: "test.css".into(),
         loc: Location {
           source_index: 0,
           line: 4,
           column: 7
-        }
+        },
       }
     );
   }
