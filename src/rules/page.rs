@@ -1,5 +1,6 @@
 use crate::values::string::CowArcStr;
 use cssparser::*;
+use super::Location;
 use crate::traits::{Parse, ToCss};
 use crate::declaration::DeclarationBlock;
 use crate::printer::Printer;
@@ -57,7 +58,7 @@ impl<'i> Parse<'i> for PageSelector<'i> {
 pub struct PageRule<'i> {
   pub selectors: Vec<PageSelector<'i>>,
   pub declarations: DeclarationBlock<'i>,
-  pub loc: SourceLocation
+  pub loc: Location
 }
 
 impl<'i> ToCss for PageRule<'i> {

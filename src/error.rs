@@ -1,12 +1,13 @@
 use parcel_selectors::parser::SelectorParseErrorKind;
-use cssparser::{SourceLocation, ParseError, ParseErrorKind, BasicParseErrorKind};
+use cssparser::{ParseError, ParseErrorKind, BasicParseErrorKind};
+use crate::rules::Location;
 use crate::properties::custom::Token;
 use crate::values::string::CowArcStr;
 
 #[derive(Debug)]
 pub struct Error<T> {
   pub kind: T,
-  pub loc: SourceLocation
+  pub loc: Location
 }
 
 #[derive(Debug)]
@@ -29,8 +30,8 @@ pub enum ParserError<'i> {
   InvalidNesting
 }
 
-impl<'i> From<ParseError<'i, ParserError<'i>>> for Error<ParserError<'i>> {
-  fn from(err: ParseError<'i, ParserError<'i>>) -> Error<ParserError<'i>> {
+impl<'i> Error<ParserError<'i>> {
+  pub fn from(err: ParseError<'i, ParserError<'i>>, source_index: u32) -> Error<ParserError<'i>> {
     let kind = match err.kind {
       ParseErrorKind::Basic(b) => {
         match &b {
@@ -46,8 +47,18 @@ impl<'i> From<ParseError<'i, ParserError<'i>>> for Error<ParserError<'i>> {
 
     Error {
       kind,
-      loc: err.location
+      loc: Location {
+        source_index,
+        line: err.location.line,
+        column: err.location.column
+      }
     }
+  }
+}
+
+impl<'i> From<ParseError<'i, ParserError<'i>>> for Error<ParserError<'i>> {
+  fn from(err: ParseError<'i, ParserError<'i>>) -> Error<ParserError<'i>> {
+    Self::from(err, 0)
   }
 }
 
@@ -157,16 +168,16 @@ impl<'i> SelectorError<'i> {
 #[derive(Debug, PartialEq)]
 pub enum MinifyError {
   UnsupportedCustomMediaBooleanLogic {
-    media_loc: SourceLocation,
-    custom_media_loc: SourceLocation
+    media_loc: Location,
+    custom_media_loc: Location
   },
   CustomMediaNotDefined {
     name: String,
-    loc: SourceLocation
+    loc: Location
   },
   CircularCustomMedia {
     name: String,
-    loc: SourceLocation
+    loc: Location
   }
 }
 
@@ -179,7 +190,7 @@ impl MinifyError {
     }
   }
 
-  pub fn loc(&self) -> SourceLocation {
+  pub fn loc(&self) -> Location {
     match self {
       MinifyError::UnsupportedCustomMediaBooleanLogic { media_loc, .. } => *media_loc,
       MinifyError::CustomMediaNotDefined { loc, .. } => *loc,
@@ -192,8 +203,8 @@ impl MinifyError {
 #[derive(Debug)]
 pub enum PrinterError {
   FmtError,
-  InvalidComposesSelector(SourceLocation),
-  InvalidComposesNesting(SourceLocation)
+  InvalidComposesSelector(Location),
+  InvalidComposesNesting(Location)
 }
 
 impl From<std::fmt::Error> for PrinterError {

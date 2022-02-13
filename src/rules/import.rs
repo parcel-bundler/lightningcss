@@ -1,5 +1,6 @@
 use crate::values::string::CowArcStr;
 use cssparser::*;
+use super::Location;
 use crate::traits::ToCss;
 use crate::printer::Printer;
 use crate::media_query::MediaList;
@@ -12,7 +13,7 @@ pub struct ImportRule<'i> {
   pub url: CowArcStr<'i>,
   pub supports: Option<SupportsCondition<'i>>,
   pub media: MediaList<'i>,
-  pub loc: SourceLocation
+  pub loc: Location
 }
 
 impl<'i> ToCss for ImportRule<'i> {

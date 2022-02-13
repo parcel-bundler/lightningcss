@@ -1,5 +1,6 @@
-use cssparser::{SourceLocation, ParseError};
-use std::{fs, path::{Path, PathBuf}};
+use parcel_sourcemap::SourceMap;
+use crate::rules::Location;
+use std::{fs, path::{Path, PathBuf}, sync::Mutex};
 use rayon::prelude::*;
 use dashmap::DashMap;
 use crate::{
@@ -13,7 +14,9 @@ use crate::{
   error::{Error, ParserError}
 };
 
-pub struct Bundler<'a, P> {
+pub struct Bundler<'a, 's, P> {
+  source_map: Option<Mutex<&'s mut SourceMap>>,
+  sources: Mutex<Vec<String>>,
   fs: &'a P,
   loaded: DashMap<PathBuf, ImportRule<'a>>,
   stylesheets: DashMap<PathBuf, BundleStyleSheet<'a>>,
@@ -70,9 +73,11 @@ struct BundleStyleSheet<'a> {
   dependencies: Vec<PathBuf>
 }
 
-impl<'a, P: SourceProvider> Bundler<'a, P> {
-  pub fn new(fs: &'a P, options: ParserOptions) -> Self {
+impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
+  pub fn new(fs: &'a P, source_map: Option<&'s mut SourceMap>, options: ParserOptions) -> Self {
     Bundler {
+      sources: Mutex::new(Vec::new()),
+      source_map: source_map.map(Mutex::new),
       fs,
       loaded: DashMap::new(),
       stylesheets: DashMap::new(),
@@ -86,7 +91,8 @@ impl<'a, P: SourceProvider> Bundler<'a, P> {
       url: entry.to_str().unwrap().into(),
       supports: None,
       media: MediaList::new(),
-      loc: SourceLocation {
+      loc: Location {
+        source_index: 0,
         line: 1,
         column: 0
       }
@@ -96,7 +102,7 @@ impl<'a, P: SourceProvider> Bundler<'a, P> {
     let mut rules: Vec<CssRule<'a>> = Vec::new();
     self.inline(entry, &mut rules);
     Ok(StyleSheet::new(
-      "bundle.css".into(), 
+      std::mem::take(self.sources.get_mut().unwrap()),
       CssRuleList(rules), 
       self.options.clone()
     ))
@@ -144,14 +150,31 @@ impl<'a, P: SourceProvider> Bundler<'a, P> {
         entry.insert(rule.clone());
       }
     }
+    
+    let code = self.fs.read(file).map_err(|e| Error {
+      kind: BundleErrorKind::IOError(e),
+      loc: rule.loc
+    })?;
+
+    let filename = file.to_str().unwrap();
+    let mut opts = self.options.clone();
+
+    {
+      let mut sources = self.sources.lock().unwrap();
+      opts.source_index = sources.len() as u32;
+      sources.push(filename.into());
+    }
+
+    if let Some(source_map) = &self.source_map {
+      let mut source_map = source_map.lock().unwrap();
+      let source_index = source_map.add_source(filename);
+      let _ = source_map.set_source_content(source_index as usize, code);
+    }
 
     let mut stylesheet = StyleSheet::parse(
-      file.to_str().unwrap().into(),
-      self.fs.read(file).map_err(|e| Error {
-        kind: BundleErrorKind::IOError(e),
-        loc: rule.loc
-      })?,
-      self.options.clone(),
+      filename.into(),
+      code,
+      opts,
     )?;
 
     // Collect and load dependencies for this stylesheet in parallel.
@@ -282,7 +305,7 @@ mod tests {
   );
 
   fn bundle(fs: TestProvider, entry: &str) -> String {
-    let mut bundler = Bundler::new(&fs, ParserOptions::default());
+    let mut bundler = Bundler::new(&fs, None, ParserOptions::default());
     let stylesheet = bundler.bundle(Path::new(entry)).unwrap();
     stylesheet.to_css(PrinterOptions::default()).unwrap().code
   }

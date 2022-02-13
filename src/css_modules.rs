@@ -3,6 +3,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use data_encoding::{Specification, Encoding};
 use lazy_static::lazy_static;
+use crate::rules::Location;
 use crate::properties::css_modules::{Composes, ComposesFrom};
 use parcel_selectors::SelectorList;
 use crate::selector::Selectors;
@@ -73,7 +74,7 @@ impl<'a> CssModule<'a> {
     }
   }
 
-  pub fn handle_composes(&mut self, selectors: &SelectorList<Selectors>, composes: &Composes) -> Result<(), PrinterError> {
+  pub fn handle_composes(&mut self, selectors: &SelectorList<Selectors>, composes: &Composes, source_index: u32) -> Result<(), PrinterError> {
     for sel in &selectors.0 {
       if sel.len() == 1 {
         match sel.iter_raw_match_order().next().unwrap() {
@@ -100,7 +101,11 @@ impl<'a> CssModule<'a> {
       }
 
       // The composes property can only be used within a simple class selector.
-      return Err(PrinterError::InvalidComposesSelector(composes.loc))
+      return Err(PrinterError::InvalidComposesSelector(Location {
+        source_index,
+        line: composes.loc.line,
+        column: composes.loc.column
+      }))
     }
 
     Ok(())

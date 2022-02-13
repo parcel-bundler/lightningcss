@@ -1,4 +1,4 @@
-use cssparser::SourceLocation;
+use super::Location;
 use crate::printer::Printer;
 use super::style::StyleRule;
 use crate::rules::{ToCssWithContext, StyleContext};
@@ -8,7 +8,7 @@ use super::MinifyContext;
 #[derive(Debug, PartialEq, Clone)]
 pub struct NestingRule<'i> {
   pub style: StyleRule<'i>,
-  pub loc: SourceLocation
+  pub loc: Location
 }
 
 impl<'i> NestingRule<'i> {

@@ -3,6 +3,7 @@ use parcel_css::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, Style
 use parcel_css::bundler::{FileProvider, Bundler};
 use serde::Serialize;
 use std::{ffi, fs, io, path, path::Path};
+use parcel_sourcemap::SourceMap;
 
 #[derive(Parser, Debug)]
 #[clap(author, about, long_about = None)]
@@ -47,11 +48,8 @@ pub fn main() -> Result<(), std::io::Error> {
   let source = fs::read_to_string(&cli_args.input_file)?;
 
   let absolute_path = fs::canonicalize(&cli_args.input_file)?;
-  let filename = pathdiff::diff_paths(absolute_path, std::env::current_dir()?)
-    .unwrap()
-    .to_str()
-    .unwrap()
-    .into();
+  let filename = pathdiff::diff_paths(absolute_path, std::env::current_dir()?).unwrap();
+  let filename = filename.to_str().unwrap();
   let options = ParserOptions {
     nesting: cli_args.nesting,
     css_modules: cli_args.css_modules.is_some(),
@@ -60,12 +58,22 @@ pub fn main() -> Result<(), std::io::Error> {
   };
 
   let fs = FileProvider::new();
+  let mut source_map = if cli_args.sourcemap {
+    Some(SourceMap::new("/"))
+  } else {
+    None
+  };
+
   let mut stylesheet = if cli_args.bundle {
-    let mut bundler = Bundler::new(&fs, options);
+    let mut bundler = Bundler::new(&fs, source_map.as_mut(), options);
     bundler.bundle(Path::new(&cli_args.input_file)).unwrap()
   } else {
+    if let Some(sm) = &mut source_map {
+      sm.add_source(&filename);
+      sm.set_source_content(0, &source);  
+    }
     StyleSheet::parse(
-      filename,
+      filename.into(),
       &source,
       options,
     )
@@ -79,15 +87,12 @@ pub fn main() -> Result<(), std::io::Error> {
   let mut res = stylesheet
     .to_css(PrinterOptions {
       minify: cli_args.minify,
-      source_map: cli_args.sourcemap,
+      source_map: source_map.as_mut(),
       ..PrinterOptions::default()
     })
     .unwrap();
 
-  let map = if let Some(ref mut source_map) = res.source_map {
-    source_map
-      .set_source_content(0, &res.code)
-      .map_err(|_| io::Error::new(io::ErrorKind::Other, "Error setting sourcemap"))?;
+  let map = if let Some(ref mut source_map) = source_map {
     let mut vlq_output: Vec<u8> = Vec::new();
     source_map
       .write_vlq(&mut vlq_output)

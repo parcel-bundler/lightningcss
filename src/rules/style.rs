@@ -1,4 +1,4 @@
-use cssparser::SourceLocation;
+use super::Location;
 use parcel_selectors::SelectorList;
 use crate::selector::{Selectors, is_compatible, is_unused};
 use crate::traits::ToCss;
@@ -17,7 +17,7 @@ pub struct StyleRule<'i> {
   pub vendor_prefix: VendorPrefix,
   pub declarations: DeclarationBlock<'i>,
   pub rules: CssRuleList<'i>,
-  pub loc: SourceLocation
+  pub loc: Location
 }
 
 impl<'i> StyleRule<'i> {
@@ -110,11 +110,15 @@ impl<'a, 'i> StyleRule<'i> {
             // We need to add the classes it references to the list for the selectors in this rule.
             if let crate::properties::Property::Composes(composes) = &decl {
               if dest.is_nested() && dest.css_module.is_some() {
-                return Err(PrinterError::InvalidComposesNesting(composes.loc))
+                return Err(PrinterError::InvalidComposesNesting(Location {
+                  source_index: dest.source_index,
+                  line: composes.loc.line,
+                  column: composes.loc.column
+                }))
               }
     
               if let Some(css_module) = &mut dest.css_module {
-                css_module.handle_composes(&self.selectors, &composes)?;
+                css_module.handle_composes(&self.selectors, &composes, dest.source_index)?;
                 continue;
               }
             }

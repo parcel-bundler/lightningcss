@@ -1,4 +1,5 @@
 use cssparser::*;
+use super::Location;
 use crate::values::percentage::Percentage;
 use crate::traits::{Parse, ToCss};
 use crate::declaration::DeclarationBlock;
@@ -14,7 +15,7 @@ pub struct KeyframesRule<'i> {
   pub name: CustomIdent<'i>,
   pub keyframes: Vec<Keyframe<'i>>,
   pub vendor_prefix: VendorPrefix,
-  pub loc: SourceLocation
+  pub loc: Location
 }
 
 impl<'i> KeyframesRule<'i> {

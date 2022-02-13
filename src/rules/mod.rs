@@ -47,6 +47,17 @@ pub(crate) struct StyleContext<'a, 'i> {
   pub parent: Option<&'a StyleContext<'a, 'i>>
 }
 
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub struct Location {
+  /// The index of the source file within the source map.
+  pub source_index: u32,
+  /// The line number, starting at 0.
+  pub line: u32,
+  /// The column number within a line, starting at 1 for first the character of the line.
+  /// Column numbers are counted in UTF-16 code units.
+  pub column: u32
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum CssRule<'i> {
   Media(MediaRule<'i>),
@@ -240,8 +251,14 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for CssRuleList<'i> {
 
       // Skip @import rules if collecting dependencies.
       if let CssRule::Import(rule) = &rule {
+        let dep = if dest.dependencies.is_some() {
+          Some(Dependency::Import(ImportDependency::new(&rule, dest.filename())))
+        } else {
+          None
+        };
+
         if let Some(dependencies) = &mut dest.dependencies {
-          dependencies.push(Dependency::Import(ImportDependency::new(&rule, &dest.filename)));
+          dependencies.push(dep.unwrap());
           continue;
         }
       }

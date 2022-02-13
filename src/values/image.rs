@@ -197,7 +197,7 @@ impl<'i> ImageSetOption<'i> {
       Image::Url(url) if !is_prefixed => {
         // Add dependency if needed. Normally this is handled by the Url type.
         let dep = if dest.dependencies.is_some() {
-          Some(UrlDependency::new(url, dest.filename))
+          Some(UrlDependency::new(url, dest.filename()))
         } else {
           None
         };

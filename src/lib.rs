@@ -25,7 +25,7 @@ mod tests {
   use crate::rules::CssRule;
   use crate::{stylesheet::*, error::MinifyError};
   use crate::targets::Browsers;
-  use cssparser::SourceLocation;
+  use crate::rules::Location;
   use indoc::indoc;
   use std::{collections::HashMap};
   use crate::css_modules::{CssModuleExports, CssModuleExport, CssModuleReference};
@@ -9938,11 +9938,13 @@ mod tests {
       }
       "#,
       MinifyError::UnsupportedCustomMediaBooleanLogic {
-        media_loc: SourceLocation {
+        media_loc: Location {
+          source_index: 0,
           line: 3,
           column: 7
         },
-        custom_media_loc: SourceLocation {
+        custom_media_loc: Location {
+          source_index: 0,
           line: 1,
           column: 7
         }
@@ -9960,11 +9962,13 @@ mod tests {
       }
       "#,
       MinifyError::UnsupportedCustomMediaBooleanLogic {
-        media_loc: SourceLocation {
+        media_loc: Location {
+          source_index: 0,
           line: 3,
           column: 7
         },
-        custom_media_loc: SourceLocation {
+        custom_media_loc: Location {
+          source_index: 0,
           line: 1,
           column: 7
         }
@@ -9979,11 +9983,13 @@ mod tests {
       @media (--color-print) or (--color-screen) {}
       "#,
       MinifyError::UnsupportedCustomMediaBooleanLogic {
-        media_loc: SourceLocation {
+        media_loc: Location {
+          source_index: 0,
           line: 4,
           column: 7
         },
-        custom_media_loc: SourceLocation {
+        custom_media_loc: Location {
+          source_index: 0,
           line: 2,
           column: 7
         }
@@ -9998,11 +10004,13 @@ mod tests {
       @media (--color-print) and (--color-screen) {}
       "#,
       MinifyError::UnsupportedCustomMediaBooleanLogic {
-        media_loc: SourceLocation {
+        media_loc: Location {
+          source_index: 0,
           line: 4,
           column: 7
         },
-        custom_media_loc: SourceLocation {
+        custom_media_loc: Location {
+          source_index: 0,
           line: 2,
           column: 7
         }
@@ -10017,11 +10025,13 @@ mod tests {
       @media (--print) and (--screen) {}
       "#,
       MinifyError::UnsupportedCustomMediaBooleanLogic {
-        media_loc: SourceLocation {
+        media_loc: Location {
+          source_index: 0,
           line: 4,
           column: 7
         },
-        custom_media_loc: SourceLocation {
+        custom_media_loc: Location {
+          source_index: 0,
           line: 1,
           column: 7
         }
@@ -10040,11 +10050,13 @@ mod tests {
       }
       "#,
       MinifyError::UnsupportedCustomMediaBooleanLogic {
-        media_loc: SourceLocation {
+        media_loc: Location {
+          source_index: 0,
           line: 4,
           column: 7
         },
-        custom_media_loc: SourceLocation {
+        custom_media_loc: Location {
+          source_index: 0,
           line: 2,
           column: 7
         }
@@ -10062,11 +10074,13 @@ mod tests {
       }
       "#,
       MinifyError::UnsupportedCustomMediaBooleanLogic {
-        media_loc: SourceLocation {
+        media_loc: Location {
+          source_index: 0,
           line: 3,
           column: 7
         },
-        custom_media_loc: SourceLocation {
+        custom_media_loc: Location {
+          source_index: 0,
           line: 1,
           column: 7
         }
@@ -10083,7 +10097,8 @@ mod tests {
       "#,
       MinifyError::CustomMediaNotDefined {
         name: "--not-defined".into(),
-        loc: SourceLocation {
+        loc: Location {
+          source_index: 0,
           line: 1,
           column: 7
         }
@@ -10103,7 +10118,8 @@ mod tests {
       "#,
       MinifyError::CircularCustomMedia {
         name: "--circular-mq-a".into(),
-        loc: SourceLocation {
+        loc: Location {
+          source_index: 0,
           line: 4,
           column: 7
         }

@@ -1,4 +1,5 @@
 use cssparser::*;
+use super::Location;
 use crate::values::string::CowArcStr;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
@@ -10,7 +11,7 @@ use crate::error::{ParserError, MinifyError, PrinterError};
 pub struct SupportsRule<'i> {
   pub condition: SupportsCondition<'i>,
   pub rules: CssRuleList<'i>,
-  pub loc: SourceLocation
+  pub loc: Location
 }
 
 impl<'i> SupportsRule<'i> {

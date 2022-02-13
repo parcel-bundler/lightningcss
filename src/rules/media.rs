@@ -1,4 +1,4 @@
-use cssparser::SourceLocation;
+use super::Location;
 use crate::media_query::MediaList;
 use crate::traits::ToCss;
 use crate::printer::Printer;
@@ -10,7 +10,7 @@ use crate::error::{MinifyError, PrinterError};
 pub struct MediaRule<'i> {
   pub query: MediaList<'i>,
   pub rules: CssRuleList<'i>,
-  pub loc: SourceLocation
+  pub loc: Location
 }
 
 impl<'i> MediaRule<'i> {

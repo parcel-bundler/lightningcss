@@ -1,4 +1,4 @@
-use cssparser::SourceLocation;
+use super::Location;
 use crate::traits::ToCss;
 use crate::printer::Printer;
 use super::{CssRuleList, MinifyContext};
@@ -7,7 +7,7 @@ use crate::error::{MinifyError, PrinterError};
 #[derive(Debug, PartialEq, Clone)]
 pub struct MozDocumentRule<'i> {
   pub rules: CssRuleList<'i>,
-  pub loc: SourceLocation
+  pub loc: Location
 }
 
 impl<'i> MozDocumentRule<'i> {

@@ -1,4 +1,4 @@
-use cssparser::{Parser, ParserInput, RuleListParser, ParseError};
+use cssparser::{Parser, ParserInput, RuleListParser};
 use parcel_sourcemap::SourceMap;
 use crate::rules::{CssRule, CssRuleList, MinifyContext};
 use crate::parser::TopLevelRuleParser;
@@ -18,15 +18,15 @@ pub use crate::printer::PseudoClasses;
 
 #[derive(Debug)]
 pub struct StyleSheet<'i> {
-  pub filename: String,
   pub rules: CssRuleList<'i>,
+  pub sources: Vec<String>,
   options: ParserOptions
 }
 
 #[derive(Default)]
 pub struct PrinterOptions<'a> {
   pub minify: bool,
-  pub source_map: bool,
+  pub source_map: Option<&'a mut SourceMap>,
   pub targets: Option<Browsers>,
   pub analyze_dependencies: bool,
   pub pseudo_classes: Option<PseudoClasses<'a>>
@@ -40,15 +40,14 @@ pub struct MinifyOptions {
 
 pub struct ToCssResult {
   pub code: String,
-  pub source_map: Option<SourceMap>,
   pub exports: Option<CssModuleExports>,
   pub dependencies: Option<Vec<Dependency>>
 }
 
 impl<'i> StyleSheet<'i> {
-  pub fn new(filename: String, rules: CssRuleList, options: ParserOptions) -> StyleSheet {
+  pub fn new(sources: Vec<String>, rules: CssRuleList, options: ParserOptions) -> StyleSheet {
     StyleSheet {
-      filename,
+      sources,
       rules,
       options
     }
@@ -57,21 +56,21 @@ impl<'i> StyleSheet<'i> {
   pub fn parse(filename: String, code: &'i str, options: ParserOptions) -> Result<StyleSheet<'i>, Error<ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
-    let rule_list_parser = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(&options));
+    let rule_list_parser = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(options.source_index, &options));
 
     let mut rules = vec![];
     for rule in rule_list_parser {
       let rule = match rule {
         Ok((_, CssRule::Ignored)) => continue,
         Ok((_, rule)) => rule,
-        Err((e, _)) => return Err(Error::from(e))
+        Err((e, _)) => return Err(Error::from(e, options.source_index))
       };
 
       rules.push(rule)
     }
 
     Ok(StyleSheet {
-      filename,
+      sources: vec![filename],
       rules: CssRuleList(rules),
       options
     })
@@ -110,15 +109,7 @@ impl<'i> StyleSheet<'i> {
 
   pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, PrinterError> {
     let mut dest = String::new();
-    let mut source_map = if options.source_map {
-      let mut sm = SourceMap::new("/");
-      sm.add_source(&self.filename);
-      Some(sm)
-    } else {
-      None
-    };
-
-    let mut printer = Printer::new(&self.filename, &mut dest, source_map.as_mut(), options.minify, options.targets);
+    let mut printer = Printer::new(&mut dest, options.source_map, options.minify, options.targets);
 
     let mut dependencies = if options.analyze_dependencies {
       Some(Vec::new())
@@ -128,9 +119,10 @@ impl<'i> StyleSheet<'i> {
 
     printer.dependencies = dependencies.as_mut();
     printer.pseudo_classes = options.pseudo_classes;
+    printer.sources = Some(&self.sources);
 
     if self.options.css_modules {
-      let h = hash(&self.filename);
+      let h = hash(printer.filename());
       let mut exports = HashMap::new();
       printer.css_module = Some(CssModule {
         hash: &h,
@@ -142,7 +134,6 @@ impl<'i> StyleSheet<'i> {
 
       Ok(ToCssResult {
         code: dest,
-        source_map,
         exports: Some(exports),
         dependencies
       })
@@ -151,7 +142,6 @@ impl<'i> StyleSheet<'i> {
       printer.newline()?;
       Ok(ToCssResult {
         code: dest,
-        source_map,
         exports: None,
         dependencies
       })
@@ -181,10 +171,10 @@ impl<'i> StyleAttribute<'i> {
   }
 
   pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, PrinterError> {
-    assert_eq!(options.source_map, false, "Source maps are not supported for style attributes");
+    assert!(options.source_map.is_none(), "Source maps are not supported for style attributes");
 
     let mut dest = String::new();
-    let mut printer = Printer::new("", &mut dest, None, options.minify, options.targets);
+    let mut printer = Printer::new(&mut dest, None, options.minify, options.targets);
 
     let mut dependencies = if options.analyze_dependencies {
       Some(Vec::new())
@@ -215,7 +205,6 @@ impl<'i> StyleAttribute<'i> {
 
     Ok(ToCssResult {
       code: dest,
-      source_map: None,
       exports: None,
       dependencies
     })

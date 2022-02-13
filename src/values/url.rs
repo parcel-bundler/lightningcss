@@ -22,7 +22,7 @@ impl<'i> Parse<'i> for Url<'i> {
 impl<'i> ToCss for Url<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let dep = if dest.dependencies.is_some() {
-      Some(UrlDependency::new(self, dest.filename))
+      Some(UrlDependency::new(self, dest.filename()))
     } else {
       None
     };

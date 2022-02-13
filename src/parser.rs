@@ -6,6 +6,7 @@ use crate::rules::viewport::ViewportRule;
 use crate::traits::Parse;
 use crate::selector::{Selectors, SelectorParser};
 use crate::rules::{
+  Location,
   CssRule,
   CssRuleList,
   keyframes::{KeyframeListParser, KeyframesRule},
@@ -31,19 +32,22 @@ use crate::error::ParserError;
 pub struct ParserOptions {
   pub nesting: bool,
   pub custom_media: bool,
-  pub css_modules: bool
+  pub css_modules: bool,
+  pub source_index: u32
 }
 
 /// The parser for the top-level rules in a stylesheet.
 pub struct TopLevelRuleParser<'a, 'i> {
+  source_index: u32,
   default_namespace: Option<CowArcStr<'i>>,
   namespace_prefixes: HashMap<CowArcStr<'i>, CowArcStr<'i>>,
   options: &'a ParserOptions
 }
 
 impl<'a, 'b, 'i> TopLevelRuleParser<'a, 'i> {
-  pub fn new(options: &'a ParserOptions) -> TopLevelRuleParser<'a, 'i> {
+  pub fn new(source_index: u32, options: &'a ParserOptions) -> TopLevelRuleParser<'a, 'i> {
     TopLevelRuleParser {
+      source_index,
       default_namespace: None,
       namespace_prefixes: HashMap::new(),
       options
@@ -52,6 +56,7 @@ impl<'a, 'b, 'i> TopLevelRuleParser<'a, 'i> {
 
   fn nested<'x: 'b>(&'x mut self) -> NestedRuleParser<'_, 'i> {
       NestedRuleParser {
+        source_index: self.source_index,
         default_namespace: &mut self.default_namespace,
         namespace_prefixes: &mut self.namespace_prefixes,
         options: &self.options
@@ -161,6 +166,12 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
       start: &ParserState,
   ) -> Result<Self::AtRule, ()> {
       let loc = start.source_location();
+      let loc = Location {
+        source_index: self.source_index,
+        line: loc.line,
+        column: loc.column
+      };
+
       let rule = match prelude {
         AtRulePrelude::Import(url, media, supports) => {
           CssRule::Import(ImportRule {
@@ -225,6 +236,7 @@ impl<'a, 'i> QualifiedRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
 
 #[derive(Clone)]
 struct NestedRuleParser<'a, 'i> {
+  source_index: u32,
   default_namespace: &'a Option<CowArcStr<'i>>,
   namespace_prefixes: &'a HashMap<CowArcStr<'i>, CowArcStr<'i>>,
   options: &'a ParserOptions
@@ -233,6 +245,7 @@ struct NestedRuleParser<'a, 'i> {
 impl<'a, 'b, 'i> NestedRuleParser<'a, 'i> {
   fn parse_nested_rules<'t>(&mut self, input: &mut Parser<'i, 't>) -> CssRuleList<'i> {
     let nested_parser = NestedRuleParser {
+      source_index: self.source_index,
       default_namespace: self.default_namespace,
       namespace_prefixes: self.namespace_prefixes,
       options: self.options
@@ -251,6 +264,15 @@ impl<'a, 'b, 'i> NestedRuleParser<'a, 'i> {
     }
 
     CssRuleList(rules)
+  }
+
+  fn loc(&self, start: &ParserState) -> Location {
+    let loc = start.source_location();
+    Location {
+      source_index: self.source_index,
+      line: loc.line,
+      column: loc.column
+    }
   }
 }
 
@@ -340,7 +362,7 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'i> {
     start: &ParserState,
     input: &mut Parser<'i, 't>,
   ) -> Result<CssRule<'i>, ParseError<'i, Self::Error>> {
-    let loc = start.source_location();
+    let loc = self.loc(start);
     match prelude {
       AtRulePrelude::FontFace => {
         let mut parser = DeclarationListParser::new(input, FontFaceDeclarationParser);
@@ -456,9 +478,9 @@ impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser<'a, 'i> {
     start: &ParserState,
     input: &mut Parser<'i, 't>,
   ) -> Result<CssRule<'i>, ParseError<'i, Self::Error>> {
-    let loc = start.source_location();
+    let loc = self.loc(start);
     let (declarations, rules) = if self.options.nesting {
-      parse_declarations_and_nested_rules(input, self.default_namespace, self.namespace_prefixes, self.options)?
+      parse_declarations_and_nested_rules(input, self.source_index, self.default_namespace, self.namespace_prefixes, self.options)?
     } else {
       (DeclarationBlock::parse(input, self.options)?, CssRuleList(vec![]))
     };
@@ -474,6 +496,7 @@ impl<'a, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser<'a, 'i> {
 
 fn parse_declarations_and_nested_rules<'a, 'i, 't>(
   input: &mut Parser<'i, 't>,
+  source_index: u32,
   default_namespace: &'a Option<CowArcStr<'i>>,
   namespace_prefixes: &'a HashMap<CowArcStr<'i>, CowArcStr<'i>>,
   options: &'a ParserOptions
@@ -482,6 +505,7 @@ fn parse_declarations_and_nested_rules<'a, 'i, 't>(
   let mut declarations = DeclarationList::new();
   let mut rules = CssRuleList(vec![]);
   let parser = StyleRuleParser {
+    source_index,
     default_namespace,
     namespace_prefixes,
     options,
@@ -515,6 +539,7 @@ fn parse_declarations_and_nested_rules<'a, 'i, 't>(
 }
 
 pub struct StyleRuleParser<'a, 'i> {
+  source_index: u32,
   default_namespace: &'a Option<CowArcStr<'i>>,
   namespace_prefixes: &'a HashMap<CowArcStr<'i>, CowArcStr<'i>>,
   options: &'a ParserOptions,
@@ -581,11 +606,16 @@ impl<'a, 'i> AtRuleParser<'i> for StyleRuleParser<'a, 'i> {
     input: &mut Parser<'i, 't>,
   ) -> Result<(), ParseError<'i, Self::Error>> {
     let loc = start.source_location();
+    let loc = Location {
+      source_index: self.source_index,
+      line: loc.line,
+      column: loc.column
+    };
     match prelude {
       AtRulePrelude::Media(query) => {
         self.rules.0.push(CssRule::Media(MediaRule {
           query,
-          rules: parse_nested_at_rule(input, self.default_namespace, self.namespace_prefixes, self.options)?,
+          rules: parse_nested_at_rule(input, self.source_index, self.default_namespace, self.namespace_prefixes, self.options)?,
           loc
         }));
         Ok(())
@@ -593,13 +623,13 @@ impl<'a, 'i> AtRuleParser<'i> for StyleRuleParser<'a, 'i> {
       AtRulePrelude::Supports(condition) => {
         self.rules.0.push(CssRule::Supports(SupportsRule {
           condition,
-          rules: parse_nested_at_rule(input, self.default_namespace, self.namespace_prefixes, self.options)?,
+          rules: parse_nested_at_rule(input, self.source_index, self.default_namespace, self.namespace_prefixes, self.options)?,
           loc
         }));
         Ok(())
       },
       AtRulePrelude::Nest(selectors) => {
-        let (declarations, rules) = parse_declarations_and_nested_rules(input, self.default_namespace, self.namespace_prefixes, self.options)?;
+        let (declarations, rules) = parse_declarations_and_nested_rules(input, self.source_index, self.default_namespace, self.namespace_prefixes, self.options)?;
         self.rules.0.push(CssRule::Nesting(NestingRule {
           style: StyleRule {
             selectors,
@@ -623,15 +653,17 @@ impl<'a, 'i> AtRuleParser<'i> for StyleRuleParser<'a, 'i> {
 #[inline]
 fn parse_nested_at_rule<'a, 'i, 't>(
   input: &mut Parser<'i, 't>,
+  source_index: u32,
   default_namespace: &'a Option<CowArcStr<'i>>,
   namespace_prefixes: &'a HashMap<CowArcStr<'i>, CowArcStr<'i>>,
   options: &'a ParserOptions
 ) -> Result<CssRuleList<'i>, ParseError<'i, ParserError<'i>>> {
   let loc = input.current_source_location();
+  let loc = Location { source_index, line: loc.line, column: loc.column };
 
   // Declarations can be immediately within @media and @supports blocks that are nested within a parent style rule.
   // These act the same way as if they were nested within a `& { ... }` block.
-  let (declarations, mut rules) = parse_declarations_and_nested_rules(input, default_namespace, namespace_prefixes, options)?;
+  let (declarations, mut rules) = parse_declarations_and_nested_rules(input, source_index, default_namespace, namespace_prefixes, options)?;
 
   if declarations.declarations.len() > 0 {
     rules.0.insert(0, CssRule::Style(StyleRule {
@@ -671,13 +703,17 @@ impl<'a, 'b, 'i> QualifiedRuleParser<'i> for StyleRuleParser<'a, 'i> {
     input: &mut Parser<'i, 't>,
   ) -> Result<(), ParseError<'i, Self::Error>> {
     let loc = start.source_location();
-    let (declarations, rules) = parse_declarations_and_nested_rules(input, self.default_namespace, self.namespace_prefixes, self.options)?;
+    let (declarations, rules) = parse_declarations_and_nested_rules(input, self.source_index, self.default_namespace, self.namespace_prefixes, self.options)?;
     self.rules.0.push(CssRule::Style(StyleRule {
       selectors,
       vendor_prefix: VendorPrefix::empty(),
       declarations,
       rules,
-      loc
+      loc: Location {
+        source_index: self.source_index,
+        line: loc.line,
+        column: loc.column
+      }
     }));
     Ok(())
   }

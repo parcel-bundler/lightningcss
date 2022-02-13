@@ -1,5 +1,6 @@
 use crate::values::string::CowArcStr;
 use cssparser::*;
+use super::Location;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use crate::properties::font::{FontFamily, FontStyle, FontWeight, FontStretch};
@@ -12,7 +13,7 @@ use crate::error::{ParserError, PrinterError};
 #[derive(Debug, PartialEq, Clone)]
 pub struct FontFaceRule<'i> {
   pub properties: Vec<FontFaceProperty<'i>>,
-  pub loc: SourceLocation
+  pub loc: Location
 }
 
 #[derive(Debug, Clone, PartialEq)]

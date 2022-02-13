@@ -1,5 +1,6 @@
 use crate::values::string::CowArcStr;
 use cssparser::*;
+use crate::rules::Location;
 use crate::rules::custom_media::CustomMediaRule;
 use crate::traits::{ToCss, Parse};
 use crate::printer::Printer;
@@ -27,6 +28,7 @@ impl<'i> MediaList<'i> {
       media_queries: vec![]
     }
   }
+
   /// Parse a media query list from CSS.
   ///
   /// Always returns a media query list. Invalid media queries are
@@ -50,7 +52,7 @@ impl<'i> MediaList<'i> {
     MediaList { media_queries }
   }
 
-  pub(crate) fn transform_custom_media(&mut self, loc: SourceLocation, custom_media: &HashMap<CowArcStr<'i>, CustomMediaRule<'i>>) -> Result<(), MinifyError> {
+  pub(crate) fn transform_custom_media(&mut self, loc: Location, custom_media: &HashMap<CowArcStr<'i>, CustomMediaRule<'i>>) -> Result<(), MinifyError> {
     for query in self.media_queries.iter_mut() {
       query.transform_custom_media(loc, custom_media)?;
     }
@@ -183,7 +185,7 @@ impl<'i> MediaQuery<'i> {
     })
   }
 
-  fn transform_custom_media(&mut self, loc: SourceLocation, custom_media: &HashMap<CowArcStr<'i>, CustomMediaRule<'i>>) -> Result<(), MinifyError> {
+  fn transform_custom_media(&mut self, loc: Location, custom_media: &HashMap<CowArcStr<'i>, CustomMediaRule<'i>>) -> Result<(), MinifyError> {
     if let Some(condition) = &mut self.condition {
       let used = process_condition(
         loc,
@@ -746,7 +748,7 @@ fn consume_operation_or_colon<'i, 't>(input: &mut Parser<'i, 't>, allow_colon: b
 }
 
 fn process_condition<'i>(
-  loc: SourceLocation,
+  loc: Location,
   custom_media: &HashMap<CowArcStr<'i>, CustomMediaRule<'i>>,
   media_type: &mut MediaType<'i>,
   qualifier: &mut Option<Qualifier>,
@@ -884,7 +886,7 @@ mod tests {
   fn and(a: &str, b: &str) -> String {
     let mut a = parse(a);
     let b = parse(b);
-    a.and(&b);
+    a.and(&b).unwrap();
     a.to_css_string()
   }
 
