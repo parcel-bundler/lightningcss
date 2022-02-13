@@ -252,7 +252,7 @@ impl<'i> ToCss for TokenList<'i> {
   }
 }
 
-// Copied from cssparser to change CowRcStr to Cow<str>
+// Copied from cssparser to change CowRcStr to CowArcStr
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token<'a> {
   /// A [`<ident-token>`](https://drafts.csswg.org/css-syntax/#ident-token-diagram)
@@ -289,16 +289,16 @@ pub enum Token<'a> {
 
   /// A [`<number-token>`](https://drafts.csswg.org/css-syntax/#number-token-diagram)
   Number {
-      /// Whether the number had a `+` or `-` sign.
-      ///
-      /// This is used is some cases like the <An+B> micro syntax. (See the `parse_nth` function.)
-      has_sign: bool,
+    /// Whether the number had a `+` or `-` sign.
+    ///
+    /// This is used is some cases like the <An+B> micro syntax. (See the `parse_nth` function.)
+    has_sign: bool,
 
-      /// The value as a float
-      value: f32,
+    /// The value as a float
+    value: f32,
 
-      /// If the origin source did not include a fractional part, the value as an integer.
-      int_value: Option<i32>,
+    /// If the origin source did not include a fractional part, the value as an integer.
+    int_value: Option<i32>,
   },
 
   /// A [`<percentage-token>`](https://drafts.csswg.org/css-syntax/#percentage-token-diagram)
