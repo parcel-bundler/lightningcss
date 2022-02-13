@@ -45,14 +45,14 @@ jobs:
           RUST_TARGET: ${{ matrix.target }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         if: ${{ matrix.strip }}
-        run: ${{ matrix.strip }} *.node target/${{ matrix.target }}/parcel_css
+        run: ${{ matrix.strip }} *.node target/${{ matrix.target }}/release/parcel_css
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: bindings-${{ matrix.target }}
           path: |
             *.node
-            target/${{ matrix.target }}/parcel_css
+            target/${{ matrix.target }}/release/parcel_css
 
   build-apple-silicon:
     name: build-apple-silicon
@@ -90,14 +90,14 @@ jobs:
         env:
           JEMALLOC_SYS_WITH_LG_PAGE: 14
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
-        run: strip -x *.node target/aarch64-apple-darwin/parcel_css
+        run: strip -x *.node target/aarch64-apple-darwin/release/parcel_css
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: bindings-aarch64-apple-darwin
           path: |
             *.node
-            target/aarch64-apple-darwin/parcel_css
+            target/aarch64-apple-darwin/release/parcel_css
 
   build-linux:
     strategy:
@@ -158,14 +158,14 @@ jobs:
           RUST_TARGET: ${{ matrix.target }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         if: ${{ matrix.strip }}
-        run: ${{ matrix.strip }} *.node target/${{ matrix.target }}/parcel_css
+        run: ${{ matrix.strip }} *.node target/${{ matrix.target }}/release/parcel_css
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: bindings-${{ matrix.target }}
           path: |
             *.node
-            target/${{ matrix.target }}/parcel_css
+            target/${{ matrix.target }}/release/parcel_css
 
   build-wasm:
     runs-on: ubuntu-latest
