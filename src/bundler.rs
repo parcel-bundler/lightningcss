@@ -296,7 +296,7 @@ fn combine_supports<'a>(a: Option<SupportsCondition<'a>>, b: &Option<SupportsCon
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::stylesheet::PrinterOptions;
+  use crate::{stylesheet::{PrinterOptions, MinifyOptions}, targets::Browsers};
   use indoc::indoc;
 
   struct TestProvider {
@@ -328,6 +328,20 @@ mod tests {
     let mut bundler = Bundler::new(&fs, None, ParserOptions::default());
     let stylesheet = bundler.bundle(Path::new(entry)).unwrap();
     stylesheet.to_css(PrinterOptions::default()).unwrap().code
+  }
+
+  fn bundle_css_module(fs: TestProvider, entry: &str) -> String {
+    let mut bundler = Bundler::new(&fs, None, ParserOptions { css_modules: true, ..ParserOptions::default() });
+    let stylesheet = bundler.bundle(Path::new(entry)).unwrap();
+    stylesheet.to_css(PrinterOptions::default()).unwrap().code
+  }
+
+  fn bundle_custom_media(fs: TestProvider, entry: &str) -> String {
+    let mut bundler = Bundler::new(&fs, None, ParserOptions { custom_media: true, ..ParserOptions::default() });
+    let mut stylesheet = bundler.bundle(Path::new(entry)).unwrap();
+    let targets = Some(Browsers { safari: Some(13 << 16 ), ..Browsers::default() });
+    stylesheet.minify(MinifyOptions { targets, ..MinifyOptions::default() }).unwrap();
+    stylesheet.to_css(PrinterOptions { targets, ..PrinterOptions::default() }).unwrap().code
   }
 
   #[test]
@@ -507,6 +521,49 @@ mod tests {
     assert_eq!(res, indoc! { r#"
       .c {
         color: green;
+      }
+
+      .a {
+        color: red;
+      }
+    "#});
+
+    let res = bundle_css_module(fs! {
+      "/a.css": r#"
+        @import "b.css";
+        .a { color: red }
+      "#,
+      "/b.css": r#"
+        .a { color: green }
+      "#
+    }, "/a.css");
+    assert_eq!(res, indoc! { r#"
+      .a_6lixEq_1 {
+        color: green;
+      }
+
+      .a_6lixEq {
+        color: red;
+      }
+    "#});
+
+    let res = bundle_custom_media(fs! {
+      "/a.css": r#"
+        @custom-media --foo print;
+        @import "b.css";
+        .a { color: red }
+      "#,
+      "/b.css": r#"
+        @media (--foo) {
+          .a { color: green }
+        }
+      "#
+    }, "/a.css");
+    assert_eq!(res, indoc! { r#"
+      @media print {
+        .a {
+          color: green;
+        }
       }
 
       .a {
