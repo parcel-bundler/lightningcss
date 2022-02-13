@@ -528,6 +528,44 @@ mod tests {
       }
     "#});
 
+    let res = bundle(fs! {
+      "/a.css": r#"
+        @import "b/c.css";
+        .a { color: red }
+      "#,
+      "/b/c.css": r#"
+        .b { color: green }
+      "#
+    }, "/a.css");
+    assert_eq!(res, indoc! { r#"
+      .b {
+        color: green;
+      }
+      
+      .a {
+        color: red;
+      }
+    "#});
+
+    let res = bundle(fs! {
+      "/a.css": r#"
+        @import "./b/c.css";
+        .a { color: red }
+      "#,
+      "/b/c.css": r#"
+        .b { color: green }
+      "#
+    }, "/a.css");
+    assert_eq!(res, indoc! { r#"
+      .b {
+        color: green;
+      }
+      
+      .a {
+        color: red;
+      }
+    "#});
+
     let res = bundle_css_module(fs! {
       "/a.css": r#"
         @import "b.css";
