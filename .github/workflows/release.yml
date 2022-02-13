@@ -39,14 +39,20 @@ jobs:
         run: yarn build-release
         env:
           RUST_TARGET: ${{ matrix.target }}
+      - name: Build CLI
+        run: cargo build --release --features cli
+        env:
+          RUST_TARGET: ${{ matrix.target }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         if: ${{ matrix.strip }}
-        run: ${{ matrix.strip }} *.node
+        run: ${{ matrix.strip }} *.node target/build/parcel_css
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: bindings-${{ matrix.target }}
-          path: '*.node'
+          path: |
+            *.node
+            target/build/parcel_css
 
   build-apple-silicon:
     name: build-apple-silicon
@@ -73,13 +79,20 @@ jobs:
         env:
           RUST_TARGET: aarch64-apple-darwin
           JEMALLOC_SYS_WITH_LG_PAGE: 14
+      - name: Build CLI
+        run: cargo build --release --features cli
+        env:
+          RUST_TARGET: aarch64-apple-darwin
+          JEMALLOC_SYS_WITH_LG_PAGE: 14
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
-        run: strip -x *.node
+        run: strip -x *.node target/build/parcel_css
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: bindings-aarch64-apple-darwin
-          path: '*.node'
+          path: |
+            *.node
+            target/build/parcel_css
 
   build-linux:
     strategy:
@@ -134,14 +147,20 @@ jobs:
         run: yarn build-release
         env:
           RUST_TARGET: ${{ matrix.target }}
+      - name: Build CLI
+        run: cargo build --release --features cli
+        env:
+          RUST_TARGET: ${{ matrix.target }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         if: ${{ matrix.strip }}
-        run: ${{ matrix.strip }} *.node
+        run: ${{ matrix.strip }} *.node target/build/parcel_css
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: bindings-${{ matrix.target }}
-          path: '*.node'
+          path: |
+            *.node
+            target/build/parcel_css
 
   build-wasm:
     runs-on: ubuntu-latest
@@ -183,32 +202,41 @@ jobs:
       - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > ~/.npmrc
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Publish to npm
+      - name: Debug
         run: |
-          for pkg in npm/*; do
-            echo "Publishing $pkg..."
-            cd $pkg;
-            npm publish;
-            cd ../..;
-          done
-          echo "Publishing @parcel/css...";
-          npm publish
+          ls -l npm
+          ls -l npm/cli-darwin-arm64
+          ls -l npm/node-darwin-arm64
+      # - name: Publish to npm
+      #   run: |
+      #     for pkg in npm/*; do
+      #       echo "Publishing $pkg..."
+      #       cd $pkg;
+      #       npm publish;
+      #       cd ../..;
+      #     done
+      #     cd cli
+      #     echo "Publishing @parcel/css-cli...";
+      #     npm publish
+      #     cd ..
+      #     echo "Publishing @parcel/css...";
+      #     npm publish
 
-  release-crates:
-    runs-on: ubuntu-latest
-    name: Release Rust crate
-    steps:
-      - uses: actions/checkout@v1
-      - uses: bahmutov/npm-install@v1.1.0
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
-      - run: cargo login ${CRATES_IO_TOKEN}
-        env:
-          CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
-      - run: |
-          cargo install cargo-workspaces
-          cargo workspaces publish --from-git -y
+  # release-crates:
+  #   runs-on: ubuntu-latest
+  #   name: Release Rust crate
+  #   steps:
+  #     - uses: actions/checkout@v1
+  #     - uses: bahmutov/npm-install@v1.1.0
+  #     - name: Install Rust
+  #       uses: actions-rs/toolchain@v1
+  #       with:
+  #         toolchain: stable
+  #         profile: minimal
+  #         override: true
+  #     - run: cargo login ${CRATES_IO_TOKEN}
+  #       env:
+  #         CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+  #     - run: |
+  #         cargo install cargo-workspaces
+  #         cargo workspaces publish --from-git -y
