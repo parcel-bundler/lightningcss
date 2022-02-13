@@ -170,7 +170,7 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
       kind: BundleErrorKind::IOError(e),
       loc: Some(ErrorLocation::from(
         rule.loc,
-        filename.to_string()
+        self.sources.lock().unwrap()[rule.loc.source_index as usize].clone()
       ))
     })?;
 
