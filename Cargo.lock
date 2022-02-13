@@ -700,6 +700,7 @@ dependencies = [
  "data-encoding",
  "indoc",
  "itertools",
+ "jemallocator",
  "lazy_static",
  "parcel_selectors",
  "parcel_sourcemap",

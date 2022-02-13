@@ -6,6 +6,10 @@ use serde::Serialize;
 use std::{ffi, fs, io, path, path::Path};
 use parcel_sourcemap::SourceMap;
 
+#[cfg(target_os = "macos")]
+#[global_allocator]
+static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
 #[derive(Parser, Debug)]
 #[clap(author, about, long_about = None)]
 struct CliArgs {
