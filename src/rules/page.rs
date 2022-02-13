@@ -1,4 +1,6 @@
+use crate::values::string::CowArcStr;
 use cssparser::*;
+use super::Location;
 use crate::traits::{Parse, ToCss};
 use crate::declaration::DeclarationBlock;
 use crate::printer::Printer;
@@ -8,7 +10,7 @@ use crate::error::{ParserError, PrinterError};
 /// https://www.w3.org/TR/css-page-3/#typedef-page-selector
 #[derive(Debug, PartialEq, Clone)]
 pub struct PageSelector<'i> {
-  pub name: Option<CowRcStr<'i>>,
+  pub name: Option<CowArcStr<'i>>,
   pub pseudo_classes: Vec<PagePseudoClass>
 }
 
@@ -24,7 +26,7 @@ enum_property! {
 
 impl<'i> Parse<'i> for PageSelector<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let name = input.try_parse(|input| input.expect_ident_cloned()).ok();
+    let name = input.try_parse(|input| input.expect_ident().map(|x| x.into())).ok();
     let mut pseudo_classes = vec![];
     
     loop {
@@ -56,7 +58,7 @@ impl<'i> Parse<'i> for PageSelector<'i> {
 pub struct PageRule<'i> {
   pub selectors: Vec<PageSelector<'i>>,
   pub declarations: DeclarationBlock<'i>,
-  pub loc: SourceLocation
+  pub loc: Location
 }
 
 impl<'i> ToCss for PageRule<'i> {

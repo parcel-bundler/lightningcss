@@ -1,4 +1,6 @@
+use crate::values::string::CowArcStr;
 use cssparser::*;
+use crate::rules::Location;
 use crate::rules::custom_media::CustomMediaRule;
 use crate::traits::{ToCss, Parse};
 use crate::printer::Printer;
@@ -9,7 +11,7 @@ use crate::values::{
   ratio::Ratio
 };
 use crate::compat::Feature;
-use crate::error::{ParserError, MinifyError, PrinterError};
+use crate::error::{ParserError, ErrorWithLocation, MinifyError, PrinterError, MinifyErrorKind};
 use std::collections::{HashMap, HashSet};
 use retain_mut::RetainMut;
 
@@ -21,6 +23,12 @@ pub struct MediaList<'i> {
 }
 
 impl<'i> MediaList<'i> {
+  pub fn new() -> Self {
+    MediaList {
+      media_queries: vec![]
+    }
+  }
+
   /// Parse a media query list from CSS.
   ///
   /// Always returns a media query list. Invalid media queries are
@@ -44,7 +52,7 @@ impl<'i> MediaList<'i> {
     MediaList { media_queries }
   }
 
-  pub(crate) fn transform_custom_media(&mut self, loc: SourceLocation, custom_media: &HashMap<CowRcStr<'i>, CustomMediaRule<'i>>) -> Result<(), MinifyError> {
+  pub(crate) fn transform_custom_media(&mut self, loc: Location, custom_media: &HashMap<CowArcStr<'i>, CustomMediaRule<'i>>) -> Result<(), MinifyError> {
     for query in self.media_queries.iter_mut() {
       query.transform_custom_media(loc, custom_media)?;
     }
@@ -54,6 +62,33 @@ impl<'i> MediaList<'i> {
   pub fn never_matches(&self) -> bool {
     self.media_queries.is_empty() 
       || self.media_queries.iter().all(|mq| mq.never_matches())
+  }
+
+  pub fn and(&mut self, b: &MediaList<'i>) -> Result<(), ()> {
+    if self.media_queries.is_empty() {
+      self.media_queries.extend(b.media_queries.iter().cloned());
+      return Ok(())
+    }
+  
+    for b in &b.media_queries {
+      if self.media_queries.contains(&b) {
+        continue;
+      }
+  
+      for a in &mut self.media_queries {
+        a.and(&b)?;
+      }
+    }
+
+    Ok(())
+  }
+
+  pub fn or(&mut self, b: &MediaList<'i>) {
+    for mq in &b.media_queries {
+      if !self.media_queries.contains(&mq) {
+        self.media_queries.push(mq.clone())
+      }
+    }
   }
 }
     
@@ -92,7 +127,7 @@ pub enum MediaType<'i> {
   Print,
   Screen,
   /// A specific media type.
-  Custom(CowRcStr<'i>),
+  Custom(CowArcStr<'i>),
 }
 
 impl<'i> Parse<'i> for MediaType<'i> {
@@ -102,7 +137,7 @@ impl<'i> Parse<'i> for MediaType<'i> {
       "all" => Ok(MediaType::All),
       "print" => Ok(MediaType::Print),
       "screen" => Ok(MediaType::Screen),
-      _ => Ok(MediaType::Custom(name.clone()))
+      _ => Ok(MediaType::Custom(name.into()))
     }
   }
 }
@@ -150,7 +185,7 @@ impl<'i> MediaQuery<'i> {
     })
   }
 
-  fn transform_custom_media(&mut self, loc: SourceLocation, custom_media: &HashMap<CowRcStr<'i>, CustomMediaRule<'i>>) -> Result<(), MinifyError> {
+  fn transform_custom_media(&mut self, loc: Location, custom_media: &HashMap<CowArcStr<'i>, CustomMediaRule<'i>>) -> Result<(), MinifyError> {
     if let Some(condition) = &mut self.condition {
       let used = process_condition(
         loc,
@@ -169,6 +204,64 @@ impl<'i> MediaQuery<'i> {
 
   pub fn never_matches(&self) -> bool {
     self.qualifier == Some(Qualifier::Not) && self.media_type == MediaType::All
+  }
+
+  pub fn and<'a>(&mut self, b: &MediaQuery<'i>) -> Result<(), ()> {
+    let at = (&self.qualifier, &self.media_type);
+    let bt = (&b.qualifier, &b.media_type);
+    let (qualifier, media_type) = match (at, bt) {
+      // `not all and screen` => not all
+      // `screen and not all` => not all
+      ((&Some(Qualifier::Not), &MediaType::All), _) |
+      (_, (&Some(Qualifier::Not), &MediaType::All)) => (Some(Qualifier::Not), MediaType::All),
+      // `not screen and not print` => ERROR
+      // `not screen and not screen` => not screen
+      ((&Some(Qualifier::Not), a), (&Some(Qualifier::Not), b)) => {
+        if a == b {
+          (Some(Qualifier::Not), a.clone())
+        } else {
+          return Err(())
+        }
+      },
+      // `all and print` => print
+      // `print and all` => print
+      // `all and not print` => not print
+      ((_, MediaType::All), (q, t)) |
+      ((q, t), (_, MediaType::All)) |
+      // `not screen and print` => print
+      // `print and not screen` => print
+      ((&Some(Qualifier::Not), _), (q, t)) |
+      ((q, t), (&Some(Qualifier::Not), _)) => (q.clone(), t.clone()),
+      // `print and screen` => not all
+      ((_, a), (_, b)) if a != b => (Some(Qualifier::Not), MediaType::All),
+      ((_, a), _) => (None, a.clone())
+    };
+
+    self.qualifier = qualifier;
+    self.media_type = media_type;
+
+    if let Some(cond) = &b.condition {
+      self.condition = if let Some(condition) = &self.condition {
+        if condition != cond {
+          macro_rules! parenthesize {
+            ($condition: ident) => {
+              if matches!($condition, MediaCondition::Operation(_, Operator::Or)) {
+                MediaCondition::InParens(Box::new($condition.clone()))
+              } else {
+                $condition.clone()
+              }
+            }
+          }
+          Some(MediaCondition::Operation(vec![parenthesize!(condition), parenthesize!(cond)], Operator::And))
+        } else {
+          Some(condition.clone())
+        }
+      } else {
+        Some(cond.clone())
+      }
+    }
+
+    Ok(())
   }
 }
 
@@ -382,20 +475,20 @@ impl MediaFeatureComparison {
 pub enum MediaFeature<'i> {
   // e.g. (min-width: 240px)
   Plain {
-    name: CowRcStr<'i>,
+    name: CowArcStr<'i>,
     value: MediaFeatureValue<'i>
   },
   // e.g. (hover)
-  Boolean(CowRcStr<'i>),
+  Boolean(CowArcStr<'i>),
   // e.g. (width > 240px)
   Range {
-    name: CowRcStr<'i>,
+    name: CowArcStr<'i>,
     operator: MediaFeatureComparison,
     value: MediaFeatureValue<'i>
   },
   /// e.g. (120px < width < 240px)
   Interval {
-    name: CowRcStr<'i>,
+    name: CowArcStr<'i>,
     start: MediaFeatureValue<'i>,
     start_operator: MediaFeatureComparison,
     end: MediaFeatureValue<'i>,
@@ -415,7 +508,7 @@ impl<'i> Parse<'i> for MediaFeature<'i> {
 
 impl<'i> MediaFeature<'i> {
   fn parse_name_first<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let name = input.expect_ident_cloned()?;
+    let name = input.expect_ident()?.into();
     
     let operator = input.try_parse(|input| consume_operation_or_colon(input, true));
     let operator = match operator {
@@ -442,7 +535,7 @@ impl<'i> MediaFeature<'i> {
   fn parse_value_first<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let value = MediaFeatureValue::parse(input)?;
     let operator = consume_operation_or_colon(input, false)?;
-    let name = input.expect_ident_cloned()?;
+    let name = input.expect_ident()?.into();
     
     if let Ok(end_operator) = input.try_parse(|input| consume_operation_or_colon(input, false)) {
       let start_operator = operator.unwrap();
@@ -563,7 +656,7 @@ pub enum MediaFeatureValue<'i> {
   Number(f32),
   Resolution(Resolution),
   Ratio(Ratio),
-  Ident(CowRcStr<'i>)
+  Ident(CowArcStr<'i>)
 }
 
 impl<'i> Parse<'i> for MediaFeatureValue<'i> {
@@ -588,8 +681,8 @@ impl<'i> Parse<'i> for MediaFeatureValue<'i> {
       return Ok(MediaFeatureValue::Resolution(res))
     }
     
-    let ident = input.expect_ident_cloned()?;
-    Ok(MediaFeatureValue::Ident(ident))
+    let ident = input.expect_ident()?;
+    Ok(MediaFeatureValue::Ident(ident.into()))
   }
 }
 
@@ -655,12 +748,12 @@ fn consume_operation_or_colon<'i, 't>(input: &mut Parser<'i, 't>, allow_colon: b
 }
 
 fn process_condition<'i>(
-  loc: SourceLocation,
-  custom_media: &HashMap<CowRcStr<'i>, CustomMediaRule<'i>>,
+  loc: Location,
+  custom_media: &HashMap<CowArcStr<'i>, CustomMediaRule<'i>>,
   media_type: &mut MediaType<'i>,
   qualifier: &mut Option<Qualifier>,
   condition: &mut MediaCondition<'i>,
-  seen: &mut HashSet<CowRcStr<'i>>
+  seen: &mut HashSet<CowArcStr<'i>>
 ) -> Result<bool, MinifyError> {
   match condition {
     MediaCondition::Not(cond) => {
@@ -707,15 +800,15 @@ fn process_condition<'i>(
       }
 
       if seen.contains(name) {
-        return Err(MinifyError::CircularCustomMedia {
-          name: name.to_string(),
+        return Err(ErrorWithLocation {
+          kind: MinifyErrorKind::CircularCustomMedia { name: name.to_string()},
           loc
         });
       }
       
       let rule = custom_media.get(name)
-        .ok_or_else(|| MinifyError::CustomMediaNotDefined {
-          name: name.to_string(),
+        .ok_or_else(|| ErrorWithLocation {
+          kind: MinifyErrorKind::CustomMediaNotDefined { name: name.to_string()},
           loc
         })?;
 
@@ -736,9 +829,9 @@ fn process_condition<'i>(
             *qualifier = query.qualifier.clone();
           } else if query.media_type != *media_type || query.qualifier != *qualifier {
             // Boolean logic with media types is hard to emulate, so we error for now.
-            res = Err(MinifyError::UnsupportedCustomMediaBooleanLogic {
-              media_loc: loc,
-              custom_media_loc: rule.loc
+            res = Err(ErrorWithLocation {
+              kind: MinifyErrorKind::UnsupportedCustomMediaBooleanLogic {custom_media_loc: rule.loc },
+              loc
             });
             return None
           }
@@ -778,4 +871,46 @@ fn process_condition<'i>(
   }
 
   Ok(true)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn parse(s: &str) -> MediaQuery {
+    let mut input = ParserInput::new(&s);
+    let mut parser = Parser::new(&mut input);
+    MediaQuery::parse(&mut parser).unwrap()
+  }
+
+  fn and(a: &str, b: &str) -> String {
+    let mut a = parse(a);
+    let b = parse(b);
+    a.and(&b).unwrap();
+    a.to_css_string()
+  }
+
+  #[test]
+  fn test_and() {
+    assert_eq!(and("(min-width: 250px)", "(color)"), "(min-width: 250px) and (color)");
+    assert_eq!(and("(min-width: 250px) or (color)", "(orientation: landscape)"), "((min-width: 250px) or (color)) and (orientation: landscape)");
+    assert_eq!(and("(min-width: 250px) and (color)", "(orientation: landscape)"), "(min-width: 250px) and (color) and (orientation: landscape)");
+    assert_eq!(and("all", "print"), "print");
+    assert_eq!(and("print", "all"), "print");
+    assert_eq!(and("all", "not print"), "not print");
+    assert_eq!(and("not print", "all"), "not print");
+    assert_eq!(and("not all", "print"), "not all");
+    assert_eq!(and("print", "not all"), "not all");
+    assert_eq!(and("print", "screen"), "not all");
+    assert_eq!(and("not print", "screen"), "screen");
+    assert_eq!(and("print", "not screen"), "print");
+    assert_eq!(and("not screen", "print"), "print");
+    assert_eq!(and("not screen", "not all"), "not all");
+    assert_eq!(and("print", "(min-width: 250px)"), "print and (min-width: 250px)");
+    assert_eq!(and("(min-width: 250px)", "print"), "print and (min-width: 250px)");
+    assert_eq!(and("print and (min-width: 250px)", "(color)"), "print and (min-width: 250px) and (color)");
+    assert_eq!(and("all", "only screen"), "only screen");
+    assert_eq!(and("only screen", "all"), "only screen");
+    assert_eq!(and("print", "print"), "print");
+  }
 }

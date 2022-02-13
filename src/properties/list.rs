@@ -1,3 +1,4 @@
+use crate::values::string::CowArcStr;
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use super::{Property, PropertyId};
@@ -13,7 +14,7 @@ use crate::logical::LogicalProperties;
 pub enum ListStyleType<'i> {
   None,
   CounterStyle(CounterStyle<'i>),
-  String(CowRcStr<'i>)
+  String(CowArcStr<'i>)
 }
 
 impl Default for ListStyleType<'_> {
@@ -33,7 +34,7 @@ impl<'i> Parse<'i> for ListStyleType<'i> {
     }
 
     let s = input.expect_string_cloned()?;
-    Ok(ListStyleType::String(s))
+    Ok(ListStyleType::String(s.into()))
   }
 }
 
@@ -120,7 +121,7 @@ enum_property! {
 /// https://www.w3.org/TR/css-counter-styles-3/#funcdef-symbols
 #[derive(Debug, Clone, PartialEq)]
 pub enum Symbol<'i> {
-  String(CowRcStr<'i>),
+  String(CowArcStr<'i>),
   Image(Image<'i>)
 }
 
@@ -131,7 +132,7 @@ impl<'i> Parse<'i> for Symbol<'i> {
     }
 
     let s = input.expect_string_cloned()?;
-    Ok(Symbol::String(s))
+    Ok(Symbol::String(s.into()))
   }
 }
 

@@ -39,12 +39,12 @@ impl<'i> Parse<'i> for BorderSideWidth {
       return Ok(BorderSideWidth::Length(length));
     }
     let location = input.current_source_location();
-    let ident = input.expect_ident_cloned()?;
+    let ident = input.expect_ident()?;
     match_ignore_ascii_case! { &ident,
       "thin" => Ok(BorderSideWidth::Thin),
       "medium" => Ok(BorderSideWidth::Medium),
       "thick" => Ok(BorderSideWidth::Thick),
-      _ => return Err(location.new_unexpected_token_error(Token::Ident(ident)))
+      _ => return Err(location.new_unexpected_token_error(Token::Ident(ident.clone())))
     }
   }
 }

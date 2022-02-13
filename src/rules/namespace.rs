@@ -1,13 +1,15 @@
+use crate::values::string::CowArcStr;
 use cssparser::*;
+use super::Location;
 use crate::traits::ToCss;
 use crate::printer::Printer;
 use crate::error::PrinterError;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct NamespaceRule<'i> {
-  pub prefix: Option<CowRcStr<'i>>,
-  pub url: CowRcStr<'i>,
-  pub loc: SourceLocation
+  pub prefix: Option<CowArcStr<'i>>,
+  pub url: CowArcStr<'i>,
+  pub loc: Location
 }
 
 impl<'i> ToCss for NamespaceRule<'i> {

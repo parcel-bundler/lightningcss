@@ -25,7 +25,7 @@ impl ImportDependency {
   pub fn new(rule: &ImportRule, filename: &str) -> ImportDependency {
     let supports = if let Some(supports) = &rule.supports {
       let mut s = String::new();
-      let mut printer = Printer::new("", &mut s, None, false, None);
+      let mut printer = Printer::new(&mut s, None, false, None);
       supports.to_css(&mut printer).unwrap();
       Some(s)
     } else {
@@ -34,7 +34,7 @@ impl ImportDependency {
 
     let media = if !rule.media.media_queries.is_empty() {
       let mut s = String::new();
-      let mut printer = Printer::new("", &mut s, None, false, None);
+      let mut printer = Printer::new(&mut s, None, false, None);
       rule.media.to_css(&mut printer).unwrap();
       Some(s)
     } else {
@@ -45,7 +45,7 @@ impl ImportDependency {
       url: rule.url.as_ref().to_owned(),
       supports,
       media,
-      loc: SourceRange::new(filename, rule.loc, 8, rule.url.len() + 2) // TODO: what about @import url(...)?
+      loc: SourceRange::new(filename, SourceLocation { line: rule.loc.line, column: rule.loc.column }, 8, rule.url.len() + 2) // TODO: what about @import url(...)?
     }
   }
 }

@@ -27,6 +27,7 @@ pub mod svg;
 pub mod masking;
 pub mod effects;
 
+use crate::values::string::CowArcStr;
 use cssparser::*;
 use custom::*;
 use background::*;
@@ -78,7 +79,7 @@ macro_rules! define_properties {
         $property$(($vp))?,
       )+
       All,
-      Custom(CowRcStr<'i>)
+      Custom(CowArcStr<'i>)
     }
 
     macro_rules! vp_name {
@@ -103,7 +104,7 @@ macro_rules! define_properties {
             )*
           )+
           "all" => Ok(PropertyId::All),
-          _ => Ok(PropertyId::Custom(name.clone()))
+          _ => Ok(PropertyId::Custom(name.into()))
         }
       }
     }

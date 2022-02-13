@@ -12,7 +12,7 @@ pub mod nesting;
 pub mod viewport;
 pub mod custom_media;
 
-use cssparser::CowRcStr;
+use crate::values::string::CowArcStr;
 use media::MediaRule;
 use import::ImportRule;
 use style::StyleRule;
@@ -45,6 +45,17 @@ pub(crate) trait ToCssWithContext<'a, 'i> {
 pub(crate) struct StyleContext<'a, 'i> {
   pub rule: &'a StyleRule<'i>,
   pub parent: Option<&'a StyleContext<'a, 'i>>
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub struct Location {
+  /// The index of the source file within the source map.
+  pub source_index: u32,
+  /// The line number, starting at 0.
+  pub line: u32,
+  /// The column number within a line, starting at 1 for first the character of the line.
+  /// Column numbers are counted in UTF-16 code units.
+  pub column: u32
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -101,7 +112,7 @@ pub(crate) struct MinifyContext<'a, 'i> {
   pub important_handler: &'a mut DeclarationHandler<'i>,
   pub logical_properties: &'a mut LogicalProperties,
   pub unused_symbols: &'a HashSet<String>,
-  pub custom_media: Option<HashMap<CowRcStr<'i>, CustomMediaRule<'i>>>
+  pub custom_media: Option<HashMap<CowArcStr<'i>, CustomMediaRule<'i>>>
 }
 
 impl<'i> CssRuleList<'i> {
@@ -234,10 +245,20 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for CssRuleList<'i> {
     let mut last_without_block = false;
 
     for rule in &self.0 {
+      if let CssRule::Ignored = &rule {
+        continue
+      }
+
       // Skip @import rules if collecting dependencies.
       if let CssRule::Import(rule) = &rule {
+        let dep = if dest.dependencies.is_some() {
+          Some(Dependency::Import(ImportDependency::new(&rule, dest.filename())))
+        } else {
+          None
+        };
+
         if let Some(dependencies) = &mut dest.dependencies {
-          dependencies.push(Dependency::Import(ImportDependency::new(&rule, &dest.filename)));
+          dependencies.push(dep.unwrap());
           continue;
         }
       }

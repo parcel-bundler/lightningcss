@@ -1,4 +1,4 @@
-use cssparser::SourceLocation;
+use super::Location;
 use crate::traits::ToCss;
 use crate::declaration::DeclarationBlock;
 use crate::printer::Printer;
@@ -10,7 +10,7 @@ pub struct CounterStyleRule<'i> {
   pub name: CustomIdent<'i>,
   // TODO: eventually parse these properties
   pub declarations: DeclarationBlock<'i>,
-  pub loc: SourceLocation
+  pub loc: Location
 }
 
 impl<'i> ToCss for CounterStyleRule<'i> {

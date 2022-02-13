@@ -76,6 +76,15 @@ const css = require('@parcel/css');
 let targets = css.browserslistToTargets(browserslist('>= 0.25%'));
 ```
 
+Bundling is also possible by using the `bundle` API. This processes `@import` rules and inlines them. This API requires filesystem access, so it does not accept `code` directly via the API.
+
+```js
+let {code, map} = css.bundle({
+  filename: 'style.css',
+  minify: true
+});
+```
+
 ### From Rust
 
 See the Rust API docs on [docs.rs](https://docs.rs/parcel_css). More docs and examples are coming soon. For now, start with the [StyleSheet](https://docs.rs/parcel_css/1.0.0-alpha.10/parcel_css/stylesheet/struct.StyleSheet.html) API.

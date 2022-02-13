@@ -1,10 +1,11 @@
-use cssparser::{SourceLocation, serialize_identifier};
+use cssparser::{serialize_identifier, SourceLocation};
 use parcel_sourcemap::{SourceMap, OriginalLocation};
 use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
 use crate::css_modules::CssModule;
 use crate::dependencies::Dependency;
-use crate::error::PrinterError;
+use crate::error::{PrinterError, PrinterErrorKind, Error, ErrorLocation};
+use crate::rules::Location;
 
 #[derive(Default, Debug)]
 pub struct PseudoClasses<'a> {
@@ -16,9 +17,10 @@ pub struct PseudoClasses<'a> {
 }
 
 pub(crate) struct Printer<'a, W> {
-  pub filename: &'a str,
+  pub sources: Option<&'a Vec<String>>,
   dest: &'a mut W,
   source_map: Option<&'a mut SourceMap>,
+  pub source_index: u32,
   indent: u8,
   line: u32,
   col: u32,
@@ -35,16 +37,16 @@ pub(crate) struct Printer<'a, W> {
 
 impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
   pub fn new(
-    filename: &'a str,
     dest: &'a mut W,
     source_map: Option<&'a mut SourceMap>,
     minify: bool,
     targets: Option<Browsers>
   ) -> Printer<'a, W> {
     Printer {
-      filename,
+      sources: None,
       dest,
       source_map,
+      source_index: 0,
       indent: 0,
       line: 0,
       col: 0,
@@ -55,6 +57,18 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
       css_module: None,
       dependencies: None,
       pseudo_classes: None
+    }
+  }
+
+  pub fn filename(&self) -> &str {
+    if let Some(sources) = self.sources {
+      if let Some(f) = sources.get(self.source_index as usize) {
+        f
+      } else {
+        "unknown.css"
+      }
+    } else {
+      "unknown.css"
     }
   }
 
@@ -124,12 +138,13 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
     self.indent > 2
   }
 
-  pub fn add_mapping(&mut self, loc: SourceLocation) {
+  pub fn add_mapping(&mut self, loc: Location) {
+    self.source_index = loc.source_index;
     if let Some(map) = &mut self.source_map {
       map.add_mapping(self.line, self.col, Some(OriginalLocation {
         original_line: loc.line,
         original_column: loc.column - 1,
-        source: 0,
+        source: loc.source_index,
         name: None
       }))
     }
@@ -146,6 +161,9 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
     if let Some(hash) = hash {
       self.write_char('_')?;
       self.write_str(hash)?;
+      if self.source_index > 0 {
+        self.write_str(&format!("_{}", self.source_index))?;
+      }
     }
 
     if let Some(css_module) = &mut self.css_module {
@@ -153,6 +171,17 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
     }
 
     Ok(())
+  }
+
+  pub fn error(&self, kind: PrinterErrorKind, loc: SourceLocation) -> Error<PrinterErrorKind> {
+    Error {
+      kind,
+      loc: Some(ErrorLocation {
+        filename: self.filename().into(),
+        line: loc.line,
+        column: loc.column
+      })
+    }
   }
 }
 

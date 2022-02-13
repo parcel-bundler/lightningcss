@@ -1,3 +1,4 @@
+use crate::values::string::CowArcStr;
 use cssparser::*;
 use crate::dependencies::{UrlDependency, Dependency};
 use crate::vendor_prefix::VendorPrefix;
@@ -161,7 +162,7 @@ impl<'i> ToCss for ImageSet<'i> {
 pub struct ImageSetOption<'i> {
   pub image: Image<'i>,
   pub resolution: Resolution,
-  pub file_type: Option<CowRcStr<'i>>
+  pub file_type: Option<CowArcStr<'i>>
 }
 
 impl<'i> Parse<'i> for ImageSetOption<'i> {
@@ -169,7 +170,7 @@ impl<'i> Parse<'i> for ImageSetOption<'i> {
     let loc = input.current_source_location();
     let image = if let Ok(url) = input.try_parse(|input| input.expect_url_or_string()) {
       Image::Url(Url {
-        url,
+        url: url.into(),
         loc
       })
     } else {
@@ -185,7 +186,7 @@ impl<'i> Parse<'i> for ImageSetOption<'i> {
       (resolution, file_type)
     };
 
-    Ok(ImageSetOption { image, resolution, file_type })
+    Ok(ImageSetOption { image, resolution, file_type: file_type.map(|x| x.into()) })
   }
 }
 
@@ -196,7 +197,7 @@ impl<'i> ImageSetOption<'i> {
       Image::Url(url) if !is_prefixed => {
         // Add dependency if needed. Normally this is handled by the Url type.
         let dep = if dest.dependencies.is_some() {
-          Some(UrlDependency::new(url, dest.filename))
+          Some(UrlDependency::new(url, dest.filename()))
         } else {
           None
         };

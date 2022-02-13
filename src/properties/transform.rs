@@ -50,13 +50,13 @@ impl ToCss for TransformList {
       if let Some(matrix) = self.to_matrix() {
         // Generate based on the original transforms.
         let mut base = String::new();
-        self.to_css_base(&mut Printer::new(dest.filename, &mut base, None, true, None))?;
+        self.to_css_base(&mut Printer::new(&mut base, None, true, None))?;
 
         // Decompose the matrix into transform functions if possible.
         // If the resulting length is shorter than the original, use it.
         if let Some(d) = matrix.decompose() {
           let mut decomposed = String::new();
-          d.to_css_base(&mut Printer::new(dest.filename, &mut decomposed, None, true, None))?;
+          d.to_css_base(&mut Printer::new(&mut decomposed, None, true, None))?;
           if decomposed.len() < base.len() {
             base = decomposed;
           }
@@ -65,9 +65,9 @@ impl ToCss for TransformList {
         // Also generate a matrix() or matrix3d() representation and compare that.
         let mut mat = String::new();
         if let Some(matrix) = matrix.to_matrix2d() {
-          Transform::Matrix(matrix).to_css(&mut Printer::new(dest.filename, &mut mat, None, true, None))?
+          Transform::Matrix(matrix).to_css(&mut Printer::new(&mut mat, None, true, None))?
         } else {
-          Transform::Matrix3d(matrix).to_css(&mut Printer::new(dest.filename, &mut mat, None, true, None))?
+          Transform::Matrix3d(matrix).to_css(&mut Printer::new(&mut mat, None, true, None))?
         }
 
         if mat.len() < base.len() {

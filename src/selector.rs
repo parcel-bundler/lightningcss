@@ -1,3 +1,4 @@
+use crate::values::string::CowArcStr;
 use cssparser::*;
 use parcel_selectors::{SelectorList, parser::{SelectorImpl, Selector, Combinator, Component}, attr::{AttrSelectorOperator, ParsedAttrSelectorOperation, ParsedCaseSensitivity}};
 use std::fmt;
@@ -16,11 +17,11 @@ use std::collections::HashSet;
 pub struct Selectors;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct SelectorString<'a>(pub CowRcStr<'a>);
+pub struct SelectorString<'a>(pub CowArcStr<'a>);
 
 impl<'a> std::convert::From<CowRcStr<'a>> for SelectorString<'a> {
   fn from(s: CowRcStr<'a>) -> SelectorString<'a> {
-    SelectorString(s)
+    SelectorString(s.into())
   }
 }
 
@@ -38,11 +39,11 @@ impl<'a> SelectorString<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
-pub struct SelectorIdent<'i>(pub CowRcStr<'i>);
+pub struct SelectorIdent<'i>(pub CowArcStr<'i>);
 
 impl<'a> std::convert::From<CowRcStr<'a>> for SelectorIdent<'a> {
   fn from(s: CowRcStr<'a>) -> SelectorIdent {
-    SelectorIdent(s)
+    SelectorIdent(s.into())
   }
 }
 
@@ -67,14 +68,14 @@ impl<'i> SelectorImpl<'i> for Selectors {
   type ExtraMatchingData = ();
 
   fn to_css<W: fmt::Write>(selectors: &SelectorList<'i, Self>, dest: &mut W) -> std::fmt::Result {
-    let mut printer = Printer::new("", dest, None, false, None);
+    let mut printer = Printer::new(dest, None, false, None);
     serialize_selector_list(selectors.0.iter(), &mut printer, None).map_err(|_| std::fmt::Error)
   }
 }
 
 pub struct SelectorParser<'a, 'i> {
-  pub default_namespace: &'a Option<CowRcStr<'i>>,
-  pub namespace_prefixes: &'a HashMap<CowRcStr<'i>, CowRcStr<'i>>,
+  pub default_namespace: &'a Option<CowArcStr<'i>>,
+  pub namespace_prefixes: &'a HashMap<CowArcStr<'i>, CowArcStr<'i>>,
   pub is_nesting_allowed: bool,
   pub css_modules: bool
 }
@@ -158,7 +159,7 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
         "-webkit-autofill" => Autofill(VendorPrefix::WebKit),
         "-o-autofill" => Autofill(VendorPrefix::O),
 
-        _ => Custom(name)
+        _ => Custom(name.into())
       };
 
       Ok(pseudo_class)
@@ -204,7 +205,7 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
       "file-selector-button" => FileSelectorButton(VendorPrefix::None),
       "-webkit-file-upload-button" => FileSelectorButton(VendorPrefix::WebKit),
       "-ms-browse" => FileSelectorButton(VendorPrefix::Ms),
-      _ => Custom(name)
+      _ => Custom(name.into())
     };
 
     Ok(pseudo_element)
@@ -312,7 +313,7 @@ pub enum PseudoClass<'i> {
   Local(Box<parcel_selectors::parser::Selector<'i, Selectors>>),
   Global(Box<parcel_selectors::parser::Selector<'i, Selectors>>),
 
-  Custom(CowRcStr<'i>)
+  Custom(CowArcStr<'i>)
 }
 
 impl<'i> parcel_selectors::parser::NonTSPseudoClass<'i> for PseudoClass<'i> {
@@ -525,7 +526,7 @@ pub enum PseudoElement<'i> {
   Marker,
   Backdrop(VendorPrefix),
   FileSelectorButton(VendorPrefix),
-  Custom(CowRcStr<'i>)
+  Custom(CowArcStr<'i>)
 }
 
 impl<'i> cssparser::ToCss for PseudoElement<'i> {

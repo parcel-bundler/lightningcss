@@ -1,4 +1,4 @@
-use cssparser::SourceLocation;
+use super::Location;
 use crate::traits::ToCss;
 use crate::printer::Printer;
 use crate::vendor_prefix::VendorPrefix;
@@ -9,7 +9,7 @@ use crate::error::PrinterError;
 pub struct ViewportRule<'i> {
   pub vendor_prefix: VendorPrefix,
   pub declarations: DeclarationBlock<'i>,
-  pub loc: SourceLocation
+  pub loc: Location
 }
 
 impl<'i> ToCss for ViewportRule<'i> {

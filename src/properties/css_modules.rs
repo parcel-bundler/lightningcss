@@ -1,3 +1,4 @@
+use crate::values::string::CowArcStr;
 use cssparser::*;
 use crate::values::ident::{CustomIdent, CustomIdentList};
 use crate::traits::{Parse, ToCss};
@@ -17,7 +18,7 @@ pub struct Composes<'i> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ComposesFrom<'i> {
   Global,
-  File(CowRcStr<'i>)
+  File(CowArcStr<'i>)
 }
 
 impl<'i> Parse<'i> for Composes<'i> {
@@ -34,7 +35,7 @@ impl<'i> Parse<'i> for Composes<'i> {
 
     let from = if input.try_parse(|input| input.expect_ident_matching("from")).is_ok() {
       if let Ok(file) = input.try_parse(|input| input.expect_string_cloned()) {
-        Some(ComposesFrom::File(file))
+        Some(ComposesFrom::File(file.into()))
       } else {
         input.expect_ident_matching("global")?;
         Some(ComposesFrom::Global)

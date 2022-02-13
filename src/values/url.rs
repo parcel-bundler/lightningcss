@@ -1,3 +1,4 @@
+use crate::values::string::CowArcStr;
 use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
@@ -6,14 +7,14 @@ use crate::error::{ParserError, PrinterError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Url<'i> {
-  pub url: CowRcStr<'i>,
+  pub url: CowArcStr<'i>,
   pub loc: SourceLocation
 }
 
 impl<'i> Parse<'i> for Url<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let loc = input.current_source_location();
-    let url = input.expect_url()?;
+    let url = input.expect_url()?.into();
     Ok(Url { url, loc })
   }
 }
@@ -21,7 +22,7 @@ impl<'i> Parse<'i> for Url<'i> {
 impl<'i> ToCss for Url<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     let dep = if dest.dependencies.is_some() {
-      Some(UrlDependency::new(self, dest.filename))
+      Some(UrlDependency::new(self, dest.filename()))
     } else {
       None
     };

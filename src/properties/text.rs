@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use crate::values::string::CowArcStr;
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use super::{Property, PropertyId};
@@ -566,7 +567,7 @@ pub enum TextEmphasisStyle<'i> {
     fill: TextEmphasisFillMode,
     shape: Option<TextEmphasisShape>
   },
-  String(CowRcStr<'i>)
+  String(CowArcStr<'i>)
 }
 
 impl<'i> Default for TextEmphasisStyle<'i> {
@@ -582,7 +583,7 @@ impl<'i> Parse<'i> for TextEmphasisStyle<'i> {
     }
 
     if let Ok(s) = input.try_parse(|input| input.expect_string_cloned()) {
-      return Ok(TextEmphasisStyle::String(s))
+      return Ok(TextEmphasisStyle::String(s.into()))
     }
 
     let mut shape = input.try_parse(TextEmphasisShape::parse).ok();

@@ -1,4 +1,6 @@
-use cssparser::{SourceLocation, serialize_identifier, CowRcStr};
+use crate::values::string::CowArcStr;
+use super::Location;
+use cssparser::serialize_identifier;
 use crate::media_query::MediaList;
 use crate::traits::ToCss;
 use crate::printer::Printer;
@@ -6,9 +8,9 @@ use crate::error::PrinterError;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CustomMediaRule<'i> {
-  pub name: CowRcStr<'i>,
+  pub name: CowArcStr<'i>,
   pub query: MediaList<'i>,
-  pub loc: SourceLocation
+  pub loc: Location
 }
 
 impl<'i> ToCss for CustomMediaRule<'i> {

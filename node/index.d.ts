@@ -35,6 +35,8 @@ export interface TransformOptions {
   unusedSymbols?: string[]
 }
 
+export type BundleOptions = Omit<TransformOptions, 'code'>;
+
 export interface Drafts {
   /** Whether to enable CSS nesting. */
   nesting?: boolean,
@@ -176,3 +178,8 @@ export declare function transformStyleAttribute(options: TransformAttributeOptio
  * @param browserslist the result of calling `browserslist`
  */
 export declare function browserslistToTargets(browserslist: string[]): Targets;
+
+/**
+ * Bundles a CSS file and its dependencies, inlining @import rules.
+ */
+export declare function bundle(options: BundleOptions): TransformResult;

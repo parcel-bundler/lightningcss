@@ -1,3 +1,4 @@
+use crate::values::string::CowArcStr;
 use cssparser::*;
 use crate::traits::{Parse, ToCss};
 use crate::values::color::CssColor;
@@ -218,7 +219,7 @@ pub enum Appearance<'i> {
   SliderHorizontal,
   SquareButton,
   Textarea,
-  NonStandard(CowRcStr<'i>)
+  NonStandard(CowArcStr<'i>)
 }
 
 impl<'i> Parse<'i> for Appearance<'i> {
@@ -241,7 +242,7 @@ impl<'i> Parse<'i> for Appearance<'i> {
       "slider-horizontal" => Ok(Appearance::SliderHorizontal),
       "square-button" => Ok(Appearance::SquareButton),
       "textarea" => Ok(Appearance::Textarea),
-      _ => Ok(Appearance::NonStandard(ident.clone()))
+      _ => Ok(Appearance::NonStandard(ident.into()))
     }
   }
 }

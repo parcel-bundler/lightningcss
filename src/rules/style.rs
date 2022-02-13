@@ -1,4 +1,4 @@
-use cssparser::SourceLocation;
+use super::Location;
 use parcel_selectors::SelectorList;
 use crate::selector::{Selectors, is_compatible, is_unused};
 use crate::traits::ToCss;
@@ -8,7 +8,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
 use crate::rules::{CssRuleList, ToCssWithContext, StyleContext};
 use crate::compat::Feature;
-use crate::error::{PrinterError, MinifyError};
+use crate::error::{PrinterError, PrinterErrorKind, MinifyError};
 use super::MinifyContext;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -17,7 +17,7 @@ pub struct StyleRule<'i> {
   pub vendor_prefix: VendorPrefix,
   pub declarations: DeclarationBlock<'i>,
   pub rules: CssRuleList<'i>,
-  pub loc: SourceLocation
+  pub loc: Location
 }
 
 impl<'i> StyleRule<'i> {
@@ -110,11 +110,12 @@ impl<'a, 'i> StyleRule<'i> {
             // We need to add the classes it references to the list for the selectors in this rule.
             if let crate::properties::Property::Composes(composes) = &decl {
               if dest.is_nested() && dest.css_module.is_some() {
-                return Err(PrinterError::InvalidComposesNesting(composes.loc))
+                return Err(dest.error(PrinterErrorKind::InvalidComposesNesting, composes.loc))
               }
     
               if let Some(css_module) = &mut dest.css_module {
-                css_module.handle_composes(&self.selectors, &composes)?;
+                css_module.handle_composes(&self.selectors, &composes)
+                  .map_err(|e| dest.error(e, composes.loc))?;
                 continue;
               }
             }
