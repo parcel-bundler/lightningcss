@@ -305,3 +305,29 @@ fn sourcemap() -> Result<(), Box<dyn std::error::Error>> {
 
   Ok(())
 }
+
+#[test]
+fn targets() -> Result<(), Box<dyn std::error::Error>> {
+  let file = assert_fs::NamedTempFile::new("test.css")?;
+  file.write_str(
+    r#"
+      @custom-media --foo print;
+      @media (--foo) {
+        .a { color: red }
+      }
+    "#,
+  )?;
+
+  let mut cmd = Command::cargo_bin("parcel_css")?;
+  cmd.arg(file.path());
+  cmd.arg("--custom-media");
+  cmd.arg("--targets").arg("last 1 Chrome version");
+  cmd.assert().success().stdout(predicate::str::contains(indoc! {r#"
+        @media print {
+          .a {
+            color: red;
+          }
+        }"#}));
+
+  Ok(())
+}
