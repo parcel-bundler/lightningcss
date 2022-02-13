@@ -40,7 +40,7 @@ jobs:
         env:
           RUST_TARGET: ${{ matrix.target }}
       - name: Build CLI
-        run: cargo build --release --features cli
+        run: cargo build --release --features cli --target $RUST_TARGET
         env:
           RUST_TARGET: ${{ matrix.target }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
@@ -80,9 +80,14 @@ jobs:
           RUST_TARGET: aarch64-apple-darwin
           JEMALLOC_SYS_WITH_LG_PAGE: 14
       - name: Build CLI
-        run: cargo build --release --features cli
+        run: |
+          export CC=$(xcrun -f clang);
+          export CXX=$(xcrun -f clang++);
+          SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
+          export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
+          export MACOSX_DEPLOYMENT_TARGET="10.9";
+          cargo build --release --features cli --target aarch64-apple-darwin
         env:
-          RUST_TARGET: aarch64-apple-darwin
           JEMALLOC_SYS_WITH_LG_PAGE: 14
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: strip -x *.node target/release/parcel_css
@@ -148,7 +153,7 @@ jobs:
         env:
           RUST_TARGET: ${{ matrix.target }}
       - name: Build CLI
-        run: cargo build --release --features cli
+        run: cargo build --release --features cli --target $RUST_TARGET
         env:
           RUST_TARGET: ${{ matrix.target }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
