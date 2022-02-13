@@ -40,9 +40,7 @@ jobs:
         env:
           RUST_TARGET: ${{ matrix.target }}
       - name: Build CLI
-        run: cargo build --release --features cli --target $RUST_TARGET
-        env:
-          RUST_TARGET: ${{ matrix.target }}
+        run: cargo build --release --features cli --target ${{ matrix.target }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         if: ${{ matrix.strip }}
         run: ${{ matrix.strip }} *.node target/${{ matrix.target }}/release/parcel_css
@@ -153,9 +151,7 @@ jobs:
         env:
           RUST_TARGET: ${{ matrix.target }}
       - name: Build CLI
-        run: cargo build --release --features cli --target $RUST_TARGET
-        env:
-          RUST_TARGET: ${{ matrix.target }}
+        run: cargo build --release --features cli --target ${{ matrix.target }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         if: ${{ matrix.strip }}
         run: ${{ matrix.strip }} *.node target/${{ matrix.target }}/release/parcel_css
