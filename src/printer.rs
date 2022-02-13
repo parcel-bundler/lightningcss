@@ -4,7 +4,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
 use crate::css_modules::CssModule;
 use crate::dependencies::Dependency;
-use crate::error::{PrinterError, PrinterErrorKind, Error};
+use crate::error::{PrinterError, PrinterErrorKind, Error, ErrorLocation};
 use crate::rules::Location;
 
 #[derive(Default, Debug)]
@@ -176,12 +176,11 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
   pub fn error(&self, kind: PrinterErrorKind, loc: SourceLocation) -> Error<PrinterErrorKind> {
     Error {
       kind,
-      filename: self.filename().into(),
-      loc: Location {
-        source_index: self.source_index,
+      loc: Some(ErrorLocation {
+        filename: self.filename().into(),
         line: loc.line,
         column: loc.column
-      }
+      })
     }
   }
 }

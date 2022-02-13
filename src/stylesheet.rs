@@ -9,7 +9,7 @@ use crate::declaration::{DeclarationHandler, DeclarationBlock};
 use crate::css_modules::{hash, CssModule, CssModuleExports};
 use std::collections::{HashMap, HashSet};
 use crate::dependencies::Dependency;
-use crate::error::{Error, ParserError, PrinterError, MinifyErrorKind, PrinterErrorKind};
+use crate::error::{Error, ParserError, PrinterError, MinifyErrorKind, PrinterErrorKind, ErrorLocation};
 use crate::logical::LogicalProperties;
 use crate::compat::Feature;
 
@@ -107,8 +107,7 @@ impl<'i> StyleSheet<'i> {
     self.rules.minify(&mut ctx, false)
       .map_err(|e| Error {
         kind: e.kind,
-        filename: self.sources[e.loc.source_index as usize].clone(),
-        loc: e.loc
+        loc: Some(ErrorLocation::from(e.loc, self.sources[e.loc.source_index as usize].clone()))
       })?;
       
     logical_properties.to_rules(&mut self.rules);

@@ -22,7 +22,7 @@ pub mod bundler;
 #[cfg(test)]
 mod tests {
   use crate::dependencies::Dependency;
-  use crate::error::{Error, MinifyErrorKind};
+  use crate::error::{Error, MinifyErrorKind, ErrorLocation};
   use crate::rules::CssRule;
   use crate::stylesheet::*;
   use crate::targets::Browsers;
@@ -9946,12 +9946,11 @@ mod tests {
             column: 7
           }
         },
-        filename: "test.css".into(),
-        loc: Location {
-          source_index: 0,
+        loc: Some(ErrorLocation {
+          filename: "test.css".into(),
           line: 3,
           column: 7
-        },
+        }),
       }
     );
 
@@ -9973,12 +9972,11 @@ mod tests {
             column: 7
           }
         },
-        filename: "test.css".into(),
-        loc: Location {
-          source_index: 0,
+        loc: Some(ErrorLocation {
+          filename: "test.css".into(),
           line: 3,
           column: 7
-        },
+        }),
       }
     );
 
@@ -9997,12 +9995,11 @@ mod tests {
             column: 7
           }
         },
-        filename: "test.css".into(),
-        loc: Location {
-          source_index: 0,
+        loc: Some(ErrorLocation {
+          filename: "test.css".into(),
           line: 4,
           column: 7
-        },
+        }),
       }
     );
 
@@ -10021,12 +10018,11 @@ mod tests {
             column: 7
           }
         },
-        filename: "test.css".into(),
-        loc: Location {
-          source_index: 0,
+        loc: Some(ErrorLocation {
+          filename: "test.css".into(),
           line: 4,
           column: 7
-        },
+        }),
       }
     );
 
@@ -10045,12 +10041,11 @@ mod tests {
             column: 7
           }
         },
-        filename: "test.css".into(),
-        loc: Location {
-          source_index: 0,
+        loc: Some(ErrorLocation {
+          filename: "test.css".into(),
           line: 4,
           column: 7
-        },
+        }),
       }
     );
 
@@ -10073,12 +10068,11 @@ mod tests {
             column: 7
           }
         },
-        filename: "test.css".into(),
-        loc: Location {
-          source_index: 0,
+        loc: Some(ErrorLocation {
+          filename: "test.css".into(),
           line: 4,
           column: 7
-        },
+        }),
       }
     );
 
@@ -10100,12 +10094,11 @@ mod tests {
             column: 7
           }
         },
-        filename: "test.css".into(),
-        loc: Location {
-          source_index: 0,
+        loc: Some(ErrorLocation {
+          filename: "test.css".into(),
           line: 3,
           column: 7
-        },
+        }),
       }
     );
 
@@ -10121,12 +10114,11 @@ mod tests {
         kind: MinifyErrorKind::CustomMediaNotDefined {
           name: "--not-defined".into(),
         },
-        filename: "test.css".into(),
-        loc: Location {
-          source_index: 0,
+        loc: Some(ErrorLocation {
+          filename: "test.css".into(),
           line: 1,
           column: 7
-        },
+        }),
       }
     );
 
@@ -10145,12 +10137,11 @@ mod tests {
         kind: MinifyErrorKind::CircularCustomMedia {
           name: "--circular-mq-a".into(),
         },
-        filename: "test.css".into(),
-        loc: Location {
-          source_index: 0,
+        loc: Some(ErrorLocation {
+          filename: "test.css".into(),
           line: 4,
           column: 7
-        },
+        }),
       }
     );
   }

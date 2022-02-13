@@ -1,5 +1,5 @@
 use parcel_sourcemap::SourceMap;
-use crate::rules::Location;
+use crate::{rules::Location, error::ErrorLocation};
 use std::{fs, path::{Path, PathBuf}, sync::Mutex};
 use rayon::prelude::*;
 use dashmap::DashMap;
@@ -62,7 +62,6 @@ impl<'i> From<Error<ParserError<'i>>> for Error<BundleErrorKind<'i>> {
   fn from(err: Error<ParserError<'i>>) -> Self {
     Error {
       kind: BundleErrorKind::ParserError(err.kind),
-      filename: err.filename,
       loc: err.loc
     }
   }
@@ -138,8 +137,10 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
           (!entry.media.media_queries.is_empty() && !rule.supports.is_none()) {
           return Err(Error {
             kind: BundleErrorKind::UnsupportedImportCondition,
-            filename: self.sources.lock().unwrap()[rule.loc.source_index as usize].clone(),
-            loc: rule.loc
+            loc: Some(ErrorLocation::from(
+              rule.loc, 
+              self.sources.lock().unwrap()[rule.loc.source_index as usize].clone()
+            ))
           })
         }
 
@@ -167,8 +168,10 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
     let filename = file.to_str().unwrap();
     let code = self.fs.read(file).map_err(|e| Error {
       kind: BundleErrorKind::IOError(e),
-      filename: filename.to_string(),
-      loc: rule.loc
+      loc: Some(ErrorLocation::from(
+        rule.loc,
+        filename.to_string()
+      ))
     })?;
 
     let mut opts = self.options.clone();
@@ -202,8 +205,10 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
           let mut media = rule.media.clone();
           let result = media.and(&import.media).map_err(|_| Error {
             kind: BundleErrorKind::UnsupportedMediaBooleanLogic,
-            filename: self.sources.lock().unwrap()[import.loc.source_index as usize].clone(),
-            loc: import.loc
+            loc: Some(ErrorLocation::from(
+              import.loc,
+              self.sources.lock().unwrap()[import.loc.source_index as usize].clone()
+            ))
           });
 
           if let Err(e) = result {

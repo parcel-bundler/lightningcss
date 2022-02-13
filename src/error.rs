@@ -7,8 +7,24 @@ use crate::values::string::CowArcStr;
 #[derive(Debug, PartialEq, Clone)]
 pub struct Error<T> {
   pub kind: T,
+  pub loc: Option<ErrorLocation>
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ErrorLocation {
   pub filename: String,
-  pub loc: Location
+  pub line: u32,
+  pub column: u32
+}
+
+impl ErrorLocation {
+  pub fn from(loc: Location, filename: String) -> Self {
+    ErrorLocation {
+      filename,
+      line: loc.line,
+      column: loc.column
+    }
+  }
 }
 
 #[derive(Debug)]
@@ -49,12 +65,11 @@ impl<'i> Error<ParserError<'i>> {
 
     Error {
       kind,
-      filename,
-      loc: Location {
-        source_index: 0,
+      loc: Some(ErrorLocation {
+        filename,
         line: err.location.line,
         column: err.location.column
-      }
+      })
     }
   }
 }
@@ -200,12 +215,7 @@ impl From<std::fmt::Error> for PrinterError {
   fn from(_: std::fmt::Error) -> PrinterError {
     PrinterError {
       kind: PrinterErrorKind::FmtError,
-      filename: "".into(),
-      loc: Location {
-        source_index: 0,
-        line: 0,
-        column: 0
-      }
+      loc: None
     }
   }
 }

@@ -9,8 +9,8 @@ use parcel_css::stylesheet::{StyleSheet, StyleAttribute, ParserOptions, PrinterO
 use parcel_css::targets::Browsers;
 use parcel_css::css_modules::CssModuleExports;
 use parcel_css::dependencies::Dependency;
-use parcel_css::error::{ParserError, Error, MinifyErrorKind, PrinterErrorKind};
-use parcel_css::bundler::{FileProvider, Bundler, BundleErrorKind};
+use parcel_css::error::{ParserError, Error, ErrorLocation, MinifyErrorKind, PrinterErrorKind};
+use parcel_css::bundler::{FileProvider, Bundler, BundleErrorKind, SourceProvider};
 use parcel_sourcemap::SourceMap;
 
 // ---------------------------------------------
@@ -78,7 +78,7 @@ fn transform(ctx: CallContext) -> napi::Result<JsUnknown> {
 
   match res {
     Ok(res) => ctx.env.to_js_value(&res),
-    Err(err) => err.throw(ctx)
+    Err(err) => err.throw(ctx, Some(code))
   }
 }
 
@@ -92,7 +92,7 @@ fn transform_style_attribute(ctx: CallContext) -> napi::Result<JsUnknown> {
 
   match res {
     Ok(res) => ctx.env.to_js_value(&res),
-    Err(err) => err.throw(ctx)
+    Err(err) => err.throw(ctx, Some(code))
   }
 }
 
@@ -106,7 +106,18 @@ fn bundle(ctx: CallContext) -> napi::Result<JsUnknown> {
 
   match res {
     Ok(res) => ctx.env.to_js_value(&res),
-    Err(err) => err.throw(ctx)
+    Err(err) => {
+      let code = match &err {
+        CompileError::ParseError(Error { loc: Some(ErrorLocation { filename, .. }), .. }) |
+        CompileError::PrinterError(Error { loc: Some(ErrorLocation { filename, .. }), .. }) |
+        CompileError::MinifyError(Error { loc: Some(ErrorLocation { filename, .. }), .. }) |
+        CompileError::BundleError(Error { loc: Some(ErrorLocation { filename, .. }), .. }) => {
+          Some(fs.read(Path::new(filename))?)
+        },
+        _ => None
+      };
+      err.throw(ctx, code)
+    }
   }
 }
 
@@ -345,28 +356,32 @@ impl<'i> CompileError<'i> {
   }
 
   #[cfg(not(target_arch = "wasm32"))]
-  fn throw(self, ctx: CallContext) -> napi::Result<JsUnknown> {
+  fn throw(self, ctx: CallContext, code: Option<&str>) -> napi::Result<JsUnknown> {
     let reason = self.reason();
     match self {
-      CompileError::ParseError(Error { filename, loc, .. }) |
-      CompileError::PrinterError(Error { filename, loc, .. }) |
-      CompileError::MinifyError(Error { filename, loc, .. }) |
-      CompileError::BundleError(Error { filename, loc, .. }) => {
+      CompileError::ParseError(Error { loc, .. }) |
+      CompileError::PrinterError(Error { loc, .. }) |
+      CompileError::MinifyError(Error { loc, .. }) |
+      CompileError::BundleError(Error { loc, .. }) => {
         // Generate an error with location information.
         let syntax_error = ctx.env.get_global()?
           .get_named_property::<napi::JsFunction>("SyntaxError")?;
         let reason = ctx.env.create_string_from_std(reason)?;
-        let line = ctx.env.create_int32((loc.line + 1) as i32)?;
-        let col = ctx.env.create_int32(loc.column as i32)?;
         let mut obj = syntax_error.new(&[reason])?;
-        let filename = ctx.env.create_string_from_std(filename)?;
-        obj.set_named_property("fileName", filename)?;
-        // let source = ctx.env.create_string(code)?;
-        // obj.set_named_property("source", source)?;
-        let mut loc = ctx.env.create_object()?;
-        loc.set_named_property("line", line)?;
-        loc.set_named_property("column", col)?;
-        obj.set_named_property("loc", loc)?;
+        if let Some(loc) = loc {
+          let line = ctx.env.create_int32((loc.line + 1) as i32)?;
+          let col = ctx.env.create_int32(loc.column as i32)?;
+          let filename = ctx.env.create_string_from_std(loc.filename)?;
+          obj.set_named_property("fileName", filename)?;
+          if let Some(code) = code {
+            let source = ctx.env.create_string(code)?;
+            obj.set_named_property("source", source)?;
+          }
+          let mut loc = ctx.env.create_object()?;
+          loc.set_named_property("line", line)?;
+          loc.set_named_property("column", col)?;
+          obj.set_named_property("loc", loc)?;
+        }
         ctx.env.throw(obj)?;
         Ok(ctx.env.get_undefined()?.into_unknown())
       },
