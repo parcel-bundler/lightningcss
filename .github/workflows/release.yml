@@ -40,17 +40,19 @@ jobs:
         env:
           RUST_TARGET: ${{ matrix.target }}
       - name: Build CLI
-        run: cargo build --release --features cli --target ${{ matrix.target }}
+        run: |
+          cargo build --release --features cli --target ${{ matrix.target }}
+          mv target/${{ matrix.target }}/release/parcel_css parcel_css
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         if: ${{ matrix.strip }}
-        run: ${{ matrix.strip }} *.node target/${{ matrix.target }}/release/parcel_css
+        run: ${{ matrix.strip }} *.node parcel_css
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: bindings-${{ matrix.target }}
           path: |
             *.node
-            target/${{ matrix.target }}/release/parcel_css
+            parcel_css
 
   build-apple-silicon:
     name: build-apple-silicon
@@ -85,17 +87,18 @@ jobs:
           export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
           export MACOSX_DEPLOYMENT_TARGET="10.9";
           cargo build --release --features cli --target aarch64-apple-darwin
+          mv target/aarch64-apple-darwin/release/parcel_css parcel_css
         env:
           JEMALLOC_SYS_WITH_LG_PAGE: 14
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
-        run: strip -x *.node target/aarch64-apple-darwin/release/parcel_css
+        run: strip -x *.node parcel_css
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: bindings-aarch64-apple-darwin
           path: |
             *.node
-            target/aarch64-apple-darwin/release/parcel_css
+            parcel_css
 
   build-linux:
     strategy:
@@ -151,17 +154,19 @@ jobs:
         env:
           RUST_TARGET: ${{ matrix.target }}
       - name: Build CLI
-        run: cargo build --release --features cli --target ${{ matrix.target }}
+        run: |
+          cargo build --release --features cli --target ${{ matrix.target }}
+          mv target/${{ matrix.target }}/release/parcel_css parcel_css
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         if: ${{ matrix.strip }}
-        run: ${{ matrix.strip }} *.node target/${{ matrix.target }}/release/parcel_css
+        run: ${{ matrix.strip }} *.node parcel_css
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: bindings-${{ matrix.target }}
           path: |
             *.node
-            target/${{ matrix.target }}/release/parcel_css
+            parcel_css
 
   build-wasm:
     runs-on: ubuntu-latest
