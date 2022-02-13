@@ -8,7 +8,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
 use crate::rules::{CssRuleList, ToCssWithContext, StyleContext};
 use crate::compat::Feature;
-use crate::error::{PrinterError, MinifyError};
+use crate::error::{PrinterError, PrinterErrorKind, MinifyError};
 use super::MinifyContext;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -110,15 +110,12 @@ impl<'a, 'i> StyleRule<'i> {
             // We need to add the classes it references to the list for the selectors in this rule.
             if let crate::properties::Property::Composes(composes) = &decl {
               if dest.is_nested() && dest.css_module.is_some() {
-                return Err(PrinterError::InvalidComposesNesting(Location {
-                  source_index: dest.source_index,
-                  line: composes.loc.line,
-                  column: composes.loc.column
-                }))
+                return Err(dest.error(PrinterErrorKind::InvalidComposesNesting, composes.loc))
               }
     
               if let Some(css_module) = &mut dest.css_module {
-                css_module.handle_composes(&self.selectors, &composes, dest.source_index)?;
+                css_module.handle_composes(&self.selectors, &composes)
+                  .map_err(|e| dest.error(e, composes.loc))?;
                 continue;
               }
             }

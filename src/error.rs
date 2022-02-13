@@ -7,6 +7,7 @@ use crate::values::string::CowArcStr;
 #[derive(Debug)]
 pub struct Error<T> {
   pub kind: T,
+  pub filename: String,
   pub loc: Location
 }
 
@@ -31,11 +32,12 @@ pub enum ParserError<'i> {
 }
 
 impl<'i> Error<ParserError<'i>> {
-  pub fn from(err: ParseError<'i, ParserError<'i>>, source_index: u32) -> Error<ParserError<'i>> {
+  pub fn from(err: ParseError<'i, ParserError<'i>>, filename: String) -> Error<ParserError<'i>> {
     let kind = match err.kind {
       ParseErrorKind::Basic(b) => {
         match &b {
-          BasicParseErrorKind::UnexpectedToken(t) => ParserError::UnexpectedToken(t.into()),
+          BasicParseErrorKind::
+          UnexpectedToken(t) => ParserError::UnexpectedToken(t.into()),
           BasicParseErrorKind::EndOfInput => ParserError::EndOfInput,
           BasicParseErrorKind::AtRuleInvalid(a) => ParserError::AtRuleInvalid(a.into()),
           BasicParseErrorKind::AtRuleBodyInvalid => ParserError::AtRuleBodyInvalid,
@@ -47,18 +49,13 @@ impl<'i> Error<ParserError<'i>> {
 
     Error {
       kind,
+      filename,
       loc: Location {
-        source_index,
+        source_index: 0,
         line: err.location.line,
         column: err.location.column
       }
     }
-  }
-}
-
-impl<'i> From<ParseError<'i, ParserError<'i>>> for Error<ParserError<'i>> {
-  fn from(err: ParseError<'i, ParserError<'i>>) -> Error<ParserError<'i>> {
-    Self::from(err, 0)
   }
 }
 
@@ -166,59 +163,59 @@ impl<'i> SelectorError<'i> {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum MinifyError {
-  UnsupportedCustomMediaBooleanLogic {
-    media_loc: Location,
-    custom_media_loc: Location
-  },
-  CustomMediaNotDefined {
-    name: String,
-    loc: Location
-  },
-  CircularCustomMedia {
-    name: String,
-    loc: Location
-  }
+pub struct ErrorWithLocation<T> {
+  pub kind: T,
+  pub loc: Location
 }
 
-impl MinifyError {
+pub type MinifyError = ErrorWithLocation<MinifyErrorKind>;
+
+#[derive(Debug, PartialEq)]
+pub enum MinifyErrorKind {
+  UnsupportedCustomMediaBooleanLogic { custom_media_loc: Location },
+  CustomMediaNotDefined { name: String },
+  CircularCustomMedia { name: String }
+}
+
+impl MinifyErrorKind {
   pub fn reason(&self) -> String {
     match self {
-      MinifyError::UnsupportedCustomMediaBooleanLogic {..} => "Boolean logic with media types in @custom-media rules is not supported by Parcel CSS.".into(),
-      MinifyError::CustomMediaNotDefined { name, .. } => format!("Custom media query {} is not defined.", name),
-      MinifyError::CircularCustomMedia { name, .. } => format!("Circular custom media query {} detected.", name)
-    }
-  }
-
-  pub fn loc(&self) -> Location {
-    match self {
-      MinifyError::UnsupportedCustomMediaBooleanLogic { media_loc, .. } => *media_loc,
-      MinifyError::CustomMediaNotDefined { loc, .. } => *loc,
-      MinifyError::CircularCustomMedia { loc, .. } => *loc
+      MinifyErrorKind::UnsupportedCustomMediaBooleanLogic {..} => "Boolean logic with media types in @custom-media rules is not supported by Parcel CSS.".into(),
+      MinifyErrorKind::CustomMediaNotDefined { name, .. } => format!("Custom media query {} is not defined.", name),
+      MinifyErrorKind::CircularCustomMedia { name, .. } => format!("Circular custom media query {} detected.", name)
     }
   }
 }
 
+pub type PrinterError = Error<PrinterErrorKind>;
 
 #[derive(Debug)]
-pub enum PrinterError {
+pub enum PrinterErrorKind {
   FmtError,
-  InvalidComposesSelector(Location),
-  InvalidComposesNesting(Location)
+  InvalidComposesSelector,
+  InvalidComposesNesting
 }
 
 impl From<std::fmt::Error> for PrinterError {
   fn from(_: std::fmt::Error) -> PrinterError {
-    PrinterError::FmtError
+    PrinterError {
+      kind: PrinterErrorKind::FmtError,
+      filename: "".into(),
+      loc: Location {
+        source_index: 0,
+        line: 0,
+        column: 0
+      }
+    }
   }
 }
 
-impl PrinterError {
+impl PrinterErrorKind {
   pub fn reason(&self) -> String {
     match self {
-      PrinterError::InvalidComposesSelector(_) => "The `composes` property can only be used within a simple class selector.".into(),
-      PrinterError::InvalidComposesNesting(_) => "The `composes` property cannot be used within nested rules.".into(),
-      PrinterError::FmtError => "Printer error".into()
+      PrinterErrorKind::InvalidComposesSelector => "The `composes` property can only be used within a simple class selector.".into(),
+      PrinterErrorKind::InvalidComposesNesting => "The `composes` property cannot be used within nested rules.".into(),
+      PrinterErrorKind::FmtError => "Printer error".into()
     }
   }
 }

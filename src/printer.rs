@@ -1,10 +1,10 @@
-use cssparser::serialize_identifier;
+use cssparser::{serialize_identifier, SourceLocation};
 use parcel_sourcemap::{SourceMap, OriginalLocation};
 use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
 use crate::css_modules::CssModule;
 use crate::dependencies::Dependency;
-use crate::error::PrinterError;
+use crate::error::{PrinterError, PrinterErrorKind, Error};
 use crate::rules::Location;
 
 #[derive(Default, Debug)]
@@ -171,6 +171,18 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
     }
 
     Ok(())
+  }
+
+  pub fn error(&self, kind: PrinterErrorKind, loc: SourceLocation) -> Error<PrinterErrorKind> {
+    Error {
+      kind,
+      filename: self.filename().into(),
+      loc: Location {
+        source_index: self.source_index,
+        line: loc.line,
+        column: loc.column
+      }
+    }
   }
 }
 

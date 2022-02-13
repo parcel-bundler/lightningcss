@@ -62,7 +62,19 @@ impl<'i> From<Error<ParserError<'i>>> for Error<BundleErrorKind<'i>> {
   fn from(err: Error<ParserError<'i>>) -> Self {
     Error {
       kind: BundleErrorKind::ParserError(err.kind),
+      filename: err.filename,
       loc: err.loc
+    }
+  }
+}
+
+impl<'i> BundleErrorKind<'i> {
+  pub fn reason(&self) -> String {
+    match self {
+      BundleErrorKind::IOError(e) => e.to_string(),
+      BundleErrorKind::ParserError(e) => e.reason(),
+      BundleErrorKind::UnsupportedImportCondition => "Unsupported import condition".into(),
+      BundleErrorKind::UnsupportedMediaBooleanLogic => "Unsupported boolean logic in @import media query".into(),
     }
   }
 }
@@ -85,10 +97,10 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
     }
   }
 
-  pub fn bundle(&mut self, entry: &'a Path) -> Result<StyleSheet<'a>, Error<BundleErrorKind<'a>>> {
+  pub fn bundle<'e>(&mut self, entry: &'e Path) -> Result<StyleSheet<'a>, Error<BundleErrorKind<'a>>> {
     // Phase 1: load and parse all files.
-    self.load_file(entry, ImportRule {
-      url: entry.to_str().unwrap().into(),
+    self.load_file(&entry, ImportRule {
+      url: "".into(),
       supports: None,
       media: MediaList::new(),
       loc: Location {
@@ -100,7 +112,7 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
 
     // Phase 2: concatenate rules in the right order.
     let mut rules: Vec<CssRule<'a>> = Vec::new();
-    self.inline(entry, &mut rules);
+    self.inline(&entry, &mut rules);
     Ok(StyleSheet::new(
       std::mem::take(self.sources.get_mut().unwrap()),
       CssRuleList(rules), 
@@ -126,6 +138,7 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
           (!entry.media.media_queries.is_empty() && !rule.supports.is_none()) {
           return Err(Error {
             kind: BundleErrorKind::UnsupportedImportCondition,
+            filename: self.sources.lock().unwrap()[rule.loc.source_index as usize].clone(),
             loc: rule.loc
           })
         }
@@ -151,12 +164,13 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
       }
     }
     
+    let filename = file.to_str().unwrap();
     let code = self.fs.read(file).map_err(|e| Error {
       kind: BundleErrorKind::IOError(e),
+      filename: filename.to_string(),
       loc: rule.loc
     })?;
 
-    let filename = file.to_str().unwrap();
     let mut opts = self.options.clone();
 
     {
@@ -188,6 +202,7 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
           let mut media = rule.media.clone();
           let result = media.and(&import.media).map_err(|_| Error {
             kind: BundleErrorKind::UnsupportedMediaBooleanLogic,
+            filename: self.sources.lock().unwrap()[import.loc.source_index as usize].clone(),
             loc: import.loc
           });
 

@@ -11,7 +11,7 @@ use crate::values::{
   ratio::Ratio
 };
 use crate::compat::Feature;
-use crate::error::{ParserError, MinifyError, PrinterError};
+use crate::error::{ParserError, ErrorWithLocation, MinifyError, PrinterError, MinifyErrorKind};
 use std::collections::{HashMap, HashSet};
 use retain_mut::RetainMut;
 
@@ -800,15 +800,15 @@ fn process_condition<'i>(
       }
 
       if seen.contains(name) {
-        return Err(MinifyError::CircularCustomMedia {
-          name: name.to_string(),
+        return Err(ErrorWithLocation {
+          kind: MinifyErrorKind::CircularCustomMedia { name: name.to_string()},
           loc
         });
       }
       
       let rule = custom_media.get(name)
-        .ok_or_else(|| MinifyError::CustomMediaNotDefined {
-          name: name.to_string(),
+        .ok_or_else(|| ErrorWithLocation {
+          kind: MinifyErrorKind::CustomMediaNotDefined { name: name.to_string()},
           loc
         })?;
 
@@ -829,9 +829,9 @@ fn process_condition<'i>(
             *qualifier = query.qualifier.clone();
           } else if query.media_type != *media_type || query.qualifier != *qualifier {
             // Boolean logic with media types is hard to emulate, so we error for now.
-            res = Err(MinifyError::UnsupportedCustomMediaBooleanLogic {
-              media_loc: loc,
-              custom_media_loc: rule.loc
+            res = Err(ErrorWithLocation {
+              kind: MinifyErrorKind::UnsupportedCustomMediaBooleanLogic {custom_media_loc: rule.loc },
+              loc
             });
             return None
           }

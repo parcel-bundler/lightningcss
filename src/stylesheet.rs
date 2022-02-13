@@ -9,7 +9,7 @@ use crate::declaration::{DeclarationHandler, DeclarationBlock};
 use crate::css_modules::{hash, CssModule, CssModuleExports};
 use std::collections::{HashMap, HashSet};
 use crate::dependencies::Dependency;
-use crate::error::{Error, ParserError, MinifyError, PrinterError};
+use crate::error::{Error, ParserError, PrinterError, MinifyErrorKind, PrinterErrorKind};
 use crate::logical::LogicalProperties;
 use crate::compat::Feature;
 
@@ -63,7 +63,7 @@ impl<'i> StyleSheet<'i> {
       let rule = match rule {
         Ok((_, CssRule::Ignored)) => continue,
         Ok((_, rule)) => rule,
-        Err((e, _)) => return Err(Error::from(e, options.source_index))
+        Err((e, _)) => return Err(Error::from(e, filename))
       };
 
       rules.push(rule)
@@ -76,7 +76,7 @@ impl<'i> StyleSheet<'i> {
     })
   }
 
-  pub fn minify(&mut self, options: MinifyOptions) -> Result<(), MinifyError> {
+  pub fn minify(&mut self, options: MinifyOptions) -> Result<(), Error<MinifyErrorKind>> {
     let mut logical_properties = LogicalProperties::new(options.targets);
     let mut handler = DeclarationHandler::new(options.targets);
     let mut important_handler = DeclarationHandler::new(options.targets);
@@ -95,19 +95,27 @@ impl<'i> StyleSheet<'i> {
       None
     };
 
-    self.rules.minify(&mut MinifyContext {
+    let mut ctx = MinifyContext {
       targets: &options.targets,
       handler: &mut handler,
       important_handler: &mut important_handler,
       logical_properties: &mut logical_properties,
       unused_symbols: &options.unused_symbols,
       custom_media
-    }, false)?;
+    };
+
+    self.rules.minify(&mut ctx, false)
+      .map_err(|e| Error {
+        kind: e.kind,
+        filename: self.sources[e.loc.source_index as usize].clone(),
+        loc: e.loc
+      })?;
+      
     logical_properties.to_rules(&mut self.rules);
     Ok(())
   }
 
-  pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, PrinterError> {
+  pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, Error<PrinterErrorKind>> {
     let mut dest = String::new();
     let mut printer = Printer::new(&mut dest, options.source_map, options.minify, options.targets);
 
@@ -159,7 +167,8 @@ impl<'i> StyleAttribute<'i> {
     let mut parser = Parser::new(&mut input);
     let options = ParserOptions::default();
     Ok(StyleAttribute {
-      declarations: DeclarationBlock::parse(&mut parser, &options)?
+      declarations: DeclarationBlock::parse(&mut parser, &options)
+        .map_err(|e| Error::from(e, "".into()))?
     })
   }
 
