@@ -42,7 +42,7 @@ jobs:
       - name: Build CLI
         run: |
           cargo build --release --features cli --target ${{ matrix.target }}
-          mv target/${{ matrix.target }}/release/parcel_css parcel_css
+          node -e 'require("fs").renameSync("target/${{ matrix.target }}/release/parcel_css", "parcel_css")'
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         if: ${{ matrix.strip }}
         run: ${{ matrix.strip }} *.node parcel_css
