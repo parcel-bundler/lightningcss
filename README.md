@@ -150,8 +150,8 @@ css-minimizer-webpack-plugin has builtin support for `@parcel/css`. Install `@pa
 
 ## Benchmarks
 
-<img width="666" alt="image" src="https://user-images.githubusercontent.com/19409/151679661-67fbd0a1-45ed-4df0-a5f4-73f84fd4e868.png#gh-light-mode-only">
-<img width="666" alt="image" src="https://user-images.githubusercontent.com/19409/151679672-8d5fb384-b359-445c-b116-7cfd7ff0b9b9.png#gh-dark-mode-only">
+<img width="666" alt="image" src="https://user-images.githubusercontent.com/19409/153888593-591a3c34-e401-4b30-94ac-7f8eb3c0b242.png#gh-light-mode-only">
+<img width="666" alt="image" src="https://user-images.githubusercontent.com/19409/153888637-3fd9f660-7d43-4d65-83a3-9a40afa0a5a9.png#gh-dark-mode-only">
 
 ```
 $ node bench.js bootstrap-4.css 
