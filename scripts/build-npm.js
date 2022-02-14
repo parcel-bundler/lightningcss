@@ -58,10 +58,12 @@ delete cliPkg.main;
 delete cliPkg.napi;
 delete cliPkg.devDependencies;
 delete cliPkg.targets;
-delete cliPkg.scripts;
 delete cliPkg.types;
-cliPkg.files = ["postinstall.js"];
+cliPkg.files = ['parcel_css', 'postinstall.js'];
 cliPkg.optionalDependencies = cliOptionalDependencies;
+cliPkg.scripts = {
+  postinstall: 'node postinstall.js'
+};
 
 fs.writeFileSync(`${dir}/cli/package.json`, JSON.stringify(cliPkg, false, 2) + '\n');
 fs.copyFileSync(`${dir}/README.md`, `${dir}/cli/README.md`);
@@ -94,11 +96,12 @@ function buildNode(triple, cpu, os, t) {
 }
 
 function buildCLI(triple, cpu, os, t) {
+  let binary = os === 'win32' ? 'parcel_css.exe' : 'parcel_css';
   let pkg2 = {...pkg};
   pkg2.name += '-cli-' + t;
   pkg2.os = [os];
   pkg2.cpu = [cpu];
-  pkg2.files = ['parcel_css'];
+  pkg2.files = [binary];
   delete pkg2.main;
   delete pkg2.napi;
   delete pkg2.devDependencies;
@@ -114,6 +117,6 @@ function buildCLI(triple, cpu, os, t) {
     fs.mkdirSync(dir + '/npm/cli-' + t);
   } catch (err) {}
   fs.writeFileSync(`${dir}/npm/cli-${t}/package.json`, JSON.stringify(pkg2, false, 2) + '\n');
-  fs.copyFileSync(`${dir}/artifacts/bindings-${triple}/parcel_css`, `${dir}/npm/cli-${t}/parcel_css`);
+  fs.copyFileSync(`${dir}/artifacts/bindings-${triple}/${binary}`, `${dir}/npm/cli-${t}/${binary}`);
   fs.writeFileSync(`${dir}/npm/cli-${t}/README.md`, `This is the ${triple} build of @parcel/css-cli. See https://github.com/parcel-bundler/parcel-css for details.`);
 }

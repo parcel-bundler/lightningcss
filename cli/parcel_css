@@ -1,3 +1,6 @@
+#!/usr/bin/env node
+
+// This script is a fallback in case the postinstall script did not run.
 let fs = require('fs');
 let path = require('path');
 
@@ -27,19 +30,5 @@ try {
   }
 }
 
-try {
-  fs.linkSync(path.join(pkgPath, binary), path.join(__dirname, binary));
-} catch (err) {
-  try {
-    fs.copyFileSync(path.join(pkgPath, binary), path.join(__dirname, binary));
-  } catch (err) {
-    console.error('Failed to move @parcel/css-cli binary into place.');
-    process.exit(1);
-  }
-}
-
-if (process.platform === 'win32') {
-  try {
-    fs.unlinkSync(path.join(__dirname, 'parcel_css'));
-  } catch (err) {}
-}
+let res = require('child_process').spawnSync(path.join(pkgPath, binary), process.argv.slice(2), {stdio: 'inherit'});
+process.exit(res.status);

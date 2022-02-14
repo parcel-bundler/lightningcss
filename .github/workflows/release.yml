@@ -11,10 +11,12 @@ jobs:
           # Windows
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            binary: parcel_css.exe
           # Mac OS
           - os: macos-latest
             target: x86_64-apple-darwin
             strip: strip -x # Must use -x on macOS. This produces larger results on linux.
+            binary: parcel_css
 
     name: build-${{ matrix.target }}
     runs-on: ${{ matrix.os }}
@@ -42,7 +44,7 @@ jobs:
       - name: Build CLI
         run: |
           cargo build --release --features cli --target ${{ matrix.target }}
-          node -e "require('fs').renameSync('target/${{ matrix.target }}/release/parcel_css', 'parcel_css')"
+          node -e "require('fs').renameSync('target/${{ matrix.target }}/release/${{ matrix.binary }}', '${{ matrix.binary }}')"
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         if: ${{ matrix.strip }}
         run: ${{ matrix.strip }} *.node parcel_css
