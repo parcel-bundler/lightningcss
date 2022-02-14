@@ -64,12 +64,13 @@ use crate::error::{ParserError, PrinterError};
 use crate::logical::LogicalProperty;
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
+use crate::parser::starts_with_ignore_ascii_case;
 
 macro_rules! define_properties {
   (
     $(
       $(#[$meta: meta])*
-      $name: literal: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: tt )* $( unprefixed: $unprefixed: literal )? $( if $condition: ident )?,
+      $name: literal: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: ident )* $( unprefixed: $unprefixed: literal )? $( if $condition: ident )?,
     )+
   ) => {
     #[derive(Debug, Clone, PartialEq)]
@@ -91,71 +92,106 @@ macro_rules! define_properties {
     impl<'i> Parse<'i> for PropertyId<'i> {
       fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let name = input.expect_ident()?;
-        match name.as_ref() {
+        let name_ref = name.as_ref();
+        let (prefix, name_ref) = if starts_with_ignore_ascii_case(name_ref, "-webkit-") {
+          (VendorPrefix::WebKit, &name_ref[8..])
+        } else if starts_with_ignore_ascii_case(name_ref, "-moz-") {
+          (VendorPrefix::Moz, &name_ref[5..])
+        } else if starts_with_ignore_ascii_case(name_ref, "-o-") {
+          (VendorPrefix::O, &name_ref[3..])
+        } else if starts_with_ignore_ascii_case(name_ref, "-ms-") {
+          (VendorPrefix::Ms, &name_ref[4..])
+        } else {
+          (VendorPrefix::None, name_ref)
+        };
+        
+        macro_rules! get_allowed_prefixes {
+          ($v: literal) => {
+            VendorPrefix::empty()
+          };
+          () => {
+            VendorPrefix::None
+          };
+        }
+
+        match_ignore_ascii_case! { name_ref,
           $(
             $(#[$meta])*
-            $name => Ok(PropertyId::$property$((<$vp>::None))?),
-            $(
-              // TODO: figure out how to handle attributes on prefixed properties...
-              concat!("-", $prefix, "-", $name) => {
-                let prefix = VendorPrefix::from_str($prefix);
-                Ok(PropertyId::$property(prefix))
+            $name => {
+              macro_rules! get_propertyid {
+                ($v: ty) => {
+                  PropertyId::$property(prefix)
+                };
+                () => {
+                  PropertyId::$property
+                };
               }
-            )*
+
+              let allowed_prefixes = get_allowed_prefixes!($($unprefixed)?) $(| VendorPrefix::$prefix)*;
+              if allowed_prefixes.contains(prefix) {
+                return Ok(get_propertyid!($($vp)?))
+              }
+            },
           )+
-          "all" => Ok(PropertyId::All),
-          _ => Ok(PropertyId::Custom(name.into()))
+          "all" => return Ok(PropertyId::All),
+          _ => {}
         }
+        Ok(PropertyId::Custom(name.into()))
       }
     }
 
     impl<'i> ToCss for PropertyId<'i> {
       fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
         use PropertyId::*;
-        match self {
+
+        let (name, prefix) = match self {
           $(
             $(#[$meta])*
             $property$((vp_name!($vp, prefix)))? => {
-              let mut first = true;
-              macro_rules! delim {
+              macro_rules! get_prefix {
+                ($v: ty) => {
+                  *prefix
+                };
                 () => {
-                  #[allow(unused_assignments)]
-                  if first {
-                    first = false;
-                  } else {
-                    dest.delim(',', false)?;
-                  }
+                  VendorPrefix::None
                 };
               }
-
-              macro_rules! write {
-                ($p: expr) => {
-                  delim!();
-                  dest.write_str(&$name)?;
-                };
-                ($v: ty, $p: expr) => {
-                  if prefix.contains($p) {
-                    delim!();
-                    $p.to_css(dest)?;
-                    dest.write_str(&$name)?;
-                  }
-                };
-              }
-              
-              $(
-                write!($vp, VendorPrefix::WebKit);
-                write!($vp, VendorPrefix::Moz);
-                write!($vp, VendorPrefix::Ms);
-                write!($vp, VendorPrefix::O);
-              )?
-
-              write!($($vp,)? VendorPrefix::None);
-              Ok(())
+      
+              ($name, get_prefix!($($vp)?))
             },
           )+
-          All => dest.write_str("all"),
-          Custom(name) => dest.write_str(&name)
+          All => ("all", VendorPrefix::None),
+          Custom(name) => (name.as_ref(), VendorPrefix::None),
+        };
+
+        let mut first = true;
+        macro_rules! delim {
+          () => {
+            #[allow(unused_assignments)]
+            if first {
+              first = false;
+            } else {
+              dest.delim(',', false)?;
+            }
+          };
         }
+
+        macro_rules! write {
+          ($p: expr) => {
+            if prefix.contains($p) {
+              delim!();
+              $p.to_css(dest)?;
+              dest.write_str(name)?;
+            }
+          };
+        }
+
+        write!(VendorPrefix::WebKit);
+        write!(VendorPrefix::Moz);
+        write!(VendorPrefix::Ms);
+        write!(VendorPrefix::O);
+        write!(VendorPrefix::None);
+        Ok(())
       }
     }
 
@@ -230,29 +266,6 @@ macro_rules! define_properties {
         }
       }
 
-      fn to_css_with_prefix<W>(&self, dest: &mut Printer<W>, prefix: VendorPrefix) -> Result<(), PrinterError> where W: std::fmt::Write {
-        use PropertyId::*;
-        match self {
-          $(
-            $(#[$meta])*
-            $property$((vp_name!($vp, _p)))? => {
-              $(
-                macro_rules! write_prefix {
-                  ($v: ty) => {
-                    prefix.to_css(dest)?;
-                  };
-                }
-  
-                write_prefix!($vp);
-              )?
-              dest.write_str(&$name)
-            },
-          )+
-          All => dest.write_str("all"),
-          Custom(name) => dest.write_str(&name)
-        }
-      }
-
       #[allow(dead_code)]
       pub(crate) fn name(&self) -> &str {
         use PropertyId::*;
@@ -282,44 +295,73 @@ macro_rules! define_properties {
     impl<'i> Property<'i> {
       pub fn parse<'t>(name: CowRcStr<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Property<'i>, ParseError<'i, ParserError<'i>>> {
         let state = input.state();
-        match name.as_ref() {
+        let name_ref = name.as_ref();
+        let (prefix, name_ref) = if starts_with_ignore_ascii_case(name_ref, "-webkit-") {
+          (VendorPrefix::WebKit, &name_ref[8..])
+        } else if starts_with_ignore_ascii_case(name_ref, "-moz-") {
+          (VendorPrefix::Moz, &name_ref[5..])
+        } else if starts_with_ignore_ascii_case(name_ref, "-o-") {
+          (VendorPrefix::O, &name_ref[3..])
+        } else if starts_with_ignore_ascii_case(name_ref, "-ms-") {
+          (VendorPrefix::Ms, &name_ref[4..])
+        } else {
+          (VendorPrefix::None, name_ref)
+        };
+
+        macro_rules! get_allowed_prefixes {
+          ($v: literal) => {
+            VendorPrefix::empty()
+          };
+          () => {
+            VendorPrefix::None
+          };
+        }
+
+        let property_id = match_ignore_ascii_case! { name_ref,
           $(
             $(#[$meta])*
-            $name $(if $unprefixed)? $(if options.$condition)? => {
-              if let Ok(c) = <$type>::parse(input) {
-                if input.expect_exhausted().is_ok() {
-                  return Ok(Property::$property(c, $(<$vp>::None)?))
-                }
-              }
-
-              // If a value was unable to be parsed, treat as an unparsed property.
-              // This is different from a custom property, handled below, in that the property name is known
-              // and stored as an enum rather than a string. This lets property handlers more easily deal with it.
-              // Ideally we'd only do this if var() or env() references were seen, but err on the safe side for now.
-              input.reset(&state);
-              return Ok(Property::Unparsed(UnparsedProperty::parse(PropertyId::$property$((<$vp>::None))?, input)?))
-            }
-
-            $(
-              // TODO: figure out how to handle attributes on prefixed properties...
-              concat!("-", $prefix, "-", $name) => {
-                let prefix = VendorPrefix::from_str($prefix);
+            $name $(if options.$condition)? => {
+              let allowed_prefixes = get_allowed_prefixes!($($unprefixed)?) $(| VendorPrefix::$prefix)*;
+              if allowed_prefixes.contains(prefix) {
                 if let Ok(c) = <$type>::parse(input) {
                   if input.expect_exhausted().is_ok() {
-                    return Ok(Property::$property(c, prefix))
+                    macro_rules! get_property {
+                      ($v: ty) => {
+                        Property::$property(c, prefix)
+                      };
+                      () => {
+                        Property::$property(c)
+                      };
+                    }
+
+                    return Ok(get_property!($($vp)?))
                   }
                 }
 
-                input.reset(&state);
-                return Ok(Property::Unparsed(UnparsedProperty::parse(PropertyId::$property(prefix), input)?))  
-              }
-            )*
-          )+
-          _ => {}
-        }
+                macro_rules! get_propertyid {
+                  ($v: ty) => {
+                    PropertyId::$property(prefix)
+                  };
+                  () => {
+                    PropertyId::$property
+                  };
+                }
 
+                get_propertyid!($($vp)?)
+              } else {
+                return Ok(Property::Custom(CustomProperty::parse(name, input)?))
+              }
+            },
+          )+
+          _ => return Ok(Property::Custom(CustomProperty::parse(name, input)?))
+        };
+
+        // If a value was unable to be parsed, treat as an unparsed property.
+        // This is different from a custom property, handled below, in that the property name is known
+        // and stored as an enum rather than a string. This lets property handlers more easily deal with it.
+        // Ideally we'd only do this if var() or env() references were seen, but err on the safe side for now.
         input.reset(&state);
-        return Ok(Property::Custom(CustomProperty::parse(name, input)?))
+        return Ok(Property::Unparsed(UnparsedProperty::parse(property_id, input)?))
       }
 
       #[allow(dead_code)]
@@ -375,100 +417,48 @@ macro_rules! define_properties {
           };
         }
 
-        match self {
+        let (name, prefix) = match self {
           $(
             $(#[$meta])*
-            $property(val, $(vp_name!($vp, prefix))?) => {
-              // If there are multiple vendor prefixes set, this expands them.
-              macro_rules! write {
+            $property(_, $(vp_name!($vp, prefix))?) => {
+              macro_rules! get_prefix {
+                ($v: ty) => {
+                  *prefix
+                };
                 () => {
-                  dest.write_str($name)?;
-                  dest.delim(':', false)?;
-                  val.to_css(dest)?;
-                  if important {
-                    dest.whitespace()?;
-                    dest.write_str("!important")?;
-                  }
-                };
-                ($p: expr) => {
-                  start!();
-                  write!();
-                };
-                ($v: ty, $p: expr) => {
-                  if prefix.contains($p) {
-                    start!();
-                    $p.to_css(dest)?;
-                    write!();
-                  }
+                  VendorPrefix::None
                 };
               }
-              
-              $(
-                write!($vp, VendorPrefix::WebKit);
-                write!($vp, VendorPrefix::Moz);
-                write!($vp, VendorPrefix::Ms);
-                write!($vp, VendorPrefix::O);
-              )?
-
-              write!($($vp,)? VendorPrefix::None);
-            }
+      
+              ($name, get_prefix!($($vp)?))
+            },
           )+
-          Unparsed(unparsed) => {
-            macro_rules! write {
-              ($p: expr) => {
-                if unparsed.property_id.prefix().contains($p) {
-                  start!();
-                  unparsed.property_id.to_css_with_prefix(dest, $p)?;
-                  dest.delim(':', false)?;
-                  unparsed.value.to_css(dest)?;
-                  if important {
-                    dest.whitespace()?;
-                    dest.write_str("!important")?;
-                  }
-                }
-              };
-            }
-            
-            write!(VendorPrefix::WebKit);
-            write!(VendorPrefix::Moz);
-            write!(VendorPrefix::Ms);
-            write!(VendorPrefix::O);
-            write!(VendorPrefix::None);
-          }
-          Logical(logical) => {
-            macro_rules! write {
-              ($p: expr) => {
-                if logical.property_id.prefix().contains($p) {
-                  start!();
-                  logical.property_id.to_css_with_prefix(dest, $p)?;
-                  dest.delim(':', false)?;
-                  logical.to_css(dest)?;
-                  if important {
-                    dest.whitespace()?;
-                    dest.write_str("!important")?;
-                  }
-                }
-              };
-            }
-            
-            write!(VendorPrefix::WebKit);
-            write!(VendorPrefix::Moz);
-            write!(VendorPrefix::Ms);
-            write!(VendorPrefix::O);
-            write!(VendorPrefix::None);
-          }
-          Custom(custom) => {
-            dest.write_str(custom.name.as_ref())?;
-            dest.delim(':', false)?;
-            if dest.minify || (custom.value.0.len() != 1 || !matches!(custom.value.0.first(), Some(token) if token.is_whitespace())) {
-              custom.value.to_css(dest)?;
-            }
-            if important {
-              dest.whitespace()?;
-              dest.write_str("!important")?;
+          Unparsed(unparsed) => (unparsed.property_id.name(), unparsed.property_id.prefix()),
+          Logical(logical) => (logical.property_id.name(), logical.property_id.prefix()),
+          Custom(custom) => (custom.name.as_ref(), VendorPrefix::None),
+        };
+
+        macro_rules! write {
+          ($p: expr) => {
+            if prefix.contains($p) {
+              start!();
+              $p.to_css(dest)?;
+              dest.write_str(name)?;
+              dest.delim(':', false)?;
+              self.value_to_css(dest)?;
+              if important {
+                dest.whitespace()?;
+                dest.write_str("!important")?;
+              }
             }
           }
         }
+
+        write!(VendorPrefix::WebKit);
+        write!(VendorPrefix::Moz);
+        write!(VendorPrefix::Ms);
+        write!(VendorPrefix::O);
+        write!(VendorPrefix::None);
         Ok(())
       }
     }
@@ -484,11 +474,11 @@ define_properties! {
   "background-size": BackgroundSize(SmallVec<[BackgroundSize; 1]>),
   "background-repeat": BackgroundRepeat(SmallVec<[BackgroundRepeat; 1]>),
   "background-attachment": BackgroundAttachment(SmallVec<[BackgroundAttachment; 1]>),
-  "background-clip": BackgroundClip(SmallVec<[BackgroundClip; 1]>, VendorPrefix) / "webkit" / "moz",
+  "background-clip": BackgroundClip(SmallVec<[BackgroundClip; 1]>, VendorPrefix) / WebKit / Moz,
   "background-origin": BackgroundOrigin(SmallVec<[BackgroundBox; 1]>),
   "background": Background(SmallVec<[Background<'i>; 1]>),
 
-  "box-shadow": BoxShadow(SmallVec<[BoxShadow; 1]>, VendorPrefix) / "webkit" / "moz",
+  "box-shadow": BoxShadow(SmallVec<[BoxShadow; 1]>, VendorPrefix) / WebKit / Moz,
   "opacity": Opacity(AlphaValue),
   "color": Color(CssColor),
   "display": Display(Display),
@@ -506,12 +496,12 @@ define_properties! {
   "min-inline-size": MinInlineSize(MinMaxSize),
   "max-block-size": MaxBlockSize(MinMaxSize),
   "max-inline-size": MaxInlineSize(MinMaxSize),
-  "box-sizing": BoxSizing(BoxSizing, VendorPrefix) / "webkit" / "moz",
+  "box-sizing": BoxSizing(BoxSizing, VendorPrefix) / WebKit / Moz,
 
   "overflow": Overflow(Overflow),
   "overflow-x": OverflowX(OverflowKeyword),
   "overflow-y": OverflowY(OverflowKeyword),
-  "text-overflow": TextOverflow(TextOverflow, VendorPrefix) / "o",
+  "text-overflow": TextOverflow(TextOverflow, VendorPrefix) / O,
 
   // https://www.w3.org/TR/2020/WD-css-position-3-20200519
   "position": Position(position::Position),
@@ -554,22 +544,22 @@ define_properties! {
   "border-inline-start-width": BorderInlineStartWidth(BorderSideWidth),
   "border-inline-end-width": BorderInlineEndWidth(BorderSideWidth),
 
-  "border-top-left-radius": BorderTopLeftRadius(Size2D<LengthPercentage>, VendorPrefix) / "webkit" / "moz",
-  "border-top-right-radius": BorderTopRightRadius(Size2D<LengthPercentage>, VendorPrefix) / "webkit" / "moz",
-  "border-bottom-left-radius": BorderBottomLeftRadius(Size2D<LengthPercentage>, VendorPrefix) / "webkit" / "moz",
-  "border-bottom-right-radius": BorderBottomRightRadius(Size2D<LengthPercentage>, VendorPrefix) / "webkit" / "moz",
+  "border-top-left-radius": BorderTopLeftRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz,
+  "border-top-right-radius": BorderTopRightRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz,
+  "border-bottom-left-radius": BorderBottomLeftRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz,
+  "border-bottom-right-radius": BorderBottomRightRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz,
   "border-start-start-radius": BorderStartStartRadius(Size2D<LengthPercentage>),
   "border-start-end-radius": BorderStartEndRadius(Size2D<LengthPercentage>),
   "border-end-start-radius": BorderEndStartRadius(Size2D<LengthPercentage>),
   "border-end-end-radius": BorderEndEndRadius(Size2D<LengthPercentage>),
-  "border-radius": BorderRadius(BorderRadius, VendorPrefix) / "webkit" / "moz",
+  "border-radius": BorderRadius(BorderRadius, VendorPrefix) / WebKit / Moz,
 
   "border-image-source": BorderImageSource(Image<'i>),
   "border-image-outset": BorderImageOutset(Rect<LengthOrNumber>),
   "border-image-repeat": BorderImageRepeat(BorderImageRepeat),
   "border-image-width": BorderImageWidth(Rect<BorderImageSideWidth>),
   "border-image-slice": BorderImageSlice(BorderImageSlice),
-  "border-image": BorderImage(BorderImage<'i>, VendorPrefix) / "webkit" / "moz" / "o",
+  "border-image": BorderImage(BorderImage<'i>, VendorPrefix) / WebKit / Moz / O,
 
   "border-color": BorderColor(Rect<CssColor>),
   "border-style": BorderStyle(Rect<BorderStyle>),
@@ -601,23 +591,23 @@ define_properties! {
   "outline-width": OutlineWidth(BorderSideWidth),
 
   // Flex properties: https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119
-  "flex-direction": FlexDirection(FlexDirection, VendorPrefix) / "webkit" / "ms",
-  "flex-wrap": FlexWrap(FlexWrap, VendorPrefix) / "webkit" / "ms",
-  "flex-flow": FlexFlow(FlexFlow, VendorPrefix) / "webkit" / "ms",
-  "flex-grow": FlexGrow(f32, VendorPrefix) / "webkit",
-  "flex-shrink": FlexShrink(f32, VendorPrefix) / "webkit",
-  "flex-basis": FlexBasis(LengthPercentageOrAuto, VendorPrefix) / "webkit",
-  "flex": Flex(Flex, VendorPrefix) / "webkit" / "ms",
-  "order": Order(f32, VendorPrefix) / "webkit",
+  "flex-direction": FlexDirection(FlexDirection, VendorPrefix) / WebKit / Ms,
+  "flex-wrap": FlexWrap(FlexWrap, VendorPrefix) / WebKit / Ms,
+  "flex-flow": FlexFlow(FlexFlow, VendorPrefix) / WebKit / Ms,
+  "flex-grow": FlexGrow(f32, VendorPrefix) / WebKit,
+  "flex-shrink": FlexShrink(f32, VendorPrefix) / WebKit,
+  "flex-basis": FlexBasis(LengthPercentageOrAuto, VendorPrefix) / WebKit,
+  "flex": Flex(Flex, VendorPrefix) / WebKit / Ms,
+  "order": Order(f32, VendorPrefix) / WebKit,
 
   // Align properties: https://www.w3.org/TR/2020/WD-css-align-3-20200421
-  "align-content": AlignContent(AlignContent, VendorPrefix) / "webkit",
-  "justify-content": JustifyContent(JustifyContent, VendorPrefix) / "webkit",
+  "align-content": AlignContent(AlignContent, VendorPrefix) / WebKit,
+  "justify-content": JustifyContent(JustifyContent, VendorPrefix) / WebKit,
   "place-content": PlaceContent(PlaceContent),
-  "align-self": AlignSelf(AlignSelf, VendorPrefix) / "webkit",
+  "align-self": AlignSelf(AlignSelf, VendorPrefix) / WebKit,
   "justify-self": JustifySelf(JustifySelf),
   "place-self": PlaceSelf(PlaceSelf),
-  "align-items": AlignItems(AlignItems, VendorPrefix) / "webkit",
+  "align-items": AlignItems(AlignItems, VendorPrefix) / WebKit,
   "justify-items": JustifyItems(JustifyItems),
   "place-items": PlaceItems(PlaceItems),
   "row-gap": RowGap(GapValue),
@@ -625,26 +615,26 @@ define_properties! {
   "gap": Gap(Gap),
 
   // Old flex (2009): https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/
-  "box-orient": BoxOrient(BoxOrient, VendorPrefix) / "webkit" / "moz" unprefixed: false,
-  "box-direction": BoxDirection(BoxDirection, VendorPrefix) / "webkit" / "moz" unprefixed: false,
-  "box-ordinal-group": BoxOrdinalGroup(f32, VendorPrefix) / "webkit" / "moz" unprefixed: false,
-  "box-align": BoxAlign(BoxAlign, VendorPrefix) / "webkit" / "moz" unprefixed: false,
-  "box-flex": BoxFlex(f32, VendorPrefix) / "webkit" / "moz" unprefixed: false,
-  "box-flex-group": BoxFlexGroup(f32, VendorPrefix) / "webkit" unprefixed: false,
-  "box-pack": BoxPack(BoxPack, VendorPrefix) / "webkit" / "moz" unprefixed: false,
-  "box-lines": BoxLines(BoxLines, VendorPrefix) / "webkit" / "moz" unprefixed: false,
+  "box-orient": BoxOrient(BoxOrient, VendorPrefix) / WebKit / Moz unprefixed: false,
+  "box-direction": BoxDirection(BoxDirection, VendorPrefix) / WebKit / Moz unprefixed: false,
+  "box-ordinal-group": BoxOrdinalGroup(f32, VendorPrefix) / WebKit / Moz unprefixed: false,
+  "box-align": BoxAlign(BoxAlign, VendorPrefix) / WebKit / Moz unprefixed: false,
+  "box-flex": BoxFlex(f32, VendorPrefix) / WebKit / Moz unprefixed: false,
+  "box-flex-group": BoxFlexGroup(f32, VendorPrefix) / WebKit unprefixed: false,
+  "box-pack": BoxPack(BoxPack, VendorPrefix) / WebKit / Moz unprefixed: false,
+  "box-lines": BoxLines(BoxLines, VendorPrefix) / WebKit / Moz unprefixed: false,
 
   // Old flex (2012): https://www.w3.org/TR/2012/WD-css3-flexbox-20120322/
-  "flex-pack": FlexPack(FlexPack, VendorPrefix) / "ms" unprefixed: false,
-  "flex-order": FlexOrder(f32, VendorPrefix) / "ms" unprefixed: false,
-  "flex-align": FlexAlign(BoxAlign, VendorPrefix) / "ms" unprefixed: false,
-  "flex-item-align": FlexItemAlign(FlexItemAlign, VendorPrefix) / "ms" unprefixed: false,
-  "flex-line-pack": FlexLinePack(FlexLinePack, VendorPrefix) / "ms" unprefixed: false,
+  "flex-pack": FlexPack(FlexPack, VendorPrefix) / Ms unprefixed: false,
+  "flex-order": FlexOrder(f32, VendorPrefix) / Ms unprefixed: false,
+  "flex-align": FlexAlign(BoxAlign, VendorPrefix) / Ms unprefixed: false,
+  "flex-item-align": FlexItemAlign(FlexItemAlign, VendorPrefix) / Ms unprefixed: false,
+  "flex-line-pack": FlexLinePack(FlexLinePack, VendorPrefix) / Ms unprefixed: false,
 
   // Microsoft extensions
-  "flex-positive": FlexPositive(f32, VendorPrefix) / "ms" unprefixed: false,
-  "flex-negative": FlexNegative(f32, VendorPrefix) / "ms" unprefixed: false,
-  "flex-preferred-size": FlexPreferredSize(LengthPercentageOrAuto, VendorPrefix) / "ms" unprefixed: false,
+  "flex-positive": FlexPositive(f32, VendorPrefix) / Ms unprefixed: false,
+  "flex-negative": FlexNegative(f32, VendorPrefix) / Ms unprefixed: false,
+  "flex-preferred-size": FlexPreferredSize(LengthPercentageOrAuto, VendorPrefix) / Ms unprefixed: false,
 
   #[cfg(feature = "grid")]
   "grid-template-columns": GridTemplateColumns(TrackSizing<'i>),
@@ -738,30 +728,30 @@ define_properties! {
   "font": Font(Font<'i>),
   "vertical-align": VerticalAlign(VerticalAlign),
 
-  "transition-property": TransitionProperty(SmallVec<[PropertyId<'i>; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
-  "transition-duration": TransitionDuration(SmallVec<[Time; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
-  "transition-delay": TransitionDelay(SmallVec<[Time; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
-  "transition-timing-function": TransitionTimingFunction(SmallVec<[EasingFunction; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
-  "transition": Transition(SmallVec<[Transition<'i>; 1]>, VendorPrefix) / "webkit" / "moz" / "ms",
+  "transition-property": TransitionProperty(SmallVec<[PropertyId<'i>; 1]>, VendorPrefix) / WebKit / Moz / Ms,
+  "transition-duration": TransitionDuration(SmallVec<[Time; 1]>, VendorPrefix) / WebKit / Moz / Ms,
+  "transition-delay": TransitionDelay(SmallVec<[Time; 1]>, VendorPrefix) / WebKit / Moz / Ms,
+  "transition-timing-function": TransitionTimingFunction(SmallVec<[EasingFunction; 1]>, VendorPrefix) / WebKit / Moz / Ms,
+  "transition": Transition(SmallVec<[Transition<'i>; 1]>, VendorPrefix) / WebKit / Moz / Ms,
 
-  "animation-name": AnimationName(AnimationNameList<'i>, VendorPrefix) / "webkit" / "moz" / "o",
-  "animation-duration": AnimationDuration(SmallVec<[Time; 1]>, VendorPrefix) / "webkit" / "moz" / "o",
-  "animation-timing-function": AnimationTimingFunction(SmallVec<[EasingFunction; 1]>, VendorPrefix) / "webkit" / "moz" / "o",
-  "animation-iteration-count": AnimationIterationCount(SmallVec<[AnimationIterationCount; 1]>, VendorPrefix) / "webkit" / "moz" / "o",
-  "animation-direction": AnimationDirection(SmallVec<[AnimationDirection; 1]>, VendorPrefix) / "webkit" / "moz" / "o",
-  "animation-play-state": AnimationPlayState(SmallVec<[AnimationPlayState; 1]>, VendorPrefix) / "webkit" / "moz" / "o",
-  "animation-delay": AnimationDelay(SmallVec<[Time; 1]>, VendorPrefix) / "webkit" / "moz" / "o",
-  "animation-fill-mode": AnimationFillMode(SmallVec<[AnimationFillMode; 1]>, VendorPrefix) / "webkit" / "moz" / "o",
-  "animation": Animation(AnimationList<'i>, VendorPrefix) / "webkit" / "moz" / "o",
+  "animation-name": AnimationName(AnimationNameList<'i>, VendorPrefix) / WebKit / Moz / O,
+  "animation-duration": AnimationDuration(SmallVec<[Time; 1]>, VendorPrefix) / WebKit / Moz / O,
+  "animation-timing-function": AnimationTimingFunction(SmallVec<[EasingFunction; 1]>, VendorPrefix) / WebKit / Moz / O,
+  "animation-iteration-count": AnimationIterationCount(SmallVec<[AnimationIterationCount; 1]>, VendorPrefix) / WebKit / Moz / O,
+  "animation-direction": AnimationDirection(SmallVec<[AnimationDirection; 1]>, VendorPrefix) / WebKit / Moz / O,
+  "animation-play-state": AnimationPlayState(SmallVec<[AnimationPlayState; 1]>, VendorPrefix) / WebKit / Moz / O,
+  "animation-delay": AnimationDelay(SmallVec<[Time; 1]>, VendorPrefix) / WebKit / Moz / O,
+  "animation-fill-mode": AnimationFillMode(SmallVec<[AnimationFillMode; 1]>, VendorPrefix) / WebKit / Moz / O,
+  "animation": Animation(AnimationList<'i>, VendorPrefix) / WebKit / Moz / O,
 
   // https://drafts.csswg.org/css-transforms-2/
-  "transform": Transform(TransformList, VendorPrefix) / "webkit" / "moz" / "ms" / "o",
-  "transform-origin": TransformOrigin(Position, VendorPrefix) / "webkit" / "moz" / "ms" / "o", // TODO: handle z offset syntax
-  "transform-style": TransformStyle(TransformStyle, VendorPrefix) / "webkit" / "moz",
+  "transform": Transform(TransformList, VendorPrefix) / WebKit / Moz / Ms / O,
+  "transform-origin": TransformOrigin(Position, VendorPrefix) / WebKit / Moz / Ms / O, // TODO: handle z offset syntax
+  "transform-style": TransformStyle(TransformStyle, VendorPrefix) / WebKit / Moz,
   "transform-box": TransformBox(TransformBox),
-  "backface-visibility": BackfaceVisibility(BackfaceVisibility, VendorPrefix) / "webkit" / "moz",
-  "perspective": Perspective(Perspective, VendorPrefix) / "webkit" / "moz",
-  "perspective-origin": PerspectiveOrigin(Position, VendorPrefix) / "webkit" / "moz",
+  "backface-visibility": BackfaceVisibility(BackfaceVisibility, VendorPrefix) / WebKit / Moz,
+  "perspective": Perspective(Perspective, VendorPrefix) / WebKit / Moz,
+  "perspective-origin": PerspectiveOrigin(Position, VendorPrefix) / WebKit / Moz,
   "translate": Translate(Translate),
   "rotate": Rotate(Rotate),
   "scale": Scale(Scale),
@@ -769,30 +759,30 @@ define_properties! {
   // https://www.w3.org/TR/2021/CRD-css-text-3-20210422
   "text-transform": TextTransform(TextTransform),
   "white-space": WhiteSpace(WhiteSpace),
-  "tab-size": TabSize(LengthOrNumber, VendorPrefix) / "moz" / "o",
+  "tab-size": TabSize(LengthOrNumber, VendorPrefix) / Moz / O,
   "word-break": WordBreak(WordBreak),
   "line-break": LineBreak(LineBreak),
-  "hyphens": Hyphens(Hyphens, VendorPrefix) / "webkit" / "moz" / "ms",
+  "hyphens": Hyphens(Hyphens, VendorPrefix) / WebKit / Moz / Ms,
   "overflow-wrap": OverflowWrap(OverflowWrap),
   "word-wrap": WordWrap(OverflowWrap),
   "text-align": TextAlign(TextAlign),
-  "text-align-last": TextAlignLast(TextAlignLast, VendorPrefix) / "moz",
+  "text-align-last": TextAlignLast(TextAlignLast, VendorPrefix) / Moz,
   "text-justify": TextJustify(TextJustify),
   "word-spacing": WordSpacing(Spacing),
   "letter-spacing": LetterSpacing(Spacing),
   "text-indent": TextIndent(TextIndent),
 
   // https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506
-  "text-decoration-line": TextDecorationLine(TextDecorationLine, VendorPrefix) / "webkit" / "moz",
-  "text-decoration-style": TextDecorationStyle(TextDecorationStyle, VendorPrefix) / "webkit" / "moz",
-  "text-decoration-color": TextDecorationColor(CssColor, VendorPrefix) / "webkit" / "moz",
+  "text-decoration-line": TextDecorationLine(TextDecorationLine, VendorPrefix) / WebKit / Moz,
+  "text-decoration-style": TextDecorationStyle(TextDecorationStyle, VendorPrefix) / WebKit / Moz,
+  "text-decoration-color": TextDecorationColor(CssColor, VendorPrefix) / WebKit / Moz,
   "text-decoration-thickness": TextDecorationThickness(TextDecorationThickness),
-  "text-decoration": TextDecoration(TextDecoration, VendorPrefix) / "webkit" / "moz",
-  "text-decoration-skip-ink": TextDecorationSkipInk(TextDecorationSkipInk, VendorPrefix) / "webkit",
-  "text-emphasis-style": TextEmphasisStyle(TextEmphasisStyle<'i>, VendorPrefix) / "webkit",
-  "text-emphasis-color": TextEmphasisColor(CssColor, VendorPrefix) / "webkit",
-  "text-emphasis": TextEmphasis(TextEmphasis<'i>, VendorPrefix) / "webkit",
-  "text-emphasis-position": TextEmphasisPosition(TextEmphasisPosition, VendorPrefix) / "webkit",
+  "text-decoration": TextDecoration(TextDecoration, VendorPrefix) / WebKit / Moz,
+  "text-decoration-skip-ink": TextDecorationSkipInk(TextDecorationSkipInk, VendorPrefix) / WebKit,
+  "text-emphasis-style": TextEmphasisStyle(TextEmphasisStyle<'i>, VendorPrefix) / WebKit,
+  "text-emphasis-color": TextEmphasisColor(CssColor, VendorPrefix) / WebKit,
+  "text-emphasis": TextEmphasis(TextEmphasis<'i>, VendorPrefix) / WebKit,
+  "text-emphasis-position": TextEmphasisPosition(TextEmphasisPosition, VendorPrefix) / WebKit,
   "text-shadow": TextShadow(SmallVec<[TextShadow; 1]>),
 
   // https://www.w3.org/TR/2021/WD-css-ui-4-20210316
@@ -801,9 +791,9 @@ define_properties! {
   "caret-color": CaretColor(ColorOrAuto),
   "caret-shape": CaretShape(CaretShape),
   "caret": Caret(Caret),
-  "user-select": UserSelect(UserSelect, VendorPrefix) / "webkit" / "moz" / "ms",
+  "user-select": UserSelect(UserSelect, VendorPrefix) / WebKit / Moz / Ms,
   "accent-color": AccentColor(ColorOrAuto),
-  "appearance": Appearance(Appearance<'i>, VendorPrefix) / "webkit" / "moz" / "ms",
+  "appearance": Appearance(Appearance<'i>, VendorPrefix) / WebKit / Moz / Ms,
 
   // https://www.w3.org/TR/2020/WD-css-lists-3-20201117
   "list-style-type": ListStyleType(ListStyleType<'i>),

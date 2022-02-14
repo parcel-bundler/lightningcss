@@ -155,14 +155,14 @@ css-minimizer-webpack-plugin has builtin support for `@parcel/css`. Install `@pa
 
 ```
 $ node bench.js bootstrap-4.css 
-cssnano: 542.879ms
+cssnano: 544.809ms
 159636 bytes
 
-esbuild: 16.839ms
+esbuild: 17.199ms
 160332 bytes
 
-parcel-css: 4.345ms
-143121 bytes
+parcel-css: 4.16ms
+143091 bytes
 
 
 $ node bench.js animate.css

@@ -211,6 +211,10 @@ fn try_parse_color_token<'i, 't>(f: &CowArcStr<'i>, state: &ParserState, input: 
 
 impl<'i> ToCss for TokenList<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+    if !dest.minify && self.0.len() == 1 && matches!(self.0.first(), Some(token) if token.is_whitespace()) {
+      return Ok(())
+    }
+
     for (i, token_or_value) in self.0.iter().enumerate() {
       match token_or_value {
         TokenOrValue::Color(color) => color.to_css(dest)?,
