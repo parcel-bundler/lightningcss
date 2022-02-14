@@ -47,14 +47,14 @@ jobs:
           node -e "require('fs').renameSync('target/${{ matrix.target }}/release/${{ matrix.binary }}', '${{ matrix.binary }}')"
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         if: ${{ matrix.strip }}
-        run: ${{ matrix.strip }} *.node parcel_css
+        run: ${{ matrix.strip }} *.node ${{ matrix.binary }}
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: bindings-${{ matrix.target }}
           path: |
             *.node
-            parcel_css
+            ${{ matrix.binary }}
 
   build-apple-silicon:
     name: build-apple-silicon
