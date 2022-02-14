@@ -243,6 +243,9 @@ impl<'i> ToCss for TokenList<'i> {
             Token::Dimension { value, unit, .. } => {
               serialize_dimension(*value, unit, dest)?;
             }
+            Token::Number { value, .. } => {
+              value.to_css(dest)?;
+            }
             _ => {
               token.to_css(dest)?;
             }
