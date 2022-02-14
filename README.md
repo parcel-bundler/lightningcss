@@ -43,7 +43,7 @@ A CSS parser, transformer, and minifier written in Rust.
 
 ## Documentation
 
-`@parcel/css` can be used from [Parcel](https://parceljs.org), as a standalone library from JavaScript or Rust, or wrapped as a plugin within any other tool.
+`@parcel/css` can be used from [Parcel](https://parceljs.org), as a standalone library from JavaScript or Rust, using a standalone CLI, or wrapped as a plugin within any other tool.
 
 ### From Node
 
@@ -147,6 +147,32 @@ console.log(new TextDecoder().decode(code));
 ### With webpack
 
 css-minimizer-webpack-plugin has builtin support for `@parcel/css`. Install `@parcel/css` in your project, and configure the plugin as documented [here](https://github.com/webpack-contrib/css-minimizer-webpack-plugin#using-custom-minifier-parcelcss).
+
+### From the CLI
+
+Parcel CSS includes a standalone CLI that can be used to compile, minify, and bundle CSS files. It can be used when you only need to compile CSS, and don't need more advanced functionality from a larger build tool such as code splitting and support for other languages.
+
+To use the CLI, install the `@parcel/css-cli` package with an npm compatible package manager:
+
+```shell
+npm install @parcel/css-cli
+```
+
+Then, you can run the `parcel-css` command via `npx`, `yarn`, or by setting up a script in your package.json.
+
+```json
+{
+  "scripts": {
+    "build": "parcel-css --minify --nesting --bundle --targets '>= 0.25%' --sourcemap input.css -o output.css"
+  }
+}
+```
+
+To see all of the available options, use the `--help` argument:
+
+```shell
+npx parcel-css --help
+```
 
 ## Benchmarks
 
