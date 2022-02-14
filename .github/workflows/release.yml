@@ -11,10 +11,12 @@ jobs:
           # Windows
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            binary: parcel_css.exe
           # Mac OS
           - os: macos-latest
             target: x86_64-apple-darwin
             strip: strip -x # Must use -x on macOS. This produces larger results on linux.
+            binary: parcel_css
 
     name: build-${{ matrix.target }}
     runs-on: ${{ matrix.os }}
@@ -39,14 +41,20 @@ jobs:
         run: yarn build-release
         env:
           RUST_TARGET: ${{ matrix.target }}
+      - name: Build CLI
+        run: |
+          cargo build --release --features cli --target ${{ matrix.target }}
+          node -e "require('fs').renameSync('target/${{ matrix.target }}/release/${{ matrix.binary }}', '${{ matrix.binary }}')"
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         if: ${{ matrix.strip }}
-        run: ${{ matrix.strip }} *.node
+        run: ${{ matrix.strip }} *.node ${{ matrix.binary }}
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: bindings-${{ matrix.target }}
-          path: '*.node'
+          path: |
+            *.node
+            ${{ matrix.binary }}
 
   build-apple-silicon:
     name: build-apple-silicon
@@ -73,13 +81,26 @@ jobs:
         env:
           RUST_TARGET: aarch64-apple-darwin
           JEMALLOC_SYS_WITH_LG_PAGE: 14
+      - name: Build CLI
+        run: |
+          export CC=$(xcrun -f clang);
+          export CXX=$(xcrun -f clang++);
+          SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
+          export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
+          export MACOSX_DEPLOYMENT_TARGET="10.9";
+          cargo build --release --features cli --target aarch64-apple-darwin
+          mv target/aarch64-apple-darwin/release/parcel_css parcel_css
+        env:
+          JEMALLOC_SYS_WITH_LG_PAGE: 14
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
-        run: strip -x *.node
+        run: strip -x *.node parcel_css
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: bindings-aarch64-apple-darwin
-          path: '*.node'
+          path: |
+            *.node
+            parcel_css
 
   build-linux:
     strategy:
@@ -134,14 +155,20 @@ jobs:
         run: yarn build-release
         env:
           RUST_TARGET: ${{ matrix.target }}
+      - name: Build CLI
+        run: |
+          cargo build --release --features cli --target ${{ matrix.target }}
+          mv target/${{ matrix.target }}/release/parcel_css parcel_css
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         if: ${{ matrix.strip }}
-        run: ${{ matrix.strip }} *.node
+        run: ${{ matrix.strip }} *.node parcel_css
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: bindings-${{ matrix.target }}
-          path: '*.node'
+          path: |
+            *.node
+            parcel_css
 
   build-wasm:
     runs-on: ubuntu-latest
@@ -191,6 +218,10 @@ jobs:
             npm publish;
             cd ../..;
           done
+          cd cli
+          echo "Publishing @parcel/css-cli...";
+          npm publish
+          cd ..
           echo "Publishing @parcel/css...";
           npm publish
 
