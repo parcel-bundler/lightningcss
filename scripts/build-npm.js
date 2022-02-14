@@ -118,5 +118,6 @@ function buildCLI(triple, cpu, os, t) {
   } catch (err) {}
   fs.writeFileSync(`${dir}/npm/cli-${t}/package.json`, JSON.stringify(pkg2, false, 2) + '\n');
   fs.copyFileSync(`${dir}/artifacts/bindings-${triple}/${binary}`, `${dir}/npm/cli-${t}/${binary}`);
+  fs.chmodSync(`${dir}/npm/cli-${t}/${binary}`, 0o755); // Ensure execute bit is set.
   fs.writeFileSync(`${dir}/npm/cli-${t}/README.md`, `This is the ${triple} build of @parcel/css-cli. See https://github.com/parcel-bundler/parcel-css for details.`);
 }
