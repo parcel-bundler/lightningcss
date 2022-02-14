@@ -210,41 +210,36 @@ jobs:
       - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > ~/.npmrc
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Debug
+      - name: Publish to npm
         run: |
-          ls -l npm
-          ls -l npm/cli-darwin-arm64
-          ls -l npm/node-darwin-arm64
-      # - name: Publish to npm
-      #   run: |
-      #     for pkg in npm/*; do
-      #       echo "Publishing $pkg..."
-      #       cd $pkg;
-      #       npm publish;
-      #       cd ../..;
-      #     done
-      #     cd cli
-      #     echo "Publishing @parcel/css-cli...";
-      #     npm publish
-      #     cd ..
-      #     echo "Publishing @parcel/css...";
-      #     npm publish
+          for pkg in npm/*; do
+            echo "Publishing $pkg..."
+            cd $pkg;
+            npm publish;
+            cd ../..;
+          done
+          cd cli
+          echo "Publishing @parcel/css-cli...";
+          npm publish
+          cd ..
+          echo "Publishing @parcel/css...";
+          npm publish
 
-  # release-crates:
-  #   runs-on: ubuntu-latest
-  #   name: Release Rust crate
-  #   steps:
-  #     - uses: actions/checkout@v1
-  #     - uses: bahmutov/npm-install@v1.1.0
-  #     - name: Install Rust
-  #       uses: actions-rs/toolchain@v1
-  #       with:
-  #         toolchain: stable
-  #         profile: minimal
-  #         override: true
-  #     - run: cargo login ${CRATES_IO_TOKEN}
-  #       env:
-  #         CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
-  #     - run: |
-  #         cargo install cargo-workspaces
-  #         cargo workspaces publish --from-git -y
+  release-crates:
+    runs-on: ubuntu-latest
+    name: Release Rust crate
+    steps:
+      - uses: actions/checkout@v1
+      - uses: bahmutov/npm-install@v1.1.0
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - run: cargo login ${CRATES_IO_TOKEN}
+        env:
+          CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+      - run: |
+          cargo install cargo-workspaces
+          cargo workspaces publish --from-git -y
