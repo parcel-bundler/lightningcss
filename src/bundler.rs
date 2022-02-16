@@ -28,25 +28,37 @@ pub trait SourceProvider: Send + Sync {
 }
 
 pub struct FileProvider {
-  inputs: DashMap<PathBuf, String>
+  inputs: Mutex<Vec<*mut String>>
 }
 
 impl FileProvider {
   pub fn new() -> FileProvider {
     FileProvider {
-      inputs: DashMap::new()
+      inputs: Mutex::new(Vec::new()),
     }
   }
 }
 
+unsafe impl Sync for FileProvider {}
+unsafe impl Send for FileProvider {}
+
 impl SourceProvider for FileProvider {
   fn read<'a>(&'a self, file: &Path) -> std::io::Result<&'a str> {
     let source = fs::read_to_string(file)?;
-    let res = self.inputs.entry(file.to_owned())
-      .or_insert(source)
-      .downgrade()
-      .value();
-    Ok(res)
+    let ptr = Box::into_raw(Box::new(source));
+    self.inputs.lock().unwrap().push(ptr);
+    // SAFETY: this is safe because the pointer is not dropped
+    // until the FileProvider is, and we never remove from the
+    // list of pointers stored in the vector.
+    Ok(unsafe { &*ptr })
+  }
+}
+
+impl Drop for FileProvider {
+  fn drop(&mut self) {
+    for ptr in self.inputs.lock().unwrap().iter() {
+      std::mem::drop(unsafe { Box::from_raw(*ptr) })
+    }
   }
 }
 
@@ -298,14 +310,15 @@ mod tests {
   use super::*;
   use crate::{stylesheet::{PrinterOptions, MinifyOptions}, targets::Browsers};
   use indoc::indoc;
+  use std::collections::HashMap;
 
   struct TestProvider {
-    map: DashMap<PathBuf, String>
+    map: HashMap<PathBuf, String>
   }
 
   impl SourceProvider for TestProvider {
     fn read<'a>(&'a self, file: &Path) -> std::io::Result<&'a str> {
-      Ok(self.map.get(file).unwrap().value())
+      Ok(self.map.get(file).unwrap())
     }
   }
 
@@ -313,7 +326,7 @@ mod tests {
     { $($key:literal: $value:expr),* } => {
       {
         #[allow(unused_mut)]
-        let mut m = DashMap::new();
+        let mut m = HashMap::new();
         $(
           m.insert(PathBuf::from($key), $value.to_owned());
         )*
