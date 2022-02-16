@@ -3849,6 +3849,19 @@ mod tests {
     "#});
     test(r#"
       .foo {
+        color: red;
+      }
+      .foo {
+        background: green !important;
+      }
+    "#, indoc! {r#"
+      .foo {
+        color: red;
+        background: green !important;
+      }
+    "#});
+    test(r#"
+      .foo {
         background: red;
       }
       .foo {

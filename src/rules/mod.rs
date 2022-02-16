@@ -185,6 +185,7 @@ impl<'i> CssRuleList<'i> {
             // Merge declarations if the selectors are equivalent, and both are compatible with all targets.
             if style.selectors == last_style_rule.selectors && style.is_compatible(*context.targets) && last_style_rule.is_compatible(*context.targets) && style.rules.0.is_empty() && last_style_rule.rules.0.is_empty() {
               last_style_rule.declarations.declarations.extend(style.declarations.declarations.drain(..));
+              last_style_rule.declarations.important_declarations.extend(style.declarations.important_declarations.drain(..));
               last_style_rule.declarations.minify(context.handler, context.important_handler, context.logical_properties);
               continue
             } else if style.declarations == last_style_rule.declarations && style.rules.0.is_empty() && last_style_rule.rules.0.is_empty() {
