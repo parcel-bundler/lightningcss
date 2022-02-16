@@ -27,7 +27,7 @@ impl ErrorLocation {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ParserError<'i> {
   /// An unexpected token was encountered.
   UnexpectedToken(Token<'i>),
@@ -98,7 +98,7 @@ impl<'i> ParserError<'i> {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum SelectorError<'i> {
   NoQualifiedNameInAttributeSelector(Token<'i>),
   EmptySelector,

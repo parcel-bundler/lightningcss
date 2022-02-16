@@ -115,7 +115,7 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
           } else {
             None
           };
-          let media = MediaList::parse(input);
+          let media = MediaList::parse(input)?;
           return Ok(AtRulePrelude::Import(url_string, media, supports));
         },
         "namespace" => {
@@ -136,7 +136,7 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
           if !name.starts_with("--") {
             return Err(input.new_unexpected_token_error(Token::Ident(name.into())));
           }
-          let media = MediaList::parse(input);
+          let media = MediaList::parse(input)?;
           return Ok(AtRulePrelude::CustomMedia(name, media))
         },
         _ => {}
@@ -283,7 +283,7 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'i> {
   ) -> Result<Self::Prelude, ParseError<'i, Self::Error>> {
     match_ignore_ascii_case! { &*name,
       "media" => {
-        let media = MediaList::parse(input);
+        let media = MediaList::parse(input)?;
         Ok(AtRulePrelude::Media(media))
       },
       "supports" => {
@@ -570,7 +570,7 @@ impl<'a, 'i> AtRuleParser<'i> for StyleRuleParser<'a, 'i> {
   ) -> Result<Self::Prelude, ParseError<'i, Self::Error>> {
     match_ignore_ascii_case! { &*name,
       "media" => {
-        let media = MediaList::parse(input);
+        let media = MediaList::parse(input)?;
         Ok(AtRulePrelude::Media(media))
       },
       "supports" => {

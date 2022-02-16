@@ -27,6 +27,12 @@ impl<'i> MediaRule<'i> {
 
 impl<'a, 'i> ToCssWithContext<'a, 'i> for MediaRule<'i> {
   fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext<'a, 'i>>) -> Result<(), PrinterError> where W: std::fmt::Write {
+    // If the media query always matches, we can just output the nested rules.
+    if dest.minify && self.query.always_matches() {
+      self.rules.to_css_with_context(dest, context)?;
+      return Ok(())
+    }
+    
     dest.add_mapping(self.loc);
     dest.write_str("@media ")?;
     self.query.to_css(dest)?;

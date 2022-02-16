@@ -30,16 +30,20 @@ impl<'i> MediaList<'i> {
   }
 
   /// Parse a media query list from CSS.
-  ///
-  /// Always returns a media query list. Invalid media queries are
-  /// omitted. If the list is empty, it is equivalent to "not all".
-  ///
   /// <https://drafts.csswg.org/mediaqueries/#error-handling>
-  pub fn parse<'t>(input: &mut Parser<'i, 't>) -> Self {
+  pub fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut media_queries = vec![];
     loop {
-      if let Ok(mq) = input.parse_until_before(Delimiter::Comma, |i| MediaQuery::parse(i)) {
-        media_queries.push(mq);
+      match input.parse_until_before(Delimiter::Comma, |i| MediaQuery::parse(i)) {
+        Ok(mq) => {
+          media_queries.push(mq);
+        }
+        Err(err) => {
+          match err.kind {
+            ParseErrorKind::Basic(BasicParseErrorKind::EndOfInput) => break,
+            _ => return Err(err)
+          }
+        }
       }
         
       match input.next() {
@@ -49,7 +53,7 @@ impl<'i> MediaList<'i> {
       }
     }
       
-    MediaList { media_queries }
+    Ok(MediaList { media_queries })
   }
 
   pub(crate) fn transform_custom_media(&mut self, loc: Location, custom_media: &HashMap<CowArcStr<'i>, CustomMediaRule<'i>>) -> Result<(), MinifyError> {
@@ -59,9 +63,15 @@ impl<'i> MediaList<'i> {
     Ok(())
   }
 
+  pub fn always_matches(&self) -> bool {
+    // If the media list is empty, it always matches.
+    self.media_queries.is_empty() || 
+      self.media_queries.iter().all(|mq| mq.always_matches())
+  }
+
   pub fn never_matches(&self) -> bool {
-    self.media_queries.is_empty() 
-      || self.media_queries.iter().all(|mq| mq.never_matches())
+    !self.media_queries.is_empty() && 
+      self.media_queries.iter().all(|mq| mq.never_matches())
   }
 
   pub fn and(&mut self, b: &MediaList<'i>) -> Result<(), ()> {
@@ -200,6 +210,10 @@ impl<'i> MediaQuery<'i> {
       }
     }
     Ok(())
+  }
+
+  pub fn always_matches(&self) -> bool {
+    self.qualifier == None && self.media_type == MediaType::All && self.condition == None
   }
 
   pub fn never_matches(&self) -> bool {

@@ -22,7 +22,8 @@ pub mod bundler;
 #[cfg(test)]
 mod tests {
   use crate::dependencies::Dependency;
-  use crate::error::{Error, MinifyErrorKind, ErrorLocation};
+  use crate::error::{Error, MinifyErrorKind, ErrorLocation, ParserError};
+  use crate::properties::custom::Token;
   use crate::rules::CssRule;
   use crate::stylesheet::*;
   use crate::targets::Browsers;
@@ -93,6 +94,14 @@ mod tests {
     }).unwrap();
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
+  }
+
+  fn error_test(source: &str, error: ParserError) {
+    let res = StyleSheet::parse("test.css".into(), &source, ParserOptions::default());
+    match res {
+      Ok(_) => unreachable!(),
+      Err(e) => assert_eq!(e.kind, error)
+    }
   }
 
   macro_rules! map(
@@ -3613,11 +3622,13 @@ mod tests {
     minify_test("@media (update: slow) or (hover: none) { .foo { color: chartreuse }}", "@media (update:slow) or (hover:none){.foo{color:#7fff00}}");
     minify_test("@media (width < 600px) and (height < 600px) { .foo { color: chartreuse }}", "@media (width<600px) and (height<600px){.foo{color:#7fff00}}");
     minify_test("@media (not (color)) or (hover) { .foo { color: chartreuse }}", "@media (not (color)) or (hover){.foo{color:#7fff00}}");
-    minify_test("@media (example, all,), speech { .foo { color: chartreuse }}", "@media speech{.foo{color:#7fff00}}");
-    minify_test("@media &test, speech { .foo { color: chartreuse }}", "@media speech{.foo{color:#7fff00}}");
-    minify_test("@media &test { .foo { color: chartreuse }}", "");
+    error_test("@media (example, all,), speech { .foo { color: chartreuse }}", ParserError::UnexpectedToken(Token::Comma));
+    error_test("@media &test, speech { .foo { color: chartreuse }}", ParserError::UnexpectedToken(Token::Delim('&')));
+    error_test("@media &test { .foo { color: chartreuse }}", ParserError::UnexpectedToken(Token::Delim('&')));
     minify_test("@media (min-width: calc(200px + 40px)) { .foo { color: chartreuse }}", "@media (min-width:240px){.foo{color:#7fff00}}");
     minify_test("@media (min-width: calc(1em + 5px)) { .foo { color: chartreuse }}", "@media (min-width:calc(1em + 5px)){.foo{color:#7fff00}}");
+    minify_test("@media { .foo { color: chartreuse }}", ".foo{color:#7fff00}");
+    minify_test("@media all { .foo { color: chartreuse }}", ".foo{color:#7fff00}");
 
     prefix_test(
       r#"
