@@ -283,12 +283,12 @@ impl ToCss for UnicodeRange {
 
       // Get the remainder of the value. This must be 0x0 to 0xf for the rest
       // of the value to use the question mark syntax.
-      let remainder_mask = (0xf << shift) - 1 | (1 << shift);
+      shift += 4;
+      let remainder_mask = (1 << shift) - 1;
       let start_remainder = self.start & remainder_mask;
       let end_remainder = self.end & remainder_mask;
 
       if start_remainder == 0 && end_remainder == remainder_mask {
-        shift += 4;
         let start = (self.start & !remainder_mask) >> shift;
         if start != 0 {
           write!(dest, "U+{:X}", start)?;
