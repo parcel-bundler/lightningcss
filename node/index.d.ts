@@ -67,11 +67,11 @@ type ConditionalOutput<
   Options extends BundleOptions,
   OptionKey extends keyof BundleOptions,
   Value,
-> = Options[OptionKey] extends true
+> = Options[OptionKey] extends false | undefined | unknown | never
+  ? void
+  : Options[OptionKey] extends true
   ? Value
-  : Options[OptionKey] extends false | undefined
-    ? void
-    : Value | void;
+  : Value | void;
 
 export type CSSModuleExports = {
   /** Maps exported (i.e. original) names to local names. */
