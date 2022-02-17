@@ -5731,6 +5731,20 @@ mod tests {
     minify_test("@font-face {font-weight: 400 400}", "@font-face{font-weight:400}");
     minify_test("@font-face {font-stretch: 50% 200%}", "@font-face{font-stretch:50% 200%}");
     minify_test("@font-face {font-stretch: 50% 50%}", "@font-face{font-stretch:50%}");
+    minify_test("@font-face {unicode-range: U+26;}", "@font-face{unicode-range:U+26}");
+    minify_test("@font-face {unicode-range: u+26;}", "@font-face{unicode-range:U+26}");
+    minify_test("@font-face {unicode-range: U+0-7F;}", "@font-face{unicode-range:U+0-7F}");
+    minify_test("@font-face {unicode-range: U+0025-00FF;}", "@font-face{unicode-range:U+25-FF}");
+    minify_test("@font-face {unicode-range: U+4??;}", "@font-face{unicode-range:U+4??}");
+    minify_test("@font-face {unicode-range: U+400-4FF;}", "@font-face{unicode-range:U+4??}");
+    minify_test("@font-face {unicode-range: U+0025-00FF, U+4??;}", "@font-face{unicode-range:U+25-FF,U+4??}");
+    minify_test("@font-face {unicode-range: U+A5, U+4E00-9FFF, U+30??, U+FF00-FF9F;}", "@font-face{unicode-range:U+A5,U+4E00-9FFF,U+30??,U+FF00-FF9F}");
+    minify_test("@font-face {unicode-range: U+????;}", "@font-face{unicode-range:U+????}");
+    minify_test("@font-face {unicode-range: U+0000-FFFF;}", "@font-face{unicode-range:U+????}");
+    minify_test("@font-face {unicode-range: U+10????;}", "@font-face{unicode-range:U+10????}");
+    minify_test("@font-face {unicode-range: U+100000-10FFFF;}", "@font-face{unicode-range:U+10????}");
+    minify_test("@font-face {unicode-range: U+1e1e?;}", "@font-face{unicode-range:U+1E1E?}");
+    minify_test("@font-face {unicode-range: u+????, U+1????, U+10????;}", "@font-face{unicode-range:U+????,U+1????,U+10????}");
   }
 
   #[test]

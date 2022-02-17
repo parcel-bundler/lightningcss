@@ -9,6 +9,7 @@ use crate::properties::custom::CustomProperty;
 use crate::macros::enum_property;
 use crate::values::{url::Url};
 use crate::error::{ParserError, PrinterError};
+use std::fmt::Write;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct FontFaceRule<'i> {
@@ -23,6 +24,7 @@ pub enum FontFaceProperty<'i> {
   FontStyle(FontStyle),
   FontWeight(Size2D<FontWeight>),
   FontStretch(Size2D<FontStretch>),
+  UnicodeRange(Vec<UnicodeRange>),
   Custom(CustomProperty<'i>)
 }
 
@@ -254,6 +256,60 @@ impl ToCss for FontTechnology {
   }
 }
 
+impl<'i> Parse<'i> for UnicodeRange {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let range = UnicodeRange::parse(input)?;
+    Ok(range)
+  }
+}
+
+impl ToCss for UnicodeRange {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+    // Attempt to optimize the range to use question mark syntax.
+    if self.start != self.end {
+      // Find the first hex digit that differs between the start and end values.
+      let mut shift = 24;
+      let mut mask = 0xf << shift;
+      while shift > 0 {
+        let c1 = self.start & mask;
+        let c2 = self.end & mask;
+        if c1 != c2 {
+          break
+        }
+
+        mask = mask >> 4;
+        shift -= 4;
+      }
+
+      // Get the remainder of the value. This must be 0x0 to 0xf for the rest
+      // of the value to use the question mark syntax.
+      let remainder_mask = (0xf << shift) - 1 | (1 << shift);
+      let start_remainder = self.start & remainder_mask;
+      let end_remainder = self.end & remainder_mask;
+
+      if start_remainder == 0 && end_remainder == remainder_mask {
+        shift += 4;
+        let start = (self.start & !remainder_mask) >> shift;
+        if start != 0 {
+          write!(dest, "U+{:X}", start)?;
+        } else {
+          dest.write_str("U+")?;
+        }
+
+        while shift > 0 {
+          dest.write_char('?')?;
+          shift -= 4;
+        }
+
+        return Ok(())
+      }
+    }
+
+    cssparser::ToCss::to_css(self, dest)?;
+    Ok(())
+  }
+}
+
 pub(crate) struct FontFaceDeclarationParser;
 
 /// Parse a declaration within {} block: `color: blue`
@@ -285,6 +341,7 @@ impl<'i> cssparser::DeclarationParser<'i> for FontFaceDeclarationParser {
       "font-weight" => property!(FontWeight, Size2D<FontWeight>),
       "font-style" => property!(FontStyle, FontStyle),
       "font-stretch" => property!(FontStretch, Size2D<FontStretch>),
+      "unicode-range" => property!(UnicodeRange, Vec<UnicodeRange>),
       _ => {}
     }
 
@@ -350,6 +407,7 @@ impl<'i> ToCss for FontFaceProperty<'i> {
       FontStyle(value) => property!("font-style", value),
       FontWeight(value) => property!("font-weight", value),
       FontStretch(value) => property!("font-stretch", value),
+      UnicodeRange(value) => property!("unicode-range", value),
       Custom(custom) => {
         dest.write_str(custom.name.as_ref())?;
         dest.delim(':', false)?;
