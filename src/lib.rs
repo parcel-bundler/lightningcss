@@ -10237,4 +10237,51 @@ mod tests {
       _ => unreachable!()
     }
   }
+
+  #[test]
+  fn test_layer() {
+    minify_test("@layer foo;", "@layer foo;");
+    minify_test("@layer foo, bar;", "@layer foo,bar;");
+    minify_test("@layer foo.bar;", "@layer foo.bar;");
+    minify_test("@layer foo.bar, baz;", "@layer foo.bar,baz;");
+
+    minify_test(r#"
+      @layer foo {
+        .bar {
+          color: red;
+        }
+      }
+    "#, "@layer foo{.bar{color:red}}");
+    minify_test(r#"
+      @layer foo.bar {
+        .bar {
+          color: red;
+        }
+      }
+    "#, "@layer foo.bar{.bar{color:red}}");
+    minify_test(r#"
+      @layer base {
+        p { max-width: 70ch; }
+      }
+      
+      @layer framework {
+        @layer base {
+          p { margin-block: 0.75em; }
+        }
+      
+        @layer theme {
+          p { color: #222; }
+        }
+      }
+    "#, "@layer base{p{max-width:70ch}}@layer framework{@layer base{p{margin-block:.75em}}@layer theme{p{color:#222}}}");
+    minify_test(r#"
+      @layer {
+        .bar {
+          color: red;
+        }
+      }
+    "#, "@layer{.bar{color:red}}");
+    error_test("@layer;", ParserError::UnexpectedToken(Token::Semicolon));
+    error_test("@layer foo, bar {};", ParserError::AtRuleBodyInvalid);
+  }
 }

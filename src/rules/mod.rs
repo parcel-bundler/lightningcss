@@ -11,6 +11,7 @@ pub mod document;
 pub mod nesting;
 pub mod viewport;
 pub mod custom_media;
+pub mod layer;
 
 use crate::values::string::CowArcStr;
 use media::MediaRule;
@@ -37,6 +38,7 @@ use crate::selector::{is_equivalent, get_prefix, get_necessary_prefixes};
 use crate::error::{MinifyError, PrinterError};
 use crate::logical::LogicalProperties;
 use crate::dependencies::{Dependency, ImportDependency};
+use self::layer::{LayerBlockRule, LayerStatementRule};
 
 pub(crate) trait ToCssWithContext<'a, 'i> {
   fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext<'a, 'i>>) -> Result<(), PrinterError> where W: std::fmt::Write;
@@ -73,6 +75,8 @@ pub enum CssRule<'i> {
   Nesting(NestingRule<'i>),
   Viewport(ViewportRule<'i>),
   CustomMedia(CustomMediaRule<'i>),
+  LayerStatement(LayerStatementRule<'i>),
+  LayerBlock(LayerBlockRule<'i>),
   Ignored
 }
 
@@ -92,6 +96,8 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for CssRule<'i> {
       CssRule::Nesting(nesting) => nesting.to_css_with_context(dest, context),
       CssRule::Viewport(viewport) => viewport.to_css(dest),
       CssRule::CustomMedia(custom_media) => custom_media.to_css(dest),
+      CssRule::LayerStatement(layer) => layer.to_css(dest),
+      CssRule::LayerBlock(layer) => layer.to_css(dest),
       CssRule::Ignored => Ok(())
     }
   }

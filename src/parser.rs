@@ -1,3 +1,4 @@
+use crate::rules::layer::{LayerBlockRule, LayerStatementRule};
 use crate::values::string::CowArcStr;
 use cssparser::*;
 use parcel_selectors::{SelectorList, parser::NestingRequirement};
@@ -20,7 +21,8 @@ use crate::rules::{
   style::StyleRule,
   document::MozDocumentRule,
   nesting::NestingRule,
-  custom_media::CustomMediaRule
+  custom_media::CustomMediaRule,
+  layer::{LayerName}
 };
 use crate::values::ident::CustomIdent;
 use crate::declaration::{DeclarationBlock, DeclarationList, parse_declaration};
@@ -92,7 +94,8 @@ pub enum AtRulePrelude<'i> {
   /// A @charset rule prelude.
   Charset,
   /// A @nest prelude.
-  Nest(SelectorList<'i, Selectors>)
+  Nest(SelectorList<'i, Selectors>),
+  Layer(Vec<LayerName<'i>>)
 }
 
 impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
@@ -197,6 +200,9 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
             query,
             loc
           })
+        },
+        AtRulePrelude::Layer(_) => {
+          AtRuleParser::rule_without_block(&mut self.nested(), prelude, start)?
         },
         AtRulePrelude::Charset => CssRule::Ignored,
         _ => return Err(())
@@ -347,6 +353,14 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'i> {
 
         Ok(AtRulePrelude::MozDocument)
       },
+      "layer" => {
+        let names = match Vec::<LayerName>::parse(input) {
+          Ok(names) => names,
+          Err(ParseError { kind: ParseErrorKind::Basic(BasicParseErrorKind::EndOfInput), .. }) => Vec::new(),
+          Err(e) => return Err(e)
+        };
+        Ok(AtRulePrelude::Layer(names))
+      },
       _ => Err(input.new_error(BasicParseErrorKind::AtRuleInvalid(name)))
     }
   }
@@ -440,11 +454,51 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'i> {
           loc
         }))
       },
-      // _ => Ok()
-      _ => {
-        println!("{:?}", prelude);
-        unreachable!()
+      AtRulePrelude::Layer(names) => {
+        let name = if names.is_empty() {
+          None
+        } else if names.len() == 1 {
+          names.into_iter().next()
+        } else {
+          return Err(input.new_error(BasicParseErrorKind::AtRuleBodyInvalid))
+        };
+
+        Ok(CssRule::LayerBlock(LayerBlockRule {
+          name,
+          rules: self.parse_nested_rules(input),
+          loc
+        }))
+      },
+      AtRulePrelude::Import(..) | 
+      AtRulePrelude::Namespace(..) | 
+      AtRulePrelude::CustomMedia(..) | 
+      AtRulePrelude::Charset => {
+        // These rules don't have blocks.
+        Err(input.new_unexpected_token_error(Token::CurlyBracketBlock))
+      },
+      AtRulePrelude::FontFeatureValues | AtRulePrelude::Nest(..) => unreachable!()
+    }
+  }
+
+  #[inline]
+  fn rule_without_block(
+    &mut self,
+    prelude: AtRulePrelude<'i>,
+    start: &ParserState,
+  ) -> Result<Self::AtRule, ()> {
+    let loc = self.loc(start);
+    match prelude {
+      AtRulePrelude::Layer(names) => {
+        if names.is_empty() {
+          return Err(())
+        }
+
+        Ok(CssRule::LayerStatement(LayerStatementRule {
+          names,
+          loc
+        }))
       }
+      _ => Err(())
     }
   }
 }
