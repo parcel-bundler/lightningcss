@@ -52,26 +52,16 @@ export interface PseudoClasses {
   focusWithin?: string
 }
 
-export interface TransformResult<Options extends BundleOptions = BundleOptions> {
+export interface TransformResult {
   /** The transformed code. */
   code: Buffer,
   /** The generated source map, if enabled. */
-  map: ConditionalOutput<Options, "sourceMap", Buffer>,
+  map: Buffer | undefined,
   /** CSS module exports, if enabled. */
-  exports: ConditionalOutput<Options, "cssModules", CSSModuleExports>,
+  exports: CSSModuleExports | undefined,
   /** `@import` and `url()` dependencies, if enabled. */
-  dependencies: ConditionalOutput<Options, "analyzeDependencies", Dependency[]>
+  dependencies: Dependency[] | undefined
 }
-
-type ConditionalOutput<
-  Options extends BundleOptions,
-  OptionKey extends keyof BundleOptions,
-  Value,
-> = Options[OptionKey] extends false | undefined | unknown | never
-  ? void
-  : Options[OptionKey] extends true
-  ? Value
-  : Value | void;
 
 export type CSSModuleExports = {
   /** Maps exported (i.e. original) names to local names. */
@@ -153,7 +143,17 @@ export interface Location {
  * Compiles a CSS file, including optionally minifying and lowering syntax to the given
  * targets. A source map may also be generated, but this is not enabled by default.
  */
-export declare function transform<Options extends TransformOptions>(options: Options): TransformResult<Options>;
+export declare function transform(options: WithFlag<TransformOptions, "sourceMap" | "cssModules" | "analyzeDependencies">): NonNullableTransformResult<"map" |  "exports" |"dependencies">;
+export declare function transform(options: WithFlag<TransformOptions, "sourceMap" | "analyzeDependencies">): NonNullableTransformResult<"map" |"dependencies">;
+export declare function transform(options: WithFlag<TransformOptions, "sourceMap" | "cssModules">): NonNullableTransformResult<"map" |"exports">;
+export declare function transform(options: WithFlag<TransformOptions, "cssModules" | "analyzeDependencies">): NonNullableTransformResult<"exports" |"dependencies">;
+export declare function transform(options: WithFlag<TransformOptions, "sourceMap">): NonNullableTransformResult<"map">;
+export declare function transform(options: WithFlag<TransformOptions, "cssModules">): NonNullableTransformResult<"exports">;
+export declare function transform(options: WithFlag<TransformOptions, "analyzeDependencies">): NonNullableTransformResult<"dependencies">;
+export declare function transform(options: TransformOptions): TransformResult;
+
+type WithFlag<Options, Key extends keyof Options> = Options & { [key in Key]: true }
+type NonNullableTransformResult<Key extends keyof TransformResult> = TransformResult & { [key in Key]: Exclude<TransformResult[key], undefined> }
 
 export interface TransformAttributeOptions {
   /** The source code to transform. */
@@ -192,4 +192,4 @@ export declare function browserslistToTargets(browserslist: string[]): Targets;
 /**
  * Bundles a CSS file and its dependencies, inlining @import rules.
  */
-export declare function bundle<Options extends BundleOptions>(options: Options): TransformResult<Options>;
+export declare function bundle(options: BundleOptions): TransformResult;
