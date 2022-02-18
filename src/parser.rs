@@ -88,7 +88,7 @@ pub enum AtRulePrelude<'i> {
   /// A @-moz-document rule.
   MozDocument,
   /// A @import rule prelude.
-  Import(CowRcStr<'i>, MediaList<'i>, Option<SupportsCondition<'i>>),
+  Import(CowRcStr<'i>, MediaList<'i>, Option<SupportsCondition<'i>>, Option<Option<LayerName<'i>>>),
   /// A @namespace rule prelude.
   Namespace(Option<CowRcStr<'i>>, CowRcStr<'i>),
   /// A @charset rule prelude.
@@ -111,6 +111,16 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
       match_ignore_ascii_case! { &*name,
         "import" => {
           let url_string = input.expect_url_or_string()?.clone();
+
+          let layer = if input.try_parse(|input| input.expect_ident_matching("layer")).is_ok() {
+            Some(None)
+          } else {
+            input.try_parse(|input| {
+              input.expect_function_matching("layer")?;
+              input.parse_nested_block(LayerName::parse).map(|name| Some(name))
+            }).ok()
+          };
+
           let supports = if input.try_parse(|input| input.expect_function_matching("supports")).is_ok() {
             Some(input.parse_nested_block(|input| {
               input.try_parse(SupportsCondition::parse).or_else(|_| SupportsCondition::parse_declaration(input))
@@ -119,7 +129,7 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
             None
           };
           let media = MediaList::parse(input)?;
-          return Ok(AtRulePrelude::Import(url_string, media, supports));
+          return Ok(AtRulePrelude::Import(url_string, media, supports, layer));
         },
         "namespace" => {
           let prefix = input.try_parse(|input| input.expect_ident_cloned()).ok();
@@ -173,9 +183,10 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
       };
 
       let rule = match prelude {
-        AtRulePrelude::Import(url, media, supports) => {
+        AtRulePrelude::Import(url, media, supports, layer) => {
           CssRule::Import(ImportRule {
             url: url.into(),
+            layer,
             supports,
             media,
             loc

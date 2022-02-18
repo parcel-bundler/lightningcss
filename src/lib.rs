@@ -10283,5 +10283,8 @@ mod tests {
     "#, "@layer{.bar{color:red}}");
     error_test("@layer;", ParserError::UnexpectedToken(Token::Semicolon));
     error_test("@layer foo, bar {};", ParserError::AtRuleBodyInvalid);
+    minify_test("@import 'test.css' layer;", "@import \"test.css\" layer;");
+    minify_test("@import 'test.css' layer(foo);", "@import \"test.css\" layer(foo);");
+    minify_test("@import 'test.css' layer(foo.bar);", "@import \"test.css\" layer(foo.bar);");
   }
 }

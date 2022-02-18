@@ -112,6 +112,7 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
     // Phase 1: load and parse all files.
     self.load_file(&entry, ImportRule {
       url: "".into(),
+      layer: None,
       supports: None,
       media: MediaList::new(),
       loc: Location {
@@ -228,6 +229,7 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
           }
           
           let result = self.load_file(&path, ImportRule {
+            layer: None,
             media,
             supports: combine_supports(rule.supports.clone(), &import.supports),
             url: "".into(),
