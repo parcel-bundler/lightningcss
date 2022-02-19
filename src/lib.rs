@@ -5970,6 +5970,8 @@ mod tests {
         color: #00f;
       }
     "#});
+
+    error_test(".foo { color: red } @namespace \"http://example.com/foo\";", ParserError::UnexpectedNamespaceRule);
   }
 
   #[test]
@@ -5983,6 +5985,12 @@ mod tests {
     minify_test("@import url(foo.css) supports(display: flex) print;", "@import \"foo.css\" supports(display: flex) print;");
     minify_test("@import url(foo.css) supports(not (display: flex));", "@import \"foo.css\" supports(not (display: flex));");
     minify_test("@import url(foo.css) supports((display: flex));", "@import \"foo.css\" supports(display: flex);");
+    minify_test("@charset \"UTF-8\"; @import url(foo.css);", "@import \"foo.css\";");
+    minify_test("@layer foo; @import url(foo.css);", "@layer foo;@import \"foo.css\";");
+    error_test(".foo { color: red } @import url(bar.css);", ParserError::UnexpectedImportRule);
+    error_test("@namespace \"http://example.com/foo\"; @import url(bar.css);", ParserError::UnexpectedImportRule);
+    error_test("@media print { .foo { color: red }} @import url(bar.css);", ParserError::UnexpectedImportRule);
+    error_test("@layer foo; @import url(foo.css); @layer bar; @import url(bar.css)", ParserError::UnexpectedImportRule);
   }
 
   #[test]
@@ -10236,5 +10244,56 @@ mod tests {
       },
       _ => unreachable!()
     }
+  }
+
+  #[test]
+  fn test_layer() {
+    minify_test("@layer foo;", "@layer foo;");
+    minify_test("@layer foo, bar;", "@layer foo,bar;");
+    minify_test("@layer foo.bar;", "@layer foo.bar;");
+    minify_test("@layer foo.bar, baz;", "@layer foo.bar,baz;");
+
+    minify_test(r#"
+      @layer foo {
+        .bar {
+          color: red;
+        }
+      }
+    "#, "@layer foo{.bar{color:red}}");
+    minify_test(r#"
+      @layer foo.bar {
+        .bar {
+          color: red;
+        }
+      }
+    "#, "@layer foo.bar{.bar{color:red}}");
+    minify_test(r#"
+      @layer base {
+        p { max-width: 70ch; }
+      }
+      
+      @layer framework {
+        @layer base {
+          p { margin-block: 0.75em; }
+        }
+      
+        @layer theme {
+          p { color: #222; }
+        }
+      }
+    "#, "@layer base{p{max-width:70ch}}@layer framework{@layer base{p{margin-block:.75em}}@layer theme{p{color:#222}}}");
+    minify_test(r#"
+      @layer {
+        .bar {
+          color: red;
+        }
+      }
+    "#, "@layer{.bar{color:red}}");
+    error_test("@layer;", ParserError::UnexpectedToken(Token::Semicolon));
+    error_test("@layer foo, bar {};", ParserError::AtRuleBodyInvalid);
+    minify_test("@import 'test.css' layer;", "@import \"test.css\" layer;");
+    minify_test("@import 'test.css' layer(foo);", "@import \"test.css\" layer(foo);");
+    minify_test("@import 'test.css' layer(foo.bar);", "@import \"test.css\" layer(foo.bar);");
+    error_test("@import 'test.css' layer(foo, bar) {};", ParserError::UnexpectedToken(Token::Comma));
   }
 }
