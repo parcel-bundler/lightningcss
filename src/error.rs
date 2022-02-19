@@ -44,7 +44,9 @@ pub enum ParserError<'i> {
   InvalidPageSelector,
   InvalidValue,
   InvalidMediaQuery,
-  InvalidNesting
+  InvalidNesting,
+  UnexpectedImportRule,
+  UnexpectedNamespaceRule
 }
 
 impl<'i> Error<ParserError<'i>> {
@@ -93,6 +95,8 @@ impl<'i> ParserError<'i> {
       ParserError::InvalidNesting => "Invalid nesting".into(),
       ParserError::InvalidPageSelector => "Invalid page selector".into(),
       ParserError::InvalidValue => "Invalid value".into(),
+      ParserError::UnexpectedImportRule => "@import rules must precede all rules aside from @charset and @layer statements".into(),
+      ParserError::UnexpectedNamespaceRule => "@namespaces rules must precede all rules aside from @charset, @import, and @layer statements".into(),
       ParserError::SelectorError(s) => s.reason()
     }
   }

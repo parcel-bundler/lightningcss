@@ -38,11 +38,21 @@ pub struct ParserOptions {
   pub source_index: u32
 }
 
+#[derive(PartialEq, PartialOrd)]
+enum State {
+  Start = 1,
+  Layers = 2,
+  Imports = 3,
+  Namespaces = 4,
+  Body = 5
+}
+
 /// The parser for the top-level rules in a stylesheet.
 pub struct TopLevelRuleParser<'a, 'i> {
   default_namespace: Option<CowArcStr<'i>>,
   namespace_prefixes: HashMap<CowArcStr<'i>, CowArcStr<'i>>,
-  options: &'a ParserOptions
+  options: &'a ParserOptions,
+  state: State
 }
 
 impl<'a, 'b, 'i> TopLevelRuleParser<'a, 'i> {
@@ -50,7 +60,8 @@ impl<'a, 'b, 'i> TopLevelRuleParser<'a, 'i> {
     TopLevelRuleParser {
       default_namespace: None,
       namespace_prefixes: HashMap::new(),
-      options
+      options,
+      state: State::Start
     }
   }
 
@@ -110,6 +121,10 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
   ) -> Result<Self::Prelude, ParseError<'i, Self::Error>> {
       match_ignore_ascii_case! { &*name,
         "import" => {
+          if self.state > State::Imports {
+            return Err(input.new_custom_error(ParserError::UnexpectedImportRule))
+          }
+
           let url_string = input.expect_url_or_string()?.clone();
 
           let layer = if input.try_parse(|input| input.expect_ident_matching("layer")).is_ok() {
@@ -132,6 +147,10 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
           return Ok(AtRulePrelude::Import(url_string, media, supports, layer));
         },
         "namespace" => {
+          if self.state > State::Namespaces {
+            return Err(input.new_custom_error(ParserError::UnexpectedNamespaceRule))
+          }
+
           let prefix = input.try_parse(|input| input.expect_ident_cloned()).ok();
           let namespace = input.expect_url_or_string()?;
           let prelude = AtRulePrelude::Namespace(prefix, namespace);
@@ -165,6 +184,7 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
       start: &ParserState,
       input: &mut Parser<'i, 't>,
   ) -> Result<Self::AtRule, ParseError<'i, Self::Error>> {
+    self.state = State::Body;
     let rule = AtRuleParser::parse_block(&mut self.nested(), prelude, start, input)?;
     Ok((start.position(), rule))
   }
@@ -184,6 +204,7 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
 
       let rule = match prelude {
         AtRulePrelude::Import(url, media, supports, layer) => {
+          self.state = State::Imports;
           CssRule::Import(ImportRule {
             url: url.into(),
             layer,
@@ -193,6 +214,8 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
           })
         },
         AtRulePrelude::Namespace(prefix, url) => {
+          self.state = State::Namespaces;
+
           if let Some(prefix) = &prefix {
             self.namespace_prefixes.insert(prefix.into(), url.clone().into());
           } else {
@@ -206,6 +229,7 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
           })
         },
         AtRulePrelude::CustomMedia(name, query) => {
+          self.state = State::Body;
           CssRule::CustomMedia(CustomMediaRule {
             name: name.into(),
             query,
@@ -213,6 +237,12 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
           })
         },
         AtRulePrelude::Layer(_) => {
+          // @layer statements are allowed before @import rules, but cannot be interleaved.
+          if self.state <= State::Layers {
+            self.state = State::Layers;
+          } else {
+            self.state = State::Body;
+          }
           AtRuleParser::rule_without_block(&mut self.nested(), prelude, start)?
         },
         AtRulePrelude::Charset => CssRule::Ignored,
@@ -233,6 +263,7 @@ impl<'a, 'i> QualifiedRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
       &mut self,
       input: &mut Parser<'i, 't>,
   ) -> Result<Self::Prelude, ParseError<'i, Self::Error>> {
+    self.state = State::Body;
     QualifiedRuleParser::parse_prelude(&mut self.nested(), input)
   }
 

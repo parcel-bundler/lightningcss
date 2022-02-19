@@ -5970,6 +5970,8 @@ mod tests {
         color: #00f;
       }
     "#});
+
+    error_test(".foo { color: red } @namespace \"http://example.com/foo\";", ParserError::UnexpectedNamespaceRule);
   }
 
   #[test]
@@ -5983,6 +5985,12 @@ mod tests {
     minify_test("@import url(foo.css) supports(display: flex) print;", "@import \"foo.css\" supports(display: flex) print;");
     minify_test("@import url(foo.css) supports(not (display: flex));", "@import \"foo.css\" supports(not (display: flex));");
     minify_test("@import url(foo.css) supports((display: flex));", "@import \"foo.css\" supports(display: flex);");
+    minify_test("@charset \"UTF-8\"; @import url(foo.css);", "@import \"foo.css\";");
+    minify_test("@layer foo; @import url(foo.css);", "@layer foo;@import \"foo.css\";");
+    error_test(".foo { color: red } @import url(bar.css);", ParserError::UnexpectedImportRule);
+    error_test("@namespace \"http://example.com/foo\"; @import url(bar.css);", ParserError::UnexpectedImportRule);
+    error_test("@media print { .foo { color: red }} @import url(bar.css);", ParserError::UnexpectedImportRule);
+    error_test("@layer foo; @import url(foo.css); @layer bar; @import url(bar.css)", ParserError::UnexpectedImportRule);
   }
 
   #[test]
