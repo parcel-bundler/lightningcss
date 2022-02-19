@@ -273,13 +273,13 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for CssRuleList<'i> {
       if first {
         first = false;
       } else {
-        if !dest.minify && !(last_without_block && matches!(rule, CssRule::Import(..) | CssRule::Namespace(..))) {
+        if !dest.minify && !(last_without_block && matches!(rule, CssRule::Import(..) | CssRule::Namespace(..) | CssRule::LayerStatement(..))) {
           dest.write_char('\n')?;
         }
         dest.newline()?;
       }
       rule.to_css_with_context(dest, context)?;
-      last_without_block = matches!(rule, CssRule::Import(..) | CssRule::Namespace(..));
+      last_without_block = matches!(rule, CssRule::Import(..) | CssRule::Namespace(..) | CssRule::LayerStatement(..));
     }
 
     Ok(())

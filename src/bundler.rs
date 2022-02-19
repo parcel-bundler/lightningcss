@@ -1,6 +1,5 @@
-use itertools::Itertools;
 use parcel_sourcemap::SourceMap;
-use crate::{rules::{Location, layer::{LayerName, LayerBlockRule}}, error::ErrorLocation};
+use crate::{rules::{Location, layer::LayerBlockRule}, error::ErrorLocation};
 use std::{fs, path::{Path, PathBuf}, sync::Mutex};
 use rayon::prelude::*;
 use dashmap::DashMap;
@@ -20,7 +19,7 @@ pub struct Bundler<'a, 's, P> {
   sources: Mutex<Vec<String>>,
   fs: &'a P,
   loaded: DashMap<PathBuf, ImportRule<'a>>,
-  stylesheets: DashMap<PathBuf, BundleStyleSheet<'a>>,
+  stylesheets: DashMap<PathBuf, StyleSheet<'a>>,
   options: ParserOptions
 }
 
@@ -91,12 +90,6 @@ impl<'i> BundleErrorKind<'i> {
       BundleErrorKind::UnsupportedLayerCombination => "Unsupported layer combination in @import".into()
     }
   }
-}
-
-#[derive(Debug)]
-struct BundleStyleSheet<'a> {
-  stylesheet: StyleSheet<'a>,
-  dependencies: Vec<PathBuf>
 }
 
 impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
@@ -228,35 +221,40 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
     )?;
 
     // Collect and load dependencies for this stylesheet in parallel.
-    let dependencies: Result<Vec<PathBuf>, _> = stylesheet.rules.0.par_iter_mut()
-      .filter_map(|r| {
+    stylesheet.rules.0.par_iter_mut()
+      .try_for_each(|r| {
+        // Prepend parent layer name to @layer statements.
+        if let CssRule::LayerStatement(layer) = r {
+          if let Some(Some(parent_layer)) = &rule.layer {
+            for name in &mut layer.names {
+              name.0.insert_many(0, parent_layer.0.iter().cloned())
+            }
+          }
+        }
+
         if let CssRule::Import(import) = r {
           let path = file.with_file_name(&*import.url);
 
           // Combine media queries and supports conditions from parent 
           // stylesheet with @import rule using a logical and operator.
           let mut media = rule.media.clone();
-          let result = media.and(&import.media).map_err(|_| Error {
+          media.and(&import.media).map_err(|_| Error {
             kind: BundleErrorKind::UnsupportedMediaBooleanLogic,
             loc: Some(ErrorLocation::from(
               import.loc,
               self.sources.lock().unwrap()[import.loc.source_index as usize].clone()
             ))
-          });
-
-          if let Err(e) = result {
-            return Some(Err(e))
-          }
+          })?;
 
           let layer = if (rule.layer == Some(None) && import.layer.is_some()) || (import.layer == Some(None) && rule.layer.is_some()) {
             // Cannot combine anonymous layers
-            return Some(Err(Error {
+            return Err(Error {
               kind: BundleErrorKind::UnsupportedLayerCombination,
               loc: Some(ErrorLocation::from(
                 import.loc, 
                 self.sources.lock().unwrap()[import.loc.source_index as usize].clone()
               ))
-            }))
+            })
           } else if let Some(Some(a)) = &rule.layer {
             if let Some(Some(b)) = &import.layer {
               let mut name = a.clone();
@@ -269,31 +267,18 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
             import.layer.clone()
           };
           
-          let result = self.load_file(&path, ImportRule {
+          self.load_file(&path, ImportRule {
             layer,
             media,
             supports: combine_supports(rule.supports.clone(), &import.supports),
             url: "".into(),
             loc: import.loc
-          });
-
-          if let Err(e) = result {
-            return Some(Err(e))
-          }
-
-          *r = CssRule::Ignored;
-          Some(Ok(path))
-        } else {
-          None
+          })?
         }
-      })
-      .collect();
+        Ok(())
+      })?;
 
-    self.stylesheets.insert(file.to_owned(), BundleStyleSheet {
-      stylesheet,
-      dependencies: dependencies?
-    });
-
+    self.stylesheets.insert(file.to_owned(), stylesheet);
     Ok(())
   }
 
@@ -305,13 +290,26 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
       None => return
     };
 
-    // Include all dependencies first.
-    for path in &stylesheet.dependencies {
-      self.inline(path, dest)
+    // Wrap rules in the appropriate @media and @supports rules.
+    let mut rules: Vec<CssRule<'a>> = stylesheet.rules.0;
+
+    for rule in &mut rules {
+      match rule {
+        CssRule::Import(import) => {
+          let path = file.with_file_name(&*import.url);
+          self.inline(&path, dest);
+          *rule = CssRule::Ignored;
+        },
+        CssRule::LayerStatement(_) => {
+          // @layer rules are the only rules that may appear before an @import.
+          // We must preserve this order to ensure correctness.
+          let layer = std::mem::replace(rule, CssRule::Ignored);
+          dest.push(layer);
+        },
+        _ => break
+      }
     }
 
-    // Wrap rules in the appropriate @media and @supports rules.
-    let mut rules: Vec<CssRule<'a>> = stylesheet.stylesheet.rules.0;
     let (_, loaded) = self.loaded.remove(file).unwrap();
     if !loaded.media.media_queries.is_empty() {
       rules = vec![
@@ -662,9 +660,12 @@ mod tests {
 
     let res = bundle_custom_media(fs! {
       "/a.css": r#"
-        @custom-media --foo print;
+        @import "media.css";
         @import "b.css";
         .a { color: red }
+      "#,
+      "/media.css": r#"
+        @custom-media --foo print;
       "#,
       "/b.css": r#"
         @media (--foo) {
@@ -770,6 +771,58 @@ mod tests {
       @layer foo {
         .b {
           color: green;
+        }
+      }
+    "#});
+
+    let res = bundle(fs! {
+      "/a.css": r#"
+        @layer bar, foo;
+        @import "b.css" layer(foo);
+        
+        @layer bar {
+          div {
+            background: red;
+          }
+        }
+      "#,
+      "/b.css": r#"
+        @layer qux, baz;
+        @import "c.css" layer(baz);
+        
+        @layer qux {
+          div {
+            background: green;
+          }
+        }
+      "#,
+      "/c.css": r#"
+        div {
+          background: yellow;
+        }      
+      "#
+    }, "/a.css");
+    assert_eq!(res, indoc! { r#"
+      @layer bar, foo;
+      @layer foo.qux, foo.baz;
+
+      @layer foo.baz {
+        div {
+          background: #ff0;
+        }
+      }
+
+      @layer foo {
+        @layer qux {
+          div {
+            background: green;
+          }
+        }
+      }
+      
+      @layer bar {
+        div {
+          background: red;
         }
       }
     "#});
