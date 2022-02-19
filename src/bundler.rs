@@ -1,5 +1,6 @@
+use itertools::Itertools;
 use parcel_sourcemap::SourceMap;
-use crate::{rules::Location, error::ErrorLocation};
+use crate::{rules::{Location, layer::{LayerName, LayerBlockRule}}, error::ErrorLocation};
 use std::{fs, path::{Path, PathBuf}, sync::Mutex};
 use rayon::prelude::*;
 use dashmap::DashMap;
@@ -67,7 +68,8 @@ pub enum BundleErrorKind<'i> {
   IOError(std::io::Error),
   ParserError(ParserError<'i>),
   UnsupportedImportCondition,
-  UnsupportedMediaBooleanLogic
+  UnsupportedMediaBooleanLogic,
+  UnsupportedLayerCombination
 }
 
 impl<'i> From<Error<ParserError<'i>>> for Error<BundleErrorKind<'i>> {
@@ -86,6 +88,7 @@ impl<'i> BundleErrorKind<'i> {
       BundleErrorKind::ParserError(e) => e.reason(),
       BundleErrorKind::UnsupportedImportCondition => "Unsupported import condition".into(),
       BundleErrorKind::UnsupportedMediaBooleanLogic => "Unsupported boolean logic in @import media query".into(),
+      BundleErrorKind::UnsupportedLayerCombination => "Unsupported layer combination in @import".into()
     }
   }
 }
@@ -170,6 +173,23 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
         } else {
           entry.supports = None;
         }
+
+        if let Some(layer) = &rule.layer {
+          if let Some(existing_layer) = &entry.layer {
+            // We can't OR layer names without duplicating all of the nested rules, so error for now.
+            if layer != existing_layer || (layer.is_none() && existing_layer.is_none()) {
+              return Err(Error {
+                kind: BundleErrorKind::UnsupportedLayerCombination,
+                loc: Some(ErrorLocation::from(
+                  rule.loc, 
+                  self.sources.lock().unwrap()[rule.loc.source_index as usize].clone()
+                ))
+              })
+            }
+          } else {
+            entry.layer = rule.layer;
+          }
+        }
         
         return Ok(());
       }
@@ -227,9 +247,30 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
           if let Err(e) = result {
             return Some(Err(e))
           }
+
+          let layer = if (rule.layer == Some(None) && import.layer.is_some()) || (import.layer == Some(None) && rule.layer.is_some()) {
+            // Cannot combine anonymous layers
+            return Some(Err(Error {
+              kind: BundleErrorKind::UnsupportedLayerCombination,
+              loc: Some(ErrorLocation::from(
+                import.loc, 
+                self.sources.lock().unwrap()[import.loc.source_index as usize].clone()
+              ))
+            }))
+          } else if let Some(Some(a)) = &rule.layer {
+            if let Some(Some(b)) = &import.layer {
+              let mut name = a.clone();
+              name.0.extend(b.0.iter().cloned());
+              Some(Some(name))
+            } else {
+              Some(Some(a.clone()))
+            }
+          } else {
+            import.layer.clone()
+          };
           
           let result = self.load_file(&path, ImportRule {
-            layer: None,
+            layer,
             media,
             supports: combine_supports(rule.supports.clone(), &import.supports),
             url: "".into(),
@@ -286,6 +327,16 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
       rules = vec![
         CssRule::Supports(SupportsRule {
           condition: supports,
+          rules: CssRuleList(rules),
+          loc: loaded.loc
+        })
+      ]
+    }
+
+    if let Some(layer) = loaded.layer {
+      rules = vec![
+        CssRule::LayerBlock(LayerBlockRule {
+          name: layer,
           rules: CssRuleList(rules),
           loc: loaded.loc
         })
@@ -357,6 +408,15 @@ mod tests {
     let targets = Some(Browsers { safari: Some(13 << 16 ), ..Browsers::default() });
     stylesheet.minify(MinifyOptions { targets, ..MinifyOptions::default() }).unwrap();
     stylesheet.to_css(PrinterOptions { targets, ..PrinterOptions::default() }).unwrap().code
+  }
+
+  fn error_test(fs: TestProvider, entry: &str) {
+    let mut bundler = Bundler::new(&fs, None, ParserOptions::default());
+    let res = bundler.bundle(Path::new(entry));
+    match res {
+      Ok(_) => unreachable!(),
+      Err(e) => assert!(matches!(e.kind, BundleErrorKind::UnsupportedLayerCombination))
+    }
   }
 
   #[test]
@@ -623,6 +683,144 @@ mod tests {
         color: red;
       }
     "#});
+
+    let res = bundle(fs! {
+      "/a.css": r#"
+        @import "b.css" layer(foo);
+        .a { color: red }
+      "#,
+      "/b.css": r#"
+        .b { color: green }
+      "#
+    }, "/a.css");
+    assert_eq!(res, indoc! { r#"
+      @layer foo {
+        .b {
+          color: green;
+        }
+      }
+      
+      .a {
+        color: red;
+      }
+    "#});
+
+    let res = bundle(fs! {
+      "/a.css": r#"
+        @import "b.css" layer;
+        .a { color: red }
+      "#,
+      "/b.css": r#"
+        .b { color: green }
+      "#
+    }, "/a.css");
+    assert_eq!(res, indoc! { r#"
+      @layer {
+        .b {
+          color: green;
+        }
+      }
+      
+      .a {
+        color: red;
+      }
+    "#});
+
+    let res = bundle(fs! {
+      "/a.css": r#"
+        @import "b.css" layer(foo);
+        .a { color: red }
+      "#,
+      "/b.css": r#"
+        @import "c.css" layer(bar);
+        .b { color: green }
+      "#,
+      "/c.css": r#"
+        .c { color: green }
+      "#
+    }, "/a.css");
+    assert_eq!(res, indoc! { r#"
+      @layer foo.bar {
+        .c {
+          color: green;
+        }
+      }
+
+      @layer foo {
+        .b {
+          color: green;
+        }
+      }
+      
+      .a {
+        color: red;
+      }
+    "#});
+
+    let res = bundle(fs! {
+      "/a.css": r#"
+        @import "b.css" layer(foo);
+        @import "b.css" layer(foo);
+      "#,
+      "/b.css": r#"
+        .b { color: green }
+      "#
+    }, "/a.css");
+    assert_eq!(res, indoc! { r#"
+      @layer foo {
+        .b {
+          color: green;
+        }
+      }
+    "#});
+
+    error_test(fs! {
+      "/a.css": r#"
+        @import "b.css" layer(foo);
+        @import "b.css" layer(bar);
+      "#,
+      "/b.css": r#"
+        .b { color: red }
+      "#
+    }, "/a.css");
+
+    error_test(fs! {
+      "/a.css": r#"
+        @import "b.css" layer;
+        @import "b.css" layer;
+      "#,
+      "/b.css": r#"
+        .b { color: red }
+      "#
+    }, "/a.css");
+    
+    error_test(fs! {
+      "/a.css": r#"
+        @import "b.css" layer;
+        .a { color: red }
+      "#,
+      "/b.css": r#"
+        @import "c.css" layer;
+        .b { color: green }
+      "#,
+      "/c.css": r#"
+        .c { color: green }
+      "#
+    }, "/a.css");
+
+    error_test(fs! {
+      "/a.css": r#"
+        @import "b.css" layer;
+        .a { color: red }
+      "#,
+      "/b.css": r#"
+        @import "c.css" layer(foo);
+        .b { color: green }
+      "#,
+      "/c.css": r#"
+        .c { color: green }
+      "#
+    }, "/a.css");
 
     // let res = bundle(fs! {
     //   "/a.css": r#"
