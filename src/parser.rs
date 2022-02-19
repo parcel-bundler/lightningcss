@@ -114,11 +114,11 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
 
           let layer = if input.try_parse(|input| input.expect_ident_matching("layer")).is_ok() {
             Some(None)
+          } else if input.try_parse(|input| input.expect_function_matching("layer")).is_ok() {
+            let name = input.parse_nested_block(LayerName::parse).map(|name| Some(name))?;
+            Some(name)
           } else {
-            input.try_parse(|input| {
-              input.expect_function_matching("layer")?;
-              input.parse_nested_block(LayerName::parse).map(|name| Some(name))
-            }).ok()
+            None
           };
 
           let supports = if input.try_parse(|input| input.expect_function_matching("supports")).is_ok() {

@@ -10286,5 +10286,6 @@ mod tests {
     minify_test("@import 'test.css' layer;", "@import \"test.css\" layer;");
     minify_test("@import 'test.css' layer(foo);", "@import \"test.css\" layer(foo);");
     minify_test("@import 'test.css' layer(foo.bar);", "@import \"test.css\" layer(foo.bar);");
+    error_test("@import 'test.css' layer(foo, bar) {};", ParserError::UnexpectedToken(Token::Comma));
   }
 }
