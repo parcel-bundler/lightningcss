@@ -1,6 +1,6 @@
 use parcel_sourcemap::SourceMap;
-use crate::{rules::{Location, layer::LayerBlockRule}, error::ErrorLocation};
-use std::{fs, path::{Path, PathBuf}, sync::Mutex};
+use crate::{rules::{Location, layer::{LayerBlockRule, LayerName}}, error::ErrorLocation};
+use std::{fs, path::{Path, PathBuf}, sync::Mutex, collections::HashSet};
 use rayon::prelude::*;
 use dashmap::DashMap;
 use crate::{
@@ -16,11 +16,22 @@ use crate::{
 
 pub struct Bundler<'a, 's, P> {
   source_map: Option<Mutex<&'s mut SourceMap>>,
-  sources: Mutex<Vec<String>>,
   fs: &'a P,
-  loaded: DashMap<PathBuf, ImportRule<'a>>,
-  stylesheets: DashMap<PathBuf, StyleSheet<'a>>,
+  source_indexes: DashMap<PathBuf, u32>,
+  stylesheets: Mutex<Vec<BundleStyleSheet<'a>>>,
   options: ParserOptions
+}
+
+#[derive(Debug)]
+struct BundleStyleSheet<'i> {
+  stylesheet: Option<StyleSheet<'i>>,
+  dependencies: Vec<u32>,
+  parent_source_index: u32,
+  parent_dep_index: u32,
+  layer: Option<Option<LayerName<'i>>>,
+  supports: Option<SupportsCondition<'i>>,
+  media: MediaList<'i>,
+  loc: Location
 }
 
 pub trait SourceProvider: Send + Sync {
@@ -95,17 +106,16 @@ impl<'i> BundleErrorKind<'i> {
 impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
   pub fn new(fs: &'a P, source_map: Option<&'s mut SourceMap>, options: ParserOptions) -> Self {
     Bundler {
-      sources: Mutex::new(Vec::new()),
       source_map: source_map.map(Mutex::new),
       fs,
-      loaded: DashMap::new(),
-      stylesheets: DashMap::new(),
+      source_indexes: DashMap::new(),
+      stylesheets: Mutex::new(Vec::new()),
       options
     }
   }
 
   pub fn bundle<'e>(&mut self, entry: &'e Path) -> Result<StyleSheet<'a>, Error<BundleErrorKind<'a>>> {
-    // Phase 1: load and parse all files.
+    // Phase 1: load and parse all files. This is done in parallel.
     self.load_file(&entry, ImportRule {
       url: "".into(),
       layer: None,
@@ -118,26 +128,42 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
       }
     })?;
 
-    // Phase 2: concatenate rules in the right order.
+    // Phase 2: determine the order that the files should be concatenated.
+    self.order();
+
+    // Phase 3: concatenate.
     let mut rules: Vec<CssRule<'a>> = Vec::new();
-    self.inline(&entry, &mut rules);
+    self.inline(&mut rules);
+
+    let sources = self.stylesheets.get_mut()
+      .unwrap()
+      .iter()
+      .flat_map(|s| s.stylesheet.as_ref().unwrap().sources.iter().cloned())
+      .collect();
+
     Ok(StyleSheet::new(
-      std::mem::take(self.sources.get_mut().unwrap()),
+      sources,
       CssRuleList(rules), 
       self.options.clone()
     ))
   }
 
-  fn load_file(&self, file: &Path, rule: ImportRule<'a>) -> Result<(), Error<BundleErrorKind<'a>>> {
-    use dashmap::mapref::entry::Entry;
+  fn find_filename(&self, source_index: u32) -> String {
+    // This function is only used for error handling, so it's ok if this is a bit slow.
+    let entry = self.source_indexes.iter()
+      .find(|x| *x.value() == source_index)
+      .unwrap();
+    entry.key().to_str().unwrap().into()
+  }
 
-    // Check if we already loaded this file. This is stored in a separate
-    // map from the stylesheet itself so we don't hold a lock while parsing.
-    match self.loaded.entry(file.to_owned()) {
-      Entry::Occupied(mut entry) => {
+  fn load_file(&self, file: &Path, rule: ImportRule<'a>) -> Result<u32, Error<BundleErrorKind<'a>>> {
+    // Check if we already loaded this file.
+    let mut stylesheets = self.stylesheets.lock().unwrap();
+    let source_index = match self.source_indexes.get(file) {
+      Some(source_index) => {
         // If we already loaded this file, combine the media queries and supports conditions
         // from this import rule with the existing ones using a logical or operator.
-        let entry = entry.get_mut();
+        let entry = &mut stylesheets[*source_index as usize];
 
         // We cannot combine a media query and a supports query from different @import rules.
         // e.g. @import "a.css" print; @import "a.css" supports(color: red);
@@ -148,7 +174,7 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
             kind: BundleErrorKind::UnsupportedImportCondition,
             loc: Some(ErrorLocation::from(
               rule.loc, 
-              self.sources.lock().unwrap()[rule.loc.source_index as usize].clone()
+              self.find_filename(rule.loc.source_index)
             ))
           })
         }
@@ -174,8 +200,8 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
               return Err(Error {
                 kind: BundleErrorKind::UnsupportedLayerCombination,
                 loc: Some(ErrorLocation::from(
-                  rule.loc, 
-                  self.sources.lock().unwrap()[rule.loc.source_index as usize].clone()
+                  rule.loc,
+                  self.find_filename(rule.loc.source_index)
                 ))
               })
             }
@@ -184,30 +210,41 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
           }
         }
         
-        return Ok(());
+        return Ok(*source_index);
       }
-      Entry::Vacant(entry) => {
-        entry.insert(rule.clone());
+      None => {
+        let source_index = stylesheets.len() as u32;
+        self.source_indexes.insert(file.to_owned(), source_index);
+
+        stylesheets.push(BundleStyleSheet {
+          stylesheet: None,
+          layer: rule.layer.clone(),
+          media: rule.media.clone(),
+          supports: rule.supports.clone(),
+          loc: rule.loc.clone(),
+          dependencies: Vec::new(),
+          parent_source_index: 0,
+          parent_dep_index: 0
+        });
+
+        source_index
       }
-    }
+    };
+
+    drop(stylesheets); // ensure we aren't holding the lock anymore
     
-    let filename = file.to_str().unwrap();
     let code = self.fs.read(file).map_err(|e| Error {
       kind: BundleErrorKind::IOError(e),
       loc: Some(ErrorLocation::from(
         rule.loc,
-        self.sources.lock().unwrap()[rule.loc.source_index as usize].clone()
+        self.find_filename(rule.loc.source_index)
       ))
     })?;
 
     let mut opts = self.options.clone();
+    opts.source_index = source_index;
 
-    {
-      let mut sources = self.sources.lock().unwrap();
-      opts.source_index = sources.len() as u32;
-      sources.push(filename.into());
-    }
-
+    let filename = file.to_str().unwrap();
     if let Some(source_map) = &self.source_map {
       let mut source_map = source_map.lock().unwrap();
       let source_index = source_map.add_source(filename);
@@ -221,8 +258,8 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
     )?;
 
     // Collect and load dependencies for this stylesheet in parallel.
-    stylesheet.rules.0.par_iter_mut()
-      .try_for_each(|r| {
+    let dependencies: Result<Vec<u32>, _> = stylesheet.rules.0.par_iter_mut()
+      .filter_map(|r| {
         // Prepend parent layer name to @layer statements.
         if let CssRule::LayerStatement(layer) = r {
           if let Some(Some(parent_layer)) = &rule.layer {
@@ -238,23 +275,27 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
           // Combine media queries and supports conditions from parent 
           // stylesheet with @import rule using a logical and operator.
           let mut media = rule.media.clone();
-          media.and(&import.media).map_err(|_| Error {
+          let result = media.and(&import.media).map_err(|_| Error {
             kind: BundleErrorKind::UnsupportedMediaBooleanLogic,
             loc: Some(ErrorLocation::from(
               import.loc,
-              self.sources.lock().unwrap()[import.loc.source_index as usize].clone()
+              self.find_filename(import.loc.source_index)
             ))
-          })?;
+          });
+
+          if let Err(e) = result {
+            return Some(Err(e))
+          }
 
           let layer = if (rule.layer == Some(None) && import.layer.is_some()) || (import.layer == Some(None) && rule.layer.is_some()) {
             // Cannot combine anonymous layers
-            return Err(Error {
+            return Some(Err(Error {
               kind: BundleErrorKind::UnsupportedLayerCombination,
               loc: Some(ErrorLocation::from(
                 import.loc, 
-                self.sources.lock().unwrap()[import.loc.source_index as usize].clone()
+                self.find_filename(import.loc.source_index)
               ))
-            })
+            }))
           } else if let Some(Some(a)) = &rule.layer {
             if let Some(Some(b)) = &import.layer {
               let mut name = a.clone();
@@ -267,81 +308,126 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
             import.layer.clone()
           };
           
-          self.load_file(&path, ImportRule {
+          let result = self.load_file(&path, ImportRule {
             layer,
             media,
             supports: combine_supports(rule.supports.clone(), &import.supports),
             url: "".into(),
             loc: import.loc
-          })?
-        }
-        Ok(())
-      })?;
+          });
 
-    self.stylesheets.insert(file.to_owned(), stylesheet);
-    Ok(())
+          Some(result)
+        } else {
+          None
+        }
+      })
+      .collect();
+      
+    let entry = &mut self.stylesheets.lock().unwrap()[source_index as usize];
+    entry.stylesheet = Some(stylesheet);
+    entry.dependencies = dependencies?;
+
+    Ok(source_index)
   }
 
-  fn inline(&self, file: &Path, dest: &mut Vec<CssRule<'a>>) {
-    // Retrieve the stylesheet for this file from the map and remove it.
-    // If it doesn't exist, then we already inlined it (e.g. circular dep).
-    let stylesheet = match self.stylesheets.remove(file) {
-      Some((_, s)) => s,
-      None => return
-    };
+  fn order(&mut self) {
+    process(
+      self.stylesheets.get_mut().unwrap(),
+      0, 
+      &mut HashSet::new()
+    );
 
-    // Wrap rules in the appropriate @media and @supports rules.
-    let mut rules: Vec<CssRule<'a>> = stylesheet.rules.0;
+    fn process(stylesheets: &mut Vec<BundleStyleSheet<'_>>, source_index: u32, visited: &mut HashSet<u32>) {
+      if visited.contains(&source_index) {
+        return
+      }
 
-    for rule in &mut rules {
-      match rule {
-        CssRule::Import(import) => {
-          let path = file.with_file_name(&*import.url);
-          self.inline(&path, dest);
-          *rule = CssRule::Ignored;
-        },
-        CssRule::LayerStatement(_) => {
-          // @layer rules are the only rules that may appear before an @import.
-          // We must preserve this order to ensure correctness.
-          let layer = std::mem::replace(rule, CssRule::Ignored);
-          dest.push(layer);
-        },
-        _ => break
+      visited.insert(source_index);
+
+      for dep_index in 0..stylesheets[source_index as usize].dependencies.len() {
+        let dep_source_index = stylesheets[source_index as usize].dependencies[dep_index];
+        let mut resolved = &mut stylesheets[dep_source_index as usize];
+
+        // In browsers, every instance of an @import is evaluated, so we preserve the last.
+        resolved.parent_dep_index = dep_index as u32;
+        resolved.parent_source_index = source_index;
+
+        process(stylesheets, dep_source_index, visited);
       }
     }
+  }
 
-    let (_, loaded) = self.loaded.remove(file).unwrap();
-    if !loaded.media.media_queries.is_empty() {
-      rules = vec![
-        CssRule::Media(MediaRule {
-          query: loaded.media,
-          rules: CssRuleList(rules),
-          loc: loaded.loc
-        })
-      ]
+  fn inline(&mut self, dest: &mut Vec<CssRule<'a>>) {
+    process(
+      self.stylesheets.get_mut().unwrap(),
+      0,
+      dest
+    );
+
+    fn process<'a>(stylesheets: &mut Vec<BundleStyleSheet<'a>>, source_index: u32, dest: &mut Vec<CssRule<'a>>) {
+      let stylesheet = &mut stylesheets[source_index as usize];
+      let mut rules = std::mem::take(&mut stylesheet.stylesheet.as_mut().unwrap().rules.0);
+
+      let mut dep_index = 0;
+      for rule in &mut rules {
+        match rule {
+          CssRule::Import(_) => {
+            let dep_source_index = stylesheets[source_index as usize].dependencies[dep_index as usize];
+            let resolved = &stylesheets[dep_source_index as usize];
+
+            // Include the dependency if this is the last instance as computed earlier.
+            if resolved.parent_source_index == source_index && resolved.parent_dep_index == dep_index {
+              process(stylesheets, dep_source_index, dest);
+            }
+
+            *rule = CssRule::Ignored;
+            dep_index += 1;
+          }
+          CssRule::LayerStatement(_) => {
+            // @layer rules are the only rules that may appear before an @import.
+            // We must preserve this order to ensure correctness.
+            let layer = std::mem::replace(rule, CssRule::Ignored);
+            dest.push(layer);
+          }
+          CssRule::Ignored => {}
+          _ => break
+        }
+      }
+
+      // Wrap rules in the appropriate @media and @supports rules.
+      let stylesheet = &mut stylesheets[source_index as usize];
+      if !stylesheet.media.media_queries.is_empty() {
+        rules = vec![
+          CssRule::Media(MediaRule {
+            query: std::mem::replace(&mut stylesheet.media, MediaList::new()),
+            rules: CssRuleList(rules),
+            loc: stylesheet.loc
+          })
+        ]
+      }
+
+      if stylesheet.supports.is_some() {
+        rules = vec![
+          CssRule::Supports(SupportsRule {
+            condition: stylesheet.supports.take().unwrap(),
+            rules: CssRuleList(rules),
+            loc: stylesheet.loc
+          })
+        ]
+      }
+
+      if stylesheet.layer.is_some() {
+        rules = vec![
+          CssRule::LayerBlock(LayerBlockRule {
+            name: stylesheet.layer.take().unwrap(),
+            rules: CssRuleList(rules),
+            loc: stylesheet.loc
+          })
+        ]
+      }
+
+      dest.extend(rules);
     }
-
-    if let Some(supports) = loaded.supports {
-      rules = vec![
-        CssRule::Supports(SupportsRule {
-          condition: supports,
-          rules: CssRuleList(rules),
-          loc: loaded.loc
-        })
-      ]
-    }
-
-    if let Some(layer) = loaded.layer {
-      rules = vec![
-        CssRule::LayerBlock(LayerBlockRule {
-          name: layer,
-          rules: CssRuleList(rules),
-          loc: loaded.loc
-        })
-      ]
-    }
-
-    dest.extend(rules);
   }
 }
 
@@ -874,6 +960,64 @@ mod tests {
         .c { color: green }
       "#
     }, "/a.css");
+
+    let res = bundle(fs! {
+      "/index.css": r#"
+        @import "a.css";
+        @import "b.css";
+      "#,
+      "/a.css": r#"
+        @import "./c.css";
+        body { background: red; }
+      "#,
+      "/b.css": r#"
+        @import "./c.css";
+        body { color: red; }
+      "#,
+      "/c.css": r#"
+        body {
+          background: white;
+          color: black; 
+        }
+      "#
+    }, "/index.css");
+    assert_eq!(res, indoc! { r#"
+      body {
+        background: red;
+      }
+
+      body {
+        background: #fff;
+        color: #000;
+      }
+
+      body {
+        color: red;
+      }
+    "#});
+
+    let res = bundle(fs! {
+      "/index.css": r#"
+        @import "a.css";
+        @import "b.css";
+        @import "a.css";
+      "#,
+      "/a.css": r#"
+        body { background: green; }
+      "#,
+      "/b.css": r#"
+        body { background: red; }
+      "#
+    }, "/index.css");
+    assert_eq!(res, indoc! { r#"
+      body {
+        background: red;
+      }
+
+      body {
+        background: green;
+      }
+    "#});
 
     // let res = bundle(fs! {
     //   "/a.css": r#"
