@@ -5,16 +5,25 @@ use std::fmt::Write;
 use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
 
+use super::percentage::Percentage;
+
 #[derive(Debug, Clone, PartialEq)]
-pub struct CssColor(pub Color);
+pub enum CssColor {
+  CurrentColor,
+  RGBA(RGBA),
+  Lab(f32, f32, f32, f32),
+  Lch(f32, f32, f32, f32),
+  Oklab(f32, f32, f32, f32),
+  Oklch(f32, f32, f32, f32)
+}
 
 impl CssColor {
   pub fn current_color() -> CssColor {
-    CssColor(Color::CurrentColor)
+    CssColor::CurrentColor
   }
 
   pub fn transparent() -> CssColor {
-    CssColor(Color::RGBA(RGBA::transparent()))
+    CssColor::RGBA(RGBA::transparent())
   }
 }
 
@@ -24,21 +33,30 @@ impl Default for CssColor {
   }
 }
 
+impl From<Color> for CssColor {
+  fn from(color: Color) -> Self {
+    match color {
+      Color::CurrentColor => CssColor::CurrentColor,
+      Color::RGBA(rgba) => CssColor::RGBA(rgba)
+    }
+  }
+}
+
 impl<'i> Parse<'i> for CssColor {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(color) = input.try_parse(Color::parse) {
-      return Ok(CssColor(color))
+      return Ok(color.into())
     }
 
-    Err(input.new_error_for_next_token())
+    parse_color_function(input)
   }
 }
 
 impl ToCss for CssColor {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
-    match self.0 {
-      Color::CurrentColor => dest.write_str("currentColor"),
-      Color::RGBA(color) => {
+    match self {
+      CssColor::CurrentColor => dest.write_str("currentColor"),
+      CssColor::RGBA(color) => {
         if color.alpha == 255 {
           let hex: u32 = ((color.red as u32) << 16) | ((color.green as u32) << 8) | (color.blue as u32);
           if let Some(name) = short_color_name(hex) {
@@ -85,7 +103,11 @@ impl ToCss for CssColor {
           }
         }
         Ok(())
-      }
+      },
+      CssColor::Lab(l, a, b, alpha) => write_components("lab", *l, *a, *b, *alpha, dest),
+      CssColor::Lch(l, c, h, alpha) => write_components("lch", *l, *c, *h, *alpha, dest),
+      CssColor::Oklab(l, a, b, alpha) => write_components("oklab", *l, *a, *b, *alpha, dest),
+      CssColor::Oklch(l, c, h, alpha) => write_components("oklch", *l, *c, *h, *alpha, dest)
     }
   }
 }
@@ -139,4 +161,108 @@ fn short_color_name(v: u32) -> Option<&'static str> {
   };
 
   Some(s)
+}
+
+struct ComponentParser;
+impl<'i> ColorComponentParser<'i> for ComponentParser {
+  type Error = ParserError<'i>;
+}
+
+// https://www.w3.org/TR/css-color-4/#lab-colors
+fn parse_color_function<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
+  let location = input.current_source_location();
+  let function = input.expect_function()?;
+
+  match_ignore_ascii_case! {&*function,
+    "lab" => {
+      let (l, c, h, alpha) = parse_lab(input)?;
+      Ok(CssColor::Lab(l, c, h, alpha))
+    },
+    "oklab" => {
+      let (l, c, h, alpha) = parse_lab(input)?;
+      Ok(CssColor::Oklab(l, c, h, alpha))
+    },
+    "lch" => {
+      let (l, c, h, alpha) = parse_lch(input)?;
+      Ok(CssColor::Lch(l, c, h, alpha))
+    },
+    "oklch" => {
+      let (l, c, h, alpha) = parse_lch(input)?;
+      Ok(CssColor::Oklch(l, c, h, alpha))
+    },
+    _ => Err(location.new_unexpected_token_error(
+      cssparser::Token::Ident(function.clone())
+    ))
+  }
+}
+
+/// Parses the lab() and oklab() functions.
+#[inline]
+fn parse_lab<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
+  // https://www.w3.org/TR/css-color-4/#funcdef-lab
+  let res = input.parse_nested_block(|input| {
+    let l = input.expect_percentage()?;
+    let a = input.expect_number()?;
+    let b = input.expect_number()?;
+    let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
+      parse_number_or_percentage(input)?
+    } else {
+      1.0
+    };
+
+    Ok((l, a, b, alpha))
+  })?;
+
+  Ok(res)
+}
+
+/// Parses the lch() and oklch() functions.
+#[inline]
+fn parse_lch<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
+  // https://www.w3.org/TR/css-color-4/#funcdef-lch
+  let parser = ComponentParser;
+  let res = input.parse_nested_block(|input| {
+    let l = input.expect_percentage()?;
+    let c = input.expect_number()?;
+    let h = match parser.parse_angle_or_number(input)? {
+      AngleOrNumber::Number { value } => value,
+      AngleOrNumber::Angle { degrees } => degrees
+    };
+    let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
+      parse_number_or_percentage(input)?
+    } else {
+      1.0
+    };
+
+    Ok((l, c, h, alpha))
+  })?;
+
+  Ok(res)
+}
+
+#[inline]
+fn parse_number_or_percentage<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ParserError<'i>>> {
+  let location = input.current_source_location();
+  Ok(match *input.next()? {
+    Token::Number { value, .. } => value,
+    Token::Percentage { unit_value, .. } => unit_value,
+    ref t => return Err(location.new_unexpected_token_error(t.clone())),
+  })
+}
+
+#[inline]
+fn write_components<W>(name: &str, a: f32, b: f32, c: f32, alpha: f32, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  dest.write_str(name)?;
+  dest.write_char('(')?;
+  Percentage(a).to_css(dest)?;
+  dest.write_char(' ')?;
+  b.to_css(dest)?;
+  dest.write_char(' ')?;
+  c.to_css(dest)?;
+  if alpha != 1.0 {
+    dest.delim('/', true)?;
+    alpha.to_css(dest)?;
+  }
+
+  dest.write_char(')')
 }

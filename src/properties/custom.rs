@@ -142,7 +142,7 @@ impl<'i> TokenList<'i> {
         }
         Ok(&cssparser::Token::Hash(ref h)) | Ok(&cssparser::Token::IDHash(ref h)) => {
           if let Ok(color) = Color::parse_hash(h.as_bytes()) {
-            tokens.push(TokenOrValue::Color(CssColor(color)));
+            tokens.push(TokenOrValue::Color(color.into()));
           } else {
             tokens.push(Token::Hash(h.into()).into());
           }

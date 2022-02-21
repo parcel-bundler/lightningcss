@@ -7526,6 +7526,17 @@ mod tests {
     minify_test(".foo { color: hwb(194 50% 0%) }", ".foo{color:#80e1ff}");
     minify_test(".foo { color: hwb(194 50% 50%) }", ".foo{color:gray}");
     // minify_test(".foo { color: ActiveText }", ".foo{color:ActiveTet}");
+    minify_test(".foo { color: lab(29.2345% 39.3825 20.0664); }", ".foo{color:lab(29.2345% 39.3825 20.0664)}");
+    minify_test(".foo { color: lab(29.2345% 39.3825 20.0664 / 100%); }", ".foo{color:lab(29.2345% 39.3825 20.0664)}");
+    minify_test(".foo { color: lab(29.2345% 39.3825 20.0664 / 50%); }", ".foo{color:lab(29.2345% 39.3825 20.0664/.5)}");
+    minify_test(".foo { color: lch(29.2345% 44.2 27); }", ".foo{color:lch(29.2345% 44.2 27)}");
+    minify_test(".foo { color: lch(29.2345% 44.2 45deg); }", ".foo{color:lch(29.2345% 44.2 45)}");
+    minify_test(".foo { color: lch(29.2345% 44.2 .5turn); }", ".foo{color:lch(29.2345% 44.2 180)}");
+    minify_test(".foo { color: lch(29.2345% 44.2 27 / 100%); }", ".foo{color:lch(29.2345% 44.2 27)}");
+    minify_test(".foo { color: lch(29.2345% 44.2 27 / 50%); }", ".foo{color:lch(29.2345% 44.2 27/.5)}");
+    minify_test(".foo { color: oklab(40.101% 0.1147 0.0453); }", ".foo{color:oklab(40.101% .1147 .0453)}");
+    minify_test(".foo { color: oklch(40.101% 0.12332 21.555); }", ".foo{color:oklch(40.101% .12332 21.555)}");
+    minify_test(".foo { color: oklch(40.101% 0.12332 .5turn); }", ".foo{color:oklch(40.101% .12332 180)}");
 
     prefix_test(
       ".foo { color: rgba(123, 456, 789, 0.5) }",

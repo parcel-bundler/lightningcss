@@ -428,7 +428,7 @@ mod tests {
       "foo | <color>+ | <integer>",
       "red",
       ParsedComponent::Repeated(vec![
-        ParsedComponent::Color(values::color::CssColor(Color::RGBA(RGBA { red: 255, green: 0, blue: 0, alpha: 255 })))
+        ParsedComponent::Color(values::color::CssColor::RGBA(RGBA { red: 255, green: 0, blue: 0, alpha: 255 }))
       ], Multiplier::Space)
     );
 
@@ -436,8 +436,8 @@ mod tests {
       "foo | <color>+ | <integer>",
       "red blue",
       ParsedComponent::Repeated(vec![
-        ParsedComponent::Color(values::color::CssColor(Color::RGBA(RGBA { red: 255, green: 0, blue: 0, alpha: 255 }))),
-        ParsedComponent::Color(values::color::CssColor(Color::RGBA(RGBA { red: 0, green: 0, blue: 255, alpha: 255 })))
+        ParsedComponent::Color(values::color::CssColor::RGBA(RGBA { red: 255, green: 0, blue: 0, alpha: 255 })),
+        ParsedComponent::Color(values::color::CssColor::RGBA(RGBA { red: 0, green: 0, blue: 255, alpha: 255 }))
       ], Multiplier::Space)
     );
 
@@ -460,8 +460,8 @@ mod tests {
       "foo | <color># | <integer>",
       "red, blue",
       ParsedComponent::Repeated(vec![
-        ParsedComponent::Color(values::color::CssColor(Color::RGBA(RGBA { red: 255, green: 0, blue: 0, alpha: 255 }))),
-        ParsedComponent::Color(values::color::CssColor(Color::RGBA(RGBA { red: 0, green: 0, blue: 255, alpha: 255 })))
+        ParsedComponent::Color(values::color::CssColor::RGBA(RGBA { red: 255, green: 0, blue: 0, alpha: 255 })),
+        ParsedComponent::Color(values::color::CssColor::RGBA(RGBA { red: 0, green: 0, blue: 255, alpha: 255 }))
       ], Multiplier::Comma)
     );
 
