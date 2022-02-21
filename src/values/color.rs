@@ -1,10 +1,11 @@
 use cssparser::*;
+use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
+use std::f32::consts::PI;
 use std::fmt::Write;
 use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
-
 use super::percentage::Percentage;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -24,6 +25,45 @@ impl CssColor {
 
   pub fn transparent() -> CssColor {
     CssColor::RGBA(RGBA::transparent())
+  }
+
+  pub fn to_rgb(&self) -> CssColor {
+    match self {
+      CssColor::Lab(l, a, b, alpha) => {
+        let (r, g, b) = lab_to_srgb(*l * 100.0, *a, *b);
+        CssColor::RGBA(RGBA::from_floats(r, g, b, *alpha))
+      },
+      CssColor::Lch(l, c, h, alpha) => {
+        let (r, g, b) = lch_to_srgb(*l * 100.0, *c, *h);
+        CssColor::RGBA(RGBA::from_floats(r, g, b, *alpha))
+      },
+      CssColor::Oklab(l, a, b, alpha) => {
+        let (r, g, b) = oklab_to_srgb(*l, *a, *b);
+        CssColor::RGBA(RGBA::from_floats(r, g, b, *alpha))
+      },
+      CssColor::Oklch(l, c, h, alpha) => {
+        let (r, g, b) = oklch_to_srgb(*l, *c, *h);
+        CssColor::RGBA(RGBA::from_floats(r, g, b, *alpha))
+      },
+      _ => self.clone()
+    }
+  }
+
+  pub fn get_fallbacks(&self, targets: Browsers) -> Vec<CssColor> {
+    let is_compatible = match self {
+      CssColor::CurrentColor | CssColor::RGBA(_) => true,
+      CssColor::Lab(..) => Feature::LabColors.is_compatible(targets),
+      CssColor::Lch(..) => Feature::LabColors.is_compatible(targets),
+      CssColor::Oklab(..) => Feature::OklabColors.is_compatible(targets),
+      CssColor::Oklch(..) => Feature::OklchColors.is_compatible(targets)
+    };
+
+    let mut res = Vec::new();
+    if !is_compatible {
+      res.push(self.to_rgb())
+    }
+
+    res
   }
 }
 
@@ -265,4 +305,153 @@ fn write_components<W>(name: &str, a: f32, b: f32, c: f32, alpha: f32, dest: &mu
   }
 
   dest.write_char(')')
+}
+
+fn lch_to_srgb(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
+  let (l, a, b) = lch_to_lab(l, c, h);
+  lab_to_srgb(l, a, b)
+}
+
+#[inline]
+fn lch_to_lab(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L385
+  let a = c * (h * PI / 180.0).cos();
+  let b = c * (h * PI / 180.0).sin();
+  (l, a, b)
+}
+
+fn lab_to_srgb(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/utilities.js#L63
+  // convert CIE LCH values to CIE Lab, and then to XYZ, adapt from D50 to D65,
+  // then convert XYZ to linear-light sRGB, and finally to gamma corrected sRGB
+  // for in-gamut colors, components are in the 0.0 to 1.0 range
+  // out of gamut colors may have negative components
+  // or components greater than 1.0
+  // so check for that :)
+  let (x, y, z) = lab_to_xyz(l, a, b);
+  let (x, y, z) = d50_to_d65(x, y, z);
+  let (r, g, b) = xyz_to_lin_srgb(x, y, z);
+  gam_srgb(r, g, b)
+}
+
+const D50: &[f32] = &[0.3457 / 0.3585, 1.00000, (1.0 - 0.3457 - 0.3585) / 0.3585];
+
+fn lab_to_xyz(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L352
+  let κ = 24389.0 / 27.0;   // 29^3/3^3
+	let ε = 216.0 / 24389.0;  // 6^3/29^3
+
+	// compute f, starting with the luminance-related term
+	let f1 = (l + 16.0) / 116.0;
+	let f0 = a / 500.0 + f1;
+	let f2 = f1 - b / 200.0;
+
+  // compute xyz
+  let x = if f0.powi(3) > ε {
+    f0.powi(3)
+  } else {
+    (116.0 * f0 - 16.0) / κ
+  };
+
+  let y = if l > κ * ε {
+    ((l + 16.0) / 116.0).powi(3)
+  } else {
+    l / κ
+  };
+
+  let z = if f2.powi(3) > ε {
+    f2.powi(3)
+  } else {
+    (116.0 * f2 - 16.0) / κ
+  };
+
+  // Compute XYZ by scaling xyz by reference white
+  let x = x * D50[0];
+  let y = y * D50[1];
+  let z = z * D50[2];
+  (x, y, z)
+}
+
+fn d50_to_d65(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L319
+  const MATRIX: &[f32] = &[
+    0.9554734527042182,    -0.023098536874261423, 0.0632593086610217,
+    -0.028369706963208136,  1.0099954580058226,   0.021041398966943008,
+    0.012314001688319899,  -0.020507696433477912, 1.3303659366080753
+  ];
+
+  multiply_matrix(MATRIX, x, y, z)
+}
+
+fn xyz_to_lin_srgb(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L62
+  const MATRIX: &[f32] = &[
+     3.2409699419045226,  -1.537383177570094,   -0.4986107602930034,
+		-0.9692436362808796,   1.8759675015077202,   0.04155505740717559,
+		 0.05563007969699366, -0.20397695888897652,  1.0569715142428786
+  ];
+
+  multiply_matrix(MATRIX, x, y, z)
+}
+
+#[inline]
+fn multiply_matrix(m: &[f32], x: f32, y: f32, z: f32) -> (f32, f32, f32) {
+  let a = m[0] * x + m[1] * y + m[2] * z;
+  let b  = m[3] * x + m[4] * y + m[5] * z;
+  let c = m[6] * x + m[7] * y + m[8] * z;
+  (a, b, c)
+}
+
+fn gam_srgb(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L31
+  // convert an array of linear-light sRGB values in the range 0.0-1.0
+	// to gamma corrected form
+	// https://en.wikipedia.org/wiki/SRGB
+	// Extended transfer function:
+	// For negative values, linear portion extends on reflection
+	// of axis, then uses reflected pow below that
+  let r = gam_srgb_component(r);
+  let g = gam_srgb_component(g);
+  let b = gam_srgb_component(b);
+  (r, g, b)
+}
+
+#[inline]
+fn gam_srgb_component(c: f32) -> f32 {
+  let abs = c.abs();
+  if abs > 0.0031308 {
+    let sign = if c < 0.0 { -1.0 } else { 1.0 };
+    return sign * (1.055 * abs.powf(1.0 / 2.4) - 0.055);
+  }
+
+  return 12.92 * c;
+}
+
+fn oklab_to_xyz(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L418
+  const LMS_TO_XYZ: &[f32] = &[
+		 1.2268798733741557,  -0.5578149965554813,   0.28139105017721583,
+		-0.04057576262431372,  1.1122868293970594,  -0.07171106666151701,
+		-0.07637294974672142, -0.4214933239627914,   1.5869240244272418
+	];
+
+  const OKLAB_TO_LMS: &[f32] = &[
+    0.99999999845051981432,  0.39633779217376785678,   0.21580375806075880339,
+    1.0000000088817607767,  -0.1055613423236563494,   -0.063854174771705903402,
+    1.0000000546724109177,  -0.089484182094965759684, -1.2914855378640917399
+  ];
+
+  let (a, b, c) = multiply_matrix(OKLAB_TO_LMS, l, a, b);
+  multiply_matrix(LMS_TO_XYZ, a.powi(3), b.powi(3), c.powi(3))
+}
+
+fn oklab_to_srgb(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
+  let (x, y, z) = oklab_to_xyz(l, a, b);
+  let (r, g, b) = xyz_to_lin_srgb(x, y, z);
+  gam_srgb(r, g, b)
+}
+
+fn oklch_to_srgb(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
+  let (l, a, b) = lch_to_lab(l, c, h);
+  oklab_to_srgb(l, a, b)
 }

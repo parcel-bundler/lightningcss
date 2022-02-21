@@ -34,6 +34,8 @@ pub enum Feature {
   DoublePositionGradients,
   FormValidation,
   Fullscreen,
+  LabColors,
+  LchColors,
   LogicalBorderRadius,
   LogicalBorders,
   LogicalInset,
@@ -43,6 +45,8 @@ pub enum Feature {
   LogicalTextAlign,
   MediaIntervalSyntax,
   MediaRangeSyntax,
+  OklabColors,
+  OklchColors,
   OverflowShorthand,
   PlaceContent,
   PlaceItems,
@@ -1150,7 +1154,9 @@ impl Feature {
       }
       Feature::CssNesting |
       Feature::CustomMediaQueries |
-      Feature::MediaIntervalSyntax => {
+      Feature::MediaIntervalSyntax |
+      Feature::OklabColors |
+      Feature::OklchColors => {
         return false
       }
       Feature::DoublePositionGradients => {
@@ -1603,6 +1609,22 @@ impl Feature {
           }
         }
         if browsers.ie.is_some() {
+          return false
+        }
+      }
+      Feature::LabColors |
+      Feature::LchColors => {
+        if let Some(version) = browsers.safari {
+          if version < 983040 {
+            return false
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 983040 {
+            return false
+          }
+        }
+        if browsers.android.is_some() || browsers.chrome.is_some() || browsers.edge.is_some() || browsers.firefox.is_some() || browsers.ie.is_some() || browsers.opera.is_some() || browsers.samsung.is_some() {
           return false
         }
       }

@@ -7606,6 +7606,75 @@ mod tests {
         ..Browsers::default()
       }
     );
+
+    prefix_test(
+      ".foo { background-color: lab(40% 56.6 39) }",
+      indoc! { r#"
+        .foo {
+          background-color: #b32323;
+          background-color: lab(40% 56.6 39);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { background-color: lch(40% 68.735435 34.568626) }",
+      indoc! { r#"
+        .foo {
+          background-color: #b32323;
+          background-color: lch(40% 68.7354 34.5686);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { background-color: oklab(40% 0.001236 0.0039) }",
+      indoc! { r#"
+        .foo {
+          background-color: #494745;
+          background-color: oklab(40% .001236 .0039);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { background-color: oklch(40% 0.1268735435 34.568626) }",
+      indoc! { r#"
+        .foo {
+          background-color: #7e250f;
+          background-color: oklch(40% .126874 34.5686);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { background-color: lab(40% 56.6 39) }",
+      indoc! { r#"
+        .foo {
+          background-color: lab(40% 56.6 39);
+        }
+      "#},
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 
   #[cfg(feature = "grid")]
