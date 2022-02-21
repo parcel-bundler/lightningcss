@@ -10425,5 +10425,20 @@ mod tests {
         initial-value: none;
       }
     "#});
+
+    minify_test(r#"
+      @property --property-name {
+        syntax: '<color>#';
+        inherits: false;
+        initial-value: yellow, blue;
+      }
+    "#, "@property --property-name{syntax:\"<color>#\";inherits:false;initial-value:#ff0,#00f}");
+    minify_test(r#"
+      @property --property-name {
+        syntax: '<color>+';
+        inherits: false;
+        initial-value: yellow blue;
+      }
+    "#, "@property --property-name{syntax:\"<color>+\";inherits:false;initial-value:#ff0 #00f}");
   }
 }

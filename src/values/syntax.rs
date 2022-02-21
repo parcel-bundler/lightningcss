@@ -4,7 +4,6 @@ use crate::error::{ParserError, PrinterError};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use crate::values::number::serialize_integer;
-
 use super::string::CowArcStr;
 
 /// https://drafts.css-houdini.org/css-properties-values-api/#syntax-strings
