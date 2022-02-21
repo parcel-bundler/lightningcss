@@ -10296,4 +10296,134 @@ mod tests {
     minify_test("@import 'test.css' layer(foo.bar);", "@import \"test.css\" layer(foo.bar);");
     error_test("@import 'test.css' layer(foo, bar) {};", ParserError::UnexpectedToken(Token::Comma));
   }
+
+  #[test]
+  fn test_property() {
+    minify_test(r#"
+      @property --property-name {
+        syntax: '<color>';
+        inherits: false;
+        initial-value: yellow;
+      }
+    "#, "@property --property-name{syntax:\"<color>\";inherits:false;initial-value:#ff0}");
+
+    minify_test(r#"
+      @property --property-name {
+        syntax: '<length>';
+        inherits: true;
+        initial-value: 25px;
+      }
+    "#, "@property --property-name{syntax:\"<length>\";inherits:true;initial-value:25px}");
+    
+    error_test(r#"
+      @property --property-name {
+        syntax: '<color>';
+        inherits: false;
+        initial-value: 25px;
+      }
+    "#, ParserError::UnexpectedToken(crate::properties::custom::Token::Dimension { has_sign: false, value: 25.0, int_value: Some(25), unit: "px".into() }));
+
+    error_test(r#"
+      @property --property-name {
+        syntax: '<length>';
+        inherits: false;
+        initial-value: var(--some-value);
+      }
+    "#, ParserError::UnexpectedToken(crate::properties::custom::Token::Function("var".into())));
+
+    error_test(r#"
+      @property --property-name {
+        syntax: '<color>';
+        inherits: false;
+      }
+    "#, ParserError::AtRuleBodyInvalid);
+
+    minify_test(r#"
+      @property --property-name {
+        syntax: '*';
+        inherits: false;
+      }
+    "#, "@property --property-name{syntax:\"*\";inherits:false}");
+
+    error_test(r#"
+      @property --property-name {
+        syntax: '*';
+      }
+    "#, ParserError::AtRuleBodyInvalid);
+
+    error_test(r#"
+      @property --property-name {
+        inherits: false;
+      }
+    "#, ParserError::AtRuleBodyInvalid);
+
+    error_test(r#"
+      @property property-name {
+        syntax: '*';
+        inherits: false;
+      }
+    "#, ParserError::UnexpectedToken(crate::properties::custom::Token::Ident("property-name".into())));
+
+    minify_test(r#"
+      @property --property-name {
+        syntax: 'custom | <color>';
+        inherits: false;
+        initial-value: yellow;
+      }
+    "#, "@property --property-name{syntax:\"custom|<color>\";inherits:false;initial-value:#ff0}");
+
+    minify_test(r#"
+      @property --property-name {
+        syntax: '<transform-list>';
+        inherits: false;
+        initial-value: translate(200px,300px) translate(100px,200px) scale(2);
+      }
+    "#, "@property --property-name{syntax:\"<transform-list>\";inherits:false;initial-value:matrix(2,0,0,2,300,500)}");
+
+    minify_test(r#"
+      @property --property-name {
+        syntax: '<time>';
+        inherits: false;
+        initial-value: 1000ms;
+      }
+    "#, "@property --property-name{syntax:\"<time>\";inherits:false;initial-value:1s}");
+
+    minify_test(r#"
+      @property --property-name {
+        syntax: '<url>';
+        inherits: false;
+        initial-value: url("foo.png");
+      }
+    "#, "@property --property-name{syntax:\"<url>\";inherits:false;initial-value:url(foo.png)}");
+
+    minify_test(r#"
+      @property --property-name {
+        syntax: '<image>';
+        inherits: false;
+        initial-value: linear-gradient(yellow, blue);
+      }
+    "#, "@property --property-name{syntax:\"<image>\";inherits:false;initial-value:linear-gradient(#ff0,#00f)}");
+
+    minify_test(r#"
+      @property --property-name {
+        initial-value: linear-gradient(yellow, blue);
+        inherits: false;
+        syntax: '<image>';
+      }
+    "#, "@property --property-name{syntax:\"<image>\";inherits:false;initial-value:linear-gradient(#ff0,#00f)}");
+
+    test(r#"
+      @property --property-name {
+        syntax: '<length>|none';
+        inherits: false;
+        initial-value: none;
+      }
+    "#, indoc!{r#"
+      @property --property-name {
+        syntax: "<length> | none";
+        inherits: false;
+        initial-value: none;
+      }
+    "#});
+  }
 }

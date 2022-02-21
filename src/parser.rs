@@ -1,4 +1,5 @@
 use crate::rules::layer::{LayerBlockRule, LayerStatementRule};
+use crate::rules::property::PropertyRule;
 use crate::values::string::CowArcStr;
 use cssparser::*;
 use parcel_selectors::{SelectorList, parser::NestingRequirement};
@@ -106,7 +107,10 @@ pub enum AtRulePrelude<'i> {
   Charset,
   /// A @nest prelude.
   Nest(SelectorList<'i, Selectors>),
-  Layer(Vec<LayerName<'i>>)
+  /// An @layer prelude.
+  Layer(Vec<LayerName<'i>>),
+  /// An @property prelude.
+  Property(CowRcStr<'i>)
 }
 
 impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
@@ -171,6 +175,13 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
           let media = MediaList::parse(input)?;
           return Ok(AtRulePrelude::CustomMedia(name, media))
         },
+        "property" => {
+          let name = input.expect_ident_cloned()?;
+          if !name.starts_with("--") {
+            return Err(input.new_unexpected_token_error(Token::Ident(name.into())));
+          }
+          return Ok(AtRulePrelude::Property(name))
+        },  
         _ => {}
       }
 
@@ -510,6 +521,9 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'i> {
           rules: self.parse_nested_rules(input),
           loc
         }))
+      },
+      AtRulePrelude::Property(name) => {
+        Ok(CssRule::Property(PropertyRule::parse(name.into(), input, loc)?))
       },
       AtRulePrelude::Import(..) | 
       AtRulePrelude::Namespace(..) | 
