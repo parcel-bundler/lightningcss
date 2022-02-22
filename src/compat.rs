@@ -1158,8 +1158,7 @@ impl Feature {
       Feature::CustomMediaQueries |
       Feature::MediaIntervalSyntax |
       Feature::OklabColors |
-      Feature::OklchColors |
-      Feature::P3Colors => {
+      Feature::OklchColors => {
         return false
       }
       Feature::DoublePositionGradients => {
@@ -1625,6 +1624,21 @@ impl Feature {
         }
         if let Some(version) = browsers.ios_saf {
           if version < 983040 {
+            return false
+          }
+        }
+        if browsers.android.is_some() || browsers.chrome.is_some() || browsers.edge.is_some() || browsers.firefox.is_some() || browsers.ie.is_some() || browsers.opera.is_some() || browsers.samsung.is_some() {
+          return false
+        }
+      }
+      Feature::P3Colors => {
+        if let Some(version) = browsers.safari {
+          if version < 655616 {
+            return false
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 656128 {
             return false
           }
         }

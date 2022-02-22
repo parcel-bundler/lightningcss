@@ -7537,6 +7537,11 @@ mod tests {
     minify_test(".foo { color: oklab(40.101% 0.1147 0.0453); }", ".foo{color:oklab(40.101% .1147 .0453)}");
     minify_test(".foo { color: oklch(40.101% 0.12332 21.555); }", ".foo{color:oklch(40.101% .12332 21.555)}");
     minify_test(".foo { color: oklch(40.101% 0.12332 .5turn); }", ".foo{color:oklch(40.101% .12332 180)}");
+    minify_test(".foo { color: color(display-p3 1 0.5 0); }", ".foo{color:color(display-p3 1 .5 0)}");
+    minify_test(".foo { color: color(display-p3 100% 50% 0%); }", ".foo{color:color(display-p3 1 .5 0)}");
+    minify_test(".foo { color: color(xyz-d50 0.2005 0.14089 0.4472); }", ".foo{color:color(xyz-d50 .2005 .14089 .4472)}");
+    minify_test(".foo { color: color(xyz-d65 0.2005 0.14089 0.4472); }", ".foo{color:color(xyz .2005 .14089 .4472)}");
+    minify_test(".foo { color: color(xyz 0.2005 0.14089 0.4472); }", ".foo{color:color(xyz .2005 .14089 .4472)}");
 
     prefix_test(
       ".foo { color: rgba(123, 456, 789, 0.5) }",

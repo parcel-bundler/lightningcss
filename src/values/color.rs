@@ -15,7 +15,20 @@ pub enum CssColor {
   Lab(f32, f32, f32, f32),
   Lch(f32, f32, f32, f32),
   Oklab(f32, f32, f32, f32),
-  Oklch(f32, f32, f32, f32)
+  Oklch(f32, f32, f32, f32),
+  Predefined(PredefinedColor)
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum PredefinedColor {
+  Srgb(f32, f32, f32, f32),
+  SrgbLinear(f32, f32, f32, f32),
+  DisplayP3(f32, f32, f32, f32),
+  A98Rgb(f32, f32, f32, f32),
+  ProphotoRgb(f32, f32, f32, f32),
+  Rec2020(f32, f32, f32, f32),
+  XyzD50(f32, f32, f32, f32),
+  XyzD65(f32, f32, f32, f32)
 }
 
 impl CssColor {
@@ -45,7 +58,8 @@ impl CssColor {
         let (r, g, b) = oklch_to_srgb(*l, *c, *h);
         CssColor::RGBA(RGBA::from_floats(r, g, b, *alpha))
       },
-      CssColor::RGBA(..) | CssColor::CurrentColor => self.clone()
+      CssColor::RGBA(..) | CssColor::CurrentColor => self.clone(),
+      _ => todo!()
     }
   }
 
@@ -67,7 +81,8 @@ impl CssColor {
         let (l, a, b) = oklch_to_lab(*l, *c, *h);
         CssColor::Lab(l, a, b, *alpha)
       },
-      CssColor::Lab(..) | CssColor::CurrentColor => self.clone()
+      CssColor::Lab(..) | CssColor::CurrentColor => self.clone(),
+      _ => todo!()
     }
   }
 
@@ -77,7 +92,8 @@ impl CssColor {
       CssColor::Lab(..) => Feature::LabColors.is_compatible(targets),
       CssColor::Lch(..) => Feature::LchColors.is_compatible(targets),
       CssColor::Oklab(..) => Feature::OklabColors.is_compatible(targets),
-      CssColor::Oklch(..) => Feature::OklchColors.is_compatible(targets)
+      CssColor::Oklch(..) => Feature::OklchColors.is_compatible(targets),
+      CssColor::Predefined(..) => Feature::ColorFunction.is_compatible(targets)
     };
 
     let mut res = Vec::new();
@@ -173,7 +189,8 @@ impl ToCss for CssColor {
       CssColor::Lab(l, a, b, alpha) => write_components("lab", *l, *a, *b, *alpha, dest),
       CssColor::Lch(l, c, h, alpha) => write_components("lch", *l, *c, *h, *alpha, dest),
       CssColor::Oklab(l, a, b, alpha) => write_components("oklab", *l, *a, *b, *alpha, dest),
-      CssColor::Oklch(l, c, h, alpha) => write_components("oklch", *l, *c, *h, *alpha, dest)
+      CssColor::Oklch(l, c, h, alpha) => write_components("oklch", *l, *c, *h, *alpha, dest),
+      CssColor::Predefined(predefined) => write_predefined(predefined, dest)
     }
   }
 }
@@ -256,6 +273,10 @@ fn parse_color_function<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, 
       let (l, c, h, alpha) = parse_lch(input)?;
       Ok(CssColor::Oklch(l, c, h, alpha))
     },
+    "color" => {
+      let predefined = parse_predefined(input)?;
+      Ok(CssColor::Predefined(predefined))
+    },
     _ => Err(location.new_unexpected_token_error(
       cssparser::Token::Ident(function.clone())
     ))
@@ -307,6 +328,70 @@ fn parse_lch<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32),
 }
 
 #[inline]
+fn parse_predefined<'i, 't>(input: &mut Parser<'i, 't>) -> Result<PredefinedColor, ParseError<'i, ParserError<'i>>> {
+  // https://www.w3.org/TR/css-color-4/#color-function
+  let res = input.parse_nested_block(|input| {
+    input
+      .try_parse(parse_predefined_rgb)
+      .or_else(|_| input.try_parse(parse_predefined_xyz))
+  })?;
+
+  Ok(res)
+}
+
+#[inline]
+fn parse_predefined_rgb<'i, 't>(input: &mut Parser<'i, 't>) -> Result<PredefinedColor, ParseError<'i, ParserError<'i>>> {
+  let location = input.current_source_location();
+  let colorspace = input.expect_ident_cloned()?;
+  let r = parse_number_or_percentage(input)?;
+  let g = parse_number_or_percentage(input)?;
+  let b = parse_number_or_percentage(input)?;
+  let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
+    parse_number_or_percentage(input)?
+  } else {
+    1.0
+  };
+
+  let res = match_ignore_ascii_case! { &*&colorspace,
+    "srgb" => PredefinedColor::Srgb(r, g, b, alpha),
+    "srgb-linear" => PredefinedColor::SrgbLinear(r, g, b, alpha),
+    "display-p3" => PredefinedColor::DisplayP3(r, g, b, alpha),
+    "a98-rgb" => PredefinedColor::A98Rgb(r, g, b, alpha),
+    "prophoto-rgb" => PredefinedColor::ProphotoRgb(r, g, b, alpha),
+    "rec2020" => PredefinedColor::Rec2020(r, g, b, alpha),
+    _ => return Err(location.new_unexpected_token_error(
+      cssparser::Token::Ident(colorspace.clone())
+    ))
+  };
+
+  Ok(res)
+}
+
+#[inline]
+fn parse_predefined_xyz<'i, 't>(input: &mut Parser<'i, 't>) -> Result<PredefinedColor, ParseError<'i, ParserError<'i>>> {
+  let location = input.current_source_location();
+  let colorspace = input.expect_ident_cloned()?;
+  let x = input.expect_number()?;
+  let y = input.expect_number()?;
+  let z = input.expect_number()?;
+  let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
+    parse_number_or_percentage(input)?
+  } else {
+    1.0
+  };
+
+  let res = match_ignore_ascii_case! { &*&colorspace,
+    "xyz-d50" => PredefinedColor::XyzD50(x, y, z, alpha),
+    "xyz" | "xyz-d65" => PredefinedColor::XyzD65(x, y, z, alpha),
+    _ => return Err(location.new_unexpected_token_error(
+      cssparser::Token::Ident(colorspace.clone())
+    ))
+  };
+
+  Ok(res)
+}
+
+#[inline]
 fn parse_number_or_percentage<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ParserError<'i>>> {
   let location = input.current_source_location();
   Ok(match *input.next()? {
@@ -326,6 +411,39 @@ fn write_components<W>(name: &str, a: f32, b: f32, c: f32, alpha: f32, dest: &mu
   dest.write_char(' ')?;
   c.to_css(dest)?;
   if alpha != 1.0 {
+    dest.delim('/', true)?;
+    alpha.to_css(dest)?;
+  }
+
+  dest.write_char(')')
+}
+
+#[inline]
+fn write_predefined<W>(predefined: &PredefinedColor, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  use PredefinedColor::*;
+  
+  let (name, a, b, c, alpha) = match predefined {
+    Srgb(a, b, c, alpha) => ("srgb", a, b, c, alpha),
+    SrgbLinear(a, b, c, alpha) => ("srgb-linear", a, b, c, alpha),
+    DisplayP3(a, b, c, alpha) => ("display-p3", a, b, c, alpha),
+    A98Rgb(a, b, c, alpha) => ("a98-rgb", a, b, c, alpha),
+    ProphotoRgb(a, b, c, alpha) => ("prophoto-rgb", a, b, c, alpha),
+    Rec2020(a, b, c, alpha) => ("rec2020", a, b, c, alpha),
+    XyzD50(a, b, c, alpha) => ("xyz-d50", a, b, c, alpha),
+    // "xyz" has better compatibility (Safari 15) than "xyz-d65", and it is shorter.
+    XyzD65(a, b, c, alpha) => ("xyz", a, b, c, alpha),
+  };
+
+  dest.write_str("color(")?;
+  dest.write_str(name)?;
+  dest.write_char(' ')?;
+  a.to_css(dest)?;
+  dest.write_char(' ')?;
+  b.to_css(dest)?;
+  dest.write_char(' ')?;
+  c.to_css(dest)?;
+
+  if *alpha != 1.0 {
     dest.delim('/', true)?;
     alpha.to_css(dest)?;
   }
@@ -543,8 +661,33 @@ fn oklch_to_lab(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
   oklab_to_lab(l, a, b)
 }
 
+fn lin_srgb(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L11
+  // convert sRGB values where in-gamut values are in the range [0 - 1]
+	// to linear light (un-companded) form.
+	// https://en.wikipedia.org/wiki/SRGB
+	// Extended transfer function:
+	// for negative values, linear portion is extended on reflection of axis,
+	// then reflected power function is used.
+  let r = lin_srgb_component(r);
+  let g = lin_srgb_component(g);
+  let b = lin_srgb_component(b);
+  (r, g, b)
+}
+
 #[inline]
-fn srgb_to_xyz(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+fn lin_srgb_component(c: f32) -> f32 {
+  let abs = c.abs();
+  if abs > 0.04045 {
+    return c / 12.92;
+  }
+  
+  let sign = if c < 0.0 { -1.0 } else { 1.0 };
+  sign * ((abs + 0.055) / 1.055).powf(2.4)
+}
+
+#[inline]
+fn lin_srgb_to_xyz(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   const MATRIX: &[f32] = &[
 		0.41239079926595934, 0.357584339383878,   0.1804807884018343,
 		0.21263900587151027, 0.715168678767756,   0.07219231536073371,
@@ -555,6 +698,12 @@ fn srgb_to_xyz(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
 }
 
 fn srgb_to_lab(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
-  let (x, y, z) = srgb_to_xyz(r, g, b);
+  // convert gamma-corrected sRGB values in the 0.0 to 1.0 range
+  // to linear-light sRGB, then to CIE XYZ,
+  // then adapt from D65 to D50,
+  // then convert XYZ to CIE Lab
+  let (r, g, b) = lin_srgb(r, g, b);
+  let (x, y, z) = lin_srgb_to_xyz(r, g, b);
+  let (x, y, z) = d65_to_d50(x, y, z);
   xyz_to_lab(x, y, z)
 }

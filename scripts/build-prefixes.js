@@ -183,11 +183,7 @@ let mdnFeatures = {
   lchColors: mdn.css.types.color.lch.__compat.support,
   oklabColors: {},
   oklchColors: {},
-  colorFunction: mdn.css.types.color.color.__compat.support,
-  p3Colors: {
-    safari: parseVersion('10.1'),
-    ios_saf: parseVersion('10.3')
-  }
+  colorFunction: mdn.css.types.color.color.__compat.support
 };
 
 for (let feature in mdnFeatures) {
@@ -221,6 +217,11 @@ for (let feature in mdnFeatures) {
 
   addValue(compat, browserMap, feature);
 }
+
+addValue(compat, {
+  safari: parseVersion('10.1'),
+  ios_saf: parseVersion('10.3')
+}, 'p3Colors');
 
 let prefixMapping = {
   webkit: 'WebKit',
