@@ -7697,6 +7697,22 @@ mod tests {
     );
 
     prefix_test(
+      ".foo { background-color: lab(40% 56.6 39) }",
+      indoc! { r#"
+        .foo {
+          background-color: #b32323;
+          background-color: color(display-p3 .643308 .192455 .167712);
+          background-color: lab(40% 56.6 39);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
       ".foo { background-color: oklch(40% 0.1268735435 34.568626) }",
       indoc! { r#"
         .foo {

@@ -94,6 +94,48 @@ impl CssColor {
     }
   }
 
+  pub fn to_p3(&self) -> CssColor {
+    let (x, y, z, a) = match self {
+      CssColor::CurrentColor => return self.clone(),
+      CssColor::RGBA(rgba) => {
+        let (x, y, z) = srgb_to_xyz_d65(rgba.red_f32(), rgba.green_f32(), rgba.blue_f32());
+        (x, y, z, rgba.alpha_f32())
+      }
+      CssColor::Lab(l, a, b, alpha) => {
+        let (x, y, z) = lab_to_xyz_d50(*l * 100.0, *a, *b);
+        let (x, y, z) = d50_to_d65(x, y, z);
+        (x, y, z, *alpha)
+      }
+      CssColor::Lch(l, c, h, alpha) => {
+        let (l, a, b) = lch_to_lab(*l * 100.0, *c, *h);
+        let (x, y, z) = lab_to_xyz_d50(l, a, b);
+        let (x, y, z) = d50_to_d65(x, y, z);
+        (x, y, z, *alpha)
+      }
+      CssColor::Oklab(l, a, b, alpha) => {
+        let (l, a, b) = oklab_to_lab(*l, *a, *b);
+        let (x, y, z) = lab_to_xyz_d50(l, a, b);
+        let (x, y, z) = d50_to_d65(x, y, z);
+        (x, y, z, *alpha)
+      }
+      CssColor::Oklch(l, c, h, alpha) => {
+        let (l, a, b) = oklch_to_lab(*l, *c, *h);
+        let (x, y, z) = lab_to_xyz_d50(l, a, b);
+        let (x, y, z) = d50_to_d65(x, y, z);
+        (x, y, z, *alpha)
+      }
+      CssColor::Predefined(predefined) => {
+        match predefined {
+          PredefinedColor::DisplayP3(..) => return self.clone(),
+          _ => predefined.to_xyza_d65()
+        }
+      }
+    };
+
+    let (r, g, b) = xyz_d65_to_p3(x, y, z);
+    CssColor::Predefined(PredefinedColor::DisplayP3(r, g, b, a))
+  }
+
   pub fn get_fallbacks(&mut self, targets: Browsers) -> Vec<CssColor> {
     let is_compatible = match self {
       CssColor::CurrentColor | CssColor::RGBA(_) => true,
@@ -110,6 +152,8 @@ impl CssColor {
 
       if Feature::LabColors.is_partially_compatible(targets) {
         *self = self.to_lab();
+      } else if Feature::P3Colors.is_partially_compatible(targets) {
+        res.push(self.to_p3());
       }
     }
 
@@ -489,8 +533,8 @@ const D50: &[f32] = &[0.3457 / 0.3585, 1.00000, (1.0 - 0.3457 - 0.3585) / 0.3585
 
 fn lab_to_xyz_d50(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L352
-  let κ = 24389.0 / 27.0;   // 29^3/3^3
-  let ε = 216.0 / 24389.0;  // 6^3/29^3
+  const κ: f32 = 24389.0 / 27.0;   // 29^3/3^3
+  const ε: f32 = 216.0 / 24389.0;  // 6^3/29^3
 
   // compute f, starting with the luminance-related term
   let f1 = (l + 16.0) / 116.0;
@@ -698,7 +742,6 @@ fn lin_srgb_component(c: f32) -> f32 {
   sign * ((abs + 0.055) / 1.055).powf(2.4)
 }
 
-#[inline]
 fn lin_srgb_to_xyz_d65(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L50
   // convert an array of linear-light sRGB values to CIE XYZ
@@ -712,13 +755,19 @@ fn lin_srgb_to_xyz_d65(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   multiply_matrix(MATRIX, r, g, b)
 }
 
+fn srgb_to_xyz_d65(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+  // convert gamma-corrected sRGB values in the 0.0 to 1.0 range
+  // to linear-light sRGB, then to CIE XYZ.
+  let (r, g, b) = lin_srgb(r, g, b);
+  lin_srgb_to_xyz_d65(r, g, b)
+}
+
 fn srgb_to_lab(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   // convert gamma-corrected sRGB values in the 0.0 to 1.0 range
   // to linear-light sRGB, then to CIE XYZ,
   // then adapt from D65 to D50,
   // then convert XYZ to CIE Lab
-  let (r, g, b) = lin_srgb(r, g, b);
-  let (x, y, z) = lin_srgb_to_xyz_d65(r, g, b);
+  let (x, y, z) = srgb_to_xyz_d65(r, g, b);
   xyz_d65_to_lab(x, y, z)
 }
 
@@ -727,6 +776,7 @@ fn xyz_d65_to_lab(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   xyz_d50_to_lab(x, y, z)
 }
 
+#[inline]
 fn xyz_d65_to_lin_p3(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L105
   const MATRIX: &[f32] = &[
@@ -736,6 +786,11 @@ fn xyz_d65_to_lin_p3(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   ];
 
   multiply_matrix(MATRIX, x, y, z)
+}
+
+fn xyz_d65_to_p3(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
+  let (r, g, b) = xyz_d65_to_lin_p3(x, y, z);
+  gam_srgb(r, g, b) // same as sRGB
 }
 
 #[inline]
@@ -877,8 +932,7 @@ impl PredefinedColor {
 
     match self {
       Srgb(r, g, b, a) => {
-        let (r, g, b) = lin_srgb(*r, *g, *b);
-        let (x, y, z) = lin_srgb_to_xyz_d65(r, g, b);
+        let (x, y, z) = srgb_to_xyz_d65(*r, *g, *b);
         (x, y, z, *a)
       }
       SrgbLinear(r, g, b, a) => {
@@ -886,7 +940,7 @@ impl PredefinedColor {
         (x, y, z, *a)
       }
       DisplayP3(r, g, b, a) => {
-        let (r, g, b) = lin_srgb(*r, *g, *b);
+        let (r, g, b) = lin_srgb(*r, *g, *b); // same as sRGB
         let (x, y, z) = lin_p3_to_xyz_d65(r, g, b);
         (x, y, z, *a)
       }
