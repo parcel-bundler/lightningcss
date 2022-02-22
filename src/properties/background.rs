@@ -604,7 +604,7 @@ impl<'i> BackgroundHandler<'i> {
       }
     }
 
-    if let Some(color) = color {
+    if let Some(mut color) = color {
       if let Some(targets) = self.targets {
         for fallback in color.get_fallbacks(targets) {
           dest.push(Property::BackgroundColor(fallback))

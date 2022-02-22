@@ -71,7 +71,7 @@ impl CssColor {
     }
   }
 
-  pub fn get_fallbacks(&self, targets: Browsers) -> Vec<CssColor> {
+  pub fn get_fallbacks(&mut self, targets: Browsers) -> Vec<CssColor> {
     let is_compatible = match self {
       CssColor::CurrentColor | CssColor::RGBA(_) => true,
       CssColor::Lab(..) => Feature::LabColors.is_compatible(targets),
@@ -84,8 +84,8 @@ impl CssColor {
     if !is_compatible {
       res.push(self.to_rgb());
 
-      if matches!(self, CssColor::Oklab(..) | CssColor::Oklch(..)) && Feature::LabColors.is_partially_compatible(targets) {
-        res.push(self.to_lab())
+      if Feature::LabColors.is_partially_compatible(targets) {
+        *self = self.to_lab();
       }
     }
 
@@ -267,7 +267,7 @@ fn parse_color_function<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, 
 fn parse_lab<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
   // https://www.w3.org/TR/css-color-4/#funcdef-lab
   let res = input.parse_nested_block(|input| {
-    let l = input.expect_percentage()?;
+    let l = input.expect_percentage()?.max(0.0);
     let a = input.expect_number()?;
     let b = input.expect_number()?;
     let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
@@ -288,8 +288,8 @@ fn parse_lch<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32),
   // https://www.w3.org/TR/css-color-4/#funcdef-lch
   let parser = ComponentParser;
   let res = input.parse_nested_block(|input| {
-    let l = input.expect_percentage()?;
-    let c = input.expect_number()?;
+    let l = input.expect_percentage()?.max(0.0);
+    let c = input.expect_number()?.max(0.0);
     let h = match parser.parse_angle_or_number(input)? {
       AngleOrNumber::Number { value } => value,
       AngleOrNumber::Angle { degrees } => degrees
