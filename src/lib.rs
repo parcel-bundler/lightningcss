@@ -7675,6 +7675,38 @@ mod tests {
         ..Browsers::default()
       }
     );
+
+    prefix_test(
+      ".foo { background-color: oklab(40% 0.001236 0.0039) }",
+      indoc! { r#"
+        .foo {
+          background-color: #494745;
+          background-color: lab(30.4045% .415295 1.4957);
+          background-color: oklab(40% .001236 .0039);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { background-color: oklch(40% 0.1268735435 34.568626) }",
+      indoc! { r#"
+        .foo {
+          background-color: #7e250f;
+          background-color: lab(29.2661% 38.2437 35.3889);
+          background-color: oklch(40% .126874 34.5686);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 
   #[cfg(feature = "grid")]

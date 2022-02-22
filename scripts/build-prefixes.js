@@ -182,7 +182,12 @@ let mdnFeatures = {
   labColors: mdn.css.types.color.lab.__compat.support,
   lchColors: mdn.css.types.color.lch.__compat.support,
   oklabColors: {},
-  oklchColors: {}
+  oklchColors: {},
+  colorFunction: mdn.css.types.color.color.__compat.support,
+  p3Colors: {
+    safari: parseVersion('10.1'),
+    ios_saf: parseVersion('10.3')
+  }
 };
 
 for (let feature in mdnFeatures) {
@@ -334,6 +339,18 @@ impl Feature {
       )).join('\n      ')}
     }
     true
+  }
+
+  pub fn is_partially_compatible(&self, targets: Browsers) -> bool {
+    let mut browsers = Browsers::default();
+    ${allBrowsers.map(browser => `if targets.${browser}.is_some() {
+      browsers.${browser} = targets.${browser};
+      if self.is_compatible(browsers) {
+        return true
+      }
+      browsers.${browser} = None;
+    }\n`).join('    ')}
+    false
   }
 }
 `;

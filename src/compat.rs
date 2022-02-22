@@ -5,6 +5,7 @@ use crate::targets::Browsers;
 #[derive(Clone, Copy)]
 pub enum Feature {
   Clamp,
+  ColorFunction,
   CssAnyLink,
   CssAutofill,
   CssCaseInsensitive,
@@ -48,6 +49,7 @@ pub enum Feature {
   OklabColors,
   OklchColors,
   OverflowShorthand,
+  P3Colors,
   PlaceContent,
   PlaceItems,
   PlaceSelf,
@@ -1156,7 +1158,8 @@ impl Feature {
       Feature::CustomMediaQueries |
       Feature::MediaIntervalSyntax |
       Feature::OklabColors |
-      Feature::OklchColors => {
+      Feature::OklchColors |
+      Feature::P3Colors => {
         return false
       }
       Feature::DoublePositionGradients => {
@@ -1613,7 +1616,8 @@ impl Feature {
         }
       }
       Feature::LabColors |
-      Feature::LchColors => {
+      Feature::LchColors |
+      Feature::ColorFunction => {
         if let Some(version) = browsers.safari {
           if version < 983040 {
             return false
@@ -1630,5 +1634,74 @@ impl Feature {
       }
     }
     true
+  }
+
+  pub fn is_partially_compatible(&self, targets: Browsers) -> bool {
+    let mut browsers = Browsers::default();
+    if targets.android.is_some() {
+      browsers.android = targets.android;
+      if self.is_compatible(browsers) {
+        return true
+      }
+      browsers.android = None;
+    }
+    if targets.chrome.is_some() {
+      browsers.chrome = targets.chrome;
+      if self.is_compatible(browsers) {
+        return true
+      }
+      browsers.chrome = None;
+    }
+    if targets.edge.is_some() {
+      browsers.edge = targets.edge;
+      if self.is_compatible(browsers) {
+        return true
+      }
+      browsers.edge = None;
+    }
+    if targets.firefox.is_some() {
+      browsers.firefox = targets.firefox;
+      if self.is_compatible(browsers) {
+        return true
+      }
+      browsers.firefox = None;
+    }
+    if targets.ie.is_some() {
+      browsers.ie = targets.ie;
+      if self.is_compatible(browsers) {
+        return true
+      }
+      browsers.ie = None;
+    }
+    if targets.ios_saf.is_some() {
+      browsers.ios_saf = targets.ios_saf;
+      if self.is_compatible(browsers) {
+        return true
+      }
+      browsers.ios_saf = None;
+    }
+    if targets.opera.is_some() {
+      browsers.opera = targets.opera;
+      if self.is_compatible(browsers) {
+        return true
+      }
+      browsers.opera = None;
+    }
+    if targets.safari.is_some() {
+      browsers.safari = targets.safari;
+      if self.is_compatible(browsers) {
+        return true
+      }
+      browsers.safari = None;
+    }
+    if targets.samsung.is_some() {
+      browsers.samsung = targets.samsung;
+      if self.is_compatible(browsers) {
+        return true
+      }
+      browsers.samsung = None;
+    }
+
+    false
   }
 }

@@ -45,7 +45,29 @@ impl CssColor {
         let (r, g, b) = oklch_to_srgb(*l, *c, *h);
         CssColor::RGBA(RGBA::from_floats(r, g, b, *alpha))
       },
-      _ => self.clone()
+      CssColor::RGBA(..) | CssColor::CurrentColor => self.clone()
+    }
+  }
+
+  pub fn to_lab(&self) -> CssColor {
+    match self {
+      CssColor::RGBA(rgba) => {
+        let (l, a, b) = srgb_to_lab(rgba.red_f32(), rgba.green_f32(), rgba.blue_f32());
+        CssColor::Lab(l, a, b, rgba.alpha_f32())
+      },
+      CssColor::Lch(l, c, h, alpha) => {
+        let (l, a, b) = lch_to_lab(*l, *c, *h);
+        CssColor::Lab(l, a, b, *alpha)
+      },
+      CssColor::Oklab(l, a, b, alpha) => {
+        let (l, a, b) = oklab_to_lab(*l, *a, *b);
+        CssColor::Lab(l, a, b, *alpha)
+      },
+      CssColor::Oklch(l, c, h, alpha) => {
+        let (l, a, b) = oklch_to_lab(*l, *c, *h);
+        CssColor::Lab(l, a, b, *alpha)
+      },
+      CssColor::Lab(..) | CssColor::CurrentColor => self.clone()
     }
   }
 
@@ -53,14 +75,18 @@ impl CssColor {
     let is_compatible = match self {
       CssColor::CurrentColor | CssColor::RGBA(_) => true,
       CssColor::Lab(..) => Feature::LabColors.is_compatible(targets),
-      CssColor::Lch(..) => Feature::LabColors.is_compatible(targets),
+      CssColor::Lch(..) => Feature::LchColors.is_compatible(targets),
       CssColor::Oklab(..) => Feature::OklabColors.is_compatible(targets),
       CssColor::Oklch(..) => Feature::OklchColors.is_compatible(targets)
     };
 
     let mut res = Vec::new();
     if !is_compatible {
-      res.push(self.to_rgb())
+      res.push(self.to_rgb());
+
+      if matches!(self, CssColor::Oklab(..) | CssColor::Oklch(..)) && Feature::LabColors.is_partially_compatible(targets) {
+        res.push(self.to_lab())
+      }
     }
 
     res
@@ -383,6 +409,17 @@ fn d50_to_d65(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   multiply_matrix(MATRIX, x, y, z)
 }
 
+fn d65_to_d50(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L319
+  const MATRIX: &[f32] = &[
+     1.0479298208405488,    0.022946793341019088,  -0.05019222954313557,
+		 0.029627815688159344,  0.990434484573249,     -0.01707382502938514,
+		-0.009243058152591178,  0.015055144896577895,   0.7518742899580008
+  ];
+
+  multiply_matrix(MATRIX, x, y, z)
+}
+
 fn xyz_to_lin_srgb(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L62
   const MATRIX: &[f32] = &[
@@ -454,4 +491,70 @@ fn oklab_to_srgb(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
 fn oklch_to_srgb(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
   let (l, a, b) = lch_to_lab(l, c, h);
   oklab_to_srgb(l, a, b)
+}
+
+fn xyz_to_lab(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L332
+  // Assuming XYZ is relative to D50, convert to CIE Lab
+	// from CIE standard, which now defines these as a rational fraction
+	let ε = 216.0 / 24389.0;  // 6^3/29^3
+	let κ = 24389.0 / 27.0;   // 29^3/3^3
+
+	// compute xyz, which is XYZ scaled relative to reference white
+	// var xyz = XYZ.map((value, i) => value / D50[i]);
+  let x = x / D50[0];
+  let y = y / D50[1];
+  let z = z / D50[2];
+
+	// now compute f
+	// var f = xyz.map(value => value > ε ? Math.cbrt(value) : (κ * value + 16)/116);
+  let f0 = if x > ε {
+    x.cbrt()
+  } else {
+    (κ * x + 16.0) / 116.0
+  };
+
+  let f1 = if y > ε {
+    y.cbrt()
+  } else {
+    (κ * y + 16.0) / 116.0
+  };
+
+  let f2 = if z > ε {
+    z.cbrt()
+  } else {
+    (κ * z + 16.0) / 116.0
+  };
+
+  let l = ((116.0 * f1) - 16.0) / 100.0;
+  let a = 500.0 * (f0 - f1);
+  let b = 200.0 * (f1 - f2);
+  (l, a, b)
+}
+
+fn oklab_to_lab(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
+  let (x, y, z) = oklab_to_xyz(l, a, b);
+  let (x, y, z) = d65_to_d50(x, y, z);
+  xyz_to_lab(x, y, z)
+}
+
+fn oklch_to_lab(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
+  let (l, a, b) = lch_to_lab(l, c, h);
+  oklab_to_lab(l, a, b)
+}
+
+#[inline]
+fn srgb_to_xyz(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+  const MATRIX: &[f32] = &[
+		0.41239079926595934, 0.357584339383878,   0.1804807884018343,
+		0.21263900587151027, 0.715168678767756,   0.07219231536073371,
+		0.01933081871559182, 0.11919477979462598, 0.9505321522496607
+	];
+
+  multiply_matrix(MATRIX, r, g, b)
+}
+
+fn srgb_to_lab(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+  let (x, y, z) = srgb_to_xyz(r, g, b);
+  xyz_to_lab(x, y, z)
 }
