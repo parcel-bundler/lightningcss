@@ -206,12 +206,12 @@ impl ToCss for CssColor {
 // From esbuild: https://github.com/evanw/esbuild/blob/18e13bdfdca5cd3c7a2fae1a8bd739f8f891572c/internal/css_parser/css_decls_color.go#L218
 // 0xAABBCCDD => 0xABCD
 fn compact_hex(v: u32) -> u32 {
-	return ((v & 0x0FF00000) >> 12) | ((v & 0x00000FF0) >> 4)
+  return ((v & 0x0FF00000) >> 12) | ((v & 0x00000FF0) >> 4)
 }
 
 // 0xABCD => 0xAABBCCDD
 fn expand_hex(v: u32) -> u32 {
-	return ((v & 0xF000) << 16) | ((v & 0xFF00) << 12) | ((v & 0x0FF0) << 8) | ((v & 0x00FF) << 4) | (v & 0x000F)
+  return ((v & 0xF000) << 16) | ((v & 0xFF00) << 12) | ((v & 0x0FF0) << 8) | ((v & 0x00FF) << 4) | (v & 0x000F)
 }
 
 fn short_color_name(v: u32) -> Option<&'static str> {
@@ -490,12 +490,12 @@ const D50: &[f32] = &[0.3457 / 0.3585, 1.00000, (1.0 - 0.3457 - 0.3585) / 0.3585
 fn lab_to_xyz_d50(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L352
   let κ = 24389.0 / 27.0;   // 29^3/3^3
-	let ε = 216.0 / 24389.0;  // 6^3/29^3
+  let ε = 216.0 / 24389.0;  // 6^3/29^3
 
-	// compute f, starting with the luminance-related term
-	let f1 = (l + 16.0) / 116.0;
-	let f0 = a / 500.0 + f1;
-	let f2 = f1 - b / 200.0;
+  // compute f, starting with the luminance-related term
+  let f1 = (l + 16.0) / 116.0;
+  let f0 = a / 500.0 + f1;
+  let f2 = f1 - b / 200.0;
 
   // compute xyz
   let x = if f0.powi(3) > ε {
@@ -538,8 +538,8 @@ fn d65_to_d50(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L319
   const MATRIX: &[f32] = &[
      1.0479298208405488,    0.022946793341019088,  -0.05019222954313557,
-		 0.029627815688159344,  0.990434484573249,     -0.01707382502938514,
-		-0.009243058152591178,  0.015055144896577895,   0.7518742899580008
+     0.029627815688159344,  0.990434484573249,     -0.01707382502938514,
+    -0.009243058152591178,  0.015055144896577895,   0.7518742899580008
   ];
 
   multiply_matrix(MATRIX, x, y, z)
@@ -550,8 +550,8 @@ fn xyz_d65_to_lin_srgb(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L62
   const MATRIX: &[f32] = &[
      3.2409699419045226,  -1.537383177570094,   -0.4986107602930034,
-		-0.9692436362808796,   1.8759675015077202,   0.04155505740717559,
-		 0.05563007969699366, -0.20397695888897652,  1.0569715142428786
+    -0.9692436362808796,   1.8759675015077202,   0.04155505740717559,
+     0.05563007969699366, -0.20397695888897652,  1.0569715142428786
   ];
 
   multiply_matrix(MATRIX, x, y, z)
@@ -574,11 +574,11 @@ fn multiply_matrix(m: &[f32], x: f32, y: f32, z: f32) -> (f32, f32, f32) {
 fn gam_srgb(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L31
   // convert an array of linear-light sRGB values in the range 0.0-1.0
-	// to gamma corrected form
-	// https://en.wikipedia.org/wiki/SRGB
-	// Extended transfer function:
-	// For negative values, linear portion extends on reflection
-	// of axis, then uses reflected pow below that
+  // to gamma corrected form
+  // https://en.wikipedia.org/wiki/SRGB
+  // Extended transfer function:
+  // For negative values, linear portion extends on reflection
+  // of axis, then uses reflected pow below that
   let r = gam_srgb_component(r);
   let g = gam_srgb_component(g);
   let b = gam_srgb_component(b);
@@ -599,10 +599,10 @@ fn gam_srgb_component(c: f32) -> f32 {
 fn oklab_to_xyz_d65(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L418
   const LMS_TO_XYZ: &[f32] = &[
-		 1.2268798733741557,  -0.5578149965554813,   0.28139105017721583,
-		-0.04057576262431372,  1.1122868293970594,  -0.07171106666151701,
-		-0.07637294974672142, -0.4214933239627914,   1.5869240244272418
-	];
+     1.2268798733741557,  -0.5578149965554813,   0.28139105017721583,
+    -0.04057576262431372,  1.1122868293970594,  -0.07171106666151701,
+    -0.07637294974672142, -0.4214933239627914,   1.5869240244272418
+  ];
 
   const OKLAB_TO_LMS: &[f32] = &[
     0.99999999845051981432,  0.39633779217376785678,   0.21580375806075880339,
@@ -627,18 +627,18 @@ fn oklch_to_srgb(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
 fn xyz_d50_to_lab(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L332
   // Assuming XYZ is relative to D50, convert to CIE Lab
-	// from CIE standard, which now defines these as a rational fraction
-	let ε = 216.0 / 24389.0;  // 6^3/29^3
-	let κ = 24389.0 / 27.0;   // 29^3/3^3
+  // from CIE standard, which now defines these as a rational fraction
+  let ε = 216.0 / 24389.0;  // 6^3/29^3
+  let κ = 24389.0 / 27.0;   // 29^3/3^3
 
-	// compute xyz, which is XYZ scaled relative to reference white
-	// var xyz = XYZ.map((value, i) => value / D50[i]);
+  // compute xyz, which is XYZ scaled relative to reference white
+  // var xyz = XYZ.map((value, i) => value / D50[i]);
   let x = x / D50[0];
   let y = y / D50[1];
   let z = z / D50[2];
 
-	// now compute f
-	// var f = xyz.map(value => value > ε ? Math.cbrt(value) : (κ * value + 16)/116);
+  // now compute f
+  // var f = xyz.map(value => value > ε ? Math.cbrt(value) : (κ * value + 16)/116);
   let f0 = if x > ε {
     x.cbrt()
   } else {
@@ -676,11 +676,11 @@ fn oklch_to_lab(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
 fn lin_srgb(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L11
   // convert sRGB values where in-gamut values are in the range [0 - 1]
-	// to linear light (un-companded) form.
-	// https://en.wikipedia.org/wiki/SRGB
-	// Extended transfer function:
-	// for negative values, linear portion is extended on reflection of axis,
-	// then reflected power function is used.
+  // to linear light (un-companded) form.
+  // https://en.wikipedia.org/wiki/SRGB
+  // Extended transfer function:
+  // for negative values, linear portion is extended on reflection of axis,
+  // then reflected power function is used.
   let r = lin_srgb_component(r);
   let g = lin_srgb_component(g);
   let b = lin_srgb_component(b);
@@ -702,12 +702,12 @@ fn lin_srgb_component(c: f32) -> f32 {
 fn lin_srgb_to_xyz_d65(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L50
   // convert an array of linear-light sRGB values to CIE XYZ
-	// using sRGB's own white, D65 (no chromatic adaptation)
+  // using sRGB's own white, D65 (no chromatic adaptation)
   const MATRIX: &[f32] = &[
-		0.41239079926595934, 0.357584339383878,   0.1804807884018343,
-		0.21263900587151027, 0.715168678767756,   0.07219231536073371,
-		0.01933081871559182, 0.11919477979462598, 0.9505321522496607
-	];
+    0.41239079926595934, 0.357584339383878,   0.1804807884018343,
+    0.21263900587151027, 0.715168678767756,   0.07219231536073371,
+    0.01933081871559182, 0.11919477979462598, 0.9505321522496607
+  ];
 
   multiply_matrix(MATRIX, r, g, b)
 }
@@ -730,9 +730,9 @@ fn xyz_d65_to_lab(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
 fn xyz_d65_to_lin_p3(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L105
   const MATRIX: &[f32] = &[
-		 2.493496911941425,   -0.9313836179191239, -0.40271078445071684,
-		-0.8294889695615747,   1.7626640603183463,  0.023624685841943577,
-		 0.03584583024378447, -0.07617238926804182, 0.9568845240076872
+     2.493496911941425,   -0.9313836179191239, -0.40271078445071684,
+    -0.8294889695615747,   1.7626640603183463,  0.023624685841943577,
+     0.03584583024378447, -0.07617238926804182, 0.9568845240076872
   ];
 
   multiply_matrix(MATRIX, x, y, z)
@@ -742,12 +742,12 @@ fn xyz_d65_to_lin_p3(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
 fn lin_p3_to_xyz_d65(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L91
   // convert linear-light display-p3 values to CIE XYZ
-	// using D65 (no chromatic adaptation)
-	// http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+  // using D65 (no chromatic adaptation)
+  // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
   const MATRIX: &[f32] = &[
-		0.4865709486482162, 0.26566769316909306, 0.1982172852343625,
-		0.2289745640697488, 0.6917385218365064,  0.079286914093745,
-		0.0000000000000000, 0.04511338185890264, 1.043944368900976,
+    0.4865709486482162, 0.26566769316909306, 0.1982172852343625,
+    0.2289745640697488, 0.6917385218365064,  0.079286914093745,
+    0.0000000000000000, 0.04511338185890264, 1.043944368900976,
   ];
 
   multiply_matrix(MATRIX, r, g, b)
@@ -757,8 +757,8 @@ fn lin_p3_to_xyz_d65(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
 fn lin_a98rgb(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L181
   // convert an array of a98-rgb values in the range 0.0 - 1.0
-	// to linear light (un-companded) form.
-	// negative values are also now accepted
+  // to linear light (un-companded) form.
+  // negative values are also now accepted
   let r = lin_a98rgb_component(r);
   let g = lin_a98rgb_component(g);
   let b = lin_a98rgb_component(b);
@@ -774,16 +774,16 @@ fn lin_a98rgb_component(c: f32) -> f32 {
 #[inline]
 fn lin_a98rgb_to_xyz(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   // convert an array of linear-light a98-rgb values to CIE XYZ
-	// http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
-	// has greater numerical precision than section 4.3.5.3 of
-	// https://www.adobe.com/digitalimag/pdfs/AdobeRGB1998.pdf
-	// but the values below were calculated from first principles
-	// from the chromaticity coordinates of R G B W
-	// see matrixmaker.html
+  // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+  // has greater numerical precision than section 4.3.5.3 of
+  // https://www.adobe.com/digitalimag/pdfs/AdobeRGB1998.pdf
+  // but the values below were calculated from first principles
+  // from the chromaticity coordinates of R G B W
+  // see matrixmaker.html
   const MATRIX: &[f32] = &[
-		0.5766690429101305,   0.1855582379065463,   0.1882286462349947,
-		0.29734497525053605,  0.6273635662554661,   0.07529145849399788,
-		0.02703136138641234,  0.07068885253582723,  0.9913375368376388
+    0.5766690429101305,   0.1855582379065463,   0.1882286462349947,
+    0.29734497525053605,  0.6273635662554661,   0.07529145849399788,
+    0.02703136138641234,  0.07068885253582723,  0.9913375368376388
   ];
 
   multiply_matrix(MATRIX, r, g, b)
@@ -793,10 +793,10 @@ fn lin_a98rgb_to_xyz(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
 fn lin_prophoto(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L118
   // convert an array of prophoto-rgb values
-	// where in-gamut colors are in the range [0.0 - 1.0]
-	// to linear light (un-companded) form.
-	// Transfer curve is gamma 1.8 with a small linear portion
-	// Extended transfer function
+  // where in-gamut colors are in the range [0.0 - 1.0]
+  // to linear light (un-companded) form.
+  // Transfer curve is gamma 1.8 with a small linear portion
+  // Extended transfer function
   let r = lin_prophoto_component(r);
   let g = lin_prophoto_component(g);
   let b = lin_prophoto_component(b);
@@ -819,12 +819,12 @@ fn lin_prophoto_component(c: f32) -> f32 {
 fn lin_prophoto_to_xyz_d50(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L155
   // convert an array of linear-light prophoto-rgb values to CIE XYZ
-	// using  D50 (so no chromatic adaptation needed afterwards)
-	// http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+  // using  D50 (so no chromatic adaptation needed afterwards)
+  // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
   const MATRIX: &[f32] = &[
-		0.7977604896723027,  0.13518583717574031,  0.0313493495815248,
-		0.2880711282292934,  0.7118432178101014,   0.00008565396060525902,
-		0.0,                 0.0,                  0.8251046025104601
+    0.7977604896723027,  0.13518583717574031,  0.0313493495815248,
+    0.2880711282292934,  0.7118432178101014,   0.00008565396060525902,
+    0.0,                 0.0,                  0.8251046025104601
   ];
 
   multiply_matrix(MATRIX, r, g, b)
@@ -834,8 +834,8 @@ fn lin_prophoto_to_xyz_d50(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
 fn lin_rec2020(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L235
   // convert an array of rec2020 RGB values in the range 0.0 - 1.0
-	// to linear light (un-companded) form.
-	// ITU-R BT.2020-2 p.4
+  // to linear light (un-companded) form.
+  // ITU-R BT.2020-2 p.4
   let r = lin_rec2020_component(r);
   let g = lin_rec2020_component(g);
   let b = lin_rec2020_component(b);
@@ -860,13 +860,13 @@ fn lin_rec2020_component(c: f32) -> f32 {
 fn lin_rec2020_to_xyz_d65(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L276
   // convert an array of linear-light rec2020 values to CIE XYZ
-	// using  D65 (no chromatic adaptation)
-	// http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+  // using  D65 (no chromatic adaptation)
+  // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
   const MATRIX: &[f32] = &[
-		0.6369580483012914, 0.14461690358620832,  0.1688809751641721,
-		0.2627002120112671, 0.6779980715188708,   0.05930171646986196,
-		0.000000000000000,  0.028072693049087428, 1.060985057710791
-	];
+    0.6369580483012914, 0.14461690358620832,  0.1688809751641721,
+    0.2627002120112671, 0.6779980715188708,   0.05930171646986196,
+    0.000000000000000,  0.028072693049087428, 1.060985057710791
+  ];
 
   multiply_matrix(MATRIX, r, g, b)
 }
