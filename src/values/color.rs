@@ -59,7 +59,11 @@ impl CssColor {
         CssColor::RGBA(RGBA::from_floats(r, g, b, *alpha))
       },
       CssColor::RGBA(..) | CssColor::CurrentColor => self.clone(),
-      _ => todo!()
+      CssColor::Predefined(predefined) => {
+        let (x, y, z, alpha) = predefined.to_xyza_d65();
+        let (r, g, b) = xyz_d65_to_srgb(x, y, z);
+        CssColor::RGBA(RGBA::from_floats(r, g, b, alpha))
+      }
     }
   }
 
@@ -82,7 +86,11 @@ impl CssColor {
         CssColor::Lab(l, a, b, *alpha)
       },
       CssColor::Lab(..) | CssColor::CurrentColor => self.clone(),
-      _ => todo!()
+      CssColor::Predefined(predefined) => {
+        let (x, y, z, alpha) = predefined.to_xyza_d65();
+        let (l, a, b) = xyz_d65_to_lab(x, y, z);
+        CssColor::Lab(l, a, b, alpha)
+      }
     }
   }
 
@@ -472,15 +480,14 @@ fn lab_to_srgb(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
   // out of gamut colors may have negative components
   // or components greater than 1.0
   // so check for that :)
-  let (x, y, z) = lab_to_xyz(l, a, b);
+  let (x, y, z) = lab_to_xyz_d50(l, a, b);
   let (x, y, z) = d50_to_d65(x, y, z);
-  let (r, g, b) = xyz_to_lin_srgb(x, y, z);
-  gam_srgb(r, g, b)
+  xyz_d65_to_srgb(x, y, z)
 }
 
 const D50: &[f32] = &[0.3457 / 0.3585, 1.00000, (1.0 - 0.3457 - 0.3585) / 0.3585];
 
-fn lab_to_xyz(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
+fn lab_to_xyz_d50(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L352
   let κ = 24389.0 / 27.0;   // 29^3/3^3
 	let ε = 216.0 / 24389.0;  // 6^3/29^3
@@ -538,7 +545,8 @@ fn d65_to_d50(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   multiply_matrix(MATRIX, x, y, z)
 }
 
-fn xyz_to_lin_srgb(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
+#[inline]
+fn xyz_d65_to_lin_srgb(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L62
   const MATRIX: &[f32] = &[
      3.2409699419045226,  -1.537383177570094,   -0.4986107602930034,
@@ -549,6 +557,11 @@ fn xyz_to_lin_srgb(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   multiply_matrix(MATRIX, x, y, z)
 }
 
+fn xyz_d65_to_srgb(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
+  let (r, g, b) = xyz_d65_to_lin_srgb(x, y, z);
+  gam_srgb(r, g, b)
+}
+
 #[inline]
 fn multiply_matrix(m: &[f32], x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   let a = m[0] * x + m[1] * y + m[2] * z;
@@ -557,6 +570,7 @@ fn multiply_matrix(m: &[f32], x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   (a, b, c)
 }
 
+#[inline]
 fn gam_srgb(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L31
   // convert an array of linear-light sRGB values in the range 0.0-1.0
@@ -582,7 +596,7 @@ fn gam_srgb_component(c: f32) -> f32 {
   return 12.92 * c;
 }
 
-fn oklab_to_xyz(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
+fn oklab_to_xyz_d65(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L418
   const LMS_TO_XYZ: &[f32] = &[
 		 1.2268798733741557,  -0.5578149965554813,   0.28139105017721583,
@@ -601,9 +615,8 @@ fn oklab_to_xyz(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
 }
 
 fn oklab_to_srgb(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
-  let (x, y, z) = oklab_to_xyz(l, a, b);
-  let (r, g, b) = xyz_to_lin_srgb(x, y, z);
-  gam_srgb(r, g, b)
+  let (x, y, z) = oklab_to_xyz_d65(l, a, b);
+  xyz_d65_to_srgb(x, y, z)
 }
 
 fn oklch_to_srgb(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
@@ -611,7 +624,7 @@ fn oklch_to_srgb(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
   oklab_to_srgb(l, a, b)
 }
 
-fn xyz_to_lab(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
+fn xyz_d50_to_lab(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L332
   // Assuming XYZ is relative to D50, convert to CIE Lab
 	// from CIE standard, which now defines these as a rational fraction
@@ -651,9 +664,8 @@ fn xyz_to_lab(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
 }
 
 fn oklab_to_lab(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
-  let (x, y, z) = oklab_to_xyz(l, a, b);
-  let (x, y, z) = d65_to_d50(x, y, z);
-  xyz_to_lab(x, y, z)
+  let (x, y, z) = oklab_to_xyz_d65(l, a, b);
+  xyz_d65_to_lab(x, y, z)
 }
 
 fn oklch_to_lab(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
@@ -678,7 +690,7 @@ fn lin_srgb(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
 #[inline]
 fn lin_srgb_component(c: f32) -> f32 {
   let abs = c.abs();
-  if abs > 0.04045 {
+  if abs < 0.04045 {
     return c / 12.92;
   }
   
@@ -687,7 +699,10 @@ fn lin_srgb_component(c: f32) -> f32 {
 }
 
 #[inline]
-fn lin_srgb_to_xyz(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+fn lin_srgb_to_xyz_d65(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L50
+  // convert an array of linear-light sRGB values to CIE XYZ
+	// using sRGB's own white, D65 (no chromatic adaptation)
   const MATRIX: &[f32] = &[
 		0.41239079926595934, 0.357584339383878,   0.1804807884018343,
 		0.21263900587151027, 0.715168678767756,   0.07219231536073371,
@@ -703,7 +718,201 @@ fn srgb_to_lab(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   // then adapt from D65 to D50,
   // then convert XYZ to CIE Lab
   let (r, g, b) = lin_srgb(r, g, b);
-  let (x, y, z) = lin_srgb_to_xyz(r, g, b);
+  let (x, y, z) = lin_srgb_to_xyz_d65(r, g, b);
+  xyz_d65_to_lab(x, y, z)
+}
+
+fn xyz_d65_to_lab(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   let (x, y, z) = d65_to_d50(x, y, z);
-  xyz_to_lab(x, y, z)
+  xyz_d50_to_lab(x, y, z)
+}
+
+fn xyz_d65_to_lin_p3(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L105
+  const MATRIX: &[f32] = &[
+		 2.493496911941425,   -0.9313836179191239, -0.40271078445071684,
+		-0.8294889695615747,   1.7626640603183463,  0.023624685841943577,
+		 0.03584583024378447, -0.07617238926804182, 0.9568845240076872
+  ];
+
+  multiply_matrix(MATRIX, x, y, z)
+}
+
+#[inline]
+fn lin_p3_to_xyz_d65(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L91
+  // convert linear-light display-p3 values to CIE XYZ
+	// using D65 (no chromatic adaptation)
+	// http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+  const MATRIX: &[f32] = &[
+		0.4865709486482162, 0.26566769316909306, 0.1982172852343625,
+		0.2289745640697488, 0.6917385218365064,  0.079286914093745,
+		0.0000000000000000, 0.04511338185890264, 1.043944368900976,
+  ];
+
+  multiply_matrix(MATRIX, r, g, b)
+}
+
+#[inline]
+fn lin_a98rgb(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L181
+  // convert an array of a98-rgb values in the range 0.0 - 1.0
+	// to linear light (un-companded) form.
+	// negative values are also now accepted
+  let r = lin_a98rgb_component(r);
+  let g = lin_a98rgb_component(g);
+  let b = lin_a98rgb_component(b);
+  (r, g, b)
+}
+
+#[inline]
+fn lin_a98rgb_component(c: f32) -> f32 {
+  let sign = if c < 0.0 { -1.0 } else { 1.0 };
+  sign * c.abs().powf(563.0 / 256.0)
+}
+
+#[inline]
+fn lin_a98rgb_to_xyz(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+  // convert an array of linear-light a98-rgb values to CIE XYZ
+	// http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+	// has greater numerical precision than section 4.3.5.3 of
+	// https://www.adobe.com/digitalimag/pdfs/AdobeRGB1998.pdf
+	// but the values below were calculated from first principles
+	// from the chromaticity coordinates of R G B W
+	// see matrixmaker.html
+  const MATRIX: &[f32] = &[
+		0.5766690429101305,   0.1855582379065463,   0.1882286462349947,
+		0.29734497525053605,  0.6273635662554661,   0.07529145849399788,
+		0.02703136138641234,  0.07068885253582723,  0.9913375368376388
+  ];
+
+  multiply_matrix(MATRIX, r, g, b)
+}
+
+#[inline]
+fn lin_prophoto(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L118
+  // convert an array of prophoto-rgb values
+	// where in-gamut colors are in the range [0.0 - 1.0]
+	// to linear light (un-companded) form.
+	// Transfer curve is gamma 1.8 with a small linear portion
+	// Extended transfer function
+  let r = lin_prophoto_component(r);
+  let g = lin_prophoto_component(g);
+  let b = lin_prophoto_component(b);
+  (r, g, b)
+}
+
+#[inline]
+fn lin_prophoto_component(c: f32) -> f32 {
+  const ET2: f32 = 16.0 / 512.0;
+  let abs = c.abs();
+  if abs <= ET2 {
+    return c / 16.0;
+  }
+
+  let sign = if c < 0.0 { -1.0 } else { 1.0 };
+  sign * c.powf(1.8)
+}
+
+#[inline]
+fn lin_prophoto_to_xyz_d50(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L155
+  // convert an array of linear-light prophoto-rgb values to CIE XYZ
+	// using  D50 (so no chromatic adaptation needed afterwards)
+	// http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+  const MATRIX: &[f32] = &[
+		0.7977604896723027,  0.13518583717574031,  0.0313493495815248,
+		0.2880711282292934,  0.7118432178101014,   0.00008565396060525902,
+		0.0,                 0.0,                  0.8251046025104601
+  ];
+
+  multiply_matrix(MATRIX, r, g, b)
+}
+
+#[inline]
+fn lin_rec2020(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L235
+  // convert an array of rec2020 RGB values in the range 0.0 - 1.0
+	// to linear light (un-companded) form.
+	// ITU-R BT.2020-2 p.4
+  let r = lin_rec2020_component(r);
+  let g = lin_rec2020_component(g);
+  let b = lin_rec2020_component(b);
+  (r, g, b)
+}
+
+#[inline]
+fn lin_rec2020_component(c: f32) -> f32 {
+  const A: f32 = 1.09929682680944;
+  const B: f32 = 0.018053968510807;
+
+  let abs = c.abs();
+  if abs < B * 4.5 {
+    return c / 4.5;
+  }
+
+  let sign = if c < 0.0 { -1.0 } else { 1.0 };
+  sign * ((abs + A - 1.0) / A).powf(1.0 / 0.45)
+}
+
+#[inline]
+fn lin_rec2020_to_xyz_d65(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L276
+  // convert an array of linear-light rec2020 values to CIE XYZ
+	// using  D65 (no chromatic adaptation)
+	// http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+  const MATRIX: &[f32] = &[
+		0.6369580483012914, 0.14461690358620832,  0.1688809751641721,
+		0.2627002120112671, 0.6779980715188708,   0.05930171646986196,
+		0.000000000000000,  0.028072693049087428, 1.060985057710791
+	];
+
+  multiply_matrix(MATRIX, r, g, b)
+}
+
+impl PredefinedColor {
+  pub fn to_xyza_d65(&self) -> (f32, f32, f32, f32) {
+    use PredefinedColor::*;
+
+    match self {
+      Srgb(r, g, b, a) => {
+        let (r, g, b) = lin_srgb(*r, *g, *b);
+        let (x, y, z) = lin_srgb_to_xyz_d65(r, g, b);
+        (x, y, z, *a)
+      }
+      SrgbLinear(r, g, b, a) => {
+        let (x, y, z) = lin_srgb_to_xyz_d65(*r, *g, *b);
+        (x, y, z, *a)
+      }
+      DisplayP3(r, g, b, a) => {
+        let (r, g, b) = lin_srgb(*r, *g, *b);
+        let (x, y, z) = lin_p3_to_xyz_d65(r, g, b);
+        (x, y, z, *a)
+      }
+      A98Rgb(r, g, b, a) => {
+        let (r, g, b) = lin_a98rgb(*r, *g, *b);
+        let (x, y, z) = lin_a98rgb_to_xyz(r, g, b);
+        (x, y, z, *a)
+      }
+      ProphotoRgb(r, g, b, a) => {
+        let (r, g, b) = lin_prophoto(*r, *g, *b);
+        let (x, y, z) = lin_prophoto_to_xyz_d50(r, g, b);
+        let (x, y, z) = d50_to_d65(x, y, z);
+        (x, y, z, *a)
+      }
+      Rec2020(r, g, b, a) => {
+        let (r, g, b) = lin_rec2020(*r, *g, *b);
+        let (x, y, z) = lin_rec2020_to_xyz_d65(r, g, b);
+        (x, y, z, *a)
+      }
+      XyzD50(x, y, z, a) => {
+        let (x, y, z) = d50_to_d65(*x, *y, *z);
+        (x, y, z, *a)
+      }
+      XyzD65(x, y, z, a) => {
+        (*x, *y, *z, *a)
+      }
+    }
+  }
 }

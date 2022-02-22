@@ -7710,6 +7710,104 @@ mod tests {
         ..Browsers::default()
       }
     );
+
+    prefix_test(
+      ".foo { background-color: color(sRGB 0.41587 0.503670 0.36664); }",
+      indoc! { r#"
+        .foo {
+          background-color: #6a805d;
+          background-color: color(srgb .41587 .50367 .36664);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { background-color: color(display-p3 0.43313 0.50108 0.37950); }",
+      indoc! { r#"
+        .foo {
+          background-color: #6a805d;
+          background-color: color(display-p3 .43313 .50108 .3795);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { background-color: color(a98-rgb 0.44091 0.49971 0.37408); }",
+      indoc! { r#"
+        .foo {
+          background-color: #6a805d;
+          background-color: color(a98-rgb .44091 .49971 .37408);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { background-color: color(prophoto-rgb 0.36589 0.41717 0.31333); }",
+      indoc! { r#"
+        .foo {
+          background-color: #6a805d;
+          background-color: color(prophoto-rgb .36589 .41717 .31333);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { background-color: color(rec2020 0.42210 0.47580 0.35605); }",
+      indoc! { r#"
+        .foo {
+          background-color: #728765;
+          background-color: color(rec2020 .4221 .4758 .35605);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { background-color: color(xyz-d50 0.2005 0.14089 0.4472); }",
+      indoc! { r#"
+        .foo {
+          background-color: #7654cd;
+          background-color: color(xyz-d50 .2005 .14089 .4472);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { background-color: color(xyz-d65 0.21661 0.14602 0.59452); }",
+      indoc! { r#"
+        .foo {
+          background-color: #7654cd;
+          background-color: color(xyz .21661 .14602 .59452);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 
   #[cfg(feature = "grid")]
