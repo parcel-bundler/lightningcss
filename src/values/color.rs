@@ -395,9 +395,12 @@ fn parse_predefined<'i, 't>(input: &mut Parser<'i, 't>) -> Result<PredefinedColo
 fn parse_predefined_rgb<'i, 't>(input: &mut Parser<'i, 't>) -> Result<PredefinedColor, ParseError<'i, ParserError<'i>>> {
   let location = input.current_source_location();
   let colorspace = input.expect_ident_cloned()?;
-  let r = parse_number_or_percentage(input)?;
-  let g = parse_number_or_percentage(input)?;
-  let b = parse_number_or_percentage(input)?;
+  
+  // Out of gamut values should not be clamped, i.e. values < 0 or > 1 should be preserved.
+  // The browser will gamut-map the color for the target device that it is rendered on.
+  let r = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
+  let g = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
+  let b = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
   let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
     parse_number_or_percentage(input)?
   } else {
@@ -423,9 +426,13 @@ fn parse_predefined_rgb<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Predefined
 fn parse_predefined_xyz<'i, 't>(input: &mut Parser<'i, 't>) -> Result<PredefinedColor, ParseError<'i, ParserError<'i>>> {
   let location = input.current_source_location();
   let colorspace = input.expect_ident_cloned()?;
-  let x = input.expect_number()?;
-  let y = input.expect_number()?;
-  let z = input.expect_number()?;
+
+  // XYZ color spaces only accept numbers, not percentages.
+  // Out of gamut values should not be clamped, i.e. values < 0 or > 1 should be preserved.
+  // The browser will gamut-map the color for the target device that it is rendered on.
+  let x = input.try_parse(|input| input.expect_number()).unwrap_or(0.0);
+  let y = input.try_parse(|input| input.expect_number()).unwrap_or(0.0);
+  let z = input.try_parse(|input| input.expect_number()).unwrap_or(0.0);
   let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
     parse_number_or_percentage(input)?
   } else {
@@ -488,12 +495,18 @@ fn write_predefined<W>(predefined: &PredefinedColor, dest: &mut Printer<W>) -> R
 
   dest.write_str("color(")?;
   dest.write_str(name)?;
-  dest.write_char(' ')?;
-  a.to_css(dest)?;
-  dest.write_char(' ')?;
-  b.to_css(dest)?;
-  dest.write_char(' ')?;
-  c.to_css(dest)?;
+  if !dest.minify || *a != 0.0 || *b != 0.0 || *c != 0.0 {
+    dest.write_char(' ')?;
+    a.to_css(dest)?;
+    if !dest.minify || *b != 0.0 || *c != 0.0 {
+      dest.write_char(' ')?;
+      b.to_css(dest)?;
+      if !dest.minify || *c != 0.0 {
+        dest.write_char(' ')?;
+        c.to_css(dest)?;
+      }
+    }
+  }
 
   if *alpha != 1.0 {
     dest.delim('/', true)?;

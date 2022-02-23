@@ -7537,11 +7537,21 @@ mod tests {
     minify_test(".foo { color: oklab(40.101% 0.1147 0.0453); }", ".foo{color:oklab(40.101% .1147 .0453)}");
     minify_test(".foo { color: oklch(40.101% 0.12332 21.555); }", ".foo{color:oklch(40.101% .12332 21.555)}");
     minify_test(".foo { color: oklch(40.101% 0.12332 .5turn); }", ".foo{color:oklch(40.101% .12332 180)}");
-    minify_test(".foo { color: color(display-p3 1 0.5 0); }", ".foo{color:color(display-p3 1 .5 0)}");
-    minify_test(".foo { color: color(display-p3 100% 50% 0%); }", ".foo{color:color(display-p3 1 .5 0)}");
+    minify_test(".foo { color: color(display-p3 1 0.5 0); }", ".foo{color:color(display-p3 1 .5)}");
+    minify_test(".foo { color: color(display-p3 100% 50% 0%); }", ".foo{color:color(display-p3 1 .5)}");
     minify_test(".foo { color: color(xyz-d50 0.2005 0.14089 0.4472); }", ".foo{color:color(xyz-d50 .2005 .14089 .4472)}");
     minify_test(".foo { color: color(xyz-d65 0.2005 0.14089 0.4472); }", ".foo{color:color(xyz .2005 .14089 .4472)}");
     minify_test(".foo { color: color(xyz 0.2005 0.14089 0.4472); }", ".foo{color:color(xyz .2005 .14089 .4472)}");
+    minify_test(".foo { color: color(xyz 0.2005 0 0); }", ".foo{color:color(xyz .2005)}");
+    minify_test(".foo { color: color(xyz 0 0 0); }", ".foo{color:color(xyz)}");
+    minify_test(".foo { color: color(xyz 0 1 0); }", ".foo{color:color(xyz 0 1)}");
+    minify_test(".foo { color: color(xyz 0 1); }", ".foo{color:color(xyz 0 1)}");
+    minify_test(".foo { color: color(xyz 1); }", ".foo{color:color(xyz 1)}");
+    minify_test(".foo { color: color(xyz); }", ".foo{color:color(xyz)}");
+    minify_test(".foo { color: color(xyz 0 1 0 / 20%); }", ".foo{color:color(xyz 0 1/.2)}");
+    minify_test(".foo { color: color(xyz / 20%); }", ".foo{color:color(xyz/.2)}");
+    minify_test(".foo { color: color(display-p3 100% 50% 0 / 20%); }", ".foo{color:color(display-p3 1 .5/.2)}");
+    minify_test(".foo { color: color(display-p3 100% / 20%); }", ".foo{color:color(display-p3 1/.2)}");
 
     prefix_test(
       ".foo { color: rgba(123, 456, 789, 0.5) }",
@@ -7821,6 +7831,22 @@ mod tests {
       "#},
       Browsers {
         chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { background-color: lch(50.998% 135.363 338) }",
+      indoc! { r#"
+        .foo {
+          background-color: #ff00d4;
+          background-color: color(display-p3 .972962 -.362078 .804206);
+          background-color: lch(50.998% 135.363 338);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        safari: Some(14 << 16),
         ..Browsers::default()
       }
     );
