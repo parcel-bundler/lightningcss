@@ -1,4 +1,5 @@
 use cssparser::*;
+use bitflags::bitflags;
 use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
@@ -29,6 +30,14 @@ pub enum PredefinedColor {
   Rec2020(f32, f32, f32, f32),
   XyzD50(f32, f32, f32, f32),
   XyzD65(f32, f32, f32, f32)
+}
+
+bitflags! {
+  pub struct ColorFallbackKind: u8 {
+    const RGB    = 0b01;
+    const P3     = 0b10;
+    const LAB    = 0b100;
+  }
 }
 
 impl CssColor {
@@ -136,7 +145,7 @@ impl CssColor {
     CssColor::Predefined(PredefinedColor::DisplayP3(r, g, b, a))
   }
 
-  pub fn get_fallbacks(&mut self, targets: Browsers) -> Vec<CssColor> {
+  pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
     let is_compatible = match self {
       CssColor::CurrentColor | CssColor::RGBA(_) => true,
       CssColor::Lab(..) => Feature::LabColors.is_compatible(targets),
@@ -146,15 +155,58 @@ impl CssColor {
       CssColor::Predefined(..) => Feature::ColorFunction.is_compatible(targets)
     };
 
-    let mut res = Vec::new();
+    let mut fallbacks = ColorFallbackKind::empty();
     if !is_compatible {
-      res.push(self.to_rgb());
+      // Convert to lab if compatible. This should not affect interpolation
+      // since this is always done in oklab by default, except for legacy
+      // srgb syntaxes. See https://www.w3.org/TR/css-color-4/#interpolation-space.
+      // If lab is not compatible with all targets, try P3 as some browsers
+      // implemented this before other color spaces. Finally, fall back to
+      // legacy sRGB if none of these are fully compatible with the targets.
+      if Feature::LabColors.is_compatible(targets) {
+        fallbacks |= ColorFallbackKind::LAB;
+      } else if Feature::P3Colors.is_compatible(targets) {
+        fallbacks |= ColorFallbackKind::P3;
+      } else {
+        fallbacks |= ColorFallbackKind::RGB;
 
-      if Feature::LabColors.is_partially_compatible(targets) {
-        *self = self.to_lab();
-      } else if Feature::P3Colors.is_partially_compatible(targets) {
-        res.push(self.to_p3());
+        // Also include either lab or P3 if partially compatible, as these
+        // support a much wider color gamut than sRGB. Lab will replace the
+        // original color (e.g. oklab), whereas P3 will be in addition.
+        if Feature::LabColors.is_partially_compatible(targets) {
+          fallbacks |= ColorFallbackKind::LAB;
+        } else if Feature::P3Colors.is_partially_compatible(targets) {
+          fallbacks |= ColorFallbackKind::P3;
+        }
       }
+    }
+
+    fallbacks
+  }
+
+  pub(crate) fn get_fallback(&self, kind: ColorFallbackKind) -> CssColor {
+    match kind {
+      ColorFallbackKind::RGB => self.to_rgb(),
+      ColorFallbackKind::P3 => self.to_p3(),
+      ColorFallbackKind::LAB => self.to_lab(),
+      _ => unreachable!()
+    }
+  }
+
+  pub fn get_fallbacks(&mut self, targets: Browsers) -> Vec<CssColor> {
+    let fallbacks = self.get_necessary_fallbacks(targets);
+
+    let mut res = Vec::new();
+    if fallbacks.contains(ColorFallbackKind::RGB) {
+      res.push(self.to_rgb());
+    }
+
+    if fallbacks.contains(ColorFallbackKind::P3) {
+      res.push(self.to_p3());
+    }
+
+    if fallbacks.contains(ColorFallbackKind::LAB) {
+      *self = self.to_lab();
     }
 
     res

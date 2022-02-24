@@ -1,4 +1,5 @@
 use cssparser::*;
+use crate::values::color::ColorFallbackKind;
 use crate::values::{
   length::LengthPercentageOrAuto,
   position::*,
@@ -561,9 +562,29 @@ impl<'i> BackgroundHandler<'i> {
         }).collect();
 
         if let Some(targets) = self.targets {
+          // Determine which color fallbacks are needed in case of
+          // new color types like lab.
+          let mut fallbacks = ColorFallbackKind::empty();
+          for background in &backgrounds {
+            fallbacks |= background.image.get_necessary_fallbacks(targets)
+          }
+
+          // Get RGB fallbacks if needed.
+          let rgb_backgrounds = if fallbacks.contains(ColorFallbackKind::RGB) {
+            Some(backgrounds
+              .iter()
+              .map(|bg| Background { image: bg.image.get_fallback(ColorFallbackKind::RGB), ..bg.clone() })
+              .collect())
+          } else {
+            None
+          };
+
+          // Prefixed properties only support RGB.
+          let prefix_backgrounds = rgb_backgrounds.as_ref().unwrap_or(&backgrounds);
+
           // Legacy -webkit-gradient()
-          if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) && backgrounds.iter().any(|bg| matches!(bg.image, Image::Gradient(_))) {
-            let backgrounds: SmallVec<[Background<'i>; 1]> = backgrounds
+          if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) && prefix_backgrounds.iter().any(|bg| matches!(bg.image, Image::Gradient(_))) {
+            let backgrounds: SmallVec<[Background<'i>; 1]> = prefix_backgrounds
               .iter()
               .map(|bg| -> Result<Background<'i>, ()> { Ok(Background { image: bg.image.get_legacy_webkit()?, ..bg.clone() })})
               .flatten()
@@ -577,7 +598,7 @@ impl<'i> BackgroundHandler<'i> {
           macro_rules! prefix {
             ($prefix: ident) => {
               if prefixes.contains(VendorPrefix::$prefix) {
-                let backgrounds = backgrounds
+                let backgrounds = prefix_backgrounds
                   .iter()
                   .map(|bg| Background { image: bg.image.get_prefixed(VendorPrefix::$prefix), ..bg.clone() })
                   .collect();
@@ -589,9 +610,35 @@ impl<'i> BackgroundHandler<'i> {
           prefix!(WebKit);
           prefix!(Moz);
           prefix!(O);
-        }
 
-        if prefixes.contains(VendorPrefix::None) {
+          if prefixes.contains(VendorPrefix::None) {
+            if let Some(rgb_backgrounds) = rgb_backgrounds {
+              dest.push(Property::Background(rgb_backgrounds));
+            }
+
+            if fallbacks.contains(ColorFallbackKind::P3) {
+              let p3_backgrounds = backgrounds
+                .iter()
+                .map(|bg| Background { image: bg.image.get_fallback(ColorFallbackKind::P3), ..bg.clone() })
+                .collect();
+  
+              dest.push(Property::Background(p3_backgrounds))
+            }
+
+            // Convert to lab if needed (e.g. if oklab is not supported but lab is).
+            let backgrounds = if fallbacks.contains(ColorFallbackKind::LAB) {
+              backgrounds
+                .iter()
+                .map(|bg| Background { image: bg.image.get_fallback(ColorFallbackKind::LAB), ..bg.clone() })
+                .collect()
+            } else {
+              backgrounds
+            };
+
+            dest.push(Property::Background(backgrounds))
+          }
+  
+        } else {
           dest.push(Property::Background(backgrounds));
         }
 

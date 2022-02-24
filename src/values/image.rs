@@ -6,6 +6,7 @@ use crate::prefixes::Feature;
 use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
+use super::color::ColorFallbackKind;
 use super::gradient::*;
 use super::resolution::Resolution;
 use crate::values::url::Url;
@@ -55,6 +56,20 @@ impl<'i> Image<'i> {
     match self {
       Image::Gradient(grad) => Ok(Image::Gradient(Box::new(grad.get_legacy_webkit()?))),
       _ => Ok(self.clone())
+    }
+  }
+
+  pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+    match self {
+      Image::Gradient(grad) => grad.get_necessary_fallbacks(targets),
+      _ => ColorFallbackKind::empty()
+    }
+  }
+
+  pub fn get_fallback(&self, kind: ColorFallbackKind) -> Image<'i> {
+    match self {
+      Image::Gradient(grad) => Image::Gradient(Box::new(grad.get_fallback(kind))),
+      _ => self.clone()
     }
   }
 }
