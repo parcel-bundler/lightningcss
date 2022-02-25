@@ -1,9 +1,16 @@
 use cssparser::*;
+use smallvec::SmallVec;
+use crate::declaration::DeclarationList;
+use crate::logical::LogicalProperties;
+use crate::prefixes::Feature;
+use crate::targets::Browsers;
 use crate::values::length::Length;
-use crate::traits::{Parse, ToCss};
-use crate::values::color::CssColor;
+use crate::traits::{Parse, ToCss, PropertyHandler};
+use crate::values::color::{CssColor, ColorFallbackKind};
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
+use crate::properties::Property;
+use crate::vendor_prefix::VendorPrefix;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BoxShadow {
@@ -92,5 +99,104 @@ impl ToCss for BoxShadow {
     }
 
     Ok(())
+  }
+}
+
+#[derive(Default)]
+pub(crate) struct BoxShadowHandler {
+  targets: Option<Browsers>,
+  box_shadows: Option<(SmallVec<[BoxShadow; 1]>, VendorPrefix)>
+}
+
+impl BoxShadowHandler {
+  pub fn new(targets: Option<Browsers>) -> BoxShadowHandler {
+    BoxShadowHandler {
+      targets,
+      ..BoxShadowHandler::default()
+    }
+  }
+}
+
+impl<'i> PropertyHandler<'i> for BoxShadowHandler {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
+    if let Property::BoxShadow(box_shadows, prefix) = property {
+      if let Some((val, prefixes)) = &mut self.box_shadows {
+        if val != box_shadows && !prefixes.contains(*prefix) {
+          self.finalize(dest, logical);
+          self.box_shadows = Some((box_shadows.clone(), *prefix));
+        } else {
+          *val = box_shadows.clone();
+          *prefixes |= *prefix;
+        }
+      } else {
+        self.box_shadows = Some((box_shadows.clone(), *prefix));
+      }
+
+      true
+    } else {
+      false
+    }
+  }
+
+  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
+    let box_shadows = std::mem::take(&mut self.box_shadows);
+
+    if let Some((box_shadows, prefixes)) = box_shadows {
+      if let Some(targets) = self.targets {
+        let mut prefixes = if prefixes.contains(VendorPrefix::None) {
+          Feature::BoxShadow.prefixes_for(targets)
+        } else {
+          prefixes
+        };
+        
+        let mut fallbacks = ColorFallbackKind::empty();
+        for shadow in &box_shadows {
+          fallbacks |= shadow.color.get_necessary_fallbacks(targets);
+        }
+
+        if fallbacks.contains(ColorFallbackKind::RGB) {
+          let rgb = box_shadows
+            .iter()
+            .map(|shadow| BoxShadow {
+              color: shadow.color.to_rgb(),
+              ..shadow.clone()
+            })
+            .collect();
+          dest.push(Property::BoxShadow(rgb, prefixes));
+          if prefixes.contains(VendorPrefix::None) {
+            prefixes = VendorPrefix::None;
+          } else {
+            // Only output RGB for prefixed property (e.g. -webkit-box-shadow)
+            return
+          }
+        }
+
+        if fallbacks.contains(ColorFallbackKind::P3) {
+          let p3 = box_shadows
+            .iter()
+            .map(|shadow| BoxShadow {
+              color: shadow.color.to_p3(),
+              ..shadow.clone()
+            })
+            .collect();
+          dest.push(Property::BoxShadow(p3, VendorPrefix::None));
+        }
+
+        if fallbacks.contains(ColorFallbackKind::LAB) {
+          let lab = box_shadows
+            .iter()
+            .map(|shadow| BoxShadow {
+              color: shadow.color.to_lab(),
+              ..shadow.clone()
+            })
+            .collect();
+          dest.push(Property::BoxShadow(lab, VendorPrefix::None));
+        } else {
+          dest.push(Property::BoxShadow(box_shadows, prefixes))
+        }
+      } else {
+        dest.push(Property::BoxShadow(box_shadows, prefixes))
+      }
+    }
   }
 }

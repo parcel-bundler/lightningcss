@@ -86,7 +86,6 @@ define_prefixes! {
   BackfaceVisibility,
   Perspective,
   PerspectiveOrigin,
-  BoxShadow,
   BoxSizing,
   TabSize,
   Hyphens,

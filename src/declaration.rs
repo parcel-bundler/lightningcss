@@ -1,5 +1,6 @@
 use cssparser::*;
 use crate::properties::Property;
+use crate::properties::box_shadow::BoxShadowHandler;
 use crate::traits::{PropertyHandler, ToCss};
 use crate::printer::Printer;
 use crate::properties::{
@@ -186,6 +187,7 @@ pub(crate) struct DeclarationHandler<'i> {
   inset: InsetHandler,
   overflow: OverflowHandler,
   transform: TransformHandler,
+  box_shadow: BoxShadowHandler,
   prefix: PrefixHandler,
   decls: DeclarationList<'i>
 }
@@ -214,6 +216,7 @@ impl<'i> DeclarationHandler<'i> {
       inset: InsetHandler::default(),
       overflow: OverflowHandler::new(targets),
       transform: TransformHandler::new(targets),
+      box_shadow: BoxShadowHandler::new(targets),
       prefix: PrefixHandler::new(targets),
       decls: DeclarationList::new()
     }
@@ -241,7 +244,8 @@ impl<'i> DeclarationHandler<'i> {
     self.inset.handle_property(property, &mut self.decls, logical_properties) ||
     self.overflow.handle_property(property, &mut self.decls, logical_properties) ||
     self.transform.handle_property(property, &mut self.decls, logical_properties) ||
-    self.prefix.handle_property(property, &mut self.decls, logical_properties)
+    self.box_shadow.handle_property(property, &mut self.decls, logical_properties) ||
+    self.prefix.handle_property(property, &mut self.decls, logical_properties);
   }
 
   pub fn finalize(&mut self, logical_properties: &mut LogicalProperties) {
@@ -266,6 +270,7 @@ impl<'i> DeclarationHandler<'i> {
     self.inset.finalize(&mut self.decls, logical_properties);
     self.overflow.finalize(&mut self.decls, logical_properties);
     self.transform.finalize(&mut self.decls, logical_properties);
+    self.box_shadow.finalize(&mut self.decls, logical_properties);
     self.prefix.finalize(&mut self.decls, logical_properties);
   }
 }

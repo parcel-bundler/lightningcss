@@ -3595,6 +3595,82 @@ mod tests {
     minify_test(".foo { box-shadow: 12px 12px 8px 0px rgba(0,0,0,0.4) }", ".foo{box-shadow:12px 12px 8px #0006}");
     minify_test(".foo { box-shadow: 12px 12px 0px 0px rgba(0,0,0,0.4) }", ".foo{box-shadow:12px 12px #0006}");
     minify_test(".foo { box-shadow: 64px 64px 12px 40px rgba(0,0,0,0.4), 12px 12px 0px 8px rgba(0,0,0,0.4) inset }", ".foo{box-shadow:64px 64px 12px 40px #0006,inset 12px 12px 0 8px #0006}");
+
+    prefix_test(
+      ".foo { box-shadow: 12px 12px lab(40% 56.6 39) }",
+      indoc! { r#"
+        .foo {
+          box-shadow: 12px 12px #b32323;
+          box-shadow: 12px 12px lab(40% 56.6 39);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { box-shadow: 12px 12px lab(40% 56.6 39) }",
+      indoc! { r#"
+        .foo {
+          -webkit-box-shadow: 12px 12px #b32323;
+          box-shadow: 12px 12px #b32323;
+          box-shadow: 12px 12px lab(40% 56.6 39);
+        }
+      "#},
+      Browsers {
+        chrome: Some(4 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { -webkit-box-shadow: 12px 12px #0006 }",
+      indoc! { r#"
+        .foo {
+          -webkit-box-shadow: 12px 12px rgba(0, 0, 0, .4);
+        }
+      "#},
+      Browsers {
+        chrome: Some(4 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo {
+        -webkit-box-shadow: 12px 12px #0006;
+        -moz-box-shadow: 12px 12px #0009;
+      }",
+      indoc! { r#"
+        .foo {
+          -webkit-box-shadow: 12px 12px rgba(0, 0, 0, .4);
+          -moz-box-shadow: 12px 12px rgba(0, 0, 0, .6);
+        }
+      "#},
+      Browsers {
+        chrome: Some(4 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo {
+        -webkit-box-shadow: 12px 12px #0006;
+        -moz-box-shadow: 12px 12px #0006;
+        box-shadow: 12px 12px #0006;
+      }",
+      indoc! { r#"
+        .foo {
+          box-shadow: 12px 12px #0006;
+        }
+      "#},
+      Browsers {
+        chrome: Some(95 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 
   #[test]
