@@ -833,6 +833,38 @@ mod tests {
       safari: Some(8 << 16),
       ..Browsers::default()
     });
+
+    for prop in &["border-inline-start-color", "border-inline-end-color", "border-block-start-color", "border-block-end-color", "border-top-color", "border-bottom-color", "border-left-color", "border-right-color"] {
+      prefix_test(&format!(r#"
+        .foo {{
+          {}: lab(40% 56.6 39);
+        }}
+      "#, prop), &format!(indoc! {r#"
+        .foo {{
+          {}: #b32323;
+          {}: lab(40% 56.6 39);
+        }}
+      "#}, prop, prop), Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      });
+    }
+
+    for prop in &["border", "border-inline", "border-block", "border-left", "border-right", "border-top", "border-bottom", "border-block-start", "border-block-end", "border-inline-start", "border-inline-end"] {
+      prefix_test(&format!(r#"
+        .foo {{
+          {}: 2px solid lab(40% 56.6 39);
+        }}
+      "#, prop), &format!(indoc! {r#"
+        .foo {{
+          {}: 2px solid #b32323;
+          {}: 2px solid lab(40% 56.6 39);
+        }}
+      "#}, prop, prop), Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      });
+    }
   }
 
   #[test]

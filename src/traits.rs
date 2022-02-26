@@ -4,6 +4,7 @@ use crate::declaration::DeclarationList;
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
 use crate::logical::LogicalProperties;
+use crate::targets::Browsers;
 
 pub trait Parse<'i>: Sized {
   /// Parse a value of this type.
@@ -51,4 +52,8 @@ pub trait TryAdd<T> {
 
 pub trait FromStandard<T>: Sized {
   fn from_standard(val: &T) -> Option<Self>;
+}
+
+pub(crate) trait FallbackValues: Sized {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self>;
 }

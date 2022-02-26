@@ -8,7 +8,7 @@ use crate::values::{
 };
 use crate::targets::Browsers;
 use crate::prefixes::{Feature, is_webkit_gradient};
-use crate::traits::{Parse, ToCss, PropertyHandler};
+use crate::traits::{Parse, ToCss, PropertyHandler, FallbackValues};
 use crate::macros::*;
 use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::declaration::DeclarationList;

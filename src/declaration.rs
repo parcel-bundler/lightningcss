@@ -245,7 +245,7 @@ impl<'i> DeclarationHandler<'i> {
     self.overflow.handle_property(property, &mut self.decls, logical_properties) ||
     self.transform.handle_property(property, &mut self.decls, logical_properties) ||
     self.box_shadow.handle_property(property, &mut self.decls, logical_properties) ||
-    self.prefix.handle_property(property, &mut self.decls, logical_properties);
+    self.prefix.handle_property(property, &mut self.decls, logical_properties)
   }
 
   pub fn finalize(&mut self, logical_properties: &mut LogicalProperties) {

@@ -1,7 +1,7 @@
 use cssparser::*;
 use bitflags::bitflags;
 use crate::targets::Browsers;
-use crate::traits::{Parse, ToCss};
+use crate::traits::{Parse, ToCss, FallbackValues};
 use crate::printer::Printer;
 use std::f32::consts::PI;
 use std::fmt::Write;
@@ -192,8 +192,10 @@ impl CssColor {
       _ => unreachable!()
     }
   }
+}
 
-  pub fn get_fallbacks(&mut self, targets: Browsers) -> Vec<CssColor> {
+impl FallbackValues for CssColor {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<CssColor> {
     let fallbacks = self.get_necessary_fallbacks(targets);
 
     let mut res = Vec::new();
