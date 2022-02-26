@@ -7092,6 +7092,46 @@ mod tests {
 
     minify_test(".foo { text-decoration-skip-ink: all }", ".foo{text-decoration-skip-ink:all}");
     minify_test(".foo { -webkit-text-decoration-skip-ink: all }", ".foo{-webkit-text-decoration-skip-ink:all}");
+
+    prefix_test(r#"
+      .foo {
+        text-decoration: lch(50.998% 135.363 338) underline;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-text-decoration: underline #ff00d4;
+        -moz-text-decoration: underline #ff00d4;
+        text-decoration: underline #ff00d4;
+        -webkit-text-decoration: underline lch(50.998% 135.363 338);
+        -moz-text-decoration: underline lch(50.998% 135.363 338);
+        text-decoration: underline lch(50.998% 135.363 338);
+      }
+    "#},
+    Browsers {
+      safari: Some(8 << 16),
+      firefox: Some(30 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        text-decoration-color: lch(50.998% 135.363 338);
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-text-decoration-color: #ff00d4;
+        -moz-text-decoration-color: #ff00d4;
+        text-decoration-color: #ff00d4;
+        -webkit-text-decoration-color: lch(50.998% 135.363 338);
+        -moz-text-decoration-color: lch(50.998% 135.363 338);
+        text-decoration-color: lch(50.998% 135.363 338);
+      }
+    "#},
+    Browsers {
+      safari: Some(8 << 16),
+      firefox: Some(30 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]
@@ -7232,6 +7272,42 @@ mod tests {
       safari: Some(10 << 16),
       chrome: Some(30 << 16),
       firefox: Some(45 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        text-emphasis: filled lch(50.998% 135.363 338);
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-text-emphasis: filled #ff00d4;
+        text-emphasis: filled #ff00d4;
+        -webkit-text-emphasis: filled lch(50.998% 135.363 338);
+        text-emphasis: filled lch(50.998% 135.363 338);
+      }
+    "#},
+    Browsers {
+      chrome: Some(25 << 16),
+      firefox: Some(48 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        text-emphasis-color: lch(50.998% 135.363 338);
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-text-emphasis-color: #ff00d4;
+        text-emphasis-color: #ff00d4;
+        -webkit-text-emphasis-color: lch(50.998% 135.363 338);
+        text-emphasis-color: lch(50.998% 135.363 338);
+      }
+    "#},
+    Browsers {
+      chrome: Some(25 << 16),
+      firefox: Some(48 << 16),
       ..Browsers::default()
     });
   }
