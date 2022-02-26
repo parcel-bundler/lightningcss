@@ -27,14 +27,14 @@ pub enum Gradient {
 }
 
 impl Gradient {
-  pub fn has_vendor_prefix(&self) -> bool {
+  pub fn get_vendor_prefix(&self) -> VendorPrefix {
     match self {
       Gradient::Linear(_, prefix) | 
       Gradient::RepeatingLinear(_, prefix) |
       Gradient::Radial(_, prefix) | 
-      Gradient::RepeatingRadial(_, prefix) => *prefix != VendorPrefix::None,
-      Gradient::WebKitGradient(_) => true,
-      _ => false
+      Gradient::RepeatingRadial(_, prefix) => *prefix,
+      Gradient::WebKitGradient(_) => VendorPrefix::WebKit,
+      _ => VendorPrefix::None
     }
   }
 

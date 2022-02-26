@@ -1010,6 +1010,93 @@ mod tests {
       opera: Some(12 << 16),
       ..Browsers::default()
     });
+
+    prefix_test(r#"
+      .foo {
+        -webkit-border-image: url(foo.png) 60;
+        -moz-border-image: url(foo.png) 60;
+        -o-border-image: url(foo.png) 60;
+        border-image: url(foo.png) 60;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-image: url(foo.png) 60;
+      }
+    "#
+    }, Browsers {
+      chrome: Some(15 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff)) 60;
+        -webkit-border-image: -webkit-linear-gradient(red, #7746ff) 60;
+        border-image: linear-gradient(red, #7746ff) 60;
+        border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
+      }
+    "#
+    }, Browsers {
+      chrome: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
+      }
+    "#, indoc! {r#"
+      .foo {
+        -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff)) 60;
+        -webkit-border-image: -webkit-linear-gradient(red, #7746ff) 60;
+        -moz-border-image: -moz-linear-gradient(red, #7746ff) 60;
+        border-image: linear-gradient(red, #7746ff) 60;
+        border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
+      }
+    "#
+    }, Browsers {
+      chrome: Some(8 << 16),
+      firefox: Some(4 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-image: -webkit-linear-gradient(red, #7746ff) 60;
+        border-image: -moz-linear-gradient(red, #7746ff) 60;
+        border-image: linear-gradient(red, #7746ff) 60;
+        border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
+      }
+    "#
+    }, Browsers {
+      chrome: Some(15 << 16),
+      firefox: Some(15 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-image-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-image-source: -webkit-linear-gradient(red, #7746ff);
+        border-image-source: linear-gradient(red, #7746ff);
+        border-image-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+      }
+    "#
+    }, Browsers {
+      chrome: Some(15 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]
