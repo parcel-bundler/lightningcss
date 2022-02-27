@@ -1553,6 +1553,34 @@ mod tests {
       }
     "#
     });
+
+    prefix_test(
+      ".foo { outline-color: lab(40% 56.6 39) }",
+      indoc! { r#"
+        .foo {
+          outline-color: #b32323;
+          outline-color: lab(40% 56.6 39);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { outline: 2px solid lab(40% 56.6 39) }",
+      indoc! { r#"
+        .foo {
+          outline: 2px solid #b32323;
+          outline: 2px solid lab(40% 56.6 39);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 
   #[test]
@@ -7968,6 +7996,22 @@ mod tests {
         list-style-image: var(--img);
       }
     "#});
+
+    prefix_test(
+      ".foo { list-style-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
+      indoc! { r#"
+        .foo {
+          list-style-image: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff));
+          list-style-image: -webkit-linear-gradient(red, #7746ff);
+          list-style-image: linear-gradient(red, #7746ff);
+          list-style-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+        }
+      "#},
+      Browsers {
+        chrome: Some(8 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 
   #[test]
@@ -10454,6 +10498,22 @@ mod tests {
       Browsers {
         chrome: Some(90 << 16),
         safari: Some(14 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
+      indoc! { r#"
+        .foo {
+          mask-image: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff));
+          mask-image: -webkit-linear-gradient(red, #7746ff);
+          mask-image: linear-gradient(red, #7746ff);
+          mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+        }
+      "#},
+      Browsers {
+        chrome: Some(8 << 16),
         ..Browsers::default()
       }
     );

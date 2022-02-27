@@ -181,18 +181,28 @@ pub (crate) use shorthand_property;
 
 macro_rules! shorthand_handler {
   (
-    $name: ident -> $shorthand: ident
-    { $( $key: ident: $prop: ident($type: ty), )+ }
+    $name: ident -> $shorthand: ident$(<$l: lifetime>)?
+    { $( $key: ident: $prop: ident($type: ty $(, fallback: $fallback: literal)?), )+ }
   ) => {
     #[derive(Default)]
-    pub(crate) struct $name<'i> {
+    pub(crate) struct $name$(<$l>)? {
+      targets: Option<Browsers>,
       $(
         pub $key: Option<$type>,
       )*
       has_any: bool
     }
 
-    impl<'i> PropertyHandler<'i> for $name<'i> {
+    impl$(<$l>)? $name$(<$l>)? {
+      pub fn new(targets: Option<Browsers>) -> Self {
+        Self {
+          targets,
+          ..Self::default()
+        }
+      }
+    }
+
+    impl<'i> PropertyHandler<'i> for $name$(<$l>)? {
       fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
         match property {
           $(
@@ -229,14 +239,35 @@ macro_rules! shorthand_handler {
         )+
 
         if $( $key.is_some() && )* true {
-          dest.push(Property::$shorthand($shorthand {
+          let mut shorthand = $shorthand {
             $(
               $key: $key.unwrap(),
             )+
-          }))
+          };
+
+          if let Some(targets) = self.targets {
+            let fallbacks = shorthand.get_fallbacks(targets);
+            for fallback in fallbacks {
+              dest.push(Property::$shorthand(fallback));
+            }
+          }
+
+          dest.push(Property::$shorthand(shorthand))
         } else {
           $(
-            if let Some(val) = $key {
+            #[allow(unused_mut)]
+            if let Some(mut val) = $key {
+              $(
+                if $fallback {
+                  if let Some(targets) = self.targets {
+                    let fallbacks = val.get_fallbacks(targets);
+                    for fallback in fallbacks {
+                      dest.push(Property::$prop(fallback));
+                    }
+                  }
+                }
+              )?
+              
               dest.push(Property::$prop(val))
             }
           )+

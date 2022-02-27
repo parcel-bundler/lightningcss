@@ -148,4 +148,5 @@ define_fallbacks! {
   Stroke,
   CaretColor,
   Caret,
+  MaskImage,
 }

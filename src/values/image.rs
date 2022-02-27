@@ -1,5 +1,6 @@
 use crate::values::string::CowArcStr;
 use cssparser::*;
+use smallvec::SmallVec;
 use crate::dependencies::{UrlDependency, Dependency};
 use crate::vendor_prefix::VendorPrefix;
 use crate::prefixes::{Feature, is_webkit_gradient};
@@ -129,6 +130,77 @@ impl<'i> FallbackValues for Image<'i> {
     // Convert original to lab if needed (e.g. if oklab is not supported but lab is).
     if fallbacks.contains(ColorFallbackKind::LAB) {
       *self = self.get_fallback(ColorFallbackKind::LAB);
+    }
+
+    res
+  }
+}
+
+impl<'i> FallbackValues for SmallVec<[Image<'i>; 1]> {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+    // Determine what vendor prefixes and color fallbacks are needed.
+    let mut prefixes = VendorPrefix::empty();
+    let mut fallbacks = ColorFallbackKind::empty();
+    let mut res = Vec::new();
+    for image in self.iter() {
+      prefixes |= image.get_necessary_prefixes(targets);
+      fallbacks |= image.get_necessary_fallbacks(targets);
+    }
+
+    // Get RGB fallbacks if needed.
+    let rgb: Option<SmallVec<[Image<'i>; 1]>> = if fallbacks.contains(ColorFallbackKind::RGB) {
+      Some(self
+        .iter()
+        .map(|image| image.get_fallback(ColorFallbackKind::RGB))
+        .collect())
+    } else {
+      None
+    };
+
+    // Prefixed properties only support RGB.
+    let prefix_images = rgb.as_ref().unwrap_or(&self);
+  
+    // Legacy -webkit-gradient()
+    if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) {
+      let images: SmallVec<[Image<'i>; 1]> = prefix_images.iter().map(|image| image.get_legacy_webkit()).flatten().collect();
+      if !images.is_empty() {
+        res.push(images)
+      }
+    }
+
+    // Standard syntax, with prefixes.
+    macro_rules! prefix {
+      ($prefix: ident) => {
+        if prefixes.contains(VendorPrefix::$prefix) {
+          let images = prefix_images.iter().map(|image| image.get_prefixed(VendorPrefix::$prefix)).collect();
+          res.push(images)
+        }
+      };
+    }
+
+    prefix!(WebKit);
+    prefix!(Moz);
+    prefix!(O);
+    if prefixes.contains(VendorPrefix::None) {
+      if let Some(rgb) = rgb {
+        res.push(rgb);
+      }
+
+      if fallbacks.contains(ColorFallbackKind::P3) {
+        let p3_images = self
+          .iter()
+          .map(|image| image.get_fallback(ColorFallbackKind::P3))
+          .collect();
+
+        res.push(p3_images)
+      }
+
+      // Convert to lab if needed (e.g. if oklab is not supported but lab is).
+      if fallbacks.contains(ColorFallbackKind::LAB) {
+        for image in self.iter_mut() {
+          *image = image.get_fallback(ColorFallbackKind::LAB);
+        }
+      }
     }
 
     res

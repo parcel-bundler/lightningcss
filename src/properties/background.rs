@@ -661,79 +661,14 @@ impl<'i> BackgroundHandler<'i> {
       dest.push(Property::BackgroundColor(color))
     }
 
-    if let Some(images) = images {
+    if let Some(mut images) = images {
       if let Some(targets) = self.targets {
-        // Determine what vendor prefixes and color fallbacks are needed.
-        let mut prefixes = VendorPrefix::empty();
-        let mut fallbacks = ColorFallbackKind::empty();
-        for image in images.iter() {
-          prefixes |= image.get_necessary_prefixes(targets);
-          fallbacks |= image.get_necessary_fallbacks(targets);
+        for fallback in images.get_fallbacks(targets) {
+          dest.push(Property::BackgroundImage(fallback));
         }
-
-        // Get RGB fallbacks if needed.
-        let rgb = if fallbacks.contains(ColorFallbackKind::RGB) {
-          Some(images
-            .iter()
-            .map(|image| image.get_fallback(ColorFallbackKind::RGB))
-            .collect())
-        } else {
-          None
-        };
-
-        // Prefixed properties only support RGB.
-        let prefix_images = rgb.as_ref().unwrap_or(&images);
-      
-        // Legacy -webkit-gradient()
-        if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) {
-          let images: SmallVec<[Image<'i>; 1]> = prefix_images.iter().map(|image| image.get_legacy_webkit()).flatten().collect();
-          if !images.is_empty() {
-            dest.push(Property::BackgroundImage(images))
-          }
-        }
-
-        // Standard syntax, with prefixes.
-        macro_rules! prefix {
-          ($prefix: ident) => {
-            if prefixes.contains(VendorPrefix::$prefix) {
-              let images = prefix_images.iter().map(|image| image.get_prefixed(VendorPrefix::$prefix)).collect();
-              dest.push(Property::BackgroundImage(images))
-            }
-          };
-        }
-
-        prefix!(WebKit);
-        prefix!(Moz);
-        prefix!(O);
-        if prefixes.contains(VendorPrefix::None) {
-          if let Some(rgb) = rgb {
-            dest.push(Property::BackgroundImage(rgb));
-          }
-
-          if fallbacks.contains(ColorFallbackKind::P3) {
-            let p3_images = images
-              .iter()
-              .map(|image| image.get_fallback(ColorFallbackKind::P3))
-              .collect();
-
-            dest.push(Property::BackgroundImage(p3_images))
-          }
-
-          // Convert to lab if needed (e.g. if oklab is not supported but lab is).
-          let images = if fallbacks.contains(ColorFallbackKind::LAB) {
-            images
-              .iter()
-              .map(|image| image.get_fallback(ColorFallbackKind::LAB))
-              .collect()
-          } else {
-            images
-          };
-
-          dest.push(Property::BackgroundImage(images))
-        }
-      } else {
-        dest.push(Property::BackgroundImage(images))
       }
+
+      dest.push(Property::BackgroundImage(images))
     }
 
     match (&mut x_positions, &mut y_positions) {
