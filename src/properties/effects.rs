@@ -3,7 +3,7 @@ use smallvec::SmallVec;
 use crate::declaration::DeclarationList;
 use crate::logical::LogicalProperties;
 use crate::targets::Browsers;
-use crate::traits::{Parse, ToCss, PropertyHandler};
+use crate::traits::{Parse, ToCss, PropertyHandler, FallbackValues};
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
 use crate::values::color::ColorFallbackKind;
@@ -302,71 +302,42 @@ impl<'i> ToCss for FilterList<'i> {
   }
 }
 
-impl<'i> FilterList<'i> {
-  fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+impl<'i> FallbackValues for FilterList<'i> {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+    let mut res = Vec::new();
     let mut fallbacks = ColorFallbackKind::empty();
     if let FilterList::Filters(filters) = self {
-      for shadow in filters {
+      for shadow in filters.iter() {
         if let Filter::DropShadow(shadow) = &shadow {
           fallbacks |= shadow.color.get_necessary_fallbacks(targets);
         }
       }
-    }
-    fallbacks
-  }
-  
-  fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
-    match self {
-      FilterList::None => FilterList::None,
-      FilterList::Filters(filters) => {
-        FilterList::Filters(
-          filters
-            .iter()
-            .map(|filter| filter.get_fallback(kind))
-            .collect()
-        )
-      }
-    }
-  }
-}
-
-#[derive(Default)]
-pub(crate) struct FilterHandler {
-  targets: Option<Browsers>
-}
-
-impl FilterHandler {
-  pub fn new(targets: Option<Browsers>) -> FilterHandler {
-    FilterHandler {
-      targets
-    }
-  }
-}
-
-impl<'i> PropertyHandler<'i> for FilterHandler {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
-    if let (Property::Filter(filters), Some(targets)) = (property, self.targets) {
-      let fallbacks = filters.get_necessary_fallbacks(targets);
 
       if fallbacks.contains(ColorFallbackKind::RGB) {
-        dest.push(Property::Filter(filters.get_fallback(ColorFallbackKind::RGB)));
+        res.push(FilterList::Filters(
+          filters
+            .iter()
+            .map(|filter| filter.get_fallback(ColorFallbackKind::RGB))
+            .collect()
+        ));
       }
-
+  
       if fallbacks.contains(ColorFallbackKind::P3) {
-        dest.push(Property::Filter(filters.get_fallback(ColorFallbackKind::P3)));
+        res.push(FilterList::Filters(
+          filters
+            .iter()
+            .map(|filter| filter.get_fallback(ColorFallbackKind::P3))
+            .collect()
+        ));
       }
-
+  
       if fallbacks.contains(ColorFallbackKind::LAB) {
-        dest.push(Property::Filter(filters.get_fallback(ColorFallbackKind::LAB)));
-      } else {
-        dest.push(Property::Filter(filters.clone()));
+        for filter in filters.iter_mut() {
+          *filter = filter.get_fallback(ColorFallbackKind::LAB);
+        }
       }
-
-      true
-    } else {
-      false
     }
-  }
 
-  fn finalize(&mut self, _: &mut DeclarationList, _: &mut LogicalProperties) {}
+    res
+  }
 }

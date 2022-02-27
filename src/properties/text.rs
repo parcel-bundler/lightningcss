@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use smallvec::SmallVec;
 use crate::values::string::CowArcStr;
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler, FallbackValues};
@@ -1102,67 +1103,42 @@ fn is_text_emphasis_property(property_id: &PropertyId) -> bool {
   }
 }
 
-#[derive(Default)]
-pub(crate) struct TextShadowHandler {
-  targets: Option<Browsers>
-}
-
-impl TextShadowHandler {
-  pub fn new(targets: Option<Browsers>) -> TextShadowHandler {
-    TextShadowHandler {
-      targets
+impl FallbackValues for SmallVec<[TextShadow; 1]> {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+    let mut fallbacks = ColorFallbackKind::empty();
+    for shadow in self.iter() {
+      fallbacks |= shadow.color.get_necessary_fallbacks(targets);
     }
-  }
-}
 
-impl<'i> PropertyHandler<'i> for TextShadowHandler {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
-    if let (Property::TextShadow(text_shadows), Some(targets)) = (property, self.targets) {
-      let mut fallbacks = ColorFallbackKind::empty();
-      for shadow in text_shadows {
-        fallbacks |= shadow.color.get_necessary_fallbacks(targets);
-      }
-
-      if fallbacks.contains(ColorFallbackKind::RGB) {
-        let rgb = text_shadows
-          .iter()
-          .map(|shadow| TextShadow {
-            color: shadow.color.to_rgb(),
-            ..shadow.clone()
-          })
-          .collect();
-        dest.push(Property::TextShadow(rgb));
-      }
-
-      if fallbacks.contains(ColorFallbackKind::P3) {
-        let p3 = text_shadows
-          .iter()
-          .map(|shadow| TextShadow {
-            color: shadow.color.to_p3(),
-            ..shadow.clone()
-          })
-          .collect();
-        dest.push(Property::TextShadow(p3));
-      }
-
-      if fallbacks.contains(ColorFallbackKind::LAB) {
-        let lab = text_shadows
-          .iter()
-          .map(|shadow| TextShadow {
-            color: shadow.color.to_lab(),
-            ..shadow.clone()
-          })
-          .collect();
-        dest.push(Property::TextShadow(lab));
-      } else {
-        dest.push(Property::TextShadow(text_shadows.clone()));
-      }
-
-      true
-    } else {
-      false
+    let mut res = Vec::new();
+    if fallbacks.contains(ColorFallbackKind::RGB) {
+      let rgb = self
+        .iter()
+        .map(|shadow| TextShadow {
+          color: shadow.color.to_rgb(),
+          ..shadow.clone()
+        })
+        .collect();
+      res.push(rgb);
     }
-  }
 
-  fn finalize(&mut self, _: &mut DeclarationList, _: &mut LogicalProperties) {}
+    if fallbacks.contains(ColorFallbackKind::P3) {
+      let p3 = self
+        .iter()
+        .map(|shadow| TextShadow {
+          color: shadow.color.to_p3(),
+          ..shadow.clone()
+        })
+        .collect();
+      res.push(p3);
+    }
+
+    if fallbacks.contains(ColorFallbackKind::LAB) {
+      for shadow in self.iter_mut() {
+        shadow.color = shadow.color.to_lab();
+      }
+    }
+
+    res
+  }
 }

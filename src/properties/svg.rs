@@ -1,5 +1,6 @@
 use cssparser::*;
-use crate::traits::{Parse, ToCss};
+use crate::targets::Browsers;
+use crate::traits::{Parse, ToCss, FallbackValues};
 use crate::printer::Printer;
 use crate::values::length::LengthPercentage;
 use crate::macros::enum_property;
@@ -80,6 +81,26 @@ impl ToCss for SVGPaintFallback {
     match self {
       SVGPaintFallback::None => dest.write_str("none"),
       SVGPaintFallback::Color(color) => color.to_css(dest)
+    }
+  }
+}
+
+impl<'i> FallbackValues for SVGPaint<'i> {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+    match self {
+      SVGPaint::Color(color) => {
+        color.get_fallbacks(targets)
+          .into_iter()
+          .map(|color| SVGPaint::Color(color))
+          .collect()
+      }
+      SVGPaint::Url(url, Some(SVGPaintFallback::Color(color))) => {
+        color.get_fallbacks(targets)
+          .into_iter()
+          .map(|color| SVGPaint::Url(url.clone(), Some(SVGPaintFallback::Color(color))))
+          .collect()
+      }
+      _ => Vec::new()
     }
   }
 }

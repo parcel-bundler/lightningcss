@@ -3,7 +3,7 @@ use crate::targets::Browsers;
 use crate::prefixes::Feature;
 use super::Property;
 use crate::vendor_prefix::VendorPrefix;
-use crate::traits::{PropertyHandler};
+use crate::traits::{PropertyHandler, FallbackValues};
 use crate::declaration::DeclarationList;
 use crate::logical::LogicalProperties;
 
@@ -94,4 +94,58 @@ define_prefixes! {
   TextOverflow,
   UserSelect,
   Appearance,
+}
+
+macro_rules! define_fallbacks {
+  (
+    $( $name: ident, )+
+  ) => {
+    #[derive(Default)]
+    pub(crate) struct FallbackHandler {
+      targets: Option<Browsers>
+    }
+
+    impl FallbackHandler {
+      pub fn new(targets: Option<Browsers>) -> FallbackHandler {
+        FallbackHandler {
+          targets
+        }
+      }
+    }
+
+    impl<'i> PropertyHandler<'i> for FallbackHandler {
+      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
+        match property {
+          $(
+            Property::$name(val) => {
+              let mut val = val.clone();
+              if let Some(targets) = self.targets {
+                let fallbacks = val.get_fallbacks(targets);
+                for fallback in fallbacks {
+                  dest.push(Property::$name(fallback.clone()))
+                }
+              }
+
+              dest.push(Property::$name(val))
+            }
+          )+
+          _ => return false
+        }
+
+        true
+      }
+
+      fn finalize(&mut self, _: &mut DeclarationList, _: &mut LogicalProperties) {}
+    }
+  };
+}
+
+define_fallbacks! {
+  Color,
+  TextShadow,
+  Filter,
+  Fill,
+  Stroke,
+  CaretColor,
+  Caret,
 }

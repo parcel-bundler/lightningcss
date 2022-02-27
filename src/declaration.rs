@@ -1,7 +1,6 @@
 use cssparser::*;
 use crate::properties::Property;
 use crate::properties::box_shadow::BoxShadowHandler;
-use crate::properties::effects::FilterHandler;
 use crate::traits::{PropertyHandler, ToCss};
 use crate::printer::Printer;
 use crate::properties::{
@@ -14,10 +13,10 @@ use crate::properties::{
   border::BorderHandler,
   transition::TransitionHandler,
   animation::AnimationHandler,
-  prefix_handler::PrefixHandler,
+  prefix_handler::{PrefixHandler, FallbackHandler},
   display::DisplayHandler,
   transform::TransformHandler,
-  text::{TextDecorationHandler, TextShadowHandler},
+  text::TextDecorationHandler,
   position::PositionHandler,
   overflow::OverflowHandler,
   list::ListStyleHandler,
@@ -189,8 +188,7 @@ pub(crate) struct DeclarationHandler<'i> {
   overflow: OverflowHandler,
   transform: TransformHandler,
   box_shadow: BoxShadowHandler,
-  text_shadow: TextShadowHandler,
-  filter: FilterHandler,
+  fallback: FallbackHandler,
   prefix: PrefixHandler,
   decls: DeclarationList<'i>
 }
@@ -220,8 +218,7 @@ impl<'i> DeclarationHandler<'i> {
       overflow: OverflowHandler::new(targets),
       transform: TransformHandler::new(targets),
       box_shadow: BoxShadowHandler::new(targets),
-      text_shadow: TextShadowHandler::new(targets),
-      filter: FilterHandler::new(targets),
+      fallback: FallbackHandler::new(targets),
       prefix: PrefixHandler::new(targets),
       decls: DeclarationList::new()
     }
@@ -250,8 +247,7 @@ impl<'i> DeclarationHandler<'i> {
     self.overflow.handle_property(property, &mut self.decls, logical_properties) ||
     self.transform.handle_property(property, &mut self.decls, logical_properties) ||
     self.box_shadow.handle_property(property, &mut self.decls, logical_properties) ||
-    self.text_shadow.handle_property(property, &mut self.decls, logical_properties) ||
-    self.filter.handle_property(property, &mut self.decls, logical_properties) ||
+    self.fallback.handle_property(property, &mut self.decls, logical_properties) ||
     self.prefix.handle_property(property, &mut self.decls, logical_properties)
   }
 
@@ -278,8 +274,7 @@ impl<'i> DeclarationHandler<'i> {
     self.overflow.finalize(&mut self.decls, logical_properties);
     self.transform.finalize(&mut self.decls, logical_properties);
     self.box_shadow.finalize(&mut self.decls, logical_properties);
-    self.text_shadow.finalize(&mut self.decls, logical_properties);
-    self.filter.finalize(&mut self.decls, logical_properties);
+    self.fallback.finalize(&mut self.decls, logical_properties);
     self.prefix.finalize(&mut self.decls, logical_properties);
   }
 }

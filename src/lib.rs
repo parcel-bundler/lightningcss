@@ -7888,6 +7888,38 @@ mod tests {
       edge: Some(85 << 16),
       ..Browsers::default()
     });
+
+    prefix_test(
+      ".foo { caret-color: lch(50.998% 135.363 338) }",
+      indoc! { r#"
+        .foo {
+          caret-color: #ff00d4;
+          caret-color: color(display-p3 .972962 -.362078 .804206);
+          caret-color: lch(50.998% 135.363 338);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { caret: lch(50.998% 135.363 338) block }",
+      indoc! { r#"
+        .foo {
+          caret: #ff00d4 block;
+          caret: color(display-p3 .972962 -.362078 .804206) block;
+          caret: lch(50.998% 135.363 338) block;
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 
   #[test]
@@ -8346,6 +8378,22 @@ mod tests {
           background-color: #ff00d4;
           background-color: color(display-p3 .972962 -.362078 .804206);
           background-color: lch(50.998% 135.363 338);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { color: lch(50.998% 135.363 338) }",
+      indoc! { r#"
+        .foo {
+          color: #ff00d4;
+          color: color(display-p3 .972962 -.362078 .804206);
+          color: lch(50.998% 135.363 338);
         }
       "#},
       Browsers {
@@ -10361,6 +10409,54 @@ mod tests {
     minify_test(".foo { clip-path: padding-box circle(50px at 0 100px); }", ".foo{clip-path:circle(50px at 0 100px) padding-box}");
     minify_test(".foo { clip-path: circle(50px at 0 100px) padding-box; }", ".foo{clip-path:circle(50px at 0 100px) padding-box}");
     minify_test(".foo { clip-path: circle(50px at 0 100px) border-box; }", ".foo{clip-path:circle(50px at 0 100px)}");
+  
+    prefix_test(
+      ".foo { fill: lch(50.998% 135.363 338) }",
+      indoc! { r#"
+        .foo {
+          fill: #ff00d4;
+          fill: color(display-p3 .972962 -.362078 .804206);
+          fill: lch(50.998% 135.363 338);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { stroke: lch(50.998% 135.363 338) }",
+      indoc! { r#"
+        .foo {
+          stroke: #ff00d4;
+          stroke: color(display-p3 .972962 -.362078 .804206);
+          stroke: lch(50.998% 135.363 338);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { fill: url(#foo) lch(50.998% 135.363 338) }",
+      indoc! { r#"
+        .foo {
+          fill: url(#foo) #ff00d4;
+          fill: url(#foo) color(display-p3 .972962 -.362078 .804206);
+          fill: url(#foo) lch(50.998% 135.363 338);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 
   #[test]
