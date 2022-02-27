@@ -80,6 +80,23 @@ impl<'i> Image<'i> {
   }
 }
 
+pub trait ImageFallback<'i> {
+  fn get_image(&self) -> &Image<'i>;
+  fn with_image(&self, image: Image<'i>) -> Self;
+}
+
+impl<'i> ImageFallback<'i> for Image<'i> {
+  #[inline]
+  fn get_image(&self) -> &Image<'i> {
+    self
+  }
+
+  #[inline]
+  fn with_image(&self, image: Image<'i>) -> Self {
+    image
+  }
+}
+
 impl<'i> FallbackValues for Image<'i> {
   fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
     // Determine which prefixes and color fallbacks are needed.
@@ -117,41 +134,52 @@ impl<'i> FallbackValues for Image<'i> {
       res.push(prefix_image.get_prefixed(VendorPrefix::O))
     }
 
-    // Unprefixed, rgb fallback.
-    if let Some(rgb) = rgb {
-      res.push(rgb);
-    }
+    if prefixes.contains(VendorPrefix::None) {
+      // Unprefixed, rgb fallback.
+      if let Some(rgb) = rgb {
+        res.push(rgb);
+      }
 
-    // P3 fallback.
-    if fallbacks.contains(ColorFallbackKind::P3) {
-      res.push(self.get_fallback(ColorFallbackKind::P3));
-    }
+      // P3 fallback.
+      if fallbacks.contains(ColorFallbackKind::P3) {
+        res.push(self.get_fallback(ColorFallbackKind::P3));
+      }
 
-    // Convert original to lab if needed (e.g. if oklab is not supported but lab is).
-    if fallbacks.contains(ColorFallbackKind::LAB) {
-      *self = self.get_fallback(ColorFallbackKind::LAB);
+      // Convert original to lab if needed (e.g. if oklab is not supported but lab is).
+      if fallbacks.contains(ColorFallbackKind::LAB) {
+        *self = self.get_fallback(ColorFallbackKind::LAB);
+      }
+    } else if let Some(last) = res.pop() {
+      // Prefixed property with no unprefixed version.
+      // Replace self with the last prefixed version so that it doesn't
+      // get duplicated when the caller pushes the original value.
+      *self = last;
     }
 
     res
   }
 }
 
-impl<'i> FallbackValues for SmallVec<[Image<'i>; 1]> {
+impl<'i, T: ImageFallback<'i>> FallbackValues for SmallVec<[T; 1]> {
   fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
     // Determine what vendor prefixes and color fallbacks are needed.
     let mut prefixes = VendorPrefix::empty();
     let mut fallbacks = ColorFallbackKind::empty();
     let mut res = Vec::new();
-    for image in self.iter() {
+    for item in self.iter() {
+      let image = item.get_image();
       prefixes |= image.get_necessary_prefixes(targets);
       fallbacks |= image.get_necessary_fallbacks(targets);
     }
 
     // Get RGB fallbacks if needed.
-    let rgb: Option<SmallVec<[Image<'i>; 1]>> = if fallbacks.contains(ColorFallbackKind::RGB) {
+    let rgb: Option<SmallVec<[T; 1]>> = if fallbacks.contains(ColorFallbackKind::RGB) {
       Some(self
         .iter()
-        .map(|image| image.get_fallback(ColorFallbackKind::RGB))
+        .map(|item| {
+          let image = item.get_image().get_fallback(ColorFallbackKind::RGB);
+          item.with_image(image)
+        })
         .collect())
     } else {
       None
@@ -162,7 +190,12 @@ impl<'i> FallbackValues for SmallVec<[Image<'i>; 1]> {
   
     // Legacy -webkit-gradient()
     if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) {
-      let images: SmallVec<[Image<'i>; 1]> = prefix_images.iter().map(|image| image.get_legacy_webkit()).flatten().collect();
+      let images: SmallVec<[T; 1]> = prefix_images.iter().map(|item| {
+        item
+          .get_image()
+          .get_legacy_webkit()
+          .map(|image| item.with_image(image))
+      }).flatten().collect();
       if !images.is_empty() {
         res.push(images)
       }
@@ -172,7 +205,10 @@ impl<'i> FallbackValues for SmallVec<[Image<'i>; 1]> {
     macro_rules! prefix {
       ($prefix: ident) => {
         if prefixes.contains(VendorPrefix::$prefix) {
-          let images = prefix_images.iter().map(|image| image.get_prefixed(VendorPrefix::$prefix)).collect();
+          let images = prefix_images.iter().map(|item| {
+            let image = item.get_image().get_prefixed(VendorPrefix::$prefix);
+            item.with_image(image)
+          }).collect();
           res.push(images)
         }
       };
@@ -189,7 +225,10 @@ impl<'i> FallbackValues for SmallVec<[Image<'i>; 1]> {
       if fallbacks.contains(ColorFallbackKind::P3) {
         let p3_images = self
           .iter()
-          .map(|image| image.get_fallback(ColorFallbackKind::P3))
+          .map(|item| {
+            let image = item.get_image().get_fallback(ColorFallbackKind::P3);
+            item.with_image(image)
+          })
           .collect();
 
         res.push(p3_images)
@@ -197,10 +236,16 @@ impl<'i> FallbackValues for SmallVec<[Image<'i>; 1]> {
 
       // Convert to lab if needed (e.g. if oklab is not supported but lab is).
       if fallbacks.contains(ColorFallbackKind::LAB) {
-        for image in self.iter_mut() {
-          *image = image.get_fallback(ColorFallbackKind::LAB);
+        for item in self.iter_mut() {
+          let image = item.get_image().get_fallback(ColorFallbackKind::LAB);
+          *item = item.with_image(image)
         }
       }
+    } else if let Some(last) = res.pop() {
+      // Prefixed property with no unprefixed version.
+      // Replace self with the last prefixed version so that it doesn't
+      // get duplicated when the caller pushes the original value.
+      *self = last;
     }
 
     res

@@ -1,5 +1,6 @@
 use cssparser::*;
 use crate::values::color::ColorFallbackKind;
+use crate::values::image::ImageFallback;
 use crate::values::{
   length::LengthPercentageOrAuto,
   position::*,
@@ -393,6 +394,21 @@ impl<'i> ToCss for Background<'i> {
   }
 }
 
+impl<'i> ImageFallback<'i> for Background<'i> {
+  #[inline]
+  fn get_image(&self) -> &Image<'i> {
+    &self.image
+  }
+
+  #[inline]
+  fn with_image(&self, image: Image<'i>) -> Self {
+    Background {
+      image,
+      ..self.clone()
+    }
+  }
+}
+
 #[derive(Default)]
 pub(crate) struct BackgroundHandler<'i> {
   targets: Option<Browsers>,
@@ -537,7 +553,7 @@ impl<'i> BackgroundHandler<'i> {
           None
         };
 
-        let backgrounds: SmallVec<[Background<'i>; 1]> = izip!(images.drain(..), x_positions.drain(..), y_positions.drain(..), repeats.drain(..), sizes.drain(..), attachments.drain(..), origins.drain(..), clips.drain(..)).enumerate().map(|(i, (image, x_position, y_position, repeat, size, attachment, origin, clip))| {
+        let mut backgrounds: SmallVec<[Background<'i>; 1]> = izip!(images.drain(..), x_positions.drain(..), y_positions.drain(..), repeats.drain(..), sizes.drain(..), attachments.drain(..), origins.drain(..), clips.drain(..)).enumerate().map(|(i, (image, x_position, y_position, repeat, size, attachment, origin, clip))| {
           Background {
             color: if i == len - 1 {
               color.clone()
@@ -562,85 +578,12 @@ impl<'i> BackgroundHandler<'i> {
         }).collect();
 
         if let Some(targets) = self.targets {
-          // Determine which color fallbacks are needed in case of
-          // new color types like lab.
-          let mut fallbacks = ColorFallbackKind::empty();
-          for background in &backgrounds {
-            fallbacks |= background.image.get_necessary_fallbacks(targets)
+          for fallback in backgrounds.get_fallbacks(targets) {
+            dest.push(Property::Background(fallback));
           }
-
-          // Get RGB fallbacks if needed.
-          let rgb_backgrounds = if fallbacks.contains(ColorFallbackKind::RGB) {
-            Some(backgrounds
-              .iter()
-              .map(|bg| Background { image: bg.image.get_fallback(ColorFallbackKind::RGB), ..bg.clone() })
-              .collect())
-          } else {
-            None
-          };
-
-          // Prefixed properties only support RGB.
-          let prefix_backgrounds = rgb_backgrounds.as_ref().unwrap_or(&backgrounds);
-
-          // Legacy -webkit-gradient()
-          if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) && prefix_backgrounds.iter().any(|bg| matches!(bg.image, Image::Gradient(_))) {
-            let backgrounds: SmallVec<[Background<'i>; 1]> = prefix_backgrounds
-              .iter()
-              .map(|bg| -> Result<Background<'i>, ()> { Ok(Background { image: bg.image.get_legacy_webkit()?, ..bg.clone() })})
-              .flatten()
-              .collect();
-            if !backgrounds.is_empty() {
-              dest.push(Property::Background(backgrounds))
-            }
-          }
-
-          // Standard syntax, with prefixes.
-          macro_rules! prefix {
-            ($prefix: ident) => {
-              if prefixes.contains(VendorPrefix::$prefix) {
-                let backgrounds = prefix_backgrounds
-                  .iter()
-                  .map(|bg| Background { image: bg.image.get_prefixed(VendorPrefix::$prefix), ..bg.clone() })
-                  .collect();
-                dest.push(Property::Background(backgrounds))
-              }
-            };
-          }
-
-          prefix!(WebKit);
-          prefix!(Moz);
-          prefix!(O);
-
-          if prefixes.contains(VendorPrefix::None) {
-            if let Some(rgb_backgrounds) = rgb_backgrounds {
-              dest.push(Property::Background(rgb_backgrounds));
-            }
-
-            if fallbacks.contains(ColorFallbackKind::P3) {
-              let p3_backgrounds = backgrounds
-                .iter()
-                .map(|bg| Background { image: bg.image.get_fallback(ColorFallbackKind::P3), ..bg.clone() })
-                .collect();
-  
-              dest.push(Property::Background(p3_backgrounds))
-            }
-
-            // Convert to lab if needed (e.g. if oklab is not supported but lab is).
-            let backgrounds = if fallbacks.contains(ColorFallbackKind::LAB) {
-              backgrounds
-                .iter()
-                .map(|bg| Background { image: bg.image.get_fallback(ColorFallbackKind::LAB), ..bg.clone() })
-                .collect()
-            } else {
-              backgrounds
-            };
-
-            dest.push(Property::Background(backgrounds))
-          }
-  
-        } else {
-          dest.push(Property::Background(backgrounds));
         }
+
+        dest.push(Property::Background(backgrounds));
 
         if let Some(clip) = clip_property {
           dest.push(clip)

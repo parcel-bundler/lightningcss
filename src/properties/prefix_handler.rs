@@ -149,4 +149,5 @@ define_fallbacks! {
   CaretColor,
   Caret,
   MaskImage,
+  Mask,
 }

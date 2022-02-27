@@ -10517,6 +10517,36 @@ mod tests {
         ..Browsers::default()
       }
     );
+
+    prefix_test(
+      ".foo { mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px }",
+      indoc! { r#"
+        .foo {
+          mask: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff)) 40px 20px;
+          mask: -webkit-linear-gradient(red, #7746ff) 40px 20px;
+          mask: linear-gradient(red, #7746ff) 40px 20px;
+          mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px;
+        }
+      "#},
+      Browsers {
+        chrome: Some(8 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { mask: -webkit-linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px }",
+      indoc! { r#"
+        .foo {
+          mask: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff)) 40px 20px;
+          mask: -webkit-linear-gradient(red, #7746ff) 40px 20px;
+        }
+      "#},
+      Browsers {
+        chrome: Some(8 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 
   #[test]
