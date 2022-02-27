@@ -10372,6 +10372,48 @@ mod tests {
     minify_test(".foo { filter: brightness(100%); }", ".foo{filter:brightness()}");
     minify_test(".foo { filter: drop-shadow(16px 16px 20px yellow); }", ".foo{filter:drop-shadow(16px 16px 20px #ff0)}");
     minify_test(".foo { filter: contrast(175%) brightness(3%); }", ".foo{filter:contrast(175%)brightness(3%)}");
+  
+    prefix_test(
+      ".foo { filter: drop-shadow(16px 16px 20px lab(40% 56.6 39)) }",
+      indoc! { r#"
+        .foo {
+          filter: drop-shadow(16px 16px 20px #b32323);
+          filter: drop-shadow(16px 16px 20px lab(40% 56.6 39));
+        }
+      "#},
+      Browsers {
+        chrome: Some(4 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { filter: contrast(175%) drop-shadow(16px 16px 20px lab(40% 56.6 39)) }",
+      indoc! { r#"
+        .foo {
+          filter: contrast(175%) drop-shadow(16px 16px 20px #b32323);
+          filter: contrast(175%) drop-shadow(16px 16px 20px lab(40% 56.6 39));
+        }
+      "#},
+      Browsers {
+        chrome: Some(4 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { filter: drop-shadow(16px 16px 20px lab(40% 56.6 39)) drop-shadow(16px 16px 20px yellow) }",
+      indoc! { r#"
+        .foo {
+          filter: drop-shadow(16px 16px 20px #b32323) drop-shadow(16px 16px 20px #ff0);
+          filter: drop-shadow(16px 16px 20px lab(40% 56.6 39)) drop-shadow(16px 16px 20px #ff0);
+        }
+      "#},
+      Browsers {
+        chrome: Some(4 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 
   #[test]

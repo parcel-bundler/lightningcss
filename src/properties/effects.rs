@@ -1,8 +1,13 @@
 use cssparser::*;
 use smallvec::SmallVec;
-use crate::traits::{Parse, ToCss};
+use crate::declaration::DeclarationList;
+use crate::logical::LogicalProperties;
+use crate::targets::Browsers;
+use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
+use crate::values::color::ColorFallbackKind;
+use super::Property;
 use crate::values::{
   url::Url,
   length::Length,
@@ -169,6 +174,15 @@ impl<'i> ToCss for Filter<'i> {
   }
 }
 
+impl<'i> Filter<'i> {
+  fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
+    match self {
+      Filter::DropShadow(shadow) => Filter::DropShadow(shadow.get_fallback(kind)),
+      _ => self.clone()
+    }
+  }
+}
+
 /// https://drafts.fxtf.org/filter-effects-1/#funcdef-filter-drop-shadow
 #[derive(Debug, Clone, PartialEq)]
 pub struct DropShadow {
@@ -238,6 +252,15 @@ impl ToCss for DropShadow {
   }
 }
 
+impl DropShadow {
+  fn get_fallback(&self, kind: ColorFallbackKind) -> DropShadow {
+    DropShadow {
+      color: self.color.get_fallback(kind),
+      ..self.clone()
+    }
+  }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum FilterList<'i> {
   None,
@@ -277,4 +300,73 @@ impl<'i> ToCss for FilterList<'i> {
       }
     }
   }
+}
+
+impl<'i> FilterList<'i> {
+  fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+    let mut fallbacks = ColorFallbackKind::empty();
+    if let FilterList::Filters(filters) = self {
+      for shadow in filters {
+        if let Filter::DropShadow(shadow) = &shadow {
+          fallbacks |= shadow.color.get_necessary_fallbacks(targets);
+        }
+      }
+    }
+    fallbacks
+  }
+  
+  fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
+    match self {
+      FilterList::None => FilterList::None,
+      FilterList::Filters(filters) => {
+        FilterList::Filters(
+          filters
+            .iter()
+            .map(|filter| filter.get_fallback(kind))
+            .collect()
+        )
+      }
+    }
+  }
+}
+
+#[derive(Default)]
+pub(crate) struct FilterHandler {
+  targets: Option<Browsers>
+}
+
+impl FilterHandler {
+  pub fn new(targets: Option<Browsers>) -> FilterHandler {
+    FilterHandler {
+      targets
+    }
+  }
+}
+
+impl<'i> PropertyHandler<'i> for FilterHandler {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
+    if let (Property::Filter(filters), Some(targets)) = (property, self.targets) {
+      let fallbacks = filters.get_necessary_fallbacks(targets);
+
+      if fallbacks.contains(ColorFallbackKind::RGB) {
+        dest.push(Property::Filter(filters.get_fallback(ColorFallbackKind::RGB)));
+      }
+
+      if fallbacks.contains(ColorFallbackKind::P3) {
+        dest.push(Property::Filter(filters.get_fallback(ColorFallbackKind::P3)));
+      }
+
+      if fallbacks.contains(ColorFallbackKind::LAB) {
+        dest.push(Property::Filter(filters.get_fallback(ColorFallbackKind::LAB)));
+      } else {
+        dest.push(Property::Filter(filters.clone()));
+      }
+
+      true
+    } else {
+      false
+    }
+  }
+
+  fn finalize(&mut self, _: &mut DeclarationList, _: &mut LogicalProperties) {}
 }
