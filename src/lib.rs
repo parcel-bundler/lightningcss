@@ -3745,6 +3745,21 @@ mod tests {
     );
 
     prefix_test(
+      ".foo { box-shadow: 12px 12px lab(40% 56.6 39), 12px 12px yellow }",
+      indoc! { r#"
+        .foo {
+          -webkit-box-shadow: 12px 12px #b32323, 12px 12px #ff0;
+          box-shadow: 12px 12px #b32323, 12px 12px #ff0;
+          box-shadow: 12px 12px lab(40% 56.6 39), 12px 12px #ff0;
+        }
+      "#},
+      Browsers {
+        chrome: Some(4 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
       ".foo { -webkit-box-shadow: 12px 12px #0006 }",
       indoc! { r#"
         .foo {
@@ -7319,6 +7334,50 @@ mod tests {
     minify_test(".foo { text-shadow: 1px 1px 0 yellow; }", ".foo{text-shadow:1px 1px #ff0}");
     minify_test(".foo { text-shadow: 1px 1px yellow; }", ".foo{text-shadow:1px 1px #ff0}");
     minify_test(".foo { text-shadow: 1px 1px yellow, 2px 3px red; }", ".foo{text-shadow:1px 1px #ff0,2px 3px red}");
+  
+    prefix_test(
+      ".foo { text-shadow: 12px 12px lab(40% 56.6 39) }",
+      indoc! { r#"
+        .foo {
+          text-shadow: 12px 12px #b32323;
+          text-shadow: 12px 12px lab(40% 56.6 39);
+        }
+      "#},
+      Browsers {
+        chrome: Some(4 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { text-shadow: 12px 12px lab(40% 56.6 39) }",
+      indoc! { r#"
+        .foo {
+          text-shadow: 12px 12px #b32323;
+          text-shadow: 12px 12px color(display-p3 .643308 .192455 .167712);
+          text-shadow: 12px 12px lab(40% 56.6 39);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { text-shadow: 12px 12px lab(40% 56.6 39), 12px 12px yellow }",
+      indoc! { r#"
+        .foo {
+          text-shadow: 12px 12px #b32323, 12px 12px #ff0;
+          text-shadow: 12px 12px lab(40% 56.6 39), 12px 12px #ff0;
+        }
+      "#},
+      Browsers {
+        chrome: Some(4 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 
   #[test]

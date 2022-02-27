@@ -16,7 +16,7 @@ use crate::properties::{
   prefix_handler::PrefixHandler,
   display::DisplayHandler,
   transform::TransformHandler,
-  text::TextDecorationHandler,
+  text::{TextDecorationHandler, TextShadowHandler},
   position::PositionHandler,
   overflow::OverflowHandler,
   list::ListStyleHandler,
@@ -188,6 +188,7 @@ pub(crate) struct DeclarationHandler<'i> {
   overflow: OverflowHandler,
   transform: TransformHandler,
   box_shadow: BoxShadowHandler,
+  text_shadow: TextShadowHandler,
   prefix: PrefixHandler,
   decls: DeclarationList<'i>
 }
@@ -217,6 +218,7 @@ impl<'i> DeclarationHandler<'i> {
       overflow: OverflowHandler::new(targets),
       transform: TransformHandler::new(targets),
       box_shadow: BoxShadowHandler::new(targets),
+      text_shadow: TextShadowHandler::new(targets),
       prefix: PrefixHandler::new(targets),
       decls: DeclarationList::new()
     }
@@ -245,6 +247,7 @@ impl<'i> DeclarationHandler<'i> {
     self.overflow.handle_property(property, &mut self.decls, logical_properties) ||
     self.transform.handle_property(property, &mut self.decls, logical_properties) ||
     self.box_shadow.handle_property(property, &mut self.decls, logical_properties) ||
+    self.text_shadow.handle_property(property, &mut self.decls, logical_properties) ||
     self.prefix.handle_property(property, &mut self.decls, logical_properties)
   }
 
@@ -271,6 +274,7 @@ impl<'i> DeclarationHandler<'i> {
     self.overflow.finalize(&mut self.decls, logical_properties);
     self.transform.finalize(&mut self.decls, logical_properties);
     self.box_shadow.finalize(&mut self.decls, logical_properties);
+    self.text_shadow.finalize(&mut self.decls, logical_properties);
     self.prefix.finalize(&mut self.decls, logical_properties);
   }
 }

@@ -10,7 +10,7 @@ use crate::targets::Browsers;
 use crate::prefixes::Feature;
 use crate::macros::enum_property;
 use crate::values::length::{Length, LengthPercentage};
-use crate::values::color::CssColor;
+use crate::values::color::{CssColor, ColorFallbackKind};
 use crate::printer::Printer;
 use bitflags::bitflags;
 use crate::error::{ParserError, PrinterError};
@@ -1100,4 +1100,69 @@ fn is_text_emphasis_property(property_id: &PropertyId) -> bool {
     PropertyId::TextEmphasisPosition(_) => true,
     _ => false
   }
+}
+
+#[derive(Default)]
+pub(crate) struct TextShadowHandler {
+  targets: Option<Browsers>
+}
+
+impl TextShadowHandler {
+  pub fn new(targets: Option<Browsers>) -> TextShadowHandler {
+    TextShadowHandler {
+      targets
+    }
+  }
+}
+
+impl<'i> PropertyHandler<'i> for TextShadowHandler {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
+    if let (Property::TextShadow(text_shadows), Some(targets)) = (property, self.targets) {
+      let mut fallbacks = ColorFallbackKind::empty();
+      for shadow in text_shadows {
+        fallbacks |= shadow.color.get_necessary_fallbacks(targets);
+      }
+
+      if fallbacks.contains(ColorFallbackKind::RGB) {
+        let rgb = text_shadows
+          .iter()
+          .map(|shadow| TextShadow {
+            color: shadow.color.to_rgb(),
+            ..shadow.clone()
+          })
+          .collect();
+        dest.push(Property::TextShadow(rgb));
+      }
+
+      if fallbacks.contains(ColorFallbackKind::P3) {
+        let p3 = text_shadows
+          .iter()
+          .map(|shadow| TextShadow {
+            color: shadow.color.to_p3(),
+            ..shadow.clone()
+          })
+          .collect();
+        dest.push(Property::TextShadow(p3));
+      }
+
+      if fallbacks.contains(ColorFallbackKind::LAB) {
+        let lab = text_shadows
+          .iter()
+          .map(|shadow| TextShadow {
+            color: shadow.color.to_lab(),
+            ..shadow.clone()
+          })
+          .collect();
+        dest.push(Property::TextShadow(lab));
+      } else {
+        dest.push(Property::TextShadow(text_shadows.clone()));
+      }
+
+      true
+    } else {
+      false
+    }
+  }
+
+  fn finalize(&mut self, _: &mut DeclarationList, _: &mut LogicalProperties) {}
 }
