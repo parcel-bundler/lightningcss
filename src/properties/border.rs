@@ -1,7 +1,7 @@
 use crate::values::length::*;
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler, FallbackValues};
-use crate::values::color::CssColor;
+use crate::values::color::{CssColor, ColorFallbackKind};
 use crate::properties::{Property, PropertyId};
 use crate::declaration::DeclarationList;
 use crate::logical::{LogicalProperties, LogicalProperty, PropertyCategory};
@@ -179,6 +179,44 @@ impl<S: Clone> FallbackValues for GenericBorder<S> {
         style: self.style.clone()
       })
       .collect()
+  }
+}
+
+impl FallbackValues for Rect<CssColor> {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+    let mut fallbacks = ColorFallbackKind::empty();
+    fallbacks |= self.0.get_necessary_fallbacks(targets);
+    fallbacks |= self.1.get_necessary_fallbacks(targets);
+    fallbacks |= self.2.get_necessary_fallbacks(targets);
+    fallbacks |= self.3.get_necessary_fallbacks(targets);
+
+    let mut res = Vec::new();
+    if fallbacks.contains(ColorFallbackKind::RGB) {
+      res.push(Rect::new(
+        self.0.get_fallback(ColorFallbackKind::RGB),
+        self.1.get_fallback(ColorFallbackKind::RGB),
+        self.2.get_fallback(ColorFallbackKind::RGB),
+        self.3.get_fallback(ColorFallbackKind::RGB),
+      ));
+    }
+
+    if fallbacks.contains(ColorFallbackKind::P3) {
+      res.push(Rect::new(
+        self.0.get_fallback(ColorFallbackKind::P3),
+        self.1.get_fallback(ColorFallbackKind::P3),
+        self.2.get_fallback(ColorFallbackKind::P3),
+        self.3.get_fallback(ColorFallbackKind::P3),
+      ));
+    }
+
+    if fallbacks.contains(ColorFallbackKind::LAB) {
+      self.0 = self.0.get_fallback(ColorFallbackKind::LAB);
+      self.1 = self.1.get_fallback(ColorFallbackKind::LAB);
+      self.2 = self.2.get_fallback(ColorFallbackKind::LAB);
+      self.3 = self.3.get_fallback(ColorFallbackKind::LAB);
+    }
+
+    res
   }
 }
 
@@ -475,13 +513,14 @@ impl<'i> BorderHandler<'i> {
 
     macro_rules! fallbacks {
       ($prop: ident => $val: expr) => {{
+        let mut val = $val;
         if let Some(targets) = self.targets {
-          let fallbacks = $val.get_fallbacks(targets);
+          let fallbacks = val.get_fallbacks(targets);
           for fallback in fallbacks {
             dest.push(Property::$prop(fallback))
           }
         }
-        dest.push(Property::$prop($val))
+        dest.push(Property::$prop(val))
       }};
     }
 
@@ -609,6 +648,15 @@ impl<'i> BorderHandler<'i> {
       };
       (BorderBottomColor => $val: expr) => {
         fallbacks!(BorderBottomColor => $val);
+      };
+      (BorderColor => $val: expr) => {
+        fallbacks!(BorderColor => $val);
+      };
+      (BorderBlockColor => $val: expr) => {
+        fallbacks!(BorderBlockColor => $val);
+      };
+      (BorderInlineColor => $val: expr) => {
+        fallbacks!(BorderInlineColor => $val);
       };
       (BorderLeft => $val: expr) => {
         fallbacks!(BorderLeft => $val);

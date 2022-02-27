@@ -834,7 +834,7 @@ mod tests {
       ..Browsers::default()
     });
 
-    for prop in &["border-inline-start-color", "border-inline-end-color", "border-block-start-color", "border-block-end-color", "border-top-color", "border-bottom-color", "border-left-color", "border-right-color"] {
+    for prop in &["border-inline-start-color", "border-inline-end-color", "border-block-start-color", "border-block-end-color", "border-top-color", "border-bottom-color", "border-left-color", "border-right-color", "border-color", "border-block-color", "border-inline-color"] {
       prefix_test(&format!(r#"
         .foo {{
           {}: lab(40% 56.6 39);
