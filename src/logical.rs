@@ -7,7 +7,7 @@ use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::vendor_prefix::VendorPrefix;
 use crate::compat::Feature;
 use crate::targets::Browsers;
-use crate::traits::ToCss;
+use crate::traits::{ToCss, FallbackValues};
 use crate::printer::Printer;
 use crate::error::PrinterError;
 use parcel_selectors::{

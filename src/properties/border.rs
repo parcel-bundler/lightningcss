@@ -182,6 +182,20 @@ impl<S: Clone> FallbackValues for GenericBorder<S> {
   }
 }
 
+impl<S: Clone> GenericBorder<S> {
+  fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+    self.color.get_necessary_fallbacks(targets)
+  }
+
+  fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
+    GenericBorder {
+      color: self.color.get_fallback(kind),
+      width: self.width.clone(),
+      style: self.style.clone()
+    }
+  }
+}
+
 impl FallbackValues for Rect<CssColor> {
   fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
     let mut fallbacks = ColorFallbackKind::empty();
@@ -482,7 +496,6 @@ impl<'i> BorderHandler<'i> {
 
     self.has_any = false;
 
-    // TODO: support for color fallbacks in logical properties.
     let logical_supported = logical_properties.is_supported(Feature::LogicalBorders);
     macro_rules! logical_prop {
       ($ltr: ident, $ltr_key: ident, $rtl: ident, $rtl_key: ident, $val: expr) => {{
@@ -986,6 +999,73 @@ impl<'i> BorderHandler<'i> {
       self.border_inline_end,
       true
     );
+
+    // Generate color fallbacks for logical properties.
+    if let Some(targets) = self.targets {
+      macro_rules! logical_fallback {
+        ($prop: ident, $key: ident) => {
+          if let Some(Property::Logical(property)) = get_physical!(self.physical_to_logical, $key, dest) {
+            let mut fallbacks = ColorFallbackKind::empty();
+            let ltr = if let Some(ltr) = &property.ltr {
+              if let Property::$prop(val) = &**ltr {
+                fallbacks |= val.get_necessary_fallbacks(targets);
+                Some(val)
+              } else {
+                unreachable!()
+              }
+            } else {
+              None
+            };
+
+            let rtl = if let Some(rtl) = &property.rtl {
+              if let Property::$prop(val) = &**rtl {
+                fallbacks |= val.get_necessary_fallbacks(targets);
+                Some(val)
+              } else {
+                unreachable!()
+              }
+            } else {
+              None
+            };
+
+            let lowest_fallback = fallbacks.lowest();
+            fallbacks.remove(lowest_fallback);
+
+            if fallbacks.contains(ColorFallbackKind::P3) {
+              logical_properties.add_conditional_property(
+                ColorFallbackKind::P3.supports_condition(),
+                Property::Logical(LogicalProperty {
+                  property_id: PropertyId::$prop,
+                  ltr: ltr.map(|val| Box::new(Property::$prop(val.get_fallback(ColorFallbackKind::P3)))),
+                  rtl: rtl.map(|val| Box::new(Property::$prop(val.get_fallback(ColorFallbackKind::P3)))),
+                })
+              );
+            }
+        
+            if fallbacks.contains(ColorFallbackKind::LAB) || (!lowest_fallback.is_empty() && lowest_fallback != ColorFallbackKind::LAB) {
+              logical_properties.add_conditional_property(
+                ColorFallbackKind::LAB.supports_condition(),
+                Property::Logical(LogicalProperty {
+                  property_id: PropertyId::$prop,
+                  ltr: ltr.map(|val| Box::new(Property::$prop(val.get_fallback(ColorFallbackKind::LAB)))),
+                  rtl: rtl.map(|val| Box::new(Property::$prop(val.get_fallback(ColorFallbackKind::LAB)))),
+                })
+              );
+            }
+        
+            if !lowest_fallback.is_empty() {  
+              property.ltr = ltr.map(|val| Box::new(Property::$prop(val.get_fallback(lowest_fallback))));
+              property.rtl = rtl.map(|val| Box::new(Property::$prop(val.get_fallback(lowest_fallback))));
+            }
+          }
+        };
+      }
+
+      logical_fallback!(BorderLeft, border_left);
+      logical_fallback!(BorderRight, border_right);
+      logical_fallback!(BorderLeftColor, border_left_color);
+      logical_fallback!(BorderRightColor, border_right_color);
+    }
 
     self.border_top.reset();
     self.border_bottom.reset();

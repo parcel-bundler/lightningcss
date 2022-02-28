@@ -865,6 +865,202 @@ mod tests {
         ..Browsers::default()
       });
     }
+
+    prefix_test(r#"
+      .foo {
+        border-inline-start-color: lab(40% 56.6 39);
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-left-color: var(--ltr, #b32323);
+        border-right-color: var(--rtl, #b32323);
+      }
+
+      @supports (color: lab(0% 0 0)) {
+        .foo {
+          border-left-color: var(--ltr, lab(40% 56.6 39));
+          border-right-color: var(--rtl, lab(40% 56.6 39));
+        }
+      }
+
+      [dir="ltr"] {
+        --ltr: initial;
+        --rtl: ;
+      }
+
+      [dir="rtl"] {
+        --ltr: ;
+        --rtl: initial;
+      }
+    "#}, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-inline-end-color: lab(40% 56.6 39);
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-right-color: var(--ltr, #b32323);
+        border-left-color: var(--rtl, #b32323);
+      }
+
+      @supports (color: lab(0% 0 0)) {
+        .foo {
+          border-left-color: var(--rtl, lab(40% 56.6 39));
+          border-right-color: var(--ltr, lab(40% 56.6 39));
+        }
+      }
+
+      [dir="ltr"] {
+        --ltr: initial;
+        --rtl: ;
+      }
+
+      [dir="rtl"] {
+        --ltr: ;
+        --rtl: initial;
+      }
+    "#}, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-inline-start-color: lab(40% 56.6 39);
+        border-inline-end-color: lch(50.998% 135.363 338);
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-left-color: var(--ltr, #b32323) var(--rtl, #ff00d4);
+        border-right-color: var(--ltr, #ff00d4) var(--rtl, #b32323);
+      }
+
+      @supports (color: lab(0% 0 0)) {
+        .foo {
+          border-left-color: var(--ltr, lab(40% 56.6 39)) var(--rtl, lab(50.998% 125.506 -50.7078));
+          border-right-color: var(--ltr, lab(50.998% 125.506 -50.7078)) var(--rtl, lab(40% 56.6 39));
+        }
+      }
+
+      [dir="ltr"] {
+        --ltr: initial;
+        --rtl: ;
+      }
+
+      [dir="rtl"] {
+        --ltr: ;
+        --rtl: initial;
+      }
+    "#}, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-inline-start-color: lab(40% 56.6 39);
+        border-inline-end-color: lch(50.998% 135.363 338);
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-left-color: var(--ltr, #b32323) var(--rtl, #ff00d4);
+        border-right-color: var(--ltr, #ff00d4) var(--rtl, #b32323);
+      }
+
+      @supports (color: color(display-p3 0 0 0)) {
+        .foo {
+          border-left-color: var(--ltr, color(display-p3 .643308 .192455 .167712)) var(--rtl, color(display-p3 .972962 -.362078 .804206));
+          border-right-color: var(--ltr, color(display-p3 .972962 -.362078 .804206)) var(--rtl, color(display-p3 .643308 .192455 .167712));
+        }
+      }
+
+      @supports (color: lab(0% 0 0)) {
+        .foo {
+          border-left-color: var(--ltr, lab(40% 56.6 39)) var(--rtl, lab(50.998% 125.506 -50.7078));
+          border-right-color: var(--ltr, lab(50.998% 125.506 -50.7078)) var(--rtl, lab(40% 56.6 39));
+        }
+      }
+
+      [dir="ltr"] {
+        --ltr: initial;
+        --rtl: ;
+      }
+
+      [dir="rtl"] {
+        --ltr: ;
+        --rtl: initial;
+      }
+    "#}, Browsers {
+      chrome: Some(8 << 16),
+      safari: Some(14 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-inline-start: 2px solid lab(40% 56.6 39);
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-left: var(--ltr, 2px solid #b32323);
+        border-right: var(--rtl, 2px solid #b32323);
+      }
+
+      @supports (color: lab(0% 0 0)) {
+        .foo {
+          border-left: var(--ltr, 2px solid lab(40% 56.6 39));
+          border-right: var(--rtl, 2px solid lab(40% 56.6 39));
+        }
+      }
+
+      [dir="ltr"] {
+        --ltr: initial;
+        --rtl: ;
+      }
+
+      [dir="rtl"] {
+        --ltr: ;
+        --rtl: initial;
+      }
+    "#}, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-inline-end: 2px solid lab(40% 56.6 39);
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-right: var(--ltr, 2px solid #b32323);
+        border-left: var(--rtl, 2px solid #b32323);
+      }
+
+      @supports (color: lab(0% 0 0)) {
+        .foo {
+          border-left: var(--rtl, 2px solid lab(40% 56.6 39));
+          border-right: var(--ltr, 2px solid lab(40% 56.6 39));
+        }
+      }
+
+      [dir="ltr"] {
+        --ltr: initial;
+        --rtl: ;
+      }
+
+      [dir="rtl"] {
+        --ltr: ;
+        --rtl: initial;
+      }
+    "#}, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]
