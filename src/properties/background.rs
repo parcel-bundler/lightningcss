@@ -435,7 +435,7 @@ impl<'i> BackgroundHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties<'i>) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
     macro_rules! background_image {
       ($val: ident) => {
         // Store prefixed properties. Clear if we hit an unprefixed property and we have
@@ -488,7 +488,9 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
       }
       Property::Unparsed(val) if is_background_property(&val.property_id) => {
         self.flush(dest);
-        dest.push(property.clone())
+        let mut unparsed = val.clone();
+        logical.add_unparsed_fallbacks(&mut unparsed);
+        dest.push(Property::Unparsed(unparsed))
       }
       _ => return false
     }

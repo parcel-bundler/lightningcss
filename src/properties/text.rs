@@ -853,11 +853,15 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
       }
       Unparsed(val) if is_text_decoration_property(&val.property_id) => {
         self.finalize(dest, logical);
-        dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::TextDecoration)))
+        let mut unparsed = val.get_prefixed(self.targets, Feature::TextDecoration);
+        logical.add_unparsed_fallbacks(&mut unparsed);
+        dest.push(Property::Unparsed(unparsed))
       }
       Unparsed(val) if is_text_emphasis_property(&val.property_id) => {
         self.finalize(dest, logical);
-        dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::TextEmphasis)))
+        let mut unparsed = val.get_prefixed(self.targets, Feature::TextEmphasis);
+        logical.add_unparsed_fallbacks(&mut unparsed);
+        dest.push(Property::Unparsed(unparsed))
       }
       _ => return false
     }

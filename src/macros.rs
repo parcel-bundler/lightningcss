@@ -219,7 +219,10 @@ macro_rules! shorthand_handler {
           }
           Property::Unparsed(val) if matches!(val.property_id, $( PropertyId::$prop | )+ PropertyId::$shorthand) => {
             self.finalize(dest, logical);
-            dest.push(property.clone());
+
+            let mut unparsed = val.clone();
+            logical.add_unparsed_fallbacks(&mut unparsed);
+            dest.push(Property::Unparsed(unparsed));
           }
           _ => return false
         }

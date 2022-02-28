@@ -293,7 +293,7 @@ impl<'i> BorderImageHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties<'i>) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
     use Property::*;
     macro_rules! property {
       ($name: ident, $val: ident) => {{
@@ -322,13 +322,14 @@ impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
 
         // Even if we weren't able to parse the value (e.g. due to var() references),
         // we can still add vendor prefixes to the property itself.
-        let prop = if matches!(val.property_id, PropertyId::BorderImage(_)) {
-          Property::Unparsed(val.get_prefixed(self.targets, Feature::BorderImage))
+        let mut unparsed = if matches!(val.property_id, PropertyId::BorderImage(_)) {
+          val.get_prefixed(self.targets, Feature::BorderImage)
         } else {
-          property.clone()
+          val.clone()
         };
 
-        dest.push(prop);
+        logical.add_unparsed_fallbacks(&mut unparsed);
+        dest.push(Property::Unparsed(unparsed));
       }
       _ => return false
     }

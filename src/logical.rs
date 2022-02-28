@@ -1,13 +1,14 @@
+use crate::properties::custom::UnparsedProperty;
 use crate::rules::Location;
 use crate::rules::supports::{SupportsRule, SupportsCondition};
 use crate::rules::{CssRule, CssRuleList, style::StyleRule};
 use parcel_selectors::SelectorList;
-use crate::selector::{SelectorIdent, SelectorString, Selectors};
+use crate::selector::{SelectorIdent, SelectorString};
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::vendor_prefix::VendorPrefix;
 use crate::compat::Feature;
 use crate::targets::Browsers;
-use crate::traits::{ToCss, FallbackValues};
+use crate::traits::ToCss;
 use crate::printer::Printer;
 use crate::error::PrinterError;
 use parcel_selectors::{
@@ -103,6 +104,21 @@ impl<'i> LogicalProperties<'i> {
         important_declarations,
         declarations,
       });
+    }
+  }
+
+  pub fn add_unparsed_fallbacks(&mut self, unparsed: &mut UnparsedProperty<'i>) {
+    if let Some(targets) = self.targets {
+      let fallbacks = unparsed.value.get_fallbacks(targets);
+      for (condition, fallback) in fallbacks {
+        self.add_conditional_property(
+          condition,
+          Property::Unparsed(UnparsedProperty {
+            property_id: unparsed.property_id.clone(),
+            value: fallback
+          })
+        );
+      }
     }
   }
 

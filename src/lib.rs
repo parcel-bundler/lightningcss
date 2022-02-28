@@ -866,6 +866,27 @@ mod tests {
       });
     }
 
+    for prop in &["border", "border-inline", "border-block", "border-left", "border-right", "border-top", "border-bottom", "border-block-start", "border-block-end", "border-inline-start", "border-inline-end"] {
+      prefix_test(&format!(r#"
+        .foo {{
+          {}: var(--border-width) solid lab(40% 56.6 39);
+        }}
+      "#, prop), &format!(indoc! {r#"
+        .foo {{
+          {}: var(--border-width) solid #b32323;
+        }}
+
+        @supports (color: lab(0% 0 0)) {{
+          .foo {{
+            {}: var(--border-width) solid lab(40% 56.6 39);
+          }}
+        }}
+      "#}, prop, prop), Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      });
+    }
+
     prefix_test(r#"
       .foo {
         border-inline-start-color: lab(40% 56.6 39);
@@ -1045,6 +1066,37 @@ mod tests {
         .foo {
           border-left: var(--rtl, 2px solid lab(40% 56.6 39));
           border-right: var(--ltr, 2px solid lab(40% 56.6 39));
+        }
+      }
+
+      [dir="ltr"] {
+        --ltr: initial;
+        --rtl: ;
+      }
+
+      [dir="rtl"] {
+        --ltr: ;
+        --rtl: initial;
+      }
+    "#}, Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-inline-end: var(--border-width) solid lab(40% 56.6 39);
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-right: var(--ltr, var(--border-width) solid #b32323);
+        border-left: var(--rtl, var(--border-width) solid #b32323);
+      }
+
+      @supports (color: lab(0% 0 0)) {
+        .foo {
+          border-left: var(--rtl, var(--border-width) solid lab(40% 56.6 39));
+          border-right: var(--ltr, var(--border-width) solid lab(40% 56.6 39));
         }
       }
 
@@ -1291,6 +1343,26 @@ mod tests {
     "#
     }, Browsers {
       chrome: Some(15 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) var(--foo);
+      }
+    "#, indoc! {r#"
+      .foo {
+        border-image: linear-gradient(red, #7746ff) var(--foo);
+      }
+
+      @supports (color: lab(0% 0 0)) {
+        .foo {
+          border-image: linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586)) var(--foo);
+        }
+      }
+    "#
+    }, Browsers {
+      chrome: Some(90 << 16),
       ..Browsers::default()
     });
   }
@@ -1770,6 +1842,25 @@ mod tests {
         .foo {
           outline: 2px solid #b32323;
           outline: 2px solid lab(40% 56.6 39);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { outline: var(--width) solid lab(40% 56.6 39) }",
+      indoc! { r#"
+        .foo {
+          outline: var(--width) solid #b32323;
+        }
+
+        @supports (color: lab(0% 0 0)) {
+          .foo {
+            outline: var(--width) solid lab(40% 56.6 39);
+          }
         }
       "#},
       Browsers {
@@ -4026,6 +4117,25 @@ mod tests {
       "#},
       Browsers {
         chrome: Some(95 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { box-shadow: var(--foo) 12px lab(40% 56.6 39) }",
+      indoc! { r#"
+        .foo {
+          box-shadow: var(--foo) 12px #b32323;
+        }
+
+        @supports (color: lab(0% 0 0)) {
+          .foo {
+            box-shadow: var(--foo) 12px lab(40% 56.6 39);
+          }
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
         ..Browsers::default()
       }
     );
@@ -7371,6 +7481,26 @@ mod tests {
       firefox: Some(30 << 16),
       ..Browsers::default()
     });
+
+    prefix_test(r#"
+      .foo {
+        text-decoration: lch(50.998% 135.363 338) var(--style);
+      }
+    "#, indoc! {r#"
+      .foo {
+        text-decoration: #ff00d4 var(--style);
+      }
+
+      @supports (color: lab(0% 0 0)) {
+        .foo {
+          text-decoration: lab(50.998% 125.506 -50.7078) var(--style);
+        }
+      }
+    "#},
+    Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]
@@ -7549,6 +7679,26 @@ mod tests {
       firefox: Some(48 << 16),
       ..Browsers::default()
     });
+
+    prefix_test(r#"
+      .foo {
+        text-emphasis: lch(50.998% 135.363 338) var(--style);
+      }
+    "#, indoc! {r#"
+      .foo {
+        text-emphasis: #ff00d4 var(--style);
+      }
+
+      @supports (color: lab(0% 0 0)) {
+        .foo {
+          text-emphasis: lab(50.998% 125.506 -50.7078) var(--style);
+        }
+      }
+    "#},
+    Browsers {
+      safari: Some(8 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]
@@ -7595,6 +7745,25 @@ mod tests {
         .foo {
           text-shadow: 12px 12px #b32323, 12px 12px #ff0;
           text-shadow: 12px 12px lab(40% 56.6 39), 12px 12px #ff0;
+        }
+      "#},
+      Browsers {
+        chrome: Some(4 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { text-shadow: var(--foo) 12px lab(40% 56.6 39) }",
+      indoc! { r#"
+        .foo {
+          text-shadow: var(--foo) 12px #b32323;
+        }
+
+        @supports (color: lab(0% 0 0)) {
+          .foo {
+            text-shadow: var(--foo) 12px lab(40% 56.6 39);
+          }
         }
       "#},
       Browsers {
@@ -8144,6 +8313,25 @@ mod tests {
         ..Browsers::default()
       }
     );
+
+    prefix_test(
+      ".foo { caret: lch(50.998% 135.363 338) var(--foo) }",
+      indoc! { r#"
+        .foo {
+          caret: #ff00d4 var(--foo);
+        }
+
+        @supports (color: lab(0% 0 0)) {
+          .foo {
+            caret: lab(50.998% 125.506 -50.7078) var(--foo);
+          }
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 
   #[test]
@@ -8205,6 +8393,39 @@ mod tests {
       "#},
       Browsers {
         chrome: Some(8 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { list-style: \"★\" linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
+      indoc! { r#"
+        .foo {
+          list-style: "★" linear-gradient(red, #7746ff);
+          list-style: "★" linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { list-style: var(--foo) linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
+      indoc! { r#"
+        .foo {
+          list-style: var(--foo) linear-gradient(red, #7746ff);
+        }
+
+        @supports (color: lab(0% 0 0)) {
+          .foo {
+            list-style: var(--foo) linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586));
+          }
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
         ..Browsers::default()
       }
     );
@@ -8639,6 +8860,25 @@ mod tests {
       Browsers {
         chrome: Some(90 << 16),
         safari: Some(14 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { background: var(--image) lch(40% 68.735435 34.568626) }",
+      indoc! { r#"
+        .foo {
+          background: var(--image) #b32323;
+        }
+
+        @supports (color: lab(0% 0 0)) {
+          .foo {
+            background: var(--image) lab(40% 56.6 39);
+          }
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
         ..Browsers::default()
       }
     );
@@ -11064,6 +11304,25 @@ mod tests {
     );
 
     prefix_test(
+      ".foo { fill: var(--url) lch(50.998% 135.363 338) }",
+      indoc! { r#"
+        .foo {
+          fill: var(--url) #ff00d4;
+        }
+
+        @supports (color: lab(0% 0 0)) {
+          .foo {
+            fill: var(--url) lab(50.998% 125.506 -50.7078);
+          }
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
       ".foo { mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
@@ -11105,6 +11364,25 @@ mod tests {
       "#},
       Browsers {
         chrome: Some(8 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px var(--foo) }",
+      indoc! { r#"
+        .foo {
+          mask: linear-gradient(red, #7746ff) 40px var(--foo);
+        }
+
+        @supports (color: lab(0% 0 0)) {
+          .foo {
+            mask: linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586)) 40px var(--foo);
+          }
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
         ..Browsers::default()
       }
     );
@@ -11154,6 +11432,25 @@ mod tests {
         .foo {
           filter: drop-shadow(16px 16px 20px #b32323) drop-shadow(16px 16px 20px #ff0);
           filter: drop-shadow(16px 16px 20px lab(40% 56.6 39)) drop-shadow(16px 16px 20px #ff0);
+        }
+      "#},
+      Browsers {
+        chrome: Some(4 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { filter: var(--foo) drop-shadow(16px 16px 20px lab(40% 56.6 39)) }",
+      indoc! { r#"
+        .foo {
+          filter: var(--foo) drop-shadow(16px 16px 20px #b32323);
+        }
+
+        @supports (color: lab(0% 0 0)) {
+          .foo {
+            filter: var(--foo) drop-shadow(16px 16px 20px lab(40% 56.6 39));
+          }
         }
       "#},
       Browsers {

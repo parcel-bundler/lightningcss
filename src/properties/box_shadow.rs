@@ -12,6 +12,8 @@ use crate::error::{ParserError, PrinterError};
 use crate::properties::Property;
 use crate::vendor_prefix::VendorPrefix;
 
+use super::PropertyId;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct BoxShadow {
   pub color: CssColor,
@@ -119,26 +121,38 @@ impl BoxShadowHandler {
 
 impl<'i> PropertyHandler<'i> for BoxShadowHandler {
   fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
-    if let Property::BoxShadow(box_shadows, prefix) = property {
-      if let Some((val, prefixes)) = &mut self.box_shadows {
-        if val != box_shadows && !prefixes.contains(*prefix) {
-          self.finalize(dest, logical);
-          self.box_shadows = Some((box_shadows.clone(), *prefix));
+    match property {
+      Property::BoxShadow(box_shadows, prefix) => {
+        if let Some((val, prefixes)) = &mut self.box_shadows {
+          if val != box_shadows && !prefixes.contains(*prefix) {
+            self.finalize(dest, logical);
+            self.box_shadows = Some((box_shadows.clone(), *prefix));
+          } else {
+            *val = box_shadows.clone();
+            *prefixes |= *prefix;
+          }
         } else {
-          *val = box_shadows.clone();
-          *prefixes |= *prefix;
+          self.box_shadows = Some((box_shadows.clone(), *prefix));
         }
-      } else {
-        self.box_shadows = Some((box_shadows.clone(), *prefix));
       }
+      Property::Unparsed(unparsed) if matches!(unparsed.property_id, PropertyId::BoxShadow(_)) => {
+        self.finalize(dest, logical);
 
-      true
-    } else {
-      false
+        let mut unparsed = unparsed.clone();
+        logical.add_unparsed_fallbacks(&mut unparsed);
+        dest.push(Property::Unparsed(unparsed))
+      }
+      _ => return false
     }
+
+    true
   }
 
   fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties<'i>) {
+    if self.box_shadows.is_none() {
+      return
+    }
+    
     let box_shadows = std::mem::take(&mut self.box_shadows);
 
     if let Some((box_shadows, prefixes)) = box_shadows {

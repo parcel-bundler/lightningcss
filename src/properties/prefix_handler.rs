@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
-use super::Property;
+use super::{Property, PropertyId};
 use crate::vendor_prefix::VendorPrefix;
 use crate::traits::{PropertyHandler, FallbackValues};
 use crate::declaration::DeclarationList;
@@ -148,6 +148,11 @@ macro_rules! define_fallbacks {
             }
 
             dest.push(Property::Custom(custom))
+          }
+          Property::Unparsed(val) if matches!(val.property_id, $( PropertyId::$name | )+ PropertyId::All) => {
+            let mut unparsed = val.clone();
+            logical.add_unparsed_fallbacks(&mut unparsed);
+            dest.push(Property::Unparsed(unparsed));
           }
           _ => return false
         }
