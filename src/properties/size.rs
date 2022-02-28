@@ -135,7 +135,7 @@ enum_property! {
 pub(crate) struct SizeHandler;
 
 impl<'i> PropertyHandler<'i> for SizeHandler {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
     let logical_supported = logical.is_supported(Feature::LogicalSize);
     
     macro_rules! logical {
@@ -198,5 +198,5 @@ impl<'i> PropertyHandler<'i> for SizeHandler {
     true
   }
 
-  fn finalize(&mut self, _: &mut DeclarationList, _: &mut LogicalProperties) {}
+  fn finalize(&mut self, _: &mut DeclarationList, _: &mut LogicalProperties<'i>) {}
 }

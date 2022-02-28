@@ -1,5 +1,6 @@
 use cssparser::*;
 use bitflags::bitflags;
+use crate::rules::supports::SupportsCondition;
 use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss, FallbackValues};
 use crate::printer::Printer;
@@ -37,6 +38,23 @@ bitflags! {
     const RGB    = 0b01;
     const P3     = 0b10;
     const LAB    = 0b100;
+  }
+}
+
+impl ColorFallbackKind {
+  pub fn lowest(&self) -> ColorFallbackKind {
+    // This finds the lowest set bit.
+    *self & ColorFallbackKind::from_bits_truncate(self.bits().wrapping_neg())
+  }
+
+  pub fn supports_condition<'i>(&self) -> SupportsCondition<'i> {
+    let s = match *self {
+      ColorFallbackKind::P3 => "color: color(display-p3 0 0 0)",
+      ColorFallbackKind::LAB => "color: lab(0% 0 0)",
+      _ => unreachable!()
+    };
+
+    SupportsCondition::Declaration(s.into())
   }
 }
 
@@ -185,6 +203,10 @@ impl CssColor {
   }
 
   pub(crate) fn get_fallback(&self, kind: ColorFallbackKind) -> CssColor {
+    if matches!(self, CssColor::RGBA(_)) {
+      return self.clone();
+    }
+    
     match kind {
       ColorFallbackKind::RGB => self.to_rgb(),
       ColorFallbackKind::P3 => self.to_p3(),

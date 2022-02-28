@@ -1,5 +1,10 @@
 use cssparser::*;
-use super::Location;
+use super::{Location, CssRuleList, CssRule};
+use super::supports::SupportsRule;
+use crate::properties::Property;
+use crate::properties::custom::CustomProperty;
+use crate::targets::Browsers;
+use crate::values::color::ColorFallbackKind;
 use crate::values::percentage::Percentage;
 use crate::traits::{Parse, ToCss};
 use crate::declaration::DeclarationBlock;
@@ -23,6 +28,84 @@ impl<'i> KeyframesRule<'i> {
     for keyframe in &mut self.keyframes {
       keyframe.declarations.minify(context.handler, context.important_handler, context.logical_properties)
     }
+  }
+
+  pub(crate) fn get_fallbacks(&mut self, targets: Browsers) -> Vec<CssRule<'i>> {
+    let mut fallbacks = ColorFallbackKind::empty();
+    for keyframe in &self.keyframes {
+      for property in &keyframe.declarations.declarations {
+        match property {
+          Property::Custom(custom) => {
+            fallbacks |= custom.value.get_necessary_fallbacks(targets);
+          }
+          _ => {}
+        }
+      }
+    }
+
+    let mut res = Vec::new();
+    let lowest_fallback = fallbacks.lowest();
+    fallbacks.remove(lowest_fallback);
+
+    if fallbacks.contains(ColorFallbackKind::P3) {
+      res.push(self.get_fallback(ColorFallbackKind::P3));
+    }
+
+    if fallbacks.contains(ColorFallbackKind::LAB) || (!lowest_fallback.is_empty() && lowest_fallback != ColorFallbackKind::LAB) {
+      res.push(self.get_fallback(ColorFallbackKind::LAB));
+    }
+
+    if !lowest_fallback.is_empty() {  
+      for keyframe in &mut self.keyframes {
+        for property in &mut keyframe.declarations.declarations {
+          match property {
+            Property::Custom(custom) => {
+              custom.value = custom.value.get_fallback(lowest_fallback);
+            }
+            _ => {}
+          }
+        }
+      }
+    }
+
+    res
+  }
+
+  fn get_fallback(&self, kind: ColorFallbackKind) -> CssRule<'i> {
+    let keyframes = self.keyframes
+      .iter()
+      .map(|keyframe| Keyframe {
+        selectors: keyframe.selectors.clone(),
+        declarations: DeclarationBlock {
+          important_declarations: vec![],
+          declarations: keyframe.declarations.declarations
+            .iter()
+            .map(|property| {
+              match property {
+                Property::Custom(custom) => {
+                  Property::Custom(CustomProperty {
+                    name: custom.name.clone(),
+                    value: custom.value.get_fallback(kind)
+                  })
+                },
+                _ => property.clone()
+              }
+            })
+            .collect()
+        }
+      })
+      .collect();
+
+    CssRule::Supports(SupportsRule {
+      condition: kind.supports_condition(),
+      rules: CssRuleList(vec![CssRule::Keyframes(KeyframesRule {
+        name: self.name.clone(),
+        keyframes,
+        vendor_prefix: self.vendor_prefix,
+        loc: self.loc.clone()
+      })]),
+      loc: self.loc.clone()
+    })
   }
 }
 

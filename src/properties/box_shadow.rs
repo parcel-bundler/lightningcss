@@ -118,7 +118,7 @@ impl BoxShadowHandler {
 }
 
 impl<'i> PropertyHandler<'i> for BoxShadowHandler {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
     if let Property::BoxShadow(box_shadows, prefix) = property {
       if let Some((val, prefixes)) = &mut self.box_shadows {
         if val != box_shadows && !prefixes.contains(*prefix) {
@@ -138,7 +138,7 @@ impl<'i> PropertyHandler<'i> for BoxShadowHandler {
     }
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties<'i>) {
     let box_shadows = std::mem::take(&mut self.box_shadows);
 
     if let Some((box_shadows, prefixes)) = box_shadows {

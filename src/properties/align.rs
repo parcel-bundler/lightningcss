@@ -754,7 +754,7 @@ impl AlignHandler {
 }
 
 impl<'i> PropertyHandler<'i> for AlignHandler {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties<'i>) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -860,7 +860,7 @@ impl<'i> PropertyHandler<'i> for AlignHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties<'i>) {
     self.flush(dest);
   }
 }

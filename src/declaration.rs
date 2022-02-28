@@ -92,11 +92,12 @@ impl<'i> DeclarationBlock<'i> {
     &mut self,
     handler: &mut DeclarationHandler<'i>,
     important_handler: &mut DeclarationHandler<'i>,
-    logical_properties: &mut LogicalProperties
+    logical_properties: &mut LogicalProperties<'i>
   ) {
     macro_rules! handle {
-      ($decls: expr, $handler: expr) => {
+      ($decls: expr, $handler: expr, $important: literal) => {
         for decl in $decls.iter() {
+          logical_properties.is_important = $important;
           let handled = $handler.handle_property(decl, logical_properties);
     
           if !handled {
@@ -106,8 +107,8 @@ impl<'i> DeclarationBlock<'i> {
       };
     }
 
-    handle!(self.important_declarations, important_handler);
-    handle!(self.declarations, handler);
+    handle!(self.important_declarations, important_handler, true);
+    handle!(self.declarations, handler, false);
 
     handler.finalize(logical_properties);
     important_handler.finalize(logical_properties);
@@ -224,7 +225,7 @@ impl<'i> DeclarationHandler<'i> {
     }
   }
 
-  pub fn handle_property(&mut self, property: &Property<'i>, logical_properties: &mut LogicalProperties) -> bool {
+  pub fn handle_property(&mut self, property: &Property<'i>, logical_properties: &mut LogicalProperties<'i>) -> bool {
     self.background.handle_property(property, &mut self.decls, logical_properties) ||
     self.border.handle_property(property, &mut self.decls, logical_properties) ||
     self.outline.handle_property(property, &mut self.decls, logical_properties) ||
@@ -251,7 +252,7 @@ impl<'i> DeclarationHandler<'i> {
     self.prefix.handle_property(property, &mut self.decls, logical_properties)
   }
 
-  pub fn finalize(&mut self, logical_properties: &mut LogicalProperties) {
+  pub fn finalize(&mut self, logical_properties: &mut LogicalProperties<'i>) {
     self.background.finalize(&mut self.decls, logical_properties);
     self.border.finalize(&mut self.decls, logical_properties);
     self.outline.finalize(&mut self.decls, logical_properties);

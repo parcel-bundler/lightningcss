@@ -71,7 +71,7 @@ impl OverflowHandler {
 
 
 impl<'i> PropertyHandler<'i> for OverflowHandler {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
     use Property::*;
 
     match property {
@@ -91,7 +91,7 @@ impl<'i> PropertyHandler<'i> for OverflowHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties<'i>) {
     if self.x.is_none() && self.y.is_none() {
       return
     }

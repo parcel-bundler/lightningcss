@@ -641,7 +641,7 @@ pub(crate) struct FontHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for FontHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
     use Property::*;
 
     macro_rules! property {
@@ -680,7 +680,7 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, decls: &mut DeclarationList<'i>, _: &mut LogicalProperties) {
+  fn finalize(&mut self, decls: &mut DeclarationList<'i>, _: &mut LogicalProperties<'i>) {
     if !self.has_any {
       return
     }

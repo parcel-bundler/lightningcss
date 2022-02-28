@@ -1408,7 +1408,7 @@ impl TransformHandler {
 }
 
 impl<'i> PropertyHandler<'i> for TransformHandler {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties<'i>) -> bool {
     use Property::*;
 
     macro_rules! individual_property {
@@ -1463,7 +1463,7 @@ impl<'i> PropertyHandler<'i> for TransformHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties<'i>) {
     self.flush(dest);
   }
 }

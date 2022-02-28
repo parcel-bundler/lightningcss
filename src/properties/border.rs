@@ -317,7 +317,7 @@ impl<'i> BorderHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
     use Property::*;
 
     macro_rules! property {
@@ -467,7 +467,7 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) {
     self.border_image_handler.finalize(dest, logical);
     self.border_radius_handler.finalize(dest, logical);
     self.flush(dest, logical);
@@ -475,7 +475,7 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
 }
 
 impl<'i> BorderHandler<'i> {
-  fn flush(&mut self, dest: &mut DeclarationList, logical_properties: &mut LogicalProperties) {
+  fn flush(&mut self, dest: &mut DeclarationList, logical_properties: &mut LogicalProperties<'i>) {
     if !self.has_any {
       return
     }
@@ -997,7 +997,7 @@ impl<'i> BorderHandler<'i> {
     self.border_inline_end.reset();
   }
 
-  fn flush_unparsed(&mut self, unparsed: &UnparsedProperty<'i>, dest: &mut DeclarationList<'i>, logical_properties: &mut LogicalProperties) {
+  fn flush_unparsed(&mut self, unparsed: &UnparsedProperty<'i>, dest: &mut DeclarationList<'i>, logical_properties: &mut LogicalProperties<'i>) {
     let logical_supported = logical_properties.is_supported(Feature::LogicalBorders);
     if logical_supported {
       dest.push(Property::Unparsed(unparsed.clone()));

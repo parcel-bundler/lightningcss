@@ -1,7 +1,8 @@
 use crate::rules::Location;
+use crate::rules::supports::{SupportsRule, SupportsCondition};
 use crate::rules::{CssRule, CssRuleList, style::StyleRule};
 use parcel_selectors::SelectorList;
-use crate::selector::{SelectorIdent, SelectorString};
+use crate::selector::{SelectorIdent, SelectorString, Selectors};
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::vendor_prefix::VendorPrefix;
 use crate::compat::Feature;
@@ -20,16 +21,29 @@ use crate::properties::{
 };
 
 #[derive(Debug)]
-pub(crate) struct LogicalProperties {
-  targets: Option<Browsers>,
-  pub used: bool
+pub(crate) struct SupportsEntry<'i> {
+  pub condition: SupportsCondition<'i>,
+  pub declarations: Vec<Property<'i>>,
+  pub important_declarations: Vec<Property<'i>>
 }
 
-impl LogicalProperties {
-  pub fn new(targets: Option<Browsers>) -> LogicalProperties {
+#[derive(Debug)]
+pub(crate) struct LogicalProperties<'i> {
+  targets: Option<Browsers>,
+  pub used: bool,
+  pub is_important: bool,
+  supports: Vec<SupportsEntry<'i>>,
+  pub in_style_rule: bool
+}
+
+impl<'i> LogicalProperties<'i> {
+  pub fn new(targets: Option<Browsers>) -> Self {
     LogicalProperties {
       used: false,
       targets,
+      is_important: false,
+      supports: Vec::new(),
+      in_style_rule: false
     }
   }
 
@@ -41,7 +55,7 @@ impl LogicalProperties {
     }
   }
 
-  pub fn add<'i>(&mut self, dest: &mut DeclarationList<'i>, property_id: PropertyId<'i>, ltr: Property<'i>, rtl: Property<'i>) {
+  pub fn add(&mut self, dest: &mut DeclarationList<'i>, property_id: PropertyId<'i>, ltr: Property<'i>, rtl: Property<'i>) {
     self.used = true;
     dest.push(Property::Logical(LogicalProperty {
       property_id,
@@ -50,7 +64,7 @@ impl LogicalProperties {
     }));
   }
 
-  pub fn add_inline<'i>(&mut self, dest: &mut DeclarationList<'i>, left: PropertyId<'i>, right: PropertyId<'i>, start: Option<Property<'i>>, end: Option<Property<'i>>) {
+  pub fn add_inline(&mut self, dest: &mut DeclarationList<'i>, left: PropertyId<'i>, right: PropertyId<'i>, start: Option<Property<'i>>, end: Option<Property<'i>>) {
     self.used = true;
     dest.push(Property::Logical(LogicalProperty {
       property_id: left,
@@ -63,6 +77,62 @@ impl LogicalProperties {
       ltr: end.map(|v| Box::new(v)),
       rtl: start.map(|v| Box::new(v)),
     }));
+  }
+
+  pub fn add_conditional_property(&mut self, condition: SupportsCondition<'i>, property: Property<'i>) {
+    if !self.in_style_rule {
+      return
+    }
+
+    if let Some(entry) = self.supports.iter_mut().find(|supports| condition == supports.condition) {
+      if self.is_important {
+        entry.important_declarations.push(property);
+      } else {
+        entry.declarations.push(property);
+      }
+    } else {
+      let mut important_declarations = Vec::new();
+      let mut declarations = Vec::new();
+      if self.is_important {
+        important_declarations.push(property);
+      } else {
+        declarations.push(property);
+      }
+      self.supports.push(SupportsEntry {
+        condition,
+        important_declarations,
+        declarations,
+      });
+    }
+  }
+
+  pub fn get_supports_rules(&mut self, style_rule: &StyleRule<'i>) -> Vec<CssRule<'i>> {
+    if self.supports.is_empty() {
+      return Vec::new()
+    }
+
+    let mut dest = Vec::new();
+    let supports = std::mem::take(&mut self.supports);
+    for entry in supports {
+      dest.push(CssRule::Supports(SupportsRule {
+        condition: entry.condition,
+        rules: CssRuleList(vec![
+          CssRule::Style(StyleRule {
+            selectors: style_rule.selectors.clone(),
+            vendor_prefix: VendorPrefix::None,
+            declarations: DeclarationBlock {
+              declarations: entry.declarations,
+              important_declarations: entry.important_declarations
+            },
+            rules: CssRuleList(vec![]),
+            loc: style_rule.loc.clone()
+          })
+        ]),
+        loc: style_rule.loc.clone()
+      }));
+    }
+
+    dest
   }
 
   pub fn to_rules(&mut self, dest: &mut CssRuleList) {

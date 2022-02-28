@@ -317,7 +317,7 @@ impl<'i> DisplayHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for DisplayHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
     if let Property::Display(display) = property {
       match (&self.display, display) {
         (Some(Display::Pair(cur)), Display::Pair(new)) => {
@@ -353,7 +353,7 @@ impl<'i> PropertyHandler<'i> for DisplayHandler<'i> {
     false
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties<'i>) {
     if self.display.is_none() {
       return
     }

@@ -112,7 +112,7 @@ impl<'i> TransitionHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -189,13 +189,13 @@ impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) {
     self.flush(dest, logical);
   }
 }
 
 impl<'i> TransitionHandler<'i> {
-  fn flush(&mut self, dest: &mut DeclarationList<'i>, logical_properties: &mut LogicalProperties) {
+  fn flush(&mut self, dest: &mut DeclarationList<'i>, logical_properties: &mut LogicalProperties<'i>) {
     if !self.has_any {
       return
     }

@@ -120,7 +120,7 @@ pub(crate) struct MinifyContext<'a, 'i> {
   pub targets: &'a Option<Browsers>,
   pub handler: &'a mut DeclarationHandler<'i>,
   pub important_handler: &'a mut DeclarationHandler<'i>,
-  pub logical_properties: &'a mut LogicalProperties,
+  pub logical_properties: &'a mut LogicalProperties<'i>,
   pub unused_symbols: &'a HashSet<String>,
   pub custom_media: Option<HashMap<CowArcStr<'i>, CustomMediaRule<'i>>>
 }
@@ -161,6 +161,13 @@ impl<'i> CssRuleList<'i> {
   
           set_prefix!(keyframes);
           keyframe_rules.insert(keyframes.name.clone(), rules.len());
+
+          if let Some(targets) = context.targets {
+            let fallbacks = keyframes.get_fallbacks(*targets);
+            rules.push(rule);
+            rules.extend(fallbacks);
+            continue;
+          }
         },
         CssRule::CustomMedia(_) => {
           if context.custom_media.is_some() {
@@ -197,6 +204,7 @@ impl<'i> CssRuleList<'i> {
               last_style_rule.declarations.declarations.extend(style.declarations.declarations.drain(..));
               last_style_rule.declarations.important_declarations.extend(style.declarations.important_declarations.drain(..));
               last_style_rule.declarations.minify(context.handler, context.important_handler, context.logical_properties);
+              rules.extend(context.logical_properties.get_supports_rules(&style));
               continue
             } else if style.declarations == last_style_rule.declarations && style.rules.0.is_empty() && last_style_rule.rules.0.is_empty() {
               // Append the selectors to the last rule if the declarations are the same, and all selectors are compatible.
@@ -222,6 +230,11 @@ impl<'i> CssRuleList<'i> {
               }
             }
           }
+
+          let supports = context.logical_properties.get_supports_rules(&style);
+          rules.push(rule);
+          rules.extend(supports);
+          continue;
         },
         CssRule::CounterStyle(counter_style) => {
           if context.unused_symbols.contains(counter_style.name.0.as_ref()) {

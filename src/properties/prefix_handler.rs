@@ -6,6 +6,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::traits::{PropertyHandler, FallbackValues};
 use crate::declaration::DeclarationList;
 use crate::logical::LogicalProperties;
+use crate::properties::custom::CustomProperty;
 
 macro_rules! define_prefixes {
   (
@@ -114,7 +115,7 @@ macro_rules! define_fallbacks {
     }
 
     impl<'i> PropertyHandler<'i> for FallbackHandler {
-      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
+      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
         match property {
           $(
             Property::$name(val) => {
@@ -129,6 +130,25 @@ macro_rules! define_fallbacks {
               dest.push(Property::$name(val))
             }
           )+
+          Property::Custom(custom) => {
+            let mut custom = custom.clone();
+            if logical.in_style_rule {
+              if let Some(targets) = self.targets {
+                let fallbacks = custom.value.get_fallbacks(targets);
+                for (condition, fallback) in fallbacks {
+                  logical.add_conditional_property(
+                    condition,
+                    Property::Custom(CustomProperty {
+                      name: custom.name.clone(),
+                      value: fallback
+                    })
+                  );
+                }
+              }
+            }
+
+            dest.push(Property::Custom(custom))
+          }
           _ => return false
         }
 

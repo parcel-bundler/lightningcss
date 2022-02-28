@@ -42,8 +42,8 @@ where
 }
 
 pub(crate) trait PropertyHandler<'i>: Sized {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical_properties: &mut LogicalProperties) -> bool;
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, logical_properties: &mut LogicalProperties);
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical_properties: &mut LogicalProperties<'i>) -> bool;
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, logical_properties: &mut LogicalProperties<'i>);
 }
 
 pub trait TryAdd<T> {

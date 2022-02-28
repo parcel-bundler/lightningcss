@@ -1,13 +1,10 @@
 use cssparser::*;
 use smallvec::SmallVec;
-use crate::declaration::DeclarationList;
-use crate::logical::LogicalProperties;
 use crate::targets::Browsers;
-use crate::traits::{Parse, ToCss, PropertyHandler, FallbackValues};
+use crate::traits::{Parse, ToCss, FallbackValues};
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
 use crate::values::color::ColorFallbackKind;
-use super::Property;
 use crate::values::{
   url::Url,
   length::Length,

@@ -26,7 +26,7 @@ macro_rules! side_handler {
     }
 
     impl<'i> PropertyHandler<'i> for $name {
-      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
+      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
         use Property::*;
 
         macro_rules! property {
@@ -85,13 +85,13 @@ macro_rules! side_handler {
         true
       }
 
-      fn finalize(&mut self, dest: &mut DeclarationList, logical: &mut LogicalProperties) {
+      fn finalize(&mut self, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) {
         self.flush(dest, logical);
       }
     }
 
-    impl $name {
-      fn flush(&mut self, dest: &mut DeclarationList, logical_properties: &mut LogicalProperties) {
+    impl<'i> $name {
+      fn flush(&mut self, dest: &mut DeclarationList<'i>, logical_properties: &mut LogicalProperties<'i>) {
         use Property::*;
 
         if !self.has_any {

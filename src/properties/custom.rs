@@ -1,9 +1,10 @@
+use crate::rules::supports::SupportsCondition;
 use crate::values::string::CowArcStr;
 use cssparser::*;
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use crate::properties::PropertyId;
-use crate::values::color::CssColor;
+use crate::values::color::{CssColor, ColorFallbackKind};
 use crate::values::length::serialize_dimension;
 use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
@@ -195,7 +196,7 @@ impl<'i> TokenList<'i> {
 #[inline]
 fn try_parse_color_token<'i, 't>(f: &CowArcStr<'i>, state: &ParserState, input: &mut Parser<'i, 't>) -> Option<CssColor> {
   match_ignore_ascii_case! { &*f,
-    "rgb" | "rgba" | "hsl" | "hsla" | "hwb" => {
+    "rgb" | "rgba" | "hsl" | "hsla" | "hwb" | "lab" | "lch" | "oklab" | "oklch" | "color" => {
       let s = input.state();
       input.reset(&state);
       if let Ok(color) = CssColor::parse(input) {
@@ -500,5 +501,56 @@ impl<'a> ToCss for Token<'a> {
     }
 
     Ok(())
+  }
+}
+
+impl<'i> TokenList<'i> {
+  pub(crate) fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+    let mut fallbacks = ColorFallbackKind::empty();
+    for token in &self.0 {
+      if let TokenOrValue::Color(color) = token {
+        fallbacks |= color.get_necessary_fallbacks(targets);
+      }
+    }
+
+    fallbacks
+  }
+
+  pub(crate) fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
+    let tokens = self.0
+      .iter()
+      .map(|token| {
+        match token {
+          TokenOrValue::Color(color) => TokenOrValue::Color(color.get_fallback(kind)),
+          _ => token.clone()
+        }
+      })
+      .collect();
+    TokenList(tokens)
+  }
+
+  pub(crate) fn get_fallbacks(&mut self, targets: Browsers) -> Vec<(SupportsCondition<'i>, Self)> {
+    let mut fallbacks = self.get_necessary_fallbacks(targets);
+    let lowest_fallback = fallbacks.lowest();
+    fallbacks.remove(lowest_fallback);
+
+    let mut res = Vec::new();
+    if fallbacks.contains(ColorFallbackKind::P3) {
+      res.push((ColorFallbackKind::P3.supports_condition(), self.get_fallback(ColorFallbackKind::P3)));
+    }
+
+    if fallbacks.contains(ColorFallbackKind::LAB) || (!lowest_fallback.is_empty() && lowest_fallback != ColorFallbackKind::LAB) {
+      res.push((ColorFallbackKind::LAB.supports_condition(), self.get_fallback(ColorFallbackKind::LAB)));
+    }
+
+    if !lowest_fallback.is_empty() {  
+      for token in self.0.iter_mut() {
+        if let TokenOrValue::Color(color) = token {
+          *color = color.get_fallback(lowest_fallback);
+        }
+      }
+    }
+
+    res
   }
 }

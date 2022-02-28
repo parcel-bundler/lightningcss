@@ -1,5 +1,4 @@
 use cssparser::*;
-use crate::values::color::ColorFallbackKind;
 use crate::values::image::ImageFallback;
 use crate::values::{
   length::LengthPercentageOrAuto,
@@ -8,7 +7,7 @@ use crate::values::{
   image::Image
 };
 use crate::targets::Browsers;
-use crate::prefixes::{Feature, is_webkit_gradient};
+use crate::prefixes::Feature;
 use crate::traits::{Parse, ToCss, PropertyHandler, FallbackValues};
 use crate::macros::*;
 use crate::properties::{Property, PropertyId, VendorPrefix};
@@ -436,7 +435,7 @@ impl<'i> BackgroundHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties<'i>) -> bool {
     macro_rules! background_image {
       ($val: ident) => {
         // Store prefixed properties. Clear if we hit an unprefixed property and we have
@@ -498,7 +497,7 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties<'i>) {
     // If the last declaration is prefixed, pop the last value
     // so it isn't duplicated when we flush.
     if self.has_prefix {
@@ -532,19 +531,14 @@ impl<'i> BackgroundHandler<'i> {
       // Only use shorthand syntax if the number of layers matches on all properties.
       let len = images.len();
       if x_positions.len() == len && y_positions.len() == len && repeats.len() == len && sizes.len() == len && attachments.len() == len && origins.len() == len && clips.len() == len {
-        let (prefixes, clip_prefixes) = if let Some(targets) = self.targets {
-          let mut prefixes = VendorPrefix::empty();
-          for image in images.iter() {
-            prefixes |= image.get_necessary_prefixes(targets);
-          }
-          let clip_prefixes = if clips.iter().any(|clip| *clip == BackgroundClip::Text) {
+        let clip_prefixes = if let Some(targets) = self.targets {
+          if clips.iter().any(|clip| *clip == BackgroundClip::Text) {
             Feature::BackgroundClip.prefixes_for(targets)
           } else {
             VendorPrefix::None
-          };
-          (prefixes, clip_prefixes)
+          }
         } else {
-          (VendorPrefix::None, VendorPrefix::None)
+          VendorPrefix::None
         };
 
         let clip_property = if clip_prefixes != VendorPrefix::None {
