@@ -2,7 +2,7 @@
 
 use crate::targets::Browsers;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum Feature {
   Clamp,
   ColorFunction,

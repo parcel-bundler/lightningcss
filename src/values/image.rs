@@ -80,7 +80,7 @@ impl<'i> Image<'i> {
   }
 }
 
-pub trait ImageFallback<'i> {
+pub(crate) trait ImageFallback<'i> {
   fn get_image(&self) -> &Image<'i>;
   fn with_image(&self, image: Image<'i>) -> Self;
 }

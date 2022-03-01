@@ -131,21 +131,21 @@ impl CssColor {
   }
 
   pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
-    let is_compatible = match self {
-      CssColor::CurrentColor | CssColor::RGBA(_) => true,
+    let feature = match self {
+      CssColor::CurrentColor | CssColor::RGBA(_) => return ColorFallbackKind::empty(),
       CssColor::Lab(lab) => {
         match &**lab {
-          LabColor::Lab(..) => Feature::LabColors.is_compatible(targets),
-          LabColor::Lch(..) => Feature::LchColors.is_compatible(targets),
-          LabColor::Oklab(..) => Feature::OklabColors.is_compatible(targets),
-          LabColor::Oklch(..) => Feature::OklchColors.is_compatible(targets)
+          LabColor::Lab(..) => Feature::LabColors,
+          LabColor::Lch(..) => Feature::LchColors,
+          LabColor::Oklab(..) => Feature::OklabColors,
+          LabColor::Oklch(..) => Feature::OklchColors
         }
       },
-      CssColor::Predefined(..) => Feature::ColorFunction.is_compatible(targets)
+      CssColor::Predefined(..) => Feature::ColorFunction
     };
 
     let mut fallbacks = ColorFallbackKind::empty();
-    if !is_compatible {
+    if !feature.is_compatible(targets) {
       // Convert to lab if compatible. This should not affect interpolation
       // since this is always done in oklab by default, except for legacy
       // srgb syntaxes. See https://www.w3.org/TR/css-color-4/#interpolation-space.
@@ -156,6 +156,9 @@ impl CssColor {
         fallbacks |= ColorFallbackKind::LAB;
       } else if Feature::P3Colors.is_compatible(targets) {
         fallbacks |= ColorFallbackKind::P3;
+        if feature == Feature::OklabColors || feature == Feature::OklchColors {
+          fallbacks |= ColorFallbackKind::LAB;
+        }
       } else {
         fallbacks |= ColorFallbackKind::RGB;
 
@@ -166,6 +169,11 @@ impl CssColor {
           fallbacks |= ColorFallbackKind::LAB;
         } else if Feature::P3Colors.is_partially_compatible(targets) {
           fallbacks |= ColorFallbackKind::P3;
+
+          // Convert oklab to lab because it has better compatibility.
+          if feature == Feature::OklabColors || feature == Feature::OklchColors {
+            fallbacks |= ColorFallbackKind::LAB;
+          }
         }
       }
     }
