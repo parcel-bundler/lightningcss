@@ -9,7 +9,8 @@ use crate::declaration::DeclarationList;
 use crate::values::rect::Rect;
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::{LogicalProperties, PropertyCategory};
+use crate::logical::PropertyCategory;
+use crate::context::PropertyHandlerContext;
 use crate::compat;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -90,7 +91,7 @@ impl<'i> BorderRadiusHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -99,7 +100,7 @@ impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
           if val != $val && !prefixes.contains(*$vp) {
-            self.flush(dest, logical);
+            self.flush(dest, context);
           }
         }
       }};
@@ -108,7 +109,7 @@ impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
     macro_rules! property {
       ($prop: ident, $val: expr, $vp: ident) => {{
         if self.category != PropertyCategory::Physical {
-          self.flush(dest, logical);
+          self.flush(dest, context);
         }
 
         maybe_flush!($prop, $val, $vp);
@@ -129,7 +130,7 @@ impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
     macro_rules! logical_property {
       ($prop: ident) => {{
         if self.category != PropertyCategory::Logical {
-          self.flush(dest, logical);
+          self.flush(dest, context);
         }
 
         self.$prop = Some(property.clone());
@@ -170,7 +171,7 @@ impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
           PropertyId::BorderEndStartRadius => logical_property!(end_start),
           PropertyId::BorderEndEndRadius => logical_property!(end_end),
           _ => {
-            self.flush(dest, logical);
+            self.flush(dest, context);
             dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::BorderRadius)));
           }
         }
@@ -181,13 +182,13 @@ impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) {
-    self.flush(dest, logical);
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
+    self.flush(dest, context);
   }
 }
 
 impl<'i> BorderRadiusHandler<'i> {
-  fn flush(&mut self, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) {
+  fn flush(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
     if !self.has_any {
       return
     }
@@ -240,7 +241,7 @@ impl<'i> BorderRadiusHandler<'i> {
       };
     }
 
-    let logical_supported = logical.is_supported(compat::Feature::LogicalBorderRadius);
+    let logical_supported = context.is_supported(compat::Feature::LogicalBorderRadius);
 
     macro_rules! logical_property {
       ($prop: ident, $opposite_prop: ident, $key: ident, $opposite_key: ident, $ltr: ident, $rtl: ident) => {
@@ -258,7 +259,7 @@ impl<'i> BorderRadiusHandler<'i> {
             VendorPrefix::None
           };
 
-          logical.add_inline(
+          context.add_inline_logical_properties(
             dest,
             PropertyId::$ltr(vp),
             PropertyId::$rtl(vp),

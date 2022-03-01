@@ -1,7 +1,7 @@
 use cssparser::*;
 use smallvec::SmallVec;
 use crate::declaration::DeclarationList;
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 use crate::prefixes::Feature;
 use crate::targets::Browsers;
 use crate::values::length::Length;
@@ -120,12 +120,12 @@ impl BoxShadowHandler {
 }
 
 impl<'i> PropertyHandler<'i> for BoxShadowHandler {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
     match property {
       Property::BoxShadow(box_shadows, prefix) => {
         if let Some((val, prefixes)) = &mut self.box_shadows {
           if val != box_shadows && !prefixes.contains(*prefix) {
-            self.finalize(dest, logical);
+            self.finalize(dest, context);
             self.box_shadows = Some((box_shadows.clone(), *prefix));
           } else {
             *val = box_shadows.clone();
@@ -136,10 +136,10 @@ impl<'i> PropertyHandler<'i> for BoxShadowHandler {
         }
       }
       Property::Unparsed(unparsed) if matches!(unparsed.property_id, PropertyId::BoxShadow(_)) => {
-        self.finalize(dest, logical);
+        self.finalize(dest, context);
 
         let mut unparsed = unparsed.clone();
-        logical.add_unparsed_fallbacks(&mut unparsed);
+        context.add_unparsed_fallbacks(&mut unparsed);
         dest.push(Property::Unparsed(unparsed))
       }
       _ => return false
@@ -148,7 +148,7 @@ impl<'i> PropertyHandler<'i> for BoxShadowHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties<'i>) {
+  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut PropertyHandlerContext<'i>) {
     if self.box_shadows.is_none() {
       return
     }

@@ -5,7 +5,7 @@ use super::{Property, PropertyId};
 use crate::vendor_prefix::VendorPrefix;
 use crate::traits::{PropertyHandler, FallbackValues};
 use crate::declaration::DeclarationList;
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 use crate::properties::custom::CustomProperty;
 
 macro_rules! define_prefixes {
@@ -30,7 +30,7 @@ macro_rules! define_prefixes {
     }
 
     impl<'i> PropertyHandler<'i> for PrefixHandler {
-      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
+      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext) -> bool {
         match property {
           $(
             Property::$name(val, prefix) => {
@@ -76,7 +76,7 @@ macro_rules! define_prefixes {
         true
       }
 
-      fn finalize(&mut self, _: &mut DeclarationList, _: &mut LogicalProperties) {}
+      fn finalize(&mut self, _: &mut DeclarationList, _: &mut PropertyHandlerContext) {}
     }
   };
 }
@@ -115,7 +115,7 @@ macro_rules! define_fallbacks {
     }
 
     impl<'i> PropertyHandler<'i> for FallbackHandler {
-      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
+      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
         match property {
           $(
             Property::$name(val) => {
@@ -132,11 +132,11 @@ macro_rules! define_fallbacks {
           )+
           Property::Custom(custom) => {
             let mut custom = custom.clone();
-            if logical.in_style_rule {
+            if context.in_style_rule {
               if let Some(targets) = self.targets {
                 let fallbacks = custom.value.get_fallbacks(targets);
                 for (condition, fallback) in fallbacks {
-                  logical.add_conditional_property(
+                  context.add_conditional_property(
                     condition,
                     Property::Custom(CustomProperty {
                       name: custom.name.clone(),
@@ -151,7 +151,7 @@ macro_rules! define_fallbacks {
           }
           Property::Unparsed(val) if matches!(val.property_id, $( PropertyId::$name | )+ PropertyId::All) => {
             let mut unparsed = val.clone();
-            logical.add_unparsed_fallbacks(&mut unparsed);
+            context.add_unparsed_fallbacks(&mut unparsed);
             dest.push(Property::Unparsed(unparsed));
           }
           _ => return false
@@ -160,7 +160,7 @@ macro_rules! define_fallbacks {
         true
       }
 
-      fn finalize(&mut self, _: &mut DeclarationList, _: &mut LogicalProperties) {}
+      fn finalize(&mut self, _: &mut DeclarationList, _: &mut PropertyHandlerContext) {}
     }
   };
 }

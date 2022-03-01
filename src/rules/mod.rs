@@ -37,7 +37,7 @@ use crate::targets::Browsers;
 use std::collections::{HashMap, HashSet};
 use crate::selector::{is_equivalent, get_prefix, get_necessary_prefixes};
 use crate::error::{MinifyError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 use crate::dependencies::{Dependency, ImportDependency};
 use self::layer::{LayerBlockRule, LayerStatementRule};
 use self::property::PropertyRule;
@@ -120,7 +120,7 @@ pub(crate) struct MinifyContext<'a, 'i> {
   pub targets: &'a Option<Browsers>,
   pub handler: &'a mut DeclarationHandler<'i>,
   pub important_handler: &'a mut DeclarationHandler<'i>,
-  pub logical_properties: &'a mut LogicalProperties<'i>,
+  pub handler_context: &'a mut PropertyHandlerContext<'i>,
   pub unused_symbols: &'a HashSet<String>,
   pub custom_media: Option<HashMap<CowArcStr<'i>, CustomMediaRule<'i>>>
 }
@@ -203,8 +203,8 @@ impl<'i> CssRuleList<'i> {
             if style.selectors == last_style_rule.selectors && style.is_compatible(*context.targets) && last_style_rule.is_compatible(*context.targets) && style.rules.0.is_empty() && last_style_rule.rules.0.is_empty() {
               last_style_rule.declarations.declarations.extend(style.declarations.declarations.drain(..));
               last_style_rule.declarations.important_declarations.extend(style.declarations.important_declarations.drain(..));
-              last_style_rule.declarations.minify(context.handler, context.important_handler, context.logical_properties);
-              rules.extend(context.logical_properties.get_supports_rules(&style));
+              last_style_rule.declarations.minify(context.handler, context.important_handler, context.handler_context);
+              rules.extend(context.handler_context.get_supports_rules(&style));
               continue
             } else if style.declarations == last_style_rule.declarations && style.rules.0.is_empty() && last_style_rule.rules.0.is_empty() {
               // Append the selectors to the last rule if the declarations are the same, and all selectors are compatible.
@@ -231,7 +231,7 @@ impl<'i> CssRuleList<'i> {
             }
           }
 
-          let supports = context.logical_properties.get_supports_rules(&style);
+          let supports = context.handler_context.get_supports_rules(&style);
           rules.push(rule);
           rules.extend(supports);
           continue;

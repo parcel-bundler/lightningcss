@@ -7,7 +7,7 @@ use crate::prefixes::Feature;
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 
 /// https://www.w3.org/TR/2020/WD-css-position-3-20200519/#position-property
 #[derive(Debug, Clone, PartialEq)]
@@ -68,7 +68,7 @@ impl PositionHandler {
 }
 
 impl<'i> PropertyHandler<'i> for PositionHandler {
-  fn handle_property(&mut self, property: &Property<'i>, _: &mut DeclarationList<'i>, _: &mut LogicalProperties<'i>) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, _: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) -> bool {
     if let Property::Position(position) = property {
       if let (Some(Position::Sticky(cur)), Position::Sticky(new)) = (&mut self.position, position) {
         *cur |= *new;
@@ -82,7 +82,7 @@ impl<'i> PropertyHandler<'i> for PositionHandler {
     false
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties<'i>) {
+  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut PropertyHandlerContext<'i>) {
     if self.position.is_none() {
       return
     }

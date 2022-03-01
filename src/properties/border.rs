@@ -4,7 +4,8 @@ use crate::traits::{Parse, ToCss, PropertyHandler, FallbackValues};
 use crate::values::color::{CssColor, ColorFallbackKind};
 use crate::properties::{Property, PropertyId};
 use crate::declaration::DeclarationList;
-use crate::logical::{LogicalProperties, LogicalProperty, PropertyCategory};
+use crate::logical::{LogicalProperty, PropertyCategory};
+use crate::context::PropertyHandlerContext;
 use crate::values::rect::Rect;
 use crate::macros::*;
 use super::border_image::*;
@@ -331,13 +332,13 @@ impl<'i> BorderHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
     use Property::*;
 
     macro_rules! property {
       ($key: ident, $prop: ident, $val: ident, $category: ident) => {{
         if PropertyCategory::$category != self.category {
-          self.flush(dest, logical);
+          self.flush(dest, context);
         }
         self.$key.$prop = Some($val.clone());
         self.category = PropertyCategory::$category;
@@ -348,7 +349,7 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
     macro_rules! set_border {
       ($key: ident, $val: ident, $category: ident) => {{
         if PropertyCategory::$category != self.category {
-          self.flush(dest, logical);
+          self.flush(dest, context);
         }
         self.$key.set_border($val);
         self.category = PropertyCategory::$category;
@@ -470,37 +471,37 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
         self.has_any = true;
       }
       Unparsed(val) if is_border_property(&val.property_id) => {
-        self.flush(dest, logical);
-        self.flush_unparsed(&val, dest, logical);
+        self.flush(dest, context);
+        self.flush_unparsed(&val, dest, context);
       }
       _ => {
-        return self.border_image_handler.handle_property(property, dest, logical) || self.border_radius_handler.handle_property(property, dest, logical)
+        return self.border_image_handler.handle_property(property, dest, context) || self.border_radius_handler.handle_property(property, dest, context)
       }
     }
 
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) {
-    self.border_image_handler.finalize(dest, logical);
-    self.border_radius_handler.finalize(dest, logical);
-    self.flush(dest, logical);
-    self.flush_logical_fallbacks(dest, logical);
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
+    self.border_image_handler.finalize(dest, context);
+    self.border_radius_handler.finalize(dest, context);
+    self.flush(dest, context);
+    self.flush_logical_fallbacks(dest, context);
   }
 }
 
 impl<'i> BorderHandler<'i> {
-  fn flush(&mut self, dest: &mut DeclarationList, logical_properties: &mut LogicalProperties<'i>) {
+  fn flush(&mut self, dest: &mut DeclarationList, context: &mut PropertyHandlerContext<'i>) {
     if !self.has_any {
       return
     }
 
     self.has_any = false;
 
-    let logical_supported = logical_properties.is_supported(Feature::LogicalBorders);
+    let logical_supported = context.is_supported(Feature::LogicalBorders);
     macro_rules! logical_prop {
       ($ltr: ident, $ltr_key: ident, $rtl: ident, $rtl_key: ident, $val: expr) => {{
-        logical_properties.used = true;
+        context.used_logical = true;
         if let Some(Property::Logical(property)) = get_physical!(self.physical_to_logical, $ltr_key, dest) {
           property.ltr = Some(Box::new(Property::$ltr($val.clone())));
         } else {
@@ -1011,11 +1012,11 @@ impl<'i> BorderHandler<'i> {
     self.border_inline_end.reset();
   }
 
-  fn flush_unparsed(&mut self, unparsed: &UnparsedProperty<'i>, dest: &mut DeclarationList<'i>, logical_properties: &mut LogicalProperties<'i>) {
-    let logical_supported = logical_properties.is_supported(Feature::LogicalBorders);
+  fn flush_unparsed(&mut self, unparsed: &UnparsedProperty<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
+    let logical_supported = context.is_supported(Feature::LogicalBorders);
     if logical_supported {
       let mut unparsed = unparsed.clone();
-      logical_properties.add_unparsed_fallbacks(&mut unparsed);
+      context.add_unparsed_fallbacks(&mut unparsed);
       dest.push(Property::Unparsed(unparsed));
       return
     }
@@ -1030,7 +1031,7 @@ impl<'i> BorderHandler<'i> {
       ($ltr: ident, $ltr_key: ident, $rtl: ident, $rtl_key: ident) => {{
         let ltr = Some(Box::new(Property::Unparsed(unparsed.with_property_id(PropertyId::$ltr))));
         let rtl = Some(Box::new(Property::Unparsed(unparsed.with_property_id(PropertyId::$rtl))));
-        logical_properties.used = true;
+        context.used_logical = true;
         if let Some(Property::Logical(property)) = get_physical!(self.physical_to_logical, $ltr_key, dest) {
           property.ltr = ltr;
         } else {
@@ -1079,7 +1080,7 @@ impl<'i> BorderHandler<'i> {
     }
   }
 
-  fn flush_logical_fallbacks(&mut self, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) {
+  fn flush_logical_fallbacks(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
     // Generate color fallbacks for logical properties.
     if let Some(targets) = self.targets {
       macro_rules! logical_fallback {
@@ -1127,7 +1128,7 @@ impl<'i> BorderHandler<'i> {
             }
 
             if fallbacks.contains(ColorFallbackKind::P3) {
-              logical.add_conditional_property(
+              context.add_conditional_property(
                 ColorFallbackKind::P3.supports_condition(),
                 Property::Logical(LogicalProperty {
                   property_id: PropertyId::$prop,
@@ -1138,7 +1139,7 @@ impl<'i> BorderHandler<'i> {
             }
         
             if fallbacks.contains(ColorFallbackKind::LAB) || (!lowest_fallback.is_empty() && lowest_fallback != ColorFallbackKind::LAB) {
-              logical.add_conditional_property(
+              context.add_conditional_property(
                 ColorFallbackKind::LAB.supports_condition(),
                 Property::Logical(LogicalProperty {
                   property_id: PropertyId::$prop,

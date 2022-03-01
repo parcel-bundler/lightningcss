@@ -15,7 +15,7 @@ use crate::values::color::{CssColor, ColorFallbackKind};
 use crate::printer::Printer;
 use bitflags::bitflags;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 use crate::compat;
 
 enum_property! {
@@ -771,7 +771,7 @@ impl<'i> TextDecorationHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -780,7 +780,7 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
           if val != $val && !prefixes.contains(*$vp) {
-            self.finalize(dest, logical);
+            self.finalize(dest, context);
           }
         }
       }};
@@ -831,11 +831,11 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
         use super::text::*;
         macro_rules! logical {
           ($ltr: ident, $rtl: ident) => {{
-            let logical_supported = logical.is_supported(compat::Feature::LogicalTextAlign);
+            let logical_supported = context.is_supported(compat::Feature::LogicalTextAlign);
             if logical_supported {
               dest.push(property.clone());
             } else {
-              logical.add(
+              context.add_logical_property(
                 dest,
                 PropertyId::TextAlign,
                 Property::TextAlign(TextAlign::$ltr),
@@ -852,15 +852,15 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
         }
       }
       Unparsed(val) if is_text_decoration_property(&val.property_id) => {
-        self.finalize(dest, logical);
+        self.finalize(dest, context);
         let mut unparsed = val.get_prefixed(self.targets, Feature::TextDecoration);
-        logical.add_unparsed_fallbacks(&mut unparsed);
+        context.add_unparsed_fallbacks(&mut unparsed);
         dest.push(Property::Unparsed(unparsed))
       }
       Unparsed(val) if is_text_emphasis_property(&val.property_id) => {
-        self.finalize(dest, logical);
+        self.finalize(dest, context);
         let mut unparsed = val.get_prefixed(self.targets, Feature::TextEmphasis);
-        logical.add_unparsed_fallbacks(&mut unparsed);
+        context.add_unparsed_fallbacks(&mut unparsed);
         dest.push(Property::Unparsed(unparsed))
       }
       _ => return false
@@ -869,7 +869,7 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties<'i>) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
     if !self.has_any {
       return
     }

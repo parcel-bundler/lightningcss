@@ -6,7 +6,7 @@ use super::{Property, PropertyId};
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 use crate::macros::shorthand_handler;
 use crate::targets::Browsers;
 

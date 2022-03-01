@@ -16,7 +16,7 @@ use itertools::izip;
 use crate::printer::Printer;
 use smallvec::SmallVec;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 
 /// https://www.w3.org/TR/css-backgrounds-3/#background-size
 #[derive(Debug, Clone, PartialEq)]
@@ -435,7 +435,7 @@ impl<'i> BackgroundHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
     macro_rules! background_image {
       ($val: ident) => {
         // Store prefixed properties. Clear if we hit an unprefixed property and we have
@@ -489,7 +489,7 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
       Property::Unparsed(val) if is_background_property(&val.property_id) => {
         self.flush(dest);
         let mut unparsed = val.clone();
-        logical.add_unparsed_fallbacks(&mut unparsed);
+        context.add_unparsed_fallbacks(&mut unparsed);
         dest.push(Property::Unparsed(unparsed))
       }
       _ => return false
@@ -499,7 +499,7 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties<'i>) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
     // If the last declaration is prefixed, pop the last value
     // so it isn't duplicated when we flush.
     if self.has_prefix {

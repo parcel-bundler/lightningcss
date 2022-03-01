@@ -35,9 +35,9 @@ impl<'i> StyleRule<'i> {
       }
     }
 
-    context.logical_properties.in_style_rule = true;
-    self.declarations.minify(context.handler, context.important_handler, context.logical_properties);
-    context.logical_properties.in_style_rule = false;
+    context.handler_context.in_style_rule = true;
+    self.declarations.minify(context.handler, context.important_handler, context.handler_context);
+    context.handler_context.in_style_rule = false;
 
     if !self.rules.0.is_empty() {
       self.rules.minify(context, unused)?;

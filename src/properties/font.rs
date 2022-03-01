@@ -11,7 +11,7 @@ use super::{Property, PropertyId};
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 
 /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-weight-prop
 #[derive(Debug, Clone, PartialEq)]
@@ -641,7 +641,7 @@ pub(crate) struct FontHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for FontHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
     use Property::*;
 
     macro_rules! property {
@@ -671,7 +671,7 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
         // TODO: reset other properties
       }
       Unparsed(val) if is_font_property(&val.property_id) => {
-        self.finalize(dest, logical);
+        self.finalize(dest, context);
         dest.push(property.clone());
       }
       _ => return false
@@ -680,7 +680,7 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, decls: &mut DeclarationList<'i>, _: &mut LogicalProperties<'i>) {
+  fn finalize(&mut self, decls: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
     if !self.has_any {
       return
     }

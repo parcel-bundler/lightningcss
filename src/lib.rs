@@ -18,6 +18,7 @@ pub mod dependencies;
 pub mod error;
 mod logical;
 pub mod bundler;
+mod context;
 
 #[cfg(test)]
 mod tests {

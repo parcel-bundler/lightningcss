@@ -203,7 +203,7 @@ macro_rules! shorthand_handler {
     }
 
     impl<'i> PropertyHandler<'i> for $name$(<$l>)? {
-      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
+      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
         match property {
           $(
             Property::$prop(val) => {
@@ -218,10 +218,10 @@ macro_rules! shorthand_handler {
             self.has_any = true;
           }
           Property::Unparsed(val) if matches!(val.property_id, $( PropertyId::$prop | )+ PropertyId::$shorthand) => {
-            self.finalize(dest, logical);
+            self.finalize(dest, context);
 
             let mut unparsed = val.clone();
-            logical.add_unparsed_fallbacks(&mut unparsed);
+            context.add_unparsed_fallbacks(&mut unparsed);
             dest.push(Property::Unparsed(unparsed));
           }
           _ => return false
@@ -230,7 +230,7 @@ macro_rules! shorthand_handler {
         true
       }
 
-      fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties<'i>) {
+      fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
         if !self.has_any {
           return
         }

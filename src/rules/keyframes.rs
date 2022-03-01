@@ -26,7 +26,7 @@ pub struct KeyframesRule<'i> {
 impl<'i> KeyframesRule<'i> {
   pub(crate) fn minify(&mut self, context: &mut MinifyContext<'_, 'i>) {
     for keyframe in &mut self.keyframes {
-      keyframe.declarations.minify(context.handler, context.important_handler, context.logical_properties)
+      keyframe.declarations.minify(context.handler, context.important_handler, context.handler_context)
     }
   }
 

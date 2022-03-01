@@ -15,7 +15,7 @@ use crate::values::number::serialize_integer;
 use crate::declaration::DeclarationList;
 use crate::properties::{Property, PropertyId};
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 
 /// https://drafts.csswg.org/css-grid-2/#track-sizing
 #[derive(Debug, Clone, PartialEq)]
@@ -1227,7 +1227,7 @@ pub(crate) struct GridHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for GridHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
     use Property::*;
 
     match property {
@@ -1269,7 +1269,7 @@ impl<'i> PropertyHandler<'i> for GridHandler<'i> {
         self.column_end = Some(area.column_end.clone());
       }
       Unparsed(val) if is_grid_property(&val.property_id) => {
-        self.finalize(dest, logical);
+        self.finalize(dest, context);
         dest.push(property.clone());
       }
       _ => return false
@@ -1279,7 +1279,7 @@ impl<'i> PropertyHandler<'i> for GridHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties<'i>) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
     if !self.has_any {
       return
     }

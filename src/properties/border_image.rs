@@ -10,7 +10,7 @@ use crate::values::image::Image;
 use crate::macros::*;
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 
 enum_property! {
   /// https://www.w3.org/TR/css-backgrounds-3/#border-image-repeat
@@ -293,7 +293,7 @@ impl<'i> BorderImageHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties<'i>) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
     use Property::*;
     macro_rules! property {
       ($name: ident, $val: ident) => {{
@@ -328,7 +328,7 @@ impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
           val.clone()
         };
 
-        logical.add_unparsed_fallbacks(&mut unparsed);
+        context.add_unparsed_fallbacks(&mut unparsed);
         dest.push(Property::Unparsed(unparsed));
       }
       _ => return false
@@ -337,7 +337,7 @@ impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties<'i>) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
     self.flush(dest);
   }
 }

@@ -13,7 +13,7 @@ use crate::values::{
 use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 
 /// https://www.w3.org/TR/2019/CR-css-transforms-1-20190214/#propdef-transform
 #[derive(Debug, Clone, PartialEq)]
@@ -1408,7 +1408,7 @@ impl TransformHandler {
 }
 
 impl<'i> PropertyHandler<'i> for TransformHandler {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties<'i>) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) -> bool {
     use Property::*;
 
     macro_rules! individual_property {
@@ -1463,7 +1463,7 @@ impl<'i> PropertyHandler<'i> for TransformHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties<'i>) {
+  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut PropertyHandlerContext<'i>) {
     self.flush(dest);
   }
 }
