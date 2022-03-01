@@ -14,11 +14,16 @@ use super::percentage::Percentage;
 pub enum CssColor {
   CurrentColor,
   RGBA(RGBA),
+  Lab(Box<LabColor>),
+  Predefined(Box<PredefinedColor>)
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LabColor {
   Lab(f32, f32, f32, f32),
   Lch(f32, f32, f32, f32),
   Oklab(f32, f32, f32, f32),
   Oklch(f32, f32, f32, f32),
-  Predefined(PredefinedColor)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -67,109 +72,75 @@ impl CssColor {
     CssColor::RGBA(RGBA::transparent())
   }
 
-  pub fn to_rgb(&self) -> CssColor {
+  fn to_xyza_d65(&self) -> (f32, f32, f32, f32) {
     match self {
-      CssColor::Lab(l, a, b, alpha) => {
-        let (r, g, b) = lab_to_srgb(*l * 100.0, *a, *b);
-        CssColor::RGBA(RGBA::from_floats(r, g, b, *alpha))
-      },
-      CssColor::Lch(l, c, h, alpha) => {
-        let (r, g, b) = lch_to_srgb(*l * 100.0, *c, *h);
-        CssColor::RGBA(RGBA::from_floats(r, g, b, *alpha))
-      },
-      CssColor::Oklab(l, a, b, alpha) => {
-        let (r, g, b) = oklab_to_srgb(*l, *a, *b);
-        CssColor::RGBA(RGBA::from_floats(r, g, b, *alpha))
-      },
-      CssColor::Oklch(l, c, h, alpha) => {
-        let (r, g, b) = oklch_to_srgb(*l, *c, *h);
-        CssColor::RGBA(RGBA::from_floats(r, g, b, *alpha))
-      },
-      CssColor::RGBA(..) | CssColor::CurrentColor => self.clone(),
-      CssColor::Predefined(predefined) => {
-        let (x, y, z, alpha) = predefined.to_xyza_d65();
-        let (r, g, b) = xyz_d65_to_srgb(x, y, z);
-        CssColor::RGBA(RGBA::from_floats(r, g, b, alpha))
+      CssColor::RGBA(rgba) => {
+        let (x, y, z) = srgb_to_xyz_d65(rgba.red_f32(), rgba.green_f32(), rgba.blue_f32());
+        (x, y, z, rgba.alpha_f32())
       }
+      CssColor::Lab(lab) => lab.to_xyza_d65(),
+      CssColor::Predefined(predefined) => predefined.to_xyza_d65(),
+      CssColor::CurrentColor => unreachable!()
     }
   }
 
+  pub fn to_rgb(&self) -> CssColor {
+    let (x, y, z, a) = match self {
+      CssColor::RGBA(..) | CssColor::CurrentColor => return self.clone(),
+      _ => self.to_xyza_d65()
+    };
+
+    let (r, g, b) = xyz_d65_to_srgb(x, y, z);
+    CssColor::RGBA(RGBA::from_floats(r, g, b, a))
+  }
+
   pub fn to_lab(&self) -> CssColor {
-    match self {
-      CssColor::RGBA(rgba) => {
-        let (l, a, b) = srgb_to_lab(rgba.red_f32(), rgba.green_f32(), rgba.blue_f32());
-        CssColor::Lab(l, a, b, rgba.alpha_f32())
-      },
-      CssColor::Lch(l, c, h, alpha) => {
-        let (l, a, b) = lch_to_lab(*l, *c, *h);
-        CssColor::Lab(l, a, b, *alpha)
-      },
-      CssColor::Oklab(l, a, b, alpha) => {
-        let (l, a, b) = oklab_to_lab(*l, *a, *b);
-        CssColor::Lab(l, a, b, *alpha)
-      },
-      CssColor::Oklch(l, c, h, alpha) => {
-        let (l, a, b) = oklch_to_lab(*l, *c, *h);
-        CssColor::Lab(l, a, b, *alpha)
-      },
-      CssColor::Lab(..) | CssColor::CurrentColor => self.clone(),
-      CssColor::Predefined(predefined) => {
-        let (x, y, z, alpha) = predefined.to_xyza_d65();
-        let (l, a, b) = xyz_d65_to_lab(x, y, z);
-        CssColor::Lab(l, a, b, alpha)
+    let (x, y, z, alpha) = match self {
+      CssColor::CurrentColor => return self.clone(),
+      CssColor::Lab(lab) => {
+        match &**lab {
+          LabColor::Lab(..) => return self.clone(),
+          LabColor::Lch(l, c, h, alpha) => {
+            let (l, a, b) = lch_to_lab(*l, *c, *h);
+            return CssColor::Lab(Box::new(LabColor::Lab(l, a, b, *alpha)))
+          }
+          _ => lab.to_xyza_d65()
+        }
       }
-    }
+      _ => self.to_xyza_d65()
+    };
+
+    let (l, a, b) = xyz_d65_to_lab(x, y, z);
+    CssColor::Lab(Box::new(LabColor::Lab(l, a, b, alpha)))
   }
 
   pub fn to_p3(&self) -> CssColor {
     let (x, y, z, a) = match self {
       CssColor::CurrentColor => return self.clone(),
-      CssColor::RGBA(rgba) => {
-        let (x, y, z) = srgb_to_xyz_d65(rgba.red_f32(), rgba.green_f32(), rgba.blue_f32());
-        (x, y, z, rgba.alpha_f32())
-      }
-      CssColor::Lab(l, a, b, alpha) => {
-        let (x, y, z) = lab_to_xyz_d50(*l * 100.0, *a, *b);
-        let (x, y, z) = d50_to_d65(x, y, z);
-        (x, y, z, *alpha)
-      }
-      CssColor::Lch(l, c, h, alpha) => {
-        let (l, a, b) = lch_to_lab(*l * 100.0, *c, *h);
-        let (x, y, z) = lab_to_xyz_d50(l, a, b);
-        let (x, y, z) = d50_to_d65(x, y, z);
-        (x, y, z, *alpha)
-      }
-      CssColor::Oklab(l, a, b, alpha) => {
-        let (l, a, b) = oklab_to_lab(*l, *a, *b);
-        let (x, y, z) = lab_to_xyz_d50(l, a, b);
-        let (x, y, z) = d50_to_d65(x, y, z);
-        (x, y, z, *alpha)
-      }
-      CssColor::Oklch(l, c, h, alpha) => {
-        let (l, a, b) = oklch_to_lab(*l, *c, *h);
-        let (x, y, z) = lab_to_xyz_d50(l, a, b);
-        let (x, y, z) = d50_to_d65(x, y, z);
-        (x, y, z, *alpha)
-      }
       CssColor::Predefined(predefined) => {
-        match predefined {
+        match &**predefined {
           PredefinedColor::DisplayP3(..) => return self.clone(),
           _ => predefined.to_xyza_d65()
         }
-      }
+      },
+      _ => self.to_xyza_d65()
     };
 
     let (r, g, b) = xyz_d65_to_p3(x, y, z);
-    CssColor::Predefined(PredefinedColor::DisplayP3(r, g, b, a))
+    CssColor::Predefined(Box::new(PredefinedColor::DisplayP3(r, g, b, a)))
   }
 
   pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
     let is_compatible = match self {
       CssColor::CurrentColor | CssColor::RGBA(_) => true,
-      CssColor::Lab(..) => Feature::LabColors.is_compatible(targets),
-      CssColor::Lch(..) => Feature::LchColors.is_compatible(targets),
-      CssColor::Oklab(..) => Feature::OklabColors.is_compatible(targets),
-      CssColor::Oklch(..) => Feature::OklchColors.is_compatible(targets),
+      CssColor::Lab(lab) => {
+        match &**lab {
+          LabColor::Lab(..) => Feature::LabColors.is_compatible(targets),
+          LabColor::Lch(..) => Feature::LchColors.is_compatible(targets),
+          LabColor::Oklab(..) => Feature::OklabColors.is_compatible(targets),
+          LabColor::Oklch(..) => Feature::OklchColors.is_compatible(targets)
+        }
+      },
       CssColor::Predefined(..) => Feature::ColorFunction.is_compatible(targets)
     };
 
@@ -206,7 +177,7 @@ impl CssColor {
     if matches!(self, CssColor::RGBA(_)) {
       return self.clone();
     }
-    
+
     match kind {
       ColorFallbackKind::RGB => self.to_rgb(),
       ColorFallbackKind::P3 => self.to_p3(),
@@ -314,10 +285,14 @@ impl ToCss for CssColor {
         }
         Ok(())
       },
-      CssColor::Lab(l, a, b, alpha) => write_components("lab", *l, *a, *b, *alpha, dest),
-      CssColor::Lch(l, c, h, alpha) => write_components("lch", *l, *c, *h, *alpha, dest),
-      CssColor::Oklab(l, a, b, alpha) => write_components("oklab", *l, *a, *b, *alpha, dest),
-      CssColor::Oklch(l, c, h, alpha) => write_components("oklch", *l, *c, *h, *alpha, dest),
+      CssColor::Lab(lab) => {
+        match &**lab {
+          LabColor::Lab(l, a, b, alpha) => write_components("lab", *l, *a, *b, *alpha, dest),
+          LabColor::Lch(l, c, h, alpha) => write_components("lch", *l, *c, *h, *alpha, dest),
+          LabColor::Oklab(l, a, b, alpha) => write_components("oklab", *l, *a, *b, *alpha, dest),
+          LabColor::Oklch(l, c, h, alpha) => write_components("oklch", *l, *c, *h, *alpha, dest),    
+        }
+      }
       CssColor::Predefined(predefined) => write_predefined(predefined, dest)
     }
   }
@@ -386,24 +361,28 @@ fn parse_color_function<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, 
 
   match_ignore_ascii_case! {&*function,
     "lab" => {
-      let (l, c, h, alpha) = parse_lab(input)?;
-      Ok(CssColor::Lab(l, c, h, alpha))
+      let (l, a, b, alpha) = parse_lab(input)?;
+      let lab = LabColor::Lab(l, a, b, alpha);
+      Ok(CssColor::Lab(Box::new(lab)))
     },
     "oklab" => {
-      let (l, c, h, alpha) = parse_lab(input)?;
-      Ok(CssColor::Oklab(l, c, h, alpha))
+      let (l, a, b, alpha) = parse_lab(input)?;
+      let lab = LabColor::Oklab(l, a, b, alpha);
+      Ok(CssColor::Lab(Box::new(lab)))
     },
     "lch" => {
       let (l, c, h, alpha) = parse_lch(input)?;
-      Ok(CssColor::Lch(l, c, h, alpha))
+      let lab = LabColor::Lch(l, c, h, alpha);
+      Ok(CssColor::Lab(Box::new(lab)))
     },
     "oklch" => {
       let (l, c, h, alpha) = parse_lch(input)?;
-      Ok(CssColor::Oklch(l, c, h, alpha))
+      let lab = LabColor::Oklch(l, c, h, alpha);
+      Ok(CssColor::Lab(Box::new(lab)))
     },
     "color" => {
       let predefined = parse_predefined(input)?;
-      Ok(CssColor::Predefined(predefined))
+      Ok(CssColor::Predefined(Box::new(predefined)))
     },
     _ => Err(location.new_unexpected_token_error(
       cssparser::Token::Ident(function.clone())
@@ -592,11 +571,6 @@ fn write_predefined<W>(predefined: &PredefinedColor, dest: &mut Printer<W>) -> R
   dest.write_char(')')
 }
 
-fn lch_to_srgb(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
-  let (l, a, b) = lch_to_lab(l, c, h);
-  lab_to_srgb(l, a, b)
-}
-
 #[inline]
 fn lch_to_lab(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L385
@@ -605,25 +579,12 @@ fn lch_to_lab(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
   (l, a, b)
 }
 
-fn lab_to_srgb(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
-  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/utilities.js#L63
-  // convert CIE LCH values to CIE Lab, and then to XYZ, adapt from D50 to D65,
-  // then convert XYZ to linear-light sRGB, and finally to gamma corrected sRGB
-  // for in-gamut colors, components are in the 0.0 to 1.0 range
-  // out of gamut colors may have negative components
-  // or components greater than 1.0
-  // so check for that :)
-  let (x, y, z) = lab_to_xyz_d50(l, a, b);
-  let (x, y, z) = d50_to_d65(x, y, z);
-  xyz_d65_to_srgb(x, y, z)
-}
-
 const D50: &[f32] = &[0.3457 / 0.3585, 1.00000, (1.0 - 0.3457 - 0.3585) / 0.3585];
 
 fn lab_to_xyz_d50(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L352
-  const κ: f32 = 24389.0 / 27.0;   // 29^3/3^3
-  const ε: f32 = 216.0 / 24389.0;  // 6^3/29^3
+  const K: f32 = 24389.0 / 27.0;   // 29^3/3^3
+  const E: f32 = 216.0 / 24389.0;  // 6^3/29^3
 
   // compute f, starting with the luminance-related term
   let f1 = (l + 16.0) / 116.0;
@@ -631,22 +592,22 @@ fn lab_to_xyz_d50(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
   let f2 = f1 - b / 200.0;
 
   // compute xyz
-  let x = if f0.powi(3) > ε {
+  let x = if f0.powi(3) > E {
     f0.powi(3)
   } else {
-    (116.0 * f0 - 16.0) / κ
+    (116.0 * f0 - 16.0) / K
   };
 
-  let y = if l > κ * ε {
+  let y = if l > K * E {
     ((l + 16.0) / 116.0).powi(3)
   } else {
-    l / κ
+    l / K
   };
 
-  let z = if f2.powi(3) > ε {
+  let z = if f2.powi(3) > E {
     f2.powi(3)
   } else {
-    (116.0 * f2 - 16.0) / κ
+    (116.0 * f2 - 16.0) / K
   };
 
   // Compute XYZ by scaling xyz by reference white
@@ -747,22 +708,12 @@ fn oklab_to_xyz_d65(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
   multiply_matrix(LMS_TO_XYZ, a.powi(3), b.powi(3), c.powi(3))
 }
 
-fn oklab_to_srgb(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
-  let (x, y, z) = oklab_to_xyz_d65(l, a, b);
-  xyz_d65_to_srgb(x, y, z)
-}
-
-fn oklch_to_srgb(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
-  let (l, a, b) = lch_to_lab(l, c, h);
-  oklab_to_srgb(l, a, b)
-}
-
 fn xyz_d50_to_lab(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L332
   // Assuming XYZ is relative to D50, convert to CIE Lab
   // from CIE standard, which now defines these as a rational fraction
-  let ε = 216.0 / 24389.0;  // 6^3/29^3
-  let κ = 24389.0 / 27.0;   // 29^3/3^3
+  const E: f32 = 216.0 / 24389.0;  // 6^3/29^3
+  const K: f32 = 24389.0 / 27.0;   // 29^3/3^3
 
   // compute xyz, which is XYZ scaled relative to reference white
   // var xyz = XYZ.map((value, i) => value / D50[i]);
@@ -772,38 +723,28 @@ fn xyz_d50_to_lab(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
 
   // now compute f
   // var f = xyz.map(value => value > ε ? Math.cbrt(value) : (κ * value + 16)/116);
-  let f0 = if x > ε {
+  let f0 = if x > E {
     x.cbrt()
   } else {
-    (κ * x + 16.0) / 116.0
+    (K * x + 16.0) / 116.0
   };
 
-  let f1 = if y > ε {
+  let f1 = if y > E {
     y.cbrt()
   } else {
-    (κ * y + 16.0) / 116.0
+    (K * y + 16.0) / 116.0
   };
 
-  let f2 = if z > ε {
+  let f2 = if z > E {
     z.cbrt()
   } else {
-    (κ * z + 16.0) / 116.0
+    (K * z + 16.0) / 116.0
   };
 
   let l = ((116.0 * f1) - 16.0) / 100.0;
   let a = 500.0 * (f0 - f1);
   let b = 200.0 * (f1 - f2);
   (l, a, b)
-}
-
-fn oklab_to_lab(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
-  let (x, y, z) = oklab_to_xyz_d65(l, a, b);
-  xyz_d65_to_lab(x, y, z)
-}
-
-fn oklch_to_lab(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
-  let (l, a, b) = lch_to_lab(l, c, h);
-  oklab_to_lab(l, a, b)
 }
 
 fn lin_srgb(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
@@ -851,15 +792,7 @@ fn srgb_to_xyz_d65(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   lin_srgb_to_xyz_d65(r, g, b)
 }
 
-fn srgb_to_lab(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
-  // convert gamma-corrected sRGB values in the 0.0 to 1.0 range
-  // to linear-light sRGB, then to CIE XYZ,
-  // then adapt from D65 to D50,
-  // then convert XYZ to CIE Lab
-  let (x, y, z) = srgb_to_xyz_d65(r, g, b);
-  xyz_d65_to_lab(x, y, z)
-}
-
+#[inline]
 fn xyz_d65_to_lab(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   let (x, y, z) = d65_to_d50(x, y, z);
   xyz_d50_to_lab(x, y, z)
@@ -877,6 +810,7 @@ fn xyz_d65_to_lin_p3(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   multiply_matrix(MATRIX, x, y, z)
 }
 
+#[inline]
 fn xyz_d65_to_p3(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   let (r, g, b) = xyz_d65_to_lin_p3(x, y, z);
   gam_srgb(r, g, b) // same as sRGB
@@ -1013,6 +947,34 @@ fn lin_rec2020_to_xyz_d65(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   ];
 
   multiply_matrix(MATRIX, r, g, b)
+}
+
+impl LabColor {
+  pub fn to_xyza_d65(&self) -> (f32, f32, f32, f32) {
+    use LabColor::*;
+    match self {
+      Lab(l, a, b, alpha) => {
+        let (x, y, z) = lab_to_xyz_d50(*l * 100.0, *a, *b);
+        let (x, y, z) = d50_to_d65(x, y, z);
+        (x, y, z, *alpha)
+      }
+      Lch(l, c, h, alpha) => {
+        let (l, a, b) = lch_to_lab(*l * 100.0, *c, *h);
+        let (x, y, z) = lab_to_xyz_d50(l, a, b);
+        let (x, y, z) = d50_to_d65(x, y, z);
+        (x, y, z, *alpha)
+      }
+      Oklab(l, a, b, alpha) => {
+        let  (x, y, z) = oklab_to_xyz_d65(*l, *a, *b);
+        (x, y, z, *alpha)
+      }
+      Oklch(l, c, h, alpha) => {
+        let (l, a, b) = lch_to_lab(*l, *c, *h);
+        let (x, y, z) = oklab_to_xyz_d65(l, a, b);
+        (x, y, z, *alpha)
+      }
+    }
+  }
 }
 
 impl PredefinedColor {

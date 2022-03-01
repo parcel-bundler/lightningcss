@@ -9640,7 +9640,7 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        --custom: color(display-p3 .213508 -.0892512 -.219086);
+        --custom: color(display-p3 .724144 .386777 .148795);
       }
 
       @supports (color: lab(0% 0 0)) {
@@ -9664,7 +9664,7 @@ mod tests {
 
       @supports (color: color(display-p3 0 0 0)) {
         .foo {
-          --custom: color(display-p3 .213508 -.0892512 -.219086);
+          --custom: color(display-p3 .724144 .386777 .148795);
         }
       }
 
@@ -9692,7 +9692,7 @@ mod tests {
 
       @supports (color: color(display-p3 0 0 0)) {
         .foo {
-          --foo: color(display-p3 .213508 -.0892512 -.219086);
+          --foo: color(display-p3 .724144 .386777 .148795);
           --bar: color(display-p3 .643308 .192455 .167712);
         }
       }
