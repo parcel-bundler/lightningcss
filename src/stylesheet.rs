@@ -10,7 +10,7 @@ use crate::css_modules::{hash, CssModule, CssModuleExports};
 use std::collections::{HashMap, HashSet};
 use crate::dependencies::Dependency;
 use crate::error::{Error, ParserError, PrinterError, MinifyErrorKind, PrinterErrorKind, ErrorLocation};
-use crate::context::PropertyHandlerContext;
+use crate::context::{PropertyHandlerContext, DeclarationContext};
 use crate::compat::Feature;
 
 pub use crate::parser::ParserOptions;
@@ -172,10 +172,11 @@ impl<'i> StyleAttribute<'i> {
   }
 
   pub fn minify(&mut self, options: MinifyOptions) {
-    let mut logical_properties = PropertyHandlerContext::new(None);
+    let mut context = PropertyHandlerContext::new(options.targets);
     let mut handler = DeclarationHandler::new(options.targets);
     let mut important_handler = DeclarationHandler::new(options.targets);
-    self.declarations.minify(&mut handler, &mut important_handler, &mut logical_properties);
+    context.context = DeclarationContext::StyleAttribute;
+    self.declarations.minify(&mut handler, &mut important_handler, &mut context);
   }
 
   pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, PrinterError> {

@@ -9963,6 +9963,9 @@ mod tests {
     attr_test("color: yellow; flex: 1 1 auto", "color: #ff0; flex: auto", false, None);
     attr_test("color: yellow; flex: 1 1 auto", "color:#ff0;flex:auto", true, None);
     attr_test("border-inline-start: 2px solid red", "border-inline-start: 2px solid red", false, Some(Browsers { safari: Some(12 << 16), ..Browsers::default() }));
+    attr_test("color: lab(40% 56.6 39);", "color:#b32323;color:lab(40% 56.6 39)", true, Some(Browsers { safari: Some(8 << 16), ..Browsers::default() }));
+    attr_test("--foo: lab(40% 56.6 39);", "--foo:#b32323", true, Some(Browsers { safari: Some(8 << 16), ..Browsers::default() }));
+    attr_test("text-decoration: var(--foo) lab(40% 56.6 39);", "text-decoration:var(--foo)#b32323", true, Some(Browsers { chrome: Some(90 << 16), ..Browsers::default() }));
   }
 
   #[test]

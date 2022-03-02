@@ -1,5 +1,6 @@
 use super::Location;
 use parcel_selectors::SelectorList;
+use crate::context::DeclarationContext;
 use crate::selector::{Selectors, is_compatible, is_unused};
 use crate::traits::ToCss;
 use crate::printer::Printer;
@@ -35,9 +36,9 @@ impl<'i> StyleRule<'i> {
       }
     }
 
-    context.handler_context.in_style_rule = true;
+    context.handler_context.context = DeclarationContext::StyleRule;
     self.declarations.minify(context.handler, context.important_handler, context.handler_context);
-    context.handler_context.in_style_rule = false;
+    context.handler_context.context = DeclarationContext::None;
 
     if !self.rules.0.is_empty() {
       self.rules.minify(context, unused)?;

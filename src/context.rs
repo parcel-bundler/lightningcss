@@ -26,13 +26,21 @@ pub(crate) struct SupportsEntry<'i> {
   pub important_declarations: Vec<Property<'i>>
 }
 
+#[derive(Debug, PartialEq)]
+pub(crate) enum DeclarationContext {
+  None,
+  StyleRule,
+  Keyframes,
+  StyleAttribute
+}
+
 #[derive(Debug)]
 pub(crate) struct PropertyHandlerContext<'i> {
   targets: Option<Browsers>,
   pub used_logical: bool,
   pub is_important: bool,
   supports: Vec<SupportsEntry<'i>>,
-  pub in_style_rule: bool
+  pub context: DeclarationContext
 }
 
 impl<'i> PropertyHandlerContext<'i> {
@@ -42,11 +50,17 @@ impl<'i> PropertyHandlerContext<'i> {
       used_logical: false,
       is_important: false,
       supports: Vec::new(),
-      in_style_rule: false
+      context: DeclarationContext::None
     }
   }
 
   pub fn is_supported(&self, feature: Feature) -> bool {
+    // Don't convert logical properties in style attributes because
+    // our fallbacks rely on extra rules to define --ltr and --rtl.
+    if self.context == DeclarationContext::StyleAttribute {
+      return true
+    }
+
     if let Some(targets) = self.targets {
       feature.is_compatible(targets)
     } else {
@@ -125,7 +139,7 @@ impl<'i> PropertyHandlerContext<'i> {
   }
 
   pub fn add_conditional_property(&mut self, condition: SupportsCondition<'i>, property: Property<'i>) {
-    if !self.in_style_rule {
+    if self.context != DeclarationContext::StyleRule {
       return
     }
 
@@ -152,7 +166,7 @@ impl<'i> PropertyHandlerContext<'i> {
   }
 
   pub fn add_unparsed_fallbacks(&mut self, unparsed: &mut UnparsedProperty<'i>) {
-    if !self.in_style_rule {
+    if self.context != DeclarationContext::StyleRule && self.context != DeclarationContext::StyleAttribute {
       return
     }
     

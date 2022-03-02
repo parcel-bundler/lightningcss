@@ -1,6 +1,7 @@
 use cssparser::*;
 use super::{Location, CssRuleList, CssRule};
 use super::supports::SupportsRule;
+use crate::context::DeclarationContext;
 use crate::properties::Property;
 use crate::properties::custom::{CustomProperty, UnparsedProperty};
 use crate::targets::Browsers;
@@ -25,9 +26,13 @@ pub struct KeyframesRule<'i> {
 
 impl<'i> KeyframesRule<'i> {
   pub(crate) fn minify(&mut self, context: &mut MinifyContext<'_, 'i>) {
+    context.handler_context.context = DeclarationContext::Keyframes;
+
     for keyframe in &mut self.keyframes {
       keyframe.declarations.minify(context.handler, context.important_handler, context.handler_context)
     }
+
+    context.handler_context.context = DeclarationContext::None;
   }
 
   pub(crate) fn get_fallbacks(&mut self, targets: Browsers) -> Vec<CssRule<'i>> {

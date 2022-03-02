@@ -5,7 +5,7 @@ use super::{Property, PropertyId};
 use crate::vendor_prefix::VendorPrefix;
 use crate::traits::{PropertyHandler, FallbackValues};
 use crate::declaration::DeclarationList;
-use crate::context::PropertyHandlerContext;
+use crate::context::{PropertyHandlerContext, DeclarationContext};
 use crate::properties::custom::CustomProperty;
 
 macro_rules! define_prefixes {
@@ -132,7 +132,7 @@ macro_rules! define_fallbacks {
           )+
           Property::Custom(custom) => {
             let mut custom = custom.clone();
-            if context.in_style_rule {
+            if context.context != DeclarationContext::Keyframes {
               if let Some(targets) = self.targets {
                 let fallbacks = custom.value.get_fallbacks(targets);
                 for (condition, fallback) in fallbacks {
