@@ -9906,6 +9906,31 @@ mod tests {
       chrome: Some(90 << 16),
       ..Browsers::default()
     });
+
+    prefix_test(r#"
+      @keyframes foo {
+        from {
+          text-decoration: var(--foo) lab(29.2345% 39.3825 20.0664);
+        }
+      }
+    "#, indoc! {r#"
+      @keyframes foo {
+        from {
+          text-decoration: var(--foo) #7d2329;
+        }
+      }
+
+      @supports (color: lab(0% 0 0)) {
+        @keyframes foo {
+          from {
+            text-decoration: var(--foo) lab(29.2345% 39.3825 20.0664);
+          }
+        }
+      }
+    "#}, Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]

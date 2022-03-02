@@ -2,7 +2,7 @@ use cssparser::*;
 use super::{Location, CssRuleList, CssRule};
 use super::supports::SupportsRule;
 use crate::properties::Property;
-use crate::properties::custom::CustomProperty;
+use crate::properties::custom::{CustomProperty, UnparsedProperty};
 use crate::targets::Browsers;
 use crate::values::color::ColorFallbackKind;
 use crate::values::percentage::Percentage;
@@ -35,8 +35,9 @@ impl<'i> KeyframesRule<'i> {
     for keyframe in &self.keyframes {
       for property in &keyframe.declarations.declarations {
         match property {
-          Property::Custom(custom) => {
-            fallbacks |= custom.value.get_necessary_fallbacks(targets);
+          Property::Custom(CustomProperty { value, .. }) |
+          Property::Unparsed(UnparsedProperty { value, .. }) => {
+            fallbacks |= value.get_necessary_fallbacks(targets);
           }
           _ => {}
         }
@@ -59,8 +60,9 @@ impl<'i> KeyframesRule<'i> {
       for keyframe in &mut self.keyframes {
         for property in &mut keyframe.declarations.declarations {
           match property {
-            Property::Custom(custom) => {
-              custom.value = custom.value.get_fallback(lowest_fallback);
+            Property::Custom(CustomProperty { value, .. }) |
+            Property::Unparsed(UnparsedProperty { value, .. }) => {
+              *value = value.get_fallback(lowest_fallback);
             }
             _ => {}
           }
@@ -87,7 +89,13 @@ impl<'i> KeyframesRule<'i> {
                     name: custom.name.clone(),
                     value: custom.value.get_fallback(kind)
                   })
-                },
+                }
+                Property::Unparsed(unparsed) => {
+                  Property::Unparsed(UnparsedProperty {
+                    property_id: unparsed.property_id.clone(),
+                    value: unparsed.value.get_fallback(kind)
+                  })
+                }
                 _ => property.clone()
               }
             })

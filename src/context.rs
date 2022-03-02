@@ -152,6 +152,10 @@ impl<'i> PropertyHandlerContext<'i> {
   }
 
   pub fn add_unparsed_fallbacks(&mut self, unparsed: &mut UnparsedProperty<'i>) {
+    if !self.in_style_rule {
+      return
+    }
+    
     if let Some(targets) = self.targets {
       let fallbacks = unparsed.value.get_fallbacks(targets);
       for (condition, fallback) in fallbacks {
