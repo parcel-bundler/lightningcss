@@ -333,7 +333,7 @@ fn expand_properties<'i>(
 
   // Expand logical properties in place.
   while i < len {
-    match get_context(&properties[i]) {
+    match get_logical_properties(&properties[i]) {
       LogicalPropertyId::Block(feature, props) if !context.is_supported(feature) => {
         replace!(properties, props);
         if let Some(rtl_properties) = &mut rtl_properties {
@@ -375,7 +375,7 @@ enum LogicalPropertyId {
 }
 
 #[inline]
-fn get_context(property_id: &PropertyId) -> LogicalPropertyId {
+fn get_logical_properties(property_id: &PropertyId) -> LogicalPropertyId {
   use PropertyId::*;
   use LogicalPropertyId::*;
   use compat::Feature::*;
