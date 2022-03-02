@@ -1,4 +1,5 @@
 use cssparser::*;
+use crate::values::image::ImageFallback;
 use crate::values::{
   length::LengthPercentageOrAuto,
   position::*,
@@ -6,8 +7,8 @@ use crate::values::{
   image::Image
 };
 use crate::targets::Browsers;
-use crate::prefixes::{Feature, is_webkit_gradient};
-use crate::traits::{Parse, ToCss, PropertyHandler};
+use crate::prefixes::Feature;
+use crate::traits::{Parse, ToCss, PropertyHandler, FallbackValues};
 use crate::macros::*;
 use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::declaration::DeclarationList;
@@ -15,7 +16,7 @@ use itertools::izip;
 use crate::printer::Printer;
 use smallvec::SmallVec;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 
 /// https://www.w3.org/TR/css-backgrounds-3/#background-size
 #[derive(Debug, Clone, PartialEq)]
@@ -392,6 +393,21 @@ impl<'i> ToCss for Background<'i> {
   }
 }
 
+impl<'i> ImageFallback<'i> for Background<'i> {
+  #[inline]
+  fn get_image(&self) -> &Image<'i> {
+    &self.image
+  }
+
+  #[inline]
+  fn with_image(&self, image: Image<'i>) -> Self {
+    Background {
+      image,
+      ..self.clone()
+    }
+  }
+}
+
 #[derive(Default)]
 pub(crate) struct BackgroundHandler<'i> {
   targets: Option<Browsers>,
@@ -419,7 +435,7 @@ impl<'i> BackgroundHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
     macro_rules! background_image {
       ($val: ident) => {
         // Store prefixed properties. Clear if we hit an unprefixed property and we have
@@ -472,7 +488,9 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
       }
       Property::Unparsed(val) if is_background_property(&val.property_id) => {
         self.flush(dest);
-        dest.push(property.clone())
+        let mut unparsed = val.clone();
+        context.add_unparsed_fallbacks(&mut unparsed);
+        dest.push(Property::Unparsed(unparsed))
       }
       _ => return false
     }
@@ -481,7 +499,7 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
     // If the last declaration is prefixed, pop the last value
     // so it isn't duplicated when we flush.
     if self.has_prefix {
@@ -515,19 +533,14 @@ impl<'i> BackgroundHandler<'i> {
       // Only use shorthand syntax if the number of layers matches on all properties.
       let len = images.len();
       if x_positions.len() == len && y_positions.len() == len && repeats.len() == len && sizes.len() == len && attachments.len() == len && origins.len() == len && clips.len() == len {
-        let (prefixes, clip_prefixes) = if let Some(targets) = self.targets {
-          let mut prefixes = VendorPrefix::empty();
-          for image in images.iter() {
-            prefixes |= image.get_necessary_prefixes(targets);
-          }
-          let clip_prefixes = if clips.iter().any(|clip| *clip == BackgroundClip::Text) {
+        let clip_prefixes = if let Some(targets) = self.targets {
+          if clips.iter().any(|clip| *clip == BackgroundClip::Text) {
             Feature::BackgroundClip.prefixes_for(targets)
           } else {
             VendorPrefix::None
-          };
-          (prefixes, clip_prefixes)
+          }
         } else {
-          (VendorPrefix::None, VendorPrefix::None)
+          VendorPrefix::None
         };
 
         let clip_property = if clip_prefixes != VendorPrefix::None {
@@ -536,7 +549,7 @@ impl<'i> BackgroundHandler<'i> {
           None
         };
 
-        let backgrounds: SmallVec<[Background<'i>; 1]> = izip!(images.drain(..), x_positions.drain(..), y_positions.drain(..), repeats.drain(..), sizes.drain(..), attachments.drain(..), origins.drain(..), clips.drain(..)).enumerate().map(|(i, (image, x_position, y_position, repeat, size, attachment, origin, clip))| {
+        let mut backgrounds: SmallVec<[Background<'i>; 1]> = izip!(images.drain(..), x_positions.drain(..), y_positions.drain(..), repeats.drain(..), sizes.drain(..), attachments.drain(..), origins.drain(..), clips.drain(..)).enumerate().map(|(i, (image, x_position, y_position, repeat, size, attachment, origin, clip))| {
           Background {
             color: if i == len - 1 {
               color.clone()
@@ -561,39 +574,12 @@ impl<'i> BackgroundHandler<'i> {
         }).collect();
 
         if let Some(targets) = self.targets {
-          // Legacy -webkit-gradient()
-          if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) && backgrounds.iter().any(|bg| matches!(bg.image, Image::Gradient(_))) {
-            let backgrounds: SmallVec<[Background<'i>; 1]> = backgrounds
-              .iter()
-              .map(|bg| -> Result<Background<'i>, ()> { Ok(Background { image: bg.image.get_legacy_webkit()?, ..bg.clone() })})
-              .flatten()
-              .collect();
-            if !backgrounds.is_empty() {
-              dest.push(Property::Background(backgrounds))
-            }
+          for fallback in backgrounds.get_fallbacks(targets) {
+            dest.push(Property::Background(fallback));
           }
-
-          // Standard syntax, with prefixes.
-          macro_rules! prefix {
-            ($prefix: ident) => {
-              if prefixes.contains(VendorPrefix::$prefix) {
-                let backgrounds = backgrounds
-                  .iter()
-                  .map(|bg| Background { image: bg.image.get_prefixed(VendorPrefix::$prefix), ..bg.clone() })
-                  .collect();
-                dest.push(Property::Background(backgrounds))
-              }
-            };
-          }
-
-          prefix!(WebKit);
-          prefix!(Moz);
-          prefix!(O);
         }
 
-        if prefixes.contains(VendorPrefix::None) {
-          dest.push(Property::Background(backgrounds));
-        }
+        dest.push(Property::Background(backgrounds));
 
         if let Some(clip) = clip_property {
           dest.push(clip)
@@ -604,44 +590,24 @@ impl<'i> BackgroundHandler<'i> {
       }
     }
 
-    if let Some(color) = color {
+    if let Some(mut color) = color {
+      if let Some(targets) = self.targets {
+        for fallback in color.get_fallbacks(targets) {
+          dest.push(Property::BackgroundColor(fallback))
+        }
+      }
+
       dest.push(Property::BackgroundColor(color))
     }
 
-    if let Some(images) = images {
+    if let Some(mut images) = images {
       if let Some(targets) = self.targets {
-        let mut prefixes = VendorPrefix::empty();
-        for image in images.iter() {
-          prefixes |= image.get_necessary_prefixes(targets);
+        for fallback in images.get_fallbacks(targets) {
+          dest.push(Property::BackgroundImage(fallback));
         }
-      
-        // Legacy -webkit-gradient()
-        if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) {
-          let images: SmallVec<[Image<'i>; 1]> = images.iter().map(|image| image.get_legacy_webkit()).flatten().collect();
-          if !images.is_empty() {
-            dest.push(Property::BackgroundImage(images))
-          }
-        }
-
-        // Standard syntax, with prefixes.
-        macro_rules! prefix {
-          ($prefix: ident) => {
-            if prefixes.contains(VendorPrefix::$prefix) {
-              let images = images.iter().map(|image| image.get_prefixed(VendorPrefix::$prefix)).collect();
-              dest.push(Property::BackgroundImage(images))
-            }
-          };
-        }
-
-        prefix!(WebKit);
-        prefix!(Moz);
-        prefix!(O);
-        if prefixes.contains(VendorPrefix::None) {
-          dest.push(Property::BackgroundImage(images))
-        }
-      } else {
-        dest.push(Property::BackgroundImage(images))
       }
+
+      dest.push(Property::BackgroundImage(images))
     }
 
     match (&mut x_positions, &mut y_positions) {

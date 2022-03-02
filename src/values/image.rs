@@ -1,11 +1,13 @@
 use crate::values::string::CowArcStr;
 use cssparser::*;
+use smallvec::SmallVec;
 use crate::dependencies::{UrlDependency, Dependency};
 use crate::vendor_prefix::VendorPrefix;
-use crate::prefixes::Feature;
+use crate::prefixes::{Feature, is_webkit_gradient};
 use crate::targets::Browsers;
-use crate::traits::{Parse, ToCss};
+use crate::traits::{Parse, ToCss, FallbackValues};
 use crate::printer::Printer;
+use super::color::ColorFallbackKind;
 use super::gradient::*;
 use super::resolution::Resolution;
 use crate::values::url::Url;
@@ -28,10 +30,15 @@ impl<'i> Default for Image<'i> {
 
 impl<'i> Image<'i> {
   pub fn has_vendor_prefix(&self) -> bool {
+    let prefix = self.get_vendor_prefix();
+    !prefix.is_empty() && prefix != VendorPrefix::None
+  }
+
+  pub fn get_vendor_prefix(&self) -> VendorPrefix {
     match self {
-      Image::Gradient(a) => a.has_vendor_prefix(),
-      Image::ImageSet(a) => a.has_vendor_prefix(),
-      _ => false
+      Image::Gradient(a) => a.get_vendor_prefix(),
+      Image::ImageSet(a) => a.get_vendor_prefix(),
+      _ => VendorPrefix::empty()
     }
   }
 
@@ -56,6 +63,192 @@ impl<'i> Image<'i> {
       Image::Gradient(grad) => Ok(Image::Gradient(Box::new(grad.get_legacy_webkit()?))),
       _ => Ok(self.clone())
     }
+  }
+
+  pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+    match self {
+      Image::Gradient(grad) => grad.get_necessary_fallbacks(targets),
+      _ => ColorFallbackKind::empty()
+    }
+  }
+
+  pub fn get_fallback(&self, kind: ColorFallbackKind) -> Image<'i> {
+    match self {
+      Image::Gradient(grad) => Image::Gradient(Box::new(grad.get_fallback(kind))),
+      _ => self.clone()
+    }
+  }
+}
+
+pub(crate) trait ImageFallback<'i> {
+  fn get_image(&self) -> &Image<'i>;
+  fn with_image(&self, image: Image<'i>) -> Self;
+}
+
+impl<'i> ImageFallback<'i> for Image<'i> {
+  #[inline]
+  fn get_image(&self) -> &Image<'i> {
+    self
+  }
+
+  #[inline]
+  fn with_image(&self, image: Image<'i>) -> Self {
+    image
+  }
+}
+
+impl<'i> FallbackValues for Image<'i> {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+    // Determine which prefixes and color fallbacks are needed.
+    let prefixes = self.get_necessary_prefixes(targets);
+    let fallbacks = self.get_necessary_fallbacks(targets);
+    let mut res = Vec::new();
+
+    // Get RGB fallbacks if needed.
+    let rgb = if fallbacks.contains(ColorFallbackKind::RGB) {
+      Some(self.get_fallback(ColorFallbackKind::RGB))
+    } else {
+      None
+    };
+
+    // Prefixed properties only support RGB.
+    let prefix_image = rgb.as_ref().unwrap_or(self);
+
+    // Legacy -webkit-gradient()
+    if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) && matches!(prefix_image, Image::Gradient(_)) {
+      if let Ok(legacy) = prefix_image.get_legacy_webkit() {
+        res.push(legacy);
+      }
+    }
+
+    // Standard syntax, with prefixes.
+    if prefixes.contains(VendorPrefix::WebKit) {
+      res.push(prefix_image.get_prefixed(VendorPrefix::WebKit))
+    }
+
+    if prefixes.contains(VendorPrefix::Moz) {
+      res.push(prefix_image.get_prefixed(VendorPrefix::Moz))
+    }
+
+    if prefixes.contains(VendorPrefix::O) {
+      res.push(prefix_image.get_prefixed(VendorPrefix::O))
+    }
+
+    if prefixes.contains(VendorPrefix::None) {
+      // Unprefixed, rgb fallback.
+      if let Some(rgb) = rgb {
+        res.push(rgb);
+      }
+
+      // P3 fallback.
+      if fallbacks.contains(ColorFallbackKind::P3) {
+        res.push(self.get_fallback(ColorFallbackKind::P3));
+      }
+
+      // Convert original to lab if needed (e.g. if oklab is not supported but lab is).
+      if fallbacks.contains(ColorFallbackKind::LAB) {
+        *self = self.get_fallback(ColorFallbackKind::LAB);
+      }
+    } else if let Some(last) = res.pop() {
+      // Prefixed property with no unprefixed version.
+      // Replace self with the last prefixed version so that it doesn't
+      // get duplicated when the caller pushes the original value.
+      *self = last;
+    }
+
+    res
+  }
+}
+
+impl<'i, T: ImageFallback<'i>> FallbackValues for SmallVec<[T; 1]> {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+    // Determine what vendor prefixes and color fallbacks are needed.
+    let mut prefixes = VendorPrefix::empty();
+    let mut fallbacks = ColorFallbackKind::empty();
+    let mut res = Vec::new();
+    for item in self.iter() {
+      let image = item.get_image();
+      prefixes |= image.get_necessary_prefixes(targets);
+      fallbacks |= image.get_necessary_fallbacks(targets);
+    }
+
+    // Get RGB fallbacks if needed.
+    let rgb: Option<SmallVec<[T; 1]>> = if fallbacks.contains(ColorFallbackKind::RGB) {
+      Some(self
+        .iter()
+        .map(|item| {
+          let image = item.get_image().get_fallback(ColorFallbackKind::RGB);
+          item.with_image(image)
+        })
+        .collect())
+    } else {
+      None
+    };
+
+    // Prefixed properties only support RGB.
+    let prefix_images = rgb.as_ref().unwrap_or(&self);
+  
+    // Legacy -webkit-gradient()
+    if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) {
+      let images: SmallVec<[T; 1]> = prefix_images.iter().map(|item| {
+        item
+          .get_image()
+          .get_legacy_webkit()
+          .map(|image| item.with_image(image))
+      }).flatten().collect();
+      if !images.is_empty() {
+        res.push(images)
+      }
+    }
+
+    // Standard syntax, with prefixes.
+    macro_rules! prefix {
+      ($prefix: ident) => {
+        if prefixes.contains(VendorPrefix::$prefix) {
+          let images = prefix_images.iter().map(|item| {
+            let image = item.get_image().get_prefixed(VendorPrefix::$prefix);
+            item.with_image(image)
+          }).collect();
+          res.push(images)
+        }
+      };
+    }
+
+    prefix!(WebKit);
+    prefix!(Moz);
+    prefix!(O);
+    if prefixes.contains(VendorPrefix::None) {
+      if let Some(rgb) = rgb {
+        res.push(rgb);
+      }
+
+      if fallbacks.contains(ColorFallbackKind::P3) {
+        let p3_images = self
+          .iter()
+          .map(|item| {
+            let image = item.get_image().get_fallback(ColorFallbackKind::P3);
+            item.with_image(image)
+          })
+          .collect();
+
+        res.push(p3_images)
+      }
+
+      // Convert to lab if needed (e.g. if oklab is not supported but lab is).
+      if fallbacks.contains(ColorFallbackKind::LAB) {
+        for item in self.iter_mut() {
+          let image = item.get_image().get_fallback(ColorFallbackKind::LAB);
+          *item = item.with_image(image)
+        }
+      }
+    } else if let Some(last) = res.pop() {
+      // Prefixed property with no unprefixed version.
+      // Replace self with the last prefixed version so that it doesn't
+      // get duplicated when the caller pushes the original value.
+      *self = last;
+    }
+
+    res
   }
 }
 
@@ -99,8 +292,8 @@ pub struct ImageSet<'i> {
 }
 
 impl<'i> ImageSet<'i> {
-  pub fn has_vendor_prefix(&self) -> bool {
-    self.vendor_prefix != VendorPrefix::None
+  pub fn get_vendor_prefix(&self) -> VendorPrefix {
+    self.vendor_prefix
   }
 
   pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {

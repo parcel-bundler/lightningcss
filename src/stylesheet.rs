@@ -10,7 +10,7 @@ use crate::css_modules::{hash, CssModule, CssModuleExports};
 use std::collections::{HashMap, HashSet};
 use crate::dependencies::Dependency;
 use crate::error::{Error, ParserError, PrinterError, MinifyErrorKind, PrinterErrorKind, ErrorLocation};
-use crate::logical::LogicalProperties;
+use crate::context::{PropertyHandlerContext, DeclarationContext};
 use crate::compat::Feature;
 
 pub use crate::parser::ParserOptions;
@@ -77,7 +77,7 @@ impl<'i> StyleSheet<'i> {
   }
 
   pub fn minify(&mut self, options: MinifyOptions) -> Result<(), Error<MinifyErrorKind>> {
-    let mut logical_properties = LogicalProperties::new(options.targets);
+    let mut context = PropertyHandlerContext::new(options.targets);
     let mut handler = DeclarationHandler::new(options.targets);
     let mut important_handler = DeclarationHandler::new(options.targets);
 
@@ -99,7 +99,7 @@ impl<'i> StyleSheet<'i> {
       targets: &options.targets,
       handler: &mut handler,
       important_handler: &mut important_handler,
-      logical_properties: &mut logical_properties,
+      handler_context: &mut context,
       unused_symbols: &options.unused_symbols,
       custom_media
     };
@@ -110,7 +110,7 @@ impl<'i> StyleSheet<'i> {
         loc: Some(ErrorLocation::from(e.loc, self.sources[e.loc.source_index as usize].clone()))
       })?;
       
-    logical_properties.to_rules(&mut self.rules);
+    context.add_logical_rules(&mut self.rules);
     Ok(())
   }
 
@@ -172,10 +172,11 @@ impl<'i> StyleAttribute<'i> {
   }
 
   pub fn minify(&mut self, options: MinifyOptions) {
-    let mut logical_properties = LogicalProperties::new(None);
+    let mut context = PropertyHandlerContext::new(options.targets);
     let mut handler = DeclarationHandler::new(options.targets);
     let mut important_handler = DeclarationHandler::new(options.targets);
-    self.declarations.minify(&mut handler, &mut important_handler, &mut logical_properties);
+    context.context = DeclarationContext::StyleAttribute;
+    self.declarations.minify(&mut handler, &mut important_handler, &mut context);
   }
 
   pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, PrinterError> {

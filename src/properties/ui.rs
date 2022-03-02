@@ -1,6 +1,7 @@
+use crate::targets::Browsers;
 use crate::values::string::CowArcStr;
 use cssparser::*;
-use crate::traits::{Parse, ToCss};
+use crate::traits::{Parse, ToCss, FallbackValues};
 use crate::values::color::CssColor;
 use crate::macros::{enum_property, shorthand_property};
 use crate::printer::Printer;
@@ -167,6 +168,20 @@ impl ToCss for ColorOrAuto {
   }
 }
 
+impl FallbackValues for ColorOrAuto {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+    match self {
+      ColorOrAuto::Color(color) => {
+        color.get_fallbacks(targets)
+          .into_iter()
+          .map(|color| ColorOrAuto::Color(color))
+          .collect()
+      }
+      ColorOrAuto::Auto => Vec::new()
+    }
+  }
+}
+
 enum_property! {
   /// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret-shape
   pub enum CaretShape {
@@ -188,6 +203,18 @@ shorthand_property!(Caret {
   color: ColorOrAuto,
   shape: CaretShape,
 });
+
+impl FallbackValues for Caret {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+   self.color.get_fallbacks(targets)
+    .into_iter()
+    .map(|color| Caret {
+      color,
+      shape: self.shape.clone()
+    })
+    .collect()
+  }
+}
 
 enum_property! {
   /// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#content-selection

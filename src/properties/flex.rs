@@ -13,7 +13,7 @@ use crate::printer::Printer;
 use crate::targets::Browsers;
 use crate::prefixes::{Feature, is_flex_2009};
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 
 enum_property! {
   /// https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#propdef-flex-direction
@@ -424,7 +424,7 @@ impl FlexHandler {
 }
 
 impl<'i> PropertyHandler<'i> for FlexHandler {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -535,7 +535,7 @@ impl<'i> PropertyHandler<'i> for FlexHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut PropertyHandlerContext<'i>) {
     self.flush(dest);
   }
 }

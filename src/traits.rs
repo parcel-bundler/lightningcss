@@ -3,7 +3,8 @@ use crate::properties::Property;
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
+use crate::targets::Browsers;
 
 pub trait Parse<'i>: Sized {
   /// Parse a value of this type.
@@ -41,8 +42,8 @@ where
 }
 
 pub(crate) trait PropertyHandler<'i>: Sized {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical_properties: &mut LogicalProperties) -> bool;
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, logical_properties: &mut LogicalProperties);
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool;
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>);
 }
 
 pub trait TryAdd<T> {
@@ -51,4 +52,8 @@ pub trait TryAdd<T> {
 
 pub trait FromStandard<T>: Sized {
   fn from_standard(val: &T) -> Option<Self>;
+}
+
+pub(crate) trait FallbackValues: Sized {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self>;
 }

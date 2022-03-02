@@ -1,5 +1,6 @@
 use cssparser::*;
 use crate::properties::Property;
+use crate::properties::box_shadow::BoxShadowHandler;
 use crate::traits::{PropertyHandler, ToCss};
 use crate::printer::Printer;
 use crate::properties::{
@@ -12,7 +13,7 @@ use crate::properties::{
   border::BorderHandler,
   transition::TransitionHandler,
   animation::AnimationHandler,
-  prefix_handler::PrefixHandler,
+  prefix_handler::{PrefixHandler, FallbackHandler},
   display::DisplayHandler,
   transform::TransformHandler,
   text::TextDecorationHandler,
@@ -25,7 +26,7 @@ use crate::properties::{
 use crate::targets::Browsers;
 use crate::parser::ParserOptions;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct DeclarationBlock<'i> {
@@ -91,12 +92,13 @@ impl<'i> DeclarationBlock<'i> {
     &mut self,
     handler: &mut DeclarationHandler<'i>,
     important_handler: &mut DeclarationHandler<'i>,
-    logical_properties: &mut LogicalProperties
+    context: &mut PropertyHandlerContext<'i>
   ) {
     macro_rules! handle {
-      ($decls: expr, $handler: expr) => {
+      ($decls: expr, $handler: expr, $important: literal) => {
         for decl in $decls.iter() {
-          let handled = $handler.handle_property(decl, logical_properties);
+          context.is_important = $important;
+          let handled = $handler.handle_property(decl, context);
     
           if !handled {
             $handler.decls.push(decl.clone());
@@ -105,11 +107,11 @@ impl<'i> DeclarationBlock<'i> {
       };
     }
 
-    handle!(self.important_declarations, important_handler);
-    handle!(self.declarations, handler);
+    handle!(self.important_declarations, important_handler, true);
+    handle!(self.declarations, handler, false);
 
-    handler.finalize(logical_properties);
-    important_handler.finalize(logical_properties);
+    handler.finalize(context);
+    important_handler.finalize(context);
     self.important_declarations = std::mem::take(&mut important_handler.decls);
     self.declarations = std::mem::take(&mut handler.decls);
   }
@@ -186,6 +188,8 @@ pub(crate) struct DeclarationHandler<'i> {
   inset: InsetHandler,
   overflow: OverflowHandler,
   transform: TransformHandler,
+  box_shadow: BoxShadowHandler,
+  fallback: FallbackHandler,
   prefix: PrefixHandler,
   decls: DeclarationList<'i>
 }
@@ -195,7 +199,7 @@ impl<'i> DeclarationHandler<'i> {
     DeclarationHandler {
       background: BackgroundHandler::new(targets),
       border: BorderHandler::new(targets),
-      outline: OutlineHandler::default(),
+      outline: OutlineHandler::new(targets),
       flex: FlexHandler::new(targets),
       grid: GridHandler::default(),
       align: AlignHandler::new(targets),
@@ -206,7 +210,7 @@ impl<'i> DeclarationHandler<'i> {
       scroll_padding: ScrollPaddingHandler::default(),
       font: FontHandler::default(),
       text: TextDecorationHandler::new(targets),
-      list: ListStyleHandler::default(),
+      list: ListStyleHandler::new(targets),
       transition: TransitionHandler::new(targets),
       animation: AnimationHandler::new(targets),
       display: DisplayHandler::new(targets),
@@ -214,58 +218,64 @@ impl<'i> DeclarationHandler<'i> {
       inset: InsetHandler::default(),
       overflow: OverflowHandler::new(targets),
       transform: TransformHandler::new(targets),
+      box_shadow: BoxShadowHandler::new(targets),
+      fallback: FallbackHandler::new(targets),
       prefix: PrefixHandler::new(targets),
       decls: DeclarationList::new()
     }
   }
 
-  pub fn handle_property(&mut self, property: &Property<'i>, logical_properties: &mut LogicalProperties) -> bool {
-    self.background.handle_property(property, &mut self.decls, logical_properties) ||
-    self.border.handle_property(property, &mut self.decls, logical_properties) ||
-    self.outline.handle_property(property, &mut self.decls, logical_properties) ||
-    self.flex.handle_property(property, &mut self.decls, logical_properties) ||
-    self.grid.handle_property(property, &mut self.decls, logical_properties) ||
-    self.align.handle_property(property, &mut self.decls, logical_properties) ||
-    self.size.handle_property(property, &mut self.decls, logical_properties) ||
-    self.margin.handle_property(property, &mut self.decls, logical_properties) ||
-    self.padding.handle_property(property, &mut self.decls, logical_properties) ||
-    self.scroll_margin.handle_property(property, &mut self.decls, logical_properties) ||
-    self.scroll_padding.handle_property(property, &mut self.decls, logical_properties) ||
-    self.font.handle_property(property, &mut self.decls, logical_properties) ||
-    self.text.handle_property(property, &mut self.decls, logical_properties) ||
-    self.list.handle_property(property, &mut self.decls, logical_properties) ||
-    self.transition.handle_property(property, &mut self.decls, logical_properties) ||
-    self.animation.handle_property(property, &mut self.decls, logical_properties) ||
-    self.display.handle_property(property, &mut self.decls, logical_properties) ||
-    self.position.handle_property(property, &mut self.decls, logical_properties) ||
-    self.inset.handle_property(property, &mut self.decls, logical_properties) ||
-    self.overflow.handle_property(property, &mut self.decls, logical_properties) ||
-    self.transform.handle_property(property, &mut self.decls, logical_properties) ||
-    self.prefix.handle_property(property, &mut self.decls, logical_properties)
+  pub fn handle_property(&mut self, property: &Property<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
+    self.background.handle_property(property, &mut self.decls, context) ||
+    self.border.handle_property(property, &mut self.decls, context) ||
+    self.outline.handle_property(property, &mut self.decls, context) ||
+    self.flex.handle_property(property, &mut self.decls, context) ||
+    self.grid.handle_property(property, &mut self.decls, context) ||
+    self.align.handle_property(property, &mut self.decls, context) ||
+    self.size.handle_property(property, &mut self.decls, context) ||
+    self.margin.handle_property(property, &mut self.decls, context) ||
+    self.padding.handle_property(property, &mut self.decls, context) ||
+    self.scroll_margin.handle_property(property, &mut self.decls, context) ||
+    self.scroll_padding.handle_property(property, &mut self.decls, context) ||
+    self.font.handle_property(property, &mut self.decls, context) ||
+    self.text.handle_property(property, &mut self.decls, context) ||
+    self.list.handle_property(property, &mut self.decls, context) ||
+    self.transition.handle_property(property, &mut self.decls, context) ||
+    self.animation.handle_property(property, &mut self.decls, context) ||
+    self.display.handle_property(property, &mut self.decls, context) ||
+    self.position.handle_property(property, &mut self.decls, context) ||
+    self.inset.handle_property(property, &mut self.decls, context) ||
+    self.overflow.handle_property(property, &mut self.decls, context) ||
+    self.transform.handle_property(property, &mut self.decls, context) ||
+    self.box_shadow.handle_property(property, &mut self.decls, context) ||
+    self.fallback.handle_property(property, &mut self.decls, context) ||
+    self.prefix.handle_property(property, &mut self.decls, context)
   }
 
-  pub fn finalize(&mut self, logical_properties: &mut LogicalProperties) {
-    self.background.finalize(&mut self.decls, logical_properties);
-    self.border.finalize(&mut self.decls, logical_properties);
-    self.outline.finalize(&mut self.decls, logical_properties);
-    self.flex.finalize(&mut self.decls, logical_properties);
-    self.grid.finalize(&mut self.decls, logical_properties);
-    self.align.finalize(&mut self.decls, logical_properties);
-    self.size.finalize(&mut self.decls, logical_properties);
-    self.margin.finalize(&mut self.decls, logical_properties);
-    self.padding.finalize(&mut self.decls, logical_properties);
-    self.scroll_margin.finalize(&mut self.decls, logical_properties);
-    self.scroll_padding.finalize(&mut self.decls, logical_properties);
-    self.font.finalize(&mut self.decls, logical_properties);
-    self.text.finalize(&mut self.decls, logical_properties);
-    self.list.finalize(&mut self.decls, logical_properties);
-    self.transition.finalize(&mut self.decls, logical_properties);
-    self.animation.finalize(&mut self.decls, logical_properties);
-    self.display.finalize(&mut self.decls, logical_properties);
-    self.position.finalize(&mut self.decls, logical_properties);
-    self.inset.finalize(&mut self.decls, logical_properties);
-    self.overflow.finalize(&mut self.decls, logical_properties);
-    self.transform.finalize(&mut self.decls, logical_properties);
-    self.prefix.finalize(&mut self.decls, logical_properties);
+  pub fn finalize(&mut self, context: &mut PropertyHandlerContext<'i>) {
+    self.background.finalize(&mut self.decls, context);
+    self.border.finalize(&mut self.decls, context);
+    self.outline.finalize(&mut self.decls, context);
+    self.flex.finalize(&mut self.decls, context);
+    self.grid.finalize(&mut self.decls, context);
+    self.align.finalize(&mut self.decls, context);
+    self.size.finalize(&mut self.decls, context);
+    self.margin.finalize(&mut self.decls, context);
+    self.padding.finalize(&mut self.decls, context);
+    self.scroll_margin.finalize(&mut self.decls, context);
+    self.scroll_padding.finalize(&mut self.decls, context);
+    self.font.finalize(&mut self.decls, context);
+    self.text.finalize(&mut self.decls, context);
+    self.list.finalize(&mut self.decls, context);
+    self.transition.finalize(&mut self.decls, context);
+    self.animation.finalize(&mut self.decls, context);
+    self.display.finalize(&mut self.decls, context);
+    self.position.finalize(&mut self.decls, context);
+    self.inset.finalize(&mut self.decls, context);
+    self.overflow.finalize(&mut self.decls, context);
+    self.transform.finalize(&mut self.decls, context);
+    self.box_shadow.finalize(&mut self.decls, context);
+    self.fallback.finalize(&mut self.decls, context);
+    self.prefix.finalize(&mut self.decls, context);
   }
 }

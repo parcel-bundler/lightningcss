@@ -10,7 +10,7 @@ use itertools::izip;
 use crate::macros::*;
 use smallvec::SmallVec;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 
 /// https://drafts.csswg.org/css-animations/#animation-name
 #[derive(Debug, Clone, PartialEq)]
@@ -239,7 +239,7 @@ impl<'i> AnimationHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -322,7 +322,7 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
     self.flush(dest);
   }
 }

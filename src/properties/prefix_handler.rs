@@ -1,11 +1,12 @@
 #![allow(non_snake_case)]
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
-use super::Property;
+use super::{Property, PropertyId};
 use crate::vendor_prefix::VendorPrefix;
-use crate::traits::{PropertyHandler};
+use crate::traits::{PropertyHandler, FallbackValues};
 use crate::declaration::DeclarationList;
-use crate::logical::LogicalProperties;
+use crate::context::{PropertyHandlerContext, DeclarationContext};
+use crate::properties::custom::CustomProperty;
 
 macro_rules! define_prefixes {
   (
@@ -29,7 +30,7 @@ macro_rules! define_prefixes {
     }
 
     impl<'i> PropertyHandler<'i> for PrefixHandler {
-      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
+      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext) -> bool {
         match property {
           $(
             Property::$name(val, prefix) => {
@@ -75,7 +76,7 @@ macro_rules! define_prefixes {
         true
       }
 
-      fn finalize(&mut self, _: &mut DeclarationList, _: &mut LogicalProperties) {}
+      fn finalize(&mut self, _: &mut DeclarationList, _: &mut PropertyHandlerContext) {}
     }
   };
 }
@@ -86,7 +87,6 @@ define_prefixes! {
   BackfaceVisibility,
   Perspective,
   PerspectiveOrigin,
-  BoxShadow,
   BoxSizing,
   TabSize,
   Hyphens,
@@ -95,4 +95,84 @@ define_prefixes! {
   TextOverflow,
   UserSelect,
   Appearance,
+}
+
+macro_rules! define_fallbacks {
+  (
+    $( $name: ident, )+
+  ) => {
+    #[derive(Default)]
+    pub(crate) struct FallbackHandler {
+      targets: Option<Browsers>
+    }
+
+    impl FallbackHandler {
+      pub fn new(targets: Option<Browsers>) -> FallbackHandler {
+        FallbackHandler {
+          targets
+        }
+      }
+    }
+
+    impl<'i> PropertyHandler<'i> for FallbackHandler {
+      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
+        match property {
+          $(
+            Property::$name(val) => {
+              let mut val = val.clone();
+              if let Some(targets) = self.targets {
+                let fallbacks = val.get_fallbacks(targets);
+                for fallback in fallbacks {
+                  dest.push(Property::$name(fallback.clone()))
+                }
+              }
+
+              dest.push(Property::$name(val))
+            }
+          )+
+          Property::Custom(custom) => {
+            let mut custom = custom.clone();
+            if context.context != DeclarationContext::Keyframes {
+              if let Some(targets) = self.targets {
+                let fallbacks = custom.value.get_fallbacks(targets);
+                for (condition, fallback) in fallbacks {
+                  context.add_conditional_property(
+                    condition,
+                    Property::Custom(CustomProperty {
+                      name: custom.name.clone(),
+                      value: fallback
+                    })
+                  );
+                }
+              }
+            }
+
+            dest.push(Property::Custom(custom))
+          }
+          Property::Unparsed(val) if matches!(val.property_id, $( PropertyId::$name | )+ PropertyId::All) => {
+            let mut unparsed = val.clone();
+            context.add_unparsed_fallbacks(&mut unparsed);
+            dest.push(Property::Unparsed(unparsed));
+          }
+          _ => return false
+        }
+
+        true
+      }
+
+      fn finalize(&mut self, _: &mut DeclarationList, _: &mut PropertyHandlerContext) {}
+    }
+  };
+}
+
+define_fallbacks! {
+  Color,
+  TextShadow,
+  Filter,
+  Fill,
+  Stroke,
+  CaretColor,
+  Caret,
+  MaskImage,
+  Mask,
 }

@@ -3,6 +3,7 @@ use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use crate::macros::enum_property;
 use crate::error::{ParserError, PrinterError};
+use crate::values::image::ImageFallback;
 use crate::values::{
   image::Image,
   position::Position,
@@ -231,6 +232,22 @@ impl<'i> ToCss for Mask<'i> {
     }
 
     Ok(())
+  }
+}
+
+// TODO: shorthand handler?
+impl<'i> ImageFallback<'i> for Mask<'i> {
+  #[inline]
+  fn get_image(&self) -> &Image<'i> {
+    &self.image
+  }
+
+  #[inline]
+  fn with_image(&self, image: Image<'i>) -> Self {
+    Mask {
+      image,
+      ..self.clone()
+    }
   }
 }
 

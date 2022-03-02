@@ -1,4 +1,4 @@
-use crate::values::{length::*, percentage::{Percentage, NumberOrPercentage}, number::serialize_number};
+use crate::{values::{length::*, percentage::{Percentage, NumberOrPercentage}, number::serialize_number}, traits::FallbackValues};
 use cssparser::*;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::properties::{Property, PropertyId, VendorPrefix};
@@ -10,7 +10,7 @@ use crate::values::image::Image;
 use crate::macros::*;
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 
 enum_property! {
   /// https://www.w3.org/TR/css-backgrounds-3/#border-image-repeat
@@ -258,6 +258,18 @@ impl<'i> ToCss for BorderImage<'i> {
   }
 }
 
+impl<'i> FallbackValues for BorderImage<'i> {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+    self.source.get_fallbacks(targets)
+      .into_iter()
+      .map(|source| BorderImage {
+        source,
+        ..self.clone()
+      })
+      .collect()
+  }
+}
+
 #[derive(Default, Debug)]
 pub(crate) struct BorderImageHandler<'i> {
   targets: Option<Browsers>,
@@ -281,7 +293,7 @@ impl<'i> BorderImageHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
     use Property::*;
     macro_rules! property {
       ($name: ident, $val: ident) => {{
@@ -310,13 +322,14 @@ impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
 
         // Even if we weren't able to parse the value (e.g. due to var() references),
         // we can still add vendor prefixes to the property itself.
-        let prop = if matches!(val.property_id, PropertyId::BorderImage(_)) {
-          Property::Unparsed(val.get_prefixed(self.targets, Feature::BorderImage))
+        let mut unparsed = if matches!(val.property_id, PropertyId::BorderImage(_)) {
+          val.get_prefixed(self.targets, Feature::BorderImage)
         } else {
-          property.clone()
+          val.clone()
         };
 
-        dest.push(prop);
+        context.add_unparsed_fallbacks(&mut unparsed);
+        dest.push(Property::Unparsed(unparsed));
       }
       _ => return false
     }
@@ -324,7 +337,7 @@ impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
     self.flush(dest);
   }
 }
@@ -359,24 +372,49 @@ impl<'i> BorderImageHandler<'i> {
     let outset = std::mem::take(&mut self.outset);
     let repeat = std::mem::take(&mut self.repeat);
 
-    if source.is_some() && slice.is_some() && width.is_some() && outset.is_some() && repeat.is_some() {
-      let slice = slice.unwrap();
-      let mut prefix = self.vendor_prefix;
-      if prefix.contains(VendorPrefix::None) && !slice.fill {
-        if let Some(targets) = self.targets {
-          prefix = Feature::BorderImage.prefixes_for(targets)
-        }
-      }
-
-      dest.push(Property::BorderImage(BorderImage {
+    if source.is_some() && slice.is_some() && width.is_some() && outset.is_some() && repeat.is_some() {      
+      let mut border_image = BorderImage {
         source: source.unwrap(),
-        slice,
+        slice: slice.unwrap(),
         width: width.unwrap(),
         outset: outset.unwrap(),
         repeat: repeat.unwrap()
-      }, prefix))
+      };
+
+      let mut prefix = self.vendor_prefix;
+      if prefix.contains(VendorPrefix::None) && !border_image.slice.fill {
+        if let Some(targets) = self.targets {
+          prefix = Feature::BorderImage.prefixes_for(targets);
+
+          let fallbacks = border_image.get_fallbacks(targets);
+          for fallback in fallbacks {
+            // Match prefix of fallback. e.g. -webkit-linear-gradient
+            // can only be used in -webkit-border-image, not -moz-border-image.
+            // However, if border-image is unprefixed, gradients can still be.
+            let mut p = fallback.source.get_vendor_prefix() & prefix;
+            if p.is_empty() {
+              p = prefix;
+            }
+            dest.push(Property::BorderImage(fallback, p));
+          }
+        }
+      }
+
+      let p = border_image.source.get_vendor_prefix() & prefix;
+      if !p.is_empty() {
+        prefix = p;
+      }
+
+      dest.push(Property::BorderImage(border_image, prefix))
     } else {
-      if let Some(source) = source {
+      if let Some(mut source) = source {
+        if let Some(targets) = self.targets {
+          let fallbacks = source.get_fallbacks(targets);
+          for fallback in fallbacks {
+            dest.push(Property::BorderImageSource(fallback));
+          }
+        }
+
         dest.push(Property::BorderImageSource(source))
       }
 

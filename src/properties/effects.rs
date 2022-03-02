@@ -1,8 +1,10 @@
 use cssparser::*;
 use smallvec::SmallVec;
-use crate::traits::{Parse, ToCss};
+use crate::targets::Browsers;
+use crate::traits::{Parse, ToCss, FallbackValues};
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
+use crate::values::color::ColorFallbackKind;
 use crate::values::{
   url::Url,
   length::Length,
@@ -169,6 +171,15 @@ impl<'i> ToCss for Filter<'i> {
   }
 }
 
+impl<'i> Filter<'i> {
+  fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
+    match self {
+      Filter::DropShadow(shadow) => Filter::DropShadow(shadow.get_fallback(kind)),
+      _ => self.clone()
+    }
+  }
+}
+
 /// https://drafts.fxtf.org/filter-effects-1/#funcdef-filter-drop-shadow
 #[derive(Debug, Clone, PartialEq)]
 pub struct DropShadow {
@@ -238,6 +249,15 @@ impl ToCss for DropShadow {
   }
 }
 
+impl DropShadow {
+  fn get_fallback(&self, kind: ColorFallbackKind) -> DropShadow {
+    DropShadow {
+      color: self.color.get_fallback(kind),
+      ..self.clone()
+    }
+  }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum FilterList<'i> {
   None,
@@ -276,5 +296,45 @@ impl<'i> ToCss for FilterList<'i> {
         Ok(())
       }
     }
+  }
+}
+
+impl<'i> FallbackValues for FilterList<'i> {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+    let mut res = Vec::new();
+    let mut fallbacks = ColorFallbackKind::empty();
+    if let FilterList::Filters(filters) = self {
+      for shadow in filters.iter() {
+        if let Filter::DropShadow(shadow) = &shadow {
+          fallbacks |= shadow.color.get_necessary_fallbacks(targets);
+        }
+      }
+
+      if fallbacks.contains(ColorFallbackKind::RGB) {
+        res.push(FilterList::Filters(
+          filters
+            .iter()
+            .map(|filter| filter.get_fallback(ColorFallbackKind::RGB))
+            .collect()
+        ));
+      }
+  
+      if fallbacks.contains(ColorFallbackKind::P3) {
+        res.push(FilterList::Filters(
+          filters
+            .iter()
+            .map(|filter| filter.get_fallback(ColorFallbackKind::P3))
+            .collect()
+        ));
+      }
+  
+      if fallbacks.contains(ColorFallbackKind::LAB) {
+        for filter in filters.iter_mut() {
+          *filter = filter.get_fallback(ColorFallbackKind::LAB);
+        }
+      }
+    }
+
+    res
   }
 }

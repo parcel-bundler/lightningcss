@@ -1,7 +1,7 @@
 use cssparser::*;
 use super::angle::{Angle, AnglePercentage};
 use super::position::{HorizontalPositionKeyword, VerticalPositionKeyword};
-use super::color::CssColor;
+use super::color::{CssColor, ColorFallbackKind};
 use super::length::{Length, LengthPercentage};
 use super::percentage::{Percentage, DimensionPercentage, NumberOrPercentage};
 use super::position::{Position, PositionComponent};
@@ -27,14 +27,14 @@ pub enum Gradient {
 }
 
 impl Gradient {
-  pub fn has_vendor_prefix(&self) -> bool {
+  pub fn get_vendor_prefix(&self) -> VendorPrefix {
     match self {
       Gradient::Linear(_, prefix) | 
       Gradient::RepeatingLinear(_, prefix) |
       Gradient::Radial(_, prefix) | 
-      Gradient::RepeatingRadial(_, prefix) => *prefix != VendorPrefix::None,
-      Gradient::WebKitGradient(_) => true,
-      _ => false
+      Gradient::RepeatingRadial(_, prefix) => *prefix,
+      Gradient::WebKitGradient(_) => VendorPrefix::WebKit,
+      _ => VendorPrefix::None
     }
   }
 
@@ -70,6 +70,50 @@ impl Gradient {
 
   pub fn get_legacy_webkit(&self) -> Result<Gradient, ()> {
     Ok(Gradient::WebKitGradient(WebKitGradient::from_standard(self)?))
+  }
+
+  pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+    match self {
+      Gradient::Linear(LinearGradient { items, .. }, _) |
+      Gradient::Radial(RadialGradient { items, .. }, _) |
+      Gradient::RepeatingLinear(LinearGradient { items, .. }, _) |
+      Gradient::RepeatingRadial(RadialGradient { items, .. }, _) => {
+        let mut fallbacks = ColorFallbackKind::empty();
+        for item in items {
+          fallbacks |= item.get_necessary_fallbacks(targets)
+        }
+        fallbacks
+      },
+      Gradient::Conic(ConicGradient { items, .. }) |
+      Gradient::RepeatingConic(ConicGradient { items, .. }) => {
+        let mut fallbacks = ColorFallbackKind::empty();
+        for item in items {
+          fallbacks |= item.get_necessary_fallbacks(targets)
+        }
+        fallbacks
+      },
+      Gradient::WebKitGradient(..) => ColorFallbackKind::empty()
+    }
+  }
+
+  pub fn get_fallback(&self, kind: ColorFallbackKind) -> Gradient {
+    match self {
+      Gradient::Linear(g, prefixes) |
+      Gradient::RepeatingLinear(g, prefixes) => {
+        Gradient::Linear(g.get_fallback(kind), *prefixes)
+      },
+      Gradient::Radial(g, prefixes) |
+      Gradient::RepeatingRadial(g, prefixes) => {
+        Gradient::Radial(g.get_fallback(kind), *prefixes)
+      },
+      Gradient::Conic(g) | 
+      Gradient::RepeatingConic(g) => {
+        Gradient::Conic(g.get_fallback(kind))
+      },
+      Gradient::WebKitGradient(g) => {
+        Gradient::WebKitGradient(g.get_fallback(kind))
+      }
+    }
   }
 }
 
@@ -196,6 +240,13 @@ impl LinearGradient {
       serialize_items(&self.items, dest)
     }
   }
+
+  fn get_fallback(&self, kind: ColorFallbackKind) -> LinearGradient {
+    LinearGradient {
+      direction: self.direction.clone(),
+      items: self.items.iter().map(|item| item.get_fallback(kind)).collect()
+    }
+  }
 }
 
 /// https://www.w3.org/TR/css-images-3/#radial-gradients
@@ -245,6 +296,16 @@ impl ToCss for RadialGradient {
     }
     
     serialize_items(&self.items, dest)
+  }
+}
+
+impl RadialGradient {
+  fn get_fallback(&self, kind: ColorFallbackKind) -> RadialGradient {
+    RadialGradient {
+      shape: self.shape.clone(),
+      position: self.position.clone(),
+      items: self.items.iter().map(|item| item.get_fallback(kind)).collect()
+    }
   }
 }
 
@@ -534,6 +595,16 @@ impl ToCss for ConicGradient {
   }
 }
 
+impl ConicGradient {
+  fn get_fallback(&self, kind: ColorFallbackKind) -> ConicGradient {
+    ConicGradient {
+      angle: self.angle.clone(),
+      position: self.position.clone(),
+      items: self.items.iter().map(|item| item.get_fallback(kind)).collect()
+    }
+  }
+}
+
 /// https://www.w3.org/TR/css-images-4/#color-stop-syntax
 #[derive(Debug, Clone, PartialEq)]
 pub struct ColorStop<D> {
@@ -571,6 +642,27 @@ impl<D: ToCss> ToCss for GradientItem<D> {
     match self {
       GradientItem::ColorStop(stop) => stop.to_css(dest),
       GradientItem::Hint(hint) => hint.to_css(dest)
+    }
+  }
+}
+
+impl<D: Clone> GradientItem<D> {
+  pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+    match self {
+      GradientItem::ColorStop(stop) => stop.color.get_necessary_fallbacks(targets),
+      GradientItem::Hint(..) => ColorFallbackKind::empty()
+    }
+  }
+
+  pub fn get_fallback(&self, kind: ColorFallbackKind) -> GradientItem<D> {
+    match self {
+      GradientItem::ColorStop(stop) => {
+        GradientItem::ColorStop(ColorStop {
+          color: stop.color.get_fallback(kind),
+          position: stop.position.clone()
+        })
+      }
+      GradientItem::Hint(..) => self.clone()
     }
   }
 }
@@ -749,6 +841,39 @@ impl ToCss for WebKitGradient {
   }
 }
 
+impl WebKitGradient {
+  fn get_fallback(&self, kind: ColorFallbackKind) -> WebKitGradient {
+    let stops = match self {
+      WebKitGradient::Linear { stops, .. } => stops,
+      WebKitGradient::Radial { stops, .. } => stops
+    };
+
+    let stops = stops
+      .iter()
+      .map(|stop| stop.get_fallback(kind))
+      .collect();
+
+    match self {
+      WebKitGradient::Linear { from, to, .. } => {
+        WebKitGradient::Linear {
+          from: from.clone(),
+          to: to.clone(),
+          stops
+        }
+      },
+      WebKitGradient::Radial { from, r0, to, r1, .. } => {
+        WebKitGradient::Radial {
+          from: from.clone(),
+          r0: *r0,
+          to: to.clone(),
+          r1: *r1,
+          stops
+        }
+      }
+    }
+  }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct WebKitColorStop {
   pub color: CssColor,
@@ -794,6 +919,15 @@ impl ToCss for WebKitColorStop {
       self.color.to_css(dest)?;
     }
     dest.write_char(')')
+  }
+}
+
+impl WebKitColorStop {
+  fn get_fallback(&self, kind: ColorFallbackKind) -> WebKitColorStop {
+    WebKitColorStop {
+      color: self.color.get_fallback(kind),
+      position: self.position
+    }
   }
 }
 

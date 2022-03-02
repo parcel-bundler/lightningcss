@@ -1,13 +1,14 @@
 use crate::values::string::CowArcStr;
 use cssparser::*;
-use crate::traits::{Parse, ToCss, PropertyHandler};
+use crate::traits::{Parse, ToCss, PropertyHandler, FallbackValues};
 use super::{Property, PropertyId};
 use crate::values::{image::Image, ident::CustomIdent};
 use crate::declaration::DeclarationList;
 use crate::macros::{enum_property, shorthand_property, shorthand_handler};
 use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
+use crate::targets::Browsers;
 
 /// https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#text-markers
 #[derive(Debug, Clone, PartialEq)]
@@ -177,8 +178,20 @@ shorthand_property!(ListStyle<'i> {
   position: ListStylePosition,
 });
 
-shorthand_handler!(ListStyleHandler -> ListStyle {
+impl<'i> FallbackValues for ListStyle<'i> {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+    self.image.get_fallbacks(targets)
+      .into_iter()
+      .map(|image| ListStyle {
+        image,
+        ..self.clone()
+      })
+      .collect()
+  }
+}
+
+shorthand_handler!(ListStyleHandler -> ListStyle<'i> {
   list_style_type: ListStyleType(ListStyleType<'i>),
-  image: ListStyleImage(Image<'i>),
+  image: ListStyleImage(Image<'i>, fallback: true),
   position: ListStylePosition(ListStylePosition),
 });

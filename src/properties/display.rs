@@ -9,7 +9,7 @@ use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::printer::Printer;
 use crate::macros::enum_property;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 
 enum_property! {
   pub enum DisplayOutside {
@@ -317,7 +317,7 @@ impl<'i> DisplayHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for DisplayHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
     if let Property::Display(display) = property {
       match (&self.display, display) {
         (Some(Display::Pair(cur)), Display::Pair(new)) => {
@@ -345,7 +345,7 @@ impl<'i> PropertyHandler<'i> for DisplayHandler<'i> {
     }
     
     if matches!(property, Property::Unparsed(UnparsedProperty { property_id: PropertyId::Display, .. })) {
-      self.finalize(dest, logical);
+      self.finalize(dest, context);
       dest.push(property.clone());
       return true
     }
@@ -353,7 +353,7 @@ impl<'i> PropertyHandler<'i> for DisplayHandler<'i> {
     false
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
     if self.display.is_none() {
       return
     }

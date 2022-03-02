@@ -6,7 +6,8 @@ use crate::values::{
 use crate::properties::{Property, PropertyId};
 use crate::declaration::DeclarationList;
 use crate::traits::PropertyHandler;
-use crate::logical::{LogicalProperties, PropertyCategory};
+use crate::logical::PropertyCategory;
+use crate::context::PropertyHandlerContext;
 use crate::compat::Feature;
 
 macro_rules! side_handler {
@@ -26,13 +27,13 @@ macro_rules! side_handler {
     }
 
     impl<'i> PropertyHandler<'i> for $name {
-      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
+      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
         use Property::*;
 
         macro_rules! property {
           ($key: ident, $val: ident, $category: ident) => {{
             if PropertyCategory::$category != self.category {
-              self.flush(dest, logical);
+              self.flush(dest, context);
             }
             self.$key = Some($val.clone());
             self.category = PropertyCategory::$category;
@@ -43,7 +44,7 @@ macro_rules! side_handler {
         macro_rules! set_shorthand {
           ($start: ident, $end: ident, $val: ident) => {{
             if self.category != PropertyCategory::Logical {
-              self.flush(dest, logical);
+              self.flush(dest, context);
             }
             self.$start = Some($val.0.clone());
             self.$end = Some($val.1.clone());
@@ -76,7 +77,7 @@ macro_rules! side_handler {
             self.has_any = true;
           }
           Unparsed(val) if matches!(val.property_id, PropertyId::$top | PropertyId::$bottom | PropertyId::$left | PropertyId::$right | PropertyId::$block_start | PropertyId::$block_end | PropertyId::$inline_start | PropertyId::$inline_end | PropertyId::$block_shorthand | PropertyId::$inline_shorthand | PropertyId::$shorthand) => {
-            self.flush(dest, logical);
+            self.flush(dest, context);
             dest.push(property.clone());
           }
           _ => return false
@@ -85,13 +86,13 @@ macro_rules! side_handler {
         true
       }
 
-      fn finalize(&mut self, dest: &mut DeclarationList, logical: &mut LogicalProperties) {
-        self.flush(dest, logical);
+      fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
+        self.flush(dest, context);
       }
     }
 
-    impl $name {
-      fn flush(&mut self, dest: &mut DeclarationList, logical_properties: &mut LogicalProperties) {
+    impl<'i> $name {
+      fn flush(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
         use Property::*;
 
         if !self.has_any {
@@ -104,7 +105,7 @@ macro_rules! side_handler {
         let bottom = std::mem::take(&mut self.bottom);
         let left = std::mem::take(&mut self.left);
         let right = std::mem::take(&mut self.right);
-        let logical_supported = true $(&& logical_properties.is_supported(Feature::$feature))?;
+        let logical_supported = true $(&& context.is_supported(Feature::$feature))?;
 
         if (!$logical_shorthand || logical_supported) && top.is_some() && bottom.is_some() && left.is_some() && right.is_some() {
           let rect = Rect::new(top.unwrap(), right.unwrap(), bottom.unwrap(), left.unwrap());
@@ -168,7 +169,7 @@ macro_rules! side_handler {
             dest.push($left(inline_start.unwrap()));
             dest.push($right(inline_end.unwrap()));
           } else {
-            logical_properties.add_inline(
+            context.add_inline_logical_properties(
               dest,
               PropertyId::$left,
               PropertyId::$right,

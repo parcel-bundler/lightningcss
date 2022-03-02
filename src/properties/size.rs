@@ -6,7 +6,7 @@ use crate::macros::enum_property;
 use crate::error::{ParserError, PrinterError};
 use crate::properties::{Property, PropertyId};
 use crate::declaration::DeclarationList;
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 use crate::compat::Feature;
 
 /// https://drafts.csswg.org/css-sizing-3/#specifying-sizes
@@ -135,8 +135,8 @@ enum_property! {
 pub(crate) struct SizeHandler;
 
 impl<'i> PropertyHandler<'i> for SizeHandler {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
-    let logical_supported = logical.is_supported(Feature::LogicalSize);
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
+    let logical_supported = context.is_supported(Feature::LogicalSize);
     
     macro_rules! logical {
       ($prop: ident, $val: ident, $physical: ident) => {
@@ -198,5 +198,5 @@ impl<'i> PropertyHandler<'i> for SizeHandler {
     true
   }
 
-  fn finalize(&mut self, _: &mut DeclarationList, _: &mut LogicalProperties) {}
+  fn finalize(&mut self, _: &mut DeclarationList, _: &mut PropertyHandlerContext<'i>) {}
 }

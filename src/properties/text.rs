@@ -1,8 +1,9 @@
 #![allow(non_upper_case_globals)]
 
+use smallvec::SmallVec;
 use crate::values::string::CowArcStr;
 use cssparser::*;
-use crate::traits::{Parse, ToCss, PropertyHandler};
+use crate::traits::{Parse, ToCss, PropertyHandler, FallbackValues};
 use super::{Property, PropertyId};
 use crate::vendor_prefix::VendorPrefix;
 use crate::declaration::DeclarationList;
@@ -10,11 +11,11 @@ use crate::targets::Browsers;
 use crate::prefixes::Feature;
 use crate::macros::enum_property;
 use crate::values::length::{Length, LengthPercentage};
-use crate::values::color::CssColor;
+use crate::values::color::{CssColor, ColorFallbackKind};
 use crate::printer::Printer;
 use bitflags::bitflags;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 use crate::compat;
 
 enum_property! {
@@ -533,6 +534,18 @@ impl ToCss for TextDecoration {
   }
 }
 
+impl FallbackValues for TextDecoration {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+    self.color.get_fallbacks(targets)
+      .into_iter()
+      .map(|color| TextDecoration {
+        color,
+        ..self.clone()
+      })
+      .collect()
+  }
+}
+
 enum_property! {
   /// https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-skip-ink-property
   pub enum TextDecorationSkipInk {
@@ -678,6 +691,18 @@ impl<'i> ToCss for TextEmphasis<'i> {
   }
 }
 
+impl<'i> FallbackValues for TextEmphasis<'i> {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+    self.color.get_fallbacks(targets)
+      .into_iter()
+      .map(|color| TextEmphasis {
+        color,
+        ..self.clone()
+      })
+      .collect()
+  }
+}
+
 enum_property! {
   pub enum TextEmphasisPositionVertical {
     Over,
@@ -746,7 +771,7 @@ impl<'i> TextDecorationHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -755,7 +780,7 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
           if val != $val && !prefixes.contains(*$vp) {
-            self.finalize(dest, logical);
+            self.finalize(dest, context);
           }
         }
       }};
@@ -806,11 +831,11 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
         use super::text::*;
         macro_rules! logical {
           ($ltr: ident, $rtl: ident) => {{
-            let logical_supported = logical.is_supported(compat::Feature::LogicalTextAlign);
+            let logical_supported = context.is_supported(compat::Feature::LogicalTextAlign);
             if logical_supported {
               dest.push(property.clone());
             } else {
-              logical.add(
+              context.add_logical_property(
                 dest,
                 PropertyId::TextAlign,
                 Property::TextAlign(TextAlign::$ltr),
@@ -827,12 +852,16 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
         }
       }
       Unparsed(val) if is_text_decoration_property(&val.property_id) => {
-        self.finalize(dest, logical);
-        dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::TextDecoration)))
+        self.finalize(dest, context);
+        let mut unparsed = val.get_prefixed(self.targets, Feature::TextDecoration);
+        context.add_unparsed_fallbacks(&mut unparsed);
+        dest.push(Property::Unparsed(unparsed))
       }
       Unparsed(val) if is_text_emphasis_property(&val.property_id) => {
-        self.finalize(dest, logical);
-        dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::TextEmphasis)))
+        self.finalize(dest, context);
+        let mut unparsed = val.get_prefixed(self.targets, Feature::TextEmphasis);
+        context.add_unparsed_fallbacks(&mut unparsed);
+        dest.push(Property::Unparsed(unparsed))
       }
       _ => return false
     }
@@ -840,7 +869,7 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
     if !self.has_any {
       return
     }
@@ -859,25 +888,53 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
       let intersection = *line_vp | *style_vp | *color_vp;
       if !intersection.is_empty() {
         let mut prefix = intersection;
-        
-        // Only add prefixes if one of the new sub-properties was used
-        if prefix.contains(VendorPrefix::None) && (*style != TextDecorationStyle::default() || *color != CssColor::current_color()) {
-          if let Some(targets) = self.targets {
-            prefix = Feature::TextDecoration.prefixes_for(targets)
-          }
-        }
 
-        dest.push(Property::TextDecoration(TextDecoration {
+        let mut decoration = TextDecoration {
           line: line.clone(),
           thickness: thickness_val.clone(),
           style: style.clone(),
           color: color.clone()
-        }, prefix));
+        };
+        
+        // Only add prefixes if one of the new sub-properties was used
+        if prefix.contains(VendorPrefix::None) && (*style != TextDecorationStyle::default() || *color != CssColor::current_color()) {
+          if let Some(targets) = self.targets {
+            prefix = Feature::TextDecoration.prefixes_for(targets);
+
+            let fallbacks = decoration.get_fallbacks(targets);
+            for fallback in fallbacks {
+              dest.push(Property::TextDecoration(fallback, prefix))
+            }
+          }
+        }
+
+        dest.push(Property::TextDecoration(decoration, prefix));
         line_vp.remove(intersection);
         style_vp.remove(intersection);
         color_vp.remove(intersection);
         thickness = None;
       }
+    }
+
+    macro_rules! color {
+      ($key: ident, $prop: ident) => {
+        if let Some((mut val, vp)) = $key {
+          if !vp.is_empty() {
+            let mut prefix = vp;
+            if prefix.contains(VendorPrefix::None) {
+              if let Some(targets) = self.targets {
+                prefix = Feature::$prop.prefixes_for(targets);
+
+                let fallbacks = val.get_fallbacks(targets);
+                for fallback in fallbacks {
+                  dest.push(Property::$prop(fallback, prefix))
+                }
+              }
+            }
+            dest.push(Property::$prop(val, prefix))
+          }
+        }
+      };
     }
 
     macro_rules! single_property {
@@ -898,7 +955,7 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
 
     single_property!(line, TextDecorationLine);
     single_property!(style, TextDecorationStyle);
-    single_property!(color, TextDecorationColor);
+    color!(color, TextDecorationColor);
 
     if let Some(thickness) = thickness {
       dest.push(Property::TextDecorationThickness(thickness))
@@ -908,23 +965,30 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
       let intersection = *style_vp | *color_vp;
       if !intersection.is_empty() {
         let mut prefix = intersection;
+        let mut emphasis = TextEmphasis {
+          style: style.clone(),
+          color: color.clone()
+        };
+
         if prefix.contains(VendorPrefix::None) {
           if let Some(targets) = self.targets {
-            prefix = Feature::TextEmphasis.prefixes_for(targets)
+            prefix = Feature::TextEmphasis.prefixes_for(targets);
+
+            let fallbacks = emphasis.get_fallbacks(targets);
+            for fallback in fallbacks {
+              dest.push(Property::TextEmphasis(fallback, prefix))
+            }
           }
         }
 
-        dest.push(Property::TextEmphasis(TextEmphasis {
-          style: style.clone(),
-          color: color.clone()
-        }, prefix));
+        dest.push(Property::TextEmphasis(emphasis, prefix));
         style_vp.remove(intersection);
         color_vp.remove(intersection);
       }
     }
 
     single_property!(emphasis_style, TextEmphasisStyle);
-    single_property!(emphasis_color, TextEmphasisColor);
+    color!(emphasis_color, TextEmphasisColor);
 
     if let Some((pos, vp)) = emphasis_position {
       if !vp.is_empty() {
@@ -1040,5 +1104,45 @@ fn is_text_emphasis_property(property_id: &PropertyId) -> bool {
     PropertyId::TextEmphasis(_) |
     PropertyId::TextEmphasisPosition(_) => true,
     _ => false
+  }
+}
+
+impl FallbackValues for SmallVec<[TextShadow; 1]> {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+    let mut fallbacks = ColorFallbackKind::empty();
+    for shadow in self.iter() {
+      fallbacks |= shadow.color.get_necessary_fallbacks(targets);
+    }
+
+    let mut res = Vec::new();
+    if fallbacks.contains(ColorFallbackKind::RGB) {
+      let rgb = self
+        .iter()
+        .map(|shadow| TextShadow {
+          color: shadow.color.to_rgb(),
+          ..shadow.clone()
+        })
+        .collect();
+      res.push(rgb);
+    }
+
+    if fallbacks.contains(ColorFallbackKind::P3) {
+      let p3 = self
+        .iter()
+        .map(|shadow| TextShadow {
+          color: shadow.color.to_p3(),
+          ..shadow.clone()
+        })
+        .collect();
+      res.push(p3);
+    }
+
+    if fallbacks.contains(ColorFallbackKind::LAB) {
+      for shadow in self.iter_mut() {
+        shadow.color = shadow.color.to_lab();
+      }
+    }
+
+    res
   }
 }

@@ -10,7 +10,7 @@ use smallvec::SmallVec;
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 use crate::compat;
 
 /// https://www.w3.org/TR/2018/WD-css-transitions-1-20181011/#transition-shorthand-property
@@ -112,7 +112,7 @@ impl<'i> TransitionHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -121,7 +121,7 @@ impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
           if val != $val && !prefixes.contains(*$vp) {
-            self.flush(dest, logical);
+            self.flush(dest, context);
           }
         }
       }};
@@ -180,7 +180,7 @@ impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
         property!(TransitionTimingFunction, timing_functions, &timing_functions, vp);
       }
       Unparsed(val) if is_transition_property(&val.property_id) => {
-        self.flush(dest, logical);
+        self.flush(dest, context);
         dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::Transition)));
       }
       _ => return false
@@ -189,13 +189,13 @@ impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) {
-    self.flush(dest, logical);
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
+    self.flush(dest, context);
   }
 }
 
 impl<'i> TransitionHandler<'i> {
-  fn flush(&mut self, dest: &mut DeclarationList<'i>, logical_properties: &mut LogicalProperties) {
+  fn flush(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
     if !self.has_any {
       return
     }
@@ -208,7 +208,7 @@ impl<'i> TransitionHandler<'i> {
     let mut timing_functions = std::mem::take(&mut self.timing_functions);
 
     let rtl_properties = if let Some((properties, _)) = &mut properties {
-      expand_properties(properties, self.targets, logical_properties)
+      expand_properties(properties, self.targets, context)
     } else {
       None
     };
@@ -239,7 +239,7 @@ impl<'i> TransitionHandler<'i> {
 
           if let Some(rtl_properties) = &rtl_properties {
             let rtl_transitions = get_transitions!(rtl_properties);
-            logical_properties.add(
+            context.add_logical_property(
               dest,
               PropertyId::Transition(intersection),
               Property::Transition(transitions, intersection),
@@ -260,7 +260,7 @@ impl<'i> TransitionHandler<'i> {
     if let Some((properties, prefix)) = properties {
       if !prefix.is_empty() {
         if let Some(rtl_properties) = rtl_properties {
-          logical_properties.add(
+          context.add_logical_property(
             dest,
             PropertyId::TransitionProperty(prefix),
             Property::TransitionProperty(properties, prefix),
@@ -316,7 +316,7 @@ fn is_transition_property(property_id: &PropertyId) -> bool {
 fn expand_properties<'i>(
   properties: &mut SmallVec<[PropertyId<'i>; 1]>,
   targets: Option<Browsers>,
-  logical_properties: &mut LogicalProperties
+  context: &mut PropertyHandlerContext
 ) -> Option<SmallVec<[PropertyId<'i>; 1]>> {
   let mut rtl_properties: Option<SmallVec<[PropertyId; 1]>> = None;
   let len = properties.len();
@@ -334,14 +334,14 @@ fn expand_properties<'i>(
   // Expand logical properties in place.
   while i < len {
     match get_logical_properties(&properties[i]) {
-      LogicalPropertyId::Block(feature, props) if !logical_properties.is_supported(feature) => {
+      LogicalPropertyId::Block(feature, props) if !context.is_supported(feature) => {
         replace!(properties, props);
         if let Some(rtl_properties) = &mut rtl_properties {
           replace!(rtl_properties, props);
         }
         i += props.len();
       }
-      LogicalPropertyId::Inline(feature, ltr, rtl) if !logical_properties.is_supported(feature) => {
+      LogicalPropertyId::Inline(feature, ltr, rtl) if !context.is_supported(feature) => {
         // Clone properties to create RTL version only when needed.
         if rtl_properties.is_none() {
           rtl_properties = Some(properties.clone());

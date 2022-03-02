@@ -181,19 +181,29 @@ pub (crate) use shorthand_property;
 
 macro_rules! shorthand_handler {
   (
-    $name: ident -> $shorthand: ident
-    { $( $key: ident: $prop: ident($type: ty), )+ }
+    $name: ident -> $shorthand: ident$(<$l: lifetime>)?
+    { $( $key: ident: $prop: ident($type: ty $(, fallback: $fallback: literal)?), )+ }
   ) => {
     #[derive(Default)]
-    pub(crate) struct $name<'i> {
+    pub(crate) struct $name$(<$l>)? {
+      targets: Option<Browsers>,
       $(
         pub $key: Option<$type>,
       )*
       has_any: bool
     }
 
-    impl<'i> PropertyHandler<'i> for $name<'i> {
-      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
+    impl$(<$l>)? $name$(<$l>)? {
+      pub fn new(targets: Option<Browsers>) -> Self {
+        Self {
+          targets,
+          ..Self::default()
+        }
+      }
+    }
+
+    impl<'i> PropertyHandler<'i> for $name$(<$l>)? {
+      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
         match property {
           $(
             Property::$prop(val) => {
@@ -208,8 +218,11 @@ macro_rules! shorthand_handler {
             self.has_any = true;
           }
           Property::Unparsed(val) if matches!(val.property_id, $( PropertyId::$prop | )+ PropertyId::$shorthand) => {
-            self.finalize(dest, logical);
-            dest.push(property.clone());
+            self.finalize(dest, context);
+
+            let mut unparsed = val.clone();
+            context.add_unparsed_fallbacks(&mut unparsed);
+            dest.push(Property::Unparsed(unparsed));
           }
           _ => return false
         }
@@ -217,7 +230,7 @@ macro_rules! shorthand_handler {
         true
       }
 
-      fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) {
+      fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
         if !self.has_any {
           return
         }
@@ -229,14 +242,35 @@ macro_rules! shorthand_handler {
         )+
 
         if $( $key.is_some() && )* true {
-          dest.push(Property::$shorthand($shorthand {
+          let mut shorthand = $shorthand {
             $(
               $key: $key.unwrap(),
             )+
-          }))
+          };
+
+          if let Some(targets) = self.targets {
+            let fallbacks = shorthand.get_fallbacks(targets);
+            for fallback in fallbacks {
+              dest.push(Property::$shorthand(fallback));
+            }
+          }
+
+          dest.push(Property::$shorthand(shorthand))
         } else {
           $(
-            if let Some(val) = $key {
+            #[allow(unused_mut)]
+            if let Some(mut val) = $key {
+              $(
+                if $fallback {
+                  if let Some(targets) = self.targets {
+                    let fallbacks = val.get_fallbacks(targets);
+                    for fallback in fallbacks {
+                      dest.push(Property::$prop(fallback));
+                    }
+                  }
+                }
+              )?
+              
               dest.push(Property::$prop(val))
             }
           )+

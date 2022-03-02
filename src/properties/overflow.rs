@@ -7,7 +7,7 @@ use crate::printer::Printer;
 use crate::targets::Browsers;
 use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::context::PropertyHandlerContext;
 
 enum_property! {
   pub enum OverflowKeyword {
@@ -71,7 +71,7 @@ impl OverflowHandler {
 
 
 impl<'i> PropertyHandler<'i> for OverflowHandler {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
     use Property::*;
 
     match property {
@@ -82,7 +82,7 @@ impl<'i> PropertyHandler<'i> for OverflowHandler {
         self.y = Some(val.y);
       }
       Unparsed(val) if matches!(val.property_id, PropertyId::OverflowX | PropertyId::OverflowY | PropertyId::Overflow) => {
-        self.finalize(dest, logical);
+        self.finalize(dest, context);
         dest.push(property.clone());
       }
       _ => return false
@@ -91,7 +91,7 @@ impl<'i> PropertyHandler<'i> for OverflowHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut PropertyHandlerContext<'i>) {
     if self.x.is_none() && self.y.is_none() {
       return
     }
