@@ -1,4 +1,5 @@
 use cssparser::*;
+use crate::values::color::ColorFallbackKind;
 use crate::values::image::ImageFallback;
 use crate::values::{
   length::LengthPercentageOrAuto,
@@ -403,6 +404,21 @@ impl<'i> ImageFallback<'i> for Background<'i> {
   fn with_image(&self, image: Image<'i>) -> Self {
     Background {
       image,
+      ..self.clone()
+    }
+  }
+
+  #[inline]
+  fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+    self.color.get_necessary_fallbacks(targets) | 
+      self.get_image().get_necessary_fallbacks(targets)
+  }
+
+  #[inline]
+  fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
+    Background {
+      color: self.color.get_fallback(kind),
+      image: self.image.get_fallback(kind),
       ..self.clone()
     }
   }

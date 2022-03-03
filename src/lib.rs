@@ -2505,6 +2505,54 @@ mod tests {
 
     minify_test(".foo { background: none center }", ".foo{background:50%}");
     minify_test(".foo { background: none }", ".foo{background:0 0}");
+  
+    prefix_test(r#"
+      .foo {
+        background: lab(51.5117% 43.3777 -29.0443);
+      }
+    "#, indoc! {r#"
+      .foo {
+        background: #af5cae;
+        background: lab(51.5117% 43.3777 -29.0443);
+      }
+    "#
+    }, Browsers {
+      chrome: Some(95 << 16),
+      safari: Some(15 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        background: lab(51.5117% 43.3777 -29.0443) url(foo.png);
+      }
+    "#, indoc! {r#"
+      .foo {
+        background: #af5cae url(foo.png);
+        background: lab(51.5117% 43.3777 -29.0443) url(foo.png);
+      }
+    "#
+    }, Browsers {
+      chrome: Some(95 << 16),
+      safari: Some(15 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        background: lab(51.5117% 43.3777 -29.0443) linear-gradient(lab(52.2319% 40.1449 59.9171), lab(47.7776% -34.2947 -7.65904));
+      }
+    "#, indoc! {r#"
+      .foo {
+        background: #af5cae linear-gradient(#c65d07, #00817d);
+        background: lab(51.5117% 43.3777 -29.0443) linear-gradient(lab(52.2319% 40.1449 59.9171), lab(47.7776% -34.2947 -7.65904));
+      }
+    "#
+    }, Browsers {
+      chrome: Some(95 << 16),
+      safari: Some(15 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]

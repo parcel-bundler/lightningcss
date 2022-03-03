@@ -80,9 +80,19 @@ impl<'i> Image<'i> {
   }
 }
 
-pub(crate) trait ImageFallback<'i> {
+pub(crate) trait ImageFallback<'i>: Sized {
   fn get_image(&self) -> &Image<'i>;
   fn with_image(&self, image: Image<'i>) -> Self;
+
+  #[inline]
+  fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+    self.get_image().get_necessary_fallbacks(targets)
+  }
+
+  #[inline]
+  fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
+    self.with_image(self.get_image().get_fallback(kind))
+  }
 }
 
 impl<'i> ImageFallback<'i> for Image<'i> {
@@ -167,19 +177,15 @@ impl<'i, T: ImageFallback<'i>> FallbackValues for SmallVec<[T; 1]> {
     let mut fallbacks = ColorFallbackKind::empty();
     let mut res = Vec::new();
     for item in self.iter() {
-      let image = item.get_image();
-      prefixes |= image.get_necessary_prefixes(targets);
-      fallbacks |= image.get_necessary_fallbacks(targets);
+      prefixes |= item.get_image().get_necessary_prefixes(targets);
+      fallbacks |= item.get_necessary_fallbacks(targets);
     }
 
     // Get RGB fallbacks if needed.
     let rgb: Option<SmallVec<[T; 1]>> = if fallbacks.contains(ColorFallbackKind::RGB) {
       Some(self
         .iter()
-        .map(|item| {
-          let image = item.get_image().get_fallback(ColorFallbackKind::RGB);
-          item.with_image(image)
-        })
+        .map(|item| item.get_fallback(ColorFallbackKind::RGB))
         .collect())
     } else {
       None
@@ -225,10 +231,7 @@ impl<'i, T: ImageFallback<'i>> FallbackValues for SmallVec<[T; 1]> {
       if fallbacks.contains(ColorFallbackKind::P3) {
         let p3_images = self
           .iter()
-          .map(|item| {
-            let image = item.get_image().get_fallback(ColorFallbackKind::P3);
-            item.with_image(image)
-          })
+          .map(|item| item.get_fallback(ColorFallbackKind::P3))
           .collect();
 
         res.push(p3_images)
@@ -237,8 +240,7 @@ impl<'i, T: ImageFallback<'i>> FallbackValues for SmallVec<[T; 1]> {
       // Convert to lab if needed (e.g. if oklab is not supported but lab is).
       if fallbacks.contains(ColorFallbackKind::LAB) {
         for item in self.iter_mut() {
-          let image = item.get_image().get_fallback(ColorFallbackKind::LAB);
-          *item = item.with_image(image)
+          *item = item.get_fallback(ColorFallbackKind::LAB);
         }
       }
     } else if let Some(last) = res.pop() {
