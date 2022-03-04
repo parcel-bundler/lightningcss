@@ -7,3 +7,4 @@ dist/
 node/*.flow
 artifacts
 npm
+.idea/
