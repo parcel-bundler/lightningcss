@@ -8949,6 +8949,25 @@ mod tests {
     );
   }
 
+  #[test]
+  fn test_color_mix() {
+    minify_test(".foo { color: color-mix(in lab, purple 50%, plum 50%); }", ".foo{color:lab(51.5117% 43.3777 -29.0443)}");
+    minify_test(".foo { color: color-mix(in lch, peru 40%, palegoldenrod); }", ".foo{color:lch(79.7255% 40.4542 84.7634)}");
+    minify_test(".foo { color: color-mix(in lch, teal 65%, olive); }", ".foo{color:lch(49.4431% 40.4806 162.546)}");
+    minify_test(".foo { color: color-mix(in lch, white, black); }", ".foo{color:lch(50% 0 0)}");
+    minify_test(".foo { color: color-mix(in xyz, rgb(82.02% 30.21% 35.02%) 75.23%, rgb(5.64% 55.94% 85.31%)); }", ".foo{color:color(xyz .287458 .208776 .260566)}");
+    minify_test(".foo { color: color-mix(in lch, white, blue); }", ".foo{color:lch(64.7842% 65.6007 301.364)}");
+    minify_test(".foo { color: color-mix(in oklch, white, blue); }", ".foo{color:oklch(72.6007% .156607 264.052)}");
+    minify_test(".foo { color: color-mix(in srgb, white, blue); }", ".foo{color:#8080ff}");
+    minify_test(".foo { color: color-mix(in lch, blue, white); }", ".foo{color:lch(64.7842% 65.6007 301.364)}");
+    minify_test(".foo { color: color-mix(in oklch, blue, white); }", ".foo{color:oklch(72.6007% .156607 264.052)}");
+    minify_test(".foo { color: color-mix(in srgb, blue, white); }", ".foo{color:#8080ff}");
+    // minify_test(".foo { color: color-mix(in hsl, color(display-p3 0 1 0) 80%, yellow); }", ".foo{color:hsl(108 100% 49.9184%) }");
+    minify_test(".foo { color: color-mix(in hsl, hsl(120 100% 49.898%) 80%, yellow); }", ".foo{color:#33fe00}");
+    minify_test(".foo { color: color-mix(in srgb, rgb(100% 0% 0% / 0.7) 25%, rgb(0% 100% 0% / 0.2)); }", ".foo{color:#89760053}");
+    minify_test(".foo { color: color-mix(in srgb, rgb(100% 0% 0% / 0.7) 20%, rgb(0% 100% 0% / 0.2) 60%); }", ".foo{color:#89760042}");
+  }
+
   #[cfg(feature = "grid")]
   #[test]
   fn test_grid() {

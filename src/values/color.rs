@@ -9,6 +9,7 @@ use std::fmt::Write;
 use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
 use super::percentage::Percentage;
+use crate::macros::enum_property;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CssColor {
@@ -43,6 +44,32 @@ bitflags! {
     const RGB    = 0b01;
     const P3     = 0b10;
     const LAB    = 0b100;
+  }
+}
+
+enum_property! {
+  enum ColorSpace {
+    "srgb": Srgb,
+    "srgb-linear": SrgbLinear,
+    "lab": Lab,
+    "oklab": Oklab,
+    "xyz": Xyz,
+    "xyz-d50": XyzD50,
+    "xyz-d65": XyzD65,
+    "hsl": Hsl,
+    "hwb": Hwb,
+    "lch": Lch,
+    "oklch": Oklch,
+  }
+}
+
+enum_property! {
+  enum HueInterpolationMethod {
+    Shorter,
+    Longer,
+    Increasing,
+    Decreasing,
+    Specified,
   }
 }
 
@@ -81,6 +108,162 @@ impl CssColor {
       CssColor::Lab(lab) => lab.to_xyza_d65(),
       CssColor::Predefined(predefined) => predefined.to_xyza_d65(),
       CssColor::CurrentColor => unreachable!()
+    }
+  }
+
+  fn to_color_space(&self, space: ColorSpace) -> Result<(f32, f32, f32, f32), ()> {
+    match self {
+      CssColor::CurrentColor => return Err(()),
+      CssColor::RGBA(rgba) if space == ColorSpace::Srgb => {
+        match space {
+          ColorSpace::Srgb => {
+            return Ok((rgba.red_f32(), rgba.green_f32(), rgba.blue_f32(), rgba.alpha_f32()))
+          }
+          ColorSpace::SrgbLinear => {
+            let (r, g, b) = lin_srgb(rgba.red_f32(), rgba.green_f32(), rgba.blue_f32());
+            return Ok((r, g, b, rgba.alpha_f32()))
+          }
+          ColorSpace::Hsl => {
+            let (h, s, l) = rgb_to_hsl(rgba.red_f32(), rgba.green_f32(), rgba.blue_f32());
+            return Ok((h, s, l, rgba.alpha_f32()))
+          }
+          ColorSpace::Hwb => {
+            let (h, w, b) = rgb_to_hwb(rgba.red_f32(), rgba.green_f32(), rgba.blue_f32());
+            return Ok((h, w, b, rgba.alpha_f32()))
+          }
+          _ => {}
+        }
+      }
+      CssColor::Lab(lab) => {
+        match &**lab {
+          LabColor::Lab(l, a, b, alpha) => {
+            match space {
+              ColorSpace::Lab => {
+                return Ok((*l, *a, *b, *alpha))
+              }
+              ColorSpace::Lch => {
+                let (l, c, h) = lab_to_lch(*l, *a, *b);
+                return Ok((l, c, h, *alpha))
+              }
+              _ => {}
+            }
+          },
+          LabColor::Lch(l, c, h, alpha) => {
+            match space {
+              ColorSpace::Lch => {
+                return Ok((*l, *c, *h, *alpha))
+              }
+              ColorSpace::Lab => {
+                let (l, a, b) = lch_to_lab(*l, *c, *h);
+                return Ok((l, a, b, *alpha))
+              }
+              _ => {}
+            }
+          }
+          LabColor::Oklab(l, a, b, alpha) => {
+            match space {
+              ColorSpace::Oklab => {
+                return Ok((*l, *a, *b, *alpha))
+              }
+              ColorSpace::Oklch => {
+                let (l, c, h) = lab_to_lch(*l, *a, *b);
+                return Ok((l, c, h, *alpha))
+              }
+              _ => {}
+            }
+          },
+          LabColor::Oklch(l, c, h, alpha) => {
+            match space {
+              ColorSpace::Oklch => {
+                return Ok((*l, *c, *h, *alpha))
+              }
+              ColorSpace::Oklab => {
+                let (l, a, b) = lch_to_lab(*l, *c, *h);
+                return Ok((l, a, b, *alpha))
+              }
+              _ => {}
+            }
+          }
+          _ => {}
+        }
+      }
+      CssColor::Predefined(predefined) => {
+        match &**predefined {
+          PredefinedColor::XyzD50(x, y, z, a) => {
+            match space {
+              ColorSpace::XyzD50 => {
+                return Ok((*x, *y, *z, *a))
+              }
+              ColorSpace::XyzD65 => {
+                let (x, y, z) = d50_to_d65(*x, *y, *z);
+                return Ok((x, y, z, *a))
+              }
+              _ => {}
+            }
+          }
+          PredefinedColor::XyzD65(x, y, z, a) => {
+            match space {
+              ColorSpace::XyzD65 => {
+                return Ok((*x, *y, *z, *a))
+              }
+              ColorSpace::XyzD50 => {
+                let (x, y, z) = d65_to_d50(*x, *y, *z);
+                return Ok((x, y, z, *a))
+              }
+              _ => {}
+            }
+          }
+          _ => {}
+        }
+      },
+      _ => {}
+    }
+
+    let (x, y, z, alpha) = self.to_xyza_d65();
+    match space {
+      ColorSpace::Srgb => {
+        let (r, g, b) = xyz_d65_to_srgb(x, y, z);
+        Ok((r, g, b, alpha))
+      }
+      ColorSpace::SrgbLinear => {
+        let (r, g, b) = xyz_d65_to_lin_srgb(x, y, z);
+        Ok((r, g, b, alpha))
+      }
+      ColorSpace::Hsl => {
+        let (r, g, b) = xyz_d65_to_srgb(x, y, z);
+        let (h, s, l) = rgb_to_hsl(r, g, b);
+        Ok((h, s, l, alpha))
+      }
+      ColorSpace::Hwb => {
+        let (r, g, b) = xyz_d65_to_srgb(x, y, z);
+        let (h, w, b) = rgb_to_hwb(r, g, b);
+        Ok((h, w, b, alpha))
+      }
+      ColorSpace::Lab => {
+        let (l, a, b) = xyz_d65_to_lab(x, y, z);
+        Ok((l, a, b, alpha))
+      }
+      ColorSpace::Lch => {
+        let (l, a, b) = xyz_d65_to_lab(x, y, z);
+        let (l, c, h) = lab_to_lch(l, a, b);
+        Ok((l, c, h, alpha))
+      }
+      ColorSpace::Oklab => {
+        let (l, a, b) = xyz_d65_to_oklab(x, y, z);
+        Ok((l, a, b, alpha))
+      }
+      ColorSpace::Oklch => {
+        let (l, a, b) = xyz_d65_to_oklab(x, y, z);
+        let (l, c, h) = lab_to_lch(l, a, b);
+        Ok((l, c, h, alpha))
+      }
+      ColorSpace::Xyz | ColorSpace::XyzD65 => {
+        Ok((x, y, z, alpha))
+      }
+      ColorSpace::XyzD50 => {
+        let (x, y, z) = d65_to_d50(x, y, z);
+        Ok((x, y, z, alpha))
+      }
     }
   }
 
@@ -392,6 +575,9 @@ fn parse_color_function<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, 
       let predefined = parse_predefined(input)?;
       Ok(CssColor::Predefined(Box::new(predefined)))
     },
+    "color-mix" => {
+      input.parse_nested_block(parse_color_mix)
+    },
     _ => Err(location.new_unexpected_token_error(
       cssparser::Token::Ident(function.clone())
     ))
@@ -587,6 +773,17 @@ fn lch_to_lab(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
   (l, a, b)
 }
 
+#[inline]
+fn lab_to_lch(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L375
+  let mut h = b.atan2(a) * 180.0 / PI;
+  if h < 0.0 {
+    h += 360.0;
+  }
+  let c = (a.powi(2) + b.powi(2)).sqrt();
+  (l, c, h)
+}
+
 const D50: &[f32] = &[0.3457 / 0.3585, 1.00000, (1.0 - 0.3457 - 0.3585) / 0.3585];
 
 fn lab_to_xyz_d50(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
@@ -714,6 +911,25 @@ fn oklab_to_xyz_d65(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
 
   let (a, b, c) = multiply_matrix(OKLAB_TO_LMS, l, a, b);
   multiply_matrix(LMS_TO_XYZ, a.powi(3), b.powi(3), c.powi(3))
+}
+
+#[inline]
+fn xyz_d65_to_oklab(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L400
+  const XYZ_TO_LMS: &[f32] = &[
+		0.8190224432164319,    0.3619062562801221,    -0.12887378261216414,
+		0.0329836671980271,    0.9292868468965546,     0.03614466816999844,
+		0.048177199566046255,  0.26423952494422764,    0.6335478258136937
+	];
+
+	const LMS_TO_OKLAB: &[f32] = &[
+		0.2104542553,   0.7936177850,  -0.0040720468,
+		1.9779984951,  -2.4285922050,   0.4505937099,
+		0.0259040371,   0.7827717662,  -0.8086757660
+	];
+
+  let (a, b, c) = multiply_matrix(XYZ_TO_LMS, x, y, z);
+  multiply_matrix(LMS_TO_OKLAB, a.cbrt(), b.cbrt(), c.cbrt())
 }
 
 fn xyz_d50_to_lab(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
@@ -1027,5 +1243,348 @@ impl PredefinedColor {
         (*x, *y, *z, *a)
       }
     }
+  }
+}
+
+#[inline]
+fn rgb_to_hsl(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+  // https://drafts.csswg.org/css-color/#rgb-to-hsl
+  let max = r.max(g).max(b);
+  let min = r.min(g).min(b);
+  let mut hue = f32::NAN;
+  let mut sat: f32 = 0.0;
+  let light = (min + max) / 2.0;
+  let d = max - min;
+
+  if d != 0.0 {
+    sat = if light == 0.0 || light == 1.0 {
+      0.0
+    } else {
+      (max - light) / light.min(1.0 - light)
+    };
+
+    if max == r {
+      hue = (g - b) / d + (if g < b { 6.0 } else { 0.0 });
+    } else if max == g {
+      hue = (b - r) / d + 2.0;
+    } else if max == b {
+      hue = (r - g) / d + 4.0;
+    }
+
+    hue = hue * 60.0;
+  }
+
+  (hue, sat, light)
+}
+
+#[inline]
+fn hsl_to_rgb(h: f32, s: f32, l: f32) -> (f32, f32, f32) {
+  // https://drafts.csswg.org/css-color/#hsl-to-rgb
+  let mut h = h % 360.0;
+  if h < 0.0 {
+    h += 360.0;
+  }
+
+  fn hue_to_rgb(n: f32, h: f32, s: f32, l: f32) -> f32 {
+    let k = (n + h / 30.0) % 12.0;
+    let a = s * l.min(1.0 - l);
+    l - a * (k - 3.0).min(9.0 - k).clamp(-1.0, 1.0)
+  }
+
+  let r = hue_to_rgb(0.0, h, s, l);
+  let g = hue_to_rgb(8.0, h, s, l);
+  let b = hue_to_rgb(4.0, h, s, l);
+  (r, g, b)
+}
+
+#[inline]
+fn hwb_to_rgb(h: f32, w: f32, b: f32) -> (f32, f32, f32) {
+  // https://drafts.csswg.org/css-color/#hwb-to-rgb
+  if w + b >= 1.0 {
+    let gray = w / (w + b);
+    return (gray, gray, gray);
+  }
+
+  let (mut red, mut green, mut blue) = hsl_to_rgb(h, 1.0, 0.5);
+  let x = 1.0 - w - b;
+  red = red * x + w;
+  green = green * x + w;
+  blue = blue * x + w;
+  (red, green, blue)
+}
+
+#[inline]
+fn rgb_to_hwb(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+  let (h, _, _) = rgb_to_hsl(r, g, b);
+  let w = r.min(g).min(b);
+  let b = 1.0 - r.max(g).max(b);
+  (h, w, b)
+}
+
+fn parse_color_mix<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
+  input.expect_ident_matching("in")?;
+  let method = ColorSpace::parse(input)?;
+  input.expect_comma()?;
+
+  let hue_method = HueInterpolationMethod::Shorter; // TODO
+
+  let first_color = CssColor::parse(input)?;
+  let first_percent = input.try_parse(|input| input.expect_percentage()).ok();
+  input.expect_comma()?;
+
+  let second_color = CssColor::parse(input)?;
+  let second_percent = input.try_parse(|input| input.expect_percentage()).ok();
+
+  // https://drafts.csswg.org/css-color-5/#color-mix-percent-norm
+  let (mut p1, mut p2) = if first_percent.is_none() && second_percent.is_none() {
+    (0.5, 0.5)
+  } else {
+    let p2 = second_percent.unwrap_or_else(|| 1.0 - first_percent.unwrap());
+    let p1 = first_percent.unwrap_or_else(|| 1.0 - second_percent.unwrap());
+    (p1, p2)
+  };
+
+  if (p1 + p2) == 0.0 {
+    return Err(input.new_custom_error(ParserError::InvalidValue));
+  }
+
+  let alpha_multiplier = p1 + p2;
+  if alpha_multiplier != 1.0 {
+    p1 = p1 / alpha_multiplier;
+    p2 = p2 / alpha_multiplier;
+  }
+
+  // https://drafts.csswg.org/css-color-5/#color-mix-result
+  let mut first_color = first_color.to_color_space(method)
+    .map_err(|_| input.new_custom_error(ParserError::InvalidValue))?;
+  let mut second_color = second_color.to_color_space(method)
+    .map_err(|_| input.new_custom_error(ParserError::InvalidValue))?;
+
+  println!("{:?} {:?}", first_color, second_color);
+
+  // https://www.w3.org/TR/css-color-4/#powerless
+  adjust_powerless_components(method, &mut first_color, &mut second_color);
+  adjust_powerless_components(method, &mut second_color, &mut first_color);
+
+  match method {
+    ColorSpace::Lch | ColorSpace::Oklch => {
+      (first_color.3, second_color.3) = hue_method.interpolate(first_color.3, second_color.3);
+    }
+    ColorSpace::Hsl | ColorSpace::Hwb => {
+      (first_color.0, second_color.0) = hue_method.interpolate(first_color.0, second_color.0);
+    }
+    _ => {}
+  }
+
+  if first_color.3 != 1.0 {
+    // https://drafts.csswg.org/css-color-4/#interpolation-alpha
+    premultiply(method, &mut first_color);
+  }
+
+  if second_color.3 != 1.0 {
+    premultiply(method, &mut second_color);
+  }
+
+  let mut result_color = (
+    first_color.0 * p1 + second_color.0 * p2,
+    first_color.1 * p1 + second_color.1 * p2,
+    first_color.2 * p1 + second_color.2 * p2,
+    first_color.3 * p1 + second_color.3 * p2,
+  );
+
+  if result_color.3 != 0.0 {
+    un_premultiply(method, &mut result_color);
+  }
+
+  if alpha_multiplier < 1.0 {
+    result_color.3 *= alpha_multiplier;
+  }
+
+  let result = match method {
+    ColorSpace::Srgb => {
+      CssColor::RGBA(RGBA::from_floats(result_color.0, result_color.1, result_color.2, result_color.3))
+    }
+    ColorSpace::SrgbLinear => {
+      let (r, g, b) = gam_srgb(result_color.0, result_color.1, result_color.2);
+      CssColor::RGBA(RGBA::from_floats(r, g, b, result_color.3))
+    }
+    ColorSpace::Hsl => {
+      let (r, g, b) = hsl_to_rgb(result_color.0, result_color.1, result_color.2);
+      CssColor::RGBA(RGBA::from_floats(r, g, b, result_color.3))
+    }
+    ColorSpace::Hwb => {
+      let (r, g, b) = hwb_to_rgb(result_color.0, result_color.1, result_color.2);
+      CssColor::RGBA(RGBA::from_floats(r, g, b, result_color.3))
+    }
+    ColorSpace::Lab => {
+      CssColor::Lab(Box::new(LabColor::Lab(result_color.0, result_color.1, result_color.2, result_color.3)))
+    }
+    ColorSpace::Lch => {
+      CssColor::Lab(Box::new(LabColor::Lch(result_color.0, result_color.1, result_color.2, result_color.3)))
+    }
+    ColorSpace::Oklab => {
+      CssColor::Lab(Box::new(LabColor::Oklab(result_color.0, result_color.1, result_color.2, result_color.3)))
+    }
+    ColorSpace::Oklch => {
+      CssColor::Lab(Box::new(LabColor::Oklch(result_color.0, result_color.1, result_color.2, result_color.3)))
+    }
+    ColorSpace::Xyz | ColorSpace::XyzD65 => {
+      CssColor::Predefined(Box::new(PredefinedColor::XyzD65(result_color.0, result_color.1, result_color.2, result_color.3)))
+    }
+    ColorSpace::XyzD50 => {
+      CssColor::Predefined(Box::new(PredefinedColor::XyzD50(result_color.0, result_color.1, result_color.2, result_color.3)))
+    }
+  };
+  
+  Ok(result)
+}
+
+fn premultiply(space: ColorSpace, color: &mut (f32, f32, f32, f32)) {
+  // https://drafts.csswg.org/css-color-4/#interpolation-alpha
+  match space {
+    ColorSpace::Srgb |
+    ColorSpace::SrgbLinear |
+    ColorSpace::Lab |
+    ColorSpace::Oklab |
+    ColorSpace::Xyz |
+    ColorSpace::XyzD50 |
+    ColorSpace::XyzD65 => {
+      // For rectangular orthogonal color coordinate systems,
+      // all component values are multiplied by the alpha value.
+      color.0 *= color.3;
+      color.1 *= color.3;
+      color.2 *= color.3;
+    }
+    ColorSpace::Hsl |
+    ColorSpace::Hwb => {
+      // For cylindrical polar color coordinate systems, the hue angle
+      // is not premultiplied, but the other two axes are premultiplied.
+      color.1 *= color.3;
+      color.2 *= color.3;
+    }
+    ColorSpace::Lch |
+    ColorSpace::Oklch => {
+      color.0 *= color.3;
+      color.1 *= color.3;
+    }
+  }
+}
+
+fn un_premultiply(space: ColorSpace, color: &mut (f32, f32, f32, f32)) {
+  match space {
+    ColorSpace::Srgb |
+    ColorSpace::SrgbLinear |
+    ColorSpace::Lab |
+    ColorSpace::Oklab |
+    ColorSpace::Xyz |
+    ColorSpace::XyzD50 |
+    ColorSpace::XyzD65 => {
+      // For rectangular orthogonal color coordinate systems,
+      // all component values are multiplied by the alpha value.
+      color.0 /= color.3;
+      color.1 /= color.3;
+      color.2 /= color.3;
+    }
+    ColorSpace::Hsl |
+    ColorSpace::Hwb => {
+      // For cylindrical polar color coordinate systems, the hue angle
+      // is not premultiplied, but the other two axes are premultiplied.
+      color.1 /= color.3;
+      color.2 /= color.3;
+    }
+    ColorSpace::Lch |
+    ColorSpace::Oklch => {
+      color.0 /= color.3;
+      color.1 /= color.3;
+    }
+  }
+}
+
+fn adjust_powerless_components(space: ColorSpace, first_color: &mut (f32, f32, f32, f32), second_color: &mut (f32, f32, f32, f32)) {
+  // https://www.w3.org/TR/css-color-4/#powerless
+  match space {
+    ColorSpace::Lab | ColorSpace::Oklab => {
+      // If the lightness of a Lab color is 0%, both the a and b components are powerless.
+      if first_color.0.abs() < f32::EPSILON {
+        first_color.1 = second_color.1;
+        first_color.2 = second_color.2;
+      }
+    }
+    ColorSpace::Lch | ColorSpace::Oklch => {
+      // If the chroma of an LCH color is 0%, the hue component is powerless. 
+      // If the lightness of an LCH color is 0%, both the hue and chroma components are powerless.
+      if first_color.1.abs() < f32::EPSILON {
+        first_color.2 = second_color.2;
+      }
+
+      if first_color.0.abs() < f32::EPSILON {
+        first_color.1 = second_color.1;
+        first_color.2 = second_color.2;
+      }
+    }
+    ColorSpace::Hsl => {
+      // If the saturation of an HSL color is 0%, then the hue component is powerless.
+      // If the lightness of an HSL color is 0% or 100%, both the saturation and hue components are powerless.
+      if first_color.1.abs() < f32::EPSILON {
+        first_color.0 = second_color.0;
+      }
+
+      if first_color.2.abs() < f32::EPSILON || (first_color.2 - 1.0).abs() < f32::EPSILON {
+        first_color.0 = second_color.0;
+        first_color.1 = second_color.1;
+      }
+    }
+    ColorSpace::Hwb => {
+      if (first_color.1 + first_color.2 - 1.0).abs() < f32::EPSILON {
+        first_color.0 = second_color.0;
+      }
+    }
+    _ => {}
+  }
+}
+
+impl HueInterpolationMethod {
+  fn interpolate(&self, mut a: f32, mut b: f32) -> (f32, f32) {
+    // https://drafts.csswg.org/css-color/#hue-interpolation
+    if *self != HueInterpolationMethod::Specified {
+      a = ((a % 360.0) + 360.0) % 360.0;
+      b = ((b % 360.0) + 360.0) % 360.0;
+    }
+
+    match self {
+      HueInterpolationMethod::Shorter => {
+        // https://www.w3.org/TR/css-color-4/#hue-shorter
+        let delta = b - a;
+        if delta > 180.0 {
+          a += 360.0;
+        } else if delta < -180.0 {
+          b += 360.0;
+        }
+      }
+      HueInterpolationMethod::Longer => {
+        // https://www.w3.org/TR/css-color-4/#hue-longer
+        let delta = b - a;
+        if 0.0 < delta && delta < 180.0 {
+          a += 360.0;
+        } else if -180.0 < delta && delta < 0.0 {
+          b += 360.0;
+        }
+      }
+      HueInterpolationMethod::Increasing => {
+        // https://www.w3.org/TR/css-color-4/#hue-increasing
+        if b < a {
+          b += 360.0;
+        }
+      }
+      HueInterpolationMethod::Decreasing => {
+        // https://www.w3.org/TR/css-color-4/#hue-decreasing
+        if a < b {
+          a += 360.0;
+        }
+      }
+      HueInterpolationMethod::Specified => {}
+    }
+
+    (a, b)
   }
 }
