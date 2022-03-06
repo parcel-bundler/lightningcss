@@ -4,6 +4,7 @@ use crate::rules::supports::SupportsCondition;
 use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss, FallbackValues};
 use crate::printer::Printer;
+use std::any::TypeId;
 use std::f32::consts::PI;
 use std::fmt::Write;
 use crate::compat::Feature;
@@ -393,7 +394,7 @@ fn parse_lab<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32),
     let a = input.expect_number()?;
     let b = input.expect_number()?;
     let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
-      parse_number_or_percentage(input)?
+      parse_number_or_percentage(input)?.clamp(0.0, 1.0)
     } else {
       1.0
     };
@@ -417,7 +418,7 @@ fn parse_lch<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32),
       AngleOrNumber::Angle { degrees } => degrees
     };
     let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
-      parse_number_or_percentage(input)?
+      parse_number_or_percentage(input)?.clamp(0.0, 1.0)
     } else {
       1.0
     };
@@ -451,7 +452,7 @@ fn parse_predefined_rgb<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Predefined
   let g = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
   let b = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
   let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
-    parse_number_or_percentage(input)?
+    parse_number_or_percentage(input)?.clamp(0.0, 1.0)
   } else {
     1.0
   };
@@ -483,7 +484,7 @@ fn parse_predefined_xyz<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Predefined
   let y = input.try_parse(|input| input.expect_number()).unwrap_or(0.0);
   let z = input.try_parse(|input| input.expect_number()).unwrap_or(0.0);
   let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
-    parse_number_or_percentage(input)?
+    parse_number_or_percentage(input)?.clamp(0.0, 1.0)
   } else {
     1.0
   };
@@ -518,7 +519,7 @@ fn write_components<W>(name: &str, a: f32, b: f32, c: f32, alpha: f32, dest: &mu
   b.to_css(dest)?;
   dest.write_char(' ')?;
   c.to_css(dest)?;
-  if alpha != 1.0 {
+  if (alpha - 1.0).abs() > f32::EPSILON {
     dest.delim('/', true)?;
     alpha.to_css(dest)?;
   }
@@ -557,7 +558,7 @@ fn write_predefined<W>(predefined: &PredefinedColor, dest: &mut Printer<W>) -> R
     }
   }
 
-  if alpha != 1.0 {
+  if (alpha - 1.0).abs() > f32::EPSILON {
     dest.delim('/', true)?;
     alpha.to_css(dest)?;
   }
@@ -620,6 +621,7 @@ fn rectangular_to_polar(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
     h += 360.0;
   }
   let c = (a.powi(2) + b.powi(2)).sqrt();
+  h = h % 360.0;
   (l, c, h)
 }
 
@@ -1245,7 +1247,7 @@ impl From<HWB> for SRGB {
       return SRGB { r: gray, g: gray, b: gray, alpha: hwb.alpha }
     }
 
-    let mut rgba = SRGB::from(HSL { h, s: 1.0, l: 0.5, alpha: 1.0 });
+    let mut rgba = SRGB::from(HSL { h, s: 1.0, l: 0.5, alpha: hwb.alpha });
     let x = 1.0 - w - b;
     rgba.r = rgba.r * x + w;
     rgba.g = rgba.g * x + w;
@@ -1509,16 +1511,28 @@ impl From<RGBA> for CssColor {
 fn parse_color_mix<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
   input.expect_ident_matching("in")?;
   let method = ColorSpace::parse(input)?;
+
+  let hue_method = if matches!(method, ColorSpace::Hsl | ColorSpace::Hwb | ColorSpace::LCH | ColorSpace::OKLCH) {
+    let hue_method = input.try_parse(HueInterpolationMethod::parse);
+    if hue_method.is_ok() {
+      input.expect_ident_matching("hue")?;
+    }
+    hue_method
+  } else {
+    Ok(HueInterpolationMethod::Shorter)
+  };
+
+  let hue_method = hue_method.unwrap_or(HueInterpolationMethod::Shorter);
   input.expect_comma()?;
 
-  let hue_method = HueInterpolationMethod::Shorter; // TODO
-
+  let first_percent = input.try_parse(|input| input.expect_percentage());
   let first_color = CssColor::parse(input)?;
-  let first_percent = input.try_parse(|input| input.expect_percentage()).ok();
+  let first_percent = first_percent.or_else(|_| input.try_parse(|input| input.expect_percentage())).ok();
   input.expect_comma()?;
 
+  let second_percent = input.try_parse(|input| input.expect_percentage());
   let second_color = CssColor::parse(input)?;
-  let second_percent = input.try_parse(|input| input.expect_percentage()).ok();
+  let second_percent = second_percent.or_else(|_| input.try_parse(|input| input.expect_percentage())).ok();
 
   // https://drafts.csswg.org/css-color-5/#color-mix-percent-norm
   let (p1, p2) = if first_percent.is_none() && second_percent.is_none() {
@@ -1548,20 +1562,52 @@ fn parse_color_mix<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, Parse
 }
 
 impl CssColor {
-  pub fn interpolate<'a, T: From<&'a CssColor> + Interpolate + Into<CssColor>>(
+  fn get_type_id(&self) -> TypeId {
+    match self {
+      CssColor::RGBA(..) => TypeId::of::<SRGB>(),
+      CssColor::LAB(lab) => {
+        match &**lab {
+          LABColor::LAB(..) => TypeId::of::<LAB>(),
+          LABColor::LCH(..) => TypeId::of::<LCH>(),
+          LABColor::OKLAB(..) => TypeId::of::<OKLAB>(),
+          LABColor::OKLCH(..) => TypeId::of::<OKLCH>()
+        }
+      }
+      CssColor::Predefined(predefined) => {
+        match &**predefined {
+          PredefinedColor::SRGB(..) => TypeId::of::<SRGB>(),
+          PredefinedColor::SRGBLinear(..) => TypeId::of::<SRGBLinear>(),
+          PredefinedColor::DisplayP3(..) => TypeId::of::<P3>(),
+          PredefinedColor::A98(..) => TypeId::of::<A98>(),
+          PredefinedColor::ProPhoto(..) => TypeId::of::<ProPhoto>(),
+          PredefinedColor::Rec2020(..) => TypeId::of::<Rec2020>(),
+          PredefinedColor::XYZd50(..) => TypeId::of::<XYZd50>(),
+          PredefinedColor::XYZd65(..) => TypeId::of::<XYZd65>(),
+        }
+      }
+      _ => unreachable!()
+    }
+  }
+
+  pub fn interpolate<'a, T: 'static + From<&'a CssColor> + Interpolate + Into<CssColor> + std::fmt::Debug>(
     &'a self,
     mut p1: f32,
     second_color: &'a CssColor,
     mut p2: f32,
     method: HueInterpolationMethod
   ) -> CssColor {
+    let type_id = TypeId::of::<T>();
+    let is_converted = self.get_type_id() != type_id || second_color.get_type_id() != type_id;
+
     // https://drafts.csswg.org/css-color-5/#color-mix-result
     let mut first_color = T::from(self);
     let mut second_color = T::from(second_color);
 
     // https://www.w3.org/TR/css-color-4/#powerless
-    first_color.adjust_powerless_components(&second_color);
-    second_color.adjust_powerless_components(&first_color);
+    if is_converted {
+      first_color.adjust_powerless_components(&second_color);
+      second_color.adjust_powerless_components(&first_color);
+    }
 
     // https://www.w3.org/TR/css-color-4/#hue-interpolation
     first_color.adjust_hue(&mut second_color, method);
@@ -1635,6 +1681,7 @@ macro_rules! polar_premultiply {
     fn unpremultiply(&mut self, alpha_multiplier: f32) {
       self.$a /= self.alpha;
       self.$b /= self.alpha;
+      self.h %= 360.0;
       self.alpha *= alpha_multiplier;
     }
   }
