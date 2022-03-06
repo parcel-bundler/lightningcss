@@ -1508,6 +1508,147 @@ impl From<RGBA> for CssColor {
   }
 }
 
+pub trait ColorGamut {
+  fn in_gamut(&self) -> bool;
+  fn clip(&self) -> Self;
+}
+
+macro_rules! bounded_color_gamut {
+  ($t: ty, $a: ident, $b: ident, $c: ident) => {
+    impl ColorGamut for $t {
+      fn in_gamut(&self) -> bool {
+        self.$a >= 0.0 && self.$a <= 1.0 &&
+        self.$b >= 0.0 && self.$b <= 1.0 &&
+        self.$c >= 0.0 && self.$c <= 1.0
+      }
+
+      fn clip(&self) -> Self {
+        Self {
+          $a: self.$a.clamp(0.0, 1.0),
+          $b: self.$b.clamp(0.0, 1.0),
+          $c: self.$c.clamp(0.0, 1.0),
+          alpha: self.alpha.clamp(0.0, 1.0)
+        }
+      }
+    }
+  }
+}
+
+macro_rules! unbounded_color_gamut {
+  ($t: ty, $a: ident, $b: ident, $c: ident) => {
+    impl ColorGamut for $t {
+      fn in_gamut(&self) -> bool {
+        true
+      }
+
+      fn clip(&self) -> Self {
+        *self
+      }
+    }
+  }
+}
+
+macro_rules! hsl_hwb_color_gamut {
+  ($t: ty, $a: ident, $b: ident) => {
+    impl ColorGamut for $t {
+      fn in_gamut(&self) -> bool {
+        // self.h >= 0.0 && self.h <= 360.0 &&
+        self.$a >= 0.0 && self.$a <= 1.0 &&
+        self.$b >= 0.0 && self.$b <= 1.0
+      }
+
+      fn clip(&self) -> Self {
+        Self {
+          h: self.h,//.clamp(0.0, 360.0),
+          $a: self.$a.clamp(0.0, 1.0),
+          $b: self.$b.clamp(0.0, 1.0),
+          alpha: self.alpha.clamp(0.0, 1.0)
+        }
+      }
+    }
+  }
+}
+
+bounded_color_gamut!(SRGB, r, g, b);
+bounded_color_gamut!(SRGBLinear, r, g, b);
+bounded_color_gamut!(P3, r, g, b);
+bounded_color_gamut!(A98, r, g, b);
+bounded_color_gamut!(ProPhoto, r, g, b);
+bounded_color_gamut!(Rec2020, r, g,b);
+unbounded_color_gamut!(LAB, l, a, b);
+unbounded_color_gamut!(OKLAB, l, a, b);
+unbounded_color_gamut!(XYZd50, x, y, z);
+unbounded_color_gamut!(XYZd65, x, y, z);
+unbounded_color_gamut!(LCH, l, c, h);
+unbounded_color_gamut!(OKLCH, l, c, h);
+hsl_hwb_color_gamut!(HSL, s, l);
+hsl_hwb_color_gamut!(HWB, w, b);
+
+fn delta_eok<T: Into<OKLAB>>(a: T, b: OKLCH) -> f32 {
+  // https://www.w3.org/TR/css-color-4/#color-difference-OK
+  let a: OKLAB = a.into();
+  let b: OKLAB = b.into();
+  let delta_l = a.l - b.l;
+  let delta_a = a.a - b.a;
+  let delta_b = a.b - b.b;
+  
+  (delta_l.powi(2) + delta_a.powi(2) + delta_b.powi(2)).sqrt()
+}
+
+fn map_gamut<T>(color: T) -> T
+where
+  T: 'static + Into<OKLCH> + ColorGamut + Into<OKLAB> + From<OKLCH> + Copy + Into<SRGB> + From<SRGB>
+{
+  const JND: f32 = 0.02;
+  const EPSILON: f32 = 0.00001;
+
+  // The web platform tests seem to rely on gamut mapping for HSL and HSB occurring in the sRGB space.
+  // Not sure if this is correct, but for now convert to sRGB first, and back after.
+  // https://github.com/w3c/csswg-drafts/issues/7107
+  let type_id = TypeId::of::<T>();
+  if type_id == TypeId::of::<HSL>() || type_id == TypeId::of::<HWB>() {
+    let srgb: SRGB = color.into();
+    return map_gamut(srgb).into();
+  }
+
+  // https://www.w3.org/TR/css-color-4/#binsearch
+  let mut current: OKLCH = color.into();
+
+  // If lightness is >= 100%, return pure white.
+  if (current.l - 1.0).abs() < EPSILON || current.l > 1.0 {
+    return OKLCH { l: 1.0, c: 0.0, h: 0.0, alpha: current.alpha }.into();
+  }
+
+  // If lightness <= 0%, return pure black.
+  if current.l < EPSILON {
+    return OKLCH { l: 0.0, c: 0.0, h: 0.0, alpha: current.alpha }.into();
+  }
+
+  let mut min = 0.0;
+  let mut max = current.c;
+
+  while min < max {
+    let chroma = (min + max) / 2.0;
+    current.c = chroma;
+
+    let converted = T::from(current);
+    if converted.in_gamut() {
+      min = chroma;
+      continue
+    }
+
+    let clipped = converted.clip();
+    let delta_e = delta_eok(clipped, current);
+    if delta_e < JND {
+      return clipped.into();
+    }
+
+    max = chroma;
+  }
+
+  current.into()
+}
+
 fn parse_color_mix<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
   input.expect_ident_matching("in")?;
   let method = ColorSpace::parse(input)?;
@@ -1589,19 +1730,32 @@ impl CssColor {
     }
   }
 
-  pub fn interpolate<'a, T: 'static + From<&'a CssColor> + Interpolate + Into<CssColor> + std::fmt::Debug>(
+  pub fn interpolate<'a, T>(
     &'a self,
     mut p1: f32,
     second_color: &'a CssColor,
     mut p2: f32,
     method: HueInterpolationMethod
-  ) -> CssColor {
+  ) -> CssColor
+    where
+      T: 'static + From<&'a CssColor> + Interpolate + Into<CssColor>
+        + Into<OKLCH> + ColorGamut + Into<OKLAB> + From<OKLCH> + Copy
+        + Into<SRGB> + From<SRGB>
+  {
     let type_id = TypeId::of::<T>();
     let is_converted = self.get_type_id() != type_id || second_color.get_type_id() != type_id;
 
     // https://drafts.csswg.org/css-color-5/#color-mix-result
     let mut first_color = T::from(self);
     let mut second_color = T::from(second_color);
+
+    if !first_color.in_gamut() {
+      first_color = map_gamut(first_color);
+    }
+
+    if !second_color.in_gamut() {
+      second_color = map_gamut(second_color);
+    }
 
     // https://www.w3.org/TR/css-color-4/#powerless
     if is_converted {

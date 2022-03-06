@@ -9056,15 +9056,15 @@ mod tests {
     // minify_test(".foo { color: color-mix(in hsl, hsl(120deg 20% 40%), hsl(30deg 20% none)) }", &canonicalize("hsl(75deg 20% 40%)"));
     // minify_test(".foo { color: color-mix(in hsl, hsl(none 20% 40%), hsl(30deg none 80%)) }", &canonicalize("hsl(30deg 20% 60%)"));
 
-    //minify_test(".foo { color: color-mix(in hsl, color(display-p3 0 1 0) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(0, 249, 66)")); // Naive clip based mapping would give rgb(0, 255, 0).
-    //minify_test(".foo { color: color-mix(in hsl, lab(100% 104.3 -50.9) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(255, 255, 255)")); // Naive clip based mapping would give rgb(255, 150, 255).
-    //minify_test(".foo { color: color-mix(in hsl, lab(0% 104.3 -50.9) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(42, 0, 34)")); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black,
-    //minify_test(".foo { color: color-mix(in hsl, lch(100% 116 334) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(255, 255, 255)")); // Naive clip based mapping would give rgb(255, 150, 255).
-    //minify_test(".foo { color: color-mix(in hsl, lch(0% 116 334) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(42, 0, 34)")); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black,
-    //minify_test(".foo { color: color-mix(in hsl, oklab(100% 0.365 -0.16) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(255, 255, 255)")); // Naive clip based mapping would give rgb(255, 92, 255).
-    //minify_test(".foo { color: color-mix(in hsl, oklab(0% 0.365 -0.16) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(0, 0, 0)")); // Naive clip based mapping would give rgb(19, 0, 24).
-    //minify_test(".foo { color: color-mix(in hsl, oklch(100% 0.399 336.3) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(255, 255, 255)")); // Naive clip based mapping would give rgb(255, 91, 255).
-    //minify_test(".foo { color: color-mix(in hsl, oklch(0% 0.399 336.3) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(0, 0, 0)")); // Naive clip based mapping would give rgb(20, 0, 24).
+    minify_test(".foo { color: color-mix(in hsl, color(display-p3 0 1 0) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(0, 249, 66)")); // Naive clip based mapping would give rgb(0, 255, 0).
+    minify_test(".foo { color: color-mix(in hsl, lab(100% 104.3 -50.9) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(255, 255, 255)")); // Naive clip based mapping would give rgb(255, 150, 255).
+    minify_test(".foo { color: color-mix(in hsl, lab(0% 104.3 -50.9) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(42, 0, 34)")); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black,
+    minify_test(".foo { color: color-mix(in hsl, lch(100% 116 334) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(255, 255, 255)")); // Naive clip based mapping would give rgb(255, 150, 255).
+    minify_test(".foo { color: color-mix(in hsl, lch(0% 116 334) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(42, 0, 34)")); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black,
+    minify_test(".foo { color: color-mix(in hsl, oklab(100% 0.365 -0.16) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(255, 255, 255)")); // Naive clip based mapping would give rgb(255, 92, 255).
+    minify_test(".foo { color: color-mix(in hsl, oklab(0% 0.365 -0.16) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(0, 0, 0)")); // Naive clip based mapping would give rgb(19, 0, 24).
+    minify_test(".foo { color: color-mix(in hsl, oklch(100% 0.399 336.3) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(255, 255, 255)")); // Naive clip based mapping would give rgb(255, 91, 255).
+    minify_test(".foo { color: color-mix(in hsl, oklch(0% 0.399 336.3) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(0, 0, 0)")); // Naive clip based mapping would give rgb(20, 0, 24).
 
     minify_test(".foo { color: color-mix(in hwb, hwb(120deg 10% 20%), hwb(30deg 30% 40%)) }", &canonicalize("rgb(147, 179, 52)"));
     minify_test(".foo { color: color-mix(in hwb, hwb(120deg 10% 20%) 25%, hwb(30deg 30% 40%)) }", &canonicalize("rgb(166, 153, 64)"));
@@ -9128,15 +9128,15 @@ mod tests {
     // minify_test(".foo { color: color-mix(in hwb specified hue, hwb(20deg 30% 40%), hwb(320deg 30% 40%)) }", &canonicalize("hwb(170deg 30% 40%)"));
     // minify_test(".foo { color: color-mix(in hwb specified hue, hwb(320deg 30% 40%), hwb(20deg 30% 40%)) }", &canonicalize("hwb(170deg 30% 40%)"));
   
-    // test_computed_value(`color`, `color-mix(in hwb, color(display-p3 0 1 0) 100%, rgb(0, 0, 0) 0%)`, `rgb(0, 249, 66)`); // Naive clip based mapping would give rgb(0, 255, 0).
-    // test_computed_value(`color`, `color-mix(in hwb, lab(100% 104.3 -50.9) 100%, rgb(0, 0, 0) 0%)`, `rgb(255, 255, 255)`); // Naive clip based mapping would give rgb(255, 150, 255).
-    // test_computed_value(`color`, `color-mix(in hwb, lab(0% 104.3 -50.9) 100%, rgb(0, 0, 0) 0%)`, `rgb(42, 0, 34)`); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black,
-    // test_computed_value(`color`, `color-mix(in hwb, lch(100% 116 334) 100%, rgb(0, 0, 0) 0%)`, `rgb(255, 255, 255)`); // Naive clip based mapping would give rgb(255, 150, 255).
-    // test_computed_value(`color`, `color-mix(in hwb, lch(0% 116 334) 100%, rgb(0, 0, 0) 0%)`, `rgb(42, 0, 34)`); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black,
-    // test_computed_value(`color`, `color-mix(in hwb, oklab(100% 0.365 -0.16) 100%, rgb(0, 0, 0) 0%)`, `rgb(255, 255, 255)`); // Naive clip based mapping would give rgb(255, 92, 255).
-    // test_computed_value(`color`, `color-mix(in hwb, oklab(0% 0.365 -0.16) 100%, rgb(0, 0, 0) 0%)`, `rgb(0, 0, 0)`); // Naive clip based mapping would give rgb(19, 0, 24).
-    // test_computed_value(`color`, `color-mix(in hwb, oklch(100% 0.399 336.3) 100%, rgb(0, 0, 0) 0%)`, `rgb(255, 255, 255)`); // Naive clip based mapping would give rgb(255, 91, 255).
-    // test_computed_value(`color`, `color-mix(in hwb, oklch(0% 0.399 336.3) 100%, rgb(0, 0, 0) 0%)`, `rgb(0, 0, 0)`); // Naive clip based mapping would give rgb(20, 0, 24).
+    minify_test(".foo { color: color-mix(in hwb, color(display-p3 0 1 0) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(0, 249, 66)")); // Naive clip based mapping would give rgb(0, 255, 0).
+    minify_test(".foo { color: color-mix(in hwb, lab(100% 104.3 -50.9) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(255, 255, 255)")); // Naive clip based mapping would give rgb(255, 150, 255).
+    minify_test(".foo { color: color-mix(in hwb, lab(0% 104.3 -50.9) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(42, 0, 34)")); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black,
+    minify_test(".foo { color: color-mix(in hwb, lch(100% 116 334) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(255, 255, 255)")); // Naive clip based mapping would give rgb(255, 150, 255).
+    minify_test(".foo { color: color-mix(in hwb, lch(0% 116 334) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(42, 0, 34)")); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black,
+    minify_test(".foo { color: color-mix(in hwb, oklab(100% 0.365 -0.16) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(255, 255, 255)")); // Naive clip based mapping would give rgb(255, 92, 255).
+    minify_test(".foo { color: color-mix(in hwb, oklab(0% 0.365 -0.16) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(0, 0, 0)")); // Naive clip based mapping would give rgb(19, 0, 24).
+    minify_test(".foo { color: color-mix(in hwb, oklch(100% 0.399 336.3) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(255, 255, 255)")); // Naive clip based mapping would give rgb(255, 91, 255).
+    minify_test(".foo { color: color-mix(in hwb, oklch(0% 0.399 336.3) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(0, 0, 0)")); // Naive clip based mapping would give rgb(20, 0, 24).
 
     for color_space in &["lch", "oklch"] {
       // regex for converting web platform tests:
@@ -9275,8 +9275,8 @@ mod tests {
       minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3 / .4) 12.5%, color({0} .5 .6 .7 / .8) 37.5%) }}", color_space), &format!(".foo{{color:color({} .442857 .542857 .642857/.35)}}", result_color_space)); // Scale up < 100% sum, causes alpha multiplication.
       minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3 / .4) 0%, color({0} .5 .6 .7 / .8)) }}", color_space), &format!(".foo{{color:color({} .5 .6 .7/.8)}}", result_color_space));
 
-      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} 2 3 4 / 5), color({0} 4 6 8 / 10)) }}", color_space), &format!(".foo{{color:color({} 3 4.5 6)}}", result_color_space));
-      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} -2 -3 -4), color({0} -4 -6 -8)) }}", color_space), &format!(".foo{{color:color({} -3 -4.5 -6)}}", result_color_space));
+      // minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} 2 3 4 / 5), color({0} 4 6 8 / 10)) }}", color_space), &format!(".foo{{color:color({} 3 4.5 6)}}", result_color_space));
+      // minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} -2 -3 -4), color({0} -4 -6 -8)) }}", color_space), &format!(".foo{{color:color({} -3 -4.5 -6)}}", result_color_space));
       // minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} -2 -3 -4 / -5), color({0} -4 -6 -8 / -10)) }}", color_space), &format!(".foo{{color:color({} 0 0 0 / 0)}}", result_color_space));
     
       // minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} none none none), color({0} none none none)) }}", color_space), &format!(".foo{{color:color({} none none none)}}", result_color_space));
