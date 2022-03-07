@@ -17,7 +17,8 @@ pub enum CssColor {
   CurrentColor,
   RGBA(RGBA),
   LAB(Box<LABColor>),
-  Predefined(Box<PredefinedColor>)
+  Predefined(Box<PredefinedColor>),
+  Float(Box<FloatColor>)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -37,7 +38,16 @@ pub enum PredefinedColor {
   ProPhoto(ProPhoto),
   Rec2020(Rec2020),
   XYZd50(XYZd50),
-  XYZd65(XYZd65)
+  XYZd65(XYZd65),
+}
+
+// Floating point representations of color types that
+// are usually stored as RGBA. These are used when there
+// are any `none` components, which are represented as NaN.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum FloatColor {
+  HSL(HSL),
+  HWB(HWB)
 }
 
 bitflags! {
@@ -125,7 +135,8 @@ impl CssColor {
           LABColor::OKLCH(..) => Feature::OklchColors
         }
       },
-      CssColor::Predefined(..) => Feature::ColorFunction
+      CssColor::Predefined(..) => Feature::ColorFunction,
+      CssColor::Float(..) => return ColorFallbackKind::empty()
     };
 
     let mut fallbacks = ColorFallbackKind::empty();
@@ -285,7 +296,12 @@ impl ToCss for CssColor {
           LABColor::OKLCH(lch) => write_components("oklch", lch.l, lch.c, lch.h, lch.alpha, dest),    
         }
       }
-      CssColor::Predefined(predefined) => write_predefined(predefined, dest)
+      CssColor::Predefined(predefined) => write_predefined(predefined, dest),
+      CssColor::Float(float) => {
+        // Serialize as hex.
+        let srgb = SRGB::from(**float);
+        CssColor::from(srgb).to_css(dest)
+      }
     }
   }
 }
@@ -376,6 +392,10 @@ fn parse_color_function<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, 
       let predefined = parse_predefined(input)?;
       Ok(CssColor::Predefined(Box::new(predefined)))
     },
+    "hsl" => {
+      let (h, s, l, a) = parse_hsl_hwb(input)?;
+      Ok(CssColor::Float(Box::new(FloatColor::HSL(HSL { h, s, l, alpha: a }))))
+    },
     "color-mix" => {
       input.parse_nested_block(parse_color_mix)
     },
@@ -390,14 +410,11 @@ fn parse_color_function<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, 
 fn parse_lab<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
   // https://www.w3.org/TR/css-color-4/#funcdef-lab
   let res = input.parse_nested_block(|input| {
-    let l = input.expect_percentage()?.max(0.0);
-    let a = input.expect_number()?;
-    let b = input.expect_number()?;
-    let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
-      parse_number_or_percentage(input)?.clamp(0.0, 1.0)
-    } else {
-      1.0
-    };
+    // f32::max() does not propagate NaN, so use clamp for now until f32::maximum() is stable.
+    let l = parse_percentage(input)?.clamp(0.0, f32::MAX);
+    let a = parse_number(input)?;
+    let b = parse_number(input)?;
+    let alpha = parse_alpha(input)?;
 
     Ok((l, a, b, alpha))
   })?;
@@ -409,19 +426,11 @@ fn parse_lab<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32),
 #[inline]
 fn parse_lch<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
   // https://www.w3.org/TR/css-color-4/#funcdef-lch
-  let parser = ComponentParser;
   let res = input.parse_nested_block(|input| {
-    let l = input.expect_percentage()?.max(0.0);
-    let c = input.expect_number()?.max(0.0);
-    let h = match parser.parse_angle_or_number(input)? {
-      AngleOrNumber::Number { value } => value,
-      AngleOrNumber::Angle { degrees } => degrees
-    };
-    let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
-      parse_number_or_percentage(input)?.clamp(0.0, 1.0)
-    } else {
-      1.0
-    };
+    let l = parse_percentage(input)?.clamp(0.0, f32::MAX);
+    let c = parse_number(input)?.clamp(0.0, f32::MAX);
+    let h = parse_angle_or_number(input)?;
+    let alpha = parse_alpha(input)?;
 
     Ok((l, c, h, alpha))
   })?;
@@ -451,11 +460,7 @@ fn parse_predefined_rgb<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Predefined
   let r = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
   let g = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
   let b = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
-  let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
-    parse_number_or_percentage(input)?.clamp(0.0, 1.0)
-  } else {
-    1.0
-  };
+  let alpha = parse_alpha(input)?;
 
   let res = match_ignore_ascii_case! { &*&colorspace,
     "srgb" => PredefinedColor::SRGB(SRGB { r, g, b, alpha }),
@@ -480,14 +485,10 @@ fn parse_predefined_xyz<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Predefined
   // XYZ color spaces only accept numbers, not percentages.
   // Out of gamut values should not be clamped, i.e. values < 0 or > 1 should be preserved.
   // The browser will gamut-map the color for the target device that it is rendered on.
-  let x = input.try_parse(|input| input.expect_number()).unwrap_or(0.0);
-  let y = input.try_parse(|input| input.expect_number()).unwrap_or(0.0);
-  let z = input.try_parse(|input| input.expect_number()).unwrap_or(0.0);
-  let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
-    parse_number_or_percentage(input)?.clamp(0.0, 1.0)
-  } else {
-    1.0
-  };
+  let x = input.try_parse(parse_number).unwrap_or(0.0);
+  let y = input.try_parse(parse_number).unwrap_or(0.0);
+  let z = input.try_parse(parse_number).unwrap_or(0.0);
+  let alpha = parse_alpha(input)?;
 
   let res = match_ignore_ascii_case! { &*&colorspace,
     "xyz-d50" => PredefinedColor::XYZd50(XYZd50 { x, y, z, alpha}),
@@ -500,31 +501,111 @@ fn parse_predefined_xyz<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Predefined
   Ok(res)
 }
 
+/// Parses the hsl() and hwb() functions.
+/// Only the modern syntax with no commas is handled here, cssparser handles the legacy syntax.
+/// The results of this function are stored as floating point if there are any `none` components.
+#[inline]
+fn parse_hsl_hwb<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
+  // https://drafts.csswg.org/css-color-4/#the-hsl-notation
+  let res = input.parse_nested_block(|input| {
+    let h = parse_angle_or_number(input)?;
+    let a = parse_percentage(input)?.clamp(0.0, 1.0);
+    let b = parse_percentage(input)?.clamp(0.0, 1.0);
+    let alpha = parse_alpha(input)?;
+
+    Ok((h, a, b, alpha))
+  })?;
+
+  Ok(res)
+}
+
+#[inline]
+fn parse_angle_or_number<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ParserError<'i>>> {
+  let parser = ComponentParser;
+  let state = input.state();
+  let h = match parser.parse_angle_or_number(input) {
+    Ok(AngleOrNumber::Number { value }) => value,
+    Ok(AngleOrNumber::Angle { degrees }) => degrees,
+    Err(..) => {
+      input.reset(&state);
+      input.expect_ident_matching("none")?;
+      f32::NAN
+    }
+  };
+
+  Ok(h)
+}
+
+#[inline]
+fn parse_percentage<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ParserError<'i>>> {
+  let location = input.current_source_location();
+  Ok(match *input.next()? {
+    Token::Percentage { unit_value, .. } => unit_value,
+    Token::Ident(ref ident) if ident.eq_ignore_ascii_case("none") => f32::NAN,
+    ref t => return Err(location.new_unexpected_token_error(t.clone())),
+  })
+}
+
+#[inline]
+fn parse_number<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ParserError<'i>>> {
+  let location = input.current_source_location();
+  Ok(match *input.next()? {
+    Token::Number { value, .. } => value,
+    Token::Ident(ref ident) if ident.eq_ignore_ascii_case("none") => f32::NAN,
+    ref t => return Err(location.new_unexpected_token_error(t.clone())),
+  })
+}
+
 #[inline]
 fn parse_number_or_percentage<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ParserError<'i>>> {
   let location = input.current_source_location();
   Ok(match *input.next()? {
     Token::Number { value, .. } => value,
     Token::Percentage { unit_value, .. } => unit_value,
+    Token::Ident(ref ident) if ident.eq_ignore_ascii_case("none") => f32::NAN,
     ref t => return Err(location.new_unexpected_token_error(t.clone())),
   })
+}
+
+#[inline]
+fn parse_alpha<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ParserError<'i>>> {
+  let res = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
+    parse_number_or_percentage(input)?.clamp(0.0, 1.0)
+  } else {
+    1.0
+  };
+  Ok(res)
 }
 
 #[inline]
 fn write_components<W>(name: &str, a: f32, b: f32, c: f32, alpha: f32, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
   dest.write_str(name)?;
   dest.write_char('(')?;
-  Percentage(a).to_css(dest)?;
+  if a.is_nan() {
+    dest.write_str("none")?;
+  } else {
+    Percentage(a).to_css(dest)?;
+  }
   dest.write_char(' ')?;
-  b.to_css(dest)?;
+  write_component(b, dest)?;
   dest.write_char(' ')?;
-  c.to_css(dest)?;
-  if (alpha - 1.0).abs() > f32::EPSILON {
+  write_component(c, dest)?;
+  if alpha.is_nan() || (alpha - 1.0).abs() > f32::EPSILON {
     dest.delim('/', true)?;
-    alpha.to_css(dest)?;
+    write_component(alpha, dest)?;
   }
 
   dest.write_char(')')
+}
+
+#[inline]
+fn write_component<W>(c: f32, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  if c.is_nan() {
+    dest.write_str("none")?;
+  } else {
+    c.to_css(dest)?;
+  }
+  Ok(())
 }
 
 #[inline]
@@ -547,20 +628,20 @@ fn write_predefined<W>(predefined: &PredefinedColor, dest: &mut Printer<W>) -> R
   dest.write_str(name)?;
   if !dest.minify || a != 0.0 || b != 0.0 || c != 0.0 {
     dest.write_char(' ')?;
-    a.to_css(dest)?;
+    write_component(a, dest)?;
     if !dest.minify || b != 0.0 || c != 0.0 {
       dest.write_char(' ')?;
-      b.to_css(dest)?;
+      write_component(b, dest)?;
       if !dest.minify || c != 0.0 {
         dest.write_char(' ')?;
-        c.to_css(dest)?;
+        write_component(c, dest)?;
       }
     }
   }
 
-  if (alpha - 1.0).abs() > f32::EPSILON {
+  if alpha.is_nan() || (alpha - 1.0).abs() > f32::EPSILON {
     dest.delim('/', true)?;
-    alpha.to_css(dest)?;
+    write_component(alpha, dest)?;
   }
 
   dest.write_char(')')
@@ -574,6 +655,18 @@ macro_rules! define_colorspace {
       pub $b: f32,
       pub $c: f32,
       pub alpha: f32
+    }
+
+    impl $name {
+      #[inline]
+      fn resolve_missing(&self) -> Self {
+        Self {
+          $a: if self.$a.is_nan() { 0.0 } else { self.$a },
+          $b: if self.$b.is_nan() { 0.0 } else { self.$b },
+          $c: if self.$c.is_nan() { 0.0 } else { self.$c },
+          alpha: if self.alpha.is_nan() { 0.0 } else { self.alpha },
+        }
+      }
     }
   }
 }
@@ -635,6 +728,7 @@ fn polar_to_rectangular(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
 
 impl From<LCH> for LAB {
   fn from(lch: LCH) -> LAB {
+    let lch = lch.resolve_missing();
     let (l, a, b) = polar_to_rectangular(lch.l, lch.c, lch.h);
     LAB { l, a, b, alpha: lch.alpha }
   }
@@ -642,6 +736,7 @@ impl From<LCH> for LAB {
 
 impl From<LAB> for LCH {
   fn from(lab: LAB) -> LCH {
+    let lab = lab.resolve_missing();
     let (l, c, h) = rectangular_to_polar(lab.l, lab.a, lab.b);
     LCH { l, c, h, alpha: lab.alpha }
   }
@@ -649,6 +744,7 @@ impl From<LAB> for LCH {
 
 impl From<OKLCH> for OKLAB {
   fn from(lch: OKLCH) -> OKLAB {
+    let lch = lch.resolve_missing();
     let (l, a, b) = polar_to_rectangular(lch.l, lch.c, lch.h);
     OKLAB { l, a, b, alpha: lch.alpha }
   }
@@ -656,6 +752,7 @@ impl From<OKLCH> for OKLAB {
 
 impl From<OKLAB> for OKLCH {
   fn from(lab: OKLAB) -> OKLCH {
+    let lab = lab.resolve_missing();
     let (l, c, h) = rectangular_to_polar(lab.l, lab.a, lab.b);
     OKLCH { l, c, h, alpha: lab.alpha }
   }
@@ -669,6 +766,7 @@ impl From<LAB> for XYZd50 {
     const K: f32 = 24389.0 / 27.0;   // 29^3/3^3
     const E: f32 = 216.0 / 24389.0;  // 6^3/29^3
 
+    let lab = lab.resolve_missing();
     let l = lab.l * 100.0;
     let a = lab.a;
     let b = lab.b;
@@ -716,6 +814,7 @@ impl From<XYZd50> for XYZd65 {
       0.012314001688319899,  -0.020507696433477912, 1.3303659366080753
     ];
 
+    let xyz = xyz.resolve_missing();
     let (x, y, z) = multiply_matrix(MATRIX, xyz.x, xyz.y, xyz.z);
     XYZd65 { x, y, z, alpha: xyz.alpha }
   }
@@ -730,6 +829,7 @@ impl From<XYZd65> for XYZd50 {
       -0.009243058152591178,  0.015055144896577895,   0.7518742899580008
     ];
 
+    let xyz = xyz.resolve_missing();
     let (x, y, z) = multiply_matrix(MATRIX, xyz.x, xyz.y, xyz.z);
     XYZd50 { x, y, z, alpha: xyz.alpha }
   }
@@ -744,6 +844,7 @@ impl From<XYZd65> for SRGBLinear {
       0.05563007969699366, -0.20397695888897652,  1.0569715142428786
     ];
 
+    let xyz = xyz.resolve_missing();
     let (r, g, b) = multiply_matrix(MATRIX, xyz.x, xyz.y, xyz.z);
     SRGBLinear { r, g, b, alpha: xyz.alpha }
   }
@@ -760,6 +861,7 @@ fn multiply_matrix(m: &[f32], x: f32, y: f32, z: f32) -> (f32, f32, f32) {
 impl From<SRGBLinear> for SRGB {
   #[inline]
   fn from(rgb: SRGBLinear) -> SRGB {
+    let rgb = rgb.resolve_missing();
     let (r, g, b) = gam_srgb(rgb.r, rgb.g, rgb.b);
     SRGB { r, g, b, alpha: rgb.alpha }
   }
@@ -806,6 +908,7 @@ impl From<OKLAB> for XYZd65 {
       1.0000000546724109177,  -0.089484182094965759684, -1.2914855378640917399
     ];
 
+    let lab = lab.resolve_missing();
     let (a, b, c) = multiply_matrix(OKLAB_TO_LMS, lab.l, lab.a, lab.b);
     let (x, y, z) = multiply_matrix(LMS_TO_XYZ, a.powi(3), b.powi(3), c.powi(3));
     XYZd65 { x, y, z, alpha: lab.alpha }
@@ -827,6 +930,7 @@ impl From<XYZd65> for OKLAB {
       0.0259040371,   0.7827717662,  -0.8086757660
     ];
 
+    let xyz = xyz.resolve_missing();
     let (a, b, c) = multiply_matrix(XYZ_TO_LMS, xyz.x, xyz.y, xyz.z);
     let (l, a, b) = multiply_matrix(LMS_TO_OKLAB, a.cbrt(), b.cbrt(), c.cbrt());
     OKLAB { l, a, b, alpha: xyz.alpha }
@@ -842,6 +946,7 @@ impl From<XYZd50> for LAB {
     const K: f32 = 24389.0 / 27.0;   // 29^3/3^3
 
     // compute xyz, which is XYZ scaled relative to reference white
+    let xyz = xyz.resolve_missing();
     let x = xyz.x / D50[0];
     let y = xyz.y / D50[1];
     let z = xyz.z / D50[2];
@@ -874,6 +979,7 @@ impl From<XYZd50> for LAB {
 
 impl From<SRGB> for SRGBLinear {
   fn from(rgb: SRGB) -> SRGBLinear {
+    let rgb = rgb.resolve_missing();
     let (r, g, b) = lin_srgb(rgb.r, rgb.g, rgb.b);
     SRGBLinear { r, g, b, alpha: rgb.alpha }
   }
@@ -916,6 +1022,7 @@ impl From<SRGBLinear> for XYZd65 {
       0.01933081871559182, 0.11919477979462598, 0.9505321522496607
     ];
 
+    let rgb = rgb.resolve_missing();
     let (x, y, z) = multiply_matrix(MATRIX, rgb.r, rgb.g, rgb.b);
     XYZd65 { x, y, z, alpha: rgb.alpha }
   }
@@ -930,6 +1037,7 @@ impl From<XYZd65> for P3 {
       0.03584583024378447, -0.07617238926804182, 0.9568845240076872
     ];
 
+    let xyz = xyz.resolve_missing();
     let (r, g, b) = multiply_matrix(MATRIX, xyz.x, xyz.y, xyz.z);
     let (r, g, b) = gam_srgb(r, g, b); // same as sRGB
     P3 { r, g, b, alpha: xyz.alpha }
@@ -938,8 +1046,6 @@ impl From<XYZd65> for P3 {
 
 impl From<P3> for XYZd65 {
   fn from(p3: P3) -> XYZd65 {
-    let (r, g, b) = lin_srgb(p3.r, p3.g, p3.b);
-
     // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L91
     // convert linear-light display-p3 values to CIE XYZ
     // using D65 (no chromatic adaptation)
@@ -950,6 +1056,8 @@ impl From<P3> for XYZd65 {
       0.0000000000000000, 0.04511338185890264, 1.043944368900976,
     ];
 
+    let p3 = p3.resolve_missing();
+    let (r, g, b) = lin_srgb(p3.r, p3.g, p3.b);
     let (x, y, z) = multiply_matrix(MATRIX, r, g, b);
     XYZd65 { x, y, z, alpha: p3.alpha }
   }
@@ -967,6 +1075,7 @@ impl From<A98> for XYZd65 {
     // convert an array of a98-rgb values in the range 0.0 - 1.0
     // to linear light (un-companded) form.
     // negative values are also now accepted
+    let a98 = a98.resolve_missing();
     let r = lin_a98rgb_component(a98.r);
     let g = lin_a98rgb_component(a98.g);
     let b = lin_a98rgb_component(a98.b);
@@ -1009,6 +1118,7 @@ impl From<XYZd65> for A98 {
       sign * c.abs().powf(256.0 / 563.0)
     }
 
+    let xyz = xyz.resolve_missing();
     let (r, g, b) = multiply_matrix(MATRIX, xyz.x, xyz.y, xyz.z);
     let r = gam_a98_component(r);
     let g = gam_a98_component(g);
@@ -1038,6 +1148,7 @@ impl From<ProPhoto> for XYZd50 {
       sign * c.powf(1.8)
     }
 
+    let prophoto = prophoto.resolve_missing();
     let r = lin_prophoto_component(prophoto.r);
     let g = lin_prophoto_component(prophoto.g);
     let b = lin_prophoto_component(prophoto.b);
@@ -1083,6 +1194,7 @@ impl From<XYZd50> for ProPhoto {
       16.0 * c
     }
 
+    let xyz = xyz.resolve_missing();
     let (r, g, b) = multiply_matrix(MATRIX, xyz.x, xyz.y, xyz.z);
     let r = gam_prophoto_component(r);
     let g = gam_prophoto_component(g);
@@ -1112,6 +1224,7 @@ impl From<Rec2020> for XYZd65 {
       sign * ((abs + A - 1.0) / A).powf(1.0 / 0.45)
     }
 
+    let rec2020 = rec2020.resolve_missing();
     let r = lin_rec2020_component(rec2020.r);
     let g = lin_rec2020_component(rec2020.g);
     let b = lin_rec2020_component(rec2020.b);
@@ -1158,6 +1271,7 @@ impl From<XYZd65> for Rec2020 {
       4.5 * c
     }
 
+    let xyz = xyz.resolve_missing();
     let (r, g, b) = multiply_matrix(MATRIX, xyz.x, xyz.y, xyz.z);
     let r = gam_rec2020_component(r);
     let g = gam_rec2020_component(g);
@@ -1169,6 +1283,7 @@ impl From<XYZd65> for Rec2020 {
 impl From<SRGB> for HSL {
   fn from(rgb: SRGB) -> HSL {
     // https://drafts.csswg.org/css-color/#rgb-to-hsl
+    let rgb = rgb.resolve_missing();
     let r = rgb.r;
     let g = rgb.g;
     let b = rgb.b;
@@ -1204,6 +1319,7 @@ impl From<SRGB> for HSL {
 impl From<HSL> for SRGB {
   fn from(hsl: HSL) -> SRGB {
     // https://drafts.csswg.org/css-color/#hsl-to-rgb
+    let hsl = hsl.resolve_missing();
     let mut h = hsl.h % 360.0;
     if h < 0.0 {
       h += 360.0;
@@ -1238,6 +1354,7 @@ impl From<SRGB> for HWB {
 impl From<HWB> for SRGB {
   fn from(hwb: HWB) -> SRGB {
     // https://drafts.csswg.org/css-color/#hwb-to-rgb
+    let hwb = hwb.resolve_missing();
     let h = hwb.h;
     let w = hwb.w;
     let b = hwb.b;
@@ -1412,12 +1529,24 @@ macro_rules! color_space {
       }
     }
 
+    impl From<FloatColor> for $space {
+      fn from(color: FloatColor) -> $space {
+        use FloatColor::*;
+    
+        match color {
+          HSL(v) => v.into(),
+          HWB(v) => v.into(),
+        }
+      }
+    }
+
     impl From<&CssColor> for $space {
       fn from(color: &CssColor) -> $space {
         match color {
           CssColor::RGBA(rgba) => (*rgba).into(),
           CssColor::LAB(lab) => (**lab).into(),
           CssColor::Predefined(predefined) => (**predefined).into(),
+          CssColor::Float(float) => (**float).into(),
           CssColor::CurrentColor => unreachable!()
         }
       }
@@ -1552,14 +1681,13 @@ macro_rules! hsl_hwb_color_gamut {
   ($t: ty, $a: ident, $b: ident) => {
     impl ColorGamut for $t {
       fn in_gamut(&self) -> bool {
-        // self.h >= 0.0 && self.h <= 360.0 &&
         self.$a >= 0.0 && self.$a <= 1.0 &&
         self.$b >= 0.0 && self.$b <= 1.0
       }
 
       fn clip(&self) -> Self {
         Self {
-          h: self.h,//.clamp(0.0, 360.0),
+          h: self.h % 360.0,
           $a: self.$a.clamp(0.0, 1.0),
           $b: self.$b.clamp(0.0, 1.0),
           alpha: self.alpha.clamp(0.0, 1.0)
@@ -1726,6 +1854,12 @@ impl CssColor {
           PredefinedColor::XYZd65(..) => TypeId::of::<XYZd65>(),
         }
       }
+      CssColor::Float(float) => {
+        match &**float {
+          FloatColor::HSL(..) => TypeId::of::<HSL>(),
+          FloatColor::HWB(..) => TypeId::of::<HWB>(),
+        }
+      }
       _ => unreachable!()
     }
   }
@@ -1733,35 +1867,43 @@ impl CssColor {
   pub fn interpolate<'a, T>(
     &'a self,
     mut p1: f32,
-    second_color: &'a CssColor,
+    other: &'a CssColor,
     mut p2: f32,
     method: HueInterpolationMethod
   ) -> CssColor
     where
       T: 'static + From<&'a CssColor> + Interpolate + Into<CssColor>
         + Into<OKLCH> + ColorGamut + Into<OKLAB> + From<OKLCH> + Copy
-        + Into<SRGB> + From<SRGB>
+        + Into<SRGB> + From<SRGB> + std::fmt::Debug
   {
     let type_id = TypeId::of::<T>();
-    let is_converted = self.get_type_id() != type_id || second_color.get_type_id() != type_id;
+    let converted_first = self.get_type_id() != type_id;
+    let converted_second = other.get_type_id() != type_id;
 
     // https://drafts.csswg.org/css-color-5/#color-mix-result
     let mut first_color = T::from(self);
-    let mut second_color = T::from(second_color);
+    let mut second_color = T::from(other);
 
-    if !first_color.in_gamut() {
+    if converted_first && !first_color.in_gamut() {
       first_color = map_gamut(first_color);
     }
 
-    if !second_color.in_gamut() {
+    if converted_second && !second_color.in_gamut() {
       second_color = map_gamut(second_color);
     }
 
     // https://www.w3.org/TR/css-color-4/#powerless
-    if is_converted {
-      first_color.adjust_powerless_components(&second_color);
-      second_color.adjust_powerless_components(&first_color);
+    if converted_first {
+      first_color.adjust_powerless_components();
     }
+    
+    if converted_second {
+      second_color.adjust_powerless_components();
+    }
+
+    // https://drafts.csswg.org/css-color-4/#interpolation-missing
+    first_color.fill_missing_components(&second_color);
+    second_color.fill_missing_components(&first_color);
 
     // https://www.w3.org/TR/css-color-4/#hue-interpolation
     first_color.adjust_hue(&mut second_color, method);
@@ -1788,7 +1930,8 @@ impl CssColor {
 }
 
 pub trait Interpolate {
-  fn adjust_powerless_components(&mut self, _: &Self) {}
+  fn adjust_powerless_components(&mut self) {}
+  fn fill_missing_components(&mut self, other: &Self);
   fn adjust_hue(&mut self, _: &mut Self, _: HueInterpolationMethod) {}
   fn premultiply(&mut self);
   fn unpremultiply(&mut self, alpha_multiplier: f32);
@@ -1797,6 +1940,24 @@ pub trait Interpolate {
 
 macro_rules! interpolate {
   ($a: ident, $b: ident, $c: ident) => {
+    fn fill_missing_components(&mut self, other: &Self) {
+      if self.$a.is_nan() {
+        self.$a = other.$a;
+      }
+
+      if self.$b.is_nan() {
+        self.$b = other.$b;
+      }
+
+      if self.$c.is_nan() {
+        self.$c = other.$c;
+      }
+
+      if self.alpha.is_nan() {
+        self.alpha = other.alpha;
+      }
+    }
+
     fn interpolate(&self, p1: f32, other: &Self, p2: f32) -> Self {
       Self {
         $a: self.$a * p1 + other.$a * p2,
@@ -1811,16 +1972,20 @@ macro_rules! interpolate {
 macro_rules! rectangular_premultiply {
   ($a: ident, $b: ident, $c: ident) => {
     fn premultiply(&mut self) {
-      self.$a *= self.alpha;
-      self.$b *= self.alpha;
-      self.$c *= self.alpha;
+      if !self.alpha.is_nan() {
+        self.$a *= self.alpha;
+        self.$b *= self.alpha;
+        self.$c *= self.alpha;
+      }
     }
 
     fn unpremultiply(&mut self, alpha_multiplier: f32) {
-      self.$a /= self.alpha;
-      self.$b /= self.alpha;
-      self.$c /= self.alpha;
-      self.alpha *= alpha_multiplier;
+      if !self.alpha.is_nan() {
+        self.$a /= self.alpha;
+        self.$b /= self.alpha;
+        self.$c /= self.alpha;
+        self.alpha *= alpha_multiplier;
+      }
     }
   }
 }
@@ -1828,26 +1993,30 @@ macro_rules! rectangular_premultiply {
 macro_rules! polar_premultiply {
   ($a: ident, $b: ident) => {
     fn premultiply(&mut self) {
-      self.$a *= self.alpha;
-      self.$b *= self.alpha;
+      if !self.alpha.is_nan() {
+        self.$a *= self.alpha;
+        self.$b *= self.alpha;
+      }
     }
 
     fn unpremultiply(&mut self, alpha_multiplier: f32) {
-      self.$a /= self.alpha;
-      self.$b /= self.alpha;
       self.h %= 360.0;
-      self.alpha *= alpha_multiplier;
+      if !self.alpha.is_nan() {
+        self.$a /= self.alpha;
+        self.$b /= self.alpha;
+        self.alpha *= alpha_multiplier;
+      }
     }
   }
 }
 
 macro_rules! adjust_powerless_lab {
   () => {
-    fn adjust_powerless_components(&mut self, other: &Self) {
+    fn adjust_powerless_components(&mut self) {
       // If the lightness of a LAB color is 0%, both the a and b components are powerless.
       if self.l.abs() < f32::EPSILON {
-        self.a = other.a;
-        self.b = other.b;
+        self.a = f32::NAN;
+        self.b = f32::NAN;
       }
     }
   }
@@ -1855,16 +2024,16 @@ macro_rules! adjust_powerless_lab {
 
 macro_rules! adjust_powerless_lch {
   () => {
-    fn adjust_powerless_components(&mut self, other: &Self) {
+    fn adjust_powerless_components(&mut self) {
       // If the chroma of an LCH color is 0%, the hue component is powerless. 
       // If the lightness of an LCH color is 0%, both the hue and chroma components are powerless.
       if self.c.abs() < f32::EPSILON {
-        self.h = other.h;
+        self.h = f32::NAN;
       }
 
       if self.l.abs() < f32::EPSILON {
-        self.c = other.c;
-        self.h = other.h;
+        self.c = f32::NAN;
+        self.h = f32::NAN;
       }
     }
 
@@ -1921,16 +2090,16 @@ impl Interpolate for OKLCH {
 impl Interpolate for HSL {
   polar_premultiply!(s, l);
 
-  fn adjust_powerless_components(&mut self, other: &Self) {
+  fn adjust_powerless_components(&mut self) {
     // If the saturation of an HSL color is 0%, then the hue component is powerless.
     // If the lightness of an HSL color is 0% or 100%, both the saturation and hue components are powerless.
     if self.s.abs() < f32::EPSILON {
-      self.h = other.h;
+      self.h = f32::NAN;
     }
 
     if self.l.abs() < f32::EPSILON || (self.l - 1.0).abs() < f32::EPSILON {
-      self.h = other.h;
-      self.s = other.s;
+      self.h = f32::NAN;
+      self.s = f32::NAN;
     }
   }
 
@@ -1944,11 +2113,11 @@ impl Interpolate for HSL {
 impl Interpolate for HWB {
   polar_premultiply!(w, b);
 
-  fn adjust_powerless_components(&mut self, other: &Self) {
+  fn adjust_powerless_components(&mut self) {
     // If white+black is equal to 100% (after normalization), it defines an achromatic color, 
     // i.e. some shade of gray, without any hint of the chosen hue. In this case, the hue component is powerless.
     if (self.w + self.b - 1.0).abs() < f32::EPSILON {
-      self.h = other.h;
+      self.h = f32::NAN;
     }
   }
 
