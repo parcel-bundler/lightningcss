@@ -667,6 +667,15 @@ macro_rules! define_colorspace {
           alpha: if self.alpha.is_nan() { 0.0 } else { self.alpha },
         }
       }
+
+      #[inline]
+      pub fn resolve(&self) -> Self {
+        let mut resolved = self.resolve_missing();
+        if !resolved.in_gamut() {
+          resolved = map_gamut(resolved);
+        }
+        resolved
+      }
     }
   }
 }
@@ -1283,7 +1292,7 @@ impl From<XYZd65> for Rec2020 {
 impl From<SRGB> for HSL {
   fn from(rgb: SRGB) -> HSL {
     // https://drafts.csswg.org/css-color/#rgb-to-hsl
-    let rgb = rgb.resolve_missing();
+    let rgb = rgb.resolve();
     let r = rgb.r;
     let g = rgb.g;
     let b = rgb.b;
@@ -1341,7 +1350,8 @@ impl From<HSL> for SRGB {
 
 impl From<SRGB> for HWB {
   fn from(rgb: SRGB) -> HWB {
-    let hsl = HSL::from(rgb);
+    let rgb = rgb.resolve();
+    let hsl = HSL::from(rgb);    
     let r = rgb.r;
     let g = rgb.g;
     let b = rgb.b;
@@ -1386,6 +1396,7 @@ impl From<RGBA> for SRGB {
 
 impl From<SRGB> for RGBA {
   fn from(rgb: SRGB) -> RGBA {
+    let rgb = rgb.resolve();
     RGBA::from_floats(rgb.r, rgb.g, rgb.b, rgb.alpha)
   }
 }
@@ -1645,12 +1656,14 @@ pub trait ColorGamut {
 macro_rules! bounded_color_gamut {
   ($t: ty, $a: ident, $b: ident, $c: ident) => {
     impl ColorGamut for $t {
+      #[inline]
       fn in_gamut(&self) -> bool {
         self.$a >= 0.0 && self.$a <= 1.0 &&
         self.$b >= 0.0 && self.$b <= 1.0 &&
         self.$c >= 0.0 && self.$c <= 1.0
       }
 
+      #[inline]
       fn clip(&self) -> Self {
         Self {
           $a: self.$a.clamp(0.0, 1.0),
@@ -1666,10 +1679,12 @@ macro_rules! bounded_color_gamut {
 macro_rules! unbounded_color_gamut {
   ($t: ty, $a: ident, $b: ident, $c: ident) => {
     impl ColorGamut for $t {
+      #[inline]
       fn in_gamut(&self) -> bool {
         true
       }
 
+      #[inline]
       fn clip(&self) -> Self {
         *self
       }
@@ -1680,11 +1695,13 @@ macro_rules! unbounded_color_gamut {
 macro_rules! hsl_hwb_color_gamut {
   ($t: ty, $a: ident, $b: ident) => {
     impl ColorGamut for $t {
+      #[inline]
       fn in_gamut(&self) -> bool {
         self.$a >= 0.0 && self.$a <= 1.0 &&
         self.$b >= 0.0 && self.$b <= 1.0
       }
 
+      #[inline]
       fn clip(&self) -> Self {
         Self {
           h: self.h % 360.0,
@@ -1725,19 +1742,10 @@ fn delta_eok<T: Into<OKLAB>>(a: T, b: OKLCH) -> f32 {
 
 fn map_gamut<T>(color: T) -> T
 where
-  T: 'static + Into<OKLCH> + ColorGamut + Into<OKLAB> + From<OKLCH> + Copy + Into<SRGB> + From<SRGB>
+  T: Into<OKLCH> + ColorGamut + Into<OKLAB> + From<OKLCH> + Copy
 {
   const JND: f32 = 0.02;
   const EPSILON: f32 = 0.00001;
-
-  // The web platform tests seem to rely on gamut mapping for HSL and HSB occurring in the sRGB space.
-  // Not sure if this is correct, but for now convert to sRGB first, and back after.
-  // https://github.com/w3c/csswg-drafts/issues/7107
-  let type_id = TypeId::of::<T>();
-  if type_id == TypeId::of::<HSL>() || type_id == TypeId::of::<HWB>() {
-    let srgb: SRGB = color.into();
-    return map_gamut(srgb).into();
-  }
 
   // https://www.w3.org/TR/css-color-4/#binsearch
   let mut current: OKLCH = color.into();
@@ -1768,7 +1776,7 @@ where
     let clipped = converted.clip();
     let delta_e = delta_eok(clipped, current);
     if delta_e < JND {
-      return clipped.into();
+      return clipped;
     }
 
     max = chroma;
@@ -1874,7 +1882,6 @@ impl CssColor {
     where
       T: 'static + From<&'a CssColor> + Interpolate + Into<CssColor>
         + Into<OKLCH> + ColorGamut + Into<OKLAB> + From<OKLCH> + Copy
-        + Into<SRGB> + From<SRGB> + std::fmt::Debug
   {
     let type_id = TypeId::of::<T>();
     let converted_first = self.get_type_id() != type_id;
@@ -1980,7 +1987,7 @@ macro_rules! rectangular_premultiply {
     }
 
     fn unpremultiply(&mut self, alpha_multiplier: f32) {
-      if !self.alpha.is_nan() {
+      if !self.alpha.is_nan() && self.alpha != 0.0 {
         self.$a /= self.alpha;
         self.$b /= self.alpha;
         self.$c /= self.alpha;

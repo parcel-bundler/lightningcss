@@ -957,8 +957,8 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border-left-color: var(--ltr, #b32323) var(--rtl, #ff00d4);
-        border-right-color: var(--ltr, #ff00d4) var(--rtl, #b32323);
+        border-left-color: var(--ltr, #b32323) var(--rtl, #ee00be);
+        border-right-color: var(--ltr, #ee00be) var(--rtl, #b32323);
       }
 
       @supports (color: lab(0% 0 0)) {
@@ -989,8 +989,8 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border-left-color: var(--ltr, #b32323) var(--rtl, #ff00d4);
-        border-right-color: var(--ltr, #ff00d4) var(--rtl, #b32323);
+        border-left-color: var(--ltr, #b32323) var(--rtl, #ee00be);
+        border-right-color: var(--ltr, #ee00be) var(--rtl, #b32323);
       }
 
       @supports (color: color(display-p3 0 0 0)) {
@@ -1283,9 +1283,9 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff)) 60;
-        -webkit-border-image: -webkit-linear-gradient(red, #7746ff) 60;
-        border-image: linear-gradient(red, #7746ff) 60;
+        -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 60;
+        -webkit-border-image: -webkit-linear-gradient(#ff0f0e, #7773ff) 60;
+        border-image: linear-gradient(#ff0f0e, #7773ff) 60;
         border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
       }
     "#
@@ -1300,10 +1300,10 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff)) 60;
-        -webkit-border-image: -webkit-linear-gradient(red, #7746ff) 60;
-        -moz-border-image: -moz-linear-gradient(red, #7746ff) 60;
-        border-image: linear-gradient(red, #7746ff) 60;
+        -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 60;
+        -webkit-border-image: -webkit-linear-gradient(#ff0f0e, #7773ff) 60;
+        -moz-border-image: -moz-linear-gradient(#ff0f0e, #7773ff) 60;
+        border-image: linear-gradient(#ff0f0e, #7773ff) 60;
         border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
       }
     "#
@@ -1319,9 +1319,9 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border-image: -webkit-linear-gradient(red, #7746ff) 60;
-        border-image: -moz-linear-gradient(red, #7746ff) 60;
-        border-image: linear-gradient(red, #7746ff) 60;
+        border-image: -webkit-linear-gradient(#ff0f0e, #7773ff) 60;
+        border-image: -moz-linear-gradient(#ff0f0e, #7773ff) 60;
+        border-image: linear-gradient(#ff0f0e, #7773ff) 60;
         border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
       }
     "#
@@ -1337,8 +1337,8 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border-image-source: -webkit-linear-gradient(red, #7746ff);
-        border-image-source: linear-gradient(red, #7746ff);
+        border-image-source: -webkit-linear-gradient(#ff0f0e, #7773ff);
+        border-image-source: linear-gradient(#ff0f0e, #7773ff);
         border-image-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
       }
     "#
@@ -1353,7 +1353,7 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border-image: linear-gradient(red, #7746ff) var(--foo);
+        border-image: linear-gradient(#ff0f0e, #7773ff) var(--foo);
       }
 
       @supports (color: lab(0% 0 0)) {
@@ -2544,7 +2544,7 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        background: #af5cae linear-gradient(#c65d07, #00817d);
+        background: #af5cae linear-gradient(#c65d07, #00807c);
         background: lab(51.5117% 43.3777 -29.0443) linear-gradient(lab(52.2319% 40.1449 59.9171), lab(47.7776% -34.2947 -7.65904));
       }
     "#
@@ -6303,7 +6303,7 @@ mod tests {
       ".foo { background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background: linear-gradient(red, #7746ff);
+          background: linear-gradient(#ff0f0e, #7773ff);
           background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -6317,7 +6317,7 @@ mod tests {
       ".foo { background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background: linear-gradient(red, #7746ff);
+          background: linear-gradient(#ff0f0e, #7773ff);
           background: linear-gradient(color(display-p3 1 .0000153435 -.00000303562), color(display-p3 .440289 .28452 1.23485));
           background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -6333,8 +6333,8 @@ mod tests {
       ".foo { background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background: -webkit-linear-gradient(red, #7746ff);
-          background: linear-gradient(red, #7746ff);
+          background: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          background: linear-gradient(#ff0f0e, #7773ff);
           background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -6348,9 +6348,9 @@ mod tests {
       ".foo { background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff));
-          background: -webkit-linear-gradient(red, #7746ff);
-          background: linear-gradient(red, #7746ff);
+          background: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
+          background: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          background: linear-gradient(#ff0f0e, #7773ff);
           background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -6390,7 +6390,7 @@ mod tests {
       ".foo { background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background-image: linear-gradient(red, #7746ff);
+          background-image: linear-gradient(#ff0f0e, #7773ff);
           background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -6404,7 +6404,7 @@ mod tests {
       ".foo { background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background-image: linear-gradient(red, #7746ff);
+          background-image: linear-gradient(#ff0f0e, #7773ff);
           background-image: linear-gradient(color(display-p3 1 .0000153435 -.00000303562), color(display-p3 .440289 .28452 1.23485));
           background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -6420,8 +6420,8 @@ mod tests {
       ".foo { background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background-image: -webkit-linear-gradient(red, #7746ff);
-          background-image: linear-gradient(red, #7746ff);
+          background-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          background-image: linear-gradient(#ff0f0e, #7773ff);
           background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -6435,9 +6435,9 @@ mod tests {
       ".foo { background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background-image: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff));
-          background-image: -webkit-linear-gradient(red, #7746ff);
-          background-image: linear-gradient(red, #7746ff);
+          background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
+          background-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          background-image: linear-gradient(#ff0f0e, #7773ff);
           background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -7497,9 +7497,9 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        -webkit-text-decoration: underline #ff00d4;
-        -moz-text-decoration: underline #ff00d4;
-        text-decoration: underline #ff00d4;
+        -webkit-text-decoration: underline #ee00be;
+        -moz-text-decoration: underline #ee00be;
+        text-decoration: underline #ee00be;
         -webkit-text-decoration: underline lch(50.998% 135.363 338);
         -moz-text-decoration: underline lch(50.998% 135.363 338);
         text-decoration: underline lch(50.998% 135.363 338);
@@ -7517,9 +7517,9 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        -webkit-text-decoration-color: #ff00d4;
-        -moz-text-decoration-color: #ff00d4;
-        text-decoration-color: #ff00d4;
+        -webkit-text-decoration-color: #ee00be;
+        -moz-text-decoration-color: #ee00be;
+        text-decoration-color: #ee00be;
         -webkit-text-decoration-color: lch(50.998% 135.363 338);
         -moz-text-decoration-color: lch(50.998% 135.363 338);
         text-decoration-color: lch(50.998% 135.363 338);
@@ -7537,7 +7537,7 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        text-decoration: #ff00d4 var(--style);
+        text-decoration: #ee00be var(--style);
       }
 
       @supports (color: lab(0% 0 0)) {
@@ -7699,8 +7699,8 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        -webkit-text-emphasis: filled #ff00d4;
-        text-emphasis: filled #ff00d4;
+        -webkit-text-emphasis: filled #ee00be;
+        text-emphasis: filled #ee00be;
         -webkit-text-emphasis: filled lch(50.998% 135.363 338);
         text-emphasis: filled lch(50.998% 135.363 338);
       }
@@ -7717,8 +7717,8 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        -webkit-text-emphasis-color: #ff00d4;
-        text-emphasis-color: #ff00d4;
+        -webkit-text-emphasis-color: #ee00be;
+        text-emphasis-color: #ee00be;
         -webkit-text-emphasis-color: lch(50.998% 135.363 338);
         text-emphasis-color: lch(50.998% 135.363 338);
       }
@@ -7735,7 +7735,7 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        text-emphasis: #ff00d4 var(--style);
+        text-emphasis: #ee00be var(--style);
       }
 
       @supports (color: lab(0% 0 0)) {
@@ -8335,7 +8335,7 @@ mod tests {
       ".foo { caret-color: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          caret-color: #ff00d4;
+          caret-color: #ee00be;
           caret-color: color(display-p3 .972962 -.362078 .804206);
           caret-color: lch(50.998% 135.363 338);
         }
@@ -8351,7 +8351,7 @@ mod tests {
       ".foo { caret: lch(50.998% 135.363 338) block }",
       indoc! { r#"
         .foo {
-          caret: #ff00d4 block;
+          caret: #ee00be block;
           caret: color(display-p3 .972962 -.362078 .804206) block;
           caret: lch(50.998% 135.363 338) block;
         }
@@ -8367,7 +8367,7 @@ mod tests {
       ".foo { caret: lch(50.998% 135.363 338) var(--foo) }",
       indoc! { r#"
         .foo {
-          caret: #ff00d4 var(--foo);
+          caret: #ee00be var(--foo);
         }
 
         @supports (color: lab(0% 0 0)) {
@@ -8434,9 +8434,9 @@ mod tests {
       ".foo { list-style-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          list-style-image: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff));
-          list-style-image: -webkit-linear-gradient(red, #7746ff);
-          list-style-image: linear-gradient(red, #7746ff);
+          list-style-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
+          list-style-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          list-style-image: linear-gradient(#ff0f0e, #7773ff);
           list-style-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -8450,7 +8450,7 @@ mod tests {
       ".foo { list-style: \"★\" linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          list-style: "★" linear-gradient(red, #7746ff);
+          list-style: "★" linear-gradient(#ff0f0e, #7773ff);
           list-style: "★" linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -8464,7 +8464,7 @@ mod tests {
       ".foo { list-style: var(--foo) linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          list-style: var(--foo) linear-gradient(red, #7746ff);
+          list-style: var(--foo) linear-gradient(#ff0f0e, #7773ff);
         }
 
         @supports (color: lab(0% 0 0)) {
@@ -8902,7 +8902,7 @@ mod tests {
       ".foo { background-color: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          background-color: #ff00d4;
+          background-color: #ee00be;
           background-color: color(display-p3 .972962 -.362078 .804206);
           background-color: lch(50.998% 135.363 338);
         }
@@ -8918,7 +8918,7 @@ mod tests {
       ".foo { color: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          color: #ff00d4;
+          color: #ee00be;
           color: color(display-p3 .972962 -.362078 .804206);
           color: lch(50.998% 135.363 338);
         }
@@ -9277,9 +9277,9 @@ mod tests {
       minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3 / .4) 12.5%, color({0} .5 .6 .7 / .8) 37.5%) }}", color_space), &format!(".foo{{color:color({} .442857 .542857 .642857/.35)}}", result_color_space)); // Scale up < 100% sum, causes alpha multiplication.
       minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3 / .4) 0%, color({0} .5 .6 .7 / .8)) }}", color_space), &format!(".foo{{color:color({} .5 .6 .7/.8)}}", result_color_space));
 
-      // minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} 2 3 4 / 5), color({0} 4 6 8 / 10)) }}", color_space), &format!(".foo{{color:color({} 3 4.5 6)}}", result_color_space));
-      // minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} -2 -3 -4), color({0} -4 -6 -8)) }}", color_space), &format!(".foo{{color:color({} -3 -4.5 -6)}}", result_color_space));
-      // minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} -2 -3 -4 / -5), color({0} -4 -6 -8 / -10)) }}", color_space), &format!(".foo{{color:color({} 0 0 0 / 0)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} 2 3 4 / 5), color({0} 4 6 8 / 10)) }}", color_space), &format!(".foo{{color:color({} 3 4.5 6)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} -2 -3 -4), color({0} -4 -6 -8)) }}", color_space), &format!(".foo{{color:color({} -3 -4.5 -6)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} -2 -3 -4 / -5), color({0} -4 -6 -8 / -10)) }}", color_space), &format!(".foo{{color:color({}/0)}}", result_color_space));
     
       minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} none none none), color({0} none none none)) }}", color_space), &format!(".foo{{color:color({} none none none)}}", result_color_space));
       minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} none none none), color({0} .5 .6 .7)) }}", color_space), &format!(".foo{{color:color({} .5 .6 .7)}}", result_color_space));
@@ -10186,7 +10186,7 @@ mod tests {
         }
 
         to {
-          --custom: #ff00d4;
+          --custom: #ee00be;
         }
       }
 
@@ -10223,7 +10223,7 @@ mod tests {
         }
 
         to {
-          --custom: #ff00d4;
+          --custom: #ee00be;
         }
       }
 
@@ -10276,7 +10276,7 @@ mod tests {
         }
 
         to {
-          --custom: #ff00d4;
+          --custom: #ee00be;
           opacity: 1;
         }
       }
@@ -11696,7 +11696,7 @@ mod tests {
       ".foo { fill: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          fill: #ff00d4;
+          fill: #ee00be;
           fill: color(display-p3 .972962 -.362078 .804206);
           fill: lch(50.998% 135.363 338);
         }
@@ -11712,7 +11712,7 @@ mod tests {
       ".foo { stroke: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          stroke: #ff00d4;
+          stroke: #ee00be;
           stroke: color(display-p3 .972962 -.362078 .804206);
           stroke: lch(50.998% 135.363 338);
         }
@@ -11728,7 +11728,7 @@ mod tests {
       ".foo { fill: url(#foo) lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          fill: url(#foo) #ff00d4;
+          fill: url(#foo) #ee00be;
           fill: url(#foo) color(display-p3 .972962 -.362078 .804206);
           fill: url(#foo) lch(50.998% 135.363 338);
         }
@@ -11744,7 +11744,7 @@ mod tests {
       ".foo { fill: var(--url) lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          fill: var(--url) #ff00d4;
+          fill: var(--url) #ee00be;
         }
 
         @supports (color: lab(0% 0 0)) {
@@ -11763,9 +11763,9 @@ mod tests {
       ".foo { mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          mask-image: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff));
-          mask-image: -webkit-linear-gradient(red, #7746ff);
-          mask-image: linear-gradient(red, #7746ff);
+          mask-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
+          mask-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          mask-image: linear-gradient(#ff0f0e, #7773ff);
           mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -11779,9 +11779,9 @@ mod tests {
       ".foo { mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px }",
       indoc! { r#"
         .foo {
-          mask: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff)) 40px 20px;
-          mask: -webkit-linear-gradient(red, #7746ff) 40px 20px;
-          mask: linear-gradient(red, #7746ff) 40px 20px;
+          mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 40px 20px;
+          mask: -webkit-linear-gradient(#ff0f0e, #7773ff) 40px 20px;
+          mask: linear-gradient(#ff0f0e, #7773ff) 40px 20px;
           mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px;
         }
       "#},
@@ -11795,8 +11795,8 @@ mod tests {
       ".foo { mask: -webkit-linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px }",
       indoc! { r#"
         .foo {
-          mask: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff)) 40px 20px;
-          mask: -webkit-linear-gradient(red, #7746ff) 40px 20px;
+          mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 40px 20px;
+          mask: -webkit-linear-gradient(#ff0f0e, #7773ff) 40px 20px;
         }
       "#},
       Browsers {
@@ -11809,7 +11809,7 @@ mod tests {
       ".foo { mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px var(--foo) }",
       indoc! { r#"
         .foo {
-          mask: linear-gradient(red, #7746ff) 40px var(--foo);
+          mask: linear-gradient(#ff0f0e, #7773ff) 40px var(--foo);
         }
 
         @supports (color: lab(0% 0 0)) {
