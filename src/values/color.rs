@@ -46,6 +46,7 @@ pub enum PredefinedColor {
 // are any `none` components, which are represented as NaN.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum FloatColor {
+  RGB(SRGB),
   HSL(HSL),
   HWB(HWB)
 }
@@ -396,6 +397,14 @@ fn parse_color_function<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, 
       let (h, s, l, a) = parse_hsl_hwb(input)?;
       Ok(CssColor::Float(Box::new(FloatColor::HSL(HSL { h, s, l, alpha: a }))))
     },
+    "hwb" => {
+      let (h, w, b, a) = parse_hsl_hwb(input)?;
+      Ok(CssColor::Float(Box::new(FloatColor::HWB(HWB { h, w, b, alpha: a }))))
+    },
+    "rgb" => {
+      let (r, g, b, a) = parse_rgb(input)?;
+      Ok(CssColor::Float(Box::new(FloatColor::RGB(SRGB { r, g, b, alpha: a }))))
+    },
     "color-mix" => {
       input.parse_nested_block(parse_color_mix)
     },
@@ -516,6 +525,46 @@ fn parse_hsl_hwb<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f
     Ok((h, a, b, alpha))
   })?;
 
+  Ok(res)
+}
+
+#[inline]
+fn parse_rgb<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
+  // https://drafts.csswg.org/css-color-4/#rgb-functions
+  let res = input.parse_nested_block(|input| {
+    // percentages and numbers cannot be mixed, but we might not know
+    // what kind of components to expect until later if there are `none` values.
+    #[derive(PartialEq)]
+    enum Kind {
+      Unknown,
+      Number,
+      Percentage
+    }
+
+    #[inline]
+    fn parse_component<'i, 't>(input: &mut Parser<'i, 't>, kind: Kind) -> Result<(f32, Kind), ParseError<'i, ParserError<'i>>> {
+      let location = input.current_source_location();
+      Ok(match *input.next()? {
+        Token::Number { value, .. } if kind != Kind::Percentage => {
+          (value.round().clamp(0.0, 255.0) / 255.0, Kind::Number)
+        },
+        Token::Percentage { unit_value, .. } if kind != Kind::Number => {
+          (unit_value.clamp(0.0, 1.0), Kind::Percentage)
+        },
+        Token::Ident(ref ident) if ident.eq_ignore_ascii_case("none") => {
+          (f32::NAN, Kind::Unknown)
+        },
+        ref t => return Err(location.new_unexpected_token_error(t.clone())),
+      })
+    }
+
+    let (r, is_number) = parse_component(input, Kind::Unknown)?;
+    let (g, is_number) = parse_component(input, is_number)?;
+    let (b, _) = parse_component(input, is_number)?;
+    let alpha = parse_alpha(input)?;
+    Ok((r, g, b, alpha))
+  })?;
+  
   Ok(res)
 }
 
@@ -1545,6 +1594,7 @@ macro_rules! color_space {
         use FloatColor::*;
     
         match color {
+          RGB(v) => v.into(),
           HSL(v) => v.into(),
           HWB(v) => v.into(),
         }
@@ -1864,6 +1914,7 @@ impl CssColor {
       }
       CssColor::Float(float) => {
         match &**float {
+          FloatColor::RGB(..) => TypeId::of::<SRGB>(),
           FloatColor::HSL(..) => TypeId::of::<HSL>(),
           FloatColor::HWB(..) => TypeId::of::<HWB>(),
         }

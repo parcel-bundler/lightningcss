@@ -8599,6 +8599,8 @@ mod tests {
     minify_test(".foo { color: color(display-p3 100% 50% 0 / 20%); }", ".foo{color:color(display-p3 1 .5/.2)}");
     minify_test(".foo { color: color(display-p3 100% / 20%); }", ".foo{color:color(display-p3 1/.2)}");
     minify_test(".foo { color: hsl(none none none) }", ".foo{color:#000}");
+    minify_test(".foo { color: hwb(none none none) }", ".foo{color:red}");
+    minify_test(".foo { color: rgb(none none none) }", ".foo{color:#000}");
 
     prefix_test(
       ".foo { color: rgba(123, 456, 789, 0.5) }",
@@ -8968,7 +8970,10 @@ mod tests {
     minify_test(".foo { color: color-mix(in srgb, rgb(100% 0% 0% / 0.7) 25%, rgb(0% 100% 0% / 0.2)); }", ".foo{color:#89760053}");
     minify_test(".foo { color: color-mix(in srgb, rgb(100% 0% 0% / 0.7) 20%, rgb(0% 100% 0% / 0.2) 60%); }", ".foo{color:#89760042}");
     minify_test(".foo { color: color-mix(in lch, color(display-p3 0 1 none), color(display-p3 0 0 1)); }", ".foo{color:lch(58.8143% 141.732 218.684)}");
-  
+    minify_test(".foo { color: color-mix(in srgb, rgb(128 128 none), rgb(none none 128)); }", ".foo{color:gray}");
+    minify_test(".foo { color: color-mix(in srgb, rgb(50% 50% none), rgb(none none 50%)); }", ".foo{color:gray}");
+    minify_test(".foo { color: color-mix(in srgb, rgb(none 50% none), rgb(50% none 50%)); }", ".foo{color:gray}");
+
     // regex for converting web platform tests:
     // test_computed_value\(.*?, `(.*?)`, `(.*?)`\);
     // minify_test(".foo { color: $1 }", ".foo{color:$2}");
