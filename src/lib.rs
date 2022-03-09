@@ -957,8 +957,8 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border-left-color: var(--ltr, #b32323) var(--rtl, #ff00d4);
-        border-right-color: var(--ltr, #ff00d4) var(--rtl, #b32323);
+        border-left-color: var(--ltr, #b32323) var(--rtl, #ee00be);
+        border-right-color: var(--ltr, #ee00be) var(--rtl, #b32323);
       }
 
       @supports (color: lab(0% 0 0)) {
@@ -989,8 +989,8 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border-left-color: var(--ltr, #b32323) var(--rtl, #ff00d4);
-        border-right-color: var(--ltr, #ff00d4) var(--rtl, #b32323);
+        border-left-color: var(--ltr, #b32323) var(--rtl, #ee00be);
+        border-right-color: var(--ltr, #ee00be) var(--rtl, #b32323);
       }
 
       @supports (color: color(display-p3 0 0 0)) {
@@ -1283,9 +1283,9 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff)) 60;
-        -webkit-border-image: -webkit-linear-gradient(red, #7746ff) 60;
-        border-image: linear-gradient(red, #7746ff) 60;
+        -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 60;
+        -webkit-border-image: -webkit-linear-gradient(#ff0f0e, #7773ff) 60;
+        border-image: linear-gradient(#ff0f0e, #7773ff) 60;
         border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
       }
     "#
@@ -1300,10 +1300,10 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff)) 60;
-        -webkit-border-image: -webkit-linear-gradient(red, #7746ff) 60;
-        -moz-border-image: -moz-linear-gradient(red, #7746ff) 60;
-        border-image: linear-gradient(red, #7746ff) 60;
+        -webkit-border-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 60;
+        -webkit-border-image: -webkit-linear-gradient(#ff0f0e, #7773ff) 60;
+        -moz-border-image: -moz-linear-gradient(#ff0f0e, #7773ff) 60;
+        border-image: linear-gradient(#ff0f0e, #7773ff) 60;
         border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
       }
     "#
@@ -1319,9 +1319,9 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border-image: -webkit-linear-gradient(red, #7746ff) 60;
-        border-image: -moz-linear-gradient(red, #7746ff) 60;
-        border-image: linear-gradient(red, #7746ff) 60;
+        border-image: -webkit-linear-gradient(#ff0f0e, #7773ff) 60;
+        border-image: -moz-linear-gradient(#ff0f0e, #7773ff) 60;
+        border-image: linear-gradient(#ff0f0e, #7773ff) 60;
         border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 60;
       }
     "#
@@ -1337,8 +1337,8 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border-image-source: -webkit-linear-gradient(red, #7746ff);
-        border-image-source: linear-gradient(red, #7746ff);
+        border-image-source: -webkit-linear-gradient(#ff0f0e, #7773ff);
+        border-image-source: linear-gradient(#ff0f0e, #7773ff);
         border-image-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
       }
     "#
@@ -1353,7 +1353,7 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        border-image: linear-gradient(red, #7746ff) var(--foo);
+        border-image: linear-gradient(#ff0f0e, #7773ff) var(--foo);
       }
 
       @supports (color: lab(0% 0 0)) {
@@ -2544,7 +2544,7 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        background: #af5cae linear-gradient(#c65d07, #00817d);
+        background: #af5cae linear-gradient(#c65d07, #00807c);
         background: lab(51.5117% 43.3777 -29.0443) linear-gradient(lab(52.2319% 40.1449 59.9171), lab(47.7776% -34.2947 -7.65904));
       }
     "#
@@ -6303,7 +6303,7 @@ mod tests {
       ".foo { background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background: linear-gradient(red, #7746ff);
+          background: linear-gradient(#ff0f0e, #7773ff);
           background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -6317,7 +6317,7 @@ mod tests {
       ".foo { background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background: linear-gradient(red, #7746ff);
+          background: linear-gradient(#ff0f0e, #7773ff);
           background: linear-gradient(color(display-p3 1 .0000153435 -.00000303562), color(display-p3 .440289 .28452 1.23485));
           background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -6333,8 +6333,8 @@ mod tests {
       ".foo { background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background: -webkit-linear-gradient(red, #7746ff);
-          background: linear-gradient(red, #7746ff);
+          background: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          background: linear-gradient(#ff0f0e, #7773ff);
           background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -6348,9 +6348,9 @@ mod tests {
       ".foo { background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff));
-          background: -webkit-linear-gradient(red, #7746ff);
-          background: linear-gradient(red, #7746ff);
+          background: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
+          background: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          background: linear-gradient(#ff0f0e, #7773ff);
           background: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -6390,7 +6390,7 @@ mod tests {
       ".foo { background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background-image: linear-gradient(red, #7746ff);
+          background-image: linear-gradient(#ff0f0e, #7773ff);
           background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -6404,7 +6404,7 @@ mod tests {
       ".foo { background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background-image: linear-gradient(red, #7746ff);
+          background-image: linear-gradient(#ff0f0e, #7773ff);
           background-image: linear-gradient(color(display-p3 1 .0000153435 -.00000303562), color(display-p3 .440289 .28452 1.23485));
           background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -6420,8 +6420,8 @@ mod tests {
       ".foo { background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background-image: -webkit-linear-gradient(red, #7746ff);
-          background-image: linear-gradient(red, #7746ff);
+          background-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          background-image: linear-gradient(#ff0f0e, #7773ff);
           background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -6435,9 +6435,9 @@ mod tests {
       ".foo { background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          background-image: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff));
-          background-image: -webkit-linear-gradient(red, #7746ff);
-          background-image: linear-gradient(red, #7746ff);
+          background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
+          background-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          background-image: linear-gradient(#ff0f0e, #7773ff);
           background-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -7497,9 +7497,9 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        -webkit-text-decoration: underline #ff00d4;
-        -moz-text-decoration: underline #ff00d4;
-        text-decoration: underline #ff00d4;
+        -webkit-text-decoration: underline #ee00be;
+        -moz-text-decoration: underline #ee00be;
+        text-decoration: underline #ee00be;
         -webkit-text-decoration: underline lch(50.998% 135.363 338);
         -moz-text-decoration: underline lch(50.998% 135.363 338);
         text-decoration: underline lch(50.998% 135.363 338);
@@ -7517,9 +7517,9 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        -webkit-text-decoration-color: #ff00d4;
-        -moz-text-decoration-color: #ff00d4;
-        text-decoration-color: #ff00d4;
+        -webkit-text-decoration-color: #ee00be;
+        -moz-text-decoration-color: #ee00be;
+        text-decoration-color: #ee00be;
         -webkit-text-decoration-color: lch(50.998% 135.363 338);
         -moz-text-decoration-color: lch(50.998% 135.363 338);
         text-decoration-color: lch(50.998% 135.363 338);
@@ -7537,7 +7537,7 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        text-decoration: #ff00d4 var(--style);
+        text-decoration: #ee00be var(--style);
       }
 
       @supports (color: lab(0% 0 0)) {
@@ -7699,8 +7699,8 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        -webkit-text-emphasis: filled #ff00d4;
-        text-emphasis: filled #ff00d4;
+        -webkit-text-emphasis: filled #ee00be;
+        text-emphasis: filled #ee00be;
         -webkit-text-emphasis: filled lch(50.998% 135.363 338);
         text-emphasis: filled lch(50.998% 135.363 338);
       }
@@ -7717,8 +7717,8 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        -webkit-text-emphasis-color: #ff00d4;
-        text-emphasis-color: #ff00d4;
+        -webkit-text-emphasis-color: #ee00be;
+        text-emphasis-color: #ee00be;
         -webkit-text-emphasis-color: lch(50.998% 135.363 338);
         text-emphasis-color: lch(50.998% 135.363 338);
       }
@@ -7735,7 +7735,7 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        text-emphasis: #ff00d4 var(--style);
+        text-emphasis: #ee00be var(--style);
       }
 
       @supports (color: lab(0% 0 0)) {
@@ -8335,7 +8335,7 @@ mod tests {
       ".foo { caret-color: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          caret-color: #ff00d4;
+          caret-color: #ee00be;
           caret-color: color(display-p3 .972962 -.362078 .804206);
           caret-color: lch(50.998% 135.363 338);
         }
@@ -8351,7 +8351,7 @@ mod tests {
       ".foo { caret: lch(50.998% 135.363 338) block }",
       indoc! { r#"
         .foo {
-          caret: #ff00d4 block;
+          caret: #ee00be block;
           caret: color(display-p3 .972962 -.362078 .804206) block;
           caret: lch(50.998% 135.363 338) block;
         }
@@ -8367,7 +8367,7 @@ mod tests {
       ".foo { caret: lch(50.998% 135.363 338) var(--foo) }",
       indoc! { r#"
         .foo {
-          caret: #ff00d4 var(--foo);
+          caret: #ee00be var(--foo);
         }
 
         @supports (color: lab(0% 0 0)) {
@@ -8434,9 +8434,9 @@ mod tests {
       ".foo { list-style-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          list-style-image: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff));
-          list-style-image: -webkit-linear-gradient(red, #7746ff);
-          list-style-image: linear-gradient(red, #7746ff);
+          list-style-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
+          list-style-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          list-style-image: linear-gradient(#ff0f0e, #7773ff);
           list-style-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -8450,7 +8450,7 @@ mod tests {
       ".foo { list-style: \"★\" linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          list-style: "★" linear-gradient(red, #7746ff);
+          list-style: "★" linear-gradient(#ff0f0e, #7773ff);
           list-style: "★" linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -8464,7 +8464,7 @@ mod tests {
       ".foo { list-style: var(--foo) linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          list-style: var(--foo) linear-gradient(red, #7746ff);
+          list-style: var(--foo) linear-gradient(#ff0f0e, #7773ff);
         }
 
         @supports (color: lab(0% 0 0)) {
@@ -8586,8 +8586,11 @@ mod tests {
     minify_test(".foo { color: color(display-p3 1 0.5 0); }", ".foo{color:color(display-p3 1 .5)}");
     minify_test(".foo { color: color(display-p3 100% 50% 0%); }", ".foo{color:color(display-p3 1 .5)}");
     minify_test(".foo { color: color(xyz-d50 0.2005 0.14089 0.4472); }", ".foo{color:color(xyz-d50 .2005 .14089 .4472)}");
+    minify_test(".foo { color: color(xyz-d50 20.05% 14.089% 44.72%); }", ".foo{color:color(xyz-d50 .2005 .14089 .4472)}");
     minify_test(".foo { color: color(xyz-d65 0.2005 0.14089 0.4472); }", ".foo{color:color(xyz .2005 .14089 .4472)}");
+    minify_test(".foo { color: color(xyz-d65 20.05% 14.089% 44.72%); }", ".foo{color:color(xyz .2005 .14089 .4472)}");
     minify_test(".foo { color: color(xyz 0.2005 0.14089 0.4472); }", ".foo{color:color(xyz .2005 .14089 .4472)}");
+    minify_test(".foo { color: color(xyz 20.05% 14.089% 44.72%); }", ".foo{color:color(xyz .2005 .14089 .4472)}");
     minify_test(".foo { color: color(xyz 0.2005 0 0); }", ".foo{color:color(xyz .2005)}");
     minify_test(".foo { color: color(xyz 0 0 0); }", ".foo{color:color(xyz)}");
     minify_test(".foo { color: color(xyz 0 1 0); }", ".foo{color:color(xyz 0 1)}");
@@ -8598,6 +8601,9 @@ mod tests {
     minify_test(".foo { color: color(xyz / 20%); }", ".foo{color:color(xyz/.2)}");
     minify_test(".foo { color: color(display-p3 100% 50% 0 / 20%); }", ".foo{color:color(display-p3 1 .5/.2)}");
     minify_test(".foo { color: color(display-p3 100% / 20%); }", ".foo{color:color(display-p3 1/.2)}");
+    minify_test(".foo { color: hsl(none none none) }", ".foo{color:#000}");
+    minify_test(".foo { color: hwb(none none none) }", ".foo{color:red}");
+    minify_test(".foo { color: rgb(none none none) }", ".foo{color:#000}");
 
     prefix_test(
       ".foo { color: rgba(123, 456, 789, 0.5) }",
@@ -8901,7 +8907,7 @@ mod tests {
       ".foo { background-color: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          background-color: #ff00d4;
+          background-color: #ee00be;
           background-color: color(display-p3 .972962 -.362078 .804206);
           background-color: lch(50.998% 135.363 338);
         }
@@ -8917,7 +8923,7 @@ mod tests {
       ".foo { color: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          color: #ff00d4;
+          color: #ee00be;
           color: color(display-p3 .972962 -.362078 .804206);
           color: lch(50.998% 135.363 338);
         }
@@ -8947,6 +8953,352 @@ mod tests {
         ..Browsers::default()
       }
     );
+  }
+
+  #[test]
+  fn test_color_mix() {
+    minify_test(".foo { color: color-mix(in lab, purple 50%, plum 50%); }", ".foo{color:lab(51.5117% 43.3777 -29.0443)}");
+    minify_test(".foo { color: color-mix(in lch, peru 40%, palegoldenrod); }", ".foo{color:lch(79.7255% 40.4542 84.7634)}");
+    minify_test(".foo { color: color-mix(in lch, teal 65%, olive); }", ".foo{color:lch(49.4431% 40.4806 162.546)}");
+    minify_test(".foo { color: color-mix(in lch, white, black); }", ".foo{color:lch(50% 0 none)}");
+    minify_test(".foo { color: color-mix(in xyz, rgb(82.02% 30.21% 35.02%) 75.23%, rgb(5.64% 55.94% 85.31%)); }", ".foo{color:color(xyz .287458 .208776 .260566)}");
+    minify_test(".foo { color: color-mix(in lch, white, blue); }", ".foo{color:lch(64.7842% 65.6007 301.364)}");
+    minify_test(".foo { color: color-mix(in oklch, white, blue); }", ".foo{color:oklch(72.6007% .156607 264.052)}");
+    minify_test(".foo { color: color-mix(in srgb, white, blue); }", ".foo{color:#8080ff}");
+    minify_test(".foo { color: color-mix(in lch, blue, white); }", ".foo{color:lch(64.7842% 65.6007 301.364)}");
+    minify_test(".foo { color: color-mix(in oklch, blue, white); }", ".foo{color:oklch(72.6007% .156607 264.052)}");
+    minify_test(".foo { color: color-mix(in srgb, blue, white); }", ".foo{color:#8080ff}");
+    // minify_test(".foo { color: color-mix(in hsl, color(display-p3 0 1 0) 80%, yellow); }", ".foo{color:hsl(108 100% 49.9184%) }");
+    minify_test(".foo { color: color-mix(in hsl, hsl(120 100% 49.898%) 80%, yellow); }", ".foo{color:#33fe00}");
+    minify_test(".foo { color: color-mix(in srgb, rgb(100% 0% 0% / 0.7) 25%, rgb(0% 100% 0% / 0.2)); }", ".foo{color:#89760053}");
+    minify_test(".foo { color: color-mix(in srgb, rgb(100% 0% 0% / 0.7) 20%, rgb(0% 100% 0% / 0.2) 60%); }", ".foo{color:#89760042}");
+    minify_test(".foo { color: color-mix(in lch, color(display-p3 0 1 none), color(display-p3 0 0 1)); }", ".foo{color:lch(58.8143% 141.732 218.684)}");
+    minify_test(".foo { color: color-mix(in srgb, rgb(128 128 none), rgb(none none 128)); }", ".foo{color:gray}");
+    minify_test(".foo { color: color-mix(in srgb, rgb(50% 50% none), rgb(none none 50%)); }", ".foo{color:gray}");
+    minify_test(".foo { color: color-mix(in srgb, rgb(none 50% none), rgb(50% none 50%)); }", ".foo{color:gray}");
+
+    // regex for converting web platform tests:
+    // test_computed_value\(.*?, `(.*?)`, `(.*?)`\);
+    // minify_test(".foo { color: $1 }", ".foo{color:$2}");
+
+    // https://github.com/web-platform-tests/wpt/blob/f8c76b11cff66a7adc87264a18e39353cb5a60c9/css/css-color/parsing/color-mix-computed.html
+    minify_test(".foo { color: color-mix(in hsl, hsl(120deg 10% 20%), hsl(30deg 30% 40%)) }", ".foo{color:#545c3d}");
+    minify_test(".foo { color: color-mix(in hsl, hsl(120deg 10% 20%) 25%, hsl(30deg 30% 40%)) }", ".foo{color:#706a43}");
+    minify_test(".foo { color: color-mix(in hsl, 25% hsl(120deg 10% 20%), hsl(30deg 30% 40%)) }", ".foo{color:#706a43}");
+    minify_test(".foo { color: color-mix(in hsl, hsl(120deg 10% 20%), 25% hsl(30deg 30% 40%)) }", ".foo{color:#3d4936}");
+    minify_test(".foo { color: color-mix(in hsl, hsl(120deg 10% 20%), hsl(30deg 30% 40%) 25%) }", ".foo{color:#3d4936}");
+    minify_test(".foo { color: color-mix(in hsl, hsl(120deg 10% 20%) 25%, hsl(30deg 30% 40%) 75%) }", ".foo{color:#706a43}");
+    minify_test(".foo { color: color-mix(in hsl, hsl(120deg 10% 20%) 30%, hsl(30deg 30% 40%) 90%) }", ".foo{color:#706a43}"); // Scale down > 100% sum.
+    minify_test(".foo { color: color-mix(in hsl, hsl(120deg 10% 20%) 12.5%, hsl(30deg 30% 40%) 37.5%) }", ".foo{color:#706a4380}"); // Scale up < 100% sum, causes alpha multiplication.
+    minify_test(".foo { color: color-mix(in hsl, hsl(120deg 10% 20%) 0%, hsl(30deg 30% 40%)) }", ".foo{color:#856647}");
+
+    minify_test(".foo { color: color-mix(in hsl, hsl(120deg 10% 20% / .4), hsl(30deg 30% 40% / .8)) }", ".foo{color:#5f694199}");
+    minify_test(".foo { color: color-mix(in hsl, hsl(120deg 10% 20%) 25%, hsl(30deg 30% 40% / .8)) }", ".foo{color:#6c6742d9}");
+    minify_test(".foo { color: color-mix(in hsl, 25% hsl(120deg 10% 20% / .4), hsl(30deg 30% 40% / .8)) }", ".foo{color:#797245b3}");
+    minify_test(".foo { color: color-mix(in hsl, hsl(120deg 10% 20% / .4), 25% hsl(30deg 30% 40% / .8)) }", ".foo{color:#44543b80}");
+    minify_test(".foo { color: color-mix(in hsl, hsl(120deg 10% 20% / .4), hsl(30deg 30% 40% / .8) 25%) }", ".foo{color:#44543b80}");
+    minify_test(".foo { color: color-mix(in hsl, hsl(120deg 10% 20% / .4) 25%, hsl(30deg 30% 40% / .8) 75%) }", ".foo{color:#797245b3}");
+    minify_test(".foo { color: color-mix(in hsl, hsl(120deg 10% 20% / .4) 30%, hsl(30deg 30% 40% / .8) 90%) }", ".foo{color:#797245b3}"); // Scale down > 100% sum.
+    minify_test(".foo { color: color-mix(in hsl, hsl(120deg 10% 20% / .4) 12.5%, hsl(30deg 30% 40% / .8) 37.5%) }", ".foo{color:#79724559}"); // Scale up < 100% sum, causes alpha multiplication.
+    minify_test(".foo { color: color-mix(in hsl, hsl(120deg 10% 20% / .4) 0%, hsl(30deg 30% 40% / .8)) }", ".foo{color:#856647cc}");
+
+    fn canonicalize(s: &str) -> String {
+      use crate::traits::{Parse, ToCss};
+      use crate::values::color::CssColor;
+      use cssparser::{ParserInput, Parser};
+
+      let mut input = ParserInput::new(s);
+      let mut parser = Parser::new(&mut input);
+      let v = CssColor::parse(&mut parser).unwrap().to_rgb();
+      format!(".foo{{color:{}}}", v.to_css_string())
+    }
+
+    // regex for converting web platform tests:
+    // test_computed_value\(.*?, `(.*?)`, canonicalize\(`(.*?)`\)\);
+    // minify_test(".foo { color: $1 }", &canonicalize("$2"));
+
+    minify_test(".foo { color: color-mix(in hsl, hsl(40deg 50% 50%), hsl(60deg 50% 50%)) }", &canonicalize("hsl(50deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl, hsl(60deg 50% 50%), hsl(40deg 50% 50%)) }", &canonicalize("hsl(50deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl, hsl(50deg 50% 50%), hsl(330deg 50% 50%)) }", &canonicalize("hsl(10deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl, hsl(330deg 50% 50%), hsl(50deg 50% 50%)) }", &canonicalize("hsl(10deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl, hsl(20deg 50% 50%), hsl(320deg 50% 50%)) }", &canonicalize("hsl(350deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl, hsl(320deg 50% 50%), hsl(20deg 50% 50%)) }", &canonicalize("hsl(350deg 50% 50%)"));
+  
+    minify_test(".foo { color: color-mix(in hsl shorter hue, hsl(40deg 50% 50%), hsl(60deg 50% 50%)) }", &canonicalize("hsl(50deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl shorter hue, hsl(60deg 50% 50%), hsl(40deg 50% 50%)) }", &canonicalize("hsl(50deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl shorter hue, hsl(50deg 50% 50%), hsl(330deg 50% 50%)) }", &canonicalize("hsl(10deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl shorter hue, hsl(330deg 50% 50%), hsl(50deg 50% 50%)) }", &canonicalize("hsl(10deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl shorter hue, hsl(20deg 50% 50%), hsl(320deg 50% 50%)) }", &canonicalize("hsl(350deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl shorter hue, hsl(320deg 50% 50%), hsl(20deg 50% 50%)) }", &canonicalize("hsl(350deg 50% 50%)"));
+
+    minify_test(".foo { color: color-mix(in hsl longer hue, hsl(40deg 50% 50%), hsl(60deg 50% 50%)) }", &canonicalize("hsl(230deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl longer hue, hsl(60deg 50% 50%), hsl(40deg 50% 50%)) }", &canonicalize("hsl(230deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl longer hue, hsl(50deg 50% 50%), hsl(330deg 50% 50%)) }", &canonicalize("hsl(190deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl longer hue, hsl(330deg 50% 50%), hsl(50deg 50% 50%)) }", &canonicalize("hsl(190deg 50% 50%)"));
+    // minify_test(".foo { color: color-mix(in hsl longer hue, hsl(20deg 50% 50%), hsl(320deg 50% 50%)) }", &canonicalize("hsl(170deg 50% 50%)"));
+    // minify_test(".foo { color: color-mix(in hsl longer hue, hsl(320deg 50% 50%), hsl(20deg 50% 50%)) }", &canonicalize("hsl(170deg 50% 50%)"));
+  
+    minify_test(".foo { color: color-mix(in hsl increasing hue, hsl(40deg 50% 50%), hsl(60deg 50% 50%)) }", &canonicalize("hsl(50deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl increasing hue, hsl(60deg 50% 50%), hsl(40deg 50% 50%)) }", &canonicalize("hsl(230deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl increasing hue, hsl(50deg 50% 50%), hsl(330deg 50% 50%)) }", &canonicalize("hsl(190deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl increasing hue, hsl(330deg 50% 50%), hsl(50deg 50% 50%)) }", &canonicalize("hsl(10deg 50% 50%)"));
+    // minify_test(".foo { color: color-mix(in hsl increasing hue, hsl(20deg 50% 50%), hsl(320deg 50% 50%)) }", &canonicalize("hsl(170deg 50% 50%)"));
+    // minify_test(".foo { color: color-mix(in hsl increasing hue, hsl(320deg 50% 50%), hsl(20deg 50% 50%)) }", &canonicalize("hsl(350deg 50% 50%)"));
+  
+    minify_test(".foo { color: color-mix(in hsl decreasing hue, hsl(40deg 50% 50%), hsl(60deg 50% 50%)) }", &canonicalize("hsl(230deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl decreasing hue, hsl(60deg 50% 50%), hsl(40deg 50% 50%)) }", &canonicalize("hsl(50deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl decreasing hue, hsl(50deg 50% 50%), hsl(330deg 50% 50%)) }", &canonicalize("hsl(10deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl decreasing hue, hsl(330deg 50% 50%), hsl(50deg 50% 50%)) }", &canonicalize("hsl(190deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl decreasing hue, hsl(20deg 50% 50%), hsl(320deg 50% 50%)) }", &canonicalize("hsl(350deg 50% 50%)"));
+    // minify_test(".foo { color: color-mix(in hsl decreasing hue, hsl(320deg 50% 50%), hsl(20deg 50% 50%)) }", &canonicalize("hsl(170deg 50% 50%)"));
+  
+    minify_test(".foo { color: color-mix(in hsl specified hue, hsl(40deg 50% 50%), hsl(60deg 50% 50%)) }", &canonicalize("hsl(50deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl specified hue, hsl(60deg 50% 50%), hsl(40deg 50% 50%)) }", &canonicalize("hsl(50deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl specified hue, hsl(50deg 50% 50%), hsl(330deg 50% 50%)) }", &canonicalize("hsl(190deg 50% 50%)"));
+    minify_test(".foo { color: color-mix(in hsl specified hue, hsl(330deg 50% 50%), hsl(50deg 50% 50%)) }", &canonicalize("hsl(190deg 50% 50%)"));
+    // minify_test(".foo { color: color-mix(in hsl specified hue, hsl(20deg 50% 50%), hsl(320deg 50% 50%)) }", &canonicalize("hsl(170deg 50% 50%)"));
+    // minify_test(".foo { color: color-mix(in hsl specified hue, hsl(320deg 50% 50%), hsl(20deg 50% 50%)) }", &canonicalize("hsl(170deg 50% 50%)"));
+  
+    minify_test(".foo { color: color-mix(in hsl, hsl(none none none), hsl(none none none)) }", &canonicalize("hsl(none none none)"));
+    minify_test(".foo { color: color-mix(in hsl, hsl(none none none), hsl(30deg 40% 80%)) }", &canonicalize("hsl(30deg 40% 80%)"));
+    minify_test(".foo { color: color-mix(in hsl, hsl(120deg 20% 40%), hsl(none none none)) }", &canonicalize("hsl(120deg 20% 40%)"));
+    minify_test(".foo { color: color-mix(in hsl, hsl(120deg 20% none), hsl(30deg 40% 60%)) }", &canonicalize("hsl(75deg 30% 60%)"));
+    minify_test(".foo { color: color-mix(in hsl, hsl(120deg 20% 40%), hsl(30deg 20% none)) }", &canonicalize("hsl(75deg 20% 40%)"));
+    minify_test(".foo { color: color-mix(in hsl, hsl(none 20% 40%), hsl(30deg none 80%)) }", &canonicalize("hsl(30deg 20% 60%)"));
+
+    minify_test(".foo { color: color-mix(in hsl, color(display-p3 0 1 0) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(0, 249, 66)")); // Naive clip based mapping would give rgb(0, 255, 0).
+    minify_test(".foo { color: color-mix(in hsl, lab(100% 104.3 -50.9) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(255, 255, 255)")); // Naive clip based mapping would give rgb(255, 150, 255).
+    minify_test(".foo { color: color-mix(in hsl, lab(0% 104.3 -50.9) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(42, 0, 34)")); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black,
+    minify_test(".foo { color: color-mix(in hsl, lch(100% 116 334) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(255, 255, 255)")); // Naive clip based mapping would give rgb(255, 150, 255).
+    minify_test(".foo { color: color-mix(in hsl, lch(0% 116 334) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(42, 0, 34)")); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black,
+    minify_test(".foo { color: color-mix(in hsl, oklab(100% 0.365 -0.16) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(255, 255, 255)")); // Naive clip based mapping would give rgb(255, 92, 255).
+    minify_test(".foo { color: color-mix(in hsl, oklab(0% 0.365 -0.16) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(0, 0, 0)")); // Naive clip based mapping would give rgb(19, 0, 24).
+    minify_test(".foo { color: color-mix(in hsl, oklch(100% 0.399 336.3) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(255, 255, 255)")); // Naive clip based mapping would give rgb(255, 91, 255).
+    minify_test(".foo { color: color-mix(in hsl, oklch(0% 0.399 336.3) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(0, 0, 0)")); // Naive clip based mapping would give rgb(20, 0, 24).
+
+    minify_test(".foo { color: color-mix(in hwb, hwb(120deg 10% 20%), hwb(30deg 30% 40%)) }", &canonicalize("rgb(147, 179, 52)"));
+    minify_test(".foo { color: color-mix(in hwb, hwb(120deg 10% 20%) 25%, hwb(30deg 30% 40%)) }", &canonicalize("rgb(166, 153, 64)"));
+    minify_test(".foo { color: color-mix(in hwb, 25% hwb(120deg 10% 20%), hwb(30deg 30% 40%)) }", &canonicalize("rgb(166, 153, 64)"));
+    minify_test(".foo { color: color-mix(in hwb, hwb(120deg 10% 20%), 25% hwb(30deg 30% 40%)) }", &canonicalize("rgb(96, 191, 39)"));
+    minify_test(".foo { color: color-mix(in hwb, hwb(120deg 10% 20%), hwb(30deg 30% 40%) 25%) }", &canonicalize("rgb(96, 191, 39)"));
+    minify_test(".foo { color: color-mix(in hwb, hwb(120deg 10% 20%) 25%, hwb(30deg 30% 40%) 75%) }", &canonicalize("rgb(166, 153, 64)"));
+    minify_test(".foo { color: color-mix(in hwb, hwb(120deg 10% 20%) 30%, hwb(30deg 30% 40%) 90%) }", &canonicalize("rgb(166, 153, 64)")); // Scale down > 100% sum.
+    minify_test(".foo { color: color-mix(in hwb, hwb(120deg 10% 20%) 12.5%, hwb(30deg 30% 40%) 37.5%) }", &canonicalize("rgba(166, 153, 64, 0.5)")); // Scale up < 100% sum, causes alpha multiplication.
+    minify_test(".foo { color: color-mix(in hwb, hwb(120deg 10% 20%) 0%, hwb(30deg 30% 40%)) }", &canonicalize("rgb(153, 115, 77)"));
+
+    minify_test(".foo { color: color-mix(in hwb, hwb(120deg 10% 20% / .4), hwb(30deg 30% 40% / .8)) }", &canonicalize("rgba(143, 170, 60, 0.6)"));
+    minify_test(".foo { color: color-mix(in hwb, hwb(120deg 10% 20% / .4) 25%, hwb(30deg 30% 40% / .8)) }", &canonicalize("rgba(160, 149, 70, 0.7)"));
+    minify_test(".foo { color: color-mix(in hwb, 25% hwb(120deg 10% 20% / .4), hwb(30deg 30% 40% / .8)) }", &canonicalize("rgba(160, 149, 70, 0.7)"));
+    minify_test(".foo { color: color-mix(in hwb, hwb(120deg 10% 20%), 25% hwb(30deg 30% 40% / .8)) }", &canonicalize("rgba(95, 193, 37, 0.95)"));
+    minify_test(".foo { color: color-mix(in hwb, hwb(120deg 10% 20% / .4), hwb(30deg 30% 40% / .8) 25%) }", &canonicalize("rgba(98, 184, 46, 0.5)"));
+    minify_test(".foo { color: color-mix(in hwb, hwb(120deg 10% 20% / .4) 25%, hwb(30deg 30% 40% / .8) 75%) }", &canonicalize("rgba(160, 149, 70, 0.7)"));
+    minify_test(".foo { color: color-mix(in hwb, hwb(120deg 10% 20% / .4) 30%, hwb(30deg 30% 40% / .8) 90%) }", &canonicalize("rgba(160, 149, 70, 0.7)")); // Scale down > 100% sum.
+    minify_test(".foo { color: color-mix(in hwb, hwb(120deg 10% 20% / .4) 12.5%, hwb(30deg 30% 40% / .8) 37.5%) }", &canonicalize("rgba(160, 149, 70, 0.35)")); // Scale up < 100% sum, causes alpha multiplication.
+    minify_test(".foo { color: color-mix(in hwb, hwb(120deg 10% 20% / .4) 0%, hwb(30deg 30% 40% / .8)) }", &canonicalize("rgba(153, 115, 77, 0.8)"));
+    
+    //  minify_test(".foo { color: color-mix(in hwb, hwb(40deg 30% 40%), hwb(60deg 30% 40%)) }", &canonicalize("hwb(50deg 30% 40%)"));
+    //  minify_test(".foo { color: color-mix(in hwb, hwb(60deg 30% 40%), hwb(40deg 30% 40%)) }", &canonicalize("hwb(50deg 30% 40%)"));
+    minify_test(".foo { color: color-mix(in hwb, hwb(50deg 30% 40%), hwb(330deg 30% 40%)) }", &canonicalize("hwb(10deg 30% 40%)"));
+    minify_test(".foo { color: color-mix(in hwb, hwb(330deg 30% 40%), hwb(50deg 30% 40%)) }", &canonicalize("hwb(10deg 30% 40%)"));
+    minify_test(".foo { color: color-mix(in hwb, hwb(20deg 30% 40%), hwb(320deg 30% 40%)) }", &canonicalize("hwb(350deg 30% 40%)"));
+    minify_test(".foo { color: color-mix(in hwb, hwb(320deg 30% 40%), hwb(20deg 30% 40%)) }", &canonicalize("hwb(350deg 30% 40%)"));
+
+    //  minify_test(".foo { color: color-mix(in hwb shorter hue, hwb(40deg 30% 40%), hwb(60deg 30% 40%)) }", &canonicalize("hwb(50deg 30% 40%)"));
+    //  minify_test(".foo { color: color-mix(in hwb shorter hue, hwb(60deg 30% 40%), hwb(40deg 30% 40%)) }", &canonicalize("hwb(50deg 30% 40%)"));
+    minify_test(".foo { color: color-mix(in hwb shorter hue, hwb(50deg 30% 40%), hwb(330deg 30% 40%)) }", &canonicalize("hwb(10deg 30% 40%)"));
+    minify_test(".foo { color: color-mix(in hwb shorter hue, hwb(330deg 30% 40%), hwb(50deg 30% 40%)) }", &canonicalize("hwb(10deg 30% 40%)"));
+    minify_test(".foo { color: color-mix(in hwb shorter hue, hwb(20deg 30% 40%), hwb(320deg 30% 40%)) }", &canonicalize("hwb(350deg 30% 40%)"));
+    minify_test(".foo { color: color-mix(in hwb shorter hue, hwb(320deg 30% 40%), hwb(20deg 30% 40%)) }", &canonicalize("hwb(350deg 30% 40%)"));
+
+    minify_test(".foo { color: color-mix(in hwb longer hue, hwb(40deg 30% 40%), hwb(60deg 30% 40%)) }", &canonicalize("hwb(230deg 30% 40%)"));
+    minify_test(".foo { color: color-mix(in hwb longer hue, hwb(60deg 30% 40%), hwb(40deg 30% 40%)) }", &canonicalize("hwb(230deg 30% 40%)"));
+    //  minify_test(".foo { color: color-mix(in hwb longer hue, hwb(50deg 30% 40%), hwb(330deg 30% 40%)) }", &canonicalize("hwb(190deg 30% 40%)"));
+    //  minify_test(".foo { color: color-mix(in hwb longer hue, hwb(330deg 30% 40%), hwb(50deg 30% 40%)) }", &canonicalize("hwb(190deg 30% 40%)"));
+    //  minify_test(".foo { color: color-mix(in hwb longer hue, hwb(20deg 30% 40%), hwb(320deg 30% 40%)) }", &canonicalize("hwb(170deg 30% 40%)"));
+    //  minify_test(".foo { color: color-mix(in hwb longer hue, hwb(320deg 30% 40%), hwb(20deg 30% 40%)) }", &canonicalize("hwb(170deg 30% 40%)"));
+    
+    // minify_test(".foo { color: color-mix(in hwb increasing hue, hwb(40deg 30% 40%), hwb(60deg 30% 40%)) }", &canonicalize("hwb(50deg 30% 40%)"));
+    minify_test(".foo { color: color-mix(in hwb increasing hue, hwb(60deg 30% 40%), hwb(40deg 30% 40%)) }", &canonicalize("hwb(230deg 30% 40%)"));
+    // minify_test(".foo { color: color-mix(in hwb increasing hue, hwb(50deg 30% 40%), hwb(330deg 30% 40%)) }", &canonicalize("hwb(190deg 30% 40%)"));
+    minify_test(".foo { color: color-mix(in hwb increasing hue, hwb(330deg 30% 40%), hwb(50deg 30% 40%)) }", &canonicalize("hwb(10deg 30% 40%)"));
+    // minify_test(".foo { color: color-mix(in hwb increasing hue, hwb(20deg 30% 40%), hwb(320deg 30% 40%)) }", &canonicalize("hwb(170deg 30% 40%)"));
+    minify_test(".foo { color: color-mix(in hwb increasing hue, hwb(320deg 30% 40%), hwb(20deg 30% 40%)) }", &canonicalize("hwb(350deg 30% 40%)"));
+
+    minify_test(".foo { color: color-mix(in hwb decreasing hue, hwb(40deg 30% 40%), hwb(60deg 30% 40%)) }", &canonicalize("hwb(230deg 30% 40%)"));
+    // minify_test(".foo { color: color-mix(in hwb decreasing hue, hwb(60deg 30% 40%), hwb(40deg 30% 40%)) }", &canonicalize("hwb(50deg 30% 40%)"));
+    minify_test(".foo { color: color-mix(in hwb decreasing hue, hwb(50deg 30% 40%), hwb(330deg 30% 40%)) }", &canonicalize("hwb(10deg 30% 40%)"));
+    // minify_test(".foo { color: color-mix(in hwb decreasing hue, hwb(330deg 30% 40%), hwb(50deg 30% 40%)) }", &canonicalize("hwb(190deg 30% 40%)"));
+    minify_test(".foo { color: color-mix(in hwb decreasing hue, hwb(20deg 30% 40%), hwb(320deg 30% 40%)) }", &canonicalize("hwb(350deg 30% 40%)"));
+    // minify_test(".foo { color: color-mix(in hwb decreasing hue, hwb(320deg 30% 40%), hwb(20deg 30% 40%)) }", &canonicalize("hwb(170deg 30% 40%)"));
+
+    // minify_test(".foo { color: color-mix(in hwb specified hue, hwb(40deg 30% 40%), hwb(60deg 30% 40%)) }", &canonicalize("hwb(50deg 30% 40%)"));
+    // minify_test(".foo { color: color-mix(in hwb specified hue, hwb(60deg 30% 40%), hwb(40deg 30% 40%)) }", &canonicalize("hwb(50deg 30% 40%)"));
+    // minify_test(".foo { color: color-mix(in hwb specified hue, hwb(50deg 30% 40%), hwb(330deg 30% 40%)) }", &canonicalize("hwb(190deg 30% 40%)"));
+    // minify_test(".foo { color: color-mix(in hwb specified hue, hwb(330deg 30% 40%), hwb(50deg 30% 40%)) }", &canonicalize("hwb(190deg 30% 40%)"));
+    // minify_test(".foo { color: color-mix(in hwb specified hue, hwb(20deg 30% 40%), hwb(320deg 30% 40%)) }", &canonicalize("hwb(170deg 30% 40%)"));
+    // minify_test(".foo { color: color-mix(in hwb specified hue, hwb(320deg 30% 40%), hwb(20deg 30% 40%)) }", &canonicalize("hwb(170deg 30% 40%)"));
+  
+    minify_test(".foo { color: color-mix(in hwb, color(display-p3 0 1 0) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(0, 249, 66)")); // Naive clip based mapping would give rgb(0, 255, 0).
+    minify_test(".foo { color: color-mix(in hwb, lab(100% 104.3 -50.9) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(255, 255, 255)")); // Naive clip based mapping would give rgb(255, 150, 255).
+    minify_test(".foo { color: color-mix(in hwb, lab(0% 104.3 -50.9) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(42, 0, 34)")); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black,
+    minify_test(".foo { color: color-mix(in hwb, lch(100% 116 334) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(255, 255, 255)")); // Naive clip based mapping would give rgb(255, 150, 255).
+    minify_test(".foo { color: color-mix(in hwb, lch(0% 116 334) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(42, 0, 34)")); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black,
+    minify_test(".foo { color: color-mix(in hwb, oklab(100% 0.365 -0.16) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(255, 255, 255)")); // Naive clip based mapping would give rgb(255, 92, 255).
+    minify_test(".foo { color: color-mix(in hwb, oklab(0% 0.365 -0.16) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(0, 0, 0)")); // Naive clip based mapping would give rgb(19, 0, 24).
+    minify_test(".foo { color: color-mix(in hwb, oklch(100% 0.399 336.3) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(255, 255, 255)")); // Naive clip based mapping would give rgb(255, 91, 255).
+    minify_test(".foo { color: color-mix(in hwb, oklch(0% 0.399 336.3) 100%, rgb(0, 0, 0) 0%) }", &canonicalize("rgb(0, 0, 0)")); // Naive clip based mapping would give rgb(20, 0, 24).
+
+    for color_space in &["lch", "oklch"] {
+      // regex for converting web platform tests:
+      // test_computed_value\(.*?, `color-mix\(in \$\{colorSpace\}(.*?), (.*?)\$\{colorSpace\}(.*?) \$\{colorSpace\}(.*?)`, `\$\{colorSpace\}(.*?)`\);
+      // minify_test(&format!(".foo {{ color: color-mix(in {0}$1, $2{0}$3 {0}$4 }}", color_space), &format!(".foo{{color:{}$5}}", color_space));
+
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg), {0}(50% 60 70deg)) }}", color_space), &format!(".foo{{color:{}(30% 40 50)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg) 25%, {0}(50% 60 70deg)) }}", color_space), &format!(".foo{{color:{}(40% 50 60)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, 25% {0}(10% 20 30deg), {0}(50% 60 70deg)) }}", color_space), &format!(".foo{{color:{}(40% 50 60)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg), 25% {0}(50% 60 70deg)) }}", color_space), &format!(".foo{{color:{}(20% 30 40)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg), {0}(50% 60 70deg) 25%) }}", color_space), &format!(".foo{{color:{}(20% 30 40)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg) 25%, {0}(50% 60 70deg) 75%) }}", color_space), &format!(".foo{{color:{}(40% 50 60)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg) 30%, {0}(50% 60 70deg) 90%) }}", color_space), &format!(".foo{{color:{}(40% 50 60)}}", color_space)); // Scale down > 100% sum.
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg) 12.5%, {0}(50% 60 70deg) 37.5%) }}", color_space), &format!(".foo{{color:{}(40% 50 60/.5)}}", color_space)); // Scale up < 100% sum, causes alpha multiplication.
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg) 0%, {0}(50% 60 70deg)) }}", color_space), &format!(".foo{{color:{}(50% 60 70)}}", color_space));
+
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg / .4), {0}(50% 60 70deg / .8)) }}", color_space), &format!(".foo{{color:{}(36.6667% 46.6667 50/.6)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg / .4) 25%, {0}(50% 60 70deg / .8)) }}", color_space), &format!(".foo{{color:{}(44.2857% 54.2857 60/.7)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, 25% {0}(10% 20 30deg / .4), {0}(50% 60 70deg / .8)) }}", color_space), &format!(".foo{{color:{}(44.2857% 54.2857 60/.7)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg / .4), 25% {0}(50% 60 70deg / .8)) }}", color_space), &format!(".foo{{color:{}(26% 36 40/.5)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg / .4), {0}(50% 60 70deg / .8) 25%) }}", color_space), &format!(".foo{{color:{}(26% 36 40/.5)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg / .4) 25%, {0}(50% 60 70deg / .8) 75%) }}", color_space), &format!(".foo{{color:{}(44.2857% 54.2857 60/.7)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg / .4) 30%, {0}(50% 60 70deg / .8) 90%) }}", color_space), &format!(".foo{{color:{}(44.2857% 54.2857 60/.7)}}", color_space)); // Scale down > 100% sum.
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg / .4) 12.5%, {0}(50% 60 70deg / .8) 37.5%) }}", color_space), &format!(".foo{{color:{}(44.2857% 54.2857 60/.35)}}", color_space)); // Scale up < 100% sum, causes alpha multiplication.
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg / .4) 0%, {0}(50% 60 70deg / .8)) }}", color_space), &format!(".foo{{color:{}(50% 60 70/.8)}}", color_space));
+    
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(100% 0 40deg), {0}(100% 0 60deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 50)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(100% 0 60deg), {0}(100% 0 40deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 50)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(100% 0 50deg), {0}(100% 0 330deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 10)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(100% 0 330deg), {0}(100% 0 50deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 10)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(100% 0 20deg), {0}(100% 0 320deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 350)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(100% 0 320deg), {0}(100% 0 20deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 350)}}", color_space));
+
+      minify_test(&format!(".foo {{ color: color-mix(in {0} shorter hue, {0}(100% 0 40deg), {0}(100% 0 60deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 50)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} shorter hue, {0}(100% 0 60deg), {0}(100% 0 40deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 50)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} shorter hue, {0}(100% 0 50deg), {0}(100% 0 330deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 10)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} shorter hue, {0}(100% 0 330deg), {0}(100% 0 50deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 10)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} shorter hue, {0}(100% 0 20deg), {0}(100% 0 320deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 350)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} shorter hue, {0}(100% 0 320deg), {0}(100% 0 20deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 350)}}", color_space));
+
+      minify_test(&format!(".foo {{ color: color-mix(in {0} longer hue, {0}(100% 0 40deg), {0}(100% 0 60deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 230)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} longer hue, {0}(100% 0 60deg), {0}(100% 0 40deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 230)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} longer hue, {0}(100% 0 50deg), {0}(100% 0 330deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 190)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} longer hue, {0}(100% 0 330deg), {0}(100% 0 50deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 190)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} longer hue, {0}(100% 0 20deg), {0}(100% 0 320deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 170)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} longer hue, {0}(100% 0 320deg), {0}(100% 0 20deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 170)}}", color_space));
+      
+      minify_test(&format!(".foo {{ color: color-mix(in {0} increasing hue, {0}(100% 0 40deg), {0}(100% 0 60deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 50)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} increasing hue, {0}(100% 0 60deg), {0}(100% 0 40deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 230)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} increasing hue, {0}(100% 0 50deg), {0}(100% 0 330deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 190)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} increasing hue, {0}(100% 0 330deg), {0}(100% 0 50deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 10)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} increasing hue, {0}(100% 0 20deg), {0}(100% 0 320deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 170)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} increasing hue, {0}(100% 0 320deg), {0}(100% 0 20deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 350)}}", color_space));
+
+      minify_test(&format!(".foo {{ color: color-mix(in {0} decreasing hue, {0}(100% 0 40deg), {0}(100% 0 60deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 230)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} decreasing hue, {0}(100% 0 60deg), {0}(100% 0 40deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 50)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} decreasing hue, {0}(100% 0 50deg), {0}(100% 0 330deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 10)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} decreasing hue, {0}(100% 0 330deg), {0}(100% 0 50deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 190)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} decreasing hue, {0}(100% 0 20deg), {0}(100% 0 320deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 350)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} decreasing hue, {0}(100% 0 320deg), {0}(100% 0 20deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 170)}}", color_space));
+
+      minify_test(&format!(".foo {{ color: color-mix(in {0} specified hue, {0}(100% 0 40deg), {0}(100% 0 60deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 50)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} specified hue, {0}(100% 0 60deg), {0}(100% 0 40deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 50)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} specified hue, {0}(100% 0 50deg), {0}(100% 0 330deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 190)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} specified hue, {0}(100% 0 330deg), {0}(100% 0 50deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 190)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} specified hue, {0}(100% 0 20deg), {0}(100% 0 320deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 170)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0} specified hue, {0}(100% 0 320deg), {0}(100% 0 20deg)) }}", color_space), &format!(".foo{{color:{}(100% 0 170)}}", color_space));
+
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(none none none), {0}(none none none)) }}", color_space), &format!(".foo{{color:{}(none none none)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(none none none), {0}(50% 60 70deg)) }}", color_space), &format!(".foo{{color:{}(50% 60 70)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg), {0}(none none none)) }}", color_space), &format!(".foo{{color:{}(10% 20 30)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 none), {0}(50% 60 70deg)) }}", color_space), &format!(".foo{{color:{}(30% 40 70)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg), {0}(50% 60 none)) }}", color_space), &format!(".foo{{color:{}(30% 40 30)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(none 20 30deg), {0}(50% none 70deg)) }}", color_space), &format!(".foo{{color:{}(50% 20 50)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg / none), {0}(50% 60 70deg)) }}", color_space), &format!(".foo{{color:{}(30% 40 50)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg / none), {0}(50% 60 70deg / 0.5)) }}", color_space), &format!(".foo{{color:{}(30% 40 50/.5)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30deg / none), {0}(50% 60 70deg / none)) }}", color_space), &format!(".foo{{color:{}(30% 40 50/none)}}", color_space));
+    }
+
+    for color_space in ["lab", "oklab"] {
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30), {0}(50% 60 70)) }}", color_space), &format!(".foo{{color:{}(30% 40 50)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30) 25%, {0}(50% 60 70)) }}", color_space), &format!(".foo{{color:{}(40% 50 60)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, 25% {0}(10% 20 30), {0}(50% 60 70)) }}", color_space), &format!(".foo{{color:{}(40% 50 60)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30), 25% {0}(50% 60 70)) }}", color_space), &format!(".foo{{color:{}(20% 30 40)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30), {0}(50% 60 70) 25%) }}", color_space), &format!(".foo{{color:{}(20% 30 40)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30) 25%, {0}(50% 60 70) 75%) }}", color_space), &format!(".foo{{color:{}(40% 50 60)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30) 30%, {0}(50% 60 70) 90%) }}", color_space), &format!(".foo{{color:{}(40% 50 60)}}", color_space)); // Scale down > 100% sum.
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30) 12.5%, {0}(50% 60 70) 37.5%) }}", color_space), &format!(".foo{{color:{}(40% 50 60/.5)}}", color_space)); // Scale up < 100% sum, causes alpha multiplication.
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30) 0%, {0}(50% 60 70)) }}", color_space), &format!(".foo{{color:{}(50% 60 70)}}", color_space));
+    
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30 / .4), {0}(50% 60 70 / .8)) }}", color_space), &format!(".foo{{color:{}(36.6667% 46.6667 56.6667/.6)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30 / .4) 25%, {0}(50% 60 70 / .8)) }}", color_space), &format!(".foo{{color:{}(44.2857% 54.2857 64.2857/.7)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, 25% {0}(10% 20 30 / .4), {0}(50% 60 70 / .8)) }}", color_space), &format!(".foo{{color:{}(44.2857% 54.2857 64.2857/.7)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30 / .4), 25% {0}(50% 60 70 / .8)) }}", color_space), &format!(".foo{{color:{}(26% 36 46/.5)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30 / .4), {0}(50% 60 70 / .8) 25%) }}", color_space), &format!(".foo{{color:{}(26% 36 46/.5)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30 / .4) 25%, {0}(50% 60 70 / .8) 75%) }}", color_space), &format!(".foo{{color:{}(44.2857% 54.2857 64.2857/.7)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30 / .4) 30%, {0}(50% 60 70 / .8) 90%) }}", color_space), &format!(".foo{{color:{}(44.2857% 54.2857 64.2857/.7)}}", color_space)); // Scale down > 100% sum.
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30 / .4) 12.5%, {0}(50% 60 70 / .8) 37.5%) }}", color_space), &format!(".foo{{color:{}(44.2857% 54.2857 64.2857/.35)}}", color_space)); // Scale up < 100% sum, causes alpha multiplication.
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30 / .4) 0%, {0}(50% 60 70 / .8)) }}", color_space), &format!(".foo{{color:{}(50% 60 70/.8)}}", color_space));
+    
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(none none none), {0}(none none none)) }}", color_space), &format!(".foo{{color:{}(none none none)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(none none none), {0}(50% 60 70)) }}", color_space), &format!(".foo{{color:{}(50% 60 70)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30), {0}(none none none)) }}", color_space), &format!(".foo{{color:{}(10% 20 30)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 none), {0}(50% 60 70)) }}", color_space), &format!(".foo{{color:{}(30% 40 70)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30), {0}(50% 60 none)) }}", color_space), &format!(".foo{{color:{}(30% 40 30)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(none 20 30), {0}(50% none 70)) }}", color_space), &format!(".foo{{color:{}(50% 20 50)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30 / none), {0}(50% 60 70)) }}", color_space), &format!(".foo{{color:{}(30% 40 50)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30 / none), {0}(50% 60 70 / 0.5)) }}", color_space), &format!(".foo{{color:{}(30% 40 50/.5)}}", color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, {0}(10% 20 30 / none), {0}(50% 60 70 / none)) }}", color_space), &format!(".foo{{color:{}(30% 40 50/none)}}", color_space));
+    }
+
+    for color_space in [/*"srgb", */"srgb-linear", "xyz", "xyz-d50", "xyz-d65"] {
+      // regex for converting web platform tests:
+      // test_computed_value\(.*?, `color-mix\(in \$\{colorSpace\}(.*?), (.*?)color\(\$\{colorSpace\}(.*?) color\(\$\{colorSpace\}(.*?)`, `color\(\$\{resultColorSpace\}(.*?)`\);
+      // minify_test(&format!(".foo {{ color: color-mix(in {0}$1, $2color({0}$3 color({0}$4 }}", color_space), &format!(".foo{{color:color({}$5}}", result_color_space));
+
+      let result_color_space = if color_space == "xyz-d65" { "xyz" } else { color_space };
+
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3), color({0} .5 .6 .7)) }}", color_space), &format!(".foo{{color:color({} .3 .4 .5)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3) 25%, color({0} .5 .6 .7)) }}", color_space), &format!(".foo{{color:color({} .4 .5 .6)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, 25% color({0} .1 .2 .3), color({0} .5 .6 .7)) }}", color_space), &format!(".foo{{color:color({} .4 .5 .6)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3), color({0} .5 .6 .7) 25%) }}", color_space), &format!(".foo{{color:color({} .2 .3 .4)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3), 25% color({0} .5 .6 .7)) }}", color_space), &format!(".foo{{color:color({} .2 .3 .4)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3) 25%, color({0} .5 .6 .7) 75%) }}", color_space), &format!(".foo{{color:color({} .4 .5 .6)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3) 30%, color({0} .5 .6 .7) 90%) }}", color_space), &format!(".foo{{color:color({} .4 .5 .6)}}", result_color_space)); // Scale down > 100% sum.
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3) 12.5%, color({0} .5 .6 .7) 37.5%) }}", color_space), &format!(".foo{{color:color({} .4 .5 .6/.5)}}", result_color_space)); // Scale up < 100% sum, causes alpha multiplication.
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3) 0%, color({0} .5 .6 .7)) }}", color_space), &format!(".foo{{color:color({} .5 .6 .7)}}", result_color_space));
+    
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3 / .5), color({0} .5 .6 .7 / .8)) }}", color_space), &format!(".foo{{color:color({} .346154 .446154 .546154/.65)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3 / .4) 25%, color({0} .5 .6 .7 / .8)) }}", color_space), &format!(".foo{{color:color({} .442857 .542857 .642857/.7)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, 25% color({0} .1 .2 .3 / .4), color({0} .5 .6 .7 / .8)) }}", color_space), &format!(".foo{{color:color({} .442857 .542857 .642857/.7)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3 / .4), color({0} .5 .6 .7 / .8) 25%) }}", color_space), &format!(".foo{{color:color({} .26 .36 .46/.5)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3 / .4), 25% color({0} .5 .6 .7 / .8)) }}", color_space), &format!(".foo{{color:color({} .26 .36 .46/.5)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3 / .4) 25%, color({0} .5 .6 .7 / .8) 75%) }}", color_space), &format!(".foo{{color:color({} .442857 .542857 .642857/.7)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3 / .4) 30%, color({0} .5 .6 .7 / .8) 90%) }}", color_space), &format!(".foo{{color:color({} .442857 .542857 .642857/.7)}}", result_color_space)); // Scale down > 100% sum.
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3 / .4) 12.5%, color({0} .5 .6 .7 / .8) 37.5%) }}", color_space), &format!(".foo{{color:color({} .442857 .542857 .642857/.35)}}", result_color_space)); // Scale up < 100% sum, causes alpha multiplication.
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3 / .4) 0%, color({0} .5 .6 .7 / .8)) }}", color_space), &format!(".foo{{color:color({} .5 .6 .7/.8)}}", result_color_space));
+
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} 2 3 4 / 5), color({0} 4 6 8 / 10)) }}", color_space), &format!(".foo{{color:color({} 3 4.5 6)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} -2 -3 -4), color({0} -4 -6 -8)) }}", color_space), &format!(".foo{{color:color({} -3 -4.5 -6)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} -2 -3 -4 / -5), color({0} -4 -6 -8 / -10)) }}", color_space), &format!(".foo{{color:color({}/0)}}", result_color_space));
+    
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} none none none), color({0} none none none)) }}", color_space), &format!(".foo{{color:color({} none none none)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} none none none), color({0} .5 .6 .7)) }}", color_space), &format!(".foo{{color:color({} .5 .6 .7)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3), color({0} none none none)) }}", color_space), &format!(".foo{{color:color({} .1 .2 .3)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 none), color({0} .5 .6 .7)) }}", color_space), &format!(".foo{{color:color({} .3 .4 .7)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3), color({0} .5 .6 none)) }}", color_space), &format!(".foo{{color:color({} .3 .4 .3)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} none .2 .3), color({0} .5 none .7)) }}", color_space), &format!(".foo{{color:color({} .5 .2 .5)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3 / none), color({0} .5 .6 .7)) }}", color_space), &format!(".foo{{color:color({} .3 .4 .5)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3 / none), color({0} .5 .6 .7 / 0.5)) }}", color_space), &format!(".foo{{color:color({} .3 .4 .5/.5)}}", result_color_space));
+      minify_test(&format!(".foo {{ color: color-mix(in {0}, color({0} .1 .2 .3 / none), color({0} .5 .6 .7 / none)) }}", color_space), &format!(".foo{{color:color({} .3 .4 .5/none)}}", result_color_space));
+    }
   }
 
   #[cfg(feature = "grid")]
@@ -9842,7 +10194,7 @@ mod tests {
         }
 
         to {
-          --custom: #ff00d4;
+          --custom: #ee00be;
         }
       }
 
@@ -9879,7 +10231,7 @@ mod tests {
         }
 
         to {
-          --custom: #ff00d4;
+          --custom: #ee00be;
         }
       }
 
@@ -9932,7 +10284,7 @@ mod tests {
         }
 
         to {
-          --custom: #ff00d4;
+          --custom: #ee00be;
           opacity: 1;
         }
       }
@@ -11352,7 +11704,7 @@ mod tests {
       ".foo { fill: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          fill: #ff00d4;
+          fill: #ee00be;
           fill: color(display-p3 .972962 -.362078 .804206);
           fill: lch(50.998% 135.363 338);
         }
@@ -11368,7 +11720,7 @@ mod tests {
       ".foo { stroke: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          stroke: #ff00d4;
+          stroke: #ee00be;
           stroke: color(display-p3 .972962 -.362078 .804206);
           stroke: lch(50.998% 135.363 338);
         }
@@ -11384,7 +11736,7 @@ mod tests {
       ".foo { fill: url(#foo) lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          fill: url(#foo) #ff00d4;
+          fill: url(#foo) #ee00be;
           fill: url(#foo) color(display-p3 .972962 -.362078 .804206);
           fill: url(#foo) lch(50.998% 135.363 338);
         }
@@ -11400,7 +11752,7 @@ mod tests {
       ".foo { fill: var(--url) lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {
-          fill: var(--url) #ff00d4;
+          fill: var(--url) #ee00be;
         }
 
         @supports (color: lab(0% 0 0)) {
@@ -11419,9 +11771,9 @@ mod tests {
       ".foo { mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          mask-image: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff));
-          mask-image: -webkit-linear-gradient(red, #7746ff);
-          mask-image: linear-gradient(red, #7746ff);
+          mask-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
+          mask-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          mask-image: linear-gradient(#ff0f0e, #7773ff);
           mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
@@ -11435,9 +11787,9 @@ mod tests {
       ".foo { mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px }",
       indoc! { r#"
         .foo {
-          mask: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff)) 40px 20px;
-          mask: -webkit-linear-gradient(red, #7746ff) 40px 20px;
-          mask: linear-gradient(red, #7746ff) 40px 20px;
+          mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 40px 20px;
+          mask: -webkit-linear-gradient(#ff0f0e, #7773ff) 40px 20px;
+          mask: linear-gradient(#ff0f0e, #7773ff) 40px 20px;
           mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px;
         }
       "#},
@@ -11451,8 +11803,8 @@ mod tests {
       ".foo { mask: -webkit-linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px }",
       indoc! { r#"
         .foo {
-          mask: -webkit-gradient(linear, 0 0, 0 100%, from(red), to(#7746ff)) 40px 20px;
-          mask: -webkit-linear-gradient(red, #7746ff) 40px 20px;
+          mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 40px 20px;
+          mask: -webkit-linear-gradient(#ff0f0e, #7773ff) 40px 20px;
         }
       "#},
       Browsers {
@@ -11465,7 +11817,7 @@ mod tests {
       ".foo { mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px var(--foo) }",
       indoc! { r#"
         .foo {
-          mask: linear-gradient(red, #7746ff) 40px var(--foo);
+          mask: linear-gradient(#ff0f0e, #7773ff) 40px var(--foo);
         }
 
         @supports (color: lab(0% 0 0)) {

@@ -4,38 +4,51 @@ use crate::rules::supports::SupportsCondition;
 use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss, FallbackValues};
 use crate::printer::Printer;
+use std::any::TypeId;
 use std::f32::consts::PI;
 use std::fmt::Write;
 use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
 use super::percentage::Percentage;
+use crate::macros::enum_property;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CssColor {
   CurrentColor,
   RGBA(RGBA),
-  Lab(Box<LabColor>),
-  Predefined(Box<PredefinedColor>)
+  LAB(Box<LABColor>),
+  Predefined(Box<PredefinedColor>),
+  Float(Box<FloatColor>)
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum LabColor {
-  Lab(f32, f32, f32, f32),
-  Lch(f32, f32, f32, f32),
-  Oklab(f32, f32, f32, f32),
-  Oklch(f32, f32, f32, f32),
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum LABColor {
+  LAB(LAB),
+  LCH(LCH),
+  OKLAB(OKLAB),
+  OKLCH(OKLCH),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PredefinedColor {
-  Srgb(f32, f32, f32, f32),
-  SrgbLinear(f32, f32, f32, f32),
-  DisplayP3(f32, f32, f32, f32),
-  A98Rgb(f32, f32, f32, f32),
-  ProphotoRgb(f32, f32, f32, f32),
-  Rec2020(f32, f32, f32, f32),
-  XyzD50(f32, f32, f32, f32),
-  XyzD65(f32, f32, f32, f32)
+  SRGB(SRGB),
+  SRGBLinear(SRGBLinear),
+  DisplayP3(P3),
+  A98(A98),
+  ProPhoto(ProPhoto),
+  Rec2020(Rec2020),
+  XYZd50(XYZd50),
+  XYZd65(XYZd65),
+}
+
+// Floating point representations of color types that
+// are usually stored as RGBA. These are used when there
+// are any `none` components, which are represented as NaN.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum FloatColor {
+  RGB(SRGB),
+  HSL(HSL),
+  HWB(HWB)
 }
 
 bitflags! {
@@ -43,6 +56,34 @@ bitflags! {
     const RGB    = 0b01;
     const P3     = 0b10;
     const LAB    = 0b100;
+  }
+}
+
+enum_property! {
+  /// https://www.w3.org/TR/css-color-4/#interpolation-space
+  enum ColorSpace {
+    "srgb": SRGB,
+    "srgb-linear": SRGBLinear,
+    "lab": LAB,
+    "oklab": OKLAB,
+    "xyz": XYZ,
+    "xyz-d50": XYZd50,
+    "xyz-d65": XYZd65,
+    "hsl": Hsl,
+    "hwb": Hwb,
+    "lch": LCH,
+    "oklch": OKLCH,
+  }
+}
+
+enum_property! {
+  /// https://www.w3.org/TR/css-color-4/#typedef-hue-interpolation-method
+  pub enum HueInterpolationMethod {
+    Shorter,
+    Longer,
+    Increasing,
+    Decreasing,
+    Specified,
   }
 }
 
@@ -72,76 +113,31 @@ impl CssColor {
     CssColor::RGBA(RGBA::transparent())
   }
 
-  fn to_xyza_d65(&self) -> (f32, f32, f32, f32) {
-    match self {
-      CssColor::RGBA(rgba) => {
-        let (x, y, z) = srgb_to_xyz_d65(rgba.red_f32(), rgba.green_f32(), rgba.blue_f32());
-        (x, y, z, rgba.alpha_f32())
-      }
-      CssColor::Lab(lab) => lab.to_xyza_d65(),
-      CssColor::Predefined(predefined) => predefined.to_xyza_d65(),
-      CssColor::CurrentColor => unreachable!()
-    }
-  }
-
   pub fn to_rgb(&self) -> CssColor {
-    let (x, y, z, a) = match self {
-      CssColor::RGBA(..) | CssColor::CurrentColor => return self.clone(),
-      _ => self.to_xyza_d65()
-    };
-
-    let (r, g, b) = xyz_d65_to_srgb(x, y, z);
-    CssColor::RGBA(RGBA::from_floats(r, g, b, a))
+    RGBA::from(self).into()
   }
 
   pub fn to_lab(&self) -> CssColor {
-    let (x, y, z, alpha) = match self {
-      CssColor::CurrentColor => return self.clone(),
-      CssColor::Lab(lab) => {
-        match &**lab {
-          LabColor::Lab(..) => return self.clone(),
-          LabColor::Lch(l, c, h, alpha) => {
-            let (l, a, b) = lch_to_lab(*l, *c, *h);
-            return CssColor::Lab(Box::new(LabColor::Lab(l, a, b, *alpha)))
-          }
-          _ => lab.to_xyza_d65()
-        }
-      }
-      _ => self.to_xyza_d65()
-    };
-
-    let (l, a, b) = xyz_d65_to_lab(x, y, z);
-    CssColor::Lab(Box::new(LabColor::Lab(l, a, b, alpha)))
+    LAB::from(self).into()
   }
 
   pub fn to_p3(&self) -> CssColor {
-    let (x, y, z, a) = match self {
-      CssColor::CurrentColor => return self.clone(),
-      CssColor::Predefined(predefined) => {
-        match &**predefined {
-          PredefinedColor::DisplayP3(..) => return self.clone(),
-          _ => predefined.to_xyza_d65()
-        }
-      },
-      _ => self.to_xyza_d65()
-    };
-
-    let (r, g, b) = xyz_d65_to_p3(x, y, z);
-    CssColor::Predefined(Box::new(PredefinedColor::DisplayP3(r, g, b, a)))
+    P3::from(self).into()
   }
 
   pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
     let feature = match self {
       CssColor::CurrentColor | CssColor::RGBA(_) => return ColorFallbackKind::empty(),
-      CssColor::Lab(lab) => {
+      CssColor::LAB(lab) => {
         match &**lab {
-          LabColor::Lab(..) => Feature::LabColors,
-          LabColor::Lch(..) => Feature::LchColors,
-          LabColor::Oklab(..) => Feature::OklabColors,
-          LabColor::Oklch(..) => Feature::OklchColors
+          LABColor::LAB(..) => Feature::LabColors,
+          LABColor::LCH(..) => Feature::LchColors,
+          LABColor::OKLAB(..) => Feature::OklabColors,
+          LABColor::OKLCH(..) => Feature::OklchColors
         }
       },
-      CssColor::Predefined(..) => Feature::ColorFunction
+      CssColor::Predefined(..) => Feature::ColorFunction,
+      CssColor::Float(..) => return ColorFallbackKind::empty()
     };
 
     let mut fallbacks = ColorFallbackKind::empty();
@@ -163,7 +159,7 @@ impl CssColor {
         fallbacks |= ColorFallbackKind::RGB;
 
         // Also include either lab or P3 if partially compatible, as these
-        // support a much wider color gamut than sRGB. Lab will replace the
+        // support a much wider color gamut than sRGB. LAB will replace the
         // original color (e.g. oklab), whereas P3 will be in addition.
         if Feature::LabColors.is_partially_compatible(targets) {
           fallbacks |= ColorFallbackKind::LAB;
@@ -293,15 +289,20 @@ impl ToCss for CssColor {
         }
         Ok(())
       },
-      CssColor::Lab(lab) => {
+      CssColor::LAB(lab) => {
         match &**lab {
-          LabColor::Lab(l, a, b, alpha) => write_components("lab", *l, *a, *b, *alpha, dest),
-          LabColor::Lch(l, c, h, alpha) => write_components("lch", *l, *c, *h, *alpha, dest),
-          LabColor::Oklab(l, a, b, alpha) => write_components("oklab", *l, *a, *b, *alpha, dest),
-          LabColor::Oklch(l, c, h, alpha) => write_components("oklch", *l, *c, *h, *alpha, dest),    
+          LABColor::LAB(lab) => write_components("lab", lab.l, lab.a, lab.b, lab.alpha, dest),
+          LABColor::LCH(lch) => write_components("lch", lch.l, lch.c, lch.h, lch.alpha, dest),
+          LABColor::OKLAB(lab) => write_components("oklab", lab.l, lab.a, lab.b, lab.alpha, dest),
+          LABColor::OKLCH(lch) => write_components("oklch", lch.l, lch.c, lch.h, lch.alpha, dest),    
         }
       }
-      CssColor::Predefined(predefined) => write_predefined(predefined, dest)
+      CssColor::Predefined(predefined) => write_predefined(predefined, dest),
+      CssColor::Float(float) => {
+        // Serialize as hex.
+        let srgb = SRGB::from(**float);
+        CssColor::from(srgb).to_css(dest)
+      }
     }
   }
 }
@@ -370,27 +371,42 @@ fn parse_color_function<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, 
   match_ignore_ascii_case! {&*function,
     "lab" => {
       let (l, a, b, alpha) = parse_lab(input)?;
-      let lab = LabColor::Lab(l, a, b, alpha);
-      Ok(CssColor::Lab(Box::new(lab)))
+      let lab = LABColor::LAB(LAB { l, a, b, alpha });
+      Ok(CssColor::LAB(Box::new(lab)))
     },
     "oklab" => {
       let (l, a, b, alpha) = parse_lab(input)?;
-      let lab = LabColor::Oklab(l, a, b, alpha);
-      Ok(CssColor::Lab(Box::new(lab)))
+      let lab = LABColor::OKLAB(OKLAB { l, a, b, alpha });
+      Ok(CssColor::LAB(Box::new(lab)))
     },
     "lch" => {
       let (l, c, h, alpha) = parse_lch(input)?;
-      let lab = LabColor::Lch(l, c, h, alpha);
-      Ok(CssColor::Lab(Box::new(lab)))
+      let lab = LABColor::LCH(LCH { l, c, h, alpha });
+      Ok(CssColor::LAB(Box::new(lab)))
     },
     "oklch" => {
       let (l, c, h, alpha) = parse_lch(input)?;
-      let lab = LabColor::Oklch(l, c, h, alpha);
-      Ok(CssColor::Lab(Box::new(lab)))
+      let lab = LABColor::OKLCH(OKLCH { l, c, h, alpha });
+      Ok(CssColor::LAB(Box::new(lab)))
     },
     "color" => {
       let predefined = parse_predefined(input)?;
       Ok(CssColor::Predefined(Box::new(predefined)))
+    },
+    "hsl" => {
+      let (h, s, l, a) = parse_hsl_hwb(input)?;
+      Ok(CssColor::Float(Box::new(FloatColor::HSL(HSL { h, s, l, alpha: a }))))
+    },
+    "hwb" => {
+      let (h, w, b, a) = parse_hsl_hwb(input)?;
+      Ok(CssColor::Float(Box::new(FloatColor::HWB(HWB { h, w, b, alpha: a }))))
+    },
+    "rgb" => {
+      let (r, g, b, a) = parse_rgb(input)?;
+      Ok(CssColor::Float(Box::new(FloatColor::RGB(SRGB { r, g, b, alpha: a }))))
+    },
+    "color-mix" => {
+      input.parse_nested_block(parse_color_mix)
     },
     _ => Err(location.new_unexpected_token_error(
       cssparser::Token::Ident(function.clone())
@@ -403,14 +419,11 @@ fn parse_color_function<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, 
 fn parse_lab<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
   // https://www.w3.org/TR/css-color-4/#funcdef-lab
   let res = input.parse_nested_block(|input| {
-    let l = input.expect_percentage()?.max(0.0);
-    let a = input.expect_number()?;
-    let b = input.expect_number()?;
-    let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
-      parse_number_or_percentage(input)?
-    } else {
-      1.0
-    };
+    // f32::max() does not propagate NaN, so use clamp for now until f32::maximum() is stable.
+    let l = parse_percentage(input)?.clamp(0.0, f32::MAX);
+    let a = parse_number(input)?;
+    let b = parse_number(input)?;
+    let alpha = parse_alpha(input)?;
 
     Ok((l, a, b, alpha))
   })?;
@@ -422,19 +435,11 @@ fn parse_lab<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32),
 #[inline]
 fn parse_lch<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
   // https://www.w3.org/TR/css-color-4/#funcdef-lch
-  let parser = ComponentParser;
   let res = input.parse_nested_block(|input| {
-    let l = input.expect_percentage()?.max(0.0);
-    let c = input.expect_number()?.max(0.0);
-    let h = match parser.parse_angle_or_number(input)? {
-      AngleOrNumber::Number { value } => value,
-      AngleOrNumber::Angle { degrees } => degrees
-    };
-    let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
-      parse_number_or_percentage(input)?
-    } else {
-      1.0
-    };
+    let l = parse_percentage(input)?.clamp(0.0, f32::MAX);
+    let c = parse_number(input)?.clamp(0.0, f32::MAX);
+    let h = parse_angle_or_number(input)?;
+    let alpha = parse_alpha(input)?;
 
     Ok((l, c, h, alpha))
   })?;
@@ -446,71 +451,129 @@ fn parse_lch<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32),
 fn parse_predefined<'i, 't>(input: &mut Parser<'i, 't>) -> Result<PredefinedColor, ParseError<'i, ParserError<'i>>> {
   // https://www.w3.org/TR/css-color-4/#color-function
   let res = input.parse_nested_block(|input| {
-    input
-      .try_parse(parse_predefined_rgb)
-      .or_else(|_| input.try_parse(parse_predefined_xyz))
+    let location = input.current_source_location();
+    let colorspace = input.expect_ident_cloned()?;
+    
+    // Out of gamut values should not be clamped, i.e. values < 0 or > 1 should be preserved.
+    // The browser will gamut-map the color for the target device that it is rendered on.
+    let a = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
+    let b = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
+    let c = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
+    let alpha = parse_alpha(input)?;
+  
+    let res = match_ignore_ascii_case! { &*&colorspace,
+      "srgb" => PredefinedColor::SRGB(SRGB { r: a, g: b, b: c, alpha }),
+      "srgb-linear" => PredefinedColor::SRGBLinear(SRGBLinear { r: a, g: b, b: c, alpha }),
+      "display-p3" => PredefinedColor::DisplayP3(P3 { r: a, g: b, b: c, alpha }),
+      "a98-rgb" => PredefinedColor::A98(A98 { r: a, g: b, b: c, alpha }),
+      "prophoto-rgb" => PredefinedColor::ProPhoto(ProPhoto { r: a, g: b, b: c, alpha }),
+      "rec2020" => PredefinedColor::Rec2020(Rec2020 { r: a, g: b, b: c, alpha }),
+      "xyz-d50" => PredefinedColor::XYZd50(XYZd50 { x: a, y: b, z: c, alpha}),
+      "xyz" | "xyz-d65" => PredefinedColor::XYZd65(XYZd65 { x: a, y: b, z: c, alpha }),  
+      _ => return Err(location.new_unexpected_token_error(
+        cssparser::Token::Ident(colorspace.clone())
+      ))
+    };
+  
+    Ok(res)  
+  })?;
+
+  Ok(res)
+}
+
+/// Parses the hsl() and hwb() functions.
+/// Only the modern syntax with no commas is handled here, cssparser handles the legacy syntax.
+/// The results of this function are stored as floating point if there are any `none` components.
+#[inline]
+fn parse_hsl_hwb<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
+  // https://drafts.csswg.org/css-color-4/#the-hsl-notation
+  let res = input.parse_nested_block(|input| {
+    let h = parse_angle_or_number(input)?;
+    let a = parse_percentage(input)?.clamp(0.0, 1.0);
+    let b = parse_percentage(input)?.clamp(0.0, 1.0);
+    let alpha = parse_alpha(input)?;
+
+    Ok((h, a, b, alpha))
   })?;
 
   Ok(res)
 }
 
 #[inline]
-fn parse_predefined_rgb<'i, 't>(input: &mut Parser<'i, 't>) -> Result<PredefinedColor, ParseError<'i, ParserError<'i>>> {
-  let location = input.current_source_location();
-  let colorspace = input.expect_ident_cloned()?;
+fn parse_rgb<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
+  // https://drafts.csswg.org/css-color-4/#rgb-functions
+  let res = input.parse_nested_block(|input| {
+    // percentages and numbers cannot be mixed, but we might not know
+    // what kind of components to expect until later if there are `none` values.
+    #[derive(PartialEq)]
+    enum Kind {
+      Unknown,
+      Number,
+      Percentage
+    }
+
+    #[inline]
+    fn parse_component<'i, 't>(input: &mut Parser<'i, 't>, kind: Kind) -> Result<(f32, Kind), ParseError<'i, ParserError<'i>>> {
+      let location = input.current_source_location();
+      Ok(match *input.next()? {
+        Token::Number { value, .. } if kind != Kind::Percentage => {
+          (value.round().clamp(0.0, 255.0) / 255.0, Kind::Number)
+        },
+        Token::Percentage { unit_value, .. } if kind != Kind::Number => {
+          (unit_value.clamp(0.0, 1.0), Kind::Percentage)
+        },
+        Token::Ident(ref ident) if ident.eq_ignore_ascii_case("none") => {
+          (f32::NAN, Kind::Unknown)
+        },
+        ref t => return Err(location.new_unexpected_token_error(t.clone())),
+      })
+    }
+
+    let (r, is_number) = parse_component(input, Kind::Unknown)?;
+    let (g, is_number) = parse_component(input, is_number)?;
+    let (b, _) = parse_component(input, is_number)?;
+    let alpha = parse_alpha(input)?;
+    Ok((r, g, b, alpha))
+  })?;
   
-  // Out of gamut values should not be clamped, i.e. values < 0 or > 1 should be preserved.
-  // The browser will gamut-map the color for the target device that it is rendered on.
-  let r = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
-  let g = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
-  let b = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
-  let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
-    parse_number_or_percentage(input)?
-  } else {
-    1.0
-  };
-
-  let res = match_ignore_ascii_case! { &*&colorspace,
-    "srgb" => PredefinedColor::Srgb(r, g, b, alpha),
-    "srgb-linear" => PredefinedColor::SrgbLinear(r, g, b, alpha),
-    "display-p3" => PredefinedColor::DisplayP3(r, g, b, alpha),
-    "a98-rgb" => PredefinedColor::A98Rgb(r, g, b, alpha),
-    "prophoto-rgb" => PredefinedColor::ProphotoRgb(r, g, b, alpha),
-    "rec2020" => PredefinedColor::Rec2020(r, g, b, alpha),
-    _ => return Err(location.new_unexpected_token_error(
-      cssparser::Token::Ident(colorspace.clone())
-    ))
-  };
-
   Ok(res)
 }
 
 #[inline]
-fn parse_predefined_xyz<'i, 't>(input: &mut Parser<'i, 't>) -> Result<PredefinedColor, ParseError<'i, ParserError<'i>>> {
+fn parse_angle_or_number<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ParserError<'i>>> {
+  let parser = ComponentParser;
+  let state = input.state();
+  let h = match parser.parse_angle_or_number(input) {
+    Ok(AngleOrNumber::Number { value }) => value,
+    Ok(AngleOrNumber::Angle { degrees }) => degrees,
+    Err(..) => {
+      input.reset(&state);
+      input.expect_ident_matching("none")?;
+      f32::NAN
+    }
+  };
+
+  Ok(h)
+}
+
+#[inline]
+fn parse_percentage<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ParserError<'i>>> {
   let location = input.current_source_location();
-  let colorspace = input.expect_ident_cloned()?;
+  Ok(match *input.next()? {
+    Token::Percentage { unit_value, .. } => unit_value,
+    Token::Ident(ref ident) if ident.eq_ignore_ascii_case("none") => f32::NAN,
+    ref t => return Err(location.new_unexpected_token_error(t.clone())),
+  })
+}
 
-  // XYZ color spaces only accept numbers, not percentages.
-  // Out of gamut values should not be clamped, i.e. values < 0 or > 1 should be preserved.
-  // The browser will gamut-map the color for the target device that it is rendered on.
-  let x = input.try_parse(|input| input.expect_number()).unwrap_or(0.0);
-  let y = input.try_parse(|input| input.expect_number()).unwrap_or(0.0);
-  let z = input.try_parse(|input| input.expect_number()).unwrap_or(0.0);
-  let alpha = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
-    parse_number_or_percentage(input)?
-  } else {
-    1.0
-  };
-
-  let res = match_ignore_ascii_case! { &*&colorspace,
-    "xyz-d50" => PredefinedColor::XyzD50(x, y, z, alpha),
-    "xyz" | "xyz-d65" => PredefinedColor::XyzD65(x, y, z, alpha),
-    _ => return Err(location.new_unexpected_token_error(
-      cssparser::Token::Ident(colorspace.clone())
-    ))
-  };
-
-  Ok(res)
+#[inline]
+fn parse_number<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ParserError<'i>>> {
+  let location = input.current_source_location();
+  Ok(match *input.next()? {
+    Token::Number { value, .. } => value,
+    Token::Ident(ref ident) if ident.eq_ignore_ascii_case("none") => f32::NAN,
+    ref t => return Err(location.new_unexpected_token_error(t.clone())),
+  })
 }
 
 #[inline]
@@ -519,25 +582,50 @@ fn parse_number_or_percentage<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32,
   Ok(match *input.next()? {
     Token::Number { value, .. } => value,
     Token::Percentage { unit_value, .. } => unit_value,
+    Token::Ident(ref ident) if ident.eq_ignore_ascii_case("none") => f32::NAN,
     ref t => return Err(location.new_unexpected_token_error(t.clone())),
   })
+}
+
+#[inline]
+fn parse_alpha<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ParserError<'i>>> {
+  let res = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
+    parse_number_or_percentage(input)?.clamp(0.0, 1.0)
+  } else {
+    1.0
+  };
+  Ok(res)
 }
 
 #[inline]
 fn write_components<W>(name: &str, a: f32, b: f32, c: f32, alpha: f32, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
   dest.write_str(name)?;
   dest.write_char('(')?;
-  Percentage(a).to_css(dest)?;
+  if a.is_nan() {
+    dest.write_str("none")?;
+  } else {
+    Percentage(a).to_css(dest)?;
+  }
   dest.write_char(' ')?;
-  b.to_css(dest)?;
+  write_component(b, dest)?;
   dest.write_char(' ')?;
-  c.to_css(dest)?;
-  if alpha != 1.0 {
+  write_component(c, dest)?;
+  if alpha.is_nan() || (alpha - 1.0).abs() > f32::EPSILON {
     dest.delim('/', true)?;
-    alpha.to_css(dest)?;
+    write_component(alpha, dest)?;
   }
 
   dest.write_char(')')
+}
+
+#[inline]
+fn write_component<W>(c: f32, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  if c.is_nan() {
+    dest.write_str("none")?;
+  } else {
+    c.to_css(dest)?;
+  }
+  Ok(())
 }
 
 #[inline]
@@ -545,123 +633,250 @@ fn write_predefined<W>(predefined: &PredefinedColor, dest: &mut Printer<W>) -> R
   use PredefinedColor::*;
   
   let (name, a, b, c, alpha) = match predefined {
-    Srgb(a, b, c, alpha) => ("srgb", a, b, c, alpha),
-    SrgbLinear(a, b, c, alpha) => ("srgb-linear", a, b, c, alpha),
-    DisplayP3(a, b, c, alpha) => ("display-p3", a, b, c, alpha),
-    A98Rgb(a, b, c, alpha) => ("a98-rgb", a, b, c, alpha),
-    ProphotoRgb(a, b, c, alpha) => ("prophoto-rgb", a, b, c, alpha),
-    Rec2020(a, b, c, alpha) => ("rec2020", a, b, c, alpha),
-    XyzD50(a, b, c, alpha) => ("xyz-d50", a, b, c, alpha),
+    SRGB(rgb) => ("srgb", rgb.r, rgb.g, rgb.b, rgb.alpha),
+    SRGBLinear(rgb) => ("srgb-linear", rgb.r, rgb.g, rgb.b, rgb.alpha),
+    DisplayP3(rgb) => ("display-p3", rgb.r, rgb.g, rgb.b, rgb.alpha),
+    A98(rgb) => ("a98-rgb", rgb.r, rgb.g, rgb.b, rgb.alpha),
+    ProPhoto(rgb) => ("prophoto-rgb", rgb.r, rgb.g, rgb.b, rgb.alpha),
+    Rec2020(rgb) => ("rec2020", rgb.r, rgb.g, rgb.b, rgb.alpha),
+    XYZd50(xyz) => ("xyz-d50", xyz.x, xyz.y, xyz.z, xyz.alpha),
     // "xyz" has better compatibility (Safari 15) than "xyz-d65", and it is shorter.
-    XyzD65(a, b, c, alpha) => ("xyz", a, b, c, alpha),
+    XYZd65(xyz) => ("xyz", xyz.x, xyz.y, xyz.z, xyz.alpha),
   };
 
   dest.write_str("color(")?;
   dest.write_str(name)?;
-  if !dest.minify || *a != 0.0 || *b != 0.0 || *c != 0.0 {
+  if !dest.minify || a != 0.0 || b != 0.0 || c != 0.0 {
     dest.write_char(' ')?;
-    a.to_css(dest)?;
-    if !dest.minify || *b != 0.0 || *c != 0.0 {
+    write_component(a, dest)?;
+    if !dest.minify || b != 0.0 || c != 0.0 {
       dest.write_char(' ')?;
-      b.to_css(dest)?;
-      if !dest.minify || *c != 0.0 {
+      write_component(b, dest)?;
+      if !dest.minify || c != 0.0 {
         dest.write_char(' ')?;
-        c.to_css(dest)?;
+        write_component(c, dest)?;
       }
     }
   }
 
-  if *alpha != 1.0 {
+  if alpha.is_nan() || (alpha - 1.0).abs() > f32::EPSILON {
     dest.delim('/', true)?;
-    alpha.to_css(dest)?;
+    write_component(alpha, dest)?;
   }
 
   dest.write_char(')')
 }
 
+macro_rules! define_colorspace {
+  ($name: ident, $a: ident, $b: ident, $c: ident) => {
+    #[derive(Debug, Clone, Copy, PartialEq)]
+    pub struct $name {
+      pub $a: f32,
+      pub $b: f32,
+      pub $c: f32,
+      pub alpha: f32
+    }
+
+    impl $name {
+      #[inline]
+      fn resolve_missing(&self) -> Self {
+        Self {
+          $a: if self.$a.is_nan() { 0.0 } else { self.$a },
+          $b: if self.$b.is_nan() { 0.0 } else { self.$b },
+          $c: if self.$c.is_nan() { 0.0 } else { self.$c },
+          alpha: if self.alpha.is_nan() { 0.0 } else { self.alpha },
+        }
+      }
+
+      #[inline]
+      pub fn resolve(&self) -> Self {
+        let mut resolved = self.resolve_missing();
+        if !resolved.in_gamut() {
+          resolved = map_gamut(resolved);
+        }
+        resolved
+      }
+    }
+  }
+}
+
+define_colorspace!(SRGB, r, g, b);
+define_colorspace!(SRGBLinear, r, g, b);
+define_colorspace!(P3, r, g, b);
+define_colorspace!(A98, r, g, b);
+define_colorspace!(ProPhoto, r, g, b);
+define_colorspace!(Rec2020, r, g,b);
+define_colorspace!(LAB, l, a, b);
+define_colorspace!(OKLAB, l, a, b);
+define_colorspace!(XYZd50, x, y, z);
+define_colorspace!(XYZd65, x, y, z);
+define_colorspace!(LCH, l, c, h);
+define_colorspace!(OKLCH, l, c, h);
+define_colorspace!(HSL, h, s, l);
+define_colorspace!(HWB, h, w, b);
+
+macro_rules! via {
+  ($t: ident -> $u: ident -> $v: ident) => {
+    impl From<$t> for $v {
+      #[inline]
+      fn from(t: $t) -> $v {
+        let xyz: $u = t.into();
+        xyz.into()
+      }
+    }
+
+    impl From<$v> for $t {
+      #[inline]
+      fn from(t: $v) -> $t {
+        let xyz: $u = t.into();
+        xyz.into()
+      }
+    }
+  };
+}
+
 #[inline]
-fn lch_to_lab(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
+fn rectangular_to_polar(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
+  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L375
+  let mut h = b.atan2(a) * 180.0 / PI;
+  if h < 0.0 {
+    h += 360.0;
+  }
+  let c = (a.powi(2) + b.powi(2)).sqrt();
+  h = h % 360.0;
+  (l, c, h)
+}
+
+#[inline]
+fn polar_to_rectangular(l: f32, c: f32, h: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L385
   let a = c * (h * PI / 180.0).cos();
   let b = c * (h * PI / 180.0).sin();
   (l, a, b)
 }
 
+impl From<LCH> for LAB {
+  fn from(lch: LCH) -> LAB {
+    let lch = lch.resolve_missing();
+    let (l, a, b) = polar_to_rectangular(lch.l, lch.c, lch.h);
+    LAB { l, a, b, alpha: lch.alpha }
+  }
+}
+
+impl From<LAB> for LCH {
+  fn from(lab: LAB) -> LCH {
+    let lab = lab.resolve_missing();
+    let (l, c, h) = rectangular_to_polar(lab.l, lab.a, lab.b);
+    LCH { l, c, h, alpha: lab.alpha }
+  }
+}
+
+impl From<OKLCH> for OKLAB {
+  fn from(lch: OKLCH) -> OKLAB {
+    let lch = lch.resolve_missing();
+    let (l, a, b) = polar_to_rectangular(lch.l, lch.c, lch.h);
+    OKLAB { l, a, b, alpha: lch.alpha }
+  }
+}
+
+impl From<OKLAB> for OKLCH {
+  fn from(lab: OKLAB) -> OKLCH {
+    let lab = lab.resolve_missing();
+    let (l, c, h) = rectangular_to_polar(lab.l, lab.a, lab.b);
+    OKLCH { l, c, h, alpha: lab.alpha }
+  }
+}
+
 const D50: &[f32] = &[0.3457 / 0.3585, 1.00000, (1.0 - 0.3457 - 0.3585) / 0.3585];
 
-fn lab_to_xyz_d50(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
-  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L352
-  const K: f32 = 24389.0 / 27.0;   // 29^3/3^3
-  const E: f32 = 216.0 / 24389.0;  // 6^3/29^3
+impl From<LAB> for XYZd50 {
+  fn from(lab: LAB) -> XYZd50 {
+    // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L352
+    const K: f32 = 24389.0 / 27.0;   // 29^3/3^3
+    const E: f32 = 216.0 / 24389.0;  // 6^3/29^3
 
-  // compute f, starting with the luminance-related term
-  let f1 = (l + 16.0) / 116.0;
-  let f0 = a / 500.0 + f1;
-  let f2 = f1 - b / 200.0;
+    let lab = lab.resolve_missing();
+    let l = lab.l * 100.0;
+    let a = lab.a;
+    let b = lab.b;
 
-  // compute xyz
-  let x = if f0.powi(3) > E {
-    f0.powi(3)
-  } else {
-    (116.0 * f0 - 16.0) / K
-  };
+    // compute f, starting with the luminance-related term
+    let f1 = (l + 16.0) / 116.0;
+    let f0 = a / 500.0 + f1;
+    let f2 = f1 - b / 200.0;
 
-  let y = if l > K * E {
-    ((l + 16.0) / 116.0).powi(3)
-  } else {
-    l / K
-  };
+    // compute xyz
+    let x = if f0.powi(3) > E {
+      f0.powi(3)
+    } else {
+      (116.0 * f0 - 16.0) / K
+    };
 
-  let z = if f2.powi(3) > E {
-    f2.powi(3)
-  } else {
-    (116.0 * f2 - 16.0) / K
-  };
+    let y = if l > K * E {
+      ((l + 16.0) / 116.0).powi(3)
+    } else {
+      l / K
+    };
 
-  // Compute XYZ by scaling xyz by reference white
-  let x = x * D50[0];
-  let y = y * D50[1];
-  let z = z * D50[2];
-  (x, y, z)
+    let z = if f2.powi(3) > E {
+      f2.powi(3)
+    } else {
+      (116.0 * f2 - 16.0) / K
+    };
+
+    // Compute XYZ by scaling xyz by reference white
+    XYZd50 {
+      x: x * D50[0],
+      y: y * D50[1],
+      z: z * D50[2],
+      alpha: lab.alpha
+    }
+  }
 }
 
-fn d50_to_d65(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
-  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L319
-  const MATRIX: &[f32] = &[
-    0.9554734527042182,    -0.023098536874261423, 0.0632593086610217,
-    -0.028369706963208136,  1.0099954580058226,   0.021041398966943008,
-    0.012314001688319899,  -0.020507696433477912, 1.3303659366080753
-  ];
+impl From<XYZd50> for XYZd65 {
+  fn from(xyz: XYZd50) -> XYZd65 {
+    // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L319
+    const MATRIX: &[f32] = &[
+      0.9554734527042182,    -0.023098536874261423, 0.0632593086610217,
+      -0.028369706963208136,  1.0099954580058226,   0.021041398966943008,
+      0.012314001688319899,  -0.020507696433477912, 1.3303659366080753
+    ];
 
-  multiply_matrix(MATRIX, x, y, z)
+    let xyz = xyz.resolve_missing();
+    let (x, y, z) = multiply_matrix(MATRIX, xyz.x, xyz.y, xyz.z);
+    XYZd65 { x, y, z, alpha: xyz.alpha }
+  }
 }
 
-fn d65_to_d50(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
-  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L319
-  const MATRIX: &[f32] = &[
-     1.0479298208405488,    0.022946793341019088,  -0.05019222954313557,
-     0.029627815688159344,  0.990434484573249,     -0.01707382502938514,
-    -0.009243058152591178,  0.015055144896577895,   0.7518742899580008
-  ];
+impl From<XYZd65> for XYZd50 {
+  fn from(xyz: XYZd65) -> XYZd50 {
+    // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L319
+    const MATRIX: &[f32] = &[
+       1.0479298208405488,    0.022946793341019088,  -0.05019222954313557,
+       0.029627815688159344,  0.990434484573249,     -0.01707382502938514,
+      -0.009243058152591178,  0.015055144896577895,   0.7518742899580008
+    ];
 
-  multiply_matrix(MATRIX, x, y, z)
+    let xyz = xyz.resolve_missing();
+    let (x, y, z) = multiply_matrix(MATRIX, xyz.x, xyz.y, xyz.z);
+    XYZd50 { x, y, z, alpha: xyz.alpha }
+  }
 }
 
-#[inline]
-fn xyz_d65_to_lin_srgb(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
-  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L62
-  const MATRIX: &[f32] = &[
-     3.2409699419045226,  -1.537383177570094,   -0.4986107602930034,
-    -0.9692436362808796,   1.8759675015077202,   0.04155505740717559,
-     0.05563007969699366, -0.20397695888897652,  1.0569715142428786
-  ];
+impl From<XYZd65> for SRGBLinear {
+  fn from(xyz: XYZd65) -> SRGBLinear {
+    // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L62
+    const MATRIX: &[f32] = &[
+      3.2409699419045226,  -1.537383177570094,   -0.4986107602930034,
+      -0.9692436362808796,   1.8759675015077202,   0.04155505740717559,
+      0.05563007969699366, -0.20397695888897652,  1.0569715142428786
+    ];
 
-  multiply_matrix(MATRIX, x, y, z)
-}
-
-fn xyz_d65_to_srgb(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
-  let (r, g, b) = xyz_d65_to_lin_srgb(x, y, z);
-  gam_srgb(r, g, b)
+    let xyz = xyz.resolve_missing();
+    let (r, g, b) = multiply_matrix(MATRIX, xyz.x, xyz.y, xyz.z);
+    SRGBLinear { r, g, b, alpha: xyz.alpha }
+  }
 }
 
 #[inline]
@@ -672,7 +887,15 @@ fn multiply_matrix(m: &[f32], x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   (a, b, c)
 }
 
-#[inline]
+impl From<SRGBLinear> for SRGB {
+  #[inline]
+  fn from(rgb: SRGBLinear) -> SRGB {
+    let rgb = rgb.resolve_missing();
+    let (r, g, b) = gam_srgb(rgb.r, rgb.g, rgb.b);
+    SRGB { r, g, b, alpha: rgb.alpha }
+  }
+}
+
 fn gam_srgb(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L31
   // convert an array of linear-light sRGB values in the range 0.0-1.0
@@ -681,78 +904,114 @@ fn gam_srgb(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   // Extended transfer function:
   // For negative values, linear portion extends on reflection
   // of axis, then uses reflected pow below that
+
+  #[inline]
+  fn gam_srgb_component(c: f32) -> f32 {
+    let abs = c.abs();
+    if abs > 0.0031308 {
+      let sign = if c < 0.0 { -1.0 } else { 1.0 };
+      return sign * (1.055 * abs.powf(1.0 / 2.4) - 0.055);
+    }
+
+    return 12.92 * c;
+  }
+
   let r = gam_srgb_component(r);
   let g = gam_srgb_component(g);
   let b = gam_srgb_component(b);
   (r, g, b)
 }
 
-#[inline]
-fn gam_srgb_component(c: f32) -> f32 {
-  let abs = c.abs();
-  if abs > 0.0031308 {
-    let sign = if c < 0.0 { -1.0 } else { 1.0 };
-    return sign * (1.055 * abs.powf(1.0 / 2.4) - 0.055);
+impl From<OKLAB> for XYZd65 {
+  fn from(lab: OKLAB) -> XYZd65 {
+    // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L418
+    const LMS_TO_XYZ: &[f32] = &[
+      1.2268798733741557,  -0.5578149965554813,   0.28139105017721583,
+      -0.04057576262431372,  1.1122868293970594,  -0.07171106666151701,
+      -0.07637294974672142, -0.4214933239627914,   1.5869240244272418
+    ];
+
+    const OKLAB_TO_LMS: &[f32] = &[
+      0.99999999845051981432,  0.39633779217376785678,   0.21580375806075880339,
+      1.0000000088817607767,  -0.1055613423236563494,   -0.063854174771705903402,
+      1.0000000546724109177,  -0.089484182094965759684, -1.2914855378640917399
+    ];
+
+    let lab = lab.resolve_missing();
+    let (a, b, c) = multiply_matrix(OKLAB_TO_LMS, lab.l, lab.a, lab.b);
+    let (x, y, z) = multiply_matrix(LMS_TO_XYZ, a.powi(3), b.powi(3), c.powi(3));
+    XYZd65 { x, y, z, alpha: lab.alpha }
   }
-
-  return 12.92 * c;
 }
 
-fn oklab_to_xyz_d65(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
-  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L418
-  const LMS_TO_XYZ: &[f32] = &[
-     1.2268798733741557,  -0.5578149965554813,   0.28139105017721583,
-    -0.04057576262431372,  1.1122868293970594,  -0.07171106666151701,
-    -0.07637294974672142, -0.4214933239627914,   1.5869240244272418
-  ];
+impl From<XYZd65> for OKLAB {
+  fn from(xyz: XYZd65) -> OKLAB {
+    // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L400
+    const XYZ_TO_LMS: &[f32] = &[
+      0.8190224432164319,    0.3619062562801221,    -0.12887378261216414,
+      0.0329836671980271,    0.9292868468965546,     0.03614466816999844,
+      0.048177199566046255,  0.26423952494422764,    0.6335478258136937
+    ];
 
-  const OKLAB_TO_LMS: &[f32] = &[
-    0.99999999845051981432,  0.39633779217376785678,   0.21580375806075880339,
-    1.0000000088817607767,  -0.1055613423236563494,   -0.063854174771705903402,
-    1.0000000546724109177,  -0.089484182094965759684, -1.2914855378640917399
-  ];
+    const LMS_TO_OKLAB: &[f32] = &[
+      0.2104542553,   0.7936177850,  -0.0040720468,
+      1.9779984951,  -2.4285922050,   0.4505937099,
+      0.0259040371,   0.7827717662,  -0.8086757660
+    ];
 
-  let (a, b, c) = multiply_matrix(OKLAB_TO_LMS, l, a, b);
-  multiply_matrix(LMS_TO_XYZ, a.powi(3), b.powi(3), c.powi(3))
+    let xyz = xyz.resolve_missing();
+    let (a, b, c) = multiply_matrix(XYZ_TO_LMS, xyz.x, xyz.y, xyz.z);
+    let (l, a, b) = multiply_matrix(LMS_TO_OKLAB, a.cbrt(), b.cbrt(), c.cbrt());
+    OKLAB { l, a, b, alpha: xyz.alpha }
+  }
 }
 
-fn xyz_d50_to_lab(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
-  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L332
-  // Assuming XYZ is relative to D50, convert to CIE Lab
-  // from CIE standard, which now defines these as a rational fraction
-  const E: f32 = 216.0 / 24389.0;  // 6^3/29^3
-  const K: f32 = 24389.0 / 27.0;   // 29^3/3^3
+impl From<XYZd50> for LAB {
+  fn from(xyz: XYZd50) -> LAB {
+    // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L332
+    // Assuming XYZ is relative to D50, convert to CIE LAB
+    // from CIE standard, which now defines these as a rational fraction
+    const E: f32 = 216.0 / 24389.0;  // 6^3/29^3
+    const K: f32 = 24389.0 / 27.0;   // 29^3/3^3
 
-  // compute xyz, which is XYZ scaled relative to reference white
-  // var xyz = XYZ.map((value, i) => value / D50[i]);
-  let x = x / D50[0];
-  let y = y / D50[1];
-  let z = z / D50[2];
+    // compute xyz, which is XYZ scaled relative to reference white
+    let xyz = xyz.resolve_missing();
+    let x = xyz.x / D50[0];
+    let y = xyz.y / D50[1];
+    let z = xyz.z / D50[2];
 
-  // now compute f
-  // var f = xyz.map(value => value > ε ? Math.cbrt(value) : (κ * value + 16)/116);
-  let f0 = if x > E {
-    x.cbrt()
-  } else {
-    (K * x + 16.0) / 116.0
-  };
+    // now compute f
+    let f0 = if x > E {
+      x.cbrt()
+    } else {
+      (K * x + 16.0) / 116.0
+    };
 
-  let f1 = if y > E {
-    y.cbrt()
-  } else {
-    (K * y + 16.0) / 116.0
-  };
+    let f1 = if y > E {
+      y.cbrt()
+    } else {
+      (K * y + 16.0) / 116.0
+    };
 
-  let f2 = if z > E {
-    z.cbrt()
-  } else {
-    (K * z + 16.0) / 116.0
-  };
+    let f2 = if z > E {
+      z.cbrt()
+    } else {
+      (K * z + 16.0) / 116.0
+    };
 
-  let l = ((116.0 * f1) - 16.0) / 100.0;
-  let a = 500.0 * (f0 - f1);
-  let b = 200.0 * (f1 - f2);
-  (l, a, b)
+    let l = ((116.0 * f1) - 16.0) / 100.0;
+    let a = 500.0 * (f0 - f1);
+    let b = 200.0 * (f1 - f2);
+    LAB { l, a, b, alpha: xyz.alpha }
+  }
+}
+
+impl From<SRGB> for SRGBLinear {
+  fn from(rgb: SRGB) -> SRGBLinear {
+    let rgb = rgb.resolve_missing();
+    let (r, g, b) = lin_srgb(rgb.r, rgb.g, rgb.b);
+    SRGBLinear { r, g, b, alpha: rgb.alpha }
+  }
 }
 
 fn lin_srgb(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
@@ -763,269 +1022,1181 @@ fn lin_srgb(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
   // Extended transfer function:
   // for negative values, linear portion is extended on reflection of axis,
   // then reflected power function is used.
+
+  #[inline]
+  fn lin_srgb_component(c: f32) -> f32 {
+    let abs = c.abs();
+    if abs < 0.04045 {
+      return c / 12.92;
+    }
+    
+    let sign = if c < 0.0 { -1.0 } else { 1.0 };
+    sign * ((abs + 0.055) / 1.055).powf(2.4)
+  }
+
   let r = lin_srgb_component(r);
   let g = lin_srgb_component(g);
   let b = lin_srgb_component(b);
   (r, g, b)
 }
 
-#[inline]
-fn lin_srgb_component(c: f32) -> f32 {
-  let abs = c.abs();
-  if abs < 0.04045 {
-    return c / 12.92;
+impl From<SRGBLinear> for XYZd65 {
+  fn from(rgb: SRGBLinear) -> XYZd65 {
+    // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L50
+    // convert an array of linear-light sRGB values to CIE XYZ
+    // using sRGB's own white, D65 (no chromatic adaptation)
+    const MATRIX: &[f32] = &[
+      0.41239079926595934, 0.357584339383878,   0.1804807884018343,
+      0.21263900587151027, 0.715168678767756,   0.07219231536073371,
+      0.01933081871559182, 0.11919477979462598, 0.9505321522496607
+    ];
+
+    let rgb = rgb.resolve_missing();
+    let (x, y, z) = multiply_matrix(MATRIX, rgb.r, rgb.g, rgb.b);
+    XYZd65 { x, y, z, alpha: rgb.alpha }
   }
-  
-  let sign = if c < 0.0 { -1.0 } else { 1.0 };
-  sign * ((abs + 0.055) / 1.055).powf(2.4)
 }
 
-fn lin_srgb_to_xyz_d65(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
-  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L50
-  // convert an array of linear-light sRGB values to CIE XYZ
-  // using sRGB's own white, D65 (no chromatic adaptation)
-  const MATRIX: &[f32] = &[
-    0.41239079926595934, 0.357584339383878,   0.1804807884018343,
-    0.21263900587151027, 0.715168678767756,   0.07219231536073371,
-    0.01933081871559182, 0.11919477979462598, 0.9505321522496607
-  ];
+impl From<XYZd65> for P3 {
+  fn from(xyz: XYZd65) -> P3 {
+    // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L105
+    const MATRIX: &[f32] = &[
+      2.493496911941425,   -0.9313836179191239, -0.40271078445071684,
+      -0.8294889695615747,   1.7626640603183463,  0.023624685841943577,
+      0.03584583024378447, -0.07617238926804182, 0.9568845240076872
+    ];
 
-  multiply_matrix(MATRIX, r, g, b)
-}
-
-fn srgb_to_xyz_d65(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
-  // convert gamma-corrected sRGB values in the 0.0 to 1.0 range
-  // to linear-light sRGB, then to CIE XYZ.
-  let (r, g, b) = lin_srgb(r, g, b);
-  lin_srgb_to_xyz_d65(r, g, b)
-}
-
-#[inline]
-fn xyz_d65_to_lab(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
-  let (x, y, z) = d65_to_d50(x, y, z);
-  xyz_d50_to_lab(x, y, z)
-}
-
-#[inline]
-fn xyz_d65_to_lin_p3(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
-  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L105
-  const MATRIX: &[f32] = &[
-     2.493496911941425,   -0.9313836179191239, -0.40271078445071684,
-    -0.8294889695615747,   1.7626640603183463,  0.023624685841943577,
-     0.03584583024378447, -0.07617238926804182, 0.9568845240076872
-  ];
-
-  multiply_matrix(MATRIX, x, y, z)
-}
-
-#[inline]
-fn xyz_d65_to_p3(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
-  let (r, g, b) = xyz_d65_to_lin_p3(x, y, z);
-  gam_srgb(r, g, b) // same as sRGB
-}
-
-#[inline]
-fn lin_p3_to_xyz_d65(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
-  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L91
-  // convert linear-light display-p3 values to CIE XYZ
-  // using D65 (no chromatic adaptation)
-  // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
-  const MATRIX: &[f32] = &[
-    0.4865709486482162, 0.26566769316909306, 0.1982172852343625,
-    0.2289745640697488, 0.6917385218365064,  0.079286914093745,
-    0.0000000000000000, 0.04511338185890264, 1.043944368900976,
-  ];
-
-  multiply_matrix(MATRIX, r, g, b)
-}
-
-#[inline]
-fn lin_a98rgb(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
-  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L181
-  // convert an array of a98-rgb values in the range 0.0 - 1.0
-  // to linear light (un-companded) form.
-  // negative values are also now accepted
-  let r = lin_a98rgb_component(r);
-  let g = lin_a98rgb_component(g);
-  let b = lin_a98rgb_component(b);
-  (r, g, b)
-}
-
-#[inline]
-fn lin_a98rgb_component(c: f32) -> f32 {
-  let sign = if c < 0.0 { -1.0 } else { 1.0 };
-  sign * c.abs().powf(563.0 / 256.0)
-}
-
-#[inline]
-fn lin_a98rgb_to_xyz(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
-  // convert an array of linear-light a98-rgb values to CIE XYZ
-  // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
-  // has greater numerical precision than section 4.3.5.3 of
-  // https://www.adobe.com/digitalimag/pdfs/AdobeRGB1998.pdf
-  // but the values below were calculated from first principles
-  // from the chromaticity coordinates of R G B W
-  // see matrixmaker.html
-  const MATRIX: &[f32] = &[
-    0.5766690429101305,   0.1855582379065463,   0.1882286462349947,
-    0.29734497525053605,  0.6273635662554661,   0.07529145849399788,
-    0.02703136138641234,  0.07068885253582723,  0.9913375368376388
-  ];
-
-  multiply_matrix(MATRIX, r, g, b)
-}
-
-#[inline]
-fn lin_prophoto(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
-  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L118
-  // convert an array of prophoto-rgb values
-  // where in-gamut colors are in the range [0.0 - 1.0]
-  // to linear light (un-companded) form.
-  // Transfer curve is gamma 1.8 with a small linear portion
-  // Extended transfer function
-  let r = lin_prophoto_component(r);
-  let g = lin_prophoto_component(g);
-  let b = lin_prophoto_component(b);
-  (r, g, b)
-}
-
-#[inline]
-fn lin_prophoto_component(c: f32) -> f32 {
-  const ET2: f32 = 16.0 / 512.0;
-  let abs = c.abs();
-  if abs <= ET2 {
-    return c / 16.0;
+    let xyz = xyz.resolve_missing();
+    let (r, g, b) = multiply_matrix(MATRIX, xyz.x, xyz.y, xyz.z);
+    let (r, g, b) = gam_srgb(r, g, b); // same as sRGB
+    P3 { r, g, b, alpha: xyz.alpha }
   }
-
-  let sign = if c < 0.0 { -1.0 } else { 1.0 };
-  sign * c.powf(1.8)
 }
 
-#[inline]
-fn lin_prophoto_to_xyz_d50(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
-  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L155
-  // convert an array of linear-light prophoto-rgb values to CIE XYZ
-  // using  D50 (so no chromatic adaptation needed afterwards)
-  // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
-  const MATRIX: &[f32] = &[
-    0.7977604896723027,  0.13518583717574031,  0.0313493495815248,
-    0.2880711282292934,  0.7118432178101014,   0.00008565396060525902,
-    0.0,                 0.0,                  0.8251046025104601
-  ];
+impl From<P3> for XYZd65 {
+  fn from(p3: P3) -> XYZd65 {
+    // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L91
+    // convert linear-light display-p3 values to CIE XYZ
+    // using D65 (no chromatic adaptation)
+    // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+    const MATRIX: &[f32] = &[
+      0.4865709486482162, 0.26566769316909306, 0.1982172852343625,
+      0.2289745640697488, 0.6917385218365064,  0.079286914093745,
+      0.0000000000000000, 0.04511338185890264, 1.043944368900976,
+    ];
 
-  multiply_matrix(MATRIX, r, g, b)
-}
-
-#[inline]
-fn lin_rec2020(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
-  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L235
-  // convert an array of rec2020 RGB values in the range 0.0 - 1.0
-  // to linear light (un-companded) form.
-  // ITU-R BT.2020-2 p.4
-  let r = lin_rec2020_component(r);
-  let g = lin_rec2020_component(g);
-  let b = lin_rec2020_component(b);
-  (r, g, b)
-}
-
-#[inline]
-fn lin_rec2020_component(c: f32) -> f32 {
-  const A: f32 = 1.09929682680944;
-  const B: f32 = 0.018053968510807;
-
-  let abs = c.abs();
-  if abs < B * 4.5 {
-    return c / 4.5;
+    let p3 = p3.resolve_missing();
+    let (r, g, b) = lin_srgb(p3.r, p3.g, p3.b);
+    let (x, y, z) = multiply_matrix(MATRIX, r, g, b);
+    XYZd65 { x, y, z, alpha: p3.alpha }
   }
-
-  let sign = if c < 0.0 { -1.0 } else { 1.0 };
-  sign * ((abs + A - 1.0) / A).powf(1.0 / 0.45)
 }
 
-#[inline]
-fn lin_rec2020_to_xyz_d65(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
-  // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L276
-  // convert an array of linear-light rec2020 values to CIE XYZ
-  // using  D65 (no chromatic adaptation)
-  // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
-  const MATRIX: &[f32] = &[
-    0.6369580483012914, 0.14461690358620832,  0.1688809751641721,
-    0.2627002120112671, 0.6779980715188708,   0.05930171646986196,
-    0.000000000000000,  0.028072693049087428, 1.060985057710791
-  ];
+impl From<A98> for XYZd65 {
+  fn from(a98: A98) -> XYZd65 {
+    // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L181
+    #[inline]
+    fn lin_a98rgb_component(c: f32) -> f32 {
+      let sign = if c < 0.0 { -1.0 } else { 1.0 };
+      sign * c.abs().powf(563.0 / 256.0)
+    }
 
-  multiply_matrix(MATRIX, r, g, b)
+    // convert an array of a98-rgb values in the range 0.0 - 1.0
+    // to linear light (un-companded) form.
+    // negative values are also now accepted
+    let a98 = a98.resolve_missing();
+    let r = lin_a98rgb_component(a98.r);
+    let g = lin_a98rgb_component(a98.g);
+    let b = lin_a98rgb_component(a98.b);
+
+    // convert an array of linear-light a98-rgb values to CIE XYZ
+    // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+    // has greater numerical precision than section 4.3.5.3 of
+    // https://www.adobe.com/digitalimag/pdfs/AdobeRGB1998.pdf
+    // but the values below were calculated from first principles
+    // from the chromaticity coordinates of R G B W
+    // see matrixmaker.html
+    const MATRIX: &[f32] = &[
+      0.5766690429101305,   0.1855582379065463,   0.1882286462349947,
+      0.29734497525053605,  0.6273635662554661,   0.07529145849399788,
+      0.02703136138641234,  0.07068885253582723,  0.9913375368376388
+    ];
+
+    let (x, y, z) = multiply_matrix(MATRIX, r, g, b);
+    XYZd65 { x, y, z, alpha: a98.alpha }
+  }
 }
 
-impl LabColor {
-  pub fn to_xyza_d65(&self) -> (f32, f32, f32, f32) {
-    use LabColor::*;
-    match self {
-      Lab(l, a, b, alpha) => {
-        let (x, y, z) = lab_to_xyz_d50(*l * 100.0, *a, *b);
-        let (x, y, z) = d50_to_d65(x, y, z);
-        (x, y, z, *alpha)
+impl From<XYZd65> for A98 {
+  fn from(xyz: XYZd65) -> A98 {
+    // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L222
+    // convert XYZ to linear-light a98-rgb
+    const MATRIX: &[f32] = &[
+       2.0415879038107465,    -0.5650069742788596,   -0.34473135077832956,
+      -0.9692436362808795,     1.8759675015077202,    0.04155505740717557,
+       0.013444280632031142,  -0.11836239223101838,   1.0151749943912054
+    ];
+
+    #[inline]
+    fn gam_a98_component(c: f32) -> f32 {
+      // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L193
+      // convert linear-light a98-rgb  in the range 0.0-1.0
+      // to gamma corrected form
+      // negative values are also now accepted
+      let sign = if c < 0.0 { -1.0 } else { 1.0 };
+      sign * c.abs().powf(256.0 / 563.0)
+    }
+
+    let xyz = xyz.resolve_missing();
+    let (r, g, b) = multiply_matrix(MATRIX, xyz.x, xyz.y, xyz.z);
+    let r = gam_a98_component(r);
+    let g = gam_a98_component(g);
+    let b = gam_a98_component(b);
+    A98 { r, g, b, alpha: xyz.alpha }
+  }
+}
+
+impl From<ProPhoto> for XYZd50 {
+  fn from(prophoto: ProPhoto) -> XYZd50 {
+    // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L118
+    // convert an array of prophoto-rgb values
+    // where in-gamut colors are in the range [0.0 - 1.0]
+    // to linear light (un-companded) form.
+    // Transfer curve is gamma 1.8 with a small linear portion
+    // Extended transfer function
+
+    #[inline]
+    fn lin_prophoto_component(c: f32) -> f32 {
+      const ET2: f32 = 16.0 / 512.0;
+      let abs = c.abs();
+      if abs <= ET2 {
+        return c / 16.0;
       }
-      Lch(l, c, h, alpha) => {
-        let (l, a, b) = lch_to_lab(*l * 100.0, *c, *h);
-        let (x, y, z) = lab_to_xyz_d50(l, a, b);
-        let (x, y, z) = d50_to_d65(x, y, z);
-        (x, y, z, *alpha)
+
+      let sign = if c < 0.0 { -1.0 } else { 1.0 };
+      sign * c.powf(1.8)
+    }
+
+    let prophoto = prophoto.resolve_missing();
+    let r = lin_prophoto_component(prophoto.r);
+    let g = lin_prophoto_component(prophoto.g);
+    let b = lin_prophoto_component(prophoto.b);
+
+    // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L155
+    // convert an array of linear-light prophoto-rgb values to CIE XYZ
+    // using  D50 (so no chromatic adaptation needed afterwards)
+    // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+    const MATRIX: &[f32] = &[
+      0.7977604896723027,  0.13518583717574031,  0.0313493495815248,
+      0.2880711282292934,  0.7118432178101014,   0.00008565396060525902,
+      0.0,                 0.0,                  0.8251046025104601
+    ];
+
+    let (x, y, z) = multiply_matrix(MATRIX, r, g, b);
+    XYZd50 { x, y, z, alpha: prophoto.alpha }
+  }
+}
+
+impl From<XYZd50> for ProPhoto {
+  fn from(xyz: XYZd50) -> ProPhoto {
+    // convert XYZ to linear-light prophoto-rgb
+    const MATRIX: &[f32] = &[
+       1.3457989731028281,  -0.25558010007997534,  -0.05110628506753401,
+      -0.5446224939028347,   1.5082327413132781,    0.02053603239147973,
+       0.0,                  0.0,                   1.2119675456389454
+    ];
+
+    #[inline]
+    fn gam_prophoto_component(c: f32) -> f32 {
+      // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L137
+      // convert linear-light prophoto-rgb  in the range 0.0-1.0
+      // to gamma corrected form
+      // Transfer curve is gamma 1.8 with a small linear portion
+      // TODO for negative values, extend linear portion on reflection of axis, then add pow below that
+      const ET: f32 = 1.0 / 512.0;
+      let abs = c.abs();
+      if abs >= ET {
+        let sign = if c < 0.0 { -1.0 } else { 1.0 };
+        return sign * abs.powf(1.0 / 1.8);
       }
-      Oklab(l, a, b, alpha) => {
-        let  (x, y, z) = oklab_to_xyz_d65(*l, *a, *b);
-        (x, y, z, *alpha)
+
+      16.0 * c
+    }
+
+    let xyz = xyz.resolve_missing();
+    let (r, g, b) = multiply_matrix(MATRIX, xyz.x, xyz.y, xyz.z);
+    let r = gam_prophoto_component(r);
+    let g = gam_prophoto_component(g);
+    let b = gam_prophoto_component(b);
+    ProPhoto { r, g, b, alpha: xyz.alpha }
+  }
+}
+
+impl From<Rec2020> for XYZd65 {
+  fn from(rec2020: Rec2020) -> XYZd65 {
+    // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L235
+    // convert an array of rec2020 RGB values in the range 0.0 - 1.0
+    // to linear light (un-companded) form.
+    // ITU-R BT.2020-2 p.4
+
+    #[inline]
+    fn lin_rec2020_component(c: f32) -> f32 {
+      const A: f32 = 1.09929682680944;
+      const B: f32 = 0.018053968510807;
+
+      let abs = c.abs();
+      if abs < B * 4.5 {
+        return c / 4.5;
       }
-      Oklch(l, c, h, alpha) => {
-        let (l, a, b) = lch_to_lab(*l, *c, *h);
-        let (x, y, z) = oklab_to_xyz_d65(l, a, b);
-        (x, y, z, *alpha)
+
+      let sign = if c < 0.0 { -1.0 } else { 1.0 };
+      sign * ((abs + A - 1.0) / A).powf(1.0 / 0.45)
+    }
+
+    let rec2020 = rec2020.resolve_missing();
+    let r = lin_rec2020_component(rec2020.r);
+    let g = lin_rec2020_component(rec2020.g);
+    let b = lin_rec2020_component(rec2020.b);
+
+    // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L276
+    // convert an array of linear-light rec2020 values to CIE XYZ
+    // using  D65 (no chromatic adaptation)
+    // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+    const MATRIX: &[f32] = &[
+      0.6369580483012914, 0.14461690358620832,  0.1688809751641721,
+      0.2627002120112671, 0.6779980715188708,   0.05930171646986196,
+      0.000000000000000,  0.028072693049087428, 1.060985057710791
+    ];
+
+    let (x, y, z) = multiply_matrix(MATRIX, r, g, b);
+    XYZd65 { x, y, z, alpha: rec2020.alpha }
+  }
+}
+
+impl From<XYZd65> for Rec2020 {
+  fn from(xyz: XYZd65) -> Rec2020 {
+    // convert XYZ to linear-light rec2020
+    const MATRIX: &[f32] = &[
+       1.7166511879712674,   -0.35567078377639233, -0.25336628137365974,
+      -0.6666843518324892,    1.6164812366349395,   0.01576854581391113,
+       0.017639857445310783, -0.042770613257808524, 0.9421031212354738
+    ];
+
+    #[inline]
+    fn gam_rec2020_component(c: f32) -> f32 {
+      // convert linear-light rec2020 RGB  in the range 0.0-1.0
+      // to gamma corrected form
+      // ITU-R BT.2020-2 p.4
+
+      const A: f32 = 1.09929682680944;
+      const B: f32 = 0.018053968510807;
+
+      let abs = c.abs();
+      if abs > B {
+        let sign = if c < 0.0 { -1.0 } else { 1.0 };
+        return sign * (A * abs.powf(0.45) - (A - 1.0));
+      }
+
+      4.5 * c
+    }
+
+    let xyz = xyz.resolve_missing();
+    let (r, g, b) = multiply_matrix(MATRIX, xyz.x, xyz.y, xyz.z);
+    let r = gam_rec2020_component(r);
+    let g = gam_rec2020_component(g);
+    let b = gam_rec2020_component(b);
+    Rec2020 { r, g, b, alpha: xyz.alpha }
+  }
+}
+
+impl From<SRGB> for HSL {
+  fn from(rgb: SRGB) -> HSL {
+    // https://drafts.csswg.org/css-color/#rgb-to-hsl
+    let rgb = rgb.resolve();
+    let r = rgb.r;
+    let g = rgb.g;
+    let b = rgb.b;
+    let max = r.max(g).max(b);
+    let min = r.min(g).min(b);
+    let mut h = f32::NAN;
+    let mut s: f32 = 0.0;
+    let l = (min + max) / 2.0;
+    let d = max - min;
+
+    if d != 0.0 {
+      s = if l == 0.0 || l == 1.0 {
+        0.0
+      } else {
+        (max - l) / l.min(1.0 - l)
+      };
+
+      if max == r {
+        h = (g - b) / d + (if g < b { 6.0 } else { 0.0 });
+      } else if max == g {
+        h = (b - r) / d + 2.0;
+      } else if max == b {
+        h = (r - g) / d + 4.0;
+      }
+
+      h = h * 60.0;
+    }
+
+    HSL { h, s, l, alpha: rgb.alpha }
+  }
+}
+
+impl From<HSL> for SRGB {
+  fn from(hsl: HSL) -> SRGB {
+    // https://drafts.csswg.org/css-color/#hsl-to-rgb
+    let hsl = hsl.resolve_missing();
+    let mut h = hsl.h % 360.0;
+    if h < 0.0 {
+      h += 360.0;
+    }
+
+    #[inline]
+    fn hue_to_rgb(n: f32, h: f32, s: f32, l: f32) -> f32 {
+      let k = (n + h / 30.0) % 12.0;
+      let a = s * l.min(1.0 - l);
+      l - a * (k - 3.0).min(9.0 - k).clamp(-1.0, 1.0)
+    }
+
+    let r = hue_to_rgb(0.0, h, hsl.s, hsl.l);
+    let g = hue_to_rgb(8.0, h, hsl.s, hsl.l);
+    let b = hue_to_rgb(4.0, h, hsl.s, hsl.l);
+    SRGB { r, g, b, alpha: hsl.alpha }
+  }
+}
+
+impl From<SRGB> for HWB {
+  fn from(rgb: SRGB) -> HWB {
+    let rgb = rgb.resolve();
+    let hsl = HSL::from(rgb);    
+    let r = rgb.r;
+    let g = rgb.g;
+    let b = rgb.b;
+    let w = r.min(g).min(b);
+    let b = 1.0 - r.max(g).max(b);
+    HWB { h: hsl.h, w, b, alpha: rgb.alpha } 
+  }
+}
+
+impl From<HWB> for SRGB {
+  fn from(hwb: HWB) -> SRGB {
+    // https://drafts.csswg.org/css-color/#hwb-to-rgb
+    let hwb = hwb.resolve_missing();
+    let h = hwb.h;
+    let w = hwb.w;
+    let b = hwb.b;
+
+    if w + b >= 1.0 {
+      let gray = w / (w + b);
+      return SRGB { r: gray, g: gray, b: gray, alpha: hwb.alpha }
+    }
+
+    let mut rgba = SRGB::from(HSL { h, s: 1.0, l: 0.5, alpha: hwb.alpha });
+    let x = 1.0 - w - b;
+    rgba.r = rgba.r * x + w;
+    rgba.g = rgba.g * x + w;
+    rgba.b = rgba.b * x + w;
+    rgba
+  }
+}
+
+impl From<RGBA> for SRGB {
+  fn from(rgb: RGBA) -> SRGB {
+    SRGB {
+      r: rgb.red_f32(),
+      g: rgb.green_f32(),
+      b: rgb.blue_f32(),
+      alpha: rgb.alpha_f32()
+    }
+  }
+}
+
+impl From<SRGB> for RGBA {
+  fn from(rgb: SRGB) -> RGBA {
+    let rgb = rgb.resolve();
+    RGBA::from_floats(rgb.r, rgb.g, rgb.b, rgb.alpha)
+  }
+}
+
+// Once Rust specialization is stable, this could be simplified.
+via!(LAB -> XYZd50 -> XYZd65);
+via!(ProPhoto -> XYZd50 -> XYZd65);
+via!(OKLCH -> OKLAB -> XYZd65);
+
+via!(LAB -> XYZd65 -> OKLAB);
+via!(LAB -> XYZd65 -> OKLCH);
+via!(LAB -> XYZd65 -> SRGB);
+via!(LAB -> XYZd65 -> SRGBLinear);
+via!(LAB -> XYZd65 -> P3);
+via!(LAB -> XYZd65 -> A98);
+via!(LAB -> XYZd65 -> ProPhoto);
+via!(LAB -> XYZd65 -> Rec2020);
+via!(LAB -> XYZd65 -> HSL);
+via!(LAB -> XYZd65 -> HWB);
+
+via!(LCH -> LAB -> XYZd65);
+via!(LCH -> XYZd65 -> OKLAB);
+via!(LCH -> XYZd65 -> OKLCH);
+via!(LCH -> XYZd65 -> SRGB);
+via!(LCH -> XYZd65 -> SRGBLinear);
+via!(LCH -> XYZd65 -> P3);
+via!(LCH -> XYZd65 -> A98);
+via!(LCH -> XYZd65 -> ProPhoto);
+via!(LCH -> XYZd65 -> Rec2020);
+via!(LCH -> XYZd65 -> XYZd50);
+via!(LCH -> XYZd65 -> HSL);
+via!(LCH -> XYZd65 -> HWB);
+
+via!(SRGB -> SRGBLinear -> XYZd65);
+via!(SRGB -> XYZd65 -> OKLAB);
+via!(SRGB -> XYZd65 -> OKLCH);
+via!(SRGB -> XYZd65 -> P3);
+via!(SRGB -> XYZd65 -> A98);
+via!(SRGB -> XYZd65 -> ProPhoto);
+via!(SRGB -> XYZd65 -> Rec2020);
+via!(SRGB -> XYZd65 -> XYZd50);
+
+via!(P3 -> XYZd65 -> SRGBLinear);
+via!(P3 -> XYZd65 -> OKLAB);
+via!(P3 -> XYZd65 -> OKLCH);
+via!(P3 -> XYZd65 -> A98);
+via!(P3 -> XYZd65 -> ProPhoto);
+via!(P3 -> XYZd65 -> Rec2020);
+via!(P3 -> XYZd65 -> XYZd50);
+via!(P3 -> XYZd65 -> HSL);
+via!(P3 -> XYZd65 -> HWB);
+
+via!(SRGBLinear -> XYZd65 -> OKLAB);
+via!(SRGBLinear -> XYZd65 -> OKLCH);
+via!(SRGBLinear -> XYZd65 -> A98);
+via!(SRGBLinear -> XYZd65 -> ProPhoto);
+via!(SRGBLinear -> XYZd65 -> Rec2020);
+via!(SRGBLinear -> XYZd65 -> XYZd50);
+via!(SRGBLinear -> XYZd65 -> HSL);
+via!(SRGBLinear -> XYZd65 -> HWB);
+
+via!(A98 -> XYZd65 -> OKLAB);
+via!(A98 -> XYZd65 -> OKLCH);
+via!(A98 -> XYZd65 -> ProPhoto);
+via!(A98 -> XYZd65 -> Rec2020);
+via!(A98 -> XYZd65 -> XYZd50);
+via!(A98 -> XYZd65 -> HSL);
+via!(A98 -> XYZd65 -> HWB);
+
+via!(ProPhoto -> XYZd65 -> OKLAB);
+via!(ProPhoto -> XYZd65 -> OKLCH);
+via!(ProPhoto -> XYZd65 -> Rec2020);
+via!(ProPhoto -> XYZd65 -> HSL);
+via!(ProPhoto -> XYZd65 -> HWB);
+
+via!(XYZd50 -> XYZd65 -> OKLAB);
+via!(XYZd50 -> XYZd65 -> OKLCH);
+via!(XYZd50 -> XYZd65 -> Rec2020);
+via!(XYZd50 -> XYZd65 -> HSL);
+via!(XYZd50 -> XYZd65 -> HWB);
+
+via!(Rec2020 -> XYZd65 -> OKLAB);
+via!(Rec2020 -> XYZd65 -> OKLCH);
+via!(Rec2020 -> XYZd65 -> HSL);
+via!(Rec2020 -> XYZd65 -> HWB);
+
+via!(HSL -> XYZd65 -> OKLAB);
+via!(HSL -> XYZd65 -> OKLCH);
+via!(HSL -> SRGB -> XYZd65);
+via!(HSL -> SRGB -> HWB);
+
+via!(HWB -> SRGB -> XYZd65);
+via!(HWB -> XYZd65 -> OKLAB);
+via!(HWB -> XYZd65 -> OKLCH);
+
+// RGBA is an 8-bit version. Convert to SRGB, which is a 
+// more accurate floating point representation for all operations.
+via!(RGBA -> SRGB -> LAB);
+via!(RGBA -> SRGB -> LCH);
+via!(RGBA -> SRGB -> OKLAB);
+via!(RGBA -> SRGB -> OKLCH);
+via!(RGBA -> SRGB -> P3);
+via!(RGBA -> SRGB -> SRGBLinear);
+via!(RGBA -> SRGB -> A98);
+via!(RGBA -> SRGB -> ProPhoto);
+via!(RGBA -> SRGB -> XYZd50);
+via!(RGBA -> SRGB -> XYZd65);
+via!(RGBA -> SRGB -> Rec2020);
+via!(RGBA -> SRGB -> HSL);
+via!(RGBA -> SRGB -> HWB);
+
+macro_rules! color_space {
+  ($space: ty) => {
+    impl From<LABColor> for $space {
+      fn from(color: LABColor) -> $space {
+        use LABColor::*;
+    
+        match color {
+          LAB(v) => v.into(),
+          LCH(v) => v.into(),
+          OKLAB(v) => v.into(),
+          OKLCH(v) => v.into()
+        }
+      }
+    }
+
+    impl From<PredefinedColor> for $space {
+      fn from(color: PredefinedColor) -> $space {
+        use PredefinedColor::*;
+
+        match color {
+          SRGB(v) => v.into(),
+          SRGBLinear(v) => v.into(),
+          DisplayP3(v) => v.into(),
+          A98(v) => v.into(),
+          ProPhoto(v) => v.into(),
+          Rec2020(v) => v.into(),
+          XYZd50(v) => v.into(),
+          XYZd65(v) => v.into()
+        }
+      }
+    }
+
+    impl From<FloatColor> for $space {
+      fn from(color: FloatColor) -> $space {
+        use FloatColor::*;
+    
+        match color {
+          RGB(v) => v.into(),
+          HSL(v) => v.into(),
+          HWB(v) => v.into(),
+        }
+      }
+    }
+
+    impl From<&CssColor> for $space {
+      fn from(color: &CssColor) -> $space {
+        match color {
+          CssColor::RGBA(rgba) => (*rgba).into(),
+          CssColor::LAB(lab) => (**lab).into(),
+          CssColor::Predefined(predefined) => (**predefined).into(),
+          CssColor::Float(float) => (**float).into(),
+          CssColor::CurrentColor => unreachable!()
+        }
+      }
+    }
+  };
+}
+
+color_space!(LAB);
+color_space!(LCH);
+color_space!(OKLAB);
+color_space!(OKLCH);
+color_space!(SRGB);
+color_space!(SRGBLinear);
+color_space!(XYZd50);
+color_space!(XYZd65);
+color_space!(P3);
+color_space!(A98);
+color_space!(ProPhoto);
+color_space!(Rec2020);
+color_space!(HSL);
+color_space!(HWB);
+color_space!(RGBA);
+
+macro_rules! predefined {
+  ($key: ident, $t: ty) => {
+    impl From<$t> for PredefinedColor {
+      fn from(color: $t) -> PredefinedColor {
+        PredefinedColor::$key(color)
+      }
+    }
+
+    impl From<$t> for CssColor {
+      fn from(color: $t) -> CssColor {
+        CssColor::Predefined(Box::new(PredefinedColor::$key(color)))
       }
     }
   }
 }
 
-impl PredefinedColor {
-  pub fn to_xyza_d65(&self) -> (f32, f32, f32, f32) {
-    use PredefinedColor::*;
+predefined!(SRGBLinear, SRGBLinear);
+predefined!(XYZd50, XYZd50);
+predefined!(XYZd65, XYZd65);
+predefined!(DisplayP3, P3);
+predefined!(A98, A98);
+predefined!(ProPhoto, ProPhoto);
+predefined!(Rec2020, Rec2020);
+
+macro_rules! lab {
+  ($key: ident, $t: ty) => {
+    impl From<$t> for LABColor {
+      fn from(color: $t) -> LABColor {
+        LABColor::$key(color)
+      }
+    }
+
+    impl From<$t> for CssColor {
+      fn from(color: $t) -> CssColor {
+        CssColor::LAB(Box::new(LABColor::$key(color)))
+      }
+    }
+  }
+}
+
+lab!(LAB, LAB);
+lab!(LCH, LCH);
+lab!(OKLAB, OKLAB);
+lab!(OKLCH, OKLCH);
+
+macro_rules! rgb {
+  ($t: ty) => {
+    impl From<$t> for CssColor {
+      fn from(color: $t) -> CssColor {
+        // TODO: should we serialize as color(srgb, ...)?
+        // would be more precise than 8-bit color.
+        CssColor::RGBA(color.into())
+      }
+    }
+  }
+}
+
+rgb!(SRGB);
+rgb!(HSL);
+rgb!(HWB);
+
+impl From<RGBA> for CssColor {
+  fn from(color: RGBA) -> CssColor {
+    CssColor::RGBA(color)
+  }
+}
+
+pub trait ColorGamut {
+  fn in_gamut(&self) -> bool;
+  fn clip(&self) -> Self;
+}
+
+macro_rules! bounded_color_gamut {
+  ($t: ty, $a: ident, $b: ident, $c: ident) => {
+    impl ColorGamut for $t {
+      #[inline]
+      fn in_gamut(&self) -> bool {
+        self.$a >= 0.0 && self.$a <= 1.0 &&
+        self.$b >= 0.0 && self.$b <= 1.0 &&
+        self.$c >= 0.0 && self.$c <= 1.0
+      }
+
+      #[inline]
+      fn clip(&self) -> Self {
+        Self {
+          $a: self.$a.clamp(0.0, 1.0),
+          $b: self.$b.clamp(0.0, 1.0),
+          $c: self.$c.clamp(0.0, 1.0),
+          alpha: self.alpha.clamp(0.0, 1.0)
+        }
+      }
+    }
+  }
+}
+
+macro_rules! unbounded_color_gamut {
+  ($t: ty, $a: ident, $b: ident, $c: ident) => {
+    impl ColorGamut for $t {
+      #[inline]
+      fn in_gamut(&self) -> bool {
+        true
+      }
+
+      #[inline]
+      fn clip(&self) -> Self {
+        *self
+      }
+    }
+  }
+}
+
+macro_rules! hsl_hwb_color_gamut {
+  ($t: ty, $a: ident, $b: ident) => {
+    impl ColorGamut for $t {
+      #[inline]
+      fn in_gamut(&self) -> bool {
+        self.$a >= 0.0 && self.$a <= 1.0 &&
+        self.$b >= 0.0 && self.$b <= 1.0
+      }
+
+      #[inline]
+      fn clip(&self) -> Self {
+        Self {
+          h: self.h % 360.0,
+          $a: self.$a.clamp(0.0, 1.0),
+          $b: self.$b.clamp(0.0, 1.0),
+          alpha: self.alpha.clamp(0.0, 1.0)
+        }
+      }
+    }
+  }
+}
+
+bounded_color_gamut!(SRGB, r, g, b);
+bounded_color_gamut!(SRGBLinear, r, g, b);
+bounded_color_gamut!(P3, r, g, b);
+bounded_color_gamut!(A98, r, g, b);
+bounded_color_gamut!(ProPhoto, r, g, b);
+bounded_color_gamut!(Rec2020, r, g,b);
+unbounded_color_gamut!(LAB, l, a, b);
+unbounded_color_gamut!(OKLAB, l, a, b);
+unbounded_color_gamut!(XYZd50, x, y, z);
+unbounded_color_gamut!(XYZd65, x, y, z);
+unbounded_color_gamut!(LCH, l, c, h);
+unbounded_color_gamut!(OKLCH, l, c, h);
+hsl_hwb_color_gamut!(HSL, s, l);
+hsl_hwb_color_gamut!(HWB, w, b);
+
+fn delta_eok<T: Into<OKLAB>>(a: T, b: OKLCH) -> f32 {
+  // https://www.w3.org/TR/css-color-4/#color-difference-OK
+  let a: OKLAB = a.into();
+  let b: OKLAB = b.into();
+  let delta_l = a.l - b.l;
+  let delta_a = a.a - b.a;
+  let delta_b = a.b - b.b;
+  
+  (delta_l.powi(2) + delta_a.powi(2) + delta_b.powi(2)).sqrt()
+}
+
+fn map_gamut<T>(color: T) -> T
+where
+  T: Into<OKLCH> + ColorGamut + Into<OKLAB> + From<OKLCH> + Copy
+{
+  const JND: f32 = 0.02;
+  const EPSILON: f32 = 0.00001;
+
+  // https://www.w3.org/TR/css-color-4/#binsearch
+  let mut current: OKLCH = color.into();
+
+  // If lightness is >= 100%, return pure white.
+  if (current.l - 1.0).abs() < EPSILON || current.l > 1.0 {
+    return OKLCH { l: 1.0, c: 0.0, h: 0.0, alpha: current.alpha }.into();
+  }
+
+  // If lightness <= 0%, return pure black.
+  if current.l < EPSILON {
+    return OKLCH { l: 0.0, c: 0.0, h: 0.0, alpha: current.alpha }.into();
+  }
+
+  let mut min = 0.0;
+  let mut max = current.c;
+
+  while min < max {
+    let chroma = (min + max) / 2.0;
+    current.c = chroma;
+
+    let converted = T::from(current);
+    if converted.in_gamut() {
+      min = chroma;
+      continue
+    }
+
+    let clipped = converted.clip();
+    let delta_e = delta_eok(clipped, current);
+    if delta_e < JND {
+      return clipped;
+    }
+
+    max = chroma;
+  }
+
+  current.into()
+}
+
+fn parse_color_mix<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
+  input.expect_ident_matching("in")?;
+  let method = ColorSpace::parse(input)?;
+
+  let hue_method = if matches!(method, ColorSpace::Hsl | ColorSpace::Hwb | ColorSpace::LCH | ColorSpace::OKLCH) {
+    let hue_method = input.try_parse(HueInterpolationMethod::parse);
+    if hue_method.is_ok() {
+      input.expect_ident_matching("hue")?;
+    }
+    hue_method
+  } else {
+    Ok(HueInterpolationMethod::Shorter)
+  };
+
+  let hue_method = hue_method.unwrap_or(HueInterpolationMethod::Shorter);
+  input.expect_comma()?;
+
+  let first_percent = input.try_parse(|input| input.expect_percentage());
+  let first_color = CssColor::parse(input)?;
+  let first_percent = first_percent.or_else(|_| input.try_parse(|input| input.expect_percentage())).ok();
+  input.expect_comma()?;
+
+  let second_percent = input.try_parse(|input| input.expect_percentage());
+  let second_color = CssColor::parse(input)?;
+  let second_percent = second_percent.or_else(|_| input.try_parse(|input| input.expect_percentage())).ok();
+
+  // https://drafts.csswg.org/css-color-5/#color-mix-percent-norm
+  let (p1, p2) = if first_percent.is_none() && second_percent.is_none() {
+    (0.5, 0.5)
+  } else {
+    let p2 = second_percent.unwrap_or_else(|| 1.0 - first_percent.unwrap());
+    let p1 = first_percent.unwrap_or_else(|| 1.0 - second_percent.unwrap());
+    (p1, p2)
+  };
+
+  if (p1 + p2) == 0.0 {
+    return Err(input.new_custom_error(ParserError::InvalidValue));
+  }
+
+  Ok(match method {
+    ColorSpace::SRGB => first_color.interpolate::<SRGB>(p1, &second_color, p2, hue_method),
+    ColorSpace::SRGBLinear => first_color.interpolate::<SRGBLinear>(p1, &second_color, p2, hue_method),
+    ColorSpace::Hsl => first_color.interpolate::<HSL>(p1, &second_color, p2, hue_method),
+    ColorSpace::Hwb => first_color.interpolate::<HWB>(p1, &second_color, p2, hue_method),
+    ColorSpace::LAB => first_color.interpolate::<LAB>(p1, &second_color, p2, hue_method),
+    ColorSpace::LCH => first_color.interpolate::<LCH>(p1, &second_color, p2, hue_method),
+    ColorSpace::OKLAB => first_color.interpolate::<OKLAB>(p1, &second_color, p2, hue_method),
+    ColorSpace::OKLCH => first_color.interpolate::<OKLCH>(p1, &second_color, p2, hue_method),
+    ColorSpace::XYZ | ColorSpace::XYZd65 => first_color.interpolate::<XYZd65>(p1, &second_color, p2, hue_method),
+    ColorSpace::XYZd50 => first_color.interpolate::<XYZd50>(p1, &second_color, p2, hue_method),
+  })
+}
+
+impl CssColor {
+  fn get_type_id(&self) -> TypeId {
+    match self {
+      CssColor::RGBA(..) => TypeId::of::<SRGB>(),
+      CssColor::LAB(lab) => {
+        match &**lab {
+          LABColor::LAB(..) => TypeId::of::<LAB>(),
+          LABColor::LCH(..) => TypeId::of::<LCH>(),
+          LABColor::OKLAB(..) => TypeId::of::<OKLAB>(),
+          LABColor::OKLCH(..) => TypeId::of::<OKLCH>()
+        }
+      }
+      CssColor::Predefined(predefined) => {
+        match &**predefined {
+          PredefinedColor::SRGB(..) => TypeId::of::<SRGB>(),
+          PredefinedColor::SRGBLinear(..) => TypeId::of::<SRGBLinear>(),
+          PredefinedColor::DisplayP3(..) => TypeId::of::<P3>(),
+          PredefinedColor::A98(..) => TypeId::of::<A98>(),
+          PredefinedColor::ProPhoto(..) => TypeId::of::<ProPhoto>(),
+          PredefinedColor::Rec2020(..) => TypeId::of::<Rec2020>(),
+          PredefinedColor::XYZd50(..) => TypeId::of::<XYZd50>(),
+          PredefinedColor::XYZd65(..) => TypeId::of::<XYZd65>(),
+        }
+      }
+      CssColor::Float(float) => {
+        match &**float {
+          FloatColor::RGB(..) => TypeId::of::<SRGB>(),
+          FloatColor::HSL(..) => TypeId::of::<HSL>(),
+          FloatColor::HWB(..) => TypeId::of::<HWB>(),
+        }
+      }
+      _ => unreachable!()
+    }
+  }
+
+  pub fn interpolate<'a, T>(
+    &'a self,
+    mut p1: f32,
+    other: &'a CssColor,
+    mut p2: f32,
+    method: HueInterpolationMethod
+  ) -> CssColor
+    where
+      T: 'static + From<&'a CssColor> + Interpolate + Into<CssColor>
+        + Into<OKLCH> + ColorGamut + Into<OKLAB> + From<OKLCH> + Copy
+  {
+    let type_id = TypeId::of::<T>();
+    let converted_first = self.get_type_id() != type_id;
+    let converted_second = other.get_type_id() != type_id;
+
+    // https://drafts.csswg.org/css-color-5/#color-mix-result
+    let mut first_color = T::from(self);
+    let mut second_color = T::from(other);
+
+    if converted_first && !first_color.in_gamut() {
+      first_color = map_gamut(first_color);
+    }
+
+    if converted_second && !second_color.in_gamut() {
+      second_color = map_gamut(second_color);
+    }
+
+    // https://www.w3.org/TR/css-color-4/#powerless
+    if converted_first {
+      first_color.adjust_powerless_components();
+    }
+    
+    if converted_second {
+      second_color.adjust_powerless_components();
+    }
+
+    // https://drafts.csswg.org/css-color-4/#interpolation-missing
+    first_color.fill_missing_components(&second_color);
+    second_color.fill_missing_components(&first_color);
+
+    // https://www.w3.org/TR/css-color-4/#hue-interpolation
+    first_color.adjust_hue(&mut second_color, method);
+
+    // https://www.w3.org/TR/css-color-4/#interpolation-alpha
+    first_color.premultiply();
+    second_color.premultiply();
+
+    // https://drafts.csswg.org/css-color-5/#color-mix-percent-norm
+    let mut alpha_multiplier = p1 + p2;
+    if alpha_multiplier != 1.0 {
+      p1 = p1 / alpha_multiplier;
+      p2 = p2 / alpha_multiplier;
+      if alpha_multiplier > 1.0 {
+        alpha_multiplier = 1.0;
+      }
+    }
+
+    let mut result_color = first_color.interpolate(p1, &second_color, p2);
+    result_color.unpremultiply(alpha_multiplier);
+
+    result_color.into()
+  }
+}
+
+pub trait Interpolate {
+  fn adjust_powerless_components(&mut self) {}
+  fn fill_missing_components(&mut self, other: &Self);
+  fn adjust_hue(&mut self, _: &mut Self, _: HueInterpolationMethod) {}
+  fn premultiply(&mut self);
+  fn unpremultiply(&mut self, alpha_multiplier: f32);
+  fn interpolate(&self, p1: f32, other: &Self, p2: f32) -> Self;
+}
+
+macro_rules! interpolate {
+  ($a: ident, $b: ident, $c: ident) => {
+    fn fill_missing_components(&mut self, other: &Self) {
+      if self.$a.is_nan() {
+        self.$a = other.$a;
+      }
+
+      if self.$b.is_nan() {
+        self.$b = other.$b;
+      }
+
+      if self.$c.is_nan() {
+        self.$c = other.$c;
+      }
+
+      if self.alpha.is_nan() {
+        self.alpha = other.alpha;
+      }
+    }
+
+    fn interpolate(&self, p1: f32, other: &Self, p2: f32) -> Self {
+      Self {
+        $a: self.$a * p1 + other.$a * p2,
+        $b: self.$b * p1 + other.$b * p2,
+        $c: self.$c * p1 + other.$c * p2,
+        alpha: self.alpha * p1 + other.alpha * p2,
+      }
+    }
+  }
+}
+
+macro_rules! rectangular_premultiply {
+  ($a: ident, $b: ident, $c: ident) => {
+    fn premultiply(&mut self) {
+      if !self.alpha.is_nan() {
+        self.$a *= self.alpha;
+        self.$b *= self.alpha;
+        self.$c *= self.alpha;
+      }
+    }
+
+    fn unpremultiply(&mut self, alpha_multiplier: f32) {
+      if !self.alpha.is_nan() && self.alpha != 0.0 {
+        self.$a /= self.alpha;
+        self.$b /= self.alpha;
+        self.$c /= self.alpha;
+        self.alpha *= alpha_multiplier;
+      }
+    }
+  }
+}
+
+macro_rules! polar_premultiply {
+  ($a: ident, $b: ident) => {
+    fn premultiply(&mut self) {
+      if !self.alpha.is_nan() {
+        self.$a *= self.alpha;
+        self.$b *= self.alpha;
+      }
+    }
+
+    fn unpremultiply(&mut self, alpha_multiplier: f32) {
+      self.h %= 360.0;
+      if !self.alpha.is_nan() {
+        self.$a /= self.alpha;
+        self.$b /= self.alpha;
+        self.alpha *= alpha_multiplier;
+      }
+    }
+  }
+}
+
+macro_rules! adjust_powerless_lab {
+  () => {
+    fn adjust_powerless_components(&mut self) {
+      // If the lightness of a LAB color is 0%, both the a and b components are powerless.
+      if self.l.abs() < f32::EPSILON {
+        self.a = f32::NAN;
+        self.b = f32::NAN;
+      }
+    }
+  }
+}
+
+macro_rules! adjust_powerless_lch {
+  () => {
+    fn adjust_powerless_components(&mut self) {
+      // If the chroma of an LCH color is 0%, the hue component is powerless. 
+      // If the lightness of an LCH color is 0%, both the hue and chroma components are powerless.
+      if self.c.abs() < f32::EPSILON {
+        self.h = f32::NAN;
+      }
+
+      if self.l.abs() < f32::EPSILON {
+        self.c = f32::NAN;
+        self.h = f32::NAN;
+      }
+    }
+
+    fn adjust_hue(&mut self, other: &mut Self, method: HueInterpolationMethod) {
+      method.interpolate(&mut self.h, &mut other.h);
+    }
+  }
+}
+
+impl Interpolate for SRGB {
+  rectangular_premultiply!(r, g, b);
+  interpolate!(r, g, b);
+}
+
+impl Interpolate for SRGBLinear {
+  rectangular_premultiply!(r, g, b);
+  interpolate!(r, g, b);
+}
+
+impl Interpolate for XYZd50 {
+  rectangular_premultiply!(x, y, z);
+  interpolate!(x, y, z);
+}
+
+impl Interpolate for XYZd65 {
+  rectangular_premultiply!(x, y, z);
+  interpolate!(x, y, z);
+}
+
+impl Interpolate for LAB {
+  adjust_powerless_lab!();
+  rectangular_premultiply!(l, a, b);
+  interpolate!(l, a, b);
+}
+
+impl Interpolate for OKLAB {
+  adjust_powerless_lab!();
+  rectangular_premultiply!(l, a, b);
+  interpolate!(l, a, b);
+}
+
+impl Interpolate for LCH {
+  adjust_powerless_lch!();
+  polar_premultiply!(l, c);
+  interpolate!(l, c, h);
+}
+
+impl Interpolate for OKLCH {
+  adjust_powerless_lch!();
+  polar_premultiply!(l, c);
+  interpolate!(l, c, h);
+}
+
+impl Interpolate for HSL {
+  polar_premultiply!(s, l);
+
+  fn adjust_powerless_components(&mut self) {
+    // If the saturation of an HSL color is 0%, then the hue component is powerless.
+    // If the lightness of an HSL color is 0% or 100%, both the saturation and hue components are powerless.
+    if self.s.abs() < f32::EPSILON {
+      self.h = f32::NAN;
+    }
+
+    if self.l.abs() < f32::EPSILON || (self.l - 1.0).abs() < f32::EPSILON {
+      self.h = f32::NAN;
+      self.s = f32::NAN;
+    }
+  }
+
+  fn adjust_hue(&mut self, other: &mut Self, method: HueInterpolationMethod) {
+    method.interpolate(&mut self.h, &mut other.h);
+  }
+
+  interpolate!(h, s, l);
+}
+
+impl Interpolate for HWB {
+  polar_premultiply!(w, b);
+
+  fn adjust_powerless_components(&mut self) {
+    // If white+black is equal to 100% (after normalization), it defines an achromatic color, 
+    // i.e. some shade of gray, without any hint of the chosen hue. In this case, the hue component is powerless.
+    if (self.w + self.b - 1.0).abs() < f32::EPSILON {
+      self.h = f32::NAN;
+    }
+  }
+
+  fn adjust_hue(&mut self, other: &mut Self, method: HueInterpolationMethod) {
+    method.interpolate(&mut self.h, &mut other.h);
+  }
+
+  interpolate!(h, w, b);
+}
+
+impl HueInterpolationMethod {
+  fn interpolate(&self, a: &mut f32, b: &mut f32) {
+    // https://drafts.csswg.org/css-color/#hue-interpolation
+    if *self != HueInterpolationMethod::Specified {
+      *a = ((*a % 360.0) + 360.0) % 360.0;
+      *b = ((*b % 360.0) + 360.0) % 360.0;
+    }
 
     match self {
-      Srgb(r, g, b, a) => {
-        let (x, y, z) = srgb_to_xyz_d65(*r, *g, *b);
-        (x, y, z, *a)
+      HueInterpolationMethod::Shorter => {
+        // https://www.w3.org/TR/css-color-4/#hue-shorter
+        let delta = *b - *a;
+        if delta > 180.0 {
+          *a += 360.0;
+        } else if delta < -180.0 {
+          *b += 360.0;
+        }
       }
-      SrgbLinear(r, g, b, a) => {
-        let (x, y, z) = lin_srgb_to_xyz_d65(*r, *g, *b);
-        (x, y, z, *a)
+      HueInterpolationMethod::Longer => {
+        // https://www.w3.org/TR/css-color-4/#hue-longer
+        let delta = *b - *a;
+        if 0.0 < delta && delta < 180.0 {
+          *a += 360.0;
+        } else if -180.0 < delta && delta < 0.0 {
+          *b += 360.0;
+        }
       }
-      DisplayP3(r, g, b, a) => {
-        let (r, g, b) = lin_srgb(*r, *g, *b); // same as sRGB
-        let (x, y, z) = lin_p3_to_xyz_d65(r, g, b);
-        (x, y, z, *a)
+      HueInterpolationMethod::Increasing => {
+        // https://www.w3.org/TR/css-color-4/#hue-increasing
+        if *b < *a {
+          *b += 360.0;
+        }
       }
-      A98Rgb(r, g, b, a) => {
-        let (r, g, b) = lin_a98rgb(*r, *g, *b);
-        let (x, y, z) = lin_a98rgb_to_xyz(r, g, b);
-        (x, y, z, *a)
+      HueInterpolationMethod::Decreasing => {
+        // https://www.w3.org/TR/css-color-4/#hue-decreasing
+        if *a < *b {
+          *a += 360.0;
+        }
       }
-      ProphotoRgb(r, g, b, a) => {
-        let (r, g, b) = lin_prophoto(*r, *g, *b);
-        let (x, y, z) = lin_prophoto_to_xyz_d50(r, g, b);
-        let (x, y, z) = d50_to_d65(x, y, z);
-        (x, y, z, *a)
-      }
-      Rec2020(r, g, b, a) => {
-        let (r, g, b) = lin_rec2020(*r, *g, *b);
-        let (x, y, z) = lin_rec2020_to_xyz_d65(r, g, b);
-        (x, y, z, *a)
-      }
-      XyzD50(x, y, z, a) => {
-        let (x, y, z) = d50_to_d65(*x, *y, *z);
-        (x, y, z, *a)
-      }
-      XyzD65(x, y, z, a) => {
-        (*x, *y, *z, *a)
-      }
+      HueInterpolationMethod::Specified => {}
     }
   }
 }
