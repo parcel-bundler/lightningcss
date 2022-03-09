@@ -451,61 +451,32 @@ fn parse_lch<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32),
 fn parse_predefined<'i, 't>(input: &mut Parser<'i, 't>) -> Result<PredefinedColor, ParseError<'i, ParserError<'i>>> {
   // https://www.w3.org/TR/css-color-4/#color-function
   let res = input.parse_nested_block(|input| {
-    input
-      .try_parse(parse_predefined_rgb)
-      .or_else(|_| input.try_parse(parse_predefined_xyz))
-  })?;
-
-  Ok(res)
-}
-
-#[inline]
-fn parse_predefined_rgb<'i, 't>(input: &mut Parser<'i, 't>) -> Result<PredefinedColor, ParseError<'i, ParserError<'i>>> {
-  let location = input.current_source_location();
-  let colorspace = input.expect_ident_cloned()?;
+    let location = input.current_source_location();
+    let colorspace = input.expect_ident_cloned()?;
+    
+    // Out of gamut values should not be clamped, i.e. values < 0 or > 1 should be preserved.
+    // The browser will gamut-map the color for the target device that it is rendered on.
+    let a = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
+    let b = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
+    let c = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
+    let alpha = parse_alpha(input)?;
   
-  // Out of gamut values should not be clamped, i.e. values < 0 or > 1 should be preserved.
-  // The browser will gamut-map the color for the target device that it is rendered on.
-  let r = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
-  let g = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
-  let b = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
-  let alpha = parse_alpha(input)?;
-
-  let res = match_ignore_ascii_case! { &*&colorspace,
-    "srgb" => PredefinedColor::SRGB(SRGB { r, g, b, alpha }),
-    "srgb-linear" => PredefinedColor::SRGBLinear(SRGBLinear { r, g, b, alpha }),
-    "display-p3" => PredefinedColor::DisplayP3(P3 { r, g, b, alpha }),
-    "a98-rgb" => PredefinedColor::A98(A98 { r, g, b, alpha }),
-    "prophoto-rgb" => PredefinedColor::ProPhoto(ProPhoto { r, g, b, alpha }),
-    "rec2020" => PredefinedColor::Rec2020(Rec2020 { r, g, b, alpha }),
-    _ => return Err(location.new_unexpected_token_error(
-      cssparser::Token::Ident(colorspace.clone())
-    ))
-  };
-
-  Ok(res)
-}
-
-#[inline]
-fn parse_predefined_xyz<'i, 't>(input: &mut Parser<'i, 't>) -> Result<PredefinedColor, ParseError<'i, ParserError<'i>>> {
-  let location = input.current_source_location();
-  let colorspace = input.expect_ident_cloned()?;
-
-  // XYZ color spaces only accept numbers, not percentages.
-  // Out of gamut values should not be clamped, i.e. values < 0 or > 1 should be preserved.
-  // The browser will gamut-map the color for the target device that it is rendered on.
-  let x = input.try_parse(parse_number).unwrap_or(0.0);
-  let y = input.try_parse(parse_number).unwrap_or(0.0);
-  let z = input.try_parse(parse_number).unwrap_or(0.0);
-  let alpha = parse_alpha(input)?;
-
-  let res = match_ignore_ascii_case! { &*&colorspace,
-    "xyz-d50" => PredefinedColor::XYZd50(XYZd50 { x, y, z, alpha}),
-    "xyz" | "xyz-d65" => PredefinedColor::XYZd65(XYZd65 { x, y, z, alpha }),
-    _ => return Err(location.new_unexpected_token_error(
-      cssparser::Token::Ident(colorspace.clone())
-    ))
-  };
+    let res = match_ignore_ascii_case! { &*&colorspace,
+      "srgb" => PredefinedColor::SRGB(SRGB { r: a, g: b, b: c, alpha }),
+      "srgb-linear" => PredefinedColor::SRGBLinear(SRGBLinear { r: a, g: b, b: c, alpha }),
+      "display-p3" => PredefinedColor::DisplayP3(P3 { r: a, g: b, b: c, alpha }),
+      "a98-rgb" => PredefinedColor::A98(A98 { r: a, g: b, b: c, alpha }),
+      "prophoto-rgb" => PredefinedColor::ProPhoto(ProPhoto { r: a, g: b, b: c, alpha }),
+      "rec2020" => PredefinedColor::Rec2020(Rec2020 { r: a, g: b, b: c, alpha }),
+      "xyz-d50" => PredefinedColor::XYZd50(XYZd50 { x: a, y: b, z: c, alpha}),
+      "xyz" | "xyz-d65" => PredefinedColor::XYZd65(XYZd65 { x: a, y: b, z: c, alpha }),  
+      _ => return Err(location.new_unexpected_token_error(
+        cssparser::Token::Ident(colorspace.clone())
+      ))
+    };
+  
+    Ok(res)  
+  })?;
 
   Ok(res)
 }
