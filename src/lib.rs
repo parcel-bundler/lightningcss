@@ -9071,6 +9071,7 @@ mod tests {
     minify_test(".foo { color: color-mix(in srgb, rgb(128 128 none), rgb(none none 128)); }", ".foo{color:gray}");
     minify_test(".foo { color: color-mix(in srgb, rgb(50% 50% none), rgb(none none 50%)); }", ".foo{color:gray}");
     minify_test(".foo { color: color-mix(in srgb, rgb(none 50% none), rgb(50% none 50%)); }", ".foo{color:gray}");
+    minify_test(".foo { --color: color-mix(in lch, teal 65%, olive); }", ".foo{--color:lch(49.4431% 40.4806 162.546)}");
 
     // regex for converting web platform tests:
     // test_computed_value\(.*?, `(.*?)`, `(.*?)`\);
