@@ -1206,6 +1206,31 @@ mod tests {
     "#
     });
 
+    test(r#"
+      .foo {
+        border: 1px solid red;
+        border-image: url(test.png) 60;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 1px solid red;
+        border-image: url(test.png) 60;
+      }
+    "#
+    });
+
+    test(r#"
+      .foo {
+        border-image: url(test.png) 60;
+        border: 1px solid red;
+      }
+    "#, indoc! {r#"
+      .foo {
+        border: 1px solid red;
+      }
+    "#
+    });
+
     prefix_test(r#"
       .foo {
         border-image: url("test.png") 60;

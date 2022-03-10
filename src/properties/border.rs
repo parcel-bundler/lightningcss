@@ -483,10 +483,10 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
   }
 
   fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
-    self.border_image_handler.finalize(dest, context);
-    self.border_radius_handler.finalize(dest, context);
     self.flush(dest, context);
     self.flush_logical_fallbacks(dest, context);
+    self.border_image_handler.finalize(dest, context);
+    self.border_radius_handler.finalize(dest, context);
   }
 }
 
