@@ -36,7 +36,6 @@ pub enum Feature {
   FormValidation,
   Fullscreen,
   LabColors,
-  LchColors,
   LogicalBorderRadius,
   LogicalBorders,
   LogicalInset,
@@ -47,7 +46,6 @@ pub enum Feature {
   MediaIntervalSyntax,
   MediaRangeSyntax,
   OklabColors,
-  OklchColors,
   OverflowShorthand,
   P3Colors,
   PlaceContent,
@@ -1157,8 +1155,7 @@ impl Feature {
       Feature::CssNesting |
       Feature::CustomMediaQueries |
       Feature::MediaIntervalSyntax |
-      Feature::OklabColors |
-      Feature::OklchColors => {
+      Feature::OklabColors => {
         return false
       }
       Feature::DoublePositionGradients => {
@@ -1615,7 +1612,6 @@ impl Feature {
         }
       }
       Feature::LabColors |
-      Feature::LchColors |
       Feature::ColorFunction => {
         if let Some(version) = browsers.safari {
           if version < 983040 {

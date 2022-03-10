@@ -509,7 +509,7 @@ impl<'i> TokenList<'i> {
     let mut fallbacks = ColorFallbackKind::empty();
     for token in &self.0 {
       if let TokenOrValue::Color(color) = token {
-        fallbacks |= color.get_necessary_fallbacks(targets);
+        fallbacks |= color.get_possible_fallbacks(targets);
       }
     }
 
@@ -530,6 +530,8 @@ impl<'i> TokenList<'i> {
   }
 
   pub(crate) fn get_fallbacks(&mut self, targets: Browsers) -> Vec<(SupportsCondition<'i>, Self)> {
+    // Get the full list of possible fallbacks, and remove the lowest one, which will replace
+    // the original declaration. The remaining fallbacks need to be added as @supports rules.
     let mut fallbacks = self.get_necessary_fallbacks(targets);
     let lowest_fallback = fallbacks.lowest();
     fallbacks.remove(lowest_fallback);
@@ -539,7 +541,7 @@ impl<'i> TokenList<'i> {
       res.push((ColorFallbackKind::P3.supports_condition(), self.get_fallback(ColorFallbackKind::P3)));
     }
 
-    if fallbacks.contains(ColorFallbackKind::LAB) || (!lowest_fallback.is_empty() && lowest_fallback != ColorFallbackKind::LAB) {
+    if fallbacks.contains(ColorFallbackKind::LAB) {
       res.push((ColorFallbackKind::LAB.supports_condition(), self.get_fallback(ColorFallbackKind::LAB)));
     }
 

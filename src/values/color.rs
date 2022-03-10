@@ -56,6 +56,7 @@ bitflags! {
     const RGB    = 0b01;
     const P3     = 0b10;
     const LAB    = 0b100;
+    const OKLAB  = 0b1000;
   }
 }
 
@@ -93,6 +94,24 @@ impl ColorFallbackKind {
     *self & ColorFallbackKind::from_bits_truncate(self.bits().wrapping_neg())
   }
 
+  pub fn highest(&self) -> ColorFallbackKind {
+    // This finds the highest set bit.
+    if self.is_empty() {
+      return ColorFallbackKind::empty();
+    }
+
+    let zeros = 7 - self.bits().leading_zeros();
+    ColorFallbackKind::from_bits_truncate(1 << zeros)
+  }
+
+  pub fn and_below(&self) -> ColorFallbackKind {
+    if self.is_empty() {
+      return ColorFallbackKind::empty();
+    }
+
+    *self | ColorFallbackKind::from_bits_truncate(self.bits() - 1)
+  }
+
   pub fn supports_condition<'i>(&self) -> SupportsCondition<'i> {
     let s = match *self {
       ColorFallbackKind::P3 => "color: color(display-p3 0 0 0)",
@@ -125,56 +144,66 @@ impl CssColor {
     P3::from(self).into()
   }
 
-  pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
-    let feature = match self {
-      CssColor::CurrentColor | CssColor::RGBA(_) => return ColorFallbackKind::empty(),
+  pub(crate) fn get_possible_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+    // Fallbacks occur in levels: Oklab -> Lab -> P3 -> RGB. We start with all levels
+    // below and including the authored color space, and remove the ones that aren't
+    // compatible with our browser targets. 
+    let mut fallbacks = match self {
+      CssColor::CurrentColor | CssColor::RGBA(_) | CssColor::Float(..) => return ColorFallbackKind::empty(),
       CssColor::LAB(lab) => {
         match &**lab {
-          LABColor::LAB(..) => Feature::LabColors,
-          LABColor::LCH(..) => Feature::LchColors,
-          LABColor::OKLAB(..) => Feature::OklabColors,
-          LABColor::OKLCH(..) => Feature::OklchColors
+          LABColor::LAB(..) | LABColor::LCH(..) => ColorFallbackKind::LAB.and_below(),
+          LABColor::OKLAB(..) | LABColor::OKLCH(..) => ColorFallbackKind::OKLAB.and_below(),
         }
       },
-      CssColor::Predefined(..) => Feature::ColorFunction,
-      CssColor::Float(..) => return ColorFallbackKind::empty()
-    };
+      CssColor::Predefined(predefined) => {
+        match &**predefined {
+          PredefinedColor::DisplayP3(..) => ColorFallbackKind::P3.and_below(),
+          _ => {
+            if Feature::ColorFunction.is_compatible(targets) {
+              return ColorFallbackKind::empty();
+            }
 
-    let mut fallbacks = ColorFallbackKind::empty();
-    if !feature.is_compatible(targets) {
-      // Convert to lab if compatible. This should not affect interpolation
-      // since this is always done in oklab by default, except for legacy
-      // srgb syntaxes. See https://www.w3.org/TR/css-color-4/#interpolation-space.
-      // If lab is not compatible with all targets, try P3 as some browsers
-      // implemented this before other color spaces. Finally, fall back to
-      // legacy sRGB if none of these are fully compatible with the targets.
-      if Feature::LabColors.is_compatible(targets) {
-        fallbacks |= ColorFallbackKind::LAB;
-      } else if Feature::P3Colors.is_compatible(targets) {
-        fallbacks |= ColorFallbackKind::P3;
-        if feature == Feature::OklabColors || feature == Feature::OklchColors {
-          fallbacks |= ColorFallbackKind::LAB;
-        }
-      } else {
-        fallbacks |= ColorFallbackKind::RGB;
-
-        // Also include either lab or P3 if partially compatible, as these
-        // support a much wider color gamut than sRGB. LAB will replace the
-        // original color (e.g. oklab), whereas P3 will be in addition.
-        if Feature::LabColors.is_partially_compatible(targets) {
-          fallbacks |= ColorFallbackKind::LAB;
-        } else if Feature::P3Colors.is_partially_compatible(targets) {
-          fallbacks |= ColorFallbackKind::P3;
-
-          // Convert oklab to lab because it has better compatibility.
-          if feature == Feature::OklabColors || feature == Feature::OklchColors {
-            fallbacks |= ColorFallbackKind::LAB;
+            ColorFallbackKind::LAB.and_below()
           }
         }
+      }
+    };
+
+    if fallbacks.contains(ColorFallbackKind::OKLAB) {
+      if Feature::OklabColors.is_compatible(targets) {
+        fallbacks.remove(ColorFallbackKind::LAB.and_below());
+      }
+    }
+
+    if fallbacks.contains(ColorFallbackKind::LAB) {
+      if Feature::LabColors.is_compatible(targets) {
+        fallbacks.remove(ColorFallbackKind::P3.and_below());
+      } else if Feature::LabColors.is_partially_compatible(targets) {
+        // We don't need P3 if Lab is supported by some of our targets.
+        // No browser implements Lab but not P3.
+        fallbacks.remove(ColorFallbackKind::P3);
+      }
+    }
+
+    if fallbacks.contains(ColorFallbackKind::P3) {
+      if Feature::P3Colors.is_compatible(targets) {
+        fallbacks.remove(ColorFallbackKind::RGB);
+      } else if fallbacks.highest() != ColorFallbackKind::P3 && !Feature::P3Colors.is_partially_compatible(targets) {
+        // Remove P3 if it isn't supported by any targets, and wasn't the
+        // original authored color.
+        fallbacks.remove(ColorFallbackKind::P3);
       }
     }
 
     fallbacks
+  }
+
+  pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+    // Get the full set of possible fallbacks, and remove the highest one, which
+    // will replace the original declaration. The remaining fallbacks need to be added.
+    let fallbacks = self.get_possible_fallbacks(targets);
+    fallbacks - fallbacks.highest()
   }
 
   pub(crate) fn get_fallback(&self, kind: ColorFallbackKind) -> CssColor {

@@ -180,9 +180,7 @@ let mdnFeatures = {
   logicalSize: mdn.css.properties['inline-size'].__compat.support,
   logicalTextAlign: mdn.css.properties['text-align']['flow_relative_values_start_and_end'].__compat.support,
   labColors: mdn.css.types.color.lab.__compat.support,
-  lchColors: mdn.css.types.color.lch.__compat.support,
   oklabColors: {},
-  oklchColors: {},
   colorFunction: mdn.css.types.color.color.__compat.support
 };
 

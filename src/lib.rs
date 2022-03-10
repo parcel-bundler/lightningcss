@@ -8707,7 +8707,7 @@ mod tests {
       indoc! { r#"
         .foo {
           background-color: #494745;
-          background-color: oklab(40% .001236 .0039);
+          background-color: lab(30.4045% .415295 1.4957);
         }
       "#},
       Browsers {
@@ -8721,7 +8721,7 @@ mod tests {
       indoc! { r#"
         .foo {
           background-color: #7e250f;
-          background-color: oklch(40% .126874 34.5686);
+          background-color: lab(29.2661% 38.2437 35.3889);
         }
       "#},
       Browsers {
@@ -8834,6 +8834,63 @@ mod tests {
     );
 
     prefix_test(
+      ".foo { background-color: color(display-p3 0.43313 0.50108 0.37950); }",
+      indoc! { r#"
+        .foo {
+          background-color: #6a805d;
+          background-color: color(display-p3 .43313 .50108 .3795);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { background-color: color(display-p3 0.43313 0.50108 0.37950); }",
+      indoc! { r#"
+        .foo {
+          background-color: color(display-p3 .43313 .50108 .3795);
+        }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { background-color: color(display-p3 0.43313 0.50108 0.37950); }",
+      indoc! { r#"
+        .foo {
+          background-color: #6a805d;
+          background-color: color(display-p3 .43313 .50108 .3795);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { background-color: color(display-p3 0.43313 0.50108 0.37950); }",
+      indoc! { r#"
+        .foo {
+          background-color: #6a805d;
+          background-color: color(display-p3 .43313 .50108 .3795);
+        }
+      "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
       ".foo { background-color: color(a98-rgb 0.44091 0.49971 0.37408); }",
       indoc! { r#"
         .foo {
@@ -8843,6 +8900,19 @@ mod tests {
       "#},
       Browsers {
         chrome: Some(90 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { background-color: color(a98-rgb 0.44091 0.49971 0.37408); }",
+      indoc! { r#"
+        .foo {
+          background-color: color(a98-rgb .44091 .49971 .37408);
+        }
+      "#},
+      Browsers {
+        safari: Some(15 << 16),
         ..Browsers::default()
       }
     );
@@ -10122,6 +10192,78 @@ mod tests {
       }
     "#}, Browsers {
       safari: Some(14 << 16),
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        --foo: color(display-p3 0 1 0);
+      }
+    "#, indoc! {r#"
+      .foo {
+        --foo: #00f942;
+      }
+
+      @supports (color: color(display-p3 0 0 0)) {
+        .foo {
+          --foo: color(display-p3 0 1 0);
+        }
+      }
+    "#}, Browsers {
+      safari: Some(14 << 16),
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        --foo: color(display-p3 0 1 0);
+      }
+    "#, indoc! {r#"
+      .foo {
+        --foo: color(display-p3 0 1 0);
+      }
+    "#}, Browsers {
+      safari: Some(14 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        --foo: color(display-p3 0 1 0);
+      }
+    "#, indoc! {r#"
+      .foo {
+        --foo: #00f942;
+      }
+
+      @supports (color: color(display-p3 0 0 0)) {
+        .foo {
+          --foo: color(display-p3 0 1 0);
+        }
+      }
+    "#}, Browsers {
+      safari: Some(15 << 16),
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(r#"
+      .foo {
+        --foo: color(display-p3 0 1 0);
+      }
+    "#, indoc! {r#"
+      .foo {
+        --foo: #00f942;
+      }
+
+      @supports (color: color(display-p3 0 0 0)) {
+        .foo {
+          --foo: color(display-p3 0 1 0);
+        }
+      }
+    "#}, Browsers {
       chrome: Some(90 << 16),
       ..Browsers::default()
     });
