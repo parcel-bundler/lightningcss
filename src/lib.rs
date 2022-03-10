@@ -8703,11 +8703,11 @@ mod tests {
     );
 
     prefix_test(
-      ".foo { background-color: oklab(40% 0.001236 0.0039) }",
+      ".foo { background-color: oklab(59.686% 0.1009 0.1192); }",
       indoc! { r#"
         .foo {
-          background-color: #494745;
-          background-color: lab(30.4045% .415295 1.4957);
+          background-color: #c65d07;
+          background-color: lab(52.2319% 40.1449 59.9171);
         }
       "#},
       Browsers {
