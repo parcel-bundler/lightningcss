@@ -24,11 +24,16 @@ A CSS parser, transformer, and minifier written in Rust.
   - CSS Nesting (draft spec)
   - Custom media queries (draft spec)
   - Logical properties
-  - CSS Level 4 Color syntax
+  * [Color Level 5](https://drafts.csswg.org/css-color-5/)
+  - `color-mix()` function
+  - [Color Level 4](https://drafts.csswg.org/css-color-4/)
+    - `lab()`, `lch()`, `oklab()`, and `oklch()` colors
+    - `color()` function supporting predefined color spaces such as `display-p3` and `xyz`
     - Space separated components in `rgb` and `hsl` functions
     - Hex with alpha syntax
     - `hwb()` color syntax
     - Percent syntax for opacity
+    - `#rgba` and `#rrggbbaa` hex colors
   - Double position gradient stops (e.g. `red 40% 80%`)
   - `clamp()` function
   - Alignment shorthands (e.g. `place-items`)
