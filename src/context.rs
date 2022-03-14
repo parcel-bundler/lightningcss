@@ -36,7 +36,7 @@ pub(crate) enum DeclarationContext {
 
 #[derive(Debug)]
 pub(crate) struct PropertyHandlerContext<'i> {
-  targets: Option<Browsers>,
+  pub targets: Option<Browsers>,
   pub used_logical: bool,
   pub is_important: bool,
   supports: Vec<SupportsEntry<'i>>,

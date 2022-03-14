@@ -11939,8 +11939,8 @@ mod tests {
       ".foo { mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          mask-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
-          mask-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          -webkit-mask-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
+          -webkit-mask-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
           mask-image: linear-gradient(#ff0f0e, #7773ff);
           mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -11955,9 +11955,11 @@ mod tests {
       ".foo { mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px }",
       indoc! { r#"
         .foo {
-          mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 40px 20px;
-          mask: -webkit-linear-gradient(#ff0f0e, #7773ff) 40px 20px;
+          -webkit-mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 40px 20px;
+          -webkit-mask: -webkit-linear-gradient(#ff0f0e, #7773ff) 40px 20px;
+          -webkit-mask: linear-gradient(#ff0f0e, #7773ff) 40px 20px;
           mask: linear-gradient(#ff0f0e, #7773ff) 40px 20px;
+          -webkit-mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px;
           mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px;
         }
       "#},
@@ -11971,8 +11973,8 @@ mod tests {
       ".foo { mask: -webkit-linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px }",
       indoc! { r#"
         .foo {
-          mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 40px 20px;
-          mask: -webkit-linear-gradient(#ff0f0e, #7773ff) 40px 20px;
+          -webkit-mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 40px 20px;
+          -webkit-mask: -webkit-linear-gradient(#ff0f0e, #7773ff) 40px 20px;
         }
       "#},
       Browsers {
@@ -11985,11 +11987,13 @@ mod tests {
       ".foo { mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px var(--foo) }",
       indoc! { r#"
         .foo {
+          -webkit-mask: linear-gradient(#ff0f0e, #7773ff) 40px var(--foo);
           mask: linear-gradient(#ff0f0e, #7773ff) 40px var(--foo);
         }
 
         @supports (color: lab(0% 0 0)) {
           .foo {
+            -webkit-mask: linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586)) 40px var(--foo);
             mask: linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586)) 40px var(--foo);
           }
         }
@@ -11999,6 +12003,117 @@ mod tests {
         ..Browsers::default()
       }
     );
+
+    prefix_test(
+      ".foo { mask: url(masks.svg#star) luminance }", 
+      indoc! { r#"
+        .foo {
+          -webkit-mask: url(masks.svg#star);
+          -webkit-mask-source-type: luminance;
+          mask: url(masks.svg#star) luminance;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      ".foo { mask-image: url(masks.svg#star) }", 
+      indoc! { r#"
+        .foo {
+          -webkit-mask-image: url(masks.svg#star);
+          mask-image: url(masks.svg#star);
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-image: url(masks.svg#star);
+          mask-position: 25% 75%;
+          mask-size: cover;
+          mask-repeat: no-repeat;
+          mask-clip: padding-box;
+          mask-origin: content-box;
+          mask-composite: subtract;
+          mask-mode: luminance;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          -webkit-mask: url(masks.svg#star) 25% 75% / cover no-repeat content-box padding-box;
+          -webkit-mask-composite: source-out;
+          -webkit-mask-source-type: luminance;
+          mask: url(masks.svg#star) 25% 75% / cover no-repeat content-box padding-box subtract luminance;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+          mask-position: 25% 75%;
+          mask-size: cover;
+          mask-repeat: no-repeat;
+          mask-clip: padding-box;
+          mask-origin: content-box;
+          mask-composite: subtract;
+          mask-mode: luminance;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          -webkit-mask: linear-gradient(#ff0f0e, #7773ff) 25% 75% / cover no-repeat content-box padding-box;
+          -webkit-mask-composite: source-out;
+          -webkit-mask-source-type: luminance;
+          mask: linear-gradient(#ff0f0e, #7773ff) 25% 75% / cover no-repeat content-box padding-box subtract luminance;
+          -webkit-mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 25% 75% / cover no-repeat content-box padding-box;
+          -webkit-mask-composite: source-out;
+          -webkit-mask-source-type: luminance;
+          mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 25% 75% / cover no-repeat content-box padding-box subtract luminance;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-composite: subtract;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          -webkit-mask-composite: source-out;
+          mask-composite: subtract;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-mode: luminance;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          -webkit-mask-source-type: luminance;
+          mask-mode: luminance;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]

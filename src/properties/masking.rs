@@ -1,5 +1,11 @@
 use cssparser::*;
-use crate::traits::{Parse, ToCss};
+use itertools::izip;
+use smallvec::SmallVec;
+use crate::context::PropertyHandlerContext;
+use crate::declaration::DeclarationList;
+use crate::prefixes::Feature;
+use crate::properties::Property;
+use crate::traits::{Parse, ToCss, PropertyHandler, FallbackValues};
 use crate::printer::Printer;
 use crate::macros::enum_property;
 use crate::error::{ParserError, PrinterError};
@@ -10,6 +16,8 @@ use crate::values::{
   url::Url,
   shape::BasicShape,
 };
+use crate::vendor_prefix::VendorPrefix;
+use super::PropertyId;
 use super::background::{BackgroundSize, BackgroundRepeat};
 use super::border_image::BorderImage;
 
@@ -27,6 +35,31 @@ enum_property! {
     "luminance": Luminance,
     "alpha": Alpha,
     "match-source": MatchSource,
+  }
+}
+
+impl Default for MaskMode {
+  fn default() -> MaskMode {
+    MaskMode::MatchSource
+  }
+}
+
+enum_property! {
+  /// https://github.com/WebKit/WebKit/blob/6eece09a1c31e47489811edd003d1e36910e9fd3/Source/WebCore/css/CSSProperties.json#L6578-L6587
+  pub enum WebKitMaskSourceType {
+    "auto": Auto,
+    "luminance": Luminance,
+    "alpha": Alpha,
+  }
+}
+
+impl From<MaskMode> for WebKitMaskSourceType {
+  fn from(mode: MaskMode) -> WebKitMaskSourceType {
+    match mode {
+      MaskMode::Luminance => WebKitMaskSourceType::Luminance,
+      MaskMode::Alpha => WebKitMaskSourceType::Alpha,
+      MaskMode::MatchSource => WebKitMaskSourceType::Auto
+    }
   }
 }
 
@@ -89,6 +122,40 @@ enum_property! {
     Subtract,
     Intersect,
     Exclude,
+  }
+}
+
+impl Default for MaskComposite {
+  fn default() -> MaskComposite {
+    MaskComposite::Add
+  }
+}
+
+enum_property! {
+  /// https://developer.mozilla.org/en-US/docs/Web/CSS/-webkit-mask-composite
+  pub enum WebKitMaskComposite {
+    "clear": Clear,
+    "copy": Copy,
+    "source-over": SourceOver,
+    "source-in": SourceIn,
+    "source-out": SourceOut,
+    "source-atop": SourceAtop,
+    "destination-over": DestinationOver,
+    "destination-in": DestinationIn,
+    "destination-out": DestinationOut,
+    "destination-atop": DestinationAtop,
+    "xor": Xor,
+  }
+}
+
+impl From<MaskComposite> for WebKitMaskComposite {
+  fn from(composite: MaskComposite) -> WebKitMaskComposite {
+    match composite {
+      MaskComposite::Add => WebKitMaskComposite::SourceOver,
+      MaskComposite::Subtract => WebKitMaskComposite::SourceOut,
+      MaskComposite::Intersect => WebKitMaskComposite::SourceIn,
+      MaskComposite::Exclude => WebKitMaskComposite::Xor
+    }
   }
 }
 
@@ -221,12 +288,12 @@ impl<'i> ToCss for Mask<'i> {
       }
     }
 
-    if self.composite != MaskComposite::Add {
+    if self.composite != MaskComposite::default() {
       dest.write_char(' ')?;
       self.composite.to_css(dest)?;
     }
 
-    if self.mode != MaskMode::MatchSource {
+    if self.mode != MaskMode::default() {
       dest.write_char(' ')?;
       self.mode.to_css(dest)?;
     }
@@ -354,5 +421,315 @@ impl<'i> ToCss for MaskBorder<'i> {
       self.mode.to_css(dest)?;
     }
     Ok(())
+  }
+}
+
+#[derive(Default)]
+pub(crate) struct MaskHandler<'i> {
+  images: Option<(SmallVec<[Image<'i>; 1]>, VendorPrefix)>,
+  positions: Option<(SmallVec<[Position; 1]>, VendorPrefix)>,
+  sizes: Option<(SmallVec<[BackgroundSize; 1]>, VendorPrefix)>,
+  repeats: Option<(SmallVec<[BackgroundRepeat; 1]>, VendorPrefix)>,
+  clips: Option<(SmallVec<[MaskClip; 1]>, VendorPrefix)>,
+  origins: Option<(SmallVec<[GeometryBox; 1]>, VendorPrefix)>,
+  composites: Option<SmallVec<[MaskComposite; 1]>>,
+  modes: Option<SmallVec<[MaskMode; 1]>>,
+  has_any: bool
+}
+
+impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
+  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
+    macro_rules! maybe_flush {
+      ($prop: ident, $val: expr, $vp: expr) => {{
+        // If two vendor prefixes for the same property have different
+        // values, we need to flush what we have immediately to preserve order.
+        if let Some((val, prefixes)) = &self.$prop {
+          if val != $val && !prefixes.contains(*$vp) {
+            self.flush(dest, context);
+          }
+        }
+      }};
+    }
+
+    macro_rules! property {
+      ($prop: ident, $val: expr, $vp: expr) => {{
+        maybe_flush!($prop, $val, $vp);
+
+        // Otherwise, update the value and add the prefix.
+        if let Some((val, prefixes)) = &mut self.$prop {
+          *val = $val.clone();
+          *prefixes |= *$vp;
+        } else {
+          self.$prop = Some(($val.clone(), *$vp));
+          self.has_any = true;
+        }
+      }};
+    }
+    
+    match property {
+      Property::MaskImage(val, vp) => property!(images, val, vp),
+      Property::MaskPosition(val, vp) => property!(positions, val, vp),
+      Property::MaskSize(val, vp) => property!(sizes, val, vp),
+      Property::MaskRepeat(val, vp) => property!(repeats, val, vp),
+      Property::MaskClip(val, vp) => property!(clips, val, vp),
+      Property::MaskOrigin(val, vp) => property!(origins, val, vp),
+      Property::MaskComposite(val) => self.composites = Some(val.clone()),
+      Property::MaskMode(val) => self.modes = Some(val.clone()),
+      Property::Mask(val, prefix) => {
+        let images = val.iter().map(|b| b.image.clone()).collect();
+        maybe_flush!(images, &images, prefix);
+
+        let positions = val.iter().map(|b| b.position.clone()).collect();
+        maybe_flush!(positions, &positions, prefix);
+
+        let sizes = val.iter().map(|b| b.size.clone()).collect();
+        maybe_flush!(sizes, &sizes, prefix);
+
+        let repeats = val.iter().map(|b| b.repeat.clone()).collect();
+        maybe_flush!(repeats, &repeats, prefix);
+
+        let clips = val.iter().map(|b| b.clip.clone()).collect();
+        maybe_flush!(clips, &clips, prefix);
+
+        let origins = val.iter().map(|b| b.origin.clone()).collect();
+        maybe_flush!(origins, &origins, prefix);
+
+        self.composites = Some(val.iter().map(|b| b.composite.clone()).collect());
+        self.modes = Some(val.iter().map(|b| b.mode.clone()).collect());
+
+        property!(images, &images, prefix);
+        property!(positions, &positions, prefix);
+        property!(sizes, &sizes, prefix);
+        property!(repeats, &repeats, prefix);
+        property!(clips, &clips, prefix);
+        property!(origins, &origins, prefix);
+      }
+      Property::Unparsed(val) if is_mask_property(&val.property_id) => {
+        let mut unparsed = val.get_prefixed(context.targets, Feature::Mask);
+        context.add_unparsed_fallbacks(&mut unparsed);
+        dest.push(Property::Unparsed(unparsed));
+      }
+      _ => return false
+    }
+
+    self.has_any = true;
+    true
+  }
+
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
+    self.flush(dest, context)
+  }
+}
+
+impl<'i> MaskHandler<'i> {
+  fn flush(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
+    if !self.has_any {
+      return
+    }
+
+    self.has_any = false;
+
+    let mut images = std::mem::take(&mut self.images);
+    let mut positions = std::mem::take(&mut self.positions);
+    let mut sizes = std::mem::take(&mut self.sizes);
+    let mut repeats = std::mem::take(&mut self.repeats);
+    let mut clips = std::mem::take(&mut self.clips);
+    let mut origins = std::mem::take(&mut self.origins);
+    let mut composites = std::mem::take(&mut self.composites);
+    let mut modes = std::mem::take(&mut self.modes);
+
+    if let (Some((images, images_vp)), Some((positions, positions_vp)), Some((sizes, sizes_vp)), Some((repeats, repeats_vp)), Some((clips, clips_vp)), Some((origins, origins_vp)), Some(composites_val), Some(mode_vals)) = (&mut images, &mut positions, &mut sizes, &mut repeats, &mut clips, &mut origins, &mut composites, &mut modes) {
+      // Only use shorthand syntax if the number of masks matches on all properties.
+      let len = images.len();
+      let intersection = *images_vp & *positions_vp & *sizes_vp & *repeats_vp & *clips_vp & *origins_vp;
+      if !intersection.is_empty() && positions.len() == len && sizes.len() == len && repeats.len() == len && clips.len() == len && origins.len() == len && composites_val.len() == len && mode_vals.len() == len {
+        let mut masks: SmallVec<[Mask<'i>; 1]> = izip!(images.drain(..), positions.drain(..), sizes.drain(..), repeats.drain(..), clips.drain(..), origins.drain(..), composites_val.drain(..), mode_vals.drain(..)).map(|(image, position, size, repeat, clip, origin, composite, mode)| {
+          Mask {
+            image,
+            position,
+            size,
+            repeat,
+            clip,
+            origin,
+            composite,
+            mode
+          }
+        }).collect();
+        
+        let mut prefix = intersection;
+        if prefix.contains(VendorPrefix::None) {
+          if let Some(targets) = context.targets {
+            prefix = Feature::Mask.prefixes_for(targets)
+          }
+        }
+
+        if let Some(targets) = context.targets {
+          for fallback in masks.get_fallbacks(targets) {
+            // Match prefix of fallback. e.g. -webkit-linear-gradient
+            // can only be used in -webkit-mask-image.
+            // However, if mask-image is unprefixed, gradients can still be.
+            let mut p = fallback.iter().fold(VendorPrefix::empty(), |p, mask| p | mask.image.get_vendor_prefix()) - VendorPrefix::None & prefix;
+            if p.is_empty() {
+              p = prefix;
+            }
+            self.flush_masks(fallback, p, dest);
+          }
+
+          let p = masks.iter().fold(VendorPrefix::empty(), |p, mask| p | mask.image.get_vendor_prefix()) - VendorPrefix::None & prefix;
+          if !p.is_empty() {
+            prefix = p;
+          }
+        }
+
+        self.flush_masks(masks, prefix, dest);
+
+        images_vp.remove(intersection);
+        positions_vp.remove(intersection);
+        sizes_vp.remove(intersection);
+        repeats_vp.remove(intersection);
+        clips_vp.remove(intersection);
+        origins_vp.remove(intersection);
+        composites = None;
+        modes = None;
+      }
+    }
+
+    macro_rules! prop {
+      ($var: ident, $property: ident) => {
+        if let Some((val, vp)) = $var {
+          if !vp.is_empty() {
+            let mut prefix = vp;
+            if prefix.contains(VendorPrefix::None) {
+              if let Some(targets) = context.targets {
+                prefix = Feature::$property.prefixes_for(targets)
+              }
+            }
+            dest.push(Property::$property(val, prefix))
+          }
+        }
+      };
+    }
+
+    if let Some((mut images, vp)) = images {
+      if !vp.is_empty() {
+        let mut prefix = vp;
+        if prefix.contains(VendorPrefix::None) {
+          if let Some(targets) = context.targets {
+            prefix = Feature::MaskImage.prefixes_for(targets)
+          }
+        }
+
+        if let Some(targets) = context.targets {
+          for fallback in images.get_fallbacks(targets) {
+            // Match prefix of fallback. e.g. -webkit-linear-gradient
+            // can only be used in -webkit-mask-image.
+            // However, if mask-image is unprefixed, gradients can still be.
+            let mut p = fallback.iter().fold(prefix, |p, image| p & image.get_vendor_prefix());
+            if p.is_empty() {
+              p = prefix;
+            }
+            dest.push(Property::MaskImage(fallback, p))
+          }
+        }
+
+        let p = images.iter().fold(prefix, |p, image| p & image.get_vendor_prefix());
+        if !p.is_empty() {
+          prefix = p;
+        }
+
+        dest.push(Property::MaskImage(images, prefix));
+      }
+    }
+
+    prop!(positions, MaskPosition);
+    prop!(sizes, MaskSize);
+    prop!(repeats, MaskRepeat);
+    prop!(clips, MaskClip);
+    prop!(origins, MaskOrigin);
+
+    if let Some(composites) = composites {
+      let prefix = if let Some(targets) = context.targets {
+        Feature::MaskComposite.prefixes_for(targets)
+      } else {
+        VendorPrefix::None
+      };
+
+      if prefix.contains(VendorPrefix::WebKit) {
+        dest.push(Property::WebKitMaskComposite(composites.iter().map(|c| (*c).into()).collect()));
+      }
+      
+      dest.push(Property::MaskComposite(composites))
+    }
+
+    if let Some(modes) = modes {
+      let prefix = if let Some(targets) = context.targets {
+        Feature::Mask.prefixes_for(targets)
+      } else {
+        VendorPrefix::None
+      };
+
+      if prefix.contains(VendorPrefix::WebKit) {
+        dest.push(Property::WebKitMaskSourceType(modes.iter().map(|c| (*c).into()).collect(), VendorPrefix::WebKit));
+      }
+
+      dest.push(Property::MaskMode(modes))
+    }
+  }
+
+  fn flush_masks(&self, masks: SmallVec<[Mask<'i>; 1]>, prefix: VendorPrefix, dest: &mut DeclarationList<'i>) {
+    if prefix.contains(VendorPrefix::WebKit) && masks.iter().any(|mask| mask.composite != MaskComposite::default() || mask.mode != MaskMode::default()) {
+      // Prefixed shorthand syntax did not support mask-composite or mask-mode. These map to different webkit-specific properties.
+      // -webkit-mask-composite uses a different syntax than mask-composite.
+      // -webkit-mask-source-type is equivalent to mask-mode, but only supported in Safari, not Chrome.
+      let mut webkit = masks.clone();
+      let mut composites: SmallVec<[WebKitMaskComposite; 1]> = SmallVec::new();
+      let mut modes: SmallVec<[WebKitMaskSourceType; 1]> = SmallVec::new();
+      let mut needs_composites = false;
+      let mut needs_modes = false;
+      for mask in &mut webkit {
+        let composite = std::mem::take(&mut mask.composite);
+        if composite != MaskComposite::default() {
+          needs_composites = true;
+        }
+        composites.push(composite.into());
+
+        let mode = std::mem::take(&mut mask.mode);
+        if mode != MaskMode::default() {
+          needs_modes = true;
+        }
+        modes.push(mode.into());
+      }
+      
+      dest.push(Property::Mask(webkit, VendorPrefix::WebKit));
+      if needs_composites {
+        dest.push(Property::WebKitMaskComposite(composites));
+      }
+      if needs_modes {
+        dest.push(Property::WebKitMaskSourceType(modes, VendorPrefix::WebKit));
+      }
+      
+      let prefix = prefix - VendorPrefix::WebKit;
+      if !prefix.is_empty() {
+        dest.push(Property::Mask(masks, prefix));
+      }
+    } else {
+      dest.push(Property::Mask(masks, prefix));
+    }
+  }
+}
+
+#[inline]
+fn is_mask_property(property_id: &PropertyId) -> bool {
+  match property_id {
+    PropertyId::MaskImage(_) |
+    PropertyId::MaskPosition(_) |
+    PropertyId::MaskSize(_) |
+    PropertyId::MaskRepeat(_) |
+    PropertyId::MaskClip(_) |
+    PropertyId::MaskOrigin(_) |
+    PropertyId::MaskComposite |
+    PropertyId::MaskMode |
+    PropertyId::Mask(_) => true,
+    _ => false
   }
 }
