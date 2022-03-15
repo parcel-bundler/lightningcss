@@ -12330,6 +12330,21 @@ mod tests {
       chrome: Some(90 << 16),
       ..Browsers::default()
     });
+
+    prefix_test(
+      r#"
+        .foo {
+          transition-property: mask-composite, mask-mode;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          transition-property: -webkit-mask-composite, mask-composite, -webkit-mask-source-type, mask-mode;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]

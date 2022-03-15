@@ -1,5 +1,5 @@
 use cssparser::*;
-use crate::properties::masking::get_webkit_mask_border_property;
+use crate::properties::masking::get_webkit_mask_property;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::values::{time::Time, easing::EasingFunction};
 use super::{Property, PropertyId};
@@ -338,7 +338,6 @@ fn expand_properties<'i>(
   context: &mut PropertyHandlerContext
 ) -> Option<SmallVec<[PropertyId<'i>; 1]>> {
   let mut rtl_properties: Option<SmallVec<[PropertyId; 1]>> = None;
-  let len = properties.len();
   let mut i = 0;
 
   macro_rules! replace {
@@ -351,7 +350,7 @@ fn expand_properties<'i>(
   }
 
   // Expand logical properties in place.
-  while i < len {
+  while i < properties.len() {
     match get_logical_properties(&properties[i]) {
       LogicalPropertyId::Block(feature, props) if !context.is_supported(feature) => {
         replace!(properties, props);
@@ -378,16 +377,17 @@ fn expand_properties<'i>(
         properties[i].set_prefixes_for_targets(targets);
 
         // Expand mask properties, which use different vendor-prefixed names.
-        if let (Some(targets), Some(property_id)) = (targets, get_webkit_mask_border_property(&properties[i])) {
+        if let (Some(targets), Some(property_id)) = (targets, get_webkit_mask_property(&properties[i])) {
           if Feature::MaskBorder.prefixes_for(targets).contains(VendorPrefix::WebKit) {
             properties.insert(i, property_id);
+            i += 1;
           }
         }
 
         if let Some(rtl_properties) = &mut rtl_properties {
           rtl_properties[i].set_prefixes_for_targets(targets);
 
-          if let (Some(targets), Some(property_id)) = (targets, get_webkit_mask_border_property(&rtl_properties[i])) {
+          if let (Some(targets), Some(property_id)) = (targets, get_webkit_mask_property(&rtl_properties[i])) {
             if Feature::MaskBorder.prefixes_for(targets).contains(VendorPrefix::WebKit) {
               rtl_properties.insert(i, property_id);
             }

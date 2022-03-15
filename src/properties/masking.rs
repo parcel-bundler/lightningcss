@@ -571,7 +571,7 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
         }
 
         if prefix.contains(VendorPrefix::WebKit) {
-          if let Some(property_id) = get_webkit_mask_border_property(&val.property_id) {
+          if let Some(property_id) = get_webkit_mask_property(&val.property_id) {
             let mut clone = val.clone();
             clone.property_id = property_id;
             context.add_unparsed_fallbacks(&mut clone);
@@ -955,7 +955,7 @@ fn is_mask_property(property_id: &PropertyId) -> bool {
 }
 
 #[inline]
-pub(crate) fn get_webkit_mask_border_property(property_id: &PropertyId) -> Option<PropertyId<'static>> {
+pub(crate) fn get_webkit_mask_property(property_id: &PropertyId) -> Option<PropertyId<'static>> {
   Some(match property_id {
     PropertyId::MaskBorderSource => PropertyId::WebKitMaskBoxImageSource(VendorPrefix::WebKit),
     PropertyId::MaskBorderSlice => PropertyId::WebKitMaskBoxImageSlice(VendorPrefix::WebKit),
@@ -963,6 +963,8 @@ pub(crate) fn get_webkit_mask_border_property(property_id: &PropertyId) -> Optio
     PropertyId::MaskBorderOutset => PropertyId::WebKitMaskBoxImageOutset(VendorPrefix::WebKit),
     PropertyId::MaskBorderRepeat => PropertyId::WebKitMaskBoxImageRepeat(VendorPrefix::WebKit),
     PropertyId::MaskBorder => PropertyId::WebKitMaskBoxImage(VendorPrefix::WebKit),
+    PropertyId::MaskComposite => PropertyId::WebKitMaskComposite,
+    PropertyId::MaskMode => PropertyId::WebKitMaskSourceType(VendorPrefix::WebKit),
     _ => return None
   })
 }
