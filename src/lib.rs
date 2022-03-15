@@ -4920,10 +4920,19 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        transition-property: opacity, color;
-        transition-duration: 2s;
-        transition-delay: .5s;
-        transition-timing-function: ease-in-out;
+        transition: opacity 2s ease-in-out .5s, color 2s ease-in-out .5s;
+      }
+    "#});
+    test(r#"
+      .foo {
+        transition-property: opacity, color, width, height;
+        transition-duration: 2s, 4s;
+        transition-timing-function: ease;
+        transition-delay: 0s;
+      }
+    "#, indoc! {r#"
+      .foo {
+        transition: opacity 2s, color 4s, width 2s, height 4s;
       }
     "#});
 
@@ -12256,6 +12265,66 @@ mod tests {
             -webkit-mask-box-image: linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586)) var(--foo);
             mask-border: linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586)) var(--foo);
           }
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          transition: mask 200ms;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          transition: -webkit-mask .2s, mask .2s;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          transition: mask-border 200ms;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          transition: -webkit-mask-box-image .2s, mask-border .2s;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          transition-property: mask;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          transition-property: -webkit-mask, mask;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          transition-property: mask-border;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          transition-property: -webkit-mask-box-image, mask-border;
         }
     "#},Browsers {
       chrome: Some(90 << 16),
