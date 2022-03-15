@@ -848,12 +848,18 @@ define_properties! {
   "mask-border-slice": MaskBorderSlice(BorderImageSlice),
   "mask-border-width": MaskBorderWidth(Rect<BorderImageSideWidth>),
   "mask-border-outset": MaskBorderOutset(Rect<LengthOrNumber>),
-  "mask-border-repeat": MaskBorderRepeat(BorderImageRepeat, VendorPrefix) / WebKit,
+  "mask-border-repeat": MaskBorderRepeat(BorderImageRepeat),
   "mask-border": MaskBorder(MaskBorder<'i>),
 
   // WebKit additions
   "-webkit-mask-composite": WebKitMaskComposite(SmallVec<[WebKitMaskComposite; 1]>),
   "mask-source-type": WebKitMaskSourceType(SmallVec<[WebKitMaskSourceType; 1]>, VendorPrefix) / WebKit unprefixed: false,
+  "mask-box-image": WebKitMaskBoxImage(BorderImage<'i>, VendorPrefix) / WebKit unprefixed: false,
+  "mask-box-image-source": WebKitMaskBoxImageSource(Image<'i>, VendorPrefix) / WebKit unprefixed: false,
+  "mask-box-image-slice": WebKitMaskBoxImageSlice(BorderImageSlice, VendorPrefix) / WebKit unprefixed: false,
+  "mask-box-image-width": WebKitMaskBoxImageWidth(Rect<BorderImageSideWidth>, VendorPrefix) / WebKit unprefixed: false,
+  "mask-box-image-outset": WebKitMaskBoxImageOutset(Rect<LengthOrNumber>, VendorPrefix) / WebKit unprefixed: false,
+  "mask-box-image-repeat": WebKitMaskBoxImageRepeat(BorderImageRepeat, VendorPrefix) / WebKit unprefixed: false,
 
   // https://drafts.fxtf.org/filter-effects-1/
   "filter": Filter(FilterList<'i>),

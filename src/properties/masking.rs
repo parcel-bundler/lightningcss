@@ -10,6 +10,8 @@ use crate::printer::Printer;
 use crate::macros::enum_property;
 use crate::error::{ParserError, PrinterError};
 use crate::values::image::ImageFallback;
+use crate::values::length::LengthOrNumber;
+use crate::values::rect::Rect;
 use crate::values::{
   image::Image,
   position::Position,
@@ -19,7 +21,7 @@ use crate::values::{
 use crate::vendor_prefix::VendorPrefix;
 use super::PropertyId;
 use super::background::{BackgroundSize, BackgroundRepeat};
-use super::border_image::BorderImage;
+use super::border_image::{BorderImage, BorderImageSlice, BorderImageSideWidth, BorderImageRepeat};
 
 enum_property! {
   /// https://www.w3.org/TR/css-masking-1/#the-mask-type
@@ -434,6 +436,12 @@ pub(crate) struct MaskHandler<'i> {
   origins: Option<(SmallVec<[GeometryBox; 1]>, VendorPrefix)>,
   composites: Option<SmallVec<[MaskComposite; 1]>>,
   modes: Option<SmallVec<[MaskMode; 1]>>,
+  border_source: Option<(Image<'i>, VendorPrefix)>,
+  border_mode: Option<MaskBorderMode>,
+  border_slice: Option<(BorderImageSlice, VendorPrefix)>,
+  border_width: Option<(Rect<BorderImageSideWidth>, VendorPrefix)>,
+  border_outset: Option<(Rect<LengthOrNumber>, VendorPrefix)>,
+  border_repeat: Option<(BorderImageRepeat, VendorPrefix)>,
   has_any: bool
 }
 
@@ -445,7 +453,7 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
           if val != $val && !prefixes.contains(*$vp) {
-            self.flush(dest, context);
+            self.finalize(dest, context);
           }
         }
       }};
@@ -464,6 +472,31 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
           self.has_any = true;
         }
       }};
+    }
+
+    macro_rules! border_shorthand {
+      ($val: expr, $vp: expr) => {
+        let source = $val.source.clone();
+        maybe_flush!(border_source, &source, &$vp);
+
+        let slice = $val.slice.clone();
+        maybe_flush!(border_slice, &slice, &$vp);
+
+        let width = $val.width.clone();
+        maybe_flush!(border_width, &width, &$vp);
+
+        let outset = $val.outset.clone();
+        maybe_flush!(border_outset, &outset, &$vp);
+
+        let repeat = $val.repeat.clone();
+        maybe_flush!(border_repeat, &repeat, &$vp);
+
+        property!(border_source, &source, &$vp);
+        property!(border_slice, &slice, &$vp);
+        property!(border_width, &width, &$vp);
+        property!(border_outset, &outset, &$vp);
+        property!(border_repeat, &repeat, &$vp);
+      }
     }
     
     match property {
@@ -509,6 +542,46 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
         context.add_unparsed_fallbacks(&mut unparsed);
         dest.push(Property::Unparsed(unparsed));
       }
+      Property::MaskBorderSource(val) => property!(border_source, val, &VendorPrefix::None),
+      Property::WebKitMaskBoxImageSource(val, _) => property!(border_source, val, &VendorPrefix::WebKit),
+      Property::MaskBorderMode(val) => self.border_mode = Some(val.clone()),
+      Property::MaskBorderSlice(val) => property!(border_slice, val, &VendorPrefix::None),
+      Property::WebKitMaskBoxImageSlice(val, _) => property!(border_slice, val, &VendorPrefix::WebKit),
+      Property::MaskBorderWidth(val) => property!(border_width, val, &VendorPrefix::None),
+      Property::WebKitMaskBoxImageWidth(val, _) => property!(border_width, val, &VendorPrefix::WebKit),
+      Property::MaskBorderOutset(val) => property!(border_outset, val, &VendorPrefix::None),
+      Property::WebKitMaskBoxImageOutset(val, _) => property!(border_outset, val, &VendorPrefix::WebKit),
+      Property::MaskBorderRepeat(val) => property!(border_repeat, val, &VendorPrefix::None),
+      Property::WebKitMaskBoxImageRepeat(val, _) => property!(border_repeat, val, &VendorPrefix::WebKit),
+      Property::MaskBorder(val) => {
+        border_shorthand!(val.border_image, VendorPrefix::None);
+        self.border_mode = Some(val.mode.clone());
+      }
+      Property::WebKitMaskBoxImage(val, _) => {
+        border_shorthand!(val, VendorPrefix::WebKit);
+      }
+      Property::Unparsed(val) if is_mask_border_property(&val.property_id) => {
+        // Add vendor prefixes and expand color fallbacks.
+        let mut val = val.clone();
+        let mut prefix = val.property_id.prefix();
+        if prefix.contains(VendorPrefix::None) {
+          if let Some(targets) = context.targets {
+            prefix = Feature::MaskBorder.prefixes_for(targets);
+          }
+        }
+
+        if prefix.contains(VendorPrefix::WebKit) {
+          if let Some(property_id) = get_webkit_mask_border_property(&val.property_id) {
+            let mut clone = val.clone();
+            clone.property_id = property_id;
+            context.add_unparsed_fallbacks(&mut clone);
+            dest.push(Property::Unparsed(clone));
+          }
+        }
+
+        context.add_unparsed_fallbacks(&mut val);
+        dest.push(Property::Unparsed(val));
+      }
       _ => return false
     }
 
@@ -517,18 +590,19 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
   }
 
   fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
-    self.flush(dest, context)
-  }
-}
-
-impl<'i> MaskHandler<'i> {
-  fn flush(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
     if !self.has_any {
       return
     }
 
     self.has_any = false;
 
+    self.flush_mask(dest, context);
+    self.flush_mask_border(dest, context);
+  }
+}
+
+impl<'i> MaskHandler<'i> {
+  fn flush_mask(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
     let mut images = std::mem::take(&mut self.images);
     let mut positions = std::mem::take(&mut self.positions);
     let mut sizes = std::mem::take(&mut self.sizes);
@@ -572,7 +646,7 @@ impl<'i> MaskHandler<'i> {
             if p.is_empty() {
               p = prefix;
             }
-            self.flush_masks(fallback, p, dest);
+            self.flush_mask_shorthand(fallback, p, dest);
           }
 
           let p = masks.iter().fold(VendorPrefix::empty(), |p, mask| p | mask.image.get_vendor_prefix()) - VendorPrefix::None & prefix;
@@ -581,7 +655,7 @@ impl<'i> MaskHandler<'i> {
           }
         }
 
-        self.flush_masks(masks, prefix, dest);
+        self.flush_mask_shorthand(masks, prefix, dest);
 
         images_vp.remove(intersection);
         positions_vp.remove(intersection);
@@ -676,7 +750,7 @@ impl<'i> MaskHandler<'i> {
     }
   }
 
-  fn flush_masks(&self, masks: SmallVec<[Mask<'i>; 1]>, prefix: VendorPrefix, dest: &mut DeclarationList<'i>) {
+  fn flush_mask_shorthand(&self, masks: SmallVec<[Mask<'i>; 1]>, prefix: VendorPrefix, dest: &mut DeclarationList<'i>) {
     if prefix.contains(VendorPrefix::WebKit) && masks.iter().any(|mask| mask.composite != MaskComposite::default() || mask.mode != MaskMode::default()) {
       // Prefixed shorthand syntax did not support mask-composite or mask-mode. These map to different webkit-specific properties.
       // -webkit-mask-composite uses a different syntax than mask-composite.
@@ -716,6 +790,138 @@ impl<'i> MaskHandler<'i> {
       dest.push(Property::Mask(masks, prefix));
     }
   }
+
+  fn flush_mask_border(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
+    let mut source = std::mem::take(&mut self.border_source);
+    let mut slice = std::mem::take(&mut self.border_slice);
+    let mut width = std::mem::take(&mut self.border_width);
+    let mut outset = std::mem::take(&mut self.border_outset);
+    let mut repeat = std::mem::take(&mut self.border_repeat);
+    let mut mode = std::mem::take(&mut self.border_mode);
+
+    if let (Some((source, source_vp)), Some((slice, slice_vp)), Some((width, width_vp)), Some((outset, outset_vp)), Some((repeat, repeat_vp))) = (&mut source, &mut slice, &mut width, &mut outset, &mut repeat) {      
+      let intersection = *source_vp & *slice_vp & *width_vp & *outset_vp & *repeat_vp;
+      if !intersection.is_empty() && (!intersection.contains(VendorPrefix::None) || mode.is_some()) {
+        let mut border_image = BorderImage {
+          source: source.clone(),
+          slice: slice.clone(),
+          width: width.clone(),
+          outset: outset.clone(),
+          repeat: repeat.clone()
+        };
+
+        let mut prefix = intersection;
+        if prefix.contains(VendorPrefix::None) {
+          if let Some(targets) = context.targets {
+            prefix = Feature::MaskBorder.prefixes_for(targets)
+          }
+        }
+
+        if let Some(targets) = context.targets {
+          // Get vendor prefix and color fallbacks.
+          let fallbacks = border_image.get_fallbacks(targets);
+          for fallback in fallbacks {
+            let mut p = fallback.source.get_vendor_prefix() - VendorPrefix::None & prefix;
+            if p.is_empty() {
+              p = prefix;
+            }
+
+            if p.contains(VendorPrefix::WebKit) {
+              dest.push(Property::WebKitMaskBoxImage(fallback.clone(), VendorPrefix::WebKit));
+            }
+
+            if p.contains(VendorPrefix::None) {
+              dest.push(Property::MaskBorder(MaskBorder {
+                border_image: fallback.clone(),
+                mode: mode.unwrap().clone()
+              }))
+            }
+          }
+        }
+
+        let p = border_image.source.get_vendor_prefix() - VendorPrefix::None & prefix;
+        if !p.is_empty() {
+          prefix = p;
+        }
+
+        if prefix.contains(VendorPrefix::WebKit) {
+          dest.push(Property::WebKitMaskBoxImage(border_image.clone(), VendorPrefix::WebKit));
+        }
+
+        if prefix.contains(VendorPrefix::None) {
+          dest.push(Property::MaskBorder(MaskBorder {
+            border_image: border_image.clone(),
+            mode: mode.unwrap()
+          }));
+
+          mode = None;
+        }
+
+        source_vp.remove(intersection);
+        slice_vp.remove(intersection);
+        width_vp.remove(intersection);
+        outset_vp.remove(intersection);
+        repeat_vp.remove(intersection);
+      }
+    }
+
+    if let Some((mut source, mut prefix)) = source {
+      if let Some(targets) = context.targets {
+        if prefix.contains(VendorPrefix::None) {
+          prefix = Feature::MaskBorderSource.prefixes_for(targets)
+        }
+
+        // Get vendor prefix and color fallbacks.
+        let fallbacks = source.get_fallbacks(targets);
+        for fallback in fallbacks {
+          if prefix.contains(VendorPrefix::WebKit) {
+            dest.push(Property::WebKitMaskBoxImageSource(fallback.clone(), VendorPrefix::WebKit));
+          }
+
+          if prefix.contains(VendorPrefix::None) {
+            dest.push(Property::MaskBorderSource(fallback));
+          }
+        }
+      }
+
+      if prefix.contains(VendorPrefix::WebKit) {
+        dest.push(Property::WebKitMaskBoxImageSource(source.clone(), VendorPrefix::WebKit));
+      }
+
+      if prefix.contains(VendorPrefix::None) {
+        dest.push(Property::MaskBorderSource(source));
+      }
+    }
+
+    macro_rules! prop {
+      ($val: expr, $prop: ident, $webkit: ident) => {
+        if let Some((val, mut prefix)) = $val {
+          if let Some(targets) = context.targets {
+            if prefix.contains(VendorPrefix::None) {
+              prefix = Feature::$prop.prefixes_for(targets)
+            }
+          }
+
+          if prefix.contains(VendorPrefix::WebKit) {
+            dest.push(Property::$webkit(val.clone(), VendorPrefix::WebKit));
+          }
+
+          if prefix.contains(VendorPrefix::None) {
+            dest.push(Property::$prop(val));
+          }
+        }
+      }
+    }
+
+    prop!(slice, MaskBorderSlice, WebKitMaskBoxImageSlice);
+    prop!(width, MaskBorderWidth, WebKitMaskBoxImageWidth);
+    prop!(outset, MaskBorderOutset, WebKitMaskBoxImageOutset);
+    prop!(repeat, MaskBorderRepeat, WebKitMaskBoxImageRepeat);
+
+    if let Some(mode) = mode {
+      dest.push(Property::MaskBorderMode(mode));
+    }
+  }
 }
 
 #[inline]
@@ -732,4 +938,31 @@ fn is_mask_property(property_id: &PropertyId) -> bool {
     PropertyId::Mask(_) => true,
     _ => false
   }
+}
+
+#[inline]
+ fn is_mask_border_property(property_id: &PropertyId) -> bool {
+  match property_id {
+    PropertyId::MaskBorderSource |
+    PropertyId::MaskBorderSlice |
+    PropertyId::MaskBorderWidth |
+    PropertyId::MaskBorderOutset |
+    PropertyId::MaskBorderRepeat |
+    PropertyId::MaskBorderMode |
+    PropertyId::MaskBorder => true,
+    _ => false
+  }
+}
+
+#[inline]
+pub(crate) fn get_webkit_mask_border_property(property_id: &PropertyId) -> Option<PropertyId<'static>> {
+  Some(match property_id {
+    PropertyId::MaskBorderSource => PropertyId::WebKitMaskBoxImageSource(VendorPrefix::WebKit),
+    PropertyId::MaskBorderSlice => PropertyId::WebKitMaskBoxImageSlice(VendorPrefix::WebKit),
+    PropertyId::MaskBorderWidth => PropertyId::WebKitMaskBoxImageWidth(VendorPrefix::WebKit),
+    PropertyId::MaskBorderOutset => PropertyId::WebKitMaskBoxImageOutset(VendorPrefix::WebKit),
+    PropertyId::MaskBorderRepeat => PropertyId::WebKitMaskBoxImageRepeat(VendorPrefix::WebKit),
+    PropertyId::MaskBorder => PropertyId::WebKitMaskBoxImage(VendorPrefix::WebKit),
+    _ => return None
+  })
 }

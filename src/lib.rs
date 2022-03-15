@@ -12114,6 +12114,153 @@ mod tests {
       chrome: Some(90 << 16),
       ..Browsers::default()
     });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-border: url('border-mask.png') 25 / 35px / 12px space luminance;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          -webkit-mask-box-image: url(border-mask.png) 25 / 35px / 12px space;
+          mask-border: url(border-mask.png) 25 / 35px / 12px space luminance;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-border: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 25 / 35px / 12px space luminance;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          -webkit-mask-box-image: linear-gradient(#ff0f0e, #7773ff) 25 / 35px / 12px space;
+          mask-border: linear-gradient(#ff0f0e, #7773ff) 25 / 35px / 12px space luminance;
+          -webkit-mask-box-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 25 / 35px / 12px space;
+          mask-border: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 25 / 35px / 12px space luminance;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-border-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          -webkit-mask-box-image-source: linear-gradient(#ff0f0e, #7773ff);
+          mask-border-source: linear-gradient(#ff0f0e, #7773ff);
+          -webkit-mask-box-image-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+          mask-border-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-border-source: url(foo.png);
+          mask-border-slice: 10 40 10 40;
+          mask-border-width: 10px;
+          mask-border-outset: 0;
+          mask-border-repeat: round round;
+          mask-border-mode: luminance;
+        }
+      "#,
+      indoc! { r#"
+        .foo {
+          -webkit-mask-box-image: url(foo.png) 10 40 / 10px round;
+          mask-border: url(foo.png) 10 40 / 10px round luminance;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          -webkit-mask-box-image-source: url(foo.png);
+          -webkit-mask-box-image-slice: 10 40 10 40;
+          -webkit-mask-box-image-width: 10px;
+          -webkit-mask-box-image-outset: 0;
+          -webkit-mask-box-image-repeat: round round;
+        }
+      "#,
+      indoc! { r#"
+        .foo {
+          -webkit-mask-box-image: url(foo.png) 10 40 / 10px round;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-border-slice: 10 40 10 40;
+        }
+      "#,
+      indoc! { r#"
+        .foo {
+          -webkit-mask-box-image-slice: 10 40;
+          mask-border-slice: 10 40;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-border-slice: var(--foo);
+        }
+      "#,
+      indoc! { r#"
+        .foo {
+          -webkit-mask-box-image-slice: var(--foo);
+          mask-border-slice: var(--foo);
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-border: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) var(--foo);
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          -webkit-mask-box-image: linear-gradient(#ff0f0e, #7773ff) var(--foo);
+          mask-border: linear-gradient(#ff0f0e, #7773ff) var(--foo);
+        }
+
+        @supports (color: lab(0% 0 0)) {
+          .foo {
+            -webkit-mask-box-image: linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586)) var(--foo);
+            mask-border: linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586)) var(--foo);
+          }
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]
