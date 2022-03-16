@@ -27,6 +27,16 @@ const MDN_BROWSER_MAPPING = {
   webview_android: 'android'
 };
 
+// Caniuse data for clip-path is incorrect.
+// https://github.com/Fyrd/caniuse/issues/6209
+prefixes['clip-path'].browsers = prefixes['clip-path'].browsers.filter(b => {
+  let [name, version] = b.split(' ');
+  return !(
+    (name === 'safari' && parseVersion(version) >= (9 << 16 | 1 << 8)) ||
+    (name === 'ios_saf' && parseVersion(version) >= (9 << 16 | 3 << 8))
+  );
+});
+
 let flexSpec = {};
 let oldGradient = {};
 let p = new Map();

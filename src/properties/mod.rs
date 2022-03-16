@@ -829,7 +829,7 @@ define_properties! {
   "image-rendering": ImageRendering(ImageRendering),
 
   // https://www.w3.org/TR/css-masking-1/
-  "clip-path": ClipPath(ClipPath<'i>),
+  "clip-path": ClipPath(ClipPath<'i>, VendorPrefix) / WebKit,
   "clip-rule": ClipRule(FillRule),
   "mask-image": MaskImage(SmallVec<[Image<'i>; 1]>, VendorPrefix) / WebKit,
   "mask-mode": MaskMode(SmallVec<[MaskMode; 1]>),

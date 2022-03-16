@@ -11878,6 +11878,60 @@ mod tests {
     minify_test(".foo { clip-path: circle(50px at 0 100px) border-box; }", ".foo{clip-path:circle(50px at 0 100px)}");
   
     prefix_test(
+      ".foo { clip-path: circle(50px); }",
+      indoc! { r#"
+        .foo {
+          -webkit-clip-path: circle(50px);
+          clip-path: circle(50px);
+        }
+      "#},
+      Browsers {
+        chrome: Some(30 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { clip-path: circle(50px); }",
+      indoc! { r#"
+        .foo {
+          clip-path: circle(50px);
+        }
+      "#},
+      Browsers {
+        chrome: Some(80 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { clip-path: circle(50px); }",
+      indoc! { r#"
+        .foo {
+          -webkit-clip-path: circle(50px);
+          clip-path: circle(50px);
+        }
+      "#},
+      Browsers {
+        safari: Some(8 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { clip-path: circle(50px); }",
+      indoc! { r#"
+        .foo {
+          clip-path: circle(50px);
+        }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
       ".foo { fill: lch(50.998% 135.363 338) }",
       indoc! { r#"
         .foo {

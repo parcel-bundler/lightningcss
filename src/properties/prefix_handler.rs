@@ -95,6 +95,7 @@ define_prefixes! {
   TextOverflow,
   UserSelect,
   Appearance,
+  ClipPath,
 }
 
 macro_rules! define_fallbacks {
