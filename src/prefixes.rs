@@ -547,7 +547,7 @@ impl Feature {
       Feature::BackdropFilter => {
         if let Some(version) = browsers.edge {
           if version >= 1114112 && version <= 1179648 {
-            prefixes |= VendorPrefix::Ms;
+            prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.ios_saf {

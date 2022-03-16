@@ -12358,15 +12358,84 @@ mod tests {
     minify_test(".foo { filter: contrast(175%) brightness(3%); }", ".foo{filter:contrast(175%)brightness(3%)}");
   
     prefix_test(
+      ".foo { filter: blur(5px) }",
+      indoc! { r#"
+        .foo {
+          -webkit-filter: blur(5px);
+          filter: blur(5px);
+        }
+      "#},
+      Browsers {
+        chrome: Some(20 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { filter: blur(5px) }",
+      indoc! { r#"
+        .foo {
+          filter: blur(5px);
+        }
+      "#},
+      Browsers {
+        chrome: Some(80 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { backdrop-filter: blur(5px) }",
+      indoc! { r#"
+        .foo {
+          backdrop-filter: blur(5px);
+        }
+      "#},
+      Browsers {
+        chrome: Some(80 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { backdrop-filter: blur(5px) }",
+      indoc! { r#"
+        .foo {
+          -webkit-backdrop-filter: blur(5px);
+          backdrop-filter: blur(5px);
+        }
+      "#},
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      ".foo { filter: var(--foo) }",
+      indoc! { r#"
+        .foo {
+          -webkit-filter: var(--foo);
+          filter: var(--foo);
+        }
+      "#},
+      Browsers {
+        chrome: Some(20 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
       ".foo { filter: drop-shadow(16px 16px 20px lab(40% 56.6 39)) }",
       indoc! { r#"
         .foo {
+          -webkit-filter: drop-shadow(16px 16px 20px #b32323);
           filter: drop-shadow(16px 16px 20px #b32323);
           filter: drop-shadow(16px 16px 20px lab(40% 56.6 39));
         }
       "#},
       Browsers {
-        chrome: Some(4 << 16),
+        chrome: Some(20 << 16),
         ..Browsers::default()
       }
     );

@@ -38,6 +38,12 @@ for (let prop in prefixes) {
       continue;
     }
     let prefix = browsers[name].prefix_exceptions?.[version] || browsers[name].prefix;
+  
+    // https://github.com/postcss/autoprefixer/blob/main/lib/hacks/backdrop-filter.js#L11
+    if (prefix === 'ms' && prop === 'backdrop-filter') {
+      prefix = 'webkit';
+    }
+
     name = BROWSER_MAPPING[name] || name;
     let v = parseVersion(version);
     if (v == null) {

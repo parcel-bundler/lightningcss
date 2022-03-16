@@ -99,7 +99,7 @@ define_prefixes! {
 
 macro_rules! define_fallbacks {
   (
-    $( $name: ident, )+
+    $( $name: ident$(($p: ident))?, )+
   ) => {
     #[derive(Default)]
     pub(crate) struct FallbackHandler {
@@ -118,16 +118,30 @@ macro_rules! define_fallbacks {
       fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
         match property {
           $(
-            Property::$name(val) => {
+            Property::$name(val $(, mut $p)?) => {
               let mut val = val.clone();
               if let Some(targets) = self.targets {
+                $(
+                  if $p.contains(VendorPrefix::None) {
+                    $p = Feature::$name.prefixes_for(targets);
+                  }
+                )?
+
                 let fallbacks = val.get_fallbacks(targets);
+                #[allow(unused_variables)]
+                let has_fallbacks = !fallbacks.is_empty();
                 for fallback in fallbacks {
-                  dest.push(Property::$name(fallback.clone()))
+                  dest.push(Property::$name(fallback $(, $p)?))
                 }
+
+                $(
+                  if has_fallbacks && $p.contains(VendorPrefix::None) {
+                    $p = VendorPrefix::None;
+                  }
+                )?
               }
 
-              dest.push(Property::$name(val))
+              dest.push(Property::$name(val $(, $p)?))
             }
           )+
           Property::Custom(custom) => {
@@ -149,8 +163,30 @@ macro_rules! define_fallbacks {
 
             dest.push(Property::Custom(custom))
           }
-          Property::Unparsed(val) if matches!(val.property_id, $( PropertyId::$name | )+ PropertyId::All) => {
-            let mut unparsed = val.clone();
+          Property::Unparsed(val) => {
+            let mut unparsed = match val.property_id {
+              $(
+                PropertyId::$name$(($p))? => {
+                  macro_rules! get_prefixed {
+                    ($vp: ident) => {
+                      if $vp.contains(VendorPrefix::None) {
+                        val.get_prefixed(self.targets, Feature::$name)
+                      } else {
+                        val.clone()
+                      }
+                    };
+                    () => {
+                      val.clone()
+                    };
+                  }
+
+                  get_prefixed!($($p)?)
+                }
+              )+
+              PropertyId::All => val.clone(),
+              _ => return false
+            };
+            
             context.add_unparsed_fallbacks(&mut unparsed);
             dest.push(Property::Unparsed(unparsed));
           }
@@ -168,7 +204,8 @@ macro_rules! define_fallbacks {
 define_fallbacks! {
   Color,
   TextShadow,
-  Filter,
+  Filter(prefix),
+  BackdropFilter(prefix),
   Fill,
   Stroke,
   CaretColor,

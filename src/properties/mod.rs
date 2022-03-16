@@ -862,8 +862,8 @@ define_properties! {
   "mask-box-image-repeat": WebKitMaskBoxImageRepeat(BorderImageRepeat, VendorPrefix) / WebKit unprefixed: false,
 
   // https://drafts.fxtf.org/filter-effects-1/
-  "filter": Filter(FilterList<'i>),
-  "backdrop-filter": BackdropFilter(FilterList<'i>),
+  "filter": Filter(FilterList<'i>, VendorPrefix) / WebKit,
+  "backdrop-filter": BackdropFilter(FilterList<'i>, VendorPrefix) / WebKit,
 }
 
 impl<'i, T: smallvec::Array<Item = V>, V: Parse<'i>> Parse<'i> for SmallVec<T> {
