@@ -1,6 +1,7 @@
 use cssparser::*;
 use crate::properties::Property;
 use crate::properties::box_shadow::BoxShadowHandler;
+use crate::properties::masking::MaskHandler;
 use crate::traits::{PropertyHandler, ToCss};
 use crate::printer::Printer;
 use crate::properties::{
@@ -189,6 +190,7 @@ pub(crate) struct DeclarationHandler<'i> {
   overflow: OverflowHandler,
   transform: TransformHandler,
   box_shadow: BoxShadowHandler,
+  mask: MaskHandler<'i>,
   fallback: FallbackHandler,
   prefix: PrefixHandler,
   decls: DeclarationList<'i>
@@ -219,6 +221,7 @@ impl<'i> DeclarationHandler<'i> {
       overflow: OverflowHandler::new(targets),
       transform: TransformHandler::new(targets),
       box_shadow: BoxShadowHandler::new(targets),
+      mask: MaskHandler::default(),
       fallback: FallbackHandler::new(targets),
       prefix: PrefixHandler::new(targets),
       decls: DeclarationList::new()
@@ -248,6 +251,7 @@ impl<'i> DeclarationHandler<'i> {
     self.overflow.handle_property(property, &mut self.decls, context) ||
     self.transform.handle_property(property, &mut self.decls, context) ||
     self.box_shadow.handle_property(property, &mut self.decls, context) ||
+    self.mask.handle_property(property, &mut self.decls, context) ||
     self.fallback.handle_property(property, &mut self.decls, context) ||
     self.prefix.handle_property(property, &mut self.decls, context)
   }
@@ -275,6 +279,7 @@ impl<'i> DeclarationHandler<'i> {
     self.overflow.finalize(&mut self.decls, context);
     self.transform.finalize(&mut self.decls, context);
     self.box_shadow.finalize(&mut self.decls, context);
+    self.mask.finalize(&mut self.decls, context);
     self.fallback.finalize(&mut self.decls, context);
     self.prefix.finalize(&mut self.decls, context);
   }

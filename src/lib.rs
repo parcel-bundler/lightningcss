@@ -4920,10 +4920,19 @@ mod tests {
       }
     "#, indoc! {r#"
       .foo {
-        transition-property: opacity, color;
-        transition-duration: 2s;
-        transition-delay: .5s;
-        transition-timing-function: ease-in-out;
+        transition: opacity 2s ease-in-out .5s, color 2s ease-in-out .5s;
+      }
+    "#});
+    test(r#"
+      .foo {
+        transition-property: opacity, color, width, height;
+        transition-duration: 2s, 4s;
+        transition-timing-function: ease;
+        transition-delay: 0s;
+      }
+    "#, indoc! {r#"
+      .foo {
+        transition: opacity 2s, color 4s, width 2s, height 4s;
       }
     "#});
 
@@ -11939,8 +11948,8 @@ mod tests {
       ".foo { mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
       indoc! { r#"
         .foo {
-          mask-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
-          mask-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          -webkit-mask-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
+          -webkit-mask-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
           mask-image: linear-gradient(#ff0f0e, #7773ff);
           mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
@@ -11955,9 +11964,11 @@ mod tests {
       ".foo { mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px }",
       indoc! { r#"
         .foo {
-          mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 40px 20px;
-          mask: -webkit-linear-gradient(#ff0f0e, #7773ff) 40px 20px;
+          -webkit-mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 40px 20px;
+          -webkit-mask: -webkit-linear-gradient(#ff0f0e, #7773ff) 40px 20px;
+          -webkit-mask: linear-gradient(#ff0f0e, #7773ff) 40px 20px;
           mask: linear-gradient(#ff0f0e, #7773ff) 40px 20px;
+          -webkit-mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px;
           mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px;
         }
       "#},
@@ -11971,8 +11982,8 @@ mod tests {
       ".foo { mask: -webkit-linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px }",
       indoc! { r#"
         .foo {
-          mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 40px 20px;
-          mask: -webkit-linear-gradient(#ff0f0e, #7773ff) 40px 20px;
+          -webkit-mask: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff)) 40px 20px;
+          -webkit-mask: -webkit-linear-gradient(#ff0f0e, #7773ff) 40px 20px;
         }
       "#},
       Browsers {
@@ -11985,11 +11996,13 @@ mod tests {
       ".foo { mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px var(--foo) }",
       indoc! { r#"
         .foo {
+          -webkit-mask: linear-gradient(#ff0f0e, #7773ff) 40px var(--foo);
           mask: linear-gradient(#ff0f0e, #7773ff) 40px var(--foo);
         }
 
         @supports (color: lab(0% 0 0)) {
           .foo {
+            -webkit-mask: linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586)) 40px var(--foo);
             mask: linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586)) 40px var(--foo);
           }
         }
@@ -11999,6 +12012,339 @@ mod tests {
         ..Browsers::default()
       }
     );
+
+    prefix_test(
+      ".foo { mask: url(masks.svg#star) luminance }", 
+      indoc! { r#"
+        .foo {
+          -webkit-mask: url(masks.svg#star);
+          -webkit-mask-source-type: luminance;
+          mask: url(masks.svg#star) luminance;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      ".foo { mask-image: url(masks.svg#star) }", 
+      indoc! { r#"
+        .foo {
+          -webkit-mask-image: url(masks.svg#star);
+          mask-image: url(masks.svg#star);
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-image: url(masks.svg#star);
+          mask-position: 25% 75%;
+          mask-size: cover;
+          mask-repeat: no-repeat;
+          mask-clip: padding-box;
+          mask-origin: content-box;
+          mask-composite: subtract;
+          mask-mode: luminance;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          -webkit-mask: url(masks.svg#star) 25% 75% / cover no-repeat content-box padding-box;
+          -webkit-mask-composite: source-out;
+          -webkit-mask-source-type: luminance;
+          mask: url(masks.svg#star) 25% 75% / cover no-repeat content-box padding-box subtract luminance;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+          mask-position: 25% 75%;
+          mask-size: cover;
+          mask-repeat: no-repeat;
+          mask-clip: padding-box;
+          mask-origin: content-box;
+          mask-composite: subtract;
+          mask-mode: luminance;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          -webkit-mask: linear-gradient(#ff0f0e, #7773ff) 25% 75% / cover no-repeat content-box padding-box;
+          -webkit-mask-composite: source-out;
+          -webkit-mask-source-type: luminance;
+          mask: linear-gradient(#ff0f0e, #7773ff) 25% 75% / cover no-repeat content-box padding-box subtract luminance;
+          -webkit-mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 25% 75% / cover no-repeat content-box padding-box;
+          -webkit-mask-composite: source-out;
+          -webkit-mask-source-type: luminance;
+          mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 25% 75% / cover no-repeat content-box padding-box subtract luminance;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-composite: subtract;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          -webkit-mask-composite: source-out;
+          mask-composite: subtract;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-mode: luminance;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          -webkit-mask-source-type: luminance;
+          mask-mode: luminance;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-border: url('border-mask.png') 25 / 35px / 12px space luminance;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          -webkit-mask-box-image: url(border-mask.png) 25 / 35px / 12px space;
+          mask-border: url(border-mask.png) 25 / 35px / 12px space luminance;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-border: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 25 / 35px / 12px space luminance;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          -webkit-mask-box-image: linear-gradient(#ff0f0e, #7773ff) 25 / 35px / 12px space;
+          mask-border: linear-gradient(#ff0f0e, #7773ff) 25 / 35px / 12px space luminance;
+          -webkit-mask-box-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 25 / 35px / 12px space;
+          mask-border: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 25 / 35px / 12px space luminance;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-border-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          -webkit-mask-box-image-source: linear-gradient(#ff0f0e, #7773ff);
+          mask-border-source: linear-gradient(#ff0f0e, #7773ff);
+          -webkit-mask-box-image-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+          mask-border-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-border-source: url(foo.png);
+          mask-border-slice: 10 40 10 40;
+          mask-border-width: 10px;
+          mask-border-outset: 0;
+          mask-border-repeat: round round;
+          mask-border-mode: luminance;
+        }
+      "#,
+      indoc! { r#"
+        .foo {
+          -webkit-mask-box-image: url(foo.png) 10 40 / 10px round;
+          mask-border: url(foo.png) 10 40 / 10px round luminance;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          -webkit-mask-box-image-source: url(foo.png);
+          -webkit-mask-box-image-slice: 10 40 10 40;
+          -webkit-mask-box-image-width: 10px;
+          -webkit-mask-box-image-outset: 0;
+          -webkit-mask-box-image-repeat: round round;
+        }
+      "#,
+      indoc! { r#"
+        .foo {
+          -webkit-mask-box-image: url(foo.png) 10 40 / 10px round;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-border-slice: 10 40 10 40;
+        }
+      "#,
+      indoc! { r#"
+        .foo {
+          -webkit-mask-box-image-slice: 10 40;
+          mask-border-slice: 10 40;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-border-slice: var(--foo);
+        }
+      "#,
+      indoc! { r#"
+        .foo {
+          -webkit-mask-box-image-slice: var(--foo);
+          mask-border-slice: var(--foo);
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          mask-border: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) var(--foo);
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          -webkit-mask-box-image: linear-gradient(#ff0f0e, #7773ff) var(--foo);
+          mask-border: linear-gradient(#ff0f0e, #7773ff) var(--foo);
+        }
+
+        @supports (color: lab(0% 0 0)) {
+          .foo {
+            -webkit-mask-box-image: linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586)) var(--foo);
+            mask-border: linear-gradient(lab(56.208% 94.4644 98.8928), lab(51% 70.4544 -115.586)) var(--foo);
+          }
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          transition: mask 200ms;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          transition: -webkit-mask .2s, mask .2s;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          transition: mask-border 200ms;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          transition: -webkit-mask-box-image .2s, mask-border .2s;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          transition-property: mask;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          transition-property: -webkit-mask, mask;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          transition-property: mask-border;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          transition-property: -webkit-mask-box-image, mask-border;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+
+    prefix_test(
+      r#"
+        .foo {
+          transition-property: mask-composite, mask-mode;
+        }
+      "#, 
+      indoc! { r#"
+        .foo {
+          transition-property: -webkit-mask-composite, mask-composite, -webkit-mask-source-type, mask-mode;
+        }
+    "#},Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
   }
 
   #[test]

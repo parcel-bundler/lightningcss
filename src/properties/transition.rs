@@ -1,11 +1,11 @@
 use cssparser::*;
+use crate::properties::masking::get_webkit_mask_property;
 use crate::traits::{Parse, ToCss, PropertyHandler};
 use crate::values::{time::Time, easing::EasingFunction};
 use super::{Property, PropertyId};
 use crate::vendor_prefix::VendorPrefix;
 use crate::declaration::DeclarationList;
 use crate::printer::Printer;
-use itertools::izip;
 use smallvec::SmallVec;
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
@@ -214,46 +214,65 @@ impl<'i> TransitionHandler<'i> {
     };
 
     if let (Some((properties, property_prefixes)), Some((durations, duration_prefixes)), Some((delays, delay_prefixes)), Some((timing_functions, timing_prefixes))) = (&mut properties, &mut durations, &mut delays, &mut timing_functions) {
-      // Only use shorthand syntax if the number of transitions matches on all properties.
-      let len = properties.len();
-      if durations.len() == len && delays.len() == len && timing_functions.len() == len {        
-        // Find the intersection of prefixes with the same value.
-        // Remove that from the prefixes of each of the properties. The remaining
-        // prefixes will be handled by outputing individual properties below.
-        let intersection = *property_prefixes & *duration_prefixes & *delay_prefixes & *timing_prefixes;
-        if !intersection.is_empty() {
-          macro_rules! get_transitions {
-            ($properties: ident) => {
-              izip!($properties, durations.iter(), delays.iter(), timing_functions.iter()).map(|(property, duration, delay, timing_function)| {
-                Transition {
-                  property: property.clone(),
-                  duration: duration.clone(),
-                  delay: delay.clone(),
-                  timing_function: timing_function.clone()
+      // Find the intersection of prefixes with the same value.
+      // Remove that from the prefixes of each of the properties. The remaining
+      // prefixes will be handled by outputing individual properties below.
+      let intersection = *property_prefixes & *duration_prefixes & *delay_prefixes & *timing_prefixes;
+      if !intersection.is_empty() {
+        macro_rules! get_transitions {
+          ($properties: ident) => {{
+            // transition-property determines the number of transitions. The values of other
+            // properties are repeated to match this length.
+            let mut transitions = SmallVec::with_capacity($properties.len());
+            let mut durations_iter = durations.iter().cycle().cloned();
+            let mut delays_iter = delays.iter().cycle().cloned();
+            let mut timing_iter = timing_functions.iter().cycle().cloned();
+            for property_id in $properties {
+              let duration = durations_iter.next().unwrap_or(Time::Seconds(0.0));
+              let delay = delays_iter.next().unwrap_or(Time::Seconds(0.0));
+              let timing_function = timing_iter.next().unwrap_or(EasingFunction::Ease);
+              let transition = Transition {
+                property: property_id.clone(),
+                duration,
+                delay,
+                timing_function
+              };
+
+              // Expand vendor prefixes into multiple transitions.
+              let prefix = property_id.prefix();
+              let mut b = 1 << (7 - prefix.bits().leading_zeros());
+              while b != 0 {
+                let p = VendorPrefix::from_bits_truncate(b);
+                if prefix.contains(p) {
+                  let mut t = transition.clone();
+                  t.property = property_id.with_prefix(p);
+                  transitions.push(t);
                 }
-              }).collect()
-            };
-          }
-          
-          let transitions: SmallVec<[Transition; 1]> = get_transitions!(properties);
-
-          if let Some(rtl_properties) = &rtl_properties {
-            let rtl_transitions = get_transitions!(rtl_properties);
-            context.add_logical_property(
-              dest,
-              PropertyId::Transition(intersection),
-              Property::Transition(transitions, intersection),
-              Property::Transition(rtl_transitions, intersection)
-            );
-          } else {
-            dest.push(Property::Transition(transitions.clone(), intersection));
-          }
-
-          property_prefixes.remove(intersection);
-          duration_prefixes.remove(intersection);
-          delay_prefixes.remove(intersection);
-          timing_prefixes.remove(intersection);
+                b >>= 1;
+              }
+            }
+            transitions
+          }};
         }
+        
+        let transitions: SmallVec<[Transition; 1]> = get_transitions!(properties);
+
+        if let Some(rtl_properties) = &rtl_properties {
+          let rtl_transitions = get_transitions!(rtl_properties);
+          context.add_logical_property(
+            dest,
+            PropertyId::Transition(intersection),
+            Property::Transition(transitions, intersection),
+            Property::Transition(rtl_transitions, intersection)
+          );
+        } else {
+          dest.push(Property::Transition(transitions.clone(), intersection));
+        }
+
+        property_prefixes.remove(intersection);
+        duration_prefixes.remove(intersection);
+        delay_prefixes.remove(intersection);
+        timing_prefixes.remove(intersection);
       }
     }
 
@@ -319,7 +338,6 @@ fn expand_properties<'i>(
   context: &mut PropertyHandlerContext
 ) -> Option<SmallVec<[PropertyId<'i>; 1]>> {
   let mut rtl_properties: Option<SmallVec<[PropertyId; 1]>> = None;
-  let len = properties.len();
   let mut i = 0;
 
   macro_rules! replace {
@@ -332,7 +350,7 @@ fn expand_properties<'i>(
   }
 
   // Expand logical properties in place.
-  while i < len {
+  while i < properties.len() {
     match get_logical_properties(&properties[i]) {
       LogicalPropertyId::Block(feature, props) if !context.is_supported(feature) => {
         replace!(properties, props);
@@ -357,8 +375,23 @@ fn expand_properties<'i>(
       _ => {
         // Expand vendor prefixes for targets.
         properties[i].set_prefixes_for_targets(targets);
+
+        // Expand mask properties, which use different vendor-prefixed names.
+        if let (Some(targets), Some(property_id)) = (targets, get_webkit_mask_property(&properties[i])) {
+          if Feature::MaskBorder.prefixes_for(targets).contains(VendorPrefix::WebKit) {
+            properties.insert(i, property_id);
+            i += 1;
+          }
+        }
+
         if let Some(rtl_properties) = &mut rtl_properties {
           rtl_properties[i].set_prefixes_for_targets(targets);
+
+          if let (Some(targets), Some(property_id)) = (targets, get_webkit_mask_property(&rtl_properties[i])) {
+            if Feature::MaskBorder.prefixes_for(targets).contains(VendorPrefix::WebKit) {
+              rtl_properties.insert(i, property_id);
+            }
+          }
         }
         i += 1;
       }
