@@ -4116,6 +4116,18 @@ mod tests {
         ..Browsers::default()
       }
     );
+
+    minify_test(".foo { width: calc(1vh + 2vh) }", ".foo{width:3vh}");
+    minify_test(".foo { width: calc(1dvh + 2dvh) }", ".foo{width:3dvh}");
+    minify_test(".foo { width: calc(1lvh + 2lvh) }", ".foo{width:3lvh}");
+    minify_test(".foo { width: calc(1svh + 2svh) }", ".foo{width:3svh}");
+    minify_test(".foo { width: calc(1sVmin + 2Svmin) }", ".foo{width:3svmin}");
+    minify_test(".foo { width: calc(1ic + 2ic) }", ".foo{width:3ic}");
+    minify_test(".foo { width: calc(1ric + 2ric) }", ".foo{width:3ric}");
+    minify_test(".foo { width: calc(1cap + 2cap) }", ".foo{width:3cap}");
+    minify_test(".foo { width: calc(1lh + 2lh) }", ".foo{width:3lh}");
+    minify_test(".foo { width: calc(1x + 2x) }", ".foo{width:calc(1x + 2x)}");
+
   }
 
   #[test]
