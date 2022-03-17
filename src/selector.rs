@@ -891,7 +891,7 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for Component<'i, Selectors> {
         match *self {
           Where(..) => dest.write_str(":where(")?,
           Is(..) => dest.write_str(":is(")?,
-          Negation(..) => dest.write_str(":not(")?,
+          Negation(..) => return serialize_negation(list.iter(), dest, context),
           _ => unreachable!(),
         }
         serialize_selector_list(list.iter(), dest, context)?;
@@ -991,6 +991,33 @@ where
     first = false;
     selector.to_css_with_context(dest, context)?;
   }
+  Ok(())
+}
+
+fn serialize_negation<'a, 'i: 'a, I, W>(iter: I, dest: &mut Printer<W>, context: Option<&StyleContext<'_, 'i>>)-> Result<(), PrinterError>
+where
+    I: Iterator<Item = &'a Selector<'i, Selectors>>,
+    W: fmt::Write,
+{
+  // Downlevel :not(.a, .b) -> :not(.a):not(.b) if not list is unsupported.
+  let is_supported = if let Some(targets) = dest.targets {
+    Feature::CssNotSelList.is_compatible(targets)
+  } else {
+    true
+  };
+
+  if is_supported {
+    dest.write_str(":not(")?;
+    serialize_selector_list(iter, dest, context)?;
+    dest.write_char(')')?;
+  } else {
+    for selector in iter {
+      dest.write_str(":not(")?;
+      selector.to_css_with_context(dest, context)?;
+      dest.write_char(')')?;
+    }
+  }
+
   Ok(())
 }
 

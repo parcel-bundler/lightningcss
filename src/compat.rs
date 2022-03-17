@@ -22,6 +22,7 @@ pub enum Feature {
   CssMatchesPseudo,
   CssNamespaces,
   CssNesting,
+  CssNotSelList,
   CssOptionalPseudo,
   CssPlaceholder,
   CssPlaceholderShown,
@@ -1157,6 +1158,51 @@ impl Feature {
       Feature::MediaIntervalSyntax |
       Feature::OklabColors => {
         return false
+      }
+      Feature::CssNotSelList => {
+        if let Some(version) = browsers.edge {
+          if version < 5767168 {
+            return false
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 5505024 {
+            return false
+          }
+        }
+        if let Some(version) = browsers.chrome {
+          if version < 5767168 {
+            return false
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 589824 {
+            return false
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 4915200 {
+            return false
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 589824 {
+            return false
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 6356992 {
+            return false
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 983040 {
+            return false
+          }
+        }
+        if browsers.ie.is_some() {
+          return false
+        }
       }
       Feature::DoublePositionGradients => {
         if let Some(version) = browsers.chrome {

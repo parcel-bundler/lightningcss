@@ -3656,6 +3656,29 @@ mod tests {
     minify_test("::slotted(span) {}", "::slotted(span){}");
     minify_test("custom-element::part(foo) {}", "custom-element::part(foo){}");
     minify_test(".sm\\:text-5xl { font-size: 3rem }", ".sm\\:text-5xl{font-size:3rem}");
+  
+    prefix_test(
+      ".test:not(.foo, .bar) {}",
+      indoc! {r#"
+      .test:not(.foo):not(.bar) {
+      }
+      "#},
+      Browsers {
+        safari: Some(8 << 16),
+        ..Browsers::default()
+      }
+    );
+    prefix_test(
+      ".test:not(.foo, .bar) {}",
+      indoc! {r#"
+      .test:not(.foo, .bar) {
+      }
+      "#},
+      Browsers {
+        safari: Some(11 << 16),
+        ..Browsers::default()
+      }
+    );
   }
 
   #[test]
