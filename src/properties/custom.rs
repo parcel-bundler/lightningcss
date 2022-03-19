@@ -257,7 +257,7 @@ impl<'i> TokenList<'i> {
             }
             Token::CloseParenthesis | Token::CloseSquareBracket | Token::CloseCurlyBracket => {
               token.to_css(dest)?;
-              if !dest.minify && i != self.0.len() - 1 {
+              if !dest.minify && i != self.0.len() - 1 && !matches!(self.0[i + 1], TokenOrValue::Token(Token::Comma)) {
                 // Whitespace is removed during parsing, so add it back if we aren't minifying.
                 dest.write_char(' ')?;
               }

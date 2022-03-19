@@ -87,7 +87,7 @@ impl<'i> StyleSheet<'i> {
       let mut custom_media = HashMap::new();
       for rule in &self.rules.0 {
         if let CssRule::CustomMedia(rule) = rule {
-          custom_media.insert(rule.name.clone(), rule.clone());
+          custom_media.insert(rule.name.0.clone(), rule.clone());
         }
       }
       Some(custom_media)

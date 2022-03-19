@@ -33,3 +33,25 @@ impl<'i> ToCss for CustomIdent<'i> {
 }
 
 pub type CustomIdentList<'i> = SmallVec<[CustomIdent<'i>; 1]>;
+
+/// https://www.w3.org/TR/css-values-4/#dashed-idents
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct DashedIdent<'i>(pub CowArcStr<'i>);
+
+impl<'i> Parse<'i> for DashedIdent<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let location = input.current_source_location();
+    let ident = input.expect_ident()?;
+    if !ident.starts_with("--") {
+      return Err(location.new_unexpected_token_error(Token::Ident(ident.clone())))
+    }
+
+    Ok(DashedIdent(ident.into()))
+  }
+}
+
+impl<'i> ToCss for DashedIdent<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+    dest.write_ident(&self.0)
+  }
+}

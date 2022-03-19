@@ -54,7 +54,7 @@ use size::*;
 use svg::*;
 use masking::*;
 use effects::*;
-use crate::values::{image::*, length::*, position::*, alpha::*, size::Size2D, rect::*, color::*, time::Time, easing::EasingFunction, shape::FillRule};
+use crate::values::{image::*, length::*, position::*, alpha::*, size::Size2D, rect::*, color::*, time::Time, easing::EasingFunction, shape::FillRule, ident::DashedIdent};
 use crate::traits::{Parse, ToCss};
 use crate::printer::Printer;
 use smallvec::{SmallVec, smallvec};
@@ -727,6 +727,7 @@ define_properties! {
   "line-height": LineHeight(LineHeight),
   "font": Font(Font<'i>),
   "vertical-align": VerticalAlign(VerticalAlign),
+  "font-palette": FontPalette(DashedIdent<'i>),
 
   "transition-property": TransitionProperty(SmallVec<[PropertyId<'i>; 1]>, VendorPrefix) / WebKit / Moz / Ms,
   "transition-duration": TransitionDuration(SmallVec<[Time; 1]>, VendorPrefix) / WebKit / Moz / Ms,

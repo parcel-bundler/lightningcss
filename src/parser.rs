@@ -1,3 +1,4 @@
+use crate::rules::font_palette_values::FontPaletteValuesRule;
 use crate::rules::layer::{LayerBlockRule, LayerStatementRule};
 use crate::rules::property::PropertyRule;
 use crate::values::string::CowArcStr;
@@ -25,7 +26,7 @@ use crate::rules::{
   custom_media::CustomMediaRule,
   layer::{LayerName}
 };
-use crate::values::ident::CustomIdent;
+use crate::values::ident::{CustomIdent, DashedIdent};
 use crate::declaration::{DeclarationBlock, DeclarationList, parse_declaration};
 use crate::vendor_prefix::VendorPrefix;
 use std::collections::HashMap;
@@ -83,12 +84,14 @@ pub enum AtRulePrelude<'i> {
   FontFace,
   /// A @font-feature-values rule prelude, with its FamilyName list.
   FontFeatureValues,//(Vec<FamilyName>),
+  /// A @font-palette-values rule prelude, with its name.
+  FontPaletteValues(DashedIdent<'i>),
   /// A @counter-style rule prelude, with its counter style name.
   CounterStyle(CustomIdent<'i>),
   /// A @media rule prelude, with its media queries.
   Media(MediaList<'i>),
   /// A @custom-media rule prelude.
-  CustomMedia(CowRcStr<'i>, MediaList<'i>),
+  CustomMedia(DashedIdent<'i>, MediaList<'i>),
   /// An @supports rule, with its conditional
   Supports(SupportsCondition<'i>),
   /// A @viewport rule prelude.
@@ -110,7 +113,7 @@ pub enum AtRulePrelude<'i> {
   /// An @layer prelude.
   Layer(Vec<LayerName<'i>>),
   /// An @property prelude.
-  Property(CowRcStr<'i>)
+  Property(DashedIdent<'i>)
 }
 
 impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
@@ -168,18 +171,12 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
           return Ok(AtRulePrelude::Charset)
         },
         "custom-media" if self.options.custom_media => {
-          let name = input.expect_ident_cloned()?;
-          if !name.starts_with("--") {
-            return Err(input.new_unexpected_token_error(Token::Ident(name.into())));
-          }
+          let name = DashedIdent::parse(input)?;
           let media = MediaList::parse(input)?;
           return Ok(AtRulePrelude::CustomMedia(name, media))
         },
         "property" => {
-          let name = input.expect_ident_cloned()?;
-          if !name.starts_with("--") {
-            return Err(input.new_unexpected_token_error(Token::Ident(name.into())));
-          }
+          let name = DashedIdent::parse(input)?;
           return Ok(AtRulePrelude::Property(name))
         },  
         _ => {}
@@ -242,7 +239,7 @@ impl<'a, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'i> {
         AtRulePrelude::CustomMedia(name, query) => {
           self.state = State::Body;
           CssRule::CustomMedia(CustomMediaRule {
-            name: name.into(),
+            name,
             query,
             loc
           })
@@ -360,6 +357,10 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'i> {
       //     let family_names = parse_family_name_list(self.context, input)?;
       //     Ok(AtRuleType::WithBlock(AtRuleBlockPrelude::FontFeatureValues(family_names)))
       // },
+      "font-palette-values" => {
+        let name = DashedIdent::parse(input)?;
+        return Ok(AtRulePrelude::FontPaletteValues(name))
+      },
       "counter-style" => {
         let name = CustomIdent::parse(input)?;
         Ok(AtRulePrelude::CounterStyle(name))
@@ -455,6 +456,10 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'i> {
       //         ),
       //     ))))
       // },
+      AtRulePrelude::FontPaletteValues(name) => {
+        let rule = FontPaletteValuesRule::parse(name, input, loc)?;
+        Ok(CssRule::FontPaletteValues(rule))
+      },
       AtRulePrelude::CounterStyle(name) => {
         Ok(CssRule::CounterStyle(CounterStyleRule {
           name,
@@ -523,7 +528,7 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'i> {
         }))
       },
       AtRulePrelude::Property(name) => {
-        Ok(CssRule::Property(PropertyRule::parse(name.into(), input, loc)?))
+        Ok(CssRule::Property(PropertyRule::parse(name, input, loc)?))
       },
       AtRulePrelude::Import(..) | 
       AtRulePrelude::Namespace(..) | 

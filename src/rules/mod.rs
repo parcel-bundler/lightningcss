@@ -13,6 +13,7 @@ pub mod viewport;
 pub mod custom_media;
 pub mod layer;
 pub mod property;
+pub mod font_palette_values;
 
 use serde::Serialize;
 use crate::values::string::CowArcStr;
@@ -40,6 +41,7 @@ use crate::selector::{is_equivalent, get_prefix, get_necessary_prefixes};
 use crate::error::{MinifyError, PrinterError};
 use crate::context::PropertyHandlerContext;
 use crate::dependencies::{Dependency, ImportDependency};
+use self::font_palette_values::FontPaletteValuesRule;
 use self::layer::{LayerBlockRule, LayerStatementRule};
 use self::property::PropertyRule;
 
@@ -70,6 +72,7 @@ pub enum CssRule<'i> {
   Style(StyleRule<'i>),
   Keyframes(KeyframesRule<'i>),
   FontFace(FontFaceRule<'i>),
+  FontPaletteValues(FontPaletteValuesRule<'i>),
   Page(PageRule<'i>),
   Supports(SupportsRule<'i>),
   CounterStyle(CounterStyleRule<'i>),
@@ -92,6 +95,7 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for CssRule<'i> {
       CssRule::Style(style) => style.to_css_with_context(dest, context),
       CssRule::Keyframes(keyframes) => keyframes.to_css(dest),
       CssRule::FontFace(font_face) => font_face.to_css(dest),
+      CssRule::FontPaletteValues(f) => f.to_css(dest),
       CssRule::Page(font_face) => font_face.to_css(dest),
       CssRule::Supports(supports) => supports.to_css_with_context(dest, context),
       CssRule::CounterStyle(counter_style) => counter_style.to_css(dest),
@@ -245,6 +249,16 @@ impl<'i> CssRuleList<'i> {
         CssRule::Nesting(nesting) => {
           if nesting.minify(context, parent_is_unused)? {
             continue
+          }
+        }
+        CssRule::FontPaletteValues(f) => {
+          f.minify(context, parent_is_unused);
+
+          if let Some(targets) = context.targets {
+            let fallbacks = f.get_fallbacks(*targets);
+            rules.push(rule);
+            rules.extend(fallbacks);
+            continue;
           }
         }
         _ => {}

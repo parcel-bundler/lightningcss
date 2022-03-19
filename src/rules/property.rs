@@ -1,6 +1,6 @@
 use cssparser::*;
 use crate::{
-  values::{syntax::{SyntaxString, ParsedComponent}, string::CowArcStr},
+  values::{syntax::{SyntaxString, ParsedComponent}, ident::DashedIdent},
   error::{ParserError, PrinterError},
   printer::Printer,
   traits::{Parse, ToCss}
@@ -10,7 +10,7 @@ use super::Location;
 /// https://drafts.css-houdini.org/css-properties-values-api/#at-property-rule
 #[derive(Debug, PartialEq, Clone)]
 pub struct PropertyRule<'i> {
-  name: CowArcStr<'i>,
+  name: DashedIdent<'i>,
   syntax: SyntaxString,
   inherits: bool,
   initial_value: Option<ParsedComponent<'i>>,
@@ -18,7 +18,7 @@ pub struct PropertyRule<'i> {
 }
 
 impl<'i> PropertyRule<'i> {
-  pub fn parse<'t>(name: CowArcStr<'i>, input: &mut Parser<'i, 't>, loc: Location) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  pub fn parse<'t>(name: DashedIdent<'i>, input: &mut Parser<'i, 't>, loc: Location) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let parser = PropertyRuleDeclarationParser {
       syntax: None,
       inherits: None,
@@ -70,7 +70,7 @@ impl<'i> ToCss for PropertyRule<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     dest.add_mapping(self.loc);
     dest.write_str("@property ")?;
-    serialize_identifier(&self.name, dest)?;
+    self.name.to_css(dest)?;
     dest.whitespace()?;
     dest.write_char('{')?;
     dest.indent();

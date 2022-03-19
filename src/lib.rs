@@ -6592,6 +6592,61 @@ mod tests {
   }
 
   #[test]
+  fn test_font_palette_values() {
+    minify_test(r#"@font-palette-values --Cooler {
+      font-family: Bixa;
+      base-palette: 1;
+      override-colors: 1 #7EB7E4;
+    }"#, "@font-palette-values --Cooler{font-family:Bixa;base-palette:1;override-colors:1 #7eb7e4}");
+    minify_test(r#"@font-palette-values --Cooler {
+      font-family: Handover Sans;
+      base-palette: 3;
+      override-colors: 1 rgb(43, 12, 9), 3 lime;
+    }"#, "@font-palette-values --Cooler{font-family:Handover Sans;base-palette:3;override-colors:1 #2b0c09,3 #0f0}");
+    minify_test(r#"@font-palette-values --Cooler {
+      font-family: Handover Sans;
+      base-palette: 3;
+      override-colors: 1 rgb(43, 12, 9), 3 var(--highlight);
+    }"#, "@font-palette-values --Cooler{font-family:Handover Sans;base-palette:3;override-colors:1 #2b0c09,3 var(--highlight)}");
+    prefix_test(r#"@font-palette-values --Cooler {
+      font-family: Handover Sans;
+      base-palette: 3;
+      override-colors: 1 rgb(43, 12, 9), 3 lch(50.998% 135.363 338);
+    }"#, indoc! {r#"@font-palette-values --Cooler {
+      font-family: Handover Sans;
+      base-palette: 3;
+      override-colors: 1 #2b0c09, 3 #ee00be;
+      override-colors: 1 #2b0c09, 3 lch(50.998% 135.363 338);
+    }
+    "#}, Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+    prefix_test(r#"@font-palette-values --Cooler {
+      font-family: Handover Sans;
+      base-palette: 3;
+      override-colors: 1 var(--foo), 3 lch(50.998% 135.363 338);
+    }"#, indoc! {r#"@font-palette-values --Cooler {
+      font-family: Handover Sans;
+      base-palette: 3;
+      override-colors: 1 var(--foo), 3 #ee00be;
+    }
+
+    @supports (color: lab(0% 0 0)) {
+      @font-palette-values --Cooler {
+        font-family: Handover Sans;
+        base-palette: 3;
+        override-colors: 1 var(--foo), 3 lab(50.998% 125.506 -50.7078);
+      }
+    }
+    "#}, Browsers {
+      chrome: Some(90 << 16),
+      ..Browsers::default()
+    });
+    minify_test(".foo { font-palette: --Custom; }", ".foo{font-palette:--Custom}");
+  }
+
+  #[test]
   fn test_page_rule() {
     minify_test("@page {margin: 0.5cm}", "@page{margin:.5cm}");
     minify_test("@page :left {margin: 0.5cm}", "@page:left{margin:.5cm}");
