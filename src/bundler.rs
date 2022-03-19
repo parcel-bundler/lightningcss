@@ -1,4 +1,5 @@
 use parcel_sourcemap::SourceMap;
+use serde::Serialize;
 use crate::{rules::{Location, layer::{LayerBlockRule, LayerName}}, error::ErrorLocation};
 use std::{fs, path::{Path, PathBuf}, sync::Mutex, collections::HashSet};
 use rayon::prelude::*;
@@ -73,9 +74,9 @@ impl Drop for FileProvider {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum BundleErrorKind<'i> {
-  IOError(std::io::Error),
+  IOError(#[serde(skip)] std::io::Error),
   ParserError(ParserError<'i>),
   UnsupportedImportCondition,
   UnsupportedMediaBooleanLogic,

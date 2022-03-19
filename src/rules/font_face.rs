@@ -411,7 +411,7 @@ impl<'i> ToCss for FontFaceProperty<'i> {
       Custom(custom) => {
         dest.write_str(custom.name.as_ref())?;
         dest.delim(':', false)?;
-        custom.value.to_css(dest)
+        custom.value.to_css(dest, true)
       }
     }
   }

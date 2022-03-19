@@ -3,6 +3,7 @@ use cssparser::{ParseError, ParseErrorKind, BasicParseErrorKind};
 use crate::rules::Location;
 use crate::properties::custom::Token;
 use crate::values::string::CowArcStr;
+use serde::Serialize;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Error<T> {
@@ -27,10 +28,11 @@ impl ErrorLocation {
   }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(tag = "type")]
 pub enum ParserError<'i> {
   /// An unexpected token was encountered.
-  UnexpectedToken(Token<'i>),
+  UnexpectedToken(#[serde(skip)] Token<'i>),
   /// The end of the input was encountered unexpectedly.
   EndOfInput,
   /// An `@` rule was encountered that was invalid.
@@ -102,9 +104,10 @@ impl<'i> ParserError<'i> {
   }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(tag = "type")]
 pub enum SelectorError<'i> {
-  NoQualifiedNameInAttributeSelector(Token<'i>),
+  NoQualifiedNameInAttributeSelector(#[serde(skip)] Token<'i>),
   EmptySelector,
   DanglingCombinator,
   NonCompoundSelector,
@@ -114,18 +117,18 @@ pub enum SelectorError<'i> {
   InvalidState,
   MissingNestingSelector,
   MissingNestingPrefix,
-  UnexpectedTokenInAttributeSelector(Token<'i>),
-  PseudoElementExpectedColon(Token<'i>),
-  PseudoElementExpectedIdent(Token<'i>),
-  NoIdentForPseudo(Token<'i>),
+  UnexpectedTokenInAttributeSelector(#[serde(skip)] Token<'i>),
+  PseudoElementExpectedColon(#[serde(skip)] Token<'i>),
+  PseudoElementExpectedIdent(#[serde(skip)] Token<'i>),
+  NoIdentForPseudo(#[serde(skip)] Token<'i>),
   UnsupportedPseudoClassOrElement(CowArcStr<'i>),
   UnexpectedIdent(CowArcStr<'i>),
   ExpectedNamespace(CowArcStr<'i>),
-  ExpectedBarInAttr(Token<'i>),
-  BadValueInAttr(Token<'i>),
-  InvalidQualNameInAttr(Token<'i>),
-  ExplicitNamespaceUnexpectedToken(Token<'i>),
-  ClassNeedsIdent(Token<'i>),
+  ExpectedBarInAttr(#[serde(skip)] Token<'i>),
+  BadValueInAttr(#[serde(skip)] Token<'i>),
+  InvalidQualNameInAttr(#[serde(skip)] Token<'i>),
+  ExplicitNamespaceUnexpectedToken(#[serde(skip)] Token<'i>),
+  ClassNeedsIdent(#[serde(skip)] Token<'i>),
 }
 
 impl<'i> From<SelectorParseErrorKind<'i>> for SelectorError<'i> {
@@ -189,7 +192,8 @@ pub struct ErrorWithLocation<T> {
 
 pub type MinifyError = ErrorWithLocation<MinifyErrorKind>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(tag = "type")]
 pub enum MinifyErrorKind {
   UnsupportedCustomMediaBooleanLogic { custom_media_loc: Location },
   CustomMediaNotDefined { name: String },
@@ -208,11 +212,13 @@ impl MinifyErrorKind {
 
 pub type PrinterError = Error<PrinterErrorKind>;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(tag = "type")]
 pub enum PrinterErrorKind {
   FmtError,
   InvalidComposesSelector,
-  InvalidComposesNesting
+  InvalidComposesNesting,
+  AmbiguousUrlInCustomProperty { url: String }
 }
 
 impl From<std::fmt::Error> for PrinterError {
@@ -229,7 +235,8 @@ impl PrinterErrorKind {
     match self {
       PrinterErrorKind::InvalidComposesSelector => "The `composes` property can only be used within a simple class selector.".into(),
       PrinterErrorKind::InvalidComposesNesting => "The `composes` property cannot be used within nested rules.".into(),
-      PrinterErrorKind::FmtError => "Printer error".into()
+      PrinterErrorKind::FmtError => "Printer error".into(),
+      PrinterErrorKind::AmbiguousUrlInCustomProperty { .. } => "Ambiguous url() in custom property. Relative paths are resolved from the location the var() is used, not where the custom property is defined. Use an absolute URL instead.".into()
     }
   }
 }

@@ -6,10 +6,11 @@ use crate::traits::{Parse, ToCss};
 use crate::properties::PropertyId;
 use crate::values::color::{CssColor, ColorFallbackKind};
 use crate::values::length::serialize_dimension;
+use crate::values::url::Url;
 use crate::vendor_prefix::VendorPrefix;
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
-use crate::error::{ParserError, PrinterError};
+use crate::error::{ParserError, PrinterError, PrinterErrorKind};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CustomProperty<'i> {
@@ -48,7 +49,7 @@ impl<'i> UnparsedProperty<'i> {
     })
   }
 
-  pub fn get_prefixed(&self, targets: Option<Browsers>, feature: Feature) -> UnparsedProperty<'i> {
+  pub(crate) fn get_prefixed(&self, targets: Option<Browsers>, feature: Feature) -> UnparsedProperty<'i> {
     let mut clone = self.clone();
     if self.property_id.prefix().contains(VendorPrefix::None) {
       if let Some(targets) = targets {
@@ -72,7 +73,8 @@ pub struct TokenList<'i>(pub Vec<TokenOrValue<'i>>);
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenOrValue<'i> {
   Token(Token<'i>),
-  Color(CssColor)
+  Color(CssColor),
+  Url(Url<'i>)
 }
 
 impl<'i> From<Token<'i>> for TokenOrValue<'i> {
@@ -131,6 +133,11 @@ impl<'i> TokenList<'i> {
             tokens.push(TokenOrValue::Color(color));
             last_is_delim = false;
             last_is_whitespace = false;
+          } else if f == "url" {
+            input.reset(&state);
+            tokens.push(TokenOrValue::Url(Url::parse(input)?));
+            last_is_delim = false;
+            last_is_whitespace = false;
           } else {
             tokens.push(Token::Function(f).into()); 
             input.parse_nested_block(|input| {
@@ -147,6 +154,12 @@ impl<'i> TokenList<'i> {
           } else {
             tokens.push(Token::Hash(h.into()).into());
           }
+          last_is_delim = false;
+          last_is_whitespace = false;
+        }
+        Ok(&cssparser::Token::UnquotedUrl(_)) => {
+          input.reset(&state);
+          tokens.push(TokenOrValue::Url(Url::parse(input)?));
           last_is_delim = false;
           last_is_whitespace = false;
         }
@@ -210,8 +223,8 @@ fn try_parse_color_token<'i, 't>(f: &CowArcStr<'i>, state: &ParserState, input: 
   None
 }
 
-impl<'i> ToCss for TokenList<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+impl<'i> TokenList<'i> {
+  pub(crate) fn to_css<W>(&self, dest: &mut Printer<W>, is_custom_property: bool) -> Result<(), PrinterError> where W: std::fmt::Write {
     if !dest.minify && self.0.len() == 1 && matches!(self.0.first(), Some(token) if token.is_whitespace()) {
       return Ok(())
     }
@@ -219,6 +232,14 @@ impl<'i> ToCss for TokenList<'i> {
     for (i, token_or_value) in self.0.iter().enumerate() {
       match token_or_value {
         TokenOrValue::Color(color) => color.to_css(dest)?,
+        TokenOrValue::Url(url) => {
+          if dest.dependencies.is_some() && is_custom_property && !url.is_absolute() {
+            return Err(dest.error(PrinterErrorKind::AmbiguousUrlInCustomProperty {
+              url: url.url.as_ref().to_owned()
+            }, url.loc))
+          }
+          url.to_css(dest)?
+        },
         TokenOrValue::Token(token) => {
           match token {
             Token::Delim(d) => {

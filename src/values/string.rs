@@ -1,4 +1,5 @@
 use cssparser::CowRcStr;
+use serde::{Serialize, Serializer};
 use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -207,5 +208,11 @@ impl<'a> fmt::Debug for CowArcStr<'a> {
   #[inline]
   fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
     str::fmt(self, formatter)
+  }
+}
+
+impl<'a> Serialize for CowArcStr<'a> {
+  fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+    self.as_ref().serialize(serializer)
   }
 }

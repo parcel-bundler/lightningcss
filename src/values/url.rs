@@ -66,3 +66,37 @@ impl<'i> ToCss for Url<'i> {
     Ok(())
   }
 }
+
+impl<'i> Url<'i> {
+  pub fn is_absolute(&self) -> bool {
+    let url = self.url.as_ref();
+
+    // Quick checks. If the url starts with '.', it is relative.
+    if url.starts_with('.') {
+      return false;
+    }
+
+    // If the url starts with '/' it is absolute.
+    if url.starts_with('/') {
+      return true;
+    }
+
+    // Otherwise, we might have a scheme. These must start with an ascii alpha character.
+    // https://url.spec.whatwg.org/#scheme-start-state
+    if !url.starts_with(|c| matches!(c, 'a'..='z' | 'A'..='Z')) {
+      return false;
+    }
+
+    // https://url.spec.whatwg.org/#scheme-state
+    for b in url.as_bytes() {
+      let c = *b as char;
+      match c {
+        'a'..='z' | 'A'..='Z' | '0'..='9' | '+' | '-' | '.' => {},
+        ':' => return true,
+        _ => break
+      }
+    }
+
+    false
+  }
+}

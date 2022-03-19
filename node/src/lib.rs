@@ -358,6 +358,14 @@ impl<'i> CompileError<'i> {
   #[cfg(not(target_arch = "wasm32"))]
   fn throw(self, ctx: CallContext, code: Option<&str>) -> napi::Result<JsUnknown> {
     let reason = self.reason();
+    let data = match &self {
+      CompileError::ParseError(Error { kind, .. }) => ctx.env.to_js_value(kind)?,
+      CompileError::PrinterError(Error { kind, .. }) => ctx.env.to_js_value(kind)?,
+      CompileError::MinifyError(Error { kind, .. }) => ctx.env.to_js_value(kind)?,
+      CompileError::BundleError(Error { kind, .. }) => ctx.env.to_js_value(kind)?,
+      _ => ctx.env.get_null()?.into_unknown()
+    };
+
     match self {
       CompileError::ParseError(Error { loc, .. }) |
       CompileError::PrinterError(Error { loc, .. }) |
@@ -382,6 +390,7 @@ impl<'i> CompileError<'i> {
           loc.set_named_property("column", col)?;
           obj.set_named_property("loc", loc)?;
         }
+        obj.set_named_property("data", data)?;
         ctx.env.throw(obj)?;
         Ok(ctx.env.get_undefined()?.into_unknown())
       },

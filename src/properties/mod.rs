@@ -390,10 +390,10 @@ macro_rules! define_properties {
             }
           )+
           Unparsed(unparsed) => {
-            unparsed.value.to_css(dest)
+            unparsed.value.to_css(dest, false)
           }
           Custom(custom) => {
-            custom.value.to_css(dest)
+            custom.value.to_css(dest, true)
           }
           Logical(logical) => {
             logical.to_css(dest)

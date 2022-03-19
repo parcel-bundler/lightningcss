@@ -23,7 +23,7 @@ mod context;
 #[cfg(test)]
 mod tests {
   use crate::dependencies::Dependency;
-  use crate::error::{Error, MinifyErrorKind, ErrorLocation, ParserError};
+  use crate::error::{Error, MinifyErrorKind, ErrorLocation, ParserError, PrinterErrorKind};
   use crate::properties::custom::Token;
   use crate::rules::CssRule;
   use crate::stylesheet::*;
@@ -13178,6 +13178,18 @@ mod tests {
       }
     }
 
+    fn dep_error_test(source: &str, error: PrinterErrorKind) {
+      let stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions::default()).unwrap();
+      let res = stylesheet.to_css(PrinterOptions {
+        analyze_dependencies: true,
+        ..PrinterOptions::default()
+      });
+      match res {
+        Err(e) => assert_eq!(e.kind, error),
+        _ => unreachable!()
+      }
+    }
+
     dep_test(
       ".foo { background: image-set('./img12x.png', './img21x.png' 2x)}",
       ".foo{background:image-set(\"hXFI8W\",\"5TkpBa\" 2x)}",
@@ -13194,6 +13206,61 @@ mod tests {
         ("./img12x.png", "hXFI8W"),
         ("./img21x.png", "5TkpBa")
       ]
+    );
+
+    dep_test(
+      ".foo { --test: url(/foo.png) }",
+      ".foo{--test:url(\"lDnnrG\")}",
+      vec![
+        ("/foo.png", "lDnnrG"),
+      ]
+    );
+
+    dep_test(
+      ".foo { --test: url(\"/foo.png\") }",
+      ".foo{--test:url(\"lDnnrG\")}",
+      vec![
+        ("/foo.png", "lDnnrG"),
+      ]
+    );
+
+    dep_test(
+      ".foo { --test: url(\"http://example.com/foo.png\") }",
+      ".foo{--test:url(\"3X1zSW\")}",
+      vec![
+        ("http://example.com/foo.png", "3X1zSW"),
+      ]
+    );
+
+    dep_test(
+      ".foo { --test: url(\"data:image/svg+xml;utf8,<svg></svg>\") }",
+      ".foo{--test:url(\"-vl-rG\")}",
+      vec![
+        ("data:image/svg+xml;utf8,<svg></svg>", "-vl-rG"),
+      ]
+    );
+
+    dep_test(
+      ".foo { background: url(\"foo.png\") var(--test) }",
+      ".foo{background:url(\"Vwkwkq\") var(--test)}",
+      vec![
+        ("foo.png", "Vwkwkq"),
+      ]
+    );
+
+    dep_error_test(
+      ".foo { --test: url(\"foo.png\") }",
+      PrinterErrorKind::AmbiguousUrlInCustomProperty { url: "foo.png".into() }
+    );
+
+    dep_error_test(
+      ".foo { --test: url(foo.png) }",
+      PrinterErrorKind::AmbiguousUrlInCustomProperty { url: "foo.png".into() }
+    );
+
+    dep_error_test(
+      ".foo { --test: url(./foo.png) }",
+      PrinterErrorKind::AmbiguousUrlInCustomProperty { url: "./foo.png".into() }
     );
   }
 

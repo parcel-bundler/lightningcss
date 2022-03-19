@@ -14,6 +14,7 @@ pub mod custom_media;
 pub mod layer;
 pub mod property;
 
+use serde::Serialize;
 use crate::values::string::CowArcStr;
 use media::MediaRule;
 use import::ImportRule;
@@ -51,7 +52,7 @@ pub(crate) struct StyleContext<'a, 'i> {
   pub parent: Option<&'a StyleContext<'a, 'i>>
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize)]
 pub struct Location {
   /// The index of the source file within the source map.
   pub source_index: u32,
