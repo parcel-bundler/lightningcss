@@ -708,7 +708,7 @@ dependencies = [
 
 [[package]]
 name = "parcel_css"
-version = "1.0.0-alpha.19"
+version = "1.0.0-alpha.20"
 dependencies = [
  "assert_cmd",
  "assert_fs",
@@ -755,7 +755,7 @@ dependencies = [
 
 [[package]]
 name = "parcel_selectors"
-version = "0.24.1"
+version = "0.24.2"
 dependencies = [
  "bitflags",
  "cssparser",
