@@ -3656,7 +3656,15 @@ mod tests {
     minify_test("::slotted(span) {}", "::slotted(span){}");
     minify_test("custom-element::part(foo) {}", "custom-element::part(foo){}");
     minify_test(".sm\\:text-5xl { font-size: 3rem }", ".sm\\:text-5xl{font-size:3rem}");
-  
+    minify_test("a:has(> img) {}", "a:has(>img){}");
+    minify_test("dt:has(+ dt) {}", "dt:has(+dt){}");
+    minify_test("section:not(:has(h1, h2, h3, h4, h5, h6)) {}", "section:not(:has(h1,h2,h3,h4,h5,h6)){}");
+    minify_test(":has(.sibling ~ .target) {}", ":has(.sibling~.target){}");
+    minify_test(".x:has(> .a > .b) {}", ".x:has(>.a>.b){}");
+    minify_test(".x:has(.bar, #foo) {}", ".x:has(.bar,#foo){}");
+    minify_test(".x:has(span + span) {}", ".x:has(span+span){}");
+    minify_test("a:has(:visited) {}", "a:has(:visited){}");
+
     prefix_test(
       ".test:not(.foo, .bar) {}",
       indoc! {r#"

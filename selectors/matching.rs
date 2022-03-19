@@ -858,7 +858,7 @@ where
             }
             true
         }),
-        Component::Nesting => unreachable!()
+        Component::Nesting | Component::Has(..) => unreachable!()
     }
 }
 

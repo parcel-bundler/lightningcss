@@ -330,6 +330,7 @@ where
                 *specificity += Specificity::from(max);
             },
             Component::Where(..) |
+            Component::Has(..) |
             Component::ExplicitUniversalType |
             Component::ExplicitAnyNamespace |
             Component::ExplicitNoNamespace |

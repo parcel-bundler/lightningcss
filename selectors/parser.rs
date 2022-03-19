@@ -428,6 +428,49 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
         }
     }
 
+    #[inline]
+    fn parse_relative<'t, P>(
+        parser: &P,
+        input: &mut CssParser<'i, 't>,
+        state: &mut SelectorParsingState,
+        recovery: ParseErrorRecovery,
+    ) -> Result<Self, ParseError<'i, P::Error>>
+    where
+        P: Parser<'i, Impl = Impl>,
+    {
+        let original_state = *state;
+        let mut values = SmallVec::new();
+        loop {
+            let selector = input.parse_until_before(Delimiter::Comma, |input| {
+                let mut selector_state = original_state;
+                let result = parse_relative_selector(parser, input, &mut selector_state);
+                if selector_state.contains(SelectorParsingState::AFTER_NESTING) {
+                    state.insert(SelectorParsingState::AFTER_NESTING)
+                }
+                result
+            });
+
+            let was_ok = selector.is_ok();
+            match selector {
+                Ok(selector) => values.push(selector),
+                Err(err) => match recovery {
+                    ParseErrorRecovery::DiscardList => return Err(err),
+                    ParseErrorRecovery::IgnoreInvalidSelector => {},
+                },
+            }
+
+            loop {
+                match input.next() {
+                    Err(_) => return Ok(SelectorList(values)),
+                    Ok(&Token::Comma) => break,
+                    Ok(_) => {
+                        debug_assert!(!was_ok, "Shouldn't have got a selector if getting here");
+                    },
+                }
+            }
+        }
+    }
+
     /// Creates a SelectorList from a Vec of selectors. Used in tests.
     pub fn from_vec(v: Vec<Selector<'i, Impl>>) -> Self {
         SelectorList(SmallVec::from_vec(v))
@@ -1114,6 +1157,10 @@ pub enum Component<'i, Impl: SelectorImpl<'i>> {
     ///
     /// Same comment as above re. the argument.
     Is(Box<[Selector<'i, Impl>]>),
+    /// The `:has` pseudo-class.
+    /// 
+    /// https://www.w3.org/TR/selectors/#relational
+    Has(Box<[Selector<'i, Impl>]>),
     /// An implementation-dependent pseudo-element selector.
     PseudoElement(Impl::PseudoElement),
     /// A nesting selector:
@@ -1587,11 +1634,12 @@ impl<'i, Impl: SelectorImpl<'i>> ToCss for Component<'i, Impl> {
                 write_affine(dest, a, b)?;
                 dest.write_char(')')
             },
-            Is(ref list) | Where(ref list) | Negation(ref list) => {
+            Is(ref list) | Where(ref list) | Negation(ref list) | Has(ref list) => {
                 match *self {
                     Where(..) => dest.write_str(":where(")?,
                     Is(..) => dest.write_str(":is(")?,
                     Negation(..) => dest.write_str(":not(")?,
+                    Has(..) => dest.write_str(":has(")?,
                     _ => unreachable!(),
                 }
                 serialize_selector_list(list.iter(), dest)?;
@@ -1755,6 +1803,37 @@ impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
     {
         parse_selector(parser, input, &mut SelectorParsingState::empty(), NestingRequirement::None)
     }
+}
+
+fn parse_relative_selector<'i, 't, P, Impl>(
+    parser: &P,
+    input: &mut CssParser<'i, 't>,
+    state: &mut SelectorParsingState,
+) -> Result<Selector<'i, Impl>, ParseError<'i, P::Error>>
+where
+    P: Parser<'i, Impl = Impl>,
+    Impl: SelectorImpl<'i>,
+{
+    // https://www.w3.org/TR/selectors-4/#parse-relative-selector
+    let s = input.state();
+    let combinator = match input.next()? {
+        Token::Delim('>') => Some(Combinator::Child),
+        Token::Delim('+') => Some(Combinator::NextSibling),
+        Token::Delim('~') => Some(Combinator::LaterSibling),
+        _ => {
+            input.reset(&s);
+            None
+        }
+    };
+
+    let mut selector = parse_selector(parser, input, state, NestingRequirement::None)?;
+    if let Some(combinator) = combinator {
+        // https://www.w3.org/TR/selectors/#absolutizing
+        selector.1.push(Component::Combinator(combinator));
+        selector.1.push(Component::Scope);
+    }
+
+    Ok(selector)
 }
 
 /// * `Err(())`: Invalid selector, abort
@@ -2315,6 +2394,27 @@ where
     Ok(component(inner.0.into_vec().into_boxed_slice()))
 }
 
+fn parse_has<'i, 't, P, Impl>(
+    parser: &P,
+    input: &mut CssParser<'i, 't>,
+    state: &mut SelectorParsingState,
+) -> Result<Component<'i, Impl>, ParseError<'i, P::Error>>
+where
+    P: Parser<'i, Impl = Impl>,
+    Impl: SelectorImpl<'i>,
+{
+    let mut child_state = *state;
+    let inner = SelectorList::parse_relative(
+        parser,
+        input,
+        &mut child_state,
+        parser.is_and_where_error_recovery(),
+    )?;
+    if child_state.contains(SelectorParsingState::AFTER_NESTING) {
+        state.insert(SelectorParsingState::AFTER_NESTING)
+    }
+    Ok(Component::Has(inner.0.into_vec().into_boxed_slice()))
+}
 fn parse_functional_pseudo_class<'i, 't, P, Impl>(
     parser: &P,
     input: &mut CssParser<'i, 't>,
@@ -2332,6 +2432,7 @@ where
         "nth-last-of-type" => return parse_nth_pseudo_class(parser, input, *state, Component::NthLastOfType),
         "is" if parser.parse_is_and_where() => return parse_is_or_where(parser, input, state, Component::Is),
         "where" if parser.parse_is_and_where() => return parse_is_or_where(parser, input, state, Component::Where),
+        "has" => return parse_has(parser, input, state),
         "host" => {
             if !state.allows_tree_structural_pseudo_classes() {
                 return Err(input.new_custom_error(SelectorParseErrorKind::InvalidState));

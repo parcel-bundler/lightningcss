@@ -146,7 +146,8 @@ let cssFeatures = [
   'shadowdomv1',
   'css-rrggbbaa',
   'css-nesting',
-  'css-not-sel-list'
+  'css-not-sel-list',
+  'css-has'
 ];
 
 let compat = new Map();
