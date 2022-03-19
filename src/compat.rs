@@ -279,7 +279,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 6356992 {
+          if version < 6488064 {
             return false
           }
         }
@@ -371,7 +371,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 6356992 {
+          if version < 6488064 {
             return false
           }
         }
@@ -416,7 +416,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 6356992 {
+          if version < 6488064 {
             return false
           }
         }
@@ -471,7 +471,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 6356992 {
+          if version < 6488064 {
             return false
           }
         }
@@ -500,13 +500,23 @@ impl Feature {
             return false
           }
         }
+        if let Some(version) = browsers.safari {
+          if version < 984064 {
+            return false
+          }
+        }
         if let Some(version) = browsers.opera {
           if version < 4718592 {
             return false
           }
         }
+        if let Some(version) = browsers.ios_saf {
+          if version < 984064 {
+            return false
+          }
+        }
         if let Some(version) = browsers.android {
-          if version < 6356992 {
+          if version < 6488064 {
             return false
           }
         }
@@ -515,7 +525,7 @@ impl Feature {
             return false
           }
         }
-        if browsers.ie.is_some() || browsers.ios_saf.is_some() || browsers.safari.is_some() {
+        if browsers.ie.is_some() {
           return false
         }
       }
@@ -551,7 +561,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 6356992 {
+          if version < 6488064 {
             return false
           }
         }
@@ -596,7 +606,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 6356992 {
+          if version < 6488064 {
             return false
           }
         }
@@ -688,7 +698,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 6356992 {
+          if version < 6488064 {
             return false
           }
         }
@@ -717,13 +727,23 @@ impl Feature {
             return false
           }
         }
+        if let Some(version) = browsers.safari {
+          if version < 984064 {
+            return false
+          }
+        }
         if let Some(version) = browsers.opera {
           if version < 1572864 {
             return false
           }
         }
+        if let Some(version) = browsers.ios_saf {
+          if version < 984064 {
+            return false
+          }
+        }
         if let Some(version) = browsers.android {
-          if version < 6356992 {
+          if version < 6488064 {
             return false
           }
         }
@@ -732,7 +752,7 @@ impl Feature {
             return false
           }
         }
-        if browsers.ie.is_some() || browsers.ios_saf.is_some() || browsers.safari.is_some() {
+        if browsers.ie.is_some() {
           return false
         }
       }
@@ -793,7 +813,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 6356992 {
+          if version < 6488064 {
             return false
           }
         }
@@ -838,7 +858,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 6356992 {
+          if version < 6488064 {
             return false
           }
         }
@@ -928,7 +948,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 6356992 {
+          if version < 6488064 {
             return false
           }
         }
@@ -973,7 +993,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 6356992 {
+          if version < 6488064 {
             return false
           }
         }
@@ -1007,12 +1027,22 @@ impl Feature {
             return false
           }
         }
-        if let Some(version) = browsers.android {
-          if version < 6356992 {
+        if let Some(version) = browsers.safari {
+          if version < 983040 {
             return false
           }
         }
-        if browsers.ie.is_some() || browsers.ios_saf.is_some() || browsers.safari.is_some() || browsers.samsung.is_some() {
+        if let Some(version) = browsers.ios_saf {
+          if version < 983040 {
+            return false
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 6488064 {
+            return false
+          }
+        }
+        if browsers.ie.is_some() || browsers.samsung.is_some() {
           return false
         }
       }
@@ -1095,7 +1125,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 6356992 {
+          if version < 6488064 {
             return false
           }
         }
@@ -1140,7 +1170,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 6356992 {
+          if version < 6488064 {
             return false
           }
         }
@@ -1191,7 +1221,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version < 6356992 {
+          if version < 6488064 {
             return false
           }
         }
