@@ -393,7 +393,7 @@ macro_rules! define_properties {
             unparsed.value.to_css(dest, false)
           }
           Custom(custom) => {
-            custom.value.to_css(dest, true)
+            custom.value.to_css(dest, custom.name.starts_with("--"))
           }
           Logical(logical) => {
             logical.to_css(dest)

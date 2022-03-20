@@ -13325,6 +13325,14 @@ mod tests {
       ".foo { --test: url(./foo.png) }",
       PrinterErrorKind::AmbiguousUrlInCustomProperty { url: "./foo.png".into() }
     );
+
+    dep_test(
+      ".foo { behavior: url(#foo) }",
+      ".foo{behavior:url(\"Zn9-2q\")}",
+      vec![
+        ("#foo", "Zn9-2q"),
+      ]
+    );
   }
 
   #[test]
