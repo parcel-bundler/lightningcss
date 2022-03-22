@@ -29,7 +29,7 @@ impl ErrorLocation {
 }
 
 #[derive(Debug, PartialEq, Serialize)]
-#[serde(tag = "type")]
+#[serde(tag = "type", content = "value")]
 pub enum ParserError<'i> {
   /// An unexpected token was encountered.
   UnexpectedToken(#[serde(skip)] Token<'i>),
@@ -105,7 +105,7 @@ impl<'i> ParserError<'i> {
 }
 
 #[derive(Debug, PartialEq, Serialize)]
-#[serde(tag = "type")]
+#[serde(tag = "type", content = "value")]
 pub enum SelectorError<'i> {
   NoQualifiedNameInAttributeSelector(#[serde(skip)] Token<'i>),
   EmptySelector,
