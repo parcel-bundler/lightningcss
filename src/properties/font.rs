@@ -253,6 +253,16 @@ enum_property! {
     "ui-sans-serif": UISansSerif,
     "ui-monospace": UIMonospace,
     "ui-rounded": UIRounded,
+
+    // CSS wide keywords. These must be parsed as identifiers so they
+    // don't get serialized as strings.
+    // https://www.w3.org/TR/css-values-4/#common-keywords
+    "initial": Initial,
+    "inherit": Inherit,
+    "unset": Unset,
+    // Default is also reserved by the <custom-ident> type.
+    // https://www.w3.org/TR/css-values-4/#custom-idents
+    "default": Default,
   }
 }
 
@@ -301,18 +311,23 @@ impl<'i> ToCss for FontFamily<'i> {
     match self {
       FontFamily::Generic(val) => val.to_css(dest),
       FontFamily::FamilyName(val) => {
-        let mut id = String::new();
-        let mut first = true;
-        for slice in val.split(' ') {
-          if first {
-            first = false;
-          } else {
-            id.push(' ');
+        // Generic family names such as sans-serif must be quoted if parsed as a string.
+        // CSS wide keywords, as well as "default", must also be quoted.
+        // https://www.w3.org/TR/css-fonts-4/#family-name-syntax
+        if GenericFontFamily::from_str(val).is_none() {
+          let mut id = String::new();
+          let mut first = true;
+          for slice in val.split(' ') {
+            if first {
+              first = false;
+            } else {
+              id.push(' ');
+            }
+            serialize_identifier(slice, &mut id)?;
           }
-          serialize_identifier(slice, &mut id)?;
-        }
-        if id.len() < val.len() + 2 {
-          return dest.write_str(&id)
+          if id.len() < val.len() + 2 {
+            return dest.write_str(&id)
+          }
         }
         serialize_string(&val, dest)?;
         Ok(())

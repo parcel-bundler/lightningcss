@@ -3628,6 +3628,14 @@ mod tests {
     minify_test(".foo { font: normal normal 500 medium/normal Charcoal; }", ".foo{font:500 medium Charcoal}");
     minify_test(".foo { font: normal normal 400 medium Charcoal; }", ".foo{font:400 medium Charcoal}");
     minify_test(".foo { font: normal normal 500 medium/10px Charcoal; }", ".foo{font:500 medium/10px Charcoal}");
+    minify_test(".foo { font-family: 'sans-serif'; }", ".foo{font-family:\"sans-serif\"}");
+    minify_test(".foo { font-family: sans-serif; }", ".foo{font-family:sans-serif}");
+    minify_test(".foo { font-family: 'default'; }", ".foo{font-family:\"default\"}");
+    minify_test(".foo { font-family: default; }", ".foo{font-family:default}");
+    minify_test(".foo { font-family: 'inherit'; }", ".foo{font-family:\"inherit\"}");
+    minify_test(".foo { font-family: inherit; }", ".foo{font-family:inherit}");
+    minify_test(".foo { font-family: inherit test; }", ".foo{font-family:inherit test}");
+    minify_test(".foo { font-family: 'inherit test'; }", ".foo{font-family:inherit test}");
   }
 
   #[test]
