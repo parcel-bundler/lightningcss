@@ -3636,6 +3636,7 @@ mod tests {
     minify_test(".foo { font-family: inherit; }", ".foo{font-family:inherit}");
     minify_test(".foo { font-family: inherit test; }", ".foo{font-family:inherit test}");
     minify_test(".foo { font-family: 'inherit test'; }", ".foo{font-family:inherit test}");
+    minify_test(".foo { font-family: ''; }", ".foo{font-family:\"\"}");
   }
 
   #[test]
@@ -6579,6 +6580,7 @@ mod tests {
     minify_test("@font-face {src: url(\"test.woff\") format(woff supports variations);}", "@font-face{src:url(test.woff)format(\"woff\" supports variations)}");
     minify_test("@font-face {src: url(\"test.woff\") format(woff supports palettes);}", "@font-face{src:url(test.woff)format(\"woff\" supports palettes)}");
     minify_test("@font-face {src: url(\"test.woff\") format(woff supports features(opentype) color(sbix));}", "@font-face{src:url(test.woff)format(\"woff\" supports features(opentype) color(sbix))}");
+    minify_test("@font-face {src: local(\"\") url(\"test.woff\");}", "@font-face{src:local(\"\")url(test.woff)}");
     minify_test("@font-face {font-weight: 200 400}", "@font-face{font-weight:200 400}");
     minify_test("@font-face {font-weight: 400 400}", "@font-face{font-weight:400}");
     minify_test("@font-face {font-stretch: 50% 200%}", "@font-face{font-stretch:50% 200%}");
