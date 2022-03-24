@@ -1162,6 +1162,8 @@ impl<'i> BorderHandler<'i> {
       logical_fallback!(BorderLeftColor, border_left_color);
       logical_fallback!(BorderRightColor, border_right_color);
     }
+
+    self.physical_to_logical = PhysicalToLogical::default();
   }
 }
 

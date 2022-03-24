@@ -124,8 +124,8 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
       media: MediaList::new(),
       loc: Location {
         source_index: 0,
-        line: 1,
-        column: 0
+        line: 0,
+        column: 1
       }
     })?;
 

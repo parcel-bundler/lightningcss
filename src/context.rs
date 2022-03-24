@@ -126,7 +126,7 @@ impl<'i> PropertyHandlerContext<'i> {
           loc: Location {
             source_index: 0,
             line: 0,
-            column: 0
+            column: 1
           }
         }));
       };
