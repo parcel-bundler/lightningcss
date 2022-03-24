@@ -10134,6 +10134,15 @@ mod tests {
         }
       }
     "#, "@-moz-document url-prefix(){h1{color:#ff0}}");
+    minify_test(r#"
+      @-moz-document url-prefix("") {
+        h1 {
+          color: yellow;
+        }
+      }
+    "#, "@-moz-document url-prefix(){h1{color:#ff0}}");
+    error_test("@-moz-document url-prefix(foo) {}", ParserError::UnexpectedToken(crate::properties::custom::Token::Ident("foo".into())));
+    error_test("@-moz-document url-prefix(\"foo\") {}", ParserError::UnexpectedToken(crate::properties::custom::Token::QuotedString("foo".into())));
   }
 
   #[test]

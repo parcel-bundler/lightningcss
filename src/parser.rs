@@ -403,7 +403,19 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'i> {
         // Firefox only supports the url-prefix() function with no arguments as a legacy CSS hack.
         // See https://css-tricks.com/snippets/css/css-hacks-targeting-firefox/
         input.expect_function_matching("url-prefix")?;
-        input.parse_nested_block(|input| input.expect_exhausted().map_err(|e| e.into()))?;
+        input.parse_nested_block(|input| {
+          // Firefox also allows an empty string as an argument...
+          // https://github.com/mozilla/gecko-dev/blob/0077f2248712a1b45bf02f0f866449f663538164/servo/components/style/stylesheets/document_rule.rs#L303
+          let _ = input.try_parse(|input| -> Result<(), ParseError<'i, Self::Error>> {
+            let s = input.expect_string()?;
+            if !s.is_empty() {
+              return Err(input.new_custom_error(ParserError::InvalidValue))
+            }
+            Ok(())
+          });
+          input.expect_exhausted()?;
+          Ok(())
+        })?;
 
         Ok(AtRulePrelude::MozDocument)
       },
