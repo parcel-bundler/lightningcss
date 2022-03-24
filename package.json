@@ -1,6 +1,6 @@
 {
   "name": "@parcel/css",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "license": "MPL-2.0",
   "description": "A CSS parser, transformer, and minifier written in Rust",
   "main": "node/index.js",
