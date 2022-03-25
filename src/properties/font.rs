@@ -263,6 +263,11 @@ enum_property! {
     // Default is also reserved by the <custom-ident> type.
     // https://www.w3.org/TR/css-values-4/#custom-idents
     "default": Default,
+
+    // CSS defaulting keywords
+    // https://drafts.csswg.org/css-cascade-5/#defaulting-keywords
+    "revert": Revert,
+    "revert-layer": RevertLayer,
   }
 }
 

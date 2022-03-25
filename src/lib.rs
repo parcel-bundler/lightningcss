@@ -3636,7 +3636,17 @@ mod tests {
     minify_test(".foo { font-family: inherit; }", ".foo{font-family:inherit}");
     minify_test(".foo { font-family: inherit test; }", ".foo{font-family:inherit test}");
     minify_test(".foo { font-family: 'inherit test'; }", ".foo{font-family:inherit test}");
+    minify_test(".foo { font-family: revert; }", ".foo{font-family:revert}");
+    minify_test(".foo { font-family: 'revert'; }", ".foo{font-family:\"revert\"}");
+    minify_test(".foo { font-family: revert-layer; }", ".foo{font-family:revert-layer}");
+    minify_test(".foo { font-family: revert-layer, serif; }", ".foo{font-family:revert-layer,serif}");
+    minify_test(".foo { font-family: 'revert', sans-serif; }", ".foo{font-family:\"revert\",sans-serif}");
+    minify_test(".foo { font-family: 'revert', foo, sans-serif; }", ".foo{font-family:\"revert\",foo,sans-serif}");
     minify_test(".foo { font-family: ''; }", ".foo{font-family:\"\"}");
+
+    // font-family in @font-face
+    minify_test("@font-face { font-family: 'revert'; }", "@font-face{font-family:\"revert\"}");
+    minify_test("@font-face { font-family: 'revert-layer'; }", "@font-face{font-family:\"revert-layer\"}");
   }
 
   #[test]
