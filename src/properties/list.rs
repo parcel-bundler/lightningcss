@@ -20,7 +20,7 @@ pub enum ListStyleType<'i> {
 
 impl Default for ListStyleType<'_> {
   fn default() -> Self {
-    ListStyleType::CounterStyle(CounterStyle::Name(CustomIdent("disc".into())))
+    ListStyleType::CounterStyle(CounterStyle::Predefined(PredefinedCounterStyle::Disc))
   }
 }
 
@@ -55,12 +55,86 @@ impl ToCss for ListStyleType<'_> {
 /// https://www.w3.org/TR/css-counter-styles-3/#typedef-counter-style
 #[derive(Debug, Clone, PartialEq)]
 pub enum CounterStyle<'i> {
+  Predefined(PredefinedCounterStyle),
   Name(CustomIdent<'i>),
   Symbols(SymbolsType, Vec<Symbol<'i>>)
 }
 
+enum_property! {
+  /// https://www.w3.org/TR/css-counter-styles-3/#predefined-counters
+  pub enum PredefinedCounterStyle {
+    // https://www.w3.org/TR/css-counter-styles-3/#simple-numeric
+    "decimal": Decimal,
+    "decimal-leading-zero": DecimalLeadingZero,
+    "arabic-indic": ArabicIndic,
+    "armenian": Armenian,
+    "upper-armenian": UpperArmenian,
+    "lower-armenian": LowerArmenian,
+    "bengali": Bengali,
+    "cambodian": Cambodian,
+    "khmer": Khmer,
+    "cjk-decimal": CjkDecimal,
+    "devanagari": Devanagari,
+    "georgian": Georgian,
+    "gujarati": Gujarati,
+    "gurmukhi": Gurmukhi,
+    "hebrew": Hebrew,
+    "kannada": Kannada,
+    "lao": Lao,
+    "malayalam": Malayalam,
+    "mongolian": Mongolian,
+    "myanmar": Myanmar,
+    "oriya": Oriya,
+    "persian": Persian,
+    "lower-roman": LowerRoman,
+    "upper-roman": UpperRoman,
+    "tamil": Tamil,
+    "telugu": Telugu,
+    "thai": Thai,
+    "tibetan": Tibetan,
+
+    // https://www.w3.org/TR/css-counter-styles-3/#simple-alphabetic
+    "lower-alpha": LowerAlpha,
+    "lower-latin": LowerLatin,
+    "upper-alpha": UpperAlpha,
+    "upper-latin": UpperLatin,
+    "lower-greek": LowerGreek,
+    "hiragana": Hiragana,
+    "hiragana-iroha": HiraganaIroha,
+    "katakana": Katakana,
+    "katakana-iroha": KatakanaIroha,
+
+    // https://www.w3.org/TR/css-counter-styles-3/#simple-symbolic
+    "disc": Disc,
+    "circle": Circle,
+    "square": Square,
+    "disclosure-open": DisclosureOpen,
+    "disclosure-closed": DisclosureClosed,
+
+    // https://www.w3.org/TR/css-counter-styles-3/#simple-fixed
+    "cjk-earthly-branch": CjkEarthlyBranch,
+    "cjk-heavenly-stem": CjkHeavenlyStem,
+
+    // https://www.w3.org/TR/css-counter-styles-3/#complex-cjk
+    "japanese-informal": JapaneseInformal,
+    "japanese-formal": JapaneseFormal,
+    "korean-hangul-formal": KoreanHangulFormal,
+    "korean-hanja-informal": KoreanHanjaInformal,
+    "korean-hanja-formal": KoreanHanjaFormal,
+    "simp-chinese-informal": SimpChineseInformal,
+    "simp-chinese-formal": SimpChineseFormal,
+    "trad-chinese-informal": TradChineseInformal,
+    "trad-chinese-formal": TradChineseFormal,
+    "ethiopic-numeric": EthiopicNumeric,
+  }
+}
+
 impl<'i> Parse<'i> for CounterStyle<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if let Ok(predefined) = input.try_parse(PredefinedCounterStyle::parse) {
+      return Ok(CounterStyle::Predefined(predefined))
+    }
+    
     if input.try_parse(|input| input.expect_function_matching("symbols")).is_ok() {
       return input.parse_nested_block(|input| {
         let t = input.try_parse(SymbolsType::parse).unwrap_or(SymbolsType::Symbolic);
@@ -82,6 +156,9 @@ impl<'i> Parse<'i> for CounterStyle<'i> {
 impl ToCss for CounterStyle<'_> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
     match self {
+      CounterStyle::Predefined(style) => {
+        style.to_css(dest)
+      }
       CounterStyle::Name(name) => {
         if let Some(css_module) = &mut dest.css_module {
           css_module.reference(&name.0)

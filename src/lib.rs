@@ -11456,6 +11456,10 @@ mod tests {
         list-style-type: none;
       }
 
+      li {
+        list-style-type: disc;
+      }
+
       @keyframes fade {
         from { opacity: 0 }
         to { opacity: 1 }
@@ -11489,6 +11493,10 @@ mod tests {
 
       ol {
         list-style-type: none;
+      }
+
+      li {
+        list-style-type: disc;
       }
 
       @keyframes fade_EgL3uq {
