@@ -23,7 +23,7 @@ mod context;
 #[cfg(test)]
 mod tests {
   use crate::dependencies::Dependency;
-  use crate::error::{Error, MinifyErrorKind, ErrorLocation, ParserError, PrinterErrorKind};
+  use crate::error::{Error, MinifyErrorKind, ErrorLocation, ParserError, PrinterErrorKind, SelectorError};
   use crate::properties::custom::Token;
   use crate::rules::CssRule;
   use crate::stylesheet::*;
@@ -3683,6 +3683,20 @@ mod tests {
     minify_test(".x:has(.bar, #foo) {}", ".x:has(.bar,#foo){}");
     minify_test(".x:has(span + span) {}", ".x:has(span+span){}");
     minify_test("a:has(:visited) {}", "a:has(:visited){}");
+    for element in ["-webkit-scrollbar", "-webkit-scrollbar-button", "-webkit-scrollbar-track", "-webkit-scrollbar-track-piece", "-webkit-scrollbar-thumb", "-webkit-scrollbar-corner", "-webkit-resizer"] {
+      for class in ["horizontal", "vertical", "decrement", "increment", "start", "end", "double-button", "single-button", "no-button", "corner-present", "window-inactive"] {
+        minify_test(&format!("::{}:{} {{}}", element, class), &format!("::{}:{}{{}}", element, class));
+      }
+    }
+    for class in ["horizontal", "vertical", "decrement", "increment", "start", "end", "double-button", "single-button", "no-button", "corner-present", "window-inactive"] {
+      error_test(&format!(":{} {{}}", class), ParserError::SelectorError(SelectorError::InvalidPseudoClassBeforeWebKitScrollbar));
+    }
+    for element in ["-webkit-scrollbar", "-webkit-scrollbar-button", "-webkit-scrollbar-track", "-webkit-scrollbar-track-piece", "-webkit-scrollbar-thumb", "-webkit-scrollbar-corner", "-webkit-resizer"] {
+      error_test(&format!("::{}:hover {{}}", element), ParserError::SelectorError(SelectorError::InvalidPseudoClassAfterWebKitScrollbar));
+    }
+
+    error_test("a::first-letter:last-child {}", ParserError::SelectorError(SelectorError::InvalidPseudoClassAfterPseudoElement));
+    minify_test("a:last-child::first-letter {}", "a:last-child:first-letter{}");
 
     prefix_test(
       ".test:not(.foo, .bar) {}",

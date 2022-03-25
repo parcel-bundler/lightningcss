@@ -36,6 +36,10 @@ pub trait PseudoElement<'i>: Sized + ToCss {
     fn valid_after_slotted(&self) -> bool {
         false
     }
+
+    fn is_webkit_scrollbar(&self) -> bool {
+        false
+    }
 }
 
 /// A trait that represents a pseudo-class.
@@ -50,6 +54,10 @@ pub trait NonTSPseudoClass<'i>: Sized + ToCss {
     ///
     /// https://drafts.csswg.org/selectors-4/#useraction-pseudos
     fn is_user_action_state(&self) -> bool;
+
+    fn is_webkit_scrollbar_state(&self) -> bool {
+        false
+    }
 
     fn visit<V>(&self, _visitor: &mut V) -> bool
     where
@@ -73,7 +81,7 @@ fn to_ascii_lowercase<'i>(s: CowRcStr<'i>) -> CowRcStr<'i> {
 
 bitflags! {
     /// Flags that indicate at which point of parsing a selector are we.
-    struct SelectorParsingState: u8 {
+    struct SelectorParsingState: u16 {
         /// Whether we should avoid adding default namespaces to selectors that
         /// aren't type or universal selectors.
         const SKIP_DEFAULT_NAMESPACE = 1 << 0;
@@ -112,6 +120,8 @@ bitflags! {
 
         /// Whether we have seen a nesting selector.
         const AFTER_NESTING = 1 << 7;
+
+        const AFTER_WEBKIT_SCROLLBAR = 1 << 8;
     }
 }
 
@@ -168,6 +178,9 @@ pub enum SelectorParseErrorKind<'i> {
     NonPseudoElementAfterSlotted,
     InvalidPseudoElementAfterSlotted,
     InvalidPseudoElementInsideWhere,
+    InvalidPseudoClassBeforeWebKitScrollbar,
+    InvalidPseudoClassAfterWebKitScrollbar,
+    InvalidPseudoClassAfterPseudoElement,
     InvalidState,
     MissingNestingSelector,
     MissingNestingPrefix,
@@ -2354,6 +2367,9 @@ where
                 if !p.accepts_state_pseudo_classes() {
                     state.insert(SelectorParsingState::AFTER_NON_STATEFUL_PSEUDO_ELEMENT);
                 }
+                if p.is_webkit_scrollbar() {
+                    state.insert(SelectorParsingState::AFTER_WEBKIT_SCROLLBAR);
+                }
                 builder.push_combinator(Combinator::PseudoElement);
                 builder.push_simple_selector(Component::PseudoElement(p));
             },
@@ -2651,10 +2667,16 @@ where
     }
 
     let pseudo_class = P::parse_non_ts_pseudo_class(parser, location, name)?;
-    if state.intersects(SelectorParsingState::AFTER_PSEUDO_ELEMENT) &&
-        !pseudo_class.is_user_action_state()
-    {
-        return Err(location.new_custom_error(SelectorParseErrorKind::InvalidState));
+    if state.intersects(SelectorParsingState::AFTER_WEBKIT_SCROLLBAR) {
+        if !pseudo_class.is_webkit_scrollbar_state() {
+            return Err(location.new_custom_error(SelectorParseErrorKind::InvalidPseudoClassAfterWebKitScrollbar));
+        }
+    } else if state.intersects(SelectorParsingState::AFTER_PSEUDO_ELEMENT) {
+        if !pseudo_class.is_user_action_state() {
+            return Err(location.new_custom_error(SelectorParseErrorKind::InvalidPseudoClassAfterPseudoElement));
+        }
+    } else if pseudo_class.is_webkit_scrollbar_state() {
+        return Err(location.new_custom_error(SelectorParseErrorKind::InvalidPseudoClassBeforeWebKitScrollbar));
     }
     Ok(Component::NonTSPseudoClass(pseudo_class))
 }

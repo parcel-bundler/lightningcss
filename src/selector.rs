@@ -159,6 +159,19 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
         "-webkit-autofill" => Autofill(VendorPrefix::WebKit),
         "-o-autofill" => Autofill(VendorPrefix::O),
 
+        // https://webkit.org/blog/363/styling-scrollbars/
+        "horizontal" => WebKitScrollbar(WebKitScrollbarPseudoClass::Horizontal),
+        "vertical" => WebKitScrollbar(WebKitScrollbarPseudoClass::Vertical),
+        "decrement" => WebKitScrollbar(WebKitScrollbarPseudoClass::Decrement),
+        "increment" => WebKitScrollbar(WebKitScrollbarPseudoClass::Increment),
+        "start" => WebKitScrollbar(WebKitScrollbarPseudoClass::Start),
+        "end" => WebKitScrollbar(WebKitScrollbarPseudoClass::End),
+        "double-button" => WebKitScrollbar(WebKitScrollbarPseudoClass::DoubleButton),
+        "single-button" => WebKitScrollbar(WebKitScrollbarPseudoClass::SingleButton),
+        "no-button" => WebKitScrollbar(WebKitScrollbarPseudoClass::NoButton),
+        "corner-present" => WebKitScrollbar(WebKitScrollbarPseudoClass::CornerPresent),
+        "window-inactive" => WebKitScrollbar(WebKitScrollbarPseudoClass::WindowInactive),
+
         _ => Custom(name.into())
       };
 
@@ -205,6 +218,15 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
       "file-selector-button" => FileSelectorButton(VendorPrefix::None),
       "-webkit-file-upload-button" => FileSelectorButton(VendorPrefix::WebKit),
       "-ms-browse" => FileSelectorButton(VendorPrefix::Ms),
+
+      "-webkit-scrollbar" => WebKitScrollbar(WebKitScrollbarPseudoElement::Scrollbar),
+      "-webkit-scrollbar-button" => WebKitScrollbar(WebKitScrollbarPseudoElement::Button),
+      "-webkit-scrollbar-track" => WebKitScrollbar(WebKitScrollbarPseudoElement::Track),
+      "-webkit-scrollbar-track-piece" => WebKitScrollbar(WebKitScrollbarPseudoElement::TrackPiece),
+      "-webkit-scrollbar-thumb" => WebKitScrollbar(WebKitScrollbarPseudoElement::Thumb),
+      "-webkit-scrollbar-corner" => WebKitScrollbar(WebKitScrollbarPseudoElement::Corner),
+      "-webkit-resizer" => WebKitScrollbar(WebKitScrollbarPseudoElement::Resizer),
+
       _ => Custom(name.into())
     };
 
@@ -313,18 +335,41 @@ pub enum PseudoClass<'i> {
   Local(Box<parcel_selectors::parser::Selector<'i, Selectors>>),
   Global(Box<parcel_selectors::parser::Selector<'i, Selectors>>),
 
+  // https://webkit.org/blog/363/styling-scrollbars/
+  WebKitScrollbar(WebKitScrollbarPseudoClass),
+
   Custom(CowArcStr<'i>)
+}
+
+/// https://webkit.org/blog/363/styling-scrollbars/
+#[derive(Clone, Eq, PartialEq)]
+pub enum WebKitScrollbarPseudoClass {
+  Horizontal,
+  Vertical,
+  Decrement,
+  Increment,
+  Start,
+  End,
+  DoubleButton,
+  SingleButton,
+  NoButton,
+  CornerPresent,
+  WindowInactive
 }
 
 impl<'i> parcel_selectors::parser::NonTSPseudoClass<'i> for PseudoClass<'i> {
   type Impl = Selectors;
 
   fn is_active_or_hover(&self) -> bool {
-      matches!(*self, PseudoClass::Active | PseudoClass::Hover)
+    matches!(*self, PseudoClass::Active | PseudoClass::Hover)
   }
 
   fn is_user_action_state(&self) -> bool {
-      matches!(*self, PseudoClass::Active | PseudoClass::Hover | PseudoClass::Focus)
+    matches!(*self, PseudoClass::Active | PseudoClass::Hover | PseudoClass::Focus)
+  }
+
+  fn is_webkit_scrollbar_state(&self) -> bool {
+    matches!(*self, PseudoClass::WebKitScrollbar(..))
   }
 }
 
@@ -461,6 +506,24 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for PseudoClass<'i> {
           Ok(())
         },
 
+        // https://webkit.org/blog/363/styling-scrollbars/
+        WebKitScrollbar(s) => {
+          use WebKitScrollbarPseudoClass::*;
+          dest.write_str(match s {
+            Horizontal => ":horizontal",
+            Vertical => ":vertical",
+            Decrement => ":decrement",
+            Increment => ":increment",
+            Start => ":start",
+            End => ":end",
+            DoubleButton => ":double-button",
+            SingleButton => ":single-button",
+            NoButton => ":no-button",
+            CornerPresent => ":corner-present",
+            WindowInactive => ":window-inactive"
+          })
+        },
+
         Lang(_) | Dir(_) => unreachable!(),
         Custom(val) => {
           dest.write_char(':')?;
@@ -526,7 +589,26 @@ pub enum PseudoElement<'i> {
   Marker,
   Backdrop(VendorPrefix),
   FileSelectorButton(VendorPrefix),
+  WebKitScrollbar(WebKitScrollbarPseudoElement),
   Custom(CowArcStr<'i>)
+}
+
+#[derive(PartialEq, Eq, Clone, Debug, Hash)]
+pub enum WebKitScrollbarPseudoElement {
+  /// ::-webkit-scrollbar
+  Scrollbar,
+  /// ::-webkit-scrollbar-button
+  Button,
+  /// ::-webkit-scrollbar-track
+  Track,
+  /// ::-webkit-scrollbar-track-piece
+  TrackPiece,
+  /// ::-webkit-scrollbar-thumb
+  Thumb,
+  /// ::-webkit-scrollbar-corner
+  Corner,
+  /// ::-webkit-resizer
+  Resizer
 }
 
 impl<'i> cssparser::ToCss for PseudoElement<'i> {
@@ -589,6 +671,18 @@ impl<'i> ToCss for PseudoElement<'i> {
           dest.write_str("file-selector-button")
         }
       }
+      WebKitScrollbar(s) => {
+        use WebKitScrollbarPseudoElement::*;
+        dest.write_str(match s {
+          Scrollbar => "::-webkit-scrollbar",
+          Button => "::-webkit-scrollbar-button",
+          Track => "::-webkit-scrollbar-track",
+          TrackPiece => "::-webkit-scrollbar-track-piece",
+          Thumb => "::-webkit-scrollbar-thumb",
+          Corner => "::-webkit-scrollbar-corner",
+          Resizer => "::-webkit-resizer"
+        })
+      }
       Custom(val) => {
         dest.write_str("::")?;
         return dest.write_str(val)
@@ -617,6 +711,10 @@ impl<'i> parcel_selectors::parser::PseudoElement<'i> for PseudoElement<'i> {
       PseudoElement::Placeholder(_) |
       PseudoElement::FileSelectorButton(_)
     )
+  }
+
+  fn is_webkit_scrollbar(&self) -> bool {
+    matches!(*self, PseudoElement::WebKitScrollbar(..))
   }
 }
 

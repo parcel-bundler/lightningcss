@@ -114,6 +114,9 @@ pub enum SelectorError<'i> {
   NonPseudoElementAfterSlotted,
   InvalidPseudoElementAfterSlotted,
   InvalidPseudoElementInsideWhere,
+  InvalidPseudoClassBeforeWebKitScrollbar,
+  InvalidPseudoClassAfterWebKitScrollbar,
+  InvalidPseudoClassAfterPseudoElement,
   InvalidState,
   MissingNestingSelector,
   MissingNestingPrefix,
@@ -141,6 +144,9 @@ impl<'i> From<SelectorParseErrorKind<'i>> for SelectorError<'i> {
       SelectorParseErrorKind::NonPseudoElementAfterSlotted => SelectorError::NonPseudoElementAfterSlotted,
       SelectorParseErrorKind::InvalidPseudoElementAfterSlotted => SelectorError::InvalidPseudoElementAfterSlotted,
       SelectorParseErrorKind::InvalidPseudoElementInsideWhere => SelectorError::InvalidPseudoElementInsideWhere,
+      SelectorParseErrorKind::InvalidPseudoClassBeforeWebKitScrollbar => SelectorError::InvalidPseudoClassBeforeWebKitScrollbar,
+      SelectorParseErrorKind::InvalidPseudoClassAfterWebKitScrollbar => SelectorError::InvalidPseudoClassAfterWebKitScrollbar,
+      SelectorParseErrorKind::InvalidPseudoClassAfterPseudoElement => SelectorError::InvalidPseudoClassAfterPseudoElement,  
       SelectorParseErrorKind::InvalidState => SelectorError::InvalidState,
       SelectorParseErrorKind::MissingNestingSelector => SelectorError::MissingNestingSelector,
       SelectorParseErrorKind::MissingNestingPrefix => SelectorError::MissingNestingPrefix,
@@ -179,6 +185,9 @@ impl<'i> SelectorError<'i> {
       InvalidQualNameInAttr(token) => format!("Invalid qualified name in attribute selector: {:?}", token),
       ExplicitNamespaceUnexpectedToken(token) => format!("Unexpected token in namespace selector: {:?}", token),
       ClassNeedsIdent(token) => format!("Expected identifier in class selector, got {:?}", token),
+      InvalidPseudoClassBeforeWebKitScrollbar => "Pseudo class must be prefixed by a ::-webkit-scrollbar pseudo element".into(),
+      InvalidPseudoClassAfterWebKitScrollbar => "Invalid pseudo class after ::-webkit-scrollbar pseudo element".into(),
+      InvalidPseudoClassAfterPseudoElement => "Invalid pseudo class after pseudo element. Only user action pseudo classes (e.g. :hover, :active) are allowed.".into(),
       err => format!("Error parsing selector: {:?}", err)
     }
   }
