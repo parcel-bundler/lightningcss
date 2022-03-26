@@ -10187,6 +10187,7 @@ mod tests {
     minify_test(".foo { color: var(--color, #ffff00); }", ".foo{color:var(--color,#ff0)}");
     minify_test(".foo { color: var(--color, rgb(var(--red), var(--green), 0)); }", ".foo{color:var(--color,rgb(var(--red),var(--green),0))}");
     minify_test(".foo { --test: .5s; }", ".foo{--test:.5s}");
+    minify_test(".foo { --theme-sizes-1\\/12: 2 }", ".foo{--theme-sizes-1\\/12:2}");
   
     prefix_test(r#"
       .foo {

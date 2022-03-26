@@ -417,6 +417,15 @@ macro_rules! define_properties {
           };
         }
 
+        macro_rules! write_important {
+          () => {
+            if important {
+              dest.whitespace()?;
+              dest.write_str("!important")?;
+            }
+          }
+        }
+
         let (name, prefix) = match self {
           $(
             $(#[$meta])*
@@ -435,7 +444,14 @@ macro_rules! define_properties {
           )+
           Unparsed(unparsed) => (unparsed.property_id.name(), unparsed.property_id.prefix()),
           Logical(logical) => (logical.property_id.name(), logical.property_id.prefix()),
-          Custom(custom) => (custom.name.as_ref(), VendorPrefix::None),
+          Custom(custom) => {
+            // Ensure custom property names are escaped.
+            serialize_name(custom.name.as_ref(), dest)?;
+            dest.delim(':', false)?;
+            self.value_to_css(dest)?;
+            write_important!();
+            return Ok(())
+          }
         };
 
         macro_rules! write {
@@ -446,10 +462,7 @@ macro_rules! define_properties {
               dest.write_str(name)?;
               dest.delim(':', false)?;
               self.value_to_css(dest)?;
-              if important {
-                dest.whitespace()?;
-                dest.write_str("!important")?;
-              }
+              write_important!();
             }
           }
         }
