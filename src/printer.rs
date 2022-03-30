@@ -151,7 +151,6 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
   }
 
   pub fn write_ident(&mut self, ident: &str) -> Result<(), PrinterError> {
-    serialize_identifier(ident, self)?;
     let hash = if let Some(css_module) = &self.css_module {
       Some(css_module.hash)
     } else {
@@ -159,12 +158,11 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
     };
 
     if let Some(hash) = hash {
-      self.write_char('_')?;
       self.write_str(hash)?;
-      if self.source_index > 0 {
-        self.write_str(&format!("_{}", self.source_index))?;
-      }
+      self.write_char('_')?;
     }
+
+    serialize_identifier(ident, self)?;
 
     if let Some(css_module) = &mut self.css_module {
       css_module.add_local(&ident, &ident);
