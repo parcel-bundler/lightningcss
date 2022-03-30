@@ -158,7 +158,7 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
     };
 
     if let Some(hash) = hash {
-      self.write_str(hash)?;
+      serialize_identifier(hash, self)?;
       self.write_char('_')?;
     }
 
