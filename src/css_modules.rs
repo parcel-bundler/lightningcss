@@ -117,5 +117,10 @@ pub(crate) fn hash(s: &str) -> String {
   s.hash(&mut hasher);
   let hash = hasher.finish() as u32;
   
-  ENCODER.encode(&hash.to_le_bytes())
+  let hash = ENCODER.encode(&hash.to_le_bytes());
+  if matches!(hash.as_bytes()[0], b'0'..=b'9') {
+    format!("_{}", hash)
+  } else {
+    hash
+  }
 }

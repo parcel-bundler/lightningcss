@@ -736,11 +736,11 @@ mod tests {
       "#
     }, "/a.css");
     assert_eq!(res, indoc! { r#"
-      .6lixEq_a {
+      ._6lixEq_a {
         color: green;
       }
 
-      .6lixEq_a {
+      ._6lixEq_a {
         color: red;
       }
     "#});
