@@ -11466,15 +11466,15 @@ mod tests {
         to { opacity: 1 }
       }
     "#, indoc!{r#"
-      .foo_EgL3uq {
+      .EgL3uq_foo {
         color: red;
       }
 
-      #id_EgL3uq {
-        animation: test_EgL3uq 2s;
+      #EgL3uq_id {
+        animation: EgL3uq_test 2s;
       }
 
-      @keyframes test_EgL3uq {
+      @keyframes EgL3uq_test {
         from {
           color: red;
         }
@@ -11484,12 +11484,12 @@ mod tests {
         }
       }
 
-      @counter-style circles_EgL3uq {
+      @counter-style EgL3uq_circles {
         symbols: Ⓐ Ⓑ Ⓒ;
       }
 
       ul {
-        list-style: circles_EgL3uq;
+        list-style: EgL3uq_circles;
       }
 
       ol {
@@ -11500,7 +11500,7 @@ mod tests {
         list-style-type: disc;
       }
 
-      @keyframes fade_EgL3uq {
+      @keyframes EgL3uq_fade {
         from {
           opacity: 0;
         }
@@ -11510,11 +11510,11 @@ mod tests {
         }
       }
     "#}, map! {
-      "foo" => "foo_EgL3uq",
-      "id" => "id_EgL3uq",
-      "test" => "test_EgL3uq" referenced: true,
-      "circles" => "circles_EgL3uq" referenced: true,
-      "fade" => "fade_EgL3uq"
+      "foo" => "EgL3uq_foo",
+      "id" => "EgL3uq_id",
+      "test" => "EgL3uq_test" referenced: true,
+      "circles" => "EgL3uq_circles" referenced: true,
+      "fade" => "EgL3uq_fade"
     });
 
     #[cfg(feature = "grid")]
@@ -11534,26 +11534,62 @@ mod tests {
       }
     "#, indoc!{r#"
       body {
-        grid: [header-top_EgL3uq] "a_EgL3uq a_EgL3uq a_EgL3uq" [header-bottom_EgL3uq]
-              [main-top_EgL3uq] "b_EgL3uq b_EgL3uq b_EgL3uq" 1fr [main-bottom_EgL3uq]
+        grid: [EgL3uq_header-top] "EgL3uq_a EgL3uq_a EgL3uq_a" [EgL3uq_header-bottom]
+              [EgL3uq_main-top] "EgL3uq_b EgL3uq_b EgL3uq_b" 1fr [EgL3uq_main-bottom]
               / auto 1fr auto;
       }
 
       header {
-        grid-area: a_EgL3uq;
+        grid-area: EgL3uq_a;
       }
 
       main {
-        grid-row: main-top_EgL3uq / main-bottom_EgL3uq;
+        grid-row: EgL3uq_main-top / EgL3uq_main-bottom;
       }
     "#}, map! {
-      "header-top" => "header-top_EgL3uq",
-      "header-bottom" => "header-bottom_EgL3uq",
-      "main-top" => "main-top_EgL3uq",
-      "main-bottom" => "main-bottom_EgL3uq",
-      "a" => "a_EgL3uq",
-      "b" => "b_EgL3uq"
+      "header-top" => "EgL3uq_header-top",
+      "header-bottom" => "EgL3uq_header-bottom",
+      "main-top" => "EgL3uq_main-top",
+      "main-bottom" => "EgL3uq_main-bottom",
+      "a" => "EgL3uq_a",
+      "b" => "EgL3uq_b"
     });
+
+    #[cfg(feature = "grid")]
+    css_modules_test(
+      r#"
+        .grid {
+          grid-template-areas: "foo";
+        }
+
+        .foo {
+          grid-area: foo;
+        }
+
+        .bar {
+          grid-column-start: foo-start;
+        }
+      "#,
+      indoc!{r#"
+        .EgL3uq_grid {
+          grid-template-areas: "EgL3uq_foo";
+        }
+
+        .EgL3uq_foo {
+          grid-area: EgL3uq_foo;
+        }
+
+        .EgL3uq_bar {
+          grid-column-start: EgL3uq_foo-start;
+        }
+      "#},
+      map! {
+        "foo" => "EgL3uq_foo",
+        "foo-start" => "EgL3uq_foo-start",
+        "grid" => "EgL3uq_grid",
+        "bar" => "EgL3uq_bar"
+      }
+    );
 
     css_modules_test(r#"
       test {
@@ -11582,15 +11618,15 @@ mod tests {
         color: red;
       }
 
-      .bar_EgL3uq {
+      .EgL3uq_bar {
         color: #ff0;
       }
 
-      .bar_EgL3uq .baz {
+      .EgL3uq_bar .baz {
         color: purple;
       }
     "#}, map! {
-      "bar" => "bar_EgL3uq"
+      "bar" => "EgL3uq_bar"
     });
 
 
@@ -11609,16 +11645,16 @@ mod tests {
         color: red;
       }
     "#, indoc!{r#"
-      .test_EgL3uq {
+      .EgL3uq_test {
         background: #fff;
       }
 
-      .foo_EgL3uq {
+      .EgL3uq_foo {
         color: red;
       }
     "#}, map! {
-      "test" => "test_EgL3uq" "foo_EgL3uq",
-      "foo" => "foo_EgL3uq"
+      "test" => "EgL3uq_test" "EgL3uq_foo",
+      "foo" => "EgL3uq_foo"
     });
 
     css_modules_test(r#"
@@ -11631,17 +11667,17 @@ mod tests {
         color: red;
       }
     "#, indoc!{r#"
-      .a_EgL3uq, .b_EgL3uq {
+      .EgL3uq_a, .EgL3uq_b {
         background: #fff;
       }
 
-      .foo_EgL3uq {
+      .EgL3uq_foo {
         color: red;
       }
     "#}, map! {
-      "a" => "a_EgL3uq" "foo_EgL3uq",
-      "b" => "b_EgL3uq" "foo_EgL3uq",
-      "foo" => "foo_EgL3uq"
+      "a" => "EgL3uq_a" "EgL3uq_foo",
+      "b" => "EgL3uq_b" "EgL3uq_foo",
+      "foo" => "EgL3uq_foo"
     });
 
     css_modules_test(r#"
@@ -11658,21 +11694,21 @@ mod tests {
         color: yellow;
       }
     "#, indoc!{r#"
-      .test_EgL3uq {
+      .EgL3uq_test {
         background: #fff;
       }
 
-      .foo_EgL3uq {
+      .EgL3uq_foo {
         color: red;
       }
 
-      .bar_EgL3uq {
+      .EgL3uq_bar {
         color: #ff0;
       }
     "#}, map! {
-      "test" => "test_EgL3uq" "foo_EgL3uq" "bar_EgL3uq",
-      "foo" => "foo_EgL3uq",
-      "bar" => "bar_EgL3uq"
+      "test" => "EgL3uq_test" "EgL3uq_foo" "EgL3uq_bar",
+      "foo" => "EgL3uq_foo",
+      "bar" => "EgL3uq_bar"
     });
 
     css_modules_test(r#"
@@ -11681,11 +11717,11 @@ mod tests {
         background: white;
       }
     "#, indoc!{r#"
-      .test_EgL3uq {
+      .EgL3uq_test {
         background: #fff;
       }
     "#}, map! {
-      "test" => "test_EgL3uq" "foo" global: true
+      "test" => "EgL3uq_test" "foo" global: true
     });
 
     css_modules_test(r#"
@@ -11694,11 +11730,11 @@ mod tests {
         background: white;
       }
     "#, indoc!{r#"
-      .test_EgL3uq {
+      .EgL3uq_test {
         background: #fff;
       }
     "#}, map! {
-      "test" => "test_EgL3uq" "foo" global: true "bar" global: true
+      "test" => "EgL3uq_test" "foo" global: true "bar" global: true
     });
 
     css_modules_test(r#"
@@ -11707,11 +11743,11 @@ mod tests {
         background: white;
       }
     "#, indoc!{r#"
-      .test_EgL3uq {
+      .EgL3uq_test {
         background: #fff;
       }
     "#}, map! {
-      "test" => "test_EgL3uq" "foo" from "foo.css"
+      "test" => "EgL3uq_test" "foo" from "foo.css"
     });
 
     css_modules_test(r#"
@@ -11720,11 +11756,11 @@ mod tests {
         background: white;
       }
     "#, indoc!{r#"
-      .test_EgL3uq {
+      .EgL3uq_test {
         background: #fff;
       }
     "#}, map! {
-      "test" => "test_EgL3uq" "foo" from "foo.css" "bar" from "foo.css"
+      "test" => "EgL3uq_test" "foo" from "foo.css" "bar" from "foo.css"
     });
 
     css_modules_test(r#"
@@ -11739,16 +11775,16 @@ mod tests {
         color: red;
       }
     "#, indoc!{r#"
-      .test_EgL3uq {
+      .EgL3uq_test {
         background: #fff;
       }
 
-      .foo_EgL3uq {
+      .EgL3uq_foo {
         color: red;
       }
     "#}, map! {
-      "test" => "test_EgL3uq" "foo_EgL3uq" "foo" from "foo.css" "bar" from "bar.css",
-      "foo" => "foo_EgL3uq"
+      "test" => "EgL3uq_test" "EgL3uq_foo" "foo" from "foo.css" "bar" from "bar.css",
+      "foo" => "EgL3uq_foo"
     });
   }
 
@@ -11801,7 +11837,7 @@ mod tests {
     "#;
 
     let expected = indoc! { r#"
-      .foo_EgL3uq.is-hovered_EgL3uq {
+      .EgL3uq_foo.EgL3uq_is-hovered {
         color: red;
       }
     "#};
@@ -13307,19 +13343,19 @@ mod tests {
 
     dep_test(
       ".foo { background: image-set('./img12x.png', './img21x.png' 2x)}",
-      ".foo{background:image-set(\"hXFI8W\",\"5TkpBa\" 2x)}",
+      ".foo{background:image-set(\"hXFI8W\",\"_5TkpBa\" 2x)}",
       vec![
         ("./img12x.png", "hXFI8W"),
-        ("./img21x.png", "5TkpBa")
+        ("./img21x.png", "_5TkpBa")
       ]
     );
 
     dep_test(
       ".foo { background: image-set(url(./img12x.png), url('./img21x.png') 2x)}",
-      ".foo{background:image-set(\"hXFI8W\",\"5TkpBa\" 2x)}",
+      ".foo{background:image-set(\"hXFI8W\",\"_5TkpBa\" 2x)}",
       vec![
         ("./img12x.png", "hXFI8W"),
-        ("./img21x.png", "5TkpBa")
+        ("./img21x.png", "_5TkpBa")
       ]
     );
 
@@ -13341,9 +13377,9 @@ mod tests {
 
     dep_test(
       ".foo { --test: url(\"http://example.com/foo.png\") }",
-      ".foo{--test:url(\"3X1zSW\")}",
+      ".foo{--test:url(\"_3X1zSW\")}",
       vec![
-        ("http://example.com/foo.png", "3X1zSW"),
+        ("http://example.com/foo.png", "_3X1zSW"),
       ]
     );
 
