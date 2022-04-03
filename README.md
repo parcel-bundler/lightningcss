@@ -34,6 +34,11 @@ A CSS parser, transformer, and minifier written in Rust.
     - `hwb()` color syntax
     - Percent syntax for opacity
     - `#rgba` and `#rrggbbaa` hex colors
+  - Selectors
+    - `:not` with multiple arguments
+    - `:lang` with multiple arguments
+    - `:dir`
+    - `:is`
   - Double position gradient stops (e.g. `red 40% 80%`)
   - `clamp()` function
   - Alignment shorthands (e.g. `place-items`)
