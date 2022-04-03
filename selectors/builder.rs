@@ -317,7 +317,7 @@ where
             Component::NonTSPseudoClass(..) => {
                 specificity.class_like_selectors += 1;
             },
-            Component::Negation(ref list) | Component::Is(ref list) => {
+            Component::Negation(ref list) | Component::Is(ref list) | Component::Any(_, ref list) => {
                 // https://drafts.csswg.org/selectors/#specificity-rules:
                 //
                 //     The specificity of an :is() pseudo-class is replaced by the

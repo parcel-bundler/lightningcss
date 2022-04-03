@@ -4,6 +4,7 @@ use crate::targets::Browsers;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Feature {
+  AnyPseudo,
   Clamp,
   ColorFunction,
   CssAnyLink,
@@ -38,6 +39,7 @@ pub enum Feature {
   FormValidation,
   Fullscreen,
   LabColors,
+  LangList,
   LogicalBorderRadius,
   LogicalBorders,
   LogicalInset,
@@ -1719,7 +1721,53 @@ impl Feature {
           return false
         }
       }
-      Feature::P3Colors => {
+      Feature::AnyPseudo => {
+        if let Some(version) = browsers.chrome {
+          if version < 1179648 {
+            return false
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 262144 {
+            return false
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 917504 {
+            return false
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 327680 {
+            return false
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 327680 {
+            return false
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 65536 {
+            return false
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 2424832 {
+            return false
+          }
+        }
+        if browsers.ie.is_some() {
+          return false
+        }
+      }
+      Feature::P3Colors |
+      Feature::LangList => {
         if let Some(version) = browsers.safari {
           if version < 655616 {
             return false

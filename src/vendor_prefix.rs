@@ -35,6 +35,13 @@ impl VendorPrefix {
 
 impl ToCss for VendorPrefix {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+    cssparser::ToCss::to_css(self, dest)?;
+    Ok(())
+  }
+}
+
+impl cssparser::ToCss for VendorPrefix {
+  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
     match *self {
       VendorPrefix::WebKit => dest.write_str("-webkit-"),
       VendorPrefix::Moz => dest.write_str("-moz-"),

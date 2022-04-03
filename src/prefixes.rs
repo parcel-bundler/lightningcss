@@ -17,6 +17,7 @@ pub enum Feature {
   AnimationName,
   AnimationPlayState,
   AnimationTimingFunction,
+  AnyPseudo,
   Appearance,
   AtKeyframes,
   AtResolution,
@@ -2169,6 +2170,48 @@ impl Feature {
       Feature::TextOrientation => {
         if let Some(version) = browsers.safari {
           if version >= 655616 && version <= 852224 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
+      },
+      Feature::AnyPseudo => {
+        if let Some(version) = browsers.chrome {
+          if version >= 786432 && version <= 5701632 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version >= 5177344 && version <= 5701632 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version >= 262144 && version <= 5111808 {
+            prefixes |= VendorPrefix::Moz;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version >= 917504 && version <= 4784128 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version >= 327680 && version <= 851968 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version >= 327680 && version <= 851968 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version >= 65536 && version <= 917504 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version >= 2424832 && version <= 5701632 {
             prefixes |= VendorPrefix::WebKit;
           }
         }

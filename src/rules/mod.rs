@@ -37,7 +37,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::prefixes::Feature;
 use crate::targets::Browsers;
 use std::collections::{HashMap, HashSet};
-use crate::selector::{is_equivalent, get_prefix, get_necessary_prefixes};
+use crate::selector::{is_equivalent, get_prefix, downlevel_selectors};
 use crate::error::{MinifyError, PrinterError};
 use crate::context::PropertyHandlerContext;
 use crate::dependencies::{Dependency, ImportDependency};
@@ -199,7 +199,7 @@ impl<'i> CssRuleList<'i> {
           if let Some(targets) = context.targets {
             style.vendor_prefix = get_prefix(&style.selectors);
             if style.vendor_prefix.contains(VendorPrefix::None) {
-              style.vendor_prefix = get_necessary_prefixes(&style.selectors, *targets);
+              style.vendor_prefix = downlevel_selectors(&mut style.selectors, *targets);
             }
           }
 

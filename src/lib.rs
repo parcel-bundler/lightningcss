@@ -3657,51 +3657,52 @@ mod tests {
 
   #[test]
   fn test_selectors() {
-    minify_test("[foo=\"baz\"] {}", "[foo=baz]{}");
-    minify_test("[foo=\"foo bar\"] {}", "[foo=foo\\ bar]{}");
-    minify_test("[foo=\"foo bar baz\"] {}", "[foo=\"foo bar baz\"]{}");
-    minify_test("[foo=\"\"] {}", "[foo=\"\"]{}");
-    minify_test(".test:not([foo=\"bar\"]) {}", ".test:not([foo=bar]){}");
-    minify_test(".test + .foo {}", ".test+.foo{}");
-    minify_test(".test ~ .foo {}", ".test~.foo{}");
-    minify_test(".test .foo {}", ".test .foo{}");
-    minify_test(".custom-range::-webkit-slider-thumb:active {}", ".custom-range::-webkit-slider-thumb:active{}");
-    minify_test(".test:not(.foo, .bar) {}", ".test:not(.foo,.bar){}");
-    minify_test(".test:is(.foo, .bar) {}", ".test:is(.foo,.bar){}");
-    minify_test(".test:where(.foo, .bar) {}", ".test:where(.foo,.bar){}");
-    minify_test(".test:where(.foo, .bar) {}", ".test:where(.foo,.bar){}");
-    minify_test(":host {}", ":host{}");
-    minify_test(":host(.foo) {}", ":host(.foo){}");
-    minify_test("::slotted(span) {}", "::slotted(span){}");
-    minify_test("custom-element::part(foo) {}", "custom-element::part(foo){}");
+    minify_test("[foo=\"baz\"] {color:red}", "[foo=baz]{color:red}");
+    minify_test("[foo=\"foo bar\"] {color:red}", "[foo=foo\\ bar]{color:red}");
+    minify_test("[foo=\"foo bar baz\"] {color:red}", "[foo=\"foo bar baz\"]{color:red}");
+    minify_test("[foo=\"\"] {color:red}", "[foo=\"\"]{color:red}");
+    minify_test(".test:not([foo=\"bar\"]) {color:red}", ".test:not([foo=bar]){color:red}");
+    minify_test(".test + .foo {color:red}", ".test+.foo{color:red}");
+    minify_test(".test ~ .foo {color:red}", ".test~.foo{color:red}");
+    minify_test(".test .foo {color:red}", ".test .foo{color:red}");
+    minify_test(".custom-range::-webkit-slider-thumb:active {color:red}", ".custom-range::-webkit-slider-thumb:active{color:red}");
+    minify_test(".test:not(.foo, .bar) {color:red}", ".test:not(.foo,.bar){color:red}");
+    minify_test(".test:is(.foo, .bar) {color:red}", ".test:is(.foo,.bar){color:red}");
+    minify_test(".test:where(.foo, .bar) {color:red}", ".test:where(.foo,.bar){color:red}");
+    minify_test(".test:where(.foo, .bar) {color:red}", ".test:where(.foo,.bar){color:red}");
+    minify_test(":host {color:red}", ":host{color:red}");
+    minify_test(":host(.foo) {color:red}", ":host(.foo){color:red}");
+    minify_test("::slotted(span) {color:red", "::slotted(span){color:red}");
+    minify_test("custom-element::part(foo) {color:red}", "custom-element::part(foo){color:red}");
     minify_test(".sm\\:text-5xl { font-size: 3rem }", ".sm\\:text-5xl{font-size:3rem}");
-    minify_test("a:has(> img) {}", "a:has(>img){}");
-    minify_test("dt:has(+ dt) {}", "dt:has(+dt){}");
-    minify_test("section:not(:has(h1, h2, h3, h4, h5, h6)) {}", "section:not(:has(h1,h2,h3,h4,h5,h6)){}");
-    minify_test(":has(.sibling ~ .target) {}", ":has(.sibling~.target){}");
-    minify_test(".x:has(> .a > .b) {}", ".x:has(>.a>.b){}");
-    minify_test(".x:has(.bar, #foo) {}", ".x:has(.bar,#foo){}");
-    minify_test(".x:has(span + span) {}", ".x:has(span+span){}");
-    minify_test("a:has(:visited) {}", "a:has(:visited){}");
+    minify_test("a:has(> img) {color:red}", "a:has(>img){color:red}");
+    minify_test("dt:has(+ dt) {color:red}", "dt:has(+dt){color:red}");
+    minify_test("section:not(:has(h1, h2, h3, h4, h5, h6)) {color:red}", "section:not(:has(h1,h2,h3,h4,h5,h6)){color:red}");
+    minify_test(":has(.sibling ~ .target) {color:red}", ":has(.sibling~.target){color:red}");
+    minify_test(".x:has(> .a > .b) {color:red}", ".x:has(>.a>.b){color:red}");
+    minify_test(".x:has(.bar, #foo) {color:red}", ".x:has(.bar,#foo){color:red}");
+    minify_test(".x:has(span + span) {color:red}", ".x:has(span+span){color:red}");
+    minify_test("a:has(:visited) {color:red}", "a:has(:visited){color:red}");
     for element in ["-webkit-scrollbar", "-webkit-scrollbar-button", "-webkit-scrollbar-track", "-webkit-scrollbar-track-piece", "-webkit-scrollbar-thumb", "-webkit-scrollbar-corner", "-webkit-resizer"] {
       for class in ["horizontal", "vertical", "decrement", "increment", "start", "end", "double-button", "single-button", "no-button", "corner-present", "window-inactive"] {
-        minify_test(&format!("::{}:{} {{}}", element, class), &format!("::{}:{}{{}}", element, class));
+        minify_test(&format!("::{}:{} {{color:red}}", element, class), &format!("::{}:{}{{color:red}}", element, class));
       }
     }
     for class in ["horizontal", "vertical", "decrement", "increment", "start", "end", "double-button", "single-button", "no-button", "corner-present", "window-inactive"] {
-      error_test(&format!(":{} {{}}", class), ParserError::SelectorError(SelectorError::InvalidPseudoClassBeforeWebKitScrollbar));
+      error_test(&format!(":{} {{color:red}}", class), ParserError::SelectorError(SelectorError::InvalidPseudoClassBeforeWebKitScrollbar));
     }
     for element in ["-webkit-scrollbar", "-webkit-scrollbar-button", "-webkit-scrollbar-track", "-webkit-scrollbar-track-piece", "-webkit-scrollbar-thumb", "-webkit-scrollbar-corner", "-webkit-resizer"] {
-      error_test(&format!("::{}:hover {{}}", element), ParserError::SelectorError(SelectorError::InvalidPseudoClassAfterWebKitScrollbar));
+      error_test(&format!("::{}:hover {{color:red}}", element), ParserError::SelectorError(SelectorError::InvalidPseudoClassAfterWebKitScrollbar));
     }
 
-    error_test("a::first-letter:last-child {}", ParserError::SelectorError(SelectorError::InvalidPseudoClassAfterPseudoElement));
-    minify_test("a:last-child::first-letter {}", "a:last-child:first-letter{}");
+    error_test("a::first-letter:last-child {color:red}", ParserError::SelectorError(SelectorError::InvalidPseudoClassAfterPseudoElement));
+    minify_test("a:last-child::first-letter {color:red}", "a:last-child:first-letter{color:red}");
 
     prefix_test(
-      ".test:not(.foo, .bar) {}",
+      ".test:not(.foo, .bar) {color:red}",
       indoc! {r#"
       .test:not(.foo):not(.bar) {
+        color: red;
       }
       "#},
       Browsers {
@@ -3710,13 +3711,195 @@ mod tests {
       }
     );
     prefix_test(
-      ".test:not(.foo, .bar) {}",
+      ".test:not(.foo, .bar) {color:red}",
       indoc! {r#"
       .test:not(.foo, .bar) {
+        color: red;
       }
       "#},
       Browsers {
         safari: Some(11 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    minify_test("a:lang(en) {color:red}", "a:lang(en){color:red}");
+    minify_test("a:lang(en, fr) {color:red}", "a:lang(en,fr){color:red}");
+    minify_test("a:lang('en') {color:red}", "a:lang(en){color:red}");
+    minify_test("a:-webkit-any(.foo, .bar) {color:red}", "a:-webkit-any(.foo,.bar){color:red}");
+    minify_test("a:-moz-any(.foo, .bar) {color:red}", "a:-moz-any(.foo,.bar){color:red}");
+
+    prefix_test(
+      "a:is(.foo, .bar) {color:red}",
+      indoc! {r#"
+      a:-webkit-any(.foo, .bar) {
+        color: red;
+      }
+
+      a:-moz-any(.foo, .bar) {
+        color: red;
+      }
+
+      a:is(.foo, .bar) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(11 << 16),
+        firefox: Some(50 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      "a:is(.foo > .bar) {color:red}",
+      indoc! {r#"
+      a:is(.foo > .bar) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(11 << 16),
+        firefox: Some(50 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      "a:lang(en, fr) {color:red}",
+      indoc! {r#"
+      a:-webkit-any(:lang(en), :lang(fr)) {
+        color: red;
+      }
+
+      a:-moz-any(:lang(en), :lang(fr)) {
+        color: red;
+      }
+
+      a:is(:lang(en), :lang(fr)) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(11 << 16),
+        firefox: Some(50 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      "a:lang(en, fr) {color:red}",
+      indoc! {r#"
+      a:is(:lang(en), :lang(fr)) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        firefox: Some(88 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      "a:lang(en, fr) {color:red}",
+      indoc! {r#"
+      a:lang(en, fr) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      "a:dir(rtl) {color:red}",
+      indoc! {r#"
+      a:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        color: red;
+      }
+
+      a:-moz-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        color: red;
+      }
+
+      a:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(11 << 16),
+        firefox: Some(50 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      "a:dir(ltr) {color:red}",
+      indoc! {r#"
+      a:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(11 << 16),
+        firefox: Some(50 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      "a:dir(rtl) {color:red}",
+      indoc! {r#"
+      a:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        firefox: Some(88 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      "a:dir(ltr) {color:red}",
+      indoc! {r#"
+      a:not(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        firefox: Some(88 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      "a:dir(rtl) {color:red}",
+      indoc! {r#"
+      a:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      }
+    );
+
+    prefix_test(
+      "a:dir(ltr) {color:red}",
+      indoc! {r#"
+      a:not(:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi)) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
         ..Browsers::default()
       }
     );
