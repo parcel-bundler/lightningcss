@@ -244,28 +244,36 @@ impl<'i> BorderRadiusHandler<'i> {
     let logical_supported = context.is_supported(compat::Feature::LogicalBorderRadius);
 
     macro_rules! logical_property {
-      ($prop: ident, $opposite_prop: ident, $key: ident, $opposite_key: ident, $ltr: ident, $rtl: ident) => {
-        if logical_supported {
-          if let Some(val) = $key {
+      ($prop: ident, $key: ident, $ltr: ident, $rtl: ident) => {
+        if let Some(val) = $key {
+          if logical_supported {
             dest.push(val);
-          }
-          if let Some(val) = $opposite_key {
-            dest.push(val);
-          }
-        } else if $key.is_some() || $opposite_key.is_some() {
-          let vp = if let Some(targets) = self.targets {
-            Feature::$ltr.prefixes_for(targets)
           } else {
-            VendorPrefix::None
-          };
+            let vp = if let Some(targets) = self.targets {
+              Feature::$ltr.prefixes_for(targets)
+            } else {
+              VendorPrefix::None
+            };
 
-          context.add_inline_logical_properties(
-            dest,
-            PropertyId::$ltr(vp),
-            PropertyId::$rtl(vp),
-            $key,
-            $opposite_key
-          );
+            match val {
+              Property::BorderStartStartRadius(val) |
+              Property::BorderStartEndRadius(val) |
+              Property::BorderEndStartRadius(val) |
+              Property::BorderEndEndRadius(val) => {
+                context.add_logical_rule(
+                  Property::$ltr(val.clone(), vp),
+                  Property::$rtl(val, vp)
+                );
+              }
+              Property::Unparsed(val) => {
+                context.add_logical_rule(
+                  Property::Unparsed(val.with_property_id(PropertyId::$ltr(vp))),
+                  Property::Unparsed(val.with_property_id(PropertyId::$rtl(vp)))
+                );
+              }
+              _ => {}
+            }
+          }
         }
       };
     }
@@ -274,8 +282,10 @@ impl<'i> BorderRadiusHandler<'i> {
     single_property!(BorderTopRightRadius, top_right);
     single_property!(BorderBottomLeftRadius, bottom_left);
     single_property!(BorderBottomRightRadius, bottom_right);
-    logical_property!(BorderStartStartRadius, BorderStartEndRadius, start_start, start_end, BorderTopLeftRadius, BorderTopRightRadius);
-    logical_property!(BorderEndStartRadius, BorderEndEndRadius, end_start, end_end, BorderBottomLeftRadius, BorderBottomRightRadius);
+    logical_property!(BorderStartStartRadius, start_start, BorderTopLeftRadius, BorderTopRightRadius);
+    logical_property!(BorderStartEndRadius, start_end, BorderTopRightRadius, BorderTopLeftRadius);
+    logical_property!(BorderEndStartRadius, end_start, BorderBottomLeftRadius, BorderBottomRightRadius);
+    logical_property!(BorderEndEndRadius, end_end, BorderBottomRightRadius, BorderBottomLeftRadius);
   }
 }
 

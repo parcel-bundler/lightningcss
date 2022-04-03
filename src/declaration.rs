@@ -116,6 +116,10 @@ impl<'i> DeclarationBlock<'i> {
     self.important_declarations = std::mem::take(&mut important_handler.decls);
     self.declarations = std::mem::take(&mut handler.decls);
   }
+
+  pub fn is_empty(&self) -> bool {
+    return self.declarations.is_empty() && self.important_declarations.is_empty()
+  }
 }
 
 struct PropertyDeclarationParser<'a, 'i> {
@@ -175,10 +179,10 @@ pub(crate) struct DeclarationHandler<'i> {
   grid: GridHandler<'i>,
   align: AlignHandler,
   size: SizeHandler,
-  margin: MarginHandler,
-  padding: PaddingHandler,
-  scroll_margin: ScrollMarginHandler,
-  scroll_padding: ScrollPaddingHandler,
+  margin: MarginHandler<'i>,
+  padding: PaddingHandler<'i>,
+  scroll_margin: ScrollMarginHandler<'i>,
+  scroll_padding: ScrollPaddingHandler<'i>,
   font: FontHandler<'i>,
   text: TextDecorationHandler<'i>,
   list: ListStyleHandler<'i>,
@@ -186,7 +190,7 @@ pub(crate) struct DeclarationHandler<'i> {
   animation: AnimationHandler<'i>,
   display: DisplayHandler<'i>,
   position: PositionHandler,
-  inset: InsetHandler,
+  inset: InsetHandler<'i>,
   overflow: OverflowHandler,
   transform: TransformHandler,
   box_shadow: BoxShadowHandler,

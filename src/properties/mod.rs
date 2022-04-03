@@ -61,7 +61,6 @@ use smallvec::{SmallVec, smallvec};
 use crate::vendor_prefix::VendorPrefix;
 use crate::parser::ParserOptions;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperty;
 use crate::targets::Browsers;
 use crate::prefixes::Feature;
 use crate::parser::starts_with_ignore_ascii_case;
@@ -289,7 +288,6 @@ macro_rules! define_properties {
       )+
       Unparsed(UnparsedProperty<'i>),
       Custom(CustomProperty<'i>),
-      Logical(LogicalProperty<'i>)
     }
 
     impl<'i> Property<'i> {
@@ -374,7 +372,6 @@ macro_rules! define_properties {
             $property(_, $(vp_name!($vp, _p))?) => $name,
           )+
           Unparsed(unparsed) => unparsed.property_id.name(),
-          Logical(logical) => logical.property_id.name(),
           Custom(custom) => &custom.name,
         }
       }
@@ -394,9 +391,6 @@ macro_rules! define_properties {
           }
           Custom(custom) => {
             custom.value.to_css(dest, custom.name.starts_with("--"))
-          }
-          Logical(logical) => {
-            logical.to_css(dest)
           }
         }
       }
@@ -443,7 +437,6 @@ macro_rules! define_properties {
             },
           )+
           Unparsed(unparsed) => (unparsed.property_id.name(), unparsed.property_id.prefix()),
-          Logical(logical) => (logical.property_id.name(), logical.property_id.prefix()),
           Custom(custom) => {
             // Ensure custom property names are escaped.
             serialize_name(custom.name.as_ref(), dest)?;

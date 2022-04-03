@@ -237,7 +237,17 @@ impl<'i> CssRuleList<'i> {
           }
 
           let supports = context.handler_context.get_supports_rules(&style);
-          rules.push(rule);
+          let logical = context.handler_context.get_logical_rules(&style);
+          if !style.is_empty() {
+            rules.push(rule);
+          }
+
+          if !logical.is_empty() {
+            let mut logical = CssRuleList(logical);
+            logical.minify(context, parent_is_unused)?;
+            rules.extend(logical.0)
+          }
+
           rules.extend(supports);
           continue;
         },

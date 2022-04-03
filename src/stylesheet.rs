@@ -110,7 +110,6 @@ impl<'i> StyleSheet<'i> {
         loc: Some(ErrorLocation::from(e.loc, self.sources[e.loc.source_index as usize].clone()))
       })?;
       
-    context.add_logical_rules(&mut self.rules);
     Ok(())
   }
 

@@ -673,6 +673,15 @@ impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
     }
 
     #[inline]
+    pub fn append(&mut self, component: Component<'i, Impl>) {
+        let index = self.1
+            .iter()
+            .position(|c| matches!(*c, Component::Combinator(..) | Component::PseudoElement(..)))
+            .unwrap_or(self.1.len());
+        self.1.insert(index, component);
+    }
+
+    #[inline]
     pub fn parts(&self) -> Option<&[Impl::Identifier]> {
         if !self.is_part() {
             return None;

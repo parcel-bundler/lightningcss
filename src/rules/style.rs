@@ -50,6 +50,10 @@ impl<'i> StyleRule<'i> {
     Ok(false)
   }
 
+  pub fn is_empty(&self) -> bool {
+    self.declarations.is_empty() && self.rules.0.is_empty()
+  }
+
   pub fn is_compatible(&self, targets: Option<Browsers>) -> bool {
     is_compatible(&self.selectors, targets)
   }
