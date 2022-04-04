@@ -1,9 +1,9 @@
-use cssparser::*;
-use crate::traits::{Parse, ToCss, TryAdd};
-use crate::printer::Printer;
 use super::calc::Calc;
 use super::number::serialize_number;
 use crate::error::{ParserError, PrinterError};
+use crate::printer::Printer;
+use crate::traits::{Parse, ToCss, TryAdd};
+use cssparser::*;
 
 /// https://drafts.csswg.org/css-values-4/#percentages
 #[derive(Debug, Clone, PartialEq)]
@@ -24,7 +24,10 @@ impl<'i> Parse<'i> for Percentage {
 }
 
 impl ToCss for Percentage {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     use cssparser::ToCss;
     let int_value = if (self.0 * 100.0).fract() == 0.0 {
       Some(self.0 as i32)
@@ -34,7 +37,7 @@ impl ToCss for Percentage {
     let percent = Token::Percentage {
       has_sign: self.0 < 0.0,
       unit_value: self.0,
-      int_value
+      int_value,
     };
     if self.0 != 0.0 && self.0.abs() < 0.01 {
       let mut s = String::new();
@@ -62,7 +65,7 @@ impl std::convert::From<Calc<Percentage>> for Percentage {
   fn from(calc: Calc<Percentage>) -> Percentage {
     match calc {
       Calc::Value(v) => *v,
-      _ => unreachable!()
+      _ => unreachable!(),
     }
   }
 }
@@ -110,11 +113,11 @@ pub enum NumberOrPercentage {
 impl<'i> Parse<'i> for NumberOrPercentage {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(number) = input.try_parse(f32::parse) {
-      return Ok(NumberOrPercentage::Number(number))
+      return Ok(NumberOrPercentage::Number(number));
     }
 
     if let Ok(percent) = input.try_parse(|input| Percentage::parse(input)) {
-      return Ok(NumberOrPercentage::Percentage(percent))
+      return Ok(NumberOrPercentage::Percentage(percent));
     }
 
     Err(input.new_error_for_next_token())
@@ -122,10 +125,13 @@ impl<'i> Parse<'i> for NumberOrPercentage {
 }
 
 impl ToCss for NumberOrPercentage {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       NumberOrPercentage::Percentage(percent) => percent.to_css(dest),
-      NumberOrPercentage::Number(number) => serialize_number(*number, dest)
+      NumberOrPercentage::Number(number) => serialize_number(*number, dest),
     }
   }
 }
@@ -143,7 +149,7 @@ impl std::convert::Into<f32> for &NumberOrPercentage {
   fn into(self) -> f32 {
     match self {
       NumberOrPercentage::Number(a) => *a,
-      NumberOrPercentage::Percentage(a) => a.0
+      NumberOrPercentage::Percentage(a) => a.0,
     }
   }
 }
@@ -155,10 +161,21 @@ impl std::convert::Into<f32> for &NumberOrPercentage {
 pub enum DimensionPercentage<D> {
   Dimension(D),
   Percentage(Percentage),
-  Calc(Box<Calc<DimensionPercentage<D>>>)
+  Calc(Box<Calc<DimensionPercentage<D>>>),
 }
 
-impl<'i, D: Parse<'i> + std::ops::Mul<f32, Output = D> + TryAdd<D> + Clone + std::cmp::PartialEq<f32> + std::cmp::PartialOrd<f32> + std::cmp::PartialOrd<D> + std::fmt::Debug> Parse<'i> for DimensionPercentage<D> {
+impl<
+    'i,
+    D: Parse<'i>
+      + std::ops::Mul<f32, Output = D>
+      + TryAdd<D>
+      + Clone
+      + std::cmp::PartialEq<f32>
+      + std::cmp::PartialOrd<f32>
+      + std::cmp::PartialOrd<D>
+      + std::fmt::Debug,
+  > Parse<'i> for DimensionPercentage<D>
+{
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
@@ -167,11 +184,11 @@ impl<'i, D: Parse<'i> + std::ops::Mul<f32, Output = D> + TryAdd<D> + Clone + std
     }
 
     if let Ok(length) = input.try_parse(|input| D::parse(input)) {
-      return Ok(DimensionPercentage::Dimension(length))
+      return Ok(DimensionPercentage::Dimension(length));
     }
 
     if let Ok(percent) = input.try_parse(|input| Percentage::parse(input)) {
-      return Ok(DimensionPercentage::Percentage(percent))
+      return Ok(DimensionPercentage::Percentage(percent));
     }
 
     Err(input.new_error_for_next_token())
@@ -185,23 +202,27 @@ impl<D: std::ops::Mul<f32, Output = D>> std::ops::Mul<f32> for DimensionPercenta
     match self {
       DimensionPercentage::Dimension(l) => DimensionPercentage::Dimension(l * other),
       DimensionPercentage::Percentage(p) => DimensionPercentage::Percentage(Percentage(p.0 * other)),
-      DimensionPercentage::Calc(c) => DimensionPercentage::Calc(Box::new(*c * other))
+      DimensionPercentage::Calc(c) => DimensionPercentage::Calc(Box::new(*c * other)),
     }
   }
 }
 
-impl<D: TryAdd<D> + Clone + std::cmp::PartialEq<f32> + std::cmp::PartialOrd<f32> + std::fmt::Debug> std::ops::Add<DimensionPercentage<D>> for DimensionPercentage<D> {
+impl<D: TryAdd<D> + Clone + std::cmp::PartialEq<f32> + std::cmp::PartialOrd<f32> + std::fmt::Debug>
+  std::ops::Add<DimensionPercentage<D>> for DimensionPercentage<D>
+{
   type Output = Self;
 
   fn add(self, other: DimensionPercentage<D>) -> DimensionPercentage<D> {
     match self.add_recursive(&other) {
       Some(r) => r,
-      None => self.add(other)
+      None => self.add(other),
     }
   }
 }
 
-impl<D: TryAdd<D> + Clone + std::cmp::PartialEq<f32> + std::cmp::PartialOrd<f32> + std::fmt::Debug> DimensionPercentage<D> {
+impl<D: TryAdd<D> + Clone + std::cmp::PartialEq<f32> + std::cmp::PartialOrd<f32> + std::fmt::Debug>
+  DimensionPercentage<D>
+{
   fn add_recursive(&self, other: &DimensionPercentage<D>) -> Option<DimensionPercentage<D>> {
     match (self, other) {
       (DimensionPercentage::Dimension(a), DimensionPercentage::Dimension(b)) => {
@@ -210,43 +231,41 @@ impl<D: TryAdd<D> + Clone + std::cmp::PartialEq<f32> + std::cmp::PartialOrd<f32>
         } else {
           None
         }
-      },
-      (DimensionPercentage::Percentage(a), DimensionPercentage::Percentage(b)) => Some(DimensionPercentage::Percentage(Percentage(a.0 + b.0))),
-      (DimensionPercentage::Calc(a), other) => {
-        match &**a {
-          Calc::Value(v) => v.add_recursive(other),
-          Calc::Sum(a, b) => {
-            if let Some(res) = DimensionPercentage::Calc(Box::new(*a.clone())).add_recursive(other) {
-              return Some(res.add(DimensionPercentage::from(*b.clone())))
-            }
-    
-            if let Some(res) = DimensionPercentage::Calc(Box::new(*b.clone())).add_recursive(other) {
-              return Some(DimensionPercentage::from(*a.clone()).add(res))
-            }
-    
-            None
-          }
-          _ => None
-        }
       }
-      (other, DimensionPercentage::Calc(b)) => {
-        match &**b {
-          Calc::Value(v) => other.add_recursive(&*v),
-          Calc::Sum(a, b) => {
-            if let Some(res) = other.add_recursive(&DimensionPercentage::Calc(Box::new(*a.clone()))) {
-              return Some(res.add(DimensionPercentage::from(*b.clone())))
-            }
-    
-            if let Some(res) = other.add_recursive(&DimensionPercentage::Calc(Box::new(*b.clone()))) {
-              return Some(DimensionPercentage::from(*a.clone()).add(res))
-            }
-    
-            None
+      (DimensionPercentage::Percentage(a), DimensionPercentage::Percentage(b)) => {
+        Some(DimensionPercentage::Percentage(Percentage(a.0 + b.0)))
+      }
+      (DimensionPercentage::Calc(a), other) => match &**a {
+        Calc::Value(v) => v.add_recursive(other),
+        Calc::Sum(a, b) => {
+          if let Some(res) = DimensionPercentage::Calc(Box::new(*a.clone())).add_recursive(other) {
+            return Some(res.add(DimensionPercentage::from(*b.clone())));
           }
-          _ => None
+
+          if let Some(res) = DimensionPercentage::Calc(Box::new(*b.clone())).add_recursive(other) {
+            return Some(DimensionPercentage::from(*a.clone()).add(res));
+          }
+
+          None
         }
+        _ => None,
       },
-      _ => None
+      (other, DimensionPercentage::Calc(b)) => match &**b {
+        Calc::Value(v) => other.add_recursive(&*v),
+        Calc::Sum(a, b) => {
+          if let Some(res) = other.add_recursive(&DimensionPercentage::Calc(Box::new(*a.clone()))) {
+            return Some(res.add(DimensionPercentage::from(*b.clone())));
+          }
+
+          if let Some(res) = other.add_recursive(&DimensionPercentage::Calc(Box::new(*b.clone()))) {
+            return Some(DimensionPercentage::from(*a.clone()).add(res));
+          }
+
+          None
+        }
+        _ => None,
+      },
+      _ => None,
     }
   }
 
@@ -255,19 +274,21 @@ impl<D: TryAdd<D> + Clone + std::cmp::PartialEq<f32> + std::cmp::PartialOrd<f32>
     let mut b = other;
 
     if a == 0.0 {
-      return b
+      return b;
     }
 
     if b == 0.0 {
-      return a
+      return a;
     }
 
     if a < 0.0 && b > 0.0 {
       std::mem::swap(&mut a, &mut b);
     }
-    
+
     match (a, b) {
-      (DimensionPercentage::Calc(a), DimensionPercentage::Calc(b)) => return DimensionPercentage::Calc(Box::new(*a + *b)),
+      (DimensionPercentage::Calc(a), DimensionPercentage::Calc(b)) => {
+        return DimensionPercentage::Calc(Box::new(*a + *b))
+      }
       (DimensionPercentage::Calc(calc), b) => {
         if let Calc::Value(a) = *calc {
           a.add(b)
@@ -282,7 +303,7 @@ impl<D: TryAdd<D> + Clone + std::cmp::PartialEq<f32> + std::cmp::PartialOrd<f32>
           DimensionPercentage::Calc(Box::new(Calc::Sum(Box::new(a.into()), Box::new((*calc).into()))))
         }
       }
-      (a, b) => DimensionPercentage::Calc(Box::new(Calc::Sum(Box::new(a.into()), Box::new(b.into()))))
+      (a, b) => DimensionPercentage::Calc(Box::new(Calc::Sum(Box::new(a.into()), Box::new(b.into())))),
     }
   }
 }
@@ -291,7 +312,7 @@ impl<D> std::convert::Into<Calc<DimensionPercentage<D>>> for DimensionPercentage
   fn into(self) -> Calc<DimensionPercentage<D>> {
     match self {
       DimensionPercentage::Calc(c) => *c,
-      b => Calc::Value(Box::new(b))
+      b => Calc::Value(Box::new(b)),
     }
   }
 }
@@ -307,7 +328,7 @@ impl<D: std::cmp::PartialEq<f32>> std::cmp::PartialEq<f32> for DimensionPercenta
     match self {
       DimensionPercentage::Dimension(a) => *a == *other,
       DimensionPercentage::Percentage(a) => *a == *other,
-      DimensionPercentage::Calc(_) => false
+      DimensionPercentage::Calc(_) => false,
     }
   }
 }
@@ -317,7 +338,7 @@ impl<D: std::cmp::PartialOrd<f32>> std::cmp::PartialOrd<f32> for DimensionPercen
     match self {
       DimensionPercentage::Dimension(a) => a.partial_cmp(other),
       DimensionPercentage::Percentage(a) => a.partial_cmp(other),
-      DimensionPercentage::Calc(_) => None
+      DimensionPercentage::Calc(_) => None,
     }
   }
 }
@@ -327,17 +348,22 @@ impl<D: std::cmp::PartialOrd<D>> std::cmp::PartialOrd<DimensionPercentage<D>> fo
     match (self, other) {
       (DimensionPercentage::Dimension(a), DimensionPercentage::Dimension(b)) => a.partial_cmp(b),
       (DimensionPercentage::Percentage(a), DimensionPercentage::Percentage(b)) => a.partial_cmp(b),
-      _ => None
+      _ => None,
     }
   }
 }
 
-impl<D: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = D> + Clone + std::fmt::Debug> ToCss for DimensionPercentage<D> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+impl<D: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = D> + Clone + std::fmt::Debug> ToCss
+  for DimensionPercentage<D>
+{
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       DimensionPercentage::Dimension(length) => length.to_css(dest),
       DimensionPercentage::Percentage(percent) => percent.to_css(dest),
-      DimensionPercentage::Calc(calc) => calc.to_css(dest)
+      DimensionPercentage::Calc(calc) => calc.to_css(dest),
     }
   }
 }

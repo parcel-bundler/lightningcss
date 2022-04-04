@@ -1,27 +1,27 @@
-use cssparser::*;
-use super::{Location, CssRuleList, CssRule};
 use super::supports::SupportsRule;
-use crate::context::DeclarationContext;
-use crate::properties::Property;
-use crate::properties::custom::{CustomProperty, UnparsedProperty};
-use crate::targets::Browsers;
-use crate::values::color::ColorFallbackKind;
-use crate::values::percentage::Percentage;
-use crate::traits::{Parse, ToCss};
-use crate::declaration::DeclarationBlock;
-use crate::vendor_prefix::VendorPrefix;
-use crate::printer::Printer;
-use crate::values::ident::CustomIdent;
-use crate::parser::ParserOptions;
-use crate::error::{ParserError, PrinterError};
 use super::MinifyContext;
+use super::{CssRule, CssRuleList, Location};
+use crate::context::DeclarationContext;
+use crate::declaration::DeclarationBlock;
+use crate::error::{ParserError, PrinterError};
+use crate::parser::ParserOptions;
+use crate::printer::Printer;
+use crate::properties::custom::{CustomProperty, UnparsedProperty};
+use crate::properties::Property;
+use crate::targets::Browsers;
+use crate::traits::{Parse, ToCss};
+use crate::values::color::ColorFallbackKind;
+use crate::values::ident::CustomIdent;
+use crate::values::percentage::Percentage;
+use crate::vendor_prefix::VendorPrefix;
+use cssparser::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct KeyframesRule<'i> {
   pub name: CustomIdent<'i>,
   pub keyframes: Vec<Keyframe<'i>>,
   pub vendor_prefix: VendorPrefix,
-  pub loc: Location
+  pub loc: Location,
 }
 
 impl<'i> KeyframesRule<'i> {
@@ -29,7 +29,9 @@ impl<'i> KeyframesRule<'i> {
     context.handler_context.context = DeclarationContext::Keyframes;
 
     for keyframe in &mut self.keyframes {
-      keyframe.declarations.minify(context.handler, context.important_handler, context.handler_context)
+      keyframe
+        .declarations
+        .minify(context.handler, context.important_handler, context.handler_context)
     }
 
     context.handler_context.context = DeclarationContext::None;
@@ -40,8 +42,7 @@ impl<'i> KeyframesRule<'i> {
     for keyframe in &self.keyframes {
       for property in &keyframe.declarations.declarations {
         match property {
-          Property::Custom(CustomProperty { value, .. }) |
-          Property::Unparsed(UnparsedProperty { value, .. }) => {
+          Property::Custom(CustomProperty { value, .. }) | Property::Unparsed(UnparsedProperty { value, .. }) => {
             fallbacks |= value.get_necessary_fallbacks(targets);
           }
           _ => {}
@@ -57,16 +58,18 @@ impl<'i> KeyframesRule<'i> {
       res.push(self.get_fallback(ColorFallbackKind::P3));
     }
 
-    if fallbacks.contains(ColorFallbackKind::LAB) || (!lowest_fallback.is_empty() && lowest_fallback != ColorFallbackKind::LAB) {
+    if fallbacks.contains(ColorFallbackKind::LAB)
+      || (!lowest_fallback.is_empty() && lowest_fallback != ColorFallbackKind::LAB)
+    {
       res.push(self.get_fallback(ColorFallbackKind::LAB));
     }
 
-    if !lowest_fallback.is_empty() {  
+    if !lowest_fallback.is_empty() {
       for keyframe in &mut self.keyframes {
         for property in &mut keyframe.declarations.declarations {
           match property {
-            Property::Custom(CustomProperty { value, .. }) |
-            Property::Unparsed(UnparsedProperty { value, .. }) => {
+            Property::Custom(CustomProperty { value, .. })
+            | Property::Unparsed(UnparsedProperty { value, .. }) => {
               *value = value.get_fallback(lowest_fallback);
             }
             _ => {}
@@ -79,33 +82,30 @@ impl<'i> KeyframesRule<'i> {
   }
 
   fn get_fallback(&self, kind: ColorFallbackKind) -> CssRule<'i> {
-    let keyframes = self.keyframes
+    let keyframes = self
+      .keyframes
       .iter()
       .map(|keyframe| Keyframe {
         selectors: keyframe.selectors.clone(),
         declarations: DeclarationBlock {
           important_declarations: vec![],
-          declarations: keyframe.declarations.declarations
+          declarations: keyframe
+            .declarations
+            .declarations
             .iter()
-            .map(|property| {
-              match property {
-                Property::Custom(custom) => {
-                  Property::Custom(CustomProperty {
-                    name: custom.name.clone(),
-                    value: custom.value.get_fallback(kind)
-                  })
-                }
-                Property::Unparsed(unparsed) => {
-                  Property::Unparsed(UnparsedProperty {
-                    property_id: unparsed.property_id.clone(),
-                    value: unparsed.value.get_fallback(kind)
-                  })
-                }
-                _ => property.clone()
-              }
+            .map(|property| match property {
+              Property::Custom(custom) => Property::Custom(CustomProperty {
+                name: custom.name.clone(),
+                value: custom.value.get_fallback(kind),
+              }),
+              Property::Unparsed(unparsed) => Property::Unparsed(UnparsedProperty {
+                property_id: unparsed.property_id.clone(),
+                value: unparsed.value.get_fallback(kind),
+              }),
+              _ => property.clone(),
             })
-            .collect()
-        }
+            .collect(),
+        },
       })
       .collect();
 
@@ -115,15 +115,18 @@ impl<'i> KeyframesRule<'i> {
         name: self.name.clone(),
         keyframes,
         vendor_prefix: self.vendor_prefix,
-        loc: self.loc.clone()
+        loc: self.loc.clone(),
       })]),
-      loc: self.loc.clone()
+      loc: self.loc.clone(),
     })
   }
 }
 
 impl<'i> ToCss for KeyframesRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     dest.add_mapping(self.loc);
     let mut first_rule = true;
     macro_rules! write_prefix {
@@ -175,13 +178,13 @@ impl<'i> ToCss for KeyframesRule<'i> {
 pub enum KeyframeSelector {
   Percentage(Percentage),
   From,
-  To
+  To,
 }
 
 impl<'i> Parse<'i> for KeyframeSelector {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(val) = input.try_parse(Percentage::parse) {
-      return Ok(KeyframeSelector::Percentage(val))
+      return Ok(KeyframeSelector::Percentage(val));
     }
 
     let location = input.current_source_location();
@@ -197,7 +200,10 @@ impl<'i> Parse<'i> for KeyframeSelector {
 }
 
 impl ToCss for KeyframeSelector {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       KeyframeSelector::Percentage(p) => {
         if dest.minify && *p == Percentage(1.0) {
@@ -205,7 +211,7 @@ impl ToCss for KeyframeSelector {
         } else {
           p.to_css(dest)
         }
-      },
+      }
       KeyframeSelector::From => {
         if dest.minify {
           dest.write_str("0%")
@@ -213,7 +219,7 @@ impl ToCss for KeyframeSelector {
           dest.write_str("from")
         }
       }
-      KeyframeSelector::To => dest.write_str("to")
+      KeyframeSelector::To => dest.write_str("to"),
     }
   }
 }
@@ -221,11 +227,14 @@ impl ToCss for KeyframeSelector {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Keyframe<'i> {
   pub selectors: Vec<KeyframeSelector>,
-  pub declarations: DeclarationBlock<'i>
+  pub declarations: DeclarationBlock<'i>,
 }
 
 impl<'i> ToCss for Keyframe<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let mut first = true;
     for selector in &self.selectors {
       if !first {
@@ -234,7 +243,7 @@ impl<'i> ToCss for Keyframe<'i> {
       first = false;
       selector.to_css(dest)?;
     }
-    
+
     self.declarations.to_css(dest)
   }
 }
@@ -269,7 +278,7 @@ impl<'a, 'i> QualifiedRuleParser<'i> for KeyframeListParser {
     let options = ParserOptions::default();
     Ok(Keyframe {
       selectors,
-      declarations: DeclarationBlock::parse(input, &options)?
+      declarations: DeclarationBlock::parse(input, &options)?,
     })
   }
 }

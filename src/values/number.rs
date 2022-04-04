@@ -1,8 +1,8 @@
-use cssparser::*;
-use crate::traits::{Parse, ToCss};
-use crate::printer::Printer;
 use super::calc::Calc;
 use crate::error::{ParserError, PrinterError};
+use crate::printer::Printer;
+use crate::traits::{Parse, ToCss};
+use cssparser::*;
 
 impl<'i> Parse<'i> for f32 {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
@@ -15,7 +15,7 @@ impl<'i> Parse<'i> for f32 {
     }
 
     if let Ok(number) = input.try_parse(|input| input.expect_number()) {
-      return Ok(number)
+      return Ok(number);
     }
 
     Err(input.new_error_for_next_token())
@@ -23,7 +23,10 @@ impl<'i> Parse<'i> for f32 {
 }
 
 impl ToCss for f32 {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     serialize_number(*self, dest)
   }
 }
@@ -38,12 +41,15 @@ impl std::convert::From<Calc<f32>> for f32 {
   fn from(calc: Calc<f32>) -> f32 {
     match calc {
       Calc::Value(v) => *v,
-      _ => unreachable!()
+      _ => unreachable!(),
     }
   }
 }
 
-pub(crate) fn serialize_number<W>(number: f32, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+pub(crate) fn serialize_number<W>(number: f32, dest: &mut Printer<W>) -> Result<(), PrinterError>
+where
+  W: std::fmt::Write,
+{
   use cssparser::ToCss;
   let int_value = if number.fract() == 0.0 {
     Some(number as i32)
@@ -53,7 +59,7 @@ pub(crate) fn serialize_number<W>(number: f32, dest: &mut Printer<W>) -> Result<
   let tok = Token::Number {
     has_sign: number < 0.0,
     value: number,
-    int_value
+    int_value,
   };
   if number != 0.0 && number.abs() < 1.0 {
     let mut s = String::new();
@@ -70,12 +76,15 @@ pub(crate) fn serialize_number<W>(number: f32, dest: &mut Printer<W>) -> Result<
   }
 }
 
-pub(crate) fn serialize_integer<W>(integer: i32, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+pub(crate) fn serialize_integer<W>(integer: i32, dest: &mut Printer<W>) -> Result<(), PrinterError>
+where
+  W: std::fmt::Write,
+{
   use cssparser::ToCss;
   let tok = Token::Number {
     has_sign: integer < 0,
     value: integer as f32,
-    int_value: Some(integer)
+    int_value: Some(integer),
   };
   tok.to_css(dest)?;
   Ok(())

@@ -177,7 +177,7 @@ macro_rules! shorthand_property {
   };
 }
 
-pub (crate) use shorthand_property;
+pub(crate) use shorthand_property;
 
 macro_rules! shorthand_handler {
   (
@@ -270,7 +270,7 @@ macro_rules! shorthand_handler {
                   }
                 }
               )?
-              
+
               dest.push(Property::$prop(val))
             }
           )+
@@ -280,4 +280,4 @@ macro_rules! shorthand_handler {
   };
 }
 
-pub (crate) use shorthand_handler;
+pub(crate) use shorthand_handler;

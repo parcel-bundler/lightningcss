@@ -1,13 +1,13 @@
-use cssparser::*;
-use crate::traits::{Parse, ToCss, PropertyHandler};
 use super::{Property, PropertyId};
+use crate::compat::Feature;
+use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
+use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::targets::Browsers;
-use crate::compat::Feature;
-use crate::error::{ParserError, PrinterError};
-use crate::context::PropertyHandlerContext;
+use crate::traits::{Parse, PropertyHandler, ToCss};
+use cssparser::*;
 
 enum_property! {
   pub enum OverflowKeyword {
@@ -23,7 +23,7 @@ enum_property! {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Overflow {
   pub x: OverflowKeyword,
-  pub y: OverflowKeyword
+  pub y: OverflowKeyword,
 }
 
 impl<'i> Parse<'i> for Overflow {
@@ -35,7 +35,10 @@ impl<'i> Parse<'i> for Overflow {
 }
 
 impl ToCss for Overflow {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.x.to_css(dest)?;
     if self.y != self.x {
       dest.write_char(' ')?;
@@ -57,7 +60,7 @@ enum_property! {
 pub(crate) struct OverflowHandler {
   targets: Option<Browsers>,
   x: Option<OverflowKeyword>,
-  y: Option<OverflowKeyword>
+  y: Option<OverflowKeyword>,
 }
 
 impl OverflowHandler {
@@ -69,9 +72,13 @@ impl OverflowHandler {
   }
 }
 
-
 impl<'i> PropertyHandler<'i> for OverflowHandler {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
+  fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    dest: &mut DeclarationList<'i>,
+    context: &mut PropertyHandlerContext<'i>,
+  ) -> bool {
     use Property::*;
 
     match property {
@@ -81,11 +88,16 @@ impl<'i> PropertyHandler<'i> for OverflowHandler {
         self.x = Some(val.x);
         self.y = Some(val.y);
       }
-      Unparsed(val) if matches!(val.property_id, PropertyId::OverflowX | PropertyId::OverflowY | PropertyId::Overflow) => {
+      Unparsed(val)
+        if matches!(
+          val.property_id,
+          PropertyId::OverflowX | PropertyId::OverflowY | PropertyId::Overflow
+        ) =>
+      {
         self.finalize(dest, context);
         dest.push(property.clone());
       }
-      _ => return false
+      _ => return false,
     }
 
     true
@@ -93,23 +105,25 @@ impl<'i> PropertyHandler<'i> for OverflowHandler {
 
   fn finalize(&mut self, dest: &mut DeclarationList, _: &mut PropertyHandlerContext<'i>) {
     if self.x.is_none() && self.y.is_none() {
-      return
+      return;
     }
 
     let x = std::mem::take(&mut self.x);
     let y = std::mem::take(&mut self.y);
 
     match (x, y) {
-      // Only use shorthand syntax if the x and y values are the 
+      // Only use shorthand syntax if the x and y values are the
       // same or the two-value syntax is supported by all targets.
-      (Some(x), Some(y)) if x == y || self.targets.is_none() || Feature::OverflowShorthand.is_compatible(self.targets.unwrap()) => {
+      (Some(x), Some(y))
+        if x == y || self.targets.is_none() || Feature::OverflowShorthand.is_compatible(self.targets.unwrap()) =>
+      {
         dest.push(Property::Overflow(Overflow { x, y }))
       }
       _ => {
         if let Some(x) = x {
           dest.push(Property::OverflowX(x))
         }
-  
+
         if let Some(y) = y {
           dest.push(Property::OverflowY(y))
         }

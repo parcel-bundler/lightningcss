@@ -1,8 +1,8 @@
-use cssparser::*;
-use crate::traits::{Parse, ToCss};
-use crate::printer::Printer;
-use std::fmt::Write;
 use crate::error::{ParserError, PrinterError};
+use crate::printer::Printer;
+use crate::traits::{Parse, ToCss};
+use cssparser::*;
+use std::fmt::Write;
 
 /// https://www.w3.org/TR/css-easing-1/#easing-functions
 #[derive(Debug, Clone, PartialEq)]
@@ -13,7 +13,7 @@ pub enum EasingFunction {
   EaseOut,
   EaseInOut,
   CubicBezier(f32, f32, f32, f32),
-  Steps(i32, StepPosition)
+  Steps(i32, StepPosition),
 }
 
 impl<'i> Parse<'i> for EasingFunction {
@@ -30,7 +30,7 @@ impl<'i> Parse<'i> for EasingFunction {
         "step-end" => EasingFunction::Steps(1, StepPosition::End),
         _ => return Err(location.new_unexpected_token_error(Token::Ident(ident.clone())))
       };
-      return Ok(keyword)
+      return Ok(keyword);
     }
 
     let function = input.expect_function()?.clone();
@@ -61,7 +61,10 @@ impl<'i> Parse<'i> for EasingFunction {
 }
 
 impl ToCss for EasingFunction {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       EasingFunction::Linear => dest.write_str("linear"),
       EasingFunction::Ease => dest.write_str("ease"),
@@ -82,7 +85,7 @@ impl ToCss for EasingFunction {
         dest.delim(',', false)?;
         y2.to_css(dest)?;
         dest.write_char(')')
-      },
+      }
       EasingFunction::Steps(1, StepPosition::Start) => dest.write_str("step-start"),
       EasingFunction::Steps(1, StepPosition::End) => dest.write_str("step-end"),
       EasingFunction::Steps(steps, position) => {
@@ -100,7 +103,7 @@ impl EasingFunction {
   pub fn is_ident(s: &str) -> bool {
     match s {
       "linear" | "ease" | "ease-in" | "ease-out" | "ease-in-out" | "step-start" | "step-end" => true,
-      _ => false
+      _ => false,
     }
   }
 }
@@ -110,7 +113,7 @@ pub enum StepPosition {
   Start,
   End,
   JumpNone,
-  JumpBoth
+  JumpBoth,
 }
 
 impl<'i> Parse<'i> for StepPosition {
@@ -131,7 +134,10 @@ impl<'i> Parse<'i> for StepPosition {
 }
 
 impl ToCss for StepPosition {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       StepPosition::Start => dest.write_str("start"),
       StepPosition::End => dest.write_str("end"),

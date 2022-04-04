@@ -1,11 +1,11 @@
-use cssparser::{serialize_identifier, SourceLocation};
-use parcel_sourcemap::{SourceMap, OriginalLocation};
-use crate::vendor_prefix::VendorPrefix;
-use crate::targets::Browsers;
 use crate::css_modules::CssModule;
 use crate::dependencies::Dependency;
-use crate::error::{PrinterError, PrinterErrorKind, Error, ErrorLocation};
+use crate::error::{Error, ErrorLocation, PrinterError, PrinterErrorKind};
 use crate::rules::Location;
+use crate::targets::Browsers;
+use crate::vendor_prefix::VendorPrefix;
+use cssparser::{serialize_identifier, SourceLocation};
+use parcel_sourcemap::{OriginalLocation, SourceMap};
 
 #[derive(Default, Debug)]
 pub struct PseudoClasses<'a> {
@@ -13,7 +13,7 @@ pub struct PseudoClasses<'a> {
   pub active: Option<&'a str>,
   pub focus: Option<&'a str>,
   pub focus_visible: Option<&'a str>,
-  pub focus_within: Option<&'a str>
+  pub focus_within: Option<&'a str>,
 }
 
 pub(crate) struct Printer<'a, W> {
@@ -26,13 +26,13 @@ pub(crate) struct Printer<'a, W> {
   col: u32,
   pub minify: bool,
   pub targets: Option<Browsers>,
-  /// Vendor prefix override. When non-empty, it overrides 
+  /// Vendor prefix override. When non-empty, it overrides
   /// the vendor prefix of whatever is being printed.
   pub vendor_prefix: VendorPrefix,
   pub in_calc: bool,
   pub css_module: Option<CssModule<'a>>,
   pub dependencies: Option<&'a mut Vec<Dependency>>,
-  pub pseudo_classes: Option<PseudoClasses<'a>>
+  pub pseudo_classes: Option<PseudoClasses<'a>>,
 }
 
 impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
@@ -40,7 +40,7 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
     dest: &'a mut W,
     source_map: Option<&'a mut SourceMap>,
     minify: bool,
-    targets: Option<Browsers>
+    targets: Option<Browsers>,
   ) -> Printer<'a, W> {
     Printer {
       sources: None,
@@ -56,7 +56,7 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
       in_calc: false,
       css_module: None,
       dependencies: None,
-      pseudo_classes: None
+      pseudo_classes: None,
     }
   }
 
@@ -91,7 +91,7 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
 
   pub fn whitespace(&mut self) -> Result<(), PrinterError> {
     if self.minify {
-      return Ok(())
+      return Ok(());
     }
 
     self.write_char(' ')
@@ -107,7 +107,7 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
 
   pub fn newline(&mut self) -> Result<(), PrinterError> {
     if self.minify {
-      return Ok(())
+      return Ok(());
     }
 
     self.write_char('\n')?;
@@ -141,12 +141,16 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
   pub fn add_mapping(&mut self, loc: Location) {
     self.source_index = loc.source_index;
     if let Some(map) = &mut self.source_map {
-      map.add_mapping(self.line, self.col, Some(OriginalLocation {
-        original_line: loc.line,
-        original_column: loc.column - 1,
-        source: loc.source_index,
-        name: None
-      }))
+      map.add_mapping(
+        self.line,
+        self.col,
+        Some(OriginalLocation {
+          original_line: loc.line,
+          original_column: loc.column - 1,
+          source: loc.source_index,
+          name: None,
+        }),
+      )
     }
   }
 
@@ -177,8 +181,8 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
       loc: Some(ErrorLocation {
         filename: self.filename().into(),
         line: loc.line,
-        column: loc.column
-      })
+        column: loc.column,
+      }),
     }
   }
 }

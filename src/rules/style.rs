@@ -1,16 +1,16 @@
 use super::Location;
-use parcel_selectors::SelectorList;
-use crate::context::DeclarationContext;
-use crate::selector::{Selectors, is_compatible, is_unused};
-use crate::traits::ToCss;
-use crate::printer::Printer;
-use crate::declaration::DeclarationBlock;
-use crate::vendor_prefix::VendorPrefix;
-use crate::targets::Browsers;
-use crate::rules::{CssRuleList, ToCssWithContext, StyleContext};
-use crate::compat::Feature;
-use crate::error::{PrinterError, PrinterErrorKind, MinifyError};
 use super::MinifyContext;
+use crate::compat::Feature;
+use crate::context::DeclarationContext;
+use crate::declaration::DeclarationBlock;
+use crate::error::{MinifyError, PrinterError, PrinterErrorKind};
+use crate::printer::Printer;
+use crate::rules::{CssRuleList, StyleContext, ToCssWithContext};
+use crate::selector::{is_compatible, is_unused, Selectors};
+use crate::targets::Browsers;
+use crate::traits::ToCss;
+use crate::vendor_prefix::VendorPrefix;
+use parcel_selectors::SelectorList;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct StyleRule<'i> {
@@ -18,16 +18,20 @@ pub struct StyleRule<'i> {
   pub vendor_prefix: VendorPrefix,
   pub declarations: DeclarationBlock<'i>,
   pub rules: CssRuleList<'i>,
-  pub loc: Location
+  pub loc: Location,
 }
 
 impl<'i> StyleRule<'i> {
-  pub(crate) fn minify(&mut self, context: &mut MinifyContext<'_, 'i>, parent_is_unused: bool) -> Result<bool, MinifyError> {
+  pub(crate) fn minify(
+    &mut self,
+    context: &mut MinifyContext<'_, 'i>,
+    parent_is_unused: bool,
+  ) -> Result<bool, MinifyError> {
     let mut unused = false;
     if !context.unused_symbols.is_empty() {
       if is_unused(&mut self.selectors.0.iter(), &context.unused_symbols, parent_is_unused) {
         if self.rules.0.is_empty() {
-          return Ok(true)
+          return Ok(true);
         }
 
         self.declarations.declarations.clear();
@@ -37,13 +41,15 @@ impl<'i> StyleRule<'i> {
     }
 
     context.handler_context.context = DeclarationContext::StyleRule;
-    self.declarations.minify(context.handler, context.important_handler, context.handler_context);
+    self
+      .declarations
+      .minify(context.handler, context.important_handler, context.handler_context);
     context.handler_context.context = DeclarationContext::None;
 
     if !self.rules.0.is_empty() {
       self.rules.minify(context, unused)?;
       if unused && self.rules.0.is_empty() {
-        return Ok(true)
+        return Ok(true);
       }
     }
 
@@ -56,7 +62,14 @@ impl<'i> StyleRule<'i> {
 }
 
 impl<'a, 'i> ToCssWithContext<'a, 'i> for StyleRule<'i> {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext<'a, 'i>>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css_with_context<W>(
+    &self,
+    dest: &mut Printer<W>,
+    context: Option<&StyleContext<'a, 'i>>,
+  ) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     if self.vendor_prefix.is_empty() {
       self.to_css_base(dest, context)
     } else {
@@ -92,9 +105,18 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for StyleRule<'i> {
 }
 
 impl<'a, 'i> StyleRule<'i> {
-  fn to_css_base<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext<'a, 'i>>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css_base<W>(
+    &self,
+    dest: &mut Printer<W>,
+    context: Option<&StyleContext<'a, 'i>>,
+  ) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     // If supported, or there are no targets, preserve nesting. Otherwise, write nested rules after parent.
-    let supports_nesting = self.rules.0.is_empty() || dest.targets.is_none() || Feature::CssNesting.is_compatible(dest.targets.unwrap());
+    let supports_nesting = self.rules.0.is_empty()
+      || dest.targets.is_none()
+      || Feature::CssNesting.is_compatible(dest.targets.unwrap());
     let len = self.declarations.declarations.len() + self.declarations.important_declarations.len();
     let has_declarations = supports_nesting || len > 0 || self.rules.0.is_empty();
 
@@ -113,27 +135,28 @@ impl<'a, 'i> StyleRule<'i> {
             // We need to add the classes it references to the list for the selectors in this rule.
             if let crate::properties::Property::Composes(composes) = &decl {
               if dest.is_nested() && dest.css_module.is_some() {
-                return Err(dest.error(PrinterErrorKind::InvalidComposesNesting, composes.loc))
+                return Err(dest.error(PrinterErrorKind::InvalidComposesNesting, composes.loc));
               }
-    
+
               if let Some(css_module) = &mut dest.css_module {
-                css_module.handle_composes(&self.selectors, &composes)
+                css_module
+                  .handle_composes(&self.selectors, &composes)
                   .map_err(|e| dest.error(e, composes.loc))?;
                 continue;
               }
             }
-    
+
             dest.newline()?;
             decl.to_css(dest, $important)?;
             if i != len - 1 || !dest.minify {
               dest.write_char(';')?;
             }
-    
+
             i += 1;
           }
         };
       }
-      
+
       write!(declarations, false);
       write!(important_declarations, true);
     }
@@ -167,10 +190,13 @@ impl<'a, 'i> StyleRule<'i> {
     } else {
       end!();
       newline!();
-      self.rules.to_css_with_context(dest, Some(&StyleContext {
-        rule: self,
-        parent: context
-      }))?;
+      self.rules.to_css_with_context(
+        dest,
+        Some(&StyleContext {
+          rule: self,
+          parent: context,
+        }),
+      )?;
     }
 
     Ok(())

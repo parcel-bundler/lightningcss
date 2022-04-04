@@ -2,16 +2,18 @@
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
-use std::collections::HashSet;
-use std::path::Path;
-use serde::{Serialize, Deserialize};
-use parcel_css::stylesheet::{StyleSheet, StyleAttribute, ParserOptions, PrinterOptions, MinifyOptions, PseudoClasses};
-use parcel_css::targets::Browsers;
+use parcel_css::bundler::{BundleErrorKind, Bundler, FileProvider, SourceProvider};
 use parcel_css::css_modules::CssModuleExports;
 use parcel_css::dependencies::Dependency;
-use parcel_css::error::{ParserError, Error, ErrorLocation, MinifyErrorKind, PrinterErrorKind};
-use parcel_css::bundler::{FileProvider, Bundler, BundleErrorKind, SourceProvider};
+use parcel_css::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterErrorKind};
+use parcel_css::stylesheet::{
+  MinifyOptions, ParserOptions, PrinterOptions, PseudoClasses, StyleAttribute, StyleSheet,
+};
+use parcel_css::targets::Browsers;
 use parcel_sourcemap::SourceMap;
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::path::Path;
 
 // ---------------------------------------------
 
@@ -24,7 +26,7 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub fn transform(config_val: JsValue) -> Result<JsValue, JsValue> {
   let config: Config = from_value(config_val).map_err(JsValue::from)?;
-  let code = unsafe { std::str::from_utf8_unchecked(&config.code) };  
+  let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
   let res = compile(code, &config)?;
   let serializer = Serializer::new().serialize_maps_as_objects(true);
   res.serialize(&serializer).map_err(JsValue::from)
@@ -43,9 +45,9 @@ pub fn transform_style_attribute(config_val: JsValue) -> Result<JsValue, JsValue
 // ---------------------------------------------
 
 #[cfg(not(target_arch = "wasm32"))]
-use napi_derive::{js_function, module_exports};
-#[cfg(not(target_arch = "wasm32"))]
 use napi::{CallContext, JsObject, JsUnknown};
+#[cfg(not(target_arch = "wasm32"))]
+use napi_derive::{js_function, module_exports};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -54,7 +56,7 @@ struct SourceMapJson<'a> {
   mappings: String,
   sources: &'a Vec<String>,
   sources_content: &'a Vec<String>,
-  names: &'a Vec<String>
+  names: &'a Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -65,7 +67,7 @@ struct TransformResult {
   #[serde(with = "serde_bytes")]
   map: Option<Vec<u8>>,
   exports: Option<CssModuleExports>,
-  dependencies: Option<Vec<Dependency>>
+  dependencies: Option<Vec<Dependency>>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -73,12 +75,12 @@ struct TransformResult {
 fn transform(ctx: CallContext) -> napi::Result<JsUnknown> {
   let opts = ctx.get::<JsObject>(0)?;
   let config: Config = ctx.env.from_js_value(opts)?;
-  let code = unsafe { std::str::from_utf8_unchecked(&config.code) }; 
+  let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
   let res = compile(code, &config);
 
   match res {
     Ok(res) => ctx.env.to_js_value(&res),
-    Err(err) => err.throw(ctx, Some(code))
+    Err(err) => err.throw(ctx, Some(code)),
   }
 }
 
@@ -92,7 +94,7 @@ fn transform_style_attribute(ctx: CallContext) -> napi::Result<JsUnknown> {
 
   match res {
     Ok(res) => ctx.env.to_js_value(&res),
-    Err(err) => err.throw(ctx, Some(code))
+    Err(err) => err.throw(ctx, Some(code)),
   }
 }
 
@@ -108,13 +110,23 @@ fn bundle(ctx: CallContext) -> napi::Result<JsUnknown> {
     Ok(res) => ctx.env.to_js_value(&res),
     Err(err) => {
       let code = match &err {
-        CompileError::ParseError(Error { loc: Some(ErrorLocation { filename, .. }), .. }) |
-        CompileError::PrinterError(Error { loc: Some(ErrorLocation { filename, .. }), .. }) |
-        CompileError::MinifyError(Error { loc: Some(ErrorLocation { filename, .. }), .. }) |
-        CompileError::BundleError(Error { loc: Some(ErrorLocation { filename, .. }), .. }) => {
-          Some(fs.read(Path::new(filename))?)
-        },
-        _ => None
+        CompileError::ParseError(Error {
+          loc: Some(ErrorLocation { filename, .. }),
+          ..
+        })
+        | CompileError::PrinterError(Error {
+          loc: Some(ErrorLocation { filename, .. }),
+          ..
+        })
+        | CompileError::MinifyError(Error {
+          loc: Some(ErrorLocation { filename, .. }),
+          ..
+        })
+        | CompileError::BundleError(Error {
+          loc: Some(ErrorLocation { filename, .. }),
+          ..
+        }) => Some(fs.read(Path::new(filename))?),
+        _ => None,
       };
       err.throw(ctx, code)
     }
@@ -146,7 +158,7 @@ struct Config {
   pub css_modules: Option<bool>,
   pub analyze_dependencies: Option<bool>,
   pub pseudo_classes: Option<OwnedPseudoClasses>,
-  pub unused_symbols: Option<HashSet<String>>
+  pub unused_symbols: Option<HashSet<String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -160,7 +172,7 @@ struct BundleConfig {
   pub css_modules: Option<bool>,
   pub analyze_dependencies: Option<bool>,
   pub pseudo_classes: Option<OwnedPseudoClasses>,
-  pub unused_symbols: Option<HashSet<String>>
+  pub unused_symbols: Option<HashSet<String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -170,7 +182,7 @@ struct OwnedPseudoClasses {
   pub active: Option<String>,
   pub focus: Option<String>,
   pub focus_visible: Option<String>,
-  pub focus_within: Option<String>
+  pub focus_within: Option<String>,
 }
 
 impl<'a> Into<PseudoClasses<'a>> for &'a OwnedPseudoClasses {
@@ -180,7 +192,7 @@ impl<'a> Into<PseudoClasses<'a>> for &'a OwnedPseudoClasses {
       active: self.active.as_deref(),
       focus: self.focus.as_deref(),
       focus_visible: self.focus_visible.as_deref(),
-      focus_within: self.focus_within.as_deref()
+      focus_within: self.focus_within.as_deref(),
     }
   }
 }
@@ -191,20 +203,24 @@ struct Drafts {
   #[serde(default)]
   nesting: bool,
   #[serde(default)]
-  custom_media: bool
+  custom_media: bool,
 }
 
 fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, CompileError<'i>> {
   let drafts = config.drafts.as_ref();
-  let mut stylesheet = StyleSheet::parse(config.filename.clone(), &code, ParserOptions {
-    nesting: matches!(drafts, Some(d) if d.nesting),
-    custom_media: matches!(drafts, Some(d) if d.custom_media),
-    css_modules: config.css_modules.unwrap_or(false),
-    source_index: 0
-  })?;
+  let mut stylesheet = StyleSheet::parse(
+    config.filename.clone(),
+    &code,
+    ParserOptions {
+      nesting: matches!(drafts, Some(d) if d.nesting),
+      custom_media: matches!(drafts, Some(d) if d.custom_media),
+      css_modules: config.css_modules.unwrap_or(false),
+      source_index: 0,
+    },
+  )?;
   stylesheet.minify(MinifyOptions {
     targets: config.targets,
-    unused_symbols: config.unused_symbols.clone().unwrap_or_default()
+    unused_symbols: config.unused_symbols.clone().unwrap_or_default(),
   })?;
 
   let mut source_map = if config.source_map.unwrap_or(false) {
@@ -221,7 +237,7 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
     source_map: source_map.as_mut(),
     targets: config.targets,
     analyze_dependencies: config.analyze_dependencies.unwrap_or(false),
-    pseudo_classes: config.pseudo_classes.as_ref().map(|p| p.into())
+    pseudo_classes: config.pseudo_classes.as_ref().map(|p| p.into()),
   })?;
 
   let map = if let Some(mut source_map) = source_map {
@@ -234,7 +250,7 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
     code: res.code.into_bytes(),
     map,
     exports: res.exports,
-    dependencies: res.dependencies
+    dependencies: res.dependencies,
   })
 }
 
@@ -258,7 +274,7 @@ fn compile_bundle<'i>(fs: &'i FileProvider, config: &BundleConfig) -> Result<Tra
 
   stylesheet.minify(MinifyOptions {
     targets: config.targets,
-    unused_symbols: config.unused_symbols.clone().unwrap_or_default()
+    unused_symbols: config.unused_symbols.clone().unwrap_or_default(),
   })?;
 
   let res = stylesheet.to_css(PrinterOptions {
@@ -266,7 +282,7 @@ fn compile_bundle<'i>(fs: &'i FileProvider, config: &BundleConfig) -> Result<Tra
     source_map: source_map.as_mut(),
     targets: config.targets,
     analyze_dependencies: config.analyze_dependencies.unwrap_or(false),
-    pseudo_classes: config.pseudo_classes.as_ref().map(|p| p.into())
+    pseudo_classes: config.pseudo_classes.as_ref().map(|p| p.into()),
   })?;
 
   let map = if let Some(source_map) = &mut source_map {
@@ -279,7 +295,7 @@ fn compile_bundle<'i>(fs: &'i FileProvider, config: &BundleConfig) -> Result<Tra
     code: res.code.into_bytes(),
     map,
     exports: res.exports,
-    dependencies: res.dependencies
+    dependencies: res.dependencies,
   })
 }
 
@@ -293,7 +309,7 @@ fn source_map_to_json<'i>(source_map: &mut SourceMap) -> Result<Vec<u8>, Compile
     mappings: unsafe { String::from_utf8_unchecked(vlq_output) },
     sources: source_map.get_sources(),
     sources_content: source_map.get_sources_content(),
-    names: source_map.get_names()
+    names: source_map.get_names(),
   };
 
   Ok(serde_json::to_vec(&sm).unwrap())
@@ -306,7 +322,7 @@ struct AttrConfig {
   pub code: Vec<u8>,
   pub targets: Option<Browsers>,
   pub minify: Option<bool>,
-  pub analyze_dependencies: Option<bool>
+  pub analyze_dependencies: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -314,7 +330,7 @@ struct AttrConfig {
 struct AttrResult {
   #[serde(with = "serde_bytes")]
   code: Vec<u8>,
-  dependencies: Option<Vec<Dependency>>
+  dependencies: Option<Vec<Dependency>>,
 }
 
 fn compile_attr<'i>(code: &'i str, config: &AttrConfig) -> Result<AttrResult, CompileError<'i>> {
@@ -328,11 +344,11 @@ fn compile_attr<'i>(code: &'i str, config: &AttrConfig) -> Result<AttrResult, Co
     source_map: None,
     targets: config.targets,
     analyze_dependencies: config.analyze_dependencies.unwrap_or(false),
-    pseudo_classes: None
+    pseudo_classes: None,
   })?;
   Ok(AttrResult {
     code: res.code.into_bytes(),
-    dependencies: res.dependencies
+    dependencies: res.dependencies,
   })
 }
 
@@ -341,7 +357,7 @@ enum CompileError<'i> {
   MinifyError(Error<MinifyErrorKind>),
   PrinterError(Error<PrinterErrorKind>),
   SourceMapError(parcel_sourcemap::SourceMapError),
-  BundleError(Error<BundleErrorKind<'i>>)
+  BundleError(Error<BundleErrorKind<'i>>),
 }
 
 impl<'i> CompileError<'i> {
@@ -351,7 +367,7 @@ impl<'i> CompileError<'i> {
       CompileError::MinifyError(err) => err.kind.reason(),
       CompileError::PrinterError(err) => err.kind.reason(),
       CompileError::BundleError(err) => err.kind.reason(),
-      _ => "Unknown error".into()
+      _ => "Unknown error".into(),
     }
   }
 
@@ -363,17 +379,16 @@ impl<'i> CompileError<'i> {
       CompileError::PrinterError(Error { kind, .. }) => ctx.env.to_js_value(kind)?,
       CompileError::MinifyError(Error { kind, .. }) => ctx.env.to_js_value(kind)?,
       CompileError::BundleError(Error { kind, .. }) => ctx.env.to_js_value(kind)?,
-      _ => ctx.env.get_null()?.into_unknown()
+      _ => ctx.env.get_null()?.into_unknown(),
     };
 
     match self {
-      CompileError::ParseError(Error { loc, .. }) |
-      CompileError::PrinterError(Error { loc, .. }) |
-      CompileError::MinifyError(Error { loc, .. }) |
-      CompileError::BundleError(Error { loc, .. }) => {
+      CompileError::ParseError(Error { loc, .. })
+      | CompileError::PrinterError(Error { loc, .. })
+      | CompileError::MinifyError(Error { loc, .. })
+      | CompileError::BundleError(Error { loc, .. }) => {
         // Generate an error with location information.
-        let syntax_error = ctx.env.get_global()?
-          .get_named_property::<napi::JsFunction>("SyntaxError")?;
+        let syntax_error = ctx.env.get_global()?.get_named_property::<napi::JsFunction>("SyntaxError")?;
         let reason = ctx.env.create_string_from_std(reason)?;
         let mut obj = syntax_error.new(&[reason])?;
         if let Some(loc) = loc {
@@ -393,8 +408,8 @@ impl<'i> CompileError<'i> {
         obj.set_named_property("data", data)?;
         ctx.env.throw(obj)?;
         Ok(ctx.env.get_undefined()?.into_unknown())
-      },
-      _ => Err(self.into())
+      }
+      _ => Err(self.into()),
     }
   }
 }
@@ -434,7 +449,7 @@ impl<'i> From<CompileError<'i>> for napi::Error {
   fn from(e: CompileError) -> napi::Error {
     match e {
       CompileError::SourceMapError(e) => napi::Error::from_reason(e.to_string()),
-      _ => napi::Error::new(napi::Status::GenericFailure, e.reason())
+      _ => napi::Error::new(napi::Status::GenericFailure, e.reason()),
     }
   }
 }
@@ -444,7 +459,7 @@ impl<'i> From<CompileError<'i>> for wasm_bindgen::JsValue {
   fn from(e: CompileError) -> wasm_bindgen::JsValue {
     match e {
       CompileError::SourceMapError(e) => js_sys::Error::new(&e.to_string()).into(),
-      _ => js_sys::Error::new(&e.reason()).into()
+      _ => js_sys::Error::new(&e.reason()).into(),
     }
   }
 }

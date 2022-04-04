@@ -1,10 +1,10 @@
+use crate::error::{ParserError, PrinterError};
+use crate::printer::Printer;
+use crate::traits::{Parse, ToCss};
+use crate::values::ident::{CustomIdent, CustomIdentList};
 use crate::values::string::CowArcStr;
 use cssparser::*;
-use crate::values::ident::{CustomIdent, CustomIdentList};
-use crate::traits::{Parse, ToCss};
-use crate::printer::Printer;
 use smallvec::SmallVec;
-use crate::error::{ParserError, PrinterError};
 
 /// The `composes` property from CSS modules.
 /// https://github.com/css-modules/css-modules/#dependencies
@@ -12,13 +12,13 @@ use crate::error::{ParserError, PrinterError};
 pub struct Composes<'i> {
   pub names: CustomIdentList<'i>,
   pub from: Option<ComposesFrom<'i>>,
-  pub loc: SourceLocation
+  pub loc: SourceLocation,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ComposesFrom<'i> {
   Global,
-  File(CowArcStr<'i>)
+  File(CowArcStr<'i>),
 }
 
 impl<'i> Parse<'i> for Composes<'i> {
@@ -30,7 +30,7 @@ impl<'i> Parse<'i> for Composes<'i> {
     }
 
     if names.is_empty() {
-      return Err(input.new_custom_error(ParserError::InvalidDeclaration))
+      return Err(input.new_custom_error(ParserError::InvalidDeclaration));
     }
 
     let from = if input.try_parse(|input| input.expect_ident_matching("from")).is_ok() {
@@ -44,25 +44,26 @@ impl<'i> Parse<'i> for Composes<'i> {
       None
     };
 
-    Ok(Composes {
-      names,
-      from,
-      loc
-    })
+    Ok(Composes { names, from, loc })
   }
 }
 
-fn parse_one_ident<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CustomIdent<'i>, ParseError<'i, ParserError<'i>>> {
+fn parse_one_ident<'i, 't>(
+  input: &mut Parser<'i, 't>,
+) -> Result<CustomIdent<'i>, ParseError<'i, ParserError<'i>>> {
   let name = CustomIdent::parse(input)?;
   if name.0.eq_ignore_ascii_case("from") {
-    return Err(input.new_error_for_next_token())
+    return Err(input.new_error_for_next_token());
   }
 
   Ok(name)
 }
 
 impl ToCss for Composes<'_> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let mut first = true;
     for name in &self.names {
       if first {
@@ -77,7 +78,7 @@ impl ToCss for Composes<'_> {
       dest.write_str(" from ")?;
       match from {
         ComposesFrom::Global => dest.write_str("global")?,
-        ComposesFrom::File(file) => serialize_string(&file, dest)?
+        ComposesFrom::File(file) => serialize_string(&file, dest)?,
       }
     }
 

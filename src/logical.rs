@@ -1,17 +1,20 @@
-use crate::traits::ToCss;
-use crate::printer::Printer;
 use crate::error::PrinterError;
+use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
+use crate::traits::ToCss;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LogicalProperty<'i> {
   pub property_id: PropertyId<'i>,
   pub ltr: Option<Box<Property<'i>>>,
-  pub rtl: Option<Box<Property<'i>>>
+  pub rtl: Option<Box<Property<'i>>>,
 }
 
 impl<'i> ToCss for LogicalProperty<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     if let Some(ltr) = &self.ltr {
       dest.write_str("var(--ltr,")?;
       dest.whitespace()?;
@@ -37,7 +40,7 @@ impl<'i> ToCss for LogicalProperty<'i> {
 #[derive(Debug, PartialEq)]
 pub(crate) enum PropertyCategory {
   Logical,
-  Physical
+  Physical,
 }
 
 impl Default for PropertyCategory {

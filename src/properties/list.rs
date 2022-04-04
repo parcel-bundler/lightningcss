@@ -1,21 +1,21 @@
-use crate::values::string::CowArcStr;
-use cssparser::*;
-use crate::traits::{Parse, ToCss, PropertyHandler, FallbackValues};
 use super::{Property, PropertyId};
-use crate::values::{image::Image, ident::CustomIdent};
-use crate::declaration::DeclarationList;
-use crate::macros::{enum_property, shorthand_property, shorthand_handler};
-use crate::printer::Printer;
-use crate::error::{ParserError, PrinterError};
 use crate::context::PropertyHandlerContext;
+use crate::declaration::DeclarationList;
+use crate::error::{ParserError, PrinterError};
+use crate::macros::{enum_property, shorthand_handler, shorthand_property};
+use crate::printer::Printer;
 use crate::targets::Browsers;
+use crate::traits::{FallbackValues, Parse, PropertyHandler, ToCss};
+use crate::values::string::CowArcStr;
+use crate::values::{ident::CustomIdent, image::Image};
+use cssparser::*;
 
 /// https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#text-markers
 #[derive(Debug, Clone, PartialEq)]
 pub enum ListStyleType<'i> {
   None,
   CounterStyle(CounterStyle<'i>),
-  String(CowArcStr<'i>)
+  String(CowArcStr<'i>),
 }
 
 impl Default for ListStyleType<'_> {
@@ -27,11 +27,11 @@ impl Default for ListStyleType<'_> {
 impl<'i> Parse<'i> for ListStyleType<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
-      return Ok(ListStyleType::None)
+      return Ok(ListStyleType::None);
     }
 
     if let Ok(val) = input.try_parse(CounterStyle::parse) {
-      return Ok(ListStyleType::CounterStyle(val))
+      return Ok(ListStyleType::CounterStyle(val));
     }
 
     let s = input.expect_string_cloned()?;
@@ -40,7 +40,10 @@ impl<'i> Parse<'i> for ListStyleType<'i> {
 }
 
 impl ToCss for ListStyleType<'_> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       ListStyleType::None => dest.write_str("none"),
       ListStyleType::CounterStyle(style) => style.to_css(dest),
@@ -57,7 +60,7 @@ impl ToCss for ListStyleType<'_> {
 pub enum CounterStyle<'i> {
   Predefined(PredefinedCounterStyle),
   Name(CustomIdent<'i>),
-  Symbols(SymbolsType, Vec<Symbol<'i>>)
+  Symbols(SymbolsType, Vec<Symbol<'i>>),
 }
 
 enum_property! {
@@ -132,9 +135,9 @@ enum_property! {
 impl<'i> Parse<'i> for CounterStyle<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(predefined) = input.try_parse(PredefinedCounterStyle::parse) {
-      return Ok(CounterStyle::Predefined(predefined))
+      return Ok(CounterStyle::Predefined(predefined));
     }
-    
+
     if input.try_parse(|input| input.expect_function_matching("symbols")).is_ok() {
       return input.parse_nested_block(|input| {
         let t = input.try_parse(SymbolsType::parse).unwrap_or(SymbolsType::Symbolic);
@@ -145,7 +148,7 @@ impl<'i> Parse<'i> for CounterStyle<'i> {
         }
 
         Ok(CounterStyle::Symbols(t, symbols))
-      })
+      });
     }
 
     let name = CustomIdent::parse(input)?;
@@ -154,17 +157,18 @@ impl<'i> Parse<'i> for CounterStyle<'i> {
 }
 
 impl ToCss for CounterStyle<'_> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
-      CounterStyle::Predefined(style) => {
-        style.to_css(dest)
-      }
+      CounterStyle::Predefined(style) => style.to_css(dest),
       CounterStyle::Name(name) => {
         if let Some(css_module) = &mut dest.css_module {
           css_module.reference(&name.0)
         }
         name.to_css(dest)
-      },
+      }
       CounterStyle::Symbols(t, symbols) => {
         dest.write_str("symbols(")?;
         let mut needs_space = false;
@@ -172,7 +176,7 @@ impl ToCss for CounterStyle<'_> {
           t.to_css(dest)?;
           needs_space = true;
         }
-        
+
         for symbol in symbols {
           if needs_space {
             dest.write_char(' ')?;
@@ -200,13 +204,13 @@ enum_property! {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Symbol<'i> {
   String(CowArcStr<'i>),
-  Image(Image<'i>)
+  Image(Image<'i>),
 }
 
 impl<'i> Parse<'i> for Symbol<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(img) = input.try_parse(Image::parse) {
-      return Ok(Symbol::Image(img))
+      return Ok(Symbol::Image(img));
     }
 
     let s = input.expect_string_cloned()?;
@@ -215,13 +219,16 @@ impl<'i> Parse<'i> for Symbol<'i> {
 }
 
 impl<'i> ToCss for Symbol<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       Symbol::String(s) => {
         serialize_string(&s, dest)?;
         Ok(())
-      },
-      Symbol::Image(img) => img.to_css(dest)
+      }
+      Symbol::Image(img) => img.to_css(dest),
     }
   }
 }
@@ -257,12 +264,11 @@ shorthand_property!(ListStyle<'i> {
 
 impl<'i> FallbackValues for ListStyle<'i> {
   fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
-    self.image.get_fallbacks(targets)
+    self
+      .image
+      .get_fallbacks(targets)
       .into_iter()
-      .map(|image| ListStyle {
-        image,
-        ..self.clone()
-      })
+      .map(|image| ListStyle { image, ..self.clone() })
       .collect()
   }
 }

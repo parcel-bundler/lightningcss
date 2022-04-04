@@ -1,17 +1,17 @@
-use cssparser::*;
-use crate::properties::masking::get_webkit_mask_property;
-use crate::traits::{Parse, ToCss, PropertyHandler};
-use crate::values::{time::Time, easing::EasingFunction};
 use super::{Property, PropertyId};
-use crate::vendor_prefix::VendorPrefix;
-use crate::declaration::DeclarationList;
-use crate::printer::Printer;
-use smallvec::SmallVec;
-use crate::targets::Browsers;
-use crate::prefixes::Feature;
-use crate::error::{ParserError, PrinterError};
-use crate::context::PropertyHandlerContext;
 use crate::compat;
+use crate::context::PropertyHandlerContext;
+use crate::declaration::DeclarationList;
+use crate::error::{ParserError, PrinterError};
+use crate::prefixes::Feature;
+use crate::printer::Printer;
+use crate::properties::masking::get_webkit_mask_property;
+use crate::targets::Browsers;
+use crate::traits::{Parse, PropertyHandler, ToCss};
+use crate::values::{easing::EasingFunction, time::Time};
+use crate::vendor_prefix::VendorPrefix;
+use cssparser::*;
+use smallvec::SmallVec;
 
 /// https://www.w3.org/TR/2018/WD-css-transitions-1-20181011/#transition-shorthand-property
 #[derive(Debug, Clone, PartialEq)]
@@ -19,7 +19,7 @@ pub struct Transition<'i> {
   pub property: PropertyId<'i>,
   pub duration: Time,
   pub delay: Time,
-  pub timing_function: EasingFunction 
+  pub timing_function: EasingFunction,
 }
 
 impl<'i> Parse<'i> for Transition<'i> {
@@ -33,52 +33,57 @@ impl<'i> Parse<'i> for Transition<'i> {
       if duration.is_none() {
         if let Ok(value) = input.try_parse(Time::parse) {
           duration = Some(value);
-          continue
+          continue;
         }
       }
 
       if timing_function.is_none() {
         if let Ok(value) = input.try_parse(EasingFunction::parse) {
           timing_function = Some(value);
-          continue
+          continue;
         }
       }
 
       if delay.is_none() {
         if let Ok(value) = input.try_parse(Time::parse) {
           delay = Some(value);
-          continue
+          continue;
         }
       }
 
       if property.is_none() {
         if let Ok(value) = input.try_parse(PropertyId::parse) {
           property = Some(value);
-          continue
+          continue;
         }
       }
 
-      break
+      break;
     }
 
     Ok(Transition {
       property: property.unwrap_or(PropertyId::All),
       duration: duration.unwrap_or(Time::Seconds(0.0)),
       delay: delay.unwrap_or(Time::Seconds(0.0)),
-      timing_function: timing_function.unwrap_or(EasingFunction::Ease)
+      timing_function: timing_function.unwrap_or(EasingFunction::Ease),
     })
   }
 }
 
 impl<'i> ToCss for Transition<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.property.to_css(dest)?;
     if self.duration != 0.0 || self.delay != 0.0 {
       dest.write_char(' ')?;
       self.duration.to_css(dest)?;
     }
 
-    if self.timing_function != EasingFunction::Ease && self.timing_function != EasingFunction::CubicBezier(0.25, 0.1, 0.25, 1.0) {
+    if self.timing_function != EasingFunction::Ease
+      && self.timing_function != EasingFunction::CubicBezier(0.25, 0.1, 0.25, 1.0)
+    {
       dest.write_char(' ')?;
       self.timing_function.to_css(dest)?;
     }
@@ -99,7 +104,7 @@ pub(crate) struct TransitionHandler<'i> {
   durations: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   delays: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   timing_functions: Option<(SmallVec<[EasingFunction; 1]>, VendorPrefix)>,
-  has_any: bool
+  has_any: bool,
 }
 
 impl<'i> TransitionHandler<'i> {
@@ -112,7 +117,12 @@ impl<'i> TransitionHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
+  fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    dest: &mut DeclarationList<'i>,
+    context: &mut PropertyHandlerContext<'i>,
+  ) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -171,9 +181,10 @@ impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
         let delays: SmallVec<[Time; 1]> = val.iter().map(|b| b.delay.clone()).collect();
         maybe_flush!(delays, &delays, vp);
 
-        let timing_functions: SmallVec<[EasingFunction; 1]> = val.iter().map(|b| b.timing_function.clone()).collect();
+        let timing_functions: SmallVec<[EasingFunction; 1]> =
+          val.iter().map(|b| b.timing_function.clone()).collect();
         maybe_flush!(timing_functions, &timing_functions, vp);
-        
+
         property!(TransitionProperty, properties, &properties, vp);
         property!(TransitionDuration, durations, &durations, vp);
         property!(TransitionDelay, delays, &delays, vp);
@@ -183,7 +194,7 @@ impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
         self.flush(dest, context);
         dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::Transition)));
       }
-      _ => return false
+      _ => return false,
     }
 
     true
@@ -197,7 +208,7 @@ impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
 impl<'i> TransitionHandler<'i> {
   fn flush(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
     if !self.has_any {
-      return
+      return;
     }
 
     self.has_any = false;
@@ -213,7 +224,13 @@ impl<'i> TransitionHandler<'i> {
       None
     };
 
-    if let (Some((properties, property_prefixes)), Some((durations, duration_prefixes)), Some((delays, delay_prefixes)), Some((timing_functions, timing_prefixes))) = (&mut properties, &mut durations, &mut delays, &mut timing_functions) {
+    if let (
+      Some((properties, property_prefixes)),
+      Some((durations, duration_prefixes)),
+      Some((delays, delay_prefixes)),
+      Some((timing_functions, timing_prefixes)),
+    ) = (&mut properties, &mut durations, &mut delays, &mut timing_functions)
+    {
       // Find the intersection of prefixes with the same value.
       // Remove that from the prefixes of each of the properties. The remaining
       // prefixes will be handled by outputing individual properties below.
@@ -235,7 +252,7 @@ impl<'i> TransitionHandler<'i> {
                 property: property_id.clone(),
                 duration,
                 delay,
-                timing_function
+                timing_function,
               };
 
               // Expand vendor prefixes into multiple transitions.
@@ -254,7 +271,7 @@ impl<'i> TransitionHandler<'i> {
             transitions
           }};
         }
-        
+
         let transitions: SmallVec<[Transition; 1]> = get_transitions!(properties);
 
         if let Some(rtl_properties) = &rtl_properties {
@@ -263,7 +280,7 @@ impl<'i> TransitionHandler<'i> {
             dest,
             PropertyId::Transition(intersection),
             Property::Transition(transitions, intersection),
-            Property::Transition(rtl_transitions, intersection)
+            Property::Transition(rtl_transitions, intersection),
           );
         } else {
           dest.push(Property::Transition(transitions.clone(), intersection));
@@ -283,7 +300,7 @@ impl<'i> TransitionHandler<'i> {
             dest,
             PropertyId::TransitionProperty(prefix),
             Property::TransitionProperty(properties, prefix),
-            Property::TransitionProperty(rtl_properties, prefix)
+            Property::TransitionProperty(rtl_properties, prefix),
           );
         } else {
           dest.push(Property::TransitionProperty(properties, prefix));
@@ -323,19 +340,19 @@ impl<'i> TransitionHandler<'i> {
 #[inline]
 fn is_transition_property(property_id: &PropertyId) -> bool {
   match property_id {
-    PropertyId::TransitionProperty(_) |
-    PropertyId::TransitionDuration(_) |
-    PropertyId::TransitionDelay(_) |
-    PropertyId::TransitionTimingFunction(_) |
-    PropertyId::Transition(_) => true,
-    _ => false
+    PropertyId::TransitionProperty(_)
+    | PropertyId::TransitionDuration(_)
+    | PropertyId::TransitionDelay(_)
+    | PropertyId::TransitionTimingFunction(_)
+    | PropertyId::Transition(_) => true,
+    _ => false,
   }
 }
 
 fn expand_properties<'i>(
   properties: &mut SmallVec<[PropertyId<'i>; 1]>,
   targets: Option<Browsers>,
-  context: &mut PropertyHandlerContext
+  context: &mut PropertyHandlerContext,
 ) -> Option<SmallVec<[PropertyId<'i>; 1]>> {
   let mut rtl_properties: Option<SmallVec<[PropertyId; 1]>> = None;
   let mut i = 0;
@@ -404,14 +421,18 @@ fn expand_properties<'i>(
 enum LogicalPropertyId {
   None,
   Block(compat::Feature, &'static [PropertyId<'static>]),
-  Inline(compat::Feature, &'static [PropertyId<'static>], &'static [PropertyId<'static>])
+  Inline(
+    compat::Feature,
+    &'static [PropertyId<'static>],
+    &'static [PropertyId<'static>],
+  ),
 }
 
 #[inline]
 fn get_logical_properties(property_id: &PropertyId) -> LogicalPropertyId {
-  use PropertyId::*;
-  use LogicalPropertyId::*;
   use compat::Feature::*;
+  use LogicalPropertyId::*;
+  use PropertyId::*;
   match property_id {
     BlockSize => Block(LogicalSize, &[Height]),
     InlineSize => Inline(LogicalSize, &[Width], &[Height]),
@@ -419,7 +440,7 @@ fn get_logical_properties(property_id: &PropertyId) -> LogicalPropertyId {
     MaxBlockSize => Block(LogicalSize, &[MaxHeight]),
     MinInlineSize => Inline(LogicalSize, &[MinWidth], &[MinHeight]),
     MaxInlineSize => Inline(LogicalSize, &[MaxWidth], &[MaxHeight]),
-    
+
     InsetBlockStart => Block(LogicalInset, &[Top]),
     InsetBlockEnd => Block(LogicalInset, &[Bottom]),
     InsetInlineStart => Inline(LogicalInset, &[Left], &[Right]),
@@ -466,7 +487,7 @@ fn get_logical_properties(property_id: &PropertyId) -> LogicalPropertyId {
     BorderBlockColor => Block(LogicalBorders, &[BorderTopColor, BorderBottomColor]),
     BorderBlockWidth => Block(LogicalBorders, &[BorderTopWidth, BorderBottomWidth]),
     BorderBlockStyle => Block(LogicalBorders, &[BorderTopStyle, BorderBottomStyle]),
-    
+
     BorderInline => Block(LogicalBorders, &[BorderLeft, BorderRight]),
     BorderInlineColor => Block(LogicalBorders, &[BorderLeftColor, BorderRightColor]),
     BorderInlineWidth => Block(LogicalBorders, &[BorderLeftWidth, BorderRightWidth]),
@@ -474,11 +495,27 @@ fn get_logical_properties(property_id: &PropertyId) -> LogicalPropertyId {
 
     // Not worth using vendor prefixes for these since border-radius is supported
     // everywhere custom properties (which are used to polyfill logical properties) are.
-    BorderStartStartRadius => Inline(LogicalBorders, &[BorderTopLeftRadius(VendorPrefix::None)], &[BorderTopRightRadius(VendorPrefix::None)]),
-    BorderStartEndRadius => Inline(LogicalBorders, &[BorderTopRightRadius(VendorPrefix::None)], &[BorderTopLeftRadius(VendorPrefix::None)]),
-    BorderEndStartRadius => Inline(LogicalBorders, &[BorderBottomLeftRadius(VendorPrefix::None)], &[BorderBottomRightRadius(VendorPrefix::None)]),
-    BorderEndEndRadius => Inline(LogicalBorders, &[BorderBottomRightRadius(VendorPrefix::None)], &[BorderBottomLeftRadius(VendorPrefix::None)]),
+    BorderStartStartRadius => Inline(
+      LogicalBorders,
+      &[BorderTopLeftRadius(VendorPrefix::None)],
+      &[BorderTopRightRadius(VendorPrefix::None)],
+    ),
+    BorderStartEndRadius => Inline(
+      LogicalBorders,
+      &[BorderTopRightRadius(VendorPrefix::None)],
+      &[BorderTopLeftRadius(VendorPrefix::None)],
+    ),
+    BorderEndStartRadius => Inline(
+      LogicalBorders,
+      &[BorderBottomLeftRadius(VendorPrefix::None)],
+      &[BorderBottomRightRadius(VendorPrefix::None)],
+    ),
+    BorderEndEndRadius => Inline(
+      LogicalBorders,
+      &[BorderBottomRightRadius(VendorPrefix::None)],
+      &[BorderBottomLeftRadius(VendorPrefix::None)],
+    ),
 
-    _ => None
+    _ => None,
   }
 }

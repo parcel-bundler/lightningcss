@@ -1,16 +1,16 @@
+use crate::context::PropertyHandlerContext;
+use crate::declaration::DeclarationList;
+use crate::error::{ParserError, PrinterError};
+use crate::prefixes::Feature;
+use crate::printer::Printer;
+use crate::properties::Property;
+use crate::targets::Browsers;
+use crate::traits::{Parse, PropertyHandler, ToCss};
+use crate::values::color::{ColorFallbackKind, CssColor};
+use crate::values::length::Length;
+use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 use smallvec::SmallVec;
-use crate::declaration::DeclarationList;
-use crate::context::PropertyHandlerContext;
-use crate::prefixes::Feature;
-use crate::targets::Browsers;
-use crate::values::length::Length;
-use crate::traits::{Parse, ToCss, PropertyHandler};
-use crate::values::color::{CssColor, ColorFallbackKind};
-use crate::printer::Printer;
-use crate::error::{ParserError, PrinterError};
-use crate::properties::Property;
-use crate::vendor_prefix::VendorPrefix;
 
 use super::PropertyId;
 
@@ -21,7 +21,7 @@ pub struct BoxShadow {
   pub y_offset: Length,
   pub blur: Length,
   pub spread: Length,
-  pub inset: bool
+  pub inset: bool,
 }
 
 impl<'i> Parse<'i> for BoxShadow {
@@ -32,7 +32,7 @@ impl<'i> Parse<'i> for BoxShadow {
 
     loop {
       if !inset {
-        if input.try_parse(|input| input.expect_ident_matching("inset")).is_ok(){
+        if input.try_parse(|input| input.expect_ident_matching("inset")).is_ok() {
           inset = true;
           continue;
         }
@@ -60,7 +60,7 @@ impl<'i> Parse<'i> for BoxShadow {
         }
       }
 
-      break
+      break;
     }
 
     let lengths = lengths.ok_or(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))?;
@@ -70,13 +70,16 @@ impl<'i> Parse<'i> for BoxShadow {
       y_offset: lengths.1,
       blur: lengths.2,
       spread: lengths.3,
-      inset
+      inset,
     })
   }
 }
 
 impl ToCss for BoxShadow {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     if self.inset {
       dest.write_str("inset ")?;
     }
@@ -84,7 +87,7 @@ impl ToCss for BoxShadow {
     self.x_offset.to_css(dest)?;
     dest.write_char(' ')?;
     self.y_offset.to_css(dest)?;
-    
+
     if self.blur != Length::zero() || self.spread != Length::zero() {
       dest.write_char(' ')?;
       self.blur.to_css(dest)?;
@@ -92,7 +95,7 @@ impl ToCss for BoxShadow {
       if self.spread != Length::zero() {
         dest.write_char(' ')?;
         self.spread.to_css(dest)?;
-      }  
+      }
     }
 
     if self.color != CssColor::current_color() {
@@ -107,7 +110,7 @@ impl ToCss for BoxShadow {
 #[derive(Default)]
 pub(crate) struct BoxShadowHandler {
   targets: Option<Browsers>,
-  box_shadows: Option<(SmallVec<[BoxShadow; 1]>, VendorPrefix)>
+  box_shadows: Option<(SmallVec<[BoxShadow; 1]>, VendorPrefix)>,
 }
 
 impl BoxShadowHandler {
@@ -120,7 +123,12 @@ impl BoxShadowHandler {
 }
 
 impl<'i> PropertyHandler<'i> for BoxShadowHandler {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
+  fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    dest: &mut DeclarationList<'i>,
+    context: &mut PropertyHandlerContext<'i>,
+  ) -> bool {
     match property {
       Property::BoxShadow(box_shadows, prefix) => {
         if let Some((val, prefixes)) = &mut self.box_shadows {
@@ -142,7 +150,7 @@ impl<'i> PropertyHandler<'i> for BoxShadowHandler {
         context.add_unparsed_fallbacks(&mut unparsed);
         dest.push(Property::Unparsed(unparsed))
       }
-      _ => return false
+      _ => return false,
     }
 
     true
@@ -150,9 +158,9 @@ impl<'i> PropertyHandler<'i> for BoxShadowHandler {
 
   fn finalize(&mut self, dest: &mut DeclarationList, _: &mut PropertyHandlerContext<'i>) {
     if self.box_shadows.is_none() {
-      return
+      return;
     }
-    
+
     let box_shadows = std::mem::take(&mut self.box_shadows);
 
     if let Some((box_shadows, prefixes)) = box_shadows {
@@ -162,7 +170,7 @@ impl<'i> PropertyHandler<'i> for BoxShadowHandler {
         } else {
           prefixes
         };
-        
+
         let mut fallbacks = ColorFallbackKind::empty();
         for shadow in &box_shadows {
           fallbacks |= shadow.color.get_necessary_fallbacks(targets);
@@ -181,7 +189,7 @@ impl<'i> PropertyHandler<'i> for BoxShadowHandler {
             prefixes = VendorPrefix::None;
           } else {
             // Only output RGB for prefixed property (e.g. -webkit-box-shadow)
-            return
+            return;
           }
         }
 

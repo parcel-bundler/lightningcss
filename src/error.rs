@@ -1,21 +1,21 @@
-use parcel_selectors::parser::SelectorParseErrorKind;
-use cssparser::{ParseError, ParseErrorKind, BasicParseErrorKind};
-use crate::rules::Location;
 use crate::properties::custom::Token;
+use crate::rules::Location;
 use crate::values::string::CowArcStr;
+use cssparser::{BasicParseErrorKind, ParseError, ParseErrorKind};
+use parcel_selectors::parser::SelectorParseErrorKind;
 use serde::Serialize;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Error<T> {
   pub kind: T,
-  pub loc: Option<ErrorLocation>
+  pub loc: Option<ErrorLocation>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ErrorLocation {
   pub filename: String,
   pub line: u32,
-  pub column: u32
+  pub column: u32,
 }
 
 impl ErrorLocation {
@@ -23,7 +23,7 @@ impl ErrorLocation {
     ErrorLocation {
       filename,
       line: loc.line,
-      column: loc.column
+      column: loc.column,
     }
   }
 }
@@ -48,23 +48,20 @@ pub enum ParserError<'i> {
   InvalidMediaQuery,
   InvalidNesting,
   UnexpectedImportRule,
-  UnexpectedNamespaceRule
+  UnexpectedNamespaceRule,
 }
 
 impl<'i> Error<ParserError<'i>> {
   pub fn from(err: ParseError<'i, ParserError<'i>>, filename: String) -> Error<ParserError<'i>> {
     let kind = match err.kind {
-      ParseErrorKind::Basic(b) => {
-        match &b {
-          BasicParseErrorKind::
-          UnexpectedToken(t) => ParserError::UnexpectedToken(t.into()),
-          BasicParseErrorKind::EndOfInput => ParserError::EndOfInput,
-          BasicParseErrorKind::AtRuleInvalid(a) => ParserError::AtRuleInvalid(a.into()),
-          BasicParseErrorKind::AtRuleBodyInvalid => ParserError::AtRuleBodyInvalid,
-          BasicParseErrorKind::QualifiedRuleInvalid => ParserError::QualifiedRuleInvalid,
-        }
-      }
-      ParseErrorKind::Custom(c) => c
+      ParseErrorKind::Basic(b) => match &b {
+        BasicParseErrorKind::UnexpectedToken(t) => ParserError::UnexpectedToken(t.into()),
+        BasicParseErrorKind::EndOfInput => ParserError::EndOfInput,
+        BasicParseErrorKind::AtRuleInvalid(a) => ParserError::AtRuleInvalid(a.into()),
+        BasicParseErrorKind::AtRuleBodyInvalid => ParserError::AtRuleBodyInvalid,
+        BasicParseErrorKind::QualifiedRuleInvalid => ParserError::QualifiedRuleInvalid,
+      },
+      ParseErrorKind::Custom(c) => c,
     };
 
     Error {
@@ -72,8 +69,8 @@ impl<'i> Error<ParserError<'i>> {
       loc: Some(ErrorLocation {
         filename,
         line: err.location.line,
-        column: err.location.column
-      })
+        column: err.location.column,
+      }),
     }
   }
 }
@@ -97,9 +94,13 @@ impl<'i> ParserError<'i> {
       ParserError::InvalidNesting => "Invalid nesting".into(),
       ParserError::InvalidPageSelector => "Invalid page selector".into(),
       ParserError::InvalidValue => "Invalid value".into(),
-      ParserError::UnexpectedImportRule => "@import rules must precede all rules aside from @charset and @layer statements".into(),
-      ParserError::UnexpectedNamespaceRule => "@namespaces rules must precede all rules aside from @charset, @import, and @layer statements".into(),
-      ParserError::SelectorError(s) => s.reason()
+      ParserError::UnexpectedImportRule => {
+        "@import rules must precede all rules aside from @charset and @layer statements".into()
+      }
+      ParserError::UnexpectedNamespaceRule => {
+        "@namespaces rules must precede all rules aside from @charset, @import, and @layer statements".into()
+      }
+      ParserError::SelectorError(s) => s.reason(),
     }
   }
 }
@@ -137,30 +138,44 @@ pub enum SelectorError<'i> {
 impl<'i> From<SelectorParseErrorKind<'i>> for SelectorError<'i> {
   fn from(err: SelectorParseErrorKind<'i>) -> Self {
     match &err {
-      SelectorParseErrorKind::NoQualifiedNameInAttributeSelector(t) => SelectorError::NoQualifiedNameInAttributeSelector(t.into()),
+      SelectorParseErrorKind::NoQualifiedNameInAttributeSelector(t) => {
+        SelectorError::NoQualifiedNameInAttributeSelector(t.into())
+      }
       SelectorParseErrorKind::EmptySelector => SelectorError::EmptySelector,
       SelectorParseErrorKind::DanglingCombinator => SelectorError::DanglingCombinator,
       SelectorParseErrorKind::NonCompoundSelector => SelectorError::NonCompoundSelector,
       SelectorParseErrorKind::NonPseudoElementAfterSlotted => SelectorError::NonPseudoElementAfterSlotted,
       SelectorParseErrorKind::InvalidPseudoElementAfterSlotted => SelectorError::InvalidPseudoElementAfterSlotted,
       SelectorParseErrorKind::InvalidPseudoElementInsideWhere => SelectorError::InvalidPseudoElementInsideWhere,
-      SelectorParseErrorKind::InvalidPseudoClassBeforeWebKitScrollbar => SelectorError::InvalidPseudoClassBeforeWebKitScrollbar,
-      SelectorParseErrorKind::InvalidPseudoClassAfterWebKitScrollbar => SelectorError::InvalidPseudoClassAfterWebKitScrollbar,
-      SelectorParseErrorKind::InvalidPseudoClassAfterPseudoElement => SelectorError::InvalidPseudoClassAfterPseudoElement,  
+      SelectorParseErrorKind::InvalidPseudoClassBeforeWebKitScrollbar => {
+        SelectorError::InvalidPseudoClassBeforeWebKitScrollbar
+      }
+      SelectorParseErrorKind::InvalidPseudoClassAfterWebKitScrollbar => {
+        SelectorError::InvalidPseudoClassAfterWebKitScrollbar
+      }
+      SelectorParseErrorKind::InvalidPseudoClassAfterPseudoElement => {
+        SelectorError::InvalidPseudoClassAfterPseudoElement
+      }
       SelectorParseErrorKind::InvalidState => SelectorError::InvalidState,
       SelectorParseErrorKind::MissingNestingSelector => SelectorError::MissingNestingSelector,
       SelectorParseErrorKind::MissingNestingPrefix => SelectorError::MissingNestingPrefix,
-      SelectorParseErrorKind::UnexpectedTokenInAttributeSelector(t) => SelectorError::UnexpectedTokenInAttributeSelector(t.into()),
+      SelectorParseErrorKind::UnexpectedTokenInAttributeSelector(t) => {
+        SelectorError::UnexpectedTokenInAttributeSelector(t.into())
+      }
       SelectorParseErrorKind::PseudoElementExpectedColon(t) => SelectorError::PseudoElementExpectedColon(t.into()),
       SelectorParseErrorKind::PseudoElementExpectedIdent(t) => SelectorError::PseudoElementExpectedIdent(t.into()),
       SelectorParseErrorKind::NoIdentForPseudo(t) => SelectorError::NoIdentForPseudo(t.into()),
-      SelectorParseErrorKind::UnsupportedPseudoClassOrElement(t) => SelectorError::UnsupportedPseudoClassOrElement(t.into()),
+      SelectorParseErrorKind::UnsupportedPseudoClassOrElement(t) => {
+        SelectorError::UnsupportedPseudoClassOrElement(t.into())
+      }
       SelectorParseErrorKind::UnexpectedIdent(t) => SelectorError::UnexpectedIdent(t.into()),
       SelectorParseErrorKind::ExpectedNamespace(t) => SelectorError::ExpectedNamespace(t.into()),
       SelectorParseErrorKind::ExpectedBarInAttr(t) => SelectorError::ExpectedBarInAttr(t.into()),
       SelectorParseErrorKind::BadValueInAttr(t) => SelectorError::BadValueInAttr(t.into()),
       SelectorParseErrorKind::InvalidQualNameInAttr(t) => SelectorError::InvalidQualNameInAttr(t.into()),
-      SelectorParseErrorKind::ExplicitNamespaceUnexpectedToken(t) => SelectorError::ExplicitNamespaceUnexpectedToken(t.into()),
+      SelectorParseErrorKind::ExplicitNamespaceUnexpectedToken(t) => {
+        SelectorError::ExplicitNamespaceUnexpectedToken(t.into())
+      }
       SelectorParseErrorKind::ClassNeedsIdent(t) => SelectorError::ClassNeedsIdent(t.into()),
     }
   }
@@ -196,7 +211,7 @@ impl<'i> SelectorError<'i> {
 #[derive(Debug, PartialEq)]
 pub struct ErrorWithLocation<T> {
   pub kind: T,
-  pub loc: Location
+  pub loc: Location,
 }
 
 pub type MinifyError = ErrorWithLocation<MinifyErrorKind>;
@@ -206,15 +221,21 @@ pub type MinifyError = ErrorWithLocation<MinifyErrorKind>;
 pub enum MinifyErrorKind {
   UnsupportedCustomMediaBooleanLogic { custom_media_loc: Location },
   CustomMediaNotDefined { name: String },
-  CircularCustomMedia { name: String }
+  CircularCustomMedia { name: String },
 }
 
 impl MinifyErrorKind {
   pub fn reason(&self) -> String {
     match self {
-      MinifyErrorKind::UnsupportedCustomMediaBooleanLogic {..} => "Boolean logic with media types in @custom-media rules is not supported by Parcel CSS.".into(),
-      MinifyErrorKind::CustomMediaNotDefined { name, .. } => format!("Custom media query {} is not defined.", name),
-      MinifyErrorKind::CircularCustomMedia { name, .. } => format!("Circular custom media query {} detected.", name)
+      MinifyErrorKind::UnsupportedCustomMediaBooleanLogic { .. } => {
+        "Boolean logic with media types in @custom-media rules is not supported by Parcel CSS.".into()
+      }
+      MinifyErrorKind::CustomMediaNotDefined { name, .. } => {
+        format!("Custom media query {} is not defined.", name)
+      }
+      MinifyErrorKind::CircularCustomMedia { name, .. } => {
+        format!("Circular custom media query {} detected.", name)
+      }
     }
   }
 }
@@ -227,14 +248,14 @@ pub enum PrinterErrorKind {
   FmtError,
   InvalidComposesSelector,
   InvalidComposesNesting,
-  AmbiguousUrlInCustomProperty { url: String }
+  AmbiguousUrlInCustomProperty { url: String },
 }
 
 impl From<std::fmt::Error> for PrinterError {
   fn from(_: std::fmt::Error) -> PrinterError {
     PrinterError {
       kind: PrinterErrorKind::FmtError,
-      loc: None
+      loc: None,
     }
   }
 }

@@ -1,20 +1,25 @@
-use cssparser::*;
-use crate::traits::{Parse, ToCss};
-use crate::printer::Printer;
 use super::number::serialize_number;
 use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
+use crate::printer::Printer;
+use crate::traits::{Parse, ToCss};
+use cssparser::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MathFunction<V> {
   Calc(Calc<V>),
   Min(Vec<Calc<V>>),
   Max(Vec<Calc<V>>),
-  Clamp(Calc<V>, Calc<V>, Calc<V>)
+  Clamp(Calc<V>, Calc<V>, Calc<V>),
 }
 
-impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clone + std::fmt::Debug> ToCss for MathFunction<V> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clone + std::fmt::Debug> ToCss
+  for MathFunction<V>
+{
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       MathFunction::Calc(calc) => {
         dest.write_str("calc(")?;
@@ -59,7 +64,7 @@ impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clo
             dest.delim(',', false)?;
             c.to_css(dest)?;
             dest.write_str("))")?;
-            return Ok(())
+            return Ok(());
           }
         }
 
@@ -81,10 +86,20 @@ pub enum Calc<V> {
   Number(f32),
   Sum(Box<Calc<V>>, Box<Calc<V>>),
   Product(f32, Box<Calc<V>>),
-  Function(Box<MathFunction<V>>)
+  Function(Box<MathFunction<V>>),
 }
 
-impl<'i, V: Parse<'i> + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + std::cmp::PartialOrd<V> + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> + std::fmt::Debug> Parse<'i> for Calc<V> {
+impl<
+    'i,
+    V: Parse<'i>
+      + std::ops::Mul<f32, Output = V>
+      + std::ops::Add<V, Output = V>
+      + std::cmp::PartialOrd<V>
+      + std::convert::Into<Calc<V>>
+      + std::convert::From<Calc<V>>
+      + std::fmt::Debug,
+  > Parse<'i> for Calc<V>
+{
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     let f = input.expect_function()?;
@@ -172,7 +187,17 @@ impl<'i, V: Parse<'i> + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output
   }
 }
 
-impl<'i, V: Parse<'i> + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output = V> + std::cmp::PartialOrd<V> + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> + std::fmt::Debug> Calc<V> {
+impl<
+    'i,
+    V: Parse<'i>
+      + std::ops::Mul<f32, Output = V>
+      + std::ops::Add<V, Output = V>
+      + std::cmp::PartialOrd<V>
+      + std::convert::Into<Calc<V>>
+      + std::convert::From<Calc<V>>
+      + std::fmt::Debug,
+  > Calc<V>
+{
   fn parse_sum<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut cur: Calc<V> = Calc::parse_product(input)?;
     loop {
@@ -186,16 +211,16 @@ impl<'i, V: Parse<'i> + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output
             Token::Delim('+') => {
               let next = Calc::parse_product(input)?;
               cur = cur + next;
-            },
+            }
             Token::Delim('-') => {
               let mut rhs = Calc::parse_product(input)?;
               rhs = rhs * -1.0;
               cur = cur + rhs;
-            },
+            }
             ref t => {
               let t = t.clone();
               return Err(input.new_unexpected_token_error(t));
-            },
+            }
           }
         }
         _ => {
@@ -221,7 +246,7 @@ impl<'i, V: Parse<'i> + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output
             node = rhs;
             node = node * val;
           } else {
-            return Err(input.new_unexpected_token_error(Token::Delim('*')))
+            return Err(input.new_unexpected_token_error(Token::Delim('*')));
           }
         }
         Ok(&Token::Delim('/')) => {
@@ -229,15 +254,15 @@ impl<'i, V: Parse<'i> + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output
           if let Calc::Number(val) = rhs {
             if val != 0.0 {
               node = node * (1.0 / val);
-              continue
+              continue;
             }
           }
-          return Err(input.new_custom_error(ParserError::InvalidValue))
+          return Err(input.new_custom_error(ParserError::InvalidValue));
         }
         _ => {
           input.reset(&start);
           break;
-        },
+        }
       }
     }
     Ok(node)
@@ -250,23 +275,23 @@ impl<'i, V: Parse<'i> + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output
         Calc::Function(f) => {
           return Ok(match *f {
             MathFunction::Calc(c) => c,
-            _ => Calc::Function(f)
+            _ => Calc::Function(f),
           })
         }
-        c => return Ok(c)
+        c => return Ok(c),
       }
     }
 
     if input.try_parse(|input| input.expect_parenthesis_block()).is_ok() {
-      return input.parse_nested_block(Calc::parse_sum)
+      return input.parse_nested_block(Calc::parse_sum);
     }
 
     if let Ok(num) = input.try_parse(|input| input.expect_number()) {
-      return Ok(Calc::Number(num))
+      return Ok(Calc::Number(num));
     }
 
     if let Ok(value) = input.try_parse(V::parse) {
-      return Ok(Calc::Value(Box::new(value)))
+      return Ok(Calc::Value(Box::new(value)));
     }
 
     Err(input.new_error_for_next_token())
@@ -285,11 +310,11 @@ impl<'i, V: Parse<'i> + std::ops::Mul<f32, Output = V> + std::ops::Add<V, Output
               match val.partial_cmp(v) {
                 Some(ord) if ord == cmp => {
                   found = Some(Some(b));
-                  break
+                  break;
                 }
                 Some(_) => {
                   found = Some(None);
-                  break
+                  break;
                 }
                 None => {}
               }
@@ -315,7 +340,7 @@ impl<V: std::ops::Mul<f32, Output = V>> std::ops::Mul<f32> for Calc<V> {
 
   fn mul(self, other: f32) -> Self {
     if other == 1.0 {
-      return self
+      return self;
     }
 
     match self {
@@ -325,21 +350,22 @@ impl<V: std::ops::Mul<f32, Output = V>> std::ops::Mul<f32> for Calc<V> {
       Calc::Product(num, calc) => {
         let num = num * other;
         if num == 1.0 {
-          return *calc
+          return *calc;
         }
         Calc::Product(num, calc)
-      },
-      Calc::Function(f) => {
-        match *f {
-          MathFunction::Calc(c) => Calc::Function(Box::new(MathFunction::Calc(c * other))),
-          _ => Calc::Product(other, Box::new(Calc::Function(f)))
-        }
       }
+      Calc::Function(f) => match *f {
+        MathFunction::Calc(c) => Calc::Function(Box::new(MathFunction::Calc(c * other))),
+        _ => Calc::Product(other, Box::new(Calc::Function(f))),
+      },
     }
   }
 }
 
-impl<V: std::ops::Add<V, Output = V> + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> + std::fmt::Debug> std::ops::Add<Calc<V>> for Calc<V> {
+impl<
+    V: std::ops::Add<V, Output = V> + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> + std::fmt::Debug,
+  > std::ops::Add<Calc<V>> for Calc<V>
+{
   type Output = Self;
 
   fn add(self, other: Calc<V>) -> Calc<V> {
@@ -348,7 +374,7 @@ impl<V: std::ops::Add<V, Output = V> + std::convert::Into<Calc<V>> + std::conver
       (Calc::Number(a), Calc::Number(b)) => Calc::Number(a + b),
       (Calc::Value(a), b) => (*a + V::from(b)).into(),
       (a, Calc::Value(b)) => (V::from(a) + *b).into(),
-      (a, b) => (V::from(a) + V::from(b)).into()
+      (a, b) => (V::from(a) + V::from(b)).into(),
     }
   }
 }
@@ -358,7 +384,7 @@ impl<V: std::cmp::PartialEq<f32>> std::cmp::PartialEq<f32> for Calc<V> {
     match self {
       Calc::Value(a) => **a == *other,
       Calc::Number(a) => *a == *other,
-      _ => false
+      _ => false,
     }
   }
 }
@@ -368,16 +394,21 @@ impl<V: std::cmp::PartialOrd<f32>> std::cmp::PartialOrd<f32> for Calc<V> {
     match self {
       Calc::Value(a) => a.partial_cmp(other),
       Calc::Number(a) => a.partial_cmp(other),
-      _ => None
+      _ => None,
     }
   }
 }
 
-impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clone + std::fmt::Debug> ToCss for Calc<V> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clone + std::fmt::Debug> ToCss
+  for Calc<V>
+{
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let was_in_calc = dest.in_calc;
     dest.in_calc = true;
-    
+
     let res = match self {
       Calc::Value(v) => v.to_css(dest),
       Calc::Number(n) => serialize_number(*n, dest),
@@ -406,7 +437,7 @@ impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clo
           calc.to_css(dest)
         }
       }
-      Calc::Function(f) => f.to_css(dest)
+      Calc::Function(f) => f.to_css(dest),
     };
 
     dest.in_calc = was_in_calc;

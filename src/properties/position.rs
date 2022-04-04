@@ -1,13 +1,13 @@
-use cssparser::*;
-use crate::traits::{Parse, ToCss, PropertyHandler};
 use super::Property;
-use crate::vendor_prefix::VendorPrefix;
-use crate::targets::Browsers;
-use crate::prefixes::Feature;
-use crate::declaration::DeclarationList;
-use crate::printer::Printer;
-use crate::error::{ParserError, PrinterError};
 use crate::context::PropertyHandlerContext;
+use crate::declaration::DeclarationList;
+use crate::error::{ParserError, PrinterError};
+use crate::prefixes::Feature;
+use crate::printer::Printer;
+use crate::targets::Browsers;
+use crate::traits::{Parse, PropertyHandler, ToCss};
+use crate::vendor_prefix::VendorPrefix;
+use cssparser::*;
 
 /// https://www.w3.org/TR/2020/WD-css-position-3-20200519/#position-property
 #[derive(Debug, Clone, PartialEq)]
@@ -16,7 +16,7 @@ pub enum Position {
   Relative,
   Absolute,
   Sticky(VendorPrefix),
-  Fixed
+  Fixed,
 }
 
 impl<'i> Parse<'i> for Position {
@@ -38,7 +38,10 @@ impl<'i> Parse<'i> for Position {
 }
 
 impl ToCss for Position {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       Position::Static => dest.write_str("static"),
       Position::Relative => dest.write_str("relative"),
@@ -55,7 +58,7 @@ impl ToCss for Position {
 #[derive(Default)]
 pub(crate) struct PositionHandler {
   targets: Option<Browsers>,
-  position: Option<Position>
+  position: Option<Position>,
 }
 
 impl PositionHandler {
@@ -68,7 +71,12 @@ impl PositionHandler {
 }
 
 impl<'i> PropertyHandler<'i> for PositionHandler {
-  fn handle_property(&mut self, property: &Property<'i>, _: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) -> bool {
+  fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    _: &mut DeclarationList<'i>,
+    _: &mut PropertyHandlerContext<'i>,
+  ) -> bool {
     if let Property::Position(position) = property {
       if let (Some(Position::Sticky(cur)), Position::Sticky(new)) = (&mut self.position, position) {
         *cur |= *new;
@@ -76,7 +84,7 @@ impl<'i> PropertyHandler<'i> for PositionHandler {
         self.position = Some(position.clone());
       }
 
-      return true
+      return true;
     }
 
     false
@@ -84,9 +92,9 @@ impl<'i> PropertyHandler<'i> for PositionHandler {
 
   fn finalize(&mut self, dest: &mut DeclarationList, _: &mut PropertyHandlerContext<'i>) {
     if self.position.is_none() {
-      return
+      return;
     }
-    
+
     if let Some(position) = std::mem::take(&mut self.position) {
       match position {
         Position::Sticky(mut prefix) => {
@@ -104,9 +112,7 @@ impl<'i> PropertyHandler<'i> for PositionHandler {
             dest.push(Property::Position(Position::Sticky(VendorPrefix::None)))
           }
         }
-        _ => {
-          dest.push(Property::Position(position))
-        }
+        _ => dest.push(Property::Position(position)),
       }
     }
   }

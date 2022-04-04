@@ -1,27 +1,20 @@
-use std::collections::HashMap;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-use data_encoding::{Specification, Encoding};
-use lazy_static::lazy_static;
-use crate::properties::css_modules::{Composes, ComposesFrom};
-use parcel_selectors::SelectorList;
-use crate::selector::Selectors;
-use serde::Serialize;
 use crate::error::PrinterErrorKind;
+use crate::properties::css_modules::{Composes, ComposesFrom};
+use crate::selector::Selectors;
+use data_encoding::{Encoding, Specification};
+use lazy_static::lazy_static;
+use parcel_selectors::SelectorList;
+use serde::Serialize;
+use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 
 #[derive(PartialEq, Debug, Clone, Serialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum CssModuleReference {
-  Local {
-    name: String,
-  },
-  Global {
-    name: String
-  },
-  Dependency {
-    name: String,
-    specifier: String
-  }
+  Local { name: String },
+  Global { name: String },
+  Dependency { name: String, specifier: String },
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize)]
@@ -29,7 +22,7 @@ pub enum CssModuleReference {
 pub struct CssModuleExport {
   pub name: String,
   pub composes: Vec<CssModuleReference>,
-  pub is_referenced: bool
+  pub is_referenced: bool,
 }
 
 pub type CssModuleExports = HashMap<String, CssModuleExport>;
@@ -37,24 +30,25 @@ pub type CssModuleExports = HashMap<String, CssModuleExport>;
 lazy_static! {
   static ref ENCODER: Encoding = {
     let mut spec = Specification::new();
-    spec.symbols.push_str("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_-");
+    spec
+      .symbols
+      .push_str("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_-");
     spec.encoding().unwrap()
   };
 }
 
 pub(crate) struct CssModule<'a> {
   pub hash: &'a str,
-  pub exports: &'a mut CssModuleExports
+  pub exports: &'a mut CssModuleExports,
 }
 
 impl<'a> CssModule<'a> {
   pub fn add_local(&mut self, exported: &str, local: &str) {
-    self.exports.entry(exported.into())
-      .or_insert_with(|| CssModuleExport {
-        name: get_hashed_name(self.hash, local),
-        composes: vec![],
-        is_referenced: false
-      });
+    self.exports.entry(exported.into()).or_insert_with(|| CssModuleExport {
+      name: get_hashed_name(self.hash, local),
+      composes: vec![],
+      is_referenced: false,
+    });
   }
 
   pub fn reference(&mut self, name: &str) {
@@ -66,25 +60,33 @@ impl<'a> CssModule<'a> {
         entry.insert(CssModuleExport {
           name: get_hashed_name(self.hash, name),
           composes: vec![],
-          is_referenced: true
+          is_referenced: true,
         });
       }
     }
   }
 
-  pub fn handle_composes(&mut self, selectors: &SelectorList<Selectors>, composes: &Composes) -> Result<(), PrinterErrorKind> {
+  pub fn handle_composes(
+    &mut self,
+    selectors: &SelectorList<Selectors>,
+    composes: &Composes,
+  ) -> Result<(), PrinterErrorKind> {
     for sel in &selectors.0 {
       if sel.len() == 1 {
         match sel.iter_raw_match_order().next().unwrap() {
           parcel_selectors::parser::Component::Class(ref id) => {
             for name in &composes.names {
               let reference = match &composes.from {
-                None => CssModuleReference::Local { name: get_hashed_name(self.hash, name.0.as_ref()) },
-                Some(ComposesFrom::Global) => CssModuleReference::Global { name: name.0.as_ref().into() },
+                None => CssModuleReference::Local {
+                  name: get_hashed_name(self.hash, name.0.as_ref()),
+                },
+                Some(ComposesFrom::Global) => CssModuleReference::Global {
+                  name: name.0.as_ref().into(),
+                },
                 Some(ComposesFrom::File(file)) => CssModuleReference::Dependency {
                   name: name.0.to_string(),
-                  specifier: file.to_string()
-                }
+                  specifier: file.to_string(),
+                },
               };
 
               let export = self.exports.get_mut(&id.0.as_ref().to_owned()).unwrap();
@@ -99,7 +101,7 @@ impl<'a> CssModule<'a> {
       }
 
       // The composes property can only be used within a simple class selector.
-      return Err(PrinterErrorKind::InvalidComposesSelector)
+      return Err(PrinterErrorKind::InvalidComposesSelector);
     }
 
     Ok(())
@@ -116,7 +118,7 @@ pub(crate) fn hash(s: &str) -> String {
   let mut hasher = DefaultHasher::new();
   s.hash(&mut hasher);
   let hash = hasher.finish() as u32;
-  
+
   let hash = ENCODER.encode(&hash.to_le_bytes());
   if matches!(hash.as_bytes()[0], b'0'..=b'9') {
     format!("_{}", hash)

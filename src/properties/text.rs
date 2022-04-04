@@ -1,22 +1,22 @@
 #![allow(non_upper_case_globals)]
 
-use smallvec::SmallVec;
-use crate::values::string::CowArcStr;
-use cssparser::*;
-use crate::traits::{Parse, ToCss, PropertyHandler, FallbackValues};
 use super::{Property, PropertyId};
-use crate::vendor_prefix::VendorPrefix;
-use crate::declaration::DeclarationList;
-use crate::targets::Browsers;
-use crate::prefixes::Feature;
-use crate::macros::enum_property;
-use crate::values::length::{Length, LengthPercentage};
-use crate::values::color::{CssColor, ColorFallbackKind};
-use crate::printer::Printer;
-use bitflags::bitflags;
-use crate::error::{ParserError, PrinterError};
-use crate::context::PropertyHandlerContext;
 use crate::compat;
+use crate::context::PropertyHandlerContext;
+use crate::declaration::DeclarationList;
+use crate::error::{ParserError, PrinterError};
+use crate::macros::enum_property;
+use crate::prefixes::Feature;
+use crate::printer::Printer;
+use crate::targets::Browsers;
+use crate::traits::{FallbackValues, Parse, PropertyHandler, ToCss};
+use crate::values::color::{ColorFallbackKind, CssColor};
+use crate::values::length::{Length, LengthPercentage};
+use crate::values::string::CowArcStr;
+use crate::vendor_prefix::VendorPrefix;
+use bitflags::bitflags;
+use cssparser::*;
+use smallvec::SmallVec;
 
 enum_property! {
   /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-transform-property
@@ -56,7 +56,10 @@ impl<'i> Parse<'i> for TextTransformOther {
 }
 
 impl ToCss for TextTransformOther {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let mut needs_space = false;
     if self.contains(TextTransformOther::FullWidth) {
       dest.write_str("full-width")?;
@@ -77,7 +80,7 @@ impl ToCss for TextTransformOther {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextTransform {
   pub case: TextTransformCase,
-  pub other: TextTransformOther
+  pub other: TextTransformOther,
 }
 
 impl<'i> Parse<'i> for TextTransform {
@@ -91,29 +94,32 @@ impl<'i> Parse<'i> for TextTransform {
           case = Some(c);
           if c == TextTransformCase::None {
             other = TextTransformOther::empty();
-            break
+            break;
           }
-          continue
+          continue;
         }
       }
 
       if let Ok(o) = input.try_parse(TextTransformOther::parse) {
         other |= o;
-        continue
+        continue;
       }
 
-      break
+      break;
     }
 
     Ok(TextTransform {
       case: case.unwrap_or_default(),
-      other
+      other,
     })
   }
 }
 
 impl ToCss for TextTransform {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let mut needs_space = false;
     if self.case != TextTransformCase::None || self.other.is_empty() {
       self.case.to_css(dest)?;
@@ -222,13 +228,13 @@ enum_property! {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Spacing {
   Normal,
-  Length(Length)
+  Length(Length),
 }
 
 impl<'i> Parse<'i> for Spacing {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
-      return Ok(Spacing::Normal)
+      return Ok(Spacing::Normal);
     }
 
     let length = Length::parse(input)?;
@@ -237,10 +243,13 @@ impl<'i> Parse<'i> for Spacing {
 }
 
 impl ToCss for Spacing {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       Spacing::Normal => dest.write_str("normal"),
-      Spacing::Length(len) => len.to_css(dest)
+      Spacing::Length(len) => len.to_css(dest),
     }
   }
 }
@@ -250,7 +259,7 @@ impl ToCss for Spacing {
 pub struct TextIndent {
   pub value: LengthPercentage,
   pub hanging: bool,
-  pub each_line: bool
+  pub each_line: bool,
 }
 
 impl<'i> Parse<'i> for TextIndent {
@@ -263,32 +272,32 @@ impl<'i> Parse<'i> for TextIndent {
       if value.is_none() {
         if let Ok(val) = input.try_parse(LengthPercentage::parse) {
           value = Some(val);
-          continue
+          continue;
         }
       }
 
       if !hanging {
         if input.try_parse(|input| input.expect_ident_matching("hanging")).is_ok() {
           hanging = true;
-          continue
+          continue;
         }
       }
 
       if !each_line {
         if input.try_parse(|input| input.expect_ident_matching("each-line")).is_ok() {
           each_line = true;
-          continue
+          continue;
         }
       }
 
-      break
+      break;
     }
 
     if let Some(value) = value {
       Ok(TextIndent {
         value,
         hanging,
-        each_line
+        each_line,
       })
     } else {
       Err(input.new_custom_error(ParserError::InvalidDeclaration))
@@ -297,7 +306,10 @@ impl<'i> Parse<'i> for TextIndent {
 }
 
 impl ToCss for TextIndent {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.value.to_css(dest)?;
     if self.hanging {
       dest.write_str(" hanging")?;
@@ -354,12 +366,12 @@ impl<'i> Parse<'i> for TextDecorationLine {
         value |= flag;
         any = true;
       } else {
-        break
+        break;
       }
     }
 
     if !any {
-      return Err(input.new_custom_error(ParserError::InvalidDeclaration))
+      return Err(input.new_custom_error(ParserError::InvalidDeclaration));
     }
 
     Ok(value)
@@ -367,17 +379,20 @@ impl<'i> Parse<'i> for TextDecorationLine {
 }
 
 impl ToCss for TextDecorationLine {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     if self.is_empty() {
-      return dest.write_str("none")
+      return dest.write_str("none");
     }
 
     if self.contains(TextDecorationLine::SpellingError) {
-      return dest.write_str("spelling-error")
+      return dest.write_str("spelling-error");
     }
 
     if self.contains(TextDecorationLine::GrammarError) {
-      return dest.write_str("grammar-error")
+      return dest.write_str("grammar-error");
     }
 
     let mut needs_space = false;
@@ -424,7 +439,7 @@ impl Default for TextDecorationStyle {
 pub enum TextDecorationThickness {
   Auto,
   FromFont,
-  LengthPercentage(LengthPercentage)
+  LengthPercentage(LengthPercentage),
 }
 
 impl Default for TextDecorationThickness {
@@ -436,11 +451,11 @@ impl Default for TextDecorationThickness {
 impl<'i> Parse<'i> for TextDecorationThickness {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
-      return Ok(TextDecorationThickness::Auto)
+      return Ok(TextDecorationThickness::Auto);
     }
 
     if input.try_parse(|input| input.expect_ident_matching("from-font")).is_ok() {
-      return Ok(TextDecorationThickness::FromFont)
+      return Ok(TextDecorationThickness::FromFont);
     }
 
     let lp = LengthPercentage::parse(input)?;
@@ -449,11 +464,14 @@ impl<'i> Parse<'i> for TextDecorationThickness {
 }
 
 impl ToCss for TextDecorationThickness {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       TextDecorationThickness::Auto => dest.write_str("auto"),
       TextDecorationThickness::FromFont => dest.write_str("from-font"),
-      TextDecorationThickness::LengthPercentage(lp) => lp.to_css(dest)
+      TextDecorationThickness::LengthPercentage(lp) => lp.to_css(dest),
     }
   }
 }
@@ -463,7 +481,7 @@ pub struct TextDecoration {
   pub line: TextDecorationLine,
   pub thickness: TextDecorationThickness,
   pub style: TextDecorationStyle,
-  pub color: CssColor
+  pub color: CssColor,
 }
 
 impl<'i> Parse<'i> for TextDecoration {
@@ -479,7 +497,7 @@ impl<'i> Parse<'i> for TextDecoration {
           if $key.is_none() {
             if let Ok(val) = input.try_parse($type::parse) {
               $key = Some(val);
-              continue
+              continue;
             }
           }
         };
@@ -489,23 +507,26 @@ impl<'i> Parse<'i> for TextDecoration {
       prop!(thickness, TextDecorationThickness);
       prop!(style, TextDecorationStyle);
       prop!(color, CssColor);
-      break
+      break;
     }
 
     Ok(TextDecoration {
       line: line.unwrap_or_default(),
       thickness: thickness.unwrap_or_default(),
       style: style.unwrap_or_default(),
-      color: color.unwrap_or(CssColor::current_color())
+      color: color.unwrap_or(CssColor::current_color()),
     })
   }
 }
 
 impl ToCss for TextDecoration {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.line.to_css(dest)?;
     if self.line.is_empty() {
-      return Ok(())
+      return Ok(());
     }
 
     let mut needs_space = true;
@@ -536,12 +557,11 @@ impl ToCss for TextDecoration {
 
 impl FallbackValues for TextDecoration {
   fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
-    self.color.get_fallbacks(targets)
+    self
+      .color
+      .get_fallbacks(targets)
       .into_iter()
-      .map(|color| TextDecoration {
-        color,
-        ..self.clone()
-      })
+      .map(|color| TextDecoration { color, ..self.clone() })
       .collect()
   }
 }
@@ -578,9 +598,9 @@ pub enum TextEmphasisStyle<'i> {
   None,
   Keyword {
     fill: TextEmphasisFillMode,
-    shape: Option<TextEmphasisShape>
+    shape: Option<TextEmphasisShape>,
   },
-  String(CowArcStr<'i>)
+  String(CowArcStr<'i>),
 }
 
 impl<'i> Default for TextEmphasisStyle<'i> {
@@ -592,11 +612,11 @@ impl<'i> Default for TextEmphasisStyle<'i> {
 impl<'i> Parse<'i> for TextEmphasisStyle<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
-      return Ok(TextEmphasisStyle::None)
+      return Ok(TextEmphasisStyle::None);
     }
 
     if let Ok(s) = input.try_parse(|input| input.expect_string_cloned()) {
-      return Ok(TextEmphasisStyle::String(s.into()))
+      return Ok(TextEmphasisStyle::String(s.into()));
     }
 
     let mut shape = input.try_parse(TextEmphasisShape::parse).ok();
@@ -606,7 +626,7 @@ impl<'i> Parse<'i> for TextEmphasisStyle<'i> {
     }
 
     if shape.is_none() && fill.is_none() {
-      return Err(input.new_custom_error(ParserError::InvalidDeclaration))
+      return Err(input.new_custom_error(ParserError::InvalidDeclaration));
     }
 
     let fill = fill.unwrap_or(TextEmphasisFillMode::Filled);
@@ -615,13 +635,16 @@ impl<'i> Parse<'i> for TextEmphasisStyle<'i> {
 }
 
 impl<'i> ToCss for TextEmphasisStyle<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       TextEmphasisStyle::None => dest.write_str("none"),
       TextEmphasisStyle::String(s) => {
         serialize_string(&s, dest)?;
         Ok(())
-      },
+      }
       TextEmphasisStyle::Keyword { fill, shape } => {
         let mut needs_space = false;
         if *fill != TextEmphasisFillMode::Filled || shape.is_none() {
@@ -645,7 +668,7 @@ impl<'i> ToCss for TextEmphasisStyle<'i> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextEmphasis<'i> {
   pub style: TextEmphasisStyle<'i>,
-  pub color: CssColor
+  pub color: CssColor,
 }
 
 impl<'i> Parse<'i> for TextEmphasis<'i> {
@@ -657,29 +680,32 @@ impl<'i> Parse<'i> for TextEmphasis<'i> {
       if style.is_none() {
         if let Ok(s) = input.try_parse(TextEmphasisStyle::parse) {
           style = Some(s);
-          continue
+          continue;
         }
       }
 
       if color.is_none() {
         if let Ok(c) = input.try_parse(CssColor::parse) {
           color = Some(c);
-          continue
+          continue;
         }
       }
 
-      break
+      break;
     }
 
     Ok(TextEmphasis {
       style: style.unwrap_or_default(),
-      color: color.unwrap_or(CssColor::current_color())
+      color: color.unwrap_or(CssColor::current_color()),
     })
   }
 }
 
 impl<'i> ToCss for TextEmphasis<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.style.to_css(dest)?;
 
     if self.style != TextEmphasisStyle::None && self.color != CssColor::current_color() {
@@ -693,12 +719,11 @@ impl<'i> ToCss for TextEmphasis<'i> {
 
 impl<'i> FallbackValues for TextEmphasis<'i> {
   fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
-    self.color.get_fallbacks(targets)
+    self
+      .color
+      .get_fallbacks(targets)
       .into_iter()
-      .map(|color| TextEmphasis {
-        color,
-        ..self.clone()
-      })
+      .map(|color| TextEmphasis { color, ..self.clone() })
       .collect()
   }
 }
@@ -721,7 +746,7 @@ enum_property! {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextEmphasisPosition {
   pub vertical: TextEmphasisPositionVertical,
-  pub horizontal: TextEmphasisPositionHorizontal
+  pub horizontal: TextEmphasisPositionHorizontal,
 }
 
 impl<'i> Parse<'i> for TextEmphasisPosition {
@@ -731,14 +756,19 @@ impl<'i> Parse<'i> for TextEmphasisPosition {
       Ok(TextEmphasisPosition { horizontal, vertical })
     } else {
       let vertical = TextEmphasisPositionVertical::parse(input)?;
-      let horizontal = input.try_parse(TextEmphasisPositionHorizontal::parse).unwrap_or(TextEmphasisPositionHorizontal::Right);
+      let horizontal = input
+        .try_parse(TextEmphasisPositionHorizontal::parse)
+        .unwrap_or(TextEmphasisPositionHorizontal::Right);
       Ok(TextEmphasisPosition { horizontal, vertical })
     }
   }
 }
 
 impl ToCss for TextEmphasisPosition {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.vertical.to_css(dest)?;
     if self.horizontal != TextEmphasisPositionHorizontal::Right {
       dest.write_char(' ')?;
@@ -758,7 +788,7 @@ pub(crate) struct TextDecorationHandler<'i> {
   emphasis_style: Option<(TextEmphasisStyle<'i>, VendorPrefix)>,
   emphasis_color: Option<(CssColor, VendorPrefix)>,
   emphasis_position: Option<(TextEmphasisPosition, VendorPrefix)>,
-  has_any: bool
+  has_any: bool,
 }
 
 impl<'i> TextDecorationHandler<'i> {
@@ -771,7 +801,12 @@ impl<'i> TextDecorationHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
+  fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    dest: &mut DeclarationList<'i>,
+    context: &mut PropertyHandlerContext<'i>,
+  ) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -806,7 +841,7 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
       TextDecorationThickness(val) => {
         self.thickness = Some(val.clone());
         self.has_any = true;
-      },
+      }
       TextDecorationStyle(val, vp) => property!(style, val, vp),
       TextDecorationColor(val, vp) => property!(color, val, vp),
       TextDecoration(val, vp) => {
@@ -839,7 +874,7 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
                 dest,
                 PropertyId::TextAlign,
                 Property::TextAlign(TextAlign::$ltr),
-                Property::TextAlign(TextAlign::$rtl)
+                Property::TextAlign(TextAlign::$rtl),
               );
             }
           }};
@@ -848,7 +883,7 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
         match align {
           TextAlign::Start => logical!(Left, Right),
           TextAlign::End => logical!(Right, Left),
-          _ => dest.push(property.clone())
+          _ => dest.push(property.clone()),
         }
       }
       Unparsed(val) if is_text_decoration_property(&val.property_id) => {
@@ -863,15 +898,15 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
         context.add_unparsed_fallbacks(&mut unparsed);
         dest.push(Property::Unparsed(unparsed))
       }
-      _ => return false
+      _ => return false,
     }
-    
+
     true
   }
 
   fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
     if !self.has_any {
-      return
+      return;
     }
 
     self.has_any = false;
@@ -884,7 +919,9 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
     let mut emphasis_color = std::mem::take(&mut self.emphasis_color);
     let emphasis_position = std::mem::take(&mut self.emphasis_position);
 
-    if let (Some((line, line_vp)), Some(thickness_val), Some((style, style_vp)), Some((color, color_vp))) = (&mut line, &mut thickness, &mut style, &mut color) {
+    if let (Some((line, line_vp)), Some(thickness_val), Some((style, style_vp)), Some((color, color_vp))) =
+      (&mut line, &mut thickness, &mut style, &mut color)
+    {
       let intersection = *line_vp | *style_vp | *color_vp;
       if !intersection.is_empty() {
         let mut prefix = intersection;
@@ -893,11 +930,13 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
           line: line.clone(),
           thickness: thickness_val.clone(),
           style: style.clone(),
-          color: color.clone()
+          color: color.clone(),
         };
-        
+
         // Only add prefixes if one of the new sub-properties was used
-        if prefix.contains(VendorPrefix::None) && (*style != TextDecorationStyle::default() || *color != CssColor::current_color()) {
+        if prefix.contains(VendorPrefix::None)
+          && (*style != TextDecorationStyle::default() || *color != CssColor::current_color())
+        {
           if let Some(targets) = self.targets {
             prefix = Feature::TextDecoration.prefixes_for(targets);
 
@@ -967,7 +1006,7 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
         let mut prefix = intersection;
         let mut emphasis = TextEmphasis {
           style: style.clone(),
-          color: color.clone()
+          color: color.clone(),
         };
 
         if prefix.contains(VendorPrefix::None) {
@@ -1045,7 +1084,7 @@ impl<'i> Parse<'i> for TextShadow {
         }
       }
 
-      break
+      break;
     }
 
     let lengths = lengths.ok_or(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))?;
@@ -1054,17 +1093,20 @@ impl<'i> Parse<'i> for TextShadow {
       x_offset: lengths.0,
       y_offset: lengths.1,
       blur: lengths.2,
-      spread: lengths.3
+      spread: lengths.3,
     })
   }
 }
 
 impl ToCss for TextShadow {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.x_offset.to_css(dest)?;
     dest.write_char(' ')?;
     self.y_offset.to_css(dest)?;
-    
+
     if self.blur != Length::zero() || self.spread != Length::zero() {
       dest.write_char(' ')?;
       self.blur.to_css(dest)?;
@@ -1072,7 +1114,7 @@ impl ToCss for TextShadow {
       if self.spread != Length::zero() {
         dest.write_char(' ')?;
         self.spread.to_css(dest)?;
-      }  
+      }
     }
 
     if self.color != CssColor::current_color() {
@@ -1087,23 +1129,23 @@ impl ToCss for TextShadow {
 #[inline]
 fn is_text_decoration_property(property_id: &PropertyId) -> bool {
   match property_id {
-    PropertyId::TextDecorationLine(_) |
-    PropertyId::TextDecorationThickness |
-    PropertyId::TextDecorationStyle(_) |
-    PropertyId::TextDecorationColor(_) |
-    PropertyId::TextDecoration(_) => true,
-    _ => false
+    PropertyId::TextDecorationLine(_)
+    | PropertyId::TextDecorationThickness
+    | PropertyId::TextDecorationStyle(_)
+    | PropertyId::TextDecorationColor(_)
+    | PropertyId::TextDecoration(_) => true,
+    _ => false,
   }
 }
 
 #[inline]
 fn is_text_emphasis_property(property_id: &PropertyId) -> bool {
   match property_id {
-    PropertyId::TextEmphasisStyle(_) |
-    PropertyId::TextEmphasisColor(_) |
-    PropertyId::TextEmphasis(_) |
-    PropertyId::TextEmphasisPosition(_) => true,
-    _ => false
+    PropertyId::TextEmphasisStyle(_)
+    | PropertyId::TextEmphasisColor(_)
+    | PropertyId::TextEmphasis(_)
+    | PropertyId::TextEmphasisPosition(_) => true,
+    _ => false,
   }
 }
 

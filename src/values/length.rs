@@ -1,11 +1,11 @@
-use cssparser::*;
-use crate::traits::{Parse, ToCss, TryAdd};
-use crate::printer::Printer;
 use super::calc::Calc;
-use super::percentage::DimensionPercentage;
 use super::number::serialize_number;
+use super::percentage::DimensionPercentage;
 use crate::error::{ParserError, PrinterError};
+use crate::printer::Printer;
+use crate::traits::{Parse, ToCss, TryAdd};
 use const_str;
+use cssparser::*;
 
 /// https://drafts.csswg.org/css-values-4/#typedef-length-percentage
 pub type LengthPercentage = DimensionPercentage<LengthValue>;
@@ -19,10 +19,13 @@ impl LengthPercentage {
     LengthPercentage::Dimension(LengthValue::Px(val))
   }
 
-  pub(crate) fn to_css_unitless<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  pub(crate) fn to_css_unitless<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       DimensionPercentage::Dimension(d) => d.to_css_unitless(dest),
-      _ => self.to_css(dest)
+      _ => self.to_css(dest),
     }
   }
 }
@@ -31,7 +34,7 @@ impl LengthPercentage {
 #[derive(Debug, Clone, PartialEq)]
 pub enum LengthPercentageOrAuto {
   Auto,
-  LengthPercentage(LengthPercentage)
+  LengthPercentage(LengthPercentage),
 }
 
 impl<'i> Parse<'i> for LengthPercentageOrAuto {
@@ -41,7 +44,7 @@ impl<'i> Parse<'i> for LengthPercentageOrAuto {
     }
 
     if let Ok(percent) = input.try_parse(|input| LengthPercentage::parse(input)) {
-      return Ok(LengthPercentageOrAuto::LengthPercentage(percent))
+      return Ok(LengthPercentageOrAuto::LengthPercentage(percent));
     }
 
     Err(input.new_error_for_next_token())
@@ -49,7 +52,10 @@ impl<'i> Parse<'i> for LengthPercentageOrAuto {
 }
 
 impl ToCss for LengthPercentageOrAuto {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     use LengthPercentageOrAuto::*;
     match self {
       Auto => dest.write_str("auto"),
@@ -128,7 +134,7 @@ macro_rules! define_length_units {
 
     impl std::ops::Mul<f32> for LengthValue {
       type Output = Self;
-    
+
       fn mul(self, other: f32) -> LengthValue {
         use LengthValue::*;
         match self {
@@ -238,13 +244,16 @@ define_length_units! {
 }
 
 impl ToCss for LengthValue {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let (value, unit) = self.to_unit_value();
 
     // The unit can be omitted if the value is zero, except inside calc()
     // expressions, where unitless numbers won't be parsed as dimensions.
     if !dest.in_calc && value == 0.0 {
-      return dest.write_char('0')
+      return dest.write_char('0');
     }
 
     serialize_dimension(value, unit, dest)
@@ -252,26 +261,28 @@ impl ToCss for LengthValue {
 }
 
 impl LengthValue {
-  pub(crate) fn to_css_unitless<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  pub(crate) fn to_css_unitless<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       LengthValue::Px(value) => serialize_number(*value, dest),
-      _ => self.to_css(dest)
+      _ => self.to_css(dest),
     }
   }
 }
 
-pub(crate) fn serialize_dimension<W>(value: f32, unit: &str, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+pub(crate) fn serialize_dimension<W>(value: f32, unit: &str, dest: &mut Printer<W>) -> Result<(), PrinterError>
+where
+  W: std::fmt::Write,
+{
   use cssparser::ToCss;
-  let int_value = if value.fract() == 0.0 {
-    Some(value as i32)
-  } else {
-    None
-  };
+  let int_value = if value.fract() == 0.0 { Some(value as i32) } else { None };
   let token = Token::Dimension {
     has_sign: value < 0.0,
     value,
     int_value,
-    unit: CowRcStr::from(unit)
+    unit: CowRcStr::from(unit),
   };
   if value != 0.0 && value.abs() < 1.0 {
     let mut s = String::new();
@@ -299,7 +310,7 @@ impl LengthValue {
       Q(value) => Some(value * PX_PER_Q),
       Pt(value) => Some(value * PX_PER_PT),
       Pc(value) => Some(value * PX_PER_PC),
-      _ => None
+      _ => None,
     }
   }
 }
@@ -307,7 +318,7 @@ impl LengthValue {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Length {
   Value(LengthValue),
-  Calc(Box<Calc<Length>>)
+  Calc(Box<Calc<Length>>),
 }
 
 impl<'i> Parse<'i> for Length {
@@ -324,10 +335,13 @@ impl<'i> Parse<'i> for Length {
 }
 
 impl ToCss for Length {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       Length::Value(a) => a.to_css(dest),
-      Length::Calc(c) => c.to_css(dest)
+      Length::Calc(c) => c.to_css(dest),
     }
   }
 }
@@ -338,7 +352,7 @@ impl std::ops::Mul<f32> for Length {
   fn mul(self, other: f32) -> Length {
     match self {
       Length::Value(a) => Length::Value(a * other),
-      Length::Calc(a) => Length::Calc(Box::new(*a * other))
+      Length::Calc(a) => Length::Calc(Box::new(*a * other)),
     }
   }
 }
@@ -349,7 +363,7 @@ impl std::ops::Add<Length> for Length {
   fn add(self, other: Length) -> Length {
     match self.try_add(&other) {
       Some(r) => r,
-      None => self.add(other)
+      None => self.add(other),
     }
   }
 }
@@ -366,7 +380,7 @@ impl Length {
   pub fn to_px(&self) -> Option<f32> {
     match self {
       Length::Value(a) => a.to_px(),
-      _ => None
+      _ => None,
     }
   }
 
@@ -375,17 +389,17 @@ impl Length {
     let mut b = other;
 
     if a == 0.0 {
-      return b
+      return b;
     }
 
     if b == 0.0 {
-      return a
+      return a;
     }
 
     if a < 0.0 && b > 0.0 {
       std::mem::swap(&mut a, &mut b);
     }
-    
+
     match (a, b) {
       (Length::Calc(a), Length::Calc(b)) => return Length::Calc(Box::new(*a + *b)),
       (Length::Calc(calc), b) => {
@@ -402,7 +416,7 @@ impl Length {
           Length::Calc(Box::new(Calc::Sum(Box::new(a.into()), Box::new((*calc).into()))))
         }
       }
-      (a, b) => Length::Calc(Box::new(Calc::Sum(Box::new(a.into()), Box::new(b.into()))))
+      (a, b) => Length::Calc(Box::new(Calc::Sum(Box::new(a.into()), Box::new(b.into())))),
     }
   }
 }
@@ -416,41 +430,37 @@ impl TryAdd<Length> for Length {
         } else {
           None
         }
+      }
+      (Length::Calc(a), other) => match &**a {
+        Calc::Value(v) => v.try_add(other),
+        Calc::Sum(a, b) => {
+          if let Some(res) = Length::Calc(Box::new(*a.clone())).try_add(other) {
+            return Some(res.add(Length::from(*b.clone())));
+          }
+
+          if let Some(res) = Length::Calc(Box::new(*b.clone())).try_add(other) {
+            return Some(Length::from(*a.clone()).add(res));
+          }
+
+          None
+        }
+        _ => None,
       },
-      (Length::Calc(a), other) => {
-        match &**a {
-          Calc::Value(v) => v.try_add(other),
-          Calc::Sum(a, b) => {
-            if let Some(res) = Length::Calc(Box::new(*a.clone())).try_add(other) {
-              return Some(res.add(Length::from(*b.clone())))
-            }
-    
-            if let Some(res) = Length::Calc(Box::new(*b.clone())).try_add(other) {
-              return Some(Length::from(*a.clone()).add(res))
-            }
-    
-            None
+      (other, Length::Calc(b)) => match &**b {
+        Calc::Value(v) => other.try_add(&*v),
+        Calc::Sum(a, b) => {
+          if let Some(res) = other.try_add(&Length::Calc(Box::new(*a.clone()))) {
+            return Some(res.add(Length::from(*b.clone())));
           }
-          _ => None
-        }
-      }
-      (other, Length::Calc(b)) => {
-        match &**b {
-          Calc::Value(v) => other.try_add(&*v),
-          Calc::Sum(a, b) => {
-            if let Some(res) = other.try_add(&Length::Calc(Box::new(*a.clone()))) {
-              return Some(res.add(Length::from(*b.clone())))
-            }
-    
-            if let Some(res) = other.try_add(&Length::Calc(Box::new(*b.clone()))) {
-              return Some(Length::from(*a.clone()).add(res))
-            }
-    
-            None
+
+          if let Some(res) = other.try_add(&Length::Calc(Box::new(*b.clone()))) {
+            return Some(Length::from(*a.clone()).add(res));
           }
-          _ => None
+
+          None
         }
-      }
+        _ => None,
+      },
     }
   }
 }
@@ -459,7 +469,7 @@ impl std::convert::Into<Calc<Length>> for Length {
   fn into(self) -> Calc<Length> {
     match self {
       Length::Calc(c) => *c,
-      b => Calc::Value(Box::new(b))
+      b => Calc::Value(Box::new(b)),
     }
   }
 }
@@ -474,7 +484,7 @@ impl std::cmp::PartialEq<f32> for Length {
   fn eq(&self, other: &f32) -> bool {
     match self {
       Length::Value(a) => *a == *other,
-      Length::Calc(_) => false
+      Length::Calc(_) => false,
     }
   }
 }
@@ -483,7 +493,7 @@ impl std::cmp::PartialOrd<f32> for Length {
   fn partial_cmp(&self, other: &f32) -> Option<std::cmp::Ordering> {
     match self {
       Length::Value(a) => a.partial_cmp(other),
-      Length::Calc(_) => None
+      Length::Calc(_) => None,
     }
   }
 }
@@ -492,7 +502,7 @@ impl std::cmp::PartialOrd<Length> for Length {
   fn partial_cmp(&self, other: &Length) -> Option<std::cmp::Ordering> {
     match (self, other) {
       (Length::Value(a), Length::Value(b)) => a.partial_cmp(b),
-      _ => None
+      _ => None,
     }
   }
 }
@@ -500,7 +510,7 @@ impl std::cmp::PartialOrd<Length> for Length {
 #[derive(Debug, Clone, PartialEq)]
 pub enum LengthOrNumber {
   Length(Length),
-  Number(f32)
+  Number(f32),
 }
 
 impl Default for LengthOrNumber {
@@ -513,11 +523,11 @@ impl<'i> Parse<'i> for LengthOrNumber {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // Parse number first so unitless numbers are not parsed as lengths.
     if let Ok(number) = input.try_parse(f32::parse) {
-      return Ok(LengthOrNumber::Number(number))
+      return Ok(LengthOrNumber::Number(number));
     }
 
     if let Ok(length) = Length::parse(input) {
-      return Ok(LengthOrNumber::Length(length))
+      return Ok(LengthOrNumber::Length(length));
     }
 
     Err(input.new_error_for_next_token())
@@ -525,10 +535,13 @@ impl<'i> Parse<'i> for LengthOrNumber {
 }
 
 impl ToCss for LengthOrNumber {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       LengthOrNumber::Length(length) => length.to_css(dest),
-      LengthOrNumber::Number(number) => serialize_number(*number, dest)
+      LengthOrNumber::Number(number) => serialize_number(*number, dest),
     }
   }
 }

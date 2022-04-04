@@ -1,13 +1,13 @@
-use crate::targets::Browsers;
-use crate::values::string::CowArcStr;
-use cssparser::*;
-use crate::traits::{Parse, ToCss, FallbackValues};
-use crate::values::color::CssColor;
+use crate::error::{ParserError, PrinterError};
 use crate::macros::{enum_property, shorthand_property};
 use crate::printer::Printer;
-use smallvec::SmallVec;
+use crate::targets::Browsers;
+use crate::traits::{FallbackValues, Parse, ToCss};
+use crate::values::color::CssColor;
+use crate::values::string::CowArcStr;
 use crate::values::url::Url;
-use crate::error::{ParserError, PrinterError};
+use cssparser::*;
+use smallvec::SmallVec;
 
 enum_property! {
   /// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#resize
@@ -25,7 +25,7 @@ enum_property! {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CursorImage<'i> {
   pub url: Url<'i>,
-  pub hotspot: Option<(f32, f32)>
+  pub hotspot: Option<(f32, f32)>,
 }
 
 impl<'i> Parse<'i> for CursorImage<'i> {
@@ -38,15 +38,15 @@ impl<'i> Parse<'i> for CursorImage<'i> {
       None
     };
 
-    Ok(CursorImage {
-      url,
-      hotspot
-    })
+    Ok(CursorImage { url, hotspot })
   }
 }
 
 impl<'i> ToCss for CursorImage<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.url.to_css(dest)?;
 
     if let Some((x, y)) = self.hotspot {
@@ -104,7 +104,7 @@ enum_property! {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Cursor<'i> {
   pub images: SmallVec<[CursorImage<'i>; 1]>,
-  pub keyword: CursorKeyword
+  pub keyword: CursorKeyword,
 }
 
 impl<'i> Parse<'i> for Cursor<'i> {
@@ -120,13 +120,16 @@ impl<'i> Parse<'i> for Cursor<'i> {
 
     Ok(Cursor {
       images,
-      keyword: CursorKeyword::parse(input)?
+      keyword: CursorKeyword::parse(input)?,
     })
   }
 }
 
 impl<'i> ToCss for Cursor<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     for image in &self.images {
       image.to_css(dest)?;
       dest.delim(',', false)?;
@@ -139,7 +142,7 @@ impl<'i> ToCss for Cursor<'i> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ColorOrAuto {
   Auto,
-  Color(CssColor)
+  Color(CssColor),
 }
 
 impl Default for ColorOrAuto {
@@ -151,7 +154,7 @@ impl Default for ColorOrAuto {
 impl<'i> Parse<'i> for ColorOrAuto {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
-      return Ok(ColorOrAuto::Auto)
+      return Ok(ColorOrAuto::Auto);
     }
 
     let color = CssColor::parse(input)?;
@@ -160,10 +163,13 @@ impl<'i> Parse<'i> for ColorOrAuto {
 }
 
 impl ToCss for ColorOrAuto {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       ColorOrAuto::Auto => dest.write_str("auto"),
-      ColorOrAuto::Color(color) => color.to_css(dest)
+      ColorOrAuto::Color(color) => color.to_css(dest),
     }
   }
 }
@@ -171,13 +177,12 @@ impl ToCss for ColorOrAuto {
 impl FallbackValues for ColorOrAuto {
   fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
     match self {
-      ColorOrAuto::Color(color) => {
-        color.get_fallbacks(targets)
-          .into_iter()
-          .map(|color| ColorOrAuto::Color(color))
-          .collect()
-      }
-      ColorOrAuto::Auto => Vec::new()
+      ColorOrAuto::Color(color) => color
+        .get_fallbacks(targets)
+        .into_iter()
+        .map(|color| ColorOrAuto::Color(color))
+        .collect(),
+      ColorOrAuto::Auto => Vec::new(),
     }
   }
 }
@@ -206,13 +211,15 @@ shorthand_property!(Caret {
 
 impl FallbackValues for Caret {
   fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
-   self.color.get_fallbacks(targets)
-    .into_iter()
-    .map(|color| Caret {
-      color,
-      shape: self.shape.clone()
-    })
-    .collect()
+    self
+      .color
+      .get_fallbacks(targets)
+      .into_iter()
+      .map(|color| Caret {
+        color,
+        shape: self.shape.clone(),
+      })
+      .collect()
   }
 }
 
@@ -246,7 +253,7 @@ pub enum Appearance<'i> {
   SliderHorizontal,
   SquareButton,
   Textarea,
-  NonStandard(CowArcStr<'i>)
+  NonStandard(CowArcStr<'i>),
 }
 
 impl<'i> Parse<'i> for Appearance<'i> {
@@ -275,7 +282,10 @@ impl<'i> Parse<'i> for Appearance<'i> {
 }
 
 impl<'i> ToCss for Appearance<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       Appearance::None => dest.write_str("none"),
       Appearance::Auto => dest.write_str("auto"),
@@ -293,7 +303,7 @@ impl<'i> ToCss for Appearance<'i> {
       Appearance::SliderHorizontal => dest.write_str("slider-horizontal"),
       Appearance::SquareButton => dest.write_str("square-button"),
       Appearance::Textarea => dest.write_str("textarea"),
-      Appearance::NonStandard(s) => dest.write_str(&s)
+      Appearance::NonStandard(s) => dest.write_str(&s),
     }
   }
 }
