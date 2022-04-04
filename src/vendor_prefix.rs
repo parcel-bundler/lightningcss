@@ -1,9 +1,9 @@
 #![allow(non_upper_case_globals)]
 
-use bitflags::bitflags;
-use crate::traits::ToCss;
-use crate::printer::Printer;
 use crate::error::PrinterError;
+use crate::printer::Printer;
+use crate::traits::ToCss;
+use bitflags::bitflags;
 
 bitflags! {
   pub struct VendorPrefix: u8 {
@@ -28,19 +28,22 @@ impl VendorPrefix {
       "moz" => VendorPrefix::Moz,
       "ms" => VendorPrefix::Ms,
       "o" => VendorPrefix::O,
-      _ => unreachable!()
+      _ => unreachable!(),
     }
   }
 }
 
 impl ToCss for VendorPrefix {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match *self {
       VendorPrefix::WebKit => dest.write_str("-webkit-"),
       VendorPrefix::Moz => dest.write_str("-moz-"),
       VendorPrefix::Ms => dest.write_str("-ms-"),
       VendorPrefix::O => dest.write_str("-o-"),
-      _ => Ok(())
+      _ => Ok(()),
     }
   }
 }

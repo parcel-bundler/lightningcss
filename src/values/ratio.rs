@@ -1,7 +1,7 @@
-use cssparser::*;
-use crate::traits::{Parse, ToCss};
-use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
+use crate::printer::Printer;
+use crate::traits::{Parse, ToCss};
+use cssparser::*;
 
 /// https://drafts.csswg.org/css-values-4/#ratios
 #[derive(Debug, Clone, PartialEq)]
@@ -30,7 +30,10 @@ impl Ratio {
 }
 
 impl ToCss for Ratio {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.0.to_css(dest)?;
     if self.1 != 1.0 {
       dest.delim('/', true)?;
@@ -42,7 +45,7 @@ impl ToCss for Ratio {
 
 impl std::ops::Add<f32> for Ratio {
   type Output = Self;
-  
+
   fn add(self, other: f32) -> Ratio {
     Ratio(self.0 + other, self.1)
   }

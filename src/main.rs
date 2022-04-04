@@ -1,10 +1,10 @@
 use clap::Parser;
+use parcel_css::bundler::{Bundler, FileProvider};
 use parcel_css::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
-use parcel_css::bundler::{FileProvider, Bundler};
 use parcel_css::targets::Browsers;
+use parcel_sourcemap::SourceMap;
 use serde::Serialize;
 use std::{ffi, fs, io, path, path::Path};
-use parcel_sourcemap::SourceMap;
 
 #[cfg(target_os = "macos")]
 #[global_allocator]
@@ -37,7 +37,7 @@ struct CliArgs {
   #[clap(long)]
   bundle: bool,
   #[clap(short, long)]
-  targets: Vec<String>
+  targets: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -77,21 +77,18 @@ pub fn main() -> Result<(), std::io::Error> {
   } else {
     if let Some(sm) = &mut source_map {
       sm.add_source(&filename);
-      let _ = sm.set_source_content(0, &source);  
+      let _ = sm.set_source_content(0, &source);
     }
-    StyleSheet::parse(
-      filename.into(),
-      &source,
-      options,
-    )
-    .unwrap()
+    StyleSheet::parse(filename.into(), &source, options).unwrap()
   };
 
   let targets = browserslist_to_targets(cli_args.targets).unwrap();
-  stylesheet.minify(MinifyOptions {
-    targets,
-    ..MinifyOptions::default()
-  }).unwrap();
+  stylesheet
+    .minify(MinifyOptions {
+      targets,
+      ..MinifyOptions::default()
+    })
+    .unwrap();
 
   let res = stylesheet
     .to_css(PrinterOptions {
@@ -168,11 +165,11 @@ fn browserslist_to_targets(query: Vec<String>) -> Result<Option<Browsers>, brows
   use browserslist::{resolve, Opts};
 
   if query.is_empty() {
-    return Ok(None)
+    return Ok(None);
   }
 
   let res = resolve(query, &Opts::new())?;
-    
+
   let mut browsers = Browsers::default();
   let mut has_any = false;
   for distrib in res {
@@ -184,7 +181,7 @@ fn browserslist_to_targets(query: Vec<String>) -> Result<Option<Browsers>, brows
             has_any = true;
           }
         }
-      }}
+      }};
     }
 
     match distrib.name() {
@@ -202,7 +199,7 @@ fn browserslist_to_targets(query: Vec<String>) -> Result<Option<Browsers>, brows
   }
 
   if !has_any {
-    return Ok(None)
+    return Ok(None);
   }
 
   Ok(Some(browsers))
@@ -211,16 +208,16 @@ fn browserslist_to_targets(query: Vec<String>) -> Result<Option<Browsers>, brows
 fn parse_version(version: &str) -> Option<u32> {
   let version = version.split('-').next();
   if version.is_none() {
-    return None
+    return None;
   }
 
   let mut version = version.unwrap().split('.');
   let major = version.next().and_then(|v| v.parse::<u32>().ok());
   if let Some(major) = major {
     let minor = version.next().and_then(|v| v.parse::<u32>().ok()).unwrap_or(0);
-    let patch = version.next().and_then(|v| v.parse::<u32>().ok()).unwrap_or(0);  
+    let patch = version.next().and_then(|v| v.parse::<u32>().ok()).unwrap_or(0);
     let v: u32 = (major & 0xff) << 16 | (minor & 0xff) << 8 | (patch & 0xff);
-    return Some(v)
+    return Some(v);
   }
 
   None

@@ -1,29 +1,28 @@
+use crate::compat::Feature;
+use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::logical::LogicalProperty;
 use crate::properties::custom::UnparsedProperty;
-use crate::rules::Location;
-use crate::rules::supports::{SupportsRule, SupportsCondition};
-use crate::rules::{CssRule, CssRuleList, style::StyleRule};
-use parcel_selectors::SelectorList;
-use crate::selector::{SelectorIdent, SelectorString};
-use crate::declaration::{DeclarationBlock, DeclarationList};
-use crate::vendor_prefix::VendorPrefix;
-use crate::compat::Feature;
-use crate::targets::Browsers;
-use parcel_selectors::{
-  parser::{Selector, Component},
-  attr::{AttrSelectorOperator, ParsedCaseSensitivity}
-};
 use crate::properties::{
-  Property,
-  PropertyId,
-  custom::{CustomProperty, TokenList, Token},
+  custom::{CustomProperty, Token, TokenList},
+  Property, PropertyId,
+};
+use crate::rules::supports::{SupportsCondition, SupportsRule};
+use crate::rules::Location;
+use crate::rules::{style::StyleRule, CssRule, CssRuleList};
+use crate::selector::{SelectorIdent, SelectorString};
+use crate::targets::Browsers;
+use crate::vendor_prefix::VendorPrefix;
+use parcel_selectors::SelectorList;
+use parcel_selectors::{
+  attr::{AttrSelectorOperator, ParsedCaseSensitivity},
+  parser::{Component, Selector},
 };
 
 #[derive(Debug)]
 pub(crate) struct SupportsEntry<'i> {
   pub condition: SupportsCondition<'i>,
   pub declarations: Vec<Property<'i>>,
-  pub important_declarations: Vec<Property<'i>>
+  pub important_declarations: Vec<Property<'i>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -31,7 +30,7 @@ pub(crate) enum DeclarationContext {
   None,
   StyleRule,
   Keyframes,
-  StyleAttribute
+  StyleAttribute,
 }
 
 #[derive(Debug)]
@@ -40,7 +39,7 @@ pub(crate) struct PropertyHandlerContext<'i> {
   pub used_logical: bool,
   pub is_important: bool,
   supports: Vec<SupportsEntry<'i>>,
-  pub context: DeclarationContext
+  pub context: DeclarationContext,
 }
 
 impl<'i> PropertyHandlerContext<'i> {
@@ -50,7 +49,7 @@ impl<'i> PropertyHandlerContext<'i> {
       used_logical: false,
       is_important: false,
       supports: Vec::new(),
-      context: DeclarationContext::None
+      context: DeclarationContext::None,
     }
   }
 
@@ -58,7 +57,7 @@ impl<'i> PropertyHandlerContext<'i> {
     // Don't convert logical properties in style attributes because
     // our fallbacks rely on extra rules to define --ltr and --rtl.
     if self.context == DeclarationContext::StyleAttribute {
-      return true
+      return true;
     }
 
     if let Some(targets) = self.targets {
@@ -68,16 +67,29 @@ impl<'i> PropertyHandlerContext<'i> {
     }
   }
 
-  pub fn add_logical_property(&mut self, dest: &mut DeclarationList<'i>, property_id: PropertyId<'i>, ltr: Property<'i>, rtl: Property<'i>) {
+  pub fn add_logical_property(
+    &mut self,
+    dest: &mut DeclarationList<'i>,
+    property_id: PropertyId<'i>,
+    ltr: Property<'i>,
+    rtl: Property<'i>,
+  ) {
     self.used_logical = true;
     dest.push(Property::Logical(LogicalProperty {
       property_id,
       ltr: Some(Box::new(ltr)),
-      rtl: Some(Box::new(rtl))
+      rtl: Some(Box::new(rtl)),
     }));
   }
 
-  pub fn add_inline_logical_properties(&mut self, dest: &mut DeclarationList<'i>, left: PropertyId<'i>, right: PropertyId<'i>, start: Option<Property<'i>>, end: Option<Property<'i>>) {
+  pub fn add_inline_logical_properties(
+    &mut self,
+    dest: &mut DeclarationList<'i>,
+    left: PropertyId<'i>,
+    right: PropertyId<'i>,
+    start: Option<Property<'i>>,
+    end: Option<Property<'i>>,
+  ) {
     self.used_logical = true;
     dest.push(Property::Logical(LogicalProperty {
       property_id: left,
@@ -97,17 +109,15 @@ impl<'i> PropertyHandlerContext<'i> {
     macro_rules! style_rule {
       ($dir: ident, $ltr: expr, $rtl: expr) => {
         dest.0.push(CssRule::Style(StyleRule {
-          selectors: SelectorList(smallvec::smallvec![
-            Selector::from_vec2(vec![
-              Component::AttributeInNoNamespace {
-                local_name: SelectorIdent("dir".into()),
-                operator: AttrSelectorOperator::Equal,
-                value: SelectorString(stringify!($dir).into()),
-                case_sensitivity: ParsedCaseSensitivity::CaseSensitive,
-                never_matches: false
-              }
-            ])
-          ]),
+          selectors: SelectorList(smallvec::smallvec![Selector::from_vec2(vec![
+            Component::AttributeInNoNamespace {
+              local_name: SelectorIdent("dir".into()),
+              operator: AttrSelectorOperator::Equal,
+              value: SelectorString(stringify!($dir).into()),
+              case_sensitivity: ParsedCaseSensitivity::CaseSensitive,
+              never_matches: false
+            }
+          ])]),
           rules: CssRuleList(vec![]),
           vendor_prefix: VendorPrefix::empty(),
           declarations: DeclarationBlock {
@@ -115,19 +125,19 @@ impl<'i> PropertyHandlerContext<'i> {
             declarations: vec![
               Property::Custom(CustomProperty {
                 name: "--ltr".into(),
-                value: TokenList(vec![$ltr.into()])
+                value: TokenList(vec![$ltr.into()]),
               }),
               Property::Custom(CustomProperty {
                 name: "--rtl".into(),
-                value: TokenList(vec![$rtl.into()])
-              })
-            ]
+                value: TokenList(vec![$rtl.into()]),
+              }),
+            ],
           },
           loc: Location {
             source_index: 0,
             line: 0,
-            column: 1
-          }
+            column: 1,
+          },
         }));
       };
     }
@@ -140,7 +150,7 @@ impl<'i> PropertyHandlerContext<'i> {
 
   pub fn add_conditional_property(&mut self, condition: SupportsCondition<'i>, property: Property<'i>) {
     if self.context != DeclarationContext::StyleRule {
-      return
+      return;
     }
 
     if let Some(entry) = self.supports.iter_mut().find(|supports| condition == supports.condition) {
@@ -167,9 +177,9 @@ impl<'i> PropertyHandlerContext<'i> {
 
   pub fn add_unparsed_fallbacks(&mut self, unparsed: &mut UnparsedProperty<'i>) {
     if self.context != DeclarationContext::StyleRule && self.context != DeclarationContext::StyleAttribute {
-      return
+      return;
     }
-    
+
     if let Some(targets) = self.targets {
       let fallbacks = unparsed.value.get_fallbacks(targets);
       for (condition, fallback) in fallbacks {
@@ -177,8 +187,8 @@ impl<'i> PropertyHandlerContext<'i> {
           condition,
           Property::Unparsed(UnparsedProperty {
             property_id: unparsed.property_id.clone(),
-            value: fallback
-          })
+            value: fallback,
+          }),
         );
       }
     }
@@ -186,7 +196,7 @@ impl<'i> PropertyHandlerContext<'i> {
 
   pub fn get_supports_rules(&mut self, style_rule: &StyleRule<'i>) -> Vec<CssRule<'i>> {
     if self.supports.is_empty() {
-      return Vec::new()
+      return Vec::new();
     }
 
     let mut dest = Vec::new();
@@ -194,19 +204,17 @@ impl<'i> PropertyHandlerContext<'i> {
     for entry in supports {
       dest.push(CssRule::Supports(SupportsRule {
         condition: entry.condition,
-        rules: CssRuleList(vec![
-          CssRule::Style(StyleRule {
-            selectors: style_rule.selectors.clone(),
-            vendor_prefix: VendorPrefix::None,
-            declarations: DeclarationBlock {
-              declarations: entry.declarations,
-              important_declarations: entry.important_declarations
-            },
-            rules: CssRuleList(vec![]),
-            loc: style_rule.loc.clone()
-          })
-        ]),
-        loc: style_rule.loc.clone()
+        rules: CssRuleList(vec![CssRule::Style(StyleRule {
+          selectors: style_rule.selectors.clone(),
+          vendor_prefix: VendorPrefix::None,
+          declarations: DeclarationBlock {
+            declarations: entry.declarations,
+            important_declarations: entry.important_declarations,
+          },
+          rules: CssRuleList(vec![]),
+          loc: style_rule.loc.clone(),
+        })]),
+        loc: style_rule.loc.clone(),
       }));
     }
 

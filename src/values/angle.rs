@@ -1,18 +1,18 @@
-use cssparser::*;
-use crate::traits::{Parse, ToCss, TryAdd};
-use crate::printer::Printer;
 use super::calc::Calc;
-use std::f32::consts::PI;
-use super::percentage::DimensionPercentage;
 use super::length::serialize_dimension;
+use super::percentage::DimensionPercentage;
 use crate::error::{ParserError, PrinterError};
+use crate::printer::Printer;
+use crate::traits::{Parse, ToCss, TryAdd};
+use cssparser::*;
+use std::f32::consts::PI;
 
 #[derive(Debug, Clone)]
 pub enum Angle {
   Deg(f32),
   Grad(f32),
   Rad(f32),
-  Turn(f32)
+  Turn(f32),
 }
 
 impl<'i> Parse<'i> for Angle {
@@ -23,7 +23,7 @@ impl<'i> Parse<'i> for Angle {
       Ok(_) => unreachable!(),
       _ => {}
     }
-    
+
     let location = input.current_source_location();
     let token = input.next()?;
     match *token {
@@ -35,14 +35,17 @@ impl<'i> Parse<'i> for Angle {
           "rad" => Ok(Angle::Rad(value)),
           _ => return Err(location.new_unexpected_token_error(token.clone())),
         }
-      },
+      }
       ref token => return Err(location.new_unexpected_token_error(token.clone())),
     }
   }
 }
 
 impl ToCss for Angle {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let (value, unit) = match self {
       Angle::Deg(val) => (*val, "deg"),
       Angle::Grad(val) => (*val, "grad"),
@@ -55,8 +58,8 @@ impl ToCss for Angle {
         } else {
           (*val, "rad")
         }
-      },
-      Angle::Turn(val) => (*val, "turn")
+      }
+      Angle::Turn(val) => (*val, "turn"),
     };
 
     serialize_dimension(value, unit, dest)
@@ -102,7 +105,7 @@ impl std::convert::From<Calc<Angle>> for Angle {
   fn from(calc: Calc<Angle>) -> Angle {
     match calc {
       Calc::Value(v) => *v,
-      _ => unreachable!()
+      _ => unreachable!(),
     }
   }
 }

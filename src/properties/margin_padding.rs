@@ -1,14 +1,10 @@
-use crate::values::{
-  size::Size2D,
-  length::LengthPercentageOrAuto,
-  rect::Rect
-};
-use crate::properties::{Property, PropertyId};
-use crate::declaration::DeclarationList;
-use crate::traits::PropertyHandler;
-use crate::logical::PropertyCategory;
-use crate::context::PropertyHandlerContext;
 use crate::compat::Feature;
+use crate::context::PropertyHandlerContext;
+use crate::declaration::DeclarationList;
+use crate::logical::PropertyCategory;
+use crate::properties::{Property, PropertyId};
+use crate::traits::PropertyHandler;
+use crate::values::{length::LengthPercentageOrAuto, rect::Rect, size::Size2D};
 
 macro_rules! side_handler {
   ($name: ident, $top: ident, $bottom: ident, $left: ident, $right: ident, $block_start: ident, $block_end: ident, $inline_start: ident, $inline_end: ident, $shorthand: ident, $block_shorthand: ident, $inline_shorthand: ident, $logical_shorthand: literal $(, $feature: ident)?) => {
@@ -142,7 +138,7 @@ macro_rules! side_handler {
               if let Some(val) = $start {
                 dest.push($start_prop(val));
               }
-    
+
               if let Some(val) = $end {
                 dest.push($end_prop(val));
               }

@@ -1,16 +1,16 @@
-use crate::rules::import::ImportRule;
-use crate::values::url::Url;
-use serde::Serialize;
-use cssparser::SourceLocation;
-use crate::printer::Printer;
-use crate::traits::ToCss;
 use crate::css_modules::hash;
+use crate::printer::Printer;
+use crate::rules::import::ImportRule;
+use crate::traits::ToCss;
+use crate::values::url::Url;
+use cssparser::SourceLocation;
+use serde::Serialize;
 
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum Dependency {
   Import(ImportDependency),
-  Url(UrlDependency)
+  Url(UrlDependency),
 }
 
 #[derive(Serialize)]
@@ -18,7 +18,7 @@ pub struct ImportDependency {
   pub url: String,
   pub supports: Option<String>,
   pub media: Option<String>,
-  pub loc: SourceRange
+  pub loc: SourceRange,
 }
 
 impl ImportDependency {
@@ -45,7 +45,15 @@ impl ImportDependency {
       url: rule.url.as_ref().to_owned(),
       supports,
       media,
-      loc: SourceRange::new(filename, SourceLocation { line: rule.loc.line, column: rule.loc.column }, 8, rule.url.len() + 2) // TODO: what about @import url(...)?
+      loc: SourceRange::new(
+        filename,
+        SourceLocation {
+          line: rule.loc.line,
+          column: rule.loc.column,
+        },
+        8,
+        rule.url.len() + 2,
+      ), // TODO: what about @import url(...)?
     }
   }
 }
@@ -54,7 +62,7 @@ impl ImportDependency {
 pub struct UrlDependency {
   pub url: String,
   pub placeholder: String,
-  pub loc: SourceRange
+  pub loc: SourceRange,
 }
 
 impl UrlDependency {
@@ -63,7 +71,7 @@ impl UrlDependency {
     UrlDependency {
       url: url.url.to_string(),
       placeholder,
-      loc: SourceRange::new(filename, url.loc, 4, url.url.len())
+      loc: SourceRange::new(filename, url.loc, 4, url.url.len()),
     }
   }
 }
@@ -79,7 +87,7 @@ pub struct SourceRange {
 #[derive(Serialize)]
 pub struct Location {
   pub line: u32,
-  pub column: u32
+  pub column: u32,
 }
 
 impl SourceRange {
@@ -88,12 +96,12 @@ impl SourceRange {
       file_path: filename.into(),
       start: Location {
         line: loc.line + 1,
-        column: loc.column + offset
+        column: loc.column + offset,
       },
       end: Location {
         line: loc.line + 1,
-        column: loc.column + offset + (len as u32) - 1
-      }
+        column: loc.column + offset + (len as u32) - 1,
+      },
     }
   }
 }

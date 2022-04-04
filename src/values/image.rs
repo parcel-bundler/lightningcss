@@ -1,17 +1,17 @@
-use crate::values::string::CowArcStr;
-use cssparser::*;
-use smallvec::SmallVec;
-use crate::dependencies::{UrlDependency, Dependency};
-use crate::vendor_prefix::VendorPrefix;
-use crate::prefixes::{Feature, is_webkit_gradient};
-use crate::targets::Browsers;
-use crate::traits::{Parse, ToCss, FallbackValues};
-use crate::printer::Printer;
 use super::color::ColorFallbackKind;
 use super::gradient::*;
 use super::resolution::Resolution;
-use crate::values::url::Url;
+use crate::dependencies::{Dependency, UrlDependency};
 use crate::error::{ParserError, PrinterError};
+use crate::prefixes::{is_webkit_gradient, Feature};
+use crate::printer::Printer;
+use crate::targets::Browsers;
+use crate::traits::{FallbackValues, Parse, ToCss};
+use crate::values::string::CowArcStr;
+use crate::values::url::Url;
+use crate::vendor_prefix::VendorPrefix;
+use cssparser::*;
+use smallvec::SmallVec;
 
 /// https://www.w3.org/TR/css-images-3/#typedef-image
 #[derive(Debug, Clone, PartialEq)]
@@ -19,7 +19,7 @@ pub enum Image<'i> {
   None,
   Url(Url<'i>),
   Gradient(Box<Gradient>),
-  ImageSet(ImageSet<'i>)
+  ImageSet(ImageSet<'i>),
 }
 
 impl<'i> Default for Image<'i> {
@@ -38,7 +38,7 @@ impl<'i> Image<'i> {
     match self {
       Image::Gradient(a) => a.get_vendor_prefix(),
       Image::ImageSet(a) => a.get_vendor_prefix(),
-      _ => VendorPrefix::empty()
+      _ => VendorPrefix::empty(),
     }
   }
 
@@ -46,7 +46,7 @@ impl<'i> Image<'i> {
     match self {
       Image::Gradient(grad) => grad.get_necessary_prefixes(targets),
       Image::ImageSet(image_set) => image_set.get_necessary_prefixes(targets),
-      _ => VendorPrefix::None
+      _ => VendorPrefix::None,
     }
   }
 
@@ -54,28 +54,28 @@ impl<'i> Image<'i> {
     match self {
       Image::Gradient(grad) => Image::Gradient(Box::new(grad.get_prefixed(prefix))),
       Image::ImageSet(image_set) => Image::ImageSet(image_set.get_prefixed(prefix)),
-      _ => self.clone()
+      _ => self.clone(),
     }
   }
 
   pub fn get_legacy_webkit(&self) -> Result<Image<'i>, ()> {
     match self {
       Image::Gradient(grad) => Ok(Image::Gradient(Box::new(grad.get_legacy_webkit()?))),
-      _ => Ok(self.clone())
+      _ => Ok(self.clone()),
     }
   }
 
   pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
     match self {
       Image::Gradient(grad) => grad.get_necessary_fallbacks(targets),
-      _ => ColorFallbackKind::empty()
+      _ => ColorFallbackKind::empty(),
     }
   }
 
   pub fn get_fallback(&self, kind: ColorFallbackKind) -> Image<'i> {
     match self {
       Image::Gradient(grad) => Image::Gradient(Box::new(grad.get_fallback(kind))),
-      _ => self.clone()
+      _ => self.clone(),
     }
   }
 }
@@ -125,7 +125,10 @@ impl<'i> FallbackValues for Image<'i> {
     let prefix_image = rgb.as_ref().unwrap_or(self);
 
     // Legacy -webkit-gradient()
-    if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) && matches!(prefix_image, Image::Gradient(_)) {
+    if prefixes.contains(VendorPrefix::WebKit)
+      && is_webkit_gradient(targets)
+      && matches!(prefix_image, Image::Gradient(_))
+    {
       if let Ok(legacy) = prefix_image.get_legacy_webkit() {
         res.push(legacy);
       }
@@ -183,25 +186,21 @@ impl<'i, T: ImageFallback<'i>> FallbackValues for SmallVec<[T; 1]> {
 
     // Get RGB fallbacks if needed.
     let rgb: Option<SmallVec<[T; 1]>> = if fallbacks.contains(ColorFallbackKind::RGB) {
-      Some(self
-        .iter()
-        .map(|item| item.get_fallback(ColorFallbackKind::RGB))
-        .collect())
+      Some(self.iter().map(|item| item.get_fallback(ColorFallbackKind::RGB)).collect())
     } else {
       None
     };
 
     // Prefixed properties only support RGB.
     let prefix_images = rgb.as_ref().unwrap_or(&self);
-  
+
     // Legacy -webkit-gradient()
     if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) {
-      let images: SmallVec<[T; 1]> = prefix_images.iter().map(|item| {
-        item
-          .get_image()
-          .get_legacy_webkit()
-          .map(|image| item.with_image(image))
-      }).flatten().collect();
+      let images: SmallVec<[T; 1]> = prefix_images
+        .iter()
+        .map(|item| item.get_image().get_legacy_webkit().map(|image| item.with_image(image)))
+        .flatten()
+        .collect();
       if !images.is_empty() {
         res.push(images)
       }
@@ -211,10 +210,13 @@ impl<'i, T: ImageFallback<'i>> FallbackValues for SmallVec<[T; 1]> {
     macro_rules! prefix {
       ($prefix: ident) => {
         if prefixes.contains(VendorPrefix::$prefix) {
-          let images = prefix_images.iter().map(|item| {
-            let image = item.get_image().get_prefixed(VendorPrefix::$prefix);
-            item.with_image(image)
-          }).collect();
+          let images = prefix_images
+            .iter()
+            .map(|item| {
+              let image = item.get_image().get_prefixed(VendorPrefix::$prefix);
+              item.with_image(image)
+            })
+            .collect();
           res.push(images)
         }
       };
@@ -229,10 +231,7 @@ impl<'i, T: ImageFallback<'i>> FallbackValues for SmallVec<[T; 1]> {
       }
 
       if fallbacks.contains(ColorFallbackKind::P3) {
-        let p3_images = self
-          .iter()
-          .map(|item| item.get_fallback(ColorFallbackKind::P3))
-          .collect();
+        let p3_images = self.iter().map(|item| item.get_fallback(ColorFallbackKind::P3)).collect();
 
         res.push(p3_images)
       }
@@ -257,19 +256,19 @@ impl<'i, T: ImageFallback<'i>> FallbackValues for SmallVec<[T; 1]> {
 impl<'i> Parse<'i> for Image<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
-      return Ok(Image::None)
+      return Ok(Image::None);
     }
-    
+
     if let Ok(url) = input.try_parse(Url::parse) {
-      return Ok(Image::Url(url))
+      return Ok(Image::Url(url));
     }
 
     if let Ok(grad) = input.try_parse(Gradient::parse) {
-      return Ok(Image::Gradient(Box::new(grad)))
+      return Ok(Image::Gradient(Box::new(grad)));
     }
 
     if let Ok(image_set) = input.try_parse(ImageSet::parse) {
-      return Ok(Image::ImageSet(image_set))
+      return Ok(Image::ImageSet(image_set));
     }
 
     Err(input.new_error_for_next_token())
@@ -277,12 +276,15 @@ impl<'i> Parse<'i> for Image<'i> {
 }
 
 impl<'i> ToCss for Image<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       Image::None => dest.write_str("none"),
       Image::Url(url) => url.to_css(dest),
       Image::Gradient(grad) => grad.to_css(dest),
-      Image::ImageSet(image_set) => image_set.to_css(dest)
+      Image::ImageSet(image_set) => image_set.to_css(dest),
     }
   }
 }
@@ -290,7 +292,7 @@ impl<'i> ToCss for Image<'i> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImageSet<'i> {
   pub options: Vec<ImageSetOption<'i>>,
-  pub vendor_prefix: VendorPrefix
+  pub vendor_prefix: VendorPrefix,
 }
 
 impl<'i> ImageSet<'i> {
@@ -309,7 +311,7 @@ impl<'i> ImageSet<'i> {
   pub fn get_prefixed(&self, prefix: VendorPrefix) -> ImageSet<'i> {
     ImageSet {
       options: self.options.clone(),
-      vendor_prefix: prefix
+      vendor_prefix: prefix,
     }
   }
 }
@@ -326,18 +328,16 @@ impl<'i> Parse<'i> for ImageSet<'i> {
       ))
     };
 
-    let options = input.parse_nested_block(|input| {
-      input.parse_comma_separated(ImageSetOption::parse)
-    })?;
-    Ok(ImageSet {
-      options,
-      vendor_prefix
-    })
+    let options = input.parse_nested_block(|input| input.parse_comma_separated(ImageSetOption::parse))?;
+    Ok(ImageSet { options, vendor_prefix })
   }
 }
 
 impl<'i> ToCss for ImageSet<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.vendor_prefix.to_css(dest)?;
     dest.write_str("image-set(")?;
     let mut first = true;
@@ -357,17 +357,14 @@ impl<'i> ToCss for ImageSet<'i> {
 pub struct ImageSetOption<'i> {
   pub image: Image<'i>,
   pub resolution: Resolution,
-  pub file_type: Option<CowArcStr<'i>>
+  pub file_type: Option<CowArcStr<'i>>,
 }
 
 impl<'i> Parse<'i> for ImageSetOption<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let loc = input.current_source_location();
     let image = if let Ok(url) = input.try_parse(|input| input.expect_url_or_string()) {
-      Image::Url(Url {
-        url: url.into(),
-        loc
-      })
+      Image::Url(Url { url: url.into(), loc })
     } else {
       Image::parse(input)?
     };
@@ -381,12 +378,19 @@ impl<'i> Parse<'i> for ImageSetOption<'i> {
       (resolution, file_type)
     };
 
-    Ok(ImageSetOption { image, resolution, file_type: file_type.map(|x| x.into()) })
+    Ok(ImageSetOption {
+      image,
+      resolution,
+      file_type: file_type.map(|x| x.into()),
+    })
   }
 }
 
 impl<'i> ImageSetOption<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>, is_prefixed: bool) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>, is_prefixed: bool) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match &self.image {
       // Prefixed syntax didn't allow strings, only url()
       Image::Url(url) if !is_prefixed => {
@@ -404,8 +408,8 @@ impl<'i> ImageSetOption<'i> {
         } else {
           serialize_string(&url.url, dest)?;
         }
-      },
-      _ => self.image.to_css(dest)?
+      }
+      _ => self.image.to_css(dest)?,
     }
 
     if self.resolution != Resolution::Dppx(1.0) {

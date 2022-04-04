@@ -1,21 +1,21 @@
-use cssparser::*;
-use crate::traits::{Parse, ToCss};
-use crate::printer::Printer;
 use super::calc::Calc;
 use crate::error::{ParserError, PrinterError};
+use crate::printer::Printer;
+use crate::traits::{Parse, ToCss};
+use cssparser::*;
 
 /// https://www.w3.org/TR/css3-values/#time-value
 #[derive(Debug, Clone, PartialEq)]
 pub enum Time {
   Seconds(f32),
-  Milliseconds(f32)
+  Milliseconds(f32),
 }
 
 impl Time {
   pub fn to_ms(&self) -> f32 {
     match self {
       Time::Seconds(s) => s * 1000.0,
-      Time::Milliseconds(ms) => *ms
+      Time::Milliseconds(ms) => *ms,
     }
   }
 }
@@ -44,7 +44,10 @@ impl<'i> Parse<'i> for Time {
 }
 
 impl ToCss for Time {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     // 0.1s is shorter than 100ms
     // anything smaller is longer
     match self {
@@ -80,7 +83,7 @@ impl std::convert::From<Calc<Time>> for Time {
   fn from(calc: Calc<Time>) -> Time {
     match calc {
       Calc::Value(v) => *v,
-      _ => unreachable!()
+      _ => unreachable!(),
     }
   }
 }

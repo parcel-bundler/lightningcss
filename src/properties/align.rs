@@ -1,23 +1,23 @@
-use cssparser::*;
-use crate::macros::*;
-use crate::values::length::LengthPercentage;
-use crate::traits::{Parse, ToCss, PropertyHandler, FromStandard};
+use super::flex::{BoxAlign, BoxPack, FlexAlign, FlexItemAlign, FlexLinePack, FlexPack};
 use super::{Property, PropertyId};
-use crate::vendor_prefix::VendorPrefix;
-use crate::declaration::DeclarationList;
-use super::flex::{BoxAlign, FlexLinePack, BoxPack, FlexPack, FlexAlign, FlexItemAlign};
-use crate::targets::Browsers;
-use crate::prefixes::{Feature, is_flex_2009};
-use crate::printer::Printer;
 use crate::compat;
-use crate::error::{ParserError, PrinterError};
 use crate::context::PropertyHandlerContext;
+use crate::declaration::DeclarationList;
+use crate::error::{ParserError, PrinterError};
+use crate::macros::*;
+use crate::prefixes::{is_flex_2009, Feature};
+use crate::printer::Printer;
+use crate::targets::Browsers;
+use crate::traits::{FromStandard, Parse, PropertyHandler, ToCss};
+use crate::values::length::LengthPercentage;
+use crate::vendor_prefix::VendorPrefix;
+use cssparser::*;
 
 /// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#typedef-baseline-position
 #[derive(Debug, Clone, PartialEq)]
 pub enum BaselinePosition {
   First,
-  Last
+  Last,
 }
 
 impl<'i> Parse<'i> for BaselinePosition {
@@ -42,10 +42,13 @@ impl<'i> Parse<'i> for BaselinePosition {
 }
 
 impl ToCss for BaselinePosition {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       BaselinePosition::First => dest.write_str("baseline"),
-      BaselinePosition::Last => dest.write_str("last baseline")
+      BaselinePosition::Last => dest.write_str("last baseline"),
     }
   }
 }
@@ -85,21 +88,21 @@ pub enum AlignContent {
   Normal,
   BaselinePosition(BaselinePosition),
   ContentDistribution(ContentDistribution),
-  ContentPosition(Option<OverflowPosition>, ContentPosition)
+  ContentPosition(Option<OverflowPosition>, ContentPosition),
 }
 
 impl<'i> Parse<'i> for AlignContent {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
-      return Ok(AlignContent::Normal)
+      return Ok(AlignContent::Normal);
     }
 
     if let Ok(val) = input.try_parse(BaselinePosition::parse) {
-      return Ok(AlignContent::BaselinePosition(val))
+      return Ok(AlignContent::BaselinePosition(val));
     }
 
     if let Ok(val) = input.try_parse(ContentDistribution::parse) {
-      return Ok(AlignContent::ContentDistribution(val))
+      return Ok(AlignContent::ContentDistribution(val));
     }
 
     let overflow_position = input.try_parse(OverflowPosition::parse).ok();
@@ -109,7 +112,10 @@ impl<'i> Parse<'i> for AlignContent {
 }
 
 impl ToCss for AlignContent {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       AlignContent::Normal => dest.write_str("normal"),
       AlignContent::BaselinePosition(val) => val.to_css(dest),
@@ -133,22 +139,22 @@ pub enum JustifyContent {
   ContentDistribution(ContentDistribution),
   ContentPosition(Option<OverflowPosition>, ContentPosition),
   Left(Option<OverflowPosition>),
-  Right(Option<OverflowPosition>)
+  Right(Option<OverflowPosition>),
 }
 
 impl<'i> Parse<'i> for JustifyContent {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
-      return Ok(JustifyContent::Normal)
+      return Ok(JustifyContent::Normal);
     }
 
     if let Ok(val) = input.try_parse(ContentDistribution::parse) {
-      return Ok(JustifyContent::ContentDistribution(val))
+      return Ok(JustifyContent::ContentDistribution(val));
     }
 
     let overflow_position = input.try_parse(OverflowPosition::parse).ok();
     if let Ok(content_position) = input.try_parse(ContentPosition::parse) {
-      return Ok(JustifyContent::ContentPosition(overflow_position, content_position))
+      return Ok(JustifyContent::ContentPosition(overflow_position, content_position));
     }
 
     let location = input.current_source_location();
@@ -164,7 +170,10 @@ impl<'i> Parse<'i> for JustifyContent {
 }
 
 impl ToCss for JustifyContent {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       JustifyContent::Normal => dest.write_str("normal"),
       JustifyContent::ContentDistribution(val) => val.to_css(dest),
@@ -200,7 +209,7 @@ impl ToCss for JustifyContent {
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlaceContent {
   pub align: AlignContent,
-  pub justify: JustifyContent
+  pub justify: JustifyContent,
 }
 
 impl<'i> Parse<'i> for PlaceContent {
@@ -209,14 +218,14 @@ impl<'i> Parse<'i> for PlaceContent {
     let justify = match input.try_parse(JustifyContent::parse) {
       Ok(j) => j,
       Err(_) => {
-        // The second value is assigned to justify-content; if omitted, it is copied 
-        // from the first value, unless that value is a <baseline-position> in which 
+        // The second value is assigned to justify-content; if omitted, it is copied
+        // from the first value, unless that value is a <baseline-position> in which
         // case it is defaulted to start.
         match align {
           AlignContent::BaselinePosition(_) => JustifyContent::ContentPosition(None, ContentPosition::Start),
           AlignContent::Normal => JustifyContent::Normal,
           AlignContent::ContentDistribution(c) => JustifyContent::ContentDistribution(c.clone()),
-          AlignContent::ContentPosition(o, c) => JustifyContent::ContentPosition(o.clone(), c.clone())
+          AlignContent::ContentPosition(o, c) => JustifyContent::ContentPosition(o.clone(), c.clone()),
         }
       }
     };
@@ -226,13 +235,20 @@ impl<'i> Parse<'i> for PlaceContent {
 }
 
 impl ToCss for PlaceContent {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.align.to_css(dest)?;
     let is_equal = match self.justify {
       JustifyContent::Normal if self.align == AlignContent::Normal => true,
-      JustifyContent::ContentDistribution(d) if matches!(self.align, AlignContent::ContentDistribution(d2) if d == d2) => true,
-      JustifyContent::ContentPosition(o, c) if matches!(self.align, AlignContent::ContentPosition(o2, c2) if o == o2 && c == c2) => true,
-      _ => false
+      JustifyContent::ContentDistribution(d) if matches!(self.align, AlignContent::ContentDistribution(d2) if d == d2) => {
+        true
+      }
+      JustifyContent::ContentPosition(o, c) if matches!(self.align, AlignContent::ContentPosition(o2, c2) if o == o2 && c == c2) => {
+        true
+      }
+      _ => false,
     };
 
     if !is_equal {
@@ -264,25 +280,25 @@ pub enum AlignSelf {
   Normal,
   Stretch,
   BaselinePosition(BaselinePosition),
-  SelfPosition(Option<OverflowPosition>, SelfPosition)
+  SelfPosition(Option<OverflowPosition>, SelfPosition),
 }
 
 impl<'i> Parse<'i> for AlignSelf {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
-      return Ok(AlignSelf::Auto)
+      return Ok(AlignSelf::Auto);
     }
 
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
-      return Ok(AlignSelf::Normal)
+      return Ok(AlignSelf::Normal);
     }
 
     if input.try_parse(|input| input.expect_ident_matching("stretch")).is_ok() {
-      return Ok(AlignSelf::Stretch)
+      return Ok(AlignSelf::Stretch);
     }
 
     if let Ok(val) = input.try_parse(BaselinePosition::parse) {
-      return Ok(AlignSelf::BaselinePosition(val))
+      return Ok(AlignSelf::BaselinePosition(val));
     }
 
     let overflow_position = input.try_parse(OverflowPosition::parse).ok();
@@ -292,7 +308,10 @@ impl<'i> Parse<'i> for AlignSelf {
 }
 
 impl ToCss for AlignSelf {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       AlignSelf::Auto => dest.write_str("auto"),
       AlignSelf::Normal => dest.write_str("normal"),
@@ -319,30 +338,30 @@ pub enum JustifySelf {
   BaselinePosition(BaselinePosition),
   SelfPosition(Option<OverflowPosition>, SelfPosition),
   Left(Option<OverflowPosition>),
-  Right(Option<OverflowPosition>)
+  Right(Option<OverflowPosition>),
 }
 
 impl<'i> Parse<'i> for JustifySelf {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
-      return Ok(JustifySelf::Auto)
+      return Ok(JustifySelf::Auto);
     }
 
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
-      return Ok(JustifySelf::Normal)
+      return Ok(JustifySelf::Normal);
     }
 
     if input.try_parse(|input| input.expect_ident_matching("stretch")).is_ok() {
-      return Ok(JustifySelf::Stretch)
+      return Ok(JustifySelf::Stretch);
     }
 
     if let Ok(val) = input.try_parse(BaselinePosition::parse) {
-      return Ok(JustifySelf::BaselinePosition(val))
+      return Ok(JustifySelf::BaselinePosition(val));
     }
 
     let overflow_position = input.try_parse(OverflowPosition::parse).ok();
     if let Ok(self_position) = input.try_parse(SelfPosition::parse) {
-      return Ok(JustifySelf::SelfPosition(overflow_position, self_position))
+      return Ok(JustifySelf::SelfPosition(overflow_position, self_position));
     }
 
     let location = input.current_source_location();
@@ -358,7 +377,10 @@ impl<'i> Parse<'i> for JustifySelf {
 }
 
 impl ToCss for JustifySelf {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       JustifySelf::Auto => dest.write_str("auto"),
       JustifySelf::Normal => dest.write_str("normal"),
@@ -396,7 +418,7 @@ impl ToCss for JustifySelf {
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlaceSelf {
   pub align: AlignSelf,
-  pub justify: JustifySelf
+  pub justify: JustifySelf,
 }
 
 impl<'i> Parse<'i> for PlaceSelf {
@@ -411,7 +433,7 @@ impl<'i> Parse<'i> for PlaceSelf {
           AlignSelf::Normal => JustifySelf::Normal,
           AlignSelf::Stretch => JustifySelf::Stretch,
           AlignSelf::BaselinePosition(p) => JustifySelf::BaselinePosition(p.clone()),
-          AlignSelf::SelfPosition(o, c) => JustifySelf::SelfPosition(o.clone(), c.clone())
+          AlignSelf::SelfPosition(o, c) => JustifySelf::SelfPosition(o.clone(), c.clone()),
         }
       }
     };
@@ -421,15 +443,22 @@ impl<'i> Parse<'i> for PlaceSelf {
 }
 
 impl ToCss for PlaceSelf {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.align.to_css(dest)?;
     let is_equal = match &self.justify {
       JustifySelf::Auto => true,
       JustifySelf::Normal => self.align == AlignSelf::Normal,
       JustifySelf::Stretch => self.align == AlignSelf::Normal,
-      JustifySelf::BaselinePosition(p) if matches!(&self.align, AlignSelf::BaselinePosition(p2) if p == p2) => true,
-      JustifySelf::SelfPosition(o, c) if matches!(&self.align, AlignSelf::SelfPosition(o2, c2) if o == o2 && c == c2) => true,
-      _ => false
+      JustifySelf::BaselinePosition(p) if matches!(&self.align, AlignSelf::BaselinePosition(p2) if p == p2) => {
+        true
+      }
+      JustifySelf::SelfPosition(o, c) if matches!(&self.align, AlignSelf::SelfPosition(o2, c2) if o == o2 && c == c2) => {
+        true
+      }
+      _ => false,
     };
 
     if !is_equal {
@@ -447,21 +476,21 @@ pub enum AlignItems {
   Normal,
   Stretch,
   BaselinePosition(BaselinePosition),
-  SelfPosition(Option<OverflowPosition>, SelfPosition)
+  SelfPosition(Option<OverflowPosition>, SelfPosition),
 }
 
 impl<'i> Parse<'i> for AlignItems {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
-      return Ok(AlignItems::Normal)
+      return Ok(AlignItems::Normal);
     }
 
     if input.try_parse(|input| input.expect_ident_matching("stretch")).is_ok() {
-      return Ok(AlignItems::Stretch)
+      return Ok(AlignItems::Stretch);
     }
 
     if let Ok(val) = input.try_parse(BaselinePosition::parse) {
-      return Ok(AlignItems::BaselinePosition(val))
+      return Ok(AlignItems::BaselinePosition(val));
     }
 
     let overflow_position = input.try_parse(OverflowPosition::parse).ok();
@@ -471,7 +500,10 @@ impl<'i> Parse<'i> for AlignItems {
 }
 
 impl ToCss for AlignItems {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       AlignItems::Normal => dest.write_str("normal"),
       AlignItems::Stretch => dest.write_str("stretch"),
@@ -492,7 +524,7 @@ impl ToCss for AlignItems {
 pub enum LegacyJustify {
   Left,
   Right,
-  Center
+  Center,
 }
 
 impl<'i> Parse<'i> for LegacyJustify {
@@ -532,12 +564,15 @@ impl<'i> Parse<'i> for LegacyJustify {
 }
 
 impl ToCss for LegacyJustify {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     dest.write_str("legacy ")?;
     match self {
       LegacyJustify::Left => dest.write_str("left"),
       LegacyJustify::Right => dest.write_str("right"),
-      LegacyJustify::Center => dest.write_str("center")
+      LegacyJustify::Center => dest.write_str("center"),
     }
   }
 }
@@ -551,30 +586,30 @@ pub enum JustifyItems {
   SelfPosition(Option<OverflowPosition>, SelfPosition),
   Left(Option<OverflowPosition>),
   Right(Option<OverflowPosition>),
-  Legacy(LegacyJustify)
+  Legacy(LegacyJustify),
 }
 
 impl<'i> Parse<'i> for JustifyItems {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
-      return Ok(JustifyItems::Normal)
+      return Ok(JustifyItems::Normal);
     }
 
     if input.try_parse(|input| input.expect_ident_matching("stretch")).is_ok() {
-      return Ok(JustifyItems::Stretch)
+      return Ok(JustifyItems::Stretch);
     }
 
     if let Ok(val) = input.try_parse(BaselinePosition::parse) {
-      return Ok(JustifyItems::BaselinePosition(val))
+      return Ok(JustifyItems::BaselinePosition(val));
     }
 
     if let Ok(val) = input.try_parse(LegacyJustify::parse) {
-      return Ok(JustifyItems::Legacy(val))
+      return Ok(JustifyItems::Legacy(val));
     }
 
     let overflow_position = input.try_parse(OverflowPosition::parse).ok();
     if let Ok(self_position) = input.try_parse(SelfPosition::parse) {
-      return Ok(JustifyItems::SelfPosition(overflow_position, self_position))
+      return Ok(JustifyItems::SelfPosition(overflow_position, self_position));
     }
 
     let location = input.current_source_location();
@@ -590,7 +625,10 @@ impl<'i> Parse<'i> for JustifyItems {
 }
 
 impl ToCss for JustifyItems {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       JustifyItems::Normal => dest.write_str("normal"),
       JustifyItems::Stretch => dest.write_str("stretch"),
@@ -628,7 +666,7 @@ impl ToCss for JustifyItems {
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlaceItems {
   pub align: AlignItems,
-  pub justify: JustifyItems
+  pub justify: JustifyItems,
 }
 
 impl<'i> Parse<'i> for PlaceItems {
@@ -642,7 +680,7 @@ impl<'i> Parse<'i> for PlaceItems {
           AlignItems::Normal => JustifyItems::Normal,
           AlignItems::Stretch => JustifyItems::Stretch,
           AlignItems::BaselinePosition(p) => JustifyItems::BaselinePosition(p.clone()),
-          AlignItems::SelfPosition(o, c) => JustifyItems::SelfPosition(o.clone(), c.clone())
+          AlignItems::SelfPosition(o, c) => JustifyItems::SelfPosition(o.clone(), c.clone()),
         }
       }
     };
@@ -652,14 +690,21 @@ impl<'i> Parse<'i> for PlaceItems {
 }
 
 impl ToCss for PlaceItems {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.align.to_css(dest)?;
     let is_equal = match &self.justify {
       JustifyItems::Normal => self.align == AlignItems::Normal,
       JustifyItems::Stretch => self.align == AlignItems::Normal,
-      JustifyItems::BaselinePosition(p) if matches!(&self.align, AlignItems::BaselinePosition(p2) if p == p2) => true,
-      JustifyItems::SelfPosition(o, c) if matches!(&self.align, AlignItems::SelfPosition(o2, c2) if o == o2 && c == c2) => true,
-      _ => false
+      JustifyItems::BaselinePosition(p) if matches!(&self.align, AlignItems::BaselinePosition(p2) if p == p2) => {
+        true
+      }
+      JustifyItems::SelfPosition(o, c) if matches!(&self.align, AlignItems::SelfPosition(o2, c2) if o == o2 && c == c2) => {
+        true
+      }
+      _ => false,
     };
 
     if !is_equal {
@@ -675,13 +720,13 @@ impl ToCss for PlaceItems {
 #[derive(Debug, Clone, PartialEq)]
 pub enum GapValue {
   Normal,
-  LengthPercentage(LengthPercentage)
+  LengthPercentage(LengthPercentage),
 }
 
 impl<'i> Parse<'i> for GapValue {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
-      return Ok(GapValue::Normal)
+      return Ok(GapValue::Normal);
     }
 
     let val = LengthPercentage::parse(input)?;
@@ -690,10 +735,13 @@ impl<'i> Parse<'i> for GapValue {
 }
 
 impl ToCss for GapValue {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       GapValue::Normal => dest.write_str("normal"),
-      GapValue::LengthPercentage(lp) => lp.to_css(dest)
+      GapValue::LengthPercentage(lp) => lp.to_css(dest),
     }
   }
 }
@@ -702,7 +750,7 @@ impl ToCss for GapValue {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Gap {
   pub row: GapValue,
-  pub column: GapValue
+  pub column: GapValue,
 }
 
 impl<'i> Parse<'i> for Gap {
@@ -714,7 +762,10 @@ impl<'i> Parse<'i> for Gap {
 }
 
 impl ToCss for Gap {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.row.to_css(dest)?;
     if self.column != self.row {
       dest.write_str(" ")?;
@@ -741,7 +792,7 @@ pub(crate) struct AlignHandler {
   justify_items: Option<JustifyItems>,
   row_gap: Option<GapValue>,
   column_gap: Option<GapValue>,
-  has_any: bool
+  has_any: bool,
 }
 
 impl AlignHandler {
@@ -754,7 +805,12 @@ impl AlignHandler {
 }
 
 impl<'i> PropertyHandler<'i> for AlignHandler {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) -> bool {
+  fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    dest: &mut DeclarationList<'i>,
+    _: &mut PropertyHandlerContext<'i>,
+  ) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -788,13 +844,13 @@ impl<'i> PropertyHandler<'i> for AlignHandler {
       AlignContent(val, vp) => {
         self.flex_line_pack = None;
         property!(align_content, val, vp);
-      },
+      }
       FlexLinePack(val, vp) => property!(flex_line_pack, val, vp),
       JustifyContent(val, vp) => {
         self.box_pack = None;
         self.flex_pack = None;
         property!(justify_content, val, vp);
-      },
+      }
       BoxPack(val, vp) => property!(box_pack, val, vp),
       FlexPack(val, vp) => property!(flex_pack, val, vp),
       PlaceContent(val) => {
@@ -809,12 +865,12 @@ impl<'i> PropertyHandler<'i> for AlignHandler {
       AlignSelf(val, vp) => {
         self.flex_item_align = None;
         property!(align_self, val, vp);
-      },
+      }
       FlexItemAlign(val, vp) => property!(flex_item_align, val, vp),
       JustifySelf(val) => {
         self.justify_self = Some(val.clone());
         self.has_any = true;
-      },
+      }
       PlaceSelf(val) => {
         self.flex_item_align = None;
         property!(align_self, &val.align, &VendorPrefix::None);
@@ -824,13 +880,13 @@ impl<'i> PropertyHandler<'i> for AlignHandler {
         self.box_align = None;
         self.flex_align = None;
         property!(align_items, val, vp);
-      },
+      }
       BoxAlign(val, vp) => property!(box_align, val, vp),
       FlexAlign(val, vp) => property!(flex_align, val, vp),
       JustifyItems(val) => {
         self.justify_items = Some(val.clone());
         self.has_any = true;
-      },
+      }
       PlaceItems(val) => {
         self.box_align = None;
         self.flex_align = None;
@@ -840,11 +896,11 @@ impl<'i> PropertyHandler<'i> for AlignHandler {
       RowGap(val) => {
         self.row_gap = Some(val.clone());
         self.has_any = true;
-      },
+      }
       ColumnGap(val) => {
         self.column_gap = Some(val.clone());
         self.has_any = true;
-      },
+      }
       Gap(val) => {
         self.row_gap = Some(val.row.clone());
         self.column_gap = Some(val.column.clone());
@@ -854,7 +910,7 @@ impl<'i> PropertyHandler<'i> for AlignHandler {
         self.flush(dest);
         dest.push(property.clone()) // TODO: prefix?
       }
-      _ => return false
+      _ => return false,
     }
 
     true
@@ -868,7 +924,7 @@ impl<'i> PropertyHandler<'i> for AlignHandler {
 impl AlignHandler {
   fn flush(&mut self, dest: &mut DeclarationList) {
     if !self.has_any {
-      return
+      return;
     }
 
     self.has_any = false;
@@ -915,7 +971,7 @@ impl AlignHandler {
         }
       };
     }
-    
+
     macro_rules! legacy_property {
       ($prop: ident, $key: ident, $( $prop_2009: ident )?, $prop_2012: ident) => {
         if let Some((val, prefix)) = &$key {
@@ -940,7 +996,7 @@ impl AlignHandler {
                   }
                 }
               )?
-              
+
               // 2012 spec, implemented by microsoft.
               if prefix.contains(VendorPrefix::Ms) {
                 if let Some(v) = $prop_2012::from_standard(&val) {
@@ -1000,13 +1056,13 @@ impl AlignHandler {
                 dest.push(Property::$justify_prop(justify.clone(), *justify_prefix))
               }
             )?
-            
+
             // Add shorthand.
             dest.push(Property::$prop($prop {
               align: align.clone(),
               justify: justify.clone()
             }));
-    
+
             $align = None;
             $justify = None;
           }
@@ -1027,7 +1083,13 @@ impl AlignHandler {
     legacy_property!(AlignContent, align_content, , FlexLinePack);
     legacy_property!(JustifyContent, justify_content, BoxPack, FlexPack);
     if self.targets.is_none() || compat::Feature::PlaceContent.is_compatible(self.targets.unwrap()) {
-      shorthand!(PlaceContent, AlignContent, align_content, justify_content, JustifyContent);
+      shorthand!(
+        PlaceContent,
+        AlignContent,
+        align_content,
+        justify_content,
+        JustifyContent
+      );
     }
     standard_property!(AlignContent, align_content);
     standard_property!(JustifyContent, justify_content);
@@ -1049,7 +1111,7 @@ impl AlignHandler {
     if row_gap.is_some() && column_gap.is_some() {
       dest.push(Property::Gap(Gap {
         row: row_gap.unwrap(),
-        column: column_gap.unwrap()
+        column: column_gap.unwrap(),
       }))
     } else {
       if let Some(gap) = row_gap {
@@ -1066,24 +1128,24 @@ impl AlignHandler {
 #[inline]
 fn is_align_property(property_id: &PropertyId) -> bool {
   match property_id {
-    PropertyId::AlignContent(_) |
-    PropertyId::FlexLinePack(_) |
-    PropertyId::JustifyContent(_) |
-    PropertyId::BoxPack(_) |
-    PropertyId::FlexPack(_) |
-    PropertyId::PlaceContent |
-    PropertyId::AlignSelf(_) |
-    PropertyId::FlexItemAlign(_) |
-    PropertyId::JustifySelf |
-    PropertyId::PlaceSelf |
-    PropertyId::AlignItems(_) |
-    PropertyId::BoxAlign(_) |
-    PropertyId::FlexAlign(_) |
-    PropertyId::JustifyItems |
-    PropertyId::PlaceItems |
-    PropertyId::RowGap |
-    PropertyId::ColumnGap |
-    PropertyId::Gap => true,
-    _ => false
+    PropertyId::AlignContent(_)
+    | PropertyId::FlexLinePack(_)
+    | PropertyId::JustifyContent(_)
+    | PropertyId::BoxPack(_)
+    | PropertyId::FlexPack(_)
+    | PropertyId::PlaceContent
+    | PropertyId::AlignSelf(_)
+    | PropertyId::FlexItemAlign(_)
+    | PropertyId::JustifySelf
+    | PropertyId::PlaceSelf
+    | PropertyId::AlignItems(_)
+    | PropertyId::BoxAlign(_)
+    | PropertyId::FlexAlign(_)
+    | PropertyId::JustifyItems
+    | PropertyId::PlaceItems
+    | PropertyId::RowGap
+    | PropertyId::ColumnGap
+    | PropertyId::Gap => true,
+    _ => false,
   }
 }

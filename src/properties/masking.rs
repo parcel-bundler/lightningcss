@@ -1,27 +1,22 @@
-use cssparser::*;
-use itertools::izip;
-use smallvec::SmallVec;
+use super::background::{BackgroundRepeat, BackgroundSize};
+use super::border_image::{BorderImage, BorderImageRepeat, BorderImageSideWidth, BorderImageSlice};
+use super::PropertyId;
 use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
-use crate::prefixes::Feature;
-use crate::properties::Property;
-use crate::traits::{Parse, ToCss, PropertyHandler, FallbackValues};
-use crate::printer::Printer;
-use crate::macros::enum_property;
 use crate::error::{ParserError, PrinterError};
+use crate::macros::enum_property;
+use crate::prefixes::Feature;
+use crate::printer::Printer;
+use crate::properties::Property;
+use crate::traits::{FallbackValues, Parse, PropertyHandler, ToCss};
 use crate::values::image::ImageFallback;
 use crate::values::length::LengthOrNumber;
 use crate::values::rect::Rect;
-use crate::values::{
-  image::Image,
-  position::Position,
-  url::Url,
-  shape::BasicShape,
-};
+use crate::values::{image::Image, position::Position, shape::BasicShape, url::Url};
 use crate::vendor_prefix::VendorPrefix;
-use super::PropertyId;
-use super::background::{BackgroundSize, BackgroundRepeat};
-use super::border_image::{BorderImage, BorderImageSlice, BorderImageSideWidth, BorderImageRepeat};
+use cssparser::*;
+use itertools::izip;
+use smallvec::SmallVec;
 
 enum_property! {
   /// https://www.w3.org/TR/css-masking-1/#the-mask-type
@@ -60,7 +55,7 @@ impl From<MaskMode> for WebKitMaskSourceType {
     match mode {
       MaskMode::Luminance => WebKitMaskSourceType::Luminance,
       MaskMode::Alpha => WebKitMaskSourceType::Alpha,
-      MaskMode::MatchSource => WebKitMaskSourceType::Auto
+      MaskMode::MatchSource => WebKitMaskSourceType::Auto,
     }
   }
 }
@@ -88,13 +83,13 @@ impl Default for GeometryBox {
 #[derive(Debug, Clone, PartialEq)]
 pub enum MaskClip {
   GeometryBox(GeometryBox),
-  NoClip
+  NoClip,
 }
 
 impl<'i> Parse<'i> for MaskClip {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(b) = input.try_parse(GeometryBox::parse) {
-      return Ok(MaskClip::GeometryBox(b))
+      return Ok(MaskClip::GeometryBox(b));
     }
 
     input.expect_ident_matching("no-clip")?;
@@ -103,10 +98,13 @@ impl<'i> Parse<'i> for MaskClip {
 }
 
 impl ToCss for MaskClip {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       MaskClip::GeometryBox(b) => b.to_css(dest),
-      MaskClip::NoClip => dest.write_str("no-clip")
+      MaskClip::NoClip => dest.write_str("no-clip"),
     }
   }
 }
@@ -156,7 +154,7 @@ impl From<MaskComposite> for WebKitMaskComposite {
       MaskComposite::Add => WebKitMaskComposite::SourceOver,
       MaskComposite::Subtract => WebKitMaskComposite::SourceOut,
       MaskComposite::Intersect => WebKitMaskComposite::SourceIn,
-      MaskComposite::Exclude => WebKitMaskComposite::Xor
+      MaskComposite::Exclude => WebKitMaskComposite::Xor,
     }
   }
 }
@@ -171,7 +169,7 @@ pub struct Mask<'i> {
   pub clip: MaskClip,
   pub origin: GeometryBox,
   pub composite: MaskComposite,
-  pub mode: MaskMode
+  pub mode: MaskMode,
 }
 
 impl<'i> Parse<'i> for Mask<'i> {
@@ -196,10 +194,12 @@ impl<'i> Parse<'i> for Mask<'i> {
       if position.is_none() {
         if let Ok(value) = input.try_parse(Position::parse) {
           position = Some(value);
-          size = input.try_parse(|input| {
-            input.expect_delim('/')?;
-            BackgroundSize::parse(input)
-          }).ok();
+          size = input
+            .try_parse(|input| {
+              input.expect_delim('/')?;
+              BackgroundSize::parse(input)
+            })
+            .ok();
           continue;
         }
       }
@@ -239,7 +239,7 @@ impl<'i> Parse<'i> for Mask<'i> {
         }
       }
 
-      break
+      break;
     }
 
     if clip.is_none() {
@@ -256,13 +256,16 @@ impl<'i> Parse<'i> for Mask<'i> {
       origin: origin.unwrap_or(GeometryBox::BorderBox),
       clip: clip.unwrap_or(GeometryBox::BorderBox.into()),
       composite: composite.unwrap_or(MaskComposite::Add),
-      mode: mode.unwrap_or(MaskMode::MatchSource)
+      mode: mode.unwrap_or(MaskMode::MatchSource),
     })
   }
 }
 
 impl<'i> ToCss for Mask<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.image.to_css(dest)?;
 
     if self.position != Position::default() || self.size != BackgroundSize::default() {
@@ -313,10 +316,7 @@ impl<'i> ImageFallback<'i> for Mask<'i> {
 
   #[inline]
   fn with_image(&self, image: Image<'i>) -> Self {
-    Mask {
-      image,
-      ..self.clone()
-    }
+    Mask { image, ..self.clone() }
   }
 }
 
@@ -326,25 +326,25 @@ pub enum ClipPath<'i> {
   None,
   Url(Url<'i>),
   Shape(Box<BasicShape>, GeometryBox),
-  Box(GeometryBox)
+  Box(GeometryBox),
 }
 
 impl<'i> Parse<'i> for ClipPath<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(url) = input.try_parse(Url::parse) {
-      return Ok(ClipPath::Url(url))
+      return Ok(ClipPath::Url(url));
     }
 
     if let Ok(shape) = input.try_parse(BasicShape::parse) {
       let b = input.try_parse(GeometryBox::parse).unwrap_or_default();
-      return Ok(ClipPath::Shape(Box::new(shape), b))
+      return Ok(ClipPath::Shape(Box::new(shape), b));
     }
 
     if let Ok(b) = input.try_parse(GeometryBox::parse) {
       if let Ok(shape) = input.try_parse(BasicShape::parse) {
-        return Ok(ClipPath::Shape(Box::new(shape), b))
+        return Ok(ClipPath::Shape(Box::new(shape), b));
       }
-      return Ok(ClipPath::Box(b))
+      return Ok(ClipPath::Box(b));
     }
 
     input.expect_ident_matching("none")?;
@@ -353,7 +353,10 @@ impl<'i> Parse<'i> for ClipPath<'i> {
 }
 
 impl<'i> ToCss for ClipPath<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       ClipPath::None => dest.write_str("none"),
       ClipPath::Url(url) => url.to_css(dest),
@@ -365,7 +368,7 @@ impl<'i> ToCss for ClipPath<'i> {
         }
         Ok(())
       }
-      ClipPath::Box(b) => b.to_css(dest)
+      ClipPath::Box(b) => b.to_css(dest),
     }
   }
 }
@@ -388,7 +391,7 @@ impl Default for MaskBorderMode {
 #[derive(Debug, Clone, PartialEq)]
 pub struct MaskBorder<'i> {
   pub border_image: BorderImage<'i>,
-  pub mode: MaskBorderMode
+  pub mode: MaskBorderMode,
 }
 
 impl<'i> Parse<'i> for MaskBorder<'i> {
@@ -398,7 +401,7 @@ impl<'i> Parse<'i> for MaskBorder<'i> {
       if mode.is_none() {
         if let Ok(value) = input.try_parse(MaskBorderMode::parse) {
           mode = Some(value);
-          return true
+          return true;
         }
       }
       false
@@ -407,7 +410,7 @@ impl<'i> Parse<'i> for MaskBorder<'i> {
     if border_image.is_ok() || mode.is_some() {
       Ok(MaskBorder {
         border_image: border_image.unwrap_or_default(),
-        mode: mode.unwrap_or_default()
+        mode: mode.unwrap_or_default(),
       })
     } else {
       Err(input.new_custom_error(ParserError::InvalidDeclaration))
@@ -416,7 +419,10 @@ impl<'i> Parse<'i> for MaskBorder<'i> {
 }
 
 impl<'i> ToCss for MaskBorder<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.border_image.to_css(dest)?;
     if self.mode != MaskBorderMode::default() {
       dest.write_char(' ')?;
@@ -442,11 +448,16 @@ pub(crate) struct MaskHandler<'i> {
   border_width: Option<(Rect<BorderImageSideWidth>, VendorPrefix)>,
   border_outset: Option<(Rect<LengthOrNumber>, VendorPrefix)>,
   border_repeat: Option<(BorderImageRepeat, VendorPrefix)>,
-  has_any: bool
+  has_any: bool,
 }
 
 impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
+  fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    dest: &mut DeclarationList<'i>,
+    context: &mut PropertyHandlerContext<'i>,
+  ) -> bool {
     macro_rules! maybe_flush {
       ($prop: ident, $val: expr, $vp: expr) => {{
         // If two vendor prefixes for the same property have different
@@ -496,9 +507,9 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
         property!(border_width, &width, &$vp);
         property!(border_outset, &outset, &$vp);
         property!(border_repeat, &repeat, &$vp);
-      }
+      };
     }
-    
+
     match property {
       Property::MaskImage(val, vp) => property!(images, val, vp),
       Property::MaskPosition(val, vp) => property!(positions, val, vp),
@@ -582,7 +593,7 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
         context.add_unparsed_fallbacks(&mut val);
         dest.push(Property::Unparsed(val));
       }
-      _ => return false
+      _ => return false,
     }
 
     self.has_any = true;
@@ -591,7 +602,7 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
 
   fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
     if !self.has_any {
-      return
+      return;
     }
 
     self.has_any = false;
@@ -612,24 +623,59 @@ impl<'i> MaskHandler<'i> {
     let mut composites = std::mem::take(&mut self.composites);
     let mut modes = std::mem::take(&mut self.modes);
 
-    if let (Some((images, images_vp)), Some((positions, positions_vp)), Some((sizes, sizes_vp)), Some((repeats, repeats_vp)), Some((clips, clips_vp)), Some((origins, origins_vp)), Some(composites_val), Some(mode_vals)) = (&mut images, &mut positions, &mut sizes, &mut repeats, &mut clips, &mut origins, &mut composites, &mut modes) {
+    if let (
+      Some((images, images_vp)),
+      Some((positions, positions_vp)),
+      Some((sizes, sizes_vp)),
+      Some((repeats, repeats_vp)),
+      Some((clips, clips_vp)),
+      Some((origins, origins_vp)),
+      Some(composites_val),
+      Some(mode_vals),
+    ) = (
+      &mut images,
+      &mut positions,
+      &mut sizes,
+      &mut repeats,
+      &mut clips,
+      &mut origins,
+      &mut composites,
+      &mut modes,
+    ) {
       // Only use shorthand syntax if the number of masks matches on all properties.
       let len = images.len();
       let intersection = *images_vp & *positions_vp & *sizes_vp & *repeats_vp & *clips_vp & *origins_vp;
-      if !intersection.is_empty() && positions.len() == len && sizes.len() == len && repeats.len() == len && clips.len() == len && origins.len() == len && composites_val.len() == len && mode_vals.len() == len {
-        let mut masks: SmallVec<[Mask<'i>; 1]> = izip!(images.drain(..), positions.drain(..), sizes.drain(..), repeats.drain(..), clips.drain(..), origins.drain(..), composites_val.drain(..), mode_vals.drain(..)).map(|(image, position, size, repeat, clip, origin, composite, mode)| {
-          Mask {
-            image,
-            position,
-            size,
-            repeat,
-            clip,
-            origin,
-            composite,
-            mode
-          }
-        }).collect();
-        
+      if !intersection.is_empty()
+        && positions.len() == len
+        && sizes.len() == len
+        && repeats.len() == len
+        && clips.len() == len
+        && origins.len() == len
+        && composites_val.len() == len
+        && mode_vals.len() == len
+      {
+        let mut masks: SmallVec<[Mask<'i>; 1]> = izip!(
+          images.drain(..),
+          positions.drain(..),
+          sizes.drain(..),
+          repeats.drain(..),
+          clips.drain(..),
+          origins.drain(..),
+          composites_val.drain(..),
+          mode_vals.drain(..)
+        )
+        .map(|(image, position, size, repeat, clip, origin, composite, mode)| Mask {
+          image,
+          position,
+          size,
+          repeat,
+          clip,
+          origin,
+          composite,
+          mode,
+        })
+        .collect();
+
         let mut prefix = intersection;
         if prefix.contains(VendorPrefix::None) {
           if let Some(targets) = context.targets {
@@ -642,14 +688,22 @@ impl<'i> MaskHandler<'i> {
             // Match prefix of fallback. e.g. -webkit-linear-gradient
             // can only be used in -webkit-mask-image.
             // However, if mask-image is unprefixed, gradients can still be.
-            let mut p = fallback.iter().fold(VendorPrefix::empty(), |p, mask| p | mask.image.get_vendor_prefix()) - VendorPrefix::None & prefix;
+            let mut p = fallback
+              .iter()
+              .fold(VendorPrefix::empty(), |p, mask| p | mask.image.get_vendor_prefix())
+              - VendorPrefix::None
+              & prefix;
             if p.is_empty() {
               p = prefix;
             }
             self.flush_mask_shorthand(fallback, p, dest);
           }
 
-          let p = masks.iter().fold(VendorPrefix::empty(), |p, mask| p | mask.image.get_vendor_prefix()) - VendorPrefix::None & prefix;
+          let p = masks
+            .iter()
+            .fold(VendorPrefix::empty(), |p, mask| p | mask.image.get_vendor_prefix())
+            - VendorPrefix::None
+            & prefix;
           if !p.is_empty() {
             prefix = p;
           }
@@ -729,9 +783,11 @@ impl<'i> MaskHandler<'i> {
       };
 
       if prefix.contains(VendorPrefix::WebKit) {
-        dest.push(Property::WebKitMaskComposite(composites.iter().map(|c| (*c).into()).collect()));
+        dest.push(Property::WebKitMaskComposite(
+          composites.iter().map(|c| (*c).into()).collect(),
+        ));
       }
-      
+
       dest.push(Property::MaskComposite(composites))
     }
 
@@ -743,15 +799,27 @@ impl<'i> MaskHandler<'i> {
       };
 
       if prefix.contains(VendorPrefix::WebKit) {
-        dest.push(Property::WebKitMaskSourceType(modes.iter().map(|c| (*c).into()).collect(), VendorPrefix::WebKit));
+        dest.push(Property::WebKitMaskSourceType(
+          modes.iter().map(|c| (*c).into()).collect(),
+          VendorPrefix::WebKit,
+        ));
       }
 
       dest.push(Property::MaskMode(modes))
     }
   }
 
-  fn flush_mask_shorthand(&self, masks: SmallVec<[Mask<'i>; 1]>, prefix: VendorPrefix, dest: &mut DeclarationList<'i>) {
-    if prefix.contains(VendorPrefix::WebKit) && masks.iter().any(|mask| mask.composite != MaskComposite::default() || mask.mode != MaskMode::default()) {
+  fn flush_mask_shorthand(
+    &self,
+    masks: SmallVec<[Mask<'i>; 1]>,
+    prefix: VendorPrefix,
+    dest: &mut DeclarationList<'i>,
+  ) {
+    if prefix.contains(VendorPrefix::WebKit)
+      && masks
+        .iter()
+        .any(|mask| mask.composite != MaskComposite::default() || mask.mode != MaskMode::default())
+    {
       // Prefixed shorthand syntax did not support mask-composite or mask-mode. These map to different webkit-specific properties.
       // -webkit-mask-composite uses a different syntax than mask-composite.
       // -webkit-mask-source-type is equivalent to mask-mode, but only supported in Safari, not Chrome.
@@ -773,7 +841,7 @@ impl<'i> MaskHandler<'i> {
         }
         modes.push(mode.into());
       }
-      
+
       dest.push(Property::Mask(webkit, VendorPrefix::WebKit));
       if needs_composites {
         dest.push(Property::WebKitMaskComposite(composites));
@@ -781,7 +849,7 @@ impl<'i> MaskHandler<'i> {
       if needs_modes {
         dest.push(Property::WebKitMaskSourceType(modes, VendorPrefix::WebKit));
       }
-      
+
       let prefix = prefix - VendorPrefix::WebKit;
       if !prefix.is_empty() {
         dest.push(Property::Mask(masks, prefix));
@@ -799,7 +867,14 @@ impl<'i> MaskHandler<'i> {
     let mut repeat = std::mem::take(&mut self.border_repeat);
     let mut mode = std::mem::take(&mut self.border_mode);
 
-    if let (Some((source, source_vp)), Some((slice, slice_vp)), Some((width, width_vp)), Some((outset, outset_vp)), Some((repeat, repeat_vp))) = (&mut source, &mut slice, &mut width, &mut outset, &mut repeat) {      
+    if let (
+      Some((source, source_vp)),
+      Some((slice, slice_vp)),
+      Some((width, width_vp)),
+      Some((outset, outset_vp)),
+      Some((repeat, repeat_vp)),
+    ) = (&mut source, &mut slice, &mut width, &mut outset, &mut repeat)
+    {
       let intersection = *source_vp & *slice_vp & *width_vp & *outset_vp & *repeat_vp;
       if !intersection.is_empty() && (!intersection.contains(VendorPrefix::None) || mode.is_some()) {
         let mut border_image = BorderImage {
@@ -807,7 +882,7 @@ impl<'i> MaskHandler<'i> {
           slice: slice.clone(),
           width: width.clone(),
           outset: outset.clone(),
-          repeat: repeat.clone()
+          repeat: repeat.clone(),
         };
 
         let mut prefix = intersection;
@@ -833,7 +908,7 @@ impl<'i> MaskHandler<'i> {
             if p.contains(VendorPrefix::None) {
               dest.push(Property::MaskBorder(MaskBorder {
                 border_image: fallback.clone(),
-                mode: mode.unwrap().clone()
+                mode: mode.unwrap().clone(),
               }))
             }
           }
@@ -851,7 +926,7 @@ impl<'i> MaskHandler<'i> {
         if prefix.contains(VendorPrefix::None) {
           dest.push(Property::MaskBorder(MaskBorder {
             border_image: border_image.clone(),
-            mode: mode.unwrap()
+            mode: mode.unwrap(),
           }));
 
           mode = None;
@@ -875,7 +950,10 @@ impl<'i> MaskHandler<'i> {
         let fallbacks = source.get_fallbacks(targets);
         for fallback in fallbacks {
           if prefix.contains(VendorPrefix::WebKit) {
-            dest.push(Property::WebKitMaskBoxImageSource(fallback.clone(), VendorPrefix::WebKit));
+            dest.push(Property::WebKitMaskBoxImageSource(
+              fallback.clone(),
+              VendorPrefix::WebKit,
+            ));
           }
 
           if prefix.contains(VendorPrefix::None) {
@@ -910,7 +988,7 @@ impl<'i> MaskHandler<'i> {
             dest.push(Property::$prop(val));
           }
         }
-      }
+      };
     }
 
     prop!(slice, MaskBorderSlice, WebKitMaskBoxImageSlice);
@@ -927,30 +1005,30 @@ impl<'i> MaskHandler<'i> {
 #[inline]
 fn is_mask_property(property_id: &PropertyId) -> bool {
   match property_id {
-    PropertyId::MaskImage(_) |
-    PropertyId::MaskPosition(_) |
-    PropertyId::MaskSize(_) |
-    PropertyId::MaskRepeat(_) |
-    PropertyId::MaskClip(_) |
-    PropertyId::MaskOrigin(_) |
-    PropertyId::MaskComposite |
-    PropertyId::MaskMode |
-    PropertyId::Mask(_) => true,
-    _ => false
+    PropertyId::MaskImage(_)
+    | PropertyId::MaskPosition(_)
+    | PropertyId::MaskSize(_)
+    | PropertyId::MaskRepeat(_)
+    | PropertyId::MaskClip(_)
+    | PropertyId::MaskOrigin(_)
+    | PropertyId::MaskComposite
+    | PropertyId::MaskMode
+    | PropertyId::Mask(_) => true,
+    _ => false,
   }
 }
 
 #[inline]
- fn is_mask_border_property(property_id: &PropertyId) -> bool {
+fn is_mask_border_property(property_id: &PropertyId) -> bool {
   match property_id {
-    PropertyId::MaskBorderSource |
-    PropertyId::MaskBorderSlice |
-    PropertyId::MaskBorderWidth |
-    PropertyId::MaskBorderOutset |
-    PropertyId::MaskBorderRepeat |
-    PropertyId::MaskBorderMode |
-    PropertyId::MaskBorder => true,
-    _ => false
+    PropertyId::MaskBorderSource
+    | PropertyId::MaskBorderSlice
+    | PropertyId::MaskBorderWidth
+    | PropertyId::MaskBorderOutset
+    | PropertyId::MaskBorderRepeat
+    | PropertyId::MaskBorderMode
+    | PropertyId::MaskBorder => true,
+    _ => false,
   }
 }
 
@@ -965,6 +1043,6 @@ pub(crate) fn get_webkit_mask_property(property_id: &PropertyId) -> Option<Prope
     PropertyId::MaskBorder => PropertyId::WebKitMaskBoxImage(VendorPrefix::WebKit),
     PropertyId::MaskComposite => PropertyId::WebKitMaskComposite,
     PropertyId::MaskMode => PropertyId::WebKitMaskSourceType(VendorPrefix::WebKit),
-    _ => return None
+    _ => return None,
   })
 }

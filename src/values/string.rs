@@ -1,22 +1,22 @@
 use cssparser::CowRcStr;
 use serde::{Serialize, Serializer};
-use std::marker::PhantomData;
-use std::rc::Rc;
-use std::sync::Arc;
-use std::slice;
-use std::str;
-use std::ops::Deref;
 use std::borrow::Borrow;
-use std::hash;
 use std::cmp;
 use std::fmt;
+use std::hash;
+use std::marker::PhantomData;
+use std::ops::Deref;
+use std::rc::Rc;
+use std::slice;
+use std::str;
+use std::sync::Arc;
 
 // We cannot store CowRcStr from cssparser directly because it is not threadsafe (due to Rc).
 // CowArcStr is exactly the same, but uses Arc instead of Rc. We could use Cow<str> instead,
 // but real-world benchmarks show a performance regression, likely due to the larger memory
 // footprint.
 //
-// In order to convert between CowRcStr and CowArcStr without cloning, we use some unsafe 
+// In order to convert between CowRcStr and CowArcStr without cloning, we use some unsafe
 // tricks to access the internal fields. LocalCowRcStr must be exactly the same as CowRcStr
 // so we can transmutate between them.
 struct LocalCowRcStr<'a> {
@@ -57,7 +57,7 @@ impl<'a> From<&CowRcStr<'a>> for CowArcStr<'a> {
           local.borrowed_len_or_max,
         ))
       };
-  
+
       CowArcStr::from(s)
     }
   }

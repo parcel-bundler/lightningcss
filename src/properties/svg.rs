@@ -1,11 +1,11 @@
-use cssparser::*;
-use crate::targets::Browsers;
-use crate::traits::{Parse, ToCss, FallbackValues};
-use crate::printer::Printer;
-use crate::values::length::LengthPercentage;
-use crate::macros::enum_property;
 use crate::error::{ParserError, PrinterError};
-use crate::values::{url::Url, color::CssColor};
+use crate::macros::enum_property;
+use crate::printer::Printer;
+use crate::targets::Browsers;
+use crate::traits::{FallbackValues, Parse, ToCss};
+use crate::values::length::LengthPercentage;
+use crate::values::{color::CssColor, url::Url};
+use cssparser::*;
 
 /// https://www.w3.org/TR/SVG2/painting.html#SpecifyingPaint
 #[derive(Debug, Clone, PartialEq)]
@@ -14,24 +14,24 @@ pub enum SVGPaint<'i> {
   Url(Url<'i>, Option<SVGPaintFallback>),
   Color(CssColor),
   ContextFill,
-  ContextStroke
+  ContextStroke,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SVGPaintFallback {
   None,
-  Color(CssColor)
+  Color(CssColor),
 }
 
 impl<'i> Parse<'i> for SVGPaint<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(url) = input.try_parse(Url::parse) {
       let fallback = input.try_parse(SVGPaintFallback::parse).ok();
-      return Ok(SVGPaint::Url(url, fallback))
+      return Ok(SVGPaint::Url(url, fallback));
     }
 
     if let Ok(color) = input.try_parse(CssColor::parse) {
-      return Ok(SVGPaint::Color(color))
+      return Ok(SVGPaint::Color(color));
     }
 
     let location = input.current_source_location();
@@ -48,7 +48,10 @@ impl<'i> Parse<'i> for SVGPaint<'i> {
 }
 
 impl<'i> ToCss for SVGPaint<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       SVGPaint::None => dest.write_str("none"),
       SVGPaint::Url(url, fallback) => {
@@ -61,7 +64,7 @@ impl<'i> ToCss for SVGPaint<'i> {
       }
       SVGPaint::Color(color) => color.to_css(dest),
       SVGPaint::ContextFill => dest.write_str("context-fill"),
-      SVGPaint::ContextStroke => dest.write_str("context-stroke")
+      SVGPaint::ContextStroke => dest.write_str("context-stroke"),
     }
   }
 }
@@ -69,7 +72,7 @@ impl<'i> ToCss for SVGPaint<'i> {
 impl<'i> Parse<'i> for SVGPaintFallback {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
-      return Ok(SVGPaintFallback::None)
+      return Ok(SVGPaintFallback::None);
     }
 
     Ok(SVGPaintFallback::Color(CssColor::parse(input)?))
@@ -77,10 +80,13 @@ impl<'i> Parse<'i> for SVGPaintFallback {
 }
 
 impl ToCss for SVGPaintFallback {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       SVGPaintFallback::None => dest.write_str("none"),
-      SVGPaintFallback::Color(color) => color.to_css(dest)
+      SVGPaintFallback::Color(color) => color.to_css(dest),
     }
   }
 }
@@ -88,19 +94,17 @@ impl ToCss for SVGPaintFallback {
 impl<'i> FallbackValues for SVGPaint<'i> {
   fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
     match self {
-      SVGPaint::Color(color) => {
-        color.get_fallbacks(targets)
-          .into_iter()
-          .map(|color| SVGPaint::Color(color))
-          .collect()
-      }
-      SVGPaint::Url(url, Some(SVGPaintFallback::Color(color))) => {
-        color.get_fallbacks(targets)
-          .into_iter()
-          .map(|color| SVGPaint::Url(url.clone(), Some(SVGPaintFallback::Color(color))))
-          .collect()
-      }
-      _ => Vec::new()
+      SVGPaint::Color(color) => color
+        .get_fallbacks(targets)
+        .into_iter()
+        .map(|color| SVGPaint::Color(color))
+        .collect(),
+      SVGPaint::Url(url, Some(SVGPaintFallback::Color(color))) => color
+        .get_fallbacks(targets)
+        .into_iter()
+        .map(|color| SVGPaint::Url(url.clone(), Some(SVGPaintFallback::Color(color))))
+        .collect(),
+      _ => Vec::new(),
     }
   }
 }
@@ -127,13 +131,13 @@ enum_property! {
 #[derive(Debug, Clone, PartialEq)]
 pub enum StrokeDasharray {
   None,
-  Values(Vec<LengthPercentage>)
+  Values(Vec<LengthPercentage>),
 }
 
 impl<'i> Parse<'i> for StrokeDasharray {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
-      return Ok(StrokeDasharray::None)
+      return Ok(StrokeDasharray::None);
     }
 
     input.skip_whitespace();
@@ -156,7 +160,10 @@ impl<'i> Parse<'i> for StrokeDasharray {
 }
 
 impl ToCss for StrokeDasharray {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       StrokeDasharray::None => dest.write_str("none"),
       StrokeDasharray::Values(values) => {
@@ -179,13 +186,13 @@ impl ToCss for StrokeDasharray {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Marker<'i> {
   None,
-  Url(Url<'i>)
+  Url(Url<'i>),
 }
 
 impl<'i> Parse<'i> for Marker<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(url) = input.try_parse(Url::parse) {
-      return Ok(Marker::Url(url))
+      return Ok(Marker::Url(url));
     }
 
     input.expect_ident_matching("none")?;
@@ -194,10 +201,13 @@ impl<'i> Parse<'i> for Marker<'i> {
 }
 
 impl<'i> ToCss for Marker<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       Marker::None => dest.write_str("none"),
-      Marker::Url(url) => url.to_css(dest)
+      Marker::Url(url) => url.to_css(dest),
     }
   }
 }

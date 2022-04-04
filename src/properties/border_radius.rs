@@ -1,24 +1,24 @@
-use crate::values::length::*;
-use crate::values::size::Size2D;
-use cssparser::*;
-use crate::traits::{Parse, ToCss, PropertyHandler};
-use crate::targets::Browsers;
-use crate::prefixes::Feature;
-use crate::properties::{Property, PropertyId, VendorPrefix};
+use crate::compat;
+use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
-use crate::values::rect::Rect;
-use crate::printer::Printer;
 use crate::error::{ParserError, PrinterError};
 use crate::logical::PropertyCategory;
-use crate::context::PropertyHandlerContext;
-use crate::compat;
+use crate::prefixes::Feature;
+use crate::printer::Printer;
+use crate::properties::{Property, PropertyId, VendorPrefix};
+use crate::targets::Browsers;
+use crate::traits::{Parse, PropertyHandler, ToCss};
+use crate::values::length::*;
+use crate::values::rect::Rect;
+use crate::values::size::Size2D;
+use cssparser::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BorderRadius {
   pub top_left: Size2D<LengthPercentage>,
   pub top_right: Size2D<LengthPercentage>,
   pub bottom_left: Size2D<LengthPercentage>,
-  pub bottom_right: Size2D<LengthPercentage>
+  pub bottom_right: Size2D<LengthPercentage>,
 }
 
 impl Default for BorderRadius {
@@ -28,7 +28,7 @@ impl Default for BorderRadius {
       top_left: zero.clone(),
       top_right: zero.clone(),
       bottom_left: zero.clone(),
-      bottom_right: zero
+      bottom_right: zero,
     }
   }
 }
@@ -46,15 +46,28 @@ impl<'i> Parse<'i> for BorderRadius {
       top_left: Size2D(widths.0, heights.0),
       top_right: Size2D(widths.1, heights.1),
       bottom_left: Size2D(widths.2, heights.2),
-      bottom_right: Size2D(widths.3, heights.3)
+      bottom_right: Size2D(widths.3, heights.3),
     })
   }
 }
 
 impl ToCss for BorderRadius {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
-    let widths = Rect::new(&self.top_left.0, &self.top_right.0, &self.bottom_left.0, &self.bottom_right.0);
-    let heights = Rect::new(&self.top_left.1, &self.top_right.1, &self.bottom_left.1, &self.bottom_right.1);
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    let widths = Rect::new(
+      &self.top_left.0,
+      &self.top_right.0,
+      &self.bottom_left.0,
+      &self.bottom_right.0,
+    );
+    let heights = Rect::new(
+      &self.top_left.1,
+      &self.top_right.1,
+      &self.bottom_left.1,
+      &self.bottom_right.1,
+    );
 
     widths.to_css(dest)?;
     if widths != heights {
@@ -78,7 +91,7 @@ pub(crate) struct BorderRadiusHandler<'i> {
   end_start: Option<Property<'i>>,
   end_end: Option<Property<'i>>,
   category: PropertyCategory,
-  has_any: bool
+  has_any: bool,
 }
 
 impl<'i> BorderRadiusHandler<'i> {
@@ -91,7 +104,12 @@ impl<'i> BorderRadiusHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
+  fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    dest: &mut DeclarationList<'i>,
+    context: &mut PropertyHandlerContext<'i>,
+  ) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -172,11 +190,13 @@ impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
           PropertyId::BorderEndEndRadius => logical_property!(end_end),
           _ => {
             self.flush(dest, context);
-            dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::BorderRadius)));
+            dest.push(Property::Unparsed(
+              val.get_prefixed(self.targets, Feature::BorderRadius),
+            ));
           }
         }
       }
-      _ => return false
+      _ => return false,
     }
 
     true
@@ -190,7 +210,7 @@ impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
 impl<'i> BorderRadiusHandler<'i> {
   fn flush(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
     if !self.has_any {
-      return
+      return;
     }
 
     self.has_any = false;
@@ -204,7 +224,13 @@ impl<'i> BorderRadiusHandler<'i> {
     let end_start = std::mem::take(&mut self.end_start);
     let end_end = std::mem::take(&mut self.end_end);
 
-    if let (Some((top_left, tl_prefix)), Some((top_right, tr_prefix)), Some((bottom_left, bl_prefix)), Some((bottom_right, br_prefix))) = (&mut top_left, &mut top_right, &mut bottom_left, &mut bottom_right) {
+    if let (
+      Some((top_left, tl_prefix)),
+      Some((top_right, tr_prefix)),
+      Some((bottom_left, bl_prefix)),
+      Some((bottom_right, br_prefix)),
+    ) = (&mut top_left, &mut top_right, &mut bottom_left, &mut bottom_right)
+    {
       let intersection = *tl_prefix & *tr_prefix & *bl_prefix & *br_prefix;
       if !intersection.is_empty() {
         let mut prefix = intersection;
@@ -213,12 +239,15 @@ impl<'i> BorderRadiusHandler<'i> {
             prefix = Feature::BorderRadius.prefixes_for(targets)
           }
         }
-        dest.push(Property::BorderRadius(BorderRadius {
-          top_left: top_left.clone(),
-          top_right: top_right.clone(),
-          bottom_left: bottom_left.clone(),
-          bottom_right: bottom_right.clone(),
-        }, prefix));
+        dest.push(Property::BorderRadius(
+          BorderRadius {
+            top_left: top_left.clone(),
+            top_right: top_right.clone(),
+            bottom_left: bottom_left.clone(),
+            bottom_right: bottom_right.clone(),
+          },
+          prefix,
+        ));
         tl_prefix.remove(intersection);
         tr_prefix.remove(intersection);
         bl_prefix.remove(intersection);
@@ -264,7 +293,7 @@ impl<'i> BorderRadiusHandler<'i> {
             PropertyId::$ltr(vp),
             PropertyId::$rtl(vp),
             $key,
-            $opposite_key
+            $opposite_key,
           );
         }
       };
@@ -274,34 +303,48 @@ impl<'i> BorderRadiusHandler<'i> {
     single_property!(BorderTopRightRadius, top_right);
     single_property!(BorderBottomLeftRadius, bottom_left);
     single_property!(BorderBottomRightRadius, bottom_right);
-    logical_property!(BorderStartStartRadius, BorderStartEndRadius, start_start, start_end, BorderTopLeftRadius, BorderTopRightRadius);
-    logical_property!(BorderEndStartRadius, BorderEndEndRadius, end_start, end_end, BorderBottomLeftRadius, BorderBottomRightRadius);
+    logical_property!(
+      BorderStartStartRadius,
+      BorderStartEndRadius,
+      start_start,
+      start_end,
+      BorderTopLeftRadius,
+      BorderTopRightRadius
+    );
+    logical_property!(
+      BorderEndStartRadius,
+      BorderEndEndRadius,
+      end_start,
+      end_end,
+      BorderBottomLeftRadius,
+      BorderBottomRightRadius
+    );
   }
 }
 
 #[inline]
 fn is_border_radius_property(property_id: &PropertyId) -> bool {
   if is_logical_border_radius_property(property_id) {
-    return true
+    return true;
   }
 
   match property_id {
-    PropertyId::BorderTopLeftRadius(_) |
-    PropertyId::BorderTopRightRadius(_) |
-    PropertyId::BorderBottomLeftRadius(_) |
-    PropertyId::BorderBottomRightRadius(_) |
-    PropertyId::BorderRadius(_) => true,
-    _ => false
+    PropertyId::BorderTopLeftRadius(_)
+    | PropertyId::BorderTopRightRadius(_)
+    | PropertyId::BorderBottomLeftRadius(_)
+    | PropertyId::BorderBottomRightRadius(_)
+    | PropertyId::BorderRadius(_) => true,
+    _ => false,
   }
 }
 
 #[inline]
 fn is_logical_border_radius_property(property_id: &PropertyId) -> bool {
   match property_id {
-    PropertyId::BorderStartStartRadius |
-    PropertyId::BorderStartEndRadius |
-    PropertyId::BorderEndStartRadius | 
-    PropertyId::BorderEndEndRadius => true,
-    _ => false
+    PropertyId::BorderStartStartRadius
+    | PropertyId::BorderStartEndRadius
+    | PropertyId::BorderEndStartRadius
+    | PropertyId::BorderEndEndRadius => true,
+    _ => false,
   }
 }

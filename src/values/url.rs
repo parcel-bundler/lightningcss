@@ -1,14 +1,14 @@
-use crate::values::string::CowArcStr;
-use cssparser::*;
-use crate::traits::{Parse, ToCss};
-use crate::printer::Printer;
 use crate::dependencies::{Dependency, UrlDependency};
 use crate::error::{ParserError, PrinterError};
+use crate::printer::Printer;
+use crate::traits::{Parse, ToCss};
+use crate::values::string::CowArcStr;
+use cssparser::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Url<'i> {
   pub url: CowArcStr<'i>,
-  pub loc: SourceLocation
+  pub loc: SourceLocation,
 }
 
 impl<'i> Parse<'i> for Url<'i> {
@@ -20,7 +20,10 @@ impl<'i> Parse<'i> for Url<'i> {
 }
 
 impl<'i> ToCss for Url<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let dep = if dest.dependencies.is_some() {
       Some(UrlDependency::new(self, dest.filename()))
     } else {
@@ -38,7 +41,7 @@ impl<'i> ToCss for Url<'i> {
         dependencies.push(Dependency::Url(dep))
       }
 
-      return Ok(())
+      return Ok(());
     }
 
     use cssparser::ToCss;
@@ -54,7 +57,7 @@ impl<'i> ToCss for Url<'i> {
         if buf2.len() + 5 < buf.len() {
           dest.write_str("url(")?;
           dest.write_str(&buf2)?;
-          return dest.write_char(')')
+          return dest.write_char(')');
         }
       }
 
@@ -91,9 +94,9 @@ impl<'i> Url<'i> {
     for b in url.as_bytes() {
       let c = *b as char;
       match c {
-        'a'..='z' | 'A'..='Z' | '0'..='9' | '+' | '-' | '.' => {},
+        'a'..='z' | 'A'..='Z' | '0'..='9' | '+' | '-' | '.' => {}
         ':' => return true,
-        _ => break
+        _ => break,
       }
     }
 

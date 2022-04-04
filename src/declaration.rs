@@ -1,64 +1,73 @@
-use cssparser::*;
-use crate::properties::Property;
+use crate::context::PropertyHandlerContext;
+use crate::error::{ParserError, PrinterError};
+use crate::parser::ParserOptions;
+use crate::printer::Printer;
 use crate::properties::box_shadow::BoxShadowHandler;
 use crate::properties::masking::MaskHandler;
-use crate::traits::{PropertyHandler, ToCss};
-use crate::printer::Printer;
+use crate::properties::Property;
 use crate::properties::{
   align::AlignHandler,
+  animation::AnimationHandler,
   background::BackgroundHandler,
+  border::BorderHandler,
+  display::DisplayHandler,
   flex::FlexHandler,
   font::FontHandler,
+  grid::GridHandler,
+  list::ListStyleHandler,
   margin_padding::*,
   outline::OutlineHandler,
-  border::BorderHandler,
-  transition::TransitionHandler,
-  animation::AnimationHandler,
-  prefix_handler::{PrefixHandler, FallbackHandler},
-  display::DisplayHandler,
-  transform::TransformHandler,
-  text::TextDecorationHandler,
-  position::PositionHandler,
   overflow::OverflowHandler,
-  list::ListStyleHandler,
-  grid::GridHandler,
+  position::PositionHandler,
+  prefix_handler::{FallbackHandler, PrefixHandler},
   size::SizeHandler,
+  text::TextDecorationHandler,
+  transform::TransformHandler,
+  transition::TransitionHandler,
 };
 use crate::targets::Browsers;
-use crate::parser::ParserOptions;
-use crate::error::{ParserError, PrinterError};
-use crate::context::PropertyHandlerContext;
+use crate::traits::{PropertyHandler, ToCss};
+use cssparser::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct DeclarationBlock<'i> {
   pub important_declarations: Vec<Property<'i>>,
-  pub declarations: Vec<Property<'i>>
+  pub declarations: Vec<Property<'i>>,
 }
 
 impl<'i> DeclarationBlock<'i> {
-  pub fn parse<'t>(input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  pub fn parse<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut important_declarations = DeclarationList::new();
     let mut declarations = DeclarationList::new();
-    let mut parser = DeclarationListParser::new(input, PropertyDeclarationParser {
-      important_declarations: &mut important_declarations,
-      declarations: &mut declarations,
-      options
-    });
+    let mut parser = DeclarationListParser::new(
+      input,
+      PropertyDeclarationParser {
+        important_declarations: &mut important_declarations,
+        declarations: &mut declarations,
+        options,
+      },
+    );
     while let Some(res) = parser.next() {
       if let Err((err, _)) = res {
-        return Err(err)
+        return Err(err);
       }
     }
 
     Ok(DeclarationBlock {
       important_declarations,
-      declarations
+      declarations,
     })
   }
 }
 
 impl<'i> ToCss for DeclarationBlock<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     dest.whitespace()?;
     dest.write_char('{')?;
     dest.indent();
@@ -81,7 +90,7 @@ impl<'i> ToCss for DeclarationBlock<'i> {
 
     write!(self.declarations, false);
     write!(self.important_declarations, true);
-    
+
     dest.dedent();
     dest.newline()?;
     dest.write_char('}')
@@ -93,14 +102,14 @@ impl<'i> DeclarationBlock<'i> {
     &mut self,
     handler: &mut DeclarationHandler<'i>,
     important_handler: &mut DeclarationHandler<'i>,
-    context: &mut PropertyHandlerContext<'i>
+    context: &mut PropertyHandlerContext<'i>,
   ) {
     macro_rules! handle {
       ($decls: expr, $handler: expr, $important: literal) => {
         for decl in $decls.iter() {
           context.is_important = $important;
           let handled = $handler.handle_property(decl, context);
-    
+
           if !handled {
             $handler.decls.push(decl.clone());
           }
@@ -121,7 +130,7 @@ impl<'i> DeclarationBlock<'i> {
 struct PropertyDeclarationParser<'a, 'i> {
   important_declarations: &'a mut Vec<Property<'i>>,
   declarations: &'a mut Vec<Property<'i>>,
-  options: &'a ParserOptions
+  options: &'a ParserOptions,
 }
 
 /// Parse a declaration within {} block: `color: blue`
@@ -134,7 +143,13 @@ impl<'a, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a, 
     name: CowRcStr<'i>,
     input: &mut cssparser::Parser<'i, 't>,
   ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
-    parse_declaration(name, input, &mut self.declarations, &mut self.important_declarations, &self.options)
+    parse_declaration(
+      name,
+      input,
+      &mut self.declarations,
+      &mut self.important_declarations,
+      &self.options,
+    )
   }
 }
 
@@ -150,13 +165,15 @@ pub(crate) fn parse_declaration<'i, 't>(
   input: &mut cssparser::Parser<'i, 't>,
   declarations: &mut DeclarationList<'i>,
   important_declarations: &mut DeclarationList<'i>,
-  options: &ParserOptions
+  options: &ParserOptions,
 ) -> Result<(), cssparser::ParseError<'i, ParserError<'i>>> {
   let property = input.parse_until_before(Delimiter::Bang, |input| Property::parse(name, input, options))?;
-  let important = input.try_parse(|input| {
-    input.expect_delim('!')?;
-    input.expect_ident_matching("important")
-  }).is_ok();
+  let important = input
+    .try_parse(|input| {
+      input.expect_delim('!')?;
+      input.expect_ident_matching("important")
+    })
+    .is_ok();
   if important {
     important_declarations.push(property);
   } else {
@@ -193,7 +210,7 @@ pub(crate) struct DeclarationHandler<'i> {
   mask: MaskHandler<'i>,
   fallback: FallbackHandler,
   prefix: PrefixHandler,
-  decls: DeclarationList<'i>
+  decls: DeclarationList<'i>,
 }
 
 impl<'i> DeclarationHandler<'i> {
@@ -224,36 +241,36 @@ impl<'i> DeclarationHandler<'i> {
       mask: MaskHandler::default(),
       fallback: FallbackHandler::new(targets),
       prefix: PrefixHandler::new(targets),
-      decls: DeclarationList::new()
+      decls: DeclarationList::new(),
     }
   }
 
   pub fn handle_property(&mut self, property: &Property<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
-    self.background.handle_property(property, &mut self.decls, context) ||
-    self.border.handle_property(property, &mut self.decls, context) ||
-    self.outline.handle_property(property, &mut self.decls, context) ||
-    self.flex.handle_property(property, &mut self.decls, context) ||
-    self.grid.handle_property(property, &mut self.decls, context) ||
-    self.align.handle_property(property, &mut self.decls, context) ||
-    self.size.handle_property(property, &mut self.decls, context) ||
-    self.margin.handle_property(property, &mut self.decls, context) ||
-    self.padding.handle_property(property, &mut self.decls, context) ||
-    self.scroll_margin.handle_property(property, &mut self.decls, context) ||
-    self.scroll_padding.handle_property(property, &mut self.decls, context) ||
-    self.font.handle_property(property, &mut self.decls, context) ||
-    self.text.handle_property(property, &mut self.decls, context) ||
-    self.list.handle_property(property, &mut self.decls, context) ||
-    self.transition.handle_property(property, &mut self.decls, context) ||
-    self.animation.handle_property(property, &mut self.decls, context) ||
-    self.display.handle_property(property, &mut self.decls, context) ||
-    self.position.handle_property(property, &mut self.decls, context) ||
-    self.inset.handle_property(property, &mut self.decls, context) ||
-    self.overflow.handle_property(property, &mut self.decls, context) ||
-    self.transform.handle_property(property, &mut self.decls, context) ||
-    self.box_shadow.handle_property(property, &mut self.decls, context) ||
-    self.mask.handle_property(property, &mut self.decls, context) ||
-    self.fallback.handle_property(property, &mut self.decls, context) ||
-    self.prefix.handle_property(property, &mut self.decls, context)
+    self.background.handle_property(property, &mut self.decls, context)
+      || self.border.handle_property(property, &mut self.decls, context)
+      || self.outline.handle_property(property, &mut self.decls, context)
+      || self.flex.handle_property(property, &mut self.decls, context)
+      || self.grid.handle_property(property, &mut self.decls, context)
+      || self.align.handle_property(property, &mut self.decls, context)
+      || self.size.handle_property(property, &mut self.decls, context)
+      || self.margin.handle_property(property, &mut self.decls, context)
+      || self.padding.handle_property(property, &mut self.decls, context)
+      || self.scroll_margin.handle_property(property, &mut self.decls, context)
+      || self.scroll_padding.handle_property(property, &mut self.decls, context)
+      || self.font.handle_property(property, &mut self.decls, context)
+      || self.text.handle_property(property, &mut self.decls, context)
+      || self.list.handle_property(property, &mut self.decls, context)
+      || self.transition.handle_property(property, &mut self.decls, context)
+      || self.animation.handle_property(property, &mut self.decls, context)
+      || self.display.handle_property(property, &mut self.decls, context)
+      || self.position.handle_property(property, &mut self.decls, context)
+      || self.inset.handle_property(property, &mut self.decls, context)
+      || self.overflow.handle_property(property, &mut self.decls, context)
+      || self.transform.handle_property(property, &mut self.decls, context)
+      || self.box_shadow.handle_property(property, &mut self.decls, context)
+      || self.mask.handle_property(property, &mut self.decls, context)
+      || self.fallback.handle_property(property, &mut self.decls, context)
+      || self.prefix.handle_property(property, &mut self.decls, context)
   }
 
   pub fn finalize(&mut self, context: &mut PropertyHandlerContext<'i>) {

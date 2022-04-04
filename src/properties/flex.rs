@@ -1,19 +1,21 @@
-use cssparser::*;
-use crate::macros::*;
-use crate::values::{
-  length::{LengthPercentageOrAuto, LengthPercentage},
-  percentage::Percentage
+use super::align::{
+  AlignContent, AlignItems, AlignSelf, ContentDistribution, ContentPosition, JustifyContent, SelfPosition,
 };
-use crate::traits::{Parse, ToCss, PropertyHandler, FromStandard};
 use super::{Property, PropertyId};
-use crate::vendor_prefix::VendorPrefix;
+use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
-use super::align::{JustifyContent, ContentDistribution, ContentPosition, AlignItems, SelfPosition, AlignSelf, AlignContent};
+use crate::error::{ParserError, PrinterError};
+use crate::macros::*;
+use crate::prefixes::{is_flex_2009, Feature};
 use crate::printer::Printer;
 use crate::targets::Browsers;
-use crate::prefixes::{Feature, is_flex_2009};
-use crate::error::{ParserError, PrinterError};
-use crate::context::PropertyHandlerContext;
+use crate::traits::{FromStandard, Parse, PropertyHandler, ToCss};
+use crate::values::{
+  length::{LengthPercentage, LengthPercentageOrAuto},
+  percentage::Percentage,
+};
+use crate::vendor_prefix::VendorPrefix;
+use cssparser::*;
 
 enum_property! {
   /// https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#propdef-flex-direction
@@ -56,7 +58,7 @@ impl FromStandard<FlexWrap> for FlexWrap {
 #[derive(Debug, Clone, PartialEq)]
 pub struct FlexFlow {
   pub direction: FlexDirection,
-  pub wrap: FlexWrap
+  pub wrap: FlexWrap,
 }
 
 impl<'i> Parse<'i> for FlexFlow {
@@ -67,27 +69,30 @@ impl<'i> Parse<'i> for FlexFlow {
       if direction.is_none() {
         if let Ok(value) = input.try_parse(FlexDirection::parse) {
           direction = Some(value);
-          continue
+          continue;
         }
       }
       if wrap.is_none() {
         if let Ok(value) = input.try_parse(FlexWrap::parse) {
           wrap = Some(value);
-          continue
+          continue;
         }
       }
-      break
+      break;
     }
 
     Ok(FlexFlow {
       direction: direction.unwrap_or_default(),
-      wrap: wrap.unwrap_or_default()
+      wrap: wrap.unwrap_or_default(),
     })
   }
 }
 
 impl ToCss for FlexFlow {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let mut needs_space = false;
     if self.direction != FlexDirection::default() || self.wrap == FlexWrap::default() {
       self.direction.to_css(dest)?;
@@ -109,7 +114,7 @@ impl ToCss for FlexFlow {
 pub struct Flex {
   pub grow: f32,
   pub shrink: f32,
-  pub basis: LengthPercentageOrAuto
+  pub basis: LengthPercentageOrAuto,
 }
 
 impl<'i> Parse<'i> for Flex {
@@ -118,8 +123,8 @@ impl<'i> Parse<'i> for Flex {
       return Ok(Flex {
         grow: 0.0,
         shrink: 0.0,
-        basis: LengthPercentageOrAuto::Auto
-      })
+        basis: LengthPercentageOrAuto::Auto,
+      });
     }
 
     let mut grow = None;
@@ -131,38 +136,43 @@ impl<'i> Parse<'i> for Flex {
         if let Ok(val) = input.try_parse(f32::parse) {
           grow = Some(val);
           shrink = input.try_parse(f32::parse).ok();
-          continue
+          continue;
         }
       }
 
       if basis.is_none() {
         if let Ok(val) = input.try_parse(LengthPercentageOrAuto::parse) {
           basis = Some(val);
-          continue
+          continue;
         }
       }
 
-      break
+      break;
     }
 
     Ok(Flex {
       grow: grow.unwrap_or(1.0),
       shrink: shrink.unwrap_or(1.0),
-      basis: basis.unwrap_or(LengthPercentageOrAuto::LengthPercentage(LengthPercentage::Percentage(Percentage(0.0))))
+      basis: basis.unwrap_or(LengthPercentageOrAuto::LengthPercentage(LengthPercentage::Percentage(
+        Percentage(0.0),
+      ))),
     })
   }
 }
 
 impl ToCss for Flex {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     if self.grow == 0.0 && self.shrink == 0.0 && self.basis == LengthPercentageOrAuto::Auto {
       dest.write_str("none")?;
-      return Ok(())
+      return Ok(());
     }
 
     let is_basis_zero = match &self.basis {
       LengthPercentageOrAuto::LengthPercentage(lp) => *lp == 0.0,
-      _ => false
+      _ => false,
     };
 
     if self.grow != 1.0 || self.shrink != 1.0 || is_basis_zero {
@@ -201,7 +211,7 @@ impl FlexDirection {
       FlexDirection::Row => (BoxOrient::Horizontal, BoxDirection::Normal),
       FlexDirection::Column => (BoxOrient::Vertical, BoxDirection::Normal),
       FlexDirection::RowReverse => (BoxOrient::Horizontal, BoxDirection::Reverse),
-      FlexDirection::ColumnReverse => (BoxOrient::Vertical, BoxDirection::Reverse)
+      FlexDirection::ColumnReverse => (BoxOrient::Vertical, BoxDirection::Reverse),
     }
   }
 }
@@ -226,16 +236,14 @@ enum_property! {
 impl FromStandard<AlignItems> for BoxAlign {
   fn from_standard(align: &AlignItems) -> Option<BoxAlign> {
     match align {
-      AlignItems::SelfPosition(None, sp) => {
-        match sp {
-          SelfPosition::Start | SelfPosition::FlexStart => Some(BoxAlign::Start),
-          SelfPosition::End | SelfPosition::FlexEnd => Some(BoxAlign::End),
-          SelfPosition::Center => Some(BoxAlign::Center),
-          _ => None
-        }
-      }
+      AlignItems::SelfPosition(None, sp) => match sp {
+        SelfPosition::Start | SelfPosition::FlexStart => Some(BoxAlign::Start),
+        SelfPosition::End | SelfPosition::FlexEnd => Some(BoxAlign::End),
+        SelfPosition::Center => Some(BoxAlign::Center),
+        _ => None,
+      },
       AlignItems::Stretch => Some(BoxAlign::Stretch),
-      _ => None
+      _ => None,
     }
   }
 }
@@ -252,20 +260,16 @@ enum_property! {
 impl FromStandard<JustifyContent> for BoxPack {
   fn from_standard(justify: &JustifyContent) -> Option<BoxPack> {
     match justify {
-      JustifyContent::ContentDistribution(cd) => {
-        match cd {
-          ContentDistribution::SpaceBetween => Some(BoxPack::Justify),
-          _ => None
-        }
-      }
-      JustifyContent::ContentPosition(None, pos) => {
-        match pos {
-          ContentPosition::Start | ContentPosition::FlexStart => Some(BoxPack::Start),
-          ContentPosition::End | ContentPosition::FlexEnd => Some(BoxPack::End),
-          ContentPosition::Center => Some(BoxPack::Center)
-        }
-      }
-      _ => None
+      JustifyContent::ContentDistribution(cd) => match cd {
+        ContentDistribution::SpaceBetween => Some(BoxPack::Justify),
+        _ => None,
+      },
+      JustifyContent::ContentPosition(None, pos) => match pos {
+        ContentPosition::Start | ContentPosition::FlexStart => Some(BoxPack::Start),
+        ContentPosition::End | ContentPosition::FlexEnd => Some(BoxPack::End),
+        ContentPosition::Center => Some(BoxPack::Center),
+      },
+      _ => None,
     }
   }
 }
@@ -282,7 +286,7 @@ impl FromStandard<FlexWrap> for BoxLines {
     match wrap {
       FlexWrap::NoWrap => Some(BoxLines::Single),
       FlexWrap::Wrap => Some(BoxLines::Multiple),
-      _ => None
+      _ => None,
     }
   }
 }
@@ -309,21 +313,17 @@ enum_property! {
 impl FromStandard<JustifyContent> for FlexPack {
   fn from_standard(justify: &JustifyContent) -> Option<FlexPack> {
     match justify {
-      JustifyContent::ContentDistribution(cd) => {
-        match cd {
-          ContentDistribution::SpaceBetween => Some(FlexPack::Justify),
-          ContentDistribution::SpaceAround => Some(FlexPack::Distribute),
-          _ => None
-        }
-      }
-      JustifyContent::ContentPosition(None, pos) => {
-        match pos {
-          ContentPosition::Start | ContentPosition::FlexStart => Some(FlexPack::Start),
-          ContentPosition::End | ContentPosition::FlexEnd => Some(FlexPack::End),
-          ContentPosition::Center => Some(FlexPack::Center)
-        }
-      }
-      _ => None
+      JustifyContent::ContentDistribution(cd) => match cd {
+        ContentDistribution::SpaceBetween => Some(FlexPack::Justify),
+        ContentDistribution::SpaceAround => Some(FlexPack::Distribute),
+        _ => None,
+      },
+      JustifyContent::ContentPosition(None, pos) => match pos {
+        ContentPosition::Start | ContentPosition::FlexStart => Some(FlexPack::Start),
+        ContentPosition::End | ContentPosition::FlexEnd => Some(FlexPack::End),
+        ContentPosition::Center => Some(FlexPack::Center),
+      },
+      _ => None,
     }
   }
 }
@@ -346,15 +346,13 @@ impl FromStandard<AlignSelf> for FlexItemAlign {
     match justify {
       AlignSelf::Auto => Some(FlexItemAlign::Auto),
       AlignSelf::Stretch => Some(FlexItemAlign::Stretch),
-      AlignSelf::SelfPosition(None, pos) => {
-        match pos {
-          SelfPosition::Start | SelfPosition::FlexStart => Some(FlexItemAlign::Start),
-          SelfPosition::End | SelfPosition::FlexEnd => Some(FlexItemAlign::End),
-          SelfPosition::Center => Some(FlexItemAlign::Center),
-          _ => None
-        }
-      }
-      _ => None
+      AlignSelf::SelfPosition(None, pos) => match pos {
+        SelfPosition::Start | SelfPosition::FlexStart => Some(FlexItemAlign::Start),
+        SelfPosition::End | SelfPosition::FlexEnd => Some(FlexItemAlign::End),
+        SelfPosition::Center => Some(FlexItemAlign::Center),
+        _ => None,
+      },
+      _ => None,
     }
   }
 }
@@ -373,22 +371,18 @@ enum_property! {
 impl FromStandard<AlignContent> for FlexLinePack {
   fn from_standard(justify: &AlignContent) -> Option<FlexLinePack> {
     match justify {
-      AlignContent::ContentDistribution(cd) => {
-        match cd {
-          ContentDistribution::SpaceBetween => Some(FlexLinePack::Justify),
-          ContentDistribution::SpaceAround => Some(FlexLinePack::Distribute),
-          ContentDistribution::Stretch => Some(FlexLinePack::Stretch),
-          _ => None
-        }
-      }
-      AlignContent::ContentPosition(None, pos) => {
-        match pos {
-          ContentPosition::Start | ContentPosition::FlexStart => Some(FlexLinePack::Start),
-          ContentPosition::End | ContentPosition::FlexEnd => Some(FlexLinePack::End),
-          ContentPosition::Center => Some(FlexLinePack::Center)
-        }
-      }
-      _ => None
+      AlignContent::ContentDistribution(cd) => match cd {
+        ContentDistribution::SpaceBetween => Some(FlexLinePack::Justify),
+        ContentDistribution::SpaceAround => Some(FlexLinePack::Distribute),
+        ContentDistribution::Stretch => Some(FlexLinePack::Stretch),
+        _ => None,
+      },
+      AlignContent::ContentPosition(None, pos) => match pos {
+        ContentPosition::Start | ContentPosition::FlexStart => Some(FlexLinePack::Start),
+        ContentPosition::End | ContentPosition::FlexEnd => Some(FlexLinePack::End),
+        ContentPosition::Center => Some(FlexLinePack::Center),
+      },
+      _ => None,
     }
   }
 }
@@ -411,7 +405,7 @@ pub(crate) struct FlexHandler {
   order: Option<(f32, VendorPrefix)>,
   box_ordinal_group: Option<(BoxOrdinalGroup, VendorPrefix)>,
   flex_order: Option<(f32, VendorPrefix)>,
-  has_any: bool
+  has_any: bool,
 }
 
 impl FlexHandler {
@@ -424,7 +418,12 @@ impl FlexHandler {
 }
 
 impl<'i> PropertyHandler<'i> for FlexHandler {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) -> bool {
+  fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    dest: &mut DeclarationList<'i>,
+    _: &mut PropertyHandlerContext<'i>,
+  ) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -461,7 +460,7 @@ impl<'i> PropertyHandler<'i> for FlexHandler {
           self.box_orient = None;
         }
         property!(direction, val, vp);
-      },
+      }
       BoxOrient(val, vp) => property!(box_orient, val, vp),
       BoxDirection(val, vp) => property!(box_direction, val, vp),
       FlexWrap(val, vp) => {
@@ -469,7 +468,7 @@ impl<'i> PropertyHandler<'i> for FlexHandler {
           self.box_lines = None;
         }
         property!(wrap, val, vp);
-      },
+      }
       BoxLines(val, vp) => property!(box_lines, val, vp),
       FlexFlow(val, vp) => {
         if self.targets.is_some() {
@@ -485,7 +484,7 @@ impl<'i> PropertyHandler<'i> for FlexHandler {
           self.flex_positive = None;
         }
         property!(grow, val, vp);
-      },
+      }
       BoxFlex(val, vp) => property!(box_flex, val, vp),
       FlexPositive(val, vp) => property!(flex_positive, val, vp),
       FlexShrink(val, vp) => {
@@ -493,7 +492,7 @@ impl<'i> PropertyHandler<'i> for FlexHandler {
           self.flex_negative = None;
         }
         property!(shrink, val, vp);
-      },
+      }
       FlexNegative(val, vp) => property!(flex_negative, val, vp),
       FlexBasis(val, vp) => {
         if self.targets.is_some() {
@@ -529,7 +528,7 @@ impl<'i> PropertyHandler<'i> for FlexHandler {
         self.flush(dest);
         dest.push(property.clone()) // TODO: prefix?
       }
-      _ => return false
+      _ => return false,
     }
 
     true
@@ -540,11 +539,10 @@ impl<'i> PropertyHandler<'i> for FlexHandler {
   }
 }
 
-
 impl FlexHandler {
   fn flush(&mut self, dest: &mut DeclarationList) {
     if !self.has_any {
-      return
+      return;
     }
 
     self.has_any = false;
@@ -589,7 +587,7 @@ impl FlexHandler {
                     }
                   }
                 )?
-                
+
                 $(
                   let mut ms = true;
                   if prefix.contains(VendorPrefix::Ms) {
@@ -649,8 +647,8 @@ impl FlexHandler {
         }
       }
     }
-    
-    if let (Some((direction, dir_prefix)), Some((wrap, wrap_prefix))) = (&mut direction, &mut wrap) {      
+
+    if let (Some((direction, dir_prefix)), Some((wrap, wrap_prefix))) = (&mut direction, &mut wrap) {
       let intersection = *dir_prefix & *wrap_prefix;
       if !intersection.is_empty() {
         let mut prefix = intersection;
@@ -661,10 +659,13 @@ impl FlexHandler {
             prefix.remove(VendorPrefix::Moz);
           }
         }
-        dest.push(Property::FlexFlow(FlexFlow {
-          direction: *direction,
-          wrap: *wrap
-        }, prefix));
+        dest.push(Property::FlexFlow(
+          FlexFlow {
+            direction: *direction,
+            wrap: *wrap,
+          },
+          prefix,
+        ));
         dir_prefix.remove(intersection);
         wrap_prefix.remove(intersection);
       }
@@ -689,7 +690,9 @@ impl FlexHandler {
       }
     }
 
-    if let (Some((grow, grow_prefix)), Some((shrink, shrink_prefix)), Some((basis, basis_prefix))) = (&mut grow, &mut shrink, &mut basis) {
+    if let (Some((grow, grow_prefix)), Some((shrink, shrink_prefix)), Some((basis, basis_prefix))) =
+      (&mut grow, &mut shrink, &mut basis)
+    {
       let intersection = *grow_prefix & *shrink_prefix & *basis_prefix;
       if !intersection.is_empty() {
         let mut prefix = intersection;
@@ -700,11 +703,14 @@ impl FlexHandler {
             prefix.remove(VendorPrefix::Moz);
           }
         }
-        dest.push(Property::Flex(Flex {
-          grow: *grow,
-          shrink: *shrink,
-          basis: basis.clone()
-        }, prefix));
+        dest.push(Property::Flex(
+          Flex {
+            grow: *grow,
+            shrink: *shrink,
+            basis: basis.clone(),
+          },
+          prefix,
+        ));
         grow_prefix.remove(intersection);
         shrink_prefix.remove(intersection);
         basis_prefix.remove(intersection);
@@ -721,23 +727,23 @@ impl FlexHandler {
 #[inline]
 fn is_flex_property(property_id: &PropertyId) -> bool {
   match property_id {
-    PropertyId::FlexDirection(_) |
-    PropertyId::BoxOrient(_) |
-    PropertyId::BoxDirection(_) |
-    PropertyId::FlexWrap(_) |
-    PropertyId::BoxLines(_) |
-    PropertyId::FlexFlow(_) |
-    PropertyId::FlexGrow(_) |
-    PropertyId::BoxFlex(_) |
-    PropertyId::FlexPositive(_) |
-    PropertyId::FlexShrink(_) |
-    PropertyId::FlexNegative(_) |
-    PropertyId::FlexBasis(_) |
-    PropertyId::FlexPreferredSize(_) |
-    PropertyId::Flex(_) |
-    PropertyId::Order(_) |
-    PropertyId::BoxOrdinalGroup(_) |
-    PropertyId::FlexOrder(_) => true,
-    _ => false
+    PropertyId::FlexDirection(_)
+    | PropertyId::BoxOrient(_)
+    | PropertyId::BoxDirection(_)
+    | PropertyId::FlexWrap(_)
+    | PropertyId::BoxLines(_)
+    | PropertyId::FlexFlow(_)
+    | PropertyId::FlexGrow(_)
+    | PropertyId::BoxFlex(_)
+    | PropertyId::FlexPositive(_)
+    | PropertyId::FlexShrink(_)
+    | PropertyId::FlexNegative(_)
+    | PropertyId::FlexBasis(_)
+    | PropertyId::FlexPreferredSize(_)
+    | PropertyId::Flex(_)
+    | PropertyId::Order(_)
+    | PropertyId::BoxOrdinalGroup(_)
+    | PropertyId::FlexOrder(_) => true,
+    _ => false,
   }
 }

@@ -1,16 +1,16 @@
-use cssparser::*;
-use bitflags::bitflags;
+use super::percentage::Percentage;
+use crate::compat::Feature;
+use crate::error::{ParserError, PrinterError};
+use crate::macros::enum_property;
+use crate::printer::Printer;
 use crate::rules::supports::SupportsCondition;
 use crate::targets::Browsers;
-use crate::traits::{Parse, ToCss, FallbackValues};
-use crate::printer::Printer;
+use crate::traits::{FallbackValues, Parse, ToCss};
+use bitflags::bitflags;
+use cssparser::*;
 use std::any::TypeId;
 use std::f32::consts::PI;
 use std::fmt::Write;
-use crate::compat::Feature;
-use crate::error::{ParserError, PrinterError};
-use super::percentage::Percentage;
-use crate::macros::enum_property;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CssColor {
@@ -18,7 +18,7 @@ pub enum CssColor {
   RGBA(RGBA),
   LAB(Box<LABColor>),
   Predefined(Box<PredefinedColor>),
-  Float(Box<FloatColor>)
+  Float(Box<FloatColor>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -48,7 +48,7 @@ pub enum PredefinedColor {
 pub enum FloatColor {
   RGB(SRGB),
   HSL(HSL),
-  HWB(HWB)
+  HWB(HWB),
 }
 
 bitflags! {
@@ -116,7 +116,7 @@ impl ColorFallbackKind {
     let s = match *self {
       ColorFallbackKind::P3 => "color: color(display-p3 0 0 0)",
       ColorFallbackKind::LAB => "color: lab(0% 0 0)",
-      _ => unreachable!()
+      _ => unreachable!(),
     };
 
     SupportsCondition::Declaration(s.into())
@@ -147,27 +147,23 @@ impl CssColor {
   pub(crate) fn get_possible_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
     // Fallbacks occur in levels: Oklab -> Lab -> P3 -> RGB. We start with all levels
     // below and including the authored color space, and remove the ones that aren't
-    // compatible with our browser targets. 
+    // compatible with our browser targets.
     let mut fallbacks = match self {
       CssColor::CurrentColor | CssColor::RGBA(_) | CssColor::Float(..) => return ColorFallbackKind::empty(),
-      CssColor::LAB(lab) => {
-        match &**lab {
-          LABColor::LAB(..) | LABColor::LCH(..) => ColorFallbackKind::LAB.and_below(),
-          LABColor::OKLAB(..) | LABColor::OKLCH(..) => ColorFallbackKind::OKLAB.and_below(),
+      CssColor::LAB(lab) => match &**lab {
+        LABColor::LAB(..) | LABColor::LCH(..) => ColorFallbackKind::LAB.and_below(),
+        LABColor::OKLAB(..) | LABColor::OKLCH(..) => ColorFallbackKind::OKLAB.and_below(),
+      },
+      CssColor::Predefined(predefined) => match &**predefined {
+        PredefinedColor::DisplayP3(..) => ColorFallbackKind::P3.and_below(),
+        _ => {
+          if Feature::ColorFunction.is_compatible(targets) {
+            return ColorFallbackKind::empty();
+          }
+
+          ColorFallbackKind::LAB.and_below()
         }
       },
-      CssColor::Predefined(predefined) => {
-        match &**predefined {
-          PredefinedColor::DisplayP3(..) => ColorFallbackKind::P3.and_below(),
-          _ => {
-            if Feature::ColorFunction.is_compatible(targets) {
-              return ColorFallbackKind::empty();
-            }
-
-            ColorFallbackKind::LAB.and_below()
-          }
-        }
-      }
     };
 
     if fallbacks.contains(ColorFallbackKind::OKLAB) {
@@ -189,7 +185,8 @@ impl CssColor {
     if fallbacks.contains(ColorFallbackKind::P3) {
       if Feature::P3Colors.is_compatible(targets) {
         fallbacks.remove(ColorFallbackKind::RGB);
-      } else if fallbacks.highest() != ColorFallbackKind::P3 && !Feature::P3Colors.is_partially_compatible(targets) {
+      } else if fallbacks.highest() != ColorFallbackKind::P3 && !Feature::P3Colors.is_partially_compatible(targets)
+      {
         // Remove P3 if it isn't supported by any targets, and wasn't the
         // original authored color.
         fallbacks.remove(ColorFallbackKind::P3);
@@ -215,7 +212,7 @@ impl CssColor {
       ColorFallbackKind::RGB => self.to_rgb(),
       ColorFallbackKind::P3 => self.to_p3(),
       ColorFallbackKind::LAB => self.to_lab(),
-      _ => unreachable!()
+      _ => unreachable!(),
     }
   }
 }
@@ -251,7 +248,7 @@ impl From<Color> for CssColor {
   fn from(color: Color) -> Self {
     match color {
       Color::CurrentColor => CssColor::CurrentColor,
-      Color::RGBA(rgba) => CssColor::RGBA(rgba)
+      Color::RGBA(rgba) => CssColor::RGBA(rgba),
     }
   }
 }
@@ -259,7 +256,7 @@ impl From<Color> for CssColor {
 impl<'i> Parse<'i> for CssColor {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(color) = input.try_parse(Color::parse) {
-      return Ok(color.into())
+      return Ok(color.into());
     }
 
     parse_color_function(input)
@@ -267,14 +264,17 @@ impl<'i> Parse<'i> for CssColor {
 }
 
 impl ToCss for CssColor {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       CssColor::CurrentColor => dest.write_str("currentColor"),
       CssColor::RGBA(color) => {
         if color.alpha == 255 {
           let hex: u32 = ((color.red as u32) << 16) | ((color.green as u32) << 8) | (color.blue as u32);
           if let Some(name) = short_color_name(hex) {
-            return dest.write_str(name)
+            return dest.write_str(name);
           }
 
           let compact = compact_hex(hex);
@@ -304,11 +304,14 @@ impl ToCss for CssColor {
 
               rounded_alpha.to_css(dest)?;
               dest.write_char(')')?;
-              return Ok(())
+              return Ok(());
             }
           }
-  
-          let hex: u32 = ((color.red as u32) << 24) | ((color.green as u32) << 16) | ((color.blue as u32) << 8) | (color.alpha as u32);
+
+          let hex: u32 = ((color.red as u32) << 24)
+            | ((color.green as u32) << 16)
+            | ((color.blue as u32) << 8)
+            | (color.alpha as u32);
           let compact = compact_hex(hex);
           if hex == expand_hex(compact) {
             write!(dest, "#{:04x}", compact)?;
@@ -317,15 +320,13 @@ impl ToCss for CssColor {
           }
         }
         Ok(())
-      },
-      CssColor::LAB(lab) => {
-        match &**lab {
-          LABColor::LAB(lab) => write_components("lab", lab.l, lab.a, lab.b, lab.alpha, dest),
-          LABColor::LCH(lch) => write_components("lch", lch.l, lch.c, lch.h, lch.alpha, dest),
-          LABColor::OKLAB(lab) => write_components("oklab", lab.l, lab.a, lab.b, lab.alpha, dest),
-          LABColor::OKLCH(lch) => write_components("oklch", lch.l, lch.c, lch.h, lch.alpha, dest),    
-        }
       }
+      CssColor::LAB(lab) => match &**lab {
+        LABColor::LAB(lab) => write_components("lab", lab.l, lab.a, lab.b, lab.alpha, dest),
+        LABColor::LCH(lch) => write_components("lch", lch.l, lch.c, lch.h, lch.alpha, dest),
+        LABColor::OKLAB(lab) => write_components("oklab", lab.l, lab.a, lab.b, lab.alpha, dest),
+        LABColor::OKLCH(lch) => write_components("oklch", lch.l, lch.c, lch.h, lch.alpha, dest),
+      },
       CssColor::Predefined(predefined) => write_predefined(predefined, dest),
       CssColor::Float(float) => {
         // Serialize as hex.
@@ -339,12 +340,12 @@ impl ToCss for CssColor {
 // From esbuild: https://github.com/evanw/esbuild/blob/18e13bdfdca5cd3c7a2fae1a8bd739f8f891572c/internal/css_parser/css_decls_color.go#L218
 // 0xAABBCCDD => 0xABCD
 fn compact_hex(v: u32) -> u32 {
-  return ((v & 0x0FF00000) >> 12) | ((v & 0x00000FF0) >> 4)
+  return ((v & 0x0FF00000) >> 12) | ((v & 0x00000FF0) >> 4);
 }
 
 // 0xABCD => 0xAABBCCDD
 fn expand_hex(v: u32) -> u32 {
-  return ((v & 0xF000) << 16) | ((v & 0xFF00) << 12) | ((v & 0x0FF0) << 8) | ((v & 0x00FF) << 4) | (v & 0x000F)
+  return ((v & 0xF000) << 16) | ((v & 0xFF00) << 12) | ((v & 0x0FF0) << 8) | ((v & 0x00FF) << 4) | (v & 0x000F);
 }
 
 fn short_color_name(v: u32) -> Option<&'static str> {
@@ -381,7 +382,7 @@ fn short_color_name(v: u32) -> Option<&'static str> {
     0xffe4c4 => "bisque",
     0xfffafa => "snow",
     0xfffff0 => "ivory",
-    _ => return None
+    _ => return None,
   };
 
   Some(s)
@@ -477,19 +478,21 @@ fn parse_lch<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32),
 }
 
 #[inline]
-fn parse_predefined<'i, 't>(input: &mut Parser<'i, 't>) -> Result<PredefinedColor, ParseError<'i, ParserError<'i>>> {
+fn parse_predefined<'i, 't>(
+  input: &mut Parser<'i, 't>,
+) -> Result<PredefinedColor, ParseError<'i, ParserError<'i>>> {
   // https://www.w3.org/TR/css-color-4/#color-function
   let res = input.parse_nested_block(|input| {
     let location = input.current_source_location();
     let colorspace = input.expect_ident_cloned()?;
-    
+
     // Out of gamut values should not be clamped, i.e. values < 0 or > 1 should be preserved.
     // The browser will gamut-map the color for the target device that it is rendered on.
     let a = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
     let b = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
     let c = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
     let alpha = parse_alpha(input)?;
-  
+
     let res = match_ignore_ascii_case! { &*&colorspace,
       "srgb" => PredefinedColor::SRGB(SRGB { r: a, g: b, b: c, alpha }),
       "srgb-linear" => PredefinedColor::SRGBLinear(SRGBLinear { r: a, g: b, b: c, alpha }),
@@ -498,13 +501,13 @@ fn parse_predefined<'i, 't>(input: &mut Parser<'i, 't>) -> Result<PredefinedColo
       "prophoto-rgb" => PredefinedColor::ProPhoto(ProPhoto { r: a, g: b, b: c, alpha }),
       "rec2020" => PredefinedColor::Rec2020(Rec2020 { r: a, g: b, b: c, alpha }),
       "xyz-d50" => PredefinedColor::XYZd50(XYZd50 { x: a, y: b, z: c, alpha}),
-      "xyz" | "xyz-d65" => PredefinedColor::XYZd65(XYZd65 { x: a, y: b, z: c, alpha }),  
+      "xyz" | "xyz-d65" => PredefinedColor::XYZd65(XYZd65 { x: a, y: b, z: c, alpha }),
       _ => return Err(location.new_unexpected_token_error(
         cssparser::Token::Ident(colorspace.clone())
       ))
     };
-  
-    Ok(res)  
+
+    Ok(res)
   })?;
 
   Ok(res)
@@ -514,7 +517,9 @@ fn parse_predefined<'i, 't>(input: &mut Parser<'i, 't>) -> Result<PredefinedColo
 /// Only the modern syntax with no commas is handled here, cssparser handles the legacy syntax.
 /// The results of this function are stored as floating point if there are any `none` components.
 #[inline]
-fn parse_hsl_hwb<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
+fn parse_hsl_hwb<'i, 't>(
+  input: &mut Parser<'i, 't>,
+) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
   // https://drafts.csswg.org/css-color-4/#the-hsl-notation
   let res = input.parse_nested_block(|input| {
     let h = parse_angle_or_number(input)?;
@@ -538,22 +543,23 @@ fn parse_rgb<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32),
     enum Kind {
       Unknown,
       Number,
-      Percentage
+      Percentage,
     }
 
     #[inline]
-    fn parse_component<'i, 't>(input: &mut Parser<'i, 't>, kind: Kind) -> Result<(f32, Kind), ParseError<'i, ParserError<'i>>> {
+    fn parse_component<'i, 't>(
+      input: &mut Parser<'i, 't>,
+      kind: Kind,
+    ) -> Result<(f32, Kind), ParseError<'i, ParserError<'i>>> {
       let location = input.current_source_location();
       Ok(match *input.next()? {
         Token::Number { value, .. } if kind != Kind::Percentage => {
           (value.round().clamp(0.0, 255.0) / 255.0, Kind::Number)
-        },
+        }
         Token::Percentage { unit_value, .. } if kind != Kind::Number => {
           (unit_value.clamp(0.0, 1.0), Kind::Percentage)
-        },
-        Token::Ident(ref ident) if ident.eq_ignore_ascii_case("none") => {
-          (f32::NAN, Kind::Unknown)
-        },
+        }
+        Token::Ident(ref ident) if ident.eq_ignore_ascii_case("none") => (f32::NAN, Kind::Unknown),
         ref t => return Err(location.new_unexpected_token_error(t.clone())),
       })
     }
@@ -564,7 +570,7 @@ fn parse_rgb<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32),
     let alpha = parse_alpha(input)?;
     Ok((r, g, b, alpha))
   })?;
-  
+
   Ok(res)
 }
 
@@ -627,7 +633,17 @@ fn parse_alpha<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i,
 }
 
 #[inline]
-fn write_components<W>(name: &str, a: f32, b: f32, c: f32, alpha: f32, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+fn write_components<W>(
+  name: &str,
+  a: f32,
+  b: f32,
+  c: f32,
+  alpha: f32,
+  dest: &mut Printer<W>,
+) -> Result<(), PrinterError>
+where
+  W: std::fmt::Write,
+{
   dest.write_str(name)?;
   dest.write_char('(')?;
   if a.is_nan() {
@@ -648,7 +664,10 @@ fn write_components<W>(name: &str, a: f32, b: f32, c: f32, alpha: f32, dest: &mu
 }
 
 #[inline]
-fn write_component<W>(c: f32, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+fn write_component<W>(c: f32, dest: &mut Printer<W>) -> Result<(), PrinterError>
+where
+  W: std::fmt::Write,
+{
   if c.is_nan() {
     dest.write_str("none")?;
   } else {
@@ -658,9 +677,12 @@ fn write_component<W>(c: f32, dest: &mut Printer<W>) -> Result<(), PrinterError>
 }
 
 #[inline]
-fn write_predefined<W>(predefined: &PredefinedColor, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+fn write_predefined<W>(predefined: &PredefinedColor, dest: &mut Printer<W>) -> Result<(), PrinterError>
+where
+  W: std::fmt::Write,
+{
   use PredefinedColor::*;
-  
+
   let (name, a, b, c, alpha) = match predefined {
     SRGB(rgb) => ("srgb", rgb.r, rgb.g, rgb.b, rgb.alpha),
     SRGBLinear(rgb) => ("srgb-linear", rgb.r, rgb.g, rgb.b, rgb.alpha),
@@ -703,7 +725,7 @@ macro_rules! define_colorspace {
       pub $a: f32,
       pub $b: f32,
       pub $c: f32,
-      pub alpha: f32
+      pub alpha: f32,
     }
 
     impl $name {
@@ -726,7 +748,7 @@ macro_rules! define_colorspace {
         resolved
       }
     }
-  }
+  };
 }
 
 define_colorspace!(SRGB, r, g, b);
@@ -734,7 +756,7 @@ define_colorspace!(SRGBLinear, r, g, b);
 define_colorspace!(P3, r, g, b);
 define_colorspace!(A98, r, g, b);
 define_colorspace!(ProPhoto, r, g, b);
-define_colorspace!(Rec2020, r, g,b);
+define_colorspace!(Rec2020, r, g, b);
 define_colorspace!(LAB, l, a, b);
 define_colorspace!(OKLAB, l, a, b);
 define_colorspace!(XYZd50, x, y, z);
@@ -788,7 +810,12 @@ impl From<LCH> for LAB {
   fn from(lch: LCH) -> LAB {
     let lch = lch.resolve_missing();
     let (l, a, b) = polar_to_rectangular(lch.l, lch.c, lch.h);
-    LAB { l, a, b, alpha: lch.alpha }
+    LAB {
+      l,
+      a,
+      b,
+      alpha: lch.alpha,
+    }
   }
 }
 
@@ -796,7 +823,12 @@ impl From<LAB> for LCH {
   fn from(lab: LAB) -> LCH {
     let lab = lab.resolve_missing();
     let (l, c, h) = rectangular_to_polar(lab.l, lab.a, lab.b);
-    LCH { l, c, h, alpha: lab.alpha }
+    LCH {
+      l,
+      c,
+      h,
+      alpha: lab.alpha,
+    }
   }
 }
 
@@ -804,7 +836,12 @@ impl From<OKLCH> for OKLAB {
   fn from(lch: OKLCH) -> OKLAB {
     let lch = lch.resolve_missing();
     let (l, a, b) = polar_to_rectangular(lch.l, lch.c, lch.h);
-    OKLAB { l, a, b, alpha: lch.alpha }
+    OKLAB {
+      l,
+      a,
+      b,
+      alpha: lch.alpha,
+    }
   }
 }
 
@@ -812,7 +849,12 @@ impl From<OKLAB> for OKLCH {
   fn from(lab: OKLAB) -> OKLCH {
     let lab = lab.resolve_missing();
     let (l, c, h) = rectangular_to_polar(lab.l, lab.a, lab.b);
-    OKLCH { l, c, h, alpha: lab.alpha }
+    OKLCH {
+      l,
+      c,
+      h,
+      alpha: lab.alpha,
+    }
   }
 }
 
@@ -821,8 +863,8 @@ const D50: &[f32] = &[0.3457 / 0.3585, 1.00000, (1.0 - 0.3457 - 0.3585) / 0.3585
 impl From<LAB> for XYZd50 {
   fn from(lab: LAB) -> XYZd50 {
     // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L352
-    const K: f32 = 24389.0 / 27.0;   // 29^3/3^3
-    const E: f32 = 216.0 / 24389.0;  // 6^3/29^3
+    const K: f32 = 24389.0 / 27.0; // 29^3/3^3
+    const E: f32 = 216.0 / 24389.0; // 6^3/29^3
 
     let lab = lab.resolve_missing();
     let l = lab.l * 100.0;
@@ -841,11 +883,7 @@ impl From<LAB> for XYZd50 {
       (116.0 * f0 - 16.0) / K
     };
 
-    let y = if l > K * E {
-      ((l + 16.0) / 116.0).powi(3)
-    } else {
-      l / K
-    };
+    let y = if l > K * E { ((l + 16.0) / 116.0).powi(3) } else { l / K };
 
     let z = if f2.powi(3) > E {
       f2.powi(3)
@@ -858,7 +896,7 @@ impl From<LAB> for XYZd50 {
       x: x * D50[0],
       y: y * D50[1],
       z: z * D50[2],
-      alpha: lab.alpha
+      alpha: lab.alpha,
     }
   }
 }
@@ -867,14 +905,25 @@ impl From<XYZd50> for XYZd65 {
   fn from(xyz: XYZd50) -> XYZd65 {
     // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L319
     const MATRIX: &[f32] = &[
-      0.9554734527042182,    -0.023098536874261423, 0.0632593086610217,
-      -0.028369706963208136,  1.0099954580058226,   0.021041398966943008,
-      0.012314001688319899,  -0.020507696433477912, 1.3303659366080753
+      0.9554734527042182,
+      -0.023098536874261423,
+      0.0632593086610217,
+      -0.028369706963208136,
+      1.0099954580058226,
+      0.021041398966943008,
+      0.012314001688319899,
+      -0.020507696433477912,
+      1.3303659366080753,
     ];
 
     let xyz = xyz.resolve_missing();
     let (x, y, z) = multiply_matrix(MATRIX, xyz.x, xyz.y, xyz.z);
-    XYZd65 { x, y, z, alpha: xyz.alpha }
+    XYZd65 {
+      x,
+      y,
+      z,
+      alpha: xyz.alpha,
+    }
   }
 }
 
@@ -882,14 +931,25 @@ impl From<XYZd65> for XYZd50 {
   fn from(xyz: XYZd65) -> XYZd50 {
     // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L319
     const MATRIX: &[f32] = &[
-       1.0479298208405488,    0.022946793341019088,  -0.05019222954313557,
-       0.029627815688159344,  0.990434484573249,     -0.01707382502938514,
-      -0.009243058152591178,  0.015055144896577895,   0.7518742899580008
+      1.0479298208405488,
+      0.022946793341019088,
+      -0.05019222954313557,
+      0.029627815688159344,
+      0.990434484573249,
+      -0.01707382502938514,
+      -0.009243058152591178,
+      0.015055144896577895,
+      0.7518742899580008,
     ];
 
     let xyz = xyz.resolve_missing();
     let (x, y, z) = multiply_matrix(MATRIX, xyz.x, xyz.y, xyz.z);
-    XYZd50 { x, y, z, alpha: xyz.alpha }
+    XYZd50 {
+      x,
+      y,
+      z,
+      alpha: xyz.alpha,
+    }
   }
 }
 
@@ -897,21 +957,32 @@ impl From<XYZd65> for SRGBLinear {
   fn from(xyz: XYZd65) -> SRGBLinear {
     // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L62
     const MATRIX: &[f32] = &[
-      3.2409699419045226,  -1.537383177570094,   -0.4986107602930034,
-      -0.9692436362808796,   1.8759675015077202,   0.04155505740717559,
-      0.05563007969699366, -0.20397695888897652,  1.0569715142428786
+      3.2409699419045226,
+      -1.537383177570094,
+      -0.4986107602930034,
+      -0.9692436362808796,
+      1.8759675015077202,
+      0.04155505740717559,
+      0.05563007969699366,
+      -0.20397695888897652,
+      1.0569715142428786,
     ];
 
     let xyz = xyz.resolve_missing();
     let (r, g, b) = multiply_matrix(MATRIX, xyz.x, xyz.y, xyz.z);
-    SRGBLinear { r, g, b, alpha: xyz.alpha }
+    SRGBLinear {
+      r,
+      g,
+      b,
+      alpha: xyz.alpha,
+    }
   }
 }
 
 #[inline]
 fn multiply_matrix(m: &[f32], x: f32, y: f32, z: f32) -> (f32, f32, f32) {
   let a = m[0] * x + m[1] * y + m[2] * z;
-  let b  = m[3] * x + m[4] * y + m[5] * z;
+  let b = m[3] * x + m[4] * y + m[5] * z;
   let c = m[6] * x + m[7] * y + m[8] * z;
   (a, b, c)
 }
@@ -921,7 +992,12 @@ impl From<SRGBLinear> for SRGB {
   fn from(rgb: SRGBLinear) -> SRGB {
     let rgb = rgb.resolve_missing();
     let (r, g, b) = gam_srgb(rgb.r, rgb.g, rgb.b);
-    SRGB { r, g, b, alpha: rgb.alpha }
+    SRGB {
+      r,
+      g,
+      b,
+      alpha: rgb.alpha,
+    }
   }
 }
 
@@ -955,21 +1031,38 @@ impl From<OKLAB> for XYZd65 {
   fn from(lab: OKLAB) -> XYZd65 {
     // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L418
     const LMS_TO_XYZ: &[f32] = &[
-      1.2268798733741557,  -0.5578149965554813,   0.28139105017721583,
-      -0.04057576262431372,  1.1122868293970594,  -0.07171106666151701,
-      -0.07637294974672142, -0.4214933239627914,   1.5869240244272418
+      1.2268798733741557,
+      -0.5578149965554813,
+      0.28139105017721583,
+      -0.04057576262431372,
+      1.1122868293970594,
+      -0.07171106666151701,
+      -0.07637294974672142,
+      -0.4214933239627914,
+      1.5869240244272418,
     ];
 
     const OKLAB_TO_LMS: &[f32] = &[
-      0.99999999845051981432,  0.39633779217376785678,   0.21580375806075880339,
-      1.0000000088817607767,  -0.1055613423236563494,   -0.063854174771705903402,
-      1.0000000546724109177,  -0.089484182094965759684, -1.2914855378640917399
+      0.99999999845051981432,
+      0.39633779217376785678,
+      0.21580375806075880339,
+      1.0000000088817607767,
+      -0.1055613423236563494,
+      -0.063854174771705903402,
+      1.0000000546724109177,
+      -0.089484182094965759684,
+      -1.2914855378640917399,
     ];
 
     let lab = lab.resolve_missing();
     let (a, b, c) = multiply_matrix(OKLAB_TO_LMS, lab.l, lab.a, lab.b);
     let (x, y, z) = multiply_matrix(LMS_TO_XYZ, a.powi(3), b.powi(3), c.powi(3));
-    XYZd65 { x, y, z, alpha: lab.alpha }
+    XYZd65 {
+      x,
+      y,
+      z,
+      alpha: lab.alpha,
+    }
   }
 }
 
@@ -977,21 +1070,38 @@ impl From<XYZd65> for OKLAB {
   fn from(xyz: XYZd65) -> OKLAB {
     // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L400
     const XYZ_TO_LMS: &[f32] = &[
-      0.8190224432164319,    0.3619062562801221,    -0.12887378261216414,
-      0.0329836671980271,    0.9292868468965546,     0.03614466816999844,
-      0.048177199566046255,  0.26423952494422764,    0.6335478258136937
+      0.8190224432164319,
+      0.3619062562801221,
+      -0.12887378261216414,
+      0.0329836671980271,
+      0.9292868468965546,
+      0.03614466816999844,
+      0.048177199566046255,
+      0.26423952494422764,
+      0.6335478258136937,
     ];
 
     const LMS_TO_OKLAB: &[f32] = &[
-      0.2104542553,   0.7936177850,  -0.0040720468,
-      1.9779984951,  -2.4285922050,   0.4505937099,
-      0.0259040371,   0.7827717662,  -0.8086757660
+      0.2104542553,
+      0.7936177850,
+      -0.0040720468,
+      1.9779984951,
+      -2.4285922050,
+      0.4505937099,
+      0.0259040371,
+      0.7827717662,
+      -0.8086757660,
     ];
 
     let xyz = xyz.resolve_missing();
     let (a, b, c) = multiply_matrix(XYZ_TO_LMS, xyz.x, xyz.y, xyz.z);
     let (l, a, b) = multiply_matrix(LMS_TO_OKLAB, a.cbrt(), b.cbrt(), c.cbrt());
-    OKLAB { l, a, b, alpha: xyz.alpha }
+    OKLAB {
+      l,
+      a,
+      b,
+      alpha: xyz.alpha,
+    }
   }
 }
 
@@ -1000,8 +1110,8 @@ impl From<XYZd50> for LAB {
     // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L332
     // Assuming XYZ is relative to D50, convert to CIE LAB
     // from CIE standard, which now defines these as a rational fraction
-    const E: f32 = 216.0 / 24389.0;  // 6^3/29^3
-    const K: f32 = 24389.0 / 27.0;   // 29^3/3^3
+    const E: f32 = 216.0 / 24389.0; // 6^3/29^3
+    const K: f32 = 24389.0 / 27.0; // 29^3/3^3
 
     // compute xyz, which is XYZ scaled relative to reference white
     let xyz = xyz.resolve_missing();
@@ -1010,28 +1120,21 @@ impl From<XYZd50> for LAB {
     let z = xyz.z / D50[2];
 
     // now compute f
-    let f0 = if x > E {
-      x.cbrt()
-    } else {
-      (K * x + 16.0) / 116.0
-    };
+    let f0 = if x > E { x.cbrt() } else { (K * x + 16.0) / 116.0 };
 
-    let f1 = if y > E {
-      y.cbrt()
-    } else {
-      (K * y + 16.0) / 116.0
-    };
+    let f1 = if y > E { y.cbrt() } else { (K * y + 16.0) / 116.0 };
 
-    let f2 = if z > E {
-      z.cbrt()
-    } else {
-      (K * z + 16.0) / 116.0
-    };
+    let f2 = if z > E { z.cbrt() } else { (K * z + 16.0) / 116.0 };
 
     let l = ((116.0 * f1) - 16.0) / 100.0;
     let a = 500.0 * (f0 - f1);
     let b = 200.0 * (f1 - f2);
-    LAB { l, a, b, alpha: xyz.alpha }
+    LAB {
+      l,
+      a,
+      b,
+      alpha: xyz.alpha,
+    }
   }
 }
 
@@ -1039,7 +1142,12 @@ impl From<SRGB> for SRGBLinear {
   fn from(rgb: SRGB) -> SRGBLinear {
     let rgb = rgb.resolve_missing();
     let (r, g, b) = lin_srgb(rgb.r, rgb.g, rgb.b);
-    SRGBLinear { r, g, b, alpha: rgb.alpha }
+    SRGBLinear {
+      r,
+      g,
+      b,
+      alpha: rgb.alpha,
+    }
   }
 }
 
@@ -1058,7 +1166,7 @@ fn lin_srgb(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
     if abs < 0.04045 {
       return c / 12.92;
     }
-    
+
     let sign = if c < 0.0 { -1.0 } else { 1.0 };
     sign * ((abs + 0.055) / 1.055).powf(2.4)
   }
@@ -1075,14 +1183,25 @@ impl From<SRGBLinear> for XYZd65 {
     // convert an array of linear-light sRGB values to CIE XYZ
     // using sRGB's own white, D65 (no chromatic adaptation)
     const MATRIX: &[f32] = &[
-      0.41239079926595934, 0.357584339383878,   0.1804807884018343,
-      0.21263900587151027, 0.715168678767756,   0.07219231536073371,
-      0.01933081871559182, 0.11919477979462598, 0.9505321522496607
+      0.41239079926595934,
+      0.357584339383878,
+      0.1804807884018343,
+      0.21263900587151027,
+      0.715168678767756,
+      0.07219231536073371,
+      0.01933081871559182,
+      0.11919477979462598,
+      0.9505321522496607,
     ];
 
     let rgb = rgb.resolve_missing();
     let (x, y, z) = multiply_matrix(MATRIX, rgb.r, rgb.g, rgb.b);
-    XYZd65 { x, y, z, alpha: rgb.alpha }
+    XYZd65 {
+      x,
+      y,
+      z,
+      alpha: rgb.alpha,
+    }
   }
 }
 
@@ -1090,15 +1209,26 @@ impl From<XYZd65> for P3 {
   fn from(xyz: XYZd65) -> P3 {
     // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L105
     const MATRIX: &[f32] = &[
-      2.493496911941425,   -0.9313836179191239, -0.40271078445071684,
-      -0.8294889695615747,   1.7626640603183463,  0.023624685841943577,
-      0.03584583024378447, -0.07617238926804182, 0.9568845240076872
+      2.493496911941425,
+      -0.9313836179191239,
+      -0.40271078445071684,
+      -0.8294889695615747,
+      1.7626640603183463,
+      0.023624685841943577,
+      0.03584583024378447,
+      -0.07617238926804182,
+      0.9568845240076872,
     ];
 
     let xyz = xyz.resolve_missing();
     let (r, g, b) = multiply_matrix(MATRIX, xyz.x, xyz.y, xyz.z);
     let (r, g, b) = gam_srgb(r, g, b); // same as sRGB
-    P3 { r, g, b, alpha: xyz.alpha }
+    P3 {
+      r,
+      g,
+      b,
+      alpha: xyz.alpha,
+    }
   }
 }
 
@@ -1109,15 +1239,26 @@ impl From<P3> for XYZd65 {
     // using D65 (no chromatic adaptation)
     // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
     const MATRIX: &[f32] = &[
-      0.4865709486482162, 0.26566769316909306, 0.1982172852343625,
-      0.2289745640697488, 0.6917385218365064,  0.079286914093745,
-      0.0000000000000000, 0.04511338185890264, 1.043944368900976,
+      0.4865709486482162,
+      0.26566769316909306,
+      0.1982172852343625,
+      0.2289745640697488,
+      0.6917385218365064,
+      0.079286914093745,
+      0.0000000000000000,
+      0.04511338185890264,
+      1.043944368900976,
     ];
 
     let p3 = p3.resolve_missing();
     let (r, g, b) = lin_srgb(p3.r, p3.g, p3.b);
     let (x, y, z) = multiply_matrix(MATRIX, r, g, b);
-    XYZd65 { x, y, z, alpha: p3.alpha }
+    XYZd65 {
+      x,
+      y,
+      z,
+      alpha: p3.alpha,
+    }
   }
 }
 
@@ -1146,13 +1287,24 @@ impl From<A98> for XYZd65 {
     // from the chromaticity coordinates of R G B W
     // see matrixmaker.html
     const MATRIX: &[f32] = &[
-      0.5766690429101305,   0.1855582379065463,   0.1882286462349947,
-      0.29734497525053605,  0.6273635662554661,   0.07529145849399788,
-      0.02703136138641234,  0.07068885253582723,  0.9913375368376388
+      0.5766690429101305,
+      0.1855582379065463,
+      0.1882286462349947,
+      0.29734497525053605,
+      0.6273635662554661,
+      0.07529145849399788,
+      0.02703136138641234,
+      0.07068885253582723,
+      0.9913375368376388,
     ];
 
     let (x, y, z) = multiply_matrix(MATRIX, r, g, b);
-    XYZd65 { x, y, z, alpha: a98.alpha }
+    XYZd65 {
+      x,
+      y,
+      z,
+      alpha: a98.alpha,
+    }
   }
 }
 
@@ -1161,9 +1313,15 @@ impl From<XYZd65> for A98 {
     // https://github.com/w3c/csswg-drafts/blob/fba005e2ce9bcac55b49e4aa19b87208b3a0631e/css-color-4/conversions.js#L222
     // convert XYZ to linear-light a98-rgb
     const MATRIX: &[f32] = &[
-       2.0415879038107465,    -0.5650069742788596,   -0.34473135077832956,
-      -0.9692436362808795,     1.8759675015077202,    0.04155505740717557,
-       0.013444280632031142,  -0.11836239223101838,   1.0151749943912054
+      2.0415879038107465,
+      -0.5650069742788596,
+      -0.34473135077832956,
+      -0.9692436362808795,
+      1.8759675015077202,
+      0.04155505740717557,
+      0.013444280632031142,
+      -0.11836239223101838,
+      1.0151749943912054,
     ];
 
     #[inline]
@@ -1181,7 +1339,12 @@ impl From<XYZd65> for A98 {
     let r = gam_a98_component(r);
     let g = gam_a98_component(g);
     let b = gam_a98_component(b);
-    A98 { r, g, b, alpha: xyz.alpha }
+    A98 {
+      r,
+      g,
+      b,
+      alpha: xyz.alpha,
+    }
   }
 }
 
@@ -1216,13 +1379,24 @@ impl From<ProPhoto> for XYZd50 {
     // using  D50 (so no chromatic adaptation needed afterwards)
     // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
     const MATRIX: &[f32] = &[
-      0.7977604896723027,  0.13518583717574031,  0.0313493495815248,
-      0.2880711282292934,  0.7118432178101014,   0.00008565396060525902,
-      0.0,                 0.0,                  0.8251046025104601
+      0.7977604896723027,
+      0.13518583717574031,
+      0.0313493495815248,
+      0.2880711282292934,
+      0.7118432178101014,
+      0.00008565396060525902,
+      0.0,
+      0.0,
+      0.8251046025104601,
     ];
 
     let (x, y, z) = multiply_matrix(MATRIX, r, g, b);
-    XYZd50 { x, y, z, alpha: prophoto.alpha }
+    XYZd50 {
+      x,
+      y,
+      z,
+      alpha: prophoto.alpha,
+    }
   }
 }
 
@@ -1230,9 +1404,15 @@ impl From<XYZd50> for ProPhoto {
   fn from(xyz: XYZd50) -> ProPhoto {
     // convert XYZ to linear-light prophoto-rgb
     const MATRIX: &[f32] = &[
-       1.3457989731028281,  -0.25558010007997534,  -0.05110628506753401,
-      -0.5446224939028347,   1.5082327413132781,    0.02053603239147973,
-       0.0,                  0.0,                   1.2119675456389454
+      1.3457989731028281,
+      -0.25558010007997534,
+      -0.05110628506753401,
+      -0.5446224939028347,
+      1.5082327413132781,
+      0.02053603239147973,
+      0.0,
+      0.0,
+      1.2119675456389454,
     ];
 
     #[inline]
@@ -1257,7 +1437,12 @@ impl From<XYZd50> for ProPhoto {
     let r = gam_prophoto_component(r);
     let g = gam_prophoto_component(g);
     let b = gam_prophoto_component(b);
-    ProPhoto { r, g, b, alpha: xyz.alpha }
+    ProPhoto {
+      r,
+      g,
+      b,
+      alpha: xyz.alpha,
+    }
   }
 }
 
@@ -1292,13 +1477,24 @@ impl From<Rec2020> for XYZd65 {
     // using  D65 (no chromatic adaptation)
     // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
     const MATRIX: &[f32] = &[
-      0.6369580483012914, 0.14461690358620832,  0.1688809751641721,
-      0.2627002120112671, 0.6779980715188708,   0.05930171646986196,
-      0.000000000000000,  0.028072693049087428, 1.060985057710791
+      0.6369580483012914,
+      0.14461690358620832,
+      0.1688809751641721,
+      0.2627002120112671,
+      0.6779980715188708,
+      0.05930171646986196,
+      0.000000000000000,
+      0.028072693049087428,
+      1.060985057710791,
     ];
 
     let (x, y, z) = multiply_matrix(MATRIX, r, g, b);
-    XYZd65 { x, y, z, alpha: rec2020.alpha }
+    XYZd65 {
+      x,
+      y,
+      z,
+      alpha: rec2020.alpha,
+    }
   }
 }
 
@@ -1306,9 +1502,15 @@ impl From<XYZd65> for Rec2020 {
   fn from(xyz: XYZd65) -> Rec2020 {
     // convert XYZ to linear-light rec2020
     const MATRIX: &[f32] = &[
-       1.7166511879712674,   -0.35567078377639233, -0.25336628137365974,
-      -0.6666843518324892,    1.6164812366349395,   0.01576854581391113,
-       0.017639857445310783, -0.042770613257808524, 0.9421031212354738
+      1.7166511879712674,
+      -0.35567078377639233,
+      -0.25336628137365974,
+      -0.6666843518324892,
+      1.6164812366349395,
+      0.01576854581391113,
+      0.017639857445310783,
+      -0.042770613257808524,
+      0.9421031212354738,
     ];
 
     #[inline]
@@ -1334,7 +1536,12 @@ impl From<XYZd65> for Rec2020 {
     let r = gam_rec2020_component(r);
     let g = gam_rec2020_component(g);
     let b = gam_rec2020_component(b);
-    Rec2020 { r, g, b, alpha: xyz.alpha }
+    Rec2020 {
+      r,
+      g,
+      b,
+      alpha: xyz.alpha,
+    }
   }
 }
 
@@ -1370,7 +1577,12 @@ impl From<SRGB> for HSL {
       h = h * 60.0;
     }
 
-    HSL { h, s, l, alpha: rgb.alpha }
+    HSL {
+      h,
+      s,
+      l,
+      alpha: rgb.alpha,
+    }
   }
 }
 
@@ -1393,20 +1605,30 @@ impl From<HSL> for SRGB {
     let r = hue_to_rgb(0.0, h, hsl.s, hsl.l);
     let g = hue_to_rgb(8.0, h, hsl.s, hsl.l);
     let b = hue_to_rgb(4.0, h, hsl.s, hsl.l);
-    SRGB { r, g, b, alpha: hsl.alpha }
+    SRGB {
+      r,
+      g,
+      b,
+      alpha: hsl.alpha,
+    }
   }
 }
 
 impl From<SRGB> for HWB {
   fn from(rgb: SRGB) -> HWB {
     let rgb = rgb.resolve();
-    let hsl = HSL::from(rgb);    
+    let hsl = HSL::from(rgb);
     let r = rgb.r;
     let g = rgb.g;
     let b = rgb.b;
     let w = r.min(g).min(b);
     let b = 1.0 - r.max(g).max(b);
-    HWB { h: hsl.h, w, b, alpha: rgb.alpha } 
+    HWB {
+      h: hsl.h,
+      w,
+      b,
+      alpha: rgb.alpha,
+    }
   }
 }
 
@@ -1420,10 +1642,20 @@ impl From<HWB> for SRGB {
 
     if w + b >= 1.0 {
       let gray = w / (w + b);
-      return SRGB { r: gray, g: gray, b: gray, alpha: hwb.alpha }
+      return SRGB {
+        r: gray,
+        g: gray,
+        b: gray,
+        alpha: hwb.alpha,
+      };
     }
 
-    let mut rgba = SRGB::from(HSL { h, s: 1.0, l: 0.5, alpha: hwb.alpha });
+    let mut rgba = SRGB::from(HSL {
+      h,
+      s: 1.0,
+      l: 0.5,
+      alpha: hwb.alpha,
+    });
     let x = 1.0 - w - b;
     rgba.r = rgba.r * x + w;
     rgba.g = rgba.g * x + w;
@@ -1438,7 +1670,7 @@ impl From<RGBA> for SRGB {
       r: rgb.red_f32(),
       g: rgb.green_f32(),
       b: rgb.blue_f32(),
-      alpha: rgb.alpha_f32()
+      alpha: rgb.alpha_f32(),
     }
   }
 }
@@ -1541,7 +1773,7 @@ via!(HWB -> SRGB -> XYZd65);
 via!(HWB -> XYZd65 -> OKLAB);
 via!(HWB -> XYZd65 -> OKLCH);
 
-// RGBA is an 8-bit version. Convert to SRGB, which is a 
+// RGBA is an 8-bit version. Convert to SRGB, which is a
 // more accurate floating point representation for all operations.
 via!(RGBA -> SRGB -> LAB);
 via!(RGBA -> SRGB -> LCH);
@@ -1562,12 +1794,12 @@ macro_rules! color_space {
     impl From<LABColor> for $space {
       fn from(color: LABColor) -> $space {
         use LABColor::*;
-    
+
         match color {
           LAB(v) => v.into(),
           LCH(v) => v.into(),
           OKLAB(v) => v.into(),
-          OKLCH(v) => v.into()
+          OKLCH(v) => v.into(),
         }
       }
     }
@@ -1584,7 +1816,7 @@ macro_rules! color_space {
           ProPhoto(v) => v.into(),
           Rec2020(v) => v.into(),
           XYZd50(v) => v.into(),
-          XYZd65(v) => v.into()
+          XYZd65(v) => v.into(),
         }
       }
     }
@@ -1592,7 +1824,7 @@ macro_rules! color_space {
     impl From<FloatColor> for $space {
       fn from(color: FloatColor) -> $space {
         use FloatColor::*;
-    
+
         match color {
           RGB(v) => v.into(),
           HSL(v) => v.into(),
@@ -1608,7 +1840,7 @@ macro_rules! color_space {
           CssColor::LAB(lab) => (**lab).into(),
           CssColor::Predefined(predefined) => (**predefined).into(),
           CssColor::Float(float) => (**float).into(),
-          CssColor::CurrentColor => unreachable!()
+          CssColor::CurrentColor => unreachable!(),
         }
       }
     }
@@ -1644,7 +1876,7 @@ macro_rules! predefined {
         CssColor::Predefined(Box::new(PredefinedColor::$key(color)))
       }
     }
-  }
+  };
 }
 
 predefined!(SRGBLinear, SRGBLinear);
@@ -1668,7 +1900,7 @@ macro_rules! lab {
         CssColor::LAB(Box::new(LABColor::$key(color)))
       }
     }
-  }
+  };
 }
 
 lab!(LAB, LAB);
@@ -1685,7 +1917,7 @@ macro_rules! rgb {
         CssColor::RGBA(color.into())
       }
     }
-  }
+  };
 }
 
 rgb!(SRGB);
@@ -1708,9 +1940,7 @@ macro_rules! bounded_color_gamut {
     impl ColorGamut for $t {
       #[inline]
       fn in_gamut(&self) -> bool {
-        self.$a >= 0.0 && self.$a <= 1.0 &&
-        self.$b >= 0.0 && self.$b <= 1.0 &&
-        self.$c >= 0.0 && self.$c <= 1.0
+        self.$a >= 0.0 && self.$a <= 1.0 && self.$b >= 0.0 && self.$b <= 1.0 && self.$c >= 0.0 && self.$c <= 1.0
       }
 
       #[inline]
@@ -1719,11 +1949,11 @@ macro_rules! bounded_color_gamut {
           $a: self.$a.clamp(0.0, 1.0),
           $b: self.$b.clamp(0.0, 1.0),
           $c: self.$c.clamp(0.0, 1.0),
-          alpha: self.alpha.clamp(0.0, 1.0)
+          alpha: self.alpha.clamp(0.0, 1.0),
         }
       }
     }
-  }
+  };
 }
 
 macro_rules! unbounded_color_gamut {
@@ -1739,7 +1969,7 @@ macro_rules! unbounded_color_gamut {
         *self
       }
     }
-  }
+  };
 }
 
 macro_rules! hsl_hwb_color_gamut {
@@ -1747,8 +1977,7 @@ macro_rules! hsl_hwb_color_gamut {
     impl ColorGamut for $t {
       #[inline]
       fn in_gamut(&self) -> bool {
-        self.$a >= 0.0 && self.$a <= 1.0 &&
-        self.$b >= 0.0 && self.$b <= 1.0
+        self.$a >= 0.0 && self.$a <= 1.0 && self.$b >= 0.0 && self.$b <= 1.0
       }
 
       #[inline]
@@ -1757,11 +1986,11 @@ macro_rules! hsl_hwb_color_gamut {
           h: self.h % 360.0,
           $a: self.$a.clamp(0.0, 1.0),
           $b: self.$b.clamp(0.0, 1.0),
-          alpha: self.alpha.clamp(0.0, 1.0)
+          alpha: self.alpha.clamp(0.0, 1.0),
         }
       }
     }
-  }
+  };
 }
 
 bounded_color_gamut!(SRGB, r, g, b);
@@ -1769,7 +1998,7 @@ bounded_color_gamut!(SRGBLinear, r, g, b);
 bounded_color_gamut!(P3, r, g, b);
 bounded_color_gamut!(A98, r, g, b);
 bounded_color_gamut!(ProPhoto, r, g, b);
-bounded_color_gamut!(Rec2020, r, g,b);
+bounded_color_gamut!(Rec2020, r, g, b);
 unbounded_color_gamut!(LAB, l, a, b);
 unbounded_color_gamut!(OKLAB, l, a, b);
 unbounded_color_gamut!(XYZd50, x, y, z);
@@ -1786,13 +2015,13 @@ fn delta_eok<T: Into<OKLAB>>(a: T, b: OKLCH) -> f32 {
   let delta_l = a.l - b.l;
   let delta_a = a.a - b.a;
   let delta_b = a.b - b.b;
-  
+
   (delta_l.powi(2) + delta_a.powi(2) + delta_b.powi(2)).sqrt()
 }
 
 fn map_gamut<T>(color: T) -> T
 where
-  T: Into<OKLCH> + ColorGamut + Into<OKLAB> + From<OKLCH> + Copy
+  T: Into<OKLCH> + ColorGamut + Into<OKLAB> + From<OKLCH> + Copy,
 {
   const JND: f32 = 0.02;
   const EPSILON: f32 = 0.00001;
@@ -1802,12 +2031,24 @@ where
 
   // If lightness is >= 100%, return pure white.
   if (current.l - 1.0).abs() < EPSILON || current.l > 1.0 {
-    return OKLCH { l: 1.0, c: 0.0, h: 0.0, alpha: current.alpha }.into();
+    return OKLCH {
+      l: 1.0,
+      c: 0.0,
+      h: 0.0,
+      alpha: current.alpha,
+    }
+    .into();
   }
 
   // If lightness <= 0%, return pure black.
   if current.l < EPSILON {
-    return OKLCH { l: 0.0, c: 0.0, h: 0.0, alpha: current.alpha }.into();
+    return OKLCH {
+      l: 0.0,
+      c: 0.0,
+      h: 0.0,
+      alpha: current.alpha,
+    }
+    .into();
   }
 
   let mut min = 0.0;
@@ -1820,7 +2061,7 @@ where
     let converted = T::from(current);
     if converted.in_gamut() {
       min = chroma;
-      continue
+      continue;
     }
 
     let clipped = converted.clip();
@@ -1839,7 +2080,10 @@ fn parse_color_mix<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, Parse
   input.expect_ident_matching("in")?;
   let method = ColorSpace::parse(input)?;
 
-  let hue_method = if matches!(method, ColorSpace::Hsl | ColorSpace::Hwb | ColorSpace::LCH | ColorSpace::OKLCH) {
+  let hue_method = if matches!(
+    method,
+    ColorSpace::Hsl | ColorSpace::Hwb | ColorSpace::LCH | ColorSpace::OKLCH
+  ) {
     let hue_method = input.try_parse(HueInterpolationMethod::parse);
     if hue_method.is_ok() {
       input.expect_ident_matching("hue")?;
@@ -1854,12 +2098,16 @@ fn parse_color_mix<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, Parse
 
   let first_percent = input.try_parse(|input| input.expect_percentage());
   let first_color = CssColor::parse(input)?;
-  let first_percent = first_percent.or_else(|_| input.try_parse(|input| input.expect_percentage())).ok();
+  let first_percent = first_percent
+    .or_else(|_| input.try_parse(|input| input.expect_percentage()))
+    .ok();
   input.expect_comma()?;
 
   let second_percent = input.try_parse(|input| input.expect_percentage());
   let second_color = CssColor::parse(input)?;
-  let second_percent = second_percent.or_else(|_| input.try_parse(|input| input.expect_percentage())).ok();
+  let second_percent = second_percent
+    .or_else(|_| input.try_parse(|input| input.expect_percentage()))
+    .ok();
 
   // https://drafts.csswg.org/css-color-5/#color-mix-percent-norm
   let (p1, p2) = if first_percent.is_none() && second_percent.is_none() {
@@ -1892,34 +2140,28 @@ impl CssColor {
   fn get_type_id(&self) -> TypeId {
     match self {
       CssColor::RGBA(..) => TypeId::of::<SRGB>(),
-      CssColor::LAB(lab) => {
-        match &**lab {
-          LABColor::LAB(..) => TypeId::of::<LAB>(),
-          LABColor::LCH(..) => TypeId::of::<LCH>(),
-          LABColor::OKLAB(..) => TypeId::of::<OKLAB>(),
-          LABColor::OKLCH(..) => TypeId::of::<OKLCH>()
-        }
-      }
-      CssColor::Predefined(predefined) => {
-        match &**predefined {
-          PredefinedColor::SRGB(..) => TypeId::of::<SRGB>(),
-          PredefinedColor::SRGBLinear(..) => TypeId::of::<SRGBLinear>(),
-          PredefinedColor::DisplayP3(..) => TypeId::of::<P3>(),
-          PredefinedColor::A98(..) => TypeId::of::<A98>(),
-          PredefinedColor::ProPhoto(..) => TypeId::of::<ProPhoto>(),
-          PredefinedColor::Rec2020(..) => TypeId::of::<Rec2020>(),
-          PredefinedColor::XYZd50(..) => TypeId::of::<XYZd50>(),
-          PredefinedColor::XYZd65(..) => TypeId::of::<XYZd65>(),
-        }
-      }
-      CssColor::Float(float) => {
-        match &**float {
-          FloatColor::RGB(..) => TypeId::of::<SRGB>(),
-          FloatColor::HSL(..) => TypeId::of::<HSL>(),
-          FloatColor::HWB(..) => TypeId::of::<HWB>(),
-        }
-      }
-      _ => unreachable!()
+      CssColor::LAB(lab) => match &**lab {
+        LABColor::LAB(..) => TypeId::of::<LAB>(),
+        LABColor::LCH(..) => TypeId::of::<LCH>(),
+        LABColor::OKLAB(..) => TypeId::of::<OKLAB>(),
+        LABColor::OKLCH(..) => TypeId::of::<OKLCH>(),
+      },
+      CssColor::Predefined(predefined) => match &**predefined {
+        PredefinedColor::SRGB(..) => TypeId::of::<SRGB>(),
+        PredefinedColor::SRGBLinear(..) => TypeId::of::<SRGBLinear>(),
+        PredefinedColor::DisplayP3(..) => TypeId::of::<P3>(),
+        PredefinedColor::A98(..) => TypeId::of::<A98>(),
+        PredefinedColor::ProPhoto(..) => TypeId::of::<ProPhoto>(),
+        PredefinedColor::Rec2020(..) => TypeId::of::<Rec2020>(),
+        PredefinedColor::XYZd50(..) => TypeId::of::<XYZd50>(),
+        PredefinedColor::XYZd65(..) => TypeId::of::<XYZd65>(),
+      },
+      CssColor::Float(float) => match &**float {
+        FloatColor::RGB(..) => TypeId::of::<SRGB>(),
+        FloatColor::HSL(..) => TypeId::of::<HSL>(),
+        FloatColor::HWB(..) => TypeId::of::<HWB>(),
+      },
+      _ => unreachable!(),
     }
   }
 
@@ -1928,11 +2170,18 @@ impl CssColor {
     mut p1: f32,
     other: &'a CssColor,
     mut p2: f32,
-    method: HueInterpolationMethod
+    method: HueInterpolationMethod,
   ) -> CssColor
-    where
-      T: 'static + From<&'a CssColor> + Interpolate + Into<CssColor>
-        + Into<OKLCH> + ColorGamut + Into<OKLAB> + From<OKLCH> + Copy
+  where
+    T: 'static
+      + From<&'a CssColor>
+      + Interpolate
+      + Into<CssColor>
+      + Into<OKLCH>
+      + ColorGamut
+      + Into<OKLAB>
+      + From<OKLCH>
+      + Copy,
   {
     let type_id = TypeId::of::<T>();
     let converted_first = self.get_type_id() != type_id;
@@ -1954,7 +2203,7 @@ impl CssColor {
     if converted_first {
       first_color.adjust_powerless_components();
     }
-    
+
     if converted_second {
       second_color.adjust_powerless_components();
     }
@@ -2024,7 +2273,7 @@ macro_rules! interpolate {
         alpha: self.alpha * p1 + other.alpha * p2,
       }
     }
-  }
+  };
 }
 
 macro_rules! rectangular_premultiply {
@@ -2045,7 +2294,7 @@ macro_rules! rectangular_premultiply {
         self.alpha *= alpha_multiplier;
       }
     }
-  }
+  };
 }
 
 macro_rules! polar_premultiply {
@@ -2065,7 +2314,7 @@ macro_rules! polar_premultiply {
         self.alpha *= alpha_multiplier;
       }
     }
-  }
+  };
 }
 
 macro_rules! adjust_powerless_lab {
@@ -2077,13 +2326,13 @@ macro_rules! adjust_powerless_lab {
         self.b = f32::NAN;
       }
     }
-  }
+  };
 }
 
 macro_rules! adjust_powerless_lch {
   () => {
     fn adjust_powerless_components(&mut self) {
-      // If the chroma of an LCH color is 0%, the hue component is powerless. 
+      // If the chroma of an LCH color is 0%, the hue component is powerless.
       // If the lightness of an LCH color is 0%, both the hue and chroma components are powerless.
       if self.c.abs() < f32::EPSILON {
         self.h = f32::NAN;
@@ -2098,7 +2347,7 @@ macro_rules! adjust_powerless_lch {
     fn adjust_hue(&mut self, other: &mut Self, method: HueInterpolationMethod) {
       method.interpolate(&mut self.h, &mut other.h);
     }
-  }
+  };
 }
 
 impl Interpolate for SRGB {
@@ -2172,7 +2421,7 @@ impl Interpolate for HWB {
   polar_premultiply!(w, b);
 
   fn adjust_powerless_components(&mut self) {
-    // If white+black is equal to 100% (after normalization), it defines an achromatic color, 
+    // If white+black is equal to 100% (after normalization), it defines an achromatic color,
     // i.e. some shade of gray, without any hint of the chosen hue. In this case, the hue component is powerless.
     if (self.w + self.b - 1.0).abs() < f32::EPSILON {
       self.h = f32::NAN;

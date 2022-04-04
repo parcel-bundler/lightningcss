@@ -1,20 +1,20 @@
-use crate::values::string::CowArcStr;
-use cssparser::*;
 use super::Location;
-use crate::traits::{Parse, ToCss};
-use crate::printer::Printer;
-use crate::properties::font::{FontFamily, FontStyle, FontWeight, FontStretch};
-use crate::values::size::Size2D;
-use crate::properties::custom::CustomProperty;
-use crate::macros::enum_property;
-use crate::values::{url::Url};
 use crate::error::{ParserError, PrinterError};
+use crate::macros::enum_property;
+use crate::printer::Printer;
+use crate::properties::custom::CustomProperty;
+use crate::properties::font::{FontFamily, FontStretch, FontStyle, FontWeight};
+use crate::traits::{Parse, ToCss};
+use crate::values::size::Size2D;
+use crate::values::string::CowArcStr;
+use crate::values::url::Url;
+use cssparser::*;
 use std::fmt::Write;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct FontFaceRule<'i> {
   pub properties: Vec<FontFaceProperty<'i>>,
-  pub loc: Location
+  pub loc: Location,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,20 +25,20 @@ pub enum FontFaceProperty<'i> {
   FontWeight(Size2D<FontWeight>),
   FontStretch(Size2D<FontStretch>),
   UnicodeRange(Vec<UnicodeRange>),
-  Custom(CustomProperty<'i>)
+  Custom(CustomProperty<'i>),
 }
 
 /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-face-src-parsing
 #[derive(Debug, Clone, PartialEq)]
 pub enum Source<'i> {
   Url(UrlSource<'i>),
-  Local(FontFamily<'i>)
+  Local(FontFamily<'i>),
 }
 
 impl<'i> Parse<'i> for Source<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(url) = input.try_parse(UrlSource::parse) {
-      return Ok(Source::Url(url))
+      return Ok(Source::Url(url));
     }
 
     input.expect_function_matching("local")?;
@@ -48,7 +48,10 @@ impl<'i> Parse<'i> for Source<'i> {
 }
 
 impl<'i> ToCss for Source<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       Source::Url(url) => url.to_css(dest),
       Source::Local(local) => {
@@ -63,7 +66,7 @@ impl<'i> ToCss for Source<'i> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct UrlSource<'i> {
   pub url: Url<'i>,
-  pub format: Option<Format<'i>>
+  pub format: Option<Format<'i>>,
 }
 
 impl<'i> Parse<'i> for UrlSource<'i> {
@@ -81,7 +84,10 @@ impl<'i> Parse<'i> for UrlSource<'i> {
 }
 
 impl<'i> ToCss for UrlSource<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.url.to_css(dest)?;
     if let Some(format) = &self.format {
       dest.whitespace()?;
@@ -96,7 +102,7 @@ impl<'i> ToCss for UrlSource<'i> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Format<'i> {
   pub format: FontFormat<'i>,
-  pub supports: Vec<FontTechnology>
+  pub supports: Vec<FontTechnology>,
 }
 
 impl<'i> Parse<'i> for Format<'i> {
@@ -108,7 +114,7 @@ impl<'i> Parse<'i> for Format<'i> {
         if let Ok(technology) = input.try_parse(FontTechnology::parse) {
           supports.push(technology)
         } else {
-          break
+          break;
         }
       }
     }
@@ -116,9 +122,11 @@ impl<'i> Parse<'i> for Format<'i> {
   }
 }
 
-
 impl<'i> ToCss for Format<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.format.to_css(dest)?;
     if !self.supports.is_empty() {
       dest.write_str(" supports ")?;
@@ -145,7 +153,7 @@ pub enum FontFormat<'i> {
   EmbeddedOpenType,
   Collection,
   SVG,
-  String(CowArcStr<'i>)
+  String(CowArcStr<'i>),
 }
 
 impl<'i> Parse<'i> for FontFormat<'i> {
@@ -165,7 +173,10 @@ impl<'i> Parse<'i> for FontFormat<'i> {
 }
 
 impl<'i> ToCss for FontFormat<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     use FontFormat::*;
     let s = match self {
       WOFF => "woff",
@@ -175,7 +186,7 @@ impl<'i> ToCss for FontFormat<'i> {
       EmbeddedOpenType => "embedded-opentype",
       Collection => "collection",
       SVG => "svg",
-      String(s) => &s
+      String(s) => &s,
     };
     // Browser support for keywords rather than strings is very limited.
     // https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/src
@@ -207,7 +218,7 @@ pub enum FontTechnology {
   Features(FontFeatureTechnology),
   Variations,
   Color(ColorFontTechnology),
-  Palettes
+  Palettes,
 }
 
 impl<'i> Parse<'i> for FontTechnology {
@@ -232,13 +243,16 @@ impl<'i> Parse<'i> for FontTechnology {
           ))
         }
       }
-      tok => Err(location.new_unexpected_token_error(tok.clone()))
+      tok => Err(location.new_unexpected_token_error(tok.clone())),
     }
   }
 }
 
 impl ToCss for FontTechnology {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       FontTechnology::Features(f) => {
         dest.write_str("features(")?;
@@ -251,7 +265,7 @@ impl ToCss for FontTechnology {
         dest.write_char(')')
       }
       FontTechnology::Variations => dest.write_str("variations"),
-      FontTechnology::Palettes => dest.write_str("palettes")
+      FontTechnology::Palettes => dest.write_str("palettes"),
     }
   }
 }
@@ -264,7 +278,10 @@ impl<'i> Parse<'i> for UnicodeRange {
 }
 
 impl ToCss for UnicodeRange {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     // Attempt to optimize the range to use question mark syntax.
     if self.start != self.end {
       // Find the first hex digit that differs between the start and end values.
@@ -274,7 +291,7 @@ impl ToCss for UnicodeRange {
         let c1 = self.start & mask;
         let c2 = self.end & mask;
         if c1 != c2 {
-          break
+          break;
         }
 
         mask = mask >> 4;
@@ -301,7 +318,7 @@ impl ToCss for UnicodeRange {
           shift -= 4;
         }
 
-        return Ok(())
+        return Ok(());
       }
     }
 
@@ -318,14 +335,14 @@ impl<'i> cssparser::DeclarationParser<'i> for FontFaceDeclarationParser {
   type Error = ParserError<'i>;
 
   fn parse_value<'t>(
-      &mut self,
-      name: CowRcStr<'i>,
-      input: &mut cssparser::Parser<'i, 't>,
+    &mut self,
+    name: CowRcStr<'i>,
+    input: &mut cssparser::Parser<'i, 't>,
   ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
     macro_rules! property {
       ($property: ident, $type: ty) => {
         if let Ok(c) = <$type>::parse(input) {
-          return Ok(FontFaceProperty::$property(c))
+          return Ok(FontFaceProperty::$property(c));
         }
       };
     }
@@ -346,7 +363,7 @@ impl<'i> cssparser::DeclarationParser<'i> for FontFaceDeclarationParser {
     }
 
     input.reset(&state);
-    return Ok(FontFaceProperty::Custom(CustomProperty::parse(name, input)?))
+    return Ok(FontFaceProperty::Custom(CustomProperty::parse(name, input)?));
   }
 }
 
@@ -358,7 +375,10 @@ impl<'i> AtRuleParser<'i> for FontFaceDeclarationParser {
 }
 
 impl<'i> ToCss for FontFaceRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     dest.add_mapping(self.loc);
     dest.write_str("@font-face")?;
     dest.whitespace()?;
@@ -379,7 +399,10 @@ impl<'i> ToCss for FontFaceRule<'i> {
 }
 
 impl<'i> ToCss for FontFaceProperty<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     use FontFaceProperty::*;
     macro_rules! property {
       ($prop: literal, $value: expr) => {{
