@@ -360,20 +360,22 @@ enum CompileError<'i> {
   BundleError(Error<BundleErrorKind<'i>>),
 }
 
-impl<'i> CompileError<'i> {
-  fn reason(&self) -> String {
+impl<'i> std::fmt::Display for CompileError<'i> {
+  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
     match self {
-      CompileError::ParseError(e) => e.kind.reason(),
-      CompileError::MinifyError(err) => err.kind.reason(),
-      CompileError::PrinterError(err) => err.kind.reason(),
-      CompileError::BundleError(err) => err.kind.reason(),
-      _ => "Unknown error".into(),
+      CompileError::ParseError(err) => err.kind.fmt(f),
+      CompileError::MinifyError(err) => err.kind.fmt(f),
+      CompileError::PrinterError(err) => err.kind.fmt(f),
+      CompileError::BundleError(err) => err.kind.fmt(f),
+      CompileError::SourceMapError(err) => write!(f, "{}", err.to_string()), // TODO: switch to `fmt::Display` once parcel_sourcemap supports this
     }
   }
+}
 
+impl<'i> CompileError<'i> {
   #[cfg(not(target_arch = "wasm32"))]
   fn throw(self, ctx: CallContext, code: Option<&str>) -> napi::Result<JsUnknown> {
-    let reason = self.reason();
+    let reason = self.to_string();
     let data = match &self {
       CompileError::ParseError(Error { kind, .. }) => ctx.env.to_js_value(kind)?,
       CompileError::PrinterError(Error { kind, .. }) => ctx.env.to_js_value(kind)?,
@@ -449,7 +451,7 @@ impl<'i> From<CompileError<'i>> for napi::Error {
   fn from(e: CompileError) -> napi::Error {
     match e {
       CompileError::SourceMapError(e) => napi::Error::from_reason(e.to_string()),
-      _ => napi::Error::new(napi::Status::GenericFailure, e.reason()),
+      _ => napi::Error::new(napi::Status::GenericFailure, e.to_string()),
     }
   }
 }
@@ -459,7 +461,7 @@ impl<'i> From<CompileError<'i>> for wasm_bindgen::JsValue {
   fn from(e: CompileError) -> wasm_bindgen::JsValue {
     match e {
       CompileError::SourceMapError(e) => js_sys::Error::new(&e.to_string()).into(),
-      _ => js_sys::Error::new(&e.reason()).into(),
+      _ => js_sys::Error::new(&e.to_string()).into(),
     }
   }
 }
