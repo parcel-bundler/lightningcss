@@ -1,13 +1,13 @@
 use super::Location;
-use crate::traits::ToCss;
-use crate::printer::Printer;
 use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, PrinterError};
+use crate::printer::Printer;
+use crate::traits::ToCss;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct MozDocumentRule<'i> {
   pub rules: CssRuleList<'i>,
-  pub loc: Location
+  pub loc: Location,
 }
 
 impl<'i> MozDocumentRule<'i> {
@@ -17,7 +17,10 @@ impl<'i> MozDocumentRule<'i> {
 }
 
 impl<'i> ToCss for MozDocumentRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     dest.add_mapping(self.loc);
     dest.write_str("@-moz-document url-prefix()")?;
     dest.whitespace()?;

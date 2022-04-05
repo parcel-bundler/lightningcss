@@ -1,12 +1,12 @@
-use cssparser::*;
-use crate::traits::{Parse, ToCss};
-use crate::printer::Printer;
-use super::rect::Rect;
 use super::length::LengthPercentage;
-use crate::error::{ParserError, PrinterError};
-use crate::properties::border_radius::BorderRadius;
 use super::position::Position;
+use super::rect::Rect;
+use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
+use crate::printer::Printer;
+use crate::properties::border_radius::BorderRadius;
+use crate::traits::{Parse, ToCss};
+use cssparser::*;
 
 /// https://www.w3.org/TR/css-shapes-1/#basic-shape-functions
 #[derive(Debug, Clone, PartialEq)]
@@ -14,14 +14,14 @@ pub enum BasicShape {
   Inset(InsetRect),
   Circle(Circle),
   Ellipse(Ellipse),
-  Polygon(Polygon)
+  Polygon(Polygon),
 }
 
 /// https://www.w3.org/TR/css-shapes-1/#funcdef-inset
 #[derive(Debug, Clone, PartialEq)]
 pub struct InsetRect {
   pub rect: Rect<LengthPercentage>,
-  pub radius: BorderRadius
+  pub radius: BorderRadius,
 }
 
 /// https://www.w3.org/TR/css-shapes-1/#funcdef-circle
@@ -36,7 +36,7 @@ pub struct Circle {
 pub enum ShapeRadius {
   LengthPercentage(LengthPercentage),
   ClosestSide,
-  FarthestSide
+  FarthestSide,
 }
 
 /// https://www.w3.org/TR/css-shapes-1/#funcdef-ellipse
@@ -44,20 +44,20 @@ pub enum ShapeRadius {
 pub struct Ellipse {
   pub radius_x: ShapeRadius,
   pub radius_y: ShapeRadius,
-  pub position: Position
+  pub position: Position,
 }
 
 /// https://www.w3.org/TR/css-shapes-1/#funcdef-polygon
 #[derive(Debug, Clone, PartialEq)]
 pub struct Polygon {
   pub fill_rule: FillRule,
-  pub points: Vec<Point>
+  pub points: Vec<Point>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Point {
   x: LengthPercentage,
-  y: LengthPercentage
+  y: LengthPercentage,
 }
 
 enum_property! {
@@ -115,11 +115,11 @@ impl<'i> Parse<'i> for Circle {
 impl<'i> Parse<'i> for ShapeRadius {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(len) = input.try_parse(LengthPercentage::parse) {
-      return Ok(ShapeRadius::LengthPercentage(len))
+      return Ok(ShapeRadius::LengthPercentage(len));
     }
 
     if input.try_parse(|input| input.expect_ident_matching("closest-side")).is_ok() {
-      return Ok(ShapeRadius::ClosestSide)
+      return Ok(ShapeRadius::ClosestSide);
     }
 
     input.expect_ident_matching("farthest-side")?;
@@ -135,9 +135,11 @@ impl Default for ShapeRadius {
 
 impl<'i> Parse<'i> for Ellipse {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let (x, y) = input.try_parse(|input| -> Result<_, ParseError<'i, ParserError<'i>>> {
-      Ok((ShapeRadius::parse(input)?, ShapeRadius::parse(input)?))
-    }).unwrap_or_default();
+    let (x, y) = input
+      .try_parse(|input| -> Result<_, ParseError<'i, ParserError<'i>>> {
+        Ok((ShapeRadius::parse(input)?, ShapeRadius::parse(input)?))
+      })
+      .unwrap_or_default();
 
     let position = if input.try_parse(|input| input.expect_ident_matching("at")).is_ok() {
       Position::parse(input)?
@@ -148,7 +150,7 @@ impl<'i> Parse<'i> for Ellipse {
     Ok(Ellipse {
       radius_x: x,
       radius_y: y,
-      position
+      position,
     })
   }
 }
@@ -163,7 +165,7 @@ impl<'i> Parse<'i> for Polygon {
     let points = input.parse_comma_separated(Point::parse)?;
     Ok(Polygon {
       fill_rule: fill_rule.unwrap_or_default(),
-      points
+      points,
     })
   }
 }
@@ -177,7 +179,10 @@ impl<'i> Parse<'i> for Point {
 }
 
 impl ToCss for BasicShape {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       BasicShape::Inset(rect) => {
         dest.write_str("inset(")?;
@@ -204,7 +209,10 @@ impl ToCss for BasicShape {
 }
 
 impl ToCss for InsetRect {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.rect.to_css(dest)?;
     if self.radius != BorderRadius::default() {
       dest.write_str(" round ")?;
@@ -215,7 +223,10 @@ impl ToCss for InsetRect {
 }
 
 impl ToCss for Circle {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let mut has_output = false;
     if self.radius != ShapeRadius::default() {
       self.radius.to_css(dest)?;
@@ -235,17 +246,23 @@ impl ToCss for Circle {
 }
 
 impl ToCss for ShapeRadius {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       ShapeRadius::LengthPercentage(len) => len.to_css(dest),
       ShapeRadius::ClosestSide => dest.write_str("closest-side"),
-      ShapeRadius::FarthestSide => dest.write_str("farthest-side")
+      ShapeRadius::FarthestSide => dest.write_str("farthest-side"),
     }
   }
 }
 
 impl ToCss for Ellipse {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let mut has_output = false;
     if self.radius_x != ShapeRadius::default() || self.radius_y != ShapeRadius::default() {
       self.radius_x.to_css(dest)?;
@@ -267,12 +284,15 @@ impl ToCss for Ellipse {
 }
 
 impl ToCss for Polygon {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     if self.fill_rule != FillRule::default() {
       self.fill_rule.to_css(dest)?;
       dest.delim(',', false)?;
     }
-    
+
     let mut first = true;
     for point in &self.points {
       if first {
@@ -288,7 +308,10 @@ impl ToCss for Polygon {
 }
 
 impl ToCss for Point {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.x.to_css(dest)?;
     dest.write_char(' ')?;
     self.y.to_css(dest)

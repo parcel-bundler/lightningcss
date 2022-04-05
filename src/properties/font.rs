@@ -1,24 +1,20 @@
-use crate::values::string::CowArcStr;
-use cssparser::*;
-use crate::macros::*;
-use crate::values::{
-  angle::Angle,
-  length::LengthPercentage,
-  percentage::Percentage
-};
-use crate::traits::{Parse, ToCss, PropertyHandler};
 use super::{Property, PropertyId};
-use crate::declaration::DeclarationList;
-use crate::printer::Printer;
-use crate::error::{ParserError, PrinterError};
 use crate::context::PropertyHandlerContext;
+use crate::declaration::DeclarationList;
+use crate::error::{ParserError, PrinterError};
+use crate::macros::*;
+use crate::printer::Printer;
+use crate::traits::{Parse, PropertyHandler, ToCss};
+use crate::values::string::CowArcStr;
+use crate::values::{angle::Angle, length::LengthPercentage, percentage::Percentage};
+use cssparser::*;
 
 /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-weight-prop
 #[derive(Debug, Clone, PartialEq)]
 pub enum FontWeight {
   Absolute(AbsoluteFontWeight),
   Bolder,
-  Lighter
+  Lighter,
 }
 
 impl Default for FontWeight {
@@ -30,7 +26,7 @@ impl Default for FontWeight {
 impl<'i> Parse<'i> for FontWeight {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(val) = input.try_parse(AbsoluteFontWeight::parse) {
-      return Ok(FontWeight::Absolute(val))
+      return Ok(FontWeight::Absolute(val));
     }
 
     let location = input.current_source_location();
@@ -46,12 +42,15 @@ impl<'i> Parse<'i> for FontWeight {
 }
 
 impl ToCss for FontWeight {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     use FontWeight::*;
     match self {
       Absolute(val) => val.to_css(dest),
       Bolder => dest.write_str("bolder"),
-      Lighter => dest.write_str("lighter")
+      Lighter => dest.write_str("lighter"),
     }
   }
 }
@@ -61,7 +60,7 @@ impl ToCss for FontWeight {
 pub enum AbsoluteFontWeight {
   Weight(f32),
   Normal,
-  Bold
+  Bold,
 }
 
 impl Default for AbsoluteFontWeight {
@@ -73,7 +72,7 @@ impl Default for AbsoluteFontWeight {
 impl<'i> Parse<'i> for AbsoluteFontWeight {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(val) = input.try_parse(f32::parse) {
-      return Ok(AbsoluteFontWeight::Weight(val))
+      return Ok(AbsoluteFontWeight::Weight(val));
     }
 
     let location = input.current_source_location();
@@ -89,12 +88,15 @@ impl<'i> Parse<'i> for AbsoluteFontWeight {
 }
 
 impl ToCss for AbsoluteFontWeight {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     use AbsoluteFontWeight::*;
     match self {
       Weight(val) => val.to_css(dest),
       Normal => dest.write_str(if dest.minify { "400" } else { "normal" }),
-      Bold => dest.write_str(if dest.minify { "700" } else { "bold" })
+      Bold => dest.write_str(if dest.minify { "700" } else { "bold" }),
     }
   }
 }
@@ -123,17 +125,17 @@ enum_property! {
 pub enum FontSize {
   Length(LengthPercentage),
   Absolute(AbsoluteFontSize),
-  Relative(RelativeFontSize)
+  Relative(RelativeFontSize),
 }
 
 impl<'i> Parse<'i> for FontSize {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(val) = input.try_parse(LengthPercentage::parse) {
-      return Ok(FontSize::Length(val))
+      return Ok(FontSize::Length(val));
     }
 
     if let Ok(val) = input.try_parse(AbsoluteFontSize::parse) {
-      return Ok(FontSize::Absolute(val))
+      return Ok(FontSize::Absolute(val));
     }
 
     let val = RelativeFontSize::parse(input)?;
@@ -142,12 +144,15 @@ impl<'i> Parse<'i> for FontSize {
 }
 
 impl ToCss for FontSize {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     use FontSize::*;
     match self {
       Absolute(val) => val.to_css(dest),
       Length(val) => val.to_css(dest),
-      Relative(val) => val.to_css(dest)
+      Relative(val) => val.to_css(dest),
     }
   }
 }
@@ -184,7 +189,7 @@ impl FontStretchKeyword {
       SemiExpanded => 1.125,
       Expanded => 1.25,
       ExtraExpanded => 1.5,
-      UltraExpanded => 2.0    
+      UltraExpanded => 2.0,
     };
     Percentage(val)
   }
@@ -194,7 +199,7 @@ impl FontStretchKeyword {
 #[derive(Debug, Clone, PartialEq)]
 pub enum FontStretch {
   Keyword(FontStretchKeyword),
-  Percentage(Percentage)
+  Percentage(Percentage),
 }
 
 impl Default for FontStretch {
@@ -206,7 +211,7 @@ impl Default for FontStretch {
 impl<'i> Parse<'i> for FontStretch {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(val) = input.try_parse(Percentage::parse) {
-      return Ok(FontStretch::Percentage(val))
+      return Ok(FontStretch::Percentage(val));
     }
 
     let keyword = FontStretchKeyword::parse(input)?;
@@ -218,21 +223,24 @@ impl FontStretch {
   pub fn to_percentage(&self) -> Percentage {
     match self {
       FontStretch::Percentage(val) => val.clone(),
-      FontStretch::Keyword(keyword) => keyword.to_percentage()
+      FontStretch::Keyword(keyword) => keyword.to_percentage(),
     }
   }
 }
 
 impl ToCss for FontStretch {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     use FontStretch::*;
     if dest.minify {
-      return self.to_percentage().to_css(dest)
+      return self.to_percentage().to_css(dest);
     }
 
     match self {
       Percentage(val) => val.to_css(dest),
-      Keyword(val) => val.to_css(dest)
+      Keyword(val) => val.to_css(dest),
     }
   }
 }
@@ -275,17 +283,17 @@ enum_property! {
 #[derive(Debug, Clone, PartialEq)]
 pub enum FontFamily<'i> {
   FamilyName(CowArcStr<'i>),
-  Generic(GenericFontFamily)
+  Generic(GenericFontFamily),
 }
 
 impl<'i> Parse<'i> for FontFamily<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(value) = input.try_parse(|i| i.expect_string_cloned()) {
-      return Ok(FontFamily::FamilyName(value.into()))
+      return Ok(FontFamily::FamilyName(value.into()));
     }
 
     if let Ok(value) = input.try_parse(GenericFontFamily::parse) {
-      return Ok(FontFamily::Generic(value))
+      return Ok(FontFamily::Generic(value));
     }
 
     let value: CowArcStr<'i> = input.expect_ident()?.into();
@@ -312,7 +320,10 @@ impl<'i> Parse<'i> for FontFamily<'i> {
 }
 
 impl<'i> ToCss for FontFamily<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       FontFamily::Generic(val) => val.to_css(dest),
       FontFamily::FamilyName(val) => {
@@ -331,7 +342,7 @@ impl<'i> ToCss for FontFamily<'i> {
             serialize_identifier(slice, &mut id)?;
           }
           if id.len() < val.len() + 2 {
-            return dest.write_str(&id)
+            return dest.write_str(&id);
           }
         }
         serialize_string(&val, dest)?;
@@ -346,7 +357,7 @@ impl<'i> ToCss for FontFamily<'i> {
 pub enum FontStyle {
   Normal,
   Italic,
-  Oblique(Angle)
+  Oblique(Angle),
 }
 
 impl Default for FontStyle {
@@ -374,7 +385,10 @@ impl<'i> Parse<'i> for FontStyle {
 }
 
 impl ToCss for FontStyle {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       FontStyle::Normal => dest.write_str("normal"),
       FontStyle::Italic => dest.write_str("italic"),
@@ -408,7 +422,7 @@ impl FontVariantCaps {
     match self {
       FontVariantCaps::Normal => Some(FontVariantCapsCSS2::Normal),
       FontVariantCaps::SmallCaps => Some(FontVariantCapsCSS2::SmallCaps),
-      _ => None
+      _ => None,
     }
   }
 }
@@ -431,7 +445,7 @@ impl FontVariantCapsCSS2 {
   pub fn to_font_variant_caps(&self) -> FontVariantCaps {
     match self {
       FontVariantCapsCSS2::Normal => FontVariantCaps::Normal,
-      FontVariantCapsCSS2::SmallCaps => FontVariantCaps::SmallCaps
+      FontVariantCapsCSS2::SmallCaps => FontVariantCaps::SmallCaps,
     }
   }
 }
@@ -441,7 +455,7 @@ impl FontVariantCapsCSS2 {
 pub enum LineHeight {
   Normal,
   Number(f32),
-  Length(LengthPercentage)
+  Length(LengthPercentage),
 }
 
 impl Default for LineHeight {
@@ -453,11 +467,11 @@ impl Default for LineHeight {
 impl<'i> Parse<'i> for LineHeight {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
-      return Ok(LineHeight::Normal)
+      return Ok(LineHeight::Normal);
     }
 
     if let Ok(val) = input.try_parse(f32::parse) {
-      return Ok(LineHeight::Number(val))
+      return Ok(LineHeight::Number(val));
     }
 
     Ok(LineHeight::Length(LengthPercentage::parse(input)?))
@@ -465,11 +479,14 @@ impl<'i> Parse<'i> for LineHeight {
 }
 
 impl ToCss for LineHeight {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       LineHeight::Normal => dest.write_str("normal"),
       LineHeight::Number(val) => val.to_css(dest),
-      LineHeight::Length(val) => val.to_css(dest)
+      LineHeight::Length(val) => val.to_css(dest),
     }
   }
 }
@@ -492,13 +509,13 @@ enum_property! {
 #[derive(Debug, Clone, PartialEq)]
 pub enum VerticalAlign {
   Keyword(VerticalAlignKeyword),
-  Length(LengthPercentage)
+  Length(LengthPercentage),
 }
 
 impl<'i> Parse<'i> for VerticalAlign {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(len) = input.try_parse(LengthPercentage::parse) {
-      return Ok(VerticalAlign::Length(len))
+      return Ok(VerticalAlign::Length(len));
     }
 
     let kw = VerticalAlignKeyword::parse(input)?;
@@ -507,10 +524,13 @@ impl<'i> Parse<'i> for VerticalAlign {
 }
 
 impl ToCss for VerticalAlign {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       VerticalAlign::Keyword(kw) => kw.to_css(dest),
-      VerticalAlign::Length(len) => len.to_css(dest)
+      VerticalAlign::Length(len) => len.to_css(dest),
     }
   }
 }
@@ -524,7 +544,7 @@ pub struct Font<'i> {
   pub weight: FontWeight,
   pub stretch: FontStretch,
   pub line_height: LineHeight,
-  pub variant_caps: FontVariantCapsCSS2
+  pub variant_caps: FontVariantCapsCSS2,
 }
 
 impl<'i> Parse<'i> for Font<'i> {
@@ -540,27 +560,27 @@ impl<'i> Parse<'i> for Font<'i> {
       // Skip "normal" since it is valid for several properties, but we don't know which ones it will be used for yet.
       if input.try_parse(|input| input.expect_ident_matching("normal")).is_ok() {
         count += 1;
-        continue
+        continue;
       }
       if style.is_none() {
         if let Ok(value) = input.try_parse(FontStyle::parse) {
           style = Some(value);
           count += 1;
-          continue
+          continue;
         }
       }
       if weight.is_none() {
         if let Ok(value) = input.try_parse(FontWeight::parse) {
           weight = Some(value);
           count += 1;
-          continue
+          continue;
         }
       }
       if variant_caps.is_none() {
         if let Ok(value) = input.try_parse(FontVariantCapsCSS2::parse) {
           variant_caps = Some(value);
           count += 1;
-          continue
+          continue;
         }
       }
 
@@ -568,22 +588,20 @@ impl<'i> Parse<'i> for Font<'i> {
         if let Ok(value) = input.try_parse(FontStretchKeyword::parse) {
           stretch = Some(FontStretch::Keyword(value));
           count += 1;
-          continue
+          continue;
         }
       }
       size = Some(FontSize::parse(input)?);
-      break
+      break;
     }
 
     if count > 4 {
-      return Err(input.new_custom_error(ParserError::InvalidDeclaration))
-    } 
+      return Err(input.new_custom_error(ParserError::InvalidDeclaration));
+    }
 
     let size = match size {
       Some(s) => s,
-      None => {
-        return Err(input.new_custom_error(ParserError::InvalidDeclaration))
-      }
+      None => return Err(input.new_custom_error(ParserError::InvalidDeclaration)),
     };
 
     let line_height = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
@@ -600,13 +618,16 @@ impl<'i> Parse<'i> for Font<'i> {
       weight: weight.unwrap_or_default(),
       stretch: stretch.unwrap_or_default(),
       line_height: line_height.unwrap_or_default(),
-      variant_caps: variant_caps.unwrap_or_default()
+      variant_caps: variant_caps.unwrap_or_default(),
     })
   }
 }
 
 impl<'i> ToCss for Font<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     if self.style != FontStyle::default() {
       self.style.to_css(dest)?;
       dest.write_char(' ')?;
@@ -633,7 +654,7 @@ impl<'i> ToCss for Font<'i> {
       dest.delim('/', true)?;
       self.line_height.to_css(dest)?;
     }
-    
+
     dest.write_char(' ')?;
 
     let len = self.family.len();
@@ -657,11 +678,16 @@ pub(crate) struct FontHandler<'i> {
   stretch: Option<FontStretch>,
   line_height: Option<LineHeight>,
   variant_caps: Option<FontVariantCaps>,
-  has_any: bool
+  has_any: bool,
 }
 
 impl<'i> PropertyHandler<'i> for FontHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
+  fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    dest: &mut DeclarationList<'i>,
+    context: &mut PropertyHandlerContext<'i>,
+  ) -> bool {
     use Property::*;
 
     macro_rules! property {
@@ -694,7 +720,7 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
         self.finalize(dest, context);
         dest.push(property.clone());
       }
-      _ => return false
+      _ => return false,
     }
 
     true
@@ -702,7 +728,7 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
 
   fn finalize(&mut self, decls: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
     if !self.has_any {
-      return
+      return;
     }
 
     self.has_any = false;
@@ -715,7 +741,14 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
     let line_height = std::mem::take(&mut self.line_height);
     let variant_caps = std::mem::take(&mut self.variant_caps);
 
-    if family.is_some() && size.is_some() && style.is_some() && weight.is_some() && stretch.is_some() && line_height.is_some() && variant_caps.is_some() {
+    if family.is_some()
+      && size.is_some()
+      && style.is_some()
+      && weight.is_some()
+      && stretch.is_some()
+      && line_height.is_some()
+      && variant_caps.is_some()
+    {
       let caps = variant_caps.unwrap().to_css2();
       decls.push(Property::Font(Font {
         family: family.unwrap(),
@@ -724,7 +757,7 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
         weight: weight.unwrap(),
         stretch: stretch.unwrap(),
         line_height: line_height.unwrap(),
-        variant_caps: caps.unwrap_or_default()
+        variant_caps: caps.unwrap_or_default(),
       }));
 
       // The `font` property only accepts CSS 2.1 values for font-variant caps.
@@ -767,14 +800,14 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
 #[inline]
 fn is_font_property(property_id: &PropertyId) -> bool {
   match property_id {
-    PropertyId::FontFamily |
-    PropertyId::FontSize |
-    PropertyId::FontStyle |
-    PropertyId::FontWeight |
-    PropertyId::FontStretch |
-    PropertyId::FontVariantCaps |
-    PropertyId::LineHeight |
-    PropertyId::Font => true,
-    _ => false
+    PropertyId::FontFamily
+    | PropertyId::FontSize
+    | PropertyId::FontStyle
+    | PropertyId::FontWeight
+    | PropertyId::FontStretch
+    | PropertyId::FontVariantCaps
+    | PropertyId::LineHeight
+    | PropertyId::Font => true,
+    _ => false,
   }
 }

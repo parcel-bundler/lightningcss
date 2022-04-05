@@ -1,16 +1,23 @@
-use crate::{values::{length::*, percentage::{Percentage, NumberOrPercentage}, number::serialize_number}, traits::FallbackValues};
-use cssparser::*;
-use crate::traits::{Parse, ToCss, PropertyHandler};
-use crate::properties::{Property, PropertyId, VendorPrefix};
-use crate::declaration::DeclarationList;
-use crate::targets::Browsers;
-use crate::prefixes::Feature;
-use crate::values::rect::Rect;
-use crate::values::image::Image;
-use crate::macros::*;
-use crate::printer::Printer;
-use crate::error::{ParserError, PrinterError};
 use crate::context::PropertyHandlerContext;
+use crate::declaration::DeclarationList;
+use crate::error::{ParserError, PrinterError};
+use crate::macros::*;
+use crate::prefixes::Feature;
+use crate::printer::Printer;
+use crate::properties::{Property, PropertyId, VendorPrefix};
+use crate::targets::Browsers;
+use crate::traits::{Parse, PropertyHandler, ToCss};
+use crate::values::image::Image;
+use crate::values::rect::Rect;
+use crate::{
+  traits::FallbackValues,
+  values::{
+    length::*,
+    number::serialize_number,
+    percentage::{NumberOrPercentage, Percentage},
+  },
+};
+use cssparser::*;
 
 enum_property! {
   /// https://www.w3.org/TR/css-backgrounds-3/#border-image-repeat
@@ -40,7 +47,10 @@ impl<'i> Parse<'i> for BorderImageRepeat {
 }
 
 impl ToCss for BorderImageRepeat {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.0.to_css(dest)?;
     if self.0 != self.1 {
       dest.write_str(" ")?;
@@ -55,7 +65,7 @@ impl ToCss for BorderImageRepeat {
 pub enum BorderImageSideWidth {
   Number(f32),
   LengthPercentage(LengthPercentage),
-  Auto
+  Auto,
 }
 
 impl Default for BorderImageSideWidth {
@@ -71,11 +81,11 @@ impl<'i> Parse<'i> for BorderImageSideWidth {
     }
 
     if let Ok(number) = input.try_parse(f32::parse) {
-      return Ok(BorderImageSideWidth::Number(number))
+      return Ok(BorderImageSideWidth::Number(number));
     }
 
     if let Ok(percent) = input.try_parse(|input| LengthPercentage::parse(input)) {
-      return Ok(BorderImageSideWidth::LengthPercentage(percent))
+      return Ok(BorderImageSideWidth::LengthPercentage(percent));
     }
 
     Err(input.new_error_for_next_token())
@@ -83,12 +93,15 @@ impl<'i> Parse<'i> for BorderImageSideWidth {
 }
 
 impl ToCss for BorderImageSideWidth {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     use BorderImageSideWidth::*;
     match self {
       Auto => dest.write_str("auto"),
       LengthPercentage(l) => l.to_css(dest),
-      Number(n) => serialize_number(*n, dest)
+      Number(n) => serialize_number(*n, dest),
     }
   }
 }
@@ -104,7 +117,7 @@ impl Default for BorderImageSlice {
   fn default() -> BorderImageSlice {
     BorderImageSlice {
       offsets: Rect::all(NumberOrPercentage::Percentage(Percentage(1.0))),
-      fill: false
+      fill: false,
     }
   }
 }
@@ -116,15 +129,15 @@ impl<'i> Parse<'i> for BorderImageSlice {
     if !fill {
       fill = input.try_parse(|i| i.expect_ident_matching("fill")).is_ok();
     }
-    Ok(BorderImageSlice {
-      offsets,
-      fill
-    })
+    Ok(BorderImageSlice { offsets, fill })
   }
 }
 
 impl ToCss for BorderImageSlice {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.offsets.to_css(dest)?;
     if self.fill {
       dest.write_str(" fill")?;
@@ -140,7 +153,7 @@ pub struct BorderImage<'i> {
   pub slice: BorderImageSlice,
   pub width: Rect<BorderImageSideWidth>,
   pub outset: Rect<LengthOrNumber>,
-  pub repeat: BorderImageRepeat
+  pub repeat: BorderImageRepeat,
 }
 
 impl<'i> Parse<'i> for BorderImage<'i> {
@@ -150,9 +163,12 @@ impl<'i> Parse<'i> for BorderImage<'i> {
 }
 
 impl<'i> BorderImage<'i> {
-  pub(crate) fn parse_with_callback<'t, F>(input: &mut Parser<'i, 't>, mut callback: F) -> Result<Self, ParseError<'i, ParserError<'i>>>
+  pub(crate) fn parse_with_callback<'t, F>(
+    input: &mut Parser<'i, 't>,
+    mut callback: F,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>>
   where
-    F: FnMut(&mut Parser<'i, 't>) -> bool
+    F: FnMut(&mut Parser<'i, 't>) -> bool,
   {
     let mut source: Option<Image> = None;
     let mut slice: Option<BorderImageSlice> = None;
@@ -164,51 +180,53 @@ impl<'i> BorderImage<'i> {
         if let Ok(value) = input.try_parse(|input| BorderImageSlice::parse(input)) {
           slice = Some(value);
           // Parse border image width and outset, if applicable.
-          let maybe_width_outset: Result<_, cssparser::ParseError<'_, ParserError<'i>>> = input.try_parse(|input| {
-            input.expect_delim('/')?;
-
-            // Parse border image width, if applicable.
-            let w = input.try_parse(|input| Rect::parse(input)).ok();
-
-            // Parse border image outset if applicable.
-            let o = input.try_parse(|input| {
+          let maybe_width_outset: Result<_, cssparser::ParseError<'_, ParserError<'i>>> =
+            input.try_parse(|input| {
               input.expect_delim('/')?;
-              Rect::parse(input)
-            }).ok();
-            if w.is_none() && o.is_none() {
-              Err(input.new_custom_error(ParserError::InvalidDeclaration))
-            }
-            else {
-              Ok((w, o))
-            }
-          });
+
+              // Parse border image width, if applicable.
+              let w = input.try_parse(|input| Rect::parse(input)).ok();
+
+              // Parse border image outset if applicable.
+              let o = input
+                .try_parse(|input| {
+                  input.expect_delim('/')?;
+                  Rect::parse(input)
+                })
+                .ok();
+              if w.is_none() && o.is_none() {
+                Err(input.new_custom_error(ParserError::InvalidDeclaration))
+              } else {
+                Ok((w, o))
+              }
+            });
           if let Ok((w, o)) = maybe_width_outset {
             width = w;
             outset = o;
           }
-          continue
+          continue;
         }
       }
 
       if source.is_none() {
         if let Ok(value) = input.try_parse(|input| Image::parse(input)) {
           source = Some(value);
-          continue
+          continue;
         }
       }
 
       if repeat.is_none() {
         if let Ok(value) = input.try_parse(|input| BorderImageRepeat::parse(input)) {
           repeat = Some(value);
-          continue
+          continue;
         }
       }
 
       if callback(input) {
-        continue
+        continue;
       }
 
-      break
+      break;
     }
 
     if source.is_some() || slice.is_some() || width.is_some() || outset.is_some() || repeat.is_some() {
@@ -217,7 +235,7 @@ impl<'i> BorderImage<'i> {
         slice: slice.unwrap_or_default(),
         width: width.unwrap_or(Rect::all(BorderImageSideWidth::default())),
         outset: outset.unwrap_or(Rect::all(LengthOrNumber::default())),
-        repeat: repeat.unwrap_or_default()
+        repeat: repeat.unwrap_or_default(),
       })
     } else {
       Err(input.new_custom_error(ParserError::InvalidDeclaration))
@@ -226,7 +244,10 @@ impl<'i> BorderImage<'i> {
 }
 
 impl<'i> ToCss for BorderImage<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     if self.source != Image::default() {
       self.source.to_css(dest)?;
     }
@@ -248,7 +269,7 @@ impl<'i> ToCss for BorderImage<'i> {
         self.outset.to_css(dest)?;
       }
     }
-    
+
     if self.repeat != BorderImageRepeat::default() {
       dest.write_str(" ")?;
       self.repeat.to_css(dest)?;
@@ -260,12 +281,11 @@ impl<'i> ToCss for BorderImage<'i> {
 
 impl<'i> FallbackValues for BorderImage<'i> {
   fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
-    self.source.get_fallbacks(targets)
+    self
+      .source
+      .get_fallbacks(targets)
       .into_iter()
-      .map(|source| BorderImage {
-        source,
-        ..self.clone()
-      })
+      .map(|source| BorderImage { source, ..self.clone() })
       .collect()
   }
 }
@@ -279,7 +299,7 @@ pub(crate) struct BorderImageHandler<'i> {
   outset: Option<Rect<LengthOrNumber>>,
   repeat: Option<BorderImageRepeat>,
   vendor_prefix: VendorPrefix,
-  has_any: bool
+  has_any: bool,
 }
 
 impl<'i> BorderImageHandler<'i> {
@@ -293,7 +313,12 @@ impl<'i> BorderImageHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
+  fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    dest: &mut DeclarationList<'i>,
+    context: &mut PropertyHandlerContext<'i>,
+  ) -> bool {
     use Property::*;
     macro_rules! property {
       ($name: ident, $val: ident) => {{
@@ -316,7 +341,7 @@ impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
         self.set_border_image(val);
         self.vendor_prefix |= *vp;
         self.has_any = true;
-      },
+      }
       Unparsed(val) if is_border_image_property(&val.property_id) => {
         self.flush(dest);
 
@@ -331,7 +356,7 @@ impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
         context.add_unparsed_fallbacks(&mut unparsed);
         dest.push(Property::Unparsed(unparsed));
       }
-      _ => return false
+      _ => return false,
     }
 
     true
@@ -361,7 +386,7 @@ impl<'i> BorderImageHandler<'i> {
 
   fn flush(&mut self, dest: &mut DeclarationList<'i>) {
     if !self.has_any {
-      return
+      return;
     }
 
     self.has_any = false;
@@ -372,13 +397,13 @@ impl<'i> BorderImageHandler<'i> {
     let outset = std::mem::take(&mut self.outset);
     let repeat = std::mem::take(&mut self.repeat);
 
-    if source.is_some() && slice.is_some() && width.is_some() && outset.is_some() && repeat.is_some() {      
+    if source.is_some() && slice.is_some() && width.is_some() && outset.is_some() && repeat.is_some() {
       let mut border_image = BorderImage {
         source: source.unwrap(),
         slice: slice.unwrap(),
         width: width.unwrap(),
         outset: outset.unwrap(),
-        repeat: repeat.unwrap()
+        repeat: repeat.unwrap(),
       };
 
       let mut prefix = self.vendor_prefix;
@@ -442,12 +467,12 @@ impl<'i> BorderImageHandler<'i> {
 #[inline]
 fn is_border_image_property(property_id: &PropertyId) -> bool {
   match property_id {
-    PropertyId::BorderImageSource |
-    PropertyId::BorderImageSlice |
-    PropertyId::BorderImageWidth |
-    PropertyId::BorderImageOutset |
-    PropertyId::BorderImageRepeat |
-    PropertyId::BorderImage(_) => true,
-    _ => false
+    PropertyId::BorderImageSource
+    | PropertyId::BorderImageSlice
+    | PropertyId::BorderImageWidth
+    | PropertyId::BorderImageOutset
+    | PropertyId::BorderImageRepeat
+    | PropertyId::BorderImage(_) => true,
+    _ => false,
   }
 }

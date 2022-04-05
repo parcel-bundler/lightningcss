@@ -1,7 +1,7 @@
 #[derive(Debug, PartialEq)]
 pub(crate) enum PropertyCategory {
   Logical,
-  Physical
+  Physical,
 }
 
 impl Default for PropertyCategory {

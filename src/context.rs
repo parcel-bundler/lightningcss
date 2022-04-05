@@ -1,19 +1,19 @@
 use crate::compat::Feature;
-use crate::properties::custom::UnparsedProperty;
-use crate::rules::supports::{SupportsRule, SupportsCondition};
-use crate::rules::{CssRule, CssRuleList, style::StyleRule};
-use crate::selector::{PseudoClass, Direction};
 use crate::declaration::DeclarationBlock;
+use crate::properties::custom::UnparsedProperty;
+use crate::properties::Property;
+use crate::rules::supports::{SupportsCondition, SupportsRule};
+use crate::rules::{style::StyleRule, CssRule, CssRuleList};
+use crate::selector::{Direction, PseudoClass};
 use crate::targets::Browsers;
 use crate::vendor_prefix::VendorPrefix;
 use parcel_selectors::parser::Component;
-use crate::properties::Property;
 
 #[derive(Debug)]
 pub(crate) struct SupportsEntry<'i> {
   pub condition: SupportsCondition<'i>,
   pub declarations: Vec<Property<'i>>,
-  pub important_declarations: Vec<Property<'i>>
+  pub important_declarations: Vec<Property<'i>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -21,7 +21,7 @@ pub(crate) enum DeclarationContext {
   None,
   StyleRule,
   Keyframes,
-  StyleAttribute
+  StyleAttribute,
 }
 
 #[derive(Debug)]
@@ -31,7 +31,7 @@ pub(crate) struct PropertyHandlerContext<'i> {
   supports: Vec<SupportsEntry<'i>>,
   ltr: Vec<Property<'i>>,
   rtl: Vec<Property<'i>>,
-  pub context: DeclarationContext
+  pub context: DeclarationContext,
 }
 
 impl<'i> PropertyHandlerContext<'i> {
@@ -42,7 +42,7 @@ impl<'i> PropertyHandlerContext<'i> {
       supports: Vec::new(),
       ltr: Vec::new(),
       rtl: Vec::new(),
-      context: DeclarationContext::None
+      context: DeclarationContext::None,
     }
   }
 
@@ -50,7 +50,7 @@ impl<'i> PropertyHandlerContext<'i> {
     // Don't convert logical properties in style attributes because
     // our fallbacks rely on extra rules to define --ltr and --rtl.
     if self.context == DeclarationContext::StyleAttribute {
-      return true
+      return true;
     }
 
     if let Some(targets) = self.targets {
@@ -73,9 +73,7 @@ impl<'i> PropertyHandlerContext<'i> {
       ($dir: ident, $decls: ident) => {
         let mut selectors = style_rule.selectors.clone();
         for selector in &mut selectors.0 {
-          selector.append(
-            Component::NonTSPseudoClass(PseudoClass::Dir(Direction::$dir))
-          );
+          selector.append(Component::NonTSPseudoClass(PseudoClass::Dir(Direction::$dir)));
         }
 
         let rule = StyleRule {
@@ -83,14 +81,14 @@ impl<'i> PropertyHandlerContext<'i> {
           vendor_prefix: VendorPrefix::None,
           declarations: DeclarationBlock {
             declarations: std::mem::take(&mut self.$decls),
-            important_declarations: vec![]
+            important_declarations: vec![],
           },
           rules: CssRuleList(vec![]),
-          loc: style_rule.loc.clone()
+          loc: style_rule.loc.clone(),
         };
 
         dest.push(CssRule::Style(rule));
-      }
+      };
     }
 
     if !self.ltr.is_empty() {
@@ -106,7 +104,7 @@ impl<'i> PropertyHandlerContext<'i> {
 
   pub fn add_conditional_property(&mut self, condition: SupportsCondition<'i>, property: Property<'i>) {
     if self.context != DeclarationContext::StyleRule {
-      return
+      return;
     }
 
     if let Some(entry) = self.supports.iter_mut().find(|supports| condition == supports.condition) {
@@ -133,9 +131,9 @@ impl<'i> PropertyHandlerContext<'i> {
 
   pub fn add_unparsed_fallbacks(&mut self, unparsed: &mut UnparsedProperty<'i>) {
     if self.context != DeclarationContext::StyleRule && self.context != DeclarationContext::StyleAttribute {
-      return
+      return;
     }
-    
+
     if let Some(targets) = self.targets {
       let fallbacks = unparsed.value.get_fallbacks(targets);
       for (condition, fallback) in fallbacks {
@@ -143,8 +141,8 @@ impl<'i> PropertyHandlerContext<'i> {
           condition,
           Property::Unparsed(UnparsedProperty {
             property_id: unparsed.property_id.clone(),
-            value: fallback
-          })
+            value: fallback,
+          }),
         );
       }
     }
@@ -152,7 +150,7 @@ impl<'i> PropertyHandlerContext<'i> {
 
   pub fn get_supports_rules(&mut self, style_rule: &StyleRule<'i>) -> Vec<CssRule<'i>> {
     if self.supports.is_empty() {
-      return Vec::new()
+      return Vec::new();
     }
 
     let mut dest = Vec::new();
@@ -160,19 +158,17 @@ impl<'i> PropertyHandlerContext<'i> {
     for entry in supports {
       dest.push(CssRule::Supports(SupportsRule {
         condition: entry.condition,
-        rules: CssRuleList(vec![
-          CssRule::Style(StyleRule {
-            selectors: style_rule.selectors.clone(),
-            vendor_prefix: VendorPrefix::None,
-            declarations: DeclarationBlock {
-              declarations: entry.declarations,
-              important_declarations: entry.important_declarations
-            },
-            rules: CssRuleList(vec![]),
-            loc: style_rule.loc.clone()
-          })
-        ]),
-        loc: style_rule.loc.clone()
+        rules: CssRuleList(vec![CssRule::Style(StyleRule {
+          selectors: style_rule.selectors.clone(),
+          vendor_prefix: VendorPrefix::None,
+          declarations: DeclarationBlock {
+            declarations: entry.declarations,
+            important_declarations: entry.important_declarations,
+          },
+          rules: CssRuleList(vec![]),
+          loc: style_rule.loc.clone(),
+        })]),
+        loc: style_rule.loc.clone(),
       }));
     }
 

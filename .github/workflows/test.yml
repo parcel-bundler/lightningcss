@@ -1,11 +1,21 @@
 name: test
+
 on:
   push:
+    branches: [master]
+  pull_request:
+    branches: [master]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+      RUST_BACKTRACE: full
+      RUSTFLAGS: -D warnings
     steps:
       - uses: actions/checkout@v2
+      - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v1
+      - run: cargo fmt
       - run: cargo test

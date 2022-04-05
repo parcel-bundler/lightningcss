@@ -1,13 +1,13 @@
-use cssparser::*;
-use crate::traits::{Parse, ToCss, PropertyHandler};
-use crate::printer::Printer;
-use crate::values::length::LengthPercentage;
-use crate::macros::enum_property;
-use crate::error::{ParserError, PrinterError};
-use crate::properties::{Property, PropertyId};
-use crate::declaration::DeclarationList;
-use crate::context::PropertyHandlerContext;
 use crate::compat::Feature;
+use crate::context::PropertyHandlerContext;
+use crate::declaration::DeclarationList;
+use crate::error::{ParserError, PrinterError};
+use crate::macros::enum_property;
+use crate::printer::Printer;
+use crate::properties::{Property, PropertyId};
+use crate::traits::{Parse, PropertyHandler, ToCss};
+use crate::values::length::LengthPercentage;
+use cssparser::*;
 
 /// https://drafts.csswg.org/css-sizing-3/#specifying-sizes
 
@@ -18,7 +18,7 @@ pub enum Size {
   LengthPercentage(LengthPercentage),
   MinContent,
   MaxContent,
-  FitContent(LengthPercentage)
+  FitContent(LengthPercentage),
 }
 
 impl<'i> Parse<'i> for Size {
@@ -36,11 +36,11 @@ impl<'i> Parse<'i> for Size {
     }
 
     if let Ok(l) = input.try_parse(|input| LengthPercentage::parse(input)) {
-      return Ok(Size::LengthPercentage(l))
+      return Ok(Size::LengthPercentage(l));
     }
 
     if let Ok(l) = parse_fit_content(input) {
-      return Ok(Size::FitContent(l))
+      return Ok(Size::FitContent(l));
     }
 
     Err(input.new_error_for_next_token())
@@ -48,7 +48,10 @@ impl<'i> Parse<'i> for Size {
 }
 
 impl ToCss for Size {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     use Size::*;
     match self {
       Auto => dest.write_str("auto"),
@@ -59,7 +62,7 @@ impl ToCss for Size {
         l.to_css(dest)?;
         dest.write_str(")")
       }
-      LengthPercentage(l) => l.to_css(dest)
+      LengthPercentage(l) => l.to_css(dest),
     }
   }
 }
@@ -72,7 +75,7 @@ pub enum MinMaxSize {
   LengthPercentage(LengthPercentage),
   MinContent,
   MaxContent,
-  FitContent(LengthPercentage)
+  FitContent(LengthPercentage),
 }
 
 impl<'i> Parse<'i> for MinMaxSize {
@@ -90,11 +93,11 @@ impl<'i> Parse<'i> for MinMaxSize {
     }
 
     if let Ok(percent) = input.try_parse(|input| LengthPercentage::parse(input)) {
-      return Ok(MinMaxSize::LengthPercentage(percent))
+      return Ok(MinMaxSize::LengthPercentage(percent));
     }
 
     if let Ok(l) = parse_fit_content(input) {
-      return Ok(MinMaxSize::FitContent(l))
+      return Ok(MinMaxSize::FitContent(l));
     }
 
     Err(input.new_error_for_next_token())
@@ -102,7 +105,10 @@ impl<'i> Parse<'i> for MinMaxSize {
 }
 
 impl ToCss for MinMaxSize {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     use MinMaxSize::*;
     match self {
       None => dest.write_str("none"),
@@ -113,12 +119,14 @@ impl ToCss for MinMaxSize {
         l.to_css(dest)?;
         dest.write_str(")")
       }
-      LengthPercentage(l) => l.to_css(dest)
+      LengthPercentage(l) => l.to_css(dest),
     }
   }
 }
 
-fn parse_fit_content<'i, 't>(input: &mut Parser<'i, 't>) -> Result<LengthPercentage, ParseError<'i, ParserError<'i>>> {
+fn parse_fit_content<'i, 't>(
+  input: &mut Parser<'i, 't>,
+) -> Result<LengthPercentage, ParseError<'i, ParserError<'i>>> {
   input.expect_function_matching("fit-content")?;
   input.parse_nested_block(|input| LengthPercentage::parse(input))
 }
@@ -135,9 +143,14 @@ enum_property! {
 pub(crate) struct SizeHandler;
 
 impl<'i> PropertyHandler<'i> for SizeHandler {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
+  fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    dest: &mut DeclarationList<'i>,
+    context: &mut PropertyHandlerContext<'i>,
+  ) -> bool {
     let logical_supported = context.is_supported(Feature::LogicalSize);
-    
+
     macro_rules! logical {
       ($prop: ident, $val: ident, $physical: ident) => {
         if logical_supported {
@@ -147,14 +160,14 @@ impl<'i> PropertyHandler<'i> for SizeHandler {
         }
       };
     }
-    
+
     match property {
-      Property::Width(_) | 
-      Property::Height(_) | 
-      Property::MinWidth(_) |
-      Property::MaxWidth(_) |
-      Property::MinHeight(_) |
-      Property::MaxHeight(_) => {
+      Property::Width(_)
+      | Property::Height(_)
+      | Property::MinWidth(_)
+      | Property::MaxWidth(_)
+      | Property::MinHeight(_)
+      | Property::MaxHeight(_) => {
         dest.push(property.clone());
       }
       Property::BlockSize(size) => logical!(BlockSize, size, Height),
@@ -169,18 +182,20 @@ impl<'i> PropertyHandler<'i> for SizeHandler {
             if logical_supported {
               dest.push(property.clone());
             } else {
-              dest.push(Property::Unparsed(unparsed.with_property_id(PropertyId::$physical)));
+              dest.push(Property::Unparsed(
+                unparsed.with_property_id(PropertyId::$physical),
+              ));
             }
           };
         }
-    
+
         match &unparsed.property_id {
-          PropertyId::Width |
-          PropertyId::Height |
-          PropertyId::MinWidth |
-          PropertyId::MaxWidth |
-          PropertyId::MinHeight |
-          PropertyId::MaxHeight => {
+          PropertyId::Width
+          | PropertyId::Height
+          | PropertyId::MinWidth
+          | PropertyId::MaxWidth
+          | PropertyId::MinHeight
+          | PropertyId::MaxHeight => {
             dest.push(property.clone());
           }
           PropertyId::BlockSize => logical_unparsed!(Height),
@@ -189,10 +204,10 @@ impl<'i> PropertyHandler<'i> for SizeHandler {
           PropertyId::InlineSize => logical_unparsed!(Width),
           PropertyId::MinInlineSize => logical_unparsed!(MinWidth),
           PropertyId::MaxInlineSize => logical_unparsed!(MaxWidth),
-          _ => return false    
+          _ => return false,
         }
       }
-      _ => return false
+      _ => return false,
     }
 
     true

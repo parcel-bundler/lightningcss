@@ -1,10 +1,10 @@
-use cssparser::*;
-use smallvec::SmallVec;
-use crate::traits::{Parse, ToCss};
-use super::{Location, CssRuleList};
-use crate::values::string::CowArcStr;
+use super::{CssRuleList, Location};
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
+use crate::traits::{Parse, ToCss};
+use crate::values::string::CowArcStr;
+use cssparser::*;
+use smallvec::SmallVec;
 
 /// https://drafts.csswg.org/css-cascade-5/#typedef-layer-name
 #[derive(Debug, Clone, PartialEq)]
@@ -30,18 +30,18 @@ impl<'i> Parse<'i> for LayerName<'i> {
 
     loop {
       let name = input.try_parse(|input| {
-        expect_non_whitespace!{input,
+        expect_non_whitespace! {input,
           Token::Delim('.') => Ok(()),
         }?;
 
-        expect_non_whitespace!{input,
+        expect_non_whitespace! {input,
           Token::Ident(ref id) => Ok(id.into()),
         }
       });
 
       match name {
         Ok(name) => parts.push(name),
-        Err(_) => break
+        Err(_) => break,
       }
     }
 
@@ -50,7 +50,10 @@ impl<'i> Parse<'i> for LayerName<'i> {
 }
 
 impl<'i> ToCss for LayerName<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let mut first = true;
     for name in &self.0 {
       if first {
@@ -70,11 +73,14 @@ impl<'i> ToCss for LayerName<'i> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct LayerStatementRule<'i> {
   pub names: Vec<LayerName<'i>>,
-  pub loc: Location
+  pub loc: Location,
 }
 
 impl<'i> ToCss for LayerStatementRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     dest.add_mapping(self.loc);
     dest.write_str("@layer ")?;
     self.names.to_css(dest)?;
@@ -87,11 +93,14 @@ impl<'i> ToCss for LayerStatementRule<'i> {
 pub struct LayerBlockRule<'i> {
   pub name: Option<LayerName<'i>>,
   pub rules: CssRuleList<'i>,
-  pub loc: Location
+  pub loc: Location,
 }
 
 impl<'i> ToCss for LayerBlockRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     dest.add_mapping(self.loc);
     dest.write_str("@layer")?;
     if let Some(name) = &self.name {

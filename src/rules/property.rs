@@ -1,11 +1,14 @@
-use cssparser::*;
+use super::Location;
 use crate::{
-  values::{syntax::{SyntaxString, ParsedComponent}, ident::DashedIdent},
   error::{ParserError, PrinterError},
   printer::Printer,
-  traits::{Parse, ToCss}
+  traits::{Parse, ToCss},
+  values::{
+    ident::DashedIdent,
+    syntax::{ParsedComponent, SyntaxString},
+  },
 };
-use super::Location;
+use cssparser::*;
 
 /// https://drafts.css-houdini.org/css-properties-values-api/#at-property-rule
 #[derive(Debug, PartialEq, Clone)]
@@ -14,22 +17,26 @@ pub struct PropertyRule<'i> {
   syntax: SyntaxString,
   inherits: bool,
   initial_value: Option<ParsedComponent<'i>>,
-  loc: Location
+  loc: Location,
 }
 
 impl<'i> PropertyRule<'i> {
-  pub fn parse<'t>(name: DashedIdent<'i>, input: &mut Parser<'i, 't>, loc: Location) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  pub fn parse<'t>(
+    name: DashedIdent<'i>,
+    input: &mut Parser<'i, 't>,
+    loc: Location,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let parser = PropertyRuleDeclarationParser {
       syntax: None,
       inherits: None,
-      initial_value: None
+      initial_value: None,
     };
-    
+
     let mut decl_parser = DeclarationListParser::new(input, parser);
     while let Some(decl) = decl_parser.next() {
       match decl {
-        Ok(()) => {},
-        Err((e, _)) => return Err(e)
+        Ok(()) => {}
+        Err((e, _)) => return Err(e),
       }
     }
 
@@ -37,7 +44,7 @@ impl<'i> PropertyRule<'i> {
     let parser = decl_parser.parser;
     let syntax = parser.syntax.ok_or(input.new_custom_error(ParserError::AtRuleBodyInvalid))?;
     let inherits = parser.inherits.ok_or(input.new_custom_error(ParserError::AtRuleBodyInvalid))?;
-    
+
     // `initial-value` is required unless the syntax is a universal definition.
     let initial_value = match syntax {
       SyntaxString::Universal => match parser.initial_value {
@@ -49,7 +56,9 @@ impl<'i> PropertyRule<'i> {
         }
       },
       _ => {
-        let val = parser.initial_value.ok_or(input.new_custom_error(ParserError::AtRuleBodyInvalid))?;
+        let val = parser
+          .initial_value
+          .ok_or(input.new_custom_error(ParserError::AtRuleBodyInvalid))?;
         let mut input = ParserInput::new(val);
         let mut parser = Parser::new(&mut input);
         Some(syntax.parse_value(&mut parser)?)
@@ -61,13 +70,16 @@ impl<'i> PropertyRule<'i> {
       syntax,
       inherits,
       initial_value,
-      loc
-    })
+      loc,
+    });
   }
 }
 
 impl<'i> ToCss for PropertyRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     dest.add_mapping(self.loc);
     dest.write_str("@property ")?;
     self.name.to_css(dest)?;
@@ -86,13 +98,13 @@ impl<'i> ToCss for PropertyRule<'i> {
     dest.whitespace()?;
     match self.inherits {
       true => dest.write_str("true")?,
-      false => dest.write_str("false")?
+      false => dest.write_str("false")?,
     }
 
     if let Some(initial_value) = &self.initial_value {
       dest.write_char(';')?;
       dest.newline()?;
-  
+
       dest.write_str("initial-value:")?;
       dest.whitespace()?;
       initial_value.to_css(dest)?;
@@ -110,7 +122,7 @@ impl<'i> ToCss for PropertyRule<'i> {
 pub(crate) struct PropertyRuleDeclarationParser<'i> {
   syntax: Option<SyntaxString>,
   inherits: Option<bool>,
-  initial_value: Option<&'i str>
+  initial_value: Option<&'i str>,
 }
 
 impl<'i> cssparser::DeclarationParser<'i> for PropertyRuleDeclarationParser<'i> {
@@ -149,7 +161,7 @@ impl<'i> cssparser::DeclarationParser<'i> for PropertyRuleDeclarationParser<'i> 
       _ => return Err(input.new_custom_error(ParserError::InvalidDeclaration))
     }
 
-    return Ok(())
+    return Ok(());
   }
 }
 

@@ -1,12 +1,12 @@
 #![allow(non_snake_case)]
-use crate::targets::Browsers;
-use crate::prefixes::Feature;
 use super::{Property, PropertyId};
-use crate::vendor_prefix::VendorPrefix;
-use crate::traits::{PropertyHandler, FallbackValues};
+use crate::context::{DeclarationContext, PropertyHandlerContext};
 use crate::declaration::DeclarationList;
-use crate::context::{PropertyHandlerContext, DeclarationContext};
+use crate::prefixes::Feature;
 use crate::properties::custom::CustomProperty;
+use crate::targets::Browsers;
+use crate::traits::{FallbackValues, PropertyHandler};
+use crate::vendor_prefix::VendorPrefix;
 
 macro_rules! define_prefixes {
   (
@@ -187,7 +187,7 @@ macro_rules! define_fallbacks {
               PropertyId::All => val.clone(),
               _ => return false
             };
-            
+
             context.add_unparsed_fallbacks(&mut unparsed);
             dest.push(Property::Unparsed(unparsed));
           }

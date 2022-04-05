@@ -1,17 +1,11 @@
+use crate::error::{ParserError, PrinterError};
+use crate::printer::Printer;
+use crate::targets::Browsers;
+use crate::traits::{FallbackValues, Parse, ToCss};
+use crate::values::color::ColorFallbackKind;
+use crate::values::{angle::Angle, color::CssColor, length::Length, percentage::NumberOrPercentage, url::Url};
 use cssparser::*;
 use smallvec::SmallVec;
-use crate::targets::Browsers;
-use crate::traits::{Parse, ToCss, FallbackValues};
-use crate::printer::Printer;
-use crate::error::{ParserError, PrinterError};
-use crate::values::color::ColorFallbackKind;
-use crate::values::{
-  url::Url,
-  length::Length,
-  percentage::NumberOrPercentage,
-  angle::Angle,
-  color::CssColor
-};
 
 /// https://drafts.fxtf.org/filter-effects-1/#FilterProperty
 #[derive(Debug, Clone, PartialEq)]
@@ -26,18 +20,18 @@ pub enum Filter<'i> {
   Saturate(NumberOrPercentage),
   Sepia(NumberOrPercentage),
   DropShadow(DropShadow),
-  Url(Url<'i>)
+  Url(Url<'i>),
 }
 
 impl<'i> Parse<'i> for Filter<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(url) = input.try_parse(Url::parse) {
-      return Ok(Filter::Url(url))
+      return Ok(Filter::Url(url));
     }
-    
+
     let location = input.current_source_location();
     let function = input.expect_function()?;
-    match_ignore_ascii_case!{ &function,
+    match_ignore_ascii_case! { &function,
       "blur" => {
         input.parse_nested_block(|input| {
           Ok(Filter::Blur(input.try_parse(Length::parse).unwrap_or(Length::zero())))
@@ -96,7 +90,10 @@ impl<'i> Parse<'i> for Filter<'i> {
 }
 
 impl<'i> ToCss for Filter<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       Filter::Blur(val) => {
         dest.write_str("blur(")?;
@@ -166,7 +163,7 @@ impl<'i> ToCss for Filter<'i> {
         val.to_css(dest)?;
         dest.write_char(')')
       }
-      Filter::Url(url) => url.to_css(dest)
+      Filter::Url(url) => url.to_css(dest),
     }
   }
 }
@@ -175,7 +172,7 @@ impl<'i> Filter<'i> {
   fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
     match self {
       Filter::DropShadow(shadow) => Filter::DropShadow(shadow.get_fallback(kind)),
-      _ => self.clone()
+      _ => self.clone(),
     }
   }
 }
@@ -186,7 +183,7 @@ pub struct DropShadow {
   pub color: CssColor,
   pub x_offset: Length,
   pub y_offset: Length,
-  pub blur: Length
+  pub blur: Length,
 }
 
 impl<'i> Parse<'i> for DropShadow {
@@ -216,7 +213,7 @@ impl<'i> Parse<'i> for DropShadow {
         }
       }
 
-      break
+      break;
     }
 
     let lengths = lengths.ok_or(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))?;
@@ -224,17 +221,20 @@ impl<'i> Parse<'i> for DropShadow {
       color: color.unwrap_or(CssColor::current_color()),
       x_offset: lengths.0,
       y_offset: lengths.1,
-      blur: lengths.2
+      blur: lengths.2,
     })
   }
 }
 
 impl ToCss for DropShadow {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.x_offset.to_css(dest)?;
     dest.write_char(' ')?;
     self.y_offset.to_css(dest)?;
-    
+
     if self.blur != Length::zero() {
       dest.write_char(' ')?;
       self.blur.to_css(dest)?;
@@ -261,13 +261,13 @@ impl DropShadow {
 #[derive(Debug, Clone, PartialEq)]
 pub enum FilterList<'i> {
   None,
-  Filters(SmallVec<[Filter<'i>; 1]>)
+  Filters(SmallVec<[Filter<'i>; 1]>),
 }
 
 impl<'i> Parse<'i> for FilterList<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
-      return Ok(FilterList::None)
+      return Ok(FilterList::None);
     }
 
     let mut filters = SmallVec::new();
@@ -280,7 +280,10 @@ impl<'i> Parse<'i> for FilterList<'i> {
 }
 
 impl<'i> ToCss for FilterList<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       FilterList::None => dest.write_str("none"),
       FilterList::Filters(filters) => {
@@ -315,19 +318,19 @@ impl<'i> FallbackValues for FilterList<'i> {
           filters
             .iter()
             .map(|filter| filter.get_fallback(ColorFallbackKind::RGB))
-            .collect()
+            .collect(),
         ));
       }
-  
+
       if fallbacks.contains(ColorFallbackKind::P3) {
         res.push(FilterList::Filters(
           filters
             .iter()
             .map(|filter| filter.get_fallback(ColorFallbackKind::P3))
-            .collect()
+            .collect(),
         ));
       }
-  
+
       if fallbacks.contains(ColorFallbackKind::LAB) {
         for filter in filters.iter_mut() {
           *filter = filter.get_fallback(ColorFallbackKind::LAB);

@@ -12,5 +12,5 @@ pub struct Browsers {
   pub ios_saf: Option<u32>,
   pub opera: Option<u32>,
   pub safari: Option<u32>,
-  pub samsung: Option<u32>
+  pub samsung: Option<u32>,
 }

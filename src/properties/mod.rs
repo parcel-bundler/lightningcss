@@ -1,69 +1,72 @@
-pub mod custom;
-pub mod margin_padding;
-pub mod background;
-pub mod outline;
-pub mod flex;
 pub mod align;
-pub mod font;
-pub mod box_shadow;
+pub mod animation;
+pub mod background;
 pub mod border;
 pub mod border_image;
 pub mod border_radius;
-pub mod transition;
-pub mod animation;
-pub mod transform;
-pub mod prefix_handler;
+pub mod box_shadow;
+pub mod css_modules;
+pub mod custom;
 pub mod display;
-pub mod text;
-pub mod position;
-pub mod overflow;
-pub mod ui;
-pub mod list;
+pub mod effects;
+pub mod flex;
+pub mod font;
 #[cfg(feature = "grid")]
 pub mod grid;
-pub mod css_modules;
+pub mod list;
+pub mod margin_padding;
+pub mod masking;
+pub mod outline;
+pub mod overflow;
+pub mod position;
+pub mod prefix_handler;
 pub mod size;
 pub mod svg;
-pub mod masking;
-pub mod effects;
+pub mod text;
+pub mod transform;
+pub mod transition;
+pub mod ui;
 
+use crate::error::{ParserError, PrinterError};
+use crate::parser::starts_with_ignore_ascii_case;
+use crate::parser::ParserOptions;
+use crate::prefixes::Feature;
+use crate::printer::Printer;
+use crate::targets::Browsers;
+use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
-use cssparser::*;
-use custom::*;
-use background::*;
-use outline::*;
-use flex::*;
+use crate::values::{
+  alpha::*, color::*, easing::EasingFunction, ident::DashedIdent, image::*, length::*, position::*, rect::*,
+  shape::FillRule, size::Size2D, time::Time,
+};
+use crate::vendor_prefix::VendorPrefix;
 use align::*;
-use font::*;
-use box_shadow::*;
+use animation::*;
+use background::*;
 use border::*;
 use border_image::*;
 use border_radius::*;
-use transition::*;
-use animation::*;
-use transform::*;
+use box_shadow::*;
+use css_modules::*;
+use cssparser::*;
+use custom::*;
 use display::*;
-use text::*;
-use overflow::*;
-use ui::*;
-use list::*;
+use effects::*;
+use flex::*;
+use font::*;
 #[cfg(feature = "grid")]
 use grid::*;
-use css_modules::*;
-use size::*;
-use svg::*;
+use list::*;
 use masking::*;
-use effects::*;
-use crate::values::{image::*, length::*, position::*, alpha::*, size::Size2D, rect::*, color::*, time::Time, easing::EasingFunction, shape::FillRule, ident::DashedIdent};
-use crate::traits::{Parse, ToCss};
-use crate::printer::Printer;
-use smallvec::{SmallVec, smallvec};
-use crate::vendor_prefix::VendorPrefix;
-use crate::parser::ParserOptions;
-use crate::error::{ParserError, PrinterError};
-use crate::targets::Browsers;
-use crate::prefixes::Feature;
-use crate::parser::starts_with_ignore_ascii_case;
+use outline::*;
+use overflow::*;
+use size::*;
+use smallvec::{smallvec, SmallVec};
+use svg::*;
+use text::*;
+use transform::*;
+use transition::*;
+use ui::*;
 
 macro_rules! define_properties {
   (
@@ -103,7 +106,7 @@ macro_rules! define_properties {
         } else {
           (VendorPrefix::None, name_ref)
         };
-        
+
         macro_rules! get_allowed_prefixes {
           ($v: literal) => {
             VendorPrefix::empty()
@@ -155,7 +158,7 @@ macro_rules! define_properties {
                   VendorPrefix::None
                 };
               }
-      
+
               ($name, get_prefix!($($vp)?))
             },
           )+
@@ -207,7 +210,7 @@ macro_rules! define_properties {
                     return *prefix;
                   };
                 }
-  
+
                 return_prefix!($vp);
               )?
               #[allow(unreachable_code)]
@@ -432,7 +435,7 @@ macro_rules! define_properties {
                   VendorPrefix::None
                 };
               }
-      
+
               ($name, get_prefix!($($vp)?))
             },
           )+
@@ -881,7 +884,7 @@ impl<'i, T: smallvec::Array<Item = V>, V: Parse<'i>> Parse<'i> for SmallVec<T> {
       input.skip_whitespace(); // Unnecessary for correctness, but may help try() in parse_one rewind less.
       match input.parse_until_before(Delimiter::Comma, &mut V::parse) {
         Ok(v) => values.push(v),
-        Err(err) => return Err(err)
+        Err(err) => return Err(err),
       }
       match input.next() {
         Err(_) => return Ok(values),
@@ -893,7 +896,10 @@ impl<'i, T: smallvec::Array<Item = V>, V: Parse<'i>> Parse<'i> for SmallVec<T> {
 }
 
 impl<T: smallvec::Array<Item = V>, V: ToCss> ToCss for SmallVec<T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let len = self.len();
     for (idx, val) in self.iter().enumerate() {
       val.to_css(dest)?;
@@ -911,8 +917,11 @@ impl<'i, T: Parse<'i>> Parse<'i> for Vec<T> {
   }
 }
 
-impl <T: ToCss> ToCss for Vec<T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+impl<T: ToCss> ToCss for Vec<T> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let len = self.len();
     for (idx, val) in self.iter().enumerate() {
       val.to_css(dest)?;

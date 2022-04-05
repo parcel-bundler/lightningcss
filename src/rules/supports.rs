@@ -1,27 +1,38 @@
-use cssparser::*;
 use super::Location;
-use crate::values::string::CowArcStr;
-use crate::traits::{Parse, ToCss};
-use crate::printer::Printer;
 use super::{CssRuleList, MinifyContext};
-use crate::rules::{ToCssWithContext, StyleContext};
-use crate::error::{ParserError, MinifyError, PrinterError};
+use crate::error::{MinifyError, ParserError, PrinterError};
+use crate::printer::Printer;
+use crate::rules::{StyleContext, ToCssWithContext};
+use crate::traits::{Parse, ToCss};
+use crate::values::string::CowArcStr;
+use cssparser::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SupportsRule<'i> {
   pub condition: SupportsCondition<'i>,
   pub rules: CssRuleList<'i>,
-  pub loc: Location
+  pub loc: Location,
 }
 
 impl<'i> SupportsRule<'i> {
-  pub(crate) fn minify(&mut self, context: &mut MinifyContext<'_, 'i>, parent_is_unused: bool) -> Result<(), MinifyError> {
+  pub(crate) fn minify(
+    &mut self,
+    context: &mut MinifyContext<'_, 'i>,
+    parent_is_unused: bool,
+  ) -> Result<(), MinifyError> {
     self.rules.minify(context, parent_is_unused)
   }
 }
 
 impl<'a, 'i> ToCssWithContext<'a, 'i> for SupportsRule<'i> {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext<'a, 'i>>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css_with_context<W>(
+    &self,
+    dest: &mut Printer<W>,
+    context: Option<&StyleContext<'a, 'i>>,
+  ) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     dest.add_mapping(self.loc);
     dest.write_str("@supports ")?;
     self.condition.to_css(dest)?;
@@ -45,7 +56,7 @@ pub enum SupportsCondition<'i> {
   Selector(CowArcStr<'i>),
   // FontTechnology()
   Parens(Box<SupportsCondition<'i>>),
-  Unknown(CowArcStr<'i>)
+  Unknown(CowArcStr<'i>),
 }
 
 impl<'i> SupportsCondition<'i> {
@@ -74,7 +85,7 @@ impl<'i> Parse<'i> for SupportsCondition<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("not")).is_ok() {
       let in_parens = Self::parse_in_parens(input)?;
-      return Ok(SupportsCondition::Not(Box::new(in_parens)))
+      return Ok(SupportsCondition::Not(Box::new(in_parens)));
     }
 
     let in_parens = Self::parse_in_parens(input)?;
@@ -95,9 +106,7 @@ impl<'i> Parse<'i> for SupportsCondition<'i> {
 
         if let Some(expected) = expected_type {
           if found_type != expected {
-            return Err(location.new_unexpected_token_error(
-              cssparser::Token::Ident(s.clone())
-            ))
+            return Err(location.new_unexpected_token_error(cssparser::Token::Ident(s.clone())));
           }
         } else {
           expected_type = Some(found_type);
@@ -112,14 +121,14 @@ impl<'i> Parse<'i> for SupportsCondition<'i> {
         }
         conditions.push(condition)
       } else {
-        break
+        break;
       }
     }
 
     match expected_type {
       Some(1) => Ok(SupportsCondition::And(conditions)),
       Some(2) => Ok(SupportsCondition::Or(conditions)),
-      _ => Ok(in_parens)
+      _ => Ok(in_parens),
     }
   }
 }
@@ -151,14 +160,14 @@ impl<'i> SupportsCondition<'i> {
         let res = input.try_parse(|input| {
           input.parse_nested_block(|input| {
             if let Ok(condition) = input.try_parse(SupportsCondition::parse) {
-              return Ok(SupportsCondition::Parens(Box::new(condition)))
+              return Ok(SupportsCondition::Parens(Box::new(condition)));
             }
-      
+
             Self::parse_declaration(input)
           })
         });
         if res.is_ok() {
-          return res
+          return res;
         }
       }
       t => return Err(location.new_unexpected_token_error(t.clone())),
@@ -178,7 +187,10 @@ impl<'i> SupportsCondition<'i> {
 }
 
 impl<'i> ToCss for SupportsCondition<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       SupportsCondition::Not(condition) => {
         dest.write_str("not ")?;
@@ -223,9 +235,7 @@ impl<'i> ToCss for SupportsCondition<'i> {
         dest.write_str(sel)?;
         dest.write_char(')')
       }
-      SupportsCondition::Unknown(unknown) => {
-        dest.write_str(&unknown)
-      }
+      SupportsCondition::Unknown(unknown) => dest.write_str(&unknown),
     }
   }
 }

@@ -1,18 +1,30 @@
-use parcel_sourcemap::SourceMap;
-use serde::Serialize;
-use crate::{rules::{Location, layer::{LayerBlockRule, LayerName}}, error::ErrorLocation};
-use std::{fs, path::{Path, PathBuf}, sync::Mutex, collections::HashSet};
-use rayon::prelude::*;
-use dashmap::DashMap;
 use crate::{
-  stylesheet::{StyleSheet, ParserOptions},
-  rules::{CssRule, CssRuleList,
-    media::MediaRule,
-    supports::{SupportsRule, SupportsCondition},
-    import::ImportRule
+  error::ErrorLocation,
+  rules::{
+    layer::{LayerBlockRule, LayerName},
+    Location,
   },
+};
+use crate::{
+  error::{Error, ParserError},
   media_query::MediaList,
-  error::{Error, ParserError}
+  rules::{
+    import::ImportRule,
+    media::MediaRule,
+    supports::{SupportsCondition, SupportsRule},
+    CssRule, CssRuleList,
+  },
+  stylesheet::{ParserOptions, StyleSheet},
+};
+use dashmap::DashMap;
+use parcel_sourcemap::SourceMap;
+use rayon::prelude::*;
+use serde::Serialize;
+use std::{
+  collections::HashSet,
+  fs,
+  path::{Path, PathBuf},
+  sync::Mutex,
 };
 
 pub struct Bundler<'a, 's, P> {
@@ -20,7 +32,7 @@ pub struct Bundler<'a, 's, P> {
   fs: &'a P,
   source_indexes: DashMap<PathBuf, u32>,
   stylesheets: Mutex<Vec<BundleStyleSheet<'a>>>,
-  options: ParserOptions
+  options: ParserOptions,
 }
 
 #[derive(Debug)]
@@ -32,7 +44,7 @@ struct BundleStyleSheet<'i> {
   layer: Option<Option<LayerName<'i>>>,
   supports: Option<SupportsCondition<'i>>,
   media: MediaList<'i>,
-  loc: Location
+  loc: Location,
 }
 
 pub trait SourceProvider: Send + Sync {
@@ -40,7 +52,7 @@ pub trait SourceProvider: Send + Sync {
 }
 
 pub struct FileProvider {
-  inputs: Mutex<Vec<*mut String>>
+  inputs: Mutex<Vec<*mut String>>,
 }
 
 impl FileProvider {
@@ -80,14 +92,14 @@ pub enum BundleErrorKind<'i> {
   ParserError(ParserError<'i>),
   UnsupportedImportCondition,
   UnsupportedMediaBooleanLogic,
-  UnsupportedLayerCombination
+  UnsupportedLayerCombination,
 }
 
 impl<'i> From<Error<ParserError<'i>>> for Error<BundleErrorKind<'i>> {
   fn from(err: Error<ParserError<'i>>) -> Self {
     Error {
       kind: BundleErrorKind::ParserError(err.kind),
-      loc: err.loc
+      loc: err.loc,
     }
   }
 }
@@ -99,7 +111,7 @@ impl<'i> BundleErrorKind<'i> {
       BundleErrorKind::ParserError(e) => e.reason(),
       BundleErrorKind::UnsupportedImportCondition => "Unsupported import condition".into(),
       BundleErrorKind::UnsupportedMediaBooleanLogic => "Unsupported boolean logic in @import media query".into(),
-      BundleErrorKind::UnsupportedLayerCombination => "Unsupported layer combination in @import".into()
+      BundleErrorKind::UnsupportedLayerCombination => "Unsupported layer combination in @import".into(),
     }
   }
 }
@@ -111,23 +123,26 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
       fs,
       source_indexes: DashMap::new(),
       stylesheets: Mutex::new(Vec::new()),
-      options
+      options,
     }
   }
 
   pub fn bundle<'e>(&mut self, entry: &'e Path) -> Result<StyleSheet<'a>, Error<BundleErrorKind<'a>>> {
     // Phase 1: load and parse all files. This is done in parallel.
-    self.load_file(&entry, ImportRule {
-      url: "".into(),
-      layer: None,
-      supports: None,
-      media: MediaList::new(),
-      loc: Location {
-        source_index: 0,
-        line: 0,
-        column: 1
-      }
-    })?;
+    self.load_file(
+      &entry,
+      ImportRule {
+        url: "".into(),
+        layer: None,
+        supports: None,
+        media: MediaList::new(),
+        loc: Location {
+          source_index: 0,
+          line: 0,
+          column: 1,
+        },
+      },
+    )?;
 
     // Phase 2: determine the order that the files should be concatenated.
     self.order();
@@ -136,24 +151,20 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
     let mut rules: Vec<CssRule<'a>> = Vec::new();
     self.inline(&mut rules);
 
-    let sources = self.stylesheets.get_mut()
+    let sources = self
+      .stylesheets
+      .get_mut()
       .unwrap()
       .iter()
       .flat_map(|s| s.stylesheet.as_ref().unwrap().sources.iter().cloned())
       .collect();
 
-    Ok(StyleSheet::new(
-      sources,
-      CssRuleList(rules), 
-      self.options.clone()
-    ))
+    Ok(StyleSheet::new(sources, CssRuleList(rules), self.options.clone()))
   }
 
   fn find_filename(&self, source_index: u32) -> String {
     // This function is only used for error handling, so it's ok if this is a bit slow.
-    let entry = self.source_indexes.iter()
-      .find(|x| *x.value() == source_index)
-      .unwrap();
+    let entry = self.source_indexes.iter().find(|x| *x.value() == source_index).unwrap();
     entry.key().to_str().unwrap().into()
   }
 
@@ -169,15 +180,13 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
         // We cannot combine a media query and a supports query from different @import rules.
         // e.g. @import "a.css" print; @import "a.css" supports(color: red);
         // This would require duplicating the actual rules in the file.
-        if (!rule.media.media_queries.is_empty() && !entry.supports.is_none()) || 
-          (!entry.media.media_queries.is_empty() && !rule.supports.is_none()) {
+        if (!rule.media.media_queries.is_empty() && !entry.supports.is_none())
+          || (!entry.media.media_queries.is_empty() && !rule.supports.is_none())
+        {
           return Err(Error {
             kind: BundleErrorKind::UnsupportedImportCondition,
-            loc: Some(ErrorLocation::from(
-              rule.loc, 
-              self.find_filename(rule.loc.source_index)
-            ))
-          })
+            loc: Some(ErrorLocation::from(rule.loc, self.find_filename(rule.loc.source_index))),
+          });
         }
 
         if rule.media.media_queries.is_empty() {
@@ -200,17 +209,14 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
             if layer != existing_layer || (layer.is_none() && existing_layer.is_none()) {
               return Err(Error {
                 kind: BundleErrorKind::UnsupportedLayerCombination,
-                loc: Some(ErrorLocation::from(
-                  rule.loc,
-                  self.find_filename(rule.loc.source_index)
-                ))
-              })
+                loc: Some(ErrorLocation::from(rule.loc, self.find_filename(rule.loc.source_index))),
+              });
             }
           } else {
             entry.layer = rule.layer;
           }
         }
-        
+
         return Ok(*source_index);
       }
       None => {
@@ -225,7 +231,7 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
           loc: rule.loc.clone(),
           dependencies: Vec::new(),
           parent_source_index: 0,
-          parent_dep_index: 0
+          parent_dep_index: 0,
         });
 
         source_index
@@ -233,13 +239,10 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
     };
 
     drop(stylesheets); // ensure we aren't holding the lock anymore
-    
+
     let code = self.fs.read(file).map_err(|e| Error {
       kind: BundleErrorKind::IOError(e),
-      loc: Some(ErrorLocation::from(
-        rule.loc,
-        self.find_filename(rule.loc.source_index)
-      ))
+      loc: Some(ErrorLocation::from(rule.loc, self.find_filename(rule.loc.source_index))),
     })?;
 
     let mut opts = self.options.clone();
@@ -252,14 +255,13 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
       let _ = source_map.set_source_content(source_index as usize, code);
     }
 
-    let mut stylesheet = StyleSheet::parse(
-      filename.into(),
-      code,
-      opts,
-    )?;
+    let mut stylesheet = StyleSheet::parse(filename.into(), code, opts)?;
 
     // Collect and load dependencies for this stylesheet in parallel.
-    let dependencies: Result<Vec<u32>, _> = stylesheet.rules.0.par_iter_mut()
+    let dependencies: Result<Vec<u32>, _> = stylesheet
+      .rules
+      .0
+      .par_iter_mut()
       .filter_map(|r| {
         // Prepend parent layer name to @layer statements.
         if let CssRule::LayerStatement(layer) = r {
@@ -273,30 +275,32 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
         if let CssRule::Import(import) = r {
           let path = file.with_file_name(&*import.url);
 
-          // Combine media queries and supports conditions from parent 
+          // Combine media queries and supports conditions from parent
           // stylesheet with @import rule using a logical and operator.
           let mut media = rule.media.clone();
           let result = media.and(&import.media).map_err(|_| Error {
             kind: BundleErrorKind::UnsupportedMediaBooleanLogic,
             loc: Some(ErrorLocation::from(
               import.loc,
-              self.find_filename(import.loc.source_index)
-            ))
+              self.find_filename(import.loc.source_index),
+            )),
           });
 
           if let Err(e) = result {
-            return Some(Err(e))
+            return Some(Err(e));
           }
 
-          let layer = if (rule.layer == Some(None) && import.layer.is_some()) || (import.layer == Some(None) && rule.layer.is_some()) {
+          let layer = if (rule.layer == Some(None) && import.layer.is_some())
+            || (import.layer == Some(None) && rule.layer.is_some())
+          {
             // Cannot combine anonymous layers
             return Some(Err(Error {
               kind: BundleErrorKind::UnsupportedLayerCombination,
               loc: Some(ErrorLocation::from(
-                import.loc, 
-                self.find_filename(import.loc.source_index)
-              ))
-            }))
+                import.loc,
+                self.find_filename(import.loc.source_index),
+              )),
+            }));
           } else if let Some(Some(a)) = &rule.layer {
             if let Some(Some(b)) = &import.layer {
               let mut name = a.clone();
@@ -308,14 +312,17 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
           } else {
             import.layer.clone()
           };
-          
-          let result = self.load_file(&path, ImportRule {
-            layer,
-            media,
-            supports: combine_supports(rule.supports.clone(), &import.supports),
-            url: "".into(),
-            loc: import.loc
-          });
+
+          let result = self.load_file(
+            &path,
+            ImportRule {
+              layer,
+              media,
+              supports: combine_supports(rule.supports.clone(), &import.supports),
+              url: "".into(),
+              loc: import.loc,
+            },
+          );
 
           Some(result)
         } else {
@@ -323,7 +330,7 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
         }
       })
       .collect();
-      
+
     let entry = &mut self.stylesheets.lock().unwrap()[source_index as usize];
     entry.stylesheet = Some(stylesheet);
     entry.dependencies = dependencies?;
@@ -332,15 +339,11 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
   }
 
   fn order(&mut self) {
-    process(
-      self.stylesheets.get_mut().unwrap(),
-      0, 
-      &mut HashSet::new()
-    );
+    process(self.stylesheets.get_mut().unwrap(), 0, &mut HashSet::new());
 
     fn process(stylesheets: &mut Vec<BundleStyleSheet<'_>>, source_index: u32, visited: &mut HashSet<u32>) {
       if visited.contains(&source_index) {
-        return
+        return;
       }
 
       visited.insert(source_index);
@@ -359,11 +362,7 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
   }
 
   fn inline(&mut self, dest: &mut Vec<CssRule<'a>>) {
-    process(
-      self.stylesheets.get_mut().unwrap(),
-      0,
-      dest
-    );
+    process(self.stylesheets.get_mut().unwrap(), 0, dest);
 
     fn process<'a>(stylesheets: &mut Vec<BundleStyleSheet<'a>>, source_index: u32, dest: &mut Vec<CssRule<'a>>) {
       let stylesheet = &mut stylesheets[source_index as usize];
@@ -391,40 +390,34 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
             dest.push(layer);
           }
           CssRule::Ignored => {}
-          _ => break
+          _ => break,
         }
       }
 
       // Wrap rules in the appropriate @media and @supports rules.
       let stylesheet = &mut stylesheets[source_index as usize];
       if !stylesheet.media.media_queries.is_empty() {
-        rules = vec![
-          CssRule::Media(MediaRule {
-            query: std::mem::replace(&mut stylesheet.media, MediaList::new()),
-            rules: CssRuleList(rules),
-            loc: stylesheet.loc
-          })
-        ]
+        rules = vec![CssRule::Media(MediaRule {
+          query: std::mem::replace(&mut stylesheet.media, MediaList::new()),
+          rules: CssRuleList(rules),
+          loc: stylesheet.loc,
+        })]
       }
 
       if stylesheet.supports.is_some() {
-        rules = vec![
-          CssRule::Supports(SupportsRule {
-            condition: stylesheet.supports.take().unwrap(),
-            rules: CssRuleList(rules),
-            loc: stylesheet.loc
-          })
-        ]
+        rules = vec![CssRule::Supports(SupportsRule {
+          condition: stylesheet.supports.take().unwrap(),
+          rules: CssRuleList(rules),
+          loc: stylesheet.loc,
+        })]
       }
 
       if stylesheet.layer.is_some() {
-        rules = vec![
-          CssRule::LayerBlock(LayerBlockRule {
-            name: stylesheet.layer.take().unwrap(),
-            rules: CssRuleList(rules),
-            loc: stylesheet.loc
-          })
-        ]
+        rules = vec![CssRule::LayerBlock(LayerBlockRule {
+          name: stylesheet.layer.take().unwrap(),
+          rules: CssRuleList(rules),
+          loc: stylesheet.loc,
+        })]
       }
 
       dest.extend(rules);
@@ -432,7 +425,10 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
   }
 }
 
-fn combine_supports<'a>(a: Option<SupportsCondition<'a>>, b: &Option<SupportsCondition<'a>>) -> Option<SupportsCondition<'a>> {
+fn combine_supports<'a>(
+  a: Option<SupportsCondition<'a>>,
+  b: &Option<SupportsCondition<'a>>,
+) -> Option<SupportsCondition<'a>> {
   if let Some(mut a) = a {
     if let Some(b) = b {
       a.and(b)
@@ -446,12 +442,15 @@ fn combine_supports<'a>(a: Option<SupportsCondition<'a>>, b: &Option<SupportsCon
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::{stylesheet::{PrinterOptions, MinifyOptions}, targets::Browsers};
+  use crate::{
+    stylesheet::{MinifyOptions, PrinterOptions},
+    targets::Browsers,
+  };
   use indoc::indoc;
   use std::collections::HashMap;
 
   struct TestProvider {
-    map: HashMap<PathBuf, String>
+    map: HashMap<PathBuf, String>,
   }
 
   impl SourceProvider for TestProvider {
@@ -482,17 +481,45 @@ mod tests {
   }
 
   fn bundle_css_module(fs: TestProvider, entry: &str) -> String {
-    let mut bundler = Bundler::new(&fs, None, ParserOptions { css_modules: true, ..ParserOptions::default() });
+    let mut bundler = Bundler::new(
+      &fs,
+      None,
+      ParserOptions {
+        css_modules: true,
+        ..ParserOptions::default()
+      },
+    );
     let stylesheet = bundler.bundle(Path::new(entry)).unwrap();
     stylesheet.to_css(PrinterOptions::default()).unwrap().code
   }
 
   fn bundle_custom_media(fs: TestProvider, entry: &str) -> String {
-    let mut bundler = Bundler::new(&fs, None, ParserOptions { custom_media: true, ..ParserOptions::default() });
+    let mut bundler = Bundler::new(
+      &fs,
+      None,
+      ParserOptions {
+        custom_media: true,
+        ..ParserOptions::default()
+      },
+    );
     let mut stylesheet = bundler.bundle(Path::new(entry)).unwrap();
-    let targets = Some(Browsers { safari: Some(13 << 16 ), ..Browsers::default() });
-    stylesheet.minify(MinifyOptions { targets, ..MinifyOptions::default() }).unwrap();
-    stylesheet.to_css(PrinterOptions { targets, ..PrinterOptions::default() }).unwrap().code
+    let targets = Some(Browsers {
+      safari: Some(13 << 16),
+      ..Browsers::default()
+    });
+    stylesheet
+      .minify(MinifyOptions {
+        targets,
+        ..MinifyOptions::default()
+      })
+      .unwrap();
+    stylesheet
+      .to_css(PrinterOptions {
+        targets,
+        ..PrinterOptions::default()
+      })
+      .unwrap()
+      .code
   }
 
   fn error_test(fs: TestProvider, entry: &str) {
@@ -500,22 +527,27 @@ mod tests {
     let res = bundler.bundle(Path::new(entry));
     match res {
       Ok(_) => unreachable!(),
-      Err(e) => assert!(matches!(e.kind, BundleErrorKind::UnsupportedLayerCombination))
+      Err(e) => assert!(matches!(e.kind, BundleErrorKind::UnsupportedLayerCombination)),
     }
   }
 
   #[test]
   fn test_bundle() {
-    let res = bundle(fs! {
-      "/a.css": r#"
+    let res = bundle(
+      fs! {
+        "/a.css": r#"
         @import "b.css";
         .a { color: red }
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         .b { color: green }
       "#
-    }, "/a.css");
-    assert_eq!(res, indoc! { r#"
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
       .b {
         color: green;
       }
@@ -523,18 +555,24 @@ mod tests {
       .a {
         color: red;
       }
-    "#});
+    "#}
+    );
 
-    let res = bundle(fs! {
-      "/a.css": r#"
+    let res = bundle(
+      fs! {
+        "/a.css": r#"
         @import "b.css" print;
         .a { color: red }
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         .b { color: green }
       "#
-    }, "/a.css");
-    assert_eq!(res, indoc! { r#"
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
       @media print {
         .b {
           color: green;
@@ -544,18 +582,24 @@ mod tests {
       .a {
         color: red;
       }
-    "#});
+    "#}
+    );
 
-    let res = bundle(fs! {
-      "/a.css": r#"
+    let res = bundle(
+      fs! {
+        "/a.css": r#"
         @import "b.css" supports(color: green);
         .a { color: red }
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         .b { color: green }
       "#
-    }, "/a.css");
-    assert_eq!(res, indoc! { r#"
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
       @supports (color: green) {
         .b {
           color: green;
@@ -565,18 +609,24 @@ mod tests {
       .a {
         color: red;
       }
-    "#});
+    "#}
+    );
 
-    let res = bundle(fs! {
-      "/a.css": r#"
+    let res = bundle(
+      fs! {
+        "/a.css": r#"
         @import "b.css" supports(color: green) print;
         .a { color: red }
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         .b { color: green }
       "#
-    }, "/a.css");
-    assert_eq!(res, indoc! { r#"
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
       @supports (color: green) {
         @media print {
           .b {
@@ -588,19 +638,25 @@ mod tests {
       .a {
         color: red;
       }
-    "#});
+    "#}
+    );
 
-    let res = bundle(fs! {
-      "/a.css": r#"
+    let res = bundle(
+      fs! {
+        "/a.css": r#"
         @import "b.css" print;
         @import "b.css" screen;
         .a { color: red }
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         .b { color: green }
       "#
-    }, "/a.css");
-    assert_eq!(res, indoc! { r#"
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
       @media print, screen {
         .b {
           color: green;
@@ -610,19 +666,25 @@ mod tests {
       .a {
         color: red;
       }
-    "#});
+    "#}
+    );
 
-    let res = bundle(fs! {
-      "/a.css": r#"
+    let res = bundle(
+      fs! {
+        "/a.css": r#"
         @import "b.css" supports(color: red);
         @import "b.css" supports(foo: bar);
         .a { color: red }
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         .b { color: green }
       "#
-    }, "/a.css");
-    assert_eq!(res, indoc! { r#"
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
       @supports ((color: red) or (foo: bar)) {
         .b {
           color: green;
@@ -632,22 +694,28 @@ mod tests {
       .a {
         color: red;
       }
-    "#});
+    "#}
+    );
 
-    let res = bundle(fs! {
-      "/a.css": r#"
+    let res = bundle(
+      fs! {
+        "/a.css": r#"
         @import "b.css" print;
         .a { color: red }
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         @import "c.css" (color);
         .b { color: yellow }
       "#,
-      "/c.css": r#"
+        "/c.css": r#"
         .c { color: green }
       "#
-    }, "/a.css");
-    assert_eq!(res, indoc! { r#"
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
       @media print and (color) {
         .c {
           color: green;
@@ -663,22 +731,28 @@ mod tests {
       .a {
         color: red;
       }
-    "#});
+    "#}
+    );
 
-    let res = bundle(fs! {
-      "/a.css": r#"
+    let res = bundle(
+      fs! {
+        "/a.css": r#"
         @import "b.css";
         .a { color: red }
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         @import "c.css";
       "#,
-      "/c.css": r#"
+        "/c.css": r#"
         @import "a.css";
         .c { color: green }
       "#
-    }, "/a.css");
-    assert_eq!(res, indoc! { r#"
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
       .c {
         color: green;
       }
@@ -686,18 +760,24 @@ mod tests {
       .a {
         color: red;
       }
-    "#});
+    "#}
+    );
 
-    let res = bundle(fs! {
-      "/a.css": r#"
+    let res = bundle(
+      fs! {
+        "/a.css": r#"
         @import "b/c.css";
         .a { color: red }
       "#,
-      "/b/c.css": r#"
+        "/b/c.css": r#"
         .b { color: green }
       "#
-    }, "/a.css");
-    assert_eq!(res, indoc! { r#"
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
       .b {
         color: green;
       }
@@ -705,18 +785,24 @@ mod tests {
       .a {
         color: red;
       }
-    "#});
+    "#}
+    );
 
-    let res = bundle(fs! {
-      "/a.css": r#"
+    let res = bundle(
+      fs! {
+        "/a.css": r#"
         @import "./b/c.css";
         .a { color: red }
       "#,
-      "/b/c.css": r#"
+        "/b/c.css": r#"
         .b { color: green }
       "#
-    }, "/a.css");
-    assert_eq!(res, indoc! { r#"
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
       .b {
         color: green;
       }
@@ -724,18 +810,24 @@ mod tests {
       .a {
         color: red;
       }
-    "#});
+    "#}
+    );
 
-    let res = bundle_css_module(fs! {
-      "/a.css": r#"
+    let res = bundle_css_module(
+      fs! {
+        "/a.css": r#"
         @import "b.css";
         .a { color: red }
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         .a { color: green }
       "#
-    }, "/a.css");
-    assert_eq!(res, indoc! { r#"
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
       ._6lixEq_a {
         color: green;
       }
@@ -743,24 +835,30 @@ mod tests {
       ._6lixEq_a {
         color: red;
       }
-    "#});
+    "#}
+    );
 
-    let res = bundle_custom_media(fs! {
-      "/a.css": r#"
+    let res = bundle_custom_media(
+      fs! {
+        "/a.css": r#"
         @import "media.css";
         @import "b.css";
         .a { color: red }
       "#,
-      "/media.css": r#"
+        "/media.css": r#"
         @custom-media --foo print;
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         @media (--foo) {
           .a { color: green }
         }
       "#
-    }, "/a.css");
-    assert_eq!(res, indoc! { r#"
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
       @media print {
         .a {
           color: green;
@@ -770,18 +868,24 @@ mod tests {
       .a {
         color: red;
       }
-    "#});
+    "#}
+    );
 
-    let res = bundle(fs! {
-      "/a.css": r#"
+    let res = bundle(
+      fs! {
+        "/a.css": r#"
         @import "b.css" layer(foo);
         .a { color: red }
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         .b { color: green }
       "#
-    }, "/a.css");
-    assert_eq!(res, indoc! { r#"
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
       @layer foo {
         .b {
           color: green;
@@ -791,18 +895,24 @@ mod tests {
       .a {
         color: red;
       }
-    "#});
+    "#}
+    );
 
-    let res = bundle(fs! {
-      "/a.css": r#"
+    let res = bundle(
+      fs! {
+        "/a.css": r#"
         @import "b.css" layer;
         .a { color: red }
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         .b { color: green }
       "#
-    }, "/a.css");
-    assert_eq!(res, indoc! { r#"
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
       @layer {
         .b {
           color: green;
@@ -812,22 +922,28 @@ mod tests {
       .a {
         color: red;
       }
-    "#});
+    "#}
+    );
 
-    let res = bundle(fs! {
-      "/a.css": r#"
+    let res = bundle(
+      fs! {
+        "/a.css": r#"
         @import "b.css" layer(foo);
         .a { color: red }
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         @import "c.css" layer(bar);
         .b { color: green }
       "#,
-      "/c.css": r#"
+        "/c.css": r#"
         .c { color: green }
       "#
-    }, "/a.css");
-    assert_eq!(res, indoc! { r#"
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
       @layer foo.bar {
         .c {
           color: green;
@@ -843,27 +959,35 @@ mod tests {
       .a {
         color: red;
       }
-    "#});
+    "#}
+    );
 
-    let res = bundle(fs! {
-      "/a.css": r#"
+    let res = bundle(
+      fs! {
+        "/a.css": r#"
         @import "b.css" layer(foo);
         @import "b.css" layer(foo);
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         .b { color: green }
       "#
-    }, "/a.css");
-    assert_eq!(res, indoc! { r#"
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
       @layer foo {
         .b {
           color: green;
         }
       }
-    "#});
+    "#}
+    );
 
-    let res = bundle(fs! {
-      "/a.css": r#"
+    let res = bundle(
+      fs! {
+        "/a.css": r#"
         @layer bar, foo;
         @import "b.css" layer(foo);
         
@@ -873,7 +997,7 @@ mod tests {
           }
         }
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         @layer qux, baz;
         @import "c.css" layer(baz);
         
@@ -883,13 +1007,17 @@ mod tests {
           }
         }
       "#,
-      "/c.css": r#"
+        "/c.css": r#"
         div {
           background: yellow;
         }      
       "#
-    }, "/a.css");
-    assert_eq!(res, indoc! { r#"
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
       @layer bar, foo;
       @layer foo.qux, foo.baz;
 
@@ -912,77 +1040,95 @@ mod tests {
           background: red;
         }
       }
-    "#});
+    "#}
+    );
 
-    error_test(fs! {
-      "/a.css": r#"
+    error_test(
+      fs! {
+        "/a.css": r#"
         @import "b.css" layer(foo);
         @import "b.css" layer(bar);
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         .b { color: red }
       "#
-    }, "/a.css");
+      },
+      "/a.css",
+    );
 
-    error_test(fs! {
-      "/a.css": r#"
+    error_test(
+      fs! {
+        "/a.css": r#"
         @import "b.css" layer;
         @import "b.css" layer;
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         .b { color: red }
       "#
-    }, "/a.css");
-    
-    error_test(fs! {
-      "/a.css": r#"
+      },
+      "/a.css",
+    );
+
+    error_test(
+      fs! {
+        "/a.css": r#"
         @import "b.css" layer;
         .a { color: red }
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         @import "c.css" layer;
         .b { color: green }
       "#,
-      "/c.css": r#"
+        "/c.css": r#"
         .c { color: green }
       "#
-    }, "/a.css");
+      },
+      "/a.css",
+    );
 
-    error_test(fs! {
-      "/a.css": r#"
+    error_test(
+      fs! {
+        "/a.css": r#"
         @import "b.css" layer;
         .a { color: red }
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         @import "c.css" layer(foo);
         .b { color: green }
       "#,
-      "/c.css": r#"
+        "/c.css": r#"
         .c { color: green }
       "#
-    }, "/a.css");
+      },
+      "/a.css",
+    );
 
-    let res = bundle(fs! {
-      "/index.css": r#"
+    let res = bundle(
+      fs! {
+        "/index.css": r#"
         @import "a.css";
         @import "b.css";
       "#,
-      "/a.css": r#"
+        "/a.css": r#"
         @import "./c.css";
         body { background: red; }
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         @import "./c.css";
         body { color: red; }
       "#,
-      "/c.css": r#"
+        "/c.css": r#"
         body {
           background: white;
           color: black; 
         }
       "#
-    }, "/index.css");
-    assert_eq!(res, indoc! { r#"
+      },
+      "/index.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
       body {
         background: red;
       }
@@ -995,22 +1141,28 @@ mod tests {
       body {
         color: red;
       }
-    "#});
+    "#}
+    );
 
-    let res = bundle(fs! {
-      "/index.css": r#"
+    let res = bundle(
+      fs! {
+        "/index.css": r#"
         @import "a.css";
         @import "b.css";
         @import "a.css";
       "#,
-      "/a.css": r#"
+        "/a.css": r#"
         body { background: green; }
       "#,
-      "/b.css": r#"
+        "/b.css": r#"
         body { background: red; }
       "#
-    }, "/index.css");
-    assert_eq!(res, indoc! { r#"
+      },
+      "/index.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
       body {
         background: red;
       }
@@ -1018,7 +1170,8 @@ mod tests {
       body {
         background: green;
       }
-    "#});
+    "#}
+    );
 
     // let res = bundle(fs! {
     //   "/a.css": r#"

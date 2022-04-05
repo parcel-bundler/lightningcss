@@ -1,15 +1,15 @@
-use cssparser::*;
-use super::{Property, PropertyId};
 use super::custom::UnparsedProperty;
-use crate::vendor_prefix::VendorPrefix;
-use crate::declaration::DeclarationList;
-use crate::targets::Browsers;
-use crate::prefixes::{Feature, is_flex_2009};
-use crate::traits::{Parse, ToCss, PropertyHandler};
-use crate::printer::Printer;
-use crate::macros::enum_property;
-use crate::error::{ParserError, PrinterError};
+use super::{Property, PropertyId};
 use crate::context::PropertyHandlerContext;
+use crate::declaration::DeclarationList;
+use crate::error::{ParserError, PrinterError};
+use crate::macros::enum_property;
+use crate::prefixes::{is_flex_2009, Feature};
+use crate::printer::Printer;
+use crate::targets::Browsers;
+use crate::traits::{Parse, PropertyHandler, ToCss};
+use crate::vendor_prefix::VendorPrefix;
+use cssparser::*;
 
 enum_property! {
   pub enum DisplayOutside {
@@ -27,7 +27,7 @@ pub enum DisplayInside {
   Flex(VendorPrefix),
   Box(VendorPrefix),
   Grid,
-  Ruby
+  Ruby,
 }
 
 impl<'i> Parse<'i> for DisplayInside {
@@ -53,7 +53,10 @@ impl<'i> Parse<'i> for DisplayInside {
 }
 
 impl ToCss for DisplayInside {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       DisplayInside::Flow => dest.write_str("flow"),
       DisplayInside::FlowRoot => dest.write_str("flow-root"),
@@ -71,7 +74,7 @@ impl ToCss for DisplayInside {
         dest.write_str("box")
       }
       DisplayInside::Grid => dest.write_str("grid"),
-      DisplayInside::Ruby => dest.write_str("ruby")
+      DisplayInside::Ruby => dest.write_str("ruby"),
     }
   }
 }
@@ -83,7 +86,7 @@ impl DisplayInside {
       (DisplayInside::Box(_), DisplayInside::Box(_)) => true,
       (DisplayInside::Flex(_), DisplayInside::Box(_)) => true,
       (DisplayInside::Box(_), DisplayInside::Flex(_)) => true,
-      _ => self == other
+      _ => self == other,
     }
   }
 }
@@ -92,7 +95,7 @@ impl DisplayInside {
 pub struct DisplayPair {
   pub outside: DisplayOutside,
   pub inside: DisplayInside,
-  pub is_list_item: bool
+  pub is_list_item: bool,
 }
 
 impl<'i> Parse<'i> for DisplayPair {
@@ -104,26 +107,26 @@ impl<'i> Parse<'i> for DisplayPair {
     loop {
       if input.try_parse(|input| input.expect_ident_matching("list-item")).is_ok() {
         list_item = true;
-        continue
+        continue;
       }
 
       if outside.is_none() {
         if let Ok(o) = input.try_parse(DisplayOutside::parse) {
           outside = Some(o);
-          continue
+          continue;
         }
       }
 
       if inside.is_none() {
         if let Ok(i) = input.try_parse(DisplayInside::parse) {
           inside = Some(i);
-          continue
+          continue;
         }
       }
 
-      break
+      break;
     }
-    
+
     if list_item || inside.is_some() || outside.is_some() {
       let inside = inside.unwrap_or(DisplayInside::Flow);
       let outside = outside.unwrap_or(match inside {
@@ -135,14 +138,14 @@ impl<'i> Parse<'i> for DisplayPair {
       });
 
       if list_item && !matches!(inside, DisplayInside::Flow | DisplayInside::FlowRoot) {
-        return Err(input.new_custom_error(ParserError::InvalidDeclaration))
+        return Err(input.new_custom_error(ParserError::InvalidDeclaration));
       }
 
       return Ok(DisplayPair {
         outside,
         inside,
-        is_list_item: list_item
-      })
+        is_list_item: list_item,
+      });
     }
 
     let location = input.current_source_location();
@@ -196,24 +199,51 @@ impl<'i> Parse<'i> for DisplayPair {
 }
 
 impl ToCss for DisplayPair {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
-      DisplayPair { outside: DisplayOutside::Inline, inside: DisplayInside::FlowRoot, is_list_item: false } => dest.write_str("inline-block"),
-      DisplayPair { outside: DisplayOutside::Inline, inside: DisplayInside::Table, is_list_item: false } => dest.write_str("inline-table"),
-      DisplayPair { outside: DisplayOutside::Inline, inside: DisplayInside::Flex(prefix), is_list_item: false } => {
+      DisplayPair {
+        outside: DisplayOutside::Inline,
+        inside: DisplayInside::FlowRoot,
+        is_list_item: false,
+      } => dest.write_str("inline-block"),
+      DisplayPair {
+        outside: DisplayOutside::Inline,
+        inside: DisplayInside::Table,
+        is_list_item: false,
+      } => dest.write_str("inline-table"),
+      DisplayPair {
+        outside: DisplayOutside::Inline,
+        inside: DisplayInside::Flex(prefix),
+        is_list_item: false,
+      } => {
         prefix.to_css(dest)?;
         if *prefix == VendorPrefix::Ms {
           dest.write_str("inline-flexbox")
         } else {
           dest.write_str("inline-flex")
         }
-      },
-      DisplayPair { outside: DisplayOutside::Inline, inside: DisplayInside::Box(prefix), is_list_item: false } => {
+      }
+      DisplayPair {
+        outside: DisplayOutside::Inline,
+        inside: DisplayInside::Box(prefix),
+        is_list_item: false,
+      } => {
         prefix.to_css(dest)?;
         dest.write_str("inline-box")
-      },
-      DisplayPair { outside: DisplayOutside::Inline, inside: DisplayInside::Grid, is_list_item: false } => dest.write_str("inline-grid"),
-      DisplayPair { outside, inside, is_list_item } => {
+      }
+      DisplayPair {
+        outside: DisplayOutside::Inline,
+        inside: DisplayInside::Grid,
+        is_list_item: false,
+      } => dest.write_str("inline-grid"),
+      DisplayPair {
+        outside,
+        inside,
+        is_list_item,
+      } => {
         let default_outside = match inside {
           DisplayInside::Ruby => DisplayOutside::Inline,
           _ => DisplayOutside::Block,
@@ -239,7 +269,7 @@ impl ToCss for DisplayPair {
           }
           dest.write_str("list-item")?;
         }
-    
+
         Ok(())
       }
     }
@@ -268,13 +298,13 @@ enum_property! {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Display {
   Keyword(DisplayKeyword),
-  Pair(DisplayPair)
+  Pair(DisplayPair),
 }
 
 impl<'i> Parse<'i> for Display {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(pair) = input.try_parse(DisplayPair::parse) {
-      return Ok(Display::Pair(pair))
+      return Ok(Display::Pair(pair));
     }
 
     let keyword = DisplayKeyword::parse(input)?;
@@ -283,10 +313,13 @@ impl<'i> Parse<'i> for Display {
 }
 
 impl ToCss for Display {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       Display::Keyword(keyword) => keyword.to_css(dest),
-      Display::Pair(pair) => pair.to_css(dest)
+      Display::Pair(pair) => pair.to_css(dest),
     }
   }
 }
@@ -304,7 +337,7 @@ enum_property! {
 pub(crate) struct DisplayHandler<'i> {
   targets: Option<Browsers>,
   decls: Vec<Property<'i>>,
-  display: Option<Display>
+  display: Option<Display>,
 }
 
 impl<'i> DisplayHandler<'i> {
@@ -317,16 +350,22 @@ impl<'i> DisplayHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for DisplayHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
+  fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    dest: &mut DeclarationList<'i>,
+    context: &mut PropertyHandlerContext<'i>,
+  ) -> bool {
     if let Property::Display(display) = property {
       match (&self.display, display) {
         (Some(Display::Pair(cur)), Display::Pair(new)) => {
           // If the new value is different but equivalent (e.g. different vendor prefix),
           // we need to preserve multiple values.
-          if cur.outside == new.outside && 
-            cur.is_list_item == new.is_list_item &&
-            cur.inside != new.inside &&
-            cur.inside.is_equivalent(&new.inside) {
+          if cur.outside == new.outside
+            && cur.is_list_item == new.is_list_item
+            && cur.inside != new.inside
+            && cur.inside.is_equivalent(&new.inside)
+          {
             // If we have targets, and there is no vendor prefix, clear the existing
             // declarations. The prefixes will be filled in later. Otherwise, if there
             // are no targets, or there is a vendor prefix, add a new declaration.
@@ -341,13 +380,19 @@ impl<'i> PropertyHandler<'i> for DisplayHandler<'i> {
       }
 
       self.display = Some(display.clone());
-      return true
+      return true;
     }
-    
-    if matches!(property, Property::Unparsed(UnparsedProperty { property_id: PropertyId::Display, .. })) {
+
+    if matches!(
+      property,
+      Property::Unparsed(UnparsedProperty {
+        property_id: PropertyId::Display,
+        ..
+      })
+    ) {
       self.finalize(dest, context);
       dest.push(property.clone());
-      return true
+      return true;
     }
 
     false
@@ -355,14 +400,19 @@ impl<'i> PropertyHandler<'i> for DisplayHandler<'i> {
 
   fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
     if self.display.is_none() {
-      return
+      return;
     }
 
     dest.extend(self.decls.drain(..));
 
     if let Some(display) = std::mem::take(&mut self.display) {
       // If we have an unprefixed `flex` value, then add the necessary prefixed values.
-      if let Display::Pair(DisplayPair { inside: DisplayInside::Flex(VendorPrefix::None), outside, .. }) = display {
+      if let Display::Pair(DisplayPair {
+        inside: DisplayInside::Flex(VendorPrefix::None),
+        outside,
+        ..
+      }) = display
+      {
         if let Some(targets) = self.targets {
           let prefixes = Feature::DisplayFlex.prefixes_for(targets);
 
@@ -372,7 +422,7 @@ impl<'i> PropertyHandler<'i> for DisplayHandler<'i> {
               dest.push(Property::Display(Display::Pair(DisplayPair {
                 inside: DisplayInside::Box(VendorPrefix::WebKit),
                 outside: outside.clone(),
-                is_list_item: false
+                is_list_item: false,
               })));
             }
 
@@ -380,7 +430,7 @@ impl<'i> PropertyHandler<'i> for DisplayHandler<'i> {
               dest.push(Property::Display(Display::Pair(DisplayPair {
                 inside: DisplayInside::Box(VendorPrefix::Moz),
                 outside: outside.clone(),
-                is_list_item: false
+                is_list_item: false,
               })));
             }
           }
@@ -389,7 +439,7 @@ impl<'i> PropertyHandler<'i> for DisplayHandler<'i> {
             dest.push(Property::Display(Display::Pair(DisplayPair {
               inside: DisplayInside::Flex(VendorPrefix::WebKit),
               outside: outside.clone(),
-              is_list_item: false
+              is_list_item: false,
             })));
           }
 
@@ -397,7 +447,7 @@ impl<'i> PropertyHandler<'i> for DisplayHandler<'i> {
             dest.push(Property::Display(Display::Pair(DisplayPair {
               inside: DisplayInside::Flex(VendorPrefix::Ms),
               outside: outside.clone(),
-              is_list_item: false
+              is_list_item: false,
             })));
           }
         }

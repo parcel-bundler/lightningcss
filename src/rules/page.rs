@@ -1,17 +1,17 @@
+use super::Location;
+use crate::declaration::DeclarationBlock;
+use crate::error::{ParserError, PrinterError};
+use crate::macros::enum_property;
+use crate::printer::Printer;
+use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
 use cssparser::*;
-use super::Location;
-use crate::traits::{Parse, ToCss};
-use crate::declaration::DeclarationBlock;
-use crate::printer::Printer;
-use crate::macros::enum_property;
-use crate::error::{ParserError, PrinterError};
 
 /// https://www.w3.org/TR/css-page-3/#typedef-page-selector
 #[derive(Debug, PartialEq, Clone)]
 pub struct PageSelector<'i> {
   pub name: Option<CowArcStr<'i>>,
-  pub pseudo_classes: Vec<PagePseudoClass>
+  pub pseudo_classes: Vec<PagePseudoClass>,
 }
 
 enum_property! {
@@ -28,7 +28,7 @@ impl<'i> Parse<'i> for PageSelector<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let name = input.try_parse(|input| input.expect_ident().map(|x| x.into())).ok();
     let mut pseudo_classes = vec![];
-    
+
     loop {
       // Whitespace is not allowed between pseudo classes
       let state = input.state();
@@ -38,19 +38,16 @@ impl<'i> Parse<'i> for PageSelector<'i> {
         }
         _ => {
           input.reset(&state);
-          break
+          break;
         }
       }
     }
 
     if name.is_none() && pseudo_classes.is_empty() {
-      return Err(input.new_custom_error(ParserError::InvalidPageSelector))
+      return Err(input.new_custom_error(ParserError::InvalidPageSelector));
     }
 
-    Ok(PageSelector {
-      name,
-      pseudo_classes
-    })
+    Ok(PageSelector { name, pseudo_classes })
   }
 }
 
@@ -58,11 +55,14 @@ impl<'i> Parse<'i> for PageSelector<'i> {
 pub struct PageRule<'i> {
   pub selectors: Vec<PageSelector<'i>>,
   pub declarations: DeclarationBlock<'i>,
-  pub loc: Location
+  pub loc: Location,
 }
 
 impl<'i> ToCss for PageRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     dest.add_mapping(self.loc);
     dest.write_str("@page")?;
     if let Some(first) = self.selectors.first() {
@@ -85,7 +85,10 @@ impl<'i> ToCss for PageRule<'i> {
 }
 
 impl<'i> ToCss for PageSelector<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     if let Some(name) = &self.name {
       dest.write_str(&name)?;
     }

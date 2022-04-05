@@ -1,22 +1,22 @@
-use cssparser::*;
+use super::supports::SupportsRule;
+use super::{CssRule, CssRuleList, Location, MinifyContext};
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::properties::custom::CustomProperty;
 use crate::properties::font::FontFamily;
 use crate::targets::Browsers;
-use crate::values::color::{CssColor, ColorFallbackKind};
 use crate::traits::{Parse, ToCss};
+use crate::values::color::{ColorFallbackKind, CssColor};
 use crate::values::ident::DashedIdent;
 use crate::values::number::serialize_integer;
-use super::supports::SupportsRule;
-use super::{Location, MinifyContext, CssRule, CssRuleList};
+use cssparser::*;
 
 /// https://drafts.csswg.org/css-fonts-4/#font-palette-values
 #[derive(Debug, PartialEq, Clone)]
 pub struct FontPaletteValuesRule<'i> {
   pub name: DashedIdent<'i>,
   pub properties: Vec<FontPaletteValuesProperty<'i>>,
-  pub loc: Location
+  pub loc: Location,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -24,7 +24,7 @@ pub enum FontPaletteValuesProperty<'i> {
   FontFamily(FontFamily<'i>),
   BasePalette(BasePalette),
   OverrideColors(Vec<OverrideColors>),
-  Custom(CustomProperty<'i>)
+  Custom(CustomProperty<'i>),
 }
 
 /// https://drafts.csswg.org/css-fonts-4/#base-palette-desc
@@ -32,14 +32,14 @@ pub enum FontPaletteValuesProperty<'i> {
 pub enum BasePalette {
   Light,
   Dark,
-  Integer(u16)
+  Integer(u16),
 }
 
 /// https://drafts.csswg.org/css-fonts-4/#override-color
 #[derive(Debug, PartialEq, Clone)]
 pub struct OverrideColors {
   index: u16,
-  color: CssColor
+  color: CssColor,
 }
 
 pub(crate) struct FontPaletteValuesDeclarationParser;
@@ -80,7 +80,7 @@ impl<'i> cssparser::DeclarationParser<'i> for FontPaletteValuesDeclarationParser
     }
 
     input.reset(&state);
-    return Ok(FontPaletteValuesProperty::Custom(CustomProperty::parse(name, input)?))
+    return Ok(FontPaletteValuesProperty::Custom(CustomProperty::parse(name, input)?));
   }
 }
 
@@ -92,7 +92,11 @@ impl<'i> AtRuleParser<'i> for FontPaletteValuesDeclarationParser {
 }
 
 impl<'i> FontPaletteValuesRule<'i> {
-  pub fn parse<'t>(name: DashedIdent<'i>, input: &mut Parser<'i, 't>, loc: Location) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  pub fn parse<'t>(
+    name: DashedIdent<'i>,
+    input: &mut Parser<'i, 't>,
+    loc: Location,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut parser = DeclarationListParser::new(input, FontPaletteValuesDeclarationParser);
     let mut properties = vec![];
     while let Some(decl) = parser.next() {
@@ -101,11 +105,7 @@ impl<'i> FontPaletteValuesRule<'i> {
       }
     }
 
-    Ok(FontPaletteValuesRule {
-      name,
-      properties,
-      loc
-    })
+    Ok(FontPaletteValuesRule { name, properties, loc })
   }
 }
 
@@ -113,9 +113,9 @@ impl<'i> Parse<'i> for BasePalette {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(i) = input.try_parse(|input| input.expect_integer()) {
       if i.is_negative() {
-        return Err(input.new_custom_error(ParserError::InvalidValue))
+        return Err(input.new_custom_error(ParserError::InvalidValue));
       }
-      return Ok(BasePalette::Integer(i as u16))
+      return Ok(BasePalette::Integer(i as u16));
     }
 
     let location = input.current_source_location();
@@ -129,11 +129,14 @@ impl<'i> Parse<'i> for BasePalette {
 }
 
 impl ToCss for BasePalette {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       BasePalette::Light => dest.write_str("light"),
       BasePalette::Dark => dest.write_str("dark"),
-      BasePalette::Integer(i) => serialize_integer(*i as i32, dest)
+      BasePalette::Integer(i) => serialize_integer(*i as i32, dest),
     }
   }
 }
@@ -142,23 +145,26 @@ impl<'i> Parse<'i> for OverrideColors {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let index = input.expect_integer()?;
     if index.is_negative() {
-      return Err(input.new_custom_error(ParserError::InvalidValue))
+      return Err(input.new_custom_error(ParserError::InvalidValue));
     }
 
     let color = CssColor::parse(input)?;
     if matches!(color, CssColor::CurrentColor) {
-      return Err(input.new_custom_error(ParserError::InvalidValue))
+      return Err(input.new_custom_error(ParserError::InvalidValue));
     }
 
     Ok(OverrideColors {
       index: index as u16,
-      color
+      color,
     })
   }
 }
 
 impl ToCss for OverrideColors {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     serialize_integer(self.index as i32, dest)?;
     dest.write_char(' ')?;
     self.color.to_css(dest)
@@ -169,7 +175,7 @@ impl OverrideColors {
   fn get_fallback(&self, kind: ColorFallbackKind) -> OverrideColors {
     OverrideColors {
       index: self.index,
-      color: self.color.get_fallback(kind)
+      color: self.color.get_fallback(kind),
     }
   }
 }
@@ -189,13 +195,13 @@ impl<'i> FontPaletteValuesRule<'i> {
 
             if fallbacks.contains(ColorFallbackKind::RGB) {
               properties.push(FontPaletteValuesProperty::OverrideColors(
-                override_colors.iter().map(|o| o.get_fallback(ColorFallbackKind::RGB)).collect()
+                override_colors.iter().map(|o| o.get_fallback(ColorFallbackKind::RGB)).collect(),
               ));
             }
 
             if fallbacks.contains(ColorFallbackKind::P3) {
               properties.push(FontPaletteValuesProperty::OverrideColors(
-                override_colors.iter().map(|o| o.get_fallback(ColorFallbackKind::P3)).collect()
+                override_colors.iter().map(|o| o.get_fallback(ColorFallbackKind::P3)).collect(),
               ));
             }
 
@@ -210,9 +216,7 @@ impl<'i> FontPaletteValuesRule<'i> {
             properties.push(property.clone())
           }
         }
-        _ => {
-          properties.push(property.clone())
-        }
+        _ => properties.push(property.clone()),
       }
     }
 
@@ -240,11 +244,13 @@ impl<'i> FontPaletteValuesRule<'i> {
       res.push(self.get_fallback(ColorFallbackKind::P3));
     }
 
-    if fallbacks.contains(ColorFallbackKind::LAB) || (!lowest_fallback.is_empty() && lowest_fallback != ColorFallbackKind::LAB) {
+    if fallbacks.contains(ColorFallbackKind::LAB)
+      || (!lowest_fallback.is_empty() && lowest_fallback != ColorFallbackKind::LAB)
+    {
       res.push(self.get_fallback(ColorFallbackKind::LAB));
     }
 
-    if !lowest_fallback.is_empty() {  
+    if !lowest_fallback.is_empty() {
       for property in &mut self.properties {
         match property {
           FontPaletteValuesProperty::Custom(CustomProperty { value, .. }) => {
@@ -259,18 +265,15 @@ impl<'i> FontPaletteValuesRule<'i> {
   }
 
   fn get_fallback(&self, kind: ColorFallbackKind) -> CssRule<'i> {
-    let properties = self.properties
+    let properties = self
+      .properties
       .iter()
-      .map(|property| {
-        match property {
-          FontPaletteValuesProperty::Custom(custom) => {
-            FontPaletteValuesProperty::Custom(CustomProperty {
-              name: custom.name.clone(),
-              value: custom.value.get_fallback(kind)
-            })
-          }
-          _ => property.clone()
-        }
+      .map(|property| match property {
+        FontPaletteValuesProperty::Custom(custom) => FontPaletteValuesProperty::Custom(CustomProperty {
+          name: custom.name.clone(),
+          value: custom.value.get_fallback(kind),
+        }),
+        _ => property.clone(),
       })
       .collect();
     CssRule::Supports(SupportsRule {
@@ -278,15 +281,18 @@ impl<'i> FontPaletteValuesRule<'i> {
       rules: CssRuleList(vec![CssRule::FontPaletteValues(FontPaletteValuesRule {
         name: self.name.clone(),
         properties,
-        loc: self.loc.clone()
+        loc: self.loc.clone(),
       })]),
-      loc: self.loc.clone()
+      loc: self.loc.clone(),
     })
   }
 }
 
 impl<'i> ToCss for FontPaletteValuesRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     dest.add_mapping(self.loc);
     dest.write_str("@font-palette-values ")?;
     self.name.to_css(dest)?;
@@ -308,7 +314,10 @@ impl<'i> ToCss for FontPaletteValuesRule<'i> {
 }
 
 impl<'i> ToCss for FontPaletteValuesProperty<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     macro_rules! property {
       ($prop: literal, $value: expr) => {{
         dest.write_str($prop)?;
@@ -316,7 +325,7 @@ impl<'i> ToCss for FontPaletteValuesProperty<'i> {
         $value.to_css(dest)
       }};
     }
-    
+
     match self {
       FontPaletteValuesProperty::FontFamily(f) => property!("font-family", f),
       FontPaletteValuesProperty::BasePalette(b) => property!("base-palette", b),
