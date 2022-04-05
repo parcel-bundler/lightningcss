@@ -1,22 +1,13 @@
 use crate::compat::Feature;
-use crate::declaration::{DeclarationBlock, DeclarationList};
-use crate::logical::LogicalProperty;
+use crate::declaration::DeclarationBlock;
 use crate::properties::custom::UnparsedProperty;
-use crate::properties::{
-  custom::{CustomProperty, Token, TokenList},
-  Property, PropertyId,
-};
+use crate::properties::Property;
 use crate::rules::supports::{SupportsCondition, SupportsRule};
-use crate::rules::Location;
 use crate::rules::{style::StyleRule, CssRule, CssRuleList};
-use crate::selector::{SelectorIdent, SelectorString};
+use crate::selector::{Direction, PseudoClass};
 use crate::targets::Browsers;
 use crate::vendor_prefix::VendorPrefix;
-use parcel_selectors::SelectorList;
-use parcel_selectors::{
-  attr::{AttrSelectorOperator, ParsedCaseSensitivity},
-  parser::{Component, Selector},
-};
+use parcel_selectors::parser::Component;
 
 #[derive(Debug)]
 pub(crate) struct SupportsEntry<'i> {
@@ -36,9 +27,10 @@ pub(crate) enum DeclarationContext {
 #[derive(Debug)]
 pub(crate) struct PropertyHandlerContext<'i> {
   pub targets: Option<Browsers>,
-  pub used_logical: bool,
   pub is_important: bool,
   supports: Vec<SupportsEntry<'i>>,
+  ltr: Vec<Property<'i>>,
+  rtl: Vec<Property<'i>>,
   pub context: DeclarationContext,
 }
 
@@ -46,9 +38,10 @@ impl<'i> PropertyHandlerContext<'i> {
   pub fn new(targets: Option<Browsers>) -> Self {
     PropertyHandlerContext {
       targets,
-      used_logical: false,
       is_important: false,
       supports: Vec::new(),
+      ltr: Vec::new(),
+      rtl: Vec::new(),
       context: DeclarationContext::None,
     }
   }
@@ -67,85 +60,46 @@ impl<'i> PropertyHandlerContext<'i> {
     }
   }
 
-  pub fn add_logical_property(
-    &mut self,
-    dest: &mut DeclarationList<'i>,
-    property_id: PropertyId<'i>,
-    ltr: Property<'i>,
-    rtl: Property<'i>,
-  ) {
-    self.used_logical = true;
-    dest.push(Property::Logical(LogicalProperty {
-      property_id,
-      ltr: Some(Box::new(ltr)),
-      rtl: Some(Box::new(rtl)),
-    }));
+  pub fn add_logical_rule(&mut self, ltr: Property<'i>, rtl: Property<'i>) {
+    self.ltr.push(ltr);
+    self.rtl.push(rtl);
   }
 
-  pub fn add_inline_logical_properties(
-    &mut self,
-    dest: &mut DeclarationList<'i>,
-    left: PropertyId<'i>,
-    right: PropertyId<'i>,
-    start: Option<Property<'i>>,
-    end: Option<Property<'i>>,
-  ) {
-    self.used_logical = true;
-    dest.push(Property::Logical(LogicalProperty {
-      property_id: left,
-      ltr: start.clone().map(|v| Box::new(v)),
-      rtl: end.clone().map(|v| Box::new(v)),
-    }));
+  pub fn get_logical_rules(&mut self, style_rule: &StyleRule<'i>) -> Vec<CssRule<'i>> {
+    // TODO: :dir/:lang raises the specificity of the selector. Use :where to lower it?
+    let mut dest = Vec::new();
 
-    dest.push(Property::Logical(LogicalProperty {
-      property_id: right,
-      ltr: end.map(|v| Box::new(v)),
-      rtl: start.map(|v| Box::new(v)),
-    }));
-  }
+    macro_rules! rule {
+      ($dir: ident, $decls: ident) => {
+        let mut selectors = style_rule.selectors.clone();
+        for selector in &mut selectors.0 {
+          selector.append(Component::NonTSPseudoClass(PseudoClass::Dir(Direction::$dir)));
+        }
 
-  pub fn add_logical_rules(&mut self, dest: &mut CssRuleList) {
-    // Generate rules for [dir="ltr"] and [dir="rtl"] to define --ltr and --rtl vars.
-    macro_rules! style_rule {
-      ($dir: ident, $ltr: expr, $rtl: expr) => {
-        dest.0.push(CssRule::Style(StyleRule {
-          selectors: SelectorList(smallvec::smallvec![Selector::from_vec2(vec![
-            Component::AttributeInNoNamespace {
-              local_name: SelectorIdent("dir".into()),
-              operator: AttrSelectorOperator::Equal,
-              value: SelectorString(stringify!($dir).into()),
-              case_sensitivity: ParsedCaseSensitivity::CaseSensitive,
-              never_matches: false
-            }
-          ])]),
-          rules: CssRuleList(vec![]),
-          vendor_prefix: VendorPrefix::empty(),
+        let rule = StyleRule {
+          selectors,
+          vendor_prefix: VendorPrefix::None,
           declarations: DeclarationBlock {
+            declarations: std::mem::take(&mut self.$decls),
             important_declarations: vec![],
-            declarations: vec![
-              Property::Custom(CustomProperty {
-                name: "--ltr".into(),
-                value: TokenList(vec![$ltr.into()]),
-              }),
-              Property::Custom(CustomProperty {
-                name: "--rtl".into(),
-                value: TokenList(vec![$rtl.into()]),
-              }),
-            ],
           },
-          loc: Location {
-            source_index: 0,
-            line: 0,
-            column: 1,
-          },
-        }));
+          rules: CssRuleList(vec![]),
+          loc: style_rule.loc.clone(),
+        };
+
+        dest.push(CssRule::Style(rule));
       };
     }
 
-    if self.used_logical {
-      style_rule!(ltr, Token::Ident("initial".into()), Token::WhiteSpace(" "));
-      style_rule!(rtl, Token::WhiteSpace(" "), Token::Ident("initial".into()));
+    if !self.ltr.is_empty() {
+      rule!(Ltr, ltr);
     }
+
+    if !self.rtl.is_empty() {
+      rule!(Rtl, rtl);
+    }
+
+    dest
   }
 
   pub fn add_conditional_property(&mut self, condition: SupportsCondition<'i>, property: Property<'i>) {

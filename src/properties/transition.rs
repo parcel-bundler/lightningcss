@@ -276,9 +276,7 @@ impl<'i> TransitionHandler<'i> {
 
         if let Some(rtl_properties) = &rtl_properties {
           let rtl_transitions = get_transitions!(rtl_properties);
-          context.add_logical_property(
-            dest,
-            PropertyId::Transition(intersection),
+          context.add_logical_rule(
             Property::Transition(transitions, intersection),
             Property::Transition(rtl_transitions, intersection),
           );
@@ -296,9 +294,7 @@ impl<'i> TransitionHandler<'i> {
     if let Some((properties, prefix)) = properties {
       if !prefix.is_empty() {
         if let Some(rtl_properties) = rtl_properties {
-          context.add_logical_property(
-            dest,
-            PropertyId::TransitionProperty(prefix),
+          context.add_logical_rule(
             Property::TransitionProperty(properties, prefix),
             Property::TransitionProperty(rtl_properties, prefix),
           );

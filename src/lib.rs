@@ -863,19 +863,16 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        border-left: var(--ltr, 2px solid red);
-        border-right: var(--rtl, 2px solid red);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        border-left: 2px solid red;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-right: 2px solid red;
       }
 
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-right: 2px solid red;
       }
     "#
       },
@@ -892,19 +889,16 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        border-left-width: var(--ltr, 2px);
-        border-right-width: var(--rtl, 2px);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        border-left-width: 2px;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-right-width: 2px;
       }
 
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-right-width: 2px;
       }
     "#
       },
@@ -921,19 +915,16 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        border-right: var(--ltr, 2px solid red);
-        border-left: var(--rtl, 2px solid red);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        border-right: 2px solid red;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-left: 2px solid red;
       }
 
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-left: 2px solid red;
       }
     "#
       },
@@ -951,19 +942,19 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        border-left: var(--ltr, 2px solid red) var(--rtl, 5px solid green);
-        border-right: var(--ltr, 5px solid green) var(--rtl, 2px solid red);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        border-left: 2px solid red;
+        border-right: 5px solid green;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-left: 5px solid green;
+        border-right: 2px solid red;
       }
 
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-left: 5px solid green;
+        border-right: 2px solid red;
       }
     "#
       },
@@ -986,24 +977,34 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        border-left: var(--ltr, 2px solid red) var(--rtl, 5px solid green);
-        border-right: var(--ltr, 5px solid green) var(--rtl, 2px solid red);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        border-left: 2px solid red;
+        border-right: 5px solid green;
       }
 
-      .bar {
-        border-left: var(--ltr, 1px dotted gray) var(--rtl, 1px solid #000);
-        border-right: var(--ltr, 1px solid #000) var(--rtl, 1px dotted gray);
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-left: 5px solid green;
+        border-right: 2px solid red;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-left: 5px solid green;
+        border-right: 2px solid red;
       }
 
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .bar:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        border-left: 1px dotted gray;
+        border-right: 1px solid #000;
+      }
+
+      .bar:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-left: 1px solid #000;
+        border-right: 1px dotted gray;
+      }
+
+      .bar:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-left: 1px solid #000;
+        border-right: 1px dotted gray;
       }
     "#
       },
@@ -1020,19 +1021,16 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        border-right: var(--ltr, var(--test));
-        border-left: var(--rtl, var(--test));
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        border-right: var(--test);
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-left: var(--test);
       }
 
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-left: var(--test);
       }
     "#
       },
@@ -1050,19 +1048,19 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        border-left: var(--ltr, var(--start)) var(--rtl, var(--end));
-        border-right: var(--ltr, var(--end)) var(--rtl, var(--start));
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        border-left: var(--start);
+        border-right: var(--end);
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-right: var(--start);
+        border-left: var(--end);
       }
 
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-right: var(--start);
+        border-left: var(--end);
       }
     "#
       },
@@ -1198,26 +1196,19 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        border-left-color: var(--ltr, #b32323);
-        border-right-color: var(--rtl, #b32323);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        border-left-color: #b32323;
+        border-left-color: lab(40% 56.6 39);
       }
 
-      @supports (color: lab(0% 0 0)) {
-        .foo {
-          border-left-color: var(--ltr, lab(40% 56.6 39));
-          border-right-color: var(--rtl, lab(40% 56.6 39));
-        }
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-right-color: #b32323;
+        border-right-color: lab(40% 56.6 39);
       }
-
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
-      }
-
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-right-color: #b32323;
+        border-right-color: lab(40% 56.6 39);
       }
     "#},
       Browsers {
@@ -1233,26 +1224,19 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        border-right-color: var(--ltr, #b32323);
-        border-left-color: var(--rtl, #b32323);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        border-right-color: #b32323;
+        border-right-color: lab(40% 56.6 39);
       }
 
-      @supports (color: lab(0% 0 0)) {
-        .foo {
-          border-left-color: var(--rtl, lab(40% 56.6 39));
-          border-right-color: var(--ltr, lab(40% 56.6 39));
-        }
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-left-color: #b32323;
+        border-left-color: lab(40% 56.6 39);
       }
-
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
-      }
-
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-left-color: #b32323;
+        border-left-color: lab(40% 56.6 39);
       }
     "#},
       Browsers {
@@ -1269,26 +1253,25 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        border-left-color: var(--ltr, #b32323) var(--rtl, #ee00be);
-        border-right-color: var(--ltr, #ee00be) var(--rtl, #b32323);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        border-left-color: #b32323;
+        border-left-color: lab(40% 56.6 39);
+        border-right-color: #ee00be;
+        border-right-color: lch(50.998% 135.363 338);
       }
 
-      @supports (color: lab(0% 0 0)) {
-        .foo {
-          border-left-color: var(--ltr, lab(40% 56.6 39)) var(--rtl, lab(50.998% 125.506 -50.7078));
-          border-right-color: var(--ltr, lab(50.998% 125.506 -50.7078)) var(--rtl, lab(40% 56.6 39));
-        }
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-left-color: #ee00be;
+        border-left-color: lch(50.998% 135.363 338);
+        border-right-color: #b32323;
+        border-right-color: lab(40% 56.6 39);
       }
-
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
-      }
-
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-left-color: #ee00be;
+        border-left-color: lch(50.998% 135.363 338);
+        border-right-color: #b32323;
+        border-right-color: lab(40% 56.6 39);
       }
     "#},
       Browsers {
@@ -1305,33 +1288,22 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        border-left-color: var(--ltr, #b32323) var(--rtl, #ee00be);
-        border-right-color: var(--ltr, #ee00be) var(--rtl, #b32323);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        border-left-color: #b32323;
+        border-left-color: color(display-p3 .643308 .192455 .167712);
+        border-left-color: lab(40% 56.6 39);
+        border-right-color: #ee00be;
+        border-right-color: color(display-p3 .972962 -.362078 .804206);
+        border-right-color: lch(50.998% 135.363 338);
       }
-
-      @supports (color: color(display-p3 0 0 0)) {
-        .foo {
-          border-left-color: var(--ltr, color(display-p3 .643308 .192455 .167712)) var(--rtl, color(display-p3 .972962 -.362078 .804206));
-          border-right-color: var(--ltr, color(display-p3 .972962 -.362078 .804206)) var(--rtl, color(display-p3 .643308 .192455 .167712));
-        }
-      }
-
-      @supports (color: lab(0% 0 0)) {
-        .foo {
-          border-left-color: var(--ltr, lab(40% 56.6 39)) var(--rtl, lab(50.998% 125.506 -50.7078));
-          border-right-color: var(--ltr, lab(50.998% 125.506 -50.7078)) var(--rtl, lab(40% 56.6 39));
-        }
-      }
-
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
-      }
-
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-left-color: #ee00be;
+        border-left-color: color(display-p3 .972962 -.362078 .804206);
+        border-left-color: lch(50.998% 135.363 338);
+        border-right-color: #b32323;
+        border-right-color: color(display-p3 .643308 .192455 .167712);
+        border-right-color: lab(40% 56.6 39);
       }
     "#},
       Browsers {
@@ -1348,26 +1320,19 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        border-left: var(--ltr, 2px solid #b32323);
-        border-right: var(--rtl, 2px solid #b32323);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        border-left: 2px solid #b32323;
+        border-left: 2px solid lab(40% 56.6 39);
       }
 
-      @supports (color: lab(0% 0 0)) {
-        .foo {
-          border-left: var(--ltr, 2px solid lab(40% 56.6 39));
-          border-right: var(--rtl, 2px solid lab(40% 56.6 39));
-        }
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-right: 2px solid #b32323;
+        border-right: 2px solid lab(40% 56.6 39);
       }
-
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
-      }
-
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-right: 2px solid #b32323;
+        border-right: 2px solid lab(40% 56.6 39);
       }
     "#},
       Browsers {
@@ -1383,26 +1348,19 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        border-right: var(--ltr, 2px solid #b32323);
-        border-left: var(--rtl, 2px solid #b32323);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        border-right: 2px solid #b32323;
+        border-right: 2px solid lab(40% 56.6 39);
       }
 
-      @supports (color: lab(0% 0 0)) {
-        .foo {
-          border-left: var(--rtl, 2px solid lab(40% 56.6 39));
-          border-right: var(--ltr, 2px solid lab(40% 56.6 39));
-        }
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-left: 2px solid #b32323;
+        border-left: 2px solid lab(40% 56.6 39);
       }
-
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
-      }
-
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-left: 2px solid #b32323;
+        border-left: 2px solid lab(40% 56.6 39);
       }
     "#},
       Browsers {
@@ -1418,26 +1376,28 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        border-right: var(--ltr, var(--border-width) solid #b32323);
-        border-left: var(--rtl, var(--border-width) solid #b32323);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        border-right: var(--border-width) solid #b32323;
       }
 
       @supports (color: lab(0% 0 0)) {
-        .foo {
-          border-left: var(--rtl, var(--border-width) solid lab(40% 56.6 39));
-          border-right: var(--ltr, var(--border-width) solid lab(40% 56.6 39));
+        .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+          border-right: var(--border-width) solid lab(40% 56.6 39);
         }
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-left: var(--border-width) solid #b32323;
+      }
+      
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        border-left: var(--border-width) solid #b32323;
       }
 
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      @supports (color: lab(0% 0 0)) {
+        .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+          border-left: var(--border-width) solid lab(40% 56.6 39);
+        }
       }
     "#},
       Browsers {
@@ -2130,19 +2090,12 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        border-top-left-radius: var(--ltr, 5px);
-        border-top-right-radius: var(--rtl, 5px);
+      .foo:not(:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi)) {
+        border-top-left-radius: 5px;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
-      }
-
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi) {
+        border-top-right-radius: 5px;
       }
     "#
       },
@@ -2160,19 +2113,14 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        border-top-left-radius: var(--ltr, 5px) var(--rtl, 10px);
-        border-top-right-radius: var(--ltr, 10px) var(--rtl, 5px);
+      .foo:not(:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi)) {
+        border-top-left-radius: 5px;
+        border-top-right-radius: 10px;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
-      }
-
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi) {
+        border-top-left-radius: 10px;
+        border-top-right-radius: 5px;
       }
     "#
       },
@@ -2190,19 +2138,14 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        border-bottom-left-radius: var(--ltr, 5px) var(--rtl, 10px);
-        border-bottom-right-radius: var(--ltr, 10px) var(--rtl, 5px);
+      .foo:not(:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi)) {
+        border-bottom-left-radius: 5px;
+        border-bottom-right-radius: 10px;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
-      }
-
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi) {
+        border-bottom-left-radius: 10px;
+        border-bottom-right-radius: 5px;
       }
     "#
       },
@@ -2219,19 +2162,12 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        border-top-left-radius: var(--ltr, var(--radius));
-        border-top-right-radius: var(--rtl, var(--radius));
+      .foo:not(:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi)) {
+        border-top-left-radius: var(--radius);
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
-      }
-
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi) {
+        border-top-right-radius: var(--radius);
       }
     "#
       },
@@ -2249,19 +2185,14 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        border-top-left-radius: var(--ltr, var(--start)) var(--rtl, var(--end));
-        border-top-right-radius: var(--ltr, var(--end)) var(--rtl, var(--start));
+      .foo:not(:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi)) {
+        border-top-left-radius: var(--start);
+        border-top-right-radius: var(--end);
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
-      }
-
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi) {
+        border-top-right-radius: var(--start);
+        border-top-left-radius: var(--end);
       }
     "#
       },
@@ -2479,19 +2410,16 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        margin-left: var(--ltr, 2px);
-        margin-right: var(--rtl, 2px);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        margin-left: 2px;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        margin-right: 2px;
       }
 
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        margin-right: 2px;
       }
     "#
       },
@@ -2509,19 +2437,19 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        margin-left: var(--ltr, 2px) var(--rtl, 4px);
-        margin-right: var(--ltr, 4px) var(--rtl, 2px);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        margin-left: 2px;
+        margin-right: 4px;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        margin-left: 4px;
+        margin-right: 2px;
       }
 
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        margin-left: 4px;
+        margin-right: 2px;
       }
     "#
       },
@@ -2652,19 +2580,16 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        padding-left: var(--ltr, 2px);
-        padding-right: var(--rtl, 2px);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        padding-left: 2px;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        padding-right: 2px;
       }
 
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        padding-right: 2px;
       }
     "#
       },
@@ -2682,19 +2607,45 @@ mod tests {
       }
     "#,
       indoc! {r#"
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        padding-left: 2px;
+        padding-right: 4px;
+      }
+
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        padding-left: 4px;
+        padding-right: 2px;
+      }
+
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        padding-left: 4px;
+        padding-right: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
       .foo {
-        padding-left: var(--ltr, 2px) var(--rtl, 4px);
-        padding-right: var(--ltr, 4px) var(--rtl, 2px);
+        padding-inline-start: var(--padding);
+      }
+    "#,
+      indoc! {r#"
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        padding-left: var(--padding);
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        padding-right: var(--padding);
       }
 
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        padding-right: var(--padding);
       }
     "#
       },
@@ -4554,38 +4505,53 @@ mod tests {
 
   #[test]
   fn test_selectors() {
-    minify_test("[foo=\"baz\"] {}", "[foo=baz]{}");
-    minify_test("[foo=\"foo bar\"] {}", "[foo=foo\\ bar]{}");
-    minify_test("[foo=\"foo bar baz\"] {}", "[foo=\"foo bar baz\"]{}");
-    minify_test("[foo=\"\"] {}", "[foo=\"\"]{}");
-    minify_test(".test:not([foo=\"bar\"]) {}", ".test:not([foo=bar]){}");
-    minify_test(".test + .foo {}", ".test+.foo{}");
-    minify_test(".test ~ .foo {}", ".test~.foo{}");
-    minify_test(".test .foo {}", ".test .foo{}");
+    minify_test("[foo=\"baz\"] {color:red}", "[foo=baz]{color:red}");
+    minify_test("[foo=\"foo bar\"] {color:red}", "[foo=foo\\ bar]{color:red}");
+    minify_test("[foo=\"foo bar baz\"] {color:red}", "[foo=\"foo bar baz\"]{color:red}");
+    minify_test("[foo=\"\"] {color:red}", "[foo=\"\"]{color:red}");
     minify_test(
-      ".custom-range::-webkit-slider-thumb:active {}",
-      ".custom-range::-webkit-slider-thumb:active{}",
+      ".test:not([foo=\"bar\"]) {color:red}",
+      ".test:not([foo=bar]){color:red}",
     );
-    minify_test(".test:not(.foo, .bar) {}", ".test:not(.foo,.bar){}");
-    minify_test(".test:is(.foo, .bar) {}", ".test:is(.foo,.bar){}");
-    minify_test(".test:where(.foo, .bar) {}", ".test:where(.foo,.bar){}");
-    minify_test(".test:where(.foo, .bar) {}", ".test:where(.foo,.bar){}");
-    minify_test(":host {}", ":host{}");
-    minify_test(":host(.foo) {}", ":host(.foo){}");
-    minify_test("::slotted(span) {}", "::slotted(span){}");
-    minify_test("custom-element::part(foo) {}", "custom-element::part(foo){}");
+    minify_test(".test + .foo {color:red}", ".test+.foo{color:red}");
+    minify_test(".test ~ .foo {color:red}", ".test~.foo{color:red}");
+    minify_test(".test .foo {color:red}", ".test .foo{color:red}");
+    minify_test(
+      ".custom-range::-webkit-slider-thumb:active {color:red}",
+      ".custom-range::-webkit-slider-thumb:active{color:red}",
+    );
+    minify_test(".test:not(.foo, .bar) {color:red}", ".test:not(.foo,.bar){color:red}");
+    minify_test(".test:is(.foo, .bar) {color:red}", ".test:is(.foo,.bar){color:red}");
+    minify_test(
+      ".test:where(.foo, .bar) {color:red}",
+      ".test:where(.foo,.bar){color:red}",
+    );
+    minify_test(
+      ".test:where(.foo, .bar) {color:red}",
+      ".test:where(.foo,.bar){color:red}",
+    );
+    minify_test(":host {color:red}", ":host{color:red}");
+    minify_test(":host(.foo) {color:red}", ":host(.foo){color:red}");
+    minify_test("::slotted(span) {color:red", "::slotted(span){color:red}");
+    minify_test(
+      "custom-element::part(foo) {color:red}",
+      "custom-element::part(foo){color:red}",
+    );
     minify_test(".sm\\:text-5xl { font-size: 3rem }", ".sm\\:text-5xl{font-size:3rem}");
-    minify_test("a:has(> img) {}", "a:has(>img){}");
-    minify_test("dt:has(+ dt) {}", "dt:has(+dt){}");
+    minify_test("a:has(> img) {color:red}", "a:has(>img){color:red}");
+    minify_test("dt:has(+ dt) {color:red}", "dt:has(+dt){color:red}");
     minify_test(
-      "section:not(:has(h1, h2, h3, h4, h5, h6)) {}",
-      "section:not(:has(h1,h2,h3,h4,h5,h6)){}",
+      "section:not(:has(h1, h2, h3, h4, h5, h6)) {color:red}",
+      "section:not(:has(h1,h2,h3,h4,h5,h6)){color:red}",
     );
-    minify_test(":has(.sibling ~ .target) {}", ":has(.sibling~.target){}");
-    minify_test(".x:has(> .a > .b) {}", ".x:has(>.a>.b){}");
-    minify_test(".x:has(.bar, #foo) {}", ".x:has(.bar,#foo){}");
-    minify_test(".x:has(span + span) {}", ".x:has(span+span){}");
-    minify_test("a:has(:visited) {}", "a:has(:visited){}");
+    minify_test(
+      ":has(.sibling ~ .target) {color:red}",
+      ":has(.sibling~.target){color:red}",
+    );
+    minify_test(".x:has(> .a > .b) {color:red}", ".x:has(>.a>.b){color:red}");
+    minify_test(".x:has(.bar, #foo) {color:red}", ".x:has(.bar,#foo){color:red}");
+    minify_test(".x:has(span + span) {color:red}", ".x:has(span+span){color:red}");
+    minify_test("a:has(:visited) {color:red}", "a:has(:visited){color:red}");
     for element in [
       "-webkit-scrollbar",
       "-webkit-scrollbar-button",
@@ -4609,8 +4575,8 @@ mod tests {
         "window-inactive",
       ] {
         minify_test(
-          &format!("::{}:{} {{}}", element, class),
-          &format!("::{}:{}{{}}", element, class),
+          &format!("::{}:{} {{color:red}}", element, class),
+          &format!("::{}:{}{{color:red}}", element, class),
         );
       }
     }
@@ -4628,7 +4594,7 @@ mod tests {
       "window-inactive",
     ] {
       error_test(
-        &format!(":{} {{}}", class),
+        &format!(":{} {{color:red}}", class),
         ParserError::SelectorError(SelectorError::InvalidPseudoClassBeforeWebKitScrollbar),
       );
     }
@@ -4642,21 +4608,25 @@ mod tests {
       "-webkit-resizer",
     ] {
       error_test(
-        &format!("::{}:hover {{}}", element),
+        &format!("::{}:hover {{color:red}}", element),
         ParserError::SelectorError(SelectorError::InvalidPseudoClassAfterWebKitScrollbar),
       );
     }
 
     error_test(
-      "a::first-letter:last-child {}",
+      "a::first-letter:last-child {color:red}",
       ParserError::SelectorError(SelectorError::InvalidPseudoClassAfterPseudoElement),
     );
-    minify_test("a:last-child::first-letter {}", "a:last-child:first-letter{}");
+    minify_test(
+      "a:last-child::first-letter {color:red}",
+      "a:last-child:first-letter{color:red}",
+    );
 
     prefix_test(
-      ".test:not(.foo, .bar) {}",
+      ".test:not(.foo, .bar) {color:red}",
       indoc! {r#"
       .test:not(.foo):not(.bar) {
+        color: red;
       }
       "#},
       Browsers {
@@ -4665,13 +4635,198 @@ mod tests {
       },
     );
     prefix_test(
-      ".test:not(.foo, .bar) {}",
+      ".test:not(.foo, .bar) {color:red}",
       indoc! {r#"
       .test:not(.foo, .bar) {
+        color: red;
       }
       "#},
       Browsers {
         safari: Some(11 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    minify_test("a:lang(en) {color:red}", "a:lang(en){color:red}");
+    minify_test("a:lang(en, fr) {color:red}", "a:lang(en,fr){color:red}");
+    minify_test("a:lang('en') {color:red}", "a:lang(en){color:red}");
+    minify_test(
+      "a:-webkit-any(.foo, .bar) {color:red}",
+      "a:-webkit-any(.foo,.bar){color:red}",
+    );
+    minify_test("a:-moz-any(.foo, .bar) {color:red}", "a:-moz-any(.foo,.bar){color:red}");
+
+    prefix_test(
+      "a:is(.foo, .bar) {color:red}",
+      indoc! {r#"
+      a:-webkit-any(.foo, .bar) {
+        color: red;
+      }
+
+      a:-moz-any(.foo, .bar) {
+        color: red;
+      }
+
+      a:is(.foo, .bar) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(11 << 16),
+        firefox: Some(50 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      "a:is(.foo > .bar) {color:red}",
+      indoc! {r#"
+      a:is(.foo > .bar) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(11 << 16),
+        firefox: Some(50 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      "a:lang(en, fr) {color:red}",
+      indoc! {r#"
+      a:-webkit-any(:lang(en), :lang(fr)) {
+        color: red;
+      }
+
+      a:-moz-any(:lang(en), :lang(fr)) {
+        color: red;
+      }
+
+      a:is(:lang(en), :lang(fr)) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(11 << 16),
+        firefox: Some(50 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      "a:lang(en, fr) {color:red}",
+      indoc! {r#"
+      a:is(:lang(en), :lang(fr)) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        firefox: Some(88 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      "a:lang(en, fr) {color:red}",
+      indoc! {r#"
+      a:lang(en, fr) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      "a:dir(rtl) {color:red}",
+      indoc! {r#"
+      a:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        color: red;
+      }
+
+      a:-moz-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        color: red;
+      }
+
+      a:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(11 << 16),
+        firefox: Some(50 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      "a:dir(ltr) {color:red}",
+      indoc! {r#"
+      a:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(11 << 16),
+        firefox: Some(50 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      "a:dir(rtl) {color:red}",
+      indoc! {r#"
+      a:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        firefox: Some(88 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      "a:dir(ltr) {color:red}",
+      indoc! {r#"
+      a:not(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        firefox: Some(88 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      "a:dir(rtl) {color:red}",
+      indoc! {r#"
+      a:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      "a:dir(ltr) {color:red}",
+      indoc! {r#"
+      a:not(:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi)) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
         ..Browsers::default()
       },
     );
@@ -6602,18 +6757,16 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        transition-property: var(--ltr, margin-left) var(--rtl, margin-right);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        transition-property: margin-left;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        transition-property: margin-right;
       }
 
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        transition-property: margin-right;
       }
     "#
       },
@@ -6630,18 +6783,16 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        transition-property: var(--ltr, margin-left, padding-left) var(--rtl, margin-right, padding-right);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        transition-property: margin-left, padding-left;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        transition-property: margin-right, padding-right;
       }
 
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        transition-property: margin-right, padding-right;
       }
     "#
       },
@@ -6658,18 +6809,16 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        transition-property: var(--ltr, margin-left, opacity, padding-left, color) var(--rtl, margin-right, opacity, padding-right, color);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        transition-property: margin-left, opacity, padding-left, color;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        transition-property: margin-right, opacity, padding-right, color;
       }
 
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        transition-property: margin-right, opacity, padding-right, color;
       }
     "#
       },
@@ -6704,18 +6853,16 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        transition: var(--ltr, margin-left 2s) var(--rtl, margin-right 2s);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        transition: margin-left 2s;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        transition: margin-right 2s;
       }
 
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        transition: margin-right 2s;
       }
     "#
       },
@@ -6732,18 +6879,16 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        transition: var(--ltr, margin-left 2s, padding-left 2s) var(--rtl, margin-right 2s, padding-right 2s);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        transition: margin-left 2s, padding-left 2s;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        transition: margin-right 2s, padding-right 2s;
       }
 
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        transition: margin-right 2s, padding-right 2s;
       }
     "#
       },
@@ -6797,24 +6942,41 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        -webkit-transition: var(--ltr, border-top-left-radius) var(--rtl, border-top-right-radius);
-        transition: var(--ltr, border-top-left-radius) var(--rtl, border-top-right-radius);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        -webkit-transition: -webkit-border-top-left-radius, border-top-left-radius;
+        transition: -webkit-border-top-left-radius, border-top-left-radius;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
-      }
-
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        -webkit-transition: -webkit-border-top-right-radius, border-top-right-radius;
+        transition: -webkit-border-top-right-radius, border-top-right-radius;
       }
     "#
       },
       Browsers {
         safari: Some(4 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        transition: border-start-start-radius;
+      }
+    "#,
+      indoc! {r#"
+      .foo:not(:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi)) {
+        transition: border-top-left-radius;
+      }
+
+      .foo:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi) {
+        transition: border-top-right-radius;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(12 << 16),
         ..Browsers::default()
       },
     );
@@ -9166,18 +9328,12 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        text-align: var(--ltr, left) var(--rtl, right);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        text-align: left;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
-      }
-
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        text-align: right;
       }
     "#
       },
@@ -9194,18 +9350,12 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        text-align: var(--ltr, right) var(--rtl, left);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        text-align: right;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
-      }
-
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        text-align: left;
       }
     "#
       },
@@ -9229,6 +9379,72 @@ mod tests {
       },
       Browsers {
         safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo > .bar {
+        text-align: start;
+      }
+    "#,
+      indoc! {r#"
+      .foo > .bar:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        text-align: left;
+      }
+
+      .foo > .bar:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        text-align: right;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(2 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo:after {
+        text-align: start;
+      }
+    "#,
+      indoc! {r#"
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)):after {
+        text-align: left;
+      }
+
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)):after {
+        text-align: right;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(2 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo:hover {
+        text-align: start;
+      }
+    "#,
+      indoc! {r#"
+      .foo:hover:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        text-align: left;
+      }
+
+      .foo:hover:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        text-align: right;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(2 << 16),
         ..Browsers::default()
       },
     );
@@ -10209,19 +10425,16 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        left: var(--ltr, 2px);
-        right: var(--rtl, 2px);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        left: 2px;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        right: 2px;
       }
 
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        right: 2px;
       }
     "#
       },
@@ -10239,19 +10452,19 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      .foo {
-        left: var(--ltr, 2px) var(--rtl, 4px);
-        right: var(--ltr, 4px) var(--rtl, 2px);
+      .foo:not(:lang(ae)):not(:lang(ar)):not(:lang(arc)):not(:lang(bcc)):not(:lang(bqi)):not(:lang(ckb)):not(:lang(dv)):not(:lang(fa)):not(:lang(glk)):not(:lang(he)):not(:lang(ku)):not(:lang(mzn)):not(:lang(nqo)):not(:lang(pnb)):not(:lang(ps)):not(:lang(sd)):not(:lang(ug)):not(:lang(ur)):not(:lang(yi)) {
+        left: 2px;
+        right: 4px;
       }
 
-      [dir="ltr"] {
-        --ltr: initial;
-        --rtl: ;
+      .foo:-webkit-any(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        left: 4px;
+        right: 2px;
       }
 
-      [dir="rtl"] {
-        --ltr: ;
-        --rtl: initial;
+      .foo:is(:lang(ae), :lang(ar), :lang(arc), :lang(bcc), :lang(bqi), :lang(ckb), :lang(dv), :lang(fa), :lang(glk), :lang(he), :lang(ku), :lang(mzn), :lang(nqo), :lang(pnb), :lang(ps), :lang(sd), :lang(ug), :lang(ur), :lang(yi)) {
+        left: 4px;
+        right: 2px;
       }
     "#
       },

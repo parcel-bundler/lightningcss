@@ -795,14 +795,16 @@ where
       matches_generic_nth_child(element, context, 0, 1, true, false, flags_setter)
         && matches_generic_nth_child(element, context, 0, 1, true, true, flags_setter)
     }
-    Component::Is(ref list) | Component::Where(ref list) => context.shared.nest(|context| {
-      for selector in &**list {
-        if matches_complex_selector(selector.iter(), element, context, flags_setter) {
-          return true;
+    Component::Is(ref list) | Component::Where(ref list) | Component::Any(_, ref list) => {
+      context.shared.nest(|context| {
+        for selector in &**list {
+          if matches_complex_selector(selector.iter(), element, context, flags_setter) {
+            return true;
+          }
         }
-      }
-      false
-    }),
+        false
+      })
+    }
     Component::Negation(ref list) => context.shared.nest_for_negation(|context| {
       for selector in &**list {
         if matches_complex_selector(selector.iter(), element, context, flags_setter) {

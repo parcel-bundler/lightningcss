@@ -4,7 +4,7 @@ use crate::compat::Feature;
 use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
 use crate::error::{ParserError, PrinterError};
-use crate::logical::{LogicalProperty, PropertyCategory};
+use crate::logical::PropertyCategory;
 use crate::macros::*;
 use crate::printer::Printer;
 use crate::properties::custom::UnparsedProperty;
@@ -190,20 +190,6 @@ impl<S: Clone> FallbackValues for GenericBorder<S> {
   }
 }
 
-impl<S: Clone> GenericBorder<S> {
-  fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
-    self.color.get_necessary_fallbacks(targets)
-  }
-
-  fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
-    GenericBorder {
-      color: self.color.get_fallback(kind),
-      width: self.width.clone(),
-      style: self.style.clone(),
-    }
-  }
-}
-
 impl FallbackValues for Rect<CssColor> {
   fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
     let mut fallbacks = ColorFallbackKind::empty();
@@ -277,28 +263,6 @@ impl BorderShorthand {
   }
 }
 
-#[derive(Default, Debug)]
-struct PhysicalToLogical {
-  border_left: Option<usize>,
-  border_left_color: Option<usize>,
-  border_left_style: Option<usize>,
-  border_left_width: Option<usize>,
-  border_right: Option<usize>,
-  border_right_color: Option<usize>,
-  border_right_style: Option<usize>,
-  border_right_width: Option<usize>,
-}
-
-macro_rules! get_physical {
-  ($physical_to_logical: expr, $key: ident, $dest: ident) => {
-    if let Some(index) = $physical_to_logical.$key {
-      $dest.get_mut(index)
-    } else {
-      None
-    }
-  };
-}
-
 #[derive(Debug)]
 pub(crate) struct BorderHandler<'i> {
   targets: Option<Browsers>,
@@ -314,7 +278,6 @@ pub(crate) struct BorderHandler<'i> {
   border_image_handler: BorderImageHandler<'i>,
   border_radius_handler: BorderRadiusHandler<'i>,
   has_any: bool,
-  physical_to_logical: PhysicalToLogical,
 }
 
 impl<'i> BorderHandler<'i> {
@@ -333,7 +296,6 @@ impl<'i> BorderHandler<'i> {
       border_image_handler: BorderImageHandler::new(targets),
       border_radius_handler: BorderRadiusHandler::new(targets),
       has_any: false,
-      physical_to_logical: PhysicalToLogical::default(),
     }
   }
 }
@@ -497,7 +459,6 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
 
   fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
     self.flush(dest, context);
-    self.flush_logical_fallbacks(dest, context);
     self.border_image_handler.finalize(dest, context);
     self.border_radius_handler.finalize(dest, context);
   }
@@ -514,28 +475,7 @@ impl<'i> BorderHandler<'i> {
     let logical_supported = context.is_supported(Feature::LogicalBorders);
     macro_rules! logical_prop {
       ($ltr: ident, $ltr_key: ident, $rtl: ident, $rtl_key: ident, $val: expr) => {{
-        context.used_logical = true;
-        if let Some(Property::Logical(property)) = get_physical!(self.physical_to_logical, $ltr_key, dest) {
-          property.ltr = Some(Box::new(Property::$ltr($val.clone())));
-        } else {
-          self.physical_to_logical.$ltr_key = Some(dest.len());
-          dest.push(Property::Logical(LogicalProperty {
-            property_id: PropertyId::$ltr,
-            ltr: Some(Box::new(Property::$ltr($val.clone()))),
-            rtl: None,
-          }));
-        }
-
-        if let Some(Property::Logical(property)) = get_physical!(self.physical_to_logical, $rtl_key, dest) {
-          property.rtl = Some(Box::new(Property::$rtl($val.clone())));
-        } else {
-          self.physical_to_logical.$rtl_key = Some(dest.len());
-          dest.push(Property::Logical(LogicalProperty {
-            property_id: PropertyId::$rtl,
-            ltr: None,
-            rtl: Some(Box::new(Property::$rtl($val.clone()))),
-          }));
-        }
+        context.add_logical_rule(Property::$ltr($val.clone()), Property::$rtl($val.clone()));
       }};
     }
 
@@ -1041,40 +981,18 @@ impl<'i> BorderHandler<'i> {
 
     macro_rules! prop {
       ($id: ident) => {{
-        dest.push(Property::Unparsed(unparsed.with_property_id(PropertyId::$id)));
+        let mut unparsed = unparsed.with_property_id(PropertyId::$id);
+        context.add_unparsed_fallbacks(&mut unparsed);
+        dest.push(Property::Unparsed(unparsed));
       }};
     }
 
     macro_rules! logical_prop {
       ($ltr: ident, $ltr_key: ident, $rtl: ident, $rtl_key: ident) => {{
-        let ltr = Some(Box::new(Property::Unparsed(
-          unparsed.with_property_id(PropertyId::$ltr),
-        )));
-        let rtl = Some(Box::new(Property::Unparsed(
-          unparsed.with_property_id(PropertyId::$rtl),
-        )));
-        context.used_logical = true;
-        if let Some(Property::Logical(property)) = get_physical!(self.physical_to_logical, $ltr_key, dest) {
-          property.ltr = ltr;
-        } else {
-          self.physical_to_logical.$ltr_key = Some(dest.len());
-          dest.push(Property::Logical(LogicalProperty {
-            property_id: PropertyId::$ltr,
-            ltr,
-            rtl: None,
-          }));
-        }
-
-        if let Some(Property::Logical(property)) = get_physical!(self.physical_to_logical, $rtl_key, dest) {
-          property.rtl = rtl;
-        } else {
-          self.physical_to_logical.$rtl_key = Some(dest.len());
-          dest.push(Property::Logical(LogicalProperty {
-            property_id: PropertyId::$rtl,
-            ltr: None,
-            rtl,
-          }));
-        }
+        context.add_logical_rule(
+          Property::Unparsed(unparsed.with_property_id(PropertyId::$ltr)),
+          Property::Unparsed(unparsed.with_property_id(PropertyId::$rtl)),
+        );
       }};
     }
 
@@ -1109,95 +1027,11 @@ impl<'i> BorderHandler<'i> {
       BorderBlockEndColor => prop!(BorderBottomColor),
       BorderBlockEndStyle => prop!(BorderBottomStyle),
       _ => {
-        dest.push(Property::Unparsed(unparsed.clone()));
+        let mut unparsed = unparsed.clone();
+        context.add_unparsed_fallbacks(&mut unparsed);
+        dest.push(Property::Unparsed(unparsed));
       }
     }
-  }
-
-  fn flush_logical_fallbacks(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
-    // Generate color fallbacks for logical properties.
-    if let Some(targets) = self.targets {
-      macro_rules! logical_fallback {
-        ($prop: ident, $key: ident) => {
-          if let Some(Property::Logical(property)) = get_physical!(self.physical_to_logical, $key, dest) {
-            let mut fallbacks = ColorFallbackKind::empty();
-            macro_rules! add_fallbacks {
-              ($val: ident) => {
-                match &**$val {
-                  Property::$prop(val) => {
-                    fallbacks |= val.get_necessary_fallbacks(targets);
-                  }
-                  Property::Unparsed(unparsed) => {
-                    fallbacks |= unparsed.value.get_necessary_fallbacks(targets);
-                  }
-                  _ => unreachable!(),
-                }
-              };
-            }
-
-            if let Some(ltr) = &property.ltr {
-              add_fallbacks!(ltr);
-            }
-
-            if let Some(rtl) = &property.rtl {
-              add_fallbacks!(rtl);
-            }
-
-            let lowest_fallback = fallbacks.lowest();
-            fallbacks.remove(lowest_fallback);
-
-            macro_rules! fallback {
-              ($val: ident, $kind: expr) => {
-                property.$val.as_ref().map(|val| match &**val {
-                  Property::$prop(val) => Box::new(Property::$prop(val.get_fallback($kind))),
-                  Property::Unparsed(unparsed) => Box::new(Property::Unparsed(UnparsedProperty {
-                    property_id: unparsed.property_id.clone(),
-                    value: unparsed.value.get_fallback($kind),
-                  })),
-                  _ => unreachable!(),
-                })
-              };
-            }
-
-            if fallbacks.contains(ColorFallbackKind::P3) {
-              context.add_conditional_property(
-                ColorFallbackKind::P3.supports_condition(),
-                Property::Logical(LogicalProperty {
-                  property_id: PropertyId::$prop,
-                  ltr: fallback!(ltr, ColorFallbackKind::P3),
-                  rtl: fallback!(rtl, ColorFallbackKind::P3),
-                }),
-              );
-            }
-
-            if fallbacks.contains(ColorFallbackKind::LAB)
-              || (!lowest_fallback.is_empty() && lowest_fallback != ColorFallbackKind::LAB)
-            {
-              context.add_conditional_property(
-                ColorFallbackKind::LAB.supports_condition(),
-                Property::Logical(LogicalProperty {
-                  property_id: PropertyId::$prop,
-                  ltr: fallback!(ltr, ColorFallbackKind::LAB),
-                  rtl: fallback!(rtl, ColorFallbackKind::LAB),
-                }),
-              );
-            }
-
-            if !lowest_fallback.is_empty() {
-              property.ltr = fallback!(ltr, lowest_fallback);
-              property.rtl = fallback!(rtl, lowest_fallback);
-            }
-          }
-        };
-      }
-
-      logical_fallback!(BorderLeft, border_left);
-      logical_fallback!(BorderRight, border_right);
-      logical_fallback!(BorderLeftColor, border_left_color);
-      logical_fallback!(BorderRightColor, border_right_color);
-    }
-
-    self.physical_to_logical = PhysicalToLogical::default();
   }
 }
 

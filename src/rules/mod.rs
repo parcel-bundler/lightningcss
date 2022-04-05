@@ -24,7 +24,7 @@ use crate::dependencies::{Dependency, ImportDependency};
 use crate::error::{MinifyError, PrinterError};
 use crate::prefixes::Feature;
 use crate::printer::Printer;
-use crate::selector::{get_necessary_prefixes, get_prefix, is_equivalent};
+use crate::selector::{downlevel_selectors, get_prefix, is_equivalent};
 use crate::targets::Browsers;
 use crate::traits::ToCss;
 use crate::values::string::CowArcStr;
@@ -219,7 +219,7 @@ impl<'i> CssRuleList<'i> {
           if let Some(targets) = context.targets {
             style.vendor_prefix = get_prefix(&style.selectors);
             if style.vendor_prefix.contains(VendorPrefix::None) {
-              style.vendor_prefix = get_necessary_prefixes(&style.selectors, *targets);
+              style.vendor_prefix = downlevel_selectors(&mut style.selectors, *targets);
             }
           }
 
@@ -275,7 +275,17 @@ impl<'i> CssRuleList<'i> {
           }
 
           let supports = context.handler_context.get_supports_rules(&style);
-          rules.push(rule);
+          let logical = context.handler_context.get_logical_rules(&style);
+          if !style.is_empty() {
+            rules.push(rule);
+          }
+
+          if !logical.is_empty() {
+            let mut logical = CssRuleList(logical);
+            logical.minify(context, parent_is_unused)?;
+            rules.extend(logical.0)
+          }
+
           rules.extend(supports);
           continue;
         }

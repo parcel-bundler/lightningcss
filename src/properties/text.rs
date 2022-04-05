@@ -870,9 +870,7 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
             if logical_supported {
               dest.push(property.clone());
             } else {
-              context.add_logical_property(
-                dest,
-                PropertyId::TextAlign,
+              context.add_logical_rule(
                 Property::TextAlign(TextAlign::$ltr),
                 Property::TextAlign(TextAlign::$rtl),
               );
