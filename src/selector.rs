@@ -3,9 +3,9 @@ use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::rules::{StyleContext, ToCssWithContext};
 use crate::targets::Browsers;
-use crate::traits::ToCss;
-use crate::values::string::CowArcStr;
+use crate::traits::{Parse, ToCss};
 use crate::vendor_prefix::VendorPrefix;
+use crate::{macros::enum_property, values::string::CowArcStr};
 use cssparser::*;
 use parcel_selectors::{
   attr::{AttrSelectorOperator, ParsedAttrSelectorOperation, ParsedCaseSensitivity},
@@ -77,6 +77,7 @@ impl<'i> SelectorImpl<'i> for Selectors {
 
   type NonTSPseudoClass = PseudoClass<'i>;
   type PseudoElement = PseudoElement<'i>;
+  type VendorPrefix = VendorPrefix;
 
   type ExtraMatchingData = ();
 
@@ -198,14 +199,29 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
   ) -> Result<PseudoClass<'i>, ParseError<'i, Self::Error>> {
     use PseudoClass::*;
     let pseudo_class = match_ignore_ascii_case! { &name,
-      "lang" => Lang(parser.expect_ident_or_string()?.as_ref().into()),
-      "dir" => Dir(parser.expect_ident_or_string()?.as_ref().into()),
+      "lang" => {
+        let langs = parser.parse_comma_separated(|parser| {
+          parser.expect_ident_or_string()
+            .map(|s| s.into())
+            .map_err(|e| e.into())
+        })?;
+        Lang(langs)
+      },
+      "dir" => Dir(Direction::parse(parser)?),
       "local" if self.css_modules => Local(Box::new(parcel_selectors::parser::Selector::parse(self, parser)?)),
       "global" if self.css_modules => Global(Box::new(parcel_selectors::parser::Selector::parse(self, parser)?)),
       _ => return Err(parser.new_custom_error(parcel_selectors::parser::SelectorParseErrorKind::UnexpectedIdent(name.clone()))),
     };
 
     Ok(pseudo_class)
+  }
+
+  fn parse_any_prefix<'t>(&self, name: &str) -> Option<VendorPrefix> {
+    match_ignore_ascii_case! { &name,
+      "-webkit-any" => Some(VendorPrefix::WebKit),
+      "-moz-any" => Some(VendorPrefix::Moz),
+      _ => None
+    }
   }
 
   fn parse_pseudo_element(
@@ -280,12 +296,20 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
   }
 }
 
+enum_property! {
+  #[derive(Eq)]
+  pub enum Direction {
+    Ltr,
+    Rtl,
+  }
+}
+
 /// https://drafts.csswg.org/selectors-4/#structural-pseudos
 #[derive(Clone, Eq, PartialEq)]
 pub enum PseudoClass<'i> {
   // https://drafts.csswg.org/selectors-4/#linguistic-pseudos
-  Lang(Box<str>),
-  Dir(Box<str>),
+  Lang(Vec<CowArcStr<'i>>),
+  Dir(Direction),
 
   // https://drafts.csswg.org/selectors-4/#useraction-pseudos
   Hover,
@@ -408,12 +432,20 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for PseudoClass<'i> {
     match &self {
       Lang(lang) => {
         dest.write_str(":lang(")?;
-        serialize_identifier(lang, dest)?;
+        let mut first = true;
+        for lang in lang {
+          if first {
+            first = false;
+          } else {
+            dest.delim(',', false)?;
+          }
+          serialize_identifier(lang, dest)?;
+        }
         return dest.write_str(")");
       }
       Dir(dir) => {
         dest.write_str(":dir(")?;
-        serialize_identifier(dir, dest)?;
+        dir.to_css(dest)?;
         return dest.write_str(")");
       }
       _ => {}
@@ -1036,11 +1068,25 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for Component<'i, Selectors> {
         }
         dest.write_char(']')
       }
-      Is(ref list) | Where(ref list) | Negation(ref list) => {
+      Is(ref list) | Where(ref list) | Negation(ref list) | Any(_, ref list) => {
         match *self {
           Where(..) => dest.write_str(":where(")?,
-          Is(..) => dest.write_str(":is(")?,
+          Is(..) => {
+            let vp = dest.vendor_prefix;
+            if !vp.is_empty() && vp != VendorPrefix::None {
+              dest.write_char(':')?;
+              vp.to_css(dest)?;
+              dest.write_str("any(")?;
+            } else {
+              dest.write_str(":is(")?;
+            }
+          }
           Negation(..) => return serialize_negation(list.iter(), dest, context),
+          Any(ref prefix, ..) => {
+            dest.write_char(':')?;
+            prefix.to_css(dest)?;
+            dest.write_str("any(")?;
+          }
           _ => unreachable!(),
         }
         serialize_selector_list(list.iter(), dest, context, false)?;
@@ -1255,6 +1301,7 @@ pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browse
         | Component::Root => Feature::CssSel3,
 
         Component::Is(_) | Component::Nesting => Feature::CssMatchesPseudo,
+        Component::Any(..) => Feature::AnyPseudo,
         Component::Has(_) => Feature::CssHas,
 
         Component::Scope | Component::Host(_) | Component::Slotted(_) => Feature::Shadowdomv1,
@@ -1384,6 +1431,10 @@ pub fn get_prefix(selectors: &SelectorList<Selectors>) -> VendorPrefix {
   for selector in &selectors.0 {
     for component in selector.iter() {
       let p = match component {
+        // Return none rather than empty for these so that we call downlevel_selectors.
+        Component::NonTSPseudoClass(PseudoClass::Lang(..))
+        | Component::NonTSPseudoClass(PseudoClass::Dir(..))
+        | Component::Is(..) => VendorPrefix::None,
         Component::NonTSPseudoClass(pc) => pc.get_prefix(),
         Component::PseudoElement(pe) => pe.get_prefix(),
         _ => VendorPrefix::empty(),
@@ -1402,26 +1453,95 @@ pub fn get_prefix(selectors: &SelectorList<Selectors>) -> VendorPrefix {
   prefix
 }
 
-/// Returns the necessary vendor prefixes for a given selector list to meet the provided browser targets.
-pub fn get_necessary_prefixes(selectors: &SelectorList<Selectors>, targets: Browsers) -> VendorPrefix {
-  let mut necessary_prefixes = VendorPrefix::empty();
-  for selector in &selectors.0 {
-    for component in selector.iter() {
-      let prefixes = match component {
-        Component::NonTSPseudoClass(pc) => pc.get_necessary_prefixes(targets),
-        Component::PseudoElement(pe) => pe.get_necessary_prefixes(targets),
-        _ => VendorPrefix::empty(),
-      };
+const RTL_LANGS: &[&str] = &[
+  "ae", "ar", "arc", "bcc", "bqi", "ckb", "dv", "fa", "glk", "he", "ku", "mzn", "nqo", "pnb", "ps", "sd", "ug",
+  "ur", "yi",
+];
 
-      necessary_prefixes |= prefixes;
+/// Downlevels the given selectors to be compatible with the given browser targets.
+/// Returns the necessary vendor prefixes.
+pub fn downlevel_selectors(selectors: &mut SelectorList<Selectors>, targets: Browsers) -> VendorPrefix {
+  let mut necessary_prefixes = VendorPrefix::empty();
+  for selector in &mut selectors.0 {
+    for component in selector.iter_mut_raw_match_order() {
+      necessary_prefixes |= downlevel_component(component, targets);
     }
   }
 
   necessary_prefixes
 }
 
+fn downlevel_component<'i>(component: &mut Component<'i, Selectors>, targets: Browsers) -> VendorPrefix {
+  match component {
+    Component::NonTSPseudoClass(pc) => {
+      match pc {
+        PseudoClass::Dir(dir) => {
+          if !Feature::CssDirPseudo.is_compatible(targets) {
+            *component = downlevel_dir(*dir, targets);
+            downlevel_component(component, targets)
+          } else {
+            VendorPrefix::empty()
+          }
+        }
+        PseudoClass::Lang(langs) => {
+          // :lang() with multiple languages is not supported everywhere.
+          // compile this to :is(:lang(a), :lang(b)) etc.
+          if langs.len() > 1 && !Feature::LangList.is_compatible(targets) {
+            *component = Component::Is(lang_list_to_selectors(&langs));
+            downlevel_component(component, targets)
+          } else {
+            VendorPrefix::empty()
+          }
+        }
+        _ => pc.get_necessary_prefixes(targets),
+      }
+    }
+    Component::PseudoElement(pe) => pe.get_necessary_prefixes(targets),
+    Component::Is(ref selectors) => {
+      // Convert :is to :-webkit-any/:-moz-any if needed.
+      // All selectors must be simple, no combinators are supported.
+      if !Feature::CssMatchesPseudo.is_compatible(targets)
+        && selectors.iter().all(|selector| !selector.has_combinator())
+      {
+        crate::prefixes::Feature::AnyPseudo.prefixes_for(targets)
+      } else {
+        VendorPrefix::empty()
+      }
+    }
+    _ => VendorPrefix::empty(),
+  }
+}
+
+fn lang_list_to_selectors<'i>(langs: &Vec<CowArcStr<'i>>) -> Box<[Selector<'i, Selectors>]> {
+  langs
+    .iter()
+    .map(|lang| Selector::from_vec2(vec![Component::NonTSPseudoClass(PseudoClass::Lang(vec![lang.clone()]))]))
+    .collect::<Vec<Selector<Selectors>>>()
+    .into_boxed_slice()
+}
+
+fn downlevel_dir<'i>(dir: Direction, targets: Browsers) -> Component<'i, Selectors> {
+  // Convert :dir to :lang. If supported, use a list of languages in a single :lang,
+  // otherwise, use :is/:not, which may be further downleveled to e.g. :-webkit-any.
+  let langs = RTL_LANGS.iter().map(|lang| (*lang).into()).collect();
+  if Feature::LangList.is_compatible(targets) {
+    let c = Component::NonTSPseudoClass(PseudoClass::Lang(langs));
+    if dir == Direction::Ltr {
+      Component::Negation(vec![Selector::from_vec2(vec![c])].into_boxed_slice())
+    } else {
+      c
+    }
+  } else {
+    if dir == Direction::Ltr {
+      Component::Negation(lang_list_to_selectors(&langs))
+    } else {
+      Component::Is(lang_list_to_selectors(&langs))
+    }
+  }
+}
+
 /// Determines whether a selector list contains only unused selectors.
-/// A selector is considered unused if it contains a class or id component that exists in the set of unsed symbols.
+/// A selector is considered unused if it contains a class or id component that exists in the set of unused symbols.
 pub fn is_unused(
   selectors: &mut std::slice::Iter<Selector<Selectors>>,
   unused_symbols: &HashSet<String>,
@@ -1439,7 +1559,7 @@ pub fn is_unused(
             return true;
           }
         }
-        Component::Is(is) | Component::Where(is) => {
+        Component::Is(is) | Component::Where(is) | Component::Any(_, is) => {
           if is_unused(&mut is.iter(), unused_symbols, parent_is_unused) {
             return true;
           }

@@ -37,6 +37,27 @@ prefixes['clip-path'].browsers = prefixes['clip-path'].browsers.filter(b => {
   );
 });
 
+prefixes['any-pseudo'] = {
+  browsers: Object.entries(mdn.css.selectors.is.__compat.support)
+    .flatMap(([key, value]) => {
+      if (Array.isArray(value)) {
+        key = MDN_BROWSER_MAPPING[key] || key;
+        let any = value.find(v => v.alternative_name?.includes('-any'))?.version_added;
+        let supported = value.find(x => x.version_added && !x.alternative_name)?.version_added;
+        if (any && supported) {
+          let parts = supported.split('.');
+          parts[0]--;
+          supported = parts.join('.');
+          return [`${key} ${any}}`, `${key} ${supported}`];
+        }
+      }
+
+      return [];
+    })
+}
+
+console.log(prefixes['any-pseudo'])
+
 let flexSpec = {};
 let oldGradient = {};
 let p = new Map();
@@ -199,7 +220,23 @@ let mdnFeatures = {
   logicalTextAlign: mdn.css.properties['text-align']['flow_relative_values_start_and_end'].__compat.support,
   labColors: mdn.css.types.color.lab.__compat.support,
   oklabColors: {},
-  colorFunction: mdn.css.types.color.color.__compat.support
+  colorFunction: mdn.css.types.color.color.__compat.support,
+  anyPseudo: Object.fromEntries(
+    Object.entries(mdn.css.selectors.is.__compat.support)
+      .map(([key, value]) => {
+        if (Array.isArray(value)) {
+          value = value
+            .filter(v => v.alternative_name?.includes('-any'))
+            .map(({alternative_name, ...other}) => other);
+        }
+
+        if (value && value.length) {
+          return [key, value];
+        } else {
+          return [key, {version_added: false}];
+        }
+      })
+  )
 };
 
 for (let feature in mdnFeatures) {
@@ -238,6 +275,12 @@ addValue(compat, {
   safari: parseVersion('10.1'),
   ios_saf: parseVersion('10.3')
 }, 'p3Colors');
+
+addValue(compat, {
+  // https://github.com/WebKit/WebKit/commit/baed0d8b0abf366e1d9a6105dc378c59a5f21575
+  safari: parseVersion('10.1'),
+  ios_saf: parseVersion('10.3')
+}, 'langList');
 
 let prefixMapping = {
   webkit: 'WebKit',
@@ -376,6 +419,7 @@ fs.writeFileSync('src/compat.rs', c);
 
 
 function parseVersion(version) {
+  version = version.replace('≤', '');
   let [major, minor = '0', patch = '0'] = version
     .split('-')[0]
     .split('.')

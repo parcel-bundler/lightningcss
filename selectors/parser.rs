@@ -217,6 +217,7 @@ macro_rules! with_all_bounds {
             /// non tree-structural pseudo-classes
             /// (see: https://drafts.csswg.org/selectors/#structural-pseudos)
             type NonTSPseudoClass: $($CommonBounds)* + NonTSPseudoClass<'i, Impl = Self>;
+            type VendorPrefix: Sized + Eq + Clone + ToCss;
 
             /// pseudo-elements
             type PseudoElement: $($CommonBounds)* + PseudoElement<'i, Impl = Self>;
@@ -268,8 +269,8 @@ pub trait Parser<'i> {
   }
 
   /// Whether the given function name is an alias for the `:is()` function.
-  fn is_is_alias(&self, _name: &str) -> bool {
-    false
+  fn parse_any_prefix(&self, _name: &str) -> Option<<Self::Impl as SelectorImpl<'i>>::VendorPrefix> {
+    None
   }
 
   /// Whether to parse the `:host` pseudo-class.
@@ -635,6 +636,16 @@ impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
   }
 
   #[inline]
+  pub fn append(&mut self, component: Component<'i, Impl>) {
+    let index = self
+      .1
+      .iter()
+      .position(|c| matches!(*c, Component::Combinator(..) | Component::PseudoElement(..)))
+      .unwrap_or(self.1.len());
+    self.1.insert(index, component);
+  }
+
+  #[inline]
   pub fn parts(&self) -> Option<&[Impl::Identifier]> {
     if !self.is_part() {
       return None;
@@ -689,6 +700,13 @@ impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
           | Component::PseudoElement(..)
       )
     })
+  }
+
+  #[inline]
+  pub fn has_combinator(&self) -> bool {
+    self
+      .iter_raw_match_order()
+      .any(|c| matches!(*c, Component::Combinator(combinator) if combinator.is_tree_combinator()))
   }
 
   /// Returns an iterator over this selector in matching order (right-to-left).
@@ -751,6 +769,11 @@ impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
   #[inline]
   pub fn iter_raw_match_order(&self) -> slice::Iter<Component<'i, Impl>> {
     self.1.iter()
+  }
+
+  #[inline]
+  pub fn iter_mut_raw_match_order(&mut self) -> slice::IterMut<Component<'i, Impl>> {
+    self.1.iter_mut()
   }
 
   /// Returns the combinator at index `index` (zero-indexed from the left),
@@ -1026,6 +1049,14 @@ impl Combinator {
   pub fn is_sibling(&self) -> bool {
     matches!(*self, Combinator::NextSibling | Combinator::LaterSibling)
   }
+
+  #[inline]
+  pub fn is_tree_combinator(&self) -> bool {
+    matches!(
+      *self,
+      Combinator::Child | Combinator::Descendant | Combinator::NextSibling | Combinator::LaterSibling
+    )
+  }
 }
 
 /// A CSS simple selector or combinator. We store both in the same enum for
@@ -1116,6 +1147,7 @@ pub enum Component<'i, Impl: SelectorImpl<'i>> {
   ///
   /// Same comment as above re. the argument.
   Is(Box<[Selector<'i, Impl>]>),
+  Any(Impl::VendorPrefix, Box<[Selector<'i, Impl>]>),
   /// The `:has` pseudo-class.
   ///
   /// https://www.w3.org/TR/selectors/#relational
@@ -1579,12 +1611,17 @@ impl<'i, Impl: SelectorImpl<'i>> ToCss for Component<'i, Impl> {
         write_affine(dest, a, b)?;
         dest.write_char(')')
       }
-      Is(ref list) | Where(ref list) | Negation(ref list) | Has(ref list) => {
+      Is(ref list) | Where(ref list) | Negation(ref list) | Has(ref list) | Any(_, ref list) => {
         match *self {
           Where(..) => dest.write_str(":where(")?,
           Is(..) => dest.write_str(":is(")?,
           Negation(..) => dest.write_str(":not(")?,
           Has(..) => dest.write_str(":has(")?,
+          Any(ref prefix, _) => {
+            dest.write_char(':')?;
+            prefix.to_css(dest)?;
+            dest.write_str("any(")?;
+          }
           _ => unreachable!(),
         }
         serialize_selector_list(list.iter(), dest)?;
@@ -2327,6 +2364,7 @@ where
   }
   Ok(Component::Has(inner.0.into_vec().into_boxed_slice()))
 }
+
 fn parse_functional_pseudo_class<'i, 't, P, Impl>(
   parser: &P,
   input: &mut CssParser<'i, 't>,
@@ -2357,8 +2395,8 @@ where
       _ => {}
   }
 
-  if parser.parse_is_and_where() && parser.is_is_alias(&name) {
-    return parse_is_or_where(parser, input, state, Component::Is);
+  if let Some(prefix) = parser.parse_any_prefix(&name) {
+    return parse_is_or_where(parser, input, state, |selectors| Component::Any(prefix, selectors));
   }
 
   if !state.allows_custom_functional_pseudo_classes() {
@@ -2673,6 +2711,7 @@ pub mod tests {
     type BorrowedNamespaceUrl = DummyAtom;
     type NonTSPseudoClass = PseudoClass;
     type PseudoElement = PseudoElement;
+    type VendorPrefix = u8;
   }
 
   #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]

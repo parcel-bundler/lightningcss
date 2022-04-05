@@ -808,7 +808,7 @@ fn process_condition<'i>(
     }
     MediaCondition::Operation(conditions, _) => {
       let mut res = Ok(true);
-      conditions.retain_mut(|condition| {
+      RetainMut::retain_mut(conditions, |condition| {
         let r = process_condition(loc, custom_media, media_type, qualifier, condition, seen);
         if let Ok(used) = r {
           used

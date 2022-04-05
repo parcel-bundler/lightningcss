@@ -119,7 +119,6 @@ impl<'i> StyleSheet<'i> {
       )),
     })?;
 
-    context.add_logical_rules(&mut self.rules);
     Ok(())
   }
 
