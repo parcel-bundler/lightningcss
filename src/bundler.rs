@@ -91,8 +91,8 @@ pub enum BundleErrorKind<'i> {
   IOError(#[serde(skip)] std::io::Error),
   ParserError(ParserError<'i>),
   UnsupportedImportCondition,
-  UnsupportedMediaBooleanLogic,
   UnsupportedLayerCombination,
+  UnsupportedMediaBooleanLogic,
 }
 
 impl<'i> From<Error<ParserError<'i>>> for Error<BundleErrorKind<'i>> {
@@ -104,15 +104,23 @@ impl<'i> From<Error<ParserError<'i>>> for Error<BundleErrorKind<'i>> {
   }
 }
 
-impl<'i> BundleErrorKind<'i> {
-  pub fn reason(&self) -> String {
+impl<'i> std::fmt::Display for BundleErrorKind<'i> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    use BundleErrorKind::*;
     match self {
-      BundleErrorKind::IOError(e) => e.to_string(),
-      BundleErrorKind::ParserError(e) => e.reason(),
-      BundleErrorKind::UnsupportedImportCondition => "Unsupported import condition".into(),
-      BundleErrorKind::UnsupportedMediaBooleanLogic => "Unsupported boolean logic in @import media query".into(),
-      BundleErrorKind::UnsupportedLayerCombination => "Unsupported layer combination in @import".into(),
+      IOError(err) => write!(f, "IO error: {}", err),
+      ParserError(err) => err.fmt(f),
+      UnsupportedImportCondition => write!(f, "Unsupported import condition"),
+      UnsupportedLayerCombination => write!(f, "Unsupported layer combination in @import"),
+      UnsupportedMediaBooleanLogic => write!(f, "Unsupported boolean logic in @import media query"),
     }
+  }
+}
+
+impl<'i> BundleErrorKind<'i> {
+  #[deprecated(note = "use `BundleErrorKind::to_string()` or `std::fmt::Display` instead")]
+  pub fn reason(&self) -> String {
+    self.to_string()
   }
 }
 

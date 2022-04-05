@@ -4,12 +4,25 @@ use crate::values::string::CowArcStr;
 use cssparser::{BasicParseErrorKind, ParseError, ParseErrorKind};
 use parcel_selectors::parser::SelectorParseErrorKind;
 use serde::Serialize;
+use std::fmt;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Error<T> {
   pub kind: T,
   pub loc: Option<ErrorLocation>,
 }
+
+impl<T: fmt::Display> fmt::Display for Error<T> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    self.kind.fmt(f)?;
+    if let Some(loc) = &self.loc {
+      write!(f, " at {}", loc)?;
+    }
+    Ok(())
+  }
+}
+
+impl<T: fmt::Display + fmt::Debug> std::error::Error for Error<T> {}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ErrorLocation {
@@ -28,27 +41,55 @@ impl ErrorLocation {
   }
 }
 
+impl fmt::Display for ErrorLocation {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{}:{}:{}", self.filename, self.line, self.column)
+  }
+}
+
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "type", content = "value")]
 pub enum ParserError<'i> {
-  /// An unexpected token was encountered.
-  UnexpectedToken(#[serde(skip)] Token<'i>),
-  /// The end of the input was encountered unexpectedly.
-  EndOfInput,
-  /// An `@` rule was encountered that was invalid.
-  AtRuleInvalid(CowArcStr<'i>),
-  /// The body of an '@' rule was invalid.
   AtRuleBodyInvalid,
-  /// A qualified rule was encountered that was invalid.
-  QualifiedRuleInvalid,
-  SelectorError(SelectorError<'i>),
+  AtRuleInvalid(CowArcStr<'i>),
+  EndOfInput,
   InvalidDeclaration,
-  InvalidPageSelector,
-  InvalidValue,
   InvalidMediaQuery,
   InvalidNesting,
+  InvalidPageSelector,
+  InvalidValue,
+  QualifiedRuleInvalid,
+  SelectorError(SelectorError<'i>),
   UnexpectedImportRule,
   UnexpectedNamespaceRule,
+  UnexpectedToken(#[serde(skip)] Token<'i>),
+}
+
+impl<'i> fmt::Display for ParserError<'i> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    use ParserError::*;
+    match self {
+      AtRuleBodyInvalid => write!(f, "Invalid @ rule body"),
+      AtRuleInvalid(name) => write!(f, "Unknown at rule: @{}", name),
+      EndOfInput => write!(f, "Unexpected end of input"),
+      InvalidDeclaration => write!(f, "Invalid declaration"),
+      InvalidMediaQuery => write!(f, "Invalid media query"),
+      InvalidNesting => write!(f, "Invalid nesting"),
+      InvalidPageSelector => write!(f, "Invalid page selector"),
+      InvalidValue => write!(f, "Invalid value"),
+      QualifiedRuleInvalid => write!(f, "Invalid qualified rule"),
+      SelectorError(s) => s.fmt(f),
+      UnexpectedImportRule => write!(
+        f,
+        "@import rules must precede all rules aside from @charset and @layer statements"
+      ),
+      UnexpectedNamespaceRule => write!(
+        f,
+        "@namespaces rules must precede all rules aside from @charset, @import, and @layer statements"
+      ),
+      UnexpectedToken(token) => write!(f, "Unexpected token {:?}", token),
+    }
+  }
 }
 
 impl<'i> Error<ParserError<'i>> {
@@ -82,57 +123,61 @@ impl<'i> From<SelectorParseErrorKind<'i>> for ParserError<'i> {
 }
 
 impl<'i> ParserError<'i> {
+  #[deprecated(note = "use `ParserError::to_string()` or `fmt::Display` instead")]
   pub fn reason(&self) -> String {
-    match self {
-      ParserError::AtRuleBodyInvalid => "Invalid at rule body".into(),
-      ParserError::EndOfInput => "Unexpected end of input".into(),
-      ParserError::AtRuleInvalid(name) => format!("Unknown at rule: @{}", name),
-      ParserError::QualifiedRuleInvalid => "Invalid qualified rule".into(),
-      ParserError::UnexpectedToken(token) => format!("Unexpected token {:?}", token),
-      ParserError::InvalidDeclaration => "Invalid declaration".into(),
-      ParserError::InvalidMediaQuery => "Invalid media query".into(),
-      ParserError::InvalidNesting => "Invalid nesting".into(),
-      ParserError::InvalidPageSelector => "Invalid page selector".into(),
-      ParserError::InvalidValue => "Invalid value".into(),
-      ParserError::UnexpectedImportRule => {
-        "@import rules must precede all rules aside from @charset and @layer statements".into()
-      }
-      ParserError::UnexpectedNamespaceRule => {
-        "@namespaces rules must precede all rules aside from @charset, @import, and @layer statements".into()
-      }
-      ParserError::SelectorError(s) => s.reason(),
-    }
+    self.to_string()
   }
 }
 
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "type", content = "value")]
 pub enum SelectorError<'i> {
-  NoQualifiedNameInAttributeSelector(#[serde(skip)] Token<'i>),
-  EmptySelector,
-  DanglingCombinator,
-  NonCompoundSelector,
-  NonPseudoElementAfterSlotted,
-  InvalidPseudoElementAfterSlotted,
-  InvalidPseudoElementInsideWhere,
-  InvalidPseudoClassBeforeWebKitScrollbar,
-  InvalidPseudoClassAfterWebKitScrollbar,
-  InvalidPseudoClassAfterPseudoElement,
-  InvalidState,
-  MissingNestingSelector,
-  MissingNestingPrefix,
-  UnexpectedTokenInAttributeSelector(#[serde(skip)] Token<'i>),
-  PseudoElementExpectedColon(#[serde(skip)] Token<'i>),
-  PseudoElementExpectedIdent(#[serde(skip)] Token<'i>),
-  NoIdentForPseudo(#[serde(skip)] Token<'i>),
-  UnsupportedPseudoClassOrElement(CowArcStr<'i>),
-  UnexpectedIdent(CowArcStr<'i>),
-  ExpectedNamespace(CowArcStr<'i>),
-  ExpectedBarInAttr(#[serde(skip)] Token<'i>),
   BadValueInAttr(#[serde(skip)] Token<'i>),
-  InvalidQualNameInAttr(#[serde(skip)] Token<'i>),
-  ExplicitNamespaceUnexpectedToken(#[serde(skip)] Token<'i>),
   ClassNeedsIdent(#[serde(skip)] Token<'i>),
+  DanglingCombinator,
+  EmptySelector,
+  ExpectedBarInAttr(#[serde(skip)] Token<'i>),
+  ExpectedNamespace(CowArcStr<'i>),
+  ExplicitNamespaceUnexpectedToken(#[serde(skip)] Token<'i>),
+  InvalidPseudoClassAfterPseudoElement,
+  InvalidPseudoClassAfterWebKitScrollbar,
+  InvalidPseudoClassBeforeWebKitScrollbar,
+  InvalidQualNameInAttr(#[serde(skip)] Token<'i>),
+  InvalidState,
+  MissingNestingPrefix,
+  MissingNestingSelector,
+  NoQualifiedNameInAttributeSelector(#[serde(skip)] Token<'i>),
+  PseudoElementExpectedIdent(#[serde(skip)] Token<'i>),
+  UnexpectedIdent(CowArcStr<'i>),
+  UnexpectedTokenInAttributeSelector(#[serde(skip)] Token<'i>),
+  UnsupportedPseudoClassOrElement(CowArcStr<'i>),
+}
+
+impl<'i> fmt::Display for SelectorError<'i> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    use SelectorError::*;
+    match self {
+      InvalidState => write!(f, "Invalid state"),
+      BadValueInAttr(token) => write!(f, "Invalid value in attribute selector: {:?}", token),
+      ClassNeedsIdent(token) => write!(f, "Expected identifier in class selector, got {:?}", token),
+      DanglingCombinator => write!(f, "Invalid dangling combinator in selector"),
+      EmptySelector => write!(f, "Invalid empty selector"),
+      ExpectedBarInAttr(name) => write!(f, "Expected | in attribute, got {:?}", name),
+      ExpectedNamespace(name) => write!(f, "Expected namespace: {}", name),
+      ExplicitNamespaceUnexpectedToken(token) => write!(f, "Unexpected token in namespace selector: {:?}", token),
+      InvalidPseudoClassAfterPseudoElement => write!(f, "Invalid pseudo class after pseudo element, only user action pseudo classes (e.g. :hover, :active) are allowed"),
+      InvalidPseudoClassAfterWebKitScrollbar => write!(f, "Invalid pseudo class after ::-webkit-scrollbar pseudo element"),
+      InvalidPseudoClassBeforeWebKitScrollbar => write!(f, "Pseudo class must be prefixed by a ::-webkit-scrollbar pseudo element"),
+      InvalidQualNameInAttr(token) => write!(f, "Invalid qualified name in attribute selector: {:?}", token),
+      MissingNestingPrefix => write!(f, "A nesting selector (&) is required as a prefix of each selector in a nested style rule"),
+      MissingNestingSelector => write!(f, "A nesting selector (&) is required in each selector of a @nest rule"),
+      NoQualifiedNameInAttributeSelector(token) => write!(f, "No qualified name in attribute selector: {:?}.", token),
+      PseudoElementExpectedIdent(token) => write!(f, "Invalid token in pseudo element: {:?}", token),
+      UnexpectedIdent(name) => write!(f, "Unexpected identifier: {}", name),
+      UnexpectedTokenInAttributeSelector(token) => write!(f, "Unexpected token in attribute selector: {:?}", token),
+      UnsupportedPseudoClassOrElement(name) => write!(f, "Unsupported pseudo class or element: {}", name),
+    }
+  }
 }
 
 impl<'i> From<SelectorParseErrorKind<'i>> for SelectorError<'i> {
@@ -143,10 +188,6 @@ impl<'i> From<SelectorParseErrorKind<'i>> for SelectorError<'i> {
       }
       SelectorParseErrorKind::EmptySelector => SelectorError::EmptySelector,
       SelectorParseErrorKind::DanglingCombinator => SelectorError::DanglingCombinator,
-      SelectorParseErrorKind::NonCompoundSelector => SelectorError::NonCompoundSelector,
-      SelectorParseErrorKind::NonPseudoElementAfterSlotted => SelectorError::NonPseudoElementAfterSlotted,
-      SelectorParseErrorKind::InvalidPseudoElementAfterSlotted => SelectorError::InvalidPseudoElementAfterSlotted,
-      SelectorParseErrorKind::InvalidPseudoElementInsideWhere => SelectorError::InvalidPseudoElementInsideWhere,
       SelectorParseErrorKind::InvalidPseudoClassBeforeWebKitScrollbar => {
         SelectorError::InvalidPseudoClassBeforeWebKitScrollbar
       }
@@ -162,9 +203,7 @@ impl<'i> From<SelectorParseErrorKind<'i>> for SelectorError<'i> {
       SelectorParseErrorKind::UnexpectedTokenInAttributeSelector(t) => {
         SelectorError::UnexpectedTokenInAttributeSelector(t.into())
       }
-      SelectorParseErrorKind::PseudoElementExpectedColon(t) => SelectorError::PseudoElementExpectedColon(t.into()),
       SelectorParseErrorKind::PseudoElementExpectedIdent(t) => SelectorError::PseudoElementExpectedIdent(t.into()),
-      SelectorParseErrorKind::NoIdentForPseudo(t) => SelectorError::NoIdentForPseudo(t.into()),
       SelectorParseErrorKind::UnsupportedPseudoClassOrElement(t) => {
         SelectorError::UnsupportedPseudoClassOrElement(t.into())
       }
@@ -181,62 +220,48 @@ impl<'i> From<SelectorParseErrorKind<'i>> for SelectorError<'i> {
   }
 }
 
-impl<'i> SelectorError<'i> {
-  fn reason(&self) -> String {
-    use SelectorError::*;
-    match self {
-      NoQualifiedNameInAttributeSelector(token) => format!("No qualified name in attribute selector: {:?}.", token),
-      EmptySelector => "Invalid empty selector.".into(),
-      DanglingCombinator => "Invalid dangling combinator in selector.".into(),
-      MissingNestingSelector => "A nesting selector (&) is required in each selector of a @nest rule.".into(),
-      MissingNestingPrefix => "A nesting selector (&) is required as a prefix of each selector in a nested style rule.".into(),
-      UnexpectedTokenInAttributeSelector(token) => format!("Unexpected token in attribute selector: {:?}", token),
-      PseudoElementExpectedIdent(token) => format!("Invalid token in pseudo element: {:?}", token),
-      UnsupportedPseudoClassOrElement(name) => format!("Unsupported pseudo class or element: {}", name),
-      UnexpectedIdent(name) => format!("Unexpected identifier: {}", name),
-      ExpectedNamespace(name) => format!("Expected namespace: {}", name),
-      ExpectedBarInAttr(name) => format!("Expected | in attribute, got {:?}", name),
-      BadValueInAttr(token) => format!("Invalid value in attribute selector: {:?}", token),
-      InvalidQualNameInAttr(token) => format!("Invalid qualified name in attribute selector: {:?}", token),
-      ExplicitNamespaceUnexpectedToken(token) => format!("Unexpected token in namespace selector: {:?}", token),
-      ClassNeedsIdent(token) => format!("Expected identifier in class selector, got {:?}", token),
-      InvalidPseudoClassBeforeWebKitScrollbar => "Pseudo class must be prefixed by a ::-webkit-scrollbar pseudo element".into(),
-      InvalidPseudoClassAfterWebKitScrollbar => "Invalid pseudo class after ::-webkit-scrollbar pseudo element".into(),
-      InvalidPseudoClassAfterPseudoElement => "Invalid pseudo class after pseudo element. Only user action pseudo classes (e.g. :hover, :active) are allowed.".into(),
-      err => format!("Error parsing selector: {:?}", err)
-    }
-  }
-}
-
 #[derive(Debug, PartialEq)]
 pub struct ErrorWithLocation<T> {
   pub kind: T,
   pub loc: Location,
 }
 
+impl<T: fmt::Display> fmt::Display for ErrorWithLocation<T> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    self.kind.fmt(f)
+  }
+}
+
+impl<T: fmt::Display + fmt::Debug> std::error::Error for ErrorWithLocation<T> {}
+
 pub type MinifyError = ErrorWithLocation<MinifyErrorKind>;
 
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "type")]
 pub enum MinifyErrorKind {
-  UnsupportedCustomMediaBooleanLogic { custom_media_loc: Location },
-  CustomMediaNotDefined { name: String },
   CircularCustomMedia { name: String },
+  CustomMediaNotDefined { name: String },
+  UnsupportedCustomMediaBooleanLogic { custom_media_loc: Location },
+}
+
+impl fmt::Display for MinifyErrorKind {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    use MinifyErrorKind::*;
+    match self {
+      CircularCustomMedia { name } => write!(f, "Circular custom media query {} detected", name),
+      CustomMediaNotDefined { name } => write!(f, "Custom media query {} is not defined", name),
+      UnsupportedCustomMediaBooleanLogic { .. } => write!(
+        f,
+        "Boolean logic with media types in @custom-media rules is not supported by Parcel CSS"
+      ),
+    }
+  }
 }
 
 impl MinifyErrorKind {
+  #[deprecated(note = "use `MinifyErrorKind::to_string()` or `fmt::Display` instead")]
   pub fn reason(&self) -> String {
-    match self {
-      MinifyErrorKind::UnsupportedCustomMediaBooleanLogic { .. } => {
-        "Boolean logic with media types in @custom-media rules is not supported by Parcel CSS.".into()
-      }
-      MinifyErrorKind::CustomMediaNotDefined { name, .. } => {
-        format!("Custom media query {} is not defined.", name)
-      }
-      MinifyErrorKind::CircularCustomMedia { name, .. } => {
-        format!("Circular custom media query {} detected.", name)
-      }
-    }
+    self.to_string()
   }
 }
 
@@ -245,14 +270,14 @@ pub type PrinterError = Error<PrinterErrorKind>;
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "type")]
 pub enum PrinterErrorKind {
-  FmtError,
-  InvalidComposesSelector,
-  InvalidComposesNesting,
   AmbiguousUrlInCustomProperty { url: String },
+  FmtError,
+  InvalidComposesNesting,
+  InvalidComposesSelector,
 }
 
-impl From<std::fmt::Error> for PrinterError {
-  fn from(_: std::fmt::Error) -> PrinterError {
+impl From<fmt::Error> for PrinterError {
+  fn from(_: fmt::Error) -> PrinterError {
     PrinterError {
       kind: PrinterErrorKind::FmtError,
       loc: None,
@@ -260,13 +285,21 @@ impl From<std::fmt::Error> for PrinterError {
   }
 }
 
-impl PrinterErrorKind {
-  pub fn reason(&self) -> String {
+impl fmt::Display for PrinterErrorKind {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    use PrinterErrorKind::*;
     match self {
-      PrinterErrorKind::InvalidComposesSelector => "The `composes` property can only be used within a simple class selector.".into(),
-      PrinterErrorKind::InvalidComposesNesting => "The `composes` property cannot be used within nested rules.".into(),
-      PrinterErrorKind::FmtError => "Printer error".into(),
-      PrinterErrorKind::AmbiguousUrlInCustomProperty { .. } => "Ambiguous url() in custom property. Relative paths are resolved from the location the var() is used, not where the custom property is defined. Use an absolute URL instead.".into()
+      AmbiguousUrlInCustomProperty { url } => write!(f, "Ambiguous url('{}') in custom property. Relative paths are resolved from the location the var() is used, not where the custom property is defined. Use an absolute URL instead", url),
+      FmtError => write!(f, "Printer error"),
+      InvalidComposesNesting => write!(f, "The `composes` property cannot be used within nested rules"),
+      InvalidComposesSelector => write!(f, "The `composes` property cannot be used with a simple class selector"),
     }
+  }
+}
+
+impl PrinterErrorKind {
+  #[deprecated(note = "use `PrinterErrorKind::to_string()` or `fmt::Display` instead")]
+  pub fn reason(&self) -> String {
+    self.to_string()
   }
 }
