@@ -759,6 +759,29 @@ mod tests {
     "#},
     );
 
+    test(
+      r#"
+      .foo {
+        border: 1px solid currentColor;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border: 1px solid;
+      }
+    "#
+      },
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        border: 1px solid currentColor;
+      }
+    "#,
+      ".foo{border:1px solid}",
+    );
+
     prefix_test(
       r#"
       .foo {

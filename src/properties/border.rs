@@ -162,13 +162,13 @@ impl<S: ToCss + Default + PartialEq> ToCss for GenericBorder<S> {
 
     if self.width != BorderSideWidth::default() {
       self.width.to_css(dest)?;
-      dest.write_str(" ")?;
     }
     if self.style != S::default() {
-      self.style.to_css(dest)?;
       dest.write_str(" ")?;
+      self.style.to_css(dest)?;
     }
     if self.color != CssColor::current_color() {
+      dest.write_str(" ")?;
       self.color.to_css(dest)?;
     }
     Ok(())
