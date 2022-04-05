@@ -108,11 +108,11 @@ impl<'i> std::fmt::Display for BundleErrorKind<'i> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     use BundleErrorKind::*;
     match self {
-      IOError(err) => write!(f, "io error: {}", err),
+      IOError(err) => write!(f, "IO error: {}", err),
       ParserError(err) => err.fmt(f),
-      UnsupportedImportCondition => write!(f, "unsupported import condition"),
-      UnsupportedLayerCombination => write!(f, "unsupported layer combination in @import"),
-      UnsupportedMediaBooleanLogic => write!(f, "unsupported boolean logic in @import media query"),
+      UnsupportedImportCondition => write!(f, "Unsupported import condition"),
+      UnsupportedLayerCombination => write!(f, "Unsupported layer combination in @import"),
+      UnsupportedMediaBooleanLogic => write!(f, "Unsupported boolean logic in @import media query"),
     }
   }
 }

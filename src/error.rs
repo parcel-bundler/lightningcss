@@ -69,15 +69,15 @@ impl<'i> fmt::Display for ParserError<'i> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     use ParserError::*;
     match self {
-      AtRuleBodyInvalid => write!(f, "invalid @ rule body"),
-      AtRuleInvalid(name) => write!(f, "unknown at rule: @{}", name),
-      EndOfInput => write!(f, "unexpected end of input"),
-      InvalidDeclaration => write!(f, "invalid declaration"),
-      InvalidMediaQuery => write!(f, "invalid media query"),
-      InvalidNesting => write!(f, "invalid nesting"),
-      InvalidPageSelector => write!(f, "invalid page selector"),
-      InvalidValue => write!(f, "invalid value"),
-      QualifiedRuleInvalid => write!(f, "invalid qualified rule"),
+      AtRuleBodyInvalid => write!(f, "Invalid @ rule body"),
+      AtRuleInvalid(name) => write!(f, "Unknown at rule: @{}", name),
+      EndOfInput => write!(f, "Unexpected end of input"),
+      InvalidDeclaration => write!(f, "Invalid declaration"),
+      InvalidMediaQuery => write!(f, "Invalid media query"),
+      InvalidNesting => write!(f, "Invalid nesting"),
+      InvalidPageSelector => write!(f, "Invalid page selector"),
+      InvalidValue => write!(f, "Invalid value"),
+      QualifiedRuleInvalid => write!(f, "Invalid qualified rule"),
       SelectorError(s) => s.fmt(f),
       UnexpectedImportRule => write!(
         f,
@@ -87,7 +87,7 @@ impl<'i> fmt::Display for ParserError<'i> {
         f,
         "@namespaces rules must precede all rules aside from @charset, @import, and @layer statements"
       ),
-      UnexpectedToken(token) => write!(f, "unexpected token {:?}", token),
+      UnexpectedToken(token) => write!(f, "Unexpected token {:?}", token),
     }
   }
 }
@@ -157,25 +157,25 @@ impl<'i> fmt::Display for SelectorError<'i> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     use SelectorError::*;
     match self {
-        InvalidState => write!(f, "invalid state"),
-      BadValueInAttr(token) => write!(f, "invalid value in attribute selector: {:?}", token),
-      ClassNeedsIdent(token) => write!(f, "expected identifier in class selector, got {:?}", token),
-      DanglingCombinator => write!(f, "invalid dangling combinator in selector"),
-      EmptySelector => write!(f, "invalid empty selector"),
-      ExpectedBarInAttr(name) => write!(f, "expected | in attribute, got {:?}", name),
-      ExpectedNamespace(name) => write!(f, "expected namespace: {}", name),
-      ExplicitNamespaceUnexpectedToken(token) => write!(f, "unexpected token in namespace selector: {:?}", token),
-      InvalidPseudoClassAfterPseudoElement => write!(f, "invalid pseudo class after pseudo element, only user action pseudo classes (e.g. :hover, :active) are allowed"),
-      InvalidPseudoClassAfterWebKitScrollbar => write!(f, "invalid pseudo class after ::-webkit-scrollbar pseudo element"),
-      InvalidPseudoClassBeforeWebKitScrollbar => write!(f, "pseudo class must be prefixed by a ::-webkit-scrollbar pseudo element"),
-      InvalidQualNameInAttr(token) => write!(f, "invalid qualified name in attribute selector: {:?}", token),
-      MissingNestingPrefix => write!(f, "a nesting selector (&) is required as a prefix of each selector in a nested style rule"),
-      MissingNestingSelector => write!(f, "a nesting selector (&) is required in each selector of a @nest rule"),
-      NoQualifiedNameInAttributeSelector(token) => write!(f, "no qualified name in attribute selector: {:?}.", token),
-      PseudoElementExpectedIdent(token) => write!(f, "invalid token in pseudo element: {:?}", token),
-      UnexpectedIdent(name) => write!(f, "unexpected identifier: {}", name),
-      UnexpectedTokenInAttributeSelector(token) => write!(f, "unexpected token in attribute selector: {:?}", token),
-      UnsupportedPseudoClassOrElement(name) => write!(f, "unsupported pseudo class or element: {}", name),
+      InvalidState => write!(f, "Invalid state"),
+      BadValueInAttr(token) => write!(f, "Invalid value in attribute selector: {:?}", token),
+      ClassNeedsIdent(token) => write!(f, "Expected identifier in class selector, got {:?}", token),
+      DanglingCombinator => write!(f, "Invalid dangling combinator in selector"),
+      EmptySelector => write!(f, "Invalid empty selector"),
+      ExpectedBarInAttr(name) => write!(f, "Expected | in attribute, got {:?}", name),
+      ExpectedNamespace(name) => write!(f, "Expected namespace: {}", name),
+      ExplicitNamespaceUnexpectedToken(token) => write!(f, "Unexpected token in namespace selector: {:?}", token),
+      InvalidPseudoClassAfterPseudoElement => write!(f, "Invalid pseudo class after pseudo element, only user action pseudo classes (e.g. :hover, :active) are allowed"),
+      InvalidPseudoClassAfterWebKitScrollbar => write!(f, "Invalid pseudo class after ::-webkit-scrollbar pseudo element"),
+      InvalidPseudoClassBeforeWebKitScrollbar => write!(f, "Pseudo class must be prefixed by a ::-webkit-scrollbar pseudo element"),
+      InvalidQualNameInAttr(token) => write!(f, "Invalid qualified name in attribute selector: {:?}", token),
+      MissingNestingPrefix => write!(f, "A nesting selector (&) is required as a prefix of each selector in a nested style rule"),
+      MissingNestingSelector => write!(f, "A nesting selector (&) is required in each selector of a @nest rule"),
+      NoQualifiedNameInAttributeSelector(token) => write!(f, "No qualified name in attribute selector: {:?}.", token),
+      PseudoElementExpectedIdent(token) => write!(f, "Invalid token in pseudo element: {:?}", token),
+      UnexpectedIdent(name) => write!(f, "Unexpected identifier: {}", name),
+      UnexpectedTokenInAttributeSelector(token) => write!(f, "Unexpected token in attribute selector: {:?}", token),
+      UnsupportedPseudoClassOrElement(name) => write!(f, "Unsupported pseudo class or element: {}", name),
     }
   }
 }
@@ -248,11 +248,11 @@ impl fmt::Display for MinifyErrorKind {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     use MinifyErrorKind::*;
     match self {
-      CircularCustomMedia { name } => write!(f, "circular custom media query {} detected", name),
-      CustomMediaNotDefined { name } => write!(f, "custom media query {} is not defined", name),
+      CircularCustomMedia { name } => write!(f, "Circular custom media query {} detected", name),
+      CustomMediaNotDefined { name } => write!(f, "Custom media query {} is not defined", name),
       UnsupportedCustomMediaBooleanLogic { .. } => write!(
         f,
-        "boolean logic with media types in @custom-media rules is not supported by Parcel CSS"
+        "Boolean logic with media types in @custom-media rules is not supported by Parcel CSS"
       ),
     }
   }
@@ -289,10 +289,10 @@ impl fmt::Display for PrinterErrorKind {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     use PrinterErrorKind::*;
     match self {
-      AmbiguousUrlInCustomProperty { url } => write!(f, "ambiguous url('{}') in custom property. Relative paths are resolved from the location the var() is used, not where the custom property is defined. Use an absolute URL instead", url),
-      FmtError => write!(f, "printer error"),
-      InvalidComposesNesting => write!(f, "the `composes` property cannot be used within nested rules"),
-      InvalidComposesSelector => write!(f, "the `composes` property cannot be used with a simple class selector"),
+      AmbiguousUrlInCustomProperty { url } => write!(f, "Ambiguous url('{}') in custom property. Relative paths are resolved from the location the var() is used, not where the custom property is defined. Use an absolute URL instead", url),
+      FmtError => write!(f, "Printer error"),
+      InvalidComposesNesting => write!(f, "The `composes` property cannot be used within nested rules"),
+      InvalidComposesSelector => write!(f, "The `composes` property cannot be used with a simple class selector"),
     }
   }
 }
