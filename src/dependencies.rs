@@ -1,5 +1,5 @@
 use crate::css_modules::hash;
-use crate::printer::Printer;
+use crate::printer::PrinterOptions;
 use crate::rules::import::ImportRule;
 use crate::traits::ToCss;
 use crate::values::url::Url;
@@ -24,18 +24,14 @@ pub struct ImportDependency {
 impl ImportDependency {
   pub fn new(rule: &ImportRule, filename: &str) -> ImportDependency {
     let supports = if let Some(supports) = &rule.supports {
-      let mut s = String::new();
-      let mut printer = Printer::new(&mut s, None, false, None);
-      supports.to_css(&mut printer).unwrap();
+      let s = supports.to_css_string(PrinterOptions::default()).unwrap();
       Some(s)
     } else {
       None
     };
 
     let media = if !rule.media.media_queries.is_empty() {
-      let mut s = String::new();
-      let mut printer = Printer::new(&mut s, None, false, None);
-      rule.media.to_css(&mut printer).unwrap();
+      let s = rule.media.to_css_string(PrinterOptions::default()).unwrap();
       Some(s)
     } else {
       None

@@ -2,6 +2,7 @@ use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::rules::{StyleContext, ToCssWithContext};
+use crate::stylesheet::PrinterOptions;
 use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
 use crate::vendor_prefix::VendorPrefix;
@@ -82,7 +83,7 @@ impl<'i> SelectorImpl<'i> for Selectors {
   type ExtraMatchingData = ();
 
   fn to_css<W: fmt::Write>(selectors: &SelectorList<'i, Self>, dest: &mut W) -> std::fmt::Result {
-    let mut printer = Printer::new(dest, None, false, None);
+    let mut printer = Printer::new(dest, PrinterOptions::default());
     serialize_selector_list(selectors.0.iter(), &mut printer, None, false).map_err(|_| std::fmt::Error)
   }
 }

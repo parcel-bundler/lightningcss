@@ -10,10 +10,10 @@ use crate::rules::{CssRule, CssRuleList, MinifyContext};
 use crate::targets::Browsers;
 use crate::traits::ToCss;
 use cssparser::{Parser, ParserInput, RuleListParser};
-use parcel_sourcemap::SourceMap;
 use std::collections::{HashMap, HashSet};
 
 pub use crate::parser::ParserOptions;
+pub use crate::printer::PrinterOptions;
 pub use crate::printer::PseudoClasses;
 
 #[derive(Debug)]
@@ -21,15 +21,6 @@ pub struct StyleSheet<'i> {
   pub rules: CssRuleList<'i>,
   pub sources: Vec<String>,
   options: ParserOptions,
-}
-
-#[derive(Default)]
-pub struct PrinterOptions<'a> {
-  pub minify: bool,
-  pub source_map: Option<&'a mut SourceMap>,
-  pub targets: Option<Browsers>,
-  pub analyze_dependencies: bool,
-  pub pseudo_classes: Option<PseudoClasses<'a>>,
 }
 
 #[derive(Default)]
@@ -124,16 +115,8 @@ impl<'i> StyleSheet<'i> {
 
   pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, Error<PrinterErrorKind>> {
     let mut dest = String::new();
-    let mut printer = Printer::new(&mut dest, options.source_map, options.minify, options.targets);
+    let mut printer = Printer::new(&mut dest, options);
 
-    let mut dependencies = if options.analyze_dependencies {
-      Some(Vec::new())
-    } else {
-      None
-    };
-
-    printer.dependencies = dependencies.as_mut();
-    printer.pseudo_classes = options.pseudo_classes;
     printer.sources = Some(&self.sources);
 
     if self.options.css_modules {
@@ -148,17 +131,17 @@ impl<'i> StyleSheet<'i> {
       printer.newline()?;
 
       Ok(ToCssResult {
+        dependencies: printer.dependencies,
         code: dest,
         exports: Some(exports),
-        dependencies,
       })
     } else {
       self.rules.to_css(&mut printer)?;
       printer.newline()?;
       Ok(ToCssResult {
+        dependencies: printer.dependencies,
         code: dest,
         exports: None,
-        dependencies,
       })
     }
   }
@@ -193,15 +176,7 @@ impl<'i> StyleAttribute<'i> {
     );
 
     let mut dest = String::new();
-    let mut printer = Printer::new(&mut dest, None, options.minify, options.targets);
-
-    let mut dependencies = if options.analyze_dependencies {
-      Some(Vec::new())
-    } else {
-      None
-    };
-
-    printer.dependencies = dependencies.as_mut();
+    let mut printer = Printer::new(&mut dest, options);
 
     let len = self.declarations.declarations.len() + self.declarations.important_declarations.len();
     let mut i = 0;
@@ -223,9 +198,9 @@ impl<'i> StyleAttribute<'i> {
     write!(self.declarations.important_declarations, true);
 
     Ok(ToCssResult {
+      dependencies: printer.dependencies,
       code: dest,
       exports: None,
-      dependencies,
     })
   }
 }

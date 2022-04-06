@@ -10,13 +10,13 @@ mod macros;
 pub mod media_query;
 mod parser;
 mod prefixes;
-mod printer;
+pub mod printer;
 pub mod properties;
 pub mod rules;
 mod selector;
 pub mod stylesheet;
 pub mod targets;
-mod traits;
+pub mod traits;
 pub mod values;
 pub mod vendor_prefix;
 
@@ -26,10 +26,13 @@ mod tests {
   use crate::dependencies::Dependency;
   use crate::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterErrorKind, SelectorError};
   use crate::properties::custom::Token;
+  use crate::properties::Property;
   use crate::rules::CssRule;
   use crate::rules::Location;
   use crate::stylesheet::*;
   use crate::targets::Browsers;
+  use crate::traits::{Parse, ToCss};
+  use crate::values::color::CssColor;
   use indoc::indoc;
   use std::collections::HashMap;
 
@@ -11840,7 +11843,7 @@ mod tests {
       let mut input = ParserInput::new(s);
       let mut parser = Parser::new(&mut input);
       let v = CssColor::parse(&mut parser).unwrap().to_rgb();
-      format!(".foo{{color:{}}}", v.to_css_string())
+      format!(".foo{{color:{}}}", v.to_css_string(PrinterOptions::default()).unwrap())
     }
 
     // regex for converting web platform tests:
@@ -17565,6 +17568,28 @@ mod tests {
       }
       _ => unreachable!(),
     }
+
+    let color = CssColor::parse_string("#f0f").unwrap();
+    assert_eq!(color.to_css_string(PrinterOptions::default()).unwrap(), "#f0f");
+
+    let rule = CssRule::parse_string(".foo { color: red }", ParserOptions::default()).unwrap();
+    assert_eq!(
+      rule.to_css_string(PrinterOptions::default()).unwrap(),
+      indoc! {r#"
+    .foo {
+      color: red;
+    }"#}
+    );
+
+    let property = Property::parse_string("color", "#f0f", ParserOptions::default()).unwrap();
+    assert_eq!(
+      property.to_css_string(false, PrinterOptions::default()).unwrap(),
+      "color: #f0f"
+    );
+    assert_eq!(
+      property.to_css_string(true, PrinterOptions::default()).unwrap(),
+      "color: #f0f !important"
+    );
   }
 
   #[test]

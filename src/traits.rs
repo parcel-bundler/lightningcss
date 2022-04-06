@@ -3,18 +3,27 @@ use crate::declaration::DeclarationList;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::properties::Property;
+use crate::stylesheet::PrinterOptions;
 use crate::targets::Browsers;
 use cssparser::*;
 
+/// Trait for things that can be parsed from CSS syntax.
 pub trait Parse<'i>: Sized {
-  /// Parse a value of this type.
-  ///
-  /// Returns an error on failure.
+  /// Parse a value of this type using an existing parser.
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>>;
+
+  /// Parse a value from a string.
+  ///
+  /// (This is a convenience wrapper for `parse` and probably should not be overridden.)
+  fn parse_string(input: &'i str) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let mut input = ParserInput::new(input);
+    let mut parser = Parser::new(&mut input);
+    Self::parse(&mut parser)
+  }
 }
 
 /// Trait for things the can serialize themselves in CSS syntax.
-pub(crate) trait ToCss {
+pub trait ToCss {
   /// Serialize `self` in CSS syntax, writing to `dest`.
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
@@ -24,11 +33,11 @@ pub(crate) trait ToCss {
   ///
   /// (This is a convenience wrapper for `to_css` and probably should not be overridden.)
   #[inline]
-  fn to_css_string(&self) -> String {
+  fn to_css_string(&self, options: PrinterOptions) -> Result<String, PrinterError> {
     let mut s = String::new();
-    let mut printer = Printer::new(&mut s, None, false, None);
-    self.to_css(&mut printer).unwrap();
-    s
+    let mut printer = Printer::new(&mut s, options);
+    self.to_css(&mut printer)?;
+    Ok(s)
   }
 }
 
@@ -54,11 +63,13 @@ pub(crate) trait PropertyHandler<'i>: Sized {
   fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>);
 }
 
-pub trait TryAdd<T> {
-  fn try_add(&self, other: &T) -> Option<T>;
+pub(crate) mod private {
+  pub trait TryAdd<T> {
+    fn try_add(&self, other: &T) -> Option<T>;
+  }
 }
 
-pub trait FromStandard<T>: Sized {
+pub(crate) trait FromStandard<T>: Sized {
   fn from_standard(val: &T) -> Option<Self>;
 }
 

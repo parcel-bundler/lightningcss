@@ -21,15 +21,18 @@ use self::property::PropertyRule;
 use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationHandler;
 use crate::dependencies::{Dependency, ImportDependency};
-use crate::error::{MinifyError, PrinterError};
+use crate::error::{MinifyError, ParserError, PrinterError};
+use crate::parser::TopLevelRuleParser;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::selector::{downlevel_selectors, get_prefix, is_equivalent};
+use crate::stylesheet::ParserOptions;
 use crate::targets::Browsers;
 use crate::traits::ToCss;
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
 use counter_style::CounterStyleRule;
+use cssparser::{parse_one_rule, ParseError, Parser, ParserInput};
 use custom_media::CustomMediaRule;
 use document::MozDocumentRule;
 use font_face::FontFaceRule;
@@ -122,6 +125,24 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for CssRule<'i> {
       CssRule::Property(property) => property.to_css(dest),
       CssRule::Ignored => Ok(()),
     }
+  }
+}
+
+impl<'i> CssRule<'i> {
+  /// Parse a single rule.
+  pub fn parse<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let (_, rule) = parse_one_rule(input, &mut TopLevelRuleParser::new(&options))?;
+    Ok(rule)
+  }
+
+  /// Parse a single rule from a string.
+  pub fn parse_string(input: &'i str, options: ParserOptions) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let mut input = ParserInput::new(input);
+    let mut parser = Parser::new(&mut input);
+    Self::parse(&mut parser, &options)
   }
 }
 
