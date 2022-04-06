@@ -31,7 +31,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::parser::starts_with_ignore_ascii_case;
 use crate::parser::ParserOptions;
 use crate::prefixes::Feature;
-use crate::printer::Printer;
+use crate::printer::{Printer, PrinterOptions};
 use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
@@ -379,7 +379,13 @@ macro_rules! define_properties {
         }
       }
 
-      pub(crate) fn value_to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+      pub fn parse_string(name: &'i str, input: &'i str, options: ParserOptions) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+        let mut input = ParserInput::new(input);
+        let mut parser = Parser::new(&mut input);
+        Self::parse(CowRcStr::from(name), &mut parser, &options)
+      }
+
+      pub fn value_to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
         use Property::*;
 
         match self {
@@ -398,7 +404,7 @@ macro_rules! define_properties {
         }
       }
 
-      pub(crate) fn to_css<W>(&self, dest: &mut Printer<W>, important: bool) -> Result<(), PrinterError> where W: std::fmt::Write {
+      pub fn to_css<W>(&self, dest: &mut Printer<W>, important: bool) -> Result<(), PrinterError> where W: std::fmt::Write {
         use Property::*;
 
         let mut first = true;
@@ -469,6 +475,13 @@ macro_rules! define_properties {
         write!(VendorPrefix::O);
         write!(VendorPrefix::None);
         Ok(())
+      }
+
+      pub fn to_css_string(&self, important: bool, options: PrinterOptions) -> Result<String, PrinterError> {
+        let mut s = String::new();
+        let mut printer = Printer::new(&mut s, options);
+        self.to_css(&mut printer, important)?;
+        Ok(s)
       }
     }
   };

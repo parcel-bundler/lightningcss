@@ -2,7 +2,7 @@ use super::calc::Calc;
 use super::number::serialize_number;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
-use crate::traits::{Parse, ToCss, TryAdd};
+use crate::traits::{private::TryAdd, Parse, ToCss};
 use cssparser::*;
 
 /// https://drafts.csswg.org/css-values-4/#percentages

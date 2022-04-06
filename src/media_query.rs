@@ -905,6 +905,7 @@ fn process_condition<'i>(
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::stylesheet::PrinterOptions;
 
   fn parse(s: &str) -> MediaQuery {
     let mut input = ParserInput::new(&s);
@@ -916,7 +917,7 @@ mod tests {
     let mut a = parse(a);
     let b = parse(b);
     a.and(&b).unwrap();
-    a.to_css_string()
+    a.to_css_string(PrinterOptions::default()).unwrap()
   }
 
   #[test]

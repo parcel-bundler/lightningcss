@@ -7,6 +7,15 @@ use crate::vendor_prefix::VendorPrefix;
 use cssparser::{serialize_identifier, SourceLocation};
 use parcel_sourcemap::{OriginalLocation, SourceMap};
 
+#[derive(Default)]
+pub struct PrinterOptions<'a> {
+  pub minify: bool,
+  pub source_map: Option<&'a mut SourceMap>,
+  pub targets: Option<Browsers>,
+  pub analyze_dependencies: bool,
+  pub pseudo_classes: Option<PseudoClasses<'a>>,
+}
+
 #[derive(Default, Debug)]
 pub struct PseudoClasses<'a> {
   pub hover: Option<&'a str>,
@@ -16,47 +25,46 @@ pub struct PseudoClasses<'a> {
   pub focus_within: Option<&'a str>,
 }
 
-pub(crate) struct Printer<'a, W> {
-  pub sources: Option<&'a Vec<String>>,
+pub struct Printer<'a, W> {
+  pub(crate) sources: Option<&'a Vec<String>>,
   dest: &'a mut W,
   source_map: Option<&'a mut SourceMap>,
-  pub source_index: u32,
+  pub(crate) source_index: u32,
   indent: u8,
   line: u32,
   col: u32,
-  pub minify: bool,
-  pub targets: Option<Browsers>,
+  pub(crate) minify: bool,
+  pub(crate) targets: Option<Browsers>,
   /// Vendor prefix override. When non-empty, it overrides
   /// the vendor prefix of whatever is being printed.
-  pub vendor_prefix: VendorPrefix,
-  pub in_calc: bool,
-  pub css_module: Option<CssModule<'a>>,
-  pub dependencies: Option<&'a mut Vec<Dependency>>,
-  pub pseudo_classes: Option<PseudoClasses<'a>>,
+  pub(crate) vendor_prefix: VendorPrefix,
+  pub(crate) in_calc: bool,
+  pub(crate) css_module: Option<CssModule<'a>>,
+  pub(crate) dependencies: Option<Vec<Dependency>>,
+  pub(crate) pseudo_classes: Option<PseudoClasses<'a>>,
 }
 
 impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
-  pub fn new(
-    dest: &'a mut W,
-    source_map: Option<&'a mut SourceMap>,
-    minify: bool,
-    targets: Option<Browsers>,
-  ) -> Printer<'a, W> {
+  pub fn new(dest: &'a mut W, options: PrinterOptions<'a>) -> Printer<'a, W> {
     Printer {
       sources: None,
       dest,
-      source_map,
+      source_map: options.source_map,
       source_index: 0,
       indent: 0,
       line: 0,
       col: 0,
-      minify,
-      targets,
+      minify: options.minify,
+      targets: options.targets,
       vendor_prefix: VendorPrefix::empty(),
       in_calc: false,
       css_module: None,
-      dependencies: None,
-      pseudo_classes: None,
+      dependencies: if options.analyze_dependencies {
+        Some(Vec::new())
+      } else {
+        None
+      },
+      pseudo_classes: options.pseudo_classes,
     }
   }
 

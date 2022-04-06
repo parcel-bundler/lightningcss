@@ -3,7 +3,7 @@ use super::number::serialize_number;
 use super::percentage::DimensionPercentage;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
-use crate::traits::{Parse, ToCss, TryAdd};
+use crate::traits::{private::TryAdd, Parse, ToCss};
 use const_str;
 use cssparser::*;
 
