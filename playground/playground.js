@@ -1,8 +1,52 @@
-import init, {transform} from '../node/pkg';
-
 let enc = new TextEncoder();
 let dec = new TextDecoder();
 let inputs = document.querySelectorAll('input[type=number]');
+
+async function loadVersions() {
+  const {versions} = await fetch('https://data.jsdelivr.com/v1/package/npm/@parcel/css-wasm').then(r => r.json());
+  versions
+    .map(v => {
+      const option = document.createElement('option');
+      option.value = v;
+      option.textContent = v;
+      return option;
+    })
+    .forEach(o => {
+      version.appendChild(o);
+    })
+}
+
+async function loadWasm() {
+  function load(url) {
+    return new Promise((resolve, reject) => {
+      const cleanup = (script) => {
+        URL.revokeObjectURL(script.src);
+        script.remove();
+      };
+      const moduleBlob = new Blob([
+        `import * as m from '${url}';`,
+        `window.$cssWasm = m;`,
+      ], {type: 'text/javascript'});
+      const script = Object.assign(document.createElement('script'), {
+        type: 'module',
+        src: URL.createObjectURL(moduleBlob),
+        onerror() {
+          reject(new Error(`Failed to import: ${url}`));
+          cleanup(script);
+        },
+        onload() {
+          resolve();
+          cleanup(script);
+        },
+      });
+
+      document.head.appendChild(script);   
+    })
+  }
+  
+  await load(`https://cdn.jsdelivr.net/npm/@parcel/css-wasm@${version.value}/parcel_css_node.js`);
+  await window.$cssWasm.default();
+}
 
 function loadPlaygroundState() {
   const hash = window.location.hash.slice(1);
@@ -15,6 +59,7 @@ function loadPlaygroundState() {
       nesting: nesting.checked,
       targets: getTargets(),
       source: source.value,
+      version: version.value,
     };
 
     reflectPlaygroundState(initialPlaygroundState);
@@ -30,7 +75,7 @@ function reflectPlaygroundState(playgroundState) {
     cssModules.checked = playgroundState.cssModules;
     compiledModules.hidden = !playgroundState.cssModules;
   }
-  
+
   if (typeof playgroundState.analyzeDependencies !== 'undefined') {
     analyzeDependencies.checked = playgroundState.analyzeDependencies;
     compiledDependencies.hidden = !playgroundState.analyzeDependencies;
@@ -59,6 +104,10 @@ function reflectPlaygroundState(playgroundState) {
   if (playgroundState.unusedSymbols) {
     unusedSymbols.value = playgroundState.unusedSymbols.join('\n');
   }
+
+  if (playgroundState.version) {
+    version.value = playgroundState.version;
+  }
 }
 
 function savePlaygroundState() {
@@ -70,7 +119,8 @@ function savePlaygroundState() {
     analyzeDependencies: analyzeDependencies.checked,
     targets: getTargets(),
     source: source.value,
-    unusedSymbols: unusedSymbols.value.split('\n').map(v => v.trim()).filter(Boolean)
+    unusedSymbols: unusedSymbols.value.split('\n').map(v => v.trim()).filter(Boolean),
+    version: version.value,
   };
 
   const hash = encodeURIComponent(JSON.stringify(playgroundState));
@@ -100,7 +150,7 @@ function getTargets() {
 }
 
 async function update() {
-  await init();
+  const {transform} = window.$cssWasm;
 
   const targets = getTargets();
   let res = transform({
@@ -126,11 +176,21 @@ async function update() {
   savePlaygroundState();
 }
 
-loadPlaygroundState();
+async function main() {
+  await loadVersions();
+  loadPlaygroundState();
+  await loadWasm();
 
-update();
-source.oninput = update;
-unusedSymbols.oninput = update;
-for (let input of document.querySelectorAll('input')) {
-  input.oninput = update;
+  update();
+  source.oninput = update;
+  unusedSymbols.oninput = update;
+  for (let input of document.querySelectorAll('input')) {
+    input.oninput = update;
+  }
+  version.onchange = async () => {
+    await loadWasm();
+    update();
+  };
 }
+
+main();
