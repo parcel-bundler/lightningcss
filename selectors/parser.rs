@@ -55,7 +55,11 @@ pub trait NonTSPseudoClass<'i>: Sized + ToCss {
   /// https://drafts.csswg.org/selectors-4/#useraction-pseudos
   fn is_user_action_state(&self) -> bool;
 
-  fn is_webkit_scrollbar_state(&self) -> bool {
+  fn is_valid_before_webkit_scrollbar(&self) -> bool {
+    false
+  }
+
+  fn is_valid_after_webkit_scrollbar(&self) -> bool {
     false
   }
 
@@ -2591,14 +2595,14 @@ where
 
   let pseudo_class = P::parse_non_ts_pseudo_class(parser, location, name)?;
   if state.intersects(SelectorParsingState::AFTER_WEBKIT_SCROLLBAR) {
-    if !pseudo_class.is_webkit_scrollbar_state() {
+    if !pseudo_class.is_valid_after_webkit_scrollbar() {
       return Err(location.new_custom_error(SelectorParseErrorKind::InvalidPseudoClassAfterWebKitScrollbar));
     }
   } else if state.intersects(SelectorParsingState::AFTER_PSEUDO_ELEMENT) {
     if !pseudo_class.is_user_action_state() {
       return Err(location.new_custom_error(SelectorParseErrorKind::InvalidPseudoClassAfterPseudoElement));
     }
-  } else if pseudo_class.is_webkit_scrollbar_state() {
+  } else if !pseudo_class.is_valid_before_webkit_scrollbar() {
     return Err(location.new_custom_error(SelectorParseErrorKind::InvalidPseudoClassBeforeWebKitScrollbar));
   }
   Ok(Component::NonTSPseudoClass(pseudo_class))

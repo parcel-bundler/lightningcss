@@ -403,11 +403,30 @@ impl<'i> parcel_selectors::parser::NonTSPseudoClass<'i> for PseudoClass<'i> {
   }
 
   fn is_user_action_state(&self) -> bool {
-    matches!(*self, PseudoClass::Active | PseudoClass::Hover | PseudoClass::Focus)
+    matches!(
+      *self,
+      PseudoClass::Active
+        | PseudoClass::Hover
+        | PseudoClass::Focus
+        | PseudoClass::FocusWithin
+        | PseudoClass::FocusVisible
+    )
   }
 
-  fn is_webkit_scrollbar_state(&self) -> bool {
-    matches!(*self, PseudoClass::WebKitScrollbar(..))
+  fn is_valid_before_webkit_scrollbar(&self) -> bool {
+    !matches!(*self, PseudoClass::WebKitScrollbar(..))
+  }
+
+  fn is_valid_after_webkit_scrollbar(&self) -> bool {
+    // https://github.com/WebKit/WebKit/blob/02fbf9b7aa435edb96cbf563a8d4dcf1aa73b4b3/Source/WebCore/css/parser/CSSSelectorParser.cpp#L285
+    matches!(
+      *self,
+      PseudoClass::WebKitScrollbar(..)
+        | PseudoClass::Enabled
+        | PseudoClass::Disabled
+        | PseudoClass::Hover
+        | PseudoClass::Active
+    )
   }
 }
 

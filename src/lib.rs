@@ -4565,6 +4565,10 @@ mod tests {
       "-webkit-resizer",
     ] {
       for class in [
+        "enabled",
+        "disabled",
+        "hover",
+        "active",
         "horizontal",
         "vertical",
         "decrement",
@@ -4611,7 +4615,7 @@ mod tests {
       "-webkit-resizer",
     ] {
       error_test(
-        &format!("::{}:hover {{color:red}}", element),
+        &format!("::{}:focus {{color:red}}", element),
         ParserError::SelectorError(SelectorError::InvalidPseudoClassAfterWebKitScrollbar),
       );
     }
