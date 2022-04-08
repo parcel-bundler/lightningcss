@@ -221,6 +221,8 @@ let mdnFeatures = {
   labColors: mdn.css.types.color.lab.__compat.support,
   oklabColors: {},
   colorFunction: mdn.css.types.color.color.__compat.support,
+  textDecorationThicknessPercent: mdn.css.properties['text-decoration-thickness'].percentage.__compat.support,
+  textDecorationThicknessShorthand: mdn.css.properties['text-decoration']['text-decoration-thickness'].__compat.support,
   anyPseudo: Object.fromEntries(
     Object.entries(mdn.css.selectors.is.__compat.support)
       .map(([key, value]) => {

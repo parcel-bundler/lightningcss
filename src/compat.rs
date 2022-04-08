@@ -56,6 +56,8 @@ pub enum Feature {
   PlaceItems,
   PlaceSelf,
   Shadowdomv1,
+  TextDecorationThicknessPercent,
+  TextDecorationThicknessShorthand,
 }
 
 impl Feature {
@@ -1744,6 +1746,59 @@ impl Feature {
           || browsers.opera.is_some()
           || browsers.samsung.is_some()
         {
+          return false;
+        }
+      }
+      Feature::TextDecorationThicknessPercent => {
+        if let Some(version) = browsers.firefox {
+          if version < 4849664 {
+            return false;
+          }
+        }
+        if browsers.android.is_some()
+          || browsers.chrome.is_some()
+          || browsers.edge.is_some()
+          || browsers.ie.is_some()
+          || browsers.ios_saf.is_some()
+          || browsers.opera.is_some()
+          || browsers.safari.is_some()
+          || browsers.samsung.is_some()
+        {
+          return false;
+        }
+      }
+      Feature::TextDecorationThicknessShorthand => {
+        if let Some(version) = browsers.chrome {
+          if version < 5701632 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5701632 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 4587520 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 4063232 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 917504 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 5701632 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() || browsers.ios_saf.is_some() || browsers.safari.is_some() {
           return false;
         }
       }

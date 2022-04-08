@@ -10,8 +10,9 @@ use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::targets::Browsers;
 use crate::traits::{FallbackValues, Parse, PropertyHandler, ToCss};
+use crate::values::calc::{Calc, MathFunction};
 use crate::values::color::{ColorFallbackKind, CssColor};
-use crate::values::length::{Length, LengthPercentage};
+use crate::values::length::{Length, LengthPercentage, LengthValue};
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
 use bitflags::bitflags;
@@ -924,9 +925,20 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
       if !intersection.is_empty() {
         let mut prefix = intersection;
 
+        // Some browsers don't support thickness in the shorthand property yet.
+        let supports_thickness = if let Some(targets) = self.targets {
+          compat::Feature::TextDecorationThicknessShorthand.is_compatible(targets)
+        } else {
+          true
+        };
+
         let mut decoration = TextDecoration {
           line: line.clone(),
-          thickness: thickness_val.clone(),
+          thickness: if supports_thickness {
+            thickness_val.clone()
+          } else {
+            TextDecorationThickness::default()
+          },
           style: style.clone(),
           color: color.clone(),
         };
@@ -949,7 +961,9 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
         line_vp.remove(intersection);
         style_vp.remove(intersection);
         color_vp.remove(intersection);
-        thickness = None;
+        if supports_thickness || *thickness_val == TextDecorationThickness::default() {
+          thickness = None;
+        }
       }
     }
 
@@ -995,7 +1009,21 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
     color!(color, TextDecorationColor);
 
     if let Some(thickness) = thickness {
-      dest.push(Property::TextDecorationThickness(thickness))
+      // Percentages in the text-decoration-thickness property are based on 1em.
+      // If unsupported, compile this to a calc() instead.
+      match (self.targets, thickness) {
+        (Some(targets), TextDecorationThickness::LengthPercentage(LengthPercentage::Percentage(p)))
+          if !compat::Feature::TextDecorationThicknessPercent.is_compatible(targets) =>
+        {
+          let calc = Calc::Function(Box::new(MathFunction::Calc(Calc::Product(
+            p.0,
+            Box::new(Calc::Value(Box::new(LengthPercentage::Dimension(LengthValue::Em(1.0))))),
+          ))));
+          let thickness = TextDecorationThickness::LengthPercentage(LengthPercentage::Calc(Box::new(calc)));
+          dest.push(Property::TextDecorationThickness(thickness));
+        }
+        (_, thickness) => dest.push(Property::TextDecorationThickness(thickness)),
+      }
     }
 
     if let (Some((style, style_vp)), Some((color, color_vp))) = (&mut emphasis_style, &mut emphasis_color) {

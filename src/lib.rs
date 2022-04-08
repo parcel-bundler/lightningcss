@@ -9905,6 +9905,110 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    prefix_test(
+      r#"
+      .foo {
+        text-decoration: underline 10px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        text-decoration: underline;
+        text-decoration-thickness: 10px;
+      }
+    "#},
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        text-decoration: underline 10px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        text-decoration: underline 10px;
+      }
+    "#},
+      Browsers {
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        text-decoration: underline 10%;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        text-decoration: underline;
+        text-decoration-thickness: calc(1em / 10);
+      }
+    "#},
+      Browsers {
+        safari: Some(12 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        text-decoration: underline 10%;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        text-decoration: underline 10%;
+      }
+    "#},
+      Browsers {
+        firefox: Some(89 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        text-decoration-thickness: 10%;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        text-decoration-thickness: calc(1em / 10);
+      }
+    "#},
+      Browsers {
+        safari: Some(12 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        text-decoration-thickness: 10%;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        text-decoration-thickness: 10%;
+      }
+    "#},
+      Browsers {
+        firefox: Some(89 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]
