@@ -56,7 +56,7 @@ pub trait NonTSPseudoClass<'i>: Sized + ToCss {
   fn is_user_action_state(&self) -> bool;
 
   fn is_valid_before_webkit_scrollbar(&self) -> bool {
-    false
+    true
   }
 
   fn is_valid_after_webkit_scrollbar(&self) -> bool {
@@ -3416,7 +3416,7 @@ pub mod tests {
     seen: Vec<String>,
   }
 
-  impl SelectorVisitor for TestVisitor {
+  impl<'i> SelectorVisitor<'i> for TestVisitor {
     type Impl = DummySelectorImpl;
 
     fn visit_simple_selector(&mut self, s: &Component<DummySelectorImpl>) -> bool {
