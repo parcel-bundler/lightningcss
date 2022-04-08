@@ -1,3 +1,6 @@
+import * as localWasm from '../node/pkg';
+
+let wasm;
 let enc = new TextEncoder();
 let dec = new TextDecoder();
 let inputs = document.querySelectorAll('input[type=number]');
@@ -17,35 +20,12 @@ async function loadVersions() {
 }
 
 async function loadWasm() {
-  function load(url) {
-    return new Promise((resolve, reject) => {
-      const cleanup = (script) => {
-        URL.revokeObjectURL(script.src);
-        script.remove();
-      };
-      const moduleBlob = new Blob([
-        `import * as m from '${url}';`,
-        `window.$cssWasm = m;`,
-      ], {type: 'text/javascript'});
-      const script = Object.assign(document.createElement('script'), {
-        type: 'module',
-        src: URL.createObjectURL(moduleBlob),
-        onerror() {
-          reject(new Error(`Failed to import: ${url}`));
-          cleanup(script);
-        },
-        onload() {
-          resolve();
-          cleanup(script);
-        },
-      });
-
-      document.head.appendChild(script);   
-    })
+  if (version.value === 'local') {
+    wasm = localWasm;
+  } else {
+    wasm = await new Function('version', 'return import(`https://cdn.jsdelivr.net/npm/@parcel/css-wasm@${version}/parcel_css_node.js`)')(version.value);
   }
-  
-  await load(`https://cdn.jsdelivr.net/npm/@parcel/css-wasm@${version.value}/parcel_css_node.js`);
-  await window.$cssWasm.default();
+  await wasm.default();
 }
 
 function loadPlaygroundState() {
@@ -149,8 +129,8 @@ function getTargets() {
   return targets;
 }
 
-async function update() {
-  const {transform} = window.$cssWasm;
+function update() {
+  const {transform} = wasm;
 
   const targets = getTargets();
   let res = transform({
