@@ -1,8 +1,32 @@
-import init, {transform} from '../node/pkg';
+import * as localWasm from '../node/pkg';
 
+let wasm;
 let enc = new TextEncoder();
 let dec = new TextDecoder();
 let inputs = document.querySelectorAll('input[type=number]');
+
+async function loadVersions() {
+  const {versions} = await fetch('https://data.jsdelivr.com/v1/package/npm/@parcel/css-wasm').then(r => r.json());
+  versions
+    .map(v => {
+      const option = document.createElement('option');
+      option.value = v;
+      option.textContent = v;
+      return option;
+    })
+    .forEach(o => {
+      version.appendChild(o);
+    })
+}
+
+async function loadWasm() {
+  if (version.value === 'local') {
+    wasm = localWasm;
+  } else {
+    wasm = await new Function('version', 'return import(`https://cdn.jsdelivr.net/npm/@parcel/css-wasm@${version}/parcel_css_node.js`)')(version.value);
+  }
+  await wasm.default();
+}
 
 function loadPlaygroundState() {
   const hash = window.location.hash.slice(1);
@@ -15,6 +39,7 @@ function loadPlaygroundState() {
       nesting: nesting.checked,
       targets: getTargets(),
       source: source.value,
+      version: version.value,
     };
 
     reflectPlaygroundState(initialPlaygroundState);
@@ -30,7 +55,7 @@ function reflectPlaygroundState(playgroundState) {
     cssModules.checked = playgroundState.cssModules;
     compiledModules.hidden = !playgroundState.cssModules;
   }
-  
+
   if (typeof playgroundState.analyzeDependencies !== 'undefined') {
     analyzeDependencies.checked = playgroundState.analyzeDependencies;
     compiledDependencies.hidden = !playgroundState.analyzeDependencies;
@@ -59,6 +84,10 @@ function reflectPlaygroundState(playgroundState) {
   if (playgroundState.unusedSymbols) {
     unusedSymbols.value = playgroundState.unusedSymbols.join('\n');
   }
+
+  if (playgroundState.version) {
+    version.value = playgroundState.version;
+  }
 }
 
 function savePlaygroundState() {
@@ -70,7 +99,8 @@ function savePlaygroundState() {
     analyzeDependencies: analyzeDependencies.checked,
     targets: getTargets(),
     source: source.value,
-    unusedSymbols: unusedSymbols.value.split('\n').map(v => v.trim()).filter(Boolean)
+    unusedSymbols: unusedSymbols.value.split('\n').map(v => v.trim()).filter(Boolean),
+    version: version.value,
   };
 
   const hash = encodeURIComponent(JSON.stringify(playgroundState));
@@ -99,8 +129,8 @@ function getTargets() {
   return targets;
 }
 
-async function update() {
-  await init();
+function update() {
+  const {transform} = wasm;
 
   const targets = getTargets();
   let res = transform({
@@ -126,11 +156,21 @@ async function update() {
   savePlaygroundState();
 }
 
-loadPlaygroundState();
+async function main() {
+  await loadVersions();
+  loadPlaygroundState();
+  await loadWasm();
 
-update();
-source.oninput = update;
-unusedSymbols.oninput = update;
-for (let input of document.querySelectorAll('input')) {
-  input.oninput = update;
+  update();
+  source.oninput = update;
+  unusedSymbols.oninput = update;
+  for (let input of document.querySelectorAll('input')) {
+    input.oninput = update;
+  }
+  version.onchange = async () => {
+    await loadWasm();
+    update();
+  };
 }
+
+main();
