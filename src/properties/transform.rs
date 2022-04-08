@@ -15,6 +15,7 @@ use crate::values::{
 };
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
+use std::f32::consts::PI;
 
 /// https://www.w3.org/TR/2019/CR-css-transforms-1-20190214/#propdef-transform
 #[derive(Debug, Clone, PartialEq)]
@@ -1220,6 +1221,22 @@ impl ToCss for Transform {
 
 impl Transform {
   pub fn to_matrix(&self) -> Option<Matrix3d<f32>> {
+    macro_rules! to_radians {
+      ($angle: ident) => {{
+        // If the angle is negative or more than a full circle, we cannot
+        // safely convert to a matrix. Transforms are interpolated numerically
+        // when types match, and this will have different results than
+        // when interpolating matrices with large angles.
+        // https://www.w3.org/TR/css-transforms-1/#matrix-interpolation
+        let rad = $angle.to_radians();
+        if rad < 0.0 || rad >= 2.0 * PI {
+          return None;
+        }
+
+        rad
+      }};
+    }
+
     match &self {
       Transform::Translate(LengthPercentage::Dimension(x), LengthPercentage::Dimension(y)) => {
         if let (Some(x), Some(y)) = (x.to_px(), y.to_px()) {
@@ -1252,14 +1269,14 @@ impl Transform {
       Transform::ScaleZ(z) => return Some(Matrix3d::scale(1.0, 1.0, z.into())),
       Transform::Scale3d(x, y, z) => return Some(Matrix3d::scale(x.into(), y.into(), z.into())),
       Transform::Rotate(angle) | Transform::RotateZ(angle) => {
-        return Some(Matrix3d::rotate(0.0, 0.0, 1.0, angle.to_radians()))
+        return Some(Matrix3d::rotate(0.0, 0.0, 1.0, to_radians!(angle)))
       }
-      Transform::RotateX(angle) => return Some(Matrix3d::rotate(1.0, 0.0, 0.0, angle.to_radians())),
-      Transform::RotateY(angle) => return Some(Matrix3d::rotate(0.0, 1.0, 0.0, angle.to_radians())),
-      Transform::Rotate3d(x, y, z, angle) => return Some(Matrix3d::rotate(*x, *y, *z, angle.to_radians())),
-      Transform::Skew(x, y) => return Some(Matrix3d::skew(x.to_radians(), y.to_radians())),
-      Transform::SkewX(x) => return Some(Matrix3d::skew(x.to_radians(), 0.0)),
-      Transform::SkewY(y) => return Some(Matrix3d::skew(0.0, y.to_radians())),
+      Transform::RotateX(angle) => return Some(Matrix3d::rotate(1.0, 0.0, 0.0, to_radians!(angle))),
+      Transform::RotateY(angle) => return Some(Matrix3d::rotate(0.0, 1.0, 0.0, to_radians!(angle))),
+      Transform::Rotate3d(x, y, z, angle) => return Some(Matrix3d::rotate(*x, *y, *z, to_radians!(angle))),
+      Transform::Skew(x, y) => return Some(Matrix3d::skew(to_radians!(x), to_radians!(y))),
+      Transform::SkewX(x) => return Some(Matrix3d::skew(to_radians!(x), 0.0)),
+      Transform::SkewY(y) => return Some(Matrix3d::skew(0.0, to_radians!(y))),
       Transform::Perspective(len) => {
         if let Some(len) = len.to_px() {
           return Some(Matrix3d::perspective(len));

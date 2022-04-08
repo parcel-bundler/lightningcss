@@ -7391,6 +7391,22 @@ mod tests {
       ".foo { transform: rotate3d(0, 0, 1, 20deg)",
       ".foo{transform:rotate(20deg)}",
     );
+    minify_test(".foo { transform: rotate(405deg)}", ".foo{transform:rotate(405deg)}");
+    minify_test(".foo { transform: rotateX(405deg)}", ".foo{transform:rotateX(405deg)}");
+    minify_test(".foo { transform: rotateY(405deg)}", ".foo{transform:rotateY(405deg)}");
+    minify_test(".foo { transform: rotate(-200deg)}", ".foo{transform:rotate(-200deg)}");
+    minify_test(
+      ".foo { transform: rotateX(-200deg)}",
+      ".foo{transform:rotateX(-200deg)}",
+    );
+    minify_test(
+      ".foo { transform: rotateY(-200deg)}",
+      ".foo{transform:rotateY(-200deg)}",
+    );
+    minify_test(
+      ".foo { transform: rotate3d(1, 1, 0, -200deg)",
+      ".foo{transform:rotate3d(1,1,0,-200deg)}",
+    );
     minify_test(".foo { transform: skew(20deg)", ".foo{transform:skew(20deg)}");
     minify_test(".foo { transform: skew(20deg, 0deg)", ".foo{transform:skew(20deg)}");
     minify_test(".foo { transform: skew(0deg, 20deg)", ".foo{transform:skewY(20deg)}");
