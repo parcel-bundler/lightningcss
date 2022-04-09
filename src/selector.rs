@@ -1093,7 +1093,7 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for Component<'i, Selectors> {
           Where(..) => dest.write_str(":where(")?,
           Is(..) => {
             let vp = dest.vendor_prefix;
-            if !vp.is_empty() && vp != VendorPrefix::None {
+            if vp.intersects(VendorPrefix::WebKit | VendorPrefix::Moz) {
               dest.write_char(':')?;
               vp.to_css(dest)?;
               dest.write_str("any(")?;
