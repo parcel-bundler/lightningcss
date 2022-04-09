@@ -1,5 +1,7 @@
+//! CSS length values.
+
 use super::calc::Calc;
-use super::number::serialize_number;
+use super::number::CSSNumber;
 use super::percentage::DimensionPercentage;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
@@ -7,15 +9,18 @@ use crate::traits::{private::TryAdd, Parse, ToCss};
 use const_str;
 use cssparser::*;
 
-/// https://drafts.csswg.org/css-values-4/#typedef-length-percentage
+/// A CSS [`<length-percentage>`](https://www.w3.org/TR/css-values-4/#typedef-length-percentage) value.
+/// May be specified as either a length or a percentage that resolves to an length.
 pub type LengthPercentage = DimensionPercentage<LengthValue>;
 
 impl LengthPercentage {
+  /// Constructs a value of zero pixels.
   pub fn zero() -> LengthPercentage {
     LengthPercentage::px(0.0)
   }
 
-  pub fn px(val: f32) -> LengthPercentage {
+  /// Constructs a `LengthPercentage` with the given pixel value.
+  pub fn px(val: CSSNumber) -> LengthPercentage {
     LengthPercentage::Dimension(LengthValue::Px(val))
   }
 
@@ -30,10 +35,12 @@ impl LengthPercentage {
   }
 }
 
-/// `<length-percentage> | auto`
+/// Either a [`<length-percentage>`](https://www.w3.org/TR/css-values-4/#typedef-length-percentage), or the `auto` keyword.
 #[derive(Debug, Clone, PartialEq)]
 pub enum LengthPercentageOrAuto {
+  /// The `auto` keyword.
   Auto,
+  /// A [`<length-percentage>`](https://www.w3.org/TR/css-values-4/#typedef-length-percentage).
   LengthPercentage(LengthPercentage),
 }
 
@@ -73,12 +80,18 @@ const PX_PER_PC: f32 = PX_PER_IN / 6.0;
 
 macro_rules! define_length_units {
   (
-    $( $name: ident, )+
+    $(
+      $(#[$meta: meta])*
+      $name: ident,
+    )+
   ) => {
+    /// A CSS [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) value,
+    /// without support for `calc()`. See also: [Length](Length).
     #[derive(Debug, Clone, PartialEq)]
     pub enum LengthValue {
       $(
-        $name(f32),
+        $(#[$meta])*
+        $name(CSSNumber),
       )+
     }
 
@@ -105,7 +118,8 @@ macro_rules! define_length_units {
     }
 
     impl LengthValue {
-      pub fn to_unit_value(&self) -> (f32, &str) {
+      /// Returns the numeric value and unit string for the length value.
+      pub fn to_unit_value(&self) -> (CSSNumber, &str) {
         match self {
           $(
             LengthValue::$name(value) => (*value, const_str::convert_ascii_case!(lower, stringify!($name))),
@@ -132,10 +146,10 @@ macro_rules! define_length_units {
       }
     }
 
-    impl std::ops::Mul<f32> for LengthValue {
+    impl std::ops::Mul<CSSNumber> for LengthValue {
       type Output = Self;
 
-      fn mul(self, other: f32) -> LengthValue {
+      fn mul(self, other: CSSNumber) -> LengthValue {
         use LengthValue::*;
         match self {
           $(
@@ -145,8 +159,8 @@ macro_rules! define_length_units {
       }
     }
 
-    impl std::cmp::PartialEq<f32> for LengthValue {
-      fn eq(&self, other: &f32) -> bool {
+    impl std::cmp::PartialEq<CSSNumber> for LengthValue {
+      fn eq(&self, other: &CSSNumber) -> bool {
         use LengthValue::*;
         match self {
           $(
@@ -156,8 +170,8 @@ macro_rules! define_length_units {
       }
     }
 
-    impl std::cmp::PartialOrd<f32> for LengthValue {
-      fn partial_cmp(&self, other: &f32) -> Option<std::cmp::Ordering> {
+    impl std::cmp::PartialOrd<CSSNumber> for LengthValue {
+      fn partial_cmp(&self, other: &CSSNumber) -> Option<std::cmp::Ordering> {
         use LengthValue::*;
         match self {
           $(
@@ -189,57 +203,110 @@ macro_rules! define_length_units {
 
 define_length_units! {
   // https://www.w3.org/TR/css-values-4/#absolute-lengths
+  /// A length in pixels.
   Px,
+  /// A length in inches. 1in = 96px.
   In,
+  /// A length in centimeters. 1cm = 96px / 2.54.
   Cm,
+  /// A length in millimeters. 1mm = 1/10th of 1cm.
   Mm,
+  /// A length in quarter-millimeters. 1Q = 1/40th of 1cm.
   Q,
+  /// A length in points. 1pt = 1/72nd of 1in.
   Pt,
+  /// A length in picas. 1pc = 1/6th of 1in.
   Pc,
 
   // https://www.w3.org/TR/css-values-4/#font-relative-lengths
+  /// A length in the `em` unit. An `em` is equal to the computed value of the
+  /// font-size property of the element on which it is used.
   Em,
+  /// A length in the `rem` unit. A `rem` is equal to the computed value of the
+  /// `em` unit on the root element.
   Rem,
+  /// A length in `ex` unit. An `ex` is equal to the x-height of the font.
   Ex,
+  /// A length in the `rex` unit. A `rex` is equal to the value of the `ex` unit on the root element.
   Rex,
+  /// A length in the `ch` unit. A `ch` is equal to the width of the zero ("0") character in the current font.
   Ch,
+  /// A length in the `rch` unit. An `rch` is equal to the value of the `ch` unit on the root element.
   Rch,
+  /// A length in the `cap` unit. A `cap` is equal to the cap-height of the font.
   Cap,
+  /// A length in the `rcap` unit. An `rcap` is equal to the value of the `cap` unit on the root element.
   Rcap,
+  /// A length in the `ic` unit. An `ic` is equal to the width of the “水” (CJK water ideograph) character in the current font.
   Ic,
+  /// A length in the `ric` unit. An `ric` is equal to the value of the `ic` unit on the root element.
   Ric,
+  /// A length in the `lh` unit. An `lh` is equal to the computed value of the `line-height` property.
   Lh,
+  /// A length in the `rlh` unit. An `rlh` is equal to the value of the `lh` unit on the root element.
   Rlh,
 
   // https://www.w3.org/TR/css-values-4/#viewport-relative-units
+  /// A length in the `vw` unit. A `vw` is equal to 1% of the [viewport width](https://www.w3.org/TR/css-values-4/#ua-default-viewport-size).
   Vw,
+  /// A length in the `lvw` unit. An `lvw` is equal to 1% of the [large viewport width](https://www.w3.org/TR/css-values-4/#large-viewport-size).
   Lvw,
+  /// A length in the `svw` unit. An `svw` is equal to 1% of the [small viewport width](https://www.w3.org/TR/css-values-4/#small-viewport-size).
   Svw,
+  /// A length in the `dvw` unit. An `dvw` is equal to 1% of the [dynamic viewport width](https://www.w3.org/TR/css-values-4/#dynamic-viewport-size).
   Dvw,
 
+  /// A length in the `vh` unit. A `vh` is equal to 1% of the [viewport height](https://www.w3.org/TR/css-values-4/#ua-default-viewport-size).
   Vh,
+  /// A length in the `lvh` unit. An `lvh` is equal to 1% of the [large viewport height](https://www.w3.org/TR/css-values-4/#large-viewport-size).
   Lvh,
+  /// A length in the `svh` unit. An `svh` is equal to 1% of the [small viewport height](https://www.w3.org/TR/css-values-4/#small-viewport-size).
   Svh,
+  /// A length in the `dvh` unit. An `dvh` is equal to 1% of the [dynamic viewport height](https://www.w3.org/TR/css-values-4/#dynamic-viewport-size).
   Dvh,
 
+  /// A length in the `vi` unit. A `vi` is equal to 1% of the [viewport size](https://www.w3.org/TR/css-values-4/#ua-default-viewport-size)
+  /// in the box's [inline axis](https://www.w3.org/TR/css-writing-modes-4/#inline-axis).
   Vi,
+  /// A length in the `svi` unit. A `svi` is equal to 1% of the [small viewport size](https://www.w3.org/TR/css-values-4/#small-viewport-size)
+  /// in the box's [inline axis](https://www.w3.org/TR/css-writing-modes-4/#inline-axis).
   Svi,
+  /// A length in the `lvi` unit. A `lvi` is equal to 1% of the [large viewport size](https://www.w3.org/TR/css-values-4/#large-viewport-size)
+  /// in the box's [inline axis](https://www.w3.org/TR/css-writing-modes-4/#inline-axis).
   Lvi,
+  /// A length in the `dvi` unit. A `dvi` is equal to 1% of the [dynamic viewport size](https://www.w3.org/TR/css-values-4/#dynamic-viewport-size)
+  /// in the box's [inline axis](https://www.w3.org/TR/css-writing-modes-4/#inline-axis).
   Dvi,
 
+  /// A length in the `vb` unit. A `vb` is equal to 1% of the [viewport size](https://www.w3.org/TR/css-values-4/#ua-default-viewport-size)
+  /// in the box's [block axis](https://www.w3.org/TR/css-writing-modes-4/#block-axis).
   Vb,
+  /// A length in the `svb` unit. A `svb` is equal to 1% of the [small viewport size](https://www.w3.org/TR/css-values-4/#small-viewport-size)
+  /// in the box's [block axis](https://www.w3.org/TR/css-writing-modes-4/#block-axis).
   Svb,
+  /// A length in the `lvb` unit. A `lvb` is equal to 1% of the [large viewport size](https://www.w3.org/TR/css-values-4/#large-viewport-size)
+  /// in the box's [block axis](https://www.w3.org/TR/css-writing-modes-4/#block-axis).
   Lvb,
+  /// A length in the `dvb` unit. A `dvb` is equal to 1% of the [dynamic viewport size](https://www.w3.org/TR/css-values-4/#dynamic-viewport-size)
+  /// in the box's [block axis](https://www.w3.org/TR/css-writing-modes-4/#block-axis).
   Dvb,
 
+  /// A length in the `vmin` unit. A `vmin` is equal to the smaller of `vw` and `vh`.
   Vmin,
+  /// A length in the `svmin` unit. An `svmin` is equal to the smaller of `svw` and `svh`.
   Svmin,
+  /// A length in the `lvmin` unit. An `lvmin` is equal to the smaller of `lvw` and `lvh`.
   Lvmin,
+  /// A length in the `dvmin` unit. A `dvmin` is equal to the smaller of `dvw` and `dvh`.
   Dvmin,
 
+  /// A length in the `vmax` unit. A `vmax` is equal to the larger of `vw` and `vh`.
   Vmax,
+  /// A length in the `svmax` unit. An `svmax` is equal to the larger of `svw` and `svh`.
   Svmax,
+  /// A length in the `lvmax` unit. An `lvmax` is equal to the larger of `lvw` and `lvh`.
   Lvmax,
+  /// A length in the `dvmax` unit. An `dvmax` is equal to the larger of `dvw` and `dvh`.
   Dvmax,
 }
 
@@ -266,7 +333,7 @@ impl LengthValue {
     W: std::fmt::Write,
   {
     match self {
-      LengthValue::Px(value) => serialize_number(*value, dest),
+      LengthValue::Px(value) => value.to_css(dest),
       _ => self.to_css(dest),
     }
   }
@@ -300,7 +367,9 @@ where
 }
 
 impl LengthValue {
-  pub fn to_px(&self) -> Option<f32> {
+  /// Attempts to convert the value to pixels.
+  /// Returns `None` if the conversion is not possible.
+  pub fn to_px(&self) -> Option<CSSNumber> {
     use LengthValue::*;
     match self {
       Px(value) => Some(*value),
@@ -315,9 +384,12 @@ impl LengthValue {
   }
 }
 
+/// A CSS [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) value, with support for `calc()`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Length {
+  /// An explicitly specified length value.
   Value(LengthValue),
+  /// A computed length value using `calc()`.
   Calc(Box<Calc<Length>>),
 }
 
@@ -346,10 +418,10 @@ impl ToCss for Length {
   }
 }
 
-impl std::ops::Mul<f32> for Length {
+impl std::ops::Mul<CSSNumber> for Length {
   type Output = Self;
 
-  fn mul(self, other: f32) -> Length {
+  fn mul(self, other: CSSNumber) -> Length {
     match self {
       Length::Value(a) => Length::Value(a * other),
       Length::Calc(a) => Length::Calc(Box::new(*a * other)),
@@ -369,15 +441,19 @@ impl std::ops::Add<Length> for Length {
 }
 
 impl Length {
+  /// Constructs a zero length value.
   pub fn zero() -> Length {
     Length::Value(LengthValue::Px(0.0))
   }
 
-  pub fn px(px: f32) -> Length {
+  /// Constructs a length with the given pixel value.
+  pub fn px(px: CSSNumber) -> Length {
     Length::Value(LengthValue::Px(px))
   }
 
-  pub fn to_px(&self) -> Option<f32> {
+  /// Attempts to convert the length to pixels.
+  /// Returns `None` if the conversion is not possible.
+  pub fn to_px(&self) -> Option<CSSNumber> {
     match self {
       Length::Value(a) => a.to_px(),
       _ => None,
@@ -480,8 +556,8 @@ impl std::convert::From<Calc<Length>> for Length {
   }
 }
 
-impl std::cmp::PartialEq<f32> for Length {
-  fn eq(&self, other: &f32) -> bool {
+impl std::cmp::PartialEq<CSSNumber> for Length {
+  fn eq(&self, other: &CSSNumber) -> bool {
     match self {
       Length::Value(a) => *a == *other,
       Length::Calc(_) => false,
@@ -489,8 +565,8 @@ impl std::cmp::PartialEq<f32> for Length {
   }
 }
 
-impl std::cmp::PartialOrd<f32> for Length {
-  fn partial_cmp(&self, other: &f32) -> Option<std::cmp::Ordering> {
+impl std::cmp::PartialOrd<CSSNumber> for Length {
+  fn partial_cmp(&self, other: &CSSNumber) -> Option<std::cmp::Ordering> {
     match self {
       Length::Value(a) => a.partial_cmp(other),
       Length::Calc(_) => None,
@@ -507,10 +583,13 @@ impl std::cmp::PartialOrd<Length> for Length {
   }
 }
 
+/// Either a [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) or a [`<number>`](https://www.w3.org/TR/css-values-4/#numbers).
 #[derive(Debug, Clone, PartialEq)]
 pub enum LengthOrNumber {
+  /// A length.
   Length(Length),
-  Number(f32),
+  /// A number.
+  Number(CSSNumber),
 }
 
 impl Default for LengthOrNumber {
@@ -522,7 +601,7 @@ impl Default for LengthOrNumber {
 impl<'i> Parse<'i> for LengthOrNumber {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // Parse number first so unitless numbers are not parsed as lengths.
-    if let Ok(number) = input.try_parse(f32::parse) {
+    if let Ok(number) = input.try_parse(CSSNumber::parse) {
       return Ok(LengthOrNumber::Number(number));
     }
 
@@ -541,7 +620,7 @@ impl ToCss for LengthOrNumber {
   {
     match self {
       LengthOrNumber::Length(length) => length.to_css(dest),
-      LengthOrNumber::Number(number) => serialize_number(*number, dest),
+      LengthOrNumber::Number(number) => number.to_css(dest),
     }
   }
 }

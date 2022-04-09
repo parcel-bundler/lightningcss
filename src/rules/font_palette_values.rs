@@ -8,7 +8,7 @@ use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
 use crate::values::color::{ColorFallbackKind, CssColor};
 use crate::values::ident::DashedIdent;
-use crate::values::number::serialize_integer;
+use crate::values::number::CSSInteger;
 use cssparser::*;
 
 /// https://drafts.csswg.org/css-fonts-4/#font-palette-values
@@ -111,7 +111,7 @@ impl<'i> FontPaletteValuesRule<'i> {
 
 impl<'i> Parse<'i> for BasePalette {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(i) = input.try_parse(|input| input.expect_integer()) {
+    if let Ok(i) = input.try_parse(CSSInteger::parse) {
       if i.is_negative() {
         return Err(input.new_custom_error(ParserError::InvalidValue));
       }
@@ -136,14 +136,14 @@ impl ToCss for BasePalette {
     match self {
       BasePalette::Light => dest.write_str("light"),
       BasePalette::Dark => dest.write_str("dark"),
-      BasePalette::Integer(i) => serialize_integer(*i as i32, dest),
+      BasePalette::Integer(i) => (*i as CSSInteger).to_css(dest),
     }
   }
 }
 
 impl<'i> Parse<'i> for OverrideColors {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let index = input.expect_integer()?;
+    let index = CSSInteger::parse(input)?;
     if index.is_negative() {
       return Err(input.new_custom_error(ParserError::InvalidValue));
     }
@@ -165,7 +165,7 @@ impl ToCss for OverrideColors {
   where
     W: std::fmt::Write,
   {
-    serialize_integer(self.index as i32, dest)?;
+    (self.index as CSSInteger).to_css(dest)?;
     dest.write_char(' ')?;
     self.color.to_css(dest)
   }

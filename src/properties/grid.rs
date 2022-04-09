@@ -8,7 +8,7 @@ use crate::properties::{Property, PropertyId};
 use crate::traits::{Parse, PropertyHandler, ToCss};
 use crate::values::ident::CustomIdent;
 use crate::values::length::serialize_dimension;
-use crate::values::number::serialize_integer;
+use crate::values::number::CSSInteger;
 use crate::values::{ident::CustomIdentList, length::LengthPercentage};
 use bitflags::bitflags;
 use cssparser::*;
@@ -1021,8 +1021,8 @@ impl ToCss for Grid<'_> {
 pub enum GridLine<'i> {
   Auto,
   Ident(CustomIdent<'i>),
-  Line(i32, Option<CustomIdent<'i>>),
-  Span(i32, Option<CustomIdent<'i>>),
+  Line(CSSInteger, Option<CustomIdent<'i>>),
+  Span(CSSInteger, Option<CustomIdent<'i>>),
 }
 
 impl<'i> Parse<'i> for GridLine<'i> {
@@ -1033,11 +1033,11 @@ impl<'i> Parse<'i> for GridLine<'i> {
 
     if input.try_parse(|input| input.expect_ident_matching("span")).is_ok() {
       // TODO: is calc() supported here??
-      let (line_number, ident) = if let Ok(line_number) = input.try_parse(|input| input.expect_integer()) {
+      let (line_number, ident) = if let Ok(line_number) = input.try_parse(CSSInteger::parse) {
         let ident = input.try_parse(CustomIdent::parse).ok();
         (line_number, ident)
       } else if let Ok(ident) = input.try_parse(CustomIdent::parse) {
-        let line_number = input.try_parse(|input| input.expect_integer()).unwrap_or(1);
+        let line_number = input.try_parse(CSSInteger::parse).unwrap_or(1);
         (line_number, Some(ident))
       } else {
         return Err(input.new_custom_error(ParserError::InvalidDeclaration));
@@ -1050,7 +1050,7 @@ impl<'i> Parse<'i> for GridLine<'i> {
       return Ok(GridLine::Span(line_number, ident));
     }
 
-    if let Ok(line_number) = input.try_parse(|input| input.expect_integer()) {
+    if let Ok(line_number) = input.try_parse(CSSInteger::parse) {
       if line_number == 0 {
         return Err(input.new_custom_error(ParserError::InvalidDeclaration));
       }
@@ -1059,7 +1059,7 @@ impl<'i> Parse<'i> for GridLine<'i> {
     }
 
     let ident = CustomIdent::parse(input)?;
-    if let Ok(line_number) = input.try_parse(|input| input.expect_integer()) {
+    if let Ok(line_number) = input.try_parse(CSSInteger::parse) {
       if line_number == 0 {
         return Err(input.new_custom_error(ParserError::InvalidDeclaration));
       }
@@ -1079,7 +1079,7 @@ impl ToCss for GridLine<'_> {
       GridLine::Auto => dest.write_str("auto"),
       GridLine::Ident(id) => id.to_css(dest),
       GridLine::Line(line_number, id) => {
-        serialize_integer(*line_number, dest)?;
+        line_number.to_css(dest)?;
         if let Some(id) = id {
           dest.write_char(' ')?;
           id.to_css(dest)?;
@@ -1089,7 +1089,7 @@ impl ToCss for GridLine<'_> {
       GridLine::Span(line_number, id) => {
         dest.write_str("span ")?;
         if *line_number != 1 || id.is_none() {
-          serialize_integer(*line_number, dest)?;
+          line_number.to_css(dest)?;
           if id.is_some() {
             dest.write_char(' ')?;
           }

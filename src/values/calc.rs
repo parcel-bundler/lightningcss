@@ -1,15 +1,26 @@
-use super::number::serialize_number;
+//! Mathematical calculation functions and expressions.
+
 use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use cssparser::*;
 
+use super::number::CSSNumber;
+
+/// A CSS [math function](https://www.w3.org/TR/css-values-4/#math-function).
+///
+/// Math functions may be used in most properties and values that accept numeric
+/// values, including lengths, percentages, angles, times, etc.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MathFunction<V> {
+  /// The [`calc()`](https://www.w3.org/TR/css-values-4/#calc-func) function.
   Calc(Calc<V>),
+  /// The [`min()`](https://www.w3.org/TR/css-values-4/#funcdef-min) function.
   Min(Vec<Calc<V>>),
+  /// The [`max()`](https://www.w3.org/TR/css-values-4/#funcdef-max) function.
   Max(Vec<Calc<V>>),
+  /// The [`clamp()`](https://www.w3.org/TR/css-values-4/#funcdef-clamp) function.
   Clamp(Calc<V>, Calc<V>, Calc<V>),
 }
 
@@ -80,12 +91,21 @@ impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clo
   }
 }
 
+/// A mathematical expression used within the [`calc()`](https://www.w3.org/TR/css-values-4/#calc-func) function.
+///
+/// This type supports generic value types. Values such as [Length](super::length::Length), [Percentage](super::percentage::Percentage),
+/// [Time](super::time::Time), and [Angle](super::angle::Angle) support `calc()` expressions.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Calc<V> {
+  /// A literal value.
   Value(Box<V>),
-  Number(f32),
+  /// A literal number.
+  Number(CSSNumber),
+  /// A sum of two calc expressions.
   Sum(Box<Calc<V>>, Box<Calc<V>>),
-  Product(f32, Box<Calc<V>>),
+  /// A product of a number and another calc expression.
+  Product(CSSNumber, Box<Calc<V>>),
+  /// A math function, such as `calc()`, `min()`, or `max()`.
   Function(Box<MathFunction<V>>),
 }
 
@@ -411,7 +431,7 @@ impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clo
 
     let res = match self {
       Calc::Value(v) => v.to_css(dest),
-      Calc::Number(n) => serialize_number(*n, dest),
+      Calc::Number(n) => n.to_css(dest),
       Calc::Sum(a, b) => {
         a.to_css(dest)?;
         // Whitespace is always required.

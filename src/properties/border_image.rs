@@ -13,7 +13,6 @@ use crate::{
   traits::FallbackValues,
   values::{
     length::*,
-    number::serialize_number,
     percentage::{NumberOrPercentage, Percentage},
   },
 };
@@ -101,7 +100,7 @@ impl ToCss for BorderImageSideWidth {
     match self {
       Auto => dest.write_str("auto"),
       LengthPercentage(l) => l.to_css(dest),
-      Number(n) => serialize_number(*n, dest),
+      Number(n) => n.to_css(dest),
     }
   }
 }

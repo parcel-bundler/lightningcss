@@ -1,10 +1,15 @@
+//! CSS alpha values, used to represent opacity.
+
 use super::percentage::NumberOrPercentage;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use cssparser::*;
 
-/// https://www.w3.org/TR/2021/WD-css-color-4-20210601/#typedef-alpha-value
+/// A CSS [`<alpha-value>`](https://www.w3.org/TR/css-color-4/#typedef-alpha-value),
+/// used to represent opacity.
+///
+/// Parses either a `<number>` or `<percentage>`, but is always stored and serialized as a number.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AlphaValue(pub f32);
 

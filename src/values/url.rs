@@ -1,3 +1,5 @@
+//! CSS url() values.
+
 use crate::dependencies::{Dependency, UrlDependency};
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
@@ -5,9 +7,12 @@ use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
 use cssparser::*;
 
+/// A CSS [url()](https://www.w3.org/TR/css-values-4/#urls) value and its source location.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Url<'i> {
+  /// The url string.
   pub url: CowArcStr<'i>,
+  /// The location where the `url()` was seen in the CSS source file.
   pub loc: SourceLocation,
 }
 
@@ -71,6 +76,7 @@ impl<'i> ToCss for Url<'i> {
 }
 
 impl<'i> Url<'i> {
+  /// Returns whether the URL is absolute, and not relative.
   pub fn is_absolute(&self) -> bool {
     let url = self.url.as_ref();
 

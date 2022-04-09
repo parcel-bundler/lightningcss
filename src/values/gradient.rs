@@ -1,6 +1,9 @@
+//! CSS gradient values.
+
 use super::angle::{Angle, AnglePercentage};
 use super::color::{ColorFallbackKind, CssColor};
 use super::length::{Length, LengthPercentage};
+use super::number::CSSNumber;
 use super::percentage::{DimensionPercentage, NumberOrPercentage, Percentage};
 use super::position::{HorizontalPositionKeyword, VerticalPositionKeyword};
 use super::position::{Position, PositionComponent};
@@ -14,19 +17,27 @@ use crate::traits::{Parse, ToCss};
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 
-/// https://www.w3.org/TR/css-images-3/#gradients
+/// A CSS [`<gradient>`](https://www.w3.org/TR/css-images-3/#gradients) value.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Gradient {
+  /// A `linear-gradient()`, and its vendor prefix.
   Linear(LinearGradient, VendorPrefix),
+  /// A `repeating-linear-gradient()`, and its vendor prefix.
   RepeatingLinear(LinearGradient, VendorPrefix),
+  /// A `radial-gradient()`, and its vendor prefix.
   Radial(RadialGradient, VendorPrefix),
+  /// A `repeating-radial-gradient`, and its vendor prefix.
   RepeatingRadial(RadialGradient, VendorPrefix),
+  /// A `conic-gradient()`.
   Conic(ConicGradient),
+  /// A `repeating-conic-gradient()`.
   RepeatingConic(ConicGradient),
+  /// A legacy `-webkit-gradient()`.
   WebKitGradient(WebKitGradient),
 }
 
 impl Gradient {
+  /// Returns the vendor prefix of the gradient.
   pub fn get_vendor_prefix(&self) -> VendorPrefix {
     match self {
       Gradient::Linear(_, prefix)
@@ -38,6 +49,7 @@ impl Gradient {
     }
   }
 
+  /// Returns the vendor prefixes needed for the given browser targets.
   pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
     macro_rules! get_prefixes {
       ($feature: ident, $prefix: ident) => {
@@ -58,6 +70,7 @@ impl Gradient {
     }
   }
 
+  /// Returns a copy of the gradient with the given vendor prefix.
   pub fn get_prefixed(&self, prefix: VendorPrefix) -> Gradient {
     match self {
       Gradient::Linear(linear, _) => Gradient::Linear(linear.clone(), prefix),
@@ -68,10 +81,14 @@ impl Gradient {
     }
   }
 
+  /// Attempts to convert the gradient to the legacy `-webkit-gradient()` syntax.
+  ///
+  /// Returns an error in case the conversion is not possible.
   pub fn get_legacy_webkit(&self) -> Result<Gradient, ()> {
     Ok(Gradient::WebKitGradient(WebKitGradient::from_standard(self)?))
   }
 
+  /// Returns the color fallback types needed for the given browser targets.
   pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
     match self {
       Gradient::Linear(LinearGradient { items, .. }, _)
@@ -95,6 +112,7 @@ impl Gradient {
     }
   }
 
+  /// Returns a fallback gradient for the given color fallback type.
   pub fn get_fallback(&self, kind: ColorFallbackKind) -> Gradient {
     match self {
       Gradient::Linear(g, prefixes) | Gradient::RepeatingLinear(g, prefixes) => {
@@ -174,10 +192,12 @@ impl ToCss for Gradient {
   }
 }
 
-/// https://www.w3.org/TR/css-images-3/#linear-gradients
+/// A CSS [`linear-gradient()`](https://www.w3.org/TR/css-images-3/#linear-gradients) or `repeating-linear-gradient()`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LinearGradient {
+  /// The direction of the gradient.
   pub direction: LineDirection,
+  /// The color stops and transition hints for the gradient.
   pub items: Vec<GradientItem<LengthPercentage>>,
 }
 
@@ -268,11 +288,14 @@ impl LinearGradient {
   }
 }
 
-/// https://www.w3.org/TR/css-images-3/#radial-gradients
+/// A CSS [`radial-gradient()`](https://www.w3.org/TR/css-images-3/#radial-gradients) or `repeating-radial-gradient()`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RadialGradient {
+  /// The shape of the gradient.
   pub shape: EndingShape,
+  /// The position of the gradient.
   pub position: Position,
+  /// The color stops and transition hints for the gradient.
   pub items: Vec<GradientItem<LengthPercentage>>,
 }
 
@@ -333,11 +356,18 @@ impl RadialGradient {
   }
 }
 
+/// The direction of a CSS `linear-gradient()`.
+///
+/// See [LinearGradient](LinearGradient).
 #[derive(Debug, Clone, PartialEq)]
 pub enum LineDirection {
+  /// An angle.
   Angle(Angle),
+  /// A horizontal position keyword, e.g. `left` or `right.
   Horizontal(HorizontalPositionKeyword),
+  /// A vertical posision keyword, e.g. `top` or `bottom`.
   Vertical(VerticalPositionKeyword),
+  /// A corner, e.g. `bottom left` or `top right`.
   Corner(HorizontalPositionKeyword, VerticalPositionKeyword),
 }
 
@@ -412,10 +442,14 @@ impl LineDirection {
   }
 }
 
-/// https://www.w3.org/TR/css-images-3/#valdef-radial-gradient-ending-shape
+/// A `radial-gradient()` [ending shape](https://www.w3.org/TR/css-images-3/#valdef-radial-gradient-ending-shape).
+///
+/// See [RadialGradient](RadialGradient).
 #[derive(Debug, Clone, PartialEq)]
 pub enum EndingShape {
+  /// A circle.
   Circle(Circle),
+  /// An ellipse.
   Ellipse(Ellipse),
 }
 
@@ -452,9 +486,14 @@ impl ToCss for EndingShape {
   }
 }
 
+/// A circle ending shape for a `radial-gradient()`.
+///
+/// See [RadialGradient](RadialGradient).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Circle {
+  /// A circle with a specified radius.
   Radius(Length),
+  /// A shape extent keyword.
   Extent(ShapeExtent),
 }
 
@@ -509,9 +548,14 @@ impl ToCss for Circle {
   }
 }
 
+/// An ellipse ending shape for a `radial-gradient()`.
+///
+/// See [RadialGradient](RadialGradient).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Ellipse {
+  /// An ellipse with a specified horizontal and vertical radius.
   Size(LengthPercentage, LengthPercentage),
+  /// A shape extent keyword.
   Extent(ShapeExtent),
 }
 
@@ -570,19 +614,29 @@ impl ToCss for Ellipse {
 }
 
 enum_property! {
+  /// A shape extent for a `radial-gradient()`.
+  ///
+  /// See [RadialGradient](RadialGradient).
   pub enum ShapeExtent {
+    /// The closest side of the box to the gradient's center.
     "closest-side": ClosestSide,
+    /// The farthest side of the box from the gradient's center.
     "farthest-side": FarthestSide,
+    /// The closest cornder of the box to the gradient's center.
     "closest-corner": ClosestCorner,
+    /// The farthest corner of the box from the gradient's center.
     "farthest-corner": FarthestCorner,
   }
 }
 
-/// https://www.w3.org/TR/css-images-4/#conic-gradients
+/// A CSS [`conic-gradient()`](https://www.w3.org/TR/css-images-4/#conic-gradients) or `repeating-conic-gradient()`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ConicGradient {
+  /// The angle of the gradient.
   pub angle: Angle,
+  /// The position of the gradient.
   pub position: Position,
+  /// The color stops and transition hints for the gradient.
   pub items: Vec<GradientItem<AnglePercentage>>,
 }
 
@@ -647,10 +701,15 @@ impl ConicGradient {
   }
 }
 
-/// https://www.w3.org/TR/css-images-4/#color-stop-syntax
+/// A [`<color-stop>`](https://www.w3.org/TR/css-images-4/#color-stop-syntax) within a gradient.
+///
+/// This type is generic, and may be either a [LengthPercentage](super::length::LengthPercentage)
+/// or [Angle](super::angle::Angle) depending on what type of gradient it is within.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ColorStop<D> {
+  /// The color of the color stop.
   pub color: CssColor,
+  /// The position of the color stop.
   pub position: Option<D>,
 }
 
@@ -676,9 +735,15 @@ impl<D: ToCss> ToCss for ColorStop<D> {
   }
 }
 
+/// Either a color stop or interpolation hint within a gradient.
+///
+/// This type is generic, and items may be either a [LengthPercentage](super::length::LengthPercentage)
+/// or [Angle](super::angle::Angle) depending on what type of gradient it is within.
 #[derive(Debug, Clone, PartialEq)]
 pub enum GradientItem<D> {
+  /// A color stop.
   ColorStop(ColorStop<D>),
+  /// A color interpolation hint.
   Hint(D),
 }
 
@@ -695,6 +760,7 @@ impl<D: ToCss> ToCss for GradientItem<D> {
 }
 
 impl<D: Clone> GradientItem<D> {
+  /// Returns the color fallback types needed for the given browser targets.
   pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
     match self {
       GradientItem::ColorStop(stop) => stop.color.get_necessary_fallbacks(targets),
@@ -702,6 +768,7 @@ impl<D: Clone> GradientItem<D> {
     }
   }
 
+  /// Returns a fallback gradient item for the given color fallback type.
   pub fn get_fallback(&self, kind: ColorFallbackKind) -> GradientItem<D> {
     match self {
       GradientItem::ColorStop(stop) => GradientItem::ColorStop(ColorStop {
@@ -815,19 +882,29 @@ where
   Ok(())
 }
 
-// Old pre-standard -webkit-gradient() syntax.
+/// A legacy `-webkit-gradient()`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum WebKitGradient {
+  /// A linear `-webkit-gradient()`.
   Linear {
+    /// The starting point of the gradient.
     from: WebKitGradientPoint,
+    /// The ending point of the gradient.
     to: WebKitGradientPoint,
+    /// The color stops in the gradient.
     stops: Vec<WebKitColorStop>,
   },
+  /// A radial `-webkit-gradient()`.
   Radial {
+    /// The starting point of the gradient.
     from: WebKitGradientPoint,
-    r0: f32,
+    /// The starting radius of the gradient.
+    r0: CSSNumber,
+    /// The ending point of the gradient.
     to: WebKitGradientPoint,
-    r1: f32,
+    /// The ending radius of the gradient.
+    r1: CSSNumber,
+    /// The color stops in the gradient.
     stops: Vec<WebKitColorStop>,
   },
 }
@@ -944,10 +1021,13 @@ impl WebKitGradient {
   }
 }
 
+/// A color stop within a legacy `-webkit-gradient()`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct WebKitColorStop {
+  /// The color of the color stop.
   pub color: CssColor,
-  pub position: f32,
+  /// The position of the color stop.
+  pub position: CSSNumber,
 }
 
 impl<'i> Parse<'i> for WebKitColorStop {
@@ -1001,9 +1081,12 @@ impl WebKitColorStop {
   }
 }
 
+/// An x/y position within a legacy `-webkit-gradient()`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct WebKitGradientPoint {
+  /// The x-position.
   pub x: WebKitGradientPointComponent<HorizontalPositionKeyword>,
+  /// The y-position.
   pub y: WebKitGradientPointComponent<VerticalPositionKeyword>,
 }
 
@@ -1026,10 +1109,14 @@ impl ToCss for WebKitGradientPoint {
   }
 }
 
+/// A keyword or number within a [WebKitGradientPoint](WebKitGradientPoint).
 #[derive(Debug, Clone, PartialEq)]
 pub enum WebKitGradientPointComponent<S> {
+  /// The `center` keyword.
   Center,
+  /// A number or percentage.
   Number(NumberOrPercentage),
+  /// A side keyword.
   Side(S),
 }
 

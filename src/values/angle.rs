@@ -1,5 +1,8 @@
+//! CSS angle values.
+
 use super::calc::Calc;
 use super::length::serialize_dimension;
+use super::number::CSSNumber;
 use super::percentage::DimensionPercentage;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
@@ -7,12 +10,20 @@ use crate::traits::{private::TryAdd, Parse, ToCss};
 use cssparser::*;
 use std::f32::consts::PI;
 
+/// A CSS [`<angle>`](https://www.w3.org/TR/css-values-4/#angles) value.
+///
+/// Angles may be explicit or computed by `calc()`, but are always stored and serialized
+/// as their computed value.
 #[derive(Debug, Clone)]
 pub enum Angle {
-  Deg(f32),
-  Grad(f32),
-  Rad(f32),
-  Turn(f32),
+  /// An angle in degrees. There are 360 degrees in a full circle.
+  Deg(CSSNumber),
+  /// An angle in radians. There are 2π radians in a full circle.
+  Rad(CSSNumber),
+  /// An angle in gradians. There are 400 gradians in a full circle.
+  Grad(CSSNumber),
+  /// An angle in turns. There is 1 turn in a full circle.
+  Turn(CSSNumber),
 }
 
 impl<'i> Parse<'i> for Angle {
@@ -67,6 +78,7 @@ impl ToCss for Angle {
 }
 
 impl Angle {
+  /// Returns whether the angle is zero.
   pub fn is_zero(&self) -> bool {
     use Angle::*;
     match self {
@@ -74,7 +86,8 @@ impl Angle {
     }
   }
 
-  pub fn to_radians(&self) -> f32 {
+  /// Returns the angle in radians.
+  pub fn to_radians(&self) -> CSSNumber {
     const RAD_PER_DEG: f32 = PI / 180.0;
     match self {
       Angle::Deg(deg) => deg * RAD_PER_DEG,
@@ -84,7 +97,8 @@ impl Angle {
     }
   }
 
-  pub fn to_degrees(&self) -> f32 {
+  /// Returns the angle in degrees.
+  pub fn to_degrees(&self) -> CSSNumber {
     const DEG_PER_RAD: f32 = 180.0 / PI;
     match self {
       Angle::Deg(deg) => *deg,
@@ -110,10 +124,10 @@ impl std::convert::From<Calc<Angle>> for Angle {
   }
 }
 
-impl std::ops::Mul<f32> for Angle {
+impl std::ops::Mul<CSSNumber> for Angle {
   type Output = Self;
 
-  fn mul(self, other: f32) -> Angle {
+  fn mul(self, other: CSSNumber) -> Angle {
     match self {
       Angle::Deg(v) => Angle::Deg(v * other),
       Angle::Rad(v) => Angle::Deg(v * other),
@@ -137,8 +151,8 @@ impl TryAdd<Angle> for Angle {
   }
 }
 
-impl std::cmp::PartialEq<f32> for Angle {
-  fn eq(&self, other: &f32) -> bool {
+impl std::cmp::PartialEq<CSSNumber> for Angle {
+  fn eq(&self, other: &CSSNumber) -> bool {
     match self {
       Angle::Deg(a) | Angle::Rad(a) | Angle::Grad(a) | Angle::Turn(a) => a == other,
     }
@@ -151,8 +165,8 @@ impl std::cmp::PartialEq<Angle> for Angle {
   }
 }
 
-impl std::cmp::PartialOrd<f32> for Angle {
-  fn partial_cmp(&self, other: &f32) -> Option<std::cmp::Ordering> {
+impl std::cmp::PartialOrd<CSSNumber> for Angle {
+  fn partial_cmp(&self, other: &CSSNumber) -> Option<std::cmp::Ordering> {
     match self {
       Angle::Deg(a) | Angle::Rad(a) | Angle::Grad(a) | Angle::Turn(a) => a.partial_cmp(other),
     }
@@ -165,5 +179,6 @@ impl std::cmp::PartialOrd<Angle> for Angle {
   }
 }
 
-/// https://drafts.csswg.org/css-values-4/#typedef-angle-percentage
+/// A CSS [`<angle-percentage>`](https://www.w3.org/TR/css-values-4/#typedef-angle-percentage) value.
+/// May be specified as either an angle or a percentage that resolves to an angle.
 pub type AnglePercentage = DimensionPercentage<Angle>;

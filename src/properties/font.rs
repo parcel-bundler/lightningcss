@@ -330,7 +330,7 @@ impl<'i> ToCss for FontFamily<'i> {
         // Generic family names such as sans-serif must be quoted if parsed as a string.
         // CSS wide keywords, as well as "default", must also be quoted.
         // https://www.w3.org/TR/css-fonts-4/#family-name-syntax
-        if !val.is_empty() && GenericFontFamily::from_str(val).is_none() {
+        if !val.is_empty() && !GenericFontFamily::parse_string(val).is_ok() {
           let mut id = String::new();
           let mut first = true;
           for slice in val.split(' ') {

@@ -1,10 +1,26 @@
+//! Generic values for four sided properties.
+
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use cssparser::*;
 
+/// A generic value that represents a value for four sides of a box,
+/// e.g. border-width, margin, padding, etc.
+///
+/// When serialized, as few components as possible are written when
+/// there are duplicate values.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Rect<T>(pub T, pub T, pub T, pub T);
+pub struct Rect<T>(
+  /// The top component.
+  pub T,
+  /// The right component.
+  pub T,
+  /// The bottom component.
+  pub T,
+  /// The left component.
+  pub T,
+);
 
 impl<T> Rect<T> {
   /// Returns a new `Rect<T>` value.

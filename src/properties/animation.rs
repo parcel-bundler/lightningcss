@@ -204,17 +204,17 @@ impl<'i> ToCss for Animation<'i> {
           self.iteration_count.to_css(dest)?;
         }
 
-        if self.direction != AnimationDirection::Normal || AnimationDirection::from_str(&name.0).is_some() {
+        if self.direction != AnimationDirection::Normal || AnimationDirection::parse_string(&name.0).is_ok() {
           dest.write_char(' ')?;
           self.direction.to_css(dest)?;
         }
 
-        if self.fill_mode != AnimationFillMode::None || AnimationFillMode::from_str(&name.0).is_some() {
+        if self.fill_mode != AnimationFillMode::None || AnimationFillMode::parse_string(&name.0).is_ok() {
           dest.write_char(' ')?;
           self.fill_mode.to_css(dest)?;
         }
 
-        if self.play_state != AnimationPlayState::Running || AnimationPlayState::from_str(&name.0).is_some() {
+        if self.play_state != AnimationPlayState::Running || AnimationPlayState::parse_string(&name.0).is_ok() {
           dest.write_char(' ')?;
           self.play_state.to_css(dest)?;
         }

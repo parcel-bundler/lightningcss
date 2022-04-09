@@ -1,3 +1,5 @@
+//! CSS identifiers.
+
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
@@ -5,7 +7,11 @@ use crate::values::string::CowArcStr;
 use cssparser::*;
 use smallvec::SmallVec;
 
-/// https://www.w3.org/TR/css-values-4/#custom-idents
+/// A CSS [`<custom-ident>`](https://www.w3.org/TR/css-values-4/#custom-idents).
+///
+/// Custom idents are author defined, and allow any valid identifier except the
+/// [CSS-wide keywords](https://www.w3.org/TR/css-values-4/#css-wide-keywords).
+/// They may be renamed to include a hash when compiled as part of a CSS module.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CustomIdent<'i>(pub CowArcStr<'i>);
 
@@ -35,9 +41,13 @@ impl<'i> ToCss for CustomIdent<'i> {
   }
 }
 
+/// A list of CSS [`<custom-ident>`](https://www.w3.org/TR/css-values-4/#custom-idents) values.
 pub type CustomIdentList<'i> = SmallVec<[CustomIdent<'i>; 1]>;
 
-/// https://www.w3.org/TR/css-values-4/#dashed-idents
+/// A CSS [`<dashed-ident>`](https://www.w3.org/TR/css-values-4/#dashed-idents).
+///
+/// Dashed idents are used in cases where an identifier can be either author defined _or_ CSS-defined.
+/// Author defined idents must start with two dash characters ("--") or parsing will fail.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DashedIdent<'i>(pub CowArcStr<'i>);
 

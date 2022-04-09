@@ -1,3 +1,5 @@
+//! Types used to represent strings.
+
 use cssparser::CowRcStr;
 use serde::{Serialize, Serializer};
 use std::borrow::Borrow;
@@ -25,6 +27,8 @@ struct LocalCowRcStr<'a> {
   phantom: PhantomData<Result<&'a str, Rc<String>>>,
 }
 
+/// A string that is either shared (heap-allocated and atomically reference-counted)
+/// or borrowed from the input CSS source code.
 pub struct CowArcStr<'a> {
   ptr: &'static (),
   borrowed_len_or_max: usize,

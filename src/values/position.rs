@@ -1,3 +1,5 @@
+//! CSS position values.
+
 use super::length::LengthPercentage;
 use super::percentage::Percentage;
 use crate::error::{ParserError, PrinterError};
@@ -6,14 +8,18 @@ use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use cssparser::*;
 
-/// https://www.w3.org/TR/css-backgrounds-3/#background-position
+/// A CSS [`<position>`](https://www.w3.org/TR/css3-values/#position) value,
+/// as used in the `background-position` property, gradients, masks, etc.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Position {
+  /// The x-position.
   pub x: HorizontalPosition,
+  /// The y-position.
   pub y: VerticalPosition,
 }
 
 impl Position {
+  /// Returns a `Position` with both the x and y set to `center`.
   pub fn center() -> Position {
     Position {
       x: HorizontalPosition::Center,
@@ -21,10 +27,12 @@ impl Position {
     }
   }
 
+  /// Returns whether both the x and y positions are centered.
   pub fn is_center(&self) -> bool {
     self.x.is_center() && self.y.is_center()
   }
 
+  /// Returns whether both the x and y positions are zero.
   pub fn is_zero(&self) -> bool {
     self.x.is_zero() && self.y.is_zero()
   }
@@ -223,13 +231,17 @@ impl ToCss for Position {
   }
 }
 
+/// A component within a [Position](Position) value, representing a position
+/// along either the horizontal or vertical axis of a box.
+///
+/// This type is generic over side keywords.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PositionComponent<S> {
-  /// `center`
+  /// The `center` keyword.
   Center,
-  /// `<length-percentage>`
+  /// A length or percentage from the top-left corner of the box.
   Length(LengthPercentage),
-  /// `<side> <length-percentage>?`
+  /// A side side keyword with an optional offset.
   Side(S, Option<LengthPercentage>),
 }
 
@@ -291,8 +303,11 @@ impl<S: ToCss> ToCss for PositionComponent<S> {
 }
 
 enum_property! {
+  /// A horizontal position keyword.
   pub enum HorizontalPositionKeyword {
+    /// The `left` keyword.
     Left,
+    /// The `right` keyword.
     Right,
   }
 }
@@ -307,8 +322,11 @@ impl Into<LengthPercentage> for HorizontalPositionKeyword {
 }
 
 enum_property! {
+  /// A vertical position keyword.
   pub enum VerticalPositionKeyword {
+    /// The `top` keyword.
     Top,
+    /// The `bottom` keyword.
     Bottom,
   }
 }
@@ -322,5 +340,8 @@ impl Into<LengthPercentage> for VerticalPositionKeyword {
   }
 }
 
+/// A horizontal position component.
 pub type HorizontalPosition = PositionComponent<HorizontalPositionKeyword>;
+
+/// A vertical position component.
 pub type VerticalPosition = PositionComponent<VerticalPositionKeyword>;

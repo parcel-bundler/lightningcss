@@ -18,7 +18,9 @@ pub trait Parse<'i>: Sized {
   fn parse_string(input: &'i str) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(input);
     let mut parser = Parser::new(&mut input);
-    Self::parse(&mut parser)
+    let result = Self::parse(&mut parser)?;
+    parser.expect_exhausted()?;
+    Ok(result)
   }
 }
 

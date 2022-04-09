@@ -1,13 +1,18 @@
+//! CSS percentage values.
+
 use super::calc::Calc;
-use super::number::serialize_number;
+use super::number::CSSNumber;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{private::TryAdd, Parse, ToCss};
 use cssparser::*;
 
-/// https://drafts.csswg.org/css-values-4/#percentages
+/// A CSS [`<percentage>`](https://www.w3.org/TR/css-values-4/#percentages) value.
+///
+/// Percentages may be explicit or computed by `calc()`, but are always stored and serialized
+/// as their computed value.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Percentage(pub f32);
+pub struct Percentage(pub CSSNumber);
 
 impl<'i> Parse<'i> for Percentage {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
@@ -70,10 +75,10 @@ impl std::convert::From<Calc<Percentage>> for Percentage {
   }
 }
 
-impl std::ops::Mul<f32> for Percentage {
+impl std::ops::Mul<CSSNumber> for Percentage {
   type Output = Self;
 
-  fn mul(self, other: f32) -> Percentage {
+  fn mul(self, other: CSSNumber) -> Percentage {
     Percentage(self.0 * other)
   }
 }
@@ -86,14 +91,14 @@ impl std::ops::Add<Percentage> for Percentage {
   }
 }
 
-impl std::cmp::PartialEq<f32> for Percentage {
-  fn eq(&self, other: &f32) -> bool {
+impl std::cmp::PartialEq<CSSNumber> for Percentage {
+  fn eq(&self, other: &CSSNumber) -> bool {
     self.0 == *other
   }
 }
 
-impl std::cmp::PartialOrd<f32> for Percentage {
-  fn partial_cmp(&self, other: &f32) -> Option<std::cmp::Ordering> {
+impl std::cmp::PartialOrd<CSSNumber> for Percentage {
+  fn partial_cmp(&self, other: &CSSNumber) -> Option<std::cmp::Ordering> {
     self.0.partial_cmp(other)
   }
 }
@@ -104,15 +109,18 @@ impl std::cmp::PartialOrd<Percentage> for Percentage {
   }
 }
 
+/// Either a `<number>` or `<percentage>`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum NumberOrPercentage {
+  /// A percentage.
   Percentage(Percentage),
-  Number(f32),
+  /// A number.
+  Number(CSSNumber),
 }
 
 impl<'i> Parse<'i> for NumberOrPercentage {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(number) = input.try_parse(f32::parse) {
+    if let Ok(number) = input.try_parse(CSSNumber::parse) {
       return Ok(NumberOrPercentage::Number(number));
     }
 
@@ -131,13 +139,13 @@ impl ToCss for NumberOrPercentage {
   {
     match self {
       NumberOrPercentage::Percentage(percent) => percent.to_css(dest),
-      NumberOrPercentage::Number(number) => serialize_number(*number, dest),
+      NumberOrPercentage::Number(number) => number.to_css(dest),
     }
   }
 }
 
-impl std::cmp::PartialEq<f32> for NumberOrPercentage {
-  fn eq(&self, other: &f32) -> bool {
+impl std::cmp::PartialEq<CSSNumber> for NumberOrPercentage {
+  fn eq(&self, other: &CSSNumber) -> bool {
     match self {
       NumberOrPercentage::Number(a) => *a == *other,
       NumberOrPercentage::Percentage(a) => a.0 == *other,
@@ -145,8 +153,8 @@ impl std::cmp::PartialEq<f32> for NumberOrPercentage {
   }
 }
 
-impl std::convert::Into<f32> for &NumberOrPercentage {
-  fn into(self) -> f32 {
+impl std::convert::Into<CSSNumber> for &NumberOrPercentage {
+  fn into(self) -> CSSNumber {
     match self {
       NumberOrPercentage::Number(a) => *a,
       NumberOrPercentage::Percentage(a) => a.0,
@@ -155,23 +163,27 @@ impl std::convert::Into<f32> for &NumberOrPercentage {
 }
 
 /// A generic type that allows any kind of dimension and percentage to be
-/// used standalone or mixed within a calc() expression.
-/// https://drafts.csswg.org/css-values-4/#mixed-percentages
+/// used standalone or mixed within a `calc()` expression.
+///
+/// <https://drafts.csswg.org/css-values-4/#mixed-percentages>
 #[derive(Debug, Clone, PartialEq)]
 pub enum DimensionPercentage<D> {
+  /// An explicit dimension value.
   Dimension(D),
+  /// A percentage.
   Percentage(Percentage),
+  /// A `calc()` expression.
   Calc(Box<Calc<DimensionPercentage<D>>>),
 }
 
 impl<
     'i,
     D: Parse<'i>
-      + std::ops::Mul<f32, Output = D>
+      + std::ops::Mul<CSSNumber, Output = D>
       + TryAdd<D>
       + Clone
-      + std::cmp::PartialEq<f32>
-      + std::cmp::PartialOrd<f32>
+      + std::cmp::PartialEq<CSSNumber>
+      + std::cmp::PartialOrd<CSSNumber>
       + std::cmp::PartialOrd<D>
       + std::fmt::Debug,
   > Parse<'i> for DimensionPercentage<D>
@@ -195,10 +207,10 @@ impl<
   }
 }
 
-impl<D: std::ops::Mul<f32, Output = D>> std::ops::Mul<f32> for DimensionPercentage<D> {
+impl<D: std::ops::Mul<CSSNumber, Output = D>> std::ops::Mul<CSSNumber> for DimensionPercentage<D> {
   type Output = Self;
 
-  fn mul(self, other: f32) -> DimensionPercentage<D> {
+  fn mul(self, other: CSSNumber) -> DimensionPercentage<D> {
     match self {
       DimensionPercentage::Dimension(l) => DimensionPercentage::Dimension(l * other),
       DimensionPercentage::Percentage(p) => DimensionPercentage::Percentage(Percentage(p.0 * other)),
@@ -207,7 +219,7 @@ impl<D: std::ops::Mul<f32, Output = D>> std::ops::Mul<f32> for DimensionPercenta
   }
 }
 
-impl<D: TryAdd<D> + Clone + std::cmp::PartialEq<f32> + std::cmp::PartialOrd<f32> + std::fmt::Debug>
+impl<D: TryAdd<D> + Clone + std::cmp::PartialEq<CSSNumber> + std::cmp::PartialOrd<CSSNumber> + std::fmt::Debug>
   std::ops::Add<DimensionPercentage<D>> for DimensionPercentage<D>
 {
   type Output = Self;
@@ -220,7 +232,7 @@ impl<D: TryAdd<D> + Clone + std::cmp::PartialEq<f32> + std::cmp::PartialOrd<f32>
   }
 }
 
-impl<D: TryAdd<D> + Clone + std::cmp::PartialEq<f32> + std::cmp::PartialOrd<f32> + std::fmt::Debug>
+impl<D: TryAdd<D> + Clone + std::cmp::PartialEq<CSSNumber> + std::cmp::PartialOrd<CSSNumber> + std::fmt::Debug>
   DimensionPercentage<D>
 {
   fn add_recursive(&self, other: &DimensionPercentage<D>) -> Option<DimensionPercentage<D>> {
@@ -323,8 +335,8 @@ impl<D> std::convert::From<Calc<DimensionPercentage<D>>> for DimensionPercentage
   }
 }
 
-impl<D: std::cmp::PartialEq<f32>> std::cmp::PartialEq<f32> for DimensionPercentage<D> {
-  fn eq(&self, other: &f32) -> bool {
+impl<D: std::cmp::PartialEq<CSSNumber>> std::cmp::PartialEq<CSSNumber> for DimensionPercentage<D> {
+  fn eq(&self, other: &CSSNumber) -> bool {
     match self {
       DimensionPercentage::Dimension(a) => *a == *other,
       DimensionPercentage::Percentage(a) => *a == *other,
@@ -333,8 +345,8 @@ impl<D: std::cmp::PartialEq<f32>> std::cmp::PartialEq<f32> for DimensionPercenta
   }
 }
 
-impl<D: std::cmp::PartialOrd<f32>> std::cmp::PartialOrd<f32> for DimensionPercentage<D> {
-  fn partial_cmp(&self, other: &f32) -> Option<std::cmp::Ordering> {
+impl<D: std::cmp::PartialOrd<CSSNumber>> std::cmp::PartialOrd<CSSNumber> for DimensionPercentage<D> {
+  fn partial_cmp(&self, other: &CSSNumber) -> Option<std::cmp::Ordering> {
     match self {
       DimensionPercentage::Dimension(a) => a.partial_cmp(other),
       DimensionPercentage::Percentage(a) => a.partial_cmp(other),
@@ -353,8 +365,9 @@ impl<D: std::cmp::PartialOrd<D>> std::cmp::PartialOrd<DimensionPercentage<D>> fo
   }
 }
 
-impl<D: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = D> + Clone + std::fmt::Debug> ToCss
-  for DimensionPercentage<D>
+impl<
+    D: ToCss + std::cmp::PartialOrd<CSSNumber> + std::ops::Mul<CSSNumber, Output = D> + Clone + std::fmt::Debug,
+  > ToCss for DimensionPercentage<D>
 {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where

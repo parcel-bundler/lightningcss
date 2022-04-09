@@ -1,19 +1,26 @@
+//! CSS resolution values.
+
 use super::length::serialize_dimension;
+use super::number::CSSNumber;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use cssparser::*;
 
-/// https://drafts.csswg.org/css-values-4/#resolution-value
+/// A CSS [`<resolution>`](https://www.w3.org/TR/css-values-4/#resolution) value.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Resolution {
-  Dpi(f32),
-  Dpcm(f32),
-  Dppx(f32),
+  /// A resolution in dots per inch.
+  Dpi(CSSNumber),
+  /// A resolution in dots per centimeter.
+  Dpcm(CSSNumber),
+  /// A resolution in dots per px.
+  Dppx(CSSNumber),
 }
 
 impl<'i> Parse<'i> for Resolution {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    // TODO: calc?
     let location = input.current_source_location();
     match *input.next()? {
       Token::Dimension { value, ref unit, .. } => {
@@ -44,10 +51,10 @@ impl ToCss for Resolution {
   }
 }
 
-impl std::ops::Add<f32> for Resolution {
+impl std::ops::Add<CSSNumber> for Resolution {
   type Output = Self;
 
-  fn add(self, other: f32) -> Resolution {
+  fn add(self, other: CSSNumber) -> Resolution {
     match self {
       Resolution::Dpi(dpi) => Resolution::Dpi(dpi + other),
       Resolution::Dpcm(dpcm) => Resolution::Dpcm(dpcm + other),

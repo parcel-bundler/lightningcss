@@ -2,25 +2,44 @@ macro_rules! enum_property {
   (
     $(#[$outer:meta])*
     $vis:vis enum $name:ident {
-      $( $x: ident, )+
+      $(
+        $(#[$meta: meta])*
+        $x: ident,
+      )+
     }
   ) => {
     $(#[$outer])*
     #[derive(Debug, Clone, Copy, PartialEq)]
     $vis enum $name {
       $(
+        $(#[$meta])*
         $x,
       )+
     }
 
     impl<'i> Parse<'i> for $name {
       fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+        let location = input.current_source_location();
         let ident = input.expect_ident()?;
         match &ident[..] {
           $(
             s if s.eq_ignore_ascii_case(stringify!($x)) => Ok($name::$x),
           )+
-          _ => return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+          _ => Err(location.new_unexpected_token_error(
+            cssparser::Token::Ident(ident.clone())
+          ))
+        }
+      }
+
+      fn parse_string(input: &'i str) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+        match input {
+          $(
+            s if s.eq_ignore_ascii_case(stringify!($x)) => Ok($name::$x),
+          )+
+          _ => return Err(ParseError {
+            kind: ParseErrorKind::Basic(BasicParseErrorKind::UnexpectedToken(cssparser::Token::Ident(input.into()))),
+            location: cssparser::SourceLocation { line: 0, column: 1 }
+          })
         }
       }
     }
@@ -35,41 +54,48 @@ macro_rules! enum_property {
         }
       }
     }
-
-    impl $name {
-      #[allow(dead_code)]
-      pub fn from_str(s: &str) -> Option<Self> {
-        match s {
-          $(
-            s if s.eq_ignore_ascii_case(stringify!($x)) => Some($name::$x),
-          )+
-          _ => None
-        }
-      }
-    }
   };
   (
     $(#[$outer:meta])*
     $vis:vis enum $name:ident {
-      $( $str: literal: $id: ident, )+
+      $(
+        $(#[$meta: meta])*
+        $str: literal: $id: ident,
+      )+
     }
   ) => {
     $(#[$outer])*
     #[derive(Debug, Clone, Copy, PartialEq)]
     $vis enum $name {
       $(
+        $(#[$meta])*
         $id,
       )+
     }
 
     impl<'i> Parse<'i> for $name {
       fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+        let location = input.current_source_location();
         let ident = input.expect_ident()?;
         match &ident[..] {
           $(
             s if s.eq_ignore_ascii_case($str) => Ok($name::$id),
           )+
-          _ => return Err(input.new_error(BasicParseErrorKind::QualifiedRuleInvalid))
+          _ => Err(location.new_unexpected_token_error(
+            cssparser::Token::Ident(ident.clone())
+          ))
+        }
+      }
+
+      fn parse_string(input: &'i str) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+        match input {
+          $(
+            s if s.eq_ignore_ascii_case($str) => Ok($name::$id),
+          )+
+          _ => return Err(ParseError {
+            kind: ParseErrorKind::Basic(BasicParseErrorKind::UnexpectedToken(cssparser::Token::Ident(input.into()))),
+            location: cssparser::SourceLocation { line: 0, column: 1 }
+          })
         }
       }
     }
@@ -81,18 +107,6 @@ macro_rules! enum_property {
           $(
             $id => dest.write_str($str),
           )+
-        }
-      }
-    }
-
-    impl $name {
-      #[allow(dead_code)]
-      pub fn from_str(s: &str) -> Option<Self> {
-        match s {
-          $(
-            s if s.eq_ignore_ascii_case($str) => Some($name::$id),
-          )+
-          _ => None
         }
       }
     }

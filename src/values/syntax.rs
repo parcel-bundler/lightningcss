@@ -1,76 +1,124 @@
+//! CSS syntax strings
+
+use super::number::{CSSInteger, CSSNumber};
 use super::string::CowArcStr;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use crate::values;
-use crate::values::number::serialize_integer;
 use cssparser::*;
 
-/// https://drafts.css-houdini.org/css-properties-values-api/#syntax-strings
+/// A CSS [syntax string](https://drafts.css-houdini.org/css-properties-values-api/#syntax-strings)
+/// used to define the grammar for a registered custom property.
 #[derive(Debug, PartialEq, Clone)]
 pub enum SyntaxString {
+  /// A list of syntax components.
   Components(Vec<SyntaxComponent>),
+  /// The universal syntax definition.
   Universal,
 }
 
-/// https://drafts.css-houdini.org/css-properties-values-api/#syntax-component
+/// A [syntax component](https://drafts.css-houdini.org/css-properties-values-api/#syntax-component)
+/// within a [SyntaxString](SyntaxString).
+///
+/// A syntax component consists of a component kind an a multiplier, which indicates how the component
+/// may repeat during parsing.
 #[derive(Debug, PartialEq, Clone)]
 pub struct SyntaxComponent {
-  kind: SyntaxComponentKind,
-  multiplier: Multiplier,
+  /// The kind of component.
+  pub kind: SyntaxComponentKind,
+  /// A multiplier for the component.
+  pub multiplier: Multiplier,
 }
 
-/// https://drafts.css-houdini.org/css-properties-values-api/#supported-names
+/// A [syntax component component name](https://drafts.css-houdini.org/css-properties-values-api/#supported-names).
 #[derive(Debug, PartialEq, Clone)]
 pub enum SyntaxComponentKind {
+  /// A `<length>` component.
   Length,
+  /// A `<number>` component.
   Number,
+  /// A `<percentage>` component.
   Percentage,
+  /// A `<length-percentage>` component.
   LengthPercentage,
+  /// A `<color>` component.
   Color,
+  /// An `<image>` component.
   Image,
+  /// A `<url>` component.
   Url,
+  /// An `<integer>` component.
   Integer,
+  /// An `<angle>` component.
   Angle,
+  /// A `<time>` component.
   Time,
+  /// A `<resolution>` component.
   Resolution,
+  /// A `<transform-function>` component.
   TransformFunction,
+  /// A `<transform-list>` component.
   TransformList,
+  /// A `<custom-ident>` component.
   CustomIdent,
+  /// A literal component.
   Literal(String), // TODO: borrow??
 }
 
-/// https://drafts.css-houdini.org/css-properties-values-api/#multipliers
+/// A [multiplier](https://drafts.css-houdini.org/css-properties-values-api/#multipliers) for a
+/// [SyntaxComponent](SyntaxComponent). Indicates whether and how the component may be repeated.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Multiplier {
+  /// The component may not be repeated.
   None,
+  /// The component may repeat one or more times, separated by spaces.
   Space,
+  /// The component may repeat one or more times, separated by commas.
   Comma,
 }
 
-/// A parsed value for a SyntaxComponent.
+/// A parsed value for a [SyntaxComponent](SyntaxComponent).
 #[derive(Debug, PartialEq, Clone)]
 pub enum ParsedComponent<'i> {
+  /// A `<length>` value.
   Length(values::length::Length),
-  Number(f32),
+  /// A `<number>` value.
+  Number(CSSNumber),
+  /// A `<percentage>` value.
   Percentage(values::percentage::Percentage),
+  /// A `<length-percentage>` value.
   LengthPercentage(values::length::LengthPercentage),
+  /// A `<color>` value.
   Color(values::color::CssColor),
+  /// An `<image>` value.
   Image(values::image::Image<'i>),
+  /// A `<url>` value.
   Url(values::url::Url<'i>),
-  Integer(i32),
+  /// An `<integer>` value.
+  Integer(CSSInteger),
+  /// An `<angle>` value.
   Angle(values::angle::Angle),
+  /// A `<time>` value.
   Time(values::time::Time),
+  /// A `<resolution>` value.
   Resolution(values::resolution::Resolution),
+  /// A `<transform-function>` value.
   TransformFunction(crate::properties::transform::Transform),
+  /// A `<transform-list>` value.
   TransformList(crate::properties::transform::TransformList),
+  /// A `<custom-ident>` value.
   CustomIdent(values::ident::CustomIdent<'i>),
+  /// A literal value.
   Literal(CowArcStr<'i>),
+  /// A repeated component value.
   Repeated(Vec<ParsedComponent<'i>>, Multiplier),
+  /// A raw token.
   Token(crate::properties::custom::Token<'i>),
 }
 
 impl<'i> SyntaxString {
+  /// Parses a syntax string.
   pub fn parse_string(input: &'i str) -> Result<SyntaxString, ()> {
     // https://drafts.css-houdini.org/css-properties-values-api/#parsing-syntax
     let mut input = input.trim_matches(SPACE_CHARACTERS);
@@ -103,6 +151,7 @@ impl<'i> SyntaxString {
     Ok(SyntaxString::Components(components))
   }
 
+  /// Parses a value according to the syntax grammar.
   pub fn parse_value<'t>(
     &self,
     input: &mut Parser<'i, 't>,
@@ -120,7 +169,7 @@ impl<'i> SyntaxString {
             let value: Result<ParsedComponent<'i>, ParseError<'i, ParserError<'i>>> = input.try_parse(|input| {
               Ok(match &component.kind {
                 SyntaxComponentKind::Length => ParsedComponent::Length(values::length::Length::parse(input)?),
-                SyntaxComponentKind::Number => ParsedComponent::Number(f32::parse(input)?),
+                SyntaxComponentKind::Number => ParsedComponent::Number(CSSNumber::parse(input)?),
                 SyntaxComponentKind::Percentage => {
                   ParsedComponent::Percentage(values::percentage::Percentage::parse(input)?)
                 }
@@ -130,7 +179,7 @@ impl<'i> SyntaxString {
                 SyntaxComponentKind::Color => ParsedComponent::Color(values::color::CssColor::parse(input)?),
                 SyntaxComponentKind::Image => ParsedComponent::Image(values::image::Image::parse(input)?),
                 SyntaxComponentKind::Url => ParsedComponent::Url(values::url::Url::parse(input)?),
-                SyntaxComponentKind::Integer => ParsedComponent::Integer(input.expect_integer()?),
+                SyntaxComponentKind::Integer => ParsedComponent::Integer(CSSInteger::parse(input)?),
                 SyntaxComponentKind::Angle => ParsedComponent::Angle(values::angle::Angle::parse(input)?),
                 SyntaxComponentKind::Time => ParsedComponent::Time(values::time::Time::parse(input)?),
                 SyntaxComponentKind::Resolution => {
@@ -185,6 +234,16 @@ impl<'i> SyntaxString {
         Err(input.new_error_for_next_token())
       }
     }
+  }
+
+  /// Parses a value from a string according to the syntax grammar.
+  pub fn parse_value_from_string<'t>(
+    &self,
+    input: &'i str,
+  ) -> Result<ParsedComponent<'i>, ParseError<'i, ParserError<'i>>> {
+    let mut input = ParserInput::new(input);
+    let mut parser = Parser::new(&mut input);
+    self.parse_value(&mut parser)
   }
 }
 
@@ -357,7 +416,7 @@ impl<'i> ToCss for ParsedComponent<'i> {
       Color(v) => v.to_css(dest),
       Image(v) => v.to_css(dest),
       Url(v) => v.to_css(dest),
-      Integer(v) => serialize_integer(*v, dest),
+      Integer(v) => v.to_css(dest),
       Angle(v) => v.to_css(dest),
       Time(v) => v.to_css(dest),
       Resolution(v) => v.to_css(dest),

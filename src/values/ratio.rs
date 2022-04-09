@@ -1,17 +1,21 @@
+//! CSS ratio values.
+
+use super::number::CSSNumber;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use cssparser::*;
 
-/// https://drafts.csswg.org/css-values-4/#ratios
+/// A CSS [`<ratio>`](https://www.w3.org/TR/css-values-4/#ratios) value,
+/// representing the ratio of two numeric values.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Ratio(pub f32, pub f32);
+pub struct Ratio(pub CSSNumber, pub CSSNumber);
 
 impl<'i> Parse<'i> for Ratio {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let first = f32::parse(input)?;
+    let first = CSSNumber::parse(input)?;
     let second = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
-      f32::parse(input)?
+      CSSNumber::parse(input)?
     } else {
       1.0
     };
@@ -21,10 +25,11 @@ impl<'i> Parse<'i> for Ratio {
 }
 
 impl Ratio {
+  /// Parses a ratio where both operands are required.
   pub fn parse_required<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let first = f32::parse(input)?;
+    let first = CSSNumber::parse(input)?;
     input.expect_delim('/')?;
-    let second = f32::parse(input)?;
+    let second = CSSNumber::parse(input)?;
     Ok(Ratio(first, second))
   }
 }
@@ -43,10 +48,10 @@ impl ToCss for Ratio {
   }
 }
 
-impl std::ops::Add<f32> for Ratio {
+impl std::ops::Add<CSSNumber> for Ratio {
   type Output = Self;
 
-  fn add(self, other: f32) -> Ratio {
+  fn add(self, other: CSSNumber) -> Ratio {
     Ratio(self.0 + other, self.1)
   }
 }

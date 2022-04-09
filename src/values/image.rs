@@ -1,3 +1,5 @@
+//! CSS image values.
+
 use super::color::ColorFallbackKind;
 use super::gradient::*;
 use super::resolution::Resolution;
@@ -13,12 +15,16 @@ use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 use smallvec::SmallVec;
 
-/// https://www.w3.org/TR/css-images-3/#typedef-image
+/// A CSS [`<image>`](https://www.w3.org/TR/css-images-3/#image-values) value.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Image<'i> {
+  /// The `none` keyword.
   None,
+  /// A `url()`.
   Url(Url<'i>),
+  /// A gradient.
   Gradient(Box<Gradient>),
+  /// An `image-set()`.
   ImageSet(ImageSet<'i>),
 }
 
@@ -29,11 +35,13 @@ impl<'i> Default for Image<'i> {
 }
 
 impl<'i> Image<'i> {
+  /// Returns whether the image includes any vendor prefixed values.
   pub fn has_vendor_prefix(&self) -> bool {
     let prefix = self.get_vendor_prefix();
     !prefix.is_empty() && prefix != VendorPrefix::None
   }
 
+  /// Returns the vendor prefix used in the image value.
   pub fn get_vendor_prefix(&self) -> VendorPrefix {
     match self {
       Image::Gradient(a) => a.get_vendor_prefix(),
@@ -42,6 +50,7 @@ impl<'i> Image<'i> {
     }
   }
 
+  /// Returns the vendor prefixes that are needed for the given browser targets.
   pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
     match self {
       Image::Gradient(grad) => grad.get_necessary_prefixes(targets),
@@ -50,6 +59,7 @@ impl<'i> Image<'i> {
     }
   }
 
+  /// Returns a vendor prefixed version of the image for the given vendor prefixes.
   pub fn get_prefixed(&self, prefix: VendorPrefix) -> Image<'i> {
     match self {
       Image::Gradient(grad) => Image::Gradient(Box::new(grad.get_prefixed(prefix))),
@@ -58,6 +68,9 @@ impl<'i> Image<'i> {
     }
   }
 
+  /// Returns a legacy `-webkit-gradient()` value for the image.
+  ///
+  /// May return an error in case the gradient cannot be converted.
   pub fn get_legacy_webkit(&self) -> Result<Image<'i>, ()> {
     match self {
       Image::Gradient(grad) => Ok(Image::Gradient(Box::new(grad.get_legacy_webkit()?))),
@@ -65,6 +78,7 @@ impl<'i> Image<'i> {
     }
   }
 
+  /// Returns the color fallbacks that are needed for the given browser targets.
   pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
     match self {
       Image::Gradient(grad) => grad.get_necessary_fallbacks(targets),
@@ -72,6 +86,7 @@ impl<'i> Image<'i> {
     }
   }
 
+  /// Returns a fallback version of the image for the given color fallback type.
   pub fn get_fallback(&self, kind: ColorFallbackKind) -> Image<'i> {
     match self {
       Image::Gradient(grad) => Image::Gradient(Box::new(grad.get_fallback(kind))),
@@ -289,17 +304,25 @@ impl<'i> ToCss for Image<'i> {
   }
 }
 
+/// A CSS [`image-set()`](https://drafts.csswg.org/css-images-4/#image-set-notation) value.
+///
+/// `image-set()` allows the user agent to choose between multiple versions of an image to
+/// display the most appropriate resolution or file type that it supports.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImageSet<'i> {
+  /// The image options to choose from.
   pub options: Vec<ImageSetOption<'i>>,
+  /// The vendor prefix for the `image-set()` function.
   pub vendor_prefix: VendorPrefix,
 }
 
 impl<'i> ImageSet<'i> {
+  /// Returns the vendor prefix for the `image-set()`.
   pub fn get_vendor_prefix(&self) -> VendorPrefix {
     self.vendor_prefix
   }
 
+  /// Returns the vendor prefixes needed for the given browser targets.
   pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
     if self.vendor_prefix.contains(VendorPrefix::None) {
       Feature::ImageSet.prefixes_for(targets)
@@ -308,6 +331,7 @@ impl<'i> ImageSet<'i> {
     }
   }
 
+  /// Returns the `image-set()` value with the given vendor prefix.
   pub fn get_prefixed(&self, prefix: VendorPrefix) -> ImageSet<'i> {
     ImageSet {
       options: self.options.clone(),
@@ -353,10 +377,14 @@ impl<'i> ToCss for ImageSet<'i> {
   }
 }
 
+/// An image option within the `image-set()` function. See [ImageSet](ImageSet).
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImageSetOption<'i> {
+  /// The image for this option.
   pub image: Image<'i>,
+  /// The resolution of the image.
   pub resolution: Resolution,
+  /// The mime type of the image.
   pub file_type: Option<CowArcStr<'i>>,
 }
 

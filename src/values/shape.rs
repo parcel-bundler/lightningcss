@@ -1,3 +1,5 @@
+//! CSS shape values for masking and clipping.
+
 use super::length::LengthPercentage;
 use super::position::Position;
 use super::rect::Rect;
@@ -8,61 +10,89 @@ use crate::properties::border_radius::BorderRadius;
 use crate::traits::{Parse, ToCss};
 use cssparser::*;
 
-/// https://www.w3.org/TR/css-shapes-1/#basic-shape-functions
+/// A CSS [`<basic-shape>`](https://www.w3.org/TR/css-shapes-1/#basic-shape-functions) value.
 #[derive(Debug, Clone, PartialEq)]
 pub enum BasicShape {
+  /// An inset rectangle.
   Inset(InsetRect),
+  /// A circle.
   Circle(Circle),
+  /// An ellipse.
   Ellipse(Ellipse),
+  /// A polygon.
   Polygon(Polygon),
 }
 
-/// https://www.w3.org/TR/css-shapes-1/#funcdef-inset
+/// An [`inset()`](https://www.w3.org/TR/css-shapes-1/#funcdef-inset) rectangle shape.
 #[derive(Debug, Clone, PartialEq)]
 pub struct InsetRect {
+  /// The rectangle.
   pub rect: Rect<LengthPercentage>,
+  /// A corner radius for the rectangle.
   pub radius: BorderRadius,
 }
 
-/// https://www.w3.org/TR/css-shapes-1/#funcdef-circle
+/// A [`circle()`](https://www.w3.org/TR/css-shapes-1/#funcdef-circle) shape.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Circle {
+  /// The radius of the circle.
   pub radius: ShapeRadius,
+  /// The position of the center of the circle.
   pub position: Position,
 }
 
-/// https://www.w3.org/TR/css-shapes-1/#typedef-shape-radius
+/// A [`<shape-radius>`](https://www.w3.org/TR/css-shapes-1/#typedef-shape-radius) value
+/// that defines the radius of a `circle()` or `ellipse()` shape.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ShapeRadius {
+  /// An explicit length or percentage.
   LengthPercentage(LengthPercentage),
+  /// The length from the center to the closest side of the box.
   ClosestSide,
+  /// The length from the center to the farthest side of the box.
   FarthestSide,
 }
 
-/// https://www.w3.org/TR/css-shapes-1/#funcdef-ellipse
+/// An [`ellipse()`](https://www.w3.org/TR/css-shapes-1/#funcdef-ellipse) shape.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ellipse {
+  /// The x-radius of the ellipse.
   pub radius_x: ShapeRadius,
+  /// The y-radius of the ellipse.
   pub radius_y: ShapeRadius,
+  /// The position of the center of the ellipse.
   pub position: Position,
 }
 
-/// https://www.w3.org/TR/css-shapes-1/#funcdef-polygon
+/// A [`polygon()`](https://www.w3.org/TR/css-shapes-1/#funcdef-polygon) shape.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Polygon {
+  /// The fill rule used to determine the interior of the polygon.
   pub fill_rule: FillRule,
+  /// The points of each vertex of the polygon.
   pub points: Vec<Point>,
 }
 
+/// A point within a `polygon()` shape.
+///
+/// See [Polygon](Polygon).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Point {
+  /// The x position of the point.
   x: LengthPercentage,
+  /// the y position of the point.
   y: LengthPercentage,
 }
 
 enum_property! {
+  /// A [`<fill-rule>`](https://www.w3.org/TR/css-shapes-1/#typedef-fill-rule) used to
+  /// determine the interior of a `polygon()` shape.
+  ///
+  /// See [Polygon](Polygon).
   pub enum FillRule {
+    /// The `nonzero` fill rule.
     Nonzero,
+    /// The `evenodd` fill rule.
     Evenodd,
   }
 }

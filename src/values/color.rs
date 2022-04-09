@@ -1,3 +1,5 @@
+//! CSS color values.
+
 use super::percentage::Percentage;
 use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
@@ -12,56 +14,93 @@ use std::any::TypeId;
 use std::f32::consts::PI;
 use std::fmt::Write;
 
+/// A CSS [`<color>`](https://www.w3.org/TR/css-color-4/#color-type) value.
+///
+/// CSS supports many different color spaces to represent colors. The most common values
+/// are stored as RGBA using a single byte per component. Less common values are stored
+/// using a `Box` to reduce the amount of memory used per color.
+///
+/// Each color space is represented as a struct that implements the `From` and `Into` traits
+/// for all other color spaces, so it is possible to convert between color spaces easily.
+/// In addition, colors support [interpolation](#method.interpolate) as in the `color-mix()` function.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CssColor {
+  /// The [`currentColor`](https://www.w3.org/TR/css-color-4/#currentcolor-color) keyword.
   CurrentColor,
+  /// An value in the RGB color space, including values parsed as hex colors, or the `rgb()`, `hsl()`, and `hwb()` functions.
   RGBA(RGBA),
+  /// A value in a LAB color space, including the `lab()`, `lch()`, `oklab()`, and `oklch()` functions.
   LAB(Box<LABColor>),
+  /// A value in a predefined color space, e.g. `display-p3`.
   Predefined(Box<PredefinedColor>),
+  /// A floating point representation of an RGB, HSL, or HWB color when it contains `none` components.
   Float(Box<FloatColor>),
 }
 
+/// A color in a LAB color space, including the `lab()`, `lch()`, `oklab()`, and `oklch()` functions.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LABColor {
+  /// A `lab()` color.
   LAB(LAB),
+  /// An `lch()` color.
   LCH(LCH),
+  /// An `oklab()` color.
   OKLAB(OKLAB),
+  /// An `oklch()` color.
   OKLCH(OKLCH),
 }
 
+/// A color in a predefined color space, e.g. `display-p3`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PredefinedColor {
+  /// A color in the `srgb` color space.
   SRGB(SRGB),
+  /// A color in the `srgb-linear` color space.
   SRGBLinear(SRGBLinear),
+  /// A color in the `display-p3` color space.
   DisplayP3(P3),
+  /// A color in the `a98-rgb` color space.
   A98(A98),
+  /// A color in the `prophoto-rgb` color space.
   ProPhoto(ProPhoto),
+  /// A color in the `rec2020` color space.
   Rec2020(Rec2020),
+  /// A color in the `xyz-d50` color space.
   XYZd50(XYZd50),
+  /// A color in the `xyz-d65` color space.
   XYZd65(XYZd65),
 }
 
-// Floating point representations of color types that
-// are usually stored as RGBA. These are used when there
-// are any `none` components, which are represented as NaN.
+/// A floating point representation of color types that
+/// are usually stored as RGBA. These are used when there
+/// are any `none` components, which are represented as NaN.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum FloatColor {
+  /// An RGB color.
   RGB(SRGB),
+  /// An HSL color.
   HSL(HSL),
+  /// An HWB color.
   HWB(HWB),
 }
 
 bitflags! {
+  /// A color type that is used as a fallback when compiling colors for older browsers.
   pub struct ColorFallbackKind: u8 {
+    /// An RGB color fallback.
     const RGB    = 0b01;
+    /// A P3 color fallback.
     const P3     = 0b10;
+    /// A LAB color fallback.
     const LAB    = 0b100;
+    /// An OKLAB color fallback.
     const OKLAB  = 0b1000;
   }
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/css-color-4/#interpolation-space
+  /// A [color space](https://www.w3.org/TR/css-color-4/#interpolation-space) keyword
+  /// used in interpolation functions such as `color-mix()`.
   enum ColorSpace {
     "srgb": SRGB,
     "srgb-linear": SRGBLinear,
@@ -78,23 +117,29 @@ enum_property! {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/css-color-4/#typedef-hue-interpolation-method
+  /// A hue [interpolation method](https://www.w3.org/TR/css-color-4/#typedef-hue-interpolation-method)
+  /// used in interpolation functions such as `color-mix()`.
   pub enum HueInterpolationMethod {
+    /// Angles are adjusted so that θ₂ - θ₁ ∈ [-180, 180].
     Shorter,
+    /// Angles are adjusted so that θ₂ - θ₁ ∈ {0, [180, 360)}.
     Longer,
+    /// Angles are adjusted so that θ₂ - θ₁ ∈ [0, 360).
     Increasing,
+    /// Angles are adjusted so that θ₂ - θ₁ ∈ (-360, 0].
     Decreasing,
+    /// No fixup is performed. Angles are interpolated in the same way as every other component.
     Specified,
   }
 }
 
 impl ColorFallbackKind {
-  pub fn lowest(&self) -> ColorFallbackKind {
+  pub(crate) fn lowest(&self) -> ColorFallbackKind {
     // This finds the lowest set bit.
     *self & ColorFallbackKind::from_bits_truncate(self.bits().wrapping_neg())
   }
 
-  pub fn highest(&self) -> ColorFallbackKind {
+  pub(crate) fn highest(&self) -> ColorFallbackKind {
     // This finds the highest set bit.
     if self.is_empty() {
       return ColorFallbackKind::empty();
@@ -104,7 +149,7 @@ impl ColorFallbackKind {
     ColorFallbackKind::from_bits_truncate(1 << zeros)
   }
 
-  pub fn and_below(&self) -> ColorFallbackKind {
+  pub(crate) fn and_below(&self) -> ColorFallbackKind {
     if self.is_empty() {
       return ColorFallbackKind::empty();
     }
@@ -112,7 +157,7 @@ impl ColorFallbackKind {
     *self | ColorFallbackKind::from_bits_truncate(self.bits() - 1)
   }
 
-  pub fn supports_condition<'i>(&self) -> SupportsCondition<'i> {
+  pub(crate) fn supports_condition<'i>(&self) -> SupportsCondition<'i> {
     let s = match *self {
       ColorFallbackKind::P3 => "color: color(display-p3 0 0 0)",
       ColorFallbackKind::LAB => "color: lab(0% 0 0)",
@@ -124,22 +169,27 @@ impl ColorFallbackKind {
 }
 
 impl CssColor {
+  /// Returns the `currentColor` keyword.
   pub fn current_color() -> CssColor {
     CssColor::CurrentColor
   }
 
+  /// Returns the `transparent` keyword.
   pub fn transparent() -> CssColor {
     CssColor::RGBA(RGBA::transparent())
   }
 
+  /// Converts the color to RGBA.
   pub fn to_rgb(&self) -> CssColor {
     RGBA::from(self).into()
   }
 
+  /// Converts the color to the LAB color space.
   pub fn to_lab(&self) -> CssColor {
     LAB::from(self).into()
   }
 
+  /// Converts the color to the P3 color space.
   pub fn to_p3(&self) -> CssColor {
     P3::from(self).into()
   }
@@ -196,6 +246,7 @@ impl CssColor {
     fallbacks
   }
 
+  /// Returns the color fallback types needed for the given browser targets.
   pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
     // Get the full set of possible fallbacks, and remove the highest one, which
     // will replace the original declaration. The remaining fallbacks need to be added.
@@ -203,7 +254,8 @@ impl CssColor {
     fallbacks - fallbacks.highest()
   }
 
-  pub(crate) fn get_fallback(&self, kind: ColorFallbackKind) -> CssColor {
+  /// Returns a fallback color for the given fallback type.
+  pub fn get_fallback(&self, kind: ColorFallbackKind) -> CssColor {
     if matches!(self, CssColor::RGBA(_)) {
       return self.clone();
     }
@@ -719,12 +771,27 @@ where
 }
 
 macro_rules! define_colorspace {
-  ($name: ident, $a: ident, $b: ident, $c: ident) => {
+  (
+    $(#[$outer:meta])*
+    $vis:vis struct $name:ident {
+      $(#[$a_meta: meta])*
+      $a: ident,
+      $(#[$b_meta: meta])*
+      $b: ident,
+      $(#[$c_meta: meta])*
+      $c: ident
+    }
+  ) => {
+    $(#[$outer])*
     #[derive(Debug, Clone, Copy, PartialEq)]
     pub struct $name {
+      $(#[$a_meta])*
       pub $a: f32,
+      $(#[$b_meta])*
       pub $b: f32,
+      $(#[$c_meta])*
       pub $c: f32,
+      /// The alpha component.
       pub alpha: f32,
     }
 
@@ -739,6 +806,8 @@ macro_rules! define_colorspace {
         }
       }
 
+      /// Returns a resolved color by replacing missing (i.e. `none`) components with zero,
+      /// and performing gamut mapping to ensure the color can be represented within the color space.
       #[inline]
       pub fn resolve(&self) -> Self {
         let mut resolved = self.resolve_missing();
@@ -751,20 +820,173 @@ macro_rules! define_colorspace {
   };
 }
 
-define_colorspace!(SRGB, r, g, b);
-define_colorspace!(SRGBLinear, r, g, b);
-define_colorspace!(P3, r, g, b);
-define_colorspace!(A98, r, g, b);
-define_colorspace!(ProPhoto, r, g, b);
-define_colorspace!(Rec2020, r, g, b);
-define_colorspace!(LAB, l, a, b);
-define_colorspace!(OKLAB, l, a, b);
-define_colorspace!(XYZd50, x, y, z);
-define_colorspace!(XYZd65, x, y, z);
-define_colorspace!(LCH, l, c, h);
-define_colorspace!(OKLCH, l, c, h);
-define_colorspace!(HSL, h, s, l);
-define_colorspace!(HWB, h, w, b);
+define_colorspace! {
+  /// A color in the [`sRGB`](https://www.w3.org/TR/css-color-4/#predefined-sRGB) color space.
+  pub struct SRGB {
+    /// The red component.
+    r,
+    /// The green component.
+    g,
+    /// The blue component.
+    b
+  }
+}
+
+define_colorspace! {
+  /// A color in the [`sRGB-linear`](https://www.w3.org/TR/css-color-4/#predefined-sRGB-linear) color space.
+  pub struct SRGBLinear {
+    /// The red component.
+    r,
+    /// The green component.
+    g,
+    /// The blue component.
+    b
+  }
+}
+
+define_colorspace! {
+  /// A color in the [`display-p3`](https://www.w3.org/TR/css-color-4/#predefined-display-p3) color space.
+  pub struct P3 {
+    /// The red component.
+    r,
+    /// The green component.
+    g,
+    /// The blue component.
+    b
+  }
+}
+
+define_colorspace! {
+  /// A color in the [`a98-rgb`](https://www.w3.org/TR/css-color-4/#predefined-a98-rgb) color space.
+  pub struct A98 {
+    /// The red component.
+    r,
+    /// The green component.
+    g,
+    /// The blue component.
+    b
+  }
+}
+
+define_colorspace! {
+  /// A color in the [`prophoto-rgb`](https://www.w3.org/TR/css-color-4/#predefined-prophoto-rgb) color space.
+  pub struct ProPhoto {
+    /// The red component.
+    r,
+    /// The green component.
+    g,
+    /// The blue component.
+    b
+  }
+}
+
+define_colorspace! {
+  /// A color in the [`rec2020`](https://www.w3.org/TR/css-color-4/#predefined-rec2020) color space.
+  pub struct Rec2020 {
+    /// The red component.
+    r,
+    /// The green component.
+    g,
+    /// The blue component.
+    b
+  }
+}
+
+define_colorspace! {
+  /// A color in the [CIE Lab](https://www.w3.org/TR/css-color-4/#cie-lab) color space.
+  pub struct LAB {
+    /// The lightness component.
+    l,
+    /// The a component.
+    a,
+    /// The b component.
+    b
+  }
+}
+
+define_colorspace! {
+  /// A color in the [CIE LCH](https://www.w3.org/TR/css-color-4/#cie-lab) color space.
+  pub struct LCH {
+    /// The lightness component.
+    l,
+    /// The chroma component.
+    c,
+    /// The hue component.
+    h
+  }
+}
+
+define_colorspace! {
+  /// A color in the [OKLab](https://www.w3.org/TR/css-color-4/#ok-lab) color space.
+  pub struct OKLAB {
+    /// The lightness component.
+    l,
+    /// The a component.
+    a,
+    /// The b component.
+    b
+  }
+}
+
+define_colorspace! {
+  /// A color in the [OKLCH](https://www.w3.org/TR/css-color-4/#ok-lab) color space.
+  pub struct OKLCH {
+    /// The lightness component.
+    l,
+    /// The chroma component.
+    c,
+    /// The hue component.
+    h
+  }
+}
+
+define_colorspace! {
+  /// A color in the [`xyz-d50`](https://www.w3.org/TR/css-color-4/#predefined-xyz) color space.
+  pub struct XYZd50 {
+    /// The x component.
+    x,
+    /// The y component.
+    y,
+    /// The z component.
+    z
+  }
+}
+
+define_colorspace! {
+  /// A color in the [`xyz-d65`](https://www.w3.org/TR/css-color-4/#predefined-xyz) color space.
+  pub struct XYZd65 {
+    /// The x component.
+    x,
+    /// The y component.
+    y,
+    /// The z component.
+    z
+  }
+}
+
+define_colorspace! {
+  /// A color in the [`hsl`](https://www.w3.org/TR/css-color-4/#the-hsl-notation) color space.
+  pub struct HSL {
+    /// The hue component.
+    h,
+    /// The saturation component.
+    s,
+    /// The lightness component.
+    l
+  }
+}
+
+define_colorspace! {
+  /// A color in the [`hwb`](https://www.w3.org/TR/css-color-4/#the-hwb-notation) color space.
+  pub struct HWB {
+    /// The hue component.
+    h,
+    /// The whiteness component.
+    w,
+    /// The blackness component.
+    b
+  }
+}
 
 macro_rules! via {
   ($t: ident -> $u: ident -> $v: ident) => {
@@ -1930,8 +2152,11 @@ impl From<RGBA> for CssColor {
   }
 }
 
+/// A trait that colors implement to support [gamut mapping](https://www.w3.org/TR/css-color-4/#gamut-mapping).
 pub trait ColorGamut {
+  /// Returns whether the color is within the gamut of the color space.
   fn in_gamut(&self) -> bool;
+  /// Clips the color so that it is within the gamut of the color space.
   fn clip(&self) -> Self;
 }
 
@@ -2165,6 +2390,8 @@ impl CssColor {
     }
   }
 
+  /// Mixes this color with another color, including the specified amount of each.
+  /// Implemented according to the [`color-mix()`](https://www.w3.org/TR/css-color-5/#color-mix) function.
   pub fn interpolate<'a, T>(
     &'a self,
     mut p1: f32,
@@ -2236,12 +2463,19 @@ impl CssColor {
   }
 }
 
+/// A trait that colors implement to support interpolation.
 pub trait Interpolate {
+  /// Adjusts components that are powerless to be NaN.
   fn adjust_powerless_components(&mut self) {}
+  /// Fills missing components (represented as NaN) to match the other color to interpolate with.
   fn fill_missing_components(&mut self, other: &Self);
+  /// Adjusts the color hue according to the given hue interpolation method.
   fn adjust_hue(&mut self, _: &mut Self, _: HueInterpolationMethod) {}
+  /// Premultiplies the color by its alpha value.
   fn premultiply(&mut self);
+  /// Un-premultiplies the color by the given alpha multiplier.
   fn unpremultiply(&mut self, alpha_multiplier: f32);
+  /// Interpolates the color with another using the given amounts of each.
   fn interpolate(&self, p1: f32, other: &Self, p2: f32) -> Self;
 }
 

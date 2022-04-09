@@ -1,18 +1,28 @@
+//! CSS time values.
+
 use super::calc::Calc;
+use super::number::CSSNumber;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use cssparser::*;
 
-/// https://www.w3.org/TR/css3-values/#time-value
+/// A CSS [`<time>`](https://www.w3.org/TR/css-values-4/#time) value, in either
+/// seconds or milliseconds.
+///
+/// Time values may be explicit or computed by `calc()`, but are always stored and serialized
+/// as their computed value.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Time {
-  Seconds(f32),
-  Milliseconds(f32),
+  /// A time in seconds.
+  Seconds(CSSNumber),
+  /// A time in milliseconds.
+  Milliseconds(CSSNumber),
 }
 
 impl Time {
-  pub fn to_ms(&self) -> f32 {
+  /// Returns the time in milliseconds.
+  pub fn to_ms(&self) -> CSSNumber {
     match self {
       Time::Seconds(s) => s * 1000.0,
       Time::Milliseconds(ms) => *ms,
