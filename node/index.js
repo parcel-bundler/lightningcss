@@ -12,14 +12,41 @@ if (process.platform === 'linux') {
   parts.push('msvc');
 }
 
+let bindings;
+
 if (process.env.CSS_TRANSFORMER_WASM) {
-  module.exports = require(`../pkg`);
+  bindings = require(`../pkg`);
 } else {
   try {
-    module.exports = require(`@parcel/css-${parts.join('-')}`);
+    bindings = require(`@parcel/css-${parts.join('-')}`);
   } catch (err) {
-    module.exports = require(`../parcel-css.${parts.join('-')}.node`);
+    bindings = require(`../parcel-css.${parts.join('-')}.node`);
   }
 }
+
+// Workaround for https://github.com/parcel-bundler/parcel-css/issues/150
+module.exports = {
+  transform(opts) {
+    let result = bindings.transform(opts);
+    if (result.code.length === 0) {
+      result.code = Buffer.alloc(0);
+    }
+    return result;
+  },
+  transformStyleAttribute(opts) {
+    let result = bindings.transformStyleAttribute(opts);
+    if (result.code.length === 0) {
+      result.code = Buffer.alloc(0);
+    }
+    return result;
+  },
+  bundle(opts) {
+    let result = bindings.bundle(opts);
+    if (result.code.length === 0) {
+      result.code = Buffer.alloc(0);
+    }
+    return result;
+  },
+};
 
 module.exports.browserslistToTargets = require('./browserslistToTargets');
