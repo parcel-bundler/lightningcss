@@ -79,6 +79,7 @@ macro_rules! define_properties {
     #[derive(Debug, Clone, PartialEq)]
     pub enum PropertyId<'i> {
       $(
+        #[doc=concat!("The `", $name, "` property.")]
         $(#[$meta])*
         $property$(($vp))?,
       )+
@@ -287,6 +288,7 @@ macro_rules! define_properties {
     #[derive(Debug, Clone, PartialEq)]
     pub enum Property<'i> {
       $(
+        #[doc=concat!("The `", $name, "` property.")]
         $(#[$meta])*
         $property($type, $($vp)?),
       )+

@@ -1,3 +1,5 @@
+//! CSS properties related to user interface.
+
 use crate::error::{ParserError, PrinterError};
 use crate::macros::{enum_property, shorthand_property};
 use crate::printer::Printer;
@@ -10,21 +12,31 @@ use cssparser::*;
 use smallvec::SmallVec;
 
 enum_property! {
-  /// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#resize
+  /// A value for the [resize](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#resize) property.
   pub enum Resize {
+    /// The element does not allow resizing.
     None,
+    /// The element is resizable in both the x and y directions.
     Both,
+    /// The element is resizable in the x direction.
     Horizontal,
+    /// The element is resizable in the y direction.
     Vertical,
+    /// The element is resizable in the block direction, according to the writing mode.
     Block,
+    /// The element is resizable in the inline direction, according to the writing mode.
     Inline,
   }
 }
 
-/// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#cursor
+/// A [cursor image](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#cursor) value, used in the `cursor` property.
+///
+/// See [Cursor](Cursor).
 #[derive(Debug, Clone, PartialEq)]
 pub struct CursorImage<'i> {
+  /// A url to the cursor image.
   pub url: Url<'i>,
+  /// The location in the image where the mouse pointer appears.
   pub hotspot: Option<(f32, f32)>,
 }
 
@@ -60,6 +72,10 @@ impl<'i> ToCss for CursorImage<'i> {
 }
 
 enum_property! {
+  /// A pre-defined [cursor](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#cursor) value,
+  /// used in the `cursor` property.
+  ///
+  /// See [Cursor](Cursor).
   pub enum CursorKeyword {
     "auto": Auto,
     "default": Default,
@@ -100,10 +116,12 @@ enum_property! {
   }
 }
 
-/// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#cursor
+/// A value for the [cursor](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#cursor) property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Cursor<'i> {
+  /// A list of cursor images.
   pub images: SmallVec<[CursorImage<'i>; 1]>,
+  /// A pre-defined cursor.
   pub keyword: CursorKeyword,
 }
 
@@ -138,10 +156,12 @@ impl<'i> ToCss for Cursor<'i> {
   }
 }
 
-/// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret-color
+/// A value for the [caret-color](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret-color) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ColorOrAuto {
+  /// The `currentColor`, adjusted by the UA to ensure contrast against the background.
   Auto,
+  /// A color.
   Color(CssColor),
 }
 
@@ -188,11 +208,15 @@ impl FallbackValues for ColorOrAuto {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret-shape
+  /// A value for the [caret-shape](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret-shape) property.
   pub enum CaretShape {
+    /// The UA determines the caret shape.
     Auto,
+    /// A thin bar caret.
     Bar,
+    /// A rectangle caret.
     Block,
+    /// An underscore caret.
     Underscore,
   }
 }
@@ -203,11 +227,15 @@ impl Default for CaretShape {
   }
 }
 
-// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret
-shorthand_property!(Caret {
-  color: ColorOrAuto,
-  shape: CaretShape,
-});
+shorthand_property! {
+  /// A value for the [caret](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret) shorthand property.
+  pub struct Caret {
+    /// The caret color.
+    color: ColorOrAuto,
+    /// The caret shape.
+    shape: CaretShape,
+  }
+}
 
 impl FallbackValues for Caret {
   fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
@@ -224,17 +252,22 @@ impl FallbackValues for Caret {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#content-selection
+  /// A value for the [user-select](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#content-selection) property.
   pub enum UserSelect {
+    /// The UA determines whether text is selectable.
     Auto,
+    /// Text is selectable.
     Text,
+    /// Text is not selectable.
     None,
+    /// Text selection is contained to the element.
     Contain,
+    /// Only the entire element is selectable.
     All,
   }
 }
 
-/// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#appearance-switching
+/// A value for the [appearance](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#appearance-switching) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Appearance<'i> {
   None,

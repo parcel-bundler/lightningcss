@@ -1,3 +1,5 @@
+//! CSS properties related to lists and counters.
+
 use super::{Property, PropertyId};
 use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
@@ -10,12 +12,15 @@ use crate::values::string::CowArcStr;
 use crate::values::{ident::CustomIdent, image::Image};
 use cssparser::*;
 
-/// https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#text-markers
+/// A value for the [list-style-type](https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#text-markers) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ListStyleType<'i> {
+  /// No marker.
   None,
-  CounterStyle(CounterStyle<'i>),
+  /// An explicit marker string.
   String(CowArcStr<'i>),
+  /// A named counter style.
+  CounterStyle(CounterStyle<'i>),
 }
 
 impl Default for ListStyleType<'_> {
@@ -55,16 +60,19 @@ impl ToCss for ListStyleType<'_> {
   }
 }
 
-/// https://www.w3.org/TR/css-counter-styles-3/#typedef-counter-style
+/// A [counter-style](https://www.w3.org/TR/css-counter-styles-3/#typedef-counter-style) name.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CounterStyle<'i> {
+  /// A predefined counter style name.
   Predefined(PredefinedCounterStyle),
+  /// A custom counter style name.
   Name(CustomIdent<'i>),
+  /// An inline [`symbols()`](https://www.w3.org/TR/css-counter-styles-3/#symbols-function) definition.
   Symbols(SymbolsType, Vec<Symbol<'i>>),
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/css-counter-styles-3/#predefined-counters
+  /// A [predefined counter](https://www.w3.org/TR/css-counter-styles-3/#predefined-counters) style.
   pub enum PredefinedCounterStyle {
     // https://www.w3.org/TR/css-counter-styles-3/#simple-numeric
     "decimal": Decimal,
@@ -191,6 +199,10 @@ impl ToCss for CounterStyle<'_> {
 }
 
 enum_property! {
+  /// A [`<symbols-type>`](https://www.w3.org/TR/css-counter-styles-3/#typedef-symbols-type) value,
+  /// as used in the `symbols()` function.
+  ///
+  /// See [CounterStyle](CounterStyle).
   pub enum SymbolsType {
     Cyclic,
     Numeric,
@@ -200,10 +212,15 @@ enum_property! {
   }
 }
 
-/// https://www.w3.org/TR/css-counter-styles-3/#funcdef-symbols
+/// A single [symbol](https://www.w3.org/TR/css-counter-styles-3/#funcdef-symbols) as used in the
+/// `symbols()` function.
+///
+/// See [CounterStyle](CounterStyle).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Symbol<'i> {
+  /// A string.
   String(CowArcStr<'i>),
+  /// An image.
   Image(Image<'i>),
 }
 
@@ -234,9 +251,11 @@ impl<'i> ToCss for Symbol<'i> {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#list-style-position-property
+  /// A value for the [list-style-position](https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#list-style-position-property) property.
   pub enum ListStylePosition {
+    /// The list marker is placed inside the element.
     Inside,
+    /// The list marker is placed outside the element.
     Outside,
   }
 }
@@ -248,19 +267,24 @@ impl Default for ListStylePosition {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#marker-side
+  /// A value for the [marker-side](https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#marker-side) property.
   pub enum MarkerSide {
     "match-self": MatchSelf,
     "match-parent": MatchParent,
   }
 }
 
-// https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#list-style-property
-shorthand_property!(ListStyle<'i> {
-  list_style_type: ListStyleType<'i>,
-  image: Image<'i>,
-  position: ListStylePosition,
-});
+shorthand_property! {
+  /// A value for the [list-style](https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#list-style-property) shorthand property.
+  pub struct ListStyle<'i> {
+    /// The list style type.
+    list_style_type: ListStyleType<'i>,
+    /// The list marker image.
+    image: Image<'i>,
+    /// The position of the list marker.
+    position: ListStylePosition,
+  }
+}
 
 impl<'i> FallbackValues for ListStyle<'i> {
   fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {

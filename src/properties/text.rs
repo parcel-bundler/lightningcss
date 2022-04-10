@@ -1,3 +1,5 @@
+//! CSS properties related to text.
+
 #![allow(non_upper_case_globals)]
 
 use super::{Property, PropertyId};
@@ -20,11 +22,16 @@ use cssparser::*;
 use smallvec::SmallVec;
 
 enum_property! {
-  /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-transform-property
+  /// Defines how text case should be transformed in the
+  /// [text-transform](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-transform-property) property.
   pub enum TextTransformCase {
+    /// Text should not be transformed.
     None,
+    /// Text should be uppercased.
     Uppercase,
+    /// Text should be lowercased.
     Lowercase,
+    /// Each word should be capitalized.
     Capitalize,
   }
 }
@@ -36,8 +43,14 @@ impl Default for TextTransformCase {
 }
 
 bitflags! {
+  /// Defines how ideographic characters should be transformed in the
+  /// [text-transform](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-transform-property) property.
+  ///
+  /// All combinations of flags is supported.
   pub struct TextTransformOther: u8 {
+    /// Puts all typographic character units in full-width form.
     const FullWidth    = 0b00000001;
+    /// Converts all small Kana characters to the equivalent full-size Kana.
     const FullSizeKana = 0b00000010;
   }
 }
@@ -78,9 +91,12 @@ impl ToCss for TextTransformOther {
   }
 }
 
+/// A value for the [text-transform](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-transform-property) property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextTransform {
+  /// How case should be transformed.
   pub case: TextTransformCase,
+  /// How ideographic characters should be transformed.
   pub other: TextTransformOther,
 }
 
@@ -138,97 +154,142 @@ impl ToCss for TextTransform {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#white-space-property
+  /// A value for the [white-space](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#white-space-property) property.
   pub enum WhiteSpace {
+    /// Sequences of white space are collapsed into a single character.
     "normal": Normal,
+    /// White space is not collapsed.
     "pre": Pre,
+    /// White space is collapsed, but no line wrapping occurs.
     "nowrap": NoWrap,
+    /// White space is preserved, but line wrapping occurs.
     "pre-wrap": PreWrap,
+    /// Like pre-wrap, but with different line breaking rules.
     "break-spaces": BreakSpaces,
+    /// White space is collapsed, but with different line breaking rules.
     "pre-line": PreLine,
   }
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#word-break-property
+  /// A value for the [word-break](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#word-break-property) property.
   pub enum WordBreak {
+    /// Words break according to their customary rules.
     "normal": Normal,
+    /// Breaking is forbidden within “words”.
     "keep-all": KeepAll,
+    /// Breaking is allowed within “words”.
     "break-all": BreakAll,
+    /// Breaking is allowed if there is no otherwise acceptable break points in a line.
     "break-word": BreakWord,
   }
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#line-break-property
+  /// A value for the [line-break](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#line-break-property) property.
   pub enum LineBreak {
+    /// The UA determines the set of line-breaking restrictions to use.
     Auto,
+    /// Breaks text using the least restrictive set of line-breaking rules.
     Loose,
+    /// Breaks text using the most common set of line-breaking rules.
     Normal,
+    /// Breaks text using the most stringent set of line-breaking rules.
     Strict,
+    /// There is a soft wrap opportunity around every typographic character unit.
     Anywhere,
   }
 }
 enum_property! {
-  /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#hyphenation
+  /// A value for the [hyphens](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#hyphenation) property.
   pub enum Hyphens {
+    /// Words are not hyphenated.
     None,
+    /// Words are only hyphenated where there are characters inside the word that explicitly suggest hyphenation opportunities.
     Manual,
+    /// Words may be broken at hyphenation opportunities determined automatically by the UA.
     Auto,
   }
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#overflow-wrap-property
+  /// A value for the [overflow-wrap](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#overflow-wrap-property) property.
   pub enum OverflowWrap {
+    /// Lines may break only at allowed break points.
     "normal": Normal,
-    "break-word": BreakWord,
+    /// Breaking is allowed if there is no otherwise acceptable break points in a line.
     "anywhere": Anywhere,
+    /// As for anywhere except that soft wrap opportunities introduced by break-word are
+    /// not considered when calculating min-content intrinsic sizes.
+    "break-word": BreakWord,
   }
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-align-property
+  /// A value for the [text-align](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-align-property) property.
   pub enum TextAlign {
+    /// Inline-level content is aligned to the start edge of the line box.
     "start": Start,
+    /// Inline-level content is aligned to the end edge of the line box.
     "end": End,
+    /// Inline-level content is aligned to the line-left edge of the line box.
     "left": Left,
+    /// Inline-level content is aligned to the line-right edge of the line box.
     "right": Right,
+    /// Inline-level content is centered within the line box.
     "center": Center,
+    /// Text is justified according to the method specified by the text-justify property.
     "justify": Justify,
+    /// Matches the parent element.
     "match-parent": MatchParent,
+    /// Same as justify, but also justifies the last line.
     "justify-all": JustifyAll,
   }
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-align-last-property
+  /// A value for the [text-align-last](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-align-last-property) property.
   pub enum TextAlignLast {
+    /// Content on the affected line is aligned per `text-align-all` unless set to `justify`, in which case it is start-aligned.
     "auto": Auto,
+    /// Inline-level content is aligned to the start edge of the line box.
     "start": Start,
+    /// Inline-level content is aligned to the end edge of the line box.
     "end": End,
+    /// Inline-level content is aligned to the line-left edge of the line box.
     "left": Left,
+    /// Inline-level content is aligned to the line-right edge of the line box.
     "right": Right,
+    /// Inline-level content is centered within the line box.
     "center": Center,
+    /// Text is justified according to the method specified by the text-justify property.
     "justify": Justify,
+    /// Matches the parent element.
     "match-parent": MatchParent,
   }
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-justify-property
+  /// A value for the [text-justify](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-justify-property) property.
   pub enum TextJustify {
+    /// The UA determines the justification algorithm to follow.
     "auto": Auto,
+    /// Justification is disabled.
     "none": None,
+    /// Justification adjusts spacing at word separators only.
     "inter-word": InterWord,
+    /// Justification adjusts spacing between each character.
     "inter-character": InterCharacter,
   }
 }
 
-/// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#word-spacing-property
+/// A value for the [word-spacing](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#word-spacing-property)
+/// and [letter-spacing](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#letter-spacing-property) properties.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Spacing {
+  /// No additional spacing is applied.
   Normal,
+  /// Additional spacing between each word or letter.
   Length(Length),
 }
 
@@ -255,11 +316,14 @@ impl ToCss for Spacing {
   }
 }
 
-/// https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-indent-property
+/// A value for the [text-indent](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-indent-property) property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextIndent {
+  /// The amount to indent.
   pub value: LengthPercentage,
+  /// Inverts which lines are affected.
   pub hanging: bool,
+  /// Affects the first line after each hard break.
   pub each_line: bool,
 }
 
@@ -322,14 +386,22 @@ impl ToCss for TextIndent {
   }
 }
 
-// https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-line-property
 bitflags! {
+  /// A value for the [text-decoration-line](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-line-property) property.
+  ///
+  /// Multiple lines may be specified by combining the flags.
   pub struct TextDecorationLine: u8 {
+    /// Each line of text is underlined.
     const Underline     = 0b00000001;
+    /// Each line of text has a line over it.
     const Overline      = 0b00000010;
+    /// Each line of text has a line through the middle.
     const LineThrough   = 0b00000100;
+    /// The text blinks.
     const Blink         = 0b00001000;
+    /// The text is decorated as a spelling error.
     const SpellingError = 0b00010000;
+    /// The text is decorated as a grammar error.
     const GrammarError  = 0b00100000;
   }
 }
@@ -419,12 +491,17 @@ impl ToCss for TextDecorationLine {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-style-property
+  /// A value for the [text-decoration-style](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-style-property) property.
   pub enum TextDecorationStyle {
+    /// A single line segment.
     Solid,
+    /// Two parallel solid lines with some space between them.
     Double,
+    /// A series of round dots.
     Dotted,
+    /// A series of square-ended dashes.
     Dashed,
+    /// A wavy line.
     Wavy,
   }
 }
@@ -435,11 +512,14 @@ impl Default for TextDecorationStyle {
   }
 }
 
-/// https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-width-property
+/// A value for the [text-decoration-thickness](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-width-property) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TextDecorationThickness {
+  /// The UA chooses an appropriate thickness for text decoration lines.
   Auto,
+  /// Use the thickness defined in the current font.
   FromFont,
+  /// An explicit length.
   LengthPercentage(LengthPercentage),
 }
 
@@ -477,11 +557,16 @@ impl ToCss for TextDecorationThickness {
   }
 }
 
+/// A value for the [text-decoration](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-property) shorthand property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextDecoration {
+  /// The lines to display.
   pub line: TextDecorationLine,
+  /// The thickness of the lines.
   pub thickness: TextDecorationThickness,
+  /// The style of the lines.
   pub style: TextDecorationStyle,
+  /// The color of the lines.
   pub color: CssColor,
 }
 
@@ -568,39 +653,58 @@ impl FallbackValues for TextDecoration {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-skip-ink-property
+  /// A value for the [text-decoration-skip-ink](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-skip-ink-property) property.
   pub enum TextDecorationSkipInk {
+    /// UAs may interrupt underlines and overlines.
     Auto,
+    /// UAs must interrupt underlines and overlines.
     None,
+    /// UA must draw continuous underlines and overlines.
     All,
   }
 }
 
 enum_property! {
+  /// A keyword for the [text-emphasis-style](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-style-property) property.
+  ///
+  /// See [TextEmphasisStyle](TextEmphasisStyle).
   pub enum TextEmphasisFillMode {
+    /// The shape is filled with solid color.
     Filled,
+    /// The shape is hollow.
     Open,
   }
 }
 
 enum_property! {
+  /// A text emphasis shape for the [text-emphasis-style](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-style-property) property.
+  ///
+  /// See [TextEmphasisStyle](TextEmphasisStyle).
   pub enum TextEmphasisShape {
+    /// Display small circles as marks.
     "dot": Dot,
+    /// Display large circles as marks.
     "circle": Circle,
+    /// Display double circles as marks.
     "double-circle": DoubleCircle,
+    /// Display triangles as marks.
     "triangle": Triangle,
+    /// Display sesames as marks.
     "sesame": Sesame,
   }
 }
 
-// https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-style-property
+// A value for the [text-emphasis-style](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-style-property) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TextEmphasisStyle<'i> {
+  /// No emphasis.
   None,
+  /// Defines the fill and shape of the marks.
   Keyword {
     fill: TextEmphasisFillMode,
     shape: Option<TextEmphasisShape>,
   },
+  /// Display the given string as marks.
   String(CowArcStr<'i>),
 }
 
@@ -665,10 +769,12 @@ impl<'i> ToCss for TextEmphasisStyle<'i> {
   }
 }
 
-/// https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-property
+/// A value for the [text-emphasis](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-property) shorthand property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextEmphasis<'i> {
+  /// The text emphasis style.
   pub style: TextEmphasisStyle<'i>,
+  /// The text emphasis color.
   pub color: CssColor,
 }
 
@@ -730,23 +836,35 @@ impl<'i> FallbackValues for TextEmphasis<'i> {
 }
 
 enum_property! {
+  /// A vertical position keyword for the [text-emphasis-position](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-position-property) property.
+  ///
+  /// See [TextEmphasisPosition](TextEmphasisPosition).
   pub enum TextEmphasisPositionVertical {
+    /// Draw marks over the text in horizontal typographic modes.
     Over,
+    /// Draw marks under the text in horizontal typographic modes.
     Under,
   }
 }
 
 enum_property! {
+  /// A horizontal position keyword for the [text-emphasis-position](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-position-property) property.
+  ///
+  /// See [TextEmphasisPosition](TextEmphasisPosition).
   pub enum TextEmphasisPositionHorizontal {
+    /// Draw marks to the right of the text in vertical typographic modes.
     Left,
+    /// Draw marks to the left of the text in vertical typographic modes.
     Right,
   }
 }
 
-/// https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-position-property
+/// A value for the [text-emphasis-position](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-position-property) property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextEmphasisPosition {
+  /// The vertical position.
   pub vertical: TextEmphasisPositionVertical,
+  /// The horizontal position.
   pub horizontal: TextEmphasisPositionHorizontal,
 }
 
@@ -1073,12 +1191,18 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
   }
 }
 
+/// A value for the [text-shadow](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-shadow-property) property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextShadow {
+  /// The color of the text shadow.
   pub color: CssColor,
+  /// The x offset of the text shadow.
   pub x_offset: Length,
+  /// The y offset of the text shadow.
   pub y_offset: Length,
+  /// The blur radius of the text shadow.
   pub blur: Length,
+  /// The spread distance of the text shadow.
   pub spread: Length, // added in Level 4 spec
 }
 

@@ -1,3 +1,5 @@
+//! CSS properties related to transitions.
+
 use super::{Property, PropertyId};
 use crate::compat;
 use crate::context::PropertyHandlerContext;
@@ -13,12 +15,16 @@ use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 use smallvec::SmallVec;
 
-/// https://www.w3.org/TR/2018/WD-css-transitions-1-20181011/#transition-shorthand-property
+/// A value for the [transition](https://www.w3.org/TR/2018/WD-css-transitions-1-20181011/#transition-shorthand-property) property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Transition<'i> {
+  /// The property to transition.
   pub property: PropertyId<'i>,
+  /// The duration of the transition.
   pub duration: Time,
+  /// The delay before the transition starts.
   pub delay: Time,
+  /// The easing function for the transition.
   pub timing_function: EasingFunction,
 }
 

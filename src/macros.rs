@@ -117,13 +117,23 @@ pub(crate) use enum_property;
 
 macro_rules! shorthand_property {
   (
-    $name: ident$(<$l: lifetime>)?
-    { $first_key: ident: $first_type: ty, $( $key: ident: $type: ty, )* }
+    $(#[$outer:meta])*
+    $vis:vis struct $name: ident$(<$l: lifetime>)? {
+      $(#[$first_meta: meta])*
+      $first_key: ident: $first_type: ty,
+      $(
+        $(#[$meta: meta])*
+        $key: ident: $type: ty,
+      )*
+    }
   ) => {
+    $(#[$outer])*
     #[derive(Debug, Clone, PartialEq)]
     pub struct $name$(<$l>)? {
+      $(#[$first_meta])*
       pub $first_key: $first_type,
       $(
+        $(#[$meta])*
         pub $key: $type,
       )*
     }

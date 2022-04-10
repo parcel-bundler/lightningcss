@@ -1,3 +1,5 @@
+//! CSS properties related to 2D and 3D transforms.
+
 use super::{Property, PropertyId};
 use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
@@ -17,7 +19,7 @@ use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 use std::f32::consts::PI;
 
-/// https://www.w3.org/TR/2019/CR-css-transforms-1-20190214/#propdef-transform
+/// A value for the [transform](https://www.w3.org/TR/2019/CR-css-transforms-1-20190214/#propdef-transform) property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TransformList(pub Vec<Transform>);
 
@@ -124,6 +126,7 @@ impl TransformList {
     Ok(())
   }
 
+  /// Converts the transform list to a 3D matrix if possible.
   pub fn to_matrix(&self) -> Option<Matrix3d<f32>> {
     let mut matrix = Matrix3d::identity();
     for transform in &self.0 {
@@ -137,31 +140,54 @@ impl TransformList {
   }
 }
 
+/// An individual [transform function](https://www.w3.org/TR/2019/CR-css-transforms-1-20190214/#two-d-transform-functions).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Transform {
+  /// A 2D translation.
   Translate(LengthPercentage, LengthPercentage),
+  /// A translation in the X direction.
   TranslateX(LengthPercentage),
+  /// A translation in the Y direction.
   TranslateY(LengthPercentage),
+  /// A translation in the Z direction.
   TranslateZ(Length),
+  /// A 3D translation.
   Translate3d(LengthPercentage, LengthPercentage, Length),
+  /// A 2D scale.
   Scale(NumberOrPercentage, NumberOrPercentage),
+  /// A scale in the X direction.
   ScaleX(NumberOrPercentage),
+  /// A scale in the Y direction.
   ScaleY(NumberOrPercentage),
+  /// A scale in the Z direction.
   ScaleZ(NumberOrPercentage),
+  /// A 3D scale.
   Scale3d(NumberOrPercentage, NumberOrPercentage, NumberOrPercentage),
+  /// A 2D rotation.
   Rotate(Angle),
+  /// A rotation around the X axis.
   RotateX(Angle),
+  /// A rotation around the Y axis.
   RotateY(Angle),
+  /// A rotation around the Z axis.
   RotateZ(Angle),
+  /// A 3D rotation.
   Rotate3d(f32, f32, f32, Angle),
+  /// A 2D skew.
   Skew(Angle, Angle),
+  /// A skew along the X axis.
   SkewX(Angle),
+  /// A skew along the Y axis.
   SkewY(Angle),
+  /// A perspective transform.
   Perspective(Length),
+  /// A 2D matrix transform.
   Matrix(Matrix<f32>),
+  /// A 3D matrix transform.
   Matrix3d(Matrix3d<f32>),
 }
 
+/// A 2D matrix.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Matrix<T> {
   pub a: T,
@@ -173,6 +199,7 @@ pub struct Matrix<T> {
 }
 
 impl Matrix<f32> {
+  /// Converts the matrix to a 3D matrix.
   pub fn to_matrix3d(&self) -> Matrix3d<f32> {
     Matrix3d {
       m11: self.a,
@@ -195,6 +222,7 @@ impl Matrix<f32> {
   }
 }
 
+/// A 3D matrix.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Matrix3d<T> {
   pub m11: T,
@@ -217,6 +245,7 @@ pub struct Matrix3d<T> {
 
 /// https://drafts.csswg.org/css-transforms-2/#mathematical-description
 impl Matrix3d<f32> {
+  /// Creates an identity matrix.
   pub fn identity() -> Matrix3d<f32> {
     Matrix3d {
       m11: 1.0,
@@ -238,6 +267,7 @@ impl Matrix3d<f32> {
     }
   }
 
+  /// Creates a translation matrix.
   pub fn translate(x: f32, y: f32, z: f32) -> Matrix3d<f32> {
     Matrix3d {
       m11: 1.0,
@@ -259,6 +289,7 @@ impl Matrix3d<f32> {
     }
   }
 
+  /// Creates a scale matrix.
   pub fn scale(x: f32, y: f32, z: f32) -> Matrix3d<f32> {
     Matrix3d {
       m11: x,
@@ -280,6 +311,7 @@ impl Matrix3d<f32> {
     }
   }
 
+  /// Creates a rotation matrix.
   pub fn rotate(x: f32, y: f32, z: f32, angle: f32) -> Matrix3d<f32> {
     // Normalize the vector.
     let length = (x * x + y * y + z * z).sqrt();
@@ -325,6 +357,7 @@ impl Matrix3d<f32> {
     }
   }
 
+  /// Creates a skew matrix.
   pub fn skew(a: f32, b: f32) -> Matrix3d<f32> {
     Matrix3d {
       m11: 1.0,
@@ -346,6 +379,7 @@ impl Matrix3d<f32> {
     }
   }
 
+  /// Creates a perspective matrix.
   pub fn perspective(d: f32) -> Matrix3d<f32> {
     Matrix3d {
       m11: 1.0,
@@ -367,6 +401,7 @@ impl Matrix3d<f32> {
     }
   }
 
+  /// Multiplies this matrix by another, returning a new matrix.
   pub fn multiply(&self, other: &Self) -> Self {
     Matrix3d {
       m11: self.m11 * other.m11 + self.m12 * other.m21 + self.m13 * other.m31 + self.m14 * other.m41,
@@ -388,6 +423,7 @@ impl Matrix3d<f32> {
     }
   }
 
+  /// Returns whether this matrix could be converted to a 2D matrix.
   pub fn is_2d(&self) -> bool {
     self.m31 == 0.0
       && self.m32 == 0.0
@@ -401,6 +437,8 @@ impl Matrix3d<f32> {
       && self.m44 == 1.0
   }
 
+  /// Attempts to convert the matrix to 2D.
+  /// Returns `None` if the conversion is not possible.
   pub fn to_matrix2d(&self) -> Option<Matrix<f32>> {
     if self.is_2d() {
       return Some(Matrix {
@@ -415,6 +453,7 @@ impl Matrix3d<f32> {
     None
   }
 
+  /// Scales the matrix by the given factor.
   pub fn scale_by_factor(&mut self, scaling_factor: f32) {
     self.m11 *= scaling_factor;
     self.m12 *= scaling_factor;
@@ -434,6 +473,7 @@ impl Matrix3d<f32> {
     self.m44 *= scaling_factor;
   }
 
+  /// Returns the determinant of the matrix.
   pub fn determinant(&self) -> f32 {
     self.m14 * self.m23 * self.m32 * self.m41
       - self.m13 * self.m24 * self.m32 * self.m41
@@ -461,6 +501,7 @@ impl Matrix3d<f32> {
       + self.m11 * self.m22 * self.m33 * self.m44
   }
 
+  /// Returns the inverse of the matrix if possible.
   pub fn inverse(&self) -> Option<Matrix3d<f32>> {
     let mut det = self.determinant();
     if det == 0.0 {
@@ -552,6 +593,7 @@ impl Matrix3d<f32> {
     })
   }
 
+  /// Transposes the matrix.
   pub fn transpose(&self) -> Self {
     Self {
       m11: self.m11,
@@ -573,6 +615,7 @@ impl Matrix3d<f32> {
     }
   }
 
+  /// Multiplies a vector by the matrix.
   pub fn multiply_vector(&self, pin: &[f32; 4]) -> [f32; 4] {
     [
       pin[0] * self.m11 + pin[1] * self.m21 + pin[2] * self.m31 + pin[3] * self.m41,
@@ -582,8 +625,9 @@ impl Matrix3d<f32> {
     ]
   }
 
-  // https://drafts.csswg.org/css-transforms-2/#decomposing-a-3d-matrix
+  /// Decomposes the matrix into a list of transform functions if possible.
   pub fn decompose(&self) -> Option<TransformList> {
+    // https://drafts.csswg.org/css-transforms-2/#decomposing-a-3d-matrix
     // Combine 2 point.
     let combine = |a: [f32; 3], b: [f32; 3], ascl: f32, bscl: f32| {
       [
@@ -1220,6 +1264,7 @@ impl ToCss for Transform {
 }
 
 impl Transform {
+  /// Converts the transform to a 3D matrix.
   pub fn to_matrix(&self) -> Option<Matrix3d<f32>> {
     macro_rules! to_radians {
       ($angle: ident) => {{
@@ -1291,7 +1336,7 @@ impl Transform {
 }
 
 enum_property! {
-  /// https://drafts.csswg.org/css-transforms-2/#transform-style-property
+  /// A value for the [transform-style](https://drafts.csswg.org/css-transforms-2/#transform-style-property) property.
   pub enum TransformStyle {
     "flat": Flat,
     "preserve-3d": Preserve3d,
@@ -1299,28 +1344,35 @@ enum_property! {
 }
 
 enum_property! {
-  /// https://drafts.csswg.org/css-transforms-1/#transform-box
+  /// A value for the [transform-box](https://drafts.csswg.org/css-transforms-1/#transform-box) property.
   pub enum TransformBox {
+    /// Uses the content box as reference box.
     "content-box": ContentBox,
+    /// Uses the border box as reference box.
     "border-box": BorderBox,
+    /// Uses the object bounding box as reference box.
     "fill-box": FillBox,
+    /// Uses the stroke bounding box as reference box.
     "stroke-box": StrokeBox,
+    /// Uses the nearest SVG viewport as reference box.
     "view-box": ViewBox,
   }
 }
 
 enum_property! {
-  /// https://drafts.csswg.org/css-transforms-2/#backface-visibility-property
+  /// A value for the [backface-visibility](https://drafts.csswg.org/css-transforms-2/#backface-visibility-property) property.
   pub enum BackfaceVisibility {
     Visible,
     Hidden,
   }
 }
 
-/// https://drafts.csswg.org/css-transforms-2/#perspective-property
+/// A value for the [perspective](https://drafts.csswg.org/css-transforms-2/#perspective-property) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Perspective {
+  /// No perspective transform is applied.
   None,
+  /// Distance to the center of projection.
   Length(Length),
 }
 
@@ -1346,11 +1398,14 @@ impl ToCss for Perspective {
   }
 }
 
-/// https://drafts.csswg.org/css-transforms-2/#propdef-translate
+/// A value for the [translate](https://drafts.csswg.org/css-transforms-2/#propdef-translate) property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Translate {
+  /// The x translation.
   pub x: LengthPercentage,
+  /// The y translation.
   pub y: LengthPercentage,
+  /// The z translation.
   pub z: Length,
 }
 
@@ -1399,17 +1454,22 @@ impl ToCss for Translate {
 }
 
 impl Translate {
+  /// Converts the translation to a transform function.
   pub fn to_transform(&self) -> Transform {
     Transform::Translate3d(self.x.clone(), self.y.clone(), self.z.clone())
   }
 }
 
-/// https://drafts.csswg.org/css-transforms-2/#propdef-rotate
+/// A value for the [rotate](https://drafts.csswg.org/css-transforms-2/#propdef-rotate) property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Rotate {
+  /// Rotation around the x axis.
   pub x: f32,
+  /// Rotation around the y axis.
   pub y: f32,
+  /// Rotation around the z axis.
   pub z: f32,
+  /// The angle of rotation.
   pub angle: Angle,
 }
 
@@ -1477,16 +1537,20 @@ impl ToCss for Rotate {
 }
 
 impl Rotate {
+  /// Converts the rotation to a transform function.
   pub fn to_transform(&self) -> Transform {
     Transform::Rotate3d(self.x, self.y, self.z, self.angle.clone())
   }
 }
 
-/// https://drafts.csswg.org/css-transforms-2/#propdef-scale
+/// A value for the [scale](https://drafts.csswg.org/css-transforms-2/#propdef-scale) property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scale {
+  /// Scale on the x axis.
   pub x: NumberOrPercentage,
+  /// Scale on the y axis.
   pub y: NumberOrPercentage,
+  /// Scale on the z axis.
   pub z: NumberOrPercentage,
 }
 
@@ -1536,6 +1600,7 @@ impl ToCss for Scale {
 }
 
 impl Scale {
+  /// Converts the scale to a transform function.
   pub fn to_transform(&self) -> Transform {
     Transform::Scale3d(self.x.clone(), self.y.clone(), self.z.clone())
   }

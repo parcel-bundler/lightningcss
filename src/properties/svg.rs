@@ -1,3 +1,5 @@
+//! CSS properties used in SVG.
+
 use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::printer::Printer;
@@ -7,19 +9,31 @@ use crate::values::length::LengthPercentage;
 use crate::values::{color::CssColor, url::Url};
 use cssparser::*;
 
-/// https://www.w3.org/TR/SVG2/painting.html#SpecifyingPaint
+/// An SVG [`<paint>`](https://www.w3.org/TR/SVG2/painting.html#SpecifyingPaint) value
+/// used in the `fill` and `stroke` properties.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SVGPaint<'i> {
+  /// No paint.
   None,
+  /// A URL reference to a paint server element, e.g. `linearGradient`, `radialGradient`, and `pattern`.
+  /// The fallback is used in case the paint server cannot be resolved.
   Url(Url<'i>, Option<SVGPaintFallback>),
+  /// A solid color paint.
   Color(CssColor),
+  /// Use the paint value of fill from a context element.
   ContextFill,
+  /// Use the paint value of stroke from a context element.
   ContextStroke,
 }
 
+/// A fallback for an SVG paint in case a paint server `url()` cannot be resolved.
+///
+/// See [SVGPaint](SVGPaint).
 #[derive(Debug, Clone, PartialEq)]
 pub enum SVGPaintFallback {
+  /// No fallback.
   None,
+  /// A solid color.
   Color(CssColor),
 }
 
@@ -110,27 +124,39 @@ impl<'i> FallbackValues for SVGPaint<'i> {
 }
 
 enum_property! {
+  /// A value for the [stroke-linecap](https://www.w3.org/TR/SVG2/painting.html#LineCaps) property.
   pub enum StrokeLinecap {
+    /// The stroke does not extend beyond its endpoints.
     Butt,
+    /// The ends of the stroke are rounded.
     Round,
+    /// The ends of the stroke are squared.
     Square,
   }
 }
 
 enum_property! {
+  /// A value for the [stroke-linejoin](https://www.w3.org/TR/SVG2/painting.html#LineJoin) property.
   pub enum StrokeLinejoin {
+    /// A sharp corner is to be used to join path segments.
     "miter": Miter,
+    /// Same as `miter` but clipped beyond `stroke-miterlimit`.
     "miter-clip": MiterClip,
+    /// A round corner is to be used to join path segments.
     "round": Round,
+    /// A bevelled corner is to be used to join path segments.
     "bevel": Bevel,
+    /// An arcs corner is to be used to join path segments.
     "arcs": Arcs,
   }
 }
 
-/// https://www.w3.org/TR/SVG2/painting.html#StrokeDashing
+/// A value for the [stroke-dasharray](https://www.w3.org/TR/SVG2/painting.html#StrokeDashing) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum StrokeDasharray {
+  /// No dashing is used.
   None,
+  /// Specifies a dashing pattern to use.
   Values(Vec<LengthPercentage>),
 }
 
@@ -182,10 +208,12 @@ impl ToCss for StrokeDasharray {
   }
 }
 
-/// https://www.w3.org/TR/SVG2/painting.html#VertexMarkerProperties
+/// A value for the [marker](https://www.w3.org/TR/SVG2/painting.html#VertexMarkerProperties) shorthand property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Marker<'i> {
+  /// No marker.
   None,
+  /// A url reference to a `<marker>` element.
   Url(Url<'i>),
 }
 
@@ -213,43 +241,65 @@ impl<'i> ToCss for Marker<'i> {
 }
 
 enum_property! {
+  /// A value for the [color-interpolation](https://www.w3.org/TR/SVG2/painting.html#ColorInterpolation) property.
   pub enum ColorInterpolation {
+    /// The UA can choose between sRGB or linearRGB.
     Auto,
+    /// Color interpolation occurs in the sRGB color space.
     SRGB,
+    /// Color interpolation occurs in the linearized RGB color space
     LinearRGB,
   }
 }
 
 enum_property! {
+  /// A value for the [color-rendering](https://www.w3.org/TR/SVG2/painting.html#ColorRendering) property.
   pub enum ColorRendering {
+    /// The UA can choose a tradeoff between speed and quality.
     Auto,
+    /// The UA shall optimize speed over quality.
     OptimizeSpeed,
+    /// The UA shall optimize quality over speed.
     OptimizeQuality,
   }
 }
 
 enum_property! {
+  /// A value for the [shape-rendering](https://www.w3.org/TR/SVG2/painting.html#ShapeRendering) property.
   pub enum ShapeRendering {
+    /// The UA can choose an appropriate tradeoff.
     Auto,
+    /// The UA shall optimize speed.
     OptimizeSpeed,
+    /// The UA shall optimize crisp edges.
     CrispEdges,
+    /// The UA shall optimize geometric precision.
     GeometricPrecision,
   }
 }
 
 enum_property! {
+  /// A value for the [text-rendering](https://www.w3.org/TR/SVG2/painting.html#TextRendering) property.
   pub enum TextRendering {
+    /// The UA can choose an appropriate tradeoff.
     Auto,
+    /// The UA shall optimize speed.
     OptimizeSpeed,
+    /// The UA shall optimize legibility.
     OptimizeLegibility,
+    /// The UA shall optimize geometric precision.
     GeometricPrecision,
   }
 }
 
 enum_property! {
+  /// A value for the [image-rendering](https://www.w3.org/TR/SVG2/painting.html#ImageRendering) property.
   pub enum ImageRendering {
+    /// The UA can choose a tradeoff between speed and quality.
     Auto,
+    /// The UA shall optimize speed over quality.
     OptimizeSpeed,
+    /// The UA shall optimize quality over speed.
     OptimizeQuality,
   }
 }

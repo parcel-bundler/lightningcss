@@ -1,3 +1,5 @@
+//! CSS properties related to display.
+
 use super::custom::UnparsedProperty;
 use super::{Property, PropertyId};
 use crate::context::PropertyHandlerContext;
@@ -12,6 +14,7 @@ use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 
 enum_property! {
+  /// A [`<display-outside>`](https://drafts.csswg.org/css-display-3/#typedef-display-outside) value.
   pub enum DisplayOutside {
     "block": Block,
     "inline": Inline,
@@ -19,6 +22,7 @@ enum_property! {
   }
 }
 
+/// A [`<display-inside>`](https://drafts.csswg.org/css-display-3/#typedef-display-inside) value.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DisplayInside {
   Flow,
@@ -91,10 +95,16 @@ impl DisplayInside {
   }
 }
 
+/// A pair of inside and outside display values, as used in the `display` property.
+///
+/// See [Display](Display).
 #[derive(Debug, Clone, PartialEq)]
 pub struct DisplayPair {
+  /// The outside display value.
   pub outside: DisplayOutside,
+  /// The inside display value.
   pub inside: DisplayInside,
+  /// Whether this is a list item.
   pub is_list_item: bool,
 }
 
@@ -277,6 +287,9 @@ impl ToCss for DisplayPair {
 }
 
 enum_property! {
+  /// A `display` keyword.
+  ///
+  /// See [Display](Display).
   pub enum DisplayKeyword {
     "none": None,
     "contents": Contents,
@@ -295,9 +308,12 @@ enum_property! {
   }
 }
 
+/// A value for the [display](https://drafts.csswg.org/css-display-3/#the-display-properties) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Display {
+  /// A display keyword.
   Keyword(DisplayKeyword),
+  /// The inside and outside display values.
   Pair(DisplayPair),
 }
 
@@ -325,10 +341,13 @@ impl ToCss for Display {
 }
 
 enum_property! {
-  /// https://drafts.csswg.org/css-display-3/#visibility
+  /// A value for the [visibility](https://drafts.csswg.org/css-display-3/#visibility) property.
   pub enum Visibility {
+    /// The element is visible.
     Visible,
+    /// The element is hidden.
     Hidden,
+    /// The element is collapsed.
     Collapse,
   }
 }

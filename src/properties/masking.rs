@@ -1,3 +1,5 @@
+//! CSS properties related to clipping and masking.
+
 use super::background::{BackgroundRepeat, BackgroundSize};
 use super::border_image::{BorderImage, BorderImageRepeat, BorderImageSideWidth, BorderImageSlice};
 use super::PropertyId;
@@ -19,18 +21,23 @@ use itertools::izip;
 use smallvec::SmallVec;
 
 enum_property! {
-  /// https://www.w3.org/TR/css-masking-1/#the-mask-type
+  /// A value for the [mask-type](https://www.w3.org/TR/css-masking-1/#the-mask-type) property.
   pub enum MaskType {
+    /// The luminance values of the mask is used.
     Luminance,
+    /// The alpha values of the mask is used.
     Alpha,
   }
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/css-masking-1/#the-mask-mode
+  /// A value for the [mask-mode](https://www.w3.org/TR/css-masking-1/#the-mask-mode) property.
   pub enum MaskMode {
+    /// The luminance values of the mask image is used.
     "luminance": Luminance,
+    /// The alpha values of the mask image is used.
     "alpha": Alpha,
+    /// If an SVG source is used, the value matches the `mask-type` property. Otherwise, the alpha values are used.
     "match-source": MatchSource,
   }
 }
@@ -42,10 +49,16 @@ impl Default for MaskMode {
 }
 
 enum_property! {
-  /// https://github.com/WebKit/WebKit/blob/6eece09a1c31e47489811edd003d1e36910e9fd3/Source/WebCore/css/CSSProperties.json#L6578-L6587
+  /// A value for the [-webkit-mask-source-type](https://github.com/WebKit/WebKit/blob/6eece09a1c31e47489811edd003d1e36910e9fd3/Source/WebCore/css/CSSProperties.json#L6578-L6587)
+  /// property.
+  ///
+  /// See also [MaskMode](MaskMode).
   pub enum WebKitMaskSourceType {
+    /// Equivalent to `match-source` in the standard `mask-mode` syntax.
     "auto": Auto,
+    /// The luminance values of the mask image is used.
     "luminance": Luminance,
+    /// The alpha values of the mask image is used.
     "alpha": Alpha,
   }
 }
@@ -61,14 +74,22 @@ impl From<MaskMode> for WebKitMaskSourceType {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/css-masking-1/#typedef-geometry-box
+  /// A [`<geometry-box>`](https://www.w3.org/TR/css-masking-1/#typedef-geometry-box) value
+  /// as used in the `mask-clip` and `clip-path` properties.
   pub enum GeometryBox {
+    /// The painted content is clipped to the content box.
     "border-box": BorderBox,
+    /// The painted content is clipped to the padding box.
     "padding-box": PaddingBox,
+    /// The painted content is clipped to the border box.
     "content-box": ContentBox,
+    /// The painted content is clipped to the margin box.
     "margin-box": MarginBox,
+    /// The painted content is clipped to the object bounding box.
     "fill-box": FillBox,
+    /// The painted content is clipped to the stroke bounding box.
     "stroke-box": StrokeBox,
+    /// Uses the nearest SVG viewport as reference box.
     "view-box": ViewBox,
   }
 }
@@ -79,10 +100,12 @@ impl Default for GeometryBox {
   }
 }
 
-/// https://www.w3.org/TR/css-masking-1/#the-mask-clip
+/// A value for the [mask-clip](https://www.w3.org/TR/css-masking-1/#the-mask-clip) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MaskClip {
+  /// A geometry box.
   GeometryBox(GeometryBox),
+  /// The painted content is not clipped.
   NoClip,
 }
 
@@ -116,11 +139,15 @@ impl Into<MaskClip> for GeometryBox {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/css-masking-1/#the-mask-composite
+  /// A value for the [mask-composite](https://www.w3.org/TR/css-masking-1/#the-mask-composite) property.
   pub enum MaskComposite {
+    /// The source is placed over the destination.
     Add,
+    /// The source is placed, where it falls outside of the destination.
     Subtract,
+    /// The parts of source that overlap the destination, replace the destination.
     Intersect,
+    /// The non-overlapping regions of source and destination are combined.
     Exclude,
   }
 }
@@ -132,18 +159,25 @@ impl Default for MaskComposite {
 }
 
 enum_property! {
-  /// https://developer.mozilla.org/en-US/docs/Web/CSS/-webkit-mask-composite
+  /// A value for the [-webkit-mask-composite](https://developer.mozilla.org/en-US/docs/Web/CSS/-webkit-mask-composite)
+  /// property.
+  ///
+  /// See also [MaskComposite](MaskComposite).
   pub enum WebKitMaskComposite {
     "clear": Clear,
     "copy": Copy,
+    /// Equivalent to `add` in the standard `mask-composite` syntax.
     "source-over": SourceOver,
+    /// Equivalent to `intersect` in the standard `mask-composite` syntax.
     "source-in": SourceIn,
+    /// Equivalent to `subtract` in the standard `mask-composite` syntax.
     "source-out": SourceOut,
     "source-atop": SourceAtop,
     "destination-over": DestinationOver,
     "destination-in": DestinationIn,
     "destination-out": DestinationOut,
     "destination-atop": DestinationAtop,
+    /// Equivalent to `exclude` in the standard `mask-composite` syntax.
     "xor": Xor,
   }
 }
@@ -159,16 +193,24 @@ impl From<MaskComposite> for WebKitMaskComposite {
   }
 }
 
-/// https://www.w3.org/TR/css-masking-1/#the-mask
+/// A value for the [mask](https://www.w3.org/TR/css-masking-1/#the-mask) shorthand property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Mask<'i> {
+  /// The mask image.
   pub image: Image<'i>,
+  /// The position of the mask.
   pub position: Position,
+  /// The size of the mask image.
   pub size: BackgroundSize,
+  /// How the mask repeats.
   pub repeat: BackgroundRepeat,
+  /// The box in which the mask is clipped.
   pub clip: MaskClip,
+  /// The origin of the mask.
   pub origin: GeometryBox,
+  /// How the mask is composited with the element.
   pub composite: MaskComposite,
+  /// How the mask image is interpreted.
   pub mode: MaskMode,
 }
 
@@ -320,12 +362,16 @@ impl<'i> ImageFallback<'i> for Mask<'i> {
   }
 }
 
-/// https://www.w3.org/TR/css-masking-1/#the-clip-path
+/// A value for the [clip-path](https://www.w3.org/TR/css-masking-1/#the-clip-path) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClipPath<'i> {
+  /// No clip path.
   None,
+  /// A url reference to an SVG path element.
   Url(Url<'i>),
+  /// A basic shape, positioned according to the reference box.
   Shape(Box<BasicShape>, GeometryBox),
+  /// A reference box.
   Box(GeometryBox),
 }
 
@@ -374,9 +420,11 @@ impl<'i> ToCss for ClipPath<'i> {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/css-masking-1/#the-mask-border-mode
+  /// A value for the [mask-border-mode](https://www.w3.org/TR/css-masking-1/#the-mask-border-mode) property.
   pub enum MaskBorderMode {
+    /// The luminance values of the mask image is used.
     "luminance": Luminance,
+    /// The alpha values of the mask image is used.
     "alpha": Alpha,
   }
 }
@@ -387,10 +435,12 @@ impl Default for MaskBorderMode {
   }
 }
 
-/// https://www.w3.org/TR/css-masking-1/#the-mask-border
+/// A value for the [mask-border](https://www.w3.org/TR/css-masking-1/#the-mask-border) shorthand property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct MaskBorder<'i> {
+  /// The border image shorthand.
   pub border_image: BorderImage<'i>,
+  /// How the mask image is interpreted.
   pub mode: MaskBorderMode,
 }
 

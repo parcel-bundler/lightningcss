@@ -1,3 +1,5 @@
+//! CSS properties related to overflow.
+
 use super::{Property, PropertyId};
 use crate::compat::Feature;
 use crate::context::PropertyHandlerContext;
@@ -10,19 +12,28 @@ use crate::traits::{Parse, PropertyHandler, ToCss};
 use cssparser::*;
 
 enum_property! {
+  /// An [overflow](https://www.w3.org/TR/css-overflow-3/#overflow-properties) keyword
+  /// as used in the `overflow-x`, `overflow-y`, and `overflow` properties.
   pub enum OverflowKeyword {
+    /// Overflowing content is visible.
     Visible,
+    /// Overflowing content is hidden. Programmatic scrolling is allowed.
     Hidden,
+    /// Overflowing content is clipped. Programmatic scrolling is not allowed.
     Clip,
+    /// The element is scrollable.
     Scroll,
+    /// Overflowing content scrolls if needed.
     Auto,
   }
 }
 
-/// https://www.w3.org/TR/2020/WD-css-overflow-3-20200603/#overflow-properties
+/// A value for the [overflow](https://www.w3.org/TR/css-overflow-3/#overflow-properties) shorthand property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Overflow {
+  /// The overflow mode for the x direction.
   pub x: OverflowKeyword,
+  /// The overflow mode for the y direction.
   pub y: OverflowKeyword,
 }
 
@@ -49,9 +60,11 @@ impl ToCss for Overflow {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2020/WD-css-overflow-3-20200603/#text-overflow
+  /// A value for the [text-overflow](https://www.w3.org/TR/css-overflow-3/#text-overflow) property.
   pub enum TextOverflow {
+    /// Overflowing text is clipped.
     Clip,
+    /// Overflowing text is truncated with an ellipsis.
     Ellipsis,
   }
 }

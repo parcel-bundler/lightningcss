@@ -1,3 +1,5 @@
+//! CSS properties related to fonts.
+
 use super::{Property, PropertyId};
 use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
@@ -5,15 +7,19 @@ use crate::error::{ParserError, PrinterError};
 use crate::macros::*;
 use crate::printer::Printer;
 use crate::traits::{Parse, PropertyHandler, ToCss};
+use crate::values::number::CSSNumber;
 use crate::values::string::CowArcStr;
 use crate::values::{angle::Angle, length::LengthPercentage, percentage::Percentage};
 use cssparser::*;
 
-/// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-weight-prop
+/// A value for the [font-weight](https://www.w3.org/TR/css-fonts-4/#font-weight-prop) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FontWeight {
+  /// An absolute font weight.
   Absolute(AbsoluteFontWeight),
+  /// The `bolder` keyword.
   Bolder,
+  /// The `lighter` keyword.
   Lighter,
 }
 
@@ -55,11 +61,17 @@ impl ToCss for FontWeight {
   }
 }
 
-/// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-weight-absolute-values
+/// An [absolute font weight](https://www.w3.org/TR/css-fonts-4/#font-weight-absolute-values),
+/// as used in the `font-weight` property.
+///
+/// See [FontWeight](FontWeight).
 #[derive(Debug, Clone, PartialEq)]
 pub enum AbsoluteFontWeight {
-  Weight(f32),
+  /// An explicit weight.
+  Weight(CSSNumber),
+  /// Same as `400`.
   Normal,
+  /// Same as `700`.
   Bold,
 }
 
@@ -71,7 +83,7 @@ impl Default for AbsoluteFontWeight {
 
 impl<'i> Parse<'i> for AbsoluteFontWeight {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(val) = input.try_parse(f32::parse) {
+    if let Ok(val) = input.try_parse(CSSNumber::parse) {
       return Ok(AbsoluteFontWeight::Weight(val));
     }
 
@@ -102,6 +114,10 @@ impl ToCss for AbsoluteFontWeight {
 }
 
 enum_property! {
+  /// An [absolute font size](https://www.w3.org/TR/css-fonts-3/#absolute-size-value),
+  /// as used in the `font-size` property.
+  ///
+  /// See [FontSize](FontSize).
   pub enum AbsoluteFontSize {
     "xx-small": XXSmall,
     "x-small": XSmall,
@@ -114,17 +130,24 @@ enum_property! {
 }
 
 enum_property! {
+  /// A [relative font size](https://www.w3.org/TR/css-fonts-3/#relative-size-value),
+  /// as used in the `font-size` property.
+  ///
+  /// See [FontSize](FontSize).
   pub enum RelativeFontSize {
     Smaller,
     Larger,
   }
 }
 
-/// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-size-prop
+/// A value for the [font-size](https://www.w3.org/TR/css-fonts-4/#font-size-prop) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FontSize {
+  /// An explicit size.
   Length(LengthPercentage),
+  /// An absolute font size keyword.
   Absolute(AbsoluteFontSize),
+  /// A relative font size keyword.
   Relative(RelativeFontSize),
 }
 
@@ -158,15 +181,28 @@ impl ToCss for FontSize {
 }
 
 enum_property! {
+  /// A [font stretch keyword](https://www.w3.org/TR/css-fonts-4/#font-stretch-prop),
+  /// as used in the `font-stretch` property.
+  ///
+  /// See [FontStretch](FontStretch).
   pub enum FontStretchKeyword {
+    /// 100%
     "normal": Normal,
+    /// 50%
     "ultra-condensed": UltraCondensed,
+    /// 62.5%
     "extra-condensed": ExtraCondensed,
+    /// 75%
     "condensed": Condensed,
+    /// 87.5%
     "semi-condensed": SemiCondensed,
+    /// 112.5%
     "semi-expanded": SemiExpanded,
+    /// 125%
     "expanded": Expanded,
+    /// 150%
     "extra-expanded": ExtraExpanded,
+    /// 200%
     "ultra-expanded": UltraExpanded,
   }
 }
@@ -195,10 +231,12 @@ impl FontStretchKeyword {
   }
 }
 
-/// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-stretch-prop
+/// A value for the [font-stretch](https://www.w3.org/TR/css-fonts-4/#font-stretch-prop) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FontStretch {
+  /// A font stretch keyword.
   Keyword(FontStretchKeyword),
+  /// A percentage.
   Percentage(Percentage),
 }
 
@@ -246,7 +284,10 @@ impl ToCss for FontStretch {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#generic-font-families
+  /// A [generic font family](https://www.w3.org/TR/css-fonts-4/#generic-font-families) name,
+  /// as used in the `font-family` property.
+  ///
+  /// See [FontFamily](FontFamily).
   pub enum GenericFontFamily {
     "serif": Serif,
     "sans-serif": SansSerif,
@@ -279,10 +320,12 @@ enum_property! {
   }
 }
 
-/// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-family-prop
+/// A value for the [font-family](https://www.w3.org/TR/css-fonts-4/#font-family-prop) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FontFamily<'i> {
+  /// A custom family name.
   FamilyName(CowArcStr<'i>),
+  /// A generic family name.
   Generic(GenericFontFamily),
 }
 
@@ -352,11 +395,14 @@ impl<'i> ToCss for FontFamily<'i> {
   }
 }
 
-/// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-style-prop
+/// A value for the [font-style](https://www.w3.org/TR/css-fonts-4/#font-style-prop) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FontStyle {
+  /// Normal font style.
   Normal,
+  // Italic font style.
   Italic,
+  /// Oblique font style, with a custom angle.
   Oblique(Angle),
 }
 
@@ -405,14 +451,21 @@ impl ToCss for FontStyle {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-variant-caps-prop
+  /// A value for the [font-variant-caps](https://www.w3.org/TR/css-fonts-4/#font-variant-caps-prop) property.
   pub enum FontVariantCaps {
+    /// No special capitalization features are applied.
     "normal": Normal,
+    /// The small capitals feature is used for lower case letters.
     "small-caps": SmallCaps,
+    /// Small capitals are used for both upper and lower case letters.
     "all-small-caps": AllSmallCaps,
+    /// Petite capitals are used.
     "petite-caps": PetiteCaps,
+    /// Petite capitals are used for both upper and lower case letters.
     "all-petite-caps": AllPetiteCaps,
+    /// Enables display of mixture of small capitals for uppercase letters with normal lowercase letters.
     "unicase": Unicase,
+    /// Uses titling capitals.
     "titling-caps": TitlingCaps,
   }
 }
@@ -428,9 +481,13 @@ impl FontVariantCaps {
 }
 
 enum_property! {
-  /// The `font` property only supports font-variant-caps values from CSS 2.1
+  /// The CSS 2.1 values for the `font-variant-caps` property, as used in the `font` shorthand.
+  ///
+  /// See [Font](Font).
   pub enum FontVariantCapsCSS2 {
+    /// No special capitalization features are applied.
     "normal": Normal,
+    /// Small capitals are used for lower case letters.
     "small-caps": SmallCaps,
   }
 }
@@ -450,11 +507,14 @@ impl FontVariantCapsCSS2 {
   }
 }
 
-/// https://www.w3.org/TR/2020/WD-css-inline-3-20200827/#propdef-line-height
+/// A value for the [line-height](https://www.w3.org/TR/2020/WD-css-inline-3-20200827/#propdef-line-height) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum LineHeight {
+  /// The UA sets the line height based on the font.
   Normal,
-  Number(f32),
+  /// A multiple of the element's font size.
+  Number(CSSNumber),
+  /// An explicit height.
   Length(LengthPercentage),
 }
 
@@ -470,7 +530,7 @@ impl<'i> Parse<'i> for LineHeight {
       return Ok(LineHeight::Normal);
     }
 
-    if let Ok(val) = input.try_parse(f32::parse) {
+    if let Ok(val) = input.try_parse(CSSNumber::parse) {
       return Ok(LineHeight::Number(val));
     }
 
@@ -492,23 +552,34 @@ impl ToCss for LineHeight {
 }
 
 enum_property! {
+  /// A keyword for the [vertical align](https://drafts.csswg.org/css2/#propdef-vertical-align) property.
   pub enum VerticalAlignKeyword {
+    /// Align the baseline of the box with the baseline of the parent box.
     "baseline": Baseline,
+    /// Lower the baseline of the box to the proper position for subscripts of the parent’s box.
     "sub": Sub,
+    /// Raise the baseline of the box to the proper position for superscripts of the parent’s box.
     "super": Super,
+    /// Align the top of the aligned subtree with the top of the line box.
     "top": Top,
+    /// Align the top of the box with the top of the parent’s content area.
     "text-top": TextTop,
+    /// Align the vertical midpoint of the box with the baseline of the parent box plus half the x-height of the parent.
     "middle": Middle,
+    /// Align the bottom of the aligned subtree with the bottom of the line box.
     "bottom": Bottom,
+    /// Align the bottom of the box with the bottom of the parent’s content area.
     "text-bottom": TextBottom,
   }
 }
 
-/// https://drafts.csswg.org/css2/#propdef-vertical-align
+/// A value for the [vertical align](https://drafts.csswg.org/css2/#propdef-vertical-align) property.
 // TODO: there is a more extensive spec in CSS3 but it doesn't seem any browser implements it? https://www.w3.org/TR/css-inline-3/#transverse-alignment
 #[derive(Debug, Clone, PartialEq)]
 pub enum VerticalAlign {
+  /// A vertical align keyword.
   Keyword(VerticalAlignKeyword),
+  /// An explicit length.
   Length(LengthPercentage),
 }
 
@@ -535,15 +606,22 @@ impl ToCss for VerticalAlign {
   }
 }
 
-/// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-prop
+/// A value for the [font](https://www.w3.org/TR/css-fonts-4/#font-prop) shorthand property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Font<'i> {
+  /// The font family.
   pub family: Vec<FontFamily<'i>>,
+  /// The font size.
   pub size: FontSize,
+  /// The font style.
   pub style: FontStyle,
+  /// The font weight.
   pub weight: FontWeight,
+  /// The font stretch.
   pub stretch: FontStretch,
+  /// The line height.
   pub line_height: LineHeight,
+  /// How the text should be capitalized. Only CSS 2.1 values are supported.
   pub variant_caps: FontVariantCapsCSS2,
 }
 

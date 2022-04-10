@@ -1,3 +1,5 @@
+//! Properties related to CSS modules.
+
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
@@ -6,18 +8,25 @@ use crate::values::string::CowArcStr;
 use cssparser::*;
 use smallvec::SmallVec;
 
-/// The `composes` property from CSS modules.
-/// https://github.com/css-modules/css-modules/#dependencies
+/// A value for the [composes](https://github.com/css-modules/css-modules/#dependencies) property from CSS modules.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Composes<'i> {
+  /// A list of class names to compose.
   pub names: CustomIdentList<'i>,
+  /// Where the class names are composed from.
   pub from: Option<ComposesFrom<'i>>,
+  /// The source location of the `composes` property.
   pub loc: SourceLocation,
 }
 
+/// Defines where the class names referenced in the `composes` property are located.
+///
+/// See [Composes](Composes).
 #[derive(Debug, Clone, PartialEq)]
 pub enum ComposesFrom<'i> {
+  /// The class name is global.
   Global,
+  /// The class name comes from the specified file.
   File(CowArcStr<'i>),
 }
 
