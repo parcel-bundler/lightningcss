@@ -114,7 +114,8 @@ impl<'i> StyleSheet<'i> {
   }
 
   pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, Error<PrinterErrorKind>> {
-    let mut dest = String::new();
+    // Make sure we always have capacity > 0: https://github.com/napi-rs/napi-rs/issues/1124.
+    let mut dest = String::with_capacity(1);
     let mut printer = Printer::new(&mut dest, options);
 
     printer.sources = Some(&self.sources);
@@ -175,7 +176,8 @@ impl<'i> StyleAttribute<'i> {
       "Source maps are not supported for style attributes"
     );
 
-    let mut dest = String::new();
+    // Make sure we always have capacity > 0: https://github.com/napi-rs/napi-rs/issues/1124.
+    let mut dest = String::with_capacity(1);
     let mut printer = Printer::new(&mut dest, options);
 
     let len = self.declarations.declarations.len() + self.declarations.important_declarations.len();

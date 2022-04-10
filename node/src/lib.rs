@@ -71,6 +71,29 @@ struct TransformResult {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+impl TransformResult {
+  fn into_js(self, ctx: CallContext) -> napi::Result<JsUnknown> {
+    // Manually construct buffers so we avoid a copy and work around
+    // https://github.com/napi-rs/napi-rs/issues/1124.
+    let mut obj = ctx.env.create_object()?;
+    let buf = ctx.env.create_buffer_with_data(self.code)?;
+    obj.set_named_property("code", buf.into_raw())?;
+    obj.set_named_property(
+      "map",
+      if let Some(map) = self.map {
+        let buf = ctx.env.create_buffer_with_data(map)?;
+        buf.into_raw().into_unknown()
+      } else {
+        ctx.env.get_null()?.into_unknown()
+      },
+    )?;
+    obj.set_named_property("exports", ctx.env.to_js_value(&self.exports)?)?;
+    obj.set_named_property("dependencies", ctx.env.to_js_value(&self.dependencies)?)?;
+    Ok(obj.into_unknown())
+  }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 #[js_function(1)]
 fn transform(ctx: CallContext) -> napi::Result<JsUnknown> {
   let opts = ctx.get::<JsObject>(0)?;
@@ -79,7 +102,7 @@ fn transform(ctx: CallContext) -> napi::Result<JsUnknown> {
   let res = compile(code, &config);
 
   match res {
-    Ok(res) => ctx.env.to_js_value(&res),
+    Ok(res) => res.into_js(ctx),
     Err(err) => err.throw(ctx, Some(code)),
   }
 }
@@ -93,7 +116,7 @@ fn transform_style_attribute(ctx: CallContext) -> napi::Result<JsUnknown> {
   let res = compile_attr(code, &config);
 
   match res {
-    Ok(res) => ctx.env.to_js_value(&res),
+    Ok(res) => res.into_js(ctx),
     Err(err) => err.throw(ctx, Some(code)),
   }
 }
@@ -107,7 +130,7 @@ fn bundle(ctx: CallContext) -> napi::Result<JsUnknown> {
   let res = compile_bundle(&fs, &config);
 
   match res {
-    Ok(res) => ctx.env.to_js_value(&res),
+    Ok(res) => res.into_js(ctx),
     Err(err) => {
       let code = match &err {
         CompileError::ParseError(Error {
@@ -331,6 +354,19 @@ struct AttrResult {
   #[serde(with = "serde_bytes")]
   code: Vec<u8>,
   dependencies: Option<Vec<Dependency>>,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl AttrResult {
+  fn into_js(self, ctx: CallContext) -> napi::Result<JsUnknown> {
+    // Manually construct buffers so we avoid a copy and work around
+    // https://github.com/napi-rs/napi-rs/issues/1124.
+    let mut obj = ctx.env.create_object()?;
+    let buf = ctx.env.create_buffer_with_data(self.code)?;
+    obj.set_named_property("code", buf.into_raw())?;
+    obj.set_named_property("dependencies", ctx.env.to_js_value(&self.dependencies)?)?;
+    Ok(obj.into_unknown())
+  }
 }
 
 fn compile_attr<'i>(code: &'i str, config: &AttrConfig) -> Result<AttrResult, CompileError<'i>> {
