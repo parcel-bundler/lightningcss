@@ -1,3 +1,6 @@
+//! The CSS box-shadow property.
+
+use super::PropertyId;
 use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
 use crate::error::{ParserError, PrinterError};
@@ -12,15 +15,20 @@ use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 use smallvec::SmallVec;
 
-use super::PropertyId;
-
+/// A value for the [box-shadow](https://drafts.csswg.org/css-backgrounds/#box-shadow) property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct BoxShadow {
+  /// The color of the box shadow.
   pub color: CssColor,
+  /// The x offset of the shadow.
   pub x_offset: Length,
+  /// The y offset of the shadow.
   pub y_offset: Length,
+  /// The blur radius of the shadow.
   pub blur: Length,
+  /// The spread distance of the shadow.
   pub spread: Length,
+  /// Whether the shadow is inset within the box.
   pub inset: bool,
 }
 

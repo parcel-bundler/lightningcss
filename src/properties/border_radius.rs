@@ -1,3 +1,5 @@
+//! The CSS border radius property.
+
 use crate::compat;
 use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
@@ -13,11 +15,16 @@ use crate::values::rect::Rect;
 use crate::values::size::Size2D;
 use cssparser::*;
 
+/// A value for the [border-radius](https://www.w3.org/TR/css-backgrounds-3/#border-radius) property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct BorderRadius {
+  /// The x and y radius values for the top left corner.
   pub top_left: Size2D<LengthPercentage>,
+  /// The x and y radius values for the top right corner.
   pub top_right: Size2D<LengthPercentage>,
+  /// The x and y radius values for the bottom left corner.
   pub bottom_left: Size2D<LengthPercentage>,
+  /// The x and y radius values for the bottom right corner.
   pub bottom_right: Size2D<LengthPercentage>,
 }
 

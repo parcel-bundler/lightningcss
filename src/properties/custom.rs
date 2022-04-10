@@ -1,3 +1,5 @@
+//! CSS custom properties and unparsed token values.
+
 use crate::error::{ParserError, PrinterError, PrinterErrorKind};
 use crate::prefixes::Feature;
 use crate::printer::Printer;
@@ -12,13 +14,17 @@ use crate::values::url::Url;
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 
+/// A CSS custom property, representing any unknown property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CustomProperty<'i> {
+  /// The name of the property.
   pub name: CowArcStr<'i>,
+  /// The property value, stored as a raw token list.
   pub value: TokenList<'i>,
 }
 
 impl<'i> CustomProperty<'i> {
+  /// Parses a custom property with the given name.
   pub fn parse<'t>(
     name: CowRcStr<'i>,
     input: &mut Parser<'i, 't>,
@@ -31,13 +37,21 @@ impl<'i> CustomProperty<'i> {
   }
 }
 
+/// A known property with an unparsed value.
+///
+/// This type is used when the value of a known property could not
+/// be parsed, e.g. in the case css `var()` references are encountered.
+/// In this case, the raw tokens are stored instead.
 #[derive(Debug, Clone, PartialEq)]
 pub struct UnparsedProperty<'i> {
+  /// The id of the property.
   pub property_id: PropertyId<'i>,
+  /// The property value, stored as a raw token list.
   pub value: TokenList<'i>,
 }
 
 impl<'i> UnparsedProperty<'i> {
+  /// Parses a property with the given id as a token list.
   pub fn parse<'t>(
     property_id: PropertyId<'i>,
     input: &mut Parser<'i, 't>,
@@ -56,6 +70,7 @@ impl<'i> UnparsedProperty<'i> {
     clone
   }
 
+  /// Returns a new UnparsedProperty with the same value and the given property id.
   pub fn with_property_id(&self, property_id: PropertyId<'i>) -> UnparsedProperty<'i> {
     UnparsedProperty {
       property_id,
@@ -64,13 +79,18 @@ impl<'i> UnparsedProperty<'i> {
   }
 }
 
+/// A raw list of CSS tokens, with embedded parsed values.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TokenList<'i>(pub Vec<TokenOrValue<'i>>);
 
+/// A raw CSS token, or a parsed value.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenOrValue<'i> {
+  /// A token.
   Token(Token<'i>),
+  /// A parsed CSS color.
   Color(CssColor),
+  /// A parsed CSS url.
   Url(Url<'i>),
 }
 
@@ -81,6 +101,7 @@ impl<'i> From<Token<'i>> for TokenOrValue<'i> {
 }
 
 impl<'i> TokenOrValue<'i> {
+  /// Returns whether the token is whitespace.
   pub fn is_whitespace(&self) -> bool {
     matches!(self, TokenOrValue::Token(Token::WhiteSpace(_)))
   }
@@ -287,6 +308,7 @@ impl<'i> TokenList<'i> {
   }
 }
 
+/// A raw CSS token.
 // Copied from cssparser to change CowRcStr to CowArcStr
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token<'a> {

@@ -10,6 +10,7 @@ use crate::prefixes::{is_flex_2009, Feature};
 use crate::printer::Printer;
 use crate::targets::Browsers;
 use crate::traits::{FromStandard, Parse, PropertyHandler, ToCss};
+use crate::values::number::{CSSInteger, CSSNumber};
 use crate::values::{
   length::{LengthPercentage, LengthPercentageOrAuto},
   percentage::Percentage,
@@ -112,8 +113,8 @@ impl ToCss for FlexFlow {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Flex {
-  pub grow: f32,
-  pub shrink: f32,
+  pub grow: CSSNumber,
+  pub shrink: CSSNumber,
   pub basis: LengthPercentageOrAuto,
 }
 
@@ -133,9 +134,9 @@ impl<'i> Parse<'i> for Flex {
 
     loop {
       if grow.is_none() {
-        if let Ok(val) = input.try_parse(f32::parse) {
+        if let Ok(val) = input.try_parse(CSSNumber::parse) {
           grow = Some(val);
-          shrink = input.try_parse(f32::parse).ok();
+          shrink = input.try_parse(CSSNumber::parse).ok();
           continue;
         }
       }
@@ -291,9 +292,9 @@ impl FromStandard<FlexWrap> for BoxLines {
   }
 }
 
-type BoxOrdinalGroup = f32;
-impl FromStandard<f32> for BoxOrdinalGroup {
-  fn from_standard(order: &f32) -> Option<BoxOrdinalGroup> {
+type BoxOrdinalGroup = CSSInteger;
+impl FromStandard<CSSInteger> for BoxOrdinalGroup {
+  fn from_standard(order: &CSSInteger) -> Option<BoxOrdinalGroup> {
     Some(*order)
   }
 }
@@ -395,16 +396,16 @@ pub(crate) struct FlexHandler {
   box_direction: Option<(BoxDirection, VendorPrefix)>,
   wrap: Option<(FlexWrap, VendorPrefix)>,
   box_lines: Option<(BoxLines, VendorPrefix)>,
-  grow: Option<(f32, VendorPrefix)>,
-  box_flex: Option<(f32, VendorPrefix)>,
-  flex_positive: Option<(f32, VendorPrefix)>,
-  shrink: Option<(f32, VendorPrefix)>,
-  flex_negative: Option<(f32, VendorPrefix)>,
+  grow: Option<(CSSNumber, VendorPrefix)>,
+  box_flex: Option<(CSSNumber, VendorPrefix)>,
+  flex_positive: Option<(CSSNumber, VendorPrefix)>,
+  shrink: Option<(CSSNumber, VendorPrefix)>,
+  flex_negative: Option<(CSSNumber, VendorPrefix)>,
   basis: Option<(LengthPercentageOrAuto, VendorPrefix)>,
   preferred_size: Option<(LengthPercentageOrAuto, VendorPrefix)>,
-  order: Option<(f32, VendorPrefix)>,
+  order: Option<(CSSInteger, VendorPrefix)>,
   box_ordinal_group: Option<(BoxOrdinalGroup, VendorPrefix)>,
-  flex_order: Option<(f32, VendorPrefix)>,
+  flex_order: Option<(CSSInteger, VendorPrefix)>,
   has_any: bool,
 }
 

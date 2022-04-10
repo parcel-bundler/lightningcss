@@ -1,3 +1,5 @@
+//! CSS properties related to backgrounds.
+
 use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
 use crate::error::{ParserError, PrinterError};
@@ -14,14 +16,17 @@ use cssparser::*;
 use itertools::izip;
 use smallvec::SmallVec;
 
-/// https://www.w3.org/TR/css-backgrounds-3/#background-size
+/// A value for the [background-size](https://www.w3.org/TR/css-backgrounds-3/#background-size) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum BackgroundSize {
+  /// An explicit background size.
   Explicit {
     width: LengthPercentageOrAuto,
     height: LengthPercentageOrAuto,
   },
+  /// The `cover` keyword. Scales the background image to cover both the width and height of the element.
   Cover,
+  /// The `contain` keyword. Scales the background image so that it fits within the element.
   Contain,
 }
 
@@ -78,19 +83,29 @@ impl ToCss for BackgroundSize {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/css-backgrounds-3/#typedef-repeat-style
+  /// A [`<repeat-style>`](https://www.w3.org/TR/css-backgrounds-3/#typedef-repeat-style) value,
+  /// used within the `background-repeat` property to represent how a background image is repeated
+  /// in a single direction.
+  ///
+  /// See [BackgroundRepeat](BackgroundRepeat).
   pub enum BackgroundRepeatKeyword {
+    /// The image is repeated in this direction.
     "repeat": Repeat,
+    /// The image is repeated so that it fits, and then spaced apart evenly.
     "space": Space,
+    /// The image is scaled so that it repeats an even number of times.
     "round": Round,
+    /// The image is placed once and not repeated in this direction.
     "no-repeat": NoRepeat,
   }
 }
 
-/// https://www.w3.org/TR/css-backgrounds-3/#background-repeat
+/// A value for the [background-repeat](https://www.w3.org/TR/css-backgrounds-3/#background-repeat) property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct BackgroundRepeat {
+  /// A repeat style for the x direction.
   pub x: BackgroundRepeatKeyword,
+  /// A repeat style for the y direction.
   pub y: BackgroundRepeatKeyword,
 }
 
@@ -145,10 +160,13 @@ impl ToCss for BackgroundRepeat {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/css-backgrounds-3/#background-attachment
+  /// A value for the [background-attachment](https://www.w3.org/TR/css-backgrounds-3/#background-attachment) property.
   pub enum BackgroundAttachment {
+    /// The background scrolls with the container.
     Scroll,
+    /// The background is fixed to the viewport.
     Fixed,
+    /// The background is fixed with regard to the element’s contents.
     Local,
   }
 }
@@ -160,42 +178,50 @@ impl Default for BackgroundAttachment {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/css-backgrounds-3/#typedef-box
-  pub enum BackgroundBox {
+  /// A value for the [background-origin](https://www.w3.org/TR/css-backgrounds-3/#background-origin) property.
+  pub enum BackgroundOrigin {
+    /// The position is relative to the border box.
     "border-box": BorderBox,
+    /// The position is relative to the padding box.
     "padding-box": PaddingBox,
+    /// The position is relative to the content box.
     "content-box": ContentBox,
   }
 }
 
 enum_property! {
-  /// https://drafts.csswg.org/css-backgrounds-4/#background-clip
+  /// A value for the [background-clip](https://drafts.csswg.org/css-backgrounds-4/#background-clip) property.
   pub enum BackgroundClip {
+    /// The background is clipped to the border box.
     "border-box": BorderBox,
+    /// The background is clipped to the padding box.
     "padding-box": PaddingBox,
+    /// The background is clipped to the content box.
     "content-box": ContentBox,
+    /// The background is clipped to the area painted by the border.
     "border": Border,
+    /// The background is clipped to the text content of the element.
     "text": Text,
   }
 }
 
-impl PartialEq<BackgroundBox> for BackgroundClip {
-  fn eq(&self, other: &BackgroundBox) -> bool {
+impl PartialEq<BackgroundOrigin> for BackgroundClip {
+  fn eq(&self, other: &BackgroundOrigin) -> bool {
     match (self, other) {
-      (BackgroundClip::BorderBox, BackgroundBox::BorderBox)
-      | (BackgroundClip::PaddingBox, BackgroundBox::PaddingBox)
-      | (BackgroundClip::ContentBox, BackgroundBox::ContentBox) => true,
+      (BackgroundClip::BorderBox, BackgroundOrigin::BorderBox)
+      | (BackgroundClip::PaddingBox, BackgroundOrigin::PaddingBox)
+      | (BackgroundClip::ContentBox, BackgroundOrigin::ContentBox) => true,
       _ => false,
     }
   }
 }
 
-impl Into<BackgroundClip> for BackgroundBox {
+impl Into<BackgroundClip> for BackgroundOrigin {
   fn into(self) -> BackgroundClip {
     match self {
-      BackgroundBox::BorderBox => BackgroundClip::BorderBox,
-      BackgroundBox::PaddingBox => BackgroundClip::PaddingBox,
-      BackgroundBox::ContentBox => BackgroundClip::ContentBox,
+      BackgroundOrigin::BorderBox => BackgroundClip::BorderBox,
+      BackgroundOrigin::PaddingBox => BackgroundClip::PaddingBox,
+      BackgroundOrigin::ContentBox => BackgroundClip::ContentBox,
     }
   }
 }
@@ -215,16 +241,24 @@ impl BackgroundClip {
   }
 }
 
-/// https://www.w3.org/TR/css-backgrounds-3/#background
+/// A value for the [background](https://www.w3.org/TR/css-backgrounds-3/#background) shorthand property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Background<'i> {
+  /// The background image.
   pub image: Image<'i>,
+  /// The background color.
   pub color: CssColor,
+  /// The background position.
   pub position: Position,
+  /// How the background image should repeat.
   pub repeat: BackgroundRepeat,
+  /// The size of the background image.
   pub size: BackgroundSize,
+  /// The background attachment.
   pub attachment: BackgroundAttachment,
-  pub origin: BackgroundBox,
+  /// The background origin.
+  pub origin: BackgroundOrigin,
+  /// How the background should be clipped.
   pub clip: BackgroundClip,
 }
 
@@ -236,7 +270,7 @@ impl<'i> Parse<'i> for Background<'i> {
     let mut image: Option<Image> = None;
     let mut repeat: Option<BackgroundRepeat> = None;
     let mut attachment: Option<BackgroundAttachment> = None;
-    let mut origin: Option<BackgroundBox> = None;
+    let mut origin: Option<BackgroundOrigin> = None;
     let mut clip: Option<BackgroundClip> = None;
 
     loop {
@@ -285,7 +319,7 @@ impl<'i> Parse<'i> for Background<'i> {
       }
 
       if origin.is_none() {
-        if let Ok(value) = input.try_parse(BackgroundBox::parse) {
+        if let Ok(value) = input.try_parse(BackgroundOrigin::parse) {
           origin = Some(value);
           continue;
         }
@@ -314,7 +348,7 @@ impl<'i> Parse<'i> for Background<'i> {
       repeat: repeat.unwrap_or_default(),
       size: size.unwrap_or_default(),
       attachment: attachment.unwrap_or_default(),
-      origin: origin.unwrap_or(BackgroundBox::PaddingBox),
+      origin: origin.unwrap_or(BackgroundOrigin::PaddingBox),
       clip: clip.unwrap_or(BackgroundClip::BorderBox),
     })
   }
@@ -372,8 +406,8 @@ impl<'i> ToCss for Background<'i> {
       has_output = true;
     }
 
-    let output_padding_box = self.origin != BackgroundBox::PaddingBox
-      || (self.clip != BackgroundBox::BorderBox && self.clip.is_background_box());
+    let output_padding_box = self.origin != BackgroundOrigin::PaddingBox
+      || (self.clip != BackgroundOrigin::BorderBox && self.clip.is_background_box());
     if output_padding_box {
       if has_output {
         dest.write_str(" ")?;
@@ -383,7 +417,7 @@ impl<'i> ToCss for Background<'i> {
       has_output = true;
     }
 
-    if (output_padding_box && self.clip != self.origin) || self.clip != BackgroundBox::BorderBox {
+    if (output_padding_box && self.clip != self.origin) || self.clip != BackgroundOrigin::BorderBox {
       if has_output {
         dest.write_str(" ")?;
       }
@@ -443,7 +477,7 @@ pub(crate) struct BackgroundHandler<'i> {
   repeats: Option<SmallVec<[BackgroundRepeat; 1]>>,
   sizes: Option<SmallVec<[BackgroundSize; 1]>>,
   attachments: Option<SmallVec<[BackgroundAttachment; 1]>>,
-  origins: Option<SmallVec<[BackgroundBox; 1]>>,
+  origins: Option<SmallVec<[BackgroundOrigin; 1]>>,
   clips: Option<SmallVec<[BackgroundClip; 1]>>,
   decls: Vec<Property<'i>>,
   has_any: bool,

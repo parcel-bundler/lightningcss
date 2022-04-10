@@ -14,12 +14,12 @@ pub mod font;
 #[cfg(feature = "grid")]
 pub mod grid;
 pub mod list;
-pub mod margin_padding;
+pub(crate) mod margin_padding;
 pub mod masking;
 pub mod outline;
 pub mod overflow;
 pub mod position;
-pub mod prefix_handler;
+pub(crate) mod prefix_handler;
 pub mod size;
 pub mod svg;
 pub mod text;
@@ -34,6 +34,7 @@ use crate::prefixes::Feature;
 use crate::printer::{Printer, PrinterOptions};
 use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
+use crate::values::number::{CSSInteger, CSSNumber};
 use crate::values::string::CowArcStr;
 use crate::values::{
   alpha::*, color::*, easing::EasingFunction, ident::DashedIdent, image::*, length::*, position::*, rect::*,
@@ -497,7 +498,7 @@ define_properties! {
   "background-repeat": BackgroundRepeat(SmallVec<[BackgroundRepeat; 1]>),
   "background-attachment": BackgroundAttachment(SmallVec<[BackgroundAttachment; 1]>),
   "background-clip": BackgroundClip(SmallVec<[BackgroundClip; 1]>, VendorPrefix) / WebKit / Moz,
-  "background-origin": BackgroundOrigin(SmallVec<[BackgroundBox; 1]>),
+  "background-origin": BackgroundOrigin(SmallVec<[BackgroundOrigin; 1]>),
   "background": Background(SmallVec<[Background<'i>; 1]>),
 
   "box-shadow": BoxShadow(SmallVec<[BoxShadow; 1]>, VendorPrefix) / WebKit / Moz,
@@ -616,11 +617,11 @@ define_properties! {
   "flex-direction": FlexDirection(FlexDirection, VendorPrefix) / WebKit / Ms,
   "flex-wrap": FlexWrap(FlexWrap, VendorPrefix) / WebKit / Ms,
   "flex-flow": FlexFlow(FlexFlow, VendorPrefix) / WebKit / Ms,
-  "flex-grow": FlexGrow(f32, VendorPrefix) / WebKit,
-  "flex-shrink": FlexShrink(f32, VendorPrefix) / WebKit,
+  "flex-grow": FlexGrow(CSSNumber, VendorPrefix) / WebKit,
+  "flex-shrink": FlexShrink(CSSNumber, VendorPrefix) / WebKit,
   "flex-basis": FlexBasis(LengthPercentageOrAuto, VendorPrefix) / WebKit,
   "flex": Flex(Flex, VendorPrefix) / WebKit / Ms,
-  "order": Order(f32, VendorPrefix) / WebKit,
+  "order": Order(CSSInteger, VendorPrefix) / WebKit,
 
   // Align properties: https://www.w3.org/TR/2020/WD-css-align-3-20200421
   "align-content": AlignContent(AlignContent, VendorPrefix) / WebKit,
@@ -639,23 +640,23 @@ define_properties! {
   // Old flex (2009): https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/
   "box-orient": BoxOrient(BoxOrient, VendorPrefix) / WebKit / Moz unprefixed: false,
   "box-direction": BoxDirection(BoxDirection, VendorPrefix) / WebKit / Moz unprefixed: false,
-  "box-ordinal-group": BoxOrdinalGroup(f32, VendorPrefix) / WebKit / Moz unprefixed: false,
+  "box-ordinal-group": BoxOrdinalGroup(CSSInteger, VendorPrefix) / WebKit / Moz unprefixed: false,
   "box-align": BoxAlign(BoxAlign, VendorPrefix) / WebKit / Moz unprefixed: false,
-  "box-flex": BoxFlex(f32, VendorPrefix) / WebKit / Moz unprefixed: false,
-  "box-flex-group": BoxFlexGroup(f32, VendorPrefix) / WebKit unprefixed: false,
+  "box-flex": BoxFlex(CSSNumber, VendorPrefix) / WebKit / Moz unprefixed: false,
+  "box-flex-group": BoxFlexGroup(CSSInteger, VendorPrefix) / WebKit unprefixed: false,
   "box-pack": BoxPack(BoxPack, VendorPrefix) / WebKit / Moz unprefixed: false,
   "box-lines": BoxLines(BoxLines, VendorPrefix) / WebKit / Moz unprefixed: false,
 
   // Old flex (2012): https://www.w3.org/TR/2012/WD-css3-flexbox-20120322/
   "flex-pack": FlexPack(FlexPack, VendorPrefix) / Ms unprefixed: false,
-  "flex-order": FlexOrder(f32, VendorPrefix) / Ms unprefixed: false,
+  "flex-order": FlexOrder(CSSInteger, VendorPrefix) / Ms unprefixed: false,
   "flex-align": FlexAlign(BoxAlign, VendorPrefix) / Ms unprefixed: false,
   "flex-item-align": FlexItemAlign(FlexItemAlign, VendorPrefix) / Ms unprefixed: false,
   "flex-line-pack": FlexLinePack(FlexLinePack, VendorPrefix) / Ms unprefixed: false,
 
   // Microsoft extensions
-  "flex-positive": FlexPositive(f32, VendorPrefix) / Ms unprefixed: false,
-  "flex-negative": FlexNegative(f32, VendorPrefix) / Ms unprefixed: false,
+  "flex-positive": FlexPositive(CSSNumber, VendorPrefix) / Ms unprefixed: false,
+  "flex-negative": FlexNegative(CSSNumber, VendorPrefix) / Ms unprefixed: false,
   "flex-preferred-size": FlexPreferredSize(LengthPercentageOrAuto, VendorPrefix) / Ms unprefixed: false,
 
   #[cfg(feature = "grid")]
@@ -837,7 +838,7 @@ define_properties! {
   "stroke-width": StrokeWidth(LengthPercentage),
   "stroke-linecap": StrokeLinecap(StrokeLinecap),
   "stroke-linejoin": StrokeLinejoin(StrokeLinejoin),
-  "stroke-miterlimit": StrokeMiterlimit(f32),
+  "stroke-miterlimit": StrokeMiterlimit(CSSNumber),
   "stroke-dasharray": StrokeDasharray(StrokeDasharray),
   "stroke-dashoffset": StrokeDashoffset(LengthPercentage),
   "marker-start": MarkerStart(Marker<'i>),

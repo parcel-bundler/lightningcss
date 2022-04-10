@@ -1,3 +1,5 @@
+//! CSS properties related to outlines.
+
 use super::border::{BorderSideWidth, BorderStyle, GenericBorder};
 use super::{Property, PropertyId};
 use crate::context::PropertyHandlerContext;
@@ -10,9 +12,12 @@ use crate::traits::{FallbackValues, Parse, PropertyHandler, ToCss};
 use crate::values::color::CssColor;
 use cssparser::*;
 
+/// A value for the [outline-style](https://drafts.csswg.org/css-ui/#outline-style) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum OutlineStyle {
+  /// The `auto` keyword.
   Auto,
+  /// A value equivalent to the `border-style` property.
   BorderStyle(BorderStyle),
 }
 
@@ -45,6 +50,7 @@ impl Default for OutlineStyle {
   }
 }
 
+/// A value for the [outline](https://drafts.csswg.org/css-ui/#outline) shorthand property.
 pub type Outline = GenericBorder<OutlineStyle>;
 
 shorthand_handler!(OutlineHandler -> Outline {

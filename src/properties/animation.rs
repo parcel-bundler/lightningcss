@@ -1,3 +1,5 @@
+//! CSS properties related to keyframe animations.
+
 use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
 use crate::error::{ParserError, PrinterError};
@@ -7,15 +9,18 @@ use crate::printer::Printer;
 use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::targets::Browsers;
 use crate::traits::{Parse, PropertyHandler, ToCss};
+use crate::values::number::CSSNumber;
 use crate::values::{easing::EasingFunction, ident::CustomIdent, time::Time};
 use cssparser::*;
 use itertools::izip;
 use smallvec::SmallVec;
 
-/// https://drafts.csswg.org/css-animations/#animation-name
+/// A value for the [animation-name](https://drafts.csswg.org/css-animations/#animation-name) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum AnimationName<'i> {
+  /// The `none` keyword.
   None,
+  /// An identifier of a `@keyframes` rule.
   Ident(CustomIdent<'i>),
 }
 
@@ -52,12 +57,15 @@ impl<'i> ToCss for AnimationName<'i> {
   }
 }
 
+/// A list of animation names.
 pub type AnimationNameList<'i> = SmallVec<[AnimationName<'i>; 1]>;
 
-/// https://drafts.csswg.org/css-animations/#animation-iteration-count
+/// A value for the [animation-iteration-count](https://drafts.csswg.org/css-animations/#animation-iteration-count) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum AnimationIterationCount {
-  Number(f32),
+  /// The animation will repeat the specified number of times.
+  Number(CSSNumber),
+  /// The animation will repeat forever.
   Infinite,
 }
 
@@ -67,7 +75,7 @@ impl<'i> Parse<'i> for AnimationIterationCount {
       return Ok(AnimationIterationCount::Infinite);
     }
 
-    let number = f32::parse(input)?;
+    let number = CSSNumber::parse(input)?;
     return Ok(AnimationIterationCount::Number(number));
   }
 }
@@ -85,43 +93,61 @@ impl ToCss for AnimationIterationCount {
 }
 
 enum_property! {
-  /// https://drafts.csswg.org/css-animations/#animation-direction
+  /// A value for the [animation-direction](https://drafts.csswg.org/css-animations/#animation-direction) property.
   pub enum AnimationDirection {
+    /// The animation is played as specified
     "normal": Normal,
+    /// The animation is played in reverse.
     "reverse": Reverse,
+    /// The animation iterations alternate between forward and reverse.
     "alternate": Alternate,
+    /// The animation iterations alternate between forward and reverse, with reverse occurring first.
     "alternate-reverse": AlternateReverse,
   }
 }
 
 enum_property! {
-  /// https://drafts.csswg.org/css-animations/#animation-play-state
+  /// A value for the [animation-play-state](https://drafts.csswg.org/css-animations/#animation-play-state) property.
   pub enum AnimationPlayState {
+    /// The animation is playing.
     Running,
+    /// The animation is paused.
     Paused,
   }
 }
 
 enum_property! {
-  /// https://drafts.csswg.org/css-animations/#animation-fill-mode
+  /// A value for the [animation-fill-mode](https://drafts.csswg.org/css-animations/#animation-fill-mode) property.
   pub enum AnimationFillMode {
+    /// The animation has no effect while not playing.
     None,
+    /// After the animation, the ending values are applied.
     Forwards,
+    /// Before the animation, the starting values are applied.
     Backwards,
+    /// Both forwards and backwards apply.
     Both,
   }
 }
 
-/// https://drafts.csswg.org/css-animations/#animation
+/// A value for the [animation](https://drafts.csswg.org/css-animations/#animation) shorthand property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Animation<'i> {
+  /// The animation name.
   pub name: AnimationName<'i>,
+  /// The animation duration.
   pub duration: Time,
+  /// The easing function for the animation.
   pub timing_function: EasingFunction,
+  /// The number of times the animation will run.
   pub iteration_count: AnimationIterationCount,
+  /// The direction of the animation.
   pub direction: AnimationDirection,
+  /// The current play state of the animation.
   pub play_state: AnimationPlayState,
+  /// The animation delay.
   pub delay: Time,
+  /// The animation fill mode.
   pub fill_mode: AnimationFillMode,
 }
 
@@ -225,6 +251,7 @@ impl<'i> ToCss for Animation<'i> {
   }
 }
 
+/// A list of animations.
 pub type AnimationList<'i> = SmallVec<[Animation<'i>; 1]>;
 
 #[derive(Default)]

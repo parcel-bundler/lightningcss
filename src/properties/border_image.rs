@@ -1,3 +1,5 @@
+//! CSS properties related to border images.
+
 use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
 use crate::error::{ParserError, PrinterError};
@@ -8,6 +10,7 @@ use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::targets::Browsers;
 use crate::traits::{Parse, PropertyHandler, ToCss};
 use crate::values::image::Image;
+use crate::values::number::CSSNumber;
 use crate::values::rect::Rect;
 use crate::{
   traits::FallbackValues,
@@ -19,17 +22,27 @@ use crate::{
 use cssparser::*;
 
 enum_property! {
-  /// https://www.w3.org/TR/css-backgrounds-3/#border-image-repeat
+  /// A single [border-image-repeat](https://www.w3.org/TR/css-backgrounds-3/#border-image-repeat) keyword.
   pub enum BorderImageRepeatKeyword {
+    /// The image is stretched to fill the area.
     Stretch,
+    /// The image is tiled (repeated) to fill the area.
     Repeat,
+     /// The image is scaled so that it repeats an even number of times.
     Round,
+    /// The image is repeated so that it fits, and then spaced apart evenly.
     Space,
   }
 }
 
+/// A value for the [border-image-repeat](https://www.w3.org/TR/css-backgrounds-3/#border-image-repeat) property.
 #[derive(Debug, Clone, PartialEq)]
-pub struct BorderImageRepeat(pub BorderImageRepeatKeyword, pub BorderImageRepeatKeyword);
+pub struct BorderImageRepeat(
+  /// The top and bottom repeat value.
+  pub BorderImageRepeatKeyword,
+  /// The left and right repeat value.
+  pub BorderImageRepeatKeyword,
+);
 
 impl Default for BorderImageRepeat {
   fn default() -> BorderImageRepeat {
@@ -59,11 +72,14 @@ impl ToCss for BorderImageRepeat {
   }
 }
 
-/// https://www.w3.org/TR/css-backgrounds-3/#border-image-width
+/// A value for the [border-image-width](https://www.w3.org/TR/css-backgrounds-3/#border-image-width) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum BorderImageSideWidth {
-  Number(f32),
+  /// A number representing a multiple of the border width.
+  Number(CSSNumber),
+  /// An explicit length or percentage.
   LengthPercentage(LengthPercentage),
+  /// The `auto` keyword, representing the natural width of the image slice.
   Auto,
 }
 
@@ -79,7 +95,7 @@ impl<'i> Parse<'i> for BorderImageSideWidth {
       return Ok(BorderImageSideWidth::Auto);
     }
 
-    if let Ok(number) = input.try_parse(f32::parse) {
+    if let Ok(number) = input.try_parse(CSSNumber::parse) {
       return Ok(BorderImageSideWidth::Number(number));
     }
 
@@ -105,10 +121,12 @@ impl ToCss for BorderImageSideWidth {
   }
 }
 
-/// https://www.w3.org/TR/css-backgrounds-3/#border-image-slice
+/// A value for the [border-image-slice](https://www.w3.org/TR/css-backgrounds-3/#border-image-slice) property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct BorderImageSlice {
+  /// The offsets from the edges of the image.
   pub offsets: Rect<NumberOrPercentage>,
+  /// Whether the middle of the border image should be preserved.
   pub fill: bool,
 }
 
@@ -145,13 +163,18 @@ impl ToCss for BorderImageSlice {
   }
 }
 
-/// https://www.w3.org/TR/css-backgrounds-3/#border-image
+/// A value for the [border-image](https://www.w3.org/TR/css-backgrounds-3/#border-image) shorthand property.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct BorderImage<'i> {
+  /// The border image.
   pub source: Image<'i>,
+  /// The offsets that define where the image is sliced.
   pub slice: BorderImageSlice,
+  /// The width of the border image.
   pub width: Rect<BorderImageSideWidth>,
+  /// The amount that the image extends beyond the border box.
   pub outset: Rect<LengthOrNumber>,
+  /// How the border image is scaled and tiled.
   pub repeat: BorderImageRepeat,
 }
 

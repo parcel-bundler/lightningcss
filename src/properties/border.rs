@@ -1,3 +1,5 @@
+//! CSS properties related to borders.
+
 use super::border_image::*;
 use super::border_radius::*;
 use crate::compat::Feature;
@@ -16,15 +18,16 @@ use crate::values::length::*;
 use crate::values::rect::Rect;
 use cssparser::*;
 
+/// A value for the [border-width](https://www.w3.org/TR/css-backgrounds-3/#border-width) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum BorderSideWidth {
-  /// `thin`
+  /// A UA defined `thin` value.
   Thin,
-  /// `medium`
+  /// A UA defined `medium` value.
   Medium,
-  /// `thick`
+  /// A UA defined `thick` value.
   Thick,
-  /// `<length>`
+  /// An explicit width.
   Length(Length),
 }
 
@@ -66,16 +69,27 @@ impl ToCss for BorderSideWidth {
 }
 
 enum_property! {
+  /// A value for the [border-style](https://www.w3.org/TR/css-backgrounds-3/#border-style) property.
   pub enum BorderStyle {
-    Hidden,
+    /// No border.
     None,
+    /// Similar to `none` but with different rules for tables.
+    Hidden,
+    /// Looks as if the content on the inside of the border is sunken into the canvas.
     Inset,
+    /// Looks as if it were carved in the canvas.
     Groove,
+    /// Looks as if the content on the inside of the border is coming out of the canvas.
     Outset,
+    /// Looks as if it were coming out of the canvas.
     Ridge,
+    /// A series of round dots.
     Dotted,
+    /// A series of square-ended dashes.
     Dashed,
+    /// A single line segment.
     Solid,
+    /// Two parallel solid lines with some space between them.
     Double,
   }
 }
@@ -86,10 +100,14 @@ impl Default for BorderStyle {
   }
 }
 
+/// A generic type that represents the `border` and `outline` shorthand properties.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GenericBorder<S> {
+  /// The width of the border.
   pub width: BorderSideWidth,
+  /// The border style.
   pub style: S,
+  /// The border color.
   pub color: CssColor,
 }
 
@@ -228,10 +246,11 @@ impl FallbackValues for Rect<CssColor> {
   }
 }
 
+/// A value for the [border](https://www.w3.org/TR/css-backgrounds-3/#propdef-border) shorthand property.
 pub type Border = GenericBorder<BorderStyle>;
 
 #[derive(Default, Debug, PartialEq)]
-pub struct BorderShorthand {
+struct BorderShorthand {
   pub width: Option<BorderSideWidth>,
   pub style: Option<BorderStyle>,
   pub color: Option<CssColor>,

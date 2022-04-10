@@ -1,3 +1,5 @@
+//! CSS properties related to box sizing.
+
 use crate::compat::Feature;
 use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
@@ -9,15 +11,21 @@ use crate::traits::{Parse, PropertyHandler, ToCss};
 use crate::values::length::LengthPercentage;
 use cssparser::*;
 
-/// https://drafts.csswg.org/css-sizing-3/#specifying-sizes
+// https://drafts.csswg.org/css-sizing-3/#specifying-sizes
 
-/// https://drafts.csswg.org/css-sizing-3/#preferred-size-properties
+/// A value for the [preferred size properties](https://drafts.csswg.org/css-sizing-3/#preferred-size-properties),
+/// i.e. `width` and `height.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Size {
+  /// The `auto` keyword.
   Auto,
+  /// An explicit length or percentage.
   LengthPercentage(LengthPercentage),
+  /// The `min-content` keyword.
   MinContent,
+  /// The `max-content` keyword.
   MaxContent,
+  /// The `fit-content()` function.
   FitContent(LengthPercentage),
 }
 
@@ -67,14 +75,20 @@ impl ToCss for Size {
   }
 }
 
-/// https://drafts.csswg.org/css-sizing-3/#min-size-properties
-/// https://drafts.csswg.org/css-sizing-3/#max-size-properties
+/// A value for the [minimum](https://drafts.csswg.org/css-sizing-3/#min-size-properties)
+/// and [maximum](https://drafts.csswg.org/css-sizing-3/#max-size-properties) size properties,
+/// e.g. `min-width` and `max-height`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MinMaxSize {
+  /// The `none` keyword.
   None,
+  /// An explicit length or percentage.
   LengthPercentage(LengthPercentage),
+  /// The `min-content` keyword.
   MinContent,
+  /// The `max-content` keyword.
   MaxContent,
+  /// The `fit-content()` function.
   FitContent(LengthPercentage),
 }
 
@@ -132,9 +146,11 @@ fn parse_fit_content<'i, 't>(
 }
 
 enum_property! {
-  /// https://drafts.csswg.org/css-sizing-3/#box-sizing
+  /// A value for the [box-sizing](https://drafts.csswg.org/css-sizing-3/#box-sizing) property.
   pub enum BoxSizing {
+    /// Exclude the margin/border/padding from the width and height.
     "content-box": ContentBox,
+    /// Include the padding and border (but not the margin) in the width and height.
     "border-box": BorderBox,
   }
 }

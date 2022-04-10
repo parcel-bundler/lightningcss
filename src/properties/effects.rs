@@ -1,3 +1,5 @@
+//! CSS properties related to filters and effects.
+
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::targets::Browsers;
@@ -7,19 +9,30 @@ use crate::values::{angle::Angle, color::CssColor, length::Length, percentage::N
 use cssparser::*;
 use smallvec::SmallVec;
 
-/// https://drafts.fxtf.org/filter-effects-1/#FilterProperty
+/// A [filter](https://drafts.fxtf.org/filter-effects-1/#filter-functions) function.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Filter<'i> {
+  /// A `blur()` filter.
   Blur(Length),
+  /// A `brightness()` filter.
   Brightness(NumberOrPercentage),
+  /// A `contrast()` filter.
   Contrast(NumberOrPercentage),
+  /// A `grayscale()` filter.
   Grayscale(NumberOrPercentage),
+  /// A `hue-rotate()` filter.
   HueRotate(Angle),
+  /// An `invert()` filter.
   Invert(NumberOrPercentage),
+  /// An `opacity()` filter.
   Opacity(NumberOrPercentage),
+  /// A `saturate()` filter.
   Saturate(NumberOrPercentage),
+  /// A `sepia()` filter.
   Sepia(NumberOrPercentage),
+  /// A `drop-shadow()` filter.
   DropShadow(DropShadow),
+  /// A `url()` reference to an SVG filter.
   Url(Url<'i>),
 }
 
@@ -177,12 +190,16 @@ impl<'i> Filter<'i> {
   }
 }
 
-/// https://drafts.fxtf.org/filter-effects-1/#funcdef-filter-drop-shadow
+/// A [`drop-shadow()`](https://drafts.fxtf.org/filter-effects-1/#funcdef-filter-drop-shadow) filter function.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DropShadow {
+  /// The color of the drop shadow.
   pub color: CssColor,
+  /// The x offset of the drop shadow.
   pub x_offset: Length,
+  /// The y offset of the drop shadow.
   pub y_offset: Length,
+  /// The blur radius of the drop shadow.
   pub blur: Length,
 }
 
@@ -258,9 +275,13 @@ impl DropShadow {
   }
 }
 
+/// A value for the [filter](https://drafts.fxtf.org/filter-effects-1/#FilterProperty) and
+/// [backdrop-filter](https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty) properties.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FilterList<'i> {
+  /// The `none` keyword.
   None,
+  /// A list of filter functions.
   Filters(SmallVec<[Filter<'i>; 1]>),
 }
 

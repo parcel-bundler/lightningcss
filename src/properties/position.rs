@@ -1,3 +1,5 @@
+//! The CSS position property.
+
 use super::Property;
 use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
@@ -9,13 +11,18 @@ use crate::traits::{Parse, PropertyHandler, ToCss};
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 
-/// https://www.w3.org/TR/2020/WD-css-position-3-20200519/#position-property
+/// A value for the [position](https://www.w3.org/TR/css-position-3/#position-property) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Position {
+  /// The box is laid in the document flow.
   Static,
+  /// The box is laid out in the document flow and offset from the resulting position.
   Relative,
+  /// The box is taken out of document flow and positioned in reference to its relative ancestor.
   Absolute,
+  /// Similar to relative but adjusted according to the ancestor scrollable element.
   Sticky(VendorPrefix),
+  /// The box is taken out of the document flow and positioned in reference to the page viewport.
   Fixed,
 }
 
