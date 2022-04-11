@@ -1,3 +1,5 @@
+//! CSS properties related to flexbox layout.
+
 use super::align::{
   AlignContent, AlignItems, AlignSelf, ContentDistribution, ContentPosition, JustifyContent, SelfPosition,
 };
@@ -19,11 +21,15 @@ use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 
 enum_property! {
-  /// https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#propdef-flex-direction
+  /// A value for the [flex-direction](https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#propdef-flex-direction) property.
   pub enum FlexDirection {
+    /// Flex items are laid out in a row.
     "row": Row,
+    /// Flex items are laid out in a row, and reversed.
     "row-reverse": RowReverse,
+    /// Flex items are laid out in a column.
     "column": Column,
+    /// Flex items are laid out in a column, and reversed.
     "column-reverse": ColumnReverse,
   }
 }
@@ -35,10 +41,13 @@ impl Default for FlexDirection {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#flex-wrap-property
+  /// A value for the [flex-wrap](https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#flex-wrap-property) property.
   pub enum FlexWrap {
+    /// The flex items do not wrap.
     "nowrap": NoWrap,
+    /// The flex items wrap.
     "wrap": Wrap,
+    /// The flex items wrap, in reverse.
     "wrap-reverse": WrapReverse,
   }
 }
@@ -55,10 +64,12 @@ impl FromStandard<FlexWrap> for FlexWrap {
   }
 }
 
-/// https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#flex-flow-property
+/// A value for the [flex-flow](https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#flex-flow-property) shorthand property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FlexFlow {
+  /// The direction that flex items flow.
   pub direction: FlexDirection,
+  /// How the flex items wrap.
   pub wrap: FlexWrap,
 }
 
@@ -111,10 +122,14 @@ impl ToCss for FlexFlow {
   }
 }
 
+/// A value for the [flex](https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#flex-property) shorthand property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Flex {
+  /// The flex grow factor.
   pub grow: CSSNumber,
+  /// The flex shrink factor.
   pub shrink: CSSNumber,
+  /// The flex basis.
   pub basis: LengthPercentageOrAuto,
 }
 
@@ -198,10 +213,16 @@ impl ToCss for Flex {
 // Old flex (2009): https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/
 
 enum_property! {
+  /// A value for the legacy (prefixed) [box-orient](https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/#orientation) property.
+  /// Partially equivalent to `flex-direction` in the standard syntax.
   pub enum BoxOrient {
+    /// Items are laid out horizontally.
     "horizontal": Horizontal,
+    /// Items are laid out vertically.
     "vertical": Vertical,
+    /// Items are laid out along the inline axis, according to the writing direction.
     "inline-axis": InlineAxis,
+    /// Items are laid out along the block axis, according to the writing direction.
     "block-axis": BlockAxis,
   }
 }
@@ -218,18 +239,29 @@ impl FlexDirection {
 }
 
 enum_property! {
+  /// A value for the legacy (prefixed) [box-direction](https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/#displayorder) property.
+  /// Partially equivalent to the `flex-direction` property in the standard syntax.
   pub enum BoxDirection {
+    /// Items flow in the natural direction.
     Normal,
+    /// Items flow in the reverse direction.
     Reverse,
   }
 }
 
 enum_property! {
+  /// A value for the legacy (prefixed) [box-align](https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/#alignment) property.
+  /// Equivalent to the `align-items` property in the standard syntax.
   pub enum BoxAlign {
+    /// Items are aligned to the start.
     Start,
+    /// Items are aligned to the end.
     End,
+    /// Items are centered.
     Center,
+    /// Items are aligned to the baseline.
     Baseline,
+    /// Items are stretched.
     Stretch,
   }
 }
@@ -250,10 +282,16 @@ impl FromStandard<AlignItems> for BoxAlign {
 }
 
 enum_property! {
+  /// A value for the legacy (prefixed) [box-pack](https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/#packing) property.
+  /// Equivalent to the `justify-content` property in the standard syntax.
   pub enum BoxPack {
+    /// Items are justified to the start.
     Start,
+    /// Items are justified to the end.
     End,
+    /// Items are centered.
     Center,
+    /// Items are justifed to the start and end.
     Justify,
   }
 }
@@ -276,8 +314,12 @@ impl FromStandard<JustifyContent> for BoxPack {
 }
 
 enum_property! {
+  /// A value for the legacy (prefixed) [box-lines](https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/#multiple) property.
+  /// Equivalent to the `flex-wrap` property in the standard syntax.
   pub enum BoxLines {
+    /// Items are laid out in a single line.
     Single,
+    /// Items may wrap into multiple lines.
     Multiple,
   }
 }
@@ -302,11 +344,18 @@ impl FromStandard<CSSInteger> for BoxOrdinalGroup {
 // Old flex (2012): https://www.w3.org/TR/2012/WD-css3-flexbox-20120322/
 
 enum_property! {
+  /// A value for the legacy (prefixed) [flex-pack](https://www.w3.org/TR/2012/WD-css3-flexbox-20120322/#flex-pack) property.
+  /// Equivalent to the `justify-content` property in the standard syntax.
   pub enum FlexPack {
+    /// Items are justified to the start.
     Start,
+    /// Items are justified to the end.
     End,
+    /// Items are centered.
     Center,
+    /// Items are justified to the start and end.
     Justify,
+    /// Items are distributed evenly, with half size spaces on either end.
     Distribute,
   }
 }
@@ -329,15 +378,24 @@ impl FromStandard<JustifyContent> for FlexPack {
   }
 }
 
+/// A value for the legacy (prefixed) [flex-align](https://www.w3.org/TR/2012/WD-css3-flexbox-20120322/#flex-align) property.
 pub type FlexAlign = BoxAlign;
 
 enum_property! {
+  /// A value for the legacy (prefixed) [flex-item-align](https://www.w3.org/TR/2012/WD-css3-flexbox-20120322/#flex-align) property.
+  /// Equivalent to the `align-self` property in the standard syntax.
   pub enum FlexItemAlign {
+    /// Equivalent to the value of `flex-align`.
     Auto,
+    /// The item is aligned to the start.
     Start,
+    /// The item is aligned to the end.
     End,
+    /// The item is centered.
     Center,
+    /// The item is aligned to the baseline.
     Baseline,
+    /// The item is stretched.
     Stretch,
   }
 }
@@ -359,12 +417,20 @@ impl FromStandard<AlignSelf> for FlexItemAlign {
 }
 
 enum_property! {
+  /// A value for the legacy (prefixed) [flex-line-pack](https://www.w3.org/TR/2012/WD-css3-flexbox-20120322/#flex-line-pack) property.
+  /// Equivalent to the `align-content` property in the standard syntax.
   pub enum FlexLinePack {
+    /// Content is aligned to the start.
     Start,
+    /// Content is aligned to the end.
     End,
+    /// Content is centered.
     Center,
+    /// Content is justified.
     Justify,
+    /// Content is distributed evenly, with half size spaces on either end.
     Distribute,
+    /// Content is stretched.
     Stretch,
   }
 }

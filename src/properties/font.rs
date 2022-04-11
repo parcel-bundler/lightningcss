@@ -118,6 +118,7 @@ enum_property! {
   /// as used in the `font-size` property.
   ///
   /// See [FontSize](FontSize).
+  #[allow(missing_docs)]
   pub enum AbsoluteFontSize {
     "xx-small": XXSmall,
     "x-small": XSmall,
@@ -134,6 +135,7 @@ enum_property! {
   /// as used in the `font-size` property.
   ///
   /// See [FontSize](FontSize).
+  #[allow(missing_docs)]
   pub enum RelativeFontSize {
     Smaller,
     Larger,
@@ -213,8 +215,8 @@ impl Default for FontStretchKeyword {
   }
 }
 
-impl FontStretchKeyword {
-  fn to_percentage(&self) -> Percentage {
+impl Into<Percentage> for &FontStretchKeyword {
+  fn into(self) -> Percentage {
     use FontStretchKeyword::*;
     let val = match self {
       UltraCondensed => 0.5,
@@ -257,11 +259,11 @@ impl<'i> Parse<'i> for FontStretch {
   }
 }
 
-impl FontStretch {
-  pub fn to_percentage(&self) -> Percentage {
+impl Into<Percentage> for &FontStretch {
+  fn into(self) -> Percentage {
     match self {
       FontStretch::Percentage(val) => val.clone(),
-      FontStretch::Keyword(keyword) => keyword.to_percentage(),
+      FontStretch::Keyword(keyword) => keyword.into(),
     }
   }
 }
@@ -271,14 +273,14 @@ impl ToCss for FontStretch {
   where
     W: std::fmt::Write,
   {
-    use FontStretch::*;
     if dest.minify {
-      return self.to_percentage().to_css(dest);
+      let percentage: Percentage = self.into();
+      return percentage.to_css(dest);
     }
 
     match self {
-      Percentage(val) => val.to_css(dest),
-      Keyword(val) => val.to_css(dest),
+      FontStretch::Percentage(val) => val.to_css(dest),
+      FontStretch::Keyword(val) => val.to_css(dest),
     }
   }
 }
@@ -288,6 +290,7 @@ enum_property! {
   /// as used in the `font-family` property.
   ///
   /// See [FontFamily](FontFamily).
+  #[allow(missing_docs)]
   pub enum GenericFontFamily {
     "serif": Serif,
     "sans-serif": SansSerif,
@@ -400,7 +403,7 @@ impl<'i> ToCss for FontFamily<'i> {
 pub enum FontStyle {
   /// Normal font style.
   Normal,
-  // Italic font style.
+  /// Italic font style.
   Italic,
   /// Oblique font style, with a custom angle.
   Oblique(Angle),
@@ -471,7 +474,7 @@ enum_property! {
 }
 
 impl FontVariantCaps {
-  pub fn to_css2(&self) -> Option<FontVariantCapsCSS2> {
+  fn to_css2(&self) -> Option<FontVariantCapsCSS2> {
     match self {
       FontVariantCaps::Normal => Some(FontVariantCapsCSS2::Normal),
       FontVariantCaps::SmallCaps => Some(FontVariantCapsCSS2::SmallCaps),
@@ -499,7 +502,7 @@ impl Default for FontVariantCapsCSS2 {
 }
 
 impl FontVariantCapsCSS2 {
-  pub fn to_font_variant_caps(&self) -> FontVariantCaps {
+  fn to_font_variant_caps(&self) -> FontVariantCaps {
     match self {
       FontVariantCapsCSS2::Normal => FontVariantCaps::Normal,
       FontVariantCapsCSS2::SmallCaps => FontVariantCaps::SmallCaps,

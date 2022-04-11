@@ -1,3 +1,5 @@
+//! CSS properties related to grid layout.
+
 #![allow(non_upper_case_globals)]
 
 use crate::context::PropertyHandlerContext;
@@ -8,37 +10,56 @@ use crate::properties::{Property, PropertyId};
 use crate::traits::{Parse, PropertyHandler, ToCss};
 use crate::values::ident::CustomIdent;
 use crate::values::length::serialize_dimension;
-use crate::values::number::CSSInteger;
+use crate::values::number::{CSSInteger, CSSNumber};
 use crate::values::{ident::CustomIdentList, length::LengthPercentage};
 use bitflags::bitflags;
 use cssparser::*;
 use smallvec::SmallVec;
 
-/// https://drafts.csswg.org/css-grid-2/#track-sizing
+/// A [track sizing](https://drafts.csswg.org/css-grid-2/#track-sizing) value
+/// for the `grid-template-rows` and `grid-template-columns` properties.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TrackSizing<'i> {
+  /// No explicit grid tracks.
   None,
+  /// A list of grid tracks.
   TrackList(TrackList<'i>),
 }
 
-/// https://drafts.csswg.org/css-grid-2/#typedef-track-list
+/// A [`<track-list>`](https://drafts.csswg.org/css-grid-2/#typedef-track-list) value,
+/// as used in the `grid-template-rows` and `grid-template-columns` properties.
+///
+/// See [TrackSizing](TrackSizing).
 #[derive(Debug, Clone, PartialEq)]
 pub struct TrackList<'i> {
+  /// A list of line names.
   pub line_names: Vec<CustomIdentList<'i>>,
+  /// A list of grid track items.
   pub items: Vec<TrackListItem<'i>>,
 }
 
+/// Either a track size or `repeat()` function.
+///
+/// See [TrackList](TrackList).
 #[derive(Debug, Clone, PartialEq)]
 pub enum TrackListItem<'i> {
+  /// A track size.
   TrackSize(TrackSize),
+  /// A `repeat()` function.
   TrackRepeat(TrackRepeat<'i>),
 }
 
-/// https://drafts.csswg.org/css-grid-2/#typedef-track-size
+/// A [`<track-size>`](https://drafts.csswg.org/css-grid-2/#typedef-track-size) value,
+/// as used in the `grid-template-rows` and `grid-template-columns` properties.
+///
+/// See [TrackListItem](TrackListItem).
 #[derive(Debug, Clone, PartialEq)]
 pub enum TrackSize {
+  /// An explicit track breadth.
   TrackBreadth(TrackBreadth),
+  /// The `minmax()` function.
   MinMax(TrackBreadth, TrackBreadth),
+  /// The `fit-content()` function.
   FitContent(LengthPercentage),
 }
 
@@ -48,33 +69,53 @@ impl Default for TrackSize {
   }
 }
 
-/// https://drafts.csswg.org/css-grid-2/#auto-tracks
+/// A [track size list](https://drafts.csswg.org/css-grid-2/#auto-tracks), as used
+/// in the `grid-auto-rows` and `grid-auto-columns` properties.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TrackSizeList(pub SmallVec<[TrackSize; 1]>);
 
-/// https://drafts.csswg.org/css-grid-2/#typedef-track-breadth
+/// A [`<track-breadth>`](https://drafts.csswg.org/css-grid-2/#typedef-track-breadth value.
+///
+/// See [TrackSize](TrackSize).
 #[derive(Debug, Clone, PartialEq)]
 pub enum TrackBreadth {
+  /// An explicit length.
   Length(LengthPercentage),
-  Flex(f32),
+  /// A flex factor.
+  Flex(CSSNumber),
+  /// The `min-content` keyword.
   MinContent,
+  /// The `max-content` keyword.
   MaxContent,
+  /// The `auto` keyword.
   Auto,
 }
 
-/// https://drafts.csswg.org/css-grid-2/#typedef-track-repeat
+/// A [`<track-repeat>`](https://drafts.csswg.org/css-grid-2/#typedef-track-repeat) value,
+/// representing the `repeat()` function in a track list.
+///
+/// See [TrackListItem](TrackListItem).
 #[derive(Debug, Clone, PartialEq)]
 pub struct TrackRepeat<'i> {
+  /// The repeat count.
   count: RepeatCount,
+  /// The line names to repeat.
   line_names: Vec<CustomIdentList<'i>>,
+  /// The track sizes to repeat.
   track_sizes: Vec<TrackSize>,
 }
 
-/// https://drafts.csswg.org/css-grid-2/#typedef-track-repeat
+/// A [`<repeat-count>`](https://drafts.csswg.org/css-grid-2/#typedef-track-repeat) value,
+/// used in the `repeat()` function.
+///
+/// See [TrackRepeat](TrackRepeat).
 #[derive(Debug, Clone, PartialEq)]
 pub enum RepeatCount {
-  Number(f32),
+  /// The number of times to repeat.
+  Number(CSSInteger),
+  /// The `auto-fill` keyword.
   AutoFill,
+  /// The `auto-fit` keyword.
   AutoFit,
 }
 
@@ -154,7 +195,7 @@ impl TrackBreadth {
     }
   }
 
-  fn parse_flex<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ParserError<'i>>> {
+  fn parse_flex<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CSSNumber, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     match *input.next()? {
       Token::Dimension { value, ref unit, .. } if unit.eq_ignore_ascii_case("fr") && value.is_sign_positive() => {
@@ -246,7 +287,7 @@ impl<'i> ToCss for TrackRepeat<'i> {
 
 impl<'i> Parse<'i> for RepeatCount {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(num) = input.try_parse(f32::parse) {
+    if let Ok(num) = input.try_parse(CSSInteger::parse) {
       return Ok(RepeatCount::Number(num));
     }
 
@@ -440,11 +481,19 @@ impl ToCss for TrackSizeList {
   }
 }
 
-/// https://drafts.csswg.org/css-grid-2/#grid-template-areas-property
+/// A value for the [grid-template-areas](https://drafts.csswg.org/css-grid-2/#grid-template-areas-property) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum GridTemplateAreas {
+  /// No named grid areas.
   None,
-  Areas { columns: u32, areas: Vec<Option<String>> },
+  /// Defines the list of named grid areas.
+  Areas {
+    /// The number of columns in the grid.
+    columns: u32,
+    /// A flattened list of grid area names.
+    /// Unnamed areas specified by the `.` token are represented as `None`.
+    areas: Vec<Option<String>>,
+  },
 }
 
 impl<'i> Parse<'i> for GridTemplateAreas {
@@ -594,12 +643,17 @@ impl GridTemplateAreas {
   }
 }
 
-/// https://drafts.csswg.org/css-grid-2/#explicit-grid-shorthand
+/// A value for the [grid-template](https://drafts.csswg.org/css-grid-2/#explicit-grid-shorthand) shorthand property.
+///
+/// If `areas` is not `None`, then `rows` must also not be `None`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GridTemplate<'i> {
-  rows: TrackSizing<'i>,
-  columns: TrackSizing<'i>,
-  areas: GridTemplateAreas,
+  /// The grid template rows.
+  pub rows: TrackSizing<'i>,
+  /// The grid template columns.
+  pub columns: TrackSizing<'i>,
+  /// The named grid areas.
+  pub areas: GridTemplateAreas,
 }
 
 impl<'i> Parse<'i> for GridTemplate<'i> {
@@ -793,10 +847,16 @@ impl GridTemplate<'_> {
 }
 
 bitflags! {
-  /// https://drafts.csswg.org/css-grid-2/#grid-auto-flow-property
+  /// A value for the [grid-auto-flow](https://drafts.csswg.org/css-grid-2/#grid-auto-flow-property) property.
+  ///
+  /// The `Row` or `Column` flags may be combined with the `Dense` flag, but the `Row` and `Column` flags may
+  /// not be combined.
   pub struct GridAutoFlow: u8 {
+    /// The auto-placement algorithm places items by filling each row, adding new rows as necessary.
     const Row    = 0b00;
+    /// The auto-placement algorithm places items by filling each column, adding new columns as necessary.
     const Column = 0b01;
+    /// If specified, a dense packing algorithm is used, which fills in holes in the grid.
     const Dense  = 0b10;
   }
 }
@@ -886,15 +946,23 @@ impl ToCss for GridAutoFlow {
   }
 }
 
-/// https://drafts.csswg.org/css-grid-2/#grid-shorthand
+/// A value for the [grid](https://drafts.csswg.org/css-grid-2/#grid-shorthand) shorthand property.
+///
+/// Explicit and implicit values may not be combined.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Grid<'i> {
-  rows: TrackSizing<'i>,
-  columns: TrackSizing<'i>,
-  areas: GridTemplateAreas,
-  auto_rows: TrackSizeList,
-  auto_columns: TrackSizeList,
-  auto_flow: GridAutoFlow,
+  /// Explicit grid template rows.
+  pub rows: TrackSizing<'i>,
+  /// Explicit grid template columns.
+  pub columns: TrackSizing<'i>,
+  /// Explicit grid template areas.
+  pub areas: GridTemplateAreas,
+  /// The grid auto rows.
+  pub auto_rows: TrackSizeList,
+  /// The grid auto columns.
+  pub auto_columns: TrackSizeList,
+  /// The grid auto flow.
+  pub auto_flow: GridAutoFlow,
 }
 
 impl<'i> Parse<'i> for Grid<'i> {
@@ -1016,12 +1084,17 @@ impl ToCss for Grid<'_> {
   }
 }
 
-/// https://drafts.csswg.org/css-grid-2/#typedef-grid-row-start-grid-line
+/// A [`<grid-line>`](https://drafts.csswg.org/css-grid-2/#typedef-grid-row-start-grid-line) value,
+/// used in the `grid-row-start`, `grid-row-end`, `grid-column-start`, and `grid-column-end` properties.
 #[derive(Debug, Clone, PartialEq)]
 pub enum GridLine<'i> {
+  /// Automatic placement.
   Auto,
+  /// A named grid area name (automatically postfixed by `-start` or `-end`), or and explicit grid line name.
   Ident(CustomIdent<'i>),
+  /// The Nth grid line, optionally filtered by line name. Negative numbers count backwards from the end.
   Line(CSSInteger, Option<CustomIdent<'i>>),
+  /// A grid span based on the Nth grid line from the opposite edge, optionally filtered by line name.
   Span(CSSInteger, Option<CustomIdent<'i>>),
 }
 
@@ -1124,11 +1197,14 @@ impl<'i> GridLine<'i> {
   }
 }
 
-/// https://drafts.csswg.org/css-grid-2/#placement-shorthands
+/// A [grid placement](https://drafts.csswg.org/css-grid-2/#placement-shorthands) value for the
+/// `grid-row` and `grid-column` shorthand properties.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GridPlacement<'i> {
-  start: GridLine<'i>,
-  end: GridLine<'i>,
+  /// The starting line.
+  pub start: GridLine<'i>,
+  /// The ending line.
+  pub end: GridLine<'i>,
 }
 
 impl<'i> Parse<'i> for GridPlacement<'i> {
@@ -1159,13 +1235,17 @@ impl ToCss for GridPlacement<'_> {
   }
 }
 
-/// https://drafts.csswg.org/css-grid-2/#propdef-grid-area
+/// A value for the [grid-area](https://drafts.csswg.org/css-grid-2/#propdef-grid-area) property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GridArea<'i> {
-  row_start: GridLine<'i>,
-  column_start: GridLine<'i>,
-  row_end: GridLine<'i>,
-  column_end: GridLine<'i>,
+  /// The grid row start placement.
+  pub row_start: GridLine<'i>,
+  /// The grid column start placement.
+  pub column_start: GridLine<'i>,
+  /// The grid row end placement.
+  pub row_end: GridLine<'i>,
+  /// The grid column end placement.
+  pub column_end: GridLine<'i>,
 }
 
 impl<'i> Parse<'i> for GridArea<'i> {

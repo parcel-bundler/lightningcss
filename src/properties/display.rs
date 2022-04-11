@@ -15,6 +15,7 @@ use cssparser::*;
 
 enum_property! {
   /// A [`<display-outside>`](https://drafts.csswg.org/css-display-3/#typedef-display-outside) value.
+  #[allow(missing_docs)]
   pub enum DisplayOutside {
     "block": Block,
     "inline": Inline,
@@ -24,6 +25,7 @@ enum_property! {
 
 /// A [`<display-inside>`](https://drafts.csswg.org/css-display-3/#typedef-display-inside) value.
 #[derive(Debug, Clone, PartialEq)]
+#[allow(missing_docs)]
 pub enum DisplayInside {
   Flow,
   FlowRoot,
@@ -290,6 +292,7 @@ enum_property! {
   /// A `display` keyword.
   ///
   /// See [Display](Display).
+  #[allow(missing_docs)]
   pub enum DisplayKeyword {
     "none": None,
     "contents": Contents,

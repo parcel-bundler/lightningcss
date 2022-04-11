@@ -694,14 +694,16 @@ enum_property! {
   }
 }
 
-// A value for the [text-emphasis-style](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-style-property) property.
+/// A value for the [text-emphasis-style](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-style-property) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TextEmphasisStyle<'i> {
   /// No emphasis.
   None,
   /// Defines the fill and shape of the marks.
   Keyword {
+    /// The fill mode for the marks.
     fill: TextEmphasisFillMode,
+    /// The shape of the marks.
     shape: Option<TextEmphasisShape>,
   },
   /// Display the given string as marks.

@@ -1,3 +1,94 @@
+//! CSS property values.
+//!
+//! Each property provides parsing and serialization support using the [Parse](super::traits::Parse)
+//! and [ToCss](super::traits::ToCss) traits. Properties are fully parsed as defined by the CSS spec,
+//! and printed in their canonical form. For example, most CSS properties are case-insensitive, and
+//! may be written in various orders, but when printed they are lower cased as appropriate and in a
+//! standard order.
+//!
+//! CSS properties often also contain many implicit values that are automatically filled in during
+//! parsing when omitted. These are also omitted when possible during serialization. Many properties
+//! also implement the [Default](std::default::Default) trait, which returns the initial value for the property.
+//!
+//! Shorthand properties are represented as structs containing fields for each of the sub-properties.
+//! If some of the sub-properties are not specified in the shorthand, their default values are filled in.
+//!
+//! The [Property](Property) enum contains the values of all properties, and can be used to parse property values by name.
+//! The [PropertyId](PropertyId) enum represents only property names, and not values and is used to refer to known properties.
+//!
+//! # Example
+//!
+//! This example shows how the `background` shorthand property is parsed and serialized. The `parse_string`
+//! function parses the background into a structure with all missing fields filled in with their default values.
+//! When printed using the `to_css_string` function, the components are in their canonical order, and default
+//! values are removed.
+//!
+//! ```
+//! use smallvec::smallvec;
+//! use parcel_css::{
+//!   properties::{Property, background::*},
+//!   values::{url::Url, image::Image, color::CssColor, position::*, length::*},
+//!   stylesheet::{ParserOptions, PrinterOptions},
+//! };
+//!
+//! let background = Property::parse_string(
+//!   "background",
+//!   "url('img.png') repeat fixed 20px 10px / 50px 100px",
+//!   ParserOptions::default()
+//! ).unwrap();
+//!
+//! assert_eq!(
+//!   background,
+//!   Property::Background(smallvec![Background {
+//!     image: Image::Url(Url {
+//!       url: "img.png".into(),
+//!       loc: cssparser::SourceLocation { line: 0, column: 1 }
+//!     }),
+//!     color: CssColor::RGBA(cssparser::RGBA {
+//!       red: 0,
+//!       green: 0,
+//!       blue: 0,
+//!       alpha: 0
+//!     }),
+//!     position: Position {
+//!       x: HorizontalPosition::Length(LengthPercentage::px(20.0)),
+//!       y: VerticalPosition::Length(LengthPercentage::px(10.0)),
+//!     },
+//!     repeat: BackgroundRepeat {
+//!       x: BackgroundRepeatKeyword::Repeat,
+//!       y: BackgroundRepeatKeyword::Repeat,
+//!     },
+//!     size: BackgroundSize::Explicit {
+//!       width: LengthPercentageOrAuto::LengthPercentage(LengthPercentage::px(50.0)),
+//!       height: LengthPercentageOrAuto::LengthPercentage(LengthPercentage::px(100.0)),
+//!     },
+//!     attachment: BackgroundAttachment::Fixed,
+//!     origin: BackgroundOrigin::PaddingBox,
+//!     clip: BackgroundClip::BorderBox,
+//!   }])
+//! );
+//!
+//! assert_eq!(
+//!   background.to_css_string(false, PrinterOptions::default()).unwrap(),
+//!   "background: url(img.png) 20px 10px / 50px 100px fixed"
+//! );
+//! ```
+//!
+//! If you have a [cssparser::Parser](cssparser::Parser) already, you can also use the `parse` and `to_css`
+//! methods instead, rather than parsing from a string.
+//!
+//! # Unparsed and custom properties
+//!
+//! Custom and unknown properties are represented by the [CustomProperty](custom::CustomProperty) struct, and the
+//! `Property::Custom` variant. The value of these properties is not parsed, and is stored as a raw
+//! [TokenList](custom::TokenList), with the name as a string.
+//!
+//! If a known property is unable to be parsed, e.g. it contains `var()` references, then it is represented by the
+//! [UnparsedProperty](custom::UnparsedProperty) struct, and the `Property::Unparsed` variant. The value is stored
+//! as a raw [TokenList](custom::TokenList), with a [PropertyId](PropertyId) as the name.
+
+#![deny(missing_docs)]
+
 pub mod align;
 pub mod animation;
 pub mod background;
@@ -76,6 +167,7 @@ macro_rules! define_properties {
       $name: literal: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: ident )* $( unprefixed: $unprefixed: literal )? $( if $condition: ident )?,
     )+
   ) => {
+    /// A CSS property id.
     #[derive(Debug, Clone, PartialEq)]
     pub enum PropertyId<'i> {
       $(
@@ -83,7 +175,9 @@ macro_rules! define_properties {
         $(#[$meta])*
         $property$(($vp))?,
       )+
+      /// The `all` property.
       All,
+      /// An unknown or custom property name.
       Custom(CowArcStr<'i>)
     }
 
@@ -285,6 +379,7 @@ macro_rules! define_properties {
       }
     }
 
+    /// A CSS property.
     #[derive(Debug, Clone, PartialEq)]
     pub enum Property<'i> {
       $(
@@ -292,11 +387,14 @@ macro_rules! define_properties {
         $(#[$meta])*
         $property($type, $($vp)?),
       )+
+      /// An unparsed property.
       Unparsed(UnparsedProperty<'i>),
+      /// A custom or unknown property.
       Custom(CustomProperty<'i>),
     }
 
     impl<'i> Property<'i> {
+      /// Parses a CSS property by name.
       pub fn parse<'t>(name: CowRcStr<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Property<'i>, ParseError<'i, ParserError<'i>>> {
         let state = input.state();
         let name_ref = name.as_ref();
@@ -382,12 +480,14 @@ macro_rules! define_properties {
         }
       }
 
+      /// Parses a CSS property from a string.
       pub fn parse_string(name: &'i str, input: &'i str, options: ParserOptions) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let mut input = ParserInput::new(input);
         let mut parser = Parser::new(&mut input);
         Self::parse(CowRcStr::from(name), &mut parser, &options)
       }
 
+      /// Serializes the value of a CSS property without its name or `!important` flag.
       pub fn value_to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
         use Property::*;
 
@@ -407,6 +507,7 @@ macro_rules! define_properties {
         }
       }
 
+      /// Serializes the CSS property, with an optional `!important` flag.
       pub fn to_css<W>(&self, dest: &mut Printer<W>, important: bool) -> Result<(), PrinterError> where W: std::fmt::Write {
         use Property::*;
 
@@ -480,6 +581,7 @@ macro_rules! define_properties {
         Ok(())
       }
 
+      /// Serializes the CSS property to a string, with an optional `!important` flag.
       pub fn to_css_string(&self, important: bool, options: PrinterOptions) -> Result<String, PrinterError> {
         let mut s = String::new();
         let mut printer = Printer::new(&mut s, options);

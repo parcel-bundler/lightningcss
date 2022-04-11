@@ -1,3 +1,5 @@
+//! CSS properties related to box alignment.
+
 use super::flex::{BoxAlign, BoxPack, FlexAlign, FlexItemAlign, FlexLinePack, FlexPack};
 use super::{Property, PropertyId};
 use crate::compat;
@@ -13,10 +15,13 @@ use crate::values::length::LengthPercentage;
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 
-/// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#typedef-baseline-position
+/// A [`<baseline-position>`](https://www.w3.org/TR/css-align-3/#typedef-baseline-position) value,
+/// as used in the alignment properties.
 #[derive(Debug, Clone, PartialEq)]
 pub enum BaselinePosition {
+  /// The first baseline.
   First,
+  /// The last baseline.
   Last,
 }
 
@@ -54,40 +59,57 @@ impl ToCss for BaselinePosition {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#typedef-content-distribution
+  /// A [`<content-distribution>`](https://www.w3.org/TR/css-align-3/#typedef-content-distribution) value.
   pub enum ContentDistribution {
+    /// Items are spaced evenly, with the first and last items against the edge of the container.
     "space-between": SpaceBetween,
+    /// Items are spaced evenly, with half-size spaces at the start and end.
     "space-around": SpaceAround,
+    /// Items are spaced evenly, with full-size spaces at the start and end.
     "space-evenly": SpaceEvenly,
+    /// Items are stretched evenly to fill free space.
     "stretch": Stretch,
   }
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#typedef-overflow-position
+  /// An [`<overflow-position>`](https://www.w3.org/TR/css-align-3/#typedef-overflow-position) value.
   pub enum OverflowPosition {
+    /// If the size of the alignment subject overflows the alignment container,
+    /// the alignment subject is instead aligned as if the alignment mode were start.
     Safe,
+    /// Regardless of the relative sizes of the alignment subject and alignment
+    /// container, the given alignment value is honored.
     Unsafe,
   }
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#typedef-content-position
+  /// A [`<content-position>`](https://www.w3.org/TR/css-align-3/#typedef-content-position) value.
   pub enum ContentPosition {
+    /// Content is centered within the container.
     "center": Center,
+    /// Content is aligned to the start of the container.
     "start": Start,
+    /// Content is aligned to the end of the container.
     "end": End,
+    /// Same as `start` when within a flexbox container.
     "flex-start": FlexStart,
+    /// Same as `end` when within a flexbox container.
     "flex-end": FlexEnd,
   }
 }
 
-/// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#propdef-align-content
+/// A value for the [align-content](https://www.w3.org/TR/css-align-3/#propdef-align-content) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum AlignContent {
+  /// Default alignment.
   Normal,
+  /// A baseline position.
   BaselinePosition(BaselinePosition),
+  /// A content distribution keyword.
   ContentDistribution(ContentDistribution),
+  /// A content position keyword, with optional overflow position.
   ContentPosition(Option<OverflowPosition>, ContentPosition),
 }
 
@@ -132,13 +154,18 @@ impl ToCss for AlignContent {
   }
 }
 
-/// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#propdef-justify-content
+/// A value for the [justify-content](https://www.w3.org/TR/css-align-3/#propdef-justify-content) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum JustifyContent {
+  /// Default justification.
   Normal,
+  /// A content distribution keyword.
   ContentDistribution(ContentDistribution),
+  /// A content position keyword, with optional overflow position.
   ContentPosition(Option<OverflowPosition>, ContentPosition),
+  /// Justify to the left, with an optional overflow position.
   Left(Option<OverflowPosition>),
+  /// Justify to the right, with an optional overflow position.
   Right(Option<OverflowPosition>),
 }
 
@@ -205,10 +232,12 @@ impl ToCss for JustifyContent {
   }
 }
 
-/// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#place-content
+/// A value for the [place-content](https://www.w3.org/TR/css-align-3/#place-content) shorthand property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlaceContent {
+  /// The content alignment.
   pub align: AlignContent,
+  /// The content justification.
   pub justify: JustifyContent,
 }
 
@@ -261,25 +290,37 @@ impl ToCss for PlaceContent {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#typedef-self-position
+  /// A [`<self-position>`](https://www.w3.org/TR/css-align-3/#typedef-self-position) value.
   pub enum SelfPosition {
+    /// Item is centered within the container.
     "center": Center,
+    /// Item is aligned to the start of the container.
     "start": Start,
+    /// Item is aligned to the end of the container.
     "end": End,
+    /// Item is aligned to the edge of the container corresponding to the start side of the item.
     "self-start": SelfStart,
+    /// Item is aligned to the edge of the container corresponding to the end side of the item.
     "self-end": SelfEnd,
+    /// Item  is aligned to the start of the container, within flexbox layouts.
     "flex-start": FlexStart,
+    /// Item  is aligned to the end of the container, within flexbox layouts.
     "flex-end": FlexEnd,
   }
 }
 
-/// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#propdef-align-self
+/// A value for the [align-self](https://www.w3.org/TR/css-align-3/#align-self-property) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum AlignSelf {
+  /// Automatic alignment.
   Auto,
+  /// Default alignment.
   Normal,
+  /// Item is stretched.
   Stretch,
+  /// A baseline position keyword.
   BaselinePosition(BaselinePosition),
+  /// A self position keyword, with optional overflow position.
   SelfPosition(Option<OverflowPosition>, SelfPosition),
 }
 
@@ -329,15 +370,22 @@ impl ToCss for AlignSelf {
   }
 }
 
-/// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#propdef-justify-self
+/// A value for the [justify-self](https://www.w3.org/TR/css-align-3/#justify-self-property) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum JustifySelf {
+  /// Automatic justification.
   Auto,
+  /// Default justification.
   Normal,
+  /// Item is stretched.
   Stretch,
+  /// A baseline position keyword.
   BaselinePosition(BaselinePosition),
+  /// A self position keyword, with optional overflow position.
   SelfPosition(Option<OverflowPosition>, SelfPosition),
+  /// Item is justified to the left, with an optional overflow position.
   Left(Option<OverflowPosition>),
+  /// Item is justified to the right, with an optional overflow position.
   Right(Option<OverflowPosition>),
 }
 
@@ -414,10 +462,12 @@ impl ToCss for JustifySelf {
   }
 }
 
-/// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#place-self-property
+/// A value for the [place-self](https://www.w3.org/TR/css-align-3/#place-self-property) shorthand property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlaceSelf {
+  /// The item alignment.
   pub align: AlignSelf,
+  /// The item justification.
   pub justify: JustifySelf,
 }
 
@@ -470,12 +520,16 @@ impl ToCss for PlaceSelf {
   }
 }
 
-/// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#align-items-property
+/// A value for the [align-items](https://www.w3.org/TR/css-align-3/#align-items-property) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum AlignItems {
+  /// Default alignment.
   Normal,
+  /// Items are stretched.
   Stretch,
+  /// A baseline position keyword.
   BaselinePosition(BaselinePosition),
+  /// A self position keyword, with an optional overflow position.
   SelfPosition(Option<OverflowPosition>, SelfPosition),
 }
 
@@ -520,10 +574,14 @@ impl ToCss for AlignItems {
   }
 }
 
+/// A legacy justification keyword, as used in the `justify-items` property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum LegacyJustify {
+  /// Left justify.
   Left,
+  /// Right justify.
   Right,
+  /// Centered.
   Center,
 }
 
@@ -577,15 +635,22 @@ impl ToCss for LegacyJustify {
   }
 }
 
-/// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#justify-items-property
+/// A value for the [justify-items](https://www.w3.org/TR/css-align-3/#justify-items-property) property.
 #[derive(Debug, Clone, PartialEq)]
 pub enum JustifyItems {
+  /// Default justification.
   Normal,
+  /// Items are stretched.
   Stretch,
+  /// A baseline position keyword.
   BaselinePosition(BaselinePosition),
+  /// A self position keyword, with optional overflow position.
   SelfPosition(Option<OverflowPosition>, SelfPosition),
+  /// Items are justified to the left, with an optional overflow position.
   Left(Option<OverflowPosition>),
+  /// Items are justified to the right, with an optional overflow position.
   Right(Option<OverflowPosition>),
+  /// A legacy justification keyword.
   Legacy(LegacyJustify),
 }
 
@@ -662,10 +727,12 @@ impl ToCss for JustifyItems {
   }
 }
 
-/// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#place-items-property
+/// A value for the [place-items](https://www.w3.org/TR/css-align-3/#place-items-property) shorthand property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlaceItems {
+  /// The item alignment.
   pub align: AlignItems,
+  /// The item justification.
   pub justify: JustifyItems,
 }
 
@@ -716,10 +783,13 @@ impl ToCss for PlaceItems {
   }
 }
 
-/// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#column-row-gap
+/// A [gap](https://www.w3.org/TR/css-align-3/#column-row-gap) value, as used in the
+/// `column-gap` and `row-gap` properties.
 #[derive(Debug, Clone, PartialEq)]
 pub enum GapValue {
+  /// Equal to `1em` for multi-column containers, and zero otherwise.
   Normal,
+  /// An explicit length.
   LengthPercentage(LengthPercentage),
 }
 
@@ -746,10 +816,12 @@ impl ToCss for GapValue {
   }
 }
 
-/// https://www.w3.org/TR/2020/WD-css-align-3-20200421/#gap-shorthand
+/// A value for the [gap](https://www.w3.org/TR/css-align-3/#gap-shorthand) shorthand property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Gap {
+  /// The row gap.
   pub row: GapValue,
+  /// The column gap.
   pub column: GapValue,
 }
 

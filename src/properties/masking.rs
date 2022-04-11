@@ -163,6 +163,7 @@ enum_property! {
   /// property.
   ///
   /// See also [MaskComposite](MaskComposite).
+  #[allow(missing_docs)]
   pub enum WebKitMaskComposite {
     "clear": Clear,
     "copy": Copy,

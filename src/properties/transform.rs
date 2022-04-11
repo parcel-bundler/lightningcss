@@ -189,6 +189,7 @@ pub enum Transform {
 
 /// A 2D matrix.
 #[derive(Debug, Clone, PartialEq)]
+#[allow(missing_docs)]
 pub struct Matrix<T> {
   pub a: T,
   pub b: T,
@@ -224,6 +225,7 @@ impl Matrix<f32> {
 
 /// A 3D matrix.
 #[derive(Debug, Clone, PartialEq)]
+#[allow(missing_docs)]
 pub struct Matrix3d<T> {
   pub m11: T,
   pub m12: T,
@@ -1337,6 +1339,7 @@ impl Transform {
 
 enum_property! {
   /// A value for the [transform-style](https://drafts.csswg.org/css-transforms-2/#transform-style-property) property.
+  #[allow(missing_docs)]
   pub enum TransformStyle {
     "flat": Flat,
     "preserve-3d": Preserve3d,
@@ -1361,6 +1364,7 @@ enum_property! {
 
 enum_property! {
   /// A value for the [backface-visibility](https://drafts.csswg.org/css-transforms-2/#backface-visibility-property) property.
+  #[allow(missing_docs)]
   pub enum BackfaceVisibility {
     Visible,
     Hidden,

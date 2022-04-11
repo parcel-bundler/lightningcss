@@ -73,6 +73,7 @@ pub enum CounterStyle<'i> {
 
 enum_property! {
   /// A [predefined counter](https://www.w3.org/TR/css-counter-styles-3/#predefined-counters) style.
+  #[allow(missing_docs)]
   pub enum PredefinedCounterStyle {
     // https://www.w3.org/TR/css-counter-styles-3/#simple-numeric
     "decimal": Decimal,
@@ -203,6 +204,7 @@ enum_property! {
   /// as used in the `symbols()` function.
   ///
   /// See [CounterStyle](CounterStyle).
+  #[allow(missing_docs)]
   pub enum SymbolsType {
     Cyclic,
     Numeric,
@@ -268,6 +270,7 @@ impl Default for ListStylePosition {
 
 enum_property! {
   /// A value for the [marker-side](https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#marker-side) property.
+  #[allow(missing_docs)]
   pub enum MarkerSide {
     "match-self": MatchSelf,
     "match-parent": MatchParent,

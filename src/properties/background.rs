@@ -21,7 +21,9 @@ use smallvec::SmallVec;
 pub enum BackgroundSize {
   /// An explicit background size.
   Explicit {
+    /// The width of the background.
     width: LengthPercentageOrAuto,
+    /// The height of the background.
     height: LengthPercentageOrAuto,
   },
   /// The `cover` keyword. Scales the background image to cover both the width and height of the element.
