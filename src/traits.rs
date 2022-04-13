@@ -1,3 +1,5 @@
+//! Traits for parsing and serializing CSS.
+
 use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
 use crate::error::{ParserError, PrinterError};

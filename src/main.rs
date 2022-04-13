@@ -79,7 +79,7 @@ pub fn main() -> Result<(), std::io::Error> {
       sm.add_source(&filename);
       let _ = sm.set_source_content(0, &source);
     }
-    StyleSheet::parse(filename.into(), &source, options).unwrap()
+    StyleSheet::parse(filename, &source, options).unwrap()
   };
 
   let targets = browserslist_to_targets(cli_args.targets).unwrap();

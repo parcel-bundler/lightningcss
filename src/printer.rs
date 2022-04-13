@@ -1,3 +1,5 @@
+//! CSS serialization and source map generation.
+
 use crate::css_modules::CssModule;
 use crate::dependencies::Dependency;
 use crate::error::{Error, ErrorLocation, PrinterError, PrinterErrorKind};
@@ -7,24 +9,54 @@ use crate::vendor_prefix::VendorPrefix;
 use cssparser::{serialize_identifier, SourceLocation};
 use parcel_sourcemap::{OriginalLocation, SourceMap};
 
+/// Options that control how CSS is serialized to a string.
 #[derive(Default)]
 pub struct PrinterOptions<'a> {
+  /// Whether to minify the CSS, i.e. remove white space.
   pub minify: bool,
+  /// An optional reference to a source map to write mappings into.
   pub source_map: Option<&'a mut SourceMap>,
+  /// Browser targets to output the CSS for.
   pub targets: Option<Browsers>,
+  /// Whether to analyze dependencies (i.e. `@import` and `url()`).
+  /// If true, the dependencies are returned as part of the
+  /// [ToCssResult](super::stylesheet::ToCssResult).
+  ///
+  /// When enabled, `@import` rules are removed, and `url()` dependencies
+  /// are replaced with hashed placeholders that can be replaced with the final
+  /// urls later (after bundling).
   pub analyze_dependencies: bool,
+  /// A mapping of pseudo classes to replace with class names that can be applied
+  /// from JavaScript. Useful for polyfills, for example.
   pub pseudo_classes: Option<PseudoClasses<'a>>,
 }
 
+/// A mapping of user action pseudo classes to replace with class names.
+///
+/// See [PrinterOptions](PrinterOptions).
 #[derive(Default, Debug)]
 pub struct PseudoClasses<'a> {
+  /// The class name to replace `:hover` with.
   pub hover: Option<&'a str>,
+  /// The class name to replace `:active` with.
   pub active: Option<&'a str>,
+  /// The class name to replace `:focus` with.
   pub focus: Option<&'a str>,
+  /// The class name to replace `:focus-visible` with.
   pub focus_visible: Option<&'a str>,
+  /// The class name to replace `:focus-within` with.
   pub focus_within: Option<&'a str>,
 }
 
+/// A `Printer` represents a destination to output serialized CSS, as used in
+/// the [ToCss](super::traits::ToCss) trait. It can wrap any destination that
+/// implements [std::fmt::Write](std::fmt::Write), such as a [String](String).
+///
+/// A `Printer` keeps track of the current line and column position, and uses
+/// this to generate a source map if provided in the options.
+///
+/// `Printer` also includes helper functions that assist with writing output
+/// that respects options such as `minify`, and `css_modules`.
 pub struct Printer<'a, W> {
   pub(crate) sources: Option<&'a Vec<String>>,
   dest: &'a mut W,
@@ -45,6 +77,7 @@ pub struct Printer<'a, W> {
 }
 
 impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
+  /// Create a new Printer wrapping the given destination.
   pub fn new(dest: &'a mut W, options: PrinterOptions<'a>) -> Printer<'a, W> {
     Printer {
       sources: None,
@@ -68,6 +101,7 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
     }
   }
 
+  /// Returns the current source filename that is being printed.
   pub fn filename(&self) -> &str {
     if let Some(sources) = self.sources {
       if let Some(f) = sources.get(self.source_index as usize) {
@@ -80,12 +114,17 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
     }
   }
 
+  /// Writes a raw string to the underlying destination.
+  ///
+  /// NOTE: Is is assumed that the string does not contain any newline characters.
+  /// If such a string is written, it will break source maps.
   pub fn write_str(&mut self, s: &str) -> Result<(), PrinterError> {
     self.col += s.len() as u32;
     self.dest.write_str(s)?;
     Ok(())
   }
 
+  /// Write a single character to the underlying destination.
   pub fn write_char(&mut self, c: char) -> Result<(), PrinterError> {
     if c == '\n' {
       self.line += 1;
@@ -97,6 +136,10 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
     Ok(())
   }
 
+  /// Writes a single whitespace character, unless the `minify` option is enabled.
+  ///
+  /// Use `write_char` instead if you wish to force a space character to be written,
+  /// regardless of the `minify` option.
   pub fn whitespace(&mut self) -> Result<(), PrinterError> {
     if self.minify {
       return Ok(());
@@ -105,6 +148,8 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
     self.write_char(' ')
   }
 
+  /// Writes a delimeter character, followed by whitespace (depending on the `minify` option).
+  /// If `ws_before` is true, then whitespace is also written before the delimeter.
   pub fn delim(&mut self, delim: char, ws_before: bool) -> Result<(), PrinterError> {
     if ws_before {
       self.whitespace()?;
@@ -113,6 +158,8 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
     self.whitespace()
   }
 
+  /// Writes a newline character followed by indentation.
+  /// If the `minify` option is enabled, then nothing is printed.
   pub fn newline(&mut self) -> Result<(), PrinterError> {
     if self.minify {
       return Ok(());
@@ -126,26 +173,32 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
     Ok(())
   }
 
+  /// Increases the current indent level.
   pub fn indent(&mut self) {
     self.indent += 2;
   }
 
+  /// Decreases the current indent level.
   pub fn dedent(&mut self) {
     self.indent -= 2;
   }
 
+  /// Increases the current indent level by the given number of characters.
   pub fn indent_by(&mut self, amt: u8) {
     self.indent += amt;
   }
 
+  /// Decreases the current indent level by the given number of characters.
   pub fn dedent_by(&mut self, amt: u8) {
     self.indent -= amt;
   }
 
+  /// Returns whether the indent level is greater than one.
   pub fn is_nested(&self) -> bool {
     self.indent > 2
   }
 
+  /// Adds a mapping to the source map, if any.
   pub fn add_mapping(&mut self, loc: Location) {
     self.source_index = loc.source_index;
     if let Some(map) = &mut self.source_map {
@@ -162,6 +215,9 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
     }
   }
 
+  /// Writes a CSS identifier to the underlying destination, escaping it
+  /// as appropriate. If the `css_modules` option was enabled, then a hash
+  /// is added, and the mapping is added to the CSS module.
   pub fn write_ident(&mut self, ident: &str) -> Result<(), PrinterError> {
     let hash = if let Some(css_module) = &self.css_module {
       Some(css_module.hash)
@@ -183,6 +239,7 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
     Ok(())
   }
 
+  /// Returns an error of the given kind at the provided location in the current source file.
   pub fn error(&self, kind: PrinterErrorKind, loc: SourceLocation) -> Error<PrinterErrorKind> {
     Error {
       kind,

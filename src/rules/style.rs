@@ -64,10 +64,13 @@ impl<'i> StyleRule<'i> {
     Ok(false)
   }
 
+  /// Returns whether the rule is empty.
   pub fn is_empty(&self) -> bool {
     self.declarations.is_empty() && self.rules.0.is_empty()
   }
 
+  /// Returns whether the selectors in the rule are compatible
+  /// with all of the given browser targets.
   pub fn is_compatible(&self, targets: Option<Browsers>) -> bool {
     is_compatible(&self.selectors, targets)
   }

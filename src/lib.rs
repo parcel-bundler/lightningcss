@@ -37,14 +37,14 @@ mod tests {
   use std::collections::HashMap;
 
   fn test(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions::default()).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css", &source, ParserOptions::default()).unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
   }
 
   fn minify_test(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions::default()).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css", &source, ParserOptions::default()).unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet
       .to_css(PrinterOptions {
@@ -56,7 +56,7 @@ mod tests {
   }
 
   fn prefix_test(source: &str, expected: &str, targets: Browsers) {
-    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions::default()).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css", &source, ParserOptions::default()).unwrap();
     stylesheet
       .minify(MinifyOptions {
         targets: Some(targets),
@@ -94,7 +94,7 @@ mod tests {
       ..Browsers::default()
     });
     let mut stylesheet = StyleSheet::parse(
-      "test.css".into(),
+      "test.css",
       &source,
       ParserOptions {
         nesting: true,
@@ -119,7 +119,7 @@ mod tests {
 
   fn nesting_test_no_targets(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse(
-      "test.css".into(),
+      "test.css",
       &source,
       ParserOptions {
         nesting: true,
@@ -134,7 +134,7 @@ mod tests {
 
   fn css_modules_test(source: &str, expected: &str, expected_exports: CssModuleExports) {
     let mut stylesheet = StyleSheet::parse(
-      "test.css".into(),
+      "test.css",
       &source,
       ParserOptions {
         css_modules: true,
@@ -150,7 +150,7 @@ mod tests {
 
   fn custom_media_test(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse(
-      "test.css".into(),
+      "test.css",
       &source,
       ParserOptions {
         custom_media: true,
@@ -172,7 +172,7 @@ mod tests {
   }
 
   fn error_test(source: &str, error: ParserError) {
-    let res = StyleSheet::parse("test.css".into(), &source, ParserOptions::default());
+    let res = StyleSheet::parse("test.css", &source, ParserOptions::default());
     match res {
       Ok(_) => unreachable!(),
       Err(e) => assert_eq!(e.kind, error),
@@ -15921,7 +15921,7 @@ mod tests {
       }
     "#};
 
-    let stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions::default()).unwrap();
+    let stylesheet = StyleSheet::parse("test.css", &source, ParserOptions::default()).unwrap();
     let res = stylesheet
       .to_css(PrinterOptions {
         pseudo_classes: Some(PseudoClasses {
@@ -15948,7 +15948,7 @@ mod tests {
     "#};
 
     let stylesheet = StyleSheet::parse(
-      "test.css".into(),
+      "test.css",
       &source,
       ParserOptions {
         css_modules: true,
@@ -16034,7 +16034,7 @@ mod tests {
       }
     "#};
 
-    let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions::default()).unwrap();
+    let mut stylesheet = StyleSheet::parse("test.css", &source, ParserOptions::default()).unwrap();
     stylesheet
       .minify(MinifyOptions {
         unused_symbols: vec!["bar", "other_id", "fade", "circles"]
@@ -16064,7 +16064,7 @@ mod tests {
     "#};
 
     let mut stylesheet = StyleSheet::parse(
-      "test.css".into(),
+      "test.css",
       &source,
       ParserOptions {
         nesting: true,
@@ -16118,7 +16118,7 @@ mod tests {
     "#};
 
     let mut stylesheet = StyleSheet::parse(
-      "test.css".into(),
+      "test.css",
       &source,
       ParserOptions {
         nesting: true,
@@ -17380,7 +17380,7 @@ mod tests {
 
     fn custom_media_error_test(source: &str, err: Error<MinifyErrorKind>) {
       let mut stylesheet = StyleSheet::parse(
-        "test.css".into(),
+        "test.css",
         &source,
         ParserOptions {
           custom_media: true,
@@ -17619,7 +17619,7 @@ mod tests {
   #[test]
   fn test_dependencies() {
     fn dep_test(source: &str, expected: &str, deps: Vec<(&str, &str)>) {
-      let mut stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions::default()).unwrap();
+      let mut stylesheet = StyleSheet::parse("test.css", &source, ParserOptions::default()).unwrap();
       stylesheet.minify(MinifyOptions::default()).unwrap();
       let res = stylesheet
         .to_css(PrinterOptions {
@@ -17643,7 +17643,7 @@ mod tests {
     }
 
     fn dep_error_test(source: &str, error: PrinterErrorKind) {
-      let stylesheet = StyleSheet::parse("test.css".into(), &source, ParserOptions::default()).unwrap();
+      let stylesheet = StyleSheet::parse("test.css", &source, ParserOptions::default()).unwrap();
       let res = stylesheet.to_css(PrinterOptions {
         analyze_dependencies: true,
         ..PrinterOptions::default()
@@ -17722,8 +17722,7 @@ mod tests {
 
   #[test]
   fn test_api() {
-    let stylesheet =
-      StyleSheet::parse("test.css".into(), ".foo:hover { color: red }", ParserOptions::default()).unwrap();
+    let stylesheet = StyleSheet::parse("test.css", ".foo:hover { color: red }", ParserOptions::default()).unwrap();
     match &stylesheet.rules.0[0] {
       CssRule::Style(s) => {
         assert_eq!(&s.selectors.to_string(), ".foo:hover");

@@ -34,6 +34,8 @@
 //!
 //! See [StyleSheet](super::stylesheet::StyleSheet) to parse an entire file of multiple rules.
 
+#![deny(missing_docs)]
+
 pub mod counter_style;
 pub mod custom_media;
 pub mod document;
@@ -118,7 +120,7 @@ pub enum CssRule<'i> {
   Media(MediaRule<'i>),
   /// An `@import` rule.
   Import(ImportRule<'i>),
-  // A style rule.
+  /// A style rule.
   Style(StyleRule<'i>),
   /// A `@keyframes` rule.
   Keyframes(KeyframesRule<'i>),

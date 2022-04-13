@@ -111,7 +111,7 @@ impl<'i> AtRuleParser<'i> for FontPaletteValuesDeclarationParser {
 }
 
 impl<'i> FontPaletteValuesRule<'i> {
-  pub fn parse<'t>(
+  pub(crate) fn parse<'t>(
     name: DashedIdent<'i>,
     input: &mut Parser<'i, 't>,
     loc: Location,

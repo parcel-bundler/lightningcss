@@ -1,3 +1,8 @@
+//! CSS style sheets and style attributes.
+//!
+//! A [StyleSheet](StyleSheet) represents a `.css` file or `<style>` element in HTML.
+//! A [StyleAttribute](StyleAttribute) represents an inline `style` attribute in HTML.
+
 use crate::compat::Feature;
 use crate::context::{DeclarationContext, PropertyHandlerContext};
 use crate::css_modules::{hash, CssModule, CssModuleExports};
@@ -16,26 +21,78 @@ pub use crate::parser::ParserOptions;
 pub use crate::printer::PrinterOptions;
 pub use crate::printer::PseudoClasses;
 
+/// A CSS style sheet, representing a `.css` file or inline `<style>` element.
+///
+/// Style sheets can be parsed from a string, constructed from scratch,
+/// or created using a [Bundler](super::bundler::Bundler). Then, they can be
+/// minified and transformed for a set of target browsers, and serialied to a string.
+///
+/// # Example
+///
+/// ```
+/// use parcel_css::stylesheet::{
+///   StyleSheet, ParserOptions, MinifyOptions, PrinterOptions
+/// };
+///
+/// // Parse a style sheet from a string.
+/// let mut stylesheet = StyleSheet::parse(
+///   "test.css",
+///   r#"
+///   .foo {
+///     color: red;
+///   }
+///
+///   .bar {
+///     color: red;
+///   }
+///   "#,
+///   ParserOptions::default()
+/// ).unwrap();
+///
+/// // Minify the stylesheet.
+/// stylesheet.minify(MinifyOptions::default()).unwrap();
+///
+/// // Serialize it to a string.
+/// let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+/// assert_eq!(res.code, ".foo, .bar {\n  color: red;\n}\n");
+/// ```
 #[derive(Debug)]
 pub struct StyleSheet<'i> {
+  /// A list of top-level rules within the style sheet.
   pub rules: CssRuleList<'i>,
+  /// A list of file names for all source files included within the style sheet.
+  /// Sources are referenced by index in the `loc` property of each rule.
   pub sources: Vec<String>,
+  /// The options the style sheet was originally parsed with.
   options: ParserOptions,
 }
 
+/// Options for the `minify` function of a [StyleSheet](StyleSheet)
+/// or [StyleAttribute](StyleAttribute).
 #[derive(Default)]
 pub struct MinifyOptions {
+  /// Browser targets to compile the CSS for.
   pub targets: Option<Browsers>,
+  /// A list of known unused symbols, including CSS class names,
+  /// ids, and `@keyframe` names. The declarations of these will be removed.
   pub unused_symbols: HashSet<String>,
 }
 
+/// A result returned from `to_css`, including the serialize CSS
+/// and other metadata depending on the input options.
 pub struct ToCssResult {
+  /// Serialized CSS code.
   pub code: String,
+  /// A map of CSS module exports, if the `css_modules` option was
+  /// enabled during parsing.
   pub exports: Option<CssModuleExports>,
+  /// A list of dependencies (e.g. `@import` or `url()`) found in
+  /// the style sheet, if the `analyze_dependencies` option is enabled.
   pub dependencies: Option<Vec<Dependency>>,
 }
 
 impl<'i> StyleSheet<'i> {
+  /// Creates a new style sheet with the given source filenames and rules.
   pub fn new(sources: Vec<String>, rules: CssRuleList, options: ParserOptions) -> StyleSheet {
     StyleSheet {
       sources,
@@ -44,11 +101,13 @@ impl<'i> StyleSheet<'i> {
     }
   }
 
+  /// Parse a style sheet from a string.
   pub fn parse(
-    filename: String,
+    filename: &str,
     code: &'i str,
     options: ParserOptions,
   ) -> Result<StyleSheet<'i>, Error<ParserError<'i>>> {
+    let filename = String::from(filename);
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
     let rule_list_parser = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(&options));
@@ -71,6 +130,7 @@ impl<'i> StyleSheet<'i> {
     })
   }
 
+  /// Minify and transform the style sheet for the provided browser targets.
   pub fn minify(&mut self, options: MinifyOptions) -> Result<(), Error<MinifyErrorKind>> {
     let mut context = PropertyHandlerContext::new(options.targets);
     let mut handler = DeclarationHandler::new(options.targets);
@@ -113,6 +173,7 @@ impl<'i> StyleSheet<'i> {
     Ok(())
   }
 
+  /// Serialize the style sheet to a CSS string.
   pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, Error<PrinterErrorKind>> {
     // Make sure we always have capacity > 0: https://github.com/napi-rs/napi-rs/issues/1124.
     let mut dest = String::with_capacity(1);
@@ -148,11 +209,37 @@ impl<'i> StyleSheet<'i> {
   }
 }
 
+/// An inline style attribute, as in HTML or SVG.
+///
+/// Style attributes can be parsed from a string, minified and transformed
+/// for a set of target browsers, and serialied to a string.
+///
+/// # Example
+///
+/// ```
+/// use parcel_css::stylesheet::{
+///   StyleAttribute, ParserOptions, MinifyOptions, PrinterOptions
+/// };
+///
+/// // Parse a style sheet from a string.
+/// let mut style = StyleAttribute::parse(
+///   "color: yellow; font-family: 'Helvetica';"
+/// ).unwrap();
+///
+/// // Minify the stylesheet.
+/// style.minify(MinifyOptions::default());
+///
+/// // Serialize it to a string.
+/// let res = style.to_css(PrinterOptions::default()).unwrap();
+/// assert_eq!(res.code, "color: #ff0; font-family: Helvetica");
+/// ```
 pub struct StyleAttribute<'i> {
+  /// The declarations in the style attribute.
   pub declarations: DeclarationBlock<'i>,
 }
 
 impl<'i> StyleAttribute<'i> {
+  /// Parses a style attribute from a string.
   pub fn parse(code: &'i str) -> Result<StyleAttribute, Error<ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
@@ -162,6 +249,7 @@ impl<'i> StyleAttribute<'i> {
     })
   }
 
+  /// Minify and transform the style attribute for the provided browser targets.
   pub fn minify(&mut self, options: MinifyOptions) {
     let mut context = PropertyHandlerContext::new(options.targets);
     let mut handler = DeclarationHandler::new(options.targets);
@@ -170,6 +258,7 @@ impl<'i> StyleAttribute<'i> {
     self.declarations.minify(&mut handler, &mut important_handler, &mut context);
   }
 
+  /// Serializes the style attribute to a CSS string.
   pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, PrinterError> {
     assert!(
       options.source_map.is_none(),

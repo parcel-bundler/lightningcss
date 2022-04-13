@@ -232,7 +232,7 @@ struct Drafts {
 fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, CompileError<'i>> {
   let drafts = config.drafts.as_ref();
   let mut stylesheet = StyleSheet::parse(
-    config.filename.clone(),
+    &config.filename,
     &code,
     ParserOptions {
       nesting: matches!(drafts, Some(d) if d.nesting),

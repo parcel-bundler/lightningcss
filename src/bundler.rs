@@ -263,7 +263,7 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
       let _ = source_map.set_source_content(source_index as usize, code);
     }
 
-    let mut stylesheet = StyleSheet::parse(filename.into(), code, opts)?;
+    let mut stylesheet = StyleSheet::parse(filename, code, opts)?;
 
     // Collect and load dependencies for this stylesheet in parallel.
     let dependencies: Result<Vec<u32>, _> = stylesheet
