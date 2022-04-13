@@ -1,3 +1,5 @@
+//! The `@supports` rule.
+
 use super::Location;
 use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
@@ -7,10 +9,14 @@ use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
 use cssparser::*;
 
+/// A [@supports](https://drafts.csswg.org/css-conditional-3/#at-supports) rule.
 #[derive(Debug, PartialEq, Clone)]
 pub struct SupportsRule<'i> {
+  /// The supports condition.
   pub condition: SupportsCondition<'i>,
+  /// The rules within the `@supports` rule.
   pub rules: CssRuleList<'i>,
+  /// The location of the rule in the source file.
   pub loc: Location,
 }
 
@@ -47,19 +53,29 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for SupportsRule<'i> {
   }
 }
 
+/// A [`<supports-condition>`](https://drafts.csswg.org/css-conditional-3/#typedef-supports-condition),
+/// as used in the `@supports` and `@import` rules.
 #[derive(Debug, PartialEq, Clone)]
 pub enum SupportsCondition<'i> {
+  /// A `not` expression.
   Not(Box<SupportsCondition<'i>>),
+  /// An `and` expression.
   And(Vec<SupportsCondition<'i>>),
+  /// An `or` expression.
   Or(Vec<SupportsCondition<'i>>),
+  /// A declaration to evaluate.
   Declaration(CowArcStr<'i>),
+  /// A selector to evaluate.
   Selector(CowArcStr<'i>),
   // FontTechnology()
+  /// A parenthesized expression.
   Parens(Box<SupportsCondition<'i>>),
+  /// An unknown condition.
   Unknown(CowArcStr<'i>),
 }
 
 impl<'i> SupportsCondition<'i> {
+  /// Combines the given supports condition into this one with an `and` expression.
   pub fn and(&mut self, b: &SupportsCondition<'i>) {
     if let SupportsCondition::And(a) = self {
       if !a.contains(&b) {
@@ -70,6 +86,7 @@ impl<'i> SupportsCondition<'i> {
     }
   }
 
+  /// Combines the given supports condition into this one with an `or` expression.
   pub fn or(&mut self, b: &SupportsCondition<'i>) {
     if let SupportsCondition::Or(a) = self {
       if !a.contains(&b) {
@@ -177,7 +194,9 @@ impl<'i> SupportsCondition<'i> {
     Ok(SupportsCondition::Unknown(input.slice_from(pos).into()))
   }
 
-  pub fn parse_declaration<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  pub(crate) fn parse_declaration<'t>(
+    input: &mut Parser<'i, 't>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let pos = input.position();
     input.expect_ident()?;
     input.expect_colon()?;

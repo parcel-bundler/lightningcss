@@ -1,3 +1,5 @@
+//! The `@font-face` rule.
+
 use super::Location;
 use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
@@ -11,27 +13,43 @@ use crate::values::url::Url;
 use cssparser::*;
 use std::fmt::Write;
 
+/// A [@font-face](https://drafts.csswg.org/css-fonts/#font-face-rule) rule.
 #[derive(Debug, PartialEq, Clone)]
 pub struct FontFaceRule<'i> {
+  /// Declarations in the `@font-face` rule.
   pub properties: Vec<FontFaceProperty<'i>>,
+  /// The location of the rule in the source file.
   pub loc: Location,
 }
 
+/// A property within an `@font-face` rule.
+///
+/// See [FontFaceRule](FontFaceRule).
 #[derive(Debug, Clone, PartialEq)]
 pub enum FontFaceProperty<'i> {
+  /// The `src` property.
   Source(Vec<Source<'i>>),
+  /// The `font-family` property.
   FontFamily(FontFamily<'i>),
+  /// The `font-style` property.
   FontStyle(FontStyle),
+  /// The `font-weight` property.
   FontWeight(Size2D<FontWeight>),
+  /// The `font-stretch` property.
   FontStretch(Size2D<FontStretch>),
+  /// The `unicode-range` property.
   UnicodeRange(Vec<UnicodeRange>),
+  /// An unknown or unsupported property.
   Custom(CustomProperty<'i>),
 }
 
-/// https://www.w3.org/TR/2021/WD-css-fonts-4-20210729/#font-face-src-parsing
+/// A value for the [src](https://drafts.csswg.org/css-fonts/#src-desc)
+/// property in an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Source<'i> {
+  /// A `url()` with optional format metadata.
   Url(UrlSource<'i>),
+  /// The `local()` function.
   Local(FontFamily<'i>),
 }
 
@@ -63,9 +81,13 @@ impl<'i> ToCss for Source<'i> {
   }
 }
 
+/// A `url()` value for the [src](https://drafts.csswg.org/css-fonts/#src-desc)
+/// property in an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq)]
 pub struct UrlSource<'i> {
+  /// The URL.
   pub url: Url<'i>,
+  /// Optional `format()` function.
   pub format: Option<Format<'i>>,
 }
 
@@ -99,9 +121,14 @@ impl<'i> ToCss for UrlSource<'i> {
   }
 }
 
+/// The `format()` function within the [src](https://drafts.csswg.org/css-fonts/#src-desc)
+/// property of an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Format<'i> {
+  /// A font format name.
   pub format: FontFormat<'i>,
+  /// The `supports()` function.
+  // TODO: did this get renamed to `tech()`?
   pub supports: Vec<FontTechnology>,
 }
 
@@ -144,15 +171,26 @@ impl<'i> ToCss for Format<'i> {
   }
 }
 
+/// A font format keyword in the `format()` function of the the
+/// [src](https://drafts.csswg.org/css-fonts/#src-desc)
+/// property of an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FontFormat<'i> {
+  /// A WOFF font.
   WOFF,
+  /// A WOFF v2 font.
   WOFF2,
+  /// A TrueType font.
   TrueType,
+  /// An OpenType font.
   OpenType,
+  /// An Embedded OpenType (.eot) font.
   EmbeddedOpenType,
+  /// A font collection.
   Collection,
+  /// An SVG font.
   SVG,
+  /// An unknown format.
   String(CowArcStr<'i>),
 }
 
@@ -196,28 +234,49 @@ impl<'i> ToCss for FontFormat<'i> {
 }
 
 enum_property! {
+  /// A font feature tech descriptor in the `supports()`function of the
+  /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
+  /// property of an `@font-face` rule.
   pub enum FontFeatureTechnology {
+    /// Supports OpenType features.
     OpenType,
+    /// Supports Apple Advanced Typography features.
     AAT,
+    /// Supports Graphite features.
     Graphite,
   }
 }
 
 enum_property! {
+  /// A color font tech descriptor in the `supports()`function of the
+  /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
+  /// property of an `@font-face` rule.
   pub enum ColorFontTechnology {
+    /// Supports the `COLR` v0 table.
     COLRv0,
+    /// Supports the `COLR` v1 table.
     COLRv1,
+    /// Supports SVG glyphs.
     SVG,
+    /// Supports the `sbix` table.
     SBIX,
+    /// Supports the `CBDT` table.
     CBDT,
   }
 }
 
+/// A font technology descriptor in the `supports()`function of the
+/// [src](https://drafts.csswg.org/css-fonts/#src-desc)
+/// property of an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FontTechnology {
+  /// Supports font features.
   Features(FontFeatureTechnology),
+  /// Supports variations.
   Variations,
+  /// Supports color glyphs.
   Color(ColorFontTechnology),
+  /// Supports color palettes.
   Palettes,
 }
 

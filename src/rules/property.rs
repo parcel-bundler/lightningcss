@@ -1,3 +1,5 @@
+//! The `@property` rule.
+
 use super::Location;
 use crate::{
   error::{ParserError, PrinterError},
@@ -10,18 +12,23 @@ use crate::{
 };
 use cssparser::*;
 
-/// https://drafts.css-houdini.org/css-properties-values-api/#at-property-rule
+/// A [@property](https://drafts.css-houdini.org/css-properties-values-api/#at-property-rule) rule.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PropertyRule<'i> {
+  /// The name of the custom property to declare.
   name: DashedIdent<'i>,
+  /// A syntax string to specify the grammar for the custom property.
   syntax: SyntaxString,
+  /// Whether the custom property is inherited.
   inherits: bool,
+  /// An optional initial value for the custom property.
   initial_value: Option<ParsedComponent<'i>>,
+  /// The location of the rule in the source file.
   loc: Location,
 }
 
 impl<'i> PropertyRule<'i> {
-  pub fn parse<'t>(
+  pub(crate) fn parse<'t>(
     name: DashedIdent<'i>,
     input: &mut Parser<'i, 't>,
     loc: Location,

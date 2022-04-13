@@ -74,7 +74,7 @@ impl Default for TrackSize {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TrackSizeList(pub SmallVec<[TrackSize; 1]>);
 
-/// A [`<track-breadth>`](https://drafts.csswg.org/css-grid-2/#typedef-track-breadth value.
+/// A [`<track-breadth>`](https://drafts.csswg.org/css-grid-2/#typedef-track-breadth) value.
 ///
 /// See [TrackSize](TrackSize).
 #[derive(Debug, Clone, PartialEq)]

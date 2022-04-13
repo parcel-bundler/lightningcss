@@ -1,3 +1,5 @@
+//! The `@keyframes` rule.
+
 use super::supports::SupportsRule;
 use super::MinifyContext;
 use super::{CssRule, CssRuleList, Location};
@@ -16,11 +18,16 @@ use crate::values::percentage::Percentage;
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 
+/// A [@keyframes](https://drafts.csswg.org/css-animations/#keyframes) rule.
 #[derive(Debug, PartialEq, Clone)]
 pub struct KeyframesRule<'i> {
+  /// The animation name.
   pub name: CustomIdent<'i>,
+  /// A list of keyframes in the animation.
   pub keyframes: Vec<Keyframe<'i>>,
+  /// A vendor prefix for the rule, e.g. `@-webkit-keyframes`.
   pub vendor_prefix: VendorPrefix,
+  /// The location of the rule in the source file.
   pub loc: Location,
 }
 
@@ -173,11 +180,15 @@ impl<'i> ToCss for KeyframesRule<'i> {
   }
 }
 
-/// https://drafts.csswg.org/css-animations/#typedef-keyframe-selector
+/// A [keyframe selector](https://drafts.csswg.org/css-animations/#typedef-keyframe-selector)
+/// within an `@keyframes` rule.
 #[derive(Debug, PartialEq, Clone)]
 pub enum KeyframeSelector {
+  /// An explicit percentage.
   Percentage(Percentage),
+  /// The `from` keyword. Equivalent to 0%.
   From,
+  /// The `to` keyword. Equivalent to 100%.
   To,
 }
 
@@ -224,9 +235,14 @@ impl ToCss for KeyframeSelector {
   }
 }
 
+/// An individual keyframe within an `@keyframes` rule.
+///
+/// See [KeyframesRule](KeyframesRule).
 #[derive(Debug, PartialEq, Clone)]
 pub struct Keyframe<'i> {
+  /// A list of keyframe selectors to associate with the declarations in this keyframe.
   pub selectors: Vec<KeyframeSelector>,
+  /// The declarations for this keyframe.
   pub declarations: DeclarationBlock<'i>,
 }
 

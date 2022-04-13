@@ -1,3 +1,5 @@
+//! The `@media` rule.
+
 use super::Location;
 use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, PrinterError};
@@ -6,10 +8,14 @@ use crate::printer::Printer;
 use crate::rules::{StyleContext, ToCssWithContext};
 use crate::traits::ToCss;
 
+/// A [@media](https://drafts.csswg.org/css-conditional-3/#at-media) rule.
 #[derive(Debug, PartialEq, Clone)]
 pub struct MediaRule<'i> {
+  /// The media query list.
   pub query: MediaList<'i>,
+  /// The rules within the `@media` rule.
   pub rules: CssRuleList<'i>,
+  /// The location of the rule in the source file.
   pub loc: Location,
 }
 

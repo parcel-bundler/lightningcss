@@ -1,3 +1,39 @@
+//! CSS rules.
+//!
+//! The [CssRule](CssRule) enum includes all supported rules, and can be used to parse
+//! and serialize rules from CSS. Lists of rules (i.e. within a stylesheet, or inside
+//! another rule such as `@media`) are represented by [CssRuleList](CssRuleList).
+//!
+//! Each rule includes a source location, which indicates the line and column within
+//! the source file where it was parsed. This is used when generating source maps.
+//!
+//! # Example
+//!
+//! This example shows how you could parse a single CSS rule, and serialize it to a string.
+//!
+//! ```
+//! use parcel_css::{
+//!   rules::CssRule,
+//!   traits::ToCss,
+//!   stylesheet::{ParserOptions, PrinterOptions}
+//! };
+//!
+//! let rule = CssRule::parse_string(
+//!   ".foo { color: red; }",
+//!   ParserOptions::default()
+//! ).unwrap();
+//!
+//! assert_eq!(
+//!   rule.to_css_string(PrinterOptions::default()).unwrap(),
+//!   ".foo {\n  color: red;\n}"
+//! );
+//! ```
+//!
+//! If you have a [cssparser::Parser](cssparser::Parser) already, you can also use the `parse` and `to_css`
+//! methods instead, rather than parsing from a string.
+//!
+//! See [StyleSheet](super::stylesheet::StyleSheet) to parse an entire file of multiple rules.
+
 pub mod counter_style;
 pub mod custom_media;
 pub mod document;
@@ -63,6 +99,7 @@ pub(crate) struct StyleContext<'a, 'i> {
   pub parent: Option<&'a StyleContext<'a, 'i>>,
 }
 
+/// A source location.
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize)]
 pub struct Location {
   /// The index of the source file within the source map.
@@ -74,25 +111,44 @@ pub struct Location {
   pub column: u32,
 }
 
+/// A CSS rule.
 #[derive(Debug, PartialEq, Clone)]
 pub enum CssRule<'i> {
+  /// A `@media` rule.
   Media(MediaRule<'i>),
+  /// An `@import` rule.
   Import(ImportRule<'i>),
+  // A style rule.
   Style(StyleRule<'i>),
+  /// A `@keyframes` rule.
   Keyframes(KeyframesRule<'i>),
+  /// A `@font-face` rule.
   FontFace(FontFaceRule<'i>),
+  /// A `@font-palette-values` rule.
   FontPaletteValues(FontPaletteValuesRule<'i>),
+  /// A `@page` rule.
   Page(PageRule<'i>),
+  /// A `@supports` rule.
   Supports(SupportsRule<'i>),
+  /// A `@counter-style` rule.
   CounterStyle(CounterStyleRule<'i>),
+  /// A `@namespace` rule.
   Namespace(NamespaceRule<'i>),
+  /// A `@-moz-document` rule.
   MozDocument(MozDocumentRule<'i>),
+  /// A `@nest` rule.
   Nesting(NestingRule<'i>),
+  /// A `@viewport` rule.
   Viewport(ViewportRule<'i>),
+  /// A `@custom-media` rule.
   CustomMedia(CustomMediaRule<'i>),
+  /// A `@layer` statement rule.
   LayerStatement(LayerStatementRule<'i>),
+  /// A `@layer` block rule.
   LayerBlock(LayerBlockRule<'i>),
+  /// A `@property` rule.
   Property(PropertyRule<'i>),
+  /// A placeholder for a rule that was removed.
   Ignored,
 }
 
@@ -155,6 +211,7 @@ impl<'i> ToCss for CssRule<'i> {
   }
 }
 
+/// A list of CSS rules.
 #[derive(Debug, PartialEq, Clone)]
 pub struct CssRuleList<'i>(pub Vec<CssRule<'i>>);
 

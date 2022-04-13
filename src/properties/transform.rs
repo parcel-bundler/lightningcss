@@ -245,7 +245,7 @@ pub struct Matrix3d<T> {
   pub m44: T,
 }
 
-/// https://drafts.csswg.org/css-transforms-2/#mathematical-description
+// https://drafts.csswg.org/css-transforms-2/#mathematical-description
 impl Matrix3d<f32> {
   /// Creates an identity matrix.
   pub fn identity() -> Matrix3d<f32> {

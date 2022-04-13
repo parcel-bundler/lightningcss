@@ -1,3 +1,5 @@
+//! The `@font-palette-values` rule.
+
 use super::supports::SupportsRule;
 use super::{CssRule, CssRuleList, Location, MinifyContext};
 use crate::error::{ParserError, PrinterError};
@@ -11,34 +13,51 @@ use crate::values::ident::DashedIdent;
 use crate::values::number::CSSInteger;
 use cssparser::*;
 
-/// https://drafts.csswg.org/css-fonts-4/#font-palette-values
+/// A [@font-palette-values](https://drafts.csswg.org/css-fonts-4/#font-palette-values) rule.
 #[derive(Debug, PartialEq, Clone)]
 pub struct FontPaletteValuesRule<'i> {
+  /// The name of the font palette.
   pub name: DashedIdent<'i>,
+  /// Declarations in the `@font-palette-values` rule.
   pub properties: Vec<FontPaletteValuesProperty<'i>>,
+  /// The location of the rule in the source file.
   pub loc: Location,
 }
 
+/// A property within an `@font-palette-values` rule.
+///
+///  See [FontPaletteValuesRule](FontPaletteValuesRule).
 #[derive(Debug, Clone, PartialEq)]
 pub enum FontPaletteValuesProperty<'i> {
+  /// The `font-family` property.
   FontFamily(FontFamily<'i>),
+  /// The `base-palette` property.
   BasePalette(BasePalette),
+  /// The `override-colors` property.
   OverrideColors(Vec<OverrideColors>),
+  /// An unknown or unsupported property.
   Custom(CustomProperty<'i>),
 }
 
-/// https://drafts.csswg.org/css-fonts-4/#base-palette-desc
+/// A value for the [base-palette](https://drafts.csswg.org/css-fonts-4/#base-palette-desc)
+/// property in an `@font-palette-values` rule.
 #[derive(Debug, PartialEq, Clone)]
 pub enum BasePalette {
+  /// A light color palette as defined within the font.
   Light,
+  /// A dark color palette as defined within the font.
   Dark,
+  /// A palette index within the font.
   Integer(u16),
 }
 
-/// https://drafts.csswg.org/css-fonts-4/#override-color
+/// A value for the [override-colors](https://drafts.csswg.org/css-fonts-4/#override-color)
+/// property in an `@font-palette-values` rule.
 #[derive(Debug, PartialEq, Clone)]
 pub struct OverrideColors {
+  /// The index of the color within the palette to override.
   index: u16,
+  /// The replacement color.
   color: CssColor,
 }
 

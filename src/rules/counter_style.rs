@@ -1,3 +1,5 @@
+//! The `@counter-style` rule.
+
 use super::Location;
 use crate::declaration::DeclarationBlock;
 use crate::error::PrinterError;
@@ -5,11 +7,15 @@ use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::values::ident::CustomIdent;
 
+/// A [@counter-style](https://drafts.csswg.org/css-counter-styles/#the-counter-style-rule) rule.
 #[derive(Debug, PartialEq, Clone)]
 pub struct CounterStyleRule<'i> {
+  /// The name of the counter style to declare.
   pub name: CustomIdent<'i>,
   // TODO: eventually parse these properties
+  /// Declarations in the `@counter-style` rule.
   pub declarations: DeclarationBlock<'i>,
+  /// The location of the rule in the source file.
   pub loc: Location,
 }
 

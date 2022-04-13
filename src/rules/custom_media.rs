@@ -1,3 +1,5 @@
+//! The `@custom-media` rule.
+
 use super::Location;
 use crate::error::PrinterError;
 use crate::media_query::MediaList;
@@ -5,10 +7,14 @@ use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::values::ident::DashedIdent;
 
+/// A [@custom-media](https://drafts.csswg.org/mediaqueries-5/#custom-mq) rule.
 #[derive(Debug, PartialEq, Clone)]
 pub struct CustomMediaRule<'i> {
+  /// The name of the declared media query.
   pub name: DashedIdent<'i>,
+  /// The media query to declare.
   pub query: MediaList<'i>,
+  /// The location of the rule in the source file.
   pub loc: Location,
 }
 

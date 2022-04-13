@@ -1,3 +1,5 @@
+//! The `@layer` rule.
+
 use super::{CssRuleList, Location};
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
@@ -6,7 +8,10 @@ use crate::values::string::CowArcStr;
 use cssparser::*;
 use smallvec::SmallVec;
 
-/// https://drafts.csswg.org/css-cascade-5/#typedef-layer-name
+/// A [`<layer-name>`](https://drafts.csswg.org/css-cascade-5/#typedef-layer-name) within
+/// a `@layer` or `@import` rule.
+///
+/// Nested layers are represented using a list of identifiers. In CSS syntax, these are dot-separated.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LayerName<'i>(pub SmallVec<[CowArcStr<'i>; 1]>);
 
@@ -69,10 +74,14 @@ impl<'i> ToCss for LayerName<'i> {
   }
 }
 
-/// https://drafts.csswg.org/css-cascade-5/#layer-empty
+/// A [@layer statement](https://drafts.csswg.org/css-cascade-5/#layer-empty) rule.
+///
+/// See also [LayerBlockRule](LayerBlockRule).
 #[derive(Debug, Clone, PartialEq)]
 pub struct LayerStatementRule<'i> {
+  /// The layer names to declare.
   pub names: Vec<LayerName<'i>>,
+  /// The location of the rule in the source file.
   pub loc: Location,
 }
 
@@ -88,11 +97,14 @@ impl<'i> ToCss for LayerStatementRule<'i> {
   }
 }
 
-/// https://drafts.csswg.org/css-cascade-5/#layer-block
+/// A [@layer block](https://drafts.csswg.org/css-cascade-5/#layer-block) rule.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LayerBlockRule<'i> {
+  /// The name of the layer to declare, or `None` to declare an anonymous layer.
   pub name: Option<LayerName<'i>>,
+  /// The rules within the `@layer` rule.
   pub rules: CssRuleList<'i>,
+  /// The location of the rule in the source file.
   pub loc: Location,
 }
 

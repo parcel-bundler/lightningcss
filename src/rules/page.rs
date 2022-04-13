@@ -1,3 +1,5 @@
+//! The `@page` rule.
+
 use super::Location;
 use crate::declaration::DeclarationBlock;
 use crate::error::{ParserError, PrinterError};
@@ -7,19 +9,32 @@ use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
 use cssparser::*;
 
-/// https://www.w3.org/TR/css-page-3/#typedef-page-selector
+/// A [page selector](https://www.w3.org/TR/css-page-3/#typedef-page-selector)
+/// within a `@page` rule.
+///
+/// Either a name or at least one pseudo class is required.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PageSelector<'i> {
+  /// An optional named page type.
   pub name: Option<CowArcStr<'i>>,
+  /// A list of page pseudo classes.
   pub pseudo_classes: Vec<PagePseudoClass>,
 }
 
 enum_property! {
+  /// A page pseudo class within an `@page` selector.
+  ///
+  /// See [PageSelector](PageSelector).
   pub enum PagePseudoClass {
+    /// The `:left` pseudo class.
     Left,
+    /// The `:right` pseudo class.
     Right,
+    /// The `:first` pseudo class.
     First,
+    /// The `:last` pseudo class.
     Last,
+    /// The `:blank` pseudo class.
     Blank,
   }
 }
@@ -51,10 +66,14 @@ impl<'i> Parse<'i> for PageSelector<'i> {
   }
 }
 
+/// A [@page](https://www.w3.org/TR/css-page-3/#at-page-rule) rule.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PageRule<'i> {
+  /// A list of page selectors.
   pub selectors: Vec<PageSelector<'i>>,
+  /// The declarations within the `@page` rule.
   pub declarations: DeclarationBlock<'i>,
+  /// The location of the rule in the source file.
   pub loc: Location,
 }
 

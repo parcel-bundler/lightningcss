@@ -1,3 +1,5 @@
+//! Style rules.
+
 use super::Location;
 use super::MinifyContext;
 use crate::compat::Feature;
@@ -12,12 +14,18 @@ use crate::traits::ToCss;
 use crate::vendor_prefix::VendorPrefix;
 use parcel_selectors::SelectorList;
 
+/// A CSS [style rule](https://drafts.csswg.org/css-syntax/#style-rules).
 #[derive(Debug, PartialEq, Clone)]
 pub struct StyleRule<'i> {
+  /// The selectors for the style rule.
   pub selectors: SelectorList<'i, Selectors>,
-  pub vendor_prefix: VendorPrefix,
+  /// A vendor prefix override, used during selector printing.
+  pub(crate) vendor_prefix: VendorPrefix,
+  /// The declarations within the style rule.
   pub declarations: DeclarationBlock<'i>,
+  /// Nested rules within the style rule.
   pub rules: CssRuleList<'i>,
+  /// The location of the rule in the source file.
   pub loc: Location,
 }
 

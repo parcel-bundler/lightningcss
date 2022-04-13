@@ -1,3 +1,5 @@
+//! The `@import` rule.
+
 use super::layer::LayerName;
 use super::supports::SupportsCondition;
 use super::Location;
@@ -8,13 +10,18 @@ use crate::traits::ToCss;
 use crate::values::string::CowArcStr;
 use cssparser::*;
 
-/// https://drafts.csswg.org/css-cascade/#at-import
+/// A [@import](https://drafts.csswg.org/css-cascade/#at-import) rule.
 #[derive(Debug, PartialEq, Clone)]
 pub struct ImportRule<'i> {
+  /// The url to import.
   pub url: CowArcStr<'i>,
+  /// An optional cascade layer name, or `None` for an anonymous layer.
   pub layer: Option<Option<LayerName<'i>>>,
+  /// An optional `supports()` condition.
   pub supports: Option<SupportsCondition<'i>>,
+  /// A media query.
   pub media: MediaList<'i>,
+  /// The location of the rule in the source file.
   pub loc: Location,
 }
 
