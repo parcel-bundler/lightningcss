@@ -6,6 +6,7 @@ use crate::printer::Printer;
 use crate::targets::Browsers;
 use crate::traits::{FallbackValues, Parse, ToCss};
 use crate::values::color::CssColor;
+use crate::values::number::CSSNumber;
 use crate::values::string::CowArcStr;
 use crate::values::url::Url;
 use cssparser::*;
@@ -37,14 +38,14 @@ pub struct CursorImage<'i> {
   /// A url to the cursor image.
   pub url: Url<'i>,
   /// The location in the image where the mouse pointer appears.
-  pub hotspot: Option<(f32, f32)>,
+  pub hotspot: Option<(CSSNumber, CSSNumber)>,
 }
 
 impl<'i> Parse<'i> for CursorImage<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let url = Url::parse(input)?;
-    let hotspot = if let Ok(x) = input.try_parse(f32::parse) {
-      let y = f32::parse(input)?;
+    let hotspot = if let Ok(x) = input.try_parse(CSSNumber::parse) {
+      let y = CSSNumber::parse(input)?;
       Some((x, y))
     } else {
       None

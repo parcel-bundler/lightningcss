@@ -1,3 +1,28 @@
+//! CSS bundling.
+//!
+//! A [Bundler](Bundler) can be used to combine a CSS file and all of its dependencies
+//! into a single merged style sheet. It works together with a [SourceProvider](SourceProvider)
+//! (e.g. [FileProvider](FileProvider)) to read files from the file system or another source,
+//! and returns a [StyleSheet](super::stylesheet::StyleSheet) containing the rules from all
+//! of the dependencies of the entry file, recursively.
+//!
+//! Rules are bundled following `@import` order, and wrapped in the necessary `@media`, `@supports`,
+//! and `@layer` rules as appropriate to preserve the authored behavior.
+//!
+//! # Example
+//!
+//! ```no_run
+//! use std::path::Path;
+//! use parcel_css::{
+//!   bundler::{Bundler, FileProvider},
+//!   stylesheet::ParserOptions
+//! };
+//!
+//! let fs = FileProvider::new();
+//! let mut bundler = Bundler::new(&fs, None, ParserOptions::default());
+//! let stylesheet = bundler.bundle(Path::new("style.css")).unwrap();
+//! ```
+
 use crate::{
   error::ErrorLocation,
   rules::{
@@ -27,6 +52,8 @@ use std::{
   sync::Mutex,
 };
 
+/// A Bundler combines a CSS file and all imported dependencies together into
+/// a single merged style sheet.
 pub struct Bundler<'a, 's, P> {
   source_map: Option<Mutex<&'s mut SourceMap>>,
   fs: &'a P,
@@ -47,15 +74,23 @@ struct BundleStyleSheet<'i> {
   loc: Location,
 }
 
+/// A trait to provide the contents of files to a Bundler.
+///
+/// See [FileProvider](FileProvider) for an implementation that uses the
+/// file system.
 pub trait SourceProvider: Send + Sync {
+  /// Reads the contents of the given file path to a string.
   fn read<'a>(&'a self, file: &Path) -> std::io::Result<&'a str>;
 }
 
+/// Provides an implementation of [SourceProvider](SourceProvider)
+/// that reads files from the file system.
 pub struct FileProvider {
   inputs: Mutex<Vec<*mut String>>,
 }
 
 impl FileProvider {
+  /// Creates a new FileProvider.
   pub fn new() -> FileProvider {
     FileProvider {
       inputs: Mutex::new(Vec::new()),
@@ -86,12 +121,18 @@ impl Drop for FileProvider {
   }
 }
 
+/// An error that could occur during bundling.
 #[derive(Debug, Serialize)]
 pub enum BundleErrorKind<'i> {
+  /// An I/O error occurred.
   IOError(#[serde(skip)] std::io::Error),
+  /// A parser error occurred.
   ParserError(ParserError<'i>),
+  /// An unsupported `@import` condition was encountered.
   UnsupportedImportCondition,
+  /// An unsupported cascade layer combination was encountered.
   UnsupportedLayerCombination,
+  /// Unsupported media query boolean logic was encountered.
   UnsupportedMediaBooleanLogic,
 }
 
@@ -119,12 +160,16 @@ impl<'i> std::fmt::Display for BundleErrorKind<'i> {
 
 impl<'i> BundleErrorKind<'i> {
   #[deprecated(note = "use `BundleErrorKind::to_string()` or `std::fmt::Display` instead")]
+  #[allow(missing_docs)]
   pub fn reason(&self) -> String {
     self.to_string()
   }
 }
 
 impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
+  /// Creates a new Bundler using the given source provider.
+  /// If a source map is given, the content of each source file included in the bundle will
+  /// be added accordingly.
   pub fn new(fs: &'a P, source_map: Option<&'s mut SourceMap>, options: ParserOptions) -> Self {
     Bundler {
       source_map: source_map.map(Mutex::new),
@@ -135,6 +180,7 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
     }
   }
 
+  /// Bundles the given entry file and all dependencies into a single style sheet.
   pub fn bundle<'e>(&mut self, entry: &'e Path) -> Result<StyleSheet<'a>, Error<BundleErrorKind<'a>>> {
     // Phase 1: load and parse all files. This is done in parallel.
     self.load_file(
@@ -193,7 +239,7 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
         {
           return Err(Error {
             kind: BundleErrorKind::UnsupportedImportCondition,
-            loc: Some(ErrorLocation::from(rule.loc, self.find_filename(rule.loc.source_index))),
+            loc: Some(ErrorLocation::new(rule.loc, self.find_filename(rule.loc.source_index))),
           });
         }
 
@@ -217,7 +263,7 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
             if layer != existing_layer || (layer.is_none() && existing_layer.is_none()) {
               return Err(Error {
                 kind: BundleErrorKind::UnsupportedLayerCombination,
-                loc: Some(ErrorLocation::from(rule.loc, self.find_filename(rule.loc.source_index))),
+                loc: Some(ErrorLocation::new(rule.loc, self.find_filename(rule.loc.source_index))),
               });
             }
           } else {
@@ -250,7 +296,7 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
 
     let code = self.fs.read(file).map_err(|e| Error {
       kind: BundleErrorKind::IOError(e),
-      loc: Some(ErrorLocation::from(rule.loc, self.find_filename(rule.loc.source_index))),
+      loc: Some(ErrorLocation::new(rule.loc, self.find_filename(rule.loc.source_index))),
     })?;
 
     let mut opts = self.options.clone();
@@ -288,7 +334,7 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
           let mut media = rule.media.clone();
           let result = media.and(&import.media).map_err(|_| Error {
             kind: BundleErrorKind::UnsupportedMediaBooleanLogic,
-            loc: Some(ErrorLocation::from(
+            loc: Some(ErrorLocation::new(
               import.loc,
               self.find_filename(import.loc.source_index),
             )),
@@ -304,7 +350,7 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
             // Cannot combine anonymous layers
             return Some(Err(Error {
               kind: BundleErrorKind::UnsupportedLayerCombination,
-              loc: Some(ErrorLocation::from(
+              loc: Some(ErrorLocation::new(
                 import.loc,
                 self.find_filename(import.loc.source_index),
               )),

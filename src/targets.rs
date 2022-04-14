@@ -21,6 +21,7 @@ use serde::{Deserialize, Serialize};
 /// };
 /// ```
 #[derive(Serialize, Debug, Deserialize, Clone, Copy, Default)]
+#[allow(missing_docs)]
 pub struct Browsers {
   pub android: Option<u32>,
   pub chrome: Option<u32>,

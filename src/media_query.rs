@@ -1,3 +1,5 @@
+//! Media queries.
+
 use crate::compat::Feature;
 use crate::error::{ErrorWithLocation, MinifyError, MinifyErrorKind, ParserError, PrinterError};
 use crate::macros::enum_property;
@@ -5,13 +7,14 @@ use crate::printer::Printer;
 use crate::rules::custom_media::CustomMediaRule;
 use crate::rules::Location;
 use crate::traits::{Parse, ToCss};
+use crate::values::number::CSSNumber;
 use crate::values::string::CowArcStr;
 use crate::values::{length::Length, ratio::Ratio, resolution::Resolution};
 use cssparser::*;
 use retain_mut::RetainMut;
 use std::collections::{HashMap, HashSet};
 
-/// A type that encapsulates a media query list.
+/// A [media query list](https://drafts.csswg.org/mediaqueries/#mq-list).
 #[derive(Clone, Debug, PartialEq)]
 pub struct MediaList<'i> {
   /// The list of media queries.
@@ -19,12 +22,12 @@ pub struct MediaList<'i> {
 }
 
 impl<'i> MediaList<'i> {
+  /// Creates an empty media query list.
   pub fn new() -> Self {
     MediaList { media_queries: vec![] }
   }
 
   /// Parse a media query list from CSS.
-  /// <https://drafts.csswg.org/mediaqueries/#error-handling>
   pub fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut media_queries = vec![];
     loop {
@@ -59,15 +62,21 @@ impl<'i> MediaList<'i> {
     Ok(())
   }
 
+  /// Returns whether the media query list always matches.
   pub fn always_matches(&self) -> bool {
     // If the media list is empty, it always matches.
     self.media_queries.is_empty() || self.media_queries.iter().all(|mq| mq.always_matches())
   }
 
+  /// Returns whether the media query list never matches.
   pub fn never_matches(&self) -> bool {
     !self.media_queries.is_empty() && self.media_queries.iter().all(|mq| mq.never_matches())
   }
 
+  /// Attempts to combine the given media query list into this one. The resulting media query
+  /// list matches if both the original media query lists would have matched.
+  ///
+  /// Returns an error if the boolean logic is not possible.
   pub fn and(&mut self, b: &MediaList<'i>) -> Result<(), ()> {
     if self.media_queries.is_empty() {
       self.media_queries.extend(b.media_queries.iter().cloned());
@@ -87,6 +96,8 @@ impl<'i> MediaList<'i> {
     Ok(())
   }
 
+  /// Combines the given media query list into this one. The resulting media query list
+  /// matches if either of the original media query lists would have matched.
   pub fn or(&mut self, b: &MediaList<'i>) {
     for mq in &b.media_queries {
       if !self.media_queries.contains(&mq) {
@@ -119,21 +130,26 @@ impl<'i> ToCss for MediaList<'i> {
 }
 
 enum_property! {
-  /// <https://drafts.csswg.org/mediaqueries/#mq-prefix>
+  /// A [media query qualifier](https://drafts.csswg.org/mediaqueries/#mq-prefix).
   pub enum Qualifier {
+    /// Prevents older browsers from matching the media query.
     Only,
+    /// Negates a media query.
     Not,
   }
 }
 
-/// <http://dev.w3.org/csswg/mediaqueries-3/#media0>
+/// A [media type](https://drafts.csswg.org/mediaqueries/#media-types) within a media query.
 #[derive(Clone, Debug, PartialEq)]
 pub enum MediaType<'i> {
-  /// A media type that matches every device.
+  /// Matches all devices.
   All,
+  /// Matches printers, and devices intended to reproduce a printed
+  /// display, such as a web browser showing a document in “Print Preview”.
   Print,
+  /// Matches all devices that aren’t matched by print.
   Screen,
-  /// A specific media type.
+  /// An unknown media type.
   Custom(CowArcStr<'i>),
 }
 
@@ -149,7 +165,7 @@ impl<'i> Parse<'i> for MediaType<'i> {
   }
 }
 
-/// https://drafts.csswg.org/mediaqueries/
+/// A [media query](https://drafts.csswg.org/mediaqueries/#media).
 #[derive(Clone, Debug, PartialEq)]
 pub struct MediaQuery<'i> {
   /// The qualifier for this query.
@@ -211,14 +227,20 @@ impl<'i> MediaQuery<'i> {
     Ok(())
   }
 
+  /// Returns whether the media query is guaranteed to always match.
   pub fn always_matches(&self) -> bool {
     self.qualifier == None && self.media_type == MediaType::All && self.condition == None
   }
 
+  /// Returns whether the media query is guaranteed to never match.
   pub fn never_matches(&self) -> bool {
     self.qualifier == Some(Qualifier::Not) && self.media_type == MediaType::All
   }
 
+  /// Attempts to combine the given media query into this one. The resulting media query
+  /// matches if both of the original media queries would have matched.
+  ///
+  /// Returns an error if the boolean logic is not possible.
   pub fn and<'a>(&mut self, b: &MediaQuery<'i>) -> Result<(), ()> {
     let at = (&self.qualifier, &self.media_type);
     let bt = (&b.qualifier, &b.media_type);
@@ -323,7 +345,9 @@ impl<'i> ToCss for MediaQuery<'i> {
 enum_property! {
   /// A binary `and` or `or` operator.
   pub enum Operator {
+    /// The `and` operator.
     And,
+    /// The `or` operator.
     Or,
   }
 }
@@ -434,18 +458,18 @@ impl<'i> ToCss for MediaCondition<'i> {
   }
 }
 
-/// https://drafts.csswg.org/mediaqueries/#typedef-mf-comparison
+/// A [comparator](https://drafts.csswg.org/mediaqueries/#typedef-mf-comparison) within a media query.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MediaFeatureComparison {
-  /// =
+  /// `=`
   Equal,
-  /// >
+  /// `>`
   GreaterThan,
-  /// >=
+  /// `>=`
   GreaterThanEqual,
-  /// <
+  /// `<`
   LessThan,
-  /// <=
+  /// `<=`
   LessThanEqual,
 }
 
@@ -485,28 +509,38 @@ impl MediaFeatureComparison {
   }
 }
 
-/// https://drafts.csswg.org/mediaqueries/#typedef-media-feature
+/// A [media feature](https://drafts.csswg.org/mediaqueries/#typedef-media-feature)
 #[derive(Clone, Debug, PartialEq)]
 pub enum MediaFeature<'i> {
-  // e.g. (min-width: 240px)
+  /// A plain media feature, e.g. `(min-width: 240px)`.
   Plain {
+    /// The name of the feature.
     name: CowArcStr<'i>,
+    /// The feature value.
     value: MediaFeatureValue<'i>,
   },
-  // e.g. (hover)
+  /// A boolean feature, e.g. `(hover)`.
   Boolean(CowArcStr<'i>),
-  // e.g. (width > 240px)
+  /// A range, e.g. `(width > 240px)`.
   Range {
+    /// The name of the feature.
     name: CowArcStr<'i>,
+    /// A comparator.
     operator: MediaFeatureComparison,
+    /// The feature value.
     value: MediaFeatureValue<'i>,
   },
-  /// e.g. (120px < width < 240px)
+  /// An interval, e.g. `(120px < width < 240px)`.
   Interval {
+    /// The name of the feature.
     name: CowArcStr<'i>,
+    /// A start value.
     start: MediaFeatureValue<'i>,
+    /// A comparator for the start value.
     start_operator: MediaFeatureComparison,
+    /// The end value.
     end: MediaFeatureValue<'i>,
+    /// A comparator for the end value.
     end_operator: MediaFeatureComparison,
   },
 }
@@ -669,12 +703,20 @@ where
   Ok(())
 }
 
+/// [media feature value](https://drafts.csswg.org/mediaqueries/#typedef-mf-value) within a media query.
+///
+/// See [MediaFeature](MediaFeature).
 #[derive(Clone, Debug, PartialEq)]
 pub enum MediaFeatureValue<'i> {
+  /// A length value.
   Length(Length),
-  Number(f32),
+  /// A number value.
+  Number(CSSNumber),
+  /// A resolution.
   Resolution(Resolution),
+  /// A ratio.
   Ratio(Ratio),
+  /// An indentifier.
   Ident(CowArcStr<'i>),
 }
 
@@ -688,7 +730,7 @@ impl<'i> Parse<'i> for MediaFeatureValue<'i> {
     }
 
     // Parse number next so that unitless values are not parsed as lengths.
-    if let Ok(num) = input.try_parse(f32::parse) {
+    if let Ok(num) = input.try_parse(CSSNumber::parse) {
       return Ok(MediaFeatureValue::Number(num));
     }
 

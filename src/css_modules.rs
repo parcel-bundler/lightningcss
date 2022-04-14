@@ -1,3 +1,13 @@
+//! CSS module exports.
+//!
+//! [CSS modules](https://github.com/css-modules/css-modules) are a way of locally scoping names in a
+//! CSS file. This includes class names, ids, keyframe animation names, and any other places where the
+//! [CustomIdent](super::values::ident::CustomIdent) type is used.
+//!
+//! CSS modules can be enabled using the `css_modules` option when parsing a style sheet. When the
+//! style sheet is printed, hashes will be added to any declared names, and references to those names
+//! will be updated accordingly. A map of the original names to compiled (hashed) names will be returned.
+
 use crate::error::PrinterErrorKind;
 use crate::properties::css_modules::{Composes, ComposesFrom};
 use crate::selector::Selectors;
@@ -9,22 +19,44 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
+/// A referenced name within a CSS module, e.g. via the `composes` property.
+///
+/// See [CssModuleExport](CssModuleExport).
 #[derive(PartialEq, Debug, Clone, Serialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum CssModuleReference {
-  Local { name: String },
-  Global { name: String },
-  Dependency { name: String, specifier: String },
+  /// A local reference.
+  Local {
+    /// The local (compiled) name for the reference.
+    name: String,
+  },
+  /// A global reference.
+  Global {
+    /// The referenced global name.
+    name: String,
+  },
+  /// A reference to an export in a different file.
+  Dependency {
+    /// The name to reference within the dependency.
+    name: String,
+    /// The dependency specifier for the referenced file.
+    specifier: String,
+  },
 }
 
+/// An exported value from a CSS module.
 #[derive(PartialEq, Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CssModuleExport {
+  /// The local (compiled) name for this export.
   pub name: String,
+  /// Other names that are composed by this export.
   pub composes: Vec<CssModuleReference>,
+  /// Whether the export is referenced in this file.
   pub is_referenced: bool,
 }
 
+/// A map of exported names to values.
 pub type CssModuleExports = HashMap<String, CssModuleExport>;
 
 lazy_static! {

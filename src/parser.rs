@@ -30,11 +30,17 @@ use cssparser::*;
 use parcel_selectors::{parser::NestingRequirement, SelectorList};
 use std::collections::HashMap;
 
+/// CSS parsing options.
 #[derive(Default, Clone, Debug)]
 pub struct ParserOptions {
+  /// Whether the enable the [CSS nesting](https://www.w3.org/TR/css-nesting-1/) draft syntax.
   pub nesting: bool,
+  /// Whether to enable the [custom media](https://drafts.csswg.org/mediaqueries-5/#custom-mq) draft syntax.
   pub custom_media: bool,
+  /// Whether the enable [CSS modules](https://github.com/css-modules/css-modules).
   pub css_modules: bool,
+  /// The source index to assign to all parsed rules. Impacts the source map when
+  /// the style sheet is serialized.
   pub source_index: u32,
 }
 

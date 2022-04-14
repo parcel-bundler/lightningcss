@@ -1,3 +1,5 @@
+//! CSS declarations.
+
 use crate::context::PropertyHandlerContext;
 use crate::error::{ParserError, PrinterError};
 use crate::parser::ParserOptions;
@@ -29,13 +31,21 @@ use crate::targets::Browsers;
 use crate::traits::{PropertyHandler, ToCss};
 use cssparser::*;
 
+/// A CSS declaration block.
+///
+/// Properties are separated into a list of `!important` declararations,
+/// and a list of normal declarations. This reduces memory usage compared
+/// with storing a boolean along with each property.
 #[derive(Debug, PartialEq, Clone)]
 pub struct DeclarationBlock<'i> {
+  /// A list of `!important` declarations in the block.
   pub important_declarations: Vec<Property<'i>>,
+  /// A list of normal declarations in the block.
   pub declarations: Vec<Property<'i>>,
 }
 
 impl<'i> DeclarationBlock<'i> {
+  /// Parses a declaration block from CSS syntax.
   pub fn parse<'t>(
     input: &mut Parser<'i, 't>,
     options: &ParserOptions,
@@ -126,6 +136,7 @@ impl<'i> DeclarationBlock<'i> {
     self.declarations = std::mem::take(&mut handler.decls);
   }
 
+  /// Returns whether the declaration block is empty.
   pub fn is_empty(&self) -> bool {
     return self.declarations.is_empty() && self.important_declarations.is_empty();
   }

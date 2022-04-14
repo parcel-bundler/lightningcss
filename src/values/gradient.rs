@@ -931,11 +931,11 @@ impl<'i> Parse<'i> for WebKitGradient {
       "radial" => {
         let from = WebKitGradientPoint::parse(input)?;
         input.expect_comma()?;
-        let r0 = f32::parse(input)?;
+        let r0 = CSSNumber::parse(input)?;
         input.expect_comma()?;
         let to = WebKitGradientPoint::parse(input)?;
         input.expect_comma()?;
-        let r1 = f32::parse(input)?;
+        let r1 = CSSNumber::parse(input)?;
         input.expect_comma()?;
         let stops = input.parse_comma_separated(WebKitColorStop::parse)?;
         Ok(WebKitGradient::Radial {

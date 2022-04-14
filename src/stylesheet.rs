@@ -164,7 +164,7 @@ impl<'i> StyleSheet<'i> {
 
     self.rules.minify(&mut ctx, false).map_err(|e| Error {
       kind: e.kind,
-      loc: Some(ErrorLocation::from(
+      loc: Some(ErrorLocation::new(
         e.loc,
         self.sources[e.loc.source_index as usize].clone(),
       )),

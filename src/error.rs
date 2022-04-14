@@ -1,3 +1,5 @@
+//! Error types.
+
 use crate::properties::custom::Token;
 use crate::rules::Location;
 use crate::values::string::CowArcStr;
@@ -6,9 +8,12 @@ use parcel_selectors::parser::SelectorParseErrorKind;
 use serde::Serialize;
 use std::fmt;
 
+/// An error with a source location.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Error<T> {
+  /// The type of error that occurred.
   pub kind: T,
+  /// The location where the error occurred.
   pub loc: Option<ErrorLocation>,
 }
 
@@ -24,15 +29,20 @@ impl<T: fmt::Display> fmt::Display for Error<T> {
 
 impl<T: fmt::Display + fmt::Debug> std::error::Error for Error<T> {}
 
+/// A line and column location within a source file.
 #[derive(Debug, PartialEq, Clone)]
 pub struct ErrorLocation {
+  /// The filename in which the error occurred.
   pub filename: String,
+  /// The line number, starting from 0.
   pub line: u32,
+  /// THe column number, starting from 1.
   pub column: u32,
 }
 
 impl ErrorLocation {
-  pub fn from(loc: Location, filename: String) -> Self {
+  /// Create a new error location from a source location and filename.
+  pub fn new(loc: Location, filename: String) -> Self {
     ErrorLocation {
       filename,
       line: loc.line,
@@ -47,21 +57,35 @@ impl fmt::Display for ErrorLocation {
   }
 }
 
+/// A parser error.
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "type", content = "value")]
 pub enum ParserError<'i> {
+  /// An at rule body was invalid.
   AtRuleBodyInvalid,
+  /// An unknown or unsupported at rule was encountered.
   AtRuleInvalid(CowArcStr<'i>),
+  /// Unexpectedly encountered the end of input data.
   EndOfInput,
+  /// A declaration was invalid.
   InvalidDeclaration,
+  /// A media query was invalid.
   InvalidMediaQuery,
+  /// Invalid CSS nesting.
   InvalidNesting,
+  /// An invalid selector in an `@page` rule.
   InvalidPageSelector,
+  /// An invalid value was encountered.
   InvalidValue,
+  /// Invalid qualified rule.
   QualifiedRuleInvalid,
+  /// A selector was invalid.
   SelectorError(SelectorError<'i>),
+  /// An `@import` rule was encountered after any rule besides `@charset` or `@layer`.
   UnexpectedImportRule,
+  /// A `@namespace` rule was encountered after any rules besides `@charset`, `@import`, or `@layer`.
   UnexpectedNamespaceRule,
+  /// An unexpected token was encountered.
   UnexpectedToken(#[serde(skip)] Token<'i>),
 }
 
@@ -93,6 +117,7 @@ impl<'i> fmt::Display for ParserError<'i> {
 }
 
 impl<'i> Error<ParserError<'i>> {
+  /// Creates an error from a cssparser error.
   pub fn from(err: ParseError<'i, ParserError<'i>>, filename: String) -> Error<ParserError<'i>> {
     let kind = match err.kind {
       ParseErrorKind::Basic(b) => match &b {
@@ -124,32 +149,53 @@ impl<'i> From<SelectorParseErrorKind<'i>> for ParserError<'i> {
 
 impl<'i> ParserError<'i> {
   #[deprecated(note = "use `ParserError::to_string()` or `fmt::Display` instead")]
+  #[allow(missing_docs)]
   pub fn reason(&self) -> String {
     self.to_string()
   }
 }
 
+/// A selector parsing error.
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "type", content = "value")]
 pub enum SelectorError<'i> {
+  /// An unexpected token was found in an attribute selector.
   BadValueInAttr(#[serde(skip)] Token<'i>),
+  /// An unexpected token was found in a class selector.
   ClassNeedsIdent(#[serde(skip)] Token<'i>),
+  /// A dangling combinator was found.
   DanglingCombinator,
+  /// An empty selector.
   EmptySelector,
+  /// A `|` was expected in an attribute selector.
   ExpectedBarInAttr(#[serde(skip)] Token<'i>),
+  /// A namespace was expected.
   ExpectedNamespace(CowArcStr<'i>),
+  /// An unexpected token was encountered in a namespace.
   ExplicitNamespaceUnexpectedToken(#[serde(skip)] Token<'i>),
+  /// An invalid pseudo class was encountered after a pseudo element.
   InvalidPseudoClassAfterPseudoElement,
+  /// An invalid pseudo class was encountered after a `-webkit-scrollbar` pseudo element.
   InvalidPseudoClassAfterWebKitScrollbar,
+  /// A `-webkit-scrollbar` state was encountered before a `-webkit-scrollbar` pseudo element.
   InvalidPseudoClassBeforeWebKitScrollbar,
+  /// Invalid qualified name in attribute selector.
   InvalidQualNameInAttr(#[serde(skip)] Token<'i>),
+  /// The current token is not allowed in this state.
   InvalidState,
+  /// The selector is required to have the `&` nesting selector at the start.
   MissingNestingPrefix,
+  /// The selector is missing a `&` nesting selector.
   MissingNestingSelector,
+  /// No qualified name in attribute selector.
   NoQualifiedNameInAttributeSelector(#[serde(skip)] Token<'i>),
+  /// An Invalid token was encountered in a pseudo element.
   PseudoElementExpectedIdent(#[serde(skip)] Token<'i>),
+  /// An unexpected identifier was encountered.
   UnexpectedIdent(CowArcStr<'i>),
+  /// An unexpected token was encountered inside an attribute selector.
   UnexpectedTokenInAttributeSelector(#[serde(skip)] Token<'i>),
+  /// An unsupported pseudo class or pseudo element was encountered.
   UnsupportedPseudoClassOrElement(CowArcStr<'i>),
 }
 
@@ -221,7 +267,7 @@ impl<'i> From<SelectorParseErrorKind<'i>> for SelectorError<'i> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ErrorWithLocation<T> {
+pub(crate) struct ErrorWithLocation<T> {
   pub kind: T,
   pub loc: Location,
 }
@@ -234,14 +280,27 @@ impl<T: fmt::Display> fmt::Display for ErrorWithLocation<T> {
 
 impl<T: fmt::Display + fmt::Debug> std::error::Error for ErrorWithLocation<T> {}
 
-pub type MinifyError = ErrorWithLocation<MinifyErrorKind>;
+pub(crate) type MinifyError = ErrorWithLocation<MinifyErrorKind>;
 
+/// A transformation error.
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "type")]
 pub enum MinifyErrorKind {
-  CircularCustomMedia { name: String },
-  CustomMediaNotDefined { name: String },
-  UnsupportedCustomMediaBooleanLogic { custom_media_loc: Location },
+  /// A circular `@custom-media` rule was detected.
+  CircularCustomMedia {
+    /// The name of the `@custom-media` rule that was referenced circularly.
+    name: String,
+  },
+  /// Attempted to reference a custom media rule that doesn't exist.
+  CustomMediaNotDefined {
+    /// The name of the `@custom-media` rule that was not defined.
+    name: String,
+  },
+  /// Boolean logic with media types in @custom-media rules is not supported.
+  UnsupportedCustomMediaBooleanLogic {
+    /// The source location of the `@custom-media` rule with unsupported boolean logic.
+    custom_media_loc: Location,
+  },
 }
 
 impl fmt::Display for MinifyErrorKind {
@@ -260,19 +319,29 @@ impl fmt::Display for MinifyErrorKind {
 
 impl MinifyErrorKind {
   #[deprecated(note = "use `MinifyErrorKind::to_string()` or `fmt::Display` instead")]
+  #[allow(missing_docs)]
   pub fn reason(&self) -> String {
     self.to_string()
   }
 }
 
+/// A printer error.
 pub type PrinterError = Error<PrinterErrorKind>;
 
+/// A printer error type.
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "type")]
 pub enum PrinterErrorKind {
-  AmbiguousUrlInCustomProperty { url: String },
+  /// An ambiguous relative `url()` was encountered in a custom property declaration.
+  AmbiguousUrlInCustomProperty {
+    /// The ambiguous URL.
+    url: String,
+  },
+  /// A [std::fmt::Error](std::fmt::Error) was encountered in the underlying destination.
   FmtError,
+  /// The CSS modules `composes` property cannot be used within nested rules.
   InvalidComposesNesting,
+  /// The CSS modules `composes` property cannot be used with a simple class selector.
   InvalidComposesSelector,
 }
 
@@ -299,6 +368,7 @@ impl fmt::Display for PrinterErrorKind {
 
 impl PrinterErrorKind {
   #[deprecated(note = "use `PrinterErrorKind::to_string()` or `fmt::Display` instead")]
+  #[allow(missing_docs)]
   pub fn reason(&self) -> String {
     self.to_string()
   }

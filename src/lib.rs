@@ -1,3 +1,21 @@
+//! Parcel CSS is a CSS parser, transformer, and minifier based on the
+//! [cssparser](https://github.com/servo/rust-cssparser) crate used in Firefox.
+//! It supports fully parsing all CSS rules, properties, and values into normalized
+//! structures exactly how a browser would. Once parsed, the CSS can be transformed
+//! to add or remove vendor prefixes, or lower syntax for older browsers as appropriate.
+//! The style sheet can also be minified to merge longhand properties into shorthands,
+//! merge adjacent rules, reduce `calc()` expressions, and more. Finally, the style sheet
+//! can be printed back to CSS syntax, either minified to remove whitespace and compress
+//! the output as much as possible, or pretty printed.
+//!
+//! The [StyleSheet](stylesheet::StyleSheet) struct is the main entrypoint for Parcel CSS,
+//! and supports parsing and transforming entire CSS files. You can also parse and manipulate
+//! individual CSS [rules](rules), [properties](properties), or [values](values). The [bundler](bundler)
+//! module also can be used to combine a CSS file and all of its dependencies together into a single
+//! style sheet. See the individual module documentation for more details and examples.
+
+#![deny(missing_docs)]
+
 pub mod bundler;
 mod compat;
 mod context;
