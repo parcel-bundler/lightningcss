@@ -1438,7 +1438,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        border-image: url(test.png) 60;
+        border-image: url("test.png") 60;
       }
     "#
       },
@@ -1453,7 +1453,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        border-image: url(foo.png) 60;
+        border-image: url("foo.png") 60;
       }
     "#
       },
@@ -1471,7 +1471,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        border-image: url(foo.png) 10 40 fill / 10px round;
+        border-image: url("foo.png") 10 40 fill / 10px round;
       }
     "#
       },
@@ -1486,7 +1486,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        border-image: url(foo.png) 60;
+        border-image: url("foo.png") 60;
         border-image-source: var(--test);
       }
     "#
@@ -1501,7 +1501,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -webkit-border-image: url(test.png) 60;
+        -webkit-border-image: url("test.png") 60;
       }
     "#
       },
@@ -1516,8 +1516,8 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -webkit-border-image: url(test.png) 60;
-        border-image: url(test.png) 60;
+        -webkit-border-image: url("test.png") 60;
+        border-image: url("test.png") 60;
       }
     "#
       },
@@ -1532,8 +1532,8 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -webkit-border-image: url(test.png) 60;
-        border-image-source: url(foo.png);
+        -webkit-border-image: url("test.png") 60;
+        border-image-source: url("foo.png");
       }
     "#
       },
@@ -1549,7 +1549,7 @@ mod tests {
       indoc! {r#"
       .foo {
         border: 1px solid red;
-        border-image: url(test.png) 60;
+        border-image: url("test.png") 60;
       }
     "#
       },
@@ -1578,10 +1578,10 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -webkit-border-image: url(test.png) 60;
-        -moz-border-image: url(test.png) 60;
-        -o-border-image: url(test.png) 60;
-        border-image: url(test.png) 60;
+        -webkit-border-image: url("test.png") 60;
+        -moz-border-image: url("test.png") 60;
+        -o-border-image: url("test.png") 60;
+        border-image: url("test.png") 60;
       }
     "#
       },
@@ -1601,7 +1601,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        border-image: url(foo.png) 10 40 fill / 10px round;
+        border-image: url("foo.png") 10 40 fill / 10px round;
       }
     "#
       },
@@ -1647,7 +1647,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        border-image: url(foo.png) 60;
+        border-image: url("foo.png") 60;
       }
     "#
       },
@@ -2859,7 +2859,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: url(img.png) 20px 10px / 50px 100px repeat-x;
+        background: url("img.png") 20px 10px / 50px 100px repeat-x;
       }
     "#
       },
@@ -2901,7 +2901,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: gray url(chess.png) 40% / 10em round fixed border-box;
+        background: gray url("chess.png") 40% / 10em round fixed border-box;
       }
     "#
       },
@@ -2914,12 +2914,12 @@ mod tests {
         background-position-x: right 20px, 10px;
         background-position-y: top 20px, 15px;
         background-size: 50px 50px, auto;
-        background-repeat: repeat no-repeat, no-repeat;      
+        background-repeat: repeat no-repeat, no-repeat;
       }
     "#,
       indoc! {r#"
       .foo {
-        background: url(img.png) right 20px top 20px / 50px 50px repeat-x, gray url(test.jpg) 10px 15px no-repeat;
+        background: url("img.png") right 20px top 20px / 50px 50px repeat-x, gray url("test.jpg") 10px 15px no-repeat;
       }
     "#
       },
@@ -2945,7 +2945,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: gray url(img.png) padding-box content-box;
+        background: gray url("img.png") padding-box content-box;
         -webkit-background-clip: text;
       }
     "#
@@ -2962,7 +2962,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: gray url(img.png);
+        background: gray url("img.png");
         -webkit-background-clip: text;
         background-clip: content-box;
       }
@@ -2979,7 +2979,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: gray url(img.png);
+        background: gray url("img.png");
         background-position: var(--pos);
       }
     "#
@@ -3036,7 +3036,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: url(img.png) text;
+        background: url("img.png") text;
       }
     "#
       },
@@ -3051,7 +3051,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: url(img.png);
+        background: url("img.png");
         -webkit-background-clip: text;
         background-clip: text;
       }
@@ -3072,7 +3072,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: url(img.png) text;
+        background: url("img.png") text;
       }
     "#
       },
@@ -3091,7 +3091,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: url(img.png);
+        background: url("img.png");
         -webkit-background-clip: text;
         background-clip: text;
       }
@@ -3113,7 +3113,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background-image: url(img.png);
+        background-image: url("img.png");
         -webkit-background-clip: text;
         background-clip: text;
       }
@@ -3134,7 +3134,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background-image: url(img.png);
+        background-image: url("img.png");
         background-clip: text;
       }
     "#
@@ -3176,8 +3176,8 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: #af5cae url(foo.png);
-        background: lab(51.5117% 43.3777 -29.0443) url(foo.png);
+        background: #af5cae url("foo.png");
+        background: lab(51.5117% 43.3777 -29.0443) url("foo.png");
       }
     "#
       },
@@ -8244,11 +8244,11 @@ mod tests {
       "#,
       indoc! {r#"
       .foo {
-        background: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0), to(red)), url(bg.jpg);
-        background: -webkit-radial-gradient(red, #00f), -webkit-linear-gradient(#ff0, red), url(bg.jpg);
-        background: -moz-radial-gradient(red, #00f), -moz-linear-gradient(#ff0, red), url(bg.jpg);
-        background: -o-radial-gradient(red, #00f), -o-linear-gradient(#ff0, red), url(bg.jpg);
-        background: radial-gradient(red, #00f), linear-gradient(#ff0, red), url(bg.jpg);
+        background: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0), to(red)), url("bg.jpg");
+        background: -webkit-radial-gradient(red, #00f), -webkit-linear-gradient(#ff0, red), url("bg.jpg");
+        background: -moz-radial-gradient(red, #00f), -moz-linear-gradient(#ff0, red), url("bg.jpg");
+        background: -o-radial-gradient(red, #00f), -o-linear-gradient(#ff0, red), url("bg.jpg");
+        background: radial-gradient(red, #00f), linear-gradient(#ff0, red), url("bg.jpg");
       }
       "#},
       Browsers {
@@ -11140,7 +11140,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        list-style: url(ellipse.png);
+        list-style: url("ellipse.png");
       }
     "#},
     );
@@ -11168,7 +11168,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        list-style: \"★\" url(ellipse.png);
+        list-style: \"★\" url("ellipse.png");
         list-style-image: var(--img);
       }
     "#},
@@ -11248,7 +11248,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: -webkit-image-set(url(foo.png) 2x, url(bar.png));
+        background: -webkit-image-set(url("foo.png") 2x, url("bar.png"));
         background: image-set("foo.png" 2x, "bar.png");
       }
     "#},
@@ -11262,7 +11262,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: -webkit-image-set(url(foo.png) 2x, url(bar.png));
+        background: -webkit-image-set(url("foo.png") 2x, url("bar.png"));
         background: image-set("foo.png" 2x, "bar.png");
       }
     "#},
@@ -11299,7 +11299,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: -webkit-image-set(url(foo.png) 2x, url(bar.png));
+        background: -webkit-image-set(url("foo.png") 2x, url("bar.png"));
       }
     "#},
       Browsers {
@@ -16416,13 +16416,13 @@ mod tests {
 
     prefix_test(
       ".foo { fill: url(#foo) lch(50.998% 135.363 338) }",
-      indoc! { r#"
+      indoc! { r##"
         .foo {
-          fill: url(#foo) #ee00be;
-          fill: url(#foo) color(display-p3 .972962 -.362078 .804206);
-          fill: url(#foo) lch(50.998% 135.363 338);
+          fill: url("#foo") #ee00be;
+          fill: url("#foo") color(display-p3 .972962 -.362078 .804206);
+          fill: url("#foo") lch(50.998% 135.363 338);
         }
-      "#},
+      "##},
       Browsers {
         chrome: Some(90 << 16),
         safari: Some(14 << 16),
@@ -16522,9 +16522,9 @@ mod tests {
       ".foo { mask: url(masks.svg#star) luminance }",
       indoc! { r#"
         .foo {
-          -webkit-mask: url(masks.svg#star);
+          -webkit-mask: url("masks.svg#star");
           -webkit-mask-source-type: luminance;
-          mask: url(masks.svg#star) luminance;
+          mask: url("masks.svg#star") luminance;
         }
     "#},
       Browsers {
@@ -16537,8 +16537,8 @@ mod tests {
       ".foo { mask-image: url(masks.svg#star) }",
       indoc! { r#"
         .foo {
-          -webkit-mask-image: url(masks.svg#star);
-          mask-image: url(masks.svg#star);
+          -webkit-mask-image: url("masks.svg#star");
+          mask-image: url("masks.svg#star");
         }
     "#},
       Browsers {
@@ -16562,10 +16562,10 @@ mod tests {
       "#,
       indoc! { r#"
         .foo {
-          -webkit-mask: url(masks.svg#star) 25% 75% / cover no-repeat content-box padding-box;
+          -webkit-mask: url("masks.svg#star") 25% 75% / cover no-repeat content-box padding-box;
           -webkit-mask-composite: source-out;
           -webkit-mask-source-type: luminance;
-          mask: url(masks.svg#star) 25% 75% / cover no-repeat content-box padding-box subtract luminance;
+          mask: url("masks.svg#star") 25% 75% / cover no-repeat content-box padding-box subtract luminance;
         }
     "#},
       Browsers {
@@ -16649,8 +16649,8 @@ mod tests {
       "#,
       indoc! { r#"
         .foo {
-          -webkit-mask-box-image: url(border-mask.png) 25 / 35px / 12px space;
-          mask-border: url(border-mask.png) 25 / 35px / 12px space luminance;
+          -webkit-mask-box-image: url("border-mask.png") 25 / 35px / 12px space;
+          mask-border: url("border-mask.png") 25 / 35px / 12px space luminance;
         }
     "#},
       Browsers {
@@ -16712,8 +16712,8 @@ mod tests {
       "#,
       indoc! { r#"
         .foo {
-          -webkit-mask-box-image: url(foo.png) 10 40 / 10px round;
-          mask-border: url(foo.png) 10 40 / 10px round luminance;
+          -webkit-mask-box-image: url("foo.png") 10 40 / 10px round;
+          mask-border: url("foo.png") 10 40 / 10px round luminance;
         }
     "#},
       Browsers {
@@ -16734,7 +16734,7 @@ mod tests {
       "#,
       indoc! { r#"
         .foo {
-          -webkit-mask-box-image: url(foo.png) 10 40 / 10px round;
+          -webkit-mask-box-image: url("foo.png") 10 40 / 10px round;
         }
     "#},
       Browsers {
@@ -18035,6 +18035,47 @@ mod tests {
       }
     "#,
       "@property --property-name{syntax:\"<color>+\";inherits:false;initial-value:#ff0 #00f}",
+    );
+  }
+
+  #[test]
+  fn test_quoting_unquoting_urls() {
+    // Quotes remain double quotes when not minifying
+    test(
+      r#".foo {
+      background-image: url("0123abcd");
+    }"#,
+      r#".foo {
+  background-image: url("0123abcd");
+}
+"#,
+    );
+
+    // Quotes removed when minifying
+    minify_test(
+      r#".foo {
+      background-image: url("0123abcd");
+    }"#,
+      r#".foo{background-image:url(0123abcd)}"#,
+    );
+
+    // Doubles quotes added if not present when not minifying
+    test(
+      r#".foo {
+      background-image: url(0123abcd);
+    }"#,
+      r#".foo {
+  background-image: url("0123abcd");
+}
+"#,
+    );
+
+    // No quotes changed if not present when not minifying
+    minify_test(
+      r#".foo {
+      background-image: url(0123abcd);
+    }"#,
+      r#".foo{background-image:url(0123abcd)}"#,
     );
   }
 }
