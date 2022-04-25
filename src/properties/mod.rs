@@ -70,7 +70,7 @@
 //!
 //! assert_eq!(
 //!   background.to_css_string(false, PrinterOptions::default()).unwrap(),
-//!   "background: url(img.png) 20px 10px / 50px 100px fixed"
+//!   r#"background: url("img.png") 20px 10px / 50px 100px fixed"#
 //! );
 //! ```
 //!

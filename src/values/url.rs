@@ -68,7 +68,9 @@ impl<'i> ToCss for Url<'i> {
 
       dest.write_str(&buf)?;
     } else {
-      Token::UnquotedUrl(CowRcStr::from(self.url.as_ref())).to_css(dest)?;
+      dest.write_str("url(")?;
+      serialize_string(&self.url, dest)?;
+      dest.write_char(')')?;
     }
 
     Ok(())
