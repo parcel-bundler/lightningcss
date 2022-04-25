@@ -45,7 +45,7 @@ rayon = "1.5.1"
 dashmap = "5.0.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-jemallocator = { version = "0.3.2", features = ["disable_initial_exec_tls"] }
+jemallocator = { version = "0.3.2", features = ["disable_initial_exec_tls"], optional = true }
 
 [dev-dependencies]
 indoc = "1.0.3"
@@ -55,7 +55,7 @@ predicates = "2.1"
 
 [features]
 default = ["grid"]
-cli = ["clap", "serde_json", "pathdiff", "browserslist-rs"]
+cli = ["clap", "serde_json", "pathdiff", "browserslist-rs", "jemallocator"]
 grid = []
 
 [[test]]
