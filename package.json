@@ -36,7 +36,7 @@
   },
   "devDependencies": {
     "@mdn/browser-compat-data": "^4.1.12",
-    "@napi-rs/cli": "1.0.4",
+    "@napi-rs/cli": "^2.6.2",
     "autoprefixer": "^10.4.4",
     "caniuse-lite": "^1.0.30001319",
     "cssnano": "^5.0.8",

@@ -428,7 +428,7 @@ impl<'i> CompileError<'i> {
         // Generate an error with location information.
         let syntax_error = ctx.env.get_global()?.get_named_property::<napi::JsFunction>("SyntaxError")?;
         let reason = ctx.env.create_string_from_std(reason)?;
-        let mut obj = syntax_error.new(&[reason])?;
+        let mut obj = syntax_error.new_instance(&[reason])?;
         if let Some(loc) = loc {
           let line = ctx.env.create_int32((loc.line + 1) as i32)?;
           let col = ctx.env.create_int32(loc.column as i32)?;
