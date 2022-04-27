@@ -1,12 +1,13 @@
 //! CSS declarations.
 
+use std::borrow::Cow;
+
 use crate::context::PropertyHandlerContext;
 use crate::error::{ParserError, PrinterError};
 use crate::parser::ParserOptions;
 use crate::printer::Printer;
 use crate::properties::box_shadow::BoxShadowHandler;
 use crate::properties::masking::MaskHandler;
-use crate::properties::Property;
 use crate::properties::{
   align::AlignHandler,
   animation::AnimationHandler,
@@ -27,6 +28,7 @@ use crate::properties::{
   transform::TransformHandler,
   transition::TransitionHandler,
 };
+use crate::properties::{Property, PropertyId};
 use crate::targets::Browsers;
 use crate::traits::{PropertyHandler, ToCss};
 use cssparser::*;
@@ -71,10 +73,46 @@ impl<'i> DeclarationBlock<'i> {
       declarations,
     })
   }
+
+  /// Parses a declaration block from a string.
+  pub fn parse_string(input: &'i str, options: ParserOptions) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let mut input = ParserInput::new(input);
+    let mut parser = Parser::new(&mut input);
+    let result = Self::parse(&mut parser, &options)?;
+    parser.expect_exhausted()?;
+    Ok(result)
+  }
 }
 
 impl<'i> ToCss for DeclarationBlock<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    let len = self.declarations.len() + self.important_declarations.len();
+    let mut i = 0;
+
+    macro_rules! write {
+      ($decls: expr, $important: literal) => {
+        for decl in &$decls {
+          decl.to_css(dest, $important)?;
+          if i != len - 1 {
+            dest.write_char(';')?;
+            dest.whitespace()?;
+          }
+          i += 1;
+        }
+      };
+    }
+
+    write!(self.declarations, false);
+    write!(self.important_declarations, true);
+    Ok(())
+  }
+}
+
+impl<'i> DeclarationBlock<'i> {
+  pub(crate) fn to_css_block<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
   {
@@ -139,6 +177,145 @@ impl<'i> DeclarationBlock<'i> {
   /// Returns whether the declaration block is empty.
   pub fn is_empty(&self) -> bool {
     return self.declarations.is_empty() && self.important_declarations.is_empty();
+  }
+}
+
+impl<'i> DeclarationBlock<'i> {
+  /// Returns an iterator over all properties in the declaration.
+  pub fn iter(&self) -> impl std::iter::DoubleEndedIterator<Item = (&Property<'i>, bool)> {
+    self
+      .declarations
+      .iter()
+      .map(|property| (property, false))
+      .chain(self.important_declarations.iter().map(|property| (property, true)))
+  }
+
+  /// Returns a mutable iterator over all properties in the declaration.
+  pub fn iter_mut(&mut self) -> impl std::iter::DoubleEndedIterator<Item = &mut Property<'i>> {
+    self.declarations.iter_mut().chain(self.important_declarations.iter_mut())
+  }
+
+  /// Returns the value for a given property id.
+  pub fn get<'a>(&'a self, property_id: &PropertyId) -> Option<(Cow<'a, Property<'i>>, bool)> {
+    if property_id.is_shorthand() {
+      if let Some((shorthand, important)) = property_id.get_shorthand_value(&self) {
+        return Some((Cow::Owned(shorthand), important));
+      }
+    } else {
+      for (property, important) in self.iter().rev() {
+        if property.property_id() == *property_id {
+          return Some((Cow::Borrowed(property), important));
+        }
+
+        if let Some(val) = property.get_longhand(&property_id) {
+          return Some((Cow::Owned(val), important));
+        }
+      }
+    }
+
+    None
+  }
+
+  /// Sets the given property, replacing an existing declarations.
+  pub fn set(&mut self, property: Property<'i>, important: bool) {
+    let property_id = property.property_id();
+    let declarations = if important {
+      // Remove any non-important properties with this id.
+      self.declarations.retain(|decl| decl.property_id() != property_id);
+      &mut self.important_declarations
+    } else {
+      // Remove any important properties with this id.
+      self.important_declarations.retain(|decl| decl.property_id() != property_id);
+      &mut self.declarations
+    };
+
+    let longhands = &[property.property_id()];
+    let longhands = property_id.get_longhands().unwrap_or(longhands);
+
+    for decl in declarations.iter_mut().rev() {
+      {
+        // If any of the longhands being set are in the same logical property group as any of the
+        // longhands in this property, but in a different category (i.e. logical or physical),
+        // then we cannot modify in place, and need to append a new property.
+        let ids = &[decl.property_id()];
+        let id_longhands = ids[0].get_longhands().unwrap_or(ids);
+        if longhands.iter().any(|longhand| {
+          let logical_group = longhand.logical_group();
+          let category = longhand.category();
+
+          logical_group.is_some()
+            && id_longhands.iter().any(|id_longhand| {
+              logical_group == id_longhand.logical_group() && category != id_longhand.category()
+            })
+        }) {
+          break;
+        }
+      }
+
+      if decl.property_id() == property_id {
+        *decl = property;
+        return;
+      }
+
+      // Update shorthand.
+      if decl.set_longhand(&property).is_ok() {
+        return;
+      }
+    }
+
+    declarations.push(property)
+  }
+
+  /// Removes all declarations of the given property id from the block.
+  pub fn remove(&mut self, property_id: &PropertyId) {
+    fn remove<'i, 'a>(declarations: &mut Vec<Property<'i>>, property_id: &PropertyId<'a>) {
+      let longhands = property_id.get_longhands().unwrap_or(&[]);
+      let mut i = 0;
+      while i < declarations.len() {
+        let replacement = {
+          let property = &declarations[i];
+          let id = property.property_id();
+          if id == *property_id || longhands.contains(&id) {
+            // If the property matches the requested property id, or is a longhand
+            // property that is included in the requested shorthand, remove it.
+            None
+          } else if longhands.is_empty() && id.get_longhands().unwrap_or(&[]).contains(&property_id) {
+            // If this is a shorthand property that includes the requested longhand,
+            // split it apart into its component longhands, excluding the requested one.
+            Some(
+              id.get_longhands()
+                .unwrap()
+                .iter()
+                .filter_map(|longhand| {
+                  if *longhand == *property_id {
+                    None
+                  } else {
+                    property.get_longhand(longhand)
+                  }
+                })
+                .collect::<Vec<Property>>(),
+            )
+          } else {
+            i += 1;
+            continue;
+          }
+        };
+
+        match replacement {
+          Some(properties) => {
+            let count = properties.len();
+            declarations.splice(i..i + 1, properties);
+            i += count;
+          }
+          None => {
+            declarations.remove(i);
+          }
+        }
+      }
+    }
+
+    remove(&mut self.declarations, property_id);
+    remove(&mut self.important_declarations, property_id);
   }
 }
 
