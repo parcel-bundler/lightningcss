@@ -5,13 +5,13 @@ use super::align::{
 };
 use super::{Property, PropertyId};
 use crate::context::PropertyHandlerContext;
-use crate::declaration::DeclarationList;
+use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::*;
 use crate::prefixes::{is_flex_2009, Feature};
 use crate::printer::Printer;
 use crate::targets::Browsers;
-use crate::traits::{FromStandard, Parse, PropertyHandler, ToCss};
+use crate::traits::{FromStandard, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::number::{CSSInteger, CSSNumber};
 use crate::values::{
   length::{LengthPercentage, LengthPercentageOrAuto},
@@ -64,13 +64,14 @@ impl FromStandard<FlexWrap> for FlexWrap {
   }
 }
 
-/// A value for the [flex-flow](https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#flex-flow-property) shorthand property.
-#[derive(Debug, Clone, PartialEq)]
-pub struct FlexFlow {
-  /// The direction that flex items flow.
-  pub direction: FlexDirection,
-  /// How the flex items wrap.
-  pub wrap: FlexWrap,
+define_shorthand! {
+  /// A value for the [flex-flow](https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#flex-flow-property) shorthand property.
+  pub struct FlexFlow(VendorPrefix) {
+    /// The direction that flex items flow.
+    direction: FlexDirection(FlexDirection, VendorPrefix),
+    /// How the flex items wrap.
+    wrap: FlexWrap(FlexWrap, VendorPrefix),
+  }
 }
 
 impl<'i> Parse<'i> for FlexFlow {
@@ -122,15 +123,16 @@ impl ToCss for FlexFlow {
   }
 }
 
+define_shorthand! {
 /// A value for the [flex](https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#flex-property) shorthand property.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Flex {
-  /// The flex grow factor.
-  pub grow: CSSNumber,
-  /// The flex shrink factor.
-  pub shrink: CSSNumber,
-  /// The flex basis.
-  pub basis: LengthPercentageOrAuto,
+  pub struct Flex(VendorPrefix) {
+    /// The flex grow factor.
+    grow: FlexGrow(CSSNumber, VendorPrefix),
+    /// The flex shrink factor.
+    shrink: FlexShrink(CSSNumber, VendorPrefix),
+    /// The flex basis.
+    basis: FlexBasis(LengthPercentageOrAuto, VendorPrefix),
+  }
 }
 
 impl<'i> Parse<'i> for Flex {

@@ -4,13 +4,13 @@ use super::background::{BackgroundRepeat, BackgroundSize};
 use super::border_image::{BorderImage, BorderImageRepeat, BorderImageSideWidth, BorderImageSlice};
 use super::PropertyId;
 use crate::context::PropertyHandlerContext;
-use crate::declaration::DeclarationList;
+use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
-use crate::macros::enum_property;
+use crate::macros::{define_list_shorthand, enum_property};
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::Property;
-use crate::traits::{FallbackValues, Parse, PropertyHandler, ToCss};
+use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::image::ImageFallback;
 use crate::values::length::LengthOrNumber;
 use crate::values::rect::Rect;
@@ -194,25 +194,26 @@ impl From<MaskComposite> for WebKitMaskComposite {
   }
 }
 
-/// A value for the [mask](https://www.w3.org/TR/css-masking-1/#the-mask) shorthand property.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Mask<'i> {
-  /// The mask image.
-  pub image: Image<'i>,
-  /// The position of the mask.
-  pub position: Position,
-  /// The size of the mask image.
-  pub size: BackgroundSize,
-  /// How the mask repeats.
-  pub repeat: BackgroundRepeat,
-  /// The box in which the mask is clipped.
-  pub clip: MaskClip,
-  /// The origin of the mask.
-  pub origin: GeometryBox,
-  /// How the mask is composited with the element.
-  pub composite: MaskComposite,
-  /// How the mask image is interpreted.
-  pub mode: MaskMode,
+define_list_shorthand! {
+  /// A value for the [mask](https://www.w3.org/TR/css-masking-1/#the-mask) shorthand property.
+  pub struct Mask<'i>(VendorPrefix) {
+    /// The mask image.
+    image: MaskImage(Image<'i>, VendorPrefix),
+    /// The position of the mask.
+    position: MaskPosition(Position, VendorPrefix),
+    /// The size of the mask image.
+    size: MaskSize(BackgroundSize, VendorPrefix),
+    /// How the mask repeats.
+    repeat: MaskRepeat(BackgroundRepeat, VendorPrefix),
+    /// The box in which the mask is clipped.
+    clip: MaskClip(MaskClip, VendorPrefix),
+    /// The origin of the mask.
+    origin: MaskOrigin(GeometryBox, VendorPrefix),
+    /// How the mask is composited with the element.
+    composite: MaskComposite(MaskComposite),
+    /// How the mask image is interpreted.
+    mode: MaskMode(MaskMode),
+  }
 }
 
 impl<'i> Parse<'i> for Mask<'i> {

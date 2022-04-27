@@ -1,14 +1,14 @@
 //! CSS properties related to border images.
 
 use crate::context::PropertyHandlerContext;
-use crate::declaration::DeclarationList;
+use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::*;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::targets::Browsers;
-use crate::traits::{Parse, PropertyHandler, ToCss};
+use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::image::Image;
 use crate::values::number::CSSNumber;
 use crate::values::rect::Rect;
@@ -37,16 +37,19 @@ enum_property! {
 
 /// A value for the [border-image-repeat](https://www.w3.org/TR/css-backgrounds-3/#border-image-repeat) property.
 #[derive(Debug, Clone, PartialEq)]
-pub struct BorderImageRepeat(
-  /// The top and bottom repeat value.
-  pub BorderImageRepeatKeyword,
-  /// The left and right repeat value.
-  pub BorderImageRepeatKeyword,
-);
+pub struct BorderImageRepeat {
+  /// The horizontal repeat value.
+  pub horizontal: BorderImageRepeatKeyword,
+  /// The vertical repeat value.
+  pub vertical: BorderImageRepeatKeyword,
+}
 
 impl Default for BorderImageRepeat {
   fn default() -> BorderImageRepeat {
-    BorderImageRepeat(BorderImageRepeatKeyword::Stretch, BorderImageRepeatKeyword::Stretch)
+    BorderImageRepeat {
+      horizontal: BorderImageRepeatKeyword::Stretch,
+      vertical: BorderImageRepeatKeyword::Stretch,
+    }
   }
 }
 
@@ -54,7 +57,10 @@ impl<'i> Parse<'i> for BorderImageRepeat {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let horizontal = BorderImageRepeatKeyword::parse(input)?;
     let vertical = input.try_parse(BorderImageRepeatKeyword::parse).ok();
-    Ok(BorderImageRepeat(horizontal, vertical.unwrap_or(horizontal)))
+    Ok(BorderImageRepeat {
+      horizontal,
+      vertical: vertical.unwrap_or(horizontal),
+    })
   }
 }
 
@@ -63,10 +69,10 @@ impl ToCss for BorderImageRepeat {
   where
     W: std::fmt::Write,
   {
-    self.0.to_css(dest)?;
-    if self.0 != self.1 {
+    self.horizontal.to_css(dest)?;
+    if self.horizontal != self.vertical {
       dest.write_str(" ")?;
-      self.1.to_css(dest)?;
+      self.vertical.to_css(dest)?;
     }
     Ok(())
   }
@@ -163,19 +169,21 @@ impl ToCss for BorderImageSlice {
   }
 }
 
-/// A value for the [border-image](https://www.w3.org/TR/css-backgrounds-3/#border-image) shorthand property.
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct BorderImage<'i> {
-  /// The border image.
-  pub source: Image<'i>,
-  /// The offsets that define where the image is sliced.
-  pub slice: BorderImageSlice,
-  /// The width of the border image.
-  pub width: Rect<BorderImageSideWidth>,
-  /// The amount that the image extends beyond the border box.
-  pub outset: Rect<LengthOrNumber>,
-  /// How the border image is scaled and tiled.
-  pub repeat: BorderImageRepeat,
+define_shorthand! {
+  /// A value for the [border-image](https://www.w3.org/TR/css-backgrounds-3/#border-image) shorthand property.
+  #[derive(Default)]
+  pub struct BorderImage<'i>(VendorPrefix) {
+    /// The border image.
+    source: BorderImageSource(Image<'i>),
+    /// The offsets that define where the image is sliced.
+    slice: BorderImageSlice(BorderImageSlice),
+    /// The width of the border image.
+    width: BorderImageWidth(Rect<BorderImageSideWidth>),
+    /// The amount that the image extends beyond the border box.
+    outset: BorderImageOutset(Rect<LengthOrNumber>),
+    /// How the border image is scaled and tiled.
+    repeat: BorderImageRepeat(BorderImageRepeat),
+  }
 }
 
 impl<'i> Parse<'i> for BorderImage<'i> {

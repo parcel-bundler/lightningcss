@@ -118,13 +118,15 @@ pub mod transform;
 pub mod transition;
 pub mod ui;
 
+use crate::declaration::DeclarationBlock;
 use crate::error::{ParserError, PrinterError};
+use crate::logical::{LogicalGroup, PropertyCategory};
 use crate::parser::starts_with_ignore_ascii_case;
 use crate::parser::ParserOptions;
 use crate::prefixes::Feature;
 use crate::printer::{Printer, PrinterOptions};
 use crate::targets::Browsers;
-use crate::traits::{Parse, ToCss};
+use crate::traits::{Parse, Shorthand, ToCss};
 use crate::values::number::{CSSInteger, CSSNumber};
 use crate::values::string::CowArcStr;
 use crate::values::{
@@ -149,6 +151,7 @@ use font::*;
 #[cfg(feature = "grid")]
 use grid::*;
 use list::*;
+use margin_padding::*;
 use masking::*;
 use outline::*;
 use overflow::*;
@@ -164,7 +167,7 @@ macro_rules! define_properties {
   (
     $(
       $(#[$meta: meta])*
-      $name: literal: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: ident )* $( unprefixed: $unprefixed: literal )? $( if $condition: ident )?,
+      $name: literal: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: ident )* $( unprefixed: $unprefixed: literal )? $( shorthand: $shorthand: literal )? $( [ logical_group: $logical_group: ident, category: $logical_category: ident ] )? $( if $condition: ident )?,
     )+
   ) => {
     /// A CSS property id.
@@ -364,8 +367,8 @@ macro_rules! define_properties {
         }
       }
 
-      #[allow(dead_code)]
-      pub(crate) fn name(&self) -> &str {
+      /// Returns the property name.
+      pub fn name(&self) -> &str {
         use PropertyId::*;
 
         match self {
@@ -376,6 +379,109 @@ macro_rules! define_properties {
           All => "all",
           Custom(name) => &name
         }
+      }
+
+      /// Returns whether a property is a shorthand.
+      pub fn is_shorthand(&self) -> bool {
+        $(
+          macro_rules! shorthand {
+            ($s: literal) => {
+              if let PropertyId::$property$((vp_name!($vp, _prefix)))? = self {
+                return true
+              }
+            };
+            () => {}
+          }
+
+          shorthand!($($shorthand)?);
+        )+
+
+        false
+      }
+
+      /// Returns a shorthand value for this property id from the given declaration block.
+      pub fn get_shorthand_value<'a>(&self, decls: &DeclarationBlock<'a>) -> Option<(Property<'a>, bool)> {
+        // Inline function to remap lifetime names.
+        #[inline]
+        fn get_shorthand_value<'a, 'i>(property_id: &PropertyId<'a>, decls: &DeclarationBlock<'i>) -> Option<(Property<'i>, bool)> {
+          $(
+            macro_rules! shorthand {
+              ($s: literal) => {
+                if let PropertyId::$property$((vp_name!($vp, prefix)))? = &property_id {
+                  if let Some((val, important)) = <$type>::from_longhands(decls) {
+                    return Some((Property::$property(val $(, *vp_name!($vp, prefix))?), important))
+                  }
+                }
+              };
+              () => {}
+            }
+
+            shorthand!($($shorthand)?);
+          )+
+
+          None
+        }
+
+        get_shorthand_value(self, decls)
+      }
+
+      /// Returns a list of longhand property ids for a shorthand.
+      pub fn get_longhands(&self) -> Option<&'static [PropertyId<'static>]> {
+        $(
+          macro_rules! shorthand {
+            ($s: literal) => {
+              if let PropertyId::$property$((vp_name!($vp, _prefix)))? = self {
+                return Some(<$type>::get_longhands());
+              }
+            };
+            () => {}
+          }
+
+          shorthand!($($shorthand)?);
+        )+
+
+        None
+      }
+
+      /// Returns the logical property group for this property.
+      pub fn logical_group(&self) -> Option<LogicalGroup> {
+        $(
+          macro_rules! group {
+            ($g: ident) => {
+              if let PropertyId::$property$((vp_name!($vp, _prefix)))? = self {
+                return Some(LogicalGroup::$g)
+              }
+            };
+            () => {}
+          }
+
+          group!($($logical_group)?);
+        )+
+
+        None
+      }
+
+      /// Returns whether the property is logical or physical.
+      pub fn category(&self) -> Option<PropertyCategory> {
+        $(
+          macro_rules! category {
+            ($c: ident) => {
+              if let PropertyId::$property$((vp_name!($vp, _prefix)))? = self {
+                return Some(PropertyCategory::$c)
+              }
+            };
+            () => {}
+          }
+
+          category!($($logical_category)?);
+        )+
+
+        None
+      }
+
+      /// Returns whether the property is a logical property.
+      pub fn is_logical(&self) -> bool {
+        return self.category() == Some(PropertyCategory::Logical)
       }
     }
 
@@ -466,17 +572,17 @@ macro_rules! define_properties {
         return Ok(Property::Unparsed(UnparsedProperty::parse(property_id, input)?))
       }
 
-      #[allow(dead_code)]
-      pub(crate) fn name(&self) -> &str {
+      /// Returns the property id for this property.
+      pub fn property_id(&self) -> PropertyId<'i> {
         use Property::*;
 
         match self {
           $(
             $(#[$meta])*
-            $property(_, $(vp_name!($vp, _p))?) => $name,
+            $property(_, $(vp_name!($vp, p))?) => PropertyId::$property$((*vp_name!($vp, p)))?,
           )+
-          Unparsed(unparsed) => unparsed.property_id.name(),
-          Custom(custom) => &custom.name,
+          Unparsed(unparsed) => unparsed.property_id.clone(),
+          Custom(custom) => PropertyId::Custom(custom.name.clone())
         }
       }
 
@@ -505,6 +611,14 @@ macro_rules! define_properties {
             custom.value.to_css(dest, custom.name.starts_with("--"))
           }
         }
+      }
+
+      /// Serializes the value of a CSS property as a string.
+      pub fn value_to_css_string(&self, options: PrinterOptions) -> Result<String, PrinterError> {
+        let mut s = String::new();
+        let mut printer = Printer::new(&mut s, options);
+        self.value_to_css(&mut printer)?;
+        Ok(s)
       }
 
       /// Serializes the CSS property, with an optional `!important` flag.
@@ -588,6 +702,41 @@ macro_rules! define_properties {
         self.to_css(&mut printer, important)?;
         Ok(s)
       }
+
+      /// Returns the given longhand property for a shorthand.
+      pub fn get_longhand(&self, property_id: &PropertyId) -> Option<Property<'i>> {
+        $(
+          macro_rules! shorthand {
+            ($s: literal) => {
+              if let Property::$property(val $(, vp_name!($vp, _prefix))?) = self {
+                return val.get_longhand(property_id)
+              }
+            };
+            () => {}
+          }
+
+          shorthand!($($shorthand)?);
+        )+
+
+        None
+      }
+
+      /// Updates this shorthand from a longhand property.
+      pub fn set_longhand(&mut self, property: &Property<'i>) -> Result<(), ()> {
+        $(
+          macro_rules! shorthand {
+            ($s: literal) => {
+              if let Property::$property(val $(, vp_name!($vp, _prefix))?) = self {
+                return val.set_longhand(property)
+              }
+            };
+            () => {}
+          }
+
+          shorthand!($($shorthand)?);
+        )+
+        Err(())
+      }
     }
   };
 }
@@ -611,106 +760,106 @@ define_properties! {
   "display": Display(Display),
   "visibility": Visibility(Visibility),
 
-  "width": Width(Size),
-  "height": Height(Size),
-  "min-width": MinWidth(MinMaxSize),
-  "min-height": MinHeight(MinMaxSize),
-  "max-width": MaxWidth(MinMaxSize),
-  "max-height": MaxHeight(MinMaxSize),
-  "block-size": BlockSize(Size),
-  "inline-size": InlineSize(Size),
-  "min-block-size": MinBlockSize(MinMaxSize),
-  "min-inline-size": MinInlineSize(MinMaxSize),
-  "max-block-size": MaxBlockSize(MinMaxSize),
-  "max-inline-size": MaxInlineSize(MinMaxSize),
+  "width": Width(Size) [logical_group: Size, category: Physical],
+  "height": Height(Size) [logical_group: Size, category: Physical],
+  "min-width": MinWidth(MinMaxSize) [logical_group: MinSize, category: Physical],
+  "min-height": MinHeight(MinMaxSize) [logical_group: MinSize, category: Physical],
+  "max-width": MaxWidth(MinMaxSize) [logical_group: MaxSize, category: Physical],
+  "max-height": MaxHeight(MinMaxSize) [logical_group: MaxSize, category: Physical],
+  "block-size": BlockSize(Size) [logical_group: Size, category: Logical],
+  "inline-size": InlineSize(Size) [logical_group: Size, category: Logical],
+  "min-block-size": MinBlockSize(MinMaxSize) [logical_group: MinSize, category: Logical],
+  "min-inline-size": MinInlineSize(MinMaxSize) [logical_group: MinSize, category: Logical],
+  "max-block-size": MaxBlockSize(MinMaxSize) [logical_group: MaxSize, category: Logical],
+  "max-inline-size": MaxInlineSize(MinMaxSize) [logical_group: MaxSize, category: Logical],
   "box-sizing": BoxSizing(BoxSizing, VendorPrefix) / WebKit / Moz,
 
-  "overflow": Overflow(Overflow),
+  "overflow": Overflow(Overflow) shorthand: true,
   "overflow-x": OverflowX(OverflowKeyword),
   "overflow-y": OverflowY(OverflowKeyword),
   "text-overflow": TextOverflow(TextOverflow, VendorPrefix) / O,
 
   // https://www.w3.org/TR/2020/WD-css-position-3-20200519
   "position": Position(position::Position),
-  "top": Top(LengthPercentageOrAuto),
-  "bottom": Bottom(LengthPercentageOrAuto),
-  "left": Left(LengthPercentageOrAuto),
-  "right": Right(LengthPercentageOrAuto),
-  "inset-block-start": InsetBlockStart(LengthPercentageOrAuto),
-  "inset-block-end": InsetBlockEnd(LengthPercentageOrAuto),
-  "inset-inline-start": InsetInlineStart(LengthPercentageOrAuto),
-  "inset-inline-end": InsetInlineEnd(LengthPercentageOrAuto),
-  "inset-block": InsetBlock(Size2D<LengthPercentageOrAuto>),
-  "inset-inline": InsetInline(Size2D<LengthPercentageOrAuto>),
-  "inset": Inset(Rect<LengthPercentageOrAuto>),
+  "top": Top(LengthPercentageOrAuto) [logical_group: Inset, category: Physical],
+  "bottom": Bottom(LengthPercentageOrAuto) [logical_group: Inset, category: Physical],
+  "left": Left(LengthPercentageOrAuto) [logical_group: Inset, category: Physical],
+  "right": Right(LengthPercentageOrAuto) [logical_group: Inset, category: Physical],
+  "inset-block-start": InsetBlockStart(LengthPercentageOrAuto) [logical_group: Inset, category: Logical],
+  "inset-block-end": InsetBlockEnd(LengthPercentageOrAuto) [logical_group: Inset, category: Logical],
+  "inset-inline-start": InsetInlineStart(LengthPercentageOrAuto) [logical_group: Inset, category: Logical],
+  "inset-inline-end": InsetInlineEnd(LengthPercentageOrAuto) [logical_group: Inset, category: Logical],
+  "inset-block": InsetBlock(InsetBlock) shorthand: true,
+  "inset-inline": InsetInline(InsetInline) shorthand: true,
+  "inset": Inset(Inset) shorthand: true,
 
-  "border-top-color": BorderTopColor(CssColor),
-  "border-bottom-color": BorderBottomColor(CssColor),
-  "border-left-color": BorderLeftColor(CssColor),
-  "border-right-color": BorderRightColor(CssColor),
-  "border-block-start-color": BorderBlockStartColor(CssColor),
-  "border-block-end-color": BorderBlockEndColor(CssColor),
-  "border-inline-start-color": BorderInlineStartColor(CssColor),
-  "border-inline-end-color": BorderInlineEndColor(CssColor),
+  "border-top-color": BorderTopColor(CssColor) [logical_group: BorderColor, category: Physical],
+  "border-bottom-color": BorderBottomColor(CssColor) [logical_group: BorderColor, category: Physical],
+  "border-left-color": BorderLeftColor(CssColor) [logical_group: BorderColor, category: Physical],
+  "border-right-color": BorderRightColor(CssColor) [logical_group: BorderColor, category: Physical],
+  "border-block-start-color": BorderBlockStartColor(CssColor) [logical_group: BorderColor, category: Logical],
+  "border-block-end-color": BorderBlockEndColor(CssColor) [logical_group: BorderColor, category: Logical],
+  "border-inline-start-color": BorderInlineStartColor(CssColor) [logical_group: BorderColor, category: Logical],
+  "border-inline-end-color": BorderInlineEndColor(CssColor) [logical_group: BorderColor, category: Logical],
 
-  "border-top-style": BorderTopStyle(BorderStyle),
-  "border-bottom-style": BorderBottomStyle(BorderStyle),
-  "border-left-style": BorderLeftStyle(BorderStyle),
-  "border-right-style": BorderRightStyle(BorderStyle),
-  "border-block-start-style": BorderBlockStartStyle(BorderStyle),
-  "border-block-end-style": BorderBlockEndStyle(BorderStyle),
-  "border-inline-start-style": BorderInlineStartStyle(BorderStyle),
-  "border-inline-end-style": BorderInlineEndStyle(BorderStyle),
+  "border-top-style": BorderTopStyle(LineStyle) [logical_group: BorderStyle, category: Physical],
+  "border-bottom-style": BorderBottomStyle(LineStyle) [logical_group: BorderStyle, category: Physical],
+  "border-left-style": BorderLeftStyle(LineStyle) [logical_group: BorderStyle, category: Physical],
+  "border-right-style": BorderRightStyle(LineStyle) [logical_group: BorderStyle, category: Physical],
+  "border-block-start-style": BorderBlockStartStyle(LineStyle) [logical_group: BorderStyle, category: Logical],
+  "border-block-end-style": BorderBlockEndStyle(LineStyle) [logical_group: BorderStyle, category: Logical],
+  "border-inline-start-style": BorderInlineStartStyle(LineStyle) [logical_group: BorderStyle, category: Logical],
+  "border-inline-end-style": BorderInlineEndStyle(LineStyle) [logical_group: BorderStyle, category: Logical],
 
-  "border-top-width": BorderTopWidth(BorderSideWidth),
-  "border-bottom-width": BorderBottomWidth(BorderSideWidth),
-  "border-left-width": BorderLeftWidth(BorderSideWidth),
-  "border-right-width": BorderRightWidth(BorderSideWidth),
-  "border-block-start-width": BorderBlockStartWidth(BorderSideWidth),
-  "border-block-end-width": BorderBlockEndWidth(BorderSideWidth),
-  "border-inline-start-width": BorderInlineStartWidth(BorderSideWidth),
-  "border-inline-end-width": BorderInlineEndWidth(BorderSideWidth),
+  "border-top-width": BorderTopWidth(BorderSideWidth) [logical_group: BorderWidth, category: Physical],
+  "border-bottom-width": BorderBottomWidth(BorderSideWidth) [logical_group: BorderWidth, category: Physical],
+  "border-left-width": BorderLeftWidth(BorderSideWidth) [logical_group: BorderWidth, category: Physical],
+  "border-right-width": BorderRightWidth(BorderSideWidth) [logical_group: BorderWidth, category: Physical],
+  "border-block-start-width": BorderBlockStartWidth(BorderSideWidth) [logical_group: BorderWidth, category: Logical],
+  "border-block-end-width": BorderBlockEndWidth(BorderSideWidth) [logical_group: BorderWidth, category: Logical],
+  "border-inline-start-width": BorderInlineStartWidth(BorderSideWidth) [logical_group: BorderWidth, category: Logical],
+  "border-inline-end-width": BorderInlineEndWidth(BorderSideWidth) [logical_group: BorderWidth, category: Logical],
 
-  "border-top-left-radius": BorderTopLeftRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz,
-  "border-top-right-radius": BorderTopRightRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz,
-  "border-bottom-left-radius": BorderBottomLeftRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz,
-  "border-bottom-right-radius": BorderBottomRightRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz,
-  "border-start-start-radius": BorderStartStartRadius(Size2D<LengthPercentage>),
-  "border-start-end-radius": BorderStartEndRadius(Size2D<LengthPercentage>),
-  "border-end-start-radius": BorderEndStartRadius(Size2D<LengthPercentage>),
-  "border-end-end-radius": BorderEndEndRadius(Size2D<LengthPercentage>),
-  "border-radius": BorderRadius(BorderRadius, VendorPrefix) / WebKit / Moz,
+  "border-top-left-radius": BorderTopLeftRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz [logical_group: BorderRadius, category: Physical],
+  "border-top-right-radius": BorderTopRightRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz [logical_group: BorderRadius, category: Physical],
+  "border-bottom-left-radius": BorderBottomLeftRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz [logical_group: BorderRadius, category: Physical],
+  "border-bottom-right-radius": BorderBottomRightRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz [logical_group: BorderRadius, category: Physical],
+  "border-start-start-radius": BorderStartStartRadius(Size2D<LengthPercentage>) [logical_group: BorderRadius, category: Logical],
+  "border-start-end-radius": BorderStartEndRadius(Size2D<LengthPercentage>) [logical_group: BorderRadius, category: Logical],
+  "border-end-start-radius": BorderEndStartRadius(Size2D<LengthPercentage>) [logical_group: BorderRadius, category: Logical],
+  "border-end-end-radius": BorderEndEndRadius(Size2D<LengthPercentage>) [logical_group: BorderRadius, category: Logical],
+  "border-radius": BorderRadius(BorderRadius, VendorPrefix) / WebKit / Moz shorthand: true,
 
   "border-image-source": BorderImageSource(Image<'i>),
   "border-image-outset": BorderImageOutset(Rect<LengthOrNumber>),
   "border-image-repeat": BorderImageRepeat(BorderImageRepeat),
   "border-image-width": BorderImageWidth(Rect<BorderImageSideWidth>),
   "border-image-slice": BorderImageSlice(BorderImageSlice),
-  "border-image": BorderImage(BorderImage<'i>, VendorPrefix) / WebKit / Moz / O,
+  "border-image": BorderImage(BorderImage<'i>, VendorPrefix) / WebKit / Moz / O shorthand: true,
 
-  "border-color": BorderColor(Rect<CssColor>),
-  "border-style": BorderStyle(Rect<BorderStyle>),
-  "border-width": BorderWidth(Rect<BorderSideWidth>),
+  "border-color": BorderColor(BorderColor) shorthand: true,
+  "border-style": BorderStyle(BorderStyle) shorthand: true,
+  "border-width": BorderWidth(BorderWidth) shorthand: true,
 
-  "border-block-color": BorderBlockColor(CssColor),
-  "border-block-style": BorderBlockStyle(BorderStyle),
-  "border-block-width": BorderBlockWidth(BorderSideWidth),
+  "border-block-color": BorderBlockColor(BorderBlockColor) shorthand: true,
+  "border-block-style": BorderBlockStyle(BorderBlockStyle) shorthand: true,
+  "border-block-width": BorderBlockWidth(BorderBlockWidth) shorthand: true,
 
-  "border-inline-color": BorderInlineColor(CssColor),
-  "border-inline-style": BorderInlineStyle(BorderStyle),
-  "border-inline-width": BorderInlineWidth(BorderSideWidth),
+  "border-inline-color": BorderInlineColor(BorderInlineColor) shorthand: true,
+  "border-inline-style": BorderInlineStyle(BorderInlineStyle) shorthand: true,
+  "border-inline-width": BorderInlineWidth(BorderInlineWidth) shorthand: true,
 
-  "border": Border(Border),
-  "border-top": BorderTop(Border),
-  "border-bottom": BorderBottom(Border),
-  "border-left": BorderLeft(Border),
-  "border-right": BorderRight(Border),
-  "border-block": BorderBlock(Border),
-  "border-block-start": BorderBlockStart(Border),
-  "border-block-end": BorderBlockEnd(Border),
-  "border-inline": BorderInline(Border),
-  "border-inline-start": BorderInlineStart(Border),
-  "border-inline-end": BorderInlineEnd(Border),
+  "border": Border(Border) shorthand: true,
+  "border-top": BorderTop(BorderTop) shorthand: true,
+  "border-bottom": BorderBottom(BorderBottom) shorthand: true,
+  "border-left": BorderLeft(BorderLeft) shorthand: true,
+  "border-right": BorderRight(BorderRight) shorthand: true,
+  "border-block": BorderBlock(BorderBlock) shorthand: true,
+  "border-block-start": BorderBlockStart(BorderBlockStart) shorthand: true,
+  "border-block-end": BorderBlockEnd(BorderBlockEnd) shorthand: true,
+  "border-inline": BorderInline(BorderInline) shorthand: true,
+  "border-inline-start": BorderInlineStart(BorderInlineStart) shorthand: true,
+  "border-inline-end": BorderInlineEnd(BorderInlineEnd) shorthand: true,
 
   "outline": Outline(Outline),
   "outline-color": OutlineColor(CssColor),
@@ -720,26 +869,26 @@ define_properties! {
   // Flex properties: https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119
   "flex-direction": FlexDirection(FlexDirection, VendorPrefix) / WebKit / Ms,
   "flex-wrap": FlexWrap(FlexWrap, VendorPrefix) / WebKit / Ms,
-  "flex-flow": FlexFlow(FlexFlow, VendorPrefix) / WebKit / Ms,
+  "flex-flow": FlexFlow(FlexFlow, VendorPrefix) / WebKit / Ms shorthand: true,
   "flex-grow": FlexGrow(CSSNumber, VendorPrefix) / WebKit,
   "flex-shrink": FlexShrink(CSSNumber, VendorPrefix) / WebKit,
   "flex-basis": FlexBasis(LengthPercentageOrAuto, VendorPrefix) / WebKit,
-  "flex": Flex(Flex, VendorPrefix) / WebKit / Ms,
+  "flex": Flex(Flex, VendorPrefix) / WebKit / Ms shorthand: true,
   "order": Order(CSSInteger, VendorPrefix) / WebKit,
 
   // Align properties: https://www.w3.org/TR/2020/WD-css-align-3-20200421
   "align-content": AlignContent(AlignContent, VendorPrefix) / WebKit,
   "justify-content": JustifyContent(JustifyContent, VendorPrefix) / WebKit,
-  "place-content": PlaceContent(PlaceContent),
+  "place-content": PlaceContent(PlaceContent) shorthand: true,
   "align-self": AlignSelf(AlignSelf, VendorPrefix) / WebKit,
   "justify-self": JustifySelf(JustifySelf),
-  "place-self": PlaceSelf(PlaceSelf),
+  "place-self": PlaceSelf(PlaceSelf) shorthand: true,
   "align-items": AlignItems(AlignItems, VendorPrefix) / WebKit,
   "justify-items": JustifyItems(JustifyItems),
-  "place-items": PlaceItems(PlaceItems),
+  "place-items": PlaceItems(PlaceItems) shorthand: true,
   "row-gap": RowGap(GapValue),
   "column-gap": ColumnGap(GapValue),
-  "gap": Gap(Gap),
+  "gap": Gap(Gap) shorthand: true,
 
   // Old flex (2009): https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/
   "box-orient": BoxOrient(BoxOrient, VendorPrefix) / WebKit / Moz unprefixed: false,
@@ -794,53 +943,53 @@ define_properties! {
   #[cfg(feature = "grid")]
   "grid-area": GridArea(GridArea<'i>),
 
-  "margin-top": MarginTop(LengthPercentageOrAuto),
-  "margin-bottom": MarginBottom(LengthPercentageOrAuto),
-  "margin-left": MarginLeft(LengthPercentageOrAuto),
-  "margin-right": MarginRight(LengthPercentageOrAuto),
-  "margin-block-start": MarginBlockStart(LengthPercentageOrAuto),
-  "margin-block-end": MarginBlockEnd(LengthPercentageOrAuto),
-  "margin-inline-start": MarginInlineStart(LengthPercentageOrAuto),
-  "margin-inline-end": MarginInlineEnd(LengthPercentageOrAuto),
-  "margin-block": MarginBlock(Size2D<LengthPercentageOrAuto>),
-  "margin-inline": MarginInline(Size2D<LengthPercentageOrAuto>),
-  "margin": Margin(Rect<LengthPercentageOrAuto>),
+  "margin-top": MarginTop(LengthPercentageOrAuto) [logical_group: Margin, category: Physical],
+  "margin-bottom": MarginBottom(LengthPercentageOrAuto) [logical_group: Margin, category: Physical],
+  "margin-left": MarginLeft(LengthPercentageOrAuto) [logical_group: Margin, category: Physical],
+  "margin-right": MarginRight(LengthPercentageOrAuto) [logical_group: Margin, category: Physical],
+  "margin-block-start": MarginBlockStart(LengthPercentageOrAuto) [logical_group: Margin, category: Logical],
+  "margin-block-end": MarginBlockEnd(LengthPercentageOrAuto) [logical_group: Margin, category: Logical],
+  "margin-inline-start": MarginInlineStart(LengthPercentageOrAuto) [logical_group: Margin, category: Logical],
+  "margin-inline-end": MarginInlineEnd(LengthPercentageOrAuto) [logical_group: Margin, category: Logical],
+  "margin-block": MarginBlock(MarginBlock) shorthand: true,
+  "margin-inline": MarginInline(MarginInline) shorthand: true,
+  "margin": Margin(Margin) shorthand: true,
 
-  "padding-top": PaddingTop(LengthPercentageOrAuto),
-  "padding-bottom": PaddingBottom(LengthPercentageOrAuto),
-  "padding-left": PaddingLeft(LengthPercentageOrAuto),
-  "padding-right": PaddingRight(LengthPercentageOrAuto),
-  "padding-block-start": PaddingBlockStart(LengthPercentageOrAuto),
-  "padding-block-end": PaddingBlockEnd(LengthPercentageOrAuto),
-  "padding-inline-start": PaddingInlineStart(LengthPercentageOrAuto),
-  "padding-inline-end": PaddingInlineEnd(LengthPercentageOrAuto),
-  "padding-block": PaddingBlock(Size2D<LengthPercentageOrAuto>),
-  "padding-inline": PaddingInline(Size2D<LengthPercentageOrAuto>),
-  "padding": Padding(Rect<LengthPercentageOrAuto>),
+  "padding-top": PaddingTop(LengthPercentageOrAuto) [logical_group: Padding, category: Physical],
+  "padding-bottom": PaddingBottom(LengthPercentageOrAuto) [logical_group: Padding, category: Physical],
+  "padding-left": PaddingLeft(LengthPercentageOrAuto) [logical_group: Padding, category: Physical],
+  "padding-right": PaddingRight(LengthPercentageOrAuto) [logical_group: Padding, category: Physical],
+  "padding-block-start": PaddingBlockStart(LengthPercentageOrAuto) [logical_group: Padding, category: Logical],
+  "padding-block-end": PaddingBlockEnd(LengthPercentageOrAuto) [logical_group: Padding, category: Logical],
+  "padding-inline-start": PaddingInlineStart(LengthPercentageOrAuto) [logical_group: Padding, category: Logical],
+  "padding-inline-end": PaddingInlineEnd(LengthPercentageOrAuto) [logical_group: Padding, category: Logical],
+  "padding-block": PaddingBlock(PaddingBlock) shorthand: true,
+  "padding-inline": PaddingInline(PaddingInline) shorthand: true,
+  "padding": Padding(Padding) shorthand: true,
 
-  "scroll-margin-top": ScrollMarginTop(LengthPercentageOrAuto),
-  "scroll-margin-bottom": ScrollMarginBottom(LengthPercentageOrAuto),
-  "scroll-margin-left": ScrollMarginLeft(LengthPercentageOrAuto),
-  "scroll-margin-right": ScrollMarginRight(LengthPercentageOrAuto),
-  "scroll-margin-block-start": ScrollMarginBlockStart(LengthPercentageOrAuto),
-  "scroll-margin-block-end": ScrollMarginBlockEnd(LengthPercentageOrAuto),
-  "scroll-margin-inline-start": ScrollMarginInlineStart(LengthPercentageOrAuto),
-  "scroll-margin-inline-end": ScrollMarginInlineEnd(LengthPercentageOrAuto),
-  "scroll-margin-block": ScrollMarginBlock(Size2D<LengthPercentageOrAuto>),
-  "scroll-margin-inline": ScrollMarginInline(Size2D<LengthPercentageOrAuto>),
-  "scroll-margin": ScrollMargin(Rect<LengthPercentageOrAuto>),
+  "scroll-margin-top": ScrollMarginTop(LengthPercentageOrAuto) [logical_group: ScrollMargin, category: Physical],
+  "scroll-margin-bottom": ScrollMarginBottom(LengthPercentageOrAuto) [logical_group: ScrollMargin, category: Physical],
+  "scroll-margin-left": ScrollMarginLeft(LengthPercentageOrAuto) [logical_group: ScrollMargin, category: Physical],
+  "scroll-margin-right": ScrollMarginRight(LengthPercentageOrAuto) [logical_group: ScrollMargin, category: Physical],
+  "scroll-margin-block-start": ScrollMarginBlockStart(LengthPercentageOrAuto) [logical_group: ScrollMargin, category: Logical],
+  "scroll-margin-block-end": ScrollMarginBlockEnd(LengthPercentageOrAuto) [logical_group: ScrollMargin, category: Logical],
+  "scroll-margin-inline-start": ScrollMarginInlineStart(LengthPercentageOrAuto) [logical_group: ScrollMargin, category: Logical],
+  "scroll-margin-inline-end": ScrollMarginInlineEnd(LengthPercentageOrAuto) [logical_group: ScrollMargin, category: Logical],
+  "scroll-margin-block": ScrollMarginBlock(ScrollMarginBlock) shorthand: true,
+  "scroll-margin-inline": ScrollMarginInline(ScrollMarginInline) shorthand: true,
+  "scroll-margin": ScrollMargin(ScrollMargin) shorthand: true,
 
-  "scroll-padding-top": ScrollPaddingTop(LengthPercentageOrAuto),
-  "scroll-padding-bottom": ScrollPaddingBottom(LengthPercentageOrAuto),
-  "scroll-padding-left": ScrollPaddingLeft(LengthPercentageOrAuto),
-  "scroll-padding-right": ScrollPaddingRight(LengthPercentageOrAuto),
-  "scroll-padding-block-start": ScrollPaddingBlockStart(LengthPercentageOrAuto),
-  "scroll-padding-block-end": ScrollPaddingBlockEnd(LengthPercentageOrAuto),
-  "scroll-padding-inline-start": ScrollPaddingInlineStart(LengthPercentageOrAuto),
-  "scroll-padding-inline-end": ScrollPaddingInlineEnd(LengthPercentageOrAuto),
-  "scroll-padding-block": ScrollPaddingBlock(Size2D<LengthPercentageOrAuto>),
-  "scroll-padding-inline": ScrollPaddingInline(Size2D<LengthPercentageOrAuto>),
-  "scroll-padding": ScrollPadding(Rect<LengthPercentageOrAuto>),
+  "scroll-padding-top": ScrollPaddingTop(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Physical],
+  "scroll-padding-bottom": ScrollPaddingBottom(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Physical],
+  "scroll-padding-left": ScrollPaddingLeft(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Physical],
+  "scroll-padding-right": ScrollPaddingRight(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Physical],
+  "scroll-padding-block-start": ScrollPaddingBlockStart(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Logical],
+  "scroll-padding-block-end": ScrollPaddingBlockEnd(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Logical],
+  "scroll-padding-inline-start": ScrollPaddingInlineStart(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Logical],
+  "scroll-padding-inline-end": ScrollPaddingInlineEnd(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Logical],
+  "scroll-padding-block": ScrollPaddingBlock(ScrollPaddingBlock) shorthand: true,
+  "scroll-padding-inline": ScrollPaddingInline(ScrollPaddingInline) shorthand: true,
+  "scroll-padding": ScrollPadding(ScrollPadding) shorthand: true,
 
   // shorthands: columns, list-style
   // grid, inset
@@ -852,7 +1001,7 @@ define_properties! {
   "font-style": FontStyle(FontStyle),
   "font-variant-caps": FontVariantCaps(FontVariantCaps),
   "line-height": LineHeight(LineHeight),
-  "font": Font(Font<'i>),
+  "font": Font(Font<'i>) shorthand: true,
   "vertical-align": VerticalAlign(VerticalAlign),
   "font-palette": FontPalette(DashedIdent<'i>),
 
@@ -860,7 +1009,7 @@ define_properties! {
   "transition-duration": TransitionDuration(SmallVec<[Time; 1]>, VendorPrefix) / WebKit / Moz / Ms,
   "transition-delay": TransitionDelay(SmallVec<[Time; 1]>, VendorPrefix) / WebKit / Moz / Ms,
   "transition-timing-function": TransitionTimingFunction(SmallVec<[EasingFunction; 1]>, VendorPrefix) / WebKit / Moz / Ms,
-  "transition": Transition(SmallVec<[Transition<'i>; 1]>, VendorPrefix) / WebKit / Moz / Ms,
+  "transition": Transition(SmallVec<[Transition<'i>; 1]>, VendorPrefix) / WebKit / Moz / Ms shorthand: true,
 
   "animation-name": AnimationName(AnimationNameList<'i>, VendorPrefix) / WebKit / Moz / O,
   "animation-duration": AnimationDuration(SmallVec<[Time; 1]>, VendorPrefix) / WebKit / Moz / O,
@@ -870,7 +1019,7 @@ define_properties! {
   "animation-play-state": AnimationPlayState(SmallVec<[AnimationPlayState; 1]>, VendorPrefix) / WebKit / Moz / O,
   "animation-delay": AnimationDelay(SmallVec<[Time; 1]>, VendorPrefix) / WebKit / Moz / O,
   "animation-fill-mode": AnimationFillMode(SmallVec<[AnimationFillMode; 1]>, VendorPrefix) / WebKit / Moz / O,
-  "animation": Animation(AnimationList<'i>, VendorPrefix) / WebKit / Moz / O,
+  "animation": Animation(AnimationList<'i>, VendorPrefix) / WebKit / Moz / O shorthand: true,
 
   // https://drafts.csswg.org/css-transforms-2/
   "transform": Transform(TransformList, VendorPrefix) / WebKit / Moz / Ms / O,
@@ -905,11 +1054,11 @@ define_properties! {
   "text-decoration-style": TextDecorationStyle(TextDecorationStyle, VendorPrefix) / WebKit / Moz,
   "text-decoration-color": TextDecorationColor(CssColor, VendorPrefix) / WebKit / Moz,
   "text-decoration-thickness": TextDecorationThickness(TextDecorationThickness),
-  "text-decoration": TextDecoration(TextDecoration, VendorPrefix) / WebKit / Moz,
+  "text-decoration": TextDecoration(TextDecoration, VendorPrefix) / WebKit / Moz shorthand: true,
   "text-decoration-skip-ink": TextDecorationSkipInk(TextDecorationSkipInk, VendorPrefix) / WebKit,
   "text-emphasis-style": TextEmphasisStyle(TextEmphasisStyle<'i>, VendorPrefix) / WebKit,
   "text-emphasis-color": TextEmphasisColor(CssColor, VendorPrefix) / WebKit,
-  "text-emphasis": TextEmphasis(TextEmphasis<'i>, VendorPrefix) / WebKit,
+  "text-emphasis": TextEmphasis(TextEmphasis<'i>, VendorPrefix) / WebKit shorthand: true,
   "text-emphasis-position": TextEmphasisPosition(TextEmphasisPosition, VendorPrefix) / WebKit,
   "text-shadow": TextShadow(SmallVec<[TextShadow; 1]>),
 
@@ -918,7 +1067,7 @@ define_properties! {
   "cursor": Cursor(Cursor<'i>),
   "caret-color": CaretColor(ColorOrAuto),
   "caret-shape": CaretShape(CaretShape),
-  "caret": Caret(Caret),
+  "caret": Caret(Caret) shorthand: true,
   "user-select": UserSelect(UserSelect, VendorPrefix) / WebKit / Moz / Ms,
   "accent-color": AccentColor(ColorOrAuto),
   "appearance": Appearance(Appearance<'i>, VendorPrefix) / WebKit / Moz / Ms,
@@ -927,7 +1076,7 @@ define_properties! {
   "list-style-type": ListStyleType(ListStyleType<'i>),
   "list-style-image": ListStyleImage(Image<'i>),
   "list-style-position": ListStylePosition(ListStylePosition),
-  "list-style": ListStyle(ListStyle<'i>),
+  "list-style": ListStyle(ListStyle<'i>) shorthand: true,
   "marker-side": MarkerSide(MarkerSide),
 
   // CSS modules
@@ -970,7 +1119,7 @@ define_properties! {
   "mask-size": MaskSize(SmallVec<[BackgroundSize; 1]>, VendorPrefix) / WebKit,
   "mask-composite": MaskComposite(SmallVec<[MaskComposite; 1]>),
   "mask-type": MaskType(MaskType),
-  "mask": Mask(SmallVec<[Mask<'i>; 1]>, VendorPrefix) / WebKit,
+  "mask": Mask(SmallVec<[Mask<'i>; 1]>, VendorPrefix) / WebKit shorthand: true,
   "mask-border-source": MaskBorderSource(Image<'i>),
   "mask-border-mode": MaskBorderMode(MaskBorderMode),
   "mask-border-slice": MaskBorderSlice(BorderImageSlice),

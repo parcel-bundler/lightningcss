@@ -2,12 +2,12 @@
 
 use super::{Property, PropertyId};
 use crate::context::PropertyHandlerContext;
-use crate::declaration::DeclarationList;
+use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
-use crate::macros::{enum_property, shorthand_handler, shorthand_property};
+use crate::macros::{define_shorthand, enum_property, shorthand_handler, shorthand_property};
 use crate::printer::Printer;
 use crate::targets::Browsers;
-use crate::traits::{FallbackValues, Parse, PropertyHandler, ToCss};
+use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::string::CowArcStr;
 use crate::values::{ident::CustomIdent, image::Image};
 use cssparser::*;
@@ -281,11 +281,11 @@ shorthand_property! {
   /// A value for the [list-style](https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#list-style-property) shorthand property.
   pub struct ListStyle<'i> {
     /// The list style type.
-    list_style_type: ListStyleType<'i>,
+    list_style_type: ListStyleType(ListStyleType<'i>),
     /// The list marker image.
-    image: Image<'i>,
+    image: ListStyleImage(Image<'i>),
     /// The position of the list marker.
-    position: ListStylePosition,
+    position: ListStylePosition(ListStylePosition),
   }
 }
 

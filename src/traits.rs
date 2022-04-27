@@ -1,10 +1,10 @@
 //! Traits for parsing and serializing CSS.
 
 use crate::context::PropertyHandlerContext;
-use crate::declaration::DeclarationList;
+use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
-use crate::properties::Property;
+use crate::properties::{Property, PropertyId};
 use crate::stylesheet::PrinterOptions;
 use crate::targets::Browsers;
 use cssparser::*;
@@ -79,4 +79,19 @@ pub(crate) trait FromStandard<T>: Sized {
 
 pub(crate) trait FallbackValues: Sized {
   fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self>;
+}
+
+/// Trait for shorthand properties.
+pub trait Shorthand<'i>: Sized {
+  /// Returns a shorthand from the longhand properties defined in the given declaration block.
+  fn from_longhands(decls: &DeclarationBlock<'i>) -> Option<(Self, bool)>;
+
+  /// Returns a list of longhand property ids for this shorthand.
+  fn get_longhands() -> &'static [PropertyId<'static>];
+
+  /// Returns a longhand property for this shorthand.
+  fn get_longhand(&self, property_id: &PropertyId) -> Option<Property<'i>>;
+
+  /// Updates this shorthand from a longhand property.
+  fn set_longhand(&mut self, property: &Property<'i>) -> Result<(), ()>;
 }

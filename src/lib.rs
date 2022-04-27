@@ -566,8 +566,7 @@ mod tests {
       indoc! {r#"
       .foo {
         border-block-width: 1px;
-        border-inline-start-width: 2px;
-        border-inline-end-width: 3px;
+        border-inline-width: 2px 3px;
       }
     "#
       },

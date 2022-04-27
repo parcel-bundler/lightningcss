@@ -1,10 +1,12 @@
 //! CSS properties related to user interface.
 
+use crate::declaration::DeclarationBlock;
 use crate::error::{ParserError, PrinterError};
-use crate::macros::{enum_property, shorthand_property};
+use crate::macros::{define_shorthand, enum_property, shorthand_property};
 use crate::printer::Printer;
+use crate::properties::{Property, PropertyId};
 use crate::targets::Browsers;
-use crate::traits::{FallbackValues, Parse, ToCss};
+use crate::traits::{FallbackValues, Parse, Shorthand, ToCss};
 use crate::values::color::CssColor;
 use crate::values::number::CSSNumber;
 use crate::values::string::CowArcStr;
@@ -233,9 +235,9 @@ shorthand_property! {
   /// A value for the [caret](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret) shorthand property.
   pub struct Caret {
     /// The caret color.
-    color: ColorOrAuto,
+    color: CaretColor(ColorOrAuto),
     /// The caret shape.
-    shape: CaretShape,
+    shape: CaretShape(CaretShape),
   }
 }
 
