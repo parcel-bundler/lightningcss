@@ -251,6 +251,13 @@ fn test_set() {
     "margin: 5px; margin-inline-start: 8px",
   );
   set_test(
+    "margin-inline-start: 5px; margin-top: 10px",
+    "margin-inline-start",
+    "8px",
+    false,
+    "margin-inline-start: 5px; margin-top: 10px; margin-inline-start: 8px",
+  );
+  set_test(
     "margin: 5px; margin-inline-start: 8px",
     "margin-left",
     "10px",
@@ -292,5 +299,37 @@ fn test_set() {
     "20px 10px",
     false,
     "background: linear-gradient(red, green) 20px 10px",
+  );
+}
+
+fn remove_test(orig: &str, property_id: PropertyId, expected: &str) {
+  let mut decls = DeclarationBlock::parse_string(orig, ParserOptions::default()).unwrap();
+  decls.remove(&property_id);
+  assert_eq!(decls.to_css_string(PrinterOptions::default()).unwrap(), expected);
+}
+
+#[test]
+fn test_remove() {
+  remove_test("margin-top: 10px", PropertyId::MarginTop, "");
+  remove_test(
+    "margin-top: 10px; margin-left: 5px",
+    PropertyId::MarginTop,
+    "margin-left: 5px",
+  );
+  remove_test(
+    "margin-top: 10px !important; margin-left: 5px",
+    PropertyId::MarginTop,
+    "margin-left: 5px",
+  );
+  remove_test(
+    "margin: 10px",
+    PropertyId::MarginTop,
+    "margin-right: 10px; margin-bottom: 10px; margin-left: 10px",
+  );
+  remove_test("margin: 10px", PropertyId::Margin, "");
+  remove_test(
+    "margin-top: 10px; margin-right: 10px; margin-bottom: 10px; margin-left: 10px",
+    PropertyId::Margin,
+    "",
   );
 }
