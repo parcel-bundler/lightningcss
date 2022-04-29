@@ -132,7 +132,7 @@ enum_property! {
 
 define_list_shorthand! {
   /// A value for the [animation](https://drafts.csswg.org/css-animations/#animation) shorthand property.
-  pub struct Animation<'i> {
+  pub struct Animation<'i>(VendorPrefix) {
     /// The animation name.
     name: AnimationName(AnimationName<'i>, VendorPrefix),
     /// The animation duration.
