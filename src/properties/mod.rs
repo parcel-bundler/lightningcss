@@ -50,7 +50,7 @@
 //!       blue: 0,
 //!       alpha: 0
 //!     }),
-//!     position: Position {
+//!     position: BackgroundPosition {
 //!       x: HorizontalPosition::Length(LengthPercentage::px(20.0)),
 //!       y: VerticalPosition::Length(LengthPercentage::px(10.0)),
 //!     },
