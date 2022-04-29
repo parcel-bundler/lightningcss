@@ -539,7 +539,7 @@ macro_rules! define_list_shorthand {
                 }
               }
             )+
-            Property::$name(val, _) => {
+            Property::$name(val $(, vp_name!($prefix, _p))?) => {
               $(
                 $key = Some(val.iter().map(|b| b.$key.clone()).collect());
               )+
