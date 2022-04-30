@@ -5953,6 +5953,17 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    test(
+      r#"
+      @media not all {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      "\n",
+    );
   }
 
   #[test]
@@ -17376,7 +17387,13 @@ mod tests {
         }
       }
       "#,
-      "\n",
+      indoc! {r#"
+        @media not all and (color) {
+          .a {
+            color: green;
+          }
+        }
+      "#},
     );
 
     custom_media_test(
@@ -17389,7 +17406,13 @@ mod tests {
         }
       }
       "#,
-      "\n",
+      indoc! {r#"
+        @media not all and (color) {
+          .a {
+            color: green;
+          }
+        }
+      "#},
     );
 
     custom_media_test(
