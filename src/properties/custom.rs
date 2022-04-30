@@ -251,9 +251,13 @@ impl<'i> TokenList<'i> {
       return Ok(());
     }
 
+    let mut has_whitespace = false;
     for (i, token_or_value) in self.0.iter().enumerate() {
-      match token_or_value {
-        TokenOrValue::Color(color) => color.to_css(dest)?,
+      has_whitespace = match token_or_value {
+        TokenOrValue::Color(color) => {
+          color.to_css(dest)?;
+          false
+        }
         TokenOrValue::Url(url) => {
           if dest.dependencies.is_some() && is_custom_property && !url.is_absolute() {
             return Err(dest.error(
@@ -263,7 +267,8 @@ impl<'i> TokenList<'i> {
               url.loc,
             ));
           }
-          url.to_css(dest)?
+          url.to_css(dest)?;
+          false
         }
         TokenOrValue::Token(token) => {
           match token {
@@ -273,12 +278,14 @@ impl<'i> TokenList<'i> {
                 dest.write_char(*d)?;
                 dest.write_char(' ')?;
               } else {
-                let ws_before = *d == '/' || *d == '*';
+                let ws_before = !has_whitespace && (*d == '/' || *d == '*');
                 dest.delim(*d, ws_before)?;
               }
+              true
             }
             Token::Comma => {
               dest.delim(',', false)?;
+              true
             }
             Token::CloseParenthesis | Token::CloseSquareBracket | Token::CloseCurlyBracket => {
               token.to_css(dest)?;
@@ -288,20 +295,26 @@ impl<'i> TokenList<'i> {
               {
                 // Whitespace is removed during parsing, so add it back if we aren't minifying.
                 dest.write_char(' ')?;
+                true
+              } else {
+                false
               }
             }
             Token::Dimension { value, unit, .. } => {
               serialize_dimension(*value, unit, dest)?;
+              false
             }
             Token::Number { value, .. } => {
               value.to_css(dest)?;
+              false
             }
             _ => {
               token.to_css(dest)?;
+              matches!(token, Token::WhiteSpace(..))
             }
           }
         }
-      }
+      };
     }
 
     Ok(())

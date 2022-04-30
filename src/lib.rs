@@ -3207,6 +3207,15 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    test(
+      ".foo { background: calc(var(--v) / 0.3)",
+      indoc! {r#"
+      .foo {
+        background: calc(var(--v) / .3);
+      }
+    "#},
+    );
   }
 
   #[test]
