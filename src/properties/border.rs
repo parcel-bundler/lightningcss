@@ -169,11 +169,7 @@ impl<S: ToCss + Default + PartialEq> ToCss for GenericBorder<S> {
     W: std::fmt::Write,
   {
     if *self == Self::default() {
-      if dest.minify {
-        dest.write_char('0')?;
-      } else {
-        self.style.to_css(dest)?;
-      }
+      self.style.to_css(dest)?;
       return Ok(());
     }
 

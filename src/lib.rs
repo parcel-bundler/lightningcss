@@ -502,7 +502,7 @@ mod tests {
         border: none;
       }
     "#,
-      indoc! {".foo{border:0}"
+      indoc! {".foo{border:none}"
       },
     );
 
