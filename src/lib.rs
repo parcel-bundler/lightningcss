@@ -1766,6 +1766,8 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    minify_test(".foo { border: none green }", ".foo{border:green}");
   }
 
   #[test]
