@@ -3,12 +3,12 @@
 use super::border::{BorderSideWidth, GenericBorder, LineStyle};
 use super::{Property, PropertyId};
 use crate::context::PropertyHandlerContext;
-use crate::declaration::DeclarationList;
+use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
-use crate::macros::shorthand_handler;
+use crate::macros::{impl_shorthand, shorthand_handler};
 use crate::printer::Printer;
 use crate::targets::Browsers;
-use crate::traits::{FallbackValues, Parse, PropertyHandler, ToCss};
+use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::color::CssColor;
 use cssparser::*;
 
@@ -52,6 +52,14 @@ impl Default for OutlineStyle {
 
 /// A value for the [outline](https://drafts.csswg.org/css-ui/#outline) shorthand property.
 pub type Outline = GenericBorder<OutlineStyle, 11>;
+
+impl_shorthand! {
+  Outline(Outline) {
+    width: [OutlineWidth],
+    style: [OutlineStyle],
+    color: [OutlineColor],
+  }
+}
 
 shorthand_handler!(OutlineHandler -> Outline {
   width: OutlineWidth(BorderSideWidth),

@@ -861,7 +861,7 @@ define_properties! {
   "border-inline-start": BorderInlineStart(BorderInlineStart) shorthand: true,
   "border-inline-end": BorderInlineEnd(BorderInlineEnd) shorthand: true,
 
-  "outline": Outline(Outline),
+  "outline": Outline(Outline) shorthand: true,
   "outline-color": OutlineColor(CssColor),
   "outline-style": OutlineStyle(OutlineStyle),
   "outline-width": OutlineWidth(BorderSideWidth),
