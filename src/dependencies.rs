@@ -104,7 +104,7 @@ pub struct SourceRange {
   pub file_path: String,
   /// The starting line and column position of the dependency.
   pub start: Location,
-  /// THe ending line and column position of the dependency.
+  /// The ending line and column position of the dependency.
   pub end: Location,
 }
 

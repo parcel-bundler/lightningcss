@@ -36,7 +36,7 @@ pub struct ErrorLocation {
   pub filename: String,
   /// The line number, starting from 0.
   pub line: u32,
-  /// THe column number, starting from 1.
+  /// The column number, starting from 1.
   pub column: u32,
 }
 

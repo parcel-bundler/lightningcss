@@ -1,10 +1,13 @@
 //! Style rules.
 
+use std::ops::Range;
+
 use super::Location;
 use super::MinifyContext;
 use crate::compat::Feature;
 use crate::context::DeclarationContext;
 use crate::declaration::DeclarationBlock;
+use crate::error::ParserError;
 use crate::error::{MinifyError, PrinterError, PrinterErrorKind};
 use crate::printer::Printer;
 use crate::rules::{CssRuleList, StyleContext, ToCssWithContext};
@@ -12,6 +15,7 @@ use crate::selector::{is_compatible, is_unused, Selectors};
 use crate::targets::Browsers;
 use crate::traits::ToCss;
 use crate::vendor_prefix::VendorPrefix;
+use cssparser::*;
 use parcel_selectors::SelectorList;
 
 /// A CSS [style rule](https://drafts.csswg.org/css-syntax/#style-rules).
@@ -73,6 +77,67 @@ impl<'i> StyleRule<'i> {
   /// with all of the given browser targets.
   pub fn is_compatible(&self, targets: Option<Browsers>) -> bool {
     is_compatible(&self.selectors, targets)
+  }
+
+  /// Returns the line and column range of the property key and value at the given index in this style rule.
+  ///
+  /// For performance and memory efficiency in non-error cases, source locations are not stored during parsing.
+  /// Instead, they are computed lazily using the original source string that was used to parse the stylesheet/rule.
+  pub fn property_location<'t>(
+    &self,
+    code: &'i str,
+    index: usize,
+  ) -> Result<(Range<SourceLocation>, Range<SourceLocation>), ParseError<'i, ParserError<'i>>> {
+    let mut input = ParserInput::new(code);
+    let mut parser = Parser::new(&mut input);
+
+    // advance until start location of this rule.
+    parse_at(&mut parser, self.loc, |parser| {
+      // skip selector
+      parser.parse_until_before(Delimiter::CurlyBracketBlock, |parser| {
+        while parser.next().is_ok() {}
+        Ok(())
+      })?;
+
+      parser.expect_curly_bracket_block()?;
+      parser.parse_nested_block(|parser| {
+        let loc = self.declarations.property_location(parser, index);
+        while parser.next().is_ok() {}
+        loc
+      })
+    })
+  }
+}
+
+fn parse_at<'i, 't, T, F>(
+  parser: &mut Parser<'i, 't>,
+  dest: Location,
+  parse: F,
+) -> Result<T, ParseError<'i, ParserError<'i>>>
+where
+  F: Copy + for<'tt> FnOnce(&mut Parser<'i, 'tt>) -> Result<T, ParseError<'i, ParserError<'i>>>,
+{
+  loop {
+    let loc = parser.current_source_location();
+    if loc.line >= dest.line || (loc.line == dest.line && loc.column >= dest.column) {
+      return parse(parser);
+    }
+
+    match parser.next()? {
+      Token::CurlyBracketBlock => {
+        // Recursively parse nested blocks.
+        let res = parser.parse_nested_block(|parser| {
+          let res = parse_at(parser, dest, parse);
+          while parser.next().is_ok() {}
+          res
+        });
+
+        if let Ok(v) = res {
+          return Ok(v);
+        }
+      }
+      _ => {}
+    }
   }
 }
 
