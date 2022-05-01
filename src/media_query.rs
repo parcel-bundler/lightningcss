@@ -234,7 +234,7 @@ impl<'i> MediaQuery<'i> {
 
   /// Returns whether the media query is guaranteed to never match.
   pub fn never_matches(&self) -> bool {
-    self.qualifier == Some(Qualifier::Not) && self.media_type == MediaType::All
+    self.qualifier == Some(Qualifier::Not) && self.media_type == MediaType::All && self.condition == None
   }
 
   /// Attempts to combine the given media query into this one. The resulting media query

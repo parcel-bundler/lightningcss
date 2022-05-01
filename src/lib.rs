@@ -502,7 +502,7 @@ mod tests {
         border: none;
       }
     "#,
-      indoc! {".foo{border:0}"
+      indoc! {".foo{border:none}"
       },
     );
 
@@ -1765,6 +1765,8 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    minify_test(".foo { border: none green }", ".foo{border:green}");
   }
 
   #[test]
@@ -3205,6 +3207,15 @@ mod tests {
         safari: Some(15 << 16),
         ..Browsers::default()
       },
+    );
+
+    test(
+      ".foo { background: calc(var(--v) / 0.3)",
+      indoc! {r#"
+      .foo {
+        background: calc(var(--v) / .3);
+      }
+    "#},
     );
   }
 
@@ -5492,6 +5503,10 @@ mod tests {
     minify_test(".foo { width: calc(1cap + 2cap) }", ".foo{width:3cap}");
     minify_test(".foo { width: calc(1lh + 2lh) }", ".foo{width:3lh}");
     minify_test(".foo { width: calc(1x + 2x) }", ".foo{width:calc(1x + 2x)}");
+    minify_test(
+      ".foo { left: calc(50% - 100px + clamp(0px, calc(50vw - 50px), 100px)) }",
+      ".foo{left:calc(50% - 100px + clamp(0px,50vw - 50px,100px))}",
+    );
   }
 
   #[test]
@@ -5936,6 +5951,17 @@ mod tests {
         firefox: Some(85 << 16),
         ..Browsers::default()
       },
+    );
+
+    test(
+      r#"
+      @media not all {
+        .a {
+          color: green;
+        }
+      }
+      "#,
+      "\n",
     );
   }
 
@@ -17360,7 +17386,13 @@ mod tests {
         }
       }
       "#,
-      "\n",
+      indoc! {r#"
+        @media not all and (color) {
+          .a {
+            color: green;
+          }
+        }
+      "#},
     );
 
     custom_media_test(
@@ -17373,7 +17405,13 @@ mod tests {
         }
       }
       "#,
-      "\n",
+      indoc! {r#"
+        @media not all and (color) {
+          .a {
+            color: green;
+          }
+        }
+      "#},
     );
 
     custom_media_test(

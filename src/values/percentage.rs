@@ -298,9 +298,7 @@ impl<D: TryAdd<D> + Clone + std::cmp::PartialEq<CSSNumber> + std::cmp::PartialOr
     }
 
     match (a, b) {
-      (DimensionPercentage::Calc(a), DimensionPercentage::Calc(b)) => {
-        return DimensionPercentage::Calc(Box::new(*a + *b))
-      }
+      (DimensionPercentage::Calc(a), DimensionPercentage::Calc(b)) => DimensionPercentage::Calc(Box::new(*a + *b)),
       (DimensionPercentage::Calc(calc), b) => {
         if let Calc::Value(a) = *calc {
           a.add(b)

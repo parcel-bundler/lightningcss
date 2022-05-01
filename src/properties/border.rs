@@ -169,25 +169,27 @@ impl<S: ToCss + Default + PartialEq, const P: u8> ToCss for GenericBorder<S, P> 
   where
     W: std::fmt::Write,
   {
-    // Assume the default is 'none'
-    if self.style == S::default() {
-      if dest.minify {
-        dest.write_char('0')?;
-      } else {
-        self.style.to_css(dest)?;
-      }
+    if *self == Self::default() {
+      self.style.to_css(dest)?;
       return Ok(());
     }
 
+    let mut needs_space = false;
     if self.width != BorderSideWidth::default() {
       self.width.to_css(dest)?;
+      needs_space = true;
     }
     if self.style != S::default() {
-      dest.write_str(" ")?;
+      if needs_space {
+        dest.write_str(" ")?;
+      }
       self.style.to_css(dest)?;
+      needs_space = true;
     }
     if self.color != CssColor::current_color() {
-      dest.write_str(" ")?;
+      if needs_space {
+        dest.write_str(" ")?;
+      }
       self.color.to_css(dest)?;
     }
     Ok(())

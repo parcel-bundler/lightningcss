@@ -394,6 +394,8 @@ impl<
       (Calc::Number(a), Calc::Number(b)) => Calc::Number(a + b),
       (Calc::Value(a), b) => (*a + V::from(b)).into(),
       (a, Calc::Value(b)) => (V::from(a) + *b).into(),
+      (Calc::Function(a), b) => Calc::Sum(Box::new(Calc::Function(a)), Box::new(b)),
+      (a, Calc::Function(b)) => Calc::Sum(Box::new(a), Box::new(Calc::Function(b))),
       (a, b) => (V::from(a) + V::from(b)).into(),
     }
   }
