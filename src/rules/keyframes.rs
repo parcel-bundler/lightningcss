@@ -260,7 +260,7 @@ impl<'i> ToCss for Keyframe<'i> {
       selector.to_css(dest)?;
     }
 
-    self.declarations.to_css(dest)
+    self.declarations.to_css_block(dest)
   }
 }
 

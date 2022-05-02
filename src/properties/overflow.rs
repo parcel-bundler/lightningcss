@@ -3,12 +3,12 @@
 use super::{Property, PropertyId};
 use crate::compat::Feature;
 use crate::context::PropertyHandlerContext;
-use crate::declaration::DeclarationList;
+use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
-use crate::macros::enum_property;
+use crate::macros::{define_shorthand, enum_property};
 use crate::printer::Printer;
 use crate::targets::Browsers;
-use crate::traits::{Parse, PropertyHandler, ToCss};
+use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
 use cssparser::*;
 
 enum_property! {
@@ -28,13 +28,14 @@ enum_property! {
   }
 }
 
-/// A value for the [overflow](https://www.w3.org/TR/css-overflow-3/#overflow-properties) shorthand property.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Overflow {
-  /// The overflow mode for the x direction.
-  pub x: OverflowKeyword,
-  /// The overflow mode for the y direction.
-  pub y: OverflowKeyword,
+define_shorthand! {
+  /// A value for the [overflow](https://www.w3.org/TR/css-overflow-3/#overflow-properties) shorthand property.
+  pub struct Overflow {
+    /// The overflow mode for the x direction.
+    x: OverflowX(OverflowKeyword),
+    /// The overflow mode for the y direction.
+    y: OverflowY(OverflowKeyword),
+  }
 }
 
 impl<'i> Parse<'i> for Overflow {

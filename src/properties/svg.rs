@@ -208,7 +208,7 @@ impl ToCss for StrokeDasharray {
   }
 }
 
-/// A value for the [marker](https://www.w3.org/TR/SVG2/painting.html#VertexMarkerProperties) shorthand property.
+/// A value for the [marker](https://www.w3.org/TR/SVG2/painting.html#VertexMarkerProperties) properties.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Marker<'i> {
   /// No marker.

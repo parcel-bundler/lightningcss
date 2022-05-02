@@ -1,14 +1,14 @@
 //! CSS properties related to backgrounds.
 
 use crate::context::PropertyHandlerContext;
-use crate::declaration::DeclarationList;
+use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::*;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::targets::Browsers;
-use crate::traits::{FallbackValues, Parse, PropertyHandler, ToCss};
+use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::color::ColorFallbackKind;
 use crate::values::image::ImageFallback;
 use crate::values::{color::CssColor, image::Image, length::LengthPercentageOrAuto, position::*};
@@ -243,6 +243,54 @@ impl BackgroundClip {
   }
 }
 
+define_list_shorthand! {
+  /// A value for the [background-position](https://drafts.csswg.org/css-backgrounds/#background-position) shorthand property.
+  pub struct BackgroundPosition {
+    /// The x-position.
+    x: BackgroundPositionX(HorizontalPosition),
+    /// The y-position.
+    y: BackgroundPositionY(VerticalPosition),
+  }
+}
+
+impl From<Position> for BackgroundPosition {
+  fn from(pos: Position) -> Self {
+    BackgroundPosition { x: pos.x, y: pos.y }
+  }
+}
+
+impl Into<Position> for &BackgroundPosition {
+  fn into(self) -> Position {
+    Position {
+      x: self.x.clone(),
+      y: self.y.clone(),
+    }
+  }
+}
+
+impl Default for BackgroundPosition {
+  fn default() -> Self {
+    Position::default().into()
+  }
+}
+
+impl<'i> Parse<'i> for BackgroundPosition {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let pos = Position::parse(input)?;
+    Ok(pos.into())
+  }
+}
+
+impl ToCss for BackgroundPosition {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    let pos: Position = self.into();
+    pos.to_css(dest)
+  }
+}
+
 /// A value for the [background](https://www.w3.org/TR/css-backgrounds-3/#background) shorthand property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Background<'i> {
@@ -251,7 +299,7 @@ pub struct Background<'i> {
   /// The background color.
   pub color: CssColor,
   /// The background position.
-  pub position: Position,
+  pub position: BackgroundPosition,
   /// How the background image should repeat.
   pub repeat: BackgroundRepeat,
   /// The size of the background image.
@@ -267,7 +315,7 @@ pub struct Background<'i> {
 impl<'i> Parse<'i> for Background<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut color: Option<CssColor> = None;
-    let mut position: Option<Position> = None;
+    let mut position: Option<BackgroundPosition> = None;
     let mut size: Option<BackgroundSize> = None;
     let mut image: Option<Image> = None;
     let mut repeat: Option<BackgroundRepeat> = None;
@@ -285,7 +333,7 @@ impl<'i> Parse<'i> for Background<'i> {
       }
 
       if position.is_none() {
-        if let Ok(value) = input.try_parse(Position::parse) {
+        if let Ok(value) = input.try_parse(BackgroundPosition::parse) {
           position = Some(value);
 
           size = input
@@ -376,11 +424,12 @@ impl<'i> ToCss for Background<'i> {
       has_output = true;
     }
 
-    if !self.position.is_zero() || self.size != BackgroundSize::default() {
+    let position: Position = (&self.position).into();
+    if !position.is_zero() || self.size != BackgroundSize::default() {
       if has_output {
         dest.write_str(" ")?;
       }
-      self.position.to_css(dest)?;
+      position.to_css(dest)?;
 
       if self.size != BackgroundSize::default() {
         dest.delim('/', true)?;
@@ -465,6 +514,226 @@ impl<'i> ImageFallback<'i> for Background<'i> {
       image: self.image.get_fallback(kind),
       ..self.clone()
     }
+  }
+}
+
+impl<'i> Shorthand<'i> for SmallVec<[Background<'i>; 1]> {
+  fn from_longhands(decls: &DeclarationBlock<'i>, vendor_prefix: VendorPrefix) -> Option<(Self, bool)> {
+    let mut color = None;
+    let mut images = None;
+    let mut x_positions = None;
+    let mut y_positions = None;
+    let mut repeats = None;
+    let mut sizes = None;
+    let mut attachments = None;
+    let mut origins = None;
+    let mut clips = None;
+
+    let mut count = 0;
+    let mut important_count = 0;
+    let mut length = None;
+    for (property, important) in decls.iter() {
+      let len = match property {
+        Property::BackgroundColor(value) => {
+          color = Some(value.clone());
+          count += 1;
+          if important {
+            important_count += 1;
+          }
+          continue;
+        }
+        Property::BackgroundImage(value) => {
+          images = Some(value.clone());
+          value.len()
+        }
+        Property::BackgroundPosition(value) => {
+          x_positions = Some(value.iter().map(|v| v.x.clone()).collect());
+          y_positions = Some(value.iter().map(|v| v.y.clone()).collect());
+          value.len()
+        }
+        Property::BackgroundPositionX(value) => {
+          x_positions = Some(value.clone());
+          value.len()
+        }
+        Property::BackgroundPositionY(value) => {
+          y_positions = Some(value.clone());
+          value.len()
+        }
+        Property::BackgroundRepeat(value) => {
+          repeats = Some(value.clone());
+          value.len()
+        }
+        Property::BackgroundSize(value) => {
+          sizes = Some(value.clone());
+          value.len()
+        }
+        Property::BackgroundAttachment(value) => {
+          attachments = Some(value.clone());
+          value.len()
+        }
+        Property::BackgroundOrigin(value) => {
+          origins = Some(value.clone());
+          value.len()
+        }
+        Property::BackgroundClip(value, vp) => {
+          if *vp != vendor_prefix {
+            return None;
+          }
+          clips = Some(value.clone());
+          value.len()
+        }
+        Property::Background(val) => {
+          color = Some(val.last().unwrap().color.clone());
+          images = Some(val.iter().map(|b| b.image.clone()).collect());
+          x_positions = Some(val.iter().map(|b| b.position.x.clone()).collect());
+          y_positions = Some(val.iter().map(|b| b.position.y.clone()).collect());
+          repeats = Some(val.iter().map(|b| b.repeat.clone()).collect());
+          sizes = Some(val.iter().map(|b| b.size.clone()).collect());
+          attachments = Some(val.iter().map(|b| b.attachment.clone()).collect());
+          origins = Some(val.iter().map(|b| b.origin.clone()).collect());
+          clips = Some(val.iter().map(|b| b.clip.clone()).collect());
+          val.len()
+        }
+        _ => continue,
+      };
+
+      // Lengths must be equal.
+      if length.is_none() {
+        length = Some(len);
+      } else if length.unwrap() != len {
+        return None;
+      }
+
+      count += 1;
+      if important {
+        important_count += 1;
+      }
+    }
+
+    // !important flags must match to produce a shorthand.
+    if important_count > 0 && important_count != count {
+      return None;
+    }
+
+    if color.is_some()
+      && images.is_some()
+      && x_positions.is_some()
+      && y_positions.is_some()
+      && repeats.is_some()
+      && sizes.is_some()
+      && attachments.is_some()
+      && origins.is_some()
+      && clips.is_some()
+    {
+      let length = length.unwrap();
+      let values = izip!(
+        images.unwrap().drain(..),
+        x_positions.unwrap().drain(..),
+        y_positions.unwrap().drain(..),
+        repeats.unwrap().drain(..),
+        sizes.unwrap().drain(..),
+        attachments.unwrap().drain(..),
+        origins.unwrap().drain(..),
+        clips.unwrap().drain(..),
+      )
+      .enumerate()
+      .map(
+        |(i, (image, x_position, y_position, repeat, size, attachment, origin, clip))| Background {
+          color: if i == length - 1 {
+            color.clone().unwrap()
+          } else {
+            CssColor::default()
+          },
+          image,
+          position: BackgroundPosition {
+            x: x_position,
+            y: y_position,
+          },
+          repeat,
+          size,
+          attachment,
+          origin,
+          clip: clip,
+        },
+      )
+      .collect();
+      return Some((values, important_count > 0));
+    }
+
+    None
+  }
+
+  fn longhands(vendor_prefix: VendorPrefix) -> Vec<PropertyId<'static>> {
+    vec![
+      PropertyId::BackgroundColor,
+      PropertyId::BackgroundImage,
+      PropertyId::BackgroundPositionX,
+      PropertyId::BackgroundPositionY,
+      PropertyId::BackgroundRepeat,
+      PropertyId::BackgroundSize,
+      PropertyId::BackgroundAttachment,
+      PropertyId::BackgroundOrigin,
+      PropertyId::BackgroundClip(vendor_prefix),
+    ]
+  }
+
+  fn longhand(&self, property_id: &PropertyId) -> Option<Property<'i>> {
+    match property_id {
+      PropertyId::BackgroundColor => Some(Property::BackgroundColor(self.last().unwrap().color.clone())),
+      PropertyId::BackgroundImage => Some(Property::BackgroundImage(
+        self.iter().map(|v| v.image.clone()).collect(),
+      )),
+      PropertyId::BackgroundPositionX => Some(Property::BackgroundPositionX(
+        self.iter().map(|v| v.position.x.clone()).collect(),
+      )),
+      PropertyId::BackgroundPositionY => Some(Property::BackgroundPositionY(
+        self.iter().map(|v| v.position.y.clone()).collect(),
+      )),
+      PropertyId::BackgroundRepeat => Some(Property::BackgroundRepeat(
+        self.iter().map(|v| v.repeat.clone()).collect(),
+      )),
+      PropertyId::BackgroundSize => Some(Property::BackgroundSize(self.iter().map(|v| v.size.clone()).collect())),
+      PropertyId::BackgroundAttachment => Some(Property::BackgroundAttachment(
+        self.iter().map(|v| v.attachment.clone()).collect(),
+      )),
+      PropertyId::BackgroundOrigin => Some(Property::BackgroundOrigin(
+        self.iter().map(|v| v.origin.clone()).collect(),
+      )),
+      PropertyId::BackgroundClip(vp) => Some(Property::BackgroundClip(
+        self.iter().map(|v| v.clip.clone()).collect(),
+        *vp,
+      )),
+      _ => None,
+    }
+  }
+
+  fn set_longhand(&mut self, property: &Property<'i>) -> Result<(), ()> {
+    macro_rules! longhand {
+      ($value: ident, $key: ident $(.$k: ident)*) => {{
+        if $value.len() != self.len() {
+          return Err(());
+        }
+        for (i, item) in self.iter_mut().enumerate() {
+          item.$key$(.$k)* = $value[i].clone();
+        }
+      }};
+    }
+
+    match property {
+      Property::BackgroundColor(value) => self.last_mut().unwrap().color = value.clone(),
+      Property::BackgroundImage(value) => longhand!(value, image),
+      Property::BackgroundPositionX(value) => longhand!(value, position.x),
+      Property::BackgroundPositionY(value) => longhand!(value, position.y),
+      Property::BackgroundPosition(value) => longhand!(value, position),
+      Property::BackgroundRepeat(value) => longhand!(value, repeat),
+      Property::BackgroundSize(value) => longhand!(value, size),
+      Property::BackgroundAttachment(value) => longhand!(value, attachment),
+      Property::BackgroundOrigin(value) => longhand!(value, origin),
+      Property::BackgroundClip(value, _vp) => longhand!(value, clip),
+      _ => return Err(()),
+    }
+
+    Ok(())
   }
 }
 
@@ -660,7 +929,7 @@ impl<'i> BackgroundHandler<'i> {
               CssColor::default()
             },
             image,
-            position: Position {
+            position: BackgroundPosition {
               x: x_position,
               y: y_position,
             },
@@ -717,7 +986,7 @@ impl<'i> BackgroundHandler<'i> {
     match (&mut x_positions, &mut y_positions) {
       (Some(x_positions), Some(y_positions)) if x_positions.len() == y_positions.len() => {
         let positions = izip!(x_positions.drain(..), y_positions.drain(..))
-          .map(|(x, y)| Position { x, y })
+          .map(|(x, y)| BackgroundPosition { x, y })
           .collect();
         dest.push(Property::BackgroundPosition(positions))
       }

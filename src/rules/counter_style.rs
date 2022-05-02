@@ -27,6 +27,6 @@ impl<'i> ToCss for CounterStyleRule<'i> {
     dest.add_mapping(self.loc);
     dest.write_str("@counter-style ")?;
     self.name.to_css(dest)?;
-    self.declarations.to_css(dest)
+    self.declarations.to_css_block(dest)
   }
 }

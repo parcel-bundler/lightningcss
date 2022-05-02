@@ -99,7 +99,10 @@ impl<'i> cssparser::DeclarationParser<'i> for FontPaletteValuesDeclarationParser
     }
 
     input.reset(&state);
-    return Ok(FontPaletteValuesProperty::Custom(CustomProperty::parse(name, input)?));
+    return Ok(FontPaletteValuesProperty::Custom(CustomProperty::parse(
+      name.into(),
+      input,
+    )?));
   }
 }
 

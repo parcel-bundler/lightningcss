@@ -2,11 +2,11 @@
 
 use super::{Property, PropertyId};
 use crate::context::PropertyHandlerContext;
-use crate::declaration::DeclarationList;
+use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::*;
 use crate::printer::Printer;
-use crate::traits::{Parse, PropertyHandler, ToCss};
+use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::number::CSSNumber;
 use crate::values::string::CowArcStr;
 use crate::values::{angle::Angle, length::LengthPercentage, percentage::Percentage};
@@ -473,40 +473,23 @@ enum_property! {
   }
 }
 
+impl Default for FontVariantCaps {
+  fn default() -> FontVariantCaps {
+    FontVariantCaps::Normal
+  }
+}
+
 impl FontVariantCaps {
-  fn to_css2(&self) -> Option<FontVariantCapsCSS2> {
-    match self {
-      FontVariantCaps::Normal => Some(FontVariantCapsCSS2::Normal),
-      FontVariantCaps::SmallCaps => Some(FontVariantCapsCSS2::SmallCaps),
-      _ => None,
+  fn is_css2(&self) -> bool {
+    matches!(self, FontVariantCaps::Normal | FontVariantCaps::SmallCaps)
+  }
+
+  fn parse_css2<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let value = Self::parse(input)?;
+    if !value.is_css2() {
+      return Err(input.new_custom_error(ParserError::InvalidValue));
     }
-  }
-}
-
-enum_property! {
-  /// The CSS 2.1 values for the `font-variant-caps` property, as used in the `font` shorthand.
-  ///
-  /// See [Font](Font).
-  pub enum FontVariantCapsCSS2 {
-    /// No special capitalization features are applied.
-    "normal": Normal,
-    /// Small capitals are used for lower case letters.
-    "small-caps": SmallCaps,
-  }
-}
-
-impl Default for FontVariantCapsCSS2 {
-  fn default() -> FontVariantCapsCSS2 {
-    FontVariantCapsCSS2::Normal
-  }
-}
-
-impl FontVariantCapsCSS2 {
-  fn to_font_variant_caps(&self) -> FontVariantCaps {
-    match self {
-      FontVariantCapsCSS2::Normal => FontVariantCaps::Normal,
-      FontVariantCapsCSS2::SmallCaps => FontVariantCaps::SmallCaps,
-    }
+    Ok(value)
   }
 }
 
@@ -609,23 +592,24 @@ impl ToCss for VerticalAlign {
   }
 }
 
-/// A value for the [font](https://www.w3.org/TR/css-fonts-4/#font-prop) shorthand property.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Font<'i> {
-  /// The font family.
-  pub family: Vec<FontFamily<'i>>,
-  /// The font size.
-  pub size: FontSize,
-  /// The font style.
-  pub style: FontStyle,
-  /// The font weight.
-  pub weight: FontWeight,
-  /// The font stretch.
-  pub stretch: FontStretch,
-  /// The line height.
-  pub line_height: LineHeight,
-  /// How the text should be capitalized. Only CSS 2.1 values are supported.
-  pub variant_caps: FontVariantCapsCSS2,
+define_shorthand! {
+  /// A value for the [font](https://www.w3.org/TR/css-fonts-4/#font-prop) shorthand property.
+  pub struct Font<'i> {
+    /// The font family.
+    family: FontFamily(Vec<FontFamily<'i>>),
+    /// The font size.
+    size: FontSize(FontSize),
+    /// The font style.
+    style: FontStyle(FontStyle),
+    /// The font weight.
+    weight: FontWeight(FontWeight),
+    /// The font stretch.
+    stretch: FontStretch(FontStretch),
+    /// The line height.
+    line_height: LineHeight(LineHeight),
+    /// How the text should be capitalized. Only CSS 2.1 values are supported.
+    variant_caps: FontVariantCaps(FontVariantCaps),
+  }
 }
 
 impl<'i> Parse<'i> for Font<'i> {
@@ -658,7 +642,7 @@ impl<'i> Parse<'i> for Font<'i> {
         }
       }
       if variant_caps.is_none() {
-        if let Ok(value) = input.try_parse(FontVariantCapsCSS2::parse) {
+        if let Ok(value) = input.try_parse(FontVariantCaps::parse_css2) {
           variant_caps = Some(value);
           count += 1;
           continue;
@@ -714,7 +698,7 @@ impl<'i> ToCss for Font<'i> {
       dest.write_char(' ')?;
     }
 
-    if self.variant_caps != FontVariantCapsCSS2::default() {
+    if self.variant_caps != FontVariantCaps::default() {
       self.variant_caps.to_css(dest)?;
       dest.write_char(' ')?;
     }
@@ -793,7 +777,7 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
         self.weight = Some(val.weight.clone());
         self.stretch = Some(val.stretch.clone());
         self.line_height = Some(val.line_height.clone());
-        self.variant_caps = Some(val.variant_caps.to_font_variant_caps());
+        self.variant_caps = Some(val.variant_caps.clone());
         self.has_any = true;
         // TODO: reset other properties
       }
@@ -830,7 +814,7 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
       && line_height.is_some()
       && variant_caps.is_some()
     {
-      let caps = variant_caps.unwrap().to_css2();
+      let caps = variant_caps.unwrap();
       decls.push(Property::Font(Font {
         family: family.unwrap(),
         size: size.unwrap(),
@@ -838,12 +822,16 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
         weight: weight.unwrap(),
         stretch: stretch.unwrap(),
         line_height: line_height.unwrap(),
-        variant_caps: caps.unwrap_or_default(),
+        variant_caps: if caps.is_css2() {
+          caps
+        } else {
+          FontVariantCaps::default()
+        },
       }));
 
       // The `font` property only accepts CSS 2.1 values for font-variant caps.
       // If we have a CSS 3+ value, we need to add a separate property.
-      if caps == None {
+      if !caps.is_css2() {
         decls.push(Property::FontVariantCaps(variant_caps.unwrap()))
       }
     } else {

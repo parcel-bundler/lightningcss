@@ -1,14 +1,14 @@
 //! CSS properties related to outlines.
 
-use super::border::{BorderSideWidth, BorderStyle, GenericBorder};
+use super::border::{BorderSideWidth, GenericBorder, LineStyle};
 use super::{Property, PropertyId};
 use crate::context::PropertyHandlerContext;
-use crate::declaration::DeclarationList;
+use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
-use crate::macros::shorthand_handler;
+use crate::macros::{impl_shorthand, shorthand_handler};
 use crate::printer::Printer;
 use crate::targets::Browsers;
-use crate::traits::{FallbackValues, Parse, PropertyHandler, ToCss};
+use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::color::CssColor;
 use cssparser::*;
 
@@ -18,13 +18,13 @@ pub enum OutlineStyle {
   /// The `auto` keyword.
   Auto,
   /// A value equivalent to the `border-style` property.
-  BorderStyle(BorderStyle),
+  LineStyle(LineStyle),
 }
 
 impl<'i> Parse<'i> for OutlineStyle {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(border_style) = input.try_parse(BorderStyle::parse) {
-      return Ok(OutlineStyle::BorderStyle(border_style));
+    if let Ok(border_style) = input.try_parse(LineStyle::parse) {
+      return Ok(OutlineStyle::LineStyle(border_style));
     }
 
     input.expect_ident_matching("auto")?;
@@ -39,19 +39,27 @@ impl ToCss for OutlineStyle {
   {
     match self {
       OutlineStyle::Auto => dest.write_str("auto"),
-      OutlineStyle::BorderStyle(border_style) => border_style.to_css(dest),
+      OutlineStyle::LineStyle(border_style) => border_style.to_css(dest),
     }
   }
 }
 
 impl Default for OutlineStyle {
   fn default() -> OutlineStyle {
-    OutlineStyle::BorderStyle(BorderStyle::None)
+    OutlineStyle::LineStyle(LineStyle::None)
   }
 }
 
 /// A value for the [outline](https://drafts.csswg.org/css-ui/#outline) shorthand property.
-pub type Outline = GenericBorder<OutlineStyle>;
+pub type Outline = GenericBorder<OutlineStyle, 11>;
+
+impl_shorthand! {
+  Outline(Outline) {
+    width: [OutlineWidth],
+    style: [OutlineStyle],
+    color: [OutlineColor],
+  }
+}
 
 shorthand_handler!(OutlineHandler -> Outline {
   width: OutlineWidth(BorderSideWidth),

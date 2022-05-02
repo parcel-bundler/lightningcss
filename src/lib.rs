@@ -566,8 +566,7 @@ mod tests {
       indoc! {r#"
       .foo {
         border-block-width: 1px;
-        border-inline-start-width: 2px;
-        border-inline-end-width: 3px;
+        border-inline-width: 2px 3px;
       }
     "#
       },
@@ -17798,7 +17797,7 @@ mod tests {
     }"#}
     );
 
-    let property = Property::parse_string("color", "#f0f", ParserOptions::default()).unwrap();
+    let property = Property::parse_string("color".into(), "#f0f", ParserOptions::default()).unwrap();
     assert_eq!(
       property.to_css_string(false, PrinterOptions::default()).unwrap(),
       "color: #f0f"

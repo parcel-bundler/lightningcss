@@ -27,6 +27,6 @@ impl<'i> ToCss for ViewportRule<'i> {
     dest.write_char('@')?;
     self.vendor_prefix.to_css(dest)?;
     dest.write_str("viewport")?;
-    self.declarations.to_css(dest)
+    self.declarations.to_css_block(dest)
   }
 }
