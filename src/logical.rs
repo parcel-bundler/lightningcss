@@ -16,8 +16,6 @@ pub enum LogicalGroup {
   BorderStyle,
   BorderWidth,
   BorderRadius,
-  Overflow,
-  OverscrollBehavior,
   Margin,
   ScrollMargin,
   Padding,

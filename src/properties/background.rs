@@ -518,7 +518,7 @@ impl<'i> ImageFallback<'i> for Background<'i> {
 }
 
 impl<'i> Shorthand<'i> for SmallVec<[Background<'i>; 1]> {
-  fn from_longhands(decls: &DeclarationBlock<'i>) -> Option<(Self, bool)> {
+  fn from_longhands(decls: &DeclarationBlock<'i>, vendor_prefix: VendorPrefix) -> Option<(Self, bool)> {
     let mut color = None;
     let mut images = None;
     let mut x_positions = None;
@@ -575,7 +575,10 @@ impl<'i> Shorthand<'i> for SmallVec<[Background<'i>; 1]> {
           origins = Some(value.clone());
           value.len()
         }
-        Property::BackgroundClip(value, _vp) => {
+        Property::BackgroundClip(value, vp) => {
+          if *vp != vendor_prefix {
+            return None;
+          }
           clips = Some(value.clone());
           value.len()
         }
@@ -660,8 +663,8 @@ impl<'i> Shorthand<'i> for SmallVec<[Background<'i>; 1]> {
     None
   }
 
-  fn longhands() -> &'static [PropertyId<'static>] {
-    &[
+  fn longhands(vendor_prefix: VendorPrefix) -> Vec<PropertyId<'static>> {
+    vec![
       PropertyId::BackgroundColor,
       PropertyId::BackgroundImage,
       PropertyId::BackgroundPositionX,
@@ -670,7 +673,7 @@ impl<'i> Shorthand<'i> for SmallVec<[Background<'i>; 1]> {
       PropertyId::BackgroundSize,
       PropertyId::BackgroundAttachment,
       PropertyId::BackgroundOrigin,
-      PropertyId::BackgroundClip(VendorPrefix::None),
+      PropertyId::BackgroundClip(vendor_prefix),
     ]
   }
 

@@ -363,7 +363,8 @@ macro_rules! impl_shorthand {
     }
 
     impl<'i> Shorthand<'i> for $t {
-      fn from_longhands(decls: &DeclarationBlock<'i>) -> Option<(Self, bool)> {
+      #[allow(unused_variables)]
+      fn from_longhands(decls: &DeclarationBlock<'i>, vendor_prefix: crate::vendor_prefix::VendorPrefix) -> Option<(Self, bool)> {
         $(
           $(
             #[allow(non_snake_case)]
@@ -377,7 +378,13 @@ macro_rules! impl_shorthand {
           match property {
             $(
               $(
-                Property::$prop(val $(, vp_name!($vp, _p))?) => {
+                Property::$prop(val $(, vp_name!($vp, p))?) => {
+                  $(
+                    if *vp_name!($vp, p) != vendor_prefix {
+                      return None
+                    }
+                  )?
+
                   $prop = Some(val.clone());
                   count += 1;
                   if important {
@@ -386,7 +393,13 @@ macro_rules! impl_shorthand {
                 }
               )+
             )+
-            Property::$name(val $(, vp_name!($prefix, _p))?) => {
+            Property::$name(val $(, vp_name!($prefix, p))?) => {
+              $(
+                if *vp_name!($prefix, p) != vendor_prefix {
+                  return None
+                }
+              )?
+
               $(
                 $(
                   $prop = Some(val.$key.clone());
@@ -400,7 +413,7 @@ macro_rules! impl_shorthand {
             _ => {
               $(
                 $(
-                  if let Some(Property::$prop(longhand $(, vp_name!($vp, _p))?)) = property.longhand(&PropertyId::$prop$((vp_name!($vp, VendorPrefix::None)))?) {
+                  if let Some(Property::$prop(longhand $(, vp_name!($vp, _p))?)) = property.longhand(&PropertyId::$prop$((vp_name!($vp, vendor_prefix)))?) {
                     $prop = Some(longhand);
                     count += 1;
                     if important {
@@ -454,8 +467,9 @@ macro_rules! impl_shorthand {
         None
       }
 
-      fn longhands() -> &'static [PropertyId<'static>] {
-        &[$($(PropertyId::$prop$((vp_name!($vp, VendorPrefix::None)))?, )+)+]
+      #[allow(unused_variables)]
+      fn longhands(vendor_prefix: crate::vendor_prefix::VendorPrefix) -> Vec<PropertyId<'static>> {
+        vec![$($(PropertyId::$prop$((vp_name!($vp, vendor_prefix)))?, )+)+]
       }
 
       fn longhand(&self, property_id: &PropertyId) -> Option<Property<'i>> {
@@ -536,7 +550,8 @@ macro_rules! define_list_shorthand {
     }
 
     impl<'i> Shorthand<'i> for SmallVec<[$name$(<$l>)?; 1]> {
-      fn from_longhands(decls: &DeclarationBlock<'i>) -> Option<(Self, bool)> {
+      #[allow(unused_variables)]
+      fn from_longhands(decls: &DeclarationBlock<'i>, vendor_prefix: crate::vendor_prefix::VendorPrefix) -> Option<(Self, bool)> {
         $(
           let mut $key = None;
         )+
@@ -548,7 +563,13 @@ macro_rules! define_list_shorthand {
           let mut len = 0;
           match property {
             $(
-              Property::$prop(val $(, vp_name!($vp, _p))?) => {
+              Property::$prop(val $(, vp_name!($vp, p))?) => {
+                $(
+                  if *vp_name!($vp, p) != vendor_prefix {
+                    return None
+                  }
+                )?
+
                 $key = Some(val.clone());
                 len = val.len();
                 count += 1;
@@ -557,7 +578,12 @@ macro_rules! define_list_shorthand {
                 }
               }
             )+
-            Property::$name(val $(, vp_name!($prefix, _p))?) => {
+            Property::$name(val $(, vp_name!($prefix, p))?) => {
+              $(
+                if *vp_name!($prefix, p) != vendor_prefix {
+                  return None
+                }
+              )?
               $(
                 $key = Some(val.iter().map(|b| b.$key.clone()).collect());
               )+
@@ -569,7 +595,7 @@ macro_rules! define_list_shorthand {
             }
             _ => {
               $(
-                if let Some(Property::$prop(longhand $(, vp_name!($vp, _p))?)) = property.longhand(&PropertyId::$prop$((vp_name!($vp, VendorPrefix::None)))?) {
+                if let Some(Property::$prop(longhand $(, vp_name!($vp, _p))?)) = property.longhand(&PropertyId::$prop$((vp_name!($vp, vendor_prefix)))?) {
                   len = longhand.len();
                   $key = Some(longhand);
                   count += 1;
@@ -612,8 +638,9 @@ macro_rules! define_list_shorthand {
         None
       }
 
-      fn longhands() -> &'static [PropertyId<'static>] {
-        &[$(PropertyId::$prop$((vp_name!($vp, VendorPrefix::None)))?, )+]
+      #[allow(unused_variables)]
+      fn longhands(vendor_prefix: crate::vendor_prefix::VendorPrefix) -> Vec<PropertyId<'static>> {
+        vec![$(PropertyId::$prop$((vp_name!($vp, vendor_prefix)))?, )+]
       }
 
       fn longhand(&self, property_id: &PropertyId) -> Option<Property<'i>> {

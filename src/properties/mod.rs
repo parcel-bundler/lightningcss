@@ -26,13 +26,13 @@
 //! ```
 //! use smallvec::smallvec;
 //! use parcel_css::{
-//!   properties::{Property, background::*},
+//!   properties::{Property, PropertyId, background::*},
 //!   values::{url::Url, image::Image, color::CssColor, position::*, length::*},
 //!   stylesheet::{ParserOptions, PrinterOptions},
 //! };
 //!
 //! let background = Property::parse_string(
-//!   "background",
+//!   PropertyId::from("background"),
 //!   "url('img.png') repeat fixed 20px 10px / 50px 100px",
 //!   ParserOptions::default()
 //! ).unwrap();
@@ -188,11 +188,13 @@ macro_rules! define_properties {
       ($x: ty, $n: ident) => {
         $n
       };
+      ($x: ty, $n: expr) => {
+        $n
+      };
     }
 
-    impl<'i> Parse<'i> for PropertyId<'i> {
-      fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-        let name = input.expect_ident()?;
+    impl<'i> From<CowArcStr<'i>> for PropertyId<'i> {
+      fn from(name: CowArcStr<'i>) -> PropertyId<'i> {
         let name_ref = name.as_ref();
         let (prefix, name_ref) = if starts_with_ignore_ascii_case(name_ref, "-webkit-") {
           (VendorPrefix::WebKit, &name_ref[8..])
@@ -230,14 +232,28 @@ macro_rules! define_properties {
 
               let allowed_prefixes = get_allowed_prefixes!($($unprefixed)?) $(| VendorPrefix::$prefix)*;
               if allowed_prefixes.contains(prefix) {
-                return Ok(get_propertyid!($($vp)?))
+                return get_propertyid!($($vp)?)
               }
             },
           )+
-          "all" => return Ok(PropertyId::All),
+          "all" => return PropertyId::All,
           _ => {}
         }
-        Ok(PropertyId::Custom(name.into()))
+        PropertyId::Custom(name)
+      }
+    }
+
+    impl<'i> From<&'i str> for PropertyId<'i> {
+      #[inline]
+      fn from(name: &'i str) -> PropertyId<'i> {
+        PropertyId::from(CowArcStr::from(name))
+      }
+    }
+
+    impl<'i> Parse<'i> for PropertyId<'i> {
+      fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+        let name = input.expect_ident()?;
+        Ok(CowArcStr::from(name).into())
       }
     }
 
@@ -367,7 +383,7 @@ macro_rules! define_properties {
         }
       }
 
-      /// Returns the property name.
+      /// Returns the property name, without any vendor prefixes.
       pub fn name(&self) -> &str {
         use PropertyId::*;
 
@@ -405,10 +421,20 @@ macro_rules! define_properties {
         #[inline]
         fn shorthand_value<'a, 'i>(property_id: &PropertyId<'a>, decls: &DeclarationBlock<'i>) -> Option<(Property<'i>, bool)> {
           $(
+            #[allow(unused_macros)]
+            macro_rules! prefix {
+              ($v: ty, $p: ident) => {
+                *$p
+              };
+              ($p: ident) => {
+                VendorPrefix::None
+              };
+            }
+
             macro_rules! shorthand {
               ($s: literal) => {
                 if let PropertyId::$property$((vp_name!($vp, prefix)))? = &property_id {
-                  if let Some((val, important)) = <$type>::from_longhands(decls) {
+                  if let Some((val, important)) = <$type>::from_longhands(decls, prefix!($($vp,)? prefix)) {
                     return Some((Property::$property(val $(, *vp_name!($vp, prefix))?), important))
                   }
                 }
@@ -426,12 +452,21 @@ macro_rules! define_properties {
       }
 
       /// Returns a list of longhand property ids for a shorthand.
-      pub fn longhands(&self) -> Option<&'static [PropertyId<'static>]> {
+      pub fn longhands(&self) -> Option<Vec<PropertyId<'static>>> {
+        macro_rules! prefix_default {
+          ($x: ty, $p: ident) => {
+            *$p
+          };
+          () => {
+            VendorPrefix::None
+          };
+        }
+
         $(
           macro_rules! shorthand {
             ($s: literal) => {
-              if let PropertyId::$property$((vp_name!($vp, _prefix)))? = self {
-                return Some(<$type>::longhands());
+              if let PropertyId::$property$((vp_name!($vp, prefix)))? = self {
+                return Some(<$type>::longhands(prefix_default!($($vp, prefix)?)));
               }
             };
             () => {}
@@ -496,67 +531,22 @@ macro_rules! define_properties {
 
     impl<'i> Property<'i> {
       /// Parses a CSS property by name.
-      pub fn parse<'t>(name: CowRcStr<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Property<'i>, ParseError<'i, ParserError<'i>>> {
+      pub fn parse<'t>(property_id: PropertyId<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Property<'i>, ParseError<'i, ParserError<'i>>> {
         let state = input.state();
-        let name_ref = name.as_ref();
-        let (prefix, name_ref) = if starts_with_ignore_ascii_case(name_ref, "-webkit-") {
-          (VendorPrefix::WebKit, &name_ref[8..])
-        } else if starts_with_ignore_ascii_case(name_ref, "-moz-") {
-          (VendorPrefix::Moz, &name_ref[5..])
-        } else if starts_with_ignore_ascii_case(name_ref, "-o-") {
-          (VendorPrefix::O, &name_ref[3..])
-        } else if starts_with_ignore_ascii_case(name_ref, "-ms-") {
-          (VendorPrefix::Ms, &name_ref[4..])
-        } else {
-          (VendorPrefix::None, name_ref)
-        };
 
-        macro_rules! get_allowed_prefixes {
-          ($v: literal) => {
-            VendorPrefix::empty()
-          };
-          () => {
-            VendorPrefix::None
-          };
-        }
-
-        let property_id = match_ignore_ascii_case! { name_ref,
+        match property_id {
           $(
             $(#[$meta])*
-            $name $(if options.$condition)? => {
-              let allowed_prefixes = get_allowed_prefixes!($($unprefixed)?) $(| VendorPrefix::$prefix)*;
-              if allowed_prefixes.contains(prefix) {
-                if let Ok(c) = <$type>::parse(input) {
-                  if input.expect_exhausted().is_ok() {
-                    macro_rules! get_property {
-                      ($v: ty) => {
-                        Property::$property(c, prefix)
-                      };
-                      () => {
-                        Property::$property(c)
-                      };
-                    }
-
-                    return Ok(get_property!($($vp)?))
-                  }
+            PropertyId::$property$((vp_name!($vp, prefix)))? $(if options.$condition)? => {
+              if let Ok(c) = <$type>::parse(input) {
+                if input.expect_exhausted().is_ok() {
+                  return Ok(Property::$property(c $(, vp_name!($vp, prefix))?))
                 }
-
-                macro_rules! get_propertyid {
-                  ($v: ty) => {
-                    PropertyId::$property(prefix)
-                  };
-                  () => {
-                    PropertyId::$property
-                  };
-                }
-
-                get_propertyid!($($vp)?)
-              } else {
-                return Ok(Property::Custom(CustomProperty::parse(name, input)?))
               }
             },
           )+
-          _ => return Ok(Property::Custom(CustomProperty::parse(name, input)?))
+          PropertyId::Custom(name) => return Ok(Property::Custom(CustomProperty::parse(name, input)?)),
+          _ => {}
         };
 
         // If a value was unable to be parsed, treat as an unparsed property.
@@ -582,10 +572,10 @@ macro_rules! define_properties {
       }
 
       /// Parses a CSS property from a string.
-      pub fn parse_string(name: &'i str, input: &'i str, options: ParserOptions) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+      pub fn parse_string(property_id: PropertyId<'i>, input: &'i str, options: ParserOptions) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let mut input = ParserInput::new(input);
         let mut parser = Parser::new(&mut input);
-        Self::parse(CowRcStr::from(name), &mut parser, &options)
+        Self::parse(property_id, &mut parser, &options)
       }
 
       /// Serializes the value of a CSS property without its name or `!important` flag.
@@ -703,7 +693,12 @@ macro_rules! define_properties {
         $(
           macro_rules! shorthand {
             ($s: literal) => {
-              if let Property::$property(val $(, vp_name!($vp, _prefix))?) = self {
+              if let Property::$property(val $(, vp_name!($vp, prefix))?) = self {
+                $(
+                  if *vp_name!($vp, prefix) != property_id.prefix() {
+                    return None
+                  }
+                )?
                 return val.longhand(property_id)
               }
             };
@@ -721,7 +716,12 @@ macro_rules! define_properties {
         $(
           macro_rules! shorthand {
             ($s: literal) => {
-              if let Property::$property(val $(, vp_name!($vp, _prefix))?) = self {
+              if let Property::$property(val $(, vp_name!($vp, prefix))?) = self {
+                $(
+                  if *vp_name!($vp, prefix) != property.property_id().prefix() {
+                    return Err(())
+                  }
+                )?
                 return val.set_longhand(property)
               }
             };

@@ -17797,7 +17797,7 @@ mod tests {
     }"#}
     );
 
-    let property = Property::parse_string("color", "#f0f", ParserOptions::default()).unwrap();
+    let property = Property::parse_string("color".into(), "#f0f", ParserOptions::default()).unwrap();
     assert_eq!(
       property.to_css_string(false, PrinterOptions::default()).unwrap(),
       "color: #f0f"

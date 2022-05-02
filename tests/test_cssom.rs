@@ -3,6 +3,7 @@ use parcel_css::{
   properties::{Property, PropertyId},
   stylesheet::{ParserOptions, PrinterOptions},
   traits::ToCss,
+  vendor_prefix::VendorPrefix,
 };
 
 fn get_test(decls: &str, property_id: PropertyId, expected: Option<(&str, bool)>) {
@@ -12,7 +13,7 @@ fn get_test(decls: &str, property_id: PropertyId, expected: Option<(&str, bool)>
     let (value, is_important) = v.unwrap();
     assert_eq!(
       *value,
-      Property::parse_string(property_id.name(), expected, ParserOptions::default()).unwrap()
+      Property::parse_string(property_id, expected, ParserOptions::default()).unwrap()
     );
     assert_eq!(is_important, important);
   } else {
@@ -307,12 +308,66 @@ fn test_get() {
     PropertyId::Grid,
     None,
   );
+  get_test(
+    r#"
+    flex-direction: row;
+    flex-wrap: wrap;
+    "#,
+    PropertyId::FlexFlow(VendorPrefix::None),
+    Some(("row wrap", false)),
+  );
+  get_test(
+    r#"
+    -webkit-flex-direction: row;
+    -webkit-flex-wrap: wrap;
+    "#,
+    PropertyId::FlexFlow(VendorPrefix::WebKit),
+    Some(("row wrap", false)),
+  );
+  get_test(
+    r#"
+    flex-direction: row;
+    flex-wrap: wrap;
+    "#,
+    PropertyId::FlexFlow(VendorPrefix::WebKit),
+    None,
+  );
+  get_test(
+    r#"
+    -webkit-flex-direction: row;
+    flex-wrap: wrap;
+    "#,
+    PropertyId::FlexFlow(VendorPrefix::WebKit),
+    None,
+  );
+  get_test(
+    r#"
+    -webkit-flex-direction: row;
+    flex-wrap: wrap;
+    "#,
+    PropertyId::FlexFlow(VendorPrefix::None),
+    None,
+  );
+  get_test(
+    r#"
+    -webkit-flex-flow: row;
+    "#,
+    PropertyId::FlexDirection(VendorPrefix::WebKit),
+    Some(("row", false)),
+  );
+  get_test(
+    r#"
+    -webkit-flex-flow: row;
+    "#,
+    PropertyId::FlexDirection(VendorPrefix::None),
+    None,
+  );
 }
 
 fn set_test(orig: &str, property: &str, value: &str, important: bool, expected: &str) {
   let mut decls = DeclarationBlock::parse_string(orig, ParserOptions::default()).unwrap();
   decls.set(
-    Property::parse_string(property, value, ParserOptions::default()).unwrap(),
+    Property::parse_string(property.into(), value, ParserOptions::default()).unwrap(),
     important,
   );
   assert_eq!(decls.to_css_string(PrinterOptions::default()).unwrap(), expected);
@@ -382,6 +437,27 @@ fn test_set() {
     false,
     "background: linear-gradient(red, green) 20px 10px",
   );
+  set_test(
+    "flex-flow: row wrap",
+    "flex-direction",
+    "column",
+    false,
+    "flex-flow: column wrap",
+  );
+  set_test(
+    "-webkit-flex-flow: row wrap",
+    "-webkit-flex-direction",
+    "column",
+    false,
+    "-webkit-flex-flow: column wrap",
+  );
+  set_test(
+    "flex-flow: row wrap",
+    "-webkit-flex-direction",
+    "column",
+    false,
+    "flex-flow: wrap; -webkit-flex-direction: column",
+  );
 }
 
 fn remove_test(orig: &str, property_id: PropertyId, expected: &str) {
@@ -413,5 +489,20 @@ fn test_remove() {
     "margin-top: 10px; margin-right: 10px; margin-bottom: 10px; margin-left: 10px",
     PropertyId::Margin,
     "",
+  );
+  remove_test(
+    "flex-flow: column wrap",
+    PropertyId::FlexDirection(VendorPrefix::None),
+    "flex-wrap: wrap",
+  );
+  remove_test(
+    "flex-flow: column wrap",
+    PropertyId::FlexDirection(VendorPrefix::WebKit),
+    "flex-flow: column wrap",
+  );
+  remove_test(
+    "-webkit-flex-flow: column wrap",
+    PropertyId::FlexDirection(VendorPrefix::WebKit),
+    "-webkit-flex-wrap: wrap",
   );
 }

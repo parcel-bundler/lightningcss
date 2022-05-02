@@ -7,6 +7,7 @@ use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
 use crate::stylesheet::PrinterOptions;
 use crate::targets::Browsers;
+use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 
 /// Trait for things that can be parsed from CSS syntax.
@@ -84,10 +85,10 @@ pub(crate) trait FallbackValues: Sized {
 /// Trait for shorthand properties.
 pub(crate) trait Shorthand<'i>: Sized {
   /// Returns a shorthand from the longhand properties defined in the given declaration block.
-  fn from_longhands(decls: &DeclarationBlock<'i>) -> Option<(Self, bool)>;
+  fn from_longhands(decls: &DeclarationBlock<'i>, vendor_prefix: VendorPrefix) -> Option<(Self, bool)>;
 
   /// Returns a list of longhand property ids for this shorthand.
-  fn longhands() -> &'static [PropertyId<'static>];
+  fn longhands(vendor_prefix: VendorPrefix) -> Vec<PropertyId<'static>>;
 
   /// Returns a longhand property for this shorthand.
   fn longhand(&self, property_id: &PropertyId) -> Option<Property<'i>>;

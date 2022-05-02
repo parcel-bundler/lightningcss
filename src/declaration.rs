@@ -31,6 +31,7 @@ use crate::properties::{
 use crate::properties::{Property, PropertyId};
 use crate::targets::Browsers;
 use crate::traits::{PropertyHandler, ToCss};
+use crate::values::string::CowArcStr;
 use cssparser::*;
 
 /// A CSS declaration block.
@@ -237,16 +238,15 @@ impl<'i> DeclarationBlock<'i> {
       &mut self.declarations
     };
 
-    let longhands = &[property.property_id()];
-    let longhands = property_id.longhands().unwrap_or(longhands);
+    let longhands = property_id.longhands().unwrap_or_else(|| vec![property.property_id()]);
 
     for decl in declarations.iter_mut().rev() {
       {
         // If any of the longhands being set are in the same logical property group as any of the
         // longhands in this property, but in a different category (i.e. logical or physical),
         // then we cannot modify in place, and need to append a new property.
-        let ids = &[decl.property_id()];
-        let id_longhands = ids[0].longhands().unwrap_or(ids);
+        let id = decl.property_id();
+        let id_longhands = id.longhands().unwrap_or_else(|| vec![id]);
         if longhands.iter().any(|longhand| {
           let logical_group = longhand.logical_group();
           let category = longhand.category();
@@ -281,7 +281,7 @@ impl<'i> DeclarationBlock<'i> {
   /// to remove. When removing a shorthand, all included longhand properties are also removed.
   pub fn remove(&mut self, property_id: &PropertyId) {
     fn remove<'i, 'a>(declarations: &mut Vec<Property<'i>>, property_id: &PropertyId<'a>) {
-      let longhands = property_id.longhands().unwrap_or(&[]);
+      let longhands = property_id.longhands().unwrap_or(vec![]);
       let mut i = 0;
       while i < declarations.len() {
         let replacement = {
@@ -291,7 +291,7 @@ impl<'i> DeclarationBlock<'i> {
             // If the property matches the requested property id, or is a longhand
             // property that is included in the requested shorthand, remove it.
             None
-          } else if longhands.is_empty() && id.longhands().unwrap_or(&[]).contains(&property_id) {
+          } else if longhands.is_empty() && id.longhands().unwrap_or(vec![]).contains(&property_id) {
             // If this is a shorthand property that includes the requested longhand,
             // split it apart into its component longhands, excluding the requested one.
             Some(
@@ -371,7 +371,9 @@ pub(crate) fn parse_declaration<'i, 't>(
   important_declarations: &mut DeclarationList<'i>,
   options: &ParserOptions,
 ) -> Result<(), cssparser::ParseError<'i, ParserError<'i>>> {
-  let property = input.parse_until_before(Delimiter::Bang, |input| Property::parse(name, input, options))?;
+  let property = input.parse_until_before(Delimiter::Bang, |input| {
+    Property::parse(PropertyId::from(CowArcStr::from(name)), input, options)
+  })?;
   let important = input
     .try_parse(|input| {
       input.expect_delim('!')?;
