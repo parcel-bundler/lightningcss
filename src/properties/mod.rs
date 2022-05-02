@@ -1126,7 +1126,7 @@ define_properties! {
   "mask-border-width": MaskBorderWidth(Rect<BorderImageSideWidth>),
   "mask-border-outset": MaskBorderOutset(Rect<LengthOrNumber>),
   "mask-border-repeat": MaskBorderRepeat(BorderImageRepeat),
-  "mask-border": MaskBorder(MaskBorder<'i>),
+  "mask-border": MaskBorder(MaskBorder<'i>) shorthand: true,
 
   // WebKit additions
   "-webkit-mask-composite": WebKitMaskComposite(SmallVec<[WebKitMaskComposite; 1]>),

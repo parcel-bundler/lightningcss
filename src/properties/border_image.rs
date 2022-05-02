@@ -271,6 +271,47 @@ impl<'i> BorderImage<'i> {
       Err(input.new_custom_error(ParserError::InvalidDeclaration))
     }
   }
+
+  pub(crate) fn to_css_internal<W>(
+    source: &Image<'i>,
+    slice: &BorderImageSlice,
+    width: &Rect<BorderImageSideWidth>,
+    outset: &Rect<LengthOrNumber>,
+    repeat: &BorderImageRepeat,
+    dest: &mut Printer<W>,
+  ) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    if *source != Image::default() {
+      source.to_css(dest)?;
+    }
+    let has_slice = *slice != BorderImageSlice::default();
+    let has_width = *width != Rect::all(BorderImageSideWidth::default());
+    let has_outset = *outset != Rect::all(LengthOrNumber::Number(0.0));
+    if has_slice || has_width || has_outset {
+      dest.write_str(" ")?;
+      slice.to_css(dest)?;
+      if has_width || has_outset {
+        dest.delim('/', true)?;
+      }
+      if has_width {
+        width.to_css(dest)?;
+      }
+
+      if has_outset {
+        dest.delim('/', true)?;
+        outset.to_css(dest)?;
+      }
+    }
+
+    if *repeat != BorderImageRepeat::default() {
+      dest.write_str(" ")?;
+      repeat.to_css(dest)?;
+    }
+
+    Ok(())
+  }
 }
 
 impl<'i> ToCss for BorderImage<'i> {
@@ -278,34 +319,7 @@ impl<'i> ToCss for BorderImage<'i> {
   where
     W: std::fmt::Write,
   {
-    if self.source != Image::default() {
-      self.source.to_css(dest)?;
-    }
-    let has_slice = self.slice != BorderImageSlice::default();
-    let has_width = self.width != Rect::all(BorderImageSideWidth::default());
-    let has_outset = self.outset != Rect::all(LengthOrNumber::Number(0.0));
-    if has_slice || has_width || has_outset {
-      dest.write_str(" ")?;
-      self.slice.to_css(dest)?;
-      if has_width || has_outset {
-        dest.delim('/', true)?;
-      }
-      if has_width {
-        self.width.to_css(dest)?;
-      }
-
-      if has_outset {
-        dest.delim('/', true)?;
-        self.outset.to_css(dest)?;
-      }
-    }
-
-    if self.repeat != BorderImageRepeat::default() {
-      dest.write_str(" ")?;
-      self.repeat.to_css(dest)?;
-    }
-
-    Ok(())
+    BorderImage::to_css_internal(&self.source, &self.slice, &self.width, &self.outset, &self.repeat, dest)
   }
 }
 

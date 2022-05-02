@@ -6,10 +6,11 @@ use super::PropertyId;
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
-use crate::macros::{define_list_shorthand, enum_property};
+use crate::macros::{define_list_shorthand, define_shorthand, enum_property};
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::Property;
+use crate::targets::Browsers;
 use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::image::ImageFallback;
 use crate::values::length::LengthOrNumber;
@@ -437,13 +438,23 @@ impl Default for MaskBorderMode {
   }
 }
 
-/// A value for the [mask-border](https://www.w3.org/TR/css-masking-1/#the-mask-border) shorthand property.
-#[derive(Debug, Clone, PartialEq)]
-pub struct MaskBorder<'i> {
-  /// The border image shorthand.
-  pub border_image: BorderImage<'i>,
-  /// How the mask image is interpreted.
-  pub mode: MaskBorderMode,
+define_shorthand! {
+  /// A value for the [mask-border](https://www.w3.org/TR/css-masking-1/#the-mask-border) shorthand property.
+  #[derive(Default)]
+  pub struct MaskBorder<'i> {
+    /// The mask image.
+    source: MaskBorderSource(Image<'i>),
+    /// The offsets that define where the image is sliced.
+    slice: MaskBorderSlice(BorderImageSlice),
+    /// The width of the mask image.
+    width: MaskBorderWidth(Rect<BorderImageSideWidth>),
+    /// The amount that the image extends beyond the border box.
+    outset: MaskBorderOutset(Rect<LengthOrNumber>),
+    /// How the mask image is scaled and tiled.
+    repeat: MaskBorderRepeat(BorderImageRepeat),
+    /// How the mask image is interpreted.
+    mode: MaskBorderMode(MaskBorderMode),
+  }
 }
 
 impl<'i> Parse<'i> for MaskBorder<'i> {
@@ -460,8 +471,13 @@ impl<'i> Parse<'i> for MaskBorder<'i> {
     });
 
     if border_image.is_ok() || mode.is_some() {
+      let border_image = border_image.unwrap_or_default();
       Ok(MaskBorder {
-        border_image: border_image.unwrap_or_default(),
+        source: border_image.source,
+        slice: border_image.slice,
+        width: border_image.width,
+        outset: border_image.outset,
+        repeat: border_image.repeat,
         mode: mode.unwrap_or_default(),
       })
     } else {
@@ -475,12 +491,35 @@ impl<'i> ToCss for MaskBorder<'i> {
   where
     W: std::fmt::Write,
   {
-    self.border_image.to_css(dest)?;
+    BorderImage::to_css_internal(&self.source, &self.slice, &self.width, &self.outset, &self.repeat, dest)?;
     if self.mode != MaskBorderMode::default() {
       dest.write_char(' ')?;
       self.mode.to_css(dest)?;
     }
     Ok(())
+  }
+}
+
+impl<'i> FallbackValues for MaskBorder<'i> {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+    self
+      .source
+      .get_fallbacks(targets)
+      .into_iter()
+      .map(|source| MaskBorder { source, ..self.clone() })
+      .collect()
+  }
+}
+
+impl<'i> Into<BorderImage<'i>> for MaskBorder<'i> {
+  fn into(self) -> BorderImage<'i> {
+    BorderImage {
+      source: self.source,
+      slice: self.slice,
+      width: self.width,
+      outset: self.outset,
+      repeat: self.repeat,
+    }
   }
 }
 
@@ -617,7 +656,7 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
       Property::MaskBorderRepeat(val) => property!(border_repeat, val, &VendorPrefix::None),
       Property::WebKitMaskBoxImageRepeat(val, _) => property!(border_repeat, val, &VendorPrefix::WebKit),
       Property::MaskBorder(val) => {
-        border_shorthand!(val.border_image, VendorPrefix::None);
+        border_shorthand!(val, VendorPrefix::None);
         self.border_mode = Some(val.mode.clone());
       }
       Property::WebKitMaskBoxImage(val, _) => {
@@ -929,12 +968,13 @@ impl<'i> MaskHandler<'i> {
     {
       let intersection = *source_vp & *slice_vp & *width_vp & *outset_vp & *repeat_vp;
       if !intersection.is_empty() && (!intersection.contains(VendorPrefix::None) || mode.is_some()) {
-        let mut border_image = BorderImage {
+        let mut mask_border = MaskBorder {
           source: source.clone(),
           slice: slice.clone(),
           width: width.clone(),
           outset: outset.clone(),
           repeat: repeat.clone(),
+          mode: mode.unwrap_or_default(),
         };
 
         let mut prefix = intersection;
@@ -946,7 +986,7 @@ impl<'i> MaskHandler<'i> {
 
         if let Some(targets) = context.targets {
           // Get vendor prefix and color fallbacks.
-          let fallbacks = border_image.get_fallbacks(targets);
+          let fallbacks = mask_border.get_fallbacks(targets);
           for fallback in fallbacks {
             let mut p = fallback.source.get_vendor_prefix() - VendorPrefix::None & prefix;
             if p.is_empty() {
@@ -954,32 +994,32 @@ impl<'i> MaskHandler<'i> {
             }
 
             if p.contains(VendorPrefix::WebKit) {
-              dest.push(Property::WebKitMaskBoxImage(fallback.clone(), VendorPrefix::WebKit));
+              dest.push(Property::WebKitMaskBoxImage(
+                fallback.clone().into(),
+                VendorPrefix::WebKit,
+              ));
             }
 
             if p.contains(VendorPrefix::None) {
-              dest.push(Property::MaskBorder(MaskBorder {
-                border_image: fallback.clone(),
-                mode: mode.unwrap().clone(),
-              }))
+              dest.push(Property::MaskBorder(fallback));
             }
           }
         }
 
-        let p = border_image.source.get_vendor_prefix() - VendorPrefix::None & prefix;
+        let p = mask_border.source.get_vendor_prefix() - VendorPrefix::None & prefix;
         if !p.is_empty() {
           prefix = p;
         }
 
         if prefix.contains(VendorPrefix::WebKit) {
-          dest.push(Property::WebKitMaskBoxImage(border_image.clone(), VendorPrefix::WebKit));
+          dest.push(Property::WebKitMaskBoxImage(
+            mask_border.clone().into(),
+            VendorPrefix::WebKit,
+          ));
         }
 
         if prefix.contains(VendorPrefix::None) {
-          dest.push(Property::MaskBorder(MaskBorder {
-            border_image: border_image.clone(),
-            mode: mode.unwrap(),
-          }));
+          dest.push(Property::MaskBorder(mask_border));
 
           mode = None;
         }

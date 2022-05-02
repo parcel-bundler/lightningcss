@@ -225,6 +225,11 @@ fn test_get() {
     PropertyId::BackgroundPositionY,
     Some(("10px", false)),
   );
+  get_test(
+    "mask-border: linear-gradient(red, green) 25",
+    PropertyId::MaskBorderSource,
+    Some(("linear-gradient(red, green)", false)),
+  );
 }
 
 fn set_test(orig: &str, property: &str, value: &str, important: bool, expected: &str) {
