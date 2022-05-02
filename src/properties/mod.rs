@@ -400,10 +400,10 @@ macro_rules! define_properties {
       }
 
       /// Returns a shorthand value for this property id from the given declaration block.
-      pub fn get_shorthand_value<'a>(&self, decls: &DeclarationBlock<'a>) -> Option<(Property<'a>, bool)> {
+      pub(crate) fn shorthand_value<'a>(&self, decls: &DeclarationBlock<'a>) -> Option<(Property<'a>, bool)> {
         // Inline function to remap lifetime names.
         #[inline]
-        fn get_shorthand_value<'a, 'i>(property_id: &PropertyId<'a>, decls: &DeclarationBlock<'i>) -> Option<(Property<'i>, bool)> {
+        fn shorthand_value<'a, 'i>(property_id: &PropertyId<'a>, decls: &DeclarationBlock<'i>) -> Option<(Property<'i>, bool)> {
           $(
             macro_rules! shorthand {
               ($s: literal) => {
@@ -422,16 +422,16 @@ macro_rules! define_properties {
           None
         }
 
-        get_shorthand_value(self, decls)
+        shorthand_value(self, decls)
       }
 
       /// Returns a list of longhand property ids for a shorthand.
-      pub fn get_longhands(&self) -> Option<&'static [PropertyId<'static>]> {
+      pub fn longhands(&self) -> Option<&'static [PropertyId<'static>]> {
         $(
           macro_rules! shorthand {
             ($s: literal) => {
               if let PropertyId::$property$((vp_name!($vp, _prefix)))? = self {
-                return Some(<$type>::get_longhands());
+                return Some(<$type>::longhands());
               }
             };
             () => {}
@@ -444,7 +444,7 @@ macro_rules! define_properties {
       }
 
       /// Returns the logical property group for this property.
-      pub fn logical_group(&self) -> Option<LogicalGroup> {
+      pub(crate) fn logical_group(&self) -> Option<LogicalGroup> {
         $(
           macro_rules! group {
             ($g: ident) => {
@@ -462,7 +462,7 @@ macro_rules! define_properties {
       }
 
       /// Returns whether the property is logical or physical.
-      pub fn category(&self) -> Option<PropertyCategory> {
+      pub(crate) fn category(&self) -> Option<PropertyCategory> {
         $(
           macro_rules! category {
             ($c: ident) => {
@@ -477,11 +477,6 @@ macro_rules! define_properties {
         )+
 
         None
-      }
-
-      /// Returns whether the property is a logical property.
-      pub fn is_logical(&self) -> bool {
-        return self.category() == Some(PropertyCategory::Logical)
       }
     }
 
@@ -704,12 +699,12 @@ macro_rules! define_properties {
       }
 
       /// Returns the given longhand property for a shorthand.
-      pub fn get_longhand(&self, property_id: &PropertyId) -> Option<Property<'i>> {
+      pub fn longhand(&self, property_id: &PropertyId) -> Option<Property<'i>> {
         $(
           macro_rules! shorthand {
             ($s: literal) => {
               if let Property::$property(val $(, vp_name!($vp, _prefix))?) = self {
-                return val.get_longhand(property_id)
+                return val.longhand(property_id)
               }
             };
             () => {}
@@ -990,9 +985,6 @@ define_properties! {
   "scroll-padding-block": ScrollPaddingBlock(ScrollPaddingBlock) shorthand: true,
   "scroll-padding-inline": ScrollPaddingInline(ScrollPaddingInline) shorthand: true,
   "scroll-padding": ScrollPadding(ScrollPadding) shorthand: true,
-
-  // shorthands: columns, list-style
-  // grid, inset
 
   "font-weight": FontWeight(FontWeight),
   "font-size": FontSize(FontSize),

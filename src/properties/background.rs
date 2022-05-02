@@ -244,7 +244,7 @@ impl BackgroundClip {
 }
 
 define_list_shorthand! {
-  /// A value for the [background-position]() shorthand property.
+  /// A value for the [background-position](https://drafts.csswg.org/css-backgrounds/#background-position) shorthand property.
   pub struct BackgroundPosition {
     /// The x-position.
     x: BackgroundPositionX(HorizontalPosition),
@@ -660,7 +660,7 @@ impl<'i> Shorthand<'i> for SmallVec<[Background<'i>; 1]> {
     None
   }
 
-  fn get_longhands() -> &'static [PropertyId<'static>] {
+  fn longhands() -> &'static [PropertyId<'static>] {
     &[
       PropertyId::BackgroundColor,
       PropertyId::BackgroundImage,
@@ -674,7 +674,7 @@ impl<'i> Shorthand<'i> for SmallVec<[Background<'i>; 1]> {
     ]
   }
 
-  fn get_longhand(&self, property_id: &PropertyId) -> Option<Property<'i>> {
+  fn longhand(&self, property_id: &PropertyId) -> Option<Property<'i>> {
     match property_id {
       PropertyId::BackgroundColor => Some(Property::BackgroundColor(self.last().unwrap().color.clone())),
       PropertyId::BackgroundImage => Some(Property::BackgroundImage(

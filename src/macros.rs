@@ -400,7 +400,7 @@ macro_rules! impl_shorthand {
             _ => {
               $(
                 $(
-                  if let Some(Property::$prop(longhand $(, vp_name!($vp, _p))?)) = property.get_longhand(&PropertyId::$prop$((vp_name!($vp, VendorPrefix::None)))?) {
+                  if let Some(Property::$prop(longhand $(, vp_name!($vp, _p))?)) = property.longhand(&PropertyId::$prop$((vp_name!($vp, VendorPrefix::None)))?) {
                     $prop = Some(longhand);
                     count += 1;
                     if important {
@@ -454,11 +454,11 @@ macro_rules! impl_shorthand {
         None
       }
 
-      fn get_longhands() -> &'static [PropertyId<'static>] {
+      fn longhands() -> &'static [PropertyId<'static>] {
         &[$($(PropertyId::$prop$((vp_name!($vp, VendorPrefix::None)))?, )+)+]
       }
 
-      fn get_longhand(&self, property_id: &PropertyId) -> Option<Property<'i>> {
+      fn longhand(&self, property_id: &PropertyId) -> Option<Property<'i>> {
         match property_id {
           $(
             $(
@@ -569,7 +569,7 @@ macro_rules! define_list_shorthand {
             }
             _ => {
               $(
-                if let Some(Property::$prop(longhand $(, vp_name!($vp, _p))?)) = property.get_longhand(&PropertyId::$prop$((vp_name!($vp, VendorPrefix::None)))?) {
+                if let Some(Property::$prop(longhand $(, vp_name!($vp, _p))?)) = property.longhand(&PropertyId::$prop$((vp_name!($vp, VendorPrefix::None)))?) {
                   len = longhand.len();
                   $key = Some(longhand);
                   count += 1;
@@ -612,11 +612,11 @@ macro_rules! define_list_shorthand {
         None
       }
 
-      fn get_longhands() -> &'static [PropertyId<'static>] {
+      fn longhands() -> &'static [PropertyId<'static>] {
         &[$(PropertyId::$prop$((vp_name!($vp, VendorPrefix::None)))?, )+]
       }
 
-      fn get_longhand(&self, property_id: &PropertyId) -> Option<Property<'i>> {
+      fn longhand(&self, property_id: &PropertyId) -> Option<Property<'i>> {
         match property_id {
           $(
             PropertyId::$prop$((vp_name!($vp, p)))? => {

@@ -82,15 +82,15 @@ pub(crate) trait FallbackValues: Sized {
 }
 
 /// Trait for shorthand properties.
-pub trait Shorthand<'i>: Sized {
+pub(crate) trait Shorthand<'i>: Sized {
   /// Returns a shorthand from the longhand properties defined in the given declaration block.
   fn from_longhands(decls: &DeclarationBlock<'i>) -> Option<(Self, bool)>;
 
   /// Returns a list of longhand property ids for this shorthand.
-  fn get_longhands() -> &'static [PropertyId<'static>];
+  fn longhands() -> &'static [PropertyId<'static>];
 
   /// Returns a longhand property for this shorthand.
-  fn get_longhand(&self, property_id: &PropertyId) -> Option<Property<'i>>;
+  fn longhand(&self, property_id: &PropertyId) -> Option<Property<'i>>;
 
   /// Updates this shorthand from a longhand property.
   fn set_longhand(&mut self, property: &Property<'i>) -> Result<(), ()>;

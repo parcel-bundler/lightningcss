@@ -70,7 +70,7 @@ impl ToCss for BorderSideWidth {
 }
 
 enum_property! {
-  /// A value for the [border-style](https://www.w3.org/TR/css-backgrounds-3/#border-style) property.
+  /// A [`<line-style>`](https://drafts.csswg.org/css-backgrounds/#typedef-line-style) value, used in the `border-style` property.
   pub enum LineStyle {
     /// No border.
     None,

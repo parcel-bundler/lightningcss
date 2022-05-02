@@ -195,10 +195,14 @@ impl<'i> DeclarationBlock<'i> {
     self.declarations.iter_mut().chain(self.important_declarations.iter_mut())
   }
 
-  /// Returns the value for a given property id.
+  /// Returns the value for a given property id based on the properties in this declaration block.
+  ///
+  /// If the property is a shorthand, the result will be a combined value of all of the included
+  /// longhands, or `None` if some of the longhands are not declared. Otherwise, the value will be
+  /// either an explicitly declared longhand, or a value extracted from a shorthand property.
   pub fn get<'a>(&'a self, property_id: &PropertyId) -> Option<(Cow<'a, Property<'i>>, bool)> {
     if property_id.is_shorthand() {
-      if let Some((shorthand, important)) = property_id.get_shorthand_value(&self) {
+      if let Some((shorthand, important)) = property_id.shorthand_value(&self) {
         return Some((Cow::Owned(shorthand), important));
       }
     } else {
@@ -207,7 +211,7 @@ impl<'i> DeclarationBlock<'i> {
           return Some((Cow::Borrowed(property), important));
         }
 
-        if let Some(val) = property.get_longhand(&property_id) {
+        if let Some(val) = property.longhand(&property_id) {
           return Some((Cow::Owned(val), important));
         }
       }
@@ -216,7 +220,11 @@ impl<'i> DeclarationBlock<'i> {
     None
   }
 
-  /// Sets the given property, replacing an existing declarations.
+  /// Sets the value and importance for a given property, replacing any existing declarations.
+  ///
+  /// If the property already exists within the declaration block, it is updated in place. Otherwise,
+  /// a new declaration is appended. When updating a longhand property and a shorthand is defined which
+  /// includes the longhand, the shorthand will be updated rather than appending a new declaration.
   pub fn set(&mut self, property: Property<'i>, important: bool) {
     let property_id = property.property_id();
     let declarations = if important {
@@ -230,7 +238,7 @@ impl<'i> DeclarationBlock<'i> {
     };
 
     let longhands = &[property.property_id()];
-    let longhands = property_id.get_longhands().unwrap_or(longhands);
+    let longhands = property_id.longhands().unwrap_or(longhands);
 
     for decl in declarations.iter_mut().rev() {
       {
@@ -238,7 +246,7 @@ impl<'i> DeclarationBlock<'i> {
         // longhands in this property, but in a different category (i.e. logical or physical),
         // then we cannot modify in place, and need to append a new property.
         let ids = &[decl.property_id()];
-        let id_longhands = ids[0].get_longhands().unwrap_or(ids);
+        let id_longhands = ids[0].longhands().unwrap_or(ids);
         if longhands.iter().any(|longhand| {
           let logical_group = longhand.logical_group();
           let category = longhand.category();
@@ -266,10 +274,14 @@ impl<'i> DeclarationBlock<'i> {
     declarations.push(property)
   }
 
-  /// Removes all declarations of the given property id from the block.
+  /// Removes all declarations of the given property id from the declaration block.
+  ///
+  /// When removing a longhand property and a shorthand is defined which includes the longhand,
+  /// the shorthand will be split apart into its component longhand properties, minus the property
+  /// to remove. When removing a shorthand, all included longhand properties are also removed.
   pub fn remove(&mut self, property_id: &PropertyId) {
     fn remove<'i, 'a>(declarations: &mut Vec<Property<'i>>, property_id: &PropertyId<'a>) {
-      let longhands = property_id.get_longhands().unwrap_or(&[]);
+      let longhands = property_id.longhands().unwrap_or(&[]);
       let mut i = 0;
       while i < declarations.len() {
         let replacement = {
@@ -279,18 +291,18 @@ impl<'i> DeclarationBlock<'i> {
             // If the property matches the requested property id, or is a longhand
             // property that is included in the requested shorthand, remove it.
             None
-          } else if longhands.is_empty() && id.get_longhands().unwrap_or(&[]).contains(&property_id) {
+          } else if longhands.is_empty() && id.longhands().unwrap_or(&[]).contains(&property_id) {
             // If this is a shorthand property that includes the requested longhand,
             // split it apart into its component longhands, excluding the requested one.
             Some(
-              id.get_longhands()
+              id.longhands()
                 .unwrap()
                 .iter()
                 .filter_map(|longhand| {
                   if *longhand == *property_id {
                     None
                   } else {
-                    property.get_longhand(longhand)
+                    property.longhand(longhand)
                   }
                 })
                 .collect::<Vec<Property>>(),
