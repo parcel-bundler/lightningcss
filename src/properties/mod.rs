@@ -925,9 +925,9 @@ define_properties! {
   #[cfg(feature = "grid")]
   "grid-template-areas": GridTemplateAreas(GridTemplateAreas),
   #[cfg(feature = "grid")]
-  "grid-template": GridTemplate(GridTemplate<'i>),
+  "grid-template": GridTemplate(GridTemplate<'i>) shorthand: true,
   #[cfg(feature = "grid")]
-  "grid": Grid(Grid<'i>),
+  "grid": Grid(Grid<'i>) shorthand: true,
   #[cfg(feature = "grid")]
   "grid-row-start": GridRowStart(GridLine<'i>),
   #[cfg(feature = "grid")]
@@ -937,11 +937,11 @@ define_properties! {
   #[cfg(feature = "grid")]
   "grid-column-end": GridColumnEnd(GridLine<'i>),
   #[cfg(feature = "grid")]
-  "grid-row": GridRow(GridPlacement<'i>),
+  "grid-row": GridRow(GridRow<'i>) shorthand: true,
   #[cfg(feature = "grid")]
-  "grid-column": GridColumn(GridPlacement<'i>),
+  "grid-column": GridColumn(GridColumn<'i>) shorthand: true,
   #[cfg(feature = "grid")]
-  "grid-area": GridArea(GridArea<'i>),
+  "grid-area": GridArea(GridArea<'i>) shorthand: true,
 
   "margin-top": MarginTop(LengthPercentageOrAuto) [logical_group: Margin, category: Physical],
   "margin-bottom": MarginBottom(LengthPercentageOrAuto) [logical_group: Margin, category: Physical],

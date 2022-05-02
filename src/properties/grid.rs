@@ -3,11 +3,12 @@
 #![allow(non_upper_case_globals)]
 
 use crate::context::PropertyHandlerContext;
-use crate::declaration::DeclarationList;
+use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
+use crate::macros::{define_shorthand, impl_shorthand};
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
-use crate::traits::{Parse, PropertyHandler, ToCss};
+use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::ident::CustomIdent;
 use crate::values::length::serialize_dimension;
 use crate::values::number::{CSSInteger, CSSNumber};
@@ -846,6 +847,28 @@ impl GridTemplate<'_> {
   }
 }
 
+impl<'i> GridTemplate<'i> {
+  #[inline]
+  fn is_valid(rows: &TrackSizing, columns: &TrackSizing, areas: &GridTemplateAreas) -> bool {
+    // The `grid-template` shorthand supports only explicit track values (i.e. no `repeat()`)
+    // combined with grid-template-areas. If there are no areas, then any track values are allowed.
+    *areas == GridTemplateAreas::None
+      || (*rows != TrackSizing::None && rows.is_explicit() && columns.is_explicit())
+  }
+}
+
+impl_shorthand! {
+  GridTemplate(GridTemplate<'i>) {
+    rows: [GridTemplateRows],
+    columns: [GridTemplateColumns],
+    areas: [GridTemplateAreas],
+  }
+
+  fn is_valid(shorthand) {
+    GridTemplate::is_valid(&shorthand.rows, &shorthand.columns, &shorthand.areas)
+  }
+}
+
 bitflags! {
   /// A value for the [grid-auto-flow](https://drafts.csswg.org/css-grid-2/#grid-auto-flow-property) property.
   ///
@@ -1084,6 +1107,49 @@ impl ToCss for Grid<'_> {
   }
 }
 
+impl<'i> Grid<'i> {
+  #[inline]
+  fn is_valid(
+    rows: &TrackSizing,
+    columns: &TrackSizing,
+    areas: &GridTemplateAreas,
+    auto_rows: &TrackSizeList,
+    auto_columns: &TrackSizeList,
+    auto_flow: &GridAutoFlow,
+  ) -> bool {
+    // The `grid` shorthand can either be fully explicit (e.g. same as `grid-template`),
+    // or explicit along a single axis. If there are auto rows, then there cannot be explicit rows, for example.
+    let is_template = GridTemplate::is_valid(rows, columns, areas);
+    let default_track_size_list = TrackSizeList::default();
+    let is_explicit = *auto_rows == default_track_size_list
+      && *auto_columns == default_track_size_list
+      && *auto_flow == GridAutoFlow::default();
+    let is_auto_rows = auto_flow.direction() == GridAutoFlow::Row
+      && *rows == TrackSizing::None
+      && *auto_columns == default_track_size_list;
+    let is_auto_columns = auto_flow.direction() == GridAutoFlow::Column
+      && *columns == TrackSizing::None
+      && *auto_rows == default_track_size_list;
+
+    (is_template && is_explicit) || is_auto_rows || is_auto_columns
+  }
+}
+
+impl_shorthand! {
+  Grid(Grid<'i>) {
+    rows: [GridTemplateRows],
+    columns: [GridTemplateColumns],
+    areas: [GridTemplateAreas],
+    auto_rows: [GridAutoRows],
+    auto_columns: [GridAutoColumns],
+    auto_flow: [GridAutoFlow],
+  }
+
+  fn is_valid(grid) {
+    Grid::is_valid(&grid.rows, &grid.columns, &grid.areas, &grid.auto_rows, &grid.auto_columns, &grid.auto_flow)
+  }
+}
+
 /// A [`<grid-line>`](https://drafts.csswg.org/css-grid-2/#typedef-grid-row-start-grid-line) value,
 /// used in the `grid-row-start`, `grid-row-end`, `grid-column-start`, and `grid-column-end` properties.
 #[derive(Debug, Clone, PartialEq)]
@@ -1197,55 +1263,73 @@ impl<'i> GridLine<'i> {
   }
 }
 
-/// A [grid placement](https://drafts.csswg.org/css-grid-2/#placement-shorthands) value for the
-/// `grid-row` and `grid-column` shorthand properties.
-#[derive(Debug, Clone, PartialEq)]
-pub struct GridPlacement<'i> {
-  /// The starting line.
-  pub start: GridLine<'i>,
-  /// The ending line.
-  pub end: GridLine<'i>,
-}
+macro_rules! impl_grid_placement {
+  ($name: ident) => {
+    impl<'i> Parse<'i> for $name<'i> {
+      fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+        let start = GridLine::parse(input)?;
+        let end = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
+          GridLine::parse(input)?
+        } else {
+          start.default_end_value()
+        };
 
-impl<'i> Parse<'i> for GridPlacement<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let start = GridLine::parse(input)?;
-    let end = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
-      GridLine::parse(input)?
-    } else {
-      start.default_end_value()
-    };
-
-    Ok(GridPlacement { start, end })
-  }
-}
-
-impl ToCss for GridPlacement<'_> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    self.start.to_css(dest)?;
-
-    if !self.start.can_omit_end(&self.end) {
-      dest.delim('/', true)?;
-      self.end.to_css(dest)?;
+        Ok($name { start, end })
+      }
     }
-    Ok(())
+
+    impl ToCss for $name<'_> {
+      fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+      where
+        W: std::fmt::Write,
+      {
+        self.start.to_css(dest)?;
+
+        if !self.start.can_omit_end(&self.end) {
+          dest.delim('/', true)?;
+          self.end.to_css(dest)?;
+        }
+        Ok(())
+      }
+    }
+  };
+}
+
+define_shorthand! {
+  /// A value for the [grid-row](https://drafts.csswg.org/css-grid-2/#propdef-grid-row) shorthand property.
+  pub struct GridRow<'i> {
+    /// The starting line.
+    start: GridRowStart(GridLine<'i>),
+    /// The ending line.
+    end: GridRowEnd(GridLine<'i>),
   }
 }
 
-/// A value for the [grid-area](https://drafts.csswg.org/css-grid-2/#propdef-grid-area) property.
-#[derive(Debug, Clone, PartialEq)]
-pub struct GridArea<'i> {
-  /// The grid row start placement.
-  pub row_start: GridLine<'i>,
-  /// The grid column start placement.
-  pub column_start: GridLine<'i>,
-  /// The grid row end placement.
-  pub row_end: GridLine<'i>,
-  /// The grid column end placement.
-  pub column_end: GridLine<'i>,
+define_shorthand! {
+  /// A value for the [grid-row](https://drafts.csswg.org/css-grid-2/#propdef-grid-column) shorthand property.
+  pub struct GridColumn<'i> {
+    /// The starting line.
+    start: GridColumnStart(GridLine<'i>),
+    /// The ending line.
+    end: GridColumnEnd(GridLine<'i>),
+  }
+}
+
+impl_grid_placement!(GridRow);
+impl_grid_placement!(GridColumn);
+
+define_shorthand! {
+  /// A value for the [grid-area](https://drafts.csswg.org/css-grid-2/#propdef-grid-area) shorthand property.
+  pub struct GridArea<'i> {
+    /// The grid row start placement.
+    row_start: GridRowStart(GridLine<'i>),
+    /// The grid column start placement.
+    column_start: GridColumnStart(GridLine<'i>),
+    /// The grid row end placement.
+    row_end: GridRowEnd(GridLine<'i>),
+    /// The grid column end placement.
+    column_end: GridColumnEnd(GridLine<'i>),
+  }
 }
 
 impl<'i> Parse<'i> for GridArea<'i> {
@@ -1419,29 +1503,20 @@ impl<'i> PropertyHandler<'i> for GridHandler<'i> {
     let mut column_end = std::mem::take(&mut self.column_end);
 
     if let (Some(rows_val), Some(columns_val), Some(areas_val)) = (&rows, &columns, &areas) {
-      // The `grid-template` shorthand supports only explicit track values (i.e. no `repeat()`)
-      // combined with grid-template-areas. If there are no areas, then any track values are allowed.
-      let is_template = *areas_val == GridTemplateAreas::None
-        || (*rows_val != TrackSizing::None && rows_val.is_explicit() && columns_val.is_explicit());
-
       let mut has_template = true;
       if let (Some(auto_rows_val), Some(auto_columns_val), Some(auto_flow_val)) =
         (&auto_rows, &auto_columns, &auto_flow)
       {
         // The `grid` shorthand can either be fully explicit (e.g. same as `grid-template`),
         // or explicit along a single axis. If there are auto rows, then there cannot be explicit rows, for example.
-        let default_track_size_list = TrackSizeList::default();
-        let is_explicit = *auto_rows_val == default_track_size_list
-          && *auto_columns_val == default_track_size_list
-          && *auto_flow_val == GridAutoFlow::default();
-        let is_auto_rows = auto_flow_val.direction() == GridAutoFlow::Row
-          && *rows_val == TrackSizing::None
-          && *auto_columns_val == default_track_size_list;
-        let is_auto_columns = auto_flow_val.direction() == GridAutoFlow::Column
-          && *columns_val == TrackSizing::None
-          && *auto_rows_val == default_track_size_list;
-
-        if (is_template && is_explicit) || is_auto_rows || is_auto_columns {
+        if Grid::is_valid(
+          rows_val,
+          columns_val,
+          areas_val,
+          auto_rows_val,
+          auto_columns_val,
+          auto_flow_val,
+        ) {
           dest.push(Property::Grid(Grid {
             rows: rows_val.clone(),
             columns: columns_val.clone(),
@@ -1458,7 +1533,9 @@ impl<'i> PropertyHandler<'i> for GridHandler<'i> {
         }
       }
 
-      if is_template && has_template {
+      // The `grid-template` shorthand supports only explicit track values (i.e. no `repeat()`)
+      // combined with grid-template-areas. If there are no areas, then any track values are allowed.
+      if has_template && GridTemplate::is_valid(rows_val, columns_val, areas_val) {
         dest.push(Property::GridTemplate(GridTemplate {
           rows: rows_val.clone(),
           columns: columns_val.clone(),
@@ -1484,14 +1561,14 @@ impl<'i> PropertyHandler<'i> for GridHandler<'i> {
       }))
     } else {
       if row_start.is_some() && row_end.is_some() {
-        dest.push(Property::GridRow(GridPlacement {
+        dest.push(Property::GridRow(GridRow {
           start: std::mem::take(&mut row_start).unwrap(),
           end: std::mem::take(&mut row_end).unwrap(),
         }))
       }
 
       if column_start.is_some() && column_end.is_some() {
-        dest.push(Property::GridColumn(GridPlacement {
+        dest.push(Property::GridColumn(GridColumn {
           start: std::mem::take(&mut column_start).unwrap(),
           end: std::mem::take(&mut column_end).unwrap(),
         }))

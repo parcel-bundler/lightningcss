@@ -230,6 +230,83 @@ fn test_get() {
     PropertyId::MaskBorderSource,
     Some(("linear-gradient(red, green)", false)),
   );
+  get_test("grid-area: a / b / c / d", PropertyId::GridRowStart, Some(("a", false)));
+  get_test("grid-area: a / b / c / d", PropertyId::GridRowEnd, Some(("c", false)));
+  get_test("grid-area: a / b / c / d", PropertyId::GridRow, Some(("a / c", false)));
+  get_test(
+    "grid-area: a / b / c / d",
+    PropertyId::GridColumn,
+    Some(("b / d", false)),
+  );
+  get_test(
+    r#"
+    grid-template-rows: auto 1fr;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: none;
+    "#,
+    PropertyId::GridTemplate,
+    Some(("auto 1fr / auto 1fr auto", false)),
+  );
+  get_test(
+    r#"
+    grid-template-areas: ". a a ."
+        ". b b .";
+    grid-template-rows: auto 1fr;
+    grid-template-columns: 10px 1fr 1fr 10px;
+    "#,
+    PropertyId::GridTemplate,
+    Some((
+      r#"
+      ". a a ."
+      ". b b ." 1fr
+      / 10px 1fr 1fr 10px
+      "#,
+      false,
+    )),
+  );
+  get_test(
+    r#"
+    grid-template-areas: "a a a"
+                          "b b b";
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: auto 1fr;
+    "#,
+    PropertyId::GridTemplate,
+    None,
+  );
+  get_test(
+    r#"
+    grid-template-areas: "a a a"
+                         "b b b";
+    grid-template-rows: [header-top] auto [header-bottom main-top] 1fr [main-bottom];
+    grid-template-columns: auto 1fr auto;
+    grid-auto-flow: row;
+    grid-auto-rows: auto;
+    grid-auto-columns: auto;
+    "#,
+    PropertyId::Grid,
+    Some((
+      r#"
+      [header-top] "a a a" [header-bottom]
+      [main-top] "b b b" 1fr [main-bottom]
+      / auto 1fr auto
+      "#,
+      false,
+    )),
+  );
+  get_test(
+    r#"
+    grid-template-areas: "a a a"
+                         "b b b";
+    grid-template-rows: [header-top] auto [header-bottom main-top] 1fr [main-bottom];
+    grid-template-columns: auto 1fr auto;
+    grid-auto-flow: column;
+    grid-auto-rows: 1fr;
+    grid-auto-columns: 1fr;
+    "#,
+    PropertyId::Grid,
+    None,
+  );
 }
 
 fn set_test(orig: &str, property: &str, value: &str, important: bool, expected: &str) {

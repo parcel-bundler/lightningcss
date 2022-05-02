@@ -345,6 +345,12 @@ macro_rules! impl_shorthand {
         $key: ident: [ $( $prop: ident$(($vp: ty))? $(,)?)+ ],
       )+
     }
+
+    $(
+      fn is_valid($v: ident) {
+        $($body: tt)+
+      }
+    )?
   ) => {
     #[allow(unused_macros)]
     macro_rules! vp_name {
@@ -430,6 +436,18 @@ macro_rules! impl_shorthand {
               $key: $key.unwrap(),
             )+
           };
+
+          $(
+            #[inline]
+            fn is_valid($v: &$name) -> bool {
+              $($body)+
+            }
+
+            if !is_valid(&value) {
+              return None
+            }
+          )?
+
           return Some((value, important_count > 0));
         }
 
