@@ -1,18 +1,26 @@
 //! Style rules.
 
+use std::collections::HashMap;
+
 use super::Location;
 use super::MinifyContext;
 use crate::compat::Feature;
 use crate::context::DeclarationContext;
 use crate::declaration::DeclarationBlock;
+use crate::error::ParserError;
 use crate::error::{MinifyError, PrinterError, PrinterErrorKind};
 use crate::printer::Printer;
 use crate::rules::{CssRuleList, StyleContext, ToCssWithContext};
+use crate::selector::SelectorParser;
 use crate::selector::{is_compatible, is_unused, Selectors};
 use crate::targets::Browsers;
 use crate::traits::ToCss;
 use crate::vendor_prefix::VendorPrefix;
+use cssparser::ParseError;
+use cssparser::Parser;
+use cssparser::ParserInput;
 use parcel_selectors::SelectorList;
+use parcel_selectors::parser::NestingRequirement;
 
 /// A CSS [style rule](https://drafts.csswg.org/css-syntax/#style-rules).
 #[derive(Debug, PartialEq, Clone)]
@@ -73,6 +81,20 @@ impl<'i> StyleRule<'i> {
   /// with all of the given browser targets.
   pub fn is_compatible(&self, targets: Option<Browsers>) -> bool {
     is_compatible(&self.selectors, targets)
+  }
+
+  /// Replaces the selectors...
+  pub fn set_selector_text(&mut self, text: &'i str) -> Result<(), ParseError<'i, ParserError<'i>>> {
+    let mut input = ParserInput::new(text);
+    let mut parser = Parser::new(&mut input);
+    let selector_parser = SelectorParser {
+      default_namespace: &None,
+      namespace_prefixes: &HashMap::new(),
+      is_nesting_allowed: false,
+      css_modules: false,
+    };
+    self.selectors = SelectorList::parse(&selector_parser, &mut parser, NestingRequirement::None)?;
+    Ok(())
   }
 }
 
