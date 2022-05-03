@@ -2,6 +2,8 @@
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
+mod stylesheet;
+
 use parcel_css::bundler::{BundleErrorKind, Bundler, FileProvider, SourceProvider};
 use parcel_css::css_modules::CssModuleExports;
 use parcel_css::dependencies::Dependency;
