@@ -48,7 +48,7 @@ impl OwnedStyleSheet {
 #[napi(js_name = "CSSStyleSheet")]
 struct CSSStyleSheet {
   stylesheet: Rc<RefCell<OwnedStyleSheet>>,
-  rules: Option<Ref<()>>,
+  rules: Option<Reference<CSSRuleList>>,
 }
 
 #[napi]
@@ -62,14 +62,28 @@ impl CSSStyleSheet {
   }
 
   #[napi]
-  pub fn replace_sync(&self, code: String) {
-    (*self.stylesheet).borrow_mut().replace_sync(code)
+  pub fn replace_sync(&mut self, env: Env, code: String) -> Result<()> {
+    let mut stylesheet = (*self.stylesheet).borrow_mut();
+
+    // Disconnect all existing rules from the stylesheet.
+    if let Some(rules) = &mut self.rules {
+      let rules = &mut **rules;
+      for (index, rule) in rules.rules.iter_mut().enumerate() {
+        if let Some(rule) = rule {
+          let rule: &mut CSSRule = get_reference(env, rule)?;
+          rule.inner = RuleInner::Disconnected(RefCell::new(stylesheet.stylesheet.rules.0[index].clone()));
+        }
+      }
+    }
+
+    stylesheet.replace_sync(code);
+    Ok(())
   }
 
   #[napi(getter)]
-  pub fn css_rules(&mut self, env: Env, reference: Reference<CSSStyleSheet>) -> Result<JsUnknown> {
+  pub fn css_rules(&mut self, env: Env, reference: Reference<CSSStyleSheet>) -> Result<Reference<CSSRuleList>> {
     if let Some(rules) = &self.rules {
-      return env.get_reference_value(rules);
+      return rules.clone(env);
     }
 
     let rules = CSSRuleList {
@@ -78,32 +92,30 @@ impl CSSStyleSheet {
       stylesheet_reference: reference,
     };
 
-    let napi_value = unsafe {
-      let napi_value = napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rules)?;
-      napi::JsUnknown::from_napi_value(env.raw(), napi_value)?
-    };
-
-    self.rules = Some(env.create_reference_with_refcount(&napi_value, 0)?);
-    Ok(napi_value)
+    self.rules = Some(CSSRuleList::into_reference(rules, env)?);
+    self.rules.as_ref().unwrap().clone(env)
   }
 
   #[napi]
-  pub fn insert_rule(&mut self, env: Env, rule: String, index: u32) -> Result<u32> {
+  pub fn insert_rule(&mut self, env: Env, rule: String, index: Option<u32>) -> Result<u32> {
     // https://drafts.csswg.org/cssom/#insert-a-css-rule
-    let index = index as usize;
+    let index = index.unwrap_or(0) as usize;
     let stylesheet = &mut (*self.stylesheet).borrow_mut().stylesheet;
     let rules = &mut stylesheet.rules.0;
     if index > rules.len() {
-      // Error
+      return Err(napi::Error::new(
+        napi::Status::GenericFailure,
+        "Index out of bounds".into(),
+      ));
     }
 
     let new_rule = CssRule::parse_string(leak_str(rule), ParserOptions::default()).unwrap();
 
-    // Check if new_rule can be inserted at position (e.g. @import)
+    // TODO: Check if new_rule can be inserted at position (e.g. @import)
 
     // Invalidate existing rule indices.
-    if let Some(rules) = &self.rules {
-      let rules: &mut CSSRuleList = get_reference(env, rules)?;
+    if let Some(rules) = &mut self.rules {
+      let rules = &mut *rules;
 
       for rule in &rules.rules[index..] {
         if let Some(rule) = rule {
@@ -123,18 +135,30 @@ impl CSSStyleSheet {
   }
 
   #[napi]
+  pub fn add_rule(&mut self, env: Env, selector: String, style: String, index: Option<u32>) -> Result<i32> {
+    // https://drafts.csswg.org/cssom/#dom-cssstylesheet-addrule
+
+    let string = format!("{} {{ {} }}", selector, style);
+    self.insert_rule(env, string, index)?;
+
+    Ok(-1)
+  }
+
+  #[napi]
   pub fn delete_rule(&mut self, env: Env, index: u32) -> Result<()> {
     // https://drafts.csswg.org/cssom/#remove-a-css-rule
     let index = index as usize;
     let stylesheet = &mut (*self.stylesheet).borrow_mut().stylesheet;
     let rules = &mut stylesheet.rules.0;
     if index > rules.len() {
-      // TODO: Error
-      return Ok(());
+      return Err(napi::Error::new(
+        napi::Status::GenericFailure,
+        "Index out of bounds".into(),
+      ));
     }
 
-    if let Some(rule_refs) = &self.rules {
-      let rule_objects: &mut CSSRuleList = get_reference(env, rule_refs)?;
+    if let Some(rule_refs) = &mut self.rules {
+      let rule_objects = &mut *rule_refs;
       if index < rule_objects.rules.len() {
         if let Some(rule) = &rule_objects.rules[index] {
           let rule: &mut CSSRule = get_reference(env, rule)?;
@@ -157,6 +181,11 @@ impl CSSStyleSheet {
     rules.remove(index);
 
     Ok(())
+  }
+
+  #[napi]
+  pub fn remove_rule(&mut self, env: Env, index: u32) -> Result<()> {
+    self.delete_rule(env, index)
   }
 }
 
@@ -185,14 +214,17 @@ impl CSSRuleList {
     unreachable!()
   }
 
+  #[napi(getter)]
+  pub fn length(&self) -> u32 {
+    self.stylesheet.borrow().stylesheet.rules.0.len() as u32
+  }
+
   #[napi]
   pub fn item(&mut self, index: u32, env: Env) -> Result<JsUnknown> {
     let index = index as usize;
     if let Some(Some(rule)) = self.rules.get(index) {
       return env.get_reference_value(rule);
     }
-
-    use napi::bindgen_prelude::ToNapiValue;
 
     let stylesheet = self.stylesheet.borrow();
     let rule = match stylesheet.stylesheet.rules.0.get(index) {
@@ -211,7 +243,7 @@ impl CSSRuleList {
     let napi_value = match rule {
       CssRule::Style(_) => {
         let rule = CSSStyleRule::new(css_rule);
-        unsafe { ToNapiValue::to_napi_value(env.raw(), rule)? }
+        unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
       }
       _ => unreachable!(),
     };
@@ -311,7 +343,7 @@ impl CSSRule {
 #[napi(js_name = "CSSStyleRule")]
 struct CSSStyleRule {
   rule: CSSRule,
-  style: Option<Ref<()>>,
+  style: Option<Reference<CSSStyleDeclaration>>,
 }
 
 #[napi]
@@ -344,21 +376,14 @@ impl CSSStyleRule {
   }
 
   #[napi(getter)]
-  pub fn style(&mut self, env: Env, reference: Reference<CSSStyleRule>) -> Result<JsUnknown> {
-    // self.style.clone(env)
+  pub fn style(&mut self, env: Env, reference: Reference<CSSStyleRule>) -> Result<Reference<CSSStyleDeclaration>> {
     if let Some(rules) = &self.style {
-      return env.get_reference_value(rules);
+      return rules.clone(env);
     }
 
-    let style = CSSStyleDeclaration { rule: reference };
-
-    let napi_value = unsafe {
-      let napi_value = napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), style)?;
-      napi::JsUnknown::from_napi_value(env.raw(), napi_value)?
-    };
-
-    self.style = Some(env.create_reference_with_refcount(&napi_value, 0)?);
-    Ok(napi_value)
+    let style = CSSStyleDeclaration::into_reference(CSSStyleDeclaration { rule: reference }, env)?;
+    self.style = Some(style.clone(env)?);
+    Ok(style)
   }
 
   #[napi(setter)]
@@ -474,7 +499,7 @@ impl CSSStyleDeclaration {
   }
 
   #[napi]
-  pub fn set_property(&mut self, property: String, value: String, priority: String) {
+  pub fn set_property(&mut self, property: String, value: String, priority: Option<String>) {
     if value.is_empty() {
       self.remove_property(property);
       return;
@@ -482,11 +507,14 @@ impl CSSStyleDeclaration {
 
     let property =
       Property::parse_string(leak_str(property).into(), leak_str(value), ParserOptions::default()).unwrap();
-    self
-      .rule
-      .rule_mut()
-      .declarations
-      .set(property, priority.eq_ignore_ascii_case("important"));
+    self.rule.rule_mut().declarations.set(
+      property,
+      if let Some(priority) = priority {
+        priority.eq_ignore_ascii_case("important")
+      } else {
+        false
+      },
+    );
   }
 
   #[napi]

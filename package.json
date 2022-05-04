@@ -45,7 +45,8 @@
     "node-fetch": "^3.1.0",
     "parcel": "^2.0.1",
     "postcss": "^8.3.11",
-    "puppeteer": "^12.0.1"
+    "puppeteer": "^12.0.1",
+    "uvu": "^0.5.3"
   },
   "scripts": {
     "build": "node scripts/build.js && node scripts/build-flow.js",
