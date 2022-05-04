@@ -505,4 +505,9 @@ fn test_remove() {
     PropertyId::FlexDirection(VendorPrefix::WebKit),
     "-webkit-flex-wrap: wrap",
   );
+  remove_test(
+    "border: 1px solid #000",
+    PropertyId::BorderTop,
+    "border-bottom: 1px solid #000; border-left: 1px solid #000; border-right: 1px solid #000",
+  );
 }

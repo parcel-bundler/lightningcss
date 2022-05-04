@@ -280,8 +280,9 @@ impl<'i> DeclarationBlock<'i> {
   /// the shorthand will be split apart into its component longhand properties, minus the property
   /// to remove. When removing a shorthand, all included longhand properties are also removed.
   pub fn remove(&mut self, property_id: &PropertyId) {
-    fn remove<'i, 'a>(declarations: &mut Vec<Property<'i>>, property_id: &PropertyId<'a>) {
+    fn remove<'i, 'a>(declarations: &mut Vec<Property<'i>>, property_id: &PropertyId<'a>) -> bool {
       let longhands = property_id.longhands().unwrap_or(vec![]);
+      let mut needs_minify = false;
       let mut i = 0;
       while i < declarations.len() {
         let replacement = {
@@ -291,15 +292,21 @@ impl<'i> DeclarationBlock<'i> {
             // If the property matches the requested property id, or is a longhand
             // property that is included in the requested shorthand, remove it.
             None
-          } else if longhands.is_empty() && id.longhands().unwrap_or(vec![]).contains(&property_id) {
+          } else if id
+            .longhands()
+            .unwrap_or(vec![])
+            .iter()
+            .any(|longhand| *longhand == *property_id || longhands.contains(longhand))
+          {
             // If this is a shorthand property that includes the requested longhand,
             // split it apart into its component longhands, excluding the requested one.
+            needs_minify = !longhands.is_empty();
             Some(
               id.longhands()
                 .unwrap()
                 .iter()
                 .filter_map(|longhand| {
-                  if *longhand == *property_id {
+                  if *longhand == *property_id || longhands.contains(longhand) {
                     None
                   } else {
                     property.longhand(longhand)
@@ -324,10 +331,23 @@ impl<'i> DeclarationBlock<'i> {
           }
         }
       }
+
+      needs_minify
     }
 
-    remove(&mut self.declarations, property_id);
-    remove(&mut self.important_declarations, property_id);
+    let needs_minify = remove(&mut self.declarations, property_id);
+    let needs_minify2 = remove(&mut self.important_declarations, property_id);
+
+    // If we split apart a shorthand property into longhands for another shorthand
+    // (e.g. removing border-top from border), then re-minify to combine the remaining
+    // properties into shorthands where possible.
+    if needs_minify || needs_minify2 {
+      self.minify(
+        &mut DeclarationHandler::new(None),
+        &mut DeclarationHandler::new(None),
+        &mut PropertyHandlerContext::new(None),
+      )
+    }
   }
 }
 
