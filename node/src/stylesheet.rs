@@ -3,6 +3,7 @@
 use std::{
   borrow::{BorrowMut, Cow},
   cell::RefCell,
+  ops::{Deref, DerefMut},
   rc::Rc,
 };
 
@@ -47,7 +48,7 @@ impl OwnedStyleSheet {
 // https://drafts.csswg.org/cssom/#the-cssstylesheet-interface
 #[napi(js_name = "CSSStyleSheet")]
 struct CSSStyleSheet {
-  stylesheet: Rc<RefCell<OwnedStyleSheet>>,
+  stylesheet: OwnedStyleSheet,
   rules: Option<Reference<CSSRuleList>>,
 }
 
@@ -56,14 +57,14 @@ impl CSSStyleSheet {
   #[napi(constructor)]
   pub fn new() -> Self {
     CSSStyleSheet {
-      stylesheet: Rc::new(RefCell::new(OwnedStyleSheet::new())),
+      stylesheet: OwnedStyleSheet::new(),
       rules: None,
     }
   }
 
   #[napi]
   pub fn replace_sync(&mut self, env: Env, code: String) -> Result<()> {
-    let mut stylesheet = (*self.stylesheet).borrow_mut();
+    // let mut stylesheet = (*self.stylesheet).borrow_mut();
 
     // Disconnect all existing rules from the stylesheet.
     if let Some(rules) = &mut self.rules {
@@ -71,12 +72,12 @@ impl CSSStyleSheet {
       for (index, rule) in rules.rules.iter_mut().enumerate() {
         if let Some(rule) = rule {
           let rule: &mut CSSRule = get_reference(env, rule)?;
-          rule.inner = RuleInner::Disconnected(RefCell::new(stylesheet.stylesheet.rules.0[index].clone()));
+          rule.inner = RuleInner::Disconnected(self.stylesheet.stylesheet.rules.0[index].clone());
         }
       }
     }
 
-    stylesheet.replace_sync(code);
+    self.stylesheet.replace_sync(code);
     Ok(())
   }
 
@@ -87,7 +88,11 @@ impl CSSStyleSheet {
     }
 
     let rules = CSSRuleList {
-      stylesheet: self.stylesheet.clone(),
+      rule_list: RuleListReference::StyleSheet(
+        reference
+          .clone(env)?
+          .share_with(env, |stylesheet| Ok(&mut stylesheet.stylesheet.stylesheet.rules))?,
+      ),
       rules: Vec::new(),
       stylesheet_reference: reference,
     };
@@ -100,7 +105,8 @@ impl CSSStyleSheet {
   pub fn insert_rule(&mut self, env: Env, rule: String, index: Option<u32>) -> Result<u32> {
     // https://drafts.csswg.org/cssom/#insert-a-css-rule
     let index = index.unwrap_or(0) as usize;
-    let stylesheet = &mut (*self.stylesheet).borrow_mut().stylesheet;
+    // let stylesheet = &mut (*self.stylesheet).borrow_mut().stylesheet;
+    let stylesheet = &mut self.stylesheet.stylesheet;
     let rules = &mut stylesheet.rules.0;
     if index > rules.len() {
       return Err(napi::Error::new(
@@ -148,7 +154,8 @@ impl CSSStyleSheet {
   pub fn delete_rule(&mut self, env: Env, index: u32) -> Result<()> {
     // https://drafts.csswg.org/cssom/#remove-a-css-rule
     let index = index as usize;
-    let stylesheet = &mut (*self.stylesheet).borrow_mut().stylesheet;
+    // let stylesheet = &mut (*self.stylesheet).borrow_mut().stylesheet;
+    let stylesheet = &mut self.stylesheet.stylesheet;
     let rules = &mut stylesheet.rules.0;
     if index > rules.len() {
       return Err(napi::Error::new(
@@ -162,7 +169,7 @@ impl CSSStyleSheet {
       if index < rule_objects.rules.len() {
         if let Some(rule) = &rule_objects.rules[index] {
           let rule: &mut CSSRule = get_reference(env, rule)?;
-          rule.inner = RuleInner::Disconnected(RefCell::new(rules[index].clone()));
+          rule.inner = RuleInner::Disconnected(rules[index].clone());
         }
 
         for rule in &rule_objects.rules[index + 1..] {
@@ -200,9 +207,43 @@ fn get_reference<T: napi::bindgen_prelude::FromNapiMutRef>(
   }
 }
 
+enum RuleListReference {
+  StyleSheet(SharedReference<CSSStyleSheet, &'static mut CssRuleList<'static>>),
+  Rule(SharedReference<CSSGroupingRule, &'static mut CssRuleList<'static>>),
+}
+
+impl RuleListReference {
+  fn clone(&self, env: Env) -> Result<Self> {
+    match self {
+      RuleListReference::StyleSheet(s) => Ok(RuleListReference::StyleSheet(s.clone(env)?)),
+      RuleListReference::Rule(r) => Ok(RuleListReference::Rule(r.clone(env)?)),
+    }
+  }
+}
+
+impl Deref for RuleListReference {
+  type Target = CssRuleList<'static>;
+
+  fn deref(&self) -> &Self::Target {
+    match self {
+      RuleListReference::StyleSheet(s) => &**s,
+      RuleListReference::Rule(r) => &**r,
+    }
+  }
+}
+
+impl DerefMut for RuleListReference {
+  fn deref_mut(&mut self) -> &mut CssRuleList<'static> {
+    match self {
+      RuleListReference::StyleSheet(s) => &mut **s,
+      RuleListReference::Rule(r) => &mut **r,
+    }
+  }
+}
+
 #[napi(js_name = "CSSRuleList")]
 struct CSSRuleList {
-  stylesheet: Rc<RefCell<OwnedStyleSheet>>,
+  rule_list: RuleListReference,
   rules: Vec<Option<Ref<()>>>,
   stylesheet_reference: Reference<CSSStyleSheet>,
 }
@@ -216,7 +257,7 @@ impl CSSRuleList {
 
   #[napi(getter)]
   pub fn length(&self) -> u32 {
-    self.stylesheet.borrow().stylesheet.rules.0.len() as u32
+    self.rule_list.0.len() as u32
   }
 
   #[napi]
@@ -226,15 +267,14 @@ impl CSSRuleList {
       return env.get_reference_value(rule);
     }
 
-    let stylesheet = self.stylesheet.borrow();
-    let rule = match stylesheet.stylesheet.rules.0.get(index) {
+    let rule = match self.rule_list.0.get(index) {
       Some(rule) => rule,
       None => return Ok(env.get_null()?.into_unknown()),
     };
 
     let css_rule = CSSRule {
       inner: RuleInner::Connected {
-        stylesheet: self.stylesheet.clone(),
+        rule_list: self.rule_list.clone(env)?,
         index,
       },
       parent_stylesheet: self.stylesheet_reference.clone(env)?,
@@ -243,6 +283,15 @@ impl CSSRuleList {
     let napi_value = match rule {
       CssRule::Style(_) => {
         let rule = CSSStyleRule::new(css_rule);
+        unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+      }
+      CssRule::Media(_) => {
+        let rule = CSSMediaRule {
+          rule: CSSGroupingRule {
+            rule: css_rule,
+            rules: None,
+          },
+        };
         unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
       }
       _ => unreachable!(),
@@ -260,11 +309,8 @@ impl CSSRuleList {
 }
 
 enum RuleInner {
-  Connected {
-    stylesheet: Rc<RefCell<OwnedStyleSheet>>,
-    index: usize,
-  },
-  Disconnected(RefCell<CssRule<'static>>),
+  Connected { rule_list: RuleListReference, index: usize },
+  Disconnected(CssRule<'static>),
 }
 
 #[napi(js_name = "CSSRule")]
@@ -307,23 +353,20 @@ impl CSSRule {
     // On setting the cssText attribute must do nothing.
   }
 
-  fn rule(&self) -> std::cell::Ref<CssRule<'static>> {
+  fn rule(&self) -> &CssRule<'static> {
     match &self.inner {
-      RuleInner::Connected { stylesheet, index } => {
-        let stylesheet = stylesheet.borrow();
-        std::cell::Ref::map(stylesheet, |stylesheet| &stylesheet.stylesheet.rules.0[*index])
+      RuleInner::Connected { rule_list, index } => {
+        // std::cell::Ref::map(stylesheet, |stylesheet| &stylesheet.stylesheet.rules.0[*index])
+        &rule_list.0[*index]
       }
-      RuleInner::Disconnected(rule) => rule.borrow(),
+      RuleInner::Disconnected(rule) => &rule,
     }
   }
 
-  fn rule_mut(&mut self) -> std::cell::RefMut<CssRule<'static>> {
-    match &self.inner {
-      RuleInner::Connected { stylesheet, index } => {
-        let stylesheet = (**stylesheet).borrow_mut();
-        std::cell::RefMut::map(stylesheet, |stylesheet| &mut stylesheet.stylesheet.rules.0[*index])
-      }
-      RuleInner::Disconnected(rule) => rule.borrow_mut(),
+  fn rule_mut(&mut self) -> &mut CssRule<'static> {
+    match &mut self.inner {
+      RuleInner::Connected { rule_list, index } => &mut rule_list.0[*index],
+      RuleInner::Disconnected(rule) => rule,
     }
   }
 
@@ -396,20 +439,20 @@ impl CSSStyleRule {
     };
   }
 
-  fn rule(&self) -> std::cell::Ref<StyleRule<'static>> {
+  fn rule(&self) -> &StyleRule<'static> {
     let rule = self.rule.rule();
-    std::cell::Ref::map(rule, |rule| match rule {
+    match rule {
       CssRule::Style(style) => style,
       _ => unreachable!(),
-    })
+    }
   }
 
-  fn rule_mut(&mut self) -> std::cell::RefMut<StyleRule<'static>> {
+  fn rule_mut(&mut self) -> &mut StyleRule<'static> {
     let rule = self.rule.rule_mut();
-    std::cell::RefMut::map(rule, |rule| match rule {
+    match rule {
       CssRule::Style(style) => style,
       _ => unreachable!(),
-    })
+    }
   }
 }
 
@@ -525,6 +568,52 @@ impl CSSStyleDeclaration {
     self.rule.rule_mut().declarations.remove(&property_id);
 
     value
+  }
+}
+
+#[napi(js_name = "CSSGroupingRule")]
+struct CSSGroupingRule {
+  rule: CSSRule,
+  rules: Option<Reference<CSSRuleList>>,
+}
+
+#[napi]
+impl CSSGroupingRule {
+  #[napi(constructor)]
+  pub fn new() {
+    unreachable!()
+  }
+
+  #[napi(getter)]
+  pub fn css_rules(&mut self, env: Env, reference: Reference<CSSGroupingRule>) -> Result<Reference<CSSRuleList>> {
+    if let Some(rules) = &self.rules {
+      return rules.clone(env);
+    }
+
+    let rules = CSSRuleList {
+      rule_list: RuleListReference::Rule(reference.share_with(env, |rule| match rule.rule.rule_mut() {
+        CssRule::Media(media) => Ok(&mut media.rules),
+        _ => unreachable!(),
+      })?),
+      rules: Vec::new(),
+      stylesheet_reference: self.rule.parent_stylesheet.clone(env)?,
+    };
+
+    self.rules = Some(CSSRuleList::into_reference(rules, env)?);
+    self.rules.as_ref().unwrap().clone(env)
+  }
+}
+
+#[napi(js_name = "CSSMediaRule")]
+struct CSSMediaRule {
+  rule: CSSGroupingRule,
+}
+
+#[napi]
+impl CSSMediaRule {
+  #[napi(constructor)]
+  pub fn new() {
+    unreachable!()
   }
 }
 
