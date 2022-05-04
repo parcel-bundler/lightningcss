@@ -8,10 +8,11 @@ use std::{
 };
 
 use cssparser::{Parser, ParserInput};
-use napi::{bindgen_prelude::*, JsObject, JsUnknown, Ref};
+use napi::{bindgen_prelude::*, JsNull, JsObject, JsUnknown, Ref};
 use napi_derive::napi;
 use parcel_css::{
   declaration::DeclarationBlock,
+  media_query::MediaList,
   properties::{Property, PropertyId},
   rules::{style::StyleRule, CssRule, CssRuleList},
   stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet},
@@ -291,6 +292,7 @@ impl CSSRuleList {
             rule: css_rule,
             rules: None,
           },
+          media: None,
         };
         unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
       }
@@ -607,6 +609,7 @@ impl CSSGroupingRule {
 #[napi(js_name = "CSSMediaRule")]
 struct CSSMediaRule {
   rule: CSSGroupingRule,
+  media: Option<Reference<JsMediaList>>,
 }
 
 #[napi]
@@ -614,6 +617,57 @@ impl CSSMediaRule {
   #[napi(constructor)]
   pub fn new() {
     unreachable!()
+  }
+
+  #[napi(getter)]
+  pub fn media(&mut self, env: Env, reference: Reference<CSSMediaRule>) -> Result<Reference<JsMediaList>> {
+    if let Some(media) = &self.media {
+      return media.clone(env);
+    }
+
+    let media = JsMediaList::into_reference(
+      JsMediaList {
+        media_list: reference.share_with(env, |rule| match rule.rule.rule.rule_mut() {
+          CssRule::Media(media) => Ok(&mut media.query),
+          _ => unreachable!(),
+        })?,
+      },
+      env,
+    )?;
+    self.media = Some(media.clone(env)?);
+    Ok(media)
+  }
+}
+
+#[napi(js_name = "MediaList")]
+struct JsMediaList {
+  media_list: SharedReference<CSSMediaRule, &'static mut MediaList<'static>>,
+}
+
+#[napi]
+impl JsMediaList {
+  #[napi(constructor)]
+  pub fn new() {
+    unreachable!()
+  }
+
+  #[napi(getter)]
+  pub fn media_text(&self) -> String {
+    self.media_list.to_css_string(PrinterOptions::default()).unwrap()
+  }
+
+  #[napi(getter)]
+  pub fn length(&self) -> u32 {
+    self.media_list.media_queries.len() as u32
+  }
+
+  #[napi]
+  pub fn item(&self, index: u32) -> Option<String> {
+    if let Some(query) = self.media_list.media_queries.get(index as usize) {
+      return Some(query.to_css_string(PrinterOptions::default()).unwrap());
+    }
+
+    None
   }
 }
 
