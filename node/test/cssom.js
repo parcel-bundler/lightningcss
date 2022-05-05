@@ -342,6 +342,21 @@ run('CSSMediaRule', test => {
   }
 }`)
   });
+
+  test('deleteRule', () => {
+    let stylesheet = createStyleSheet();
+    let rule = stylesheet.cssRules.item(1);
+    let child = rule.cssRules.item(0);
+    rule.deleteRule(0);
+    assert.equal(rule.cssRules.length, 0);
+    assert.equal(child.parentStyleSheet, null);
+    assert.equal(child.cssText, `.bar {
+  font-family: Helvetica;
+}`);
+
+    assert.throws(() => rule.deleteRule(10));
+    assert.throws(() => rule.deleteRule(-1));
+  });
 });
 
 run('MediaList', test => {

@@ -8,7 +8,9 @@ use std::{
 };
 
 use cssparser::{Parser, ParserInput};
-use napi::{bindgen_prelude::*, CallContext, JsNull, JsNumber, JsObject, JsString, JsUnknown, NapiValue, Ref};
+use napi::{
+  bindgen_prelude::*, CallContext, JsNull, JsNumber, JsObject, JsString, JsUndefined, JsUnknown, NapiValue, Ref,
+};
 use napi_derive::{js_function, napi};
 use parcel_css::{
   declaration::DeclarationBlock,
@@ -606,6 +608,12 @@ impl CSSGroupingRule {
         env.create_function("insertRule", grouping_rule_insert).unwrap(),
       )
       .unwrap();
+    prototype
+      .set_named_property(
+        "deleteRule",
+        env.create_function("deleteRule", grouping_rule_delete).unwrap(),
+      )
+      .unwrap();
   }
 
   #[napi(getter)]
@@ -640,14 +648,14 @@ impl CSSGroupingRule {
   //   insert_rule(rules, &mut self.rules, env, rule, index)
   // }
 
-  #[napi]
-  pub fn delete_rule(&mut self, env: Env, index: u32) -> Result<()> {
-    let rules = match self.rule.rule_mut() {
-      CssRule::Media(media) => &mut media.rules.0,
-      _ => unreachable!(),
-    };
-    delete_rule(rules, &mut self.rules, env, index)
-  }
+  // #[napi]
+  // pub fn delete_rule(&mut self, env: Env, index: u32) -> Result<()> {
+  //   let rules = match self.rule.rule_mut() {
+  //     CssRule::Media(media) => &mut media.rules.0,
+  //     _ => unreachable!(),
+  //   };
+  //   delete_rule(rules, &mut self.rules, env, index)
+  // }
 }
 
 // Inheritance doesn't work with methods. v8 throws "Illegal invocation" errors due to signature checks.
@@ -657,6 +665,7 @@ impl CSSGroupingRule {
 fn grouping_rule_insert(ctx: CallContext) -> Result<JsNumber> {
   let this: JsObject = ctx.this()?;
   // This is probably extremely unsafe.
+  // TODO: use napi_type_tag_object?
   let napi_value = unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(ctx.env.raw(), this).unwrap() };
   let rule = unsafe { CSSGroupingRule::from_napi_mut_ref(ctx.env.raw(), napi_value).unwrap() };
   let rules = match rule.rule.rule_mut() {
@@ -677,6 +686,22 @@ fn grouping_rule_insert(ctx: CallContext) -> Result<JsNumber> {
   } else {
     Err(res.unwrap_err())
   }
+}
+
+#[js_function(1)]
+fn grouping_rule_delete(ctx: CallContext) -> Result<JsUndefined> {
+  let this: JsObject = ctx.this()?;
+  // This is probably extremely unsafe.
+  // TODO: use napi_type_tag_object?
+  let napi_value = unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(ctx.env.raw(), this).unwrap() };
+  let rule = unsafe { CSSGroupingRule::from_napi_mut_ref(ctx.env.raw(), napi_value).unwrap() };
+  let rules = match rule.rule.rule_mut() {
+    CssRule::Media(media) => &mut media.rules.0,
+    _ => unreachable!(),
+  };
+  let index = ctx.get::<JsNumber>(0)?.get_uint32()?;
+  delete_rule(rules, &mut rule.rules, *ctx.env, index)?;
+  ctx.env.get_undefined()
 }
 
 // https://drafts.csswg.org/css-conditional-3/#cssconditionrule
