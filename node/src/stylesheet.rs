@@ -8,77 +8,53 @@ use std::{
 };
 
 use cssparser::{Parser, ParserInput};
-use napi::{bindgen_prelude::*, JsNull, JsObject, JsUnknown, Ref};
-use napi_derive::napi;
+use napi::{bindgen_prelude::*, CallContext, JsNull, JsNumber, JsObject, JsString, JsUnknown, NapiValue, Ref};
+use napi_derive::{js_function, napi};
 use parcel_css::{
   declaration::DeclarationBlock,
-  media_query::MediaList,
+  media_query::{MediaList, MediaQuery},
   properties::{Property, PropertyId},
   rules::{style::StyleRule, CssRule, CssRuleList},
   stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet},
   traits::{Parse, ToCss},
 };
 
-struct OwnedStyleSheet {
-  source: String,
-  stylesheet: StyleSheet<'static>,
-}
-
-impl OwnedStyleSheet {
-  pub fn new() -> Self {
-    OwnedStyleSheet {
-      source: String::new(),
-      stylesheet: StyleSheet::new(
-        vec!["empty.css".into()],
-        CssRuleList(Vec::new()),
-        ParserOptions::default(),
-      ),
-    }
-  }
-
-  pub fn replace_sync(&mut self, code: String) {
-    self.source = code;
-    let source = unsafe {
-      let slice = std::slice::from_raw_parts(self.source.as_ptr(), self.source.len());
-      std::str::from_utf8_unchecked(slice)
-    };
-    self.stylesheet = StyleSheet::parse("empty.css", &source, ParserOptions::default()).unwrap();
-  }
-}
-
 // https://drafts.csswg.org/cssom/#the-cssstylesheet-interface
 #[napi(js_name = "CSSStyleSheet")]
 struct CSSStyleSheet {
-  stylesheet: OwnedStyleSheet,
+  stylesheet: StyleSheet<'static>,
   rules: Option<Reference<CSSRuleList>>,
 }
 
 #[napi]
 impl CSSStyleSheet {
   #[napi(constructor)]
-  pub fn new() -> Self {
+  pub fn new(env: Env) -> Self {
+    CSSGroupingRule::init(env);
     CSSStyleSheet {
-      stylesheet: OwnedStyleSheet::new(),
+      stylesheet: StyleSheet::new(
+        vec!["empty.css".into()],
+        CssRuleList(Vec::new()),
+        ParserOptions::default(),
+      ),
       rules: None,
     }
   }
 
   #[napi]
   pub fn replace_sync(&mut self, env: Env, code: String) -> Result<()> {
-    // let mut stylesheet = (*self.stylesheet).borrow_mut();
-
     // Disconnect all existing rules from the stylesheet.
     if let Some(rules) = &mut self.rules {
       let rules = &mut **rules;
       for (index, rule) in rules.rules.iter_mut().enumerate() {
         if let Some(rule) = rule {
           let rule: &mut CSSRule = get_reference(env, rule)?;
-          rule.inner = RuleInner::Disconnected(self.stylesheet.stylesheet.rules.0[index].clone());
+          rule.inner = RuleInner::Disconnected(self.stylesheet.rules.0[index].clone());
         }
       }
     }
 
-    self.stylesheet.replace_sync(code);
+    self.stylesheet = StyleSheet::parse("empty.css", leak_str(code), ParserOptions::default()).unwrap();
     Ok(())
   }
 
@@ -92,9 +68,10 @@ impl CSSStyleSheet {
       rule_list: RuleListReference::StyleSheet(
         reference
           .clone(env)?
-          .share_with(env, |stylesheet| Ok(&mut stylesheet.stylesheet.stylesheet.rules))?,
+          .share_with(env, |stylesheet| Ok(&mut stylesheet.stylesheet.rules))?,
       ),
       rules: Vec::new(),
+      parent_rule: None,
       stylesheet_reference: reference,
     };
 
@@ -104,41 +81,7 @@ impl CSSStyleSheet {
 
   #[napi]
   pub fn insert_rule(&mut self, env: Env, rule: String, index: Option<u32>) -> Result<u32> {
-    // https://drafts.csswg.org/cssom/#insert-a-css-rule
-    let index = index.unwrap_or(0) as usize;
-    // let stylesheet = &mut (*self.stylesheet).borrow_mut().stylesheet;
-    let stylesheet = &mut self.stylesheet.stylesheet;
-    let rules = &mut stylesheet.rules.0;
-    if index > rules.len() {
-      return Err(napi::Error::new(
-        napi::Status::GenericFailure,
-        "Index out of bounds".into(),
-      ));
-    }
-
-    let new_rule = CssRule::parse_string(leak_str(rule), ParserOptions::default()).unwrap();
-
-    // TODO: Check if new_rule can be inserted at position (e.g. @import)
-
-    // Invalidate existing rule indices.
-    if let Some(rules) = &mut self.rules {
-      let rules = &mut *rules;
-
-      for rule in &rules.rules[index..] {
-        if let Some(rule) = rule {
-          let rule: &mut CSSRule = get_reference(env, rule)?;
-          if let RuleInner::Connected { index, .. } = &mut rule.inner {
-            *index += 1;
-          }
-        }
-      }
-
-      rules.rules.insert(index, None);
-    }
-
-    rules.insert(index, new_rule);
-
-    Ok(index as u32)
+    insert_rule(&mut self.stylesheet.rules.0, &mut self.rules, env, rule, index)
   }
 
   #[napi]
@@ -153,48 +96,93 @@ impl CSSStyleSheet {
 
   #[napi]
   pub fn delete_rule(&mut self, env: Env, index: u32) -> Result<()> {
-    // https://drafts.csswg.org/cssom/#remove-a-css-rule
-    let index = index as usize;
-    // let stylesheet = &mut (*self.stylesheet).borrow_mut().stylesheet;
-    let stylesheet = &mut self.stylesheet.stylesheet;
-    let rules = &mut stylesheet.rules.0;
-    if index > rules.len() {
-      return Err(napi::Error::new(
-        napi::Status::GenericFailure,
-        "Index out of bounds".into(),
-      ));
-    }
-
-    if let Some(rule_refs) = &mut self.rules {
-      let rule_objects = &mut *rule_refs;
-      if index < rule_objects.rules.len() {
-        if let Some(rule) = &rule_objects.rules[index] {
-          let rule: &mut CSSRule = get_reference(env, rule)?;
-          rule.inner = RuleInner::Disconnected(rules[index].clone());
-        }
-
-        for rule in &rule_objects.rules[index + 1..] {
-          if let Some(rule) = rule {
-            let rule: &mut CSSRule = get_reference(env, rule)?;
-            if let RuleInner::Connected { index, .. } = &mut rule.inner {
-              *index -= 1;
-            }
-          }
-        }
-
-        rule_objects.rules.remove(index);
-      }
-    }
-
-    rules.remove(index);
-
-    Ok(())
+    delete_rule(&mut self.stylesheet.rules.0, &mut self.rules, env, index)
   }
 
   #[napi]
   pub fn remove_rule(&mut self, env: Env, index: u32) -> Result<()> {
     self.delete_rule(env, index)
   }
+}
+
+fn insert_rule(
+  rules: &mut Vec<CssRule<'static>>,
+  js_rules: &mut Option<Reference<CSSRuleList>>,
+  env: Env,
+  rule: String,
+  index: Option<u32>,
+) -> Result<u32> {
+  // https://drafts.csswg.org/cssom/#insert-a-css-rule
+  let index = index.unwrap_or(0) as usize;
+  if index > rules.len() {
+    return Err(napi::Error::new(
+      napi::Status::GenericFailure,
+      "Index out of bounds".into(),
+    ));
+  }
+
+  let new_rule = CssRule::parse_string(leak_str(rule), ParserOptions::default()).unwrap();
+
+  // TODO: Check if new_rule can be inserted at position (e.g. @import)
+
+  // Invalidate existing rule indices.
+  if let Some(rules) = js_rules {
+    let rules = &mut *rules;
+
+    for rule in &rules.rules[index..] {
+      if let Some(rule) = rule {
+        let rule: &mut CSSRule = get_reference(env, rule)?;
+        if let RuleInner::Connected { index, .. } = &mut rule.inner {
+          *index += 1;
+        }
+      }
+    }
+
+    rules.rules.insert(index, None);
+  }
+
+  rules.insert(index, new_rule);
+  Ok(index as u32)
+}
+
+fn delete_rule(
+  rules: &mut Vec<CssRule<'static>>,
+  js_rules: &mut Option<Reference<CSSRuleList>>,
+  env: Env,
+  index: u32,
+) -> Result<()> {
+  // https://drafts.csswg.org/cssom/#remove-a-css-rule
+  let index = index as usize;
+  if index > rules.len() {
+    return Err(napi::Error::new(
+      napi::Status::GenericFailure,
+      "Index out of bounds".into(),
+    ));
+  }
+
+  if let Some(rule_refs) = js_rules {
+    let rule_objects = &mut *rule_refs;
+    if index < rule_objects.rules.len() {
+      if let Some(rule) = &rule_objects.rules[index] {
+        let rule: &mut CSSRule = get_reference(env, rule)?;
+        rule.inner = RuleInner::Disconnected(rules[index].clone());
+      }
+
+      for rule in &rule_objects.rules[index + 1..] {
+        if let Some(rule) = rule {
+          let rule: &mut CSSRule = get_reference(env, rule)?;
+          if let RuleInner::Connected { index, .. } = &mut rule.inner {
+            *index -= 1;
+          }
+        }
+      }
+
+      rule_objects.rules.remove(index);
+    }
+  }
+
+  rules.remove(index);
+  Ok(())
 }
 
 fn get_reference<T: napi::bindgen_prelude::FromNapiMutRef>(
@@ -246,6 +234,7 @@ impl DerefMut for RuleListReference {
 struct CSSRuleList {
   rule_list: RuleListReference,
   rules: Vec<Option<Ref<()>>>,
+  parent_rule: Option<Reference<CSSGroupingRule>>,
   stylesheet_reference: Reference<CSSStyleSheet>,
 }
 
@@ -278,6 +267,11 @@ impl CSSRuleList {
         rule_list: self.rule_list.clone(env)?,
         index,
       },
+      parent_rule: if let Some(parent_rule) = &self.parent_rule {
+        Some(parent_rule.clone(env)?)
+      } else {
+        None
+      },
       parent_stylesheet: self.stylesheet_reference.clone(env)?,
     };
 
@@ -288,9 +282,11 @@ impl CSSRuleList {
       }
       CssRule::Media(_) => {
         let rule = CSSMediaRule {
-          rule: CSSGroupingRule {
-            rule: css_rule,
-            rules: None,
+          rule: CSSConditionRule {
+            rule: CSSGroupingRule {
+              rule: css_rule,
+              rules: None,
+            },
           },
           media: None,
         };
@@ -318,6 +314,7 @@ enum RuleInner {
 #[napi(js_name = "CSSRule")]
 struct CSSRule {
   inner: RuleInner,
+  parent_rule: Option<Reference<CSSGroupingRule>>,
   parent_stylesheet: Reference<CSSStyleSheet>,
 }
 
@@ -382,6 +379,15 @@ impl CSSRule {
       },
       RuleInner::Disconnected(..) => Ok(env.get_null()?.into_unknown()),
     }
+  }
+
+  #[napi(getter)]
+  pub fn parent_rule(&self, env: Env) -> Result<Option<Reference<CSSGroupingRule>>> {
+    if let Some(parent) = &self.parent_rule {
+      return Ok(Some(parent.clone(env)?));
+    }
+
+    Ok(None)
   }
 }
 
@@ -573,6 +579,7 @@ impl CSSStyleDeclaration {
   }
 }
 
+// https://drafts.csswg.org/cssom-1/#the-cssgroupingrule-interface
 #[napi(js_name = "CSSGroupingRule")]
 struct CSSGroupingRule {
   rule: CSSRule,
@@ -586,6 +593,21 @@ impl CSSGroupingRule {
     unreachable!()
   }
 
+  fn init(env: Env) {
+    let constructor_value = napi::bindgen_prelude::get_class_constructor("CSSGroupingRule\0").unwrap();
+    let mut value = std::ptr::null_mut();
+    unsafe { napi::sys::napi_get_reference_value(env.raw(), constructor_value, &mut value) };
+    let constructor = unsafe { JsFunction::from_raw(env.raw(), value).unwrap() };
+    let constructor = constructor.coerce_to_object().unwrap();
+    let mut prototype: JsObject = constructor.get_named_property("prototype").unwrap();
+    prototype
+      .set_named_property(
+        "insertRule",
+        env.create_function("insertRule", grouping_rule_insert).unwrap(),
+      )
+      .unwrap();
+  }
+
   #[napi(getter)]
   pub fn css_rules(&mut self, env: Env, reference: Reference<CSSGroupingRule>) -> Result<Reference<CSSRuleList>> {
     if let Some(rules) = &self.rules {
@@ -593,23 +615,101 @@ impl CSSGroupingRule {
     }
 
     let rules = CSSRuleList {
-      rule_list: RuleListReference::Rule(reference.share_with(env, |rule| match rule.rule.rule_mut() {
-        CssRule::Media(media) => Ok(&mut media.rules),
-        _ => unreachable!(),
-      })?),
+      rule_list: RuleListReference::Rule(reference.clone(env)?.share_with(
+        env,
+        |rule| match rule.rule.rule_mut() {
+          CssRule::Media(media) => Ok(&mut media.rules),
+          _ => unreachable!(),
+        },
+      )?),
       rules: Vec::new(),
+      parent_rule: Some(reference),
       stylesheet_reference: self.rule.parent_stylesheet.clone(env)?,
     };
 
     self.rules = Some(CSSRuleList::into_reference(rules, env)?);
     self.rules.as_ref().unwrap().clone(env)
   }
+
+  // #[napi]
+  // pub fn insert_rule(&mut self, env: Env, rule: String, index: Option<u32>) -> Result<u32> {
+  //   let rules = match self.rule.rule_mut() {
+  //     CssRule::Media(media) => &mut media.rules.0,
+  //     _ => unreachable!(),
+  //   };
+  //   insert_rule(rules, &mut self.rules, env, rule, index)
+  // }
+
+  #[napi]
+  pub fn delete_rule(&mut self, env: Env, index: u32) -> Result<()> {
+    let rules = match self.rule.rule_mut() {
+      CssRule::Media(media) => &mut media.rules.0,
+      _ => unreachable!(),
+    };
+    delete_rule(rules, &mut self.rules, env, index)
+  }
 }
 
+// Inheritance doesn't work with methods. v8 throws "Illegal invocation" errors due to signature checks.
+// https://github.com/nodejs/node-addon-api/issues/246
+// Instead, define a pure JS function here and assign it to the prototype of the class manually.
+#[js_function(2)]
+fn grouping_rule_insert(ctx: CallContext) -> Result<JsNumber> {
+  let this: JsObject = ctx.this()?;
+  // This is probably extremely unsafe.
+  let napi_value = unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(ctx.env.raw(), this).unwrap() };
+  let rule = unsafe { CSSGroupingRule::from_napi_mut_ref(ctx.env.raw(), napi_value).unwrap() };
+  let rules = match rule.rule.rule_mut() {
+    CssRule::Media(media) => &mut media.rules.0,
+    _ => unreachable!(),
+  };
+  let new_rule: JsString = ctx.get(0)?;
+  let utf8 = new_rule.into_utf8()?;
+  let new_rule = utf8.into_owned()?;
+  let index: Option<u32> = if ctx.length > 1 {
+    Some(ctx.get::<JsNumber>(1)?.get_uint32()?)
+  } else {
+    None
+  };
+  let res = insert_rule(rules, &mut rule.rules, *ctx.env, new_rule, index);
+  if let Ok(res) = res {
+    ctx.env.create_uint32(res)
+  } else {
+    Err(res.unwrap_err())
+  }
+}
+
+// https://drafts.csswg.org/css-conditional-3/#cssconditionrule
+#[napi(js_name = "CSSConditionRule")]
+struct CSSConditionRule {
+  rule: CSSGroupingRule,
+}
+
+#[napi]
+impl CSSConditionRule {
+  #[napi(constructor)]
+  pub fn new() {
+    unreachable!()
+  }
+
+  #[napi(getter)]
+  pub fn condition_text(&self) -> Result<String> {
+    match self.rule.rule.rule() {
+      CssRule::Media(media) => Ok(media.query.to_css_string(PrinterOptions::default()).unwrap()),
+      CssRule::Supports(supports) => Ok(supports.condition.to_css_string(PrinterOptions::default()).unwrap()),
+      _ => Err(napi::Error::new(
+        napi::Status::InvalidArg,
+        "Not a conditional rule".into(),
+      )),
+    }
+  }
+}
+
+// https://drafts.csswg.org/css-conditional-3/#cssmediarule
 #[napi(js_name = "CSSMediaRule")]
 struct CSSMediaRule {
-  rule: CSSGroupingRule,
-  media: Option<Reference<JsMediaList>>,
+  rule: CSSConditionRule,
+  media: Option<Reference<JSMediaList>>,
 }
 
 #[napi]
@@ -620,14 +720,14 @@ impl CSSMediaRule {
   }
 
   #[napi(getter)]
-  pub fn media(&mut self, env: Env, reference: Reference<CSSMediaRule>) -> Result<Reference<JsMediaList>> {
+  pub fn media(&mut self, env: Env, reference: Reference<CSSMediaRule>) -> Result<Reference<JSMediaList>> {
     if let Some(media) = &self.media {
       return media.clone(env);
     }
 
-    let media = JsMediaList::into_reference(
-      JsMediaList {
-        media_list: reference.share_with(env, |rule| match rule.rule.rule.rule_mut() {
+    let media = JSMediaList::into_reference(
+      JSMediaList {
+        media_list: reference.share_with(env, |rule| match rule.rule.rule.rule.rule_mut() {
           CssRule::Media(media) => Ok(&mut media.query),
           _ => unreachable!(),
         })?,
@@ -640,12 +740,12 @@ impl CSSMediaRule {
 }
 
 #[napi(js_name = "MediaList")]
-struct JsMediaList {
+struct JSMediaList {
   media_list: SharedReference<CSSMediaRule, &'static mut MediaList<'static>>,
 }
 
 #[napi]
-impl JsMediaList {
+impl JSMediaList {
   #[napi(constructor)]
   pub fn new() {
     unreachable!()
@@ -668,6 +768,31 @@ impl JsMediaList {
     }
 
     None
+  }
+
+  #[napi]
+  pub fn append_medium(&mut self, medium: String) {
+    if let Ok(query) = MediaQuery::parse_string(leak_str(medium)) {
+      if self.media_list.media_queries.contains(&query) {
+        return;
+      }
+
+      self.media_list.media_queries.push(query);
+    }
+  }
+
+  #[napi]
+  pub fn delete_medium(&mut self, medium: String) -> Result<()> {
+    if let Ok(query) = MediaQuery::parse_string(leak_str(medium)) {
+      let queries = &mut self.media_list.media_queries;
+      let len = queries.len();
+      queries.retain(|q| *q != query);
+      if queries.len() == len {
+        return Err(napi::Error::new(napi::Status::GenericFailure, "Rule not found".into()));
+      }
+    }
+
+    Ok(())
   }
 }
 

@@ -177,11 +177,11 @@ pub struct MediaQuery<'i> {
   pub condition: Option<MediaCondition<'i>>,
 }
 
-impl<'i> MediaQuery<'i> {
+impl<'i> Parse<'i> for MediaQuery<'i> {
   /// Parse a media query given css input.
   ///
   /// Returns an error if any of the expressions is unknown.
-  pub fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let (qualifier, explicit_media_type) = input
       .try_parse(|input| -> Result<_, ParseError<'i, ParserError<'i>>> {
         let qualifier = input.try_parse(Qualifier::parse).ok();
@@ -205,7 +205,9 @@ impl<'i> MediaQuery<'i> {
       condition,
     })
   }
+}
 
+impl<'i> MediaQuery<'i> {
   fn transform_custom_media(
     &mut self,
     loc: Location,

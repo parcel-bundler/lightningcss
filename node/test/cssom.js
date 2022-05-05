@@ -1,8 +1,18 @@
 const { suite } = require('uvu');
-const { CSSStyleSheet, CSSStyleRule, CSSRule, CSSStyleDeclaration } = require('../');
+const { CSSStyleSheet, CSSStyleRule, CSSRuleList, CSSRule, CSSGroupingRule, CSSConditionRule, CSSMediaRule, CSSStyleDeclaration, MediaList } = require('../');
 const assert = require('assert');
 
 Object.setPrototypeOf(CSSStyleRule.prototype, CSSRule.prototype);
+Object.setPrototypeOf(CSSStyleRule, CSSRule);
+
+Object.setPrototypeOf(CSSGroupingRule.prototype, CSSRule.prototype);
+Object.setPrototypeOf(CSSGroupingRule, CSSRule);
+
+Object.setPrototypeOf(CSSConditionRule.prototype, CSSGroupingRule.prototype);
+Object.setPrototypeOf(CSSConditionRule, CSSGroupingRule);
+
+Object.setPrototypeOf(CSSMediaRule.prototype, CSSConditionRule.prototype);
+Object.setPrototypeOf(CSSMediaRule, CSSConditionRule);
 
 function run(name, fn) {
   let test = suite(name);
@@ -17,6 +27,12 @@ function createStyleSheet() {
   border: 1px solid black;
   color: green !important;
 }
+
+@media print, screen and (min-width: 240px) {
+  .bar {
+    font-family: Helvetica;
+  }
+}
 `);
   return stylesheet;
 }
@@ -25,8 +41,16 @@ function styleRule() {
   return createStyleSheet().cssRules.item(0);
 }
 
+function mediaRule() {
+  return createStyleSheet().cssRules.item(1);
+}
+
 function declaration() {
   return styleRule().style;
+}
+
+function mediaList() {
+  return mediaRule().media;
 }
 
 run('CSSStyleSheet', test => {
@@ -40,7 +64,7 @@ run('CSSStyleSheet', test => {
     let rule = stylesheet.cssRules.item(0);
     let index = stylesheet.insertRule('.bar { color: red }');
     assert.equal(index, 0);
-    assert.equal(stylesheet.cssRules.length, 2);
+    assert.equal(stylesheet.cssRules.length, 3);
     assert.equal(stylesheet.cssRules.item(1), rule);
     let newRule = stylesheet.cssRules.item(0);
     assert(newRule instanceof CSSStyleRule);
@@ -54,7 +78,7 @@ run('CSSStyleSheet', test => {
 }`);
 
     stylesheet.insertRule('baz { color: green }', 1);
-    assert.equal(stylesheet.cssRules.length, 3);
+    assert.equal(stylesheet.cssRules.length, 4);
     assert.equal(stylesheet.cssRules.item(0), newRule);
     assert.equal(stylesheet.cssRules.item(2), rule);
 
@@ -65,7 +89,7 @@ run('CSSStyleSheet', test => {
   test('addRule', () => {
     let stylesheet = createStyleSheet();
     stylesheet.addRule('.bar', 'color: red');
-    assert.equal(stylesheet.cssRules.length, 2);
+    assert.equal(stylesheet.cssRules.length, 3);
     let newRule = stylesheet.cssRules.item(0);
     assert.equal(newRule.cssText, `.bar {
   color: red;
@@ -76,7 +100,7 @@ run('CSSStyleSheet', test => {
     let stylesheet = createStyleSheet();
     let rule = stylesheet.cssRules.item(0);
     stylesheet.deleteRule(0);
-    assert.equal(stylesheet.cssRules.length, 0);
+    assert.equal(stylesheet.cssRules.length, 1);
     assert.equal(rule.parentStyleSheet, null);
     assert.equal(rule.cssText, `.foo {
   border: 1px solid #000;
@@ -112,13 +136,17 @@ run('CSSRuleList', test => {
 
   test('has correct length', () => {
     let stylesheet = createStyleSheet();
-    assert.equal(stylesheet.cssRules.length, 1);
+    assert.equal(stylesheet.cssRules.length, 2);
   });
 
   test('item() returns correct rule subclasses', () => {
     let stylesheet = createStyleSheet();
     let rule = stylesheet.cssRules.item(0);
     assert(rule instanceof CSSStyleRule);
+    assert(rule instanceof CSSRule);
+
+    rule = stylesheet.cssRules.item(1);
+    assert(rule instanceof CSSMediaRule);
     assert(rule instanceof CSSRule);
   });
 });
@@ -128,6 +156,13 @@ run('CSSRule', test => {
     let stylesheet = createStyleSheet();
     let rule = stylesheet.cssRules.item(0);
     assert.equal(rule.parentStyleSheet, stylesheet);
+  });
+
+  test('parentRule', () => {
+    let stylesheet = createStyleSheet();
+    let rule = stylesheet.cssRules.item(0);
+    assert.equal(rule.parentRule, null);
+
   });
 
   test('cssText getter', () => {
@@ -233,5 +268,116 @@ run('CSSStyleDeclaration', test => {
     assert.equal(style.cssText, 'border: 1px solid #000');
     style.removeProperty('border-top');
     assert.equal(style.cssText, 'border-bottom: 1px solid #000; border-left: 1px solid #000; border-right: 1px solid #000');
+  });
+});
+
+run('CSSMediaRule', test => {
+  test('has correct prototype chain', () => {
+    let rule = mediaRule();
+    assert(rule instanceof CSSMediaRule);
+    assert(rule instanceof CSSConditionRule);
+    assert(rule instanceof CSSGroupingRule);
+    assert(rule instanceof CSSRule);
+  });
+
+  test('conditionText', () => {
+    let rule = mediaRule();
+    assert.equal(rule.conditionText, 'print, screen and (min-width: 240px)');
+  });
+
+  test('has a media list', () => {
+    let rule = mediaRule();
+    assert(rule.media instanceof MediaList);
+  });
+
+  test('has cssRules', () => {
+    let rule = mediaRule();
+    assert(rule.cssRules instanceof CSSRuleList);
+    assert.equal(rule.cssRules.length, 1);
+    let child = rule.cssRules.item(0);
+    assert(child instanceof CSSStyleRule);
+    assert(child.selectorText, '.bar');
+    assert(child.parentRule instanceof CSSMediaRule);
+    assert.equal(child.parentRule, rule);
+  });
+
+  test('insertRule', () => {
+    let stylesheet = createStyleSheet();
+    let rule = stylesheet.cssRules.item(1);
+    let child = rule.cssRules.item(0);
+    let index = rule.insertRule('.baz { color: red }');
+    assert.equal(index, 0);
+    assert.equal(rule.cssRules.length, 2);
+    assert.equal(rule.cssRules.item(1), child);
+    let newRule = rule.cssRules.item(0);
+    assert(newRule instanceof CSSStyleRule);
+    assert.equal(newRule.parentStyleSheet, stylesheet);
+    assert.equal(newRule.parentRule, rule);
+    assert.equal(newRule.cssText, `.baz {
+  color: red;
+}`);
+    assert.equal(child.cssText, `.bar {
+  font-family: Helvetica;
+}`);
+
+    rule.insertRule('.qux { color: green }', 1);
+    assert.equal(rule.cssRules.length, 3);
+    assert.equal(rule.cssRules.item(0), newRule);
+    assert.equal(rule.cssRules.item(2), child);
+
+    assert.throws(() => rule.insertRule('.bar { color: red }', 10));
+    assert.throws(() => rule.insertRule('.bar { color: red }', -1));
+
+    assert.equal(rule.cssText, `@media print, screen and (min-width: 240px) {
+  .baz {
+    color: red;
+  }
+
+  .qux {
+    color: green;
+  }
+
+  .bar {
+    font-family: Helvetica;
+  }
+}`)
+  });
+});
+
+run('MediaList', test => {
+  test('length', () => {
+    assert.equal(mediaList().length, 2);
+  });
+
+  test('item', () => {
+    let media = mediaList();
+    assert.equal(media.item(0), 'print');
+    assert.equal(media.item(1), 'screen and (min-width: 240px)');
+    assert.equal(media.item(2), null);
+    assert.equal(media.item(-1), null);
+  });
+
+  test('mediaText', () => {
+    assert.equal(mediaList().mediaText, 'print, screen and (min-width: 240px)');
+  });
+
+  test('appendMedium', () => {
+    let media = mediaList();
+    media.appendMedium('(100px <= height <= 500px)');
+    assert.equal(media.length, 3);
+    assert.equal(media.item(2), '(100px <= height <= 500px)');
+    assert.equal(media.mediaText, 'print, screen and (min-width: 240px), (100px <= height <= 500px)');
+
+    media.appendMedium('print');
+    assert.equal(media.mediaText, 'print, screen and (min-width: 240px), (100px <= height <= 500px)');
+  });
+
+  test('deleteMedium', () => {
+    let media = mediaList();
+    media.deleteMedium('screen and (min-width: 240px)');
+    assert.equal(media.length, 1);
+    assert.equal(media.item(0), 'print');
+    assert.equal(media.mediaText, 'print');
+    assert.throws(() => media.deleteMedium('screen'));
   });
 });
