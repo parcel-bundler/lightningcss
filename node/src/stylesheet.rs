@@ -16,7 +16,11 @@ use parcel_css::{
   declaration::DeclarationBlock,
   media_query::{MediaList, MediaQuery},
   properties::{Property, PropertyId},
-  rules::{style::StyleRule, CssRule, CssRuleList},
+  rules::{
+    keyframes::{Keyframe, KeyframeSelector},
+    style::StyleRule,
+    CssRule, CssRuleList,
+  },
   stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet},
   traits::{Parse, ToCss},
 };
@@ -51,7 +55,7 @@ impl CSSStyleSheet {
       for (index, rule) in rules.rules.iter_mut().enumerate() {
         if let Some(rule) = rule {
           let rule: &mut CSSRule = get_reference(env, rule)?;
-          rule.inner = RuleInner::Disconnected(self.stylesheet.rules.0[index].clone());
+          rule.inner = RuleInner::Disconnected(RuleOrKeyframe::Rule(self.stylesheet.rules.0[index].clone()));
         }
       }
     }
@@ -70,7 +74,7 @@ impl CSSStyleSheet {
       rule_list: RuleListReference::StyleSheet(
         reference
           .clone(env)?
-          .share_with(env, |stylesheet| Ok(&mut stylesheet.stylesheet.rules))?,
+          .share_with(env, |stylesheet| Ok(&mut stylesheet.stylesheet.rules.0))?,
       ),
       rules: Vec::new(),
       parent_rule: None,
@@ -167,7 +171,7 @@ fn delete_rule(
     if index < rule_objects.rules.len() {
       if let Some(rule) = &rule_objects.rules[index] {
         let rule: &mut CSSRule = get_reference(env, rule)?;
-        rule.inner = RuleInner::Disconnected(rules[index].clone());
+        rule.inner = RuleInner::Disconnected(RuleOrKeyframe::Rule(rules[index].clone()));
       }
 
       for rule in &rule_objects.rules[index + 1..] {
@@ -198,9 +202,82 @@ fn get_reference<T: napi::bindgen_prelude::FromNapiMutRef>(
   }
 }
 
+enum RuleOrKeyframe {
+  Rule(CssRule<'static>),
+  Keyframe(Keyframe<'static>),
+}
+
+enum RuleOrKeyframeRef<'a> {
+  Rule(&'a CssRule<'static>),
+  Keyframe(&'a Keyframe<'static>),
+}
+
+enum RuleOrKeyframeRefMut<'a> {
+  Rule(&'a mut CssRule<'static>),
+  Keyframe(&'a mut Keyframe<'static>),
+}
+
+impl RuleOrKeyframe {
+  fn js_value(&self, env: Env, css_rule: CSSRule) -> Result<JsUnknown> {
+    match self {
+      RuleOrKeyframe::Rule(rule) => css_rule_to_js_unknown(rule, env, css_rule),
+      RuleOrKeyframe::Keyframe(keyframe) => keyframe_to_js_unknown(env, css_rule),
+    }
+  }
+}
+
+fn css_rule_to_js_unknown(rule: &CssRule<'static>, env: Env, css_rule: CSSRule) -> Result<JsUnknown> {
+  let napi_value = match rule {
+    CssRule::Style(_) => {
+      let rule = CSSStyleRule::new(css_rule);
+      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+    }
+    CssRule::Media(_) => {
+      let rule = CSSMediaRule {
+        rule: CSSConditionRule {
+          rule: CSSGroupingRule {
+            rule: css_rule,
+            rules: None,
+          },
+        },
+        media: None,
+      };
+      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+    }
+    CssRule::Supports(_) => {
+      let rule = CSSSupportsRule {
+        rule: CSSConditionRule {
+          rule: CSSGroupingRule {
+            rule: css_rule,
+            rules: None,
+          },
+        },
+      };
+      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+    }
+    CssRule::Keyframes(_) => {
+      let rule = CSSKeyframesRule {
+        rule: css_rule,
+        rules: None,
+      };
+      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+    }
+    _ => unreachable!(),
+  };
+
+  unsafe { napi::JsUnknown::from_napi_value(env.raw(), napi_value) }
+}
+
+fn keyframe_to_js_unknown(env: Env, css_rule: CSSRule) -> Result<JsUnknown> {
+  let rule = CSSKeyframeRule { rule: css_rule };
+  let napi_value = unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? };
+  unsafe { napi::JsUnknown::from_napi_value(env.raw(), napi_value) }
+}
+
 enum RuleListReference {
-  StyleSheet(SharedReference<CSSStyleSheet, &'static mut CssRuleList<'static>>),
-  Rule(SharedReference<CSSGroupingRule, &'static mut CssRuleList<'static>>),
+  StyleSheet(SharedReference<CSSStyleSheet, &'static mut Vec<CssRule<'static>>>),
+  Rule(SharedReference<CSSGroupingRule, &'static mut Vec<CssRule<'static>>>),
+  Keyframes(SharedReference<CSSKeyframesRule, &'static mut Vec<Keyframe<'static>>>),
 }
 
 impl RuleListReference {
@@ -208,27 +285,54 @@ impl RuleListReference {
     match self {
       RuleListReference::StyleSheet(s) => Ok(RuleListReference::StyleSheet(s.clone(env)?)),
       RuleListReference::Rule(r) => Ok(RuleListReference::Rule(r.clone(env)?)),
+      RuleListReference::Keyframes(k) => Ok(RuleListReference::Keyframes(k.clone(env)?)),
     }
   }
-}
 
-impl Deref for RuleListReference {
-  type Target = CssRuleList<'static>;
-
-  fn deref(&self) -> &Self::Target {
+  fn len(&self) -> usize {
     match self {
+      RuleListReference::StyleSheet(s) => s.len(),
+      RuleListReference::Rule(r) => r.len(),
+      RuleListReference::Keyframes(k) => k.len(),
+    }
+  }
+
+  fn rule(&self, index: usize) -> RuleOrKeyframeRef {
+    let rule_list = match self {
       RuleListReference::StyleSheet(s) => &**s,
       RuleListReference::Rule(r) => &**r,
-    }
-  }
-}
+      RuleListReference::Keyframes(keyframes) => return RuleOrKeyframeRef::Keyframe(&keyframes[index]),
+    };
 
-impl DerefMut for RuleListReference {
-  fn deref_mut(&mut self) -> &mut CssRuleList<'static> {
-    match self {
+    RuleOrKeyframeRef::Rule(&rule_list[index])
+  }
+
+  fn rule_mut(&mut self, index: usize) -> RuleOrKeyframeRefMut {
+    let rule_list = match self {
       RuleListReference::StyleSheet(s) => &mut **s,
       RuleListReference::Rule(r) => &mut **r,
-    }
+      RuleListReference::Keyframes(keyframes) => return RuleOrKeyframeRefMut::Keyframe(&mut keyframes[index]),
+    };
+
+    RuleOrKeyframeRefMut::Rule(&mut rule_list[index])
+  }
+
+  fn get(&self, env: Env, index: usize, css_rule: CSSRule) -> Result<JsUnknown> {
+    let rule_list = match self {
+      RuleListReference::StyleSheet(s) => &**s,
+      RuleListReference::Rule(r) => &**r,
+      RuleListReference::Keyframes(keyframes) => match keyframes.get(index) {
+        Some(_) => return keyframe_to_js_unknown(env, css_rule),
+        None => return Ok(env.get_null()?.into_unknown()),
+      },
+    };
+
+    let rule = match rule_list.get(index) {
+      Some(rule) => rule,
+      None => return Ok(env.get_null()?.into_unknown()),
+    };
+
+    css_rule_to_js_unknown(rule, env, css_rule)
   }
 }
 
@@ -236,7 +340,7 @@ impl DerefMut for RuleListReference {
 struct CSSRuleList {
   rule_list: RuleListReference,
   rules: Vec<Option<Ref<()>>>,
-  parent_rule: Option<Reference<CSSGroupingRule>>,
+  parent_rule: Option<Reference<CSSRule>>,
   stylesheet_reference: Reference<CSSStyleSheet>,
 }
 
@@ -249,7 +353,7 @@ impl CSSRuleList {
 
   #[napi(getter)]
   pub fn length(&self) -> u32 {
-    self.rule_list.0.len() as u32
+    self.rule_list.len() as u32
   }
 
   #[napi]
@@ -258,11 +362,6 @@ impl CSSRuleList {
     if let Some(Some(rule)) = self.rules.get(index) {
       return env.get_reference_value(rule);
     }
-
-    let rule = match self.rule_list.0.get(index) {
-      Some(rule) => rule,
-      None => return Ok(env.get_null()?.into_unknown()),
-    };
 
     let css_rule = CSSRule {
       inner: RuleInner::Connected {
@@ -277,57 +376,48 @@ impl CSSRuleList {
       parent_stylesheet: self.stylesheet_reference.clone(env)?,
     };
 
-    let napi_value = match rule {
-      CssRule::Style(_) => {
-        let rule = CSSStyleRule::new(css_rule);
-        unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
-      }
-      CssRule::Media(_) => {
-        let rule = CSSMediaRule {
-          rule: CSSConditionRule {
-            rule: CSSGroupingRule {
-              rule: css_rule,
-              rules: None,
-            },
-          },
-          media: None,
-        };
-        unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
-      }
-      CssRule::Supports(_) => {
-        let rule = CSSSupportsRule {
-          rule: CSSConditionRule {
-            rule: CSSGroupingRule {
-              rule: css_rule,
-              rules: None,
-            },
-          },
-        };
-        unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
-      }
-      _ => unreachable!(),
-    };
-
-    let unknown = unsafe { napi::JsUnknown::from_napi_value(env.raw(), napi_value)? };
+    let js_value = self.rule_list.get(env, index, css_rule)?;
 
     if self.rules.len() <= index {
       self.rules.resize_with(index + 1, || None);
     }
 
-    self.rules[index] = Some(env.create_reference_with_refcount(&unknown, 0)?);
-    Ok(unknown)
+    self.rules[index] = Some(env.create_reference_with_refcount(&js_value, 0)?);
+    Ok(js_value)
   }
 }
 
 enum RuleInner {
   Connected { rule_list: RuleListReference, index: usize },
-  Disconnected(CssRule<'static>),
+  Disconnected(RuleOrKeyframe),
+}
+
+impl RuleInner {
+  fn rule(&self) -> RuleOrKeyframeRef {
+    match self {
+      RuleInner::Connected { rule_list, index } => rule_list.rule(*index),
+      RuleInner::Disconnected(rule) => match rule {
+        RuleOrKeyframe::Rule(rule) => RuleOrKeyframeRef::Rule(rule),
+        RuleOrKeyframe::Keyframe(keyframe) => RuleOrKeyframeRef::Keyframe(keyframe),
+      },
+    }
+  }
+
+  fn rule_mut(&mut self) -> RuleOrKeyframeRefMut {
+    match self {
+      RuleInner::Connected { rule_list, index } => rule_list.rule_mut(*index),
+      RuleInner::Disconnected(rule) => match rule {
+        RuleOrKeyframe::Rule(rule) => RuleOrKeyframeRefMut::Rule(rule),
+        RuleOrKeyframe::Keyframe(keyframe) => RuleOrKeyframeRefMut::Keyframe(keyframe),
+      },
+    }
+  }
 }
 
 #[napi(js_name = "CSSRule")]
 struct CSSRule {
   inner: RuleInner,
-  parent_rule: Option<Reference<CSSGroupingRule>>,
+  parent_rule: Option<Reference<CSSRule>>,
   parent_stylesheet: Reference<CSSStyleSheet>,
 }
 
@@ -340,24 +430,30 @@ impl CSSRule {
 
   #[napi(getter, js_name = "type")]
   pub fn kind(&self) -> u32 {
-    match &*self.rule() {
-      CssRule::Style(..) => 1,
-      CssRule::Import(..) => 3,
-      CssRule::Media(..) => 4,
-      CssRule::FontFace(..) => 5,
-      CssRule::Page(..) => 6,
-      CssRule::Keyframes(..) => 7,
-      CssRule::Namespace(..) => 10,
-      CssRule::CounterStyle(..) => 11,
-      CssRule::Supports(..) => 12,
-      CssRule::Viewport(..) => 15,
-      _ => 0,
+    match self.inner.rule() {
+      RuleOrKeyframeRef::Rule(rule) => match rule {
+        CssRule::Style(..) => 1,
+        CssRule::Import(..) => 3,
+        CssRule::Media(..) => 4,
+        CssRule::FontFace(..) => 5,
+        CssRule::Page(..) => 6,
+        CssRule::Keyframes(..) => 7,
+        CssRule::Namespace(..) => 10,
+        CssRule::CounterStyle(..) => 11,
+        CssRule::Supports(..) => 12,
+        CssRule::Viewport(..) => 15,
+        _ => 0,
+      },
+      RuleOrKeyframeRef::Keyframe(_) => 8,
     }
   }
 
   #[napi(getter)]
   pub fn css_text(&self) -> String {
-    self.rule().to_css_string(PrinterOptions::default()).unwrap()
+    match self.inner.rule() {
+      RuleOrKeyframeRef::Rule(rule) => rule.to_css_string(PrinterOptions::default()).unwrap(),
+      RuleOrKeyframeRef::Keyframe(rule) => rule.to_css_string(PrinterOptions::default()).unwrap(),
+    }
   }
 
   #[napi(setter)]
@@ -366,19 +462,16 @@ impl CSSRule {
   }
 
   fn rule(&self) -> &CssRule<'static> {
-    match &self.inner {
-      RuleInner::Connected { rule_list, index } => {
-        // std::cell::Ref::map(stylesheet, |stylesheet| &stylesheet.stylesheet.rules.0[*index])
-        &rule_list.0[*index]
-      }
-      RuleInner::Disconnected(rule) => &rule,
+    match self.inner.rule() {
+      RuleOrKeyframeRef::Rule(rule) => rule,
+      _ => unreachable!(),
     }
   }
 
   fn rule_mut(&mut self) -> &mut CssRule<'static> {
-    match &mut self.inner {
-      RuleInner::Connected { rule_list, index } => &mut rule_list.0[*index],
-      RuleInner::Disconnected(rule) => rule,
+    match self.inner.rule_mut() {
+      RuleOrKeyframeRefMut::Rule(rule) => rule,
+      _ => unreachable!(),
     }
   }
 
@@ -395,7 +488,7 @@ impl CSSRule {
   }
 
   #[napi(getter)]
-  pub fn parent_rule(&self, env: Env) -> Result<Option<Reference<CSSGroupingRule>>> {
+  pub fn parent_rule(&self, env: Env) -> Result<Option<Reference<CSSRule>>> {
     if let Some(parent) = &self.parent_rule {
       return Ok(Some(parent.clone(env)?));
     }
@@ -637,13 +730,15 @@ impl CSSGroupingRule {
       rule_list: RuleListReference::Rule(reference.clone(env)?.share_with(
         env,
         |rule| match rule.rule.rule_mut() {
-          CssRule::Media(media) => Ok(&mut media.rules),
-          CssRule::Supports(supports) => Ok(&mut supports.rules),
+          CssRule::Media(media) => Ok(&mut media.rules.0),
+          CssRule::Supports(supports) => Ok(&mut supports.rules.0),
           _ => unreachable!(),
         },
       )?),
       rules: Vec::new(),
-      parent_rule: Some(reference),
+      parent_rule: Some(unsafe {
+        std::mem::transmute::<Reference<CSSGroupingRule>, Reference<CSSRule>>(reference)
+      }),
       stylesheet_reference: self.rule.parent_stylesheet.clone(env)?,
     };
 
@@ -873,6 +968,101 @@ impl CSSSupportsRule {
   #[napi(constructor)]
   pub fn new() {
     unreachable!()
+  }
+}
+
+// https://drafts.csswg.org/css-animations-1/#csskeyframesrule
+#[napi(js_name = "CSSKeyframesRule")]
+struct CSSKeyframesRule {
+  rule: CSSRule,
+  rules: Option<Reference<CSSRuleList>>,
+}
+
+#[napi]
+impl CSSKeyframesRule {
+  #[napi(constructor)]
+  pub fn new() {
+    unreachable!()
+  }
+
+  #[napi(getter)]
+  pub fn name(&self) -> &str {
+    match self.rule.rule() {
+      CssRule::Keyframes(k) => k.name.0.as_ref(),
+      _ => unreachable!(),
+    }
+  }
+
+  #[napi(setter)]
+  pub fn set_name(&mut self, name: String) {
+    match self.rule.rule_mut() {
+      CssRule::Keyframes(k) => k.name.0 = name.into(),
+      _ => unreachable!(),
+    }
+  }
+
+  #[napi(getter)]
+  pub fn css_rules(&mut self, env: Env, reference: Reference<CSSKeyframesRule>) -> Result<Reference<CSSRuleList>> {
+    if let Some(rules) = &self.rules {
+      return rules.clone(env);
+    }
+
+    let rules = CSSRuleList {
+      rule_list: RuleListReference::Keyframes(reference.clone(env)?.share_with(env, |rule| {
+        match rule.rule.rule_mut() {
+          CssRule::Keyframes(k) => Ok(&mut k.keyframes),
+          _ => unreachable!(),
+        }
+      })?),
+      rules: Vec::new(),
+      parent_rule: Some(unsafe {
+        std::mem::transmute::<Reference<CSSKeyframesRule>, Reference<CSSRule>>(reference)
+      }),
+      stylesheet_reference: self.rule.parent_stylesheet.clone(env)?,
+    };
+
+    self.rules = Some(CSSRuleList::into_reference(rules, env)?);
+    self.rules.as_ref().unwrap().clone(env)
+  }
+}
+
+// https://drafts.csswg.org/css-animations-1/#csskeyframerule
+#[napi(js_name = "CSSKeyframeRule")]
+struct CSSKeyframeRule {
+  rule: CSSRule,
+}
+
+#[napi]
+impl CSSKeyframeRule {
+  #[napi(constructor)]
+  pub fn new() {
+    unreachable!()
+  }
+
+  #[napi(getter)]
+  pub fn key_text(&self) -> String {
+    match self.rule.inner.rule() {
+      RuleOrKeyframeRef::Keyframe(keyframe) => {
+        keyframe.selectors.to_css_string(PrinterOptions::default()).unwrap()
+      }
+      _ => unreachable!(),
+    }
+  }
+
+  #[napi(setter)]
+  pub fn set_key_text(&mut self, text: String) {
+    let mut input = ParserInput::new(leak_str(text));
+    let mut parser = Parser::new(&mut input);
+    if let Ok(selectors) = parser.parse_comma_separated(KeyframeSelector::parse) {
+      match self.rule.inner.rule_mut() {
+        RuleOrKeyframeRefMut::Keyframe(keyframe) => {
+          keyframe.selectors = selectors;
+        }
+        _ => unreachable!(),
+      }
+    } else {
+      // Spec says to throw a SyntaxError, but no browser does?
+    }
   }
 }
 

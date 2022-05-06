@@ -1,5 +1,5 @@
 const { suite } = require('uvu');
-const { CSSStyleSheet, CSSStyleRule, CSSRuleList, CSSRule, CSSGroupingRule, CSSConditionRule, CSSMediaRule, CSSStyleDeclaration, MediaList, CSSSupportsRule } = require('../');
+const { CSSStyleSheet, CSSStyleRule, CSSRuleList, CSSRule, CSSGroupingRule, CSSConditionRule, CSSMediaRule, CSSStyleDeclaration, MediaList, CSSSupportsRule, CSSKeyframesRule, CSSKeyframeRule } = require('../');
 const assert = require('assert');
 
 Object.setPrototypeOf(CSSStyleRule.prototype, CSSRule.prototype);
@@ -16,6 +16,12 @@ Object.setPrototypeOf(CSSMediaRule, CSSConditionRule);
 
 Object.setPrototypeOf(CSSSupportsRule.prototype, CSSConditionRule.prototype);
 Object.setPrototypeOf(CSSSupportsRule, CSSConditionRule);
+
+Object.setPrototypeOf(CSSKeyframesRule.prototype, CSSRule.prototype);
+Object.setPrototypeOf(CSSKeyframesRule, CSSRule);
+
+Object.setPrototypeOf(CSSKeyframeRule.prototype, CSSRule.prototype);
+Object.setPrototypeOf(CSSKeyframeRule, CSSRule);
 
 function run(name, fn) {
   let test = suite(name);
@@ -42,6 +48,20 @@ function createStyleSheet() {
     display: flex;
   }
 }
+
+@keyframes test {
+  from {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
 `);
   return stylesheet;
 }
@@ -56,6 +76,14 @@ function mediaRule() {
 
 function supportsRule() {
   return createStyleSheet().cssRules.item(2);
+}
+
+function keyframesRule() {
+  return createStyleSheet().cssRules.item(3);
+}
+
+function keyframeRule() {
+  return createStyleSheet().cssRules.item(3).cssRules.item(0);
 }
 
 function declaration() {
@@ -77,7 +105,7 @@ run('CSSStyleSheet', test => {
     let rule = stylesheet.cssRules.item(0);
     let index = stylesheet.insertRule('.bar { color: red }');
     assert.equal(index, 0);
-    assert.equal(stylesheet.cssRules.length, 4);
+    assert.equal(stylesheet.cssRules.length, 5);
     assert.equal(stylesheet.cssRules.item(1), rule);
     let newRule = stylesheet.cssRules.item(0);
     assert(newRule instanceof CSSStyleRule);
@@ -91,7 +119,7 @@ run('CSSStyleSheet', test => {
 }`);
 
     stylesheet.insertRule('baz { color: green }', 1);
-    assert.equal(stylesheet.cssRules.length, 5);
+    assert.equal(stylesheet.cssRules.length, 6);
     assert.equal(stylesheet.cssRules.item(0), newRule);
     assert.equal(stylesheet.cssRules.item(2), rule);
 
@@ -102,7 +130,7 @@ run('CSSStyleSheet', test => {
   test('addRule', () => {
     let stylesheet = createStyleSheet();
     stylesheet.addRule('.bar', 'color: red');
-    assert.equal(stylesheet.cssRules.length, 4);
+    assert.equal(stylesheet.cssRules.length, 5);
     let newRule = stylesheet.cssRules.item(0);
     assert.equal(newRule.cssText, `.bar {
   color: red;
@@ -113,7 +141,7 @@ run('CSSStyleSheet', test => {
     let stylesheet = createStyleSheet();
     let rule = stylesheet.cssRules.item(0);
     stylesheet.deleteRule(0);
-    assert.equal(stylesheet.cssRules.length, 2);
+    assert.equal(stylesheet.cssRules.length, 3);
     assert.equal(rule.parentStyleSheet, null);
     assert.equal(rule.cssText, `.foo {
   border: 1px solid #000;
@@ -149,7 +177,7 @@ run('CSSRuleList', test => {
 
   test('has correct length', () => {
     let stylesheet = createStyleSheet();
-    assert.equal(stylesheet.cssRules.length, 3);
+    assert.equal(stylesheet.cssRules.length, 4);
   });
 
   test('item() returns correct rule subclasses', () => {
@@ -200,6 +228,9 @@ run('CSSRule', test => {
 
   test('type', () => {
     assert.equal(styleRule().type, 1);
+    assert.equal(mediaRule().type, 4);
+    assert.equal(keyframesRule().type, 7);
+    assert.equal(supportsRule().type, 12);
   });
 });
 
@@ -524,5 +555,88 @@ run('CSSSupportsRule', test => {
 
     assert.throws(() => rule.deleteRule(10));
     assert.throws(() => rule.deleteRule(-1));
+  });
+});
+
+run('CSSKeyframesRule', test => {
+  test('has correct prototype chain', () => {
+    let rule = keyframesRule();
+    assert(rule instanceof CSSKeyframesRule);
+    assert(rule instanceof CSSRule);
+  });
+
+  test('cssText', () => {
+    let rule = keyframesRule();
+    assert.equal(rule.cssText, `@keyframes test {
+  from {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: .7;
+  }
+
+  to {
+    opacity: 1;
+  }
+}`);
+  });
+
+  test('name', () => {
+    let rule = keyframesRule();
+    assert.equal(rule.name, 'test');
+  });
+
+  test('set name', () => {
+    let rule = keyframesRule();
+    rule.name = 'hi';
+    assert.equal(rule.name, 'hi');
+    assert.equal(rule.cssText, `@keyframes hi {
+  from {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: .7;
+  }
+
+  to {
+    opacity: 1;
+  }
+}`);
+  });
+
+  test('cssRules', () => {
+    let rule = keyframesRule();
+    assert(rule.cssRules instanceof CSSRuleList);
+    assert.equal(rule.cssRules.length, 3);
+
+    let child = rule.cssRules.item(0);
+    assert(child instanceof CSSKeyframeRule);
+    assert.equal(child.type, 8);
+    assert.equal(child.parentRule, rule);
+  });
+});
+
+run('CSSKeyframeRule', test => {
+  test('keyText', () => {
+    let rule = keyframeRule();
+    assert.equal(rule.keyText, 'from');
+  });
+
+  test('cssText', () => {
+    let rule = keyframeRule();
+    assert.equal(rule.cssText, `from {
+  opacity: 0;
+}`);
+  });
+
+  test('set keyText', () => {
+    let rule = keyframeRule();
+    rule.keyText = '23%';
+    assert.equal(rule.keyText, '23%');
+    assert.equal(rule.cssText, `23% {
+  opacity: 0;
+}`);
   });
 });
