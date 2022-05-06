@@ -21,14 +21,9 @@ pub struct MediaList<'i> {
   pub media_queries: Vec<MediaQuery<'i>>,
 }
 
-impl<'i> MediaList<'i> {
-  /// Creates an empty media query list.
-  pub fn new() -> Self {
-    MediaList { media_queries: vec![] }
-  }
-
+impl<'i> Parse<'i> for MediaList<'i> {
   /// Parse a media query list from CSS.
-  pub fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut media_queries = vec![];
     loop {
       match input.parse_until_before(Delimiter::Comma, |i| MediaQuery::parse(i)) {
@@ -49,6 +44,13 @@ impl<'i> MediaList<'i> {
     }
 
     Ok(MediaList { media_queries })
+  }
+}
+
+impl<'i> MediaList<'i> {
+  /// Creates an empty media query list.
+  pub fn new() -> Self {
+    MediaList { media_queries: vec![] }
   }
 
   pub(crate) fn transform_custom_media(

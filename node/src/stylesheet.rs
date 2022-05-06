@@ -294,6 +294,17 @@ impl CSSRuleList {
         };
         unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
       }
+      CssRule::Supports(_) => {
+        let rule = CSSSupportsRule {
+          rule: CSSConditionRule {
+            rule: CSSGroupingRule {
+              rule: css_rule,
+              rules: None,
+            },
+          },
+        };
+        unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+      }
       _ => unreachable!(),
     };
 
@@ -627,6 +638,7 @@ impl CSSGroupingRule {
         env,
         |rule| match rule.rule.rule_mut() {
           CssRule::Media(media) => Ok(&mut media.rules),
+          CssRule::Supports(supports) => Ok(&mut supports.rules),
           _ => unreachable!(),
         },
       )?),
@@ -670,6 +682,7 @@ fn grouping_rule_insert(ctx: CallContext) -> Result<JsNumber> {
   let rule = unsafe { CSSGroupingRule::from_napi_mut_ref(ctx.env.raw(), napi_value).unwrap() };
   let rules = match rule.rule.rule_mut() {
     CssRule::Media(media) => &mut media.rules.0,
+    CssRule::Supports(supports) => &mut supports.rules.0,
     _ => unreachable!(),
   };
   let new_rule: JsString = ctx.get(0)?;
@@ -697,6 +710,7 @@ fn grouping_rule_delete(ctx: CallContext) -> Result<JsUndefined> {
   let rule = unsafe { CSSGroupingRule::from_napi_mut_ref(ctx.env.raw(), napi_value).unwrap() };
   let rules = match rule.rule.rule_mut() {
     CssRule::Media(media) => &mut media.rules.0,
+    CssRule::Supports(supports) => &mut supports.rules.0,
     _ => unreachable!(),
   };
   let index = ctx.get::<JsNumber>(0)?.get_uint32()?;
@@ -726,6 +740,21 @@ impl CSSConditionRule {
         napi::Status::InvalidArg,
         "Not a conditional rule".into(),
       )),
+    }
+  }
+
+  #[napi(setter)]
+  pub fn set_condition_text(&mut self, text: String) {
+    match self.rule.rule.rule_mut() {
+      CssRule::Media(media) => {
+        if let Ok(media_list) = MediaList::parse_string(leak_str(text)) {
+          media.query = media_list;
+        }
+      }
+      CssRule::Supports(_) => {
+        // Spec doesn't say this can be set. WebKit does nothing, Firefox throws. We do nothing.
+      }
+      _ => {}
     }
   }
 }
@@ -762,6 +791,11 @@ impl CSSMediaRule {
     self.media = Some(media.clone(env)?);
     Ok(media)
   }
+
+  #[napi(setter)]
+  pub fn set_media(&mut self, text: String) {
+    self.rule.set_condition_text(text)
+  }
 }
 
 #[napi(js_name = "MediaList")]
@@ -779,6 +813,13 @@ impl JSMediaList {
   #[napi(getter)]
   pub fn media_text(&self) -> String {
     self.media_list.to_css_string(PrinterOptions::default()).unwrap()
+  }
+
+  #[napi(setter)]
+  pub fn set_media_text(&mut self, text: String) {
+    if let Ok(media_list) = MediaList::parse_string(leak_str(text)) {
+      **self.media_list = media_list;
+    }
   }
 
   #[napi(getter)]
@@ -818,6 +859,20 @@ impl JSMediaList {
     }
 
     Ok(())
+  }
+}
+
+// https://drafts.csswg.org/css-conditional-3/#the-csssupportsrule-interface
+#[napi(js_name = "CSSSupportsRule")]
+struct CSSSupportsRule {
+  rule: CSSConditionRule,
+}
+
+#[napi]
+impl CSSSupportsRule {
+  #[napi(constructor)]
+  pub fn new() {
+    unreachable!()
   }
 }
 

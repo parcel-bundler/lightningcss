@@ -1,5 +1,5 @@
 const { suite } = require('uvu');
-const { CSSStyleSheet, CSSStyleRule, CSSRuleList, CSSRule, CSSGroupingRule, CSSConditionRule, CSSMediaRule, CSSStyleDeclaration, MediaList } = require('../');
+const { CSSStyleSheet, CSSStyleRule, CSSRuleList, CSSRule, CSSGroupingRule, CSSConditionRule, CSSMediaRule, CSSStyleDeclaration, MediaList, CSSSupportsRule } = require('../');
 const assert = require('assert');
 
 Object.setPrototypeOf(CSSStyleRule.prototype, CSSRule.prototype);
@@ -13,6 +13,9 @@ Object.setPrototypeOf(CSSConditionRule, CSSGroupingRule);
 
 Object.setPrototypeOf(CSSMediaRule.prototype, CSSConditionRule.prototype);
 Object.setPrototypeOf(CSSMediaRule, CSSConditionRule);
+
+Object.setPrototypeOf(CSSSupportsRule.prototype, CSSConditionRule.prototype);
+Object.setPrototypeOf(CSSSupportsRule, CSSConditionRule);
 
 function run(name, fn) {
   let test = suite(name);
@@ -33,6 +36,12 @@ function createStyleSheet() {
     font-family: Helvetica;
   }
 }
+
+@supports (display: flex) {
+  .baz {
+    display: flex;
+  }
+}
 `);
   return stylesheet;
 }
@@ -43,6 +52,10 @@ function styleRule() {
 
 function mediaRule() {
   return createStyleSheet().cssRules.item(1);
+}
+
+function supportsRule() {
+  return createStyleSheet().cssRules.item(2);
 }
 
 function declaration() {
@@ -64,7 +77,7 @@ run('CSSStyleSheet', test => {
     let rule = stylesheet.cssRules.item(0);
     let index = stylesheet.insertRule('.bar { color: red }');
     assert.equal(index, 0);
-    assert.equal(stylesheet.cssRules.length, 3);
+    assert.equal(stylesheet.cssRules.length, 4);
     assert.equal(stylesheet.cssRules.item(1), rule);
     let newRule = stylesheet.cssRules.item(0);
     assert(newRule instanceof CSSStyleRule);
@@ -78,7 +91,7 @@ run('CSSStyleSheet', test => {
 }`);
 
     stylesheet.insertRule('baz { color: green }', 1);
-    assert.equal(stylesheet.cssRules.length, 4);
+    assert.equal(stylesheet.cssRules.length, 5);
     assert.equal(stylesheet.cssRules.item(0), newRule);
     assert.equal(stylesheet.cssRules.item(2), rule);
 
@@ -89,7 +102,7 @@ run('CSSStyleSheet', test => {
   test('addRule', () => {
     let stylesheet = createStyleSheet();
     stylesheet.addRule('.bar', 'color: red');
-    assert.equal(stylesheet.cssRules.length, 3);
+    assert.equal(stylesheet.cssRules.length, 4);
     let newRule = stylesheet.cssRules.item(0);
     assert.equal(newRule.cssText, `.bar {
   color: red;
@@ -100,7 +113,7 @@ run('CSSStyleSheet', test => {
     let stylesheet = createStyleSheet();
     let rule = stylesheet.cssRules.item(0);
     stylesheet.deleteRule(0);
-    assert.equal(stylesheet.cssRules.length, 1);
+    assert.equal(stylesheet.cssRules.length, 2);
     assert.equal(rule.parentStyleSheet, null);
     assert.equal(rule.cssText, `.foo {
   border: 1px solid #000;
@@ -136,7 +149,7 @@ run('CSSRuleList', test => {
 
   test('has correct length', () => {
     let stylesheet = createStyleSheet();
-    assert.equal(stylesheet.cssRules.length, 2);
+    assert.equal(stylesheet.cssRules.length, 3);
   });
 
   test('item() returns correct rule subclasses', () => {
@@ -147,6 +160,10 @@ run('CSSRuleList', test => {
 
     rule = stylesheet.cssRules.item(1);
     assert(rule instanceof CSSMediaRule);
+    assert(rule instanceof CSSRule);
+
+    rule = stylesheet.cssRules.item(2);
+    assert(rule instanceof CSSSupportsRule);
     assert(rule instanceof CSSRule);
   });
 });
@@ -285,9 +302,31 @@ run('CSSMediaRule', test => {
     assert.equal(rule.conditionText, 'print, screen and (min-width: 240px)');
   });
 
+  test('set conditionText', () => {
+    let rule = mediaRule();
+    rule.conditionText = 'screen';
+    assert.equal(rule.conditionText, 'screen');
+    assert.equal(rule.cssText, `@media screen {
+  .bar {
+    font-family: Helvetica;
+  }
+}`);
+  });
+
   test('has a media list', () => {
     let rule = mediaRule();
     assert(rule.media instanceof MediaList);
+  });
+
+  test('set media', () => {
+    let rule = mediaRule();
+    rule.media = 'screen';
+    assert.equal(rule.conditionText, 'screen');
+    assert.equal(rule.cssText, `@media screen {
+  .bar {
+    font-family: Helvetica;
+  }
+}`);
   });
 
   test('has cssRules', () => {
@@ -353,6 +392,9 @@ run('CSSMediaRule', test => {
     assert.equal(child.cssText, `.bar {
   font-family: Helvetica;
 }`);
+    assert.equal(rule.cssText, `@media print, screen and (min-width: 240px) {
+  
+}`);
 
     assert.throws(() => rule.deleteRule(10));
     assert.throws(() => rule.deleteRule(-1));
@@ -376,6 +418,12 @@ run('MediaList', test => {
     assert.equal(mediaList().mediaText, 'print, screen and (min-width: 240px)');
   });
 
+  test('set mediaText', () => {
+    let media = mediaList();
+    media.mediaText = 'screen';
+    assert.equal(media.mediaText, 'screen');
+  });
+
   test('appendMedium', () => {
     let media = mediaList();
     media.appendMedium('(100px <= height <= 500px)');
@@ -394,5 +442,87 @@ run('MediaList', test => {
     assert.equal(media.item(0), 'print');
     assert.equal(media.mediaText, 'print');
     assert.throws(() => media.deleteMedium('screen'));
+  });
+});
+
+run('CSSSupportsRule', test => {
+  test('has correct prototype chain', () => {
+    let rule = supportsRule();
+    assert(rule instanceof CSSSupportsRule);
+    assert(rule instanceof CSSConditionRule);
+    assert(rule instanceof CSSGroupingRule);
+    assert(rule instanceof CSSRule);
+  });
+
+  test('conditionText', () => {
+    let rule = supportsRule();
+    assert.equal(rule.conditionText, '(display: flex)');
+  });
+
+  test('set conditionText', () => {
+    let rule = supportsRule();
+    rule.conditionText = '(display: grid)';
+    // It does nothing according to the spec...
+    assert.equal(rule.conditionText, '(display: flex)');
+  });
+
+  test('insertRule', () => {
+    let stylesheet = createStyleSheet();
+    let rule = stylesheet.cssRules.item(2);
+    let child = rule.cssRules.item(0);
+    let index = rule.insertRule('.qux { color: red }');
+    assert.equal(index, 0);
+    assert.equal(rule.cssRules.length, 2);
+    assert.equal(rule.cssRules.item(1), child);
+    let newRule = rule.cssRules.item(0);
+    assert(newRule instanceof CSSStyleRule);
+    assert.equal(newRule.parentStyleSheet, stylesheet);
+    assert.equal(newRule.parentRule, rule);
+    assert.equal(newRule.cssText, `.qux {
+  color: red;
+}`);
+    assert.equal(child.cssText, `.baz {
+  display: flex;
+}`);
+
+    rule.insertRule('.x { color: green }', 1);
+    assert.equal(rule.cssRules.length, 3);
+    assert.equal(rule.cssRules.item(0), newRule);
+    assert.equal(rule.cssRules.item(2), child);
+
+    assert.throws(() => rule.insertRule('.bar { color: red }', 10));
+    assert.throws(() => rule.insertRule('.bar { color: red }', -1));
+
+    assert.equal(rule.cssText, `@supports (display: flex) {
+  .qux {
+    color: red;
+  }
+
+  .x {
+    color: green;
+  }
+
+  .baz {
+    display: flex;
+  }
+}`)
+  });
+
+  test('deleteRule', () => {
+    let stylesheet = createStyleSheet();
+    let rule = stylesheet.cssRules.item(2);
+    let child = rule.cssRules.item(0);
+    rule.deleteRule(0);
+    assert.equal(rule.cssRules.length, 0);
+    assert.equal(child.parentStyleSheet, null);
+    assert.equal(child.cssText, `.baz {
+  display: flex;
+}`);
+    assert.equal(rule.cssText, `@supports (display: flex) {
+  
+}`);
+
+    assert.throws(() => rule.deleteRule(10));
+    assert.throws(() => rule.deleteRule(-1));
   });
 });
