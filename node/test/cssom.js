@@ -54,7 +54,7 @@ function createStyleSheet() {
     opacity: 0;
   }
 
-  50% {
+  25%, 75% {
     opacity: 0.7;
   }
 
@@ -420,6 +420,7 @@ run('CSSMediaRule', test => {
     rule.deleteRule(0);
     assert.equal(rule.cssRules.length, 0);
     assert.equal(child.parentStyleSheet, null);
+    assert.equal(child.parentRule, null);
     assert.equal(child.cssText, `.bar {
   font-family: Helvetica;
 }`);
@@ -572,7 +573,7 @@ run('CSSKeyframesRule', test => {
     opacity: 0;
   }
 
-  50% {
+  25%, 75% {
     opacity: .7;
   }
 
@@ -596,7 +597,7 @@ run('CSSKeyframesRule', test => {
     opacity: 0;
   }
 
-  50% {
+  25%, 75% {
     opacity: .7;
   }
 
@@ -615,6 +616,68 @@ run('CSSKeyframesRule', test => {
     assert(child instanceof CSSKeyframeRule);
     assert.equal(child.type, 8);
     assert.equal(child.parentRule, rule);
+  });
+
+  test('findRule', () => {
+    let rule = keyframesRule();
+    let child = rule.findRule('from');
+    assert(child instanceof CSSKeyframeRule);
+    assert(child.keyText, 'from');
+    assert.equal(child, rule.cssRules.item(0));
+
+    child = rule.findRule('0%');
+    assert(child.keyText, 'from');
+    assert.equal(child, rule.cssRules.item(0));
+
+    child = rule.findRule('to');
+    assert.equal(child.keyText, 'to');
+    assert.equal(child, rule.cssRules.item(2));
+
+    child = rule.findRule('100%');
+    assert.equal(child, rule.cssRules.item(2));
+
+    child = rule.findRule('25%, 75%');
+    assert.equal(child.keyText, '25%, 75%');
+    assert.equal(child, rule.cssRules.item(1));
+
+    child = rule.findRule('25%,75%');
+    assert.equal(child, rule.cssRules.item(1));
+
+    assert.equal(rule.findRule('25%'), null);
+    assert.equal(rule.findRule('25%, 75%, 80%'), null);
+    assert.equal(rule.findRule('15%'), null);
+    assert.equal(rule.findRule('invalid'), null);
+  });
+
+  test('appendRule', () => {
+    let rule = keyframesRule();
+    rule.appendRule('80% { color: teal }');
+    assert.equal(rule.cssRules.length, 4);
+
+    let child = rule.cssRules.item(3);
+    assert.equal(child.keyText, '80%');
+    assert.equal(child.cssText, `80% {
+  color: teal;
+}`);
+
+    assert.equal(rule.findRule('80%'), child);
+
+    rule.appendRule('80% { color: brown }');
+    assert.equal(rule.cssRules.length, 5);
+    assert.equal(rule.findRule('80%'), rule.cssRules.item(4));
+  });
+
+  test('deleteRule', () => {
+    let rule = keyframesRule();
+    let first = rule.cssRules.item(0);
+    rule.deleteRule('from');
+    assert.equal(rule.cssRules.length, 2);
+    assert.notEqual(rule.cssRules.item(0), first);
+    assert.equal(rule.cssRules.item(0).keyText, '25%, 75%');
+    assert.equal(rule.cssRules.item(1).keyText, 'to');
+    assert.equal(first.keyText, 'from');
+    assert.equal(first.parentRule, null);
+    assert.equal(first.parentStyleSheet, null);
   });
 });
 

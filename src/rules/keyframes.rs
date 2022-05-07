@@ -182,7 +182,7 @@ impl<'i> ToCss for KeyframesRule<'i> {
 
 /// A [keyframe selector](https://drafts.csswg.org/css-animations/#typedef-keyframe-selector)
 /// within an `@keyframes` rule.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum KeyframeSelector {
   /// An explicit percentage.
   Percentage(Percentage),
@@ -235,6 +235,20 @@ impl ToCss for KeyframeSelector {
   }
 }
 
+impl PartialEq for KeyframeSelector {
+  fn eq(&self, other: &Self) -> bool {
+    use KeyframeSelector::*;
+    match (self, other) {
+      (From, From) => true,
+      (To, To) => true,
+      (From, Percentage(p)) | (Percentage(p), From) => p.0 == 0.0,
+      (To, Percentage(p)) | (Percentage(p), To) => p.0 == 1.0,
+      (Percentage(a), Percentage(b)) => a == b,
+      _ => false,
+    }
+  }
+}
+
 /// An individual keyframe within an `@keyframes` rule.
 ///
 /// See [KeyframesRule](KeyframesRule).
@@ -261,6 +275,12 @@ impl<'i> ToCss for Keyframe<'i> {
     }
 
     self.declarations.to_css_block(dest)
+  }
+}
+
+impl<'i> Parse<'i> for Keyframe<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    parse_one_rule(input, &mut KeyframeListParser)
   }
 }
 

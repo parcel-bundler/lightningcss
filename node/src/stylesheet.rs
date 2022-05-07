@@ -7,17 +7,18 @@ use std::{
   rc::Rc,
 };
 
-use cssparser::{Parser, ParserInput};
+use cssparser::{ParseError, Parser, ParserInput};
 use napi::{
   bindgen_prelude::*, CallContext, JsNull, JsNumber, JsObject, JsString, JsUndefined, JsUnknown, NapiValue, Ref,
 };
 use napi_derive::{js_function, napi};
 use parcel_css::{
   declaration::DeclarationBlock,
+  error::ParserError,
   media_query::{MediaList, MediaQuery},
   properties::{Property, PropertyId},
   rules::{
-    keyframes::{Keyframe, KeyframeSelector},
+    keyframes::{Keyframe, KeyframeSelector, KeyframesRule},
     style::StyleRule,
     CssRule, CssRuleList,
   },
@@ -102,7 +103,7 @@ impl CSSStyleSheet {
 
   #[napi]
   pub fn delete_rule(&mut self, env: Env, index: u32) -> Result<()> {
-    delete_rule(&mut self.stylesheet.rules.0, &mut self.rules, env, index)
+    delete_rule(&mut self.stylesheet.rules.0, &mut self.rules, env, index as usize)
   }
 
   #[napi]
@@ -151,14 +152,13 @@ fn insert_rule(
   Ok(index as u32)
 }
 
-fn delete_rule(
-  rules: &mut Vec<CssRule<'static>>,
+fn delete_rule<T>(
+  rules: &mut Vec<T>,
   js_rules: &mut Option<Reference<CSSRuleList>>,
   env: Env,
-  index: u32,
+  index: usize,
 ) -> Result<()> {
   // https://drafts.csswg.org/cssom/#remove-a-css-rule
-  let index = index as usize;
   if index > rules.len() {
     return Err(napi::Error::new(
       napi::Status::GenericFailure,
@@ -167,24 +167,7 @@ fn delete_rule(
   }
 
   if let Some(rule_refs) = js_rules {
-    let rule_objects = &mut *rule_refs;
-    if index < rule_objects.rules.len() {
-      if let Some(rule) = &rule_objects.rules[index] {
-        let rule: &mut CSSRule = get_reference(env, rule)?;
-        rule.inner = RuleInner::Disconnected(RuleOrKeyframe::Rule(rules[index].clone()));
-      }
-
-      for rule in &rule_objects.rules[index + 1..] {
-        if let Some(rule) = rule {
-          let rule: &mut CSSRule = get_reference(env, rule)?;
-          if let RuleInner::Connected { index, .. } = &mut rule.inner {
-            *index -= 1;
-          }
-        }
-      }
-
-      rule_objects.rules.remove(index);
-    }
+    rule_refs.delete_rule(env, index)?;
   }
 
   rules.remove(index);
@@ -385,6 +368,30 @@ impl CSSRuleList {
     self.rules[index] = Some(env.create_reference_with_refcount(&js_value, 0)?);
     Ok(js_value)
   }
+
+  fn delete_rule(&mut self, env: Env, index: usize) -> Result<()> {
+    // https://drafts.csswg.org/cssom/#remove-a-css-rule
+    if index < self.rules.len() {
+      if let Some(rule) = &self.rules[index] {
+        let rule: &mut CSSRule = get_reference(env, rule)?;
+        rule.inner.disconnect();
+        rule.parent_rule = None;
+      }
+
+      for rule in &self.rules[index + 1..] {
+        if let Some(rule) = rule {
+          let rule: &mut CSSRule = get_reference(env, rule)?;
+          if let RuleInner::Connected { index, .. } = &mut rule.inner {
+            *index -= 1;
+          }
+        }
+      }
+
+      self.rules.remove(index);
+    }
+
+    Ok(())
+  }
 }
 
 enum RuleInner {
@@ -411,6 +418,13 @@ impl RuleInner {
         RuleOrKeyframe::Keyframe(keyframe) => RuleOrKeyframeRefMut::Keyframe(keyframe),
       },
     }
+  }
+
+  fn disconnect(&mut self) {
+    *self = RuleInner::Disconnected(match self.rule() {
+      RuleOrKeyframeRef::Rule(rule) => RuleOrKeyframe::Rule(rule.clone()),
+      RuleOrKeyframeRef::Keyframe(keyframe) => RuleOrKeyframe::Keyframe(keyframe.clone()),
+    })
   }
 }
 
@@ -809,7 +823,7 @@ fn grouping_rule_delete(ctx: CallContext) -> Result<JsUndefined> {
     _ => unreachable!(),
   };
   let index = ctx.get::<JsNumber>(0)?.get_uint32()?;
-  delete_rule(rules, &mut rule.rules, *ctx.env, index)?;
+  delete_rule(rules, &mut rule.rules, *ctx.env, index as usize)?;
   ctx.env.get_undefined()
 }
 
@@ -985,20 +999,40 @@ impl CSSKeyframesRule {
     unreachable!()
   }
 
-  #[napi(getter)]
-  pub fn name(&self) -> &str {
+  fn rule(&self) -> Result<&KeyframesRule<'static>> {
     match self.rule.rule() {
-      CssRule::Keyframes(k) => k.name.0.as_ref(),
-      _ => unreachable!(),
+      CssRule::Keyframes(rule) => Ok(rule),
+      _ => {
+        return Err(napi::Error::new(
+          napi::Status::GenericFailure,
+          "Not an @keyframes rule".into(),
+        ))
+      }
     }
   }
 
-  #[napi(setter)]
-  pub fn set_name(&mut self, name: String) {
+  fn rule_mut(&mut self) -> Result<&mut KeyframesRule<'static>> {
     match self.rule.rule_mut() {
-      CssRule::Keyframes(k) => k.name.0 = name.into(),
-      _ => unreachable!(),
+      CssRule::Keyframes(rule) => Ok(rule),
+      _ => {
+        return Err(napi::Error::new(
+          napi::Status::GenericFailure,
+          "Not an @keyframes rule".into(),
+        ))
+      }
     }
+  }
+
+  #[napi(getter)]
+  pub fn name(&self) -> Result<&str> {
+    Ok(self.rule()?.name.0.as_ref())
+  }
+
+  #[napi(setter)]
+  pub fn set_name(&mut self, name: String) -> Result<()> {
+    let rule = self.rule_mut()?;
+    rule.name.0 = name.into();
+    Ok(())
   }
 
   #[napi(getter)]
@@ -1023,6 +1057,60 @@ impl CSSKeyframesRule {
 
     self.rules = Some(CSSRuleList::into_reference(rules, env)?);
     self.rules.as_ref().unwrap().clone(env)
+  }
+
+  fn find_index(&self, select: String) -> Result<Option<usize>> {
+    let parsed = match parse_keyframe_selectors(&select) {
+      Ok(selector) => selector,
+      Err(_) => return Ok(None),
+    };
+
+    // Find the _last_ matching rule.
+    let rule = self.rule()?;
+    let len = rule.keyframes.len();
+    match rule.keyframes.iter().rev().position(|keyframe| keyframe.selectors == parsed) {
+      Some(index) => Ok(Some(len - 1 - index)),
+      _ => Ok(None),
+    }
+  }
+
+  #[napi]
+  pub fn find_rule(
+    &mut self,
+    select: String,
+    env: Env,
+    reference: Reference<CSSKeyframesRule>,
+  ) -> Result<JsUnknown> {
+    match self.find_index(select)? {
+      Some(index) => self.css_rules(env, reference)?.item(index as u32, env),
+      None => Ok(env.get_null()?.into_unknown()),
+    }
+  }
+
+  #[napi]
+  pub fn append_rule(&mut self, rule: String) -> Result<()> {
+    if let Ok(keyframe) = Keyframe::parse_string(leak_str(rule)) {
+      let rule = self.rule_mut()?;
+      rule.keyframes.push(keyframe);
+    }
+
+    Ok(())
+  }
+
+  #[napi]
+  pub fn delete_rule(&mut self, select: String, env: Env) -> Result<()> {
+    match self.find_index(select)? {
+      Some(index) => {
+        let rule = match self.rule.rule_mut() {
+          CssRule::Keyframes(rule) => rule,
+          _ => unreachable!(),
+        };
+        delete_rule(&mut rule.keyframes, &mut self.rules, env, index)?;
+      }
+      None => {}
+    }
+
+    Ok(())
   }
 }
 
@@ -1051,9 +1139,7 @@ impl CSSKeyframeRule {
 
   #[napi(setter)]
   pub fn set_key_text(&mut self, text: String) {
-    let mut input = ParserInput::new(leak_str(text));
-    let mut parser = Parser::new(&mut input);
-    if let Ok(selectors) = parser.parse_comma_separated(KeyframeSelector::parse) {
+    if let Ok(selectors) = parse_keyframe_selectors(leak_str(text)) {
       match self.rule.inner.rule_mut() {
         RuleOrKeyframeRefMut::Keyframe(keyframe) => {
           keyframe.selectors = selectors;
@@ -1073,4 +1159,12 @@ fn leak_str(string: String) -> &'static str {
   };
   std::mem::forget(string);
   res
+}
+
+fn parse_keyframe_selectors<'i>(
+  text: &'i str,
+) -> std::result::Result<Vec<KeyframeSelector>, ParseError<'i, ParserError<'i>>> {
+  let mut input = ParserInput::new(text);
+  let mut parser = Parser::new(&mut input);
+  parser.parse_comma_separated(KeyframeSelector::parse)
 }
