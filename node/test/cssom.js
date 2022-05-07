@@ -269,6 +269,12 @@ run('CSSStyleDeclaration', test => {
     assert.equal(declaration().cssText, 'border: 1px solid #000; color: green !important');
   });
 
+  test('set cssText', () => {
+    let decl = declaration();
+    decl.cssText = 'color: purple';
+    assert.equal(decl.cssText, 'color: purple');
+  });
+
   test('parentRule', () => {
     let rule = styleRule();
     assert.equal(rule.style.parentRule, rule);
@@ -700,6 +706,26 @@ run('CSSKeyframeRule', test => {
     assert.equal(rule.keyText, '23%');
     assert.equal(rule.cssText, `23% {
   opacity: 0;
+}`);
+  });
+
+  test('style', () => {
+    let rule = keyframeRule();
+    assert(rule.style instanceof CSSStyleDeclaration);
+    assert.equal(rule.style.getPropertyValue('opacity'), '0');
+    assert.equal(rule.style.cssText, 'opacity: 0');
+
+    rule.style.setProperty('opacity', '0.5');
+    assert.equal(rule.cssText, `from {
+  opacity: .5;
+}`);
+  });
+
+  test('set style', () => {
+    let rule = keyframeRule();
+    rule.style = 'opacity: 0.5';
+    assert.equal(rule.cssText, `from {
+  opacity: .5;
 }`);
   });
 });

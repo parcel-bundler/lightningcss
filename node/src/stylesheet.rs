@@ -252,7 +252,10 @@ fn css_rule_to_js_unknown(rule: &CssRule<'static>, env: Env, css_rule: CSSRule) 
 }
 
 fn keyframe_to_js_unknown(env: Env, css_rule: CSSRule) -> Result<JsUnknown> {
-  let rule = CSSKeyframeRule { rule: css_rule };
+  let rule = CSSKeyframeRule {
+    rule: css_rule,
+    style: None,
+  };
   let napi_value = unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? };
   unsafe { napi::JsUnknown::from_napi_value(env.raw(), napi_value) }
 }
@@ -552,19 +555,31 @@ impl CSSStyleRule {
       return rules.clone(env);
     }
 
-    let style = CSSStyleDeclaration::into_reference(CSSStyleDeclaration { rule: reference }, env)?;
+    let declarations = reference
+      .clone(env)?
+      .share_with(env, |reference| Ok(&mut reference.rule_mut().declarations))?;
+    let declarations = unsafe {
+      std::mem::transmute::<
+        SharedReference<CSSStyleRule, &mut DeclarationBlock<'static>>,
+        SharedReference<CSSRule, &mut DeclarationBlock<'static>>,
+      >(declarations)
+    };
+    let parent_rule = unsafe { std::mem::transmute::<Reference<CSSStyleRule>, Reference<CSSRule>>(reference) };
+    let style = CSSStyleDeclaration::into_reference(
+      CSSStyleDeclaration {
+        parent_rule,
+        declarations,
+      },
+      env,
+    )?;
     self.style = Some(style.clone(env)?);
     Ok(style)
   }
 
   #[napi(setter)]
   pub fn set_style(&mut self, text: String) {
-    match &mut *self.rule.rule_mut() {
-      CssRule::Style(style) => {
-        style.declarations = DeclarationBlock::parse_string(leak_str(text), ParserOptions::default()).unwrap();
-      }
-      _ => unreachable!(),
-    };
+    self.rule_mut().declarations =
+      DeclarationBlock::parse_string(leak_str(text), ParserOptions::default()).unwrap();
   }
 
   fn rule(&self) -> &StyleRule<'static> {
@@ -586,7 +601,8 @@ impl CSSStyleRule {
 
 #[napi(js_name = "CSSStyleDeclaration")]
 struct CSSStyleDeclaration {
-  rule: Reference<CSSStyleRule>,
+  parent_rule: Reference<CSSRule>,
+  declarations: SharedReference<CSSRule, &'static mut DeclarationBlock<'static>>,
 }
 
 #[napi]
@@ -597,24 +613,23 @@ impl CSSStyleDeclaration {
   }
 
   #[napi(getter)]
-  pub fn parent_rule(&self, env: Env) -> Result<Reference<CSSStyleRule>> {
-    self.rule.clone(env)
+  pub fn parent_rule(&self, env: Env) -> Result<Reference<CSSRule>> {
+    self.parent_rule.clone(env)
   }
 
   #[napi(getter)]
   pub fn css_text(&self) -> String {
-    self.rule.rule().declarations.to_css_string(PrinterOptions::default()).unwrap()
+    self.declarations.to_css_string(PrinterOptions::default()).unwrap()
   }
 
   #[napi(setter)]
   pub fn set_css_text(&mut self, text: String) {
-    self.rule.set_style(text)
+    **self.declarations = DeclarationBlock::parse_string(leak_str(text), ParserOptions::default()).unwrap();
   }
 
   fn get_longhands(&self) -> Vec<String> {
-    let rule = self.rule.rule();
     let mut longhands = Vec::new();
-    for (property, _important) in rule.declarations.iter() {
+    for (property, _important) in self.declarations.iter() {
       let property_id = property.property_id();
       if let Some(properties) = property_id.longhands() {
         longhands.extend(properties.iter().map(|property_id| property_id.name().to_owned()))
@@ -646,7 +661,7 @@ impl CSSStyleDeclaration {
     let property_id = PropertyId::parse_string(&property).unwrap();
     let opts = PrinterOptions::default();
 
-    if let Some((value, _important)) = self.rule.rule().declarations.get(&property_id) {
+    if let Some((value, _important)) = self.declarations.get(&property_id) {
       return value.value_to_css_string(opts).unwrap();
     }
 
@@ -656,7 +671,7 @@ impl CSSStyleDeclaration {
   #[napi]
   pub fn get_property_priority(&mut self, property: String) -> &str {
     let property_id = PropertyId::parse_string(&property).unwrap();
-    let important = if let Some((_value, important)) = self.rule.rule().declarations.get(&property_id) {
+    let important = if let Some((_value, important)) = self.declarations.get(&property_id) {
       important
     } else {
       false
@@ -678,7 +693,7 @@ impl CSSStyleDeclaration {
 
     let property =
       Property::parse_string(leak_str(property).into(), leak_str(value), ParserOptions::default()).unwrap();
-    self.rule.rule_mut().declarations.set(
+    self.declarations.set(
       property,
       if let Some(priority) = priority {
         priority.eq_ignore_ascii_case("important")
@@ -693,7 +708,7 @@ impl CSSStyleDeclaration {
     let value = self.get_property_value(property.clone());
 
     let property_id = PropertyId::parse_string(&property).unwrap();
-    self.rule.rule_mut().declarations.remove(&property_id);
+    self.declarations.remove(&property_id);
 
     value
   }
@@ -1118,6 +1133,7 @@ impl CSSKeyframesRule {
 #[napi(js_name = "CSSKeyframeRule")]
 struct CSSKeyframeRule {
   rule: CSSRule,
+  style: Option<Reference<CSSStyleDeclaration>>,
 }
 
 #[napi]
@@ -1149,6 +1165,52 @@ impl CSSKeyframeRule {
     } else {
       // Spec says to throw a SyntaxError, but no browser does?
     }
+  }
+
+  #[napi(getter)]
+  pub fn style(
+    &mut self,
+    env: Env,
+    reference: Reference<CSSKeyframeRule>,
+  ) -> Result<Reference<CSSStyleDeclaration>> {
+    if let Some(rules) = &self.style {
+      return rules.clone(env);
+    }
+
+    let declarations =
+      reference
+        .clone(env)?
+        .share_with(env, |reference| match reference.rule.inner.rule_mut() {
+          RuleOrKeyframeRefMut::Keyframe(keyframe) => Ok(&mut keyframe.declarations),
+          _ => unreachable!(),
+        })?;
+    let declarations = unsafe {
+      std::mem::transmute::<
+        SharedReference<CSSKeyframeRule, &mut DeclarationBlock<'static>>,
+        SharedReference<CSSRule, &mut DeclarationBlock<'static>>,
+      >(declarations)
+    };
+    let parent_rule = unsafe { std::mem::transmute::<Reference<CSSKeyframeRule>, Reference<CSSRule>>(reference) };
+
+    let style = CSSStyleDeclaration::into_reference(
+      CSSStyleDeclaration {
+        parent_rule,
+        declarations,
+      },
+      env,
+    )?;
+    self.style = Some(style.clone(env)?);
+    Ok(style)
+  }
+
+  #[napi(setter)]
+  pub fn set_style(&mut self, text: String) {
+    match self.rule.inner.rule_mut() {
+      RuleOrKeyframeRefMut::Keyframe(keyframe) => {
+        keyframe.declarations = DeclarationBlock::parse_string(leak_str(text), ParserOptions::default()).unwrap();
+      }
+      _ => unreachable!(),
+    };
   }
 }
 
