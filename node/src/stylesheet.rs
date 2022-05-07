@@ -30,6 +30,7 @@ use parcel_css::{
 #[napi(js_name = "CSSStyleSheet")]
 struct CSSStyleSheet {
   stylesheet: StyleSheet<'static>,
+  code: Option<String>,
   rules: Option<Reference<CSSRuleList>>,
 }
 
@@ -44,6 +45,7 @@ impl CSSStyleSheet {
         CssRuleList(Vec::new()),
         ParserOptions::default(),
       ),
+      code: None,
       rules: None,
     }
   }
@@ -61,7 +63,11 @@ impl CSSStyleSheet {
       }
     }
 
-    self.stylesheet = StyleSheet::parse("empty.css", leak_str(code), ParserOptions::default()).unwrap();
+    // Source string will be owned by the stylesheet, so it'll be freed when the
+    // JS garbage collector runs. We need to extend the lifetime to 'static to satisfy Rust.
+    let s = extend_lifetime(&code);
+    self.code = Some(code);
+    self.stylesheet = StyleSheet::parse("empty.css", s, ParserOptions::default()).unwrap();
     Ok(())
   }
 
@@ -116,7 +122,7 @@ fn insert_rule(
   rules: &mut Vec<CssRule<'static>>,
   js_rules: &mut Option<Reference<CSSRuleList>>,
   env: Env,
-  rule: String,
+  text: String,
   index: Option<u32>,
 ) -> Result<u32> {
   // https://drafts.csswg.org/cssom/#insert-a-css-rule
@@ -128,7 +134,7 @@ fn insert_rule(
     ));
   }
 
-  let new_rule = CssRule::parse_string(leak_str(rule), ParserOptions::default()).unwrap();
+  let new_rule = CssRule::parse_string(extend_lifetime(&text), ParserOptions::default()).unwrap();
 
   // TODO: Check if new_rule can be inserted at position (e.g. @import)
 
@@ -146,6 +152,9 @@ fn insert_rule(
     }
 
     rules.rules.insert(index, None);
+
+    // Store rule text in JS rule object so it is garbage collected.
+    rules.set_rule_text(env, index, text)?;
   }
 
   rules.insert(index, new_rule);
@@ -204,7 +213,7 @@ impl RuleOrKeyframe {
   fn js_value(&self, env: Env, css_rule: CSSRule) -> Result<JsUnknown> {
     match self {
       RuleOrKeyframe::Rule(rule) => css_rule_to_js_unknown(rule, env, css_rule),
-      RuleOrKeyframe::Keyframe(keyframe) => keyframe_to_js_unknown(env, css_rule),
+      RuleOrKeyframe::Keyframe(_) => keyframe_to_js_unknown(env, css_rule),
     }
   }
 }
@@ -216,33 +225,15 @@ fn css_rule_to_js_unknown(rule: &CssRule<'static>, env: Env, css_rule: CSSRule) 
       unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
     }
     CssRule::Media(_) => {
-      let rule = CSSMediaRule {
-        rule: CSSConditionRule {
-          rule: CSSGroupingRule {
-            rule: css_rule,
-            rules: None,
-          },
-        },
-        media: None,
-      };
+      let rule = CSSMediaRule::new(css_rule);
       unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
     }
     CssRule::Supports(_) => {
-      let rule = CSSSupportsRule {
-        rule: CSSConditionRule {
-          rule: CSSGroupingRule {
-            rule: css_rule,
-            rules: None,
-          },
-        },
-      };
+      let rule = CSSSupportsRule::new(css_rule);
       unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
     }
     CssRule::Keyframes(_) => {
-      let rule = CSSKeyframesRule {
-        rule: css_rule,
-        rules: None,
-      };
+      let rule = CSSKeyframesRule::new(css_rule);
       unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
     }
     _ => unreachable!(),
@@ -252,10 +243,7 @@ fn css_rule_to_js_unknown(rule: &CssRule<'static>, env: Env, css_rule: CSSRule) 
 }
 
 fn keyframe_to_js_unknown(env: Env, css_rule: CSSRule) -> Result<JsUnknown> {
-  let rule = CSSKeyframeRule {
-    rule: css_rule,
-    style: None,
-  };
+  let rule = CSSKeyframeRule::new(css_rule);
   let napi_value = unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? };
   unsafe { napi::JsUnknown::from_napi_value(env.raw(), napi_value) }
 }
@@ -360,6 +348,7 @@ impl CSSRuleList {
         None
       },
       parent_stylesheet: self.stylesheet_reference.clone(env)?,
+      text: None,
     };
 
     let js_value = self.rule_list.get(env, index, css_rule)?;
@@ -370,6 +359,14 @@ impl CSSRuleList {
 
     self.rules[index] = Some(env.create_reference_with_refcount(&js_value, 0)?);
     Ok(js_value)
+  }
+
+  fn set_rule_text(&mut self, env: Env, index: usize, text: String) -> Result<()> {
+    // Take ownership of rule text so it is garbage collected when the rule is removed.
+    self.item(index as u32, env)?;
+    let js_rule: &mut CSSRule = get_reference(env, self.rules[index].as_ref().unwrap())?;
+    js_rule.text = Some(text);
+    Ok(())
   }
 
   fn delete_rule(&mut self, env: Env, index: usize) -> Result<()> {
@@ -436,6 +433,7 @@ struct CSSRule {
   inner: RuleInner,
   parent_rule: Option<Reference<CSSRule>>,
   parent_stylesheet: Reference<CSSStyleSheet>,
+  text: Option<String>,
 }
 
 #[napi]
@@ -518,12 +516,17 @@ impl CSSRule {
 struct CSSStyleRule {
   rule: CSSRule,
   style: Option<Reference<CSSStyleDeclaration>>,
+  selector_text: Option<String>,
 }
 
 #[napi]
 impl CSSStyleRule {
   fn new(rule: CSSRule) -> CSSStyleRule {
-    CSSStyleRule { rule, style: None }
+    CSSStyleRule {
+      rule,
+      style: None,
+      selector_text: None,
+    }
   }
 
   #[napi(constructor)]
@@ -541,12 +544,9 @@ impl CSSStyleRule {
 
   #[napi(setter)]
   pub fn set_selector_text(&mut self, text: String) {
-    match &mut *self.rule.rule_mut() {
-      CssRule::Style(style) => {
-        style.set_selector_text(leak_str(text)).unwrap();
-      }
-      _ => unreachable!(),
-    }
+    let s = extend_lifetime(&text);
+    self.selector_text = Some(text);
+    self.rule_mut().set_selector_text(s).unwrap();
   }
 
   #[napi(getter)]
@@ -565,21 +565,15 @@ impl CSSStyleRule {
       >(declarations)
     };
     let parent_rule = unsafe { std::mem::transmute::<Reference<CSSStyleRule>, Reference<CSSRule>>(reference) };
-    let style = CSSStyleDeclaration::into_reference(
-      CSSStyleDeclaration {
-        parent_rule,
-        declarations,
-      },
-      env,
-    )?;
+    let style = CSSStyleDeclaration::into_reference(CSSStyleDeclaration::new(parent_rule, declarations), env)?;
     self.style = Some(style.clone(env)?);
     Ok(style)
   }
 
   #[napi(setter)]
-  pub fn set_style(&mut self, text: String) {
-    self.rule_mut().declarations =
-      DeclarationBlock::parse_string(leak_str(text), ParserOptions::default()).unwrap();
+  pub fn set_style(&mut self, text: String, env: Env, reference: Reference<CSSStyleRule>) -> Result<()> {
+    self.style(env, reference)?.set_css_text(text);
+    Ok(())
   }
 
   fn rule(&self) -> &StyleRule<'static> {
@@ -603,13 +597,31 @@ impl CSSStyleRule {
 struct CSSStyleDeclaration {
   parent_rule: Reference<CSSRule>,
   declarations: SharedReference<CSSRule, &'static mut DeclarationBlock<'static>>,
+  strings: Vec<String>,
 }
 
 #[napi]
 impl CSSStyleDeclaration {
   #[napi(constructor)]
-  pub fn new() -> Self {
+  pub fn constructor() -> Self {
     unreachable!()
+  }
+
+  fn new(
+    parent_rule: Reference<CSSRule>,
+    declarations: SharedReference<CSSRule, &'static mut DeclarationBlock<'static>>,
+  ) -> Self {
+    CSSStyleDeclaration {
+      parent_rule,
+      declarations,
+      strings: Vec::new(),
+    }
+  }
+
+  fn add_string(&mut self, string: String) -> &'static str {
+    let res = extend_lifetime(&string);
+    self.strings.push(string);
+    res
   }
 
   #[napi(getter)]
@@ -624,7 +636,7 @@ impl CSSStyleDeclaration {
 
   #[napi(setter)]
   pub fn set_css_text(&mut self, text: String) {
-    **self.declarations = DeclarationBlock::parse_string(leak_str(text), ParserOptions::default()).unwrap();
+    **self.declarations = DeclarationBlock::parse_string(self.add_string(text), ParserOptions::default()).unwrap();
   }
 
   fn get_longhands(&self) -> Vec<String> {
@@ -691,8 +703,12 @@ impl CSSStyleDeclaration {
       return;
     }
 
-    let property =
-      Property::parse_string(leak_str(property).into(), leak_str(value), ParserOptions::default()).unwrap();
+    let property = Property::parse_string(
+      self.add_string(property).into(),
+      self.add_string(value),
+      ParserOptions::default(),
+    )
+    .unwrap();
     self.declarations.set(
       property,
       if let Some(priority) = priority {
@@ -724,8 +740,12 @@ struct CSSGroupingRule {
 #[napi]
 impl CSSGroupingRule {
   #[napi(constructor)]
-  pub fn new() {
+  pub fn constructor() {
     unreachable!()
+  }
+
+  fn new(rule: CSSRule) -> Self {
+    CSSGroupingRule { rule, rules: None }
   }
 
   fn init(env: Env) {
@@ -846,13 +866,21 @@ fn grouping_rule_delete(ctx: CallContext) -> Result<JsUndefined> {
 #[napi(js_name = "CSSConditionRule")]
 struct CSSConditionRule {
   rule: CSSGroupingRule,
+  condition_text: Option<String>,
 }
 
 #[napi]
 impl CSSConditionRule {
   #[napi(constructor)]
-  pub fn new() {
+  pub fn constructor() {
     unreachable!()
+  }
+
+  fn new(rule: CSSRule) -> Self {
+    CSSConditionRule {
+      rule: CSSGroupingRule::new(rule),
+      condition_text: None,
+    }
   }
 
   #[napi(getter)]
@@ -871,7 +899,9 @@ impl CSSConditionRule {
   pub fn set_condition_text(&mut self, text: String) {
     match self.rule.rule.rule_mut() {
       CssRule::Media(media) => {
-        if let Ok(media_list) = MediaList::parse_string(leak_str(text)) {
+        let s = extend_lifetime(&text);
+        self.condition_text = Some(text);
+        if let Ok(media_list) = MediaList::parse_string(s) {
           media.query = media_list;
         }
       }
@@ -893,8 +923,15 @@ struct CSSMediaRule {
 #[napi]
 impl CSSMediaRule {
   #[napi(constructor)]
-  pub fn new() {
+  pub fn constructor() {
     unreachable!()
+  }
+
+  fn new(rule: CSSRule) -> Self {
+    Self {
+      rule: CSSConditionRule::new(rule),
+      media: None,
+    }
   }
 
   #[napi(getter)]
@@ -909,6 +946,7 @@ impl CSSMediaRule {
           CssRule::Media(media) => Ok(&mut media.query),
           _ => unreachable!(),
         })?,
+        strings: Vec::new(),
       },
       env,
     )?;
@@ -925,13 +963,27 @@ impl CSSMediaRule {
 #[napi(js_name = "MediaList")]
 struct JSMediaList {
   media_list: SharedReference<CSSMediaRule, &'static mut MediaList<'static>>,
+  strings: Vec<String>,
 }
 
 #[napi]
 impl JSMediaList {
   #[napi(constructor)]
-  pub fn new() {
+  pub fn constructor() {
     unreachable!()
+  }
+
+  fn new(media_list: SharedReference<CSSMediaRule, &'static mut MediaList<'static>>) -> Self {
+    JSMediaList {
+      media_list,
+      strings: Vec::new(),
+    }
+  }
+
+  fn add_string(&mut self, string: String) -> &'static str {
+    let s = extend_lifetime(&string);
+    self.strings.push(string);
+    s
   }
 
   #[napi(getter)]
@@ -941,7 +993,7 @@ impl JSMediaList {
 
   #[napi(setter)]
   pub fn set_media_text(&mut self, text: String) {
-    if let Ok(media_list) = MediaList::parse_string(leak_str(text)) {
+    if let Ok(media_list) = MediaList::parse_string(self.add_string(text)) {
       **self.media_list = media_list;
     }
   }
@@ -962,7 +1014,7 @@ impl JSMediaList {
 
   #[napi]
   pub fn append_medium(&mut self, medium: String) {
-    if let Ok(query) = MediaQuery::parse_string(leak_str(medium)) {
+    if let Ok(query) = MediaQuery::parse_string(self.add_string(medium)) {
       if self.media_list.media_queries.contains(&query) {
         return;
       }
@@ -973,7 +1025,7 @@ impl JSMediaList {
 
   #[napi]
   pub fn delete_medium(&mut self, medium: String) -> Result<()> {
-    if let Ok(query) = MediaQuery::parse_string(leak_str(medium)) {
+    if let Ok(query) = MediaQuery::parse_string(&medium) {
       let queries = &mut self.media_list.media_queries;
       let len = queries.len();
       queries.retain(|q| *q != query);
@@ -995,8 +1047,14 @@ struct CSSSupportsRule {
 #[napi]
 impl CSSSupportsRule {
   #[napi(constructor)]
-  pub fn new() {
+  pub fn constructor() {
     unreachable!()
+  }
+
+  fn new(rule: CSSRule) -> Self {
+    Self {
+      rule: CSSConditionRule::new(rule),
+    }
   }
 }
 
@@ -1010,8 +1068,12 @@ struct CSSKeyframesRule {
 #[napi]
 impl CSSKeyframesRule {
   #[napi(constructor)]
-  pub fn new() {
+  pub fn constructor() {
     unreachable!()
+  }
+
+  fn new(rule: CSSRule) -> Self {
+    Self { rule, rules: None }
   }
 
   fn rule(&self) -> Result<&KeyframesRule<'static>> {
@@ -1103,10 +1165,15 @@ impl CSSKeyframesRule {
   }
 
   #[napi]
-  pub fn append_rule(&mut self, rule: String) -> Result<()> {
-    if let Ok(keyframe) = Keyframe::parse_string(leak_str(rule)) {
+  pub fn append_rule(&mut self, text: String, env: Env, reference: Reference<CSSKeyframesRule>) -> Result<()> {
+    if let Ok(keyframe) = Keyframe::parse_string(extend_lifetime(&text)) {
       let rule = self.rule_mut()?;
+      let index = rule.keyframes.len();
       rule.keyframes.push(keyframe);
+
+      // Take ownership of rule text so it is garbage collected when the rule is removed.
+      let mut rule_list = self.css_rules(env, reference)?;
+      rule_list.set_rule_text(env, index, text)?;
     }
 
     Ok(())
@@ -1134,13 +1201,22 @@ impl CSSKeyframesRule {
 struct CSSKeyframeRule {
   rule: CSSRule,
   style: Option<Reference<CSSStyleDeclaration>>,
+  key_text: Option<String>,
 }
 
 #[napi]
 impl CSSKeyframeRule {
   #[napi(constructor)]
-  pub fn new() {
+  pub fn constructor() {
     unreachable!()
+  }
+
+  fn new(rule: CSSRule) -> Self {
+    Self {
+      rule,
+      style: None,
+      key_text: None,
+    }
   }
 
   #[napi(getter)]
@@ -1155,10 +1231,11 @@ impl CSSKeyframeRule {
 
   #[napi(setter)]
   pub fn set_key_text(&mut self, text: String) {
-    if let Ok(selectors) = parse_keyframe_selectors(leak_str(text)) {
+    if let Ok(selectors) = parse_keyframe_selectors(extend_lifetime(&text)) {
       match self.rule.inner.rule_mut() {
         RuleOrKeyframeRefMut::Keyframe(keyframe) => {
           keyframe.selectors = selectors;
+          self.key_text = Some(text);
         }
         _ => unreachable!(),
       }
@@ -1192,35 +1269,20 @@ impl CSSKeyframeRule {
     };
     let parent_rule = unsafe { std::mem::transmute::<Reference<CSSKeyframeRule>, Reference<CSSRule>>(reference) };
 
-    let style = CSSStyleDeclaration::into_reference(
-      CSSStyleDeclaration {
-        parent_rule,
-        declarations,
-      },
-      env,
-    )?;
+    let style = CSSStyleDeclaration::into_reference(CSSStyleDeclaration::new(parent_rule, declarations), env)?;
     self.style = Some(style.clone(env)?);
     Ok(style)
   }
 
   #[napi(setter)]
-  pub fn set_style(&mut self, text: String) {
-    match self.rule.inner.rule_mut() {
-      RuleOrKeyframeRefMut::Keyframe(keyframe) => {
-        keyframe.declarations = DeclarationBlock::parse_string(leak_str(text), ParserOptions::default()).unwrap();
-      }
-      _ => unreachable!(),
-    };
+  pub fn set_style(&mut self, text: String, env: Env, reference: Reference<CSSKeyframeRule>) -> Result<()> {
+    self.style(env, reference)?.set_css_text(text);
+    Ok(())
   }
 }
 
-fn leak_str(string: String) -> &'static str {
-  let res = unsafe {
-    let slice = std::slice::from_raw_parts(string.as_ptr(), string.len());
-    std::str::from_utf8_unchecked(slice)
-  };
-  std::mem::forget(string);
-  res
+fn extend_lifetime(string: &str) -> &'static str {
+  unsafe { std::mem::transmute::<&str, &'static str>(string) }
 }
 
 fn parse_keyframe_selectors<'i>(
