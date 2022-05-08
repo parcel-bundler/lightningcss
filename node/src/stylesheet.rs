@@ -143,12 +143,15 @@ fn insert_rule(
     }
 
     rules.rules.insert(index, None);
+  }
 
+  rules.insert(index, new_rule);
+
+  if let Some(rules) = js_rules {
     // Store rule text in JS rule object so it is garbage collected.
     rules.set_rule_text(env, index, text)?;
   }
 
-  rules.insert(index, new_rule);
   Ok(index as u32)
 }
 
@@ -626,6 +629,29 @@ impl CSSStyleRule {
 
     self.rules = Some(CSSRuleList::into_reference(rules, env)?);
     self.rules.as_ref().unwrap().clone(env)
+  }
+
+  #[napi]
+  pub fn insert_rule(&mut self, env: Env, text: String, index: Option<u32>) -> Result<u32> {
+    let rule = self.rule.rule_mut();
+    let style = match rule {
+      CssRule::Style(style) => style,
+      CssRule::Nesting(nesting) => &mut nesting.style,
+      _ => unreachable!(),
+    };
+    // TODO: needs to handle nesting selectors and other context...
+    insert_rule(&mut style.rules.0, &mut self.rules, env, text, index)
+  }
+
+  #[napi]
+  pub fn delete_rule(&mut self, env: Env, index: u32) -> Result<()> {
+    let rule = self.rule.rule_mut();
+    let style = match rule {
+      CssRule::Style(style) => style,
+      CssRule::Nesting(nesting) => &mut nesting.style,
+      _ => unreachable!(),
+    };
+    delete_rule(&mut style.rules.0, &mut self.rules, env, index as usize)
   }
 
   fn rule(&self) -> &StyleRule<'static> {
@@ -1605,6 +1631,16 @@ impl CSSNestingRule {
     let reference =
       unsafe { std::mem::transmute::<Reference<CSSNestingRule>, Reference<CSSStyleRule>>(reference) };
     self.rule.set_style(text, env, reference)
+  }
+
+  #[napi]
+  pub fn insert_rule(&mut self, env: Env, text: String, index: Option<u32>) -> Result<u32> {
+    self.rule.insert_rule(env, text, index)
+  }
+
+  #[napi]
+  pub fn delete_rule(&mut self, env: Env, index: u32) -> Result<()> {
+    self.rule.delete_rule(env, index)
   }
 }
 

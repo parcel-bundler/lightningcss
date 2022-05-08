@@ -296,6 +296,17 @@ run('CSSStyleRule', test => {
   background: red;
 }`);
   });
+
+  test('nesting', () => {
+    let rule = styleRule();
+    assert(rule.cssRules instanceof CSSRuleList);
+    assert.equal(rule.cssRules.length, 0);
+
+    // TODO
+    // rule.insertRule('&.bar { color: red }');
+    // assert.equal(rule.cssRules.length, 1);
+    // assert.equal(rule.cssRules.item(0).selectorText, '&.bar');
+  });
 });
 
 run('CSSStyleDeclaration', test => {
