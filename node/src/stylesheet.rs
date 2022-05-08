@@ -243,6 +243,10 @@ fn css_rule_to_js_unknown(rule: &CssRule<'static>, env: Env, css_rule: CSSRule) 
       let rule = CSSLayerBlockRule::new(css_rule);
       unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
     }
+    CssRule::Page(_) => {
+      let rule = CSSPageRule::new(css_rule);
+      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+    }
     _ => unreachable!(),
   };
 
@@ -1092,7 +1096,7 @@ impl CSSKeyframesRule {
   }
 
   fn find_index(&self, select: String) -> Result<Option<usize>> {
-    let parsed = match parse_keyframe_selectors(&select) {
+    let parsed = match Vec::parse_string(&select) {
       Ok(selector) => selector,
       Err(_) => return Ok(None),
     };
@@ -1186,7 +1190,7 @@ impl CSSKeyframeRule {
 
   #[napi(setter)]
   pub fn set_key_text(&mut self, text: String) {
-    if let Ok(selectors) = parse_keyframe_selectors(extend_lifetime(&text)) {
+    if let Ok(selectors) = Vec::parse_string(extend_lifetime(&text)) {
       match self.rule.inner.rule_mut() {
         RuleOrKeyframeRefMut::Keyframe(keyframe) => {
           keyframe.selectors = selectors;
@@ -1397,18 +1401,91 @@ impl CSSLayerBlockRule {
   }
 }
 
+#[napi(js_name = "CSSPageRule")]
+struct CSSPageRule {
+  rule: CSSGroupingRule,
+  style: Option<Reference<CSSStyleDeclaration>>,
+  selector_text: Option<String>,
+}
+
+#[napi]
+impl CSSPageRule {
+  #[napi(constructor)]
+  pub fn constructor() {
+    unreachable!()
+  }
+
+  fn new(rule: CSSRule) -> Self {
+    Self {
+      rule: CSSGroupingRule::new(rule),
+      style: None,
+      selector_text: None,
+    }
+  }
+
+  #[napi(getter)]
+  pub fn selector_text(&self) -> Result<String> {
+    // TODO: Safari returns "@page :first", Chrome returns ":first", Firefox doesn't support selectorText.
+    match self.rule.rule.rule() {
+      CssRule::Page(page) => Ok(page.selectors.to_css_string(PrinterOptions::default()).unwrap()),
+      _ => Err(napi::Error::new(
+        napi::Status::GenericFailure,
+        "Not an @page rule".into(),
+      )),
+    }
+  }
+
+  #[napi(setter)]
+  pub fn set_selector_text(&mut self, text: String) -> Result<()> {
+    // TODO: Chrome and Safari both seem not to implement this? But it's in the spec...
+    match self.rule.rule.rule_mut() {
+      CssRule::Page(page) => {
+        page.selectors = Vec::parse_string(extend_lifetime(&text)).unwrap();
+        self.selector_text = Some(text);
+        Ok(())
+      }
+      _ => Err(napi::Error::new(
+        napi::Status::GenericFailure,
+        "Not an @page rule".into(),
+      )),
+    }
+  }
+
+  #[napi(getter)]
+  pub fn style(&mut self, env: Env, reference: Reference<CSSPageRule>) -> Result<Reference<CSSStyleDeclaration>> {
+    if let Some(rules) = &self.style {
+      return rules.clone(env);
+    }
+
+    let rule = match self.rule.rule.rule_mut() {
+      CssRule::Page(page) => page,
+      _ => {
+        return Err(napi::Error::new(
+          napi::Status::GenericFailure,
+          "Not an @page rule".into(),
+        ))
+      }
+    };
+
+    let declarations = extend_lifetime_mut(&mut rule.declarations);
+    let parent_rule =
+      unsafe { std::mem::transmute::<WeakReference<CSSPageRule>, WeakReference<CSSRule>>(reference.downgrade()) };
+    let style = CSSStyleDeclaration::into_reference(CSSStyleDeclaration::new(parent_rule, declarations), env)?;
+    self.style = Some(style.clone(env)?);
+    Ok(style)
+  }
+
+  #[napi(setter)]
+  pub fn set_style(&mut self, text: String, env: Env, reference: Reference<CSSPageRule>) -> Result<()> {
+    self.style(env, reference)?.set_css_text(text);
+    Ok(())
+  }
+}
+
 fn extend_lifetime<T: ?Sized>(string: &T) -> &'static T {
   unsafe { std::mem::transmute::<&T, &'static T>(string) }
 }
 
 fn extend_lifetime_mut<T: ?Sized>(string: &mut T) -> &'static mut T {
   unsafe { std::mem::transmute::<&mut T, &'static mut T>(string) }
-}
-
-fn parse_keyframe_selectors<'i>(
-  text: &'i str,
-) -> std::result::Result<Vec<KeyframeSelector>, ParseError<'i, ParserError<'i>>> {
-  let mut input = ParserInput::new(text);
-  let mut parser = Parser::new(&mut input);
-  parser.parse_comma_separated(KeyframeSelector::parse)
 }

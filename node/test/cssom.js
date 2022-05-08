@@ -1,5 +1,5 @@
 const { suite } = require('uvu');
-const { CSSStyleSheet, CSSStyleRule, CSSRuleList, CSSRule, CSSGroupingRule, CSSConditionRule, CSSMediaRule, CSSStyleDeclaration, MediaList, CSSSupportsRule, CSSKeyframesRule, CSSKeyframeRule, CSSImportRule, CSSNamespaceRule, CSSLayerStatementRule, CSSLayerBlockRule } = require('../');
+const { CSSStyleSheet, CSSStyleRule, CSSRuleList, CSSRule, CSSGroupingRule, CSSConditionRule, CSSMediaRule, CSSStyleDeclaration, MediaList, CSSSupportsRule, CSSKeyframesRule, CSSKeyframeRule, CSSImportRule, CSSNamespaceRule, CSSLayerStatementRule, CSSLayerBlockRule, CSSPageRule } = require('../');
 const assert = require('assert');
 
 Object.setPrototypeOf(CSSStyleRule.prototype, CSSRule.prototype);
@@ -34,6 +34,9 @@ Object.setPrototypeOf(CSSLayerStatementRule, CSSRule);
 
 Object.setPrototypeOf(CSSLayerBlockRule.prototype, CSSGroupingRule.prototype);
 Object.setPrototypeOf(CSSLayerBlockRule, CSSGroupingRule);
+
+Object.setPrototypeOf(CSSPageRule.prototype, CSSGroupingRule.prototype);
+Object.setPrototypeOf(CSSPageRule, CSSGroupingRule);
 
 function run(name, fn) {
   let test = suite(name);
@@ -876,6 +879,66 @@ run('CSSLayerBlockRule', test => {
     assert.equal(rule.cssRules.length, 1);
     assert(rule.cssRules.item(0) instanceof CSSStyleRule);
     assert.equal(rule.cssRules.item(0).style.getPropertyValue('color'), 'red');
+  });
+});
+
+run('CSSPageRule', test => {
+  function rules() {
+    let stylesheet = new CSSStyleSheet();
+    stylesheet.replaceSync(`
+      @page {
+        margin: 0.5cm;
+      }
+
+      @page :first {
+        margin: 1in;
+      }
+    `);
+    return stylesheet.cssRules;
+  }
+
+  test('has correct prototype chain', () => {
+    let rule = rules().item(0);
+    assert(rule instanceof CSSPageRule);
+    assert(rule instanceof CSSGroupingRule);
+    assert(rule instanceof CSSRule);
+  });
+
+  test('selectorText', () => {
+    let cssRules = rules();
+    let rule = cssRules.item(0);
+    assert.equal(rule.selectorText, '');
+
+    rule = cssRules.item(1);
+    assert.equal(rule.selectorText, ':first');
+  });
+
+  test('set selectorText', () => {
+    let rule = rules().item(0);
+    rule.selectorText = ':last';
+    assert.equal(rule.selectorText, ':last');
+    assert.equal(rule.cssText, `@page :last {
+  margin: .5cm;
+}`);
+  });
+
+  test('style', () => {
+    let rule = rules().item(0);
+    assert(rule.style instanceof CSSStyleDeclaration);
+    assert.equal(rule.style.getPropertyValue('margin'), '.5cm');
+
+    rule.style.setProperty('margin', '1in');
+    assert.equal(rule.cssText, `@page {
+  margin: 1in;
+}`);
+  });
+
+  test('set style', () => {
+    let rule = rules().item(0);
+    rule.style = 'margin: 2in';
+    assert.equal(rule.cssText, `@page {
+  margin: 2in;
+}`)
   });
 });
 
