@@ -1,5 +1,5 @@
 const { suite } = require('uvu');
-const { CSSStyleSheet, CSSStyleRule, CSSRuleList, CSSRule, CSSGroupingRule, CSSConditionRule, CSSMediaRule, CSSStyleDeclaration, MediaList, CSSSupportsRule, CSSKeyframesRule, CSSKeyframeRule, CSSImportRule } = require('../');
+const { CSSStyleSheet, CSSStyleRule, CSSRuleList, CSSRule, CSSGroupingRule, CSSConditionRule, CSSMediaRule, CSSStyleDeclaration, MediaList, CSSSupportsRule, CSSKeyframesRule, CSSKeyframeRule, CSSImportRule, CSSNamespaceRule } = require('../');
 const assert = require('assert');
 
 Object.setPrototypeOf(CSSStyleRule.prototype, CSSRule.prototype);
@@ -25,6 +25,9 @@ Object.setPrototypeOf(CSSKeyframeRule, CSSRule);
 
 Object.setPrototypeOf(CSSImportRule.prototype, CSSRule.prototype);
 Object.setPrototypeOf(CSSImportRule, CSSRule);
+
+Object.setPrototypeOf(CSSNamespaceRule.prototype, CSSRule.prototype);
+Object.setPrototypeOf(CSSNamespaceRule, CSSRule);
 
 function run(name, fn) {
   let test = suite(name);
@@ -785,6 +788,24 @@ run('CSSImportRule', test => {
     assert.equal(stylesheet.cssRules.item(1).layerName, null);
     assert.equal(stylesheet.cssRules.item(2).layerName, 'foo.bar');
     assert.equal(stylesheet.cssRules.item(3).layerName, '');
+  });
+});
+
+run('CSSNamespaceRule', test => {
+  let stylesheet = new CSSStyleSheet();
+  stylesheet.replaceSync(`
+    @namespace "http://toto.example.org";
+    @namespace toto "http://toto.example.org";
+  `);
+
+  test('namespaceURI', () => {
+    assert.equal(stylesheet.cssRules.item(0).namespaceURI, 'http://toto.example.org');
+    assert.equal(stylesheet.cssRules.item(1).namespaceURI, 'http://toto.example.org');
+  });
+
+  test('prefix', () => {
+    assert.equal(stylesheet.cssRules.item(0).prefix, '');
+    assert.equal(stylesheet.cssRules.item(1).prefix, 'toto');
   });
 });
 

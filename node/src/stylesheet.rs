@@ -231,6 +231,10 @@ fn css_rule_to_js_unknown(rule: &CssRule<'static>, env: Env, css_rule: CSSRule) 
       let rule = CSSImportRule::new(css_rule);
       unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
     }
+    CssRule::Namespace(_) => {
+      let rule = CSSNamespaceRule::new(css_rule);
+      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+    }
     _ => unreachable!(),
   };
 
@@ -1285,6 +1289,42 @@ impl CSSImportRule {
   // TODO: no way to read/update supports in spec?
   // TODO: why is layerName read only?
   // TODO: styleSheet?
+}
+
+#[napi(js_name = "CSSNamespaceRule")]
+struct CSSNamespaceRule {
+  rule: CSSRule,
+}
+
+#[napi]
+impl CSSNamespaceRule {
+  #[napi(constructor)]
+  pub fn constructor() {
+    unreachable!()
+  }
+
+  fn new(rule: CSSRule) -> Self {
+    Self { rule }
+  }
+
+  #[napi(getter, js_name = "namespaceURI")]
+  pub fn namespace_uri(&self) -> &str {
+    match self.rule.rule() {
+      CssRule::Namespace(namespace) => namespace.url.as_ref(),
+      _ => unreachable!(),
+    }
+  }
+
+  #[napi(getter)]
+  pub fn prefix(&self) -> &str {
+    match self.rule.rule() {
+      CssRule::Namespace(namespace) => match &namespace.prefix {
+        Some(prefix) => prefix.as_ref(),
+        None => "",
+      },
+      _ => unreachable!(),
+    }
+  }
 }
 
 fn extend_lifetime<T: ?Sized>(string: &T) -> &'static T {
