@@ -25,7 +25,7 @@ pub use crate::printer::PseudoClasses;
 ///
 /// Style sheets can be parsed from a string, constructed from scratch,
 /// or created using a [Bundler](super::bundler::Bundler). Then, they can be
-/// minified and transformed for a set of target browsers, and serialied to a string.
+/// minified and transformed for a set of target browsers, and serialized to a string.
 ///
 /// # Example
 ///

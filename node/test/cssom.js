@@ -166,6 +166,11 @@ run('CSSStyleSheet', test => {
   border: 1px solid #000;
   color: green !important;
 }`);
+
+    let newRule = rules.item(0);
+    assert.equal(newRule.cssText, `.bar {
+  color: red;
+}`);
   });
 });
 
@@ -716,6 +721,7 @@ run('CSSKeyframeRule', test => {
     assert.equal(rule.style.cssText, 'opacity: 0');
 
     rule.style.setProperty('opacity', '0.5');
+    assert.equal(rule.style.cssText, 'opacity: .5');
     assert.equal(rule.cssText, `from {
   opacity: .5;
 }`);

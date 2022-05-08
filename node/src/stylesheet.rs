@@ -1,15 +1,8 @@
 #![allow(dead_code)]
 
-use std::{
-  borrow::{BorrowMut, Cow},
-  cell::RefCell,
-  ops::{Deref, DerefMut},
-  rc::Rc,
-};
-
 use cssparser::{ParseError, Parser, ParserInput};
 use napi::{
-  bindgen_prelude::*, CallContext, JsNull, JsNumber, JsObject, JsString, JsUndefined, JsUnknown, NapiValue, Ref,
+  bindgen_prelude::*, CallContext, JsNumber, JsObject, JsString, JsUndefined, JsUnknown, NapiValue, Ref,
 };
 use napi_derive::{js_function, napi};
 use parcel_css::{
@@ -22,7 +15,7 @@ use parcel_css::{
     style::StyleRule,
     CssRule, CssRuleList,
   },
-  stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet},
+  stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
   traits::{Parse, ToCss},
 };
 
@@ -55,19 +48,21 @@ impl CSSStyleSheet {
     // Disconnect all existing rules from the stylesheet.
     if let Some(rules) = &mut self.rules {
       let rules = &mut **rules;
-      for (index, rule) in rules.rules.iter_mut().enumerate() {
+      for rule in rules.rules.iter_mut() {
         if let Some(rule) = rule {
           let rule: &mut CSSRule = get_reference(env, rule)?;
-          rule.inner = RuleInner::Disconnected(RuleOrKeyframe::Rule(self.stylesheet.rules.0[index].clone()));
+          rule.disconnect();
         }
       }
+
+      rules.rules.clear();
     }
 
     // Source string will be owned by the stylesheet, so it'll be freed when the
     // JS garbage collector runs. We need to extend the lifetime to 'static to satisfy Rust.
     let s = extend_lifetime(&code);
     self.code = Some(code);
-    self.stylesheet = StyleSheet::parse("empty.css", s, ParserOptions::default()).unwrap();
+    self.stylesheet = StyleSheet::parse("style.css", s, ParserOptions::default()).unwrap();
     Ok(())
   }
 
@@ -78,14 +73,10 @@ impl CSSStyleSheet {
     }
 
     let rules = CSSRuleList {
-      rule_list: RuleListReference::StyleSheet(
-        reference
-          .clone(env)?
-          .share_with(env, |stylesheet| Ok(&mut stylesheet.stylesheet.rules.0))?,
-      ),
+      rule_list: RuleListReference::Rules(extend_lifetime_mut(&mut self.stylesheet.rules.0)),
       rules: Vec::new(),
       parent_rule: None,
-      stylesheet_reference: reference,
+      stylesheet_reference: Some(reference.downgrade()),
     };
 
     self.rules = Some(CSSRuleList::into_reference(rules, env)?);
@@ -249,32 +240,21 @@ fn keyframe_to_js_unknown(env: Env, css_rule: CSSRule) -> Result<JsUnknown> {
 }
 
 enum RuleListReference {
-  StyleSheet(SharedReference<CSSStyleSheet, &'static mut Vec<CssRule<'static>>>),
-  Rule(SharedReference<CSSGroupingRule, &'static mut Vec<CssRule<'static>>>),
-  Keyframes(SharedReference<CSSKeyframesRule, &'static mut Vec<Keyframe<'static>>>),
+  Rules(&'static mut Vec<CssRule<'static>>),
+  Keyframes(&'static mut Vec<Keyframe<'static>>),
 }
 
 impl RuleListReference {
-  fn clone(&self, env: Env) -> Result<Self> {
-    match self {
-      RuleListReference::StyleSheet(s) => Ok(RuleListReference::StyleSheet(s.clone(env)?)),
-      RuleListReference::Rule(r) => Ok(RuleListReference::Rule(r.clone(env)?)),
-      RuleListReference::Keyframes(k) => Ok(RuleListReference::Keyframes(k.clone(env)?)),
-    }
-  }
-
   fn len(&self) -> usize {
     match self {
-      RuleListReference::StyleSheet(s) => s.len(),
-      RuleListReference::Rule(r) => r.len(),
+      RuleListReference::Rules(r) => r.len(),
       RuleListReference::Keyframes(k) => k.len(),
     }
   }
 
   fn rule(&self, index: usize) -> RuleOrKeyframeRef {
     let rule_list = match self {
-      RuleListReference::StyleSheet(s) => &**s,
-      RuleListReference::Rule(r) => &**r,
+      RuleListReference::Rules(r) => &**r,
       RuleListReference::Keyframes(keyframes) => return RuleOrKeyframeRef::Keyframe(&keyframes[index]),
     };
 
@@ -283,8 +263,7 @@ impl RuleListReference {
 
   fn rule_mut(&mut self, index: usize) -> RuleOrKeyframeRefMut {
     let rule_list = match self {
-      RuleListReference::StyleSheet(s) => &mut **s,
-      RuleListReference::Rule(r) => &mut **r,
+      RuleListReference::Rules(r) => &mut **r,
       RuleListReference::Keyframes(keyframes) => return RuleOrKeyframeRefMut::Keyframe(&mut keyframes[index]),
     };
 
@@ -293,8 +272,7 @@ impl RuleListReference {
 
   fn get(&self, env: Env, index: usize, css_rule: CSSRule) -> Result<JsUnknown> {
     let rule_list = match self {
-      RuleListReference::StyleSheet(s) => &**s,
-      RuleListReference::Rule(r) => &**r,
+      RuleListReference::Rules(r) => &**r,
       RuleListReference::Keyframes(keyframes) => match keyframes.get(index) {
         Some(_) => return keyframe_to_js_unknown(env, css_rule),
         None => return Ok(env.get_null()?.into_unknown()),
@@ -314,8 +292,8 @@ impl RuleListReference {
 struct CSSRuleList {
   rule_list: RuleListReference,
   rules: Vec<Option<Ref<()>>>,
-  parent_rule: Option<Reference<CSSRule>>,
-  stylesheet_reference: Reference<CSSStyleSheet>,
+  parent_rule: Option<WeakReference<CSSRule>>,
+  stylesheet_reference: Option<WeakReference<CSSStyleSheet>>,
 }
 
 #[napi]
@@ -339,15 +317,11 @@ impl CSSRuleList {
 
     let css_rule = CSSRule {
       inner: RuleInner::Connected {
-        rule_list: self.rule_list.clone(env)?,
+        rule_list: extend_lifetime_mut(&mut self.rule_list),
         index,
       },
-      parent_rule: if let Some(parent_rule) = &self.parent_rule {
-        Some(parent_rule.clone(env)?)
-      } else {
-        None
-      },
-      parent_stylesheet: self.stylesheet_reference.clone(env)?,
+      parent_rule: self.parent_rule.clone(),
+      parent_stylesheet: self.stylesheet_reference.clone(),
       text: None,
     };
 
@@ -374,8 +348,7 @@ impl CSSRuleList {
     if index < self.rules.len() {
       if let Some(rule) = &self.rules[index] {
         let rule: &mut CSSRule = get_reference(env, rule)?;
-        rule.inner.disconnect();
-        rule.parent_rule = None;
+        rule.disconnect();
       }
 
       for rule in &self.rules[index + 1..] {
@@ -395,7 +368,10 @@ impl CSSRuleList {
 }
 
 enum RuleInner {
-  Connected { rule_list: RuleListReference, index: usize },
+  Connected {
+    rule_list: &'static mut RuleListReference,
+    index: usize,
+  },
   Disconnected(RuleOrKeyframe),
 }
 
@@ -431,8 +407,8 @@ impl RuleInner {
 #[napi(js_name = "CSSRule")]
 struct CSSRule {
   inner: RuleInner,
-  parent_rule: Option<Reference<CSSRule>>,
-  parent_stylesheet: Reference<CSSStyleSheet>,
+  parent_rule: Option<WeakReference<CSSRule>>,
+  parent_stylesheet: Option<WeakReference<CSSStyleSheet>>,
   text: Option<String>,
 }
 
@@ -491,24 +467,19 @@ impl CSSRule {
   }
 
   #[napi(getter)]
-  pub fn parent_style_sheet(&self, env: Env) -> Result<JsUnknown> {
-    match &self.inner {
-      RuleInner::Connected { .. } => unsafe {
-        let value =
-          napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), self.parent_stylesheet.clone(env))?;
-        napi::JsUnknown::from_napi_value(env.raw(), value)
-      },
-      RuleInner::Disconnected(..) => Ok(env.get_null()?.into_unknown()),
-    }
+  pub fn parent_style_sheet(&self) -> Option<WeakReference<CSSStyleSheet>> {
+    self.parent_stylesheet.clone()
   }
 
   #[napi(getter)]
-  pub fn parent_rule(&self, env: Env) -> Result<Option<Reference<CSSRule>>> {
-    if let Some(parent) = &self.parent_rule {
-      return Ok(Some(parent.clone(env)?));
-    }
+  pub fn parent_rule(&self) -> Option<WeakReference<CSSRule>> {
+    self.parent_rule.clone()
+  }
 
-    Ok(None)
+  fn disconnect(&mut self) {
+    self.inner.disconnect();
+    self.parent_rule = None;
+    self.parent_stylesheet = None;
   }
 }
 
@@ -555,16 +526,9 @@ impl CSSStyleRule {
       return rules.clone(env);
     }
 
-    let declarations = reference
-      .clone(env)?
-      .share_with(env, |reference| Ok(&mut reference.rule_mut().declarations))?;
-    let declarations = unsafe {
-      std::mem::transmute::<
-        SharedReference<CSSStyleRule, &mut DeclarationBlock<'static>>,
-        SharedReference<CSSRule, &mut DeclarationBlock<'static>>,
-      >(declarations)
-    };
-    let parent_rule = unsafe { std::mem::transmute::<Reference<CSSStyleRule>, Reference<CSSRule>>(reference) };
+    let declarations = extend_lifetime_mut(&mut self.rule_mut().declarations);
+    let parent_rule =
+      unsafe { std::mem::transmute::<WeakReference<CSSStyleRule>, WeakReference<CSSRule>>(reference.downgrade()) };
     let style = CSSStyleDeclaration::into_reference(CSSStyleDeclaration::new(parent_rule, declarations), env)?;
     self.style = Some(style.clone(env)?);
     Ok(style)
@@ -595,8 +559,8 @@ impl CSSStyleRule {
 
 #[napi(js_name = "CSSStyleDeclaration")]
 struct CSSStyleDeclaration {
-  parent_rule: Reference<CSSRule>,
-  declarations: SharedReference<CSSRule, &'static mut DeclarationBlock<'static>>,
+  parent_rule: WeakReference<CSSRule>,
+  declarations: &'static mut DeclarationBlock<'static>,
   strings: Vec<String>,
 }
 
@@ -607,10 +571,7 @@ impl CSSStyleDeclaration {
     unreachable!()
   }
 
-  fn new(
-    parent_rule: Reference<CSSRule>,
-    declarations: SharedReference<CSSRule, &'static mut DeclarationBlock<'static>>,
-  ) -> Self {
+  fn new(parent_rule: WeakReference<CSSRule>, declarations: &'static mut DeclarationBlock<'static>) -> Self {
     CSSStyleDeclaration {
       parent_rule,
       declarations,
@@ -625,8 +586,8 @@ impl CSSStyleDeclaration {
   }
 
   #[napi(getter)]
-  pub fn parent_rule(&self, env: Env) -> Result<Reference<CSSRule>> {
-    self.parent_rule.clone(env)
+  pub fn parent_rule(&self) -> WeakReference<CSSRule> {
+    self.parent_rule.clone()
   }
 
   #[napi(getter)]
@@ -636,7 +597,7 @@ impl CSSStyleDeclaration {
 
   #[napi(setter)]
   pub fn set_css_text(&mut self, text: String) {
-    **self.declarations = DeclarationBlock::parse_string(self.add_string(text), ParserOptions::default()).unwrap();
+    *self.declarations = DeclarationBlock::parse_string(self.add_string(text), ParserOptions::default()).unwrap();
   }
 
   fn get_longhands(&self) -> Vec<String> {
@@ -776,42 +737,21 @@ impl CSSGroupingRule {
     }
 
     let rules = CSSRuleList {
-      rule_list: RuleListReference::Rule(reference.clone(env)?.share_with(
-        env,
-        |rule| match rule.rule.rule_mut() {
-          CssRule::Media(media) => Ok(&mut media.rules.0),
-          CssRule::Supports(supports) => Ok(&mut supports.rules.0),
-          _ => unreachable!(),
-        },
-      )?),
+      rule_list: RuleListReference::Rules(match self.rule.rule_mut() {
+        CssRule::Media(media) => extend_lifetime_mut(&mut media.rules.0),
+        CssRule::Supports(supports) => extend_lifetime_mut(&mut supports.rules.0),
+        _ => unreachable!(),
+      }),
       rules: Vec::new(),
       parent_rule: Some(unsafe {
-        std::mem::transmute::<Reference<CSSGroupingRule>, Reference<CSSRule>>(reference)
+        std::mem::transmute::<WeakReference<CSSGroupingRule>, WeakReference<CSSRule>>(reference.downgrade())
       }),
-      stylesheet_reference: self.rule.parent_stylesheet.clone(env)?,
+      stylesheet_reference: self.rule.parent_stylesheet.clone(),
     };
 
     self.rules = Some(CSSRuleList::into_reference(rules, env)?);
     self.rules.as_ref().unwrap().clone(env)
   }
-
-  // #[napi]
-  // pub fn insert_rule(&mut self, env: Env, rule: String, index: Option<u32>) -> Result<u32> {
-  //   let rules = match self.rule.rule_mut() {
-  //     CssRule::Media(media) => &mut media.rules.0,
-  //     _ => unreachable!(),
-  //   };
-  //   insert_rule(rules, &mut self.rules, env, rule, index)
-  // }
-
-  // #[napi]
-  // pub fn delete_rule(&mut self, env: Env, index: u32) -> Result<()> {
-  //   let rules = match self.rule.rule_mut() {
-  //     CssRule::Media(media) => &mut media.rules.0,
-  //     _ => unreachable!(),
-  //   };
-  //   delete_rule(rules, &mut self.rules, env, index)
-  // }
 }
 
 // Inheritance doesn't work with methods. v8 throws "Illegal invocation" errors due to signature checks.
@@ -935,17 +875,17 @@ impl CSSMediaRule {
   }
 
   #[napi(getter)]
-  pub fn media(&mut self, env: Env, reference: Reference<CSSMediaRule>) -> Result<Reference<JSMediaList>> {
+  pub fn media(&mut self, env: Env) -> Result<Reference<JSMediaList>> {
     if let Some(media) = &self.media {
       return media.clone(env);
     }
 
     let media = JSMediaList::into_reference(
       JSMediaList {
-        media_list: reference.share_with(env, |rule| match rule.rule.rule.rule.rule_mut() {
-          CssRule::Media(media) => Ok(&mut media.query),
+        media_list: match self.rule.rule.rule.rule_mut() {
+          CssRule::Media(media) => extend_lifetime_mut(&mut media.query),
           _ => unreachable!(),
-        })?,
+        },
         strings: Vec::new(),
       },
       env,
@@ -962,7 +902,7 @@ impl CSSMediaRule {
 
 #[napi(js_name = "MediaList")]
 struct JSMediaList {
-  media_list: SharedReference<CSSMediaRule, &'static mut MediaList<'static>>,
+  media_list: &'static mut MediaList<'static>,
   strings: Vec<String>,
 }
 
@@ -973,7 +913,7 @@ impl JSMediaList {
     unreachable!()
   }
 
-  fn new(media_list: SharedReference<CSSMediaRule, &'static mut MediaList<'static>>) -> Self {
+  fn new(media_list: &'static mut MediaList<'static>) -> Self {
     JSMediaList {
       media_list,
       strings: Vec::new(),
@@ -994,7 +934,7 @@ impl JSMediaList {
   #[napi(setter)]
   pub fn set_media_text(&mut self, text: String) {
     if let Ok(media_list) = MediaList::parse_string(self.add_string(text)) {
-      **self.media_list = media_list;
+      *self.media_list = media_list;
     }
   }
 
@@ -1119,17 +1059,15 @@ impl CSSKeyframesRule {
     }
 
     let rules = CSSRuleList {
-      rule_list: RuleListReference::Keyframes(reference.clone(env)?.share_with(env, |rule| {
-        match rule.rule.rule_mut() {
-          CssRule::Keyframes(k) => Ok(&mut k.keyframes),
-          _ => unreachable!(),
-        }
-      })?),
+      rule_list: RuleListReference::Keyframes(match self.rule.rule_mut() {
+        CssRule::Keyframes(k) => extend_lifetime_mut(&mut k.keyframes),
+        _ => unreachable!(),
+      }),
       rules: Vec::new(),
       parent_rule: Some(unsafe {
-        std::mem::transmute::<Reference<CSSKeyframesRule>, Reference<CSSRule>>(reference)
+        std::mem::transmute::<WeakReference<CSSKeyframesRule>, WeakReference<CSSRule>>(reference.downgrade())
       }),
-      stylesheet_reference: self.rule.parent_stylesheet.clone(env)?,
+      stylesheet_reference: self.rule.parent_stylesheet.clone(),
     };
 
     self.rules = Some(CSSRuleList::into_reference(rules, env)?);
@@ -1254,20 +1192,14 @@ impl CSSKeyframeRule {
       return rules.clone(env);
     }
 
-    let declarations =
-      reference
-        .clone(env)?
-        .share_with(env, |reference| match reference.rule.inner.rule_mut() {
-          RuleOrKeyframeRefMut::Keyframe(keyframe) => Ok(&mut keyframe.declarations),
-          _ => unreachable!(),
-        })?;
-    let declarations = unsafe {
-      std::mem::transmute::<
-        SharedReference<CSSKeyframeRule, &mut DeclarationBlock<'static>>,
-        SharedReference<CSSRule, &mut DeclarationBlock<'static>>,
-      >(declarations)
+    let declarations = match self.rule.inner.rule_mut() {
+      RuleOrKeyframeRefMut::Keyframe(keyframe) => extend_lifetime_mut(&mut keyframe.declarations),
+      _ => unreachable!(),
     };
-    let parent_rule = unsafe { std::mem::transmute::<Reference<CSSKeyframeRule>, Reference<CSSRule>>(reference) };
+
+    let parent_rule = unsafe {
+      std::mem::transmute::<WeakReference<CSSKeyframeRule>, WeakReference<CSSRule>>(reference.downgrade())
+    };
 
     let style = CSSStyleDeclaration::into_reference(CSSStyleDeclaration::new(parent_rule, declarations), env)?;
     self.style = Some(style.clone(env)?);
@@ -1281,8 +1213,12 @@ impl CSSKeyframeRule {
   }
 }
 
-fn extend_lifetime(string: &str) -> &'static str {
-  unsafe { std::mem::transmute::<&str, &'static str>(string) }
+fn extend_lifetime<T: ?Sized>(string: &T) -> &'static T {
+  unsafe { std::mem::transmute::<&T, &'static T>(string) }
+}
+
+fn extend_lifetime_mut<T: ?Sized>(string: &mut T) -> &'static mut T {
+  unsafe { std::mem::transmute::<&mut T, &'static mut T>(string) }
 }
 
 fn parse_keyframe_selectors<'i>(
