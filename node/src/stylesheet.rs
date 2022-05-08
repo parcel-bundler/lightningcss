@@ -227,6 +227,10 @@ fn css_rule_to_js_unknown(rule: &CssRule<'static>, env: Env, css_rule: CSSRule) 
       let rule = CSSKeyframesRule::new(css_rule);
       unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
     }
+    CssRule::Import(_) => {
+      let rule = CSSImportRule::new(css_rule);
+      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+    }
     _ => unreachable!(),
   };
 
@@ -1211,6 +1215,76 @@ impl CSSKeyframeRule {
     self.style(env, reference)?.set_css_text(text);
     Ok(())
   }
+}
+
+// https://drafts.csswg.org/cssom-1/#the-cssimportrule-interface
+#[napi(js_name = "CSSImportRule")]
+struct CSSImportRule {
+  rule: CSSRule,
+  media: Option<Reference<JSMediaList>>,
+}
+
+#[napi]
+impl CSSImportRule {
+  #[napi(constructor)]
+  pub fn constructor() {
+    unreachable!()
+  }
+
+  fn new(rule: CSSRule) -> Self {
+    Self { rule, media: None }
+  }
+
+  #[napi(getter)]
+  pub fn href(&self) -> &str {
+    match self.rule.rule() {
+      CssRule::Import(import) => import.url.as_ref(),
+      _ => unreachable!(),
+    }
+  }
+
+  #[napi(getter)]
+  pub fn media(&mut self, env: Env) -> Result<Reference<JSMediaList>> {
+    if let Some(media) = &self.media {
+      return media.clone(env);
+    }
+
+    let media = JSMediaList::into_reference(
+      JSMediaList {
+        media_list: match self.rule.rule_mut() {
+          CssRule::Import(import) => extend_lifetime_mut(&mut import.media),
+          _ => unreachable!(),
+        },
+        strings: Vec::new(),
+      },
+      env,
+    )?;
+    self.media = Some(media.clone(env)?);
+    Ok(media)
+  }
+
+  #[napi(setter)]
+  pub fn set_media(&mut self, media: String, env: Env) -> Result<()> {
+    self.media(env)?.set_media_text(media);
+    Ok(())
+  }
+
+  // https://drafts.csswg.org/css-cascade-5/#extensions-to-cssimportrule-interface
+  #[napi(getter)]
+  pub fn layer_name(&self) -> Option<String> {
+    match self.rule.rule() {
+      CssRule::Import(import) => match &import.layer {
+        Some(Some(layer_name)) => Some(layer_name.to_css_string(PrinterOptions::default()).unwrap()),
+        Some(None) => Some("".into()),
+        None => None,
+      },
+      _ => None,
+    }
+  }
+
+  // TODO: no way to read/update supports in spec?
+  // TODO: why is layerName read only?
+  // TODO: styleSheet?
 }
 
 fn extend_lifetime<T: ?Sized>(string: &T) -> &'static T {

@@ -1,5 +1,5 @@
 const { suite } = require('uvu');
-const { CSSStyleSheet, CSSStyleRule, CSSRuleList, CSSRule, CSSGroupingRule, CSSConditionRule, CSSMediaRule, CSSStyleDeclaration, MediaList, CSSSupportsRule, CSSKeyframesRule, CSSKeyframeRule } = require('../');
+const { CSSStyleSheet, CSSStyleRule, CSSRuleList, CSSRule, CSSGroupingRule, CSSConditionRule, CSSMediaRule, CSSStyleDeclaration, MediaList, CSSSupportsRule, CSSKeyframesRule, CSSKeyframeRule, CSSImportRule } = require('../');
 const assert = require('assert');
 
 Object.setPrototypeOf(CSSStyleRule.prototype, CSSRule.prototype);
@@ -22,6 +22,9 @@ Object.setPrototypeOf(CSSKeyframesRule, CSSRule);
 
 Object.setPrototypeOf(CSSKeyframeRule.prototype, CSSRule.prototype);
 Object.setPrototypeOf(CSSKeyframeRule, CSSRule);
+
+Object.setPrototypeOf(CSSImportRule.prototype, CSSRule.prototype);
+Object.setPrototypeOf(CSSImportRule, CSSRule);
 
 function run(name, fn) {
   let test = suite(name);
@@ -93,6 +96,9 @@ function declaration() {
 function mediaList() {
   return mediaRule().media;
 }
+
+// global.gc();
+// console.log(process.memoryUsage());
 
 run('CSSStyleSheet', test => {
   test('cssRules are referentially equal', () => {
@@ -735,3 +741,57 @@ run('CSSKeyframeRule', test => {
 }`);
   });
 });
+
+run('CSSImportRule', test => {
+  let stylesheet = new CSSStyleSheet();
+  stylesheet.replaceSync(`
+    @import "a.css";
+    @import "b.css" print;
+    @import "c.css" layer(foo.bar);
+    @import "d.css" layer;
+  `);
+
+  test('has correct prototype chain', () => {
+    let rule = stylesheet.cssRules.item(0);
+    assert(rule instanceof CSSImportRule);
+    assert(rule instanceof CSSRule);
+  })
+
+  test('href', () => {
+    assert.equal(stylesheet.cssRules.item(0).href, 'a.css');
+  });
+
+  test('media', () => {
+    let media = stylesheet.cssRules.item(0).media;
+    assert(media instanceof MediaList);
+    assert.equal(media.length, 0);
+
+    media = stylesheet.cssRules.item(1).media;
+    assert.equal(media.length, 1);
+    assert.equal(media.item(0), 'print');
+  });
+
+  test('set media', () => {
+    let rule = stylesheet.cssRules.item(1);
+    rule.media = 'screen';
+    let media = rule.media;
+    assert.equal(media.length, 1);
+    assert.equal(media.item(0), 'screen');
+    assert.equal(rule.cssText, '@import "b.css" screen;');
+  });
+
+  test('layerName', () => {
+    assert.equal(stylesheet.cssRules.item(0).layerName, null);
+    assert.equal(stylesheet.cssRules.item(1).layerName, null);
+    assert.equal(stylesheet.cssRules.item(2).layerName, 'foo.bar');
+    assert.equal(stylesheet.cssRules.item(3).layerName, '');
+  });
+});
+
+// setTimeout(() => {
+//   console.log("GC")
+//   global.gc();
+//   setTimeout(() => {
+//     console.log(process.memoryUsage());
+//   }, 500);
+// }, 500);
