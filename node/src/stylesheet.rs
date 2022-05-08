@@ -235,6 +235,14 @@ fn css_rule_to_js_unknown(rule: &CssRule<'static>, env: Env, css_rule: CSSRule) 
       let rule = CSSNamespaceRule::new(css_rule);
       unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
     }
+    CssRule::LayerStatement(_) => {
+      let rule = CSSLayerStatementRule::new(css_rule);
+      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+    }
+    CssRule::LayerBlock(_) => {
+      let rule = CSSLayerBlockRule::new(css_rule);
+      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+    }
     _ => unreachable!(),
   };
 
@@ -748,6 +756,7 @@ impl CSSGroupingRule {
       rule_list: RuleListReference::Rules(match self.rule.rule_mut() {
         CssRule::Media(media) => extend_lifetime_mut(&mut media.rules.0),
         CssRule::Supports(supports) => extend_lifetime_mut(&mut supports.rules.0),
+        CssRule::LayerBlock(layer) => extend_lifetime_mut(&mut layer.rules.0),
         _ => unreachable!(),
       }),
       rules: Vec::new(),
@@ -1321,6 +1330,67 @@ impl CSSNamespaceRule {
       CssRule::Namespace(namespace) => match &namespace.prefix {
         Some(prefix) => prefix.as_ref(),
         None => "",
+      },
+      _ => unreachable!(),
+    }
+  }
+}
+
+#[napi(js_name = "CSSLayerStatementRule")]
+struct CSSLayerStatementRule {
+  rule: CSSRule,
+}
+
+#[napi]
+impl CSSLayerStatementRule {
+  #[napi(constructor)]
+  pub fn constructor() {
+    unreachable!()
+  }
+
+  fn new(rule: CSSRule) -> Self {
+    Self { rule }
+  }
+
+  #[napi(getter)]
+  pub fn name_list(&self) -> Vec<String> {
+    // TODO: SameObject? Safari: false, Firefox: true
+    // TODO: freeze
+    match self.rule.rule() {
+      CssRule::LayerStatement(layer) => layer
+        .names
+        .iter()
+        .map(|name| name.to_css_string(PrinterOptions::default()).unwrap())
+        .collect(),
+      _ => unreachable!(),
+    }
+  }
+}
+
+#[napi(js_name = "CSSLayerBlockRule")]
+struct CSSLayerBlockRule {
+  rule: CSSGroupingRule,
+}
+
+#[napi]
+impl CSSLayerBlockRule {
+  #[napi(constructor)]
+  pub fn constructor() {
+    unreachable!()
+  }
+
+  fn new(rule: CSSRule) -> Self {
+    Self {
+      rule: CSSGroupingRule::new(rule),
+    }
+  }
+
+  #[napi(getter)]
+  pub fn name(&self) -> String {
+    match self.rule.rule.rule() {
+      CssRule::LayerBlock(layer) => match &layer.name {
+        Some(name) => name.to_css_string(PrinterOptions::default()).unwrap(),
+        _ => "".into(),
       },
       _ => unreachable!(),
     }

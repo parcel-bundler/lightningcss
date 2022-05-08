@@ -1,5 +1,5 @@
 const { suite } = require('uvu');
-const { CSSStyleSheet, CSSStyleRule, CSSRuleList, CSSRule, CSSGroupingRule, CSSConditionRule, CSSMediaRule, CSSStyleDeclaration, MediaList, CSSSupportsRule, CSSKeyframesRule, CSSKeyframeRule, CSSImportRule, CSSNamespaceRule } = require('../');
+const { CSSStyleSheet, CSSStyleRule, CSSRuleList, CSSRule, CSSGroupingRule, CSSConditionRule, CSSMediaRule, CSSStyleDeclaration, MediaList, CSSSupportsRule, CSSKeyframesRule, CSSKeyframeRule, CSSImportRule, CSSNamespaceRule, CSSLayerStatementRule, CSSLayerBlockRule } = require('../');
 const assert = require('assert');
 
 Object.setPrototypeOf(CSSStyleRule.prototype, CSSRule.prototype);
@@ -28,6 +28,12 @@ Object.setPrototypeOf(CSSImportRule, CSSRule);
 
 Object.setPrototypeOf(CSSNamespaceRule.prototype, CSSRule.prototype);
 Object.setPrototypeOf(CSSNamespaceRule, CSSRule);
+
+Object.setPrototypeOf(CSSLayerStatementRule.prototype, CSSRule.prototype);
+Object.setPrototypeOf(CSSLayerStatementRule, CSSRule);
+
+Object.setPrototypeOf(CSSLayerBlockRule.prototype, CSSGroupingRule.prototype);
+Object.setPrototypeOf(CSSLayerBlockRule, CSSGroupingRule);
 
 function run(name, fn) {
   let test = suite(name);
@@ -806,6 +812,70 @@ run('CSSNamespaceRule', test => {
   test('prefix', () => {
     assert.equal(stylesheet.cssRules.item(0).prefix, '');
     assert.equal(stylesheet.cssRules.item(1).prefix, 'toto');
+  });
+});
+
+run('CSSLayerStatementRule', test => {
+  let stylesheet = new CSSStyleSheet();
+  stylesheet.replaceSync(`
+    @layer foo, bar.baz;
+  `);
+
+  test('has correct prototype chain', () => {
+    let rule = stylesheet.cssRules.item(0);
+    assert(rule instanceof CSSLayerStatementRule);
+    assert(rule instanceof CSSRule);
+  });
+
+  test('nameList', () => {
+    assert.deepEqual(stylesheet.cssRules.item(0).nameList, ['foo', 'bar.baz']);
+  });
+});
+
+run('CSSLayerBlockRule', test => {
+  let stylesheet = new CSSStyleSheet();
+  stylesheet.replaceSync(`
+    @layer outer {
+      @layer foo.bar {
+        .a {
+          color: red;
+        }
+      }
+
+      .b {
+        color: green;
+      }
+    }
+  `);
+
+  test('has correct prototype chain', () => {
+    let rule = stylesheet.cssRules.item(0);
+    assert(rule instanceof CSSLayerBlockRule);
+    assert(rule instanceof CSSGroupingRule);
+    assert(rule instanceof CSSRule);
+  });
+
+  test('name', () => {
+    let rule = stylesheet.cssRules.item(0);
+    assert.equal(rule.name, 'outer');
+
+    rule = rule.cssRules.item(0);
+    assert.equal(rule.name, 'foo.bar');
+  });
+
+  test('cssRules', () => {
+    let rule = stylesheet.cssRules.item(0);
+    assert(rule.cssRules instanceof CSSRuleList);
+    assert.equal(rule.cssRules.length, 2);
+    assert(rule.cssRules.item(0) instanceof CSSLayerBlockRule);
+    assert(rule.cssRules.item(1) instanceof CSSStyleRule);
+    assert.equal(rule.cssRules.item(1).style.getPropertyValue('color'), 'green');
+
+    rule = rule.cssRules.item(0);
+    assert(rule.cssRules instanceof CSSRuleList);
+    assert.equal(rule.cssRules.length, 1);
+    assert(rule.cssRules.item(0) instanceof CSSStyleRule);
+    assert.equal(rule.cssRules.item(0).style.getPropertyValue('color'), 'red');
   });
 });
 
