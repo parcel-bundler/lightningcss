@@ -158,6 +158,7 @@ run('CSSStyleSheet', test => {
   test('deleteRule', () => {
     let stylesheet = createStyleSheet();
     let rule = stylesheet.cssRules.item(0);
+    let style = rule.style;
     stylesheet.deleteRule(0);
     assert.equal(stylesheet.cssRules.length, 3);
     assert.equal(rule.parentStyleSheet, null);
@@ -165,6 +166,16 @@ run('CSSStyleSheet', test => {
   border: 1px solid #000;
   color: green !important;
 }`);
+    assert.equal(style.getPropertyValue('color'), 'green');
+
+    rule = stylesheet.cssRules.item(0);
+    assert(rule instanceof CSSMediaRule);
+    let rules = rule.cssRules;
+    let media = rule.media;
+    stylesheet.deleteRule(0);
+    assert(rules.item(0) instanceof CSSStyleRule);
+    assert.equal(rules.item(0).style.cssText, 'font-family: Helvetica');
+    assert.equal(media.item(0), 'print');
 
     assert.throws(() => stylesheet.deleteRule(10));
     assert.throws(() => stylesheet.deleteRule(-1));

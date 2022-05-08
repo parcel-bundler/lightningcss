@@ -73,7 +73,7 @@ impl CSSStyleSheet {
     }
 
     let rules = CSSRuleList {
-      rule_list: RuleListReference::Rules(extend_lifetime_mut(&mut self.stylesheet.rules.0)),
+      owner: RuleListOwner::StyleSheet(extend_lifetime_mut(self)),
       rules: Vec::new(),
       parent_rule: None,
       stylesheet_reference: Some(reference.downgrade()),
@@ -259,12 +259,12 @@ fn keyframe_to_js_unknown(env: Env, css_rule: CSSRule) -> Result<JsUnknown> {
   unsafe { napi::JsUnknown::from_napi_value(env.raw(), napi_value) }
 }
 
-enum RuleListReference {
-  Rules(&'static mut Vec<CssRule<'static>>),
-  Keyframes(&'static mut Vec<Keyframe<'static>>),
+enum RuleListReference<'a> {
+  Rules(&'a Vec<CssRule<'static>>),
+  Keyframes(&'a Vec<Keyframe<'static>>),
 }
 
-impl RuleListReference {
+impl<'a> RuleListReference<'a> {
   fn len(&self) -> usize {
     match self {
       RuleListReference::Rules(r) => r.len(),
@@ -272,7 +272,7 @@ impl RuleListReference {
     }
   }
 
-  fn rule(&self, index: usize) -> RuleOrKeyframeRef {
+  fn rule(&self, index: usize) -> RuleOrKeyframeRef<'a> {
     let rule_list = match self {
       RuleListReference::Rules(r) => &**r,
       RuleListReference::Keyframes(keyframes) => return RuleOrKeyframeRef::Keyframe(&keyframes[index]),
@@ -280,37 +280,41 @@ impl RuleListReference {
 
     RuleOrKeyframeRef::Rule(&rule_list[index])
   }
+}
 
-  fn rule_mut(&mut self, index: usize) -> RuleOrKeyframeRefMut {
+enum RuleListReferenceMut<'a> {
+  Rules(&'a mut Vec<CssRule<'static>>),
+  Keyframes(&'a mut Vec<Keyframe<'static>>),
+}
+
+impl<'a> RuleListReferenceMut<'a> {
+  fn len(&self) -> usize {
+    match self {
+      RuleListReferenceMut::Rules(r) => r.len(),
+      RuleListReferenceMut::Keyframes(k) => k.len(),
+    }
+  }
+
+  fn rule(&mut self, index: usize) -> RuleOrKeyframeRefMut<'a> {
     let rule_list = match self {
-      RuleListReference::Rules(r) => &mut **r,
-      RuleListReference::Keyframes(keyframes) => return RuleOrKeyframeRefMut::Keyframe(&mut keyframes[index]),
+      RuleListReferenceMut::Rules(r) => extend_lifetime_mut(&mut **r),
+      RuleListReferenceMut::Keyframes(keyframes) => {
+        return RuleOrKeyframeRefMut::Keyframe(extend_lifetime_mut(&mut keyframes[index]))
+      }
     };
 
     RuleOrKeyframeRefMut::Rule(&mut rule_list[index])
   }
+}
 
-  fn get(&self, env: Env, index: usize, css_rule: CSSRule) -> Result<JsUnknown> {
-    let rule_list = match self {
-      RuleListReference::Rules(r) => &**r,
-      RuleListReference::Keyframes(keyframes) => match keyframes.get(index) {
-        Some(_) => return keyframe_to_js_unknown(env, css_rule),
-        None => return Ok(env.get_null()?.into_unknown()),
-      },
-    };
-
-    let rule = match rule_list.get(index) {
-      Some(rule) => rule,
-      None => return Ok(env.get_null()?.into_unknown()),
-    };
-
-    css_rule_to_js_unknown(rule, env, css_rule)
-  }
+enum RuleListOwner {
+  StyleSheet(&'static mut CSSStyleSheet),
+  Rule(&'static mut CSSRule),
 }
 
 #[napi(js_name = "CSSRuleList")]
 struct CSSRuleList {
-  rule_list: RuleListReference,
+  owner: RuleListOwner,
   rules: Vec<Option<Ref<()>>>,
   parent_rule: Option<WeakReference<CSSRule>>,
   stylesheet_reference: Option<WeakReference<CSSStyleSheet>>,
@@ -323,9 +327,45 @@ impl CSSRuleList {
     unreachable!()
   }
 
+  fn rule_list<'a>(&'a self) -> RuleListReference<'a> {
+    RuleListReference::Rules(match &self.owner {
+      RuleListOwner::StyleSheet(stylesheet) => &stylesheet.stylesheet.rules.0,
+      RuleListOwner::Rule(rule) => match rule.rule() {
+        CssRule::Media(media) => &media.rules.0,
+        CssRule::Supports(supports) => &supports.rules.0,
+        CssRule::LayerBlock(layer) => &layer.rules.0,
+        CssRule::Style(style) => &style.rules.0,
+        CssRule::Keyframes(keyframes) => return RuleListReference::Keyframes(&keyframes.keyframes),
+        _ => unreachable!(),
+      },
+    })
+  }
+
+  fn rule_list_mut<'a>(&'a mut self) -> RuleListReferenceMut<'a> {
+    RuleListReferenceMut::Rules(match &mut self.owner {
+      RuleListOwner::StyleSheet(stylesheet) => &mut stylesheet.stylesheet.rules.0,
+      RuleListOwner::Rule(rule) => match rule.rule_mut() {
+        CssRule::Media(media) => &mut media.rules.0,
+        CssRule::Supports(supports) => &mut supports.rules.0,
+        CssRule::LayerBlock(layer) => &mut layer.rules.0,
+        CssRule::Style(style) => &mut style.rules.0,
+        CssRule::Keyframes(keyframes) => return RuleListReferenceMut::Keyframes(&mut keyframes.keyframes),
+        _ => unreachable!(),
+      },
+    })
+  }
+
+  fn rule(&self, index: usize) -> RuleOrKeyframeRef {
+    self.rule_list().rule(index)
+  }
+
+  fn rule_mut(&mut self, index: usize) -> RuleOrKeyframeRefMut {
+    self.rule_list_mut().rule(index)
+  }
+
   #[napi(getter)]
   pub fn length(&self) -> u32 {
-    self.rule_list.len() as u32
+    self.rule_list().len() as u32
   }
 
   #[napi]
@@ -335,9 +375,13 @@ impl CSSRuleList {
       return env.get_reference_value(rule);
     }
 
+    if index >= self.rule_list().len() {
+      return Ok(env.get_null()?.into_unknown());
+    }
+
     let css_rule = CSSRule {
       inner: RuleInner::Connected {
-        rule_list: extend_lifetime_mut(&mut self.rule_list),
+        rule_list: extend_lifetime_mut(self),
         index,
       },
       parent_rule: self.parent_rule.clone(),
@@ -345,7 +389,10 @@ impl CSSRuleList {
       text: None,
     };
 
-    let js_value = self.rule_list.get(env, index, css_rule)?;
+    let js_value = match self.rule(index) {
+      RuleOrKeyframeRef::Rule(rule) => css_rule_to_js_unknown(rule, env, css_rule)?,
+      RuleOrKeyframeRef::Keyframe(_) => keyframe_to_js_unknown(env, css_rule)?,
+    };
 
     if self.rules.len() <= index {
       self.rules.resize_with(index + 1, || None);
@@ -389,7 +436,7 @@ impl CSSRuleList {
 
 enum RuleInner {
   Connected {
-    rule_list: &'static mut RuleListReference,
+    rule_list: &'static mut CSSRuleList,
     index: usize,
   },
   Disconnected(RuleOrKeyframe),
@@ -508,6 +555,7 @@ struct CSSStyleRule {
   rule: CSSRule,
   style: Option<Reference<CSSStyleDeclaration>>,
   selector_text: Option<String>,
+  rules: Option<Reference<CSSRuleList>>,
 }
 
 #[napi]
@@ -517,6 +565,7 @@ impl CSSStyleRule {
       rule,
       style: None,
       selector_text: None,
+      rules: None,
     }
   }
 
@@ -546,24 +595,44 @@ impl CSSStyleRule {
       return rules.clone(env);
     }
 
-    let declarations = extend_lifetime_mut(&mut self.rule_mut().declarations);
     let parent_rule =
       unsafe { std::mem::transmute::<WeakReference<CSSStyleRule>, WeakReference<CSSRule>>(reference.downgrade()) };
-    let style = CSSStyleDeclaration::into_reference(CSSStyleDeclaration::new(parent_rule, declarations), env)?;
+    let style = CSSStyleDeclaration::into_reference(CSSStyleDeclaration::new(parent_rule), env)?;
     self.style = Some(style.clone(env)?);
     Ok(style)
   }
 
   #[napi(setter)]
   pub fn set_style(&mut self, text: String, env: Env, reference: Reference<CSSStyleRule>) -> Result<()> {
-    self.style(env, reference)?.set_css_text(text);
+    self.style(env, reference)?.set_css_text(text, env)?;
     Ok(())
+  }
+
+  // https://drafts.csswg.org/css-nesting-1/#cssom-style
+  #[napi(getter)]
+  pub fn css_rules(&mut self, env: Env, reference: Reference<CSSStyleRule>) -> Result<Reference<CSSRuleList>> {
+    if let Some(rules) = &self.rules {
+      return rules.clone(env);
+    }
+
+    let rules = CSSRuleList {
+      owner: RuleListOwner::Rule(extend_lifetime_mut(&mut self.rule)),
+      rules: Vec::new(),
+      parent_rule: Some(unsafe {
+        std::mem::transmute::<WeakReference<CSSStyleRule>, WeakReference<CSSRule>>(reference.downgrade())
+      }),
+      stylesheet_reference: self.rule.parent_stylesheet.clone(),
+    };
+
+    self.rules = Some(CSSRuleList::into_reference(rules, env)?);
+    self.rules.as_ref().unwrap().clone(env)
   }
 
   fn rule(&self) -> &StyleRule<'static> {
     let rule = self.rule.rule();
     match rule {
       CssRule::Style(style) => style,
+      CssRule::Nesting(nesting) => &nesting.style,
       _ => unreachable!(),
     }
   }
@@ -572,6 +641,7 @@ impl CSSStyleRule {
     let rule = self.rule.rule_mut();
     match rule {
       CssRule::Style(style) => style,
+      CssRule::Nesting(nesting) => &mut nesting.style,
       _ => unreachable!(),
     }
   }
@@ -580,7 +650,6 @@ impl CSSStyleRule {
 #[napi(js_name = "CSSStyleDeclaration")]
 struct CSSStyleDeclaration {
   parent_rule: WeakReference<CSSRule>,
-  declarations: &'static mut DeclarationBlock<'static>,
   strings: Vec<String>,
 }
 
@@ -591,11 +660,22 @@ impl CSSStyleDeclaration {
     unreachable!()
   }
 
-  fn new(parent_rule: WeakReference<CSSRule>, declarations: &'static mut DeclarationBlock<'static>) -> Self {
+  fn new(parent_rule: WeakReference<CSSRule>) -> Self {
     CSSStyleDeclaration {
       parent_rule,
-      declarations,
       strings: Vec::new(),
+    }
+  }
+
+  fn declarations<'a>(&'a mut self, env: Env) -> Result<&'a mut DeclarationBlock<'static>> {
+    let mut rule = self.parent_rule.upgrade(env)?.unwrap();
+    match rule.inner.rule_mut() {
+      RuleOrKeyframeRefMut::Rule(rule) => match rule {
+        CssRule::Style(style) => Ok(extend_lifetime_mut(&mut style.declarations)),
+        CssRule::Page(page) => Ok(extend_lifetime_mut(&mut page.declarations)),
+        _ => unreachable!(),
+      },
+      RuleOrKeyframeRefMut::Keyframe(keyframe) => Ok(extend_lifetime_mut(&mut keyframe.declarations)),
     }
   }
 
@@ -611,18 +691,21 @@ impl CSSStyleDeclaration {
   }
 
   #[napi(getter)]
-  pub fn css_text(&self) -> String {
-    self.declarations.to_css_string(PrinterOptions::default()).unwrap()
+  pub fn css_text(&mut self, env: Env) -> Result<String> {
+    Ok(self.declarations(env)?.to_css_string(PrinterOptions::default()).unwrap())
   }
 
   #[napi(setter)]
-  pub fn set_css_text(&mut self, text: String) {
-    *self.declarations = DeclarationBlock::parse_string(self.add_string(text), ParserOptions::default()).unwrap();
+  pub fn set_css_text(&mut self, text: String, env: Env) -> Result<()> {
+    let s = self.add_string(text);
+    let declarations = self.declarations(env)?;
+    *declarations = DeclarationBlock::parse_string(s, ParserOptions::default()).unwrap();
+    Ok(())
   }
 
-  fn get_longhands(&self) -> Vec<String> {
+  fn get_longhands(&mut self, env: Env) -> Result<Vec<String>> {
     let mut longhands = Vec::new();
-    for (property, _important) in self.declarations.iter() {
+    for (property, _important) in self.declarations(env)?.iter() {
       let property_id = property.property_id();
       if let Some(properties) = property_id.longhands() {
         longhands.extend(properties.iter().map(|property_id| property_id.name().to_owned()))
@@ -631,57 +714,59 @@ impl CSSStyleDeclaration {
       }
     }
 
-    return longhands;
+    return Ok(longhands);
   }
 
   #[napi(getter)]
-  pub fn length(&self) -> u32 {
-    return self.get_longhands().len() as u32;
+  pub fn length(&mut self, env: Env) -> Result<u32> {
+    Ok(self.get_longhands(env)?.len() as u32)
   }
 
   #[napi]
-  pub fn item(&self, index: u32) -> String {
-    let mut longhands = self.get_longhands();
+  pub fn item(&mut self, index: u32, env: Env) -> Result<String> {
+    let mut longhands = self.get_longhands(env)?;
     let index = index as usize;
     if index < longhands.len() {
-      return std::mem::take(&mut longhands[index]);
+      return Ok(std::mem::take(&mut longhands[index]));
     }
-    String::new()
+    Ok(String::new())
   }
 
   #[napi]
-  pub fn get_property_value(&self, property: String) -> String {
+  pub fn get_property_value(&mut self, property: String, env: Env) -> Result<String> {
     let property_id = PropertyId::parse_string(&property).unwrap();
     let opts = PrinterOptions::default();
 
-    if let Some((value, _important)) = self.declarations.get(&property_id) {
-      return value.value_to_css_string(opts).unwrap();
+    if let Some((value, _important)) = self.declarations(env)?.get(&property_id) {
+      return Ok(value.value_to_css_string(opts).unwrap());
     }
 
-    String::new()
+    Ok(String::new())
   }
 
   #[napi]
-  pub fn get_property_priority(&mut self, property: String) -> &str {
+  pub fn get_property_priority(&mut self, property: String, env: Env) -> Result<&str> {
     let property_id = PropertyId::parse_string(&property).unwrap();
-    let important = if let Some((_value, important)) = self.declarations.get(&property_id) {
+    let important = if let Some((_value, important)) = self.declarations(env)?.get(&property_id) {
       important
     } else {
       false
     };
 
-    if important {
-      "important"
-    } else {
-      ""
-    }
+    Ok(if important { "important" } else { "" })
   }
 
   #[napi]
-  pub fn set_property(&mut self, property: String, value: String, priority: Option<String>) {
+  pub fn set_property(
+    &mut self,
+    property: String,
+    value: String,
+    priority: Option<String>,
+    env: Env,
+  ) -> Result<()> {
     if value.is_empty() {
-      self.remove_property(property);
-      return;
+      self.remove_property(property, env)?;
+      return Ok(());
     }
 
     let property = Property::parse_string(
@@ -690,7 +775,7 @@ impl CSSStyleDeclaration {
       ParserOptions::default(),
     )
     .unwrap();
-    self.declarations.set(
+    self.declarations(env)?.set(
       property,
       if let Some(priority) = priority {
         priority.eq_ignore_ascii_case("important")
@@ -698,16 +783,18 @@ impl CSSStyleDeclaration {
         false
       },
     );
+
+    Ok(())
   }
 
   #[napi]
-  pub fn remove_property(&mut self, property: String) -> String {
-    let value = self.get_property_value(property.clone());
+  pub fn remove_property(&mut self, property: String, env: Env) -> Result<String> {
+    let value = self.get_property_value(property.clone(), env)?;
 
     let property_id = PropertyId::parse_string(&property).unwrap();
-    self.declarations.remove(&property_id);
+    self.declarations(env)?.remove(&property_id);
 
-    value
+    Ok(value)
   }
 }
 
@@ -757,12 +844,7 @@ impl CSSGroupingRule {
     }
 
     let rules = CSSRuleList {
-      rule_list: RuleListReference::Rules(match self.rule.rule_mut() {
-        CssRule::Media(media) => extend_lifetime_mut(&mut media.rules.0),
-        CssRule::Supports(supports) => extend_lifetime_mut(&mut supports.rules.0),
-        CssRule::LayerBlock(layer) => extend_lifetime_mut(&mut layer.rules.0),
-        _ => unreachable!(),
-      }),
+      owner: RuleListOwner::Rule(extend_lifetime_mut(&mut self.rule)),
       rules: Vec::new(),
       parent_rule: Some(unsafe {
         std::mem::transmute::<WeakReference<CSSGroupingRule>, WeakReference<CSSRule>>(reference.downgrade())
@@ -896,17 +978,17 @@ impl CSSMediaRule {
   }
 
   #[napi(getter)]
-  pub fn media(&mut self, env: Env) -> Result<Reference<JSMediaList>> {
+  pub fn media(&mut self, env: Env, reference: Reference<CSSMediaRule>) -> Result<Reference<JSMediaList>> {
     if let Some(media) = &self.media {
       return media.clone(env);
     }
 
+    let reference =
+      unsafe { std::mem::transmute::<WeakReference<CSSMediaRule>, WeakReference<CSSRule>>(reference.downgrade()) };
+
     let media = JSMediaList::into_reference(
       JSMediaList {
-        media_list: match self.rule.rule.rule.rule_mut() {
-          CssRule::Media(media) => extend_lifetime_mut(&mut media.query),
-          _ => unreachable!(),
-        },
+        owner: reference,
         strings: Vec::new(),
       },
       env,
@@ -923,7 +1005,7 @@ impl CSSMediaRule {
 
 #[napi(js_name = "MediaList")]
 struct JSMediaList {
-  media_list: &'static mut MediaList<'static>,
+  owner: WeakReference<CSSRule>,
   strings: Vec<String>,
 }
 
@@ -934,10 +1016,19 @@ impl JSMediaList {
     unreachable!()
   }
 
-  fn new(media_list: &'static mut MediaList<'static>) -> Self {
+  fn new(owner: WeakReference<CSSRule>) -> Self {
     JSMediaList {
-      media_list,
+      owner,
       strings: Vec::new(),
+    }
+  }
+
+  fn media_list(&mut self, env: Env) -> Result<&mut MediaList<'static>> {
+    let mut rule = self.owner.upgrade(env)?.unwrap();
+    match rule.rule_mut() {
+      CssRule::Media(media) => Ok(extend_lifetime_mut(&mut media.query)),
+      CssRule::Import(import) => Ok(extend_lifetime_mut(&mut import.media)),
+      _ => unreachable!(),
     }
   }
 
@@ -948,46 +1039,51 @@ impl JSMediaList {
   }
 
   #[napi(getter)]
-  pub fn media_text(&self) -> String {
-    self.media_list.to_css_string(PrinterOptions::default()).unwrap()
+  pub fn media_text(&mut self, env: Env) -> Result<String> {
+    Ok(self.media_list(env)?.to_css_string(PrinterOptions::default()).unwrap())
   }
 
   #[napi(setter)]
-  pub fn set_media_text(&mut self, text: String) {
+  pub fn set_media_text(&mut self, text: String, env: Env) -> Result<()> {
     if let Ok(media_list) = MediaList::parse_string(self.add_string(text)) {
-      *self.media_list = media_list;
+      let media = self.media_list(env)?;
+      *media = media_list;
     }
+    Ok(())
   }
 
   #[napi(getter)]
-  pub fn length(&self) -> u32 {
-    self.media_list.media_queries.len() as u32
+  pub fn length(&mut self, env: Env) -> Result<u32> {
+    Ok(self.media_list(env)?.media_queries.len() as u32)
   }
 
   #[napi]
-  pub fn item(&self, index: u32) -> Option<String> {
-    if let Some(query) = self.media_list.media_queries.get(index as usize) {
-      return Some(query.to_css_string(PrinterOptions::default()).unwrap());
+  pub fn item(&mut self, index: u32, env: Env) -> Result<Option<String>> {
+    if let Some(query) = self.media_list(env)?.media_queries.get(index as usize) {
+      return Ok(Some(query.to_css_string(PrinterOptions::default()).unwrap()));
     }
 
-    None
+    Ok(None)
   }
 
   #[napi]
-  pub fn append_medium(&mut self, medium: String) {
+  pub fn append_medium(&mut self, medium: String, env: Env) -> Result<()> {
     if let Ok(query) = MediaQuery::parse_string(self.add_string(medium)) {
-      if self.media_list.media_queries.contains(&query) {
-        return;
+      let media_list = self.media_list(env)?;
+      if media_list.media_queries.contains(&query) {
+        return Ok(());
       }
 
-      self.media_list.media_queries.push(query);
+      media_list.media_queries.push(query);
     }
+    Ok(())
   }
 
   #[napi]
-  pub fn delete_medium(&mut self, medium: String) -> Result<()> {
+  pub fn delete_medium(&mut self, medium: String, env: Env) -> Result<()> {
     if let Ok(query) = MediaQuery::parse_string(&medium) {
-      let queries = &mut self.media_list.media_queries;
+      let media_list = self.media_list(env)?;
+      let queries = &mut media_list.media_queries;
       let len = queries.len();
       queries.retain(|q| *q != query);
       if queries.len() == len {
@@ -1080,10 +1176,7 @@ impl CSSKeyframesRule {
     }
 
     let rules = CSSRuleList {
-      rule_list: RuleListReference::Keyframes(match self.rule.rule_mut() {
-        CssRule::Keyframes(k) => extend_lifetime_mut(&mut k.keyframes),
-        _ => unreachable!(),
-      }),
+      owner: RuleListOwner::Rule(extend_lifetime_mut(&mut self.rule)),
       rules: Vec::new(),
       parent_rule: Some(unsafe {
         std::mem::transmute::<WeakReference<CSSKeyframesRule>, WeakReference<CSSRule>>(reference.downgrade())
@@ -1213,23 +1306,18 @@ impl CSSKeyframeRule {
       return rules.clone(env);
     }
 
-    let declarations = match self.rule.inner.rule_mut() {
-      RuleOrKeyframeRefMut::Keyframe(keyframe) => extend_lifetime_mut(&mut keyframe.declarations),
-      _ => unreachable!(),
-    };
-
     let parent_rule = unsafe {
       std::mem::transmute::<WeakReference<CSSKeyframeRule>, WeakReference<CSSRule>>(reference.downgrade())
     };
 
-    let style = CSSStyleDeclaration::into_reference(CSSStyleDeclaration::new(parent_rule, declarations), env)?;
+    let style = CSSStyleDeclaration::into_reference(CSSStyleDeclaration::new(parent_rule), env)?;
     self.style = Some(style.clone(env)?);
     Ok(style)
   }
 
   #[napi(setter)]
   pub fn set_style(&mut self, text: String, env: Env, reference: Reference<CSSKeyframeRule>) -> Result<()> {
-    self.style(env, reference)?.set_css_text(text);
+    self.style(env, reference)?.set_css_text(text, env)?;
     Ok(())
   }
 }
@@ -1261,17 +1349,18 @@ impl CSSImportRule {
   }
 
   #[napi(getter)]
-  pub fn media(&mut self, env: Env) -> Result<Reference<JSMediaList>> {
+  pub fn media(&mut self, env: Env, reference: Reference<CSSImportRule>) -> Result<Reference<JSMediaList>> {
     if let Some(media) = &self.media {
       return media.clone(env);
     }
 
+    let reference = unsafe {
+      std::mem::transmute::<WeakReference<CSSImportRule>, WeakReference<CSSRule>>(reference.downgrade())
+    };
+
     let media = JSMediaList::into_reference(
       JSMediaList {
-        media_list: match self.rule.rule_mut() {
-          CssRule::Import(import) => extend_lifetime_mut(&mut import.media),
-          _ => unreachable!(),
-        },
+        owner: reference,
         strings: Vec::new(),
       },
       env,
@@ -1281,9 +1370,8 @@ impl CSSImportRule {
   }
 
   #[napi(setter)]
-  pub fn set_media(&mut self, media: String, env: Env) -> Result<()> {
-    self.media(env)?.set_media_text(media);
-    Ok(())
+  pub fn set_media(&mut self, media: String, env: Env, reference: Reference<CSSImportRule>) -> Result<()> {
+    self.media(env, reference)?.set_media_text(media, env)
   }
 
   // https://drafts.csswg.org/css-cascade-5/#extensions-to-cssimportrule-interface
@@ -1457,28 +1545,66 @@ impl CSSPageRule {
       return rules.clone(env);
     }
 
-    let rule = match self.rule.rule.rule_mut() {
-      CssRule::Page(page) => page,
-      _ => {
-        return Err(napi::Error::new(
-          napi::Status::GenericFailure,
-          "Not an @page rule".into(),
-        ))
-      }
-    };
-
-    let declarations = extend_lifetime_mut(&mut rule.declarations);
     let parent_rule =
       unsafe { std::mem::transmute::<WeakReference<CSSPageRule>, WeakReference<CSSRule>>(reference.downgrade()) };
-    let style = CSSStyleDeclaration::into_reference(CSSStyleDeclaration::new(parent_rule, declarations), env)?;
+    let style = CSSStyleDeclaration::into_reference(CSSStyleDeclaration::new(parent_rule), env)?;
     self.style = Some(style.clone(env)?);
     Ok(style)
   }
 
   #[napi(setter)]
   pub fn set_style(&mut self, text: String, env: Env, reference: Reference<CSSPageRule>) -> Result<()> {
-    self.style(env, reference)?.set_css_text(text);
+    self.style(env, reference)?.set_css_text(text, env)?;
     Ok(())
+  }
+}
+
+// https://drafts.csswg.org/css-nesting-1/#cssom-nesting
+#[napi(js_name = "CSSNestingRule")]
+struct CSSNestingRule {
+  rule: CSSStyleRule,
+}
+
+#[napi]
+#[napi]
+impl CSSNestingRule {
+  #[napi(constructor)]
+  pub fn constructor() {
+    unreachable!()
+  }
+
+  fn new(rule: CSSRule) -> Self {
+    Self {
+      rule: CSSStyleRule::new(rule),
+    }
+  }
+
+  #[napi(getter)]
+  pub fn selector_text(&self) -> String {
+    self.rule.selector_text()
+  }
+
+  #[napi(setter)]
+  pub fn set_selector_text(&mut self, text: String) {
+    self.rule.set_selector_text(text)
+  }
+
+  #[napi(getter)]
+  pub fn style(
+    &mut self,
+    env: Env,
+    reference: Reference<CSSNestingRule>,
+  ) -> Result<Reference<CSSStyleDeclaration>> {
+    let reference =
+      unsafe { std::mem::transmute::<Reference<CSSNestingRule>, Reference<CSSStyleRule>>(reference) };
+    self.rule.style(env, reference)
+  }
+
+  #[napi(setter)]
+  pub fn set_style(&mut self, text: String, env: Env, reference: Reference<CSSNestingRule>) -> Result<()> {
+    let reference =
+      unsafe { std::mem::transmute::<Reference<CSSNestingRule>, Reference<CSSStyleRule>>(reference) };
+    self.rule.set_style(text, env, reference)
   }
 }
 
