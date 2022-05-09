@@ -440,16 +440,10 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'i> {
   ) -> Result<CssRule<'i>, ParseError<'i, Self::Error>> {
     let loc = self.loc(start);
     match prelude {
-      AtRulePrelude::FontFace => {
-        let mut parser = DeclarationListParser::new(input, FontFaceDeclarationParser);
-        let mut properties = vec![];
-        while let Some(decl) = parser.next() {
-          if let Ok(decl) = decl {
-            properties.push(decl);
-          }
-        }
-        Ok(CssRule::FontFace(FontFaceRule { properties, loc }))
-      }
+      AtRulePrelude::FontFace => Ok(CssRule::FontFace(FontFaceRule {
+        properties: FontFaceRule::parse_declarations(input)?,
+        loc,
+      })),
       // AtRuleBlockPrelude::FontFeatureValues(family_names) => {
       //     let context = ParserContext::new_with_rule_type(
       //         self.context,

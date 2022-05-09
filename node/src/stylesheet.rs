@@ -1,17 +1,16 @@
 #![allow(dead_code)]
 
-use cssparser::{ParseError, Parser, ParserInput};
 use napi::{
   bindgen_prelude::*, CallContext, JsNumber, JsObject, JsString, JsUndefined, JsUnknown, NapiValue, Ref,
 };
 use napi_derive::{js_function, napi};
 use parcel_css::{
   declaration::DeclarationBlock,
-  error::ParserError,
   media_query::{MediaList, MediaQuery},
   properties::{Property, PropertyId},
   rules::{
-    keyframes::{Keyframe, KeyframeSelector, KeyframesRule},
+    font_face::{FontFaceProperty, FontFaceRule},
+    keyframes::{Keyframe, KeyframesRule},
     style::StyleRule,
     CssRule, CssRuleList,
   },
@@ -248,6 +247,10 @@ fn css_rule_to_js_unknown(rule: &CssRule<'static>, env: Env, css_rule: CSSRule) 
     }
     CssRule::Page(_) => {
       let rule = CSSPageRule::new(css_rule);
+      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+    }
+    CssRule::FontFace(_) => {
+      let rule = CSSFontFaceRule::new(css_rule);
       unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
     }
     _ => unreachable!(),
@@ -673,6 +676,140 @@ impl CSSStyleRule {
   }
 }
 
+trait Declarations {
+  fn get_longhands(&mut self) -> Result<Vec<String>>;
+  fn get_property_value(&mut self, property: &str) -> Result<String>;
+  fn get_property_priority(&mut self, property: &str) -> Result<&str>;
+  fn set_property(&mut self, property: &'static str, value: &'static str, priority: Option<String>) -> Result<()>;
+  fn remove_property(&mut self, property: &str) -> Result<()>;
+  fn css_text(&self) -> Result<String>;
+  fn set_css_text(&mut self, s: &'static str) -> Result<()>;
+}
+
+impl Declarations for DeclarationBlock<'static> {
+  fn get_longhands(&mut self) -> Result<Vec<String>> {
+    let mut longhands = Vec::new();
+    for (property, _important) in self.iter() {
+      let property_id = property.property_id();
+      if let Some(properties) = property_id.longhands() {
+        longhands.extend(properties.iter().map(|property_id| property_id.name().to_owned()))
+      } else {
+        longhands.push(property_id.name().to_owned());
+      }
+    }
+
+    return Ok(longhands);
+  }
+
+  fn get_property_value(&mut self, property: &str) -> Result<String> {
+    let property_id = PropertyId::parse_string(property).unwrap();
+    let opts = PrinterOptions::default();
+
+    if let Some((value, _important)) = self.get(&property_id) {
+      return Ok(value.value_to_css_string(opts).unwrap());
+    }
+
+    Ok(String::new())
+  }
+
+  fn get_property_priority(&mut self, property: &str) -> Result<&str> {
+    let property_id = PropertyId::parse_string(property).unwrap();
+    let important = if let Some((_value, important)) = self.get(&property_id) {
+      important
+    } else {
+      false
+    };
+
+    Ok(if important { "important" } else { "" })
+  }
+
+  fn set_property(&mut self, property: &'static str, value: &'static str, priority: Option<String>) -> Result<()> {
+    if value.is_empty() {
+      self.remove_property(property)?;
+      return Ok(());
+    }
+
+    let property = Property::parse_string(property.into(), value, ParserOptions::default()).unwrap();
+    self.set(
+      property,
+      if let Some(priority) = priority {
+        priority.eq_ignore_ascii_case("important")
+      } else {
+        false
+      },
+    );
+
+    Ok(())
+  }
+
+  fn remove_property(&mut self, property: &str) -> Result<()> {
+    let property_id = PropertyId::parse_string(property).unwrap();
+    self.remove(&property_id);
+    Ok(())
+  }
+
+  fn css_text(&self) -> Result<String> {
+    let res = self.to_css_string(PrinterOptions::default()).unwrap();
+    Ok(res)
+  }
+
+  fn set_css_text(&mut self, s: &'static str) -> Result<()> {
+    *self = DeclarationBlock::parse_string(s, ParserOptions::default()).unwrap();
+    Ok(())
+  }
+}
+
+impl Declarations for FontFaceRule<'static> {
+  fn get_longhands(&mut self) -> Result<Vec<String>> {
+    Ok(self.properties.iter().map(|property| property.name().to_owned()).collect())
+  }
+
+  fn get_property_value(&mut self, property: &str) -> Result<String> {
+    Ok(
+      self
+        .properties
+        .iter()
+        .rev()
+        .find(|p| p.name().eq_ignore_ascii_case(property))
+        .map_or(String::new(), |property| {
+          property.value_to_css_string(PrinterOptions::default()).unwrap()
+        }),
+    )
+  }
+
+  fn get_property_priority(&mut self, property: &str) -> Result<&str> {
+    Ok("")
+  }
+
+  fn set_property(&mut self, property: &'static str, value: &'static str, priority: Option<String>) -> Result<()> {
+    let value = FontFaceProperty::parse_string(property, value).unwrap();
+
+    for property in self.properties.iter_mut() {
+      if property.name() == value.name() {
+        *property = value;
+        return Ok(());
+      }
+    }
+
+    self.properties.push(value);
+    Ok(())
+  }
+
+  fn remove_property(&mut self, property: &str) -> Result<()> {
+    self.properties.retain(|p| !p.name().eq_ignore_ascii_case(property));
+    Ok(())
+  }
+
+  fn css_text(&self) -> Result<String> {
+    Ok(self.declarations_to_css_string(PrinterOptions::default()).unwrap())
+  }
+
+  fn set_css_text(&mut self, s: &'static str) -> Result<()> {
+    self.properties = FontFaceRule::parse_declarations_string(s).unwrap();
+    Ok(())
+  }
+}
+
 #[napi(js_name = "CSSStyleDeclaration")]
 struct CSSStyleDeclaration {
   parent_rule: WeakReference<CSSRule>,
@@ -693,12 +830,13 @@ impl CSSStyleDeclaration {
     }
   }
 
-  fn declarations<'a>(&'a mut self, env: Env) -> Result<&'a mut DeclarationBlock<'static>> {
+  fn declarations(&mut self, env: Env) -> Result<&'static mut dyn Declarations> {
     let mut rule = self.parent_rule.upgrade(env)?.unwrap();
     match rule.inner.rule_mut() {
       RuleOrKeyframeRefMut::Rule(rule) => match rule {
         CssRule::Style(style) => Ok(extend_lifetime_mut(&mut style.declarations)),
         CssRule::Page(page) => Ok(extend_lifetime_mut(&mut page.declarations)),
+        CssRule::FontFace(font_face) => Ok(extend_lifetime_mut(font_face)),
         _ => unreachable!(),
       },
       RuleOrKeyframeRefMut::Keyframe(keyframe) => Ok(extend_lifetime_mut(&mut keyframe.declarations)),
@@ -718,39 +856,23 @@ impl CSSStyleDeclaration {
 
   #[napi(getter)]
   pub fn css_text(&mut self, env: Env) -> Result<String> {
-    Ok(self.declarations(env)?.to_css_string(PrinterOptions::default()).unwrap())
+    self.declarations(env)?.css_text()
   }
 
   #[napi(setter)]
   pub fn set_css_text(&mut self, text: String, env: Env) -> Result<()> {
     let s = self.add_string(text);
-    let declarations = self.declarations(env)?;
-    *declarations = DeclarationBlock::parse_string(s, ParserOptions::default()).unwrap();
-    Ok(())
-  }
-
-  fn get_longhands(&mut self, env: Env) -> Result<Vec<String>> {
-    let mut longhands = Vec::new();
-    for (property, _important) in self.declarations(env)?.iter() {
-      let property_id = property.property_id();
-      if let Some(properties) = property_id.longhands() {
-        longhands.extend(properties.iter().map(|property_id| property_id.name().to_owned()))
-      } else {
-        longhands.push(property_id.name().to_owned());
-      }
-    }
-
-    return Ok(longhands);
+    self.declarations(env)?.set_css_text(s)
   }
 
   #[napi(getter)]
   pub fn length(&mut self, env: Env) -> Result<u32> {
-    Ok(self.get_longhands(env)?.len() as u32)
+    Ok(self.declarations(env)?.get_longhands()?.len() as u32)
   }
 
   #[napi]
   pub fn item(&mut self, index: u32, env: Env) -> Result<String> {
-    let mut longhands = self.get_longhands(env)?;
+    let mut longhands = self.declarations(env)?.get_longhands()?;
     let index = index as usize;
     if index < longhands.len() {
       return Ok(std::mem::take(&mut longhands[index]));
@@ -760,26 +882,12 @@ impl CSSStyleDeclaration {
 
   #[napi]
   pub fn get_property_value(&mut self, property: String, env: Env) -> Result<String> {
-    let property_id = PropertyId::parse_string(&property).unwrap();
-    let opts = PrinterOptions::default();
-
-    if let Some((value, _important)) = self.declarations(env)?.get(&property_id) {
-      return Ok(value.value_to_css_string(opts).unwrap());
-    }
-
-    Ok(String::new())
+    self.declarations(env)?.get_property_value(&property)
   }
 
   #[napi]
   pub fn get_property_priority(&mut self, property: String, env: Env) -> Result<&str> {
-    let property_id = PropertyId::parse_string(&property).unwrap();
-    let important = if let Some((_value, important)) = self.declarations(env)?.get(&property_id) {
-      important
-    } else {
-      false
-    };
-
-    Ok(if important { "important" } else { "" })
+    self.declarations(env)?.get_property_priority(&property)
   }
 
   #[napi]
@@ -790,36 +898,16 @@ impl CSSStyleDeclaration {
     priority: Option<String>,
     env: Env,
   ) -> Result<()> {
-    if value.is_empty() {
-      self.remove_property(property, env)?;
-      return Ok(());
-    }
-
-    let property = Property::parse_string(
-      self.add_string(property).into(),
-      self.add_string(value),
-      ParserOptions::default(),
-    )
-    .unwrap();
-    self.declarations(env)?.set(
-      property,
-      if let Some(priority) = priority {
-        priority.eq_ignore_ascii_case("important")
-      } else {
-        false
-      },
-    );
-
-    Ok(())
+    let property = self.add_string(property);
+    let value = self.add_string(value);
+    self.declarations(env)?.set_property(property, value, priority)
   }
 
   #[napi]
   pub fn remove_property(&mut self, property: String, env: Env) -> Result<String> {
-    let value = self.get_property_value(property.clone(), env)?;
-
-    let property_id = PropertyId::parse_string(&property).unwrap();
-    self.declarations(env)?.remove(&property_id);
-
+    let declarations = self.declarations(env)?;
+    let value = declarations.get_property_value(&property)?;
+    declarations.remove_property(&property)?;
     Ok(value)
   }
 }
@@ -1592,7 +1680,6 @@ struct CSSNestingRule {
 }
 
 #[napi]
-#[napi]
 impl CSSNestingRule {
   #[napi(constructor)]
   pub fn constructor() {
@@ -1641,6 +1728,48 @@ impl CSSNestingRule {
   #[napi]
   pub fn delete_rule(&mut self, env: Env, index: u32) -> Result<()> {
     self.rule.delete_rule(env, index)
+  }
+}
+
+#[napi(js_name = "CSSFontFaceRule")]
+struct CSSFontFaceRule {
+  rule: CSSRule,
+  style: Option<Reference<CSSStyleDeclaration>>,
+}
+
+#[napi]
+impl CSSFontFaceRule {
+  #[napi(constructor)]
+  pub fn constructor() {
+    unreachable!()
+  }
+
+  fn new(rule: CSSRule) -> Self {
+    Self { rule, style: None }
+  }
+
+  #[napi(getter)]
+  pub fn style(
+    &mut self,
+    env: Env,
+    reference: Reference<CSSFontFaceRule>,
+  ) -> Result<Reference<CSSStyleDeclaration>> {
+    if let Some(rules) = &self.style {
+      return rules.clone(env);
+    }
+
+    let parent_rule = unsafe {
+      std::mem::transmute::<WeakReference<CSSFontFaceRule>, WeakReference<CSSRule>>(reference.downgrade())
+    };
+    let style = CSSStyleDeclaration::into_reference(CSSStyleDeclaration::new(parent_rule), env)?;
+    self.style = Some(style.clone(env)?);
+    Ok(style)
+  }
+
+  #[napi(setter)]
+  pub fn set_style(&mut self, text: String, env: Env, reference: Reference<CSSFontFaceRule>) -> Result<()> {
+    self.style(env, reference)?.set_css_text(text, env)?;
+    Ok(())
   }
 }
 

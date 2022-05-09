@@ -1,5 +1,5 @@
 const { suite } = require('uvu');
-const { CSSStyleSheet, CSSStyleRule, CSSRuleList, CSSRule, CSSGroupingRule, CSSConditionRule, CSSMediaRule, CSSStyleDeclaration, MediaList, CSSSupportsRule, CSSKeyframesRule, CSSKeyframeRule, CSSImportRule, CSSNamespaceRule, CSSLayerStatementRule, CSSLayerBlockRule, CSSPageRule } = require('../');
+const { CSSStyleSheet, CSSStyleRule, CSSRuleList, CSSRule, CSSGroupingRule, CSSConditionRule, CSSMediaRule, CSSStyleDeclaration, MediaList, CSSSupportsRule, CSSKeyframesRule, CSSKeyframeRule, CSSImportRule, CSSNamespaceRule, CSSLayerStatementRule, CSSLayerBlockRule, CSSPageRule, CSSFontFaceRule } = require('../');
 const assert = require('assert');
 
 Object.setPrototypeOf(CSSStyleRule.prototype, CSSRule.prototype);
@@ -37,6 +37,9 @@ Object.setPrototypeOf(CSSLayerBlockRule, CSSGroupingRule);
 
 Object.setPrototypeOf(CSSPageRule.prototype, CSSGroupingRule.prototype);
 Object.setPrototypeOf(CSSPageRule, CSSGroupingRule);
+
+Object.setPrototypeOf(CSSFontFaceRule.prototype, CSSRule.prototype);
+Object.setPrototypeOf(CSSFontFaceRule, CSSRule);
 
 function run(name, fn) {
   let test = suite(name);
@@ -961,6 +964,57 @@ run('CSSPageRule', test => {
     assert.equal(rule.cssText, `@page {
   margin: 2in;
 }`)
+  });
+});
+
+run('CSSFontFaceRule', test => {
+  function stylesheet() {
+    let stylesheet = new CSSStyleSheet();
+    stylesheet.replaceSync(`
+      @font-face {
+        src: url("test.woff");
+        font-family: Test;
+      }
+    `);
+    return stylesheet;
+  }
+
+  test('has correct prototype chain', () => {
+    let rule = stylesheet().cssRules.item(0);
+    assert(rule instanceof CSSFontFaceRule);
+    assert(rule instanceof CSSRule);
+  });
+
+  test('style', () => {
+    let rule = stylesheet().cssRules.item(0);
+    assert(rule.style instanceof CSSStyleDeclaration);
+    assert.equal(rule.style.length, 2);
+    assert.equal(rule.style.item(0), 'src');
+    assert.equal(rule.style.item(1), 'font-family');
+    assert.equal(rule.style.getPropertyValue('font-family'), 'Test');
+    assert.equal(rule.style.getPropertyPriority('font-family'), '');
+    assert.equal(rule.style.cssText, 'src: url("test.woff"); font-family: Test');
+
+    rule.style.setProperty('font-family', 'Foo');
+    assert.equal(rule.style.getPropertyValue('font-family'), 'Foo');
+    assert.equal(rule.style.cssText, 'src: url("test.woff"); font-family: Foo');
+
+    rule.style.setProperty('unicode-range', 'U+100000-10FFFF');
+    assert.equal(rule.style.getPropertyValue('unicode-range'), 'U+10????');
+    assert.equal(rule.style.cssText, 'src: url("test.woff"); font-family: Foo; unicode-range: U+10????');
+
+    rule.style.removeProperty('unicode-range');
+    assert.equal(rule.style.cssText, 'src: url("test.woff"); font-family: Foo');
+  });
+
+  test('set style', () => {
+    let rule = stylesheet().cssRules.item(0);
+    rule.style = 'src: url(foo.ttf); font-family: Foo;';
+    assert.equal(rule.style.cssText, 'src: url("foo.ttf"); font-family: Foo');
+    assert.equal(rule.cssText, `@font-face {
+  src: url("foo.ttf");
+  font-family: Foo;
+}`);
   });
 });
 

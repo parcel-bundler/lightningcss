@@ -6,6 +6,7 @@ use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::properties::custom::CustomProperty;
 use crate::properties::font::{FontFamily, FontStretch, FontStyle, FontWeight};
+use crate::stylesheet::PrinterOptions;
 use crate::traits::{Parse, ToCss};
 use crate::values::size::Size2D;
 use crate::values::string::CowArcStr;
@@ -398,6 +399,96 @@ impl<'i> cssparser::DeclarationParser<'i> for FontFaceDeclarationParser {
     name: CowRcStr<'i>,
     input: &mut cssparser::Parser<'i, 't>,
   ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
+    FontFaceProperty::parse(name.into(), input)
+  }
+}
+
+/// Default methods reject all at rules.
+impl<'i> AtRuleParser<'i> for FontFaceDeclarationParser {
+  type Prelude = ();
+  type AtRule = FontFaceProperty<'i>;
+  type Error = ParserError<'i>;
+}
+
+impl<'i> FontFaceRule<'i> {
+  /// Parses the declarations within an `@font-face` rule.
+  pub fn parse_declarations<'t>(
+    input: &mut Parser<'i, 't>,
+  ) -> Result<Vec<FontFaceProperty<'i>>, ParseError<'i, ParserError<'i>>> {
+    let mut parser = DeclarationListParser::new(input, FontFaceDeclarationParser);
+    let mut properties = vec![];
+    while let Some(decl) = parser.next() {
+      if let Ok(decl) = decl {
+        properties.push(decl);
+      }
+    }
+
+    Ok(properties)
+  }
+
+  /// Parses the declarations
+  pub fn parse_declarations_string(
+    input: &'i str,
+  ) -> Result<Vec<FontFaceProperty<'i>>, ParseError<'i, ParserError<'i>>> {
+    let mut input = ParserInput::new(input);
+    let mut parser = Parser::new(&mut input);
+    Self::parse_declarations(&mut parser)
+  }
+
+  /// Serialize the declarations within the rule, without the `@font-face` wrapper.
+  pub fn declarations_to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    let len = self.properties.len();
+    for (idx, property) in self.properties.iter().enumerate() {
+      property.to_css(dest)?;
+      if idx < len - 1 {
+        dest.delim(';', false)?;
+      }
+    }
+    Ok(())
+  }
+
+  /// Serialize the declarations within the rule as a string, without the `@font-face` wrapper.
+  pub fn declarations_to_css_string(&self, options: PrinterOptions) -> Result<String, PrinterError> {
+    let mut dest = String::new();
+    let mut printer = Printer::new(&mut dest, options);
+    self.declarations_to_css(&mut printer)?;
+    Ok(dest)
+  }
+}
+
+impl<'i> ToCss for FontFaceRule<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    dest.add_mapping(self.loc);
+    dest.write_str("@font-face")?;
+    dest.whitespace()?;
+    dest.write_char('{')?;
+    dest.indent();
+    let len = self.properties.len();
+    for (i, prop) in self.properties.iter().enumerate() {
+      dest.newline()?;
+      prop.to_css(dest)?;
+      if i != len - 1 || !dest.minify {
+        dest.write_char(';')?;
+      }
+    }
+    dest.dedent();
+    dest.newline()?;
+    dest.write_char('}')
+  }
+}
+
+impl<'i> FontFaceProperty<'i> {
+  /// Parses a font property.
+  pub fn parse<'t>(
+    name: CowArcStr<'i>,
+    input: &mut cssparser::Parser<'i, 't>,
+  ) -> Result<Self, cssparser::ParseError<'i, ParserError<'i>>> {
     macro_rules! property {
       ($property: ident, $type: ty) => {
         if let Ok(c) = <$type>::parse(input) {
@@ -422,38 +513,54 @@ impl<'i> cssparser::DeclarationParser<'i> for FontFaceDeclarationParser {
     }
 
     input.reset(&state);
-    return Ok(FontFaceProperty::Custom(CustomProperty::parse(name.into(), input)?));
+    return Ok(FontFaceProperty::Custom(CustomProperty::parse(name, input)?));
   }
-}
 
-/// Default methods reject all at rules.
-impl<'i> AtRuleParser<'i> for FontFaceDeclarationParser {
-  type Prelude = ();
-  type AtRule = FontFaceProperty<'i>;
-  type Error = ParserError<'i>;
-}
+  /// Parses a font property from a string.
+  pub fn parse_string(name: &'i str, value: &'i str) -> Result<Self, cssparser::ParseError<'i, ParserError<'i>>> {
+    let mut input = ParserInput::new(value);
+    let mut parser = Parser::new(&mut input);
+    Self::parse(name.into(), &mut parser)
+  }
 
-impl<'i> ToCss for FontFaceRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  /// Returns the property name as a string.
+  pub fn name(&self) -> &str {
+    use FontFaceProperty::*;
+    match self {
+      Source(_) => "src",
+      FontFamily(_) => "font-family",
+      FontStyle(_) => "font-style",
+      FontWeight(_) => "font-weight",
+      FontStretch(_) => "font-stretch",
+      UnicodeRange(_) => "unicode-range",
+      Custom(custom) => custom.name.as_ref(),
+    }
+  }
+
+  /// Serializes the value of a CSS property without its name.
+  pub fn value_to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
   {
-    dest.add_mapping(self.loc);
-    dest.write_str("@font-face")?;
-    dest.whitespace()?;
-    dest.write_char('{')?;
-    dest.indent();
-    let len = self.properties.len();
-    for (i, prop) in self.properties.iter().enumerate() {
-      dest.newline()?;
-      prop.to_css(dest)?;
-      if i != len - 1 || !dest.minify {
-        dest.write_char(';')?;
-      }
+    use FontFaceProperty::*;
+
+    match self {
+      Source(value) => value.to_css(dest),
+      FontFamily(value) => value.to_css(dest),
+      FontStyle(value) => value.to_css(dest),
+      FontWeight(value) => value.to_css(dest),
+      FontStretch(value) => value.to_css(dest),
+      UnicodeRange(value) => value.to_css(dest),
+      Custom(custom) => custom.value.to_css(dest, true),
     }
-    dest.dedent();
-    dest.newline()?;
-    dest.write_char('}')
+  }
+
+  /// Serializes the value of a CSS property as a string.
+  pub fn value_to_css_string(&self, options: PrinterOptions) -> Result<String, PrinterError> {
+    let mut s = String::new();
+    let mut printer = Printer::new(&mut s, options);
+    self.value_to_css(&mut printer)?;
+    Ok(s)
   }
 }
 
