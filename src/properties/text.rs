@@ -5,13 +5,13 @@
 use super::{Property, PropertyId};
 use crate::compat;
 use crate::context::PropertyHandlerContext;
-use crate::declaration::DeclarationList;
+use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
-use crate::macros::enum_property;
+use crate::macros::{define_shorthand, enum_property};
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::targets::Browsers;
-use crate::traits::{FallbackValues, Parse, PropertyHandler, ToCss};
+use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::calc::{Calc, MathFunction};
 use crate::values::color::{ColorFallbackKind, CssColor};
 use crate::values::length::{Length, LengthPercentage, LengthValue};
@@ -557,17 +557,18 @@ impl ToCss for TextDecorationThickness {
   }
 }
 
-/// A value for the [text-decoration](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-property) shorthand property.
-#[derive(Debug, Clone, PartialEq)]
-pub struct TextDecoration {
-  /// The lines to display.
-  pub line: TextDecorationLine,
-  /// The thickness of the lines.
-  pub thickness: TextDecorationThickness,
-  /// The style of the lines.
-  pub style: TextDecorationStyle,
-  /// The color of the lines.
-  pub color: CssColor,
+define_shorthand! {
+  /// A value for the [text-decoration](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-property) shorthand property.
+  pub struct TextDecoration(VendorPrefix) {
+    /// The lines to display.
+    line: TextDecorationLine(TextDecorationLine, VendorPrefix),
+    /// The thickness of the lines.
+    thickness: TextDecorationThickness(TextDecorationThickness),
+    /// The style of the lines.
+    style: TextDecorationStyle(TextDecorationStyle, VendorPrefix),
+    /// The color of the lines.
+    color: TextDecorationColor(CssColor, VendorPrefix),
+  }
 }
 
 impl<'i> Parse<'i> for TextDecoration {
@@ -771,13 +772,14 @@ impl<'i> ToCss for TextEmphasisStyle<'i> {
   }
 }
 
-/// A value for the [text-emphasis](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-property) shorthand property.
-#[derive(Debug, Clone, PartialEq)]
-pub struct TextEmphasis<'i> {
-  /// The text emphasis style.
-  pub style: TextEmphasisStyle<'i>,
-  /// The text emphasis color.
-  pub color: CssColor,
+define_shorthand! {
+  /// A value for the [text-emphasis](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-property) shorthand property.
+  pub struct TextEmphasis<'i>(VendorPrefix) {
+    /// The text emphasis style.
+    style: TextEmphasisStyle(TextEmphasisStyle<'i>, VendorPrefix),
+    /// The text emphasis color.
+    color: TextEmphasisColor(CssColor, VendorPrefix),
+  }
 }
 
 impl<'i> Parse<'i> for TextEmphasis<'i> {

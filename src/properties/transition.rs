@@ -3,29 +3,32 @@
 use super::{Property, PropertyId};
 use crate::compat;
 use crate::context::PropertyHandlerContext;
-use crate::declaration::DeclarationList;
+use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
+use crate::macros::define_list_shorthand;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::masking::get_webkit_mask_property;
 use crate::targets::Browsers;
-use crate::traits::{Parse, PropertyHandler, ToCss};
+use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::{easing::EasingFunction, time::Time};
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
+use itertools::izip;
 use smallvec::SmallVec;
 
-/// A value for the [transition](https://www.w3.org/TR/2018/WD-css-transitions-1-20181011/#transition-shorthand-property) property.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Transition<'i> {
-  /// The property to transition.
-  pub property: PropertyId<'i>,
-  /// The duration of the transition.
-  pub duration: Time,
-  /// The delay before the transition starts.
-  pub delay: Time,
-  /// The easing function for the transition.
-  pub timing_function: EasingFunction,
+define_list_shorthand! {
+  /// A value for the [transition](https://www.w3.org/TR/2018/WD-css-transitions-1-20181011/#transition-shorthand-property) property.
+  pub struct Transition<'i>(VendorPrefix) {
+    /// The property to transition.
+    property: TransitionProperty(PropertyId<'i>, VendorPrefix),
+    /// The duration of the transition.
+    duration: TransitionDuration(Time, VendorPrefix),
+    /// The delay before the transition starts.
+    delay: TransitionDelay(Time, VendorPrefix),
+    /// The easing function for the transition.
+    timing_function: TransitionTimingFunction(EasingFunction, VendorPrefix),
+  }
 }
 
 impl<'i> Parse<'i> for Transition<'i> {

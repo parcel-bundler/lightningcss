@@ -212,9 +212,12 @@ let mdnFeatures = {
   mediaRangeSyntax: mdn.css['at-rules'].media.range_syntax.__compat.support,
   mediaIntervalSyntax: {}, // currently no browsers
   logicalBorders: mdn.css.properties['border-inline-start'].__compat.support,
+  logicalBorderShorthand: mdn.css.properties['border-inline'].__compat.support,
   logicalBorderRadius: mdn.css.properties['border-start-start-radius'].__compat.support,
   logicalMargin: mdn.css.properties['margin-inline-start'].__compat.support,
+  logicalMarginShorthand: mdn.css.properties['margin-inline'].__compat.support,
   logicalPadding: mdn.css.properties['padding-inline-start'].__compat.support,
+  logicalPaddingShorthand: mdn.css.properties['padding-inline'].__compat.support,
   logicalInset: mdn.css.properties['inset-inline-start'].__compat.support,
   logicalSize: mdn.css.properties['inline-size'].__compat.support,
   logicalTextAlign: mdn.css.properties['text-align']['flow_relative_values_start_and_end'].__compat.support,

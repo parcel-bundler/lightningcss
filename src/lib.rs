@@ -567,8 +567,7 @@ mod tests {
       indoc! {r#"
       .foo {
         border-block-width: 1px;
-        border-inline-start-width: 2px;
-        border-inline-end-width: 3px;
+        border-inline-width: 2px 3px;
       }
     "#
       },
@@ -1424,6 +1423,45 @@ mod tests {
     "#},
       Browsers {
         safari: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        border-inline-start: 2px solid red;
+        border-inline-end: 2px solid red;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-inline-start: 2px solid red;
+        border-inline-end: 2px solid red;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(13 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        border-inline-start: 2px solid red;
+        border-inline-end: 2px solid red;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-inline: 2px solid red;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(15 << 16),
         ..Browsers::default()
       },
     );
@@ -2537,6 +2575,82 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    prefix_test(
+      r#"
+      .foo {
+        margin-inline-start: 2px;
+        margin-inline-end: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-inline-start: 2px;
+        margin-inline-end: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(13 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        margin-inline: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-inline-start: 2px;
+        margin-inline-end: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(13 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        margin-inline-start: 2px;
+        margin-inline-end: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-inline: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        margin-inline: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-inline: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]
@@ -2750,6 +2864,45 @@ mod tests {
     "#},
       Browsers {
         safari: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        padding-inline-start: 2px;
+        padding-inline-end: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        padding-inline-start: 2px;
+        padding-inline-end: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(13 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        padding-inline-start: 2px;
+        padding-inline-end: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        padding-inline: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(15 << 16),
         ..Browsers::default()
       },
     );
@@ -17799,7 +17952,7 @@ mod tests {
     }"#}
     );
 
-    let property = Property::parse_string("color", "#f0f", ParserOptions::default()).unwrap();
+    let property = Property::parse_string("color".into(), "#f0f", ParserOptions::default()).unwrap();
     assert_eq!(
       property.to_css_string(false, PrinterOptions::default()).unwrap(),
       "color: #f0f"
@@ -18170,5 +18323,14 @@ mod tests {
     }"#,
       r#".foo{background-image:url(0123abcd)}"#,
     );
+  }
+
+  #[test]
+  fn test_zindex() {
+    minify_test(".foo { z-index: 2 }", ".foo{z-index:2}");
+    minify_test(".foo { z-index: -2 }", ".foo{z-index:-2}");
+    minify_test(".foo { z-index: 999999 }", ".foo{z-index:999999}");
+    minify_test(".foo { z-index: 9999999 }", ".foo{z-index:9999999}");
+    minify_test(".foo { z-index: -9999999 }", ".foo{z-index:-9999999}");
   }
 }

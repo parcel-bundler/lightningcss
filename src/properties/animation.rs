@@ -1,14 +1,14 @@
 //! CSS properties related to keyframe animations.
 
 use crate::context::PropertyHandlerContext;
-use crate::declaration::DeclarationList;
+use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::*;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::targets::Browsers;
-use crate::traits::{Parse, PropertyHandler, ToCss};
+use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::number::CSSNumber;
 use crate::values::{easing::EasingFunction, ident::CustomIdent, time::Time};
 use cssparser::*;
@@ -130,25 +130,26 @@ enum_property! {
   }
 }
 
-/// A value for the [animation](https://drafts.csswg.org/css-animations/#animation) shorthand property.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Animation<'i> {
-  /// The animation name.
-  pub name: AnimationName<'i>,
-  /// The animation duration.
-  pub duration: Time,
-  /// The easing function for the animation.
-  pub timing_function: EasingFunction,
-  /// The number of times the animation will run.
-  pub iteration_count: AnimationIterationCount,
-  /// The direction of the animation.
-  pub direction: AnimationDirection,
-  /// The current play state of the animation.
-  pub play_state: AnimationPlayState,
-  /// The animation delay.
-  pub delay: Time,
-  /// The animation fill mode.
-  pub fill_mode: AnimationFillMode,
+define_list_shorthand! {
+  /// A value for the [animation](https://drafts.csswg.org/css-animations/#animation) shorthand property.
+  pub struct Animation<'i>(VendorPrefix) {
+    /// The animation name.
+    name: AnimationName(AnimationName<'i>, VendorPrefix),
+    /// The animation duration.
+    duration: AnimationDuration(Time, VendorPrefix),
+    /// The easing function for the animation.
+    timing_function: AnimationTimingFunction(EasingFunction, VendorPrefix),
+    /// The number of times the animation will run.
+    iteration_count: AnimationIterationCount(AnimationIterationCount, VendorPrefix),
+    /// The direction of the animation.
+    direction: AnimationDirection(AnimationDirection, VendorPrefix),
+    /// The current play state of the animation.
+    play_state: AnimationPlayState(AnimationPlayState, VendorPrefix),
+    /// The animation delay.
+    delay: AnimationDelay(Time, VendorPrefix),
+    /// The animation fill mode.
+    fill_mode: AnimationFillMode(AnimationFillMode, VendorPrefix),
+  }
 }
 
 impl<'i> Parse<'i> for Animation<'i> {

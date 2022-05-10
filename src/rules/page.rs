@@ -99,7 +99,7 @@ impl<'i> ToCss for PageRule<'i> {
         selector.to_css(dest)?;
       }
     }
-    self.declarations.to_css(dest)
+    self.declarations.to_css_block(dest)
   }
 }
 

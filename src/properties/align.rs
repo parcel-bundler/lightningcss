@@ -4,13 +4,13 @@ use super::flex::{BoxAlign, BoxPack, FlexAlign, FlexItemAlign, FlexLinePack, Fle
 use super::{Property, PropertyId};
 use crate::compat;
 use crate::context::PropertyHandlerContext;
-use crate::declaration::DeclarationList;
+use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::*;
 use crate::prefixes::{is_flex_2009, Feature};
 use crate::printer::Printer;
 use crate::targets::Browsers;
-use crate::traits::{FromStandard, Parse, PropertyHandler, ToCss};
+use crate::traits::{FromStandard, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::length::LengthPercentage;
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
@@ -232,13 +232,14 @@ impl ToCss for JustifyContent {
   }
 }
 
-/// A value for the [place-content](https://www.w3.org/TR/css-align-3/#place-content) shorthand property.
-#[derive(Debug, Clone, PartialEq)]
-pub struct PlaceContent {
-  /// The content alignment.
-  pub align: AlignContent,
-  /// The content justification.
-  pub justify: JustifyContent,
+define_shorthand! {
+  /// A value for the [place-content](https://www.w3.org/TR/css-align-3/#place-content) shorthand property.
+  pub struct PlaceContent {
+    /// The content alignment.
+    align: AlignContent(AlignContent, VendorPrefix),
+    /// The content justification.
+    justify: JustifyContent(JustifyContent, VendorPrefix),
+  }
 }
 
 impl<'i> Parse<'i> for PlaceContent {
@@ -462,13 +463,14 @@ impl ToCss for JustifySelf {
   }
 }
 
-/// A value for the [place-self](https://www.w3.org/TR/css-align-3/#place-self-property) shorthand property.
-#[derive(Debug, Clone, PartialEq)]
-pub struct PlaceSelf {
-  /// The item alignment.
-  pub align: AlignSelf,
-  /// The item justification.
-  pub justify: JustifySelf,
+define_shorthand! {
+  /// A value for the [place-self](https://www.w3.org/TR/css-align-3/#place-self-property) shorthand property.
+  pub struct PlaceSelf {
+    /// The item alignment.
+    align: AlignSelf(AlignSelf, VendorPrefix),
+    /// The item justification.
+    justify: JustifySelf(JustifySelf),
+  }
 }
 
 impl<'i> Parse<'i> for PlaceSelf {
@@ -727,13 +729,14 @@ impl ToCss for JustifyItems {
   }
 }
 
-/// A value for the [place-items](https://www.w3.org/TR/css-align-3/#place-items-property) shorthand property.
-#[derive(Debug, Clone, PartialEq)]
-pub struct PlaceItems {
-  /// The item alignment.
-  pub align: AlignItems,
-  /// The item justification.
-  pub justify: JustifyItems,
+define_shorthand! {
+  /// A value for the [place-items](https://www.w3.org/TR/css-align-3/#place-items-property) shorthand property.
+  pub struct PlaceItems {
+    /// The item alignment.
+    align: AlignItems(AlignItems, VendorPrefix),
+    /// The item justification.
+    justify: JustifyItems(JustifyItems),
+  }
 }
 
 impl<'i> Parse<'i> for PlaceItems {
@@ -816,13 +819,14 @@ impl ToCss for GapValue {
   }
 }
 
-/// A value for the [gap](https://www.w3.org/TR/css-align-3/#gap-shorthand) shorthand property.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Gap {
-  /// The row gap.
-  pub row: GapValue,
-  /// The column gap.
-  pub column: GapValue,
+define_shorthand! {
+  /// A value for the [gap](https://www.w3.org/TR/css-align-3/#gap-shorthand) shorthand property.
+  pub struct Gap {
+    /// The row gap.
+    row: RowGap(GapValue),
+    /// The column gap.
+    column: ColumnGap(GapValue),
+  }
 }
 
 impl<'i> Parse<'i> for Gap {

@@ -4,7 +4,7 @@ use super::border_image::*;
 use super::border_radius::*;
 use crate::compat::Feature;
 use crate::context::PropertyHandlerContext;
-use crate::declaration::DeclarationList;
+use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::logical::PropertyCategory;
 use crate::macros::*;
@@ -12,10 +12,11 @@ use crate::printer::Printer;
 use crate::properties::custom::UnparsedProperty;
 use crate::properties::{Property, PropertyId};
 use crate::targets::Browsers;
-use crate::traits::{FallbackValues, Parse, PropertyHandler, ToCss};
+use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::color::{ColorFallbackKind, CssColor};
 use crate::values::length::*;
 use crate::values::rect::Rect;
+use crate::values::size::Size2D;
 use cssparser::*;
 
 /// A value for the [border-width](https://www.w3.org/TR/css-backgrounds-3/#border-width) property.
@@ -69,8 +70,8 @@ impl ToCss for BorderSideWidth {
 }
 
 enum_property! {
-  /// A value for the [border-style](https://www.w3.org/TR/css-backgrounds-3/#border-style) property.
-  pub enum BorderStyle {
+  /// A [`<line-style>`](https://drafts.csswg.org/css-backgrounds/#typedef-line-style) value, used in the `border-style` property.
+  pub enum LineStyle {
     /// No border.
     None,
     /// Similar to `none` but with different rules for tables.
@@ -94,15 +95,15 @@ enum_property! {
   }
 }
 
-impl Default for BorderStyle {
-  fn default() -> BorderStyle {
-    BorderStyle::None
+impl Default for LineStyle {
+  fn default() -> LineStyle {
+    LineStyle::None
   }
 }
 
 /// A generic type that represents the `border` and `outline` shorthand properties.
 #[derive(Debug, Clone, PartialEq)]
-pub struct GenericBorder<S> {
+pub struct GenericBorder<S, const P: u8> {
   /// The width of the border.
   pub width: BorderSideWidth,
   /// The border style.
@@ -111,8 +112,8 @@ pub struct GenericBorder<S> {
   pub color: CssColor,
 }
 
-impl<S: Default> Default for GenericBorder<S> {
-  fn default() -> GenericBorder<S> {
+impl<S: Default, const P: u8> Default for GenericBorder<S, P> {
+  fn default() -> GenericBorder<S, P> {
     GenericBorder {
       width: BorderSideWidth::Medium,
       style: S::default(),
@@ -121,7 +122,7 @@ impl<S: Default> Default for GenericBorder<S> {
   }
 }
 
-impl<'i, S: Parse<'i> + Default> Parse<'i> for GenericBorder<S> {
+impl<'i, S: Parse<'i> + Default, const P: u8> Parse<'i> for GenericBorder<S, P> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // Order doesn't matter...
     let mut color = None;
@@ -163,7 +164,7 @@ impl<'i, S: Parse<'i> + Default> Parse<'i> for GenericBorder<S> {
   }
 }
 
-impl<S: ToCss + Default + PartialEq> ToCss for GenericBorder<S> {
+impl<S: ToCss + Default + PartialEq, const P: u8> ToCss for GenericBorder<S, P> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
@@ -195,7 +196,7 @@ impl<S: ToCss + Default + PartialEq> ToCss for GenericBorder<S> {
   }
 }
 
-impl<S: Clone> FallbackValues for GenericBorder<S> {
+impl<S: Clone, const P: u8> FallbackValues for GenericBorder<S, P> {
   fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
     self
       .color
@@ -210,56 +211,258 @@ impl<S: Clone> FallbackValues for GenericBorder<S> {
   }
 }
 
-impl FallbackValues for Rect<CssColor> {
-  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
-    let mut fallbacks = ColorFallbackKind::empty();
-    fallbacks |= self.0.get_necessary_fallbacks(targets);
-    fallbacks |= self.1.get_necessary_fallbacks(targets);
-    fallbacks |= self.2.get_necessary_fallbacks(targets);
-    fallbacks |= self.3.get_necessary_fallbacks(targets);
+/// A value for the [border-top](https://www.w3.org/TR/css-backgrounds-3/#propdef-border-top) shorthand property.
+pub type BorderTop = GenericBorder<LineStyle, 0>;
+/// A value for the [border-right](https://www.w3.org/TR/css-backgrounds-3/#propdef-border-right) shorthand property.
+pub type BorderRight = GenericBorder<LineStyle, 1>;
+/// A value for the [border-bottom](https://www.w3.org/TR/css-backgrounds-3/#propdef-border-bottom) shorthand property.
+pub type BorderBottom = GenericBorder<LineStyle, 2>;
+/// A value for the [border-left](https://www.w3.org/TR/css-backgrounds-3/#propdef-border-left) shorthand property.
+pub type BorderLeft = GenericBorder<LineStyle, 3>;
+/// A value for the [border-block-start](https://drafts.csswg.org/css-logical/#propdef-border-block-start) shorthand property.
+pub type BorderBlockStart = GenericBorder<LineStyle, 4>;
+/// A value for the [border-block-end](https://drafts.csswg.org/css-logical/#propdef-border-block-end) shorthand property.
+pub type BorderBlockEnd = GenericBorder<LineStyle, 5>;
+/// A value for the [border-inline-start](https://drafts.csswg.org/css-logical/#propdef-border-inline-start) shorthand property.
+pub type BorderInlineStart = GenericBorder<LineStyle, 6>;
+/// A value for the [border-inline-end](https://drafts.csswg.org/css-logical/#propdef-border-inline-end) shorthand property.
+pub type BorderInlineEnd = GenericBorder<LineStyle, 7>;
+/// A value for the [border-block](https://drafts.csswg.org/css-logical/#propdef-border-block) shorthand property.
+pub type BorderBlock = GenericBorder<LineStyle, 8>;
+/// A value for the [border-inline](https://drafts.csswg.org/css-logical/#propdef-border-inline) shorthand property.
+pub type BorderInline = GenericBorder<LineStyle, 9>;
+/// A value for the [border](https://www.w3.org/TR/css-backgrounds-3/#propdef-border) shorthand property.
+pub type Border = GenericBorder<LineStyle, 10>;
 
-    let mut res = Vec::new();
-    if fallbacks.contains(ColorFallbackKind::RGB) {
-      res.push(Rect::new(
-        self.0.get_fallback(ColorFallbackKind::RGB),
-        self.1.get_fallback(ColorFallbackKind::RGB),
-        self.2.get_fallback(ColorFallbackKind::RGB),
-        self.3.get_fallback(ColorFallbackKind::RGB),
-      ));
-    }
-
-    if fallbacks.contains(ColorFallbackKind::P3) {
-      res.push(Rect::new(
-        self.0.get_fallback(ColorFallbackKind::P3),
-        self.1.get_fallback(ColorFallbackKind::P3),
-        self.2.get_fallback(ColorFallbackKind::P3),
-        self.3.get_fallback(ColorFallbackKind::P3),
-      ));
-    }
-
-    if fallbacks.contains(ColorFallbackKind::LAB) {
-      self.0 = self.0.get_fallback(ColorFallbackKind::LAB);
-      self.1 = self.1.get_fallback(ColorFallbackKind::LAB);
-      self.2 = self.2.get_fallback(ColorFallbackKind::LAB);
-      self.3 = self.3.get_fallback(ColorFallbackKind::LAB);
-    }
-
-    res
+impl_shorthand! {
+  BorderTop(BorderTop) {
+    width: [BorderTopWidth],
+    style: [BorderTopStyle],
+    color: [BorderTopColor],
   }
 }
 
-/// A value for the [border](https://www.w3.org/TR/css-backgrounds-3/#propdef-border) shorthand property.
-pub type Border = GenericBorder<BorderStyle>;
+impl_shorthand! {
+  BorderRight(BorderRight) {
+    width: [BorderRightWidth],
+    style: [BorderRightStyle],
+    color: [BorderRightColor],
+  }
+}
+
+impl_shorthand! {
+  BorderBottom(BorderBottom) {
+    width: [BorderBottomWidth],
+    style: [BorderBottomStyle],
+    color: [BorderBottomColor],
+  }
+}
+
+impl_shorthand! {
+  BorderLeft(BorderLeft) {
+    width: [BorderLeftWidth],
+    style: [BorderLeftStyle],
+    color: [BorderLeftColor],
+  }
+}
+
+impl_shorthand! {
+  BorderBlockStart(BorderBlockStart) {
+    width: [BorderBlockStartWidth],
+    style: [BorderBlockStartStyle],
+    color: [BorderBlockStartColor],
+  }
+}
+
+impl_shorthand! {
+  BorderBlockEnd(BorderBlockEnd) {
+    width: [BorderBlockEndWidth],
+    style: [BorderBlockEndStyle],
+    color: [BorderBlockEndColor],
+  }
+}
+
+impl_shorthand! {
+  BorderInlineStart(BorderInlineStart) {
+    width: [BorderInlineStartWidth],
+    style: [BorderInlineStartStyle],
+    color: [BorderInlineStartColor],
+  }
+}
+
+impl_shorthand! {
+  BorderInlineEnd(BorderInlineEnd) {
+    width: [BorderInlineEndWidth],
+    style: [BorderInlineEndStyle],
+    color: [BorderInlineEndColor],
+  }
+}
+
+impl_shorthand! {
+  BorderBlock(BorderBlock) {
+    width: [BorderBlockStartWidth, BorderBlockEndWidth],
+    style: [BorderBlockStartStyle, BorderBlockEndStyle],
+    color: [BorderBlockStartColor, BorderBlockEndColor],
+  }
+}
+
+impl_shorthand! {
+  BorderInline(BorderInline) {
+    width: [BorderInlineStartWidth, BorderInlineEndWidth],
+    style: [BorderInlineStartStyle, BorderInlineEndStyle],
+    color: [BorderInlineStartColor, BorderInlineEndColor],
+  }
+}
+
+impl_shorthand! {
+  Border(Border) {
+    width: [BorderTopWidth, BorderRightWidth, BorderBottomWidth, BorderLeftWidth],
+    style: [BorderTopStyle, BorderRightStyle, BorderBottomStyle, BorderLeftStyle],
+    color: [BorderTopColor, BorderRightColor, BorderBottomColor, BorderLeftColor],
+  }
+}
+
+size_shorthand! {
+  /// A value for the [border-block-color](https://drafts.csswg.org/css-logical/#propdef-border-block-color) shorthand property.
+  pub struct BorderBlockColor<CssColor> {
+    /// The block start value.
+    start: BorderBlockStartColor,
+    /// The block end value.
+    end: BorderBlockEndColor,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [border-block-style](https://drafts.csswg.org/css-logical/#propdef-border-block-style) shorthand property.
+  pub struct BorderBlockStyle<LineStyle> {
+    /// The block start value.
+    start: BorderBlockStartStyle,
+    /// The block end value.
+    end: BorderBlockEndStyle,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [border-block-width](https://drafts.csswg.org/css-logical/#propdef-border-block-width) shorthand property.
+  pub struct BorderBlockWidth<BorderSideWidth> {
+    /// The block start value.
+    start: BorderBlockStartWidth,
+    /// The block end value.
+    end: BorderBlockEndWidth,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [border-inline-color](https://drafts.csswg.org/css-logical/#propdef-border-inline-color) shorthand property.
+  pub struct BorderInlineColor<CssColor> {
+    /// The inline start value.
+    start: BorderInlineStartColor,
+    /// The inline end value.
+    end: BorderInlineEndColor,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [border-inline-style](https://drafts.csswg.org/css-logical/#propdef-border-inline-style) shorthand property.
+  pub struct BorderInlineStyle<LineStyle> {
+    /// The inline start value.
+    start: BorderInlineStartStyle,
+    /// The inline end value.
+    end: BorderInlineEndStyle,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [border-inline-width](https://drafts.csswg.org/css-logical/#propdef-border-inline-width) shorthand property.
+  pub struct BorderInlineWidth<BorderSideWidth> {
+    /// The inline start value.
+    start: BorderInlineStartWidth,
+    /// The inline end value.
+    end: BorderInlineEndWidth,
+  }
+}
+
+rect_shorthand! {
+  /// A value for the [border-color](https://drafts.csswg.org/css-backgrounds/#propdef-border-color) shorthand property.
+  pub struct BorderColor<CssColor> {
+    BorderTopColor,
+    BorderRightColor,
+    BorderBottomColor,
+    BorderLeftColor
+  }
+}
+
+rect_shorthand! {
+  /// A value for the [border-style](https://drafts.csswg.org/css-backgrounds/#propdef-border-style) shorthand property.
+  pub struct BorderStyle<LineStyle> {
+    BorderTopStyle,
+    BorderRightStyle,
+    BorderBottomStyle,
+    BorderLeftStyle
+  }
+}
+
+rect_shorthand! {
+  /// A value for the [border-width](https://drafts.csswg.org/css-backgrounds/#propdef-border-width) shorthand property.
+  pub struct BorderWidth<BorderSideWidth> {
+    BorderTopWidth,
+    BorderRightWidth,
+    BorderBottomWidth,
+    BorderLeftWidth
+  }
+}
+
+macro_rules! impl_fallbacks {
+  ($t: ident $(, $name: ident)+) => {
+    impl FallbackValues for $t {
+      fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+        let mut fallbacks = ColorFallbackKind::empty();
+        $(
+          fallbacks |= self.$name.get_necessary_fallbacks(targets);
+        )+
+
+        let mut res = Vec::new();
+        if fallbacks.contains(ColorFallbackKind::RGB) {
+          res.push($t {
+            $(
+              $name: self.$name.get_fallback(ColorFallbackKind::RGB),
+            )+
+          });
+        }
+
+        if fallbacks.contains(ColorFallbackKind::P3) {
+          res.push($t {
+            $(
+              $name: self.$name.get_fallback(ColorFallbackKind::P3),
+            )+
+          });
+        }
+
+        if fallbacks.contains(ColorFallbackKind::LAB) {
+          $(
+            self.$name = self.$name.get_fallback(ColorFallbackKind::LAB);
+          )+
+        }
+
+        res
+      }
+    }
+  }
+}
+
+impl_fallbacks!(BorderBlockColor, start, end);
+impl_fallbacks!(BorderInlineColor, start, end);
+impl_fallbacks!(BorderColor, top, right, bottom, left);
 
 #[derive(Default, Debug, PartialEq)]
 struct BorderShorthand {
   pub width: Option<BorderSideWidth>,
-  pub style: Option<BorderStyle>,
+  pub style: Option<LineStyle>,
   pub color: Option<CssColor>,
 }
 
 impl BorderShorthand {
-  pub fn set_border(&mut self, border: &Border) {
+  pub fn set_border<const P: u8>(&mut self, border: &GenericBorder<LineStyle, P>) {
     self.width = Some(border.width.clone());
     self.style = Some(border.style.clone());
     self.color = Some(border.color.clone());
@@ -275,8 +478,8 @@ impl BorderShorthand {
     self.color = None;
   }
 
-  pub fn to_border(&self) -> Border {
-    Border {
+  pub fn to_border<const P: u8>(&self) -> GenericBorder<LineStyle, P> {
+    GenericBorder {
       width: self.width.clone().unwrap(),
       style: self.style.clone().unwrap(),
       color: self.color.clone().unwrap(),
@@ -331,7 +534,7 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
     use Property::*;
 
     macro_rules! property {
-      ($key: ident, $prop: ident, $val: ident, $category: ident) => {{
+      ($key: ident, $prop: ident, $val: expr, $category: ident) => {{
         if PropertyCategory::$category != self.category {
           self.flush(dest, context);
         }
@@ -360,14 +563,14 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
       BorderBlockStartColor(val) => property!(border_block_start, color, val, Logical),
       BorderBlockEndColor(val) => property!(border_block_end, color, val, Logical),
       BorderBlockColor(val) => {
-        property!(border_block_start, color, val, Logical);
-        property!(border_block_end, color, val, Logical);
+        property!(border_block_start, color, val.start, Logical);
+        property!(border_block_end, color, val.end, Logical);
       }
       BorderInlineStartColor(val) => property!(border_inline_start, color, val, Logical),
       BorderInlineEndColor(val) => property!(border_inline_end, color, val, Logical),
       BorderInlineColor(val) => {
-        property!(border_inline_start, color, val, Logical);
-        property!(border_inline_end, color, val, Logical);
+        property!(border_inline_start, color, val.start, Logical);
+        property!(border_inline_end, color, val.end, Logical);
       }
       BorderTopWidth(val) => property!(border_top, width, val, Physical),
       BorderBottomWidth(val) => property!(border_bottom, width, val, Physical),
@@ -376,14 +579,14 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
       BorderBlockStartWidth(val) => property!(border_block_start, width, val, Logical),
       BorderBlockEndWidth(val) => property!(border_block_end, width, val, Logical),
       BorderBlockWidth(val) => {
-        property!(border_block_start, width, val, Logical);
-        property!(border_block_end, width, val, Logical);
+        property!(border_block_start, width, val.start, Logical);
+        property!(border_block_end, width, val.end, Logical);
       }
       BorderInlineStartWidth(val) => property!(border_inline_start, width, val, Logical),
       BorderInlineEndWidth(val) => property!(border_inline_end, width, val, Logical),
       BorderInlineWidth(val) => {
-        property!(border_inline_start, width, val, Logical);
-        property!(border_inline_end, width, val, Logical);
+        property!(border_inline_start, width, val.start, Logical);
+        property!(border_inline_end, width, val.end, Logical);
       }
       BorderTopStyle(val) => property!(border_top, style, val, Physical),
       BorderBottomStyle(val) => property!(border_bottom, style, val, Physical),
@@ -392,14 +595,14 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
       BorderBlockStartStyle(val) => property!(border_block_start, style, val, Logical),
       BorderBlockEndStyle(val) => property!(border_block_end, style, val, Logical),
       BorderBlockStyle(val) => {
-        property!(border_block_start, style, val, Logical);
-        property!(border_block_end, style, val, Logical);
+        property!(border_block_start, style, val.start, Logical);
+        property!(border_block_end, style, val.end, Logical);
       }
       BorderInlineStartStyle(val) => property!(border_inline_start, style, val, Logical),
       BorderInlineEndStyle(val) => property!(border_inline_end, style, val, Logical),
       BorderInlineStyle(val) => {
-        property!(border_inline_start, style, val, Logical);
-        property!(border_inline_end, style, val, Logical);
+        property!(border_inline_start, style, val.start, Logical);
+        property!(border_inline_end, style, val.end, Logical);
       }
       BorderTop(val) => set_border!(border_top, val, Physical),
       BorderBottom(val) => set_border!(border_bottom, val, Physical),
@@ -418,10 +621,10 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
         set_border!(border_inline_end, val, Logical);
       }
       BorderWidth(val) => {
-        self.border_top.width = Some(val.0.clone());
-        self.border_right.width = Some(val.1.clone());
-        self.border_bottom.width = Some(val.2.clone());
-        self.border_left.width = Some(val.3.clone());
+        self.border_top.width = Some(val.top.clone());
+        self.border_right.width = Some(val.right.clone());
+        self.border_bottom.width = Some(val.bottom.clone());
+        self.border_left.width = Some(val.left.clone());
         self.border_block_start.width = None;
         self.border_block_end.width = None;
         self.border_inline_start.width = None;
@@ -429,10 +632,10 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
         self.has_any = true;
       }
       BorderStyle(val) => {
-        self.border_top.style = Some(val.0.clone());
-        self.border_right.style = Some(val.1.clone());
-        self.border_bottom.style = Some(val.2.clone());
-        self.border_left.style = Some(val.3.clone());
+        self.border_top.style = Some(val.top.clone());
+        self.border_right.style = Some(val.right.clone());
+        self.border_bottom.style = Some(val.bottom.clone());
+        self.border_left.style = Some(val.left.clone());
         self.border_block_start.style = None;
         self.border_block_end.style = None;
         self.border_inline_start.style = None;
@@ -440,10 +643,10 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
         self.has_any = true;
       }
       BorderColor(val) => {
-        self.border_top.color = Some(val.0.clone());
-        self.border_right.color = Some(val.1.clone());
-        self.border_bottom.color = Some(val.2.clone());
-        self.border_left.color = Some(val.3.clone());
+        self.border_top.color = Some(val.top.clone());
+        self.border_right.color = Some(val.right.clone());
+        self.border_bottom.color = Some(val.bottom.clone());
+        self.border_left.color = Some(val.left.clone());
         self.border_block_start.color = None;
         self.border_block_end.color = None;
         self.border_inline_start.color = None;
@@ -714,12 +917,12 @@ impl<'i> BorderHandler<'i> {
             let has_prop = $block_start.$key.is_some() && $block_end.$key.is_some() && $inline_start.$key.is_some() && $inline_end.$key.is_some();
             if has_prop {
               if !$is_logical || ($block_start.$key == $block_end.$key && $block_end.$key == $inline_start.$key && $inline_start.$key == $inline_end.$key) {
-                let rect = Rect::new(
-                  std::mem::take(&mut $block_start.$key).unwrap(),
-                  std::mem::take(&mut $inline_end.$key).unwrap(),
-                  std::mem::take(&mut $block_end.$key).unwrap(),
-                  std::mem::take(&mut $inline_start.$key).unwrap()
-                );
+                let rect = $prop {
+                  top: std::mem::take(&mut $block_start.$key).unwrap(),
+                  right: std::mem::take(&mut $inline_end.$key).unwrap(),
+                  bottom: std::mem::take(&mut $block_end.$key).unwrap(),
+                  left: std::mem::take(&mut $inline_start.$key).unwrap()
+                };
                 prop!($prop => rect);
               }
             }
@@ -728,9 +931,12 @@ impl<'i> BorderHandler<'i> {
 
         macro_rules! logical_shorthand {
           ($prop: ident, $key: ident, $start: expr, $end: expr) => {{
-            let has_prop = $start.$key.is_some() && $start.$key == $end.$key;
+            let has_prop = $start.$key.is_some() && $end.$key.is_some();
             if has_prop {
-              prop!($prop => std::mem::take(&mut $start.$key).unwrap());
+              prop!($prop => $prop {
+                start: std::mem::take(&mut $start.$key).unwrap(),
+                end: std::mem::take(&mut $end.$key).unwrap(),
+              });
               $end.$key = None;
             }
             has_prop
@@ -824,14 +1030,23 @@ impl<'i> BorderHandler<'i> {
                 }
 
                 if diff == 1 {
-                  if $inline_start.width != $block_start.width && $inline_start.width == $inline_end.width {
-                    prop!(BorderInlineWidth => $inline_start.width.clone().unwrap());
+                  if $inline_start.width != $block_start.width {
+                    prop!(BorderInlineWidth => BorderInlineWidth {
+                      start: $inline_start.width.clone().unwrap(),
+                      end: $inline_end.width.clone().unwrap(),
+                    });
                     handled = true;
-                  } else if $inline_start.style != $block_start.style && $inline_start.style == $inline_end.style {
-                    prop!(BorderInlineStyle => $inline_start.style.clone().unwrap());
+                  } else if $inline_start.style != $block_start.style {
+                    prop!(BorderInlineStyle => BorderInlineStyle {
+                      start: $inline_start.style.clone().unwrap(),
+                      end: $inline_end.style.clone().unwrap()
+                    });
                     handled = true;
-                  } else if $inline_start.color != $block_start.color && $inline_start.color == $inline_end.color {
-                    prop!(BorderInlineColor => $inline_start.color.clone().unwrap());
+                  } else if $inline_start.color != $block_start.color {
+                    prop!(BorderInlineColor => BorderInlineColor {
+                      start: $inline_start.color.clone().unwrap(),
+                      end: $inline_end.color.clone().unwrap()
+                    });
                     handled = true;
                   }
                 } else if diff > 1 && $inline_start.width == $inline_end.width && $inline_start.style == $inline_end.style && $inline_start.color == $inline_end.color {
@@ -891,7 +1106,12 @@ impl<'i> BorderHandler<'i> {
 
           if $is_logical && $block_start == $block_end && $block_start.is_valid() {
             if logical_supported {
-              prop!(BorderBlock => $block_start.to_border());
+              if (context.is_supported(Feature::LogicalBorderShorthand)) {
+                prop!(BorderBlock => $block_start.to_border());
+              } else {
+                prop!(BorderBlockStart => $block_start.to_border());
+                prop!(BorderBlockEnd => $block_start.to_border());
+              }
             } else {
               prop!(BorderTop => $block_start.to_border());
               prop!(BorderBottom => $block_start.to_border());
@@ -909,7 +1129,12 @@ impl<'i> BorderHandler<'i> {
 
           if $is_logical && $inline_start == $inline_end && $inline_start.is_valid() {
             if logical_supported {
-              prop!(BorderInline => $inline_start.to_border());
+              if (context.is_supported(Feature::LogicalBorderShorthand)) {
+                prop!(BorderInline => $inline_start.to_border());
+              } else {
+                prop!(BorderInlineStart => $inline_start.to_border());
+                prop!(BorderInlineEnd => $inline_start.to_border());
+              }
             } else {
               prop!(BorderLeft => $inline_start.to_border());
               prop!(BorderRight => $inline_start.to_border());

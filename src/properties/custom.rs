@@ -26,14 +26,11 @@ pub struct CustomProperty<'i> {
 impl<'i> CustomProperty<'i> {
   /// Parses a custom property with the given name.
   pub fn parse<'t>(
-    name: CowRcStr<'i>,
+    name: CowArcStr<'i>,
     input: &mut Parser<'i, 't>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let value = TokenList::parse(input)?;
-    Ok(CustomProperty {
-      name: name.into(),
-      value,
-    })
+    Ok(CustomProperty { name, value })
   }
 }
 

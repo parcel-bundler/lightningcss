@@ -1,13 +1,167 @@
 use crate::compat::Feature;
 use crate::context::PropertyHandlerContext;
-use crate::declaration::DeclarationList;
+use crate::declaration::{DeclarationBlock, DeclarationList};
+use crate::error::{ParserError, PrinterError};
 use crate::logical::PropertyCategory;
+use crate::macros::{define_shorthand, rect_shorthand, size_shorthand};
+use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
-use crate::traits::PropertyHandler;
+use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::{length::LengthPercentageOrAuto, rect::Rect, size::Size2D};
+use cssparser::*;
+
+rect_shorthand! {
+  /// A value for the [margin](https://drafts.csswg.org/css-box-4/#propdef-margin) shorthand property.
+  pub struct Margin<LengthPercentageOrAuto> {
+    MarginTop,
+    MarginRight,
+    MarginBottom,
+    MarginLeft
+  }
+}
+
+rect_shorthand! {
+  /// A value for the [padding](https://drafts.csswg.org/css-box-4/#propdef-padding) shorthand property.
+  pub struct Padding<LengthPercentageOrAuto> {
+    PaddingTop,
+    PaddingRight,
+    PaddingBottom,
+    PaddingLeft
+  }
+}
+
+rect_shorthand! {
+  /// A value for the [scroll-margin](https://drafts.csswg.org/css-scroll-snap/#scroll-margin) shorthand property.
+  pub struct ScrollMargin<LengthPercentageOrAuto> {
+    ScrollMarginTop,
+    ScrollMarginRight,
+    ScrollMarginBottom,
+    ScrollMarginLeft
+  }
+}
+
+rect_shorthand! {
+  /// A value for the [scroll-padding](https://drafts.csswg.org/css-scroll-snap/#scroll-padding) shorthand property.
+  pub struct ScrollPadding<LengthPercentageOrAuto> {
+    ScrollPaddingTop,
+    ScrollPaddingRight,
+    ScrollPaddingBottom,
+    ScrollPaddingLeft
+  }
+}
+
+rect_shorthand! {
+  /// A value for the [inset](https://drafts.csswg.org/css-logical/#propdef-inset) shorthand property.
+  pub struct Inset<LengthPercentageOrAuto> {
+    Top,
+    Right,
+    Bottom,
+    Left
+  }
+}
+
+size_shorthand! {
+  /// A value for the [margin-block](https://drafts.csswg.org/css-logical/#propdef-margin-block) shorthand property.
+  pub struct MarginBlock<LengthPercentageOrAuto> {
+    /// The block start value.
+    block_start: MarginBlockStart,
+    /// The block end value.
+    block_end: MarginBlockEnd,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [margin-inline](https://drafts.csswg.org/css-logical/#propdef-margin-inline) shorthand property.
+  pub struct MarginInline<LengthPercentageOrAuto> {
+    /// The inline start value.
+    inline_start: MarginInlineStart,
+    /// The inline end value.
+    inline_end: MarginInlineEnd,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [padding-block](https://drafts.csswg.org/css-logical/#propdef-padding-block) shorthand property.
+  pub struct PaddingBlock<LengthPercentageOrAuto> {
+     /// The block start value.
+    block_start: PaddingBlockStart,
+    /// The block end value.
+    block_end: PaddingBlockEnd,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [padding-inline](https://drafts.csswg.org/css-logical/#propdef-padding-inline) shorthand property.
+  pub struct PaddingInline<LengthPercentageOrAuto> {
+    /// The inline start value.
+    inline_start: PaddingInlineStart,
+    /// The inline end value.
+    inline_end: PaddingInlineEnd,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [scroll-margin-block](https://drafts.csswg.org/css-scroll-snap/#propdef-scroll-margin-block) shorthand property.
+  pub struct ScrollMarginBlock<LengthPercentageOrAuto> {
+     /// The block start value.
+    block_start: ScrollMarginBlockStart,
+    /// The block end value.
+    block_end: ScrollMarginBlockEnd,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [scroll-margin-inline](https://drafts.csswg.org/css-scroll-snap/#propdef-scroll-margin-inline) shorthand property.
+  pub struct ScrollMarginInline<LengthPercentageOrAuto> {
+    /// The inline start value.
+    inline_start: ScrollMarginInlineStart,
+    /// The inline end value.
+    inline_end: ScrollMarginInlineEnd,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [scroll-padding-block](https://drafts.csswg.org/css-scroll-snap/#propdef-scroll-padding-block) shorthand property.
+  pub struct ScrollPaddingBlock<LengthPercentageOrAuto> {
+     /// The block start value.
+    block_start: ScrollPaddingBlockStart,
+    /// The block end value.
+    block_end: ScrollPaddingBlockEnd,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [scroll-padding-inline](https://drafts.csswg.org/css-scroll-snap/#propdef-scroll-padding-inline) shorthand property.
+  pub struct ScrollPaddingInline<LengthPercentageOrAuto> {
+    /// The inline start value.
+    inline_start: ScrollPaddingInlineStart,
+    /// The inline end value.
+    inline_end: ScrollPaddingInlineEnd,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [inset-block](https://drafts.csswg.org/css-logical/#propdef-inset-block) shorthand property.
+  pub struct InsetBlock<LengthPercentageOrAuto> {
+     /// The block start value.
+    block_start: InsetBlockStart,
+    /// The block end value.
+    block_end: InsetBlockEnd,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [inset-inline](https://drafts.csswg.org/css-logical/#propdef-inset-inline) shorthand property.
+  pub struct InsetInline<LengthPercentageOrAuto> {
+    /// The inline start value.
+    inline_start: InsetInlineStart,
+    /// The inline end value.
+    inline_end: InsetInlineEnd,
+  }
+}
 
 macro_rules! side_handler {
-  ($name: ident, $top: ident, $bottom: ident, $left: ident, $right: ident, $block_start: ident, $block_end: ident, $inline_start: ident, $inline_end: ident, $shorthand: ident, $block_shorthand: ident, $inline_shorthand: ident, $logical_shorthand: literal $(, $feature: ident)?) => {
+  ($name: ident, $top: ident, $bottom: ident, $left: ident, $right: ident, $block_start: ident, $block_end: ident, $inline_start: ident, $inline_end: ident, $shorthand: ident, $block_shorthand: ident, $inline_shorthand: ident, $logical_shorthand: literal $(, $feature: ident, $shorthand_feature: ident)?) => {
     #[derive(Debug, Default)]
     pub(crate) struct $name<'i> {
       top: Option<LengthPercentageOrAuto>,
@@ -59,19 +213,19 @@ macro_rules! side_handler {
           $inline_start(_) => logical_property!(inline_start, property.clone()),
           $inline_end(_) => logical_property!(inline_end, property.clone()),
           $block_shorthand(val) => {
-            logical_property!(block_start, Property::$block_start(val.0.clone()));
-            logical_property!(block_end, Property::$block_end(val.1.clone()));
+            logical_property!(block_start, Property::$block_start(val.block_start.clone()));
+            logical_property!(block_end, Property::$block_end(val.block_end.clone()));
           },
           $inline_shorthand(val) => {
-            logical_property!(inline_start, Property::$inline_start(val.0.clone()));
-            logical_property!(inline_end, Property::$inline_end(val.1.clone()));
+            logical_property!(inline_start, Property::$inline_start(val.inline_start.clone()));
+            logical_property!(inline_end, Property::$inline_end(val.inline_end.clone()));
           },
           $shorthand(val) => {
             // dest.clear();
-            self.top = Some(val.0.clone());
-            self.right = Some(val.1.clone());
-            self.bottom = Some(val.2.clone());
-            self.left = Some(val.3.clone());
+            self.top = Some(val.top.clone());
+            self.right = Some(val.right.clone());
+            self.bottom = Some(val.bottom.clone());
+            self.left = Some(val.left.clone());
             self.block_start = None;
             self.block_end = None;
             self.inline_start = None;
@@ -105,8 +259,6 @@ macro_rules! side_handler {
 
     impl<'i> $name<'i> {
       fn flush(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
-        use Property::*;
-
         if !self.has_any {
           return
         }
@@ -120,23 +272,27 @@ macro_rules! side_handler {
         let logical_supported = true $(&& context.is_supported(Feature::$feature))?;
 
         if (!$logical_shorthand || logical_supported) && top.is_some() && bottom.is_some() && left.is_some() && right.is_some() {
-          let rect = Rect::new(top.unwrap(), right.unwrap(), bottom.unwrap(), left.unwrap());
-          dest.push($shorthand(rect));
+          dest.push(Property::$shorthand($shorthand {
+            top: top.unwrap(),
+            right: right.unwrap(),
+            bottom: bottom.unwrap(),
+            left: left.unwrap()
+          }));
         } else {
           if let Some(val) = top {
-            dest.push($top(val));
+            dest.push(Property::$top(val));
           }
 
           if let Some(val) = bottom {
-            dest.push($bottom(val));
+            dest.push(Property::$bottom(val));
           }
 
           if let Some(val) = left {
-            dest.push($left(val));
+            dest.push(Property::$left(val));
           }
 
           if let Some(val) = right {
-            dest.push($right(val));
+            dest.push(Property::$right(val));
           }
         }
 
@@ -147,9 +303,12 @@ macro_rules! side_handler {
 
         macro_rules! logical_side {
           ($start: ident, $end: ident, $shorthand_prop: ident, $start_prop: ident, $end_prop: ident) => {
-            if let (Some(Property::$start_prop(start)), Some(Property::$end_prop(end))) = (&$start, &$end) {
-              let size = Size2D(start.clone(), end.clone());
-              dest.push($shorthand_prop(size));
+            let shorthand_supported = logical_supported $(&& context.is_supported(Feature::$shorthand_feature))?;
+            if let (Some(Property::$start_prop(start)), Some(Property::$end_prop(end)), true) = (&$start, &$end, shorthand_supported) {
+              dest.push(Property::$shorthand_prop($shorthand_prop {
+                $start: start.clone(),
+                $end: end.clone()
+              }));
             } else {
               if let Some(val) = $start {
                 dest.push(val);
@@ -233,7 +392,8 @@ side_handler!(
   MarginBlock,
   MarginInline,
   false,
-  LogicalMargin
+  LogicalMargin,
+  LogicalMarginShorthand
 );
 
 side_handler!(
@@ -250,7 +410,8 @@ side_handler!(
   PaddingBlock,
   PaddingInline,
   false,
-  LogicalPadding
+  LogicalPadding,
+  LogicalPaddingShorthand
 );
 
 side_handler!(
@@ -299,5 +460,6 @@ side_handler!(
   InsetBlock,
   InsetInline,
   true,
+  LogicalInset,
   LogicalInset
 );

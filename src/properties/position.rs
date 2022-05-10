@@ -1,4 +1,4 @@
-//! The CSS position property.
+//! CSS properties related to positioning.
 
 use super::Property;
 use crate::context::PropertyHandlerContext;
@@ -8,6 +8,7 @@ use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::targets::Browsers;
 use crate::traits::{Parse, PropertyHandler, ToCss};
+use crate::values::number::CSSInteger;
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 
@@ -58,6 +59,38 @@ impl ToCss for Position {
         prefix.to_css(dest)?;
         dest.write_str("sticky")
       }
+    }
+  }
+}
+
+/// A value for the [z-index](https://drafts.csswg.org/css2/#z-index) property.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ZIndex {
+  /// The `auto` keyword.
+  Auto,
+  /// An integer value.
+  Integer(CSSInteger),
+}
+
+impl<'i> Parse<'i> for ZIndex {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if let Ok(value) = input.expect_integer() {
+      return Ok(ZIndex::Integer(value));
+    }
+
+    input.expect_ident_matching("auto")?;
+    Ok(ZIndex::Auto)
+  }
+}
+
+impl ToCss for ZIndex {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      ZIndex::Auto => dest.write_str("auto"),
+      ZIndex::Integer(value) => value.to_css(dest),
     }
   }
 }

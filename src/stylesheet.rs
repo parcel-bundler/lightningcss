@@ -269,24 +269,7 @@ impl<'i> StyleAttribute<'i> {
     let mut dest = String::with_capacity(1);
     let mut printer = Printer::new(&mut dest, options);
 
-    let len = self.declarations.declarations.len() + self.declarations.important_declarations.len();
-    let mut i = 0;
-
-    macro_rules! write {
-      ($decls: expr, $important: literal) => {
-        for decl in &$decls {
-          decl.to_css(&mut printer, $important)?;
-          if i != len - 1 {
-            printer.write_char(';')?;
-            printer.whitespace()?;
-          }
-          i += 1;
-        }
-      };
-    }
-
-    write!(self.declarations.declarations, false);
-    write!(self.declarations.important_declarations, true);
+    self.declarations.to_css(&mut printer)?;
 
     Ok(ToCssResult {
       dependencies: printer.dependencies,
