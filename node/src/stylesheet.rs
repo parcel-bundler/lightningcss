@@ -597,8 +597,8 @@ impl CSSStyleRule {
 
   #[napi(getter)]
   pub fn style(&mut self, env: Env, reference: Reference<CSSStyleRule>) -> Result<Reference<CSSStyleDeclaration>> {
-    if let Some(rules) = &self.style {
-      return rules.clone(env);
+    if let Some(style) = &self.style {
+      return style.clone(env);
     }
 
     let parent_rule =
@@ -777,11 +777,16 @@ impl Declarations for FontFaceRule<'static> {
     )
   }
 
-  fn get_property_priority(&mut self, property: &str) -> Result<&str> {
+  fn get_property_priority(&mut self, _property: &str) -> Result<&str> {
     Ok("")
   }
 
-  fn set_property(&mut self, property: &'static str, value: &'static str, priority: Option<String>) -> Result<()> {
+  fn set_property(
+    &mut self,
+    property: &'static str,
+    value: &'static str,
+    _priority: Option<String>,
+  ) -> Result<()> {
     let value = FontFaceProperty::parse_string(property, value).unwrap();
 
     for property in self.properties.iter_mut() {
@@ -1416,8 +1421,8 @@ impl CSSKeyframeRule {
     env: Env,
     reference: Reference<CSSKeyframeRule>,
   ) -> Result<Reference<CSSStyleDeclaration>> {
-    if let Some(rules) = &self.style {
-      return rules.clone(env);
+    if let Some(style) = &self.style {
+      return style.clone(env);
     }
 
     let parent_rule = unsafe {
@@ -1655,8 +1660,8 @@ impl CSSPageRule {
 
   #[napi(getter)]
   pub fn style(&mut self, env: Env, reference: Reference<CSSPageRule>) -> Result<Reference<CSSStyleDeclaration>> {
-    if let Some(rules) = &self.style {
-      return rules.clone(env);
+    if let Some(style) = &self.style {
+      return style.clone(env);
     }
 
     let parent_rule =
@@ -1754,8 +1759,8 @@ impl CSSFontFaceRule {
     env: Env,
     reference: Reference<CSSFontFaceRule>,
   ) -> Result<Reference<CSSStyleDeclaration>> {
-    if let Some(rules) = &self.style {
-      return rules.clone(env);
+    if let Some(style) = &self.style {
+      return style.clone(env);
     }
 
     let parent_rule = unsafe {
