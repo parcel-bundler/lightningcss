@@ -1425,6 +1425,45 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    prefix_test(
+      r#"
+      .foo {
+        border-inline-start: 2px solid red;
+        border-inline-end: 2px solid red;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-inline-start: 2px solid red;
+        border-inline-end: 2px solid red;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(13 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        border-inline-start: 2px solid red;
+        border-inline-end: 2px solid red;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-inline: 2px solid red;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]
@@ -2535,6 +2574,82 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    prefix_test(
+      r#"
+      .foo {
+        margin-inline-start: 2px;
+        margin-inline-end: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-inline-start: 2px;
+        margin-inline-end: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(13 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        margin-inline: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-inline-start: 2px;
+        margin-inline-end: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(13 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        margin-inline-start: 2px;
+        margin-inline-end: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-inline: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        margin-inline: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-inline: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]
@@ -2748,6 +2863,45 @@ mod tests {
     "#},
       Browsers {
         safari: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        padding-inline-start: 2px;
+        padding-inline-end: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        padding-inline-start: 2px;
+        padding-inline-end: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(13 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        padding-inline-start: 2px;
+        padding-inline-end: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        padding-inline: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(15 << 16),
         ..Browsers::default()
       },
     );

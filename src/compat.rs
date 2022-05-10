@@ -41,10 +41,13 @@ pub enum Feature {
   LabColors,
   LangList,
   LogicalBorderRadius,
+  LogicalBorderShorthand,
   LogicalBorders,
   LogicalInset,
   LogicalMargin,
+  LogicalMarginShorthand,
   LogicalPadding,
+  LogicalPaddingShorthand,
   LogicalSize,
   LogicalTextAlign,
   MediaIntervalSyntax,
@@ -1540,6 +1543,51 @@ impl Feature {
         }
         if let Some(version) = browsers.android {
           if version < 4521984 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::LogicalBorderShorthand | Feature::LogicalMarginShorthand | Feature::LogicalPaddingShorthand => {
+        if let Some(version) = browsers.chrome {
+          if version < 5701632 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5701632 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 4325376 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 3145728 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 917760 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 918784 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 917504 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 5701632 {
             return false;
           }
         }
