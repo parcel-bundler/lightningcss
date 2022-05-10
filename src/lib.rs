@@ -18269,4 +18269,13 @@ mod tests {
       r#".foo{background-image:url(0123abcd)}"#,
     );
   }
+
+  #[test]
+  fn test_zindex() {
+    minify_test(".foo { z-index: 2 }", ".foo{z-index:2}");
+    minify_test(".foo { z-index: -2 }", ".foo{z-index:-2}");
+    minify_test(".foo { z-index: 999999 }", ".foo{z-index:999999}");
+    minify_test(".foo { z-index: 9999999 }", ".foo{z-index:9999999}");
+    minify_test(".foo { z-index: -9999999 }", ".foo{z-index:-9999999}");
+  }
 }

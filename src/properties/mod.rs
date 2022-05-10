@@ -1133,6 +1133,9 @@ define_properties! {
   // https://drafts.fxtf.org/filter-effects-1/
   "filter": Filter(FilterList<'i>, VendorPrefix) / WebKit,
   "backdrop-filter": BackdropFilter(FilterList<'i>, VendorPrefix) / WebKit,
+
+  // https://drafts.csswg.org/css2/
+  "z-index": ZIndex(position::ZIndex),
 }
 
 impl<'i, T: smallvec::Array<Item = V>, V: Parse<'i>> Parse<'i> for SmallVec<T> {
