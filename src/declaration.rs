@@ -1,6 +1,7 @@
 //! CSS declarations.
 
 use std::borrow::Cow;
+use std::ops::Range;
 
 use crate::context::PropertyHandlerContext;
 use crate::error::{ParserError, PrinterError};
@@ -178,6 +179,43 @@ impl<'i> DeclarationBlock<'i> {
   /// Returns whether the declaration block is empty.
   pub fn is_empty(&self) -> bool {
     return self.declarations.is_empty() && self.important_declarations.is_empty();
+  }
+
+  pub(crate) fn property_location<'t>(
+    &self,
+    input: &mut Parser<'i, 't>,
+    index: usize,
+  ) -> Result<(Range<SourceLocation>, Range<SourceLocation>), ParseError<'i, ParserError<'i>>> {
+    // Skip to the requested property index.
+    for _ in 0..index {
+      input.expect_ident()?;
+      input.expect_colon()?;
+      input.parse_until_after(Delimiter::Semicolon, |parser| {
+        while parser.next().is_ok() {}
+        Ok(())
+      })?;
+    }
+
+    // Get property name range.
+    input.skip_whitespace();
+    let key_start = input.current_source_location();
+    input.expect_ident()?;
+    let key_end = input.current_source_location();
+    let key_range = key_start..key_end;
+
+    input.expect_colon()?;
+    input.skip_whitespace();
+
+    // Get value range.
+    let val_start = input.current_source_location();
+    input.parse_until_before(Delimiter::Semicolon, |parser| {
+      while parser.next().is_ok() {}
+      Ok(())
+    })?;
+    let val_end = input.current_source_location();
+    let val_range = val_start..val_end;
+
+    Ok((key_range, val_range))
   }
 }
 
