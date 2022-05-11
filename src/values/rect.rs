@@ -11,6 +11,7 @@ use cssparser::*;
 /// When serialized, as few components as possible are written when
 /// there are duplicate values.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Rect<T>(
   /// The top component.
   pub T,

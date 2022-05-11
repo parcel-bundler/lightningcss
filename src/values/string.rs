@@ -1,7 +1,8 @@
 //! Types used to represent strings.
 
 use cssparser::CowRcStr;
-use serde::{Serialize, Serializer};
+use serde::de::Visitor;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::borrow::Borrow;
 use std::cmp;
 use std::fmt;
@@ -218,5 +219,48 @@ impl<'a> fmt::Debug for CowArcStr<'a> {
 impl<'a> Serialize for CowArcStr<'a> {
   fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
     self.as_ref().serialize(serializer)
+  }
+}
+
+#[cfg(feature = "serde")]
+impl<'a, 'de: 'a> Deserialize<'de> for CowArcStr<'a> {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    deserializer.deserialize_str(CowArcStrVisitor)
+  }
+}
+
+#[cfg(feature = "serde")]
+struct CowArcStrVisitor;
+
+#[cfg(feature = "serde")]
+impl<'de> Visitor<'de> for CowArcStrVisitor {
+  type Value = CowArcStr<'de>;
+
+  fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+    formatter.write_str("a CowArcStr")
+  }
+
+  fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
+  where
+    E: serde::de::Error,
+  {
+    Ok(v.into())
+  }
+
+  fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+  where
+    E: serde::de::Error,
+  {
+    Ok(v.to_owned().into())
+  }
+
+  fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+  where
+    E: serde::de::Error,
+  {
+    Ok(v.into())
   }
 }

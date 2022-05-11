@@ -16,8 +16,10 @@ use cssparser::*;
 
 /// A CSS custom property, representing any unknown property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CustomProperty<'i> {
   /// The name of the property.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: CowArcStr<'i>,
   /// The property value, stored as a raw token list.
   pub value: TokenList<'i>,
@@ -40,10 +42,12 @@ impl<'i> CustomProperty<'i> {
 /// be parsed, e.g. in the case css `var()` references are encountered.
 /// In this case, the raw tokens are stored instead.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UnparsedProperty<'i> {
   /// The id of the property.
   pub property_id: PropertyId<'i>,
   /// The property value, stored as a raw token list.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub value: TokenList<'i>,
 }
 
@@ -78,12 +82,19 @@ impl<'i> UnparsedProperty<'i> {
 
 /// A raw list of CSS tokens, with embedded parsed values.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TokenList<'i>(pub Vec<TokenOrValue<'i>>);
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct TokenList<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub Vec<TokenOrValue<'i>>);
 
 /// A raw CSS token, or a parsed value.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum TokenOrValue<'i> {
   /// A token.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   Token(Token<'i>),
   /// A parsed CSS color.
   Color(CssColor),
@@ -321,9 +332,14 @@ impl<'i> TokenList<'i> {
 /// A raw CSS token.
 // Copied from cssparser to change CowRcStr to CowArcStr
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum Token<'a> {
   /// A [`<ident-token>`](https://drafts.csswg.org/css-syntax/#ident-token-diagram)
-  Ident(CowArcStr<'a>),
+  Ident(#[cfg_attr(feature = "serde", serde(borrow))] CowArcStr<'a>),
 
   /// A [`<at-keyword-token>`](https://drafts.csswg.org/css-syntax/#at-keyword-token-diagram)
   ///

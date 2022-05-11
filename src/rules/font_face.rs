@@ -15,8 +15,10 @@ use std::fmt::Write;
 
 /// A [@font-face](https://drafts.csswg.org/css-fonts/#font-face-rule) rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FontFaceRule<'i> {
   /// Declarations in the `@font-face` rule.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub properties: Vec<FontFaceProperty<'i>>,
   /// The location of the rule in the source file.
   pub loc: Location,
@@ -26,8 +28,14 @@ pub struct FontFaceRule<'i> {
 ///
 /// See [FontFaceRule](FontFaceRule).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum FontFaceProperty<'i> {
   /// The `src` property.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   Source(Vec<Source<'i>>),
   /// The `font-family` property.
   FontFamily(FontFamily<'i>),
@@ -46,10 +54,16 @@ pub enum FontFaceProperty<'i> {
 /// A value for the [src](https://drafts.csswg.org/css-fonts/#src-desc)
 /// property in an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum Source<'i> {
   /// A `url()` with optional format metadata.
   Url(UrlSource<'i>),
   /// The `local()` function.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   Local(FontFamily<'i>),
 }
 
@@ -84,10 +98,12 @@ impl<'i> ToCss for Source<'i> {
 /// A `url()` value for the [src](https://drafts.csswg.org/css-fonts/#src-desc)
 /// property in an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UrlSource<'i> {
   /// The URL.
   pub url: Url<'i>,
   /// Optional `format()` function.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub format: Option<Format<'i>>,
 }
 
@@ -124,8 +140,10 @@ impl<'i> ToCss for UrlSource<'i> {
 /// The `format()` function within the [src](https://drafts.csswg.org/css-fonts/#src-desc)
 /// property of an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Format<'i> {
   /// A font format name.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub format: FontFormat<'i>,
   /// The `supports()` function.
   // TODO: did this get renamed to `tech()`?
@@ -175,6 +193,11 @@ impl<'i> ToCss for Format<'i> {
 /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
 /// property of an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum FontFormat<'i> {
   /// A WOFF font.
   WOFF,
@@ -191,6 +214,7 @@ pub enum FontFormat<'i> {
   /// An SVG font.
   SVG,
   /// An unknown format.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   String(CowArcStr<'i>),
 }
 
@@ -269,6 +293,11 @@ enum_property! {
 /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
 /// property of an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum FontTechnology {
   /// Supports font features.
   Features(FontFeatureTechnology),
@@ -329,10 +358,25 @@ impl ToCss for FontTechnology {
   }
 }
 
+/// A contiguous range of Unicode code points.
+///
+/// Cannot be empty. Can represent a single code point when start == end.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct UnicodeRange {
+  /// Inclusive start of the range. In [0, end].
+  pub start: u32,
+  /// Inclusive end of the range. In [0, 0x10FFFF].
+  pub end: u32,
+}
+
 impl<'i> Parse<'i> for UnicodeRange {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let range = UnicodeRange::parse(input)?;
-    Ok(range)
+    let range = cssparser::UnicodeRange::parse(input)?;
+    Ok(UnicodeRange {
+      start: range.start,
+      end: range.end,
+    })
   }
 }
 
@@ -381,7 +425,10 @@ impl ToCss for UnicodeRange {
       }
     }
 
-    cssparser::ToCss::to_css(self, dest)?;
+    write!(dest, "U+{:X}", self.start)?;
+    if self.end != self.start {
+      write!(dest, "-{:X}", self.end)?;
+    }
     Ok(())
   }
 }

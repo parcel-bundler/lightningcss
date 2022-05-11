@@ -9,8 +9,10 @@ use crate::values::ident::DashedIdent;
 
 /// A [@custom-media](https://drafts.csswg.org/mediaqueries-5/#custom-mq) rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CustomMediaRule<'i> {
   /// The name of the declared media query.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: DashedIdent<'i>,
   /// The media query to declare.
   pub query: MediaList<'i>,

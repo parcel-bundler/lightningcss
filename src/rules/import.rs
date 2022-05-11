@@ -12,8 +12,10 @@ use cssparser::*;
 
 /// A [@import](https://drafts.csswg.org/css-cascade/#at-import) rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ImportRule<'i> {
   /// The url to import.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub url: CowArcStr<'i>,
   /// An optional cascade layer name, or `None` for an anonymous layer.
   pub layer: Option<Option<LayerName<'i>>>,

@@ -52,11 +52,13 @@ indoc = "1.0.3"
 assert_cmd = "2.0"
 assert_fs = "1.0"
 predicates = "2.1"
+serde_json = "1.0.78"
 
 [features]
 default = ["grid"]
 cli = ["clap", "serde_json", "pathdiff", "browserslist-rs", "jemallocator"]
 grid = []
+serde = ["smallvec/serde", "cssparser/serde"]
 
 [[test]]
 name = "cli_integration_tests"

@@ -1,5 +1,6 @@
 //! Properties related to CSS modules.
 
+use crate::dependencies::Location;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
@@ -10,23 +11,31 @@ use smallvec::SmallVec;
 
 /// A value for the [composes](https://github.com/css-modules/css-modules/#dependencies) property from CSS modules.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Composes<'i> {
   /// A list of class names to compose.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub names: CustomIdentList<'i>,
   /// Where the class names are composed from.
   pub from: Option<ComposesFrom<'i>>,
   /// The source location of the `composes` property.
-  pub loc: SourceLocation,
+  pub loc: Location,
 }
 
 /// Defines where the class names referenced in the `composes` property are located.
 ///
 /// See [Composes](Composes).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum ComposesFrom<'i> {
   /// The class name is global.
   Global,
   /// The class name comes from the specified file.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   File(CowArcStr<'i>),
 }
 
@@ -53,7 +62,11 @@ impl<'i> Parse<'i> for Composes<'i> {
       None
     };
 
-    Ok(Composes { names, from, loc })
+    Ok(Composes {
+      names,
+      from,
+      loc: loc.into(),
+    })
   }
 }
 

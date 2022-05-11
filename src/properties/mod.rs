@@ -172,15 +172,18 @@ macro_rules! define_properties {
   ) => {
     /// A CSS property id.
     #[derive(Debug, Clone, PartialEq)]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     pub enum PropertyId<'i> {
       $(
         #[doc=concat!("The `", $name, "` property.")]
         $(#[$meta])*
+        #[cfg_attr(feature = "serde", serde(rename = $name))]
         $property$(($vp))?,
       )+
       /// The `all` property.
       All,
       /// An unknown or custom property name.
+      #[cfg_attr(feature = "serde", serde(borrow))]
       Custom(CowArcStr<'i>)
     }
 
@@ -517,13 +520,17 @@ macro_rules! define_properties {
 
     /// A CSS property.
     #[derive(Debug, Clone, PartialEq)]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "serde", serde(tag = "property", content = "value"))]
     pub enum Property<'i> {
       $(
         #[doc=concat!("The `", $name, "` property.")]
         $(#[$meta])*
+        #[cfg_attr(feature = "serde", serde(rename = $name))]
         $property($type, $($vp)?),
       )+
       /// An unparsed property.
+      #[cfg_attr(feature = "serde", serde(borrow))]
       Unparsed(UnparsedProperty<'i>),
       /// A custom or unknown property.
       Custom(CustomProperty<'i>),

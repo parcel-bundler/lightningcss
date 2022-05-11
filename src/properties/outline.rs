@@ -14,6 +14,11 @@ use cssparser::*;
 
 /// A value for the [outline-style](https://drafts.csswg.org/css-ui/#outline-style) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum OutlineStyle {
   /// The `auto` keyword.
   Auto,

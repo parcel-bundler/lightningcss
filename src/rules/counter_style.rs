@@ -9,8 +9,10 @@ use crate::values::ident::CustomIdent;
 
 /// A [@counter-style](https://drafts.csswg.org/css-counter-styles/#the-counter-style-rule) rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CounterStyleRule<'i> {
   /// The name of the counter style to declare.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: CustomIdent<'i>,
   // TODO: eventually parse these properties
   /// Declarations in the `@counter-style` rule.

@@ -103,6 +103,7 @@ pub(crate) struct StyleContext<'a, 'i> {
 
 /// A source location.
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 pub struct Location {
   /// The index of the source file within the source map.
   pub source_index: u32,
@@ -115,8 +116,14 @@ pub struct Location {
 
 /// A CSS rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum CssRule<'i> {
   /// A `@media` rule.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   Media(MediaRule<'i>),
   /// An `@import` rule.
   Import(ImportRule<'i>),
@@ -215,7 +222,8 @@ impl<'i> ToCss for CssRule<'i> {
 
 /// A list of CSS rules.
 #[derive(Debug, PartialEq, Clone)]
-pub struct CssRuleList<'i>(pub Vec<CssRule<'i>>);
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CssRuleList<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub Vec<CssRule<'i>>);
 
 pub(crate) struct MinifyContext<'a, 'i> {
   pub targets: &'a Option<Browsers>,

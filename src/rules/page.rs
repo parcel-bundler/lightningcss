@@ -14,8 +14,10 @@ use cssparser::*;
 ///
 /// Either a name or at least one pseudo class is required.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PageSelector<'i> {
   /// An optional named page type.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: Option<CowArcStr<'i>>,
   /// A list of page pseudo classes.
   pub pseudo_classes: Vec<PagePseudoClass>,
@@ -68,8 +70,10 @@ impl<'i> Parse<'i> for PageSelector<'i> {
 
 /// A [@page](https://www.w3.org/TR/css-page-3/#at-page-rule) rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PageRule<'i> {
   /// A list of page selectors.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub selectors: Vec<PageSelector<'i>>,
   /// The declarations within the `@page` rule.
   pub declarations: DeclarationBlock<'i>,

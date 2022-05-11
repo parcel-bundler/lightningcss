@@ -14,6 +14,11 @@ use cssparser::*;
 
 /// A value for the [font-weight](https://www.w3.org/TR/css-fonts-4/#font-weight-prop) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum FontWeight {
   /// An absolute font weight.
   Absolute(AbsoluteFontWeight),
@@ -66,6 +71,11 @@ impl ToCss for FontWeight {
 ///
 /// See [FontWeight](FontWeight).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum AbsoluteFontWeight {
   /// An explicit weight.
   Weight(CSSNumber),
@@ -144,6 +154,11 @@ enum_property! {
 
 /// A value for the [font-size](https://www.w3.org/TR/css-fonts-4/#font-size-prop) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum FontSize {
   /// An explicit size.
   Length(LengthPercentage),
@@ -235,6 +250,11 @@ impl Into<Percentage> for &FontStretchKeyword {
 
 /// A value for the [font-stretch](https://www.w3.org/TR/css-fonts-4/#font-stretch-prop) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum FontStretch {
   /// A font stretch keyword.
   Keyword(FontStretchKeyword),
@@ -325,8 +345,14 @@ enum_property! {
 
 /// A value for the [font-family](https://www.w3.org/TR/css-fonts-4/#font-family-prop) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum FontFamily<'i> {
   /// A custom family name.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   FamilyName(CowArcStr<'i>),
   /// A generic family name.
   Generic(GenericFontFamily),
@@ -400,6 +426,11 @@ impl<'i> ToCss for FontFamily<'i> {
 
 /// A value for the [font-style](https://www.w3.org/TR/css-fonts-4/#font-style-prop) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum FontStyle {
   /// Normal font style.
   Normal,
@@ -495,6 +526,11 @@ impl FontVariantCaps {
 
 /// A value for the [line-height](https://www.w3.org/TR/2020/WD-css-inline-3-20200827/#propdef-line-height) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum LineHeight {
   /// The UA sets the line height based on the font.
   Normal,
@@ -562,6 +598,11 @@ enum_property! {
 /// A value for the [vertical align](https://drafts.csswg.org/css2/#propdef-vertical-align) property.
 // TODO: there is a more extensive spec in CSS3 but it doesn't seem any browser implements it? https://www.w3.org/TR/css-inline-3/#transverse-alignment
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum VerticalAlign {
   /// A vertical align keyword.
   Keyword(VerticalAlignKeyword),
@@ -596,6 +637,7 @@ define_shorthand! {
   /// A value for the [font](https://www.w3.org/TR/css-fonts-4/#font-prop) shorthand property.
   pub struct Font<'i> {
     /// The font family.
+    #[cfg_attr(feature = "serde", serde(borrow))]
     family: FontFamily(Vec<FontFamily<'i>>),
     /// The font size.
     size: FontSize(FontSize),

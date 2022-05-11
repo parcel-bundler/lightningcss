@@ -24,6 +24,11 @@ use std::fmt::Write;
 /// for all other color spaces, so it is possible to convert between color spaces easily.
 /// In addition, colors support [interpolation](#method.interpolate) as in the `color-mix()` function.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum CssColor {
   /// The [`currentColor`](https://www.w3.org/TR/css-color-4/#currentcolor-color) keyword.
   CurrentColor,
@@ -39,6 +44,11 @@ pub enum CssColor {
 
 /// A color in a LAB color space, including the `lab()`, `lch()`, `oklab()`, and `oklch()` functions.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum LABColor {
   /// A `lab()` color.
   LAB(LAB),
@@ -52,6 +62,11 @@ pub enum LABColor {
 
 /// A color in a predefined color space, e.g. `display-p3`.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum PredefinedColor {
   /// A color in the `srgb` color space.
   SRGB(SRGB),
@@ -75,6 +90,11 @@ pub enum PredefinedColor {
 /// are usually stored as RGBA. These are used when there
 /// are any `none` components, which are represented as NaN.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum FloatColor {
   /// An RGB color.
   RGB(SRGB),
@@ -784,6 +804,7 @@ macro_rules! define_colorspace {
   ) => {
     $(#[$outer])*
     #[derive(Debug, Clone, Copy, PartialEq)]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     pub struct $name {
       $(#[$a_meta])*
       pub $a: f32,

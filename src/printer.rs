@@ -240,12 +240,12 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
   }
 
   /// Returns an error of the given kind at the provided location in the current source file.
-  pub fn error(&self, kind: PrinterErrorKind, loc: SourceLocation) -> Error<PrinterErrorKind> {
+  pub fn error(&self, kind: PrinterErrorKind, loc: crate::dependencies::Location) -> Error<PrinterErrorKind> {
     Error {
       kind,
       loc: Some(ErrorLocation {
         filename: self.filename().into(),
-        line: loc.line,
+        line: loc.line - 1,
         column: loc.column,
       }),
     }

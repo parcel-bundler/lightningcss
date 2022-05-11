@@ -15,6 +15,7 @@ bitflags! {
   /// more than one prefix. During printing, the rule or property will
   /// be duplicated for each prefix flag that is enabled. This enables
   /// vendor prefixes to be added without increasing memory usage.
+  #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
   pub struct VendorPrefix: u8 {
     /// No vendor prefixes.
     const None   = 0b00000001;
