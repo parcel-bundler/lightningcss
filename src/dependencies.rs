@@ -62,8 +62,8 @@ impl ImportDependency {
       media,
       loc: SourceRange::new(
         filename,
-        SourceLocation {
-          line: rule.loc.line,
+        Location {
+          line: rule.loc.line + 1,
           column: rule.loc.column,
         },
         8,
@@ -109,24 +109,34 @@ pub struct SourceRange {
 }
 
 /// A line and column position within a source file.
-#[derive(Serialize)]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 pub struct Location {
-  /// The line number, starting from 0.
+  /// The line number, starting from 1.
   pub line: u32,
   /// The column number, starting from 1.
   pub column: u32,
 }
 
+impl From<SourceLocation> for Location {
+  fn from(loc: SourceLocation) -> Location {
+    Location {
+      line: loc.line + 1,
+      column: loc.column,
+    }
+  }
+}
+
 impl SourceRange {
-  fn new(filename: &str, loc: SourceLocation, offset: u32, len: usize) -> SourceRange {
+  fn new(filename: &str, loc: Location, offset: u32, len: usize) -> SourceRange {
     SourceRange {
       file_path: filename.into(),
       start: Location {
-        line: loc.line + 1,
+        line: loc.line,
         column: loc.column + offset,
       },
       end: Location {
-        line: loc.line + 1,
+        line: loc.line,
         column: loc.column + offset + (len as u32) - 1,
       },
     }

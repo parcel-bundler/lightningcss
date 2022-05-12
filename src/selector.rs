@@ -1596,3 +1596,47 @@ pub fn is_unused(
     false
   })
 }
+
+#[cfg(feature = "serde")]
+pub fn serialize_selectors<S>(selectors: &SelectorList<Selectors>, s: S) -> Result<S::Ok, S::Error>
+where
+  S: serde::Serializer,
+{
+  use serde::Serialize;
+  selectors
+    .0
+    .iter()
+    .map(|selector| {
+      let mut dest = String::new();
+      let mut printer = Printer::new(&mut dest, PrinterOptions::default());
+      serialize_selector(selector, &mut printer, None, false).unwrap();
+      dest
+    })
+    .collect::<Vec<String>>()
+    .serialize(s)
+}
+
+#[cfg(feature = "serde")]
+pub fn deserialize_selectors<'i, 'de: 'i, D>(deserializer: D) -> Result<SelectorList<'i, Selectors>, D::Error>
+where
+  D: serde::Deserializer<'de>,
+{
+  use serde::Deserialize;
+
+  let selector_parser = SelectorParser {
+    default_namespace: &None,
+    namespace_prefixes: &HashMap::new(),
+    is_nesting_allowed: false,
+    css_modules: false,
+  };
+
+  let selectors = Vec::<&'i str>::deserialize(deserializer)?
+    .into_iter()
+    .map(|selector| {
+      let mut input = ParserInput::new(selector);
+      let mut parser = Parser::new(&mut input);
+      Selector::parse(&selector_parser, &mut parser).unwrap()
+    })
+    .collect();
+  Ok(SelectorList(selectors))
+}

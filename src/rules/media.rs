@@ -10,8 +10,10 @@ use crate::traits::ToCss;
 
 /// A [@media](https://drafts.csswg.org/css-conditional-3/#at-media) rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MediaRule<'i> {
   /// The media query list.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub query: MediaList<'i>,
   /// The rules within the `@media` rule.
   pub rules: CssRuleList<'i>,

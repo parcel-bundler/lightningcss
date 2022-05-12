@@ -9,6 +9,11 @@ use cssparser::*;
 
 /// A CSS [`<resolution>`](https://www.w3.org/TR/css-values-4/#resolution) value.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum Resolution {
   /// A resolution in dots per inch.
   Dpi(CSSNumber),

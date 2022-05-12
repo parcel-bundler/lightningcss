@@ -15,6 +15,11 @@ use std::f32::consts::PI;
 /// Angles may be explicit or computed by `calc()`, but are always stored and serialized
 /// as their computed value.
 #[derive(Debug, Clone)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum Angle {
   /// An angle in degrees. There are 360 degrees in a full circle.
   Deg(CSSNumber),

@@ -24,6 +24,11 @@ use std::fmt::Write;
 /// for all other color spaces, so it is possible to convert between color spaces easily.
 /// In addition, colors support [interpolation](#method.interpolate) as in the `color-mix()` function.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "lowercase")
+)]
 pub enum CssColor {
   /// The [`currentColor`](https://www.w3.org/TR/css-color-4/#currentcolor-color) keyword.
   CurrentColor,
@@ -39,6 +44,11 @@ pub enum CssColor {
 
 /// A color in a LAB color space, including the `lab()`, `lch()`, `oklab()`, and `oklch()` functions.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "lowercase")
+)]
 pub enum LABColor {
   /// A `lab()` color.
   LAB(LAB),
@@ -52,22 +62,35 @@ pub enum LABColor {
 
 /// A color in a predefined color space, e.g. `display-p3`.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value")
+)]
 pub enum PredefinedColor {
   /// A color in the `srgb` color space.
+  #[cfg_attr(feature = "serde", serde(rename = "srgb"))]
   SRGB(SRGB),
   /// A color in the `srgb-linear` color space.
+  #[cfg_attr(feature = "serde", serde(rename = "srgb-linear"))]
   SRGBLinear(SRGBLinear),
   /// A color in the `display-p3` color space.
+  #[cfg_attr(feature = "serde", serde(rename = "display-p3"))]
   DisplayP3(P3),
   /// A color in the `a98-rgb` color space.
+  #[cfg_attr(feature = "serde", serde(rename = "a98-rgb"))]
   A98(A98),
   /// A color in the `prophoto-rgb` color space.
+  #[cfg_attr(feature = "serde", serde(rename = "prophoto-rgb"))]
   ProPhoto(ProPhoto),
   /// A color in the `rec2020` color space.
+  #[cfg_attr(feature = "serde", serde(rename = "rec2020"))]
   Rec2020(Rec2020),
   /// A color in the `xyz-d50` color space.
+  #[cfg_attr(feature = "serde", serde(rename = "xyz-d50"))]
   XYZd50(XYZd50),
   /// A color in the `xyz-d65` color space.
+  #[cfg_attr(feature = "serde", serde(rename = "xyz-d65"))]
   XYZd65(XYZd65),
 }
 
@@ -75,6 +98,11 @@ pub enum PredefinedColor {
 /// are usually stored as RGBA. These are used when there
 /// are any `none` components, which are represented as NaN.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "lowercase")
+)]
 pub enum FloatColor {
   /// An RGB color.
   RGB(SRGB),
@@ -784,6 +812,7 @@ macro_rules! define_colorspace {
   ) => {
     $(#[$outer])*
     #[derive(Debug, Clone, Copy, PartialEq)]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     pub struct $name {
       $(#[$a_meta])*
       pub $a: f32,

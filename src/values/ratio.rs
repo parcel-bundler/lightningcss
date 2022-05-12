@@ -9,6 +9,7 @@ use cssparser::*;
 /// A CSS [`<ratio>`](https://www.w3.org/TR/css-values-4/#ratios) value,
 /// representing the ratio of two numeric values.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Ratio(pub CSSNumber, pub CSSNumber);
 
 impl<'i> Parse<'i> for Ratio {

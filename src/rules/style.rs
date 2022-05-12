@@ -18,12 +18,25 @@ use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 use parcel_selectors::SelectorList;
 
+#[cfg(feature = "serde")]
+use crate::selector::{deserialize_selectors, serialize_selectors};
+
 /// A CSS [style rule](https://drafts.csswg.org/css-syntax/#style-rules).
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StyleRule<'i> {
   /// The selectors for the style rule.
+  #[cfg_attr(
+    feature = "serde",
+    serde(
+      serialize_with = "serialize_selectors",
+      deserialize_with = "deserialize_selectors",
+      borrow
+    )
+  )]
   pub selectors: SelectorList<'i, Selectors>,
   /// A vendor prefix override, used during selector printing.
+  #[cfg_attr(feature = "serde", serde(skip, default = "VendorPrefix::empty"))]
   pub(crate) vendor_prefix: VendorPrefix,
   /// The declarations within the style rule.
   pub declarations: DeclarationBlock<'i>,

@@ -14,6 +14,11 @@ use cssparser::*;
 
 /// A value for the [position](https://www.w3.org/TR/css-position-3/#position-property) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum Position {
   /// The box is laid in the document flow.
   Static,
@@ -65,6 +70,11 @@ impl ToCss for Position {
 
 /// A value for the [z-index](https://drafts.csswg.org/css2/#z-index) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum ZIndex {
   /// The `auto` keyword.
   Auto,

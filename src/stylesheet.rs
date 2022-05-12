@@ -57,12 +57,15 @@ pub use crate::printer::PseudoClasses;
 /// assert_eq!(res.code, ".foo, .bar {\n  color: red;\n}\n");
 /// ```
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StyleSheet<'i> {
   /// A list of top-level rules within the style sheet.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub rules: CssRuleList<'i>,
   /// A list of file names for all source files included within the style sheet.
   /// Sources are referenced by index in the `loc` property of each rule.
   pub sources: Vec<String>,
+  #[cfg_attr(feature = "serde", serde(skip))]
   /// The options the style sheet was originally parsed with.
   options: ParserOptions,
 }

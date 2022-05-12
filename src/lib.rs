@@ -14291,7 +14291,7 @@ mod tests {
     );
     error_test(
       "@-moz-document url-prefix(\"foo\") {}",
-      ParserError::UnexpectedToken(crate::properties::custom::Token::QuotedString("foo".into())),
+      ParserError::UnexpectedToken(crate::properties::custom::Token::String("foo".into())),
     );
   }
 

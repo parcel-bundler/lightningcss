@@ -16,6 +16,11 @@ use cssparser::*;
 /// A value for the [preferred size properties](https://drafts.csswg.org/css-sizing-3/#preferred-size-properties),
 /// i.e. `width` and `height.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum Size {
   /// The `auto` keyword.
   Auto,
@@ -79,6 +84,11 @@ impl ToCss for Size {
 /// and [maximum](https://drafts.csswg.org/css-sizing-3/#max-size-properties) size properties,
 /// e.g. `min-width` and `max-height`.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum MinMaxSize {
   /// The `none` keyword.
   None,

@@ -37,6 +37,11 @@ impl LengthPercentage {
 
 /// Either a [`<length-percentage>`](https://www.w3.org/TR/css-values-4/#typedef-length-percentage), or the `auto` keyword.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum LengthPercentageOrAuto {
   /// The `auto` keyword.
   Auto,
@@ -88,6 +93,7 @@ macro_rules! define_length_units {
     /// A CSS [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) value,
     /// without support for `calc()`. See also: [Length](Length).
     #[derive(Debug, Clone, PartialEq)]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(tag = "unit", content = "value", rename_all = "kebab-case"))]
     pub enum LengthValue {
       $(
         $(#[$meta])*
@@ -386,6 +392,11 @@ impl LengthValue {
 
 /// A CSS [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) value, with support for `calc()`.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum Length {
   /// An explicitly specified length value.
   Value(LengthValue),
@@ -585,6 +596,11 @@ impl std::cmp::PartialOrd<Length> for Length {
 
 /// Either a [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) or a [`<number>`](https://www.w3.org/TR/css-values-4/#numbers).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum LengthOrNumber {
   /// A length.
   Length(Length),

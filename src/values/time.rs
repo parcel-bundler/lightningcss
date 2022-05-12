@@ -13,6 +13,11 @@ use cssparser::*;
 /// Time values may be explicit or computed by `calc()`, but are always stored and serialized
 /// as their computed value.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum Time {
   /// A time in seconds.
   Seconds(CSSNumber),

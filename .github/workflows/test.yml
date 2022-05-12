@@ -18,4 +18,4 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v1
       - run: cargo fmt
-      - run: cargo test
+      - run: cargo test --all-features

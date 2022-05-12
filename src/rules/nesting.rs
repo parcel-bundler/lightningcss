@@ -9,8 +9,10 @@ use crate::rules::{StyleContext, ToCssWithContext};
 
 /// A [@nest](https://www.w3.org/TR/css-nesting-1/#at-nest) rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NestingRule<'i> {
   /// The style rule that defines the selector and declarations for the `@nest` rule.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub style: StyleRule<'i>,
   /// The location of the rule in the source file.
   pub loc: Location,

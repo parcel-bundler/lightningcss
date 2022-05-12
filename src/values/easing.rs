@@ -9,6 +9,11 @@ use std::fmt::Write;
 
 /// A CSS [easing function](https://www.w3.org/TR/css-easing-1/#easing-functions).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum EasingFunction {
   /// A linear easing function.
   Linear,
@@ -126,6 +131,11 @@ impl EasingFunction {
 
 /// A [step position](https://www.w3.org/TR/css-easing-1/#step-position), used within the `steps()` function.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum StepPosition {
   /// The first rise occurs at input progress value of 0.
   Start,

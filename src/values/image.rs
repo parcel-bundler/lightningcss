@@ -17,10 +17,16 @@ use smallvec::SmallVec;
 
 /// A CSS [`<image>`](https://www.w3.org/TR/css-images-3/#image-values) value.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum Image<'i> {
   /// The `none` keyword.
   None,
   /// A `url()`.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   Url(Url<'i>),
   /// A gradient.
   Gradient(Box<Gradient>),
@@ -309,8 +315,10 @@ impl<'i> ToCss for Image<'i> {
 /// `image-set()` allows the user agent to choose between multiple versions of an image to
 /// display the most appropriate resolution or file type that it supports.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ImageSet<'i> {
   /// The image options to choose from.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub options: Vec<ImageSetOption<'i>>,
   /// The vendor prefix for the `image-set()` function.
   pub vendor_prefix: VendorPrefix,
@@ -379,12 +387,14 @@ impl<'i> ToCss for ImageSet<'i> {
 
 /// An image option within the `image-set()` function. See [ImageSet](ImageSet).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ImageSetOption<'i> {
   /// The image for this option.
   pub image: Image<'i>,
   /// The resolution of the image.
   pub resolution: Resolution,
   /// The mime type of the image.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub file_type: Option<CowArcStr<'i>>,
 }
 
@@ -392,7 +402,10 @@ impl<'i> Parse<'i> for ImageSetOption<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let loc = input.current_source_location();
     let image = if let Ok(url) = input.try_parse(|input| input.expect_url_or_string()) {
-      Image::Url(Url { url: url.into(), loc })
+      Image::Url(Url {
+        url: url.into(),
+        loc: loc.into(),
+      })
     } else {
       Image::parse(input)?
     };

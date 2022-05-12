@@ -10,6 +10,7 @@ use std::fmt;
 
 /// An error with a source location.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Error<T> {
   /// The type of error that occurred.
   pub kind: T,
@@ -31,6 +32,7 @@ impl<T: fmt::Display + fmt::Debug> std::error::Error for Error<T> {}
 
 /// A line and column location within a source file.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ErrorLocation {
   /// The filename in which the error occurred.
   pub filename: String,

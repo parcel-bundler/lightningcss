@@ -9,10 +9,12 @@ use crate::vendor_prefix::VendorPrefix;
 
 /// A [@viewport](https://drafts.csswg.org/css-device-adapt/#atviewport-rule) rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ViewportRule<'i> {
   /// The vendor prefix for this rule, e.g. `@-ms-viewport`.
   pub vendor_prefix: VendorPrefix,
   /// The declarations within the `@viewport` rule.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub declarations: DeclarationBlock<'i>,
   /// The location of the rule in the source file.
   pub loc: Location,
