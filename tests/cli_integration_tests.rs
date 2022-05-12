@@ -24,7 +24,7 @@ fn css_module_test_vals() -> (String, String, String) {
     (
       "fade",
       CssModuleExport {
-        name: "fade_EgL3uq".into(),
+        name: "EgL3uq_fade".into(),
         composes: vec![],
         is_referenced: false,
       },
@@ -32,7 +32,7 @@ fn css_module_test_vals() -> (String, String, String) {
     (
       "foo",
       CssModuleExport {
-        name: "foo_EgL3uq".into(),
+        name: "EgL3uq_foo".into(),
         composes: vec![],
         is_referenced: false,
       },
@@ -40,7 +40,7 @@ fn css_module_test_vals() -> (String, String, String) {
     (
       "circles",
       CssModuleExport {
-        name: "circles_EgL3uq".into(),
+        name: "EgL3uq_circles".into(),
         composes: vec![],
         is_referenced: true,
       },
@@ -48,7 +48,7 @@ fn css_module_test_vals() -> (String, String, String) {
     (
       "id",
       CssModuleExport {
-        name: "id_EgL3uq".into(),
+        name: "EgL3uq_id".into(),
         composes: vec![],
         is_referenced: false,
       },
@@ -56,7 +56,7 @@ fn css_module_test_vals() -> (String, String, String) {
     (
       "test",
       CssModuleExport {
-        name: "test_EgL3uq".into(),
+        name: "EgL3uq_test".into(),
         composes: vec![],
         is_referenced: true,
       },
@@ -201,7 +201,7 @@ fn minify_option() -> Result<(), Box<dyn std::error::Error>> {
   cmd
     .assert()
     .success()
-    .stdout(predicate::str::contains(indoc! {r#".foo{border:0}"#}));
+    .stdout(predicate::str::contains(indoc! {r#".foo{border:none}"#}));
 
   Ok(())
 }

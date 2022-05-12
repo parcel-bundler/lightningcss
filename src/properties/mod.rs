@@ -29,6 +29,7 @@
 //!   properties::{Property, PropertyId, background::*},
 //!   values::{url::Url, image::Image, color::CssColor, position::*, length::*},
 //!   stylesheet::{ParserOptions, PrinterOptions},
+//!   dependencies::Location,
 //! };
 //!
 //! let background = Property::parse_string(
@@ -42,7 +43,7 @@
 //!   Property::Background(smallvec![Background {
 //!     image: Image::Url(Url {
 //!       url: "img.png".into(),
-//!       loc: cssparser::SourceLocation { line: 0, column: 1 }
+//!       loc: Location { line: 1, column: 1 }
 //!     }),
 //!     color: CssColor::RGBA(cssparser::RGBA {
 //!       red: 0,
@@ -181,9 +182,10 @@ macro_rules! define_properties {
         $property$(($vp))?,
       )+
       /// The `all` property.
+      #[cfg_attr(feature = "serde", serde(rename = "all"))]
       All,
       /// An unknown or custom property name.
-      #[cfg_attr(feature = "serde", serde(borrow))]
+      #[cfg_attr(feature = "serde", serde(borrow, rename = "custom"))]
       Custom(CowArcStr<'i>)
     }
 
@@ -530,9 +532,10 @@ macro_rules! define_properties {
         $property($type, $($vp)?),
       )+
       /// An unparsed property.
-      #[cfg_attr(feature = "serde", serde(borrow))]
+      #[cfg_attr(feature = "serde", serde(borrow, rename = "unparsed"))]
       Unparsed(UnparsedProperty<'i>),
       /// A custom or unknown property.
+      #[cfg_attr(feature = "serde", serde(borrow, rename = "custom"))]
       Custom(CustomProperty<'i>),
     }
 

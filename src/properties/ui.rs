@@ -282,7 +282,11 @@ enum_property! {
 
 /// A value for the [appearance](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#appearance-switching) property.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
 #[allow(missing_docs)]
 pub enum Appearance<'i> {
   None,

@@ -6,7 +6,7 @@ use crate::error::{Error, ErrorLocation, PrinterError, PrinterErrorKind};
 use crate::rules::Location;
 use crate::targets::Browsers;
 use crate::vendor_prefix::VendorPrefix;
-use cssparser::{serialize_identifier, SourceLocation};
+use cssparser::serialize_identifier;
 use parcel_sourcemap::{OriginalLocation, SourceMap};
 
 /// Options that control how CSS is serialized to a string.

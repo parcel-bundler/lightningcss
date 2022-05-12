@@ -36,7 +36,7 @@ pub struct StyleRule<'i> {
   )]
   pub selectors: SelectorList<'i, Selectors>,
   /// A vendor prefix override, used during selector printing.
-  #[cfg_attr(feature = "serde", serde(skip))]
+  #[cfg_attr(feature = "serde", serde(skip, default = "VendorPrefix::empty"))]
   pub(crate) vendor_prefix: VendorPrefix,
   /// The declarations within the style rule.
   pub declarations: DeclarationBlock<'i>,

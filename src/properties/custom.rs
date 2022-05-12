@@ -359,7 +359,7 @@ pub enum Token<'a> {
   /// A [`<string-token>`](https://drafts.csswg.org/css-syntax/#string-token-diagram)
   ///
   /// The value does not include the quotes.
-  QuotedString(CowArcStr<'a>),
+  String(CowArcStr<'a>),
 
   /// A [`<url-token>`](https://drafts.csswg.org/css-syntax/#url-token-diagram)
   ///
@@ -506,7 +506,7 @@ impl<'a> From<&cssparser::Token<'a>> for Token<'a> {
       cssparser::Token::AtKeyword(x) => Token::AtKeyword(x.into()),
       cssparser::Token::Hash(x) => Token::Hash(x.into()),
       cssparser::Token::IDHash(x) => Token::IDHash(x.into()),
-      cssparser::Token::QuotedString(x) => Token::QuotedString(x.into()),
+      cssparser::Token::QuotedString(x) => Token::String(x.into()),
       cssparser::Token::UnquotedUrl(x) => Token::UnquotedUrl(x.into()),
       cssparser::Token::Function(x) => Token::Function(x.into()),
       cssparser::Token::BadUrl(x) => Token::BadUrl(x.into()),
@@ -575,7 +575,7 @@ impl<'a> ToCss for Token<'a> {
       Token::AtKeyword(x) => cssparser::Token::AtKeyword(x.as_ref().into()).to_css(dest)?,
       Token::Hash(x) => cssparser::Token::Hash(x.as_ref().into()).to_css(dest)?,
       Token::IDHash(x) => cssparser::Token::IDHash(x.as_ref().into()).to_css(dest)?,
-      Token::QuotedString(x) => cssparser::Token::QuotedString(x.as_ref().into()).to_css(dest)?,
+      Token::String(x) => cssparser::Token::QuotedString(x.as_ref().into()).to_css(dest)?,
       Token::UnquotedUrl(x) => cssparser::Token::UnquotedUrl(x.as_ref().into()).to_css(dest)?,
       Token::Function(x) => cssparser::Token::Function(x.as_ref().into()).to_css(dest)?,
       Token::BadUrl(x) => cssparser::Token::BadUrl(x.as_ref().into()).to_css(dest)?,

@@ -1,8 +1,9 @@
 //! Types used to represent strings.
 
 use cssparser::CowRcStr;
-use serde::de::Visitor;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+#[cfg(feature = "serde")]
+use serde::{de::Visitor, Deserialize, Deserializer};
+use serde::{Serialize, Serializer};
 use std::borrow::Borrow;
 use std::cmp;
 use std::fmt;
