@@ -574,12 +574,14 @@ mod tests {
       .code
   }
 
-  fn error_test(fs: TestProvider, entry: &str) {
+  fn error_test(fs: TestProvider, entry: &str, maybe_cb: Option<Box<dyn FnOnce(BundleErrorKind) -> ()>>) {
     let mut bundler = Bundler::new(&fs, None, ParserOptions::default());
     let res = bundler.bundle(Path::new(entry));
     match res {
       Ok(_) => unreachable!(),
-      Err(e) => assert!(matches!(e.kind, BundleErrorKind::UnsupportedLayerCombination)),
+      Err(e) => if let Some(cb) = maybe_cb {
+        cb(e.kind);
+      }
     }
   }
 
@@ -1142,6 +1144,9 @@ mod tests {
         },
       },
       "/a.css",
+      Some(Box::new(|err| {
+        assert!(matches!(err, BundleErrorKind::UnsupportedLayerCombination));
+      })),
     );
 
     error_test(
@@ -1157,6 +1162,9 @@ mod tests {
         },
       },
       "/a.css",
+      Some(Box::new(|err| {
+        assert!(matches!(err, BundleErrorKind::UnsupportedLayerCombination));
+      })),
     );
 
     error_test(
@@ -1176,6 +1184,9 @@ mod tests {
         },
       },
       "/a.css",
+      Some(Box::new(|err| {
+        assert!(matches!(err, BundleErrorKind::UnsupportedLayerCombination));
+      })),
     );
 
     error_test(
@@ -1195,6 +1206,9 @@ mod tests {
         },
       },
       "/a.css",
+      Some(Box::new(|err| {
+        assert!(matches!(err, BundleErrorKind::UnsupportedLayerCombination));
+      })),
     );
 
     let res = bundle(
