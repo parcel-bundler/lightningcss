@@ -32,21 +32,10 @@ impl ToCss for CSSNumber {
   where
     W: std::fmt::Write,
   {
-    use cssparser::ToCss;
     let number = *self;
-    let int_value = if number.fract() == 0.0 {
-      Some(number as i32)
-    } else {
-      None
-    };
-    let tok = Token::Number {
-      has_sign: number < 0.0,
-      value: number,
-      int_value,
-    };
     if number != 0.0 && number.abs() < 1.0 {
       let mut s = String::new();
-      tok.to_css(&mut s)?;
+      cssparser::ToCss::to_css(self, &mut s)?;
       if number < 0.0 {
         dest.write_char('-')?;
         dest.write_str(s.trim_start_matches("-0"))
@@ -54,7 +43,7 @@ impl ToCss for CSSNumber {
         dest.write_str(s.trim_start_matches('0'))
       }
     } else {
-      tok.to_css(dest)?;
+      cssparser::ToCss::to_css(self, dest)?;
       Ok(())
     }
   }
@@ -91,14 +80,7 @@ impl ToCss for CSSInteger {
   where
     W: std::fmt::Write,
   {
-    use cssparser::ToCss;
-    let integer = *self;
-    let tok = Token::Number {
-      has_sign: integer < 0,
-      value: integer as f32,
-      int_value: Some(integer),
-    };
-    tok.to_css(dest)?;
+    cssparser::ToCss::to_css(self, dest)?;
     Ok(())
   }
 }

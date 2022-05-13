@@ -11,6 +11,11 @@ use cssparser::*;
 /// A CSS [syntax string](https://drafts.css-houdini.org/css-properties-values-api/#syntax-strings)
 /// used to define the grammar for a registered custom property.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum SyntaxString {
   /// A list of syntax components.
   Components(Vec<SyntaxComponent>),
@@ -24,6 +29,7 @@ pub enum SyntaxString {
 /// A syntax component consists of a component kind an a multiplier, which indicates how the component
 /// may repeat during parsing.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SyntaxComponent {
   /// The kind of component.
   pub kind: SyntaxComponentKind,
@@ -33,6 +39,11 @@ pub struct SyntaxComponent {
 
 /// A [syntax component component name](https://drafts.css-houdini.org/css-properties-values-api/#supported-names).
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum SyntaxComponentKind {
   /// A `<length>` component.
   Length,
@@ -69,6 +80,11 @@ pub enum SyntaxComponentKind {
 /// A [multiplier](https://drafts.css-houdini.org/css-properties-values-api/#multipliers) for a
 /// [SyntaxComponent](SyntaxComponent). Indicates whether and how the component may be repeated.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum Multiplier {
   /// The component may not be repeated.
   None,
@@ -80,6 +96,11 @@ pub enum Multiplier {
 
 /// A parsed value for a [SyntaxComponent](SyntaxComponent).
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum ParsedComponent<'i> {
   /// A `<length>` value.
   Length(values::length::Length),
@@ -92,6 +113,7 @@ pub enum ParsedComponent<'i> {
   /// A `<color>` value.
   Color(values::color::CssColor),
   /// An `<image>` value.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   Image(values::image::Image<'i>),
   /// A `<url>` value.
   Url(values::url::Url<'i>),

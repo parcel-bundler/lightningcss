@@ -1,6 +1,6 @@
 //! CSS url() values.
 
-use crate::dependencies::{Dependency, UrlDependency};
+use crate::dependencies::{Dependency, Location, UrlDependency};
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
@@ -9,18 +9,20 @@ use cssparser::*;
 
 /// A CSS [url()](https://www.w3.org/TR/css-values-4/#urls) value and its source location.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Url<'i> {
   /// The url string.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub url: CowArcStr<'i>,
   /// The location where the `url()` was seen in the CSS source file.
-  pub loc: SourceLocation,
+  pub loc: Location,
 }
 
 impl<'i> Parse<'i> for Url<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let loc = input.current_source_location();
     let url = input.expect_url()?.into();
-    Ok(Url { url, loc })
+    Ok(Url { url, loc: loc.into() })
   }
 }
 

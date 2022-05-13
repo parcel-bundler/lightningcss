@@ -9,7 +9,7 @@ use crate::rules::{
   counter_style::CounterStyleRule,
   custom_media::CustomMediaRule,
   document::MozDocumentRule,
-  font_face::{FontFaceDeclarationParser, FontFaceRule},
+  font_face::FontFaceRule,
   import::ImportRule,
   keyframes::{KeyframeListParser, KeyframesRule},
   layer::LayerName,

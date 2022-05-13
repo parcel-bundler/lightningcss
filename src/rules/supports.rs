@@ -11,8 +11,10 @@ use cssparser::*;
 
 /// A [@supports](https://drafts.csswg.org/css-conditional-3/#at-supports) rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SupportsRule<'i> {
   /// The supports condition.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub condition: SupportsCondition<'i>,
   /// The rules within the `@supports` rule.
   pub rules: CssRuleList<'i>,
@@ -56,6 +58,11 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for SupportsRule<'i> {
 /// A [`<supports-condition>`](https://drafts.csswg.org/css-conditional-3/#typedef-supports-condition),
 /// as used in the `@supports` and `@import` rules.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum SupportsCondition<'i> {
   /// A `not` expression.
   Not(Box<SupportsCondition<'i>>),
@@ -64,6 +71,7 @@ pub enum SupportsCondition<'i> {
   /// An `or` expression.
   Or(Vec<SupportsCondition<'i>>),
   /// A declaration to evaluate.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   Declaration(CowArcStr<'i>),
   /// A selector to evaluate.
   Selector(CowArcStr<'i>),

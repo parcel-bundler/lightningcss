@@ -51,6 +51,7 @@ mod tests {
   use crate::targets::Browsers;
   use crate::traits::{Parse, ToCss};
   use crate::values::color::CssColor;
+  use cssparser::SourceLocation;
   use indoc::indoc;
   use std::collections::HashMap;
 
@@ -1425,6 +1426,45 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    prefix_test(
+      r#"
+      .foo {
+        border-inline-start: 2px solid red;
+        border-inline-end: 2px solid red;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-inline-start: 2px solid red;
+        border-inline-end: 2px solid red;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(13 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        border-inline-start: 2px solid red;
+        border-inline-end: 2px solid red;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-inline: 2px solid red;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]
@@ -2535,6 +2575,82 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    prefix_test(
+      r#"
+      .foo {
+        margin-inline-start: 2px;
+        margin-inline-end: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-inline-start: 2px;
+        margin-inline-end: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(13 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        margin-inline: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-inline-start: 2px;
+        margin-inline-end: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(13 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        margin-inline-start: 2px;
+        margin-inline-end: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-inline: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        margin-inline: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-inline: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]
@@ -2748,6 +2864,45 @@ mod tests {
     "#},
       Browsers {
         safari: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        padding-inline-start: 2px;
+        padding-inline-end: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        padding-inline-start: 2px;
+        padding-inline-end: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(13 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        padding-inline-start: 2px;
+        padding-inline-end: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        padding-inline: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(15 << 16),
         ..Browsers::default()
       },
     );
@@ -14136,7 +14291,7 @@ mod tests {
     );
     error_test(
       "@-moz-document url-prefix(\"foo\") {}",
-      ParserError::UnexpectedToken(crate::properties::custom::Token::QuotedString("foo".into())),
+      ParserError::UnexpectedToken(crate::properties::custom::Token::String("foo".into())),
     );
   }
 
@@ -17806,6 +17961,60 @@ mod tests {
       property.to_css_string(true, PrinterOptions::default()).unwrap(),
       "color: #f0f !important"
     );
+
+    let code = indoc! { r#"
+      .foo {
+        color: green;
+      }
+
+      .bar {
+        color: red;
+        background: pink;
+      }
+
+      @media print {
+        .baz {
+          color: green;
+        }
+      }
+    "#};
+    let stylesheet = StyleSheet::parse("test.css", code, ParserOptions::default()).unwrap();
+    if let CssRule::Style(style) = &stylesheet.rules.0[1] {
+      let (key, val) = style.property_location(code, 0).unwrap();
+      assert_eq!(
+        key,
+        SourceLocation { line: 5, column: 3 }..SourceLocation { line: 5, column: 8 }
+      );
+      assert_eq!(
+        val,
+        SourceLocation { line: 5, column: 10 }..SourceLocation { line: 5, column: 13 }
+      );
+    }
+
+    if let CssRule::Style(style) = &stylesheet.rules.0[1] {
+      let (key, val) = style.property_location(code, 1).unwrap();
+      assert_eq!(
+        key,
+        SourceLocation { line: 6, column: 3 }..SourceLocation { line: 6, column: 13 }
+      );
+      assert_eq!(
+        val,
+        SourceLocation { line: 6, column: 15 }..SourceLocation { line: 6, column: 19 }
+      );
+    }
+    if let CssRule::Media(media) = &stylesheet.rules.0[2] {
+      if let CssRule::Style(style) = &media.rules.0[0] {
+        let (key, val) = style.property_location(code, 0).unwrap();
+        assert_eq!(
+          key,
+          SourceLocation { line: 11, column: 5 }..SourceLocation { line: 11, column: 10 }
+        );
+        assert_eq!(
+          val,
+          SourceLocation { line: 11, column: 12 }..SourceLocation { line: 11, column: 17 }
+        );
+      }
+    }
   }
 
   #[test]
@@ -18114,5 +18323,14 @@ mod tests {
     }"#,
       r#".foo{background-image:url(0123abcd)}"#,
     );
+  }
+
+  #[test]
+  fn test_zindex() {
+    minify_test(".foo { z-index: 2 }", ".foo{z-index:2}");
+    minify_test(".foo { z-index: -2 }", ".foo{z-index:-2}");
+    minify_test(".foo { z-index: 999999 }", ".foo{z-index:999999}");
+    minify_test(".foo { z-index: 9999999 }", ".foo{z-index:9999999}");
+    minify_test(".foo { z-index: -9999999 }", ".foo{z-index:-9999999}");
   }
 }

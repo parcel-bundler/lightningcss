@@ -72,3 +72,56 @@ impl cssparser::ToCss for VendorPrefix {
     }
   }
 }
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for VendorPrefix {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    let mut values = Vec::new();
+    if *self != VendorPrefix::None {
+      if self.contains(VendorPrefix::None) {
+        values.push("none");
+      }
+      if self.contains(VendorPrefix::WebKit) {
+        values.push("webkit");
+      }
+      if self.contains(VendorPrefix::Moz) {
+        values.push("moz");
+      }
+      if self.contains(VendorPrefix::Ms) {
+        values.push("ms");
+      }
+      if self.contains(VendorPrefix::O) {
+        values.push("o");
+      }
+    }
+    values.serialize(serializer)
+  }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for VendorPrefix {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let values = Vec::<&str>::deserialize(deserializer)?;
+    if values.is_empty() {
+      return Ok(VendorPrefix::None);
+    }
+    let mut res = VendorPrefix::empty();
+    for value in values {
+      res |= match value {
+        "none" => VendorPrefix::None,
+        "webkit" => VendorPrefix::WebKit,
+        "moz" => VendorPrefix::Moz,
+        "ms" => VendorPrefix::Ms,
+        "o" => VendorPrefix::O,
+        _ => continue,
+      };
+    }
+    Ok(res)
+  }
+}

@@ -20,10 +20,16 @@ use smallvec::SmallVec;
 /// A [track sizing](https://drafts.csswg.org/css-grid-2/#track-sizing) value
 /// for the `grid-template-rows` and `grid-template-columns` properties.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum TrackSizing<'i> {
   /// No explicit grid tracks.
   None,
   /// A list of grid tracks.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   TrackList(TrackList<'i>),
 }
 
@@ -32,8 +38,10 @@ pub enum TrackSizing<'i> {
 ///
 /// See [TrackSizing](TrackSizing).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TrackList<'i> {
   /// A list of line names.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub line_names: Vec<CustomIdentList<'i>>,
   /// A list of grid track items.
   pub items: Vec<TrackListItem<'i>>,
@@ -43,10 +51,16 @@ pub struct TrackList<'i> {
 ///
 /// See [TrackList](TrackList).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum TrackListItem<'i> {
   /// A track size.
   TrackSize(TrackSize),
   /// A `repeat()` function.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   TrackRepeat(TrackRepeat<'i>),
 }
 
@@ -55,6 +69,11 @@ pub enum TrackListItem<'i> {
 ///
 /// See [TrackListItem](TrackListItem).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum TrackSize {
   /// An explicit track breadth.
   TrackBreadth(TrackBreadth),
@@ -73,12 +92,18 @@ impl Default for TrackSize {
 /// A [track size list](https://drafts.csswg.org/css-grid-2/#auto-tracks), as used
 /// in the `grid-auto-rows` and `grid-auto-columns` properties.
 #[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TrackSizeList(pub SmallVec<[TrackSize; 1]>);
 
 /// A [`<track-breadth>`](https://drafts.csswg.org/css-grid-2/#typedef-track-breadth) value.
 ///
 /// See [TrackSize](TrackSize).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum TrackBreadth {
   /// An explicit length.
   Length(LengthPercentage),
@@ -97,10 +122,12 @@ pub enum TrackBreadth {
 ///
 /// See [TrackListItem](TrackListItem).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TrackRepeat<'i> {
   /// The repeat count.
   count: RepeatCount,
   /// The line names to repeat.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   line_names: Vec<CustomIdentList<'i>>,
   /// The track sizes to repeat.
   track_sizes: Vec<TrackSize>,
@@ -111,6 +138,11 @@ pub struct TrackRepeat<'i> {
 ///
 /// See [TrackRepeat](TrackRepeat).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum RepeatCount {
   /// The number of times to repeat.
   Number(CSSInteger),
@@ -484,6 +516,11 @@ impl ToCss for TrackSizeList {
 
 /// A value for the [grid-template-areas](https://drafts.csswg.org/css-grid-2/#grid-template-areas-property) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum GridTemplateAreas {
   /// No named grid areas.
   None,
@@ -648,8 +685,10 @@ impl GridTemplateAreas {
 ///
 /// If `areas` is not `None`, then `rows` must also not be `None`.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GridTemplate<'i> {
   /// The grid template rows.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub rows: TrackSizing<'i>,
   /// The grid template columns.
   pub columns: TrackSizing<'i>,
@@ -874,6 +913,7 @@ bitflags! {
   ///
   /// The `Row` or `Column` flags may be combined with the `Dense` flag, but the `Row` and `Column` flags may
   /// not be combined.
+  #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
   pub struct GridAutoFlow: u8 {
     /// The auto-placement algorithm places items by filling each row, adding new rows as necessary.
     const Row    = 0b00;
@@ -973,8 +1013,10 @@ impl ToCss for GridAutoFlow {
 ///
 /// Explicit and implicit values may not be combined.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Grid<'i> {
   /// Explicit grid template rows.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub rows: TrackSizing<'i>,
   /// Explicit grid template columns.
   pub columns: TrackSizing<'i>,
@@ -1153,13 +1195,21 @@ impl_shorthand! {
 /// A [`<grid-line>`](https://drafts.csswg.org/css-grid-2/#typedef-grid-row-start-grid-line) value,
 /// used in the `grid-row-start`, `grid-row-end`, `grid-column-start`, and `grid-column-end` properties.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum GridLine<'i> {
   /// Automatic placement.
   Auto,
   /// A named grid area name (automatically postfixed by `-start` or `-end`), or and explicit grid line name.
   Ident(CustomIdent<'i>),
   /// The Nth grid line, optionally filtered by line name. Negative numbers count backwards from the end.
-  Line(CSSInteger, Option<CustomIdent<'i>>),
+  Line(
+    CSSInteger,
+    #[cfg_attr(feature = "serde", serde(borrow))] Option<CustomIdent<'i>>,
+  ),
   /// A grid span based on the Nth grid line from the opposite edge, optionally filtered by line name.
   Span(CSSInteger, Option<CustomIdent<'i>>),
 }
@@ -1299,6 +1349,7 @@ define_shorthand! {
   /// A value for the [grid-row](https://drafts.csswg.org/css-grid-2/#propdef-grid-row) shorthand property.
   pub struct GridRow<'i> {
     /// The starting line.
+    #[cfg_attr(feature = "serde", serde(borrow))]
     start: GridRowStart(GridLine<'i>),
     /// The ending line.
     end: GridRowEnd(GridLine<'i>),
@@ -1309,6 +1360,7 @@ define_shorthand! {
   /// A value for the [grid-row](https://drafts.csswg.org/css-grid-2/#propdef-grid-column) shorthand property.
   pub struct GridColumn<'i> {
     /// The starting line.
+    #[cfg_attr(feature = "serde", serde(borrow))]
     start: GridColumnStart(GridLine<'i>),
     /// The ending line.
     end: GridColumnEnd(GridLine<'i>),
@@ -1322,6 +1374,7 @@ define_shorthand! {
   /// A value for the [grid-area](https://drafts.csswg.org/css-grid-2/#propdef-grid-area) shorthand property.
   pub struct GridArea<'i> {
     /// The grid row start placement.
+    #[cfg_attr(feature = "serde", serde(borrow))]
     row_start: GridRowStart(GridLine<'i>),
     /// The grid column start placement.
     column_start: GridColumnStart(GridLine<'i>),

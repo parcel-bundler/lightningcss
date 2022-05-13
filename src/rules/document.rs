@@ -11,8 +11,10 @@ use crate::traits::ToCss;
 /// Note that only the `url-prefix()` function with no arguments is supported, and only the `-moz` prefix
 /// is allowed since Firefox was the only browser that ever implemented this rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MozDocumentRule<'i> {
   /// Nested rules within the `@-moz-document` rule.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub rules: CssRuleList<'i>,
   /// The location of the rule in the source file.
   pub loc: Location,

@@ -16,8 +16,10 @@ use cssparser::*;
 
 /// A CSS custom property, representing any unknown property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CustomProperty<'i> {
   /// The name of the property.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: CowArcStr<'i>,
   /// The property value, stored as a raw token list.
   pub value: TokenList<'i>,
@@ -40,10 +42,12 @@ impl<'i> CustomProperty<'i> {
 /// be parsed, e.g. in the case css `var()` references are encountered.
 /// In this case, the raw tokens are stored instead.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UnparsedProperty<'i> {
   /// The id of the property.
   pub property_id: PropertyId<'i>,
   /// The property value, stored as a raw token list.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub value: TokenList<'i>,
 }
 
@@ -78,12 +82,19 @@ impl<'i> UnparsedProperty<'i> {
 
 /// A raw list of CSS tokens, with embedded parsed values.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TokenList<'i>(pub Vec<TokenOrValue<'i>>);
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct TokenList<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub Vec<TokenOrValue<'i>>);
 
 /// A raw CSS token, or a parsed value.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum TokenOrValue<'i> {
   /// A token.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   Token(Token<'i>),
   /// A parsed CSS color.
   Color(CssColor),
@@ -321,9 +332,14 @@ impl<'i> TokenList<'i> {
 /// A raw CSS token.
 // Copied from cssparser to change CowRcStr to CowArcStr
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum Token<'a> {
   /// A [`<ident-token>`](https://drafts.csswg.org/css-syntax/#ident-token-diagram)
-  Ident(CowArcStr<'a>),
+  Ident(#[cfg_attr(feature = "serde", serde(borrow))] CowArcStr<'a>),
 
   /// A [`<at-keyword-token>`](https://drafts.csswg.org/css-syntax/#at-keyword-token-diagram)
   ///
@@ -343,7 +359,7 @@ pub enum Token<'a> {
   /// A [`<string-token>`](https://drafts.csswg.org/css-syntax/#string-token-diagram)
   ///
   /// The value does not include the quotes.
-  QuotedString(CowArcStr<'a>),
+  String(CowArcStr<'a>),
 
   /// A [`<url-token>`](https://drafts.csswg.org/css-syntax/#url-token-diagram)
   ///
@@ -490,7 +506,7 @@ impl<'a> From<&cssparser::Token<'a>> for Token<'a> {
       cssparser::Token::AtKeyword(x) => Token::AtKeyword(x.into()),
       cssparser::Token::Hash(x) => Token::Hash(x.into()),
       cssparser::Token::IDHash(x) => Token::IDHash(x.into()),
-      cssparser::Token::QuotedString(x) => Token::QuotedString(x.into()),
+      cssparser::Token::QuotedString(x) => Token::String(x.into()),
       cssparser::Token::UnquotedUrl(x) => Token::UnquotedUrl(x.into()),
       cssparser::Token::Function(x) => Token::Function(x.into()),
       cssparser::Token::BadUrl(x) => Token::BadUrl(x.into()),
@@ -559,7 +575,7 @@ impl<'a> ToCss for Token<'a> {
       Token::AtKeyword(x) => cssparser::Token::AtKeyword(x.as_ref().into()).to_css(dest)?,
       Token::Hash(x) => cssparser::Token::Hash(x.as_ref().into()).to_css(dest)?,
       Token::IDHash(x) => cssparser::Token::IDHash(x.as_ref().into()).to_css(dest)?,
-      Token::QuotedString(x) => cssparser::Token::QuotedString(x.as_ref().into()).to_css(dest)?,
+      Token::String(x) => cssparser::Token::QuotedString(x.as_ref().into()).to_css(dest)?,
       Token::UnquotedUrl(x) => cssparser::Token::UnquotedUrl(x.as_ref().into()).to_css(dest)?,
       Token::Function(x) => cssparser::Token::Function(x.as_ref().into()).to_css(dest)?,
       Token::BadUrl(x) => cssparser::Token::BadUrl(x.as_ref().into()).to_css(dest)?,

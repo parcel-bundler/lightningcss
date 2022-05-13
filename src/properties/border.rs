@@ -21,6 +21,11 @@ use cssparser::*;
 
 /// A value for the [border-width](https://www.w3.org/TR/css-backgrounds-3/#border-width) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum BorderSideWidth {
   /// A UA defined `thin` value.
   Thin,
@@ -103,6 +108,7 @@ impl Default for LineStyle {
 
 /// A generic type that represents the `border` and `outline` shorthand properties.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GenericBorder<S, const P: u8> {
   /// The width of the border.
   pub width: BorderSideWidth,
@@ -1106,7 +1112,12 @@ impl<'i> BorderHandler<'i> {
 
           if $is_logical && $block_start == $block_end && $block_start.is_valid() {
             if logical_supported {
-              prop!(BorderBlock => $block_start.to_border());
+              if (context.is_supported(Feature::LogicalBorderShorthand)) {
+                prop!(BorderBlock => $block_start.to_border());
+              } else {
+                prop!(BorderBlockStart => $block_start.to_border());
+                prop!(BorderBlockEnd => $block_start.to_border());
+              }
             } else {
               prop!(BorderTop => $block_start.to_border());
               prop!(BorderBottom => $block_start.to_border());
@@ -1124,7 +1135,12 @@ impl<'i> BorderHandler<'i> {
 
           if $is_logical && $inline_start == $inline_end && $inline_start.is_valid() {
             if logical_supported {
-              prop!(BorderInline => $inline_start.to_border());
+              if (context.is_supported(Feature::LogicalBorderShorthand)) {
+                prop!(BorderInline => $inline_start.to_border());
+              } else {
+                prop!(BorderInlineStart => $inline_start.to_border());
+                prop!(BorderInlineEnd => $inline_start.to_border());
+              }
             } else {
               prop!(BorderLeft => $inline_start.to_border());
               prop!(BorderRight => $inline_start.to_border());

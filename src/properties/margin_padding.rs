@@ -161,7 +161,7 @@ size_shorthand! {
 }
 
 macro_rules! side_handler {
-  ($name: ident, $top: ident, $bottom: ident, $left: ident, $right: ident, $block_start: ident, $block_end: ident, $inline_start: ident, $inline_end: ident, $shorthand: ident, $block_shorthand: ident, $inline_shorthand: ident, $logical_shorthand: literal $(, $feature: ident)?) => {
+  ($name: ident, $top: ident, $bottom: ident, $left: ident, $right: ident, $block_start: ident, $block_end: ident, $inline_start: ident, $inline_end: ident, $shorthand: ident, $block_shorthand: ident, $inline_shorthand: ident, $logical_shorthand: literal $(, $feature: ident, $shorthand_feature: ident)?) => {
     #[derive(Debug, Default)]
     pub(crate) struct $name<'i> {
       top: Option<LengthPercentageOrAuto>,
@@ -303,7 +303,8 @@ macro_rules! side_handler {
 
         macro_rules! logical_side {
           ($start: ident, $end: ident, $shorthand_prop: ident, $start_prop: ident, $end_prop: ident) => {
-            if let (Some(Property::$start_prop(start)), Some(Property::$end_prop(end))) = (&$start, &$end) {
+            let shorthand_supported = logical_supported $(&& context.is_supported(Feature::$shorthand_feature))?;
+            if let (Some(Property::$start_prop(start)), Some(Property::$end_prop(end)), true) = (&$start, &$end, shorthand_supported) {
               dest.push(Property::$shorthand_prop($shorthand_prop {
                 $start: start.clone(),
                 $end: end.clone()
@@ -391,7 +392,8 @@ side_handler!(
   MarginBlock,
   MarginInline,
   false,
-  LogicalMargin
+  LogicalMargin,
+  LogicalMarginShorthand
 );
 
 side_handler!(
@@ -408,7 +410,8 @@ side_handler!(
   PaddingBlock,
   PaddingInline,
   false,
-  LogicalPadding
+  LogicalPadding,
+  LogicalPaddingShorthand
 );
 
 side_handler!(
@@ -457,5 +460,6 @@ side_handler!(
   InsetBlock,
   InsetInline,
   true,
+  LogicalInset,
   LogicalInset
 );

@@ -13,6 +13,11 @@ use super::number::CSSNumber;
 /// Math functions may be used in most properties and values that accept numeric
 /// values, including lengths, percentages, angles, times, etc.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum MathFunction<V> {
   /// The [`calc()`](https://www.w3.org/TR/css-values-4/#calc-func) function.
   Calc(Calc<V>),
@@ -96,6 +101,11 @@ impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clo
 /// This type supports generic value types. Values such as [Length](super::length::Length), [Percentage](super::percentage::Percentage),
 /// [Time](super::time::Time), and [Angle](super::angle::Angle) support `calc()` expressions.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum Calc<V> {
   /// A literal value.
   Value(Box<V>),

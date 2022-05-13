@@ -1,6 +1,7 @@
 //! Style rules.
 
 use std::collections::HashMap;
+use std::ops::Range;
 
 use super::Location;
 use super::MinifyContext;
@@ -16,18 +17,29 @@ use crate::selector::{is_compatible, is_unused, Selectors};
 use crate::targets::Browsers;
 use crate::traits::ToCss;
 use crate::vendor_prefix::VendorPrefix;
-use cssparser::ParseError;
-use cssparser::Parser;
-use cssparser::ParserInput;
-use parcel_selectors::SelectorList;
+use cssparser::*;
 use parcel_selectors::parser::NestingRequirement;
+use parcel_selectors::SelectorList;
+
+#[cfg(feature = "serde")]
+use crate::selector::{deserialize_selectors, serialize_selectors};
 
 /// A CSS [style rule](https://drafts.csswg.org/css-syntax/#style-rules).
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StyleRule<'i> {
   /// The selectors for the style rule.
+  #[cfg_attr(
+    feature = "serde",
+    serde(
+      serialize_with = "serialize_selectors",
+      deserialize_with = "deserialize_selectors",
+      borrow
+    )
+  )]
   pub selectors: SelectorList<'i, Selectors>,
   /// A vendor prefix override, used during selector printing.
+  #[cfg_attr(feature = "serde", serde(skip, default = "VendorPrefix::empty"))]
   pub(crate) vendor_prefix: VendorPrefix,
   /// The declarations within the style rule.
   pub declarations: DeclarationBlock<'i>,
@@ -95,6 +107,67 @@ impl<'i> StyleRule<'i> {
     };
     self.selectors = SelectorList::parse(&selector_parser, &mut parser, NestingRequirement::None)?;
     Ok(())
+  }
+
+  /// Returns the line and column range of the property key and value at the given index in this style rule.
+  ///
+  /// For performance and memory efficiency in non-error cases, source locations are not stored during parsing.
+  /// Instead, they are computed lazily using the original source string that was used to parse the stylesheet/rule.
+  pub fn property_location<'t>(
+    &self,
+    code: &'i str,
+    index: usize,
+  ) -> Result<(Range<SourceLocation>, Range<SourceLocation>), ParseError<'i, ParserError<'i>>> {
+    let mut input = ParserInput::new(code);
+    let mut parser = Parser::new(&mut input);
+
+    // advance until start location of this rule.
+    parse_at(&mut parser, self.loc, |parser| {
+      // skip selector
+      parser.parse_until_before(Delimiter::CurlyBracketBlock, |parser| {
+        while parser.next().is_ok() {}
+        Ok(())
+      })?;
+
+      parser.expect_curly_bracket_block()?;
+      parser.parse_nested_block(|parser| {
+        let loc = self.declarations.property_location(parser, index);
+        while parser.next().is_ok() {}
+        loc
+      })
+    })
+  }
+}
+
+fn parse_at<'i, 't, T, F>(
+  parser: &mut Parser<'i, 't>,
+  dest: Location,
+  parse: F,
+) -> Result<T, ParseError<'i, ParserError<'i>>>
+where
+  F: Copy + for<'tt> FnOnce(&mut Parser<'i, 'tt>) -> Result<T, ParseError<'i, ParserError<'i>>>,
+{
+  loop {
+    let loc = parser.current_source_location();
+    if loc.line >= dest.line || (loc.line == dest.line && loc.column >= dest.column) {
+      return parse(parser);
+    }
+
+    match parser.next()? {
+      Token::CurlyBracketBlock => {
+        // Recursively parse nested blocks.
+        let res = parser.parse_nested_block(|parser| {
+          let res = parse_at(parser, dest, parse);
+          while parser.next().is_ok() {}
+          res
+        });
+
+        if let Ok(v) = res {
+          return Ok(v);
+        }
+      }
+      _ => {}
+    }
   }
 }
 

@@ -20,8 +20,10 @@ use cssparser::*;
 
 /// A [@keyframes](https://drafts.csswg.org/css-animations/#keyframes) rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct KeyframesRule<'i> {
   /// The animation name.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: CustomIdent<'i>,
   /// A list of keyframes in the animation.
   pub keyframes: Vec<Keyframe<'i>>,
@@ -183,6 +185,11 @@ impl<'i> ToCss for KeyframesRule<'i> {
 /// A [keyframe selector](https://drafts.csswg.org/css-animations/#typedef-keyframe-selector)
 /// within an `@keyframes` rule.
 #[derive(Debug, Clone)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum KeyframeSelector {
   /// An explicit percentage.
   Percentage(Percentage),
@@ -253,10 +260,12 @@ impl PartialEq for KeyframeSelector {
 ///
 /// See [KeyframesRule](KeyframesRule).
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Keyframe<'i> {
   /// A list of keyframe selectors to associate with the declarations in this keyframe.
   pub selectors: Vec<KeyframeSelector>,
   /// The declarations for this keyframe.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub declarations: DeclarationBlock<'i>,
 }
 

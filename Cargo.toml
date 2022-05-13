@@ -7,7 +7,7 @@ members = [
 [package]
 authors = ["Devon Govett <devongovett@gmail.com>"]
 name = "parcel_css"
-version = "1.0.0-alpha.24"
+version = "1.0.0-alpha.25"
 description = "A CSS parser, transformer, and minifier"
 license = "MPL-2.0"
 edition = "2021"
@@ -52,11 +52,13 @@ indoc = "1.0.3"
 assert_cmd = "2.0"
 assert_fs = "1.0"
 predicates = "2.1"
+serde_json = "1.0.78"
 
 [features]
 default = ["grid"]
 cli = ["clap", "serde_json", "pathdiff", "browserslist-rs", "jemallocator"]
 grid = []
+serde = ["smallvec/serde", "cssparser/serde"]
 
 [[test]]
 name = "cli_integration_tests"
