@@ -464,11 +464,7 @@ impl<'a, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'i> {
         let rule = FontPaletteValuesRule::parse(name, input, loc)?;
         Ok(CssRule::FontPaletteValues(rule))
       }
-      AtRulePrelude::CounterStyle(name) => Ok(CssRule::CounterStyle(CounterStyleRule {
-        name,
-        declarations: DeclarationBlock::parse(input, self.options)?,
-        loc,
-      })),
+      AtRulePrelude::CounterStyle(name) => Ok(CssRule::CounterStyle(CounterStyleRule::parse(name, input, loc)?)),
       AtRulePrelude::Media(query) => Ok(CssRule::Media(MediaRule {
         query,
         rules: self.parse_nested_rules(input),
