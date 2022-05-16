@@ -887,6 +887,7 @@ run('CSSLayerBlockRule', test => {
     assert(rule instanceof CSSLayerBlockRule);
     assert(rule instanceof CSSGroupingRule);
     assert(rule instanceof CSSRule);
+    global.gc();
   });
 
   test('name', () => {
@@ -895,16 +896,18 @@ run('CSSLayerBlockRule', test => {
 
     rule = rule.cssRules.item(0);
     assert.equal(rule.name, 'foo.bar');
+    global.gc();
   });
 
   test('cssRules', () => {
+    console.log('ABOUT')
     let rule = stylesheet.cssRules.item(0);
     assert(rule.cssRules instanceof CSSRuleList);
     assert.equal(rule.cssRules.length, 2);
     assert(rule.cssRules.item(0) instanceof CSSLayerBlockRule);
     assert(rule.cssRules.item(1) instanceof CSSStyleRule);
     assert.equal(rule.cssRules.item(1).style.getPropertyValue('color'), 'green');
-
+    global.gc();
     rule = rule.cssRules.item(0);
     assert(rule.cssRules instanceof CSSRuleList);
     assert.equal(rule.cssRules.length, 1);
@@ -1096,5 +1099,5 @@ run('CSSCounterStyleRule', test => {
 //   global.gc();
 //   setTimeout(() => {
 //     console.log(process.memoryUsage());
-//   }, 500);
+//   }, 5000);
 // }, 500);

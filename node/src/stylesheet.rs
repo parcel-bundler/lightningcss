@@ -25,7 +25,7 @@ use parcel_css::{
 struct CSSStyleSheet {
   stylesheet: StyleSheet<'static>,
   code: Option<String>,
-  rules: Option<Reference<CSSRuleList>>,
+  rules: Option<WeakReference<CSSRuleList>>,
 }
 
 #[napi]
@@ -48,10 +48,11 @@ impl CSSStyleSheet {
   pub fn replace_sync(&mut self, env: Env, code: String) -> Result<()> {
     // Disconnect all existing rules from the stylesheet.
     if let Some(rules) = &mut self.rules {
-      let rules = &mut **rules;
+      let mut rules = rules.upgrade(env)?.unwrap();
       for rule in rules.rules.iter_mut() {
         if let Some(rule) = rule {
-          let rule: &mut CSSRule = get_reference(env, rule)?;
+          // let rule: &mut CSSRule = get_reference(env, rule)?;
+          let mut rule = rule.upgrade(env)?.unwrap();
           rule.disconnect();
         }
       }
@@ -62,7 +63,6 @@ impl CSSStyleSheet {
     // Source string will be owned by the stylesheet, so it'll be freed when the
     // JS garbage collector runs. We need to extend the lifetime to 'static to satisfy Rust.
     let s = extend_lifetime(&code);
-    println!("{:p}", s);
     self.code = Some(code);
     self.stylesheet = StyleSheet::parse("style.css", s, ParserOptions::default()).unwrap();
     Ok(())
@@ -71,18 +71,21 @@ impl CSSStyleSheet {
   #[napi(getter)]
   pub fn css_rules(&mut self, env: Env, reference: Reference<CSSStyleSheet>) -> Result<Reference<CSSRuleList>> {
     if let Some(rules) = &self.rules {
-      return rules.clone(env);
+      if let Some(r) = rules.upgrade(env)? {
+        return Ok(r);
+      }
     }
 
     let rules = CSSRuleList {
       owner: RuleListOwner::StyleSheet(extend_lifetime_mut(self)),
       rules: Vec::new(),
       parent_rule: None,
-      stylesheet_reference: Some(reference.downgrade()),
+      stylesheet_reference: Some(reference),
     };
 
-    self.rules = Some(CSSRuleList::into_reference(rules, env)?);
-    self.rules.as_ref().unwrap().clone(env)
+    let reference = CSSRuleList::into_reference(rules, env)?;
+    self.rules = Some(reference.clone(env)?.downgrade());
+    Ok(reference)
   }
 
   #[napi]
@@ -113,7 +116,7 @@ impl CSSStyleSheet {
 
 fn insert_rule(
   rules: &mut Vec<CssRule<'static>>,
-  js_rules: &mut Option<Reference<CSSRuleList>>,
+  js_rules: &mut Option<WeakReference<CSSRuleList>>,
   env: Env,
   text: String,
   index: Option<u32>,
@@ -133,11 +136,12 @@ fn insert_rule(
 
   // Invalidate existing rule indices.
   if let Some(rules) = js_rules {
-    let rules = &mut *rules;
+    let mut rules = rules.upgrade(env)?.unwrap();
 
-    for rule in &rules.rules[index..] {
+    for rule in &mut rules.rules[index..] {
       if let Some(rule) = rule {
-        let rule: &mut CSSRule = get_reference(env, rule)?;
+        // let rule: &mut CSSRule = get_reference(env, rule)?;
+        let mut rule = rule.upgrade(env)?.unwrap();
         if let RuleInner::Connected { index, .. } = &mut rule.inner {
           *index += 1;
         }
@@ -151,6 +155,7 @@ fn insert_rule(
 
   if let Some(rules) = js_rules {
     // Store rule text in JS rule object so it is garbage collected.
+    let mut rules = rules.upgrade(env)?.unwrap();
     rules.set_rule_text(env, index, text)?;
   }
 
@@ -159,7 +164,7 @@ fn insert_rule(
 
 fn delete_rule<T>(
   rules: &mut Vec<T>,
-  js_rules: &mut Option<Reference<CSSRuleList>>,
+  js_rules: &mut Option<WeakReference<CSSRuleList>>,
   env: Env,
   index: usize,
 ) -> Result<()> {
@@ -172,6 +177,7 @@ fn delete_rule<T>(
   }
 
   if let Some(rule_refs) = js_rules {
+    let mut rule_refs = rule_refs.upgrade(env)?.unwrap();
     rule_refs.delete_rule(env, index)?;
   }
 
@@ -205,64 +211,67 @@ enum RuleOrKeyframeRefMut<'a> {
   Keyframe(&'a mut Keyframe<'static>),
 }
 
-impl RuleOrKeyframe {
-  fn js_value(&self, env: Env, css_rule: CSSRule) -> Result<JsUnknown> {
-    match self {
-      RuleOrKeyframe::Rule(rule) => css_rule_to_js_unknown(rule, env, css_rule),
-      RuleOrKeyframe::Keyframe(_) => keyframe_to_js_unknown(env, css_rule),
-    }
-  }
-}
-
-fn css_rule_to_js_unknown(rule: &CssRule<'static>, env: Env, css_rule: CSSRule) -> Result<JsUnknown> {
-  let napi_value = match rule {
+fn css_rule_to_js_unknown(rule: &CssRule<'static>, env: Env, css_rule: CSSRule) -> Result<Reference<CSSRule>> {
+  Ok(match rule {
     CssRule::Style(_) => {
       let rule = CSSStyleRule::new(css_rule);
-      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+      let reference = CSSStyleRule::into_reference(rule, env)?;
+      unsafe { std::mem::transmute::<Reference<CSSStyleRule>, Reference<CSSRule>>(reference) }
     }
     CssRule::Media(_) => {
       let rule = CSSMediaRule::new(css_rule);
-      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+      let reference = CSSMediaRule::into_reference(rule, env)?;
+      unsafe { std::mem::transmute::<Reference<CSSMediaRule>, Reference<CSSRule>>(reference) }
     }
     CssRule::Supports(_) => {
       let rule = CSSSupportsRule::new(css_rule);
-      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+      let reference = CSSSupportsRule::into_reference(rule, env)?;
+      unsafe { std::mem::transmute::<Reference<CSSSupportsRule>, Reference<CSSRule>>(reference) }
     }
     CssRule::Keyframes(_) => {
       let rule = CSSKeyframesRule::new(css_rule);
-      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+      let reference = CSSKeyframesRule::into_reference(rule, env)?;
+      unsafe { std::mem::transmute::<Reference<CSSKeyframesRule>, Reference<CSSRule>>(reference) }
     }
     CssRule::Import(_) => {
       let rule = CSSImportRule::new(css_rule);
-      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+      let reference = CSSImportRule::into_reference(rule, env)?;
+      unsafe { std::mem::transmute::<Reference<CSSImportRule>, Reference<CSSRule>>(reference) }
     }
     CssRule::Namespace(_) => {
       let rule = CSSNamespaceRule::new(css_rule);
-      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+      let reference = CSSNamespaceRule::into_reference(rule, env)?;
+      unsafe { std::mem::transmute::<Reference<CSSNamespaceRule>, Reference<CSSRule>>(reference) }
     }
     CssRule::LayerStatement(_) => {
       let rule = CSSLayerStatementRule::new(css_rule);
-      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+      let reference = CSSLayerStatementRule::into_reference(rule, env)?;
+      unsafe { std::mem::transmute::<Reference<CSSLayerStatementRule>, Reference<CSSRule>>(reference) }
     }
     CssRule::LayerBlock(_) => {
       let rule = CSSLayerBlockRule::new(css_rule);
-      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+      let reference = CSSLayerBlockRule::into_reference(rule, env)?;
+      unsafe { std::mem::transmute::<Reference<CSSLayerBlockRule>, Reference<CSSRule>>(reference) }
     }
     CssRule::Page(_) => {
       let rule = CSSPageRule::new(css_rule);
-      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+      let reference = CSSPageRule::into_reference(rule, env)?;
+      unsafe { std::mem::transmute::<Reference<CSSPageRule>, Reference<CSSRule>>(reference) }
     }
     CssRule::FontFace(_) => {
       let rule = CSSFontFaceRule::new(css_rule);
-      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+      let reference = CSSFontFaceRule::into_reference(rule, env)?;
+      unsafe { std::mem::transmute::<Reference<CSSFontFaceRule>, Reference<CSSRule>>(reference) }
     }
     CssRule::FontPaletteValues(_) => {
       let rule = CSSFontPaletteValuesRule::new(css_rule);
-      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+      let reference = CSSFontPaletteValuesRule::into_reference(rule, env)?;
+      unsafe { std::mem::transmute::<Reference<CSSFontPaletteValuesRule>, Reference<CSSRule>>(reference) }
     }
     CssRule::CounterStyle(_) => {
       let rule = CSSCounterStyleRule::new(css_rule);
-      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+      let reference = CSSCounterStyleRule::into_reference(rule, env)?;
+      unsafe { std::mem::transmute::<Reference<CSSCounterStyleRule>, Reference<CSSRule>>(reference) }
     }
     CssRule::MozDocument(_) => {
       todo!()
@@ -282,15 +291,13 @@ fn css_rule_to_js_unknown(rule: &CssRule<'static>, env: Env, css_rule: CSSRule) 
     CssRule::Ignored => {
       unreachable!()
     }
-  };
-
-  unsafe { napi::JsUnknown::from_napi_value(env.raw(), napi_value) }
+  })
 }
 
-fn keyframe_to_js_unknown(env: Env, css_rule: CSSRule) -> Result<JsUnknown> {
+fn keyframe_to_js_unknown(env: Env, css_rule: CSSRule) -> Result<Reference<CSSRule>> {
   let rule = CSSKeyframeRule::new(css_rule);
-  let napi_value = unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? };
-  unsafe { napi::JsUnknown::from_napi_value(env.raw(), napi_value) }
+  let reference = CSSKeyframeRule::into_reference(rule, env)?;
+  Ok(unsafe { std::mem::transmute::<Reference<CSSKeyframeRule>, Reference<CSSRule>>(reference) })
 }
 
 enum RuleListReference<'a> {
@@ -349,9 +356,9 @@ enum RuleListOwner {
 #[napi(js_name = "CSSRuleList")]
 struct CSSRuleList {
   owner: RuleListOwner,
-  rules: Vec<Option<Ref<()>>>,
+  rules: Vec<Option<WeakReference<CSSRule>>>,
   parent_rule: Option<WeakReference<CSSRule>>,
-  stylesheet_reference: Option<WeakReference<CSSStyleSheet>>,
+  stylesheet_reference: Option<Reference<CSSStyleSheet>>,
 }
 
 #[napi]
@@ -403,14 +410,15 @@ impl CSSRuleList {
   }
 
   #[napi]
-  pub fn item(&mut self, index: u32, env: Env) -> Result<JsUnknown> {
+  pub fn item(&mut self, index: u32, env: Env) -> Result<Option<WeakReference<CSSRule>>> {
     let index = index as usize;
     if let Some(Some(rule)) = self.rules.get(index) {
-      return env.get_reference_value(rule);
+      // return env.get_reference_value(rule);
+      return Ok(Some(rule.clone()));
     }
 
     if index >= self.rule_list().len() {
-      return Ok(env.get_null()?.into_unknown());
+      return Ok(None);
     }
 
     let css_rule = CSSRule {
@@ -419,11 +427,15 @@ impl CSSRuleList {
         index,
       },
       parent_rule: self.parent_rule.clone(),
-      parent_stylesheet: self.stylesheet_reference.clone(),
+      parent_stylesheet: if let Some(r) = &self.stylesheet_reference {
+        Some(r.clone(env)?)
+      } else {
+        None
+      },
       text: None,
     };
 
-    let js_value = match self.rule(index) {
+    let reference = match self.rule(index) {
       RuleOrKeyframeRef::Rule(rule) => css_rule_to_js_unknown(rule, env, css_rule)?,
       RuleOrKeyframeRef::Keyframe(_) => keyframe_to_js_unknown(env, css_rule)?,
     };
@@ -432,14 +444,17 @@ impl CSSRuleList {
       self.rules.resize_with(index + 1, || None);
     }
 
-    self.rules[index] = Some(env.create_reference_with_refcount(&js_value, 0)?);
-    Ok(js_value)
+    // self.rules[index] = Some(env.create_reference_with_refcount(&js_value, 1)?);
+    let reference = reference.downgrade();
+    self.rules[index] = Some(reference.clone());
+    Ok(Some(reference))
   }
 
   fn set_rule_text(&mut self, env: Env, index: usize, text: String) -> Result<()> {
     // Take ownership of rule text so it is garbage collected when the rule is removed.
     self.item(index as u32, env)?;
-    let js_rule: &mut CSSRule = get_reference(env, self.rules[index].as_ref().unwrap())?;
+    // let js_rule: &mut CSSRule = get_reference(env, self.rules[index].as_ref().unwrap())?;
+    let mut js_rule = self.rules[index].as_ref().unwrap().upgrade(env)?.unwrap();
     js_rule.text = Some(text);
     Ok(())
   }
@@ -447,14 +462,16 @@ impl CSSRuleList {
   fn delete_rule(&mut self, env: Env, index: usize) -> Result<()> {
     // https://drafts.csswg.org/cssom/#remove-a-css-rule
     if index < self.rules.len() {
-      if let Some(rule) = &self.rules[index] {
-        let rule: &mut CSSRule = get_reference(env, rule)?;
+      if let Some(rule) = &mut self.rules[index] {
+        // let rule: &mut CSSRule = get_reference(env, rule)?;
+        let mut rule = rule.upgrade(env)?.unwrap();
         rule.disconnect();
       }
 
-      for rule in &self.rules[index + 1..] {
+      for rule in &mut self.rules[index + 1..] {
         if let Some(rule) = rule {
-          let rule: &mut CSSRule = get_reference(env, rule)?;
+          // let rule: &mut CSSRule = get_reference(env, rule)?;
+          let mut rule = rule.upgrade(env)?.unwrap();
           if let RuleInner::Connected { index, .. } = &mut rule.inner {
             *index -= 1;
           }
@@ -509,7 +526,7 @@ impl RuleInner {
 struct CSSRule {
   inner: RuleInner,
   parent_rule: Option<WeakReference<CSSRule>>,
-  parent_stylesheet: Option<WeakReference<CSSStyleSheet>>,
+  parent_stylesheet: Option<Reference<CSSStyleSheet>>,
   text: Option<String>,
 }
 
@@ -570,8 +587,12 @@ impl CSSRule {
   }
 
   #[napi(getter)]
-  pub fn parent_style_sheet(&self) -> Option<WeakReference<CSSStyleSheet>> {
-    self.parent_stylesheet.clone()
+  pub fn parent_style_sheet(&self, env: Env) -> Result<Option<Reference<CSSStyleSheet>>> {
+    Ok(if let Some(r) = &self.parent_stylesheet {
+      Some(r.clone(env)?)
+    } else {
+      None
+    })
   }
 
   #[napi(getter)]
@@ -591,7 +612,7 @@ struct CSSStyleRule {
   rule: CSSRule,
   style: Option<Reference<CSSStyleDeclaration>>,
   selector_text: Option<String>,
-  rules: Option<Reference<CSSRuleList>>,
+  rules: Option<WeakReference<CSSRuleList>>,
 }
 
 #[napi]
@@ -646,9 +667,9 @@ impl CSSStyleRule {
 
   // https://drafts.csswg.org/css-nesting-1/#cssom-style
   #[napi(getter)]
-  pub fn css_rules(&mut self, env: Env, reference: Reference<CSSStyleRule>) -> Result<Reference<CSSRuleList>> {
+  pub fn css_rules(&mut self, env: Env, reference: Reference<CSSStyleRule>) -> Result<WeakReference<CSSRuleList>> {
     if let Some(rules) = &self.rules {
-      return rules.clone(env);
+      return Ok(rules.clone());
     }
 
     let rules = CSSRuleList {
@@ -657,11 +678,16 @@ impl CSSStyleRule {
       parent_rule: Some(unsafe {
         std::mem::transmute::<WeakReference<CSSStyleRule>, WeakReference<CSSRule>>(reference.downgrade())
       }),
-      stylesheet_reference: self.rule.parent_stylesheet.clone(),
+      stylesheet_reference: if let Some(r) = &self.rule.parent_stylesheet {
+        Some(r.clone(env)?)
+      } else {
+        None
+      },
     };
 
-    self.rules = Some(CSSRuleList::into_reference(rules, env)?);
-    self.rules.as_ref().unwrap().clone(env)
+    let reference = CSSRuleList::into_reference(rules, env)?.downgrade();
+    self.rules = Some(reference.clone());
+    Ok(reference)
   }
 
   #[napi]
@@ -951,7 +977,7 @@ impl CSSStyleDeclaration {
 #[napi(js_name = "CSSGroupingRule")]
 struct CSSGroupingRule {
   rule: CSSRule,
-  rules: Option<Reference<CSSRuleList>>,
+  rules: Option<WeakReference<CSSRuleList>>,
 }
 
 #[napi]
@@ -987,9 +1013,13 @@ impl CSSGroupingRule {
   }
 
   #[napi(getter)]
-  pub fn css_rules(&mut self, env: Env, reference: Reference<CSSGroupingRule>) -> Result<Reference<CSSRuleList>> {
+  pub fn css_rules(
+    &mut self,
+    env: Env,
+    reference: Reference<CSSGroupingRule>,
+  ) -> Result<WeakReference<CSSRuleList>> {
     if let Some(rules) = &self.rules {
-      return rules.clone(env);
+      return Ok(rules.clone());
     }
 
     let rules = CSSRuleList {
@@ -998,11 +1028,16 @@ impl CSSGroupingRule {
       parent_rule: Some(unsafe {
         std::mem::transmute::<WeakReference<CSSGroupingRule>, WeakReference<CSSRule>>(reference.downgrade())
       }),
-      stylesheet_reference: self.rule.parent_stylesheet.clone(),
+      stylesheet_reference: if let Some(r) = &self.rule.parent_stylesheet {
+        Some(r.clone(env)?)
+      } else {
+        None
+      },
     };
 
-    self.rules = Some(CSSRuleList::into_reference(rules, env)?);
-    self.rules.as_ref().unwrap().clone(env)
+    let reference = CSSRuleList::into_reference(rules, env)?.downgrade();
+    self.rules = Some(reference.clone());
+    Ok(reference)
   }
 }
 
@@ -1268,7 +1303,7 @@ impl CSSSupportsRule {
 #[napi(js_name = "CSSKeyframesRule")]
 struct CSSKeyframesRule {
   rule: CSSRule,
-  rules: Option<Reference<CSSRuleList>>,
+  rules: Option<WeakReference<CSSRuleList>>,
 }
 
 #[napi]
@@ -1319,9 +1354,13 @@ impl CSSKeyframesRule {
   }
 
   #[napi(getter)]
-  pub fn css_rules(&mut self, env: Env, reference: Reference<CSSKeyframesRule>) -> Result<Reference<CSSRuleList>> {
+  pub fn css_rules(
+    &mut self,
+    env: Env,
+    reference: Reference<CSSKeyframesRule>,
+  ) -> Result<WeakReference<CSSRuleList>> {
     if let Some(rules) = &self.rules {
-      return rules.clone(env);
+      return Ok(rules.clone());
     }
 
     let rules = CSSRuleList {
@@ -1330,11 +1369,16 @@ impl CSSKeyframesRule {
       parent_rule: Some(unsafe {
         std::mem::transmute::<WeakReference<CSSKeyframesRule>, WeakReference<CSSRule>>(reference.downgrade())
       }),
-      stylesheet_reference: self.rule.parent_stylesheet.clone(),
+      stylesheet_reference: if let Some(r) = &self.rule.parent_stylesheet {
+        Some(r.clone(env)?)
+      } else {
+        None
+      },
     };
 
-    self.rules = Some(CSSRuleList::into_reference(rules, env)?);
-    self.rules.as_ref().unwrap().clone(env)
+    let reference = CSSRuleList::into_reference(rules, env)?.downgrade();
+    self.rules = Some(reference.clone());
+    Ok(reference)
   }
 
   fn find_index(&self, select: String) -> Result<Option<usize>> {
@@ -1358,10 +1402,10 @@ impl CSSKeyframesRule {
     select: String,
     env: Env,
     reference: Reference<CSSKeyframesRule>,
-  ) -> Result<JsUnknown> {
+  ) -> Result<Option<WeakReference<CSSRule>>> {
     match self.find_index(select)? {
-      Some(index) => self.css_rules(env, reference)?.item(index as u32, env),
-      None => Ok(env.get_null()?.into_unknown()),
+      Some(index) => self.css_rules(env, reference)?.upgrade(env)?.unwrap().item(index as u32, env),
+      None => Ok(None),
     }
   }
 
@@ -1373,7 +1417,7 @@ impl CSSKeyframesRule {
       rule.keyframes.push(keyframe);
 
       // Take ownership of rule text so it is garbage collected when the rule is removed.
-      let mut rule_list = self.css_rules(env, reference)?;
+      let mut rule_list = self.css_rules(env, reference)?.upgrade(env)?.unwrap();
       rule_list.set_rule_text(env, index, text)?;
     }
 
@@ -1899,13 +1943,10 @@ impl CSSCounterStyleRule {
   fn get(&self) -> Result<&CounterStyleRule> {
     match self.rule.rule() {
       CssRule::CounterStyle(rule) => Ok(rule),
-      rule => {
-        println!("{:?}", rule);
-        Err(napi::Error::new(
-          napi::Status::GenericFailure,
-          "Expected a @counter-style rule".into(),
-        ))
-      }
+      rule => Err(napi::Error::new(
+        napi::Status::GenericFailure,
+        "Expected a @counter-style rule".into(),
+      )),
     }
   }
 
