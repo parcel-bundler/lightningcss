@@ -1,5 +1,5 @@
 const { suite } = require('uvu');
-const { CSSStyleSheet, CSSStyleRule, CSSRuleList, CSSRule, CSSGroupingRule, CSSConditionRule, CSSMediaRule, CSSStyleDeclaration, MediaList, CSSSupportsRule, CSSKeyframesRule, CSSKeyframeRule, CSSImportRule, CSSNamespaceRule, CSSLayerStatementRule, CSSLayerBlockRule, CSSPageRule, CSSFontFaceRule } = require('../');
+const { CSSStyleSheet, CSSStyleRule, CSSRuleList, CSSRule, CSSGroupingRule, CSSConditionRule, CSSMediaRule, CSSStyleDeclaration, MediaList, CSSSupportsRule, CSSKeyframesRule, CSSKeyframeRule, CSSImportRule, CSSNamespaceRule, CSSLayerStatementRule, CSSLayerBlockRule, CSSPageRule, CSSFontFaceRule, CSSFontPaletteValuesRule, CSSCounterStyleRule } = require('../');
 const assert = require('assert');
 
 Object.setPrototypeOf(CSSStyleRule.prototype, CSSRule.prototype);
@@ -40,6 +40,12 @@ Object.setPrototypeOf(CSSPageRule, CSSGroupingRule);
 
 Object.setPrototypeOf(CSSFontFaceRule.prototype, CSSRule.prototype);
 Object.setPrototypeOf(CSSFontFaceRule, CSSRule);
+
+Object.setPrototypeOf(CSSFontPaletteValuesRule.prototype, CSSRule.prototype);
+Object.setPrototypeOf(CSSFontPaletteValuesRule, CSSRule);
+
+Object.setPrototypeOf(CSSCounterStyleRule.prototype, CSSRule.prototype);
+Object.setPrototypeOf(CSSCounterStyleRule, CSSRule);
 
 function run(name, fn) {
   let test = suite(name);
@@ -1015,6 +1021,73 @@ run('CSSFontFaceRule', test => {
   src: url("foo.ttf");
   font-family: Foo;
 }`);
+  });
+});
+
+run('CSSFontPaletteValuesRule', test => {
+  let stylesheet = new CSSStyleSheet();
+  stylesheet.replaceSync(`
+    @font-palette-values --Cooler {
+      font-family: Bixa;
+      base-palette: 1;
+      override-colors: 1 #7EB7E4;
+    }
+  `);
+  let rule = stylesheet.cssRules.item(0);
+
+  test('has correct prototype chain', () => {
+    assert(rule instanceof CSSFontPaletteValuesRule);
+    assert(rule instanceof CSSRule);
+  });
+
+  test('type', () => {
+    assert.equal(rule.type, 19);
+  })
+
+  test('name', () => {
+    assert.equal(rule.name, '--Cooler');
+  });
+
+  test('fontFamily', () => {
+    assert.equal(rule.fontFamily, 'Bixa');
+  });
+
+  test('basePalette', () => {
+    assert.equal(rule.basePalette, '1');
+  });
+
+  test('overrideColors', () => {
+    assert.equal(rule.overrideColors, '1 #7eb7e4');
+  });
+});
+
+run('CSSCounterStyleRule', test => {
+  let stylesheet = new CSSStyleSheet();
+  stylesheet.replaceSync(`
+  @counter-style circled-alpha {
+    system: fixed;
+    symbols: Ⓐ Ⓑ Ⓒ;
+    suffix: " ";
+  }
+  `);
+  let rule = stylesheet.cssRules.item(0);
+
+  test('has correct prototype chain', () => {
+    assert(rule instanceof CSSCounterStyleRule);
+    assert(rule instanceof CSSRule);
+  });
+
+  test('type', () => {
+    console.log(rule.parentStyleSheet)
+    assert.equal(rule.type, 11);
+  })
+
+  test('name', () => {
+    assert.equal(rule.name, 'circled-alpha');
+  });
+
+  test('system', () => {
+    assert.equal(rule.system, 'fixed');
   });
 });
 

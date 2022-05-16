@@ -9,7 +9,9 @@ use parcel_css::{
   media_query::{MediaList, MediaQuery},
   properties::{Property, PropertyId},
   rules::{
+    counter_style::{CounterStyleProperty, CounterStyleRule, System},
     font_face::{FontFaceProperty, FontFaceRule},
+    font_palette_values::{FontPaletteValuesProperty, FontPaletteValuesRule},
     keyframes::{Keyframe, KeyframesRule},
     style::StyleRule,
     CssRule, CssRuleList,
@@ -60,6 +62,7 @@ impl CSSStyleSheet {
     // Source string will be owned by the stylesheet, so it'll be freed when the
     // JS garbage collector runs. We need to extend the lifetime to 'static to satisfy Rust.
     let s = extend_lifetime(&code);
+    println!("{:p}", s);
     self.code = Some(code);
     self.stylesheet = StyleSheet::parse("style.css", s, ParserOptions::default()).unwrap();
     Ok(())
@@ -253,7 +256,32 @@ fn css_rule_to_js_unknown(rule: &CssRule<'static>, env: Env, css_rule: CSSRule) 
       let rule = CSSFontFaceRule::new(css_rule);
       unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
     }
-    _ => unreachable!(),
+    CssRule::FontPaletteValues(_) => {
+      let rule = CSSFontPaletteValuesRule::new(css_rule);
+      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+    }
+    CssRule::CounterStyle(_) => {
+      let rule = CSSCounterStyleRule::new(css_rule);
+      unsafe { napi::bindgen_prelude::ToNapiValue::to_napi_value(env.raw(), rule)? }
+    }
+    CssRule::MozDocument(_) => {
+      todo!()
+    }
+    CssRule::Nesting(_) => {
+      todo!()
+    }
+    CssRule::Viewport(_) => {
+      todo!()
+    }
+    CssRule::CustomMedia(_) => {
+      todo!()
+    }
+    CssRule::Property(_) => {
+      todo!()
+    }
+    CssRule::Ignored => {
+      unreachable!()
+    }
   };
 
   unsafe { napi::JsUnknown::from_napi_value(env.raw(), napi_value) }
@@ -505,7 +533,9 @@ impl CSSRule {
         CssRule::Namespace(..) => 10,
         CssRule::CounterStyle(..) => 11,
         CssRule::Supports(..) => 12,
+        CssRule::MozDocument(..) => 13,
         CssRule::Viewport(..) => 15,
+        CssRule::FontPaletteValues(..) => 19,
         _ => 0,
       },
       RuleOrKeyframeRef::Keyframe(_) => 8,
@@ -1775,6 +1805,179 @@ impl CSSFontFaceRule {
   pub fn set_style(&mut self, text: String, env: Env, reference: Reference<CSSFontFaceRule>) -> Result<()> {
     self.style(env, reference)?.set_css_text(text, env)?;
     Ok(())
+  }
+}
+
+#[napi(js_name = "CSSFontPaletteValuesRule")]
+struct CSSFontPaletteValuesRule {
+  rule: CSSRule,
+}
+
+#[napi]
+impl CSSFontPaletteValuesRule {
+  #[napi(constructor)]
+  pub fn constructor() {
+    unreachable!()
+  }
+
+  fn new(rule: CSSRule) -> Self {
+    Self { rule }
+  }
+
+  fn get(&self) -> Result<&FontPaletteValuesRule> {
+    match self.rule.rule() {
+      CssRule::FontPaletteValues(rule) => Ok(rule),
+      _ => Err(napi::Error::new(
+        napi::Status::GenericFailure,
+        "Expected a @font-palette-values rule".into(),
+      )),
+    }
+  }
+
+  #[napi(getter)]
+  pub fn name(&self) -> Result<&str> {
+    Ok(self.get()?.name.0.as_ref())
+  }
+
+  #[napi(getter)]
+  pub fn font_family(&self) -> Result<Option<String>> {
+    Ok(self.get()?.properties.iter().rev().find_map(|property| match property {
+      FontPaletteValuesProperty::FontFamily(family) => {
+        Some(family.to_css_string(PrinterOptions::default()).unwrap())
+      }
+      _ => None,
+    }))
+  }
+
+  #[napi(getter)]
+  pub fn base_palette(&self) -> Result<Option<String>> {
+    Ok(self.get()?.properties.iter().rev().find_map(|property| match property {
+      FontPaletteValuesProperty::BasePalette(base_palette) => {
+        Some(base_palette.to_css_string(PrinterOptions::default()).unwrap())
+      }
+      _ => None,
+    }))
+  }
+
+  #[napi(getter)]
+  pub fn override_colors(&self) -> Result<Option<String>> {
+    Ok(self.get()?.properties.iter().rev().find_map(|property| match property {
+      FontPaletteValuesProperty::OverrideColors(override_colors) => {
+        Some(override_colors.to_css_string(PrinterOptions::default()).unwrap())
+      }
+      _ => None,
+    }))
+  }
+}
+
+#[napi(js_name = "CSSCounterStyleRule")]
+struct CSSCounterStyleRule {
+  rule: CSSRule,
+  strings: Vec<String>,
+}
+
+#[napi]
+impl CSSCounterStyleRule {
+  #[napi(constructor)]
+  pub fn constructor() {
+    unreachable!()
+  }
+
+  fn new(rule: CSSRule) -> Self {
+    Self {
+      rule,
+      strings: Vec::new(),
+    }
+  }
+
+  fn add_string(&mut self, string: String) -> &'static str {
+    let res = extend_lifetime(&string);
+    self.strings.push(string);
+    res
+  }
+
+  fn get(&self) -> Result<&CounterStyleRule> {
+    match self.rule.rule() {
+      CssRule::CounterStyle(rule) => Ok(rule),
+      rule => {
+        println!("{:?}", rule);
+        Err(napi::Error::new(
+          napi::Status::GenericFailure,
+          "Expected a @counter-style rule".into(),
+        ))
+      }
+    }
+  }
+
+  fn get_mut(&mut self) -> Result<&mut CounterStyleRule<'static>> {
+    match self.rule.rule_mut() {
+      CssRule::CounterStyle(rule) => Ok(rule),
+      _ => Err(napi::Error::new(
+        napi::Status::GenericFailure,
+        "Expected a @counter-style rule".into(),
+      )),
+    }
+  }
+
+  #[napi(getter)]
+  pub fn name(&self) -> Result<&str> {
+    // TODO(interop): Firefox serializes the name as an identifier (e.g. escaping), Chrome does not.
+    Ok(self.get()?.name.0.as_ref())
+  }
+
+  #[napi(setter)]
+  pub fn set_name(&mut self, name: String) -> Result<()> {
+    let rule = self.get_mut()?;
+    rule.name.0 = name.into();
+    Ok(())
+  }
+
+  fn find<'a, F, B: 'a>(&'a self, f: F) -> Result<String>
+  where
+    F: Fn(&'a CounterStyleProperty) -> Option<&'a B>,
+    B: ToCss,
+  {
+    Ok(
+      self
+        .get()?
+        .declarations
+        .iter()
+        .rev()
+        .find_map(|property| f(property).map(|value| value.to_css_string(PrinterOptions::default()).unwrap()))
+        .unwrap_or("".into()),
+    )
+  }
+
+  fn update<F>(&mut self, value: CounterStyleProperty<'static>, f: F) -> Result<()>
+  where
+    F: Fn(&CounterStyleProperty) -> bool,
+  {
+    let declarations = &mut self.get_mut()?.declarations;
+    for property in declarations.iter_mut().rev() {
+      if f(property) {
+        *property = value;
+        return Ok(());
+      }
+    }
+
+    declarations.push(value);
+    Ok(())
+  }
+
+  #[napi(getter)]
+  pub fn system(&self) -> Result<String> {
+    self.find(|property| match property {
+      CounterStyleProperty::System(system) => Some(system),
+      _ => None,
+    })
+  }
+
+  #[napi(setter)]
+  pub fn set_system(&mut self, value: String) -> Result<()> {
+    let system = System::parse_string(self.add_string(value)).unwrap();
+    self.update(CounterStyleProperty::System(system), |property| {
+      matches!(property, CounterStyleProperty::System(..))
+    })
   }
 }
 
