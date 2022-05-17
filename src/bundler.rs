@@ -81,6 +81,11 @@ struct BundleStyleSheet<'i> {
 pub trait SourceProvider: Send + Sync {
   /// Reads the contents of the given file path to a string.
   fn read<'a>(&'a self, file: &Path) -> std::io::Result<&'a str>;
+
+  /// Resolves the given import specifier to a file path given the file
+  /// which the import originated from.
+  fn resolve(&self, specifier: &str, originating_file: &Path)
+    -> Result<PathBuf, Error<BundleErrorKind>>;
 }
 
 /// Provides an implementation of [SourceProvider](SourceProvider)
@@ -110,6 +115,12 @@ impl SourceProvider for FileProvider {
     // until the FileProvider is, and we never remove from the
     // list of pointers stored in the vector.
     Ok(unsafe { &*ptr })
+  }
+
+  fn resolve(&self, specifier: &str, originating_file: &Path)
+      -> Result<PathBuf, Error<BundleErrorKind>> {
+    // Assume the specifier is a releative file path and join it with current path.
+    Ok(originating_file.with_file_name(specifier))
   }
 }
 
@@ -327,7 +338,7 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
         }
 
         if let CssRule::Import(import) = r {
-          let path = file.with_file_name(&*import.url);
+          let specifier = &import.url;
 
           // Combine media queries and supports conditions from parent
           // stylesheet with @import rule using a logical and operator.
@@ -367,16 +378,25 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
             import.layer.clone()
           };
 
-          let result = self.load_file(
-            &path,
-            ImportRule {
-              layer,
-              media,
-              supports: combine_supports(rule.supports.clone(), &import.supports),
-              url: "".into(),
-              loc: import.loc,
-            },
-          );
+          let result = match self.fs.resolve(&specifier, file) {
+            Ok(path) => self.load_file(
+              &path,
+              ImportRule {
+                layer,
+                media,
+                supports: combine_supports(rule.supports.clone(), &import.supports),
+                url: "".into(),
+                loc: import.loc,
+              },
+            ),
+            Err(err) => Err(Error {
+              kind: err.kind,
+              loc: Some(ErrorLocation::new(
+                import.loc,
+                self.find_filename(import.loc.source_index),
+              )),
+            }),
+          };
 
           Some(result)
         } else {
@@ -511,6 +531,42 @@ mod tests {
     fn read<'a>(&'a self, file: &Path) -> std::io::Result<&'a str> {
       Ok(self.map.get(file).unwrap())
     }
+
+    fn resolve(&self, specifier: &str, originating_file: &Path)
+        -> Result<PathBuf, Error<BundleErrorKind>> {
+      Ok(originating_file.with_file_name(specifier))
+    }
+  }
+
+  /// Stand-in for a user-authored `SourceProvider` with application-specific logic.
+  struct CustomProvider {
+    map: HashMap<PathBuf, String>,
+  }
+
+  impl SourceProvider for CustomProvider {
+    /// Read files from in-memory map.
+    fn read<'a>(&'a self, file: &Path) -> std::io::Result<&'a str> {
+      Ok(self.map.get(file).unwrap())
+    }
+
+    /// Resolve by stripping a `foo:` prefix off any import. Specifiers without
+    /// this prefix fail with an error.
+    fn resolve(&self, specifier: &str, _originating_file: &Path)
+        -> Result<PathBuf, Error<BundleErrorKind>> {
+      if specifier.starts_with("foo:") {
+        Ok(Path::new(&specifier["foo:".len()..]).to_path_buf())
+      } else {
+        let kind = BundleErrorKind::IOError(std::io::Error::new(
+          std::io::ErrorKind::NotFound,
+          format!("Failed to resolve `{}`, specifier does not start with `foo:`.", &specifier),
+        ));
+
+        Err(Error {
+          kind,
+          loc: None,
+        })
+      }
+    }
   }
 
   macro_rules! fs(
@@ -521,20 +577,18 @@ mod tests {
         $(
           m.insert(PathBuf::from($key), $value.to_owned());
         )*
-        TestProvider {
-          map: m
-        }
+        m
       }
     };
   );
 
-  fn bundle(fs: TestProvider, entry: &str) -> String {
+  fn bundle<P: SourceProvider>(fs: P, entry: &str) -> String {
     let mut bundler = Bundler::new(&fs, None, ParserOptions::default());
     let stylesheet = bundler.bundle(Path::new(entry)).unwrap();
     stylesheet.to_css(PrinterOptions::default()).unwrap().code
   }
 
-  fn bundle_css_module(fs: TestProvider, entry: &str) -> String {
+  fn bundle_css_module<P: SourceProvider>(fs: P, entry: &str) -> String {
     let mut bundler = Bundler::new(
       &fs,
       None,
@@ -547,7 +601,7 @@ mod tests {
     stylesheet.to_css(PrinterOptions::default()).unwrap().code
   }
 
-  fn bundle_custom_media(fs: TestProvider, entry: &str) -> String {
+  fn bundle_custom_media<P: SourceProvider>(fs: P, entry: &str) -> String {
     let mut bundler = Bundler::new(
       &fs,
       None,
@@ -576,26 +630,30 @@ mod tests {
       .code
   }
 
-  fn error_test(fs: TestProvider, entry: &str) {
+  fn error_test<P: SourceProvider>(fs: P, entry: &str, maybe_cb: Option<Box<dyn FnOnce(BundleErrorKind) -> ()>>) {
     let mut bundler = Bundler::new(&fs, None, ParserOptions::default());
     let res = bundler.bundle(Path::new(entry));
     match res {
       Ok(_) => unreachable!(),
-      Err(e) => assert!(matches!(e.kind, BundleErrorKind::UnsupportedLayerCombination)),
+      Err(e) => if let Some(cb) = maybe_cb {
+        cb(e.kind);
+      }
     }
   }
 
   #[test]
   fn test_bundle() {
     let res = bundle(
-      fs! {
-        "/a.css": r#"
-        @import "b.css";
-        .a { color: red }
-      "#,
-        "/b.css": r#"
-        .b { color: green }
-      "#
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css";
+          .a { color: red }
+        "#,
+          "/b.css": r#"
+          .b { color: green }
+        "#
+        },
       },
       "/a.css",
     );
@@ -613,14 +671,16 @@ mod tests {
     );
 
     let res = bundle(
-      fs! {
-        "/a.css": r#"
-        @import "b.css" print;
-        .a { color: red }
-      "#,
-        "/b.css": r#"
-        .b { color: green }
-      "#
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css" print;
+          .a { color: red }
+        "#,
+          "/b.css": r#"
+          .b { color: green }
+        "#
+        },
       },
       "/a.css",
     );
@@ -640,14 +700,16 @@ mod tests {
     );
 
     let res = bundle(
-      fs! {
-        "/a.css": r#"
-        @import "b.css" supports(color: green);
-        .a { color: red }
-      "#,
-        "/b.css": r#"
-        .b { color: green }
-      "#
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css" supports(color: green);
+          .a { color: red }
+        "#,
+          "/b.css": r#"
+          .b { color: green }
+        "#
+        },
       },
       "/a.css",
     );
@@ -667,14 +729,16 @@ mod tests {
     );
 
     let res = bundle(
-      fs! {
-        "/a.css": r#"
-        @import "b.css" supports(color: green) print;
-        .a { color: red }
-      "#,
-        "/b.css": r#"
-        .b { color: green }
-      "#
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css" supports(color: green) print;
+          .a { color: red }
+        "#,
+          "/b.css": r#"
+          .b { color: green }
+        "#
+        },
       },
       "/a.css",
     );
@@ -696,15 +760,17 @@ mod tests {
     );
 
     let res = bundle(
-      fs! {
-        "/a.css": r#"
-        @import "b.css" print;
-        @import "b.css" screen;
-        .a { color: red }
-      "#,
-        "/b.css": r#"
-        .b { color: green }
-      "#
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css" print;
+          @import "b.css" screen;
+          .a { color: red }
+        "#,
+          "/b.css": r#"
+          .b { color: green }
+        "#
+        },
       },
       "/a.css",
     );
@@ -724,15 +790,17 @@ mod tests {
     );
 
     let res = bundle(
-      fs! {
-        "/a.css": r#"
-        @import "b.css" supports(color: red);
-        @import "b.css" supports(foo: bar);
-        .a { color: red }
-      "#,
-        "/b.css": r#"
-        .b { color: green }
-      "#
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css" supports(color: red);
+          @import "b.css" supports(foo: bar);
+          .a { color: red }
+        "#,
+          "/b.css": r#"
+          .b { color: green }
+        "#
+        },
       },
       "/a.css",
     );
@@ -752,18 +820,20 @@ mod tests {
     );
 
     let res = bundle(
-      fs! {
-        "/a.css": r#"
-        @import "b.css" print;
-        .a { color: red }
-      "#,
-        "/b.css": r#"
-        @import "c.css" (color);
-        .b { color: yellow }
-      "#,
-        "/c.css": r#"
-        .c { color: green }
-      "#
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css" print;
+          .a { color: red }
+        "#,
+          "/b.css": r#"
+          @import "c.css" (color);
+          .b { color: yellow }
+        "#,
+          "/c.css": r#"
+          .c { color: green }
+        "#
+        },
       },
       "/a.css",
     );
@@ -789,18 +859,20 @@ mod tests {
     );
 
     let res = bundle(
-      fs! {
-        "/a.css": r#"
-        @import "b.css";
-        .a { color: red }
-      "#,
-        "/b.css": r#"
-        @import "c.css";
-      "#,
-        "/c.css": r#"
-        @import "a.css";
-        .c { color: green }
-      "#
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css";
+          .a { color: red }
+        "#,
+          "/b.css": r#"
+          @import "c.css";
+        "#,
+          "/c.css": r#"
+          @import "a.css";
+          .c { color: green }
+        "#
+        },
       },
       "/a.css",
     );
@@ -818,14 +890,16 @@ mod tests {
     );
 
     let res = bundle(
-      fs! {
-        "/a.css": r#"
-        @import "b/c.css";
-        .a { color: red }
-      "#,
-        "/b/c.css": r#"
-        .b { color: green }
-      "#
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b/c.css";
+          .a { color: red }
+        "#,
+          "/b/c.css": r#"
+          .b { color: green }
+        "#
+        },
       },
       "/a.css",
     );
@@ -843,14 +917,16 @@ mod tests {
     );
 
     let res = bundle(
-      fs! {
-        "/a.css": r#"
-        @import "./b/c.css";
-        .a { color: red }
-      "#,
-        "/b/c.css": r#"
-        .b { color: green }
-      "#
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "./b/c.css";
+          .a { color: red }
+        "#,
+          "/b/c.css": r#"
+          .b { color: green }
+        "#
+        },
       },
       "/a.css",
     );
@@ -868,14 +944,16 @@ mod tests {
     );
 
     let res = bundle_css_module(
-      fs! {
-        "/a.css": r#"
-        @import "b.css";
-        .a { color: red }
-      "#,
-        "/b.css": r#"
-        .a { color: green }
-      "#
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css";
+          .a { color: red }
+        "#,
+          "/b.css": r#"
+          .a { color: green }
+        "#
+        },
       },
       "/a.css",
     );
@@ -893,20 +971,22 @@ mod tests {
     );
 
     let res = bundle_custom_media(
-      fs! {
-        "/a.css": r#"
-        @import "media.css";
-        @import "b.css";
-        .a { color: red }
-      "#,
-        "/media.css": r#"
-        @custom-media --foo print;
-      "#,
-        "/b.css": r#"
-        @media (--foo) {
-          .a { color: green }
-        }
-      "#
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "media.css";
+          @import "b.css";
+          .a { color: red }
+        "#,
+          "/media.css": r#"
+          @custom-media --foo print;
+        "#,
+          "/b.css": r#"
+          @media (--foo) {
+            .a { color: green }
+          }
+        "#
+        },
       },
       "/a.css",
     );
@@ -926,14 +1006,16 @@ mod tests {
     );
 
     let res = bundle(
-      fs! {
-        "/a.css": r#"
-        @import "b.css" layer(foo);
-        .a { color: red }
-      "#,
-        "/b.css": r#"
-        .b { color: green }
-      "#
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css" layer(foo);
+          .a { color: red }
+        "#,
+          "/b.css": r#"
+          .b { color: green }
+        "#
+        },
       },
       "/a.css",
     );
@@ -953,14 +1035,16 @@ mod tests {
     );
 
     let res = bundle(
-      fs! {
-        "/a.css": r#"
-        @import "b.css" layer;
-        .a { color: red }
-      "#,
-        "/b.css": r#"
-        .b { color: green }
-      "#
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css" layer;
+          .a { color: red }
+        "#,
+          "/b.css": r#"
+          .b { color: green }
+        "#
+        },
       },
       "/a.css",
     );
@@ -980,18 +1064,20 @@ mod tests {
     );
 
     let res = bundle(
-      fs! {
-        "/a.css": r#"
-        @import "b.css" layer(foo);
-        .a { color: red }
-      "#,
-        "/b.css": r#"
-        @import "c.css" layer(bar);
-        .b { color: green }
-      "#,
-        "/c.css": r#"
-        .c { color: green }
-      "#
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css" layer(foo);
+          .a { color: red }
+        "#,
+          "/b.css": r#"
+          @import "c.css" layer(bar);
+          .b { color: green }
+        "#,
+          "/c.css": r#"
+          .c { color: green }
+        "#
+        },
       },
       "/a.css",
     );
@@ -1017,14 +1103,16 @@ mod tests {
     );
 
     let res = bundle(
-      fs! {
-        "/a.css": r#"
-        @import "b.css" layer(foo);
-        @import "b.css" layer(foo);
-      "#,
-        "/b.css": r#"
-        .b { color: green }
-      "#
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css" layer(foo);
+          @import "b.css" layer(foo);
+        "#,
+          "/b.css": r#"
+          .b { color: green }
+        "#
+        },
       },
       "/a.css",
     );
@@ -1040,32 +1128,34 @@ mod tests {
     );
 
     let res = bundle(
-      fs! {
-        "/a.css": r#"
-        @layer bar, foo;
-        @import "b.css" layer(foo);
-        
-        @layer bar {
-          div {
-            background: red;
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @layer bar, foo;
+          @import "b.css" layer(foo);
+          
+          @layer bar {
+            div {
+              background: red;
+            }
           }
-        }
-      "#,
-        "/b.css": r#"
-        @layer qux, baz;
-        @import "c.css" layer(baz);
-        
-        @layer qux {
-          div {
-            background: green;
+        "#,
+          "/b.css": r#"
+          @layer qux, baz;
+          @import "c.css" layer(baz);
+          
+          @layer qux {
+            div {
+              background: green;
+            }
           }
-        }
-      "#,
-        "/c.css": r#"
-        div {
-          background: yellow;
-        }      
-      "#
+        "#,
+          "/c.css": r#"
+          div {
+            background: yellow;
+          }      
+        "#
+        },
       },
       "/a.css",
     );
@@ -1098,85 +1188,107 @@ mod tests {
     );
 
     error_test(
-      fs! {
-        "/a.css": r#"
-        @import "b.css" layer(foo);
-        @import "b.css" layer(bar);
-      "#,
-        "/b.css": r#"
-        .b { color: red }
-      "#
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css" layer(foo);
+          @import "b.css" layer(bar);
+        "#,
+          "/b.css": r#"
+          .b { color: red }
+        "#
+        },
       },
       "/a.css",
+      Some(Box::new(|err| {
+        assert!(matches!(err, BundleErrorKind::UnsupportedLayerCombination));
+      })),
     );
 
     error_test(
-      fs! {
-        "/a.css": r#"
-        @import "b.css" layer;
-        @import "b.css" layer;
-      "#,
-        "/b.css": r#"
-        .b { color: red }
-      "#
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css" layer;
+          @import "b.css" layer;
+        "#,
+          "/b.css": r#"
+          .b { color: red }
+        "#
+        },
       },
       "/a.css",
+      Some(Box::new(|err| {
+        assert!(matches!(err, BundleErrorKind::UnsupportedLayerCombination));
+      })),
     );
 
     error_test(
-      fs! {
-        "/a.css": r#"
-        @import "b.css" layer;
-        .a { color: red }
-      "#,
-        "/b.css": r#"
-        @import "c.css" layer;
-        .b { color: green }
-      "#,
-        "/c.css": r#"
-        .c { color: green }
-      "#
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css" layer;
+          .a { color: red }
+        "#,
+          "/b.css": r#"
+          @import "c.css" layer;
+          .b { color: green }
+        "#,
+          "/c.css": r#"
+          .c { color: green }
+        "#
+        },
       },
       "/a.css",
+      Some(Box::new(|err| {
+        assert!(matches!(err, BundleErrorKind::UnsupportedLayerCombination));
+      })),
     );
 
     error_test(
-      fs! {
-        "/a.css": r#"
-        @import "b.css" layer;
-        .a { color: red }
-      "#,
-        "/b.css": r#"
-        @import "c.css" layer(foo);
-        .b { color: green }
-      "#,
-        "/c.css": r#"
-        .c { color: green }
-      "#
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css" layer;
+          .a { color: red }
+        "#,
+          "/b.css": r#"
+          @import "c.css" layer(foo);
+          .b { color: green }
+        "#,
+          "/c.css": r#"
+          .c { color: green }
+        "#
+        },
       },
       "/a.css",
+      Some(Box::new(|err| {
+        assert!(matches!(err, BundleErrorKind::UnsupportedLayerCombination));
+      })),
     );
 
     let res = bundle(
-      fs! {
-        "/index.css": r#"
-        @import "a.css";
-        @import "b.css";
-      "#,
-        "/a.css": r#"
-        @import "./c.css";
-        body { background: red; }
-      "#,
-        "/b.css": r#"
-        @import "./c.css";
-        body { color: red; }
-      "#,
-        "/c.css": r#"
-        body {
-          background: white;
-          color: black; 
-        }
-      "#
+      TestProvider {
+        map: fs! {
+          "/index.css": r#"
+          @import "a.css";
+          @import "b.css";
+        "#,
+          "/a.css": r#"
+          @import "./c.css";
+          body { background: red; }
+        "#,
+          "/b.css": r#"
+          @import "./c.css";
+          body { color: red; }
+        "#,
+          "/c.css": r#"
+          body {
+            background: white;
+            color: black; 
+          }
+        "#
+        },
       },
       "/index.css",
     );
@@ -1199,18 +1311,20 @@ mod tests {
     );
 
     let res = bundle(
-      fs! {
-        "/index.css": r#"
-        @import "a.css";
-        @import "b.css";
-        @import "a.css";
-      "#,
-        "/a.css": r#"
-        body { background: green; }
-      "#,
-        "/b.css": r#"
-        body { background: red; }
-      "#
+      TestProvider {
+        map: fs! {
+          "/index.css": r#"
+          @import "a.css";
+          @import "b.css";
+          @import "a.css";
+        "#,
+          "/a.css": r#"
+          body { background: green; }
+        "#,
+          "/b.css": r#"
+          body { background: red; }
+        "#
+        },
       },
       "/index.css",
     );
@@ -1225,6 +1339,53 @@ mod tests {
         background: green;
       }
     "#}
+    );
+
+    let res = bundle(
+      CustomProvider {
+        map: fs! {
+          "/a.css": r#"
+            @import "foo:/b.css";
+            .a { color: red; }
+          "#,
+          "/b.css": ".b { color: green; }"
+        }
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
+        .b {
+          color: green;
+        }
+
+        .a {
+          color: red;
+        }
+      "# }
+    );
+
+    error_test(
+      CustomProvider {
+        map: fs! {
+          "/a.css": r#"
+            /* Forgot to prefix with `foo:`. */
+            @import "/b.css";
+            .a { color: red; }
+          "#,
+          "/b.css": ".b { color: green; }"
+        }
+      },
+      "/a.css",
+      Some(Box::new(|err| {
+        let kind = match err {
+          BundleErrorKind::IOError(ref error) => error.kind(),
+          _ => unreachable!(),
+        };
+        assert!(matches!(kind, std::io::ErrorKind::NotFound));
+        assert!(err.to_string().contains("Failed to resolve `/b.css`, specifier does not start with `foo:`."));
+      })),
     );
 
     // let res = bundle(fs! {
