@@ -84,8 +84,7 @@ pub trait SourceProvider: Send + Sync {
 
   /// Resolves the given import specifier to a file path given the file
   /// which the import originated from.
-  fn resolve(&self, specifier: &str, originating_file: &Path)
-    -> Result<PathBuf, Error<BundleErrorKind>>;
+  fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Error<BundleErrorKind>>;
 }
 
 /// Provides an implementation of [SourceProvider](SourceProvider)
@@ -117,8 +116,7 @@ impl SourceProvider for FileProvider {
     Ok(unsafe { &*ptr })
   }
 
-  fn resolve(&self, specifier: &str, originating_file: &Path)
-      -> Result<PathBuf, Error<BundleErrorKind>> {
+  fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Error<BundleErrorKind>> {
     // Assume the specifier is a releative file path and join it with current path.
     Ok(originating_file.with_file_name(specifier))
   }
@@ -532,8 +530,7 @@ mod tests {
       Ok(self.map.get(file).unwrap())
     }
 
-    fn resolve(&self, specifier: &str, originating_file: &Path)
-        -> Result<PathBuf, Error<BundleErrorKind>> {
+    fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Error<BundleErrorKind>> {
       Ok(originating_file.with_file_name(specifier))
     }
   }
@@ -551,20 +548,19 @@ mod tests {
 
     /// Resolve by stripping a `foo:` prefix off any import. Specifiers without
     /// this prefix fail with an error.
-    fn resolve(&self, specifier: &str, _originating_file: &Path)
-        -> Result<PathBuf, Error<BundleErrorKind>> {
+    fn resolve(&self, specifier: &str, _originating_file: &Path) -> Result<PathBuf, Error<BundleErrorKind>> {
       if specifier.starts_with("foo:") {
         Ok(Path::new(&specifier["foo:".len()..]).to_path_buf())
       } else {
         let kind = BundleErrorKind::IOError(std::io::Error::new(
           std::io::ErrorKind::NotFound,
-          format!("Failed to resolve `{}`, specifier does not start with `foo:`.", &specifier),
+          format!(
+            "Failed to resolve `{}`, specifier does not start with `foo:`.",
+            &specifier
+          ),
         ));
 
-        Err(Error {
-          kind,
-          loc: None,
-        })
+        Err(Error { kind, loc: None })
       }
     }
   }
@@ -635,8 +631,10 @@ mod tests {
     let res = bundler.bundle(Path::new(entry));
     match res {
       Ok(_) => unreachable!(),
-      Err(e) => if let Some(cb) = maybe_cb {
-        cb(e.kind);
+      Err(e) => {
+        if let Some(cb) = maybe_cb {
+          cb(e.kind);
+        }
       }
     }
   }
@@ -1349,7 +1347,7 @@ mod tests {
             .a { color: red; }
           "#,
           "/b.css": ".b { color: green; }"
-        }
+        },
       },
       "/a.css",
     );
@@ -1375,7 +1373,7 @@ mod tests {
             .a { color: red; }
           "#,
           "/b.css": ".b { color: green; }"
-        }
+        },
       },
       "/a.css",
       Some(Box::new(|err| {
@@ -1384,7 +1382,9 @@ mod tests {
           _ => unreachable!(),
         };
         assert!(matches!(kind, std::io::ErrorKind::NotFound));
-        assert!(err.to_string().contains("Failed to resolve `/b.css`, specifier does not start with `foo:`."));
+        assert!(err
+          .to_string()
+          .contains("Failed to resolve `/b.css`, specifier does not start with `foo:`."));
       })),
     );
 
