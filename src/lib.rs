@@ -17903,14 +17903,14 @@ mod tests {
 
     dep_test(
       ".foo { background: image-set('./img12x.png', './img21x.png' 2x)}",
-      ".foo{background:image-set(\"hXFI8W\",\"_5TkpBa\" 2x)}",
-      vec![("./img12x.png", "hXFI8W"), ("./img21x.png", "_5TkpBa")],
+      ".foo{background:image-set(\"hXFI8W\",\"5TkpBa\" 2x)}",
+      vec![("./img12x.png", "hXFI8W"), ("./img21x.png", "5TkpBa")],
     );
 
     dep_test(
       ".foo { background: image-set(url(./img12x.png), url('./img21x.png') 2x)}",
-      ".foo{background:image-set(\"hXFI8W\",\"_5TkpBa\" 2x)}",
-      vec![("./img12x.png", "hXFI8W"), ("./img21x.png", "_5TkpBa")],
+      ".foo{background:image-set(\"hXFI8W\",\"5TkpBa\" 2x)}",
+      vec![("./img12x.png", "hXFI8W"), ("./img21x.png", "5TkpBa")],
     );
 
     dep_test(
@@ -17927,8 +17927,8 @@ mod tests {
 
     dep_test(
       ".foo { --test: url(\"http://example.com/foo.png\") }",
-      ".foo{--test:url(\"_3X1zSW\")}",
-      vec![("http://example.com/foo.png", "_3X1zSW")],
+      ".foo{--test:url(\"3X1zSW\")}",
+      vec![("http://example.com/foo.png", "3X1zSW")],
     );
 
     dep_test(

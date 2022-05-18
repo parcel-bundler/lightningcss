@@ -5,7 +5,7 @@
 
 use crate::compat::Feature;
 use crate::context::{DeclarationContext, PropertyHandlerContext};
-use crate::css_modules::{hash, CssModule, CssModuleExports};
+use crate::css_modules::{CssModule, CssModuleExports};
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::dependencies::Dependency;
 use crate::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterError, PrinterErrorKind};
@@ -181,13 +181,8 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
     printer.sources = Some(&self.sources);
 
     if let Some(config) = &self.options.css_modules {
-      let h = hash(printer.filename());
       let mut exports = HashMap::new();
-      printer.css_module = Some(CssModule {
-        config,
-        hash: h,
-        exports: &mut exports,
-      });
+      printer.css_module = Some(CssModule::new(config, printer.filename(), &mut exports));
 
       self.rules.to_css(&mut printer)?;
       printer.newline()?;

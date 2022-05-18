@@ -57,8 +57,8 @@ pub struct PseudoClasses<'a> {
 ///
 /// `Printer` also includes helper functions that assist with writing output
 /// that respects options such as `minify`, and `css_modules`.
-pub struct Printer<'a, 'b, W> {
-  pub(crate) sources: Option<&'a Vec<String>>,
+pub struct Printer<'a, 'b, 'c, W> {
+  pub(crate) sources: Option<&'c Vec<String>>,
   dest: &'a mut W,
   source_map: Option<&'a mut SourceMap>,
   pub(crate) source_index: u32,
@@ -71,12 +71,12 @@ pub struct Printer<'a, 'b, W> {
   /// the vendor prefix of whatever is being printed.
   pub(crate) vendor_prefix: VendorPrefix,
   pub(crate) in_calc: bool,
-  pub(crate) css_module: Option<CssModule<'a, 'b>>,
+  pub(crate) css_module: Option<CssModule<'a, 'b, 'c>>,
   pub(crate) dependencies: Option<Vec<Dependency>>,
   pub(crate) pseudo_classes: Option<PseudoClasses<'a>>,
 }
 
-impl<'a, 'b, W: std::fmt::Write + Sized> Printer<'a, 'b, W> {
+impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
   /// Create a new Printer wrapping the given destination.
   pub fn new(dest: &'a mut W, options: PrinterOptions<'a>) -> Self {
     Printer {
@@ -102,7 +102,7 @@ impl<'a, 'b, W: std::fmt::Write + Sized> Printer<'a, 'b, W> {
   }
 
   /// Returns the current source filename that is being printed.
-  pub fn filename(&self) -> &str {
+  pub fn filename(&self) -> &'c str {
     if let Some(sources) = self.sources {
       if let Some(f) = sources.get(self.source_index as usize) {
         f
@@ -223,15 +223,18 @@ impl<'a, 'b, W: std::fmt::Write + Sized> Printer<'a, 'b, W> {
     if let Some(css_module) = css_module {
       let dest = &mut self.dest;
       let mut first = true;
-      css_module.config.pattern.write(&css_module.hash, ident, |s| {
-        self.col += s.len() as u32;
-        if first {
-          first = false;
-          serialize_identifier(s, dest)
-        } else {
-          serialize_name(s, dest)
-        }
-      })?;
+      css_module
+        .config
+        .pattern
+        .write(&css_module.hash, &css_module.path, ident, |s| {
+          self.col += s.len() as u32;
+          if first {
+            first = false;
+            serialize_identifier(s, dest)
+          } else {
+            serialize_name(s, dest)
+          }
+        })?;
     } else {
       serialize_identifier(ident, self)?;
     }
@@ -256,7 +259,7 @@ impl<'a, 'b, W: std::fmt::Write + Sized> Printer<'a, 'b, W> {
   }
 }
 
-impl<'a, 'b, W: std::fmt::Write + Sized> std::fmt::Write for Printer<'a, 'b, W> {
+impl<'a, 'b, 'c, W: std::fmt::Write + Sized> std::fmt::Write for Printer<'a, 'b, 'c, W> {
   fn write_str(&mut self, s: &str) -> std::fmt::Result {
     self.col += s.len() as u32;
     self.dest.write_str(s)

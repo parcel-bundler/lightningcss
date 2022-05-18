@@ -87,7 +87,7 @@ pub struct UrlDependency {
 impl UrlDependency {
   /// Creates a new url dependency.
   pub fn new(url: &Url, filename: &str) -> UrlDependency {
-    let placeholder = hash(&format!("{}_{}", filename, url.url));
+    let placeholder = hash(&format!("{}_{}", filename, url.url), false);
     UrlDependency {
       url: url.url.to_string(),
       placeholder,
