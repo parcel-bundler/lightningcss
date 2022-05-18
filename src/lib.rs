@@ -151,12 +151,17 @@ mod tests {
     assert_eq!(res.code, expected);
   }
 
-  fn css_modules_test(source: &str, expected: &str, expected_exports: CssModuleExports) {
+  fn css_modules_test<'i>(
+    source: &'i str,
+    expected: &str,
+    expected_exports: CssModuleExports,
+    config: crate::css_modules::Config<'i>,
+  ) {
     let mut stylesheet = StyleSheet::parse(
       "test.css",
       &source,
       ParserOptions {
-        css_modules: true,
+        css_modules: Some(config),
         ..ParserOptions::default()
       },
     )
@@ -15774,6 +15779,7 @@ mod tests {
         "circles" => "EgL3uq_circles" referenced: true,
         "fade" => "EgL3uq_fade"
       },
+      Default::default(),
     );
 
     #[cfg(feature = "grid")]
@@ -15816,6 +15822,7 @@ mod tests {
         "a" => "EgL3uq_a",
         "b" => "EgL3uq_b"
       },
+      Default::default(),
     );
 
     #[cfg(feature = "grid")]
@@ -15852,6 +15859,7 @@ mod tests {
         "grid" => "EgL3uq_grid",
         "bar" => "EgL3uq_bar"
       },
+      Default::default(),
     );
 
     css_modules_test(
@@ -15866,6 +15874,7 @@ mod tests {
       }
     "#},
       map! {},
+      Default::default(),
     );
 
     css_modules_test(
@@ -15898,6 +15907,7 @@ mod tests {
       map! {
         "bar" => "EgL3uq_bar"
       },
+      Default::default(),
     );
 
     // :global(:local(.hi)) {
@@ -15928,6 +15938,7 @@ mod tests {
         "test" => "EgL3uq_test" "EgL3uq_foo",
         "foo" => "EgL3uq_foo"
       },
+      Default::default(),
     );
 
     css_modules_test(
@@ -15955,6 +15966,7 @@ mod tests {
         "b" => "EgL3uq_b" "EgL3uq_foo",
         "foo" => "EgL3uq_foo"
       },
+      Default::default(),
     );
 
     css_modules_test(
@@ -15990,6 +16002,7 @@ mod tests {
         "foo" => "EgL3uq_foo",
         "bar" => "EgL3uq_bar"
       },
+      Default::default(),
     );
 
     css_modules_test(
@@ -16007,6 +16020,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test" "foo" global: true
       },
+      Default::default(),
     );
 
     css_modules_test(
@@ -16024,6 +16038,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test" "foo" global: true "bar" global: true
       },
+      Default::default(),
     );
 
     css_modules_test(
@@ -16041,6 +16056,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test" "foo" from "foo.css"
       },
+      Default::default(),
     );
 
     css_modules_test(
@@ -16058,6 +16074,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test" "foo" from "foo.css" "bar" from "foo.css"
       },
+      Default::default(),
     );
 
     css_modules_test(
@@ -16085,6 +16102,26 @@ mod tests {
       map! {
         "test" => "EgL3uq_test" "EgL3uq_foo" "foo" from "foo.css" "bar" from "bar.css",
         "foo" => "EgL3uq_foo"
+      },
+      Default::default(),
+    );
+
+    css_modules_test(
+      r#"
+      .foo {
+        color: red;
+      }
+    "#,
+      indoc! {r#"
+      .test-EgL3uq-foo {
+        color: red;
+      }
+    "#},
+      map! {
+        "foo" => "test-EgL3uq-foo"
+      },
+      crate::css_modules::Config {
+        pattern: crate::css_modules::Pattern::parse("test-[hash]-[local]").unwrap(),
       },
     );
   }
@@ -16149,7 +16186,7 @@ mod tests {
       "test.css",
       &source,
       ParserOptions {
-        css_modules: true,
+        css_modules: Some(Default::default()),
         ..ParserOptions::default()
       },
     )

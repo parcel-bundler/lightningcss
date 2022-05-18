@@ -6,7 +6,7 @@ use crate::error::{Error, ErrorLocation, PrinterError, PrinterErrorKind};
 use crate::rules::Location;
 use crate::targets::Browsers;
 use crate::vendor_prefix::VendorPrefix;
-use cssparser::serialize_identifier;
+use cssparser::{serialize_identifier, serialize_name};
 use parcel_sourcemap::{OriginalLocation, SourceMap};
 
 /// Options that control how CSS is serialized to a string.
@@ -57,7 +57,7 @@ pub struct PseudoClasses<'a> {
 ///
 /// `Printer` also includes helper functions that assist with writing output
 /// that respects options such as `minify`, and `css_modules`.
-pub struct Printer<'a, W> {
+pub struct Printer<'a, 'b, W> {
   pub(crate) sources: Option<&'a Vec<String>>,
   dest: &'a mut W,
   source_map: Option<&'a mut SourceMap>,
@@ -71,14 +71,14 @@ pub struct Printer<'a, W> {
   /// the vendor prefix of whatever is being printed.
   pub(crate) vendor_prefix: VendorPrefix,
   pub(crate) in_calc: bool,
-  pub(crate) css_module: Option<CssModule<'a>>,
+  pub(crate) css_module: Option<CssModule<'a, 'b>>,
   pub(crate) dependencies: Option<Vec<Dependency>>,
   pub(crate) pseudo_classes: Option<PseudoClasses<'a>>,
 }
 
-impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
+impl<'a, 'b, W: std::fmt::Write + Sized> Printer<'a, 'b, W> {
   /// Create a new Printer wrapping the given destination.
-  pub fn new(dest: &'a mut W, options: PrinterOptions<'a>) -> Printer<'a, W> {
+  pub fn new(dest: &'a mut W, options: PrinterOptions<'a>) -> Self {
     Printer {
       sources: None,
       dest,
@@ -219,18 +219,22 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
   /// as appropriate. If the `css_modules` option was enabled, then a hash
   /// is added, and the mapping is added to the CSS module.
   pub fn write_ident(&mut self, ident: &str) -> Result<(), PrinterError> {
-    let hash = if let Some(css_module) = &self.css_module {
-      Some(css_module.hash)
+    let css_module = self.css_module.as_ref();
+    if let Some(css_module) = css_module {
+      let dest = &mut self.dest;
+      let mut first = true;
+      css_module.config.pattern.write(&css_module.hash, ident, |s| {
+        self.col += s.len() as u32;
+        if first {
+          first = false;
+          serialize_identifier(s, dest)
+        } else {
+          serialize_name(s, dest)
+        }
+      })?;
     } else {
-      None
-    };
-
-    if let Some(hash) = hash {
-      serialize_identifier(hash, self)?;
-      self.write_char('_')?;
+      serialize_identifier(ident, self)?;
     }
-
-    serialize_identifier(ident, self)?;
 
     if let Some(css_module) = &mut self.css_module {
       css_module.add_local(&ident, &ident);
@@ -252,7 +256,7 @@ impl<'a, W: std::fmt::Write + Sized> Printer<'a, W> {
   }
 }
 
-impl<'a, W: std::fmt::Write + Sized> std::fmt::Write for Printer<'a, W> {
+impl<'a, 'b, W: std::fmt::Write + Sized> std::fmt::Write for Printer<'a, 'b, W> {
   fn write_str(&mut self, s: &str) -> std::fmt::Result {
     self.col += s.len() as u32;
     self.dest.write_str(s)

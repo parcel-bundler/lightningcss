@@ -54,17 +54,17 @@ use std::{
 
 /// A Bundler combines a CSS file and all imported dependencies together into
 /// a single merged style sheet.
-pub struct Bundler<'a, 's, P> {
+pub struct Bundler<'a, 'o, 's, P> {
   source_map: Option<Mutex<&'s mut SourceMap>>,
   fs: &'a P,
   source_indexes: DashMap<PathBuf, u32>,
-  stylesheets: Mutex<Vec<BundleStyleSheet<'a>>>,
-  options: ParserOptions,
+  stylesheets: Mutex<Vec<BundleStyleSheet<'a, 'o>>>,
+  options: ParserOptions<'o>,
 }
 
 #[derive(Debug)]
-struct BundleStyleSheet<'i> {
-  stylesheet: Option<StyleSheet<'i>>,
+struct BundleStyleSheet<'i, 'o> {
+  stylesheet: Option<StyleSheet<'i, 'o>>,
   dependencies: Vec<u32>,
   parent_source_index: u32,
   parent_dep_index: u32,
@@ -175,11 +175,11 @@ impl<'i> BundleErrorKind<'i> {
   }
 }
 
-impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
+impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P> {
   /// Creates a new Bundler using the given source provider.
   /// If a source map is given, the content of each source file included in the bundle will
   /// be added accordingly.
-  pub fn new(fs: &'a P, source_map: Option<&'s mut SourceMap>, options: ParserOptions) -> Self {
+  pub fn new(fs: &'a P, source_map: Option<&'s mut SourceMap>, options: ParserOptions<'o>) -> Self {
     Bundler {
       source_map: source_map.map(Mutex::new),
       fs,
@@ -190,7 +190,7 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
   }
 
   /// Bundles the given entry file and all dependencies into a single style sheet.
-  pub fn bundle<'e>(&mut self, entry: &'e Path) -> Result<StyleSheet<'a>, Error<BundleErrorKind<'a>>> {
+  pub fn bundle<'e>(&mut self, entry: &'e Path) -> Result<StyleSheet<'a, 'o>, Error<BundleErrorKind<'a>>> {
     // Phase 1: load and parse all files. This is done in parallel.
     self.load_file(
       &entry,
@@ -413,7 +413,7 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
   fn order(&mut self) {
     process(self.stylesheets.get_mut().unwrap(), 0, &mut HashSet::new());
 
-    fn process(stylesheets: &mut Vec<BundleStyleSheet<'_>>, source_index: u32, visited: &mut HashSet<u32>) {
+    fn process(stylesheets: &mut Vec<BundleStyleSheet>, source_index: u32, visited: &mut HashSet<u32>) {
       if visited.contains(&source_index) {
         return;
       }
@@ -436,7 +436,11 @@ impl<'a, 's, P: SourceProvider> Bundler<'a, 's, P> {
   fn inline(&mut self, dest: &mut Vec<CssRule<'a>>) {
     process(self.stylesheets.get_mut().unwrap(), 0, dest);
 
-    fn process<'a>(stylesheets: &mut Vec<BundleStyleSheet<'a>>, source_index: u32, dest: &mut Vec<CssRule<'a>>) {
+    fn process<'a>(
+      stylesheets: &mut Vec<BundleStyleSheet<'a, '_>>,
+      source_index: u32,
+      dest: &mut Vec<CssRule<'a>>,
+    ) {
       let stylesheet = &mut stylesheets[source_index as usize];
       let mut rules = std::mem::take(&mut stylesheet.stylesheet.as_mut().unwrap().rules.0);
 
@@ -589,7 +593,7 @@ mod tests {
       &fs,
       None,
       ParserOptions {
-        css_modules: true,
+        css_modules: Some(Default::default()),
         ..ParserOptions::default()
       },
     );

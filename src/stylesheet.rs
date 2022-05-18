@@ -58,7 +58,7 @@ pub use crate::printer::PseudoClasses;
 /// ```
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct StyleSheet<'i> {
+pub struct StyleSheet<'i, 'o> {
   /// A list of top-level rules within the style sheet.
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub rules: CssRuleList<'i>,
@@ -67,7 +67,7 @@ pub struct StyleSheet<'i> {
   pub sources: Vec<String>,
   #[cfg_attr(feature = "serde", serde(skip))]
   /// The options the style sheet was originally parsed with.
-  options: ParserOptions,
+  options: ParserOptions<'o>,
 }
 
 /// Options for the `minify` function of a [StyleSheet](StyleSheet)
@@ -94,9 +94,9 @@ pub struct ToCssResult {
   pub dependencies: Option<Vec<Dependency>>,
 }
 
-impl<'i> StyleSheet<'i> {
+impl<'i, 'o> StyleSheet<'i, 'o> {
   /// Creates a new style sheet with the given source filenames and rules.
-  pub fn new(sources: Vec<String>, rules: CssRuleList, options: ParserOptions) -> StyleSheet {
+  pub fn new(sources: Vec<String>, rules: CssRuleList<'i>, options: ParserOptions<'o>) -> StyleSheet<'i, 'o> {
     StyleSheet {
       sources,
       rules,
@@ -105,11 +105,7 @@ impl<'i> StyleSheet<'i> {
   }
 
   /// Parse a style sheet from a string.
-  pub fn parse(
-    filename: &str,
-    code: &'i str,
-    options: ParserOptions,
-  ) -> Result<StyleSheet<'i>, Error<ParserError<'i>>> {
+  pub fn parse(filename: &str, code: &'i str, options: ParserOptions<'o>) -> Result<Self, Error<ParserError<'i>>> {
     let filename = String::from(filename);
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
@@ -184,11 +180,12 @@ impl<'i> StyleSheet<'i> {
 
     printer.sources = Some(&self.sources);
 
-    if self.options.css_modules {
+    if let Some(config) = &self.options.css_modules {
       let h = hash(printer.filename());
       let mut exports = HashMap::new();
       printer.css_module = Some(CssModule {
-        hash: &h,
+        config,
+        hash: h,
         exports: &mut exports,
       });
 

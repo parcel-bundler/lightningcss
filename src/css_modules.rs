@@ -8,16 +8,121 @@
 //! style sheet is printed, hashes will be added to any declared names, and references to those names
 //! will be updated accordingly. A map of the original names to compiled (hashed) names will be returned.
 
-use crate::error::PrinterErrorKind;
+use crate::error::{PrinterError, PrinterErrorKind};
+use crate::printer::Printer;
 use crate::properties::css_modules::{Composes, ComposesFrom};
 use crate::selector::Selectors;
+use crate::traits::ToCss;
+use cssparser::serialize_identifier;
 use data_encoding::{Encoding, Specification};
 use lazy_static::lazy_static;
 use parcel_selectors::SelectorList;
 use serde::Serialize;
+use smallvec::{smallvec, SmallVec};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
+use std::fmt::Write;
 use std::hash::{Hash, Hasher};
+use std::path::Path;
+
+/// Configuration for CSS modules.
+#[derive(Default, Clone, Debug)]
+pub struct Config<'i> {
+  /// [dpfhjod[ofpihd]]
+  pub pattern: Pattern<'i>,
+}
+
+/// A CSS modules class name pattern.
+#[derive(Clone, Debug)]
+pub struct Pattern<'i> {
+  segments: SmallVec<[Segment<'i>; 2]>,
+}
+
+impl<'i> Default for Pattern<'i> {
+  fn default() -> Self {
+    Pattern {
+      segments: smallvec![Segment::Hash, Segment::Literal("_"), Segment::Local],
+    }
+  }
+}
+
+impl<'i> Pattern<'i> {
+  /// dopifhdoifhdofih
+  pub fn parse(mut input: &'i str) -> Result<Self, ()> {
+    let mut segments = SmallVec::new();
+    while !input.is_empty() {
+      if input.starts_with('[') {
+        if let Some(end_idx) = input.find(']') {
+          let segment = match &input[0..=end_idx] {
+            "[name]" => Segment::Name,
+            "[local]" => Segment::Local,
+            "[hash]" => Segment::Hash,
+            _ => return Err(()),
+          };
+          segments.push(segment);
+          input = &input[end_idx + 1..];
+        } else {
+          return Err(());
+        }
+      } else {
+        let end_idx = input.find('[').unwrap_or_else(|| input.len());
+        segments.push(Segment::Literal(&input[0..end_idx]));
+        input = &input[end_idx..];
+      }
+    }
+
+    Ok(Pattern { segments })
+  }
+
+  /// dpofihdoifhd
+  pub fn write<W, E>(&self, hash: &str, local: &str, mut write: W) -> Result<(), E>
+  where
+    W: FnMut(&str) -> Result<(), E>,
+  {
+    for segment in &self.segments {
+      // segment.write(css_module, local, dest)?;
+      match segment {
+        Segment::Literal(s) => {
+          write(s)?;
+        }
+        // Segment::Name => {
+        //   let name = dest.filename();
+        //   let path = Path::new(name);
+        //   let basename = path.file_name().map(|name| name.split('.'));
+        // }
+        Segment::Local => {
+          write(local)?;
+        }
+        Segment::Hash => {
+          write(hash)?;
+        }
+        _ => todo!(),
+      }
+    }
+    Ok(())
+  }
+
+  fn write_to_string(&self, hash: &str, local: &str) -> Result<String, std::fmt::Error> {
+    let mut res = String::new();
+    self.write(hash, local, |s| res.write_str(s))?;
+    Ok(res)
+  }
+}
+
+/// A segment in a CSS modules class name pattern.
+///
+/// See [Pattern](Pattern).
+#[derive(Clone, Debug)]
+pub enum Segment<'i> {
+  /// A literal string segment.
+  Literal(&'i str),
+  /// The base file name.
+  Name,
+  /// The original class name.
+  Local,
+  /// A hash of the file name.
+  Hash,
+}
 
 /// A referenced name within a CSS module, e.g. via the `composes` property.
 ///
@@ -69,28 +174,31 @@ lazy_static! {
   };
 }
 
-pub(crate) struct CssModule<'a> {
-  pub hash: &'a str,
+pub(crate) struct CssModule<'a, 'b> {
+  pub config: &'a Config<'b>,
+  pub hash: String,
   pub exports: &'a mut CssModuleExports,
 }
 
-impl<'a> CssModule<'a> {
+impl<'a, 'b> CssModule<'a, 'b> {
   pub fn add_local(&mut self, exported: &str, local: &str) {
+    let hash = &self.hash;
     self.exports.entry(exported.into()).or_insert_with(|| CssModuleExport {
-      name: get_hashed_name(self.hash, local),
+      name: self.config.pattern.write_to_string(hash, local).unwrap(),
       composes: vec![],
       is_referenced: false,
     });
   }
 
   pub fn reference(&mut self, name: &str) {
+    let hash = &self.hash;
     match self.exports.entry(name.into()) {
       std::collections::hash_map::Entry::Occupied(mut entry) => {
         entry.get_mut().is_referenced = true;
       }
       std::collections::hash_map::Entry::Vacant(entry) => {
         entry.insert(CssModuleExport {
-          name: get_hashed_name(self.hash, name),
+          name: self.config.pattern.write_to_string(hash, name).unwrap(),
           composes: vec![],
           is_referenced: true,
         });
@@ -103,6 +211,7 @@ impl<'a> CssModule<'a> {
     selectors: &SelectorList<Selectors>,
     composes: &Composes,
   ) -> Result<(), PrinterErrorKind> {
+    let hash = &self.hash;
     for sel in &selectors.0 {
       if sel.len() == 1 {
         match sel.iter_raw_match_order().next().unwrap() {
@@ -110,7 +219,7 @@ impl<'a> CssModule<'a> {
             for name in &composes.names {
               let reference = match &composes.from {
                 None => CssModuleReference::Local {
-                  name: get_hashed_name(self.hash, name.0.as_ref()),
+                  name: self.config.pattern.write_to_string(hash, name.0.as_ref()).unwrap(),
                 },
                 Some(ComposesFrom::Global) => CssModuleReference::Global {
                   name: name.0.as_ref().into(),

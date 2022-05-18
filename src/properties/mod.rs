@@ -547,7 +547,7 @@ macro_rules! define_properties {
         match property_id {
           $(
             $(#[$meta])*
-            PropertyId::$property$((vp_name!($vp, prefix)))? $(if options.$condition)? => {
+            PropertyId::$property$((vp_name!($vp, prefix)))? $(if options.$condition.is_some())? => {
               if let Ok(c) = <$type>::parse(input) {
                 if input.expect_exhausted().is_ok() {
                   return Ok(Property::$property(c $(, vp_name!($vp, prefix))?))

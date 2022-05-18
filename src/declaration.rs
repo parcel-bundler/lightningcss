@@ -52,9 +52,9 @@ pub struct DeclarationBlock<'i> {
 
 impl<'i> DeclarationBlock<'i> {
   /// Parses a declaration block from CSS syntax.
-  pub fn parse<'t>(
+  pub fn parse<'a, 'o, 't>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions,
+    options: &'a ParserOptions<'o>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut important_declarations = DeclarationList::new();
     let mut declarations = DeclarationList::new();
@@ -79,7 +79,10 @@ impl<'i> DeclarationBlock<'i> {
   }
 
   /// Parses a declaration block from a string.
-  pub fn parse_string(input: &'i str, options: ParserOptions) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  pub fn parse_string<'o>(
+    input: &'i str,
+    options: ParserOptions<'o>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(input);
     let mut parser = Parser::new(&mut input);
     let result = Self::parse(&mut parser, &options)?;
@@ -371,14 +374,14 @@ impl<'i> DeclarationBlock<'i> {
   }
 }
 
-struct PropertyDeclarationParser<'a, 'i> {
+struct PropertyDeclarationParser<'a, 'o, 'i> {
   important_declarations: &'a mut Vec<Property<'i>>,
   declarations: &'a mut Vec<Property<'i>>,
-  options: &'a ParserOptions,
+  options: &'a ParserOptions<'o>,
 }
 
 /// Parse a declaration within {} block: `color: blue`
-impl<'a, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a, 'i> {
+impl<'a, 'o, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a, 'o, 'i> {
   type Declaration = ();
   type Error = ParserError<'i>;
 
@@ -398,7 +401,7 @@ impl<'a, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a, 
 }
 
 /// Default methods reject all at rules.
-impl<'a, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a, 'i> {
+impl<'a, 'o, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a, 'o, 'i> {
   type Prelude = ();
   type AtRule = ();
   type Error = ParserError<'i>;
