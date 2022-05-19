@@ -345,6 +345,8 @@ pub enum PrinterErrorKind {
   InvalidComposesNesting,
   /// The CSS modules `composes` property cannot be used with a simple class selector.
   InvalidComposesSelector,
+  /// The CSS modules pattern must end with `[local]` for use in CSS grid.
+  InvalidCssModulesPatternInGrid,
 }
 
 impl From<fmt::Error> for PrinterError {
@@ -364,6 +366,7 @@ impl fmt::Display for PrinterErrorKind {
       FmtError => write!(f, "Printer error"),
       InvalidComposesNesting => write!(f, "The `composes` property cannot be used within nested rules"),
       InvalidComposesSelector => write!(f, "The `composes` property cannot be used with a simple class selector"),
+      InvalidCssModulesPatternInGrid => write!(f, "The CSS modules `pattern` config must end with `[local]` for use in CSS grid line names."),
     }
   }
 }

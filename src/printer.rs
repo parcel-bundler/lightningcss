@@ -61,7 +61,7 @@ pub struct Printer<'a, 'b, 'c, W> {
   pub(crate) sources: Option<&'c Vec<String>>,
   dest: &'a mut W,
   source_map: Option<&'a mut SourceMap>,
-  pub(crate) source_index: u32,
+  pub(crate) loc: Location,
   indent: u8,
   line: u32,
   col: u32,
@@ -83,7 +83,11 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
       sources: None,
       dest,
       source_map: options.source_map,
-      source_index: 0,
+      loc: Location {
+        source_index: 0,
+        line: 0,
+        column: 1,
+      },
       indent: 0,
       line: 0,
       col: 0,
@@ -104,7 +108,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
   /// Returns the current source filename that is being printed.
   pub fn filename(&self) -> &'c str {
     if let Some(sources) = self.sources {
-      if let Some(f) = sources.get(self.source_index as usize) {
+      if let Some(f) = sources.get(self.loc.source_index as usize) {
         f
       } else {
         "unknown.css"
@@ -200,7 +204,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
 
   /// Adds a mapping to the source map, if any.
   pub fn add_mapping(&mut self, loc: Location) {
-    self.source_index = loc.source_index;
+    self.loc = loc;
     if let Some(map) = &mut self.source_map {
       map.add_mapping(
         self.line,

@@ -16124,6 +16124,35 @@ mod tests {
         pattern: crate::css_modules::Pattern::parse("test-[hash]-[local]").unwrap(),
       },
     );
+
+    let stylesheet = StyleSheet::parse(
+      "test.css",
+      r#"
+        .grid {
+          grid-template-areas: "foo";
+        }
+
+        .foo {
+          grid-area: foo;
+        }
+
+        .bar {
+          grid-column-start: foo-start;
+        }
+      "#,
+      ParserOptions {
+        css_modules: Some(crate::css_modules::Config {
+          pattern: crate::css_modules::Pattern::parse("test-[local]-[hash]").unwrap(),
+        }),
+        ..ParserOptions::default()
+      },
+    )
+    .unwrap();
+    if let Err(err) = stylesheet.to_css(PrinterOptions::default()) {
+      assert_eq!(err.kind, PrinterErrorKind::InvalidCssModulesPatternInGrid);
+    } else {
+      unreachable!()
+    }
   }
 
   #[test]

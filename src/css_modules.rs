@@ -32,7 +32,8 @@ pub struct Config<'i> {
 /// A CSS modules class name pattern.
 #[derive(Clone, Debug)]
 pub struct Pattern<'i> {
-  segments: SmallVec<[Segment<'i>; 2]>,
+  /// The list of segments in the pattern.
+  pub segments: SmallVec<[Segment<'i>; 2]>,
 }
 
 impl<'i> Default for Pattern<'i> {
@@ -251,12 +252,6 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
 
     Ok(())
   }
-}
-
-fn get_hashed_name(hash: &str, name: &str) -> String {
-  // Hash must come first so that CSS grid identifiers work.
-  // This is because grid lines may have an implicit -start or -end appended.
-  format!("{}_{}", hash, name)
 }
 
 pub(crate) fn hash(s: &str, at_start: bool) -> String {
