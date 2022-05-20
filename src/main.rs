@@ -59,7 +59,7 @@ pub fn main() -> Result<(), std::io::Error> {
   let filename = filename.to_str().unwrap();
   let options = ParserOptions {
     nesting: cli_args.nesting,
-    css_modules: cli_args.css_modules.is_some(),
+    css_modules: cli_args.css_modules.as_ref().map(|_| Default::default()),
     custom_media: cli_args.custom_media,
     ..ParserOptions::default()
   };
