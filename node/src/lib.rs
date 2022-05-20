@@ -178,10 +178,23 @@ struct Config {
   pub minify: Option<bool>,
   pub source_map: Option<bool>,
   pub drafts: Option<Drafts>,
-  pub css_modules: Option<bool>,
+  pub css_modules: Option<CssModulesOption>,
   pub analyze_dependencies: Option<bool>,
   pub pseudo_classes: Option<OwnedPseudoClasses>,
   pub unused_symbols: Option<HashSet<String>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum CssModulesOption {
+  Bool(bool),
+  Config(CssModulesConfig),
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CssModulesConfig {
+  pattern: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -192,7 +205,7 @@ struct BundleConfig {
   pub minify: Option<bool>,
   pub source_map: Option<bool>,
   pub drafts: Option<Drafts>,
-  pub css_modules: Option<bool>,
+  pub css_modules: Option<CssModulesOption>,
   pub analyze_dependencies: Option<bool>,
   pub pseudo_classes: Option<OwnedPseudoClasses>,
   pub unused_symbols: Option<HashSet<String>>,
@@ -237,7 +250,17 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
     ParserOptions {
       nesting: matches!(drafts, Some(d) if d.nesting),
       custom_media: matches!(drafts, Some(d) if d.custom_media),
-      css_modules: config.css_modules.unwrap_or(false),
+      css_modules: if let Some(css_modules) = &config.css_modules {
+        match css_modules {
+          CssModulesOption::Bool(true) => Some(parcel_css::css_modules::Config::default()),
+          CssModulesOption::Bool(false) => None,
+          CssModulesOption::Config(c) => Some(parcel_css::css_modules::Config {
+            pattern: parcel_css::css_modules::Pattern::parse(&c.pattern).unwrap(),
+          }),
+        }
+      } else {
+        None
+      },
       source_index: 0,
     },
   )?;
@@ -288,7 +311,17 @@ fn compile_bundle<'i>(fs: &'i FileProvider, config: &BundleConfig) -> Result<Tra
   let parser_options = ParserOptions {
     nesting: matches!(drafts, Some(d) if d.nesting),
     custom_media: matches!(drafts, Some(d) if d.custom_media),
-    css_modules: config.css_modules.unwrap_or(false),
+    css_modules: if let Some(css_modules) = &config.css_modules {
+      match css_modules {
+        CssModulesOption::Bool(true) => Some(parcel_css::css_modules::Config::default()),
+        CssModulesOption::Bool(false) => None,
+        CssModulesOption::Config(c) => Some(parcel_css::css_modules::Config {
+          pattern: parcel_css::css_modules::Pattern::parse(&c.pattern).unwrap(),
+        }),
+      }
+    } else {
+      None
+    },
     ..ParserOptions::default()
   };
 

@@ -4,7 +4,7 @@
 
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
-use crate::error::{ParserError, PrinterError};
+use crate::error::{Error, ErrorLocation, ParserError, PrinterError, PrinterErrorKind};
 use crate::macros::{define_shorthand, impl_shorthand};
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
@@ -374,9 +374,31 @@ where
     } else {
       dest.write_char(' ')?;
     }
-    name.to_css(dest)?;
+    write_ident(&name.0, dest)?;
   }
   dest.write_char(']')
+}
+
+fn write_ident<W>(name: &str, dest: &mut Printer<W>) -> Result<(), PrinterError>
+where
+  W: std::fmt::Write,
+{
+  if let Some(css_module) = &mut dest.css_module {
+    if let Some(last) = css_module.config.pattern.segments.last() {
+      if !matches!(last, crate::css_modules::Segment::Local) {
+        return Err(Error {
+          kind: PrinterErrorKind::InvalidCssModulesPatternInGrid,
+          loc: Some(ErrorLocation {
+            filename: dest.filename().into(),
+            line: dest.loc.line,
+            column: dest.loc.column,
+          }),
+        });
+      }
+    }
+  }
+  dest.write_ident(name)?;
+  Ok(())
 }
 
 impl<'i> Parse<'i> for TrackList<'i> {
@@ -663,7 +685,7 @@ impl GridTemplateAreas {
           if i > 0 && (!last_was_null || !dest.minify) {
             dest.write_char(' ')?;
           }
-          dest.write_ident(string)?;
+          write_ident(string, dest)?;
           last_was_null = false;
         } else {
           if i > 0 && (last_was_null || !dest.minify) {
@@ -1266,12 +1288,12 @@ impl ToCss for GridLine<'_> {
   {
     match self {
       GridLine::Auto => dest.write_str("auto"),
-      GridLine::Ident(id) => id.to_css(dest),
+      GridLine::Ident(id) => write_ident(&id.0, dest),
       GridLine::Line(line_number, id) => {
         line_number.to_css(dest)?;
         if let Some(id) = id {
           dest.write_char(' ')?;
-          id.to_css(dest)?;
+          write_ident(&id.0, dest)?;
         }
         Ok(())
       }
@@ -1285,7 +1307,7 @@ impl ToCss for GridLine<'_> {
         }
 
         if let Some(id) = id {
-          id.to_css(dest)?;
+          write_ident(&id.0, dest)?;
         }
         Ok(())
       }

@@ -37,26 +37,21 @@ let res = css.transform({
     opera: 10 << 16 | 5 << 8
   },
   code: Buffer.from(`
-  @import "foo.css";
-  @import "bar.css" print;
-  @import "baz.css" supports(display: grid);
-
   .foo {
-    composes: bar;
-    composes: baz from "baz.css";
     color: pink;
   }
 
   .bar {
     color: red;
-    background: url(test.jpg);
   }
 `),
   drafts: {
-    nesting: true
+    // nesting: true
   },
-  cssModules: true,
-  analyzeDependencies: true
+  cssModules: {
+    pattern: '[name]-[hash]-[local]'
+  },
+  // analyzeDependencies: true
 });
 
 console.log(res.code.toString());

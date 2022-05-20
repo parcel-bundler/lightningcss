@@ -197,14 +197,17 @@ impl<'i> CssRule<'i> {
   /// Parse a single rule.
   pub fn parse<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions,
+    options: &ParserOptions<'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let (_, rule) = parse_one_rule(input, &mut TopLevelRuleParser::new(&options))?;
     Ok(rule)
   }
 
   /// Parse a single rule from a string.
-  pub fn parse_string(input: &'i str, options: ParserOptions) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  pub fn parse_string(
+    input: &'i str,
+    options: ParserOptions<'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(input);
     let mut parser = Parser::new(&mut input);
     Self::parse(&mut parser, &options)
