@@ -3,6 +3,7 @@
 use crate::css_modules::CssModule;
 use crate::dependencies::Dependency;
 use crate::error::{Error, ErrorLocation, PrinterError, PrinterErrorKind};
+use crate::properties::css_modules::ComposesFrom;
 use crate::rules::Location;
 use crate::targets::Browsers;
 use crate::vendor_prefix::VendorPrefix;
@@ -223,8 +224,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
   /// as appropriate. If the `css_modules` option was enabled, then a hash
   /// is added, and the mapping is added to the CSS module.
   pub fn write_ident(&mut self, ident: &str) -> Result<(), PrinterError> {
-    let css_module = self.css_module.as_ref();
-    if let Some(css_module) = css_module {
+    if let Some(css_module) = &mut self.css_module {
       let dest = &mut self.dest;
       let mut first = true;
       css_module
@@ -239,12 +239,44 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
             serialize_name(s, dest)
           }
         })?;
+
+      css_module.add_local(&ident, &ident);
     } else {
       serialize_identifier(ident, self)?;
     }
 
-    if let Some(css_module) = &mut self.css_module {
-      css_module.add_local(&ident, &ident);
+    Ok(())
+  }
+
+  pub(crate) fn write_dashed_ident(
+    &mut self,
+    ident: &str,
+    from: Option<&Option<ComposesFrom>>,
+  ) -> Result<(), PrinterError> {
+    self.write_str("--")?;
+
+    match &mut self.css_module {
+      Some(css_module) if css_module.config.dashed_idents => {
+        if let Some(from) = from {
+          if let Some(name) = css_module.reference_dashed(ident, from) {
+            serialize_name(&name, self)?;
+            return Ok(());
+          }
+        }
+        let dest = &mut self.dest;
+        css_module
+          .config
+          .pattern
+          .write(&css_module.hash, &css_module.path, &ident[2..], |s| {
+            self.col += s.len() as u32;
+            serialize_name(s, dest)
+          })?;
+
+        css_module.add_dashed(ident);
+      }
+      _ => {
+        serialize_name(&ident[2..], self)?;
+      }
     }
 
     Ok(())

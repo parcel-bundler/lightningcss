@@ -555,7 +555,7 @@ macro_rules! define_properties {
               }
             },
           )+
-          PropertyId::Custom(name) => return Ok(Property::Custom(CustomProperty::parse(name, input)?)),
+          PropertyId::Custom(name) => return Ok(Property::Custom(CustomProperty::parse(name, input, options)?)),
           _ => {}
         };
 
@@ -564,7 +564,7 @@ macro_rules! define_properties {
         // and stored as an enum rather than a string. This lets property handlers more easily deal with it.
         // Ideally we'd only do this if var() or env() references were seen, but err on the safe side for now.
         input.reset(&state);
-        return Ok(Property::Unparsed(UnparsedProperty::parse(property_id, input)?))
+        return Ok(Property::Unparsed(UnparsedProperty::parse(property_id, input, options)?))
       }
 
       /// Returns the property id for this property.
@@ -661,7 +661,12 @@ macro_rules! define_properties {
           Unparsed(unparsed) => (unparsed.property_id.name(), unparsed.property_id.prefix()),
           Custom(custom) => {
             // Ensure custom property names are escaped.
-            serialize_name(custom.name.as_ref(), dest)?;
+            let name = custom.name.as_ref();
+            if name.starts_with("--") {
+              dest.write_dashed_ident(&name, None)?;
+            } else {
+              serialize_name(&name, dest)?;
+            }
             dest.delim(':', false)?;
             self.value_to_css(dest)?;
             write_important!();

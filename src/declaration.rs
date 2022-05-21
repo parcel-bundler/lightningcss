@@ -157,7 +157,7 @@ impl<'i> DeclarationBlock<'i> {
     &mut self,
     handler: &mut DeclarationHandler<'i>,
     important_handler: &mut DeclarationHandler<'i>,
-    context: &mut PropertyHandlerContext<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
   ) {
     macro_rules! handle {
       ($decls: expr, $handler: expr, $important: literal) => {
@@ -494,7 +494,17 @@ impl<'i> DeclarationHandler<'i> {
     }
   }
 
-  pub fn handle_property(&mut self, property: &Property<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
+  pub fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
+  ) -> bool {
+    if !context.unused_symbols.is_empty()
+      && matches!(property, Property::Custom(custom) if context.unused_symbols.contains(custom.name.as_ref()))
+    {
+      return true;
+    }
+
     self.background.handle_property(property, &mut self.decls, context)
       || self.border.handle_property(property, &mut self.decls, context)
       || self.outline.handle_property(property, &mut self.decls, context)
@@ -522,7 +532,7 @@ impl<'i> DeclarationHandler<'i> {
       || self.prefix.handle_property(property, &mut self.decls, context)
   }
 
-  pub fn finalize(&mut self, context: &mut PropertyHandlerContext<'i>) {
+  pub fn finalize(&mut self, context: &mut PropertyHandlerContext<'i, '_>) {
     self.background.finalize(&mut self.decls, context);
     self.border.finalize(&mut self.decls, context);
     self.outline.finalize(&mut self.decls, context);

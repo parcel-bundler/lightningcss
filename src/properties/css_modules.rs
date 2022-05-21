@@ -52,12 +52,7 @@ impl<'i> Parse<'i> for Composes<'i> {
     }
 
     let from = if input.try_parse(|input| input.expect_ident_matching("from")).is_ok() {
-      if let Ok(file) = input.try_parse(|input| input.expect_string_cloned()) {
-        Some(ComposesFrom::File(file.into()))
-      } else {
-        input.expect_ident_matching("global")?;
-        Some(ComposesFrom::Global)
-      }
+      Some(ComposesFrom::parse(input)?)
     } else {
       None
     };
@@ -98,12 +93,33 @@ impl ToCss for Composes<'_> {
 
     if let Some(from) = &self.from {
       dest.write_str(" from ")?;
-      match from {
-        ComposesFrom::Global => dest.write_str("global")?,
-        ComposesFrom::File(file) => serialize_string(&file, dest)?,
-      }
+      from.to_css(dest)?;
     }
 
+    Ok(())
+  }
+}
+
+impl<'i> Parse<'i> for ComposesFrom<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if let Ok(file) = input.try_parse(|input| input.expect_string_cloned()) {
+      Ok(ComposesFrom::File(file.into()))
+    } else {
+      input.expect_ident_matching("global")?;
+      Ok(ComposesFrom::Global)
+    }
+  }
+}
+
+impl<'i> ToCss for ComposesFrom<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      ComposesFrom::Global => dest.write_str("global")?,
+      ComposesFrom::File(file) => serialize_string(&file, dest)?,
+    }
     Ok(())
   }
 }

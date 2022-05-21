@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::compat::Feature;
 use crate::declaration::DeclarationBlock;
 use crate::properties::custom::UnparsedProperty;
@@ -25,17 +27,18 @@ pub(crate) enum DeclarationContext {
 }
 
 #[derive(Debug)]
-pub(crate) struct PropertyHandlerContext<'i> {
+pub(crate) struct PropertyHandlerContext<'i, 'o> {
   pub targets: Option<Browsers>,
   pub is_important: bool,
   supports: Vec<SupportsEntry<'i>>,
   ltr: Vec<Property<'i>>,
   rtl: Vec<Property<'i>>,
   pub context: DeclarationContext,
+  pub unused_symbols: &'o HashSet<String>,
 }
 
-impl<'i> PropertyHandlerContext<'i> {
-  pub fn new(targets: Option<Browsers>) -> Self {
+impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
+  pub fn new(targets: Option<Browsers>, unused_symbols: &'o HashSet<String>) -> Self {
     PropertyHandlerContext {
       targets,
       is_important: false,
@@ -43,6 +46,7 @@ impl<'i> PropertyHandlerContext<'i> {
       ltr: Vec::new(),
       rtl: Vec::new(),
       context: DeclarationContext::None,
+      unused_symbols,
     }
   }
 

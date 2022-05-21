@@ -63,9 +63,9 @@ pub(crate) trait PropertyHandler<'i>: Sized {
     &mut self,
     property: &Property<'i>,
     dest: &mut DeclarationList<'i>,
-    context: &mut PropertyHandlerContext<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool;
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>);
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>);
 }
 
 pub(crate) mod private {

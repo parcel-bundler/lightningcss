@@ -1,4 +1,4 @@
-import type {Targets} from './targets';
+import type { Targets } from './targets';
 
 export interface TransformOptions {
   /** The filename being transformed. Used for error messages and source maps. */
@@ -14,7 +14,7 @@ export interface TransformOptions {
   /** Whether to enable various draft syntax. */
   drafts?: Drafts,
   /** Whether to compile this file as a CSS module. */
-  cssModules?: boolean,
+  cssModules?: boolean | CSSModulesConfig,
   /**
    * Whether to analyze dependencies (e.g. `@import` and `url()`).
    * When enabled, `@import` rules are removed, and `url()` dependencies
@@ -61,6 +61,13 @@ export interface TransformResult {
   exports: CSSModuleExports | void,
   /** `@import` and `url()` dependencies, if enabled. */
   dependencies: Dependency[] | void
+}
+
+export interface CSSModulesConfig {
+  /** The pattern to use when renaming class names and other identifiers. Default is `[hash]_[local]`. */
+  pattern: string,
+  /** Whether to rename dashed identifiers, e.g. custom properties. */
+  dashedIdents: boolean
 }
 
 export type CSSModuleExports = {
@@ -158,14 +165,14 @@ export interface TransformAttributeOptions {
    * that can be replaced with the final urls later (after bundling).
    * Dependencies are returned as part of the result.
    */
-   analyzeDependencies?: boolean
+  analyzeDependencies?: boolean
 }
 
 export interface TransformAttributeResult {
   /** The transformed code. */
   code: Buffer,
   /** `@import` and `url()` dependencies, if enabled. */
-  dependencies: Dependency[] | void  
+  dependencies: Dependency[] | void
 }
 
 /**

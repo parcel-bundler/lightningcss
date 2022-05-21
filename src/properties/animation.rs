@@ -295,7 +295,7 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
     &mut self,
     property: &Property<'i>,
     dest: &mut DeclarationList<'i>,
-    _: &mut PropertyHandlerContext<'i>,
+    _: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
     use Property::*;
 
@@ -379,7 +379,7 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i, '_>) {
     self.flush(dest);
   }
 }

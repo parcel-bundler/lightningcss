@@ -5,14 +5,18 @@ use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::PropertyId;
 use crate::rules::supports::SupportsCondition;
+use crate::stylesheet::ParserOptions;
 use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
 use crate::values::color::{ColorFallbackKind, CssColor};
+use crate::values::ident::DashedIdent;
 use crate::values::length::serialize_dimension;
 use crate::values::string::CowArcStr;
 use crate::values::url::Url;
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
+
+use super::css_modules::ComposesFrom;
 
 /// A CSS custom property, representing any unknown property.
 #[derive(Debug, Clone, PartialEq)]
@@ -30,8 +34,9 @@ impl<'i> CustomProperty<'i> {
   pub fn parse<'t>(
     name: CowArcStr<'i>,
     input: &mut Parser<'i, 't>,
+    options: &ParserOptions,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let value = TokenList::parse(input)?;
+    let value = TokenList::parse(input, options)?;
     Ok(CustomProperty { name, value })
   }
 }
@@ -56,8 +61,9 @@ impl<'i> UnparsedProperty<'i> {
   pub fn parse<'t>(
     property_id: PropertyId<'i>,
     input: &mut Parser<'i, 't>,
+    options: &ParserOptions,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let value = TokenList::parse(input)?;
+    let value = TokenList::parse(input, options)?;
     Ok(UnparsedProperty { property_id, value })
   }
 
@@ -100,6 +106,8 @@ pub enum TokenOrValue<'i> {
   Color(CssColor),
   /// A parsed CSS url.
   Url(Url<'i>),
+  /// A CSS variable reference.
+  Var(Variable<'i>),
 }
 
 impl<'i> From<Token<'i>> for TokenOrValue<'i> {
@@ -116,10 +124,13 @@ impl<'i> TokenOrValue<'i> {
 }
 
 impl<'i> TokenList<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  fn parse<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.parse_until_before(Delimiter::Bang | Delimiter::Semicolon, |input| {
       let mut tokens = vec![];
-      TokenList::parse_into(input, &mut tokens)?;
+      TokenList::parse_into(input, &mut tokens, options)?;
 
       // Slice off leading and trailing whitespace if there are at least two tokens.
       // If there is only one token, we must preserve it. e.g. `--foo: ;` is valid.
@@ -141,6 +152,7 @@ impl<'i> TokenList<'i> {
   fn parse_into<'t>(
     input: &mut Parser<'i, 't>,
     tokens: &mut Vec<TokenOrValue<'i>>,
+    options: &ParserOptions,
   ) -> Result<(), ParseError<'i, ParserError<'i>>> {
     let mut last_is_delim = false;
     let mut last_is_whitespace = false;
@@ -167,9 +179,17 @@ impl<'i> TokenList<'i> {
             tokens.push(TokenOrValue::Url(Url::parse(input)?));
             last_is_delim = false;
             last_is_whitespace = false;
+          } else if f == "var" {
+            let var = input.parse_nested_block(|input| {
+              let var = Variable::parse(input, options)?;
+              Ok(TokenOrValue::Var(var))
+            })?;
+            tokens.push(var);
+            last_is_delim = true;
+            last_is_whitespace = false;
           } else {
             tokens.push(Token::Function(f).into());
-            input.parse_nested_block(|input| TokenList::parse_into(input, tokens))?;
+            input.parse_nested_block(|input| TokenList::parse_into(input, tokens, options))?;
             tokens.push(Token::CloseParenthesis.into());
             last_is_delim = true; // Whitespace is not required after any of these chars.
             last_is_whitespace = false;
@@ -201,7 +221,7 @@ impl<'i> TokenList<'i> {
             _ => unreachable!(),
           };
 
-          input.parse_nested_block(|input| TokenList::parse_into(input, tokens))?;
+          input.parse_nested_block(|input| TokenList::parse_into(input, tokens, options))?;
 
           tokens.push(closing_delimiter.into());
           last_is_delim = true; // Whitespace is not required after any of these chars.
@@ -277,6 +297,16 @@ impl<'i> TokenList<'i> {
           }
           url.to_css(dest)?;
           false
+        }
+        TokenOrValue::Var(var) => {
+          var.to_css(dest, is_custom_property)?;
+          if !dest.minify && i != self.0.len() - 1 && !matches!(self.0[i + 1], TokenOrValue::Token(Token::Comma)) {
+            // Whitespace is removed during parsing, so add it back if we aren't minifying.
+            dest.write_char(' ')?;
+            true
+          } else {
+            false
+          }
         }
         TokenOrValue::Token(token) => {
           match token {
@@ -692,5 +722,60 @@ impl<'i> TokenList<'i> {
     }
 
     res
+  }
+}
+
+/// A CSS variable reference.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Variable<'i> {
+  /// The variable name.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  pub name: DashedIdent<'i>,
+  /// CSS modules extension: the filename where the variable is defined.
+  /// Only enabled when the CSS modules `dashed_idents` option is turned on.
+  pub from: Option<ComposesFrom<'i>>,
+  /// A fallback value in case the variable is not defined.
+  pub fallback: Option<TokenList<'i>>,
+}
+
+impl<'i> Variable<'i> {
+  fn parse<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let name = DashedIdent::parse(input)?;
+
+    let from = match &options.css_modules {
+      Some(config) if config.dashed_idents => {
+        if input.try_parse(|input| input.expect_ident_matching("from")).is_ok() {
+          Some(ComposesFrom::parse(input)?)
+        } else {
+          None
+        }
+      }
+      _ => None,
+    };
+
+    let fallback = if input.try_parse(|input| input.expect_comma()).is_ok() {
+      Some(TokenList::parse(input, options)?)
+    } else {
+      None
+    };
+
+    Ok(Variable { name, from, fallback })
+  }
+
+  fn to_css<W>(&self, dest: &mut Printer<W>, is_custom_property: bool) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    dest.write_str("var(")?;
+    dest.write_dashed_ident(&self.name.0, Some(&self.from))?;
+    if let Some(fallback) = &self.fallback {
+      dest.delim(',', false)?;
+      fallback.to_css(dest, is_custom_property)?;
+    }
+    dest.write_char(')')
   }
 }

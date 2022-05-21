@@ -560,7 +560,7 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
     &mut self,
     property: &Property<'i>,
     dest: &mut DeclarationList<'i>,
-    context: &mut PropertyHandlerContext<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
     macro_rules! maybe_flush {
       ($prop: ident, $val: expr, $vp: expr) => {{
@@ -704,7 +704,7 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
     if !self.has_any {
       return;
     }
@@ -717,7 +717,7 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
 }
 
 impl<'i> MaskHandler<'i> {
-  fn flush_mask(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
+  fn flush_mask(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
     let mut images = std::mem::take(&mut self.images);
     let mut positions = std::mem::take(&mut self.positions);
     let mut sizes = std::mem::take(&mut self.sizes);
@@ -963,7 +963,7 @@ impl<'i> MaskHandler<'i> {
     }
   }
 
-  fn flush_mask_border(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
+  fn flush_mask_border(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
     let mut source = std::mem::take(&mut self.border_source);
     let mut slice = std::mem::take(&mut self.border_slice);
     let mut width = std::mem::take(&mut self.border_width);

@@ -70,6 +70,6 @@ impl<'i> ToCss for DashedIdent<'i> {
   where
     W: std::fmt::Write,
   {
-    dest.write_ident(&self.0)
+    dest.write_dashed_ident(&self.0, None)
   }
 }

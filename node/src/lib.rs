@@ -3,7 +3,7 @@
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 use parcel_css::bundler::{BundleErrorKind, Bundler, FileProvider, SourceProvider};
-use parcel_css::css_modules::CssModuleExports;
+use parcel_css::css_modules::{CssModuleExports, CssModuleReferences};
 use parcel_css::dependencies::Dependency;
 use parcel_css::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterErrorKind};
 use parcel_css::stylesheet::{
@@ -67,6 +67,7 @@ struct TransformResult {
   #[serde(with = "serde_bytes")]
   map: Option<Vec<u8>>,
   exports: Option<CssModuleExports>,
+  references: Option<CssModuleReferences>,
   dependencies: Option<Vec<Dependency>>,
 }
 
@@ -88,6 +89,7 @@ impl TransformResult {
       },
     )?;
     obj.set_named_property("exports", ctx.env.to_js_value(&self.exports)?)?;
+    obj.set_named_property("references", ctx.env.to_js_value(&self.references)?)?;
     obj.set_named_property("dependencies", ctx.env.to_js_value(&self.dependencies)?)?;
     Ok(obj.into_unknown())
   }
@@ -194,7 +196,9 @@ enum CssModulesOption {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CssModulesConfig {
-  pattern: String,
+  pattern: Option<String>,
+  #[serde(default)]
+  dashed_idents: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -255,7 +259,10 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
           CssModulesOption::Bool(true) => Some(parcel_css::css_modules::Config::default()),
           CssModulesOption::Bool(false) => None,
           CssModulesOption::Config(c) => Some(parcel_css::css_modules::Config {
-            pattern: parcel_css::css_modules::Pattern::parse(&c.pattern).unwrap(),
+            pattern: c.pattern.as_ref().map_or(Default::default(), |pattern| {
+              parcel_css::css_modules::Pattern::parse(pattern).unwrap()
+            }),
+            dashed_idents: c.dashed_idents,
           }),
         }
       } else {
@@ -296,6 +303,7 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
     code: res.code.into_bytes(),
     map,
     exports: res.exports,
+    references: res.references,
     dependencies: res.dependencies,
   })
 }
@@ -316,7 +324,10 @@ fn compile_bundle<'i>(fs: &'i FileProvider, config: &BundleConfig) -> Result<Tra
         CssModulesOption::Bool(true) => Some(parcel_css::css_modules::Config::default()),
         CssModulesOption::Bool(false) => None,
         CssModulesOption::Config(c) => Some(parcel_css::css_modules::Config {
-          pattern: parcel_css::css_modules::Pattern::parse(&c.pattern).unwrap(),
+          pattern: c.pattern.as_ref().map_or(Default::default(), |pattern| {
+            parcel_css::css_modules::Pattern::parse(pattern).unwrap()
+          }),
+          dashed_idents: c.dashed_idents,
         }),
       }
     } else {
@@ -351,6 +362,7 @@ fn compile_bundle<'i>(fs: &'i FileProvider, config: &BundleConfig) -> Result<Tra
     code: res.code.into_bytes(),
     map,
     exports: res.exports,
+    references: res.references,
     dependencies: res.dependencies,
   })
 }
