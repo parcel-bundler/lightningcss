@@ -9,7 +9,7 @@
 //! will be updated accordingly. A map of the original names to compiled (hashed) names will be returned.
 
 use crate::error::PrinterErrorKind;
-use crate::properties::css_modules::{Composes, ComposesFrom};
+use crate::properties::css_modules::{Composes, Specifier};
 use crate::selector::Selectors;
 use data_encoding::{Encoding, Specification};
 use lazy_static::lazy_static;
@@ -247,10 +247,10 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
     }
   }
 
-  pub fn reference_dashed(&mut self, name: &str, from: &Option<ComposesFrom>) -> Option<String> {
+  pub fn reference_dashed(&mut self, name: &str, from: &Option<Specifier>) -> Option<String> {
     let (reference, key) = match from {
-      Some(ComposesFrom::Global) => return Some(name[2..].into()),
-      Some(ComposesFrom::File(file)) => (
+      Some(Specifier::Global) => return Some(name[2..].into()),
+      Some(Specifier::File(file)) => (
         CssModuleReference::Dependency {
           name: name.to_string(),
           specifier: file.to_string(),
@@ -304,10 +304,10 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
                     .write_to_string(String::new(), &self.hash, &self.path, name.0.as_ref())
                     .unwrap(),
                 },
-                Some(ComposesFrom::Global) => CssModuleReference::Global {
+                Some(Specifier::Global) => CssModuleReference::Global {
                   name: name.0.as_ref().into(),
                 },
-                Some(ComposesFrom::File(file)) => CssModuleReference::Dependency {
+                Some(Specifier::File(file)) => CssModuleReference::Dependency {
                   name: name.0.to_string(),
                   specifier: file.to_string(),
                 },

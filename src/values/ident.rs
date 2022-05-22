@@ -2,7 +2,7 @@
 
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
-use crate::properties::css_modules::ComposesFrom;
+use crate::properties::css_modules::Specifier;
 use crate::traits::{Parse, ParseWithOptions, ToCss};
 use crate::values::string::CowArcStr;
 use cssparser::*;
@@ -90,7 +90,7 @@ pub struct DashedIdentReference<'i> {
   pub ident: DashedIdent<'i>,
   /// CSS modules extension: the filename where the variable is defined.
   /// Only enabled when the CSS modules `dashed_idents` option is turned on.
-  pub from: Option<ComposesFrom<'i>>,
+  pub from: Option<Specifier<'i>>,
 }
 
 impl<'i> ParseWithOptions<'i> for DashedIdentReference<'i> {
@@ -103,7 +103,7 @@ impl<'i> ParseWithOptions<'i> for DashedIdentReference<'i> {
     let from = match &options.css_modules {
       Some(config) if config.dashed_idents => {
         if input.try_parse(|input| input.expect_ident_matching("from")).is_ok() {
-          Some(ComposesFrom::parse(input)?)
+          Some(Specifier::parse(input)?)
         } else {
           None
         }

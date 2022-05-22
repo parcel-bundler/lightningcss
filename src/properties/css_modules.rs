@@ -17,7 +17,7 @@ pub struct Composes<'i> {
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub names: CustomIdentList<'i>,
   /// Where the class names are composed from.
-  pub from: Option<ComposesFrom<'i>>,
+  pub from: Option<Specifier<'i>>,
   /// The source location of the `composes` property.
   pub loc: Location,
 }
@@ -31,10 +31,10 @@ pub struct Composes<'i> {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
-pub enum ComposesFrom<'i> {
-  /// The class name is global.
+pub enum Specifier<'i> {
+  /// The referenced name is global.
   Global,
-  /// The class name comes from the specified file.
+  /// The referenced name comes from the specified file.
   #[cfg_attr(feature = "serde", serde(borrow))]
   File(CowArcStr<'i>),
 }
@@ -52,7 +52,7 @@ impl<'i> Parse<'i> for Composes<'i> {
     }
 
     let from = if input.try_parse(|input| input.expect_ident_matching("from")).is_ok() {
-      Some(ComposesFrom::parse(input)?)
+      Some(Specifier::parse(input)?)
     } else {
       None
     };
@@ -100,25 +100,25 @@ impl ToCss for Composes<'_> {
   }
 }
 
-impl<'i> Parse<'i> for ComposesFrom<'i> {
+impl<'i> Parse<'i> for Specifier<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(file) = input.try_parse(|input| input.expect_string_cloned()) {
-      Ok(ComposesFrom::File(file.into()))
+      Ok(Specifier::File(file.into()))
     } else {
       input.expect_ident_matching("global")?;
-      Ok(ComposesFrom::Global)
+      Ok(Specifier::Global)
     }
   }
 }
 
-impl<'i> ToCss for ComposesFrom<'i> {
+impl<'i> ToCss for Specifier<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
   {
     match self {
-      ComposesFrom::Global => dest.write_str("global")?,
-      ComposesFrom::File(file) => serialize_string(&file, dest)?,
+      Specifier::Global => dest.write_str("global")?,
+      Specifier::File(file) => serialize_string(&file, dest)?,
     }
     Ok(())
   }
