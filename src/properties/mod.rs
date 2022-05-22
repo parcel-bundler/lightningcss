@@ -127,12 +127,12 @@ use crate::parser::ParserOptions;
 use crate::prefixes::Feature;
 use crate::printer::{Printer, PrinterOptions};
 use crate::targets::Browsers;
-use crate::traits::{Parse, Shorthand, ToCss};
+use crate::traits::{Parse, ParseWithOptions, Shorthand, ToCss};
 use crate::values::number::{CSSInteger, CSSNumber};
 use crate::values::string::CowArcStr;
 use crate::values::{
-  alpha::*, color::*, easing::EasingFunction, ident::DashedIdent, image::*, length::*, position::*, rect::*,
-  shape::FillRule, size::Size2D, time::Time,
+  alpha::*, color::*, easing::EasingFunction, ident::DashedIdentReference, image::*, length::*, position::*,
+  rect::*, shape::FillRule, size::Size2D, time::Time,
 };
 use crate::vendor_prefix::VendorPrefix;
 use align::*;
@@ -168,7 +168,7 @@ macro_rules! define_properties {
   (
     $(
       $(#[$meta: meta])*
-      $name: literal: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: ident )* $( unprefixed: $unprefixed: literal )? $( shorthand: $shorthand: literal )? $( [ logical_group: $logical_group: ident, category: $logical_category: ident ] )? $( if $condition: ident )?,
+      $name: literal: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: ident )* $( unprefixed: $unprefixed: literal )? $( options: $options: literal )? $( shorthand: $shorthand: literal )? $( [ logical_group: $logical_group: ident, category: $logical_category: ident ] )? $( if $condition: ident )?,
     )+
   ) => {
     /// A CSS property id.
@@ -548,7 +548,7 @@ macro_rules! define_properties {
           $(
             $(#[$meta])*
             PropertyId::$property$((vp_name!($vp, prefix)))? $(if options.$condition.is_some())? => {
-              if let Ok(c) = <$type>::parse(input) {
+              if let Ok(c) = <$type>::parse_with_options(input, options) {
                 if input.expect_exhausted().is_ok() {
                   return Ok(Property::$property(c $(, vp_name!($vp, prefix))?))
                 }
@@ -663,7 +663,7 @@ macro_rules! define_properties {
             // Ensure custom property names are escaped.
             let name = custom.name.as_ref();
             if name.starts_with("--") {
-              dest.write_dashed_ident(&name, None)?;
+              dest.write_dashed_ident(&name, true)?;
             } else {
               serialize_name(&name, dest)?;
             }
@@ -1010,7 +1010,7 @@ define_properties! {
   "line-height": LineHeight(LineHeight),
   "font": Font(Font<'i>) shorthand: true,
   "vertical-align": VerticalAlign(VerticalAlign),
-  "font-palette": FontPalette(DashedIdent<'i>),
+  "font-palette": FontPalette(DashedIdentReference<'i>),
 
   "transition-property": TransitionProperty(SmallVec<[PropertyId<'i>; 1]>, VendorPrefix) / WebKit / Moz / Ms,
   "transition-duration": TransitionDuration(SmallVec<[Time; 1]>, VendorPrefix) / WebKit / Moz / Ms,

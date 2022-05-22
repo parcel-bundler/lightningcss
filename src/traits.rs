@@ -5,7 +5,7 @@ use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
-use crate::stylesheet::PrinterOptions;
+use crate::stylesheet::{ParserOptions, PrinterOptions};
 use crate::targets::Browsers;
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
@@ -24,6 +24,23 @@ pub trait Parse<'i>: Sized {
     let result = Self::parse(&mut parser)?;
     parser.expect_exhausted()?;
     Ok(result)
+  }
+}
+
+pub(crate) trait ParseWithOptions<'i>: Sized {
+  fn parse_with_options<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>>;
+}
+
+impl<'i, T: Parse<'i>> ParseWithOptions<'i> for T {
+  #[inline]
+  fn parse_with_options<'t>(
+    input: &mut Parser<'i, 't>,
+    _options: &ParserOptions,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    T::parse(input)
   }
 }
 

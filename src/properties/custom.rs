@@ -7,16 +7,14 @@ use crate::properties::PropertyId;
 use crate::rules::supports::SupportsCondition;
 use crate::stylesheet::ParserOptions;
 use crate::targets::Browsers;
-use crate::traits::{Parse, ToCss};
+use crate::traits::{Parse, ParseWithOptions, ToCss};
 use crate::values::color::{ColorFallbackKind, CssColor};
-use crate::values::ident::DashedIdent;
+use crate::values::ident::DashedIdentReference;
 use crate::values::length::serialize_dimension;
 use crate::values::string::CowArcStr;
 use crate::values::url::Url;
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
-
-use super::css_modules::ComposesFrom;
 
 /// A CSS custom property, representing any unknown property.
 #[derive(Debug, Clone, PartialEq)]
@@ -731,10 +729,7 @@ impl<'i> TokenList<'i> {
 pub struct Variable<'i> {
   /// The variable name.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  pub name: DashedIdent<'i>,
-  /// CSS modules extension: the filename where the variable is defined.
-  /// Only enabled when the CSS modules `dashed_idents` option is turned on.
-  pub from: Option<ComposesFrom<'i>>,
+  pub name: DashedIdentReference<'i>,
   /// A fallback value in case the variable is not defined.
   pub fallback: Option<TokenList<'i>>,
 }
@@ -744,18 +739,7 @@ impl<'i> Variable<'i> {
     input: &mut Parser<'i, 't>,
     options: &ParserOptions,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let name = DashedIdent::parse(input)?;
-
-    let from = match &options.css_modules {
-      Some(config) if config.dashed_idents => {
-        if input.try_parse(|input| input.expect_ident_matching("from")).is_ok() {
-          Some(ComposesFrom::parse(input)?)
-        } else {
-          None
-        }
-      }
-      _ => None,
-    };
+    let name = DashedIdentReference::parse_with_options(input, options)?;
 
     let fallback = if input.try_parse(|input| input.expect_comma()).is_ok() {
       Some(TokenList::parse(input, options)?)
@@ -763,7 +747,7 @@ impl<'i> Variable<'i> {
       None
     };
 
-    Ok(Variable { name, from, fallback })
+    Ok(Variable { name, fallback })
   }
 
   fn to_css<W>(&self, dest: &mut Printer<W>, is_custom_property: bool) -> Result<(), PrinterError>
@@ -771,7 +755,7 @@ impl<'i> Variable<'i> {
     W: std::fmt::Write,
   {
     dest.write_str("var(")?;
-    dest.write_dashed_ident(&self.name.0, Some(&self.from))?;
+    self.name.to_css(dest)?;
     if let Some(fallback) = &self.fallback {
       dest.delim(',', false)?;
       fallback.to_css(dest, is_custom_property)?;

@@ -3,7 +3,6 @@
 use crate::css_modules::CssModule;
 use crate::dependencies::Dependency;
 use crate::error::{Error, ErrorLocation, PrinterError, PrinterErrorKind};
-use crate::properties::css_modules::ComposesFrom;
 use crate::rules::Location;
 use crate::targets::Browsers;
 use crate::vendor_prefix::VendorPrefix;
@@ -248,21 +247,11 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
     Ok(())
   }
 
-  pub(crate) fn write_dashed_ident(
-    &mut self,
-    ident: &str,
-    from: Option<&Option<ComposesFrom>>,
-  ) -> Result<(), PrinterError> {
+  pub(crate) fn write_dashed_ident(&mut self, ident: &str, is_declaration: bool) -> Result<(), PrinterError> {
     self.write_str("--")?;
 
     match &mut self.css_module {
       Some(css_module) if css_module.config.dashed_idents => {
-        if let Some(from) = from {
-          if let Some(name) = css_module.reference_dashed(ident, from) {
-            serialize_name(&name, self)?;
-            return Ok(());
-          }
-        }
         let dest = &mut self.dest;
         css_module
           .config
@@ -272,7 +261,9 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
             serialize_name(s, dest)
           })?;
 
-        css_module.add_dashed(ident);
+        if is_declaration {
+          css_module.add_dashed(ident);
+        }
       }
       _ => {
         serialize_name(&ident[2..], self)?;

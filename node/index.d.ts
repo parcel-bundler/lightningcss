@@ -59,6 +59,8 @@ export interface TransformResult {
   map: Buffer | void,
   /** CSS module exports, if enabled. */
   exports: CSSModuleExports | void,
+  /** CSS module references, if `dashedIdents` is enabled. */
+  references: CSSModuleReferences,
   /** `@import` and `url()` dependencies, if enabled. */
   dependencies: Dependency[] | void
 }
@@ -83,6 +85,11 @@ export interface CSSModuleExport {
   /** Other names that are composed by this export. */
   composes: CSSModuleReference[]
 }
+
+export type CSSModuleReferences = {
+  /** Maps placeholder names to references. */
+  [name: string]: DependencyCSSModuleReference,
+};
 
 export type CSSModuleReference = LocalCSSModuleReference | GlobalCSSModuleReference | DependencyCSSModuleReference;
 

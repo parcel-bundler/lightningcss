@@ -249,7 +249,7 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
 
   pub fn reference_dashed(&mut self, name: &str, from: &Option<ComposesFrom>) -> Option<String> {
     let (reference, key) = match from {
-      Some(ComposesFrom::Global) => (CssModuleReference::Global { name: name.into() }, "global"),
+      Some(ComposesFrom::Global) => return Some(name[2..].into()),
       Some(ComposesFrom::File(file)) => (
         CssModuleReference::Dependency {
           name: name.to_string(),

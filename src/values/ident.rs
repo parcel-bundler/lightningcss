@@ -2,7 +2,8 @@
 
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
-use crate::traits::{Parse, ToCss};
+use crate::properties::css_modules::ComposesFrom;
+use crate::traits::{Parse, ParseWithOptions, ToCss};
 use crate::values::string::CowArcStr;
 use cssparser::*;
 use smallvec::SmallVec;
@@ -45,7 +46,7 @@ impl<'i> ToCss for CustomIdent<'i> {
 /// A list of CSS [`<custom-ident>`](https://www.w3.org/TR/css-values-4/#custom-idents) values.
 pub type CustomIdentList<'i> = SmallVec<[CustomIdent<'i>; 1]>;
 
-/// A CSS [`<dashed-ident>`](https://www.w3.org/TR/css-values-4/#dashed-idents).
+/// A CSS [`<dashed-ident>`](https://www.w3.org/TR/css-values-4/#dashed-idents) declaration.
 ///
 /// Dashed idents are used in cases where an identifier can be either author defined _or_ CSS-defined.
 /// Author defined idents must start with two dash characters ("--") or parsing will fail.
@@ -70,6 +71,66 @@ impl<'i> ToCss for DashedIdent<'i> {
   where
     W: std::fmt::Write,
   {
-    dest.write_dashed_ident(&self.0, None)
+    dest.write_dashed_ident(&self.0, true)
+  }
+}
+
+/// A CSS [`<dashed-ident>`](https://www.w3.org/TR/css-values-4/#dashed-idents) reference.
+///
+/// Dashed idents are used in cases where an identifier can be either author defined _or_ CSS-defined.
+/// Author defined idents must start with two dash characters ("--") or parsing will fail.
+///
+/// In CSS modules, when the `dashed_idents` option is enabled, the identifier may be followed by the
+/// `from` keyword and an argument indicating where the referenced identifier is declared (e.g. a filename).
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DashedIdentReference<'i> {
+  /// The referenced identifier.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  pub ident: DashedIdent<'i>,
+  /// CSS modules extension: the filename where the variable is defined.
+  /// Only enabled when the CSS modules `dashed_idents` option is turned on.
+  pub from: Option<ComposesFrom<'i>>,
+}
+
+impl<'i> ParseWithOptions<'i> for DashedIdentReference<'i> {
+  fn parse_with_options<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &crate::stylesheet::ParserOptions,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let ident = DashedIdent::parse(input)?;
+
+    let from = match &options.css_modules {
+      Some(config) if config.dashed_idents => {
+        if input.try_parse(|input| input.expect_ident_matching("from")).is_ok() {
+          Some(ComposesFrom::parse(input)?)
+        } else {
+          None
+        }
+      }
+      _ => None,
+    };
+
+    Ok(DashedIdentReference { ident, from })
+  }
+}
+
+impl<'i> ToCss for DashedIdentReference<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match &mut dest.css_module {
+      Some(css_module) if css_module.config.dashed_idents => {
+        if let Some(name) = css_module.reference_dashed(&self.ident.0, &self.from) {
+          dest.write_str("--")?;
+          serialize_name(&name, dest)?;
+          return Ok(());
+        }
+      }
+      _ => {}
+    }
+
+    dest.write_dashed_ident(&self.ident.0, false)
   }
 }

@@ -16212,9 +16212,17 @@ mod tests {
         initial-value: yellow;
       }
 
+      @font-palette-values --Cooler {
+        font-family: Bixa;
+        base-palette: 1;
+        override-colors: 1 #7EB7E4;
+      }
+
       .foo {
         --foo: red;
+        --bar: green;
         color: var(--foo);
+        font-palette: --Cooler;
       }
 
       .bar {
@@ -16228,9 +16236,17 @@ mod tests {
         initial-value: #ff0;
       }
 
+      @font-palette-values --EgL3uq_Cooler {
+        font-family: Bixa;
+        base-palette: 1;
+        override-colors: 1 #7eb7e4;
+      }
+
       .EgL3uq_foo {
         --EgL3uq_foo: red;
+        --EgL3uq_bar: green;
         color: var(--EgL3uq_foo);
+        font-palette: --EgL3uq_Cooler;
       }
 
       .EgL3uq_bar {
@@ -16240,7 +16256,9 @@ mod tests {
       map! {
         "foo" => "EgL3uq_foo",
         "--foo" => "--EgL3uq_foo" referenced: true,
-        "bar" => "EgL3uq_bar"
+        "--bar" => "--EgL3uq_bar",
+        "bar" => "EgL3uq_bar",
+        "--Cooler" => "--EgL3uq_Cooler" referenced: true
       },
       HashMap::from([(
         "--ma1CsG".into(),
