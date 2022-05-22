@@ -16533,6 +16533,12 @@ mod tests {
         initial-value: #ff0;
       }
 
+      @font-palette-values --EgL3uq_Cooler {
+        font-family: Bixa;
+        base-palette: 1;
+        override-colors: 1 #7EB7E4;
+      }
+
       .EgL3uq_foo {
         --EgL3uq_foo: red;
       }
@@ -16559,7 +16565,10 @@ mod tests {
     .unwrap();
     stylesheet
       .minify(MinifyOptions {
-        unused_symbols: vec!["--EgL3uq_foo"].iter().map(|s| String::from(*s)).collect(),
+        unused_symbols: vec!["--EgL3uq_foo", "--EgL3uq_Cooler"]
+          .iter()
+          .map(|s| String::from(*s))
+          .collect(),
         ..MinifyOptions::default()
       })
       .unwrap();

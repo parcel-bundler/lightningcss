@@ -391,6 +391,10 @@ impl<'i> CssRuleList<'i> {
           }
         }
         CssRule::FontPaletteValues(f) => {
+          if context.unused_symbols.contains(f.name.0.as_ref()) {
+            continue;
+          }
+
           f.minify(context, parent_is_unused);
 
           if let Some(targets) = context.targets {
