@@ -168,7 +168,8 @@ let cssFeatures = [
   'css-rrggbbaa',
   'css-nesting',
   'css-not-sel-list',
-  'css-has'
+  'css-has',
+  'font-family-system-ui'
 ];
 
 let compat = new Map();
@@ -315,11 +316,12 @@ use serde::{Deserialize, Serialize};
 /// use parcel_css::targets::Browsers;
 ///
 /// let targets = Browsers {
-///   safari: (13 << 16) | (2 << 8),
+///   safari: Some((13 << 16) | (2 << 8)),
 ///   ..Browsers::default()
 /// };
 /// \`\`\`
 #[derive(Serialize, Debug, Deserialize, Clone, Copy, Default)]
+#[allow(missing_docs)]
 pub struct Browsers {
   pub ${allBrowsers.join(': Option<u32>,\n  pub ')}: Option<u32>
 }

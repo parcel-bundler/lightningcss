@@ -45,6 +45,7 @@ A CSS parser, transformer, and minifier written in Rust.
   - Two-value `overflow` shorthand
   - Media query range syntax (e.g. `@media (width <= 100px)` or `@media (100px < width < 500px)`)
   - Multi-value `display` property (e.g. `inline flex`)
+  - `system-ui` font family fallbacks
 - **CSS modules** – `@parcel/css` supports compiling a subset of [CSS modules](https://github.com/css-modules/css-modules) features.
   - Locally scoped class and id selectors
   - Locally scoped custom identifiers, e.g. `@keyframes` names, grid lines/areas, `@counter-style` names, etc.
