@@ -4686,6 +4686,42 @@ mod tests {
       "@font-face { font-family: 'revert-layer'; }",
       "@font-face{font-family:\"revert-layer\"}",
     );
+
+    prefix_test(
+      r#"
+      .foo {
+        font-family: Helvetica, system-ui, sans-serif;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        font-family: Helvetica, system-ui, AppleSystem, BlinkMacSystemFont, Segoe UI, Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue, sans-serif;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        font: 100%/1.5 Helvetica, system-ui, sans-serif;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        font: 100% / 1.5 Helvetica, system-ui, AppleSystem, BlinkMacSystemFont, Segoe UI, Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue, sans-serif;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]

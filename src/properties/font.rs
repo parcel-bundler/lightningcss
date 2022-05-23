@@ -912,37 +912,40 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
   }
 }
 
+const SYSTEM_UI: FontFamily = FontFamily::Generic(GenericFontFamily::SystemUI);
+
+const DEFAULT_SYSTEM_FONTS: &[&str] = &[
+  // #1: Supported as the -apple-system value (only on Mac)
+  "AppleSystem",
+  // #2: Supported as the 'BlinkMacSystemFont' value (only on Mac)
+  "BlinkMacSystemFont",
+  "Segoe UI",  // Windows >= Vista
+  "Roboto",    // Android >= 4
+  "Noto Sans", // Plasma >= 5.5
+  "Ubuntu",    // Ubuntu >= 10.10
+  "Cantarell", // GNOME >= 3
+  "Helvetica Neue",
+];
+
 /// [`system-ui`](https://www.w3.org/TR/css-fonts-4/#system-ui-def) is a special generic font family
 /// It is platform dependent but if not supported by the target will simply be ignored
 /// This list is an attempt at providing that support
 #[inline]
-fn compatible_font_family(family: Option<Vec<FontFamily>>, is_supported: bool) -> Option<Vec<FontFamily>> {
-  let system_ui = &FontFamily::Generic(GenericFontFamily::SystemUI);
+fn compatible_font_family(mut family: Option<Vec<FontFamily>>, is_supported: bool) -> Option<Vec<FontFamily>> {
 
-  let default_system_fonts: [FontFamily; 8] = [
-    // #1: Supported as the -apple-system value (only on Mac)
-    FontFamily::FamilyName(CowArcStr::from("AppleSystem")),
-    // #2: Supported as the 'BlinkMacSystemFont' value (only on Mac)
-    FontFamily::FamilyName(CowArcStr::from("BlinkMacSystemFont")),
-    FontFamily::FamilyName(CowArcStr::from("Segoe UI")), // Windows >= Vista
-    FontFamily::FamilyName(CowArcStr::from("Roboto")),   // Android >= 4
-    FontFamily::FamilyName(CowArcStr::from("Noto Sans")), // Plasma >= 5.5
-    FontFamily::FamilyName(CowArcStr::from("Ubuntu")),   // Ubuntu >= 10.10
-    FontFamily::FamilyName(CowArcStr::from("Cantarell")), // GNOME >= 3
-    FontFamily::FamilyName(CowArcStr::from("Helvetica Neue")),
-  ];
+  if is_supported {
+    return family;
+  }
 
-  if family.is_some() && family.as_ref().unwrap().contains(system_ui) && !is_supported {
-    let position = family.as_ref().unwrap().iter().position(|v| v == system_ui).unwrap();
-
-    // Insert values right after "system-ui"
-    let mut unwrapped_family = family.unwrap();
-    unwrapped_family.splice(
-      (position + 1)..(position + 1),
-      &mut default_system_fonts.iter().cloned(),
-    );
-
-    return Some(unwrapped_family);
+  if let Some(families) = &mut family {
+    if let Some(position) = families.iter().position(|v| *v == SYSTEM_UI) {
+      families.splice(
+        (position + 1)..(position + 1),
+        DEFAULT_SYSTEM_FONTS
+          .iter()
+          .map(|name| FontFamily::FamilyName(CowArcStr::from(*name))),
+      );
+    }
   }
 
   return family;
