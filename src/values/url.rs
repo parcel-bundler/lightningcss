@@ -94,6 +94,13 @@ impl<'i> Url<'i> {
       return true;
     }
 
+    // If the url starts with '#' we have a fragment URL.
+    // These are resolved relative to the document rather than the CSS file.
+    // https://drafts.csswg.org/css-values-4/#local-urls
+    if url.starts_with('#') {
+      return true;
+    }
+
     // Otherwise, we might have a scheme. These must start with an ascii alpha character.
     // https://url.spec.whatwg.org/#scheme-start-state
     if !url.starts_with(|c| matches!(c, 'a'..='z' | 'A'..='Z')) {

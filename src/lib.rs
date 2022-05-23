@@ -17994,6 +17994,12 @@ mod tests {
       ".foo{behavior:url(\"Zn9-2q\")}",
       vec![("#foo", "Zn9-2q")],
     );
+
+    dep_test(
+      ".foo { --foo: url(#foo) }",
+      ".foo{--foo:url(\"Zn9-2q\")}",
+      vec![("#foo", "Zn9-2q")],
+    );
   }
 
   #[test]
