@@ -231,7 +231,7 @@ macro_rules! shorthand_handler {
     }
 
     impl<'i> PropertyHandler<'i> for $name$(<$l>)? {
-      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
+      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) -> bool {
         match property {
           $(
             Property::$prop(val) => {
@@ -258,7 +258,7 @@ macro_rules! shorthand_handler {
         true
       }
 
-      fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
+      fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i, '_>) {
         if !self.has_any {
           return
         }

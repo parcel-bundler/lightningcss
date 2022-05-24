@@ -1,4 +1,4 @@
-import type {Targets} from './targets';
+import type { Targets } from './targets';
 
 export interface TransformOptions {
   /** The filename being transformed. Used for error messages and source maps. */
@@ -14,7 +14,7 @@ export interface TransformOptions {
   /** Whether to enable various draft syntax. */
   drafts?: Drafts,
   /** Whether to compile this file as a CSS module. */
-  cssModules?: boolean,
+  cssModules?: boolean | CSSModulesConfig,
   /**
    * Whether to analyze dependencies (e.g. `@import` and `url()`).
    * When enabled, `@import` rules are removed, and `url()` dependencies
@@ -59,8 +59,17 @@ export interface TransformResult {
   map: Buffer | void,
   /** CSS module exports, if enabled. */
   exports: CSSModuleExports | void,
+  /** CSS module references, if `dashedIdents` is enabled. */
+  references: CSSModuleReferences,
   /** `@import` and `url()` dependencies, if enabled. */
   dependencies: Dependency[] | void
+}
+
+export interface CSSModulesConfig {
+  /** The pattern to use when renaming class names and other identifiers. Default is `[hash]_[local]`. */
+  pattern: string,
+  /** Whether to rename dashed identifiers, e.g. custom properties. */
+  dashedIdents: boolean
 }
 
 export type CSSModuleExports = {
@@ -76,6 +85,11 @@ export interface CSSModuleExport {
   /** Other names that are composed by this export. */
   composes: CSSModuleReference[]
 }
+
+export type CSSModuleReferences = {
+  /** Maps placeholder names to references. */
+  [name: string]: DependencyCSSModuleReference,
+};
 
 export type CSSModuleReference = LocalCSSModuleReference | GlobalCSSModuleReference | DependencyCSSModuleReference;
 
@@ -158,14 +172,14 @@ export interface TransformAttributeOptions {
    * that can be replaced with the final urls later (after bundling).
    * Dependencies are returned as part of the result.
    */
-   analyzeDependencies?: boolean
+  analyzeDependencies?: boolean
 }
 
 export interface TransformAttributeResult {
   /** The transformed code. */
   code: Buffer,
   /** `@import` and `url()` dependencies, if enabled. */
-  dependencies: Dependency[] | void  
+  dependencies: Dependency[] | void
 }
 
 /**

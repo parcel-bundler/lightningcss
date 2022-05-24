@@ -18,15 +18,15 @@ use cssparser::*;
 pub struct PropertyRule<'i> {
   /// The name of the custom property to declare.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  name: DashedIdent<'i>,
+  pub name: DashedIdent<'i>,
   /// A syntax string to specify the grammar for the custom property.
-  syntax: SyntaxString,
+  pub syntax: SyntaxString,
   /// Whether the custom property is inherited.
-  inherits: bool,
+  pub inherits: bool,
   /// An optional initial value for the custom property.
-  initial_value: Option<ParsedComponent<'i>>,
+  pub initial_value: Option<ParsedComponent<'i>>,
   /// The location of the rule in the source file.
-  loc: Location,
+  pub loc: Location,
 }
 
 impl<'i> PropertyRule<'i> {

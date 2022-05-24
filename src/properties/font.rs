@@ -793,7 +793,7 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
     &mut self,
     property: &Property<'i>,
     dest: &mut DeclarationList<'i>,
-    context: &mut PropertyHandlerContext<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
     use Property::*;
 
@@ -833,7 +833,7 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, decls: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
+  fn finalize(&mut self, decls: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i, '_>) {
     if !self.has_any {
       return;
     }

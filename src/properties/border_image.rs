@@ -369,7 +369,7 @@ impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
     &mut self,
     property: &Property<'i>,
     dest: &mut DeclarationList<'i>,
-    context: &mut PropertyHandlerContext<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
     use Property::*;
     macro_rules! property {
@@ -414,7 +414,7 @@ impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i, '_>) {
     self.flush(dest);
   }
 }

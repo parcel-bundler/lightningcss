@@ -535,7 +535,7 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
     &mut self,
     property: &Property<'i>,
     dest: &mut DeclarationList<'i>,
-    context: &mut PropertyHandlerContext<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
     use Property::*;
 
@@ -687,7 +687,7 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
     self.flush(dest, context);
     self.border_image_handler.finalize(dest, context);
     self.border_radius_handler.finalize(dest, context);
@@ -695,7 +695,7 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
 }
 
 impl<'i> BorderHandler<'i> {
-  fn flush(&mut self, dest: &mut DeclarationList, context: &mut PropertyHandlerContext<'i>) {
+  fn flush(&mut self, dest: &mut DeclarationList, context: &mut PropertyHandlerContext<'i, '_>) {
     if !self.has_any {
       return;
     }
@@ -1221,7 +1221,7 @@ impl<'i> BorderHandler<'i> {
     &mut self,
     unparsed: &UnparsedProperty<'i>,
     dest: &mut DeclarationList<'i>,
-    context: &mut PropertyHandlerContext<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
   ) {
     let logical_supported = context.is_supported(Feature::LogicalBorders);
     if logical_supported {

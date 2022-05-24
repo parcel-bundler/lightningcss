@@ -469,7 +469,11 @@ impl<'i> cssparser::DeclarationParser<'i> for FontFaceDeclarationParser {
     }
 
     input.reset(&state);
-    return Ok(FontFaceProperty::Custom(CustomProperty::parse(name.into(), input)?));
+    return Ok(FontFaceProperty::Custom(CustomProperty::parse(
+      name.into(),
+      input,
+      &Default::default(),
+    )?));
   }
 }
 

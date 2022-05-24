@@ -125,7 +125,7 @@ impl<'i> PropertyHandler<'i> for PositionHandler {
     &mut self,
     property: &Property<'i>,
     _: &mut DeclarationList<'i>,
-    _: &mut PropertyHandlerContext<'i>,
+    _: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
     if let Property::Position(position) = property {
       if let (Some(Position::Sticky(cur)), Position::Sticky(new)) = (&mut self.position, position) {
@@ -140,7 +140,7 @@ impl<'i> PropertyHandler<'i> for PositionHandler {
     false
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut PropertyHandlerContext<'i>) {
+  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut PropertyHandlerContext<'i, '_>) {
     if self.position.is_none() {
       return;
     }

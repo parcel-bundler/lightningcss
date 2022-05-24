@@ -9,7 +9,7 @@
 //! will be updated accordingly. A map of the original names to compiled (hashed) names will be returned.
 
 use crate::error::PrinterErrorKind;
-use crate::properties::css_modules::{Composes, ComposesFrom};
+use crate::properties::css_modules::{Composes, Specifier};
 use crate::selector::Selectors;
 use data_encoding::{Encoding, Specification};
 use lazy_static::lazy_static;
@@ -25,8 +25,11 @@ use std::path::Path;
 /// Configuration for CSS modules.
 #[derive(Default, Clone, Debug)]
 pub struct Config<'i> {
-  /// The class name pattern to use. Default is `[hash]_[local]`.
+  /// The name pattern to use when renaming class names and other identifiers.
+  /// Default is `[hash]_[local]`.
   pub pattern: Pattern<'i>,
+  /// Whether to rename dashed identifiers, e.g. custom properties.
+  pub dashed_idents: bool,
 }
 
 /// A CSS modules class name pattern.
@@ -96,8 +99,14 @@ impl<'i> Pattern<'i> {
     Ok(())
   }
 
-  fn write_to_string(&self, hash: &str, path: &Path, local: &str) -> Result<String, std::fmt::Error> {
-    let mut res = String::new();
+  #[inline]
+  fn write_to_string(
+    &self,
+    mut res: String,
+    hash: &str,
+    path: &Path,
+    local: &str,
+  ) -> Result<String, std::fmt::Error> {
     self.write(hash, path, local, |s| res.write_str(s))?;
     Ok(res)
   }
@@ -158,6 +167,9 @@ pub struct CssModuleExport {
 /// A map of exported names to values.
 pub type CssModuleExports = HashMap<String, CssModuleExport>;
 
+/// A map of placeholders to references.
+pub type CssModuleReferences = HashMap<String, CssModuleReference>;
+
 lazy_static! {
   static ref ENCODER: Encoding = {
     let mut spec = Specification::new();
@@ -173,21 +185,44 @@ pub(crate) struct CssModule<'a, 'b, 'c> {
   pub path: &'c Path,
   pub hash: String,
   pub exports: &'a mut CssModuleExports,
+  pub references: &'a mut HashMap<String, CssModuleReference>,
 }
 
 impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
-  pub fn new(config: &'a Config<'b>, filename: &'c str, exports: &'a mut CssModuleExports) -> Self {
+  pub fn new(
+    config: &'a Config<'b>,
+    filename: &'c str,
+    exports: &'a mut CssModuleExports,
+    references: &'a mut HashMap<String, CssModuleReference>,
+  ) -> Self {
     Self {
       config,
       path: Path::new(filename),
       hash: hash(filename, matches!(config.pattern.segments[0], Segment::Hash)),
       exports,
+      references,
     }
   }
 
   pub fn add_local(&mut self, exported: &str, local: &str) {
     self.exports.entry(exported.into()).or_insert_with(|| CssModuleExport {
-      name: self.config.pattern.write_to_string(&self.hash, &self.path, local).unwrap(),
+      name: self
+        .config
+        .pattern
+        .write_to_string(String::new(), &self.hash, &self.path, local)
+        .unwrap(),
+      composes: vec![],
+      is_referenced: false,
+    });
+  }
+
+  pub fn add_dashed(&mut self, local: &str) {
+    self.exports.entry(local.into()).or_insert_with(|| CssModuleExport {
+      name: self
+        .config
+        .pattern
+        .write_to_string("--".into(), &self.hash, &self.path, &local[2..])
+        .unwrap(),
       composes: vec![],
       is_referenced: false,
     });
@@ -200,12 +235,55 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
       }
       std::collections::hash_map::Entry::Vacant(entry) => {
         entry.insert(CssModuleExport {
-          name: self.config.pattern.write_to_string(&self.hash, &self.path, name).unwrap(),
+          name: self
+            .config
+            .pattern
+            .write_to_string(String::new(), &self.hash, &self.path, name)
+            .unwrap(),
           composes: vec![],
           is_referenced: true,
         });
       }
     }
+  }
+
+  pub fn reference_dashed(&mut self, name: &str, from: &Option<Specifier>) -> Option<String> {
+    let (reference, key) = match from {
+      Some(Specifier::Global) => return Some(name[2..].into()),
+      Some(Specifier::File(file)) => (
+        CssModuleReference::Dependency {
+          name: name.to_string(),
+          specifier: file.to_string(),
+        },
+        file.as_ref(),
+      ),
+      None => {
+        // Local export. Mark as used.
+        match self.exports.entry(name.into()) {
+          std::collections::hash_map::Entry::Occupied(mut entry) => {
+            entry.get_mut().is_referenced = true;
+          }
+          std::collections::hash_map::Entry::Vacant(entry) => {
+            entry.insert(CssModuleExport {
+              name: self
+                .config
+                .pattern
+                .write_to_string("--".into(), &self.hash, &self.path, name)
+                .unwrap(),
+              composes: vec![],
+              is_referenced: true,
+            });
+          }
+        }
+        return None;
+      }
+    };
+
+    let hash = hash(&format!("{}_{}_{}", self.hash, name, key), false);
+    let name = format!("--{}", hash);
+
+    self.references.insert(name.clone(), reference);
+    Some(hash)
   }
 
   pub fn handle_composes(
@@ -223,13 +301,13 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
                   name: self
                     .config
                     .pattern
-                    .write_to_string(&self.hash, &self.path, name.0.as_ref())
+                    .write_to_string(String::new(), &self.hash, &self.path, name.0.as_ref())
                     .unwrap(),
                 },
-                Some(ComposesFrom::Global) => CssModuleReference::Global {
+                Some(Specifier::Global) => CssModuleReference::Global {
                   name: name.0.as_ref().into(),
                 },
-                Some(ComposesFrom::File(file)) => CssModuleReference::Dependency {
+                Some(Specifier::File(file)) => CssModuleReference::Dependency {
                   name: name.0.to_string(),
                   specifier: file.to_string(),
                 },

@@ -173,7 +173,7 @@ impl<'i> PropertyHandler<'i> for SizeHandler {
     &mut self,
     property: &Property<'i>,
     dest: &mut DeclarationList<'i>,
-    context: &mut PropertyHandlerContext<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
     let logical_supported = context.is_supported(Feature::LogicalSize);
 
@@ -239,5 +239,5 @@ impl<'i> PropertyHandler<'i> for SizeHandler {
     true
   }
 
-  fn finalize(&mut self, _: &mut DeclarationList, _: &mut PropertyHandlerContext<'i>) {}
+  fn finalize(&mut self, _: &mut DeclarationList, _: &mut PropertyHandlerContext<'i, '_>) {}
 }
