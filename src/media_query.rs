@@ -11,7 +11,6 @@ use crate::values::number::CSSNumber;
 use crate::values::string::CowArcStr;
 use crate::values::{length::Length, ratio::Ratio, resolution::Resolution};
 use cssparser::*;
-use retain_mut::RetainMut;
 use std::collections::{HashMap, HashSet};
 
 /// A [media query list](https://drafts.csswg.org/mediaqueries/#mq-list).
@@ -883,7 +882,7 @@ fn process_condition<'i>(
     }
     MediaCondition::Operation(conditions, _) => {
       let mut res = Ok(true);
-      RetainMut::retain_mut(conditions, |condition| {
+      conditions.retain_mut(|condition| {
         let r = process_condition(loc, custom_media, media_type, qualifier, condition, seen);
         if let Ok(used) = r {
           used
