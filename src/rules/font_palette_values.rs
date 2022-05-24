@@ -116,6 +116,7 @@ impl<'i> cssparser::DeclarationParser<'i> for FontPaletteValuesDeclarationParser
     return Ok(FontPaletteValuesProperty::Custom(CustomProperty::parse(
       name.into(),
       input,
+      &Default::default(),
     )?));
   }
 }

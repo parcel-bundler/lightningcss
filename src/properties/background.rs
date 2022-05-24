@@ -776,7 +776,7 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
     &mut self,
     property: &Property<'i>,
     dest: &mut DeclarationList<'i>,
-    context: &mut PropertyHandlerContext<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
     macro_rules! background_image {
       ($val: ident) => {
@@ -841,7 +841,7 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i, '_>) {
     // If the last declaration is prefixed, pop the last value
     // so it isn't duplicated when we flush.
     if self.has_prefix {

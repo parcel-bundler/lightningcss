@@ -5,7 +5,7 @@
 
 use crate::compat::Feature;
 use crate::context::{DeclarationContext, PropertyHandlerContext};
-use crate::css_modules::{CssModule, CssModuleExports};
+use crate::css_modules::{CssModule, CssModuleExports, CssModuleReferences};
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::dependencies::Dependency;
 use crate::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterError, PrinterErrorKind};
@@ -89,6 +89,9 @@ pub struct ToCssResult {
   /// A map of CSS module exports, if the `css_modules` option was
   /// enabled during parsing.
   pub exports: Option<CssModuleExports>,
+  /// A map of CSS module references, if the `css_modules` config
+  /// had `dashed_idents` enabled.
+  pub references: Option<CssModuleReferences>,
   /// A list of dependencies (e.g. `@import` or `url()`) found in
   /// the style sheet, if the `analyze_dependencies` option is enabled.
   pub dependencies: Option<Vec<Dependency>>,
@@ -131,7 +134,7 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
 
   /// Minify and transform the style sheet for the provided browser targets.
   pub fn minify(&mut self, options: MinifyOptions) -> Result<(), Error<MinifyErrorKind>> {
-    let mut context = PropertyHandlerContext::new(options.targets);
+    let mut context = PropertyHandlerContext::new(options.targets, &options.unused_symbols);
     let mut handler = DeclarationHandler::new(options.targets);
     let mut important_handler = DeclarationHandler::new(options.targets);
 
@@ -182,7 +185,13 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
 
     if let Some(config) = &self.options.css_modules {
       let mut exports = HashMap::new();
-      printer.css_module = Some(CssModule::new(config, printer.filename(), &mut exports));
+      let mut references = HashMap::new();
+      printer.css_module = Some(CssModule::new(
+        config,
+        printer.filename(),
+        &mut exports,
+        &mut references,
+      ));
 
       self.rules.to_css(&mut printer)?;
       printer.newline()?;
@@ -191,6 +200,7 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
         dependencies: printer.dependencies,
         code: dest,
         exports: Some(exports),
+        references: Some(references),
       })
     } else {
       self.rules.to_css(&mut printer)?;
@@ -199,6 +209,7 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
         dependencies: printer.dependencies,
         code: dest,
         exports: None,
+        references: None,
       })
     }
   }
@@ -246,7 +257,7 @@ impl<'i> StyleAttribute<'i> {
 
   /// Minify and transform the style attribute for the provided browser targets.
   pub fn minify(&mut self, options: MinifyOptions) {
-    let mut context = PropertyHandlerContext::new(options.targets);
+    let mut context = PropertyHandlerContext::new(options.targets, &options.unused_symbols);
     let mut handler = DeclarationHandler::new(options.targets);
     let mut important_handler = DeclarationHandler::new(options.targets);
     context.context = DeclarationContext::StyleAttribute;
@@ -270,6 +281,7 @@ impl<'i> StyleAttribute<'i> {
       dependencies: printer.dependencies,
       code: dest,
       exports: None,
+      references: None,
     })
   }
 }

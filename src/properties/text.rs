@@ -950,7 +950,7 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
     &mut self,
     property: &Property<'i>,
     dest: &mut DeclarationList<'i>,
-    context: &mut PropertyHandlerContext<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
     use Property::*;
 
@@ -1047,7 +1047,7 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i>) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i, '_>) {
     if !self.has_any {
       return;
     }

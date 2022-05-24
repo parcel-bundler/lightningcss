@@ -232,7 +232,7 @@ pub(crate) struct MinifyContext<'a, 'i> {
   pub targets: &'a Option<Browsers>,
   pub handler: &'a mut DeclarationHandler<'i>,
   pub important_handler: &'a mut DeclarationHandler<'i>,
-  pub handler_context: &'a mut PropertyHandlerContext<'i>,
+  pub handler_context: &'a mut PropertyHandlerContext<'i, 'a>,
   pub unused_symbols: &'a HashSet<String>,
   pub custom_media: Option<HashMap<CowArcStr<'i>, CustomMediaRule<'i>>>,
 }
@@ -391,12 +391,21 @@ impl<'i> CssRuleList<'i> {
           }
         }
         CssRule::FontPaletteValues(f) => {
+          if context.unused_symbols.contains(f.name.0.as_ref()) {
+            continue;
+          }
+
           f.minify(context, parent_is_unused);
 
           if let Some(targets) = context.targets {
             let fallbacks = f.get_fallbacks(*targets);
             rules.push(rule);
             rules.extend(fallbacks);
+            continue;
+          }
+        }
+        CssRule::Property(property) => {
+          if context.unused_symbols.contains(property.name.0.as_ref()) {
             continue;
           }
         }

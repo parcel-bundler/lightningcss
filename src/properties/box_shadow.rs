@@ -136,7 +136,7 @@ impl<'i> PropertyHandler<'i> for BoxShadowHandler {
     &mut self,
     property: &Property<'i>,
     dest: &mut DeclarationList<'i>,
-    context: &mut PropertyHandlerContext<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
     match property {
       Property::BoxShadow(box_shadows, prefix) => {
@@ -165,7 +165,7 @@ impl<'i> PropertyHandler<'i> for BoxShadowHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut PropertyHandlerContext<'i>) {
+  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut PropertyHandlerContext<'i, '_>) {
     if self.box_shadows.is_none() {
       return;
     }

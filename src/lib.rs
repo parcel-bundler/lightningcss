@@ -40,7 +40,7 @@ pub mod vendor_prefix;
 
 #[cfg(test)]
 mod tests {
-  use crate::css_modules::{CssModuleExport, CssModuleExports, CssModuleReference};
+  use crate::css_modules::{CssModuleExport, CssModuleExports, CssModuleReference, CssModuleReferences};
   use crate::dependencies::Dependency;
   use crate::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterErrorKind, SelectorError};
   use crate::properties::custom::Token;
@@ -155,6 +155,7 @@ mod tests {
     source: &'i str,
     expected: &str,
     expected_exports: CssModuleExports,
+    expected_references: CssModuleReferences,
     config: crate::css_modules::Config<'i>,
   ) {
     let mut stylesheet = StyleSheet::parse(
@@ -170,6 +171,7 @@ mod tests {
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
     assert_eq!(res.exports.unwrap(), expected_exports);
+    assert_eq!(res.references.unwrap(), expected_references);
   }
 
   fn custom_media_test(source: &str, expected: &str) {
@@ -15815,6 +15817,7 @@ mod tests {
         "circles" => "EgL3uq_circles" referenced: true,
         "fade" => "EgL3uq_fade"
       },
+      HashMap::new(),
       Default::default(),
     );
 
@@ -15858,6 +15861,7 @@ mod tests {
         "a" => "EgL3uq_a",
         "b" => "EgL3uq_b"
       },
+      HashMap::new(),
       Default::default(),
     );
 
@@ -15895,6 +15899,7 @@ mod tests {
         "grid" => "EgL3uq_grid",
         "bar" => "EgL3uq_bar"
       },
+      HashMap::new(),
       Default::default(),
     );
 
@@ -15910,6 +15915,7 @@ mod tests {
       }
     "#},
       map! {},
+      HashMap::new(),
       Default::default(),
     );
 
@@ -15943,6 +15949,7 @@ mod tests {
       map! {
         "bar" => "EgL3uq_bar"
       },
+      HashMap::new(),
       Default::default(),
     );
 
@@ -15974,6 +15981,7 @@ mod tests {
         "test" => "EgL3uq_test" "EgL3uq_foo",
         "foo" => "EgL3uq_foo"
       },
+      HashMap::new(),
       Default::default(),
     );
 
@@ -16002,6 +16010,7 @@ mod tests {
         "b" => "EgL3uq_b" "EgL3uq_foo",
         "foo" => "EgL3uq_foo"
       },
+      HashMap::new(),
       Default::default(),
     );
 
@@ -16038,6 +16047,7 @@ mod tests {
         "foo" => "EgL3uq_foo",
         "bar" => "EgL3uq_bar"
       },
+      HashMap::new(),
       Default::default(),
     );
 
@@ -16056,6 +16066,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test" "foo" global: true
       },
+      HashMap::new(),
       Default::default(),
     );
 
@@ -16074,6 +16085,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test" "foo" global: true "bar" global: true
       },
+      HashMap::new(),
       Default::default(),
     );
 
@@ -16092,6 +16104,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test" "foo" from "foo.css"
       },
+      HashMap::new(),
       Default::default(),
     );
 
@@ -16110,6 +16123,7 @@ mod tests {
       map! {
         "test" => "EgL3uq_test" "foo" from "foo.css" "bar" from "foo.css"
       },
+      HashMap::new(),
       Default::default(),
     );
 
@@ -16139,6 +16153,7 @@ mod tests {
         "test" => "EgL3uq_test" "EgL3uq_foo" "foo" from "foo.css" "bar" from "bar.css",
         "foo" => "EgL3uq_foo"
       },
+      HashMap::new(),
       Default::default(),
     );
 
@@ -16156,8 +16171,10 @@ mod tests {
       map! {
         "foo" => "test-EgL3uq-foo"
       },
+      HashMap::new(),
       crate::css_modules::Config {
         pattern: crate::css_modules::Pattern::parse("test-[hash]-[local]").unwrap(),
+        ..Default::default()
       },
     );
 
@@ -16179,6 +16196,7 @@ mod tests {
       ParserOptions {
         css_modules: Some(crate::css_modules::Config {
           pattern: crate::css_modules::Pattern::parse("test-[local]-[hash]").unwrap(),
+          ..Default::default()
         }),
         ..ParserOptions::default()
       },
@@ -16189,6 +16207,107 @@ mod tests {
     } else {
       unreachable!()
     }
+
+    css_modules_test(
+      r#"
+      @property --foo {
+        syntax: '<color>';
+        inherits: false;
+        initial-value: yellow;
+      }
+
+      .foo {
+        --foo: red;
+        color: var(--foo);
+      }
+    "#,
+      indoc! {r#"
+      @property --foo {
+        syntax: "<color>";
+        inherits: false;
+        initial-value: #ff0;
+      }
+
+      .EgL3uq_foo {
+        --foo: red;
+        color: var(--foo);
+      }
+    "#},
+      map! {
+        "foo" => "EgL3uq_foo"
+      },
+      HashMap::new(),
+      Default::default(),
+    );
+
+    css_modules_test(
+      r#"
+      @property --foo {
+        syntax: '<color>';
+        inherits: false;
+        initial-value: yellow;
+      }
+
+      @font-palette-values --Cooler {
+        font-family: Bixa;
+        base-palette: 1;
+        override-colors: 1 #7EB7E4;
+      }
+
+      .foo {
+        --foo: red;
+        --bar: green;
+        color: var(--foo);
+        font-palette: --Cooler;
+      }
+
+      .bar {
+        color: var(--color from "./b.css");
+      }
+    "#,
+      indoc! {r#"
+      @property --EgL3uq_foo {
+        syntax: "<color>";
+        inherits: false;
+        initial-value: #ff0;
+      }
+
+      @font-palette-values --EgL3uq_Cooler {
+        font-family: Bixa;
+        base-palette: 1;
+        override-colors: 1 #7eb7e4;
+      }
+
+      .EgL3uq_foo {
+        --EgL3uq_foo: red;
+        --EgL3uq_bar: green;
+        color: var(--EgL3uq_foo);
+        font-palette: --EgL3uq_Cooler;
+      }
+
+      .EgL3uq_bar {
+        color: var(--ma1CsG);
+      }
+    "#},
+      map! {
+        "foo" => "EgL3uq_foo",
+        "--foo" => "--EgL3uq_foo" referenced: true,
+        "--bar" => "--EgL3uq_bar",
+        "bar" => "EgL3uq_bar",
+        "--Cooler" => "--EgL3uq_Cooler" referenced: true
+      },
+      HashMap::from([(
+        "--ma1CsG".into(),
+        CssModuleReference::Dependency {
+          name: "--color".into(),
+          specifier: "./b.css".into(),
+        },
+      )]),
+      crate::css_modules::Config {
+        dashed_idents: true,
+        ..Default::default()
+      },
+    );
   }
 
   #[test]
@@ -16441,6 +16560,55 @@ mod tests {
         ..PrinterOptions::default()
       })
       .unwrap();
+    assert_eq!(res.code, expected);
+
+    let source = r#"
+      @property --EgL3uq_foo {
+        syntax: "<color>";
+        inherits: false;
+        initial-value: #ff0;
+      }
+
+      @font-palette-values --EgL3uq_Cooler {
+        font-family: Bixa;
+        base-palette: 1;
+        override-colors: 1 #7EB7E4;
+      }
+
+      .EgL3uq_foo {
+        --EgL3uq_foo: red;
+      }
+
+      .EgL3uq_bar {
+        color: green;
+      }
+    "#;
+
+    let expected = indoc! {r#"
+      .EgL3uq_bar {
+        color: green;
+      }
+    "#};
+
+    let mut stylesheet = StyleSheet::parse(
+      "test.css",
+      &source,
+      ParserOptions {
+        nesting: true,
+        ..ParserOptions::default()
+      },
+    )
+    .unwrap();
+    stylesheet
+      .minify(MinifyOptions {
+        unused_symbols: vec!["--EgL3uq_foo", "--EgL3uq_Cooler"]
+          .iter()
+          .map(|s| String::from(*s))
+          .collect(),
+        ..MinifyOptions::default()
+      })
+      .unwrap();
+    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
   }
 
@@ -18028,6 +18196,12 @@ mod tests {
     dep_test(
       ".foo { behavior: url(#foo) }",
       ".foo{behavior:url(\"Zn9-2q\")}",
+      vec![("#foo", "Zn9-2q")],
+    );
+
+    dep_test(
+      ".foo { --foo: url(#foo) }",
+      ".foo{--foo:url(\"Zn9-2q\")}",
       vec![("#foo", "Zn9-2q")],
     );
   }

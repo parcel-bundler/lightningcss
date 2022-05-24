@@ -116,7 +116,7 @@ macro_rules! define_fallbacks {
     }
 
     impl<'i> PropertyHandler<'i> for FallbackHandler {
-      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i>) -> bool {
+      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) -> bool {
         match property {
           $(
             Property::$name(val $(, mut $p)?) => {
