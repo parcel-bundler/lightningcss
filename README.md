@@ -49,6 +49,7 @@ A CSS parser, transformer, and minifier written in Rust.
 - **CSS modules** – `@parcel/css` supports compiling a subset of [CSS modules](https://github.com/css-modules/css-modules) features.
   - Locally scoped class and id selectors
   - Locally scoped custom identifiers, e.g. `@keyframes` names, grid lines/areas, `@counter-style` names, etc.
+  - Opt-in support for locally scoped CSS variables and other dashed identifiers.
   - `:local()` and `:global()` selectors
   - The `composes` property
 
@@ -98,29 +99,15 @@ let {code, map} = css.bundle({
 
 ### From Rust
 
-See the Rust API docs on [docs.rs](https://docs.rs/parcel_css). More docs and examples are coming soon. For now, start with the [StyleSheet](https://docs.rs/parcel_css/1.0.0-alpha.10/parcel_css/stylesheet/struct.StyleSheet.html) API.
+See the Rust API docs on [docs.rs](https://docs.rs/parcel_css).
 
 ### With Parcel
 
-Add the following to your `.parcelrc`:
+Parcel includes `@parcel/css` as the default CSS transformer. You should also add a `browserslist` property to your `package.json`, which defines the target browsers that your CSS will be compiled for.
 
-```json
-{
-  "extends": "@parcel/config-default",
-  "transformers": {
-    "*.css": ["@parcel/transformer-css-experimental"]
-  },
-  "optimizers": {
-    "*.css": ["@parcel/optimizer-css"]
-  }
-}
-```
+While Parcel CSS handles the most commonly used PostCSS plugins like `autoprefixer`, `postcss-preset-env`, and CSS modules, you may still need PostCSS for more custom plugins like TailwindCSS. If that's the case, your PostCSS config will be picked up automatically. You can remove the plugins listed above from your PostCSS config, and they'll be handled by Parcel CSS.
 
-You should also add a `browserslist` property to your `package.json`, which defines the target browsers that your CSS will be compiled for.
-
-While Parcel CSS handles the most commonly used PostCSS plugins like `autoprefixer`, `postcss-preset-env`, and CSS modules, you may still need PostCSS for more custom plugins like TailwindCSS. If that's the case, just add @parcel/transformer-postcss before @parcel/transformer-css-experimental, and your PostCSS config will be picked up automatically. You can remove the plugins listed above from your PostCSS config, and they'll be handled by Parcel CSS.
-
-You can also configure Parcel CSS in the `package.json` in the root of your project. Currently, three options are supported: `drafts`, which can be used to enable CSS nesting and custom media queries, `pseudoClasses`, which allows replacing some pseudo classes like `:focus-visible` with normal classes that can be applied via JavaScript (e.g. polyfills), and `cssModules`, which enables CSS modules globally rather than only for files ending in `.module.css`.
+You can also configure Parcel CSS in the `package.json` in the root of your project. Currently, three options are supported: `drafts`, which can be used to enable CSS nesting and custom media queries, `pseudoClasses`, which allows replacing some pseudo classes like `:focus-visible` with normal classes that can be applied via JavaScript (e.g. polyfills), and `cssModules`, which enables CSS modules globally rather than only for files ending in `.module.css`, or accepts an options object.
 
 ```json
 {
@@ -136,6 +123,8 @@ You can also configure Parcel CSS in the `package.json` in the root of your proj
   }
 }
 ```
+
+See the [Parcel docs](https://parceljs.org/languages/css) for more details.
 
 ### From Deno or in browser
 
