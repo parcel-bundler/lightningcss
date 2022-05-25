@@ -633,14 +633,16 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 
 [[package]]
 name = "napi"
-version = "2.4.1"
-source = "git+https://github.com/napi-rs/napi-rs#79d7453713edc26bb283f1b63c5314a06163f323"
+version = "2.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eba1b04555247b935187ea1dddac523ebc470c45806501d7203ed1bec7fa26b2"
 dependencies = [
  "ctor",
  "lazy_static",
  "napi-sys",
  "serde",
  "serde_json",
+ "thread_local",
 ]
 
 [[package]]
@@ -651,8 +653,9 @@ checksum = "ebd4419172727423cf30351406c54f6cc1b354a2cfb4f1dba3e6cd07f6d5522b"
 
 [[package]]
 name = "napi-derive"
-version = "2.4.0"
-source = "git+https://github.com/napi-rs/napi-rs#79d7453713edc26bb283f1b63c5314a06163f323"
+version = "2.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bffed314331505d8a4ce6831dfb5fff9bad37113344ff55824bd398eb3157a1d"
 dependencies = [
  "convert_case 0.5.0",
  "napi-derive-backend",
@@ -663,8 +666,9 @@ dependencies = [
 
 [[package]]
 name = "napi-derive-backend"
-version = "1.0.31"
-source = "git+https://github.com/napi-rs/napi-rs#79d7453713edc26bb283f1b63c5314a06163f323"
+version = "1.0.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5cab83da14f4202c1f3858dde5b68e1d8c5bb7ee804c5955911cbbe00b835b8"
 dependencies = [
  "convert_case 0.5.0",
  "once_cell",
@@ -676,8 +680,9 @@ dependencies = [
 
 [[package]]
 name = "napi-sys"
-version = "2.2.1"
-source = "git+https://github.com/napi-rs/napi-rs#79d7453713edc26bb283f1b63c5314a06163f323"
+version = "2.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "529671ebfae679f2ce9630b62dd53c72c56b3eb8b2c852e7e2fa91704ff93d67"
 dependencies = [
  "libloading",
 ]
@@ -751,7 +756,7 @@ dependencies = [
 
 [[package]]
 name = "parcel_css"
-version = "1.0.0-alpha.25"
+version = "1.0.0-alpha.26"
 dependencies = [
  "assert_cmd",
  "assert_fs",
@@ -771,7 +776,6 @@ dependencies = [
  "pathdiff",
  "predicates",
  "rayon",
- "retain_mut",
  "serde",
  "serde_json",
  "smallvec",
@@ -789,7 +793,6 @@ dependencies = [
  "napi-derive",
  "parcel_css",
  "parcel_sourcemap",
- "retain_mut",
  "serde",
  "serde-wasm-bindgen",
  "serde_bytes",
@@ -1165,12 +1168,6 @@ checksum = "3acd125665422973a33ac9d3dd2df85edad0f4ae9b00dafb1a05e43a9f5ef8e7"
 dependencies = [
  "winapi",
 ]
-
-[[package]]
-name = "retain_mut"
-version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51dd4445360338dab5116712bee1388dc727991d51969558a8882ab552e6db30"
 
 [[package]]
 name = "rkyv"
