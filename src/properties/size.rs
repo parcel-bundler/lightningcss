@@ -9,9 +9,11 @@ use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
 use crate::traits::{Parse, PropertyHandler, ToCss};
 use crate::values::length::LengthPercentage;
+use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 
 // https://drafts.csswg.org/css-sizing-3/#specifying-sizes
+// https://www.w3.org/TR/css-sizing-4/#sizing-values
 
 /// A value for the [preferred size properties](https://drafts.csswg.org/css-sizing-3/#preferred-size-properties),
 /// i.e. `width` and `height.
@@ -27,36 +29,52 @@ pub enum Size {
   /// An explicit length or percentage.
   LengthPercentage(LengthPercentage),
   /// The `min-content` keyword.
-  MinContent,
+  MinContent(VendorPrefix),
   /// The `max-content` keyword.
-  MaxContent,
+  MaxContent(VendorPrefix),
+  /// The `fit-content` keyword.
+  FitContent(VendorPrefix),
   /// The `fit-content()` function.
-  FitContent(LengthPercentage),
+  FitContentFunction(LengthPercentage),
+  /// The `stretch` keyword, or the `-webkit-fill-available` or `-moz-available` prefixed keywords.
+  Stretch(VendorPrefix),
+  /// The `contain` keyword.
+  Contain,
 }
 
 impl<'i> Parse<'i> for Size {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|i| i.expect_ident_matching("auto")).is_ok() {
-      return Ok(Size::Auto);
+    let res = input.try_parse(|input| {
+      let ident = input.expect_ident()?;
+      Ok(match_ignore_ascii_case! { &*ident,
+        "auto" => Size::Auto,
+        "min-content" => Size::MinContent(VendorPrefix::None),
+        "-webkit-min-content" => Size::MinContent(VendorPrefix::WebKit),
+        "-moz-min-content" => Size::MinContent(VendorPrefix::Moz),
+        "max-content" => Size::MaxContent(VendorPrefix::None),
+        "-webkit-max-content" => Size::MaxContent(VendorPrefix::WebKit),
+        "-moz-max-content" => Size::MaxContent(VendorPrefix::Moz),
+        "stretch" => Size::Stretch(VendorPrefix::None),
+        "-webkit-fill-available" => Size::Stretch(VendorPrefix::WebKit),
+        "-moz-available" => Size::Stretch(VendorPrefix::Moz),
+        "fit-content" => Size::FitContent(VendorPrefix::None),
+        "-webkit-fit-content" => Size::FitContent(VendorPrefix::WebKit),
+        "-moz-fit-content" => Size::FitContent(VendorPrefix::Moz),
+        "contain" => Size::Contain,
+        _ => return Err(input.new_custom_error(ParserError::InvalidValue))
+      })
+    });
+
+    if res.is_ok() {
+      return res;
     }
 
-    if input.try_parse(|i| i.expect_ident_matching("min-content")).is_ok() {
-      return Ok(Size::MinContent);
+    if let Ok(res) = input.try_parse(parse_fit_content) {
+      return Ok(Size::FitContentFunction(res));
     }
 
-    if input.try_parse(|i| i.expect_ident_matching("max-content")).is_ok() {
-      return Ok(Size::MaxContent);
-    }
-
-    if let Ok(l) = input.try_parse(|input| LengthPercentage::parse(input)) {
-      return Ok(Size::LengthPercentage(l));
-    }
-
-    if let Ok(l) = parse_fit_content(input) {
-      return Ok(Size::FitContent(l));
-    }
-
-    Err(input.new_error_for_next_token())
+    let lp = input.try_parse(LengthPercentage::parse)?;
+    Ok(Size::LengthPercentage(lp))
   }
 }
 
@@ -68,9 +86,26 @@ impl ToCss for Size {
     use Size::*;
     match self {
       Auto => dest.write_str("auto"),
-      MinContent => dest.write_str("min-content"),
-      MaxContent => dest.write_str("max-content"),
-      FitContent(l) => {
+      Contain => dest.write_str("contain"),
+      MinContent(vp) => {
+        vp.to_css(dest)?;
+        dest.write_str("min-content")
+      }
+      MaxContent(vp) => {
+        vp.to_css(dest)?;
+        dest.write_str("max-content")
+      }
+      FitContent(vp) => {
+        vp.to_css(dest)?;
+        dest.write_str("fit-content")
+      }
+      Stretch(vp) => match *vp {
+        VendorPrefix::None => dest.write_str("stretch"),
+        VendorPrefix::WebKit => dest.write_str("-webkit-fill-available"),
+        VendorPrefix::Moz => dest.write_str("-moz-available"),
+        _ => unreachable!(),
+      },
+      FitContentFunction(l) => {
         dest.write_str("fit-content(")?;
         l.to_css(dest)?;
         dest.write_str(")")
@@ -89,56 +124,89 @@ impl ToCss for Size {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
-pub enum MinMaxSize {
+pub enum MaxSize {
   /// The `none` keyword.
   None,
   /// An explicit length or percentage.
   LengthPercentage(LengthPercentage),
   /// The `min-content` keyword.
-  MinContent,
+  MinContent(VendorPrefix),
   /// The `max-content` keyword.
-  MaxContent,
+  MaxContent(VendorPrefix),
+  /// The `fit-content` keyword.
+  FitContent(VendorPrefix),
   /// The `fit-content()` function.
-  FitContent(LengthPercentage),
+  FitContentFunction(LengthPercentage),
+  /// The `stretch` keyword, or the `-webkit-fill-available` or `-moz-available` prefixed keywords.
+  Stretch(VendorPrefix),
+  /// The `contain` keyword.
+  Contain,
 }
 
-impl<'i> Parse<'i> for MinMaxSize {
+impl<'i> Parse<'i> for MaxSize {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if input.try_parse(|i| i.expect_ident_matching("none")).is_ok() {
-      return Ok(MinMaxSize::None);
+    let res = input.try_parse(|input| {
+      let ident = input.expect_ident()?;
+      Ok(match_ignore_ascii_case! { &*ident,
+        "none" => MaxSize::None,
+        "min-content" => MaxSize::MinContent(VendorPrefix::None),
+        "-webkit-min-content" => MaxSize::MinContent(VendorPrefix::WebKit),
+        "-moz-min-content" => MaxSize::MinContent(VendorPrefix::Moz),
+        "max-content" => MaxSize::MaxContent(VendorPrefix::None),
+        "-webkit-max-content" => MaxSize::MaxContent(VendorPrefix::WebKit),
+        "-moz-max-content" => MaxSize::MaxContent(VendorPrefix::Moz),
+        "stretch" => MaxSize::Stretch(VendorPrefix::None),
+        "-webkit-fill-available" => MaxSize::Stretch(VendorPrefix::WebKit),
+        "-moz-available" => MaxSize::Stretch(VendorPrefix::Moz),
+        "fit-content" => MaxSize::FitContent(VendorPrefix::None),
+        "-webkit-fit-content" => MaxSize::FitContent(VendorPrefix::WebKit),
+        "-moz-fit-content" => MaxSize::FitContent(VendorPrefix::Moz),
+        "contain" => MaxSize::Contain,
+        _ => return Err(input.new_custom_error(ParserError::InvalidValue))
+      })
+    });
+
+    if res.is_ok() {
+      return res;
     }
 
-    if input.try_parse(|i| i.expect_ident_matching("min-content")).is_ok() {
-      return Ok(MinMaxSize::MinContent);
+    if let Ok(res) = input.try_parse(parse_fit_content) {
+      return Ok(MaxSize::FitContentFunction(res));
     }
 
-    if input.try_parse(|i| i.expect_ident_matching("max-content")).is_ok() {
-      return Ok(MinMaxSize::MaxContent);
-    }
-
-    if let Ok(percent) = input.try_parse(|input| LengthPercentage::parse(input)) {
-      return Ok(MinMaxSize::LengthPercentage(percent));
-    }
-
-    if let Ok(l) = parse_fit_content(input) {
-      return Ok(MinMaxSize::FitContent(l));
-    }
-
-    Err(input.new_error_for_next_token())
+    let lp = input.try_parse(LengthPercentage::parse)?;
+    Ok(MaxSize::LengthPercentage(lp))
   }
 }
 
-impl ToCss for MinMaxSize {
+impl ToCss for MaxSize {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
   {
-    use MinMaxSize::*;
+    use MaxSize::*;
     match self {
       None => dest.write_str("none"),
-      MinContent => dest.write_str("min-content"),
-      MaxContent => dest.write_str("max-content"),
-      FitContent(l) => {
+      Contain => dest.write_str("contain"),
+      MinContent(vp) => {
+        vp.to_css(dest)?;
+        dest.write_str("min-content")
+      }
+      MaxContent(vp) => {
+        vp.to_css(dest)?;
+        dest.write_str("max-content")
+      }
+      FitContent(vp) => {
+        vp.to_css(dest)?;
+        dest.write_str("fit-content")
+      }
+      Stretch(vp) => match *vp {
+        VendorPrefix::None => dest.write_str("stretch"),
+        VendorPrefix::WebKit => dest.write_str("-webkit-fill-available"),
+        VendorPrefix::Moz => dest.write_str("-moz-available"),
+        _ => unreachable!(),
+      },
+      FitContentFunction(l) => {
         dest.write_str("fit-content(")?;
         l.to_css(dest)?;
         dest.write_str(")")
@@ -177,31 +245,56 @@ impl<'i> PropertyHandler<'i> for SizeHandler {
   ) -> bool {
     let logical_supported = context.is_supported(Feature::LogicalSize);
 
+    macro_rules! prefix {
+      ($prop: ident, $size: ident, $feature: ident) => {
+        if let Some(targets) = context.targets {
+          let prefixes = crate::prefixes::Feature::$feature.prefixes_for(targets);
+          if prefixes.contains(VendorPrefix::WebKit) {
+            dest.push(Property::$prop($size::$feature(VendorPrefix::WebKit)));
+          }
+          if prefixes.contains(VendorPrefix::Moz) {
+            dest.push(Property::$prop($size::$feature(VendorPrefix::Moz)));
+          }
+        }
+      };
+    }
+
+    macro_rules! property {
+      ($prop: ident, $val: ident, $size: ident) => {{
+        match $val {
+          $size::Stretch(VendorPrefix::None) => prefix!($prop, $size, Stretch),
+          $size::MinContent(VendorPrefix::None) => prefix!($prop, $size, MinContent),
+          $size::MaxContent(VendorPrefix::None) => prefix!($prop, $size, MaxContent),
+          $size::FitContent(VendorPrefix::None) => prefix!($prop, $size, FitContent),
+          _ => {}
+        }
+        dest.push(Property::$prop($val.clone()));
+      }};
+    }
+
     macro_rules! logical {
-      ($prop: ident, $val: ident, $physical: ident) => {
+      ($prop: ident, $val: ident, $physical: ident, $size: ident) => {
         if logical_supported {
-          dest.push(Property::$prop($val.clone()));
+          property!($prop, $val, $size);
         } else {
-          dest.push(Property::$physical($val.clone()));
+          property!($physical, $val, $size);
         }
       };
     }
 
     match property {
-      Property::Width(_)
-      | Property::Height(_)
-      | Property::MinWidth(_)
-      | Property::MaxWidth(_)
-      | Property::MinHeight(_)
-      | Property::MaxHeight(_) => {
-        dest.push(property.clone());
-      }
-      Property::BlockSize(size) => logical!(BlockSize, size, Height),
-      Property::MinBlockSize(size) => logical!(MinBlockSize, size, MinHeight),
-      Property::MaxBlockSize(size) => logical!(MaxBlockSize, size, MaxHeight),
-      Property::InlineSize(size) => logical!(InlineSize, size, Width),
-      Property::MinInlineSize(size) => logical!(MinInlineSize, size, MinWidth),
-      Property::MaxInlineSize(size) => logical!(MaxInlineSize, size, MaxWidth),
+      Property::Width(v) => property!(Width, v, Size),
+      Property::Height(v) => property!(Height, v, Size),
+      Property::MinWidth(v) => property!(MinWidth, v, Size),
+      Property::MinHeight(v) => property!(MinHeight, v, Size),
+      Property::MaxWidth(v) => property!(MaxWidth, v, MaxSize),
+      Property::MaxHeight(v) => property!(MaxHeight, v, MaxSize),
+      Property::BlockSize(size) => logical!(BlockSize, size, Height, Size),
+      Property::MinBlockSize(size) => logical!(MinBlockSize, size, MinHeight, Size),
+      Property::MaxBlockSize(size) => logical!(MaxBlockSize, size, MaxHeight, MaxSize),
+      Property::InlineSize(size) => logical!(InlineSize, size, Width, Size),
+      Property::MinInlineSize(size) => logical!(MinInlineSize, size, MinWidth, Size),
+      Property::MaxInlineSize(size) => logical!(MaxInlineSize, size, MaxWidth, MaxSize),
       Property::Unparsed(unparsed) => {
         macro_rules! logical_unparsed {
           ($physical: ident) => {

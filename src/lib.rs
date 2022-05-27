@@ -3006,6 +3006,173 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    for (in_prop, out_prop) in [
+      ("width", "width"),
+      ("height", "height"),
+      ("block-size", "height"),
+      ("inline-size", "width"),
+      ("min-width", "min-width"),
+      ("min-height", "min-height"),
+      ("min-block-size", "min-height"),
+      ("min-inline-size", "min-width"),
+      ("max-width", "max-width"),
+      ("max-height", "max-height"),
+      ("max-block-size", "max-height"),
+      ("max-inline-size", "max-width"),
+    ] {
+      prefix_test(
+        &format!(
+          r#"
+        .foo {{
+          {}: stretch;
+        }}
+      "#,
+          in_prop
+        ),
+        &format!(
+          indoc! {r#"
+        .foo {{
+          {}: -webkit-fill-available;
+          {}: -moz-available;
+          {}: stretch;
+        }}
+      "#},
+          out_prop, out_prop, out_prop
+        ),
+        Browsers {
+          safari: Some(8 << 16),
+          firefox: Some(4 << 16),
+          ..Browsers::default()
+        },
+      );
+
+      prefix_test(
+        &format!(
+          r#"
+        .foo {{
+          {}: -webkit-fill-available;
+        }}
+      "#,
+          in_prop
+        ),
+        &format!(
+          indoc! {r#"
+        .foo {{
+          {}: -webkit-fill-available;
+        }}
+      "#},
+          out_prop
+        ),
+        Browsers {
+          safari: Some(8 << 16),
+          firefox: Some(4 << 16),
+          ..Browsers::default()
+        },
+      );
+
+      prefix_test(
+        &format!(
+          r#"
+        .foo {{
+          {}: fit-content;
+        }}
+      "#,
+          in_prop
+        ),
+        &format!(
+          indoc! {r#"
+        .foo {{
+          {}: -webkit-fit-content;
+          {}: -moz-fit-content;
+          {}: fit-content;
+        }}
+      "#},
+          out_prop, out_prop, out_prop
+        ),
+        Browsers {
+          safari: Some(8 << 16),
+          firefox: Some(4 << 16),
+          ..Browsers::default()
+        },
+      );
+
+      prefix_test(
+        &format!(
+          r#"
+        .foo {{
+          {}: fit-content(50%);
+        }}
+      "#,
+          in_prop
+        ),
+        &format!(
+          indoc! {r#"
+        .foo {{
+          {}: fit-content(50%);
+        }}
+      "#},
+          out_prop
+        ),
+        Browsers {
+          safari: Some(8 << 16),
+          firefox: Some(4 << 16),
+          ..Browsers::default()
+        },
+      );
+
+      prefix_test(
+        &format!(
+          r#"
+        .foo {{
+          {}: min-content;
+        }}
+      "#,
+          in_prop
+        ),
+        &format!(
+          indoc! {r#"
+        .foo {{
+          {}: -webkit-min-content;
+          {}: -moz-min-content;
+          {}: min-content;
+        }}
+      "#},
+          out_prop, out_prop, out_prop
+        ),
+        Browsers {
+          safari: Some(8 << 16),
+          firefox: Some(4 << 16),
+          ..Browsers::default()
+        },
+      );
+
+      prefix_test(
+        &format!(
+          r#"
+        .foo {{
+          {}: max-content;
+        }}
+      "#,
+          in_prop
+        ),
+        &format!(
+          indoc! {r#"
+        .foo {{
+          {}: -webkit-max-content;
+          {}: -moz-max-content;
+          {}: max-content;
+        }}
+      "#},
+          out_prop, out_prop, out_prop
+        ),
+        Browsers {
+          safari: Some(8 << 16),
+          firefox: Some(4 << 16),
+          ..Browsers::default()
+        },
+      );
+    }
   }
 
   #[test]
