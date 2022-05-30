@@ -161,11 +161,40 @@ fn bundle(ctx: CallContext) -> napi::Result<JsUnknown> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+#[js_function(1)]
+fn bundle_async(ctx: CallContext) -> napi::Result<JsObject> {
+  // Parse JS arguments into Rust values so they can be used in the `Future`.
+  let opts = ctx.get::<JsObject>(0)?;
+  let config: BundleConfig = ctx.env.from_js_value(&opts)?;
+
+  // Execute asynchronous operation and return a `Promise` to JS.
+  ctx.env.execute_tokio_future(
+    // Perform asynchronous work, *cannot* access JS data from here.
+    async {
+      let fs = FileProvider::new();
+      let res = compile_bundle(&fs, &config).await;
+      drop(config);
+
+      match res {
+        Ok(transform_result) => Ok(transform_result),
+        Err(compile_error) => Err(napi::Error::new(
+          napi::Status::GenericFailure,
+          compile_error.to_string(),
+        )),
+      }
+    },
+    // Convert the result from Rust data to JS data.
+    |&mut env, transform_result| env.to_js_value(&transform_result)
+  )
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 #[module_exports]
 fn init(mut exports: JsObject) -> napi::Result<()> {
   exports.create_named_method("transform", transform)?;
   exports.create_named_method("transformStyleAttribute", transform_style_attribute)?;
   exports.create_named_method("bundle", bundle)?;
+  exports.create_named_method("bundleAsync", bundle_async)?;
 
   Ok(())
 }

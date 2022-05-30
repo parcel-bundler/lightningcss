@@ -720,6 +720,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thread_local",
+ "tokio",
 ]
 
 [[package]]
