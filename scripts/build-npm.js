@@ -42,8 +42,8 @@ for (let triple of triples) {
     t += '-' + abi;
   }
 
-  buildNode(triple, cpu, os, t);
-  buildCLI(triple, cpu, os, t);
+  buildNode(triple, cpu, os, abi, t);
+  buildCLI(triple, cpu, os, abi, t);
 }
 
 pkg.optionalDependencies = optionalDependencies;
@@ -68,13 +68,16 @@ cliPkg.scripts = {
 fs.writeFileSync(`${dir}/cli/package.json`, JSON.stringify(cliPkg, false, 2) + '\n');
 fs.copyFileSync(`${dir}/README.md`, `${dir}/cli/README.md`);
 
-function buildNode(triple, cpu, os, t) {
+function buildNode(triple, cpu, os, abi, t) {
   let name = `parcel-css.${t}.node`;
 
   let pkg2 = {...pkg};
   pkg2.name += '-' + t;
   pkg2.os = [os];
   pkg2.cpu = [cpu];
+  if (abi) {
+    pkg2.libc = [abi];
+  }
   pkg2.main = name;
   pkg2.files = [name];
   delete pkg2.napi;
@@ -95,13 +98,16 @@ function buildNode(triple, cpu, os, t) {
   fs.writeFileSync(`${dir}/npm/node-${t}/README.md`, `This is the ${triple} build of @parcel/css. See https://github.com/parcel-bundler/parcel-css for details.`);
 }
 
-function buildCLI(triple, cpu, os, t) {
+function buildCLI(triple, cpu, os, abi, t) {
   let binary = os === 'win32' ? 'parcel_css.exe' : 'parcel_css';
   let pkg2 = {...pkg};
   pkg2.name += '-cli-' + t;
   pkg2.os = [os];
   pkg2.cpu = [cpu];
   pkg2.files = [binary];
+  if (abi) {
+    pkg2.libc = [abi];
+  }
   delete pkg2.main;
   delete pkg2.napi;
   delete pkg2.devDependencies;
