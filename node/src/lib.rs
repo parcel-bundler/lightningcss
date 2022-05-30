@@ -14,6 +14,7 @@ use parcel_sourcemap::SourceMap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::Path;
+use tokio::runtime::Runtime;
 
 // ---------------------------------------------
 
@@ -129,7 +130,8 @@ fn bundle(ctx: CallContext) -> napi::Result<JsUnknown> {
   let opts = ctx.get::<JsObject>(0)?;
   let config: BundleConfig = ctx.env.from_js_value(opts)?;
   let fs = FileProvider::new();
-  let res = compile_bundle(&fs, &config);
+  let async_runtime = Runtime::new()?;
+  let res = async_runtime.block_on(compile_bundle(&fs, &config));
 
   match res {
     Ok(res) => res.into_js(ctx),
@@ -150,7 +152,7 @@ fn bundle(ctx: CallContext) -> napi::Result<JsUnknown> {
         | CompileError::BundleError(Error {
           loc: Some(ErrorLocation { filename, .. }),
           ..
-        }) => Some(fs.read(Path::new(filename))?),
+        }) => Some(async_runtime.block_on(fs.read(Path::new(filename)))?),
         _ => None,
       };
       err.throw(ctx, code)
@@ -313,7 +315,10 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
   })
 }
 
-fn compile_bundle<'i>(fs: &'i FileProvider, config: &BundleConfig) -> Result<TransformResult, CompileError<'i>> {
+async fn compile_bundle<'i>(
+  fs: &'i FileProvider,
+  config: &BundleConfig,
+) -> Result<TransformResult, CompileError<'i>> {
   let mut source_map = if config.source_map.unwrap_or(false) {
     Some(SourceMap::new("/"))
   } else {
@@ -347,7 +352,7 @@ fn compile_bundle<'i>(fs: &'i FileProvider, config: &BundleConfig) -> Result<Tra
   };
 
   let mut bundler = Bundler::new(fs, source_map.as_mut(), parser_options);
-  let mut stylesheet = bundler.bundle(Path::new(&config.filename))?;
+  let mut stylesheet = bundler.bundle(Path::new(&config.filename)).await?;
 
   stylesheet.minify(MinifyOptions {
     targets: config.targets,
