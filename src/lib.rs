@@ -4864,7 +4864,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        font-family: Helvetica, system-ui, AppleSystem, BlinkMacSystemFont, Segoe UI, Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue, sans-serif;
+        font-family: Helvetica, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue, sans-serif;
       }
     "#
       },
@@ -4882,7 +4882,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        font: 100% / 1.5 Helvetica, system-ui, AppleSystem, BlinkMacSystemFont, Segoe UI, Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue, sans-serif;
+        font: 100% / 1.5 Helvetica, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue, sans-serif;
       }
     "#
       },
