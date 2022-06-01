@@ -217,7 +217,7 @@ impl<'i> fmt::Display for SelectorError<'i> {
       InvalidPseudoClassAfterWebKitScrollbar => write!(f, "Invalid pseudo class after ::-webkit-scrollbar pseudo element"),
       InvalidPseudoClassBeforeWebKitScrollbar => write!(f, "Pseudo class must be prefixed by a ::-webkit-scrollbar pseudo element"),
       InvalidQualNameInAttr(token) => write!(f, "Invalid qualified name in attribute selector: {:?}", token),
-      MissingNestingPrefix => write!(f, "A nesting selector (&) is required as a prefix of each selector in a nested style rule"),
+      MissingNestingPrefix => write!(f, "A nested rule must start with a nesting selector (&) as prefix of each selector, or start with @nest"),
       MissingNestingSelector => write!(f, "A nesting selector (&) is required in each selector of a @nest rule"),
       NoQualifiedNameInAttributeSelector(token) => write!(f, "No qualified name in attribute selector: {:?}.", token),
       PseudoElementExpectedIdent(token) => write!(f, "Invalid token in pseudo element: {:?}", token),
