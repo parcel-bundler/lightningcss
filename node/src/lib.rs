@@ -138,7 +138,17 @@ fn transform_style_attribute(ctx: CallContext) -> napi::Result<JsUnknown> {
 #[js_function(1)]
 fn bundle(ctx: CallContext) -> napi::Result<JsUnknown> {
   let opts = ctx.get::<JsObject>(0)?;
-  let config: BundleConfig = ctx.env.from_js_value(opts)?;
+  let config: BundleConfig = ctx.env.from_js_value(&opts)?;
+
+  // Throw early error if user mistakenly passes `resolver` into synchronous `bundle()`.
+  let resolver = opts.get::<&str, JsUnknown>("resolver")?;
+  if resolver.is_some() {
+    return Err(napi::Error::new(
+      napi::Status::InvalidArg,
+      "`bundle()` doesn't support custom JS resolvers but received a `resolver` property. Use `bundleAsync()` instead.".to_owned()),
+    );
+  }
+
   let fs = FileProvider::new();
   let async_runtime = Runtime::new()?;
   let res = async_runtime.block_on(compile_bundle(&fs, &config));

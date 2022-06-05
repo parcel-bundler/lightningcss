@@ -1,6 +1,23 @@
 import path from 'path';
 import css from './node/index.js';
 
+(function testBundleRejectsResolver() {
+    let error = undefined;
+    try {
+        css.bundle({
+            filename: 'foo.css',
+            resolver: {},
+        });
+    } catch (err) {
+        error = err;
+    }
+
+    if (!error) throw new Error(`\`testBundleRejectsResolver()\` failed. Expected \`bundle()\` to throw, but it did not.`);
+    if (!error.message.includes(`\`bundle()\` doesn't support custom JS resolvers`) || !error.message.includes(`Use \`bundleAsync()\` instead.`)) {
+        throw new Error(`\`testBundleRejectsResolver()\` failed. Expected \`bundle()\` to throw a specific error message, but it threw a different error:\n${error.message}`);
+    }
+}());
+
 (async function testResolver() {
     const inMemoryFs = new Map(Object.entries({
         'foo.css': `
