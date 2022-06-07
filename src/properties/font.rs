@@ -915,9 +915,9 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
 const SYSTEM_UI: FontFamily = FontFamily::Generic(GenericFontFamily::SystemUI);
 
 const DEFAULT_SYSTEM_FONTS: &[&str] = &[
-  // #1: Supported as the -apple-system value (only on Mac)
-  "AppleSystem",
-  // #2: Supported as the 'BlinkMacSystemFont' value (only on Mac)
+  // #1: Supported as the '-apple-system' value (macOS, Safari >= 9.2 < 11, Firefox >= 43)
+  "-apple-system",
+  // #2: Supported as the 'BlinkMacSystemFont' value (macOS, Chrome < 56)
   "BlinkMacSystemFont",
   "Segoe UI",  // Windows >= Vista
   "Roboto",    // Android >= 4
