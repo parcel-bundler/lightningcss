@@ -133,32 +133,38 @@ function update() {
   const {transform} = wasm;
 
   const targets = getTargets();
-  let res = transform({
-    filename: 'test.css',
-    code: enc.encode(source.value),
-    minify: minify.checked,
-    targets: Object.keys(targets).length === 0 ? null : targets,
-    drafts: {
-      nesting: nesting.checked,
-      customMedia: customMedia.checked
-    },
-    cssModules: cssModules.checked,
-    analyzeDependencies: analyzeDependencies.checked,
-    unusedSymbols: unusedSymbols.value.split('\n').map(v => v.trim()).filter(Boolean)
-  });
+  try {
+    let res = transform({
+      filename: 'test.css',
+      code: enc.encode(source.value),
+      minify: minify.checked,
+      targets: Object.keys(targets).length === 0 ? null : targets,
+      drafts: {
+        nesting: nesting.checked,
+        customMedia: customMedia.checked
+      },
+      cssModules: cssModules.checked,
+      analyzeDependencies: analyzeDependencies.checked,
+      unusedSymbols: unusedSymbols.value.split('\n').map(v => v.trim()).filter(Boolean)
+    });
 
-  compiled.value = dec.decode(res.code);
-  compiledModules.value = JSON.stringify(res.exports, false, 2);
-  compiledModules.hidden = !cssModules.checked;
-  compiledDependencies.value = JSON.stringify(res.dependencies, false, 2);
-  compiledDependencies.hidden = !analyzeDependencies.checked;
+    compiled.value = dec.decode(res.code);
+    compiled.style.color = "initial";
+    compiledModules.value = JSON.stringify(res.exports, false, 2);
+    compiledModules.hidden = !cssModules.checked;
+    compiledDependencies.value = JSON.stringify(res.dependencies, false, 2);
+    compiledDependencies.hidden = !analyzeDependencies.checked;
+  } catch(e) {
+    compiled.value = e.message;
+    compiled.style.color = "red";
+  }
 
   savePlaygroundState();
 }
 
 async function main() {
-  await loadVersions();
   loadPlaygroundState();
+  await loadVersions();
   await loadWasm();
 
   update();
