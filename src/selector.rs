@@ -8,6 +8,7 @@ use crate::traits::{Parse, ToCss};
 use crate::vendor_prefix::VendorPrefix;
 use crate::{macros::enum_property, values::string::CowArcStr};
 use cssparser::*;
+use parcel_selectors::parser::SelectorParseErrorKind;
 use parcel_selectors::{
   attr::{AttrSelectorOperator, ParsedAttrSelectorOperation, ParsedCaseSensitivity},
   parser::{Combinator, Component, Selector, SelectorImpl},
@@ -236,6 +237,8 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
       "after" => After,
       "first-line" => FirstLine,
       "first-letter" => FirstLetter,
+      "cue" => Cue,
+      "cue-region" => CueRegion,
       "selection" => Selection(VendorPrefix::None),
       "-moz-selection" => Selection(VendorPrefix::Moz),
       "placeholder" => Placeholder(VendorPrefix::None),
@@ -258,6 +261,21 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
       "-webkit-resizer" => WebKitScrollbar(WebKitScrollbarPseudoElement::Resizer),
 
       _ => Custom(name.into())
+    };
+
+    Ok(pseudo_element)
+  }
+
+  fn parse_functional_pseudo_element<'t>(
+    &self,
+    name: CowRcStr<'i>,
+    arguments: &mut Parser<'i, 't>,
+  ) -> Result<<Self::Impl as SelectorImpl<'i>>::PseudoElement, ParseError<'i, Self::Error>> {
+    use PseudoElement::*;
+    let pseudo_element = match_ignore_ascii_case! { &name,
+      "cue" => CueFunction(Box::new(Selector::parse(self, arguments)?)),
+      "cue-region" => CueRegionFunction(Box::new(Selector::parse(self, arguments)?)),
+      _ => return Err(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name)))
     };
 
     Ok(pseudo_element)
@@ -647,7 +665,7 @@ impl<'i> PseudoClass<'i> {
   }
 }
 
-#[derive(PartialEq, Eq, Clone, Debug, Hash)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub enum PseudoElement<'i> {
   After,
   Before,
@@ -659,6 +677,10 @@ pub enum PseudoElement<'i> {
   Backdrop(VendorPrefix),
   FileSelectorButton(VendorPrefix),
   WebKitScrollbar(WebKitScrollbarPseudoElement),
+  Cue,
+  CueRegion,
+  CueFunction(Box<Selector<'i, Selectors>>),
+  CueRegionFunction(Box<Selector<'i, Selectors>>),
   Custom(CowArcStr<'i>),
 }
 
@@ -727,6 +749,18 @@ impl<'i> ToCss for PseudoElement<'i> {
       FirstLetter => dest.write_str(":first-letter"),
       Marker => dest.write_str("::marker"),
       Selection(prefix) => write_prefixed!(prefix, "selection"),
+      Cue => dest.write_str("::cue"),
+      CueRegion => dest.write_str("::cue-region"),
+      CueFunction(selector) => {
+        dest.write_str("::cue(")?;
+        selector.to_css_with_context(dest, None)?;
+        dest.write_char(')')
+      }
+      CueRegionFunction(selector) => {
+        dest.write_str("::cue-region(")?;
+        selector.to_css_with_context(dest, None)?;
+        dest.write_char(')')
+      }
       Placeholder(prefix) => {
         let vp = write_prefix!(prefix);
         if vp == VendorPrefix::WebKit || vp == VendorPrefix::Ms {
@@ -794,7 +828,7 @@ impl<'i> parcel_selectors::parser::PseudoElement<'i> for PseudoElement<'i> {
 }
 
 impl<'i> PseudoElement<'i> {
-  pub fn is_equivalent(&self, other: &PseudoElement) -> bool {
+  pub fn is_equivalent(&self, other: &PseudoElement<'i>) -> bool {
     use PseudoElement::*;
     match (self, other) {
       (Selection(_), Selection(_))
@@ -1393,6 +1427,8 @@ pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browse
           PseudoElement::Placeholder(prefix) if *prefix == VendorPrefix::None => Feature::CssPlaceholder,
           PseudoElement::Marker => Feature::CssMarkerPseudo,
           PseudoElement::Backdrop(prefix) if *prefix == VendorPrefix::None => Feature::Dialog,
+          PseudoElement::Cue => Feature::Cue,
+          PseudoElement::CueFunction(_) => Feature::CueFunction,
           PseudoElement::Custom(_) | _ => return false,
         },
 

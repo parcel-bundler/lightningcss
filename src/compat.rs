@@ -33,6 +33,8 @@ pub enum Feature {
   CssSel2,
   CssSel3,
   CssSelection,
+  Cue,
+  CueFunction,
   CustomMediaQueries,
   Dialog,
   DoublePositionGradients,
@@ -1893,6 +1895,91 @@ impl Feature {
           }
         }
         if browsers.ie.is_some() || browsers.ios_saf.is_some() || browsers.safari.is_some() {
+          return false;
+        }
+      }
+      Feature::Cue => {
+        if let Some(version) = browsers.chrome {
+          if version < 1703936 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 3604480 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 917504 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 458752 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 458752 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 66816 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 2424832 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::CueFunction => {
+        if let Some(version) = browsers.chrome {
+          if version < 1703936 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 917504 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 458752 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 458752 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 66816 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 2424832 {
+            return false;
+          }
+        }
+        if browsers.firefox.is_some() || browsers.ie.is_some() {
           return false;
         }
       }

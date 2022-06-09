@@ -5230,6 +5230,15 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    minify_test(".foo::cue {color: red}", ".foo::cue{color:red}");
+    minify_test(".foo::cue-region {color: red}", ".foo::cue-region{color:red}");
+    minify_test(".foo::cue(b) {color: red}", ".foo::cue(b){color:red}");
+    minify_test(".foo::cue-region(b) {color: red}", ".foo::cue-region(b){color:red}");
+    minify_test(
+      "::cue(v[voice='active']) {color: yellow;}",
+      "::cue(v[voice=active]){color:#ff0}",
+    );
   }
 
   #[test]
