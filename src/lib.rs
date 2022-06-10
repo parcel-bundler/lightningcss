@@ -6451,7 +6451,69 @@ mod tests {
       }
     "#},
     );
-
+    test(
+      r#"
+      .foo {
+        background: red;
+      }
+      .bar {
+        background: red;
+      }
+      .foo {
+        color: green;
+      }
+      .bar {
+        color: green;
+      }
+    "#,
+      indoc! {r#"
+      .foo, .bar {
+        color: green;
+        background: red;
+      }
+    "#},
+    );
+    test(
+      r#"
+      .foo, .bar {
+        background: red;
+      }
+      .foo {
+        color: green;
+      }
+      .bar {
+        color: green;
+      }
+    "#,
+      indoc! {r#"
+      .foo, .bar {
+        color: green;
+        background: red;
+      }
+    "#},
+    );
+    test(
+      r#"
+      .foo {
+        background: red;
+      }
+      .foo {
+        color: green;
+      }
+      .bar {
+        background: red;
+      }
+      .bar {
+        color: green;
+      }
+    "#,
+      indoc! {r#"
+      .foo, .bar {
+        color: green;
+        background: red;
+      }
+    "#},
+    );
     test(
       r#"
       [foo="bar"] {
