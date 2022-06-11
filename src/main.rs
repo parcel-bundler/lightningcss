@@ -31,6 +31,10 @@ struct CliArgs {
   /// If no filename is provided, <output_file>.json will be used.
   #[clap(long, group = "css_modules")]
   css_modules: Option<Option<String>>,
+  #[clap(long, requires = "css_modules")]
+  css_modules_pattern: Option<Option<String>>,
+  #[clap(long, requires = "css_modules")]
+  css_modules_dashed_idents: bool,
   /// Enable sourcemap, at <output_file>.map
   #[clap(long, requires = "output_file")]
   sourcemap: bool,
@@ -57,9 +61,26 @@ pub fn main() -> Result<(), std::io::Error> {
   let absolute_path = fs::canonicalize(&cli_args.input_file)?;
   let filename = pathdiff::diff_paths(absolute_path, std::env::current_dir()?).unwrap();
   let filename = filename.to_str().unwrap();
+
+  let css_modules = if let Some(_) = cli_args.css_modules {
+    Some(parcel_css::css_modules::Config {
+      pattern: cli_args.css_modules_pattern.as_ref().map_or(Default::default(), |p| {
+          if let Some(pattern) = p {
+            parcel_css::css_modules::Pattern::parse(pattern).unwrap()
+          } else {
+            Default::default()
+          }
+        }),
+      dashed_idents: cli_args.css_modules_dashed_idents,
+      ..Default::default()
+    })
+  } else {
+    cli_args.css_modules.as_ref().map(|_| Default::default())
+  };
+
   let options = ParserOptions {
     nesting: cli_args.nesting,
-    css_modules: cli_args.css_modules.as_ref().map(|_| Default::default()),
+    css_modules,
     custom_media: cli_args.custom_media,
     ..ParserOptions::default()
   };
