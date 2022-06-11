@@ -436,6 +436,16 @@ impl<'i> BorderImageHandler<'i> {
     self.repeat = Some(border_image.repeat.clone());
   }
 
+  pub fn will_flush(&self, property: &Property<'i>) -> bool {
+    use Property::*;
+    match property {
+      BorderImageSource(_) | BorderImageSlice(_) | BorderImageWidth(_) | BorderImageOutset(_)
+      | BorderImageRepeat(_) => self.vendor_prefix != VendorPrefix::None,
+      Unparsed(val) => is_border_image_property(&val.property_id),
+      _ => false,
+    }
+  }
+
   fn flush(&mut self, dest: &mut DeclarationList<'i>) {
     if !self.has_any {
       return;

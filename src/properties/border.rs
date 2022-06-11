@@ -679,8 +679,12 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
         self.flush_unparsed(&val, dest, context);
       }
       _ => {
+        if self.border_image_handler.will_flush(property) {
+          self.flush(dest, context);
+        }
+
         return self.border_image_handler.handle_property(property, dest, context)
-          || self.border_radius_handler.handle_property(property, dest, context)
+          || self.border_radius_handler.handle_property(property, dest, context);
       }
     }
 

@@ -1692,6 +1692,22 @@ mod tests {
       },
     );
 
+    test(
+      r#"
+      .foo {
+        border: 1px solid red;
+        border-image: var(--border-image);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border: 1px solid red;
+        border-image: var(--border-image);
+      }
+    "#
+      },
+    );
+
     prefix_test(
       r#"
       .foo {
