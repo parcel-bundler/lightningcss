@@ -1045,6 +1045,82 @@ mod tests {
     prefix_test(
       r#"
       .foo {
+        border-inline-width: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-left-width: 2px;
+        border-right-width: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        border-inline-width: 2px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-left-width: 2px;
+        border-right-width: 2px;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        border-inline-style: solid;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-left-style: solid;
+        border-right-style: solid;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        border-inline-color: red;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-left-color: red;
+        border-right-color: red;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
         border-inline-end: var(--test);
       }
     "#,

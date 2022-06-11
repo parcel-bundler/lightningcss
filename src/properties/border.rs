@@ -1146,10 +1146,26 @@ impl<'i> BorderHandler<'i> {
               prop!(BorderRight => $inline_start.to_border());
             }
           } else {
-            if $is_logical && logical_supported && !$inline_start.is_valid() && !$inline_end.is_valid() {
-              logical_shorthand!(BorderInlineStyle, style, $inline_start, $inline_end);
-              logical_shorthand!(BorderInlineWidth, width, $inline_start, $inline_end);
-              logical_shorthand!(BorderInlineColor, color, $inline_start, $inline_end);
+            if $is_logical && !$inline_start.is_valid() && !$inline_end.is_valid() {
+              if logical_supported {
+                logical_shorthand!(BorderInlineStyle, style, $inline_start, $inline_end);
+                logical_shorthand!(BorderInlineWidth, width, $inline_start, $inline_end);
+                logical_shorthand!(BorderInlineColor, color, $inline_start, $inline_end);
+              } else {
+                // If both values of an inline logical property are equal, then we can just convert them to physical properties.
+                macro_rules! inline_prop {
+                  ($key: ident, $left: ident, $right: ident) => {
+                    if $inline_start.$key.is_some() && $inline_start.$key == $inline_end.$key {
+                      prop!($left => std::mem::take(&mut $inline_start.$key).unwrap());
+                      prop!($right => std::mem::take(&mut $inline_end.$key).unwrap());
+                    }
+                  }
+                }
+
+                inline_prop!(style, BorderLeftStyle, BorderRightStyle);
+                inline_prop!(width, BorderLeftWidth, BorderRightWidth);
+                inline_prop!(color, BorderLeftColor, BorderRightColor);
+              }
             }
 
             side!($inline_start, $inline_start_prop, $inline_start_width, $inline_start_style, $inline_start_color);
