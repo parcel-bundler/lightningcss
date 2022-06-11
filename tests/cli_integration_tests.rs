@@ -92,15 +92,15 @@ fn css_module_test_vals() -> (String, String, String) {
     "#
     .into(),
     indoc! {r#"
-      .foo_EgL3uq {
+      .EgL3uq_foo {
         color: red;
       }
 
-      #id_EgL3uq {
-        animation: test_EgL3uq 2s;
+      #EgL3uq_id {
+        animation: EgL3uq_test 2s;
       }
 
-      @keyframes test_EgL3uq {
+      @keyframes EgL3uq_test {
         from {
           color: red;
         }
@@ -110,15 +110,15 @@ fn css_module_test_vals() -> (String, String, String) {
         }
       }
 
-      @counter-style circles_EgL3uq {
+      @counter-style EgL3uq_circles {
         symbols: Ⓐ Ⓑ Ⓒ;
       }
 
       ul {
-        list-style: circles_EgL3uq;
+        list-style: EgL3uq_circles;
       }
 
-      @keyframes fade_EgL3uq {
+      @keyframes EgL3uq_fade {
         from {
           opacity: 0;
         }
@@ -274,6 +274,41 @@ fn css_modules_output_target_option() -> Result<(), Box<dyn std::error::Error>> 
   let expected: serde_json::Value = serde_json::from_str(&exports)?;
   let actual: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(modules_file.path())?)?;
   assert_eq!(expected, actual);
+
+  Ok(())
+}
+
+#[test]
+fn css_modules_stdout() -> Result<(), Box<dyn std::error::Error>> {
+  let (input, out_code, exports) = css_module_test_vals();
+  let infile = assert_fs::NamedTempFile::new("test.css")?;
+  infile.write_str(&input)?;
+  let mut cmd = Command::cargo_bin("parcel_css")?;
+  cmd.current_dir(infile.path().parent().unwrap());
+  cmd.arg(infile.path());
+  cmd.arg("--css-modules");
+  let assert = cmd.assert().success();
+  let output = assert.get_output();
+
+  let expected: serde_json::Value = serde_json::from_str(&exports)?;
+  let actual: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+  assert_eq!(out_code, actual.pointer("/code").unwrap().as_str().unwrap());
+  assert_eq!(&expected, actual.pointer("/exports").unwrap());
+
+  Ok(())
+}
+
+#[test]
+fn css_modules_pattern() -> Result<(), Box<dyn std::error::Error>> {
+  let (input, _, _) = css_module_test_vals();
+  let infile = assert_fs::NamedTempFile::new("test.css")?;
+  infile.write_str(&input)?;
+  let mut cmd = Command::cargo_bin("parcel_css")?;
+  cmd.current_dir(infile.path().parent().unwrap());
+  cmd.arg(infile.path());
+  cmd.arg("--css-modules");
+  cmd.arg("--css-modules-pattern").arg("[name]-[hash]-[local]");
+  cmd.assert().success().stdout(predicate::str::contains("test-EgL3uq-foo"));
 
   Ok(())
 }

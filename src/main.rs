@@ -29,6 +29,7 @@ struct CliArgs {
   custom_media: bool,
   /// Enable CSS modules in output.
   /// If no filename is provided, <output_file>.json will be used.
+  /// If no --output-file is specified, code and exports will be printed to stdout as JSON.
   #[clap(long, group = "css_modules")]
   css_modules: Option<Option<String>>,
   #[clap(long, requires = "css_modules")]
@@ -174,7 +175,7 @@ pub fn main() -> Result<(), std::io::Error> {
         "{}",
         serde_json::json!({
           "code": res.code,
-          "modules": exports
+          "exports": exports
         })
       );
     } else {
