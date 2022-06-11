@@ -29,7 +29,7 @@ struct CliArgs {
   custom_media: bool,
   /// Enable CSS modules in output.
   /// If no filename is provided, <output_file>.json will be used.
-  #[clap(long, group = "css_modules", requires = "output_file")]
+  #[clap(long, group = "css_modules")]
   css_modules: Option<Option<String>>,
   /// Enable sourcemap, at <output_file>.map
   #[clap(long, requires = "output_file")]
@@ -142,7 +142,17 @@ pub fn main() -> Result<(), std::io::Error> {
       }
     }
   } else {
-    println!("{}", res.code);
+    if let Some(exports) = res.exports {
+      println!(
+        "{}",
+        serde_json::json!({
+          "code": res.code,
+          "modules": exports
+        })
+      );
+    } else {
+      println!("{}", res.code);
+    }
   }
 
   Ok(())
