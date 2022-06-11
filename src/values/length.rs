@@ -1,11 +1,14 @@
 //! CSS length values.
 
-use super::calc::Calc;
+use super::calc::{Calc, MathFunction};
 use super::number::CSSNumber;
 use super::percentage::DimensionPercentage;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
-use crate::traits::{private::TryAdd, Parse, ToCss};
+use crate::traits::{
+  private::{AddInternal, TryAdd},
+  Parse, ToCss,
+};
 use const_str;
 use cssparser::*;
 
@@ -444,6 +447,37 @@ impl std::ops::Add<Length> for Length {
   type Output = Self;
 
   fn add(self, other: Length) -> Length {
+    // Unwrap calc(...) functions so we can add inside.
+    // Then wrap the result in a calc(...) again if necessary.
+    let a = unwrap_calc(self);
+    let b = unwrap_calc(other);
+    let res = AddInternal::add(a, b);
+    match res {
+      Length::Calc(c) => match *c {
+        Calc::Value(l) => *l,
+        Calc::Function(f) if !matches!(*f, MathFunction::Calc(_)) => Length::Calc(Box::new(Calc::Function(f))),
+        c => Length::Calc(Box::new(Calc::Function(Box::new(MathFunction::Calc(c))))),
+      },
+      _ => res,
+    }
+  }
+}
+
+fn unwrap_calc(length: Length) -> Length {
+  match length {
+    Length::Calc(c) => match *c {
+      Calc::Function(f) => match *f {
+        MathFunction::Calc(c) => Length::Calc(Box::new(c)),
+        c => Length::Calc(Box::new(Calc::Function(Box::new(c)))),
+      },
+      _ => Length::Calc(c),
+    },
+    _ => length,
+  }
+}
+
+impl AddInternal for Length {
+  fn add(self, other: Self) -> Self {
     match self.try_add(&other) {
       Some(r) => r,
       None => self.add(other),
@@ -488,7 +522,7 @@ impl Length {
     }
 
     match (a, b) {
-      (Length::Calc(a), Length::Calc(b)) => return Length::Calc(Box::new(*a + *b)),
+      (Length::Calc(a), Length::Calc(b)) => return Length::Calc(Box::new(a.add(*b))),
       (Length::Calc(calc), b) => {
         if let Calc::Value(a) = *calc {
           a.add(b)

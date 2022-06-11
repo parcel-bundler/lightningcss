@@ -89,6 +89,10 @@ pub(crate) mod private {
   pub trait TryAdd<T> {
     fn try_add(&self, other: &T) -> Option<T>;
   }
+
+  pub trait AddInternal {
+    fn add(self, other: Self) -> Self;
+  }
 }
 
 pub(crate) trait FromStandard<T>: Sized {

@@ -3,6 +3,7 @@
 use super::calc::Calc;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
+use crate::traits::private::AddInternal;
 use crate::traits::{Parse, ToCss};
 use cssparser::*;
 
@@ -61,6 +62,12 @@ impl std::convert::From<Calc<CSSNumber>> for CSSNumber {
       Calc::Value(v) => *v,
       _ => unreachable!(),
     }
+  }
+}
+
+impl AddInternal for CSSNumber {
+  fn add(self, other: Self) -> Self {
+    self + other
   }
 }
 

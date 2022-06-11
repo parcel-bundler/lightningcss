@@ -4,6 +4,7 @@ use super::calc::Calc;
 use super::number::CSSNumber;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
+use crate::traits::private::AddInternal;
 use crate::traits::{Parse, ToCss};
 use cssparser::*;
 
@@ -124,6 +125,12 @@ impl std::ops::Add<Time> for Time {
       (Time::Seconds(a), Time::Milliseconds(b)) => Time::Seconds(a + b / 1000.0),
       (Time::Milliseconds(a), Time::Seconds(b)) => Time::Seconds(a + b * 1000.0),
     }
+  }
+}
+
+impl AddInternal for Time {
+  fn add(self, other: Self) -> Self {
+    self + other
   }
 }
 

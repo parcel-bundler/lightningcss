@@ -6,7 +6,10 @@ use super::number::CSSNumber;
 use super::percentage::DimensionPercentage;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
-use crate::traits::{private::TryAdd, Parse, ToCss};
+use crate::traits::{
+  private::{AddInternal, TryAdd},
+  Parse, ToCss,
+};
 use cssparser::*;
 use std::f32::consts::PI;
 
@@ -147,6 +150,12 @@ impl std::ops::Add<Angle> for Angle {
 
   fn add(self, other: Angle) -> Angle {
     Angle::Deg(self.to_degrees() + other.to_degrees())
+  }
+}
+
+impl AddInternal for Angle {
+  fn add(self, other: Self) -> Self {
+    self + other
   }
 }
 

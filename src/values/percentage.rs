@@ -1,9 +1,10 @@
 //! CSS percentage values.
 
-use super::calc::Calc;
+use super::calc::{Calc, MathFunction};
 use super::number::CSSNumber;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
+use crate::traits::private::AddInternal;
 use crate::traits::{private::TryAdd, Parse, ToCss};
 use cssparser::*;
 
@@ -89,6 +90,12 @@ impl std::ops::Add<Percentage> for Percentage {
 
   fn add(self, other: Percentage) -> Percentage {
     Percentage(self.0 + other.0)
+  }
+}
+
+impl AddInternal for Percentage {
+  fn add(self, other: Self) -> Self {
+    self + other
   }
 }
 
@@ -233,9 +240,44 @@ impl<D: std::ops::Mul<CSSNumber, Output = D>> std::ops::Mul<CSSNumber> for Dimen
 impl<D: TryAdd<D> + Clone + std::cmp::PartialEq<CSSNumber> + std::cmp::PartialOrd<CSSNumber> + std::fmt::Debug>
   std::ops::Add<DimensionPercentage<D>> for DimensionPercentage<D>
 {
-  type Output = Self;
+  type Output = DimensionPercentage<D>;
 
   fn add(self, other: DimensionPercentage<D>) -> DimensionPercentage<D> {
+    // Unwrap calc(...) functions so we can add inside.
+    // Then wrap the result in a calc(...) again if necessary.
+    let a = unwrap_calc(self);
+    let b = unwrap_calc(other);
+    let res = AddInternal::add(a, b);
+    match res {
+      DimensionPercentage::Calc(c) => match *c {
+        Calc::Value(l) => *l,
+        Calc::Function(f) if !matches!(*f, MathFunction::Calc(_)) => {
+          DimensionPercentage::Calc(Box::new(Calc::Function(f)))
+        }
+        c => DimensionPercentage::Calc(Box::new(Calc::Function(Box::new(MathFunction::Calc(c))))),
+      },
+      _ => res,
+    }
+  }
+}
+
+fn unwrap_calc<D>(v: DimensionPercentage<D>) -> DimensionPercentage<D> {
+  match v {
+    DimensionPercentage::Calc(c) => match *c {
+      Calc::Function(f) => match *f {
+        MathFunction::Calc(c) => DimensionPercentage::Calc(Box::new(c)),
+        c => DimensionPercentage::Calc(Box::new(Calc::Function(Box::new(c)))),
+      },
+      _ => DimensionPercentage::Calc(c),
+    },
+    _ => v,
+  }
+}
+
+impl<D: TryAdd<D> + Clone + std::cmp::PartialEq<CSSNumber> + std::cmp::PartialOrd<CSSNumber> + std::fmt::Debug>
+  AddInternal for DimensionPercentage<D>
+{
+  fn add(self, other: Self) -> Self {
     match self.add_recursive(&other) {
       Some(r) => r,
       None => self.add(other),
@@ -309,7 +351,9 @@ impl<D: TryAdd<D> + Clone + std::cmp::PartialEq<CSSNumber> + std::cmp::PartialOr
     }
 
     match (a, b) {
-      (DimensionPercentage::Calc(a), DimensionPercentage::Calc(b)) => DimensionPercentage::Calc(Box::new(*a + *b)),
+      (DimensionPercentage::Calc(a), DimensionPercentage::Calc(b)) => {
+        DimensionPercentage::Calc(Box::new(a.add(*b)))
+      }
       (DimensionPercentage::Calc(calc), b) => {
         if let Calc::Value(a) = *calc {
           a.add(b)

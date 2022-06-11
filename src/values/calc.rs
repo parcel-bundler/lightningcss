@@ -3,6 +3,7 @@
 use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
+use crate::traits::private::AddInternal;
 use crate::traits::{Parse, ToCss};
 use cssparser::*;
 
@@ -123,7 +124,7 @@ impl<
     'i,
     V: Parse<'i>
       + std::ops::Mul<f32, Output = V>
-      + std::ops::Add<V, Output = V>
+      + AddInternal
       + std::cmp::PartialOrd<V>
       + std::convert::Into<Calc<V>>
       + std::convert::From<Calc<V>>
@@ -221,7 +222,7 @@ impl<
     'i,
     V: Parse<'i>
       + std::ops::Mul<f32, Output = V>
-      + std::ops::Add<V, Output = V>
+      + AddInternal
       + std::cmp::PartialOrd<V>
       + std::convert::Into<Calc<V>>
       + std::convert::From<Calc<V>>
@@ -240,12 +241,12 @@ impl<
           match *input.next()? {
             Token::Delim('+') => {
               let next = Calc::parse_product(input)?;
-              cur = cur + next;
+              cur = cur.add(next);
             }
             Token::Delim('-') => {
               let mut rhs = Calc::parse_product(input)?;
               rhs = rhs * -1.0;
-              cur = cur + rhs;
+              cur = cur.add(rhs);
             }
             ref t => {
               let t = t.clone();
@@ -392,21 +393,18 @@ impl<V: std::ops::Mul<f32, Output = V>> std::ops::Mul<f32> for Calc<V> {
   }
 }
 
-impl<
-    V: std::ops::Add<V, Output = V> + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> + std::fmt::Debug,
-  > std::ops::Add<Calc<V>> for Calc<V>
+impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> + std::fmt::Debug> AddInternal
+  for Calc<V>
 {
-  type Output = Self;
-
   fn add(self, other: Calc<V>) -> Calc<V> {
     match (self, other) {
-      (Calc::Value(a), Calc::Value(b)) => (*a + *b).into(),
+      (Calc::Value(a), Calc::Value(b)) => (a.add(*b)).into(),
       (Calc::Number(a), Calc::Number(b)) => Calc::Number(a + b),
-      (Calc::Value(a), b) => (*a + V::from(b)).into(),
-      (a, Calc::Value(b)) => (V::from(a) + *b).into(),
+      (Calc::Value(a), b) => (a.add(V::from(b))).into(),
+      (a, Calc::Value(b)) => (V::from(a).add(*b)).into(),
       (Calc::Function(a), b) => Calc::Sum(Box::new(Calc::Function(a)), Box::new(b)),
       (a, Calc::Function(b)) => Calc::Sum(Box::new(a), Box::new(Calc::Function(b))),
-      (a, b) => (V::from(a) + V::from(b)).into(),
+      (a, b) => V::from(a).add(V::from(b)).into(),
     }
   }
 }

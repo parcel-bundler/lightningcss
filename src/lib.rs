@@ -5881,6 +5881,10 @@ mod tests {
       ".foo { left: calc(50% - 100px + clamp(0px, calc(50vw - 50px), 100px)) }",
       ".foo{left:calc(50% - 100px + clamp(0px,50vw - 50px,100px))}",
     );
+    minify_test(
+      ".foo { left: calc(10px + min(10px, 1rem) + max(2px, 1vw)) }",
+      ".foo{left:calc(10px + min(10px,1rem) + max(2px,1vw))}",
+    );
   }
 
   #[test]
@@ -6336,6 +6340,43 @@ mod tests {
       }
       "#,
       "\n",
+    );
+
+    prefix_test(
+      r#"
+      @media (width > calc(1px + 1rem)) {
+        .foo { color: yellow; }
+      }
+      "#,
+      indoc! { r#"
+        @media (min-width: calc(1.001px + 1rem)) {
+          .foo {
+            color: #ff0;
+          }
+        }
+      "#},
+      Browsers {
+        chrome: Some(85 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      @media (width > max(10px, 1rem)) {
+        .foo { color: yellow; }
+      }
+      "#,
+      indoc! { r#"
+        @media (min-width: calc(max(10px, 1rem) + .001px)) {
+          .foo {
+            color: #ff0;
+          }
+        }
+      "#},
+      Browsers {
+        chrome: Some(85 << 16),
+        ..Browsers::default()
+      },
     );
   }
 
