@@ -3,7 +3,7 @@
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 use parcel_css::bundler::{BundleErrorKind, Bundler, FileProvider, SourceProvider};
-use parcel_css::css_modules::{CssModuleExports, CssModuleReferences};
+use parcel_css::css_modules::{CssModuleExports, CssModuleReferences, PatternParseError};
 use parcel_css::dependencies::Dependency;
 use parcel_css::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterErrorKind};
 use parcel_css::stylesheet::{
@@ -259,9 +259,14 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
           CssModulesOption::Bool(true) => Some(parcel_css::css_modules::Config::default()),
           CssModulesOption::Bool(false) => None,
           CssModulesOption::Config(c) => Some(parcel_css::css_modules::Config {
-            pattern: c.pattern.as_ref().map_or(Default::default(), |pattern| {
-              parcel_css::css_modules::Pattern::parse(pattern).unwrap()
-            }),
+            pattern: if let Some(pattern) = c.pattern.as_ref() {
+              match parcel_css::css_modules::Pattern::parse(pattern) {
+                Ok(p) => p,
+                Err(e) => return Err(CompileError::PatternError(e)),
+              }
+            } else {
+              Default::default()
+            },
             dashed_idents: c.dashed_idents,
           }),
         }
@@ -324,9 +329,14 @@ fn compile_bundle<'i>(fs: &'i FileProvider, config: &BundleConfig) -> Result<Tra
         CssModulesOption::Bool(true) => Some(parcel_css::css_modules::Config::default()),
         CssModulesOption::Bool(false) => None,
         CssModulesOption::Config(c) => Some(parcel_css::css_modules::Config {
-          pattern: c.pattern.as_ref().map_or(Default::default(), |pattern| {
-            parcel_css::css_modules::Pattern::parse(pattern).unwrap()
-          }),
+          pattern: if let Some(pattern) = c.pattern.as_ref() {
+            match parcel_css::css_modules::Pattern::parse(pattern) {
+              Ok(p) => p,
+              Err(e) => return Err(CompileError::PatternError(e)),
+            }
+          } else {
+            Default::default()
+          },
           dashed_idents: c.dashed_idents,
         }),
       }
@@ -439,6 +449,7 @@ enum CompileError<'i> {
   PrinterError(Error<PrinterErrorKind>),
   SourceMapError(parcel_sourcemap::SourceMapError),
   BundleError(Error<BundleErrorKind<'i>>),
+  PatternError(PatternParseError),
 }
 
 impl<'i> std::fmt::Display for CompileError<'i> {
@@ -448,6 +459,7 @@ impl<'i> std::fmt::Display for CompileError<'i> {
       CompileError::MinifyError(err) => err.kind.fmt(f),
       CompileError::PrinterError(err) => err.kind.fmt(f),
       CompileError::BundleError(err) => err.kind.fmt(f),
+      CompileError::PatternError(err) => err.fmt(f),
       CompileError::SourceMapError(err) => write!(f, "{}", err.to_string()), // TODO: switch to `fmt::Display` once parcel_sourcemap supports this
     }
   }
@@ -532,6 +544,7 @@ impl<'i> From<CompileError<'i>> for napi::Error {
   fn from(e: CompileError) -> napi::Error {
     match e {
       CompileError::SourceMapError(e) => napi::Error::from_reason(e.to_string()),
+      CompileError::PatternError(e) => napi::Error::from_reason(e.to_string()),
       _ => napi::Error::new(napi::Status::GenericFailure, e.to_string()),
     }
   }
@@ -542,6 +555,7 @@ impl<'i> From<CompileError<'i>> for wasm_bindgen::JsValue {
   fn from(e: CompileError) -> wasm_bindgen::JsValue {
     match e {
       CompileError::SourceMapError(e) => js_sys::Error::new(&e.to_string()).into(),
+      CompileError::PatternError(e) => js_sys::Error::new(&e.to_string()).into(),
       _ => js_sys::Error::new(&e.to_string()).into(),
     }
   }

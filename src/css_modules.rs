@@ -47,10 +47,36 @@ impl<'i> Default for Pattern<'i> {
   }
 }
 
+/// An error that occurred while parsing a CSS modules name pattern.
+#[derive(Debug)]
+pub enum PatternParseError {
+  /// An unknown placeholder segment was encountered at the given index.
+  UnknownPlaceholder(String, usize),
+  /// An opening bracket with no following closing bracket was found at the given index.
+  UnclosedBrackets(usize),
+}
+
+impl std::fmt::Display for PatternParseError {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    use PatternParseError::*;
+    match self {
+      UnknownPlaceholder(p, i) => write!(
+        f,
+        "Error parsing CSS modules pattern: unknown placeholder \"{}\" at index {}",
+        p, i
+      ),
+      UnclosedBrackets(i) => write!(f, "Error parsing CSS modules pattern: unclosed brackets at index {}", i),
+    }
+  }
+}
+
+impl std::error::Error for PatternParseError {}
+
 impl<'i> Pattern<'i> {
   /// Parse a pattern from a string.
-  pub fn parse(mut input: &'i str) -> Result<Self, ()> {
+  pub fn parse(mut input: &'i str) -> Result<Self, PatternParseError> {
     let mut segments = SmallVec::new();
+    let mut start_idx: usize = 0;
     while !input.is_empty() {
       if input.starts_with('[') {
         if let Some(end_idx) = input.find(']') {
@@ -58,16 +84,18 @@ impl<'i> Pattern<'i> {
             "[name]" => Segment::Name,
             "[local]" => Segment::Local,
             "[hash]" => Segment::Hash,
-            _ => return Err(()),
+            s => return Err(PatternParseError::UnknownPlaceholder(s.into(), start_idx)),
           };
           segments.push(segment);
+          start_idx += end_idx + 1;
           input = &input[end_idx + 1..];
         } else {
-          return Err(());
+          return Err(PatternParseError::UnclosedBrackets(start_idx));
         }
       } else {
         let end_idx = input.find('[').unwrap_or_else(|| input.len());
         segments.push(Segment::Literal(&input[0..end_idx]));
+        start_idx += end_idx;
         input = &input[end_idx..];
       }
     }

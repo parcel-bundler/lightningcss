@@ -32,7 +32,7 @@ struct CliArgs {
   #[clap(long, group = "css_modules")]
   css_modules: Option<Option<String>>,
   #[clap(long, requires = "css_modules")]
-  css_modules_pattern: Option<Option<String>>,
+  css_modules_pattern: Option<String>,
   #[clap(long, requires = "css_modules")]
   css_modules_dashed_idents: bool,
   /// Enable sourcemap, at <output_file>.map
@@ -63,14 +63,20 @@ pub fn main() -> Result<(), std::io::Error> {
   let filename = filename.to_str().unwrap();
 
   let css_modules = if let Some(_) = cli_args.css_modules {
+    let pattern = if let Some(pattern) = cli_args.css_modules_pattern.as_ref() {
+      match parcel_css::css_modules::Pattern::parse(pattern) {
+        Ok(p) => p,
+        Err(e) => {
+          eprintln!("{}", e);
+          std::process::exit(1);
+        }
+      }
+    } else {
+      Default::default()
+    };
+
     Some(parcel_css::css_modules::Config {
-      pattern: cli_args.css_modules_pattern.as_ref().map_or(Default::default(), |p| {
-          if let Some(pattern) = p {
-            parcel_css::css_modules::Pattern::parse(pattern).unwrap()
-          } else {
-            Default::default()
-          }
-        }),
+      pattern,
       dashed_idents: cli_args.css_modules_dashed_idents,
       ..Default::default()
     })
