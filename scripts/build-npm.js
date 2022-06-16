@@ -24,6 +24,9 @@ const sysToNodePlatform = {
   darwin: 'darwin',
   windows: 'win32',
 };
+const abiToNodeLibc = {
+  gnu: 'glibc',
+};
 
 let optionalDependencies = {};
 let cliOptionalDependencies = {};
@@ -75,8 +78,8 @@ function buildNode(triple, cpu, os, abi, t) {
   pkg2.name += '-' + t;
   pkg2.os = [os];
   pkg2.cpu = [cpu];
-  if (abi) {
-    pkg2.libc = [abi];
+  if (abi && os !== "win32") {
+    pkg2.libc = [abiToNodeLibc[abi] || abi];
   }
   pkg2.main = name;
   pkg2.files = [name];
@@ -105,8 +108,8 @@ function buildCLI(triple, cpu, os, abi, t) {
   pkg2.os = [os];
   pkg2.cpu = [cpu];
   pkg2.files = [binary];
-  if (abi) {
-    pkg2.libc = [abi];
+  if (abi && os !== "win32") {
+    pkg2.libc = [abiToNodeLibc[abi] || abi];
   }
   delete pkg2.main;
   delete pkg2.napi;
