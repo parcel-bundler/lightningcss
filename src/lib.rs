@@ -6471,7 +6471,42 @@ mod tests {
       },
     );
   }
+  #[test]
+  fn test_merge_layers() {
+    test(
+      r#"
+      @layer foo {
+        .foo {
+          color: red;
+        }
+      }
+      @layer foo {
+        .bar {
+          background: #fff;
+        }
 
+        .baz {
+          color: #fff;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @layer foo {
+        .foo {
+          color: red;
+        }
+
+        .bar {
+          background: #fff;
+        }
+
+        .baz {
+          color: #fff;
+        }
+      }
+    "#},
+    );
+  }
   #[test]
   fn test_merge_rules() {
     test(
