@@ -1,7 +1,7 @@
 //! The `@layer` rule.
 
-use super::{CssRuleList, Location};
-use crate::error::{ParserError, PrinterError};
+use super::{CssRuleList, Location, MinifyContext};
+use crate::error::{MinifyError, ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
@@ -111,6 +111,18 @@ pub struct LayerBlockRule<'i> {
   pub rules: CssRuleList<'i>,
   /// The location of the rule in the source file.
   pub loc: Location,
+}
+
+impl<'i> LayerBlockRule<'i> {
+  pub(crate) fn minify(
+    &mut self,
+    context: &mut MinifyContext<'_, 'i>,
+    parent_is_unused: bool,
+  ) -> Result<bool, MinifyError> {
+    self.rules.minify(context, parent_is_unused)?;
+
+    Ok(self.rules.0.is_empty())
+  }
 }
 
 impl<'i> ToCss for LayerBlockRule<'i> {
