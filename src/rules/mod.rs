@@ -305,10 +305,12 @@ impl<'i> CssRuleList<'i> {
           if let Some(CssRule::LayerBlock(last_style_rule)) = rules.last_mut() {
             if last_style_rule.name == layer.name {
               last_style_rule.rules.0.extend(layer.rules.0.drain(..));
-            }
-            if layer.minify(context, parent_is_unused)? {
+              last_style_rule.minify(context, parent_is_unused)?;
               continue;
             }
+          }
+          if layer.minify(context, parent_is_unused)? {
+            continue;
           }
         }
         CssRule::MozDocument(document) => document.minify(context)?,

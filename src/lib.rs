@@ -6481,7 +6481,7 @@ mod tests {
         }
       }
       @layer foo {
-        .bar {
+        .foo {
           background: #fff;
         }
 
@@ -6494,9 +6494,6 @@ mod tests {
       @layer foo {
         .foo {
           color: red;
-        }
-
-        .bar {
           background: #fff;
         }
 
