@@ -51,16 +51,6 @@ use napi_derive::{js_function, module_exports};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct SourceMapJson<'a> {
-  version: u8,
-  mappings: String,
-  sources: &'a Vec<String>,
-  sources_content: &'a Vec<String>,
-  names: &'a Vec<String>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
 struct TransformResult {
   #[serde(with = "serde_bytes")]
   code: Vec<u8>,
@@ -299,7 +289,7 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
   })?;
 
   let map = if let Some(mut source_map) = source_map {
-    Some(source_map_to_json(&mut source_map)?)
+    source_map.to_json(None).ok()
   } else {
     None
   };
@@ -363,7 +353,7 @@ fn compile_bundle<'i>(fs: &'i FileProvider, config: &BundleConfig) -> Result<Tra
   })?;
 
   let map = if let Some(source_map) = &mut source_map {
-    Some(source_map_to_json(source_map)?)
+    source_map.to_json(None).ok()
   } else {
     None
   };
@@ -375,22 +365,6 @@ fn compile_bundle<'i>(fs: &'i FileProvider, config: &BundleConfig) -> Result<Tra
     references: res.references,
     dependencies: res.dependencies,
   })
-}
-
-#[inline]
-fn source_map_to_json<'i>(source_map: &mut SourceMap) -> Result<Vec<u8>, CompileError<'i>> {
-  let mut vlq_output: Vec<u8> = Vec::new();
-  source_map.write_vlq(&mut vlq_output)?;
-
-  let sm = SourceMapJson {
-    version: 3,
-    mappings: unsafe { String::from_utf8_unchecked(vlq_output) },
-    sources: source_map.get_sources(),
-    sources_content: source_map.get_sources_content(),
-    names: source_map.get_names(),
-  };
-
-  Ok(serde_json::to_vec(&sm).unwrap())
 }
 
 #[derive(Serialize, Debug, Deserialize)]

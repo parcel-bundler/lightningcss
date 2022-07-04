@@ -15,6 +15,7 @@ use crate::rules::{CssRule, CssRuleList, MinifyContext};
 use crate::targets::Browsers;
 use crate::traits::ToCss;
 use cssparser::{Parser, ParserInput, RuleListParser};
+use parcel_sourcemap::SourceMap;
 use std::collections::{HashMap, HashSet};
 
 pub use crate::parser::ParserOptions;
@@ -65,6 +66,8 @@ pub struct StyleSheet<'i, 'o> {
   /// A list of file names for all source files included within the style sheet.
   /// Sources are referenced by index in the `loc` property of each rule.
   pub sources: Vec<String>,
+  /// The source map URL extracted from the original style sheet.
+  pub source_map_url: Option<String>,
   #[cfg_attr(feature = "serde", serde(skip))]
   /// The options the style sheet was originally parsed with.
   options: ParserOptions<'o>,
@@ -103,6 +106,7 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
   pub fn new(sources: Vec<String>, rules: CssRuleList<'i>, options: ParserOptions<'o>) -> StyleSheet<'i, 'o> {
     StyleSheet {
       sources,
+      source_map_url: None,
       rules,
       options,
     }
@@ -128,9 +132,16 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
 
     Ok(StyleSheet {
       sources: vec![filename],
+      source_map_url: parser.current_source_map_url().map(|s| s.to_owned()),
       rules: CssRuleList(rules),
       options,
     })
+  }
+
+  /// Returns the inline source map associated with the style sheet.
+  pub fn source_map(&self) -> Option<SourceMap> {
+    let source_map_url = self.source_map_url.as_ref()?;
+    SourceMap::from_data_url("/", source_map_url).ok()
   }
 
   /// Minify and transform the style sheet for the provided browser targets.
@@ -206,6 +217,13 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
     } else {
       self.rules.to_css(&mut printer)?;
       printer.newline()?;
+
+      if let Some(sm) = printer.source_map {
+        if let Some(mut input_sm) = self.source_map() {
+          let _ = sm.extends(&mut input_sm);
+        }
+      }
+
       Ok(ToCssResult {
         dependencies: printer.dependencies,
         code: dest,

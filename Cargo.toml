@@ -31,13 +31,12 @@ parcel_selectors = { version = "0.24.4", path = "./selectors" }
 itertools = "0.10.1"
 smallvec = { version = "1.7.0", features = ["union"] }
 bitflags = "1.3.2"
-parcel_sourcemap = "2.0.2"
+parcel_sourcemap = { version = "2.1.0", features = ["json"] }
 data-encoding = "2.3.2"
 lazy_static = "1.4.0"
 const-str = "0.3.1"
 # CLI deps
 clap = { version = "3.0.6", features = ["derive"], optional = true }
-serde_json = { version = "1.0.78", optional = true }
 pathdiff = { version = "0.2.1", optional = true }
 browserslist-rs = { version = "0.7.0", optional = true }
 rayon = "1.5.1"
@@ -51,11 +50,11 @@ indoc = "1.0.3"
 assert_cmd = "2.0"
 assert_fs = "1.0"
 predicates = "2.1"
-serde_json = "1.0.78"
+serde_json = "1"
 
 [features]
 default = ["grid"]
-cli = ["clap", "serde_json", "pathdiff", "browserslist-rs", "jemallocator"]
+cli = ["clap", "pathdiff", "browserslist-rs", "jemallocator"]
 grid = []
 serde = ["smallvec/serde", "cssparser/serde"]
 

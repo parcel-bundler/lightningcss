@@ -11,10 +11,9 @@ crate-type = ["cdylib"]
 [dependencies]
 serde = { version = "1.0.123", features = ["derive"] }
 serde_bytes = "0.11.5"
-serde_json = "*"
 cssparser = "0.29.1"
 parcel_css = { path = "../" }
-parcel_sourcemap = "2.0.2"
+parcel_sourcemap = { version = "2.1.0", features = ["json"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 jemallocator = { version = "0.3.2", features = ["disable_initial_exec_tls"] }

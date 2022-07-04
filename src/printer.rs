@@ -60,7 +60,7 @@ pub struct PseudoClasses<'a> {
 pub struct Printer<'a, 'b, 'c, W> {
   pub(crate) sources: Option<&'c Vec<String>>,
   dest: &'a mut W,
-  source_map: Option<&'a mut SourceMap>,
+  pub(crate) source_map: Option<&'a mut SourceMap>,
   pub(crate) loc: Location,
   indent: u8,
   line: u32,

@@ -19012,4 +19012,33 @@ mod tests {
     minify_test(".foo { z-index: 9999999 }", ".foo{z-index:9999999}");
     minify_test(".foo { z-index: -9999999 }", ".foo{z-index:-9999999}");
   }
+
+  #[test]
+  fn test_input_source_map() {
+    let source = r#".imported {
+      content: "yay, file support!";
+    }
+    
+    .selector {
+      margin: 1em;
+      background-color: #f60;
+    }
+    
+    .selector .nested {
+      margin: 0.5em;
+    }
+    
+    /*# sourceMappingURL=data:application/json;base64,ewoJInZlcnNpb24iOiAzLAoJInNvdXJjZVJvb3QiOiAicm9vdCIsCgkiZmlsZSI6ICJzdGRvdXQiLAoJInNvdXJjZXMiOiBbCgkJInN0ZGluIiwKCQkic2Fzcy9fdmFyaWFibGVzLnNjc3MiLAoJCSJzYXNzL19kZW1vLnNjc3MiCgldLAoJInNvdXJjZXNDb250ZW50IjogWwoJCSJAaW1wb3J0IFwiX3ZhcmlhYmxlc1wiO1xuQGltcG9ydCBcIl9kZW1vXCI7XG5cbi5zZWxlY3RvciB7XG4gIG1hcmdpbjogJHNpemU7XG4gIGJhY2tncm91bmQtY29sb3I6ICRicmFuZENvbG9yO1xuXG4gIC5uZXN0ZWQge1xuICAgIG1hcmdpbjogJHNpemUgLyAyO1xuICB9XG59IiwKCQkiJGJyYW5kQ29sb3I6ICNmNjA7XG4kc2l6ZTogMWVtOyIsCgkJIi5pbXBvcnRlZCB7XG4gIGNvbnRlbnQ6IFwieWF5LCBmaWxlIHN1cHBvcnQhXCI7XG59IgoJXSwKCSJtYXBwaW5ncyI6ICJBRUFBLFNBQVMsQ0FBQztFQUNSLE9BQU8sRUFBRSxvQkFBcUI7Q0FDL0I7O0FGQ0QsU0FBUyxDQUFDO0VBQ1IsTUFBTSxFQ0hELEdBQUc7RURJUixnQkFBZ0IsRUNMTCxJQUFJO0NEVWhCOztBQVBELFNBQVMsQ0FJUCxPQUFPLENBQUM7RUFDTixNQUFNLEVDUEgsS0FBRztDRFFQIiwKCSJuYW1lcyI6IFtdCn0= */"#;
+
+    let mut stylesheet = StyleSheet::parse("test.css", &source, ParserOptions::default()).unwrap();
+    stylesheet.minify(MinifyOptions::default()).unwrap();
+    let mut sm = parcel_sourcemap::SourceMap::new("/");
+    stylesheet.to_css(PrinterOptions {
+      source_map: Some(&mut sm),
+      minify: true,
+      ..PrinterOptions::default()
+    }).unwrap();
+    let map = sm.to_json(None).unwrap();
+    assert_eq!(map, r#"{"version":3,"sourceRoot":null,"mappings":"AEAA,uCFGA,2CAAA","sources":["stdin","sass/_variables.scss","sass/_demo.scss"],"sourcesContent":["@import \"_variables\";\n@import \"_demo\";\n\n.selector {\n  margin: $size;\n  background-color: $brandColor;\n\n  .nested {\n    margin: $size / 2;\n  }\n}","$brandColor: #f60;\n$size: 1em;",".imported {\n  content: \"yay, file support!\";\n}"],"names":[]}"#);
+  }
 }
