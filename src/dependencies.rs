@@ -17,7 +17,7 @@ use cssparser::SourceLocation;
 use serde::Serialize;
 
 /// A dependency.
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum Dependency {
   /// An `@import` dependency.
@@ -27,7 +27,7 @@ pub enum Dependency {
 }
 
 /// An `@import` dependency.
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct ImportDependency {
   /// The url to import.
   pub url: String,
@@ -74,7 +74,7 @@ impl ImportDependency {
 }
 
 /// A `url()` dependency.
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct UrlDependency {
   /// The url of the dependency.
   pub url: String,
@@ -97,7 +97,7 @@ impl UrlDependency {
 }
 
 /// Represents the range of source code where a dependency was found.
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceRange {
   /// The filename in which the dependency was found.

@@ -83,6 +83,7 @@ pub struct MinifyOptions {
 
 /// A result returned from `to_css`, including the serialize CSS
 /// and other metadata depending on the input options.
+#[derive(Debug)]
 pub struct ToCssResult {
   /// Serialized CSS code.
   pub code: String,
