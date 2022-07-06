@@ -30,30 +30,44 @@ if (process.argv[process.argv.length - 1] !== __filename) {
 
 let res = css.transform({
   filename: __filename,
-  minify: false,
+  minify: true,
+  sourceMap: true,
   targets: {
     safari: 4 << 16,
     firefox: 3 << 16 | 5 << 8,
     opera: 10 << 16 | 5 << 8
   },
-  code: Buffer.from(`
-  .foo {
-    color: pink;
+  code: Buffer.from(`.imported {
+    content: "yay, file support!";
   }
-
-  .bar {
-    color: red;
+  
+  .selector {
+    margin: 1em;
+    background-color: #f60;
+  }
+  
+  .selector .nested {
+    margin: 0.5em;
   }
 `),
-  drafts: {
-    // nesting: true
-  },
-  cssModules: {
-    pattern: '[name]-[hash]-[local]'
-  },
-  // analyzeDependencies: true
+  inputSourceMap: JSON.stringify({
+    "version": 3,
+    "sourceRoot": "root",
+    "file": "stdout",
+    "sources": [
+      "stdin",
+      "sass/_variables.scss",
+      "sass/_demo.scss"
+    ],
+    "sourcesContent": [
+      "@import \"_variables\";\n@import \"_demo\";\n\n.selector {\n  margin: $size;\n  background-color: $brandColor;\n\n  .nested {\n    margin: $size / 2;\n  }\n}",
+      "$brandColor: #f60;\n$size: 1em;",
+      ".imported {\n  content: \"yay, file support!\";\n}"
+    ],
+    "mappings": "AEAA,SAAS,CAAC;EACR,OAAO,EAAE,oBAAqB;CAC/B;;AFCD,SAAS,CAAC;EACR,MAAM,ECHD,GAAG;EDIR,gBAAgB,ECLL,IAAI;CDUhB;;AAPD,SAAS,CAIP,OAAO,CAAC;EACN,MAAM,ECPH,KAAG;CDQP",
+    "names": []
+  }),
 });
 
 console.log(res.code.toString());
-console.log(res.exports);
-console.log(require('util').inspect(res.dependencies, { colors: true, depth: 50 }));
+console.log(res.map.toString())

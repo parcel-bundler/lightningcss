@@ -9,6 +9,8 @@ export interface TransformOptions {
   minify?: boolean,
   /** Whether to output a source map. */
   sourceMap?: boolean,
+  /** An input source map to extend. */
+  inputSourceMap?: string,
   /** The browser targets for the generated code. */
   targets?: Targets,
   /** Whether to enable various draft syntax. */

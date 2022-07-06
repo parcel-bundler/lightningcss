@@ -169,6 +169,7 @@ struct Config {
   pub targets: Option<Browsers>,
   pub minify: Option<bool>,
   pub source_map: Option<bool>,
+  pub input_source_map: Option<String>,
   pub drafts: Option<Drafts>,
   pub css_modules: Option<CssModulesOption>,
   pub analyze_dependencies: Option<bool>,
@@ -289,6 +290,12 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
   })?;
 
   let map = if let Some(mut source_map) = source_map {
+    if let Some(input_source_map) = &config.input_source_map {
+      if let Ok(mut sm) = SourceMap::from_json("/", input_source_map) {
+        let _ = source_map.extends(&mut sm);
+      }
+    }
+
     source_map.to_json(None).ok()
   } else {
     None
