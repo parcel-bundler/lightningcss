@@ -296,7 +296,7 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
 
   Ok(TransformResult {
     code: res.code.into_bytes(),
-    map,
+    map: map.map(|m| m.into_bytes()),
     exports: res.exports,
     references: res.references,
     dependencies: res.dependencies,
@@ -360,7 +360,7 @@ fn compile_bundle<'i>(fs: &'i FileProvider, config: &BundleConfig) -> Result<Tra
 
   Ok(TransformResult {
     code: res.code.into_bytes(),
-    map,
+    map: map.map(|m| m.into_bytes()),
     exports: res.exports,
     references: res.references,
     dependencies: res.dependencies,
