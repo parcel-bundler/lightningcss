@@ -1,5 +1,7 @@
 //! CSS color values.
 
+use super::angle::Angle;
+use super::number::CSSNumber;
 use super::percentage::Percentage;
 use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
@@ -335,7 +337,8 @@ impl From<Color> for CssColor {
 
 impl<'i> Parse<'i> for CssColor {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(color) = input.try_parse(Color::parse) {
+    let parser = ComponentParser { allow_none: false };
+    if let Ok(color) = input.try_parse(|input| Color::parse_with(&parser, input)) {
       return Ok(color.into());
     }
 
@@ -468,51 +471,111 @@ fn short_color_name(v: u32) -> Option<&'static str> {
   Some(s)
 }
 
-struct ComponentParser;
+pub(crate) struct ComponentParser {
+  pub allow_none: bool,
+}
+
 impl<'i> ColorComponentParser<'i> for ComponentParser {
   type Error = ParserError<'i>;
+
+  fn parse_angle_or_number<'t>(
+    &self,
+    input: &mut Parser<'i, 't>,
+  ) -> Result<AngleOrNumber, ParseError<'i, Self::Error>> {
+    if let Ok(angle) = input.try_parse(Angle::parse) {
+      Ok(AngleOrNumber::Angle {
+        degrees: angle.to_degrees(),
+      })
+    } else if let Ok(value) = input.try_parse(CSSNumber::parse) {
+      Ok(AngleOrNumber::Number { value })
+    } else if self.allow_none {
+      input.expect_ident_matching("none")?;
+      Ok(AngleOrNumber::Number { value: f32::NAN })
+    } else {
+      Err(input.new_custom_error(ParserError::InvalidValue))
+    }
+  }
+
+  fn parse_number<'t>(&self, input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, Self::Error>> {
+    if let Ok(val) = input.try_parse(CSSNumber::parse) {
+      return Ok(val);
+    } else if self.allow_none {
+      input.expect_ident_matching("none")?;
+      Ok(f32::NAN)
+    } else {
+      Err(input.new_custom_error(ParserError::InvalidValue))
+    }
+  }
+
+  fn parse_percentage<'t>(&self, input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, Self::Error>> {
+    if let Ok(val) = input.try_parse(Percentage::parse) {
+      return Ok(val.0);
+    } else if self.allow_none {
+      input.expect_ident_matching("none")?;
+      Ok(f32::NAN)
+    } else {
+      Err(input.new_custom_error(ParserError::InvalidValue))
+    }
+  }
+
+  fn parse_number_or_percentage<'t>(
+    &self,
+    input: &mut Parser<'i, 't>,
+  ) -> Result<NumberOrPercentage, ParseError<'i, Self::Error>> {
+    if let Ok(value) = input.try_parse(CSSNumber::parse) {
+      Ok(NumberOrPercentage::Number { value })
+    } else if let Ok(value) = input.try_parse(Percentage::parse) {
+      Ok(NumberOrPercentage::Percentage { unit_value: value.0 })
+    } else if self.allow_none {
+      input.expect_ident_matching("none")?;
+      Ok(NumberOrPercentage::Number { value: f32::NAN })
+    } else {
+      Err(input.new_custom_error(ParserError::InvalidValue))
+    }
+  }
 }
 
 // https://www.w3.org/TR/css-color-4/#lab-colors
 fn parse_color_function<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
   let location = input.current_source_location();
   let function = input.expect_function()?;
+  let parser = ComponentParser { allow_none: true };
 
   match_ignore_ascii_case! {&*function,
     "lab" => {
-      let (l, a, b, alpha) = parse_lab(input)?;
+      let (l, a, b, alpha) = parse_lab(input, &parser)?;
       let lab = LABColor::LAB(LAB { l, a, b, alpha });
       Ok(CssColor::LAB(Box::new(lab)))
     },
     "oklab" => {
-      let (l, a, b, alpha) = parse_lab(input)?;
+      let (l, a, b, alpha) = parse_lab(input, &parser)?;
       let lab = LABColor::OKLAB(OKLAB { l, a, b, alpha });
       Ok(CssColor::LAB(Box::new(lab)))
     },
     "lch" => {
-      let (l, c, h, alpha) = parse_lch(input)?;
+      let (l, c, h, alpha) = parse_lch(input, &parser)?;
       let lab = LABColor::LCH(LCH { l, c, h, alpha });
       Ok(CssColor::LAB(Box::new(lab)))
     },
     "oklch" => {
-      let (l, c, h, alpha) = parse_lch(input)?;
+      let (l, c, h, alpha) = parse_lch(input, &parser)?;
       let lab = LABColor::OKLCH(OKLCH { l, c, h, alpha });
       Ok(CssColor::LAB(Box::new(lab)))
     },
     "color" => {
-      let predefined = parse_predefined(input)?;
+      let predefined = parse_predefined(input, &parser)?;
       Ok(CssColor::Predefined(Box::new(predefined)))
     },
     "hsl" => {
-      let (h, s, l, a) = parse_hsl_hwb(input)?;
+      let (h, s, l, a) = parse_hsl_hwb(input, &parser)?;
       Ok(CssColor::Float(Box::new(FloatColor::HSL(HSL { h, s, l, alpha: a }))))
     },
     "hwb" => {
-      let (h, w, b, a) = parse_hsl_hwb(input)?;
+      let (h, w, b, a) = parse_hsl_hwb(input, &parser)?;
       Ok(CssColor::Float(Box::new(FloatColor::HWB(HWB { h, w, b, alpha: a }))))
     },
     "rgb" => {
-      let (r, g, b, a) = parse_rgb(input)?;
+      let (r, g, b, a) = parse_rgb(input, &parser)?;
       Ok(CssColor::Float(Box::new(FloatColor::RGB(SRGB { r, g, b, alpha: a }))))
     },
     "color-mix" => {
@@ -526,14 +589,17 @@ fn parse_color_function<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, 
 
 /// Parses the lab() and oklab() functions.
 #[inline]
-fn parse_lab<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
+fn parse_lab<'i, 't>(
+  input: &mut Parser<'i, 't>,
+  parser: &ComponentParser,
+) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
   // https://www.w3.org/TR/css-color-4/#funcdef-lab
   let res = input.parse_nested_block(|input| {
     // f32::max() does not propagate NaN, so use clamp for now until f32::maximum() is stable.
-    let l = parse_percentage(input)?.clamp(0.0, f32::MAX);
-    let a = parse_number(input)?;
-    let b = parse_number(input)?;
-    let alpha = parse_alpha(input)?;
+    let l = parser.parse_percentage(input)?.clamp(0.0, f32::MAX);
+    let a = parser.parse_number(input)?;
+    let b = parser.parse_number(input)?;
+    let alpha = parse_alpha(input, parser)?;
 
     Ok((l, a, b, alpha))
   })?;
@@ -543,13 +609,16 @@ fn parse_lab<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32),
 
 /// Parses the lch() and oklch() functions.
 #[inline]
-fn parse_lch<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
+fn parse_lch<'i, 't>(
+  input: &mut Parser<'i, 't>,
+  parser: &ComponentParser,
+) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
   // https://www.w3.org/TR/css-color-4/#funcdef-lch
   let res = input.parse_nested_block(|input| {
-    let l = parse_percentage(input)?.clamp(0.0, f32::MAX);
-    let c = parse_number(input)?.clamp(0.0, f32::MAX);
-    let h = parse_angle_or_number(input)?;
-    let alpha = parse_alpha(input)?;
+    let l = parser.parse_percentage(input)?.clamp(0.0, f32::MAX);
+    let c = parser.parse_number(input)?.clamp(0.0, f32::MAX);
+    let h = parse_angle_or_number(input, parser)?;
+    let alpha = parse_alpha(input, parser)?;
 
     Ok((l, c, h, alpha))
   })?;
@@ -560,6 +629,7 @@ fn parse_lch<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32),
 #[inline]
 fn parse_predefined<'i, 't>(
   input: &mut Parser<'i, 't>,
+  parser: &ComponentParser,
 ) -> Result<PredefinedColor, ParseError<'i, ParserError<'i>>> {
   // https://www.w3.org/TR/css-color-4/#color-function
   let res = input.parse_nested_block(|input| {
@@ -568,10 +638,16 @@ fn parse_predefined<'i, 't>(
 
     // Out of gamut values should not be clamped, i.e. values < 0 or > 1 should be preserved.
     // The browser will gamut-map the color for the target device that it is rendered on.
-    let a = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
-    let b = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
-    let c = input.try_parse(|input| parse_number_or_percentage(input)).unwrap_or(0.0);
-    let alpha = parse_alpha(input)?;
+    let a = input
+      .try_parse(|input| parse_number_or_percentage(input, parser))
+      .unwrap_or(0.0);
+    let b = input
+      .try_parse(|input| parse_number_or_percentage(input, parser))
+      .unwrap_or(0.0);
+    let c = input
+      .try_parse(|input| parse_number_or_percentage(input, parser))
+      .unwrap_or(0.0);
+    let alpha = parse_alpha(input, parser)?;
 
     let res = match_ignore_ascii_case! { &*&colorspace,
       "srgb" => PredefinedColor::SRGB(SRGB { r: a, g: b, b: c, alpha }),
@@ -599,11 +675,12 @@ fn parse_predefined<'i, 't>(
 #[inline]
 fn parse_hsl_hwb<'i, 't>(
   input: &mut Parser<'i, 't>,
+  parser: &ComponentParser,
 ) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
   // https://drafts.csswg.org/css-color-4/#the-hsl-notation
   let res = input.parse_nested_block(|input| {
-    let (h, a, b) = parse_hsl_hwb_components(input)?;
-    let alpha = parse_alpha(input)?;
+    let (h, a, b) = parse_hsl_hwb_components(input, parser)?;
+    let alpha = parse_alpha(input, parser)?;
 
     Ok((h, a, b, alpha))
   })?;
@@ -614,19 +691,23 @@ fn parse_hsl_hwb<'i, 't>(
 #[inline]
 pub(crate) fn parse_hsl_hwb_components<'i, 't>(
   input: &mut Parser<'i, 't>,
+  parser: &ComponentParser,
 ) -> Result<(f32, f32, f32), ParseError<'i, ParserError<'i>>> {
-  let h = parse_angle_or_number(input)?;
-  let a = parse_percentage(input)?.clamp(0.0, 1.0);
-  let b = parse_percentage(input)?.clamp(0.0, 1.0);
+  let h = parse_angle_or_number(input, parser)?;
+  let a = parser.parse_percentage(input)?.clamp(0.0, 1.0);
+  let b = parser.parse_percentage(input)?.clamp(0.0, 1.0);
   Ok((h, a, b))
 }
 
 #[inline]
-fn parse_rgb<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
+fn parse_rgb<'i, 't>(
+  input: &mut Parser<'i, 't>,
+  parser: &ComponentParser,
+) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
   // https://drafts.csswg.org/css-color-4/#rgb-functions
   let res = input.parse_nested_block(|input| {
-    let (r, g, b) = parse_rgb_components(input)?;
-    let alpha = parse_alpha(input)?;
+    let (r, g, b) = parse_rgb_components(input, parser)?;
+    let alpha = parse_alpha(input, parser)?;
     Ok((r, g, b, alpha))
   })?;
 
@@ -636,6 +717,7 @@ fn parse_rgb<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32),
 #[inline]
 pub(crate) fn parse_rgb_components<'i, 't>(
   input: &mut Parser<'i, 't>,
+  parser: &ComponentParser,
 ) -> Result<(f32, f32, f32), ParseError<'i, ParserError<'i>>> {
   // percentages and numbers cannot be mixed, but we might not know
   // what kind of components to expect until later if there are `none` values.
@@ -649,79 +731,56 @@ pub(crate) fn parse_rgb_components<'i, 't>(
   #[inline]
   fn parse_component<'i, 't>(
     input: &mut Parser<'i, 't>,
+    parser: &ComponentParser,
     kind: Kind,
   ) -> Result<(f32, Kind), ParseError<'i, ParserError<'i>>> {
-    let location = input.current_source_location();
-    Ok(match *input.next()? {
-      Token::Number { value, .. } if kind != Kind::Percentage => {
+    Ok(match parser.parse_number_or_percentage(input)? {
+      NumberOrPercentage::Number { value } if value.is_nan() => (value, kind),
+      NumberOrPercentage::Number { value } if kind != Kind::Percentage => {
         (value.round().clamp(0.0, 255.0) / 255.0, Kind::Number)
       }
-      Token::Percentage { unit_value, .. } if kind != Kind::Number => {
+      NumberOrPercentage::Percentage { unit_value } if kind != Kind::Number => {
         (unit_value.clamp(0.0, 1.0), Kind::Percentage)
       }
-      Token::Ident(ref ident) if ident.eq_ignore_ascii_case("none") => (f32::NAN, Kind::Unknown),
-      ref t => return Err(location.new_unexpected_token_error(t.clone())),
+      _ => return Err(input.new_custom_error(ParserError::InvalidValue)),
     })
   }
 
-  let (r, is_number) = parse_component(input, Kind::Unknown)?;
-  let (g, is_number) = parse_component(input, is_number)?;
-  let (b, _) = parse_component(input, is_number)?;
+  let (r, kind) = parse_component(input, parser, Kind::Unknown)?;
+  let (g, kind) = parse_component(input, parser, kind)?;
+  let (b, _) = parse_component(input, parser, kind)?;
   Ok((r, g, b))
 }
 
 #[inline]
-fn parse_angle_or_number<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ParserError<'i>>> {
-  let parser = ComponentParser;
-  let state = input.state();
-  let h = match parser.parse_angle_or_number(input) {
-    Ok(AngleOrNumber::Number { value }) => value,
-    Ok(AngleOrNumber::Angle { degrees }) => degrees,
-    Err(..) => {
-      input.reset(&state);
-      input.expect_ident_matching("none")?;
-      f32::NAN
-    }
-  };
-
-  Ok(h)
-}
-
-#[inline]
-fn parse_percentage<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ParserError<'i>>> {
-  let location = input.current_source_location();
-  Ok(match *input.next()? {
-    Token::Percentage { unit_value, .. } => unit_value,
-    Token::Ident(ref ident) if ident.eq_ignore_ascii_case("none") => f32::NAN,
-    ref t => return Err(location.new_unexpected_token_error(t.clone())),
+fn parse_angle_or_number<'i, 't>(
+  input: &mut Parser<'i, 't>,
+  parser: &ComponentParser,
+) -> Result<f32, ParseError<'i, ParserError<'i>>> {
+  Ok(match parser.parse_angle_or_number(input)? {
+    AngleOrNumber::Number { value } => value,
+    AngleOrNumber::Angle { degrees } => degrees,
   })
 }
 
 #[inline]
-fn parse_number<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ParserError<'i>>> {
-  let location = input.current_source_location();
-  Ok(match *input.next()? {
-    Token::Number { value, .. } => value,
-    Token::Ident(ref ident) if ident.eq_ignore_ascii_case("none") => f32::NAN,
-    ref t => return Err(location.new_unexpected_token_error(t.clone())),
+fn parse_number_or_percentage<'i, 't>(
+  input: &mut Parser<'i, 't>,
+  parser: &ComponentParser,
+) -> Result<f32, ParseError<'i, ParserError<'i>>> {
+  Ok(match parser.parse_number_or_percentage(input)? {
+    NumberOrPercentage::Number { value } => value,
+    NumberOrPercentage::Percentage { unit_value } => unit_value,
   })
 }
 
 #[inline]
-fn parse_number_or_percentage<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ParserError<'i>>> {
-  let location = input.current_source_location();
-  Ok(match *input.next()? {
-    Token::Number { value, .. } => value,
-    Token::Percentage { unit_value, .. } => unit_value,
-    Token::Ident(ref ident) if ident.eq_ignore_ascii_case("none") => f32::NAN,
-    ref t => return Err(location.new_unexpected_token_error(t.clone())),
-  })
-}
-
-#[inline]
-fn parse_alpha<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ParserError<'i>>> {
+fn parse_alpha<'i, 't>(
+  input: &mut Parser<'i, 't>,
+  parser: &ComponentParser,
+) -> Result<f32, ParseError<'i, ParserError<'i>>> {
   let res = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
-    parse_number_or_percentage(input)?.clamp(0.0, 1.0)
+    parse_number_or_percentage(input, parser)?.clamp(0.0, 1.0)
   } else {
     1.0
   };

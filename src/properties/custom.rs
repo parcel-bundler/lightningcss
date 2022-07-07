@@ -1,15 +1,17 @@
 //! CSS custom properties and unparsed token values.
 
+use crate::compat;
 use crate::error::{ParserError, PrinterError, PrinterErrorKind};
 use crate::prefixes::Feature;
-use crate::compat;
 use crate::printer::Printer;
 use crate::properties::PropertyId;
 use crate::rules::supports::SupportsCondition;
 use crate::stylesheet::ParserOptions;
 use crate::targets::Browsers;
 use crate::traits::{Parse, ParseWithOptions, ToCss};
-use crate::values::color::{parse_hsl_hwb_components, parse_rgb_components, ColorFallbackKind, CssColor};
+use crate::values::color::{
+  parse_hsl_hwb_components, parse_rgb_components, ColorFallbackKind, ComponentParser, CssColor,
+};
 use crate::values::ident::DashedIdentReference;
 use crate::values::length::serialize_dimension;
 use crate::values::percentage::Percentage;
@@ -310,7 +312,13 @@ impl<'i> TokenList<'i> {
         }
         TokenOrValue::Var(var) => {
           var.to_css(dest, is_custom_property)?;
-          if !dest.minify && i != self.0.len() - 1 && !matches!(self.0[i + 1], TokenOrValue::Token(Token::Comma) | TokenOrValue::Token(Token::CloseParenthesis)) {
+          if !dest.minify
+            && i != self.0.len() - 1
+            && !matches!(
+              self.0[i + 1],
+              TokenOrValue::Token(Token::Comma) | TokenOrValue::Token(Token::CloseParenthesis)
+            )
+          {
             // Whitespace is removed during parsing, so add it back if we aren't minifying.
             dest.write_char(' ')?;
             true
@@ -819,13 +827,11 @@ impl<'i> UnresolvedColor<'i> {
     input: &mut Parser<'i, 't>,
     options: &ParserOptions,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let parser = ComponentParser { allow_none: false };
     match_ignore_ascii_case! { &*f,
       "rgb" => {
         input.parse_nested_block(|input| {
-          let (r, g, b) = parse_rgb_components(input)?;
-          if r.is_nan() || g.is_nan() || b.is_nan() {
-            return Err(input.new_custom_error(ParserError::InvalidValue))
-          }
+          let (r, g, b) = parse_rgb_components(input, &parser)?;
           input.expect_delim('/')?;
           let alpha = TokenList::parse(input, options)?;
           Ok(UnresolvedColor::RGB { r, g, b, alpha })
@@ -833,10 +839,7 @@ impl<'i> UnresolvedColor<'i> {
       },
       "hsl" => {
         input.parse_nested_block(|input| {
-          let (h, s, l) = parse_hsl_hwb_components(input)?;
-          if h.is_nan() || s.is_nan() || l.is_nan() {
-            return Err(input.new_custom_error(ParserError::InvalidValue))
-          }
+          let (h, s, l) = parse_hsl_hwb_components(input, &parser)?;
           input.expect_delim('/')?;
           let alpha = TokenList::parse(input, options)?;
           Ok(UnresolvedColor::HSL { h, s, l, alpha })
@@ -868,10 +871,10 @@ impl<'i> UnresolvedColor<'i> {
             dest.delim(',', false)?;
             alpha.to_css(dest, is_custom_property)?;
             dest.write_char(')')?;
-            return Ok(())
+            return Ok(());
           }
         }
-      
+
         dest.write_str("rgb(")?;
         c(r).to_css(dest)?;
         dest.write_char(' ')?;
@@ -881,7 +884,7 @@ impl<'i> UnresolvedColor<'i> {
         dest.delim('/', true)?;
         alpha.to_css(dest, is_custom_property)?;
         dest.write_char(')')
-      },
+      }
       UnresolvedColor::HSL { h, s, l, alpha } => {
         if let Some(targets) = dest.targets {
           if !compat::Feature::SpaceSeparatedColorFunction.is_compatible(targets) {
@@ -894,10 +897,10 @@ impl<'i> UnresolvedColor<'i> {
             dest.delim(',', false)?;
             alpha.to_css(dest, is_custom_property)?;
             dest.write_char(')')?;
-            return Ok(())
+            return Ok(());
           }
         }
-      
+
         dest.write_str("hsl(")?;
         h.to_css(dest)?;
         dest.write_char(' ')?;

@@ -12612,6 +12612,27 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    test(
+      r#"
+      .foo {
+        --a: rgb(50% 50% 50% / calc(100% / 2));
+        --b: hsl(calc(360deg / 2) 50% 50%);
+        --c: oklab(40.101% calc(0.1 + 0.2) 0.0453);
+        --d: color(display-p3 0.43313 0.50108 calc(0.1 + 0.2));
+        --e: rgb(calc(255 / 2), calc(255 / 2), calc(255 / 2));
+      }
+      "#,
+      indoc! { r#"
+        .foo {
+          --a: #80808080;
+          --b: #40bfbf;
+          --c: oklab(40.101% .3 .0453);
+          --d: color(display-p3 .43313 .50108 .3);
+          --e: gray;
+        }
+      "#},
+    );
   }
 
   #[test]
