@@ -62,6 +62,7 @@ pub enum Feature {
   PlaceItems,
   PlaceSelf,
   Shadowdomv1,
+  SpaceSeparatedColorFunction,
   TextDecorationThicknessPercent,
   TextDecorationThicknessShorthand,
 }
@@ -1842,6 +1843,51 @@ impl Feature {
           || browsers.opera.is_some()
           || browsers.samsung.is_some()
         {
+          return false;
+        }
+      }
+      Feature::SpaceSeparatedColorFunction => {
+        if let Some(version) = browsers.chrome {
+          if version < 4259840 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 3407872 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 3080192 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 786688 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 786944 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 589824 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 4259840 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
           return false;
         }
       }

@@ -602,9 +602,7 @@ fn parse_hsl_hwb<'i, 't>(
 ) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
   // https://drafts.csswg.org/css-color-4/#the-hsl-notation
   let res = input.parse_nested_block(|input| {
-    let h = parse_angle_or_number(input)?;
-    let a = parse_percentage(input)?.clamp(0.0, 1.0);
-    let b = parse_percentage(input)?.clamp(0.0, 1.0);
+    let (h, a, b) = parse_hsl_hwb_components(input)?;
     let alpha = parse_alpha(input)?;
 
     Ok((h, a, b, alpha))
@@ -614,44 +612,62 @@ fn parse_hsl_hwb<'i, 't>(
 }
 
 #[inline]
+pub(crate) fn parse_hsl_hwb_components<'i, 't>(
+  input: &mut Parser<'i, 't>,
+) -> Result<(f32, f32, f32), ParseError<'i, ParserError<'i>>> {
+  let h = parse_angle_or_number(input)?;
+  let a = parse_percentage(input)?.clamp(0.0, 1.0);
+  let b = parse_percentage(input)?.clamp(0.0, 1.0);
+  Ok((h, a, b))
+}
+
+#[inline]
 fn parse_rgb<'i, 't>(input: &mut Parser<'i, 't>) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
   // https://drafts.csswg.org/css-color-4/#rgb-functions
   let res = input.parse_nested_block(|input| {
-    // percentages and numbers cannot be mixed, but we might not know
-    // what kind of components to expect until later if there are `none` values.
-    #[derive(PartialEq)]
-    enum Kind {
-      Unknown,
-      Number,
-      Percentage,
-    }
-
-    #[inline]
-    fn parse_component<'i, 't>(
-      input: &mut Parser<'i, 't>,
-      kind: Kind,
-    ) -> Result<(f32, Kind), ParseError<'i, ParserError<'i>>> {
-      let location = input.current_source_location();
-      Ok(match *input.next()? {
-        Token::Number { value, .. } if kind != Kind::Percentage => {
-          (value.round().clamp(0.0, 255.0) / 255.0, Kind::Number)
-        }
-        Token::Percentage { unit_value, .. } if kind != Kind::Number => {
-          (unit_value.clamp(0.0, 1.0), Kind::Percentage)
-        }
-        Token::Ident(ref ident) if ident.eq_ignore_ascii_case("none") => (f32::NAN, Kind::Unknown),
-        ref t => return Err(location.new_unexpected_token_error(t.clone())),
-      })
-    }
-
-    let (r, is_number) = parse_component(input, Kind::Unknown)?;
-    let (g, is_number) = parse_component(input, is_number)?;
-    let (b, _) = parse_component(input, is_number)?;
+    let (r, g, b) = parse_rgb_components(input)?;
     let alpha = parse_alpha(input)?;
     Ok((r, g, b, alpha))
   })?;
 
   Ok(res)
+}
+
+#[inline]
+pub(crate) fn parse_rgb_components<'i, 't>(
+  input: &mut Parser<'i, 't>,
+) -> Result<(f32, f32, f32), ParseError<'i, ParserError<'i>>> {
+  // percentages and numbers cannot be mixed, but we might not know
+  // what kind of components to expect until later if there are `none` values.
+  #[derive(PartialEq)]
+  enum Kind {
+    Unknown,
+    Number,
+    Percentage,
+  }
+
+  #[inline]
+  fn parse_component<'i, 't>(
+    input: &mut Parser<'i, 't>,
+    kind: Kind,
+  ) -> Result<(f32, Kind), ParseError<'i, ParserError<'i>>> {
+    let location = input.current_source_location();
+    Ok(match *input.next()? {
+      Token::Number { value, .. } if kind != Kind::Percentage => {
+        (value.round().clamp(0.0, 255.0) / 255.0, Kind::Number)
+      }
+      Token::Percentage { unit_value, .. } if kind != Kind::Number => {
+        (unit_value.clamp(0.0, 1.0), Kind::Percentage)
+      }
+      Token::Ident(ref ident) if ident.eq_ignore_ascii_case("none") => (f32::NAN, Kind::Unknown),
+      ref t => return Err(location.new_unexpected_token_error(t.clone())),
+    })
+  }
+
+  let (r, is_number) = parse_component(input, Kind::Unknown)?;
+  let (g, is_number) = parse_component(input, is_number)?;
+  let (b, _) = parse_component(input, is_number)?;
+  Ok((r, g, b))
 }
 
 #[inline]

@@ -225,6 +225,7 @@ let mdnFeatures = {
   labColors: mdn.css.types.color.lab.__compat.support,
   oklabColors: {},
   colorFunction: mdn.css.types.color.color.__compat.support,
+  spaceSeparatedColorFunction: mdn.css.types.color.space_separated_functional_notation.__compat.support,
   textDecorationThicknessPercent: mdn.css.properties['text-decoration-thickness'].percentage.__compat.support,
   textDecorationThicknessShorthand: mdn.css.properties['text-decoration']['text-decoration-thickness'].__compat.support,
   cue: mdn.css.selectors.cue.__compat.support,

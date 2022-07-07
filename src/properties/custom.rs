@@ -2,15 +2,17 @@
 
 use crate::error::{ParserError, PrinterError, PrinterErrorKind};
 use crate::prefixes::Feature;
+use crate::compat;
 use crate::printer::Printer;
 use crate::properties::PropertyId;
 use crate::rules::supports::SupportsCondition;
 use crate::stylesheet::ParserOptions;
 use crate::targets::Browsers;
 use crate::traits::{Parse, ParseWithOptions, ToCss};
-use crate::values::color::{ColorFallbackKind, CssColor};
+use crate::values::color::{parse_hsl_hwb_components, parse_rgb_components, ColorFallbackKind, CssColor};
 use crate::values::ident::DashedIdentReference;
 use crate::values::length::serialize_dimension;
+use crate::values::percentage::Percentage;
 use crate::values::string::CowArcStr;
 use crate::values::url::Url;
 use crate::vendor_prefix::VendorPrefix;
@@ -102,6 +104,8 @@ pub enum TokenOrValue<'i> {
   Token(Token<'i>),
   /// A parsed CSS color.
   Color(CssColor),
+  /// A color with unresolved components.
+  UnresolvedColor(UnresolvedColor<'i>),
   /// A parsed CSS url.
   Url(Url<'i>),
   /// A CSS variable reference.
@@ -171,6 +175,10 @@ impl<'i> TokenList<'i> {
           if let Some(color) = try_parse_color_token(&f, &state, input) {
             tokens.push(TokenOrValue::Color(color));
             last_is_delim = false;
+            last_is_whitespace = false;
+          } else if let Ok(color) = input.try_parse(|input| UnresolvedColor::parse(&f, input, options)) {
+            tokens.push(TokenOrValue::UnresolvedColor(color));
+            last_is_delim = true;
             last_is_whitespace = false;
           } else if f == "url" {
             input.reset(&state);
@@ -284,6 +292,10 @@ impl<'i> TokenList<'i> {
           color.to_css(dest)?;
           false
         }
+        TokenOrValue::UnresolvedColor(color) => {
+          color.to_css(dest, is_custom_property)?;
+          false
+        }
         TokenOrValue::Url(url) => {
           if dest.dependencies.is_some() && is_custom_property && !url.is_absolute() {
             return Err(dest.error(
@@ -298,7 +310,7 @@ impl<'i> TokenList<'i> {
         }
         TokenOrValue::Var(var) => {
           var.to_css(dest, is_custom_property)?;
-          if !dest.minify && i != self.0.len() - 1 && !matches!(self.0[i + 1], TokenOrValue::Token(Token::Comma)) {
+          if !dest.minify && i != self.0.len() - 1 && !matches!(self.0[i + 1], TokenOrValue::Token(Token::Comma) | TokenOrValue::Token(Token::CloseParenthesis)) {
             // Whitespace is removed during parsing, so add it back if we aren't minifying.
             dest.write_char(' ')?;
             true
@@ -761,5 +773,133 @@ impl<'i> Variable<'i> {
       fallback.to_css(dest, is_custom_property)?;
     }
     dest.write_char(')')
+  }
+}
+
+/// A color value with an unresolved alpha value (e.g. a variable).
+/// These can be converted from the modern slash syntax to older comma syntax.
+/// This can only be done when the only unresolved component is the alpha
+/// since variables can resolve to multiple tokens.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "lowercase")
+)]
+pub enum UnresolvedColor<'i> {
+  /// An rgb() color.
+  RGB {
+    /// The red component.
+    r: f32,
+    /// The green component.
+    g: f32,
+    /// The blue component.
+    b: f32,
+    /// The unresolved alpha component.
+    alpha: TokenList<'i>,
+  },
+  /// An hsl() color.
+  HSL {
+    /// The hue component.
+    h: f32,
+    /// The saturation component.
+    s: f32,
+    /// The lightness component.
+    l: f32,
+    /// The unresolved alpha component.
+    alpha: TokenList<'i>,
+  },
+}
+
+impl<'i> UnresolvedColor<'i> {
+  fn parse<'t>(
+    f: &CowArcStr<'i>,
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    match_ignore_ascii_case! { &*f,
+      "rgb" => {
+        input.parse_nested_block(|input| {
+          let (r, g, b) = parse_rgb_components(input)?;
+          input.expect_delim('/')?;
+          let alpha = TokenList::parse(input, options)?;
+          Ok(UnresolvedColor::RGB { r, g, b, alpha })
+        })
+      },
+      "hsl" => {
+        input.parse_nested_block(|input| {
+          let (h, s, l) = parse_hsl_hwb_components(input)?;
+          input.expect_delim('/')?;
+          let alpha = TokenList::parse(input, options)?;
+          Ok(UnresolvedColor::HSL { h, s, l, alpha })
+        })
+      },
+      _ => Err(input.new_custom_error(ParserError::InvalidValue))
+    }
+  }
+
+  fn to_css<W>(&self, dest: &mut Printer<W>, is_custom_property: bool) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    #[inline]
+    fn c(c: &f32) -> i32 {
+      (c * 255.0).round().clamp(0.0, 255.0) as i32
+    }
+
+    match self {
+      UnresolvedColor::RGB { r, g, b, alpha } => {
+        if let Some(targets) = dest.targets {
+          if !compat::Feature::SpaceSeparatedColorFunction.is_compatible(targets) {
+            dest.write_str("rgba(")?;
+            c(r).to_css(dest)?;
+            dest.delim(',', false)?;
+            c(g).to_css(dest)?;
+            dest.delim(',', false)?;
+            c(b).to_css(dest)?;
+            dest.delim(',', false)?;
+            alpha.to_css(dest, is_custom_property)?;
+            dest.write_char(')')?;
+            return Ok(())
+          }
+        }
+      
+        dest.write_str("rgb(")?;
+        c(r).to_css(dest)?;
+        dest.write_char(' ')?;
+        c(g).to_css(dest)?;
+        dest.write_char(' ')?;
+        c(b).to_css(dest)?;
+        dest.delim('/', true)?;
+        alpha.to_css(dest, is_custom_property)?;
+        dest.write_char(')')
+      },
+      UnresolvedColor::HSL { h, s, l, alpha } => {
+        if let Some(targets) = dest.targets {
+          if !compat::Feature::SpaceSeparatedColorFunction.is_compatible(targets) {
+            dest.write_str("hsla(")?;
+            h.to_css(dest)?;
+            dest.delim(',', false)?;
+            Percentage(*s).to_css(dest)?;
+            dest.delim(',', false)?;
+            Percentage(*l).to_css(dest)?;
+            dest.delim(',', false)?;
+            alpha.to_css(dest, is_custom_property)?;
+            dest.write_char(')')?;
+            return Ok(())
+          }
+        }
+      
+        dest.write_str("hsl(")?;
+        h.to_css(dest)?;
+        dest.write_char(' ')?;
+        Percentage(*s).to_css(dest)?;
+        dest.write_char(' ')?;
+        Percentage(*l).to_css(dest)?;
+        dest.delim('/', true)?;
+        alpha.to_css(dest, is_custom_property)?;
+        dest.write_char(')')
+      }
+    }
   }
 }

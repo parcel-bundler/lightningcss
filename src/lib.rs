@@ -12480,6 +12480,130 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    prefix_test(
+      r#"
+      .foo {
+        --a: rgb(0 0 0 / var(--alpha));
+        --b: rgb(50% 50% 50% / var(--alpha));
+        --c: rgb(var(--x) 0 0);
+        --d: rgb(0 var(--x) 0);
+        --e: rgb(0 0 var(--x));
+        --f: rgb(var(--x) 0 0 / var(--alpha));
+        --g: rgb(0 var(--x) 0 / var(--alpha));
+        --h: rgb(0 0 var(--x) / var(--alpha));
+      }
+      "#,
+      indoc! { r#"
+        .foo {
+          --a: rgba(0, 0, 0, var(--alpha));
+          --b: rgba(128, 128, 128, var(--alpha));
+          --c: rgb(var(--x) 0 0);
+          --d: rgb(0 var(--x) 0);
+          --e: rgb(0 0 var(--x));
+          --f: rgb(var(--x) 0 0 / var(--alpha));
+          --g: rgb(0 var(--x) 0 / var(--alpha));
+          --h: rgb(0 0 var(--x) / var(--alpha));
+        }
+      "#},
+      Browsers {
+        safari: Some(11 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        --a: rgb(0 0 0 / var(--alpha));
+        --b: rgb(50% 50% 50% / var(--alpha));
+        --c: rgb(var(--x) 0 0);
+        --d: rgb(0 var(--x) 0);
+        --e: rgb(0 0 var(--x));
+        --f: rgb(var(--x) 0 0 / var(--alpha));
+        --g: rgb(0 var(--x) 0 / var(--alpha));
+        --h: rgb(0 0 var(--x) / var(--alpha));
+      }
+      "#,
+      indoc! { r#"
+        .foo {
+          --a: rgb(0 0 0 / var(--alpha));
+          --b: rgb(128 128 128 / var(--alpha));
+          --c: rgb(var(--x) 0 0);
+          --d: rgb(0 var(--x) 0);
+          --e: rgb(0 0 var(--x));
+          --f: rgb(var(--x) 0 0 / var(--alpha));
+          --g: rgb(0 var(--x) 0 / var(--alpha));
+          --h: rgb(0 0 var(--x) / var(--alpha));
+        }
+      "#},
+      Browsers {
+        safari: Some(13 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        --a: hsl(270 100% 50% / var(--alpha));
+        --b: hsl(var(--x) 0 0);
+        --c: hsl(0 var(--x) 0);
+        --d: hsl(0 0 var(--x));
+        --e: hsl(var(--x) 0 0 / var(--alpha));
+        --f: hsl(0 var(--x) 0 / var(--alpha));
+        --g: hsl(0 0 var(--x) / var(--alpha));
+        --h: hsl(270 100% 50% / calc(var(--alpha) / 2));
+      }
+      "#,
+      indoc! { r#"
+        .foo {
+          --a: hsla(270, 100%, 50%, var(--alpha));
+          --b: hsl(var(--x) 0 0);
+          --c: hsl(0 var(--x) 0);
+          --d: hsl(0 0 var(--x));
+          --e: hsl(var(--x) 0 0 / var(--alpha));
+          --f: hsl(0 var(--x) 0 / var(--alpha));
+          --g: hsl(0 0 var(--x) / var(--alpha));
+          --h: hsla(270, 100%, 50%, calc(var(--alpha) / 2));
+        }
+      "#},
+      Browsers {
+        safari: Some(11 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        --a: hsl(270 100% 50% / var(--alpha));
+        --b: hsl(var(--x) 0 0);
+        --c: hsl(0 var(--x) 0);
+        --d: hsl(0 0 var(--x));
+        --e: hsl(var(--x) 0 0 / var(--alpha));
+        --f: hsl(0 var(--x) 0 / var(--alpha));
+        --g: hsl(0 0 var(--x) / var(--alpha));
+        --h: hsl(270 100% 50% / calc(var(--alpha) / 2));
+      }
+      "#,
+      indoc! { r#"
+        .foo {
+          --a: hsl(270 100% 50% / var(--alpha));
+          --b: hsl(var(--x) 0 0);
+          --c: hsl(0 var(--x) 0);
+          --d: hsl(0 0 var(--x));
+          --e: hsl(var(--x) 0 0 / var(--alpha));
+          --f: hsl(0 var(--x) 0 / var(--alpha));
+          --g: hsl(0 0 var(--x) / var(--alpha));
+          --h: hsl(270 100% 50% / calc(var(--alpha) / 2));
+        }
+      "#},
+      Browsers {
+        safari: Some(13 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]
@@ -19033,12 +19157,17 @@ mod tests {
     let mut stylesheet = StyleSheet::parse("test.css", &source, ParserOptions::default()).unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     let mut sm = parcel_sourcemap::SourceMap::new("/");
-    stylesheet.to_css(PrinterOptions {
-      source_map: Some(&mut sm),
-      minify: true,
-      ..PrinterOptions::default()
-    }).unwrap();
+    stylesheet
+      .to_css(PrinterOptions {
+        source_map: Some(&mut sm),
+        minify: true,
+        ..PrinterOptions::default()
+      })
+      .unwrap();
     let map = sm.to_json(None).unwrap();
-    assert_eq!(map, r#"{"version":3,"sourceRoot":null,"mappings":"AEAA,uCFGA,2CAAA","sources":["stdin","sass/_variables.scss","sass/_demo.scss"],"sourcesContent":["@import \"_variables\";\n@import \"_demo\";\n\n.selector {\n  margin: $size;\n  background-color: $brandColor;\n\n  .nested {\n    margin: $size / 2;\n  }\n}","$brandColor: #f60;\n$size: 1em;",".imported {\n  content: \"yay, file support!\";\n}"],"names":[]}"#);
+    assert_eq!(
+      map,
+      r#"{"version":3,"sourceRoot":null,"mappings":"AEAA,uCFGA,2CAAA","sources":["stdin","sass/_variables.scss","sass/_demo.scss"],"sourcesContent":["@import \"_variables\";\n@import \"_demo\";\n\n.selector {\n  margin: $size;\n  background-color: $brandColor;\n\n  .nested {\n    margin: $size / 2;\n  }\n}","$brandColor: #f60;\n$size: 1em;",".imported {\n  content: \"yay, file support!\";\n}"],"names":[]}"#
+    );
   }
 }
