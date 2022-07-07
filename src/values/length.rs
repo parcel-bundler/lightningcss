@@ -1,6 +1,6 @@
 //! CSS length values.
 
-use super::calc::{Calc, MathFunction, Round, RoundingStrategy, TryRound};
+use super::calc::{Calc, MathFunction, Round, RoundingStrategy, TryRem, TryRound};
 use super::number::CSSNumber;
 use super::percentage::DimensionPercentage;
 use crate::error::{ParserError, PrinterError};
@@ -218,6 +218,24 @@ macro_rules! define_length_units {
           (a, b) => {
             if let (Some(a), Some(b)) = (a.to_px(), b.to_px()) {
               Some(Px(Round::round(&a, &b, strategy)))
+            } else {
+              None
+            }
+          }
+        }
+      }
+    }
+
+    impl TryRem for LengthValue {
+      fn try_rem(&self, rhs: &Self) -> Option<Self> {
+        use LengthValue::*;
+        match (self, rhs) {
+          $(
+            ($name(a), $name(b)) => Some($name(a % b)),
+          )+
+          (a, b) => {
+            if let (Some(a), Some(b)) = (a.to_px(), b.to_px()) {
+              Some(Px(a % b))
             } else {
               None
             }
@@ -650,6 +668,15 @@ impl TryRound for Length {
   fn try_round(&self, to: &Self, strategy: RoundingStrategy) -> Option<Self> {
     match (self, to) {
       (Length::Value(a), Length::Value(b)) => a.try_round(b, strategy).map(Length::Value),
+      _ => None,
+    }
+  }
+}
+
+impl TryRem for Length {
+  fn try_rem(&self, rhs: &Self) -> Option<Self> {
+    match (self, rhs) {
+      (Length::Value(a), Length::Value(b)) => a.try_rem(b).map(Length::Value),
       _ => None,
     }
   }

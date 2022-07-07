@@ -1,6 +1,6 @@
 //! CSS percentage values.
 
-use super::calc::{Calc, MathFunction, Round, RoundingStrategy, TryRound};
+use super::calc::{Calc, MathFunction, Round, RoundingStrategy, TryRem, TryRound};
 use super::number::CSSNumber;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
@@ -123,6 +123,14 @@ impl Round for Percentage {
   }
 }
 
+impl std::ops::Rem for Percentage {
+  type Output = Percentage;
+
+  fn rem(self, rhs: Self) -> Self::Output {
+    Percentage(self.0 % rhs.0)
+  }
+}
+
 /// Either a `<number>` or `<percentage>`.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(
@@ -207,6 +215,7 @@ impl<
       + TryAdd<D>
       + Clone
       + TryRound
+      + TryRem
       + std::cmp::PartialEq<CSSNumber>
       + std::cmp::PartialOrd<CSSNumber>
       + std::cmp::PartialOrd<D>
@@ -433,6 +442,20 @@ impl<D: TryRound> TryRound for DimensionPercentage<D> {
       }
       (DimensionPercentage::Percentage(a), DimensionPercentage::Percentage(b)) => {
         a.try_round(b, strategy).map(DimensionPercentage::Percentage)
+      }
+      _ => None,
+    }
+  }
+}
+
+impl<D: TryRem> TryRem for DimensionPercentage<D> {
+  fn try_rem(&self, rhs: &Self) -> Option<Self> {
+    match (self, rhs) {
+      (DimensionPercentage::Dimension(a), DimensionPercentage::Dimension(b)) => {
+        a.try_rem(b).map(DimensionPercentage::Dimension)
+      }
+      (DimensionPercentage::Percentage(a), DimensionPercentage::Percentage(b)) => {
+        Some(DimensionPercentage::Percentage(a.clone() % b.clone()))
       }
       _ => None,
     }

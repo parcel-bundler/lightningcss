@@ -166,3 +166,16 @@ impl Round for Time {
     }
   }
 }
+
+impl std::ops::Rem for Time {
+  type Output = Time;
+
+  fn rem(self, rhs: Self) -> Self::Output {
+    match (self, rhs) {
+      (Time::Seconds(a), Time::Seconds(b)) => Time::Seconds(a % b),
+      (Time::Milliseconds(a), Time::Milliseconds(b)) => Time::Milliseconds(a % b),
+      (Time::Seconds(a), Time::Milliseconds(b)) => Time::Seconds(a % (b / 1000.0)),
+      (Time::Milliseconds(a), Time::Seconds(b)) => Time::Seconds(a % (b * 1000.0)),
+    }
+  }
+}

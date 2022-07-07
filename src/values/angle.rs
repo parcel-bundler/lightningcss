@@ -205,6 +205,20 @@ impl Round for Angle {
   }
 }
 
+impl std::ops::Rem for Angle {
+  type Output = Angle;
+
+  fn rem(self, rhs: Self) -> Self::Output {
+    match (self, rhs) {
+      (Angle::Deg(a), Angle::Deg(b)) => Angle::Deg(a % b),
+      (Angle::Rad(a), Angle::Rad(b)) => Angle::Rad(a % b),
+      (Angle::Grad(a), Angle::Grad(b)) => Angle::Grad(a % b),
+      (Angle::Turn(a), Angle::Turn(b)) => Angle::Turn(a % b),
+      (a, b) => Angle::Deg(a.to_degrees() % b.to_degrees()),
+    }
+  }
+}
+
 /// A CSS [`<angle-percentage>`](https://www.w3.org/TR/css-values-4/#typedef-angle-percentage) value.
 /// May be specified as either an angle or a percentage that resolves to an angle.
 pub type AnglePercentage = DimensionPercentage<Angle>;

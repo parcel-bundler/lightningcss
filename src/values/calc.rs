@@ -31,6 +31,10 @@ pub enum MathFunction<V> {
   Clamp(Calc<V>, Calc<V>, Calc<V>),
   /// The [`round()`](https://www.w3.org/TR/css-values-4/#funcdef-round) function.
   Round(RoundingStrategy, Calc<V>, Calc<V>),
+  /// The [`rem()`](https://www.w3.org/TR/css-values-4/#funcdef-rem) function.
+  Rem(Calc<V>, Calc<V>),
+  /// The [`mod()`](https://www.w3.org/TR/css-values-4/#funcdef-mod) function.
+  Mod(Calc<V>, Calc<V>),
 }
 
 enum_property! {
@@ -69,6 +73,18 @@ pub trait TryRound: Sized {
 impl<T: Round> TryRound for T {
   fn try_round(&self, to: &Self, strategy: RoundingStrategy) -> Option<Self> {
     Some(self.round(to, strategy))
+  }
+}
+
+/// A trait for values that potentially support a remainder (e.g. if they have the same unit).
+pub trait TryRem: Sized {
+  /// Returns the remainder between two values, if possible.
+  fn try_rem(&self, rhs: &Self) -> Option<Self>;
+}
+
+impl<T: std::ops::Rem<T, Output = T> + Clone> TryRem for T {
+  fn try_rem(&self, rhs: &Self) -> Option<Self> {
+    Some(self.clone() % rhs.clone())
   }
 }
 
@@ -146,6 +162,20 @@ impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clo
         b.to_css(dest)?;
         dest.write_char(')')
       }
+      MathFunction::Rem(a, b) => {
+        dest.write_str("rem(")?;
+        a.to_css(dest)?;
+        dest.delim(',', false)?;
+        b.to_css(dest)?;
+        dest.write_char(')')
+      }
+      MathFunction::Mod(a, b) => {
+        dest.write_str("mod(")?;
+        a.to_css(dest)?;
+        dest.delim(',', false)?;
+        b.to_css(dest)?;
+        dest.write_char(')')
+      }
     }
   }
 }
@@ -179,9 +209,11 @@ impl<
       + std::ops::Mul<f32, Output = V>
       + AddInternal
       + TryRound
+      + TryRem
       + std::cmp::PartialOrd<V>
       + std::convert::Into<Calc<V>>
       + std::convert::From<Calc<V>>
+      + Clone
       + std::fmt::Debug,
   > Parse<'i> for Calc<V>
 {
@@ -289,6 +321,38 @@ impl<
           Ok(Calc::Function(Box::new(MathFunction::Round(strategy, a, b))))
         })
       },
+      "rem" => {
+        input.parse_nested_block(|input| {
+          let a: Calc<V> = Calc::parse_sum(input)?;
+          input.expect_comma()?;
+          let b: Calc<V> = Calc::parse_sum(input)?;
+
+          if let (Calc::Value(a), Calc::Value(b)) = (&a, &b) {
+            if let Some(rem) = a.try_rem(&**b) {
+              return Ok(Calc::Value(Box::new(rem)))
+            }
+          }
+
+          Ok(Calc::Function(Box::new(MathFunction::Rem(a, b))))
+        })
+      },
+      "mod" => {
+        input.parse_nested_block(|input| {
+          let a: Calc<V> = Calc::parse_sum(input)?;
+          input.expect_comma()?;
+          let b: Calc<V> = Calc::parse_sum(input)?;
+
+          if let (Calc::Value(a), Calc::Value(b)) = (&a, &b) {
+            // ((a % b) + b) % b
+            if let Some(rem) = a.try_rem(&**b) {
+              let rem = rem.add((**b).clone()).try_rem(b).unwrap();
+              return Ok(Calc::Value(Box::new(rem)))
+            }
+          }
+
+          Ok(Calc::Function(Box::new(MathFunction::Rem(a, b))))
+        })
+      },
       _ => Err(location.new_unexpected_token_error(Token::Ident(f.clone()))),
     }
   }
@@ -300,9 +364,11 @@ impl<
       + std::ops::Mul<f32, Output = V>
       + AddInternal
       + TryRound
+      + TryRem
       + std::cmp::PartialOrd<V>
       + std::convert::Into<Calc<V>>
       + std::convert::From<Calc<V>>
+      + Clone
       + std::fmt::Debug,
   > Calc<V>
 {

@@ -5996,6 +5996,19 @@ mod tests {
     );
     minify_test(".foo { margin: round(to-zero, -23px, 5px) }", ".foo{margin:-20px}");
     minify_test(".foo { margin: round(nearest, -23px, 5px) }", ".foo{margin:-25px}");
+    minify_test(".foo { width: rem(18px, 5px) }", ".foo{width:3px}");
+    minify_test(".foo { width: rem(-18px, 5px) }", ".foo{width:-3px}");
+    minify_test(".foo { width: rem(18px, 5vw) }", ".foo{width:rem(18px,5vw)}");
+    minify_test(".foo { rotate: rem(-140deg, -90deg) }", ".foo{rotate:-50deg}");
+    minify_test(".foo { rotate: rem(140deg, -90deg) }", ".foo{rotate:50deg}");
+    minify_test(".foo { width: mod(18px, 5px) }", ".foo{width:3px}");
+    minify_test(".foo { width: mod(-18px, 5px) }", ".foo{width:2px}");
+    minify_test(".foo { rotate: mod(-140deg, -90deg) }", ".foo{rotate:-50deg}");
+    minify_test(".foo { rotate: mod(140deg, -90deg) }", ".foo{rotate:-40deg}");
+    minify_test(
+      ".foo { transform: rotateX(mod(140deg, -90deg)) rotateY(rem(140deg, -90deg)) }",
+      ".foo{transform:rotateX(-40deg)rotateY(50deg)}",
+    );
   }
 
   #[test]
