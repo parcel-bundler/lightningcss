@@ -123,7 +123,7 @@ impl std::ops::Add<Time> for Time {
       (Time::Seconds(a), Time::Seconds(b)) => Time::Seconds(a + b),
       (Time::Milliseconds(a), Time::Milliseconds(b)) => Time::Milliseconds(a + b),
       (Time::Seconds(a), Time::Milliseconds(b)) => Time::Seconds(a + b / 1000.0),
-      (Time::Milliseconds(a), Time::Seconds(b)) => Time::Seconds(a + b * 1000.0),
+      (Time::Milliseconds(a), Time::Seconds(b)) => Time::Milliseconds(a + b * 1000.0),
     }
   }
 }
@@ -162,7 +162,7 @@ impl Round for Time {
       (Time::Seconds(a), Time::Seconds(b)) => Time::Seconds(Round::round(a, b, strategy)),
       (Time::Milliseconds(a), Time::Milliseconds(b)) => Time::Milliseconds(Round::round(a, b, strategy)),
       (Time::Seconds(a), Time::Milliseconds(b)) => Time::Seconds(Round::round(a, &(b / 1000.0), strategy)),
-      (Time::Milliseconds(a), Time::Seconds(b)) => Time::Seconds(Round::round(a, &(b * 1000.0), strategy)),
+      (Time::Milliseconds(a), Time::Seconds(b)) => Time::Milliseconds(Round::round(a, &(b * 1000.0), strategy)),
     }
   }
 }
@@ -175,7 +175,7 @@ impl std::ops::Rem for Time {
       (Time::Seconds(a), Time::Seconds(b)) => Time::Seconds(a % b),
       (Time::Milliseconds(a), Time::Milliseconds(b)) => Time::Milliseconds(a % b),
       (Time::Seconds(a), Time::Milliseconds(b)) => Time::Seconds(a % (b / 1000.0)),
-      (Time::Milliseconds(a), Time::Seconds(b)) => Time::Seconds(a % (b * 1000.0)),
+      (Time::Milliseconds(a), Time::Seconds(b)) => Time::Milliseconds(a % (b * 1000.0)),
     }
   }
 }
