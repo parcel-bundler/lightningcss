@@ -796,6 +796,7 @@ pub enum UnresolvedColor<'i> {
     /// The blue component.
     b: f32,
     /// The unresolved alpha component.
+    #[cfg_attr(feature = "serde", serde(borrow))]
     alpha: TokenList<'i>,
   },
   /// An hsl() color.
@@ -807,6 +808,7 @@ pub enum UnresolvedColor<'i> {
     /// The lightness component.
     l: f32,
     /// The unresolved alpha component.
+    #[cfg_attr(feature = "serde", serde(borrow))]
     alpha: TokenList<'i>,
   },
 }
