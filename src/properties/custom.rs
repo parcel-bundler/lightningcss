@@ -821,6 +821,9 @@ impl<'i> UnresolvedColor<'i> {
       "rgb" => {
         input.parse_nested_block(|input| {
           let (r, g, b) = parse_rgb_components(input)?;
+          if r.is_nan() || g.is_nan() || b.is_nan() {
+            return Err(input.new_custom_error(ParserError::InvalidValue))
+          }
           input.expect_delim('/')?;
           let alpha = TokenList::parse(input, options)?;
           Ok(UnresolvedColor::RGB { r, g, b, alpha })
@@ -829,6 +832,9 @@ impl<'i> UnresolvedColor<'i> {
       "hsl" => {
         input.parse_nested_block(|input| {
           let (h, s, l) = parse_hsl_hwb_components(input)?;
+          if h.is_nan() || s.is_nan() || l.is_nan() {
+            return Err(input.new_custom_error(ParserError::InvalidValue))
+          }
           input.expect_delim('/')?;
           let alpha = TokenList::parse(input, options)?;
           Ok(UnresolvedColor::HSL { h, s, l, alpha })

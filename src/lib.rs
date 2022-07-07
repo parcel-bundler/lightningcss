@@ -12492,6 +12492,7 @@ mod tests {
         --f: rgb(var(--x) 0 0 / var(--alpha));
         --g: rgb(0 var(--x) 0 / var(--alpha));
         --h: rgb(0 0 var(--x) / var(--alpha));
+        --i: rgb(none 0 0 / var(--alpha));
       }
       "#,
       indoc! { r#"
@@ -12504,6 +12505,7 @@ mod tests {
           --f: rgb(var(--x) 0 0 / var(--alpha));
           --g: rgb(0 var(--x) 0 / var(--alpha));
           --h: rgb(0 0 var(--x) / var(--alpha));
+          --i: rgb(none 0 0 / var(--alpha));
         }
       "#},
       Browsers {
@@ -12523,6 +12525,7 @@ mod tests {
         --f: rgb(var(--x) 0 0 / var(--alpha));
         --g: rgb(0 var(--x) 0 / var(--alpha));
         --h: rgb(0 0 var(--x) / var(--alpha));
+        --i: rgb(none 0 0 / var(--alpha));
       }
       "#,
       indoc! { r#"
@@ -12535,6 +12538,7 @@ mod tests {
           --f: rgb(var(--x) 0 0 / var(--alpha));
           --g: rgb(0 var(--x) 0 / var(--alpha));
           --h: rgb(0 0 var(--x) / var(--alpha));
+          --i: rgb(none 0 0 / var(--alpha));
         }
       "#},
       Browsers {
@@ -12554,6 +12558,7 @@ mod tests {
         --f: hsl(0 var(--x) 0 / var(--alpha));
         --g: hsl(0 0 var(--x) / var(--alpha));
         --h: hsl(270 100% 50% / calc(var(--alpha) / 2));
+        --i: hsl(none 100% 50% / var(--alpha));
       }
       "#,
       indoc! { r#"
@@ -12566,6 +12571,7 @@ mod tests {
           --f: hsl(0 var(--x) 0 / var(--alpha));
           --g: hsl(0 0 var(--x) / var(--alpha));
           --h: hsla(270, 100%, 50%, calc(var(--alpha) / 2));
+          --i: hsl(none 100% 50% / var(--alpha));
         }
       "#},
       Browsers {
@@ -12585,6 +12591,7 @@ mod tests {
         --f: hsl(0 var(--x) 0 / var(--alpha));
         --g: hsl(0 0 var(--x) / var(--alpha));
         --h: hsl(270 100% 50% / calc(var(--alpha) / 2));
+        --i: hsl(none 100% 50% / var(--alpha));
       }
       "#,
       indoc! { r#"
@@ -12597,6 +12604,7 @@ mod tests {
           --f: hsl(0 var(--x) 0 / var(--alpha));
           --g: hsl(0 0 var(--x) / var(--alpha));
           --h: hsl(270 100% 50% / calc(var(--alpha) / 2));
+          --i: hsl(none 100% 50% / var(--alpha));
         }
       "#},
       Browsers {
