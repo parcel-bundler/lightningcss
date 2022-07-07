@@ -801,7 +801,7 @@ dependencies = [
 
 [[package]]
 name = "parcel_css"
-version = "1.0.0-alpha.27"
+version = "1.0.0-alpha.28"
 dependencies = [
  "assert_cmd",
  "assert_fs",
