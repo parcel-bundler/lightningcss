@@ -5,6 +5,10 @@
   "description": "A CSS parser, transformer, and minifier written in Rust",
   "main": "node/index.js",
   "types": "node/index.d.ts",
+  "exports": {
+    "import": "./node/index.mjs",
+    "require": "./node/index.js"
+  },
   "targets": {
     "main": false,
     "types": false
