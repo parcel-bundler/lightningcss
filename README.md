@@ -1,6 +1,9 @@
 # @parcel/css
 
-A CSS parser, transformer, and minifier written in Rust.
+An extremely fast CSS parser, transformer, and minifier written in Rust. Use it with [Parcel](https://parceljs.org), as a standalone library or CLI, or via a plugin with any other tool.
+
+<img width="666" alt="image" src="https://user-images.githubusercontent.com/19409/153888593-591a3c34-e401-4b30-94ac-7f8eb3c0b242.png#gh-light-mode-only">
+<img width="666" alt="image" src="https://user-images.githubusercontent.com/19409/153888637-3fd9f660-7d43-4d65-83a3-9a40afa0a5a9.png#gh-dark-mode-only">
 
 ## Features
 
@@ -40,7 +43,7 @@ A CSS parser, transformer, and minifier written in Rust.
     - `:dir`
     - `:is`
   - Double position gradient stops (e.g. `red 40% 80%`)
-  - `clamp()` function
+  - `clamp()`, `round()`, `rem()`, and `mod()` math functions
   - Alignment shorthands (e.g. `place-items`)
   - Two-value `overflow` shorthand
   - Media query range syntax (e.g. `@media (width <= 100px)` or `@media (100px < width < 500px)`)
@@ -212,3 +215,5 @@ esbuild: 107.668ms
 parcel-css: 43.368ms
 1824130 bytes
 ```
+
+For more benchmarks comparing more tools and input, see [here](http://goalsmashers.github.io/css-minification-benchmark/). Note that some of the tools shown perform unsafe optimizations that may change the behavior of the original CSS in favor of smaller file size. Parcel CSS does not do this – the output CSS should always behave identically to the input. Keep this in mind when comparing file sizes between tools.
