@@ -5977,6 +5977,25 @@ mod tests {
       ".foo { left: calc(10px + min(10px, 1rem) + max(2px, 1vw)) }",
       ".foo{left:calc(10px + min(10px,1rem) + max(2px,1vw))}",
     );
+    minify_test(".foo { width: round(22px, 5px) }", ".foo{width:20px}");
+    minify_test(".foo { width: round(nearest, 22px, 5px) }", ".foo{width:20px}");
+    minify_test(".foo { width: round(down, 22px, 5px) }", ".foo{width:20px}");
+    minify_test(".foo { width: round(to-zero, 22px, 5px) }", ".foo{width:20px}");
+    minify_test(".foo { width: round(up, 22px, 5px) }", ".foo{width:25px}");
+    minify_test(".foo { width: round(23px, 5px) }", ".foo{width:25px}");
+    minify_test(".foo { width: round(nearest, 23px, 5px) }", ".foo{width:25px}");
+    minify_test(".foo { width: round(down, 23px, 5px) }", ".foo{width:20px}");
+    minify_test(".foo { width: round(to-zero, 23px, 5px) }", ".foo{width:20px}");
+    minify_test(".foo { width: round(up, 23px, 5px) }", ".foo{width:25px}");
+    minify_test(".foo { width: round(22px, 5vw) }", ".foo{width:round(22px,5vw)}");
+    minify_test(".foo { rotate: round(22deg, 5deg) }", ".foo{rotate:20deg}");
+    minify_test(".foo { rotate: round(22deg, 5deg) }", ".foo{rotate:20deg}");
+    minify_test(
+      ".foo { transition-duration: round(22ms, 5ms) }",
+      ".foo{transition-duration:20ms}",
+    );
+    minify_test(".foo { margin: round(to-zero, -23px, 5px) }", ".foo{margin:-20px}");
+    minify_test(".foo { margin: round(nearest, -23px, 5px) }", ".foo{margin:-25px}");
   }
 
   #[test]

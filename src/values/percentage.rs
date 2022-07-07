@@ -1,6 +1,6 @@
 //! CSS percentage values.
 
-use super::calc::{Calc, MathFunction};
+use super::calc::{Calc, MathFunction, Round, RoundingStrategy, TryRound};
 use super::number::CSSNumber;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
@@ -117,6 +117,12 @@ impl std::cmp::PartialOrd<Percentage> for Percentage {
   }
 }
 
+impl Round for Percentage {
+  fn round(&self, to: &Self, strategy: RoundingStrategy) -> Self {
+    Percentage(Round::round(&self.0, &to.0, strategy))
+  }
+}
+
 /// Either a `<number>` or `<percentage>`.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(
@@ -200,6 +206,7 @@ impl<
       + std::ops::Mul<CSSNumber, Output = D>
       + TryAdd<D>
       + Clone
+      + TryRound
       + std::cmp::PartialEq<CSSNumber>
       + std::cmp::PartialOrd<CSSNumber>
       + std::cmp::PartialOrd<D>
@@ -413,6 +420,20 @@ impl<D: std::cmp::PartialOrd<D>> std::cmp::PartialOrd<DimensionPercentage<D>> fo
     match (self, other) {
       (DimensionPercentage::Dimension(a), DimensionPercentage::Dimension(b)) => a.partial_cmp(b),
       (DimensionPercentage::Percentage(a), DimensionPercentage::Percentage(b)) => a.partial_cmp(b),
+      _ => None,
+    }
+  }
+}
+
+impl<D: TryRound> TryRound for DimensionPercentage<D> {
+  fn try_round(&self, to: &Self, strategy: RoundingStrategy) -> Option<Self> {
+    match (self, to) {
+      (DimensionPercentage::Dimension(a), DimensionPercentage::Dimension(b)) => {
+        a.try_round(b, strategy).map(DimensionPercentage::Dimension)
+      }
+      (DimensionPercentage::Percentage(a), DimensionPercentage::Percentage(b)) => {
+        a.try_round(b, strategy).map(DimensionPercentage::Percentage)
+      }
       _ => None,
     }
   }

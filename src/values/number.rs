@@ -1,6 +1,6 @@
 //! CSS number values.
 
-use super::calc::Calc;
+use super::calc::{Calc, Round, RoundingStrategy};
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::private::AddInternal;
@@ -68,6 +68,18 @@ impl std::convert::From<Calc<CSSNumber>> for CSSNumber {
 impl AddInternal for CSSNumber {
   fn add(self, other: Self) -> Self {
     self + other
+  }
+}
+
+impl Round for CSSNumber {
+  fn round(&self, to: &Self, strategy: RoundingStrategy) -> Self {
+    let v = self / to;
+    match strategy {
+      RoundingStrategy::Down => v.floor() * to,
+      RoundingStrategy::Up => v.ceil() * to,
+      RoundingStrategy::Nearest => v.round() * to,
+      RoundingStrategy::ToZero => v.trunc() * to,
+    }
   }
 }
 

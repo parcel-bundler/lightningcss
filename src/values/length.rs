@@ -1,6 +1,6 @@
 //! CSS length values.
 
-use super::calc::{Calc, MathFunction};
+use super::calc::{Calc, MathFunction, Round, RoundingStrategy, TryRound};
 use super::number::CSSNumber;
 use super::percentage::DimensionPercentage;
 use crate::error::{ParserError, PrinterError};
@@ -200,6 +200,24 @@ macro_rules! define_length_units {
           (a, b) => {
             if let (Some(a), Some(b)) = (a.to_px(), b.to_px()) {
               a.partial_cmp(&b)
+            } else {
+              None
+            }
+          }
+        }
+      }
+    }
+
+    impl TryRound for LengthValue {
+      fn try_round(&self, to: &Self, strategy: RoundingStrategy) -> Option<Self> {
+        use LengthValue::*;
+        match (self, to) {
+          $(
+            ($name(a), $name(b)) => Some($name(Round::round(a, b, strategy))),
+          )+
+          (a, b) => {
+            if let (Some(a), Some(b)) = (a.to_px(), b.to_px()) {
+              Some(Px(Round::round(&a, &b, strategy)))
             } else {
               None
             }
@@ -623,6 +641,15 @@ impl std::cmp::PartialOrd<Length> for Length {
   fn partial_cmp(&self, other: &Length) -> Option<std::cmp::Ordering> {
     match (self, other) {
       (Length::Value(a), Length::Value(b)) => a.partial_cmp(b),
+      _ => None,
+    }
+  }
+}
+
+impl TryRound for Length {
+  fn try_round(&self, to: &Self, strategy: RoundingStrategy) -> Option<Self> {
+    match (self, to) {
+      (Length::Value(a), Length::Value(b)) => a.try_round(b, strategy).map(Length::Value),
       _ => None,
     }
   }

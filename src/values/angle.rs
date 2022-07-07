@@ -1,6 +1,6 @@
 //! CSS angle values.
 
-use super::calc::Calc;
+use super::calc::{Calc, Round, RoundingStrategy};
 use super::length::serialize_dimension;
 use super::number::CSSNumber;
 use super::percentage::DimensionPercentage;
@@ -138,9 +138,9 @@ impl std::ops::Mul<CSSNumber> for Angle {
   fn mul(self, other: CSSNumber) -> Angle {
     match self {
       Angle::Deg(v) => Angle::Deg(v * other),
-      Angle::Rad(v) => Angle::Deg(v * other),
-      Angle::Grad(v) => Angle::Deg(v * other),
-      Angle::Turn(v) => Angle::Deg(v * other),
+      Angle::Rad(v) => Angle::Rad(v * other),
+      Angle::Grad(v) => Angle::Grad(v * other),
+      Angle::Turn(v) => Angle::Turn(v * other),
     }
   }
 }
@@ -190,6 +190,18 @@ impl std::cmp::PartialOrd<CSSNumber> for Angle {
 impl std::cmp::PartialOrd<Angle> for Angle {
   fn partial_cmp(&self, other: &Angle) -> Option<std::cmp::Ordering> {
     self.to_degrees().partial_cmp(&other.to_degrees())
+  }
+}
+
+impl Round for Angle {
+  fn round(&self, to: &Self, strategy: RoundingStrategy) -> Self {
+    match (self, to) {
+      (Angle::Deg(a), Angle::Deg(b)) => Angle::Deg(Round::round(a, b, strategy)),
+      (Angle::Rad(a), Angle::Rad(b)) => Angle::Rad(Round::round(a, b, strategy)),
+      (Angle::Grad(a), Angle::Grad(b)) => Angle::Grad(Round::round(a, b, strategy)),
+      (Angle::Turn(a), Angle::Turn(b)) => Angle::Turn(Round::round(a, b, strategy)),
+      (a, b) => Angle::Deg(Round::round(&a.to_degrees(), &b.to_degrees(), strategy)),
+    }
   }
 }
 

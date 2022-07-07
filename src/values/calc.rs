@@ -2,6 +2,7 @@
 
 use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
+use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::traits::private::AddInternal;
 use crate::traits::{Parse, ToCss};
@@ -28,6 +29,47 @@ pub enum MathFunction<V> {
   Max(Vec<Calc<V>>),
   /// The [`clamp()`](https://www.w3.org/TR/css-values-4/#funcdef-clamp) function.
   Clamp(Calc<V>, Calc<V>, Calc<V>),
+  /// The [`round()`](https://www.w3.org/TR/css-values-4/#funcdef-round) function.
+  Round(RoundingStrategy, Calc<V>, Calc<V>),
+}
+
+enum_property! {
+  /// A [rounding strategy](https://www.w3.org/TR/css-values-4/#typedef-rounding-strategy),
+  /// as used in the `round()` function.
+  pub enum RoundingStrategy {
+    /// Round to the nearest integer.
+    "nearest": Nearest,
+    /// Round up (ceil).
+    "up": Up,
+    /// Round down (floor).
+    "down": Down,
+    /// Round toward zero (truncate).
+    "to-zero": ToZero,
+  }
+}
+
+impl Default for RoundingStrategy {
+  fn default() -> Self {
+    RoundingStrategy::Nearest
+  }
+}
+
+/// A trait for values that can be rounded.
+pub trait Round {
+  /// Rounds a value to a multiple of `to` using the given rounding strategy.
+  fn round(&self, to: &Self, strategy: RoundingStrategy) -> Self;
+}
+
+/// A trait for values that can potentially be rounded (e.g. if they have the same unit).
+pub trait TryRound: Sized {
+  /// Rounds a value to a multiple of `to` using the given rounding strategy, if possible.
+  fn try_round(&self, to: &Self, strategy: RoundingStrategy) -> Option<Self>;
+}
+
+impl<T: Round> TryRound for T {
+  fn try_round(&self, to: &Self, strategy: RoundingStrategy) -> Option<Self> {
+    Some(self.round(to, strategy))
+  }
 }
 
 impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clone + std::fmt::Debug> ToCss
@@ -93,6 +135,17 @@ impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clo
         c.to_css(dest)?;
         dest.write_char(')')
       }
+      MathFunction::Round(strategy, a, b) => {
+        dest.write_str("round(")?;
+        if *strategy != RoundingStrategy::default() {
+          strategy.to_css(dest)?;
+          dest.delim(',', false)?;
+        }
+        a.to_css(dest)?;
+        dest.delim(',', false)?;
+        b.to_css(dest)?;
+        dest.write_char(')')
+      }
     }
   }
 }
@@ -125,6 +178,7 @@ impl<
     V: Parse<'i>
       + std::ops::Mul<f32, Output = V>
       + AddInternal
+      + TryRound
       + std::cmp::PartialOrd<V>
       + std::convert::Into<Calc<V>>
       + std::convert::From<Calc<V>>
@@ -213,6 +267,28 @@ impl<
           (Some(min), Some(max)) => Ok(Calc::Function(Box::new(MathFunction::Clamp(min, center, max))))
         }
       },
+      "round" => {
+        input.parse_nested_block(|input| {
+          let strategy = if let Ok(s) = input.try_parse(RoundingStrategy::parse) {
+            input.expect_comma()?;
+            s
+          } else {
+            RoundingStrategy::default()
+          };
+
+          let a: Calc<V> = Calc::parse_sum(input)?;
+          input.expect_comma()?;
+          let b: Calc<V> = Calc::parse_sum(input)?;
+
+          if let (Calc::Value(a), Calc::Value(b)) = (&a, &b) {
+            if let Some(rounded) = a.try_round(&**b, strategy) {
+              return Ok(Calc::Value(Box::new(rounded)))
+            }
+          }
+
+          Ok(Calc::Function(Box::new(MathFunction::Round(strategy, a, b))))
+        })
+      },
       _ => Err(location.new_unexpected_token_error(Token::Ident(f.clone()))),
     }
   }
@@ -223,6 +299,7 @@ impl<
     V: Parse<'i>
       + std::ops::Mul<f32, Output = V>
       + AddInternal
+      + TryRound
       + std::cmp::PartialOrd<V>
       + std::convert::Into<Calc<V>>
       + std::convert::From<Calc<V>>

@@ -1,6 +1,6 @@
 //! CSS time values.
 
-use super::calc::Calc;
+use super::calc::{Calc, Round, RoundingStrategy};
 use super::number::CSSNumber;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
@@ -153,5 +153,16 @@ impl std::cmp::PartialOrd<f32> for Time {
 impl std::cmp::PartialOrd<Time> for Time {
   fn partial_cmp(&self, other: &Time) -> Option<std::cmp::Ordering> {
     self.to_ms().partial_cmp(&other.to_ms())
+  }
+}
+
+impl Round for Time {
+  fn round(&self, to: &Self, strategy: RoundingStrategy) -> Self {
+    match (self, to) {
+      (Time::Seconds(a), Time::Seconds(b)) => Time::Seconds(Round::round(a, b, strategy)),
+      (Time::Milliseconds(a), Time::Milliseconds(b)) => Time::Milliseconds(Round::round(a, b, strategy)),
+      (Time::Seconds(a), Time::Milliseconds(b)) => Time::Seconds(Round::round(a, &(b / 1000.0), strategy)),
+      (Time::Milliseconds(a), Time::Seconds(b)) => Time::Seconds(Round::round(a, &(b * 1000.0), strategy)),
+    }
   }
 }
