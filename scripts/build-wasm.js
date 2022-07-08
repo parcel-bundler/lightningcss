@@ -33,10 +33,12 @@ fs.unlinkSync(`${dir}/npm/wasm/.gitignore`);
 
 let wasmPkg = {...pkg};
 wasmPkg.name = '@parcel/css-wasm';
+wasmPkg.type = 'module';
+wasmPkg.main = 'index.js';
 wasmPkg.module = 'index.js';
 wasmPkg.types = 'index.d.ts';
 wasmPkg.sideEffects = false;
-delete wasmPkg.main;
+delete wasmPkg.exports;
 delete wasmPkg.files;
 delete wasmPkg.napi;
 delete wasmPkg.devDependencies;

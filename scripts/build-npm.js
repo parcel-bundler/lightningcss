@@ -81,6 +81,7 @@ cliPkg.bin = {
 };
 delete cliPkg.main;
 delete cliPkg.napi;
+delete cliPkg.exports;
 delete cliPkg.devDependencies;
 delete cliPkg.targets;
 delete cliPkg.types;
@@ -105,6 +106,7 @@ function buildNode(triple, cpu, os, libc, t) {
   }
   pkg2.main = name;
   pkg2.files = [name];
+  delete pkg2.exports;
   delete pkg2.napi;
   delete pkg2.devDependencies;
   delete pkg2.dependencies;
@@ -134,6 +136,7 @@ function buildCLI(triple, cpu, os, libc, t) {
     pkg2.libc = [libc];
   }
   delete pkg2.main;
+  delete pkg2.exports;
   delete pkg2.napi;
   delete pkg2.devDependencies;
   delete pkg2.dependencies;
