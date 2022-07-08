@@ -1,6 +1,6 @@
 {
   "name": "@parcel/css",
-  "version": "1.11.1",
+  "version": "1.11.2",
   "license": "MPL-2.0",
   "description": "A CSS parser, transformer, and minifier written in Rust",
   "main": "node/index.js",
@@ -32,6 +32,7 @@
   },
   "files": [
     "node/*.js",
+    "node/*.mjs",
     "node/*.d.ts",
     "node/*.flow"
   ],
