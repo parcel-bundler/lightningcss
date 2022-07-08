@@ -24,7 +24,7 @@ export interface TransformOptions {
    * urls later (after bundling). Dependencies are returned as part of the result.
    */
   analyzeDependencies?: boolean,
-  /** 
+  /**
    * Replaces user action pseudo classes with class names that can be applied from JavaScript.
    * This is useful for polyfills, for example.
    */
@@ -58,13 +58,13 @@ export interface TransformResult {
   /** The transformed code. */
   code: Buffer,
   /** The generated source map, if enabled. */
-  map: Buffer | void,
+  map: Buffer | undefined,
   /** CSS module exports, if enabled. */
-  exports: CSSModuleExports | void,
+  exports: CSSModuleExports | undefined,
   /** CSS module references, if `dashedIdents` is enabled. */
   references: CSSModuleReferences,
   /** `@import` and `url()` dependencies, if enabled. */
-  dependencies: Dependency[] | void
+  dependencies: Dependency[] | undefined
 }
 
 export interface CSSModulesConfig {
@@ -159,6 +159,13 @@ export interface Location {
  * Compiles a CSS file, including optionally minifying and lowering syntax to the given
  * targets. A source map may also be generated, but this is not enabled by default.
  */
+export declare function transform(options: TransformOptions & { sourceMap: true, cssModules: true, analyzeDependencies: true }): TransformResult & { map: Buffer, exports: CSSModuleExports, dependencies: Dependency[] };
+export declare function transform(options: TransformOptions & { sourceMap: true, analyzeDependencies: true }): TransformResult & { map: Buffer,dependencies: Dependency[] };
+export declare function transform(options: TransformOptions & { sourceMap: true, cssModules: true }): TransformResult & { map: Buffer, exports: CSSModuleExports };
+export declare function transform(options: TransformOptions & { cssModules: true, analyzeDependencies: true }): TransformResult & { exports: CSSModuleExports,dependencies: Dependency[] };
+export declare function transform(options: TransformOptions & { sourceMap: true }): TransformResult & { map: Buffer };
+export declare function transform(options: TransformOptions & { cssModules: true }): TransformResult & { exports: CSSModuleExports };
+export declare function transform(options: TransformOptions & { analyzeDependencies: true }): TransformResult & { dependencies: Dependency[] };
 export declare function transform(options: TransformOptions): TransformResult;
 
 export interface TransformAttributeOptions {
@@ -170,7 +177,7 @@ export interface TransformAttributeOptions {
   targets?: Targets,
   /**
    * Whether to analyze `url()` dependencies.
-   * When enabled, `url()` dependencies are replaced with hashed placeholders 
+   * When enabled, `url()` dependencies are replaced with hashed placeholders
    * that can be replaced with the final urls later (after bundling).
    * Dependencies are returned as part of the result.
    */
@@ -181,12 +188,13 @@ export interface TransformAttributeResult {
   /** The transformed code. */
   code: Buffer,
   /** `@import` and `url()` dependencies, if enabled. */
-  dependencies: Dependency[] | void
+  dependencies: Dependency[] | undefined
 }
 
 /**
  * Compiles a single CSS declaration list, such as an inline style attribute in HTML.
  */
+export declare function transformStyleAttribute(options: TransformAttributeOptions & { analyzeDependencies: true }): TransformAttributeResult & { dependencies: Dependency[] };
 export declare function transformStyleAttribute(options: TransformAttributeOptions): TransformAttributeResult;
 
 /**
@@ -198,4 +206,11 @@ export declare function browserslistToTargets(browserslist: string[]): Targets;
 /**
  * Bundles a CSS file and its dependencies, inlining @import rules.
  */
+export declare function bundle(options: BundleOptions & { sourceMap: true, cssModules: true, analyzeDependencies: true }): TransformResult & { map: Buffer, exports: CSSModuleExports, dependencies: Dependency[] };
+export declare function bundle(options: BundleOptions & { sourceMap: true, analyzeDependencies: true }): TransformResult & { map: Buffer,dependencies: Dependency[] };
+export declare function bundle(options: BundleOptions & { sourceMap: true, cssModules: true }): TransformResult & { map: Buffer, exports: CSSModuleExports };
+export declare function bundle(options: BundleOptions & { cssModules: true, analyzeDependencies: true }): TransformResult & { exports: CSSModuleExports,dependencies: Dependency[] };
+export declare function bundle(options: BundleOptions & { sourceMap: true }): TransformResult & { map: Buffer };
+export declare function bundle(options: BundleOptions & { cssModules: true }): TransformResult & { exports: CSSModuleExports };
+export declare function bundle(options: BundleOptions & { analyzeDependencies: true }): TransformResult & { dependencies: Dependency[] };
 export declare function bundle(options: BundleOptions): TransformResult;

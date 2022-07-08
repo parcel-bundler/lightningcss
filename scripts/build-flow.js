@@ -5,6 +5,7 @@ let index = fs.readFileSync(dir + '/node/index.d.ts', 'utf8');
 index = '// @flow\n' + index;
 index = index.replace(/export interface (.*?) \{((?:.|\n)*?)\}/g, 'export type $1 = {|$2|};');
 index = index.replace(/export declare function/g, 'declare export function');
+index = index.replace(/\| undefined/g, '| void');
 index = index.replace("Omit<TransformOptions, 'code'>", "$Rest<TransformOptions, {|code: TransformOptions['code']|}>");
 
 let targets = fs.readFileSync(dir + '/node/targets.d.ts', 'utf8');
