@@ -166,24 +166,19 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Config {
-  #[serde(default)]
-  pub filename: String,
+  pub filename: Option<String>,
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
   pub targets: Option<Browsers>,
-  #[serde(default)]
-  pub minify: bool,
-  #[serde(default)]
-  pub source_map: bool,
+  pub minify: Option<bool>,
+  pub source_map: Option<bool>,
   pub input_source_map: Option<String>,
   pub drafts: Option<Drafts>,
   pub css_modules: Option<CssModulesOption>,
-  #[serde(default)]
-  pub analyze_dependencies: bool,
+  pub analyze_dependencies: Option<bool>,
   pub pseudo_classes: Option<OwnedPseudoClasses>,
   pub unused_symbols: Option<HashSet<String>>,
-  #[serde(default)]
-  pub error_recovery: bool,
+  pub error_recovery: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -197,8 +192,7 @@ enum CssModulesOption {
 #[serde(rename_all = "camelCase")]
 struct CssModulesConfig {
   pattern: Option<String>,
-  #[serde(default)]
-  dashed_idents: bool,
+  dashed_idents: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -206,18 +200,14 @@ struct CssModulesConfig {
 struct BundleConfig {
   pub filename: String,
   pub targets: Option<Browsers>,
-  #[serde(default)]
-  pub minify: bool,
-  #[serde(default)]
-  pub source_map: bool,
+  pub minify: Option<bool>,
+  pub source_map: Option<bool>,
   pub drafts: Option<Drafts>,
   pub css_modules: Option<CssModulesOption>,
-  #[serde(default)]
-  pub analyze_dependencies: bool,
+  pub analyze_dependencies: Option<bool>,
   pub pseudo_classes: Option<OwnedPseudoClasses>,
   pub unused_symbols: Option<HashSet<String>>,
-  #[serde(default)]
-  pub error_recovery: bool,
+  pub error_recovery: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -253,15 +243,16 @@ struct Drafts {
 
 fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult<'i>, CompileError<'i>> {
   let drafts = config.drafts.as_ref();
-  let warnings = if config.error_recovery {
+  let warnings = if config.error_recovery.unwrap_or_default() {
     Some(Arc::new(RwLock::new(Vec::new())))
   } else {
     None
   };
 
-  let mut source_map = if config.source_map {
+  let filename = config.filename.clone().unwrap_or_default();
+  let mut source_map = if config.source_map.unwrap_or_default() {
     let mut sm = SourceMap::new("/");
-    sm.add_source(&config.filename);
+    sm.add_source(&filename);
     sm.set_source_content(0, code)?;
     Some(sm)
   } else {
@@ -272,7 +263,7 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult<'i>, Co
     let mut stylesheet = StyleSheet::parse(
       &code,
       ParserOptions {
-        filename: config.filename.clone(),
+        filename: filename.clone(),
         nesting: matches!(drafts, Some(d) if d.nesting),
         custom_media: matches!(drafts, Some(d) if d.custom_media),
         css_modules: if let Some(css_modules) = &config.css_modules {
@@ -288,14 +279,14 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult<'i>, Co
               } else {
                 Default::default()
               },
-              dashed_idents: c.dashed_idents,
+              dashed_idents: c.dashed_idents.unwrap_or_default(),
             }),
           }
         } else {
           None
         },
         source_index: 0,
-        error_recovery: config.error_recovery,
+        error_recovery: config.error_recovery.unwrap_or_default(),
         warnings: warnings.clone(),
       },
     )?;
@@ -305,10 +296,10 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult<'i>, Co
     })?;
 
     stylesheet.to_css(PrinterOptions {
-      minify: config.minify,
+      minify: config.minify.unwrap_or_default(),
       source_map: source_map.as_mut(),
       targets: config.targets,
-      analyze_dependencies: config.analyze_dependencies,
+      analyze_dependencies: config.analyze_dependencies.unwrap_or_default(),
       pseudo_classes: config.pseudo_classes.as_ref().map(|p| p.into()),
     })?
   };
@@ -347,12 +338,12 @@ fn compile_bundle<'i>(
   fs: &'i FileProvider,
   config: &BundleConfig,
 ) -> Result<TransformResult<'i>, CompileError<'i>> {
-  let mut source_map = if config.source_map {
+  let mut source_map = if config.source_map.unwrap_or_default() {
     Some(SourceMap::new("/"))
   } else {
     None
   };
-  let warnings = if config.error_recovery {
+  let warnings = if config.error_recovery.unwrap_or_default() {
     Some(Arc::new(RwLock::new(Vec::new())))
   } else {
     None
@@ -375,13 +366,13 @@ fn compile_bundle<'i>(
             } else {
               Default::default()
             },
-            dashed_idents: c.dashed_idents,
+            dashed_idents: c.dashed_idents.unwrap_or_default(),
           }),
         }
       } else {
         None
       },
-      error_recovery: config.error_recovery,
+      error_recovery: config.error_recovery.unwrap_or_default(),
       warnings: warnings.clone(),
       ..ParserOptions::default()
     };
@@ -395,10 +386,10 @@ fn compile_bundle<'i>(
     })?;
 
     stylesheet.to_css(PrinterOptions {
-      minify: config.minify,
+      minify: config.minify.unwrap_or_default(),
       source_map: source_map.as_mut(),
       targets: config.targets,
-      analyze_dependencies: config.analyze_dependencies,
+      analyze_dependencies: config.analyze_dependencies.unwrap_or_default(),
       pseudo_classes: config.pseudo_classes.as_ref().map(|p| p.into()),
     })?
   };
