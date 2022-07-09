@@ -1,5 +1,5 @@
 use crate::declaration::{parse_declaration, DeclarationBlock, DeclarationList};
-use crate::error::ParserError;
+use crate::error::{Error, ParserError};
 use crate::media_query::*;
 use crate::rules::font_palette_values::FontPaletteValuesRule;
 use crate::rules::layer::{LayerBlockRule, LayerStatementRule};
@@ -29,19 +29,26 @@ use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 use parcel_selectors::{parser::NestingRequirement, SelectorList};
 use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 /// CSS parsing options.
 #[derive(Default, Clone, Debug)]
-pub struct ParserOptions<'i> {
+pub struct ParserOptions<'o, 'i> {
+  /// Filename to use in error messages.
+  pub filename: String,
   /// Whether the enable the [CSS nesting](https://www.w3.org/TR/css-nesting-1/) draft syntax.
   pub nesting: bool,
   /// Whether to enable the [custom media](https://drafts.csswg.org/mediaqueries-5/#custom-mq) draft syntax.
   pub custom_media: bool,
   /// Whether the enable [CSS modules](https://github.com/css-modules/css-modules).
-  pub css_modules: Option<crate::css_modules::Config<'i>>,
+  pub css_modules: Option<crate::css_modules::Config<'o>>,
   /// The source index to assign to all parsed rules. Impacts the source map when
   /// the style sheet is serialized.
   pub source_index: u32,
+  /// Whether to ignore invalid rules and declarations rather than erroring.
+  pub error_recovery: bool,
+  /// A list that will be appended to when a warning occurs.
+  pub warnings: Option<Arc<RwLock<Vec<Error<ParserError<'i>>>>>>,
 }
 
 #[derive(PartialEq, PartialOrd)]
@@ -57,12 +64,12 @@ enum State {
 pub struct TopLevelRuleParser<'a, 'o, 'i> {
   default_namespace: Option<CowArcStr<'i>>,
   namespace_prefixes: HashMap<CowArcStr<'i>, CowArcStr<'i>>,
-  options: &'a ParserOptions<'o>,
+  options: &'a ParserOptions<'o, 'i>,
   state: State,
 }
 
 impl<'a, 'o, 'b, 'i> TopLevelRuleParser<'a, 'o, 'i> {
-  pub fn new(options: &'a ParserOptions<'o>) -> Self {
+  pub fn new(options: &'a ParserOptions<'o, 'i>) -> Self {
     TopLevelRuleParser {
       default_namespace: None,
       namespace_prefixes: HashMap::new(),
@@ -292,11 +299,14 @@ impl<'a, 'o, 'i> QualifiedRuleParser<'i> for TopLevelRuleParser<'a, 'o, 'i> {
 struct NestedRuleParser<'a, 'o, 'i> {
   default_namespace: &'a Option<CowArcStr<'i>>,
   namespace_prefixes: &'a HashMap<CowArcStr<'i>, CowArcStr<'i>>,
-  options: &'a ParserOptions<'o>,
+  options: &'a ParserOptions<'o, 'i>,
 }
 
 impl<'a, 'o, 'b, 'i> NestedRuleParser<'a, 'o, 'i> {
-  fn parse_nested_rules<'t>(&mut self, input: &mut Parser<'i, 't>) -> CssRuleList<'i> {
+  fn parse_nested_rules<'t>(
+    &mut self,
+    input: &mut Parser<'i, 't>,
+  ) -> Result<CssRuleList<'i>, ParseError<'i, ParserError<'i>>> {
     let nested_parser = NestedRuleParser {
       default_namespace: self.default_namespace,
       namespace_prefixes: self.namespace_prefixes,
@@ -309,13 +319,21 @@ impl<'a, 'o, 'b, 'i> NestedRuleParser<'a, 'o, 'i> {
       match result {
         Ok(CssRule::Ignored) => {}
         Ok(rule) => rules.push(rule),
-        Err(_) => {
-          // TODO
+        Err((e, _)) => {
+          if self.options.error_recovery {
+            if let Some(warnings) = &self.options.warnings {
+              if let Ok(mut warnings) = warnings.write() {
+                warnings.push(Error::from(e, self.options.filename.clone()));
+              }
+            }
+            continue;
+          }
+          return Err(e);
         }
       }
     }
 
-    CssRuleList(rules)
+    Ok(CssRuleList(rules))
   }
 
   fn loc(&self, start: &ParserState) -> Location {
@@ -477,12 +495,12 @@ impl<'a, 'o, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'o, 'i> {
       })),
       AtRulePrelude::Media(query) => Ok(CssRule::Media(MediaRule {
         query,
-        rules: self.parse_nested_rules(input),
+        rules: self.parse_nested_rules(input)?,
         loc,
       })),
       AtRulePrelude::Supports(condition) => Ok(CssRule::Supports(SupportsRule {
         condition,
-        rules: self.parse_nested_rules(input),
+        rules: self.parse_nested_rules(input)?,
         loc,
       })),
       AtRulePrelude::Viewport(vendor_prefix) => {
@@ -509,7 +527,7 @@ impl<'a, 'o, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'o, 'i> {
         loc,
       })),
       AtRulePrelude::MozDocument => Ok(CssRule::MozDocument(MozDocumentRule {
-        rules: self.parse_nested_rules(input),
+        rules: self.parse_nested_rules(input)?,
         loc,
       })),
       AtRulePrelude::Layer(names) => {
@@ -523,7 +541,7 @@ impl<'a, 'o, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'o, 'i> {
 
         Ok(CssRule::LayerBlock(LayerBlockRule {
           name,
-          rules: self.parse_nested_rules(input),
+          rules: self.parse_nested_rules(input)?,
           loc,
         }))
       }
@@ -599,7 +617,7 @@ fn parse_declarations_and_nested_rules<'a, 'o, 'i, 't>(
   input: &mut Parser<'i, 't>,
   default_namespace: &'a Option<CowArcStr<'i>>,
   namespace_prefixes: &'a HashMap<CowArcStr<'i>, CowArcStr<'i>>,
-  options: &'a ParserOptions<'o>,
+  options: &'a ParserOptions<'o, 'i>,
 ) -> Result<(DeclarationBlock<'i>, CssRuleList<'i>), ParseError<'i, ParserError<'i>>> {
   let mut important_declarations = DeclarationList::new();
   let mut declarations = DeclarationList::new();
@@ -630,6 +648,14 @@ fn parse_declarations_and_nested_rules<'a, 'o, 'i, 't>(
   let mut iter = RuleListParser::new_for_nested_rule(declaration_parser.input, declaration_parser.parser);
   while let Some(result) = iter.next() {
     if let Err((err, _)) = result {
+      if options.error_recovery {
+        if let Some(warnings) = &options.warnings {
+          if let Ok(mut warnings) = warnings.write() {
+            warnings.push(Error::from(err, options.filename.clone()));
+          }
+        }
+        continue;
+      }
       return Err(err);
     }
   }
@@ -646,7 +672,7 @@ fn parse_declarations_and_nested_rules<'a, 'o, 'i, 't>(
 pub struct StyleRuleParser<'a, 'o, 'i> {
   default_namespace: &'a Option<CowArcStr<'i>>,
   namespace_prefixes: &'a HashMap<CowArcStr<'i>, CowArcStr<'i>>,
-  options: &'a ParserOptions<'o>,
+  options: &'a ParserOptions<'o, 'i>,
   declarations: &'a mut DeclarationList<'i>,
   important_declarations: &'a mut DeclarationList<'i>,
   rules: &'a mut CssRuleList<'i>,
@@ -782,7 +808,7 @@ fn parse_nested_at_rule<'a, 'o, 'i, 't>(
   source_index: u32,
   default_namespace: &'a Option<CowArcStr<'i>>,
   namespace_prefixes: &'a HashMap<CowArcStr<'i>, CowArcStr<'i>>,
-  options: &'a ParserOptions<'o>,
+  options: &'a ParserOptions<'o, 'i>,
 ) -> Result<CssRuleList<'i>, ParseError<'i, ParserError<'i>>> {
   let loc = input.current_source_location();
   let loc = Location {

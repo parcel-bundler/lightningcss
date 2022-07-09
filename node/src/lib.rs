@@ -14,6 +14,7 @@ use parcel_sourcemap::SourceMap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::Path;
+use std::sync::{Arc, RwLock};
 
 // ---------------------------------------------
 
@@ -51,7 +52,7 @@ use napi_derive::{js_function, module_exports};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct TransformResult {
+struct TransformResult<'i> {
   #[serde(with = "serde_bytes")]
   code: Vec<u8>,
   #[serde(with = "serde_bytes")]
@@ -59,10 +60,11 @@ struct TransformResult {
   exports: Option<CssModuleExports>,
   references: Option<CssModuleReferences>,
   dependencies: Option<Vec<Dependency>>,
+  warnings: Vec<Warning<'i>>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl TransformResult {
+impl<'i> TransformResult<'i> {
   fn into_js(self, ctx: CallContext) -> napi::Result<JsUnknown> {
     // Manually construct buffers so we avoid a copy and work around
     // https://github.com/napi-rs/napi-rs/issues/1124.
@@ -81,6 +83,7 @@ impl TransformResult {
     obj.set_named_property("exports", ctx.env.to_js_value(&self.exports)?)?;
     obj.set_named_property("references", ctx.env.to_js_value(&self.references)?)?;
     obj.set_named_property("dependencies", ctx.env.to_js_value(&self.dependencies)?)?;
+    obj.set_named_property("warnings", ctx.env.to_js_value(&self.warnings)?)?;
     Ok(obj.into_unknown())
   }
 }
@@ -163,18 +166,24 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Config {
+  #[serde(default)]
   pub filename: String,
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
   pub targets: Option<Browsers>,
-  pub minify: Option<bool>,
-  pub source_map: Option<bool>,
+  #[serde(default)]
+  pub minify: bool,
+  #[serde(default)]
+  pub source_map: bool,
   pub input_source_map: Option<String>,
   pub drafts: Option<Drafts>,
   pub css_modules: Option<CssModulesOption>,
-  pub analyze_dependencies: Option<bool>,
+  #[serde(default)]
+  pub analyze_dependencies: bool,
   pub pseudo_classes: Option<OwnedPseudoClasses>,
   pub unused_symbols: Option<HashSet<String>>,
+  #[serde(default)]
+  pub error_recovery: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -197,13 +206,18 @@ struct CssModulesConfig {
 struct BundleConfig {
   pub filename: String,
   pub targets: Option<Browsers>,
-  pub minify: Option<bool>,
-  pub source_map: Option<bool>,
+  #[serde(default)]
+  pub minify: bool,
+  #[serde(default)]
+  pub source_map: bool,
   pub drafts: Option<Drafts>,
   pub css_modules: Option<CssModulesOption>,
-  pub analyze_dependencies: Option<bool>,
+  #[serde(default)]
+  pub analyze_dependencies: bool,
   pub pseudo_classes: Option<OwnedPseudoClasses>,
   pub unused_symbols: Option<HashSet<String>>,
+  #[serde(default)]
+  pub error_recovery: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -237,12 +251,115 @@ struct Drafts {
   custom_media: bool,
 }
 
-fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, CompileError<'i>> {
+fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult<'i>, CompileError<'i>> {
   let drafts = config.drafts.as_ref();
-  let mut stylesheet = StyleSheet::parse(
-    &config.filename,
-    &code,
-    ParserOptions {
+  let warnings = if config.error_recovery {
+    Some(Arc::new(RwLock::new(Vec::new())))
+  } else {
+    None
+  };
+
+  let mut source_map = if config.source_map {
+    let mut sm = SourceMap::new("/");
+    sm.add_source(&config.filename);
+    sm.set_source_content(0, code)?;
+    Some(sm)
+  } else {
+    None
+  };
+
+  let res = {
+    let mut stylesheet = StyleSheet::parse(
+      &code,
+      ParserOptions {
+        filename: config.filename.clone(),
+        nesting: matches!(drafts, Some(d) if d.nesting),
+        custom_media: matches!(drafts, Some(d) if d.custom_media),
+        css_modules: if let Some(css_modules) = &config.css_modules {
+          match css_modules {
+            CssModulesOption::Bool(true) => Some(parcel_css::css_modules::Config::default()),
+            CssModulesOption::Bool(false) => None,
+            CssModulesOption::Config(c) => Some(parcel_css::css_modules::Config {
+              pattern: if let Some(pattern) = c.pattern.as_ref() {
+                match parcel_css::css_modules::Pattern::parse(pattern) {
+                  Ok(p) => p,
+                  Err(e) => return Err(CompileError::PatternError(e)),
+                }
+              } else {
+                Default::default()
+              },
+              dashed_idents: c.dashed_idents,
+            }),
+          }
+        } else {
+          None
+        },
+        source_index: 0,
+        error_recovery: config.error_recovery,
+        warnings: warnings.clone(),
+      },
+    )?;
+    stylesheet.minify(MinifyOptions {
+      targets: config.targets,
+      unused_symbols: config.unused_symbols.clone().unwrap_or_default(),
+    })?;
+
+    stylesheet.to_css(PrinterOptions {
+      minify: config.minify,
+      source_map: source_map.as_mut(),
+      targets: config.targets,
+      analyze_dependencies: config.analyze_dependencies,
+      pseudo_classes: config.pseudo_classes.as_ref().map(|p| p.into()),
+    })?
+  };
+
+  let map = if let Some(mut source_map) = source_map {
+    if let Some(input_source_map) = &config.input_source_map {
+      if let Ok(mut sm) = SourceMap::from_json("/", input_source_map) {
+        let _ = source_map.extends(&mut sm);
+      }
+    }
+
+    source_map.to_json(None).ok()
+  } else {
+    None
+  };
+
+  Ok(TransformResult {
+    code: res.code.into_bytes(),
+    map: map.map(|m| m.into_bytes()),
+    exports: res.exports,
+    references: res.references,
+    dependencies: res.dependencies,
+    warnings: warnings.map_or(Vec::new(), |w| {
+      Arc::try_unwrap(w)
+        .unwrap()
+        .into_inner()
+        .unwrap()
+        .into_iter()
+        .map(|w| w.into())
+        .collect()
+    }),
+  })
+}
+
+fn compile_bundle<'i>(
+  fs: &'i FileProvider,
+  config: &BundleConfig,
+) -> Result<TransformResult<'i>, CompileError<'i>> {
+  let mut source_map = if config.source_map {
+    Some(SourceMap::new("/"))
+  } else {
+    None
+  };
+  let warnings = if config.error_recovery {
+    Some(Arc::new(RwLock::new(Vec::new())))
+  } else {
+    None
+  };
+  let res = {
+    let drafts = config.drafts.as_ref();
+    let parser_options = ParserOptions {
       nesting: matches!(drafts, Some(d) if d.nesting),
       custom_media: matches!(drafts, Some(d) if d.custom_media),
       css_modules: if let Some(css_modules) = &config.css_modules {
@@ -264,100 +381,27 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult, Compil
       } else {
         None
       },
-      source_index: 0,
-    },
-  )?;
-  stylesheet.minify(MinifyOptions {
-    targets: config.targets,
-    unused_symbols: config.unused_symbols.clone().unwrap_or_default(),
-  })?;
+      error_recovery: config.error_recovery,
+      warnings: warnings.clone(),
+      ..ParserOptions::default()
+    };
 
-  let mut source_map = if config.source_map.unwrap_or(false) {
-    let mut sm = SourceMap::new("/");
-    sm.add_source(&config.filename);
-    sm.set_source_content(0, code)?;
-    Some(sm)
-  } else {
-    None
+    let mut bundler = Bundler::new(fs, source_map.as_mut(), parser_options);
+    let mut stylesheet = bundler.bundle(Path::new(&config.filename))?;
+
+    stylesheet.minify(MinifyOptions {
+      targets: config.targets,
+      unused_symbols: config.unused_symbols.clone().unwrap_or_default(),
+    })?;
+
+    stylesheet.to_css(PrinterOptions {
+      minify: config.minify,
+      source_map: source_map.as_mut(),
+      targets: config.targets,
+      analyze_dependencies: config.analyze_dependencies,
+      pseudo_classes: config.pseudo_classes.as_ref().map(|p| p.into()),
+    })?
   };
-
-  let res = stylesheet.to_css(PrinterOptions {
-    minify: config.minify.unwrap_or(false),
-    source_map: source_map.as_mut(),
-    targets: config.targets,
-    analyze_dependencies: config.analyze_dependencies.unwrap_or(false),
-    pseudo_classes: config.pseudo_classes.as_ref().map(|p| p.into()),
-  })?;
-
-  let map = if let Some(mut source_map) = source_map {
-    if let Some(input_source_map) = &config.input_source_map {
-      if let Ok(mut sm) = SourceMap::from_json("/", input_source_map) {
-        let _ = source_map.extends(&mut sm);
-      }
-    }
-
-    source_map.to_json(None).ok()
-  } else {
-    None
-  };
-
-  Ok(TransformResult {
-    code: res.code.into_bytes(),
-    map: map.map(|m| m.into_bytes()),
-    exports: res.exports,
-    references: res.references,
-    dependencies: res.dependencies,
-  })
-}
-
-fn compile_bundle<'i>(fs: &'i FileProvider, config: &BundleConfig) -> Result<TransformResult, CompileError<'i>> {
-  let mut source_map = if config.source_map.unwrap_or(false) {
-    Some(SourceMap::new("/"))
-  } else {
-    None
-  };
-
-  let drafts = config.drafts.as_ref();
-  let parser_options = ParserOptions {
-    nesting: matches!(drafts, Some(d) if d.nesting),
-    custom_media: matches!(drafts, Some(d) if d.custom_media),
-    css_modules: if let Some(css_modules) = &config.css_modules {
-      match css_modules {
-        CssModulesOption::Bool(true) => Some(parcel_css::css_modules::Config::default()),
-        CssModulesOption::Bool(false) => None,
-        CssModulesOption::Config(c) => Some(parcel_css::css_modules::Config {
-          pattern: if let Some(pattern) = c.pattern.as_ref() {
-            match parcel_css::css_modules::Pattern::parse(pattern) {
-              Ok(p) => p,
-              Err(e) => return Err(CompileError::PatternError(e)),
-            }
-          } else {
-            Default::default()
-          },
-          dashed_idents: c.dashed_idents,
-        }),
-      }
-    } else {
-      None
-    },
-    ..ParserOptions::default()
-  };
-
-  let mut bundler = Bundler::new(fs, source_map.as_mut(), parser_options);
-  let mut stylesheet = bundler.bundle(Path::new(&config.filename))?;
-
-  stylesheet.minify(MinifyOptions {
-    targets: config.targets,
-    unused_symbols: config.unused_symbols.clone().unwrap_or_default(),
-  })?;
-
-  let res = stylesheet.to_css(PrinterOptions {
-    minify: config.minify.unwrap_or(false),
-    source_map: source_map.as_mut(),
-    targets: config.targets,
-    analyze_dependencies: config.analyze_dependencies.unwrap_or(false),
-    pseudo_classes: config.pseudo_classes.as_ref().map(|p| p.into()),
-  })?;
 
   let map = if let Some(source_map) = &mut source_map {
     source_map.to_json(None).ok()
@@ -371,6 +415,15 @@ fn compile_bundle<'i>(fs: &'i FileProvider, config: &BundleConfig) -> Result<Tra
     exports: res.exports,
     references: res.references,
     dependencies: res.dependencies,
+    warnings: warnings.map_or(Vec::new(), |w| {
+      Arc::try_unwrap(w)
+        .unwrap()
+        .into_inner()
+        .unwrap()
+        .into_iter()
+        .map(|w| w.into())
+        .collect()
+    }),
   })
 }
 
@@ -380,20 +433,25 @@ struct AttrConfig {
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
   pub targets: Option<Browsers>,
-  pub minify: Option<bool>,
-  pub analyze_dependencies: Option<bool>,
+  #[serde(default)]
+  pub minify: bool,
+  #[serde(default)]
+  pub analyze_dependencies: bool,
+  #[serde(default)]
+  pub error_recovery: bool,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct AttrResult {
+struct AttrResult<'i> {
   #[serde(with = "serde_bytes")]
   code: Vec<u8>,
   dependencies: Option<Vec<Dependency>>,
+  warnings: Vec<Warning<'i>>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl AttrResult {
+impl<'i> AttrResult<'i> {
   fn into_js(self, ctx: CallContext) -> napi::Result<JsUnknown> {
     // Manually construct buffers so we avoid a copy and work around
     // https://github.com/napi-rs/napi-rs/issues/1124.
@@ -401,26 +459,50 @@ impl AttrResult {
     let buf = ctx.env.create_buffer_with_data(self.code)?;
     obj.set_named_property("code", buf.into_raw())?;
     obj.set_named_property("dependencies", ctx.env.to_js_value(&self.dependencies)?)?;
+    obj.set_named_property("warnings", ctx.env.to_js_value(&self.warnings)?)?;
     Ok(obj.into_unknown())
   }
 }
 
-fn compile_attr<'i>(code: &'i str, config: &AttrConfig) -> Result<AttrResult, CompileError<'i>> {
-  let mut attr = StyleAttribute::parse(&code)?;
-  attr.minify(MinifyOptions {
-    targets: config.targets,
-    ..MinifyOptions::default()
-  });
-  let res = attr.to_css(PrinterOptions {
-    minify: config.minify.unwrap_or(false),
-    source_map: None,
-    targets: config.targets,
-    analyze_dependencies: config.analyze_dependencies.unwrap_or(false),
-    pseudo_classes: None,
-  })?;
+fn compile_attr<'i>(code: &'i str, config: &AttrConfig) -> Result<AttrResult<'i>, CompileError<'i>> {
+  let warnings = if config.error_recovery {
+    Some(Arc::new(RwLock::new(Vec::new())))
+  } else {
+    None
+  };
+  let res = {
+    let mut attr = StyleAttribute::parse(
+      &code,
+      ParserOptions {
+        error_recovery: config.error_recovery,
+        warnings: warnings.clone(),
+        ..ParserOptions::default()
+      },
+    )?;
+    attr.minify(MinifyOptions {
+      targets: config.targets,
+      ..MinifyOptions::default()
+    });
+    attr.to_css(PrinterOptions {
+      minify: config.minify,
+      source_map: None,
+      targets: config.targets,
+      analyze_dependencies: config.analyze_dependencies,
+      pseudo_classes: None,
+    })?
+  };
   Ok(AttrResult {
     code: res.code.into_bytes(),
     dependencies: res.dependencies,
+    warnings: warnings.map_or(Vec::new(), |w| {
+      Arc::try_unwrap(w)
+        .unwrap()
+        .into_inner()
+        .unwrap()
+        .into_iter()
+        .map(|w| w.into())
+        .collect()
+    }),
   })
 }
 
@@ -538,6 +620,28 @@ impl<'i> From<CompileError<'i>> for wasm_bindgen::JsValue {
       CompileError::SourceMapError(e) => js_sys::Error::new(&e.to_string()).into(),
       CompileError::PatternError(e) => js_sys::Error::new(&e.to_string()).into(),
       _ => js_sys::Error::new(&e.to_string()).into(),
+    }
+  }
+}
+
+#[derive(Serialize)]
+struct Warning<'i> {
+  message: String,
+  #[serde(flatten)]
+  data: ParserError<'i>,
+  loc: Option<ErrorLocation>,
+}
+
+impl<'i> From<Error<ParserError<'i>>> for Warning<'i> {
+  fn from(mut e: Error<ParserError<'i>>) -> Self {
+    // Convert to 1-based line numbers.
+    if let Some(loc) = &mut e.loc {
+      loc.line += 1;
+    }
+    Warning {
+      message: e.kind.to_string(),
+      data: e.kind,
+      loc: e.loc,
     }
   }
 }

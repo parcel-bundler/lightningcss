@@ -34,7 +34,13 @@ export interface TransformOptions {
    * to be unused. These will be removed during minification. Note that these are not
    * selectors but individual names (without any . or # prefixes).
    */
-  unusedSymbols?: string[]
+  unusedSymbols?: string[],
+  /**
+   * Whether to ignore invalid rules and declarations rather than erroring.
+   * When enabled, warnings are returned, and the invalid rule or declaration is
+   * omitted from the output code.
+   */
+  errorRecovery?: boolean
 }
 
 export type BundleOptions = Omit<TransformOptions, 'code'>;
@@ -64,7 +70,16 @@ export interface TransformResult {
   /** CSS module references, if `dashedIdents` is enabled. */
   references: CSSModuleReferences,
   /** `@import` and `url()` dependencies, if enabled. */
-  dependencies: Dependency[] | void
+  dependencies: Dependency[] | void,
+  /** Warnings that occurred during compilation. */
+  warnings: Warning[]
+}
+
+export interface Warning {
+  message: string,
+  type: string,
+  value?: any,
+  loc: ErrorLocation
 }
 
 export interface CSSModulesConfig {
@@ -153,6 +168,10 @@ export interface Location {
   line: number,
   /** The column number (0-based). */
   column: number
+}
+
+export interface ErrorLocation extends Location {
+  filename: string
 }
 
 /**

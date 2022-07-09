@@ -56,14 +56,18 @@ mod tests {
   use std::collections::HashMap;
 
   fn test(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css", &source, ParserOptions::default()).unwrap();
+    test_with_options(source, expected, ParserOptions::default())
+  }
+
+  fn test_with_options<'i, 'o>(source: &'i str, expected: &'i str, options: ParserOptions<'o, 'i>) {
+    let mut stylesheet = StyleSheet::parse(&source, options).unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
   }
 
   fn minify_test(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse("test.css", &source, ParserOptions::default()).unwrap();
+    let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet
       .to_css(PrinterOptions {
@@ -75,7 +79,7 @@ mod tests {
   }
 
   fn prefix_test(source: &str, expected: &str, targets: Browsers) {
-    let mut stylesheet = StyleSheet::parse("test.css", &source, ParserOptions::default()).unwrap();
+    let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
     stylesheet
       .minify(MinifyOptions {
         targets: Some(targets),
@@ -92,7 +96,7 @@ mod tests {
   }
 
   fn attr_test(source: &str, expected: &str, minify: bool, targets: Option<Browsers>) {
-    let mut attr = StyleAttribute::parse(source).unwrap();
+    let mut attr = StyleAttribute::parse(source, ParserOptions::default()).unwrap();
     attr.minify(MinifyOptions {
       targets,
       ..MinifyOptions::default()
@@ -113,7 +117,6 @@ mod tests {
       ..Browsers::default()
     });
     let mut stylesheet = StyleSheet::parse(
-      "test.css",
       &source,
       ParserOptions {
         nesting: true,
@@ -138,7 +141,6 @@ mod tests {
 
   fn nesting_test_no_targets(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse(
-      "test.css",
       &source,
       ParserOptions {
         nesting: true,
@@ -159,9 +161,9 @@ mod tests {
     config: crate::css_modules::Config<'i>,
   ) {
     let mut stylesheet = StyleSheet::parse(
-      "test.css",
       &source,
       ParserOptions {
+        filename: "test.css".into(),
         css_modules: Some(config),
         ..ParserOptions::default()
       },
@@ -176,7 +178,6 @@ mod tests {
 
   fn custom_media_test(source: &str, expected: &str) {
     let mut stylesheet = StyleSheet::parse(
-      "test.css",
       &source,
       ParserOptions {
         custom_media: true,
@@ -198,7 +199,7 @@ mod tests {
   }
 
   fn error_test(source: &str, error: ParserError) {
-    let res = StyleSheet::parse("test.css", &source, ParserOptions::default());
+    let res = StyleSheet::parse(&source, ParserOptions::default());
     match res {
       Ok(_) => unreachable!(),
       Err(e) => assert_eq!(e.kind, error),
@@ -16767,7 +16768,6 @@ mod tests {
     );
 
     let stylesheet = StyleSheet::parse(
-      "test.css",
       r#"
         .grid {
           grid-template-areas: "foo";
@@ -16928,7 +16928,7 @@ mod tests {
       }
     "#};
 
-    let stylesheet = StyleSheet::parse("test.css", &source, ParserOptions::default()).unwrap();
+    let stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
     let res = stylesheet
       .to_css(PrinterOptions {
         pseudo_classes: Some(PseudoClasses {
@@ -16955,9 +16955,9 @@ mod tests {
     "#};
 
     let stylesheet = StyleSheet::parse(
-      "test.css",
       &source,
       ParserOptions {
+        filename: "test.css".into(),
         css_modules: Some(Default::default()),
         ..ParserOptions::default()
       },
@@ -17041,7 +17041,7 @@ mod tests {
       }
     "#};
 
-    let mut stylesheet = StyleSheet::parse("test.css", &source, ParserOptions::default()).unwrap();
+    let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
     stylesheet
       .minify(MinifyOptions {
         unused_symbols: vec!["bar", "other_id", "fade", "circles"]
@@ -17071,7 +17071,6 @@ mod tests {
     "#};
 
     let mut stylesheet = StyleSheet::parse(
-      "test.css",
       &source,
       ParserOptions {
         nesting: true,
@@ -17125,7 +17124,6 @@ mod tests {
     "#};
 
     let mut stylesheet = StyleSheet::parse(
-      "test.css",
       &source,
       ParserOptions {
         nesting: true,
@@ -17179,7 +17177,6 @@ mod tests {
     "#};
 
     let mut stylesheet = StyleSheet::parse(
-      "test.css",
       &source,
       ParserOptions {
         nesting: true,
@@ -18448,9 +18445,9 @@ mod tests {
 
     fn custom_media_error_test(source: &str, err: Error<MinifyErrorKind>) {
       let mut stylesheet = StyleSheet::parse(
-        "test.css",
         &source,
         ParserOptions {
+          filename: "test.css".into(),
           custom_media: true,
           ..ParserOptions::default()
         },
@@ -18687,7 +18684,14 @@ mod tests {
   #[test]
   fn test_dependencies() {
     fn dep_test(source: &str, expected: &str, deps: Vec<(&str, &str)>) {
-      let mut stylesheet = StyleSheet::parse("test.css", &source, ParserOptions::default()).unwrap();
+      let mut stylesheet = StyleSheet::parse(
+        &source,
+        ParserOptions {
+          filename: "test.css".into(),
+          ..ParserOptions::default()
+        },
+      )
+      .unwrap();
       stylesheet.minify(MinifyOptions::default()).unwrap();
       let res = stylesheet
         .to_css(PrinterOptions {
@@ -18711,7 +18715,7 @@ mod tests {
     }
 
     fn dep_error_test(source: &str, error: PrinterErrorKind) {
-      let stylesheet = StyleSheet::parse("test.css", &source, ParserOptions::default()).unwrap();
+      let stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
       let res = stylesheet.to_css(PrinterOptions {
         analyze_dependencies: true,
         ..PrinterOptions::default()
@@ -18796,7 +18800,7 @@ mod tests {
 
   #[test]
   fn test_api() {
-    let stylesheet = StyleSheet::parse("test.css", ".foo:hover { color: red }", ParserOptions::default()).unwrap();
+    let stylesheet = StyleSheet::parse(".foo:hover { color: red }", ParserOptions::default()).unwrap();
     match &stylesheet.rules.0[0] {
       CssRule::Style(s) => {
         assert_eq!(&s.selectors.to_string(), ".foo:hover");
@@ -18842,7 +18846,7 @@ mod tests {
         }
       }
     "#};
-    let stylesheet = StyleSheet::parse("test.css", code, ParserOptions::default()).unwrap();
+    let stylesheet = StyleSheet::parse(code, ParserOptions::default()).unwrap();
     if let CssRule::Style(style) = &stylesheet.rules.0[1] {
       let (key, val) = style.property_location(code, 0).unwrap();
       assert_eq!(
@@ -19215,7 +19219,7 @@ mod tests {
     
     /*# sourceMappingURL=data:application/json;base64,ewoJInZlcnNpb24iOiAzLAoJInNvdXJjZVJvb3QiOiAicm9vdCIsCgkiZmlsZSI6ICJzdGRvdXQiLAoJInNvdXJjZXMiOiBbCgkJInN0ZGluIiwKCQkic2Fzcy9fdmFyaWFibGVzLnNjc3MiLAoJCSJzYXNzL19kZW1vLnNjc3MiCgldLAoJInNvdXJjZXNDb250ZW50IjogWwoJCSJAaW1wb3J0IFwiX3ZhcmlhYmxlc1wiO1xuQGltcG9ydCBcIl9kZW1vXCI7XG5cbi5zZWxlY3RvciB7XG4gIG1hcmdpbjogJHNpemU7XG4gIGJhY2tncm91bmQtY29sb3I6ICRicmFuZENvbG9yO1xuXG4gIC5uZXN0ZWQge1xuICAgIG1hcmdpbjogJHNpemUgLyAyO1xuICB9XG59IiwKCQkiJGJyYW5kQ29sb3I6ICNmNjA7XG4kc2l6ZTogMWVtOyIsCgkJIi5pbXBvcnRlZCB7XG4gIGNvbnRlbnQ6IFwieWF5LCBmaWxlIHN1cHBvcnQhXCI7XG59IgoJXSwKCSJtYXBwaW5ncyI6ICJBRUFBLFNBQVMsQ0FBQztFQUNSLE9BQU8sRUFBRSxvQkFBcUI7Q0FDL0I7O0FGQ0QsU0FBUyxDQUFDO0VBQ1IsTUFBTSxFQ0hELEdBQUc7RURJUixnQkFBZ0IsRUNMTCxJQUFJO0NEVWhCOztBQVBELFNBQVMsQ0FJUCxPQUFPLENBQUM7RUFDTixNQUFNLEVDUEgsS0FBRztDRFFQIiwKCSJuYW1lcyI6IFtdCn0= */"#;
 
-    let mut stylesheet = StyleSheet::parse("test.css", &source, ParserOptions::default()).unwrap();
+    let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     let mut sm = parcel_sourcemap::SourceMap::new("/");
     stylesheet
@@ -19230,5 +19234,89 @@ mod tests {
       map,
       r#"{"version":3,"sourceRoot":null,"mappings":"AEAA,uCFGA,2CAAA","sources":["stdin","sass/_variables.scss","sass/_demo.scss"],"sourcesContent":["@import \"_variables\";\n@import \"_demo\";\n\n.selector {\n  margin: $size;\n  background-color: $brandColor;\n\n  .nested {\n    margin: $size / 2;\n  }\n}","$brandColor: #f60;\n$size: 1em;",".imported {\n  content: \"yay, file support!\";\n}"],"names":[]}"#
     );
+  }
+
+  #[test]
+  fn test_error_recovery() {
+    use std::sync::{Arc, RwLock};
+    let warnings = Some(Arc::new(RwLock::new(Vec::new())));
+    test_with_options(
+      r#"
+      h1(>h1) {
+        color: red;
+      }
+
+      .foo {
+        color: red;
+      }
+
+      .clearfix {
+        *zoom: 1;
+        background: red;
+      }
+
+      @media (hover) {
+        h1(>h1) {
+          color: red;
+        }
+
+        .bar {
+          color: red;
+        }
+      }
+    "#,
+      indoc! { r#"
+      .foo {
+        color: red;
+      }
+
+      .clearfix {
+        background: red;
+      }
+
+      @media (hover) {
+        .bar {
+          color: red;
+        }
+      }
+    "#},
+      ParserOptions {
+        filename: "test.css".into(),
+        error_recovery: true,
+        warnings: warnings.clone(),
+        ..ParserOptions::default()
+      },
+    );
+    let w = warnings.unwrap();
+    let warnings = w.read().unwrap();
+    assert_eq!(
+      *warnings,
+      vec![
+        Error {
+          kind: ParserError::SelectorError(SelectorError::EmptySelector),
+          loc: Some(ErrorLocation {
+            filename: "test.css".into(),
+            line: 1,
+            column: 7
+          })
+        },
+        Error {
+          kind: ParserError::UnexpectedToken(Token::Delim('*')),
+          loc: Some(ErrorLocation {
+            filename: "test.css".into(),
+            line: 10,
+            column: 9
+          })
+        },
+        Error {
+          kind: ParserError::SelectorError(SelectorError::EmptySelector),
+          loc: Some(ErrorLocation {
+            filename: "test.css".into(),
+            line: 15,
+            column: 9
+          })
+        },
+      ]
+    )
   }
 }

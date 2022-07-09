@@ -9,7 +9,14 @@ fn parse() {
 
   let args: Vec<String> = env::args().collect();
   let contents = fs::read_to_string(&args[1]).unwrap();
-  let stylesheet = StyleSheet::parse(&args[1], &contents, ParserOptions::default()).unwrap();
+  let stylesheet = StyleSheet::parse(
+    &contents,
+    ParserOptions {
+      filename: args[1].clone(),
+      ..ParserOptions::default()
+    },
+  )
+  .unwrap();
   let json = serde_json::to_string(&stylesheet).unwrap();
   println!("{}", json);
 }

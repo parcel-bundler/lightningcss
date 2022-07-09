@@ -37,7 +37,6 @@ pub use crate::printer::PseudoClasses;
 ///
 /// // Parse a style sheet from a string.
 /// let mut stylesheet = StyleSheet::parse(
-///   "test.css",
 ///   r#"
 ///   .foo {
 ///     color: red;
@@ -70,7 +69,7 @@ pub struct StyleSheet<'i, 'o> {
   pub source_map_url: Option<String>,
   #[cfg_attr(feature = "serde", serde(skip))]
   /// The options the style sheet was originally parsed with.
-  options: ParserOptions<'o>,
+  options: ParserOptions<'o, 'i>,
 }
 
 /// Options for the `minify` function of a [StyleSheet](StyleSheet)
@@ -103,7 +102,7 @@ pub struct ToCssResult {
 
 impl<'i, 'o> StyleSheet<'i, 'o> {
   /// Creates a new style sheet with the given source filenames and rules.
-  pub fn new(sources: Vec<String>, rules: CssRuleList<'i>, options: ParserOptions<'o>) -> StyleSheet<'i, 'o> {
+  pub fn new(sources: Vec<String>, rules: CssRuleList<'i>, options: ParserOptions<'o, 'i>) -> StyleSheet<'i, 'o> {
     StyleSheet {
       sources,
       source_map_url: None,
@@ -113,8 +112,7 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
   }
 
   /// Parse a style sheet from a string.
-  pub fn parse(filename: &str, code: &'i str, options: ParserOptions<'o>) -> Result<Self, Error<ParserError<'i>>> {
-    let filename = String::from(filename);
+  pub fn parse(code: &'i str, options: ParserOptions<'o, 'i>) -> Result<Self, Error<ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
     let rule_list_parser = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(&options));
@@ -124,14 +122,25 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
       let rule = match rule {
         Ok((_, CssRule::Ignored)) => continue,
         Ok((_, rule)) => rule,
-        Err((e, _)) => return Err(Error::from(e, filename)),
+        Err((e, _)) => {
+          if options.error_recovery {
+            if let Some(warnings) = &options.warnings {
+              if let Ok(mut warnings) = warnings.write() {
+                warnings.push(Error::from(e, options.filename.clone()));
+              }
+            }
+            continue;
+          }
+
+          return Err(Error::from(e, options.filename.clone()));
+        }
       };
 
       rules.push(rule)
     }
 
     Ok(StyleSheet {
-      sources: vec![filename],
+      sources: vec![options.filename.clone()],
       source_map_url: parser.current_source_map_url().map(|s| s.to_owned()),
       rules: CssRuleList(rules),
       options,
@@ -248,7 +257,8 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
 ///
 /// // Parse a style sheet from a string.
 /// let mut style = StyleAttribute::parse(
-///   "color: yellow; font-family: 'Helvetica';"
+///   "color: yellow; font-family: 'Helvetica';",
+///   ParserOptions::default()
 /// ).unwrap();
 ///
 /// // Minify the stylesheet.
@@ -265,10 +275,12 @@ pub struct StyleAttribute<'i> {
 
 impl<'i> StyleAttribute<'i> {
   /// Parses a style attribute from a string.
-  pub fn parse(code: &'i str) -> Result<StyleAttribute, Error<ParserError<'i>>> {
+  pub fn parse(
+    code: &'i str,
+    options: ParserOptions<'_, 'i>,
+  ) -> Result<StyleAttribute<'i>, Error<ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
-    let options = ParserOptions::default();
     Ok(StyleAttribute {
       declarations: DeclarationBlock::parse(&mut parser, &options).map_err(|e| Error::from(e, "".into()))?,
     })

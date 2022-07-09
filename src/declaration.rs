@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use std::ops::Range;
 
 use crate::context::PropertyHandlerContext;
-use crate::error::{ParserError, PrinterError};
+use crate::error::{Error, ParserError, PrinterError};
 use crate::parser::ParserOptions;
 use crate::printer::Printer;
 use crate::properties::box_shadow::BoxShadowHandler;
@@ -54,7 +54,7 @@ impl<'i> DeclarationBlock<'i> {
   /// Parses a declaration block from CSS syntax.
   pub fn parse<'a, 'o, 't>(
     input: &mut Parser<'i, 't>,
-    options: &'a ParserOptions<'o>,
+    options: &'a ParserOptions<'o, 'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut important_declarations = DeclarationList::new();
     let mut declarations = DeclarationList::new();
@@ -68,6 +68,14 @@ impl<'i> DeclarationBlock<'i> {
     );
     while let Some(res) = parser.next() {
       if let Err((err, _)) = res {
+        if options.error_recovery {
+          if let Some(warnings) = &options.warnings {
+            if let Ok(mut warnings) = warnings.write() {
+              warnings.push(Error::from(err, options.filename.clone()));
+            }
+          }
+          continue;
+        }
         return Err(err);
       }
     }
@@ -81,7 +89,7 @@ impl<'i> DeclarationBlock<'i> {
   /// Parses a declaration block from a string.
   pub fn parse_string<'o>(
     input: &'i str,
-    options: ParserOptions<'o>,
+    options: ParserOptions<'o, 'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(input);
     let mut parser = Parser::new(&mut input);
@@ -377,7 +385,7 @@ impl<'i> DeclarationBlock<'i> {
 struct PropertyDeclarationParser<'a, 'o, 'i> {
   important_declarations: &'a mut Vec<Property<'i>>,
   declarations: &'a mut Vec<Property<'i>>,
-  options: &'a ParserOptions<'o>,
+  options: &'a ParserOptions<'o, 'i>,
 }
 
 /// Parse a declaration within {} block: `color: blue`

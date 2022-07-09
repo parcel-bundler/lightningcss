@@ -4,6 +4,7 @@ use parcel_css::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, Style
 use parcel_css::targets::Browsers;
 use parcel_sourcemap::SourceMap;
 use serde::Serialize;
+use std::sync::{Arc, RwLock};
 use std::{ffi, fs, io, path, path::Path};
 
 #[cfg(target_os = "macos")]
@@ -43,6 +44,8 @@ struct CliArgs {
   bundle: bool,
   #[clap(short, long)]
   targets: Vec<String>,
+  #[clap(long)]
+  error_recovery: bool,
 }
 
 #[derive(Serialize)]
@@ -85,47 +88,58 @@ pub fn main() -> Result<(), std::io::Error> {
     cli_args.css_modules.as_ref().map(|_| Default::default())
   };
 
-  let options = ParserOptions {
-    nesting: cli_args.nesting,
-    css_modules,
-    custom_media: cli_args.custom_media,
-    ..ParserOptions::default()
+  let fs = FileProvider::new();
+  let warnings = if cli_args.error_recovery {
+    Some(Arc::new(RwLock::new(Vec::new())))
+  } else {
+    None
   };
 
-  let fs = FileProvider::new();
   let mut source_map = if cli_args.sourcemap {
     Some(SourceMap::new("/"))
   } else {
     None
   };
 
-  let mut stylesheet = if cli_args.bundle {
-    let mut bundler = Bundler::new(&fs, source_map.as_mut(), options);
-    bundler.bundle(Path::new(&cli_args.input_file)).unwrap()
-  } else {
-    if let Some(sm) = &mut source_map {
-      sm.add_source(&filename);
-      let _ = sm.set_source_content(0, &source);
-    }
-    StyleSheet::parse(filename, &source, options).unwrap()
+  let res = {
+    let mut options = ParserOptions {
+      nesting: cli_args.nesting,
+      css_modules,
+      custom_media: cli_args.custom_media,
+      error_recovery: cli_args.error_recovery,
+      warnings: warnings.clone(),
+      ..ParserOptions::default()
+    };
+
+    let mut stylesheet = if cli_args.bundle {
+      let mut bundler = Bundler::new(&fs, source_map.as_mut(), options);
+      bundler.bundle(Path::new(&cli_args.input_file)).unwrap()
+    } else {
+      if let Some(sm) = &mut source_map {
+        sm.add_source(&filename);
+        let _ = sm.set_source_content(0, &source);
+      }
+      options.filename = filename.to_owned();
+      StyleSheet::parse(&source, options).unwrap()
+    };
+
+    let targets = browserslist_to_targets(cli_args.targets).unwrap();
+    stylesheet
+      .minify(MinifyOptions {
+        targets,
+        ..MinifyOptions::default()
+      })
+      .unwrap();
+
+    stylesheet
+      .to_css(PrinterOptions {
+        minify: cli_args.minify,
+        source_map: source_map.as_mut(),
+        targets,
+        ..PrinterOptions::default()
+      })
+      .unwrap()
   };
-
-  let targets = browserslist_to_targets(cli_args.targets).unwrap();
-  stylesheet
-    .minify(MinifyOptions {
-      targets,
-      ..MinifyOptions::default()
-    })
-    .unwrap();
-
-  let res = stylesheet
-    .to_css(PrinterOptions {
-      minify: cli_args.minify,
-      source_map: source_map.as_mut(),
-      targets,
-      ..PrinterOptions::default()
-    })
-    .unwrap();
 
   let map = if let Some(ref mut source_map) = source_map {
     let mut vlq_output: Vec<u8> = Vec::new();
@@ -145,6 +159,13 @@ pub fn main() -> Result<(), std::io::Error> {
   } else {
     None
   };
+
+  if let Some(warnings) = warnings {
+    let warnings = Arc::try_unwrap(warnings).unwrap().into_inner().unwrap();
+    for warning in warnings {
+      eprintln!("{}", warning);
+    }
+  }
 
   if let Some(output_file) = &cli_args.output_file {
     let mut code = res.code;

@@ -10,7 +10,7 @@ fn test_serde() {
     }
   "#;
   let (json, stylesheet) = {
-    let stylesheet = StyleSheet::parse("test.css", code, ParserOptions::default()).unwrap();
+    let stylesheet = StyleSheet::parse(code, ParserOptions::default()).unwrap();
     let json = serde_json::to_string(&stylesheet).unwrap();
     (json, stylesheet)
   };

@@ -59,7 +59,7 @@ pub struct Bundler<'a, 'o, 's, P> {
   fs: &'a P,
   source_indexes: DashMap<PathBuf, u32>,
   stylesheets: Mutex<Vec<BundleStyleSheet<'a, 'o>>>,
-  options: ParserOptions<'o>,
+  options: ParserOptions<'o, 'a>,
 }
 
 #[derive(Debug)]
@@ -179,7 +179,7 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P> {
   /// Creates a new Bundler using the given source provider.
   /// If a source map is given, the content of each source file included in the bundle will
   /// be added accordingly.
-  pub fn new(fs: &'a P, source_map: Option<&'s mut SourceMap>, options: ParserOptions<'o>) -> Self {
+  pub fn new(fs: &'a P, source_map: Option<&'s mut SourceMap>, options: ParserOptions<'o, 'a>) -> Self {
     Bundler {
       source_map: source_map.map(Mutex::new),
       fs,
@@ -309,16 +309,17 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P> {
     })?;
 
     let mut opts = self.options.clone();
+    let filename = file.to_str().unwrap();
+    opts.filename = filename.to_owned();
     opts.source_index = source_index;
 
-    let filename = file.to_str().unwrap();
     if let Some(source_map) = &self.source_map {
       let mut source_map = source_map.lock().unwrap();
       let source_index = source_map.add_source(filename);
       let _ = source_map.set_source_content(source_index as usize, code);
     }
 
-    let mut stylesheet = StyleSheet::parse(filename, code, opts)?;
+    let mut stylesheet = StyleSheet::parse(code, opts)?;
 
     // Collect and load dependencies for this stylesheet in parallel.
     let dependencies: Result<Vec<u32>, _> = stylesheet
