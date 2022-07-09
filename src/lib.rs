@@ -6504,6 +6504,7 @@ mod tests {
       },
     );
   }
+
   #[test]
   fn test_merge_layers() {
     test(
@@ -6537,6 +6538,7 @@ mod tests {
     "#},
     );
   }
+
   #[test]
   fn test_merge_rules() {
     test(
@@ -7060,6 +7062,146 @@ mod tests {
         ie: Some(10 << 16),
         ..Browsers::default()
       },
+    );
+  }
+
+  #[test]
+  fn test_merge_media_rules() {
+    test(
+      r#"
+      @media (hover) {
+        .foo {
+          color: red;
+        }
+      }
+      @media (hover) {
+        .foo {
+          background: #fff;
+        }
+
+        .baz {
+          color: #fff;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @media (hover) {
+        .foo {
+          color: red;
+          background: #fff;
+        }
+
+        .baz {
+          color: #fff;
+        }
+      }
+    "#},
+    );
+
+    test(
+      r#"
+      @media (hover) {
+        .foo {
+          color: red;
+        }
+      }
+      @media (min-width: 250px) {
+        .foo {
+          background: #fff;
+        }
+
+        .baz {
+          color: #fff;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @media (hover) {
+        .foo {
+          color: red;
+        }
+      }
+      
+      @media (min-width: 250px) {
+        .foo {
+          background: #fff;
+        }
+
+        .baz {
+          color: #fff;
+        }
+      }
+    "#},
+    );
+  }
+
+  #[test]
+  fn test_merge_supports() {
+    test(
+      r#"
+      @supports (flex: 1) {
+        .foo {
+          color: red;
+        }
+      }
+      @supports (flex: 1) {
+        .foo {
+          background: #fff;
+        }
+
+        .baz {
+          color: #fff;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @supports (flex: 1) {
+        .foo {
+          color: red;
+          background: #fff;
+        }
+
+        .baz {
+          color: #fff;
+        }
+      }
+    "#},
+    );
+
+    test(
+      r#"
+      @supports (flex: 1) {
+        .foo {
+          color: red;
+        }
+      }
+      @supports (display: grid) {
+        .foo {
+          background: #fff;
+        }
+
+        .baz {
+          color: #fff;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @supports (flex: 1) {
+        .foo {
+          color: red;
+        }
+      }
+      
+      @supports (display: grid) {
+        .foo {
+          background: #fff;
+        }
+
+        .baz {
+          color: #fff;
+        }
+      }
+    "#},
     );
   }
 
