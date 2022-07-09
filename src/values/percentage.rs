@@ -1,5 +1,6 @@
 //! CSS percentage values.
 
+use super::angle::{impl_try_from_angle, Angle};
 use super::calc::{Calc, MathFunction, Round, RoundingStrategy, TryRem, TryRound};
 use super::number::CSSNumber;
 use crate::error::{ParserError, PrinterError};
@@ -131,6 +132,8 @@ impl std::ops::Rem for Percentage {
   }
 }
 
+impl_try_from_angle!(Percentage);
+
 /// Either a `<number>` or `<percentage>`.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(
@@ -219,7 +222,8 @@ impl<
       + std::cmp::PartialEq<CSSNumber>
       + std::cmp::PartialOrd<CSSNumber>
       + std::cmp::PartialOrd<D>
-      + std::fmt::Debug,
+      + std::fmt::Debug
+      + TryFrom<Angle>,
   > Parse<'i> for DimensionPercentage<D>
 {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
@@ -459,6 +463,14 @@ impl<D: TryRem> TryRem for DimensionPercentage<D> {
       }
       _ => None,
     }
+  }
+}
+
+impl<E, D: TryFrom<Angle, Error = E>> TryFrom<Angle> for DimensionPercentage<D> {
+  type Error = E;
+
+  fn try_from(value: Angle) -> Result<Self, Self::Error> {
+    Ok(DimensionPercentage::Dimension(D::try_from(value)?))
   }
 }
 

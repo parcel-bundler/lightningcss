@@ -39,7 +39,7 @@ impl<'i> Parse<'i> for Angle {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
       // Angles are always compatible, so they will always compute to a value.
-      Ok(_) => unreachable!(),
+      Ok(_) => return Err(input.new_custom_error(ParserError::InvalidValue)),
       _ => {}
     }
 
@@ -222,3 +222,16 @@ impl std::ops::Rem for Angle {
 /// A CSS [`<angle-percentage>`](https://www.w3.org/TR/css-values-4/#typedef-angle-percentage) value.
 /// May be specified as either an angle or a percentage that resolves to an angle.
 pub type AnglePercentage = DimensionPercentage<Angle>;
+
+macro_rules! impl_try_from_angle {
+  ($t: ty) => {
+    impl TryFrom<crate::values::angle::Angle> for $t {
+      type Error = ();
+      fn try_from(_: crate::values::angle::Angle) -> Result<Self, Self::Error> {
+        Err(())
+      }
+    }
+  };
+}
+
+pub(crate) use impl_try_from_angle;

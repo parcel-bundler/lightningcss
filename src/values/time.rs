@@ -1,5 +1,6 @@
 //! CSS time values.
 
+use super::angle::impl_try_from_angle;
 use super::calc::{Calc, Round, RoundingStrategy};
 use super::number::CSSNumber;
 use crate::error::{ParserError, PrinterError};
@@ -41,7 +42,7 @@ impl<'i> Parse<'i> for Time {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
       // Time is always compatible, so they will always compute to a value.
-      Ok(_) => unreachable!(),
+      Ok(_) => return Err(input.new_custom_error(ParserError::InvalidValue)),
       _ => {}
     }
 
@@ -179,3 +180,5 @@ impl std::ops::Rem for Time {
     }
   }
 }
+
+impl_try_from_angle!(Time);

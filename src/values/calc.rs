@@ -8,6 +8,7 @@ use crate::traits::private::AddInternal;
 use crate::traits::{Parse, ToCss};
 use cssparser::*;
 
+use super::angle::Angle;
 use super::number::CSSNumber;
 
 /// A CSS [math function](https://www.w3.org/TR/css-values-4/#math-function).
@@ -203,6 +204,36 @@ pub enum Calc<V> {
   Function(Box<MathFunction<V>>),
 }
 
+enum_property! {
+  /// A mathematical constant.
+  pub enum Constant {
+    /// The base of the natural logarithm
+    "e": E,
+    /// The ratio of a circle’s circumference to its diameter
+    "pi": Pi,
+    /// infinity
+    "infinity": Infinity,
+    /// -infinity
+    "-infinity": NegativeInfinity,
+    /// Not a number.
+    "nan": Nan,
+  }
+}
+
+impl Into<f32> for Constant {
+  fn into(self) -> f32 {
+    use std::f32::consts;
+    use Constant::*;
+    match self {
+      E => consts::E,
+      Pi => consts::PI,
+      Infinity => f32::INFINITY,
+      NegativeInfinity => -f32::INFINITY,
+      Nan => f32::NAN,
+    }
+  }
+}
+
 impl<
     'i,
     V: Parse<'i>
@@ -211,8 +242,9 @@ impl<
       + TryRound
       + TryRem
       + std::cmp::PartialOrd<V>
-      + std::convert::Into<Calc<V>>
-      + std::convert::From<Calc<V>>
+      + Into<Calc<V>>
+      + From<Calc<V>>
+      + TryFrom<Angle>
       + Clone
       + std::fmt::Debug,
   > Parse<'i> for Calc<V>
@@ -353,7 +385,13 @@ impl<
           Ok(Calc::Function(Box::new(MathFunction::Rem(a, b))))
         })
       },
-      _ => Err(location.new_unexpected_token_error(Token::Ident(f.clone()))),
+      "sin" => Self::parse_trig(input, f32::sin, false),
+      "cos" => Self::parse_trig(input, f32::cos, false),
+      "tan" => Self::parse_trig(input, f32::tan, false),
+      "asin" => Self::parse_trig(input, f32::asin, true),
+      "acos" => Self::parse_trig(input, f32::acos, true),
+      "atan" => Self::parse_trig(input, f32::atan, true),
+       _ => Err(location.new_unexpected_token_error(Token::Ident(f.clone()))),
     }
   }
 }
@@ -366,8 +404,9 @@ impl<
       + TryRound
       + TryRem
       + std::cmp::PartialOrd<V>
-      + std::convert::Into<Calc<V>>
-      + std::convert::From<Calc<V>>
+      + Into<Calc<V>>
+      + From<Calc<V>>
+      + TryFrom<Angle>
       + Clone
       + std::fmt::Debug,
   > Calc<V>
@@ -464,6 +503,10 @@ impl<
       return Ok(Calc::Number(num));
     }
 
+    if let Ok(constant) = input.try_parse(Constant::parse) {
+      return Ok(Calc::Number(constant.into()));
+    }
+
     if let Ok(value) = input.try_parse(V::parse) {
       return Ok(Calc::Value(Box::new(value)));
     }
@@ -506,6 +549,31 @@ impl<
       }
     }
     reduced
+  }
+
+  fn parse_trig<'t, F: FnOnce(f32) -> f32>(
+    input: &mut Parser<'i, 't>,
+    f: F,
+    to_angle: bool,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    input.parse_nested_block(|input| {
+      let v: Calc<Angle> = Calc::parse_sum(input)?;
+      let rad = match v {
+        Calc::Value(angle) if !to_angle => f(angle.to_radians()),
+        Calc::Number(v) => f(v),
+        _ => return Err(input.new_custom_error(ParserError::InvalidValue)),
+      };
+
+      if to_angle && !rad.is_nan() {
+        if let Ok(v) = V::try_from(Angle::Rad(rad)) {
+          return Ok(Calc::Value(Box::new(v)));
+        } else {
+          return Err(input.new_custom_error(ParserError::InvalidValue));
+        }
+      } else {
+        Ok(Calc::Number(rad))
+      }
+    })
   }
 }
 

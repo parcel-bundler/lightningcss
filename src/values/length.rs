@@ -1,5 +1,6 @@
 //! CSS length values.
 
+use super::angle::impl_try_from_angle;
 use super::calc::{Calc, MathFunction, Round, RoundingStrategy, TryRem, TryRound};
 use super::number::CSSNumber;
 use super::percentage::DimensionPercentage;
@@ -243,6 +244,8 @@ macro_rules! define_length_units {
         }
       }
     }
+
+    impl_try_from_angle!(LengthValue);
   };
 }
 
@@ -681,6 +684,8 @@ impl TryRem for Length {
     }
   }
 }
+
+impl_try_from_angle!(Length);
 
 /// Either a [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) or a [`<number>`](https://www.w3.org/TR/css-values-4/#numbers).
 #[derive(Debug, Clone, PartialEq)]

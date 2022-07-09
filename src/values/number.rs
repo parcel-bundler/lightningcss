@@ -1,5 +1,6 @@
 //! CSS number values.
 
+use super::angle::impl_try_from_angle;
 use super::calc::{Calc, Round, RoundingStrategy};
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
@@ -19,7 +20,7 @@ impl<'i> Parse<'i> for CSSNumber {
       Ok(Calc::Value(v)) => return Ok(*v),
       Ok(Calc::Number(n)) => return Ok(n),
       // Numbers are always compatible, so they will always compute to a value.
-      Ok(_) => unreachable!(),
+      Ok(_) => return Err(input.new_custom_error(ParserError::InvalidValue)),
       _ => {}
     }
 
@@ -82,6 +83,8 @@ impl Round for CSSNumber {
     }
   }
 }
+
+impl_try_from_angle!(CSSNumber);
 
 /// A CSS [`<integer>`](https://www.w3.org/TR/css-values-4/#integers) value.
 pub type CSSInteger = i32;

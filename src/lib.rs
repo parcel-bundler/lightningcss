@@ -6013,6 +6013,54 @@ mod tests {
   }
 
   #[test]
+  fn test_trig() {
+    minify_test(".foo { width: calc(2px * pi); }", ".foo{width:6.28319px}");
+    minify_test(".foo { width: calc(2px / pi); }", ".foo{width:.63662px}");
+    // minify_test(
+    //   ".foo { width: calc(2px * infinity); }",
+    //   ".foo{width:calc(2px*infinity)}",
+    // );
+    // minify_test(
+    //   ".foo { width: calc(2px * -infinity); }",
+    //   ".foo{width:calc(2px*-infinity)}",
+    // );
+    minify_test(".foo { width: calc(100px * sin(45deg))", ".foo{width:70.7107px}");
+    minify_test(".foo { width: calc(100px * sin(.125turn))", ".foo{width:70.7107px}");
+    minify_test(
+      ".foo { width: calc(100px * sin(3.14159265 / 4))",
+      ".foo{width:70.7107px}",
+    );
+    minify_test(".foo { width: calc(100px * sin(pi / 4))", ".foo{width:70.7107px}");
+    minify_test(
+      ".foo { width: calc(100px * sin(22deg + 23deg))",
+      ".foo{width:70.7107px}",
+    );
+
+    minify_test(".foo { width: calc(2px * cos(45deg))", ".foo{width:1.41421px}");
+    minify_test(".foo { width: calc(2px * tan(45deg))", ".foo{width:2px}");
+
+    minify_test(".foo { rotate: asin(sin(45deg))", ".foo{rotate:45deg}");
+    minify_test(".foo { rotate: asin(1)", ".foo{rotate:90deg}");
+    minify_test(".foo { rotate: asin(-1)", ".foo{rotate:-90deg}");
+    minify_test(".foo { rotate: asin(0.5)", ".foo{rotate:30deg}");
+    minify_test(".foo { rotate: asin(45deg)", ".foo{rotate:asin(45deg)}"); // invalid
+    minify_test(".foo { rotate: asin(-20)", ".foo{rotate:asin(-20)}"); // evaluates to NaN
+    minify_test(".foo { width: asin(sin(45deg))", ".foo{width:asin(sin(45deg))}"); // invalid
+
+    minify_test(".foo { rotate: acos(cos(45deg))", ".foo{rotate:45deg}");
+    minify_test(".foo { rotate: acos(-1)", ".foo{rotate:180deg}");
+    minify_test(".foo { rotate: acos(0)", ".foo{rotate:90deg}");
+    minify_test(".foo { rotate: acos(1)", ".foo{rotate:none}");
+    minify_test(".foo { rotate: acos(45deg)", ".foo{rotate:acos(45deg)}"); // invalid
+    minify_test(".foo { rotate: acos(-20)", ".foo{rotate:acos(-20)}"); // evaluates to NaN
+
+    minify_test(".foo { rotate: atan(tan(45deg))", ".foo{rotate:45deg}");
+    minify_test(".foo { rotate: atan(1)", ".foo{rotate:45deg}");
+    minify_test(".foo { rotate: atan(0)", ".foo{rotate:none}");
+    minify_test(".foo { rotate: atan(45deg)", ".foo{rotate:atan(45deg)}"); // invalid
+  }
+
+  #[test]
   fn test_box_shadow() {
     minify_test(
       ".foo { box-shadow: 64px 64px 12px 40px rgba(0,0,0,0.4) }",
