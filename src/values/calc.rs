@@ -5,7 +5,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::traits::private::AddInternal;
-use crate::traits::{Parse, Sign, ToCss, TryMap, TryOp, TrySign};
+use crate::traits::{Parse, Sign, ToCss, TryMap, TryOp, TrySign, Zero};
 use cssparser::*;
 
 use super::angle::Angle;
@@ -43,6 +43,8 @@ pub enum MathFunction<V> {
   Abs(Calc<V>),
   /// The [`sign()`](https://drafts.csswg.org/css-values-4/#funcdef-sign) function.
   Sign(Calc<V>),
+  /// The [`hypot()`](https://drafts.csswg.org/css-values-4/#funcdef-hypot) function.
+  Hypot(Vec<Calc<V>>),
 }
 
 enum_property! {
@@ -174,6 +176,19 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
       MathFunction::Sign(v) => {
         dest.write_str("sign(")?;
         v.to_css(dest)?;
+        dest.write_char(')')
+      }
+      MathFunction::Hypot(args) => {
+        dest.write_str("hypot(")?;
+        let mut first = true;
+        for arg in args {
+          if first {
+            first = false;
+          } else {
+            dest.delim(',', false)?;
+          }
+          arg.to_css(dest)?;
+        }
         dest.write_char(')')
       }
     }
@@ -394,20 +409,24 @@ impl<
       },
       "sqrt" => Self::parse_numeric_fn(input, f32::sqrt),
       "exp" => Self::parse_numeric_fn(input, f32::exp),
+      "hypot" => {
+        input.parse_nested_block(|input| {
+          let args: Vec<Self> = input.parse_comma_separated(Self::parse_sum)?;
+          Self::parse_hypot(&args)?
+            .map_or_else(
+              || Ok(Calc::Function(Box::new(MathFunction::Hypot(args)))),
+              |v| Ok(v)
+            )
+        })
+      },
       "abs" => {
         input.parse_nested_block(|input| {
           let v: Calc<V> = Self::parse_sum(input)?;
-          match &v {
-            Calc::Number(n) => return Ok(Calc::Number(n.abs())),
-            Calc::Value(v) => {
-              if let Some(v) = v.try_map(f32::abs) {
-                return Ok(Calc::Value(Box::new(v)));
-              }
-            }
-            _ => {}
-          }
-
-          Ok(Calc::Function(Box::new(MathFunction::Abs(v))))
+          Self::apply_map(&v, f32::abs)
+            .map_or_else(
+              || Ok(Calc::Function(Box::new(MathFunction::Abs(v)))),
+              |v| Ok(v)
+            )
         })
       },
       "sign" => {
@@ -599,17 +618,35 @@ impl<
     input.expect_comma()?;
     let b: Calc<V> = Calc::parse_sum(input)?;
 
-    match (&a, &b) {
+    Ok(Self::apply_op(&a, &b, op).unwrap_or_else(|| Calc::Function(Box::new(fallback(a, b)))))
+  }
+
+  fn apply_op<'t, O: FnOnce(f32, f32) -> f32>(a: &Calc<V>, b: &Calc<V>, op: O) -> Option<Self> {
+    match (a, b) {
       (Calc::Value(a), Calc::Value(b)) => {
         if let Some(v) = a.try_op(&**b, op) {
-          return Ok(Calc::Value(Box::new(v)));
+          return Some(Calc::Value(Box::new(v)));
         }
       }
-      (Calc::Number(a), Calc::Number(b)) => return Ok(Calc::Number(op(*a, *b))),
+      (Calc::Number(a), Calc::Number(b)) => return Some(Calc::Number(op(*a, *b))),
       _ => {}
     }
 
-    Ok(Calc::Function(Box::new(fallback(a, b))))
+    None
+  }
+
+  fn apply_map<'t, O: FnOnce(f32) -> f32>(v: &Calc<V>, op: O) -> Option<Self> {
+    match v {
+      Calc::Number(n) => return Some(Calc::Number(op(*n))),
+      Calc::Value(v) => {
+        if let Some(v) = v.try_map(op) {
+          return Some(Calc::Value(Box::new(v)));
+        }
+      }
+      _ => {}
+    }
+
+    None
   }
 
   fn parse_trig<'t, F: FnOnce(f32) -> f32>(
@@ -697,6 +734,32 @@ impl<
     // We don't have a way to represent arguments that aren't angles, so just error.
     // This will fall back to an unparsed property, leaving the atan2() function intact.
     Err(input.new_custom_error(ParserError::InvalidValue))
+  }
+
+  fn parse_hypot<'t>(args: &Vec<Self>) -> Result<Option<Self>, ParseError<'i, ParserError<'i>>> {
+    if args.len() == 1 {
+      return Ok(Some(args[0].clone()));
+    }
+
+    if args.len() == 2 {
+      return Ok(Self::apply_op(&args[0], &args[1], f32::hypot));
+    }
+
+    let mut iter = args.iter();
+    let first = match Self::apply_map(&iter.next().unwrap(), |v| v.powi(2)) {
+      Some(v) => v,
+      None => return Ok(None),
+    };
+    let sum = iter.try_fold(first, |acc, arg| {
+      Self::apply_op(&acc, &arg, |a, b| a + b.powi(2)).map_or_else(|| Err(()), |v| Ok(v))
+    });
+
+    let sum = match sum {
+      Ok(s) => s,
+      Err(_) => return Ok(None),
+    };
+
+    Ok(Self::apply_map(&sum, f32::sqrt))
   }
 }
 

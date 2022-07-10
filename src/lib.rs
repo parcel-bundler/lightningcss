@@ -6077,6 +6077,28 @@ mod tests {
   }
 
   #[test]
+  fn test_exp() {
+    minify_test(".foo { width: hypot()", ".foo{width:hypot()}");
+    minify_test(".foo { width: hypot(1px)", ".foo{width:1px}");
+    minify_test(".foo { width: hypot(1px, 2px)", ".foo{width:2.23607px}");
+    minify_test(".foo { width: hypot(1px, 2px, 3px)", ".foo{width:3.74166px}");
+    minify_test(".foo { width: hypot(1px, 2vw)", ".foo{width:hypot(1px,2vw)}");
+    minify_test(".foo { width: hypot(1px, 2px, 3vw)", ".foo{width:hypot(1px,2px,3vw)}");
+    minify_test(".foo { width: calc(100px * hypot(3, 4))", ".foo{width:500px}");
+    minify_test(".foo { width: calc(1px * pow(2, sqrt(100))", ".foo{width:1024px}");
+    minify_test(".foo { width: calc(100px * pow(2, pow(2, 2)", ".foo{width:1600px}");
+    minify_test(".foo { width: calc(1px * log(1))", ".foo{width:0}");
+    minify_test(".foo { width: calc(1px * log(10, 10))", ".foo{width:1px}");
+    minify_test(".foo { width: calc(1px * exp(0))", ".foo{width:1px}");
+    minify_test(".foo { width: calc(1px * log(e))", ".foo{width:1px}");
+    minify_test(".foo { width: calc(1px * (e - exp(1)))", ".foo{width:0}");
+    minify_test(
+      ".foo { width: calc(1px * (exp(log(1) + exp(0)*2))",
+      ".foo{width:7.38906px}",
+    );
+  }
+
+  #[test]
   fn test_sign() {
     minify_test(".foo { width: abs(1px)", ".foo{width:1px}");
     minify_test(".foo { width: abs(-1px)", ".foo{width:1px}");
