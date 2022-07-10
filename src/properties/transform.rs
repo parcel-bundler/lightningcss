@@ -9,7 +9,7 @@ use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::stylesheet::PrinterOptions;
 use crate::targets::Browsers;
-use crate::traits::{Parse, PropertyHandler, ToCss};
+use crate::traits::{Parse, PropertyHandler, ToCss, Zero};
 use crate::values::{
   angle::Angle,
   length::{Length, LengthPercentage},
@@ -1010,13 +1010,13 @@ impl ToCss for Transform {
     use Transform::*;
     match self {
       Translate(x, y) => {
-        if dest.minify && *x == 0.0 && *y != 0.0 {
+        if dest.minify && x.is_zero() && !y.is_zero() {
           dest.write_str("translateY(")?;
           y.to_css(dest)?
         } else {
           dest.write_str("translate(")?;
           x.to_css(dest)?;
-          if *y != 0.0 {
+          if !y.is_zero() {
             dest.delim(',', false)?;
             y.to_css(dest)?;
           }
@@ -1039,16 +1039,16 @@ impl ToCss for Transform {
         dest.write_char(')')
       }
       Translate3d(x, y, z) => {
-        if dest.minify && *x != 0.0 && *y == 0.0 && *z == 0.0 {
+        if dest.minify && !x.is_zero() && y.is_zero() && z.is_zero() {
           dest.write_str("translate(")?;
           x.to_css(dest)?;
-        } else if dest.minify && *x == 0.0 && *y != 0.0 && *z == 0.0 {
+        } else if dest.minify && x.is_zero() && !y.is_zero() && z.is_zero() {
           dest.write_str("translateY(")?;
           y.to_css(dest)?;
-        } else if dest.minify && *x == 0.0 && *y == 0.0 && *z != 0.0 {
+        } else if dest.minify && x.is_zero() && y.is_zero() && !z.is_zero() {
           dest.write_str("translateZ(")?;
           z.to_css(dest)?;
-        } else if dest.minify && *z == 0.0 {
+        } else if dest.minify && z.is_zero() {
           dest.write_str("translate(")?;
           x.to_css(dest)?;
           dest.delim(',', false)?;
@@ -1064,16 +1064,18 @@ impl ToCss for Transform {
         dest.write_char(')')
       }
       Scale(x, y) => {
-        if dest.minify && *x == 1.0 && *y != 1.0 {
+        let x: f32 = x.into();
+        let y: f32 = y.into();
+        if dest.minify && x == 1.0 && y != 1.0 {
           dest.write_str("scaleY(")?;
           y.to_css(dest)?;
-        } else if dest.minify && *x != 1.0 && *y == 1.0 {
+        } else if dest.minify && x != 1.0 && y == 1.0 {
           dest.write_str("scaleX(")?;
           x.to_css(dest)?;
         } else {
           dest.write_str("scale(")?;
           x.to_css(dest)?;
-          if *y != *x {
+          if y != x {
             dest.delim(',', false)?;
             y.to_css(dest)?;
           }
@@ -1096,23 +1098,26 @@ impl ToCss for Transform {
         dest.write_char(')')
       }
       Scale3d(x, y, z) => {
-        if dest.minify && *z == 1.0 && *x == *y {
+        let x: f32 = x.into();
+        let y: f32 = y.into();
+        let z: f32 = z.into();
+        if dest.minify && z == 1.0 && x == y {
           // scale3d(x, x, 1) => scale(x)
           dest.write_str("scale(")?;
           x.to_css(dest)?;
-        } else if dest.minify && *x != 1.0 && *y == 1.0 && *z == 1.0 {
+        } else if dest.minify && x != 1.0 && y == 1.0 && z == 1.0 {
           // scale3d(x, 1, 1) => scaleX(x)
           dest.write_str("scaleX(")?;
           x.to_css(dest)?;
-        } else if dest.minify && *x == 1.0 && *y != 1.0 && *z == 1.0 {
+        } else if dest.minify && x == 1.0 && y != 1.0 && z == 1.0 {
           // scale3d(1, y, 1) => scaleY(y)
           dest.write_str("scaleY(")?;
           y.to_css(dest)?;
-        } else if dest.minify && *x == 1.0 && *y == 1.0 && *z != 1.0 {
+        } else if dest.minify && x == 1.0 && y == 1.0 && z != 1.0 {
           // scale3d(1, 1, z) => scaleZ(z)
           dest.write_str("scaleZ(")?;
           z.to_css(dest)?;
-        } else if dest.minify && *z == 1.0 {
+        } else if dest.minify && z == 1.0 {
           // scale3d(x, y, 1) => scale(x, y)
           dest.write_str("scale(")?;
           x.to_css(dest)?;
@@ -1459,10 +1464,10 @@ impl ToCss for Translate {
     W: std::fmt::Write,
   {
     self.x.to_css(dest)?;
-    if self.y != 0.0 || self.z != 0.0 {
+    if !self.y.is_zero() || !self.z.is_zero() {
       dest.write_char(' ')?;
       self.y.to_css(dest)?;
-      if self.z != 0.0 {
+      if !self.z.is_zero() {
         dest.write_char(' ')?;
         self.z.to_css(dest)?;
       }
@@ -1533,7 +1538,7 @@ impl ToCss for Rotate {
   where
     W: std::fmt::Write,
   {
-    if self.x == 0.0 && self.y == 0.0 && self.z == 1.0 && self.angle == 0.0 {
+    if self.x == 0.0 && self.y == 0.0 && self.z == 1.0 && self.angle.is_zero() {
       dest.write_str("none")?;
       return Ok(());
     }
@@ -1606,10 +1611,11 @@ impl ToCss for Scale {
     W: std::fmt::Write,
   {
     self.x.to_css(dest)?;
-    if self.y != self.x || self.z != 1.0 {
+    let zv: f32 = (&self.z).into();
+    if self.y != self.x || zv != 1.0 {
       dest.write_char(' ')?;
       self.y.to_css(dest)?;
-      if self.z != 1.0 {
+      if zv != 1.0 {
         dest.write_char(' ')?;
         self.z.to_css(dest)?;
       }

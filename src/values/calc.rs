@@ -5,7 +5,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::traits::private::AddInternal;
-use crate::traits::{Parse, ToCss};
+use crate::traits::{Parse, Sign, ToCss, TryMap, TryOp, TrySign};
 use cssparser::*;
 
 use super::angle::Angle;
@@ -36,6 +36,10 @@ pub enum MathFunction<V> {
   Rem(Calc<V>, Calc<V>),
   /// The [`mod()`](https://www.w3.org/TR/css-values-4/#funcdef-mod) function.
   Mod(Calc<V>, Calc<V>),
+  /// The [`abs()`](https://drafts.csswg.org/css-values-4/#funcdef-abs) function.
+  Abs(Calc<V>),
+  /// The [`sign()`](https://drafts.csswg.org/css-values-4/#funcdef-sign) function.
+  Sign(Calc<V>),
 }
 
 enum_property! {
@@ -59,39 +63,21 @@ impl Default for RoundingStrategy {
   }
 }
 
-/// A trait for values that can be rounded.
-pub trait Round {
-  /// Rounds a value to a multiple of `to` using the given rounding strategy.
-  fn round(&self, to: &Self, strategy: RoundingStrategy) -> Self;
-}
-
-/// A trait for values that can potentially be rounded (e.g. if they have the same unit).
-pub trait TryRound: Sized {
-  /// Rounds a value to a multiple of `to` using the given rounding strategy, if possible.
-  fn try_round(&self, to: &Self, strategy: RoundingStrategy) -> Option<Self>;
-}
-
-impl<T: Round> TryRound for T {
-  fn try_round(&self, to: &Self, strategy: RoundingStrategy) -> Option<Self> {
-    Some(self.round(to, strategy))
+fn round(value: f32, to: f32, strategy: RoundingStrategy) -> f32 {
+  let v = value / to;
+  match strategy {
+    RoundingStrategy::Down => v.floor() * to,
+    RoundingStrategy::Up => v.ceil() * to,
+    RoundingStrategy::Nearest => v.round() * to,
+    RoundingStrategy::ToZero => v.trunc() * to,
   }
 }
 
-/// A trait for values that potentially support a remainder (e.g. if they have the same unit).
-pub trait TryRem: Sized {
-  /// Returns the remainder between two values, if possible.
-  fn try_rem(&self, rhs: &Self) -> Option<Self>;
+fn modulo(a: f32, b: f32) -> f32 {
+  ((a % b) + b) % b
 }
 
-impl<T: std::ops::Rem<T, Output = T> + Clone> TryRem for T {
-  fn try_rem(&self, rhs: &Self) -> Option<Self> {
-    Some(self.clone() % rhs.clone())
-  }
-}
-
-impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clone + std::fmt::Debug> ToCss
-  for MathFunction<V>
-{
+impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Debug> ToCss for MathFunction<V> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
@@ -177,6 +163,16 @@ impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clo
         b.to_css(dest)?;
         dest.write_char(')')
       }
+      MathFunction::Abs(v) => {
+        dest.write_str("abs(")?;
+        v.to_css(dest)?;
+        dest.write_char(')')
+      }
+      MathFunction::Sign(v) => {
+        dest.write_str("sign(")?;
+        v.to_css(dest)?;
+        dest.write_char(')')
+      }
     }
   }
 }
@@ -239,8 +235,9 @@ impl<
     V: Parse<'i>
       + std::ops::Mul<f32, Output = V>
       + AddInternal
-      + TryRound
-      + TryRem
+      + TryOp
+      + TryMap
+      + TrySign
       + std::cmp::PartialOrd<V>
       + Into<Calc<V>>
       + From<Calc<V>>
@@ -344,10 +341,16 @@ impl<
           input.expect_comma()?;
           let b: Calc<V> = Calc::parse_sum(input)?;
 
-          if let (Calc::Value(a), Calc::Value(b)) = (&a, &b) {
-            if let Some(rounded) = a.try_round(&**b, strategy) {
-              return Ok(Calc::Value(Box::new(rounded)))
+          match (&a, &b) {
+            (Calc::Value(a), Calc::Value(b)) => {
+              if let Some(rounded) = a.try_op(&**b, |a, b| round(a, b, strategy)) {
+                return Ok(Calc::Value(Box::new(rounded)))
+              }
             }
+            (Calc::Number(a), Calc::Number(b)) => {
+              return Ok(Calc::Number(round(*a, *b, strategy)))
+            }
+            _ => {}
           }
 
           Ok(Calc::Function(Box::new(MathFunction::Round(strategy, a, b))))
@@ -359,10 +362,16 @@ impl<
           input.expect_comma()?;
           let b: Calc<V> = Calc::parse_sum(input)?;
 
-          if let (Calc::Value(a), Calc::Value(b)) = (&a, &b) {
-            if let Some(rem) = a.try_rem(&**b) {
-              return Ok(Calc::Value(Box::new(rem)))
+          match (&a, &b) {
+            (Calc::Value(a), Calc::Value(b)) => {
+              if let Some(rem) = a.try_op(&**b, std::ops::Rem::rem) {
+                return Ok(Calc::Value(Box::new(rem)))
+              }
             }
+            (Calc::Number(a), Calc::Number(b)) => {
+              return Ok(Calc::Number(a % b))
+            }
+            _ => {}
           }
 
           Ok(Calc::Function(Box::new(MathFunction::Rem(a, b))))
@@ -374,12 +383,16 @@ impl<
           input.expect_comma()?;
           let b: Calc<V> = Calc::parse_sum(input)?;
 
-          if let (Calc::Value(a), Calc::Value(b)) = (&a, &b) {
-            // ((a % b) + b) % b
-            if let Some(rem) = a.try_rem(&**b) {
-              let rem = rem.add((**b).clone()).try_rem(b).unwrap();
-              return Ok(Calc::Value(Box::new(rem)))
+          match (&a, &b) {
+            (Calc::Value(a), Calc::Value(b)) => {
+              if let Some(rem) = a.try_op(&**b, modulo) {
+                return Ok(Calc::Value(Box::new(rem)))
+              }
             }
+            (Calc::Number(a), Calc::Number(b)) => {
+              return Ok(Calc::Number(modulo(*a, *b)))
+            }
+            _ => {}
           }
 
           Ok(Calc::Function(Box::new(MathFunction::Rem(a, b))))
@@ -391,6 +404,62 @@ impl<
       "asin" => Self::parse_trig(input, f32::asin, true),
       "acos" => Self::parse_trig(input, f32::acos, true),
       "atan" => Self::parse_trig(input, f32::atan, true),
+      "pow" => {
+        input.parse_nested_block(|input| {
+          let a = Self::parse_numeric(input)?;
+          input.expect_comma()?;
+          let b = Self::parse_numeric(input)?;
+          Ok(Calc::Number(a.powf(b)))
+        })
+      },
+      "log" => {
+        input.parse_nested_block(|input| {
+          let value = Self::parse_numeric(input)?;
+          if input.try_parse(|input| input.expect_comma()).is_ok() {
+            let base = Self::parse_numeric(input)?;
+            Ok(Calc::Number(value.log(base)))
+          } else {
+            Ok(Calc::Number(value.ln()))
+          }
+        })
+      },
+      "sqrt" => Self::parse_numeric_fn(input, f32::sqrt),
+      "exp" => Self::parse_numeric_fn(input, f32::exp),
+      "abs" => {
+        input.parse_nested_block(|input| {
+          let v: Calc<V> = Self::parse_sum(input)?;
+          match &v {
+            Calc::Number(n) => return Ok(Calc::Number(n.abs())),
+            Calc::Value(v) => {
+              if let Some(v) = v.try_map(f32::abs) {
+                return Ok(Calc::Value(Box::new(v)));
+              }
+            }
+            _ => {}
+          }
+
+          Ok(Calc::Function(Box::new(MathFunction::Abs(v))))
+        })
+      },
+      "sign" => {
+        input.parse_nested_block(|input| {
+          let v: Calc<V> = Self::parse_sum(input)?;
+          match &v {
+            Calc::Number(n) => return Ok(Calc::Number(n.sign())),
+            Calc::Value(v) => {
+              // First map so we ignore percentages, which must be resolved to their
+              // computed value in order to determine the sign.
+              if let Some(v) = v.try_map(|s| s.sign()) {
+                // sign() always resolves to a number.
+                return Ok(Calc::Number(v.try_sign().unwrap()));
+              }
+            }
+            _ => {}
+          }
+
+          Ok(Calc::Function(Box::new(MathFunction::Sign(v))))
+        })
+      },
        _ => Err(location.new_unexpected_token_error(Token::Ident(f.clone()))),
     }
   }
@@ -401,8 +470,9 @@ impl<
     V: Parse<'i>
       + std::ops::Mul<f32, Output = V>
       + AddInternal
-      + TryRound
-      + TryRem
+      + TryOp
+      + TryMap
+      + TrySign
       + std::cmp::PartialOrd<V>
       + Into<Calc<V>>
       + From<Calc<V>>
@@ -575,6 +645,25 @@ impl<
       }
     })
   }
+
+  fn parse_numeric<'t>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ParserError<'i>>> {
+    let v: Calc<CSSNumber> = Calc::parse_sum(input)?;
+    match v {
+      Calc::Number(n) => Ok(n),
+      Calc::Value(v) => Ok(*v),
+      _ => Err(input.new_custom_error(ParserError::InvalidValue)),
+    }
+  }
+
+  fn parse_numeric_fn<'t, F: FnOnce(f32) -> f32>(
+    input: &mut Parser<'i, 't>,
+    f: F,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    input.parse_nested_block(|input| {
+      let v = Self::parse_numeric(input)?;
+      Ok(Calc::Number(f(v)))
+    })
+  }
 }
 
 impl<V: std::ops::Mul<f32, Output = V>> std::ops::Mul<f32> for Calc<V> {
@@ -620,29 +709,7 @@ impl<V: AddInternal + std::convert::Into<Calc<V>> + std::convert::From<Calc<V>> 
   }
 }
 
-impl<V: std::cmp::PartialEq<f32>> std::cmp::PartialEq<f32> for Calc<V> {
-  fn eq(&self, other: &f32) -> bool {
-    match self {
-      Calc::Value(a) => **a == *other,
-      Calc::Number(a) => *a == *other,
-      _ => false,
-    }
-  }
-}
-
-impl<V: std::cmp::PartialOrd<f32>> std::cmp::PartialOrd<f32> for Calc<V> {
-  fn partial_cmp(&self, other: &f32) -> Option<std::cmp::Ordering> {
-    match self {
-      Calc::Value(a) => a.partial_cmp(other),
-      Calc::Number(a) => a.partial_cmp(other),
-      _ => None,
-    }
-  }
-}
-
-impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clone + std::fmt::Debug> ToCss
-  for Calc<V>
-{
+impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Debug> ToCss for Calc<V> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
@@ -657,7 +724,7 @@ impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clo
         a.to_css(dest)?;
         // Whitespace is always required.
         let b = &**b;
-        if *b < 0.0 {
+        if b.is_sign_negative() {
           dest.write_str(" - ")?;
           let b = b.clone() * -1.0;
           b.to_css(dest)
@@ -683,5 +750,15 @@ impl<V: ToCss + std::cmp::PartialOrd<f32> + std::ops::Mul<f32, Output = V> + Clo
 
     dest.in_calc = was_in_calc;
     res
+  }
+}
+
+impl<V: TrySign> TrySign for Calc<V> {
+  fn try_sign(&self) -> Option<f32> {
+    match self {
+      Calc::Number(v) => v.try_sign(),
+      Calc::Value(v) => v.try_sign(),
+      _ => None,
+    }
   }
 }

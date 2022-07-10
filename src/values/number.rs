@@ -1,11 +1,11 @@
 //! CSS number values.
 
 use super::angle::impl_try_from_angle;
-use super::calc::{Calc, Round, RoundingStrategy};
+use super::calc::Calc;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::private::AddInternal;
-use crate::traits::{Parse, ToCss};
+use crate::traits::{Map, Op, Parse, Sign, ToCss, Zero};
 use cssparser::*;
 
 /// A CSS [`<number>`](https://www.w3.org/TR/css-values-4/#numbers) value.
@@ -72,15 +72,34 @@ impl AddInternal for CSSNumber {
   }
 }
 
-impl Round for CSSNumber {
-  fn round(&self, to: &Self, strategy: RoundingStrategy) -> Self {
-    let v = self / to;
-    match strategy {
-      RoundingStrategy::Down => v.floor() * to,
-      RoundingStrategy::Up => v.ceil() * to,
-      RoundingStrategy::Nearest => v.round() * to,
-      RoundingStrategy::ToZero => v.trunc() * to,
+impl Op for CSSNumber {
+  fn op<F: FnOnce(f32, f32) -> f32>(&self, to: &Self, op: F) -> Self {
+    op(*self, *to)
+  }
+}
+
+impl Map for CSSNumber {
+  fn map<F: FnOnce(f32) -> f32>(&self, op: F) -> Self {
+    op(*self)
+  }
+}
+
+impl Sign for CSSNumber {
+  fn sign(&self) -> f32 {
+    if *self == 0.0 {
+      return if self.is_sign_positive() { 0.0 } else { -0.0 };
     }
+    self.signum()
+  }
+}
+
+impl Zero for CSSNumber {
+  fn zero() -> Self {
+    0.0
+  }
+
+  fn is_zero(&self) -> bool {
+    *self == 0.0
   }
 }
 
@@ -104,5 +123,15 @@ impl ToCss for CSSInteger {
   {
     cssparser::ToCss::to_css(self, dest)?;
     Ok(())
+  }
+}
+
+impl Zero for CSSInteger {
+  fn zero() -> Self {
+    0
+  }
+
+  fn is_zero(&self) -> bool {
+    *self == 0
   }
 }

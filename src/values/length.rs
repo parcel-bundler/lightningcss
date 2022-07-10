@@ -1,14 +1,15 @@
 //! CSS length values.
 
 use super::angle::impl_try_from_angle;
-use super::calc::{Calc, MathFunction, Round, RoundingStrategy, TryRem, TryRound};
+use super::calc::{Calc, MathFunction};
 use super::number::CSSNumber;
 use super::percentage::DimensionPercentage;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
+use crate::traits::TrySign;
 use crate::traits::{
   private::{AddInternal, TryAdd},
-  Parse, ToCss,
+  Map, Parse, Sign, ToCss, TryMap, TryOp, Zero,
 };
 use const_str;
 use cssparser::*;
@@ -18,11 +19,6 @@ use cssparser::*;
 pub type LengthPercentage = DimensionPercentage<LengthValue>;
 
 impl LengthPercentage {
-  /// Constructs a value of zero pixels.
-  pub fn zero() -> LengthPercentage {
-    LengthPercentage::px(0.0)
-  }
-
   /// Constructs a `LengthPercentage` with the given pixel value.
   pub fn px(val: CSSNumber) -> LengthPercentage {
     LengthPercentage::Dimension(LengthValue::Px(val))
@@ -169,28 +165,6 @@ macro_rules! define_length_units {
       }
     }
 
-    impl std::cmp::PartialEq<CSSNumber> for LengthValue {
-      fn eq(&self, other: &CSSNumber) -> bool {
-        use LengthValue::*;
-        match self {
-          $(
-            $name(value) => value == other,
-          )+
-        }
-      }
-    }
-
-    impl std::cmp::PartialOrd<CSSNumber> for LengthValue {
-      fn partial_cmp(&self, other: &CSSNumber) -> Option<std::cmp::Ordering> {
-        use LengthValue::*;
-        match self {
-          $(
-            $name(value) => value.partial_cmp(other),
-          )+
-        }
-      }
-    }
-
     impl std::cmp::PartialOrd<LengthValue> for LengthValue {
       fn partial_cmp(&self, other: &LengthValue) -> Option<std::cmp::Ordering> {
         use LengthValue::*;
@@ -209,16 +183,16 @@ macro_rules! define_length_units {
       }
     }
 
-    impl TryRound for LengthValue {
-      fn try_round(&self, to: &Self, strategy: RoundingStrategy) -> Option<Self> {
+    impl TryOp for LengthValue {
+      fn try_op<F: FnOnce(f32, f32) -> f32>(&self, rhs: &Self, op: F) -> Option<Self> {
         use LengthValue::*;
-        match (self, to) {
+        match (self, rhs) {
           $(
-            ($name(a), $name(b)) => Some($name(Round::round(a, b, strategy))),
+            ($name(a), $name(b)) => Some($name(op(*a, *b))),
           )+
           (a, b) => {
             if let (Some(a), Some(b)) = (a.to_px(), b.to_px()) {
-              Some(Px(Round::round(&a, &b, strategy)))
+              Some(Px(op(a, b)))
             } else {
               None
             }
@@ -227,23 +201,43 @@ macro_rules! define_length_units {
       }
     }
 
-    impl TryRem for LengthValue {
-      fn try_rem(&self, rhs: &Self) -> Option<Self> {
+    impl Map for LengthValue {
+      fn map<F: FnOnce(f32) -> f32>(&self, op: F) -> Self {
         use LengthValue::*;
-        match (self, rhs) {
+        match self {
           $(
-            ($name(a), $name(b)) => Some($name(a % b)),
+            $name(value) => $name(op(*value)),
           )+
-          (a, b) => {
-            if let (Some(a), Some(b)) = (a.to_px(), b.to_px()) {
-              Some(Px(a % b))
-            } else {
-              None
-            }
-          }
         }
       }
     }
+
+    impl Sign for LengthValue {
+      fn sign(&self) -> f32 {
+        use LengthValue::*;
+        match self {
+          $(
+            $name(value) => value.sign(),
+          )+
+        }
+      }
+    }
+
+    impl Zero for LengthValue {
+      fn zero() -> Self {
+        LengthValue::Px(0.0)
+      }
+
+      fn is_zero(&self) -> bool {
+        use LengthValue::*;
+        match self {
+          $(
+            $name(value) => value.is_zero(),
+          )+
+        }
+      }
+    }
+
 
     impl_try_from_angle!(LengthValue);
   };
@@ -525,11 +519,6 @@ impl AddInternal for Length {
 }
 
 impl Length {
-  /// Constructs a zero length value.
-  pub fn zero() -> Length {
-    Length::Value(LengthValue::Px(0.0))
-  }
-
   /// Constructs a length with the given pixel value.
   pub fn px(px: CSSNumber) -> Length {
     Length::Value(LengthValue::Px(px))
@@ -548,15 +537,15 @@ impl Length {
     let mut a = self;
     let mut b = other;
 
-    if a == 0.0 {
+    if a.is_zero() {
       return b;
     }
 
-    if b == 0.0 {
+    if b.is_zero() {
       return a;
     }
 
-    if a < 0.0 && b > 0.0 {
+    if a.is_sign_negative() && b.is_sign_positive() {
       std::mem::swap(&mut a, &mut b);
     }
 
@@ -577,6 +566,19 @@ impl Length {
         }
       }
       (a, b) => Length::Calc(Box::new(Calc::Sum(Box::new(a.into()), Box::new(b.into())))),
+    }
+  }
+}
+
+impl Zero for Length {
+  fn zero() -> Length {
+    Length::Value(LengthValue::Px(0.0))
+  }
+
+  fn is_zero(&self) -> bool {
+    match self {
+      Length::Value(v) => v.is_zero(),
+      _ => false,
     }
   }
 }
@@ -640,24 +642,6 @@ impl std::convert::From<Calc<Length>> for Length {
   }
 }
 
-impl std::cmp::PartialEq<CSSNumber> for Length {
-  fn eq(&self, other: &CSSNumber) -> bool {
-    match self {
-      Length::Value(a) => *a == *other,
-      Length::Calc(_) => false,
-    }
-  }
-}
-
-impl std::cmp::PartialOrd<CSSNumber> for Length {
-  fn partial_cmp(&self, other: &CSSNumber) -> Option<std::cmp::Ordering> {
-    match self {
-      Length::Value(a) => a.partial_cmp(other),
-      Length::Calc(_) => None,
-    }
-  }
-}
-
 impl std::cmp::PartialOrd<Length> for Length {
   fn partial_cmp(&self, other: &Length) -> Option<std::cmp::Ordering> {
     match (self, other) {
@@ -667,20 +651,29 @@ impl std::cmp::PartialOrd<Length> for Length {
   }
 }
 
-impl TryRound for Length {
-  fn try_round(&self, to: &Self, strategy: RoundingStrategy) -> Option<Self> {
-    match (self, to) {
-      (Length::Value(a), Length::Value(b)) => a.try_round(b, strategy).map(Length::Value),
+impl TryOp for Length {
+  fn try_op<F: FnOnce(f32, f32) -> f32>(&self, rhs: &Self, op: F) -> Option<Self> {
+    match (self, rhs) {
+      (Length::Value(a), Length::Value(b)) => a.try_op(b, op).map(Length::Value),
       _ => None,
     }
   }
 }
 
-impl TryRem for Length {
-  fn try_rem(&self, rhs: &Self) -> Option<Self> {
-    match (self, rhs) {
-      (Length::Value(a), Length::Value(b)) => a.try_rem(b).map(Length::Value),
+impl TryMap for Length {
+  fn try_map<F: FnOnce(f32) -> f32>(&self, op: F) -> Option<Self> {
+    match self {
+      Length::Value(v) => v.try_map(op).map(Length::Value),
       _ => None,
+    }
+  }
+}
+
+impl TrySign for Length {
+  fn try_sign(&self) -> Option<f32> {
+    match self {
+      Length::Value(v) => Some(v.sign()),
+      Length::Calc(c) => c.try_sign(),
     }
   }
 }
@@ -704,6 +697,19 @@ pub enum LengthOrNumber {
 impl Default for LengthOrNumber {
   fn default() -> LengthOrNumber {
     LengthOrNumber::Number(0.0)
+  }
+}
+
+impl Zero for LengthOrNumber {
+  fn zero() -> Self {
+    LengthOrNumber::Number(0.0)
+  }
+
+  fn is_zero(&self) -> bool {
+    match self {
+      LengthOrNumber::Length(l) => l.is_zero(),
+      LengthOrNumber::Number(v) => v.is_zero(),
+    }
   }
 }
 

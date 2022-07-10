@@ -8,7 +8,7 @@ use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::Property;
 use crate::targets::Browsers;
-use crate::traits::{Parse, PropertyHandler, ToCss};
+use crate::traits::{Parse, PropertyHandler, ToCss, Zero};
 use crate::values::color::{ColorFallbackKind, CssColor};
 use crate::values::length::Length;
 use crate::vendor_prefix::VendorPrefix;

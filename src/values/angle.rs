@@ -1,14 +1,15 @@
 //! CSS angle values.
 
-use super::calc::{Calc, Round, RoundingStrategy};
+use super::calc::Calc;
 use super::length::serialize_dimension;
 use super::number::CSSNumber;
 use super::percentage::DimensionPercentage;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{
+  impl_op,
   private::{AddInternal, TryAdd},
-  Parse, ToCss,
+  Map, Op, Parse, Sign, ToCss, Zero,
 };
 use cssparser::*;
 use std::f32::consts::PI;
@@ -86,14 +87,6 @@ impl ToCss for Angle {
 }
 
 impl Angle {
-  /// Returns whether the angle is zero.
-  pub fn is_zero(&self) -> bool {
-    use Angle::*;
-    match self {
-      Deg(v) | Rad(v) | Grad(v) | Turn(v) => *v == 0.0,
-    }
-  }
-
   /// Returns the angle in radians.
   pub fn to_radians(&self) -> CSSNumber {
     const RAD_PER_DEG: f32 = PI / 180.0;
@@ -117,13 +110,26 @@ impl Angle {
   }
 }
 
-impl std::convert::Into<Calc<Angle>> for Angle {
+impl Zero for Angle {
+  fn is_zero(&self) -> bool {
+    use Angle::*;
+    match self {
+      Deg(v) | Rad(v) | Grad(v) | Turn(v) => *v == 0.0,
+    }
+  }
+
+  fn zero() -> Self {
+    Angle::Deg(0.0)
+  }
+}
+
+impl Into<Calc<Angle>> for Angle {
   fn into(self) -> Calc<Angle> {
     Calc::Value(Box::new(self))
   }
 }
 
-impl std::convert::From<Calc<Angle>> for Angle {
+impl From<Calc<Angle>> for Angle {
   fn from(calc: Calc<Angle>) -> Angle {
     match calc {
       Calc::Value(v) => *v,
@@ -145,14 +151,6 @@ impl std::ops::Mul<CSSNumber> for Angle {
   }
 }
 
-impl std::ops::Add<Angle> for Angle {
-  type Output = Self;
-
-  fn add(self, other: Angle) -> Angle {
-    Angle::Deg(self.to_degrees() + other.to_degrees())
-  }
-}
-
 impl AddInternal for Angle {
   fn add(self, other: Self) -> Self {
     self + other
@@ -165,25 +163,9 @@ impl TryAdd<Angle> for Angle {
   }
 }
 
-impl std::cmp::PartialEq<CSSNumber> for Angle {
-  fn eq(&self, other: &CSSNumber) -> bool {
-    match self {
-      Angle::Deg(a) | Angle::Rad(a) | Angle::Grad(a) | Angle::Turn(a) => a == other,
-    }
-  }
-}
-
 impl std::cmp::PartialEq<Angle> for Angle {
   fn eq(&self, other: &Angle) -> bool {
     self.to_degrees() == other.to_degrees()
-  }
-}
-
-impl std::cmp::PartialOrd<CSSNumber> for Angle {
-  fn partial_cmp(&self, other: &CSSNumber) -> Option<std::cmp::Ordering> {
-    match self {
-      Angle::Deg(a) | Angle::Rad(a) | Angle::Grad(a) | Angle::Turn(a) => a.partial_cmp(other),
-    }
   }
 }
 
@@ -193,31 +175,39 @@ impl std::cmp::PartialOrd<Angle> for Angle {
   }
 }
 
-impl Round for Angle {
-  fn round(&self, to: &Self, strategy: RoundingStrategy) -> Self {
-    match (self, to) {
-      (Angle::Deg(a), Angle::Deg(b)) => Angle::Deg(Round::round(a, b, strategy)),
-      (Angle::Rad(a), Angle::Rad(b)) => Angle::Rad(Round::round(a, b, strategy)),
-      (Angle::Grad(a), Angle::Grad(b)) => Angle::Grad(Round::round(a, b, strategy)),
-      (Angle::Turn(a), Angle::Turn(b)) => Angle::Turn(Round::round(a, b, strategy)),
-      (a, b) => Angle::Deg(Round::round(&a.to_degrees(), &b.to_degrees(), strategy)),
+impl Op for Angle {
+  fn op<F: FnOnce(f32, f32) -> f32>(&self, other: &Self, op: F) -> Self {
+    match (self, other) {
+      (Angle::Deg(a), Angle::Deg(b)) => Angle::Deg(op(*a, *b)),
+      (Angle::Rad(a), Angle::Rad(b)) => Angle::Rad(op(*a, *b)),
+      (Angle::Grad(a), Angle::Grad(b)) => Angle::Grad(op(*a, *b)),
+      (Angle::Turn(a), Angle::Turn(b)) => Angle::Turn(op(*a, *b)),
+      (a, b) => Angle::Deg(op(a.to_degrees(), b.to_degrees())),
     }
   }
 }
 
-impl std::ops::Rem for Angle {
-  type Output = Angle;
-
-  fn rem(self, rhs: Self) -> Self::Output {
-    match (self, rhs) {
-      (Angle::Deg(a), Angle::Deg(b)) => Angle::Deg(a % b),
-      (Angle::Rad(a), Angle::Rad(b)) => Angle::Rad(a % b),
-      (Angle::Grad(a), Angle::Grad(b)) => Angle::Grad(a % b),
-      (Angle::Turn(a), Angle::Turn(b)) => Angle::Turn(a % b),
-      (a, b) => Angle::Deg(a.to_degrees() % b.to_degrees()),
+impl Map for Angle {
+  fn map<F: FnOnce(f32) -> f32>(&self, op: F) -> Self {
+    match self {
+      Angle::Deg(deg) => Angle::Deg(op(*deg)),
+      Angle::Rad(rad) => Angle::Rad(op(*rad)),
+      Angle::Grad(grad) => Angle::Grad(op(*grad)),
+      Angle::Turn(turn) => Angle::Turn(op(*turn)),
     }
   }
 }
+
+impl Sign for Angle {
+  fn sign(&self) -> f32 {
+    match self {
+      Angle::Deg(v) | Angle::Rad(v) | Angle::Grad(v) | Angle::Turn(v) => v.sign(),
+    }
+  }
+}
+
+impl_op!(Angle, std::ops::Rem, rem);
+impl_op!(Angle, std::ops::Add, add);
 
 /// A CSS [`<angle-percentage>`](https://www.w3.org/TR/css-values-4/#typedef-angle-percentage) value.
 /// May be specified as either an angle or a percentage that resolves to an angle.

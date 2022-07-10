@@ -13,7 +13,7 @@ use crate::macros::enum_property;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::targets::Browsers;
-use crate::traits::{Parse, ToCss};
+use crate::traits::{Parse, ToCss, TrySign, Zero};
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 
@@ -698,7 +698,7 @@ impl ToCss for ConicGradient {
   where
     W: std::fmt::Write,
   {
-    if self.angle != 0.0 {
+    if !self.angle.is_zero() {
       dest.write_str("from ")?;
       self.angle.to_css(dest)?;
 
@@ -859,12 +859,7 @@ fn parse_items<'i, 't, D: Parse<'i>>(
 }
 
 fn serialize_items<
-  D: ToCss
-    + std::cmp::PartialOrd<f32>
-    + std::cmp::PartialEq<D>
-    + std::ops::Mul<f32, Output = D>
-    + Clone
-    + std::fmt::Debug,
+  D: ToCss + std::cmp::PartialEq<D> + std::ops::Mul<f32, Output = D> + TrySign + Clone + std::fmt::Debug,
   W,
 >(
   items: &Vec<GradientItem<DimensionPercentage<D>>>,

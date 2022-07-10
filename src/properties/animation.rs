@@ -8,7 +8,7 @@ use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::targets::Browsers;
-use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
+use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::number::CSSNumber;
 use crate::values::{easing::EasingFunction, ident::CustomIdent, time::Time};
 use cssparser::*;
@@ -220,7 +220,7 @@ impl<'i> ToCss for Animation<'i> {
     match &self.name {
       AnimationName::None => return Ok(()),
       AnimationName::Ident(name) => {
-        if self.duration != 0.0 || self.delay != 0.0 {
+        if !self.duration.is_zero() || !self.delay.is_zero() {
           dest.write_char(' ')?;
           self.duration.to_css(dest)?;
         }
@@ -233,7 +233,7 @@ impl<'i> ToCss for Animation<'i> {
           self.timing_function.to_css(dest)?;
         }
 
-        if self.delay != 0.0 {
+        if !self.delay.is_zero() {
           dest.write_char(' ')?;
           self.delay.to_css(dest)?;
         }

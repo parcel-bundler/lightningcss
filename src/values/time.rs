@@ -1,12 +1,12 @@
 //! CSS time values.
 
 use super::angle::impl_try_from_angle;
-use super::calc::{Calc, Round, RoundingStrategy};
+use super::calc::Calc;
 use super::number::CSSNumber;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::private::AddInternal;
-use crate::traits::{Parse, ToCss};
+use crate::traits::{impl_op, Map, Op, Parse, Sign, ToCss, Zero};
 use cssparser::*;
 
 /// A CSS [`<time>`](https://www.w3.org/TR/css-values-4/#time) value, in either
@@ -33,6 +33,19 @@ impl Time {
     match self {
       Time::Seconds(s) => s * 1000.0,
       Time::Milliseconds(ms) => *ms,
+    }
+  }
+}
+
+impl Zero for Time {
+  fn zero() -> Self {
+    Time::Milliseconds(0.0)
+  }
+
+  fn is_zero(&self) -> bool {
+    match self {
+      Time::Seconds(s) => s.is_zero(),
+      Time::Milliseconds(s) => s.is_zero(),
     }
   }
 }
@@ -116,38 +129,9 @@ impl std::ops::Mul<f32> for Time {
   }
 }
 
-impl std::ops::Add<Time> for Time {
-  type Output = Self;
-
-  fn add(self, other: Time) -> Time {
-    match (self, other) {
-      (Time::Seconds(a), Time::Seconds(b)) => Time::Seconds(a + b),
-      (Time::Milliseconds(a), Time::Milliseconds(b)) => Time::Milliseconds(a + b),
-      (Time::Seconds(a), Time::Milliseconds(b)) => Time::Seconds(a + b / 1000.0),
-      (Time::Milliseconds(a), Time::Seconds(b)) => Time::Milliseconds(a + b * 1000.0),
-    }
-  }
-}
-
 impl AddInternal for Time {
   fn add(self, other: Self) -> Self {
     self + other
-  }
-}
-
-impl std::cmp::PartialEq<f32> for Time {
-  fn eq(&self, other: &f32) -> bool {
-    match self {
-      Time::Seconds(a) | Time::Milliseconds(a) => a == other,
-    }
-  }
-}
-
-impl std::cmp::PartialOrd<f32> for Time {
-  fn partial_cmp(&self, other: &f32) -> Option<std::cmp::Ordering> {
-    match self {
-      Time::Seconds(a) | Time::Milliseconds(a) => a.partial_cmp(other),
-    }
   }
 }
 
@@ -157,28 +141,35 @@ impl std::cmp::PartialOrd<Time> for Time {
   }
 }
 
-impl Round for Time {
-  fn round(&self, to: &Self, strategy: RoundingStrategy) -> Self {
+impl Op for Time {
+  fn op<F: FnOnce(f32, f32) -> f32>(&self, to: &Self, op: F) -> Self {
     match (self, to) {
-      (Time::Seconds(a), Time::Seconds(b)) => Time::Seconds(Round::round(a, b, strategy)),
-      (Time::Milliseconds(a), Time::Milliseconds(b)) => Time::Milliseconds(Round::round(a, b, strategy)),
-      (Time::Seconds(a), Time::Milliseconds(b)) => Time::Seconds(Round::round(a, &(b / 1000.0), strategy)),
-      (Time::Milliseconds(a), Time::Seconds(b)) => Time::Milliseconds(Round::round(a, &(b * 1000.0), strategy)),
+      (Time::Seconds(a), Time::Seconds(b)) => Time::Seconds(op(*a, *b)),
+      (Time::Milliseconds(a), Time::Milliseconds(b)) => Time::Milliseconds(op(*a, *b)),
+      (Time::Seconds(a), Time::Milliseconds(b)) => Time::Seconds(op(*a, b / 1000.0)),
+      (Time::Milliseconds(a), Time::Seconds(b)) => Time::Milliseconds(op(*a, b * 1000.0)),
     }
   }
 }
 
-impl std::ops::Rem for Time {
-  type Output = Time;
-
-  fn rem(self, rhs: Self) -> Self::Output {
-    match (self, rhs) {
-      (Time::Seconds(a), Time::Seconds(b)) => Time::Seconds(a % b),
-      (Time::Milliseconds(a), Time::Milliseconds(b)) => Time::Milliseconds(a % b),
-      (Time::Seconds(a), Time::Milliseconds(b)) => Time::Seconds(a % (b / 1000.0)),
-      (Time::Milliseconds(a), Time::Seconds(b)) => Time::Milliseconds(a % (b * 1000.0)),
+impl Map for Time {
+  fn map<F: FnOnce(f32) -> f32>(&self, op: F) -> Self {
+    match self {
+      Time::Seconds(t) => Time::Seconds(op(*t)),
+      Time::Milliseconds(t) => Time::Milliseconds(op(*t)),
     }
   }
 }
+
+impl Sign for Time {
+  fn sign(&self) -> f32 {
+    match self {
+      Time::Seconds(v) | Time::Milliseconds(v) => v.sign(),
+    }
+  }
+}
+
+impl_op!(Time, std::ops::Rem, rem);
+impl_op!(Time, std::ops::Add, add);
 
 impl_try_from_angle!(Time);

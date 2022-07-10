@@ -5997,11 +5997,13 @@ mod tests {
     );
     minify_test(".foo { margin: round(to-zero, -23px, 5px) }", ".foo{margin:-20px}");
     minify_test(".foo { margin: round(nearest, -23px, 5px) }", ".foo{margin:-25px}");
+    minify_test(".foo { margin: calc(10px * round(22, 5)) }", ".foo{margin:200px}");
     minify_test(".foo { width: rem(18px, 5px) }", ".foo{width:3px}");
     minify_test(".foo { width: rem(-18px, 5px) }", ".foo{width:-3px}");
     minify_test(".foo { width: rem(18px, 5vw) }", ".foo{width:rem(18px,5vw)}");
     minify_test(".foo { rotate: rem(-140deg, -90deg) }", ".foo{rotate:-50deg}");
     minify_test(".foo { rotate: rem(140deg, -90deg) }", ".foo{rotate:50deg}");
+    minify_test(".foo { width: calc(10px * rem(18, 5)) }", ".foo{width:30px}");
     minify_test(".foo { width: mod(18px, 5px) }", ".foo{width:3px}");
     minify_test(".foo { width: mod(-18px, 5px) }", ".foo{width:2px}");
     minify_test(".foo { rotate: mod(-140deg, -90deg) }", ".foo{rotate:-50deg}");
@@ -6010,6 +6012,7 @@ mod tests {
       ".foo { transform: rotateX(mod(140deg, -90deg)) rotateY(rem(140deg, -90deg)) }",
       ".foo{transform:rotateX(-40deg)rotateY(50deg)}",
     );
+    minify_test(".foo { width: calc(10px * mod(18, 5)) }", ".foo{width:30px}");
   }
 
   #[test]
@@ -6058,6 +6061,16 @@ mod tests {
     minify_test(".foo { rotate: atan(1)", ".foo{rotate:45deg}");
     minify_test(".foo { rotate: atan(0)", ".foo{rotate:none}");
     minify_test(".foo { rotate: atan(45deg)", ".foo{rotate:atan(45deg)}"); // invalid
+  }
+
+  #[test]
+  fn test_sign() {
+    minify_test(".foo { width: abs(1px)", ".foo{width:1px}");
+    minify_test(".foo { width: abs(-1px)", ".foo{width:1px}");
+    minify_test(".foo { width: abs(1%)", ".foo{width:abs(1%)}"); // spec says percentages must be against resolved value
+
+    minify_test(".foo { width: calc(10px * sign(-1vw)", ".foo{width:-10px}");
+    minify_test(".foo { width: calc(10px * sign(1%)", ".foo{width:calc(10px*sign(1%))}");
   }
 
   #[test]

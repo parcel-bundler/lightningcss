@@ -5,7 +5,7 @@ use super::percentage::Percentage;
 use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::printer::Printer;
-use crate::traits::{Parse, ToCss};
+use crate::traits::{Parse, ToCss, Zero};
 use cssparser::*;
 
 /// A CSS [`<position>`](https://www.w3.org/TR/css3-values/#position) value,
@@ -185,7 +185,7 @@ impl ToCss for Position {
         let x_len = match &x_pos {
           HorizontalPosition::Side(HorizontalPositionKeyword::Left, len) => {
             if let Some(len) = len {
-              if *len == 0.0 {
+              if len.is_zero() {
                 Some(&zero)
               } else {
                 Some(len)
@@ -194,7 +194,7 @@ impl ToCss for Position {
               Some(&zero)
             }
           }
-          HorizontalPosition::Length(len) if *len == 0.0 => Some(&zero),
+          HorizontalPosition::Length(len) if len.is_zero() => Some(&zero),
           HorizontalPosition::Length(len) => Some(len),
           HorizontalPosition::Center => Some(&fifty),
           _ => None,
@@ -203,7 +203,7 @@ impl ToCss for Position {
         let y_len = match &y_pos {
           VerticalPosition::Side(VerticalPositionKeyword::Top, len) => {
             if let Some(len) = len {
-              if *len == 0.0 {
+              if len.is_zero() {
                 Some(&zero)
               } else {
                 Some(len)
@@ -212,7 +212,7 @@ impl ToCss for Position {
               Some(&zero)
             }
           }
-          VerticalPosition::Length(len) if *len == 0.0 => Some(&zero),
+          VerticalPosition::Length(len) if len.is_zero() => Some(&zero),
           VerticalPosition::Length(len) => Some(len),
           VerticalPosition::Center => Some(&fifty),
           _ => None,
@@ -261,7 +261,7 @@ impl<S> PositionComponent<S> {
   }
 
   fn is_zero(&self) -> bool {
-    matches!(self, PositionComponent::Length(len) if *len == 0.0)
+    matches!(self, PositionComponent::Length(len) if len.is_zero())
   }
 }
 

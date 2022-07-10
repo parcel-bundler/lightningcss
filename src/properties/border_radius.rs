@@ -10,7 +10,7 @@ use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::targets::Browsers;
-use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
+use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::length::*;
 use crate::values::rect::Rect;
 use crate::values::size::Size2D;

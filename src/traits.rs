@@ -117,3 +117,100 @@ pub(crate) trait Shorthand<'i>: Sized {
   /// Updates this shorthand from a longhand property.
   fn set_longhand(&mut self, property: &Property<'i>) -> Result<(), ()>;
 }
+
+/// A trait for values that support binary operations.
+pub trait Op {
+  /// Returns the result of the operation.
+  fn op<F: FnOnce(f32, f32) -> f32>(&self, rhs: &Self, op: F) -> Self;
+}
+
+macro_rules! impl_op {
+  ($t: ty, $trait: ident $(:: $x: ident)*, $op: ident) => {
+    impl $trait$(::$x)* for $t {
+      type Output = $t;
+
+      fn $op(self, rhs: Self) -> Self::Output {
+        self.op(&rhs, $trait$(::$x)*::$op)
+      }
+    }
+  };
+}
+
+pub(crate) use impl_op;
+
+/// A trait for values that potentially support a binary operation (e.g. if they have the same unit).
+pub trait TryOp: Sized {
+  /// Returns the result of the operation, if possible.
+  fn try_op<F: FnOnce(f32, f32) -> f32>(&self, rhs: &Self, op: F) -> Option<Self>;
+}
+
+impl<T: Op> TryOp for T {
+  fn try_op<F: FnOnce(f32, f32) -> f32>(&self, rhs: &Self, op: F) -> Option<Self> {
+    Some(self.op(rhs, op))
+  }
+}
+
+/// A trait for values that can be mapped by applying a function.
+pub trait Map {
+  /// Returns the result of the operation.
+  fn map<F: FnOnce(f32) -> f32>(&self, op: F) -> Self;
+}
+
+/// A trait for values that can potentially be mapped.
+pub trait TryMap: Sized {
+  /// Returns the result of the operation, if possible.
+  fn try_map<F: FnOnce(f32) -> f32>(&self, op: F) -> Option<Self>;
+}
+
+impl<T: Map> TryMap for T {
+  fn try_map<F: FnOnce(f32) -> f32>(&self, op: F) -> Option<Self> {
+    Some(self.map(op))
+  }
+}
+
+/// A trait for values that can return a sign.
+pub trait Sign {
+  /// Returns the sign of the value.
+  fn sign(&self) -> f32;
+
+  /// Returns whether the value is positive.
+  fn is_sign_positive(&self) -> bool {
+    self.sign().is_sign_positive()
+  }
+
+  /// Returns whether the value is negative.
+  fn is_sign_negative(&self) -> bool {
+    self.sign().is_sign_negative()
+  }
+}
+
+/// A trait for values that can potentially return a sign.
+pub trait TrySign {
+  /// Returns the sign of the value, if possible.
+  fn try_sign(&self) -> Option<f32>;
+
+  /// Returns whether the value is positive. If not possible, returns false.
+  fn is_sign_positive(&self) -> bool {
+    self.try_sign().map_or(false, |s| s.is_sign_positive())
+  }
+
+  /// Returns whether the value is negative. If not possible, returns false.
+  fn is_sign_negative(&self) -> bool {
+    self.try_sign().map_or(false, |s| s.is_sign_negative())
+  }
+}
+
+impl<T: Sign> TrySign for T {
+  fn try_sign(&self) -> Option<f32> {
+    Some(self.sign())
+  }
+}
+
+/// A trait for values that can be zero.
+pub trait Zero {
+  /// Returns the zero value.
+  fn zero() -> Self;
+
+  /// Returns whether the value is zero.
+  fn is_zero(&self) -> bool;
+}

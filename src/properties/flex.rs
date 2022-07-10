@@ -11,7 +11,7 @@ use crate::macros::*;
 use crate::prefixes::{is_flex_2009, Feature};
 use crate::printer::Printer;
 use crate::targets::Browsers;
-use crate::traits::{FromStandard, Parse, PropertyHandler, Shorthand, ToCss};
+use crate::traits::{FromStandard, Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::number::{CSSInteger, CSSNumber};
 use crate::values::{
   length::{LengthPercentage, LengthPercentageOrAuto},
@@ -189,7 +189,7 @@ impl ToCss for Flex {
     }
 
     let is_basis_zero = match &self.basis {
-      LengthPercentageOrAuto::LengthPercentage(lp) => *lp == 0.0,
+      LengthPercentageOrAuto::LengthPercentage(lp) => lp.is_zero(),
       _ => false,
     };
 

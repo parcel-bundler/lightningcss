@@ -3,7 +3,7 @@
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::targets::Browsers;
-use crate::traits::{FallbackValues, Parse, ToCss};
+use crate::traits::{FallbackValues, Parse, ToCss, Zero};
 use crate::values::color::ColorFallbackKind;
 use crate::values::{angle::Angle, color::CssColor, length::Length, percentage::NumberOrPercentage, url::Url};
 use cssparser::*;
@@ -123,56 +123,63 @@ impl<'i> ToCss for Filter<'i> {
       }
       Filter::Brightness(val) => {
         dest.write_str("brightness(")?;
-        if *val != 1.0 {
+        let v: f32 = val.into();
+        if v != 1.0 {
           val.to_css(dest)?;
         }
         dest.write_char(')')
       }
       Filter::Contrast(val) => {
         dest.write_str("contrast(")?;
-        if *val != 1.0 {
+        let v: f32 = val.into();
+        if v != 1.0 {
           val.to_css(dest)?;
         }
         dest.write_char(')')
       }
       Filter::Grayscale(val) => {
         dest.write_str("grayscale(")?;
-        if *val != 1.0 {
+        let v: f32 = val.into();
+        if v != 1.0 {
           val.to_css(dest)?;
         }
         dest.write_char(')')
       }
       Filter::HueRotate(val) => {
         dest.write_str("hue-rotate(")?;
-        if *val != 0.0 {
+        if !val.is_zero() {
           val.to_css(dest)?;
         }
         dest.write_char(')')
       }
       Filter::Invert(val) => {
         dest.write_str("invert(")?;
-        if *val != 1.0 {
+        let v: f32 = val.into();
+        if v != 1.0 {
           val.to_css(dest)?;
         }
         dest.write_char(')')
       }
       Filter::Opacity(val) => {
         dest.write_str("opacity(")?;
-        if *val != 1.0 {
+        let v: f32 = val.into();
+        if v != 1.0 {
           val.to_css(dest)?;
         }
         dest.write_char(')')
       }
       Filter::Saturate(val) => {
         dest.write_str("saturate(")?;
-        if *val != 1.0 {
+        let v: f32 = val.into();
+        if v != 1.0 {
           val.to_css(dest)?;
         }
         dest.write_char(')')
       }
       Filter::Sepia(val) => {
         dest.write_str("sepia(")?;
-        if *val != 1.0 {
+        let v: f32 = val.into();
+        if v != 1.0 {
           val.to_css(dest)?;
         }
         dest.write_char(')')
