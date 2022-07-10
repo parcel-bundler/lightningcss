@@ -5,7 +5,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::traits::private::AddInternal;
-use crate::traits::{Parse, Sign, ToCss, TryMap, TryOp, TrySign, Zero};
+use crate::traits::{Parse, Sign, ToCss, TryMap, TryOp, TrySign};
 use cssparser::*;
 
 use super::angle::Angle;
