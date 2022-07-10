@@ -9,7 +9,10 @@ use crate::traits::{Parse, Sign, ToCss, TryMap, TryOp, TrySign};
 use cssparser::*;
 
 use super::angle::Angle;
+use super::length::Length;
 use super::number::CSSNumber;
+use super::percentage::Percentage;
+use super::time::Time;
 
 /// A CSS [math function](https://www.w3.org/TR/css-values-4/#math-function).
 ///
@@ -337,65 +340,21 @@ impl<
             RoundingStrategy::default()
           };
 
-          let a: Calc<V> = Calc::parse_sum(input)?;
-          input.expect_comma()?;
-          let b: Calc<V> = Calc::parse_sum(input)?;
-
-          match (&a, &b) {
-            (Calc::Value(a), Calc::Value(b)) => {
-              if let Some(rounded) = a.try_op(&**b, |a, b| round(a, b, strategy)) {
-                return Ok(Calc::Value(Box::new(rounded)))
-              }
-            }
-            (Calc::Number(a), Calc::Number(b)) => {
-              return Ok(Calc::Number(round(*a, *b, strategy)))
-            }
-            _ => {}
-          }
-
-          Ok(Calc::Function(Box::new(MathFunction::Round(strategy, a, b))))
+          Self::parse_math_fn(
+            input,
+            |a, b| round(a, b, strategy),
+            |a, b| MathFunction::Round(strategy, a, b)
+          )
         })
       },
       "rem" => {
         input.parse_nested_block(|input| {
-          let a: Calc<V> = Calc::parse_sum(input)?;
-          input.expect_comma()?;
-          let b: Calc<V> = Calc::parse_sum(input)?;
-
-          match (&a, &b) {
-            (Calc::Value(a), Calc::Value(b)) => {
-              if let Some(rem) = a.try_op(&**b, std::ops::Rem::rem) {
-                return Ok(Calc::Value(Box::new(rem)))
-              }
-            }
-            (Calc::Number(a), Calc::Number(b)) => {
-              return Ok(Calc::Number(a % b))
-            }
-            _ => {}
-          }
-
-          Ok(Calc::Function(Box::new(MathFunction::Rem(a, b))))
+          Self::parse_math_fn(input, std::ops::Rem::rem, MathFunction::Rem)
         })
       },
       "mod" => {
         input.parse_nested_block(|input| {
-          let a: Calc<V> = Calc::parse_sum(input)?;
-          input.expect_comma()?;
-          let b: Calc<V> = Calc::parse_sum(input)?;
-
-          match (&a, &b) {
-            (Calc::Value(a), Calc::Value(b)) => {
-              if let Some(rem) = a.try_op(&**b, modulo) {
-                return Ok(Calc::Value(Box::new(rem)))
-              }
-            }
-            (Calc::Number(a), Calc::Number(b)) => {
-              return Ok(Calc::Number(modulo(*a, *b)))
-            }
-            _ => {}
-          }
-
-          Ok(Calc::Function(Box::new(MathFunction::Rem(a, b))))
+          Self::parse_math_fn(input, modulo, MathFunction::Mod)
         })
       },
       "sin" => Self::parse_trig(input, f32::sin, false),
@@ -404,6 +363,16 @@ impl<
       "asin" => Self::parse_trig(input, f32::asin, true),
       "acos" => Self::parse_trig(input, f32::acos, true),
       "atan" => Self::parse_trig(input, f32::atan, true),
+      "atan2" => {
+        input.parse_nested_block(|input| {
+          let res = Self::parse_atan2(input)?;
+          if let Ok(v) = V::try_from(res) {
+            return Ok(Calc::Value(Box::new(v)))
+          }
+
+          Err(input.new_custom_error(ParserError::InvalidValue))
+        })
+      },
       "pow" => {
         input.parse_nested_block(|input| {
           let a = Self::parse_numeric(input)?;
@@ -621,6 +590,28 @@ impl<
     reduced
   }
 
+  fn parse_math_fn<'t, O: FnOnce(f32, f32) -> f32, F: FnOnce(Calc<V>, Calc<V>) -> MathFunction<V>>(
+    input: &mut Parser<'i, 't>,
+    op: O,
+    fallback: F,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let a: Calc<V> = Calc::parse_sum(input)?;
+    input.expect_comma()?;
+    let b: Calc<V> = Calc::parse_sum(input)?;
+
+    match (&a, &b) {
+      (Calc::Value(a), Calc::Value(b)) => {
+        if let Some(v) = a.try_op(&**b, op) {
+          return Ok(Calc::Value(Box::new(v)));
+        }
+      }
+      (Calc::Number(a), Calc::Number(b)) => return Ok(Calc::Number(op(*a, *b))),
+      _ => {}
+    }
+
+    Ok(Calc::Function(Box::new(fallback(a, b))))
+  }
+
   fn parse_trig<'t, F: FnOnce(f32) -> f32>(
     input: &mut Parser<'i, 't>,
     f: F,
@@ -663,6 +654,49 @@ impl<
       let v = Self::parse_numeric(input)?;
       Ok(Calc::Number(f(v)))
     })
+  }
+
+  fn parse_atan2<'t>(input: &mut Parser<'i, 't>) -> Result<Angle, ParseError<'i, ParserError<'i>>> {
+    // atan2 supports arguments of any <number>, <dimension>, or <percentage>, even ones that wouldn't
+    // normally be supported by V. The only requirement is that the arguments be of the same type.
+    // Try parsing with each type, and return the first one that parses successfully.
+    if let Ok(v) = input.try_parse(Calc::<Length>::parse_atan2_args) {
+      return Ok(v);
+    }
+
+    if let Ok(v) = input.try_parse(Calc::<Percentage>::parse_atan2_args) {
+      return Ok(v);
+    }
+
+    if let Ok(v) = input.try_parse(Calc::<Angle>::parse_atan2_args) {
+      return Ok(v);
+    }
+
+    if let Ok(v) = input.try_parse(Calc::<Time>::parse_atan2_args) {
+      return Ok(v);
+    }
+
+    Calc::<CSSNumber>::parse_atan2_args(input)
+  }
+
+  fn parse_atan2_args<'t>(input: &mut Parser<'i, 't>) -> Result<Angle, ParseError<'i, ParserError<'i>>> {
+    let a = Calc::<V>::parse_sum(input)?;
+    input.expect_comma()?;
+    let b = Calc::<V>::parse_sum(input)?;
+
+    match (&a, &b) {
+      (Calc::Value(a), Calc::Value(b)) => {
+        if let Some(v) = a.try_op_to(&**b, |a, b| Angle::Rad(a.atan2(b))) {
+          return Ok(v);
+        }
+      }
+      (Calc::Number(a), Calc::Number(b)) => return Ok(Angle::Rad(a.atan2(*b))),
+      _ => {}
+    }
+
+    // We don't have a way to represent arguments that aren't angles, so just error.
+    // This will fall back to an unparsed property, leaving the atan2() function intact.
+    Err(input.new_custom_error(ParserError::InvalidValue))
   }
 }
 

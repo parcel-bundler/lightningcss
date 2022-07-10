@@ -120,8 +120,10 @@ pub(crate) trait Shorthand<'i>: Sized {
 
 /// A trait for values that support binary operations.
 pub trait Op {
-  /// Returns the result of the operation.
+  /// Returns the result of the operation in the same type.
   fn op<F: FnOnce(f32, f32) -> f32>(&self, rhs: &Self, op: F) -> Self;
+  /// Returns the result of the operation in a different type.
+  fn op_to<T, F: FnOnce(f32, f32) -> T>(&self, rhs: &Self, op: F) -> T;
 }
 
 macro_rules! impl_op {
@@ -140,13 +142,19 @@ pub(crate) use impl_op;
 
 /// A trait for values that potentially support a binary operation (e.g. if they have the same unit).
 pub trait TryOp: Sized {
-  /// Returns the result of the operation, if possible.
+  /// Returns the result of the operation in the same type, if possible.
   fn try_op<F: FnOnce(f32, f32) -> f32>(&self, rhs: &Self, op: F) -> Option<Self>;
+  /// Returns the result of the operation in a different type, if possible.
+  fn try_op_to<T, F: FnOnce(f32, f32) -> T>(&self, rhs: &Self, op: F) -> Option<T>;
 }
 
 impl<T: Op> TryOp for T {
   fn try_op<F: FnOnce(f32, f32) -> f32>(&self, rhs: &Self, op: F) -> Option<Self> {
     Some(self.op(rhs, op))
+  }
+
+  fn try_op_to<U, F: FnOnce(f32, f32) -> U>(&self, rhs: &Self, op: F) -> Option<U> {
+    Some(self.op_to(rhs, op))
   }
 }
 

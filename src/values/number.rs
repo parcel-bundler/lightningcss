@@ -76,6 +76,10 @@ impl Op for CSSNumber {
   fn op<F: FnOnce(f32, f32) -> f32>(&self, to: &Self, op: F) -> Self {
     op(*self, *to)
   }
+
+  fn op_to<T, F: FnOnce(f32, f32) -> T>(&self, rhs: &Self, op: F) -> T {
+    op(*self, *rhs)
+  }
 }
 
 impl Map for CSSNumber {

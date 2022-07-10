@@ -102,6 +102,10 @@ impl Op for Percentage {
   fn op<F: FnOnce(f32, f32) -> f32>(&self, to: &Self, op: F) -> Self {
     Percentage(op(self.0, to.0))
   }
+
+  fn op_to<T, F: FnOnce(f32, f32) -> T>(&self, rhs: &Self, op: F) -> T {
+    op(self.0, rhs.0)
+  }
 }
 
 impl TryMap for Percentage {
@@ -414,6 +418,14 @@ impl<D: TryOp> TryOp for DimensionPercentage<D> {
       (DimensionPercentage::Percentage(a), DimensionPercentage::Percentage(b)) => {
         Some(DimensionPercentage::Percentage(Percentage(op(a.0, b.0))))
       }
+      _ => None,
+    }
+  }
+
+  fn try_op_to<T, F: FnOnce(f32, f32) -> T>(&self, rhs: &Self, op: F) -> Option<T> {
+    match (self, rhs) {
+      (DimensionPercentage::Dimension(a), DimensionPercentage::Dimension(b)) => a.try_op_to(b, op),
+      (DimensionPercentage::Percentage(a), DimensionPercentage::Percentage(b)) => Some(op(a.0, b.0)),
       _ => None,
     }
   }

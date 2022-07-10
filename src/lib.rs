@@ -6008,6 +6008,7 @@ mod tests {
     minify_test(".foo { width: mod(-18px, 5px) }", ".foo{width:2px}");
     minify_test(".foo { rotate: mod(-140deg, -90deg) }", ".foo{rotate:-50deg}");
     minify_test(".foo { rotate: mod(140deg, -90deg) }", ".foo{rotate:-40deg}");
+    minify_test(".foo { width: mod(18px, 5vw) }", ".foo{width:mod(18px,5vw)}");
     minify_test(
       ".foo { transform: rotateX(mod(140deg, -90deg)) rotateY(rem(140deg, -90deg)) }",
       ".foo{transform:rotateX(-40deg)rotateY(50deg)}",
@@ -6061,6 +6062,18 @@ mod tests {
     minify_test(".foo { rotate: atan(1)", ".foo{rotate:45deg}");
     minify_test(".foo { rotate: atan(0)", ".foo{rotate:none}");
     minify_test(".foo { rotate: atan(45deg)", ".foo{rotate:atan(45deg)}"); // invalid
+
+    minify_test(".foo { rotate: atan2(1px, -1px)", ".foo{rotate:135deg}");
+    minify_test(".foo { rotate: atan2(1vw, -1vw)", ".foo{rotate:135deg}");
+    minify_test(".foo { rotate: atan2(1, -1)", ".foo{rotate:135deg}");
+    minify_test(".foo { rotate: atan2(1ms, -1ms)", ".foo{rotate:135deg}");
+    minify_test(".foo { rotate: atan2(1%, -1%)", ".foo{rotate:135deg}");
+    minify_test(".foo { rotate: atan2(1deg, -1deg)", ".foo{rotate:135deg}");
+    minify_test(".foo { rotate: atan2(1cm, 1mm)", ".foo{rotate:84.2894deg}");
+    minify_test(".foo { rotate: atan2(0, -1)", ".foo{rotate:180deg}");
+    minify_test(".foo { rotate: atan2(-1, 1)", ".foo{rotate:-45deg}");
+    // incompatible units
+    minify_test(".foo { rotate: atan2(1px, -1vw)", ".foo{rotate:atan2(1px,-1vw)}");
   }
 
   #[test]

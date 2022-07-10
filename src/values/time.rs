@@ -150,6 +150,15 @@ impl Op for Time {
       (Time::Milliseconds(a), Time::Seconds(b)) => Time::Milliseconds(op(*a, b * 1000.0)),
     }
   }
+
+  fn op_to<T, F: FnOnce(f32, f32) -> T>(&self, rhs: &Self, op: F) -> T {
+    match (self, rhs) {
+      (Time::Seconds(a), Time::Seconds(b)) => op(*a, *b),
+      (Time::Milliseconds(a), Time::Milliseconds(b)) => op(*a, *b),
+      (Time::Seconds(a), Time::Milliseconds(b)) => op(*a, b / 1000.0),
+      (Time::Milliseconds(a), Time::Seconds(b)) => op(*a, b * 1000.0),
+    }
+  }
 }
 
 impl Map for Time {

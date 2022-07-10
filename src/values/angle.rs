@@ -185,6 +185,16 @@ impl Op for Angle {
       (a, b) => Angle::Deg(op(a.to_degrees(), b.to_degrees())),
     }
   }
+
+  fn op_to<T, F: FnOnce(f32, f32) -> T>(&self, other: &Self, op: F) -> T {
+    match (self, other) {
+      (Angle::Deg(a), Angle::Deg(b)) => op(*a, *b),
+      (Angle::Rad(a), Angle::Rad(b)) => op(*a, *b),
+      (Angle::Grad(a), Angle::Grad(b)) => op(*a, *b),
+      (Angle::Turn(a), Angle::Turn(b)) => op(*a, *b),
+      (a, b) => op(a.to_degrees(), b.to_degrees()),
+    }
+  }
 }
 
 impl Map for Angle {

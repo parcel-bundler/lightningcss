@@ -199,6 +199,22 @@ macro_rules! define_length_units {
           }
         }
       }
+
+      fn try_op_to<T, F: FnOnce(f32, f32) -> T>(&self, rhs: &Self, op: F) -> Option<T> {
+        use LengthValue::*;
+        match (self, rhs) {
+          $(
+            ($name(a), $name(b)) => Some(op(*a, *b)),
+          )+
+          (a, b) => {
+            if let (Some(a), Some(b)) = (a.to_px(), b.to_px()) {
+              Some(op(a, b))
+            } else {
+              None
+            }
+          }
+        }
+      }
     }
 
     impl Map for LengthValue {
@@ -237,7 +253,6 @@ macro_rules! define_length_units {
         }
       }
     }
-
 
     impl_try_from_angle!(LengthValue);
   };
@@ -655,6 +670,13 @@ impl TryOp for Length {
   fn try_op<F: FnOnce(f32, f32) -> f32>(&self, rhs: &Self, op: F) -> Option<Self> {
     match (self, rhs) {
       (Length::Value(a), Length::Value(b)) => a.try_op(b, op).map(Length::Value),
+      _ => None,
+    }
+  }
+
+  fn try_op_to<T, F: FnOnce(f32, f32) -> T>(&self, rhs: &Self, op: F) -> Option<T> {
+    match (self, rhs) {
+      (Length::Value(a), Length::Value(b)) => a.try_op_to(b, op),
       _ => None,
     }
   }
