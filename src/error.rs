@@ -89,6 +89,8 @@ pub enum ParserError<'i> {
   UnexpectedNamespaceRule,
   /// An unexpected token was encountered.
   UnexpectedToken(#[serde(skip)] Token<'i>),
+  /// Maximum nesting depth was reached.
+  MaximumNestingDepth,
 }
 
 impl<'i> fmt::Display for ParserError<'i> {
@@ -114,6 +116,7 @@ impl<'i> fmt::Display for ParserError<'i> {
         "@namespaces rules must precede all rules aside from @charset, @import, and @layer statements"
       ),
       UnexpectedToken(token) => write!(f, "Unexpected token {:?}", token),
+      MaximumNestingDepth => write!(f, "Overflowed the maximum nesting depth"),
     }
   }
 }

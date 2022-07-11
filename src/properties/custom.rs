@@ -38,7 +38,7 @@ impl<'i> CustomProperty<'i> {
     input: &mut Parser<'i, 't>,
     options: &ParserOptions,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let value = TokenList::parse(input, options)?;
+    let value = TokenList::parse(input, options, 0)?;
     Ok(CustomProperty { name, value })
   }
 }
@@ -65,7 +65,7 @@ impl<'i> UnparsedProperty<'i> {
     input: &mut Parser<'i, 't>,
     options: &ParserOptions,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let value = TokenList::parse(input, options)?;
+    let value = TokenList::parse(input, options, 0)?;
     Ok(UnparsedProperty { property_id, value })
   }
 
@@ -131,10 +131,11 @@ impl<'i> TokenList<'i> {
   fn parse<'t>(
     input: &mut Parser<'i, 't>,
     options: &ParserOptions,
+    depth: usize,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.parse_until_before(Delimiter::Bang | Delimiter::Semicolon, |input| {
       let mut tokens = vec![];
-      TokenList::parse_into(input, &mut tokens, options)?;
+      TokenList::parse_into(input, &mut tokens, options, depth)?;
 
       // Slice off leading and trailing whitespace if there are at least two tokens.
       // If there is only one token, we must preserve it. e.g. `--foo: ;` is valid.
@@ -157,7 +158,12 @@ impl<'i> TokenList<'i> {
     input: &mut Parser<'i, 't>,
     tokens: &mut Vec<TokenOrValue<'i>>,
     options: &ParserOptions,
+    depth: usize,
   ) -> Result<(), ParseError<'i, ParserError<'i>>> {
+    if depth > 500 {
+      return Err(input.new_custom_error(ParserError::MaximumNestingDepth));
+    }
+
     let mut last_is_delim = false;
     let mut last_is_whitespace = false;
     loop {
@@ -189,7 +195,7 @@ impl<'i> TokenList<'i> {
             last_is_whitespace = false;
           } else if f == "var" {
             let var = input.parse_nested_block(|input| {
-              let var = Variable::parse(input, options)?;
+              let var = Variable::parse(input, options, depth + 1)?;
               Ok(TokenOrValue::Var(var))
             })?;
             tokens.push(var);
@@ -197,7 +203,7 @@ impl<'i> TokenList<'i> {
             last_is_whitespace = false;
           } else {
             tokens.push(Token::Function(f).into());
-            input.parse_nested_block(|input| TokenList::parse_into(input, tokens, options))?;
+            input.parse_nested_block(|input| TokenList::parse_into(input, tokens, options, depth + 1))?;
             tokens.push(Token::CloseParenthesis.into());
             last_is_delim = true; // Whitespace is not required after any of these chars.
             last_is_whitespace = false;
@@ -229,7 +235,7 @@ impl<'i> TokenList<'i> {
             _ => unreachable!(),
           };
 
-          input.parse_nested_block(|input| TokenList::parse_into(input, tokens, options))?;
+          input.parse_nested_block(|input| TokenList::parse_into(input, tokens, options, depth + 1))?;
 
           tokens.push(closing_delimiter.into());
           last_is_delim = true; // Whitespace is not required after any of these chars.
@@ -758,11 +764,12 @@ impl<'i> Variable<'i> {
   fn parse<'t>(
     input: &mut Parser<'i, 't>,
     options: &ParserOptions,
+    depth: usize,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let name = DashedIdentReference::parse_with_options(input, options)?;
 
     let fallback = if input.try_parse(|input| input.expect_comma()).is_ok() {
-      Some(TokenList::parse(input, options)?)
+      Some(TokenList::parse(input, options, depth)?)
     } else {
       None
     };
@@ -833,7 +840,7 @@ impl<'i> UnresolvedColor<'i> {
         input.parse_nested_block(|input| {
           let (r, g, b) = parse_rgb_components(input, &parser)?;
           input.expect_delim('/')?;
-          let alpha = TokenList::parse(input, options)?;
+          let alpha = TokenList::parse(input, options, 0)?;
           Ok(UnresolvedColor::RGB { r, g, b, alpha })
         })
       },
@@ -841,7 +848,7 @@ impl<'i> UnresolvedColor<'i> {
         input.parse_nested_block(|input| {
           let (h, s, l) = parse_hsl_hwb_components(input, &parser)?;
           input.expect_delim('/')?;
-          let alpha = TokenList::parse(input, options)?;
+          let alpha = TokenList::parse(input, options, 0)?;
           Ok(UnresolvedColor::HSL { h, s, l, alpha })
         })
       },
