@@ -97,6 +97,7 @@ pub mod border;
 pub mod border_image;
 pub mod border_radius;
 pub mod box_shadow;
+pub mod contain;
 pub mod css_modules;
 pub mod custom;
 pub mod display;
@@ -142,6 +143,7 @@ use border::*;
 use border_image::*;
 use border_radius::*;
 use box_shadow::*;
+use contain::*;
 use css_modules::*;
 use cssparser::*;
 use custom::*;
@@ -1151,6 +1153,11 @@ define_properties! {
 
   // https://drafts.csswg.org/css2/
   "z-index": ZIndex(position::ZIndex),
+
+  // https://drafts.csswg.org/css-contain-3/
+  "container-type": ContainerType(ContainerType),
+  "container-name": ContainerName(ContainerNameList<'i>),
+  "container": Container(Container<'i>) shorthand: true,
 }
 
 impl<'i, T: smallvec::Array<Item = V>, V: Parse<'i>> Parse<'i> for SmallVec<T> {

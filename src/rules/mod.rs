@@ -36,6 +36,7 @@
 
 #![deny(missing_docs)]
 
+pub mod container;
 pub mod counter_style;
 pub mod custom_media;
 pub mod document;
@@ -69,6 +70,7 @@ use crate::targets::Browsers;
 use crate::traits::ToCss;
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
+use container::ContainerRule;
 use counter_style::CounterStyleRule;
 use cssparser::{parse_one_rule, ParseError, Parser, ParserInput};
 use custom_media::CustomMediaRule;
@@ -157,6 +159,8 @@ pub enum CssRule<'i> {
   LayerBlock(LayerBlockRule<'i>),
   /// A `@property` rule.
   Property(PropertyRule<'i>),
+  /// A `@container` rule.
+  Container(ContainerRule<'i>),
   /// A placeholder for a rule that was removed.
   Ignored,
 }
@@ -188,6 +192,7 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for CssRule<'i> {
       CssRule::LayerStatement(layer) => layer.to_css(dest),
       CssRule::LayerBlock(layer) => layer.to_css(dest),
       CssRule::Property(property) => property.to_css(dest),
+      CssRule::Container(container) => container.to_css_with_context(dest, context),
       CssRule::Ignored => Ok(()),
     }
   }
@@ -314,6 +319,19 @@ impl<'i> CssRuleList<'i> {
 
           supports.minify(context, parent_is_unused)?;
           if supports.rules.0.is_empty() {
+            continue;
+          }
+        }
+        CssRule::Container(container) => {
+          if let Some(CssRule::Container(last_rule)) = rules.last_mut() {
+            if last_rule.name == container.name && last_rule.condition == container.condition {
+              last_rule.rules.0.extend(container.rules.0.drain(..));
+              last_rule.minify(context, parent_is_unused)?;
+              continue;
+            }
+          }
+
+          if container.minify(context, parent_is_unused)? {
             continue;
           }
         }

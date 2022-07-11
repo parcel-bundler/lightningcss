@@ -14,6 +14,7 @@ use crate::properties::{
   animation::AnimationHandler,
   background::BackgroundHandler,
   border::BorderHandler,
+  contain::ContainerHandler,
   display::DisplayHandler,
   flex::FlexHandler,
   font::FontHandler,
@@ -465,6 +466,7 @@ pub(crate) struct DeclarationHandler<'i> {
   transform: TransformHandler,
   box_shadow: BoxShadowHandler,
   mask: MaskHandler<'i>,
+  container: ContainerHandler<'i>,
   fallback: FallbackHandler,
   prefix: PrefixHandler,
   decls: DeclarationList<'i>,
@@ -496,6 +498,7 @@ impl<'i> DeclarationHandler<'i> {
       transform: TransformHandler::new(targets),
       box_shadow: BoxShadowHandler::new(targets),
       mask: MaskHandler::default(),
+      container: ContainerHandler::default(),
       fallback: FallbackHandler::new(targets),
       prefix: PrefixHandler::new(targets),
       decls: DeclarationList::new(),
@@ -536,6 +539,7 @@ impl<'i> DeclarationHandler<'i> {
       || self.transform.handle_property(property, &mut self.decls, context)
       || self.box_shadow.handle_property(property, &mut self.decls, context)
       || self.mask.handle_property(property, &mut self.decls, context)
+      || self.container.handle_property(property, &mut self.decls, context)
       || self.fallback.handle_property(property, &mut self.decls, context)
       || self.prefix.handle_property(property, &mut self.decls, context)
   }
@@ -564,6 +568,7 @@ impl<'i> DeclarationHandler<'i> {
     self.transform.finalize(&mut self.decls, context);
     self.box_shadow.finalize(&mut self.decls, context);
     self.mask.finalize(&mut self.decls, context);
+    self.container.finalize(&mut self.decls, context);
     self.fallback.finalize(&mut self.decls, context);
     self.prefix.finalize(&mut self.decls, context);
   }

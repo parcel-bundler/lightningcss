@@ -66,7 +66,7 @@ impl_shorthand! {
   }
 }
 
-shorthand_handler!(OutlineHandler -> Outline {
+shorthand_handler!(OutlineHandler -> Outline fallbacks: true {
   width: OutlineWidth(BorderSideWidth),
   style: OutlineStyle(OutlineStyle),
   color: OutlineColor(CssColor, fallback: true),

@@ -1,6 +1,7 @@
 use crate::declaration::{parse_declaration, DeclarationBlock, DeclarationList};
 use crate::error::{Error, ParserError};
 use crate::media_query::*;
+use crate::rules::container::{ContainerName, ContainerRule};
 use crate::rules::font_palette_values::FontPaletteValuesRule;
 use crate::rules::layer::{LayerBlockRule, LayerStatementRule};
 use crate::rules::property::PropertyRule;
@@ -130,6 +131,8 @@ pub enum AtRulePrelude<'i> {
   Layer(Vec<LayerName<'i>>),
   /// An @property prelude.
   Property(DashedIdent<'i>),
+  /// A @container prelude.
+  Container(Option<ContainerName<'i>>, MediaCondition<'i>),
 }
 
 impl<'a, 'o, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'o, 'i> {
@@ -446,6 +449,11 @@ impl<'a, 'o, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'o, 'i> {
         };
         Ok(AtRulePrelude::Layer(names))
       },
+      "container" => {
+        let name = input.try_parse(ContainerName::parse).ok();
+        let condition = MediaCondition::parse(input, true)?;
+        Ok(AtRulePrelude::Container(name, condition))
+      },
       _ => Err(input.new_error(BasicParseErrorKind::AtRuleInvalid(name)))
     }
   }
@@ -499,6 +507,12 @@ impl<'a, 'o, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'o, 'i> {
         loc,
       })),
       AtRulePrelude::Supports(condition) => Ok(CssRule::Supports(SupportsRule {
+        condition,
+        rules: self.parse_nested_rules(input)?,
+        loc,
+      })),
+      AtRulePrelude::Container(name, condition) => Ok(CssRule::Container(ContainerRule {
+        name,
         condition,
         rules: self.parse_nested_rules(input)?,
         loc,

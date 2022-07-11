@@ -312,6 +312,8 @@ define_length_units! {
   Svw,
   /// A length in the `dvw` unit. An `dvw` is equal to 1% of the [dynamic viewport width](https://www.w3.org/TR/css-values-4/#dynamic-viewport-size).
   Dvw,
+  /// A length in the `cqw` unit. An `cqw` is equal to 1% of the [query container](https://drafts.csswg.org/css-contain-3/#query-container) width.
+  Cqw,
 
   /// A length in the `vh` unit. A `vh` is equal to 1% of the [viewport height](https://www.w3.org/TR/css-values-4/#ua-default-viewport-size).
   Vh,
@@ -321,6 +323,8 @@ define_length_units! {
   Svh,
   /// A length in the `dvh` unit. An `dvh` is equal to 1% of the [dynamic viewport height](https://www.w3.org/TR/css-values-4/#dynamic-viewport-size).
   Dvh,
+  /// A length in the `cqh` unit. An `cqh` is equal to 1% of the [query container](https://drafts.csswg.org/css-contain-3/#query-container) height.
+  Cqh,
 
   /// A length in the `vi` unit. A `vi` is equal to 1% of the [viewport size](https://www.w3.org/TR/css-values-4/#ua-default-viewport-size)
   /// in the box's [inline axis](https://www.w3.org/TR/css-writing-modes-4/#inline-axis).
@@ -334,6 +338,8 @@ define_length_units! {
   /// A length in the `dvi` unit. A `dvi` is equal to 1% of the [dynamic viewport size](https://www.w3.org/TR/css-values-4/#dynamic-viewport-size)
   /// in the box's [inline axis](https://www.w3.org/TR/css-writing-modes-4/#inline-axis).
   Dvi,
+  /// A length in the `cqi` unit. An `cqi` is equal to 1% of the [query container](https://drafts.csswg.org/css-contain-3/#query-container) inline size.
+  Cqi,
 
   /// A length in the `vb` unit. A `vb` is equal to 1% of the [viewport size](https://www.w3.org/TR/css-values-4/#ua-default-viewport-size)
   /// in the box's [block axis](https://www.w3.org/TR/css-writing-modes-4/#block-axis).
@@ -347,6 +353,8 @@ define_length_units! {
   /// A length in the `dvb` unit. A `dvb` is equal to 1% of the [dynamic viewport size](https://www.w3.org/TR/css-values-4/#dynamic-viewport-size)
   /// in the box's [block axis](https://www.w3.org/TR/css-writing-modes-4/#block-axis).
   Dvb,
+  /// A length in the `cqb` unit. An `cqb` is equal to 1% of the [query container](https://drafts.csswg.org/css-contain-3/#query-container) block size.
+  Cqb,
 
   /// A length in the `vmin` unit. A `vmin` is equal to the smaller of `vw` and `vh`.
   Vmin,
@@ -356,6 +364,8 @@ define_length_units! {
   Lvmin,
   /// A length in the `dvmin` unit. A `dvmin` is equal to the smaller of `dvw` and `dvh`.
   Dvmin,
+  /// A length in the `cqmin` unit. An `cqmin` is equal to the smaller of `cqi` and `cqb`.
+  Cqmin,
 
   /// A length in the `vmax` unit. A `vmax` is equal to the larger of `vw` and `vh`.
   Vmax,
@@ -365,6 +375,8 @@ define_length_units! {
   Lvmax,
   /// A length in the `dvmax` unit. An `dvmax` is equal to the larger of `dvw` and `dvh`.
   Dvmax,
+  /// A length in the `cqmax` unit. An `cqmin` is equal to the larger of `cqi` and `cqb`.
+  Cqmax,
 }
 
 impl ToCss for LengthValue {

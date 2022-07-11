@@ -19557,4 +19557,100 @@ mod tests {
       ]
     )
   }
+
+  #[test]
+  fn test_container_queries() {
+    // with name
+    minify_test(
+      r#"
+      @container my-layout (inline-size > 45em) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container my-layout (inline-size>45em){.foo{color:red}}",
+    );
+
+    // without name
+    minify_test(
+      r#"
+      @container (inline-size > 45em) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container (inline-size>45em){.foo{color:red}}",
+    );
+
+    minify_test(
+      r#"
+      @container (inline-size > 45em) and (inline-size < 100em) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container (inline-size>45em) and (inline-size<100em){.foo{color:red}}",
+    );
+
+    // merge adjacent
+    minify_test(
+      r#"
+      @container my-layout (inline-size > 45em) {
+        .foo {
+          color: red;
+        }
+      }
+
+      @container my-layout (inline-size > 45em) {
+        .foo {
+          background: yellow;
+        }
+
+        .bar {
+          color: white;
+        }
+      }
+    "#,
+      "@container my-layout (inline-size>45em){.foo{color:red;background:#ff0}.bar{color:#fff}}",
+    );
+
+    minify_test(
+      r#"
+    .foo {
+      container-name: foo bar;
+      container-type: size inline-size;
+    }
+    "#,
+      ".foo{container:foo bar/size}",
+    );
+    minify_test(
+      r#"
+    .foo {
+      container-name: foo bar;
+      container-type: normal;
+    }
+    "#,
+      ".foo{container:foo bar}",
+    );
+    minify_test(
+      ".foo{ container-type: inline-size }",
+      ".foo{container-type:inline-size}",
+    );
+    minify_test(".foo{ container-name: none; }", ".foo{container-name:none}");
+    minify_test(".foo{ container-name: foo; }", ".foo{container-name:foo}");
+    minify_test(".foo{ container: foo / normal; }", ".foo{container:foo}");
+    minify_test(
+      ".foo{ container: foo / inline-size; }",
+      ".foo{container:foo/inline-size}",
+    );
+    minify_test(".foo { width: calc(1cqw + 2cqw) }", ".foo{width:3cqw}");
+    minify_test(".foo { width: calc(1cqh + 2cqh) }", ".foo{width:3cqh}");
+    minify_test(".foo { width: calc(1cqi + 2cqi) }", ".foo{width:3cqi}");
+    minify_test(".foo { width: calc(1cqb + 2cqb) }", ".foo{width:3cqb}");
+    minify_test(".foo { width: calc(1cqmin + 2cqmin) }", ".foo{width:3cqmin}");
+    minify_test(".foo { width: calc(1cqmax + 2cqmax) }", ".foo{width:3cqmax}");
+  }
 }

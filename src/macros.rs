@@ -209,11 +209,12 @@ pub(crate) use shorthand_property;
 
 macro_rules! shorthand_handler {
   (
-    $name: ident -> $shorthand: ident$(<$l: lifetime>)?
+    $name: ident -> $shorthand: ident$(<$l: lifetime>)? $(fallbacks: $shorthand_fallback: literal)?
     { $( $key: ident: $prop: ident($type: ty $(, fallback: $fallback: literal)?), )+ }
   ) => {
     #[derive(Default)]
     pub(crate) struct $name$(<$l>)? {
+      #[allow(dead_code)]
       targets: Option<Browsers>,
       $(
         pub $key: Option<$type>,
@@ -222,6 +223,7 @@ macro_rules! shorthand_handler {
     }
 
     impl$(<$l>)? $name$(<$l>)? {
+      #[allow(dead_code)]
       pub fn new(targets: Option<Browsers>) -> Self {
         Self {
           targets,
@@ -270,18 +272,23 @@ macro_rules! shorthand_handler {
         )+
 
         if $( $key.is_some() && )* true {
+          #[allow(unused_mut)]
           let mut shorthand = $shorthand {
             $(
               $key: $key.unwrap(),
             )+
           };
 
-          if let Some(targets) = self.targets {
-            let fallbacks = shorthand.get_fallbacks(targets);
-            for fallback in fallbacks {
-              dest.push(Property::$shorthand(fallback));
+          $(
+            if $shorthand_fallback {
+              if let Some(targets) = self.targets {
+                let fallbacks = shorthand.get_fallbacks(targets);
+                for fallback in fallbacks {
+                  dest.push(Property::$shorthand(fallback));
+                }
+              }
             }
-          }
+          )?
 
           dest.push(Property::$shorthand(shorthand))
         } else {

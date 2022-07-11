@@ -321,7 +321,7 @@ impl<'i> FallbackValues for ListStyle<'i> {
   }
 }
 
-shorthand_handler!(ListStyleHandler -> ListStyle<'i> {
+shorthand_handler!(ListStyleHandler -> ListStyle<'i> fallbacks: true {
   list_style_type: ListStyleType(ListStyleType<'i>),
   image: ListStyleImage(Image<'i>, fallback: true),
   position: ListStylePosition(ListStylePosition),
