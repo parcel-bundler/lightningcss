@@ -26,7 +26,7 @@ pub struct ContainerRule<'i> {
   pub loc: Location,
 }
 
-/// A [`<container-name>`](https://drafts.csswg.org/css-contain-3/#typedef-container-name) an `@container` rule.
+/// A [`<container-name>`](https://drafts.csswg.org/css-contain-3/#typedef-container-name) in a `@container` rule.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContainerName<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CustomIdent<'i>);

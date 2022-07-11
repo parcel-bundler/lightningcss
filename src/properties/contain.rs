@@ -22,7 +22,7 @@ bitflags! {
   /// A value for the [container-type](https://drafts.csswg.org/css-contain-3/#container-type) property.
   /// Establishes the element as a query container for the purpose of container queries.
   ///
-  /// All combinations of flags is supported.
+  /// `normal` is mutually exclusive, but other combinations of flags are allowed.
   #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
   pub struct ContainerType: u8 {
     /// The element is not a query container for any container size queries,
@@ -87,7 +87,11 @@ impl ToCss for ContainerType {
 
 /// A value for the [container-name](https://drafts.csswg.org/css-contain-3/#container-name) property.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum ContainerNameList<'i> {
   /// The `none` keyword.
   None,
