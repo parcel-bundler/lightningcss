@@ -19572,6 +19572,39 @@ mod tests {
       "@container my-layout (inline-size>45em){.foo{color:red}}",
     );
 
+    minify_test(
+      r#"
+      @container my-layout ( not (width > 500px) ) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container my-layout (not (width>500px)){.foo{color:red}}",
+    );
+
+    minify_test(
+      r#"
+      @container my-layout ((width: 100px) and (not (height: 100px))) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container my-layout ((width:100px) and (not (height:100px))){.foo{color:red}}",
+    );
+
+    minify_test(
+      r#"
+      @container my-layout (width = max(10px, 10em)) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container my-layout (width=max(10px,10em)){.foo{color:red}}",
+    );
+
     // without name
     minify_test(
       r#"
@@ -19594,6 +19627,31 @@ mod tests {
     "#,
       "@container (inline-size>45em) and (inline-size<100em){.foo{color:red}}",
     );
+
+
+    // calc()
+    minify_test(
+      r#"
+      @container (width > calc(100vw - 50px)) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container (width>calc(100vw - 50px)){.foo{color:red}}",
+    );
+
+    minify_test(
+      r#"
+      @container (calc(100vh - 50px) <= height ) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container (height>=calc(100vh - 50px)){.foo{color:red}}",
+    );
+
 
     // merge adjacent
     minify_test(
@@ -19652,5 +19710,85 @@ mod tests {
     minify_test(".foo { width: calc(1cqb + 2cqb) }", ".foo{width:3cqb}");
     minify_test(".foo { width: calc(1cqmin + 2cqmin) }", ".foo{width:3cqmin}");
     minify_test(".foo { width: calc(1cqmax + 2cqmax) }", ".foo{width:3cqmax}");
+
+    // Unlike in @media, there is no need to convert the range syntax in @container,
+    // because browsers all support this syntax.
+    prefix_test(
+      r#"
+      @container (width > 100px) {
+        .foo { padding: 5px; }
+      }
+      "#,
+      indoc! { r#"
+        @container (width > 100px) {
+          .foo {
+            padding: 5px;
+          }
+        }
+      "#},
+      Browsers {
+        chrome: Some(105 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      @container (min-width: 100px) {
+        .foo { padding: 5px; }
+      }
+      "#,
+      indoc! { r#"
+        @container (min-width: 100px) {
+          .foo {
+            padding: 5px;
+          }
+        }
+      "#},
+      Browsers {
+        chrome: Some(105 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    // Disallow 'none', 'not', 'and', 'or' as a `<container-name>`
+    // https://github.com/w3c/csswg-drafts/issues/7203#issuecomment-1144257312
+    // https://chromium-review.googlesource.com/c/chromium/src/+/3698402
+    error_test(
+      "@container none (width < 100vw) {}",
+      ParserError::UnexpectedToken(crate::properties::custom::Token::Ident("none".into())),
+    );
+
+    error_test(
+      "@container and (width < 100vw) {}",
+      ParserError::UnexpectedToken(crate::properties::custom::Token::Ident("and".into())),
+    );
+
+    error_test(
+      "@container not (width < 100vw) {}",
+      ParserError::UnexpectedToken(crate::properties::custom::Token::Ident("not".into())),
+    );
+
+    error_test(
+      "@container or (width < 100vw) {}",
+      ParserError::UnexpectedToken(crate::properties::custom::Token::Ident("or".into())),
+    );
+
+    // Disallow CSS wide keywords as a `<container-name>`
+    error_test(
+      "@container revert-layer (width < 100vw) {}",
+      ParserError::UnexpectedToken(crate::properties::custom::Token::Ident("revert-layer".into())),
+    );
+
+    error_test(
+      "@container initial (width < 100vw) {}",
+      ParserError::UnexpectedToken(crate::properties::custom::Token::Ident("initial".into())),
+    );
+
+    // <ident> contains spaces
+    // https://github.com/web-platform-tests/wpt/blob/39f0da08fbbe33d0582a35749b6dbf8bd067a52d/css/css-contain/container-queries/at-container-parsing.html#L160-L178
+    error_test(
+      "@container foo bar (width < 100vw) {}",
+      ParserError::UnexpectedToken(crate::properties::custom::Token::Ident("bar".into())),
+    );
   }
 }
