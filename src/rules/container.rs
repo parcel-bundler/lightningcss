@@ -1,4 +1,4 @@
-//! The `@media` rule.
+//! The `@container` rule.
 
 use cssparser::*;
 
@@ -76,7 +76,13 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for ContainerRule<'i> {
       name.to_css(dest)?;
       dest.write_char(' ')?;
     }
+
+    // Don't downlevel range syntax in container queries.
+    let mut targets = None;
+    std::mem::swap(&mut targets, &mut dest.targets);
     self.condition.to_css(dest)?;
+    std::mem::swap(&mut targets, &mut dest.targets);
+
     dest.whitespace()?;
     dest.write_char('{')?;
     dest.indent();
