@@ -177,6 +177,10 @@ To see all of the available options, use the `--help` argument:
 npx parcel-css --help
 ```
 
+### Error recovery
+
+By default, Parcel CSS is strict, and will error when parsing an invalid rule or declaration. However, sometimes you may encounter a third party library that you can't easily modify, which unintentionally contains invalid syntax, or IE-specific hacks. In these cases, you can enable the `errorRecovery` option (or `--error-recovery` CLI flag). This will skip over invalid rules and declarations, omitting them in the output, and producing a warning instead of an error. You should also open an issue or PR to fix the issue in the library if possible.
+
 ## Benchmarks
 
 <img width="666" alt="image" src="https://user-images.githubusercontent.com/19409/153888593-591a3c34-e401-4b30-94ac-7f8eb3c0b242.png#gh-light-mode-only">
