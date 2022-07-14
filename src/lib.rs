@@ -19585,6 +19585,28 @@ mod tests {
 
     minify_test(
       r#"
+      @container my-layout not (width > 500px) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container my-layout not (width>500px){.foo{color:red}}",
+    );
+
+    minify_test(
+      r#"
+      @container not (width > 500px) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container not (width>500px){.foo{color:red}}",
+    );
+
+    minify_test(
+      r#"
       @container my-layout ((width: 100px) and (not (height: 100px))) {
         .foo {
           color: red;
@@ -19628,7 +19650,6 @@ mod tests {
       "@container (inline-size>45em) and (inline-size<100em){.foo{color:red}}",
     );
 
-
     // calc()
     minify_test(
       r#"
@@ -19651,7 +19672,6 @@ mod tests {
     "#,
       "@container (height>=calc(100vh - 50px)){.foo{color:red}}",
     );
-
 
     // merge adjacent
     minify_test(
@@ -19761,11 +19781,6 @@ mod tests {
     error_test(
       "@container and (width < 100vw) {}",
       ParserError::UnexpectedToken(crate::properties::custom::Token::Ident("and".into())),
-    );
-
-    error_test(
-      "@container not (width < 100vw) {}",
-      ParserError::UnexpectedToken(crate::properties::custom::Token::Ident("not".into())),
     );
 
     error_test(
