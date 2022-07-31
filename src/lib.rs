@@ -17771,6 +17771,20 @@ mod tests {
     );
 
     prefix_test(
+      ".foo { -webkit-mask-image: url(x.svg); mask-image: url(x.svg); }",
+      indoc! { r#"
+        .foo {
+          -webkit-mask-image: url("x.svg");
+          mask-image: url("x.svg");
+        }
+      "#},
+      Browsers {
+        chrome: Some(95 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
       ".foo { mask: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) 40px 20px }",
       indoc! { r#"
         .foo {

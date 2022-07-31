@@ -8,7 +8,7 @@ use crate::values::string::CowArcStr;
 use cssparser::*;
 
 /// A CSS [url()](https://www.w3.org/TR/css-values-4/#urls) value and its source location.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Url<'i> {
   /// The url string.
@@ -16,6 +16,12 @@ pub struct Url<'i> {
   pub url: CowArcStr<'i>,
   /// The location where the `url()` was seen in the CSS source file.
   pub loc: Location,
+}
+
+impl<'i> PartialEq for Url<'i> {
+  fn eq(&self, other: &Self) -> bool {
+    self.url == other.url
+  }
 }
 
 impl<'i> Parse<'i> for Url<'i> {
