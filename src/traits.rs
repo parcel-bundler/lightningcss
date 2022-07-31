@@ -183,12 +183,12 @@ pub trait Sign {
 
   /// Returns whether the value is positive.
   fn is_sign_positive(&self) -> bool {
-    self.sign().is_sign_positive()
+    f32::is_sign_positive(self.sign())
   }
 
   /// Returns whether the value is negative.
   fn is_sign_negative(&self) -> bool {
-    self.sign().is_sign_negative()
+    f32::is_sign_negative(self.sign())
   }
 }
 
@@ -199,12 +199,12 @@ pub trait TrySign {
 
   /// Returns whether the value is positive. If not possible, returns false.
   fn is_sign_positive(&self) -> bool {
-    self.try_sign().map_or(false, |s| s.is_sign_positive())
+    self.try_sign().map_or(false, |s| f32::is_sign_positive(s))
   }
 
   /// Returns whether the value is negative. If not possible, returns false.
   fn is_sign_negative(&self) -> bool {
-    self.try_sign().map_or(false, |s| s.is_sign_negative())
+    self.try_sign().map_or(false, |s| f32::is_sign_negative(s))
   }
 }
 

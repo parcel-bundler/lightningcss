@@ -91,7 +91,7 @@ impl Map for CSSNumber {
 impl Sign for CSSNumber {
   fn sign(&self) -> f32 {
     if *self == 0.0 {
-      return if self.is_sign_positive() { 0.0 } else { -0.0 };
+      return if f32::is_sign_positive(*self) { 0.0 } else { -0.0 };
     }
     self.signum()
   }
