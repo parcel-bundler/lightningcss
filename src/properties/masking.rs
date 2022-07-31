@@ -856,7 +856,11 @@ impl<'i> MaskHandler<'i> {
             // Match prefix of fallback. e.g. -webkit-linear-gradient
             // can only be used in -webkit-mask-image.
             // However, if mask-image is unprefixed, gradients can still be.
-            let mut p = fallback.iter().fold(prefix, |p, image| p & image.get_vendor_prefix());
+            let mut p = fallback
+              .iter()
+              .fold(VendorPrefix::empty(), |p, image| p | image.get_vendor_prefix())
+              - VendorPrefix::None
+              & prefix;
             if p.is_empty() {
               p = prefix;
             }
@@ -864,12 +868,16 @@ impl<'i> MaskHandler<'i> {
           }
         }
 
-        let p = images.iter().fold(prefix, |p, image| p & image.get_vendor_prefix());
-        if !p.is_empty() {
-          prefix = p;
+        let mut p = images
+          .iter()
+          .fold(VendorPrefix::empty(), |p, image| p | image.get_vendor_prefix())
+          - VendorPrefix::None
+          & prefix;
+        if p.is_empty() {
+          p = prefix;
         }
 
-        dest.push(Property::MaskImage(images, prefix));
+        dest.push(Property::MaskImage(images, p));
       }
     }
 

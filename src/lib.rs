@@ -17728,12 +17728,44 @@ mod tests {
         .foo {
           -webkit-mask-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0f0e), to(#7773ff));
           -webkit-mask-image: -webkit-linear-gradient(#ff0f0e, #7773ff);
+          -webkit-mask-image: linear-gradient(#ff0f0e, #7773ff);
           mask-image: linear-gradient(#ff0f0e, #7773ff);
+          -webkit-mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
           mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
         }
       "#},
       Browsers {
         chrome: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      ".foo { mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364)) }",
+      indoc! { r#"
+        .foo {
+          -webkit-mask-image: linear-gradient(#ff0f0e, #7773ff);
+          mask-image: linear-gradient(#ff0f0e, #7773ff);
+          -webkit-mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+          mask-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+        }
+      "#},
+      Browsers {
+        chrome: Some(95 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      ".foo { mask-image: linear-gradient(red, green) }",
+      indoc! { r#"
+        .foo {
+          -webkit-mask-image: linear-gradient(red, green);
+          mask-image: linear-gradient(red, green);
+        }
+      "#},
+      Browsers {
+        chrome: Some(95 << 16),
         ..Browsers::default()
       },
     );
