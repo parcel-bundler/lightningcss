@@ -193,14 +193,22 @@ export interface TransformAttributeOptions {
    * that can be replaced with the final urls later (after bundling).
    * Dependencies are returned as part of the result.
    */
-  analyzeDependencies?: boolean
+  analyzeDependencies?: boolean,
+  /**
+   * Whether to ignore invalid rules and declarations rather than erroring.
+   * When enabled, warnings are returned, and the invalid rule or declaration is
+   * omitted from the output code.
+   */
+  errorRecovery?: boolean
 }
 
 export interface TransformAttributeResult {
   /** The transformed code. */
   code: Buffer,
   /** `@import` and `url()` dependencies, if enabled. */
-  dependencies: Dependency[] | void
+  dependencies: Dependency[] | void,
+  /** Warnings that occurred during compilation. */
+  warnings: Warning[]
 }
 
 /**
