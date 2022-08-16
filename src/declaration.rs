@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use std::ops::Range;
 
 use crate::context::PropertyHandlerContext;
-use crate::error::{Error, ParserError, PrinterError};
+use crate::error::{ParserError, PrinterError};
 use crate::parser::ParserOptions;
 use crate::printer::Printer;
 use crate::properties::box_shadow::BoxShadowHandler;
@@ -70,11 +70,7 @@ impl<'i> DeclarationBlock<'i> {
     while let Some(res) = parser.next() {
       if let Err((err, _)) = res {
         if options.error_recovery {
-          if let Some(warnings) = &options.warnings {
-            if let Ok(mut warnings) = warnings.write() {
-              warnings.push(Error::from(err, options.filename.clone()));
-            }
-          }
+          options.warn(err);
           continue;
         }
         return Err(err);

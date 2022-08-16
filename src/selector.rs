@@ -1,8 +1,9 @@
 use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
+use crate::properties::custom::TokenList;
 use crate::rules::{StyleContext, ToCssWithContext};
-use crate::stylesheet::PrinterOptions;
+use crate::stylesheet::{ParserOptions, PrinterOptions};
 use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
 use crate::vendor_prefix::VendorPrefix;
@@ -89,20 +90,20 @@ impl<'i> SelectorImpl<'i> for Selectors {
   }
 }
 
-pub struct SelectorParser<'a, 'i> {
+pub struct SelectorParser<'a, 'o, 'i> {
   pub default_namespace: &'a Option<CowArcStr<'i>>,
   pub namespace_prefixes: &'a HashMap<CowArcStr<'i>, CowArcStr<'i>>,
   pub is_nesting_allowed: bool,
-  pub css_modules: bool,
+  pub options: &'a ParserOptions<'o, 'i>,
 }
 
-impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
+impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o, 'i> {
   type Impl = Selectors;
   type Error = ParserError<'i>;
 
   fn parse_non_ts_pseudo_class(
     &self,
-    _: SourceLocation,
+    loc: SourceLocation,
     name: CowRcStr<'i>,
   ) -> Result<PseudoClass<'i>, ParseError<'i, Self::Error>> {
     use PseudoClass::*;
@@ -188,7 +189,10 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
       "corner-present" => WebKitScrollbar(WebKitScrollbarPseudoClass::CornerPresent),
       "window-inactive" => WebKitScrollbar(WebKitScrollbarPseudoClass::WindowInactive),
 
-      _ => Custom(name.into())
+      _ => {
+        self.options.warn(loc.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
+        Custom(name.into())
+      }
     };
 
     Ok(pseudo_class)
@@ -210,9 +214,12 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
         Lang(langs)
       },
       "dir" => Dir(Direction::parse(parser)?),
-      "local" if self.css_modules => Local(Box::new(parcel_selectors::parser::Selector::parse(self, parser)?)),
-      "global" if self.css_modules => Global(Box::new(parcel_selectors::parser::Selector::parse(self, parser)?)),
-      _ => return Err(parser.new_custom_error(parcel_selectors::parser::SelectorParseErrorKind::UnexpectedIdent(name.clone()))),
+      "local" if self.options.css_modules.is_some() => Local(Box::new(parcel_selectors::parser::Selector::parse(self, parser)?)),
+      "global" if self.options.css_modules.is_some() => Global(Box::new(parcel_selectors::parser::Selector::parse(self, parser)?)),
+      _ => {
+        self.options.warn(parser.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
+        CustomFunction(name.into(), TokenList::parse(parser, &self.options, 0)?)
+      },
     };
 
     Ok(pseudo_class)
@@ -228,7 +235,7 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
 
   fn parse_pseudo_element(
     &self,
-    _: SourceLocation,
+    loc: SourceLocation,
     name: CowRcStr<'i>,
   ) -> Result<PseudoElement<'i>, ParseError<'i, Self::Error>> {
     use PseudoElement::*;
@@ -260,7 +267,10 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
       "-webkit-scrollbar-corner" => WebKitScrollbar(WebKitScrollbarPseudoElement::Corner),
       "-webkit-resizer" => WebKitScrollbar(WebKitScrollbarPseudoElement::Resizer),
 
-      _ => Custom(name.into())
+      _ => {
+        self.options.warn(loc.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
+        Custom(name.into())
+      }
     };
 
     Ok(pseudo_element)
@@ -275,7 +285,10 @@ impl<'a, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'i> {
     let pseudo_element = match_ignore_ascii_case! { &name,
       "cue" => CueFunction(Box::new(Selector::parse(self, arguments)?)),
       "cue-region" => CueRegionFunction(Box::new(Selector::parse(self, arguments)?)),
-      _ => return Err(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name)))
+      _ => {
+        self.options.warn(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
+        CustomFunction(name.into(), TokenList::parse(arguments, &self.options, 0)?)
+      }
     };
 
     Ok(pseudo_element)
@@ -324,7 +337,7 @@ enum_property! {
 }
 
 /// https://drafts.csswg.org/selectors-4/#structural-pseudos
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum PseudoClass<'i> {
   // https://drafts.csswg.org/selectors-4/#linguistic-pseudos
   Lang(Vec<CowArcStr<'i>>),
@@ -395,6 +408,7 @@ pub enum PseudoClass<'i> {
   WebKitScrollbar(WebKitScrollbarPseudoClass),
 
   Custom(CowArcStr<'i>),
+  CustomFunction(CowArcStr<'i>, TokenList<'i>),
 }
 
 /// https://webkit.org/blog/363/styling-scrollbars/
@@ -622,6 +636,13 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for PseudoClass<'i> {
         dest.write_char(':')?;
         return dest.write_str(&val);
       }
+      CustomFunction(name, args) => {
+        dest.write_char(':')?;
+        dest.write_str(name)?;
+        dest.write_char('(')?;
+        args.to_css(dest, false)?;
+        dest.write_char(')')
+      }
     }
   }
 }
@@ -665,7 +686,7 @@ impl<'i> PseudoClass<'i> {
   }
 }
 
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum PseudoElement<'i> {
   After,
   Before,
@@ -682,6 +703,7 @@ pub enum PseudoElement<'i> {
   CueFunction(Box<Selector<'i, Selectors>>),
   CueRegionFunction(Box<Selector<'i, Selectors>>),
   Custom(CowArcStr<'i>),
+  CustomFunction(CowArcStr<'i>, TokenList<'i>),
 }
 
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
@@ -795,6 +817,13 @@ impl<'i> ToCss for PseudoElement<'i> {
       Custom(val) => {
         dest.write_str("::")?;
         return dest.write_str(val);
+      }
+      CustomFunction(name, args) => {
+        dest.write_str("::")?;
+        dest.write_str(name)?;
+        dest.write_char('(')?;
+        args.to_css(dest, false)?;
+        dest.write_char(')')
       }
     }
   }

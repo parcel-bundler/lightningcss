@@ -5332,6 +5332,9 @@ mod tests {
       "::cue(v[voice='active']) {color: yellow;}",
       "::cue(v[voice=active]){color:#ff0}",
     );
+    minify_test(":foo(bar) { color: yellow }", ":foo(bar){color:#ff0}");
+    minify_test("::foo(bar) { color: yellow }", "::foo(bar){color:#ff0}");
+    minify_test("::foo(*) { color: yellow }", "::foo(*){color:#ff0}");
   }
 
   #[test]

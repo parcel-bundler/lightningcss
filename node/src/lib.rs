@@ -243,11 +243,7 @@ struct Drafts {
 
 fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult<'i>, CompileError<'i>> {
   let drafts = config.drafts.as_ref();
-  let warnings = if config.error_recovery.unwrap_or_default() {
-    Some(Arc::new(RwLock::new(Vec::new())))
-  } else {
-    None
-  };
+  let warnings = Some(Arc::new(RwLock::new(Vec::new())));
 
   let filename = config.filename.clone().unwrap_or_default();
   let mut source_map = if config.source_map.unwrap_or_default() {
@@ -343,11 +339,7 @@ fn compile_bundle<'i>(
   } else {
     None
   };
-  let warnings = if config.error_recovery.unwrap_or_default() {
-    Some(Arc::new(RwLock::new(Vec::new())))
-  } else {
-    None
-  };
+  let warnings = Some(Arc::new(RwLock::new(Vec::new())));
   let res = {
     let drafts = config.drafts.as_ref();
     let parser_options = ParserOptions {

@@ -244,7 +244,7 @@ macro_rules! with_bounds {
 }
 
 with_bounds! {
-    [Clone + Eq]
+    [Clone + PartialEq]
     [From<CowRcStr<'i>>]
 }
 
@@ -335,7 +335,7 @@ pub trait Parser<'i> {
   }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SelectorList<'i, Impl: SelectorImpl<'i>>(pub SmallVec<[Selector<'i, Impl>; 1]>);
 
 /// How to treat invalid selectors in a selector list.
@@ -615,7 +615,7 @@ pub fn namespace_empty_string<'i, Impl: SelectorImpl<'i>>() -> Impl::NamespaceUr
 ///
 /// This reordering doesn't change the semantics of selector matching, and we
 /// handle it in to_css to make it invisible to serialization.
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Selector<'i, Impl: SelectorImpl<'i>>(SpecificityAndFlags, Vec<Component<'i, Impl>>);
 
 impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
@@ -1067,7 +1067,7 @@ impl Combinator {
 /// optimal packing and cache performance, see [1].
 ///
 /// [1] https://bugzilla.mozilla.org/show_bug.cgi?id=1357973
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum Component<'i, Impl: SelectorImpl<'i>> {
   Combinator(Combinator),
 

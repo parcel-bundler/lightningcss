@@ -124,11 +124,7 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
         Ok((_, rule)) => rule,
         Err((e, _)) => {
           if options.error_recovery {
-            if let Some(warnings) = &options.warnings {
-              if let Ok(mut warnings) = warnings.write() {
-                warnings.push(Error::from(e, options.filename.clone()));
-              }
-            }
+            options.warn(e);
             continue;
           }
 

@@ -128,7 +128,7 @@ impl<'i> TokenOrValue<'i> {
 }
 
 impl<'i> TokenList<'i> {
-  fn parse<'t>(
+  pub(crate) fn parse<'t>(
     input: &mut Parser<'i, 't>,
     options: &ParserOptions,
     depth: usize,

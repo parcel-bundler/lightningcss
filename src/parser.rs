@@ -52,6 +52,17 @@ pub struct ParserOptions<'o, 'i> {
   pub warnings: Option<Arc<RwLock<Vec<Error<ParserError<'i>>>>>>,
 }
 
+impl<'o, 'i> ParserOptions<'o, 'i> {
+  #[inline]
+  pub(crate) fn warn(&self, warning: ParseError<'i, ParserError<'i>>) {
+    if let Some(warnings) = &self.warnings {
+      if let Ok(mut warnings) = warnings.write() {
+        warnings.push(Error::from(warning, self.filename.clone()));
+      }
+    }
+  }
+}
+
 #[derive(PartialEq, PartialOrd)]
 enum State {
   Start = 1,
@@ -324,11 +335,7 @@ impl<'a, 'o, 'b, 'i> NestedRuleParser<'a, 'o, 'i> {
         Ok(rule) => rules.push(rule),
         Err((e, _)) => {
           if self.options.error_recovery {
-            if let Some(warnings) = &self.options.warnings {
-              if let Ok(mut warnings) = warnings.write() {
-                warnings.push(Error::from(e, self.options.filename.clone()));
-              }
-            }
+            self.options.warn(e);
             continue;
           }
           return Err(e);
@@ -600,7 +607,7 @@ impl<'a, 'o, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser<'a, 'o, 'i> {
       default_namespace: self.default_namespace,
       namespace_prefixes: self.namespace_prefixes,
       is_nesting_allowed: false,
-      css_modules: self.options.css_modules.is_some(),
+      options: &self.options,
     };
     SelectorList::parse(&selector_parser, input, NestingRequirement::None)
   }
@@ -663,11 +670,7 @@ fn parse_declarations_and_nested_rules<'a, 'o, 'i, 't>(
   while let Some(result) = iter.next() {
     if let Err((err, _)) = result {
       if options.error_recovery {
-        if let Some(warnings) = &options.warnings {
-          if let Ok(mut warnings) = warnings.write() {
-            warnings.push(Error::from(err, options.filename.clone()));
-          }
-        }
+        options.warn(err);
         continue;
       }
       return Err(err);
@@ -740,7 +743,7 @@ impl<'a, 'o, 'i> AtRuleParser<'i> for StyleRuleParser<'a, 'o, 'i> {
           default_namespace: self.default_namespace,
           namespace_prefixes: self.namespace_prefixes,
           is_nesting_allowed: true,
-          css_modules: self.options.css_modules.is_some()
+          options: &self.options,
         };
         let selectors = SelectorList::parse(&selector_parser, input, NestingRequirement::Contained)?;
         Ok(AtRulePrelude::Nest(selectors))
@@ -867,7 +870,7 @@ impl<'a, 'o, 'b, 'i> QualifiedRuleParser<'i> for StyleRuleParser<'a, 'o, 'i> {
       default_namespace: self.default_namespace,
       namespace_prefixes: self.namespace_prefixes,
       is_nesting_allowed: true,
-      css_modules: self.options.css_modules.is_some(),
+      options: &self.options,
     };
     SelectorList::parse(&selector_parser, input, NestingRequirement::Prefixed)
   }
