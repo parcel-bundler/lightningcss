@@ -19855,4 +19855,53 @@ mod tests {
       ParserError::UnexpectedToken(crate::properties::custom::Token::Ident("bar".into())),
     );
   }
+
+  #[test]
+  fn test_unknown_at_rules() {
+    minify_test("@foo;", "@foo;");
+    minify_test("@foo bar;", "@foo bar;");
+    minify_test("@foo (bar: baz);", "@foo (bar: baz);");
+    test(
+      r#"@foo test {
+      div {
+        color: red;
+      }
+    }"#,
+      indoc! {r#"
+      @foo test {
+        div { color: red; }
+      }
+      "#},
+    );
+    minify_test(
+      r#"@foo test {
+      div {
+        color: red;
+      }
+    }"#,
+      "@foo test{div { color: red; }}",
+    );
+    minify_test(
+      r#"@foo test {
+        foo: bar;
+      }"#,
+      "@foo test{foo: bar;}",
+    );
+    test(
+      r#"@foo {
+        foo: bar;
+      }"#,
+      indoc! {r#"
+      @foo {
+        foo: bar;
+      }
+      "#},
+    );
+    minify_test(
+      r#"@foo {
+        foo: bar;
+      }"#,
+      "@foo{foo: bar;}",
+    );
+  }
 }

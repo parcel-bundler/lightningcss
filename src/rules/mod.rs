@@ -52,6 +52,7 @@ pub mod page;
 pub mod property;
 pub mod style;
 pub mod supports;
+pub mod unknown;
 pub mod viewport;
 
 use self::font_palette_values::FontPaletteValuesRule;
@@ -86,6 +87,7 @@ use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use style::StyleRule;
 use supports::SupportsRule;
+use unknown::UnknownAtRule;
 use viewport::ViewportRule;
 
 pub(crate) trait ToCssWithContext<'a, 'i> {
@@ -163,6 +165,8 @@ pub enum CssRule<'i> {
   Container(ContainerRule<'i>),
   /// A placeholder for a rule that was removed.
   Ignored,
+  /// An unknown at-rule.
+  Unknown(UnknownAtRule<'i>),
 }
 
 impl<'a, 'i> ToCssWithContext<'a, 'i> for CssRule<'i> {
@@ -193,6 +197,7 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for CssRule<'i> {
       CssRule::LayerBlock(layer) => layer.to_css(dest),
       CssRule::Property(property) => property.to_css(dest),
       CssRule::Container(container) => container.to_css_with_context(dest, context),
+      CssRule::Unknown(unknown) => unknown.to_css(dest),
       CssRule::Ignored => Ok(()),
     }
   }

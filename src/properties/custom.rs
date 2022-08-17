@@ -38,7 +38,9 @@ impl<'i> CustomProperty<'i> {
     input: &mut Parser<'i, 't>,
     options: &ParserOptions,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let value = TokenList::parse(input, options, 0)?;
+    let value = input.parse_until_before(Delimiter::Bang | Delimiter::Semicolon, |input| {
+      TokenList::parse(input, options, 0)
+    })?;
     Ok(CustomProperty { name, value })
   }
 }
@@ -65,7 +67,9 @@ impl<'i> UnparsedProperty<'i> {
     input: &mut Parser<'i, 't>,
     options: &ParserOptions,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let value = TokenList::parse(input, options, 0)?;
+    let value = input.parse_until_before(Delimiter::Bang | Delimiter::Semicolon, |input| {
+      TokenList::parse(input, options, 0)
+    })?;
     Ok(UnparsedProperty { property_id, value })
   }
 
@@ -133,25 +137,23 @@ impl<'i> TokenList<'i> {
     options: &ParserOptions,
     depth: usize,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    input.parse_until_before(Delimiter::Bang | Delimiter::Semicolon, |input| {
-      let mut tokens = vec![];
-      TokenList::parse_into(input, &mut tokens, options, depth)?;
+    let mut tokens = vec![];
+    TokenList::parse_into(input, &mut tokens, options, depth)?;
 
-      // Slice off leading and trailing whitespace if there are at least two tokens.
-      // If there is only one token, we must preserve it. e.g. `--foo: ;` is valid.
-      if tokens.len() >= 2 {
-        let mut slice = &tokens[..];
-        if matches!(tokens.first(), Some(token) if token.is_whitespace()) {
-          slice = &slice[1..];
-        }
-        if matches!(tokens.last(), Some(token) if token.is_whitespace()) {
-          slice = &slice[..slice.len() - 1];
-        }
-        return Ok(TokenList(slice.to_vec()));
+    // Slice off leading and trailing whitespace if there are at least two tokens.
+    // If there is only one token, we must preserve it. e.g. `--foo: ;` is valid.
+    if tokens.len() >= 2 {
+      let mut slice = &tokens[..];
+      if matches!(tokens.first(), Some(token) if token.is_whitespace()) {
+        slice = &slice[1..];
       }
+      if matches!(tokens.last(), Some(token) if token.is_whitespace()) {
+        slice = &slice[..slice.len() - 1];
+      }
+      return Ok(TokenList(slice.to_vec()));
+    }
 
-      return Ok(TokenList(tokens));
-    })
+    return Ok(TokenList(tokens));
   }
 
   fn parse_into<'t>(

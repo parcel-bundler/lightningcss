@@ -1,6 +1,7 @@
 use crate::declaration::{parse_declaration, DeclarationBlock, DeclarationList};
 use crate::error::{Error, ParserError};
 use crate::media_query::*;
+use crate::properties::custom::TokenList;
 use crate::rules::container::{ContainerName, ContainerRule};
 use crate::rules::font_palette_values::FontPaletteValuesRule;
 use crate::rules::layer::{LayerBlockRule, LayerStatementRule};
@@ -20,6 +21,7 @@ use crate::rules::{
   page::{PageRule, PageSelector},
   style::StyleRule,
   supports::{SupportsCondition, SupportsRule},
+  unknown::UnknownAtRule,
   CssRule, CssRuleList, Location,
 };
 use crate::selector::{SelectorParser, Selectors};
@@ -144,6 +146,8 @@ pub enum AtRulePrelude<'i> {
   Property(DashedIdent<'i>),
   /// A @container prelude.
   Container(Option<ContainerName<'i>>, MediaCondition<'i>),
+  /// An unknown prelude.
+  Unknown(CowArcStr<'i>, TokenList<'i>),
 }
 
 impl<'a, 'o, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'o, 'i> {
@@ -276,6 +280,12 @@ impl<'a, 'o, 'i> AtRuleParser<'i> for TopLevelRuleParser<'a, 'o, 'i> {
         AtRuleParser::rule_without_block(&mut self.nested(), prelude, start)?
       }
       AtRulePrelude::Charset => CssRule::Ignored,
+      AtRulePrelude::Unknown(name, prelude) => CssRule::Unknown(UnknownAtRule {
+        name,
+        prelude,
+        block: None,
+        loc,
+      }),
       _ => return Err(()),
     };
 
@@ -461,7 +471,12 @@ impl<'a, 'o, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'o, 'i> {
         let condition = MediaCondition::parse(input, true)?;
         Ok(AtRulePrelude::Container(name, condition))
       },
-      _ => Err(input.new_error(BasicParseErrorKind::AtRuleInvalid(name)))
+      _ => {
+        self.options.warn(input.new_error(BasicParseErrorKind::AtRuleInvalid(name.clone())));
+        input.skip_whitespace();
+        let tokens = TokenList::parse(input, &self.options, 0)?;
+        Ok(AtRulePrelude::Unknown(name.into(), tokens))
+      }
     }
   }
 
@@ -575,6 +590,12 @@ impl<'a, 'o, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'o, 'i> {
         Err(input.new_unexpected_token_error(Token::CurlyBracketBlock))
       }
       AtRulePrelude::FontFeatureValues | AtRulePrelude::Nest(..) => unreachable!(),
+      AtRulePrelude::Unknown(name, prelude) => Ok(CssRule::Unknown(UnknownAtRule {
+        name,
+        prelude,
+        block: Some(TokenList::parse(input, &self.options, 0)?),
+        loc,
+      })),
     }
   }
 
@@ -589,6 +610,12 @@ impl<'a, 'o, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'o, 'i> {
 
         Ok(CssRule::LayerStatement(LayerStatementRule { names, loc }))
       }
+      AtRulePrelude::Unknown(name, prelude) => Ok(CssRule::Unknown(UnknownAtRule {
+        name,
+        prelude,
+        block: None,
+        loc,
+      })),
       _ => Err(()),
     }
   }
