@@ -42,7 +42,7 @@ pub mod vendor_prefix;
 mod tests {
   use crate::css_modules::{CssModuleExport, CssModuleExports, CssModuleReference, CssModuleReferences};
   use crate::dependencies::Dependency;
-  use crate::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterErrorKind, SelectorError};
+  use crate::error::{self, Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterErrorKind, SelectorError};
   use crate::properties::custom::Token;
   use crate::properties::Property;
   use crate::rules::CssRule;
@@ -9442,6 +9442,7 @@ mod tests {
     );
     minify_test("@font-face {src: local(Test);}", "@font-face{src:local(Test)}");
     minify_test("@font-face {src: local(Foo Bar);}", "@font-face{src:local(Foo Bar)}");
+
     minify_test(
       "@font-face {src: url(\"test.woff\") format(woff);}",
       "@font-face{src:url(test.woff)format(\"woff\")}",
@@ -9451,24 +9452,33 @@ mod tests {
       "@font-face{src:url(test.woff)format(\"woff\"),url(test.ttf)format(\"truetype\")}",
     );
     minify_test(
-      "@font-face {src: url(\"test.woff\") format(woff supports features(opentype));}",
-      "@font-face{src:url(test.woff)format(\"woff\" supports features(opentype))}",
+      "@font-face {src: url(\"test.woff\") format(woff) tech(features-opentype);}",
+      "@font-face{src:url(test.woff)format(\"woff\")tech(features-opentype)}",
     );
     minify_test(
-      "@font-face {src: url(\"test.woff\") format(woff supports color(COLRv1));}",
-      "@font-face{src:url(test.woff)format(\"woff\" supports color(colrv1))}",
+      "@font-face {src: url(\"test.woff\") format(woff) tech(color-COLRv1);}",
+      "@font-face{src:url(test.woff)format(\"woff\")tech(color-colrv1)}",
     );
     minify_test(
-      "@font-face {src: url(\"test.woff\") format(woff supports variations);}",
-      "@font-face{src:url(test.woff)format(\"woff\" supports variations)}",
+      "@font-face {src: url(\"test.woff\") format(woff) tech(variations);}",
+      "@font-face{src:url(test.woff)format(\"woff\")tech(variations)}",
     );
     minify_test(
-      "@font-face {src: url(\"test.woff\") format(woff supports palettes);}",
-      "@font-face{src:url(test.woff)format(\"woff\" supports palettes)}",
+      "@font-face {src: url(\"test.woff\") format(woff) tech(palettes);}",
+      "@font-face{src:url(test.woff)format(\"woff\")tech(palettes)}",
     );
     minify_test(
-      "@font-face {src: url(\"test.woff\") format(woff supports features(opentype) color(sbix));}",
-      "@font-face{src:url(test.woff)format(\"woff\" supports features(opentype) color(sbix))}",
+      "@font-face {src: url(\"test.woff\") format(woff) tech(features-opentype, color-sbix);}",
+      "@font-face{src:url(test.woff)format(\"woff\")tech(features-opentype,color-sbix))}",
+    );
+    // format() function must precede tech() if both are present
+    minify_test(
+      "@font-face {src: url(\"foo.ttf\") format(opentype) tech(feature-opentype);}",
+      "@font-face{src:url(\"foo.ttf\")format(opentype)tech(feature-opentype);}",
+    );
+    error_test(
+      "@font-face {src: url(\"foo.ttf\") tech(feature-opentype) format(opentype);}",
+      ParserError::AtRuleBodyInvalid,
     );
     minify_test(
       "@font-face {src: local(\"\") url(\"test.woff\");}",
