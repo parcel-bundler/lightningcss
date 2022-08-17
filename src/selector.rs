@@ -1692,7 +1692,7 @@ where
     default_namespace: &None,
     namespace_prefixes: &HashMap::new(),
     is_nesting_allowed: false,
-    css_modules: false,
+    options: &ParserOptions::default(),
   };
 
   let selectors = Vec::<&'i str>::deserialize(deserializer)?

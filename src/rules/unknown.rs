@@ -12,6 +12,7 @@ use crate::values::string::CowArcStr;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UnknownAtRule<'i> {
   /// The name of the at-rule (without the @).
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: CowArcStr<'i>,
   /// The prelude of the rule.
   pub prelude: TokenList<'i>,
