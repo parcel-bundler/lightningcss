@@ -2,7 +2,6 @@
 
 use super::Location;
 use crate::error::{ParserError, PrinterError};
-use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::properties::custom::CustomProperty;
 use crate::properties::font::{FontFamily, FontStretch, FontStyle, FontWeight};
@@ -69,8 +68,15 @@ pub enum Source<'i> {
 
 impl<'i> Parse<'i> for Source<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(url) = input.try_parse(UrlSource::parse) {
-      return Ok(Source::Url(url));
+    match input.try_parse(UrlSource::parse) {
+      Ok(url) => return Ok(Source::Url(url)),
+      a @ Err(ParseError {
+        kind: ParseErrorKind::Basic(BasicParseErrorKind::AtRuleBodyInvalid),
+        ..
+      }) => {
+        return Err(a.err().unwrap());
+      }
+      _ => {}
     }
 
     input.expect_function_matching("local")?;
@@ -104,7 +110,9 @@ pub struct UrlSource<'i> {
   pub url: Url<'i>,
   /// Optional `format()` function.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  pub format: Option<Format<'i>>,
+  pub format: Option<FontFormat<'i>>,
+  /// Optional `tech()` function.
+  pub tech: Vec<FontTechnology>,
 }
 
 impl<'i> Parse<'i> for UrlSource<'i> {
@@ -112,12 +120,27 @@ impl<'i> Parse<'i> for UrlSource<'i> {
     let url = Url::parse(input)?;
 
     let format = if input.try_parse(|input| input.expect_function_matching("format")).is_ok() {
-      Some(input.parse_nested_block(Format::parse)?)
+      Some(input.parse_nested_block(FontFormat::parse)?)
     } else {
       None
     };
 
-    Ok(UrlSource { url, format })
+    let tech = if input.try_parse(|input| input.expect_function_matching("tech")).is_ok() {
+      if format.is_none() {
+        println!("?????");
+        // parser error
+        return Err(ParseError {
+          kind: ParseErrorKind::Basic(BasicParseErrorKind::AtRuleBodyInvalid),
+          location: input.current_source_location(),
+        });
+      }
+
+      input.parse_nested_block(Vec::<FontTechnology>::parse)?
+    } else {
+      vec![]
+    };
+
+    Ok(UrlSource { url, format, tech })
   }
 }
 
@@ -133,56 +156,18 @@ impl<'i> ToCss for UrlSource<'i> {
       format.to_css(dest)?;
       dest.write_char(')')?;
     }
-    Ok(())
-  }
-}
 
-/// The `format()` function within the [src](https://drafts.csswg.org/css-fonts/#font-face-src-parsing)
-/// property of an `@font-face` rule.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Format<'i> {
-  /// A font format name.
-  #[cfg_attr(feature = "serde", serde(borrow))]
-  pub format: FontFormat<'i>,
-  /// The `tech()` function.
-  pub tech: Vec<FontTechnology>,
-}
-
-impl<'i> Parse<'i> for Format<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let format = FontFormat::parse(input)?;
-    let mut tech = vec![];
-    if input.try_parse(|input| input.expect_ident_matching("tech")).is_ok() {
-      loop {
-        if let Ok(technology) = input.try_parse(FontTechnology::parse) {
-          tech.push(technology)
-        } else {
-          break;
+    let tech_len = self.tech.len();
+    if tech_len > 0 {
+      dest.whitespace()?;
+      dest.write_str("tech(")?;
+      for i in 0..tech_len {
+        self.tech[i].to_css(dest)?;
+        if tech_len - 1 != i {
+          dest.write_char(',')?;
         }
       }
-    }
-    Ok(Format { format, tech })
-  }
-}
-
-impl<'i> ToCss for Format<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    self.format.to_css(dest)?;
-    if !self.tech.is_empty() {
-      dest.write_str(" tech ")?;
-      let mut first = true;
-      for technology in &self.tech {
-        if first {
-          first = false;
-        } else {
-          dest.write_char(' ')?;
-        }
-        technology.to_css(dest)?;
-      }
+      dest.write_char(')')?;
     }
     Ok(())
   }
@@ -256,39 +241,7 @@ impl<'i> ToCss for FontFormat<'i> {
   }
 }
 
-enum_property! {
-  /// A font feature tech descriptor in the `tech()`function of the
-  /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
-  /// property of an `@font-face` rule.
-  pub enum FontFeatureTechnology {
-    /// Supports OpenType features.
-    OpenType,
-    /// Supports Apple Advanced Typography features.
-    AAT,
-    /// Supports Graphite features.
-    Graphite,
-  }
-}
-
-enum_property! {
-  /// A color font tech descriptor in the `tech()`function of the
-  /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
-  /// property of an `@font-face` rule.
-  pub enum ColorFontTechnology {
-    /// Supports the `COLR` v0 table.
-    COLRv0,
-    /// Supports the `COLR` v1 table.
-    COLRv1,
-    /// Supports SVG glyphs.
-    SVG,
-    /// Supports the `sbix` table.
-    SBIX,
-    /// Supports the `CBDT` table.
-    CBDT,
-  }
-}
-
-/// A font technology descriptor in the `tech()`function of the
+/// A font format keyword in the `format()` function of the the
 /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
 /// property of an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq)]
@@ -298,33 +251,55 @@ enum_property! {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum FontTechnology {
-  /// Supports font features.
-  Features(FontFeatureTechnology),
-  /// Supports variations.
+  /// A font feature tech descriptor in the `tech()`function of the
+  /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
+  /// property of an `@font-face` rule.
+  /// support FeaturesOpentype
+  FeaturesOpentype,
+  /// support FeaturesAat
+  FeaturesAat,
+  /// support FeaturesGraphite
+  FeaturesGraphite,
+
+  /// A color font tech descriptor in the `tech()`function of the
+  /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
+  /// property of an `@font-face` rule.
+  /// support ColorColrv0
+  ColorColrv0,
+  /// support ColorColrv1
+  ColorColrv1,
+  /// support ColorSvg
+  ColorSvg,
+  /// support ColorSbix
+  ColorSbix,
+  /// support ColorCbdt
+  ColorCbdt,
+
+  /// support Variations
   Variations,
-  /// Supports color glyphs.
-  Color(ColorFontTechnology),
-  /// Supports color palettes.
+  /// support Palettes
   Palettes,
+  /// support Incremental
+  Incremental,
 }
 
 impl<'i> Parse<'i> for FontTechnology {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     match input.next()? {
-      Token::Function(f) => {
-        match_ignore_ascii_case! { &f,
-          "features" => Ok(FontTechnology::Features(input.parse_nested_block(FontFeatureTechnology::parse)?)),
-          "color" => Ok(FontTechnology::Color(input.parse_nested_block(ColorFontTechnology::parse)?)),
-          _ => Err(location.new_unexpected_token_error(
-            cssparser::Token::Ident(f.clone())
-          ))
-        }
-      }
       Token::Ident(ident) => {
         match_ignore_ascii_case! { &ident,
           "variations" => Ok(FontTechnology::Variations),
           "palettes" => Ok(FontTechnology::Palettes),
+          "incremental" => Ok(FontTechnology::Incremental),
+          "features-opentype" => Ok(FontTechnology::FeaturesOpentype),
+          "features-aat" => Ok(FontTechnology::FeaturesAat),
+          "features-graphite" => Ok(FontTechnology::FeaturesGraphite),
+          "color-colrv0" => Ok(FontTechnology::ColorColrv0),
+          "color-colrv1" => Ok(FontTechnology::ColorColrv1),
+          "color-svg" => Ok(FontTechnology::ColorSvg),
+          "color-sbix" => Ok(FontTechnology::ColorSbix),
+          "color-cbdt" => Ok(FontTechnology::ColorCbdt),
           _ => Err(location.new_unexpected_token_error(
             cssparser::Token::Ident(ident.clone())
           ))
@@ -340,20 +315,19 @@ impl ToCss for FontTechnology {
   where
     W: std::fmt::Write,
   {
-    match self {
-      FontTechnology::Features(f) => {
-        dest.write_str("features(")?;
-        f.to_css(dest)?;
-        dest.write_char(')')
-      }
-      FontTechnology::Color(c) => {
-        dest.write_str("color(")?;
-        c.to_css(dest)?;
-        dest.write_char(')')
-      }
-      FontTechnology::Variations => dest.write_str("variations"),
-      FontTechnology::Palettes => dest.write_str("palettes"),
-    }
+    dest.write_str(match self {
+      FontTechnology::FeaturesOpentype => "features-opentype",
+      FontTechnology::FeaturesAat => "features-aat",
+      FontTechnology::FeaturesGraphite => "features-graphite",
+      FontTechnology::ColorColrv0 => "color-colrv0",
+      FontTechnology::ColorColrv1 => "color-colrv1",
+      FontTechnology::ColorSvg => "color-svg",
+      FontTechnology::ColorSbix => "color-sbix",
+      FontTechnology::ColorCbdt => "color-cbdt",
+      FontTechnology::Variations => "variations",
+      FontTechnology::Palettes => "palettes",
+      FontTechnology::Incremental => "incremental",
+    })
   }
 }
 

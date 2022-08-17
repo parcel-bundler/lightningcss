@@ -9448,7 +9448,7 @@ mod tests {
       "@font-face{src:url(test.woff)format(\"woff\")}",
     );
     minify_test(
-      "@font-face {src: url(\"test.woff\") format(woff), url(test.ttf) format(truetype);}",
+      "@font-face {src: url(\"test.woff\") format(woff), url(test.ttf) format(\"truetype\");}",
       "@font-face{src:url(test.woff)format(\"woff\"),url(test.ttf)format(\"truetype\")}",
     );
     minify_test(
@@ -9456,7 +9456,7 @@ mod tests {
       "@font-face{src:url(test.woff)format(\"woff\")tech(features-opentype)}",
     );
     minify_test(
-      "@font-face {src: url(\"test.woff\") format(woff) tech(color-COLRv1);}",
+      "@font-face {src: url(\"test.woff\") format(woff) tech(color-colrv1);}",
       "@font-face{src:url(test.woff)format(\"woff\")tech(color-colrv1)}",
     );
     minify_test(
@@ -9467,14 +9467,15 @@ mod tests {
       "@font-face {src: url(\"test.woff\") format(woff) tech(palettes);}",
       "@font-face{src:url(test.woff)format(\"woff\")tech(palettes)}",
     );
+    // multiple tech
     minify_test(
       "@font-face {src: url(\"test.woff\") format(woff) tech(features-opentype, color-sbix);}",
-      "@font-face{src:url(test.woff)format(\"woff\")tech(features-opentype,color-sbix))}",
+      "@font-face{src:url(test.woff)format(\"woff\")tech(features-opentype,color-sbix)}",
     );
     // format() function must precede tech() if both are present
     minify_test(
-      "@font-face {src: url(\"foo.ttf\") format(opentype) tech(feature-opentype);}",
-      "@font-face{src:url(\"foo.ttf\")format(opentype)tech(feature-opentype);}",
+      "@font-face {src: url(\"foo.ttf\") format(opentype) tech(features-opentype);}",
+      "@font-face{src:url(foo.ttf)format(\"opentype\")tech(features-opentype)}",
     );
     error_test(
       "@font-face {src: url(\"foo.ttf\") tech(feature-opentype) format(opentype);}",
