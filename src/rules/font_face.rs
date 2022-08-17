@@ -137,7 +137,7 @@ impl<'i> ToCss for UrlSource<'i> {
   }
 }
 
-/// The `format()` function within the [src](https://drafts.csswg.org/css-fonts/#src-desc)
+/// The `format()` function within the [src](https://drafts.csswg.org/css-fonts/#font-face-src-parsing)
 /// property of an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -145,25 +145,24 @@ pub struct Format<'i> {
   /// A font format name.
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub format: FontFormat<'i>,
-  /// The `supports()` function.
-  // TODO: did this get renamed to `tech()`?
-  pub supports: Vec<FontTechnology>,
+  /// The `tech()` function.
+  pub tech: Vec<FontTechnology>,
 }
 
 impl<'i> Parse<'i> for Format<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let format = FontFormat::parse(input)?;
-    let mut supports = vec![];
-    if input.try_parse(|input| input.expect_ident_matching("supports")).is_ok() {
+    let mut tech = vec![];
+    if input.try_parse(|input| input.expect_ident_matching("tech")).is_ok() {
       loop {
         if let Ok(technology) = input.try_parse(FontTechnology::parse) {
-          supports.push(technology)
+          tech.push(technology)
         } else {
           break;
         }
       }
     }
-    Ok(Format { format, supports })
+    Ok(Format { format, tech })
   }
 }
 
@@ -173,10 +172,10 @@ impl<'i> ToCss for Format<'i> {
     W: std::fmt::Write,
   {
     self.format.to_css(dest)?;
-    if !self.supports.is_empty() {
-      dest.write_str(" supports ")?;
+    if !self.tech.is_empty() {
+      dest.write_str(" tech ")?;
       let mut first = true;
-      for technology in &self.supports {
+      for technology in &self.tech {
         if first {
           first = false;
         } else {
@@ -258,7 +257,7 @@ impl<'i> ToCss for FontFormat<'i> {
 }
 
 enum_property! {
-  /// A font feature tech descriptor in the `supports()`function of the
+  /// A font feature tech descriptor in the `tech()`function of the
   /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
   /// property of an `@font-face` rule.
   pub enum FontFeatureTechnology {
@@ -272,7 +271,7 @@ enum_property! {
 }
 
 enum_property! {
-  /// A color font tech descriptor in the `supports()`function of the
+  /// A color font tech descriptor in the `tech()`function of the
   /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
   /// property of an `@font-face` rule.
   pub enum ColorFontTechnology {
@@ -289,7 +288,7 @@ enum_property! {
   }
 }
 
-/// A font technology descriptor in the `supports()`function of the
+/// A font technology descriptor in the `tech()`function of the
 /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
 /// property of an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq)]
