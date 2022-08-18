@@ -9484,6 +9484,7 @@ mod tests {
     );
     // CGQAQ: if tech and format both presence, order is matter, tech before format is invalid
     // but now just return raw token, we don't have strict mode yet.
+    // ref: https://github.com/parcel-bundler/parcel-css/pull/255#issuecomment-1219049998
     minify_test(
       "@font-face {src: url(\"foo.ttf\") tech(features-opentype) format(opentype);}",
       "@font-face{src:url(foo.ttf) tech(features-opentype)format(opentype)}",
