@@ -1,7 +1,8 @@
 [workspace]
 members = [
   "node",
-  "selectors"
+  "selectors",
+  "c"
 ]
 
 [package]
