@@ -192,9 +192,10 @@ impl<'i> ToCss for UrlSource<'i> {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum FontFormat<'i> {
-  /// A WOFF font.
+  /// [src](https://drafts.csswg.org/css-fonts/#font-format-definitions)
+  /// A WOFF 1.0 font.
   WOFF,
-  /// A WOFF v2 font.
+  /// A WOFF 2.0 font.
   WOFF2,
   /// A TrueType font.
   TrueType,
@@ -202,7 +203,7 @@ pub enum FontFormat<'i> {
   OpenType,
   /// An Embedded OpenType (.eot) font.
   EmbeddedOpenType,
-  /// A font collection.
+  /// OpenType Collection.
   Collection,
   /// An SVG font.
   SVG,
@@ -257,38 +258,55 @@ impl<'i> ToCss for FontFormat<'i> {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", content = "value")
 )]
 pub enum FontTechnology {
   /// A font feature tech descriptor in the `tech()`function of the
-  /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
+  /// [src](https://drafts.csswg.org/css-fonts/#font-feature-tech-values)
   /// property of an `@font-face` rule.
-  /// support FeaturesOpentype
+  /// Supports OpenType Features.
+  /// https://docs.microsoft.com/en-us/typography/opentype/spec/featurelist
+  #[cfg_attr(feature = "serde", serde(rename = "features-opentype"))]
   FeaturesOpentype,
-  /// support FeaturesAat
+  /// Supports Apple Advanced Typography Font Features.
+  /// https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html
+  #[cfg_attr(feature = "serde", serde(rename = "features-aat"))]
   FeaturesAat,
-  /// support FeaturesGraphite
+  /// Supports Graphite Table Format.
+  /// https://scripts.sil.org/cms/scripts/render_download.php?site_id=nrsi&format=file&media_id=GraphiteBinaryFormat_3_0&filename=GraphiteBinaryFormat_3_0.pdf
+  #[cfg_attr(feature = "serde", serde(rename = "features-graphite"))]
   FeaturesGraphite,
 
   /// A color font tech descriptor in the `tech()`function of the
   /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
   /// property of an `@font-face` rule.
-  /// support ColorColrv0
-  ColorColrv0,
-  /// support ColorColrv1
-  ColorColrv1,
-  /// support ColorSvg
-  ColorSvg,
-  /// support ColorSbix
+  /// Supports the `COLR` v0 table.
+  #[cfg_attr(feature = "serde", serde(rename = "color-colrv0"))]
+  ColorCOLRv0,
+  /// Supports the `COLR` v1 table.
+  #[cfg_attr(feature = "serde", serde(rename = "color-colrv1"))]
+  ColorCOLRv1,
+  /// Supports the `SVG` table.
+  #[cfg_attr(feature = "serde", serde(rename = "color-svg"))]
+  ColorSVG,
+  /// Supports the `sbix` table.
+  #[cfg_attr(feature = "serde", serde(rename = "color-sbix"))]
   ColorSbix,
-  /// support ColorCbdt
-  ColorCbdt,
+  /// Supports the `CBDT` table.
+  #[cfg_attr(feature = "serde", serde(rename = "color-cbdt"))]
+  ColorCBDT,
 
-  /// support Variations
+  /// Supports Variations
+  /// The variations tech refers to the support of font variations
+  #[cfg_attr(feature = "serde", serde(rename = "variations"))] 
   Variations,
-  /// support Palettes
+  /// Supports Palettes
+  /// The palettes tech refers to support for font palettes
+  #[cfg_attr(feature = "serde", serde(rename = "palettes"))] 
   Palettes,
-  /// support Incremental
+  /// Supports Incremental
+  /// The incremental tech refers to client support for incremental font loading, using either the range-request or the patch-subset method
+  #[cfg_attr(feature = "serde", serde(rename = "incremental"))] 
   Incremental,
 }
 
@@ -304,11 +322,11 @@ impl<'i> Parse<'i> for FontTechnology {
           "features-opentype" => Ok(FontTechnology::FeaturesOpentype),
           "features-aat" => Ok(FontTechnology::FeaturesAat),
           "features-graphite" => Ok(FontTechnology::FeaturesGraphite),
-          "color-colrv0" => Ok(FontTechnology::ColorColrv0),
-          "color-colrv1" => Ok(FontTechnology::ColorColrv1),
-          "color-svg" => Ok(FontTechnology::ColorSvg),
+          "color-colrv0" => Ok(FontTechnology::ColorCOLRv0),
+          "color-colrv1" => Ok(FontTechnology::ColorCOLRv1),
+          "color-svg" => Ok(FontTechnology::ColorSVG),
           "color-sbix" => Ok(FontTechnology::ColorSbix),
-          "color-cbdt" => Ok(FontTechnology::ColorCbdt),
+          "color-cbdt" => Ok(FontTechnology::ColorCBDT),
           _ => Err(location.new_unexpected_token_error(
             cssparser::Token::Ident(ident.clone())
           ))
@@ -328,11 +346,11 @@ impl ToCss for FontTechnology {
       FontTechnology::FeaturesOpentype => "features-opentype",
       FontTechnology::FeaturesAat => "features-aat",
       FontTechnology::FeaturesGraphite => "features-graphite",
-      FontTechnology::ColorColrv0 => "color-colrv0",
-      FontTechnology::ColorColrv1 => "color-colrv1",
-      FontTechnology::ColorSvg => "color-svg",
+      FontTechnology::ColorCOLRv0 => "color-colrv0",
+      FontTechnology::ColorCOLRv1 => "color-colrv1",
+      FontTechnology::ColorSVG => "color-svg",
       FontTechnology::ColorSbix => "color-sbix",
-      FontTechnology::ColorCbdt => "color-cbdt",
+      FontTechnology::ColorCBDT => "color-cbdt",
       FontTechnology::Variations => "variations",
       FontTechnology::Palettes => "palettes",
       FontTechnology::Incremental => "incremental",
