@@ -9477,7 +9477,18 @@ mod tests {
       "@font-face {src: url(\"foo.ttf\") format(opentype) tech(features-opentype);}",
       "@font-face{src:url(foo.ttf)format(\"opentype\")tech(features-opentype)}",
     );
-    // TODO(CGQAQ): make this test pass
+    // only have tech is valid
+    minify_test(
+      "@font-face {src: url(\"foo.ttf\") tech(features-opentype);}",
+      "@font-face{src:url(foo.ttf)tech(features-opentype)}",
+    );
+    // CGQAQ: if tech and format both presence, order is matter, tech before format is invalid
+    // but now just return raw token, we don't have strict mode yet.
+    minify_test(
+      "@font-face {src: url(\"foo.ttf\") tech(features-opentype) format(opentype);}",
+      "@font-face{src:url(foo.ttf) tech(features-opentype)format(opentype)}",
+    );
+    // TODO(CGQAQ): make this test pass when we have strict mode
     // ref: https://github.com/web-platform-tests/wpt/blob/9f8a6ccc41aa725e8f51f4f096f686313bb88d8d/css/css-fonts/parsing/font-face-src-tech.html#L45
     // error_test(
     //   "@font-face {src: url(\"foo.ttf\") tech(feature-opentype) format(opentype);}",

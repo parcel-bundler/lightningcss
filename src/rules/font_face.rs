@@ -119,20 +119,29 @@ impl<'i> Parse<'i> for UrlSource<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let url = Url::parse(input)?;
 
+    let mut format_location: Option<SourceLocation> = None;
     let format = if input.try_parse(|input| input.expect_function_matching("format")).is_ok() {
+      format_location = Some(input.current_source_location());
       Some(input.parse_nested_block(FontFormat::parse)?)
     } else {
       None
     };
 
     let tech = if input.try_parse(|input| input.expect_function_matching("tech")).is_ok() {
-      if format.is_none() {
-        println!("?????");
+      if let Some(location) = format_location {
         // parser error
-        return Err(ParseError {
-          kind: ParseErrorKind::Basic(BasicParseErrorKind::AtRuleBodyInvalid),
-          location: input.current_source_location(),
-        });
+        let tech_location = input.current_source_location();
+        if tech_location.line < location.line {
+          return Err(ParseError {
+            kind: ParseErrorKind::Basic(BasicParseErrorKind::AtRuleBodyInvalid),
+            location: input.current_source_location(),
+          });
+        } else if tech_location.line == location.line && tech_location.column < location.column {
+          return Err(ParseError {
+            kind: ParseErrorKind::Basic(BasicParseErrorKind::AtRuleBodyInvalid),
+            location: input.current_source_location(),
+          });
+        }
       }
 
       input.parse_nested_block(Vec::<FontTechnology>::parse)?
