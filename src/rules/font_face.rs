@@ -70,11 +70,11 @@ impl<'i> Parse<'i> for Source<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(UrlSource::parse) {
       Ok(url) => return Ok(Source::Url(url)),
-      a @ Err(ParseError {
+      e @ Err(ParseError {
         kind: ParseErrorKind::Basic(BasicParseErrorKind::AtRuleBodyInvalid),
         ..
       }) => {
-        return Err(a.err().unwrap());
+        return Err(e.err().unwrap());
       }
       _ => {}
     }
