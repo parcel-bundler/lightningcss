@@ -15,36 +15,37 @@ static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 #[clap(author, about, long_about = None)]
 struct CliArgs {
   /// Target CSS file
+  #[clap(value_parser)]
   input_file: String,
   /// Destination file for the output
-  #[clap(short, long, group = "output_file")]
+  #[clap(short, long, group = "output_file", value_parser)]
   output_file: Option<String>,
   /// Minify the output
-  #[clap(short, long)]
+  #[clap(short, long, value_parser)]
   minify: bool,
   /// Enable parsing CSS nesting
-  #[clap(long)]
+  #[clap(long, value_parser)]
   nesting: bool,
   /// Enable parsing custom media queries
-  #[clap(long)]
+  #[clap(long, value_parser)]
   custom_media: bool,
   /// Enable CSS modules in output.
   /// If no filename is provided, <output_file>.json will be used.
   /// If no --output-file is specified, code and exports will be printed to stdout as JSON.
-  #[clap(long, group = "css_modules")]
+  #[clap(long, group = "css_modules", value_parser)]
   css_modules: Option<Option<String>>,
-  #[clap(long, requires = "css_modules")]
+  #[clap(long, requires = "css_modules", value_parser)]
   css_modules_pattern: Option<String>,
-  #[clap(long, requires = "css_modules")]
+  #[clap(long, requires = "css_modules", value_parser)]
   css_modules_dashed_idents: bool,
   /// Enable sourcemap, at <output_file>.map
-  #[clap(long, requires = "output_file")]
+  #[clap(long, requires = "output_file", value_parser)]
   sourcemap: bool,
-  #[clap(long)]
+  #[clap(long, value_parser)]
   bundle: bool,
-  #[clap(short, long)]
+  #[clap(short, long, value_parser)]
   targets: Vec<String>,
-  #[clap(long)]
+  #[clap(long, value_parser)]
   error_recovery: bool,
 }
 
