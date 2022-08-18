@@ -9469,8 +9469,8 @@ mod tests {
     );
     // multiple tech
     minify_test(
-      "@font-face {src: url(\"test.woff\") format(woff) tech(features-opentype, color-sbix);}",
-      "@font-face{src:url(test.woff)format(\"woff\")tech(features-opentype,color-sbix)}",
+      "@font-face {src: url(\"test.woff\") format(woff) tech(feature-opentype, color-sbix);}",
+      "@font-face{src:url(test.woff)format(\"woff\")tech(feature-opentype,color-sbix)}",
     );
     minify_test(
       "@font-face {src: url(\"test.woff\")   format(woff)    tech(incremental, color-svg, feature-graphite, feature-aat);}",
@@ -9478,13 +9478,13 @@ mod tests {
     );
     // format() function must precede tech() if both are present
     minify_test(
-      "@font-face {src: url(\"foo.ttf\") format(opentype) tech(color-COLRv1);}",
-      "@font-face{src:url(foo.ttf)format(\"opentype\")tech(color-COLRv1)}",
+      "@font-face {src: url(\"foo.ttf\") format(opentype) tech(color-colrv1);}",
+      "@font-face{src:url(foo.ttf)format(\"opentype\")tech(color-colrv1)}",
     );
     // only have tech is valid
     minify_test(
       "@font-face {src: url(\"foo.ttf\") tech(color-SVG);}",
-      "@font-face{src:url(foo.ttf)tech(color-SVG)}",
+      "@font-face{src:url(foo.ttf)tech(color-svg)}",
     );
     // CGQAQ: if tech and format both presence, order is matter, tech before format is invalid
     // but now just return raw token, we don't have strict mode yet.

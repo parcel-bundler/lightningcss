@@ -266,16 +266,16 @@ pub enum FontTechnology {
   /// property of an `@font-face` rule.
   /// Supports OpenType Features.
   /// https://docs.microsoft.com/en-us/typography/opentype/spec/featurelist
-  #[cfg_attr(feature = "serde", serde(rename = "features-opentype"))]
-  FeaturesOpentype,
+  #[cfg_attr(feature = "serde", serde(rename = "feature-opentype"))]
+  FeatureOpentype,
   /// Supports Apple Advanced Typography Font Features.
   /// https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html
-  #[cfg_attr(feature = "serde", serde(rename = "features-aat"))]
-  FeaturesAat,
+  #[cfg_attr(feature = "serde", serde(rename = "feature-aat"))]
+  FeatureAat,
   /// Supports Graphite Table Format.
   /// https://scripts.sil.org/cms/scripts/render_download.php?site_id=nrsi&format=file&media_id=GraphiteBinaryFormat_3_0&filename=GraphiteBinaryFormat_3_0.pdf
-  #[cfg_attr(feature = "serde", serde(rename = "features-graphite"))]
-  FeaturesGraphite,
+  #[cfg_attr(feature = "serde", serde(rename = "feature-graphite"))]
+  FeatureGraphite,
 
   /// A color font tech descriptor in the `tech()`function of the
   /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
@@ -298,15 +298,15 @@ pub enum FontTechnology {
 
   /// Supports Variations
   /// The variations tech refers to the support of font variations
-  #[cfg_attr(feature = "serde", serde(rename = "variations"))] 
+  #[cfg_attr(feature = "serde", serde(rename = "variations"))]
   Variations,
   /// Supports Palettes
   /// The palettes tech refers to support for font palettes
-  #[cfg_attr(feature = "serde", serde(rename = "palettes"))] 
+  #[cfg_attr(feature = "serde", serde(rename = "palettes"))]
   Palettes,
   /// Supports Incremental
   /// The incremental tech refers to client support for incremental font loading, using either the range-request or the patch-subset method
-  #[cfg_attr(feature = "serde", serde(rename = "incremental"))] 
+  #[cfg_attr(feature = "serde", serde(rename = "incremental"))]
   Incremental,
 }
 
@@ -319,9 +319,9 @@ impl<'i> Parse<'i> for FontTechnology {
           "variations" => Ok(FontTechnology::Variations),
           "palettes" => Ok(FontTechnology::Palettes),
           "incremental" => Ok(FontTechnology::Incremental),
-          "features-opentype" => Ok(FontTechnology::FeaturesOpentype),
-          "features-aat" => Ok(FontTechnology::FeaturesAat),
-          "features-graphite" => Ok(FontTechnology::FeaturesGraphite),
+          "feature-opentype" => Ok(FontTechnology::FeatureOpentype),
+          "feature-aat" => Ok(FontTechnology::FeatureAat),
+          "feature-graphite" => Ok(FontTechnology::FeatureGraphite),
           "color-colrv0" => Ok(FontTechnology::ColorCOLRv0),
           "color-colrv1" => Ok(FontTechnology::ColorCOLRv1),
           "color-svg" => Ok(FontTechnology::ColorSVG),
@@ -342,10 +342,11 @@ impl ToCss for FontTechnology {
   where
     W: std::fmt::Write,
   {
+    // ref: https://hg.mozilla.org/mozilla-central/rev/f97705333d4c#l7.101
     dest.write_str(match self {
-      FontTechnology::FeaturesOpentype => "features-opentype",
-      FontTechnology::FeaturesAat => "features-aat",
-      FontTechnology::FeaturesGraphite => "features-graphite",
+      FontTechnology::FeatureOpentype => "feature-opentype",
+      FontTechnology::FeatureAat => "feature-aat",
+      FontTechnology::FeatureGraphite => "feature-graphite",
       FontTechnology::ColorCOLRv0 => "color-colrv0",
       FontTechnology::ColorCOLRv1 => "color-colrv1",
       FontTechnology::ColorSVG => "color-svg",
