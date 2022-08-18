@@ -9478,6 +9478,7 @@ mod tests {
       "@font-face{src:url(foo.ttf)format(\"opentype\")tech(features-opentype)}",
     );
     // TODO(CGQAQ): make this test pass
+    // ref: https://github.com/web-platform-tests/wpt/blob/9f8a6ccc41aa725e8f51f4f096f686313bb88d8d/css/css-fonts/parsing/font-face-src-tech.html#L45
     // error_test(
     //   "@font-face {src: url(\"foo.ttf\") tech(feature-opentype) format(opentype);}",
     //   ParserError::AtRuleBodyInvalid,
