@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+typedef struct CssError CssError;
+
 /**
  * A CSS style sheet, representing a `.css` file or inline `<style>` element.
  *
@@ -44,13 +46,18 @@ typedef struct StyleSheet StyleSheet;
 typedef struct RawString {
   char *text;
   uintptr_t len;
-  uintptr_t cap;
 } RawString;
 
-struct StyleSheet *stylesheet_parse(const char *source, uintptr_t len);
+struct StyleSheet *stylesheet_parse(const char *source, uintptr_t len, struct CssError **error);
 
-struct RawString stylesheet_to_css(struct StyleSheet *stylesheet);
+bool stylesheet_transform(struct StyleSheet *stylesheet, struct CssError **error);
+
+struct RawString stylesheet_to_css(struct StyleSheet *stylesheet, struct CssError **error);
 
 void stylesheet_free(struct StyleSheet *stylesheet);
 
 void raw_string_free(struct RawString s);
+
+struct RawString error_message(struct CssError *error);
+
+void error_free(struct CssError *error);
