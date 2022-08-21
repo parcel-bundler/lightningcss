@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::ffi::{CStr, CString};
+use std::mem::ManuallyDrop;
 use std::os::raw::c_char;
 
 use parcel_css::css_modules::PatternParseError;
@@ -352,9 +353,54 @@ pub extern "C" fn stylesheet_to_css(
     RawString::default()
   };
 
+  let (exports, exports_len) = if let Some(exports) = res.exports {
+    let exports: Vec<CssModuleExport> = exports
+      .into_iter()
+      .map(|(k, v)| {
+        let composes_len = v.composes.len();
+        let composes = if !v.composes.is_empty() {
+          let composes: Vec<CssModuleReference> = v.composes.into_iter().map(|composes| composes.into()).collect();
+          ManuallyDrop::new(composes).as_mut_ptr()
+        } else {
+          std::ptr::null_mut()
+        };
+
+        CssModuleExport {
+          exported: k.into(),
+          local: v.name.into(),
+          is_referenced: v.is_referenced,
+          composes,
+          composes_len,
+        }
+      })
+      .collect();
+    let mut exports = ManuallyDrop::new(exports);
+    (exports.as_mut_ptr(), exports.len())
+  } else {
+    (std::ptr::null_mut(), 0)
+  };
+
+  let (references, references_len) = if let Some(references) = res.references {
+    let references: Vec<CssModulePlaceholder> = references
+      .into_iter()
+      .map(|(k, v)| CssModulePlaceholder {
+        placeholder: k.into(),
+        reference: v.into(),
+      })
+      .collect();
+    let mut references = ManuallyDrop::new(references);
+    (references.as_mut_ptr(), references.len())
+  } else {
+    (std::ptr::null_mut(), 0)
+  };
+
   ToCssResult {
     code: res.code.into(),
     map,
+    exports,
+    exports_len,
+    references,
+    references_len,
   }
 }
 
@@ -365,16 +411,108 @@ pub extern "C" fn stylesheet_free(stylesheet: *mut StyleSheetWrapper) {
   }
 }
 
-#[derive(Default)]
 #[repr(C)]
 pub struct ToCssResult {
   code: RawString,
   map: RawString,
+  exports: *mut CssModuleExport,
+  exports_len: usize,
+  references: *mut CssModulePlaceholder,
+  references_len: usize,
+}
+
+impl Default for ToCssResult {
+  fn default() -> Self {
+    ToCssResult {
+      code: RawString::default(),
+      map: RawString::default(),
+      exports: std::ptr::null_mut(),
+      exports_len: 0,
+      references: std::ptr::null_mut(),
+      references_len: 0,
+    }
+  }
+}
+
+impl Drop for ToCssResult {
+  fn drop(&mut self) {
+    if !self.exports.is_null() {
+      let exports = unsafe { Vec::from_raw_parts(self.exports, self.exports_len, self.exports_len) };
+      drop(exports);
+      self.exports = std::ptr::null_mut();
+    }
+
+    if !self.references.is_null() {
+      let references = unsafe { Vec::from_raw_parts(self.references, self.references_len, self.references_len) };
+      drop(references);
+      self.references = std::ptr::null_mut();
+    }
+  }
 }
 
 #[no_mangle]
 pub extern "C" fn to_css_result_free(result: ToCssResult) {
   drop(result)
+}
+
+#[repr(C)]
+pub struct CssModuleExport {
+  exported: RawString,
+  local: RawString,
+  is_referenced: bool,
+  composes: *mut CssModuleReference,
+  composes_len: usize,
+}
+
+impl Drop for CssModuleExport {
+  fn drop(&mut self) {
+    if !self.composes.is_null() {
+      let composes = unsafe { Vec::from_raw_parts(self.composes, self.composes_len, self.composes_len) };
+      drop(composes);
+      self.composes = std::ptr::null_mut();
+    }
+  }
+}
+
+#[repr(C)]
+pub enum CssModuleReference {
+  /// A local reference.
+  Local {
+    /// The local (compiled) name for the reference.
+    name: RawString,
+  },
+  /// A global reference.
+  Global {
+    /// The referenced global name.
+    name: RawString,
+  },
+  /// A reference to an export in a different file.
+  Dependency {
+    /// The name to reference within the dependency.
+    name: RawString,
+    /// The dependency specifier for the referenced file.
+    specifier: RawString,
+  },
+}
+
+impl From<parcel_css::css_modules::CssModuleReference> for CssModuleReference {
+  fn from(reference: parcel_css::css_modules::CssModuleReference) -> Self {
+    use parcel_css::css_modules::CssModuleReference::*;
+    match reference {
+      Local { name } => CssModuleReference::Local { name: name.into() },
+      Global { name } => CssModuleReference::Global { name: name.into() },
+      Dependency { name, specifier } => CssModuleReference::Dependency {
+        name: name.into(),
+        specifier: specifier.into(),
+      },
+    }
+  }
+}
+
+#[repr(C)]
+pub struct CssModulePlaceholder {
+  placeholder: RawString,
+  reference: CssModuleReference,
 }
 
 #[repr(C)]

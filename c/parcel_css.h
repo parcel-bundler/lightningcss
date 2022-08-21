@@ -40,9 +40,75 @@ typedef struct RawString {
   uintptr_t len;
 } RawString;
 
+typedef enum CssModuleReference_Tag {
+  /**
+   * A local reference.
+   */
+  CssModuleReference_Local,
+  /**
+   * A global reference.
+   */
+  CssModuleReference_Global,
+  /**
+   * A reference to an export in a different file.
+   */
+  CssModuleReference_Dependency,
+} CssModuleReference_Tag;
+
+typedef struct CssModuleReference_Local_Body {
+  /**
+   * The local (compiled) name for the reference.
+   */
+  struct RawString name;
+} CssModuleReference_Local_Body;
+
+typedef struct CssModuleReference_Global_Body {
+  /**
+   * The referenced global name.
+   */
+  struct RawString name;
+} CssModuleReference_Global_Body;
+
+typedef struct CssModuleReference_Dependency_Body {
+  /**
+   * The name to reference within the dependency.
+   */
+  struct RawString name;
+  /**
+   * The dependency specifier for the referenced file.
+   */
+  struct RawString specifier;
+} CssModuleReference_Dependency_Body;
+
+typedef struct CssModuleReference {
+  CssModuleReference_Tag tag;
+  union {
+    CssModuleReference_Local_Body local;
+    CssModuleReference_Global_Body global;
+    CssModuleReference_Dependency_Body dependency;
+  };
+} CssModuleReference;
+
+typedef struct CssModuleExport {
+  struct RawString exported;
+  struct RawString local;
+  bool is_referenced;
+  struct CssModuleReference *composes;
+  uintptr_t composes_len;
+} CssModuleExport;
+
+typedef struct CssModulePlaceholder {
+  struct RawString placeholder;
+  struct CssModuleReference reference;
+} CssModulePlaceholder;
+
 typedef struct ToCssResult {
   struct RawString code;
   struct RawString map;
+  struct CssModuleExport *exports;
+  uintptr_t exports_len;
+  struct CssModulePlaceholder *references;
+  uintptr_t references_len;
 } ToCssResult;
 
 typedef struct PseudoClasses {
