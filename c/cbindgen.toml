@@ -1,0 +1,11 @@
+language = "C"
+
+[parse]
+parse_deps = true
+include = ["parcel_css"]
+
+[export.rename]
+StyleSheetWrapper = "StyleSheet"
+
+[enum]
+prefix_with_name = true

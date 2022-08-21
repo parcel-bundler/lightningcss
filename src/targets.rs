@@ -33,3 +33,68 @@ pub struct Browsers {
   pub safari: Option<u32>,
   pub samsung: Option<u32>,
 }
+
+#[cfg(feature = "browserslist")]
+impl Browsers {
+  /// Parses a list of browserslist queries into Parcel CSS targets.
+  pub fn from_browserslist<S: AsRef<str>, I: IntoIterator<Item = S>>(
+    query: I,
+  ) -> Result<Option<Browsers>, browserslist::Error> {
+    use browserslist::{resolve, Opts};
+
+    let res = resolve(query, &Opts::new())?;
+
+    let mut browsers = Browsers::default();
+    let mut has_any = false;
+    for distrib in res {
+      macro_rules! browser {
+        ($browser: ident) => {{
+          if let Some(v) = parse_version(distrib.version()) {
+            if browsers.$browser.is_none() || v < browsers.$browser.unwrap() {
+              browsers.$browser = Some(v);
+              has_any = true;
+            }
+          }
+        }};
+      }
+
+      match distrib.name() {
+        "android" => browser!(android),
+        "chrome" | "and_chr" => browser!(chrome),
+        "edge" => browser!(edge),
+        "firefox" | "and_ff" => browser!(firefox),
+        "ie" => browser!(ie),
+        "ios_saf" => browser!(ios_saf),
+        "opera" | "op_mob" => browser!(opera),
+        "safari" => browser!(safari),
+        "samsung" => browser!(samsung),
+        _ => {}
+      }
+    }
+
+    if !has_any {
+      return Ok(None);
+    }
+
+    Ok(Some(browsers))
+  }
+}
+
+#[cfg(feature = "browserslist")]
+fn parse_version(version: &str) -> Option<u32> {
+  let version = version.split('-').next();
+  if version.is_none() {
+    return None;
+  }
+
+  let mut version = version.unwrap().split('.');
+  let major = version.next().and_then(|v| v.parse::<u32>().ok());
+  if let Some(major) = major {
+    let minor = version.next().and_then(|v| v.parse::<u32>().ok()).unwrap_or(0);
+    let patch = version.next().and_then(|v| v.parse::<u32>().ok()).unwrap_or(0);
+    let v: u32 = (major & 0xff) << 16 | (minor & 0xff) << 8 | (patch & 0xff);
+    return Some(v);
+  }
+
+  None
+}
