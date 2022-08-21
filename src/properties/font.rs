@@ -1,5 +1,7 @@
 //! CSS properties related to fonts.
 
+use std::collections::HashSet;
+
 use super::{Property, PropertyId};
 use crate::compat::Feature;
 use crate::context::PropertyHandlerContext;
@@ -312,6 +314,7 @@ enum_property! {
   ///
   /// See [FontFamily](FontFamily).
   #[allow(missing_docs)]
+  #[derive(Eq, Hash)]
   pub enum GenericFontFamily {
     "serif": Serif,
     "sans-serif": SansSerif,
@@ -345,7 +348,7 @@ enum_property! {
 }
 
 /// A value for the [font-family](https://www.w3.org/TR/css-fonts-4/#font-family-prop) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -841,7 +844,7 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
 
     self.has_any = false;
 
-    let family = compatible_font_family(
+    let mut family = compatible_font_family(
       std::mem::take(&mut self.family),
       context.is_supported(Feature::FontFamilySystemUi),
     );
@@ -851,6 +854,14 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
     let stretch = std::mem::take(&mut self.stretch);
     let line_height = std::mem::take(&mut self.line_height);
     let variant_caps = std::mem::take(&mut self.variant_caps);
+
+    if let Some(family) = &mut family {
+      if family.len() > 1 {
+        // Dedupe.
+        let mut seen = HashSet::new();
+        family.retain(|f| seen.insert(f.clone()));
+      }
+    }
 
     if family.is_some()
       && size.is_some()

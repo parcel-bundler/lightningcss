@@ -4984,6 +4984,24 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    prefix_test(
+      r#"
+      .foo {
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+      }
+    "#
+      },
+      Browsers {
+        firefox: Some(91 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]
