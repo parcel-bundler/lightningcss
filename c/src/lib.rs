@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::ffi::{CStr, CString};
 use std::mem::ManuallyDrop;
 use std::os::raw::c_char;
+use std::sync::{Arc, RwLock};
 
 use parcel_css::css_modules::PatternParseError;
 use parcel_css::error::{Error, MinifyErrorKind, ParserError, PrinterError};
@@ -12,6 +13,7 @@ use parcel_sourcemap::SourceMap;
 pub struct StyleSheetWrapper<'i, 'o> {
   stylesheet: StyleSheet<'i, 'o>,
   source: &'i str,
+  warnings: Vec<CssError<'i>>,
 }
 
 pub struct CssError<'i> {
@@ -251,6 +253,7 @@ pub extern "C" fn parcel_css_stylesheet_parse(
 ) -> *mut StyleSheetWrapper {
   let slice = unsafe { std::slice::from_raw_parts(source as *const u8, len) };
   let code = unsafe { std::str::from_utf8_unchecked(slice) };
+  let warnings = Arc::new(RwLock::new(Vec::new()));
   let opts = ParserOptions {
     filename: if options.filename.is_null() {
       String::new()
@@ -280,13 +283,14 @@ pub extern "C" fn parcel_css_stylesheet_parse(
     },
     error_recovery: options.error_recovery,
     source_index: 0,
-    warnings: None,
+    warnings: Some(warnings.clone()),
   };
 
   let stylesheet = unwrap!(StyleSheet::parse(code, opts), error, std::ptr::null_mut());
   Box::into_raw(Box::new(StyleSheetWrapper {
     stylesheet,
     source: code,
+    warnings: warnings.clone().read().unwrap().iter().map(|w| w.clone().into()).collect(),
   }))
 }
 
@@ -561,5 +565,31 @@ pub extern "C" fn parcel_css_error_message(error: *mut CssError) -> *const c_cha
 pub extern "C" fn parcel_css_error_free(error: *mut CssError) {
   if !error.is_null() {
     drop(unsafe { Box::from_raw(error) })
+  }
+}
+
+#[no_mangle]
+pub extern "C" fn parcel_css_stylesheet_get_warning_count<'i>(
+  stylesheet: *mut StyleSheetWrapper<'i, '_>,
+) -> usize {
+  match unsafe { stylesheet.as_mut() } {
+    Some(s) => s.warnings.len(),
+    None => 0,
+  }
+}
+
+#[no_mangle]
+pub extern "C" fn parcel_css_stylesheet_get_warning<'i>(
+  stylesheet: *mut StyleSheetWrapper<'i, '_>,
+  index: usize,
+) -> *const c_char {
+  let stylesheet = match unsafe { stylesheet.as_mut() } {
+    Some(s) => s,
+    None => return std::ptr::null(),
+  };
+
+  match stylesheet.warnings.get_mut(index) {
+    Some(w) => w.message(),
+    None => std::ptr::null(),
   }
 }

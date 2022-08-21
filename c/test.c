@@ -50,6 +50,12 @@ int main()
   if (error)
     goto cleanup;
 
+  size_t warning_count = parcel_css_stylesheet_get_warning_count(stylesheet);
+  for (size_t i = 0; i < warning_count; i++)
+  {
+    printf("warning: %s\n", parcel_css_stylesheet_get_warning(stylesheet, i));
+  }
+
   fwrite(result.code.text, sizeof(char), result.code.len, stdout);
   printf("\n");
   fwrite(result.map.text, sizeof(char), result.map.len, stdout);

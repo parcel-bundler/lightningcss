@@ -153,3 +153,7 @@ void parcel_css_to_css_result_free(struct ToCssResult result);
 const char *parcel_css_error_message(struct CssError *error);
 
 void parcel_css_error_free(struct CssError *error);
+
+uintptr_t parcel_css_stylesheet_get_warning_count(struct StyleSheet *stylesheet);
+
+const char *parcel_css_stylesheet_get_warning(struct StyleSheet *stylesheet, uintptr_t index);
