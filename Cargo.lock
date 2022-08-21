@@ -855,6 +855,7 @@ dependencies = [
 name = "parcel_css_c_bindings"
 version = "0.1.0"
 dependencies = [
+ "browserslist-rs",
  "cbindgen",
  "parcel_css",
  "parcel_sourcemap",

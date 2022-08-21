@@ -5,59 +5,83 @@
 
 typedef struct CssError CssError;
 
-/**
- * A CSS style sheet, representing a `.css` file or inline `<style>` element.
- *
- * Style sheets can be parsed from a string, constructed from scratch,
- * or created using a [Bundler](super::bundler::Bundler). Then, they can be
- * minified and transformed for a set of target browsers, and serialied to a string.
- *
- * # Example
- *
- * ```
- * use parcel_css::stylesheet::{
- *   StyleSheet, ParserOptions, MinifyOptions, PrinterOptions
- * };
- *
- * // Parse a style sheet from a string.
- * let mut stylesheet = StyleSheet::parse(
- *   r#"
- *   .foo {
- *     color: red;
- *   }
- *
- *   .bar {
- *     color: red;
- *   }
- *   "#,
- *   ParserOptions::default()
- * ).unwrap();
- *
- * // Minify the stylesheet.
- * stylesheet.minify(MinifyOptions::default()).unwrap();
- *
- * // Serialize it to a string.
- * let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
- * assert_eq!(res.code, ".foo, .bar {\n  color: red;\n}\n");
- * ```
- */
 typedef struct StyleSheet StyleSheet;
+
+typedef struct Targets {
+  uint32_t android;
+  uint32_t chrome;
+  uint32_t edge;
+  uint32_t firefox;
+  uint32_t ie;
+  uint32_t ios_saf;
+  uint32_t opera;
+  uint32_t safari;
+  uint32_t samsung;
+} Targets;
+
+typedef struct ParseOptions {
+  const char *filename;
+  bool nesting;
+  bool custom_media;
+  bool css_modules;
+  const char *css_modules_pattern;
+  bool css_modules_dashed_idents;
+  bool error_recovery;
+} ParseOptions;
+
+typedef struct TransformOptions {
+  struct Targets targets;
+  char **unused_symbols;
+  uintptr_t unused_symbols_len;
+} TransformOptions;
 
 typedef struct RawString {
   char *text;
   uintptr_t len;
 } RawString;
 
-struct StyleSheet *stylesheet_parse(const char *source, uintptr_t len, struct CssError **error);
+typedef struct ToCssResult {
+  struct RawString code;
+  struct RawString map;
+} ToCssResult;
 
-bool stylesheet_transform(struct StyleSheet *stylesheet, struct CssError **error);
+typedef struct PseudoClasses {
+  const char *hover;
+  const char *active;
+  const char *focus;
+  const char *focus_visible;
+  const char *focus_within;
+} PseudoClasses;
 
-struct RawString stylesheet_to_css(struct StyleSheet *stylesheet, struct CssError **error);
+typedef struct ToCssOptions {
+  bool minify;
+  bool source_map;
+  const char *input_source_map;
+  uintptr_t input_source_map_len;
+  struct Targets targets;
+  bool analyze_dependencies;
+  struct PseudoClasses pseudo_classes;
+} ToCssOptions;
+
+bool browserslist_to_targets(const char *query, struct Targets *targets, struct CssError **error);
+
+struct StyleSheet *stylesheet_parse(const char *source,
+                                    uintptr_t len,
+                                    struct ParseOptions options,
+                                    struct CssError **error);
+
+bool stylesheet_transform(struct StyleSheet *stylesheet,
+                          struct TransformOptions options,
+                          struct CssError **error);
+
+struct ToCssResult stylesheet_to_css(struct StyleSheet *stylesheet,
+                                     struct ToCssOptions options,
+                                     struct CssError **error);
 
 void stylesheet_free(struct StyleSheet *stylesheet);
 
-void raw_string_free(struct RawString s);
+void to_css_result_free(struct ToCssResult result);
 
-struct RawString error_message(struct CssError *error);
+const char *error_message(struct CssError *error);
 
 void error_free(struct CssError *error);

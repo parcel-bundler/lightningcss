@@ -124,7 +124,11 @@ pub fn main() -> Result<(), std::io::Error> {
       StyleSheet::parse(&source, options).unwrap()
     };
 
-    let targets = browserslist_to_targets(cli_args.targets).unwrap();
+    let targets = if cli_args.targets.is_empty() {
+      None
+    } else {
+      Browsers::from_browserslist(cli_args.targets).unwrap()
+    };
     stylesheet
       .minify(MinifyOptions {
         targets,
@@ -219,66 +223,4 @@ fn infer_css_modules_filename(output_file: &str) -> Result<String, std::io::Erro
     // unwrap: the filename option is a String from clap, so is valid utf-8
     Ok(path.with_extension("json").to_str().unwrap().into())
   }
-}
-
-fn browserslist_to_targets(query: Vec<String>) -> Result<Option<Browsers>, browserslist::Error> {
-  use browserslist::{resolve, Opts};
-
-  if query.is_empty() {
-    return Ok(None);
-  }
-
-  let res = resolve(query, &Opts::new())?;
-
-  let mut browsers = Browsers::default();
-  let mut has_any = false;
-  for distrib in res {
-    macro_rules! browser {
-      ($browser: ident) => {{
-        if let Some(v) = parse_version(distrib.version()) {
-          if browsers.$browser.is_none() || v < browsers.$browser.unwrap() {
-            browsers.$browser = Some(v);
-            has_any = true;
-          }
-        }
-      }};
-    }
-
-    match distrib.name() {
-      "android" => browser!(android),
-      "chrome" | "and_chr" => browser!(chrome),
-      "edge" => browser!(edge),
-      "firefox" | "and_ff" => browser!(firefox),
-      "ie" => browser!(ie),
-      "ios_saf" => browser!(ios_saf),
-      "opera" | "op_mob" => browser!(opera),
-      "safari" => browser!(safari),
-      "samsung" => browser!(samsung),
-      _ => {}
-    }
-  }
-
-  if !has_any {
-    return Ok(None);
-  }
-
-  Ok(Some(browsers))
-}
-
-fn parse_version(version: &str) -> Option<u32> {
-  let version = version.split('-').next();
-  if version.is_none() {
-    return None;
-  }
-
-  let mut version = version.unwrap().split('.');
-  let major = version.next().and_then(|v| v.parse::<u32>().ok());
-  if let Some(major) = major {
-    let minor = version.next().and_then(|v| v.parse::<u32>().ok()).unwrap_or(0);
-    let patch = version.next().and_then(|v| v.parse::<u32>().ok()).unwrap_or(0);
-    let v: u32 = (major & 0xff) << 16 | (minor & 0xff) << 8 | (patch & 0xff);
-    return Some(v);
-  }
-
-  None
 }
