@@ -132,7 +132,7 @@ macro_rules! unwrap {
 }
 
 #[no_mangle]
-pub extern "C" fn browserslist_to_targets(
+pub extern "C" fn parcel_css_browserslist_to_targets(
   query: *const c_char,
   targets: *mut Targets,
   error: *mut *mut CssError,
@@ -243,7 +243,7 @@ impl<'a> Into<parcel_css::printer::PseudoClasses<'a>> for PseudoClasses {
 }
 
 #[no_mangle]
-pub extern "C" fn stylesheet_parse(
+pub extern "C" fn parcel_css_stylesheet_parse(
   source: *const c_char,
   len: usize,
   options: ParseOptions,
@@ -291,7 +291,7 @@ pub extern "C" fn stylesheet_parse(
 }
 
 #[no_mangle]
-pub extern "C" fn stylesheet_transform(
+pub extern "C" fn parcel_css_stylesheet_transform(
   stylesheet: *mut StyleSheetWrapper,
   options: TransformOptions,
   error: *mut *mut CssError,
@@ -302,7 +302,7 @@ pub extern "C" fn stylesheet_transform(
 }
 
 #[no_mangle]
-pub extern "C" fn stylesheet_to_css(
+pub extern "C" fn parcel_css_stylesheet_to_css(
   stylesheet: *mut StyleSheetWrapper,
   options: ToCssOptions,
   error: *mut *mut CssError,
@@ -405,7 +405,7 @@ pub extern "C" fn stylesheet_to_css(
 }
 
 #[no_mangle]
-pub extern "C" fn stylesheet_free(stylesheet: *mut StyleSheetWrapper) {
+pub extern "C" fn parcel_css_stylesheet_free(stylesheet: *mut StyleSheetWrapper) {
   if !stylesheet.is_null() {
     drop(unsafe { Box::from_raw(stylesheet) })
   }
@@ -451,7 +451,7 @@ impl Drop for ToCssResult {
 }
 
 #[no_mangle]
-pub extern "C" fn to_css_result_free(result: ToCssResult) {
+pub extern "C" fn parcel_css_to_css_result_free(result: ToCssResult) {
   drop(result)
 }
 
@@ -550,7 +550,7 @@ impl Drop for RawString {
 }
 
 #[no_mangle]
-pub extern "C" fn error_message(error: *mut CssError) -> *const c_char {
+pub extern "C" fn parcel_css_error_message(error: *mut CssError) -> *const c_char {
   match unsafe { error.as_mut() } {
     Some(err) => err.message(),
     None => std::ptr::null(),
@@ -558,7 +558,7 @@ pub extern "C" fn error_message(error: *mut CssError) -> *const c_char {
 }
 
 #[no_mangle]
-pub extern "C" fn error_free(error: *mut CssError) {
+pub extern "C" fn parcel_css_error_free(error: *mut CssError) {
   if !error.is_null() {
     drop(unsafe { Box::from_raw(error) })
   }

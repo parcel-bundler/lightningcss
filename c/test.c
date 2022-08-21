@@ -25,7 +25,7 @@ int main()
       .css_modules_dashed_idents = true};
 
   CssError *error = NULL;
-  StyleSheet *stylesheet = stylesheet_parse(source, strlen(source), parse_opts, &error);
+  StyleSheet *stylesheet = parcel_css_stylesheet_parse(source, strlen(source), parse_opts, &error);
   if (!stylesheet)
     goto cleanup;
 
@@ -34,10 +34,10 @@ int main()
       .unused_symbols = unused_symbols,
       .unused_symbols_len = 0};
 
-  if (!browserslist_to_targets("last 2 versions, not IE <= 11", &transform_opts.targets, &error))
+  if (!parcel_css_browserslist_to_targets("last 2 versions, not IE <= 11", &transform_opts.targets, &error))
     goto cleanup;
 
-  if (!stylesheet_transform(stylesheet, transform_opts, &error))
+  if (!parcel_css_stylesheet_transform(stylesheet, transform_opts, &error))
     goto cleanup;
 
   ToCssOptions to_css_opts = {
@@ -46,7 +46,7 @@ int main()
       .pseudo_classes = {
           .hover = "is-hovered"}};
 
-  ToCssResult result = stylesheet_to_css(stylesheet, to_css_opts, &error);
+  ToCssResult result = parcel_css_stylesheet_to_css(stylesheet, to_css_opts, &error);
   if (error)
     goto cleanup;
 
@@ -82,13 +82,13 @@ int main()
   }
 
 cleanup:
-  stylesheet_free(stylesheet);
-  to_css_result_free(result);
+  parcel_css_stylesheet_free(stylesheet);
+  parcel_css_to_css_result_free(result);
 
   if (error)
   {
-    printf("error: %s\n", error_message(error));
-    error_free(error);
+    printf("error: %s\n", parcel_css_error_message(error));
+    parcel_css_error_free(error);
     return 1;
   }
 }
