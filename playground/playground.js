@@ -149,7 +149,7 @@ function update() {
     });
 
     compiled.value = dec.decode(res.code);
-    compiled.style.color = "initial";
+    compiled.style.color = "";
     compiledModules.value = JSON.stringify(res.exports, false, 2);
     compiledModules.hidden = !cssModules.checked;
     compiledDependencies.value = JSON.stringify(res.dependencies, false, 2);
