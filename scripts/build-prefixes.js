@@ -246,7 +246,8 @@ let mdnFeatures = {
         }
       })
   ),
-  imageSet: mdn.css.types.image['image-set'].__compat.support
+  imageSet: mdn.css.types.image['image-set'].__compat.support,
+  xResolutionUnit: mdn.css.types.resolution.x.__compat.support
 };
 
 for (let feature in mdnFeatures) {

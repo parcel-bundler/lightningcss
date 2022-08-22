@@ -66,6 +66,7 @@ pub enum Feature {
   SpaceSeparatedColorFunction,
   TextDecorationThicknessPercent,
   TextDecorationThicknessShorthand,
+  XResolutionUnit,
 }
 
 impl Feature {
@@ -2174,6 +2175,41 @@ impl Feature {
           }
         }
         if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::XResolutionUnit => {
+        if let Some(version) = browsers.chrome {
+          if version < 4456448 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 4063232 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 3145728 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 655360 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 4456448 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() || browsers.ios_saf.is_some() || browsers.safari.is_some() {
           return false;
         }
       }

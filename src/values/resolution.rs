@@ -2,6 +2,7 @@
 
 use super::length::serialize_dimension;
 use super::number::CSSNumber;
+use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
@@ -49,7 +50,17 @@ impl ToCss for Resolution {
     let (value, unit) = match self {
       Resolution::Dpi(dpi) => (*dpi, "dpi"),
       Resolution::Dpcm(dpcm) => (*dpcm, "dpcm"),
-      Resolution::Dppx(dppx) => (*dppx, "x"),
+      Resolution::Dppx(dppx) => {
+        if let Some(targets) = dest.targets {
+          if Feature::XResolutionUnit.is_compatible(targets) {
+            (*dppx, "x")
+          } else {
+            (*dppx, "dppx")
+          }
+        } else {
+          (*dppx, "x")
+        }
+      }
     };
 
     serialize_dimension(value, unit, dest)

@@ -20102,4 +20102,49 @@ mod tests {
       "@foo{foo: bar;}",
     );
   }
+
+  #[test]
+  fn test_resolution() {
+    prefix_test(
+      r#"
+      @media (resolution: 1dppx) {
+        body {
+          background: red;
+        }
+      }
+      "#,
+      indoc! { r#"
+      @media (resolution: 1dppx) {
+        body {
+          background: red;
+        }
+      }
+      "#},
+      Browsers {
+        chrome: Some(50 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      @media (resolution: 1dppx) {
+        body {
+          background: red;
+        }
+      }
+      "#,
+      indoc! { r#"
+      @media (resolution: 1x) {
+        body {
+          background: red;
+        }
+      }
+      "#},
+      Browsers {
+        chrome: Some(95 << 16),
+        ..Browsers::default()
+      },
+    );
+  }
 }
