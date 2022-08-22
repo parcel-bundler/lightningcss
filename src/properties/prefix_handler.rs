@@ -96,6 +96,7 @@ define_prefixes! {
   UserSelect,
   Appearance,
   ClipPath,
+  BoxDecorationBreak,
 }
 
 macro_rules! define_fallbacks {

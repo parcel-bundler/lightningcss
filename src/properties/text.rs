@@ -909,6 +909,22 @@ impl<'i> Parse<'i> for TextEmphasisPosition {
   }
 }
 
+enum_property! {
+  /// A value for the [box-decoration-break](https://www.w3.org/TR/css-break-3/#break-decoration) property.
+  pub enum BoxDecorationBreak {
+    /// The element is rendered with no breaks present, and then sliced by the breaks afterward.
+    Slice,
+    /// Each box fragment is independently wrapped with the border, padding, and margin.
+    Clone,
+  }
+}
+
+impl Default for BoxDecorationBreak {
+  fn default() -> Self {
+    BoxDecorationBreak::Slice
+  }
+}
+
 impl ToCss for TextEmphasisPosition {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where

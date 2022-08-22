@@ -1071,6 +1071,9 @@ define_properties! {
   "text-emphasis-position": TextEmphasisPosition(TextEmphasisPosition, VendorPrefix) / WebKit,
   "text-shadow": TextShadow(SmallVec<[TextShadow; 1]>),
 
+  // https://www.w3.org/TR/css-break-3/
+  "box-decoration-break": BoxDecorationBreak(BoxDecorationBreak, VendorPrefix) / WebKit,
+
   // https://www.w3.org/TR/2021/WD-css-ui-4-20210316
   "resize": Resize(Resize),
   "cursor": Cursor(Cursor<'i>),

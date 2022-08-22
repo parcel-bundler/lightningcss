@@ -11353,6 +11353,44 @@ mod tests {
   }
 
   #[test]
+  fn test_break() {
+    prefix_test(
+      r#"
+      .foo {
+        box-decoration-break: clone;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        -webkit-box-decoration-break: clone;
+        box-decoration-break: clone;
+      }
+    "#},
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        box-decoration-break: clone;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        box-decoration-break: clone;
+      }
+    "#},
+      Browsers {
+        firefox: Some(95 << 16),
+        ..Browsers::default()
+      },
+    );
+  }
+
+  #[test]
   fn test_position() {
     test(
       r#"
