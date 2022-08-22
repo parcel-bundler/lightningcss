@@ -1,6 +1,6 @@
 [package]
 name = "parcel_selectors"
-version = "0.24.4"
+version = "0.24.5"
 authors = ["The Servo Project Developers"]
 documentation = "https://docs.rs/selectors/"
 description = "CSS Selectors matching for Rust - forked for parcel_css"
