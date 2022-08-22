@@ -57,7 +57,7 @@ serde_json = "1"
 [features]
 default = ["grid"]
 browserslist = ["browserslist-rs"]
-cli = ["clap", "serde_json", "pathdiff", "browserslist-rs", "jemallocator"]
+cli = ["clap", "serde_json", "pathdiff", "browserslist", "jemallocator"]
 grid = []
 serde = ["smallvec/serde", "cssparser/serde"]
 
