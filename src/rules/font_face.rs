@@ -69,8 +69,15 @@ pub enum Source<'i> {
 
 impl<'i> Parse<'i> for Source<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(url) = input.try_parse(UrlSource::parse) {
-      return Ok(Source::Url(url));
+    match input.try_parse(UrlSource::parse) {
+      Ok(url) => return Ok(Source::Url(url)),
+      e @ Err(ParseError {
+        kind: ParseErrorKind::Basic(BasicParseErrorKind::AtRuleBodyInvalid),
+        ..
+      }) => {
+        return Err(e.err().unwrap());
+      }
+      _ => {}
     }
 
     input.expect_function_matching("local")?;
@@ -104,7 +111,9 @@ pub struct UrlSource<'i> {
   pub url: Url<'i>,
   /// Optional `format()` function.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  pub format: Option<Format<'i>>,
+  pub format: Option<FontFormat<'i>>,
+  /// Optional `tech()` function.
+  pub tech: Vec<FontTechnology>,
 }
 
 impl<'i> Parse<'i> for UrlSource<'i> {
@@ -112,12 +121,18 @@ impl<'i> Parse<'i> for UrlSource<'i> {
     let url = Url::parse(input)?;
 
     let format = if input.try_parse(|input| input.expect_function_matching("format")).is_ok() {
-      Some(input.parse_nested_block(Format::parse)?)
+      Some(input.parse_nested_block(FontFormat::parse)?)
     } else {
       None
     };
 
-    Ok(UrlSource { url, format })
+    let tech = if input.try_parse(|input| input.expect_function_matching("tech")).is_ok() {
+      input.parse_nested_block(Vec::<FontTechnology>::parse)?
+    } else {
+      vec![]
+    };
+
+    Ok(UrlSource { url, format, tech })
   }
 }
 
@@ -133,57 +148,12 @@ impl<'i> ToCss for UrlSource<'i> {
       format.to_css(dest)?;
       dest.write_char(')')?;
     }
-    Ok(())
-  }
-}
 
-/// The `format()` function within the [src](https://drafts.csswg.org/css-fonts/#src-desc)
-/// property of an `@font-face` rule.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Format<'i> {
-  /// A font format name.
-  #[cfg_attr(feature = "serde", serde(borrow))]
-  pub format: FontFormat<'i>,
-  /// The `supports()` function.
-  // TODO: did this get renamed to `tech()`?
-  pub supports: Vec<FontTechnology>,
-}
-
-impl<'i> Parse<'i> for Format<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let format = FontFormat::parse(input)?;
-    let mut supports = vec![];
-    if input.try_parse(|input| input.expect_ident_matching("supports")).is_ok() {
-      loop {
-        if let Ok(technology) = input.try_parse(FontTechnology::parse) {
-          supports.push(technology)
-        } else {
-          break;
-        }
-      }
-    }
-    Ok(Format { format, supports })
-  }
-}
-
-impl<'i> ToCss for Format<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    self.format.to_css(dest)?;
-    if !self.supports.is_empty() {
-      dest.write_str(" supports ")?;
-      let mut first = true;
-      for technology in &self.supports {
-        if first {
-          first = false;
-        } else {
-          dest.write_char(' ')?;
-        }
-        technology.to_css(dest)?;
-      }
+    if !self.tech.is_empty() {
+      dest.whitespace()?;
+      dest.write_str("tech(")?;
+      self.tech.to_css(dest)?;
+      dest.write_char(')')?;
     }
     Ok(())
   }
@@ -199,9 +169,10 @@ impl<'i> ToCss for Format<'i> {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum FontFormat<'i> {
-  /// A WOFF font.
+  /// [src](https://drafts.csswg.org/css-fonts/#font-format-definitions)
+  /// A WOFF 1.0 font.
   WOFF,
-  /// A WOFF v2 font.
+  /// A WOFF 2.0 font.
   WOFF2,
   /// A TrueType font.
   TrueType,
@@ -209,7 +180,7 @@ pub enum FontFormat<'i> {
   OpenType,
   /// An Embedded OpenType (.eot) font.
   EmbeddedOpenType,
-  /// A font collection.
+  /// OpenType Collection.
   Collection,
   /// An SVG font.
   SVG,
@@ -258,103 +229,46 @@ impl<'i> ToCss for FontFormat<'i> {
 }
 
 enum_property! {
-  /// A font feature tech descriptor in the `supports()`function of the
+  /// A font format keyword in the `format()` function of the the
   /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
   /// property of an `@font-face` rule.
-  pub enum FontFeatureTechnology {
-    /// Supports OpenType features.
-    OpenType,
-    /// Supports Apple Advanced Typography features.
-    AAT,
-    /// Supports Graphite features.
-    Graphite,
-  }
-}
+  pub enum FontTechnology {
+    /// A font feature tech descriptor in the `tech()`function of the
+    /// [src](https://drafts.csswg.org/css-fonts/#font-feature-tech-values)
+    /// property of an `@font-face` rule.
+    /// Supports OpenType Features.
+    /// https://docs.microsoft.com/en-us/typography/opentype/spec/featurelist
+    "feature-opentype": FeatureOpentype,
+    /// Supports Apple Advanced Typography Font Features.
+    /// https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html
+    "feature-aat": FeatureAat,
+    /// Supports Graphite Table Format.
+    /// https://scripts.sil.org/cms/scripts/render_download.php?site_id=nrsi&format=file&media_id=GraphiteBinaryFormat_3_0&filename=GraphiteBinaryFormat_3_0.pdf
+    "feature-graphite": FeatureGraphite,
 
-enum_property! {
-  /// A color font tech descriptor in the `supports()`function of the
-  /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
-  /// property of an `@font-face` rule.
-  pub enum ColorFontTechnology {
+    /// A color font tech descriptor in the `tech()`function of the
+    /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
+    /// property of an `@font-face` rule.
     /// Supports the `COLR` v0 table.
-    COLRv0,
+    "color-colrv0": ColorCOLRv0,
     /// Supports the `COLR` v1 table.
-    COLRv1,
-    /// Supports SVG glyphs.
-    SVG,
+    "color-colrv1": ColorCOLRv1,
+    /// Supports the `SVG` table.
+    "color-svg": ColorSVG,
     /// Supports the `sbix` table.
-    SBIX,
+    "color-sbix": ColorSbix,
     /// Supports the `CBDT` table.
-    CBDT,
-  }
-}
+    "color-cbdt": ColorCBDT,
 
-/// A font technology descriptor in the `supports()`function of the
-/// [src](https://drafts.csswg.org/css-fonts/#src-desc)
-/// property of an `@font-face` rule.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
-)]
-pub enum FontTechnology {
-  /// Supports font features.
-  Features(FontFeatureTechnology),
-  /// Supports variations.
-  Variations,
-  /// Supports color glyphs.
-  Color(ColorFontTechnology),
-  /// Supports color palettes.
-  Palettes,
-}
-
-impl<'i> Parse<'i> for FontTechnology {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let location = input.current_source_location();
-    match input.next()? {
-      Token::Function(f) => {
-        match_ignore_ascii_case! { &f,
-          "features" => Ok(FontTechnology::Features(input.parse_nested_block(FontFeatureTechnology::parse)?)),
-          "color" => Ok(FontTechnology::Color(input.parse_nested_block(ColorFontTechnology::parse)?)),
-          _ => Err(location.new_unexpected_token_error(
-            cssparser::Token::Ident(f.clone())
-          ))
-        }
-      }
-      Token::Ident(ident) => {
-        match_ignore_ascii_case! { &ident,
-          "variations" => Ok(FontTechnology::Variations),
-          "palettes" => Ok(FontTechnology::Palettes),
-          _ => Err(location.new_unexpected_token_error(
-            cssparser::Token::Ident(ident.clone())
-          ))
-        }
-      }
-      tok => Err(location.new_unexpected_token_error(tok.clone())),
-    }
-  }
-}
-
-impl ToCss for FontTechnology {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      FontTechnology::Features(f) => {
-        dest.write_str("features(")?;
-        f.to_css(dest)?;
-        dest.write_char(')')
-      }
-      FontTechnology::Color(c) => {
-        dest.write_str("color(")?;
-        c.to_css(dest)?;
-        dest.write_char(')')
-      }
-      FontTechnology::Variations => dest.write_str("variations"),
-      FontTechnology::Palettes => dest.write_str("palettes"),
-    }
+    /// Supports Variations
+    /// The variations tech refers to the support of font variations
+    "variations": Variations,
+    /// Supports Palettes
+    /// The palettes tech refers to support for font palettes
+    "palettes": Palettes,
+    /// Supports Incremental
+    /// The incremental tech refers to client support for incremental font loading, using either the range-request or the patch-subset method
+    "incremental": Incremental,
   }
 }
 
