@@ -2,6 +2,7 @@
 
 use super::Location;
 use crate::error::{ParserError, PrinterError};
+use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::properties::custom::CustomProperty;
 use crate::properties::font::{FontFamily, FontStretch, FontStyle, FontWeight};
@@ -119,31 +120,13 @@ impl<'i> Parse<'i> for UrlSource<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let url = Url::parse(input)?;
 
-    let mut format_location: Option<SourceLocation> = None;
     let format = if input.try_parse(|input| input.expect_function_matching("format")).is_ok() {
-      format_location = Some(input.current_source_location());
       Some(input.parse_nested_block(FontFormat::parse)?)
     } else {
       None
     };
 
     let tech = if input.try_parse(|input| input.expect_function_matching("tech")).is_ok() {
-      if let Some(location) = format_location {
-        // parser error
-        let tech_location = input.current_source_location();
-        if tech_location.line < location.line {
-          return Err(ParseError {
-            kind: ParseErrorKind::Basic(BasicParseErrorKind::AtRuleBodyInvalid),
-            location: input.current_source_location(),
-          });
-        } else if tech_location.line == location.line && tech_location.column < location.column {
-          return Err(ParseError {
-            kind: ParseErrorKind::Basic(BasicParseErrorKind::AtRuleBodyInvalid),
-            location: input.current_source_location(),
-          });
-        }
-      }
-
       input.parse_nested_block(Vec::<FontTechnology>::parse)?
     } else {
       vec![]
@@ -166,16 +149,10 @@ impl<'i> ToCss for UrlSource<'i> {
       dest.write_char(')')?;
     }
 
-    let tech_len = self.tech.len();
-    if tech_len > 0 {
+    if !self.tech.is_empty() {
       dest.whitespace()?;
       dest.write_str("tech(")?;
-      for i in 0..tech_len {
-        self.tech[i].to_css(dest)?;
-        if tech_len - 1 != i {
-          dest.write_char(',')?;
-        }
-      }
+      self.tech.to_css(dest)?;
       dest.write_char(')')?;
     }
     Ok(())
@@ -251,111 +228,47 @@ impl<'i> ToCss for FontFormat<'i> {
   }
 }
 
-/// A font format keyword in the `format()` function of the the
-/// [src](https://drafts.csswg.org/css-fonts/#src-desc)
-/// property of an `@font-face` rule.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value")
-)]
-pub enum FontTechnology {
-  /// A font feature tech descriptor in the `tech()`function of the
-  /// [src](https://drafts.csswg.org/css-fonts/#font-feature-tech-values)
-  /// property of an `@font-face` rule.
-  /// Supports OpenType Features.
-  /// https://docs.microsoft.com/en-us/typography/opentype/spec/featurelist
-  #[cfg_attr(feature = "serde", serde(rename = "feature-opentype"))]
-  FeatureOpentype,
-  /// Supports Apple Advanced Typography Font Features.
-  /// https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html
-  #[cfg_attr(feature = "serde", serde(rename = "feature-aat"))]
-  FeatureAat,
-  /// Supports Graphite Table Format.
-  /// https://scripts.sil.org/cms/scripts/render_download.php?site_id=nrsi&format=file&media_id=GraphiteBinaryFormat_3_0&filename=GraphiteBinaryFormat_3_0.pdf
-  #[cfg_attr(feature = "serde", serde(rename = "feature-graphite"))]
-  FeatureGraphite,
-
-  /// A color font tech descriptor in the `tech()`function of the
+enum_property! {
+  /// A font format keyword in the `format()` function of the the
   /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
   /// property of an `@font-face` rule.
-  /// Supports the `COLR` v0 table.
-  #[cfg_attr(feature = "serde", serde(rename = "color-colrv0"))]
-  ColorCOLRv0,
-  /// Supports the `COLR` v1 table.
-  #[cfg_attr(feature = "serde", serde(rename = "color-colrv1"))]
-  ColorCOLRv1,
-  /// Supports the `SVG` table.
-  #[cfg_attr(feature = "serde", serde(rename = "color-svg"))]
-  ColorSVG,
-  /// Supports the `sbix` table.
-  #[cfg_attr(feature = "serde", serde(rename = "color-sbix"))]
-  ColorSbix,
-  /// Supports the `CBDT` table.
-  #[cfg_attr(feature = "serde", serde(rename = "color-cbdt"))]
-  ColorCBDT,
+  pub enum FontTechnology {
+    /// A font feature tech descriptor in the `tech()`function of the
+    /// [src](https://drafts.csswg.org/css-fonts/#font-feature-tech-values)
+    /// property of an `@font-face` rule.
+    /// Supports OpenType Features.
+    /// https://docs.microsoft.com/en-us/typography/opentype/spec/featurelist
+    "feature-opentype": FeatureOpentype,
+    /// Supports Apple Advanced Typography Font Features.
+    /// https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html
+    "feature-aat": FeatureAat,
+    /// Supports Graphite Table Format.
+    /// https://scripts.sil.org/cms/scripts/render_download.php?site_id=nrsi&format=file&media_id=GraphiteBinaryFormat_3_0&filename=GraphiteBinaryFormat_3_0.pdf
+    "feature-graphite": FeatureGraphite,
 
-  /// Supports Variations
-  /// The variations tech refers to the support of font variations
-  #[cfg_attr(feature = "serde", serde(rename = "variations"))]
-  Variations,
-  /// Supports Palettes
-  /// The palettes tech refers to support for font palettes
-  #[cfg_attr(feature = "serde", serde(rename = "palettes"))]
-  Palettes,
-  /// Supports Incremental
-  /// The incremental tech refers to client support for incremental font loading, using either the range-request or the patch-subset method
-  #[cfg_attr(feature = "serde", serde(rename = "incremental"))]
-  Incremental,
-}
+    /// A color font tech descriptor in the `tech()`function of the
+    /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
+    /// property of an `@font-face` rule.
+    /// Supports the `COLR` v0 table.
+    "color-colrv0": ColorCOLRv0,
+    /// Supports the `COLR` v1 table.
+    "color-colrv1": ColorCOLRv1,
+    /// Supports the `SVG` table.
+    "color-svg": ColorSVG,
+    /// Supports the `sbix` table.
+    "color-sbix": ColorSbix,
+    /// Supports the `CBDT` table.
+    "color-cbdt": ColorCBDT,
 
-impl<'i> Parse<'i> for FontTechnology {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let location = input.current_source_location();
-    match input.next()? {
-      Token::Ident(ident) => {
-        match_ignore_ascii_case! { &ident,
-          "variations" => Ok(FontTechnology::Variations),
-          "palettes" => Ok(FontTechnology::Palettes),
-          "incremental" => Ok(FontTechnology::Incremental),
-          "feature-opentype" => Ok(FontTechnology::FeatureOpentype),
-          "feature-aat" => Ok(FontTechnology::FeatureAat),
-          "feature-graphite" => Ok(FontTechnology::FeatureGraphite),
-          "color-colrv0" => Ok(FontTechnology::ColorCOLRv0),
-          "color-colrv1" => Ok(FontTechnology::ColorCOLRv1),
-          "color-svg" => Ok(FontTechnology::ColorSVG),
-          "color-sbix" => Ok(FontTechnology::ColorSbix),
-          "color-cbdt" => Ok(FontTechnology::ColorCBDT),
-          _ => Err(location.new_unexpected_token_error(
-            cssparser::Token::Ident(ident.clone())
-          ))
-        }
-      }
-      tok => Err(location.new_unexpected_token_error(tok.clone())),
-    }
-  }
-}
-
-impl ToCss for FontTechnology {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    // ref: https://hg.mozilla.org/mozilla-central/rev/f97705333d4c#l7.101
-    dest.write_str(match self {
-      FontTechnology::FeatureOpentype => "feature-opentype",
-      FontTechnology::FeatureAat => "feature-aat",
-      FontTechnology::FeatureGraphite => "feature-graphite",
-      FontTechnology::ColorCOLRv0 => "color-colrv0",
-      FontTechnology::ColorCOLRv1 => "color-colrv1",
-      FontTechnology::ColorSVG => "color-svg",
-      FontTechnology::ColorSbix => "color-sbix",
-      FontTechnology::ColorCBDT => "color-cbdt",
-      FontTechnology::Variations => "variations",
-      FontTechnology::Palettes => "palettes",
-      FontTechnology::Incremental => "incremental",
-    })
+    /// Supports Variations
+    /// The variations tech refers to the support of font variations
+    "variations": Variations,
+    /// Supports Palettes
+    /// The palettes tech refers to support for font palettes
+    "palettes": Palettes,
+    /// Supports Incremental
+    /// The incremental tech refers to client support for incremental font loading, using either the range-request or the patch-subset method
+    "incremental": Incremental,
   }
 }
 
