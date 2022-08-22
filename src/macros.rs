@@ -210,7 +210,7 @@ pub(crate) use shorthand_property;
 macro_rules! shorthand_handler {
   (
     $name: ident -> $shorthand: ident$(<$l: lifetime>)? $(fallbacks: $shorthand_fallback: literal)?
-    { $( $key: ident: $prop: ident($type: ty $(, fallback: $fallback: literal)?), )+ }
+    { $( $key: ident: $prop: ident($type: ty $(, fallback: $fallback: literal)? $(, image: $image: literal)?), )+ }
   ) => {
     #[derive(Default)]
     pub(crate) struct $name$(<$l>)? {
@@ -237,12 +237,23 @@ macro_rules! shorthand_handler {
         match property {
           $(
             Property::$prop(val) => {
+              $(
+                if $image && val.should_preserve_fallback(&self.$key, self.targets) {
+                  self.finalize(dest, context);
+                }
+              )?
               self.$key = Some(val.clone());
               self.has_any = true;
             },
           )+
           Property::$shorthand(val) => {
             $(
+              $(
+                if $image && val.$key.should_preserve_fallback(&self.$key, self.targets) {
+                  self.finalize(dest, context);
+                }
+              )?
+
               self.$key = Some(val.$key.clone());
             )+
             self.has_any = true;

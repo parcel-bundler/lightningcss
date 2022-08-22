@@ -384,12 +384,22 @@ impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
     }
 
     match property {
-      BorderImageSource(val) => property!(source, val),
+      BorderImageSource(val) => {
+        if val.should_preserve_fallback(&self.source, self.targets) {
+          self.flush(dest);
+        }
+
+        property!(source, val);
+      }
       BorderImageSlice(val) => property!(slice, val),
       BorderImageWidth(val) => property!(width, val),
       BorderImageOutset(val) => property!(outset, val),
       BorderImageRepeat(val) => property!(repeat, val),
       BorderImage(val, vp) => {
+        if val.source.should_preserve_fallback(&self.source, self.targets) {
+          self.flush(dest);
+        }
+
         self.set_border_image(val);
         self.vendor_prefix |= *vp;
         self.has_any = true;

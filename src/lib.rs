@@ -12225,6 +12225,70 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    for property in &[
+      "background",
+      "background-image",
+      "border-image-source",
+      "border-image",
+      "border-image-source",
+      "-webkit-mask-image",
+      "-webkit-mask",
+      "list-style-image",
+      "list-style",
+    ] {
+      prefix_test(
+        &format!(
+          r#"
+        .foo {{
+          {}: url(foo.png);
+          {}: image-set(url("foo.png") 2x, url(bar.png) 1x);
+        }}
+      "#,
+          property, property
+        ),
+        &format!(
+          indoc! {r#"
+        .foo {{
+          {}: url("foo.png");
+          {}: -webkit-image-set(url("foo.png") 2x, url("bar.png"));
+          {}: image-set("foo.png" 2x, "bar.png");
+        }}
+      "#},
+          property, property, property
+        ),
+        Browsers {
+          ie: Some(11 << 16),
+          chrome: Some(95 << 16),
+          ..Browsers::default()
+        },
+      );
+
+      prefix_test(
+        &format!(
+          r#"
+        .foo {{
+          {}: url(foo.png);
+          {}: image-set(url("foo.png") 2x, url(bar.png) 1x);
+        }}
+      "#,
+          property, property
+        ),
+        &format!(
+          indoc! {r#"
+        .foo {{
+          {}: -webkit-image-set(url("foo.png") 2x, url("bar.png"));
+          {}: image-set("foo.png" 2x, "bar.png");
+        }}
+      "#},
+          property, property
+        ),
+        Browsers {
+          chrome: Some(95 << 16),
+          ..Browsers::default()
+        },
+      );
+    }
   }
 
   #[test]

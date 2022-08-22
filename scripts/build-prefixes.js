@@ -245,7 +245,8 @@ let mdnFeatures = {
           return [key, {version_added: false}];
         }
       })
-  )
+  ),
+  imageSet: mdn.css.types.image['image-set'].__compat.support
 };
 
 for (let feature in mdnFeatures) {

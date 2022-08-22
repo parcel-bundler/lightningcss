@@ -615,7 +615,12 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
     }
 
     match property {
-      Property::MaskImage(val, vp) => property!(images, val, vp),
+      Property::MaskImage(val, vp) => {
+        if Image::should_preserve_fallbacks(val, self.images.as_ref().map(|v| &v.0), context.targets) {
+          self.finalize(dest, context)
+        }
+        property!(images, val, vp)
+      }
       Property::MaskPosition(val, vp) => property!(positions, val, vp),
       Property::MaskSize(val, vp) => property!(sizes, val, vp),
       Property::MaskRepeat(val, vp) => property!(repeats, val, vp),
@@ -625,6 +630,9 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
       Property::MaskMode(val) => self.modes = Some(val.clone()),
       Property::Mask(val, prefix) => {
         let images = val.iter().map(|b| b.image.clone()).collect();
+        if Image::should_preserve_fallbacks(&images, self.images.as_ref().map(|v| &v.0), context.targets) {
+          self.finalize(dest, context)
+        }
         maybe_flush!(images, &images, prefix);
 
         let positions = val.iter().map(|b| b.position.clone()).collect();

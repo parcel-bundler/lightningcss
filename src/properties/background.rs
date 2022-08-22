@@ -780,6 +780,11 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
   ) -> bool {
     macro_rules! background_image {
       ($val: ident) => {
+        // If this is an image-set() and not all of our targets support it, preserve previous fallback.
+        if Image::should_preserve_fallbacks(&$val, self.images.as_ref(), self.targets) {
+          self.flush(dest);
+        }
+
         // Store prefixed properties. Clear if we hit an unprefixed property and we have
         // targets. In this case, the necessary prefixes will be generated.
         self.has_prefix = $val.iter().any(|x| x.has_vendor_prefix());

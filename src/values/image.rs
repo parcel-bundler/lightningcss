@@ -3,6 +3,7 @@
 use super::color::ColorFallbackKind;
 use super::gradient::*;
 use super::resolution::Resolution;
+use crate::compat;
 use crate::dependencies::{Dependency, UrlDependency};
 use crate::error::{ParserError, PrinterError};
 use crate::prefixes::{is_webkit_gradient, Feature};
@@ -98,6 +99,30 @@ impl<'i> Image<'i> {
       Image::Gradient(grad) => Image::Gradient(Box::new(grad.get_fallback(kind))),
       _ => self.clone(),
     }
+  }
+
+  pub(crate) fn should_preserve_fallback(&self, fallback: &Option<Image>, targets: Option<Browsers>) -> bool {
+    if let (Some(fallback), Some(targets)) = (&fallback, targets) {
+      return !compat::Feature::ImageSet.is_compatible(targets)
+        && matches!(self, Image::ImageSet(..))
+        && !matches!(fallback, Image::ImageSet(..));
+    }
+
+    false
+  }
+
+  pub(crate) fn should_preserve_fallbacks(
+    images: &SmallVec<[Image; 1]>,
+    fallback: Option<&SmallVec<[Image; 1]>>,
+    targets: Option<Browsers>,
+  ) -> bool {
+    if let (Some(fallback), Some(targets)) = (&fallback, targets) {
+      return !compat::Feature::ImageSet.is_compatible(targets)
+        && images.iter().any(|x| matches!(x, Image::ImageSet(..)))
+        && !fallback.iter().any(|x| matches!(x, Image::ImageSet(..)));
+    }
+
+    false
   }
 }
 

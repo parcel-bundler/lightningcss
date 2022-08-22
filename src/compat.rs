@@ -41,6 +41,7 @@ pub enum Feature {
   FontFamilySystemUi,
   FormValidation,
   Fullscreen,
+  ImageSet,
   LabColors,
   LangList,
   LogicalBorderRadius,
@@ -2124,6 +2125,51 @@ impl Feature {
         }
         if let Some(version) = browsers.android {
           if version < 2424832 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::ImageSet => {
+        if let Some(version) = browsers.chrome {
+          if version < 1638400 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 5767168 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 917504 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 393216 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 393216 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 66816 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 263168 {
             return false;
           }
         }
