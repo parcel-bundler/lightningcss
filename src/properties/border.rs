@@ -707,6 +707,7 @@ impl<'i> BorderHandler<'i> {
     self.has_any = false;
 
     let logical_supported = context.is_supported(Feature::LogicalBorders);
+    let logical_shorthand_supported = context.is_supported(Feature::LogicalBorderShorthand);
     macro_rules! logical_prop {
       ($ltr: ident, $ltr_key: ident, $rtl: ident, $rtl_key: ident, $val: expr) => {{
         context.add_logical_rule(Property::$ltr($val.clone()), Property::$rtl($val.clone()));
@@ -1116,7 +1117,7 @@ impl<'i> BorderHandler<'i> {
 
           if $is_logical && $block_start == $block_end && $block_start.is_valid() {
             if logical_supported {
-              if (context.is_supported(Feature::LogicalBorderShorthand)) {
+              if logical_shorthand_supported {
                 prop!(BorderBlock => $block_start.to_border());
               } else {
                 prop!(BorderBlockStart => $block_start.to_border());
@@ -1127,7 +1128,7 @@ impl<'i> BorderHandler<'i> {
               prop!(BorderBottom => $block_start.to_border());
             }
           } else {
-            if $is_logical && logical_supported && !$block_start.is_valid() && !$block_end.is_valid() {
+            if $is_logical && logical_shorthand_supported && !$block_start.is_valid() && !$block_end.is_valid() {
               logical_shorthand!(BorderBlockStyle, style, $block_start, $block_end);
               logical_shorthand!(BorderBlockWidth, width, $block_start, $block_end);
               logical_shorthand!(BorderBlockColor, color, $block_start, $block_end);
@@ -1139,7 +1140,7 @@ impl<'i> BorderHandler<'i> {
 
           if $is_logical && $inline_start == $inline_end && $inline_start.is_valid() {
             if logical_supported {
-              if (context.is_supported(Feature::LogicalBorderShorthand)) {
+              if logical_shorthand_supported {
                 prop!(BorderInline => $inline_start.to_border());
               } else {
                 prop!(BorderInlineStart => $inline_start.to_border());
@@ -1151,7 +1152,7 @@ impl<'i> BorderHandler<'i> {
             }
           } else {
             if $is_logical && !$inline_start.is_valid() && !$inline_end.is_valid() {
-              if logical_supported {
+              if logical_shorthand_supported {
                 logical_shorthand!(BorderInlineStyle, style, $inline_start, $inline_end);
                 logical_shorthand!(BorderInlineWidth, width, $inline_start, $inline_end);
                 logical_shorthand!(BorderInlineColor, color, $inline_start, $inline_end);
