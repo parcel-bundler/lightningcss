@@ -366,3 +366,22 @@ fn targets() -> Result<(), Box<dyn std::error::Error>> {
 
   Ok(())
 }
+
+#[test]
+fn preserve_custom_media() -> Result<(), Box<dyn std::error::Error>> {
+  let file = assert_fs::NamedTempFile::new("test.css")?;
+  file.write_str(
+    r#"
+      @custom-media --foo print;
+    "#,
+  )?;
+
+  let mut cmd = Command::cargo_bin("parcel_css")?;
+  cmd.arg(file.path());
+  cmd.arg("--custom-media");
+  cmd.assert().success().stdout(predicate::str::contains(indoc! {r#"
+    @custom-media --foo print;
+  "#}));
+
+  Ok(())
+}
