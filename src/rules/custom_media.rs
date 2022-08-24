@@ -31,6 +31,5 @@ impl<'i> ToCss for CustomMediaRule<'i> {
     dest.write_char(' ')?;
     self.query.to_css(dest)?;
     dest.write_char(';')
-
   }
 }
