@@ -660,6 +660,61 @@ dependencies = [
 ]
 
 [[package]]
+name = "lightningcss"
+version = "1.0.0-alpha.31"
+dependencies = [
+ "assert_cmd",
+ "assert_fs",
+ "bitflags",
+ "browserslist-rs",
+ "clap",
+ "const-str",
+ "cssparser",
+ "dashmap",
+ "data-encoding",
+ "indoc",
+ "itertools",
+ "jemallocator",
+ "lazy_static",
+ "parcel_selectors",
+ "parcel_sourcemap",
+ "pathdiff",
+ "predicates",
+ "rayon",
+ "serde",
+ "serde_json",
+ "smallvec",
+]
+
+[[package]]
+name = "lightningcss_c_bindings"
+version = "0.1.0"
+dependencies = [
+ "browserslist-rs",
+ "cbindgen",
+ "lightningcss",
+ "parcel_sourcemap",
+]
+
+[[package]]
+name = "lightningcss_node"
+version = "0.1.0"
+dependencies = [
+ "cssparser",
+ "jemallocator",
+ "js-sys",
+ "lightningcss",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "parcel_sourcemap",
+ "serde",
+ "serde-wasm-bindgen",
+ "serde_bytes",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -823,61 +878,6 @@ name = "os_str_bytes"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e22443d1643a904602595ba1cd8f7d896afe56d26712531c5ff73a15b2fbf64"
-
-[[package]]
-name = "parcel_css"
-version = "1.0.0-alpha.31"
-dependencies = [
- "assert_cmd",
- "assert_fs",
- "bitflags",
- "browserslist-rs",
- "clap",
- "const-str",
- "cssparser",
- "dashmap",
- "data-encoding",
- "indoc",
- "itertools",
- "jemallocator",
- "lazy_static",
- "parcel_selectors",
- "parcel_sourcemap",
- "pathdiff",
- "predicates",
- "rayon",
- "serde",
- "serde_json",
- "smallvec",
-]
-
-[[package]]
-name = "parcel_css_c_bindings"
-version = "0.1.0"
-dependencies = [
- "browserslist-rs",
- "cbindgen",
- "parcel_css",
- "parcel_sourcemap",
-]
-
-[[package]]
-name = "parcel_css_node"
-version = "0.1.0"
-dependencies = [
- "cssparser",
- "jemallocator",
- "js-sys",
- "napi",
- "napi-build",
- "napi-derive",
- "parcel_css",
- "parcel_sourcemap",
- "serde",
- "serde-wasm-bindgen",
- "serde_bytes",
- "wasm-bindgen",
-]
 
 [[package]]
 name = "parcel_selectors"

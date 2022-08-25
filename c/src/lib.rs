@@ -4,10 +4,10 @@ use std::mem::ManuallyDrop;
 use std::os::raw::c_char;
 use std::sync::{Arc, RwLock};
 
-use parcel_css::css_modules::PatternParseError;
-use parcel_css::error::{Error, MinifyErrorKind, ParserError, PrinterError};
-use parcel_css::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
-use parcel_css::targets::Browsers;
+use lightningcss::css_modules::PatternParseError;
+use lightningcss::error::{Error, MinifyErrorKind, ParserError, PrinterError};
+use lightningcss::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
+use lightningcss::targets::Browsers;
 use parcel_sourcemap::SourceMap;
 
 pub struct StyleSheetWrapper<'i, 'o> {
@@ -134,7 +134,7 @@ macro_rules! unwrap {
 }
 
 #[no_mangle]
-pub extern "C" fn parcel_css_browserslist_to_targets(
+pub extern "C" fn lightningcss_browserslist_to_targets(
   query: *const c_char,
   targets: *mut Targets,
   error: *mut *mut CssError,
@@ -222,8 +222,8 @@ impl Default for PseudoClasses {
   }
 }
 
-impl<'a> Into<parcel_css::printer::PseudoClasses<'a>> for PseudoClasses {
-  fn into(self) -> parcel_css::printer::PseudoClasses<'a> {
+impl<'a> Into<lightningcss::printer::PseudoClasses<'a>> for PseudoClasses {
+  fn into(self) -> lightningcss::printer::PseudoClasses<'a> {
     macro_rules! pc {
       ($ptr: expr) => {
         if $ptr.is_null() {
@@ -234,7 +234,7 @@ impl<'a> Into<parcel_css::printer::PseudoClasses<'a>> for PseudoClasses {
       };
     }
 
-    parcel_css::printer::PseudoClasses {
+    lightningcss::printer::PseudoClasses {
       hover: pc!(self.hover),
       active: pc!(self.active),
       focus: pc!(self.focus),
@@ -245,7 +245,7 @@ impl<'a> Into<parcel_css::printer::PseudoClasses<'a>> for PseudoClasses {
 }
 
 #[no_mangle]
-pub extern "C" fn parcel_css_stylesheet_parse(
+pub extern "C" fn lightningcss_stylesheet_parse(
   source: *const c_char,
   len: usize,
   options: ParseOptions,
@@ -267,14 +267,14 @@ pub extern "C" fn parcel_css_stylesheet_parse(
         let pattern =
           unsafe { std::str::from_utf8_unchecked(CStr::from_ptr(options.css_modules_pattern).to_bytes()) };
         unwrap!(
-          parcel_css::css_modules::Pattern::parse(pattern),
+          lightningcss::css_modules::Pattern::parse(pattern),
           error,
           std::ptr::null_mut()
         )
       } else {
-        parcel_css::css_modules::Pattern::default()
+        lightningcss::css_modules::Pattern::default()
       };
-      Some(parcel_css::css_modules::Config {
+      Some(lightningcss::css_modules::Config {
         pattern,
         dashed_idents: options.css_modules_dashed_idents,
       })
@@ -295,7 +295,7 @@ pub extern "C" fn parcel_css_stylesheet_parse(
 }
 
 #[no_mangle]
-pub extern "C" fn parcel_css_stylesheet_transform(
+pub extern "C" fn lightningcss_stylesheet_transform(
   stylesheet: *mut StyleSheetWrapper,
   options: TransformOptions,
   error: *mut *mut CssError,
@@ -306,7 +306,7 @@ pub extern "C" fn parcel_css_stylesheet_transform(
 }
 
 #[no_mangle]
-pub extern "C" fn parcel_css_stylesheet_to_css(
+pub extern "C" fn lightningcss_stylesheet_to_css(
   stylesheet: *mut StyleSheetWrapper,
   options: ToCssOptions,
   error: *mut *mut CssError,
@@ -409,7 +409,7 @@ pub extern "C" fn parcel_css_stylesheet_to_css(
 }
 
 #[no_mangle]
-pub extern "C" fn parcel_css_stylesheet_free(stylesheet: *mut StyleSheetWrapper) {
+pub extern "C" fn lightningcss_stylesheet_free(stylesheet: *mut StyleSheetWrapper) {
   if !stylesheet.is_null() {
     drop(unsafe { Box::from_raw(stylesheet) })
   }
@@ -455,7 +455,7 @@ impl Drop for ToCssResult {
 }
 
 #[no_mangle]
-pub extern "C" fn parcel_css_to_css_result_free(result: ToCssResult) {
+pub extern "C" fn lightningcss_to_css_result_free(result: ToCssResult) {
   drop(result)
 }
 
@@ -499,9 +499,9 @@ pub enum CssModuleReference {
   },
 }
 
-impl From<parcel_css::css_modules::CssModuleReference> for CssModuleReference {
-  fn from(reference: parcel_css::css_modules::CssModuleReference) -> Self {
-    use parcel_css::css_modules::CssModuleReference::*;
+impl From<lightningcss::css_modules::CssModuleReference> for CssModuleReference {
+  fn from(reference: lightningcss::css_modules::CssModuleReference) -> Self {
+    use lightningcss::css_modules::CssModuleReference::*;
     match reference {
       Local { name } => CssModuleReference::Local { name: name.into() },
       Global { name } => CssModuleReference::Global { name: name.into() },
@@ -554,7 +554,7 @@ impl Drop for RawString {
 }
 
 #[no_mangle]
-pub extern "C" fn parcel_css_error_message(error: *mut CssError) -> *const c_char {
+pub extern "C" fn lightningcss_error_message(error: *mut CssError) -> *const c_char {
   match unsafe { error.as_mut() } {
     Some(err) => err.message(),
     None => std::ptr::null(),
@@ -562,14 +562,14 @@ pub extern "C" fn parcel_css_error_message(error: *mut CssError) -> *const c_cha
 }
 
 #[no_mangle]
-pub extern "C" fn parcel_css_error_free(error: *mut CssError) {
+pub extern "C" fn lightningcss_error_free(error: *mut CssError) {
   if !error.is_null() {
     drop(unsafe { Box::from_raw(error) })
   }
 }
 
 #[no_mangle]
-pub extern "C" fn parcel_css_stylesheet_get_warning_count<'i>(
+pub extern "C" fn lightningcss_stylesheet_get_warning_count<'i>(
   stylesheet: *mut StyleSheetWrapper<'i, '_>,
 ) -> usize {
   match unsafe { stylesheet.as_mut() } {
@@ -579,7 +579,7 @@ pub extern "C" fn parcel_css_stylesheet_get_warning_count<'i>(
 }
 
 #[no_mangle]
-pub extern "C" fn parcel_css_stylesheet_get_warning<'i>(
+pub extern "C" fn lightningcss_stylesheet_get_warning<'i>(
   stylesheet: *mut StyleSheetWrapper<'i, '_>,
   index: usize,
 ) -> *const c_char {

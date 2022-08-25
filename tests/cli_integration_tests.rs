@@ -2,7 +2,7 @@ use assert_cmd::prelude::*;
 use assert_fs::fixture::FixtureError;
 use assert_fs::prelude::*;
 use indoc::indoc;
-use parcel_css::css_modules::CssModuleExport;
+use lightningcss::css_modules::CssModuleExport;
 use predicates::prelude::*;
 use std::collections::HashMap;
 use std::process::Command;
@@ -144,7 +144,7 @@ fn valid_input_file() -> Result<(), Box<dyn std::error::Error>> {
     "#,
   )?;
 
-  let mut cmd = Command::cargo_bin("parcel_css")?;
+  let mut cmd = Command::cargo_bin("lightningcss")?;
   cmd.arg(file.path());
   cmd.assert().success().stdout(predicate::str::contains(indoc! {r#"
         .foo {
@@ -156,7 +156,7 @@ fn valid_input_file() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn no_input_file() -> Result<(), Box<dyn std::error::Error>> {
-  let mut cmd = Command::cargo_bin("parcel_css")?;
+  let mut cmd = Command::cargo_bin("lightningcss")?;
   cmd.assert().failure().stderr(predicate::str::contains(
     "The following required arguments were not provided:\n    <INPUT_FILE>",
   ));
@@ -169,7 +169,7 @@ fn empty_input_file() -> Result<(), Box<dyn std::error::Error>> {
   let file = assert_fs::NamedTempFile::new("test.css")?;
   file.write_str("")?;
 
-  let mut cmd = Command::cargo_bin("parcel_css")?;
+  let mut cmd = Command::cargo_bin("lightningcss")?;
   cmd.arg(file.path());
   cmd.assert().success();
 
@@ -180,7 +180,7 @@ fn empty_input_file() -> Result<(), Box<dyn std::error::Error>> {
 fn output_file_option() -> Result<(), Box<dyn std::error::Error>> {
   let infile = test_file()?;
   let outfile = assert_fs::NamedTempFile::new("test.out")?;
-  let mut cmd = Command::cargo_bin("parcel_css")?;
+  let mut cmd = Command::cargo_bin("lightningcss")?;
   cmd.arg(infile.path());
   cmd.arg("--output-file").arg(outfile.path());
   cmd.assert().success();
@@ -195,7 +195,7 @@ fn output_file_option() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn minify_option() -> Result<(), Box<dyn std::error::Error>> {
   let infile = test_file()?;
-  let mut cmd = Command::cargo_bin("parcel_css")?;
+  let mut cmd = Command::cargo_bin("lightningcss")?;
   cmd.arg(infile.path());
   cmd.arg("--minify");
   cmd
@@ -220,7 +220,7 @@ fn nesting_option() -> Result<(), Box<dyn std::error::Error>> {
       "#,
   )?;
 
-  let mut cmd = Command::cargo_bin("parcel_css")?;
+  let mut cmd = Command::cargo_bin("lightningcss")?;
   cmd.arg(infile.path());
   cmd.arg("--nesting");
   cmd.assert().success().stdout(predicate::str::contains(indoc! {r#"
@@ -242,7 +242,7 @@ fn css_modules_infer_output_file() -> Result<(), Box<dyn std::error::Error>> {
   let infile = assert_fs::NamedTempFile::new("test.css")?;
   let outfile = assert_fs::NamedTempFile::new("out.css")?;
   infile.write_str(&input)?;
-  let mut cmd = Command::cargo_bin("parcel_css")?;
+  let mut cmd = Command::cargo_bin("lightningcss")?;
   cmd.current_dir(infile.path().parent().unwrap());
   cmd.arg(infile.path());
   cmd.arg("--css-modules");
@@ -264,7 +264,7 @@ fn css_modules_output_target_option() -> Result<(), Box<dyn std::error::Error>> 
   let outfile = assert_fs::NamedTempFile::new("out.css")?;
   let modules_file = assert_fs::NamedTempFile::new("module.json")?;
   infile.write_str(&input)?;
-  let mut cmd = Command::cargo_bin("parcel_css")?;
+  let mut cmd = Command::cargo_bin("lightningcss")?;
   cmd.current_dir(infile.path().parent().unwrap());
   cmd.arg(infile.path());
   cmd.arg("-o").arg(outfile.path());
@@ -283,7 +283,7 @@ fn css_modules_stdout() -> Result<(), Box<dyn std::error::Error>> {
   let (input, out_code, exports) = css_module_test_vals();
   let infile = assert_fs::NamedTempFile::new("test.css")?;
   infile.write_str(&input)?;
-  let mut cmd = Command::cargo_bin("parcel_css")?;
+  let mut cmd = Command::cargo_bin("lightningcss")?;
   cmd.current_dir(infile.path().parent().unwrap());
   cmd.arg(infile.path());
   cmd.arg("--css-modules");
@@ -303,7 +303,7 @@ fn css_modules_pattern() -> Result<(), Box<dyn std::error::Error>> {
   let (input, _, _) = css_module_test_vals();
   let infile = assert_fs::NamedTempFile::new("test.css")?;
   infile.write_str(&input)?;
-  let mut cmd = Command::cargo_bin("parcel_css")?;
+  let mut cmd = Command::cargo_bin("lightningcss")?;
   cmd.current_dir(infile.path().parent().unwrap());
   cmd.arg(infile.path());
   cmd.arg("--css-modules");
@@ -320,7 +320,7 @@ fn sourcemap() -> Result<(), Box<dyn std::error::Error>> {
   let outdir = assert_fs::TempDir::new()?;
   let outfile = outdir.child("out.css");
   infile.write_str(&input)?;
-  let mut cmd = Command::cargo_bin("parcel_css")?;
+  let mut cmd = Command::cargo_bin("lightningcss")?;
   cmd.current_dir(infile.path().parent().unwrap());
   cmd.arg(infile.path());
   cmd.arg("-o").arg(outfile.path());
@@ -353,7 +353,7 @@ fn targets() -> Result<(), Box<dyn std::error::Error>> {
     "#,
   )?;
 
-  let mut cmd = Command::cargo_bin("parcel_css")?;
+  let mut cmd = Command::cargo_bin("lightningcss")?;
   cmd.arg(file.path());
   cmd.arg("--custom-media");
   cmd.arg("--targets").arg("last 1 Chrome version");
@@ -376,7 +376,7 @@ fn preserve_custom_media() -> Result<(), Box<dyn std::error::Error>> {
     "#,
   )?;
 
-  let mut cmd = Command::cargo_bin("parcel_css")?;
+  let mut cmd = Command::cargo_bin("lightningcss")?;
   cmd.arg(file.path());
   cmd.arg("--custom-media");
   cmd.assert().success().stdout(predicate::str::contains(indoc! {r#"

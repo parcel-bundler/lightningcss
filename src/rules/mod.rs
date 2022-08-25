@@ -12,7 +12,7 @@
 //! This example shows how you could parse a single CSS rule, and serialize it to a string.
 //!
 //! ```
-//! use parcel_css::{
+//! use lightningcss::{
 //!   rules::CssRule,
 //!   traits::ToCss,
 //!   stylesheet::{ParserOptions, PrinterOptions}

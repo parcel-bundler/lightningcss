@@ -2,7 +2,7 @@ language = "C"
 
 [parse]
 parse_deps = true
-include = ["parcel_css"]
+include = ["lightningcss"]
 
 [export.rename]
 StyleSheetWrapper = "StyleSheet"

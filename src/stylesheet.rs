@@ -31,7 +31,7 @@ pub use crate::printer::PseudoClasses;
 /// # Example
 ///
 /// ```
-/// use parcel_css::stylesheet::{
+/// use lightningcss::stylesheet::{
 ///   StyleSheet, ParserOptions, MinifyOptions, PrinterOptions
 /// };
 ///
@@ -247,7 +247,7 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
 /// # Example
 ///
 /// ```
-/// use parcel_css::stylesheet::{
+/// use lightningcss::stylesheet::{
 ///   StyleAttribute, ParserOptions, MinifyOptions, PrinterOptions
 /// };
 ///

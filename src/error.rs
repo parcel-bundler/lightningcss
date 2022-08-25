@@ -316,7 +316,7 @@ impl fmt::Display for MinifyErrorKind {
       CustomMediaNotDefined { name } => write!(f, "Custom media query {} is not defined", name),
       UnsupportedCustomMediaBooleanLogic { .. } => write!(
         f,
-        "Boolean logic with media types in @custom-media rules is not supported by Parcel CSS"
+        "Boolean logic with media types in @custom-media rules is not supported by Lightning CSS"
       ),
     }
   }

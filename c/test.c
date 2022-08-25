@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <string.h>
-#include "parcel_css.h"
+#include "lightningcss.h"
 
 int print_error(CssError *error);
 
@@ -25,7 +25,7 @@ int main()
       .css_modules_dashed_idents = true};
 
   CssError *error = NULL;
-  StyleSheet *stylesheet = parcel_css_stylesheet_parse(source, strlen(source), parse_opts, &error);
+  StyleSheet *stylesheet = lightningcss_stylesheet_parse(source, strlen(source), parse_opts, &error);
   if (!stylesheet)
     goto cleanup;
 
@@ -34,10 +34,10 @@ int main()
       .unused_symbols = unused_symbols,
       .unused_symbols_len = 0};
 
-  if (!parcel_css_browserslist_to_targets("last 2 versions, not IE <= 11", &transform_opts.targets, &error))
+  if (!lightningcss_browserslist_to_targets("last 2 versions, not IE <= 11", &transform_opts.targets, &error))
     goto cleanup;
 
-  if (!parcel_css_stylesheet_transform(stylesheet, transform_opts, &error))
+  if (!lightningcss_stylesheet_transform(stylesheet, transform_opts, &error))
     goto cleanup;
 
   ToCssOptions to_css_opts = {
@@ -46,14 +46,14 @@ int main()
       .pseudo_classes = {
           .hover = "is-hovered"}};
 
-  ToCssResult result = parcel_css_stylesheet_to_css(stylesheet, to_css_opts, &error);
+  ToCssResult result = lightningcss_stylesheet_to_css(stylesheet, to_css_opts, &error);
   if (error)
     goto cleanup;
 
-  size_t warning_count = parcel_css_stylesheet_get_warning_count(stylesheet);
+  size_t warning_count = lightningcss_stylesheet_get_warning_count(stylesheet);
   for (size_t i = 0; i < warning_count; i++)
   {
-    printf("warning: %s\n", parcel_css_stylesheet_get_warning(stylesheet, i));
+    printf("warning: %s\n", lightningcss_stylesheet_get_warning(stylesheet, i));
   }
 
   fwrite(result.code.text, sizeof(char), result.code.len, stdout);
@@ -88,13 +88,13 @@ int main()
   }
 
 cleanup:
-  parcel_css_stylesheet_free(stylesheet);
-  parcel_css_to_css_result_free(result);
+  lightningcss_stylesheet_free(stylesheet);
+  lightningcss_to_css_result_free(result);
 
   if (error)
   {
-    printf("error: %s\n", parcel_css_error_message(error));
-    parcel_css_error_free(error);
+    printf("error: %s\n", lightningcss_error_message(error));
+    lightningcss_error_free(error);
     return 1;
   }
 }
