@@ -45,6 +45,22 @@ export interface TransformOptions {
 
 export type BundleOptions = Omit<TransformOptions, 'code'>;
 
+export interface BundleAsyncOptions extends BundleOptions {
+  resolver?: Resolver;
+}
+
+/** Custom resolver to use when loading CSS files. */
+export interface Resolver {
+  /** Read the given file and return its contents as a string. */
+  read?: (file: string) => string | Promise<string>;
+
+  /**
+   * Resolve the given CSS import specifier from the provided originating file to a
+   * path which gets passed to `read()`.
+   */
+  resolve?: (specifier: string, originatingFile: string) => string | Promise<string>;
+}
+
 export interface Drafts {
   /** Whether to enable CSS nesting. */
   nesting?: boolean,
@@ -226,3 +242,8 @@ export declare function browserslistToTargets(browserslist: string[]): Targets;
  * Bundles a CSS file and its dependencies, inlining @import rules.
  */
 export declare function bundle(options: BundleOptions): TransformResult;
+
+/**
+ * Bundles a CSS file and its dependencies asynchronously, inlining @import rules.
+ */
+export declare function bundleAsync(options: BundleAsyncOptions): TransformResult;
