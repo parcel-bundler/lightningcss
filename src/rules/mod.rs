@@ -259,7 +259,7 @@ impl<'i> CssRuleList<'i> {
     for mut rule in self.0.drain(..) {
       match &mut rule {
         CssRule::Keyframes(keyframes) => {
-          if context.unused_symbols.contains(keyframes.name.0.as_ref()) {
+          if context.unused_symbols.contains(keyframes.name.0.0.as_ref()) {
             continue;
           }
           keyframes.minify(context);

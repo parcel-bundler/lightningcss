@@ -434,7 +434,7 @@ impl<'a, 'o, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'o, 'i> {
 
         // Ok(AtRulePrelude::Keyframes(CustomIdent(name), prefix))
 
-        let name = input.try_parse(KeyframesName::parse).ok();
+        let name = input.try_parse(KeyframesName::parse)?;
         Ok(AtRulePrelude::Keyframes(name, prefix))
       },
       "page" => {

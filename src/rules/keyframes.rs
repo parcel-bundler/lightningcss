@@ -33,7 +33,8 @@ pub struct KeyframesRule<'i> {
   pub loc: Location,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+/// KeyframesName
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct KeyframesName<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CustomIdent<'i>);
 
