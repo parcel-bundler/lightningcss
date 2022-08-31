@@ -15,8 +15,8 @@ use crate::traits::{Parse, ToCss};
 use crate::values::color::ColorFallbackKind;
 use crate::values::ident::CustomIdent;
 use crate::values::percentage::Percentage;
-use crate::vendor_prefix::VendorPrefix;
 use crate::values::string::CowArcStr;
+use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 
 /// A [@keyframes](https://drafts.csswg.org/css-animations/#keyframes) rule.
@@ -24,6 +24,7 @@ use cssparser::*;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct KeyframesRule<'i> {
   /// The animation name.
+  /// <keyframes-name> = <custom-ident> | <string>
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: KeyframesName<'i>,
   /// A list of keyframes in the animation.
@@ -37,37 +38,24 @@ pub struct KeyframesRule<'i> {
 /// KeyframesName
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-// pub struct KeyframesName<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CustomIdent<'i>);
-
 pub enum KeyframesName<'i> {
-  /// `<string>` of a `@keyframes` name.
-  #[cfg_attr(feature = "serde", serde(borrow))]
-  Custom(CowArcStr<'i>),
-
   /// `<custom-ident>` of a `@keyframes` name.
   #[cfg_attr(feature = "serde", serde(borrow))]
   Ident(CustomIdent<'i>),
-}
 
-// impl<'i> Parse<'i> for KeyframesName<'i> {
-//   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-//     let ident = CustomIdent::parse(input)?;
-//     match_ignore_ascii_case! { &*ident.0,
-//       "none" | "and" | "not" | "foo" => Err(input.new_unexpected_token_error(Token::Ident(ident.0.as_ref().to_owned().into()))),
-//       _ => Ok(KeyframesName(ident))
-//     }
-//   }
-// }
+  /// `<string>` of a `@keyframes` name.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  Custom(CowArcStr<'i>),
+}
 
 impl<'i> Parse<'i> for KeyframesName<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
-    let name = match *input.next()? {
-      Token::Ident(ref s) => s.into(),
-      Token::QuotedString(ref s) => s.into(),
-      ref t => return Err(location.new_unexpected_token_error(t.clone())),
-    };
-    Ok(KeyframesName::Ident(CustomIdent(name)))
+    match input.next()? {
+      &Token::Ident(ref s) => Ok(KeyframesName::Ident(CustomIdent(s.into()))),
+      &Token::QuotedString(ref s) => Ok(KeyframesName::Custom(s.into())),
+      t => return Err(location.new_unexpected_token_error(t.clone())),
+    }
   }
 }
 
@@ -76,7 +64,17 @@ impl<'i> ToCss for KeyframesName<'i> {
   where
     W: std::fmt::Write,
   {
-    self.to_css(dest)
+    match self {
+      KeyframesName::Ident(ident) => {
+        dest.write_ident(ident.0.as_ref())?;
+      }
+      KeyframesName::Custom(s) => {
+        dest.write_char('"')?;
+        dest.write_str(s.as_ref())?;
+        dest.write_char('"')?;
+      }
+    }
+    Ok(())
   }
 }
 
