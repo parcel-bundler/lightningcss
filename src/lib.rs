@@ -12260,17 +12260,36 @@ mod tests {
 
   #[test]
   fn test_image_set() {
+    // Spec: https://drafts.csswg.org/css-images-4/#image-set-notation
+    // WPT: https://github.com/web-platform-tests/wpt/blob/master/css/css-images/image-set/image-set-parsing.html
+    // test image-set(<string>)
     minify_test(
       ".foo { background: image-set(\"foo.png\" 2x, url(bar.png) 1x) }",
-      ".foo{background:image-set(\"foo.png\" 2x,\"bar.png\")}",
+      ".foo{background:image-set(\"foo.png\" 2x,\"bar.png\" 1x)}",
     );
+
+    // test image-set(type(<string>))
     minify_test(
       ".foo { background: image-set('foo.webp' type('webp'), url(foo.jpg)) }",
-      ".foo{background:image-set(\"foo.webp\" type(\"webp\"),\"foo.jpg\")}",
+      ".foo{background:image-set(\"foo.webp\" 1x type(\"webp\"),\"foo.jpg\" 1x)}",
     );
     minify_test(
+      ".foo { background: image-set('foo.avif' 2x type('image/avif'), url(foo.png)) }",
+      ".foo{background:image-set(\"foo.avif\" 2x type(\"image/avif\"),\"foo.png\" 1x)}",
+    );
+    minify_test(
+      ".foo { background: image-set(url('example.png') 3x type('image/png')) }",
+      ".foo{background:image-set(\"example.png\" 3x type(\"image/png\"))}",
+    );
+
+    minify_test(
+      ".foo { background: image-set(url(example.png) type('image/png') 1x) }",
+      ".foo{background:image-set(\"example.png\" 1x type(\"image/png\"))}",
+    );
+
+    minify_test(
       ".foo { background: -webkit-image-set(url(\"foo.png\") 2x, url(bar.png) 1x) }",
-      ".foo{background:-webkit-image-set(url(foo.png) 2x,url(bar.png))}",
+      ".foo{background:-webkit-image-set(url(foo.png) 2x,url(bar.png) 1x)}",
     );
 
     test(
@@ -12282,8 +12301,22 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: -webkit-image-set(url("foo.png") 2x, url("bar.png"));
-        background: image-set("foo.png" 2x, "bar.png");
+        background: -webkit-image-set(url("foo.png") 2x, url("bar.png") 1x);
+        background: image-set("foo.png" 2x, "bar.png" 1x);
+      }
+    "#},
+    );
+
+    // test image-set(<gradient>)
+    test(
+      r#"
+      .foo {
+        background: image-set(linear-gradient(cornflowerblue, white) 1x, url("detailed-gradient.png") 3x);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        background: image-set(linear-gradient(#6495ed, #fff) 1x, "detailed-gradient.png" 3x);
       }
     "#},
     );
@@ -12296,8 +12329,8 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: -webkit-image-set(url("foo.png") 2x, url("bar.png"));
-        background: image-set("foo.png" 2x, "bar.png");
+        background: -webkit-image-set(url("foo.png") 2x, url("bar.png") 1x);
+        background: image-set("foo.png" 2x, "bar.png" 1x);
       }
     "#},
       Browsers {
@@ -12316,7 +12349,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: image-set("foo.png" 2x, "bar.png");
+        background: image-set("foo.png" 2x, "bar.png" 1x);
       }
     "#},
       Browsers {
@@ -12333,7 +12366,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: -webkit-image-set(url("foo.png") 2x, url("bar.png"));
+        background: -webkit-image-set(url("foo.png") 2x, url("bar.png") 1x);
       }
     "#},
       Browsers {
@@ -12367,8 +12400,8 @@ mod tests {
           indoc! {r#"
         .foo {{
           {}: url("foo.png");
-          {}: -webkit-image-set(url("foo.png") 2x, url("bar.png"));
-          {}: image-set("foo.png" 2x, "bar.png");
+          {}: -webkit-image-set(url("foo.png") 2x, url("bar.png") 1x);
+          {}: image-set("foo.png" 2x, "bar.png" 1x);
         }}
       "#},
           property, property, property
@@ -12393,8 +12426,8 @@ mod tests {
         &format!(
           indoc! {r#"
         .foo {{
-          {}: -webkit-image-set(url("foo.png") 2x, url("bar.png"));
-          {}: image-set("foo.png" 2x, "bar.png");
+          {}: -webkit-image-set(url("foo.png") 2x, url("bar.png") 1x);
+          {}: image-set("foo.png" 2x, "bar.png" 1x);
         }}
       "#},
           property, property
@@ -19213,13 +19246,13 @@ mod tests {
 
     dep_test(
       ".foo { background: image-set('./img12x.png', './img21x.png' 2x)}",
-      ".foo{background:image-set(\"hXFI8W\",\"5TkpBa\" 2x)}",
+      ".foo{background:image-set(\"hXFI8W\" 1x,\"5TkpBa\" 2x)}",
       vec![("./img12x.png", "hXFI8W"), ("./img21x.png", "5TkpBa")],
     );
 
     dep_test(
       ".foo { background: image-set(url(./img12x.png), url('./img21x.png') 2x)}",
-      ".foo{background:image-set(\"hXFI8W\",\"5TkpBa\" 2x)}",
+      ".foo{background:image-set(\"hXFI8W\" 1x,\"5TkpBa\" 2x)}",
       vec![("./img12x.png", "hXFI8W"), ("./img21x.png", "5TkpBa")],
     );
 
