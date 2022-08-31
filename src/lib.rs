@@ -5432,7 +5432,7 @@ mod tests {
     );
     minify_test(
       r#"
-      @keyframes revert {
+      @keyframes "revert" {
         from {
           background: green;
         }
@@ -5515,6 +5515,19 @@ mod tests {
         }
       }
     "#, "@-webkit-keyframes test{0%{background:red}to{background:#00f}}@-moz-keyframes test{0%{background:red}to{background:#00f}}");
+
+    error_test(r#"
+      @keyframes none {
+          from {
+            background: green;
+            background-color: red;
+          }
+
+          100% {
+            background: blue
+          }
+      }
+    "#, ParserError::UnexpectedToken(Token::Ident("none".into())));
 
     prefix_test(
       r#"
