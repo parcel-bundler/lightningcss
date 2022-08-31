@@ -5432,7 +5432,7 @@ mod tests {
     );
     minify_test(
       r#"
-      @keyframes "revert" {
+      @keyframes revert {
         from {
           background: green;
         }

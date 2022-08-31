@@ -51,10 +51,18 @@ pub enum KeyframesName<'i> {
 impl<'i> Parse<'i> for KeyframesName<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
-    match input.next()? {
-      &Token::Ident(ref s) => Ok(KeyframesName::Ident(CustomIdent(s.into()))),
-      &Token::QuotedString(ref s) => Ok(KeyframesName::Custom(s.into())),
-      t => return Err(location.new_unexpected_token_error(t.clone())),
+
+    // let ident = input.expect_ident()?;
+    let ident = CustomIdent::parse(input)?;
+    match_ignore_ascii_case! { &*ident.0,
+      "none" => Err(input.new_unexpected_token_error(Token::Ident(ident.0.as_ref().to_owned().into()))),
+      _ => {
+        match input.next()? {
+          &Token::Ident(ref s) => Ok(KeyframesName::Ident(CustomIdent(s.into()))),
+          &Token::QuotedString(ref s) => Ok(KeyframesName::Custom(s.into())),
+          t => return Err(location.new_unexpected_token_error(t.clone())),
+        }
+      },
     }
   }
 }
