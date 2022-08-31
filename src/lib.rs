@@ -5396,73 +5396,66 @@ mod tests {
   fn test_keyframes() {
     minify_test(
       r#"
-      @keyframes foo {
-        from {
-          background: green;
-        }
-
-        50% {
-          background: red;
-        }
-
+      @keyframes "test" {
         100% {
           background: blue
         }
       }
     "#,
-      "@keyframes foo{0%{background:green}50%{background:red}to{background:#00f}}",
+      "@keyframes test{to{background:#00f}}",
     );
     minify_test(
       r#"
-      @keyframes "foo" {
-        from {
-          background: green;
-        }
-
-        50% {
-          background: red;
-        }
-
+      @keyframes test {
         100% {
           background: blue
         }
       }
     "#,
-      "@keyframes \"foo\"{0%{background:green}50%{background:red}to{background:#00f}}",
+      "@keyframes test{to{background:#00f}}",
     );
+
+    // CSS-wide keywords cannot remove quotes.
     minify_test(
       r#"
       @keyframes "revert" {
         from {
           background: green;
         }
-
-        50% {
-          background: red;
-        }
-
-        100% {
-          background: blue
-        }
       }
     "#,
-      "@keyframes \"revert\"{0%{background:green}50%{background:red}to{background:#00f}}",
+      "@keyframes \"revert\"{0%{background:green}}",
     );
-    minify_test(
+
+    // CSS-wide keywords without quotes throws an error.
+    error_test(
       r#"
-      @keyframes test {
-        from {
-          background: green;
-          background-color: red;
-        }
-
-        100% {
-          background: blue
-        }
-      }
+      @keyframes revert {}
     "#,
-      "@keyframes test{0%{background:red}to{background:#00f}}",
+      ParserError::UnexpectedToken(Token::Ident("revert".into())),
     );
+
+    error_test(
+      r#"
+      @keyframes revert-layer {}
+    "#,
+      ParserError::UnexpectedToken(Token::Ident("revert-layer".into())),
+    );
+
+    error_test(
+      r#"
+      @keyframes none {}
+    "#,
+      ParserError::UnexpectedToken(Token::Ident("none".into())),
+    );
+
+    error_test(
+      r#"
+      @keyframes NONE {}
+    "#,
+      ParserError::UnexpectedToken(Token::Ident("NONE".into())),
+    );
+
     minify_test(
       r#"
       @-webkit-keyframes test {
@@ -5515,19 +5508,6 @@ mod tests {
         }
       }
     "#, "@-webkit-keyframes test{0%{background:red}to{background:#00f}}@-moz-keyframes test{0%{background:red}to{background:#00f}}");
-
-    error_test(r#"
-      @keyframes none {
-          from {
-            background: green;
-            background-color: red;
-          }
-
-          100% {
-            background: blue
-          }
-      }
-    "#, ParserError::UnexpectedToken(Token::Ident("none".into())));
 
     prefix_test(
       r#"

@@ -51,8 +51,8 @@ pub enum KeyframesName<'i> {
 impl<'i> Parse<'i> for KeyframesName<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
-
     let is_invalid_name = |name: &CowRcStr| name.to_lowercase() == "none";
+
     match input.next()?.clone() {
       Token::Ident(ref s) => {
         if is_invalid_name(s) {
@@ -62,11 +62,7 @@ impl<'i> Parse<'i> for KeyframesName<'i> {
         }
       }
       Token::QuotedString(ref s) => {
-        if is_invalid_name(s) {
-          Err(input.new_unexpected_token_error(Token::Ident(s.clone())))
-        } else {
-          Ok(KeyframesName::Custom(s.into()))
-        }
+        Ok(KeyframesName::Custom(s.into()))
       }
       t => return Err(location.new_unexpected_token_error(t.clone())),
     }
