@@ -5396,7 +5396,7 @@ mod tests {
   fn test_keyframes() {
     minify_test(
       r#"
-      @keyframes test {
+      @keyframes "revert" {
         from {
           background: green;
         }
@@ -5410,7 +5410,7 @@ mod tests {
         }
       }
     "#,
-      "@keyframes test{0%{background:green}50%{background:red}to{background:#00f}}",
+      "@keyframes \"revert\"{0%{background:green}50%{background:red}to{background:#00f}}",
     );
     minify_test(
       r#"

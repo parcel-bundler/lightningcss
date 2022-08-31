@@ -24,13 +24,36 @@ use cssparser::*;
 pub struct KeyframesRule<'i> {
   /// The animation name.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  pub name: CustomIdent<'i>,
+  pub name: KeyframesName<'i>,
   /// A list of keyframes in the animation.
   pub keyframes: Vec<Keyframe<'i>>,
   /// A vendor prefix for the rule, e.g. `@-webkit-keyframes`.
   pub vendor_prefix: VendorPrefix,
   /// The location of the rule in the source file.
   pub loc: Location,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct KeyframesName<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CustomIdent<'i>);
+
+impl<'i> Parse<'i> for KeyframesName<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let ident = CustomIdent::parse(input)?;
+    match_ignore_ascii_case! { &*ident.0,
+      "none" | "and" | "not" | "or" => Err(input.new_unexpected_token_error(Token::Ident(ident.0.as_ref().to_owned().into()))),
+      _ => Ok(KeyframesName(ident))
+    }
+  }
+}
+
+impl<'i> ToCss for KeyframesName<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    self.0.to_css(dest)
+  }
 }
 
 impl<'i> KeyframesRule<'i> {
