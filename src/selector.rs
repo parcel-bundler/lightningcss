@@ -190,7 +190,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "window-inactive" => WebKitScrollbar(WebKitScrollbarPseudoClass::WindowInactive),
 
       _ => {
-        if !name.starts_with("_") {
+        if !name.starts_with("-") {
           self.options.warn(loc.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
         }
         Custom(name.into())
