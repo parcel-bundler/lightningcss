@@ -50,21 +50,21 @@ pub enum KeyframesName<'i> {
 
 impl<'i> Parse<'i> for KeyframesName<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let location = input.current_source_location();
-    let is_invalid_name = |name: &CowRcStr| name.to_lowercase() == "none";
-
     match input.next()?.clone() {
       Token::Ident(ref s) => {
-        if is_invalid_name(s) {
-          Err(input.new_unexpected_token_error(Token::Ident(s.clone())))
-        } else {
-          Ok(KeyframesName::Ident(CustomIdent(s.into())))
+        // CSS-wide keywords without quotes throws an error.
+        match_ignore_ascii_case! { &*s,
+          "none" | "initial" | "inherit" | "unset" | "default" | "revert" | "revert-layer" => {
+            Err(input.new_unexpected_token_error(Token::Ident(s.clone())))
+          },
+          _ => {
+            Ok(KeyframesName::Ident(CustomIdent(s.into())))
+          }
         }
       }
-      Token::QuotedString(ref s) => {
-        Ok(KeyframesName::Custom(s.into()))
-      }
-      t => return Err(location.new_unexpected_token_error(t.clone())),
+
+      Token::QuotedString(ref s) => Ok(KeyframesName::Custom(s.into())),
+      t => return Err(input.new_unexpected_token_error(t.clone())),
     }
   }
 }
@@ -79,9 +79,17 @@ impl<'i> ToCss for KeyframesName<'i> {
         dest.write_ident(ident.0.as_ref())?;
       }
       KeyframesName::Custom(s) => {
-        dest.write_char('"')?;
-        dest.write_str(s.as_ref())?;
-        dest.write_char('"')?;
+        // CSS-wide keywords and `none` cannot remove quotes.
+        match_ignore_ascii_case! { &*s,
+          "none" | "initial" | "inherit" | "unset" | "default" | "revert" | "revert-layer" => {
+            dest.write_char('"')?;
+            dest.write_str(s.as_ref())?;
+            dest.write_char('"')?;
+          },
+          _ => {
+            dest.write_ident(s.as_ref())?;
+          }
+        }
       }
     }
     Ok(())

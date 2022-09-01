@@ -5415,7 +5415,7 @@ mod tests {
       "@keyframes test{to{background:#00f}}",
     );
 
-    // CSS-wide keywords cannot remove quotes.
+    // CSS-wide keywords and `none` cannot remove quotes.
     minify_test(
       r#"
       @keyframes "revert" {
@@ -5425,6 +5425,17 @@ mod tests {
       }
     "#,
       "@keyframes \"revert\"{0%{background:green}}",
+    );
+
+    minify_test(
+      r#"
+      @keyframes "none" {
+        from {
+          background: green;
+        }
+      }
+    "#,
+      "@keyframes \"none\"{0%{background:green}}",
     );
 
     // CSS-wide keywords without quotes throws an error.
