@@ -826,7 +826,7 @@ checksum = "8e22443d1643a904602595ba1cd8f7d896afe56d26712531c5ff73a15b2fbf64"
 
 [[package]]
 name = "parcel_css"
-version = "1.0.0-alpha.31"
+version = "1.0.0-alpha.32"
 dependencies = [
  "assert_cmd",
  "assert_fs",
