@@ -160,27 +160,33 @@ fn bundle(ctx: CallContext) -> napi::Result<JsUnknown> {
 
 // A SourceProvider which calls JavaScript functions to resolve and read files.
 struct JsSourceProvider {
-  resolve_channel: Option<JsFunctionChannel<ResolveMessage, String>>,
-  read_channel: Option<JsFunctionChannel<ReadMessage, String>>,
+  resolve: Option<ThreadsafeFunction<ResolveMessage>>,
+  read: Option<ThreadsafeFunction<ReadMessage>>,
   inputs: Mutex<Vec<*mut String>>,
 }
 
 unsafe impl Sync for JsSourceProvider {}
 unsafe impl Send for JsSourceProvider {}
 
+// Allocate a single channel per thread to communicate with the JS thread.
+thread_local! {
+  static CHANNEL: (Sender<napi::Result<String>>, Receiver<napi::Result<String>>) = crossbeam_channel::unbounded();
+}
+
 impl SourceProvider for JsSourceProvider {
   type Error = napi::Error;
 
   fn read<'a>(&'a self, file: &Path) -> Result<&'a str, Self::Error> {
-    let source = if let Some(read_channel) = &self.read_channel {
-      let message = ReadMessage {
-        file: file.to_str().unwrap().to_owned(),
-        tx: read_channel.tx.clone(),
-      };
+    let source = if let Some(read) = &self.read {
+      CHANNEL.with(|channel| {
+        let message = ReadMessage {
+          file: file.to_str().unwrap().to_owned(),
+          tx: channel.0.clone(),
+        };
 
-      read_channel.tsfn.call(message, ThreadsafeFunctionCallMode::Blocking);
-      let res = read_channel.rx.recv().unwrap();
-      res
+        read.call(message, ThreadsafeFunctionCallMode::Blocking);
+        channel.1.recv().unwrap()
+      })
     } else {
       Ok(std::fs::read_to_string(file)?)
     };
@@ -200,43 +206,24 @@ impl SourceProvider for JsSourceProvider {
   }
 
   fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Self::Error> {
-    if let Some(resolve_channel) = &self.resolve_channel {
-      let message = ResolveMessage {
-        specifier: specifier.to_owned(),
-        originating_file: originating_file.to_str().unwrap().to_owned(),
-        tx: resolve_channel.tx.clone(),
-      };
+    if let Some(resolve) = &self.resolve {
+      return CHANNEL.with(|channel| {
+        let message = ResolveMessage {
+          specifier: specifier.to_owned(),
+          originating_file: originating_file.to_str().unwrap().to_owned(),
+          tx: channel.0.clone(),
+        };
 
-      resolve_channel.tsfn.call(message, ThreadsafeFunctionCallMode::Blocking);
-      let result = resolve_channel.rx.recv().unwrap();
-      return match result {
-        Ok(result) => Ok(PathBuf::from_str(&result).unwrap()),
-        Err(e) => Err(e),
-      };
+        resolve.call(message, ThreadsafeFunctionCallMode::Blocking);
+        let result = channel.1.recv().unwrap();
+        match result {
+          Ok(result) => Ok(PathBuf::from_str(&result).unwrap()),
+          Err(e) => Err(e),
+        }
+      });
     }
 
     Ok(originating_file.with_file_name(specifier))
-  }
-}
-
-// Combines a napi ThreadsafeFunction with a crossbeam channel to send results between threads.
-// Calling a threadsafe function only queues it to be called on the JS thread. The channel allows
-// us to also wait for the return value to come back.
-struct JsFunctionChannel<T: 'static, U> {
-  tsfn: ThreadsafeFunction<T>,
-  tx: Sender<napi::Result<U>>,
-  rx: Receiver<napi::Result<U>>,
-}
-
-impl<T: 'static, U> JsFunctionChannel<T, U> {
-  fn new<W: 'static + Send + FnMut(ThreadSafeCallContext<T>) -> napi::Result<()>>(
-    env: Env,
-    f: JsFunction,
-    w: W,
-  ) -> napi::Result<Self> {
-    let (tx, rx) = crossbeam_channel::unbounded();
-    let tsfn: ThreadsafeFunction<T> = ThreadsafeFunction::create(env.raw(), unsafe { f.raw() }, 0, w)?;
-    Ok(Self { tsfn, tx, rx })
   }
 }
 
@@ -322,21 +309,31 @@ fn bundle_async(ctx: CallContext) -> napi::Result<JsUnknown> {
   if let Ok(resolver) = opts.get_named_property::<JsObject>("resolver") {
     let read = if resolver.has_named_property("read")? {
       let read = resolver.get_named_property::<JsFunction>("read")?;
-      Some(JsFunctionChannel::new(*ctx.env, read, read_on_js_thread_wrapper)?)
+      Some(ThreadsafeFunction::create(
+        ctx.env.raw(),
+        unsafe { read.raw() },
+        0,
+        read_on_js_thread_wrapper,
+      )?)
     } else {
       None
     };
 
     let resolve = if resolver.has_named_property("resolve")? {
       let resolve = resolver.get_named_property::<JsFunction>("resolve")?;
-      Some(JsFunctionChannel::new(*ctx.env, resolve, resolve_on_js_thread_wrapper)?)
+      Some(ThreadsafeFunction::create(
+        ctx.env.raw(),
+        unsafe { resolve.raw() },
+        0,
+        resolve_on_js_thread_wrapper,
+      )?)
     } else {
       None
     };
 
     let provider = JsSourceProvider {
-      resolve_channel: resolve,
-      read_channel: read,
+      resolve,
+      read,
       inputs: Mutex::new(Vec::new()),
     };
 
