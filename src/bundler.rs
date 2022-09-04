@@ -79,12 +79,15 @@ struct BundleStyleSheet<'i, 'o> {
 /// See [FileProvider](FileProvider) for an implementation that uses the
 /// file system.
 pub trait SourceProvider: Send + Sync {
+  /// A custom error.
+  type Error: std::error::Error + Send + Sync;
+
   /// Reads the contents of the given file path to a string.
-  fn read<'a>(&'a self, file: &Path) -> std::io::Result<&'a str>;
+  fn read<'a>(&'a self, file: &Path) -> Result<&'a str, Self::Error>;
 
   /// Resolves the given import specifier to a file path given the file
   /// which the import originated from.
-  fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Error<BundleErrorKind>>;
+  fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Self::Error>;
 }
 
 /// Provides an implementation of [SourceProvider](SourceProvider)
@@ -106,7 +109,9 @@ unsafe impl Sync for FileProvider {}
 unsafe impl Send for FileProvider {}
 
 impl SourceProvider for FileProvider {
-  fn read<'a>(&'a self, file: &Path) -> std::io::Result<&'a str> {
+  type Error = std::io::Error;
+
+  fn read<'a>(&'a self, file: &Path) -> Result<&'a str, Self::Error> {
     let source = fs::read_to_string(file)?;
     let ptr = Box::into_raw(Box::new(source));
     self.inputs.lock().unwrap().push(ptr);
@@ -116,7 +121,7 @@ impl SourceProvider for FileProvider {
     Ok(unsafe { &*ptr })
   }
 
-  fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Error<BundleErrorKind>> {
+  fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Self::Error> {
     // Assume the specifier is a releative file path and join it with current path.
     Ok(originating_file.with_file_name(specifier))
   }
@@ -132,9 +137,7 @@ impl Drop for FileProvider {
 
 /// An error that could occur during bundling.
 #[derive(Debug, Serialize)]
-pub enum BundleErrorKind<'i> {
-  /// An I/O error occurred.
-  IOError(#[serde(skip)] std::io::Error),
+pub enum BundleErrorKind<'i, T: std::error::Error> {
   /// A parser error occurred.
   ParserError(ParserError<'i>),
   /// An unsupported `@import` condition was encountered.
@@ -143,9 +146,11 @@ pub enum BundleErrorKind<'i> {
   UnsupportedLayerCombination,
   /// Unsupported media query boolean logic was encountered.
   UnsupportedMediaBooleanLogic,
+  /// A custom resolver error.
+  ResolverError(#[serde(skip)] T),
 }
 
-impl<'i> From<Error<ParserError<'i>>> for Error<BundleErrorKind<'i>> {
+impl<'i, T: std::error::Error> From<Error<ParserError<'i>>> for Error<BundleErrorKind<'i, T>> {
   fn from(err: Error<ParserError<'i>>) -> Self {
     Error {
       kind: BundleErrorKind::ParserError(err.kind),
@@ -154,20 +159,20 @@ impl<'i> From<Error<ParserError<'i>>> for Error<BundleErrorKind<'i>> {
   }
 }
 
-impl<'i> std::fmt::Display for BundleErrorKind<'i> {
+impl<'i, T: std::error::Error> std::fmt::Display for BundleErrorKind<'i, T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     use BundleErrorKind::*;
     match self {
-      IOError(err) => write!(f, "IO error: {}", err),
       ParserError(err) => err.fmt(f),
       UnsupportedImportCondition => write!(f, "Unsupported import condition"),
       UnsupportedLayerCombination => write!(f, "Unsupported layer combination in @import"),
       UnsupportedMediaBooleanLogic => write!(f, "Unsupported boolean logic in @import media query"),
+      ResolverError(err) => std::fmt::Display::fmt(&err, f),
     }
   }
 }
 
-impl<'i> BundleErrorKind<'i> {
+impl<'i, T: std::error::Error> BundleErrorKind<'i, T> {
   #[deprecated(note = "use `BundleErrorKind::to_string()` or `std::fmt::Display` instead")]
   #[allow(missing_docs)]
   pub fn reason(&self) -> String {
@@ -190,7 +195,10 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P> {
   }
 
   /// Bundles the given entry file and all dependencies into a single style sheet.
-  pub fn bundle<'e>(&mut self, entry: &'e Path) -> Result<StyleSheet<'a, 'o>, Error<BundleErrorKind<'a>>> {
+  pub fn bundle<'e>(
+    &mut self,
+    entry: &'e Path,
+  ) -> Result<StyleSheet<'a, 'o>, Error<BundleErrorKind<'a, P::Error>>> {
     // Phase 1: load and parse all files. This is done in parallel.
     self.load_file(
       &entry,
@@ -231,7 +239,7 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P> {
     entry.key().to_str().unwrap().into()
   }
 
-  fn load_file(&self, file: &Path, rule: ImportRule<'a>) -> Result<u32, Error<BundleErrorKind<'a>>> {
+  fn load_file(&self, file: &Path, rule: ImportRule<'a>) -> Result<u32, Error<BundleErrorKind<'a, P::Error>>> {
     // Check if we already loaded this file.
     let mut stylesheets = self.stylesheets.lock().unwrap();
     let source_index = match self.source_indexes.get(file) {
@@ -304,7 +312,7 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P> {
     drop(stylesheets); // ensure we aren't holding the lock anymore
 
     let code = self.fs.read(file).map_err(|e| Error {
-      kind: BundleErrorKind::IOError(e),
+      kind: BundleErrorKind::ResolverError(e),
       loc: Some(ErrorLocation::new(rule.loc, self.find_filename(rule.loc.source_index))),
     })?;
 
@@ -389,7 +397,7 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P> {
               },
             ),
             Err(err) => Err(Error {
-              kind: err.kind,
+              kind: BundleErrorKind::ResolverError(err),
               loc: Some(ErrorLocation::new(
                 import.loc,
                 self.find_filename(import.loc.source_index),
@@ -531,11 +539,13 @@ mod tests {
   }
 
   impl SourceProvider for TestProvider {
-    fn read<'a>(&'a self, file: &Path) -> std::io::Result<&'a str> {
+    type Error = std::io::Error;
+
+    fn read<'a>(&'a self, file: &Path) -> Result<&'a str, Self::Error> {
       Ok(self.map.get(file).unwrap())
     }
 
-    fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Error<BundleErrorKind>> {
+    fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Self::Error> {
       Ok(originating_file.with_file_name(specifier))
     }
   }
@@ -546,26 +556,28 @@ mod tests {
   }
 
   impl SourceProvider for CustomProvider {
+    type Error = std::io::Error;
+
     /// Read files from in-memory map.
-    fn read<'a>(&'a self, file: &Path) -> std::io::Result<&'a str> {
+    fn read<'a>(&'a self, file: &Path) -> Result<&'a str, Self::Error> {
       Ok(self.map.get(file).unwrap())
     }
 
     /// Resolve by stripping a `foo:` prefix off any import. Specifiers without
     /// this prefix fail with an error.
-    fn resolve(&self, specifier: &str, _originating_file: &Path) -> Result<PathBuf, Error<BundleErrorKind>> {
+    fn resolve(&self, specifier: &str, _originating_file: &Path) -> Result<PathBuf, Self::Error> {
       if specifier.starts_with("foo:") {
         Ok(Path::new(&specifier["foo:".len()..]).to_path_buf())
       } else {
-        let kind = BundleErrorKind::IOError(std::io::Error::new(
+        let err = std::io::Error::new(
           std::io::ErrorKind::NotFound,
           format!(
             "Failed to resolve `{}`, specifier does not start with `foo:`.",
             &specifier
           ),
-        ));
+        );
 
-        Err(Error { kind, loc: None })
+        Err(err)
       }
     }
   }
@@ -631,7 +643,11 @@ mod tests {
       .code
   }
 
-  fn error_test<P: SourceProvider>(fs: P, entry: &str, maybe_cb: Option<Box<dyn FnOnce(BundleErrorKind) -> ()>>) {
+  fn error_test<P: SourceProvider>(
+    fs: P,
+    entry: &str,
+    maybe_cb: Option<Box<dyn FnOnce(BundleErrorKind<P::Error>) -> ()>>,
+  ) {
     let mut bundler = Bundler::new(&fs, None, ParserOptions::default());
     let res = bundler.bundle(Path::new(entry));
     match res {
@@ -1383,7 +1399,7 @@ mod tests {
       "/a.css",
       Some(Box::new(|err| {
         let kind = match err {
-          BundleErrorKind::IOError(ref error) => error.kind(),
+          BundleErrorKind::ResolverError(ref error) => error.kind(),
           _ => unreachable!(),
         };
         assert!(matches!(kind, std::io::ErrorKind::NotFound));
