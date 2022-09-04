@@ -188,7 +188,7 @@ impl ToCss for CounterStyle<'_> {
       CounterStyle::Predefined(style) => style.to_css(dest),
       CounterStyle::Name(name) => {
         if let Some(css_module) = &mut dest.css_module {
-          css_module.reference(&name.0)
+          css_module.reference(&name.0, dest.loc.source_index)
         }
         name.to_css(dest)
       }

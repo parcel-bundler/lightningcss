@@ -122,7 +122,7 @@ impl<'i> ToCss for DashedIdentReference<'i> {
   {
     match &mut dest.css_module {
       Some(css_module) if css_module.config.dashed_idents => {
-        if let Some(name) = css_module.reference_dashed(&self.ident.0, &self.from) {
+        if let Some(name) = css_module.reference_dashed(&self.ident.0, &self.from, dest.loc.source_index) {
           dest.write_str("--")?;
           serialize_name(&name, dest)?;
           return Ok(());

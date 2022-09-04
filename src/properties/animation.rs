@@ -55,7 +55,7 @@ impl<'i> ToCss for AnimationName<'i> {
       AnimationName::None => dest.write_str("none"),
       AnimationName::Ident(s) => {
         if let Some(css_module) = &mut dest.css_module {
-          css_module.reference(&s.0)
+          css_module.reference(&s.0, dest.loc.source_index)
         }
         s.to_css(dest)
       }

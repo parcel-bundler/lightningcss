@@ -245,6 +245,7 @@ pub(crate) struct MinifyContext<'a, 'i> {
   pub handler_context: &'a mut PropertyHandlerContext<'i, 'a>,
   pub unused_symbols: &'a HashSet<String>,
   pub custom_media: Option<HashMap<CowArcStr<'i>, CustomMediaRule<'i>>>,
+  pub css_modules: bool,
 }
 
 impl<'i> CssRuleList<'i> {
@@ -455,6 +456,7 @@ fn merge_style_rules<'i>(
     && last_style_rule.is_compatible(*context.targets)
     && style.rules.0.is_empty()
     && last_style_rule.rules.0.is_empty()
+    && (!context.css_modules || style.loc.source_index == last_style_rule.loc.source_index)
   {
     last_style_rule
       .declarations

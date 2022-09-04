@@ -114,7 +114,12 @@ impl<'i> Pattern<'i> {
           write(s)?;
         }
         Segment::Name => {
-          write(path.file_stem().unwrap().to_str().unwrap())?;
+          let stem = path.file_stem().unwrap().to_str().unwrap();
+          if stem.contains('.') {
+            write(&stem.replace('.', "-"))?;
+          } else {
+            write(stem)?;
+          }
         }
         Segment::Local => {
           write(local)?;
@@ -210,54 +215,70 @@ lazy_static! {
 
 pub(crate) struct CssModule<'a, 'b, 'c> {
   pub config: &'a Config<'b>,
-  pub path: &'c Path,
-  pub hash: String,
-  pub exports: &'a mut CssModuleExports,
+  pub sources: Vec<&'c Path>,
+  pub hashes: Vec<String>,
+  pub exports_by_source_index: Vec<CssModuleExports>,
   pub references: &'a mut HashMap<String, CssModuleReference>,
 }
 
 impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
   pub fn new(
     config: &'a Config<'b>,
-    filename: &'c str,
-    exports: &'a mut CssModuleExports,
+    sources: &'c Vec<String>,
     references: &'a mut HashMap<String, CssModuleReference>,
   ) -> Self {
     Self {
       config,
-      path: Path::new(filename),
-      hash: hash(filename, matches!(config.pattern.segments[0], Segment::Hash)),
-      exports,
+      sources: sources.iter().map(|filename| Path::new(filename)).collect(),
+      hashes: sources
+        .iter()
+        .map(|source| hash(&source, matches!(config.pattern.segments[0], Segment::Hash)))
+        .collect(),
+      exports_by_source_index: sources.iter().map(|_| HashMap::new()).collect(),
       references,
     }
   }
 
-  pub fn add_local(&mut self, exported: &str, local: &str) {
-    self.exports.entry(exported.into()).or_insert_with(|| CssModuleExport {
-      name: self
-        .config
-        .pattern
-        .write_to_string(String::new(), &self.hash, &self.path, local)
-        .unwrap(),
-      composes: vec![],
-      is_referenced: false,
-    });
+  pub fn add_local(&mut self, exported: &str, local: &str, source_index: u32) {
+    self.exports_by_source_index[source_index as usize]
+      .entry(exported.into())
+      .or_insert_with(|| CssModuleExport {
+        name: self
+          .config
+          .pattern
+          .write_to_string(
+            String::new(),
+            &self.hashes[source_index as usize],
+            &self.sources[source_index as usize],
+            local,
+          )
+          .unwrap(),
+        composes: vec![],
+        is_referenced: false,
+      });
   }
 
-  pub fn add_dashed(&mut self, local: &str) {
-    self.exports.entry(local.into()).or_insert_with(|| CssModuleExport {
-      name: self
-        .config
-        .pattern
-        .write_to_string("--".into(), &self.hash, &self.path, &local[2..])
-        .unwrap(),
-      composes: vec![],
-      is_referenced: false,
-    });
+  pub fn add_dashed(&mut self, local: &str, source_index: u32) {
+    self.exports_by_source_index[source_index as usize]
+      .entry(local.into())
+      .or_insert_with(|| CssModuleExport {
+        name: self
+          .config
+          .pattern
+          .write_to_string(
+            "--".into(),
+            &self.hashes[source_index as usize],
+            &self.sources[source_index as usize],
+            &local[2..],
+          )
+          .unwrap(),
+        composes: vec![],
+        is_referenced: false,
+      });
   }
 
-  pub fn reference(&mut self, name: &str) {
-    match self.exports.entry(name.into()) {
+  pub fn reference(&mut self, name: &str, source_index: u32) {
+    match self.exports_by_source_index[source_index as usize].entry(name.into()) {
       std::collections::hash_map::Entry::Occupied(mut entry) => {
         entry.get_mut().is_referenced = true;
       }
@@ -266,7 +287,12 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
           name: self
             .config
             .pattern
-            .write_to_string(String::new(), &self.hash, &self.path, name)
+            .write_to_string(
+              String::new(),
+              &self.hashes[source_index as usize],
+              &self.sources[source_index as usize],
+              name,
+            )
             .unwrap(),
           composes: vec![],
           is_referenced: true,
@@ -275,7 +301,7 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
     }
   }
 
-  pub fn reference_dashed(&mut self, name: &str, from: &Option<Specifier>) -> Option<String> {
+  pub fn reference_dashed(&mut self, name: &str, from: &Option<Specifier>, source_index: u32) -> Option<String> {
     let (reference, key) = match from {
       Some(Specifier::Global) => return Some(name[2..].into()),
       Some(Specifier::File(file)) => (
@@ -285,9 +311,23 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
         },
         file.as_ref(),
       ),
+      Some(Specifier::SourceIndex(source_index)) => {
+        return Some(
+          self
+            .config
+            .pattern
+            .write_to_string(
+              String::new(),
+              &self.hashes[*source_index as usize],
+              &self.sources[*source_index as usize],
+              &name[2..],
+            )
+            .unwrap(),
+        )
+      }
       None => {
         // Local export. Mark as used.
-        match self.exports.entry(name.into()) {
+        match self.exports_by_source_index[source_index as usize].entry(name.into()) {
           std::collections::hash_map::Entry::Occupied(mut entry) => {
             entry.get_mut().is_referenced = true;
           }
@@ -296,7 +336,12 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
               name: self
                 .config
                 .pattern
-                .write_to_string("--".into(), &self.hash, &self.path, name)
+                .write_to_string(
+                  "--".into(),
+                  &self.hashes[source_index as usize],
+                  &self.sources[source_index as usize],
+                  name,
+                )
                 .unwrap(),
               composes: vec![],
               is_referenced: true,
@@ -307,7 +352,10 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
       }
     };
 
-    let hash = hash(&format!("{}_{}_{}", self.hash, name, key), false);
+    let hash = hash(
+      &format!("{}_{}_{}", self.hashes[source_index as usize], name, key),
+      false,
+    );
     let name = format!("--{}", hash);
 
     self.references.insert(name.clone(), reference);
@@ -318,6 +366,7 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
     &mut self,
     selectors: &SelectorList<Selectors>,
     composes: &Composes,
+    source_index: u32,
   ) -> Result<(), PrinterErrorKind> {
     for sel in &selectors.0 {
       if sel.len() == 1 {
@@ -329,9 +378,29 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
                   name: self
                     .config
                     .pattern
-                    .write_to_string(String::new(), &self.hash, &self.path, name.0.as_ref())
+                    .write_to_string(
+                      String::new(),
+                      &self.hashes[source_index as usize],
+                      &self.sources[source_index as usize],
+                      name.0.as_ref(),
+                    )
                     .unwrap(),
                 },
+                Some(Specifier::SourceIndex(dep_source_index)) => {
+                  if let Some(entry) =
+                    self.exports_by_source_index[*dep_source_index as usize].get(&name.0.as_ref().to_owned())
+                  {
+                    let name = entry.name.clone();
+                    let composes = entry.composes.clone();
+                    let export = self.exports_by_source_index[source_index as usize]
+                      .get_mut(&id.0.as_ref().to_owned())
+                      .unwrap();
+
+                    export.composes.push(CssModuleReference::Local { name });
+                    export.composes.extend(composes);
+                  }
+                  continue;
+                }
                 Some(Specifier::Global) => CssModuleReference::Global {
                   name: name.0.as_ref().into(),
                 },
@@ -341,7 +410,9 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
                 },
               };
 
-              let export = self.exports.get_mut(&id.0.as_ref().to_owned()).unwrap();
+              let export = self.exports_by_source_index[source_index as usize]
+                .get_mut(&id.0.as_ref().to_owned())
+                .unwrap();
               if !export.composes.contains(&reference) {
                 export.composes.push(reference);
               }
