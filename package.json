@@ -60,7 +60,7 @@
     "wasm:build-release": "wasm-pack build node --target nodejs --release",
     "wasm-browser:build": "wasm-pack build node --target web",
     "wasm-browser:build-release": "wasm-pack build node --target web --release",
-    "playground:start": "parcel playground/index.html",
-    "playground:build": "yarn wasm-browser:build-release && parcel build playground/index.html"
+    "website:start": "parcel website/index.html website/playground/index.html",
+    "website:build": "yarn wasm-browser:build-release && parcel build website/index.html website/playground/index.html"
   }
 }

@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>⚡️ Lightning CSS</title>
+  </head>
+  <body>
+    <header>
+      <svg viewBox="495 168 360 654">
+        <path class="outer" d="M594.41,805c-.71,0-1.43-.15-2.11-.47-2.2-1.03-3.34-3.48-2.72-5.83l67.98-253.71h-140.45c-1.86,0-3.57-1.04-4.44-2.69-.86-1.65-.73-3.65,.34-5.18l26.85-38.35q25.56-36.51,104.91-149.83l106.31-151.82c1.39-1.99,4.01-2.69,6.21-1.66,2.2,1.03,3.34,3.48,2.72,5.83l-67.98,253.71h140.45c1.86,0,3.57,1.04,4.43,2.69,.86,1.65,.73,3.65-.34,5.18l-238.07,340c-.96,1.37-2.51,2.13-4.1,2.13Zm-67.69-270h137.37c1.55,0,3.02,.72,3.97,1.96,.95,1.23,1.27,2.84,.86,4.34l-62.33,232.61,216.29-308.9h-137.36c-1.55,0-3.02-.72-3.97-1.96-.95-1.23-1.27-2.84-.86-4.34l62.33-232.61-90.04,128.59q-79.35,113.32-104.91,149.83l-21.34,30.48Z"/>
+        <path class="inner" d="M594.41,805c-.71,0-1.43-.15-2.11-.47-2.2-1.03-3.34-3.48-2.72-5.83l67.98-253.71h-140.45c-1.86,0-3.57-1.04-4.44-2.69-.86-1.65-.73-3.65,.34-5.18l26.85-38.35q25.56-36.51,104.91-149.83l106.31-151.82c1.39-1.99,4.01-2.69,6.21-1.66,2.2,1.03,3.34,3.48,2.72,5.83l-67.98,253.71h140.45c1.86,0,3.57,1.04,4.43,2.69,.86,1.65,.73,3.65-.34,5.18l-238.07,340c-.96,1.37-2.51,2.13-4.1,2.13Zm-67.69-270h137.37c1.55,0,3.02,.72,3.97,1.96,.95,1.23,1.27,2.84,.86,4.34l-62.33,232.61,216.29-308.9h-137.36c-1.55,0-3.02-.72-3.97-1.96-.95-1.23-1.27-2.84-.86-4.34l62.33-232.61-90.04,128.59q-79.35,113.32-104.91,149.83l-21.34,30.48Z"/>
+      </svg>
+      <h1>Lightning CSS</h1>
+      <h2>An extremely fast CSS parser, transformer, bundler, and minifier.</h2>
+      <p><a href="https://github.com/parcel-bundler/parcel-css" target="_blank">GitHub</a> • <a href="https://docs.rs/parcel_css" target="_blank">Rust Docs</a> • <a href="https://npmjs.com/@parcel/css" target="_blank">npm</a>  • <a href="./playground/index.html">Playground</a></p>
+    </header>
+    <main>
+      <section class="warp">
+        <h3>Light speed</h3>
+        <p><strong>Lightning CSS is over 100x faster than comparable JavaScript-based tools.</strong> It can minify over 2.7 million lines of code per second on a single thread.</p>
+        <p style="font-size: 0.85em">Lightning CSS is written in Rust, a native systems programming language. It was built with performance in mind from the start, designed to make efficient use of memory, and limit AST passes.</p>
+        <svg style="max-width:800px;padding:10px 0; margin-top: 30px" viewBox="0 0 665 113" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"> <defs> <polygon id="path-1" points="0 0 75 0 75 12.7439539 0 12.7439539"></polygon> <polygon id="path-3" points="3.55271368e-15 0 49 0 49 9.53409385 3.55271368e-15 9.53409385"></polygon> <polygon id="path-5" points="-3.55271368e-15 0 39 0 39 9.53410385 -3.55271368e-15 9.53410385"></polygon> <polygon id="path-7" points="0 0 56 0 56 9.53410385 0 9.53410385"></polygon> <polygon id="path-9" points="7.10542736e-15 0 20 0 20 10.9400931 7.10542736e-15 10.9400931"></polygon> <polygon id="path-11" points="0 0 31 0 31 10.9400931 0 10.9400931"></polygon> <polygon id="path-13" points="0 0 31 0 31 10.9400931 0 10.9400931"></polygon> <polygon id="path-15" points="0 0 31 0 31 10.9400931 0 10.9400931"></polygon> <polygon id="path-17" points="0 0 30.71 0 30.71 10.9400931 0 10.9400931"></polygon> <polygon id="path-19" points="0 0 31 0 31 9.37074385 0 9.37074385"></polygon> <polygon id="path-21" points="0 0 43 0 43 8.82594385 0 8.82594385"></polygon> <polygon id="path-23" points="0 0 49 0 49 9.28115385 0 9.28115385"></polygon> </defs> <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"> <g id="Group-42"> <g id="Group-2" transform="translate(321.315500, 0.000000)"> <text id="Performance" font-family="HelveticaNeue-Bold, Helvetica Neue" font-size="12" font-weight="bold" fill="currentColor"> <tspan x="0" y="9.74395389">Performance</tspan> </text> </g> <g id="Group-13" transform="translate(67.500000, 26.051230)"> <line x1="145.5" y1="0.5" x2="145.5" y2="72.5" id="Stroke-3" stroke="#fff" stroke-width="0.5"></line> <line x1="290.5" y1="0.5" x2="290.5" y2="72.5" id="Stroke-5" stroke="#fff" stroke-width="0.5"></line> <line x1="435.5" y1="0.5" x2="435.5" y2="72.5" id="Stroke-7" stroke="#fff" stroke-width="0.5"></line> <line x1="580.5" y1="0.5" x2="580.5" y2="72.5" id="Stroke-9" stroke="#fff" stroke-width="0.5"></line> <line x1="0.5" y1="73" x2="0.5" y2="0" id="Stroke-11" stroke="#000000" stroke-linecap="square"></line> </g> <g id="Group-15" transform="translate(7.535000, 31.631660)"> <text id="CSSNano" font-family="HelveticaNeue, Helvetica Neue" font-size="11" font-weight="normal" fill="currentColor"> <tspan x="3.55271368e-15" y="10">CSSNano</tspan> </text> </g> <g id="Group-17" transform="translate(17.105000, 55.843110)"> <text id="ESBuild" font-family="HelveticaNeue, Helvetica Neue" font-size="11" font-weight="normal" fill="currentColor"> <tspan x="-3.55271368e-15" y="10">ESBuild</tspan> </text> </g> <g id="Group-19" transform="translate(0.000000, 80.054570)"> <text id="Parcel-CSS" font-family="HelveticaNeue, Helvetica Neue" font-size="11" font-weight="normal" fill="currentColor"> <tspan x="0" y="10">Parcel CSS</tspan> </text> </g> <g id="Group-21" transform="translate(58.874460, 101.831270)"> <text id="0ms" font-family="HelveticaNeue, Helvetica Neue" font-size="10" font-weight="normal" fill="currentColor"> <tspan x="7.10542736e-15" y="8.94009314">0ms</tspan> </text> </g> <g id="Group-23" transform="translate(198.314500, 101.831270)"> <text id="150ms" font-family="HelveticaNeue, Helvetica Neue" font-size="10" font-weight="normal" fill="currentColor"> <tspan x="0" y="8.94009314">150ms</tspan> </text> </g> <g id="Group-25" transform="translate(343.314500, 101.831270)"> <text id="300ms" font-family="HelveticaNeue, Helvetica Neue" font-size="10" font-weight="normal" fill="currentColor"> <tspan x="0" y="8.94009314">300ms</tspan> </text> </g> <g id="Group-27" transform="translate(488.314500, 101.831270)"> <text id="450ms" font-family="HelveticaNeue, Helvetica Neue" font-size="10" font-weight="normal" fill="currentColor"> <tspan x="0" y="8.94009314">450ms</tspan> </text> </g> <g id="Group-29" transform="translate(633.314500, 101.831270)"> <text id="600ms" font-family="HelveticaNeue, Helvetica Neue" font-size="10" font-weight="normal" fill="currentColor"> <tspan x="0" y="8.94009314">600ms</tspan> </text> </g> <polygon id="Fill-30" fill="#F8BA00" points="68.5 30.55127 593.5 30.55127 593.5 47.55127 68.5 47.55127"></polygon> <polygon id="Fill-32" fill="#F8BA00" points="68.5 54.55127 85.5 54.55127 85.5 71.55127 68.5 71.55127"></polygon> <polygon id="Fill-34" fill="#F8BA00" points="68.5 77.55127 72.5 77.55127 72.5 94.55127 68.5 94.55127"></polygon> <g id="Group-37" transform="translate(75.368060, 79.551270)"> <text id="4.6ms" font-family="HelveticaNeue, Helvetica Neue" font-size="11" font-weight="normal" fill="currentColor"> <tspan x="0" y="10">4.6ms</tspan> </text> </g> <g id="Group-39" transform="translate(87.750100, 56.551270)"> <text id="17.41ms" font-family="HelveticaNeue, Helvetica Neue" font-size="11" font-weight="normal" fill="currentColor"> <tspan x="0" y="10">17.41ms</tspan> </text> </g> <g id="Group-41" transform="translate(595.776900, 32.551270)"> <text id="542.96ms" font-family="HelveticaNeue, Helvetica Neue" font-size="11" font-weight="normal" fill="currentColor"> <tspan x="0" y="10">542.96ms</tspan> </text> </g> </g> </g> </svg>
+      </section>
+      <section class="future">
+        <div class="inner">
+          <h3 class="title">Live in the future</h3>
+          <div class="description">
+            <p><strong>Lightning CSS lets you use modern CSS features and future syntax today.</strong> Features such as CSS nesting, custom media queries, high gamut color spaces, logical properties, and new selector features are automatically converted to more compatible syntax based on your browser targets.</p>
+            <p>Lightning CSS also automatically adds vendor prefixes for your browser targets, so you can keep your source code clean and repetition free.</p>
+          </div>
+          <div class="example">
+            <div class="targets"><h4>Target Browsers</h4><code>last 2 versions</code></div>
+            <div class="box input"><h4 class="title">Input</h4><pre>
+<code><span class="class">.foo</span> {
+  <span class="property">color</span>: <span class="keyword">oklab</span>(<span class="number">59.686% 0.1009 0.1192</span>);
+}</code></pre></div>
+            <div class="box"><h4 class="title">Output</h4><pre>
+<code><span class="class">.foo</span> {
+  <span class="property">color</span>: <span class="number">#c65d07</span>;
+  <span class="property">color</span>: <span class="keyword">color</span>(<span class="keyword">display-p3</span> <span class="number">.724144 .386777 .148795</span>);
+  <span class="property">color</span>: <span class="keyword">lab</span>(<span class="number">52.2319% 40.1449 59.9171</span>);
+}</code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="crush">
+        <h3>Crush it!</h3>
+        <p style="font-weight: bold;">Lightning CSS is not only fast when it comes to build time. It produces smaller output, so your website loads faster too.</p>
+        <p style="font-size: 0.85em">The Lightning CSS minifier combines longhand properties into shorthands, removes unnecessary vendor prefixes, merges compatible adjacent rules, removes unnecessary default values, reduces <code>calc()</code> expressions, shortens colors, minifies gradients, and much more.</p>
+        <svg style="max-width:800px;padding:10px 0" viewBox="0 0 665 113" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"> <defs> <polygon id="path-1" points="0 0 24 0 24 12.7439539 0 12.7439539"></polygon> <polygon id="path-3" points="3.55271368e-15 0 49 0 49 9.53409385 3.55271368e-15 9.53409385"></polygon> <polygon id="path-5" points="-3.55271368e-15 0 39 0 39 9.53410385 -3.55271368e-15 9.53410385"></polygon> <polygon id="path-7" points="0 0 56 0 56 9.53410385 0 9.53410385"></polygon> <polygon id="path-9" points="0 0 22 0 22 10.9400931 0 10.9400931"></polygon> <polygon id="path-11" points="0 0 28 0 28 10.9400931 0 10.9400931"></polygon> <polygon id="path-13" points="0 0 28 0 28 10.9400931 0 10.9400931"></polygon> <polygon id="path-15" points="0 0 33 0 33 10.9400931 0 10.9400931"></polygon> <polygon id="path-17" points="0 0 33 0 33 10.9400931 0 10.9400931"></polygon> <polygon id="path-19" points="0 0 46 0 46 9.37074385 0 9.37074385"></polygon> <polygon id="path-21" points="0 0 52 0 52 8.82594385 0 8.82594385"></polygon> <polygon id="path-23" points="0 0 52 0 52 9.28115385 0 9.28115385"></polygon> </defs> <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"> <g id="Group-42"> <g id="Group-2" transform="translate(346.419500, 0.000000)"> <text id="Size" font-family="HelveticaNeue-Bold, Helvetica Neue" font-size="12" font-weight="bold" fill="currentColor"> <tspan x="0" y="9.74395389">Size</tspan> </text> </g> <g id="Group-13" transform="translate(67.500000, 26.051230)"> <line x1="145.5" y1="0.5" x2="145.5" y2="72.5" id="Stroke-3" stroke="#000" stroke-width="0.5"></line> <line x1="290.5" y1="0.5" x2="290.5" y2="72.5" id="Stroke-5" stroke="#000" stroke-width="0.5"></line> <line x1="435.5" y1="0.5" x2="435.5" y2="72.5" id="Stroke-7" stroke="#000" stroke-width="0.5"></line> <line x1="580.5" y1="0.5" x2="580.5" y2="72.5" id="Stroke-9" stroke="#000" stroke-width="0.5"></line> <line x1="0.5" y1="73" x2="0.5" y2="0" id="Stroke-11" stroke="#000000" stroke-linecap="square"></line> </g> <g id="Group-15" transform="translate(7.535000, 31.631660)"> <text id="CSSNano" font-family="HelveticaNeue, Helvetica Neue" font-size="11" font-weight="normal" fill="currentColor"> <tspan x="3.55271368e-15" y="10">CSSNano</tspan> </text> </g> <g id="Group-17" transform="translate(17.105000, 55.843110)"> <text id="ESBuild" font-family="HelveticaNeue, Helvetica Neue" font-size="11" font-weight="normal" fill="currentColor"> <tspan x="-3.55271368e-15" y="10">ESBuild</tspan> </text> </g> <g id="Group-19" transform="translate(0.000000, 80.054570)"> <text id="Parcel-CSS" font-family="HelveticaNeue, Helvetica Neue" font-size="11" font-weight="normal" fill="currentColor"> <tspan x="0" y="10">Parcel CSS</tspan> </text> </g> <g id="Group-21" transform="translate(57.489460, 101.831270)"> <text id="0-KB" font-family="HelveticaNeue, Helvetica Neue" font-size="10" font-weight="normal" fill="currentColor"> <tspan x="0" y="8.94009314">0 KB</tspan> </text> </g> <g id="Group-23" transform="translate(199.709500, 101.831270)"> <text id="40-KB" font-family="HelveticaNeue, Helvetica Neue" font-size="10" font-weight="normal" fill="currentColor"> <tspan x="0" y="8.94009314">40 KB</tspan> </text> </g> <g id="Group-25" transform="translate(344.709500, 101.831270)"> <text id="80-KB" font-family="HelveticaNeue, Helvetica Neue" font-size="10" font-weight="normal" fill="currentColor"> <tspan x="0" y="8.94009314">80 KB</tspan> </text> </g> <g id="Group-27" transform="translate(486.929500, 101.831270)"> <text id="120-KB" font-family="HelveticaNeue, Helvetica Neue" font-size="10" font-weight="normal" fill="currentColor"> <tspan x="0" y="8.94009314">120 KB</tspan> </text> </g> <g id="Group-29" transform="translate(631.929500, 101.831270)"> <text id="160-KB" font-family="HelveticaNeue, Helvetica Neue" font-size="10" font-weight="normal" fill="currentColor"> <tspan x="0" y="8.94009314">160 KB</tspan> </text> </g> <polygon id="Fill-30" fill="#ba1921" points="68.5 30.55127 633.5 30.55127 633.5 47.55127 68.5 47.55127"></polygon> <polygon id="Fill-32" fill="#ba1921" points="68.5 54.55127 636.5 54.55127 636.5 71.55127 68.5 71.55127"></polygon> <polygon id="Fill-34" fill="#ba1921" points="68.5 77.55127 575.5 77.55127 575.5 94.55127 68.5 94.55127"></polygon> <g id="Group-37" transform="translate(527.238200, 79.551270)"> <text id="139.8-KB" font-family="HelveticaNeue, Helvetica Neue" font-size="11" font-weight="normal" fill="#FFFFFF"> <tspan x="0" y="10">139.8 KB</tspan> </text> </g> <g id="Group-39" transform="translate(581.933000, 56.551270)"> <text id="156.57-KB" font-family="HelveticaNeue, Helvetica Neue" font-size="11" font-weight="normal" fill="#FFFFFF"> <tspan x="0" y="10">156.57 KB</tspan> </text> </g> <g id="Group-41" transform="translate(579.469100, 32.551270)"> <text id="155.89-KB" font-family="HelveticaNeue, Helvetica Neue" font-size="11" font-weight="normal" fill="#FFFFFF"> <tspan x="0" y="10">155.89 KB</tspan> </text> </g> </g> </g> </svg>
+      </section>
+      <section class="modules">
+        <div class="compartment main">
+          <h3>CSS modules</h3>
+          <p><strong>Lightning CSS supports CSS modules, which locally scope classes, ids, <code>@keyframes</code>, CSS variables, and more.</strong> This ensures that there are no unintended name clashes between different CSS files.</p>
+          <p style="font-size: 0.8em">Lightning CSS generates a mapping of the original names to scoped names, which can be used from your JavaScript. This also enables unused classes and variables to be tree-shaken.</p>
+        </div>
+        <pre class="compartment input"><code>.heading {
+  composes: typography from './typography.css';
+  color: gray;
+}</code></pre>
+        <pre class="compartment output"><code>.EgL3uq_heading {
+  color: gray;
+}</code></pre>
+        <pre class="compartment json"><code>{
+  "heading": {
+    "name": "EgL3uq_heading",
+    "composes": [{
+      "type": "dependency",
+      "name": "typography",
+      "specifier": "./typography.css"
+    }]
+  }
+}</code></pre>
+      </section>
+      <section class="parser">
+        <div>
+          <h3>Browser grade</h3>
+          <p><strong>Lightning CSS is written in Rust, using the <a href="https://github.com/servo/rust-cssparser" target="_blank">cssparser</a> and <a href="https://github.com/servo/servo/tree/master/components/selectors" target="_blank">selectors</a> crates created by Mozilla and used by Firefox.</strong> These provide a solid general purpose CSS-parsing foundation on top of which Lightning CSS implements support for all specific CSS rules and properties.</p>
+          <p style="font-size: 0.85em">Lightning CSS fully parses every CSS rule, property, and value just as a browser would. This reduces duplicate work for transformers, leading to improved performance and minification.</p>
+        </div>
+        <pre><code><span class="ident">Background</span>([<span class="ident">Background</span> {
+  image: <span class="ident">Url</span>(<span class="ident">Url</span> { url: <span class="string">"img.png"</span> }),
+  color: <span class="ident">CssColor</span>(RGBA(RGBA { red: <span class="number">0</span>, green: <span class="number">0</span>, blue: <span class="number">0</span>, alpha: <span class="number">0</span> })),
+  position: <span class="ident">Position</span> {
+    x: <span class="ident">Length</span>(<span class="ident">Dimension</span>(<span class="ident">Px</span>(<span class="number">20.0</span>))),
+    y: <span class="ident">Length</span>(<span class="ident">Dimension</span>(<span class="ident">Px</span>(<span class="number">10.0</span>))),
+  },
+  repeat: <span class="ident">BackgroundRepeat</span> {
+    x: <span class="ident">Repeat</span>,
+    y: <span class="ident">Repeat</span>,
+  },
+  size: <span class="ident">Explicit</span> {
+    width: <span class="ident">LengthPercentage</span>(<span class="ident">Dimension</span>(<span class="ident">Px</span>(<span class="number">50.0</span>))),
+    height: <span class="ident">LengthPercentage</span>(<span class="ident">Dimension</span>(<span class="ident">Px</span>(<span class="number">100.0</span>))),
+  },
+  attachment: <span class="ident">Scroll</span>,
+  origin: <span class="ident">PaddingBox</span>,
+  clip: <span class="ident">BorderBox</span>,
+}])</code></pre>
+      </section>
+    </main>
+    <footer>
+      Copyright © 2022 Devon Govett and Parcel Contributors.
+    </footer>
+    <style>
+      html {
+        color-scheme: dark;
+        background: #111;
+      }
+      body {
+        font-family: system-ui;
+        --gold: lch(80% 82.34 80.104);
+        --gold-text: lch(85% 82.34 80.104);
+        --gold-shadow: lch(80% 82.34 80.104 / .7);
+      }
+
+      @font-face {
+font-family:"din-1451-lt-pro-engschrift";
+src:url("https://use.typekit.net/af/7fa6e1/00000000000000007735bbcd/30/l?primer=388f68b35a7cbf1ee3543172445c23e26935269fadd3b392a13ac7b2903677eb&fvd=n4&v=3") format("woff2"),url("https://use.typekit.net/af/7fa6e1/00000000000000007735bbcd/30/d?primer=388f68b35a7cbf1ee3543172445c23e26935269fadd3b392a13ac7b2903677eb&fvd=n4&v=3") format("woff"),url("https://use.typekit.net/af/7fa6e1/00000000000000007735bbcd/30/a?primer=388f68b35a7cbf1ee3543172445c23e26935269fadd3b392a13ac7b2903677eb&fvd=n4&v=3") format("opentype");
+font-display:auto;font-style:normal;font-weight:400;font-stretch:normal;
+}
+
+@font-face {
+font-family:"urbane-rounded";
+src:url("https://use.typekit.net/af/916187/00000000000000007735bfa0/30/l?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3") format("woff2"),url("https://use.typekit.net/af/916187/00000000000000007735bfa0/30/d?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3") format("woff"),url("https://use.typekit.net/af/916187/00000000000000007735bfa0/30/a?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3") format("opentype");
+font-display:auto;font-style:normal;font-weight:600;font-stretch:normal;
+}
+
+      header {
+        /* animation: flicker 2s; */
+        margin: 0 auto;
+        padding: 100px 0;
+        font-size: 16px;
+        background: radial-gradient(closest-side, lch(80% 82.34 80.104 / .3), transparent);
+        display: grid;
+        column-gap: 50px;
+        grid-template-areas: "logo header"
+                             "logo subheader"
+                             ". links";
+      }
+
+      header svg {
+        filter: drop-shadow(0 0 5px var(--gold-shadow)) drop-shadow(0 0 20px var(--gold-shadow));
+        grid-area: logo;
+        place-self: center end;
+        width: 100px;
+      }
+
+      header svg .outer {
+        stroke-width: 30px;
+        stroke: var(--gold);
+      }
+
+      header svg .inner {
+        fill: lch(100% 82.34 80.104);
+      }
+
+      header h1 {
+        font-family: urbane-rounded;
+        font-size: 100px;
+        -webkit-text-stroke: 3px var(--gold-text);
+        color: transparent;
+        filter: drop-shadow(0 0 3px var(--gold-shadow)) drop-shadow(0 0 15px var(--gold));
+        padding: 20px 0;
+        margin: 0;
+        letter-spacing: -0.02em;
+      }
+
+      @keyframes flicker {
+        0% {
+          opacity: 0.2;
+        }
+
+        20% {
+          opacity: 1;
+        }
+
+        25% {
+          opacity: 0.2;
+        }
+
+        30% {
+          opacity: 1;
+        }
+
+        40% {
+          opacity: 0.2;
+        }
+
+        45% {
+          opacity: 1;
+        }
+      }
+
+      header h2 {
+        font-family: urbane-rounded;
+        color: lch(65% 85 35);
+        text-shadow: 0 0 20px lch(65% 85 35);
+        margin: 0;
+        letter-spacing: -0.02em;
+      }
+
+      header p {
+        grid-area: links;
+      }
+
+      header a {
+        font-family: urbane-rounded;
+        font-size: 1em;
+        color: lch(90% 50.34 80.104);
+        filter: drop-shadow(0 0 8px lch(90% 50.34 80.104 / .7));
+        text-decoration-color: lch(90% 50.34 80.104 / 0);
+        text-decoration-style: wavy;
+        text-decoration-thickness: 2px;
+        text-underline-offset: 2px;
+        text-decoration-skip-ink: none;
+        transition: text-decoration-color 150ms;
+      }
+
+      header a:hover {
+        text-decoration-color: lch(90% 50.34 80.104);
+      }
+
+      @media (width < 950px) {
+        header {
+          column-gap: 30px;
+        }
+
+        header h1 {
+          font-size: 80px;
+        }
+
+        header h2 {
+          font-size: 20px;
+        }
+
+        header svg {
+          width: 80px;
+        }
+      }
+
+      @media (width < 800px) {
+        header {
+          column-gap: 15px;
+          padding: 30px 0;
+        }
+
+        header h1 {
+          font-size: 60px;
+        }
+
+        header h2 {
+          font-size: 16px;
+        }
+
+        header a {
+          font-size: 14px;
+        }
+
+        header svg {
+          width: 60px;
+        }
+      }
+
+      @media (width < 500px) {
+        header {
+          grid-template-areas: "logo"
+                               "header"
+                               "subheader"
+                               "links";
+          place-items: center;
+          text-align: center;
+          gap: 8px;
+        }
+        header h1 {
+          font-size: 38px;
+          -webkit-text-stroke-width: 1.5px;
+          padding: 0;
+        }
+
+        header h2 {
+          font-size: 14px;
+        }
+
+        header a {
+          font-size: 13px;
+        }
+
+        header svg {
+          place-self: center;
+        }
+      }
+
+      main {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      main section {
+        --padding: 60px;
+        padding: var(--padding);
+        margin: 60px;
+        font-size: 22px;
+        --radius: 50px;
+        border-radius: var(--radius);
+      }
+
+      main section h3 {
+        margin-top: 0;
+        font-size: 1.8em;
+      }
+
+      main section p {
+        line-height: 1.4em;
+      }
+
+      @media (width < 500px) {
+        main section {
+          margin: 20px 10px;
+          --padding: 20px;
+          --radius: 20px;
+          font-size: 16px;
+        }
+      }
+
+      .warp {
+        background: black;
+        color: white;
+        background-image: radial-gradient(rgb(10 3 34 / .2), rgb(10 3 34 / .7)), url(lightspeed.svg);
+        background-size: cover;
+        background-position: center center;
+        box-shadow: inset 0 0 0 1px rgb(255 255 255 / .15);
+      }
+
+      .warp h3 {
+        color: var(--gold-text);
+        text-shadow: 0 0 15px var(--gold-shadow);
+      }
+
+      .warp p {
+        max-width: 900px;
+      }
+
+      .crush {
+        background-image: url(crush.svg), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='rgb(0 0 0 / .2)' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'%3E%3C/path%3E%3C/svg%3E"), linear-gradient(to bottom right, lch(75% 82.34 80.104), lch(68% 82.34 80.104));
+        background-size: contain, auto;
+        background-repeat: no-repeat, repeat;
+        background-position: right top;
+        color: black;
+        padding-right: 540px;
+      }
+
+      .crush h3 {
+        font-size: 3em;
+        margin-bottom: 0;
+        color: lch(42.758% 73.588 34.159);
+        -webkit-text-stroke: 1px black;
+        text-shadow: 3px 3px 0 black;
+        text-transform: uppercase;
+        width: fit-content;
+        word-spacing: .1em;
+      }
+
+      @media (width < 1200px) {
+        .crush {
+          padding-right: var(--padding);
+          padding-bottom: 500px;
+          background-position: bottom right;
+          background-size: auto 500px, auto, auto;
+        }
+      }
+
+      @media (width < 500px) {
+        .crush {
+          padding-bottom: 300px;
+          background-size: auto 300px, auto, auto;
+        }
+      }
+
+      .future {
+        background: #215178;
+        color: white;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='rgba(255,255,255,0.05)' fill-opacity='1'%3E%3Cpath opacity='.5' d='M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z'/%3E%3Cpath d='M6 5V0H5v5H0v1h5v94h1V6h94V5H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"), radial-gradient(#1F4D97, #030B16);
+        box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1);
+        position: relative;
+        --color: lch(85% 58 205);
+      }
+
+      .future .title {
+        font-family: din-1451-lt-pro-engschrift, sans-serif;
+        text-transform: uppercase;
+        position: absolute;
+        --height: 1.2em;
+        top: calc(var(--height) * -.5);
+        left: calc(var(--height) * 1.5);
+        margin-left: -5px;
+        background: var(--color);
+        filter: drop-shadow(0 0 8px var( --color));
+        width: fit-content;
+        color: #030B16;
+        margin-top: 0;
+      }
+
+      .future h3.title {
+        font-size: 1.6em;
+        line-height: var(--height);
+      }
+
+      .future h4.title {
+        font-size: 16px;
+        line-height: var(--height);
+      }
+
+      .future .title:before {
+        content: '';
+        display: inline-block;
+        position: absolute;
+        right: 100%;
+        width: 0;
+        height: 0;
+        border-top: var(--height) solid var( --color);
+        border-left: var(--height) solid transparent;
+      }
+
+      .future .title:after {
+        content: '';
+        display: inline-block;
+        position: absolute;
+        left: 100%;
+        width: 0;
+        height: 0;
+        border-bottom: var(--height) solid var( --color);
+        border-right: var(--height) solid transparent;
+      }
+
+      .future .inner {
+        border: 2px solid var(--color);
+        box-shadow: 0 0 15px var( --color), inset 0 0 15px var( --color);
+        border-radius: 20px;
+        padding: 20px;
+        display: flex;
+        flex-direction: row;
+        position: relative;
+      }
+
+      .future .description {
+        margin: 40px;
+      }
+
+      .future .description p:first-child {
+        margin-top: 0;
+      }
+
+      .future .description p:last-child {
+        margin-bottom: 0;
+      }
+
+      .future .example {
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+        flex-shrink: 0;
+      }
+
+      .future .box {
+        --color: lch(64% 103 0);
+        border: 2px solid var(--color);
+        background: lch(64% 103 0 / .15);
+        border-radius: 10px;
+        box-shadow: 0 0 20px var(--color), inset 0 0 10px var(--color);
+        padding: 15px;
+        text-shadow: 0 0 8px var(--color);
+        position: relative;
+        width: fit-content;
+        margin-left: auto;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .future .box code {
+        font-size: 14px;
+        display: block;
+        overflow: visible auto;
+      }
+
+      .future .box .title {
+        color: white
+      }
+
+      .future .box .property {
+        color: white;
+      }
+
+      .future .box .keyword {
+        color: var(--color);
+      }
+
+      .future .box .number {
+        color: lch(71% 103 52);
+      }
+
+      .future .box .class {
+        color: lch(87% 107 89);
+      }
+
+      .future .targets h4 {
+        font-family: din-1451-lt-pro-engschrift, sans-serif;
+        text-transform: uppercase;
+        display: inline;
+        vertical-align: middle;
+        margin: 0;
+        margin-right: 10px;
+        color: lch(85% 58 205 / .7);
+      }
+
+      .future .targets {
+        border: 2px solid lch(85% 58 205 / .5);
+        box-shadow: 0 0 10px lch(85% 58 205 / .5);
+        border-radius: 6px;
+        padding: 8px;
+        width: fit-content;
+        margin-left: auto;
+        font-size: 16px;
+      }
+
+      .future .targets code {
+        font-size: 15px;
+      }
+
+      @media (width < 1200px) {
+        .future .inner {
+          flex-direction: column;
+        }
+
+        .future .box, .future .targets {
+          margin-left: 0
+        }
+      }
+
+      @media (width < 500px) {
+        .future .description {
+          margin: 20px 4px;
+        }
+
+        .future .box {
+          padding: 10px;
+        }
+        
+        .future .targets h4 {
+          display: block;
+        }
+      }
+
+      .parser {
+        background-image: linear-gradient(rgb(0 0 0 / .1), rgb(0 0 0 / .1)), image-set("metal.jpeg?as=webp&width=1280" 1x, "metal.jpeg?as=webp&width=2560" 2x);
+        background-size: cover;
+        color: black;
+        text-shadow: inset 0 2px 5px black;
+        position: relative;
+        --inset: 35px;
+        padding: calc(var(--padding) + var(--inset) * .6);
+        display: flex;
+        gap: 40px;
+        box-shadow: inset 0 0 0 1px rgb(255 255 255 / .4);
+      }
+
+      .parser > * {
+        z-index: 2;
+      }
+
+      .parser:before {
+        content: '';
+        position: absolute;
+        inset: calc(var(--inset) / 2);
+        border-radius: calc(var(--radius) * .8);
+        box-shadow: inset 2px 3px 10px rgb(0 0 0 / .7), 1px 1px 0 rgb(255 255 255 / .4);
+        background: rgb(0 0 0 / .05);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .parser:after {
+        content: '';
+        position: absolute;
+        inset: var(--inset);
+        border-radius: calc(var(--radius) * .4);
+        box-shadow: inset 1px 1px 0 rgb(255 255 255 / .4), 2px 3px 10px rgb(0 0 0 / .7);
+        background: rgb(255 255 255 / .25);
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      .parser h3 {
+        font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        text-shadow: 3px 3px 2px rgba(255,255,255,0.35);
+        background-color: rgba(0 0 0 / .75);
+        color: transparent;
+        -webkit-background-clip: text;
+        background-clip: text;
+      }
+
+      .parser p {
+        text-shadow: 0 1px 0 white;
+      }
+
+      .parser p:last-child {
+        margin-bottom: 0;
+      }
+
+      .parser pre {
+        padding: 20px;
+        border-radius: 10px;
+        width: fit-content;
+        margin: 0;
+        margin-right: -40px;
+        font-size: .6em;
+        display: flex;
+        align-items: end;
+        text-shadow: 0 1px 0 rgb(255 255 255 / .6);
+        font-weight: bold;
+        overflow: auto;
+        max-width: 100%;
+        flex-shrink: 0;
+      }
+
+      .parser pre .ident {
+        color: lch(30% 80 300);
+      }
+
+      .parser pre .string {
+        color: lch(40% 108 144);
+      }
+
+      .parser pre .number {
+        color: lch(35% 117 348);
+      }
+
+      .parser a {
+        color: black;
+      }
+
+      @media (width < 1200px) {
+        .parser {
+          flex-direction: column;
+        }
+
+        .parser pre {
+          margin: 0;
+          padding: 0;
+        }
+      }
+
+      @media (width < 500px) {
+        .parser {
+          --inset: 25px;
+        }
+
+        .parser p, .parser pre {
+          text-shadow: 0 1px 0 rgb(255 255 255 / .6);
+        }
+      }
+
+      .modules {
+        background: black;
+        box-shadow: 0 0 0 1px rgb(255 255 255 / .2), 2px 2px 5px rgb(255 255 255 / .2);
+        padding: 0;
+        display: grid;
+        grid-template-areas: "main input  input"
+                             "main output json";
+      }
+
+      .modules .compartment {
+        padding: max(20px, calc(var(--padding) / 2));
+        border: 20px solid black;
+        border-radius: 40px;
+        --shadow-size: 20px;
+        --inner-shadow-size: 2px;
+        box-shadow: inset 0 0 0 1px rgb(255 255 255 / .15), inset -1px -1px var(--inner-shadow-size) rgb(255 255 255 / .3), inset 4px 8px var(--shadow-size) rgb(0 0 0 / .9);
+        margin: 0;
+        overflow: auto;
+        background: #ba1921;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='32' viewBox='0 0 16 32'%3E%3Cg fill='%23fff' fill-opacity='0.05'%3E%3Cpath fill-rule='evenodd' d='M0 24h4v2H0v-2zm0 4h6v2H0v-2zm0-8h2v2H0v-2zM0 0h4v2H0V0zm0 4h2v2H0V4zm16 20h-6v2h6v-2zm0 4H8v2h8v-2zm0-8h-4v2h4v-2zm0-20h-6v2h6V0zm0 4h-4v2h4V4zm-2 12h2v2h-2v-2zm0-8h2v2h-2V8zM2 8h10v2H2V8zm0 8h10v2H2v-2zm-2-4h14v2H0v-2zm4-8h6v2H4V4zm0 16h6v2H4v-2zM6 0h2v2H6V0zm0 24h2v2H6v-2z'/%3E%3C/g%3E%3C/svg%3E");
+      }
+
+      .modules .compartment.main {
+        grid-area: main;
+        border-top-left-radius: 50px;
+        border-bottom-left-radius: 50px;
+        padding: 60px 60px 50px 60px;
+        margin-right: -20px;
+        --shadow-size: 40px;
+        --inner-shadow-size: 4px;
+      }
+
+      .modules .compartment.main p:last-child {
+        margin-bottom: 0;
+      }
+
+      .modules .compartment:not(.main) {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .modules h3 {
+        text-transform: uppercase;
+        font-size: 1.45em;
+        border-top: 4px solid white;
+        border-bottom: 4px solid white;
+        line-height: 1.5em;
+        width: fit-content;
+      }
+
+      .modules p {
+        font-family: Georgia, 'Times New Roman', Times, serif;
+        font-size: 0.87em;
+      }
+      
+      .modules pre {
+        font-size: 14px;
+      }
+
+      .modules .compartment.input {
+        grid-area: input;
+        border-top-right-radius: 50px;
+      }
+
+      .modules .compartment.output {
+        grid-area: output;
+        margin-top: -20px;
+      }
+
+      .modules .compartment.json {
+        grid-area: json;
+        margin-top: -20px;
+        margin-left: -20px;
+        border-bottom-right-radius: 50px;
+      }
+
+      @media (width < 1200px) {
+        .modules {
+          grid-template-areas: "main main"
+                               "input input"
+                               "output json";
+        }
+
+        .modules .compartment.main {
+          border-top-right-radius: 50px;
+          margin-right: 0;
+        }
+
+        .modules .compartment.input {
+          margin-top: -20px;
+        }
+
+        .modules .compartment.output {
+          border-bottom-left-radius: 50px;
+        }
+
+        .modules .compartment:not(.main) {
+          justify-content: start;
+        }
+      }
+
+      @media (width < 500px) {
+        .modules {
+          grid-template-areas: "main" "input" "output" "json";
+        }
+
+        .modules .compartment {
+          border-radius: calc(var(--radius) * 1.5) !important;
+          --shadow-size: 15px;
+        }
+
+        .modules .compartment.main {
+          padding: 30px;
+          --shadow-size: 25px;
+        }
+
+        .modules .compartment.json {
+          margin: 0;
+          margin-top: -20px;
+        }
+
+        .modules pre {
+          font-size: 12px;
+        }
+      }
+
+      footer {
+        font-size: 12px;
+        color: #666;
+        text-align: center;
+        padding-bottom: 20px;
+      }
+    </style>
+  </body>
+</html>

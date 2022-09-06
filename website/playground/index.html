@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Parcel CSS Playground</title>
+    <style>
+      html, body {
+        margin: 0;
+        height: 100%;
+        box-sizing: border-box;
+        font-family: -apple-system, system-ui;
+        color-scheme: dark;
+        background: #111;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        padding: 10px;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+        --gold: lch(80% 82.34 80.104);
+      }
+
+      header a {
+        color: inherit;
+      }
+
+      header .github {
+        fill: currentColor;
+      }
+
+      header .logo {
+        grid-area: logo;
+        place-self: center end;
+        height: 60px;
+      }
+
+      header .logo .outer {
+        stroke-width: 30px;
+        stroke: var(--gold);
+      }
+
+      header h1 {
+        font-family: ui-rounded, system-ui;
+        font-size: 35px;
+        letter-spacing: -0.02em;
+        color: var(--gold);
+        padding: 20px 0;
+        margin: 0 20px;
+        flex: 1;
+      }
+
+      .targets {
+        display: table;
+        margin-top: 10px;
+      }
+
+      .targets label {
+        display: table-row;
+      }
+
+      .targets label span,
+      .targets label input {
+        display: table-cell;
+      }
+
+      main {
+        display: flex;
+        flex: 1
+      }
+
+      textarea {
+        flex: 1;
+        font: 14px monospace;
+      }
+
+      label {
+        display: block;
+      }
+
+      h3 {
+        margin-bottom: 4px;
+      }
+
+      div > h3:first-child {
+        margin-top: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <svg class="logo" aria-hidden="true" viewBox="495 168 360 654">
+        <path class="outer" d="M594.41,805c-.71,0-1.43-.15-2.11-.47-2.2-1.03-3.34-3.48-2.72-5.83l67.98-253.71h-140.45c-1.86,0-3.57-1.04-4.44-2.69-.86-1.65-.73-3.65,.34-5.18l26.85-38.35q25.56-36.51,104.91-149.83l106.31-151.82c1.39-1.99,4.01-2.69,6.21-1.66,2.2,1.03,3.34,3.48,2.72,5.83l-67.98,253.71h140.45c1.86,0,3.57,1.04,4.43,2.69,.86,1.65,.73,3.65-.34,5.18l-238.07,340c-.96,1.37-2.51,2.13-4.1,2.13Zm-67.69-270h137.37c1.55,0,3.02,.72,3.97,1.96,.95,1.23,1.27,2.84,.86,4.34l-62.33,232.61,216.29-308.9h-137.36c-1.55,0-3.02-.72-3.97-1.96-.95-1.23-1.27-2.84-.86-4.34l62.33-232.61-90.04,128.59q-79.35,113.32-104.91,149.83l-21.34,30.48Z"/>
+      </svg>
+      <h1>Lightning CSS Playground</h1>
+      <a href="https://github.com/parcel-bundler/parcel-css" target="_blank" aria-label="GitHub">
+        <svg class="github" aria-hidden="true" width="30" height="30" viewBox="0 0 20 20"> <title>GitHub</title> <path d="M10 0a10 10 0 0 0-3.16 19.49c.5.1.68-.22.68-.48l-.01-1.7c-2.78.6-3.37-1.34-3.37-1.34-.46-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.1-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.1.39-1.99 1.03-2.69a3.6 3.6 0 0 1 .1-2.64s.84-.27 2.75 1.02a9.58 9.58 0 0 1 5 0c1.91-1.3 2.75-1.02 2.75-1.02.55 1.37.2 2.4.1 2.64.64.7 1.03 1.6 1.03 2.69 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85l-.01 2.75c0 .26.18.58.69.48A10 10 0 0 0 10 0"></path> </svg>
+      </a>
+    </header>
+    <main>
+      <div>
+        <h3>Options</h3>
+        <label><input id="minify" type="checkbox" checked> Minify</label>
+        <label><input id="cssModules" type="checkbox"> CSS modules</label>
+        <label><input id="analyzeDependencies" type="checkbox"> Analyze dependencies</label>
+        <h3>Draft syntax</h3>
+        <label><input id="nesting" type="checkbox" checked> Nesting</label>
+        <label><input id="customMedia" type="checkbox" checked> Custom media queries</label>
+        <h3>Targets</h3>
+        <div class="targets">
+          <label><span>Chrome: </span><input id="chrome" type="number" value="95"></label>
+          <label><span>Firefox: </span><input id="firefox" type="number"></label>
+          <label><span>Safari: </span><input id="safari" type="number"></label>
+          <label><span>Opera: </span><input id="opera" type="number"></label>
+          <label><span>Edge: </span><input id="edge" type="number"></label>
+          <label><span>IE: </span><input id="ie" type="number"></label>
+          <label><span>iOS: </span><input id="ios_saf" type="number"></label>
+          <label><span>Android: </span><input id="android" type="number"></label>
+          <label><span>Samsung: </span><input id="samsung" type="number"></label>
+        </div>
+        <label>
+          <h3>Unused symbols</h3>
+          <textarea id="unusedSymbols" rows="4" placeholder="Separate items with newlines"></textarea>
+        </label>
+        <label>
+          <h3>Version</h3>
+          <select id="version"><option value="local">local</option></select>
+        </label>
+      </div>
+      <textarea id="source">
+@custom-media --modern (color), (hover);
+
+.foo {
+  background: yellow;
+
+  -webkit-border-radius: 2px;
+  -moz-border-radius: 2px;
+  border-radius: 2px;
+  
+  -webkit-transition: background 200ms;
+  -moz-transition: background 200ms;
+  transition: background 200ms;
+
+  &.bar {
+    color: green;
+  }
+}
+
+@media (--modern) and (width > 1024px) {
+  .a {
+    color: green;
+  }
+}</textarea>
+      <textarea id="compiled"></textarea>
+      <textarea id="compiledModules" hidden></textarea>
+      <textarea id="compiledDependencies" hidden></textarea>
+    </main>
+    <script type="module" src="playground.js"></script>
+  </body>
+</html>
