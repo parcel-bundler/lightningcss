@@ -9,6 +9,7 @@
     "import": "./node/index.mjs",
     "require": "./node/index.js"
   },
+  "browserslist": "last 2 versions, not dead",
   "targets": {
     "main": false,
     "types": false
