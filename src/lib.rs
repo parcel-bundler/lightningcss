@@ -5396,37 +5396,77 @@ mod tests {
   fn test_keyframes() {
     minify_test(
       r#"
-      @keyframes test {
-        from {
-          background: green;
-        }
-
-        50% {
-          background: red;
-        }
-
+      @keyframes "test" {
         100% {
           background: blue
         }
       }
     "#,
-      "@keyframes test{0%{background:green}50%{background:red}to{background:#00f}}",
+      "@keyframes test{to{background:#00f}}",
     );
     minify_test(
       r#"
       @keyframes test {
-        from {
-          background: green;
-          background-color: red;
-        }
-
         100% {
           background: blue
         }
       }
     "#,
-      "@keyframes test{0%{background:red}to{background:#00f}}",
+      "@keyframes test{to{background:#00f}}",
     );
+
+    // CSS-wide keywords and `none` cannot remove quotes.
+    minify_test(
+      r#"
+      @keyframes "revert" {
+        from {
+          background: green;
+        }
+      }
+    "#,
+      "@keyframes \"revert\"{0%{background:green}}",
+    );
+
+    minify_test(
+      r#"
+      @keyframes "none" {
+        from {
+          background: green;
+        }
+      }
+    "#,
+      "@keyframes \"none\"{0%{background:green}}",
+    );
+
+    // CSS-wide keywords without quotes throws an error.
+    error_test(
+      r#"
+      @keyframes revert {}
+    "#,
+      ParserError::UnexpectedToken(Token::Ident("revert".into())),
+    );
+
+    error_test(
+      r#"
+      @keyframes revert-layer {}
+    "#,
+      ParserError::UnexpectedToken(Token::Ident("revert-layer".into())),
+    );
+
+    error_test(
+      r#"
+      @keyframes none {}
+    "#,
+      ParserError::UnexpectedToken(Token::Ident("none".into())),
+    );
+
+    error_test(
+      r#"
+      @keyframes NONE {}
+    "#,
+      ParserError::UnexpectedToken(Token::Ident("NONE".into())),
+    );
+
     minify_test(
       r#"
       @-webkit-keyframes test {
