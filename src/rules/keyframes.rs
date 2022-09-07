@@ -82,9 +82,7 @@ impl<'i> ToCss for KeyframesName<'i> {
         // CSS-wide keywords and `none` cannot remove quotes.
         match_ignore_ascii_case! { &*s,
           "none" | "initial" | "inherit" | "unset" | "default" | "revert" | "revert-layer" => {
-            dest.write_char('"')?;
-            dest.write_str(s.as_ref())?;
-            dest.write_char('"')?;
+            serialize_string(&s, dest)?;
           },
           _ => {
             dest.write_ident(s.as_ref())?;
