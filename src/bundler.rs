@@ -25,10 +25,16 @@
 
 use crate::{
   error::ErrorLocation,
+  properties::{
+    css_modules::Specifier,
+    custom::{CustomProperty, TokenList, TokenOrValue, UnparsedProperty, UnresolvedColor},
+    Property,
+  },
   rules::{
     layer::{LayerBlockRule, LayerName},
     Location,
   },
+  values::ident::DashedIdentReference,
 };
 use crate::{
   error::{Error, ParserError},
@@ -66,6 +72,7 @@ pub struct Bundler<'a, 'o, 's, P> {
 struct BundleStyleSheet<'i, 'o> {
   stylesheet: Option<StyleSheet<'i, 'o>>,
   dependencies: Vec<u32>,
+  css_modules_deps: Vec<u32>,
   parent_source_index: u32,
   parent_dep_index: u32,
   layer: Option<Option<LayerName<'i>>>,
@@ -79,12 +86,15 @@ struct BundleStyleSheet<'i, 'o> {
 /// See [FileProvider](FileProvider) for an implementation that uses the
 /// file system.
 pub trait SourceProvider: Send + Sync {
+  /// A custom error.
+  type Error: std::error::Error + Send + Sync;
+
   /// Reads the contents of the given file path to a string.
-  fn read<'a>(&'a self, file: &Path) -> std::io::Result<&'a str>;
+  fn read<'a>(&'a self, file: &Path) -> Result<&'a str, Self::Error>;
 
   /// Resolves the given import specifier to a file path given the file
   /// which the import originated from.
-  fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Error<BundleErrorKind>>;
+  fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Self::Error>;
 }
 
 /// Provides an implementation of [SourceProvider](SourceProvider)
@@ -106,7 +116,9 @@ unsafe impl Sync for FileProvider {}
 unsafe impl Send for FileProvider {}
 
 impl SourceProvider for FileProvider {
-  fn read<'a>(&'a self, file: &Path) -> std::io::Result<&'a str> {
+  type Error = std::io::Error;
+
+  fn read<'a>(&'a self, file: &Path) -> Result<&'a str, Self::Error> {
     let source = fs::read_to_string(file)?;
     let ptr = Box::into_raw(Box::new(source));
     self.inputs.lock().unwrap().push(ptr);
@@ -116,7 +128,7 @@ impl SourceProvider for FileProvider {
     Ok(unsafe { &*ptr })
   }
 
-  fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Error<BundleErrorKind>> {
+  fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Self::Error> {
     // Assume the specifier is a releative file path and join it with current path.
     Ok(originating_file.with_file_name(specifier))
   }
@@ -132,9 +144,7 @@ impl Drop for FileProvider {
 
 /// An error that could occur during bundling.
 #[derive(Debug, Serialize)]
-pub enum BundleErrorKind<'i> {
-  /// An I/O error occurred.
-  IOError(#[serde(skip)] std::io::Error),
+pub enum BundleErrorKind<'i, T: std::error::Error> {
   /// A parser error occurred.
   ParserError(ParserError<'i>),
   /// An unsupported `@import` condition was encountered.
@@ -143,9 +153,11 @@ pub enum BundleErrorKind<'i> {
   UnsupportedLayerCombination,
   /// Unsupported media query boolean logic was encountered.
   UnsupportedMediaBooleanLogic,
+  /// A custom resolver error.
+  ResolverError(#[serde(skip)] T),
 }
 
-impl<'i> From<Error<ParserError<'i>>> for Error<BundleErrorKind<'i>> {
+impl<'i, T: std::error::Error> From<Error<ParserError<'i>>> for Error<BundleErrorKind<'i, T>> {
   fn from(err: Error<ParserError<'i>>) -> Self {
     Error {
       kind: BundleErrorKind::ParserError(err.kind),
@@ -154,20 +166,20 @@ impl<'i> From<Error<ParserError<'i>>> for Error<BundleErrorKind<'i>> {
   }
 }
 
-impl<'i> std::fmt::Display for BundleErrorKind<'i> {
+impl<'i, T: std::error::Error> std::fmt::Display for BundleErrorKind<'i, T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     use BundleErrorKind::*;
     match self {
-      IOError(err) => write!(f, "IO error: {}", err),
       ParserError(err) => err.fmt(f),
       UnsupportedImportCondition => write!(f, "Unsupported import condition"),
       UnsupportedLayerCombination => write!(f, "Unsupported layer combination in @import"),
       UnsupportedMediaBooleanLogic => write!(f, "Unsupported boolean logic in @import media query"),
+      ResolverError(err) => std::fmt::Display::fmt(&err, f),
     }
   }
 }
 
-impl<'i> BundleErrorKind<'i> {
+impl<'i, T: std::error::Error> BundleErrorKind<'i, T> {
   #[deprecated(note = "use `BundleErrorKind::to_string()` or `std::fmt::Display` instead")]
   #[allow(missing_docs)]
   pub fn reason(&self) -> String {
@@ -190,7 +202,10 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P> {
   }
 
   /// Bundles the given entry file and all dependencies into a single style sheet.
-  pub fn bundle<'e>(&mut self, entry: &'e Path) -> Result<StyleSheet<'a, 'o>, Error<BundleErrorKind<'a>>> {
+  pub fn bundle<'e>(
+    &mut self,
+    entry: &'e Path,
+  ) -> Result<StyleSheet<'a, 'o>, Error<BundleErrorKind<'a, P::Error>>> {
     // Phase 1: load and parse all files. This is done in parallel.
     self.load_file(
       &entry,
@@ -231,7 +246,7 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P> {
     entry.key().to_str().unwrap().into()
   }
 
-  fn load_file(&self, file: &Path, rule: ImportRule<'a>) -> Result<u32, Error<BundleErrorKind<'a>>> {
+  fn load_file(&self, file: &Path, rule: ImportRule<'a>) -> Result<u32, Error<BundleErrorKind<'a, P::Error>>> {
     // Check if we already loaded this file.
     let mut stylesheets = self.stylesheets.lock().unwrap();
     let source_index = match self.source_indexes.get(file) {
@@ -293,6 +308,7 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P> {
           supports: rule.supports.clone(),
           loc: rule.loc.clone(),
           dependencies: Vec::new(),
+          css_modules_deps: Vec::new(),
           parent_source_index: 0,
           parent_dep_index: 0,
         });
@@ -304,7 +320,7 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P> {
     drop(stylesheets); // ensure we aren't holding the lock anymore
 
     let code = self.fs.read(file).map_err(|e| Error {
-      kind: BundleErrorKind::IOError(e),
+      kind: BundleErrorKind::ResolverError(e),
       loc: Some(ErrorLocation::new(rule.loc, self.find_filename(rule.loc.source_index))),
     })?;
 
@@ -389,7 +405,7 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P> {
               },
             ),
             Err(err) => Err(Error {
-              kind: err.kind,
+              kind: BundleErrorKind::ResolverError(err),
               loc: Some(ErrorLocation::new(
                 import.loc,
                 self.find_filename(import.loc.source_index),
@@ -404,11 +420,110 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P> {
       })
       .collect();
 
+    // Collect CSS modules dependencies from the `composes` property.
+    let css_modules_deps: Result<Vec<u32>, _> = if self.options.css_modules.is_some() {
+      stylesheet
+        .rules
+        .0
+        .par_iter_mut()
+        .filter_map(|r| {
+          if let CssRule::Style(style) = r {
+            Some(
+              style
+                .declarations
+                .declarations
+                .par_iter_mut()
+                .chain(style.declarations.important_declarations.par_iter_mut())
+                .filter_map(|d| match d {
+                  Property::Composes(composes) => self
+                    .add_css_module_dep(file, &rule, style.loc, composes.loc, &mut composes.from)
+                    .map(|result| rayon::iter::Either::Left(rayon::iter::once(result))),
+
+                  // Handle variable references if the dashed_idents option is present.
+                  Property::Custom(CustomProperty { value, .. })
+                  | Property::Unparsed(UnparsedProperty { value, .. })
+                    if matches!(&self.options.css_modules, Some(css_modules) if css_modules.dashed_idents) =>
+                  {
+                    Some(rayon::iter::Either::Right(visit_vars(value).filter_map(|name| {
+                      self.add_css_module_dep(
+                        file,
+                        &rule,
+                        style.loc,
+                        // TODO: store loc in variable reference?
+                        crate::dependencies::Location {
+                          line: style.loc.line,
+                          column: style.loc.column,
+                        },
+                        &mut name.from,
+                      )
+                    })))
+                  }
+                  _ => None,
+                })
+                .flatten(),
+            )
+          } else {
+            None
+          }
+        })
+        .flatten()
+        .collect()
+    } else {
+      Ok(vec![])
+    };
+
     let entry = &mut self.stylesheets.lock().unwrap()[source_index as usize];
     entry.stylesheet = Some(stylesheet);
     entry.dependencies = dependencies?;
+    entry.css_modules_deps = css_modules_deps?;
 
     Ok(source_index)
+  }
+
+  fn add_css_module_dep(
+    &self,
+    file: &Path,
+    rule: &ImportRule<'a>,
+    style_loc: Location,
+    loc: crate::dependencies::Location,
+    specifier: &mut Option<Specifier>,
+  ) -> Option<Result<u32, Error<BundleErrorKind<'a, P::Error>>>> {
+    if let Some(Specifier::File(f)) = specifier {
+      let result = match self.fs.resolve(&f, file) {
+        Ok(path) => {
+          let res = self.load_file(
+            &path,
+            ImportRule {
+              layer: rule.layer.clone(),
+              media: rule.media.clone(),
+              supports: rule.supports.clone(),
+              url: "".into(),
+              loc: Location {
+                source_index: style_loc.source_index,
+                line: loc.line,
+                column: loc.column,
+              },
+            },
+          );
+
+          if let Ok(source_index) = res {
+            *specifier = Some(Specifier::SourceIndex(source_index));
+          }
+
+          res
+        }
+        Err(err) => Err(Error {
+          kind: BundleErrorKind::ResolverError(err),
+          loc: Some(ErrorLocation::new(
+            style_loc,
+            self.find_filename(style_loc.source_index),
+          )),
+        }),
+      };
+      Some(result)
+    } else {
+      None
+    }
   }
 
   fn order(&mut self) {
@@ -421,15 +536,31 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P> {
 
       visited.insert(source_index);
 
-      for dep_index in 0..stylesheets[source_index as usize].dependencies.len() {
-        let dep_source_index = stylesheets[source_index as usize].dependencies[dep_index];
-        let mut resolved = &mut stylesheets[dep_source_index as usize];
+      let mut dep_index = 0;
+      for i in 0..stylesheets[source_index as usize].css_modules_deps.len() {
+        let dep_source_index = stylesheets[source_index as usize].css_modules_deps[i];
+        let resolved = &mut stylesheets[dep_source_index as usize];
+
+        // CSS modules preserve the first instance of composed stylesheets.
+        if !visited.contains(&dep_source_index) {
+          resolved.parent_dep_index = dep_index;
+          resolved.parent_source_index = source_index;
+          process(stylesheets, dep_source_index, visited);
+        }
+
+        dep_index += 1;
+      }
+
+      for i in 0..stylesheets[source_index as usize].dependencies.len() {
+        let dep_source_index = stylesheets[source_index as usize].dependencies[i];
+        let resolved = &mut stylesheets[dep_source_index as usize];
 
         // In browsers, every instance of an @import is evaluated, so we preserve the last.
-        resolved.parent_dep_index = dep_index as u32;
+        resolved.parent_dep_index = dep_index;
         resolved.parent_source_index = source_index;
 
         process(stylesheets, dep_source_index, visited);
+        dep_index += 1;
       }
     }
   }
@@ -445,11 +576,25 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P> {
       let stylesheet = &mut stylesheets[source_index as usize];
       let mut rules = std::mem::take(&mut stylesheet.stylesheet.as_mut().unwrap().rules.0);
 
+      // Hoist css modules deps
       let mut dep_index = 0;
+      for i in 0..stylesheet.css_modules_deps.len() {
+        let dep_source_index = stylesheets[source_index as usize].css_modules_deps[i];
+        let resolved = &stylesheets[dep_source_index as usize];
+
+        // Include the dependency if this is the first instance as computed earlier.
+        if resolved.parent_source_index == source_index && resolved.parent_dep_index == dep_index as u32 {
+          process(stylesheets, dep_source_index, dest);
+        }
+
+        dep_index += 1;
+      }
+
+      let mut import_index = 0;
       for rule in &mut rules {
         match rule {
           CssRule::Import(_) => {
-            let dep_source_index = stylesheets[source_index as usize].dependencies[dep_index as usize];
+            let dep_source_index = stylesheets[source_index as usize].dependencies[import_index];
             let resolved = &stylesheets[dep_source_index as usize];
 
             // Include the dependency if this is the last instance as computed earlier.
@@ -459,6 +604,7 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P> {
 
             *rule = CssRule::Ignored;
             dep_index += 1;
+            import_index += 1;
           }
           CssRule::LayerStatement(_) => {
             // @layer rules are the only rules that may appear before an @import.
@@ -516,10 +662,41 @@ fn combine_supports<'a>(
   }
 }
 
+fn visit_vars<'a, 'b>(
+  token_list: &'b mut TokenList<'a>,
+) -> impl ParallelIterator<Item = &'b mut DashedIdentReference<'a>> {
+  let mut stack = vec![token_list.0.iter_mut()];
+  std::iter::from_fn(move || {
+    while !stack.is_empty() {
+      let iter = stack.last_mut().unwrap();
+      match iter.next() {
+        Some(TokenOrValue::Var(var)) => {
+          if let Some(fallback) = &mut var.fallback {
+            stack.push(fallback.0.iter_mut());
+          }
+          return Some(&mut var.name);
+        }
+        Some(TokenOrValue::UnresolvedColor(color)) => match color {
+          UnresolvedColor::RGB { alpha, .. } | UnresolvedColor::HSL { alpha, .. } => {
+            stack.push(alpha.0.iter_mut());
+          }
+        },
+        None => {
+          stack.pop();
+        }
+        _ => {}
+      }
+    }
+    None
+  })
+  .par_bridge()
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
   use crate::{
+    css_modules::{self, CssModuleExports, CssModuleReference},
     stylesheet::{MinifyOptions, PrinterOptions},
     targets::Browsers,
   };
@@ -531,11 +708,13 @@ mod tests {
   }
 
   impl SourceProvider for TestProvider {
-    fn read<'a>(&'a self, file: &Path) -> std::io::Result<&'a str> {
+    type Error = std::io::Error;
+
+    fn read<'a>(&'a self, file: &Path) -> Result<&'a str, Self::Error> {
       Ok(self.map.get(file).unwrap())
     }
 
-    fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Error<BundleErrorKind>> {
+    fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Self::Error> {
       Ok(originating_file.with_file_name(specifier))
     }
   }
@@ -546,26 +725,28 @@ mod tests {
   }
 
   impl SourceProvider for CustomProvider {
+    type Error = std::io::Error;
+
     /// Read files from in-memory map.
-    fn read<'a>(&'a self, file: &Path) -> std::io::Result<&'a str> {
+    fn read<'a>(&'a self, file: &Path) -> Result<&'a str, Self::Error> {
       Ok(self.map.get(file).unwrap())
     }
 
     /// Resolve by stripping a `foo:` prefix off any import. Specifiers without
     /// this prefix fail with an error.
-    fn resolve(&self, specifier: &str, _originating_file: &Path) -> Result<PathBuf, Error<BundleErrorKind>> {
+    fn resolve(&self, specifier: &str, _originating_file: &Path) -> Result<PathBuf, Self::Error> {
       if specifier.starts_with("foo:") {
         Ok(Path::new(&specifier["foo:".len()..]).to_path_buf())
       } else {
-        let kind = BundleErrorKind::IOError(std::io::Error::new(
+        let err = std::io::Error::new(
           std::io::ErrorKind::NotFound,
           format!(
             "Failed to resolve `{}`, specifier does not start with `foo:`.",
             &specifier
           ),
-        ));
+        );
 
-        Err(Error { kind, loc: None })
+        Err(err)
       }
     }
   }
@@ -589,17 +770,22 @@ mod tests {
     stylesheet.to_css(PrinterOptions::default()).unwrap().code
   }
 
-  fn bundle_css_module<P: SourceProvider>(fs: P, entry: &str) -> String {
+  fn bundle_css_module<P: SourceProvider>(fs: P, entry: &str) -> (String, CssModuleExports) {
     let mut bundler = Bundler::new(
       &fs,
       None,
       ParserOptions {
-        css_modules: Some(Default::default()),
+        css_modules: Some(css_modules::Config {
+          dashed_idents: true,
+          ..Default::default()
+        }),
         ..ParserOptions::default()
       },
     );
-    let stylesheet = bundler.bundle(Path::new(entry)).unwrap();
-    stylesheet.to_css(PrinterOptions::default()).unwrap().code
+    let mut stylesheet = bundler.bundle(Path::new(entry)).unwrap();
+    stylesheet.minify(MinifyOptions::default()).unwrap();
+    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    (res.code, res.exports.unwrap())
   }
 
   fn bundle_custom_media<P: SourceProvider>(fs: P, entry: &str) -> String {
@@ -631,7 +817,11 @@ mod tests {
       .code
   }
 
-  fn error_test<P: SourceProvider>(fs: P, entry: &str, maybe_cb: Option<Box<dyn FnOnce(BundleErrorKind) -> ()>>) {
+  fn error_test<P: SourceProvider>(
+    fs: P,
+    entry: &str,
+    maybe_cb: Option<Box<dyn FnOnce(BundleErrorKind<P::Error>) -> ()>>,
+  ) {
     let mut bundler = Bundler::new(&fs, None, ParserOptions::default());
     let res = bundler.bundle(Path::new(entry));
     match res {
@@ -642,6 +832,23 @@ mod tests {
         }
       }
     }
+  }
+
+  fn flatten_exports(exports: CssModuleExports) -> HashMap<String, String> {
+    let mut res = HashMap::new();
+    for (name, export) in &exports {
+      let mut classes = export.name.clone();
+      for composes in &export.composes {
+        classes.push(' ');
+        classes.push_str(match composes {
+          CssModuleReference::Local { name } => name,
+          CssModuleReference::Global { name } => name,
+          _ => unreachable!(),
+        })
+      }
+      res.insert(name.clone(), classes);
+    }
+    res
   }
 
   #[test]
@@ -941,33 +1148,6 @@ mod tests {
       }
       
       .a {
-        color: red;
-      }
-    "#}
-    );
-
-    let res = bundle_css_module(
-      TestProvider {
-        map: fs! {
-          "/a.css": r#"
-          @import "b.css";
-          .a { color: red }
-        "#,
-          "/b.css": r#"
-          .a { color: green }
-        "#
-        },
-      },
-      "/a.css",
-    );
-    assert_eq!(
-      res,
-      indoc! { r#"
-      ._6lixEq_a {
-        color: green;
-      }
-
-      ._6lixEq_a {
         color: red;
       }
     "#}
@@ -1383,7 +1563,7 @@ mod tests {
       "/a.css",
       Some(Box::new(|err| {
         let kind = match err {
-          BundleErrorKind::IOError(ref error) => error.kind(),
+          BundleErrorKind::ResolverError(ref error) => error.kind(),
           _ => unreachable!(),
         };
         assert!(matches!(kind, std::io::ErrorKind::NotFound));
@@ -1417,5 +1597,166 @@ mod tests {
     //     .c { color: yellow }
     //   "#
     // }, "/a.css");
+  }
+
+  #[test]
+  fn test_css_module() {
+    macro_rules! map {
+      { $($key:expr => $val:expr),* } => {
+        HashMap::from([
+          $(($key.to_owned(), $val.to_owned()),)*
+        ])
+      };
+    }
+
+    let (code, exports) = bundle_css_module(
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css";
+          .a { color: red }
+        "#,
+          "/b.css": r#"
+          .a { color: green }
+        "#
+        },
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      code,
+      indoc! { r#"
+      ._9z6RGq_a {
+        color: green;
+      }
+
+      ._6lixEq_a {
+        color: red;
+      }
+    "#}
+    );
+    assert_eq!(
+      flatten_exports(exports),
+      map! {
+        "a" => "_6lixEq_a"
+      }
+    );
+
+    let (code, exports) = bundle_css_module(
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          .a { composes: x from './b.css'; color: red; }
+          .b { color: yellow }
+        "#,
+          "/b.css": r#"
+          .x { composes: y; background: green }
+          .y { font: Helvetica }
+        "#
+        },
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      code,
+      indoc! { r#"
+      ._8Cs9ZG_x {
+        background: green;
+      }
+
+      ._8Cs9ZG_y {
+        font: Helvetica;
+      }
+
+      ._6lixEq_a {
+        color: red;
+      }
+
+      ._6lixEq_b {
+        color: #ff0;
+      }
+    "#}
+    );
+    assert_eq!(
+      flatten_exports(exports),
+      map! {
+        "a" => "_6lixEq_a _8Cs9ZG_x _8Cs9ZG_y",
+        "b" => "_6lixEq_b"
+      }
+    );
+
+    let (code, exports) = bundle_css_module(
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          .a { composes: x from './b.css'; background: red; }
+        "#,
+          "/b.css": r#"
+          .a { background: red }
+        "#
+        },
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      code,
+      indoc! { r#"
+      ._8Cs9ZG_a {
+        background: red;
+      }
+
+      ._6lixEq_a {
+        background: red;
+      }
+    "#}
+    );
+    assert_eq!(
+      flatten_exports(exports),
+      map! {
+        "a" => "_6lixEq_a"
+      }
+    );
+
+    let (code, exports) = bundle_css_module(
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          .a {
+            background: var(--bg from "./b.css", var(--fallback from "./b.css"));
+            color: rgb(255 255 255 / var(--opacity from "./b.css"));
+          }
+        "#,
+          "/b.css": r#"
+          .b {
+            --bg: red;
+            --fallback: yellow;
+            --opacity: 0.5;
+          }
+        "#
+        },
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      code,
+      indoc! { r#"
+      ._8Cs9ZG_b {
+        --_8Cs9ZG_bg: red;
+        --_8Cs9ZG_fallback: yellow;
+        --_8Cs9ZG_opacity: .5;
+      }
+
+      ._6lixEq_a {
+        background: var(--_8Cs9ZG_bg, var(--_8Cs9ZG_fallback));
+        color: rgb(255 255 255 / var(--_8Cs9ZG_opacity));
+      }
+    "#}
+    );
+    assert_eq!(
+      flatten_exports(exports),
+      map! {
+        "a" => "_6lixEq_a"
+      }
+    );
   }
 }

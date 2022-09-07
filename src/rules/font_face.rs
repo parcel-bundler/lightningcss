@@ -233,18 +233,18 @@ enum_property! {
   /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
   /// property of an `@font-face` rule.
   pub enum FontTechnology {
-    /// A font feature tech descriptor in the `tech()`function of the
-    /// [src](https://drafts.csswg.org/css-fonts/#font-feature-tech-values)
+    /// A font features tech descriptor in the `tech()`function of the
+    /// [src](https://drafts.csswg.org/css-fonts/#font-features-tech-values)
     /// property of an `@font-face` rule.
     /// Supports OpenType Features.
     /// https://docs.microsoft.com/en-us/typography/opentype/spec/featurelist
-    "feature-opentype": FeatureOpentype,
+    "features-opentype": FeaturesOpentype,
     /// Supports Apple Advanced Typography Font Features.
     /// https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html
-    "feature-aat": FeatureAat,
+    "features-aat": FeaturesAat,
     /// Supports Graphite Table Format.
     /// https://scripts.sil.org/cms/scripts/render_download.php?site_id=nrsi&format=file&media_id=GraphiteBinaryFormat_3_0&filename=GraphiteBinaryFormat_3_0.pdf
-    "feature-graphite": FeatureGraphite,
+    "features-graphite": FeaturesGraphite,
 
     /// A color font tech descriptor in the `tech()`function of the
     /// [src](https://drafts.csswg.org/css-fonts/#src-desc)

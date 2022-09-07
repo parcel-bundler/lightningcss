@@ -226,10 +226,11 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
     if let Some(css_module) = &mut self.css_module {
       let dest = &mut self.dest;
       let mut first = true;
-      css_module
-        .config
-        .pattern
-        .write(&css_module.hash, &css_module.path, ident, |s| {
+      css_module.config.pattern.write(
+        &css_module.hashes[self.loc.source_index as usize],
+        &css_module.sources[self.loc.source_index as usize],
+        ident,
+        |s| {
           self.col += s.len() as u32;
           if first {
             first = false;
@@ -237,9 +238,10 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
           } else {
             serialize_name(s, dest)
           }
-        })?;
+        },
+      )?;
 
-      css_module.add_local(&ident, &ident);
+      css_module.add_local(&ident, &ident, self.loc.source_index);
     } else {
       serialize_identifier(ident, self)?;
     }
@@ -253,16 +255,18 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
     match &mut self.css_module {
       Some(css_module) if css_module.config.dashed_idents => {
         let dest = &mut self.dest;
-        css_module
-          .config
-          .pattern
-          .write(&css_module.hash, &css_module.path, &ident[2..], |s| {
+        css_module.config.pattern.write(
+          &css_module.hashes[self.loc.source_index as usize],
+          &css_module.sources[self.loc.source_index as usize],
+          &ident[2..],
+          |s| {
             self.col += s.len() as u32;
             serialize_name(s, dest)
-          })?;
+          },
+        )?;
 
         if is_declaration {
-          css_module.add_dashed(ident);
+          css_module.add_dashed(ident, self.loc.source_index);
         }
       }
       _ => {

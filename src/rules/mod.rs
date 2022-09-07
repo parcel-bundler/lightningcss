@@ -65,6 +65,7 @@ use crate::error::{MinifyError, ParserError, PrinterError};
 use crate::parser::TopLevelRuleParser;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
+use crate::rules::keyframes::KeyframesName;
 use crate::selector::{downlevel_selectors, get_prefix, is_equivalent};
 use crate::stylesheet::ParserOptions;
 use crate::targets::Browsers;
@@ -245,6 +246,7 @@ pub(crate) struct MinifyContext<'a, 'i> {
   pub handler_context: &'a mut PropertyHandlerContext<'i, 'a>,
   pub unused_symbols: &'a HashSet<String>,
   pub custom_media: Option<HashMap<CowArcStr<'i>, CustomMediaRule<'i>>>,
+  pub css_modules: bool,
 }
 
 impl<'i> CssRuleList<'i> {
@@ -258,7 +260,10 @@ impl<'i> CssRuleList<'i> {
     for mut rule in self.0.drain(..) {
       match &mut rule {
         CssRule::Keyframes(keyframes) => {
-          if context.unused_symbols.contains(keyframes.name.0.as_ref()) {
+          if context.unused_symbols.contains(match &keyframes.name {
+            KeyframesName::Ident(ident) => ident.0.as_ref(),
+            KeyframesName::Custom(string) => string.as_ref(),
+          }) {
             continue;
           }
           keyframes.minify(context);
@@ -455,6 +460,7 @@ fn merge_style_rules<'i>(
     && last_style_rule.is_compatible(*context.targets)
     && style.rules.0.is_empty()
     && last_style_rule.rules.0.is_empty()
+    && (!context.css_modules || style.loc.source_index == last_style_rule.loc.source_index)
   {
     last_style_rule
       .declarations

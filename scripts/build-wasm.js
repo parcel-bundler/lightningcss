@@ -14,13 +14,13 @@ fs.writeFileSync(`${dir}/npm/wasm/index.js`, `export {default, transform, transf
 let b = fs.readFileSync(`${dir}/node/browserslistToTargets.js`, 'utf8');
 b = b.replace('module.exports = browserslistToTargets;', 'export {browserslistToTargets};');
 fs.writeFileSync(`${dir}/npm/wasm/browserslistToTargets.js`, b);
-fs.unlinkSync(`${dir}/npm/wasm/parcel_css_node.d.ts`);
+fs.unlinkSync(`${dir}/npm/wasm/lightningcss_node.d.ts`);
 
 let dts = fs.readFileSync(`${dir}/node/index.d.ts`, 'utf8');
 dts = dts.replace(/: Buffer/g, ': Uint8Array');
 dts += `
 /** Initializes the web assembly module. */
-export default function init(): Promise<void>;
+export default function init(input?: string | URL | Request): Promise<void>;
 `;
 fs.writeFileSync(`${dir}/npm/wasm/index.d.ts`, dts);
 fs.copyFileSync(`${dir}/node/targets.d.ts`, `${dir}/npm/wasm/targets.d.ts`);

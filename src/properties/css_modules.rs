@@ -37,6 +37,8 @@ pub enum Specifier<'i> {
   /// The referenced name comes from the specified file.
   #[cfg_attr(feature = "serde", serde(borrow))]
   File(CowArcStr<'i>),
+  /// The referenced name comes from a source index (used during bundling).
+  SourceIndex(u32),
 }
 
 impl<'i> Parse<'i> for Composes<'i> {
@@ -119,6 +121,7 @@ impl<'i> ToCss for Specifier<'i> {
     match self {
       Specifier::Global => dest.write_str("global")?,
       Specifier::File(file) => serialize_string(&file, dest)?,
+      Specifier::SourceIndex(..) => {}
     }
     Ok(())
   }

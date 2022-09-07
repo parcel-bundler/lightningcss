@@ -179,6 +179,7 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
       handler_context: &mut context,
       unused_symbols: &options.unused_symbols,
       custom_media,
+      css_modules: self.options.css_modules.is_some(),
     };
 
     self.rules.minify(&mut ctx, false).map_err(|e| Error {
@@ -201,22 +202,18 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
     printer.sources = Some(&self.sources);
 
     if let Some(config) = &self.options.css_modules {
-      let mut exports = HashMap::new();
       let mut references = HashMap::new();
-      printer.css_module = Some(CssModule::new(
-        config,
-        printer.filename(),
-        &mut exports,
-        &mut references,
-      ));
+      printer.css_module = Some(CssModule::new(config, &self.sources, &mut references));
 
       self.rules.to_css(&mut printer)?;
       printer.newline()?;
 
       Ok(ToCssResult {
         dependencies: printer.dependencies,
+        exports: Some(std::mem::take(
+          &mut printer.css_module.unwrap().exports_by_source_index[0],
+        )),
         code: dest,
-        exports: Some(exports),
         references: Some(references),
       })
     } else {

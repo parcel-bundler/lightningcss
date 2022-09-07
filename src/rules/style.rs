@@ -233,7 +233,7 @@ impl<'a, 'i> StyleRule<'i> {
 
               if let Some(css_module) = &mut dest.css_module {
                 css_module
-                  .handle_composes(&self.selectors, &composes)
+                  .handle_composes(&self.selectors, &composes, self.loc.source_index)
                   .map_err(|e| dest.error(e, composes.loc))?;
                 continue;
               }

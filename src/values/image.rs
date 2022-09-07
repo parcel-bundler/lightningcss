@@ -478,16 +478,17 @@ impl<'i> ImageSetOption<'i> {
       _ => self.image.to_css(dest)?,
     }
 
-    if self.resolution != Resolution::Dppx(1.0) {
-      dest.write_char(' ')?;
+    // TODO: Throwing an error when `self.resolution = Resolution::Dppx(0.0)`
+    // TODO: -webkit-image-set() does not support `<image()> | <image-set()> |
+    // <cross-fade()> | <element()> | <gradient>` and `type(<string>)`.
+    dest.write_char(' ')?;
 
-      // Safari only supports the x resolution unit in image-set().
-      // In other places, x was added as an alias later.
-      // Temporarily ignore the targets while printing here.
-      let targets = std::mem::take(&mut dest.targets);
-      self.resolution.to_css(dest)?;
-      dest.targets = targets;
-    }
+    // Safari only supports the x resolution unit in image-set().
+    // In other places, x was added as an alias later.
+    // Temporarily ignore the targets while printing here.
+    let targets = std::mem::take(&mut dest.targets);
+    self.resolution.to_css(dest)?;
+    dest.targets = targets;
 
     if let Some(file_type) = &self.file_type {
       dest.write_str(" type(")?;

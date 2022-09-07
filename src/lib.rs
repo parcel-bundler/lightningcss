@@ -5396,37 +5396,77 @@ mod tests {
   fn test_keyframes() {
     minify_test(
       r#"
-      @keyframes test {
-        from {
-          background: green;
-        }
-
-        50% {
-          background: red;
-        }
-
+      @keyframes "test" {
         100% {
           background: blue
         }
       }
     "#,
-      "@keyframes test{0%{background:green}50%{background:red}to{background:#00f}}",
+      "@keyframes test{to{background:#00f}}",
     );
     minify_test(
       r#"
       @keyframes test {
-        from {
-          background: green;
-          background-color: red;
-        }
-
         100% {
           background: blue
         }
       }
     "#,
-      "@keyframes test{0%{background:red}to{background:#00f}}",
+      "@keyframes test{to{background:#00f}}",
     );
+
+    // CSS-wide keywords and `none` cannot remove quotes.
+    minify_test(
+      r#"
+      @keyframes "revert" {
+        from {
+          background: green;
+        }
+      }
+    "#,
+      "@keyframes \"revert\"{0%{background:green}}",
+    );
+
+    minify_test(
+      r#"
+      @keyframes "none" {
+        from {
+          background: green;
+        }
+      }
+    "#,
+      "@keyframes \"none\"{0%{background:green}}",
+    );
+
+    // CSS-wide keywords without quotes throws an error.
+    error_test(
+      r#"
+      @keyframes revert {}
+    "#,
+      ParserError::UnexpectedToken(Token::Ident("revert".into())),
+    );
+
+    error_test(
+      r#"
+      @keyframes revert-layer {}
+    "#,
+      ParserError::UnexpectedToken(Token::Ident("revert-layer".into())),
+    );
+
+    error_test(
+      r#"
+      @keyframes none {}
+    "#,
+      ParserError::UnexpectedToken(Token::Ident("none".into())),
+    );
+
+    error_test(
+      r#"
+      @keyframes NONE {}
+    "#,
+      ParserError::UnexpectedToken(Token::Ident("NONE".into())),
+    );
+
     minify_test(
       r#"
       @-webkit-keyframes test {
@@ -9452,8 +9492,8 @@ mod tests {
       "@font-face{src:url(test.ttc)format(\"collection\"),url(test.ttf)format(\"truetype\")}",
     );
     minify_test(
-      "@font-face {src: url(\"test.otf\") format(opentype) tech(feature-aat);}",
-      "@font-face{src:url(test.otf)format(\"opentype\")tech(feature-aat)}",
+      "@font-face {src: url(\"test.otf\") format(opentype) tech(features-aat);}",
+      "@font-face{src:url(test.otf)format(\"opentype\")tech(features-aat)}",
     );
     minify_test(
       "@font-face {src: url(\"test.woff\") format(woff) tech(color-colrv1);}",
@@ -9469,12 +9509,12 @@ mod tests {
     );
     // multiple tech
     minify_test(
-      "@font-face {src: url(\"test.woff\") format(woff) tech(feature-opentype, color-sbix);}",
-      "@font-face{src:url(test.woff)format(\"woff\")tech(feature-opentype,color-sbix)}",
+      "@font-face {src: url(\"test.woff\") format(woff) tech(features-opentype, color-sbix);}",
+      "@font-face{src:url(test.woff)format(\"woff\")tech(features-opentype,color-sbix)}",
     );
     minify_test(
-      "@font-face {src: url(\"test.woff\")   format(woff)    tech(incremental, color-svg, feature-graphite, feature-aat);}",
-      "@font-face{src:url(test.woff)format(\"woff\")tech(incremental,color-svg,feature-graphite,feature-aat)}",
+      "@font-face {src: url(\"test.woff\")   format(woff)    tech(incremental, color-svg, features-graphite, features-aat);}",
+      "@font-face{src:url(test.woff)format(\"woff\")tech(incremental,color-svg,features-graphite,features-aat)}",
     );
     // format() function must precede tech() if both are present
     minify_test(
@@ -9496,7 +9536,7 @@ mod tests {
     // TODO(CGQAQ): make this test pass when we have strict mode
     // ref: https://github.com/web-platform-tests/wpt/blob/9f8a6ccc41aa725e8f51f4f096f686313bb88d8d/css/css-fonts/parsing/font-face-src-tech.html#L45
     // error_test(
-    //   "@font-face {src: url(\"foo.ttf\") tech(feature-opentype) format(opentype);}",
+    //   "@font-face {src: url(\"foo.ttf\") tech(features-opentype) format(opentype);}",
     //   ParserError::AtRuleBodyInvalid,
     // );
     // error_test(
@@ -9504,7 +9544,7 @@ mod tests {
     //   ParserError::AtRuleBodyInvalid,
     // );
     // error_test(
-    //   "@font-face {src: url(\"foo.ttf\") tech(\"feature-opentype\");}",
+    //   "@font-face {src: url(\"foo.ttf\") tech(\"features-opentype\");}",
     //   ParserError::AtRuleBodyInvalid,
     // );
     // error_test(
@@ -12260,17 +12300,36 @@ mod tests {
 
   #[test]
   fn test_image_set() {
+    // Spec: https://drafts.csswg.org/css-images-4/#image-set-notation
+    // WPT: https://github.com/web-platform-tests/wpt/blob/master/css/css-images/image-set/image-set-parsing.html
+    // test image-set(<string>)
     minify_test(
       ".foo { background: image-set(\"foo.png\" 2x, url(bar.png) 1x) }",
-      ".foo{background:image-set(\"foo.png\" 2x,\"bar.png\")}",
+      ".foo{background:image-set(\"foo.png\" 2x,\"bar.png\" 1x)}",
     );
+
+    // test image-set(type(<string>))
     minify_test(
       ".foo { background: image-set('foo.webp' type('webp'), url(foo.jpg)) }",
-      ".foo{background:image-set(\"foo.webp\" type(\"webp\"),\"foo.jpg\")}",
+      ".foo{background:image-set(\"foo.webp\" 1x type(\"webp\"),\"foo.jpg\" 1x)}",
     );
     minify_test(
+      ".foo { background: image-set('foo.avif' 2x type('image/avif'), url(foo.png)) }",
+      ".foo{background:image-set(\"foo.avif\" 2x type(\"image/avif\"),\"foo.png\" 1x)}",
+    );
+    minify_test(
+      ".foo { background: image-set(url('example.png') 3x type('image/png')) }",
+      ".foo{background:image-set(\"example.png\" 3x type(\"image/png\"))}",
+    );
+
+    minify_test(
+      ".foo { background: image-set(url(example.png) type('image/png') 1x) }",
+      ".foo{background:image-set(\"example.png\" 1x type(\"image/png\"))}",
+    );
+
+    minify_test(
       ".foo { background: -webkit-image-set(url(\"foo.png\") 2x, url(bar.png) 1x) }",
-      ".foo{background:-webkit-image-set(url(foo.png) 2x,url(bar.png))}",
+      ".foo{background:-webkit-image-set(url(foo.png) 2x,url(bar.png) 1x)}",
     );
 
     test(
@@ -12282,8 +12341,22 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: -webkit-image-set(url("foo.png") 2x, url("bar.png"));
-        background: image-set("foo.png" 2x, "bar.png");
+        background: -webkit-image-set(url("foo.png") 2x, url("bar.png") 1x);
+        background: image-set("foo.png" 2x, "bar.png" 1x);
+      }
+    "#},
+    );
+
+    // test image-set(<gradient>)
+    test(
+      r#"
+      .foo {
+        background: image-set(linear-gradient(cornflowerblue, white) 1x, url("detailed-gradient.png") 3x);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        background: image-set(linear-gradient(#6495ed, #fff) 1x, "detailed-gradient.png" 3x);
       }
     "#},
     );
@@ -12296,8 +12369,8 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: -webkit-image-set(url("foo.png") 2x, url("bar.png"));
-        background: image-set("foo.png" 2x, "bar.png");
+        background: -webkit-image-set(url("foo.png") 2x, url("bar.png") 1x);
+        background: image-set("foo.png" 2x, "bar.png" 1x);
       }
     "#},
       Browsers {
@@ -12316,7 +12389,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: image-set("foo.png" 2x, "bar.png");
+        background: image-set("foo.png" 2x, "bar.png" 1x);
       }
     "#},
       Browsers {
@@ -12333,7 +12406,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        background: -webkit-image-set(url("foo.png") 2x, url("bar.png"));
+        background: -webkit-image-set(url("foo.png") 2x, url("bar.png") 1x);
       }
     "#},
       Browsers {
@@ -12367,8 +12440,8 @@ mod tests {
           indoc! {r#"
         .foo {{
           {}: url("foo.png");
-          {}: -webkit-image-set(url("foo.png") 2x, url("bar.png"));
-          {}: image-set("foo.png" 2x, "bar.png");
+          {}: -webkit-image-set(url("foo.png") 2x, url("bar.png") 1x);
+          {}: image-set("foo.png" 2x, "bar.png" 1x);
         }}
       "#},
           property, property, property
@@ -12393,8 +12466,8 @@ mod tests {
         &format!(
           indoc! {r#"
         .foo {{
-          {}: -webkit-image-set(url("foo.png") 2x, url("bar.png"));
-          {}: image-set("foo.png" 2x, "bar.png");
+          {}: -webkit-image-set(url("foo.png") 2x, url("bar.png") 1x);
+          {}: image-set("foo.png" 2x, "bar.png" 1x);
         }}
       "#},
           property, property
@@ -19213,13 +19286,13 @@ mod tests {
 
     dep_test(
       ".foo { background: image-set('./img12x.png', './img21x.png' 2x)}",
-      ".foo{background:image-set(\"hXFI8W\",\"5TkpBa\" 2x)}",
+      ".foo{background:image-set(\"hXFI8W\" 1x,\"5TkpBa\" 2x)}",
       vec![("./img12x.png", "hXFI8W"), ("./img21x.png", "5TkpBa")],
     );
 
     dep_test(
       ".foo { background: image-set(url(./img12x.png), url('./img21x.png') 2x)}",
-      ".foo{background:image-set(\"hXFI8W\",\"5TkpBa\" 2x)}",
+      ".foo{background:image-set(\"hXFI8W\" 1x,\"5TkpBa\" 2x)}",
       vec![("./img12x.png", "hXFI8W"), ("./img21x.png", "5TkpBa")],
     );
 

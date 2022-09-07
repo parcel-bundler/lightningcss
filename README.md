@@ -100,6 +100,25 @@ let {code, map} = css.bundle({
 });
 ```
 
+The `bundleAsync` API is an asynchronous version of `bundle`, which also accepts a custom `resolver` object. This allows you to provide custom JavaScript functions for resolving `@import` specifiers to file paths, and reading files from the file system (or another source). The `read` and `resolve` functions are both optional, and may either return a string synchronously, or a Promise for asynchronous resolution.
+
+```js
+let {code, map} = await css.bundleAsync({
+  filename: 'style.css',
+  minify: true,
+  resolver: {
+    read(filePath) {
+      return fs.readFileSync(filePath, 'utf8');
+    },
+    resolve(specifier, from) {
+      return path.resolve(path.dirname(from), specifier);
+    }
+  }
+});
+```
+
+Note that using a custom resolver can slow down bundling significantly, especially when reading files asynchronously. Use `readFileSync` rather than `readFile` if possible for better performance, or omit either of the methods if you don't need to override the default behavior.
+
 ### From Rust
 
 See the Rust API docs on [docs.rs](https://docs.rs/lightningcss).
