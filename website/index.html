@@ -1,9 +1,24 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>⚡️ Lightning CSS</title>
+    <title>Lightning CSS</title>
+    <link rel="icon" href="favicon.svg">
+    <link rel="mask-icon" href="favicon.svg" color="#f9bb03">
+    <meta name="description" content="An extremely fast CSS parser, transformer, bundler, and minifier.">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="og.jpeg">
+    <meta name="twitter:site" content="@lightningcss">
+    <meta name="twitter:creator" content="@lightningcss">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:url" content="https://lightningcss.dev">
+    <meta property="og:title" content="Lightning CSS">
+    <meta property="og:description" content="An extremely fast CSS parser, transformer, bundler, and minifier.">
+    <meta property="og:image" content="og.jpeg">
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="https://use.typekit.net/af/916187/00000000000000007735bfa0/30/l?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3">
+    <link rel="preload" as="image" href="lightspeed.svg">
   </head>
   <body>
     <header>
@@ -164,6 +179,7 @@
         color-scheme: dark;
         background: #111;
       }
+
       body {
         font-family: system-ui;
         --gold: lch(80% 82.34 80.104);
@@ -172,16 +188,16 @@
       }
 
       @font-face {
-font-family:"din-1451-lt-pro-engschrift";
-src:url("https://use.typekit.net/af/7fa6e1/00000000000000007735bbcd/30/l?primer=388f68b35a7cbf1ee3543172445c23e26935269fadd3b392a13ac7b2903677eb&fvd=n4&v=3") format("woff2"),url("https://use.typekit.net/af/7fa6e1/00000000000000007735bbcd/30/d?primer=388f68b35a7cbf1ee3543172445c23e26935269fadd3b392a13ac7b2903677eb&fvd=n4&v=3") format("woff"),url("https://use.typekit.net/af/7fa6e1/00000000000000007735bbcd/30/a?primer=388f68b35a7cbf1ee3543172445c23e26935269fadd3b392a13ac7b2903677eb&fvd=n4&v=3") format("opentype");
-font-display:auto;font-style:normal;font-weight:400;font-stretch:normal;
-}
+        font-family:"din-1451-lt-pro-engschrift";
+        src:url("https://use.typekit.net/af/7fa6e1/00000000000000007735bbcd/30/l?primer=388f68b35a7cbf1ee3543172445c23e26935269fadd3b392a13ac7b2903677eb&fvd=n4&v=3") format("woff2"),url("https://use.typekit.net/af/7fa6e1/00000000000000007735bbcd/30/d?primer=388f68b35a7cbf1ee3543172445c23e26935269fadd3b392a13ac7b2903677eb&fvd=n4&v=3") format("woff"),url("https://use.typekit.net/af/7fa6e1/00000000000000007735bbcd/30/a?primer=388f68b35a7cbf1ee3543172445c23e26935269fadd3b392a13ac7b2903677eb&fvd=n4&v=3") format("opentype");
+        font-display:auto;font-style:normal;font-weight:400;font-stretch:normal;
+      }
 
-@font-face {
-font-family:"urbane-rounded";
-src:url("https://use.typekit.net/af/916187/00000000000000007735bfa0/30/l?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3") format("woff2"),url("https://use.typekit.net/af/916187/00000000000000007735bfa0/30/d?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3") format("woff"),url("https://use.typekit.net/af/916187/00000000000000007735bfa0/30/a?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3") format("opentype");
-font-display:auto;font-style:normal;font-weight:600;font-stretch:normal;
-}
+      @font-face {
+        font-family:"urbane-rounded";
+        src:url("https://use.typekit.net/af/916187/00000000000000007735bfa0/30/l?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3") format("woff2"),url("https://use.typekit.net/af/916187/00000000000000007735bfa0/30/d?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3") format("woff"),url("https://use.typekit.net/af/916187/00000000000000007735bfa0/30/a?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3") format("opentype");
+        font-display:auto;font-style:normal;font-weight:600;font-stretch:normal;
+      }
 
       header {
         max-width: 1200px;
@@ -237,7 +253,7 @@ font-display:auto;font-style:normal;font-weight:600;font-stretch:normal;
 
       header a {
         font-family: urbane-rounded;
-        font-size: 1em;
+        font-size: 1.05em;
         color: lch(90% 50.34 80.104);
         filter: drop-shadow(0 0 8px lch(90% 50.34 80.104 / .7));
         text-decoration-color: lch(90% 50.34 80.104 / 0);
