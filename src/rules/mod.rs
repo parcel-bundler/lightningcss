@@ -65,6 +65,7 @@ use crate::error::{MinifyError, ParserError, PrinterError};
 use crate::parser::TopLevelRuleParser;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
+use crate::rules::keyframes::KeyframesName;
 use crate::selector::{downlevel_selectors, get_prefix, is_equivalent};
 use crate::stylesheet::ParserOptions;
 use crate::targets::Browsers;
@@ -85,7 +86,6 @@ use nesting::NestingRule;
 use page::PageRule;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
-use std::default::Default;
 use style::StyleRule;
 use supports::SupportsRule;
 use unknown::UnknownAtRule;
@@ -260,10 +260,10 @@ impl<'i> CssRuleList<'i> {
     for mut rule in self.0.drain(..) {
       match &mut rule {
         CssRule::Keyframes(keyframes) => {
-          if context
-            .unused_symbols
-            .contains(&keyframes.name.to_css_string(Default::default()).unwrap())
-          {
+          if context.unused_symbols.contains(match &keyframes.name {
+            KeyframesName::Ident(ident) => ident.0.as_ref(),
+            KeyframesName::Custom(string) => string.as_ref(),
+          }) {
             continue;
           }
           keyframes.minify(context);
