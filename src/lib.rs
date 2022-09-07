@@ -9452,8 +9452,8 @@ mod tests {
       "@font-face{src:url(test.ttc)format(\"collection\"),url(test.ttf)format(\"truetype\")}",
     );
     minify_test(
-      "@font-face {src: url(\"test.otf\") format(opentype) tech(feature-aat);}",
-      "@font-face{src:url(test.otf)format(\"opentype\")tech(feature-aat)}",
+      "@font-face {src: url(\"test.otf\") format(opentype) tech(features-aat);}",
+      "@font-face{src:url(test.otf)format(\"opentype\")tech(features-aat)}",
     );
     minify_test(
       "@font-face {src: url(\"test.woff\") format(woff) tech(color-colrv1);}",
@@ -9469,12 +9469,12 @@ mod tests {
     );
     // multiple tech
     minify_test(
-      "@font-face {src: url(\"test.woff\") format(woff) tech(feature-opentype, color-sbix);}",
-      "@font-face{src:url(test.woff)format(\"woff\")tech(feature-opentype,color-sbix)}",
+      "@font-face {src: url(\"test.woff\") format(woff) tech(features-opentype, color-sbix);}",
+      "@font-face{src:url(test.woff)format(\"woff\")tech(features-opentype,color-sbix)}",
     );
     minify_test(
-      "@font-face {src: url(\"test.woff\")   format(woff)    tech(incremental, color-svg, feature-graphite, feature-aat);}",
-      "@font-face{src:url(test.woff)format(\"woff\")tech(incremental,color-svg,feature-graphite,feature-aat)}",
+      "@font-face {src: url(\"test.woff\")   format(woff)    tech(incremental, color-svg, features-graphite, features-aat);}",
+      "@font-face{src:url(test.woff)format(\"woff\")tech(incremental,color-svg,features-graphite,features-aat)}",
     );
     // format() function must precede tech() if both are present
     minify_test(
@@ -9496,7 +9496,7 @@ mod tests {
     // TODO(CGQAQ): make this test pass when we have strict mode
     // ref: https://github.com/web-platform-tests/wpt/blob/9f8a6ccc41aa725e8f51f4f096f686313bb88d8d/css/css-fonts/parsing/font-face-src-tech.html#L45
     // error_test(
-    //   "@font-face {src: url(\"foo.ttf\") tech(feature-opentype) format(opentype);}",
+    //   "@font-face {src: url(\"foo.ttf\") tech(features-opentype) format(opentype);}",
     //   ParserError::AtRuleBodyInvalid,
     // );
     // error_test(
@@ -9504,7 +9504,7 @@ mod tests {
     //   ParserError::AtRuleBodyInvalid,
     // );
     // error_test(
-    //   "@font-face {src: url(\"foo.ttf\") tech(\"feature-opentype\");}",
+    //   "@font-face {src: url(\"foo.ttf\") tech(\"features-opentype\");}",
     //   ParserError::AtRuleBodyInvalid,
     // );
     // error_test(
