@@ -49,14 +49,27 @@
             <div style="position: absolute; top: 0; left: 100%; bottom: 20px; width: 1px; background: white"></div>
             <div style="position: absolute; left: 100%; bottom: 0; transform: translateX(-50%); font-size: 12px">600ms</div>
             
-            <div style="position: absolute; left: 1px; top: 0; right: 70px; --cssnano: 544.81; --esbuild: 17.2; --lightningcss: 4.16">
+            <div class="bars" style="position: absolute; left: 1px; top: 0; right: 70px; --cssnano: 544.81; --esbuild: 17.2; --lightningcss: 4.16">
               <div style="position: absolute; top: 5px; left: 0; width: 100%; height: 20px; background: var(--gold)"></div>
-              <div style="position: absolute; left: calc(100% + 5px); top: 5px; line-height: 20px; font-size: 12px">544.81ms</div>
+              <div class="label" style="position: absolute; left: calc(100% + 5px); top: 5px; line-height: 20px; font-size: 12px">544.81ms</div>
               <div style="position: absolute; top: 35px; left: 0; width: calc(1% * var(--esbuild) / var(--cssnano) * 100); height: 20px; background: var(--gold)"></div>
               <div style="position: absolute; left: calc(1% * var(--esbuild) / var(--cssnano) * 100 + 5px); top: 35px; line-height: 20px; font-size: 12px">17.2ms</div>
               <div style="position: absolute; top: 65px; left: 0; width: calc(1% * var(--lightningcss) / var(--cssnano) * 100); height: 20px; background: var(--gold)"></div>
               <div style="position: absolute; left: calc(1% * var(--lightningcss) / var(--cssnano) * 100 + 5px); top: 65px; line-height: 20px; font-size: 12px">4.16ms</div>
             </div>
+            <style>
+              @media (width < 700px) {
+                .warp .bars {
+                  right: 5px !important;
+                }
+
+                .warp .bars .label {
+                  left: auto !important;
+                  right: 5px;
+                  color: black;
+                }
+              }
+            </style>
 
             <div style="position: absolute; right: calc(100% + 10px); top: 5px; line-height: 20px; font-size: 13px">CSSNano</div>
             <div style="position: absolute; right: calc(100% + 10px); top: 35px; line-height: 20px; font-size: 13px">ESBuild</div>
