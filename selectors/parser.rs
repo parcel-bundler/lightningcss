@@ -1162,7 +1162,7 @@ pub enum Component<'i, Impl: SelectorImpl<'i>> {
   ///
   /// https://drafts.csswg.org/css-nesting-1/#nest-selector
   ///
-  /// NOTE: This is a parcel_css addition.
+  /// NOTE: This is a lightningcss addition.
   Nesting,
 }
 

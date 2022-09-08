@@ -13,7 +13,7 @@
 //!
 //! ```no_run
 //! use std::path::Path;
-//! use parcel_css::{
+//! use lightningcss::{
 //!   bundler::{Bundler, FileProvider},
 //!   stylesheet::ParserOptions
 //! };

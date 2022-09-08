@@ -318,7 +318,7 @@ use serde::{Deserialize, Serialize};
 /// This example represents a target of Safari 13.2.0.
 ///
 /// \`\`\`
-/// use parcel_css::targets::Browsers;
+/// use lightningcss::targets::Browsers;
 ///
 /// let targets = Browsers {
 ///   safari: Some((13 << 16) | (2 << 8)),

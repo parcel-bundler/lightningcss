@@ -1,4 +1,4 @@
-//! Parcel CSS is a CSS parser, transformer, and minifier based on the
+//! Lightning CSS is a CSS parser, transformer, and minifier based on the
 //! [cssparser](https://github.com/servo/rust-cssparser) crate used in Firefox.
 //! It supports fully parsing all CSS rules, properties, and values into normalized
 //! structures exactly how a browser would. Once parsed, the CSS can be transformed
@@ -8,7 +8,7 @@
 //! can be printed back to CSS syntax, either minified to remove whitespace and compress
 //! the output as much as possible, or pretty printed.
 //!
-//! The [StyleSheet](stylesheet::StyleSheet) struct is the main entrypoint for Parcel CSS,
+//! The [StyleSheet](stylesheet::StyleSheet) struct is the main entrypoint for Lightning CSS,
 //! and supports parsing and transforming entire CSS files. You can also parse and manipulate
 //! individual CSS [rules](rules), [properties](properties), or [values](values). The [bundler](bundler)
 //! module also can be used to combine a CSS file and all of its dependencies together into a single
@@ -9528,7 +9528,7 @@ mod tests {
     );
     // CGQAQ: if tech and format both presence, order is matter, tech before format is invalid
     // but now just return raw token, we don't have strict mode yet.
-    // ref: https://github.com/parcel-bundler/parcel-css/pull/255#issuecomment-1219049998
+    // ref: https://github.com/parcel-bundler/lightningcss/pull/255#issuecomment-1219049998
     minify_test(
       "@font-face {src: url(\"foo.ttf\") tech(palettes  color-colrv0  variations) format(opentype);}",
       "@font-face{src:url(foo.ttf) tech(palettes color-colrv0 variations)format(opentype)}",

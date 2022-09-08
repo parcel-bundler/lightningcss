@@ -2,14 +2,14 @@
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
-use parcel_css::bundler::{BundleErrorKind, Bundler, FileProvider, SourceProvider};
-use parcel_css::css_modules::{CssModuleExports, CssModuleReferences, PatternParseError};
-use parcel_css::dependencies::Dependency;
-use parcel_css::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterErrorKind};
-use parcel_css::stylesheet::{
+use lightningcss::bundler::{BundleErrorKind, Bundler, FileProvider, SourceProvider};
+use lightningcss::css_modules::{CssModuleExports, CssModuleReferences, PatternParseError};
+use lightningcss::dependencies::Dependency;
+use lightningcss::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterErrorKind};
+use lightningcss::stylesheet::{
   MinifyOptions, ParserOptions, PrinterOptions, PseudoClasses, StyleAttribute, StyleSheet,
 };
-use parcel_css::targets::Browsers;
+use lightningcss::targets::Browsers;
 use parcel_sourcemap::SourceMap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -555,11 +555,11 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult<'i>, Co
         custom_media: matches!(drafts, Some(d) if d.custom_media),
         css_modules: if let Some(css_modules) = &config.css_modules {
           match css_modules {
-            CssModulesOption::Bool(true) => Some(parcel_css::css_modules::Config::default()),
+            CssModulesOption::Bool(true) => Some(lightningcss::css_modules::Config::default()),
             CssModulesOption::Bool(false) => None,
-            CssModulesOption::Config(c) => Some(parcel_css::css_modules::Config {
+            CssModulesOption::Config(c) => Some(lightningcss::css_modules::Config {
               pattern: if let Some(pattern) = c.pattern.as_ref() {
-                match parcel_css::css_modules::Pattern::parse(pattern) {
+                match lightningcss::css_modules::Pattern::parse(pattern) {
                   Ok(p) => p,
                   Err(e) => return Err(CompileError::PatternError(e)),
                 }
@@ -638,11 +638,11 @@ fn compile_bundle<'i, P: SourceProvider>(
       custom_media: matches!(drafts, Some(d) if d.custom_media),
       css_modules: if let Some(css_modules) = &config.css_modules {
         match css_modules {
-          CssModulesOption::Bool(true) => Some(parcel_css::css_modules::Config::default()),
+          CssModulesOption::Bool(true) => Some(lightningcss::css_modules::Config::default()),
           CssModulesOption::Bool(false) => None,
-          CssModulesOption::Config(c) => Some(parcel_css::css_modules::Config {
+          CssModulesOption::Config(c) => Some(lightningcss::css_modules::Config {
             pattern: if let Some(pattern) = c.pattern.as_ref() {
-              match parcel_css::css_modules::Pattern::parse(pattern) {
+              match lightningcss::css_modules::Pattern::parse(pattern) {
                 Ok(p) => p,
                 Err(e) => return Err(CompileError::PatternError(e)),
               }

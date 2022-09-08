@@ -1,4 +1,4 @@
-use parcel_css::{
+use lightningcss::{
   declaration::DeclarationBlock,
   properties::{Property, PropertyId},
   stylesheet::{ParserOptions, PrinterOptions},
