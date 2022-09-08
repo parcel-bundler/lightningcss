@@ -35,47 +35,50 @@
         <h3>Light speed</h3>
         <p><strong>Lightning CSS is over 100x faster than comparable JavaScript-based tools.</strong> It can minify over 2.7 million lines of code per second on a single thread.</p>
         <p style="font-size: 0.85em">Lightning CSS is written in Rust, a native systems programming language. It was built with performance in mind from the start, designed to make efficient use of memory, and limit AST passes.</p>
-        <div class="chart" role="img" aria-label="Build time chart. CSSNano – 544ms, ESBuild – 17.2ms, Lightning CSS – 4.16ms" style="max-width: 800px; margin-top: 40px; position: relative; padding-bottom: 110px; white-space: nowrap">
-          <div style="text-align: center; font-weight: bold; font-size: 15px; margin-left: 90px; margin-bottom: 12px">Build time</div>
-          <div style="position: absolute; left: 90px; right: 15px; height: 110px">
-            <div style="position: absolute; top: 0; left: 0; bottom: 20px; width: 1px; background: white"></div>
-            <div style="position: absolute; left: 0; bottom: 0; transform: translateX(-50%); font-size: 12px">0ms</div>
-            <div class="line" style="position: absolute; top: 0; left: 25%; bottom: 20px; width: 1px; background: white"></div>
-            <div class="line" style="position: absolute; left: 25%; bottom: 0; transform: translateX(-50%); font-size: 12px">150ms</div>
-            <div style="position: absolute; top: 0; left: 50%; bottom: 20px; width: 1px; background: white"></div>
-            <div style="position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); font-size: 12px">300ms</div>
-            <div class="line" style="position: absolute; top: 0; left: 75%; bottom: 20px; width: 1px; background: white"></div>
-            <div class="line" style="position: absolute; left: 75%; bottom: 0; transform: translateX(-50%); font-size: 12px">450ms</div>
-            <div style="position: absolute; top: 0; left: 100%; bottom: 20px; width: 1px; background: white"></div>
-            <div style="position: absolute; left: 100%; bottom: 0; transform: translateX(-50%); font-size: 12px">600ms</div>
-            
-            <div class="bars" style="position: absolute; left: 1px; top: 0; right: 70px; --cssnano: 544.81; --esbuild: 17.2; --lightningcss: 4.16">
-              <div style="position: absolute; top: 5px; left: 0; width: 100%; height: 20px; background: var(--gold)"></div>
-              <div class="label" style="position: absolute; left: calc(100% + 5px); top: 5px; line-height: 20px; font-size: 12px">544.81ms</div>
-              <div style="position: absolute; top: 35px; left: 0; width: calc(1% * var(--esbuild) / var(--cssnano) * 100); height: 20px; background: var(--gold)"></div>
-              <div style="position: absolute; left: calc(1% * var(--esbuild) / var(--cssnano) * 100 + 5px); top: 35px; line-height: 20px; font-size: 12px">17.2ms</div>
-              <div style="position: absolute; top: 65px; left: 0; width: calc(1% * var(--lightningcss) / var(--cssnano) * 100); height: 20px; background: var(--gold)"></div>
-              <div style="position: absolute; left: calc(1% * var(--lightningcss) / var(--cssnano) * 100 + 5px); top: 65px; line-height: 20px; font-size: 12px">4.16ms</div>
+        <figure>
+          <div class="chart" role="img" aria-label="Build time chart. CSSNano – 544ms, ESBuild – 17.2ms, Lightning CSS – 4.16ms" style="max-width: 800px; margin-top: 40px; position: relative; padding-bottom: 110px; white-space: nowrap">
+            <div style="text-align: center; font-weight: bold; font-size: 15px; margin-left: 90px; margin-bottom: 12px">Build time</div>
+            <div style="position: absolute; left: 90px; right: 15px; height: 110px">
+              <div style="position: absolute; top: 0; left: 0; bottom: 20px; width: 1px; background: white"></div>
+              <div style="position: absolute; left: 0; bottom: 0; transform: translateX(-50%); font-size: 12px">0ms</div>
+              <div class="line" style="position: absolute; top: 0; left: 25%; bottom: 20px; width: 1px; background: white"></div>
+              <div class="line" style="position: absolute; left: 25%; bottom: 0; transform: translateX(-50%); font-size: 12px">150ms</div>
+              <div style="position: absolute; top: 0; left: 50%; bottom: 20px; width: 1px; background: white"></div>
+              <div style="position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); font-size: 12px">300ms</div>
+              <div class="line" style="position: absolute; top: 0; left: 75%; bottom: 20px; width: 1px; background: white"></div>
+              <div class="line" style="position: absolute; left: 75%; bottom: 0; transform: translateX(-50%); font-size: 12px">450ms</div>
+              <div style="position: absolute; top: 0; left: 100%; bottom: 20px; width: 1px; background: white"></div>
+              <div style="position: absolute; left: 100%; bottom: 0; transform: translateX(-50%); font-size: 12px">600ms</div>
+              
+              <div class="bars" style="position: absolute; left: 1px; top: 0; right: 70px; --cssnano: 544.81; --esbuild: 17.2; --lightningcss: 4.16">
+                <div style="position: absolute; top: 5px; left: 0; width: 100%; height: 20px; background: var(--gold)"></div>
+                <div class="label" style="position: absolute; left: calc(100% + 5px); top: 5px; line-height: 20px; font-size: 12px">544.81ms</div>
+                <div style="position: absolute; top: 35px; left: 0; width: calc(1% * var(--esbuild) / var(--cssnano) * 100); height: 20px; background: var(--gold)"></div>
+                <div style="position: absolute; left: calc(1% * var(--esbuild) / var(--cssnano) * 100 + 5px); top: 35px; line-height: 20px; font-size: 12px">17.2ms</div>
+                <div style="position: absolute; top: 65px; left: 0; width: calc(1% * var(--lightningcss) / var(--cssnano) * 100); height: 20px; background: var(--gold)"></div>
+                <div style="position: absolute; left: calc(1% * var(--lightningcss) / var(--cssnano) * 100 + 5px); top: 65px; line-height: 20px; font-size: 12px">4.16ms</div>
+              </div>
+              <style>
+                @media (width < 700px) {
+                  .warp .bars {
+                    right: 5px !important;
+                  }
+
+                  .warp .bars .label {
+                    left: auto !important;
+                    right: 5px;
+                    color: black;
+                  }
+                }
+              </style>
+
+              <div style="position: absolute; right: calc(100% + 10px); top: 5px; line-height: 20px; font-size: 13px">CSSNano</div>
+              <div style="position: absolute; right: calc(100% + 10px); top: 35px; line-height: 20px; font-size: 13px">ESBuild</div>
+              <div style="position: absolute; left: -10px; transform: translateX(-100%); top: 65px; line-height: 20px; font-size: 13px">Lightning CSS</div> 
             </div>
-            <style>
-              @media (width < 700px) {
-                .warp .bars {
-                  right: 5px !important;
-                }
-
-                .warp .bars .label {
-                  left: auto !important;
-                  right: 5px;
-                  color: black;
-                }
-              }
-            </style>
-
-            <div style="position: absolute; right: calc(100% + 10px); top: 5px; line-height: 20px; font-size: 13px">CSSNano</div>
-            <div style="position: absolute; right: calc(100% + 10px); top: 35px; line-height: 20px; font-size: 13px">ESBuild</div>
-            <div style="position: absolute; left: -10px; transform: translateX(-100%); top: 65px; line-height: 20px; font-size: 13px">Lightning CSS</div> 
           </div>
-        </div>
+          <figcaption>Time to minify Bootstrap 4 (~10,000 lines). See the <a href="https://github.com/parcel-bundler/lightningcss#benchmarks" target="_blank">readme</a> for more benchmarks.</figcaption>
+        </figure>
       </section>
       <section class="future">
         <div class="inner">
@@ -104,34 +107,37 @@
         <h3>Crush it!</h3>
         <p style="font-weight: bold;">Lightning CSS is not only fast when it comes to build time. It produces smaller output, so your website loads faster too.</p>
         <p style="font-size: 0.85em">The Lightning CSS minifier combines longhand properties into shorthands, removes unnecessary vendor prefixes, merges compatible adjacent rules, removes unnecessary default values, reduces <code>calc()</code> expressions, shortens colors, minifies gradients, and much more.</p>
-        <div class="chart" role="img" aria-label="Output size chart. CSSNano – 155.89 KB, ESBuild – 156.57 KB, Lightning CSS – 139.74 KB" style="max-width: 800px; margin-top: 40px; position: relative; padding-bottom: 110px; white-space: nowrap">
-          <div style="text-align: center; font-weight: bold; font-size: 15px; margin-left: 90px; margin-bottom: 12px">Output size</div>
-          <div style="position: absolute; left: 90px; right: 15px; height: 110px">
-            <div style="position: absolute; top: 0; left: 0; bottom: 20px; width: 1px; background: black"></div>
-            <div style="position: absolute; left: 0; bottom: 0; transform: translateX(-50%); font-size: 12px">0 KB</div>
-            <div class="line" style="position: absolute; top: 0; left: 25%; bottom: 20px; width: 1px; background: black"></div>
-            <div class="line" style="position: absolute; left: 25%; bottom: 0; transform: translateX(-50%); font-size: 12px">40 KB</div>
-            <div style="position: absolute; top: 0; left: 50%; bottom: 20px; width: 1px; background: black"></div>
-            <div style="position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); font-size: 12px">80 KB</div>
-            <div class="line" style="position: absolute; top: 0; left: 75%; bottom: 20px; width: 1px; background: black"></div>
-            <div class="line" style="position: absolute; left: 75%; bottom: 0; transform: translateX(-50%); font-size: 12px">120 KB</div>
-            <div style="position: absolute; top: 0; left: 100%; bottom: 20px; width: 1px; background: black"></div>
-            <div style="position: absolute; left: 100%; bottom: 0; transform: translateX(-50%); font-size: 12px">160 KB</div>
-            
-            <div style="position: absolute; left: 1px; top: 0; right: 5px; --cssnano: 155.89; --esbuild: 156.57; --lightningcss: 139.74">
-              <div style="position: absolute; top: 5px; left: 0; width: calc(1% * var(--cssnano) / var(--esbuild) * 100); height: 20px; background: rgb(186, 25, 33)"></div>
-              <div style="position: absolute; right: calc(100% + 5px - 1% * var(--cssnano) / var(--esbuild) * 100); top: 5px; line-height: 20px; font-size: 12px; color: white">155.89 KB</div>
-              <div style="position: absolute; top: 35px; left: 0; width: 100%; height: 20px; background: rgb(186, 25, 33)"></div>
-              <div style="position: absolute; right: 5px; top: 35px; line-height: 20px; font-size: 12px; color: white">156.57 KB</div>
-              <div style="position: absolute; top: 65px; left: 0; width: calc(1% * var(--lightningcss) / var(--esbuild) * 100); height: 20px; background: rgb(186, 25, 33)"></div>
-              <div style="position: absolute; right: calc(100% + 5px - 1% * var(--lightningcss) / var(--esbuild) * 100); top: 65px; line-height: 20px; font-size: 12px; color: white">139.74 KB</div>
-            </div>
+        <figure>
+          <div class="chart" role="img" aria-label="Output size chart. CSSNano – 155.89 KB, ESBuild – 156.57 KB, Lightning CSS – 139.74 KB" style="max-width: 800px; margin-top: 40px; position: relative; padding-bottom: 110px; white-space: nowrap">
+            <div style="text-align: center; font-weight: bold; font-size: 15px; margin-left: 90px; margin-bottom: 12px">Output size</div>
+            <div style="position: absolute; left: 90px; right: 15px; height: 110px">
+              <div style="position: absolute; top: 0; left: 0; bottom: 20px; width: 1px; background: black"></div>
+              <div style="position: absolute; left: 0; bottom: 0; transform: translateX(-50%); font-size: 12px">0 KB</div>
+              <div class="line" style="position: absolute; top: 0; left: 25%; bottom: 20px; width: 1px; background: black"></div>
+              <div class="line" style="position: absolute; left: 25%; bottom: 0; transform: translateX(-50%); font-size: 12px">40 KB</div>
+              <div style="position: absolute; top: 0; left: 50%; bottom: 20px; width: 1px; background: black"></div>
+              <div style="position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); font-size: 12px">80 KB</div>
+              <div class="line" style="position: absolute; top: 0; left: 75%; bottom: 20px; width: 1px; background: black"></div>
+              <div class="line" style="position: absolute; left: 75%; bottom: 0; transform: translateX(-50%); font-size: 12px">120 KB</div>
+              <div style="position: absolute; top: 0; left: 100%; bottom: 20px; width: 1px; background: black"></div>
+              <div style="position: absolute; left: 100%; bottom: 0; transform: translateX(-50%); font-size: 12px">160 KB</div>
+              
+              <div style="position: absolute; left: 1px; top: 0; right: 5px; --cssnano: 155.89; --esbuild: 156.57; --lightningcss: 139.74">
+                <div style="position: absolute; top: 5px; left: 0; width: calc(1% * var(--cssnano) / var(--esbuild) * 100); height: 20px; background: rgb(186, 25, 33)"></div>
+                <div style="position: absolute; right: calc(100% + 5px - 1% * var(--cssnano) / var(--esbuild) * 100); top: 5px; line-height: 20px; font-size: 12px; color: white">155.89 KB</div>
+                <div style="position: absolute; top: 35px; left: 0; width: 100%; height: 20px; background: rgb(186, 25, 33)"></div>
+                <div style="position: absolute; right: 5px; top: 35px; line-height: 20px; font-size: 12px; color: white">156.57 KB</div>
+                <div style="position: absolute; top: 65px; left: 0; width: calc(1% * var(--lightningcss) / var(--esbuild) * 100); height: 20px; background: rgb(186, 25, 33)"></div>
+                <div style="position: absolute; right: calc(100% + 5px - 1% * var(--lightningcss) / var(--esbuild) * 100); top: 65px; line-height: 20px; font-size: 12px; color: white">139.74 KB</div>
+              </div>
 
-            <div style="position: absolute; right: calc(100% + 10px); top: 5px; line-height: 20px; font-size: 13px">CSSNano</div>
-            <div style="position: absolute; right: calc(100% + 10px); top: 35px; line-height: 20px; font-size: 13px">ESBuild</div>
-            <div style="position: absolute; left: -10px; transform: translateX(-100%); top: 65px; line-height: 20px; font-size: 13px">Lightning CSS</div> 
+              <div style="position: absolute; right: calc(100% + 10px); top: 5px; line-height: 20px; font-size: 13px">CSSNano</div>
+              <div style="position: absolute; right: calc(100% + 10px); top: 35px; line-height: 20px; font-size: 13px">ESBuild</div>
+              <div style="position: absolute; left: -10px; transform: translateX(-100%); top: 65px; line-height: 20px; font-size: 13px">Lightning CSS</div> 
+            </div>
           </div>
-        </div>
+          <figcaption>Output size after minifying Bootstrap 4 (~10,000 lines). See the <a href="https://github.com/parcel-bundler/lightningcss#benchmarks" target="_blank">readme</a> for more benchmarks.</figcaption>
+        </figure>
       </section>
       <section class="modules">
         <div class="compartment main">
@@ -374,6 +380,21 @@
         line-height: 1.4em;
       }
 
+      figure {
+        max-width: 800px;
+        margin: 0;
+      }
+
+      figcaption {
+        font-size: 10px;
+        text-align: center;
+        margin-top: 20px;
+      }
+
+      figcaption a {
+        color: inherit;
+      }
+
       @media (width < 500px) {
         main section {
           margin: 20px 10px;
@@ -401,13 +422,17 @@
         max-width: 900px;
       }
 
+      .warp figcaption {
+        color: #aaa;
+      }
+
       .crush {
         background-image: url(crush.svg), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='rgb(0 0 0 / .2)' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'%3E%3C/path%3E%3C/svg%3E"), linear-gradient(to bottom right, lch(75% 82.34 80.104), lch(68% 82.34 80.104));
-        background-size: contain, auto;
+        background-size: 600px auto, auto, auto;
         background-repeat: no-repeat, repeat;
-        background-position: right top;
+        background-position: bottom right;
         color: black;
-        padding-right: 540px;
+        padding-right: 550px;
       }
 
       .crush h3 {
@@ -419,6 +444,10 @@
         text-transform: uppercase;
         width: fit-content;
         word-spacing: .1em;
+      }
+
+      .crush figcaption {
+        color: #222;
       }
 
       @media (width < 1200px) {
