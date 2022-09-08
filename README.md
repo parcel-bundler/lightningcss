@@ -2,8 +2,8 @@
 
 An extremely fast CSS parser, transformer, and minifier written in Rust. Use it with [Parcel](https://parceljs.org), as a standalone library or CLI, or via a plugin with any other tool.
 
-<img width="666" alt="image" src="https://user-images.githubusercontent.com/19409/153888593-591a3c34-e401-4b30-94ac-7f8eb3c0b242.png#gh-light-mode-only">
-<img width="666" alt="image" src="https://user-images.githubusercontent.com/19409/153888637-3fd9f660-7d43-4d65-83a3-9a40afa0a5a9.png#gh-dark-mode-only">
+<img width="680" alt="performance and build size charts" src="https://user-images.githubusercontent.com/19409/189022599-28246659-f94a-46a4-9de0-b6d17adb0e22.png#gh-light-mode-only">
+<img width="680" alt="performance and build size charts" src="https://user-images.githubusercontent.com/19409/189022693-6956b044-422b-4f56-9628-d59c6f791095.png#gh-dark-mode-only">
 
 ## Features
 
@@ -202,8 +202,8 @@ By default, Lightning CSS is strict, and will error when parsing an invalid rule
 
 ## Benchmarks
 
-<img width="666" alt="image" src="https://user-images.githubusercontent.com/19409/153888593-591a3c34-e401-4b30-94ac-7f8eb3c0b242.png#gh-light-mode-only">
-<img width="666" alt="image" src="https://user-images.githubusercontent.com/19409/153888637-3fd9f660-7d43-4d65-83a3-9a40afa0a5a9.png#gh-dark-mode-only">
+<img width="680" alt="performance and build size charts" src="https://user-images.githubusercontent.com/19409/189022599-28246659-f94a-46a4-9de0-b6d17adb0e22.png#gh-light-mode-only">
+<img width="680" alt="performance and build size charts" src="https://user-images.githubusercontent.com/19409/189022693-6956b044-422b-4f56-9628-d59c6f791095.png#gh-dark-mode-only">
 
 ```
 $ node bench.js bootstrap-4.css 
