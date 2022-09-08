@@ -25,7 +25,7 @@
 //!
 //! ```
 //! use smallvec::smallvec;
-//! use parcel_css::{
+//! use lightningcss::{
 //!   properties::{Property, PropertyId, background::*},
 //!   values::{url::Url, image::Image, color::CssColor, position::*, length::*},
 //!   stylesheet::{ParserOptions, PrinterOptions},

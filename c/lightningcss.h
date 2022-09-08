@@ -129,31 +129,31 @@ typedef struct ToCssOptions {
   struct PseudoClasses pseudo_classes;
 } ToCssOptions;
 
-bool parcel_css_browserslist_to_targets(const char *query,
-                                        struct Targets *targets,
-                                        struct CssError **error);
+bool lightningcss_browserslist_to_targets(const char *query,
+                                          struct Targets *targets,
+                                          struct CssError **error);
 
-struct StyleSheet *parcel_css_stylesheet_parse(const char *source,
-                                               uintptr_t len,
-                                               struct ParseOptions options,
-                                               struct CssError **error);
+struct StyleSheet *lightningcss_stylesheet_parse(const char *source,
+                                                 uintptr_t len,
+                                                 struct ParseOptions options,
+                                                 struct CssError **error);
 
-bool parcel_css_stylesheet_transform(struct StyleSheet *stylesheet,
-                                     struct TransformOptions options,
-                                     struct CssError **error);
+bool lightningcss_stylesheet_transform(struct StyleSheet *stylesheet,
+                                       struct TransformOptions options,
+                                       struct CssError **error);
 
-struct ToCssResult parcel_css_stylesheet_to_css(struct StyleSheet *stylesheet,
-                                                struct ToCssOptions options,
-                                                struct CssError **error);
+struct ToCssResult lightningcss_stylesheet_to_css(struct StyleSheet *stylesheet,
+                                                  struct ToCssOptions options,
+                                                  struct CssError **error);
 
-void parcel_css_stylesheet_free(struct StyleSheet *stylesheet);
+void lightningcss_stylesheet_free(struct StyleSheet *stylesheet);
 
-void parcel_css_to_css_result_free(struct ToCssResult result);
+void lightningcss_to_css_result_free(struct ToCssResult result);
 
-const char *parcel_css_error_message(struct CssError *error);
+const char *lightningcss_error_message(struct CssError *error);
 
-void parcel_css_error_free(struct CssError *error);
+void lightningcss_error_free(struct CssError *error);
 
-uintptr_t parcel_css_stylesheet_get_warning_count(struct StyleSheet *stylesheet);
+uintptr_t lightningcss_stylesheet_get_warning_count(struct StyleSheet *stylesheet);
 
-const char *parcel_css_stylesheet_get_warning(struct StyleSheet *stylesheet, uintptr_t index);
+const char *lightningcss_stylesheet_get_warning(struct StyleSheet *stylesheet, uintptr_t index);

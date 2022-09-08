@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 /// This example represents a target of Safari 13.2.0.
 ///
 /// ```
-/// use parcel_css::targets::Browsers;
+/// use lightningcss::targets::Browsers;
 ///
 /// let targets = Browsers {
 ///   safari: Some((13 << 16) | (2 << 8)),
@@ -36,7 +36,7 @@ pub struct Browsers {
 
 #[cfg(feature = "browserslist")]
 impl Browsers {
-  /// Parses a list of browserslist queries into Parcel CSS targets.
+  /// Parses a list of browserslist queries into Lightning CSS targets.
   pub fn from_browserslist<S: AsRef<str>, I: IntoIterator<Item = S>>(
     query: I,
   ) -> Result<Option<Browsers>, browserslist::Error> {

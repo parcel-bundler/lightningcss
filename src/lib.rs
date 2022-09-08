@@ -1,4 +1,4 @@
-//! Parcel CSS is a CSS parser, transformer, and minifier based on the
+//! Lightning CSS is a CSS parser, transformer, and minifier based on the
 //! [cssparser](https://github.com/servo/rust-cssparser) crate used in Firefox.
 //! It supports fully parsing all CSS rules, properties, and values into normalized
 //! structures exactly how a browser would. Once parsed, the CSS can be transformed
@@ -8,7 +8,7 @@
 //! can be printed back to CSS syntax, either minified to remove whitespace and compress
 //! the output as much as possible, or pretty printed.
 //!
-//! The [StyleSheet](stylesheet::StyleSheet) struct is the main entrypoint for Parcel CSS,
+//! The [StyleSheet](stylesheet::StyleSheet) struct is the main entrypoint for Lightning CSS,
 //! and supports parsing and transforming entire CSS files. You can also parse and manipulate
 //! individual CSS [rules](rules), [properties](properties), or [values](values). The [bundler](bundler)
 //! module also can be used to combine a CSS file and all of its dependencies together into a single
@@ -5396,37 +5396,77 @@ mod tests {
   fn test_keyframes() {
     minify_test(
       r#"
-      @keyframes test {
-        from {
-          background: green;
-        }
-
-        50% {
-          background: red;
-        }
-
+      @keyframes "test" {
         100% {
           background: blue
         }
       }
     "#,
-      "@keyframes test{0%{background:green}50%{background:red}to{background:#00f}}",
+      "@keyframes test{to{background:#00f}}",
     );
     minify_test(
       r#"
       @keyframes test {
-        from {
-          background: green;
-          background-color: red;
-        }
-
         100% {
           background: blue
         }
       }
     "#,
-      "@keyframes test{0%{background:red}to{background:#00f}}",
+      "@keyframes test{to{background:#00f}}",
     );
+
+    // CSS-wide keywords and `none` cannot remove quotes.
+    minify_test(
+      r#"
+      @keyframes "revert" {
+        from {
+          background: green;
+        }
+      }
+    "#,
+      "@keyframes \"revert\"{0%{background:green}}",
+    );
+
+    minify_test(
+      r#"
+      @keyframes "none" {
+        from {
+          background: green;
+        }
+      }
+    "#,
+      "@keyframes \"none\"{0%{background:green}}",
+    );
+
+    // CSS-wide keywords without quotes throws an error.
+    error_test(
+      r#"
+      @keyframes revert {}
+    "#,
+      ParserError::UnexpectedToken(Token::Ident("revert".into())),
+    );
+
+    error_test(
+      r#"
+      @keyframes revert-layer {}
+    "#,
+      ParserError::UnexpectedToken(Token::Ident("revert-layer".into())),
+    );
+
+    error_test(
+      r#"
+      @keyframes none {}
+    "#,
+      ParserError::UnexpectedToken(Token::Ident("none".into())),
+    );
+
+    error_test(
+      r#"
+      @keyframes NONE {}
+    "#,
+      ParserError::UnexpectedToken(Token::Ident("NONE".into())),
+    );
+
     minify_test(
       r#"
       @-webkit-keyframes test {
@@ -9452,8 +9492,8 @@ mod tests {
       "@font-face{src:url(test.ttc)format(\"collection\"),url(test.ttf)format(\"truetype\")}",
     );
     minify_test(
-      "@font-face {src: url(\"test.otf\") format(opentype) tech(feature-aat);}",
-      "@font-face{src:url(test.otf)format(\"opentype\")tech(feature-aat)}",
+      "@font-face {src: url(\"test.otf\") format(opentype) tech(features-aat);}",
+      "@font-face{src:url(test.otf)format(\"opentype\")tech(features-aat)}",
     );
     minify_test(
       "@font-face {src: url(\"test.woff\") format(woff) tech(color-colrv1);}",
@@ -9469,12 +9509,12 @@ mod tests {
     );
     // multiple tech
     minify_test(
-      "@font-face {src: url(\"test.woff\") format(woff) tech(feature-opentype, color-sbix);}",
-      "@font-face{src:url(test.woff)format(\"woff\")tech(feature-opentype,color-sbix)}",
+      "@font-face {src: url(\"test.woff\") format(woff) tech(features-opentype, color-sbix);}",
+      "@font-face{src:url(test.woff)format(\"woff\")tech(features-opentype,color-sbix)}",
     );
     minify_test(
-      "@font-face {src: url(\"test.woff\")   format(woff)    tech(incremental, color-svg, feature-graphite, feature-aat);}",
-      "@font-face{src:url(test.woff)format(\"woff\")tech(incremental,color-svg,feature-graphite,feature-aat)}",
+      "@font-face {src: url(\"test.woff\")   format(woff)    tech(incremental, color-svg, features-graphite, features-aat);}",
+      "@font-face{src:url(test.woff)format(\"woff\")tech(incremental,color-svg,features-graphite,features-aat)}",
     );
     // format() function must precede tech() if both are present
     minify_test(
@@ -9488,7 +9528,7 @@ mod tests {
     );
     // CGQAQ: if tech and format both presence, order is matter, tech before format is invalid
     // but now just return raw token, we don't have strict mode yet.
-    // ref: https://github.com/parcel-bundler/parcel-css/pull/255#issuecomment-1219049998
+    // ref: https://github.com/parcel-bundler/lightningcss/pull/255#issuecomment-1219049998
     minify_test(
       "@font-face {src: url(\"foo.ttf\") tech(palettes  color-colrv0  variations) format(opentype);}",
       "@font-face{src:url(foo.ttf) tech(palettes color-colrv0 variations)format(opentype)}",
@@ -9496,7 +9536,7 @@ mod tests {
     // TODO(CGQAQ): make this test pass when we have strict mode
     // ref: https://github.com/web-platform-tests/wpt/blob/9f8a6ccc41aa725e8f51f4f096f686313bb88d8d/css/css-fonts/parsing/font-face-src-tech.html#L45
     // error_test(
-    //   "@font-face {src: url(\"foo.ttf\") tech(feature-opentype) format(opentype);}",
+    //   "@font-face {src: url(\"foo.ttf\") tech(features-opentype) format(opentype);}",
     //   ParserError::AtRuleBodyInvalid,
     // );
     // error_test(
@@ -9504,7 +9544,7 @@ mod tests {
     //   ParserError::AtRuleBodyInvalid,
     // );
     // error_test(
-    //   "@font-face {src: url(\"foo.ttf\") tech(\"feature-opentype\");}",
+    //   "@font-face {src: url(\"foo.ttf\") tech(\"features-opentype\");}",
     //   ParserError::AtRuleBodyInvalid,
     // );
     // error_test(

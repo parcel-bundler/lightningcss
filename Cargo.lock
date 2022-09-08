@@ -129,9 +129,9 @@ checksum = "a4a45a46ab1f2412e53d3a0ade76ffad2025804294569aae387231a0cd6e0899"
 
 [[package]]
 name = "bytecheck"
-version = "0.6.8"
+version = "0.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a31f923c2db9513e4298b72df143e6e655a759b3d6a0966df18f81223fff54f"
+checksum = "d11cac2c12b5adc6570dad2ee1b87eff4955dac476fe12d81e5fdd352e52406f"
 dependencies = [
  "bytecheck_derive",
  "ptr_meta",
@@ -139,9 +139,9 @@ dependencies = [
 
 [[package]]
 name = "bytecheck_derive"
-version = "0.6.8"
+version = "0.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edb17c862a905d912174daa27ae002326fff56dc8b8ada50a0a5f0976cb174f0"
+checksum = "13e576ebe98e605500b3c8041bb888e966653577172df6dd97398714eb30b9bf"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -518,9 +518,9 @@ checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
 
 [[package]]
 name = "hashbrown"
-version = "0.12.1"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db0d4cf898abf0081f964436dc980e96670a0f36863e4b83aaacdb65c9d7ccc3"
+checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 dependencies = [
  "ahash",
 ]
@@ -660,6 +660,63 @@ dependencies = [
 ]
 
 [[package]]
+name = "lightningcss"
+version = "1.0.0-alpha.33"
+dependencies = [
+ "assert_cmd",
+ "assert_fs",
+ "bitflags",
+ "browserslist-rs",
+ "clap",
+ "const-str",
+ "cssparser",
+ "dashmap",
+ "data-encoding",
+ "indoc",
+ "itertools",
+ "jemallocator",
+ "lazy_static",
+ "parcel_selectors",
+ "parcel_sourcemap",
+ "pathdiff",
+ "predicates",
+ "rayon",
+ "serde",
+ "serde_json",
+ "smallvec",
+]
+
+[[package]]
+name = "lightningcss_c_bindings"
+version = "0.1.0"
+dependencies = [
+ "browserslist-rs",
+ "cbindgen",
+ "lightningcss",
+ "parcel_sourcemap",
+]
+
+[[package]]
+name = "lightningcss_node"
+version = "0.1.0"
+dependencies = [
+ "crossbeam-channel",
+ "cssparser",
+ "jemallocator",
+ "js-sys",
+ "lightningcss",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "parcel_sourcemap",
+ "rayon",
+ "serde",
+ "serde-wasm-bindgen",
+ "serde_bytes",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -706,13 +763,14 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 
 [[package]]
 name = "napi"
-version = "2.4.3"
+version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eba1b04555247b935187ea1dddac523ebc470c45806501d7203ed1bec7fa26b2"
+checksum = "0e2f9ad803cde148d81d0ca9e5fd4d80773d15e992d09e3a44f62f41b9af4558"
 dependencies = [
+ "bitflags",
  "ctor",
- "lazy_static",
  "napi-sys",
+ "once_cell",
  "serde",
  "serde_json",
  "thread_local",
@@ -726,9 +784,9 @@ checksum = "ebd4419172727423cf30351406c54f6cc1b354a2cfb4f1dba3e6cd07f6d5522b"
 
 [[package]]
 name = "napi-derive"
-version = "2.4.1"
+version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bffed314331505d8a4ce6831dfb5fff9bad37113344ff55824bd398eb3157a1d"
+checksum = "1be75210f300e9fbf386ccac1c8eaaed23410e2f7f7aa9295b78c436a172ef51"
 dependencies = [
  "convert_case 0.5.0",
  "napi-derive-backend",
@@ -739,9 +797,9 @@ dependencies = [
 
 [[package]]
 name = "napi-derive-backend"
-version = "1.0.32"
+version = "1.0.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5cab83da14f4202c1f3858dde5b68e1d8c5bb7ee804c5955911cbbe00b835b8"
+checksum = "92ba4800264fac8a7726b208d5dd4c6d637d1027d73b026061a69d3339a0a930"
 dependencies = [
  "convert_case 0.5.0",
  "once_cell",
@@ -825,65 +883,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e22443d1643a904602595ba1cd8f7d896afe56d26712531c5ff73a15b2fbf64"
 
 [[package]]
-name = "parcel_css"
-version = "1.0.0-alpha.32"
-dependencies = [
- "assert_cmd",
- "assert_fs",
- "bitflags",
- "browserslist-rs",
- "clap",
- "const-str",
- "cssparser",
- "dashmap",
- "data-encoding",
- "indoc",
- "itertools",
- "jemallocator",
- "lazy_static",
- "parcel_selectors",
- "parcel_sourcemap",
- "pathdiff",
- "predicates",
- "rayon",
- "serde",
- "serde_json",
- "smallvec",
-]
-
-[[package]]
-name = "parcel_css_c_bindings"
-version = "0.1.0"
-dependencies = [
- "browserslist-rs",
- "cbindgen",
- "parcel_css",
- "parcel_sourcemap",
-]
-
-[[package]]
-name = "parcel_css_node"
-version = "0.1.0"
-dependencies = [
- "crossbeam-channel",
- "cssparser",
- "jemallocator",
- "js-sys",
- "napi",
- "napi-build",
- "napi-derive",
- "parcel_css",
- "parcel_sourcemap",
- "rayon",
- "serde",
- "serde-wasm-bindgen",
- "serde_bytes",
- "wasm-bindgen",
-]
-
-[[package]]
 name = "parcel_selectors"
-version = "0.24.5"
+version = "0.24.6"
 dependencies = [
  "bitflags",
  "cssparser",
@@ -1270,7 +1271,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cec2b3485b07d96ddfd3134767b8a447b45ea4eb91448d0a35180ec0ffd5ed15"
 dependencies = [
  "bytecheck",
- "hashbrown 0.12.1",
+ "hashbrown 0.12.3",
  "ptr_meta",
  "rend",
  "rkyv_derive",

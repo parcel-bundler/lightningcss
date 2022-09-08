@@ -7,5 +7,5 @@ fn main() {
 
   cbindgen::generate(crate_dir)
     .expect("Unable to generate bindings")
-    .write_to_file("parcel_css.h");
+    .write_to_file("lightningcss.h");
 }

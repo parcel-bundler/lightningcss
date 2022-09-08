@@ -1,5 +1,5 @@
 #[cfg(feature = "serde")]
-use parcel_css::stylesheet::{ParserOptions, StyleSheet};
+use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 
 #[cfg(feature = "serde")]
 #[test]

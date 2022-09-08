@@ -13,7 +13,7 @@ use crate::rules::{
   document::MozDocumentRule,
   font_face::{FontFaceDeclarationParser, FontFaceRule},
   import::ImportRule,
-  keyframes::{KeyframeListParser, KeyframesRule},
+  keyframes::{KeyframeListParser, KeyframesName, KeyframesRule},
   layer::LayerName,
   media::MediaRule,
   namespace::NamespaceRule,
@@ -122,7 +122,7 @@ pub enum AtRulePrelude<'i> {
   /// A @viewport rule prelude.
   Viewport(VendorPrefix),
   /// A @keyframes rule, with its animation name and vendor prefix if exists.
-  Keyframes(CustomIdent<'i>, VendorPrefix),
+  Keyframes(KeyframesName<'i>, VendorPrefix),
   /// A @page rule prelude.
   Page(Vec<PageSelector<'i>>),
   /// A @-moz-document rule.
@@ -425,14 +425,8 @@ impl<'a, 'o, 'b, 'i> AtRuleParser<'i> for NestedRuleParser<'a, 'o, 'i> {
           VendorPrefix::None
         };
 
-        let location = input.current_source_location();
-        let name = match *input.next()? {
-          Token::Ident(ref s) => s.into(),
-          Token::QuotedString(ref s) => s.into(),
-          ref t => return Err(location.new_unexpected_token_error(t.clone())),
-        };
-
-        Ok(AtRulePrelude::Keyframes(CustomIdent(name), prefix))
+        let name = input.try_parse(KeyframesName::parse)?;
+        Ok(AtRulePrelude::Keyframes(name, prefix))
       },
       "page" => {
         let selectors = input.try_parse(|input| input.parse_comma_separated(PageSelector::parse)).unwrap_or_default();

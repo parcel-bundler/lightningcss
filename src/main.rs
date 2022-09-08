@@ -1,7 +1,7 @@
 use clap::Parser;
-use parcel_css::bundler::{Bundler, FileProvider};
-use parcel_css::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
-use parcel_css::targets::Browsers;
+use lightningcss::bundler::{Bundler, FileProvider};
+use lightningcss::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
+use lightningcss::targets::Browsers;
 use parcel_sourcemap::SourceMap;
 use serde::Serialize;
 use std::sync::{Arc, RwLock};
@@ -69,7 +69,7 @@ pub fn main() -> Result<(), std::io::Error> {
 
   let css_modules = if let Some(_) = cli_args.css_modules {
     let pattern = if let Some(pattern) = cli_args.css_modules_pattern.as_ref() {
-      match parcel_css::css_modules::Pattern::parse(pattern) {
+      match lightningcss::css_modules::Pattern::parse(pattern) {
         Ok(p) => p,
         Err(e) => {
           eprintln!("{}", e);
@@ -80,7 +80,7 @@ pub fn main() -> Result<(), std::io::Error> {
       Default::default()
     };
 
-    Some(parcel_css::css_modules::Config {
+    Some(lightningcss::css_modules::Config {
       pattern,
       dashed_idents: cli_args.css_modules_dashed_idents,
       ..Default::default()

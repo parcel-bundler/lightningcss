@@ -15,11 +15,11 @@ if (process.platform === 'linux') {
   parts.push('msvc');
 }
 
-let binary = process.platform === 'win32' ? 'parcel_css.exe' : 'parcel_css';
+let binary = process.platform === 'win32' ? 'lightningcss.exe' : 'lightningcss';
 
 let pkgPath;
 try {
-  pkgPath = path.dirname(require.resolve(`@parcel/css-cli-${parts.join('-')}/package.json`));
+  pkgPath = path.dirname(require.resolve(`lightningcss-cli-${parts.join('-')}/package.json`));
 } catch (err) {
   pkgPath = path.join(__dirname, '..', 'target', 'release');
   if (!fs.existsSync(path.join(pkgPath, binary))) {
@@ -33,13 +33,13 @@ try {
   try {
     fs.copyFileSync(path.join(pkgPath, binary), path.join(__dirname, binary));
   } catch (err) {
-    console.error('Failed to move @parcel/css-cli binary into place.');
+    console.error('Failed to move lightningcss-cli binary into place.');
     process.exit(1);
   }
 }
 
 if (process.platform === 'win32') {
   try {
-    fs.unlinkSync(path.join(__dirname, 'parcel_css'));
-  } catch (err) {}
+    fs.unlinkSync(path.join(__dirname, 'lightningcss'));
+  } catch (err) { }
 }

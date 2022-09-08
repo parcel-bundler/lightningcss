@@ -15,6 +15,7 @@ use crate::traits::{Parse, ToCss};
 use crate::values::color::ColorFallbackKind;
 use crate::values::ident::CustomIdent;
 use crate::values::percentage::Percentage;
+use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 
@@ -23,14 +24,74 @@ use cssparser::*;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct KeyframesRule<'i> {
   /// The animation name.
+  /// <keyframes-name> = <custom-ident> | <string>
   #[cfg_attr(feature = "serde", serde(borrow))]
-  pub name: CustomIdent<'i>,
+  pub name: KeyframesName<'i>,
   /// A list of keyframes in the animation.
   pub keyframes: Vec<Keyframe<'i>>,
   /// A vendor prefix for the rule, e.g. `@-webkit-keyframes`.
   pub vendor_prefix: VendorPrefix,
   /// The location of the rule in the source file.
   pub loc: Location,
+}
+
+/// KeyframesName
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum KeyframesName<'i> {
+  /// `<custom-ident>` of a `@keyframes` name.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  Ident(CustomIdent<'i>),
+
+  /// `<string>` of a `@keyframes` name.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  Custom(CowArcStr<'i>),
+}
+
+impl<'i> Parse<'i> for KeyframesName<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    match input.next()?.clone() {
+      Token::Ident(ref s) => {
+        // CSS-wide keywords without quotes throws an error.
+        match_ignore_ascii_case! { &*s,
+          "none" | "initial" | "inherit" | "unset" | "default" | "revert" | "revert-layer" => {
+            Err(input.new_unexpected_token_error(Token::Ident(s.clone())))
+          },
+          _ => {
+            Ok(KeyframesName::Ident(CustomIdent(s.into())))
+          }
+        }
+      }
+
+      Token::QuotedString(ref s) => Ok(KeyframesName::Custom(s.into())),
+      t => return Err(input.new_unexpected_token_error(t.clone())),
+    }
+  }
+}
+
+impl<'i> ToCss for KeyframesName<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      KeyframesName::Ident(ident) => {
+        dest.write_ident(ident.0.as_ref())?;
+      }
+      KeyframesName::Custom(s) => {
+        // CSS-wide keywords and `none` cannot remove quotes.
+        match_ignore_ascii_case! { &*s,
+          "none" | "initial" | "inherit" | "unset" | "default" | "revert" | "revert-layer" => {
+            serialize_string(&s, dest)?;
+          },
+          _ => {
+            dest.write_ident(s.as_ref())?;
+          }
+        }
+      }
+    }
+    Ok(())
+  }
 }
 
 impl<'i> KeyframesRule<'i> {

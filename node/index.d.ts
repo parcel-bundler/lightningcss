@@ -233,7 +233,7 @@ export interface TransformAttributeResult {
 export declare function transformStyleAttribute(options: TransformAttributeOptions): TransformAttributeResult;
 
 /**
- * Converts a browserslist result into targets that can be passed to @parcel/css.
+ * Converts a browserslist result into targets that can be passed to lightningcss.
  * @param browserslist the result of calling `browserslist`
  */
 export declare function browserslistToTargets(browserslist: string[]): Targets;

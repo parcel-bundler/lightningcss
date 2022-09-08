@@ -6,7 +6,7 @@ let dec = new TextDecoder();
 let inputs = document.querySelectorAll('input[type=number]');
 
 async function loadVersions() {
-  const {versions} = await fetch('https://data.jsdelivr.com/v1/package/npm/@parcel/css-wasm').then(r => r.json());
+  const { versions } = await fetch('https://data.jsdelivr.com/v1/package/npm/lightningcss-wasm').then(r => r.json());
   versions
     .map(v => {
       const option = document.createElement('option');
@@ -23,7 +23,7 @@ async function loadWasm() {
   if (version.value === 'local') {
     wasm = localWasm;
   } else {
-    wasm = await new Function('version', 'return import(`https://cdn.jsdelivr.net/npm/@parcel/css-wasm@${version}/parcel_css_node.js`)')(version.value);
+    wasm = await new Function('version', 'return import(`https://cdn.jsdelivr.net/npm/lightningcss-wasm@${version}/lightningcss_node.js`)')(version.value);
   }
   await wasm.default();
 }
@@ -70,7 +70,7 @@ function reflectPlaygroundState(playgroundState) {
   }
 
   if (playgroundState.targets) {
-    const {targets} = playgroundState;
+    const { targets } = playgroundState;
     for (let input of inputs) {
       let value = targets[input.id];
       input.value = value == null ? '' : value >> 16;
@@ -130,7 +130,7 @@ function getTargets() {
 }
 
 function update() {
-  const {transform} = wasm;
+  const { transform } = wasm;
 
   const targets = getTargets();
   try {
@@ -154,7 +154,7 @@ function update() {
     compiledModules.hidden = !cssModules.checked;
     compiledDependencies.value = JSON.stringify(res.dependencies, false, 2);
     compiledDependencies.hidden = !analyzeDependencies.checked;
-  } catch(e) {
+  } catch (e) {
     compiled.value = e.message;
     compiled.style.color = "red";
   }

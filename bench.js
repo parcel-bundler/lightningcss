@@ -26,9 +26,9 @@ async function run() {
   console.log(r.code.length + ' bytes');
   console.log('');
 
-  console.time('parcel-css');
+  console.time('lightningcss');
   let res = css.transform(opts);
-  console.timeEnd('parcel-css');
+  console.timeEnd('lightningcss');
   console.log(res.code.length + ' bytes');
 }
 
