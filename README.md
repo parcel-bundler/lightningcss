@@ -168,7 +168,7 @@ console.log(new TextDecoder().decode(code));
 
 ### With webpack
 
-css-minimizer-webpack-plugin has builtin support for Lightning CSS. Install Lightning CSS in your project, and configure the plugin as documented [here](https://github.com/webpack-contrib/css-minimizer-webpack-plugin#using-custom-minifier-parcelcss).
+css-minimizer-webpack-plugin has builtin support for Lightning CSS. Install Lightning CSS in your project, and configure the plugin as documented [in its README](https://github.com/webpack-contrib/css-minimizer-webpack-plugin#using-custom-minifier-lightningcss-previously-parcelcss).
 
 ### From the CLI
 
