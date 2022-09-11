@@ -61,6 +61,7 @@ pub struct Printer<'a, 'b, 'c, W> {
   pub(crate) sources: Option<&'c Vec<String>>,
   dest: &'a mut W,
   pub(crate) source_map: Option<&'a mut SourceMap>,
+  pub(crate) source_maps: Vec<Option<SourceMap>>,
   pub(crate) loc: Location,
   indent: u8,
   line: u32,
@@ -83,6 +84,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
       sources: None,
       dest,
       source_map: options.source_map,
+      source_maps: Vec::new(),
       loc: Location {
         source_index: 0,
         line: 0,
@@ -205,17 +207,42 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
   /// Adds a mapping to the source map, if any.
   pub fn add_mapping(&mut self, loc: Location) {
     self.loc = loc;
+
     if let Some(map) = &mut self.source_map {
-      map.add_mapping(
-        self.line,
-        self.col,
-        Some(OriginalLocation {
+    let mut original = OriginalLocation {
           original_line: loc.line,
           original_column: loc.column - 1,
           source: loc.source_index,
           name: None,
-        }),
-      )
+      };
+
+      // Remap using input source map if possible.
+      if let Some(Some(sm)) = self.source_maps.get_mut(loc.source_index as usize) {
+        let mut found_mapping = false;
+        if let Some(mapping) = sm.find_closest_mapping(loc.line, loc.column - 1) {
+          if let Some(orig) = mapping.original {
+            let sources_len = map.get_sources().len();
+            let source_index = map.add_source(sm.get_source(orig.source).unwrap());
+            original.original_line = orig.original_line;
+            original.original_column = orig.original_column;
+            original.source = source_index;
+            original.name = orig.name;
+
+            if map.get_sources().len() > sources_len {
+              let content = sm.get_source_content(orig.source).unwrap().to_owned();
+              let _ = map.set_source_content(source_index as usize, &content);
+            }
+
+            found_mapping = true;
+          }
+          }
+
+        if !found_mapping {
+          return;
+        }
+      }
+
+      map.add_mapping(self.line, self.col, Some(original))
     }
   }
 

@@ -19790,7 +19790,7 @@ mod tests {
     let map = sm.to_json(None).unwrap();
     assert_eq!(
       map,
-      r#"{"version":3,"sourceRoot":null,"mappings":"AEAA,uCFGA,2CAAA","sources":["stdin","sass/_variables.scss","sass/_demo.scss"],"sourcesContent":["@import \"_variables\";\n@import \"_demo\";\n\n.selector {\n  margin: $size;\n  background-color: $brandColor;\n\n  .nested {\n    margin: $size / 2;\n  }\n}","$brandColor: #f60;\n$size: 1em;",".imported {\n  content: \"yay, file support!\";\n}"],"names":[]}"#
+      r#"{"version":3,"sourceRoot":null,"mappings":"AAAA,uCCGA,2CAAA","sources":["sass/_demo.scss","stdin"],"sourcesContent":[".imported {\n  content: \"yay, file support!\";\n}","@import \"_variables\";\n@import \"_demo\";\n\n.selector {\n  margin: $size;\n  background-color: $brandColor;\n\n  .nested {\n    margin: $size / 2;\n  }\n}"],"names":[]}"#
     );
   }
 

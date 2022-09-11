@@ -66,7 +66,7 @@ pub struct StyleSheet<'i, 'o> {
   /// Sources are referenced by index in the `loc` property of each rule.
   pub sources: Vec<String>,
   /// The source map URL extracted from the original style sheet.
-  pub source_map_url: Option<String>,
+  pub(crate) source_map_urls: Vec<Option<String>>,
   #[cfg_attr(feature = "serde", serde(skip))]
   /// The options the style sheet was originally parsed with.
   options: ParserOptions<'o, 'i>,
@@ -105,7 +105,7 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
   pub fn new(sources: Vec<String>, rules: CssRuleList<'i>, options: ParserOptions<'o, 'i>) -> StyleSheet<'i, 'o> {
     StyleSheet {
       sources,
-      source_map_url: None,
+      source_map_urls: Vec::new(),
       rules,
       options,
     }
@@ -137,16 +137,20 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
 
     Ok(StyleSheet {
       sources: vec![options.filename.clone()],
-      source_map_url: parser.current_source_map_url().map(|s| s.to_owned()),
+      source_map_urls: vec![parser.current_source_map_url().map(|s| s.to_owned())],
       rules: CssRuleList(rules),
       options,
     })
   }
 
-  /// Returns the inline source map associated with the style sheet.
-  pub fn source_map(&self) -> Option<SourceMap> {
-    let source_map_url = self.source_map_url.as_ref()?;
-    SourceMap::from_data_url("/", source_map_url).ok()
+  /// Returns the source map URL for the source at the given index.
+  pub fn source_map_url(&self, source_index: usize) -> Option<&String> {
+    self.source_map_urls.get(source_index)?.as_ref()
+  }
+
+  /// Returns the inline source map associated with the source at the given index.
+  pub fn source_map(&self, source_index: usize) -> Option<SourceMap> {
+    SourceMap::from_data_url("/", self.source_map_url(source_index)?).ok()
   }
 
   /// Minify and transform the style sheet for the provided browser targets.
@@ -200,6 +204,9 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
     let mut printer = Printer::new(&mut dest, options);
 
     printer.sources = Some(&self.sources);
+    if printer.source_map.is_some() {
+      printer.source_maps = self.sources.iter().enumerate().map(|(i, _)| self.source_map(i)).collect();
+    }
 
     if let Some(config) = &self.options.css_modules {
       let mut references = HashMap::new();
@@ -219,12 +226,6 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
     } else {
       self.rules.to_css(&mut printer)?;
       printer.newline()?;
-
-      if let Some(sm) = printer.source_map {
-        if let Some(mut input_sm) = self.source_map() {
-          let _ = sm.extends(&mut input_sm);
-        }
-      }
 
       Ok(ToCssResult {
         dependencies: printer.dependencies,

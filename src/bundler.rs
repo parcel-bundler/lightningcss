@@ -237,7 +237,17 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P> {
       .flat_map(|s| s.stylesheet.as_ref().unwrap().sources.iter().cloned())
       .collect();
 
-    Ok(StyleSheet::new(sources, CssRuleList(rules), self.options.clone()))
+    let mut stylesheet = StyleSheet::new(sources, CssRuleList(rules), self.options.clone());
+
+    stylesheet.source_map_urls = self
+      .stylesheets
+      .get_mut()
+      .unwrap()
+      .iter()
+      .flat_map(|s| s.stylesheet.as_ref().unwrap().source_map_urls.iter().cloned())
+      .collect();
+
+    Ok(stylesheet)
   }
 
   fn find_filename(&self, source_index: u32) -> String {
@@ -329,13 +339,18 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P> {
     opts.filename = filename.to_owned();
     opts.source_index = source_index;
 
-    if let Some(source_map) = &self.source_map {
-      let mut source_map = source_map.lock().unwrap();
-      let source_index = source_map.add_source(filename);
-      let _ = source_map.set_source_content(source_index as usize, code);
-    }
-
     let mut stylesheet = StyleSheet::parse(code, opts)?;
+
+    if let Some(source_map) = &self.source_map {
+      // Only add source if we don't have an input source map.
+      // If we do, this will be handled by the printer when remapping locations.
+      let sm = stylesheet.source_map_url(0);
+      if sm.is_none() || !sm.unwrap().starts_with("data") {
+        let mut source_map = source_map.lock().unwrap();
+        let source_index = source_map.add_source(filename);
+        let _ = source_map.set_source_content(source_index as usize, code);
+      }
+    }
 
     // Collect and load dependencies for this stylesheet in parallel.
     let dependencies: Result<Vec<u32>, _> = stylesheet
@@ -1757,6 +1772,51 @@ mod tests {
       map! {
         "a" => "_6lixEq_a"
       }
+    );
+  }
+
+  #[test]
+  fn test_source_map() {
+    let source = r#".imported {
+      content: "yay, file support!";
+    }
+    
+    .selector {
+      margin: 1em;
+      background-color: #f60;
+    }
+    
+    .selector .nested {
+      margin: 0.5em;
+    }
+    
+    /*# sourceMappingURL=data:application/json;base64,ewoJInZlcnNpb24iOiAzLAoJInNvdXJjZVJvb3QiOiAicm9vdCIsCgkiZmlsZSI6ICJzdGRvdXQiLAoJInNvdXJjZXMiOiBbCgkJInN0ZGluIiwKCQkic2Fzcy9fdmFyaWFibGVzLnNjc3MiLAoJCSJzYXNzL19kZW1vLnNjc3MiCgldLAoJInNvdXJjZXNDb250ZW50IjogWwoJCSJAaW1wb3J0IFwiX3ZhcmlhYmxlc1wiO1xuQGltcG9ydCBcIl9kZW1vXCI7XG5cbi5zZWxlY3RvciB7XG4gIG1hcmdpbjogJHNpemU7XG4gIGJhY2tncm91bmQtY29sb3I6ICRicmFuZENvbG9yO1xuXG4gIC5uZXN0ZWQge1xuICAgIG1hcmdpbjogJHNpemUgLyAyO1xuICB9XG59IiwKCQkiJGJyYW5kQ29sb3I6ICNmNjA7XG4kc2l6ZTogMWVtOyIsCgkJIi5pbXBvcnRlZCB7XG4gIGNvbnRlbnQ6IFwieWF5LCBmaWxlIHN1cHBvcnQhXCI7XG59IgoJXSwKCSJtYXBwaW5ncyI6ICJBRUFBLFNBQVMsQ0FBQztFQUNSLE9BQU8sRUFBRSxvQkFBcUI7Q0FDL0I7O0FGQ0QsU0FBUyxDQUFDO0VBQ1IsTUFBTSxFQ0hELEdBQUc7RURJUixnQkFBZ0IsRUNMTCxJQUFJO0NEVWhCOztBQVBELFNBQVMsQ0FJUCxPQUFPLENBQUM7RUFDTixNQUFNLEVDUEgsS0FBRztDRFFQIiwKCSJuYW1lcyI6IFtdCn0= */"#;
+
+    let fs = TestProvider {
+      map: fs! {
+        "/a.css": r#"
+        @import "/b.css";
+        .a { color: red; }
+      "#,
+        "/b.css": source
+      },
+    };
+
+    let mut sm = parcel_sourcemap::SourceMap::new("/");
+    let mut bundler = Bundler::new(&fs, Some(&mut sm), ParserOptions::default());
+    let mut stylesheet = bundler.bundle(Path::new("/a.css")).unwrap();
+    stylesheet.minify(MinifyOptions::default()).unwrap();
+    stylesheet
+      .to_css(PrinterOptions {
+        source_map: Some(&mut sm),
+        minify: true,
+        ..PrinterOptions::default()
+      })
+      .unwrap();
+    let map = sm.to_json(None).unwrap();
+    assert_eq!(
+      map,
+      r#"{"version":3,"sourceRoot":null,"mappings":"ACAA,uCCGA,2CAAA,8BFDQ","sources":["a.css","sass/_demo.scss","stdin"],"sourcesContent":["\n        @import \"/b.css\";\n        .a { color: red; }\n      ",".imported {\n  content: \"yay, file support!\";\n}","@import \"_variables\";\n@import \"_demo\";\n\n.selector {\n  margin: $size;\n  background-color: $brandColor;\n\n  .nested {\n    margin: $size / 2;\n  }\n}"],"names":[]}"#
     );
   }
 }
