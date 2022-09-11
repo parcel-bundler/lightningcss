@@ -19253,7 +19253,7 @@ mod tests {
       stylesheet.minify(MinifyOptions::default()).unwrap();
       let res = stylesheet
         .to_css(PrinterOptions {
-          analyze_dependencies: true,
+          analyze_dependencies: Some(Default::default()),
           minify: true,
           ..PrinterOptions::default()
         })
@@ -19267,7 +19267,10 @@ mod tests {
             assert_eq!(dep.url, url);
             assert_eq!(dep.placeholder, placeholder);
           }
-          _ => unreachable!(),
+          Dependency::Import(dep) => {
+            assert_eq!(dep.url, url);
+            assert_eq!(dep.placeholder, placeholder);
+          }
         }
       }
     }
@@ -19275,7 +19278,7 @@ mod tests {
     fn dep_error_test(source: &str, error: PrinterErrorKind) {
       let stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
       let res = stylesheet.to_css(PrinterOptions {
-        analyze_dependencies: true,
+        analyze_dependencies: Some(Default::default()),
         ..PrinterOptions::default()
       });
       match res {
@@ -19353,6 +19356,12 @@ mod tests {
       ".foo { --foo: url(#foo) }",
       ".foo{--foo:url(\"Zn9-2q\")}",
       vec![("#foo", "Zn9-2q")],
+    );
+
+    dep_test(
+      "@import \"test.css\"; .foo { color: red }",
+      "@import \"hHsogW\";.foo{color:red}",
+      vec![("test.css", "hHsogW")],
     );
   }
 

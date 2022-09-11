@@ -23,7 +23,7 @@ export interface TransformOptions {
    * are replaced with hashed placeholders that can be replaced with the final
    * urls later (after bundling). Dependencies are returned as part of the result.
    */
-  analyzeDependencies?: boolean,
+  analyzeDependencies?: boolean | DependencyOptions,
   /** 
    * Replaces user action pseudo classes with class names that can be applied from JavaScript.
    * This is useful for polyfills, for example.
@@ -41,6 +41,11 @@ export interface TransformOptions {
    * omitted from the output code.
    */
   errorRecovery?: boolean
+}
+
+export interface DependencyOptions {
+  /** Whether to preserve `@import` rules rather than removing them. */
+  preserveImports?: boolean
 }
 
 export type BundleOptions = Omit<TransformOptions, 'code'>;

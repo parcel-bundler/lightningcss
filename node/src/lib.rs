@@ -4,7 +4,7 @@ static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 use lightningcss::bundler::{BundleErrorKind, Bundler, FileProvider, SourceProvider};
 use lightningcss::css_modules::{CssModuleExports, CssModuleReferences, PatternParseError};
-use lightningcss::dependencies::Dependency;
+use lightningcss::dependencies::{Dependency, DependencyOptions};
 use lightningcss::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterErrorKind};
 use lightningcss::stylesheet::{
   MinifyOptions, ParserOptions, PrinterOptions, PseudoClasses, StyleAttribute, StyleSheet,
@@ -466,10 +466,23 @@ struct Config {
   pub input_source_map: Option<String>,
   pub drafts: Option<Drafts>,
   pub css_modules: Option<CssModulesOption>,
-  pub analyze_dependencies: Option<bool>,
+  pub analyze_dependencies: Option<AnalyzeDependenciesOption>,
   pub pseudo_classes: Option<OwnedPseudoClasses>,
   pub unused_symbols: Option<HashSet<String>>,
   pub error_recovery: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum AnalyzeDependenciesOption {
+  Bool(bool),
+  Config(AnalyzeDependenciesConfig),
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AnalyzeDependenciesConfig {
+  preserve_imports: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -495,7 +508,7 @@ struct BundleConfig {
   pub source_map: Option<bool>,
   pub drafts: Option<Drafts>,
   pub css_modules: Option<CssModulesOption>,
-  pub analyze_dependencies: Option<bool>,
+  pub analyze_dependencies: Option<AnalyzeDependenciesOption>,
   pub pseudo_classes: Option<OwnedPseudoClasses>,
   pub unused_symbols: Option<HashSet<String>>,
   pub error_recovery: Option<bool>,
@@ -586,7 +599,17 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult<'i>, Co
       minify: config.minify.unwrap_or_default(),
       source_map: source_map.as_mut(),
       targets: config.targets,
-      analyze_dependencies: config.analyze_dependencies.unwrap_or_default(),
+      analyze_dependencies: if let Some(d) = &config.analyze_dependencies {
+        match d {
+          AnalyzeDependenciesOption::Bool(b) if *b => Some(DependencyOptions { remove_imports: true }),
+          AnalyzeDependenciesOption::Config(c) => Some(DependencyOptions {
+            remove_imports: !c.preserve_imports,
+          }),
+          _ => None,
+        }
+      } else {
+        None
+      },
       pseudo_classes: config.pseudo_classes.as_ref().map(|p| p.into()),
     })?
   };
@@ -672,7 +695,17 @@ fn compile_bundle<'i, P: SourceProvider>(
       minify: config.minify.unwrap_or_default(),
       source_map: source_map.as_mut(),
       targets: config.targets,
-      analyze_dependencies: config.analyze_dependencies.unwrap_or_default(),
+      analyze_dependencies: if let Some(d) = &config.analyze_dependencies {
+        match d {
+          AnalyzeDependenciesOption::Bool(b) if *b => Some(DependencyOptions { remove_imports: true }),
+          AnalyzeDependenciesOption::Config(c) => Some(DependencyOptions {
+            remove_imports: !c.preserve_imports,
+          }),
+          _ => None,
+        }
+      } else {
+        None
+      },
       pseudo_classes: config.pseudo_classes.as_ref().map(|p| p.into()),
     })?
   };
@@ -701,7 +734,7 @@ fn compile_bundle<'i, P: SourceProvider>(
   })
 }
 
-#[derive(Serialize, Debug, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct AttrConfig {
   #[serde(with = "serde_bytes")]
@@ -709,8 +742,7 @@ struct AttrConfig {
   pub targets: Option<Browsers>,
   #[serde(default)]
   pub minify: bool,
-  #[serde(default)]
-  pub analyze_dependencies: bool,
+  pub analyze_dependencies: Option<AnalyzeDependenciesOption>,
   #[serde(default)]
   pub error_recovery: bool,
 }
@@ -764,7 +796,17 @@ fn compile_attr<'i>(
       minify: config.minify,
       source_map: None,
       targets: config.targets,
-      analyze_dependencies: config.analyze_dependencies,
+      analyze_dependencies: if let Some(d) = &config.analyze_dependencies {
+        match d {
+          AnalyzeDependenciesOption::Bool(b) if *b => Some(DependencyOptions { remove_imports: true }),
+          AnalyzeDependenciesOption::Config(c) => Some(DependencyOptions {
+            remove_imports: !c.preserve_imports,
+          }),
+          _ => None,
+        }
+      } else {
+        None
+      },
       pseudo_classes: None,
     })?
   };

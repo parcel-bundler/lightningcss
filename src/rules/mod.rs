@@ -532,15 +532,17 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for CssRuleList<'i> {
 
       // Skip @import rules if collecting dependencies.
       if let CssRule::Import(rule) = &rule {
-        let dep = if dest.dependencies.is_some() {
-          Some(Dependency::Import(ImportDependency::new(&rule, dest.filename())))
-        } else {
-          None
-        };
+        if dest.remove_imports {
+          let dep = if dest.dependencies.is_some() {
+            Some(Dependency::Import(ImportDependency::new(&rule, dest.filename())))
+          } else {
+            None
+          };
 
-        if let Some(dependencies) = &mut dest.dependencies {
-          dependencies.push(dep.unwrap());
-          continue;
+          if let Some(dependencies) = &mut dest.dependencies {
+            dependencies.push(dep.unwrap());
+            continue;
+          }
         }
       }
 

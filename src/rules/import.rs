@@ -3,6 +3,7 @@
 use super::layer::LayerName;
 use super::supports::SupportsCondition;
 use super::Location;
+use crate::dependencies::{Dependency, ImportDependency};
 use crate::error::PrinterError;
 use crate::media_query::MediaList;
 use crate::printer::Printer;
@@ -32,9 +33,23 @@ impl<'i> ToCss for ImportRule<'i> {
   where
     W: std::fmt::Write,
   {
+    let dep = if dest.dependencies.is_some() {
+      Some(ImportDependency::new(self, dest.filename()))
+    } else {
+      None
+    };
+
     dest.add_mapping(self.loc);
     dest.write_str("@import ")?;
-    serialize_string(&self.url, dest)?;
+    if let Some(dep) = dep {
+      serialize_string(&dep.placeholder, dest)?;
+
+      if let Some(dependencies) = &mut dest.dependencies {
+        dependencies.push(Dependency::Import(dep))
+      }
+    } else {
+      serialize_string(&self.url, dest)?;
+    }
 
     if let Some(layer) = &self.layer {
       dest.write_str(" layer")?;

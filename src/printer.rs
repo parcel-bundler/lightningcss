@@ -1,7 +1,7 @@
 //! CSS serialization and source map generation.
 
 use crate::css_modules::CssModule;
-use crate::dependencies::Dependency;
+use crate::dependencies::{Dependency, DependencyOptions};
 use crate::error::{Error, ErrorLocation, PrinterError, PrinterErrorKind};
 use crate::rules::Location;
 use crate::targets::Browsers;
@@ -22,10 +22,10 @@ pub struct PrinterOptions<'a> {
   /// If true, the dependencies are returned as part of the
   /// [ToCssResult](super::stylesheet::ToCssResult).
   ///
-  /// When enabled, `@import` rules are removed, and `url()` dependencies
+  /// When enabled, `@import` and `url()` dependencies
   /// are replaced with hashed placeholders that can be replaced with the final
   /// urls later (after bundling).
-  pub analyze_dependencies: bool,
+  pub analyze_dependencies: Option<DependencyOptions>,
   /// A mapping of pseudo classes to replace with class names that can be applied
   /// from JavaScript. Useful for polyfills, for example.
   pub pseudo_classes: Option<PseudoClasses<'a>>,
@@ -74,6 +74,7 @@ pub struct Printer<'a, 'b, 'c, W> {
   pub(crate) in_calc: bool,
   pub(crate) css_module: Option<CssModule<'a, 'b, 'c>>,
   pub(crate) dependencies: Option<Vec<Dependency>>,
+  pub(crate) remove_imports: bool,
   pub(crate) pseudo_classes: Option<PseudoClasses<'a>>,
 }
 
@@ -98,11 +99,12 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
       vendor_prefix: VendorPrefix::empty(),
       in_calc: false,
       css_module: None,
-      dependencies: if options.analyze_dependencies {
+      dependencies: if options.analyze_dependencies.is_some() {
         Some(Vec::new())
       } else {
         None
       },
+      remove_imports: matches!(&options.analyze_dependencies, Some(d) if d.remove_imports),
       pseudo_classes: options.pseudo_classes,
     }
   }
@@ -209,11 +211,11 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
     self.loc = loc;
 
     if let Some(map) = &mut self.source_map {
-    let mut original = OriginalLocation {
-          original_line: loc.line,
-          original_column: loc.column - 1,
-          source: loc.source_index,
-          name: None,
+      let mut original = OriginalLocation {
+        original_line: loc.line,
+        original_column: loc.column - 1,
+        source: loc.source_index,
+        name: None,
       };
 
       // Remap using input source map if possible.
@@ -235,7 +237,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
 
             found_mapping = true;
           }
-          }
+        }
 
         if !found_mapping {
           return;

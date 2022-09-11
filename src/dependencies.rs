@@ -16,6 +16,13 @@ use crate::values::url::Url;
 use cssparser::SourceLocation;
 use serde::Serialize;
 
+/// Options for `analyze_dependencies` in `PrinterOptions`.
+#[derive(Default)]
+pub struct DependencyOptions {
+  /// Whether to remove `@import` rules.
+  pub remove_imports: bool,
+}
+
 /// A dependency.
 #[derive(Serialize, Debug)]
 #[serde(tag = "type", rename_all = "lowercase")]
@@ -31,6 +38,8 @@ pub enum Dependency {
 pub struct ImportDependency {
   /// The url to import.
   pub url: String,
+  /// The placeholder that the URL was replaced with.
+  pub placeholder: String,
   /// An optional `supports()` condition.
   pub supports: Option<String>,
   /// A media query.
@@ -56,8 +65,11 @@ impl ImportDependency {
       None
     };
 
+    let placeholder = hash(&format!("{}_{}", filename, rule.url), false);
+
     ImportDependency {
       url: rule.url.as_ref().to_owned(),
+      placeholder,
       supports,
       media,
       loc: SourceRange::new(
