@@ -265,6 +265,7 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
 pub struct StyleAttribute<'i> {
   /// The declarations in the style attribute.
   pub declarations: DeclarationBlock<'i>,
+  sources: Vec<String>,
 }
 
 impl<'i> StyleAttribute<'i> {
@@ -277,6 +278,7 @@ impl<'i> StyleAttribute<'i> {
     let mut parser = Parser::new(&mut input);
     Ok(StyleAttribute {
       declarations: DeclarationBlock::parse(&mut parser, &options).map_err(|e| Error::from(e, "".into()))?,
+      sources: vec![options.filename],
     })
   }
 
@@ -299,6 +301,7 @@ impl<'i> StyleAttribute<'i> {
     // Make sure we always have capacity > 0: https://github.com/napi-rs/napi-rs/issues/1124.
     let mut dest = String::with_capacity(1);
     let mut printer = Printer::new(&mut dest, options);
+    printer.sources = Some(&self.sources);
 
     self.declarations.to_css(&mut printer)?;
 

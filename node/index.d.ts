@@ -202,6 +202,8 @@ export interface ErrorLocation extends Location {
 export declare function transform(options: TransformOptions): TransformResult;
 
 export interface TransformAttributeOptions {
+  /** The filename in which the style attribute appeared. Used for error messages and dependencies. */
+  filename?: string,
   /** The source code to transform. */
   code: Buffer,
   /** Whether to enable minification. */

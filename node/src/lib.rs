@@ -737,6 +737,7 @@ fn compile_bundle<'i, P: SourceProvider>(
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct AttrConfig {
+  pub filename: Option<String>,
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
   pub targets: Option<Browsers>,
@@ -780,9 +781,11 @@ fn compile_attr<'i>(
     None
   };
   let res = {
+    let filename = config.filename.clone().unwrap_or_default();
     let mut attr = StyleAttribute::parse(
       &code,
       ParserOptions {
+        filename,
         error_recovery: config.error_recovery,
         warnings: warnings.clone(),
         ..ParserOptions::default()
