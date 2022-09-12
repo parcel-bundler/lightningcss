@@ -251,4 +251,4 @@ export declare function bundle(options: BundleOptions): TransformResult;
 /**
  * Bundles a CSS file and its dependencies asynchronously, inlining @import rules.
  */
-export declare function bundleAsync(options: BundleAsyncOptions): TransformResult;
+export declare function bundleAsync(options: BundleAsyncOptions): Promise<TransformResult>;
