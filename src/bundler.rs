@@ -632,8 +632,17 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P> {
         }
       }
 
-      // Wrap rules in the appropriate @media and @supports rules.
+      // Wrap rules in the appropriate @layer, @media, and @supports rules.
       let stylesheet = &mut stylesheets[source_index as usize];
+
+      if stylesheet.layer.is_some() {
+        rules = vec![CssRule::LayerBlock(LayerBlockRule {
+          name: stylesheet.layer.take().unwrap(),
+          rules: CssRuleList(rules),
+          loc: stylesheet.loc,
+        })]
+      }
+
       if !stylesheet.media.media_queries.is_empty() {
         rules = vec![CssRule::Media(MediaRule {
           query: std::mem::replace(&mut stylesheet.media, MediaList::new()),
@@ -645,14 +654,6 @@ impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P> {
       if stylesheet.supports.is_some() {
         rules = vec![CssRule::Supports(SupportsRule {
           condition: stylesheet.supports.take().unwrap(),
-          rules: CssRuleList(rules),
-          loc: stylesheet.loc,
-        })]
-      }
-
-      if stylesheet.layer.is_some() {
-        rules = vec![CssRule::LayerBlock(LayerBlockRule {
-          name: stylesheet.layer.take().unwrap(),
           rules: CssRuleList(rules),
           loc: stylesheet.loc,
         })]
@@ -1380,6 +1381,53 @@ mod tests {
       @layer bar {
         div {
           background: red;
+        }
+      }
+    "#}
+    );
+
+    // Layer order depends on @import conditions.
+    let res = bundle(
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          @import "b.css" layer(bar) (min-width: 1000px);
+
+          @layer baz {
+            #box { background: purple }
+          }
+
+          @layer bar {
+            #box { background: yellow }
+          }
+        "#,
+          "/b.css": r#"
+          #box { background: green }
+        "#
+        },
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
+      @media (min-width: 1000px) {
+        @layer bar {
+          #box {
+            background: green;
+          }
+        }
+      }
+      
+      @layer baz {
+        #box {
+          background: purple;
+        }
+      }
+      
+      @layer bar {
+        #box {
+          background: #ff0;
         }
       }
     "#}
