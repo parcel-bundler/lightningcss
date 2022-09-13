@@ -743,7 +743,7 @@ struct AttrConfig {
   pub targets: Option<Browsers>,
   #[serde(default)]
   pub minify: bool,
-  pub analyze_dependencies: Option<AnalyzeDependenciesOption>,
+  pub analyze_dependencies: bool,
   #[serde(default)]
   pub error_recovery: bool,
 }
@@ -799,14 +799,8 @@ fn compile_attr<'i>(
       minify: config.minify,
       source_map: None,
       targets: config.targets,
-      analyze_dependencies: if let Some(d) = &config.analyze_dependencies {
-        match d {
-          AnalyzeDependenciesOption::Bool(b) if *b => Some(DependencyOptions { remove_imports: true }),
-          AnalyzeDependenciesOption::Config(c) => Some(DependencyOptions {
-            remove_imports: !c.preserve_imports,
-          }),
-          _ => None,
-        }
+      analyze_dependencies: if config.analyze_dependencies {
+        Some(DependencyOptions::default())
       } else {
         None
       },
