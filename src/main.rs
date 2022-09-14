@@ -12,7 +12,7 @@ use std::{ffi, fs, io, path, path::Path};
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 #[derive(Parser, Debug)]
-#[clap(author, about, long_about = None)]
+#[clap(author, version, about, long_about = None)]
 struct CliArgs {
   /// Target CSS file
   #[clap(value_parser)]
