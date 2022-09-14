@@ -3760,6 +3760,118 @@ mod tests {
       r#"
       .foo {
         flex-grow: 1;
+        flex-shrink: 1;
+        flex-basis: 0;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        flex: 1 1 0;
+      }
+    "#
+      },
+    );
+
+    test(
+      r#"
+      .foo {
+        flex-grow: 1;
+        flex-shrink: 1;
+        flex-basis: 0px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        flex: 1 1 0;
+      }
+    "#
+      },
+    );
+
+    test(
+      r#"
+      .foo {
+        flex-grow: 1;
+        flex-shrink: 2;
+        flex-basis: 0%;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        flex: 1 2;
+      }
+    "#
+      },
+    );
+
+    test(
+      r#"
+      .foo {
+        flex-grow: 2;
+        flex-shrink: 1;
+        flex-basis: 0%;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        flex: 2;
+      }
+    "#
+      },
+    );
+
+    test(
+      r#"
+      .foo {
+        flex-grow: 2;
+        flex-shrink: 2;
+        flex-basis: 0%;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        flex: 2 2;
+      }
+    "#
+      },
+    );
+
+    test(
+      r#"
+      .foo {
+        flex-grow: 1;
+        flex-shrink: 1;
+        flex-basis: 10px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        flex: 10px;
+      }
+    "#
+      },
+    );
+
+    test(
+      r#"
+      .foo {
+        flex-grow: 2;
+        flex-shrink: 1;
+        flex-basis: 10px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        flex: 2 10px;
+      }
+    "#
+      },
+    );
+
+    test(
+      r#"
+      .foo {
+        flex-grow: 1;
         flex-shrink: 0;
         flex-basis: 0%;
       }

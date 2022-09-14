@@ -188,21 +188,34 @@ impl ToCss for Flex {
       return Ok(());
     }
 
-    let is_basis_zero = match &self.basis {
-      LengthPercentageOrAuto::LengthPercentage(lp) => lp.is_zero(),
-      _ => false,
+    #[derive(PartialEq)]
+    enum ZeroKind {
+      NonZero,
+      Length,
+      Percentage,
+    }
+
+    // If the basis is unitless 0, we must write all three components to disambiguate.
+    // If the basis is 0%, we can omit the basis.
+    let basis_kind = match &self.basis {
+      LengthPercentageOrAuto::LengthPercentage(lp) => match lp {
+        LengthPercentage::Dimension(l) if l.is_zero() => ZeroKind::Length,
+        LengthPercentage::Percentage(p) if p.is_zero() => ZeroKind::Percentage,
+        _ => ZeroKind::NonZero,
+      },
+      _ => ZeroKind::NonZero,
     };
 
-    if self.grow != 1.0 || self.shrink != 1.0 || is_basis_zero {
+    if self.grow != 1.0 || self.shrink != 1.0 || basis_kind != ZeroKind::NonZero {
       self.grow.to_css(dest)?;
-      if self.shrink != 1.0 {
+      if self.shrink != 1.0 || basis_kind == ZeroKind::Length {
         dest.write_str(" ")?;
         self.shrink.to_css(dest)?;
       }
     }
 
-    if !is_basis_zero {
-      if self.grow != 1.0 || self.shrink != 1.0 {
+    if basis_kind != ZeroKind::Percentage {
+      if self.grow != 1.0 || self.shrink != 1.0 || basis_kind == ZeroKind::Length {
         dest.write_str(" ")?;
       }
       self.basis.to_css(dest)?;
