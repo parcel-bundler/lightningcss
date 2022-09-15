@@ -10,6 +10,7 @@ use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::targets::Browsers;
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::number::CSSNumber;
+use crate::values::string::CowArcStr;
 use crate::values::{easing::EasingFunction, ident::CustomIdent, time::Time};
 use cssparser::*;
 use itertools::izip;
@@ -28,6 +29,9 @@ pub enum AnimationName<'i> {
   /// An identifier of a `@keyframes` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
   Ident(CustomIdent<'i>),
+  /// A `<string>` name of a `@keyframes` rule.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  String(CowArcStr<'i>),
 }
 
 impl<'i> Parse<'i> for AnimationName<'i> {
@@ -36,13 +40,12 @@ impl<'i> Parse<'i> for AnimationName<'i> {
       return Ok(AnimationName::None);
     }
 
-    let location = input.current_source_location();
-    let name = match *input.next()? {
-      Token::Ident(ref s) => s.into(),
-      Token::QuotedString(ref s) => s.into(),
-      ref t => return Err(location.new_unexpected_token_error(t.clone())),
-    };
-    Ok(AnimationName::Ident(CustomIdent(name)))
+    if let Ok(s) = input.try_parse(|input| input.expect_string_cloned()) {
+      return Ok(AnimationName::String(s.into()));
+    }
+
+    let ident = CustomIdent::parse(input)?;
+    Ok(AnimationName::Ident(ident))
   }
 }
 
@@ -58,6 +61,22 @@ impl<'i> ToCss for AnimationName<'i> {
           css_module.reference(&s.0, dest.loc.source_index)
         }
         s.to_css(dest)
+      }
+      AnimationName::String(s) => {
+        if let Some(css_module) = &mut dest.css_module {
+          css_module.reference(&s, dest.loc.source_index)
+        }
+
+        // CSS-wide keywords and `none` cannot remove quotes.
+        match_ignore_ascii_case! { &*s,
+          "none" | "initial" | "inherit" | "unset" | "default" | "revert" | "revert-layer" => {
+            serialize_string(&s, dest)?;
+            Ok(())
+          },
+          _ => {
+            dest.write_ident(s.as_ref())
+          }
+        }
       }
     }
   }
@@ -219,7 +238,7 @@ impl<'i> ToCss for Animation<'i> {
     self.name.to_css(dest)?;
     match &self.name {
       AnimationName::None => return Ok(()),
-      AnimationName::Ident(name) => {
+      AnimationName::Ident(CustomIdent(name)) | AnimationName::String(name) => {
         if !self.duration.is_zero() || !self.delay.is_zero() {
           dest.write_char(' ')?;
           self.duration.to_css(dest)?;
@@ -227,7 +246,7 @@ impl<'i> ToCss for Animation<'i> {
 
         if (self.timing_function != EasingFunction::Ease
           && self.timing_function != EasingFunction::CubicBezier(0.25, 0.1, 0.25, 1.0))
-          || EasingFunction::is_ident(&name.0)
+          || EasingFunction::is_ident(&name)
         {
           dest.write_char(' ')?;
           self.timing_function.to_css(dest)?;
@@ -238,22 +257,22 @@ impl<'i> ToCss for Animation<'i> {
           self.delay.to_css(dest)?;
         }
 
-        if self.iteration_count != AnimationIterationCount::Number(1.0) || name.0 == "infinite" {
+        if self.iteration_count != AnimationIterationCount::Number(1.0) || name.as_ref() == "infinite" {
           dest.write_char(' ')?;
           self.iteration_count.to_css(dest)?;
         }
 
-        if self.direction != AnimationDirection::Normal || AnimationDirection::parse_string(&name.0).is_ok() {
+        if self.direction != AnimationDirection::Normal || AnimationDirection::parse_string(&name).is_ok() {
           dest.write_char(' ')?;
           self.direction.to_css(dest)?;
         }
 
-        if self.fill_mode != AnimationFillMode::None || AnimationFillMode::parse_string(&name.0).is_ok() {
+        if self.fill_mode != AnimationFillMode::None || AnimationFillMode::parse_string(&name).is_ok() {
           dest.write_char(' ')?;
           self.fill_mode.to_css(dest)?;
         }
 
-        if self.play_state != AnimationPlayState::Running || AnimationPlayState::parse_string(&name.0).is_ok() {
+        if self.play_state != AnimationPlayState::Running || AnimationPlayState::parse_string(&name).is_ok() {
           dest.write_char(' ')?;
           self.play_state.to_css(dest)?;
         }

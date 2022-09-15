@@ -8195,6 +8195,10 @@ mod tests {
     minify_test(".foo { animation-name: test }", ".foo{animation-name:test}");
     minify_test(".foo { animation-name: \"test\" }", ".foo{animation-name:test}");
     minify_test(".foo { animation-name: foo, bar }", ".foo{animation-name:foo,bar}");
+    minify_test(".foo { animation-name: \"revert\" }", ".foo{animation-name:\"revert\"}");
+    minify_test(".foo { animation-name: \"none\" }", ".foo{animation-name:\"none\"}");
+    let name = crate::properties::animation::AnimationName::parse_string("default");
+    assert!(matches!(name, Err(..)));
     minify_test(".foo { animation-duration: 100ms }", ".foo{animation-duration:.1s}");
     minify_test(
       ".foo { animation-duration: 100ms, 2000ms }",
