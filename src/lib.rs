@@ -19113,6 +19113,24 @@ mod tests {
       "#},
     );
 
+    custom_media_test(
+      r#"
+      @custom-media --not-width not (min-width: 300px);
+      @media screen and ((prefers-color-scheme: dark) or (--not-width)) {
+        .foo {
+          order: 6;
+        }
+      }
+      "#,
+      indoc! {r#"
+      @media screen and ((prefers-color-scheme: dark) or (not (min-width: 300px))) {
+        .foo {
+          order: 6;
+        }
+      }
+      "#},
+    );
+
     fn custom_media_error_test(source: &str, err: Error<MinifyErrorKind>) {
       let mut stylesheet = StyleSheet::parse(
         &source,

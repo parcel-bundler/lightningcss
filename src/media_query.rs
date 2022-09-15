@@ -869,8 +869,16 @@ fn process_condition<'i>(
       }
 
       // Unwrap nested nots
-      if let MediaCondition::Not(cond) = &**cond {
-        *condition = (**cond).clone();
+      match &**cond {
+        MediaCondition::Not(cond) => {
+          *condition = (**cond).clone();
+        }
+        MediaCondition::InParens(parens) => {
+          if let MediaCondition::Not(cond) = &**parens {
+            *condition = (**cond).clone();
+          }
+        }
+        _ => {}
       }
     }
     MediaCondition::InParens(cond) => {
@@ -947,7 +955,11 @@ fn process_condition<'i>(
             if r.is_err() {
               res = r;
             }
-            Some(condition)
+            // Parentheses are required around the condition unless there is a single media feature.
+            match condition {
+              MediaCondition::Feature(..) | MediaCondition::InParens(..) => Some(condition),
+              _ => Some(MediaCondition::InParens(Box::new(condition))),
+            }
           } else {
             None
           }
