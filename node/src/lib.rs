@@ -743,6 +743,7 @@ struct AttrConfig {
   pub targets: Option<Browsers>,
   #[serde(default)]
   pub minify: bool,
+  #[serde(default)]
   pub analyze_dependencies: bool,
   #[serde(default)]
   pub error_recovery: bool,
