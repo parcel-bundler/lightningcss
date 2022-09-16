@@ -258,6 +258,69 @@ mod tests {
   );
 
   #[test]
+  pub fn test_border_spacing() {
+    minify_test(
+      r#"
+      .foo {
+        border-spacing: 0px;
+      }
+    "#,
+      indoc! {".foo{border-spacing:0}"
+      },
+    );
+    minify_test(
+      r#"
+      .foo {
+        border-spacing: 0px 0px;
+      }
+    "#,
+      indoc! {".foo{border-spacing:0}"
+      },
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        border-spacing: 12px   0px;
+      }
+    "#,
+      indoc! {".foo{border-spacing:12px 0}"
+      },
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        border-spacing: calc(3px * 2) calc(5px * 0);
+      }
+    "#,
+      indoc! {".foo{border-spacing:6px 0}"
+      },
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        border-spacing: calc(3px * 2) max(0px, 8px);
+      }
+    "#,
+      indoc! {".foo{border-spacing:6px 8px}"
+      },
+    );
+
+    // TODO: Negative numbers should throw an error.
+    minify_test(
+      r#"
+      .foo {
+        border-spacing: -20px;
+      }
+    "#,
+      indoc! {".foo{border-spacing:-20px}"
+      },
+    );
+  }
+
+  #[test]
   pub fn test_border() {
     test(
       r#"

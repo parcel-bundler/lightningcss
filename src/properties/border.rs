@@ -19,6 +19,56 @@ use crate::values::rect::Rect;
 use crate::values::size::Size2D;
 use cssparser::*;
 
+/// A value for the [border-spacing](https://www.w3.org/TR/CSS22/tables.html#propdef-border-spacing)
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
+pub enum BorderSpacing {
+  // TODO: The `<length>` in this property cannot have a negative value, 
+  // we may need to implement NonNegativeLength like Servo does.
+  // Servo Code: https://github.com/servo/servo/blob/08bc2d53579c9ab85415d4363888881b91df073b/components/style/values/specified/length.rs#L875
+  // CSSWG issue: https://lists.w3.org/Archives/Public/www-style/2008Sep/0161.html
+  /// `border-spacing = <length> <length>?`
+  /// `<length>`
+  First(Length),
+
+  /// `<length>?`
+  Second(Length, Length),
+}
+
+impl<'i> Parse<'i> for BorderSpacing {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let size = Size2D::parse(input)?;
+
+    if size.0 == size.1 {
+      Ok(BorderSpacing::First(size.0))
+    } else {
+      Ok(BorderSpacing::Second(size.0, size.1))
+    }
+  }
+}
+
+impl ToCss for BorderSpacing {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    use BorderSpacing::*;
+
+    Ok(match &self {
+      First(size) => size.to_css(dest)?,
+      Second(size1, size2) => {
+        size1.to_css(dest)?;
+        dest.write_char(' ')?;
+        size2.to_css(dest)?;
+      }
+    })
+  }
+}
+
 /// A value for the [border-width](https://www.w3.org/TR/css-backgrounds-3/#border-width) property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(
