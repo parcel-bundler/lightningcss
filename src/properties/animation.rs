@@ -82,6 +82,25 @@ impl<'i> ToCss for AnimationName<'i> {
   }
 }
 
+impl<'i> AnimationName<'i> {
+  fn write_as_string<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      AnimationName::None => dest.write_str("none"),
+      AnimationName::Ident(CustomIdent(s)) | AnimationName::String(s) => {
+        if let Some(css_module) = &mut dest.css_module {
+          css_module.reference(&s, dest.loc.source_index)
+        }
+
+        serialize_string(&s, dest)?;
+        Ok(())
+      }
+    }
+  }
+}
+
 /// A list of animation names.
 pub type AnimationNameList<'i> = SmallVec<[AnimationName<'i>; 1]>;
 
@@ -97,6 +116,12 @@ pub enum AnimationIterationCount {
   Number(CSSNumber),
   /// The animation will repeat forever.
   Infinite,
+}
+
+impl Default for AnimationIterationCount {
+  fn default() -> Self {
+    AnimationIterationCount::Number(1.0)
+  }
 }
 
 impl<'i> Parse<'i> for AnimationIterationCount {
@@ -136,6 +161,12 @@ enum_property! {
   }
 }
 
+impl Default for AnimationDirection {
+  fn default() -> Self {
+    AnimationDirection::Normal
+  }
+}
+
 enum_property! {
   /// A value for the [animation-play-state](https://drafts.csswg.org/css-animations/#animation-play-state) property.
   pub enum AnimationPlayState {
@@ -143,6 +174,12 @@ enum_property! {
     Running,
     /// The animation is paused.
     Paused,
+  }
+}
+
+impl Default for AnimationPlayState {
+  fn default() -> Self {
+    AnimationPlayState::Running
   }
 }
 
@@ -157,6 +194,12 @@ enum_property! {
     Backwards,
     /// Both forwards and backwards apply.
     Both,
+  }
+}
+
+impl Default for AnimationFillMode {
+  fn default() -> Self {
+    AnimationFillMode::None
   }
 }
 
@@ -235,19 +278,21 @@ impl<'i> ToCss for Animation<'i> {
   where
     W: std::fmt::Write,
   {
-    self.name.to_css(dest)?;
+    if self.name_conflicts_with_keyword() {
+      self.name.write_as_string(dest)?;
+    } else {
+      self.name.to_css(dest)?;
+    };
+
     match &self.name {
       AnimationName::None => return Ok(()),
-      AnimationName::Ident(CustomIdent(name)) | AnimationName::String(name) => {
+      _ => {
         if !self.duration.is_zero() || !self.delay.is_zero() {
           dest.write_char(' ')?;
           self.duration.to_css(dest)?;
         }
 
-        if (self.timing_function != EasingFunction::Ease
-          && self.timing_function != EasingFunction::CubicBezier(0.25, 0.1, 0.25, 1.0))
-          || EasingFunction::is_ident(&name)
-        {
+        if !self.is_default_easing() {
           dest.write_char(' ')?;
           self.timing_function.to_css(dest)?;
         }
@@ -257,29 +302,22 @@ impl<'i> ToCss for Animation<'i> {
           self.delay.to_css(dest)?;
         }
 
-        if self.iteration_count != AnimationIterationCount::Number(1.0) || name.as_ref() == "infinite" {
+        if self.iteration_count != AnimationIterationCount::default() {
           dest.write_char(' ')?;
           self.iteration_count.to_css(dest)?;
         }
 
-        if self.direction != AnimationDirection::Normal || AnimationDirection::parse_string(&name).is_ok() {
+        if self.direction != AnimationDirection::default() {
           dest.write_char(' ')?;
           self.direction.to_css(dest)?;
         }
 
-        // Avoid parsing `animation: "none"` to `animation: "none" none`.
-        let animation_name_is_none = AnimationName::parse_string(&name)
-          .as_ref()
-          .map(|n| n == &AnimationName::None)
-          .unwrap_or(true);
-        if self.fill_mode == AnimationFillMode::None && animation_name_is_none {
-          return Ok(());
-        } else if self.fill_mode != AnimationFillMode::None || AnimationFillMode::parse_string(&name).is_ok() {
+        if self.fill_mode != AnimationFillMode::default() {
           dest.write_char(' ')?;
           self.fill_mode.to_css(dest)?;
         }
 
-        if self.play_state != AnimationPlayState::Running || AnimationPlayState::parse_string(&name).is_ok() {
+        if self.play_state != AnimationPlayState::default() {
           dest.write_char(' ')?;
           self.play_state.to_css(dest)?;
         }
@@ -287,6 +325,42 @@ impl<'i> ToCss for Animation<'i> {
     }
 
     Ok(())
+  }
+}
+
+impl<'i> Animation<'i> {
+  fn is_default_easing(&self) -> bool {
+    self.timing_function == EasingFunction::Ease
+      || self.timing_function == EasingFunction::CubicBezier(0.25, 0.1, 0.25, 1.0)
+  }
+
+  fn name_conflicts_with_keyword(&self) -> bool {
+    match &self.name {
+      AnimationName::Ident(CustomIdent(name)) | AnimationName::String(name) => {
+        if self.is_default_easing() && EasingFunction::is_ident(&name) {
+          return true;
+        }
+
+        if self.iteration_count == AnimationIterationCount::default() && name.as_ref() == "infinite" {
+          return true;
+        }
+
+        if self.direction == AnimationDirection::default() && AnimationDirection::parse_string(&name).is_ok() {
+          return true;
+        }
+
+        if self.fill_mode == AnimationFillMode::default() && AnimationFillMode::parse_string(&name).is_ok() {
+          return true;
+        }
+
+        if self.play_state == AnimationPlayState::default() && AnimationPlayState::parse_string(&name).is_ok() {
+          return true;
+        }
+      }
+      _ => {}
+    }
+
+    false
   }
 }
 
