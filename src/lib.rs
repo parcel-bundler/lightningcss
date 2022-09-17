@@ -8306,56 +8306,60 @@ mod tests {
 
     // Test animation-name + animation-fill-mode
     minify_test(
-      ".foo { animation: \"none\" 2s both}",
-      ".foo{animation:\"none\" 2s both}",
+      ".foo { animation: 2s both \"none\"}",
+      ".foo{animation:2s both \"none\"}",
     );
     minify_test(
       ".foo { animation: both \"none\" 2s}",
-      ".foo{animation:\"none\" 2s both}",
+      ".foo{animation:2s both \"none\"}",
     );
-    minify_test(".foo { animation: \"none\" 2s none}", ".foo{animation:\"none\" 2s}");
-    minify_test(".foo { animation: none \"none\" 2s}", ".foo{animation:\"none\" 2s}");
+    minify_test(".foo { animation: \"none\" 2s none}", ".foo{animation:2s \"none\"}");
+    minify_test(".foo { animation: none \"none\" 2s}", ".foo{animation:2s \"none\"}");
     minify_test(
       ".foo { animation: none, \"none\" 2s forwards}",
-      ".foo{animation:none,\"none\" 2s forwards}",
+      ".foo{animation:none,2s forwards \"none\"}",
     );
 
     minify_test(".foo { animation: \"unset\" }", ".foo{animation:\"unset\"}");
-    minify_test(".foo { animation: \"string\" .5s }", ".foo{animation:string .5s}");
-    minify_test(".foo { animation: \"unset\" .5s }", ".foo{animation:\"unset\" .5s}");
+    minify_test(".foo { animation: \"string\" .5s }", ".foo{animation:.5s string}");
+    minify_test(".foo { animation: \"unset\" .5s }", ".foo{animation:.5s \"unset\"}");
     minify_test(
       ".foo { animation: none, \"unset\" .5s}",
-      ".foo{animation:none,\"unset\" .5s}",
+      ".foo{animation:none,.5s \"unset\"}",
     );
     minify_test(
       ".foo { animation: \"unset\" 0s 3s infinite, none }",
-      ".foo{animation:\"unset\" 0s 3s infinite,none}",
+      ".foo{animation:0s 3s infinite \"unset\",none}",
     );
 
     minify_test(
       ".foo { animation: \"infinite\" 2s 1 }",
-      ".foo{animation:\"infinite\" 2s}",
+      ".foo{animation:2s \"infinite\"}",
     );
-    minify_test(".foo { animation: \"paused\" 2s }", ".foo{animation:\"paused\" 2s}");
-    minify_test(".foo { animation: \"forwards\" 2s }", ".foo{animation:\"forwards\" 2s}");
-    minify_test(".foo { animation: \"reverse\" 2s }", ".foo{animation:\"reverse\" 2s}");
+    minify_test(".foo { animation: \"paused\" 2s }", ".foo{animation:2s \"paused\"}");
+    minify_test(".foo { animation: \"forwards\" 2s }", ".foo{animation:2s \"forwards\"}");
+    minify_test(".foo { animation: \"reverse\" 2s }", ".foo{animation:2s \"reverse\"}");
+    minify_test(
+      ".foo { animation: \"reverse\" 2s alternate }",
+      ".foo{animation:2s alternate reverse}",
+    );
 
     minify_test(
       ".foo { animation: 3s ease-in 1s infinite reverse both running slidein }",
-      ".foo{animation:slidein 3s ease-in 1s infinite reverse both}",
+      ".foo{animation:3s ease-in 1s infinite reverse both slidein}",
     );
     minify_test(
       ".foo { animation: 3s slidein paused ease 1s 1 reverse both }",
-      ".foo{animation:slidein 3s 1s reverse both paused}",
+      ".foo{animation:3s 1s reverse both paused slidein}",
     );
-    minify_test(".foo { animation: 3s ease ease }", ".foo{animation:\"ease\" 3s}");
+    minify_test(".foo { animation: 3s ease ease }", ".foo{animation:3s \"ease\"}");
     minify_test(
       ".foo { animation: 3s cubic-bezier(0.25, 0.1, 0.25, 1) foo }",
-      ".foo{animation:foo 3s}",
+      ".foo{animation:3s foo}",
     );
     minify_test(
       ".foo { animation: foo 0s 3s infinite }",
-      ".foo{animation:foo 0s 3s infinite}",
+      ".foo{animation:0s 3s infinite foo}",
     );
     test(
       r#"
@@ -8372,7 +8376,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        animation: foo 90ms ease-in-out .1s 2 alternate forwards;
+        animation: 90ms ease-in-out .1s 2 alternate forwards foo;
       }
     "#},
     );
@@ -8391,7 +8395,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        animation: foo 90ms ease-in-out .1s 2 alternate forwards, bar .2s paused;
+        animation: 90ms ease-in-out .1s 2 alternate forwards foo, .2s paused bar;
       }
     "#},
     );
@@ -8404,7 +8408,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        animation: bar .2s ease-in-out;
+        animation: .2s ease-in-out bar;
       }
     "#},
     );
@@ -8417,7 +8421,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        animation: bar .2s;
+        animation: .2s bar;
         animation-timing-function: var(--ease);
       }
     "#},
@@ -8463,7 +8467,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -webkit-animation: foo 90ms ease-in-out .1s 2 alternate forwards;
+        -webkit-animation: 90ms ease-in-out .1s 2 alternate forwards foo;
       }
     "#},
     );
@@ -8476,7 +8480,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -moz-animation: bar .2s ease-in-out;
+        -moz-animation: .2s ease-in-out bar;
       }
     "#},
     );
@@ -8491,8 +8495,8 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -webkit-animation: bar .2s ease-in-out;
-        -moz-animation: bar .2s ease-in-out;
+        -webkit-animation: .2s ease-in-out bar;
+        -moz-animation: .2s ease-in-out bar;
       }
     "#},
     );
@@ -8500,14 +8504,14 @@ mod tests {
     prefix_test(
       r#"
       .foo {
-        animation: bar .2s ease-in-out;
+        animation: .2s ease-in-out bar;
       }
     "#,
       indoc! {r#"
       .foo {
-        -webkit-animation: bar .2s ease-in-out;
-        -moz-animation: bar .2s ease-in-out;
-        animation: bar .2s ease-in-out;
+        -webkit-animation: .2s ease-in-out bar;
+        -moz-animation: .2s ease-in-out bar;
+        animation: .2s ease-in-out bar;
       }
     "#},
       Browsers {
@@ -8520,14 +8524,14 @@ mod tests {
     prefix_test(
       r#"
       .foo {
-        -webkit-animation: bar .2s ease-in-out;
-        -moz-animation: bar .2s ease-in-out;
-        animation: bar .2s ease-in-out;
+        -webkit-animation: .2s ease-in-out bar;
+        -moz-animation: .2s ease-in-out bar;
+        animation: .2s ease-in-out bar;
       }
     "#,
       indoc! {r#"
       .foo {
-        animation: bar .2s ease-in-out;
+        animation: .2s ease-in-out bar;
       }
     "#},
       Browsers {
@@ -8539,14 +8543,14 @@ mod tests {
     prefix_test(
       r#"
       .foo {
-        animation: bar 200ms var(--ease);
+        animation: 200ms var(--ease) bar;
       }
     "#,
       indoc! {r#"
       .foo {
-        -webkit-animation: bar 200ms var(--ease);
-        -moz-animation: bar 200ms var(--ease);
-        animation: bar 200ms var(--ease);
+        -webkit-animation: 200ms var(--ease) bar;
+        -moz-animation: 200ms var(--ease) bar;
+        animation: 200ms var(--ease) bar;
       }
     "#},
       Browsers {
@@ -17062,7 +17066,7 @@ mod tests {
       }
 
       #EgL3uq_id {
-        animation: EgL3uq_test 2s;
+        animation: 2s EgL3uq_test;
       }
 
       @keyframes EgL3uq_test {
@@ -17729,7 +17733,7 @@ mod tests {
       }
       
       #id {
-        animation: test 2s;
+        animation: 2s test;
       }
 
       @keyframes test {

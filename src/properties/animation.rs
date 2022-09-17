@@ -278,51 +278,51 @@ impl<'i> ToCss for Animation<'i> {
   where
     W: std::fmt::Write,
   {
+    match &self.name {
+      AnimationName::None => {}
+      _ => {
+        if !self.duration.is_zero() || !self.delay.is_zero() {
+          self.duration.to_css(dest)?;
+          dest.write_char(' ')?;
+        }
+
+        if !self.is_default_easing() {
+          self.timing_function.to_css(dest)?;
+          dest.write_char(' ')?;
+        }
+
+        if !self.delay.is_zero() {
+          self.delay.to_css(dest)?;
+          dest.write_char(' ')?;
+        }
+
+        if self.iteration_count != AnimationIterationCount::default() {
+          self.iteration_count.to_css(dest)?;
+          dest.write_char(' ')?;
+        }
+
+        if self.direction != AnimationDirection::default() {
+          self.direction.to_css(dest)?;
+          dest.write_char(' ')?;
+        }
+
+        if self.fill_mode != AnimationFillMode::default() {
+          self.fill_mode.to_css(dest)?;
+          dest.write_char(' ')?;
+        }
+
+        if self.play_state != AnimationPlayState::default() {
+          self.play_state.to_css(dest)?;
+          dest.write_char(' ')?;
+        }
+      }
+    }
+
     if self.name_conflicts_with_keyword() {
       self.name.write_as_string(dest)?;
     } else {
       self.name.to_css(dest)?;
     };
-
-    match &self.name {
-      AnimationName::None => return Ok(()),
-      _ => {
-        if !self.duration.is_zero() || !self.delay.is_zero() {
-          dest.write_char(' ')?;
-          self.duration.to_css(dest)?;
-        }
-
-        if !self.is_default_easing() {
-          dest.write_char(' ')?;
-          self.timing_function.to_css(dest)?;
-        }
-
-        if !self.delay.is_zero() {
-          dest.write_char(' ')?;
-          self.delay.to_css(dest)?;
-        }
-
-        if self.iteration_count != AnimationIterationCount::default() {
-          dest.write_char(' ')?;
-          self.iteration_count.to_css(dest)?;
-        }
-
-        if self.direction != AnimationDirection::default() {
-          dest.write_char(' ')?;
-          self.direction.to_css(dest)?;
-        }
-
-        if self.fill_mode != AnimationFillMode::default() {
-          dest.write_char(' ')?;
-          self.fill_mode.to_css(dest)?;
-        }
-
-        if self.play_state != AnimationPlayState::default() {
-          dest.write_char(' ')?;
-          self.play_state.to_css(dest)?;
-        }
-      }
-    }
 
     Ok(())
   }

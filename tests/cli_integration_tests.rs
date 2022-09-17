@@ -97,7 +97,7 @@ fn css_module_test_vals() -> (String, String, String) {
       }
 
       #EgL3uq_id {
-        animation: EgL3uq_test 2s;
+        animation: 2s EgL3uq_test;
       }
 
       @keyframes EgL3uq_test {

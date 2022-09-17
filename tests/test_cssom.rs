@@ -420,9 +420,9 @@ fn test_set() {
     "animation-name",
     "foo, bar",
     false,
-    "animation: foo 2s; animation-name: foo, bar",
+    "animation: 2s foo; animation-name: foo, bar",
   );
-  set_test("animation: foo 2s", "animation-name", "bar", false, "animation: bar 2s");
+  set_test("animation: foo 2s", "animation-name", "bar", false, "animation: 2s bar");
   set_test(
     "background: linear-gradient(red, green)",
     "background-position-x",
