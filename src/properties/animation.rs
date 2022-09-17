@@ -267,7 +267,11 @@ impl<'i> ToCss for Animation<'i> {
           self.direction.to_css(dest)?;
         }
 
-        if self.fill_mode != AnimationFillMode::None || AnimationFillMode::parse_string(&name).is_ok() {
+        // Avoid parsing `animation: "none"` to `animation: "none" none`.
+        let animation_name_is_none = AnimationName::parse_string(&name).as_ref().map(|n| n == &AnimationName::None).unwrap_or(true);
+        if self.fill_mode == AnimationFillMode::None && animation_name_is_none {
+          return Ok(());
+        } else if self.fill_mode != AnimationFillMode::None || AnimationFillMode::parse_string(&name).is_ok() {
           dest.write_char(' ')?;
           self.fill_mode.to_css(dest)?;
         }
