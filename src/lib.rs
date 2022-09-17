@@ -8196,7 +8196,10 @@ mod tests {
     minify_test(".foo { animation-name: \"test\" }", ".foo{animation-name:test}");
     minify_test(".foo { animation-name: foo, bar }", ".foo{animation-name:foo,bar}");
     minify_test(".foo { animation-name: \"none\" }", ".foo{animation-name:\"none\"}");
-    minify_test(".foo { animation-name: \"none\", foo }", ".foo{animation-name:\"none\",foo}");
+    minify_test(
+      ".foo { animation-name: \"none\", foo }",
+      ".foo{animation-name:\"none\",foo}",
+    );
     let name = crate::properties::animation::AnimationName::parse_string("default");
     assert!(matches!(name, Err(..)));
 
@@ -8293,16 +8296,29 @@ mod tests {
       ".foo { animation-fill-mode: Backwards,forwards }",
       ".foo{animation-fill-mode:backwards,forwards}",
     );
+    minify_test(".foo { animation: none }", ".foo{animation:none}");
     minify_test(".foo { animation: \"none\" }", ".foo{animation:\"none\"}");
     minify_test(".foo { animation: \"None\" }", ".foo{animation:\"None\"}");
     minify_test(".foo { animation: \"none\", none }", ".foo{animation:\"none\",none}");
+    minify_test(".foo { animation: none, none }", ".foo{animation:none,none}");
+    minify_test(".foo { animation: \"none\" none }", ".foo{animation:\"none\"}");
+    minify_test(".foo { animation: none none }", ".foo{animation:none}");
 
     // Test animation-name + animation-fill-mode
-    minify_test(".foo { animation: \"none\" 2s both}", ".foo{animation:\"none\" 2s both}");
-    minify_test(".foo { animation: both \"none\" 2s}", ".foo{animation:\"none\" 2s both}");
+    minify_test(
+      ".foo { animation: \"none\" 2s both}",
+      ".foo{animation:\"none\" 2s both}",
+    );
+    minify_test(
+      ".foo { animation: both \"none\" 2s}",
+      ".foo{animation:\"none\" 2s both}",
+    );
+    minify_test(".foo { animation: \"none\" 2s none}", ".foo{animation:\"none\" 2s}");
     minify_test(".foo { animation: none \"none\" 2s}", ".foo{animation:\"none\" 2s}");
-    minify_test(".foo { animation: none, \"none\" 2s forwards}", ".foo{animation:none,\"none\" 2s forwards}");
-
+    minify_test(
+      ".foo { animation: none, \"none\" 2s forwards}",
+      ".foo{animation:none,\"none\" 2s forwards}",
+    );
 
     minify_test(".foo { animation: \"unset\" }", ".foo{animation:\"unset\"}");
     minify_test(".foo { animation: \"string\" .5s }", ".foo{animation:string .5s}");
@@ -8333,7 +8349,6 @@ mod tests {
       ".foo { animation: foo 0s 3s infinite }",
       ".foo{animation:foo 0s 3s infinite}",
     );
-    minify_test(".foo { animation: none }", ".foo{animation:none}");
     test(
       r#"
       .foo {
