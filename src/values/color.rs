@@ -370,24 +370,30 @@ impl ToCss for CssColor {
           // If the #rrggbbaa syntax is not supported by the browser targets, output rgba()
           if let Some(targets) = dest.targets {
             if !Feature::CssRrggbbaa.is_compatible(targets) {
-              dest.write_str("rgba(")?;
-              write!(dest, "{}", color.red)?;
-              dest.delim(',', false)?;
-              write!(dest, "{}", color.green)?;
-              dest.delim(',', false)?;
-              write!(dest, "{}", color.blue)?;
-              dest.delim(',', false)?;
+              // If the browser doesn't support `#rrggbbaa` color syntax, it is converted to `transparent` when compressed(minify = true).
+              // https://www.w3.org/TR/css-color-4/#transparent-black
+              if dest.minify && color.red == 0 && color.green == 0 && color.blue == 0 && color.alpha == 0 {
+                return dest.write_str("transparent");
+              } else {
+                dest.write_str("rgba(")?;
+                write!(dest, "{}", color.red)?;
+                dest.delim(',', false)?;
+                write!(dest, "{}", color.green)?;
+                dest.delim(',', false)?;
+                write!(dest, "{}", color.blue)?;
+                dest.delim(',', false)?;
 
-              // Try first with two decimal places, then with three.
-              let mut rounded_alpha = (color.alpha_f32() * 100.0).round() / 100.0;
-              let clamped = (rounded_alpha * 255.0).round().max(0.).min(255.0) as u8;
-              if clamped != color.alpha {
-                rounded_alpha = (color.alpha_f32() * 1000.).round() / 1000.;
+                // Try first with two decimal places, then with three.
+                let mut rounded_alpha = (color.alpha_f32() * 100.0).round() / 100.0;
+                let clamped = (rounded_alpha * 255.0).round().max(0.).min(255.0) as u8;
+                if clamped != color.alpha {
+                  rounded_alpha = (color.alpha_f32() * 1000.).round() / 1000.;
+                }
+
+                rounded_alpha.to_css(dest)?;
+                dest.write_char(')')?;
+                return Ok(());
               }
-
-              rounded_alpha.to_css(dest)?;
-              dest.write_char(')')?;
-              return Ok(());
             }
           }
 

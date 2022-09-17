@@ -12801,6 +12801,67 @@ mod tests {
     minify_test(".foo { color: hwb(none none none) }", ".foo{color:red}");
     minify_test(".foo { color: rgb(none none none) }", ".foo{color:#000}");
 
+    // If the browser doesn't support `#rrggbbaa` color syntax, it is converted to `transparent`.
+    attr_test(
+      "color: rgba(0, 0, 0, 0)",
+      "color:transparent",
+      true,
+      Some(Browsers {
+        chrome: Some(61 << 16), // Chrome >= 62 supports `#rrggbbaa` color.
+        ..Browsers::default()
+      }),
+    );
+
+    attr_test(
+      "color: #0000",
+      "color:transparent",
+      true,
+      Some(Browsers {
+        chrome: Some(61 << 16), // Chrome >= 62 supports `#rrggbbaa` color.
+        ..Browsers::default()
+      }),
+    );
+
+    attr_test(
+      "color: transparent",
+      "color:transparent",
+      true,
+      Some(Browsers {
+        chrome: Some(61 << 16),
+        ..Browsers::default()
+      }),
+    );
+
+    attr_test(
+      "color: rgba(0, 0, 0, 0)",
+      "color: rgba(0, 0, 0, 0)",
+      false,
+      Some(Browsers {
+        chrome: Some(61 << 16),
+        ..Browsers::default()
+      }),
+    );
+
+    attr_test(
+      "color: rgba(255, 0, 0, 0)",
+      "color:rgba(255,0,0,0)",
+      true,
+      Some(Browsers {
+        chrome: Some(61 << 16),
+        ..Browsers::default()
+      }),
+    );
+
+    attr_test(
+      "color: rgba(255, 0, 0, 0)",
+      "color:#f000",
+      true,
+      Some(Browsers {
+        chrome: Some(62 << 16),
+        ..Browsers::default()
+      }),
+    );
+
     prefix_test(
       ".foo { color: rgba(123, 456, 789, 0.5) }",
       indoc! { r#"
