@@ -258,6 +258,73 @@ mod tests {
   );
 
   #[test]
+  pub fn test_border_spacing() {
+    minify_test(
+      r#"
+      .foo {
+        border-spacing: 0px;
+      }
+    "#,
+      indoc! {".foo{border-spacing:0}"
+      },
+    );
+    minify_test(
+      r#"
+      .foo {
+        border-spacing: 0px 0px;
+      }
+    "#,
+      indoc! {".foo{border-spacing:0}"
+      },
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        border-spacing: 12px   0px;
+      }
+    "#,
+      indoc! {".foo{border-spacing:12px 0}"
+      },
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        border-spacing: calc(3px * 2) calc(5px * 0);
+      }
+    "#,
+      indoc! {".foo{border-spacing:6px 0}"
+      },
+    );
+
+    minify_test(
+      r#"
+      .foo {
+        border-spacing: calc(3px * 2) max(0px, 8px);
+      }
+    "#,
+      indoc! {".foo{border-spacing:6px 8px}"
+      },
+    );
+
+    // TODO: The `<length>` in border-spacing cannot have a negative value, 
+    // we may need to implement NonNegativeLength like Servo does.
+    // Servo Code: https://github.com/servo/servo/blob/08bc2d53579c9ab85415d4363888881b91df073b/components/style/values/specified/length.rs#L875
+    // CSSWG issue: https://lists.w3.org/Archives/Public/www-style/2008Sep/0161.html
+    // `border-spacing = <length> <length>?`
+    minify_test(
+      r#"
+      .foo {
+        border-spacing: -20px;
+      }
+    "#,
+      indoc! {".foo{border-spacing:-20px}"
+      },
+    );
+  }
+
+  #[test]
   pub fn test_border() {
     test(
       r#"
