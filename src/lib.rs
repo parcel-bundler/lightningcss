@@ -8399,13 +8399,16 @@ mod tests {
       ".foo{animation:0s 3s infinite \"unset\",none}",
     );
 
+    minify_test(".foo { animation: \"infinite\" 2s 1 }", ".foo{animation:2s 1 infinite}");
+    minify_test(".foo { animation: \"paused\" 2s }", ".foo{animation:2s running paused}");
     minify_test(
-      ".foo { animation: \"infinite\" 2s 1 }",
-      ".foo{animation:2s \"infinite\"}",
+      ".foo { animation: \"forwards\" 2s }",
+      ".foo{animation:2s none forwards}",
     );
-    minify_test(".foo { animation: \"paused\" 2s }", ".foo{animation:2s \"paused\"}");
-    minify_test(".foo { animation: \"forwards\" 2s }", ".foo{animation:2s \"forwards\"}");
-    minify_test(".foo { animation: \"reverse\" 2s }", ".foo{animation:2s \"reverse\"}");
+    minify_test(
+      ".foo { animation: \"reverse\" 2s }",
+      ".foo{animation:2s normal reverse}",
+    );
     minify_test(
       ".foo { animation: \"reverse\" 2s alternate }",
       ".foo{animation:2s alternate reverse}",
@@ -8419,7 +8422,7 @@ mod tests {
       ".foo { animation: 3s slidein paused ease 1s 1 reverse both }",
       ".foo{animation:3s 1s reverse both paused slidein}",
     );
-    minify_test(".foo { animation: 3s ease ease }", ".foo{animation:3s \"ease\"}");
+    minify_test(".foo { animation: 3s ease ease }", ".foo{animation:3s ease ease}");
     minify_test(
       ".foo { animation: 3s cubic-bezier(0.25, 0.1, 0.25, 1) foo }",
       ".foo{animation:3s foo}",

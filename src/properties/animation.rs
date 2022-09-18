@@ -82,25 +82,6 @@ impl<'i> ToCss for AnimationName<'i> {
   }
 }
 
-impl<'i> AnimationName<'i> {
-  fn write_as_string<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    match self {
-      AnimationName::None => dest.write_str("none"),
-      AnimationName::Ident(CustomIdent(s)) | AnimationName::String(s) => {
-        if let Some(css_module) = &mut dest.css_module {
-          css_module.reference(&s, dest.loc.source_index)
-        }
-
-        serialize_string(&s, dest)?;
-        Ok(())
-      }
-    }
-  }
-}
-
 /// A list of animation names.
 pub type AnimationNameList<'i> = SmallVec<[AnimationName<'i>; 1]>;
 
@@ -280,13 +261,13 @@ impl<'i> ToCss for Animation<'i> {
   {
     match &self.name {
       AnimationName::None => {}
-      _ => {
+      AnimationName::Ident(CustomIdent(name)) | AnimationName::String(name) => {
         if !self.duration.is_zero() || !self.delay.is_zero() {
           self.duration.to_css(dest)?;
           dest.write_char(' ')?;
         }
 
-        if !self.is_default_easing() {
+        if !self.is_default_easing() || EasingFunction::is_ident(&name) {
           self.timing_function.to_css(dest)?;
           dest.write_char(' ')?;
         }
@@ -296,33 +277,33 @@ impl<'i> ToCss for Animation<'i> {
           dest.write_char(' ')?;
         }
 
-        if self.iteration_count != AnimationIterationCount::default() {
+        if self.iteration_count != AnimationIterationCount::default() || name.as_ref() == "infinite" {
           self.iteration_count.to_css(dest)?;
           dest.write_char(' ')?;
         }
 
-        if self.direction != AnimationDirection::default() {
+        if self.direction != AnimationDirection::default() || AnimationDirection::parse_string(&name).is_ok() {
           self.direction.to_css(dest)?;
           dest.write_char(' ')?;
         }
 
-        if self.fill_mode != AnimationFillMode::default() {
+        if self.fill_mode != AnimationFillMode::default()
+          || (!name.eq_ignore_ascii_case("none") && AnimationFillMode::parse_string(&name).is_ok())
+        {
           self.fill_mode.to_css(dest)?;
           dest.write_char(' ')?;
         }
 
-        if self.play_state != AnimationPlayState::default() {
+        if self.play_state != AnimationPlayState::default() || AnimationPlayState::parse_string(&name).is_ok() {
           self.play_state.to_css(dest)?;
           dest.write_char(' ')?;
         }
       }
     }
 
-    if self.name_conflicts_with_keyword() {
-      self.name.write_as_string(dest)?;
-    } else {
-      self.name.to_css(dest)?;
-    };
+    // Eventually we could output a string here to avoid duplicating some properties above.
+    // Chrome does not yet support strings, however.
+    self.name.to_css(dest)?;
 
     Ok(())
   }
@@ -332,35 +313,6 @@ impl<'i> Animation<'i> {
   fn is_default_easing(&self) -> bool {
     self.timing_function == EasingFunction::Ease
       || self.timing_function == EasingFunction::CubicBezier(0.25, 0.1, 0.25, 1.0)
-  }
-
-  fn name_conflicts_with_keyword(&self) -> bool {
-    match &self.name {
-      AnimationName::Ident(CustomIdent(name)) | AnimationName::String(name) => {
-        if self.is_default_easing() && EasingFunction::is_ident(&name) {
-          return true;
-        }
-
-        if self.iteration_count == AnimationIterationCount::default() && name.as_ref() == "infinite" {
-          return true;
-        }
-
-        if self.direction == AnimationDirection::default() && AnimationDirection::parse_string(&name).is_ok() {
-          return true;
-        }
-
-        if self.fill_mode == AnimationFillMode::default() && AnimationFillMode::parse_string(&name).is_ok() {
-          return true;
-        }
-
-        if self.play_state == AnimationPlayState::default() && AnimationPlayState::parse_string(&name).is_ok() {
-          return true;
-        }
-      }
-      _ => {}
-    }
-
-    false
   }
 }
 
