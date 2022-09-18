@@ -308,7 +308,11 @@ mod tests {
       },
     );
 
-    // TODO: Negative numbers should throw an error.
+    // TODO: The `<length>` in border-spacing cannot have a negative value, 
+    // we may need to implement NonNegativeLength like Servo does.
+    // Servo Code: https://github.com/servo/servo/blob/08bc2d53579c9ab85415d4363888881b91df073b/components/style/values/specified/length.rs#L875
+    // CSSWG issue: https://lists.w3.org/Archives/Public/www-style/2008Sep/0161.html
+    // `border-spacing = <length> <length>?`
     minify_test(
       r#"
       .foo {

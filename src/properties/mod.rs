@@ -805,7 +805,7 @@ define_properties! {
   "inset-inline": InsetInline(InsetInline) shorthand: true,
   "inset": Inset(Inset) shorthand: true,
 
-  "border-spacing": BorderSpacing(BorderSpacing),
+  "border-spacing": BorderSpacing(Size2D<Length>),
 
   "border-top-color": BorderTopColor(CssColor) [logical_group: BorderColor, category: Physical],
   "border-bottom-color": BorderBottomColor(CssColor) [logical_group: BorderColor, category: Physical],
