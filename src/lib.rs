@@ -308,7 +308,7 @@ mod tests {
       },
     );
 
-    // TODO: The `<length>` in border-spacing cannot have a negative value, 
+    // TODO: The `<length>` in border-spacing cannot have a negative value,
     // we may need to implement NonNegativeLength like Servo does.
     // Servo Code: https://github.com/servo/servo/blob/08bc2d53579c9ab85415d4363888881b91df073b/components/style/values/specified/length.rs#L875
     // CSSWG issue: https://lists.w3.org/Archives/Public/www-style/2008Sep/0161.html
@@ -13500,6 +13500,1800 @@ mod tests {
         }
       "#},
     );
+  }
+
+  #[test]
+  fn test_relative_color() {
+    fn test(input: &str, output: &str) {
+      let output = CssColor::parse_string(output)
+        .unwrap()
+        .to_css_string(PrinterOptions {
+          minify: true,
+          ..PrinterOptions::default()
+        })
+        .unwrap();
+      minify_test(
+        &format!(".foo {{ color: {} }}", input),
+        &format!(".foo{{color:{}}}", output),
+      );
+    }
+
+    test("lab(from indianred calc(l * .8) a b)", "lab(43.1402% 45.7516 23.1557)");
+    test("lch(from indianred calc(l + 10%) c h)", "lch(63.9252% 51.2776 26.8448)");
+    test("lch(from indianred l calc(c - 50) h)", "lch(53.9252% 1.27763 26.8448)");
+    test(
+      "lch(from indianred l c calc(h + 180deg))",
+      "lch(53.9252% 51.2776 206.845)",
+    );
+    test("lch(from orchid l 30 h)", "lch(62.7526% 30 326.969)");
+    test("lch(from orchid l 30 h)", "lch(62.7526% 30 326.969)");
+    test("lch(from peru calc(l * 0.8) c h)", "lch(49.8022% 54.0117 63.6804)");
+    test("rgb(from indianred 255 g b)", "rgb(255, 92, 92)");
+    test("rgb(from indianred r g b / .5)", "rgba(205, 92, 92, .5)");
+    test(
+      "rgb(from rgba(205, 92, 92, .5) r g b / calc(alpha + .2))",
+      "rgba(205, 92, 92, .7)",
+    );
+    test(
+      "rgb(from rgba(205, 92, 92, .5) r g b / calc(alpha + 20%))",
+      "rgba(205, 92, 92, .7)",
+    );
+    test("lch(from indianred l sin(c) h)", "lch(53.9252% .84797 26.8448)");
+    test("lch(from indianred l sqrt(c) h)", "lch(53.9252% 7.16084 26.8448)");
+    test("lch(from indianred l c sin(h))", "lch(53.9252% 51.2776 .990043)");
+
+    // The following tests were converted from WPT: https://github.com/web-platform-tests/wpt/blob/master/css/css-color/parsing/relative-color-valid.html
+    // Find: test_valid_value\(`color`, `(.*?)`,\s*`(.*?)`\)
+    // Replace: test("$1", "$2")
+
+    // Testing no modifications.
+    test("rgb(from rebeccapurple r g b)", "#639");
+    test("rgb(from rebeccapurple r g b / alpha)", "#639");
+    test("rgb(from rgb(20%, 40%, 60%, 80%) r g b / alpha)", "#369c");
+    test("rgb(from hsl(120deg 20% 50% / .5) r g b / alpha)", "#66996680");
+
+    // Test nesting relative colors.
+    test("rgb(from rgb(from rebeccapurple r g b) r g b)", "#639");
+
+    // Testing non-sRGB origin colors to see gamut mapping.
+    test("rgb(from color(display-p3 0 1 0) r g b / alpha)", "#00f942"); // Naive clip based mapping would give rgb(0, 255, 0).
+    test("rgb(from lab(100% 104.3 -50.9) r g b)", "#fff"); // Naive clip based mapping would give rgb(255, 150, 255).
+    test("rgb(from lab(0% 104.3 -50.9) r g b)", "#2a0022"); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black.
+    test("rgb(from lch(100% 116 334) r g b)", "#fff"); // Naive clip based mapping would give rgb(255, 150, 255).
+    test("rgb(from lch(0% 116 334) r g b)", "#2a0022"); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black.
+    test("rgb(from oklab(100% 0.365 -0.16) r g b)", "#fff"); // Naive clip based mapping would give rgb(255, 92, 255).
+    test("rgb(from oklab(0% 0.365 -0.16) r g b)", "#000"); // Naive clip based mapping would give rgb(19, 0, 24).
+    test("rgb(from oklch(100% 0.399 336.3) r g b)", "#fff"); // Naive clip based mapping would give rgb(255, 91, 255).
+    test("rgb(from oklch(0% 0.399 336.3) r g b)", "#000"); // Naive clip based mapping would give rgb(20, 0, 24).
+
+    // Testing replacement with 0.
+    test("rgb(from rebeccapurple 0 0 0)", "rgb(0, 0, 0)");
+    test("rgb(from rebeccapurple 0 0 0 / 0)", "rgba(0, 0, 0, 0)");
+    test("rgb(from rebeccapurple 0 g b / alpha)", "rgb(0, 51, 153)");
+    test("rgb(from rebeccapurple r 0 b / alpha)", "rgb(102, 0, 153)");
+    test("rgb(from rebeccapurple r g 0 / alpha)", "rgb(102, 51, 0)");
+    test("rgb(from rebeccapurple r g b / 0)", "rgba(102, 51, 153, 0)");
+    test(
+      "rgb(from rgb(20%, 40%, 60%, 80%) 0 g b / alpha)",
+      "rgba(0, 102, 153, 0.8)",
+    );
+    test(
+      "rgb(from rgb(20%, 40%, 60%, 80%) r 0 b / alpha)",
+      "rgba(51, 0, 153, 0.8)",
+    );
+    test(
+      "rgb(from rgb(20%, 40%, 60%, 80%) r g 0 / alpha)",
+      "rgba(51, 102, 0, 0.8)",
+    );
+    test("rgb(from rgb(20%, 40%, 60%, 80%) r g b / 0)", "rgba(51, 102, 153, 0)");
+
+    // Testing replacement with a number.
+    test("rgb(from rebeccapurple 25 g b / alpha)", "rgb(25, 51, 153)");
+    test("rgb(from rebeccapurple r 25 b / alpha)", "rgb(102, 25, 153)");
+    test("rgb(from rebeccapurple r g 25 / alpha)", "rgb(102, 51, 25)");
+    test("rgb(from rebeccapurple r g b / .25)", "rgba(102, 51, 153, 0.25)");
+    test(
+      "rgb(from rgb(20%, 40%, 60%, 80%) 25 g b / alpha)",
+      "rgba(25, 102, 153, 0.8)",
+    );
+    test(
+      "rgb(from rgb(20%, 40%, 60%, 80%) r 25 b / alpha)",
+      "rgba(51, 25, 153, 0.8)",
+    );
+    test(
+      "rgb(from rgb(20%, 40%, 60%, 80%) r g 25 / alpha)",
+      "rgba(51, 102, 25, 0.8)",
+    );
+    test(
+      "rgb(from rgb(20%, 40%, 60%, 80%) r g b / .20)",
+      "rgba(51, 102, 153, 0.2)",
+    );
+
+    // Testing replacement with a percentage.
+    test("rgb(from rebeccapurple 20% g b / alpha)", "rgb(51, 51, 153)");
+    test("rgb(from rebeccapurple r 20% b / alpha)", "rgb(102, 51, 153)");
+    test("rgb(from rebeccapurple r g 20% / alpha)", "rgb(102, 51, 51)");
+    test("rgb(from rebeccapurple r g b / 20%)", "rgba(102, 51, 153, 0.2)");
+    test(
+      "rgb(from rgb(20%, 40%, 60%, 80%) 20% g b / alpha)",
+      "rgba(51, 102, 153, 0.8)",
+    );
+    test(
+      "rgb(from rgb(20%, 40%, 60%, 80%) r 20% b / alpha)",
+      "rgba(51, 51, 153, 0.8)",
+    );
+    test(
+      "rgb(from rgb(20%, 40%, 60%, 80%) r g 20% / alpha)",
+      "rgba(51, 102, 51, 0.8)",
+    );
+    test(
+      "rgb(from rgb(20%, 40%, 60%, 80%) r g b / 20%)",
+      "rgba(51, 102, 153, 0.2)",
+    );
+
+    // Testing replacement with a number for r, g, b but percent for alpha.
+    test("rgb(from rebeccapurple 25 g b / 25%)", "rgba(25, 51, 153, 0.25)");
+    test("rgb(from rebeccapurple r 25 b / 25%)", "rgba(102, 25, 153, 0.25)");
+    test("rgb(from rebeccapurple r g 25 / 25%)", "rgba(102, 51, 25, 0.25)");
+    test(
+      "rgb(from rgb(20%, 40%, 60%, 80%) 25 g b / 25%)",
+      "rgba(25, 102, 153, 0.25)",
+    );
+    test(
+      "rgb(from rgb(20%, 40%, 60%, 80%) r 25 b / 25%)",
+      "rgba(51, 25, 153, 0.25)",
+    );
+    test(
+      "rgb(from rgb(20%, 40%, 60%, 80%) r g 25 / 25%)",
+      "rgba(51, 102, 25, 0.25)",
+    );
+
+    // Testing permutation.
+    test("rgb(from rebeccapurple g b r)", "rgb(51, 153, 102)");
+    test("rgb(from rebeccapurple b alpha r / g)", "rgba(153, 255, 102, 0.2)");
+    test("rgb(from rebeccapurple r r r / r)", "rgba(102, 102, 102, 0.4)");
+    test(
+      "rgb(from rebeccapurple alpha alpha alpha / alpha)",
+      "rgb(255, 255, 255)",
+    );
+    test("rgb(from rgb(20%, 40%, 60%, 80%) g b r)", "rgb(102, 153, 51)");
+    test(
+      "rgb(from rgb(20%, 40%, 60%, 80%) b alpha r / g)",
+      "rgba(153, 204, 51, 0.4)",
+    );
+    test("rgb(from rgb(20%, 40%, 60%, 80%) r r r / r)", "rgba(51, 51, 51, 0.2)");
+    test(
+      "rgb(from rgb(20%, 40%, 60%, 80%) alpha alpha alpha / alpha)",
+      "rgba(204, 204, 204, 0.8)",
+    );
+
+    // Testing mixes of number and percentage. (These would not be allowed in the non-relative syntax).
+    test("rgb(from rebeccapurple r 20% 10)", "rgb(102, 51, 10)");
+    test("rgb(from rebeccapurple r 10 20%)", "rgb(102, 10, 51)");
+    test("rgb(from rebeccapurple 0% 10 10)", "rgb(0, 10, 10)");
+    test("rgb(from rgb(20%, 40%, 60%, 80%) r 20% 10)", "rgb(51, 51, 10)");
+    test("rgb(from rgb(20%, 40%, 60%, 80%) r 10 20%)", "rgb(51, 10, 51)");
+    test("rgb(from rgb(20%, 40%, 60%, 80%) 0% 10 10)", "rgb(0, 10, 10)");
+
+    // Testing with calc().
+    test("rgb(from rebeccapurple calc(r) calc(g) calc(b))", "rgb(102, 51, 153)");
+    test("rgb(from rebeccapurple r calc(g * 2) 10)", "rgb(102, 102, 10)");
+    test("rgb(from rebeccapurple b calc(r * .5) 10)", "rgb(153, 51, 10)");
+    test("rgb(from rebeccapurple r calc(g * .5 + g * .5) 10)", "rgb(102, 51, 10)");
+    test("rgb(from rebeccapurple r calc(b * .5 - g * .5) 10)", "rgb(102, 51, 10)");
+    test(
+      "rgb(from rgb(20%, 40%, 60%, 80%) calc(r) calc(g) calc(b) / calc(alpha))",
+      "rgba(51, 102, 153, 0.8)",
+    );
+
+    // Testing with 'none'.
+    test("rgb(from rebeccapurple none none none)", "rgb(0, 0, 0)");
+    test("rgb(from rebeccapurple none none none / none)", "rgba(0, 0, 0, 0)");
+    test("rgb(from rebeccapurple r g none)", "rgb(102, 51, 0)");
+    test("rgb(from rebeccapurple r g none / alpha)", "rgb(102, 51, 0)");
+    test("rgb(from rebeccapurple r g b / none)", "rgba(102, 51, 153, 0)");
+    test(
+      "rgb(from rgb(20% 40% 60% / 80%) r g none / alpha)",
+      "rgba(51, 102, 0, 0.8)",
+    );
+    test("rgb(from rgb(20% 40% 60% / 80%) r g b / none)", "rgba(51, 102, 153, 0)");
+    // FIXME: Clarify with spec editors if 'none' should pass through to the constants.
+    test("rgb(from rgb(none none none) r g b)", "rgb(0, 0, 0)");
+    test("rgb(from rgb(none none none / none) r g b / alpha)", "rgba(0, 0, 0, 0)");
+    test("rgb(from rgb(20% none 60%) r g b)", "rgb(51, 0, 153)");
+    test(
+      "rgb(from rgb(20% 40% 60% / none) r g b / alpha)",
+      "rgba(51, 102, 153, 0)",
+    );
+
+    // hsl(from ...)
+
+    // Testing no modifications.
+    test("hsl(from rebeccapurple h s l)", "rgb(102, 51, 153)");
+    test("hsl(from rebeccapurple h s l / alpha)", "rgb(102, 51, 153)");
+    test(
+      "hsl(from rgb(20%, 40%, 60%, 80%) h s l / alpha)",
+      "rgba(51, 102, 153, 0.8)",
+    );
+    test(
+      "hsl(from hsl(120deg 20% 50% / .5) h s l / alpha)",
+      "rgba(102, 153, 102, 0.5)",
+    );
+
+    // Test nesting relative colors.
+    test("hsl(from hsl(from rebeccapurple h s l) h s l)", "rgb(102, 51, 153)");
+
+    // Testing non-sRGB origin colors to see gamut mapping.
+    test("hsl(from color(display-p3 0 1 0) h s l / alpha)", "rgb(0, 249, 66)"); // Naive clip based mapping would give rgb(0, 255, 0).
+    test("hsl(from lab(100% 104.3 -50.9) h s l)", "rgb(255, 255, 255)"); // Naive clip based mapping would give rgb(255, 150, 255).
+    test("hsl(from lab(0% 104.3 -50.9) h s l)", "rgb(42, 0, 34)"); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black,
+    test("hsl(from lch(100% 116 334) h s l)", "rgb(255, 255, 255)"); // Naive clip based mapping would give rgb(255, 150, 255).
+    test("hsl(from lch(0% 116 334) h s l)", "rgb(42, 0, 34)"); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black,
+    test("hsl(from oklab(100% 0.365 -0.16) h s l)", "rgb(255, 255, 255)"); // Naive clip based mapping would give rgb(255, 92, 255).
+    test("hsl(from oklab(0% 0.365 -0.16) h s l)", "rgb(0, 0, 0)"); // Naive clip based mapping would give rgb(19, 0, 24).
+    test("hsl(from oklch(100% 0.399 336.3) h s l)", "rgb(255, 255, 255)"); // Naive clip based mapping would give rgb(255, 91, 255).
+    test("hsl(from oklch(0% 0.399 336.3) h s l)", "rgb(0, 0, 0)"); // Naive clip based mapping would give rgb(20, 0, 24).
+
+    // Testing replacement with 0.
+    test("hsl(from rebeccapurple 0 0% 0%)", "rgb(0, 0, 0)");
+    test("hsl(from rebeccapurple 0deg 0% 0%)", "rgb(0, 0, 0)");
+    test("hsl(from rebeccapurple 0 0% 0% / 0)", "rgba(0, 0, 0, 0)");
+    test("hsl(from rebeccapurple 0deg 0% 0% / 0)", "rgba(0, 0, 0, 0)");
+    test("hsl(from rebeccapurple 0 s l / alpha)", "rgb(153, 51, 51)");
+    test("hsl(from rebeccapurple 0deg s l / alpha)", "rgb(153, 51, 51)");
+    test("hsl(from rebeccapurple h 0% l / alpha)", "rgb(102, 102, 102)");
+    test("hsl(from rebeccapurple h s 0% / alpha)", "rgb(0, 0, 0)");
+    test("hsl(from rebeccapurple h s l / 0)", "rgba(102, 51, 153, 0)");
+    test(
+      "hsl(from rgb(20%, 40%, 60%, 80%) 0 s l / alpha)",
+      "rgba(153, 51, 51, 0.8)",
+    );
+    test(
+      "hsl(from rgb(20%, 40%, 60%, 80%) 0deg s l / alpha)",
+      "rgba(153, 51, 51, 0.8)",
+    );
+    test(
+      "hsl(from rgb(20%, 40%, 60%, 80%) h 0% l / alpha)",
+      "rgba(102, 102, 102, 0.8)",
+    );
+    test("hsl(from rgb(20%, 40%, 60%, 80%) h s 0% / alpha)", "rgba(0, 0, 0, 0.8)");
+    test("hsl(from rgb(20%, 40%, 60%, 80%) h s l / 0)", "rgba(51, 102, 153, 0)");
+
+    // Testing replacement with a constant.
+    test("hsl(from rebeccapurple 25 s l / alpha)", "rgb(153, 93, 51)");
+    test("hsl(from rebeccapurple 25deg s l / alpha)", "rgb(153, 93, 51)");
+    test("hsl(from rebeccapurple h 20% l / alpha)", "rgb(102, 82, 122)");
+    test("hsl(from rebeccapurple h s 20% / alpha)", "rgb(51, 25, 77)");
+    test("hsl(from rebeccapurple h s l / .25)", "rgba(102, 51, 153, 0.25)");
+    test(
+      "hsl(from rgb(20%, 40%, 60%, 80%) 25 s l / alpha)",
+      "rgba(153, 93, 51, 0.8)",
+    );
+    test(
+      "hsl(from rgb(20%, 40%, 60%, 80%) 25deg s l / alpha)",
+      "rgba(153, 93, 51, 0.8)",
+    );
+    test(
+      "hsl(from rgb(20%, 40%, 60%, 80%) h 20% l / alpha)",
+      "rgba(82, 102, 122, 0.8)",
+    );
+    test(
+      "hsl(from rgb(20%, 40%, 60%, 80%) h s 20% / alpha)",
+      "rgba(25, 51, 77, 0.8)",
+    );
+    test(
+      "hsl(from rgb(20%, 40%, 60%, 80%) h s l / .2)",
+      "rgba(51, 102, 153, 0.2)",
+    );
+
+    // Testing valid permutation (types match).
+    test("hsl(from rebeccapurple h l s)", "rgb(128, 77, 179)");
+    test("hsl(from rebeccapurple h alpha l / s)", "rgba(102, 0, 204, 0.5)");
+    test("hsl(from rebeccapurple h l l / l)", "rgba(102, 61, 143, 0.4)");
+    test("hsl(from rebeccapurple h alpha alpha / alpha)", "rgb(255, 255, 255)");
+    test("hsl(from rgb(20%, 40%, 60%, 80%) h l s)", "rgb(77, 128, 179)");
+    test(
+      "hsl(from rgb(20%, 40%, 60%, 80%) h alpha l / s)",
+      "rgba(20, 102, 184, 0.5)",
+    );
+    test("hsl(from rgb(20%, 40%, 60%, 80%) h l l / l)", "rgba(61, 102, 143, 0.4)");
+    test(
+      "hsl(from rgb(20%, 40%, 60%, 80%) h alpha alpha / alpha)",
+      "rgba(163, 204, 245, 0.8)",
+    );
+
+    // Testing with calc().
+    test("hsl(from rebeccapurple calc(h) calc(s) calc(l))", "rgb(102, 51, 153)");
+    test(
+      "hsl(from rgb(20%, 40%, 60%, 80%) calc(h) calc(s) calc(l) / calc(alpha))",
+      "rgba(51, 102, 153, 0.8)",
+    );
+
+    // Testing with 'none'.
+    test("hsl(from rebeccapurple none none none)", "rgb(0, 0, 0)");
+    test("hsl(from rebeccapurple none none none / none)", "rgba(0, 0, 0, 0)");
+    test("hsl(from rebeccapurple h s none)", "rgb(0, 0, 0)");
+    test("hsl(from rebeccapurple h s none / alpha)", "rgb(0, 0, 0)");
+    test("hsl(from rebeccapurple h s l / none)", "rgba(102, 51, 153, 0)");
+    test("hsl(from rebeccapurple none s l / alpha)", "rgb(153, 51, 51)");
+    test(
+      "hsl(from hsl(120deg 20% 50% / .5) h s none / alpha)",
+      "rgba(0, 0, 0, 0.5)",
+    );
+    test(
+      "hsl(from hsl(120deg 20% 50% / .5) h s l / none)",
+      "rgba(102, 153, 102, 0)",
+    );
+    test(
+      "hsl(from hsl(120deg 20% 50% / .5) none s l / alpha)",
+      "rgba(153, 102, 102, 0.5)",
+    );
+    // FIXME: Clarify with spec editors if 'none' should pass through to the constants.
+    test("hsl(from hsl(none none none) h s l)", "rgb(0, 0, 0)");
+    test("hsl(from hsl(none none none / none) h s l / alpha)", "rgba(0, 0, 0, 0)");
+    test("hsl(from hsl(120deg none 50% / .5) h s l)", "rgb(128, 128, 128)");
+    test(
+      "hsl(from hsl(120deg 20% 50% / none) h s l / alpha)",
+      "rgba(102, 153, 102, 0)",
+    );
+    test(
+      "hsl(from hsl(none 20% 50% / .5) h s l / alpha)",
+      "rgba(153, 102, 102, 0.5)",
+    );
+
+    // hwb(from ...)
+
+    // Testing no modifications.
+    test("hwb(from rebeccapurple h w b)", "rgb(102, 51, 153)");
+    test("hwb(from rebeccapurple h w b / alpha)", "rgb(102, 51, 153)");
+    test(
+      "hwb(from rgb(20%, 40%, 60%, 80%) h w b / alpha)",
+      "rgba(51, 102, 153, 0.8)",
+    );
+    test(
+      "hwb(from hsl(120deg 20% 50% / .5) h w b / alpha)",
+      "rgba(102, 153, 102, 0.5)",
+    );
+
+    // Test nesting relative colors.
+    test("hwb(from hwb(from rebeccapurple h w b) h w b)", "rgb(102, 51, 153)");
+
+    // Testing non-sRGB origin colors to see gamut mapping.
+    test("hwb(from color(display-p3 0 1 0) h w b / alpha)", "rgb(0, 249, 66)"); // Naive clip based mapping would give rgb(0, 255, 0).
+    test("hwb(from lab(100% 104.3 -50.9) h w b)", "rgb(255, 255, 255)"); // Naive clip based mapping would give rgb(255, 150, 255).
+    test("hwb(from lab(0% 104.3 -50.9) h w b)", "rgb(42, 0, 34)"); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black,
+    test("hwb(from lch(100% 116 334) h w b)", "rgb(255, 255, 255)"); // Naive clip based mapping would give rgb(255, 150, 255).
+    test("hwb(from lch(0% 116 334) h w b)", "rgb(42, 0, 34)"); // Naive clip based mapping would give rgb(90, 0, 76). NOTE: 0% lightness in Lab/LCH does not automatically correspond with sRGB black,
+    test("hwb(from oklab(100% 0.365 -0.16) h w b)", "rgb(255, 255, 255)"); // Naive clip based mapping would give rgb(255, 92, 255).
+    test("hwb(from oklab(0% 0.365 -0.16) h w b)", "rgb(0, 0, 0)"); // Naive clip based mapping would give rgb(19, 0, 24).
+    test("hwb(from oklch(100% 0.399 336.3) h w b)", "rgb(255, 255, 255)"); // Naive clip based mapping would give rgb(255, 91, 255).
+    test("hwb(from oklch(0% 0.399 336.3) h w b)", "rgb(0, 0, 0)"); // Naive clip based mapping would give rgb(20, 0, 24).
+
+    // Testing replacement with 0.
+    test("hwb(from rebeccapurple 0 0% 0%)", "rgb(255, 0, 0)");
+    test("hwb(from rebeccapurple 0deg 0% 0%)", "rgb(255, 0, 0)");
+    test("hwb(from rebeccapurple 0 0% 0% / 0)", "rgba(255, 0, 0, 0)");
+    test("hwb(from rebeccapurple 0deg 0% 0% / 0)", "rgba(255, 0, 0, 0)");
+    test("hwb(from rebeccapurple 0 w b / alpha)", "rgb(153, 51, 51)");
+    test("hwb(from rebeccapurple 0deg w b / alpha)", "rgb(153, 51, 51)");
+    test("hwb(from rebeccapurple h 0% b / alpha)", "rgb(77, 0, 153)");
+    test("hwb(from rebeccapurple h w 0% / alpha)", "rgb(153, 51, 255)");
+    test("hwb(from rebeccapurple h w b / 0)", "rgba(102, 51, 153, 0)");
+    test(
+      "hwb(from rgb(20%, 40%, 60%, 80%) 0 w b / alpha)",
+      "rgba(153, 51, 51, 0.8)",
+    );
+    test(
+      "hwb(from rgb(20%, 40%, 60%, 80%) 0deg w b / alpha)",
+      "rgba(153, 51, 51, 0.8)",
+    );
+    test(
+      "hwb(from rgb(20%, 40%, 60%, 80%) h 0% b / alpha)",
+      "rgba(0, 77, 153, 0.8)",
+    );
+    test(
+      "hwb(from rgb(20%, 40%, 60%, 80%) h w 0% / alpha)",
+      "rgba(51, 153, 255, 0.8)",
+    );
+    test("hwb(from rgb(20%, 40%, 60%, 80%) h w b / 0)", "rgba(51, 102, 153, 0)");
+
+    // Testing replacement with a constant.
+    test("hwb(from rebeccapurple 25 w b / alpha)", "rgb(153, 93, 51)");
+    test("hwb(from rebeccapurple 25deg w b / alpha)", "rgb(153, 93, 51)");
+    test("hwb(from rebeccapurple h 20% b / alpha)", "rgb(102, 51, 153)");
+    test("hwb(from rebeccapurple h w 20% / alpha)", "rgb(128, 51, 204)");
+    test("hwb(from rebeccapurple h w b / .2)", "rgba(102, 51, 153, 0.2)");
+    test(
+      "hwb(from rgb(20%, 40%, 60%, 80%) 25 w b / alpha)",
+      "rgba(153, 93, 51, 0.8)",
+    );
+    test(
+      "hwb(from rgb(20%, 40%, 60%, 80%) 25deg w b / alpha)",
+      "rgba(153, 93, 51, 0.8)",
+    );
+    test(
+      "hwb(from rgb(20%, 40%, 60%, 80%) h 20% b / alpha)",
+      "rgba(51, 102, 153, 0.8)",
+    );
+    test(
+      "hwb(from rgb(20%, 40%, 60%, 80%) h w 20% / alpha)",
+      "rgba(51, 128, 204, 0.8)",
+    );
+    test(
+      "hwb(from rgb(20%, 40%, 60%, 80%) h w b / .2)",
+      "rgba(51, 102, 153, 0.2)",
+    );
+
+    // Testing valid permutation (types match).
+    test("hwb(from rebeccapurple h b w)", "rgb(153, 102, 204)");
+    test("hwb(from rebeccapurple h alpha w / b)", "rgba(213, 213, 213, 0.4)");
+    test("hwb(from rebeccapurple h w w / w)", "rgba(128, 51, 204, 0.2)");
+    test("hwb(from rebeccapurple h alpha alpha / alpha)", "rgb(128, 128, 128)");
+    test("hwb(from rgb(20%, 40%, 60%, 80%) h b w)", "rgb(102, 153, 204)");
+    test(
+      "hwb(from rgb(20%, 40%, 60%, 80%) h alpha w / b)",
+      "rgba(204, 204, 204, 0.4)",
+    );
+    test("hwb(from rgb(20%, 40%, 60%, 80%) h w w / w)", "rgba(51, 128, 204, 0.2)");
+    test(
+      "hwb(from rgb(20%, 40%, 60%, 80%) h alpha alpha / alpha)",
+      "rgba(128, 128, 128, 0.8)",
+    );
+
+    // Testing with calc().
+    test("hwb(from rebeccapurple calc(h) calc(w) calc(b))", "rgb(102, 51, 153)");
+    test(
+      "hwb(from rgb(20%, 40%, 60%, 80%) calc(h) calc(w) calc(b) / calc(alpha))",
+      "rgba(51, 102, 153, 0.8)",
+    );
+
+    // Testing with 'none'.
+    test("hwb(from rebeccapurple none none none)", "rgb(255, 0, 0)");
+    test("hwb(from rebeccapurple none none none / none)", "rgba(255, 0, 0, 0)");
+    test("hwb(from rebeccapurple h w none)", "rgb(153, 51, 255)");
+    test("hwb(from rebeccapurple h w none / alpha)", "rgb(153, 51, 255)");
+    test("hwb(from rebeccapurple h w b / none)", "rgba(102, 51, 153, 0)");
+    test("hwb(from rebeccapurple none w b / alpha)", "rgb(153, 51, 51)");
+    test(
+      "hwb(from hwb(120deg 20% 50% / .5) h w none / alpha)",
+      "rgba(51, 255, 51, 0.5)",
+    );
+    test(
+      "hwb(from hwb(120deg 20% 50% / .5) h w b / none)",
+      "rgba(51, 128, 51, 0)",
+    );
+    test(
+      "hwb(from hwb(120deg 20% 50% / .5) none w b / alpha)",
+      "rgba(128, 51, 51, 0.5)",
+    );
+    // FIXME: Clarify with spec editors if 'none' should pass through to the constants.
+    test("hwb(from hwb(none none none) h w b)", "rgb(255, 0, 0)");
+    test(
+      "hwb(from hwb(none none none / none) h w b / alpha)",
+      "rgba(255, 0, 0, 0)",
+    );
+    test("hwb(from hwb(120deg none 50% / .5) h w b)", "rgb(0, 128, 0)");
+    test(
+      "hwb(from hwb(120deg 20% 50% / none) h w b / alpha)",
+      "rgba(51, 128, 51, 0)",
+    );
+    test(
+      "hwb(from hwb(none 20% 50% / .5) h w b / alpha)",
+      "rgba(128, 51, 51, 0.5)",
+    );
+
+    for color_space in &["lab", "oklab"] {
+      // Testing no modifications.
+      test(
+        &format!("{}(from {}(25% 20 50) l a b)", color_space, color_space),
+        &format!("{}(25% 20 50)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50) l a b / alpha)", color_space, color_space),
+        &format!("{}(25% 20 50)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50 / 40%) l a b / alpha)", color_space, color_space),
+        &format!("{}(25% 20 50 / 0.4)", color_space),
+      );
+      test(
+        &format!(
+          "{}(from {}(200% 300 400 / 500%) l a b / alpha)",
+          color_space, color_space
+        ),
+        &format!("{}(200% 300 400)", color_space),
+      );
+      test(
+        &format!(
+          "{}(from {}(-200% -300 -400 / -500%) l a b / alpha)",
+          color_space, color_space
+        ),
+        &format!("{}(0% -300 -400 / 0)", color_space),
+      );
+
+      // Test nesting relative colors.
+      test(
+        &format!(
+          "{}(from {}(from {}(25% 20 50) l a b) l a b)",
+          color_space, color_space, color_space
+        ),
+        &format!("{}(25% 20 50)", color_space),
+      );
+
+      // Testing non-${colorSpace} origin to see conversion.
+      test(
+        &format!("{}(from color(display-p3 0 0 0) l a b / alpha)", color_space),
+        &format!("{}(0% 0 0)", color_space),
+      );
+
+      // Testing replacement with 0.
+      test(
+        &format!("{}(from {}(25% 20 50) 0% 0 0)", color_space, color_space),
+        &format!("{}(0% 0 0)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50) 0% 0 0 / 0)", color_space, color_space),
+        &format!("{}(0% 0 0 / 0)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50) 0% a b / alpha)", color_space, color_space),
+        &format!("{}(0% 20 50)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50) l 0 b / alpha)", color_space, color_space),
+        &format!("{}(25% 0 50)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50) l a 0 / alpha)", color_space, color_space),
+        &format!("{}(25% 20 0)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50) l a b / 0)", color_space, color_space),
+        &format!("{}(25% 20 50 / 0)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50 / 40%) 0% a b / alpha)", color_space, color_space),
+        &format!("{}(0% 20 50 / 0.4)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50 / 40%) l 0 b / alpha)", color_space, color_space),
+        &format!("{}(25% 0 50 / 0.4)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50 / 40%) l a 0 / alpha)", color_space, color_space),
+        &format!("{}(25% 20 0 / 0.4)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50 / 40%) l a b / 0)", color_space, color_space),
+        &format!("{}(25% 20 50 / 0)", color_space),
+      );
+
+      // Testing replacement with a constant.
+      test(
+        &format!("{}(from {}(25% 20 50) 35% a b / alpha)", color_space, color_space),
+        &format!("{}(35% 20 50)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50) l 35 b / alpha)", color_space, color_space),
+        &format!("{}(25% 35 50)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50) l a 35 / alpha)", color_space, color_space),
+        &format!("{}(25% 20 35)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50) l a b / .35)", color_space, color_space),
+        &format!("{}(25% 20 50 / 0.35)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50 / 40%) 35% a b / alpha)", color_space, color_space),
+        &format!("{}(35% 20 50 / 0.4)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50 / 40%) l 35 b / alpha)", color_space, color_space),
+        &format!("{}(25% 35 50 / 0.4)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50 / 40%) l a 35 / alpha)", color_space, color_space),
+        &format!("{}(25% 20 35 / 0.4)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50 / 40%) l a b / .35)", color_space, color_space),
+        &format!("{}(25% 20 50 / 0.35)", color_space),
+      );
+      test(
+        &format!(
+          "{}(from {}(70% 45 30 / 40%) 200% 300 400 / 500)",
+          color_space, color_space
+        ),
+        &format!("{}(200% 300 400)", color_space),
+      );
+      test(
+        &format!(
+          "{}(from {}(70% 45 30 / 40%) -200% -300 -400 / -500)",
+          color_space, color_space
+        ),
+        &format!("{}(0% -300 -400 / 0)", color_space),
+      );
+
+      // Testing valid permutation (types match).
+      test(
+        &format!("{}(from {}(25% 20 50) l b a)", color_space, color_space),
+        &format!("{}(25% 50 20)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50) l a a / a)", color_space, color_space),
+        &format!("{}(25% 20 20)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50 / 40%) l b a)", color_space, color_space),
+        &format!("{}(25% 50 20)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50 / 40%) l a a / a)", color_space, color_space),
+        &format!("{}(25% 20 20)", color_space),
+      );
+
+      // Testing with calc().
+      test(
+        &format!(
+          "{}(from {}(25% 20 50) calc(l) calc(a) calc(b))",
+          color_space, color_space
+        ),
+        &format!("{}(25% 20 50)", color_space),
+      );
+      test(
+        &format!(
+          "{}(from {}(25% 20 50 / 40%) calc(l) calc(a) calc(b) / calc(alpha))",
+          color_space, color_space
+        ),
+        &format!("{}(25% 20 50 / 0.4)", color_space),
+      );
+
+      // Testing with 'none'.
+      test(
+        &format!("{}(from {}(25% 20 50) none none none)", color_space, color_space),
+        &format!("{}(none none none)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50) none none none / none)", color_space, color_space),
+        &format!("{}(none none none / none)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50) l a none)", color_space, color_space),
+        &format!("{}(25% 20 none)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50) l a none / alpha)", color_space, color_space),
+        &format!("{}(25% 20 none)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50) l a b / none)", color_space, color_space),
+        &format!("{}(25% 20 50 / none)", color_space),
+      );
+      test(
+        &format!(
+          "{}(from {}(25% 20 50 / 40%) l a none / alpha)",
+          color_space, color_space
+        ),
+        &format!("{}(25% 20 none / 0.4)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50 / 40%) l a b / none)", color_space, color_space),
+        &format!("{}(25% 20 50 / none)", color_space),
+      );
+      // FIXME: Clarify with spec editors if 'none' should pass through to the constants.
+      test(
+        &format!("{}(from {}(none none none) l a b)", color_space, color_space),
+        &format!("{}(0% 0 0)", color_space),
+      );
+      test(
+        &format!(
+          "{}(from {}(none none none / none) l a b / alpha)",
+          color_space, color_space
+        ),
+        &format!("{}(0% 0 0 / 0)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% none 50) l a b)", color_space, color_space),
+        &format!("{}(25% 0 50)", color_space),
+      );
+      test(
+        &format!("{}(from {}(25% 20 50 / none) l a b / alpha)", color_space, color_space),
+        &format!("{}(25% 20 50 / 0)", color_space),
+      );
+    }
+
+    // test_valid_value\(`color`, `\$\{colorSpace\}\(from \$\{colorSpace\}\((.*?)`,\s*`\$\{colorSpace\}(.*?)`\)
+    // test(&format!("{}(from {}($1", color_space, color_space), &format!("{}$2", color_space))
+
+    for color_space in &["lch", "oklch"] {
+      // Testing no modifications.
+      test(
+        &format!("{}(from {}(70% 45 30) l c h)", color_space, color_space),
+        &format!("{}(70% 45 30)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30) l c h / alpha)", color_space, color_space),
+        &format!("{}(70% 45 30)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30 / 40%) l c h / alpha)", color_space, color_space),
+        &format!("{}(70% 45 30 / 0.4)", color_space),
+      );
+      test(
+        &format!(
+          "{}(from {}(200% 300 400 / 500%) l c h / alpha)",
+          color_space, color_space
+        ),
+        &format!("{}(200% 300 40)", color_space),
+      );
+      test(
+        &format!(
+          "{}(from {}(-200% -300 -400 / -500%) l c h / alpha)",
+          color_space, color_space
+        ),
+        &format!("{}(0% 0 320 / 0)", color_space),
+      );
+
+      // Test nesting relative colors.
+      test(
+        &format!(
+          "{}(from {}(from {}(70% 45 30) l c h) l c h)",
+          color_space, color_space, color_space
+        ),
+        &format!("{}(70% 45 30)", color_space),
+      );
+
+      // Testing non-sRGB origin colors (no gamut mapping will happen since the destination is not a bounded RGB color space).
+      test(
+        &format!("{}(from color(display-p3 0 0 0) l c h / alpha)", color_space),
+        &format!("{}(0% 0 0)", color_space),
+      );
+
+      // Testing replacement with 0.
+      test(
+        &format!("{}(from {}(70% 45 30) 0% 0 0)", color_space, color_space),
+        &format!("{}(0% 0 0)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30) 0% 0 0deg)", color_space, color_space),
+        &format!("{}(0% 0 0)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30) 0% 0 0 / 0)", color_space, color_space),
+        &format!("{}(0% 0 0 / 0)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30) 0% 0 0deg / 0)", color_space, color_space),
+        &format!("{}(0% 0 0 / 0)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30) 0% c h / alpha)", color_space, color_space),
+        &format!("{}(0% 45 30)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30) l 0 h / alpha)", color_space, color_space),
+        &format!("{}(70% 0 30)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30) l c 0 / alpha)", color_space, color_space),
+        &format!("{}(70% 45 0)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30) l c 0deg / alpha)", color_space, color_space),
+        &format!("{}(70% 45 0)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30) l c h / 0)", color_space, color_space),
+        &format!("{}(70% 45 30 / 0)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30 / 40%) 0% c h / alpha)", color_space, color_space),
+        &format!("{}(0% 45 30 / 0.4)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30 / 40%) l 0 h / alpha)", color_space, color_space),
+        &format!("{}(70% 0 30 / 0.4)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30 / 40%) l c 0 / alpha)", color_space, color_space),
+        &format!("{}(70% 45 0 / 0.4)", color_space),
+      );
+      test(
+        &format!(
+          "{}(from {}(70% 45 30 / 40%) l c 0deg / alpha)",
+          color_space, color_space
+        ),
+        &format!("{}(70% 45 0 / 0.4)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30 / 40%) l c h / 0)", color_space, color_space),
+        &format!("{}(70% 45 30 / 0)", color_space),
+      );
+
+      // Testing replacement with a constant.
+      test(
+        &format!("{}(from {}(70% 45 30) 25% c h / alpha)", color_space, color_space),
+        &format!("{}(25% 45 30)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30) l 25 h / alpha)", color_space, color_space),
+        &format!("{}(70% 25 30)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30) l c 25 / alpha)", color_space, color_space),
+        &format!("{}(70% 45 25)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30) l c 25deg / alpha)", color_space, color_space),
+        &format!("{}(70% 45 25)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30) l c h / .25)", color_space, color_space),
+        &format!("{}(70% 45 30 / 0.25)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30 / 40%) 25% c h / alpha)", color_space, color_space),
+        &format!("{}(25% 45 30 / 0.4)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30 / 40%) l 25 h / alpha)", color_space, color_space),
+        &format!("{}(70% 25 30 / 0.4)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30 / 40%) l c 25 / alpha)", color_space, color_space),
+        &format!("{}(70% 45 25 / 0.4)", color_space),
+      );
+      test(
+        &format!(
+          "{}(from {}(70% 45 30 / 40%) l c 25deg / alpha)",
+          color_space, color_space
+        ),
+        &format!("{}(70% 45 25 / 0.4)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30 / 40%) l c h / .25)", color_space, color_space),
+        &format!("{}(70% 45 30 / 0.25)", color_space),
+      );
+      test(
+        &format!(
+          "{}(from {}(70% 45 30 / 40%) 200% 300 400 / 500)",
+          color_space, color_space
+        ),
+        &format!("{}(200% 300 400)", color_space),
+      );
+      test(
+        &format!(
+          "{}(from {}(70% 45 30 / 40%) -200% -300 -400 / -500)",
+          color_space, color_space
+        ),
+        &format!("{}(0% 0 -400 / 0)", color_space),
+      );
+      test(
+        &format!(
+          "{}(from {}(70% 45 30 / 40%) 50% 120 400deg / 500)",
+          color_space, color_space
+        ),
+        &format!("{}(50% 120 400)", color_space),
+      );
+      test(
+        &format!(
+          "{}(from {}(70% 45 30 / 40%) 50% 120 -400deg / -500)",
+          color_space, color_space
+        ),
+        &format!("{}(50% 120 -400 / 0)", color_space),
+      );
+
+      // Testing valid permutation (types match).
+      // NOTE: 'c' is a vaild hue, as hue is <angle>|<number>.
+      test(
+        &format!("{}(from {}(70% 45 30) alpha c h / l)", color_space, color_space),
+        &format!("{}(100% 45 30 / 0.7)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30) l c c / alpha)", color_space, color_space),
+        &format!("{}(70% 45 45)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30) alpha c h / alpha)", color_space, color_space),
+        &format!("{}(100% 45 30)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30) alpha c c / alpha)", color_space, color_space),
+        &format!("{}(100% 45 45)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30 / 40%) alpha c h / l)", color_space, color_space),
+        &format!("{}(40% 45 30 / 0.7)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30 / 40%) l c c / alpha)", color_space, color_space),
+        &format!("{}(70% 45 45 / 0.4)", color_space),
+      );
+      test(
+        &format!(
+          "{}(from {}(70% 45 30 / 40%) alpha c h / alpha)",
+          color_space, color_space
+        ),
+        &format!("{}(40% 45 30 / 0.4)", color_space),
+      );
+      test(
+        &format!(
+          "{}(from {}(70% 45 30 / 40%) alpha c c / alpha)",
+          color_space, color_space
+        ),
+        &format!("{}(40% 45 45 / 0.4)", color_space),
+      );
+
+      // Testing with calc().
+      test(
+        &format!(
+          "{}(from {}(70% 45 30) calc(l) calc(c) calc(h))",
+          color_space, color_space
+        ),
+        &format!("{}(70% 45 30)", color_space),
+      );
+      test(
+        &format!(
+          "{}(from {}(70% 45 30 / 40%) calc(l) calc(c) calc(h) / calc(alpha))",
+          color_space, color_space
+        ),
+        &format!("{}(70% 45 30 / 0.4)", color_space),
+      );
+
+      // Testing with 'none'.
+      test(
+        &format!("{}(from {}(70% 45 30) none none none)", color_space, color_space),
+        &format!("{}(none none none)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30) none none none / none)", color_space, color_space),
+        &format!("{}(none none none / none)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30) l c none)", color_space, color_space),
+        &format!("{}(70% 45 none)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30) l c none / alpha)", color_space, color_space),
+        &format!("{}(70% 45 none)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30) l c h / none)", color_space, color_space),
+        &format!("{}(70% 45 30 / none)", color_space),
+      );
+      test(
+        &format!(
+          "{}(from {}(70% 45 30 / 40%) l c none / alpha)",
+          color_space, color_space
+        ),
+        &format!("{}(70% 45 none / 0.4)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30 / 40%) l c h / none)", color_space, color_space),
+        &format!("{}(70% 45 30 / none)", color_space),
+      );
+      // FIXME: Clarify with spec editors if 'none' should pass through to the constants.
+      test(
+        &format!("{}(from {}(none none none) l c h)", color_space, color_space),
+        &format!("{}(0% 0 0)", color_space),
+      );
+      test(
+        &format!(
+          "{}(from {}(none none none / none) l c h / alpha)",
+          color_space, color_space
+        ),
+        &format!("{}(0% 0 0 / 0)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% none 30) l c h)", color_space, color_space),
+        &format!("{}(70% 0 30)", color_space),
+      );
+      test(
+        &format!("{}(from {}(70% 45 30 / none) l c h / alpha)", color_space, color_space),
+        &format!("{}(70% 45 30 / 0)", color_space),
+      );
+    }
+
+    // test_valid_value\(`color`, `color\(from color\(\$\{colorSpace\}(.*?) \$\{colorSpace\}(.*?)`,\s*`color\(\$\{colorSpace\}(.*?)`\)
+    // test(&format!("color(from color({}$1 {}$2", color_space, color_space), &format!("color({}$3", color_space))
+
+    for color_space in &["srgb", "srgb-linear", "a98-rgb", "rec2020", "prophoto-rgb"] {
+      // Testing no modifications.
+      test(
+        &format!("color(from color({} 0.7 0.5 0.3) {} r g b)", color_space, color_space),
+        &format!("color({} 0.7 0.5 0.3)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} r g b / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0.3)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} r g b)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0.3)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} r g b / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0.3 / 0.4)", color_space),
+      );
+
+      // Test nesting relative colors.
+      test(
+        &format!(
+          "color(from color(from color({} 0.7 0.5 0.3) {} r g b) {} r g b)",
+          color_space, color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0.3)", color_space),
+      );
+
+      // Testing replacement with 0.
+      test(
+        &format!("color(from color({} 0.7 0.5 0.3) {} 0 0 0)", color_space, color_space),
+        &format!("color({} 0 0 0)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} 0 0 0 / 0)",
+          color_space, color_space
+        ),
+        &format!("color({} 0 0 0 / 0)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} 0 g b / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0 0.5 0.3)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} r 0 b / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0 0.3)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} r g 0 / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} r g b / 0)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0.3 / 0)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} 0 g b / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0 0.5 0.3 / 0.4)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} r 0 b / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0 0.3 / 0.4)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} r g 0 / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0 / 0.4)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} r g b / 0)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0.3 / 0)", color_space),
+      );
+
+      // Testing replacement with a constant.
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} 0.2 g b / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.2 0.5 0.3)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} 20% g b / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.2 0.5 0.3)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} r 0.2 b / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.2 0.3)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} r 20% b / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.2 0.3)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} r g 0.2 / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0.2)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} r g 20% / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0.2)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} r g b / 0.2)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0.3 / 0.2)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} r g b / 20%)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0.3 / 0.2)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} 0.2 g b / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.2 0.5 0.3 / 0.4)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} 20% g b / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.2 0.5 0.3 / 0.4)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} r 0.2 b / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.2 0.3 / 0.4)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} r 20% b / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.2 0.3 / 0.4)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} r g 0.2 / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0.2 / 0.4)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} r g 20% / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0.2 / 0.4)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} r g b / 0.2)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0.3 / 0.2)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} r g b / 20%)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0.3 / 0.2)", color_space),
+      );
+      test(
+        &format!("color(from color({} 0.7 0.5 0.3) {} 2 3 4)", color_space, color_space),
+        &format!("color({} 2 3 4)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} 2 3 4 / 5)",
+          color_space, color_space
+        ),
+        &format!("color({} 2 3 4)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} -2 -3 -4)",
+          color_space, color_space
+        ),
+        &format!("color({} -2 -3 -4)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} -2 -3 -4 / -5)",
+          color_space, color_space
+        ),
+        &format!("color({} -2 -3 -4 / 0)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} 200% 300% 400%)",
+          color_space, color_space
+        ),
+        &format!("color({} 2 3 4)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} 200% 300% 400% / 500%)",
+          color_space, color_space
+        ),
+        &format!("color({} 2 3 4)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} -200% -300% -400%)",
+          color_space, color_space
+        ),
+        &format!("color({} -2 -3 -4)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} -200% -300% -400% / -500%)",
+          color_space, color_space
+        ),
+        &format!("color({} -2 -3 -4 / 0)", color_space),
+      );
+
+      // Testing valid permutation (types match).
+      test(
+        &format!("color(from color({} 0.7 0.5 0.3) {} g b r)", color_space, color_space),
+        &format!("color({} 0.5 0.3 0.7)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} b alpha r / g)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.3 1 0.7 / 0.5)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} r r r / r)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.7 0.7 / 0.7)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} alpha alpha alpha / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 1 1 1)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} g b r)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.5 0.3 0.7)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} b alpha r / g)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.3 0.4 0.7 / 0.5)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} r r r / r)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.7 0.7 / 0.7)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} alpha alpha alpha / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.4 0.4 0.4 / 0.4)", color_space),
+      );
+
+      // Testing out of gamut components.
+      test(
+        &format!("color(from color({} 1.7 1.5 1.3) {} r g b)", color_space, color_space),
+        &format!("color({} 1.7 1.5 1.3)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 1.7 1.5 1.3) {} r g b / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 1.7 1.5 1.3)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 1.7 1.5 1.3 / 140%) {} r g b)",
+          color_space, color_space
+        ),
+        &format!("color({} 1.7 1.5 1.3)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 1.7 1.5 1.3 / 140%) {} r g b / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 1.7 1.5 1.3)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} -0.7 -0.5 -0.3) {} r g b)",
+          color_space, color_space
+        ),
+        &format!("color({} -0.7 -0.5 -0.3)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} -0.7 -0.5 -0.3) {} r g b / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} -0.7 -0.5 -0.3)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} -0.7 -0.5 -0.3 / -40%) {} r g b)",
+          color_space, color_space
+        ),
+        &format!("color({} -0.7 -0.5 -0.3)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} -0.7 -0.5 -0.3 / -40%) {} r g b / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} -0.7 -0.5 -0.3 / 0)", color_space),
+      );
+
+      // Testing with calc().
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} calc(r) calc(g) calc(b))",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0.3)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} calc(r) calc(g) calc(b) / calc(alpha))",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0.3 / 0.4)", color_space),
+      );
+
+      // Testing with 'none'.
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} none none none)",
+          color_space, color_space
+        ),
+        &format!("color({} none none none)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} none none none / none)",
+          color_space, color_space
+        ),
+        &format!("color({} none none none / none)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} r g none)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 none)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} r g none / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 none)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3) {} r g b / none)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0.3 / none)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} r g none / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 none / 0.4)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / 40%) {} r g b / none)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0.3 / none)", color_space),
+      );
+      // FIXME: Clarify with spec editors if 'none' should pass through to the constants.
+      test(
+        &format!(
+          "color(from color({} none none none) {} r g b)",
+          color_space, color_space
+        ),
+        &format!("color({} 0 0 0)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} none none none / none) {} r g b / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0 0 0 / 0)", color_space),
+      );
+      test(
+        &format!("color(from color({} 0.7 none 0.3) {} r g b)", color_space, color_space),
+        &format!("color({} 0.7 0 0.3)", color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 0.7 0.5 0.3 / none) {} r g b / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.7 0.5 0.3 / 0)", color_space),
+      );
+    }
+
+    // test_valid_value\(`color`, `color\(from color\(\$\{colorSpace\}(.*?) \$\{colorSpace\}(.*?)`,\s*`color\(\$\{resultColorSpace\}(.*?)`\)
+    // test(&format!("color(from color({}$1 {}$2", color_space, color_space), &format!("color({}$3", result_color_space))
+
+    for color_space in &["xyz", "xyz-d50", "xyz-d65"] {
+      let result_color_space = if *color_space == "xyz" { "xyz-d65" } else { color_space };
+
+      // Testing no modifications.
+      test(
+        &format!("color(from color({} 7 -20.5 100) {} x y z)", color_space, color_space),
+        &format!("color({} 7 -20.5 100)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100) {} x y z / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 100)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100 / 40%) {} x y z)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 100)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100 / 40%) {} x y z / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 100 / 0.4)", result_color_space),
+      );
+
+      // Test nesting relative colors.
+      test(
+        &format!(
+          "color(from color(from color({} 7 -20.5 100) {} x y z) {} x y z)",
+          color_space, color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 100)", result_color_space),
+      );
+
+      // Testing replacement with 0.
+      test(
+        &format!("color(from color({} 7 -20.5 100) {} 0 0 0)", color_space, color_space),
+        &format!("color({} 0 0 0)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100) {} 0 0 0 / 0)",
+          color_space, color_space
+        ),
+        &format!("color({} 0 0 0 / 0)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100) {} 0 y z / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0 -20.5 100)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100) {} x 0 z / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 0 100)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100) {} x y 0 / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 0)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100) {} x y z / 0)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 100 / 0)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100 / 40%) {} 0 y z / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0 -20.5 100 / 0.4)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100 / 40%) {} x 0 z / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 0 100 / 0.4)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100 / 40%) {} x y 0 / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 0 / 0.4)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100 / 40%) {} x y z / 0)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 100 / 0)", result_color_space),
+      );
+
+      // Testing replacement with a constant.
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100) {} 0.2 y z / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.2 -20.5 100)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100) {} x 0.2 z / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 0.2 100)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100) {} x y 0.2 / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 0.2)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100) {} x y z / 0.2)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 100 / 0.2)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100) {} x y z / 20%)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 100 / 0.2)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100 / 40%) {} 0.2 y z / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0.2 -20.5 100 / 0.4)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100 / 40%) {} x 0.2 z / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 0.2 100 / 0.4)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100 / 40%) {} x y 0.2 / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 0.2 / 0.4)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100 / 40%) {} x y z / 0.2)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 100 / 0.2)", result_color_space),
+      );
+
+      // Testing valid permutation (types match).
+      test(
+        &format!("color(from color({} 7 -20.5 100) {} y z x)", color_space, color_space),
+        &format!("color({} -20.5 100 7)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100) {} x x x / x)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 7 7)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100 / 40%) {} y z x)",
+          color_space, color_space
+        ),
+        &format!("color({} -20.5 100 7)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100 / 40%) {} x x x / x)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 7 7)", result_color_space),
+      );
+
+      // Testing with calc().
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100) {} calc(x) calc(y) calc(z))",
+          color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 100)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100 / 40%) {} calc(x) calc(y) calc(z) / calc(alpha))",
+          color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 100 / 0.4)", result_color_space),
+      );
+
+      // Testing with 'none'.
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100) {} none none none)",
+          color_space, color_space
+        ),
+        &format!("color({} none none none)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100) {} none none none / none)",
+          color_space, color_space
+        ),
+        &format!("color({} none none none / none)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100) {} x y none)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 none)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100) {} x y none / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 none)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100) {} x y z / none)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 100 / none)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100 / 40%) {} x y none / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 none / 0.4)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100 / 40%) {} x y z / none)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 100 / none)", result_color_space),
+      );
+      // FIXME: Clarify with spec editors if 'none' should pass through to the constants.
+      test(
+        &format!(
+          "color(from color({} none none none) {} x y z)",
+          color_space, color_space
+        ),
+        &format!("color({} 0 0 0)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} none none none / none) {} x y z / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 0 0 0 / 0)", result_color_space),
+      );
+      test(
+        &format!("color(from color({} 7 none 100) {} x y z)", color_space, color_space),
+        &format!("color({} 7 0 100)", result_color_space),
+      );
+      test(
+        &format!(
+          "color(from color({} 7 -20.5 100 / none) {} x y z / alpha)",
+          color_space, color_space
+        ),
+        &format!("color({} 7 -20.5 100 / 0)", result_color_space),
+      );
+
+      // https://github.com/web-platform-tests/wpt/blob/master/css/css-color/parsing/relative-color-invalid.html
+      minify_test(
+        ".foo{color:rgb(from rebeccapurple r 10deg 10)}",
+        ".foo{color:rgb(from rebeccapurple r 10deg 10)}",
+      );
+      minify_test(
+        ".foo{color:rgb(from rebeccapurple l g b)}",
+        ".foo{color:rgb(from rebeccapurple l g b)}",
+      );
+      minify_test(
+        ".foo{color:hsl(from rebeccapurple s h l)}",
+        ".foo{color:hsl(from rebeccapurple s h l)}",
+      );
+      minify_test(
+        ".foo{color:hsl(from rebeccapurple s s s / s)}",
+        ".foo{color:hsl(from rebeccapurple s s s/s)}",
+      );
+      minify_test(
+        ".foo{color:hsl(from rebeccapurple alpha alpha alpha / alpha)}",
+        ".foo{color:hsl(from rebeccapurple alpha alpha alpha/alpha)}",
+      );
+    }
   }
 
   #[test]

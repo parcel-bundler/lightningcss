@@ -61,6 +61,7 @@ impl std::convert::From<Calc<CSSNumber>> for CSSNumber {
   fn from(calc: Calc<CSSNumber>) -> CSSNumber {
     match calc {
       Calc::Value(v) => *v,
+      Calc::Number(n) => n,
       _ => unreachable!(),
     }
   }

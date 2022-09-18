@@ -836,7 +836,7 @@ impl<'i> UnresolvedColor<'i> {
     input: &mut Parser<'i, 't>,
     options: &ParserOptions,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let parser = ComponentParser { allow_none: false };
+    let parser = ComponentParser::new(false);
     match_ignore_ascii_case! { &*f,
       "rgb" => {
         input.parse_nested_block(|input| {

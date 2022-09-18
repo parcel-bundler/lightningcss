@@ -28,7 +28,8 @@ An extremely fast CSS parser, transformer, and minifier written in Rust. Use it 
   - Custom media queries (draft spec)
   - Logical properties
   * [Color Level 5](https://drafts.csswg.org/css-color-5/)
-  - `color-mix()` function
+    - `color-mix()` function
+    - Relative color syntax, e.g. `lab(from purple calc(l * .8) a b)`
   - [Color Level 4](https://drafts.csswg.org/css-color-4/)
     - `lab()`, `lch()`, `oklab()`, and `oklch()` colors
     - `color()` function supporting predefined color spaces such as `display-p3` and `xyz`
