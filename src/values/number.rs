@@ -115,7 +115,7 @@ pub type CSSInteger = i32;
 
 impl<'i> Parse<'i> for CSSInteger {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    // TODO: calc??
+    // TODO: Support calc??
     let integer = input.expect_integer()?;
     Ok(integer)
   }

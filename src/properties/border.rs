@@ -19,6 +19,24 @@ use crate::values::rect::Rect;
 use crate::values::size::Size2D;
 use cssparser::*;
 
+
+enum_property! {
+  /// A [`<border-collapse>`](https://www.w3.org/TR/CSS22/tables.html#propdef-border-collapse)
+  /// property.
+  pub enum BorderCollapse {
+    /// The `collapse` value.
+    Collapse,
+    /// The `separate` value.
+    Separate,
+  }
+}
+
+impl Default for BorderCollapse {
+  fn default() -> BorderCollapse {
+    BorderCollapse::Separate
+  }
+}
+
 /// A value for the [border-width](https://www.w3.org/TR/css-backgrounds-3/#border-width) property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(

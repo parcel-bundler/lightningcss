@@ -5983,6 +5983,28 @@ mod tests {
   }
 
   #[test]
+  fn test_columns() {
+    minify_test(".foo { column-width: auto; }", ".foo{column-width:auto}");
+    minify_test(".foo { column-width: 0px; }", ".foo{column-width:0}");
+    minify_test(".foo { column-width: calc(20px * 2); }", ".foo{column-width:40px}");
+    minify_test(".foo { column-width: calc(100% - 30px); }", ".foo{column-width:calc(100% - 30px)}");
+    minify_test(".foo { column-width: clamp(1em, 2px, 4vh); }", ".foo{column-width:clamp(1em,2px,4vh)}");
+
+    minify_test(".foo { column-count: auto; }", ".foo{column-count:auto}");
+    minify_test(".foo { column-count: 1; }", ".foo{column-count:1}");
+
+    // TODO: Supprot calc
+    // minify_test(".foo { column-count: min(10, 3); }", ".foo{column-count:3}");
+    // minify_test(".foo { column-count: calc(10 / 5); }", ".foo{column-count:2}");
+    // minify_test(".foo { column-count: calc(2 * 3); }", ".foo{column-count:6}");
+
+    // Invalid values
+    // minify_test(".foo { column-count: 1.4; }", ".foo{column-count:1.4}");
+    // minify_test(".foo { column-count: 1.5; }", ".foo{column-count:1.5}");
+    
+  }
+
+  #[test]
   fn test_calc() {
     minify_test(".foo { width: calc(20px * 2) }", ".foo{width:40px}");
     minify_test(".foo { font-size: calc(100vw / 35) }", ".foo{font-size:2.85714vw}");
@@ -8381,6 +8403,7 @@ mod tests {
     minify_test(".foo { animation: none, none }", ".foo{animation:none,none}");
     minify_test(".foo { animation: \"none\" none }", ".foo{animation:\"none\"}");
     minify_test(".foo { animation: none none }", ".foo{animation:none}");
+    minify_test(".foo { animation: none none .3s }", ".foo{animation:none none .3s}");
 
     // Test animation-name + animation-fill-mode
     minify_test(

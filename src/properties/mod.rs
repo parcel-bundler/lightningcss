@@ -789,6 +789,12 @@ define_properties! {
   "overflow": Overflow(Overflow) shorthand: true,
   "overflow-x": OverflowX(OverflowKeyword),
   "overflow-y": OverflowY(OverflowKeyword),
+
+  // TODO: `columns` shorthand
+  // "columns": Columns(Columns) shorthand: true,
+  "column-width": ColumnWidth(LengthOrAuto), // "auto | <length [0,∞]>"
+  "column-count": ColumnCount(IntegerOrAuto), // "auto | <integer [1,∞]>"
+
   "text-overflow": TextOverflow(TextOverflow, VendorPrefix) / O,
 
   // https://www.w3.org/TR/2020/WD-css-position-3-20200519
@@ -806,6 +812,7 @@ define_properties! {
   "inset": Inset(Inset) shorthand: true,
 
   "border-spacing": BorderSpacing(Size2D<Length>),
+  // "border-collapse": BorderCollapse(BorderCollapse),
 
   "border-top-color": BorderTopColor(CssColor) [logical_group: BorderColor, category: Physical],
   "border-bottom-color": BorderBottomColor(CssColor) [logical_group: BorderColor, category: Physical],
