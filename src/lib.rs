@@ -8710,6 +8710,8 @@ mod tests {
     minify_test(".foo { transform: rotateX(405deg)}", ".foo{transform:rotateX(405deg)}");
     minify_test(".foo { transform: rotateY(405deg)}", ".foo{transform:rotateY(405deg)}");
     minify_test(".foo { transform: rotate(-200deg)}", ".foo{transform:rotate(-200deg)}");
+    minify_test(".foo { transform: rotate(0)", ".foo{transform:rotate(0)}");
+    minify_test(".foo { transform: rotate(0deg)", ".foo{transform:rotate(0)}");
     minify_test(
       ".foo { transform: rotateX(-200deg)}",
       ".foo{transform:rotateX(-200deg)}",
@@ -8970,6 +8972,10 @@ mod tests {
       ".foo{background:linear-gradient(#ff0,red 30% 40%,#00f)}",
     );
     minify_test(
+      ".foo { background: linear-gradient(0, yellow, blue); }",
+      ".foo{background:linear-gradient(#00f,#ff0)}",
+    );
+    minify_test(
       ".foo { background: -webkit-linear-gradient(yellow, blue) }",
       ".foo{background:-webkit-linear-gradient(#ff0,#00f)}",
     );
@@ -9139,6 +9145,10 @@ mod tests {
     );
     minify_test(
       ".foo { background: conic-gradient(from 0deg, #f06, gold) }",
+      ".foo{background:conic-gradient(#f06,gold)}",
+    );
+    minify_test(
+      ".foo { background: conic-gradient(from 0, #f06, gold) }",
       ".foo{background:conic-gradient(#f06,gold)}",
     );
     minify_test(
@@ -20620,6 +20630,7 @@ mod tests {
       ".foo { filter: contrast(175%) brightness(3%); }",
       ".foo{filter:contrast(175%)brightness(3%)}",
     );
+    minify_test(".foo { filter: hue-rotate(0) }", ".foo{filter:hue-rotate()}");
 
     prefix_test(
       ".foo { filter: blur(5px) }",

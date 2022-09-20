@@ -37,6 +37,22 @@ pub enum Angle {
 
 impl<'i> Parse<'i> for Angle {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Self::parse_internal(input, false)
+  }
+}
+
+impl Angle {
+  /// Parses an angle, allowing unitless zero values.
+  pub fn parse_with_unitless_zero<'i, 't>(
+    input: &mut Parser<'i, 't>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Self::parse_internal(input, true)
+  }
+
+  fn parse_internal<'i, 't>(
+    input: &mut Parser<'i, 't>,
+    allow_unitless_zero: bool,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
       // Angles are always compatible, so they will always compute to a value.
@@ -56,6 +72,7 @@ impl<'i> Parse<'i> for Angle {
           _ => return Err(location.new_unexpected_token_error(token.clone())),
         }
       }
+      Token::Number { value, .. } if value == 0.0 && allow_unitless_zero => Ok(Angle::zero()),
       ref token => return Err(location.new_unexpected_token_error(token.clone())),
     }
   }
@@ -83,6 +100,20 @@ impl ToCss for Angle {
     };
 
     serialize_dimension(value, unit, dest)
+  }
+}
+
+impl Angle {
+  /// Prints the angle, allowing unitless zero values.
+  pub fn to_css_with_unitless_zero<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    if self.is_zero() {
+      (0.0).to_css(dest)
+    } else {
+      self.to_css(dest)
+    }
   }
 }
 

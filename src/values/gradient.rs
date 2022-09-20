@@ -388,7 +388,9 @@ impl LineDirection {
     input: &mut Parser<'i, 't>,
     is_prefixed: bool,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(angle) = input.try_parse(Angle::parse) {
+    // Spec allows unitless zero angles for gradients.
+    // https://w3c.github.io/csswg-drafts/css-images-3/#linear-gradient-syntax
+    if let Ok(angle) = input.try_parse(Angle::parse_with_unitless_zero) {
       return Ok(LineDirection::Angle(angle));
     }
 
@@ -672,7 +674,9 @@ impl ConicGradient {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let angle = input.try_parse(|input| {
       input.expect_ident_matching("from")?;
-      Angle::parse(input)
+      // Spec allows unitless zero angles for gradients.
+      // https://w3c.github.io/csswg-drafts/css-images-4/#valdef-conic-gradient-angle
+      Angle::parse_with_unitless_zero(input)
     });
 
     let position = input.try_parse(|input| {

@@ -73,7 +73,8 @@ impl<'i> Parse<'i> for Filter<'i> {
       },
       "hue-rotate" => {
         input.parse_nested_block(|input| {
-          Ok(Filter::HueRotate(input.try_parse(Angle::parse).unwrap_or(Angle::Deg(0.0))))
+          // Spec has an exception for unitless zero angles: https://github.com/w3c/fxtf-drafts/issues/228
+          Ok(Filter::HueRotate(input.try_parse(Angle::parse_with_unitless_zero).unwrap_or(Angle::zero())))
         })
       },
       "invert" => {
