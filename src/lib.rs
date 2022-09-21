@@ -5993,10 +5993,16 @@ mod tests {
     minify_test(".foo { column-count: auto; }", ".foo{column-count:auto}");
     minify_test(".foo { column-count: 1; }", ".foo{column-count:1}");
 
+    // Test minimum and maximum values: Chrome/Safari is 65535, Firefox is 1000.
+    minify_test(".foo { column-count: 123456789000; }", ".foo{column-count:2147483647}");
+    minify_test(".foo { column-count: -123456789000; }", ".foo{column-count:-2147483648}");
+    // minify_test("@supports ( column-width:   0px ) { .bar { column-width: 0px; } }", "@supports (column-width: 0px){.bar{column-width:0}}");
+
     // TODO: Supprot calc
     // minify_test(".foo { column-count: min(10, 3); }", ".foo{column-count:3}");
     // minify_test(".foo { column-count: calc(10 / 5); }", ".foo{column-count:2}");
     // minify_test(".foo { column-count: calc(2 * 3); }", ".foo{column-count:6}");
+    // minify_test(".foo { column-count: calc(infinity * 1); }", ".foo{column-count:2147483647}");
 
     // Invalid values
     // minify_test(".foo { column-count: 1.4; }", ".foo{column-count:1.4}");
@@ -21949,6 +21955,9 @@ mod tests {
     minify_test(".foo { z-index: 999999 }", ".foo{z-index:999999}");
     minify_test(".foo { z-index: 9999999 }", ".foo{z-index:9999999}");
     minify_test(".foo { z-index: -9999999 }", ".foo{z-index:-9999999}");
+    minify_test(".foo { z-index: calc(10 * 2) }", ".foo{z-index:calc(10*2)}");
+    minify_test(".foo { z-index: 2147483647 }", ".foo{z-index:2147483647}");
+    minify_test(".foo { z-index: auto }", ".foo{z-index:auto}");
   }
 
   #[test]
