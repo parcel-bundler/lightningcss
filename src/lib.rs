@@ -5228,6 +5228,17 @@ mod tests {
 
   #[test]
   fn test_selectors() {
+    minify_test(":nth-col(2n) {width: 20px}", ":nth-col(2n){width:20px}");
+    minify_test(":nth-col(10n-1) {width: 20px}", ":nth-col(10n-1){width:20px}");
+    minify_test(":nth-col(-n+2) {width: 20px}", ":nth-col(-n+2){width:20px}");
+    minify_test(":nth-col(even) {width: 20px}", ":nth-col(2n){width:20px}");
+    minify_test(":nth-col(odd) {width: 20px}", ":nth-col(2n+1){width:20px}");
+    minify_test(":nth-last-col(2n) {width: 20px}", ":nth-last-col(2n){width:20px}");
+    minify_test(":nth-last-col(10n-1) {width: 20px}", ":nth-last-col(10n-1){width:20px}");
+    minify_test(":nth-last-col(-n+2) {width: 20px}", ":nth-last-col(-n+2){width:20px}");
+    minify_test(":nth-last-col(even) {width: 20px}", ":nth-last-col(2n){width:20px}");
+    minify_test(":nth-last-col(odd) {width: 20px}", ":nth-last-col(2n+1){width:20px}");
+
     minify_test("[foo=\"baz\"] {color:red}", "[foo=baz]{color:red}");
     minify_test("[foo=\"foo bar\"] {color:red}", "[foo=foo\\ bar]{color:red}");
     minify_test("[foo=\"foo bar baz\"] {color:red}", "[foo=\"foo bar baz\"]{color:red}");

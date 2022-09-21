@@ -372,6 +372,8 @@ fn matches_hover_and_active_quirk<'i, Impl: SelectorImpl<'i>>(
     | Component::Empty
     | Component::NthChild(_, _)
     | Component::NthLastChild(_, _)
+    | Component::NthCol(_, _)
+    | Component::NthLastCol(_, _)
     | Component::NthOfType(_, _)
     | Component::NthLastOfType(_, _)
     | Component::FirstOfType
@@ -787,6 +789,8 @@ where
     },
     Component::NthChild(a, b) => matches_generic_nth_child(element, context, a, b, false, false, flags_setter),
     Component::NthLastChild(a, b) => matches_generic_nth_child(element, context, a, b, false, true, flags_setter),
+    Component::NthCol(a, b) => matches_generic_nth_child(element, context, a, b, false, false, flags_setter),
+    Component::NthLastCol(a, b) => matches_generic_nth_child(element, context, a, b, false, true, flags_setter),
     Component::NthOfType(a, b) => matches_generic_nth_child(element, context, a, b, true, false, flags_setter),
     Component::NthLastOfType(a, b) => matches_generic_nth_child(element, context, a, b, true, true, flags_setter),
     Component::FirstOfType => matches_generic_nth_child(element, context, 0, 1, true, false, flags_setter),
