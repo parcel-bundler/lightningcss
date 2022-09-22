@@ -1107,6 +1107,8 @@ pub enum Component<'i, Impl: SelectorImpl<'i>> {
   Scope,
   NthChild(i32, i32),
   NthLastChild(i32, i32),
+  NthCol(i32, i32), // https://www.w3.org/TR/selectors-4/#the-nth-col-pseudo
+  NthLastCol(i32, i32), // https://www.w3.org/TR/selectors-4/#the-nth-last-col-pseudo
   NthOfType(i32, i32),
   NthLastOfType(i32, i32),
   FirstOfType,
@@ -1604,10 +1606,12 @@ impl<'i, Impl: SelectorImpl<'i>> ToCss for Component<'i, Impl> {
       FirstOfType => dest.write_str(":first-of-type"),
       LastOfType => dest.write_str(":last-of-type"),
       OnlyOfType => dest.write_str(":only-of-type"),
-      NthChild(a, b) | NthLastChild(a, b) | NthOfType(a, b) | NthLastOfType(a, b) => {
+      NthChild(a, b) | NthLastChild(a, b) | NthOfType(a, b) | NthLastOfType(a, b) | NthCol(a, b) | NthLastCol(a, b) => {
         match *self {
           NthChild(_, _) => dest.write_str(":nth-child(")?,
           NthLastChild(_, _) => dest.write_str(":nth-last-child(")?,
+          NthCol(_, _) => dest.write_str(":nth-col(")?,
+          NthLastCol(_, _) => dest.write_str(":nth-last-col(")?,
           NthOfType(_, _) => dest.write_str(":nth-of-type(")?,
           NthLastOfType(_, _) => dest.write_str(":nth-last-of-type(")?,
           _ => unreachable!(),
@@ -2381,8 +2385,10 @@ where
 {
   match_ignore_ascii_case! { &name,
       "nth-child" => return parse_nth_pseudo_class(parser, input, *state, Component::NthChild),
-      "nth-of-type" => return parse_nth_pseudo_class(parser, input, *state, Component::NthOfType),
       "nth-last-child" => return parse_nth_pseudo_class(parser, input, *state, Component::NthLastChild),
+      "nth-col" => return parse_nth_pseudo_class(parser, input, *state, Component::NthCol),
+      "nth-last-col" => return parse_nth_pseudo_class(parser, input, *state, Component::NthLastCol),
+      "nth-of-type" => return parse_nth_pseudo_class(parser, input, *state, Component::NthOfType),
       "nth-last-of-type" => return parse_nth_pseudo_class(parser, input, *state, Component::NthLastOfType),
       "is" if parser.parse_is_and_where() => return parse_is_or_where(parser, input, state, Component::Is),
       "where" if parser.parse_is_and_where() => return parse_is_or_where(parser, input, state, Component::Where),

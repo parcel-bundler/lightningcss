@@ -305,6 +305,8 @@ where
       | Component::Scope
       | Component::NthChild(..)
       | Component::NthLastChild(..)
+      | Component::NthCol(..)
+      | Component::NthLastCol(..)
       | Component::NthOfType(..)
       | Component::NthLastOfType(..)
       | Component::FirstOfType

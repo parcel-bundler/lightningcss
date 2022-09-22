@@ -1385,6 +1385,8 @@ pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browse
         | Component::Negation(_)
         | Component::NthChild(_, _)
         | Component::NthLastChild(_, _)
+        | Component::NthCol(_, _)
+        | Component::NthLastCol(_, _)
         | Component::NthLastOfType(_, _)
         | Component::NthOfType(_, _)
         | Component::OnlyChild
