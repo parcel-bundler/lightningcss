@@ -5984,9 +5984,16 @@ mod tests {
 
   #[test]
   fn test_columns() {
+    // columns shorthand
+    minify_test(".foo { column-width: 200px; column-count: 2 }", ".foo{columns:200px 2}");
+    minify_test(".foo { column-width: auto; column-count: 3 }", ".foo{columns:3}");
+    minify_test(".foo { column-width: 10em; column-count: auto }", ".foo{columns:10em}");
+    minify_test(".foo { column-width: calc(80px * 2); column-count: auto }", ".foo{columns:160px}");
+    minify_test(".foo { column-count: auto; column-width: 20vw;  }", ".foo{columns:20vw}");
+    
     minify_test(".foo { column-width: auto; }", ".foo{column-width:auto}");
     minify_test(".foo { column-width: 0px; }", ".foo{column-width:0}");
-    minify_test(".foo { column-width: calc(20px * 2); }", ".foo{column-width:40px}");
+    minify_test(".foo { column-width: calc(80px * 2); }", ".foo{column-width:160px}");
     minify_test(".foo { column-width: calc(100% - 30px); }", ".foo{column-width:calc(100% - 30px)}");
     minify_test(".foo { column-width: clamp(1em, 2px, 4vh); }", ".foo{column-width:clamp(1em,2px,4vh)}");
 
@@ -5996,7 +6003,6 @@ mod tests {
     // Test minimum and maximum values: Chrome/Safari is 65535, Firefox is 1000.
     minify_test(".foo { column-count: 123456789000; }", ".foo{column-count:2147483647}");
     minify_test(".foo { column-count: -123456789000; }", ".foo{column-count:-2147483648}");
-    // minify_test("@supports ( column-width:   0px ) { .bar { column-width: 0px; } }", "@supports (column-width: 0px){.bar{column-width:0}}");
 
     // TODO: Supprot calc
     // minify_test(".foo { column-count: min(10, 3); }", ".foo{column-count:3}");
@@ -8409,7 +8415,6 @@ mod tests {
     minify_test(".foo { animation: none, none }", ".foo{animation:none,none}");
     minify_test(".foo { animation: \"none\" none }", ".foo{animation:\"none\"}");
     minify_test(".foo { animation: none none }", ".foo{animation:none}");
-    minify_test(".foo { animation: none none .3s }", ".foo{animation:none none .3s}");
 
     // Test animation-name + animation-fill-mode
     minify_test(

@@ -110,6 +110,7 @@ pub mod list;
 pub(crate) mod margin_padding;
 pub mod masking;
 pub mod outline;
+pub mod columns;
 pub mod overflow;
 pub mod position;
 pub(crate) mod prefix_handler;
@@ -157,6 +158,7 @@ use list::*;
 use margin_padding::*;
 use masking::*;
 use outline::*;
+use columns::*;
 use overflow::*;
 use size::*;
 use smallvec::{smallvec, SmallVec};
@@ -790,10 +792,9 @@ define_properties! {
   "overflow-x": OverflowX(OverflowKeyword),
   "overflow-y": OverflowY(OverflowKeyword),
 
-  // TODO: `columns` shorthand
-  // "columns": Columns(Columns) shorthand: true,
-  "column-width": ColumnWidth(LengthOrAuto), // "auto | <length [0,∞]>"
-  "column-count": ColumnCount(IntegerOrAuto), // "auto | <integer [1,∞]>"
+  "columns": Columns(Columns) shorthand: true, // columns = <'column-width'> || <'column-count'>
+  "column-width": ColumnWidth(LengthOrAuto), // auto | <length [0,∞]>
+  "column-count": ColumnCount(IntegerOrAuto), // auto | <integer [1,∞]>
 
   "text-overflow": TextOverflow(TextOverflow, VendorPrefix) / O,
 
@@ -812,7 +813,6 @@ define_properties! {
   "inset": Inset(Inset) shorthand: true,
 
   "border-spacing": BorderSpacing(Size2D<Length>),
-  // "border-collapse": BorderCollapse(BorderCollapse),
 
   "border-top-color": BorderTopColor(CssColor) [logical_group: BorderColor, category: Physical],
   "border-bottom-color": BorderBottomColor(CssColor) [logical_group: BorderColor, category: Physical],
