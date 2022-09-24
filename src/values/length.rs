@@ -193,6 +193,10 @@ macro_rules! define_length_units {
         $(#[$meta])*
         $name(CSSNumber),
       )+
+
+      /// A [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) value
+      /// without a unit specified.
+      Unitless(CSSNumber),
     }
 
     impl<'i> Parse<'i> for LengthValue {
@@ -210,7 +214,7 @@ macro_rules! define_length_units {
           },
           Token::Number { value, .. } => {
             // TODO: quirks mode only?
-            Ok(LengthValue::Px(value))
+            Ok(LengthValue::Unitless(value))
           }
           ref token => return Err(location.new_unexpected_token_error(token.clone())),
         }
@@ -224,6 +228,9 @@ macro_rules! define_length_units {
           $(
             LengthValue::$name(value) => (*value, const_str::convert_ascii_case!(lower, stringify!($name))),
           )+
+
+          // TODO: only works in quirks mode?
+          LengthValue::Unitless(value) => (*value, "px"),
         }
       }
     }
@@ -255,6 +262,8 @@ macro_rules! define_length_units {
           $(
             $name(value) => $name(value * other),
           )+
+
+          Unitless(value) => Unitless(value * other),
         }
       }
     }
@@ -318,6 +327,8 @@ macro_rules! define_length_units {
           $(
             $name(value) => $name(op(*value)),
           )+
+
+          Unitless(value) => Unitless(op(*value)),
         }
       }
     }
@@ -329,6 +340,8 @@ macro_rules! define_length_units {
           $(
             $name(value) => value.sign(),
           )+
+
+          Unitless(value) => value.sign(),
         }
       }
     }
@@ -344,6 +357,8 @@ macro_rules! define_length_units {
           $(
             $name(value) => value.is_zero(),
           )+
+
+          Unitless(value) => value.is_zero(),
         }
       }
     }
