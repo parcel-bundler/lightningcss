@@ -34,12 +34,7 @@ impl<'i> Parse<'i> for Columns {
       // reparse with column-count
       input.reset(&state);
       let count = IntegerOrAuto::parse(input)?;
-
-      let width = if input.try_parse(|input| LengthOrAuto::parse(input)).is_ok() {
-        LengthOrAuto::parse(input)?
-      } else {
-        LengthOrAuto::Auto
-      };
+      let width = input.try_parse(|input| LengthOrAuto::parse(input)).unwrap_or_default();
 
       return Ok(Columns { width, count });
     } else if matches!(with_or_count, LengthOrAuto::Auto).not()
@@ -50,11 +45,7 @@ impl<'i> Parse<'i> for Columns {
       .not()
     {
       // first is neither unitless nor auto, so it must be column-width
-      let count = if input.try_parse(|input| IntegerOrAuto::parse(input)).is_ok() {
-        IntegerOrAuto::parse(input)?
-      } else {
-        IntegerOrAuto::default()
-      };
+      let count = input.try_parse(|input| IntegerOrAuto::parse(input)).unwrap_or_default();
 
       return Ok(Columns {
         width: with_or_count,
@@ -64,11 +55,7 @@ impl<'i> Parse<'i> for Columns {
 
     // first is auto, check second
     let state = input.state();
-    let count = if input.try_parse(|input| LengthOrAuto::parse(input)).is_ok() {
-      LengthOrAuto::parse(input)?
-    } else {
-      LengthOrAuto::default()
-    };
+    let count = input.try_parse(|input| LengthOrAuto::parse(input)).unwrap_or_default();
 
     if let LengthOrAuto::Auto = count {
       // second is auto, so first must be column-width

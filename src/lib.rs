@@ -6007,8 +6007,11 @@ mod tests {
     minify_test(".foo { columns: auto; column-count: 3; }", ".foo{columns:3}");
     minify_test(".foo { column-count: auto; columns: 200px; }", ".foo{columns:200px}");
     minify_test(".foo { column-count: auto; columns: 3; }", ".foo{columns:3}");
-    // minify_test(".foo { column-count: auto; columns: 100px 3; }", ".foo{columns:100px 3}");
-    // minify_test(".foo { column-width: 300px; columns: 2 auto; }", ".foo{columns:2}");
+    minify_test(
+      ".foo { column-count: auto; columns: 100px 3; }",
+      ".foo{columns:100px 3}",
+    );
+    minify_test(".foo { column-width: 300px; columns: 2 auto; }", ".foo{columns:2}");
     minify_test(".foo { column-width: 300px; columns: 2; }", ".foo{columns:2}");
 
     minify_test(".foo { column-width: auto; }", ".foo{column-width:auto}");
