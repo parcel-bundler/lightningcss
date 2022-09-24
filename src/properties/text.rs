@@ -1300,11 +1300,11 @@ impl ToCss for TextShadow {
     dest.write_char(' ')?;
     self.y_offset.to_css(dest)?;
 
-    if self.blur != Length::zero() || self.spread != Length::zero() {
+    if !self.blur.is_zero() || !self.spread.is_zero() {
       dest.write_char(' ')?;
       self.blur.to_css(dest)?;
 
-      if self.spread != Length::zero() {
+      if !self.spread.is_zero() {
         dest.write_char(' ')?;
         self.spread.to_css(dest)?;
       }

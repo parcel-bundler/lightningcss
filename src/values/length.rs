@@ -506,12 +506,15 @@ impl ToCss for LengthValue {
 }
 
 impl LengthValue {
+  // TODO(CGQAQ): This should be removed eventually.
+  //              cause we already have IntegerValue
   pub(crate) fn to_css_unitless<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
   {
     match self {
       LengthValue::Px(value) => value.to_css(dest),
+      LengthValue::Unitless(value) => value.to_css(dest),
       _ => self.to_css(dest),
     }
   }
