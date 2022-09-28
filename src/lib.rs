@@ -2131,8 +2131,8 @@ mod tests {
         border-top-left-radius: 10px 120px;
         border-top-right-radius: 100px 120px;
         border-start-start-radius: 10px;
-        border-bottom-left-radius: 10px 120px;
         border-bottom-right-radius: 100px 120px;
+        border-bottom-left-radius: 10px 120px;
       }
     "#,
       indoc! {r#"
@@ -2140,8 +2140,8 @@ mod tests {
         border-top-left-radius: 10px 120px;
         border-top-right-radius: 100px 120px;
         border-start-start-radius: 10px;
-        border-bottom-left-radius: 10px 120px;
         border-bottom-right-radius: 100px 120px;
+        border-bottom-left-radius: 10px 120px;
       }
     "#
       },
@@ -2342,16 +2342,16 @@ mod tests {
       .foo {
         -webkit-border-top-left-radius: 30px;
         -moz-border-top-right-radius: 30px;
-        border-bottom-left-radius: 30px;
         border-bottom-right-radius: 30px;
+        border-bottom-left-radius: 30px;
       }
     "#,
       indoc! {r#"
       .foo {
         -webkit-border-top-left-radius: 30px;
         -moz-border-top-right-radius: 30px;
-        border-bottom-left-radius: 30px;
         border-bottom-right-radius: 30px;
+        border-bottom-left-radius: 30px;
       }
     "#
       },
@@ -2433,19 +2433,19 @@ mod tests {
     prefix_test(
       r#"
       .foo {
-        border-end-start-radius: 5px;
         border-end-end-radius: 10px;
+        border-end-start-radius: 5px;
       }
     "#,
       indoc! {r#"
       .foo:not(:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi)) {
-        border-bottom-left-radius: 5px;
         border-bottom-right-radius: 10px;
+        border-bottom-left-radius: 5px;
       }
 
       .foo:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi) {
-        border-bottom-left-radius: 10px;
         border-bottom-right-radius: 5px;
+        border-bottom-left-radius: 10px;
       }
     "#
       },
