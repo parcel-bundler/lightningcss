@@ -2048,13 +2048,13 @@ mod tests {
       .foo {
         border-top-left-radius: 10px 120px;
         border-top-right-radius: 100px 120px;
-        border-bottom-left-radius: 10px 120px;
         border-bottom-right-radius: 100px 120px;
+        border-bottom-left-radius: 10px 120px;
       }
     "#,
       indoc! {r#"
       .foo {
-        border-radius: 10px 100px / 120px;
+        border-radius: 10px 100px 100px 10px / 120px;
       }
     "#
       },
