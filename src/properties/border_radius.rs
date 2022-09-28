@@ -68,14 +68,14 @@ impl ToCss for BorderRadius {
     let widths = Rect::new(
       &self.top_left.0,
       &self.top_right.0,
-      &self.bottom_left.0,
       &self.bottom_right.0,
+      &self.bottom_left.0,
     );
     let heights = Rect::new(
       &self.top_left.1,
       &self.top_right.1,
-      &self.bottom_left.1,
       &self.bottom_right.1,
+      &self.bottom_left.1,
     );
 
     widths.to_css(dest)?;
