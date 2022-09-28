@@ -2063,6 +2063,23 @@ mod tests {
     test(
       r#"
       .foo {
+        border-top-left-radius: 4px 2px;
+        border-top-right-radius: 3px 4px;
+        border-bottom-right-radius: 6px 2px;
+        border-bottom-left-radius: 3px 4px;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-radius: 4px 3px 6px / 2px 4px;
+      }
+    "#
+      },
+    );
+
+    test(
+      r#"
+      .foo {
         border-top-left-radius: 1% 2%;
         border-top-right-radius: 3% 4%;
         border-bottom-right-radius: 5% 6%;
