@@ -966,6 +966,7 @@ where
   let mut combinators = selector.iter_raw_match_order().rev().filter_map(|x| x.as_combinator());
   let compound_selectors = selector.iter_raw_match_order().as_slice().split(|x| x.is_combinator()).rev();
 
+  let mut first = true;
   let mut combinators_exhausted = false;
   for mut compound in compound_selectors {
     debug_assert!(!combinators_exhausted);
@@ -984,8 +985,9 @@ where
       continue;
     }
 
-    let has_leading_nesting = matches!(compound[0], Component::Nesting);
+    let has_leading_nesting = first && matches!(compound[0], Component::Nesting);
     let first_index = if has_leading_nesting { 1 } else { 0 };
+    first = false;
 
     // 1. If there is only one simple selector in the compound selectors
     //    which is a universal selector, append the result of

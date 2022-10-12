@@ -18891,7 +18891,7 @@ mod tests {
         }
       "#,
       indoc! {r#"
-        .baz .foo .bar {
+        .baz :is(.foo .bar) {
           background: green;
         }
       "#},
