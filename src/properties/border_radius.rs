@@ -23,10 +23,10 @@ define_shorthand! {
     top_left: BorderTopLeftRadius(Size2D<LengthPercentage>, VendorPrefix),
     /// The x and y radius values for the top right corner.
     top_right: BorderTopRightRadius(Size2D<LengthPercentage>, VendorPrefix),
-    /// The x and y radius values for the bottom left corner.
-    bottom_left: BorderBottomLeftRadius(Size2D<LengthPercentage>, VendorPrefix),
     /// The x and y radius values for the bottom right corner.
     bottom_right: BorderBottomRightRadius(Size2D<LengthPercentage>, VendorPrefix),
+    /// The x and y radius values for the bottom left corner.
+    bottom_left: BorderBottomLeftRadius(Size2D<LengthPercentage>, VendorPrefix),
   }
 }
 
@@ -36,8 +36,8 @@ impl Default for BorderRadius {
     BorderRadius {
       top_left: zero.clone(),
       top_right: zero.clone(),
-      bottom_left: zero.clone(),
-      bottom_right: zero,
+      bottom_right: zero.clone(),
+      bottom_left: zero,
     }
   }
 }
@@ -54,8 +54,8 @@ impl<'i> Parse<'i> for BorderRadius {
     Ok(BorderRadius {
       top_left: Size2D(widths.0, heights.0),
       top_right: Size2D(widths.1, heights.1),
-      bottom_left: Size2D(widths.2, heights.2),
-      bottom_right: Size2D(widths.3, heights.3),
+      bottom_right: Size2D(widths.2, heights.2),
+      bottom_left: Size2D(widths.3, heights.3),
     })
   }
 }
@@ -68,14 +68,14 @@ impl ToCss for BorderRadius {
     let widths = Rect::new(
       &self.top_left.0,
       &self.top_right.0,
-      &self.bottom_left.0,
       &self.bottom_right.0,
+      &self.bottom_left.0,
     );
     let heights = Rect::new(
       &self.top_left.1,
       &self.top_right.1,
-      &self.bottom_left.1,
       &self.bottom_right.1,
+      &self.bottom_left.1,
     );
 
     widths.to_css(dest)?;
@@ -93,12 +93,12 @@ pub(crate) struct BorderRadiusHandler<'i> {
   targets: Option<Browsers>,
   top_left: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
   top_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
-  bottom_left: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
   bottom_right: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
+  bottom_left: Option<(Size2D<LengthPercentage>, VendorPrefix)>,
   start_start: Option<Property<'i>>,
   start_end: Option<Property<'i>>,
-  end_start: Option<Property<'i>>,
   end_end: Option<Property<'i>>,
+  end_start: Option<Property<'i>>,
   category: PropertyCategory,
   has_any: bool,
 }
@@ -169,25 +169,25 @@ impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
     match property {
       BorderTopLeftRadius(val, vp) => property!(top_left, val, vp),
       BorderTopRightRadius(val, vp) => property!(top_right, val, vp),
-      BorderBottomLeftRadius(val, vp) => property!(bottom_left, val, vp),
       BorderBottomRightRadius(val, vp) => property!(bottom_right, val, vp),
+      BorderBottomLeftRadius(val, vp) => property!(bottom_left, val, vp),
       BorderStartStartRadius(_) => logical_property!(start_start),
       BorderStartEndRadius(_) => logical_property!(start_end),
-      BorderEndStartRadius(_) => logical_property!(end_start),
       BorderEndEndRadius(_) => logical_property!(end_end),
+      BorderEndStartRadius(_) => logical_property!(end_start),
       BorderRadius(val, vp) => {
         self.start_start = None;
         self.start_end = None;
-        self.end_start = None;
         self.end_end = None;
+        self.end_start = None;
         maybe_flush!(top_left, &val.top_left, vp);
         maybe_flush!(top_right, &val.top_right, vp);
-        maybe_flush!(bottom_left, &val.bottom_left, vp);
         maybe_flush!(bottom_right, &val.bottom_right, vp);
+        maybe_flush!(bottom_left, &val.bottom_left, vp);
         property!(top_left, &val.top_left, vp);
         property!(top_right, &val.top_right, vp);
-        property!(bottom_left, &val.bottom_left, vp);
         property!(bottom_right, &val.bottom_right, vp);
+        property!(bottom_left, &val.bottom_left, vp);
       }
       Unparsed(val) if is_border_radius_property(&val.property_id) => {
         // Even if we weren't able to parse the value (e.g. due to var() references),
@@ -195,8 +195,8 @@ impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
         match &val.property_id {
           PropertyId::BorderStartStartRadius => logical_property!(start_start),
           PropertyId::BorderStartEndRadius => logical_property!(start_end),
-          PropertyId::BorderEndStartRadius => logical_property!(end_start),
           PropertyId::BorderEndEndRadius => logical_property!(end_end),
+          PropertyId::BorderEndStartRadius => logical_property!(end_start),
           _ => {
             self.flush(dest, context);
             dest.push(Property::Unparsed(
@@ -226,21 +226,21 @@ impl<'i> BorderRadiusHandler<'i> {
 
     let mut top_left = std::mem::take(&mut self.top_left);
     let mut top_right = std::mem::take(&mut self.top_right);
-    let mut bottom_left = std::mem::take(&mut self.bottom_left);
     let mut bottom_right = std::mem::take(&mut self.bottom_right);
+    let mut bottom_left = std::mem::take(&mut self.bottom_left);
     let start_start = std::mem::take(&mut self.start_start);
     let start_end = std::mem::take(&mut self.start_end);
-    let end_start = std::mem::take(&mut self.end_start);
     let end_end = std::mem::take(&mut self.end_end);
+    let end_start = std::mem::take(&mut self.end_start);
 
     if let (
       Some((top_left, tl_prefix)),
       Some((top_right, tr_prefix)),
-      Some((bottom_left, bl_prefix)),
       Some((bottom_right, br_prefix)),
-    ) = (&mut top_left, &mut top_right, &mut bottom_left, &mut bottom_right)
+      Some((bottom_left, bl_prefix)),
+    ) = (&mut top_left, &mut top_right, &mut bottom_right, &mut bottom_left)
     {
-      let intersection = *tl_prefix & *tr_prefix & *bl_prefix & *br_prefix;
+      let intersection = *tl_prefix & *tr_prefix & *br_prefix & *bl_prefix;
       if !intersection.is_empty() {
         let mut prefix = intersection;
         if prefix.contains(VendorPrefix::None) {
@@ -252,15 +252,15 @@ impl<'i> BorderRadiusHandler<'i> {
           BorderRadius {
             top_left: top_left.clone(),
             top_right: top_right.clone(),
-            bottom_left: bottom_left.clone(),
             bottom_right: bottom_right.clone(),
+            bottom_left: bottom_left.clone(),
           },
           prefix,
         ));
         tl_prefix.remove(intersection);
         tr_prefix.remove(intersection);
-        bl_prefix.remove(intersection);
         br_prefix.remove(intersection);
+        bl_prefix.remove(intersection);
       }
     }
 
@@ -296,8 +296,8 @@ impl<'i> BorderRadiusHandler<'i> {
             match val {
               Property::BorderStartStartRadius(val)
               | Property::BorderStartEndRadius(val)
-              | Property::BorderEndStartRadius(val)
-              | Property::BorderEndEndRadius(val) => {
+              | Property::BorderEndEndRadius(val)
+              | Property::BorderEndStartRadius(val) => {
                 context.add_logical_rule(Property::$ltr(val.clone(), vp), Property::$rtl(val, vp));
               }
               Property::Unparsed(val) => {
@@ -315,8 +315,8 @@ impl<'i> BorderRadiusHandler<'i> {
 
     single_property!(BorderTopLeftRadius, top_left);
     single_property!(BorderTopRightRadius, top_right);
-    single_property!(BorderBottomLeftRadius, bottom_left);
     single_property!(BorderBottomRightRadius, bottom_right);
+    single_property!(BorderBottomLeftRadius, bottom_left);
     logical_property!(
       BorderStartStartRadius,
       start_start,
@@ -330,16 +330,16 @@ impl<'i> BorderRadiusHandler<'i> {
       BorderTopLeftRadius
     );
     logical_property!(
-      BorderEndStartRadius,
-      end_start,
-      BorderBottomLeftRadius,
-      BorderBottomRightRadius
-    );
-    logical_property!(
       BorderEndEndRadius,
       end_end,
       BorderBottomRightRadius,
       BorderBottomLeftRadius
+    );
+    logical_property!(
+      BorderEndStartRadius,
+      end_start,
+      BorderBottomLeftRadius,
+      BorderBottomRightRadius
     );
   }
 }
@@ -353,8 +353,8 @@ fn is_border_radius_property(property_id: &PropertyId) -> bool {
   match property_id {
     PropertyId::BorderTopLeftRadius(_)
     | PropertyId::BorderTopRightRadius(_)
-    | PropertyId::BorderBottomLeftRadius(_)
     | PropertyId::BorderBottomRightRadius(_)
+    | PropertyId::BorderBottomLeftRadius(_)
     | PropertyId::BorderRadius(_) => true,
     _ => false,
   }
@@ -365,8 +365,8 @@ fn is_logical_border_radius_property(property_id: &PropertyId) -> bool {
   match property_id {
     PropertyId::BorderStartStartRadius
     | PropertyId::BorderStartEndRadius
-    | PropertyId::BorderEndStartRadius
-    | PropertyId::BorderEndEndRadius => true,
+    | PropertyId::BorderEndEndRadius
+    | PropertyId::BorderEndStartRadius => true,
     _ => false,
   }
 }
