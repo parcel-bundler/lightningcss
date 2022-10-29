@@ -125,10 +125,11 @@ pub fn main() -> Result<(), std::io::Error> {
     };
 
     let targets = if cli_args.targets.is_empty() {
-      None
+      Browsers::load_browserslist().unwrap()
     } else {
       Browsers::from_browserslist(cli_args.targets).unwrap()
     };
+
     stylesheet
       .minify(MinifyOptions {
         targets,
