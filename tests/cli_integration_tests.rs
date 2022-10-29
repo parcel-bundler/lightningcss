@@ -379,6 +379,7 @@ fn preserve_custom_media() -> Result<(), Box<dyn std::error::Error>> {
   let mut cmd = Command::cargo_bin("lightningcss")?;
   cmd.arg(file.path());
   cmd.arg("--custom-media");
+  cmd.arg("--disable-browserslist");
   cmd.assert().success().stdout(predicate::str::contains(indoc! {r#"
     @custom-media --foo print;
   "#}));

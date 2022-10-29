@@ -202,6 +202,8 @@ npx lightningcss --help
 If no `--targets` option is provided, then `lightningcss` finds browserslist configuration,
 selects queries by environment and loads the resulting queries as targets.
 
+Pass the `--disable-browserslist` option if you do not want to load browserslist configuration or apply browserslist built-in defaults.
+
 Configuration resolution is modeled after the original `browserslist` nodeJS package.
 The configuration is resolved in the following order:
 

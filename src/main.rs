@@ -46,6 +46,8 @@ struct CliArgs {
   #[clap(short, long, value_parser)]
   targets: Vec<String>,
   #[clap(long, value_parser)]
+  disable_browserslist: bool,
+  #[clap(long, value_parser)]
   error_recovery: bool,
 }
 
@@ -124,10 +126,12 @@ pub fn main() -> Result<(), std::io::Error> {
       StyleSheet::parse(&source, options).unwrap()
     };
 
-    let targets = if cli_args.targets.is_empty() {
-      Browsers::load_browserslist().unwrap()
-    } else {
+    let targets = if !cli_args.targets.is_empty() {
       Browsers::from_browserslist(cli_args.targets).unwrap()
+    } else if cli_args.disable_browserslist {
+      None
+    } else {
+      Browsers::load_browserslist().unwrap()
     };
 
     stylesheet
