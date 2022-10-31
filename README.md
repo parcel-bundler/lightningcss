@@ -23,6 +23,7 @@ An extremely fast CSS parser, transformer, and minifier written in Rust. Use it 
   - Removing default property sub-values which will be inferred by browsers.
   - Many micro-optimizations, e.g. converting to shorter units, removing unnecessary quotation marks, etc.
 - **Vendor prefixing** – Lightning CSS accepts a list of browser targets, and automatically adds (and removes) vendor prefixes.
+- **Browserslist configuration** – Lightning CSS supports opt-in browserslist configuration discovery to resolve browser targets and integrate with your existing tools and config setup.
 - **Syntax lowering** – Lightning CSS parses modern CSS syntax, and generates more compatible output where needed, based on browser targets.
   - CSS Nesting (draft spec)
   - Custom media queries (draft spec)
@@ -199,12 +200,10 @@ npx lightningcss --help
 
 #### Browserslist configuration
 
-If no `--targets` option is provided, then `lightningcss` finds browserslist configuration,
+If the `--browserslist` option is provided, then `lightningcss` finds browserslist configuration,
 selects queries by environment and loads the resulting queries as targets.
 
-Pass the `--disable-browserslist` option if you do not want to load browserslist configuration or apply browserslist built-in defaults.
-
-Configuration resolution is modeled after the original `browserslist` nodeJS package.
+Configuration discovery and targets resolution is modeled after the original `browserslist` nodeJS package.
 The configuration is resolved in the following order:
 
 - If a `BROWSERSLIST` environment variable is present, then load targets from its value. This is analog to the `--targets` CLI option.
@@ -212,8 +211,8 @@ The configuration is resolved in the following order:
 - If a `BROWSERSLIST_CONFIG` environment variable is present, then resolve the file at the provided path.
   Then parse and use targets from `package.json` or any browserslist configuration file pointed to by the environment variable.
   _Example:_ `BROWSERSLIST_CONFIG="../config/browserslist" lightningcss [OPTIONS] <INPUT_FILE>`
-- If none of the above apply, then find, parse and use targets from the first `browserslist`, `package.json`
-  or `.browserslistrc` configuration file in any parent directory.
+- If none of the above apply, then find, parse and use targets from the first `browserslist`, `.browserslistrc`
+  or `package.json` configuration file in any parent directory.
 
 Browserslist configuration files may contain sections denoted by angular brackets `[]`.
 Use these to specify different targets for different environments.
@@ -230,7 +229,7 @@ firefox ESR
 samsung >= 4
 ```
 
-When using parsed configuration from `browserslist`, `package.json` or `.browserslistrc` configuration files,
+When using parsed configuration from `browserslist`, `.browserslistrc` or `package.json` configuration files,
 the environment determined by
 
 - the `BROWSERSLIST_ENV` environment variable if present,
@@ -249,7 +248,7 @@ By default, Lightning CSS is strict, and will error when parsing an invalid rule
 <img width="680" alt="performance and build size charts" src="https://user-images.githubusercontent.com/19409/189022693-6956b044-422b-4f56-9628-d59c6f791095.png#gh-dark-mode-only">
 
 ```
-$ node bench.js bootstrap-4.css 
+$ node bench.js bootstrap-4.css
 cssnano: 544.809ms
 159636 bytes
 
@@ -271,7 +270,7 @@ lightningcss: 1.973ms
 23666 bytes
 
 
-$ node bench.js tailwind.css 
+$ node bench.js tailwind.css
 cssnano: 2.198s
 1925626 bytes
 

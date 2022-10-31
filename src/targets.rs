@@ -55,10 +55,10 @@ impl Browsers {
   /// - If a `BROWSERSLIST_CONFIG` environment variable is present, then resolve the file at the provided path.
   ///   Then parse and use targets from `package.json` or any browserslist configuration file pointed to by the environment variable.
   ///   Example: `BROWSERSLIST_CONFIG="../config/browserslist" lightningcss [OPTIONS] <INPUT_FILE>`
-  /// - If none of the above apply, then find, parse and use targets from the first `browserslist`, `package.json`
-  ///   or `.browserslistrc` configuration file in any parent directory.
+  /// - If none of the above apply, then find, parse and use targets from the first `browserslist`, `.browserslistrc`
+  ///   or `package.json` configuration file in any parent directory.
   ///
-  /// When using parsed configuration from `browserslist`, `package.json` or `.browserslistrc` configuration files,
+  /// When using parsed configuration from `browserslist`, `.browserslistrc` or `package.json` configuration files,
   /// the environment determined by:
   ///
   /// - the `BROWSERSLIST_ENV` environment variable if present,

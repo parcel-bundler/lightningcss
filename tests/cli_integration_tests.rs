@@ -379,9 +379,306 @@ fn preserve_custom_media() -> Result<(), Box<dyn std::error::Error>> {
   let mut cmd = Command::cargo_bin("lightningcss")?;
   cmd.arg(file.path());
   cmd.arg("--custom-media");
-  cmd.arg("--disable-browserslist");
   cmd.assert().success().stdout(predicate::str::contains(indoc! {r#"
     @custom-media --foo print;
+  "#}));
+
+  Ok(())
+}
+
+#[test]
+/// Test command line argument parsing failing when `--targets` is used at the same time as `--browserslist`.
+/// The two options are mutually exclusive.
+fn browserslist_targets_exclusive() -> Result<(), Box<dyn std::error::Error>> {
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.arg("--targets").arg("defaults");
+  cmd.arg("--browserslist");
+  cmd.assert().failure().stderr(predicate::str::contains(indoc! {r#"
+    error: The argument '--targets <TARGETS>' cannot be used with '--browserslist'
+  "#}));
+
+  Ok(())
+}
+
+#[test]
+/// Test browserslist defaults being applied when no configuration is provided or discovered.
+///
+/// Note: This test might fail in unhygienic environments and should ideally run inside a chroot.
+/// We have no control over the contents of our temp dir's parent dir (e.g. `/tmp`).
+/// If this parent dir or its ancestors contain a `browserslist`, `.browserslistrc` or `package.json`
+/// file, then configuration will be read from there, instead of applying defaults.
+fn browserslist_defaults() -> Result<(), Box<dyn std::error::Error>> {
+  let dir = assert_fs::TempDir::new()?;
+  let file = dir.child("test.css");
+  file.write_str(
+    r#"
+      * {
+        -webkit-border-radius: 1rem;
+        border-radius: 1rem;
+      }
+    "#,
+  )?;
+
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.current_dir(dir.path());
+  cmd.env_clear();
+  cmd.arg("--browserslist");
+  cmd.arg(file.path());
+  cmd.assert().success().stdout(predicate::str::contains(indoc! {r#"
+    * {
+      border-radius: 1rem;
+    }
+  "#}));
+
+  Ok(())
+}
+
+#[test]
+/// Test browserslist configuration being read from the `BROWSERSLIST` environment variable.
+fn browserslist_env_config() -> Result<(), Box<dyn std::error::Error>> {
+  let dir = assert_fs::TempDir::new()?;
+  let file = dir.child("test.css");
+  file.write_str(
+    r#"
+      * {
+        border-radius: 1rem;
+      }
+    "#,
+  )?;
+
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.current_dir(dir.path());
+  cmd.env_clear();
+  cmd.env("BROWSERSLIST", "safari 4");
+  cmd.arg("--browserslist");
+  cmd.arg(file.path());
+  cmd.assert().success().stdout(predicate::str::contains(indoc! {r#"
+    * {
+      -webkit-border-radius: 1rem;
+      border-radius: 1rem;
+    }
+  "#}));
+
+  Ok(())
+}
+
+#[test]
+/// Test browserslist configuration being read from the file configured
+/// by setting the `BROWSERSLIST_CONFIG` environment variable.
+fn browserslist_env_config_file() -> Result<(), Box<dyn std::error::Error>> {
+  let dir = assert_fs::TempDir::new()?;
+  let file = dir.child("test.css");
+  file.write_str(
+    r#"
+      * {
+        border-radius: 1rem;
+      }
+    "#,
+  )?;
+
+  let config = dir.child("config");
+  config.write_str(
+    r#"
+      safari 4
+    "#,
+  )?;
+
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.current_dir(dir.path());
+  cmd.env_clear();
+  cmd.env("BROWSERSLIST_CONFIG", config.path());
+  cmd.arg("--browserslist");
+  cmd.arg(file.path());
+  cmd.assert().success().stdout(predicate::str::contains(indoc! {r#"
+    * {
+      -webkit-border-radius: 1rem;
+      border-radius: 1rem;
+    }
+  "#}));
+
+  Ok(())
+}
+
+#[test]
+/// Test `browserslist` configuration file being read.
+fn browserslist_config_discovery() -> Result<(), Box<dyn std::error::Error>> {
+  let dir = assert_fs::TempDir::new()?;
+  let file = dir.child("test.css");
+  file.write_str(
+    r#"
+      * {
+        border-radius: 1rem;
+      }
+    "#,
+  )?;
+
+  let config = dir.child("browserslist");
+  config.write_str(
+    r#"
+      safari 4
+    "#,
+  )?;
+
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.current_dir(dir.path());
+  cmd.env_clear();
+  cmd.arg("--browserslist");
+  cmd.arg(file.path());
+  cmd.assert().success().stdout(predicate::str::contains(indoc! {r#"
+    * {
+      -webkit-border-radius: 1rem;
+      border-radius: 1rem;
+    }
+  "#}));
+
+  Ok(())
+}
+
+#[test]
+/// Test `.browserslistrc` configuration file being read.
+fn browserslist_rc_discovery() -> Result<(), Box<dyn std::error::Error>> {
+  let dir = assert_fs::TempDir::new()?;
+  let file = dir.child("test.css");
+  file.write_str(
+    r#"
+      * {
+        border-radius: 1rem;
+      }
+    "#,
+  )?;
+
+  let config = dir.child(".browserslistrc");
+  config.write_str(
+    r#"
+      safari 4
+    "#,
+  )?;
+
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.current_dir(dir.path());
+  cmd.env_clear();
+  cmd.arg("--browserslist");
+  cmd.arg(file.path());
+  cmd.assert().success().stdout(predicate::str::contains(indoc! {r#"
+    * {
+      -webkit-border-radius: 1rem;
+      border-radius: 1rem;
+    }
+  "#}));
+
+  Ok(())
+}
+
+#[test]
+/// Test `package.json` configuration section being read.
+fn browserslist_package_discovery() -> Result<(), Box<dyn std::error::Error>> {
+  let dir = assert_fs::TempDir::new()?;
+  let file = dir.child("test.css");
+  file.write_str(
+    r#"
+      * {
+        border-radius: 1rem;
+      }
+    "#,
+  )?;
+
+  let config = dir.child("package.json");
+  config.write_str(
+    r#"
+      {
+        "browserslist": "safari 4"
+      }
+    "#,
+  )?;
+
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.current_dir(dir.path());
+  cmd.env_clear();
+  cmd.arg("--browserslist");
+  cmd.arg(file.path());
+  cmd.assert().success().stdout(predicate::str::contains(indoc! {r#"
+    * {
+      -webkit-border-radius: 1rem;
+      border-radius: 1rem;
+    }
+  "#}));
+
+  Ok(())
+}
+
+#[test]
+/// Test environment targets being applied from the `NODE_ENV` environment variable.
+fn browserslist_environment_from_node_env() -> Result<(), Box<dyn std::error::Error>> {
+  let dir = assert_fs::TempDir::new()?;
+  let file = dir.child("test.css");
+  file.write_str(
+    r#"
+      * {
+        border-radius: 1rem;
+      }
+    "#,
+  )?;
+
+  let config = dir.child("browserslist");
+  config.write_str(
+    r#"
+      last 1 Chrome version
+
+      [legacy]
+      safari 4
+    "#,
+  )?;
+
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.current_dir(dir.path());
+  cmd.env_clear();
+  cmd.env("NODE_ENV", "legacy");
+  cmd.arg("--browserslist");
+  cmd.arg(file.path());
+  cmd.assert().success().stdout(predicate::str::contains(indoc! {r#"
+    * {
+      -webkit-border-radius: 1rem;
+      border-radius: 1rem;
+    }
+  "#}));
+
+  Ok(())
+}
+
+#[test]
+/// Test environment targets being applied from the `BROWSERSLIST_ENV` environment variable.
+fn browserslist_environment_from_browserslist_env() -> Result<(), Box<dyn std::error::Error>> {
+  let dir = assert_fs::TempDir::new()?;
+  let file = dir.child("test.css");
+  file.write_str(
+    r#"
+      * {
+        border-radius: 1rem;
+      }
+    "#,
+  )?;
+
+  let config = dir.child("browserslist");
+  config.write_str(
+    r#"
+      last 1 Chrome version
+
+      [legacy]
+      safari 4
+    "#,
+  )?;
+
+  let mut cmd = Command::cargo_bin("lightningcss")?;
+  cmd.current_dir(dir.path());
+  cmd.env_clear();
+  cmd.env("BROWSERSLIST_ENV", "legacy");
+  cmd.arg("--browserslist");
+  cmd.arg(file.path());
+  cmd.assert().success().stdout(predicate::str::contains(indoc! {r#"
+    * {
+      -webkit-border-radius: 1rem;
+      border-radius: 1rem;
+    }
   "#}));
 
   Ok(())
