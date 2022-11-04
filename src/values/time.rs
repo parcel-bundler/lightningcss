@@ -1,21 +1,51 @@
-use cssparser::*;
-use crate::traits::{Parse, ToCss};
-use crate::printer::Printer;
-use super::calc::Calc;
-use crate::error::{ParserError, PrinterError};
+//! CSS time values.
 
-/// https://www.w3.org/TR/css3-values/#time-value
+use super::angle::impl_try_from_angle;
+use super::calc::Calc;
+use super::number::CSSNumber;
+use crate::error::{ParserError, PrinterError};
+use crate::printer::Printer;
+use crate::traits::private::AddInternal;
+use crate::traits::{impl_op, Map, Op, Parse, Sign, ToCss, Zero};
+use cssparser::*;
+
+/// A CSS [`<time>`](https://www.w3.org/TR/css-values-4/#time) value, in either
+/// seconds or milliseconds.
+///
+/// Time values may be explicit or computed by `calc()`, but are always stored and serialized
+/// as their computed value.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum Time {
-  Seconds(f32),
-  Milliseconds(f32)
+  /// A time in seconds.
+  Seconds(CSSNumber),
+  /// A time in milliseconds.
+  Milliseconds(CSSNumber),
 }
 
 impl Time {
-  pub fn to_ms(&self) -> f32 {
+  /// Returns the time in milliseconds.
+  pub fn to_ms(&self) -> CSSNumber {
     match self {
       Time::Seconds(s) => s * 1000.0,
-      Time::Milliseconds(ms) => *ms
+      Time::Milliseconds(ms) => *ms,
+    }
+  }
+}
+
+impl Zero for Time {
+  fn zero() -> Self {
+    Time::Milliseconds(0.0)
+  }
+
+  fn is_zero(&self) -> bool {
+    match self {
+      Time::Seconds(s) => s.is_zero(),
+      Time::Milliseconds(s) => s.is_zero(),
     }
   }
 }
@@ -25,7 +55,7 @@ impl<'i> Parse<'i> for Time {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
       // Time is always compatible, so they will always compute to a value.
-      Ok(_) => unreachable!(),
+      Ok(_) => return Err(input.new_custom_error(ParserError::InvalidValue)),
       _ => {}
     }
 
@@ -44,7 +74,10 @@ impl<'i> Parse<'i> for Time {
 }
 
 impl ToCss for Time {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     // 0.1s is shorter than 100ms
     // anything smaller is longer
     match self {
@@ -80,7 +113,7 @@ impl std::convert::From<Calc<Time>> for Time {
   fn from(calc: Calc<Time>) -> Time {
     match calc {
       Calc::Value(v) => *v,
-      _ => unreachable!()
+      _ => unreachable!(),
     }
   }
 }
@@ -96,32 +129,9 @@ impl std::ops::Mul<f32> for Time {
   }
 }
 
-impl std::ops::Add<Time> for Time {
-  type Output = Self;
-
-  fn add(self, other: Time) -> Time {
-    match (self, other) {
-      (Time::Seconds(a), Time::Seconds(b)) => Time::Seconds(a + b),
-      (Time::Milliseconds(a), Time::Milliseconds(b)) => Time::Milliseconds(a + b),
-      (Time::Seconds(a), Time::Milliseconds(b)) => Time::Seconds(a + b / 1000.0),
-      (Time::Milliseconds(a), Time::Seconds(b)) => Time::Seconds(a + b * 1000.0),
-    }
-  }
-}
-
-impl std::cmp::PartialEq<f32> for Time {
-  fn eq(&self, other: &f32) -> bool {
-    match self {
-      Time::Seconds(a) | Time::Milliseconds(a) => a == other,
-    }
-  }
-}
-
-impl std::cmp::PartialOrd<f32> for Time {
-  fn partial_cmp(&self, other: &f32) -> Option<std::cmp::Ordering> {
-    match self {
-      Time::Seconds(a) | Time::Milliseconds(a) => a.partial_cmp(other),
-    }
+impl AddInternal for Time {
+  fn add(self, other: Self) -> Self {
+    self + other
   }
 }
 
@@ -130,3 +140,45 @@ impl std::cmp::PartialOrd<Time> for Time {
     self.to_ms().partial_cmp(&other.to_ms())
   }
 }
+
+impl Op for Time {
+  fn op<F: FnOnce(f32, f32) -> f32>(&self, to: &Self, op: F) -> Self {
+    match (self, to) {
+      (Time::Seconds(a), Time::Seconds(b)) => Time::Seconds(op(*a, *b)),
+      (Time::Milliseconds(a), Time::Milliseconds(b)) => Time::Milliseconds(op(*a, *b)),
+      (Time::Seconds(a), Time::Milliseconds(b)) => Time::Seconds(op(*a, b / 1000.0)),
+      (Time::Milliseconds(a), Time::Seconds(b)) => Time::Milliseconds(op(*a, b * 1000.0)),
+    }
+  }
+
+  fn op_to<T, F: FnOnce(f32, f32) -> T>(&self, rhs: &Self, op: F) -> T {
+    match (self, rhs) {
+      (Time::Seconds(a), Time::Seconds(b)) => op(*a, *b),
+      (Time::Milliseconds(a), Time::Milliseconds(b)) => op(*a, *b),
+      (Time::Seconds(a), Time::Milliseconds(b)) => op(*a, b / 1000.0),
+      (Time::Milliseconds(a), Time::Seconds(b)) => op(*a, b * 1000.0),
+    }
+  }
+}
+
+impl Map for Time {
+  fn map<F: FnOnce(f32) -> f32>(&self, op: F) -> Self {
+    match self {
+      Time::Seconds(t) => Time::Seconds(op(*t)),
+      Time::Milliseconds(t) => Time::Milliseconds(op(*t)),
+    }
+  }
+}
+
+impl Sign for Time {
+  fn sign(&self) -> f32 {
+    match self {
+      Time::Seconds(v) | Time::Milliseconds(v) => v.sign(),
+    }
+  }
+}
+
+impl_op!(Time, std::ops::Rem, rem);
+impl_op!(Time, std::ops::Add, add);
+
+impl_try_from_angle!(Time);

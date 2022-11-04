@@ -14,18 +14,18 @@ use smallvec::{Array, SmallVec};
 /// type which `push` method does only tweak a byte when we only need to check
 /// for the presence of something.
 pub trait Push<T> {
-    /// Push a value into self.
-    fn push(&mut self, value: T);
+  /// Push a value into self.
+  fn push(&mut self, value: T);
 }
 
 impl<T> Push<T> for Vec<T> {
-    fn push(&mut self, value: T) {
-        Vec::push(self, value);
-    }
+  fn push(&mut self, value: T) {
+    Vec::push(self, value);
+  }
 }
 
 impl<A: Array> Push<A::Item> for SmallVec<A> {
-    fn push(&mut self, value: A::Item) {
-        SmallVec::push(self, value);
-    }
+  fn push(&mut self, value: A::Item) {
+    SmallVec::push(self, value);
+  }
 }

@@ -1,36 +1,64 @@
-use cssparser::*;
-use crate::traits::{Parse, ToCss};
-use crate::printer::Printer;
-use crate::values::length::LengthPercentage;
-use crate::macros::enum_property;
-use crate::error::{ParserError, PrinterError};
-use crate::values::{url::Url, color::CssColor};
+//! CSS properties used in SVG.
 
-/// https://www.w3.org/TR/SVG2/painting.html#SpecifyingPaint
+use crate::error::{ParserError, PrinterError};
+use crate::macros::enum_property;
+use crate::printer::Printer;
+use crate::targets::Browsers;
+use crate::traits::{FallbackValues, Parse, ToCss};
+use crate::values::length::LengthPercentage;
+use crate::values::{color::CssColor, url::Url};
+use cssparser::*;
+
+/// An SVG [`<paint>`](https://www.w3.org/TR/SVG2/painting.html#SpecifyingPaint) value
+/// used in the `fill` and `stroke` properties.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum SVGPaint<'i> {
+  /// No paint.
   None,
-  Url(Url<'i>, Option<SVGPaintFallback>),
+  /// A URL reference to a paint server element, e.g. `linearGradient`, `radialGradient`, and `pattern`.
+  /// The fallback is used in case the paint server cannot be resolved.
+  Url(
+    #[cfg_attr(feature = "serde", serde(borrow))] Url<'i>,
+    Option<SVGPaintFallback>,
+  ),
+  /// A solid color paint.
   Color(CssColor),
+  /// Use the paint value of fill from a context element.
   ContextFill,
-  ContextStroke
+  /// Use the paint value of stroke from a context element.
+  ContextStroke,
 }
 
+/// A fallback for an SVG paint in case a paint server `url()` cannot be resolved.
+///
+/// See [SVGPaint](SVGPaint).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum SVGPaintFallback {
+  /// No fallback.
   None,
-  Color(CssColor)
+  /// A solid color.
+  Color(CssColor),
 }
 
 impl<'i> Parse<'i> for SVGPaint<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(url) = input.try_parse(Url::parse) {
       let fallback = input.try_parse(SVGPaintFallback::parse).ok();
-      return Ok(SVGPaint::Url(url, fallback))
+      return Ok(SVGPaint::Url(url, fallback));
     }
 
     if let Ok(color) = input.try_parse(CssColor::parse) {
-      return Ok(SVGPaint::Color(color))
+      return Ok(SVGPaint::Color(color));
     }
 
     let location = input.current_source_location();
@@ -47,7 +75,10 @@ impl<'i> Parse<'i> for SVGPaint<'i> {
 }
 
 impl<'i> ToCss for SVGPaint<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       SVGPaint::None => dest.write_str("none"),
       SVGPaint::Url(url, fallback) => {
@@ -60,7 +91,7 @@ impl<'i> ToCss for SVGPaint<'i> {
       }
       SVGPaint::Color(color) => color.to_css(dest),
       SVGPaint::ContextFill => dest.write_str("context-fill"),
-      SVGPaint::ContextStroke => dest.write_str("context-stroke")
+      SVGPaint::ContextStroke => dest.write_str("context-stroke"),
     }
   }
 }
@@ -68,7 +99,7 @@ impl<'i> ToCss for SVGPaint<'i> {
 impl<'i> Parse<'i> for SVGPaintFallback {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
-      return Ok(SVGPaintFallback::None)
+      return Ok(SVGPaintFallback::None);
     }
 
     Ok(SVGPaintFallback::Color(CssColor::parse(input)?))
@@ -76,43 +107,81 @@ impl<'i> Parse<'i> for SVGPaintFallback {
 }
 
 impl ToCss for SVGPaintFallback {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       SVGPaintFallback::None => dest.write_str("none"),
-      SVGPaintFallback::Color(color) => color.to_css(dest)
+      SVGPaintFallback::Color(color) => color.to_css(dest),
+    }
+  }
+}
+
+impl<'i> FallbackValues for SVGPaint<'i> {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+    match self {
+      SVGPaint::Color(color) => color
+        .get_fallbacks(targets)
+        .into_iter()
+        .map(|color| SVGPaint::Color(color))
+        .collect(),
+      SVGPaint::Url(url, Some(SVGPaintFallback::Color(color))) => color
+        .get_fallbacks(targets)
+        .into_iter()
+        .map(|color| SVGPaint::Url(url.clone(), Some(SVGPaintFallback::Color(color))))
+        .collect(),
+      _ => Vec::new(),
     }
   }
 }
 
 enum_property! {
+  /// A value for the [stroke-linecap](https://www.w3.org/TR/SVG2/painting.html#LineCaps) property.
   pub enum StrokeLinecap {
+    /// The stroke does not extend beyond its endpoints.
     Butt,
+    /// The ends of the stroke are rounded.
     Round,
+    /// The ends of the stroke are squared.
     Square,
   }
 }
 
 enum_property! {
+  /// A value for the [stroke-linejoin](https://www.w3.org/TR/SVG2/painting.html#LineJoin) property.
   pub enum StrokeLinejoin {
+    /// A sharp corner is to be used to join path segments.
     "miter": Miter,
+    /// Same as `miter` but clipped beyond `stroke-miterlimit`.
     "miter-clip": MiterClip,
+    /// A round corner is to be used to join path segments.
     "round": Round,
+    /// A bevelled corner is to be used to join path segments.
     "bevel": Bevel,
+    /// An arcs corner is to be used to join path segments.
     "arcs": Arcs,
   }
 }
 
-/// https://www.w3.org/TR/SVG2/painting.html#StrokeDashing
+/// A value for the [stroke-dasharray](https://www.w3.org/TR/SVG2/painting.html#StrokeDashing) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum StrokeDasharray {
+  /// No dashing is used.
   None,
-  Values(Vec<LengthPercentage>)
+  /// Specifies a dashing pattern to use.
+  Values(Vec<LengthPercentage>),
 }
 
 impl<'i> Parse<'i> for StrokeDasharray {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
-      return Ok(StrokeDasharray::None)
+      return Ok(StrokeDasharray::None);
     }
 
     input.skip_whitespace();
@@ -135,7 +204,10 @@ impl<'i> Parse<'i> for StrokeDasharray {
 }
 
 impl ToCss for StrokeDasharray {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       StrokeDasharray::None => dest.write_str("none"),
       StrokeDasharray::Values(values) => {
@@ -154,17 +226,25 @@ impl ToCss for StrokeDasharray {
   }
 }
 
-/// https://www.w3.org/TR/SVG2/painting.html#VertexMarkerProperties
+/// A value for the [marker](https://www.w3.org/TR/SVG2/painting.html#VertexMarkerProperties) properties.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum Marker<'i> {
+  /// No marker.
   None,
-  Url(Url<'i>)
+  /// A url reference to a `<marker>` element.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  Url(Url<'i>),
 }
 
 impl<'i> Parse<'i> for Marker<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(url) = input.try_parse(Url::parse) {
-      return Ok(Marker::Url(url))
+      return Ok(Marker::Url(url));
     }
 
     input.expect_ident_matching("none")?;
@@ -173,52 +253,77 @@ impl<'i> Parse<'i> for Marker<'i> {
 }
 
 impl<'i> ToCss for Marker<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       Marker::None => dest.write_str("none"),
-      Marker::Url(url) => url.to_css(dest)
+      Marker::Url(url) => url.to_css(dest),
     }
   }
 }
 
 enum_property! {
+  /// A value for the [color-interpolation](https://www.w3.org/TR/SVG2/painting.html#ColorInterpolation) property.
   pub enum ColorInterpolation {
+    /// The UA can choose between sRGB or linearRGB.
     Auto,
+    /// Color interpolation occurs in the sRGB color space.
     SRGB,
+    /// Color interpolation occurs in the linearized RGB color space
     LinearRGB,
   }
 }
 
 enum_property! {
+  /// A value for the [color-rendering](https://www.w3.org/TR/SVG2/painting.html#ColorRendering) property.
   pub enum ColorRendering {
+    /// The UA can choose a tradeoff between speed and quality.
     Auto,
+    /// The UA shall optimize speed over quality.
     OptimizeSpeed,
+    /// The UA shall optimize quality over speed.
     OptimizeQuality,
   }
 }
 
 enum_property! {
+  /// A value for the [shape-rendering](https://www.w3.org/TR/SVG2/painting.html#ShapeRendering) property.
   pub enum ShapeRendering {
+    /// The UA can choose an appropriate tradeoff.
     Auto,
+    /// The UA shall optimize speed.
     OptimizeSpeed,
+    /// The UA shall optimize crisp edges.
     CrispEdges,
+    /// The UA shall optimize geometric precision.
     GeometricPrecision,
   }
 }
 
 enum_property! {
+  /// A value for the [text-rendering](https://www.w3.org/TR/SVG2/painting.html#TextRendering) property.
   pub enum TextRendering {
+    /// The UA can choose an appropriate tradeoff.
     Auto,
+    /// The UA shall optimize speed.
     OptimizeSpeed,
+    /// The UA shall optimize legibility.
     OptimizeLegibility,
+    /// The UA shall optimize geometric precision.
     GeometricPrecision,
   }
 }
 
 enum_property! {
+  /// A value for the [image-rendering](https://www.w3.org/TR/SVG2/painting.html#ImageRendering) property.
   pub enum ImageRendering {
+    /// The UA can choose a tradeoff between speed and quality.
     Auto,
+    /// The UA shall optimize speed over quality.
     OptimizeSpeed,
+    /// The UA shall optimize quality over speed.
     OptimizeQuality,
   }
 }

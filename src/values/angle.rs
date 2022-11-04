@@ -1,29 +1,65 @@
-use cssparser::*;
-use crate::traits::{Parse, ToCss, TryAdd};
-use crate::printer::Printer;
-use super::calc::Calc;
-use std::f32::consts::PI;
-use super::percentage::DimensionPercentage;
-use super::length::serialize_dimension;
-use crate::error::{ParserError, PrinterError};
+//! CSS angle values.
 
+use super::calc::Calc;
+use super::length::serialize_dimension;
+use super::number::CSSNumber;
+use super::percentage::DimensionPercentage;
+use crate::error::{ParserError, PrinterError};
+use crate::printer::Printer;
+use crate::traits::{
+  impl_op,
+  private::{AddInternal, TryAdd},
+  Map, Op, Parse, Sign, ToCss, Zero,
+};
+use cssparser::*;
+use std::f32::consts::PI;
+
+/// A CSS [`<angle>`](https://www.w3.org/TR/css-values-4/#angles) value.
+///
+/// Angles may be explicit or computed by `calc()`, but are always stored and serialized
+/// as their computed value.
 #[derive(Debug, Clone)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum Angle {
-  Deg(f32),
-  Grad(f32),
-  Rad(f32),
-  Turn(f32)
+  /// An angle in degrees. There are 360 degrees in a full circle.
+  Deg(CSSNumber),
+  /// An angle in radians. There are 2π radians in a full circle.
+  Rad(CSSNumber),
+  /// An angle in gradians. There are 400 gradians in a full circle.
+  Grad(CSSNumber),
+  /// An angle in turns. There is 1 turn in a full circle.
+  Turn(CSSNumber),
 }
 
 impl<'i> Parse<'i> for Angle {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Self::parse_internal(input, false)
+  }
+}
+
+impl Angle {
+  /// Parses an angle, allowing unitless zero values.
+  pub fn parse_with_unitless_zero<'i, 't>(
+    input: &mut Parser<'i, 't>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Self::parse_internal(input, true)
+  }
+
+  fn parse_internal<'i, 't>(
+    input: &mut Parser<'i, 't>,
+    allow_unitless_zero: bool,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(Calc::parse) {
       Ok(Calc::Value(v)) => return Ok(*v),
       // Angles are always compatible, so they will always compute to a value.
-      Ok(_) => unreachable!(),
+      Ok(_) => return Err(input.new_custom_error(ParserError::InvalidValue)),
       _ => {}
     }
-    
+
     let location = input.current_source_location();
     let token = input.next()?;
     match *token {
@@ -35,14 +71,18 @@ impl<'i> Parse<'i> for Angle {
           "rad" => Ok(Angle::Rad(value)),
           _ => return Err(location.new_unexpected_token_error(token.clone())),
         }
-      },
+      }
+      Token::Number { value, .. } if value == 0.0 && allow_unitless_zero => Ok(Angle::zero()),
       ref token => return Err(location.new_unexpected_token_error(token.clone())),
     }
   }
 }
 
 impl ToCss for Angle {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let (value, unit) = match self {
       Angle::Deg(val) => (*val, "deg"),
       Angle::Grad(val) => (*val, "grad"),
@@ -55,8 +95,8 @@ impl ToCss for Angle {
         } else {
           (*val, "rad")
         }
-      },
-      Angle::Turn(val) => (*val, "turn")
+      }
+      Angle::Turn(val) => (*val, "turn"),
     };
 
     serialize_dimension(value, unit, dest)
@@ -64,14 +104,22 @@ impl ToCss for Angle {
 }
 
 impl Angle {
-  pub fn is_zero(&self) -> bool {
-    use Angle::*;
-    match self {
-      Deg(v) | Rad(v) | Grad(v) | Turn(v) => *v == 0.0,
+  /// Prints the angle, allowing unitless zero values.
+  pub fn to_css_with_unitless_zero<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    if self.is_zero() {
+      (0.0).to_css(dest)
+    } else {
+      self.to_css(dest)
     }
   }
+}
 
-  pub fn to_radians(&self) -> f32 {
+impl Angle {
+  /// Returns the angle in radians.
+  pub fn to_radians(&self) -> CSSNumber {
     const RAD_PER_DEG: f32 = PI / 180.0;
     match self {
       Angle::Deg(deg) => deg * RAD_PER_DEG,
@@ -81,7 +129,8 @@ impl Angle {
     }
   }
 
-  pub fn to_degrees(&self) -> f32 {
+  /// Returns the angle in degrees.
+  pub fn to_degrees(&self) -> CSSNumber {
     const DEG_PER_RAD: f32 = 180.0 / PI;
     match self {
       Angle::Deg(deg) => *deg,
@@ -92,39 +141,50 @@ impl Angle {
   }
 }
 
-impl std::convert::Into<Calc<Angle>> for Angle {
+impl Zero for Angle {
+  fn is_zero(&self) -> bool {
+    use Angle::*;
+    match self {
+      Deg(v) | Rad(v) | Grad(v) | Turn(v) => *v == 0.0,
+    }
+  }
+
+  fn zero() -> Self {
+    Angle::Deg(0.0)
+  }
+}
+
+impl Into<Calc<Angle>> for Angle {
   fn into(self) -> Calc<Angle> {
     Calc::Value(Box::new(self))
   }
 }
 
-impl std::convert::From<Calc<Angle>> for Angle {
+impl From<Calc<Angle>> for Angle {
   fn from(calc: Calc<Angle>) -> Angle {
     match calc {
       Calc::Value(v) => *v,
-      _ => unreachable!()
+      _ => unreachable!(),
     }
   }
 }
 
-impl std::ops::Mul<f32> for Angle {
+impl std::ops::Mul<CSSNumber> for Angle {
   type Output = Self;
 
-  fn mul(self, other: f32) -> Angle {
+  fn mul(self, other: CSSNumber) -> Angle {
     match self {
       Angle::Deg(v) => Angle::Deg(v * other),
-      Angle::Rad(v) => Angle::Deg(v * other),
-      Angle::Grad(v) => Angle::Deg(v * other),
-      Angle::Turn(v) => Angle::Deg(v * other),
+      Angle::Rad(v) => Angle::Rad(v * other),
+      Angle::Grad(v) => Angle::Grad(v * other),
+      Angle::Turn(v) => Angle::Turn(v * other),
     }
   }
 }
 
-impl std::ops::Add<Angle> for Angle {
-  type Output = Self;
-
-  fn add(self, other: Angle) -> Angle {
-    Angle::Deg(self.to_degrees() + other.to_degrees())
+impl AddInternal for Angle {
+  fn add(self, other: Self) -> Self {
+    self + other
   }
 }
 
@@ -134,25 +194,9 @@ impl TryAdd<Angle> for Angle {
   }
 }
 
-impl std::cmp::PartialEq<f32> for Angle {
-  fn eq(&self, other: &f32) -> bool {
-    match self {
-      Angle::Deg(a) | Angle::Rad(a) | Angle::Grad(a) | Angle::Turn(a) => a == other,
-    }
-  }
-}
-
 impl std::cmp::PartialEq<Angle> for Angle {
   fn eq(&self, other: &Angle) -> bool {
     self.to_degrees() == other.to_degrees()
-  }
-}
-
-impl std::cmp::PartialOrd<f32> for Angle {
-  fn partial_cmp(&self, other: &f32) -> Option<std::cmp::Ordering> {
-    match self {
-      Angle::Deg(a) | Angle::Rad(a) | Angle::Grad(a) | Angle::Turn(a) => a.partial_cmp(other),
-    }
   }
 }
 
@@ -162,5 +206,63 @@ impl std::cmp::PartialOrd<Angle> for Angle {
   }
 }
 
-/// https://drafts.csswg.org/css-values-4/#typedef-angle-percentage
+impl Op for Angle {
+  fn op<F: FnOnce(f32, f32) -> f32>(&self, other: &Self, op: F) -> Self {
+    match (self, other) {
+      (Angle::Deg(a), Angle::Deg(b)) => Angle::Deg(op(*a, *b)),
+      (Angle::Rad(a), Angle::Rad(b)) => Angle::Rad(op(*a, *b)),
+      (Angle::Grad(a), Angle::Grad(b)) => Angle::Grad(op(*a, *b)),
+      (Angle::Turn(a), Angle::Turn(b)) => Angle::Turn(op(*a, *b)),
+      (a, b) => Angle::Deg(op(a.to_degrees(), b.to_degrees())),
+    }
+  }
+
+  fn op_to<T, F: FnOnce(f32, f32) -> T>(&self, other: &Self, op: F) -> T {
+    match (self, other) {
+      (Angle::Deg(a), Angle::Deg(b)) => op(*a, *b),
+      (Angle::Rad(a), Angle::Rad(b)) => op(*a, *b),
+      (Angle::Grad(a), Angle::Grad(b)) => op(*a, *b),
+      (Angle::Turn(a), Angle::Turn(b)) => op(*a, *b),
+      (a, b) => op(a.to_degrees(), b.to_degrees()),
+    }
+  }
+}
+
+impl Map for Angle {
+  fn map<F: FnOnce(f32) -> f32>(&self, op: F) -> Self {
+    match self {
+      Angle::Deg(deg) => Angle::Deg(op(*deg)),
+      Angle::Rad(rad) => Angle::Rad(op(*rad)),
+      Angle::Grad(grad) => Angle::Grad(op(*grad)),
+      Angle::Turn(turn) => Angle::Turn(op(*turn)),
+    }
+  }
+}
+
+impl Sign for Angle {
+  fn sign(&self) -> f32 {
+    match self {
+      Angle::Deg(v) | Angle::Rad(v) | Angle::Grad(v) | Angle::Turn(v) => v.sign(),
+    }
+  }
+}
+
+impl_op!(Angle, std::ops::Rem, rem);
+impl_op!(Angle, std::ops::Add, add);
+
+/// A CSS [`<angle-percentage>`](https://www.w3.org/TR/css-values-4/#typedef-angle-percentage) value.
+/// May be specified as either an angle or a percentage that resolves to an angle.
 pub type AnglePercentage = DimensionPercentage<Angle>;
+
+macro_rules! impl_try_from_angle {
+  ($t: ty) => {
+    impl TryFrom<crate::values::angle::Angle> for $t {
+      type Error = ();
+      fn try_from(_: crate::values::angle::Angle) -> Result<Self, Self::Error> {
+        Err(())
+      }
+    }
+  };
+}
+
+pub(crate) use impl_try_from_angle;

@@ -1,26 +1,35 @@
-use cssparser::*;
-use crate::macros::*;
-use crate::values::{
-  length::{LengthPercentageOrAuto, LengthPercentage},
-  percentage::Percentage
+//! CSS properties related to flexbox layout.
+
+use super::align::{
+  AlignContent, AlignItems, AlignSelf, ContentDistribution, ContentPosition, JustifyContent, SelfPosition,
 };
-use crate::traits::{Parse, ToCss, PropertyHandler, FromStandard};
 use super::{Property, PropertyId};
-use crate::vendor_prefix::VendorPrefix;
-use crate::declaration::DeclarationList;
-use super::align::{JustifyContent, ContentDistribution, ContentPosition, AlignItems, SelfPosition, AlignSelf, AlignContent};
+use crate::context::PropertyHandlerContext;
+use crate::declaration::{DeclarationBlock, DeclarationList};
+use crate::error::{ParserError, PrinterError};
+use crate::macros::*;
+use crate::prefixes::{is_flex_2009, Feature};
 use crate::printer::Printer;
 use crate::targets::Browsers;
-use crate::prefixes::{Feature, is_flex_2009};
-use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::traits::{FromStandard, Parse, PropertyHandler, Shorthand, ToCss, Zero};
+use crate::values::number::{CSSInteger, CSSNumber};
+use crate::values::{
+  length::{LengthPercentage, LengthPercentageOrAuto},
+  percentage::Percentage,
+};
+use crate::vendor_prefix::VendorPrefix;
+use cssparser::*;
 
 enum_property! {
-  /// https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#propdef-flex-direction
+  /// A value for the [flex-direction](https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#propdef-flex-direction) property.
   pub enum FlexDirection {
+    /// Flex items are laid out in a row.
     "row": Row,
+    /// Flex items are laid out in a row, and reversed.
     "row-reverse": RowReverse,
+    /// Flex items are laid out in a column.
     "column": Column,
+    /// Flex items are laid out in a column, and reversed.
     "column-reverse": ColumnReverse,
   }
 }
@@ -32,10 +41,13 @@ impl Default for FlexDirection {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#flex-wrap-property
+  /// A value for the [flex-wrap](https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#flex-wrap-property) property.
   pub enum FlexWrap {
+    /// The flex items do not wrap.
     "nowrap": NoWrap,
+    /// The flex items wrap.
     "wrap": Wrap,
+    /// The flex items wrap, in reverse.
     "wrap-reverse": WrapReverse,
   }
 }
@@ -52,11 +64,14 @@ impl FromStandard<FlexWrap> for FlexWrap {
   }
 }
 
-/// https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#flex-flow-property
-#[derive(Debug, Clone, PartialEq)]
-pub struct FlexFlow {
-  pub direction: FlexDirection,
-  pub wrap: FlexWrap
+define_shorthand! {
+  /// A value for the [flex-flow](https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#flex-flow-property) shorthand property.
+  pub struct FlexFlow(VendorPrefix) {
+    /// The direction that flex items flow.
+    direction: FlexDirection(FlexDirection, VendorPrefix),
+    /// How the flex items wrap.
+    wrap: FlexWrap(FlexWrap, VendorPrefix),
+  }
 }
 
 impl<'i> Parse<'i> for FlexFlow {
@@ -67,27 +82,30 @@ impl<'i> Parse<'i> for FlexFlow {
       if direction.is_none() {
         if let Ok(value) = input.try_parse(FlexDirection::parse) {
           direction = Some(value);
-          continue
+          continue;
         }
       }
       if wrap.is_none() {
         if let Ok(value) = input.try_parse(FlexWrap::parse) {
           wrap = Some(value);
-          continue
+          continue;
         }
       }
-      break
+      break;
     }
 
     Ok(FlexFlow {
       direction: direction.unwrap_or_default(),
-      wrap: wrap.unwrap_or_default()
+      wrap: wrap.unwrap_or_default(),
     })
   }
 }
 
 impl ToCss for FlexFlow {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let mut needs_space = false;
     if self.direction != FlexDirection::default() || self.wrap == FlexWrap::default() {
       self.direction.to_css(dest)?;
@@ -105,11 +123,16 @@ impl ToCss for FlexFlow {
   }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Flex {
-  pub grow: f32,
-  pub shrink: f32,
-  pub basis: LengthPercentageOrAuto
+define_shorthand! {
+/// A value for the [flex](https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119/#flex-property) shorthand property.
+  pub struct Flex(VendorPrefix) {
+    /// The flex grow factor.
+    grow: FlexGrow(CSSNumber, VendorPrefix),
+    /// The flex shrink factor.
+    shrink: FlexShrink(CSSNumber, VendorPrefix),
+    /// The flex basis.
+    basis: FlexBasis(LengthPercentageOrAuto, VendorPrefix),
+  }
 }
 
 impl<'i> Parse<'i> for Flex {
@@ -118,8 +141,8 @@ impl<'i> Parse<'i> for Flex {
       return Ok(Flex {
         grow: 0.0,
         shrink: 0.0,
-        basis: LengthPercentageOrAuto::Auto
-      })
+        basis: LengthPercentageOrAuto::Auto,
+      });
     }
 
     let mut grow = None;
@@ -128,53 +151,71 @@ impl<'i> Parse<'i> for Flex {
 
     loop {
       if grow.is_none() {
-        if let Ok(val) = input.try_parse(f32::parse) {
+        if let Ok(val) = input.try_parse(CSSNumber::parse) {
           grow = Some(val);
-          shrink = input.try_parse(f32::parse).ok();
-          continue
+          shrink = input.try_parse(CSSNumber::parse).ok();
+          continue;
         }
       }
 
       if basis.is_none() {
         if let Ok(val) = input.try_parse(LengthPercentageOrAuto::parse) {
           basis = Some(val);
-          continue
+          continue;
         }
       }
 
-      break
+      break;
     }
 
     Ok(Flex {
       grow: grow.unwrap_or(1.0),
       shrink: shrink.unwrap_or(1.0),
-      basis: basis.unwrap_or(LengthPercentageOrAuto::LengthPercentage(LengthPercentage::Percentage(Percentage(0.0))))
+      basis: basis.unwrap_or(LengthPercentageOrAuto::LengthPercentage(LengthPercentage::Percentage(
+        Percentage(0.0),
+      ))),
     })
   }
 }
 
 impl ToCss for Flex {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     if self.grow == 0.0 && self.shrink == 0.0 && self.basis == LengthPercentageOrAuto::Auto {
       dest.write_str("none")?;
-      return Ok(())
+      return Ok(());
     }
 
-    let is_basis_zero = match &self.basis {
-      LengthPercentageOrAuto::LengthPercentage(lp) => *lp == 0.0,
-      _ => false
+    #[derive(PartialEq)]
+    enum ZeroKind {
+      NonZero,
+      Length,
+      Percentage,
+    }
+
+    // If the basis is unitless 0, we must write all three components to disambiguate.
+    // If the basis is 0%, we can omit the basis.
+    let basis_kind = match &self.basis {
+      LengthPercentageOrAuto::LengthPercentage(lp) => match lp {
+        LengthPercentage::Dimension(l) if l.is_zero() => ZeroKind::Length,
+        LengthPercentage::Percentage(p) if p.is_zero() => ZeroKind::Percentage,
+        _ => ZeroKind::NonZero,
+      },
+      _ => ZeroKind::NonZero,
     };
 
-    if self.grow != 1.0 || self.shrink != 1.0 || is_basis_zero {
+    if self.grow != 1.0 || self.shrink != 1.0 || basis_kind != ZeroKind::NonZero {
       self.grow.to_css(dest)?;
-      if self.shrink != 1.0 {
+      if self.shrink != 1.0 || basis_kind == ZeroKind::Length {
         dest.write_str(" ")?;
         self.shrink.to_css(dest)?;
       }
     }
 
-    if !is_basis_zero {
-      if self.grow != 1.0 || self.shrink != 1.0 {
+    if basis_kind != ZeroKind::Percentage {
+      if self.grow != 1.0 || self.shrink != 1.0 || basis_kind == ZeroKind::Length {
         dest.write_str(" ")?;
       }
       self.basis.to_css(dest)?;
@@ -187,10 +228,16 @@ impl ToCss for Flex {
 // Old flex (2009): https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/
 
 enum_property! {
+  /// A value for the legacy (prefixed) [box-orient](https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/#orientation) property.
+  /// Partially equivalent to `flex-direction` in the standard syntax.
   pub enum BoxOrient {
+    /// Items are laid out horizontally.
     "horizontal": Horizontal,
+    /// Items are laid out vertically.
     "vertical": Vertical,
+    /// Items are laid out along the inline axis, according to the writing direction.
     "inline-axis": InlineAxis,
+    /// Items are laid out along the block axis, according to the writing direction.
     "block-axis": BlockAxis,
   }
 }
@@ -201,24 +248,35 @@ impl FlexDirection {
       FlexDirection::Row => (BoxOrient::Horizontal, BoxDirection::Normal),
       FlexDirection::Column => (BoxOrient::Vertical, BoxDirection::Normal),
       FlexDirection::RowReverse => (BoxOrient::Horizontal, BoxDirection::Reverse),
-      FlexDirection::ColumnReverse => (BoxOrient::Vertical, BoxDirection::Reverse)
+      FlexDirection::ColumnReverse => (BoxOrient::Vertical, BoxDirection::Reverse),
     }
   }
 }
 
 enum_property! {
+  /// A value for the legacy (prefixed) [box-direction](https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/#displayorder) property.
+  /// Partially equivalent to the `flex-direction` property in the standard syntax.
   pub enum BoxDirection {
+    /// Items flow in the natural direction.
     Normal,
+    /// Items flow in the reverse direction.
     Reverse,
   }
 }
 
 enum_property! {
+  /// A value for the legacy (prefixed) [box-align](https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/#alignment) property.
+  /// Equivalent to the `align-items` property in the standard syntax.
   pub enum BoxAlign {
+    /// Items are aligned to the start.
     Start,
+    /// Items are aligned to the end.
     End,
+    /// Items are centered.
     Center,
+    /// Items are aligned to the baseline.
     Baseline,
+    /// Items are stretched.
     Stretch,
   }
 }
@@ -226,25 +284,29 @@ enum_property! {
 impl FromStandard<AlignItems> for BoxAlign {
   fn from_standard(align: &AlignItems) -> Option<BoxAlign> {
     match align {
-      AlignItems::SelfPosition(None, sp) => {
-        match sp {
-          SelfPosition::Start | SelfPosition::FlexStart => Some(BoxAlign::Start),
-          SelfPosition::End | SelfPosition::FlexEnd => Some(BoxAlign::End),
-          SelfPosition::Center => Some(BoxAlign::Center),
-          _ => None
-        }
-      }
+      AlignItems::SelfPosition(None, sp) => match sp {
+        SelfPosition::Start | SelfPosition::FlexStart => Some(BoxAlign::Start),
+        SelfPosition::End | SelfPosition::FlexEnd => Some(BoxAlign::End),
+        SelfPosition::Center => Some(BoxAlign::Center),
+        _ => None,
+      },
       AlignItems::Stretch => Some(BoxAlign::Stretch),
-      _ => None
+      _ => None,
     }
   }
 }
 
 enum_property! {
+  /// A value for the legacy (prefixed) [box-pack](https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/#packing) property.
+  /// Equivalent to the `justify-content` property in the standard syntax.
   pub enum BoxPack {
+    /// Items are justified to the start.
     Start,
+    /// Items are justified to the end.
     End,
+    /// Items are centered.
     Center,
+    /// Items are justifed to the start and end.
     Justify,
   }
 }
@@ -252,27 +314,27 @@ enum_property! {
 impl FromStandard<JustifyContent> for BoxPack {
   fn from_standard(justify: &JustifyContent) -> Option<BoxPack> {
     match justify {
-      JustifyContent::ContentDistribution(cd) => {
-        match cd {
-          ContentDistribution::SpaceBetween => Some(BoxPack::Justify),
-          _ => None
-        }
-      }
-      JustifyContent::ContentPosition(None, pos) => {
-        match pos {
-          ContentPosition::Start | ContentPosition::FlexStart => Some(BoxPack::Start),
-          ContentPosition::End | ContentPosition::FlexEnd => Some(BoxPack::End),
-          ContentPosition::Center => Some(BoxPack::Center)
-        }
-      }
-      _ => None
+      JustifyContent::ContentDistribution(cd) => match cd {
+        ContentDistribution::SpaceBetween => Some(BoxPack::Justify),
+        _ => None,
+      },
+      JustifyContent::ContentPosition(None, pos) => match pos {
+        ContentPosition::Start | ContentPosition::FlexStart => Some(BoxPack::Start),
+        ContentPosition::End | ContentPosition::FlexEnd => Some(BoxPack::End),
+        ContentPosition::Center => Some(BoxPack::Center),
+      },
+      _ => None,
     }
   }
 }
 
 enum_property! {
+  /// A value for the legacy (prefixed) [box-lines](https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/#multiple) property.
+  /// Equivalent to the `flex-wrap` property in the standard syntax.
   pub enum BoxLines {
+    /// Items are laid out in a single line.
     Single,
+    /// Items may wrap into multiple lines.
     Multiple,
   }
 }
@@ -282,14 +344,14 @@ impl FromStandard<FlexWrap> for BoxLines {
     match wrap {
       FlexWrap::NoWrap => Some(BoxLines::Single),
       FlexWrap::Wrap => Some(BoxLines::Multiple),
-      _ => None
+      _ => None,
     }
   }
 }
 
-type BoxOrdinalGroup = f32;
-impl FromStandard<f32> for BoxOrdinalGroup {
-  fn from_standard(order: &f32) -> Option<BoxOrdinalGroup> {
+type BoxOrdinalGroup = CSSInteger;
+impl FromStandard<CSSInteger> for BoxOrdinalGroup {
+  fn from_standard(order: &CSSInteger) -> Option<BoxOrdinalGroup> {
     Some(*order)
   }
 }
@@ -297,11 +359,18 @@ impl FromStandard<f32> for BoxOrdinalGroup {
 // Old flex (2012): https://www.w3.org/TR/2012/WD-css3-flexbox-20120322/
 
 enum_property! {
+  /// A value for the legacy (prefixed) [flex-pack](https://www.w3.org/TR/2012/WD-css3-flexbox-20120322/#flex-pack) property.
+  /// Equivalent to the `justify-content` property in the standard syntax.
   pub enum FlexPack {
+    /// Items are justified to the start.
     Start,
+    /// Items are justified to the end.
     End,
+    /// Items are centered.
     Center,
+    /// Items are justified to the start and end.
     Justify,
+    /// Items are distributed evenly, with half size spaces on either end.
     Distribute,
   }
 }
@@ -309,34 +378,39 @@ enum_property! {
 impl FromStandard<JustifyContent> for FlexPack {
   fn from_standard(justify: &JustifyContent) -> Option<FlexPack> {
     match justify {
-      JustifyContent::ContentDistribution(cd) => {
-        match cd {
-          ContentDistribution::SpaceBetween => Some(FlexPack::Justify),
-          ContentDistribution::SpaceAround => Some(FlexPack::Distribute),
-          _ => None
-        }
-      }
-      JustifyContent::ContentPosition(None, pos) => {
-        match pos {
-          ContentPosition::Start | ContentPosition::FlexStart => Some(FlexPack::Start),
-          ContentPosition::End | ContentPosition::FlexEnd => Some(FlexPack::End),
-          ContentPosition::Center => Some(FlexPack::Center)
-        }
-      }
-      _ => None
+      JustifyContent::ContentDistribution(cd) => match cd {
+        ContentDistribution::SpaceBetween => Some(FlexPack::Justify),
+        ContentDistribution::SpaceAround => Some(FlexPack::Distribute),
+        _ => None,
+      },
+      JustifyContent::ContentPosition(None, pos) => match pos {
+        ContentPosition::Start | ContentPosition::FlexStart => Some(FlexPack::Start),
+        ContentPosition::End | ContentPosition::FlexEnd => Some(FlexPack::End),
+        ContentPosition::Center => Some(FlexPack::Center),
+      },
+      _ => None,
     }
   }
 }
 
+/// A value for the legacy (prefixed) [flex-align](https://www.w3.org/TR/2012/WD-css3-flexbox-20120322/#flex-align) property.
 pub type FlexAlign = BoxAlign;
 
 enum_property! {
+  /// A value for the legacy (prefixed) [flex-item-align](https://www.w3.org/TR/2012/WD-css3-flexbox-20120322/#flex-align) property.
+  /// Equivalent to the `align-self` property in the standard syntax.
   pub enum FlexItemAlign {
+    /// Equivalent to the value of `flex-align`.
     Auto,
+    /// The item is aligned to the start.
     Start,
+    /// The item is aligned to the end.
     End,
+    /// The item is centered.
     Center,
+    /// The item is aligned to the baseline.
     Baseline,
+    /// The item is stretched.
     Stretch,
   }
 }
@@ -346,26 +420,32 @@ impl FromStandard<AlignSelf> for FlexItemAlign {
     match justify {
       AlignSelf::Auto => Some(FlexItemAlign::Auto),
       AlignSelf::Stretch => Some(FlexItemAlign::Stretch),
-      AlignSelf::SelfPosition(None, pos) => {
-        match pos {
-          SelfPosition::Start | SelfPosition::FlexStart => Some(FlexItemAlign::Start),
-          SelfPosition::End | SelfPosition::FlexEnd => Some(FlexItemAlign::End),
-          SelfPosition::Center => Some(FlexItemAlign::Center),
-          _ => None
-        }
-      }
-      _ => None
+      AlignSelf::SelfPosition(None, pos) => match pos {
+        SelfPosition::Start | SelfPosition::FlexStart => Some(FlexItemAlign::Start),
+        SelfPosition::End | SelfPosition::FlexEnd => Some(FlexItemAlign::End),
+        SelfPosition::Center => Some(FlexItemAlign::Center),
+        _ => None,
+      },
+      _ => None,
     }
   }
 }
 
 enum_property! {
+  /// A value for the legacy (prefixed) [flex-line-pack](https://www.w3.org/TR/2012/WD-css3-flexbox-20120322/#flex-line-pack) property.
+  /// Equivalent to the `align-content` property in the standard syntax.
   pub enum FlexLinePack {
+    /// Content is aligned to the start.
     Start,
+    /// Content is aligned to the end.
     End,
+    /// Content is centered.
     Center,
+    /// Content is justified.
     Justify,
+    /// Content is distributed evenly, with half size spaces on either end.
     Distribute,
+    /// Content is stretched.
     Stretch,
   }
 }
@@ -373,22 +453,18 @@ enum_property! {
 impl FromStandard<AlignContent> for FlexLinePack {
   fn from_standard(justify: &AlignContent) -> Option<FlexLinePack> {
     match justify {
-      AlignContent::ContentDistribution(cd) => {
-        match cd {
-          ContentDistribution::SpaceBetween => Some(FlexLinePack::Justify),
-          ContentDistribution::SpaceAround => Some(FlexLinePack::Distribute),
-          ContentDistribution::Stretch => Some(FlexLinePack::Stretch),
-          _ => None
-        }
-      }
-      AlignContent::ContentPosition(None, pos) => {
-        match pos {
-          ContentPosition::Start | ContentPosition::FlexStart => Some(FlexLinePack::Start),
-          ContentPosition::End | ContentPosition::FlexEnd => Some(FlexLinePack::End),
-          ContentPosition::Center => Some(FlexLinePack::Center)
-        }
-      }
-      _ => None
+      AlignContent::ContentDistribution(cd) => match cd {
+        ContentDistribution::SpaceBetween => Some(FlexLinePack::Justify),
+        ContentDistribution::SpaceAround => Some(FlexLinePack::Distribute),
+        ContentDistribution::Stretch => Some(FlexLinePack::Stretch),
+        _ => None,
+      },
+      AlignContent::ContentPosition(None, pos) => match pos {
+        ContentPosition::Start | ContentPosition::FlexStart => Some(FlexLinePack::Start),
+        ContentPosition::End | ContentPosition::FlexEnd => Some(FlexLinePack::End),
+        ContentPosition::Center => Some(FlexLinePack::Center),
+      },
+      _ => None,
     }
   }
 }
@@ -401,17 +477,17 @@ pub(crate) struct FlexHandler {
   box_direction: Option<(BoxDirection, VendorPrefix)>,
   wrap: Option<(FlexWrap, VendorPrefix)>,
   box_lines: Option<(BoxLines, VendorPrefix)>,
-  grow: Option<(f32, VendorPrefix)>,
-  box_flex: Option<(f32, VendorPrefix)>,
-  flex_positive: Option<(f32, VendorPrefix)>,
-  shrink: Option<(f32, VendorPrefix)>,
-  flex_negative: Option<(f32, VendorPrefix)>,
+  grow: Option<(CSSNumber, VendorPrefix)>,
+  box_flex: Option<(CSSNumber, VendorPrefix)>,
+  flex_positive: Option<(CSSNumber, VendorPrefix)>,
+  shrink: Option<(CSSNumber, VendorPrefix)>,
+  flex_negative: Option<(CSSNumber, VendorPrefix)>,
   basis: Option<(LengthPercentageOrAuto, VendorPrefix)>,
   preferred_size: Option<(LengthPercentageOrAuto, VendorPrefix)>,
-  order: Option<(f32, VendorPrefix)>,
+  order: Option<(CSSInteger, VendorPrefix)>,
   box_ordinal_group: Option<(BoxOrdinalGroup, VendorPrefix)>,
-  flex_order: Option<(f32, VendorPrefix)>,
-  has_any: bool
+  flex_order: Option<(CSSInteger, VendorPrefix)>,
+  has_any: bool,
 }
 
 impl FlexHandler {
@@ -424,7 +500,12 @@ impl FlexHandler {
 }
 
 impl<'i> PropertyHandler<'i> for FlexHandler {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
+  fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    dest: &mut DeclarationList<'i>,
+    _: &mut PropertyHandlerContext<'i, '_>,
+  ) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -461,7 +542,7 @@ impl<'i> PropertyHandler<'i> for FlexHandler {
           self.box_orient = None;
         }
         property!(direction, val, vp);
-      },
+      }
       BoxOrient(val, vp) => property!(box_orient, val, vp),
       BoxDirection(val, vp) => property!(box_direction, val, vp),
       FlexWrap(val, vp) => {
@@ -469,7 +550,7 @@ impl<'i> PropertyHandler<'i> for FlexHandler {
           self.box_lines = None;
         }
         property!(wrap, val, vp);
-      },
+      }
       BoxLines(val, vp) => property!(box_lines, val, vp),
       FlexFlow(val, vp) => {
         if self.targets.is_some() {
@@ -485,7 +566,7 @@ impl<'i> PropertyHandler<'i> for FlexHandler {
           self.flex_positive = None;
         }
         property!(grow, val, vp);
-      },
+      }
       BoxFlex(val, vp) => property!(box_flex, val, vp),
       FlexPositive(val, vp) => property!(flex_positive, val, vp),
       FlexShrink(val, vp) => {
@@ -493,7 +574,7 @@ impl<'i> PropertyHandler<'i> for FlexHandler {
           self.flex_negative = None;
         }
         property!(shrink, val, vp);
-      },
+      }
       FlexNegative(val, vp) => property!(flex_negative, val, vp),
       FlexBasis(val, vp) => {
         if self.targets.is_some() {
@@ -529,22 +610,21 @@ impl<'i> PropertyHandler<'i> for FlexHandler {
         self.flush(dest);
         dest.push(property.clone()) // TODO: prefix?
       }
-      _ => return false
+      _ => return false,
     }
 
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut PropertyHandlerContext<'i, '_>) {
     self.flush(dest);
   }
 }
 
-
 impl FlexHandler {
   fn flush(&mut self, dest: &mut DeclarationList) {
     if !self.has_any {
-      return
+      return;
     }
 
     self.has_any = false;
@@ -589,7 +669,7 @@ impl FlexHandler {
                     }
                   }
                 )?
-                
+
                 $(
                   let mut ms = true;
                   if prefix.contains(VendorPrefix::Ms) {
@@ -649,8 +729,8 @@ impl FlexHandler {
         }
       }
     }
-    
-    if let (Some((direction, dir_prefix)), Some((wrap, wrap_prefix))) = (&mut direction, &mut wrap) {      
+
+    if let (Some((direction, dir_prefix)), Some((wrap, wrap_prefix))) = (&mut direction, &mut wrap) {
       let intersection = *dir_prefix & *wrap_prefix;
       if !intersection.is_empty() {
         let mut prefix = intersection;
@@ -661,10 +741,13 @@ impl FlexHandler {
             prefix.remove(VendorPrefix::Moz);
           }
         }
-        dest.push(Property::FlexFlow(FlexFlow {
-          direction: *direction,
-          wrap: *wrap
-        }, prefix));
+        dest.push(Property::FlexFlow(
+          FlexFlow {
+            direction: *direction,
+            wrap: *wrap,
+          },
+          prefix,
+        ));
         dir_prefix.remove(intersection);
         wrap_prefix.remove(intersection);
       }
@@ -689,7 +772,9 @@ impl FlexHandler {
       }
     }
 
-    if let (Some((grow, grow_prefix)), Some((shrink, shrink_prefix)), Some((basis, basis_prefix))) = (&mut grow, &mut shrink, &mut basis) {
+    if let (Some((grow, grow_prefix)), Some((shrink, shrink_prefix)), Some((basis, basis_prefix))) =
+      (&mut grow, &mut shrink, &mut basis)
+    {
       let intersection = *grow_prefix & *shrink_prefix & *basis_prefix;
       if !intersection.is_empty() {
         let mut prefix = intersection;
@@ -700,11 +785,14 @@ impl FlexHandler {
             prefix.remove(VendorPrefix::Moz);
           }
         }
-        dest.push(Property::Flex(Flex {
-          grow: *grow,
-          shrink: *shrink,
-          basis: basis.clone()
-        }, prefix));
+        dest.push(Property::Flex(
+          Flex {
+            grow: *grow,
+            shrink: *shrink,
+            basis: basis.clone(),
+          },
+          prefix,
+        ));
         grow_prefix.remove(intersection);
         shrink_prefix.remove(intersection);
         basis_prefix.remove(intersection);
@@ -721,23 +809,23 @@ impl FlexHandler {
 #[inline]
 fn is_flex_property(property_id: &PropertyId) -> bool {
   match property_id {
-    PropertyId::FlexDirection(_) |
-    PropertyId::BoxOrient(_) |
-    PropertyId::BoxDirection(_) |
-    PropertyId::FlexWrap(_) |
-    PropertyId::BoxLines(_) |
-    PropertyId::FlexFlow(_) |
-    PropertyId::FlexGrow(_) |
-    PropertyId::BoxFlex(_) |
-    PropertyId::FlexPositive(_) |
-    PropertyId::FlexShrink(_) |
-    PropertyId::FlexNegative(_) |
-    PropertyId::FlexBasis(_) |
-    PropertyId::FlexPreferredSize(_) |
-    PropertyId::Flex(_) |
-    PropertyId::Order(_) |
-    PropertyId::BoxOrdinalGroup(_) |
-    PropertyId::FlexOrder(_) => true,
-    _ => false
+    PropertyId::FlexDirection(_)
+    | PropertyId::BoxOrient(_)
+    | PropertyId::BoxDirection(_)
+    | PropertyId::FlexWrap(_)
+    | PropertyId::BoxLines(_)
+    | PropertyId::FlexFlow(_)
+    | PropertyId::FlexGrow(_)
+    | PropertyId::BoxFlex(_)
+    | PropertyId::FlexPositive(_)
+    | PropertyId::FlexShrink(_)
+    | PropertyId::FlexNegative(_)
+    | PropertyId::FlexBasis(_)
+    | PropertyId::FlexPreferredSize(_)
+    | PropertyId::Flex(_)
+    | PropertyId::Order(_)
+    | PropertyId::BoxOrdinalGroup(_)
+    | PropertyId::FlexOrder(_) => true,
+    _ => false,
   }
 }

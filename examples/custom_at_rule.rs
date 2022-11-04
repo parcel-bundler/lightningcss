@@ -1,8 +1,8 @@
 use cssparser::*;
-use parcel_css::{
+use lightningcss::{
   stylesheet::{StyleSheet, ParserOptions, PrinterOptions},
   values::color::CssColor,
-  properties::Property
+  properties::Property, printer::Printer, error::PrinterError, traits::ToCss
 };
 
 fn main() {
@@ -10,14 +10,16 @@ fn main() {
   let source = std::fs::read_to_string(&args[1]).unwrap();
   let opts = ParserOptions {
     at_rule_parser: Some(TailwindAtRuleParser),
+    filename: args[1].clone(),
     nesting: true,
     custom_media: false,
-    css_modules: false,
+    css_modules: None,
+    error_recovery: false,
+    warnings: None,
     source_index: 0,
   };
 
   let stylesheet = StyleSheet::parse(
-    args[1].clone(), 
     &source, 
     opts
   ).unwrap();
@@ -137,9 +139,8 @@ impl<'i> AtRuleParser<'i> for TailwindAtRuleParser {
   }
 }
 
-// TODO: expose printer??
-impl cssparser::ToCss for AtRule {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result where W: std::fmt::Write {
+impl ToCss for AtRule {
+  fn to_css<W: std::fmt::Write>(&self, dest: &mut Printer<W>)-> Result<(), PrinterError> {
     match self {
       AtRule::Tailwind(rule) => {
         let _ = rule.loc; // TODO: source maps
@@ -158,14 +159,14 @@ impl cssparser::ToCss for AtRule {
         for name in &rule.names {
           match name.as_ref() {
             "bg-blue-400" => {
-              let color = Color::RGBA(RGBA { red: 0, green: 0, blue: 255, alpha: 255 });
-              let property = Property::BackgroundColor(CssColor(color));
-              property.temp_to_css(dest, rule.important)?;
+              let color = RGBA { red: 0, green: 0, blue: 255, alpha: 255 };
+              let property = Property::BackgroundColor(CssColor::RGBA(color));
+              property.to_css(dest, rule.important)?;
             }
             "text-red-400" => {
-              let color = Color::RGBA(RGBA { red: 255, green: 0, blue: 0, alpha: 255 });
-              let property = Property::Color(CssColor(color));
-              property.temp_to_css(dest, rule.important)?;
+              let color = RGBA { red: 255, green: 0, blue: 0, alpha: 255 };
+              let property = Property::Color(CssColor::RGBA(color));
+              property.to_css(dest, rule.important)?;
             }
             _ => {}
           }

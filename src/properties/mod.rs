@@ -1,85 +1,193 @@
-pub mod custom;
-pub mod margin_padding;
-pub mod background;
-pub mod outline;
-pub mod flex;
+//! CSS property values.
+//!
+//! Each property provides parsing and serialization support using the [Parse](super::traits::Parse)
+//! and [ToCss](super::traits::ToCss) traits. Properties are fully parsed as defined by the CSS spec,
+//! and printed in their canonical form. For example, most CSS properties are case-insensitive, and
+//! may be written in various orders, but when printed they are lower cased as appropriate and in a
+//! standard order.
+//!
+//! CSS properties often also contain many implicit values that are automatically filled in during
+//! parsing when omitted. These are also omitted when possible during serialization. Many properties
+//! also implement the [Default](std::default::Default) trait, which returns the initial value for the property.
+//!
+//! Shorthand properties are represented as structs containing fields for each of the sub-properties.
+//! If some of the sub-properties are not specified in the shorthand, their default values are filled in.
+//!
+//! The [Property](Property) enum contains the values of all properties, and can be used to parse property values by name.
+//! The [PropertyId](PropertyId) enum represents only property names, and not values and is used to refer to known properties.
+//!
+//! # Example
+//!
+//! This example shows how the `background` shorthand property is parsed and serialized. The `parse_string`
+//! function parses the background into a structure with all missing fields filled in with their default values.
+//! When printed using the `to_css_string` function, the components are in their canonical order, and default
+//! values are removed.
+//!
+//! ```
+//! use smallvec::smallvec;
+//! use lightningcss::{
+//!   properties::{Property, PropertyId, background::*},
+//!   values::{url::Url, image::Image, color::CssColor, position::*, length::*},
+//!   stylesheet::{ParserOptions, PrinterOptions},
+//!   dependencies::Location,
+//! };
+//!
+//! let background = Property::parse_string(
+//!   PropertyId::from("background"),
+//!   "url('img.png') repeat fixed 20px 10px / 50px 100px",
+//!   ParserOptions::default()
+//! ).unwrap();
+//!
+//! assert_eq!(
+//!   background,
+//!   Property::Background(smallvec![Background {
+//!     image: Image::Url(Url {
+//!       url: "img.png".into(),
+//!       loc: Location { line: 1, column: 1 }
+//!     }),
+//!     color: CssColor::RGBA(cssparser::RGBA {
+//!       red: 0,
+//!       green: 0,
+//!       blue: 0,
+//!       alpha: 0
+//!     }),
+//!     position: BackgroundPosition {
+//!       x: HorizontalPosition::Length(LengthPercentage::px(20.0)),
+//!       y: VerticalPosition::Length(LengthPercentage::px(10.0)),
+//!     },
+//!     repeat: BackgroundRepeat {
+//!       x: BackgroundRepeatKeyword::Repeat,
+//!       y: BackgroundRepeatKeyword::Repeat,
+//!     },
+//!     size: BackgroundSize::Explicit {
+//!       width: LengthPercentageOrAuto::LengthPercentage(LengthPercentage::px(50.0)),
+//!       height: LengthPercentageOrAuto::LengthPercentage(LengthPercentage::px(100.0)),
+//!     },
+//!     attachment: BackgroundAttachment::Fixed,
+//!     origin: BackgroundOrigin::PaddingBox,
+//!     clip: BackgroundClip::BorderBox,
+//!   }])
+//! );
+//!
+//! assert_eq!(
+//!   background.to_css_string(false, PrinterOptions::default()).unwrap(),
+//!   r#"background: url("img.png") 20px 10px / 50px 100px fixed"#
+//! );
+//! ```
+//!
+//! If you have a [cssparser::Parser](cssparser::Parser) already, you can also use the `parse` and `to_css`
+//! methods instead, rather than parsing from a string.
+//!
+//! # Unparsed and custom properties
+//!
+//! Custom and unknown properties are represented by the [CustomProperty](custom::CustomProperty) struct, and the
+//! `Property::Custom` variant. The value of these properties is not parsed, and is stored as a raw
+//! [TokenList](custom::TokenList), with the name as a string.
+//!
+//! If a known property is unable to be parsed, e.g. it contains `var()` references, then it is represented by the
+//! [UnparsedProperty](custom::UnparsedProperty) struct, and the `Property::Unparsed` variant. The value is stored
+//! as a raw [TokenList](custom::TokenList), with a [PropertyId](PropertyId) as the name.
+
+#![deny(missing_docs)]
+
 pub mod align;
-pub mod font;
-pub mod box_shadow;
+pub mod animation;
+pub mod background;
 pub mod border;
 pub mod border_image;
 pub mod border_radius;
-pub mod transition;
-pub mod animation;
-pub mod transform;
-pub mod prefix_handler;
+pub mod box_shadow;
+pub mod contain;
+pub mod css_modules;
+pub mod custom;
 pub mod display;
-pub mod text;
-pub mod position;
-pub mod overflow;
-pub mod ui;
-pub mod list;
+pub mod effects;
+pub mod flex;
+pub mod font;
 #[cfg(feature = "grid")]
 pub mod grid;
-pub mod css_modules;
+pub mod list;
+pub(crate) mod margin_padding;
+pub mod masking;
+pub mod outline;
+pub mod overflow;
+pub mod position;
+pub(crate) mod prefix_handler;
 pub mod size;
 pub mod svg;
-pub mod masking;
-pub mod effects;
+pub mod text;
+pub mod transform;
+pub mod transition;
+pub mod ui;
 
+use crate::declaration::DeclarationBlock;
+use crate::error::{ParserError, PrinterError};
+use crate::logical::{LogicalGroup, PropertyCategory};
+use crate::parser::starts_with_ignore_ascii_case;
+use crate::parser::ParserOptions;
+use crate::prefixes::Feature;
+use crate::printer::{Printer, PrinterOptions};
+use crate::targets::Browsers;
+use crate::traits::{Parse, ParseWithOptions, Shorthand, ToCss};
+use crate::values::number::{CSSInteger, CSSNumber};
 use crate::values::string::CowArcStr;
-use cssparser::*;
-use custom::*;
-use background::*;
-use outline::*;
-use flex::*;
+use crate::values::{
+  alpha::*, color::*, easing::EasingFunction, ident::DashedIdentReference, image::*, length::*, position::*,
+  rect::*, shape::FillRule, size::Size2D, time::Time,
+};
+use crate::vendor_prefix::VendorPrefix;
 use align::*;
-use font::*;
-use box_shadow::*;
+use animation::*;
+use background::*;
 use border::*;
 use border_image::*;
 use border_radius::*;
-use transition::*;
-use animation::*;
-use transform::*;
+use box_shadow::*;
+use contain::*;
+use css_modules::*;
+use cssparser::*;
+use custom::*;
 use display::*;
-use text::*;
-use overflow::*;
-use ui::*;
-use list::*;
+use effects::*;
+use flex::*;
+use font::*;
 #[cfg(feature = "grid")]
 use grid::*;
-use css_modules::*;
-use size::*;
-use svg::*;
+use list::*;
+use margin_padding::*;
 use masking::*;
-use effects::*;
-use crate::values::{image::*, length::*, position::*, alpha::*, size::Size2D, rect::*, color::*, time::Time, easing::EasingFunction, shape::FillRule};
-use crate::traits::{Parse, ToCss};
-use crate::printer::Printer;
-use smallvec::{SmallVec, smallvec};
-use crate::vendor_prefix::VendorPrefix;
-use crate::parser::ParserOptions;
-use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperty;
-use crate::targets::Browsers;
-use crate::prefixes::Feature;
-use crate::parser::starts_with_ignore_ascii_case;
+use outline::*;
+use overflow::*;
+use size::*;
+use smallvec::{smallvec, SmallVec};
+use svg::*;
+use text::*;
+use transform::*;
+use transition::*;
+use ui::*;
 
 macro_rules! define_properties {
   (
     $(
       $(#[$meta: meta])*
-      $name: literal: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: ident )* $( unprefixed: $unprefixed: literal )? $( if $condition: ident )?,
+      $name: literal: $property: ident($type: ty $(, $vp: ty)?) $( / $prefix: ident )* $( unprefixed: $unprefixed: literal )? $( options: $options: literal )? $( shorthand: $shorthand: literal )? $( [ logical_group: $logical_group: ident, category: $logical_category: ident ] )? $( if $condition: ident )?,
     )+
   ) => {
+    /// A CSS property id.
     #[derive(Debug, Clone, PartialEq)]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     pub enum PropertyId<'i> {
       $(
+        #[doc=concat!("The `", $name, "` property.")]
         $(#[$meta])*
+        #[cfg_attr(feature = "serde", serde(rename = $name))]
         $property$(($vp))?,
       )+
+      /// The `all` property.
+      #[cfg_attr(feature = "serde", serde(rename = "all"))]
       All,
+      /// An unknown or custom property name.
+      #[cfg_attr(feature = "serde", serde(borrow, rename = "custom"))]
       Custom(CowArcStr<'i>)
     }
 
@@ -87,11 +195,13 @@ macro_rules! define_properties {
       ($x: ty, $n: ident) => {
         $n
       };
+      ($x: ty, $n: expr) => {
+        $n
+      };
     }
 
-    impl<'i> Parse<'i> for PropertyId<'i> {
-      fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-        let name = input.expect_ident()?;
+    impl<'i> From<CowArcStr<'i>> for PropertyId<'i> {
+      fn from(name: CowArcStr<'i>) -> PropertyId<'i> {
         let name_ref = name.as_ref();
         let (prefix, name_ref) = if starts_with_ignore_ascii_case(name_ref, "-webkit-") {
           (VendorPrefix::WebKit, &name_ref[8..])
@@ -104,7 +214,7 @@ macro_rules! define_properties {
         } else {
           (VendorPrefix::None, name_ref)
         };
-        
+
         macro_rules! get_allowed_prefixes {
           ($v: literal) => {
             VendorPrefix::empty()
@@ -129,14 +239,28 @@ macro_rules! define_properties {
 
               let allowed_prefixes = get_allowed_prefixes!($($unprefixed)?) $(| VendorPrefix::$prefix)*;
               if allowed_prefixes.contains(prefix) {
-                return Ok(get_propertyid!($($vp)?))
+                return get_propertyid!($($vp)?)
               }
             },
           )+
-          "all" => return Ok(PropertyId::All),
+          "all" => return PropertyId::All,
           _ => {}
         }
-        Ok(PropertyId::Custom(name.into()))
+        PropertyId::Custom(name)
+      }
+    }
+
+    impl<'i> From<&'i str> for PropertyId<'i> {
+      #[inline]
+      fn from(name: &'i str) -> PropertyId<'i> {
+        PropertyId::from(CowArcStr::from(name))
+      }
+    }
+
+    impl<'i> Parse<'i> for PropertyId<'i> {
+      fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+        let name = input.expect_ident()?;
+        Ok(CowArcStr::from(name).into())
       }
     }
 
@@ -156,7 +280,7 @@ macro_rules! define_properties {
                   VendorPrefix::None
                 };
               }
-      
+
               ($name, get_prefix!($($vp)?))
             },
           )+
@@ -208,7 +332,7 @@ macro_rules! define_properties {
                     return *prefix;
                   };
                 }
-  
+
                 return_prefix!($vp);
               )?
               #[allow(unreachable_code)]
@@ -266,8 +390,8 @@ macro_rules! define_properties {
         }
       }
 
-      #[allow(dead_code)]
-      pub(crate) fn name(&self) -> &str {
+      /// Returns the property name, without any vendor prefixes.
+      pub fn name(&self) -> &str {
         use PropertyId::*;
 
         match self {
@@ -279,81 +403,162 @@ macro_rules! define_properties {
           Custom(name) => &name
         }
       }
-    }
 
-    #[derive(Debug, Clone, PartialEq)]
-    pub enum Property<'i> {
-      $(
-        $(#[$meta])*
-        $property($type, $($vp)?),
-      )+
-      Unparsed(UnparsedProperty<'i>),
-      Custom(CustomProperty<'i>),
-      Logical(LogicalProperty<'i>)
-    }
+      /// Returns whether a property is a shorthand.
+      pub fn is_shorthand(&self) -> bool {
+        $(
+          macro_rules! shorthand {
+            ($s: literal) => {
+              if let PropertyId::$property$((vp_name!($vp, _prefix)))? = self {
+                return true
+              }
+            };
+            () => {}
+          }
 
-    impl<'i> Property<'i> {
-      pub fn parse<'t, T>(name: CowRcStr<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions<T>) -> Result<Property<'i>, ParseError<'i, ParserError<'i>>> {
-        let state = input.state();
-        let name_ref = name.as_ref();
-        let (prefix, name_ref) = if starts_with_ignore_ascii_case(name_ref, "-webkit-") {
-          (VendorPrefix::WebKit, &name_ref[8..])
-        } else if starts_with_ignore_ascii_case(name_ref, "-moz-") {
-          (VendorPrefix::Moz, &name_ref[5..])
-        } else if starts_with_ignore_ascii_case(name_ref, "-o-") {
-          (VendorPrefix::O, &name_ref[3..])
-        } else if starts_with_ignore_ascii_case(name_ref, "-ms-") {
-          (VendorPrefix::Ms, &name_ref[4..])
-        } else {
-          (VendorPrefix::None, name_ref)
-        };
+          shorthand!($($shorthand)?);
+        )+
 
-        macro_rules! get_allowed_prefixes {
-          ($v: literal) => {
-            VendorPrefix::empty()
+        false
+      }
+
+      /// Returns a shorthand value for this property id from the given declaration block.
+      pub(crate) fn shorthand_value<'a>(&self, decls: &DeclarationBlock<'a>) -> Option<(Property<'a>, bool)> {
+        // Inline function to remap lifetime names.
+        #[inline]
+        fn shorthand_value<'a, 'i>(property_id: &PropertyId<'a>, decls: &DeclarationBlock<'i>) -> Option<(Property<'i>, bool)> {
+          $(
+            #[allow(unused_macros)]
+            macro_rules! prefix {
+              ($v: ty, $p: ident) => {
+                *$p
+              };
+              ($p: ident) => {
+                VendorPrefix::None
+              };
+            }
+
+            macro_rules! shorthand {
+              ($s: literal) => {
+                if let PropertyId::$property$((vp_name!($vp, prefix)))? = &property_id {
+                  if let Some((val, important)) = <$type>::from_longhands(decls, prefix!($($vp,)? prefix)) {
+                    return Some((Property::$property(val $(, *vp_name!($vp, prefix))?), important))
+                  }
+                }
+              };
+              () => {}
+            }
+
+            shorthand!($($shorthand)?);
+          )+
+
+          None
+        }
+
+        shorthand_value(self, decls)
+      }
+
+      /// Returns a list of longhand property ids for a shorthand.
+      pub fn longhands(&self) -> Option<Vec<PropertyId<'static>>> {
+        macro_rules! prefix_default {
+          ($x: ty, $p: ident) => {
+            *$p
           };
           () => {
             VendorPrefix::None
           };
         }
 
-        let property_id = match_ignore_ascii_case! { name_ref,
+        $(
+          macro_rules! shorthand {
+            ($s: literal) => {
+              if let PropertyId::$property$((vp_name!($vp, prefix)))? = self {
+                return Some(<$type>::longhands(prefix_default!($($vp, prefix)?)));
+              }
+            };
+            () => {}
+          }
+
+          shorthand!($($shorthand)?);
+        )+
+
+        None
+      }
+
+      /// Returns the logical property group for this property.
+      pub(crate) fn logical_group(&self) -> Option<LogicalGroup> {
+        $(
+          macro_rules! group {
+            ($g: ident) => {
+              if let PropertyId::$property$((vp_name!($vp, _prefix)))? = self {
+                return Some(LogicalGroup::$g)
+              }
+            };
+            () => {}
+          }
+
+          group!($($logical_group)?);
+        )+
+
+        None
+      }
+
+      /// Returns whether the property is logical or physical.
+      pub(crate) fn category(&self) -> Option<PropertyCategory> {
+        $(
+          macro_rules! category {
+            ($c: ident) => {
+              if let PropertyId::$property$((vp_name!($vp, _prefix)))? = self {
+                return Some(PropertyCategory::$c)
+              }
+            };
+            () => {}
+          }
+
+          category!($($logical_category)?);
+        )+
+
+        None
+      }
+    }
+
+    /// A CSS property.
+    #[derive(Debug, Clone, PartialEq)]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "serde", serde(tag = "property", content = "value"))]
+    pub enum Property<'i> {
+      $(
+        #[doc=concat!("The `", $name, "` property.")]
+        $(#[$meta])*
+        #[cfg_attr(feature = "serde", serde(rename = $name))]
+        $property($type, $($vp)?),
+      )+
+      /// An unparsed property.
+      #[cfg_attr(feature = "serde", serde(borrow, rename = "unparsed"))]
+      Unparsed(UnparsedProperty<'i>),
+      /// A custom or unknown property.
+      #[cfg_attr(feature = "serde", serde(borrow, rename = "custom"))]
+      Custom(CustomProperty<'i>),
+    }
+
+    impl<'i> Property<'i> {
+      /// Parses a CSS property by name.
+      pub fn parse<'t, T>(property_id: PropertyId<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions<T>) -> Result<Property<'i>, ParseError<'i, ParserError<'i>>> {
+        let state = input.state();
+
+        match property_id {
           $(
             $(#[$meta])*
-            $name $(if options.$condition)? => {
-              let allowed_prefixes = get_allowed_prefixes!($($unprefixed)?) $(| VendorPrefix::$prefix)*;
-              if allowed_prefixes.contains(prefix) {
-                if let Ok(c) = <$type>::parse(input) {
-                  if input.expect_exhausted().is_ok() {
-                    macro_rules! get_property {
-                      ($v: ty) => {
-                        Property::$property(c, prefix)
-                      };
-                      () => {
-                        Property::$property(c)
-                      };
-                    }
-
-                    return Ok(get_property!($($vp)?))
-                  }
+            PropertyId::$property$((vp_name!($vp, prefix)))? $(if options.$condition.is_some())? => {
+              if let Ok(c) = <$type>::parse_with_options(input, options) {
+                if input.expect_exhausted().is_ok() {
+                  return Ok(Property::$property(c $(, vp_name!($vp, prefix))?))
                 }
-
-                macro_rules! get_propertyid {
-                  ($v: ty) => {
-                    PropertyId::$property(prefix)
-                  };
-                  () => {
-                    PropertyId::$property
-                  };
-                }
-
-                get_propertyid!($($vp)?)
-              } else {
-                return Ok(Property::Custom(CustomProperty::parse(name, input)?))
               }
             },
           )+
-          _ => return Ok(Property::Custom(CustomProperty::parse(name, input)?))
+          PropertyId::Custom(name) => return Ok(Property::Custom(CustomProperty::parse(name, input, options)?)),
+          _ => {}
         };
 
         // If a value was unable to be parsed, treat as an unparsed property.
@@ -361,25 +566,32 @@ macro_rules! define_properties {
         // and stored as an enum rather than a string. This lets property handlers more easily deal with it.
         // Ideally we'd only do this if var() or env() references were seen, but err on the safe side for now.
         input.reset(&state);
-        return Ok(Property::Unparsed(UnparsedProperty::parse(property_id, input)?))
+        return Ok(Property::Unparsed(UnparsedProperty::parse(property_id, input, options)?))
       }
 
-      #[allow(dead_code)]
-      pub(crate) fn name(&self) -> &str {
+      /// Returns the property id for this property.
+      pub fn property_id(&self) -> PropertyId<'i> {
         use Property::*;
 
         match self {
           $(
             $(#[$meta])*
-            $property(_, $(vp_name!($vp, _p))?) => $name,
+            $property(_, $(vp_name!($vp, p))?) => PropertyId::$property$((*vp_name!($vp, p)))?,
           )+
-          Unparsed(unparsed) => unparsed.property_id.name(),
-          Logical(logical) => logical.property_id.name(),
-          Custom(custom) => &custom.name,
+          Unparsed(unparsed) => unparsed.property_id.clone(),
+          Custom(custom) => PropertyId::Custom(custom.name.clone())
         }
       }
 
-      pub(crate) fn value_to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+      /// Parses a CSS property from a string.
+      pub fn parse_string<T>(property_id: PropertyId<'i>, input: &'i str, options: ParserOptions<T>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+        let mut input = ParserInput::new(input);
+        let mut parser = Parser::new(&mut input);
+        Self::parse(property_id, &mut parser, &options)
+      }
+
+      /// Serializes the value of a CSS property without its name or `!important` flag.
+      pub fn value_to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
         use Property::*;
 
         match self {
@@ -390,18 +602,24 @@ macro_rules! define_properties {
             }
           )+
           Unparsed(unparsed) => {
-            unparsed.value.to_css(dest)
+            unparsed.value.to_css(dest, false)
           }
           Custom(custom) => {
-            custom.value.to_css(dest)
-          }
-          Logical(logical) => {
-            logical.to_css(dest)
+            custom.value.to_css(dest, custom.name.starts_with("--"))
           }
         }
       }
 
-      pub(crate) fn to_css<W>(&self, dest: &mut Printer<W>, important: bool) -> Result<(), PrinterError> where W: std::fmt::Write {
+      /// Serializes the value of a CSS property as a string.
+      pub fn value_to_css_string(&self, options: PrinterOptions) -> Result<String, PrinterError> {
+        let mut s = String::new();
+        let mut printer = Printer::new(&mut s, options);
+        self.value_to_css(&mut printer)?;
+        Ok(s)
+      }
+
+      /// Serializes the CSS property, with an optional `!important` flag.
+      pub fn to_css<W>(&self, dest: &mut Printer<W>, important: bool) -> Result<(), PrinterError> where W: std::fmt::Write {
         use Property::*;
 
         let mut first = true;
@@ -417,6 +635,15 @@ macro_rules! define_properties {
           };
         }
 
+        macro_rules! write_important {
+          () => {
+            if important {
+              dest.whitespace()?;
+              dest.write_str("!important")?;
+            }
+          }
+        }
+
         let (name, prefix) = match self {
           $(
             $(#[$meta])*
@@ -429,13 +656,24 @@ macro_rules! define_properties {
                   VendorPrefix::None
                 };
               }
-      
+
               ($name, get_prefix!($($vp)?))
             },
           )+
           Unparsed(unparsed) => (unparsed.property_id.name(), unparsed.property_id.prefix()),
-          Logical(logical) => (logical.property_id.name(), logical.property_id.prefix()),
-          Custom(custom) => (custom.name.as_ref(), VendorPrefix::None),
+          Custom(custom) => {
+            // Ensure custom property names are escaped.
+            let name = custom.name.as_ref();
+            if name.starts_with("--") {
+              dest.write_dashed_ident(&name, true)?;
+            } else {
+              serialize_name(&name, dest)?;
+            }
+            dest.delim(':', false)?;
+            self.value_to_css(dest)?;
+            write_important!();
+            return Ok(())
+          }
         };
 
         macro_rules! write {
@@ -446,10 +684,7 @@ macro_rules! define_properties {
               dest.write_str(name)?;
               dest.delim(':', false)?;
               self.value_to_css(dest)?;
-              if important {
-                dest.whitespace()?;
-                dest.write_str("!important")?;
-              }
+              write_important!();
             }
           }
         }
@@ -462,10 +697,57 @@ macro_rules! define_properties {
         Ok(())
       }
 
-      // TODO: temp
-      pub fn temp_to_css<W>(&self, dest: &mut W, important: bool) -> std::fmt::Result where W: std::fmt::Write {
-        let mut printer = Printer::new(dest, None, false, None);
-        self.to_css(&mut printer, important).map_err(|_| std::fmt::Error)
+      /// Serializes the CSS property to a string, with an optional `!important` flag.
+      pub fn to_css_string(&self, important: bool, options: PrinterOptions) -> Result<String, PrinterError> {
+        let mut s = String::new();
+        let mut printer = Printer::new(&mut s, options);
+        self.to_css(&mut printer, important)?;
+        Ok(s)
+      }
+
+      /// Returns the given longhand property for a shorthand.
+      pub fn longhand(&self, property_id: &PropertyId) -> Option<Property<'i>> {
+        $(
+          macro_rules! shorthand {
+            ($s: literal) => {
+              if let Property::$property(val $(, vp_name!($vp, prefix))?) = self {
+                $(
+                  if *vp_name!($vp, prefix) != property_id.prefix() {
+                    return None
+                  }
+                )?
+                return val.longhand(property_id)
+              }
+            };
+            () => {}
+          }
+
+          shorthand!($($shorthand)?);
+        )+
+
+        None
+      }
+
+      /// Updates this shorthand from a longhand property.
+      pub fn set_longhand(&mut self, property: &Property<'i>) -> Result<(), ()> {
+        $(
+          macro_rules! shorthand {
+            ($s: literal) => {
+              if let Property::$property(val $(, vp_name!($vp, prefix))?) = self {
+                $(
+                  if *vp_name!($vp, prefix) != property.property_id().prefix() {
+                    return Err(())
+                  }
+                )?
+                return val.set_longhand(property)
+              }
+            };
+            () => {}
+          }
+
+          shorthand!($($shorthand)?);
+        )+
+        Err(())
       }
     }
   };
@@ -476,13 +758,13 @@ define_properties! {
   "background-image": BackgroundImage(SmallVec<[Image<'i>; 1]>),
   "background-position-x": BackgroundPositionX(SmallVec<[HorizontalPosition; 1]>),
   "background-position-y": BackgroundPositionY(SmallVec<[VerticalPosition; 1]>),
-  "background-position": BackgroundPosition(SmallVec<[Position; 1]>),
+  "background-position": BackgroundPosition(SmallVec<[BackgroundPosition; 1]>) shorthand: true,
   "background-size": BackgroundSize(SmallVec<[BackgroundSize; 1]>),
   "background-repeat": BackgroundRepeat(SmallVec<[BackgroundRepeat; 1]>),
   "background-attachment": BackgroundAttachment(SmallVec<[BackgroundAttachment; 1]>),
   "background-clip": BackgroundClip(SmallVec<[BackgroundClip; 1]>, VendorPrefix) / WebKit / Moz,
-  "background-origin": BackgroundOrigin(SmallVec<[BackgroundBox; 1]>),
-  "background": Background(SmallVec<[Background<'i>; 1]>),
+  "background-origin": BackgroundOrigin(SmallVec<[BackgroundOrigin; 1]>),
+  "background": Background(SmallVec<[Background<'i>; 1]>) shorthand: true,
 
   "box-shadow": BoxShadow(SmallVec<[BoxShadow; 1]>, VendorPrefix) / WebKit / Moz,
   "opacity": Opacity(AlphaValue),
@@ -490,108 +772,110 @@ define_properties! {
   "display": Display(Display),
   "visibility": Visibility(Visibility),
 
-  "width": Width(Size),
-  "height": Height(Size),
-  "min-width": MinWidth(MinMaxSize),
-  "min-height": MinHeight(MinMaxSize),
-  "max-width": MaxWidth(MinMaxSize),
-  "max-height": MaxHeight(MinMaxSize),
-  "block-size": BlockSize(Size),
-  "inline-size": InlineSize(Size),
-  "min-block-size": MinBlockSize(MinMaxSize),
-  "min-inline-size": MinInlineSize(MinMaxSize),
-  "max-block-size": MaxBlockSize(MinMaxSize),
-  "max-inline-size": MaxInlineSize(MinMaxSize),
+  "width": Width(Size) [logical_group: Size, category: Physical],
+  "height": Height(Size) [logical_group: Size, category: Physical],
+  "min-width": MinWidth(Size) [logical_group: MinSize, category: Physical],
+  "min-height": MinHeight(Size) [logical_group: MinSize, category: Physical],
+  "max-width": MaxWidth(MaxSize) [logical_group: MaxSize, category: Physical],
+  "max-height": MaxHeight(MaxSize) [logical_group: MaxSize, category: Physical],
+  "block-size": BlockSize(Size) [logical_group: Size, category: Logical],
+  "inline-size": InlineSize(Size) [logical_group: Size, category: Logical],
+  "min-block-size": MinBlockSize(Size) [logical_group: MinSize, category: Logical],
+  "min-inline-size": MinInlineSize(Size) [logical_group: MinSize, category: Logical],
+  "max-block-size": MaxBlockSize(MaxSize) [logical_group: MaxSize, category: Logical],
+  "max-inline-size": MaxInlineSize(MaxSize) [logical_group: MaxSize, category: Logical],
   "box-sizing": BoxSizing(BoxSizing, VendorPrefix) / WebKit / Moz,
 
-  "overflow": Overflow(Overflow),
+  "overflow": Overflow(Overflow) shorthand: true,
   "overflow-x": OverflowX(OverflowKeyword),
   "overflow-y": OverflowY(OverflowKeyword),
   "text-overflow": TextOverflow(TextOverflow, VendorPrefix) / O,
 
   // https://www.w3.org/TR/2020/WD-css-position-3-20200519
   "position": Position(position::Position),
-  "top": Top(LengthPercentageOrAuto),
-  "bottom": Bottom(LengthPercentageOrAuto),
-  "left": Left(LengthPercentageOrAuto),
-  "right": Right(LengthPercentageOrAuto),
-  "inset-block-start": InsetBlockStart(LengthPercentageOrAuto),
-  "inset-block-end": InsetBlockEnd(LengthPercentageOrAuto),
-  "inset-inline-start": InsetInlineStart(LengthPercentageOrAuto),
-  "inset-inline-end": InsetInlineEnd(LengthPercentageOrAuto),
-  "inset-block": InsetBlock(Size2D<LengthPercentageOrAuto>),
-  "inset-inline": InsetInline(Size2D<LengthPercentageOrAuto>),
-  "inset": Inset(Rect<LengthPercentageOrAuto>),
+  "top": Top(LengthPercentageOrAuto) [logical_group: Inset, category: Physical],
+  "bottom": Bottom(LengthPercentageOrAuto) [logical_group: Inset, category: Physical],
+  "left": Left(LengthPercentageOrAuto) [logical_group: Inset, category: Physical],
+  "right": Right(LengthPercentageOrAuto) [logical_group: Inset, category: Physical],
+  "inset-block-start": InsetBlockStart(LengthPercentageOrAuto) [logical_group: Inset, category: Logical],
+  "inset-block-end": InsetBlockEnd(LengthPercentageOrAuto) [logical_group: Inset, category: Logical],
+  "inset-inline-start": InsetInlineStart(LengthPercentageOrAuto) [logical_group: Inset, category: Logical],
+  "inset-inline-end": InsetInlineEnd(LengthPercentageOrAuto) [logical_group: Inset, category: Logical],
+  "inset-block": InsetBlock(InsetBlock) shorthand: true,
+  "inset-inline": InsetInline(InsetInline) shorthand: true,
+  "inset": Inset(Inset) shorthand: true,
 
-  "border-top-color": BorderTopColor(CssColor),
-  "border-bottom-color": BorderBottomColor(CssColor),
-  "border-left-color": BorderLeftColor(CssColor),
-  "border-right-color": BorderRightColor(CssColor),
-  "border-block-start-color": BorderBlockStartColor(CssColor),
-  "border-block-end-color": BorderBlockEndColor(CssColor),
-  "border-inline-start-color": BorderInlineStartColor(CssColor),
-  "border-inline-end-color": BorderInlineEndColor(CssColor),
+  "border-spacing": BorderSpacing(Size2D<Length>),
 
-  "border-top-style": BorderTopStyle(BorderStyle),
-  "border-bottom-style": BorderBottomStyle(BorderStyle),
-  "border-left-style": BorderLeftStyle(BorderStyle),
-  "border-right-style": BorderRightStyle(BorderStyle),
-  "border-block-start-style": BorderBlockStartStyle(BorderStyle),
-  "border-block-end-style": BorderBlockEndStyle(BorderStyle),
-  "border-inline-start-style": BorderInlineStartStyle(BorderStyle),
-  "border-inline-end-style": BorderInlineEndStyle(BorderStyle),
+  "border-top-color": BorderTopColor(CssColor) [logical_group: BorderColor, category: Physical],
+  "border-bottom-color": BorderBottomColor(CssColor) [logical_group: BorderColor, category: Physical],
+  "border-left-color": BorderLeftColor(CssColor) [logical_group: BorderColor, category: Physical],
+  "border-right-color": BorderRightColor(CssColor) [logical_group: BorderColor, category: Physical],
+  "border-block-start-color": BorderBlockStartColor(CssColor) [logical_group: BorderColor, category: Logical],
+  "border-block-end-color": BorderBlockEndColor(CssColor) [logical_group: BorderColor, category: Logical],
+  "border-inline-start-color": BorderInlineStartColor(CssColor) [logical_group: BorderColor, category: Logical],
+  "border-inline-end-color": BorderInlineEndColor(CssColor) [logical_group: BorderColor, category: Logical],
 
-  "border-top-width": BorderTopWidth(BorderSideWidth),
-  "border-bottom-width": BorderBottomWidth(BorderSideWidth),
-  "border-left-width": BorderLeftWidth(BorderSideWidth),
-  "border-right-width": BorderRightWidth(BorderSideWidth),
-  "border-block-start-width": BorderBlockStartWidth(BorderSideWidth),
-  "border-block-end-width": BorderBlockEndWidth(BorderSideWidth),
-  "border-inline-start-width": BorderInlineStartWidth(BorderSideWidth),
-  "border-inline-end-width": BorderInlineEndWidth(BorderSideWidth),
+  "border-top-style": BorderTopStyle(LineStyle) [logical_group: BorderStyle, category: Physical],
+  "border-bottom-style": BorderBottomStyle(LineStyle) [logical_group: BorderStyle, category: Physical],
+  "border-left-style": BorderLeftStyle(LineStyle) [logical_group: BorderStyle, category: Physical],
+  "border-right-style": BorderRightStyle(LineStyle) [logical_group: BorderStyle, category: Physical],
+  "border-block-start-style": BorderBlockStartStyle(LineStyle) [logical_group: BorderStyle, category: Logical],
+  "border-block-end-style": BorderBlockEndStyle(LineStyle) [logical_group: BorderStyle, category: Logical],
+  "border-inline-start-style": BorderInlineStartStyle(LineStyle) [logical_group: BorderStyle, category: Logical],
+  "border-inline-end-style": BorderInlineEndStyle(LineStyle) [logical_group: BorderStyle, category: Logical],
 
-  "border-top-left-radius": BorderTopLeftRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz,
-  "border-top-right-radius": BorderTopRightRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz,
-  "border-bottom-left-radius": BorderBottomLeftRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz,
-  "border-bottom-right-radius": BorderBottomRightRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz,
-  "border-start-start-radius": BorderStartStartRadius(Size2D<LengthPercentage>),
-  "border-start-end-radius": BorderStartEndRadius(Size2D<LengthPercentage>),
-  "border-end-start-radius": BorderEndStartRadius(Size2D<LengthPercentage>),
-  "border-end-end-radius": BorderEndEndRadius(Size2D<LengthPercentage>),
-  "border-radius": BorderRadius(BorderRadius, VendorPrefix) / WebKit / Moz,
+  "border-top-width": BorderTopWidth(BorderSideWidth) [logical_group: BorderWidth, category: Physical],
+  "border-bottom-width": BorderBottomWidth(BorderSideWidth) [logical_group: BorderWidth, category: Physical],
+  "border-left-width": BorderLeftWidth(BorderSideWidth) [logical_group: BorderWidth, category: Physical],
+  "border-right-width": BorderRightWidth(BorderSideWidth) [logical_group: BorderWidth, category: Physical],
+  "border-block-start-width": BorderBlockStartWidth(BorderSideWidth) [logical_group: BorderWidth, category: Logical],
+  "border-block-end-width": BorderBlockEndWidth(BorderSideWidth) [logical_group: BorderWidth, category: Logical],
+  "border-inline-start-width": BorderInlineStartWidth(BorderSideWidth) [logical_group: BorderWidth, category: Logical],
+  "border-inline-end-width": BorderInlineEndWidth(BorderSideWidth) [logical_group: BorderWidth, category: Logical],
+
+  "border-top-left-radius": BorderTopLeftRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz [logical_group: BorderRadius, category: Physical],
+  "border-top-right-radius": BorderTopRightRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz [logical_group: BorderRadius, category: Physical],
+  "border-bottom-left-radius": BorderBottomLeftRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz [logical_group: BorderRadius, category: Physical],
+  "border-bottom-right-radius": BorderBottomRightRadius(Size2D<LengthPercentage>, VendorPrefix) / WebKit / Moz [logical_group: BorderRadius, category: Physical],
+  "border-start-start-radius": BorderStartStartRadius(Size2D<LengthPercentage>) [logical_group: BorderRadius, category: Logical],
+  "border-start-end-radius": BorderStartEndRadius(Size2D<LengthPercentage>) [logical_group: BorderRadius, category: Logical],
+  "border-end-start-radius": BorderEndStartRadius(Size2D<LengthPercentage>) [logical_group: BorderRadius, category: Logical],
+  "border-end-end-radius": BorderEndEndRadius(Size2D<LengthPercentage>) [logical_group: BorderRadius, category: Logical],
+  "border-radius": BorderRadius(BorderRadius, VendorPrefix) / WebKit / Moz shorthand: true,
 
   "border-image-source": BorderImageSource(Image<'i>),
   "border-image-outset": BorderImageOutset(Rect<LengthOrNumber>),
   "border-image-repeat": BorderImageRepeat(BorderImageRepeat),
   "border-image-width": BorderImageWidth(Rect<BorderImageSideWidth>),
   "border-image-slice": BorderImageSlice(BorderImageSlice),
-  "border-image": BorderImage(BorderImage<'i>, VendorPrefix) / WebKit / Moz / O,
+  "border-image": BorderImage(BorderImage<'i>, VendorPrefix) / WebKit / Moz / O shorthand: true,
 
-  "border-color": BorderColor(Rect<CssColor>),
-  "border-style": BorderStyle(Rect<BorderStyle>),
-  "border-width": BorderWidth(Rect<BorderSideWidth>),
+  "border-color": BorderColor(BorderColor) shorthand: true,
+  "border-style": BorderStyle(BorderStyle) shorthand: true,
+  "border-width": BorderWidth(BorderWidth) shorthand: true,
 
-  "border-block-color": BorderBlockColor(CssColor),
-  "border-block-style": BorderBlockStyle(BorderStyle),
-  "border-block-width": BorderBlockWidth(BorderSideWidth),
+  "border-block-color": BorderBlockColor(BorderBlockColor) shorthand: true,
+  "border-block-style": BorderBlockStyle(BorderBlockStyle) shorthand: true,
+  "border-block-width": BorderBlockWidth(BorderBlockWidth) shorthand: true,
 
-  "border-inline-color": BorderInlineColor(CssColor),
-  "border-inline-style": BorderInlineStyle(BorderStyle),
-  "border-inline-width": BorderInlineWidth(BorderSideWidth),
+  "border-inline-color": BorderInlineColor(BorderInlineColor) shorthand: true,
+  "border-inline-style": BorderInlineStyle(BorderInlineStyle) shorthand: true,
+  "border-inline-width": BorderInlineWidth(BorderInlineWidth) shorthand: true,
 
-  "border": Border(Border),
-  "border-top": BorderTop(Border),
-  "border-bottom": BorderBottom(Border),
-  "border-left": BorderLeft(Border),
-  "border-right": BorderRight(Border),
-  "border-block": BorderBlock(Border),
-  "border-block-start": BorderBlockStart(Border),
-  "border-block-end": BorderBlockEnd(Border),
-  "border-inline": BorderInline(Border),
-  "border-inline-start": BorderInlineStart(Border),
-  "border-inline-end": BorderInlineEnd(Border),
+  "border": Border(Border) shorthand: true,
+  "border-top": BorderTop(BorderTop) shorthand: true,
+  "border-bottom": BorderBottom(BorderBottom) shorthand: true,
+  "border-left": BorderLeft(BorderLeft) shorthand: true,
+  "border-right": BorderRight(BorderRight) shorthand: true,
+  "border-block": BorderBlock(BorderBlock) shorthand: true,
+  "border-block-start": BorderBlockStart(BorderBlockStart) shorthand: true,
+  "border-block-end": BorderBlockEnd(BorderBlockEnd) shorthand: true,
+  "border-inline": BorderInline(BorderInline) shorthand: true,
+  "border-inline-start": BorderInlineStart(BorderInlineStart) shorthand: true,
+  "border-inline-end": BorderInlineEnd(BorderInlineEnd) shorthand: true,
 
-  "outline": Outline(Outline),
+  "outline": Outline(Outline) shorthand: true,
   "outline-color": OutlineColor(CssColor),
   "outline-style": OutlineStyle(OutlineStyle),
   "outline-width": OutlineWidth(BorderSideWidth),
@@ -599,47 +883,47 @@ define_properties! {
   // Flex properties: https://www.w3.org/TR/2018/CR-css-flexbox-1-20181119
   "flex-direction": FlexDirection(FlexDirection, VendorPrefix) / WebKit / Ms,
   "flex-wrap": FlexWrap(FlexWrap, VendorPrefix) / WebKit / Ms,
-  "flex-flow": FlexFlow(FlexFlow, VendorPrefix) / WebKit / Ms,
-  "flex-grow": FlexGrow(f32, VendorPrefix) / WebKit,
-  "flex-shrink": FlexShrink(f32, VendorPrefix) / WebKit,
+  "flex-flow": FlexFlow(FlexFlow, VendorPrefix) / WebKit / Ms shorthand: true,
+  "flex-grow": FlexGrow(CSSNumber, VendorPrefix) / WebKit,
+  "flex-shrink": FlexShrink(CSSNumber, VendorPrefix) / WebKit,
   "flex-basis": FlexBasis(LengthPercentageOrAuto, VendorPrefix) / WebKit,
-  "flex": Flex(Flex, VendorPrefix) / WebKit / Ms,
-  "order": Order(f32, VendorPrefix) / WebKit,
+  "flex": Flex(Flex, VendorPrefix) / WebKit / Ms shorthand: true,
+  "order": Order(CSSInteger, VendorPrefix) / WebKit,
 
   // Align properties: https://www.w3.org/TR/2020/WD-css-align-3-20200421
   "align-content": AlignContent(AlignContent, VendorPrefix) / WebKit,
   "justify-content": JustifyContent(JustifyContent, VendorPrefix) / WebKit,
-  "place-content": PlaceContent(PlaceContent),
+  "place-content": PlaceContent(PlaceContent) shorthand: true,
   "align-self": AlignSelf(AlignSelf, VendorPrefix) / WebKit,
   "justify-self": JustifySelf(JustifySelf),
-  "place-self": PlaceSelf(PlaceSelf),
+  "place-self": PlaceSelf(PlaceSelf) shorthand: true,
   "align-items": AlignItems(AlignItems, VendorPrefix) / WebKit,
   "justify-items": JustifyItems(JustifyItems),
-  "place-items": PlaceItems(PlaceItems),
+  "place-items": PlaceItems(PlaceItems) shorthand: true,
   "row-gap": RowGap(GapValue),
   "column-gap": ColumnGap(GapValue),
-  "gap": Gap(Gap),
+  "gap": Gap(Gap) shorthand: true,
 
   // Old flex (2009): https://www.w3.org/TR/2009/WD-css3-flexbox-20090723/
   "box-orient": BoxOrient(BoxOrient, VendorPrefix) / WebKit / Moz unprefixed: false,
   "box-direction": BoxDirection(BoxDirection, VendorPrefix) / WebKit / Moz unprefixed: false,
-  "box-ordinal-group": BoxOrdinalGroup(f32, VendorPrefix) / WebKit / Moz unprefixed: false,
+  "box-ordinal-group": BoxOrdinalGroup(CSSInteger, VendorPrefix) / WebKit / Moz unprefixed: false,
   "box-align": BoxAlign(BoxAlign, VendorPrefix) / WebKit / Moz unprefixed: false,
-  "box-flex": BoxFlex(f32, VendorPrefix) / WebKit / Moz unprefixed: false,
-  "box-flex-group": BoxFlexGroup(f32, VendorPrefix) / WebKit unprefixed: false,
+  "box-flex": BoxFlex(CSSNumber, VendorPrefix) / WebKit / Moz unprefixed: false,
+  "box-flex-group": BoxFlexGroup(CSSInteger, VendorPrefix) / WebKit unprefixed: false,
   "box-pack": BoxPack(BoxPack, VendorPrefix) / WebKit / Moz unprefixed: false,
   "box-lines": BoxLines(BoxLines, VendorPrefix) / WebKit / Moz unprefixed: false,
 
   // Old flex (2012): https://www.w3.org/TR/2012/WD-css3-flexbox-20120322/
   "flex-pack": FlexPack(FlexPack, VendorPrefix) / Ms unprefixed: false,
-  "flex-order": FlexOrder(f32, VendorPrefix) / Ms unprefixed: false,
+  "flex-order": FlexOrder(CSSInteger, VendorPrefix) / Ms unprefixed: false,
   "flex-align": FlexAlign(BoxAlign, VendorPrefix) / Ms unprefixed: false,
   "flex-item-align": FlexItemAlign(FlexItemAlign, VendorPrefix) / Ms unprefixed: false,
   "flex-line-pack": FlexLinePack(FlexLinePack, VendorPrefix) / Ms unprefixed: false,
 
   // Microsoft extensions
-  "flex-positive": FlexPositive(f32, VendorPrefix) / Ms unprefixed: false,
-  "flex-negative": FlexNegative(f32, VendorPrefix) / Ms unprefixed: false,
+  "flex-positive": FlexPositive(CSSNumber, VendorPrefix) / Ms unprefixed: false,
+  "flex-negative": FlexNegative(CSSNumber, VendorPrefix) / Ms unprefixed: false,
   "flex-preferred-size": FlexPreferredSize(LengthPercentageOrAuto, VendorPrefix) / Ms unprefixed: false,
 
   #[cfg(feature = "grid")]
@@ -655,9 +939,9 @@ define_properties! {
   #[cfg(feature = "grid")]
   "grid-template-areas": GridTemplateAreas(GridTemplateAreas),
   #[cfg(feature = "grid")]
-  "grid-template": GridTemplate(GridTemplate<'i>),
+  "grid-template": GridTemplate(GridTemplate<'i>) shorthand: true,
   #[cfg(feature = "grid")]
-  "grid": Grid(Grid<'i>),
+  "grid": Grid(Grid<'i>) shorthand: true,
   #[cfg(feature = "grid")]
   "grid-row-start": GridRowStart(GridLine<'i>),
   #[cfg(feature = "grid")]
@@ -667,62 +951,59 @@ define_properties! {
   #[cfg(feature = "grid")]
   "grid-column-end": GridColumnEnd(GridLine<'i>),
   #[cfg(feature = "grid")]
-  "grid-row": GridRow(GridPlacement<'i>),
+  "grid-row": GridRow(GridRow<'i>) shorthand: true,
   #[cfg(feature = "grid")]
-  "grid-column": GridColumn(GridPlacement<'i>),
+  "grid-column": GridColumn(GridColumn<'i>) shorthand: true,
   #[cfg(feature = "grid")]
-  "grid-area": GridArea(GridArea<'i>),
+  "grid-area": GridArea(GridArea<'i>) shorthand: true,
 
-  "margin-top": MarginTop(LengthPercentageOrAuto),
-  "margin-bottom": MarginBottom(LengthPercentageOrAuto),
-  "margin-left": MarginLeft(LengthPercentageOrAuto),
-  "margin-right": MarginRight(LengthPercentageOrAuto),
-  "margin-block-start": MarginBlockStart(LengthPercentageOrAuto),
-  "margin-block-end": MarginBlockEnd(LengthPercentageOrAuto),
-  "margin-inline-start": MarginInlineStart(LengthPercentageOrAuto),
-  "margin-inline-end": MarginInlineEnd(LengthPercentageOrAuto),
-  "margin-block": MarginBlock(Size2D<LengthPercentageOrAuto>),
-  "margin-inline": MarginInline(Size2D<LengthPercentageOrAuto>),
-  "margin": Margin(Rect<LengthPercentageOrAuto>),
+  "margin-top": MarginTop(LengthPercentageOrAuto) [logical_group: Margin, category: Physical],
+  "margin-bottom": MarginBottom(LengthPercentageOrAuto) [logical_group: Margin, category: Physical],
+  "margin-left": MarginLeft(LengthPercentageOrAuto) [logical_group: Margin, category: Physical],
+  "margin-right": MarginRight(LengthPercentageOrAuto) [logical_group: Margin, category: Physical],
+  "margin-block-start": MarginBlockStart(LengthPercentageOrAuto) [logical_group: Margin, category: Logical],
+  "margin-block-end": MarginBlockEnd(LengthPercentageOrAuto) [logical_group: Margin, category: Logical],
+  "margin-inline-start": MarginInlineStart(LengthPercentageOrAuto) [logical_group: Margin, category: Logical],
+  "margin-inline-end": MarginInlineEnd(LengthPercentageOrAuto) [logical_group: Margin, category: Logical],
+  "margin-block": MarginBlock(MarginBlock) shorthand: true,
+  "margin-inline": MarginInline(MarginInline) shorthand: true,
+  "margin": Margin(Margin) shorthand: true,
 
-  "padding-top": PaddingTop(LengthPercentageOrAuto),
-  "padding-bottom": PaddingBottom(LengthPercentageOrAuto),
-  "padding-left": PaddingLeft(LengthPercentageOrAuto),
-  "padding-right": PaddingRight(LengthPercentageOrAuto),
-  "padding-block-start": PaddingBlockStart(LengthPercentageOrAuto),
-  "padding-block-end": PaddingBlockEnd(LengthPercentageOrAuto),
-  "padding-inline-start": PaddingInlineStart(LengthPercentageOrAuto),
-  "padding-inline-end": PaddingInlineEnd(LengthPercentageOrAuto),
-  "padding-block": PaddingBlock(Size2D<LengthPercentageOrAuto>),
-  "padding-inline": PaddingInline(Size2D<LengthPercentageOrAuto>),
-  "padding": Padding(Rect<LengthPercentageOrAuto>),
+  "padding-top": PaddingTop(LengthPercentageOrAuto) [logical_group: Padding, category: Physical],
+  "padding-bottom": PaddingBottom(LengthPercentageOrAuto) [logical_group: Padding, category: Physical],
+  "padding-left": PaddingLeft(LengthPercentageOrAuto) [logical_group: Padding, category: Physical],
+  "padding-right": PaddingRight(LengthPercentageOrAuto) [logical_group: Padding, category: Physical],
+  "padding-block-start": PaddingBlockStart(LengthPercentageOrAuto) [logical_group: Padding, category: Logical],
+  "padding-block-end": PaddingBlockEnd(LengthPercentageOrAuto) [logical_group: Padding, category: Logical],
+  "padding-inline-start": PaddingInlineStart(LengthPercentageOrAuto) [logical_group: Padding, category: Logical],
+  "padding-inline-end": PaddingInlineEnd(LengthPercentageOrAuto) [logical_group: Padding, category: Logical],
+  "padding-block": PaddingBlock(PaddingBlock) shorthand: true,
+  "padding-inline": PaddingInline(PaddingInline) shorthand: true,
+  "padding": Padding(Padding) shorthand: true,
 
-  "scroll-margin-top": ScrollMarginTop(LengthPercentageOrAuto),
-  "scroll-margin-bottom": ScrollMarginBottom(LengthPercentageOrAuto),
-  "scroll-margin-left": ScrollMarginLeft(LengthPercentageOrAuto),
-  "scroll-margin-right": ScrollMarginRight(LengthPercentageOrAuto),
-  "scroll-margin-block-start": ScrollMarginBlockStart(LengthPercentageOrAuto),
-  "scroll-margin-block-end": ScrollMarginBlockEnd(LengthPercentageOrAuto),
-  "scroll-margin-inline-start": ScrollMarginInlineStart(LengthPercentageOrAuto),
-  "scroll-margin-inline-end": ScrollMarginInlineEnd(LengthPercentageOrAuto),
-  "scroll-margin-block": ScrollMarginBlock(Size2D<LengthPercentageOrAuto>),
-  "scroll-margin-inline": ScrollMarginInline(Size2D<LengthPercentageOrAuto>),
-  "scroll-margin": ScrollMargin(Rect<LengthPercentageOrAuto>),
+  "scroll-margin-top": ScrollMarginTop(LengthPercentageOrAuto) [logical_group: ScrollMargin, category: Physical],
+  "scroll-margin-bottom": ScrollMarginBottom(LengthPercentageOrAuto) [logical_group: ScrollMargin, category: Physical],
+  "scroll-margin-left": ScrollMarginLeft(LengthPercentageOrAuto) [logical_group: ScrollMargin, category: Physical],
+  "scroll-margin-right": ScrollMarginRight(LengthPercentageOrAuto) [logical_group: ScrollMargin, category: Physical],
+  "scroll-margin-block-start": ScrollMarginBlockStart(LengthPercentageOrAuto) [logical_group: ScrollMargin, category: Logical],
+  "scroll-margin-block-end": ScrollMarginBlockEnd(LengthPercentageOrAuto) [logical_group: ScrollMargin, category: Logical],
+  "scroll-margin-inline-start": ScrollMarginInlineStart(LengthPercentageOrAuto) [logical_group: ScrollMargin, category: Logical],
+  "scroll-margin-inline-end": ScrollMarginInlineEnd(LengthPercentageOrAuto) [logical_group: ScrollMargin, category: Logical],
+  "scroll-margin-block": ScrollMarginBlock(ScrollMarginBlock) shorthand: true,
+  "scroll-margin-inline": ScrollMarginInline(ScrollMarginInline) shorthand: true,
+  "scroll-margin": ScrollMargin(ScrollMargin) shorthand: true,
 
-  "scroll-padding-top": ScrollPaddingTop(LengthPercentageOrAuto),
-  "scroll-padding-bottom": ScrollPaddingBottom(LengthPercentageOrAuto),
-  "scroll-padding-left": ScrollPaddingLeft(LengthPercentageOrAuto),
-  "scroll-padding-right": ScrollPaddingRight(LengthPercentageOrAuto),
-  "scroll-padding-block-start": ScrollPaddingBlockStart(LengthPercentageOrAuto),
-  "scroll-padding-block-end": ScrollPaddingBlockEnd(LengthPercentageOrAuto),
-  "scroll-padding-inline-start": ScrollPaddingInlineStart(LengthPercentageOrAuto),
-  "scroll-padding-inline-end": ScrollPaddingInlineEnd(LengthPercentageOrAuto),
-  "scroll-padding-block": ScrollPaddingBlock(Size2D<LengthPercentageOrAuto>),
-  "scroll-padding-inline": ScrollPaddingInline(Size2D<LengthPercentageOrAuto>),
-  "scroll-padding": ScrollPadding(Rect<LengthPercentageOrAuto>),
-
-  // shorthands: columns, list-style
-  // grid, inset
+  "scroll-padding-top": ScrollPaddingTop(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Physical],
+  "scroll-padding-bottom": ScrollPaddingBottom(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Physical],
+  "scroll-padding-left": ScrollPaddingLeft(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Physical],
+  "scroll-padding-right": ScrollPaddingRight(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Physical],
+  "scroll-padding-block-start": ScrollPaddingBlockStart(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Logical],
+  "scroll-padding-block-end": ScrollPaddingBlockEnd(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Logical],
+  "scroll-padding-inline-start": ScrollPaddingInlineStart(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Logical],
+  "scroll-padding-inline-end": ScrollPaddingInlineEnd(LengthPercentageOrAuto) [logical_group: ScrollPadding, category: Logical],
+  "scroll-padding-block": ScrollPaddingBlock(ScrollPaddingBlock) shorthand: true,
+  "scroll-padding-inline": ScrollPaddingInline(ScrollPaddingInline) shorthand: true,
+  "scroll-padding": ScrollPadding(ScrollPadding) shorthand: true,
 
   "font-weight": FontWeight(FontWeight),
   "font-size": FontSize(FontSize),
@@ -731,14 +1012,15 @@ define_properties! {
   "font-style": FontStyle(FontStyle),
   "font-variant-caps": FontVariantCaps(FontVariantCaps),
   "line-height": LineHeight(LineHeight),
-  "font": Font(Font<'i>),
+  "font": Font(Font<'i>) shorthand: true,
   "vertical-align": VerticalAlign(VerticalAlign),
+  "font-palette": FontPalette(DashedIdentReference<'i>),
 
   "transition-property": TransitionProperty(SmallVec<[PropertyId<'i>; 1]>, VendorPrefix) / WebKit / Moz / Ms,
   "transition-duration": TransitionDuration(SmallVec<[Time; 1]>, VendorPrefix) / WebKit / Moz / Ms,
   "transition-delay": TransitionDelay(SmallVec<[Time; 1]>, VendorPrefix) / WebKit / Moz / Ms,
   "transition-timing-function": TransitionTimingFunction(SmallVec<[EasingFunction; 1]>, VendorPrefix) / WebKit / Moz / Ms,
-  "transition": Transition(SmallVec<[Transition<'i>; 1]>, VendorPrefix) / WebKit / Moz / Ms,
+  "transition": Transition(SmallVec<[Transition<'i>; 1]>, VendorPrefix) / WebKit / Moz / Ms shorthand: true,
 
   "animation-name": AnimationName(AnimationNameList<'i>, VendorPrefix) / WebKit / Moz / O,
   "animation-duration": AnimationDuration(SmallVec<[Time; 1]>, VendorPrefix) / WebKit / Moz / O,
@@ -748,7 +1030,7 @@ define_properties! {
   "animation-play-state": AnimationPlayState(SmallVec<[AnimationPlayState; 1]>, VendorPrefix) / WebKit / Moz / O,
   "animation-delay": AnimationDelay(SmallVec<[Time; 1]>, VendorPrefix) / WebKit / Moz / O,
   "animation-fill-mode": AnimationFillMode(SmallVec<[AnimationFillMode; 1]>, VendorPrefix) / WebKit / Moz / O,
-  "animation": Animation(AnimationList<'i>, VendorPrefix) / WebKit / Moz / O,
+  "animation": Animation(AnimationList<'i>, VendorPrefix) / WebKit / Moz / O shorthand: true,
 
   // https://drafts.csswg.org/css-transforms-2/
   "transform": Transform(TransformList, VendorPrefix) / WebKit / Moz / Ms / O,
@@ -783,20 +1065,23 @@ define_properties! {
   "text-decoration-style": TextDecorationStyle(TextDecorationStyle, VendorPrefix) / WebKit / Moz,
   "text-decoration-color": TextDecorationColor(CssColor, VendorPrefix) / WebKit / Moz,
   "text-decoration-thickness": TextDecorationThickness(TextDecorationThickness),
-  "text-decoration": TextDecoration(TextDecoration, VendorPrefix) / WebKit / Moz,
+  "text-decoration": TextDecoration(TextDecoration, VendorPrefix) / WebKit / Moz shorthand: true,
   "text-decoration-skip-ink": TextDecorationSkipInk(TextDecorationSkipInk, VendorPrefix) / WebKit,
   "text-emphasis-style": TextEmphasisStyle(TextEmphasisStyle<'i>, VendorPrefix) / WebKit,
   "text-emphasis-color": TextEmphasisColor(CssColor, VendorPrefix) / WebKit,
-  "text-emphasis": TextEmphasis(TextEmphasis<'i>, VendorPrefix) / WebKit,
+  "text-emphasis": TextEmphasis(TextEmphasis<'i>, VendorPrefix) / WebKit shorthand: true,
   "text-emphasis-position": TextEmphasisPosition(TextEmphasisPosition, VendorPrefix) / WebKit,
   "text-shadow": TextShadow(SmallVec<[TextShadow; 1]>),
+
+  // https://www.w3.org/TR/css-break-3/
+  "box-decoration-break": BoxDecorationBreak(BoxDecorationBreak, VendorPrefix) / WebKit,
 
   // https://www.w3.org/TR/2021/WD-css-ui-4-20210316
   "resize": Resize(Resize),
   "cursor": Cursor(Cursor<'i>),
   "caret-color": CaretColor(ColorOrAuto),
   "caret-shape": CaretShape(CaretShape),
-  "caret": Caret(Caret),
+  "caret": Caret(Caret) shorthand: true,
   "user-select": UserSelect(UserSelect, VendorPrefix) / WebKit / Moz / Ms,
   "accent-color": AccentColor(ColorOrAuto),
   "appearance": Appearance(Appearance<'i>, VendorPrefix) / WebKit / Moz / Ms,
@@ -805,7 +1090,7 @@ define_properties! {
   "list-style-type": ListStyleType(ListStyleType<'i>),
   "list-style-image": ListStyleImage(Image<'i>),
   "list-style-position": ListStylePosition(ListStylePosition),
-  "list-style": ListStyle(ListStyle<'i>),
+  "list-style": ListStyle(ListStyle<'i>) shorthand: true,
   "marker-side": MarkerSide(MarkerSide),
 
   // CSS modules
@@ -820,7 +1105,7 @@ define_properties! {
   "stroke-width": StrokeWidth(LengthPercentage),
   "stroke-linecap": StrokeLinecap(StrokeLinecap),
   "stroke-linejoin": StrokeLinejoin(StrokeLinejoin),
-  "stroke-miterlimit": StrokeMiterlimit(f32),
+  "stroke-miterlimit": StrokeMiterlimit(CSSNumber),
   "stroke-dasharray": StrokeDasharray(StrokeDasharray),
   "stroke-dashoffset": StrokeDashoffset(LengthPercentage),
   "marker-start": MarkerStart(Marker<'i>),
@@ -835,31 +1120,49 @@ define_properties! {
   "image-rendering": ImageRendering(ImageRendering),
 
   // https://www.w3.org/TR/css-masking-1/
-  "clip-path": ClipPath(ClipPath<'i>),
+  "clip-path": ClipPath(ClipPath<'i>, VendorPrefix) / WebKit,
   "clip-rule": ClipRule(FillRule),
-  "mask-image": MaskImage(SmallVec<[Image<'i>; 1]>),
+  "mask-image": MaskImage(SmallVec<[Image<'i>; 1]>, VendorPrefix) / WebKit,
   "mask-mode": MaskMode(SmallVec<[MaskMode; 1]>),
-  "mask-repeat": MaskRepeat(SmallVec<[BackgroundRepeat; 1]>),
+  "mask-repeat": MaskRepeat(SmallVec<[BackgroundRepeat; 1]>, VendorPrefix) / WebKit,
   "mask-position-x": MaskPositionX(SmallVec<[HorizontalPosition; 1]>),
   "mask-position-y": MaskPositionY(SmallVec<[VerticalPosition; 1]>),
-  "mask-position": MaskPosition(SmallVec<[Position; 1]>),
-  "mask-clip": MaskClip(SmallVec<[MaskClip; 1]>),
-  "mask-origin": MaskOrigin(SmallVec<[GeometryBox; 1]>),
-  "mask-size": MaskSize(SmallVec<[BackgroundSize; 1]>),
+  "mask-position": MaskPosition(SmallVec<[Position; 1]>, VendorPrefix) / WebKit,
+  "mask-clip": MaskClip(SmallVec<[MaskClip; 1]>, VendorPrefix) / WebKit,
+  "mask-origin": MaskOrigin(SmallVec<[GeometryBox; 1]>, VendorPrefix) / WebKit,
+  "mask-size": MaskSize(SmallVec<[BackgroundSize; 1]>, VendorPrefix) / WebKit,
   "mask-composite": MaskComposite(SmallVec<[MaskComposite; 1]>),
   "mask-type": MaskType(MaskType),
-  "mask": Mask(SmallVec<[Mask<'i>; 1]>),
+  "mask": Mask(SmallVec<[Mask<'i>; 1]>, VendorPrefix) / WebKit shorthand: true,
   "mask-border-source": MaskBorderSource(Image<'i>),
   "mask-border-mode": MaskBorderMode(MaskBorderMode),
   "mask-border-slice": MaskBorderSlice(BorderImageSlice),
   "mask-border-width": MaskBorderWidth(Rect<BorderImageSideWidth>),
   "mask-border-outset": MaskBorderOutset(Rect<LengthOrNumber>),
   "mask-border-repeat": MaskBorderRepeat(BorderImageRepeat),
-  "mask-border": MaskBorder(MaskBorder<'i>),
+  "mask-border": MaskBorder(MaskBorder<'i>) shorthand: true,
+
+  // WebKit additions
+  "-webkit-mask-composite": WebKitMaskComposite(SmallVec<[WebKitMaskComposite; 1]>),
+  "mask-source-type": WebKitMaskSourceType(SmallVec<[WebKitMaskSourceType; 1]>, VendorPrefix) / WebKit unprefixed: false,
+  "mask-box-image": WebKitMaskBoxImage(BorderImage<'i>, VendorPrefix) / WebKit unprefixed: false,
+  "mask-box-image-source": WebKitMaskBoxImageSource(Image<'i>, VendorPrefix) / WebKit unprefixed: false,
+  "mask-box-image-slice": WebKitMaskBoxImageSlice(BorderImageSlice, VendorPrefix) / WebKit unprefixed: false,
+  "mask-box-image-width": WebKitMaskBoxImageWidth(Rect<BorderImageSideWidth>, VendorPrefix) / WebKit unprefixed: false,
+  "mask-box-image-outset": WebKitMaskBoxImageOutset(Rect<LengthOrNumber>, VendorPrefix) / WebKit unprefixed: false,
+  "mask-box-image-repeat": WebKitMaskBoxImageRepeat(BorderImageRepeat, VendorPrefix) / WebKit unprefixed: false,
 
   // https://drafts.fxtf.org/filter-effects-1/
-  "filter": Filter(FilterList<'i>),
-  "backdrop-filter": BackdropFilter(FilterList<'i>),
+  "filter": Filter(FilterList<'i>, VendorPrefix) / WebKit,
+  "backdrop-filter": BackdropFilter(FilterList<'i>, VendorPrefix) / WebKit,
+
+  // https://drafts.csswg.org/css2/
+  "z-index": ZIndex(position::ZIndex),
+
+  // https://drafts.csswg.org/css-contain-3/
+  "container-type": ContainerType(ContainerType),
+  "container-name": ContainerName(ContainerNameList<'i>),
+  "container": Container(Container<'i>) shorthand: true,
 }
 
 impl<'i, T: smallvec::Array<Item = V>, V: Parse<'i>> Parse<'i> for SmallVec<T> {
@@ -870,7 +1173,7 @@ impl<'i, T: smallvec::Array<Item = V>, V: Parse<'i>> Parse<'i> for SmallVec<T> {
       input.skip_whitespace(); // Unnecessary for correctness, but may help try() in parse_one rewind less.
       match input.parse_until_before(Delimiter::Comma, &mut V::parse) {
         Ok(v) => values.push(v),
-        Err(err) => return Err(err)
+        Err(err) => return Err(err),
       }
       match input.next() {
         Err(_) => return Ok(values),
@@ -882,7 +1185,10 @@ impl<'i, T: smallvec::Array<Item = V>, V: Parse<'i>> Parse<'i> for SmallVec<T> {
 }
 
 impl<T: smallvec::Array<Item = V>, V: ToCss> ToCss for SmallVec<T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let len = self.len();
     for (idx, val) in self.iter().enumerate() {
       val.to_css(dest)?;
@@ -900,8 +1206,11 @@ impl<'i, T: Parse<'i>> Parse<'i> for Vec<T> {
   }
 }
 
-impl <T: ToCss> ToCss for Vec<T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+impl<T: ToCss> ToCss for Vec<T> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let len = self.len();
     for (idx, val) in self.iter().enumerate() {
       val.to_css(dest)?;

@@ -1,38 +1,47 @@
-use cssparser::*;
-use crate::values::{
-  length::LengthPercentageOrAuto,
-  position::*,
-  color::CssColor,
-  image::Image
-};
-use crate::targets::Browsers;
-use crate::prefixes::{Feature, is_webkit_gradient};
-use crate::traits::{Parse, ToCss, PropertyHandler};
-use crate::macros::*;
-use crate::properties::{Property, PropertyId, VendorPrefix};
-use crate::declaration::DeclarationList;
-use itertools::izip;
-use crate::printer::Printer;
-use smallvec::SmallVec;
-use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+//! CSS properties related to backgrounds.
 
-/// https://www.w3.org/TR/css-backgrounds-3/#background-size
+use crate::context::PropertyHandlerContext;
+use crate::declaration::{DeclarationBlock, DeclarationList};
+use crate::error::{ParserError, PrinterError};
+use crate::macros::*;
+use crate::prefixes::Feature;
+use crate::printer::Printer;
+use crate::properties::{Property, PropertyId, VendorPrefix};
+use crate::targets::Browsers;
+use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss};
+use crate::values::color::ColorFallbackKind;
+use crate::values::image::ImageFallback;
+use crate::values::{color::CssColor, image::Image, length::LengthPercentageOrAuto, position::*};
+use cssparser::*;
+use itertools::izip;
+use smallvec::SmallVec;
+
+/// A value for the [background-size](https://www.w3.org/TR/css-backgrounds-3/#background-size) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum BackgroundSize {
+  /// An explicit background size.
   Explicit {
+    /// The width of the background.
     width: LengthPercentageOrAuto,
-    height: LengthPercentageOrAuto
+    /// The height of the background.
+    height: LengthPercentageOrAuto,
   },
+  /// The `cover` keyword. Scales the background image to cover both the width and height of the element.
   Cover,
-  Contain
+  /// The `contain` keyword. Scales the background image so that it fits within the element.
+  Contain,
 }
 
 impl Default for BackgroundSize {
   fn default() -> BackgroundSize {
     BackgroundSize::Explicit {
       width: LengthPercentageOrAuto::Auto,
-      height: LengthPercentageOrAuto::Auto
+      height: LengthPercentageOrAuto::Auto,
     }
   }
 }
@@ -40,7 +49,9 @@ impl Default for BackgroundSize {
 impl<'i> Parse<'i> for BackgroundSize {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(width) = input.try_parse(LengthPercentageOrAuto::parse) {
-      let height = input.try_parse(LengthPercentageOrAuto::parse).unwrap_or(LengthPercentageOrAuto::Auto);
+      let height = input
+        .try_parse(LengthPercentageOrAuto::parse)
+        .unwrap_or(LengthPercentageOrAuto::Auto);
       return Ok(BackgroundSize::Explicit { width, height });
     }
 
@@ -57,13 +68,16 @@ impl<'i> Parse<'i> for BackgroundSize {
 }
 
 impl ToCss for BackgroundSize {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     use BackgroundSize::*;
 
     match &self {
       Cover => dest.write_str("cover"),
       Contain => dest.write_str("contain"),
-      Explicit {width, height} => {
+      Explicit { width, height } => {
         width.to_css(dest)?;
         if *height != LengthPercentageOrAuto::Auto {
           dest.write_str(" ")?;
@@ -76,27 +90,38 @@ impl ToCss for BackgroundSize {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/css-backgrounds-3/#typedef-repeat-style
+  /// A [`<repeat-style>`](https://www.w3.org/TR/css-backgrounds-3/#typedef-repeat-style) value,
+  /// used within the `background-repeat` property to represent how a background image is repeated
+  /// in a single direction.
+  ///
+  /// See [BackgroundRepeat](BackgroundRepeat).
   pub enum BackgroundRepeatKeyword {
+    /// The image is repeated in this direction.
     "repeat": Repeat,
+    /// The image is repeated so that it fits, and then spaced apart evenly.
     "space": Space,
+    /// The image is scaled so that it repeats an even number of times.
     "round": Round,
+    /// The image is placed once and not repeated in this direction.
     "no-repeat": NoRepeat,
   }
 }
 
-/// https://www.w3.org/TR/css-backgrounds-3/#background-repeat
+/// A value for the [background-repeat](https://www.w3.org/TR/css-backgrounds-3/#background-repeat) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BackgroundRepeat {
+  /// A repeat style for the x direction.
   pub x: BackgroundRepeatKeyword,
-  pub y: BackgroundRepeatKeyword
+  /// A repeat style for the y direction.
+  pub y: BackgroundRepeatKeyword,
 }
 
 impl Default for BackgroundRepeat {
   fn default() -> BackgroundRepeat {
     BackgroundRepeat {
       x: BackgroundRepeatKeyword::Repeat,
-      y: BackgroundRepeatKeyword::Repeat
+      y: BackgroundRepeatKeyword::Repeat,
     }
   }
 }
@@ -122,7 +147,10 @@ impl<'i> Parse<'i> for BackgroundRepeat {
 }
 
 impl ToCss for BackgroundRepeat {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     use BackgroundRepeatKeyword::*;
     match (&self.x, &self.y) {
       (Repeat, NoRepeat) => dest.write_str("repeat-x"),
@@ -140,10 +168,13 @@ impl ToCss for BackgroundRepeat {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/css-backgrounds-3/#background-attachment
+  /// A value for the [background-attachment](https://www.w3.org/TR/css-backgrounds-3/#background-attachment) property.
   pub enum BackgroundAttachment {
+    /// The background scrolls with the container.
     Scroll,
+    /// The background is fixed to the viewport.
     Fixed,
+    /// The background is fixed with regard to the element’s contents.
     Local,
   }
 }
@@ -155,42 +186,50 @@ impl Default for BackgroundAttachment {
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/css-backgrounds-3/#typedef-box
-  pub enum BackgroundBox {
+  /// A value for the [background-origin](https://www.w3.org/TR/css-backgrounds-3/#background-origin) property.
+  pub enum BackgroundOrigin {
+    /// The position is relative to the border box.
     "border-box": BorderBox,
+    /// The position is relative to the padding box.
     "padding-box": PaddingBox,
+    /// The position is relative to the content box.
     "content-box": ContentBox,
   }
 }
 
 enum_property! {
-  /// https://drafts.csswg.org/css-backgrounds-4/#background-clip
+  /// A value for the [background-clip](https://drafts.csswg.org/css-backgrounds-4/#background-clip) property.
   pub enum BackgroundClip {
+    /// The background is clipped to the border box.
     "border-box": BorderBox,
+    /// The background is clipped to the padding box.
     "padding-box": PaddingBox,
+    /// The background is clipped to the content box.
     "content-box": ContentBox,
+    /// The background is clipped to the area painted by the border.
     "border": Border,
+    /// The background is clipped to the text content of the element.
     "text": Text,
   }
 }
 
-impl PartialEq<BackgroundBox> for BackgroundClip {
-  fn eq(&self, other: &BackgroundBox) -> bool {
+impl PartialEq<BackgroundOrigin> for BackgroundClip {
+  fn eq(&self, other: &BackgroundOrigin) -> bool {
     match (self, other) {
-      (BackgroundClip::BorderBox, BackgroundBox::BorderBox) |
-      (BackgroundClip::PaddingBox, BackgroundBox::PaddingBox) |
-      (BackgroundClip::ContentBox, BackgroundBox::ContentBox) => true,
-      _ => false
+      (BackgroundClip::BorderBox, BackgroundOrigin::BorderBox)
+      | (BackgroundClip::PaddingBox, BackgroundOrigin::PaddingBox)
+      | (BackgroundClip::ContentBox, BackgroundOrigin::ContentBox) => true,
+      _ => false,
     }
   }
 }
 
-impl Into<BackgroundClip> for BackgroundBox {
+impl Into<BackgroundClip> for BackgroundOrigin {
   fn into(self) -> BackgroundClip {
     match self {
-      BackgroundBox::BorderBox => BackgroundClip::BorderBox,
-      BackgroundBox::PaddingBox => BackgroundClip::PaddingBox,
-      BackgroundBox::ContentBox => BackgroundClip::ContentBox
+      BackgroundOrigin::BorderBox => BackgroundClip::BorderBox,
+      BackgroundOrigin::PaddingBox => BackgroundClip::PaddingBox,
+      BackgroundOrigin::ContentBox => BackgroundClip::ContentBox,
     }
   }
 }
@@ -203,32 +242,93 @@ impl Default for BackgroundClip {
 
 impl BackgroundClip {
   fn is_background_box(&self) -> bool {
-    matches!(self, BackgroundClip::BorderBox | BackgroundClip::PaddingBox | BackgroundClip::ContentBox)
+    matches!(
+      self,
+      BackgroundClip::BorderBox | BackgroundClip::PaddingBox | BackgroundClip::ContentBox
+    )
   }
 }
 
-/// https://www.w3.org/TR/css-backgrounds-3/#background
+define_list_shorthand! {
+  /// A value for the [background-position](https://drafts.csswg.org/css-backgrounds/#background-position) shorthand property.
+  pub struct BackgroundPosition {
+    /// The x-position.
+    x: BackgroundPositionX(HorizontalPosition),
+    /// The y-position.
+    y: BackgroundPositionY(VerticalPosition),
+  }
+}
+
+impl From<Position> for BackgroundPosition {
+  fn from(pos: Position) -> Self {
+    BackgroundPosition { x: pos.x, y: pos.y }
+  }
+}
+
+impl Into<Position> for &BackgroundPosition {
+  fn into(self) -> Position {
+    Position {
+      x: self.x.clone(),
+      y: self.y.clone(),
+    }
+  }
+}
+
+impl Default for BackgroundPosition {
+  fn default() -> Self {
+    Position::default().into()
+  }
+}
+
+impl<'i> Parse<'i> for BackgroundPosition {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let pos = Position::parse(input)?;
+    Ok(pos.into())
+  }
+}
+
+impl ToCss for BackgroundPosition {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    let pos: Position = self.into();
+    pos.to_css(dest)
+  }
+}
+
+/// A value for the [background](https://www.w3.org/TR/css-backgrounds-3/#background) shorthand property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Background<'i> {
+  /// The background image.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub image: Image<'i>,
+  /// The background color.
   pub color: CssColor,
-  pub position: Position,
+  /// The background position.
+  pub position: BackgroundPosition,
+  /// How the background image should repeat.
   pub repeat: BackgroundRepeat,
+  /// The size of the background image.
   pub size: BackgroundSize,
+  /// The background attachment.
   pub attachment: BackgroundAttachment,
-  pub origin: BackgroundBox,
-  pub clip: BackgroundClip
+  /// The background origin.
+  pub origin: BackgroundOrigin,
+  /// How the background should be clipped.
+  pub clip: BackgroundClip,
 }
 
 impl<'i> Parse<'i> for Background<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut color: Option<CssColor> = None;
-    let mut position: Option<Position> = None;
+    let mut position: Option<BackgroundPosition> = None;
     let mut size: Option<BackgroundSize> = None;
     let mut image: Option<Image> = None;
     let mut repeat: Option<BackgroundRepeat> = None;
     let mut attachment: Option<BackgroundAttachment> = None;
-    let mut origin: Option<BackgroundBox> = None;
+    let mut origin: Option<BackgroundOrigin> = None;
     let mut clip: Option<BackgroundClip> = None;
 
     loop {
@@ -241,13 +341,15 @@ impl<'i> Parse<'i> for Background<'i> {
       }
 
       if position.is_none() {
-        if let Ok(value) = input.try_parse(Position::parse) {
+        if let Ok(value) = input.try_parse(BackgroundPosition::parse) {
           position = Some(value);
 
-          size = input.try_parse(|input| {
-            input.expect_delim('/')?;
-            BackgroundSize::parse(input)
-          }).ok();
+          size = input
+            .try_parse(|input| {
+              input.expect_delim('/')?;
+              BackgroundSize::parse(input)
+            })
+            .ok();
 
           continue;
         }
@@ -275,7 +377,7 @@ impl<'i> Parse<'i> for Background<'i> {
       }
 
       if origin.is_none() {
-        if let Ok(value) = input.try_parse(BackgroundBox::parse) {
+        if let Ok(value) = input.try_parse(BackgroundOrigin::parse) {
           origin = Some(value);
           continue;
         }
@@ -288,7 +390,7 @@ impl<'i> Parse<'i> for Background<'i> {
         }
       }
 
-      break
+      break;
     }
 
     if clip.is_none() {
@@ -304,14 +406,17 @@ impl<'i> Parse<'i> for Background<'i> {
       repeat: repeat.unwrap_or_default(),
       size: size.unwrap_or_default(),
       attachment: attachment.unwrap_or_default(),
-      origin: origin.unwrap_or(BackgroundBox::PaddingBox),
-      clip: clip.unwrap_or(BackgroundClip::BorderBox)
+      origin: origin.unwrap_or(BackgroundOrigin::PaddingBox),
+      clip: clip.unwrap_or(BackgroundClip::BorderBox),
     })
   }
 }
 
 impl<'i> ToCss for Background<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let mut has_output = false;
 
     if self.color != CssColor::default() {
@@ -327,11 +432,12 @@ impl<'i> ToCss for Background<'i> {
       has_output = true;
     }
 
-    if !self.position.is_zero() || self.size != BackgroundSize::default() {
+    let position: Position = (&self.position).into();
+    if !position.is_zero() || self.size != BackgroundSize::default() {
       if has_output {
         dest.write_str(" ")?;
       }
-      self.position.to_css(dest)?;
+      position.to_css(dest)?;
 
       if self.size != BackgroundSize::default() {
         dest.delim('/', true)?;
@@ -359,7 +465,8 @@ impl<'i> ToCss for Background<'i> {
       has_output = true;
     }
 
-    let output_padding_box = self.origin != BackgroundBox::PaddingBox || (self.clip != BackgroundBox::BorderBox && self.clip.is_background_box());
+    let output_padding_box = self.origin != BackgroundOrigin::PaddingBox
+      || (self.clip != BackgroundOrigin::BorderBox && self.clip.is_background_box());
     if output_padding_box {
       if has_output {
         dest.write_str(" ")?;
@@ -369,7 +476,7 @@ impl<'i> ToCss for Background<'i> {
       has_output = true;
     }
 
-    if (output_padding_box && self.clip != self.origin) || self.clip != BackgroundBox::BorderBox {
+    if (output_padding_box && self.clip != self.origin) || self.clip != BackgroundOrigin::BorderBox {
       if has_output {
         dest.write_str(" ")?;
       }
@@ -392,6 +499,252 @@ impl<'i> ToCss for Background<'i> {
   }
 }
 
+impl<'i> ImageFallback<'i> for Background<'i> {
+  #[inline]
+  fn get_image(&self) -> &Image<'i> {
+    &self.image
+  }
+
+  #[inline]
+  fn with_image(&self, image: Image<'i>) -> Self {
+    Background { image, ..self.clone() }
+  }
+
+  #[inline]
+  fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+    self.color.get_necessary_fallbacks(targets) | self.get_image().get_necessary_fallbacks(targets)
+  }
+
+  #[inline]
+  fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
+    Background {
+      color: self.color.get_fallback(kind),
+      image: self.image.get_fallback(kind),
+      ..self.clone()
+    }
+  }
+}
+
+impl<'i> Shorthand<'i> for SmallVec<[Background<'i>; 1]> {
+  fn from_longhands(decls: &DeclarationBlock<'i>, vendor_prefix: VendorPrefix) -> Option<(Self, bool)> {
+    let mut color = None;
+    let mut images = None;
+    let mut x_positions = None;
+    let mut y_positions = None;
+    let mut repeats = None;
+    let mut sizes = None;
+    let mut attachments = None;
+    let mut origins = None;
+    let mut clips = None;
+
+    let mut count = 0;
+    let mut important_count = 0;
+    let mut length = None;
+    for (property, important) in decls.iter() {
+      let len = match property {
+        Property::BackgroundColor(value) => {
+          color = Some(value.clone());
+          count += 1;
+          if important {
+            important_count += 1;
+          }
+          continue;
+        }
+        Property::BackgroundImage(value) => {
+          images = Some(value.clone());
+          value.len()
+        }
+        Property::BackgroundPosition(value) => {
+          x_positions = Some(value.iter().map(|v| v.x.clone()).collect());
+          y_positions = Some(value.iter().map(|v| v.y.clone()).collect());
+          value.len()
+        }
+        Property::BackgroundPositionX(value) => {
+          x_positions = Some(value.clone());
+          value.len()
+        }
+        Property::BackgroundPositionY(value) => {
+          y_positions = Some(value.clone());
+          value.len()
+        }
+        Property::BackgroundRepeat(value) => {
+          repeats = Some(value.clone());
+          value.len()
+        }
+        Property::BackgroundSize(value) => {
+          sizes = Some(value.clone());
+          value.len()
+        }
+        Property::BackgroundAttachment(value) => {
+          attachments = Some(value.clone());
+          value.len()
+        }
+        Property::BackgroundOrigin(value) => {
+          origins = Some(value.clone());
+          value.len()
+        }
+        Property::BackgroundClip(value, vp) => {
+          if *vp != vendor_prefix {
+            return None;
+          }
+          clips = Some(value.clone());
+          value.len()
+        }
+        Property::Background(val) => {
+          color = Some(val.last().unwrap().color.clone());
+          images = Some(val.iter().map(|b| b.image.clone()).collect());
+          x_positions = Some(val.iter().map(|b| b.position.x.clone()).collect());
+          y_positions = Some(val.iter().map(|b| b.position.y.clone()).collect());
+          repeats = Some(val.iter().map(|b| b.repeat.clone()).collect());
+          sizes = Some(val.iter().map(|b| b.size.clone()).collect());
+          attachments = Some(val.iter().map(|b| b.attachment.clone()).collect());
+          origins = Some(val.iter().map(|b| b.origin.clone()).collect());
+          clips = Some(val.iter().map(|b| b.clip.clone()).collect());
+          val.len()
+        }
+        _ => continue,
+      };
+
+      // Lengths must be equal.
+      if length.is_none() {
+        length = Some(len);
+      } else if length.unwrap() != len {
+        return None;
+      }
+
+      count += 1;
+      if important {
+        important_count += 1;
+      }
+    }
+
+    // !important flags must match to produce a shorthand.
+    if important_count > 0 && important_count != count {
+      return None;
+    }
+
+    if color.is_some()
+      && images.is_some()
+      && x_positions.is_some()
+      && y_positions.is_some()
+      && repeats.is_some()
+      && sizes.is_some()
+      && attachments.is_some()
+      && origins.is_some()
+      && clips.is_some()
+    {
+      let length = length.unwrap();
+      let values = izip!(
+        images.unwrap().drain(..),
+        x_positions.unwrap().drain(..),
+        y_positions.unwrap().drain(..),
+        repeats.unwrap().drain(..),
+        sizes.unwrap().drain(..),
+        attachments.unwrap().drain(..),
+        origins.unwrap().drain(..),
+        clips.unwrap().drain(..),
+      )
+      .enumerate()
+      .map(
+        |(i, (image, x_position, y_position, repeat, size, attachment, origin, clip))| Background {
+          color: if i == length - 1 {
+            color.clone().unwrap()
+          } else {
+            CssColor::default()
+          },
+          image,
+          position: BackgroundPosition {
+            x: x_position,
+            y: y_position,
+          },
+          repeat,
+          size,
+          attachment,
+          origin,
+          clip: clip,
+        },
+      )
+      .collect();
+      return Some((values, important_count > 0));
+    }
+
+    None
+  }
+
+  fn longhands(vendor_prefix: VendorPrefix) -> Vec<PropertyId<'static>> {
+    vec![
+      PropertyId::BackgroundColor,
+      PropertyId::BackgroundImage,
+      PropertyId::BackgroundPositionX,
+      PropertyId::BackgroundPositionY,
+      PropertyId::BackgroundRepeat,
+      PropertyId::BackgroundSize,
+      PropertyId::BackgroundAttachment,
+      PropertyId::BackgroundOrigin,
+      PropertyId::BackgroundClip(vendor_prefix),
+    ]
+  }
+
+  fn longhand(&self, property_id: &PropertyId) -> Option<Property<'i>> {
+    match property_id {
+      PropertyId::BackgroundColor => Some(Property::BackgroundColor(self.last().unwrap().color.clone())),
+      PropertyId::BackgroundImage => Some(Property::BackgroundImage(
+        self.iter().map(|v| v.image.clone()).collect(),
+      )),
+      PropertyId::BackgroundPositionX => Some(Property::BackgroundPositionX(
+        self.iter().map(|v| v.position.x.clone()).collect(),
+      )),
+      PropertyId::BackgroundPositionY => Some(Property::BackgroundPositionY(
+        self.iter().map(|v| v.position.y.clone()).collect(),
+      )),
+      PropertyId::BackgroundRepeat => Some(Property::BackgroundRepeat(
+        self.iter().map(|v| v.repeat.clone()).collect(),
+      )),
+      PropertyId::BackgroundSize => Some(Property::BackgroundSize(self.iter().map(|v| v.size.clone()).collect())),
+      PropertyId::BackgroundAttachment => Some(Property::BackgroundAttachment(
+        self.iter().map(|v| v.attachment.clone()).collect(),
+      )),
+      PropertyId::BackgroundOrigin => Some(Property::BackgroundOrigin(
+        self.iter().map(|v| v.origin.clone()).collect(),
+      )),
+      PropertyId::BackgroundClip(vp) => Some(Property::BackgroundClip(
+        self.iter().map(|v| v.clip.clone()).collect(),
+        *vp,
+      )),
+      _ => None,
+    }
+  }
+
+  fn set_longhand(&mut self, property: &Property<'i>) -> Result<(), ()> {
+    macro_rules! longhand {
+      ($value: ident, $key: ident $(.$k: ident)*) => {{
+        if $value.len() != self.len() {
+          return Err(());
+        }
+        for (i, item) in self.iter_mut().enumerate() {
+          item.$key$(.$k)* = $value[i].clone();
+        }
+      }};
+    }
+
+    match property {
+      Property::BackgroundColor(value) => self.last_mut().unwrap().color = value.clone(),
+      Property::BackgroundImage(value) => longhand!(value, image),
+      Property::BackgroundPositionX(value) => longhand!(value, position.x),
+      Property::BackgroundPositionY(value) => longhand!(value, position.y),
+      Property::BackgroundPosition(value) => longhand!(value, position),
+      Property::BackgroundRepeat(value) => longhand!(value, repeat),
+      Property::BackgroundSize(value) => longhand!(value, size),
+      Property::BackgroundAttachment(value) => longhand!(value, attachment),
+      Property::BackgroundOrigin(value) => longhand!(value, origin),
+      Property::BackgroundClip(value, _vp) => longhand!(value, clip),
+      _ => return Err(()),
+    }
+
+    Ok(())
+  }
+}
+
 #[derive(Default)]
 pub(crate) struct BackgroundHandler<'i> {
   targets: Option<Browsers>,
@@ -403,10 +756,10 @@ pub(crate) struct BackgroundHandler<'i> {
   repeats: Option<SmallVec<[BackgroundRepeat; 1]>>,
   sizes: Option<SmallVec<[BackgroundSize; 1]>>,
   attachments: Option<SmallVec<[BackgroundAttachment; 1]>>,
-  origins: Option<SmallVec<[BackgroundBox; 1]>>,
+  origins: Option<SmallVec<[BackgroundOrigin; 1]>>,
   clips: Option<SmallVec<[BackgroundClip; 1]>>,
   decls: Vec<Property<'i>>,
-  has_any: bool
+  has_any: bool,
 }
 
 impl<'i> BackgroundHandler<'i> {
@@ -419,9 +772,19 @@ impl<'i> BackgroundHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
+  fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    dest: &mut DeclarationList<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
+  ) -> bool {
     macro_rules! background_image {
       ($val: ident) => {
+        // If this is an image-set() and not all of our targets support it, preserve previous fallback.
+        if Image::should_preserve_fallbacks(&$val, self.images.as_ref(), self.targets) {
+          self.flush(dest);
+        }
+
         // Store prefixed properties. Clear if we hit an unprefixed property and we have
         // targets. In this case, the necessary prefixes will be generated.
         self.has_prefix = $val.iter().any(|x| x.has_vendor_prefix());
@@ -438,11 +801,11 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
       Property::BackgroundImage(val) => {
         background_image!(val);
         self.images = Some(val.clone())
-      },
+      }
       Property::BackgroundPosition(val) => {
         self.x_positions = Some(val.iter().map(|p| p.x.clone()).collect());
         self.y_positions = Some(val.iter().map(|p| p.y.clone()).collect());
-      },
+      }
       Property::BackgroundPositionX(val) => self.x_positions = Some(val.clone()),
       Property::BackgroundPositionY(val) => self.y_positions = Some(val.clone()),
       Property::BackgroundRepeat(val) => self.repeats = Some(val.clone()),
@@ -456,7 +819,7 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
           self.flush(dest);
           dest.push(property.clone())
         }
-      },
+      }
       Property::Background(val) => {
         let images: SmallVec<[Image; 1]> = val.iter().map(|b| b.image.clone()).collect();
         background_image!(images);
@@ -472,16 +835,18 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
       }
       Property::Unparsed(val) if is_background_property(&val.property_id) => {
         self.flush(dest);
-        dest.push(property.clone())
+        let mut unparsed = val.clone();
+        context.add_unparsed_fallbacks(&mut unparsed);
+        dest.push(Property::Unparsed(unparsed))
       }
-      _ => return false
+      _ => return false,
     }
 
     self.has_any = true;
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i, '_>) {
     // If the last declaration is prefixed, pop the last value
     // so it isn't duplicated when we flush.
     if self.has_prefix {
@@ -494,9 +859,9 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
 }
 
 impl<'i> BackgroundHandler<'i> {
-  fn flush(&mut self, dest: &mut DeclarationList<'i>) {    
+  fn flush(&mut self, dest: &mut DeclarationList<'i>) {
     if !self.has_any {
-      return
+      return;
     }
 
     self.has_any = false;
@@ -511,23 +876,45 @@ impl<'i> BackgroundHandler<'i> {
     let mut origins = std::mem::take(&mut self.origins);
     let mut clips = std::mem::take(&mut self.clips);
 
-    if let (Some(color), Some(images), Some(x_positions), Some(y_positions), Some(repeats), Some(sizes), Some(attachments), Some(origins), Some(clips)) = (&color, &mut images, &mut x_positions, &mut y_positions, &mut repeats, &mut sizes, &mut attachments, &mut origins, &mut clips) {
+    if let (
+      Some(color),
+      Some(images),
+      Some(x_positions),
+      Some(y_positions),
+      Some(repeats),
+      Some(sizes),
+      Some(attachments),
+      Some(origins),
+      Some(clips),
+    ) = (
+      &color,
+      &mut images,
+      &mut x_positions,
+      &mut y_positions,
+      &mut repeats,
+      &mut sizes,
+      &mut attachments,
+      &mut origins,
+      &mut clips,
+    ) {
       // Only use shorthand syntax if the number of layers matches on all properties.
       let len = images.len();
-      if x_positions.len() == len && y_positions.len() == len && repeats.len() == len && sizes.len() == len && attachments.len() == len && origins.len() == len && clips.len() == len {
-        let (prefixes, clip_prefixes) = if let Some(targets) = self.targets {
-          let mut prefixes = VendorPrefix::empty();
-          for image in images.iter() {
-            prefixes |= image.get_necessary_prefixes(targets);
-          }
-          let clip_prefixes = if clips.iter().any(|clip| *clip == BackgroundClip::Text) {
+      if x_positions.len() == len
+        && y_positions.len() == len
+        && repeats.len() == len
+        && sizes.len() == len
+        && attachments.len() == len
+        && origins.len() == len
+        && clips.len() == len
+      {
+        let clip_prefixes = if let Some(targets) = self.targets {
+          if clips.iter().any(|clip| *clip == BackgroundClip::Text) {
             Feature::BackgroundClip.prefixes_for(targets)
           } else {
             VendorPrefix::None
-          };
-          (prefixes, clip_prefixes)
+          }
         } else {
-          (VendorPrefix::None, VendorPrefix::None)
+          VendorPrefix::None
         };
 
         let clip_property = if clip_prefixes != VendorPrefix::None {
@@ -536,17 +923,28 @@ impl<'i> BackgroundHandler<'i> {
           None
         };
 
-        let backgrounds: SmallVec<[Background<'i>; 1]> = izip!(images.drain(..), x_positions.drain(..), y_positions.drain(..), repeats.drain(..), sizes.drain(..), attachments.drain(..), origins.drain(..), clips.drain(..)).enumerate().map(|(i, (image, x_position, y_position, repeat, size, attachment, origin, clip))| {
-          Background {
+        let mut backgrounds: SmallVec<[Background<'i>; 1]> = izip!(
+          images.drain(..),
+          x_positions.drain(..),
+          y_positions.drain(..),
+          repeats.drain(..),
+          sizes.drain(..),
+          attachments.drain(..),
+          origins.drain(..),
+          clips.drain(..)
+        )
+        .enumerate()
+        .map(
+          |(i, (image, x_position, y_position, repeat, size, attachment, origin, clip))| Background {
             color: if i == len - 1 {
               color.clone()
             } else {
               CssColor::default()
             },
             image,
-            position: Position {
+            position: BackgroundPosition {
               x: x_position,
-              y: y_position
+              y: y_position,
             },
             repeat,
             size,
@@ -556,104 +954,60 @@ impl<'i> BackgroundHandler<'i> {
               clip
             } else {
               BackgroundClip::default()
-            }
-          }
-        }).collect();
+            },
+          },
+        )
+        .collect();
 
         if let Some(targets) = self.targets {
-          // Legacy -webkit-gradient()
-          if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) && backgrounds.iter().any(|bg| matches!(bg.image, Image::Gradient(_))) {
-            let backgrounds: SmallVec<[Background<'i>; 1]> = backgrounds
-              .iter()
-              .map(|bg| -> Result<Background<'i>, ()> { Ok(Background { image: bg.image.get_legacy_webkit()?, ..bg.clone() })})
-              .flatten()
-              .collect();
-            if !backgrounds.is_empty() {
-              dest.push(Property::Background(backgrounds))
-            }
+          for fallback in backgrounds.get_fallbacks(targets) {
+            dest.push(Property::Background(fallback));
           }
-
-          // Standard syntax, with prefixes.
-          macro_rules! prefix {
-            ($prefix: ident) => {
-              if prefixes.contains(VendorPrefix::$prefix) {
-                let backgrounds = backgrounds
-                  .iter()
-                  .map(|bg| Background { image: bg.image.get_prefixed(VendorPrefix::$prefix), ..bg.clone() })
-                  .collect();
-                dest.push(Property::Background(backgrounds))
-              }
-            };
-          }
-
-          prefix!(WebKit);
-          prefix!(Moz);
-          prefix!(O);
         }
 
-        if prefixes.contains(VendorPrefix::None) {
-          dest.push(Property::Background(backgrounds));
-        }
+        dest.push(Property::Background(backgrounds));
 
         if let Some(clip) = clip_property {
           dest.push(clip)
         }
 
         self.reset();
-        return
+        return;
       }
     }
 
-    if let Some(color) = color {
+    if let Some(mut color) = color {
+      if let Some(targets) = self.targets {
+        for fallback in color.get_fallbacks(targets) {
+          dest.push(Property::BackgroundColor(fallback))
+        }
+      }
+
       dest.push(Property::BackgroundColor(color))
     }
 
-    if let Some(images) = images {
+    if let Some(mut images) = images {
       if let Some(targets) = self.targets {
-        let mut prefixes = VendorPrefix::empty();
-        for image in images.iter() {
-          prefixes |= image.get_necessary_prefixes(targets);
+        for fallback in images.get_fallbacks(targets) {
+          dest.push(Property::BackgroundImage(fallback));
         }
-      
-        // Legacy -webkit-gradient()
-        if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) {
-          let images: SmallVec<[Image<'i>; 1]> = images.iter().map(|image| image.get_legacy_webkit()).flatten().collect();
-          if !images.is_empty() {
-            dest.push(Property::BackgroundImage(images))
-          }
-        }
-
-        // Standard syntax, with prefixes.
-        macro_rules! prefix {
-          ($prefix: ident) => {
-            if prefixes.contains(VendorPrefix::$prefix) {
-              let images = images.iter().map(|image| image.get_prefixed(VendorPrefix::$prefix)).collect();
-              dest.push(Property::BackgroundImage(images))
-            }
-          };
-        }
-
-        prefix!(WebKit);
-        prefix!(Moz);
-        prefix!(O);
-        if prefixes.contains(VendorPrefix::None) {
-          dest.push(Property::BackgroundImage(images))
-        }
-      } else {
-        dest.push(Property::BackgroundImage(images))
       }
+
+      dest.push(Property::BackgroundImage(images))
     }
 
     match (&mut x_positions, &mut y_positions) {
       (Some(x_positions), Some(y_positions)) if x_positions.len() == y_positions.len() => {
-        let positions = izip!(x_positions.drain(..), y_positions.drain(..)).map(|(x, y)| Position {x, y}).collect();
+        let positions = izip!(x_positions.drain(..), y_positions.drain(..))
+          .map(|(x, y)| BackgroundPosition { x, y })
+          .collect();
         dest.push(Property::BackgroundPosition(positions))
       }
       _ => {
         if let Some(x_positions) = x_positions {
           dest.push(Property::BackgroundPositionX(x_positions))
         }
-  
+
         if let Some(y_positions) = y_positions {
           dest.push(Property::BackgroundPositionY(y_positions))
         }
@@ -708,17 +1062,17 @@ impl<'i> BackgroundHandler<'i> {
 #[inline]
 fn is_background_property(property_id: &PropertyId) -> bool {
   match property_id {
-    PropertyId::BackgroundColor |
-    PropertyId::BackgroundImage |
-    PropertyId::BackgroundPosition |
-    PropertyId::BackgroundPositionX |
-    PropertyId::BackgroundPositionY |
-    PropertyId::BackgroundRepeat |
-    PropertyId::BackgroundSize |
-    PropertyId::BackgroundAttachment |
-    PropertyId::BackgroundOrigin |
-    PropertyId::BackgroundClip(_) |
-    PropertyId::Background => true,
-    _ => false
+    PropertyId::BackgroundColor
+    | PropertyId::BackgroundImage
+    | PropertyId::BackgroundPosition
+    | PropertyId::BackgroundPositionX
+    | PropertyId::BackgroundPositionY
+    | PropertyId::BackgroundRepeat
+    | PropertyId::BackgroundSize
+    | PropertyId::BackgroundAttachment
+    | PropertyId::BackgroundOrigin
+    | PropertyId::BackgroundClip(_)
+    | PropertyId::Background => true,
+    _ => false,
   }
 }

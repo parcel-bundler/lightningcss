@@ -16,6 +16,7 @@ const BROWSER_MAPPING = {
   bb: null,
   kaios: null,
   op_mini: null,
+  oculus: null,
 };
 
 const MDN_BROWSER_MAPPING = {
@@ -24,8 +25,38 @@ const MDN_BROWSER_MAPPING = {
   opera_android: 'opera',
   safari_ios: 'ios_saf',
   samsunginternet_android: 'samsung',
-  webview_android: 'android'
+  webview_android: 'android',
+  oculus: null,
 };
+
+// Caniuse data for clip-path is incorrect.
+// https://github.com/Fyrd/caniuse/issues/6209
+prefixes['clip-path'].browsers = prefixes['clip-path'].browsers.filter(b => {
+  let [name, version] = b.split(' ');
+  return !(
+    (name === 'safari' && parseVersion(version) >= (9 << 16 | 1 << 8)) ||
+    (name === 'ios_saf' && parseVersion(version) >= (9 << 16 | 3 << 8))
+  );
+});
+
+prefixes['any-pseudo'] = {
+  browsers: Object.entries(mdn.css.selectors.is.__compat.support)
+    .flatMap(([key, value]) => {
+      if (Array.isArray(value)) {
+        key = MDN_BROWSER_MAPPING[key] || key;
+        let any = value.find(v => v.alternative_name?.includes('-any'))?.version_added;
+        let supported = value.find(x => x.version_added && !x.alternative_name)?.version_added;
+        if (any && supported) {
+          let parts = supported.split('.');
+          parts[0]--;
+          supported = parts.join('.');
+          return [`${key} ${any}}`, `${key} ${supported}`];
+        }
+      }
+
+      return [];
+    })
+}
 
 let flexSpec = {};
 let oldGradient = {};
@@ -38,6 +69,12 @@ for (let prop in prefixes) {
       continue;
     }
     let prefix = browsers[name].prefix_exceptions?.[version] || browsers[name].prefix;
+
+    // https://github.com/postcss/autoprefixer/blob/main/lib/hacks/backdrop-filter.js#L11
+    if (prefix === 'ms' && prop === 'backdrop-filter') {
+      prefix = 'webkit';
+    }
+
     name = BROWSER_MAPPING[name] || name;
     let v = parseVersion(version);
     if (v == null) {
@@ -129,7 +166,10 @@ let cssFeatures = [
   'css-namespaces',
   'shadowdomv1',
   'css-rrggbbaa',
-  'css-nesting'
+  'css-nesting',
+  'css-not-sel-list',
+  'css-has',
+  'font-family-system-ui'
 ];
 
 let compat = new Map();
@@ -173,12 +213,41 @@ let mdnFeatures = {
   mediaRangeSyntax: mdn.css['at-rules'].media.range_syntax.__compat.support,
   mediaIntervalSyntax: {}, // currently no browsers
   logicalBorders: mdn.css.properties['border-inline-start'].__compat.support,
+  logicalBorderShorthand: mdn.css.properties['border-inline'].__compat.support,
   logicalBorderRadius: mdn.css.properties['border-start-start-radius'].__compat.support,
   logicalMargin: mdn.css.properties['margin-inline-start'].__compat.support,
+  logicalMarginShorthand: mdn.css.properties['margin-inline'].__compat.support,
   logicalPadding: mdn.css.properties['padding-inline-start'].__compat.support,
+  logicalPaddingShorthand: mdn.css.properties['padding-inline'].__compat.support,
   logicalInset: mdn.css.properties['inset-inline-start'].__compat.support,
   logicalSize: mdn.css.properties['inline-size'].__compat.support,
-  logicalTextAlign: mdn.css.properties['text-align']['flow_relative_values_start_and_end'].__compat.support
+  logicalTextAlign: mdn.css.properties['text-align']['flow_relative_values_start_and_end'].__compat.support,
+  labColors: mdn.css.types.color.lab.__compat.support,
+  oklabColors: {},
+  colorFunction: mdn.css.types.color.color.__compat.support,
+  spaceSeparatedColorFunction: mdn.css.types.color.rgb.space_separated_parameters.__compat.support,
+  textDecorationThicknessPercent: mdn.css.properties['text-decoration-thickness'].percentage.__compat.support,
+  textDecorationThicknessShorthand: mdn.css.properties['text-decoration']['text-decoration-thickness'].__compat.support,
+  cue: mdn.css.selectors.cue.__compat.support,
+  cueFunction: mdn.css.selectors.cue.selector_argument.__compat.support,
+  anyPseudo: Object.fromEntries(
+    Object.entries(mdn.css.selectors.is.__compat.support)
+      .map(([key, value]) => {
+        if (Array.isArray(value)) {
+          value = value
+            .filter(v => v.alternative_name?.includes('-any'))
+            .map(({alternative_name, ...other}) => other);
+        }
+
+        if (value && value.length) {
+          return [key, value];
+        } else {
+          return [key, {version_added: false}];
+        }
+      })
+  ),
+  imageSet: mdn.css.types.image['image-set'].__compat.support,
+  xResolutionUnit: mdn.css.types.resolution.x.__compat.support
 };
 
 for (let feature in mdnFeatures) {
@@ -213,6 +282,17 @@ for (let feature in mdnFeatures) {
   addValue(compat, browserMap, feature);
 }
 
+addValue(compat, {
+  safari: parseVersion('10.1'),
+  ios_saf: parseVersion('10.3')
+}, 'p3Colors');
+
+addValue(compat, {
+  // https://github.com/WebKit/WebKit/commit/baed0d8b0abf366e1d9a6105dc378c59a5f21575
+  safari: parseVersion('10.1'),
+  ios_saf: parseVersion('10.3')
+}, 'langList');
+
 let prefixMapping = {
   webkit: 'WebKit',
   moz: 'Moz',
@@ -223,11 +303,30 @@ let prefixMapping = {
 let enumify = (f) => f.replace(/^@([a-z])/, (_, x) => 'At' + x.toUpperCase()).replace(/^::([a-z])/, (_, x) => 'PseudoElement' + x.toUpperCase()).replace(/^:([a-z])/, (_, x) => 'PseudoClass' + x.toUpperCase()).replace(/(^|-)([a-z])/g, (_, a, x) => x.toUpperCase())
 
 let allBrowsers = Object.keys(browsers).filter(b => !(b in BROWSER_MAPPING)).sort();
-let targets = `// This file is autogenerated by build-prefixes.js. DO NOT EDIT!
+let targets = `//! Browser target options.
+// This file is autogenerated by build-prefixes.js. DO NOT EDIT!
 
 use serde::{Deserialize, Serialize};
 
+/// Browser versions to compile CSS for.
+///
+/// Versions are represented as a single 24-bit integer, with one byte
+/// per \`major.minor.patch\` component.
+///
+/// # Example
+///
+/// This example represents a target of Safari 13.2.0.
+///
+/// \`\`\`
+/// use lightningcss::targets::Browsers;
+///
+/// let targets = Browsers {
+///   safari: Some((13 << 16) | (2 << 8)),
+///   ..Browsers::default()
+/// };
+/// \`\`\`
 #[derive(Serialize, Debug, Deserialize, Clone, Copy, Default)]
+#[allow(missing_docs)]
 pub struct Browsers {
   pub ${allBrowsers.join(': Option<u32>,\n  pub ')}: Option<u32>
 }
@@ -308,7 +407,7 @@ let c = `// This file is autogenerated by build-prefixes.js. DO NOT EDIT!
 
 use crate::targets::Browsers;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum Feature {
   ${[...compat.keys()].flat().map(enumify).sort().join(',\n  ')}
 }
@@ -331,6 +430,18 @@ impl Feature {
     }
     true
   }
+
+  pub fn is_partially_compatible(&self, targets: Browsers) -> bool {
+    let mut browsers = Browsers::default();
+    ${allBrowsers.map(browser => `if targets.${browser}.is_some() {
+      browsers.${browser} = targets.${browser};
+      if self.is_compatible(browsers) {
+        return true
+      }
+      browsers.${browser} = None;
+    }\n`).join('    ')}
+    false
+  }
 }
 `;
 
@@ -338,6 +449,7 @@ fs.writeFileSync('src/compat.rs', c);
 
 
 function parseVersion(version) {
+  version = version.replace('≤', '');
   let [major, minor = '0', patch = '0'] = version
     .split('-')[0]
     .split('.')

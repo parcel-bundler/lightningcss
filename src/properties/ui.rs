@@ -1,51 +1,69 @@
-use crate::values::string::CowArcStr;
-use cssparser::*;
-use crate::traits::{Parse, ToCss};
-use crate::values::color::CssColor;
-use crate::macros::{enum_property, shorthand_property};
-use crate::printer::Printer;
-use smallvec::SmallVec;
-use crate::values::url::Url;
+//! CSS properties related to user interface.
+
+use crate::declaration::DeclarationBlock;
 use crate::error::{ParserError, PrinterError};
+use crate::macros::{define_shorthand, enum_property, shorthand_property};
+use crate::printer::Printer;
+use crate::properties::{Property, PropertyId};
+use crate::targets::Browsers;
+use crate::traits::{FallbackValues, Parse, Shorthand, ToCss};
+use crate::values::color::CssColor;
+use crate::values::number::CSSNumber;
+use crate::values::string::CowArcStr;
+use crate::values::url::Url;
+use cssparser::*;
+use smallvec::SmallVec;
 
 enum_property! {
-  /// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#resize
+  /// A value for the [resize](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#resize) property.
   pub enum Resize {
+    /// The element does not allow resizing.
     None,
+    /// The element is resizable in both the x and y directions.
     Both,
+    /// The element is resizable in the x direction.
     Horizontal,
+    /// The element is resizable in the y direction.
     Vertical,
+    /// The element is resizable in the block direction, according to the writing mode.
     Block,
+    /// The element is resizable in the inline direction, according to the writing mode.
     Inline,
   }
 }
 
-/// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#cursor
+/// A [cursor image](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#cursor) value, used in the `cursor` property.
+///
+/// See [Cursor](Cursor).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CursorImage<'i> {
+  /// A url to the cursor image.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub url: Url<'i>,
-  pub hotspot: Option<(f32, f32)>
+  /// The location in the image where the mouse pointer appears.
+  pub hotspot: Option<(CSSNumber, CSSNumber)>,
 }
 
 impl<'i> Parse<'i> for CursorImage<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let url = Url::parse(input)?;
-    let hotspot = if let Ok(x) = input.try_parse(f32::parse) {
-      let y = f32::parse(input)?;
+    let hotspot = if let Ok(x) = input.try_parse(CSSNumber::parse) {
+      let y = CSSNumber::parse(input)?;
       Some((x, y))
     } else {
       None
     };
 
-    Ok(CursorImage {
-      url,
-      hotspot
-    })
+    Ok(CursorImage { url, hotspot })
   }
 }
 
 impl<'i> ToCss for CursorImage<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.url.to_css(dest)?;
 
     if let Some((x, y)) = self.hotspot {
@@ -59,6 +77,11 @@ impl<'i> ToCss for CursorImage<'i> {
 }
 
 enum_property! {
+  /// A pre-defined [cursor](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#cursor) value,
+  /// used in the `cursor` property.
+  ///
+  /// See [Cursor](Cursor).
+  #[allow(missing_docs)]
   pub enum CursorKeyword {
     "auto": Auto,
     "default": Default,
@@ -99,11 +122,15 @@ enum_property! {
   }
 }
 
-/// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#cursor
+/// A value for the [cursor](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#cursor) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Cursor<'i> {
+  /// A list of cursor images.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub images: SmallVec<[CursorImage<'i>; 1]>,
-  pub keyword: CursorKeyword
+  /// A pre-defined cursor.
+  pub keyword: CursorKeyword,
 }
 
 impl<'i> Parse<'i> for Cursor<'i> {
@@ -119,13 +146,16 @@ impl<'i> Parse<'i> for Cursor<'i> {
 
     Ok(Cursor {
       images,
-      keyword: CursorKeyword::parse(input)?
+      keyword: CursorKeyword::parse(input)?,
     })
   }
 }
 
 impl<'i> ToCss for Cursor<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     for image in &self.images {
       image.to_css(dest)?;
       dest.delim(',', false)?;
@@ -134,11 +164,18 @@ impl<'i> ToCss for Cursor<'i> {
   }
 }
 
-/// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret-color
+/// A value for the [caret-color](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret-color) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum ColorOrAuto {
+  /// The `currentColor`, adjusted by the UA to ensure contrast against the background.
   Auto,
-  Color(CssColor)
+  /// A color.
+  Color(CssColor),
 }
 
 impl Default for ColorOrAuto {
@@ -150,7 +187,7 @@ impl Default for ColorOrAuto {
 impl<'i> Parse<'i> for ColorOrAuto {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
-      return Ok(ColorOrAuto::Auto)
+      return Ok(ColorOrAuto::Auto);
     }
 
     let color = CssColor::parse(input)?;
@@ -159,20 +196,40 @@ impl<'i> Parse<'i> for ColorOrAuto {
 }
 
 impl ToCss for ColorOrAuto {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       ColorOrAuto::Auto => dest.write_str("auto"),
-      ColorOrAuto::Color(color) => color.to_css(dest)
+      ColorOrAuto::Color(color) => color.to_css(dest),
+    }
+  }
+}
+
+impl FallbackValues for ColorOrAuto {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+    match self {
+      ColorOrAuto::Color(color) => color
+        .get_fallbacks(targets)
+        .into_iter()
+        .map(|color| ColorOrAuto::Color(color))
+        .collect(),
+      ColorOrAuto::Auto => Vec::new(),
     }
   }
 }
 
 enum_property! {
-  /// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret-shape
+  /// A value for the [caret-shape](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret-shape) property.
   pub enum CaretShape {
+    /// The UA determines the caret shape.
     Auto,
+    /// A thin bar caret.
     Bar,
+    /// A rectangle caret.
     Block,
+    /// An underscore caret.
     Underscore,
   }
 }
@@ -183,25 +240,54 @@ impl Default for CaretShape {
   }
 }
 
-// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret
-shorthand_property!(Caret {
-  color: ColorOrAuto,
-  shape: CaretShape,
-});
+shorthand_property! {
+  /// A value for the [caret](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret) shorthand property.
+  pub struct Caret {
+    /// The caret color.
+    color: CaretColor(ColorOrAuto),
+    /// The caret shape.
+    shape: CaretShape(CaretShape),
+  }
+}
+
+impl FallbackValues for Caret {
+  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+    self
+      .color
+      .get_fallbacks(targets)
+      .into_iter()
+      .map(|color| Caret {
+        color,
+        shape: self.shape.clone(),
+      })
+      .collect()
+  }
+}
 
 enum_property! {
-  /// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#content-selection
+  /// A value for the [user-select](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#content-selection) property.
   pub enum UserSelect {
+    /// The UA determines whether text is selectable.
     Auto,
+    /// Text is selectable.
     Text,
+    /// Text is not selectable.
     None,
+    /// Text selection is contained to the element.
     Contain,
+    /// Only the entire element is selectable.
     All,
   }
 }
 
-/// https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#appearance-switching
+/// A value for the [appearance](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#appearance-switching) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
+#[allow(missing_docs)]
 pub enum Appearance<'i> {
   None,
   Auto,
@@ -219,7 +305,7 @@ pub enum Appearance<'i> {
   SliderHorizontal,
   SquareButton,
   Textarea,
-  NonStandard(CowArcStr<'i>)
+  NonStandard(#[cfg_attr(feature = "serde", serde(borrow))] CowArcStr<'i>),
 }
 
 impl<'i> Parse<'i> for Appearance<'i> {
@@ -248,7 +334,10 @@ impl<'i> Parse<'i> for Appearance<'i> {
 }
 
 impl<'i> ToCss for Appearance<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       Appearance::None => dest.write_str("none"),
       Appearance::Auto => dest.write_str("auto"),
@@ -266,7 +355,7 @@ impl<'i> ToCss for Appearance<'i> {
       Appearance::SliderHorizontal => dest.write_str("slider-horizontal"),
       Appearance::SquareButton => dest.write_str("square-button"),
       Appearance::Textarea => dest.write_str("textarea"),
-      Appearance::NonStandard(s) => dest.write_str(&s)
+      Appearance::NonStandard(s) => dest.write_str(&s),
     }
   }
 }

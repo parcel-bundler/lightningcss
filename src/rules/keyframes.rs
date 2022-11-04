@@ -1,33 +1,202 @@
-use cssparser::*;
-use super::Location;
-use crate::values::percentage::Percentage;
-use crate::traits::{Parse, ToCss};
-use crate::declaration::DeclarationBlock;
-use crate::vendor_prefix::VendorPrefix;
-use crate::printer::Printer;
-use crate::values::ident::CustomIdent;
-use crate::parser::ParserOptions;
-use crate::error::{ParserError, PrinterError};
-use super::MinifyContext;
+//! The `@keyframes` rule.
 
+use super::supports::SupportsRule;
+use super::MinifyContext;
+use super::{CssRule, CssRuleList, Location};
+use crate::context::DeclarationContext;
+use crate::declaration::DeclarationBlock;
+use crate::error::{ParserError, PrinterError};
+use crate::parser::ParserOptions;
+use crate::printer::Printer;
+use crate::properties::custom::{CustomProperty, UnparsedProperty};
+use crate::properties::Property;
+use crate::targets::Browsers;
+use crate::traits::{Parse, ToCss};
+use crate::values::color::ColorFallbackKind;
+use crate::values::ident::CustomIdent;
+use crate::values::percentage::Percentage;
+use crate::values::string::CowArcStr;
+use crate::vendor_prefix::VendorPrefix;
+use cssparser::*;
+
+/// A [@keyframes](https://drafts.csswg.org/css-animations/#keyframes) rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct KeyframesRule<'i> {
-  pub name: CustomIdent<'i>,
+  /// The animation name.
+  /// <keyframes-name> = <custom-ident> | <string>
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  pub name: KeyframesName<'i>,
+  /// A list of keyframes in the animation.
   pub keyframes: Vec<Keyframe<'i>>,
+  /// A vendor prefix for the rule, e.g. `@-webkit-keyframes`.
   pub vendor_prefix: VendorPrefix,
-  pub loc: Location
+  /// The location of the rule in the source file.
+  pub loc: Location,
 }
 
-impl<'i> KeyframesRule<'i> {
-  pub(crate) fn minify(&mut self, context: &mut MinifyContext<'_, 'i>) {
-    for keyframe in &mut self.keyframes {
-      keyframe.declarations.minify(context.handler, context.important_handler, context.logical_properties)
+/// KeyframesName
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum KeyframesName<'i> {
+  /// `<custom-ident>` of a `@keyframes` name.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  Ident(CustomIdent<'i>),
+
+  /// `<string>` of a `@keyframes` name.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  Custom(CowArcStr<'i>),
+}
+
+impl<'i> Parse<'i> for KeyframesName<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    match input.next()?.clone() {
+      Token::Ident(ref s) => {
+        // CSS-wide keywords without quotes throws an error.
+        match_ignore_ascii_case! { &*s,
+          "none" | "initial" | "inherit" | "unset" | "default" | "revert" | "revert-layer" => {
+            Err(input.new_unexpected_token_error(Token::Ident(s.clone())))
+          },
+          _ => {
+            Ok(KeyframesName::Ident(CustomIdent(s.into())))
+          }
+        }
+      }
+
+      Token::QuotedString(ref s) => Ok(KeyframesName::Custom(s.into())),
+      t => return Err(input.new_unexpected_token_error(t.clone())),
     }
   }
 }
 
+impl<'i> ToCss for KeyframesName<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      KeyframesName::Ident(ident) => {
+        dest.write_ident(ident.0.as_ref())?;
+      }
+      KeyframesName::Custom(s) => {
+        // CSS-wide keywords and `none` cannot remove quotes.
+        match_ignore_ascii_case! { &*s,
+          "none" | "initial" | "inherit" | "unset" | "default" | "revert" | "revert-layer" => {
+            serialize_string(&s, dest)?;
+          },
+          _ => {
+            dest.write_ident(s.as_ref())?;
+          }
+        }
+      }
+    }
+    Ok(())
+  }
+}
+
+impl<'i> KeyframesRule<'i> {
+  pub(crate) fn minify(&mut self, context: &mut MinifyContext<'_, 'i>) {
+    context.handler_context.context = DeclarationContext::Keyframes;
+
+    for keyframe in &mut self.keyframes {
+      keyframe
+        .declarations
+        .minify(context.handler, context.important_handler, context.handler_context)
+    }
+
+    context.handler_context.context = DeclarationContext::None;
+  }
+
+  pub(crate) fn get_fallbacks<T>(&mut self, targets: Browsers) -> Vec<CssRule<'i, T>> {
+    let mut fallbacks = ColorFallbackKind::empty();
+    for keyframe in &self.keyframes {
+      for property in &keyframe.declarations.declarations {
+        match property {
+          Property::Custom(CustomProperty { value, .. }) | Property::Unparsed(UnparsedProperty { value, .. }) => {
+            fallbacks |= value.get_necessary_fallbacks(targets);
+          }
+          _ => {}
+        }
+      }
+    }
+
+    let mut res = Vec::new();
+    let lowest_fallback = fallbacks.lowest();
+    fallbacks.remove(lowest_fallback);
+
+    if fallbacks.contains(ColorFallbackKind::P3) {
+      res.push(self.get_fallback(ColorFallbackKind::P3));
+    }
+
+    if fallbacks.contains(ColorFallbackKind::LAB)
+      || (!lowest_fallback.is_empty() && lowest_fallback != ColorFallbackKind::LAB)
+    {
+      res.push(self.get_fallback(ColorFallbackKind::LAB));
+    }
+
+    if !lowest_fallback.is_empty() {
+      for keyframe in &mut self.keyframes {
+        for property in &mut keyframe.declarations.declarations {
+          match property {
+            Property::Custom(CustomProperty { value, .. })
+            | Property::Unparsed(UnparsedProperty { value, .. }) => {
+              *value = value.get_fallback(lowest_fallback);
+            }
+            _ => {}
+          }
+        }
+      }
+    }
+
+    res
+  }
+
+  fn get_fallback<T>(&self, kind: ColorFallbackKind) -> CssRule<'i, T> {
+    let keyframes = self
+      .keyframes
+      .iter()
+      .map(|keyframe| Keyframe {
+        selectors: keyframe.selectors.clone(),
+        declarations: DeclarationBlock {
+          important_declarations: vec![],
+          declarations: keyframe
+            .declarations
+            .declarations
+            .iter()
+            .map(|property| match property {
+              Property::Custom(custom) => Property::Custom(CustomProperty {
+                name: custom.name.clone(),
+                value: custom.value.get_fallback(kind),
+              }),
+              Property::Unparsed(unparsed) => Property::Unparsed(UnparsedProperty {
+                property_id: unparsed.property_id.clone(),
+                value: unparsed.value.get_fallback(kind),
+              }),
+              _ => property.clone(),
+            })
+            .collect(),
+        },
+      })
+      .collect();
+
+    CssRule::Supports(SupportsRule {
+      condition: kind.supports_condition(),
+      rules: CssRuleList(vec![CssRule::Keyframes(KeyframesRule {
+        name: self.name.clone(),
+        keyframes,
+        vendor_prefix: self.vendor_prefix,
+        loc: self.loc.clone(),
+      })]),
+      loc: self.loc.clone(),
+    })
+  }
+}
+
 impl<'i> ToCss for KeyframesRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     dest.add_mapping(self.loc);
     let mut first_rule = true;
     macro_rules! write_prefix {
@@ -74,18 +243,27 @@ impl<'i> ToCss for KeyframesRule<'i> {
   }
 }
 
-/// https://drafts.csswg.org/css-animations/#typedef-keyframe-selector
+/// A [keyframe selector](https://drafts.csswg.org/css-animations/#typedef-keyframe-selector)
+/// within an `@keyframes` rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum KeyframeSelector {
+  /// An explicit percentage.
   Percentage(Percentage),
+  /// The `from` keyword. Equivalent to 0%.
   From,
-  To
+  /// The `to` keyword. Equivalent to 100%.
+  To,
 }
 
 impl<'i> Parse<'i> for KeyframeSelector {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(val) = input.try_parse(Percentage::parse) {
-      return Ok(KeyframeSelector::Percentage(val))
+      return Ok(KeyframeSelector::Percentage(val));
     }
 
     let location = input.current_source_location();
@@ -101,7 +279,10 @@ impl<'i> Parse<'i> for KeyframeSelector {
 }
 
 impl ToCss for KeyframeSelector {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       KeyframeSelector::Percentage(p) => {
         if dest.minify && *p == Percentage(1.0) {
@@ -109,7 +290,7 @@ impl ToCss for KeyframeSelector {
         } else {
           p.to_css(dest)
         }
-      },
+      }
       KeyframeSelector::From => {
         if dest.minify {
           dest.write_str("0%")
@@ -117,19 +298,29 @@ impl ToCss for KeyframeSelector {
           dest.write_str("from")
         }
       }
-      KeyframeSelector::To => dest.write_str("to")
+      KeyframeSelector::To => dest.write_str("to"),
     }
   }
 }
 
+/// An individual keyframe within an `@keyframes` rule.
+///
+/// See [KeyframesRule](KeyframesRule).
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Keyframe<'i> {
+  /// A list of keyframe selectors to associate with the declarations in this keyframe.
   pub selectors: Vec<KeyframeSelector>,
-  pub declarations: DeclarationBlock<'i>
+  /// The declarations for this keyframe.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  pub declarations: DeclarationBlock<'i>,
 }
 
 impl<'i> ToCss for Keyframe<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let mut first = true;
     for selector in &self.selectors {
       if !first {
@@ -138,8 +329,8 @@ impl<'i> ToCss for Keyframe<'i> {
       first = false;
       selector.to_css(dest)?;
     }
-    
-    self.declarations.to_css(dest)
+
+    self.declarations.to_css_block(dest)
   }
 }
 
@@ -173,7 +364,7 @@ impl<'a, 'i> QualifiedRuleParser<'i> for KeyframeListParser {
     let options = ParserOptions::default();
     Ok(Keyframe {
       selectors,
-      declarations: DeclarationBlock::parse(input, &options)?
+      declarations: DeclarationBlock::parse(input, &options)?,
     })
   }
 }

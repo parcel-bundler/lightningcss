@@ -1,43 +1,60 @@
-use cssparser::*;
+//! CSS gradient values.
+
 use super::angle::{Angle, AnglePercentage};
-use super::position::{HorizontalPositionKeyword, VerticalPositionKeyword};
-use super::color::CssColor;
+use super::color::{ColorFallbackKind, CssColor};
 use super::length::{Length, LengthPercentage};
-use super::percentage::{Percentage, DimensionPercentage, NumberOrPercentage};
+use super::number::CSSNumber;
+use super::percentage::{DimensionPercentage, NumberOrPercentage, Percentage};
+use super::position::{HorizontalPositionKeyword, VerticalPositionKeyword};
 use super::position::{Position, PositionComponent};
-use crate::vendor_prefix::VendorPrefix;
-use crate::prefixes::Feature;
-use crate::targets::Browsers;
-use crate::traits::{Parse, ToCss};
-use crate::macros::enum_property;
-use crate::printer::Printer;
 use crate::compat;
 use crate::error::{ParserError, PrinterError};
+use crate::macros::enum_property;
+use crate::prefixes::Feature;
+use crate::printer::Printer;
+use crate::targets::Browsers;
+use crate::traits::{Parse, ToCss, TrySign, Zero};
+use crate::vendor_prefix::VendorPrefix;
+use cssparser::*;
 
-/// https://www.w3.org/TR/css-images-3/#gradients
+/// A CSS [`<gradient>`](https://www.w3.org/TR/css-images-3/#gradients) value.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum Gradient {
+  /// A `linear-gradient()`, and its vendor prefix.
   Linear(LinearGradient, VendorPrefix),
+  /// A `repeating-linear-gradient()`, and its vendor prefix.
   RepeatingLinear(LinearGradient, VendorPrefix),
+  /// A `radial-gradient()`, and its vendor prefix.
   Radial(RadialGradient, VendorPrefix),
+  /// A `repeating-radial-gradient`, and its vendor prefix.
   RepeatingRadial(RadialGradient, VendorPrefix),
+  /// A `conic-gradient()`.
   Conic(ConicGradient),
+  /// A `repeating-conic-gradient()`.
   RepeatingConic(ConicGradient),
-  WebKitGradient(WebKitGradient)
+  /// A legacy `-webkit-gradient()`.
+  WebKitGradient(WebKitGradient),
 }
 
 impl Gradient {
-  pub fn has_vendor_prefix(&self) -> bool {
+  /// Returns the vendor prefix of the gradient.
+  pub fn get_vendor_prefix(&self) -> VendorPrefix {
     match self {
-      Gradient::Linear(_, prefix) | 
-      Gradient::RepeatingLinear(_, prefix) |
-      Gradient::Radial(_, prefix) | 
-      Gradient::RepeatingRadial(_, prefix) => *prefix != VendorPrefix::None,
-      Gradient::WebKitGradient(_) => true,
-      _ => false
+      Gradient::Linear(_, prefix)
+      | Gradient::RepeatingLinear(_, prefix)
+      | Gradient::Radial(_, prefix)
+      | Gradient::RepeatingRadial(_, prefix) => *prefix,
+      Gradient::WebKitGradient(_) => VendorPrefix::WebKit,
+      _ => VendorPrefix::None,
     }
   }
 
+  /// Returns the vendor prefixes needed for the given browser targets.
   pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
     macro_rules! get_prefixes {
       ($feature: ident, $prefix: ident) => {
@@ -54,22 +71,64 @@ impl Gradient {
       Gradient::RepeatingLinear(_, prefix) => get_prefixes!(RepeatingLinearGradient, prefix),
       Gradient::Radial(_, prefix) => get_prefixes!(RadialGradient, prefix),
       Gradient::RepeatingRadial(_, prefix) => get_prefixes!(RepeatingRadialGradient, prefix),
-      _ => VendorPrefix::None
+      _ => VendorPrefix::None,
     }
   }
 
+  /// Returns a copy of the gradient with the given vendor prefix.
   pub fn get_prefixed(&self, prefix: VendorPrefix) -> Gradient {
     match self {
       Gradient::Linear(linear, _) => Gradient::Linear(linear.clone(), prefix),
       Gradient::RepeatingLinear(linear, _) => Gradient::RepeatingLinear(linear.clone(), prefix),
       Gradient::Radial(radial, _) => Gradient::Radial(radial.clone(), prefix),
       Gradient::RepeatingRadial(radial, _) => Gradient::RepeatingRadial(radial.clone(), prefix),
-      _ => self.clone()
+      _ => self.clone(),
     }
   }
 
+  /// Attempts to convert the gradient to the legacy `-webkit-gradient()` syntax.
+  ///
+  /// Returns an error in case the conversion is not possible.
   pub fn get_legacy_webkit(&self) -> Result<Gradient, ()> {
     Ok(Gradient::WebKitGradient(WebKitGradient::from_standard(self)?))
+  }
+
+  /// Returns the color fallback types needed for the given browser targets.
+  pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+    match self {
+      Gradient::Linear(LinearGradient { items, .. }, _)
+      | Gradient::Radial(RadialGradient { items, .. }, _)
+      | Gradient::RepeatingLinear(LinearGradient { items, .. }, _)
+      | Gradient::RepeatingRadial(RadialGradient { items, .. }, _) => {
+        let mut fallbacks = ColorFallbackKind::empty();
+        for item in items {
+          fallbacks |= item.get_necessary_fallbacks(targets)
+        }
+        fallbacks
+      }
+      Gradient::Conic(ConicGradient { items, .. }) | Gradient::RepeatingConic(ConicGradient { items, .. }) => {
+        let mut fallbacks = ColorFallbackKind::empty();
+        for item in items {
+          fallbacks |= item.get_necessary_fallbacks(targets)
+        }
+        fallbacks
+      }
+      Gradient::WebKitGradient(..) => ColorFallbackKind::empty(),
+    }
+  }
+
+  /// Returns a fallback gradient for the given color fallback type.
+  pub fn get_fallback(&self, kind: ColorFallbackKind) -> Gradient {
+    match self {
+      Gradient::Linear(g, prefixes) | Gradient::RepeatingLinear(g, prefixes) => {
+        Gradient::Linear(g.get_fallback(kind), *prefixes)
+      }
+      Gradient::Radial(g, prefixes) | Gradient::RepeatingRadial(g, prefixes) => {
+        Gradient::Radial(g.get_fallback(kind), *prefixes)
+      }
+      Gradient::Conic(g) | Gradient::RepeatingConic(g) => Gradient::Conic(g.get_fallback(kind)),
+      Gradient::WebKitGradient(g) => Gradient::WebKitGradient(g.get_fallback(kind)),
+    }
   }
 }
 
@@ -105,7 +164,10 @@ impl<'i> Parse<'i> for Gradient {
 }
 
 impl ToCss for Gradient {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let (f, prefix) = match self {
       Gradient::Linear(_, prefix) => ("linear-gradient(", Some(prefix)),
       Gradient::RepeatingLinear(_, prefix) => ("repeating-linear-gradient(", Some(prefix)),
@@ -113,7 +175,7 @@ impl ToCss for Gradient {
       Gradient::RepeatingRadial(_, prefix) => ("repeating-radial-gradient(", Some(prefix)),
       Gradient::Conic(_) => ("conic-gradient(", None),
       Gradient::RepeatingConic(_) => ("repeating-conic-gradient(", None),
-      Gradient::WebKitGradient(_) => ("-webkit-gradient(", None)
+      Gradient::WebKitGradient(_) => ("-webkit-gradient(", None),
     };
 
     if let Some(prefix) = prefix {
@@ -123,25 +185,33 @@ impl ToCss for Gradient {
     dest.write_str(f)?;
 
     match self {
-      Gradient::Linear(linear, prefix) | Gradient::RepeatingLinear(linear, prefix) => linear.to_css(dest, *prefix != VendorPrefix::None)?,
+      Gradient::Linear(linear, prefix) | Gradient::RepeatingLinear(linear, prefix) => {
+        linear.to_css(dest, *prefix != VendorPrefix::None)?
+      }
       Gradient::Radial(radial, _) | Gradient::RepeatingRadial(radial, _) => radial.to_css(dest)?,
       Gradient::Conic(conic) | Gradient::RepeatingConic(conic) => conic.to_css(dest)?,
-      Gradient::WebKitGradient(g) => g.to_css(dest)?
+      Gradient::WebKitGradient(g) => g.to_css(dest)?,
     }
 
     dest.write_char(')')
   }
 }
 
-/// https://www.w3.org/TR/css-images-3/#linear-gradients
+/// A CSS [`linear-gradient()`](https://www.w3.org/TR/css-images-3/#linear-gradients) or `repeating-linear-gradient()`.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LinearGradient {
+  /// The direction of the gradient.
   pub direction: LineDirection,
+  /// The color stops and transition hints for the gradient.
   pub items: Vec<GradientItem<LengthPercentage>>,
 }
 
 impl LinearGradient {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>, is_prefixed: bool) -> Result<LinearGradient, ParseError<'i, ParserError<'i>>> {
+  fn parse<'i, 't>(
+    input: &mut Parser<'i, 't>,
+    is_prefixed: bool,
+  ) -> Result<LinearGradient, ParseError<'i, ParserError<'i>>> {
     let direction = if let Ok(direction) = input.try_parse(|input| LineDirection::parse(input, is_prefixed)) {
       input.expect_comma()?;
       direction
@@ -149,18 +219,18 @@ impl LinearGradient {
       LineDirection::Vertical(VerticalPositionKeyword::Bottom)
     };
     let items = parse_items(input)?;
-    Ok(LinearGradient {
-      direction,
-      items
-    })
+    Ok(LinearGradient { direction, items })
   }
 
-  fn to_css<W>(&self, dest: &mut Printer<W>, is_prefixed: bool) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>, is_prefixed: bool) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let angle = match &self.direction {
       LineDirection::Vertical(VerticalPositionKeyword::Bottom) => 180.0,
       LineDirection::Vertical(VerticalPositionKeyword::Top) => 0.0,
       LineDirection::Angle(angle) => angle.to_degrees(),
-      _ => -1.0
+      _ => -1.0,
     };
 
     // We can omit `to bottom` or `180deg` because it is the default.
@@ -169,26 +239,45 @@ impl LinearGradient {
 
     // If we have `to top` or `0deg`, and all of the positions and hints are percentages,
     // we can flip the gradient the other direction and omit the direction.
-    } else if angle == 0.0 && dest.minify && self.items.iter().all(|item| matches!(item, GradientItem::Hint(LengthPercentage::Percentage(_)) | GradientItem::ColorStop(ColorStop { position: None | Some(LengthPercentage::Percentage(_)), .. }))) {
-      let items: Vec<GradientItem<LengthPercentage>> = self.items.iter().rev().map(|item| {
-        // Flip percentages.
-        match item {
-          GradientItem::Hint(LengthPercentage::Percentage(p)) => GradientItem::Hint(LengthPercentage::Percentage(Percentage(1.0 - p.0))),
-          GradientItem::ColorStop(ColorStop { color, position }) => {
-            GradientItem::ColorStop(ColorStop {
+    } else if angle == 0.0
+      && dest.minify
+      && self.items.iter().all(|item| {
+        matches!(
+          item,
+          GradientItem::Hint(LengthPercentage::Percentage(_))
+            | GradientItem::ColorStop(ColorStop {
+              position: None | Some(LengthPercentage::Percentage(_)),
+              ..
+            })
+        )
+      })
+    {
+      let items: Vec<GradientItem<LengthPercentage>> = self
+        .items
+        .iter()
+        .rev()
+        .map(|item| {
+          // Flip percentages.
+          match item {
+            GradientItem::Hint(LengthPercentage::Percentage(p)) => {
+              GradientItem::Hint(LengthPercentage::Percentage(Percentage(1.0 - p.0)))
+            }
+            GradientItem::ColorStop(ColorStop { color, position }) => GradientItem::ColorStop(ColorStop {
               color: color.clone(),
               position: position.clone().map(|p| match p {
                 LengthPercentage::Percentage(p) => LengthPercentage::Percentage(Percentage(1.0 - p.0)),
-                _ => unreachable!()
-              })
-            })
+                _ => unreachable!(),
+              }),
+            }),
+            _ => unreachable!(),
           }
-          _ => unreachable!()
-        }
-      }).collect();
+        })
+        .collect();
       serialize_items(&items, dest)
     } else {
-      if self.direction != LineDirection::Vertical(VerticalPositionKeyword::Bottom) && self.direction != LineDirection::Angle(Angle::Deg(180.0)) {
+      if self.direction != LineDirection::Vertical(VerticalPositionKeyword::Bottom)
+        && self.direction != LineDirection::Angle(Angle::Deg(180.0))
+      {
         self.direction.to_css(dest, is_prefixed)?;
         dest.delim(',', false)?;
       }
@@ -196,23 +285,36 @@ impl LinearGradient {
       serialize_items(&self.items, dest)
     }
   }
+
+  fn get_fallback(&self, kind: ColorFallbackKind) -> LinearGradient {
+    LinearGradient {
+      direction: self.direction.clone(),
+      items: self.items.iter().map(|item| item.get_fallback(kind)).collect(),
+    }
+  }
 }
 
-/// https://www.w3.org/TR/css-images-3/#radial-gradients
+/// A CSS [`radial-gradient()`](https://www.w3.org/TR/css-images-3/#radial-gradients) or `repeating-radial-gradient()`.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RadialGradient {
+  /// The shape of the gradient.
   pub shape: EndingShape,
+  /// The position of the gradient.
   pub position: Position,
+  /// The color stops and transition hints for the gradient.
   pub items: Vec<GradientItem<LengthPercentage>>,
 }
 
 impl<'i> Parse<'i> for RadialGradient {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<RadialGradient, ParseError<'i, ParserError<'i>>> {
     let shape = input.try_parse(EndingShape::parse).ok();
-    let position = input.try_parse(|input| {
-      input.expect_ident_matching("at")?;
-      Position::parse(input)
-    }).ok();
+    let position = input
+      .try_parse(|input| {
+        input.expect_ident_matching("at")?;
+        Position::parse(input)
+      })
+      .ok();
 
     if shape.is_some() || position.is_some() {
       input.expect_comma()?;
@@ -222,13 +324,16 @@ impl<'i> Parse<'i> for RadialGradient {
     Ok(RadialGradient {
       shape: shape.unwrap_or_default(),
       position: position.unwrap_or(Position::center()),
-      items
+      items,
     })
   }
 }
 
 impl ToCss for RadialGradient {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     if self.shape != EndingShape::default() {
       self.shape.to_css(dest)?;
       if self.position.is_center() {
@@ -237,29 +342,56 @@ impl ToCss for RadialGradient {
         dest.write_char(' ')?;
       }
     }
-    
+
     if !self.position.is_center() {
       dest.write_str("at ")?;
       self.position.to_css(dest)?;
       dest.delim(',', false)?;
     }
-    
+
     serialize_items(&self.items, dest)
   }
 }
 
+impl RadialGradient {
+  fn get_fallback(&self, kind: ColorFallbackKind) -> RadialGradient {
+    RadialGradient {
+      shape: self.shape.clone(),
+      position: self.position.clone(),
+      items: self.items.iter().map(|item| item.get_fallback(kind)).collect(),
+    }
+  }
+}
+
+/// The direction of a CSS `linear-gradient()`.
+///
+/// See [LinearGradient](LinearGradient).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum LineDirection {
+  /// An angle.
   Angle(Angle),
+  /// A horizontal position keyword, e.g. `left` or `right.
   Horizontal(HorizontalPositionKeyword),
+  /// A vertical posision keyword, e.g. `top` or `bottom`.
   Vertical(VerticalPositionKeyword),
-  Corner(HorizontalPositionKeyword, VerticalPositionKeyword)
+  /// A corner, e.g. `bottom left` or `top right`.
+  Corner(HorizontalPositionKeyword, VerticalPositionKeyword),
 }
 
 impl LineDirection {
-  fn parse<'i, 't>(input: &mut Parser<'i, 't>, is_prefixed: bool) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(angle) = input.try_parse(Angle::parse) {
-      return Ok(LineDirection::Angle(angle))
+  fn parse<'i, 't>(
+    input: &mut Parser<'i, 't>,
+    is_prefixed: bool,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    // Spec allows unitless zero angles for gradients.
+    // https://w3c.github.io/csswg-drafts/css-images-3/#linear-gradient-syntax
+    if let Ok(angle) = input.try_parse(Angle::parse_with_unitless_zero) {
+      return Ok(LineDirection::Angle(angle));
     }
 
     if !is_prefixed {
@@ -280,7 +412,10 @@ impl LineDirection {
     Ok(LineDirection::Vertical(y))
   }
 
-  fn to_css<W>(&self, dest: &mut Printer<W>, is_prefixed: bool) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>, is_prefixed: bool) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       LineDirection::Angle(angle) => angle.to_css(dest),
       LineDirection::Horizontal(k) => {
@@ -295,7 +430,7 @@ impl LineDirection {
           }
           k.to_css(dest)
         }
-      },
+      }
       LineDirection::Vertical(k) => {
         if dest.minify {
           match k {
@@ -308,7 +443,7 @@ impl LineDirection {
           }
           k.to_css(dest)
         }
-      },
+      }
       LineDirection::Corner(x, y) => {
         if !is_prefixed {
           dest.write_str("to ")?;
@@ -321,11 +456,20 @@ impl LineDirection {
   }
 }
 
-/// https://www.w3.org/TR/css-images-3/#valdef-radial-gradient-ending-shape
+/// A `radial-gradient()` [ending shape](https://www.w3.org/TR/css-images-3/#valdef-radial-gradient-ending-shape).
+///
+/// See [RadialGradient](RadialGradient).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum EndingShape {
+  /// A circle.
   Circle(Circle),
-  Ellipse(Ellipse)
+  /// An ellipse.
+  Ellipse(Ellipse),
 }
 
 impl Default for EndingShape {
@@ -336,21 +480,24 @@ impl Default for EndingShape {
 
 impl<'i> Parse<'i> for EndingShape {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    // Note: Ellipse::parse MUST run before Circle::parse for this to be correct. 
+    // Note: Ellipse::parse MUST run before Circle::parse for this to be correct.
     if let Ok(ellipse) = input.try_parse(Ellipse::parse) {
-      return Ok(EndingShape::Ellipse(ellipse))
+      return Ok(EndingShape::Ellipse(ellipse));
     }
 
     if let Ok(circle) = input.try_parse(Circle::parse) {
-      return Ok(EndingShape::Circle(circle))
+      return Ok(EndingShape::Circle(circle));
     }
-    
-    return Err(input.new_error_for_next_token())
+
+    return Err(input.new_error_for_next_token());
   }
 }
 
 impl ToCss for EndingShape {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       EndingShape::Circle(circle) => circle.to_css(dest),
       EndingShape::Ellipse(ellipse) => ellipse.to_css(dest),
@@ -358,10 +505,20 @@ impl ToCss for EndingShape {
   }
 }
 
+/// A circle ending shape for a `radial-gradient()`.
+///
+/// See [RadialGradient](RadialGradient).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum Circle {
+  /// A circle with a specified radius.
   Radius(Length),
-  Extent(ShapeExtent)
+  /// A shape extent keyword.
+  Extent(ShapeExtent),
 }
 
 impl<'i> Parse<'i> for Circle {
@@ -369,35 +526,38 @@ impl<'i> Parse<'i> for Circle {
     if let Ok(extent) = input.try_parse(ShapeExtent::parse) {
       // The `circle` keyword is required. If it's not there, then it's an ellipse.
       input.expect_ident_matching("circle")?;
-      return Ok(Circle::Extent(extent))
+      return Ok(Circle::Extent(extent));
     }
 
     if let Ok(length) = input.try_parse(Length::parse) {
       // The `circle` keyword is optional if there is only a single length.
       // We are assuming here that Ellipse::parse ran first.
       let _ = input.try_parse(|input| input.expect_ident_matching("circle"));
-      return Ok(Circle::Radius(length))
+      return Ok(Circle::Radius(length));
     }
 
     if input.try_parse(|input| input.expect_ident_matching("circle")).is_ok() {
       if let Ok(extent) = input.try_parse(ShapeExtent::parse) {
-        return Ok(Circle::Extent(extent))
+        return Ok(Circle::Extent(extent));
       }
 
       if let Ok(length) = input.try_parse(Length::parse) {
-        return Ok(Circle::Radius(length))
+        return Ok(Circle::Radius(length));
       }
 
       // If only the `circle` keyword was given, default to `farthest-corner`.
-      return Ok(Circle::Extent(ShapeExtent::FarthestCorner))
+      return Ok(Circle::Extent(ShapeExtent::FarthestCorner));
     }
 
-    return Err(input.new_error_for_next_token())
+    return Err(input.new_error_for_next_token());
   }
 }
 
 impl ToCss for Circle {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       Circle::Radius(r) => r.to_css(dest),
       Circle::Extent(extent) => {
@@ -412,10 +572,20 @@ impl ToCss for Circle {
   }
 }
 
+/// An ellipse ending shape for a `radial-gradient()`.
+///
+/// See [RadialGradient](RadialGradient).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum Ellipse {
+  /// An ellipse with a specified horizontal and vertical radius.
   Size(LengthPercentage, LengthPercentage),
-  Extent(ShapeExtent)
+  /// A shape extent keyword.
+  Extent(ShapeExtent),
 }
 
 impl<'i> Parse<'i> for Ellipse {
@@ -424,65 +594,79 @@ impl<'i> Parse<'i> for Ellipse {
       // The `ellipse` keyword is optional, but only if the `circle` keyword is not present.
       // If it is, then we'll re-parse as a circle.
       if input.try_parse(|input| input.expect_ident_matching("circle")).is_ok() {
-        return Err(input.new_error_for_next_token())
+        return Err(input.new_error_for_next_token());
       }
       let _ = input.try_parse(|input| input.expect_ident_matching("ellipse"));
-      return Ok(Ellipse::Extent(extent))
+      return Ok(Ellipse::Extent(extent));
     }
 
     if let Ok(x) = input.try_parse(LengthPercentage::parse) {
       let y = LengthPercentage::parse(input)?;
       // The `ellipse` keyword is optional if there are two lengths.
       let _ = input.try_parse(|input| input.expect_ident_matching("ellipse"));
-      return Ok(Ellipse::Size(x, y))
+      return Ok(Ellipse::Size(x, y));
     }
 
     if input.try_parse(|input| input.expect_ident_matching("ellipse")).is_ok() {
       if let Ok(extent) = input.try_parse(ShapeExtent::parse) {
-        return Ok(Ellipse::Extent(extent))
+        return Ok(Ellipse::Extent(extent));
       }
 
       if let Ok(x) = input.try_parse(LengthPercentage::parse) {
         let y = LengthPercentage::parse(input)?;
-        return Ok(Ellipse::Size(x, y))
+        return Ok(Ellipse::Size(x, y));
       }
 
       // Assume `farthest-corner` if only the `ellipse` keyword is present.
-      return Ok(Ellipse::Extent(ShapeExtent::FarthestCorner))
+      return Ok(Ellipse::Extent(ShapeExtent::FarthestCorner));
     }
 
-    return Err(input.new_error_for_next_token())
+    return Err(input.new_error_for_next_token());
   }
 }
 
 impl ToCss for Ellipse {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     // The `ellipse` keyword is optional, so we don't emit it.
     match self {
       Ellipse::Size(x, y) => {
         x.to_css(dest)?;
         dest.write_char(' ')?;
         y.to_css(dest)
-      },
-      Ellipse::Extent(extent) => extent.to_css(dest)
+      }
+      Ellipse::Extent(extent) => extent.to_css(dest),
     }
   }
 }
 
 enum_property! {
+  /// A shape extent for a `radial-gradient()`.
+  ///
+  /// See [RadialGradient](RadialGradient).
   pub enum ShapeExtent {
+    /// The closest side of the box to the gradient's center.
     "closest-side": ClosestSide,
+    /// The farthest side of the box from the gradient's center.
     "farthest-side": FarthestSide,
+    /// The closest cornder of the box to the gradient's center.
     "closest-corner": ClosestCorner,
+    /// The farthest corner of the box from the gradient's center.
     "farthest-corner": FarthestCorner,
   }
 }
 
-/// https://www.w3.org/TR/css-images-4/#conic-gradients
+/// A CSS [`conic-gradient()`](https://www.w3.org/TR/css-images-4/#conic-gradients) or `repeating-conic-gradient()`.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ConicGradient {
+  /// The angle of the gradient.
   pub angle: Angle,
+  /// The position of the gradient.
   pub position: Position,
+  /// The color stops and transition hints for the gradient.
   pub items: Vec<GradientItem<AnglePercentage>>,
 }
 
@@ -490,9 +674,11 @@ impl ConicGradient {
   fn parse<'i, 't>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let angle = input.try_parse(|input| {
       input.expect_ident_matching("from")?;
-      Angle::parse(input)
+      // Spec allows unitless zero angles for gradients.
+      // https://w3c.github.io/csswg-drafts/css-images-4/#valdef-conic-gradient-angle
+      Angle::parse_with_unitless_zero(input)
     });
-    
+
     let position = input.try_parse(|input| {
       input.expect_ident_matching("at")?;
       Position::parse(input)
@@ -506,14 +692,17 @@ impl ConicGradient {
     Ok(ConicGradient {
       angle: angle.unwrap_or(Angle::Deg(0.0)),
       position: position.unwrap_or(Position::center()),
-      items
+      items,
     })
   }
 }
 
 impl ToCss for ConicGradient {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
-    if self.angle != 0.0 {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    if !self.angle.is_zero() {
       dest.write_str("from ")?;
       self.angle.to_css(dest)?;
 
@@ -534,23 +723,42 @@ impl ToCss for ConicGradient {
   }
 }
 
-/// https://www.w3.org/TR/css-images-4/#color-stop-syntax
+impl ConicGradient {
+  fn get_fallback(&self, kind: ColorFallbackKind) -> ConicGradient {
+    ConicGradient {
+      angle: self.angle.clone(),
+      position: self.position.clone(),
+      items: self.items.iter().map(|item| item.get_fallback(kind)).collect(),
+    }
+  }
+}
+
+/// A [`<color-stop>`](https://www.w3.org/TR/css-images-4/#color-stop-syntax) within a gradient.
+///
+/// This type is generic, and may be either a [LengthPercentage](super::length::LengthPercentage)
+/// or [Angle](super::angle::Angle) depending on what type of gradient it is within.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ColorStop<D> {
+  /// The color of the color stop.
   pub color: CssColor,
-  pub position: Option<D>
+  /// The position of the color stop.
+  pub position: Option<D>,
 }
 
 impl<'i, D: Parse<'i>> Parse<'i> for ColorStop<D> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let color = CssColor::parse(input)?;
     let position = input.try_parse(D::parse).ok();
-    Ok(ColorStop {color, position })
+    Ok(ColorStop { color, position })
   }
 }
 
 impl<D: ToCss> ToCss for ColorStop<D> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.color.to_css(dest)?;
     if let Some(position) = &self.position {
       dest.write_char(' ')?;
@@ -560,22 +768,59 @@ impl<D: ToCss> ToCss for ColorStop<D> {
   }
 }
 
+/// Either a color stop or interpolation hint within a gradient.
+///
+/// This type is generic, and items may be either a [LengthPercentage](super::length::LengthPercentage)
+/// or [Angle](super::angle::Angle) depending on what type of gradient it is within.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum GradientItem<D> {
+  /// A color stop.
   ColorStop(ColorStop<D>),
-  Hint(D)
+  /// A color interpolation hint.
+  Hint(D),
 }
 
 impl<D: ToCss> ToCss for GradientItem<D> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       GradientItem::ColorStop(stop) => stop.to_css(dest),
-      GradientItem::Hint(hint) => hint.to_css(dest)
+      GradientItem::Hint(hint) => hint.to_css(dest),
     }
   }
 }
 
-fn parse_items<'i, 't, D: Parse<'i>>(input: &mut Parser<'i, 't>) -> Result<Vec<GradientItem<D>>, ParseError<'i, ParserError<'i>>> {
+impl<D: Clone> GradientItem<D> {
+  /// Returns the color fallback types needed for the given browser targets.
+  pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+    match self {
+      GradientItem::ColorStop(stop) => stop.color.get_necessary_fallbacks(targets),
+      GradientItem::Hint(..) => ColorFallbackKind::empty(),
+    }
+  }
+
+  /// Returns a fallback gradient item for the given color fallback type.
+  pub fn get_fallback(&self, kind: ColorFallbackKind) -> GradientItem<D> {
+    match self {
+      GradientItem::ColorStop(stop) => GradientItem::ColorStop(ColorStop {
+        color: stop.color.get_fallback(kind),
+        position: stop.position.clone(),
+      }),
+      GradientItem::Hint(..) => self.clone(),
+    }
+  }
+}
+
+fn parse_items<'i, 't, D: Parse<'i>>(
+  input: &mut Parser<'i, 't>,
+) -> Result<Vec<GradientItem<D>>, ParseError<'i, ParserError<'i>>> {
   let mut items = Vec::new();
   let mut seen_stop = false;
 
@@ -585,7 +830,7 @@ fn parse_items<'i, 't, D: Parse<'i>>(input: &mut Parser<'i, 't>) -> Result<Vec<G
         if let Ok(hint) = input.try_parse(D::parse) {
           seen_stop = false;
           items.push(GradientItem::Hint(hint));
-          return Ok(())
+          return Ok(());
         }
       }
 
@@ -597,7 +842,7 @@ fn parse_items<'i, 't, D: Parse<'i>>(input: &mut Parser<'i, 't>) -> Result<Vec<G
 
         items.push(GradientItem::ColorStop(ColorStop {
           color,
-          position: Some(position)
+          position: Some(position),
         }))
       } else {
         items.push(GradientItem::ColorStop(stop));
@@ -617,33 +862,48 @@ fn parse_items<'i, 't, D: Parse<'i>>(input: &mut Parser<'i, 't>) -> Result<Vec<G
   Ok(items)
 }
 
-fn serialize_items<D: ToCss + std::cmp::PartialOrd<f32> + std::cmp::PartialEq<D> + std::ops::Mul<f32, Output = D> + Clone + std::fmt::Debug, W>(items: &Vec<GradientItem<DimensionPercentage<D>>>, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+fn serialize_items<
+  D: ToCss + std::cmp::PartialEq<D> + std::ops::Mul<f32, Output = D> + TrySign + Clone + std::fmt::Debug,
+  W,
+>(
+  items: &Vec<GradientItem<DimensionPercentage<D>>>,
+  dest: &mut Printer<W>,
+) -> Result<(), PrinterError>
+where
+  W: std::fmt::Write,
+{
   let mut first = true;
   let mut last: Option<&GradientItem<DimensionPercentage<D>>> = None;
   for item in items {
     // Skip useless hints
     if *item == GradientItem::Hint(DimensionPercentage::Percentage(Percentage(0.5))) {
-      continue
+      continue;
     }
-    
+
     // Use double position stop if the last stop is the same color and all targets support it.
     if let Some(prev) = last {
       if dest.targets.is_none() || compat::Feature::DoublePositionGradients.is_compatible(dest.targets.unwrap()) {
         match (prev, item) {
           (
-            GradientItem::ColorStop(ColorStop { position: Some(_), color: ca }),
-            GradientItem::ColorStop(ColorStop { position: Some(p), color: cb })
+            GradientItem::ColorStop(ColorStop {
+              position: Some(_),
+              color: ca,
+            }),
+            GradientItem::ColorStop(ColorStop {
+              position: Some(p),
+              color: cb,
+            }),
           ) if ca == cb => {
             dest.write_char(' ')?;
             p.to_css(dest)?;
             last = None;
-            continue
+            continue;
           }
           _ => {}
         }
       }
     }
-    
+
     if first {
       first = false;
     } else {
@@ -655,21 +915,36 @@ fn serialize_items<D: ToCss + std::cmp::PartialOrd<f32> + std::cmp::PartialEq<D>
   Ok(())
 }
 
-// Old pre-standard -webkit-gradient() syntax.
+/// A legacy `-webkit-gradient()`.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum WebKitGradient {
+  /// A linear `-webkit-gradient()`.
   Linear {
+    /// The starting point of the gradient.
     from: WebKitGradientPoint,
+    /// The ending point of the gradient.
     to: WebKitGradientPoint,
-    stops: Vec<WebKitColorStop>
+    /// The color stops in the gradient.
+    stops: Vec<WebKitColorStop>,
   },
+  /// A radial `-webkit-gradient()`.
   Radial {
+    /// The starting point of the gradient.
     from: WebKitGradientPoint,
-    r0: f32,
+    /// The starting radius of the gradient.
+    r0: CSSNumber,
+    /// The ending point of the gradient.
     to: WebKitGradientPoint,
-    r1: f32,
-    stops: Vec<WebKitColorStop>
-  }
+    /// The ending radius of the gradient.
+    r1: CSSNumber,
+    /// The color stops in the gradient.
+    stops: Vec<WebKitColorStop>,
+  },
 }
 
 impl<'i> Parse<'i> for WebKitGradient {
@@ -694,11 +969,11 @@ impl<'i> Parse<'i> for WebKitGradient {
       "radial" => {
         let from = WebKitGradientPoint::parse(input)?;
         input.expect_comma()?;
-        let r0 = f32::parse(input)?;
+        let r0 = CSSNumber::parse(input)?;
         input.expect_comma()?;
         let to = WebKitGradientPoint::parse(input)?;
         input.expect_comma()?;
-        let r1 = f32::parse(input)?;
+        let r1 = CSSNumber::parse(input)?;
         input.expect_comma()?;
         let stops = input.parse_comma_separated(WebKitColorStop::parse)?;
         Ok(WebKitGradient::Radial {
@@ -715,7 +990,10 @@ impl<'i> Parse<'i> for WebKitGradient {
 }
 
 impl ToCss for WebKitGradient {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       WebKitGradient::Linear { from, to, stops } => {
         dest.write_str("linear")?;
@@ -729,7 +1007,13 @@ impl ToCss for WebKitGradient {
         }
         Ok(())
       }
-      WebKitGradient::Radial { from, r0, to, r1, stops } => {
+      WebKitGradient::Radial {
+        from,
+        r0,
+        to,
+        r1,
+        stops,
+      } => {
         dest.write_str("radial")?;
         dest.delim(',', false)?;
         from.to_css(dest)?;
@@ -749,10 +1033,40 @@ impl ToCss for WebKitGradient {
   }
 }
 
+impl WebKitGradient {
+  fn get_fallback(&self, kind: ColorFallbackKind) -> WebKitGradient {
+    let stops = match self {
+      WebKitGradient::Linear { stops, .. } => stops,
+      WebKitGradient::Radial { stops, .. } => stops,
+    };
+
+    let stops = stops.iter().map(|stop| stop.get_fallback(kind)).collect();
+
+    match self {
+      WebKitGradient::Linear { from, to, .. } => WebKitGradient::Linear {
+        from: from.clone(),
+        to: to.clone(),
+        stops,
+      },
+      WebKitGradient::Radial { from, r0, to, r1, .. } => WebKitGradient::Radial {
+        from: from.clone(),
+        r0: *r0,
+        to: to.clone(),
+        r1: *r1,
+        stops,
+      },
+    }
+  }
+}
+
+/// A color stop within a legacy `-webkit-gradient()`.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WebKitColorStop {
+  /// The color of the color stop.
   pub color: CssColor,
-  pub position: f32
+  /// The position of the color stop.
+  pub position: CSSNumber,
 }
 
 impl<'i> Parse<'i> for WebKitColorStop {
@@ -771,16 +1085,16 @@ impl<'i> Parse<'i> for WebKitColorStop {
         _ => return Err(location.new_unexpected_token_error(cssparser::Token::Ident(function.clone())))
       };
       let color = CssColor::parse(input)?;
-      Ok(WebKitColorStop {
-        color,
-        position
-      })
+      Ok(WebKitColorStop { color, position })
     })
   }
 }
 
 impl ToCss for WebKitColorStop {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     if self.position == 0.0 {
       dest.write_str("from(")?;
       self.color.to_css(dest)?;
@@ -797,10 +1111,23 @@ impl ToCss for WebKitColorStop {
   }
 }
 
+impl WebKitColorStop {
+  fn get_fallback(&self, kind: ColorFallbackKind) -> WebKitColorStop {
+    WebKitColorStop {
+      color: self.color.get_fallback(kind),
+      position: self.position,
+    }
+  }
+}
+
+/// An x/y position within a legacy `-webkit-gradient()`.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WebKitGradientPoint {
+  /// The x-position.
   pub x: WebKitGradientPointComponent<HorizontalPositionKeyword>,
-  pub y: WebKitGradientPointComponent<VerticalPositionKeyword>
+  /// The y-position.
+  pub y: WebKitGradientPointComponent<VerticalPositionKeyword>,
 }
 
 impl<'i> Parse<'i> for WebKitGradientPoint {
@@ -812,17 +1139,29 @@ impl<'i> Parse<'i> for WebKitGradientPoint {
 }
 
 impl ToCss for WebKitGradientPoint {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.x.to_css(dest)?;
     dest.write_char(' ')?;
     self.y.to_css(dest)
   }
 }
 
+/// A keyword or number within a [WebKitGradientPoint](WebKitGradientPoint).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum WebKitGradientPointComponent<S> {
+  /// The `center` keyword.
   Center,
+  /// A number or percentage.
   Number(NumberOrPercentage),
+  /// A side keyword.
   Side(S),
 }
 
@@ -842,7 +1181,10 @@ impl<'i, S: Parse<'i>> Parse<'i> for WebKitGradientPointComponent<S> {
 }
 
 impl<S: ToCss + Clone + Into<LengthPercentage>> ToCss for WebKitGradientPointComponent<S> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     use WebKitGradientPointComponent::*;
     match &self {
       Center => {
@@ -858,7 +1200,7 @@ impl<S: ToCss + Clone + Into<LengthPercentage>> ToCss for WebKitGradientPointCom
         } else {
           lp.to_css(dest)
         }
-      },
+      }
       Side(s) => {
         if dest.minify {
           let lp: LengthPercentage = s.clone().into();
@@ -885,15 +1227,15 @@ impl<S: Clone> WebKitGradientPointComponent<S> {
             if let Some(px) = d.to_px() {
               NumberOrPercentage::Number(px)
             } else {
-              return Err(())
+              return Err(());
             }
-          },
-          _ => return Err(())
+          }
+          _ => return Err(()),
         }))
       }
       PositionComponent::Side(s, o) => {
         if o.is_some() {
-          return Err(())
+          return Err(());
         }
         Ok(WebKitGradientPointComponent::Side(s.clone()))
       }
@@ -908,84 +1250,48 @@ impl WebKitGradient {
       Gradient::Linear(linear, _) => {
         // Convert from line direction to a from and to point, if possible.
         let (from, to) = match &linear.direction {
-          LineDirection::Horizontal(horizontal) => {
-            match horizontal {
-              HorizontalPositionKeyword::Left => (
-                (1.0, 0.0),
-                (0.0, 0.0)
-              ),
-              HorizontalPositionKeyword::Right => (
-                (0.0, 0.0),
-                (1.0, 0.0)
-              )
-            }
-          }
-          LineDirection::Vertical(vertical) => {
-            match vertical {
-              VerticalPositionKeyword::Top => (
-                (0.0, 1.0),
-                (0.0, 0.0)
-              ),
-              VerticalPositionKeyword::Bottom => (
-                (0.0, 0.0),
-                (0.0, 1.0)
-              )
-            }
-          }
-          LineDirection::Corner(horizontal, vertical) => {
-            match (horizontal, vertical) {
-              (HorizontalPositionKeyword::Left, VerticalPositionKeyword::Top) => (
-                (1.0, 1.0),
-                (0.0, 0.0)
-              ),
-              (HorizontalPositionKeyword::Left, VerticalPositionKeyword::Bottom) => (
-                (1.0, 0.0),
-                (0.0, 1.0)
-              ),
-              (HorizontalPositionKeyword::Right, VerticalPositionKeyword::Top) => (
-                (0.0, 1.0),
-                (1.0, 0.0)
-              ),
-              (HorizontalPositionKeyword::Right, VerticalPositionKeyword::Bottom) => (
-                (0.0, 0.0),
-                (1.0, 1.0)
-              )
-            }
-          }
+          LineDirection::Horizontal(horizontal) => match horizontal {
+            HorizontalPositionKeyword::Left => ((1.0, 0.0), (0.0, 0.0)),
+            HorizontalPositionKeyword::Right => ((0.0, 0.0), (1.0, 0.0)),
+          },
+          LineDirection::Vertical(vertical) => match vertical {
+            VerticalPositionKeyword::Top => ((0.0, 1.0), (0.0, 0.0)),
+            VerticalPositionKeyword::Bottom => ((0.0, 0.0), (0.0, 1.0)),
+          },
+          LineDirection::Corner(horizontal, vertical) => match (horizontal, vertical) {
+            (HorizontalPositionKeyword::Left, VerticalPositionKeyword::Top) => ((1.0, 1.0), (0.0, 0.0)),
+            (HorizontalPositionKeyword::Left, VerticalPositionKeyword::Bottom) => ((1.0, 0.0), (0.0, 1.0)),
+            (HorizontalPositionKeyword::Right, VerticalPositionKeyword::Top) => ((0.0, 1.0), (1.0, 0.0)),
+            (HorizontalPositionKeyword::Right, VerticalPositionKeyword::Bottom) => ((0.0, 0.0), (1.0, 1.0)),
+          },
           LineDirection::Angle(angle) => {
             let degrees = angle.to_degrees();
             if degrees == 0.0 {
-              (
-                (0.0, 1.0),
-                (0.0, 0.0)
-              )
+              ((0.0, 1.0), (0.0, 0.0))
             } else if degrees == 90.0 {
-              (
-                (0.0, 0.0),
-                (1.0, 0.0)
-              )
+              ((0.0, 0.0), (1.0, 0.0))
             } else if degrees == 180.0 {
-              (
-                (0.0, 0.0),
-                (0.0, 1.0)
-              )
+              ((0.0, 0.0), (0.0, 1.0))
             } else if degrees == 270.0 {
-              (
-                (1.0, 0.0),
-                (0.0, 0.0)
-              )
+              ((1.0, 0.0), (0.0, 0.0))
             } else {
-              return Err(())
+              return Err(());
             }
           }
         };
 
         Ok(WebKitGradient::Linear {
-          from: WebKitGradientPoint { x: WebKitGradientPointComponent::Number(NumberOrPercentage::Percentage(Percentage(from.0))), y: WebKitGradientPointComponent::Number(NumberOrPercentage::Percentage(Percentage(from.1))) },
-          to: WebKitGradientPoint { x: WebKitGradientPointComponent::Number(NumberOrPercentage::Percentage(Percentage(to.0))), y: WebKitGradientPointComponent::Number(NumberOrPercentage::Percentage(Percentage(to.1))) },
-          stops: convert_stops_to_webkit(&linear.items)?
+          from: WebKitGradientPoint {
+            x: WebKitGradientPointComponent::Number(NumberOrPercentage::Percentage(Percentage(from.0))),
+            y: WebKitGradientPointComponent::Number(NumberOrPercentage::Percentage(Percentage(from.1))),
+          },
+          to: WebKitGradientPoint {
+            x: WebKitGradientPointComponent::Number(NumberOrPercentage::Percentage(Percentage(to.0))),
+            y: WebKitGradientPointComponent::Number(NumberOrPercentage::Percentage(Percentage(to.1))),
+          },
+          stops: convert_stops_to_webkit(&linear.items)?,
         })
-      },
+      }
       Gradient::Radial(radial, _) => {
         // Webkit radial gradients are always circles, not ellipses, and must be specified in pixels.
         let radius = match &radial.shape {
@@ -993,10 +1299,10 @@ impl WebKitGradient {
             if let Some(r) = radius.to_px() {
               r
             } else {
-              return Err(())
+              return Err(());
             }
-          },
-          _ => return Err(())
+          }
+          _ => return Err(()),
         };
 
         let x = WebKitGradientPointComponent::from_position(&radial.position.x)?;
@@ -1007,10 +1313,10 @@ impl WebKitGradient {
           r0: 0.0,
           to: point,
           r1: radius,
-          stops: convert_stops_to_webkit(&radial.items)?
+          stops: convert_stops_to_webkit(&radial.items)?,
         })
       }
-      _ => Err(())
+      _ => Err(()),
     }
   }
 }
@@ -1025,22 +1331,22 @@ fn convert_stops_to_webkit(items: &Vec<GradientItem<LengthPercentage>>) -> Resul
           if let LengthPercentage::Percentage(position) = pos {
             position.0
           } else {
-            return Err(())
+            return Err(());
           }
         } else if i == 0 {
           0.0
         } else if i == items.len() - 1 {
           1.0
         } else {
-          return Err(())
+          return Err(());
         };
 
         stops.push(WebKitColorStop {
           color: stop.color.clone(),
-          position
+          position,
         })
       }
-      _ => return Err(())
+      _ => return Err(()),
     }
   }
 

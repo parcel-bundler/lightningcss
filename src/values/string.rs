@@ -1,21 +1,26 @@
+//! Types used to represent strings.
+
 use cssparser::CowRcStr;
-use std::marker::PhantomData;
-use std::rc::Rc;
-use std::sync::Arc;
-use std::slice;
-use std::str;
-use std::ops::Deref;
+#[cfg(feature = "serde")]
+use serde::{de::Visitor, Deserialize, Deserializer};
+use serde::{Serialize, Serializer};
 use std::borrow::Borrow;
-use std::hash;
 use std::cmp;
 use std::fmt;
+use std::hash;
+use std::marker::PhantomData;
+use std::ops::Deref;
+use std::rc::Rc;
+use std::slice;
+use std::str;
+use std::sync::Arc;
 
 // We cannot store CowRcStr from cssparser directly because it is not threadsafe (due to Rc).
 // CowArcStr is exactly the same, but uses Arc instead of Rc. We could use Cow<str> instead,
 // but real-world benchmarks show a performance regression, likely due to the larger memory
 // footprint.
 //
-// In order to convert between CowRcStr and CowArcStr without cloning, we use some unsafe 
+// In order to convert between CowRcStr and CowArcStr without cloning, we use some unsafe
 // tricks to access the internal fields. LocalCowRcStr must be exactly the same as CowRcStr
 // so we can transmutate between them.
 struct LocalCowRcStr<'a> {
@@ -24,6 +29,8 @@ struct LocalCowRcStr<'a> {
   phantom: PhantomData<Result<&'a str, Rc<String>>>,
 }
 
+/// A string that is either shared (heap-allocated and atomically reference-counted)
+/// or borrowed from the input CSS source code.
 pub struct CowArcStr<'a> {
   ptr: &'static (),
   borrowed_len_or_max: usize,
@@ -56,7 +63,7 @@ impl<'a> From<&CowRcStr<'a>> for CowArcStr<'a> {
           local.borrowed_len_or_max,
         ))
       };
-  
+
       CowArcStr::from(s)
     }
   }
@@ -207,5 +214,54 @@ impl<'a> fmt::Debug for CowArcStr<'a> {
   #[inline]
   fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
     str::fmt(self, formatter)
+  }
+}
+
+impl<'a> Serialize for CowArcStr<'a> {
+  fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+    self.as_ref().serialize(serializer)
+  }
+}
+
+#[cfg(feature = "serde")]
+impl<'a, 'de: 'a> Deserialize<'de> for CowArcStr<'a> {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    deserializer.deserialize_str(CowArcStrVisitor)
+  }
+}
+
+#[cfg(feature = "serde")]
+struct CowArcStrVisitor;
+
+#[cfg(feature = "serde")]
+impl<'de> Visitor<'de> for CowArcStrVisitor {
+  type Value = CowArcStr<'de>;
+
+  fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+    formatter.write_str("a CowArcStr")
+  }
+
+  fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
+  where
+    E: serde::de::Error,
+  {
+    Ok(v.into())
+  }
+
+  fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+  where
+    E: serde::de::Error,
+  {
+    Ok(v.to_owned().into())
+  }
+
+  fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+  where
+    E: serde::de::Error,
+  {
+    Ok(v.into())
   }
 }

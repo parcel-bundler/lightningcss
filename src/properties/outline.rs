@@ -1,23 +1,35 @@
-use cssparser::*;
-use super::border::{BorderStyle, GenericBorder, BorderSideWidth};
-use crate::traits::{Parse, ToCss, PropertyHandler};
-use crate::values::color::CssColor;
-use super::{Property, PropertyId};
-use crate::declaration::DeclarationList;
-use crate::printer::Printer;
-use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+//! CSS properties related to outlines.
 
+use super::border::{BorderSideWidth, GenericBorder, LineStyle};
+use super::{Property, PropertyId};
+use crate::context::PropertyHandlerContext;
+use crate::declaration::{DeclarationBlock, DeclarationList};
+use crate::error::{ParserError, PrinterError};
+use crate::macros::{impl_shorthand, shorthand_handler};
+use crate::printer::Printer;
+use crate::targets::Browsers;
+use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss};
+use crate::values::color::CssColor;
+use cssparser::*;
+
+/// A value for the [outline-style](https://drafts.csswg.org/css-ui/#outline-style) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum OutlineStyle {
+  /// The `auto` keyword.
   Auto,
-  BorderStyle(BorderStyle)
+  /// A value equivalent to the `border-style` property.
+  LineStyle(LineStyle),
 }
 
 impl<'i> Parse<'i> for OutlineStyle {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(border_style) = input.try_parse(BorderStyle::parse) {
-      return Ok(OutlineStyle::BorderStyle(border_style))
+    if let Ok(border_style) = input.try_parse(LineStyle::parse) {
+      return Ok(OutlineStyle::LineStyle(border_style));
     }
 
     input.expect_ident_matching("auto")?;
@@ -26,89 +38,36 @@ impl<'i> Parse<'i> for OutlineStyle {
 }
 
 impl ToCss for OutlineStyle {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       OutlineStyle::Auto => dest.write_str("auto"),
-      OutlineStyle::BorderStyle(border_style) => border_style.to_css(dest)
+      OutlineStyle::LineStyle(border_style) => border_style.to_css(dest),
     }
   }
 }
 
 impl Default for OutlineStyle {
   fn default() -> OutlineStyle {
-    OutlineStyle::BorderStyle(BorderStyle::None)
+    OutlineStyle::LineStyle(LineStyle::None)
   }
 }
 
-pub type Outline = GenericBorder<OutlineStyle>;
+/// A value for the [outline](https://drafts.csswg.org/css-ui/#outline) shorthand property.
+pub type Outline = GenericBorder<OutlineStyle, 11>;
 
-#[derive(Default, Debug)]
-pub(crate) struct OutlineHandler {
-  pub width: Option<BorderSideWidth>,
-  pub style: Option<OutlineStyle>,
-  pub color: Option<CssColor>
-}
-
-impl<'i> PropertyHandler<'i> for OutlineHandler {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
-    use Property::*;
-
-    match property {
-      OutlineColor(val) => self.color = Some(val.clone()),
-      OutlineStyle(val) => self.style = Some(val.clone()),
-      OutlineWidth(val) => self.width = Some(val.clone()),
-      Outline(val) => {
-        self.color = Some(val.color.clone());
-        self.style = Some(val.style.clone());
-        self.width = Some(val.width.clone());
-      }
-      Unparsed(val) if is_outline_property(&val.property_id) => {
-        self.finalize(dest, logical);
-        dest.push(property.clone());
-      }
-      _ => return false
-    }
-
-    true
-  }
-
-  fn finalize(&mut self, decls: &mut DeclarationList, _: &mut LogicalProperties) {
-    if self.width.is_none() && self.style.is_none() && self.color.is_none() {
-      return
-    }
-
-    let width = std::mem::take(&mut self.width);
-    let style = std::mem::take(&mut self.style);
-    let color = std::mem::take(&mut self.color);
-    if width.is_some() && style.is_some() && color.is_some() {
-      decls.push(Property::Outline(Outline {
-        width: width.unwrap(),
-        style: style.unwrap(),
-        color: color.unwrap()
-      }))
-    } else {
-      if let Some(color) = color {
-        decls.push(Property::OutlineColor(color))
-      }
-
-      if let Some(style) = style {
-        decls.push(Property::OutlineStyle(style))
-      }
-
-      if let Some(width) = width {
-        decls.push(Property::OutlineWidth(width))
-      }
-    }
+impl_shorthand! {
+  Outline(Outline) {
+    width: [OutlineWidth],
+    style: [OutlineStyle],
+    color: [OutlineColor],
   }
 }
 
-#[inline]
-fn is_outline_property(property_id: &PropertyId) -> bool {
-  match property_id {
-    PropertyId::OutlineColor |
-    PropertyId::OutlineStyle |
-    PropertyId::OutlineWidth |
-    PropertyId::Outline => true,
-    _ => false
-  }
-}
+shorthand_handler!(OutlineHandler -> Outline fallbacks: true {
+  width: OutlineWidth(BorderSideWidth),
+  style: OutlineStyle(OutlineStyle),
+  color: OutlineColor(CssColor, fallback: true),
+});

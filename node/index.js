@@ -1,6 +1,6 @@
 let parts = [process.platform, process.arch];
 if (process.platform === 'linux') {
-  const {MUSL, family} = require('detect-libc');
+  const { MUSL, family } = require('detect-libc');
   if (family === MUSL) {
     parts.push('musl');
   } else if (process.arch === 'arm') {
@@ -16,9 +16,9 @@ if (process.env.CSS_TRANSFORMER_WASM) {
   module.exports = require(`../pkg`);
 } else {
   try {
-    module.exports = require(`@parcel/css-${parts.join('-')}`);
+    module.exports = require(`lightningcss-${parts.join('-')}`);
   } catch (err) {
-    module.exports = require(`../parcel-css.${parts.join('-')}.node`);
+    module.exports = require(`../lightningcss.${parts.join('-')}.node`);
   }
 }
 

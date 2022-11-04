@@ -1,36 +1,52 @@
-use cssparser::*;
-use crate::traits::{Parse, ToCss, TryAdd};
-use crate::printer::Printer;
-use super::calc::Calc;
-use super::percentage::DimensionPercentage;
-use super::number::serialize_number;
-use crate::error::{ParserError, PrinterError};
+//! CSS length values.
 
-/// https://drafts.csswg.org/css-values-4/#typedef-length-percentage
+use super::angle::impl_try_from_angle;
+use super::calc::{Calc, MathFunction};
+use super::number::CSSNumber;
+use super::percentage::DimensionPercentage;
+use crate::error::{ParserError, PrinterError};
+use crate::printer::Printer;
+use crate::traits::TrySign;
+use crate::traits::{
+  private::{AddInternal, TryAdd},
+  Map, Parse, Sign, ToCss, TryMap, TryOp, Zero,
+};
+use const_str;
+use cssparser::*;
+
+/// A CSS [`<length-percentage>`](https://www.w3.org/TR/css-values-4/#typedef-length-percentage) value.
+/// May be specified as either a length or a percentage that resolves to an length.
 pub type LengthPercentage = DimensionPercentage<LengthValue>;
 
 impl LengthPercentage {
-  pub fn zero() -> LengthPercentage {
-    LengthPercentage::px(0.0)
-  }
-
-  pub fn px(val: f32) -> LengthPercentage {
+  /// Constructs a `LengthPercentage` with the given pixel value.
+  pub fn px(val: CSSNumber) -> LengthPercentage {
     LengthPercentage::Dimension(LengthValue::Px(val))
   }
 
-  pub(crate) fn to_css_unitless<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  pub(crate) fn to_css_unitless<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       DimensionPercentage::Dimension(d) => d.to_css_unitless(dest),
-      _ => self.to_css(dest)
+      _ => self.to_css(dest),
     }
   }
 }
 
-/// `<length-percentage> | auto`
+/// Either a [`<length-percentage>`](https://www.w3.org/TR/css-values-4/#typedef-length-percentage), or the `auto` keyword.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum LengthPercentageOrAuto {
+  /// The `auto` keyword.
   Auto,
-  LengthPercentage(LengthPercentage)
+  /// A [`<length-percentage>`](https://www.w3.org/TR/css-values-4/#typedef-length-percentage).
+  LengthPercentage(LengthPercentage),
 }
 
 impl<'i> Parse<'i> for LengthPercentageOrAuto {
@@ -40,7 +56,7 @@ impl<'i> Parse<'i> for LengthPercentageOrAuto {
     }
 
     if let Ok(percent) = input.try_parse(|input| LengthPercentage::parse(input)) {
-      return Ok(LengthPercentageOrAuto::LengthPercentage(percent))
+      return Ok(LengthPercentageOrAuto::LengthPercentage(percent));
     }
 
     Err(input.new_error_for_next_token())
@@ -48,7 +64,10 @@ impl<'i> Parse<'i> for LengthPercentageOrAuto {
 }
 
 impl ToCss for LengthPercentageOrAuto {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     use LengthPercentageOrAuto::*;
     match self {
       Auto => dest.write_str("auto"),
@@ -64,67 +83,313 @@ const PX_PER_Q: f32 = PX_PER_CM / 40.0;
 const PX_PER_PT: f32 = PX_PER_IN / 72.0;
 const PX_PER_PC: f32 = PX_PER_IN / 6.0;
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum LengthValue {
-  Px(f32),
-  In(f32),
-  Cm(f32),
-  Mm(f32),
-  Q(f32),
-  Pt(f32),
-  Pc(f32),
-  Em(f32),
-  Ex(f32),
-  Ch(f32),
-  Rem(f32),
-  Vw(f32),
-  Vh(f32),
-  Vmin(f32),
-  Vmax(f32)
+macro_rules! define_length_units {
+  (
+    $(
+      $(#[$meta: meta])*
+      $name: ident,
+    )+
+  ) => {
+    /// A CSS [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) value,
+    /// without support for `calc()`. See also: [Length](Length).
+    #[derive(Debug, Clone, PartialEq)]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(tag = "unit", content = "value", rename_all = "kebab-case"))]
+    pub enum LengthValue {
+      $(
+        $(#[$meta])*
+        $name(CSSNumber),
+      )+
+    }
+
+    impl<'i> Parse<'i> for LengthValue {
+      fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+        let location = input.current_source_location();
+        let token = input.next()?;
+        match *token {
+          Token::Dimension { value, ref unit, .. } => {
+            Ok(match unit {
+              $(
+                s if s.eq_ignore_ascii_case(stringify!($name)) => LengthValue::$name(value),
+              )+
+              _ => return Err(location.new_unexpected_token_error(token.clone())),
+            })
+          },
+          Token::Number { value, .. } => {
+            // TODO: quirks mode only?
+            Ok(LengthValue::Px(value))
+          }
+          ref token => return Err(location.new_unexpected_token_error(token.clone())),
+        }
+      }
+    }
+
+    impl LengthValue {
+      /// Returns the numeric value and unit string for the length value.
+      pub fn to_unit_value(&self) -> (CSSNumber, &str) {
+        match self {
+          $(
+            LengthValue::$name(value) => (*value, const_str::convert_ascii_case!(lower, stringify!($name))),
+          )+
+        }
+      }
+    }
+
+    impl TryAdd<LengthValue> for LengthValue {
+      fn try_add(&self, other: &LengthValue) -> Option<LengthValue> {
+        use LengthValue::*;
+        match (self, other) {
+          $(
+            ($name(a), $name(b)) => Some($name(a + b)),
+          )+
+          (a, b) => {
+            if let (Some(a), Some(b)) = (a.to_px(), b.to_px()) {
+              Some(Px(a + b))
+            } else {
+              None
+            }
+          }
+        }
+      }
+    }
+
+    impl std::ops::Mul<CSSNumber> for LengthValue {
+      type Output = Self;
+
+      fn mul(self, other: CSSNumber) -> LengthValue {
+        use LengthValue::*;
+        match self {
+          $(
+            $name(value) => $name(value * other),
+          )+
+        }
+      }
+    }
+
+    impl std::cmp::PartialOrd<LengthValue> for LengthValue {
+      fn partial_cmp(&self, other: &LengthValue) -> Option<std::cmp::Ordering> {
+        use LengthValue::*;
+        match (self, other) {
+          $(
+            ($name(a), $name(b)) => a.partial_cmp(b),
+          )+
+          (a, b) => {
+            if let (Some(a), Some(b)) = (a.to_px(), b.to_px()) {
+              a.partial_cmp(&b)
+            } else {
+              None
+            }
+          }
+        }
+      }
+    }
+
+    impl TryOp for LengthValue {
+      fn try_op<F: FnOnce(f32, f32) -> f32>(&self, rhs: &Self, op: F) -> Option<Self> {
+        use LengthValue::*;
+        match (self, rhs) {
+          $(
+            ($name(a), $name(b)) => Some($name(op(*a, *b))),
+          )+
+          (a, b) => {
+            if let (Some(a), Some(b)) = (a.to_px(), b.to_px()) {
+              Some(Px(op(a, b)))
+            } else {
+              None
+            }
+          }
+        }
+      }
+
+      fn try_op_to<T, F: FnOnce(f32, f32) -> T>(&self, rhs: &Self, op: F) -> Option<T> {
+        use LengthValue::*;
+        match (self, rhs) {
+          $(
+            ($name(a), $name(b)) => Some(op(*a, *b)),
+          )+
+          (a, b) => {
+            if let (Some(a), Some(b)) = (a.to_px(), b.to_px()) {
+              Some(op(a, b))
+            } else {
+              None
+            }
+          }
+        }
+      }
+    }
+
+    impl Map for LengthValue {
+      fn map<F: FnOnce(f32) -> f32>(&self, op: F) -> Self {
+        use LengthValue::*;
+        match self {
+          $(
+            $name(value) => $name(op(*value)),
+          )+
+        }
+      }
+    }
+
+    impl Sign for LengthValue {
+      fn sign(&self) -> f32 {
+        use LengthValue::*;
+        match self {
+          $(
+            $name(value) => value.sign(),
+          )+
+        }
+      }
+    }
+
+    impl Zero for LengthValue {
+      fn zero() -> Self {
+        LengthValue::Px(0.0)
+      }
+
+      fn is_zero(&self) -> bool {
+        use LengthValue::*;
+        match self {
+          $(
+            $name(value) => value.is_zero(),
+          )+
+        }
+      }
+    }
+
+    impl_try_from_angle!(LengthValue);
+  };
 }
 
-impl<'i> Parse<'i> for LengthValue {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let location = input.current_source_location();
-    let token = input.next()?;
-    match *token {
-      Token::Dimension { value, ref unit, .. } => {
-        Ok(match_ignore_ascii_case! { unit,
-          "px" => LengthValue::Px(value),
-          "in" => LengthValue::In(value),
-          "cm" => LengthValue::Cm(value),
-          "mm" => LengthValue::Mm(value),
-          "q" => LengthValue::Q(value),
-          "pt" => LengthValue::Pt(value),
-          "pc" => LengthValue::Pc(value),
-          "em" => LengthValue::Em(value),
-          "ex" => LengthValue::Ex(value),
-          "ch" => LengthValue::Ch(value),
-          "rem" => LengthValue::Rem(value),
-          "vw" => LengthValue::Vw(value),
-          "vh" => LengthValue::Vh(value),
-          "vmin" => LengthValue::Vmin(value),
-          "vmax" => LengthValue::Vmax(value),
-          _ => return Err(location.new_unexpected_token_error(token.clone())),
-        })
-      },
-      Token::Number { value, .. } => {
-        // TODO: quirks mode only?
-        Ok(LengthValue::Px(value))
-      }
-      ref token => return Err(location.new_unexpected_token_error(token.clone())),
-    }
-  }
+define_length_units! {
+  // https://www.w3.org/TR/css-values-4/#absolute-lengths
+  /// A length in pixels.
+  Px,
+  /// A length in inches. 1in = 96px.
+  In,
+  /// A length in centimeters. 1cm = 96px / 2.54.
+  Cm,
+  /// A length in millimeters. 1mm = 1/10th of 1cm.
+  Mm,
+  /// A length in quarter-millimeters. 1Q = 1/40th of 1cm.
+  Q,
+  /// A length in points. 1pt = 1/72nd of 1in.
+  Pt,
+  /// A length in picas. 1pc = 1/6th of 1in.
+  Pc,
+
+  // https://www.w3.org/TR/css-values-4/#font-relative-lengths
+  /// A length in the `em` unit. An `em` is equal to the computed value of the
+  /// font-size property of the element on which it is used.
+  Em,
+  /// A length in the `rem` unit. A `rem` is equal to the computed value of the
+  /// `em` unit on the root element.
+  Rem,
+  /// A length in `ex` unit. An `ex` is equal to the x-height of the font.
+  Ex,
+  /// A length in the `rex` unit. A `rex` is equal to the value of the `ex` unit on the root element.
+  Rex,
+  /// A length in the `ch` unit. A `ch` is equal to the width of the zero ("0") character in the current font.
+  Ch,
+  /// A length in the `rch` unit. An `rch` is equal to the value of the `ch` unit on the root element.
+  Rch,
+  /// A length in the `cap` unit. A `cap` is equal to the cap-height of the font.
+  Cap,
+  /// A length in the `rcap` unit. An `rcap` is equal to the value of the `cap` unit on the root element.
+  Rcap,
+  /// A length in the `ic` unit. An `ic` is equal to the width of the “水” (CJK water ideograph) character in the current font.
+  Ic,
+  /// A length in the `ric` unit. An `ric` is equal to the value of the `ic` unit on the root element.
+  Ric,
+  /// A length in the `lh` unit. An `lh` is equal to the computed value of the `line-height` property.
+  Lh,
+  /// A length in the `rlh` unit. An `rlh` is equal to the value of the `lh` unit on the root element.
+  Rlh,
+
+  // https://www.w3.org/TR/css-values-4/#viewport-relative-units
+  /// A length in the `vw` unit. A `vw` is equal to 1% of the [viewport width](https://www.w3.org/TR/css-values-4/#ua-default-viewport-size).
+  Vw,
+  /// A length in the `lvw` unit. An `lvw` is equal to 1% of the [large viewport width](https://www.w3.org/TR/css-values-4/#large-viewport-size).
+  Lvw,
+  /// A length in the `svw` unit. An `svw` is equal to 1% of the [small viewport width](https://www.w3.org/TR/css-values-4/#small-viewport-size).
+  Svw,
+  /// A length in the `dvw` unit. An `dvw` is equal to 1% of the [dynamic viewport width](https://www.w3.org/TR/css-values-4/#dynamic-viewport-size).
+  Dvw,
+  /// A length in the `cqw` unit. An `cqw` is equal to 1% of the [query container](https://drafts.csswg.org/css-contain-3/#query-container) width.
+  Cqw,
+
+  /// A length in the `vh` unit. A `vh` is equal to 1% of the [viewport height](https://www.w3.org/TR/css-values-4/#ua-default-viewport-size).
+  Vh,
+  /// A length in the `lvh` unit. An `lvh` is equal to 1% of the [large viewport height](https://www.w3.org/TR/css-values-4/#large-viewport-size).
+  Lvh,
+  /// A length in the `svh` unit. An `svh` is equal to 1% of the [small viewport height](https://www.w3.org/TR/css-values-4/#small-viewport-size).
+  Svh,
+  /// A length in the `dvh` unit. An `dvh` is equal to 1% of the [dynamic viewport height](https://www.w3.org/TR/css-values-4/#dynamic-viewport-size).
+  Dvh,
+  /// A length in the `cqh` unit. An `cqh` is equal to 1% of the [query container](https://drafts.csswg.org/css-contain-3/#query-container) height.
+  Cqh,
+
+  /// A length in the `vi` unit. A `vi` is equal to 1% of the [viewport size](https://www.w3.org/TR/css-values-4/#ua-default-viewport-size)
+  /// in the box's [inline axis](https://www.w3.org/TR/css-writing-modes-4/#inline-axis).
+  Vi,
+  /// A length in the `svi` unit. A `svi` is equal to 1% of the [small viewport size](https://www.w3.org/TR/css-values-4/#small-viewport-size)
+  /// in the box's [inline axis](https://www.w3.org/TR/css-writing-modes-4/#inline-axis).
+  Svi,
+  /// A length in the `lvi` unit. A `lvi` is equal to 1% of the [large viewport size](https://www.w3.org/TR/css-values-4/#large-viewport-size)
+  /// in the box's [inline axis](https://www.w3.org/TR/css-writing-modes-4/#inline-axis).
+  Lvi,
+  /// A length in the `dvi` unit. A `dvi` is equal to 1% of the [dynamic viewport size](https://www.w3.org/TR/css-values-4/#dynamic-viewport-size)
+  /// in the box's [inline axis](https://www.w3.org/TR/css-writing-modes-4/#inline-axis).
+  Dvi,
+  /// A length in the `cqi` unit. An `cqi` is equal to 1% of the [query container](https://drafts.csswg.org/css-contain-3/#query-container) inline size.
+  Cqi,
+
+  /// A length in the `vb` unit. A `vb` is equal to 1% of the [viewport size](https://www.w3.org/TR/css-values-4/#ua-default-viewport-size)
+  /// in the box's [block axis](https://www.w3.org/TR/css-writing-modes-4/#block-axis).
+  Vb,
+  /// A length in the `svb` unit. A `svb` is equal to 1% of the [small viewport size](https://www.w3.org/TR/css-values-4/#small-viewport-size)
+  /// in the box's [block axis](https://www.w3.org/TR/css-writing-modes-4/#block-axis).
+  Svb,
+  /// A length in the `lvb` unit. A `lvb` is equal to 1% of the [large viewport size](https://www.w3.org/TR/css-values-4/#large-viewport-size)
+  /// in the box's [block axis](https://www.w3.org/TR/css-writing-modes-4/#block-axis).
+  Lvb,
+  /// A length in the `dvb` unit. A `dvb` is equal to 1% of the [dynamic viewport size](https://www.w3.org/TR/css-values-4/#dynamic-viewport-size)
+  /// in the box's [block axis](https://www.w3.org/TR/css-writing-modes-4/#block-axis).
+  Dvb,
+  /// A length in the `cqb` unit. An `cqb` is equal to 1% of the [query container](https://drafts.csswg.org/css-contain-3/#query-container) block size.
+  Cqb,
+
+  /// A length in the `vmin` unit. A `vmin` is equal to the smaller of `vw` and `vh`.
+  Vmin,
+  /// A length in the `svmin` unit. An `svmin` is equal to the smaller of `svw` and `svh`.
+  Svmin,
+  /// A length in the `lvmin` unit. An `lvmin` is equal to the smaller of `lvw` and `lvh`.
+  Lvmin,
+  /// A length in the `dvmin` unit. A `dvmin` is equal to the smaller of `dvw` and `dvh`.
+  Dvmin,
+  /// A length in the `cqmin` unit. An `cqmin` is equal to the smaller of `cqi` and `cqb`.
+  Cqmin,
+
+  /// A length in the `vmax` unit. A `vmax` is equal to the larger of `vw` and `vh`.
+  Vmax,
+  /// A length in the `svmax` unit. An `svmax` is equal to the larger of `svw` and `svh`.
+  Svmax,
+  /// A length in the `lvmax` unit. An `lvmax` is equal to the larger of `lvw` and `lvh`.
+  Lvmax,
+  /// A length in the `dvmax` unit. An `dvmax` is equal to the larger of `dvw` and `dvh`.
+  Dvmax,
+  /// A length in the `cqmax` unit. An `cqmin` is equal to the larger of `cqi` and `cqb`.
+  Cqmax,
 }
 
 impl ToCss for LengthValue {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let (value, unit) = self.to_unit_value();
 
     // The unit can be omitted if the value is zero, except inside calc()
     // expressions, where unitless numbers won't be parsed as dimensions.
     if !dest.in_calc && value == 0.0 {
-      return dest.write_char('0')
+      return dest.write_char('0');
     }
 
     serialize_dimension(value, unit, dest)
@@ -132,26 +397,28 @@ impl ToCss for LengthValue {
 }
 
 impl LengthValue {
-  pub(crate) fn to_css_unitless<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  pub(crate) fn to_css_unitless<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
-      LengthValue::Px(value) => serialize_number(*value, dest),
-      _ => self.to_css(dest)
+      LengthValue::Px(value) => value.to_css(dest),
+      _ => self.to_css(dest),
     }
   }
 }
 
-pub(crate) fn serialize_dimension<W>(value: f32, unit: &str, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+pub(crate) fn serialize_dimension<W>(value: f32, unit: &str, dest: &mut Printer<W>) -> Result<(), PrinterError>
+where
+  W: std::fmt::Write,
+{
   use cssparser::ToCss;
-  let int_value = if value.fract() == 0.0 {
-    Some(value as i32)
-  } else {
-    None
-  };
+  let int_value = if value.fract() == 0.0 { Some(value as i32) } else { None };
   let token = Token::Dimension {
     has_sign: value < 0.0,
     value,
     int_value,
-    unit: CowRcStr::from(unit)
+    unit: CowRcStr::from(unit),
   };
   if value != 0.0 && value.abs() < 1.0 {
     let mut s = String::new();
@@ -169,7 +436,9 @@ pub(crate) fn serialize_dimension<W>(value: f32, unit: &str, dest: &mut Printer<
 }
 
 impl LengthValue {
-  pub fn to_px(&self) -> Option<f32> {
+  /// Attempts to convert the value to pixels.
+  /// Returns `None` if the conversion is not possible.
+  pub fn to_px(&self) -> Option<CSSNumber> {
     use LengthValue::*;
     match self {
       Px(value) => Some(*value),
@@ -179,160 +448,23 @@ impl LengthValue {
       Q(value) => Some(value * PX_PER_Q),
       Pt(value) => Some(value * PX_PER_PT),
       Pc(value) => Some(value * PX_PER_PC),
-      _ => None
-    }
-  }
-
-  pub fn to_unit_value(&self) -> (f32, &str) {
-    use LengthValue::*;
-    match self {
-      Px(value) => (*value, "px"),
-      In(value) => (*value, "in"),
-      Cm(value) => (*value, "cm"),
-      Mm(value) => (*value, "mm"),
-      Q(value) => (*value, "q"),
-      Pt(value) => (*value, "pt"),
-      Pc(value) => (*value, "pc"),
-      Em(value) => (*value, "em"),
-      Ex(value) => (*value, "ex"),
-      Ch(value) => (*value, "ch"),
-      Rem(value) => (*value, "rem"),
-      Vw(value) => (*value, "vw"),
-      Vh(value) => (*value, "vh"),
-      Vmin(value) => (*value, "vmin"),
-      Vmax(value) => (*value, "vmax")
+      _ => None,
     }
   }
 }
 
-impl TryAdd<LengthValue> for LengthValue {
-  fn try_add(&self, other: &LengthValue) -> Option<LengthValue> {
-    use LengthValue::*;
-    match (self, other) {
-      (Px(a), Px(b)) => Some(Px(a + b)),
-      (In(a), In(b)) => Some(In(a + b)),
-      (Cm(a), Cm(b)) => Some(Cm(a + b)),
-      (Mm(a), Mm(b)) => Some(Mm(a + b)),
-      (Q(a), Q(b)) => Some(Q(a + b)),
-      (Pt(a), Pt(b)) => Some(Pt(a + b)),
-      (Pc(a), Pc(b)) => Some(Pc(a + b)),
-      (Em(a), Em(b)) => Some(Em(a + b)),
-      (Ex(a), Ex(b)) => Some(Ex(a + b)),
-      (Ch(a), Ch(b)) => Some(Ch(a + b)),
-      (Rem(a), Rem(b)) => Some(Rem(a + b)),
-      (Vw(a), Vw(b)) => Some(Vw(a + b)),
-      (Vh(a), Vh(b)) => Some(Vh(a + b)),
-      (Vmin(a), Vmin(b)) => Some(Vmin(a + b)),
-      (Vmax(a), Vmax(b)) => Some(Vmax(a + b)),
-      (a, b) => {
-        if let (Some(a), Some(b)) = (a.to_px(), b.to_px()) {
-          Some(Px(a + b))
-        } else {
-          None
-        }
-      }
-    }
-  }
-}
-
-impl std::ops::Mul<f32> for LengthValue {
-  type Output = Self;
-
-  fn mul(self, other: f32) -> LengthValue {
-    use LengthValue::*;
-    match self {
-      Px(value) => Px(value * other),
-      In(value) => In(value * other),
-      Cm(value) => Cm(value * other),
-      Mm(value) => Mm(value * other),
-      Q(value) => Q(value * other),
-      Pt(value) => Pt(value * other),
-      Pc(value) => Pc(value * other),
-      Em(value) => Em(value * other),
-      Ex(value) => Ex(value * other),
-      Ch(value) => Ch(value * other),
-      Rem(value) => Rem(value * other),
-      Vw(value) => Vw(value * other),
-      Vh(value) => Vh(value * other),
-      Vmin(value) => Vmin(value * other),
-      Vmax(value) => Vmax(value * other),
-    }
-  }
-}
-
-impl std::cmp::PartialEq<f32> for LengthValue {
-  fn eq(&self, other: &f32) -> bool {
-    use LengthValue::*;
-    match self {
-      Px(value) => value == other,
-      In(value) => value == other,
-      Cm(value) => value == other,
-      Mm(value) => value == other,
-      Q(value) => value == other,
-      Pt(value) => value == other,
-      Pc(value) => value == other,
-      Em(value) => value == other,
-      Ex(value) => value == other,
-      Ch(value) => value == other,
-      Rem(value) => value == other,
-      Vw(value) => value == other,
-      Vh(value) => value == other,
-      Vmin(value) => value == other,
-      Vmax(value) => value == other,
-    }
-  }
-}
-
-impl std::cmp::PartialOrd<f32> for LengthValue {
-  fn partial_cmp(&self, other: &f32) -> Option<std::cmp::Ordering> {
-    use LengthValue::*;
-    match self {
-      Px(value) => value.partial_cmp(other),
-      In(value) => value.partial_cmp(other),
-      Cm(value) => value.partial_cmp(other),
-      Mm(value) => value.partial_cmp(other),
-      Q(value) => value.partial_cmp(other),
-      Pt(value) => value.partial_cmp(other),
-      Pc(value) => value.partial_cmp(other),
-      Em(value) => value.partial_cmp(other),
-      Ex(value) => value.partial_cmp(other),
-      Ch(value) => value.partial_cmp(other),
-      Rem(value) => value.partial_cmp(other),
-      Vw(value) => value.partial_cmp(other),
-      Vh(value) => value.partial_cmp(other),
-      Vmin(value) => value.partial_cmp(other),
-      Vmax(value) => value.partial_cmp(other),
-    }
-  }
-}
-
-impl std::cmp::PartialOrd<LengthValue> for LengthValue {
-  fn partial_cmp(&self, other: &LengthValue) -> Option<std::cmp::Ordering> {
-    use LengthValue::*;
-    match (self, other) {
-      (Em(a), Em(b)) |
-      (Ex(a), Ex(b)) |
-      (Ch(a), Ch(b)) |
-      (Rem(a), Rem(b)) |
-      (Vw(a), Vw(b)) |
-      (Vh(a), Vh(b)) |
-      (Vmin(a), Vmin(b)) |
-      (Vmax(a), Vmax(b)) => a.partial_cmp(b),
-      (a, b) => {
-        if let (Some(a), Some(b)) = (a.to_px(), b.to_px()) {
-          a.partial_cmp(&b)
-        } else {
-          None
-        }
-      }
-    }
-  }
-}
-
+/// A CSS [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) value, with support for `calc()`.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum Length {
+  /// An explicitly specified length value.
   Value(LengthValue),
-  Calc(Box<Calc<Length>>)
+  /// A computed length value using `calc()`.
+  Calc(Box<Calc<Length>>),
 }
 
 impl<'i> Parse<'i> for Length {
@@ -349,21 +481,24 @@ impl<'i> Parse<'i> for Length {
 }
 
 impl ToCss for Length {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       Length::Value(a) => a.to_css(dest),
-      Length::Calc(c) => c.to_css(dest)
+      Length::Calc(c) => c.to_css(dest),
     }
   }
 }
 
-impl std::ops::Mul<f32> for Length {
+impl std::ops::Mul<CSSNumber> for Length {
   type Output = Self;
 
-  fn mul(self, other: f32) -> Length {
+  fn mul(self, other: CSSNumber) -> Length {
     match self {
       Length::Value(a) => Length::Value(a * other),
-      Length::Calc(a) => Length::Calc(Box::new(*a * other))
+      Length::Calc(a) => Length::Calc(Box::new(*a * other)),
     }
   }
 }
@@ -372,26 +507,56 @@ impl std::ops::Add<Length> for Length {
   type Output = Self;
 
   fn add(self, other: Length) -> Length {
+    // Unwrap calc(...) functions so we can add inside.
+    // Then wrap the result in a calc(...) again if necessary.
+    let a = unwrap_calc(self);
+    let b = unwrap_calc(other);
+    let res = AddInternal::add(a, b);
+    match res {
+      Length::Calc(c) => match *c {
+        Calc::Value(l) => *l,
+        Calc::Function(f) if !matches!(*f, MathFunction::Calc(_)) => Length::Calc(Box::new(Calc::Function(f))),
+        c => Length::Calc(Box::new(Calc::Function(Box::new(MathFunction::Calc(c))))),
+      },
+      _ => res,
+    }
+  }
+}
+
+fn unwrap_calc(length: Length) -> Length {
+  match length {
+    Length::Calc(c) => match *c {
+      Calc::Function(f) => match *f {
+        MathFunction::Calc(c) => Length::Calc(Box::new(c)),
+        c => Length::Calc(Box::new(Calc::Function(Box::new(c)))),
+      },
+      _ => Length::Calc(c),
+    },
+    _ => length,
+  }
+}
+
+impl AddInternal for Length {
+  fn add(self, other: Self) -> Self {
     match self.try_add(&other) {
       Some(r) => r,
-      None => self.add(other)
+      None => self.add(other),
     }
   }
 }
 
 impl Length {
-  pub fn zero() -> Length {
-    Length::Value(LengthValue::Px(0.0))
-  }
-
-  pub fn px(px: f32) -> Length {
+  /// Constructs a length with the given pixel value.
+  pub fn px(px: CSSNumber) -> Length {
     Length::Value(LengthValue::Px(px))
   }
 
-  pub fn to_px(&self) -> Option<f32> {
+  /// Attempts to convert the length to pixels.
+  /// Returns `None` if the conversion is not possible.
+  pub fn to_px(&self) -> Option<CSSNumber> {
     match self {
       Length::Value(a) => a.to_px(),
-      _ => None
+      _ => None,
     }
   }
 
@@ -399,20 +564,20 @@ impl Length {
     let mut a = self;
     let mut b = other;
 
-    if a == 0.0 {
-      return b
+    if a.is_zero() {
+      return b;
     }
 
-    if b == 0.0 {
-      return a
+    if b.is_zero() {
+      return a;
     }
 
-    if a < 0.0 && b > 0.0 {
+    if a.is_sign_negative() && b.is_sign_positive() {
       std::mem::swap(&mut a, &mut b);
     }
-    
+
     match (a, b) {
-      (Length::Calc(a), Length::Calc(b)) => return Length::Calc(Box::new(*a + *b)),
+      (Length::Calc(a), Length::Calc(b)) => return Length::Calc(Box::new(a.add(*b))),
       (Length::Calc(calc), b) => {
         if let Calc::Value(a) = *calc {
           a.add(b)
@@ -427,7 +592,20 @@ impl Length {
           Length::Calc(Box::new(Calc::Sum(Box::new(a.into()), Box::new((*calc).into()))))
         }
       }
-      (a, b) => Length::Calc(Box::new(Calc::Sum(Box::new(a.into()), Box::new(b.into()))))
+      (a, b) => Length::Calc(Box::new(Calc::Sum(Box::new(a.into()), Box::new(b.into())))),
+    }
+  }
+}
+
+impl Zero for Length {
+  fn zero() -> Length {
+    Length::Value(LengthValue::Px(0.0))
+  }
+
+  fn is_zero(&self) -> bool {
+    match self {
+      Length::Value(v) => v.is_zero(),
+      _ => false,
     }
   }
 }
@@ -441,41 +619,37 @@ impl TryAdd<Length> for Length {
         } else {
           None
         }
+      }
+      (Length::Calc(a), other) => match &**a {
+        Calc::Value(v) => v.try_add(other),
+        Calc::Sum(a, b) => {
+          if let Some(res) = Length::Calc(Box::new(*a.clone())).try_add(other) {
+            return Some(res.add(Length::from(*b.clone())));
+          }
+
+          if let Some(res) = Length::Calc(Box::new(*b.clone())).try_add(other) {
+            return Some(Length::from(*a.clone()).add(res));
+          }
+
+          None
+        }
+        _ => None,
       },
-      (Length::Calc(a), other) => {
-        match &**a {
-          Calc::Value(v) => v.try_add(other),
-          Calc::Sum(a, b) => {
-            if let Some(res) = Length::Calc(Box::new(*a.clone())).try_add(other) {
-              return Some(res.add(Length::from(*b.clone())))
-            }
-    
-            if let Some(res) = Length::Calc(Box::new(*b.clone())).try_add(other) {
-              return Some(Length::from(*a.clone()).add(res))
-            }
-    
-            None
+      (other, Length::Calc(b)) => match &**b {
+        Calc::Value(v) => other.try_add(&*v),
+        Calc::Sum(a, b) => {
+          if let Some(res) = other.try_add(&Length::Calc(Box::new(*a.clone()))) {
+            return Some(res.add(Length::from(*b.clone())));
           }
-          _ => None
-        }
-      }
-      (other, Length::Calc(b)) => {
-        match &**b {
-          Calc::Value(v) => other.try_add(&*v),
-          Calc::Sum(a, b) => {
-            if let Some(res) = other.try_add(&Length::Calc(Box::new(*a.clone()))) {
-              return Some(res.add(Length::from(*b.clone())))
-            }
-    
-            if let Some(res) = other.try_add(&Length::Calc(Box::new(*b.clone()))) {
-              return Some(Length::from(*a.clone()).add(res))
-            }
-    
-            None
+
+          if let Some(res) = other.try_add(&Length::Calc(Box::new(*b.clone()))) {
+            return Some(Length::from(*a.clone()).add(res));
           }
-          _ => None
+
+          None
         }
-      }
+        _ => None,
+      },
     }
   }
 }
@@ -484,7 +658,7 @@ impl std::convert::Into<Calc<Length>> for Length {
   fn into(self) -> Calc<Length> {
     match self {
       Length::Calc(c) => *c,
-      b => Calc::Value(Box::new(b))
+      b => Calc::Value(Box::new(b)),
     }
   }
 }
@@ -495,37 +669,63 @@ impl std::convert::From<Calc<Length>> for Length {
   }
 }
 
-impl std::cmp::PartialEq<f32> for Length {
-  fn eq(&self, other: &f32) -> bool {
-    match self {
-      Length::Value(a) => *a == *other,
-      Length::Calc(_) => false
-    }
-  }
-}
-
-impl std::cmp::PartialOrd<f32> for Length {
-  fn partial_cmp(&self, other: &f32) -> Option<std::cmp::Ordering> {
-    match self {
-      Length::Value(a) => a.partial_cmp(other),
-      Length::Calc(_) => None
-    }
-  }
-}
-
 impl std::cmp::PartialOrd<Length> for Length {
   fn partial_cmp(&self, other: &Length) -> Option<std::cmp::Ordering> {
     match (self, other) {
       (Length::Value(a), Length::Value(b)) => a.partial_cmp(b),
-      _ => None
+      _ => None,
     }
   }
 }
 
+impl TryOp for Length {
+  fn try_op<F: FnOnce(f32, f32) -> f32>(&self, rhs: &Self, op: F) -> Option<Self> {
+    match (self, rhs) {
+      (Length::Value(a), Length::Value(b)) => a.try_op(b, op).map(Length::Value),
+      _ => None,
+    }
+  }
+
+  fn try_op_to<T, F: FnOnce(f32, f32) -> T>(&self, rhs: &Self, op: F) -> Option<T> {
+    match (self, rhs) {
+      (Length::Value(a), Length::Value(b)) => a.try_op_to(b, op),
+      _ => None,
+    }
+  }
+}
+
+impl TryMap for Length {
+  fn try_map<F: FnOnce(f32) -> f32>(&self, op: F) -> Option<Self> {
+    match self {
+      Length::Value(v) => v.try_map(op).map(Length::Value),
+      _ => None,
+    }
+  }
+}
+
+impl TrySign for Length {
+  fn try_sign(&self) -> Option<f32> {
+    match self {
+      Length::Value(v) => Some(v.sign()),
+      Length::Calc(c) => c.try_sign(),
+    }
+  }
+}
+
+impl_try_from_angle!(Length);
+
+/// Either a [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) or a [`<number>`](https://www.w3.org/TR/css-values-4/#numbers).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum LengthOrNumber {
+  /// A length.
   Length(Length),
-  Number(f32)
+  /// A number.
+  Number(CSSNumber),
 }
 
 impl Default for LengthOrNumber {
@@ -534,15 +734,28 @@ impl Default for LengthOrNumber {
   }
 }
 
+impl Zero for LengthOrNumber {
+  fn zero() -> Self {
+    LengthOrNumber::Number(0.0)
+  }
+
+  fn is_zero(&self) -> bool {
+    match self {
+      LengthOrNumber::Length(l) => l.is_zero(),
+      LengthOrNumber::Number(v) => v.is_zero(),
+    }
+  }
+}
+
 impl<'i> Parse<'i> for LengthOrNumber {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // Parse number first so unitless numbers are not parsed as lengths.
-    if let Ok(number) = input.try_parse(f32::parse) {
-      return Ok(LengthOrNumber::Number(number))
+    if let Ok(number) = input.try_parse(CSSNumber::parse) {
+      return Ok(LengthOrNumber::Number(number));
     }
 
     if let Ok(length) = Length::parse(input) {
-      return Ok(LengthOrNumber::Length(length))
+      return Ok(LengthOrNumber::Length(length));
     }
 
     Err(input.new_error_for_next_token())
@@ -550,10 +763,13 @@ impl<'i> Parse<'i> for LengthOrNumber {
 }
 
 impl ToCss for LengthOrNumber {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       LengthOrNumber::Length(length) => length.to_css(dest),
-      LengthOrNumber::Number(number) => serialize_number(*number, dest)
+      LengthOrNumber::Number(number) => number.to_css(dest),
     }
   }
 }

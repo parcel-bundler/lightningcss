@@ -1,14 +1,20 @@
+//! The `@layer` rule.
+
+use super::{CssRuleList, Location, MinifyContext};
+use crate::error::{MinifyError, ParserError, PrinterError};
+use crate::printer::Printer;
+use crate::traits::{Parse, ToCss};
+use crate::values::string::CowArcStr;
 use cssparser::*;
 use smallvec::SmallVec;
-use crate::traits::{Parse, ToCss};
-use super::{Location, CssRuleList};
-use crate::values::string::CowArcStr;
-use crate::error::{ParserError, PrinterError};
-use crate::printer::Printer;
 
-/// https://drafts.csswg.org/css-cascade-5/#typedef-layer-name
+/// A [`<layer-name>`](https://drafts.csswg.org/css-cascade-5/#typedef-layer-name) within
+/// a `@layer` or `@import` rule.
+///
+/// Nested layers are represented using a list of identifiers. In CSS syntax, these are dot-separated.
 #[derive(Debug, Clone, PartialEq)]
-pub struct LayerName<'i>(pub SmallVec<[CowArcStr<'i>; 1]>);
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct LayerName<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub SmallVec<[CowArcStr<'i>; 1]>);
 
 macro_rules! expect_non_whitespace {
   ($parser: ident, $($branches: tt)+) => {{
@@ -30,18 +36,18 @@ impl<'i> Parse<'i> for LayerName<'i> {
 
     loop {
       let name = input.try_parse(|input| {
-        expect_non_whitespace!{input,
+        expect_non_whitespace! {input,
           Token::Delim('.') => Ok(()),
         }?;
 
-        expect_non_whitespace!{input,
+        expect_non_whitespace! {input,
           Token::Ident(ref id) => Ok(id.into()),
         }
       });
 
       match name {
         Ok(name) => parts.push(name),
-        Err(_) => break
+        Err(_) => break,
       }
     }
 
@@ -50,7 +56,10 @@ impl<'i> Parse<'i> for LayerName<'i> {
 }
 
 impl<'i> ToCss for LayerName<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let mut first = true;
     for name in &self.0 {
       if first {
@@ -66,15 +75,24 @@ impl<'i> ToCss for LayerName<'i> {
   }
 }
 
-/// https://drafts.csswg.org/css-cascade-5/#layer-empty
+/// A [@layer statement](https://drafts.csswg.org/css-cascade-5/#layer-empty) rule.
+///
+/// See also [LayerBlockRule](LayerBlockRule).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LayerStatementRule<'i> {
+  /// The layer names to declare.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub names: Vec<LayerName<'i>>,
-  pub loc: Location
+  /// The location of the rule in the source file.
+  pub loc: Location,
 }
 
 impl<'i> ToCss for LayerStatementRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     dest.add_mapping(self.loc);
     dest.write_str("@layer ")?;
     self.names.to_css(dest)?;
@@ -82,16 +100,36 @@ impl<'i> ToCss for LayerStatementRule<'i> {
   }
 }
 
-/// https://drafts.csswg.org/css-cascade-5/#layer-block
+/// A [@layer block](https://drafts.csswg.org/css-cascade-5/#layer-block) rule.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LayerBlockRule<'i, T> {
+  /// The name of the layer to declare, or `None` to declare an anonymous layer.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: Option<LayerName<'i>>,
+  /// The rules within the `@layer` rule.
   pub rules: CssRuleList<'i, T>,
-  pub loc: Location
+  /// The location of the rule in the source file.
+  pub loc: Location,
 }
 
-impl<'i, T: cssparser::ToCss> ToCss for LayerBlockRule<'i, T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+impl<'i, T> LayerBlockRule<'i, T> {
+  pub(crate) fn minify(
+    &mut self,
+    context: &mut MinifyContext<'_, 'i>,
+    parent_is_unused: bool,
+  ) -> Result<bool, MinifyError> {
+    self.rules.minify(context, parent_is_unused)?;
+
+    Ok(self.rules.0.is_empty())
+  }
+}
+
+impl<'i, T: ToCss> ToCss for LayerBlockRule<'i, T> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     dest.add_mapping(self.loc);
     dest.write_str("@layer")?;
     if let Some(name) = &self.name {

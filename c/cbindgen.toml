@@ -1,0 +1,11 @@
+language = "C"
+
+[parse]
+parse_deps = true
+include = ["lightningcss"]
+
+[export.rename]
+StyleSheetWrapper = "StyleSheet"
+
+[enum]
+prefix_with_name = true

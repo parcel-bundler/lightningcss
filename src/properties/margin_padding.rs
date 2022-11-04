@@ -1,38 +1,189 @@
-use crate::values::{
-  size::Size2D,
-  length::LengthPercentageOrAuto,
-  rect::Rect
-};
-use crate::properties::{Property, PropertyId};
-use crate::declaration::DeclarationList;
-use crate::traits::PropertyHandler;
-use crate::logical::{LogicalProperties, PropertyCategory};
 use crate::compat::Feature;
+use crate::context::PropertyHandlerContext;
+use crate::declaration::{DeclarationBlock, DeclarationList};
+use crate::error::{ParserError, PrinterError};
+use crate::logical::PropertyCategory;
+use crate::macros::{define_shorthand, rect_shorthand, size_shorthand};
+use crate::printer::Printer;
+use crate::properties::{Property, PropertyId};
+use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
+use crate::values::{length::LengthPercentageOrAuto, rect::Rect, size::Size2D};
+use cssparser::*;
+
+rect_shorthand! {
+  /// A value for the [margin](https://drafts.csswg.org/css-box-4/#propdef-margin) shorthand property.
+  pub struct Margin<LengthPercentageOrAuto> {
+    MarginTop,
+    MarginRight,
+    MarginBottom,
+    MarginLeft
+  }
+}
+
+rect_shorthand! {
+  /// A value for the [padding](https://drafts.csswg.org/css-box-4/#propdef-padding) shorthand property.
+  pub struct Padding<LengthPercentageOrAuto> {
+    PaddingTop,
+    PaddingRight,
+    PaddingBottom,
+    PaddingLeft
+  }
+}
+
+rect_shorthand! {
+  /// A value for the [scroll-margin](https://drafts.csswg.org/css-scroll-snap/#scroll-margin) shorthand property.
+  pub struct ScrollMargin<LengthPercentageOrAuto> {
+    ScrollMarginTop,
+    ScrollMarginRight,
+    ScrollMarginBottom,
+    ScrollMarginLeft
+  }
+}
+
+rect_shorthand! {
+  /// A value for the [scroll-padding](https://drafts.csswg.org/css-scroll-snap/#scroll-padding) shorthand property.
+  pub struct ScrollPadding<LengthPercentageOrAuto> {
+    ScrollPaddingTop,
+    ScrollPaddingRight,
+    ScrollPaddingBottom,
+    ScrollPaddingLeft
+  }
+}
+
+rect_shorthand! {
+  /// A value for the [inset](https://drafts.csswg.org/css-logical/#propdef-inset) shorthand property.
+  pub struct Inset<LengthPercentageOrAuto> {
+    Top,
+    Right,
+    Bottom,
+    Left
+  }
+}
+
+size_shorthand! {
+  /// A value for the [margin-block](https://drafts.csswg.org/css-logical/#propdef-margin-block) shorthand property.
+  pub struct MarginBlock<LengthPercentageOrAuto> {
+    /// The block start value.
+    block_start: MarginBlockStart,
+    /// The block end value.
+    block_end: MarginBlockEnd,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [margin-inline](https://drafts.csswg.org/css-logical/#propdef-margin-inline) shorthand property.
+  pub struct MarginInline<LengthPercentageOrAuto> {
+    /// The inline start value.
+    inline_start: MarginInlineStart,
+    /// The inline end value.
+    inline_end: MarginInlineEnd,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [padding-block](https://drafts.csswg.org/css-logical/#propdef-padding-block) shorthand property.
+  pub struct PaddingBlock<LengthPercentageOrAuto> {
+     /// The block start value.
+    block_start: PaddingBlockStart,
+    /// The block end value.
+    block_end: PaddingBlockEnd,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [padding-inline](https://drafts.csswg.org/css-logical/#propdef-padding-inline) shorthand property.
+  pub struct PaddingInline<LengthPercentageOrAuto> {
+    /// The inline start value.
+    inline_start: PaddingInlineStart,
+    /// The inline end value.
+    inline_end: PaddingInlineEnd,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [scroll-margin-block](https://drafts.csswg.org/css-scroll-snap/#propdef-scroll-margin-block) shorthand property.
+  pub struct ScrollMarginBlock<LengthPercentageOrAuto> {
+     /// The block start value.
+    block_start: ScrollMarginBlockStart,
+    /// The block end value.
+    block_end: ScrollMarginBlockEnd,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [scroll-margin-inline](https://drafts.csswg.org/css-scroll-snap/#propdef-scroll-margin-inline) shorthand property.
+  pub struct ScrollMarginInline<LengthPercentageOrAuto> {
+    /// The inline start value.
+    inline_start: ScrollMarginInlineStart,
+    /// The inline end value.
+    inline_end: ScrollMarginInlineEnd,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [scroll-padding-block](https://drafts.csswg.org/css-scroll-snap/#propdef-scroll-padding-block) shorthand property.
+  pub struct ScrollPaddingBlock<LengthPercentageOrAuto> {
+     /// The block start value.
+    block_start: ScrollPaddingBlockStart,
+    /// The block end value.
+    block_end: ScrollPaddingBlockEnd,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [scroll-padding-inline](https://drafts.csswg.org/css-scroll-snap/#propdef-scroll-padding-inline) shorthand property.
+  pub struct ScrollPaddingInline<LengthPercentageOrAuto> {
+    /// The inline start value.
+    inline_start: ScrollPaddingInlineStart,
+    /// The inline end value.
+    inline_end: ScrollPaddingInlineEnd,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [inset-block](https://drafts.csswg.org/css-logical/#propdef-inset-block) shorthand property.
+  pub struct InsetBlock<LengthPercentageOrAuto> {
+     /// The block start value.
+    block_start: InsetBlockStart,
+    /// The block end value.
+    block_end: InsetBlockEnd,
+  }
+}
+
+size_shorthand! {
+  /// A value for the [inset-inline](https://drafts.csswg.org/css-logical/#propdef-inset-inline) shorthand property.
+  pub struct InsetInline<LengthPercentageOrAuto> {
+    /// The inline start value.
+    inline_start: InsetInlineStart,
+    /// The inline end value.
+    inline_end: InsetInlineEnd,
+  }
+}
 
 macro_rules! side_handler {
-  ($name: ident, $top: ident, $bottom: ident, $left: ident, $right: ident, $block_start: ident, $block_end: ident, $inline_start: ident, $inline_end: ident, $shorthand: ident, $block_shorthand: ident, $inline_shorthand: ident, $logical_shorthand: literal $(, $feature: ident)?) => {
+  ($name: ident, $top: ident, $bottom: ident, $left: ident, $right: ident, $block_start: ident, $block_end: ident, $inline_start: ident, $inline_end: ident, $shorthand: ident, $block_shorthand: ident, $inline_shorthand: ident, $logical_shorthand: literal $(, $feature: ident, $shorthand_feature: ident)?) => {
     #[derive(Debug, Default)]
-    pub(crate) struct $name {
+    pub(crate) struct $name<'i> {
       top: Option<LengthPercentageOrAuto>,
       bottom: Option<LengthPercentageOrAuto>,
       left: Option<LengthPercentageOrAuto>,
       right: Option<LengthPercentageOrAuto>,
-      block_start: Option<LengthPercentageOrAuto>,
-      block_end: Option<LengthPercentageOrAuto>,
-      inline_start: Option<LengthPercentageOrAuto>,
-      inline_end: Option<LengthPercentageOrAuto>,
+      block_start: Option<Property<'i>>,
+      block_end: Option<Property<'i>>,
+      inline_start: Option<Property<'i>>,
+      inline_end: Option<Property<'i>>,
       has_any: bool,
       category: PropertyCategory
     }
 
-    impl<'i> PropertyHandler<'i> for $name {
-      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
+    impl<'i> PropertyHandler<'i> for $name<'i> {
+      fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) -> bool {
         use Property::*;
 
         macro_rules! property {
           ($key: ident, $val: ident, $category: ident) => {{
             if PropertyCategory::$category != self.category {
-              self.flush(dest, logical);
+              self.flush(dest, context);
             }
             self.$key = Some($val.clone());
             self.category = PropertyCategory::$category;
@@ -40,13 +191,13 @@ macro_rules! side_handler {
           }};
         }
 
-        macro_rules! set_shorthand {
-          ($start: ident, $end: ident, $val: ident) => {{
+        macro_rules! logical_property {
+          ($prop: ident, $val: expr) => {{
             if self.category != PropertyCategory::Logical {
-              self.flush(dest, logical);
+              self.flush(dest, context);
             }
-            self.$start = Some($val.0.clone());
-            self.$end = Some($val.1.clone());
+
+            self.$prop = Some($val);
             self.category = PropertyCategory::Logical;
             self.has_any = true;
           }};
@@ -57,18 +208,24 @@ macro_rules! side_handler {
           $bottom(val) => property!(bottom, val, Physical),
           $left(val) => property!(left, val, Physical),
           $right(val) => property!(right, val, Physical),
-          $block_start(val) => property!(block_start, val, Logical),
-          $block_end(val) => property!(block_end, val, Logical),
-          $inline_start(val) => property!(inline_start, val, Logical),
-          $inline_end(val) => property!(inline_end, val, Logical),
-          $block_shorthand(val) => set_shorthand!(block_start, block_end, val),
-          $inline_shorthand(val) => set_shorthand!(inline_start, inline_end, val),
+          $block_start(_) => logical_property!(block_start, property.clone()),
+          $block_end(_) => logical_property!(block_end, property.clone()),
+          $inline_start(_) => logical_property!(inline_start, property.clone()),
+          $inline_end(_) => logical_property!(inline_end, property.clone()),
+          $block_shorthand(val) => {
+            logical_property!(block_start, Property::$block_start(val.block_start.clone()));
+            logical_property!(block_end, Property::$block_end(val.block_end.clone()));
+          },
+          $inline_shorthand(val) => {
+            logical_property!(inline_start, Property::$inline_start(val.inline_start.clone()));
+            logical_property!(inline_end, Property::$inline_end(val.inline_end.clone()));
+          },
           $shorthand(val) => {
             // dest.clear();
-            self.top = Some(val.0.clone());
-            self.right = Some(val.1.clone());
-            self.bottom = Some(val.2.clone());
-            self.left = Some(val.3.clone());
+            self.top = Some(val.top.clone());
+            self.right = Some(val.right.clone());
+            self.bottom = Some(val.bottom.clone());
+            self.left = Some(val.left.clone());
             self.block_start = None;
             self.block_end = None;
             self.inline_start = None;
@@ -76,8 +233,18 @@ macro_rules! side_handler {
             self.has_any = true;
           }
           Unparsed(val) if matches!(val.property_id, PropertyId::$top | PropertyId::$bottom | PropertyId::$left | PropertyId::$right | PropertyId::$block_start | PropertyId::$block_end | PropertyId::$inline_start | PropertyId::$inline_end | PropertyId::$block_shorthand | PropertyId::$inline_shorthand | PropertyId::$shorthand) => {
-            self.flush(dest, logical);
-            dest.push(property.clone());
+            // Even if we weren't able to parse the value (e.g. due to var() references),
+            // we can still add vendor prefixes to the property itself.
+            match &val.property_id {
+              PropertyId::$block_start => logical_property!(block_start, property.clone()),
+              PropertyId::$block_end => logical_property!(block_end, property.clone()),
+              PropertyId::$inline_start => logical_property!(inline_start, property.clone()),
+              PropertyId::$inline_end => logical_property!(inline_end, property.clone()),
+              _ => {
+                self.flush(dest, context);
+                dest.push(property.clone());
+              }
+            }
           }
           _ => return false
         }
@@ -85,15 +252,13 @@ macro_rules! side_handler {
         true
       }
 
-      fn finalize(&mut self, dest: &mut DeclarationList, logical: &mut LogicalProperties) {
-        self.flush(dest, logical);
+      fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
+        self.flush(dest, context);
       }
     }
 
-    impl $name {
-      fn flush(&mut self, dest: &mut DeclarationList, logical_properties: &mut LogicalProperties) {
-        use Property::*;
-
+    impl<'i> $name<'i> {
+      fn flush(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
         if !self.has_any {
           return
         }
@@ -104,26 +269,30 @@ macro_rules! side_handler {
         let bottom = std::mem::take(&mut self.bottom);
         let left = std::mem::take(&mut self.left);
         let right = std::mem::take(&mut self.right);
-        let logical_supported = true $(&& logical_properties.is_supported(Feature::$feature))?;
+        let logical_supported = true $(&& context.is_supported(Feature::$feature))?;
 
         if (!$logical_shorthand || logical_supported) && top.is_some() && bottom.is_some() && left.is_some() && right.is_some() {
-          let rect = Rect::new(top.unwrap(), right.unwrap(), bottom.unwrap(), left.unwrap());
-          dest.push($shorthand(rect));
+          dest.push(Property::$shorthand($shorthand {
+            top: top.unwrap(),
+            right: right.unwrap(),
+            bottom: bottom.unwrap(),
+            left: left.unwrap()
+          }));
         } else {
           if let Some(val) = top {
-            dest.push($top(val));
+            dest.push(Property::$top(val));
           }
 
           if let Some(val) = bottom {
-            dest.push($bottom(val));
+            dest.push(Property::$bottom(val));
           }
 
           if let Some(val) = left {
-            dest.push($left(val));
+            dest.push(Property::$left(val));
           }
 
           if let Some(val) = right {
-            dest.push($right(val));
+            dest.push(Property::$right(val));
           }
         }
 
@@ -134,47 +303,74 @@ macro_rules! side_handler {
 
         macro_rules! logical_side {
           ($start: ident, $end: ident, $shorthand_prop: ident, $start_prop: ident, $end_prop: ident) => {
-            if ($start.is_some() && $end.is_some()) {
-              let size = Size2D($start.unwrap(), $end.unwrap());
-              dest.push($shorthand_prop(size));
+            let shorthand_supported = logical_supported $(&& context.is_supported(Feature::$shorthand_feature))?;
+            if let (Some(Property::$start_prop(start)), Some(Property::$end_prop(end)), true) = (&$start, &$end, shorthand_supported) {
+              dest.push(Property::$shorthand_prop($shorthand_prop {
+                $start: start.clone(),
+                $end: end.clone()
+              }));
             } else {
               if let Some(val) = $start {
-                dest.push($start_prop(val));
+                dest.push(val);
               }
-    
+
               if let Some(val) = $end {
-                dest.push($end_prop(val));
+                dest.push(val);
               }
             }
           };
         }
 
+        macro_rules! prop {
+          ($val: ident, $logical: ident, $physical: ident) => {
+            match $val {
+              Some(Property::$logical(val)) => {
+                dest.push(Property::$physical(val));
+              }
+              Some(Property::Unparsed(val)) => {
+                dest.push(Property::Unparsed(val.with_property_id(PropertyId::$physical)));
+              }
+              _ => {}
+            }
+          }
+        }
+
         if logical_supported {
           logical_side!(block_start, block_end, $block_shorthand, $block_start, $block_end);
         } else {
-          if let Some(val) = block_start {
-            dest.push($top(val));
-          }
-
-          if let Some(val) = block_end {
-            dest.push($bottom(val));
-          }
+          prop!(block_start, $block_start, $top);
+          prop!(block_end, $block_end, $bottom);
         }
 
         if logical_supported {
           logical_side!(inline_start, inline_end, $inline_shorthand, $inline_start, $inline_end);
         } else if inline_start.is_some() || inline_end.is_some() {
-          if inline_start == inline_end {
-            dest.push($left(inline_start.unwrap()));
-            dest.push($right(inline_end.unwrap()));
+          if matches!((&inline_start, &inline_end), (Some(Property::$inline_start(start)), Some(Property::$inline_end(end))) if start == end) {
+            prop!(inline_start, $inline_start, $left);
+            prop!(inline_end, $inline_end, $right);
           } else {
-            logical_properties.add_inline(
-              dest,
-              PropertyId::$left,
-              PropertyId::$right,
-              inline_start.map(|v| Property::$inline_start(v)),
-              inline_end.map(|v| Property::$inline_end(v)),
-            );
+            macro_rules! logical_prop {
+              ($val: ident, $logical: ident, $ltr: ident, $rtl: ident) => {
+                match $val {
+                  Some(Property::$logical(val)) => {
+                    context.add_logical_rule(
+                      Property::$ltr(val.clone()),
+                      Property::$rtl(val)
+                    );
+                  }
+                  Some(Property::Unparsed(val)) => {
+                    context.add_logical_rule(
+                      Property::Unparsed(val.with_property_id(PropertyId::$ltr)),
+                      Property::Unparsed(val.with_property_id(PropertyId::$rtl))
+                    );
+                  }
+                  _ => {}
+                }
+              }
+            }
+
+            logical_prop!(inline_start, $inline_start, $left, $right);
+            logical_prop!(inline_end, $inline_end, $right, $left);
           }
         }
       }
@@ -196,7 +392,8 @@ side_handler!(
   MarginBlock,
   MarginInline,
   false,
-  LogicalMargin
+  LogicalMargin,
+  LogicalMarginShorthand
 );
 
 side_handler!(
@@ -213,7 +410,8 @@ side_handler!(
   PaddingBlock,
   PaddingInline,
   false,
-  LogicalPadding
+  LogicalPadding,
+  LogicalPaddingShorthand
 );
 
 side_handler!(
@@ -262,5 +460,6 @@ side_handler!(
   InsetBlock,
   InsetInline,
   true,
+  LogicalInset,
   LogicalInset
 );

@@ -1,55 +1,114 @@
-pub mod keyframes;
-pub mod font_face;
-pub mod page;
-pub mod supports;
-pub mod counter_style;
-pub mod namespace;
-pub mod import;
-pub mod media;
-pub mod style;
-pub mod document;
-pub mod nesting;
-pub mod viewport;
-pub mod custom_media;
-pub mod layer;
+//! CSS rules.
+//!
+//! The [CssRule](CssRule) enum includes all supported rules, and can be used to parse
+//! and serialize rules from CSS. Lists of rules (i.e. within a stylesheet, or inside
+//! another rule such as `@media`) are represented by [CssRuleList](CssRuleList).
+//!
+//! Each rule includes a source location, which indicates the line and column within
+//! the source file where it was parsed. This is used when generating source maps.
+//!
+//! # Example
+//!
+//! This example shows how you could parse a single CSS rule, and serialize it to a string.
+//!
+//! ```
+//! use lightningcss::{
+//!   rules::CssRule,
+//!   traits::ToCss,
+//!   stylesheet::{ParserOptions, PrinterOptions}
+//! };
+//!
+//! let rule = CssRule::parse_string(
+//!   ".foo { color: red; }",
+//!   ParserOptions::default()
+//! ).unwrap();
+//!
+//! assert_eq!(
+//!   rule.to_css_string(PrinterOptions::default()).unwrap(),
+//!   ".foo {\n  color: red;\n}"
+//! );
+//! ```
+//!
+//! If you have a [cssparser::Parser](cssparser::Parser) already, you can also use the `parse` and `to_css`
+//! methods instead, rather than parsing from a string.
+//!
+//! See [StyleSheet](super::stylesheet::StyleSheet) to parse an entire file of multiple rules.
 
-use crate::values::string::CowArcStr;
-use media::MediaRule;
-use import::ImportRule;
-use style::StyleRule;
-use keyframes::KeyframesRule;
-use font_face::FontFaceRule;
-use page::PageRule;
-use supports::SupportsRule;
-use counter_style::CounterStyleRule;
-use namespace::NamespaceRule;
-use document::MozDocumentRule;
-use nesting::NestingRule;
-use viewport::ViewportRule;
-use custom_media::CustomMediaRule;
-use crate::traits::ToCss;
-use crate::printer::Printer;
-use crate::declaration::DeclarationHandler;
-use crate::vendor_prefix::VendorPrefix;
-use crate::prefixes::Feature;
-use crate::targets::Browsers;
-use std::collections::{HashMap, HashSet};
-use crate::selector::{is_equivalent, get_prefix, get_necessary_prefixes};
-use crate::error::{Error, MinifyError, PrinterError, PrinterErrorKind};
-use crate::logical::LogicalProperties;
-use crate::dependencies::{Dependency, ImportDependency};
+#![deny(missing_docs)]
+
+pub mod container;
+pub mod counter_style;
+pub mod custom_media;
+pub mod document;
+pub mod font_face;
+pub mod font_palette_values;
+pub mod import;
+pub mod keyframes;
+pub mod layer;
+pub mod media;
+pub mod namespace;
+pub mod nesting;
+pub mod page;
+pub mod property;
+pub mod style;
+pub mod supports;
+pub mod unknown;
+pub mod viewport;
+
+use self::font_palette_values::FontPaletteValuesRule;
 use self::layer::{LayerBlockRule, LayerStatementRule};
+use self::property::PropertyRule;
+use crate::context::PropertyHandlerContext;
+use crate::declaration::DeclarationHandler;
+use crate::dependencies::{Dependency, ImportDependency};
+use crate::error::{MinifyError, ParserError, PrinterError, PrinterErrorKind};
+use crate::parser::TopLevelRuleParser;
+use crate::prefixes::Feature;
+use crate::printer::Printer;
+use crate::rules::keyframes::KeyframesName;
+use crate::selector::{downlevel_selectors, get_prefix, is_equivalent};
+use crate::stylesheet::ParserOptions;
+use crate::targets::Browsers;
+use crate::traits::ToCss;
+use crate::values::string::CowArcStr;
+use crate::vendor_prefix::VendorPrefix;
+use container::ContainerRule;
+use counter_style::CounterStyleRule;
+use cssparser::{parse_one_rule, ParseError, Parser, ParserInput, AtRuleParser};
+use custom_media::CustomMediaRule;
+use document::MozDocumentRule;
+use font_face::FontFaceRule;
+use import::ImportRule;
+use keyframes::KeyframesRule;
+use media::MediaRule;
+use namespace::NamespaceRule;
+use nesting::NestingRule;
+use page::PageRule;
+use serde::Serialize;
+use std::collections::{HashMap, HashSet};
+use style::StyleRule;
+use supports::SupportsRule;
+use unknown::UnknownAtRule;
+use viewport::ViewportRule;
 
 pub(crate) trait ToCssWithContext<'a, 'i, T> {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext<'a, 'i, T>>) -> Result<(), PrinterError> where W: std::fmt::Write;
+  fn to_css_with_context<W>(
+    &self,
+    dest: &mut Printer<W>,
+    context: Option<&StyleContext<'a, 'i, T>>,
+  ) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write;
 }
 
 pub(crate) struct StyleContext<'a, 'i, T> {
   pub rule: &'a StyleRule<'i, T>,
-  pub parent: Option<&'a StyleContext<'a, 'i, T>>
+  pub parent: Option<&'a StyleContext<'a, 'i, T>>,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+/// A source location.
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 pub struct Location {
   /// The index of the source file within the source map.
   pub source_index: u32,
@@ -57,38 +116,78 @@ pub struct Location {
   pub line: u32,
   /// The column number within a line, starting at 1 for first the character of the line.
   /// Column numbers are counted in UTF-16 code units.
-  pub column: u32
+  pub column: u32,
 }
 
+/// A CSS rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum CssRule<'i, T> {
+  /// A `@media` rule.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   Media(MediaRule<'i, T>),
+  /// An `@import` rule.
   Import(ImportRule<'i>),
+  /// A style rule.
   Style(StyleRule<'i, T>),
+  /// A `@keyframes` rule.
   Keyframes(KeyframesRule<'i>),
+  /// A `@font-face` rule.
   FontFace(FontFaceRule<'i>),
+  /// A `@font-palette-values` rule.
+  FontPaletteValues(FontPaletteValuesRule<'i>),
+  /// A `@page` rule.
   Page(PageRule<'i>),
+  /// A `@supports` rule.
   Supports(SupportsRule<'i, T>),
+  /// A `@counter-style` rule.
   CounterStyle(CounterStyleRule<'i>),
+  /// A `@namespace` rule.
   Namespace(NamespaceRule<'i>),
+  /// A `@-moz-document` rule.
   MozDocument(MozDocumentRule<'i, T>),
+  /// A `@nest` rule.
   Nesting(NestingRule<'i, T>),
+  /// A `@viewport` rule.
   Viewport(ViewportRule<'i>),
+  /// A `@custom-media` rule.
   CustomMedia(CustomMediaRule<'i>),
+  /// A `@layer` statement rule.
   LayerStatement(LayerStatementRule<'i>),
+  /// A `@layer` block rule.
   LayerBlock(LayerBlockRule<'i, T>),
+  /// A `@property` rule.
+  Property(PropertyRule<'i>),
+  /// A `@container` rule.
+  Container(ContainerRule<'i, T>),
+  /// A placeholder for a rule that was removed.
   Ignored,
+  /// An unknown at-rule.
+  Unknown(UnknownAtRule<'i>),
+  /// A custom at-rule.
   Custom(T)
 }
 
-impl<'a, 'i, T: cssparser::ToCss> ToCssWithContext<'a, 'i, T> for CssRule<'i, T> {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext<'a, 'i, T>>) -> Result<(), PrinterError> where W: std::fmt::Write {
+impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for CssRule<'i, T> {
+  fn to_css_with_context<W>(
+    &self,
+    dest: &mut Printer<W>,
+    context: Option<&StyleContext<'a, 'i, T>>,
+  ) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       CssRule::Media(media) => media.to_css_with_context(dest, context),
       CssRule::Import(import) => import.to_css(dest),
       CssRule::Style(style) => style.to_css_with_context(dest, context),
       CssRule::Keyframes(keyframes) => keyframes.to_css(dest),
       CssRule::FontFace(font_face) => font_face.to_css(dest),
+      CssRule::FontPaletteValues(f) => f.to_css(dest),
       CssRule::Page(font_face) => font_face.to_css(dest),
       CssRule::Supports(supports) => supports.to_css_with_context(dest, context),
       CssRule::CounterStyle(counter_style) => counter_style.to_css(dest),
@@ -99,39 +198,76 @@ impl<'a, 'i, T: cssparser::ToCss> ToCssWithContext<'a, 'i, T> for CssRule<'i, T>
       CssRule::CustomMedia(custom_media) => custom_media.to_css(dest),
       CssRule::LayerStatement(layer) => layer.to_css(dest),
       CssRule::LayerBlock(layer) => layer.to_css(dest),
+      CssRule::Property(property) => property.to_css(dest),
+      CssRule::Container(container) => container.to_css_with_context(dest, context),
+      CssRule::Unknown(unknown) => unknown.to_css(dest),
+      CssRule::Custom(rule) => rule.to_css(dest).map_err(|_| PrinterError { kind: PrinterErrorKind::FmtError, loc: None }),
       CssRule::Ignored => Ok(()),
-      CssRule::Custom(rule) => rule.to_css(dest).map_err(|_| Error { kind: PrinterErrorKind::FmtError, loc: None }),
     }
   }
 }
 
-impl<'i, T: cssparser::ToCss> ToCss for CssRule<'i, T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+impl<'i, T> CssRule<'i, T> {
+  /// Parse a single rule.
+  pub fn parse<'t, P: AtRuleParser<'i, AtRule = T>>(
+    input: &mut Parser<'i, 't>,
+    options: &mut ParserOptions<'_, 'i, P>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let (_, rule) = parse_one_rule(input, &mut TopLevelRuleParser::new(options))?;
+    Ok(rule)
+  }
+
+  /// Parse a single rule from a string.
+  pub fn parse_string<P: AtRuleParser<'i, AtRule = T>>(
+    input: &'i str,
+    mut options: ParserOptions<'_, 'i, P>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let mut input = ParserInput::new(input);
+    let mut parser = Parser::new(&mut input);
+    Self::parse(&mut parser, &mut options)
+  }
+}
+
+impl<'i, T: ToCss> ToCss for CssRule<'i, T> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.to_css_with_context(dest, None)
   }
 }
 
+/// A list of CSS rules.
 #[derive(Debug, PartialEq, Clone)]
-pub struct CssRuleList<'i, T>(pub Vec<CssRule<'i, T>>);
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CssRuleList<'i, T>(#[cfg_attr(feature = "serde", serde(borrow))] pub Vec<CssRule<'i, T>>);
 
 pub(crate) struct MinifyContext<'a, 'i> {
   pub targets: &'a Option<Browsers>,
   pub handler: &'a mut DeclarationHandler<'i>,
   pub important_handler: &'a mut DeclarationHandler<'i>,
-  pub logical_properties: &'a mut LogicalProperties,
+  pub handler_context: &'a mut PropertyHandlerContext<'i, 'a>,
   pub unused_symbols: &'a HashSet<String>,
-  pub custom_media: Option<HashMap<CowArcStr<'i>, CustomMediaRule<'i>>>
+  pub custom_media: Option<HashMap<CowArcStr<'i>, CustomMediaRule<'i>>>,
+  pub css_modules: bool,
 }
 
 impl<'i, T> CssRuleList<'i, T> {
-  pub(crate) fn minify(&mut self, context: &mut MinifyContext<'_, 'i>, parent_is_unused: bool) -> Result<(), MinifyError> {
+  pub(crate) fn minify(
+    &mut self,
+    context: &mut MinifyContext<'_, 'i>,
+    parent_is_unused: bool,
+  ) -> Result<(), MinifyError> {
     let mut keyframe_rules = HashMap::new();
     let mut rules = Vec::new();
     for mut rule in self.0.drain(..) {
       match &mut rule {
         CssRule::Keyframes(keyframes) => {
-          if context.unused_symbols.contains(keyframes.name.0.as_ref()) {
-            continue
+          if context.unused_symbols.contains(match &keyframes.name {
+            KeyframesName::Ident(ident) => ident.0.as_ref(),
+            KeyframesName::Custom(string) => string.as_ref(),
+          }) {
+            continue;
           }
           keyframes.minify(context);
 
@@ -144,7 +280,7 @@ impl<'i, T> CssRuleList<'i, T> {
               }
             };
           }
-  
+
           // If there is an existing rule with the same name and identical keyframes,
           // merge the vendor prefixes from this rule into it.
           if let Some(existing_idx) = keyframe_rules.get(&keyframes.name) {
@@ -156,79 +292,153 @@ impl<'i, T> CssRuleList<'i, T> {
               }
             }
           }
-  
+
           set_prefix!(keyframes);
           keyframe_rules.insert(keyframes.name.clone(), rules.len());
-        },
+
+          if let Some(targets) = context.targets {
+            let fallbacks = keyframes.get_fallbacks(*targets);
+            rules.push(rule);
+            rules.extend(fallbacks);
+            continue;
+          }
+        }
         CssRule::CustomMedia(_) => {
           if context.custom_media.is_some() {
             continue;
           }
-        },
+        }
         CssRule::Media(media) => {
-          if media.minify(context, parent_is_unused)? {
-            continue
+          if let Some(CssRule::Media(last_rule)) = rules.last_mut() {
+            if last_rule.query == media.query {
+              last_rule.rules.0.extend(media.rules.0.drain(..));
+              last_rule.minify(context, parent_is_unused)?;
+              continue;
+            }
           }
-        },
+
+          if media.minify(context, parent_is_unused)? {
+            continue;
+          }
+        }
         CssRule::Supports(supports) => {
+          if let Some(CssRule::Supports(last_rule)) = rules.last_mut() {
+            if last_rule.condition == supports.condition {
+              last_rule.rules.0.extend(supports.rules.0.drain(..));
+              last_rule.minify(context, parent_is_unused)?;
+              continue;
+            }
+          }
+
           supports.minify(context, parent_is_unused)?;
           if supports.rules.0.is_empty() {
-            continue
+            continue;
           }
-        },
+        }
+        CssRule::Container(container) => {
+          if let Some(CssRule::Container(last_rule)) = rules.last_mut() {
+            if last_rule.name == container.name && last_rule.condition == container.condition {
+              last_rule.rules.0.extend(container.rules.0.drain(..));
+              last_rule.minify(context, parent_is_unused)?;
+              continue;
+            }
+          }
+
+          if container.minify(context, parent_is_unused)? {
+            continue;
+          }
+        }
+        CssRule::LayerBlock(layer) => {
+          if let Some(CssRule::LayerBlock(last_rule)) = rules.last_mut() {
+            if last_rule.name == layer.name {
+              last_rule.rules.0.extend(layer.rules.0.drain(..));
+              last_rule.minify(context, parent_is_unused)?;
+              continue;
+            }
+          }
+          if layer.minify(context, parent_is_unused)? {
+            continue;
+          }
+        }
         CssRule::MozDocument(document) => document.minify(context)?,
         CssRule::Style(style) => {
           if parent_is_unused || style.minify(context, parent_is_unused)? {
-            continue
+            continue;
           }
 
           if let Some(targets) = context.targets {
             style.vendor_prefix = get_prefix(&style.selectors);
             if style.vendor_prefix.contains(VendorPrefix::None) {
-              style.vendor_prefix = get_necessary_prefixes(&style.selectors, *targets);
+              style.vendor_prefix = downlevel_selectors(&mut style.selectors, *targets);
             }
           }
 
+          // Attempt to merge the new rule with the last rule we added.
+          let mut merged = false;
           if let Some(CssRule::Style(last_style_rule)) = rules.last_mut() {
-            // Merge declarations if the selectors are equivalent, and both are compatible with all targets.
-            if style.selectors == last_style_rule.selectors && style.is_compatible(*context.targets) && last_style_rule.is_compatible(*context.targets) && style.rules.0.is_empty() && last_style_rule.rules.0.is_empty() {
-              last_style_rule.declarations.declarations.extend(style.declarations.declarations.drain(..));
-              last_style_rule.declarations.important_declarations.extend(style.declarations.important_declarations.drain(..));
-              last_style_rule.declarations.minify(context.handler, context.important_handler, context.logical_properties);
-              continue
-            } else if style.declarations == last_style_rule.declarations && style.rules.0.is_empty() && last_style_rule.rules.0.is_empty() {
-              // Append the selectors to the last rule if the declarations are the same, and all selectors are compatible.
-              if style.is_compatible(*context.targets) && last_style_rule.is_compatible(*context.targets) {
-                last_style_rule.selectors.0.extend(style.selectors.0.drain(..));
-                continue
-              }
-
-              // If both selectors are potentially vendor prefixable, and they are 
-              // equivalent minus prefixes, add the prefix to the last rule.
-              if !style.vendor_prefix.is_empty() && 
-                !last_style_rule.vendor_prefix.is_empty() &&
-                is_equivalent(&style.selectors, &last_style_rule.selectors)
-              {
-                // If the new rule is unprefixed, replace the prefixes of the last rule.
-                // Otherwise, add the new prefix.
-                if style.vendor_prefix.contains(VendorPrefix::None) {
-                  last_style_rule.vendor_prefix = style.vendor_prefix;
-                } else {
-                  last_style_rule.vendor_prefix |= style.vendor_prefix;
+            if merge_style_rules(style, last_style_rule, context) {
+              // If that was successful, then the last rule has been updated to include the
+              // selectors/declarations of the new rule. This might mean that we can merge it
+              // with the previous rule, so continue trying while we have style rules available.
+              while rules.len() >= 2 {
+                let len = rules.len();
+                let (a, b) = rules.split_at_mut(len - 1);
+                if let (CssRule::Style(last), CssRule::Style(prev)) = (&mut b[0], &mut a[len - 2]) {
+                  if merge_style_rules(last, prev, context) {
+                    // If we were able to merge the last rule into the previous one, remove the last.
+                    rules.pop();
+                    continue;
+                  }
                 }
-                continue
+                // If we didn't see a style rule, or were unable to merge, stop.
+                break;
               }
+              merged = true;
             }
           }
-        },
+
+          let supports = context.handler_context.get_supports_rules(&style);
+          let logical = context.handler_context.get_logical_rules(&style);
+          if !merged && !style.is_empty() {
+            rules.push(rule);
+          }
+
+          if !logical.is_empty() {
+            let mut logical = CssRuleList(logical);
+            logical.minify(context, parent_is_unused)?;
+            rules.extend(logical.0)
+          }
+
+          rules.extend(supports);
+          continue;
+        }
         CssRule::CounterStyle(counter_style) => {
           if context.unused_symbols.contains(counter_style.name.0.as_ref()) {
-            continue
+            continue;
           }
         }
         CssRule::Nesting(nesting) => {
           if nesting.minify(context, parent_is_unused)? {
-            continue
+            continue;
+          }
+        }
+        CssRule::FontPaletteValues(f) => {
+          if context.unused_symbols.contains(f.name.0.as_ref()) {
+            continue;
+          }
+
+          f.minify(context, parent_is_unused);
+
+          if let Some(targets) = context.targets {
+            let fallbacks = f.get_fallbacks(*targets);
+            rules.push(rule);
+            rules.extend(fallbacks);
+            continue;
+          }
+        }
+        CssRule::Property(property) => {
+          if context.unused_symbols.contains(property.name.0.as_ref()) {
+            continue;
           }
         }
         _ => {}
@@ -242,46 +452,122 @@ impl<'i, T> CssRuleList<'i, T> {
   }
 }
 
-impl<'i, T: cssparser::ToCss> ToCss for CssRuleList<'i, T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+fn merge_style_rules<'i, T>(
+  style: &mut StyleRule<'i, T>,
+  last_style_rule: &mut StyleRule<'i, T>,
+  context: &mut MinifyContext<'_, 'i>,
+) -> bool {
+  // Merge declarations if the selectors are equivalent, and both are compatible with all targets.
+  if style.selectors == last_style_rule.selectors
+    && style.is_compatible(*context.targets)
+    && last_style_rule.is_compatible(*context.targets)
+    && style.rules.0.is_empty()
+    && last_style_rule.rules.0.is_empty()
+    && (!context.css_modules || style.loc.source_index == last_style_rule.loc.source_index)
+  {
+    last_style_rule
+      .declarations
+      .declarations
+      .extend(style.declarations.declarations.drain(..));
+    last_style_rule
+      .declarations
+      .important_declarations
+      .extend(style.declarations.important_declarations.drain(..));
+    last_style_rule
+      .declarations
+      .minify(context.handler, context.important_handler, context.handler_context);
+    return true;
+  } else if style.declarations == last_style_rule.declarations
+    && style.rules.0.is_empty()
+    && last_style_rule.rules.0.is_empty()
+  {
+    // Append the selectors to the last rule if the declarations are the same, and all selectors are compatible.
+    if style.is_compatible(*context.targets) && last_style_rule.is_compatible(*context.targets) {
+      last_style_rule.selectors.0.extend(style.selectors.0.drain(..));
+      return true;
+    }
+
+    // If both selectors are potentially vendor prefixable, and they are
+    // equivalent minus prefixes, add the prefix to the last rule.
+    if !style.vendor_prefix.is_empty()
+      && !last_style_rule.vendor_prefix.is_empty()
+      && !last_style_rule.vendor_prefix.contains(style.vendor_prefix)
+      && is_equivalent(&style.selectors, &last_style_rule.selectors)
+    {
+      // If the new rule is unprefixed, replace the prefixes of the last rule.
+      // Otherwise, add the new prefix.
+      if style.vendor_prefix.contains(VendorPrefix::None) {
+        last_style_rule.vendor_prefix = style.vendor_prefix;
+      } else {
+        last_style_rule.vendor_prefix |= style.vendor_prefix;
+      }
+      return true;
+    }
+  }
+  false
+}
+
+impl<'i, T: ToCss> ToCss for CssRuleList<'i, T> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.to_css_with_context(dest, None)
   }
 }
 
-impl<'a, 'i, T: cssparser::ToCss> ToCssWithContext<'a, 'i, T> for CssRuleList<'i, T> {
-  fn to_css_with_context<W>(&self, dest: &mut Printer<W>, context: Option<&StyleContext<'a, 'i, T>>) -> Result<(), PrinterError> where W: std::fmt::Write {
+impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for CssRuleList<'i, T> {
+  fn to_css_with_context<W>(
+    &self,
+    dest: &mut Printer<W>,
+    context: Option<&StyleContext<'a, 'i, T>>,
+  ) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let mut first = true;
     let mut last_without_block = false;
 
     for rule in &self.0 {
       if let CssRule::Ignored = &rule {
-        continue
+        continue;
       }
 
       // Skip @import rules if collecting dependencies.
       if let CssRule::Import(rule) = &rule {
-        let dep = if dest.dependencies.is_some() {
-          Some(Dependency::Import(ImportDependency::new(&rule, dest.filename())))
-        } else {
-          None
-        };
+        if dest.remove_imports {
+          let dep = if dest.dependencies.is_some() {
+            Some(Dependency::Import(ImportDependency::new(&rule, dest.filename())))
+          } else {
+            None
+          };
 
-        if let Some(dependencies) = &mut dest.dependencies {
-          dependencies.push(dep.unwrap());
-          continue;
+          if let Some(dependencies) = &mut dest.dependencies {
+            dependencies.push(dep.unwrap());
+            continue;
+          }
         }
       }
 
       if first {
         first = false;
       } else {
-        if !dest.minify && !(last_without_block && matches!(rule, CssRule::Import(..) | CssRule::Namespace(..) | CssRule::LayerStatement(..))) {
+        if !dest.minify
+          && !(last_without_block
+            && matches!(
+              rule,
+              CssRule::Import(..) | CssRule::Namespace(..) | CssRule::LayerStatement(..)
+            ))
+        {
           dest.write_char('\n')?;
         }
         dest.newline()?;
       }
       rule.to_css_with_context(dest, context)?;
-      last_without_block = matches!(rule, CssRule::Import(..) | CssRule::Namespace(..) | CssRule::LayerStatement(..));
+      last_without_block = matches!(
+        rule,
+        CssRule::Import(..) | CssRule::Namespace(..) | CssRule::LayerStatement(..)
+      );
     }
 
     Ok(())

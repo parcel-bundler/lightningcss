@@ -11,12 +11,12 @@ jobs:
           # Windows
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            binary: parcel_css.exe
+            binary: lightningcss.exe
           # Mac OS
           - os: macos-latest
             target: x86_64-apple-darwin
             strip: strip -x # Must use -x on macOS. This produces larger results on linux.
-            binary: parcel_css
+            binary: lightningcss
 
     name: build-${{ matrix.target }}
     runs-on: ${{ matrix.os }}
@@ -89,18 +89,18 @@ jobs:
           export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
           export MACOSX_DEPLOYMENT_TARGET="10.9";
           cargo build --release --features cli --target aarch64-apple-darwin
-          mv target/aarch64-apple-darwin/release/parcel_css parcel_css
+          mv target/aarch64-apple-darwin/release/lightningcss lightningcss
         env:
           JEMALLOC_SYS_WITH_LG_PAGE: 14
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
-        run: strip -x *.node parcel_css
+        run: strip -x *.node lightningcss
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: bindings-aarch64-apple-darwin
           path: |
             *.node
-            parcel_css
+            lightningcss
 
   build-linux:
     strategy:
@@ -114,6 +114,7 @@ jobs:
           - target: aarch64-unknown-linux-gnu
             strip: aarch64-linux-gnu-strip
             image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
+            setup: apt install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
           - target: armv7-unknown-linux-gnueabihf
             strip: arm-linux-gnueabihf-strip
             image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
@@ -158,17 +159,17 @@ jobs:
       - name: Build CLI
         run: |
           cargo build --release --features cli --target ${{ matrix.target }}
-          mv target/${{ matrix.target }}/release/parcel_css parcel_css
+          mv target/${{ matrix.target }}/release/lightningcss lightningcss
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         if: ${{ matrix.strip }}
-        run: ${{ matrix.strip }} *.node parcel_css
+        run: ${{ matrix.strip }} *.node lightningcss
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: bindings-${{ matrix.target }}
           path: |
             *.node
-            parcel_css
+            lightningcss
 
   build-wasm:
     runs-on: ubuntu-latest
@@ -219,10 +220,10 @@ jobs:
             cd ../..;
           done
           cd cli
-          echo "Publishing @parcel/css-cli...";
+          echo "Publishing lightningcss-cli...";
           npm publish
           cd ..
-          echo "Publishing @parcel/css...";
+          echo "Publishing lightningcss...";
           npm publish
 
   release-crates:

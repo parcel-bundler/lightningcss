@@ -1,122 +1,210 @@
-use cssparser::*;
-use crate::traits::{Parse, ToCss, PropertyHandler};
-use crate::values::{time::Time, easing::EasingFunction, ident::CustomIdent};
-use crate::targets::Browsers;
-use crate::prefixes::Feature;
-use crate::properties::{Property, PropertyId, VendorPrefix};
-use crate::declaration::DeclarationList;
-use crate::printer::Printer;
-use itertools::izip;
-use crate::macros::*;
-use smallvec::SmallVec;
-use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+//! CSS properties related to keyframe animations.
 
-/// https://drafts.csswg.org/css-animations/#animation-name
+use crate::context::PropertyHandlerContext;
+use crate::declaration::{DeclarationBlock, DeclarationList};
+use crate::error::{ParserError, PrinterError};
+use crate::macros::*;
+use crate::prefixes::Feature;
+use crate::printer::Printer;
+use crate::properties::{Property, PropertyId, VendorPrefix};
+use crate::targets::Browsers;
+use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
+use crate::values::number::CSSNumber;
+use crate::values::string::CowArcStr;
+use crate::values::{easing::EasingFunction, ident::CustomIdent, time::Time};
+use cssparser::*;
+use itertools::izip;
+use smallvec::SmallVec;
+
+/// A value for the [animation-name](https://drafts.csswg.org/css-animations/#animation-name) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum AnimationName<'i> {
+  /// The `none` keyword.
   None,
-  Ident(CustomIdent<'i>)
+  /// An identifier of a `@keyframes` rule.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  Ident(CustomIdent<'i>),
+  /// A `<string>` name of a `@keyframes` rule.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  String(CowArcStr<'i>),
 }
 
 impl<'i> Parse<'i> for AnimationName<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
-      return Ok(AnimationName::None)
+      return Ok(AnimationName::None);
     }
 
-    let location = input.current_source_location();
-    let name = match *input.next()? {
-      Token::Ident(ref s) => s.into(),
-      Token::QuotedString(ref s) => s.into(),
-      ref t => return Err(location.new_unexpected_token_error(t.clone())),
-    };
-    Ok(AnimationName::Ident(CustomIdent(name)))
+    if let Ok(s) = input.try_parse(|input| input.expect_string_cloned()) {
+      return Ok(AnimationName::String(s.into()));
+    }
+
+    let ident = CustomIdent::parse(input)?;
+    Ok(AnimationName::Ident(ident))
   }
 }
 
 impl<'i> ToCss for AnimationName<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       AnimationName::None => dest.write_str("none"),
       AnimationName::Ident(s) => {
         if let Some(css_module) = &mut dest.css_module {
-          css_module.reference(&s.0)
+          css_module.reference(&s.0, dest.loc.source_index)
         }
         s.to_css(dest)
+      }
+      AnimationName::String(s) => {
+        if let Some(css_module) = &mut dest.css_module {
+          css_module.reference(&s, dest.loc.source_index)
+        }
+
+        // CSS-wide keywords and `none` cannot remove quotes.
+        match_ignore_ascii_case! { &*s,
+          "none" | "initial" | "inherit" | "unset" | "default" | "revert" | "revert-layer" => {
+            serialize_string(&s, dest)?;
+            Ok(())
+          },
+          _ => {
+            dest.write_ident(s.as_ref())
+          }
+        }
       }
     }
   }
 }
 
+/// A list of animation names.
 pub type AnimationNameList<'i> = SmallVec<[AnimationName<'i>; 1]>;
 
-/// https://drafts.csswg.org/css-animations/#animation-iteration-count
+/// A value for the [animation-iteration-count](https://drafts.csswg.org/css-animations/#animation-iteration-count) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum AnimationIterationCount {
-  Number(f32),
-  Infinite
+  /// The animation will repeat the specified number of times.
+  Number(CSSNumber),
+  /// The animation will repeat forever.
+  Infinite,
+}
+
+impl Default for AnimationIterationCount {
+  fn default() -> Self {
+    AnimationIterationCount::Number(1.0)
+  }
 }
 
 impl<'i> Parse<'i> for AnimationIterationCount {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("infinite")).is_ok() {
-      return Ok(AnimationIterationCount::Infinite)
+      return Ok(AnimationIterationCount::Infinite);
     }
 
-    let number = f32::parse(input)?;
-    return Ok(AnimationIterationCount::Number(number))
+    let number = CSSNumber::parse(input)?;
+    return Ok(AnimationIterationCount::Number(number));
   }
 }
 
 impl ToCss for AnimationIterationCount {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       AnimationIterationCount::Number(val) => val.to_css(dest),
-      AnimationIterationCount::Infinite => dest.write_str("infinite")
+      AnimationIterationCount::Infinite => dest.write_str("infinite"),
     }
   }
 }
 
 enum_property! {
-  /// https://drafts.csswg.org/css-animations/#animation-direction
+  /// A value for the [animation-direction](https://drafts.csswg.org/css-animations/#animation-direction) property.
   pub enum AnimationDirection {
+    /// The animation is played as specified
     "normal": Normal,
+    /// The animation is played in reverse.
     "reverse": Reverse,
+    /// The animation iterations alternate between forward and reverse.
     "alternate": Alternate,
+    /// The animation iterations alternate between forward and reverse, with reverse occurring first.
     "alternate-reverse": AlternateReverse,
   }
 }
 
+impl Default for AnimationDirection {
+  fn default() -> Self {
+    AnimationDirection::Normal
+  }
+}
+
 enum_property! {
-  /// https://drafts.csswg.org/css-animations/#animation-play-state
+  /// A value for the [animation-play-state](https://drafts.csswg.org/css-animations/#animation-play-state) property.
   pub enum AnimationPlayState {
+    /// The animation is playing.
     Running,
+    /// The animation is paused.
     Paused,
   }
 }
 
+impl Default for AnimationPlayState {
+  fn default() -> Self {
+    AnimationPlayState::Running
+  }
+}
+
 enum_property! {
-  /// https://drafts.csswg.org/css-animations/#animation-fill-mode
+  /// A value for the [animation-fill-mode](https://drafts.csswg.org/css-animations/#animation-fill-mode) property.
   pub enum AnimationFillMode {
+    /// The animation has no effect while not playing.
     None,
+    /// After the animation, the ending values are applied.
     Forwards,
+    /// Before the animation, the starting values are applied.
     Backwards,
+    /// Both forwards and backwards apply.
     Both,
   }
 }
 
-/// https://drafts.csswg.org/css-animations/#animation
-#[derive(Debug, Clone, PartialEq)]
-pub struct Animation<'i> {
-  pub name: AnimationName<'i>,
-  pub duration: Time,
-  pub timing_function: EasingFunction,
-  pub iteration_count: AnimationIterationCount,
-  pub direction: AnimationDirection,
-  pub play_state: AnimationPlayState,
-  pub delay: Time,
-  pub fill_mode: AnimationFillMode
+impl Default for AnimationFillMode {
+  fn default() -> Self {
+    AnimationFillMode::None
+  }
+}
+
+define_list_shorthand! {
+  /// A value for the [animation](https://drafts.csswg.org/css-animations/#animation) shorthand property.
+  pub struct Animation<'i>(VendorPrefix) {
+    /// The animation name.
+    #[cfg_attr(feature = "serde", serde(borrow))]
+    name: AnimationName(AnimationName<'i>, VendorPrefix),
+    /// The animation duration.
+    duration: AnimationDuration(Time, VendorPrefix),
+    /// The easing function for the animation.
+    timing_function: AnimationTimingFunction(EasingFunction, VendorPrefix),
+    /// The number of times the animation will run.
+    iteration_count: AnimationIterationCount(AnimationIterationCount, VendorPrefix),
+    /// The direction of the animation.
+    direction: AnimationDirection(AnimationDirection, VendorPrefix),
+    /// The current play state of the animation.
+    play_state: AnimationPlayState(AnimationPlayState, VendorPrefix),
+    /// The animation delay.
+    delay: AnimationDelay(Time, VendorPrefix),
+    /// The animation fill mode.
+    fill_mode: AnimationFillMode(AnimationFillMode, VendorPrefix),
+  }
 }
 
 impl<'i> Parse<'i> for Animation<'i> {
@@ -135,7 +223,7 @@ impl<'i> Parse<'i> for Animation<'i> {
         if $var.is_none() {
           if let Ok(value) = input.try_parse($type::parse) {
             $var = Some(value);
-            continue
+            continue;
           }
         }
       };
@@ -150,7 +238,7 @@ impl<'i> Parse<'i> for Animation<'i> {
       parse_prop!(fill_mode, AnimationFillMode);
       parse_prop!(play_state, AnimationPlayState);
       parse_prop!(name, AnimationName);
-      break
+      break;
     }
 
     Ok(Animation {
@@ -167,52 +255,68 @@ impl<'i> Parse<'i> for Animation<'i> {
 }
 
 impl<'i> ToCss for Animation<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
-    self.name.to_css(dest)?;
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match &self.name {
-      AnimationName::None => return Ok(()),
-      AnimationName::Ident(name) => {
-        if self.duration != 0.0 || self.delay != 0.0 {
-          dest.write_char(' ')?;
+      AnimationName::None => {}
+      AnimationName::Ident(CustomIdent(name)) | AnimationName::String(name) => {
+        if !self.duration.is_zero() || !self.delay.is_zero() {
           self.duration.to_css(dest)?;
-        }
-    
-        if (self.timing_function != EasingFunction::Ease && self.timing_function != EasingFunction::CubicBezier(0.25, 0.1, 0.25, 1.0)) || EasingFunction::is_ident(&name.0) {
           dest.write_char(' ')?;
+        }
+
+        if !self.is_default_easing() || EasingFunction::is_ident(&name) {
           self.timing_function.to_css(dest)?;
-        }
-    
-        if self.delay != 0.0 {
           dest.write_char(' ')?;
+        }
+
+        if !self.delay.is_zero() {
           self.delay.to_css(dest)?;
-        }
-    
-        if self.iteration_count != AnimationIterationCount::Number(1.0) || name.0 == "infinite" {
           dest.write_char(' ')?;
+        }
+
+        if self.iteration_count != AnimationIterationCount::default() || name.as_ref() == "infinite" {
           self.iteration_count.to_css(dest)?;
-        }
-    
-        if self.direction != AnimationDirection::Normal || AnimationDirection::from_str(&name.0).is_some() {
           dest.write_char(' ')?;
+        }
+
+        if self.direction != AnimationDirection::default() || AnimationDirection::parse_string(&name).is_ok() {
           self.direction.to_css(dest)?;
-        }
-    
-        if self.fill_mode != AnimationFillMode::None || AnimationFillMode::from_str(&name.0).is_some() {
           dest.write_char(' ')?;
+        }
+
+        if self.fill_mode != AnimationFillMode::default()
+          || (!name.eq_ignore_ascii_case("none") && AnimationFillMode::parse_string(&name).is_ok())
+        {
           self.fill_mode.to_css(dest)?;
-        }
-    
-        if self.play_state != AnimationPlayState::Running || AnimationPlayState::from_str(&name.0).is_some() {
           dest.write_char(' ')?;
+        }
+
+        if self.play_state != AnimationPlayState::default() || AnimationPlayState::parse_string(&name).is_ok() {
           self.play_state.to_css(dest)?;
+          dest.write_char(' ')?;
         }
       }
     }
+
+    // Eventually we could output a string here to avoid duplicating some properties above.
+    // Chrome does not yet support strings, however.
+    self.name.to_css(dest)?;
 
     Ok(())
   }
 }
 
+impl<'i> Animation<'i> {
+  fn is_default_easing(&self) -> bool {
+    self.timing_function == EasingFunction::Ease
+      || self.timing_function == EasingFunction::CubicBezier(0.25, 0.1, 0.25, 1.0)
+  }
+}
+
+/// A list of animations.
 pub type AnimationList<'i> = SmallVec<[Animation<'i>; 1]>;
 
 #[derive(Default)]
@@ -226,7 +330,7 @@ pub(crate) struct AnimationHandler<'i> {
   play_states: Option<(SmallVec<[AnimationPlayState; 1]>, VendorPrefix)>,
   delays: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   fill_modes: Option<(SmallVec<[AnimationFillMode; 1]>, VendorPrefix)>,
-  has_any: bool
+  has_any: bool,
 }
 
 impl<'i> AnimationHandler<'i> {
@@ -239,7 +343,12 @@ impl<'i> AnimationHandler<'i> {
 }
 
 impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) -> bool {
+  fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    dest: &mut DeclarationList<'i>,
+    _: &mut PropertyHandlerContext<'i, '_>,
+  ) -> bool {
     use Property::*;
 
     macro_rules! maybe_flush {
@@ -316,13 +425,13 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
         self.flush(dest);
         dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::Animation)));
       }
-      _ => return false
+      _ => return false,
     }
 
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i, '_>) {
     self.flush(dest);
   }
 }
@@ -330,7 +439,7 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
 impl<'i> AnimationHandler<'i> {
   fn flush(&mut self, dest: &mut DeclarationList<'i>) {
     if !self.has_any {
-      return
+      return;
     }
 
     self.has_any = false;
@@ -344,23 +453,69 @@ impl<'i> AnimationHandler<'i> {
     let mut delays = std::mem::take(&mut self.delays);
     let mut fill_modes = std::mem::take(&mut self.fill_modes);
 
-    if let (Some((names, names_vp)), Some((durations, durations_vp)), Some((timing_functions, timing_functions_vp)), Some((iteration_counts, iteration_counts_vp)), Some((directions, directions_vp)), Some((play_states, play_states_vp)), Some((delays, delays_vp)), Some((fill_modes, fill_modes_vp))) = (&mut names, &mut durations, &mut timing_functions, &mut iteration_counts, &mut directions, &mut play_states, &mut delays, &mut fill_modes) {
+    if let (
+      Some((names, names_vp)),
+      Some((durations, durations_vp)),
+      Some((timing_functions, timing_functions_vp)),
+      Some((iteration_counts, iteration_counts_vp)),
+      Some((directions, directions_vp)),
+      Some((play_states, play_states_vp)),
+      Some((delays, delays_vp)),
+      Some((fill_modes, fill_modes_vp)),
+    ) = (
+      &mut names,
+      &mut durations,
+      &mut timing_functions,
+      &mut iteration_counts,
+      &mut directions,
+      &mut play_states,
+      &mut delays,
+      &mut fill_modes,
+    ) {
       // Only use shorthand syntax if the number of animations matches on all properties.
       let len = names.len();
-      let intersection = *names_vp & *durations_vp & *timing_functions_vp & *iteration_counts_vp & *directions_vp & *play_states_vp & *delays_vp & *fill_modes_vp;
-      if !intersection.is_empty() && durations.len() == len && timing_functions.len() == len && iteration_counts.len() == len && directions.len() == len && play_states.len() == len && delays.len() == len && fill_modes.len() == len {
-        let animations = izip!(names.drain(..), durations.drain(..), timing_functions.drain(..), iteration_counts.drain(..), directions.drain(..), play_states.drain(..), delays.drain(..), fill_modes.drain(..)).map(|(name, duration, timing_function, iteration_count, direction, play_state, delay, fill_mode)| {
-          Animation {
-            name,
-            duration,
-            timing_function,
-            iteration_count,
-            direction,
-            play_state,
-            delay,
-            fill_mode
-          }
-        }).collect();
+      let intersection = *names_vp
+        & *durations_vp
+        & *timing_functions_vp
+        & *iteration_counts_vp
+        & *directions_vp
+        & *play_states_vp
+        & *delays_vp
+        & *fill_modes_vp;
+      if !intersection.is_empty()
+        && durations.len() == len
+        && timing_functions.len() == len
+        && iteration_counts.len() == len
+        && directions.len() == len
+        && play_states.len() == len
+        && delays.len() == len
+        && fill_modes.len() == len
+      {
+        let animations = izip!(
+          names.drain(..),
+          durations.drain(..),
+          timing_functions.drain(..),
+          iteration_counts.drain(..),
+          directions.drain(..),
+          play_states.drain(..),
+          delays.drain(..),
+          fill_modes.drain(..)
+        )
+        .map(
+          |(name, duration, timing_function, iteration_count, direction, play_state, delay, fill_mode)| {
+            Animation {
+              name,
+              duration,
+              timing_function,
+              iteration_count,
+              direction,
+              play_state,
+              delay,
+              fill_mode,
+            }
+          },
+        )
+        .collect();
         let mut prefix = intersection;
         if prefix.contains(VendorPrefix::None) {
           if let Some(targets) = self.targets {
@@ -409,15 +564,15 @@ impl<'i> AnimationHandler<'i> {
 #[inline]
 fn is_animation_property(property_id: &PropertyId) -> bool {
   match property_id {
-    PropertyId::AnimationName(_) |
-    PropertyId::AnimationDuration(_) |
-    PropertyId::AnimationTimingFunction(_) |
-    PropertyId::AnimationIterationCount(_) |
-    PropertyId::AnimationDirection(_) |
-    PropertyId::AnimationPlayState(_) |
-    PropertyId::AnimationDelay(_) |
-    PropertyId::AnimationFillMode(_) |
-    PropertyId::Animation(_) => true,
-    _ => false
+    PropertyId::AnimationName(_)
+    | PropertyId::AnimationDuration(_)
+    | PropertyId::AnimationTimingFunction(_)
+    | PropertyId::AnimationIterationCount(_)
+    | PropertyId::AnimationDirection(_)
+    | PropertyId::AnimationPlayState(_)
+    | PropertyId::AnimationDelay(_)
+    | PropertyId::AnimationFillMode(_)
+    | PropertyId::Animation(_) => true,
+    _ => false,
   }
 }

@@ -1,4 +1,4 @@
-import type {Targets} from './targets';
+import type { Targets } from './targets';
 
 export interface TransformOptions {
   /** The filename being transformed. Used for error messages and source maps. */
@@ -9,19 +9,21 @@ export interface TransformOptions {
   minify?: boolean,
   /** Whether to output a source map. */
   sourceMap?: boolean,
+  /** An input source map to extend. */
+  inputSourceMap?: string,
   /** The browser targets for the generated code. */
   targets?: Targets,
   /** Whether to enable various draft syntax. */
   drafts?: Drafts,
   /** Whether to compile this file as a CSS module. */
-  cssModules?: boolean,
+  cssModules?: boolean | CSSModulesConfig,
   /**
    * Whether to analyze dependencies (e.g. `@import` and `url()`).
    * When enabled, `@import` rules are removed, and `url()` dependencies
    * are replaced with hashed placeholders that can be replaced with the final
    * urls later (after bundling). Dependencies are returned as part of the result.
    */
-  analyzeDependencies?: boolean,
+  analyzeDependencies?: boolean | DependencyOptions,
   /** 
    * Replaces user action pseudo classes with class names that can be applied from JavaScript.
    * This is useful for polyfills, for example.
@@ -32,10 +34,37 @@ export interface TransformOptions {
    * to be unused. These will be removed during minification. Note that these are not
    * selectors but individual names (without any . or # prefixes).
    */
-  unusedSymbols?: string[]
+  unusedSymbols?: string[],
+  /**
+   * Whether to ignore invalid rules and declarations rather than erroring.
+   * When enabled, warnings are returned, and the invalid rule or declaration is
+   * omitted from the output code.
+   */
+  errorRecovery?: boolean
+}
+
+export interface DependencyOptions {
+  /** Whether to preserve `@import` rules rather than removing them. */
+  preserveImports?: boolean
 }
 
 export type BundleOptions = Omit<TransformOptions, 'code'>;
+
+export interface BundleAsyncOptions extends BundleOptions {
+  resolver?: Resolver;
+}
+
+/** Custom resolver to use when loading CSS files. */
+export interface Resolver {
+  /** Read the given file and return its contents as a string. */
+  read?: (file: string) => string | Promise<string>;
+
+  /**
+   * Resolve the given CSS import specifier from the provided originating file to a
+   * path which gets passed to `read()`.
+   */
+  resolve?: (specifier: string, originatingFile: string) => string | Promise<string>;
+}
 
 export interface Drafts {
   /** Whether to enable CSS nesting. */
@@ -59,8 +88,26 @@ export interface TransformResult {
   map: Buffer | void,
   /** CSS module exports, if enabled. */
   exports: CSSModuleExports | void,
+  /** CSS module references, if `dashedIdents` is enabled. */
+  references: CSSModuleReferences,
   /** `@import` and `url()` dependencies, if enabled. */
-  dependencies: Dependency[] | void
+  dependencies: Dependency[] | void,
+  /** Warnings that occurred during compilation. */
+  warnings: Warning[]
+}
+
+export interface Warning {
+  message: string,
+  type: string,
+  value?: any,
+  loc: ErrorLocation
+}
+
+export interface CSSModulesConfig {
+  /** The pattern to use when renaming class names and other identifiers. Default is `[hash]_[local]`. */
+  pattern: string,
+  /** Whether to rename dashed identifiers, e.g. custom properties. */
+  dashedIdents: boolean
 }
 
 export type CSSModuleExports = {
@@ -76,6 +123,11 @@ export interface CSSModuleExport {
   /** Other names that are composed by this export. */
   composes: CSSModuleReference[]
 }
+
+export type CSSModuleReferences = {
+  /** Maps placeholder names to references. */
+  [name: string]: DependencyCSSModuleReference,
+};
 
 export type CSSModuleReference = LocalCSSModuleReference | GlobalCSSModuleReference | DependencyCSSModuleReference;
 
@@ -139,6 +191,10 @@ export interface Location {
   column: number
 }
 
+export interface ErrorLocation extends Location {
+  filename: string
+}
+
 /**
  * Compiles a CSS file, including optionally minifying and lowering syntax to the given
  * targets. A source map may also be generated, but this is not enabled by default.
@@ -146,6 +202,8 @@ export interface Location {
 export declare function transform(options: TransformOptions): TransformResult;
 
 export interface TransformAttributeOptions {
+  /** The filename in which the style attribute appeared. Used for error messages and dependencies. */
+  filename?: string,
   /** The source code to transform. */
   code: Buffer,
   /** Whether to enable minification. */
@@ -158,14 +216,22 @@ export interface TransformAttributeOptions {
    * that can be replaced with the final urls later (after bundling).
    * Dependencies are returned as part of the result.
    */
-   analyzeDependencies?: boolean
+  analyzeDependencies?: boolean,
+  /**
+   * Whether to ignore invalid rules and declarations rather than erroring.
+   * When enabled, warnings are returned, and the invalid rule or declaration is
+   * omitted from the output code.
+   */
+  errorRecovery?: boolean
 }
 
 export interface TransformAttributeResult {
   /** The transformed code. */
   code: Buffer,
   /** `@import` and `url()` dependencies, if enabled. */
-  dependencies: Dependency[] | void  
+  dependencies: Dependency[] | void,
+  /** Warnings that occurred during compilation. */
+  warnings: Warning[]
 }
 
 /**
@@ -174,7 +240,7 @@ export interface TransformAttributeResult {
 export declare function transformStyleAttribute(options: TransformAttributeOptions): TransformAttributeResult;
 
 /**
- * Converts a browserslist result into targets that can be passed to @parcel/css.
+ * Converts a browserslist result into targets that can be passed to lightningcss.
  * @param browserslist the result of calling `browserslist`
  */
 export declare function browserslistToTargets(browserslist: string[]): Targets;
@@ -183,3 +249,8 @@ export declare function browserslistToTargets(browserslist: string[]): Targets;
  * Bundles a CSS file and its dependencies, inlining @import rules.
  */
 export declare function bundle(options: BundleOptions): TransformResult;
+
+/**
+ * Bundles a CSS file and its dependencies asynchronously, inlining @import rules.
+ */
+export declare function bundleAsync(options: BundleAsyncOptions): Promise<TransformResult>;

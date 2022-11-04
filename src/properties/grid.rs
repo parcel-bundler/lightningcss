@@ -1,48 +1,86 @@
+//! CSS properties related to grid layout.
+
 #![allow(non_upper_case_globals)]
 
-use cssparser::*;
-use crate::values::{
-  length::{LengthPercentage},
-  ident::CustomIdentList
-};
-use crate::traits::{Parse, ToCss, PropertyHandler};
+use crate::context::PropertyHandlerContext;
+use crate::declaration::{DeclarationBlock, DeclarationList};
+use crate::error::{Error, ErrorLocation, ParserError, PrinterError, PrinterErrorKind};
+use crate::macros::{define_shorthand, impl_shorthand};
 use crate::printer::Printer;
-use crate::values::ident::CustomIdent;
-use smallvec::SmallVec;
-use crate::values::length::serialize_dimension;
-use bitflags::bitflags;
-use crate::values::number::serialize_integer;
-use crate::declaration::DeclarationList;
 use crate::properties::{Property, PropertyId};
-use crate::error::{ParserError, PrinterError};
-use crate::logical::LogicalProperties;
+use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
+use crate::values::ident::CustomIdent;
+use crate::values::length::serialize_dimension;
+use crate::values::number::{CSSInteger, CSSNumber};
+use crate::values::{ident::CustomIdentList, length::LengthPercentage};
+use bitflags::bitflags;
+use cssparser::*;
+use smallvec::SmallVec;
 
-/// https://drafts.csswg.org/css-grid-2/#track-sizing
+/// A [track sizing](https://drafts.csswg.org/css-grid-2/#track-sizing) value
+/// for the `grid-template-rows` and `grid-template-columns` properties.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum TrackSizing<'i> {
+  /// No explicit grid tracks.
   None,
+  /// A list of grid tracks.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   TrackList(TrackList<'i>),
 }
 
-/// https://drafts.csswg.org/css-grid-2/#typedef-track-list
+/// A [`<track-list>`](https://drafts.csswg.org/css-grid-2/#typedef-track-list) value,
+/// as used in the `grid-template-rows` and `grid-template-columns` properties.
+///
+/// See [TrackSizing](TrackSizing).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TrackList<'i> {
+  /// A list of line names.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub line_names: Vec<CustomIdentList<'i>>,
-  pub items: Vec<TrackListItem<'i>>
+  /// A list of grid track items.
+  pub items: Vec<TrackListItem<'i>>,
 }
 
+/// Either a track size or `repeat()` function.
+///
+/// See [TrackList](TrackList).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum TrackListItem<'i> {
+  /// A track size.
   TrackSize(TrackSize),
-  TrackRepeat(TrackRepeat<'i>)
+  /// A `repeat()` function.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  TrackRepeat(TrackRepeat<'i>),
 }
 
-/// https://drafts.csswg.org/css-grid-2/#typedef-track-size
+/// A [`<track-size>`](https://drafts.csswg.org/css-grid-2/#typedef-track-size) value,
+/// as used in the `grid-template-rows` and `grid-template-columns` properties.
+///
+/// See [TrackListItem](TrackListItem).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum TrackSize {
+  /// An explicit track breadth.
   TrackBreadth(TrackBreadth),
+  /// The `minmax()` function.
   MinMax(TrackBreadth, TrackBreadth),
-  FitContent(LengthPercentage)
+  /// The `fit-content()` function.
+  FitContent(LengthPercentage),
 }
 
 impl Default for TrackSize {
@@ -51,51 +89,81 @@ impl Default for TrackSize {
   }
 }
 
-/// https://drafts.csswg.org/css-grid-2/#auto-tracks
+/// A [track size list](https://drafts.csswg.org/css-grid-2/#auto-tracks), as used
+/// in the `grid-auto-rows` and `grid-auto-columns` properties.
 #[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TrackSizeList(pub SmallVec<[TrackSize; 1]>);
 
-/// https://drafts.csswg.org/css-grid-2/#typedef-track-breadth
+/// A [`<track-breadth>`](https://drafts.csswg.org/css-grid-2/#typedef-track-breadth) value.
+///
+/// See [TrackSize](TrackSize).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum TrackBreadth {
+  /// An explicit length.
   Length(LengthPercentage),
-  Flex(f32),
+  /// A flex factor.
+  Flex(CSSNumber),
+  /// The `min-content` keyword.
   MinContent,
+  /// The `max-content` keyword.
   MaxContent,
-  Auto
+  /// The `auto` keyword.
+  Auto,
 }
 
-/// https://drafts.csswg.org/css-grid-2/#typedef-track-repeat
+/// A [`<track-repeat>`](https://drafts.csswg.org/css-grid-2/#typedef-track-repeat) value,
+/// representing the `repeat()` function in a track list.
+///
+/// See [TrackListItem](TrackListItem).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TrackRepeat<'i> {
+  /// The repeat count.
   count: RepeatCount,
+  /// The line names to repeat.
+  #[cfg_attr(feature = "serde", serde(borrow))]
   line_names: Vec<CustomIdentList<'i>>,
-  track_sizes: Vec<TrackSize>
+  /// The track sizes to repeat.
+  track_sizes: Vec<TrackSize>,
 }
 
-/// https://drafts.csswg.org/css-grid-2/#typedef-track-repeat
+/// A [`<repeat-count>`](https://drafts.csswg.org/css-grid-2/#typedef-track-repeat) value,
+/// used in the `repeat()` function.
+///
+/// See [TrackRepeat](TrackRepeat).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum RepeatCount {
-  Number(f32),
+  /// The number of times to repeat.
+  Number(CSSInteger),
+  /// The `auto-fill` keyword.
   AutoFill,
-  AutoFit
+  /// The `auto-fit` keyword.
+  AutoFit,
 }
 
 impl<'i> Parse<'i> for TrackSize {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(breadth) = input.try_parse(TrackBreadth::parse) {
-      return Ok(TrackSize::TrackBreadth(breadth))
+      return Ok(TrackSize::TrackBreadth(breadth));
     }
 
     if input.try_parse(|input| input.expect_function_matching("minmax")).is_ok() {
       return input.parse_nested_block(|input| {
         let breadth = TrackBreadth::parse_internal(input, false)?;
         input.expect_comma()?;
-        Ok(TrackSize::MinMax(
-          breadth,
-          TrackBreadth::parse(input)?,
-        ))
-      })
+        Ok(TrackSize::MinMax(breadth, TrackBreadth::parse(input)?))
+      });
     }
 
     input.expect_function_matching("fit-content")?;
@@ -105,7 +173,10 @@ impl<'i> Parse<'i> for TrackSize {
 }
 
 impl ToCss for TrackSize {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       TrackSize::TrackBreadth(breadth) => breadth.to_css(dest),
       TrackSize::MinMax(a, b) => {
@@ -131,14 +202,17 @@ impl<'i> Parse<'i> for TrackBreadth {
 }
 
 impl TrackBreadth {
-  fn parse_internal<'i, 't>(input: &mut Parser<'i, 't>, allow_flex: bool) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+  fn parse_internal<'i, 't>(
+    input: &mut Parser<'i, 't>,
+    allow_flex: bool,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(len) = input.try_parse(LengthPercentage::parse) {
-      return Ok(TrackBreadth::Length(len))
+      return Ok(TrackBreadth::Length(len));
     }
 
     if allow_flex {
       if let Ok(flex) = input.try_parse(Self::parse_flex) {
-        return Ok(TrackBreadth::Flex(flex))
+        return Ok(TrackBreadth::Flex(flex));
       }
     }
 
@@ -154,23 +228,28 @@ impl TrackBreadth {
     }
   }
 
-  fn parse_flex<'i, 't>(input: &mut Parser<'i, 't>) -> Result<f32, ParseError<'i, ParserError<'i>>> {
+  fn parse_flex<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CSSNumber, ParseError<'i, ParserError<'i>>> {
     let location = input.current_source_location();
     match *input.next()? {
-      Token::Dimension { value, ref unit, .. } if unit.eq_ignore_ascii_case("fr") && value.is_sign_positive() => Ok(value),
+      Token::Dimension { value, ref unit, .. } if unit.eq_ignore_ascii_case("fr") && value.is_sign_positive() => {
+        Ok(value)
+      }
       ref t => Err(location.new_unexpected_token_error(t.clone())),
     }
   }
 }
 
 impl ToCss for TrackBreadth {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       TrackBreadth::Auto => dest.write_str("auto"),
       TrackBreadth::MinContent => dest.write_str("min-content"),
       TrackBreadth::MaxContent => dest.write_str("max-content"),
       TrackBreadth::Length(len) => len.to_css(dest),
-      TrackBreadth::Flex(flex) => serialize_dimension(*flex, "fr", dest)
+      TrackBreadth::Flex(flex) => serialize_dimension(*flex, "fr", dest),
     }
   }
 }
@@ -193,25 +272,28 @@ impl<'i> Parse<'i> for TrackRepeat<'i> {
           // TODO: error handling
           track_sizes.push(track_size)
         } else {
-          break
+          break;
         }
       }
 
       Ok(TrackRepeat {
         count,
         line_names,
-        track_sizes
+        track_sizes,
       })
     })
   }
 }
 
 impl<'i> ToCss for TrackRepeat<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     dest.write_str("repeat(")?;
     self.count.to_css(dest)?;
     dest.delim(',', false)?;
-    
+
     let mut track_sizes_iter = self.track_sizes.iter();
     let mut first = true;
     for names in self.line_names.iter() {
@@ -238,8 +320,8 @@ impl<'i> ToCss for TrackRepeat<'i> {
 
 impl<'i> Parse<'i> for RepeatCount {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(num) = input.try_parse(f32::parse) {
-      return Ok(RepeatCount::Number(num))
+    if let Ok(num) = input.try_parse(CSSInteger::parse) {
+      return Ok(RepeatCount::Number(num));
     }
 
     let location = input.current_source_location();
@@ -255,16 +337,21 @@ impl<'i> Parse<'i> for RepeatCount {
 }
 
 impl ToCss for RepeatCount {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       RepeatCount::AutoFill => dest.write_str("auto-fill"),
       RepeatCount::AutoFit => dest.write_str("auto-fit"),
-      RepeatCount::Number(num) => num.to_css(dest)
+      RepeatCount::Number(num) => num.to_css(dest),
     }
   }
 }
 
-fn parse_line_names<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CustomIdentList<'i>, ParseError<'i, ParserError<'i>>> {
+fn parse_line_names<'i, 't>(
+  input: &mut Parser<'i, 't>,
+) -> Result<CustomIdentList<'i>, ParseError<'i, ParserError<'i>>> {
   input.expect_square_bracket_block()?;
   input.parse_nested_block(|input| {
     let mut values = SmallVec::new();
@@ -275,7 +362,10 @@ fn parse_line_names<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CustomIdentLis
   })
 }
 
-fn serialize_line_names<W>(names: &[CustomIdent], dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+fn serialize_line_names<W>(names: &[CustomIdent], dest: &mut Printer<W>) -> Result<(), PrinterError>
+where
+  W: std::fmt::Write,
+{
   dest.write_char('[')?;
   let mut first = true;
   for name in names {
@@ -284,9 +374,31 @@ fn serialize_line_names<W>(names: &[CustomIdent], dest: &mut Printer<W>) -> Resu
     } else {
       dest.write_char(' ')?;
     }
-    name.to_css(dest)?;
+    write_ident(&name.0, dest)?;
   }
   dest.write_char(']')
+}
+
+fn write_ident<W>(name: &str, dest: &mut Printer<W>) -> Result<(), PrinterError>
+where
+  W: std::fmt::Write,
+{
+  if let Some(css_module) = &mut dest.css_module {
+    if let Some(last) = css_module.config.pattern.segments.last() {
+      if !matches!(last, crate::css_modules::Segment::Local) {
+        return Err(Error {
+          kind: PrinterErrorKind::InvalidCssModulesPatternInGrid,
+          loc: Some(ErrorLocation {
+            filename: dest.filename().into(),
+            line: dest.loc.line,
+            column: dest.loc.column,
+          }),
+        });
+      }
+    }
+  }
+  dest.write_ident(name)?;
+  Ok(())
 }
 
 impl<'i> Parse<'i> for TrackList<'i> {
@@ -305,23 +417,23 @@ impl<'i> Parse<'i> for TrackList<'i> {
         // TODO: error handling
         items.push(TrackListItem::TrackRepeat(repeat))
       } else {
-        break
+        break;
       }
     }
 
     if items.is_empty() {
-      return Err(input.new_custom_error(ParserError::InvalidDeclaration))
+      return Err(input.new_custom_error(ParserError::InvalidDeclaration));
     }
 
-    Ok(TrackList {
-      line_names,
-      items
-    })
+    Ok(TrackList { line_names, items })
   }
 }
 
 impl<'i> ToCss for TrackList<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let mut items_iter = self.items.iter();
     let line_names_iter = self.line_names.iter();
     let mut first = true;
@@ -340,7 +452,7 @@ impl<'i> ToCss for TrackList<'i> {
         }
         match item {
           TrackListItem::TrackRepeat(repeat) => repeat.to_css(dest)?,
-          TrackListItem::TrackSize(size) => size.to_css(dest)?
+          TrackListItem::TrackSize(size) => size.to_css(dest)?,
         };
       }
 
@@ -360,7 +472,7 @@ impl<'i> TrackList<'i> {
 impl<'i> Parse<'i> for TrackSizing<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
-      return Ok(TrackSizing::None)
+      return Ok(TrackSizing::None);
     }
 
     let track_list = TrackList::parse(input)?;
@@ -369,10 +481,13 @@ impl<'i> Parse<'i> for TrackSizing<'i> {
 }
 
 impl<'i> ToCss for TrackSizing<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       TrackSizing::None => dest.write_str("none"),
-      TrackSizing::TrackList(list) => list.to_css(dest)
+      TrackSizing::TrackList(list) => list.to_css(dest),
     }
   }
 }
@@ -381,7 +496,7 @@ impl<'i> TrackSizing<'i> {
   fn is_explicit(&self) -> bool {
     match self {
       TrackSizing::None => true,
-      TrackSizing::TrackList(list) => list.is_explicit()
+      TrackSizing::TrackList(list) => list.is_explicit(),
     }
   }
 }
@@ -400,9 +515,12 @@ impl<'i> Parse<'i> for TrackSizeList {
 }
 
 impl ToCss for TrackSizeList {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     if self.0.len() == 0 {
-      return dest.write_str("auto")
+      return dest.write_str("auto");
     }
 
     let mut first = true;
@@ -418,20 +536,30 @@ impl ToCss for TrackSizeList {
   }
 }
 
-/// https://drafts.csswg.org/css-grid-2/#grid-template-areas-property
+/// A value for the [grid-template-areas](https://drafts.csswg.org/css-grid-2/#grid-template-areas-property) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum GridTemplateAreas {
+  /// No named grid areas.
   None,
+  /// Defines the list of named grid areas.
   Areas {
+    /// The number of columns in the grid.
     columns: u32,
-    areas: Vec<Option<String>>
-  }
+    /// A flattened list of grid area names.
+    /// Unnamed areas specified by the `.` token are represented as `None`.
+    areas: Vec<Option<String>>,
+  },
 }
 
 impl<'i> Parse<'i> for GridTemplateAreas {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("none")).is_ok() {
-      return Ok(GridTemplateAreas::None)
+      return Ok(GridTemplateAreas::None);
     }
 
     let mut tokens = Vec::new();
@@ -444,16 +572,13 @@ impl<'i> Parse<'i> for GridTemplateAreas {
       if row == 0 {
         columns = parsed_columns;
       } else if parsed_columns != columns {
-        return Err(input.new_custom_error(ParserError::InvalidDeclaration))
+        return Err(input.new_custom_error(ParserError::InvalidDeclaration));
       }
 
       row += 1;
     }
 
-    Ok(GridTemplateAreas::Areas {
-      columns,
-      areas: tokens
-    })
+    Ok(GridTemplateAreas::Areas { columns, areas: tokens })
   }
 }
 
@@ -466,9 +591,9 @@ impl GridTemplateAreas {
       if rest.is_empty() {
         // Each string must produce a valid token.
         if column == 0 {
-          return Err(())
+          return Err(());
         }
-        break
+        break;
       }
 
       column += 1;
@@ -476,11 +601,11 @@ impl GridTemplateAreas {
       if rest.starts_with('.') {
         string = &rest[rest.find(|c| c != '.').unwrap_or(rest.len())..];
         tokens.push(None);
-        continue
+        continue;
       }
 
       if !rest.starts_with(is_name_code_point) {
-        return Err(())
+        return Err(());
       }
 
       let token_len = rest.find(|c| !is_name_code_point(c)).unwrap_or(rest.len());
@@ -496,16 +621,14 @@ impl GridTemplateAreas {
 static HTML_SPACE_CHARACTERS: &'static [char] = &['\u{0020}', '\u{0009}', '\u{000a}', '\u{000c}', '\u{000d}'];
 
 fn is_name_code_point(c: char) -> bool {
-  c >= 'A' && c <= 'Z' ||
-    c >= 'a' && c <= 'z' ||
-    c >= '\u{80}' ||
-    c == '_' ||
-    c >= '0' && c <= '9' ||
-    c == '-'
+  c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '\u{80}' || c == '_' || c >= '0' && c <= '9' || c == '-'
 }
 
 impl ToCss for GridTemplateAreas {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       GridTemplateAreas::None => dest.write_str("none"),
       GridTemplateAreas::Areas { areas, .. } => {
@@ -531,7 +654,7 @@ impl ToCss for GridTemplateAreas {
         if !dest.minify {
           dest.dedent_by(21);
         }
-        
+
         Ok(())
       }
     }
@@ -539,10 +662,18 @@ impl ToCss for GridTemplateAreas {
 }
 
 impl GridTemplateAreas {
-  fn write_string<'a, W>(&self, dest: &mut Printer<W>, iter: &mut std::slice::Iter<'a, Option<String>>, next: &mut Option<&'a Option<String>>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn write_string<'a, W>(
+    &self,
+    dest: &mut Printer<W>,
+    iter: &mut std::slice::Iter<'a, Option<String>>,
+    next: &mut Option<&'a Option<String>>,
+  ) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let columns = match self {
       GridTemplateAreas::Areas { columns, .. } => *columns,
-      _ => unreachable!()
+      _ => unreachable!(),
     };
 
     dest.write_char('"')?;
@@ -554,7 +685,7 @@ impl GridTemplateAreas {
           if i > 0 && (!last_was_null || !dest.minify) {
             dest.write_char(' ')?;
           }
-          dest.write_ident(string)?;
+          write_ident(string, dest)?;
           last_was_null = false;
         } else {
           if i > 0 && (last_was_null || !dest.minify) {
@@ -572,12 +703,19 @@ impl GridTemplateAreas {
   }
 }
 
-/// https://drafts.csswg.org/css-grid-2/#explicit-grid-shorthand
+/// A value for the [grid-template](https://drafts.csswg.org/css-grid-2/#explicit-grid-shorthand) shorthand property.
+///
+/// If `areas` is not `None`, then `rows` must also not be `None`.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GridTemplate<'i> {
-  rows: TrackSizing<'i>,
-  columns: TrackSizing<'i>,
-  areas: GridTemplateAreas
+  /// The grid template rows.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  pub rows: TrackSizing<'i>,
+  /// The grid template columns.
+  pub columns: TrackSizing<'i>,
+  /// The named grid areas.
+  pub areas: GridTemplateAreas,
 }
 
 impl<'i> Parse<'i> for GridTemplate<'i> {
@@ -587,8 +725,8 @@ impl<'i> Parse<'i> for GridTemplate<'i> {
       return Ok(GridTemplate {
         rows: TrackSizing::None,
         columns: TrackSizing::None,
-        areas: GridTemplateAreas::None
-      })
+        areas: GridTemplateAreas::None,
+      });
     }
 
     let start = input.state();
@@ -597,7 +735,7 @@ impl<'i> Parse<'i> for GridTemplate<'i> {
     let mut columns = 0;
     let mut row = 0;
     let mut tokens = Vec::new();
-    
+
     loop {
       if let Ok(first_names) = input.try_parse(parse_line_names) {
         if let Some(last_names) = line_names.last_mut() {
@@ -614,9 +752,9 @@ impl<'i> Parse<'i> for GridTemplate<'i> {
         if row == 0 {
           columns = parsed_columns;
         } else if parsed_columns != columns {
-          return Err(input.new_custom_error(ParserError::InvalidDeclaration))
+          return Err(input.new_custom_error(ParserError::InvalidDeclaration));
         }
-  
+
         row += 1;
 
         let track_size = input.try_parse(TrackSize::parse).unwrap_or_default();
@@ -625,7 +763,7 @@ impl<'i> Parse<'i> for GridTemplate<'i> {
         let last_names = input.try_parse(parse_line_names).unwrap_or_default();
         line_names.push(last_names);
       } else {
-        break
+        break;
       }
     }
 
@@ -634,28 +772,18 @@ impl<'i> Parse<'i> for GridTemplate<'i> {
         line_names.push(Default::default());
       }
 
-      let areas = GridTemplateAreas::Areas {
-        columns,
-        areas: tokens
-      };
-      let rows = TrackSizing::TrackList(TrackList {
-        line_names,
-        items
-      });
+      let areas = GridTemplateAreas::Areas { columns, areas: tokens };
+      let rows = TrackSizing::TrackList(TrackList { line_names, items });
       let columns = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
         let list = TrackList::parse(input)?;
         if !list.is_explicit() {
-          return Err(input.new_custom_error(ParserError::InvalidDeclaration))
+          return Err(input.new_custom_error(ParserError::InvalidDeclaration));
         }
         TrackSizing::TrackList(list)
       } else {
         TrackSizing::None
       };
-      Ok(GridTemplate {
-        rows,
-        columns,
-        areas
-      })
+      Ok(GridTemplate { rows, columns, areas })
     } else {
       input.reset(&start);
       let rows = TrackSizing::parse(input)?;
@@ -664,20 +792,26 @@ impl<'i> Parse<'i> for GridTemplate<'i> {
       Ok(GridTemplate {
         rows,
         columns,
-        areas: GridTemplateAreas::None
+        areas: GridTemplateAreas::None,
       })
     }
   }
 }
 
 impl ToCss for GridTemplate<'_> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.to_css_with_indent(dest, 15)
   }
 }
 
 impl GridTemplate<'_> {
-  fn to_css_with_indent<W>(&self, dest: &mut Printer<W>, indent: u8) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css_with_indent<W>(&self, dest: &mut Printer<W>, indent: u8) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match &self.areas {
       GridTemplateAreas::None => {
         if self.rows == TrackSizing::None && self.columns == TrackSizing::None {
@@ -687,11 +821,11 @@ impl GridTemplate<'_> {
           dest.delim('/', true)?;
           self.columns.to_css(dest)?;
         }
-      },
+      }
       GridTemplateAreas::Areas { areas, .. } => {
         let track_list = match &self.rows {
           TrackSizing::TrackList(list) => list,
-          _ => unreachable!()
+          _ => unreachable!(),
         };
 
         let mut areas_iter = areas.iter();
@@ -703,18 +837,18 @@ impl GridTemplate<'_> {
         let mut indented = false;
         while next.is_some() {
           macro_rules! newline {
-            () => {    
+            () => {
               if !dest.minify {
                 if !indented {
                   // Indent by the width of "grid-template: ", so the rows line up.
                   dest.indent_by(indent);
                   indented = true;
-                }   
-                dest.newline()?; 
+                }
+                dest.newline()?;
               }
             };
           }
-  
+
           if let Some(line_names) = line_names_iter.next() {
             if !line_names.is_empty() {
               if !dest.minify && line_names.len() == 2 {
@@ -743,7 +877,7 @@ impl GridTemplate<'_> {
               dest.whitespace()?;
               match item {
                 TrackListItem::TrackSize(size) => size.to_css(dest)?,
-                _ => unreachable!()
+                _ => unreachable!(),
               }
             }
           }
@@ -774,11 +908,40 @@ impl GridTemplate<'_> {
   }
 }
 
+impl<'i> GridTemplate<'i> {
+  #[inline]
+  fn is_valid(rows: &TrackSizing, columns: &TrackSizing, areas: &GridTemplateAreas) -> bool {
+    // The `grid-template` shorthand supports only explicit track values (i.e. no `repeat()`)
+    // combined with grid-template-areas. If there are no areas, then any track values are allowed.
+    *areas == GridTemplateAreas::None
+      || (*rows != TrackSizing::None && rows.is_explicit() && columns.is_explicit())
+  }
+}
+
+impl_shorthand! {
+  GridTemplate(GridTemplate<'i>) {
+    rows: [GridTemplateRows],
+    columns: [GridTemplateColumns],
+    areas: [GridTemplateAreas],
+  }
+
+  fn is_valid(shorthand) {
+    GridTemplate::is_valid(&shorthand.rows, &shorthand.columns, &shorthand.areas)
+  }
+}
+
 bitflags! {
-  /// https://drafts.csswg.org/css-grid-2/#grid-auto-flow-property
+  /// A value for the [grid-auto-flow](https://drafts.csswg.org/css-grid-2/#grid-auto-flow-property) property.
+  ///
+  /// The `Row` or `Column` flags may be combined with the `Dense` flag, but the `Row` and `Column` flags may
+  /// not be combined.
+  #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
   pub struct GridAutoFlow: u8 {
+    /// The auto-placement algorithm places items by filling each row, adding new rows as necessary.
     const Row    = 0b00;
+    /// The auto-placement algorithm places items by filling each column, adding new columns as necessary.
     const Column = 0b01;
+    /// If specified, a dense packing algorithm is used, which fills in holes in the grid.
     const Dense  = 0b10;
   }
 }
@@ -844,7 +1007,10 @@ impl<'i> Parse<'i> for GridAutoFlow {
 }
 
 impl ToCss for GridAutoFlow {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     let s = if *self == GridAutoFlow::Row {
       "row"
     } else if *self == GridAutoFlow::Column {
@@ -865,15 +1031,25 @@ impl ToCss for GridAutoFlow {
   }
 }
 
-/// https://drafts.csswg.org/css-grid-2/#grid-shorthand
+/// A value for the [grid](https://drafts.csswg.org/css-grid-2/#grid-shorthand) shorthand property.
+///
+/// Explicit and implicit values may not be combined.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Grid<'i> {
-  rows: TrackSizing<'i>,
-  columns: TrackSizing<'i>,
-  areas: GridTemplateAreas,
-  auto_rows: TrackSizeList,
-  auto_columns: TrackSizeList,
-  auto_flow: GridAutoFlow
+  /// Explicit grid template rows.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  pub rows: TrackSizing<'i>,
+  /// Explicit grid template columns.
+  pub columns: TrackSizing<'i>,
+  /// Explicit grid template areas.
+  pub areas: GridTemplateAreas,
+  /// The grid auto rows.
+  pub auto_rows: TrackSizeList,
+  /// The grid auto columns.
+  pub auto_columns: TrackSizeList,
+  /// The grid auto flow.
+  pub auto_flow: GridAutoFlow,
 }
 
 impl<'i> Parse<'i> for Grid<'i> {
@@ -886,7 +1062,7 @@ impl<'i> Parse<'i> for Grid<'i> {
         areas: template.areas,
         auto_rows: TrackSizeList::default(),
         auto_columns: TrackSizeList::default(),
-        auto_flow: GridAutoFlow::default()
+        auto_flow: GridAutoFlow::default(),
       })
 
     // <'grid-template-rows'> / [ auto-flow && dense? ] <'grid-auto-columns'>?
@@ -900,7 +1076,7 @@ impl<'i> Parse<'i> for Grid<'i> {
         areas: GridTemplateAreas::None,
         auto_rows: TrackSizeList::default(),
         auto_columns,
-        auto_flow
+        auto_flow,
       })
 
     // [ auto-flow && dense? ] <'grid-auto-rows'>? / <'grid-template-columns'>
@@ -915,13 +1091,16 @@ impl<'i> Parse<'i> for Grid<'i> {
         areas: GridTemplateAreas::None,
         auto_rows,
         auto_columns: TrackSizeList::default(),
-        auto_flow
+        auto_flow,
       })
     }
   }
 }
 
-fn parse_grid_auto_flow<'i, 't>(input: &mut Parser<'i, 't>, flow: GridAutoFlow) -> Result<GridAutoFlow, ParseError<'i, ParserError<'i>>> {
+fn parse_grid_auto_flow<'i, 't>(
+  input: &mut Parser<'i, 't>,
+  flow: GridAutoFlow,
+) -> Result<GridAutoFlow, ParseError<'i, ParserError<'i>>> {
   if input.try_parse(|input| input.expect_ident_matching("auto-flow")).is_ok() {
     if input.try_parse(|input| input.expect_ident_matching("dense")).is_ok() {
       Ok(flow | GridAutoFlow::Dense)
@@ -937,19 +1116,25 @@ fn parse_grid_auto_flow<'i, 't>(input: &mut Parser<'i, 't>, flow: GridAutoFlow) 
 }
 
 impl ToCss for Grid<'_> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
-    let is_auto_initial = self.auto_rows == TrackSizeList::default() && self.auto_columns == TrackSizeList::default() && self.auto_flow == GridAutoFlow::default();
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    let is_auto_initial = self.auto_rows == TrackSizeList::default()
+      && self.auto_columns == TrackSizeList::default()
+      && self.auto_flow == GridAutoFlow::default();
 
-    if self.areas != GridTemplateAreas::None ||
-      (self.rows != TrackSizing::None && self.columns != TrackSizing::None) ||
-      (self.areas == GridTemplateAreas::None && is_auto_initial) {
+    if self.areas != GridTemplateAreas::None
+      || (self.rows != TrackSizing::None && self.columns != TrackSizing::None)
+      || (self.areas == GridTemplateAreas::None && is_auto_initial)
+    {
       if !is_auto_initial {
         unreachable!("invalid grid shorthand: mixed implicit and explicit values");
       }
       let template = GridTemplate {
         rows: self.rows.clone(),
         columns: self.columns.clone(),
-        areas: self.areas.clone()
+        areas: self.areas.clone(),
       };
       template.to_css_with_indent(dest, 6)?;
     } else if self.auto_flow.direction() == GridAutoFlow::Column {
@@ -986,54 +1171,110 @@ impl ToCss for Grid<'_> {
   }
 }
 
-/// https://drafts.csswg.org/css-grid-2/#typedef-grid-row-start-grid-line
+impl<'i> Grid<'i> {
+  #[inline]
+  fn is_valid(
+    rows: &TrackSizing,
+    columns: &TrackSizing,
+    areas: &GridTemplateAreas,
+    auto_rows: &TrackSizeList,
+    auto_columns: &TrackSizeList,
+    auto_flow: &GridAutoFlow,
+  ) -> bool {
+    // The `grid` shorthand can either be fully explicit (e.g. same as `grid-template`),
+    // or explicit along a single axis. If there are auto rows, then there cannot be explicit rows, for example.
+    let is_template = GridTemplate::is_valid(rows, columns, areas);
+    let default_track_size_list = TrackSizeList::default();
+    let is_explicit = *auto_rows == default_track_size_list
+      && *auto_columns == default_track_size_list
+      && *auto_flow == GridAutoFlow::default();
+    let is_auto_rows = auto_flow.direction() == GridAutoFlow::Row
+      && *rows == TrackSizing::None
+      && *auto_columns == default_track_size_list;
+    let is_auto_columns = auto_flow.direction() == GridAutoFlow::Column
+      && *columns == TrackSizing::None
+      && *auto_rows == default_track_size_list;
+
+    (is_template && is_explicit) || is_auto_rows || is_auto_columns
+  }
+}
+
+impl_shorthand! {
+  Grid(Grid<'i>) {
+    rows: [GridTemplateRows],
+    columns: [GridTemplateColumns],
+    areas: [GridTemplateAreas],
+    auto_rows: [GridAutoRows],
+    auto_columns: [GridAutoColumns],
+    auto_flow: [GridAutoFlow],
+  }
+
+  fn is_valid(grid) {
+    Grid::is_valid(&grid.rows, &grid.columns, &grid.areas, &grid.auto_rows, &grid.auto_columns, &grid.auto_flow)
+  }
+}
+
+/// A [`<grid-line>`](https://drafts.csswg.org/css-grid-2/#typedef-grid-row-start-grid-line) value,
+/// used in the `grid-row-start`, `grid-row-end`, `grid-column-start`, and `grid-column-end` properties.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
 pub enum GridLine<'i> {
+  /// Automatic placement.
   Auto,
+  /// A named grid area name (automatically postfixed by `-start` or `-end`), or and explicit grid line name.
   Ident(CustomIdent<'i>),
-  Line(i32, Option<CustomIdent<'i>>),
-  Span(i32, Option<CustomIdent<'i>>)
+  /// The Nth grid line, optionally filtered by line name. Negative numbers count backwards from the end.
+  Line(
+    CSSInteger,
+    #[cfg_attr(feature = "serde", serde(borrow))] Option<CustomIdent<'i>>,
+  ),
+  /// A grid span based on the Nth grid line from the opposite edge, optionally filtered by line name.
+  Span(CSSInteger, Option<CustomIdent<'i>>),
 }
 
 impl<'i> Parse<'i> for GridLine<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("auto")).is_ok() {
-      return Ok(GridLine::Auto)
+      return Ok(GridLine::Auto);
     }
 
     if input.try_parse(|input| input.expect_ident_matching("span")).is_ok() {
       // TODO: is calc() supported here??
-      let (line_number, ident) = if let Ok(line_number) = input.try_parse(|input| input.expect_integer()) {
+      let (line_number, ident) = if let Ok(line_number) = input.try_parse(CSSInteger::parse) {
         let ident = input.try_parse(CustomIdent::parse).ok();
         (line_number, ident)
       } else if let Ok(ident) = input.try_parse(CustomIdent::parse) {
-        let line_number = input.try_parse(|input| input.expect_integer()).unwrap_or(1);
+        let line_number = input.try_parse(CSSInteger::parse).unwrap_or(1);
         (line_number, Some(ident))
       } else {
-        return Err(input.new_custom_error(ParserError::InvalidDeclaration))
+        return Err(input.new_custom_error(ParserError::InvalidDeclaration));
       };
 
       if line_number == 0 {
-        return Err(input.new_custom_error(ParserError::InvalidDeclaration))
+        return Err(input.new_custom_error(ParserError::InvalidDeclaration));
       }
 
-      return Ok(GridLine::Span(line_number, ident))
+      return Ok(GridLine::Span(line_number, ident));
     }
 
-    if let Ok(line_number) = input.try_parse(|input| input.expect_integer()) {
+    if let Ok(line_number) = input.try_parse(CSSInteger::parse) {
       if line_number == 0 {
-        return Err(input.new_custom_error(ParserError::InvalidDeclaration))
+        return Err(input.new_custom_error(ParserError::InvalidDeclaration));
       }
       let ident = input.try_parse(CustomIdent::parse).ok();
-      return Ok(GridLine::Line(line_number, ident))
+      return Ok(GridLine::Line(line_number, ident));
     }
 
     let ident = CustomIdent::parse(input)?;
-    if let Ok(line_number) = input.try_parse(|input| input.expect_integer()) {
+    if let Ok(line_number) = input.try_parse(CSSInteger::parse) {
       if line_number == 0 {
-        return Err(input.new_custom_error(ParserError::InvalidDeclaration))
+        return Err(input.new_custom_error(ParserError::InvalidDeclaration));
       }
-      return Ok(GridLine::Line(line_number, Some(ident)))
+      return Ok(GridLine::Line(line_number, Some(ident)));
     }
 
     Ok(GridLine::Ident(ident))
@@ -1041,29 +1282,32 @@ impl<'i> Parse<'i> for GridLine<'i> {
 }
 
 impl ToCss for GridLine<'_> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     match self {
       GridLine::Auto => dest.write_str("auto"),
-      GridLine::Ident(id) => id.to_css(dest),
+      GridLine::Ident(id) => write_ident(&id.0, dest),
       GridLine::Line(line_number, id) => {
-        serialize_integer(*line_number, dest)?;
+        line_number.to_css(dest)?;
         if let Some(id) = id {
           dest.write_char(' ')?;
-          id.to_css(dest)?;
+          write_ident(&id.0, dest)?;
         }
         Ok(())
       }
       GridLine::Span(line_number, id) => {
         dest.write_str("span ")?;
         if *line_number != 1 || id.is_none() {
-          serialize_integer(*line_number, dest)?;
+          line_number.to_css(dest)?;
           if id.is_some() {
             dest.write_char(' ')?;
           }
         }
 
         if let Some(id) = id {
-          id.to_css(dest)?;
+          write_ident(&id.0, dest)?;
         }
         Ok(())
       }
@@ -1091,48 +1335,76 @@ impl<'i> GridLine<'i> {
   }
 }
 
-/// https://drafts.csswg.org/css-grid-2/#placement-shorthands
-#[derive(Debug, Clone, PartialEq)]
-pub struct GridPlacement<'i> {
-  start: GridLine<'i>,
-  end: GridLine<'i>
-}
+macro_rules! impl_grid_placement {
+  ($name: ident) => {
+    impl<'i> Parse<'i> for $name<'i> {
+      fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+        let start = GridLine::parse(input)?;
+        let end = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
+          GridLine::parse(input)?
+        } else {
+          start.default_end_value()
+        };
 
-impl<'i> Parse<'i> for GridPlacement<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let start = GridLine::parse(input)?;
-    let end = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
-      GridLine::parse(input)?
-    } else {
-      start.default_end_value()
-    };
-
-    Ok(GridPlacement {
-      start,
-      end
-    })
-  }
-}
-
-impl ToCss for GridPlacement<'_> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
-    self.start.to_css(dest)?;
-
-    if !self.start.can_omit_end(&self.end) {
-      dest.delim('/', true)?;
-      self.end.to_css(dest)?;
+        Ok($name { start, end })
+      }
     }
-    Ok(())
+
+    impl ToCss for $name<'_> {
+      fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+      where
+        W: std::fmt::Write,
+      {
+        self.start.to_css(dest)?;
+
+        if !self.start.can_omit_end(&self.end) {
+          dest.delim('/', true)?;
+          self.end.to_css(dest)?;
+        }
+        Ok(())
+      }
+    }
+  };
+}
+
+define_shorthand! {
+  /// A value for the [grid-row](https://drafts.csswg.org/css-grid-2/#propdef-grid-row) shorthand property.
+  pub struct GridRow<'i> {
+    /// The starting line.
+    #[cfg_attr(feature = "serde", serde(borrow))]
+    start: GridRowStart(GridLine<'i>),
+    /// The ending line.
+    end: GridRowEnd(GridLine<'i>),
   }
 }
 
-/// https://drafts.csswg.org/css-grid-2/#propdef-grid-area
-#[derive(Debug, Clone, PartialEq)]
-pub struct GridArea<'i> {
-  row_start: GridLine<'i>,
-  column_start: GridLine<'i>,
-  row_end: GridLine<'i>,
-  column_end: GridLine<'i>
+define_shorthand! {
+  /// A value for the [grid-row](https://drafts.csswg.org/css-grid-2/#propdef-grid-column) shorthand property.
+  pub struct GridColumn<'i> {
+    /// The starting line.
+    #[cfg_attr(feature = "serde", serde(borrow))]
+    start: GridColumnStart(GridLine<'i>),
+    /// The ending line.
+    end: GridColumnEnd(GridLine<'i>),
+  }
+}
+
+impl_grid_placement!(GridRow);
+impl_grid_placement!(GridColumn);
+
+define_shorthand! {
+  /// A value for the [grid-area](https://drafts.csswg.org/css-grid-2/#propdef-grid-area) shorthand property.
+  pub struct GridArea<'i> {
+    /// The grid row start placement.
+    #[cfg_attr(feature = "serde", serde(borrow))]
+    row_start: GridRowStart(GridLine<'i>),
+    /// The grid column start placement.
+    column_start: GridColumnStart(GridLine<'i>),
+    /// The grid row end placement.
+    row_end: GridRowEnd(GridLine<'i>),
+    /// The grid column end placement.
+    column_end: GridColumnEnd(GridLine<'i>),
+  }
 }
 
 impl<'i> Parse<'i> for GridArea<'i> {
@@ -1146,8 +1418,8 @@ impl<'i> Parse<'i> for GridArea<'i> {
         row_start,
         column_start: opposite.clone(),
         row_end: opposite.clone(),
-        column_end: opposite
-      })
+        column_end: opposite,
+      });
     };
 
     let row_end = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
@@ -1159,8 +1431,8 @@ impl<'i> Parse<'i> for GridArea<'i> {
         row_start,
         column_start,
         row_end,
-        column_end
-      })
+        column_end,
+      });
     };
 
     let column_end = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
@@ -1171,21 +1443,24 @@ impl<'i> Parse<'i> for GridArea<'i> {
         row_start,
         column_start,
         row_end,
-        column_end
-      })
+        column_end,
+      });
     };
 
     Ok(GridArea {
       row_start,
       column_start,
       row_end,
-      column_end
+      column_end,
     })
   }
 }
 
 impl ToCss for GridArea<'_> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
     self.row_start.to_css(dest)?;
 
     let can_omit_column_end = self.column_start.can_omit_end(&self.column_end);
@@ -1223,11 +1498,16 @@ pub(crate) struct GridHandler<'i> {
   column_start: Option<GridLine<'i>>,
   row_end: Option<GridLine<'i>>,
   column_end: Option<GridLine<'i>>,
-  has_any: bool
+  has_any: bool,
 }
 
 impl<'i> PropertyHandler<'i> for GridHandler<'i> {
-  fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, logical: &mut LogicalProperties) -> bool {
+  fn handle_property(
+    &mut self,
+    property: &Property<'i>,
+    dest: &mut DeclarationList<'i>,
+    context: &mut PropertyHandlerContext<'i, '_>,
+  ) -> bool {
     use Property::*;
 
     match property {
@@ -1269,19 +1549,19 @@ impl<'i> PropertyHandler<'i> for GridHandler<'i> {
         self.column_end = Some(area.column_end.clone());
       }
       Unparsed(val) if is_grid_property(&val.property_id) => {
-        self.finalize(dest, logical);
+        self.finalize(dest, context);
         dest.push(property.clone());
       }
-      _ => return false
+      _ => return false,
     }
 
     self.has_any = true;
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut LogicalProperties) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i, '_>) {
     if !self.has_any {
-      return
+      return;
     }
 
     self.has_any = false;
@@ -1298,27 +1578,27 @@ impl<'i> PropertyHandler<'i> for GridHandler<'i> {
     let mut column_end = std::mem::take(&mut self.column_end);
 
     if let (Some(rows_val), Some(columns_val), Some(areas_val)) = (&rows, &columns, &areas) {
-      // The `grid-template` shorthand supports only explicit track values (i.e. no `repeat()`)
-      // combined with grid-template-areas. If there are no areas, then any track values are allowed.
-      let is_template = *areas_val == GridTemplateAreas::None || (*rows_val != TrackSizing::None && rows_val.is_explicit() && columns_val.is_explicit());
-
       let mut has_template = true;
-      if let (Some(auto_rows_val), Some(auto_columns_val), Some(auto_flow_val)) = (&auto_rows, &auto_columns, &auto_flow) {
-        // The `grid` shorthand can either be fully explicit (e.g. same as `grid-template`), 
+      if let (Some(auto_rows_val), Some(auto_columns_val), Some(auto_flow_val)) =
+        (&auto_rows, &auto_columns, &auto_flow)
+      {
+        // The `grid` shorthand can either be fully explicit (e.g. same as `grid-template`),
         // or explicit along a single axis. If there are auto rows, then there cannot be explicit rows, for example.
-        let default_track_size_list = TrackSizeList::default();
-        let is_explicit = *auto_rows_val == default_track_size_list && *auto_columns_val == default_track_size_list && *auto_flow_val == GridAutoFlow::default();
-        let is_auto_rows = auto_flow_val.direction() == GridAutoFlow::Row && *rows_val == TrackSizing::None && *auto_columns_val == default_track_size_list;
-        let is_auto_columns = auto_flow_val.direction() == GridAutoFlow::Column && *columns_val == TrackSizing::None && *auto_rows_val == default_track_size_list;
-        
-        if (is_template && is_explicit) || is_auto_rows || is_auto_columns {
+        if Grid::is_valid(
+          rows_val,
+          columns_val,
+          areas_val,
+          auto_rows_val,
+          auto_columns_val,
+          auto_flow_val,
+        ) {
           dest.push(Property::Grid(Grid {
             rows: rows_val.clone(),
             columns: columns_val.clone(),
             areas: areas_val.clone(),
             auto_rows: auto_rows_val.clone(),
             auto_columns: auto_columns_val.clone(),
-            auto_flow: auto_flow_val.clone()
+            auto_flow: auto_flow_val.clone(),
           }));
 
           has_template = false;
@@ -1328,11 +1608,13 @@ impl<'i> PropertyHandler<'i> for GridHandler<'i> {
         }
       }
 
-      if is_template && has_template {
+      // The `grid-template` shorthand supports only explicit track values (i.e. no `repeat()`)
+      // combined with grid-template-areas. If there are no areas, then any track values are allowed.
+      if has_template && GridTemplate::is_valid(rows_val, columns_val, areas_val) {
         dest.push(Property::GridTemplate(GridTemplate {
           rows: rows_val.clone(),
           columns: columns_val.clone(),
-          areas: areas_val.clone()
+          areas: areas_val.clone(),
         }));
 
         has_template = false;
@@ -1354,14 +1636,14 @@ impl<'i> PropertyHandler<'i> for GridHandler<'i> {
       }))
     } else {
       if row_start.is_some() && row_end.is_some() {
-        dest.push(Property::GridRow(GridPlacement {
+        dest.push(Property::GridRow(GridRow {
           start: std::mem::take(&mut row_start).unwrap(),
           end: std::mem::take(&mut row_end).unwrap(),
         }))
       }
 
       if column_start.is_some() && column_end.is_some() {
-        dest.push(Property::GridColumn(GridPlacement {
+        dest.push(Property::GridColumn(GridColumn {
           start: std::mem::take(&mut column_start).unwrap(),
           end: std::mem::take(&mut column_end).unwrap(),
         }))
@@ -1392,21 +1674,21 @@ impl<'i> PropertyHandler<'i> for GridHandler<'i> {
 #[inline]
 fn is_grid_property(property_id: &PropertyId) -> bool {
   match property_id {
-    PropertyId::GridTemplateColumns |
-    PropertyId::GridTemplateRows |
-    PropertyId::GridTemplateAreas |
-    PropertyId::GridAutoColumns |
-    PropertyId::GridAutoRows |
-    PropertyId::GridAutoFlow |
-    PropertyId::GridTemplate |
-    PropertyId::Grid |
-    PropertyId::GridRowStart |
-    PropertyId::GridRowEnd |
-    PropertyId::GridColumnStart |
-    PropertyId::GridColumnEnd |
-    PropertyId::GridRow |
-    PropertyId::GridColumn |
-    PropertyId::GridArea => true,
-    _ => false
+    PropertyId::GridTemplateColumns
+    | PropertyId::GridTemplateRows
+    | PropertyId::GridTemplateAreas
+    | PropertyId::GridAutoColumns
+    | PropertyId::GridAutoRows
+    | PropertyId::GridAutoFlow
+    | PropertyId::GridTemplate
+    | PropertyId::Grid
+    | PropertyId::GridRowStart
+    | PropertyId::GridRowEnd
+    | PropertyId::GridColumnStart
+    | PropertyId::GridColumnEnd
+    | PropertyId::GridRow
+    | PropertyId::GridColumn
+    | PropertyId::GridArea => true,
+    _ => false,
   }
 }
