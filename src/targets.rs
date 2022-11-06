@@ -42,11 +42,40 @@ impl Browsers {
   ) -> Result<Option<Browsers>, browserslist::Error> {
     use browserslist::{resolve, Opts};
 
-    let res = resolve(query, &Opts::new())?;
+    Self::from_distribs(resolve(query, &Opts::new())?)
+  }
 
+  /// Finds browserslist configuration, selects queries by environment and loads the resulting queries into LightningCSS targets.
+  ///
+  /// Configuration resolution is modeled after the original `browserslist` nodeJS package.
+  /// The configuration is resolved in the following order:
+  ///
+  /// - If a `BROWSERSLIST` environment variable is present, then load targets from its value. This is analog to the `--targets` CLI option.
+  ///   Example: `BROWSERSLIST="firefox ESR" lightningcss [OPTIONS] <INPUT_FILE>`
+  /// - If a `BROWSERSLIST_CONFIG` environment variable is present, then resolve the file at the provided path.
+  ///   Then parse and use targets from `package.json` or any browserslist configuration file pointed to by the environment variable.
+  ///   Example: `BROWSERSLIST_CONFIG="../config/browserslist" lightningcss [OPTIONS] <INPUT_FILE>`
+  /// - If none of the above apply, then find, parse and use targets from the first `browserslist`, `.browserslistrc`
+  ///   or `package.json` configuration file in any parent directory.
+  ///
+  /// When using parsed configuration from `browserslist`, `.browserslistrc` or `package.json` configuration files,
+  /// the environment determined by:
+  ///
+  /// - the `BROWSERSLIST_ENV` environment variable if present,
+  /// - otherwise the `NODE_ENV` environment varialbe if present,
+  /// - otherwise `production` is used.
+  ///
+  /// If no targets are found for the resulting environment, then the `defaults` configuration section is used.
+  pub fn load_browserslist() -> Result<Option<Browsers>, browserslist::Error> {
+    use browserslist::{execute, Opts};
+
+    Self::from_distribs(execute(&Opts::new())?)
+  }
+
+  fn from_distribs(distribs: Vec<browserslist::Distrib>) -> Result<Option<Browsers>, browserslist::Error> {
     let mut browsers = Browsers::default();
     let mut has_any = false;
-    for distrib in res {
+    for distrib in distribs {
       macro_rules! browser {
         ($browser: ident) => {{
           if let Some(v) = parse_version(distrib.version()) {
