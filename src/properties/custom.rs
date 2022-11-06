@@ -1,12 +1,15 @@
 //! CSS custom properties and unparsed token values.
 
+use std::collections::HashMap;
+
+use super::Property;
 use crate::compat;
 use crate::error::{ParserError, PrinterError, PrinterErrorKind};
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::PropertyId;
 use crate::rules::supports::SupportsCondition;
-use crate::stylesheet::ParserOptions;
+use crate::stylesheet::{ParserOptions, PrinterOptions};
 use crate::targets::Browsers;
 use crate::traits::{Parse, ParseWithOptions, ToCss};
 use crate::values::color::{
@@ -89,6 +92,19 @@ impl<'i> UnparsedProperty<'i> {
       property_id,
       value: self.value.clone(),
     }
+  }
+
+  /// Substitutes variables and re-parses the property.
+  pub fn substitute_variables(
+    &self,
+    vars: &HashMap<String, TokenList<'i>>,
+  ) -> Result<Property<'i>, ParseError<'i, ParserError<'i>>> {
+    let tokens = self.value.substitute_variables(vars);
+    let mut css = String::new();
+    let mut dest = Printer::new(&mut css, PrinterOptions::default());
+    tokens.to_css(&mut dest, false).unwrap();
+    // TOOD: store `css` somewhere
+    Property::parse_string(self.property_id.clone(), &css, ParserOptions::default())
   }
 }
 
@@ -748,6 +764,28 @@ impl<'i> TokenList<'i> {
     }
 
     res
+  }
+
+  fn substitute_variables(&self, vars: &HashMap<String, TokenList<'i>>) -> TokenList<'i> {
+    TokenList(
+      self
+        .0
+        .iter()
+        .flat_map(|token| {
+          if let TokenOrValue::Var(var) = token {
+            if let Some(value) = vars.get(var.name.ident.0.as_ref()) {
+              return itertools::Either::Left(itertools::Either::Left(value.0.iter().cloned()));
+            } else if let Some(fallback) = &var.fallback {
+              return itertools::Either::Left(itertools::Either::Right(
+                fallback.substitute_variables(vars).0.into_iter(),
+              ));
+            }
+          }
+
+          itertools::Either::Right(std::iter::once(token.clone()))
+        })
+        .collect(),
+    )
   }
 }
 
