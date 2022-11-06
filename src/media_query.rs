@@ -991,7 +991,7 @@ fn process_condition<'i>(
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::stylesheet::PrinterOptions;
+  use crate::{stylesheet::PrinterOptions, targets::Browsers};
 
   fn parse(s: &str) -> MediaQuery {
     let mut input = ParserInput::new(&s);
@@ -1037,5 +1037,15 @@ mod tests {
     assert_eq!(and("all", "only screen"), "only screen");
     assert_eq!(and("only screen", "all"), "only screen");
     assert_eq!(and("print", "print"), "print");
+  }
+
+  #[test]
+  fn test_negated_interval_parens() {
+    let media_query = parse("screen and not (200px <= width < 500px)");
+    let printer_options = PrinterOptions {
+      targets: Browsers::from_browserslist(["chrome 95"]).unwrap(),
+      ..Default::default()
+    };
+    assert_eq!(media_query.to_css_string(printer_options).unwrap(), "screen and not ((min-width: 200px) and (max-width: 499.999px))");
   }
 }
