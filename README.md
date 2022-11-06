@@ -216,7 +216,7 @@ The configuration is resolved in the following order:
 
 Browserslist configuration files may contain sections denoted by angular brackets `[]`.
 Use these to specify different targets for different environments.
-Targets which are not placed in a section are added to `defaults` and used if no section applies matches the environment.
+Targets which are not placed in a section are added to `defaults` and used if no section matches the environment.
 
 _Example:_
 
