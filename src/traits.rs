@@ -5,6 +5,7 @@ use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
+use crate::rules::CssRule;
 use crate::stylesheet::{ParserOptions, PrinterOptions};
 use crate::targets::Browsers;
 use crate::vendor_prefix::VendorPrefix;
@@ -93,6 +94,18 @@ pub(crate) mod private {
   pub trait AddInternal {
     fn add(self, other: Self) -> Self;
   }
+}
+
+/// A trait for visiting or transforming rules.
+pub trait Visitor<'i, T> {
+  /// Visits a rule.
+  fn visit_rule(&mut self, rule: &mut CssRule<'i, T>);
+}
+
+/// A trait for visiting the children of a rule.
+pub trait VisitChildren<'i, T, V: Visitor<'i, T>> {
+  /// Visit the children of this rule.
+  fn visit_children(&mut self, visitor: &mut V);
 }
 
 pub(crate) trait FromStandard<T>: Sized {

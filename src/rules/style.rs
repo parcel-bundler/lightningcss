@@ -14,6 +14,8 @@ use crate::rules::{CssRuleList, StyleContext, ToCssWithContext};
 use crate::selector::{is_compatible, is_unused, Selectors};
 use crate::targets::Browsers;
 use crate::traits::ToCss;
+use crate::traits::VisitChildren;
+use crate::traits::Visitor;
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 use parcel_selectors::SelectorList;
@@ -37,13 +39,19 @@ pub struct StyleRule<'i, T> {
   pub selectors: SelectorList<'i, Selectors>,
   /// A vendor prefix override, used during selector printing.
   #[cfg_attr(feature = "serde", serde(skip, default = "VendorPrefix::empty"))]
-  pub(crate) vendor_prefix: VendorPrefix,
+  pub vendor_prefix: VendorPrefix,
   /// The declarations within the style rule.
   pub declarations: DeclarationBlock<'i>,
   /// Nested rules within the style rule.
   pub rules: CssRuleList<'i, T>,
   /// The location of the rule in the source file.
   pub loc: Location,
+}
+
+impl<'i, T: VisitChildren<'i, T, V>, V: Visitor<'i, T>> VisitChildren<'i, T, V> for StyleRule<'i, T> {
+  fn visit_children(&mut self, visitor: &mut V) {
+    self.rules.visit_children(visitor)
+  }
 }
 
 impl<'i, T> StyleRule<'i, T> {

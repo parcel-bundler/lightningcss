@@ -3,7 +3,7 @@
 use super::{CssRuleList, Location, MinifyContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
 use crate::printer::Printer;
-use crate::traits::{Parse, ToCss};
+use crate::traits::{Parse, ToCss, Visitor, VisitChildren};
 use crate::values::string::CowArcStr;
 use cssparser::*;
 use smallvec::SmallVec;
@@ -122,6 +122,12 @@ impl<'i, T> LayerBlockRule<'i, T> {
     self.rules.minify(context, parent_is_unused)?;
 
     Ok(self.rules.0.is_empty())
+  }
+}
+
+impl<'i, T: VisitChildren<'i, T, V>, V: Visitor<'i, T>> VisitChildren<'i, T, V> for LayerBlockRule<'i, T> {
+  fn visit_children(&mut self, visitor: &mut V) {
+    self.rules.visit_children(visitor)
   }
 }
 

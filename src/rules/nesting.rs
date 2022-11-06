@@ -7,6 +7,8 @@ use crate::error::{MinifyError, PrinterError};
 use crate::printer::Printer;
 use crate::rules::{StyleContext, ToCssWithContext};
 use crate::traits::ToCss;
+use crate::traits::VisitChildren;
+use crate::traits::Visitor;
 
 /// A [@nest](https://www.w3.org/TR/css-nesting-1/#at-nest) rule.
 #[derive(Debug, PartialEq, Clone)]
@@ -26,6 +28,12 @@ impl<'i, T> NestingRule<'i, T> {
     parent_is_unused: bool,
   ) -> Result<bool, MinifyError> {
     self.style.minify(context, parent_is_unused)
+  }
+}
+
+impl<'i, T: VisitChildren<'i, T, V>, V: Visitor<'i, T>> VisitChildren<'i, T, V> for NestingRule<'i, T> {
+  fn visit_children(&mut self, visitor: &mut V) {
+    self.style.visit_children(visitor)
   }
 }
 

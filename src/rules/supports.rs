@@ -5,7 +5,7 @@ use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::rules::{StyleContext, ToCssWithContext};
-use crate::traits::{Parse, ToCss};
+use crate::traits::{Parse, ToCss, Visitor, VisitChildren};
 use crate::values::string::CowArcStr;
 use cssparser::*;
 
@@ -29,6 +29,12 @@ impl<'i, T> SupportsRule<'i, T> {
     parent_is_unused: bool,
   ) -> Result<(), MinifyError> {
     self.rules.minify(context, parent_is_unused)
+  }
+}
+
+impl<'i, T: VisitChildren<'i, T, V>, V: Visitor<'i, T>> VisitChildren<'i, T, V> for SupportsRule<'i, T> {
+  fn visit_children(&mut self, visitor: &mut V) {
+    self.rules.visit_children(visitor)
   }
 }
 

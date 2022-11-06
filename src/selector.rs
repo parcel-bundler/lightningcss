@@ -913,6 +913,14 @@ impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for SelectorList<'i, Selectors> {
   }
 }
 
+impl<'i> ToCss for SelectorList<'i, Selectors> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+    where
+      W: std::fmt::Write {
+    serialize_selector_list::<_, _, DefaultAtRule>(self.0.iter(), dest, None, false)
+  }
+}
+
 impl ToCss for Combinator {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where

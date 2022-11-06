@@ -8,7 +8,7 @@ use crate::error::{MinifyError, ParserError, PrinterError};
 use crate::media_query::MediaCondition;
 use crate::printer::Printer;
 use crate::rules::{StyleContext, ToCssWithContext};
-use crate::traits::{Parse, ToCss};
+use crate::traits::{Parse, ToCss, VisitChildren, Visitor};
 use crate::values::ident::CustomIdent;
 
 /// A [@container](https://drafts.csswg.org/css-contain-3/#container-rule) rule.
@@ -47,6 +47,12 @@ impl<'i> ToCss for ContainerName<'i> {
     W: std::fmt::Write,
   {
     self.0.to_css(dest)
+  }
+}
+
+impl<'i, T: VisitChildren<'i, T, V>, V: Visitor<'i, T>> VisitChildren<'i, T, V> for ContainerRule<'i, T> {
+  fn visit_children(&mut self, visitor: &mut V) {
+    self.rules.visit_children(visitor)
   }
 }
 

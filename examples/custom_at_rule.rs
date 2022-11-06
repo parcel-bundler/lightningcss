@@ -1,9 +1,21 @@
+use std::collections::HashMap;
+
 use cssparser::*;
 use lightningcss::{
-  stylesheet::{StyleSheet, ParserOptions, PrinterOptions},
-  values::color::CssColor,
-  properties::Property, printer::Printer, error::PrinterError, traits::ToCss
+  declaration::DeclarationBlock,
+  error::PrinterError,
+  printer::Printer,
+  rules::{style::StyleRule, CssRule, CssRuleList, Location},
+  stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
+  targets::Browsers,
+  traits::{ToCss, VisitChildren, Visitor},
+  vendor_prefix::VendorPrefix,
 };
+use parcel_selectors::{
+  parser::{Component, Selector},
+  SelectorList,
+};
+use smallvec::smallvec;
 
 fn main() {
   let args: Vec<String> = std::env::args().collect();
@@ -19,52 +31,63 @@ fn main() {
     source_index: 0,
   };
 
-  let stylesheet = StyleSheet::parse(
-    &source, 
-    opts
-  ).unwrap();
+  let mut stylesheet = StyleSheet::parse(&source, opts).unwrap();
 
   println!("{:?}", stylesheet);
-  
-  let result = stylesheet.to_css(PrinterOptions::default()).unwrap();
+
+  let mut style_rules = HashMap::new();
+  stylesheet.rules.visit_children(&mut StyleRuleCollector {
+    rules: &mut style_rules,
+  });
+  println!("{:?}", style_rules);
+  stylesheet.rules.visit_children(&mut ApplyVisitor { rules: &style_rules });
+
+  let result = stylesheet
+    .to_css(PrinterOptions {
+      targets: Some(Browsers {
+        chrome: Some(100 << 16),
+        ..Browsers::default()
+      }),
+      ..PrinterOptions::default()
+    })
+    .unwrap();
   println!("{}", result.code);
 }
 
 /// An @tailwind directive.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum TailwindDirective {
   Base,
   Components,
   Utilities,
-  Variants
+  Variants,
 }
 
 /// A custom at rule prelude.
 enum Prelude {
   Tailwind(TailwindDirective),
-  Apply(Vec<String>, bool)
+  Apply(Vec<String>),
 }
 
 /// A @tailwind rule.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct TailwindRule {
   directive: TailwindDirective,
-  loc: SourceLocation
+  loc: SourceLocation,
 }
 
 /// An @apply rule.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct ApplyRule {
   names: Vec<String>,
-  important: bool,
-  loc: SourceLocation
+  loc: SourceLocation,
 }
 
 /// A custom at rule.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum AtRule {
   Tailwind(TailwindRule),
-  Apply(ApplyRule)
+  Apply(ApplyRule),
 }
 
 #[derive(Debug)]
@@ -104,43 +127,90 @@ impl<'i> AtRuleParser<'i> for TailwindAtRuleParser {
           }
         }
 
-        let important = input.try_parse(|input| {
-          input.expect_delim('!')?;
-          input.expect_ident_matching("important")
-        }).is_ok();
-
-        Ok(Prelude::Apply(names, important))
+        Ok(Prelude::Apply(names))
       },
       _ => Err(input.new_error(BasicParseErrorKind::AtRuleInvalid(name)))
     }
   }
 
-  fn rule_without_block(
-    &mut self,
-    prelude: Self::Prelude,
-    start: &ParserState,
-  ) -> Result<Self::AtRule, ()> {
+  fn rule_without_block(&mut self, prelude: Self::Prelude, start: &ParserState) -> Result<Self::AtRule, ()> {
     let loc = start.source_location();
     match prelude {
-      Prelude::Tailwind(directive) => {
-        Ok(AtRule::Tailwind(TailwindRule {
-          directive,
-          loc
-        }))
-      }
-      Prelude::Apply(names, important) => {
-        Ok(AtRule::Apply(ApplyRule {
-          names,
-          important,
-          loc
-        }))
-      }
+      Prelude::Tailwind(directive) => Ok(AtRule::Tailwind(TailwindRule { directive, loc })),
+      Prelude::Apply(names) => Ok(AtRule::Apply(ApplyRule { names, loc })),
     }
   }
 }
 
+struct StyleRuleCollector<'i, 'a> {
+  rules: &'a mut HashMap<String, DeclarationBlock<'i>>,
+}
+
+impl<'i, 'a> Visitor<'i, AtRule> for StyleRuleCollector<'i, 'a> {
+  fn visit_rule(&mut self, rule: &mut lightningcss::rules::CssRule<'i, AtRule>) {
+    match rule {
+      CssRule::Style(rule) => {
+        for selector in rule.selectors.0.iter() {
+          if selector.len() != 1 {
+            continue; // TODO
+          }
+          for component in selector.iter_raw_match_order() {
+            match component {
+              Component::Class(name) => {
+                self.rules.insert(name.0.to_string(), rule.declarations.clone());
+              }
+              _ => {}
+            }
+          }
+        }
+      }
+      _ => {}
+    }
+
+    rule.visit_children(self)
+  }
+}
+
+struct ApplyVisitor<'a, 'i> {
+  rules: &'a HashMap<String, DeclarationBlock<'i>>,
+}
+
+impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
+  fn visit_rule(&mut self, rule: &mut CssRule<'i, AtRule>) {
+    // Replace @apply rule with nested style rule.
+    if let CssRule::Custom(AtRule::Apply(apply)) = rule {
+      let mut declarations = DeclarationBlock::new();
+      for name in &apply.names {
+        let applied = self.rules.get(name).unwrap();
+        declarations
+          .important_declarations
+          .extend(applied.important_declarations.iter().cloned());
+        declarations.declarations.extend(applied.declarations.iter().cloned());
+      }
+      *rule = CssRule::Style(StyleRule {
+        // TODO expose nicer API for building selectors.
+        selectors: SelectorList(smallvec![Selector::from_vec2(vec![Component::Nesting])]),
+        vendor_prefix: VendorPrefix::None,
+        declarations,
+        rules: CssRuleList(vec![]),
+        loc: Location {
+          source_index: 0,
+          line: apply.loc.line,
+          column: apply.loc.column,
+        },
+      })
+    }
+
+    rule.visit_children(self)
+  }
+}
+
+impl<'i, V: Visitor<'i, AtRule>> VisitChildren<'i, AtRule, V> for AtRule {
+  fn visit_children(&mut self, _: &mut V) {}
+}
+
 impl ToCss for AtRule {
-  fn to_css<W: std::fmt::Write>(&self, dest: &mut Printer<W>)-> Result<(), PrinterError> {
+  fn to_css<W: std::fmt::Write>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> {
     match self {
       AtRule::Tailwind(rule) => {
         let _ = rule.loc; // TODO: source maps
@@ -148,32 +218,11 @@ impl ToCss for AtRule {
           TailwindDirective::Base => "TAILWIND BASE HERE",
           TailwindDirective::Components => "TAILWIND COMPONENTS HERE",
           TailwindDirective::Utilities => "TAILWIND UTILITIES HERE",
-          TailwindDirective::Variants => "TAILWIND VARIANTS HERE"
+          TailwindDirective::Variants => "TAILWIND VARIANTS HERE",
         };
         dest.write_str(directive)
       }
-      AtRule::Apply(rule) => {
-        // TODO: possibly better to expose a way to transform these rules to inline the 
-        // declarations rather than doing it during printing.
-        let _ = rule.loc; // TODO: source maps
-        for name in &rule.names {
-          match name.as_ref() {
-            "bg-blue-400" => {
-              let color = RGBA { red: 0, green: 0, blue: 255, alpha: 255 };
-              let property = Property::BackgroundColor(CssColor::RGBA(color));
-              property.to_css(dest, rule.important)?;
-            }
-            "text-red-400" => {
-              let color = RGBA { red: 255, green: 0, blue: 0, alpha: 255 };
-              let property = Property::Color(CssColor::RGBA(color));
-              property.to_css(dest, rule.important)?;
-            }
-            _ => {}
-          }
-          dest.write_str("; ")?;
-        }
-        Ok(())
-      }
+      AtRule::Apply(_) => Ok(()),
     }
   }
 }

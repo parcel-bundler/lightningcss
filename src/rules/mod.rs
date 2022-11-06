@@ -69,7 +69,7 @@ use crate::rules::keyframes::KeyframesName;
 use crate::selector::{downlevel_selectors, get_prefix, is_equivalent};
 use crate::stylesheet::ParserOptions;
 use crate::targets::Browsers;
-use crate::traits::ToCss;
+use crate::traits::{ToCss, VisitChildren, Visitor};
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
 use container::ContainerRule;
@@ -250,6 +250,30 @@ pub(crate) struct MinifyContext<'a, 'i> {
   pub unused_symbols: &'a HashSet<String>,
   pub custom_media: Option<HashMap<CowArcStr<'i>, CustomMediaRule<'i>>>,
   pub css_modules: bool,
+}
+
+impl<'i, T: VisitChildren<'i, T, V>, V: Visitor<'i, T>> VisitChildren<'i, T, V> for CssRuleList<'i, T> {
+  fn visit_children(&mut self, visitor: &mut V) {
+    for rule in self.0.iter_mut() {
+      visitor.visit_rule(rule);
+    }
+  }
+}
+
+impl<'i, T: VisitChildren<'i, T, V>, V: Visitor<'i, T>> VisitChildren<'i, T, V> for CssRule<'i, T> {
+  fn visit_children(&mut self, visitor: &mut V) {
+    match self {
+      CssRule::Media(media) => media.visit_children(visitor),
+      CssRule::Style(style) => style.visit_children(visitor),
+      CssRule::Supports(supports) => supports.visit_children(visitor),
+      CssRule::MozDocument(document) => document.visit_children(visitor),
+      CssRule::Nesting(nesting) => nesting.visit_children(visitor),
+      CssRule::LayerBlock(layer) => layer.visit_children(visitor),
+      CssRule::Container(container) => container.visit_children(visitor),
+      CssRule::Custom(rule) => rule.visit_children(visitor),
+      _ => {}
+    }
+  }
 }
 
 impl<'i, T> CssRuleList<'i, T> {

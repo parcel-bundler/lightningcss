@@ -6,7 +6,7 @@ use crate::error::{MinifyError, PrinterError};
 use crate::media_query::MediaList;
 use crate::printer::Printer;
 use crate::rules::{StyleContext, ToCssWithContext};
-use crate::traits::ToCss;
+use crate::traits::{ToCss, Visitor, VisitChildren};
 
 /// A [@media](https://drafts.csswg.org/css-conditional-3/#at-media) rule.
 #[derive(Debug, PartialEq, Clone)]
@@ -34,6 +34,12 @@ impl<'i, T> MediaRule<'i, T> {
     }
 
     Ok(self.rules.0.is_empty() || self.query.never_matches())
+  }
+}
+
+impl<'i, T: VisitChildren<'i, T, V>, V: Visitor<'i, T>> VisitChildren<'i, T, V> for MediaRule<'i, T> {
+  fn visit_children(&mut self, visitor: &mut V) {
+    self.rules.visit_children(visitor)
   }
 }
 

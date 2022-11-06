@@ -94,6 +94,14 @@ impl<'i> DeclarationBlock<'i> {
     parser.expect_exhausted()?;
     Ok(result)
   }
+
+  /// Returns an empty declaration block.
+  pub fn new() -> Self {
+    Self {
+      declarations: vec![],
+      important_declarations: vec![]
+    }
+  }
 }
 
 impl<'i> ToCss for DeclarationBlock<'i> {

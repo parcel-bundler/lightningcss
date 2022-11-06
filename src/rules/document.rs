@@ -4,7 +4,7 @@ use super::Location;
 use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, PrinterError};
 use crate::printer::Printer;
-use crate::traits::ToCss;
+use crate::traits::{ToCss, Visitor, VisitChildren};
 
 /// A [@-moz-document](https://www.w3.org/TR/2012/WD-css3-conditional-20120911/#at-document) rule.
 ///
@@ -23,6 +23,12 @@ pub struct MozDocumentRule<'i, T> {
 impl<'i, T> MozDocumentRule<'i, T> {
   pub(crate) fn minify(&mut self, context: &mut MinifyContext<'_, 'i>) -> Result<(), MinifyError> {
     self.rules.minify(context, false)
+  }
+}
+
+impl<'i, T: VisitChildren<'i, T, V>, V: Visitor<'i, T>> VisitChildren<'i, T, V> for MozDocumentRule<'i, T> {
+  fn visit_children(&mut self, visitor: &mut V) {
+    self.rules.visit_children(visitor)
   }
 }
 
