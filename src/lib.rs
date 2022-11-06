@@ -6806,7 +6806,7 @@ mod tests {
         }
       "#},
       Browsers {
-        firefox: Some(60 << 16),
+        firefox: Some(62 << 16),
         ..Browsers::default()
       },
     );
@@ -6827,7 +6827,28 @@ mod tests {
         }
       "#},
       Browsers {
-        firefox: Some(85 << 16),
+        firefox: Some(62 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+        @media (100px <= width <= 200px) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (width >= 100px) and (width <= 200px) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(63 << 16),
         ..Browsers::default()
       },
     );
@@ -6848,7 +6869,28 @@ mod tests {
         }
       "#},
       Browsers {
-        firefox: Some(85 << 16),
+        firefox: Some(62 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+        @media (100px < width < 200px) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (width > 100px) and (width < 200px) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(63 << 16),
         ..Browsers::default()
       },
     );
@@ -6869,7 +6911,28 @@ mod tests {
         }
       "#},
       Browsers {
-        firefox: Some(85 << 16),
+        firefox: Some(62 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+        @media (200px >= width >= 100px) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (width <= 200px) and (width >= 100px) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(63 << 16),
         ..Browsers::default()
       },
     );

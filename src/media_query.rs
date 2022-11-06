@@ -447,12 +447,73 @@ impl<'i> ToCss for MediaCondition<'i> {
   where
     W: std::fmt::Write,
   {
-    match *self {
-      MediaCondition::Feature(ref f) => f.to_css(dest),
-      MediaCondition::Not(ref c) => {
-        dest.write_str("not ")?;
-        c.to_css(dest)
+    enum ExpandableMediaIntervalFeatureCondition<'a, 'i> {
+      Original(&'a MediaCondition<'i>),
+      Expanded(MediaCondition<'i>),
+    }
+
+    fn expand_media_feature_interval<'a, 'i, W>(
+      c: &'a MediaCondition<'i>,
+      dest: &mut Printer<W>,
+    ) -> ExpandableMediaIntervalFeatureCondition<'a, 'i>
+    where
+      W: std::fmt::Write,
+    {
+      // Media interval syntax is expanded to an `and` operation of two parenthized plain media features,
+      // which has an effect on negated vs plain syntax on root level.
+      // The operation must be enclosed in parens when negated, but left plain otherwise.
+      // Positive syntax: `@media screen and (...) and (...)`
+      // Negated syntax: `@media screen and not ((...) and (...))`
+      if let MediaCondition::Feature(MediaFeature::Interval {
+        ref name,
+        ref start,
+        ref start_operator,
+        ref end,
+        ref end_operator,
+      }) = *c
+      {
+        if let Some(targets) = dest.targets {
+          if !Feature::MediaIntervalSyntax.is_compatible(targets) {
+            let range_op = MediaCondition::Operation(
+              vec![
+                MediaCondition::Feature(MediaFeature::Range {
+                  name: name.clone(),
+                  operator: start_operator.opposite(),
+                  value: start.clone(),
+                }),
+                MediaCondition::Feature(MediaFeature::Range {
+                  name: name.clone(),
+                  operator: *end_operator,
+                  value: end.clone(),
+                }),
+              ],
+              Operator::And,
+            );
+            return ExpandableMediaIntervalFeatureCondition::Expanded(range_op);
+          }
+        }
       }
+
+      ExpandableMediaIntervalFeatureCondition::Original(c)
+    }
+
+    match *self {
+      ref c @ MediaCondition::Feature(_) => match expand_media_feature_interval(c, dest) {
+        ExpandableMediaIntervalFeatureCondition::Original(&MediaCondition::Feature(ref f)) => f.to_css(dest),
+        ExpandableMediaIntervalFeatureCondition::Original(c) => c.to_css(dest),
+        ExpandableMediaIntervalFeatureCondition::Expanded(c) => c.to_css(dest),
+      },
+      MediaCondition::Not(ref c) => match expand_media_feature_interval(&**c, dest) {
+        ExpandableMediaIntervalFeatureCondition::Original(c) => {
+          dest.write_str("not ")?;
+          c.to_css(dest)
+        }
+        ExpandableMediaIntervalFeatureCondition::Expanded(c) => {
+          dest.write_str("not (")?;
+          c.to_css(dest)?;
+          dest.write_char(')')
+        }
+      },
       MediaCondition::InParens(ref c) => {
         dest.write_char('(')?;
         c.to_css(dest)?;
@@ -670,14 +731,6 @@ impl<'i> ToCss for MediaFeature<'i> {
         end,
         end_operator,
       } => {
-        if let Some(targets) = dest.targets {
-          if !Feature::MediaIntervalSyntax.is_compatible(targets) {
-            write_min_max(&start_operator.opposite(), name, start, dest)?;
-            dest.write_str(" and (")?;
-            return write_min_max(end_operator, name, end, dest);
-          }
-        }
-
         start.to_css(dest)?;
         start_operator.to_css(dest)?;
         serialize_identifier(name, dest)?;
@@ -1040,12 +1093,34 @@ mod tests {
   }
 
   #[test]
-  fn test_negated_interval_parens() {
+  fn test_negated_interval_parens_before_range_syntax() {
     let media_query = parse("screen and not (200px <= width < 500px)");
     let printer_options = PrinterOptions {
-      targets: Browsers::from_browserslist(["chrome 95"]).unwrap(),
-      ..Default::default()
+      targets: Some(Browsers {
+        firefox: Some(62 << 16),
+        ..Browsers::default()
+      }),
+      ..PrinterOptions::default()
     };
-    assert_eq!(media_query.to_css_string(printer_options).unwrap(), "screen and not ((min-width: 200px) and (max-width: 499.999px))");
+    assert_eq!(
+      media_query.to_css_string(printer_options).unwrap(),
+      "screen and not ((min-width: 200px) and (max-width: 499.999px))"
+    );
+  }
+
+  #[test]
+  fn test_negated_interval_parens_with_range_syntax() {
+    let media_query = parse("screen and not (200px <= width < 500px)");
+    let printer_options = PrinterOptions {
+      targets: Some(Browsers {
+        firefox: Some(63 << 16),
+        ..Browsers::default()
+      }),
+      ..PrinterOptions::default()
+    };
+    assert_eq!(
+      media_query.to_css_string(printer_options).unwrap(),
+      "screen and not ((width >= 200px) and (width < 500px))"
+    );
   }
 }
