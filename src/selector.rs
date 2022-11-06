@@ -1695,7 +1695,7 @@ where
     .map(|selector| {
       let mut dest = String::new();
       let mut printer = Printer::new(&mut dest, PrinterOptions::default());
-      serialize_selector(selector, &mut printer, None, false).unwrap();
+      serialize_selector::<_, DefaultAtRule>(selector, &mut printer, None, false).unwrap();
       dest
     })
     .collect::<Vec<String>>()

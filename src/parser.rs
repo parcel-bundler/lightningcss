@@ -36,8 +36,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 /// CSS parsing options.
-#[derive(Clone, Debug)]
-pub struct ParserOptions<'o, 'i, T> {
+#[derive(Clone, Debug, Default)]
+pub struct ParserOptions<'o, 'i, T = DefaultAtRuleParser> {
   /// Filename to use in error messages.
   pub filename: String,
   /// Whether the enable the [CSS nesting](https://www.w3.org/TR/css-nesting-1/) draft syntax.
@@ -89,7 +89,7 @@ impl<'o, 'i> ParserOptions<'o, 'i, DefaultAtRuleParser> {
   }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct DefaultAtRuleParser;
 impl<'i> AtRuleParser<'i> for DefaultAtRuleParser {
   type AtRule = DefaultAtRule;
@@ -97,6 +97,8 @@ impl<'i> AtRuleParser<'i> for DefaultAtRuleParser {
   type Prelude = ();
 }
 
+#[derive(PartialEq, Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DefaultAtRule;
 impl crate::traits::ToCss for DefaultAtRule {
   fn to_css<W: std::fmt::Write>(&self, _: &mut Printer<W>) -> Result<(), PrinterError> {

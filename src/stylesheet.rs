@@ -9,12 +9,12 @@ use crate::css_modules::{CssModule, CssModuleExports, CssModuleReferences};
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::dependencies::Dependency;
 use crate::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterError, PrinterErrorKind};
-use crate::parser::{TopLevelRuleParser, DefaultAtRuleParser};
+use crate::parser::{DefaultAtRuleParser, TopLevelRuleParser};
 use crate::printer::Printer;
 use crate::rules::{CssRule, CssRuleList, MinifyContext};
 use crate::targets::Browsers;
 use crate::traits::ToCss;
-use cssparser::{Parser, ParserInput, RuleListParser, AtRuleParser};
+use cssparser::{AtRuleParser, Parser, ParserInput, RuleListParser};
 use parcel_sourcemap::SourceMap;
 use std::collections::{HashMap, HashSet};
 
@@ -60,7 +60,16 @@ pub use crate::printer::PseudoClasses;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StyleSheet<'i, 'o, T: AtRuleParser<'i> = DefaultAtRuleParser> {
   /// A list of top-level rules within the style sheet.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(
+    feature = "serde",
+    serde(
+      borrow,
+      bound(
+        serialize = "T::AtRule: serde::Serialize",
+        deserialize = "T::AtRule: serde::Deserialize<'de>"
+      )
+    )
+  )]
   pub rules: CssRuleList<'i, T::AtRule>,
   /// A list of file names for all source files included within the style sheet.
   /// Sources are referenced by index in the `loc` property of each rule.
@@ -102,10 +111,14 @@ pub struct ToCssResult {
 
 impl<'i, 'o, T: AtRuleParser<'i>> StyleSheet<'i, 'o, T>
 where
-  T::AtRule: ToCss
+  T::AtRule: ToCss,
 {
   /// Creates a new style sheet with the given source filenames and rules.
-  pub fn new(sources: Vec<String>, rules: CssRuleList<'i, T::AtRule>, options: ParserOptions<'o, 'i, T>) -> StyleSheet<'i, 'o, T> {
+  pub fn new(
+    sources: Vec<String>,
+    rules: CssRuleList<'i, T::AtRule>,
+    options: ParserOptions<'o, 'i, T>,
+  ) -> StyleSheet<'i, 'o, T> {
     StyleSheet {
       sources,
       source_map_urls: Vec::new(),
@@ -118,7 +131,8 @@ where
   pub fn parse(code: &'i str, mut options: ParserOptions<'o, 'i, T>) -> Result<Self, Error<ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
-    let mut rule_list_parser = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(&mut options));
+    let mut rule_list_parser =
+      RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(&mut options));
 
     let mut rules = vec![];
     while let Some(rule) = rule_list_parser.next() {
