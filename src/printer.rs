@@ -72,6 +72,7 @@ pub struct Printer<'a, 'b, 'c, W> {
   /// the vendor prefix of whatever is being printed.
   pub(crate) vendor_prefix: VendorPrefix,
   pub(crate) in_calc: bool,
+  pub(crate) in_negated_media_feature: bool,
   pub(crate) css_module: Option<CssModule<'a, 'b, 'c>>,
   pub(crate) dependencies: Option<Vec<Dependency>>,
   pub(crate) remove_imports: bool,
@@ -98,6 +99,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
       targets: options.targets,
       vendor_prefix: VendorPrefix::empty(),
       in_calc: false,
+      in_negated_media_feature: false,
       css_module: None,
       dependencies: if options.analyze_dependencies.is_some() {
         Some(Vec::new())
