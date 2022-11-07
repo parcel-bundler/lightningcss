@@ -459,7 +459,7 @@ impl<'i> ToCss for MediaCondition<'i> {
     where
       W: std::fmt::Write,
     {
-      // Media interval syntax is expanded to an `and` operation of two parenthized plain media features,
+      // Media interval syntax is expanded to an `and` operation of two parenthesized plain media features,
       // which has an effect on negated vs plain syntax on root level.
       // The operation must be enclosed in parens when negated, but left plain otherwise.
       // Positive syntax: `@media screen and (...) and (...)`
