@@ -6820,7 +6820,7 @@ mod tests {
         }
       "#,
       indoc! { r#"
-        @media (min-width: 100px) and (max-width: 200px) {
+        @media ((min-width: 100px) and (max-width: 200px)) {
           .foo {
             color: #7fff00;
           }
@@ -6841,7 +6841,7 @@ mod tests {
         }
       "#,
       indoc! { r#"
-        @media (min-width: 100.001px) and (max-width: 199.999px) {
+        @media ((min-width: 100.001px) and (max-width: 199.999px)) {
           .foo {
             color: #7fff00;
           }
@@ -6862,7 +6862,7 @@ mod tests {
         }
       "#,
       indoc! { r#"
-        @media (max-width: 200px) and (min-width: 100px) {
+        @media ((max-width: 200px) and (min-width: 100px)) {
           .foo {
             color: #7fff00;
           }

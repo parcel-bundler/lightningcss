@@ -672,9 +672,11 @@ impl<'i> ToCss for MediaFeature<'i> {
       } => {
         if let Some(targets) = dest.targets {
           if !Feature::MediaIntervalSyntax.is_compatible(targets) {
+            dest.write_char('(')?;
             write_min_max(&start_operator.opposite(), name, start, dest)?;
             dest.write_str(" and (")?;
-            return write_min_max(end_operator, name, end, dest);
+            write_min_max(end_operator, name, end, dest)?;
+            return dest.write_char(')');
           }
         }
 
@@ -1043,9 +1045,15 @@ mod tests {
   fn test_negated_interval_parens() {
     let media_query = parse("screen and not (200px <= width < 500px)");
     let printer_options = PrinterOptions {
-      targets: Browsers::from_browserslist(["chrome 95"]).unwrap(),
-      ..Default::default()
+      targets: Some(Browsers {
+        firefox: Some(62 << 16),
+        ..Browsers::default()
+      }),
+      ..PrinterOptions::default()
     };
-    assert_eq!(media_query.to_css_string(printer_options).unwrap(), "screen and not ((min-width: 200px) and (max-width: 499.999px))");
+    assert_eq!(
+      media_query.to_css_string(printer_options).unwrap(),
+      "screen and not ((min-width: 200px) and (max-width: 499.999px))"
+    );
   }
 }
