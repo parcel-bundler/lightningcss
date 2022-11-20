@@ -1164,7 +1164,16 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for Component<'i, Selectors> {
       Is(ref list) | Where(ref list) | Negation(ref list) | Any(_, ref list) => {
         match *self {
           Where(..) => dest.write_str(":where(")?,
-          Is(..) => {
+          Is(ref selectors) => {
+            // If there's only one simple selector, serialize it directly.
+            if selectors.len() == 1 {
+              let first = selectors.first().unwrap();
+              if !has_type_selector(first) && is_simple(first) {
+                serialize_selector(first, dest, context, false)?;
+                return Ok(());
+              }
+            }
+
             let vp = dest.vendor_prefix;
             if vp.intersects(VendorPrefix::WebKit | VendorPrefix::Moz) {
               dest.write_char(':')?;
