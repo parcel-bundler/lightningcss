@@ -7,7 +7,7 @@ use lightningcss::css_modules::{CssModuleExports, CssModuleReferences, PatternPa
 use lightningcss::dependencies::{Dependency, DependencyOptions};
 use lightningcss::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterErrorKind};
 use lightningcss::stylesheet::{
-  MinifyOptions, ParserOptions, PrinterOptions, PseudoClasses, StyleAttribute, StyleSheet,
+  MinifyOptions, NestingSpec, ParserOptions, PrinterOptions, PseudoClasses, StyleAttribute, StyleSheet,
 };
 use lightningcss::targets::Browsers;
 use parcel_sourcemap::SourceMap;
@@ -540,9 +540,41 @@ impl<'a> Into<PseudoClasses<'a>> for &'a OwnedPseudoClasses {
 #[serde(rename_all = "camelCase")]
 struct Drafts {
   #[serde(default)]
-  nesting: bool,
+  nesting: NestingOption,
   #[serde(default)]
   custom_media: bool,
+}
+
+#[derive(Serialize, Debug, Deserialize)]
+#[serde(untagged)]
+enum NestingOption {
+  Bool(bool),
+  Version(u8),
+}
+
+impl Default for NestingOption {
+  fn default() -> Self {
+    NestingOption::Bool(false)
+  }
+}
+
+impl NestingOption {
+  fn into_nesting_spec<'i, E: std::error::Error>(&self) -> Result<NestingSpec, CompileError<'i, E>> {
+    Ok(match self {
+      NestingOption::Bool(n) => {
+        if *n {
+          NestingSpec::V1
+        } else {
+          NestingSpec::None
+        }
+      }
+      NestingOption::Version(v) => match *v {
+        1 => NestingSpec::V1,
+        2 => NestingSpec::V2,
+        v => return Err(CompileError::InvalidNestingSpec(v)),
+      },
+    })
+  }
 }
 
 fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult<'i>, CompileError<'i, std::io::Error>> {
@@ -564,7 +596,11 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult<'i>, Co
       &code,
       ParserOptions {
         filename: filename.clone(),
-        nesting: matches!(drafts, Some(d) if d.nesting),
+        nesting: if let Some(drafts) = &config.drafts {
+          drafts.nesting.into_nesting_spec()?
+        } else {
+          NestingSpec::None
+        },
         custom_media: matches!(drafts, Some(d) if d.custom_media),
         css_modules: if let Some(css_modules) = &config.css_modules {
           match css_modules {
@@ -657,7 +693,11 @@ fn compile_bundle<'i, P: SourceProvider>(
   let res = {
     let drafts = config.drafts.as_ref();
     let parser_options = ParserOptions {
-      nesting: matches!(drafts, Some(d) if d.nesting),
+      nesting: if let Some(drafts) = &config.drafts {
+        drafts.nesting.into_nesting_spec()?
+      } else {
+        NestingSpec::None
+      },
       custom_media: matches!(drafts, Some(d) if d.custom_media),
       css_modules: if let Some(css_modules) = &config.css_modules {
         match css_modules {
@@ -830,6 +870,7 @@ enum CompileError<'i, E: std::error::Error> {
   SourceMapError(parcel_sourcemap::SourceMapError),
   BundleError(Error<BundleErrorKind<'i, E>>),
   PatternError(PatternParseError),
+  InvalidNestingSpec(u8),
 }
 
 impl<'i, E: std::error::Error> std::fmt::Display for CompileError<'i, E> {
@@ -841,6 +882,7 @@ impl<'i, E: std::error::Error> std::fmt::Display for CompileError<'i, E> {
       CompileError::BundleError(err) => err.kind.fmt(f),
       CompileError::PatternError(err) => err.fmt(f),
       CompileError::SourceMapError(err) => write!(f, "{}", err.to_string()), // TODO: switch to `fmt::Display` once parcel_sourcemap supports this
+      CompileError::InvalidNestingSpec(v) => write!(f, "Invalid nesting version {}", v),
     }
   }
 }

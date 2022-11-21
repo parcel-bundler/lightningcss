@@ -40,7 +40,7 @@ pub struct ParserOptions<'o, 'i> {
   /// Filename to use in error messages.
   pub filename: String,
   /// Whether the enable the [CSS nesting](https://www.w3.org/TR/css-nesting-1/) draft syntax.
-  pub nesting: bool,
+  pub nesting: NestingSpec,
   /// Whether to enable the [custom media](https://drafts.csswg.org/mediaqueries-5/#custom-mq) draft syntax.
   pub custom_media: bool,
   /// Whether the enable [CSS modules](https://github.com/css-modules/css-modules).
@@ -52,6 +52,24 @@ pub struct ParserOptions<'o, 'i> {
   pub error_recovery: bool,
   /// A list that will be appended to when a warning occurs.
   pub warnings: Option<Arc<RwLock<Vec<Error<ParserError<'i>>>>>>,
+}
+
+/// Version of the CSS nesting spec to enable.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum NestingSpec {
+  /// No nesting allowed.
+  None,
+  /// V1 spec, with required & and @nest rule.
+  /// This is deprecated, but available for backward compatibility.
+  V1,
+  /// V2 spec, with implicit &.
+  V2,
+}
+
+impl Default for NestingSpec {
+  fn default() -> Self {
+    NestingSpec::None
+  }
 }
 
 impl<'o, 'i> ParserOptions<'o, 'i> {
@@ -640,7 +658,7 @@ impl<'a, 'o, 'b, 'i> QualifiedRuleParser<'i> for NestedRuleParser<'a, 'o, 'i> {
     input: &mut Parser<'i, 't>,
   ) -> Result<CssRule<'i>, ParseError<'i, Self::Error>> {
     let loc = self.loc(start);
-    let (declarations, rules) = if self.options.nesting {
+    let (declarations, rules) = if self.options.nesting != NestingSpec::None {
       parse_declarations_and_nested_rules(input, self.default_namespace, self.namespace_prefixes, self.options)?
     } else {
       (DeclarationBlock::parse(input, self.options)?, CssRuleList(vec![]))
@@ -664,7 +682,7 @@ fn parse_declarations_and_nested_rules<'a, 'o, 'i, 't>(
   let mut important_declarations = DeclarationList::new();
   let mut declarations = DeclarationList::new();
   let mut rules = CssRuleList(vec![]);
-  let parser = StyleRuleParser {
+  let mut parser = StyleRuleParser {
     default_namespace,
     namespace_prefixes,
     options,
@@ -673,28 +691,36 @@ fn parse_declarations_and_nested_rules<'a, 'o, 'i, 't>(
     rules: &mut rules,
   };
 
-  let mut declaration_parser = DeclarationListParser::new(input, parser);
-  let mut last = declaration_parser.input.state();
-  while let Some(decl) = declaration_parser.next() {
-    match decl {
-      Ok(_) => {}
-      _ => {
-        declaration_parser.input.reset(&last);
-        break;
+  // In the v2 nesting spec, declarations and nested rules may be mixed.
+  // https://drafts.csswg.org/css-syntax/#consume-style-block
+  loop {
+    let start = input.state();
+    match input.next_including_whitespace_and_comments() {
+      Ok(&Token::WhiteSpace(_)) | Ok(&Token::Comment(_)) | Ok(&Token::Semicolon) => continue,
+      Ok(&Token::Ident(ref name)) => {
+        let name = name.clone();
+        let callback = |input: &mut Parser<'i, '_>| {
+          input.expect_colon()?;
+          parser.parse_value(name, input)
+        };
+        input.parse_until_after(Delimiter::Semicolon, callback)?;
       }
-    }
-
-    last = declaration_parser.input.state();
-  }
-
-  let mut iter = RuleListParser::new_for_nested_rule(declaration_parser.input, declaration_parser.parser);
-  while let Some(result) = iter.next() {
-    if let Err((err, _)) = result {
-      if options.error_recovery {
-        options.warn(err);
-        continue;
+      Ok(_) => {
+        input.reset(&start);
+        let mut iter = RuleListParser::new_for_nested_rule(input, parser);
+        if let Some(result) = iter.next() {
+          if let Err((err, _)) = result {
+            if options.error_recovery {
+              options.warn(err);
+              parser = iter.parser;
+              continue;
+            }
+            return Err(err);
+          }
+        }
+        parser = iter.parser;
       }
-      return Err(err);
+      Err(_) => break,
     }
   }
 
@@ -726,7 +752,7 @@ impl<'a, 'o, 'i> cssparser::DeclarationParser<'i> for StyleRuleParser<'a, 'o, 'i
     name: CowRcStr<'i>,
     input: &mut cssparser::Parser<'i, 't>,
   ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
-    if !self.rules.0.is_empty() {
+    if !self.rules.0.is_empty() && self.options.nesting == NestingSpec::V1 {
       // Declarations cannot come after nested rules.
       return Err(input.new_custom_error(ParserError::InvalidNesting));
     }
@@ -759,7 +785,7 @@ impl<'a, 'o, 'i> AtRuleParser<'i> for StyleRuleParser<'a, 'o, 'i> {
         let cond = SupportsCondition::parse(input)?;
         Ok(AtRulePrelude::Supports(cond))
       },
-      "nest" => {
+      "nest" if self.options.nesting == NestingSpec::V1 => {
         let selector_parser = SelectorParser {
           default_namespace: self.default_namespace,
           namespace_prefixes: self.namespace_prefixes,
@@ -893,7 +919,11 @@ impl<'a, 'o, 'b, 'i> QualifiedRuleParser<'i> for StyleRuleParser<'a, 'o, 'i> {
       is_nesting_allowed: true,
       options: &self.options,
     };
-    SelectorList::parse(&selector_parser, input, NestingRequirement::Prefixed)
+    match self.options.nesting {
+      NestingSpec::V1 => SelectorList::parse(&selector_parser, input, NestingRequirement::Prefixed),
+      NestingSpec::V2 => SelectorList::parse_relative(&selector_parser, input, NestingRequirement::Implicit),
+      NestingSpec::None => unreachable!(),
+    }
   }
 
   fn parse_block<'t>(

@@ -1,6 +1,6 @@
 use clap::{ArgGroup, Parser};
 use lightningcss::bundler::{Bundler, FileProvider};
-use lightningcss::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
+use lightningcss::stylesheet::{MinifyOptions, NestingSpec, ParserOptions, PrinterOptions, StyleSheet};
 use lightningcss::targets::Browsers;
 use parcel_sourcemap::SourceMap;
 use serde::Serialize;
@@ -110,7 +110,11 @@ pub fn main() -> Result<(), std::io::Error> {
 
   let res = {
     let mut options = ParserOptions {
-      nesting: cli_args.nesting,
+      nesting: if cli_args.nesting {
+        NestingSpec::V1 // TODO
+      } else {
+        NestingSpec::None
+      },
       css_modules,
       custom_media: cli_args.custom_media,
       error_recovery: cli_args.error_recovery,
