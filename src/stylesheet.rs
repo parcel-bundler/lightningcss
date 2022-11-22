@@ -18,7 +18,7 @@ use cssparser::{Parser, ParserInput, RuleListParser};
 use parcel_sourcemap::SourceMap;
 use std::collections::{HashMap, HashSet};
 
-pub use crate::parser::{NestingSpec, ParserOptions};
+pub use crate::parser::ParserOptions;
 pub use crate::printer::PrinterOptions;
 pub use crate::printer::PseudoClasses;
 

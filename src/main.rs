@@ -1,6 +1,6 @@
-use clap::{ArgGroup, Parser, ValueEnum};
+use clap::{ArgGroup, Parser};
 use lightningcss::bundler::{Bundler, FileProvider};
-use lightningcss::stylesheet::{MinifyOptions, NestingSpec, ParserOptions, PrinterOptions, StyleSheet};
+use lightningcss::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
 use lightningcss::targets::Browsers;
 use parcel_sourcemap::SourceMap;
 use serde::Serialize;
@@ -28,8 +28,8 @@ struct CliArgs {
   #[clap(short, long, value_parser)]
   minify: bool,
   /// Enable parsing CSS nesting
-  #[clap(long, value_parser, require_equals(true))]
-  nesting: Option<Option<Nesting>>,
+  #[clap(long, value_parser)]
+  nesting: bool,
   /// Enable parsing custom media queries
   #[clap(long, value_parser)]
   custom_media: bool,
@@ -53,28 +53,6 @@ struct CliArgs {
   browserslist: bool,
   #[clap(long, value_parser)]
   error_recovery: bool,
-}
-
-#[derive(ValueEnum, Clone, Debug)]
-#[clap(rename_all = "lower")]
-enum Nesting {
-  V1,
-  V2,
-}
-
-impl Default for Nesting {
-  fn default() -> Self {
-    Nesting::V1
-  }
-}
-
-impl Into<NestingSpec> for Nesting {
-  fn into(self) -> NestingSpec {
-    match self {
-      Nesting::V1 => NestingSpec::V1,
-      Nesting::V2 => NestingSpec::V2,
-    }
-  }
 }
 
 #[derive(Serialize)]
@@ -132,11 +110,7 @@ pub fn main() -> Result<(), std::io::Error> {
 
   let res = {
     let mut options = ParserOptions {
-      nesting: if let Some(nesting) = cli_args.nesting {
-        nesting.map_or(NestingSpec::V1, |n| n.into())
-      } else {
-        NestingSpec::None
-      },
+      nesting: cli_args.nesting,
       css_modules,
       custom_media: cli_args.custom_media,
       error_recovery: cli_args.error_recovery,

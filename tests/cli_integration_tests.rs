@@ -236,35 +236,6 @@ fn nesting_option() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn nesting_v2() -> Result<(), Box<dyn std::error::Error>> {
-  let infile = assert_fs::NamedTempFile::new("test.css")?;
-  infile.write_str(
-    r#"
-        .foo {
-          color: blue;
-          .bar { color: red; }
-        }
-      "#,
-  )?;
-
-  let mut cmd = Command::cargo_bin("lightningcss")?;
-  cmd.arg(infile.path());
-  cmd.arg("--targets=defaults");
-  cmd.arg("--nesting=v2");
-  cmd.assert().success().stdout(predicate::str::contains(indoc! {r#"
-        .foo {
-          color: #00f;
-        }
-
-        .foo .bar {
-          color: red;
-        }
-      "#}));
-
-  Ok(())
-}
-
-#[test]
 fn css_modules_infer_output_file() -> Result<(), Box<dyn std::error::Error>> {
   let (input, _, exports) = css_module_test_vals();
   let infile = assert_fs::NamedTempFile::new("test.css")?;

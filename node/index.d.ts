@@ -67,13 +67,8 @@ export interface Resolver {
 }
 
 export interface Drafts {
-  /** 
-   * Whether to enable CSS nesting.
-   * If a number is provided, that version of the spec is used.
-   * v1 required an & in every selector, and supported the @nest rule.
-   * v2 has implicit nesting for descendant combinators.
-   */
-  nesting?: boolean | 1 | 2,
+  /** Whether to enable CSS nesting. */
+  nesting?: boolean,
   /** Whether to enable @custom-media rules. */
   customMedia?: boolean
 }
