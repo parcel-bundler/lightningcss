@@ -11,6 +11,8 @@ use crate::rules::{StyleContext, ToCssWithContext};
 use crate::stylesheet::{ParserOptions, PrinterOptions};
 use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
+use crate::values::ident::Ident;
+use crate::values::string::CSSString;
 use crate::vendor_prefix::VendorPrefix;
 use crate::visitor::{Visit, VisitTypes, Visitor};
 use crate::{macros::enum_property, values::string::CowArcStr};
@@ -18,80 +20,32 @@ use cssparser::*;
 use parcel_selectors::parser::SelectorParseErrorKind;
 use parcel_selectors::{
   attr::{AttrSelectorOperator, ParsedAttrSelectorOperation, ParsedCaseSensitivity},
-  parser::{Combinator, SelectorImpl},
+  parser::{SelectorImpl},
 };
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
-use std::fmt::Write;
 
 mod private {
-  use super::*;
-
   #[derive(Debug, Clone, PartialEq, Eq)]
   pub struct Selectors;
-
-  #[derive(Debug, Clone, PartialEq, Eq, Default)]
-  pub struct SelectorString<'a>(pub CowArcStr<'a>);
-
-  #[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
-  pub struct SelectorIdent<'i>(pub CowArcStr<'i>);
 }
 
-use private::{SelectorIdent, SelectorString, Selectors};
+use private::Selectors;
 
 pub type SelectorList<'i> = parcel_selectors::SelectorList<'i, Selectors>;
 pub type Selector<'i> = parcel_selectors::parser::Selector<'i, Selectors>;
 pub type Component<'i> = parcel_selectors::parser::Component<'i, Selectors>;
-
-impl<'a> std::convert::From<CowRcStr<'a>> for SelectorString<'a> {
-  fn from(s: CowRcStr<'a>) -> SelectorString<'a> {
-    SelectorString(s.into())
-  }
-}
-
-impl<'a> cssparser::ToCss for SelectorString<'a> {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
-  where
-    W: std::fmt::Write,
-  {
-    write!(CssStringWriter::new(dest), "{}", &self.0)
-  }
-}
-
-impl<'a> SelectorString<'a> {
-  pub fn write_identifier<W>(&self, dest: &mut W) -> Result<(), PrinterError>
-  where
-    W: fmt::Write,
-  {
-    serialize_identifier(&self.0, dest)?;
-    Ok(())
-  }
-}
-
-impl<'a> std::convert::From<CowRcStr<'a>> for SelectorIdent<'a> {
-  fn from(s: CowRcStr<'a>) -> SelectorIdent {
-    SelectorIdent(s.into())
-  }
-}
-
-impl<'i> cssparser::ToCss for SelectorIdent<'i> {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
-  where
-    W: std::fmt::Write,
-  {
-    serialize_identifier(&self.0, dest)
-  }
-}
+pub use parcel_selectors::parser::Combinator;
 
 impl<'i> SelectorImpl<'i> for Selectors {
-  type AttrValue = SelectorString<'i>;
-  type Identifier = SelectorIdent<'i>;
-  type LocalName = SelectorIdent<'i>;
-  type NamespacePrefix = SelectorIdent<'i>;
-  type NamespaceUrl = SelectorIdent<'i>;
-  type BorrowedNamespaceUrl = SelectorIdent<'i>;
-  type BorrowedLocalName = SelectorIdent<'i>;
+  type AttrValue = CSSString<'i>;
+  type Identifier = Ident<'i>;
+  type LocalName = Ident<'i>;
+  type NamespacePrefix = Ident<'i>;
+  type NamespaceUrl = CowArcStr<'i>;
+  type BorrowedNamespaceUrl = CowArcStr<'i>;
+  type BorrowedLocalName = Ident<'i>;
 
   type NonTSPseudoClass = PseudoClass<'i>;
   type PseudoElement = PseudoElement<'i>;
@@ -338,12 +292,12 @@ impl<'a, 'o, 'i, T> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 
     true
   }
 
-  fn default_namespace(&self) -> Option<SelectorIdent<'i>> {
-    self.default_namespace.clone().map(SelectorIdent)
+  fn default_namespace(&self) -> Option<CowArcStr<'i>> {
+    self.default_namespace.clone()
   }
 
-  fn namespace_for_prefix(&self, prefix: &SelectorIdent<'i>) -> Option<SelectorIdent<'i>> {
-    self.namespace_prefixes.get(&prefix.0).cloned().map(SelectorIdent)
+  fn namespace_for_prefix(&self, prefix: &Ident<'i>) -> Option<CowArcStr<'i>> {
+    self.namespace_prefixes.get(&prefix.0).cloned()
   }
 
   #[inline]
@@ -672,7 +626,7 @@ impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for PseudoClass<'i> {
 }
 
 impl<'i> PseudoClass<'i> {
-  pub fn is_equivalent(&self, other: &PseudoClass<'i>) -> bool {
+  pub(crate) fn is_equivalent(&self, other: &PseudoClass<'i>) -> bool {
     use PseudoClass::*;
     match (self, other) {
       (Fullscreen(_), Fullscreen(_))
@@ -685,7 +639,7 @@ impl<'i> PseudoClass<'i> {
     }
   }
 
-  pub fn get_prefix(&self) -> VendorPrefix {
+  pub(crate) fn get_prefix(&self) -> VendorPrefix {
     use PseudoClass::*;
     match self {
       Fullscreen(p) | AnyLink(p) | ReadOnly(p) | ReadWrite(p) | PlaceholderShown(p) | Autofill(p) => *p,
@@ -693,7 +647,7 @@ impl<'i> PseudoClass<'i> {
     }
   }
 
-  pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+  pub(crate) fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
     use crate::prefixes::Feature;
     use PseudoClass::*;
     let feature = match self {
@@ -881,7 +835,7 @@ impl<'i> parcel_selectors::parser::PseudoElement<'i> for PseudoElement<'i> {
 }
 
 impl<'i> PseudoElement<'i> {
-  pub fn is_equivalent(&self, other: &PseudoElement<'i>) -> bool {
+  pub(crate) fn is_equivalent(&self, other: &PseudoElement<'i>) -> bool {
     use PseudoElement::*;
     match (self, other) {
       (Selection(_), Selection(_))
@@ -892,7 +846,7 @@ impl<'i> PseudoElement<'i> {
     }
   }
 
-  pub fn get_prefix(&self) -> VendorPrefix {
+  pub(crate) fn get_prefix(&self) -> VendorPrefix {
     use PseudoElement::*;
     match self {
       Selection(p) | Placeholder(p) | Backdrop(p) | FileSelectorButton(p) => *p,
@@ -900,7 +854,7 @@ impl<'i> PseudoElement<'i> {
     }
   }
 
-  pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+  pub(crate) fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
     use crate::prefixes::Feature;
     use PseudoElement::*;
     let feature = match self {
@@ -1151,30 +1105,24 @@ impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for Component<'i> {
         case_sensitivity,
         ..
       } => {
-        use cssparser::ToCss;
         dest.write_char('[')?;
-        local_name.to_css(dest)?;
+        cssparser::ToCss::to_css(local_name, dest)?;
         cssparser::ToCss::to_css(operator, dest)?;
 
         if dest.minify {
           // Serialize as both an identifier and a string and choose the shorter one.
           let mut id = String::new();
-          value.write_identifier(&mut id)?;
+          serialize_identifier(&value, &mut id)?;
 
-          let mut s = String::new();
-          value.to_css(&mut s)?;
+          let s = value.to_css_string(Default::default())?;
 
-          if id.len() > 0 && id.len() < s.len() + 2 {
+          if id.len() > 0 && id.len() < s.len() {
             dest.write_str(&id)?;
           } else {
-            dest.write_char('"')?;
             dest.write_str(&s)?;
-            dest.write_char('"')?;
           }
         } else {
-          dest.write_char('"')?;
           value.to_css(dest)?;
-          dest.write_char('"')?;
         }
 
         match case_sensitivity {
@@ -1350,7 +1298,7 @@ where
   Ok(())
 }
 
-pub fn is_compatible(selectors: &SelectorList, targets: Option<Browsers>) -> bool {
+pub(crate) fn is_compatible(selectors: &SelectorList, targets: Option<Browsers>) -> bool {
   for selector in &selectors.0 {
     let iter = selector.iter();
     for component in iter {
@@ -1521,7 +1469,7 @@ pub fn is_compatible(selectors: &SelectorList, targets: Option<Browsers>) -> boo
 }
 
 /// Returns whether two selector lists are equivalent, i.e. the same minus any vendor prefix differences.
-pub fn is_equivalent<'i>(selectors: &SelectorList<'i>, other: &SelectorList<'i>) -> bool {
+pub(crate) fn is_equivalent<'i>(selectors: &SelectorList<'i>, other: &SelectorList<'i>) -> bool {
   if selectors.0.len() != other.0.len() {
     return false;
   }
@@ -1550,7 +1498,7 @@ pub fn is_equivalent<'i>(selectors: &SelectorList<'i>, other: &SelectorList<'i>)
 
 /// Returns the vendor prefix (if any) used in the given selector list.
 /// If multiple vendor prefixes are seen, this is invalid, and an empty result is returned.
-pub fn get_prefix(selectors: &SelectorList) -> VendorPrefix {
+pub(crate) fn get_prefix(selectors: &SelectorList) -> VendorPrefix {
   let mut prefix = VendorPrefix::empty();
   for selector in &selectors.0 {
     for component in selector.iter() {
@@ -1584,7 +1532,7 @@ const RTL_LANGS: &[&str] = &[
 
 /// Downlevels the given selectors to be compatible with the given browser targets.
 /// Returns the necessary vendor prefixes.
-pub fn downlevel_selectors(selectors: &mut SelectorList, targets: Browsers) -> VendorPrefix {
+pub(crate) fn downlevel_selectors(selectors: &mut SelectorList, targets: Browsers) -> VendorPrefix {
   let mut necessary_prefixes = VendorPrefix::empty();
   for selector in &mut selectors.0 {
     for component in selector.iter_mut_raw_match_order() {
@@ -1639,7 +1587,7 @@ fn downlevel_component<'i>(component: &mut Component<'i>, targets: Browsers) -> 
 fn lang_list_to_selectors<'i>(langs: &Vec<CowArcStr<'i>>) -> Box<[Selector<'i>]> {
   langs
     .iter()
-    .map(|lang| Selector::from_vec2(vec![Component::NonTSPseudoClass(PseudoClass::Lang(vec![lang.clone()]))]))
+    .map(|lang| Selector::from(Component::NonTSPseudoClass(PseudoClass::Lang(vec![lang.clone()]))))
     .collect::<Vec<Selector>>()
     .into_boxed_slice()
 }
@@ -1651,7 +1599,7 @@ fn downlevel_dir<'i>(dir: Direction, targets: Browsers) -> Component<'i> {
   if Feature::LangList.is_compatible(targets) {
     let c = Component::NonTSPseudoClass(PseudoClass::Lang(langs));
     if dir == Direction::Ltr {
-      Component::Negation(vec![Selector::from_vec2(vec![c])].into_boxed_slice())
+      Component::Negation(vec![Selector::from(c)].into_boxed_slice())
     } else {
       c
     }
@@ -1666,7 +1614,7 @@ fn downlevel_dir<'i>(dir: Direction, targets: Browsers) -> Component<'i> {
 
 /// Determines whether a selector list contains only unused selectors.
 /// A selector is considered unused if it contains a class or id component that exists in the set of unused symbols.
-pub fn is_unused(
+pub(crate) fn is_unused(
   selectors: &mut std::slice::Iter<Selector>,
   unused_symbols: &HashSet<String>,
   parent_is_unused: bool,
@@ -1702,7 +1650,7 @@ pub fn is_unused(
 }
 
 #[cfg(feature = "serde")]
-pub fn serialize_selectors<S>(selectors: &SelectorList, s: S) -> Result<S::Ok, S::Error>
+pub(crate) fn serialize_selectors<S>(selectors: &SelectorList, s: S) -> Result<S::Ok, S::Error>
 where
   S: serde::Serializer,
 {
@@ -1721,7 +1669,7 @@ where
 }
 
 #[cfg(feature = "serde")]
-pub fn deserialize_selectors<'i, 'de: 'i, D>(deserializer: D) -> Result<SelectorList<'i>, D::Error>
+pub(crate) fn deserialize_selectors<'i, 'de: 'i, D>(deserializer: D) -> Result<SelectorList<'i>, D::Error>
 where
   D: serde::Deserializer<'de>,
 {

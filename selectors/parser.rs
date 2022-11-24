@@ -482,6 +482,12 @@ impl<'i, Impl: SelectorImpl<'i>> From<Selector<'i, Impl>> for SelectorList<'i, I
   }
 }
 
+impl<'i, Impl: SelectorImpl<'i>> From<Component<'i, Impl>> for SelectorList<'i, Impl> {
+  fn from(component: Component<'i, Impl>) -> Self {
+    SelectorList::from(Selector::from(component))
+  }
+}
+
 /// Parses one compound selector suitable for nested stuff like :-moz-any, etc.
 fn parse_inner_compound_selector<'i, 't, P, Impl>(
   parser: &P,
@@ -825,19 +831,6 @@ impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
     Selector(spec, components)
   }
 
-  pub fn from_vec2(vec: Vec<Component<'i, Impl>>) -> Self {
-    let mut builder = SelectorBuilder::default();
-    for component in vec.into_iter() {
-      if let Some(combinator) = component.as_combinator() {
-        builder.push_combinator(combinator);
-      } else {
-        builder.push_simple_selector(component);
-      }
-    }
-    let (spec, components) = builder.build(false, false, false);
-    Selector(spec, components)
-  }
-
   /// Returns count of simple selectors and combinators in the Selector.
   #[inline]
   pub fn len(&self) -> usize {
@@ -886,6 +879,34 @@ impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
     }
 
     true
+  }
+}
+
+impl<'i, Impl: SelectorImpl<'i>> From<Component<'i, Impl>> for Selector<'i, Impl> {
+  fn from(component: Component<'i, Impl>) -> Self {
+    let mut builder = SelectorBuilder::default();
+    if let Some(combinator) = component.as_combinator() {
+      builder.push_combinator(combinator);
+    } else {
+      builder.push_simple_selector(component);
+    }
+    let (spec, components) = builder.build(false, false, false);
+    Selector(spec, components)
+  }
+}
+
+impl<'i, Impl: SelectorImpl<'i>> From<Vec<Component<'i, Impl>>> for Selector<'i, Impl> {
+  fn from(vec: Vec<Component<'i, Impl>>) -> Self {
+    let mut builder = SelectorBuilder::default();
+    for component in vec.into_iter() {
+      if let Some(combinator) = component.as_combinator() {
+        builder.push_combinator(combinator);
+      } else {
+        builder.push_simple_selector(component);
+      }
+    }
+    let (spec, components) = builder.build(false, false, false);
+    Selector(spec, components)
   }
 }
 
@@ -1585,9 +1606,7 @@ impl<'i, Impl: SelectorImpl<'i>> ToCss for Component<'i, Impl> {
         dest.write_char('[')?;
         local_name.to_css(dest)?;
         operator.to_css(dest)?;
-        dest.write_char('"')?;
         value.to_css(dest)?;
-        dest.write_char('"')?;
         match case_sensitivity {
           ParsedCaseSensitivity::CaseSensitive
           | ParsedCaseSensitivity::AsciiCaseInsensitiveIfInHtmlElementInHtmlDocument => {}
@@ -1680,9 +1699,7 @@ impl<'i, Impl: SelectorImpl<'i>> ToCss for AttrSelectorWithOptionalNamespace<'i,
         ref expected_value,
       } => {
         operator.to_css(dest)?;
-        dest.write_char('"')?;
         expected_value.to_css(dest)?;
-        dest.write_char('"')?;
         match case_sensitivity {
           ParsedCaseSensitivity::CaseSensitive
           | ParsedCaseSensitivity::AsciiCaseInsensitiveIfInHtmlElementInHtmlDocument => {}
@@ -2636,7 +2653,7 @@ pub mod tests {
   use super::*;
   use crate::builder::SelectorFlags;
   use crate::parser;
-  use cssparser::{serialize_identifier, Parser as CssParser, ParserInput, ToCss};
+  use cssparser::{serialize_identifier, Parser as CssParser, ParserInput, ToCss, serialize_string};
   use std::collections::HashMap;
   use std::fmt;
 
@@ -2748,9 +2765,7 @@ pub mod tests {
     where
       W: fmt::Write,
     {
-      use std::fmt::Write;
-
-      write!(cssparser::CssStringWriter::new(dest), "{}", &self.0)
+      serialize_string(&self.0, dest)
     }
   }
 

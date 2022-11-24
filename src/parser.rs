@@ -25,7 +25,7 @@ use crate::rules::{
   unknown::UnknownAtRule,
   CssRule, CssRuleList, Location,
 };
-use crate::selector::{Component, Selector, SelectorList, SelectorParser};
+use crate::selector::{Component, SelectorList, SelectorParser};
 use crate::traits::Parse;
 use crate::values::ident::{CustomIdent, DashedIdent};
 use crate::values::string::CowArcStr;
@@ -980,7 +980,7 @@ fn parse_nested_at_rule<'a, 'o, 'i, 't, T: AtRuleParser<'i>>(
     rules.0.insert(
       0,
       CssRule::Style(StyleRule {
-        selectors: SelectorList::from(Selector::from_vec2(vec![Component::Nesting])),
+        selectors: Component::Nesting.into(),
         declarations,
         vendor_prefix: VendorPrefix::empty(),
         rules: CssRuleList(vec![]),

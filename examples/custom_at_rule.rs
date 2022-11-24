@@ -6,7 +6,7 @@ use lightningcss::{
   error::PrinterError,
   printer::Printer,
   rules::{style::StyleRule, CssRule, CssRuleList, Location},
-  selector::{Component, Selector, SelectorList},
+  selector::{Component, Selector},
   stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
   targets::Browsers,
   traits::ToCss,
@@ -177,7 +177,7 @@ struct ApplyVisitor<'a, 'i> {
 }
 
 impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
-  const TYPES: VisitTypes = visit_types!(RULES | COLORS | LENGTHS | DASHED_IDENTS);
+  const TYPES: VisitTypes = visit_types!(RULES | COLORS | LENGTHS | DASHED_IDENTS | SELECTORS);
 
   fn visit_rule(&mut self, rule: &mut CssRule<'i, AtRule>) {
     // Replace @apply rule with nested style rule.
@@ -191,8 +191,7 @@ impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
         declarations.declarations.extend(applied.declarations.iter().cloned());
       }
       *rule = CssRule::Style(StyleRule {
-        // TODO expose nicer API for building selectors.
-        selectors: SelectorList::from(Selector::from_vec2(vec![Component::Nesting])),
+        selectors: Component::Nesting.into(),
         vendor_prefix: VendorPrefix::None,
         declarations,
         rules: CssRuleList(vec![]),
@@ -230,7 +229,18 @@ impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
   }
 
   fn visit_dashed_ident(&mut self, ident: &mut lightningcss::values::ident::DashedIdent) {
-    ident.0 = format!("--prefix-{}", &ident.0[2..]).into()
+    ident.0 = format!("--tw-{}", &ident.0[2..]).into()
+  }
+
+  fn visit_selector(&mut self, selector: &mut Selector<'i>) {
+    for c in selector.iter_mut_raw_match_order() {
+      match c {
+        Component::Class(c) => {
+          *c = format!("tw-{}", c).into();
+        }
+        _ => {}
+      }
+    }
   }
 }
 

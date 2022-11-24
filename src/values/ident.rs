@@ -8,6 +8,10 @@ use crate::values::string::CowArcStr;
 use crate::visitor::Visit;
 use cssparser::*;
 use smallvec::SmallVec;
+use std::ops::Deref;
+use std::borrow::Borrow;
+
+use super::string::impl_string_type;
 
 /// A CSS [`<custom-ident>`](https://www.w3.org/TR/css-values-4/#custom-idents).
 ///
@@ -137,3 +141,38 @@ impl<'i> ToCss for DashedIdentReference<'i> {
     dest.write_dashed_ident(&self.ident.0, false)
   }
 }
+
+/// A CSS [`<ident>`](https://www.w3.org/TR/css-values-4/#css-css-identifier).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Visit)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Ident<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CowArcStr<'i>);
+
+impl<'i> Parse<'i> for Ident<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let ident = input.expect_ident()?;
+    Ok(Ident(ident.into()))
+  }
+}
+
+impl<'i> ToCss for Ident<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    serialize_identifier(&self.0, dest)?;
+    Ok(())
+  }
+}
+
+impl<'i> cssparser::ToCss for Ident<'i> {
+  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
+  where
+    W: std::fmt::Write,
+  {
+    serialize_identifier(&self.0, dest)
+  }
+}
+
+impl_string_type!(Ident);
+impl_string_type!(CustomIdent);
+impl_string_type!(DashedIdent);
