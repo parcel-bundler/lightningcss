@@ -6,19 +6,22 @@ use crate::printer::Printer;
 use crate::properties::custom::TokenList;
 use crate::traits::ToCss;
 use crate::values::string::CowArcStr;
+use crate::visitor::Visit;
 
 /// An unknown at-rule, stored as raw tokens.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UnknownAtRule<'i> {
   /// The name of the at-rule (without the @).
   #[cfg_attr(feature = "serde", serde(borrow))]
+  #[skip_visit]
   pub name: CowArcStr<'i>,
   /// The prelude of the rule.
   pub prelude: TokenList<'i>,
   /// The contents of the block, if any.
   pub block: Option<TokenList<'i>>,
   /// The location of the rule in the source file.
+  #[skip_visit]
   pub loc: Location,
 }
 

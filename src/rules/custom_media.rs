@@ -6,9 +6,10 @@ use crate::media_query::MediaList;
 use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::values::ident::DashedIdent;
+use crate::visitor::Visit;
 
 /// A [@custom-media](https://drafts.csswg.org/mediaqueries-5/#custom-mq) rule.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CustomMediaRule<'i> {
   /// The name of the declared media query.
@@ -17,6 +18,7 @@ pub struct CustomMediaRule<'i> {
   /// The media query to declare.
   pub query: MediaList<'i>,
   /// The location of the rule in the source file.
+  #[skip_visit]
   pub loc: Location,
 }
 

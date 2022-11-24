@@ -7,17 +7,16 @@ use crate::error::{MinifyError, PrinterError};
 use crate::printer::Printer;
 use crate::rules::{StyleContext, ToCssWithContext};
 use crate::traits::ToCss;
-use crate::traits::VisitChildren;
-use crate::traits::Visitor;
-
+use crate::visitor::Visit;
 /// A [@nest](https://www.w3.org/TR/css-nesting-1/#at-nest) rule.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct NestingRule<'i, T> {
+pub struct NestingRule<'i, R> {
   /// The style rule that defines the selector and declarations for the `@nest` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  pub style: StyleRule<'i, T>,
+  pub style: StyleRule<'i, R>,
   /// The location of the rule in the source file.
+  #[skip_visit]
   pub loc: Location,
 }
 
@@ -28,12 +27,6 @@ impl<'i, T> NestingRule<'i, T> {
     parent_is_unused: bool,
   ) -> Result<bool, MinifyError> {
     self.style.minify(context, parent_is_unused)
-  }
-}
-
-impl<'i, T: VisitChildren<'i, T, V>, V: Visitor<'i, T>> VisitChildren<'i, T, V> for NestingRule<'i, T> {
-  fn visit_children(&mut self, visitor: &mut V) {
-    self.style.visit_children(visitor)
   }
 }
 

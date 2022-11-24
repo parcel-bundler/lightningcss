@@ -5,6 +5,7 @@ use crate::printer::Printer;
 use crate::properties::css_modules::Specifier;
 use crate::traits::{Parse, ParseWithOptions, ToCss};
 use crate::values::string::CowArcStr;
+use crate::visitor::Visit;
 use cssparser::*;
 use smallvec::SmallVec;
 
@@ -13,7 +14,8 @@ use smallvec::SmallVec;
 /// Custom idents are author defined, and allow any valid identifier except the
 /// [CSS-wide keywords](https://www.w3.org/TR/css-values-4/#css-wide-keywords).
 /// They may be renamed to include a hash when compiled as part of a CSS module.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Visit)]
+#[visit(visit_custom_ident, CUSTOM_IDENTS)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CustomIdent<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CowArcStr<'i>);
 
@@ -50,7 +52,8 @@ pub type CustomIdentList<'i> = SmallVec<[CustomIdent<'i>; 1]>;
 ///
 /// Dashed idents are used in cases where an identifier can be either author defined _or_ CSS-defined.
 /// Author defined idents must start with two dash characters ("--") or parsing will fail.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Visit)]
+#[visit(visit_dashed_ident, DASHED_IDENTS)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DashedIdent<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CowArcStr<'i>);
 
@@ -82,7 +85,7 @@ impl<'i> ToCss for DashedIdent<'i> {
 ///
 /// In CSS modules, when the `dashed_idents` option is enabled, the identifier may be followed by the
 /// `from` keyword and an argument indicating where the referenced identifier is declared (e.g. a filename).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DashedIdentReference<'i> {
   /// The referenced identifier.

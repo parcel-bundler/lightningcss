@@ -13,10 +13,11 @@ use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::number::CSSNumber;
 use crate::values::string::CowArcStr;
 use crate::values::{angle::Angle, length::LengthPercentage, percentage::Percentage};
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A value for the [font-weight](https://www.w3.org/TR/css-fonts-4/#font-weight-prop) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -73,7 +74,7 @@ impl ToCss for FontWeight {
 /// as used in the `font-weight` property.
 ///
 /// See [FontWeight](FontWeight).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -156,7 +157,7 @@ enum_property! {
 }
 
 /// A value for the [font-size](https://www.w3.org/TR/css-fonts-4/#font-size-prop) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -252,7 +253,7 @@ impl Into<Percentage> for &FontStretchKeyword {
 }
 
 /// A value for the [font-stretch](https://www.w3.org/TR/css-fonts-4/#font-stretch-prop) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -348,7 +349,7 @@ enum_property! {
 }
 
 /// A value for the [font-family](https://www.w3.org/TR/css-fonts-4/#font-family-prop) property.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -429,7 +430,7 @@ impl<'i> ToCss for FontFamily<'i> {
 }
 
 /// A value for the [font-style](https://www.w3.org/TR/css-fonts-4/#font-style-prop) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -529,7 +530,7 @@ impl FontVariantCaps {
 }
 
 /// A value for the [line-height](https://www.w3.org/TR/2020/WD-css-inline-3-20200827/#propdef-line-height) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -601,7 +602,7 @@ enum_property! {
 
 /// A value for the [vertical align](https://drafts.csswg.org/css2/#propdef-vertical-align) property.
 // TODO: there is a more extensive spec in CSS3 but it doesn't seem any browser implements it? https://www.w3.org/TR/css-inline-3/#transverse-alignment
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

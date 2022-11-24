@@ -4,13 +4,14 @@ use super::percentage::NumberOrPercentage;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A CSS [`<alpha-value>`](https://www.w3.org/TR/css-color-4/#typedef-alpha-value),
 /// used to represent opacity.
 ///
 /// Parses either a `<number>` or `<percentage>`, but is always stored and serialized as a number.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AlphaValue(pub f32);
 

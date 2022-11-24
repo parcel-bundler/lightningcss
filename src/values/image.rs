@@ -13,11 +13,13 @@ use crate::traits::{FallbackValues, Parse, ToCss};
 use crate::values::string::CowArcStr;
 use crate::values::url::Url;
 use crate::vendor_prefix::VendorPrefix;
+use crate::visitor::Visit;
 use cssparser::*;
 use smallvec::SmallVec;
 
 /// A CSS [`<image>`](https://www.w3.org/TR/css-images-3/#image-values) value.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
+#[visit(visit_image, IMAGES)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -339,7 +341,7 @@ impl<'i> ToCss for Image<'i> {
 ///
 /// `image-set()` allows the user agent to choose between multiple versions of an image to
 /// display the most appropriate resolution or file type that it supports.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ImageSet<'i> {
   /// The image options to choose from.
@@ -411,10 +413,11 @@ impl<'i> ToCss for ImageSet<'i> {
 }
 
 /// An image option within the `image-set()` function. See [ImageSet](ImageSet).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ImageSetOption<'i> {
   /// The image for this option.
+  #[skip_type]
   pub image: Image<'i>,
   /// The resolution of the image.
   pub resolution: Resolution,

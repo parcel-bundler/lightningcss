@@ -10,11 +10,12 @@ use crate::traits::{Parse, ToCss};
 use crate::values::number::CSSNumber;
 use crate::values::string::CowArcStr;
 use crate::values::{length::Length, ratio::Ratio, resolution::Resolution};
+use crate::visitor::Visit;
 use cssparser::*;
 use std::collections::{HashMap, HashSet};
 
 /// A [media query list](https://drafts.csswg.org/mediaqueries/#mq-list).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MediaList<'i> {
   /// The list of media queries.
@@ -141,7 +142,7 @@ enum_property! {
 }
 
 /// A [media type](https://drafts.csswg.org/mediaqueries/#media-types) within a media query.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -173,7 +174,8 @@ impl<'i> Parse<'i> for MediaType<'i> {
 }
 
 /// A [media query](https://drafts.csswg.org/mediaqueries/#media).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Visit)]
+#[visit(visit_media_query, MEDIA_QUERIES)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MediaQuery<'i> {
   /// The qualifier for this query.
@@ -362,7 +364,7 @@ enum_property! {
 }
 
 /// Represents a media condition.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -373,10 +375,13 @@ pub enum MediaCondition<'i> {
   #[cfg_attr(feature = "serde", serde(borrow))]
   Feature(MediaFeature<'i>),
   /// A negation of a condition.
+  #[skip_type]
   Not(Box<MediaCondition<'i>>),
   /// A set of joint operations.
+  #[skip_type]
   Operation(Vec<MediaCondition<'i>>, Operator),
   /// A condition wrapped in parenthesis.
+  #[skip_type]
   InParens(Box<MediaCondition<'i>>),
 }
 
@@ -474,7 +479,7 @@ impl<'i> ToCss for MediaCondition<'i> {
 }
 
 /// A [comparator](https://drafts.csswg.org/mediaqueries/#typedef-mf-comparison) within a media query.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -530,7 +535,7 @@ impl MediaFeatureComparison {
 }
 
 /// A [media feature](https://drafts.csswg.org/mediaqueries/#typedef-media-feature)
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -732,7 +737,7 @@ where
 /// [media feature value](https://drafts.csswg.org/mediaqueries/#typedef-mf-value) within a media query.
 ///
 /// See [MediaFeature](MediaFeature).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

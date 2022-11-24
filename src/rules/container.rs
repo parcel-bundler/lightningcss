@@ -8,26 +8,28 @@ use crate::error::{MinifyError, ParserError, PrinterError};
 use crate::media_query::MediaCondition;
 use crate::printer::Printer;
 use crate::rules::{StyleContext, ToCssWithContext};
-use crate::traits::{Parse, ToCss, VisitChildren, Visitor};
+use crate::traits::{Parse, ToCss};
 use crate::values::ident::CustomIdent;
+use crate::visitor::Visit;
 
 /// A [@container](https://drafts.csswg.org/css-contain-3/#container-rule) rule.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct ContainerRule<'i, T> {
+pub struct ContainerRule<'i, R> {
   /// The name of the container.
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: Option<ContainerName<'i>>,
   /// The container condition.
   pub condition: MediaCondition<'i>,
   /// The rules within the `@container` rule.
-  pub rules: CssRuleList<'i, T>,
+  pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.
+  #[skip_visit]
   pub loc: Location,
 }
 
 /// A [`<container-name>`](https://drafts.csswg.org/css-contain-3/#typedef-container-name) in a `@container` rule.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContainerName<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CustomIdent<'i>);
 
@@ -47,12 +49,6 @@ impl<'i> ToCss for ContainerName<'i> {
     W: std::fmt::Write,
   {
     self.0.to_css(dest)
-  }
-}
-
-impl<'i, T: VisitChildren<'i, T, V>, V: Visitor<'i, T>> VisitChildren<'i, T, V> for ContainerRule<'i, T> {
-  fn visit_children(&mut self, visitor: &mut V) {
-    self.rules.visit_children(visitor)
   }
 }
 

@@ -69,12 +69,13 @@ use crate::rules::keyframes::KeyframesName;
 use crate::selector::{downlevel_selectors, get_prefix, is_equivalent};
 use crate::stylesheet::ParserOptions;
 use crate::targets::Browsers;
-use crate::traits::{ToCss, VisitChildren, Visitor};
+use crate::traits::ToCss;
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
+use crate::visitor::{Visit, VisitTypes, Visitor};
 use container::ContainerRule;
 use counter_style::CounterStyleRule;
-use cssparser::{parse_one_rule, ParseError, Parser, ParserInput, AtRuleParser};
+use cssparser::{parse_one_rule, AtRuleParser, ParseError, Parser, ParserInput};
 use custom_media::CustomMediaRule;
 use document::MozDocumentRule;
 use font_face::FontFaceRule;
@@ -120,20 +121,21 @@ pub struct Location {
 }
 
 /// A CSS rule.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Visit)]
+#[visit(visit_rule, RULES)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
-pub enum CssRule<'i, T> {
+pub enum CssRule<'i, R> {
   /// A `@media` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  Media(MediaRule<'i, T>),
+  Media(MediaRule<'i, R>),
   /// An `@import` rule.
   Import(ImportRule<'i>),
   /// A style rule.
-  Style(StyleRule<'i, T>),
+  Style(StyleRule<'i, R>),
   /// A `@keyframes` rule.
   Keyframes(KeyframesRule<'i>),
   /// A `@font-face` rule.
@@ -143,15 +145,15 @@ pub enum CssRule<'i, T> {
   /// A `@page` rule.
   Page(PageRule<'i>),
   /// A `@supports` rule.
-  Supports(SupportsRule<'i, T>),
+  Supports(SupportsRule<'i, R>),
   /// A `@counter-style` rule.
   CounterStyle(CounterStyleRule<'i>),
   /// A `@namespace` rule.
   Namespace(NamespaceRule<'i>),
   /// A `@-moz-document` rule.
-  MozDocument(MozDocumentRule<'i, T>),
+  MozDocument(MozDocumentRule<'i, R>),
   /// A `@nest` rule.
-  Nesting(NestingRule<'i, T>),
+  Nesting(NestingRule<'i, R>),
   /// A `@viewport` rule.
   Viewport(ViewportRule<'i>),
   /// A `@custom-media` rule.
@@ -159,17 +161,17 @@ pub enum CssRule<'i, T> {
   /// A `@layer` statement rule.
   LayerStatement(LayerStatementRule<'i>),
   /// A `@layer` block rule.
-  LayerBlock(LayerBlockRule<'i, T>),
+  LayerBlock(LayerBlockRule<'i, R>),
   /// A `@property` rule.
   Property(PropertyRule<'i>),
   /// A `@container` rule.
-  Container(ContainerRule<'i, T>),
+  Container(ContainerRule<'i, R>),
   /// A placeholder for a rule that was removed.
   Ignored,
   /// An unknown at-rule.
   Unknown(UnknownAtRule<'i>),
   /// A custom at-rule.
-  Custom(T)
+  Custom(R),
 }
 
 impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for CssRule<'i, T> {
@@ -201,7 +203,10 @@ impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for CssRule<'i, T> {
       CssRule::Property(property) => property.to_css(dest),
       CssRule::Container(container) => container.to_css_with_context(dest, context),
       CssRule::Unknown(unknown) => unknown.to_css(dest),
-      CssRule::Custom(rule) => rule.to_css(dest).map_err(|_| PrinterError { kind: PrinterErrorKind::FmtError, loc: None }),
+      CssRule::Custom(rule) => rule.to_css(dest).map_err(|_| PrinterError {
+        kind: PrinterErrorKind::FmtError,
+        loc: None,
+      }),
       CssRule::Ignored => Ok(()),
     }
   }
@@ -240,7 +245,16 @@ impl<'i, T: ToCss> ToCss for CssRule<'i, T> {
 /// A list of CSS rules.
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct CssRuleList<'i, T>(#[cfg_attr(feature = "serde", serde(borrow))] pub Vec<CssRule<'i, T>>);
+pub struct CssRuleList<'i, R>(#[cfg_attr(feature = "serde", serde(borrow))] pub Vec<CssRule<'i, R>>);
+
+// Manually implemented to avoid circular child types.
+impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for CssRuleList<'i, T> {
+  const CHILD_TYPES: VisitTypes = VisitTypes::all();
+
+  fn visit_children(&mut self, visitor: &mut V) {
+    self.0.visit(visitor)
+  }
+}
 
 pub(crate) struct MinifyContext<'a, 'i> {
   pub targets: &'a Option<Browsers>,
@@ -250,30 +264,6 @@ pub(crate) struct MinifyContext<'a, 'i> {
   pub unused_symbols: &'a HashSet<String>,
   pub custom_media: Option<HashMap<CowArcStr<'i>, CustomMediaRule<'i>>>,
   pub css_modules: bool,
-}
-
-impl<'i, T: VisitChildren<'i, T, V>, V: Visitor<'i, T>> VisitChildren<'i, T, V> for CssRuleList<'i, T> {
-  fn visit_children(&mut self, visitor: &mut V) {
-    for rule in self.0.iter_mut() {
-      visitor.visit_rule(rule);
-    }
-  }
-}
-
-impl<'i, T: VisitChildren<'i, T, V>, V: Visitor<'i, T>> VisitChildren<'i, T, V> for CssRule<'i, T> {
-  fn visit_children(&mut self, visitor: &mut V) {
-    match self {
-      CssRule::Media(media) => media.visit_children(visitor),
-      CssRule::Style(style) => style.visit_children(visitor),
-      CssRule::Supports(supports) => supports.visit_children(visitor),
-      CssRule::MozDocument(document) => document.visit_children(visitor),
-      CssRule::Nesting(nesting) => nesting.visit_children(visitor),
-      CssRule::LayerBlock(layer) => layer.visit_children(visitor),
-      CssRule::Container(container) => container.visit_children(visitor),
-      CssRule::Custom(rule) => rule.visit_children(visitor),
-      _ => {}
-    }
-  }
 }
 
 impl<'i, T> CssRuleList<'i, T> {

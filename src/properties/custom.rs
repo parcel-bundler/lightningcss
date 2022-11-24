@@ -18,10 +18,11 @@ use crate::values::percentage::Percentage;
 use crate::values::string::CowArcStr;
 use crate::values::url::Url;
 use crate::vendor_prefix::VendorPrefix;
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A CSS custom property, representing any unknown property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CustomProperty<'i> {
   /// The name of the property.
@@ -50,7 +51,7 @@ impl<'i> CustomProperty<'i> {
 /// This type is used when the value of a known property could not
 /// be parsed, e.g. in the case css `var()` references are encountered.
 /// In this case, the raw tokens are stored instead.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UnparsedProperty<'i> {
   /// The id of the property.
@@ -93,12 +94,12 @@ impl<'i> UnparsedProperty<'i> {
 }
 
 /// A raw list of CSS tokens, with embedded parsed values.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TokenList<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub Vec<TokenOrValue<'i>>);
 
 /// A raw CSS token, or a parsed value.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -387,7 +388,7 @@ impl<'i> TokenList<'i> {
 
 /// A raw CSS token.
 // Copied from cssparser to change CowRcStr to CowArcStr
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -752,13 +753,15 @@ impl<'i> TokenList<'i> {
 }
 
 /// A CSS variable reference.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
+#[visit(visit_variable, VARIABLES)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Variable<'i> {
   /// The variable name.
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: DashedIdentReference<'i>,
   /// A fallback value in case the variable is not defined.
+  #[skip_type]
   pub fallback: Option<TokenList<'i>>,
 }
 
@@ -797,7 +800,7 @@ impl<'i> Variable<'i> {
 /// These can be converted from the modern slash syntax to older comma syntax.
 /// This can only be done when the only unresolved component is the alpha
 /// since variables can resolve to multiple tokens.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -814,6 +817,7 @@ pub enum UnresolvedColor<'i> {
     b: f32,
     /// The unresolved alpha component.
     #[cfg_attr(feature = "serde", serde(borrow))]
+    #[skip_type]
     alpha: TokenList<'i>,
   },
   /// An hsl() color.
@@ -826,6 +830,7 @@ pub enum UnresolvedColor<'i> {
     l: f32,
     /// The unresolved alpha component.
     #[cfg_attr(feature = "serde", serde(borrow))]
+    #[skip_type]
     alpha: TokenList<'i>,
   },
 }

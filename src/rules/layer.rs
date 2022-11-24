@@ -3,8 +3,9 @@
 use super::{CssRuleList, Location, MinifyContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
 use crate::printer::Printer;
-use crate::traits::{Parse, ToCss, Visitor, VisitChildren};
+use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
+use crate::visitor::Visit;
 use cssparser::*;
 use smallvec::SmallVec;
 
@@ -78,13 +79,15 @@ impl<'i> ToCss for LayerName<'i> {
 /// A [@layer statement](https://drafts.csswg.org/css-cascade-5/#layer-empty) rule.
 ///
 /// See also [LayerBlockRule](LayerBlockRule).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LayerStatementRule<'i> {
   /// The layer names to declare.
   #[cfg_attr(feature = "serde", serde(borrow))]
+  #[skip_visit]
   pub names: Vec<LayerName<'i>>,
   /// The location of the rule in the source file.
+  #[skip_visit]
   pub loc: Location,
 }
 
@@ -101,15 +104,17 @@ impl<'i> ToCss for LayerStatementRule<'i> {
 }
 
 /// A [@layer block](https://drafts.csswg.org/css-cascade-5/#layer-block) rule.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct LayerBlockRule<'i, T> {
+pub struct LayerBlockRule<'i, R> {
   /// The name of the layer to declare, or `None` to declare an anonymous layer.
   #[cfg_attr(feature = "serde", serde(borrow))]
+  #[skip_visit]
   pub name: Option<LayerName<'i>>,
   /// The rules within the `@layer` rule.
-  pub rules: CssRuleList<'i, T>,
+  pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.
+  #[skip_visit]
   pub loc: Location,
 }
 
@@ -122,12 +127,6 @@ impl<'i, T> LayerBlockRule<'i, T> {
     self.rules.minify(context, parent_is_unused)?;
 
     Ok(self.rules.0.is_empty())
-  }
-}
-
-impl<'i, T: VisitChildren<'i, T, V>, V: Visitor<'i, T>> VisitChildren<'i, T, V> for LayerBlockRule<'i, T> {
-  fn visit_children(&mut self, visitor: &mut V) {
-    self.rules.visit_children(visitor)
   }
 }
 

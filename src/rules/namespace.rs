@@ -5,19 +5,23 @@ use crate::error::PrinterError;
 use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::values::string::CowArcStr;
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A [@namespace](https://drafts.csswg.org/css-namespaces/#declaration) rule.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NamespaceRule<'i> {
   /// An optional namespace prefix to declare, or `None` to declare the default namespace.
   #[cfg_attr(feature = "serde", serde(borrow))]
+  #[skip_visit]
   pub prefix: Option<CowArcStr<'i>>,
   /// The url of the namespace.
   #[cfg_attr(feature = "serde", serde(borrow))]
+  #[skip_visit]
   pub url: CowArcStr<'i>,
   /// The location of the rule in the source file.
+  #[skip_visit]
   pub loc: Location,
 }
 

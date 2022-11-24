@@ -3,12 +3,13 @@
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A generic value that represents a value with two components, e.g. a border radius.
 ///
 /// When serialized, only a single component will be written if both are equal.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Size2D<T>(pub T, pub T);
 

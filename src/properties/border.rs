@@ -17,10 +17,11 @@ use crate::values::color::{ColorFallbackKind, CssColor};
 use crate::values::length::*;
 use crate::values::rect::Rect;
 use crate::values::size::Size2D;
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A value for the [border-width](https://www.w3.org/TR/css-backgrounds-3/#border-width) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -107,7 +108,7 @@ impl Default for LineStyle {
 }
 
 /// A generic type that represents the `border` and `outline` shorthand properties.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GenericBorder<S, const P: u8> {
   /// The width of the border.

@@ -17,6 +17,7 @@ use crate::values::length::LengthOrNumber;
 use crate::values::rect::Rect;
 use crate::values::{image::Image, position::Position, shape::BasicShape, url::Url};
 use crate::vendor_prefix::VendorPrefix;
+use crate::visitor::Visit;
 use cssparser::*;
 use itertools::izip;
 use smallvec::SmallVec;
@@ -102,7 +103,7 @@ impl Default for GeometryBox {
 }
 
 /// A value for the [mask-clip](https://www.w3.org/TR/css-masking-1/#the-mask-clip) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -372,7 +373,7 @@ impl<'i> ImageFallback<'i> for Mask<'i> {
 }
 
 /// A value for the [clip-path](https://www.w3.org/TR/css-masking-1/#the-clip-path) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

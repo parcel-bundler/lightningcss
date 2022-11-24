@@ -8,6 +8,7 @@ use crate::stylesheet::{ParserOptions, PrinterOptions};
 use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
 use crate::vendor_prefix::VendorPrefix;
+use crate::visitor::Visit;
 use crate::{macros::enum_property, values::string::CowArcStr};
 use cssparser::*;
 use parcel_selectors::parser::SelectorParseErrorKind;
@@ -87,7 +88,8 @@ impl<'i> SelectorImpl<'i> for Selectors {
 
   fn to_css<W: fmt::Write>(selectors: &SelectorList<'i, Self>, dest: &mut W) -> std::fmt::Result {
     let mut printer = Printer::new(dest, PrinterOptions::default());
-    serialize_selector_list::<_, _, DefaultAtRule>(selectors.0.iter(), &mut printer, None, false).map_err(|_| std::fmt::Error)
+    serialize_selector_list::<_, _, DefaultAtRule>(selectors.0.iter(), &mut printer, None, false)
+      .map_err(|_| std::fmt::Error)
   }
 }
 
@@ -915,8 +917,9 @@ impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for SelectorList<'i, Selectors> {
 
 impl<'i> ToCss for SelectorList<'i, Selectors> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-    where
-      W: std::fmt::Write {
+  where
+    W: std::fmt::Write,
+  {
     serialize_selector_list::<_, _, DefaultAtRule>(self.0.iter(), dest, None, false)
   }
 }

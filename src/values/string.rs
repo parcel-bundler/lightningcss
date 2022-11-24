@@ -1,8 +1,9 @@
 //! Types used to represent strings.
 
+use crate::visitor::{Visit, VisitTypes, Visitor};
 use cssparser::CowRcStr;
 #[cfg(feature = "serde")]
-use serde::{de::Visitor, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer};
 use serde::{Serialize, Serializer};
 use std::borrow::Borrow;
 use std::cmp;
@@ -237,7 +238,7 @@ impl<'a, 'de: 'a> Deserialize<'de> for CowArcStr<'a> {
 struct CowArcStrVisitor;
 
 #[cfg(feature = "serde")]
-impl<'de> Visitor<'de> for CowArcStrVisitor {
+impl<'de> serde::de::Visitor<'de> for CowArcStrVisitor {
   type Value = CowArcStr<'de>;
 
   fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -264,4 +265,9 @@ impl<'de> Visitor<'de> for CowArcStrVisitor {
   {
     Ok(v.into())
   }
+}
+
+impl<'i, V: Visitor<'i, T>, T> Visit<'i, T, V> for CowArcStr<'i> {
+  const CHILD_TYPES: VisitTypes = VisitTypes::empty();
+  fn visit_children(&mut self, _: &mut V) {}
 }

@@ -6,10 +6,12 @@ use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A CSS [`<resolution>`](https://www.w3.org/TR/css-values-4/#resolution) value.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
+#[visit(visit_resolution, RESOLUTIONS)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

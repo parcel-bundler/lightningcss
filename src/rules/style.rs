@@ -14,9 +14,8 @@ use crate::rules::{CssRuleList, StyleContext, ToCssWithContext};
 use crate::selector::{is_compatible, is_unused, Selectors};
 use crate::targets::Browsers;
 use crate::traits::ToCss;
-use crate::traits::VisitChildren;
-use crate::traits::Visitor;
 use crate::vendor_prefix::VendorPrefix;
+use crate::visitor::Visit;
 use cssparser::*;
 use parcel_selectors::SelectorList;
 
@@ -24,9 +23,9 @@ use parcel_selectors::SelectorList;
 use crate::selector::{deserialize_selectors, serialize_selectors};
 
 /// A CSS [style rule](https://drafts.csswg.org/css-syntax/#style-rules).
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct StyleRule<'i, T> {
+pub struct StyleRule<'i, R> {
   /// The selectors for the style rule.
   #[cfg_attr(
     feature = "serde",
@@ -36,22 +35,19 @@ pub struct StyleRule<'i, T> {
       borrow
     )
   )]
+  #[skip_visit]
   pub selectors: SelectorList<'i, Selectors>,
   /// A vendor prefix override, used during selector printing.
   #[cfg_attr(feature = "serde", serde(skip, default = "VendorPrefix::empty"))]
+  #[skip_visit]
   pub vendor_prefix: VendorPrefix,
   /// The declarations within the style rule.
   pub declarations: DeclarationBlock<'i>,
   /// Nested rules within the style rule.
-  pub rules: CssRuleList<'i, T>,
+  pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.
+  #[skip_visit]
   pub loc: Location,
-}
-
-impl<'i, T: VisitChildren<'i, T, V>, V: Visitor<'i, T>> VisitChildren<'i, T, V> for StyleRule<'i, T> {
-  fn visit_children(&mut self, visitor: &mut V) {
-    self.rules.visit_children(visitor)
-  }
 }
 
 impl<'i, T> StyleRule<'i, T> {

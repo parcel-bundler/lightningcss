@@ -11,6 +11,7 @@ use crate::traits::{
   private::{AddInternal, TryAdd},
   Map, Op, Parse, Sign, ToCss, Zero,
 };
+use crate::visitor::Visit;
 use cssparser::*;
 use std::f32::consts::PI;
 
@@ -18,7 +19,8 @@ use std::f32::consts::PI;
 ///
 /// Angles may be explicit or computed by `calc()`, but are always stored and serialized
 /// as their computed value.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Visit)]
+#[visit(visit_angle, ANGLES)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

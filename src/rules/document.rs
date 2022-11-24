@@ -4,31 +4,27 @@ use super::Location;
 use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, PrinterError};
 use crate::printer::Printer;
-use crate::traits::{ToCss, Visitor, VisitChildren};
+use crate::traits::ToCss;
+use crate::visitor::Visit;
 
 /// A [@-moz-document](https://www.w3.org/TR/2012/WD-css3-conditional-20120911/#at-document) rule.
 ///
 /// Note that only the `url-prefix()` function with no arguments is supported, and only the `-moz` prefix
 /// is allowed since Firefox was the only browser that ever implemented this rule.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct MozDocumentRule<'i, T> {
+pub struct MozDocumentRule<'i, R> {
   /// Nested rules within the `@-moz-document` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  pub rules: CssRuleList<'i, T>,
+  pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.
+  #[skip_visit]
   pub loc: Location,
 }
 
 impl<'i, T> MozDocumentRule<'i, T> {
   pub(crate) fn minify(&mut self, context: &mut MinifyContext<'_, 'i>) -> Result<(), MinifyError> {
     self.rules.minify(context, false)
-  }
-}
-
-impl<'i, T: VisitChildren<'i, T, V>, V: Visitor<'i, T>> VisitChildren<'i, T, V> for MozDocumentRule<'i, T> {
-  fn visit_children(&mut self, visitor: &mut V) {
-    self.rules.visit_children(visitor)
   }
 }
 

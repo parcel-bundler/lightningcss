@@ -8,8 +8,11 @@ use lightningcss::{
   rules::{style::StyleRule, CssRule, CssRuleList, Location},
   stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
   targets::Browsers,
-  traits::{ToCss, VisitChildren, Visitor},
+  traits::ToCss,
+  values::length::LengthValue,
   vendor_prefix::VendorPrefix,
+  visit_types,
+  visitor::{Visit, VisitTypes, Visitor},
 };
 use parcel_selectors::{
   parser::{Component, Selector},
@@ -147,6 +150,8 @@ struct StyleRuleCollector<'i, 'a> {
 }
 
 impl<'i, 'a> Visitor<'i, AtRule> for StyleRuleCollector<'i, 'a> {
+  const TYPES: VisitTypes = VisitTypes::RULES;
+
   fn visit_rule(&mut self, rule: &mut lightningcss::rules::CssRule<'i, AtRule>) {
     match rule {
       CssRule::Style(rule) => {
@@ -176,6 +181,8 @@ struct ApplyVisitor<'a, 'i> {
 }
 
 impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
+  const TYPES: VisitTypes = visit_types!(RULES | COLORS | LENGTHS | DASHED_IDENTS);
+
   fn visit_rule(&mut self, rule: &mut CssRule<'i, AtRule>) {
     // Replace @apply rule with nested style rule.
     if let CssRule::Custom(AtRule::Apply(apply)) = rule {
@@ -203,9 +210,37 @@ impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
 
     rule.visit_children(self)
   }
+
+  // fn visit_property(&mut self, property: &mut lightningcss::properties::Property<'i>) {
+  //   println!("VISIT PROPERTY {:?}", property);
+  //   property.visit_children(self)
+  // }
+
+  fn visit_url(&mut self, url: &mut lightningcss::values::url::Url<'i>) {
+    println!("VISIT URL {:?}", url);
+
+    url.url = format!("https://mywebsite.com/{}", url.url).into()
+  }
+
+  fn visit_color(&mut self, color: &mut lightningcss::values::color::CssColor) {
+    *color = color.to_lab()
+  }
+
+  fn visit_length(&mut self, length: &mut lightningcss::values::length::LengthValue) {
+    match length {
+      LengthValue::Px(px) => *length = LengthValue::Rem(*px / 16.0),
+      _ => {}
+    }
+  }
+
+  fn visit_dashed_ident(&mut self, ident: &mut lightningcss::values::ident::DashedIdent) {
+    ident.0 = format!("--prefix-{}", &ident.0[2..]).into()
+  }
 }
 
-impl<'i, V: Visitor<'i, AtRule>> VisitChildren<'i, AtRule, V> for AtRule {
+impl<'i, V: Visitor<'i, AtRule>> Visit<'i, AtRule, V> for AtRule {
+  const CHILD_TYPES: VisitTypes = VisitTypes::empty();
+
   fn visit_children(&mut self, _: &mut V) {}
 }
 

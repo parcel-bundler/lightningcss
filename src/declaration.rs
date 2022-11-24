@@ -34,6 +34,7 @@ use crate::properties::{Property, PropertyId};
 use crate::targets::Browsers;
 use crate::traits::{PropertyHandler, ToCss};
 use crate::values::string::CowArcStr;
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A CSS declaration block.
@@ -41,7 +42,7 @@ use cssparser::*;
 /// Properties are separated into a list of `!important` declararations,
 /// and a list of normal declarations. This reduces memory usage compared
 /// with storing a boolean along with each property.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DeclarationBlock<'i> {
   /// A list of `!important` declarations in the block.
@@ -99,7 +100,7 @@ impl<'i> DeclarationBlock<'i> {
   pub fn new() -> Self {
     Self {
       declarations: vec![],
-      important_declarations: vec![]
+      important_declarations: vec![],
     }
   }
 }
