@@ -274,8 +274,9 @@ impl<'i, V: Visitor<'i, T>, T> Visit<'i, T, V> for CowArcStr<'i> {
 }
 
 /// A quoted CSS string.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct CSSString<'i>(pub CowArcStr<'i>);
+#[derive(Clone, Eq, Ord, Hash, Debug, Visit)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CSSString<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CowArcStr<'i>);
 
 impl<'i> Parse<'i> for CSSString<'i> {
   fn parse<'t>(
@@ -312,49 +313,69 @@ macro_rules! impl_string_type {
         $t(s.into())
       }
     }
-    
+
+    impl<'a> From<&CowRcStr<'a>> for $t<'a> {
+      fn from(s: &CowRcStr<'a>) -> Self {
+        $t(s.into())
+      }
+    }
+
     impl<'i> From<String> for $t<'i> {
       fn from(s: String) -> Self {
         $t(s.into())
       }
     }
-    
+
     impl<'i> From<&'i str> for $t<'i> {
       fn from(s: &'i str) -> Self {
         $t(s.into())
       }
     }
-    
+
     impl<'a> Deref for $t<'a> {
       type Target = str;
-    
+
       #[inline]
       fn deref(&self) -> &str {
         self.0.deref()
       }
     }
-    
+
     impl<'a> AsRef<str> for $t<'a> {
       #[inline]
       fn as_ref(&self) -> &str {
         self
       }
     }
-    
+
     impl<'a> Borrow<str> for $t<'a> {
       #[inline]
       fn borrow(&self) -> &str {
         self
       }
     }
-    
+
     impl<'a> std::fmt::Display for $t<'a> {
       #[inline]
       fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         str::fmt(self, formatter)
       }
-    }    
-  }
+    }
+
+    impl<'a, T: AsRef<str>> PartialEq<T> for $t<'a> {
+      #[inline]
+      fn eq(&self, other: &T) -> bool {
+        str::eq(self, other.as_ref())
+      }
+    }
+
+    impl<'a, T: AsRef<str>> PartialOrd<T> for $t<'a> {
+      #[inline]
+      fn partial_cmp(&self, other: &T) -> Option<std::cmp::Ordering> {
+        str::partial_cmp(self, other.as_ref())
+      }
+    }
+  };
 }
 
 impl_string_type!(CSSString);

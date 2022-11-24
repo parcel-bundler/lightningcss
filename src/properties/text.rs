@@ -15,7 +15,7 @@ use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss, Ze
 use crate::values::calc::{Calc, MathFunction};
 use crate::values::color::{ColorFallbackKind, CssColor};
 use crate::values::length::{Length, LengthPercentage, LengthValue};
-use crate::values::string::CowArcStr;
+use crate::values::string::CSSString;
 use crate::vendor_prefix::VendorPrefix;
 use crate::visitor::Visit;
 use bitflags::bitflags;
@@ -731,7 +731,7 @@ pub enum TextEmphasisStyle<'i> {
   },
   /// Display the given string as marks.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  String(CowArcStr<'i>),
+  String(CSSString<'i>),
 }
 
 impl<'i> Default for TextEmphasisStyle<'i> {
@@ -746,8 +746,8 @@ impl<'i> Parse<'i> for TextEmphasisStyle<'i> {
       return Ok(TextEmphasisStyle::None);
     }
 
-    if let Ok(s) = input.try_parse(|input| input.expect_string_cloned()) {
-      return Ok(TextEmphasisStyle::String(s.into()));
+    if let Ok(s) = input.try_parse(CSSString::parse) {
+      return Ok(TextEmphasisStyle::String(s));
     }
 
     let mut shape = input.try_parse(TextEmphasisShape::parse).ok();
@@ -772,10 +772,7 @@ impl<'i> ToCss for TextEmphasisStyle<'i> {
   {
     match self {
       TextEmphasisStyle::None => dest.write_str("none"),
-      TextEmphasisStyle::String(s) => {
-        serialize_string(&s, dest)?;
-        Ok(())
-      }
+      TextEmphasisStyle::String(s) => s.to_css(dest),
       TextEmphasisStyle::Keyword { fill, shape } => {
         let mut needs_space = false;
         if *fill != TextEmphasisFillMode::Filled || shape.is_none() {
