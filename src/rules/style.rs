@@ -11,13 +11,12 @@ use crate::error::ParserError;
 use crate::error::{MinifyError, PrinterError, PrinterErrorKind};
 use crate::printer::Printer;
 use crate::rules::{CssRuleList, StyleContext, ToCssWithContext};
-use crate::selector::{is_compatible, is_unused, Selectors};
+use crate::selector::{is_compatible, is_unused, SelectorList};
 use crate::targets::Browsers;
 use crate::traits::ToCss;
 use crate::vendor_prefix::VendorPrefix;
 use crate::visitor::Visit;
 use cssparser::*;
-use parcel_selectors::SelectorList;
 
 #[cfg(feature = "serde")]
 use crate::selector::{deserialize_selectors, serialize_selectors};
@@ -35,8 +34,7 @@ pub struct StyleRule<'i, R> {
       borrow
     )
   )]
-  #[skip_visit]
-  pub selectors: SelectorList<'i, Selectors>,
+  pub selectors: SelectorList<'i>,
   /// A vendor prefix override, used during selector printing.
   #[cfg_attr(feature = "serde", serde(skip, default = "VendorPrefix::empty"))]
   #[skip_visit]

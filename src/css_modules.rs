@@ -10,10 +10,9 @@
 
 use crate::error::PrinterErrorKind;
 use crate::properties::css_modules::{Composes, Specifier};
-use crate::selector::Selectors;
+use crate::selector::SelectorList;
 use data_encoding::{Encoding, Specification};
 use lazy_static::lazy_static;
-use parcel_selectors::SelectorList;
 use serde::Serialize;
 use smallvec::{smallvec, SmallVec};
 use std::collections::hash_map::DefaultHasher;
@@ -364,7 +363,7 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
 
   pub fn handle_composes(
     &mut self,
-    selectors: &SelectorList<Selectors>,
+    selectors: &SelectorList,
     composes: &Composes,
     source_index: u32,
   ) -> Result<(), PrinterErrorKind> {

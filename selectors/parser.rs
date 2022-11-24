@@ -15,7 +15,7 @@ use cssparser::{BasicParseError, BasicParseErrorKind, ParseError, ParseErrorKind
 use cssparser::{CowRcStr, Delimiter, SourceLocation};
 use cssparser::{Parser as CssParser, ToCss, Token};
 use precomputed_hash::PrecomputedHash;
-use smallvec::SmallVec;
+use smallvec::{smallvec, SmallVec};
 use std::borrow::Borrow;
 use std::fmt::{self, Debug};
 use std::iter::Rev;
@@ -465,9 +465,20 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
     }
   }
 
+  /// Creates a new SelectorList.
+  pub fn new(v: SmallVec<[Selector<'i, Impl>; 1]>) -> Self {
+    SelectorList(v)
+  }
+
   /// Creates a SelectorList from a Vec of selectors. Used in tests.
   pub fn from_vec(v: Vec<Selector<'i, Impl>>) -> Self {
     SelectorList(SmallVec::from_vec(v))
+  }
+}
+
+impl<'i, Impl: SelectorImpl<'i>> From<Selector<'i, Impl>> for SelectorList<'i, Impl> {
+  fn from(selector: Selector<'i, Impl>) -> Self {
+    SelectorList(smallvec![selector])
   }
 }
 
@@ -1107,7 +1118,7 @@ pub enum Component<'i, Impl: SelectorImpl<'i>> {
   Scope,
   NthChild(i32, i32),
   NthLastChild(i32, i32),
-  NthCol(i32, i32), // https://www.w3.org/TR/selectors-4/#the-nth-col-pseudo
+  NthCol(i32, i32),     // https://www.w3.org/TR/selectors-4/#the-nth-col-pseudo
   NthLastCol(i32, i32), // https://www.w3.org/TR/selectors-4/#the-nth-last-col-pseudo
   NthOfType(i32, i32),
   NthLastOfType(i32, i32),
@@ -1606,7 +1617,12 @@ impl<'i, Impl: SelectorImpl<'i>> ToCss for Component<'i, Impl> {
       FirstOfType => dest.write_str(":first-of-type"),
       LastOfType => dest.write_str(":last-of-type"),
       OnlyOfType => dest.write_str(":only-of-type"),
-      NthChild(a, b) | NthLastChild(a, b) | NthOfType(a, b) | NthLastOfType(a, b) | NthCol(a, b) | NthLastCol(a, b) => {
+      NthChild(a, b)
+      | NthLastChild(a, b)
+      | NthOfType(a, b)
+      | NthLastOfType(a, b)
+      | NthCol(a, b)
+      | NthLastCol(a, b) => {
         match *self {
           NthChild(_, _) => dest.write_str(":nth-child(")?,
           NthLastChild(_, _) => dest.write_str(":nth-last-child(")?,

@@ -6,6 +6,7 @@ use lightningcss::{
   error::PrinterError,
   printer::Printer,
   rules::{style::StyleRule, CssRule, CssRuleList, Location},
+  selector::{Component, Selector, SelectorList},
   stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
   targets::Browsers,
   traits::ToCss,
@@ -14,11 +15,6 @@ use lightningcss::{
   visit_types,
   visitor::{Visit, VisitTypes, Visitor},
 };
-use parcel_selectors::{
-  parser::{Component, Selector},
-  SelectorList,
-};
-use smallvec::smallvec;
 
 fn main() {
   let args: Vec<String> = std::env::args().collect();
@@ -196,7 +192,7 @@ impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
       }
       *rule = CssRule::Style(StyleRule {
         // TODO expose nicer API for building selectors.
-        selectors: SelectorList(smallvec![Selector::from_vec2(vec![Component::Nesting])]),
+        selectors: SelectorList::from(Selector::from_vec2(vec![Component::Nesting])),
         vendor_prefix: VendorPrefix::None,
         declarations,
         rules: CssRuleList(vec![]),

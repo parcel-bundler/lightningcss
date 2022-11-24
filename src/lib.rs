@@ -31,7 +31,7 @@ mod prefixes;
 pub mod printer;
 pub mod properties;
 pub mod rules;
-mod selector;
+pub mod selector;
 pub mod stylesheet;
 pub mod targets;
 pub mod traits;

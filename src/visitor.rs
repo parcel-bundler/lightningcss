@@ -4,6 +4,7 @@ use crate::{
   media_query::MediaQuery,
   properties::{custom::Variable, Property},
   rules::{supports::SupportsCondition, CssRule},
+  selector::Selector,
   values::{
     angle::Angle,
     color::CssColor,
@@ -54,6 +55,8 @@ bitflags! {
     const MEDIA_QUERIES = 1 << 13;
     /// Visit supports conditions.
     const SUPPORTS_CONDITIONS = 1 << 14;
+    /// Visit selectors.
+    const SELECTORS = 1 << 15;
   }
 }
 
@@ -132,6 +135,10 @@ pub trait Visitor<'i, T>: Sized {
   fn visit_supports_condition(&mut self, condition: &mut SupportsCondition<'i>) {
     condition.visit_children(self)
   }
+
+  /// Visits a selector.
+  #[allow(unused_variables)]
+  fn visit_selector(&mut self, selector: &mut Selector<'i>) {}
 }
 
 /// A trait for visiting the children of a rule.
