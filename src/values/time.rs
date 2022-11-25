@@ -75,6 +75,21 @@ impl<'i> Parse<'i> for Time {
   }
 }
 
+impl<'i> TryFrom<&Token<'i>> for Time {
+  type Error = ();
+
+  fn try_from(token: &Token) -> Result<Self, Self::Error> {
+    match token {
+      Token::Dimension { value, ref unit, .. } => match_ignore_ascii_case! { unit,
+        "s" => Ok(Time::Seconds(*value)),
+        "ms" => Ok(Time::Milliseconds(*value)),
+        _ => Err(()),
+      },
+      _ => Err(()),
+    }
+  }
+}
+
 impl ToCss for Time {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where

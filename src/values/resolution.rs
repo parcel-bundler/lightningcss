@@ -44,6 +44,22 @@ impl<'i> Parse<'i> for Resolution {
   }
 }
 
+impl<'i> TryFrom<&Token<'i>> for Resolution {
+  type Error = ();
+
+  fn try_from(token: &Token) -> Result<Self, Self::Error> {
+    match token {
+      Token::Dimension { value, ref unit, .. } => match_ignore_ascii_case! { unit,
+        "dpi" => Ok(Resolution::Dpi(*value)),
+        "dpcm" => Ok(Resolution::Dpcm(*value)),
+        "dppx" | "x" => Ok(Resolution::Dppx(*value)),
+        _ => Err(()),
+      },
+      _ => Err(()),
+    }
+  }
+}
+
 impl ToCss for Resolution {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where

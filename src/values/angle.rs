@@ -80,6 +80,23 @@ impl Angle {
   }
 }
 
+impl<'i> TryFrom<&Token<'i>> for Angle {
+  type Error = ();
+
+  fn try_from(token: &Token) -> Result<Self, Self::Error> {
+    match token {
+      Token::Dimension { value, ref unit, .. } => match_ignore_ascii_case! { unit,
+        "deg" => Ok(Angle::Deg(*value)),
+        "grad" => Ok(Angle::Grad(*value)),
+        "turn" => Ok(Angle::Turn(*value)),
+        "rad" => Ok(Angle::Rad(*value)),
+        _ => Err(()),
+      },
+      _ => Err(()),
+    }
+  }
+}
+
 impl ToCss for Angle {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where

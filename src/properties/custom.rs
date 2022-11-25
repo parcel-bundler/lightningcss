@@ -9,13 +9,16 @@ use crate::rules::supports::SupportsCondition;
 use crate::stylesheet::ParserOptions;
 use crate::targets::Browsers;
 use crate::traits::{Parse, ParseWithOptions, ToCss};
+use crate::values::angle::Angle;
 use crate::values::color::{
   parse_hsl_hwb_components, parse_rgb_components, ColorFallbackKind, ComponentParser, CssColor,
 };
 use crate::values::ident::{DashedIdentReference, Ident};
-use crate::values::length::serialize_dimension;
+use crate::values::length::{serialize_dimension, LengthValue};
 use crate::values::percentage::Percentage;
+use crate::values::resolution::Resolution;
 use crate::values::string::CowArcStr;
+use crate::values::time::Time;
 use crate::values::url::Url;
 use crate::vendor_prefix::VendorPrefix;
 use crate::visitor::Visit;
@@ -120,6 +123,14 @@ pub enum TokenOrValue<'i> {
   Var(Variable<'i>),
   /// A custom CSS function.
   Function(Function<'i>),
+  /// A length.
+  Length(LengthValue),
+  /// An angle.
+  Angle(Angle),
+  /// A time.
+  Time(Time),
+  /// A resolution.
+  Resolution(Resolution),
 }
 
 impl<'i> From<Token<'i>> for TokenOrValue<'i> {
@@ -249,6 +260,22 @@ impl<'i> TokenList<'i> {
           last_is_delim = true; // Whitespace is not required after any of these chars.
           last_is_whitespace = false;
         }
+        Ok(token @ cssparser::Token::Dimension { .. }) => {
+          let value = if let Ok(length) = LengthValue::try_from(token) {
+            TokenOrValue::Length(length)
+          } else if let Ok(angle) = Angle::try_from(token) {
+            TokenOrValue::Angle(angle)
+          } else if let Ok(time) = Time::try_from(token) {
+            TokenOrValue::Time(time)
+          } else if let Ok(resolution) = Resolution::try_from(token) {
+            TokenOrValue::Resolution(resolution)
+          } else {
+            TokenOrValue::Token(token.into())
+          };
+          tokens.push(value);
+          last_is_delim = false;
+          last_is_whitespace = false;
+        }
         Ok(token) => {
           last_is_delim = matches!(token, cssparser::Token::Delim(_) | cssparser::Token::Comma);
 
@@ -331,6 +358,22 @@ impl<'i> TokenList<'i> {
         TokenOrValue::Function(f) => {
           f.to_css(dest, is_custom_property)?;
           self.write_whitespace_if_needed(i, dest)?
+        }
+        TokenOrValue::Length(v) => {
+          v.to_css(dest)?;
+          false
+        }
+        TokenOrValue::Angle(v) => {
+          v.to_css(dest)?;
+          false
+        }
+        TokenOrValue::Time(v) => {
+          v.to_css(dest)?;
+          false
+        }
+        TokenOrValue::Resolution(v) => {
+          v.to_css(dest)?;
+          false
         }
         TokenOrValue::Token(token) => match token {
           Token::Delim(d) => {

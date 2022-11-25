@@ -8688,9 +8688,9 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -webkit-animation: 200ms var(--ease) bar;
-        -moz-animation: 200ms var(--ease) bar;
-        animation: 200ms var(--ease) bar;
+        -webkit-animation: .2s var(--ease) bar;
+        -moz-animation: .2s var(--ease) bar;
+        animation: .2s var(--ease) bar;
       }
     "#},
       Browsers {

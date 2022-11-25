@@ -125,6 +125,24 @@ macro_rules! define_length_units {
       }
     }
 
+    impl<'i> TryFrom<&Token<'i>> for LengthValue {
+      type Error = ();
+
+      fn try_from(token: &Token) -> Result<Self, Self::Error> {
+        match token {
+          Token::Dimension { value, ref unit, .. } => {
+            Ok(match unit {
+              $(
+                s if s.eq_ignore_ascii_case(stringify!($name)) => LengthValue::$name(*value),
+              )+
+              _ => return Err(()),
+            })
+          },
+          _ => Err(())
+        }
+      }
+    }
+
     impl LengthValue {
       /// Returns the numeric value and unit string for the length value.
       pub fn to_unit_value(&self) -> (CSSNumber, &str) {
