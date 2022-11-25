@@ -12,7 +12,7 @@ use crate::traits::{Parse, ParseWithOptions, ToCss};
 use crate::values::color::{
   parse_hsl_hwb_components, parse_rgb_components, ColorFallbackKind, ComponentParser, CssColor,
 };
-use crate::values::ident::DashedIdentReference;
+use crate::values::ident::{DashedIdentReference, Ident};
 use crate::values::length::serialize_dimension;
 use crate::values::percentage::Percentage;
 use crate::values::string::CowArcStr;
@@ -100,6 +100,7 @@ pub struct TokenList<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub Vec<T
 
 /// A raw CSS token, or a parsed value.
 #[derive(Debug, Clone, PartialEq, Visit)]
+#[visit(visit_token, TOKENS)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -117,6 +118,8 @@ pub enum TokenOrValue<'i> {
   Url(Url<'i>),
   /// A CSS variable reference.
   Var(Variable<'i>),
+  /// A custom CSS function.
+  Function(Function<'i>),
 }
 
 impl<'i> From<Token<'i>> for TokenOrValue<'i> {
@@ -205,9 +208,11 @@ impl<'i> TokenList<'i> {
             last_is_delim = true;
             last_is_whitespace = false;
           } else {
-            tokens.push(Token::Function(f).into());
-            input.parse_nested_block(|input| TokenList::parse_into(input, tokens, options, depth + 1))?;
-            tokens.push(Token::CloseParenthesis.into());
+            let arguments = input.parse_nested_block(|input| TokenList::parse(input, options, depth + 1))?;
+            tokens.push(TokenOrValue::Function(Function {
+              name: Ident(f),
+              arguments,
+            }));
             last_is_delim = true; // Whitespace is not required after any of these chars.
             last_is_whitespace = false;
           }
@@ -321,68 +326,69 @@ impl<'i> TokenList<'i> {
         }
         TokenOrValue::Var(var) => {
           var.to_css(dest, is_custom_property)?;
-          if !dest.minify
-            && i != self.0.len() - 1
-            && !matches!(
-              self.0[i + 1],
-              TokenOrValue::Token(Token::Comma) | TokenOrValue::Token(Token::CloseParenthesis)
-            )
-          {
-            // Whitespace is removed during parsing, so add it back if we aren't minifying.
-            dest.write_char(' ')?;
+          self.write_whitespace_if_needed(i, dest)?
+        }
+        TokenOrValue::Function(f) => {
+          f.to_css(dest, is_custom_property)?;
+          self.write_whitespace_if_needed(i, dest)?
+        }
+        TokenOrValue::Token(token) => match token {
+          Token::Delim(d) => {
+            if *d == '+' || *d == '-' {
+              dest.write_char(' ')?;
+              dest.write_char(*d)?;
+              dest.write_char(' ')?;
+            } else {
+              let ws_before = !has_whitespace && (*d == '/' || *d == '*');
+              dest.delim(*d, ws_before)?;
+            }
             true
-          } else {
+          }
+          Token::Comma => {
+            dest.delim(',', false)?;
+            true
+          }
+          Token::CloseParenthesis | Token::CloseSquareBracket | Token::CloseCurlyBracket => {
+            token.to_css(dest)?;
+            self.write_whitespace_if_needed(i, dest)?
+          }
+          Token::Dimension { value, unit, .. } => {
+            serialize_dimension(*value, unit, dest)?;
             false
           }
-        }
-        TokenOrValue::Token(token) => {
-          match token {
-            Token::Delim(d) => {
-              if *d == '+' || *d == '-' {
-                dest.write_char(' ')?;
-                dest.write_char(*d)?;
-                dest.write_char(' ')?;
-              } else {
-                let ws_before = !has_whitespace && (*d == '/' || *d == '*');
-                dest.delim(*d, ws_before)?;
-              }
-              true
-            }
-            Token::Comma => {
-              dest.delim(',', false)?;
-              true
-            }
-            Token::CloseParenthesis | Token::CloseSquareBracket | Token::CloseCurlyBracket => {
-              token.to_css(dest)?;
-              if !dest.minify
-                && i != self.0.len() - 1
-                && !matches!(self.0[i + 1], TokenOrValue::Token(Token::Comma))
-              {
-                // Whitespace is removed during parsing, so add it back if we aren't minifying.
-                dest.write_char(' ')?;
-                true
-              } else {
-                false
-              }
-            }
-            Token::Dimension { value, unit, .. } => {
-              serialize_dimension(*value, unit, dest)?;
-              false
-            }
-            Token::Number { value, .. } => {
-              value.to_css(dest)?;
-              false
-            }
-            _ => {
-              token.to_css(dest)?;
-              matches!(token, Token::WhiteSpace(..))
-            }
+          Token::Number { value, .. } => {
+            value.to_css(dest)?;
+            false
           }
-        }
+          _ => {
+            token.to_css(dest)?;
+            matches!(token, Token::WhiteSpace(..))
+          }
+        },
       };
     }
 
     Ok(())
+  }
+
+  #[inline]
+  fn write_whitespace_if_needed<W>(&self, i: usize, dest: &mut Printer<W>) -> Result<bool, PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    if !dest.minify
+      && i != self.0.len() - 1
+      && !matches!(
+        self.0[i + 1],
+        TokenOrValue::Token(Token::Comma) | TokenOrValue::Token(Token::CloseParenthesis)
+      )
+    {
+      // Whitespace is removed during parsing, so add it back if we aren't minifying.
+      dest.write_char(' ')?;
+      Ok(true)
+    } else {
+      Ok(false)
+    }
   }
 }
 
@@ -698,8 +704,19 @@ impl<'i> TokenList<'i> {
   pub(crate) fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
     let mut fallbacks = ColorFallbackKind::empty();
     for token in &self.0 {
-      if let TokenOrValue::Color(color) = token {
-        fallbacks |= color.get_possible_fallbacks(targets);
+      match token {
+        TokenOrValue::Color(color) => {
+          fallbacks |= color.get_possible_fallbacks(targets);
+        }
+        TokenOrValue::Function(f) => {
+          fallbacks |= f.arguments.get_necessary_fallbacks(targets);
+        }
+        TokenOrValue::Var(v) => {
+          if let Some(fallback) = &v.fallback {
+            fallbacks |= fallback.get_necessary_fallbacks(targets);
+          }
+        }
+        _ => {}
       }
     }
 
@@ -712,6 +729,8 @@ impl<'i> TokenList<'i> {
       .iter()
       .map(|token| match token {
         TokenOrValue::Color(color) => TokenOrValue::Color(color.get_fallback(kind)),
+        TokenOrValue::Function(f) => TokenOrValue::Function(f.get_fallback(kind)),
+        TokenOrValue::Var(v) => TokenOrValue::Var(v.get_fallback(kind)),
         _ => token.clone(),
       })
       .collect();
@@ -742,8 +761,13 @@ impl<'i> TokenList<'i> {
 
     if !lowest_fallback.is_empty() {
       for token in self.0.iter_mut() {
-        if let TokenOrValue::Color(color) = token {
-          *color = color.get_fallback(lowest_fallback);
+        match token {
+          TokenOrValue::Color(color) => {
+            *color = color.get_fallback(lowest_fallback);
+          }
+          TokenOrValue::Function(f) => *f = f.get_fallback(lowest_fallback),
+          TokenOrValue::Var(v) if v.fallback.is_some() => *v = v.get_fallback(lowest_fallback),
+          _ => {}
         }
       }
     }
@@ -793,6 +817,45 @@ impl<'i> Variable<'i> {
       fallback.to_css(dest, is_custom_property)?;
     }
     dest.write_char(')')
+  }
+
+  fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
+    Variable {
+      name: self.name.clone(),
+      fallback: self.fallback.as_ref().map(|fallback| fallback.get_fallback(kind)),
+    }
+  }
+}
+
+/// A custom CSS function.
+#[derive(Debug, Clone, PartialEq, Visit)]
+#[visit(visit_function, FUNCTIONS)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Function<'i> {
+  /// The function name.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  pub name: Ident<'i>,
+  /// The function arguments.
+  #[skip_type]
+  pub arguments: TokenList<'i>,
+}
+
+impl<'i> Function<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>, is_custom_property: bool) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    self.name.to_css(dest)?;
+    dest.write_char('(')?;
+    self.arguments.to_css(dest, is_custom_property)?;
+    dest.write_char(')')
+  }
+
+  fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
+    Function {
+      name: self.name.clone(),
+      arguments: self.arguments.get_fallback(kind),
+    }
   }
 }
 

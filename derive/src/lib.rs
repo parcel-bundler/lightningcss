@@ -146,7 +146,7 @@ pub fn derive_visit_children(input: TokenStream) -> TokenStream {
 
     quote! {
       fn visit(&mut self, visitor: &mut #v) {
-        if <Self as Visit<#lifetime, #t, #v>>::CHILD_TYPES.intersects(#v::TYPES) {
+        if #v::TYPES.contains(crate::visitor::VisitTypes::#kind) {
           visitor.#visit(self)
         } else {
           self.visit_children(visitor)

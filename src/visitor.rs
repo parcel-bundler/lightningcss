@@ -2,7 +2,10 @@
 
 use crate::{
   media_query::MediaQuery,
-  properties::{custom::Variable, Property},
+  properties::{
+    custom::{Function, TokenOrValue, Variable},
+    Property,
+  },
   rules::{supports::SupportsCondition, CssRule},
   selector::Selector,
   values::{
@@ -24,7 +27,7 @@ pub use lightningcss_derive::Visit;
 
 bitflags! {
   /// What to visit.
-  pub struct VisitTypes: u16 {
+  pub struct VisitTypes: u32 {
     /// Visit rules.
     const RULES = 1 << 0;
     /// Visit properties;
@@ -57,6 +60,10 @@ bitflags! {
     const SUPPORTS_CONDITIONS = 1 << 14;
     /// Visit selectors.
     const SELECTORS = 1 << 15;
+    /// Visit custom functions.
+    const FUNCTIONS = 1 << 16;
+    /// Visit a token.
+    const TOKENS = 1 << 17;
   }
 }
 
@@ -139,6 +146,16 @@ pub trait Visitor<'i, T>: Sized {
   /// Visits a selector.
   #[allow(unused_variables)]
   fn visit_selector(&mut self, selector: &mut Selector<'i>) {}
+
+  /// Visits a custom function.
+  fn visit_function(&mut self, function: &mut Function<'i>) {
+    function.visit_children(self)
+  }
+
+  /// Visits a token or value in an unparsed property.
+  fn visit_token(&mut self, token: &mut TokenOrValue<'i>) {
+    token.visit_children(self)
+  }
 }
 
 /// A trait for visiting the children of a rule.

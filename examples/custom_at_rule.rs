@@ -5,12 +5,13 @@ use lightningcss::{
   declaration::DeclarationBlock,
   error::PrinterError,
   printer::Printer,
+  properties::custom::{Token, TokenOrValue},
   rules::{style::StyleRule, CssRule, CssRuleList, Location},
   selector::{Component, Selector},
   stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
   targets::Browsers,
   traits::ToCss,
-  values::length::LengthValue,
+  values::{color::CssColor, length::LengthValue},
   vendor_prefix::VendorPrefix,
   visit_types,
   visitor::{Visit, VisitTypes, Visitor},
@@ -111,7 +112,7 @@ impl<'i> AtRuleParser<'i> for TailwindAtRuleParser {
           "utilities" => TailwindDirective::Utilities,
           "variants" => TailwindDirective::Variants,
           _ => return Err(location.new_unexpected_token_error(
-            Token::Ident(ident.clone())
+            cssparser::Token::Ident(ident.clone())
           ))
         };
         Ok(Prelude::Tailwind(directive))
@@ -177,7 +178,7 @@ struct ApplyVisitor<'a, 'i> {
 }
 
 impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
-  const TYPES: VisitTypes = visit_types!(RULES | COLORS | LENGTHS | DASHED_IDENTS | SELECTORS);
+  const TYPES: VisitTypes = visit_types!(RULES | COLORS | LENGTHS | DASHED_IDENTS | SELECTORS | TOKENS);
 
   fn visit_rule(&mut self, rule: &mut CssRule<'i, AtRule>) {
     // Replace @apply rule with nested style rule.
@@ -241,6 +242,22 @@ impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
         _ => {}
       }
     }
+  }
+
+  fn visit_token(&mut self, token: &mut TokenOrValue<'i>) {
+    match token {
+      TokenOrValue::Function(f) if f.name == "theme" => match f.arguments.0.first() {
+        Some(TokenOrValue::Token(Token::String(s))) => match s.as_ref() {
+          "blue-500" => *token = TokenOrValue::Color(CssColor::RGBA(RGBA::new(0, 0, 255, 255))),
+          "red-500" => *token = TokenOrValue::Color(CssColor::RGBA(RGBA::new(255, 0, 0, 255))),
+          _ => {}
+        },
+        _ => {}
+      },
+      _ => {}
+    }
+
+    token.visit_children(self)
   }
 }
 
