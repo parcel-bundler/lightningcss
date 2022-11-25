@@ -20,7 +20,7 @@ use cssparser::*;
 use parcel_selectors::parser::SelectorParseErrorKind;
 use parcel_selectors::{
   attr::{AttrSelectorOperator, ParsedAttrSelectorOperation, ParsedCaseSensitivity},
-  parser::{SelectorImpl},
+  parser::SelectorImpl,
 };
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -1139,7 +1139,16 @@ impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for Component<'i> {
       | Component::Any(_, ref list) => {
         match *self {
           Component::Where(..) => dest.write_str(":where(")?,
-          Component::Is(..) => {
+          Component::Is(ref selectors) => {
+            // If there's only one simple selector, serialize it directly.
+            if selectors.len() == 1 {
+              let first = selectors.first().unwrap();
+              if !has_type_selector(first) && is_simple(first) {
+                serialize_selector(first, dest, context, false)?;
+                return Ok(());
+              }
+            }
+
             let vp = dest.vendor_prefix;
             if vp.intersects(VendorPrefix::WebKit | VendorPrefix::Moz) {
               dest.write_char(':')?;

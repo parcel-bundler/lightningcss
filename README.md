@@ -23,6 +23,7 @@ An extremely fast CSS parser, transformer, and minifier written in Rust. Use it 
   - Removing default property sub-values which will be inferred by browsers.
   - Many micro-optimizations, e.g. converting to shorter units, removing unnecessary quotation marks, etc.
 - **Vendor prefixing** – Lightning CSS accepts a list of browser targets, and automatically adds (and removes) vendor prefixes.
+- **Browserslist configuration** – Lightning CSS supports opt-in browserslist configuration discovery to resolve browser targets and integrate with your existing tools and config setup.
 - **Syntax lowering** – Lightning CSS parses modern CSS syntax, and generates more compatible output where needed, based on browser targets.
   - CSS Nesting (draft spec)
   - Custom media queries (draft spec)
@@ -197,6 +198,46 @@ To see all of the available options, use the `--help` argument:
 npx lightningcss --help
 ```
 
+#### Browserslist configuration
+
+If the `--browserslist` option is provided, then `lightningcss` finds browserslist configuration,
+selects queries by environment and loads the resulting queries as targets.
+
+Configuration discovery and targets resolution is modeled after the original `browserslist` nodeJS package.
+The configuration is resolved in the following order:
+
+- If a `BROWSERSLIST` environment variable is present, then load targets from its value. This is analog to the `--targets` CLI option.
+  _Example:_ `BROWSERSLIST="firefox ESR" lightningcss [OPTIONS] <INPUT_FILE>`
+- If a `BROWSERSLIST_CONFIG` environment variable is present, then resolve the file at the provided path.
+  Then parse and use targets from `package.json` or any browserslist configuration file pointed to by the environment variable.
+  _Example:_ `BROWSERSLIST_CONFIG="../config/browserslist" lightningcss [OPTIONS] <INPUT_FILE>`
+- If none of the above apply, then find, parse and use targets from the first `browserslist`, `.browserslistrc`
+  or `package.json` configuration file in any parent directory.
+
+Browserslist configuration files may contain sections denoted by angular brackets `[]`.
+Use these to specify different targets for different environments.
+Targets which are not placed in a section are added to `defaults` and used if no section matches the environment.
+
+_Example:_
+
+```
+# Defaults, applied when no other section matches the provided environment.
+firefox ESR
+
+[staging]
+# Targets applied only to the staging environment.
+samsung >= 4
+```
+
+When using parsed configuration from `browserslist`, `.browserslistrc` or `package.json` configuration files,
+the environment determined by
+
+- the `BROWSERSLIST_ENV` environment variable if present,
+- otherwise the `NODE_ENV` environment variable if present,
+- otherwise `production` is used.
+
+If no targets are found for the resulting environment, then the `defaults` configuration section is used.
+
 ### Error recovery
 
 By default, Lightning CSS is strict, and will error when parsing an invalid rule or declaration. However, sometimes you may encounter a third party library that you can't easily modify, which unintentionally contains invalid syntax, or IE-specific hacks. In these cases, you can enable the `errorRecovery` option (or `--error-recovery` CLI flag). This will skip over invalid rules and declarations, omitting them in the output, and producing a warning instead of an error. You should also open an issue or PR to fix the issue in the library if possible.
@@ -207,7 +248,7 @@ By default, Lightning CSS is strict, and will error when parsing an invalid rule
 <img width="680" alt="performance and build size charts" src="https://user-images.githubusercontent.com/19409/189022693-6956b044-422b-4f56-9628-d59c6f791095.png#gh-dark-mode-only">
 
 ```
-$ node bench.js bootstrap-4.css 
+$ node bench.js bootstrap-4.css
 cssnano: 544.809ms
 159636 bytes
 
@@ -229,7 +270,7 @@ lightningcss: 1.973ms
 23666 bytes
 
 
-$ node bench.js tailwind.css 
+$ node bench.js tailwind.css
 cssnano: 2.198s
 1925626 bytes
 

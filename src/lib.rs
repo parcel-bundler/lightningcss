@@ -5621,6 +5621,24 @@ mod tests {
     minify_test(":foo(bar) { color: yellow }", ":foo(bar){color:#ff0}");
     minify_test("::foo(bar) { color: yellow }", "::foo(bar){color:#ff0}");
     minify_test("::foo(*) { color: yellow }", "::foo(*){color:#ff0}");
+
+    minify_test(":is(.foo) { color: yellow }", ".foo{color:#ff0}");
+    minify_test(":is(#foo) { color: yellow }", "#foo{color:#ff0}");
+    minify_test("a:is(.foo) { color: yellow }", "a.foo{color:#ff0}");
+    minify_test("a:is([data-test]) { color: yellow }", "a[data-test]{color:#ff0}");
+    minify_test(".foo:is(a) { color: yellow }", ".foo:is(a){color:#ff0}");
+    minify_test(".foo:is(*|a) { color: yellow }", ".foo:is(a){color:#ff0}");
+    minify_test(".foo:is(*) { color: yellow }", ".foo:is(*){color:#ff0}");
+    minify_test(
+      "@namespace svg url(http://www.w3.org/2000/svg); .foo:is(svg|a) { color: yellow }",
+      "@namespace svg \"http://www.w3.org/2000/svg\";.foo:is(svg|a){color:#ff0}",
+    );
+    minify_test("a:is(.foo .bar) { color: yellow }", "a:is(.foo .bar){color:#ff0}");
+    minify_test(":is(.foo, .bar) { color: yellow }", ":is(.foo,.bar){color:#ff0}");
+    minify_test("a:is(:not(.foo)) { color: yellow }", "a:not(.foo){color:#ff0}");
+    minify_test("a:is(:first-child) { color: yellow }", "a:first-child{color:#ff0}");
+    minify_test("a:is(:has(.foo)) { color: yellow }", "a:has(.foo){color:#ff0}");
+    minify_test("a:is(:is(.foo)) { color: yellow }", "a.foo{color:#ff0}");
   }
 
   #[test]

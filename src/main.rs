@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{ArgGroup, Parser};
 use lightningcss::bundler::{Bundler, FileProvider};
 use lightningcss::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
 use lightningcss::targets::Browsers;
@@ -13,6 +13,10 @@ static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
+#[clap(group(
+  ArgGroup::new("targets-resolution")
+      .args(&["targets", "browserslist"]),
+))]
 struct CliArgs {
   /// Target CSS file
   #[clap(value_parser)]
@@ -45,6 +49,8 @@ struct CliArgs {
   bundle: bool,
   #[clap(short, long, value_parser)]
   targets: Vec<String>,
+  #[clap(long, value_parser)]
+  browserslist: bool,
   #[clap(long, value_parser)]
   error_recovery: bool,
 }
@@ -124,11 +130,14 @@ pub fn main() -> Result<(), std::io::Error> {
       StyleSheet::parse(&source, options).unwrap()
     };
 
-    let targets = if cli_args.targets.is_empty() {
-      None
-    } else {
+    let targets = if !cli_args.targets.is_empty() {
       Browsers::from_browserslist(cli_args.targets).unwrap()
+    } else if cli_args.browserslist {
+      Browsers::load_browserslist().unwrap()
+    } else {
+      None
     };
+
     stylesheet
       .minify(MinifyOptions {
         targets,
