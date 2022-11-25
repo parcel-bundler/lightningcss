@@ -30,6 +30,7 @@ use crate::traits::Parse;
 use crate::values::ident::{CustomIdent, DashedIdent};
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
+use crate::visitor::{Visit, VisitTypes, Visitor};
 use cssparser::*;
 use parcel_selectors::parser::NestingRequirement;
 use std::collections::HashMap;
@@ -107,6 +108,11 @@ impl crate::traits::ToCss for DefaultAtRule {
       loc: None,
     })
   }
+}
+
+impl<'i, V: Visitor<'i, DefaultAtRule>> Visit<'i, DefaultAtRule, V> for DefaultAtRule {
+  const CHILD_TYPES: VisitTypes = VisitTypes::empty();
+  fn visit_children(&mut self, _: &mut V) {}
 }
 
 #[derive(PartialEq, PartialOrd)]

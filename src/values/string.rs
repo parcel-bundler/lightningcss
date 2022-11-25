@@ -268,7 +268,7 @@ impl<'de> serde::de::Visitor<'de> for CowArcStrVisitor {
   }
 }
 
-impl<'i, V: Visitor<'i, T>, T> Visit<'i, T, V> for CowArcStr<'i> {
+impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for CowArcStr<'i> {
   const CHILD_TYPES: VisitTypes = VisitTypes::empty();
   fn visit_children(&mut self, _: &mut V) {}
 }

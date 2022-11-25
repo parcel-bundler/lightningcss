@@ -1,7 +1,58 @@
-//! Visitor.
+//! Visitors for traversing the values in a StyleSheet.
+//!
+//! The [Visitor](Visitor) trait includes methods for visiting and transforming rules, properties, and values within a StyleSheet.
+//! Each value implements the [Visit](Visit) trait, which knows how to visit the value itself, as well as its children.
+//! A Visitor is configured to only visit specific types of values using [VisitTypes](VisitTypes) flags. This enables
+//! entire branches to be skipped when a type does not contain any relevant values.
+//!
+//! # Example
+//!
+//! This example transforms a stylesheet, adding a prefix to all URLs, and converting pixels to rems.
+//!
+//! ```
+//! use lightningcss::{
+//!   stylesheet::{StyleSheet, ParserOptions, PrinterOptions},
+//!   visitor::{Visitor, Visit, VisitTypes},
+//!   visit_types,
+//!   values::length::LengthValue,
+//!   values::url::Url
+//! };
+//!
+//! let mut stylesheet = StyleSheet::parse(
+//!   r#"
+//!     .foo {
+//!       background: url(bg.png);
+//!       width: 32px;
+//!     }
+//!   "#,
+//!   ParserOptions::default()
+//! ).unwrap();
+//!
+//! struct MyVisitor;
+//! impl<'i> Visitor<'i> for MyVisitor {
+//!   const TYPES: VisitTypes = visit_types!(URLS | LENGTHS);
+//!
+//!   fn visit_url(&mut self, url: &mut Url<'i>) {
+//!     url.url = format!("https://mywebsite.com/{}", url.url).into()
+//!   }
+//!
+//!   fn visit_length(&mut self, length: &mut LengthValue) {
+//!     match length {
+//!       LengthValue::Px(px) => *length = LengthValue::Rem(*px / 16.0),
+//!       _ => {}
+//!     }
+//!   }
+//! }
+//!
+//! stylesheet.rules.visit_children(&mut MyVisitor);
+//!
+//! let res = stylesheet.to_css(PrinterOptions { minify: true, ..Default::default() }).unwrap();
+//! assert_eq!(res.code, ".foo{background:url(https://mywebsite.com/bg.png);width:2rem}");
+//! ```
 
 use crate::{
   media_query::MediaQuery,
+  parser::DefaultAtRule,
   properties::{
     custom::{Function, TokenOrValue, Variable},
     Property,
@@ -26,7 +77,10 @@ use smallvec::SmallVec;
 pub use lightningcss_derive::Visit;
 
 bitflags! {
-  /// What to visit.
+  /// Describes what a [Visitor](Visitor) will visit when traversing a StyleSheet.
+  ///
+  /// Flags may be combined to visit multiple types. The [visit_types](visit_types) macro allows
+  /// combining flags in a `const` expression.
   pub struct VisitTypes: u32 {
     /// Visit rules.
     const RULES = 1 << 0;
@@ -67,7 +121,7 @@ bitflags! {
   }
 }
 
-/// Constructs a constant VisitTypes from flags.
+/// Constructs a constant [VisitTypes](VisitTypes) from flags.
 #[macro_export]
 macro_rules! visit_types {
   ($( $flag: ident )|+) => {
@@ -75,13 +129,17 @@ macro_rules! visit_types {
   }
 }
 
-/// A trait for visiting or transforming rules.
-pub trait Visitor<'i, T>: Sized {
-  /// What to visit.
+/// A trait for visiting or transforming rules, properties, and values in a StyleSheet.
+pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule>: Sized {
+  /// The types of values that this visitor should visit. May be constructed using
+  /// the [visit_types](visit_types) macro. Accurately setting these flags improves
+  /// performance by skipping branches that do not have any values of the requested types.
   const TYPES: VisitTypes;
 
   /// Visits a rule.
-  fn visit_rule(&mut self, rule: &mut CssRule<'i, T>);
+  fn visit_rule(&mut self, rule: &mut CssRule<'i, T>) {
+    rule.visit_children(self)
+  }
 
   /// Visits a property.
   fn visit_property(&mut self, property: &mut Property<'i>) {
@@ -158,21 +216,24 @@ pub trait Visitor<'i, T>: Sized {
   }
 }
 
-/// A trait for visiting the children of a rule.
-pub trait Visit<'i, T, V: Visitor<'i, T>> {
-  /// The types of children that this container has.
+/// A trait for values that can be visited by a [Visitor](Visitor).
+pub trait Visit<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> {
+  /// The types of values contained within this value and its children.
+  /// This is used to skip branches that don't have any values requested
+  /// by the Visitor.
   const CHILD_TYPES: VisitTypes;
 
-  /// Visit self.
+  /// Visits the value by calling an appropriate method on the Visitor.
+  /// If no corresponding visitor method exists, then the children are visited.
   fn visit(&mut self, visitor: &mut V) {
     self.visit_children(visitor)
   }
 
-  /// Visit the children of this rule..
+  /// Visit the children of this value.
   fn visit_children(&mut self, visitor: &mut V);
 }
 
-impl<'i, T, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Option<U> {
+impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Option<U> {
   const CHILD_TYPES: VisitTypes = U::CHILD_TYPES;
 
   fn visit(&mut self, visitor: &mut V) {
@@ -188,7 +249,7 @@ impl<'i, T, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Option<U>
   }
 }
 
-impl<'i, T, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Box<U> {
+impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Box<U> {
   const CHILD_TYPES: VisitTypes = U::CHILD_TYPES;
 
   fn visit(&mut self, visitor: &mut V) {
@@ -200,7 +261,7 @@ impl<'i, T, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Box<U> {
   }
 }
 
-impl<'i, T, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Vec<U> {
+impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Vec<U> {
   const CHILD_TYPES: VisitTypes = U::CHILD_TYPES;
 
   fn visit(&mut self, visitor: &mut V) {
@@ -216,7 +277,9 @@ impl<'i, T, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Vec<U> {
   }
 }
 
-impl<'i, A: smallvec::Array<Item = U>, U: Visit<'i, T, V>, T, V: Visitor<'i, T>> Visit<'i, T, V> for SmallVec<A> {
+impl<'i, A: smallvec::Array<Item = U>, U: Visit<'i, T, V>, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V>
+  for SmallVec<A>
+{
   const CHILD_TYPES: VisitTypes = U::CHILD_TYPES;
 
   fn visit(&mut self, visitor: &mut V) {
@@ -234,7 +297,7 @@ impl<'i, A: smallvec::Array<Item = U>, U: Visit<'i, T, V>, T, V: Visitor<'i, T>>
 
 macro_rules! impl_visit {
   ($t: ty) => {
-    impl<'i, V: Visitor<'i, T>, T> Visit<'i, T, V> for $t {
+    impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for $t {
       const CHILD_TYPES: VisitTypes = VisitTypes::empty();
       fn visit_children(&mut self, _: &mut V) {}
     }

@@ -23,18 +23,17 @@ pub fn derive_visit_children(input: TokenStream) -> TokenStream {
     impl_generics.params.insert(0, parse_quote! { 'i })
   }
 
+  let lifetime = impl_generics.lifetimes().next().unwrap().clone();
   let t = impl_generics.type_params().find(|g| &g.ident.to_string() == "R");
+  let v = quote! { __V };
   let t = if let Some(t) = t {
     GenericParam::Type(t.clone())
   } else {
     let t: GenericParam = parse_quote! { __T };
-    impl_generics.params.push(t.clone());
+    impl_generics.params.push(parse_quote! { #t: Visit<#lifetime, __T, #v> });
     t
   };
 
-  let lifetime = impl_generics.lifetimes().next().unwrap().clone();
-
-  let v = quote! { __V };
   impl_generics
     .params
     .push(parse_quote! { #v: crate::visitor::Visitor<#lifetime, #t> });
