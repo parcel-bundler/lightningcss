@@ -36,11 +36,11 @@ fn main() {
   println!("{:?}", stylesheet);
 
   let mut style_rules = HashMap::new();
-  stylesheet.rules.visit_children(&mut StyleRuleCollector {
+  stylesheet.visit(&mut StyleRuleCollector {
     rules: &mut style_rules,
   });
   println!("{:?}", style_rules);
-  stylesheet.rules.visit_children(&mut ApplyVisitor { rules: &style_rules });
+  stylesheet.visit(&mut ApplyVisitor { rules: &style_rules });
 
   let result = stylesheet
     .to_css(PrinterOptions {

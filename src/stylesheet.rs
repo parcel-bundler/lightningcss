@@ -14,6 +14,7 @@ use crate::printer::Printer;
 use crate::rules::{CssRule, CssRuleList, MinifyContext};
 use crate::targets::Browsers;
 use crate::traits::ToCss;
+use crate::visitor::{Visit, VisitTypes, Visitor};
 use cssparser::{AtRuleParser, Parser, ParserInput, RuleListParser};
 use parcel_sourcemap::SourceMap;
 use std::collections::{HashMap, HashSet};
@@ -255,6 +256,19 @@ where
   }
 }
 
+impl<'i, 'o, T, V> Visit<'i, T::AtRule, V> for StyleSheet<'i, 'o, T>
+where
+  T: AtRuleParser<'i>,
+  T::AtRule: Visit<'i, T::AtRule, V>,
+  V: Visitor<'i, T::AtRule>,
+{
+  const CHILD_TYPES: VisitTypes = VisitTypes::all();
+
+  fn visit_children(&mut self, visitor: &mut V) {
+    self.rules.visit(visitor)
+  }
+}
+
 /// An inline style attribute, as in HTML or SVG.
 ///
 /// Style attributes can be parsed from a string, minified and transformed
@@ -280,9 +294,11 @@ where
 /// let res = style.to_css(PrinterOptions::default()).unwrap();
 /// assert_eq!(res.code, "color: #ff0; font-family: Helvetica");
 /// ```
+#[derive(Visit)]
 pub struct StyleAttribute<'i> {
   /// The declarations in the style attribute.
   pub declarations: DeclarationBlock<'i>,
+  #[skip_visit]
   sources: Vec<String>,
 }
 

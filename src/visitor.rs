@@ -44,7 +44,7 @@
 //!   }
 //! }
 //!
-//! stylesheet.rules.visit_children(&mut MyVisitor);
+//! stylesheet.visit(&mut MyVisitor);
 //!
 //! let res = stylesheet.to_css(PrinterOptions { minify: true, ..Default::default() }).unwrap();
 //! assert_eq!(res.code, ".foo{background:url(https://mywebsite.com/bg.png);width:2rem}");
@@ -137,11 +137,13 @@ pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule>: Sized {
   const TYPES: VisitTypes;
 
   /// Visits a rule.
+  #[inline]
   fn visit_rule(&mut self, rule: &mut CssRule<'i, T>) {
     rule.visit_children(self)
   }
 
   /// Visits a property.
+  #[inline]
   fn visit_property(&mut self, property: &mut Property<'i>) {
     property.visit_children(self)
   }
@@ -154,6 +156,7 @@ pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule>: Sized {
   fn visit_color(&mut self, color: &mut CssColor) {}
 
   /// Visits an image.
+  #[inline]
   fn visit_image(&mut self, image: &mut Image<'i>) {
     image.visit_children(self)
   }
@@ -187,16 +190,19 @@ pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule>: Sized {
   fn visit_dashed_ident(&mut self, ident: &mut DashedIdent) {}
 
   /// Visits a variable reference.
+  #[inline]
   fn visit_variable(&mut self, var: &mut Variable<'i>) {
     var.visit_children(self)
   }
 
   /// Visits a media query.
+  #[inline]
   fn visit_media_query(&mut self, query: &mut MediaQuery<'i>) {
     query.visit_children(self)
   }
 
   /// Visits a supports condition.
+  #[inline]
   fn visit_supports_condition(&mut self, condition: &mut SupportsCondition<'i>) {
     condition.visit_children(self)
   }
@@ -206,11 +212,13 @@ pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule>: Sized {
   fn visit_selector(&mut self, selector: &mut Selector<'i>) {}
 
   /// Visits a custom function.
+  #[inline]
   fn visit_function(&mut self, function: &mut Function<'i>) {
     function.visit_children(self)
   }
 
   /// Visits a token or value in an unparsed property.
+  #[inline]
   fn visit_token(&mut self, token: &mut TokenOrValue<'i>) {
     token.visit_children(self)
   }
@@ -225,6 +233,7 @@ pub trait Visit<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> {
 
   /// Visits the value by calling an appropriate method on the Visitor.
   /// If no corresponding visitor method exists, then the children are visited.
+  #[inline]
   fn visit(&mut self, visitor: &mut V) {
     self.visit_children(visitor)
   }
