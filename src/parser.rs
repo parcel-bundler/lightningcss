@@ -859,12 +859,15 @@ impl<'a, 'o, 'i, T: AtRuleParser<'i>> AtRuleParser<'i> for StyleRuleParser<'a, '
       },
       _ => {
         if let Some(at_rule_parser) = &mut self.options.at_rule_parser {
-          at_rule_parser.parse_prelude(name.clone(), input)
-            .map(|prelude| AtRulePrelude::Custom(prelude))
-            .map_err(|_| input.new_error(BasicParseErrorKind::AtRuleInvalid(name)))
-        } else {
-          Err(input.new_error(BasicParseErrorKind::AtRuleInvalid(name)))
+          if let Ok(prelude) = at_rule_parser.parse_prelude(name.clone(), input) {
+            return Ok(AtRulePrelude::Custom(prelude))
+          }
         }
+
+        self.options.warn(input.new_error(BasicParseErrorKind::AtRuleInvalid(name.clone())));
+        input.skip_whitespace();
+        let tokens = TokenList::parse(input, &self.options, 0)?;
+        Ok(AtRulePrelude::Unknown(name.into(), tokens))
       }
     }
   }
@@ -929,6 +932,15 @@ impl<'a, 'o, 'i, T: AtRuleParser<'i>> AtRuleParser<'i> for StyleRuleParser<'a, '
         }));
         Ok(())
       }
+      AtRulePrelude::Unknown(name, prelude) => {
+        self.rules.0.push(CssRule::Unknown(UnknownAtRule {
+          name,
+          prelude,
+          block: Some(TokenList::parse(input, &self.options, 0)?),
+          loc,
+        }));
+        Ok(())
+      }
       AtRulePrelude::Custom(prelude) => {
         if let Some(at_rule_parser) = &mut self.options.at_rule_parser {
           let rule = at_rule_parser
@@ -948,6 +960,20 @@ impl<'a, 'o, 'i, T: AtRuleParser<'i>> AtRuleParser<'i> for StyleRuleParser<'a, '
 
   fn rule_without_block(&mut self, prelude: Self::Prelude, start: &ParserState) -> Result<Self::AtRule, ()> {
     match prelude {
+      AtRulePrelude::Unknown(name, prelude) => {
+        let loc = start.source_location();
+        self.rules.0.push(CssRule::Unknown(UnknownAtRule {
+          name,
+          prelude,
+          block: None,
+          loc: Location {
+            source_index: self.options.source_index,
+            line: loc.line,
+            column: loc.column,
+          },
+        }));
+        Ok(())
+      }
       AtRulePrelude::Custom(prelude) => {
         if let Some(at_rule_parser) = &mut self.options.at_rule_parser {
           let rule = at_rule_parser.rule_without_block(prelude, start)?;
