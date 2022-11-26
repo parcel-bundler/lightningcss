@@ -27,7 +27,7 @@ pub fn derive_visit_children(input: TokenStream) -> TokenStream {
   let t = impl_generics.type_params().find(|g| &g.ident.to_string() == "R");
   let v = quote! { __V };
   let t = if let Some(t) = t {
-    GenericParam::Type(t.clone())
+    GenericParam::Type(t.ident.clone().into())
   } else {
     let t: GenericParam = parse_quote! { __T };
     impl_generics.params.push(parse_quote! { #t: Visit<#lifetime, __T, #v> });
@@ -39,8 +39,9 @@ pub fn derive_visit_children(input: TokenStream) -> TokenStream {
     .push(parse_quote! { #v: crate::visitor::Visitor<#lifetime, #t> });
 
   for ty in generics.type_params() {
+    let name = &ty.ident;
     impl_generics.make_where_clause().predicates.push(parse_quote! {
-      #ty: Visit<#lifetime, #t, #v>
+      #name: Visit<#lifetime, #t, #v>
     })
   }
 

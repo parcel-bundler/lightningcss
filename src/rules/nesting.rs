@@ -4,6 +4,7 @@ use super::style::StyleRule;
 use super::Location;
 use super::MinifyContext;
 use crate::error::{MinifyError, PrinterError};
+use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
 use crate::rules::{StyleContext, ToCssWithContext};
 use crate::traits::ToCss;
@@ -11,7 +12,7 @@ use crate::visitor::Visit;
 /// A [@nest](https://www.w3.org/TR/css-nesting-1/#at-nest) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct NestingRule<'i, R> {
+pub struct NestingRule<'i, R = DefaultAtRule> {
   /// The style rule that defines the selector and declarations for the `@nest` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub style: StyleRule<'i, R>,

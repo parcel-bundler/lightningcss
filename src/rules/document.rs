@@ -3,6 +3,7 @@
 use super::Location;
 use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, PrinterError};
+use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::visitor::Visit;
@@ -13,7 +14,7 @@ use crate::visitor::Visit;
 /// is allowed since Firefox was the only browser that ever implemented this rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct MozDocumentRule<'i, R> {
+pub struct MozDocumentRule<'i, R = DefaultAtRule> {
   /// Nested rules within the `@-moz-document` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub rules: CssRuleList<'i, R>,

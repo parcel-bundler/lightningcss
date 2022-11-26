@@ -9,6 +9,7 @@ use crate::context::DeclarationContext;
 use crate::declaration::DeclarationBlock;
 use crate::error::ParserError;
 use crate::error::{MinifyError, PrinterError, PrinterErrorKind};
+use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
 use crate::rules::{CssRuleList, StyleContext, ToCssWithContext};
 use crate::selector::{is_compatible, is_unused, SelectorList};
@@ -24,7 +25,7 @@ use crate::selector::{deserialize_selectors, serialize_selectors};
 /// A CSS [style rule](https://drafts.csswg.org/css-syntax/#style-rules).
 #[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct StyleRule<'i, R> {
+pub struct StyleRule<'i, R = DefaultAtRule> {
   /// The selectors for the style rule.
   #[cfg_attr(
     feature = "serde",
