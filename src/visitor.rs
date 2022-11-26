@@ -74,7 +74,7 @@ use crate::{
 use bitflags::bitflags;
 use smallvec::SmallVec;
 
-pub use lightningcss_derive::Visit;
+pub(crate) use lightningcss_derive::Visit;
 
 bitflags! {
   /// Describes what a [Visitor](Visitor) will visit when traversing a StyleSheet.
