@@ -8,10 +8,11 @@ use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::properties::border_radius::BorderRadius;
 use crate::traits::{Parse, ToCss};
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A CSS [`<basic-shape>`](https://www.w3.org/TR/css-shapes-1/#basic-shape-functions) value.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -29,7 +30,7 @@ pub enum BasicShape {
 }
 
 /// An [`inset()`](https://www.w3.org/TR/css-shapes-1/#funcdef-inset) rectangle shape.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct InsetRect {
   /// The rectangle.
@@ -39,7 +40,7 @@ pub struct InsetRect {
 }
 
 /// A [`circle()`](https://www.w3.org/TR/css-shapes-1/#funcdef-circle) shape.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Circle {
   /// The radius of the circle.
@@ -50,7 +51,7 @@ pub struct Circle {
 
 /// A [`<shape-radius>`](https://www.w3.org/TR/css-shapes-1/#typedef-shape-radius) value
 /// that defines the radius of a `circle()` or `ellipse()` shape.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -66,7 +67,7 @@ pub enum ShapeRadius {
 }
 
 /// An [`ellipse()`](https://www.w3.org/TR/css-shapes-1/#funcdef-ellipse) shape.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Ellipse {
   /// The x-radius of the ellipse.
@@ -78,7 +79,7 @@ pub struct Ellipse {
 }
 
 /// A [`polygon()`](https://www.w3.org/TR/css-shapes-1/#funcdef-polygon) shape.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Polygon {
   /// The fill rule used to determine the interior of the polygon.
@@ -90,7 +91,7 @@ pub struct Polygon {
 /// A point within a `polygon()` shape.
 ///
 /// See [Polygon](Polygon).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Point {
   /// The x position of the point.

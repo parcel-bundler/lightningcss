@@ -3,26 +3,29 @@
 use super::Location;
 use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
+use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
 use crate::rules::{StyleContext, ToCssWithContext};
 use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A [@supports](https://drafts.csswg.org/css-conditional-3/#at-supports) rule.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct SupportsRule<'i> {
+pub struct SupportsRule<'i, R = DefaultAtRule> {
   /// The supports condition.
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub condition: SupportsCondition<'i>,
   /// The rules within the `@supports` rule.
-  pub rules: CssRuleList<'i>,
+  pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.
+  #[skip_visit]
   pub loc: Location,
 }
 
-impl<'i> SupportsRule<'i> {
+impl<'i, T> SupportsRule<'i, T> {
   pub(crate) fn minify(
     &mut self,
     context: &mut MinifyContext<'_, 'i>,
@@ -32,11 +35,11 @@ impl<'i> SupportsRule<'i> {
   }
 }
 
-impl<'a, 'i> ToCssWithContext<'a, 'i> for SupportsRule<'i> {
+impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for SupportsRule<'i, T> {
   fn to_css_with_context<W>(
     &self,
     dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i>>,
+    context: Option<&StyleContext<'a, 'i, T>>,
   ) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
@@ -57,7 +60,8 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for SupportsRule<'i> {
 
 /// A [`<supports-condition>`](https://drafts.csswg.org/css-conditional-3/#typedef-supports-condition),
 /// as used in the `@supports` and `@import` rules.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Visit)]
+#[visit(visit_supports_condition, SUPPORTS_CONDITIONS)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -65,10 +69,13 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for SupportsRule<'i> {
 )]
 pub enum SupportsCondition<'i> {
   /// A `not` expression.
+  #[skip_type]
   Not(Box<SupportsCondition<'i>>),
   /// An `and` expression.
+  #[skip_type]
   And(Vec<SupportsCondition<'i>>),
   /// An `or` expression.
+  #[skip_type]
   Or(Vec<SupportsCondition<'i>>),
   /// A declaration to evaluate.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -77,6 +84,7 @@ pub enum SupportsCondition<'i> {
   Selector(CowArcStr<'i>),
   // FontTechnology()
   /// A parenthesized expression.
+  #[skip_type]
   Parens(Box<SupportsCondition<'i>>),
   /// An unknown condition.
   Unknown(CowArcStr<'i>),

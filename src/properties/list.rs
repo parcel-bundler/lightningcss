@@ -8,12 +8,13 @@ use crate::macros::{define_shorthand, enum_property, shorthand_handler, shorthan
 use crate::printer::Printer;
 use crate::targets::Browsers;
 use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss};
-use crate::values::string::CowArcStr;
+use crate::values::string::CSSString;
 use crate::values::{ident::CustomIdent, image::Image};
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A value for the [list-style-type](https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#text-markers) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -24,7 +25,7 @@ pub enum ListStyleType<'i> {
   None,
   /// An explicit marker string.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  String(CowArcStr<'i>),
+  String(CSSString<'i>),
   /// A named counter style.
   CounterStyle(CounterStyle<'i>),
 }
@@ -45,8 +46,8 @@ impl<'i> Parse<'i> for ListStyleType<'i> {
       return Ok(ListStyleType::CounterStyle(val));
     }
 
-    let s = input.expect_string_cloned()?;
-    Ok(ListStyleType::String(s.into()))
+    let s = CSSString::parse(input)?;
+    Ok(ListStyleType::String(s))
   }
 }
 
@@ -58,16 +59,13 @@ impl ToCss for ListStyleType<'_> {
     match self {
       ListStyleType::None => dest.write_str("none"),
       ListStyleType::CounterStyle(style) => style.to_css(dest),
-      ListStyleType::String(s) => {
-        serialize_string(&s, dest)?;
-        Ok(())
-      }
+      ListStyleType::String(s) => s.to_css(dest),
     }
   }
 }
 
 /// A [counter-style](https://www.w3.org/TR/css-counter-styles-3/#typedef-counter-style) name.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -232,7 +230,7 @@ enum_property! {
 /// `symbols()` function.
 ///
 /// See [CounterStyle](CounterStyle).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -241,7 +239,7 @@ enum_property! {
 pub enum Symbol<'i> {
   /// A string.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  String(CowArcStr<'i>),
+  String(CSSString<'i>),
   /// An image.
   Image(Image<'i>),
 }
@@ -252,7 +250,7 @@ impl<'i> Parse<'i> for Symbol<'i> {
       return Ok(Symbol::Image(img));
     }
 
-    let s = input.expect_string_cloned()?;
+    let s = CSSString::parse(input)?;
     Ok(Symbol::String(s.into()))
   }
 }
@@ -263,10 +261,7 @@ impl<'i> ToCss for Symbol<'i> {
     W: std::fmt::Write,
   {
     match self {
-      Symbol::String(s) => {
-        serialize_string(&s, dest)?;
-        Ok(())
-      }
+      Symbol::String(s) => s.to_css(dest),
       Symbol::Image(img) => img.to_css(dest),
     }
   }

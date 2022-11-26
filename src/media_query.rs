@@ -7,14 +7,16 @@ use crate::printer::Printer;
 use crate::rules::custom_media::CustomMediaRule;
 use crate::rules::Location;
 use crate::traits::{Parse, ToCss};
+use crate::values::ident::Ident;
 use crate::values::number::CSSNumber;
 use crate::values::string::CowArcStr;
 use crate::values::{length::Length, ratio::Ratio, resolution::Resolution};
+use crate::visitor::Visit;
 use cssparser::*;
 use std::collections::{HashMap, HashSet};
 
 /// A [media query list](https://drafts.csswg.org/mediaqueries/#mq-list).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MediaList<'i> {
   /// The list of media queries.
@@ -141,7 +143,7 @@ enum_property! {
 }
 
 /// A [media type](https://drafts.csswg.org/mediaqueries/#media-types) within a media query.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -173,7 +175,8 @@ impl<'i> Parse<'i> for MediaType<'i> {
 }
 
 /// A [media query](https://drafts.csswg.org/mediaqueries/#media).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Visit)]
+#[visit(visit_media_query, MEDIA_QUERIES)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MediaQuery<'i> {
   /// The qualifier for this query.
@@ -362,7 +365,7 @@ enum_property! {
 }
 
 /// Represents a media condition.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -373,10 +376,13 @@ pub enum MediaCondition<'i> {
   #[cfg_attr(feature = "serde", serde(borrow))]
   Feature(MediaFeature<'i>),
   /// A negation of a condition.
+  #[skip_type]
   Not(Box<MediaCondition<'i>>),
   /// A set of joint operations.
+  #[skip_type]
   Operation(Vec<MediaCondition<'i>>, Operator),
   /// A condition wrapped in parenthesis.
+  #[skip_type]
   InParens(Box<MediaCondition<'i>>),
 }
 
@@ -474,7 +480,7 @@ impl<'i> ToCss for MediaCondition<'i> {
 }
 
 /// A [comparator](https://drafts.csswg.org/mediaqueries/#typedef-mf-comparison) within a media query.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -530,7 +536,7 @@ impl MediaFeatureComparison {
 }
 
 /// A [media feature](https://drafts.csswg.org/mediaqueries/#typedef-media-feature)
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -541,16 +547,16 @@ pub enum MediaFeature<'i> {
   Plain {
     /// The name of the feature.
     #[cfg_attr(feature = "serde", serde(borrow))]
-    name: CowArcStr<'i>,
+    name: Ident<'i>,
     /// The feature value.
     value: MediaFeatureValue<'i>,
   },
   /// A boolean feature, e.g. `(hover)`.
-  Boolean(CowArcStr<'i>),
+  Boolean(Ident<'i>),
   /// A range, e.g. `(width > 240px)`.
   Range {
     /// The name of the feature.
-    name: CowArcStr<'i>,
+    name: Ident<'i>,
     /// A comparator.
     operator: MediaFeatureComparison,
     /// The feature value.
@@ -559,7 +565,7 @@ pub enum MediaFeature<'i> {
   /// An interval, e.g. `(120px < width < 240px)`.
   Interval {
     /// The name of the feature.
-    name: CowArcStr<'i>,
+    name: Ident<'i>,
     /// A start value.
     start: MediaFeatureValue<'i>,
     /// A comparator for the start value.
@@ -583,7 +589,7 @@ impl<'i> Parse<'i> for MediaFeature<'i> {
 
 impl<'i> MediaFeature<'i> {
   fn parse_name_first<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let name = input.expect_ident()?.into();
+    let name = Ident::parse(input)?;
 
     let operator = input.try_parse(|input| consume_operation_or_colon(input, true));
     let operator = match operator {
@@ -603,7 +609,7 @@ impl<'i> MediaFeature<'i> {
   fn parse_value_first<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let value = MediaFeatureValue::parse(input)?;
     let operator = consume_operation_or_colon(input, false)?;
-    let name = input.expect_ident()?.into();
+    let name = Ident::parse(input)?;
 
     if let Ok(end_operator) = input.try_parse(|input| consume_operation_or_colon(input, false)) {
       let start_operator = operator.unwrap();
@@ -644,10 +650,10 @@ impl<'i> ToCss for MediaFeature<'i> {
 
     match self {
       MediaFeature::Boolean(name) => {
-        serialize_identifier(name, dest)?;
+        name.to_css(dest)?;
       }
       MediaFeature::Plain { name, value } => {
-        serialize_identifier(name, dest)?;
+        name.to_css(dest)?;
         dest.delim(':', false)?;
         value.to_css(dest)?;
       }
@@ -659,7 +665,7 @@ impl<'i> ToCss for MediaFeature<'i> {
           }
         }
 
-        serialize_identifier(name, dest)?;
+        name.to_css(dest)?;
         operator.to_css(dest)?;
         value.to_css(dest)?;
       }
@@ -680,7 +686,7 @@ impl<'i> ToCss for MediaFeature<'i> {
 
         start.to_css(dest)?;
         start_operator.to_css(dest)?;
-        serialize_identifier(name, dest)?;
+        name.to_css(dest)?;
         end_operator.to_css(dest)?;
         end.to_css(dest)?;
       }
@@ -693,7 +699,7 @@ impl<'i> ToCss for MediaFeature<'i> {
 #[inline]
 fn write_min_max<W>(
   operator: &MediaFeatureComparison,
-  name: &str,
+  name: &Ident,
   value: &MediaFeatureValue,
   dest: &mut Printer<W>,
 ) -> Result<(), PrinterError>
@@ -710,7 +716,7 @@ where
     dest.write_str(prefix)?;
   }
 
-  serialize_identifier(name, dest)?;
+  name.to_css(dest)?;
   dest.delim(':', false)?;
 
   let adjusted = match operator {
@@ -732,7 +738,7 @@ where
 /// [media feature value](https://drafts.csswg.org/mediaqueries/#typedef-mf-value) within a media query.
 ///
 /// See [MediaFeature](MediaFeature).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -749,7 +755,7 @@ pub enum MediaFeatureValue<'i> {
   Ratio(Ratio),
   /// An indentifier.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  Ident(CowArcStr<'i>),
+  Ident(Ident<'i>),
 }
 
 impl<'i> Parse<'i> for MediaFeatureValue<'i> {
@@ -774,8 +780,8 @@ impl<'i> Parse<'i> for MediaFeatureValue<'i> {
       return Ok(MediaFeatureValue::Resolution(res));
     }
 
-    let ident = input.expect_ident()?;
-    Ok(MediaFeatureValue::Ident(ident.into()))
+    let ident = Ident::parse(input)?;
+    Ok(MediaFeatureValue::Ident(ident))
   }
 }
 
@@ -790,7 +796,7 @@ impl<'i> ToCss for MediaFeatureValue<'i> {
       MediaFeatureValue::Resolution(res) => res.to_css(dest),
       MediaFeatureValue::Ratio(ratio) => ratio.to_css(dest),
       MediaFeatureValue::Ident(id) => {
-        serialize_identifier(id, dest)?;
+        id.to_css(dest)?;
         Ok(())
       }
     }
@@ -852,7 +858,7 @@ fn process_condition<'i>(
   media_type: &mut MediaType<'i>,
   qualifier: &mut Option<Qualifier>,
   condition: &mut MediaCondition<'i>,
-  seen: &mut HashSet<CowArcStr<'i>>,
+  seen: &mut HashSet<Ident<'i>>,
 ) -> Result<bool, MinifyError> {
   match condition {
     MediaCondition::Not(cond) => {
@@ -913,7 +919,7 @@ fn process_condition<'i>(
         });
       }
 
-      let rule = custom_media.get(name).ok_or_else(|| ErrorWithLocation {
+      let rule = custom_media.get(&name.0).ok_or_else(|| ErrorWithLocation {
         kind: MinifyErrorKind::CustomMediaNotDefined { name: name.to_string() },
         loc,
       })?;

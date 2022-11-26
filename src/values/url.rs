@@ -5,10 +5,12 @@ use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A CSS [url()](https://www.w3.org/TR/css-values-4/#urls) value and its source location.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Visit)]
+#[visit(visit_url, URLS)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Url<'i> {
   /// The url string.

@@ -1,7 +1,7 @@
 //! CSS syntax strings
 
+use super::ident::Ident;
 use super::number::{CSSInteger, CSSNumber};
-use super::string::CowArcStr;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
@@ -132,7 +132,7 @@ pub enum ParsedComponent<'i> {
   /// A `<custom-ident>` value.
   CustomIdent(values::ident::CustomIdent<'i>),
   /// A literal value.
-  Literal(CowArcStr<'i>),
+  Literal(Ident<'i>),
   /// A repeated component value.
   Repeated(Vec<ParsedComponent<'i>>, Multiplier),
   /// A raw token.
@@ -445,10 +445,7 @@ impl<'i> ToCss for ParsedComponent<'i> {
       TransformFunction(v) => v.to_css(dest),
       TransformList(v) => v.to_css(dest),
       CustomIdent(v) => v.to_css(dest),
-      Literal(v) => {
-        serialize_identifier(&v, dest)?;
-        Ok(())
-      }
+      Literal(v) => v.to_css(dest),
       Repeated(components, multiplier) => {
         let mut first = true;
         for component in components {

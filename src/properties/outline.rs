@@ -10,10 +10,11 @@ use crate::printer::Printer;
 use crate::targets::Browsers;
 use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::color::CssColor;
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A value for the [outline-style](https://drafts.csswg.org/css-ui/#outline-style) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

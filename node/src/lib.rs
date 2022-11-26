@@ -588,6 +588,7 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult<'i>, Co
         source_index: 0,
         error_recovery: config.error_recovery.unwrap_or_default(),
         warnings: warnings.clone(),
+        at_rule_parser: ParserOptions::default_at_rule_parser()
       },
     )?;
     stylesheet.minify(MinifyOptions {

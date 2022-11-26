@@ -136,6 +136,7 @@ use crate::values::{
   rect::*, shape::FillRule, size::Size2D, time::Time,
 };
 use crate::vendor_prefix::VendorPrefix;
+use crate::visitor::Visit;
 use align::*;
 use animation::*;
 use background::*;
@@ -174,7 +175,7 @@ macro_rules! define_properties {
     )+
   ) => {
     /// A CSS property id.
-    #[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Clone, PartialEq, Visit)]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     pub enum PropertyId<'i> {
       $(
@@ -523,7 +524,8 @@ macro_rules! define_properties {
     }
 
     /// A CSS property.
-    #[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Clone, PartialEq, Visit)]
+    #[visit(visit_property, PROPERTIES)]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "serde", serde(tag = "property", content = "value"))]
     pub enum Property<'i> {
@@ -543,7 +545,7 @@ macro_rules! define_properties {
 
     impl<'i> Property<'i> {
       /// Parses a CSS property by name.
-      pub fn parse<'t>(property_id: PropertyId<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Property<'i>, ParseError<'i, ParserError<'i>>> {
+      pub fn parse<'t, T>(property_id: PropertyId<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions<T>) -> Result<Property<'i>, ParseError<'i, ParserError<'i>>> {
         let state = input.state();
 
         match property_id {
@@ -584,7 +586,7 @@ macro_rules! define_properties {
       }
 
       /// Parses a CSS property from a string.
-      pub fn parse_string(property_id: PropertyId<'i>, input: &'i str, options: ParserOptions) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+      pub fn parse_string<T>(property_id: PropertyId<'i>, input: &'i str, options: ParserOptions<T>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let mut input = ParserInput::new(input);
         let mut parser = Parser::new(&mut input);
         Self::parse(property_id, &mut parser, &options)

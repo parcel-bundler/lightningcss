@@ -7,6 +7,7 @@ use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A [page selector](https://www.w3.org/TR/css-page-3/#typedef-page-selector)
@@ -69,15 +70,17 @@ impl<'i> Parse<'i> for PageSelector<'i> {
 }
 
 /// A [@page](https://www.w3.org/TR/css-page-3/#at-page-rule) rule.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PageRule<'i> {
   /// A list of page selectors.
   #[cfg_attr(feature = "serde", serde(borrow))]
+  #[skip_visit]
   pub selectors: Vec<PageSelector<'i>>,
   /// The declarations within the `@page` rule.
   pub declarations: DeclarationBlock<'i>,
   /// The location of the rule in the source file.
+  #[skip_visit]
   pub loc: Location,
 }
 

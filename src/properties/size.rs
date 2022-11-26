@@ -10,6 +10,7 @@ use crate::properties::{Property, PropertyId};
 use crate::traits::{Parse, PropertyHandler, ToCss};
 use crate::values::length::LengthPercentage;
 use crate::vendor_prefix::VendorPrefix;
+use crate::visitor::Visit;
 use cssparser::*;
 
 // https://drafts.csswg.org/css-sizing-3/#specifying-sizes
@@ -17,7 +18,7 @@ use cssparser::*;
 
 /// A value for the [preferred size properties](https://drafts.csswg.org/css-sizing-3/#preferred-size-properties),
 /// i.e. `width` and `height.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -118,7 +119,7 @@ impl ToCss for Size {
 /// A value for the [minimum](https://drafts.csswg.org/css-sizing-3/#min-size-properties)
 /// and [maximum](https://drafts.csswg.org/css-sizing-3/#max-size-properties) size properties,
 /// e.g. `min-width` and `max-height`.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

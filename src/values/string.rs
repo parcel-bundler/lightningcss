@@ -1,8 +1,10 @@
 //! Types used to represent strings.
 
-use cssparser::CowRcStr;
+use crate::traits::{Parse, ToCss};
+use crate::visitor::{Visit, VisitTypes, Visitor};
+use cssparser::{serialize_string, CowRcStr};
 #[cfg(feature = "serde")]
-use serde::{de::Visitor, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer};
 use serde::{Serialize, Serializer};
 use std::borrow::Borrow;
 use std::cmp;
@@ -237,7 +239,7 @@ impl<'a, 'de: 'a> Deserialize<'de> for CowArcStr<'a> {
 struct CowArcStrVisitor;
 
 #[cfg(feature = "serde")]
-impl<'de> Visitor<'de> for CowArcStrVisitor {
+impl<'de> serde::de::Visitor<'de> for CowArcStrVisitor {
   type Value = CowArcStr<'de>;
 
   fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -265,3 +267,117 @@ impl<'de> Visitor<'de> for CowArcStrVisitor {
     Ok(v.into())
   }
 }
+
+impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for CowArcStr<'i> {
+  const CHILD_TYPES: VisitTypes = VisitTypes::empty();
+  fn visit_children(&mut self, _: &mut V) {}
+}
+
+/// A quoted CSS string.
+#[derive(Clone, Eq, Ord, Hash, Debug, Visit)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CSSString<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CowArcStr<'i>);
+
+impl<'i> Parse<'i> for CSSString<'i> {
+  fn parse<'t>(
+    input: &mut cssparser::Parser<'i, 't>,
+  ) -> Result<Self, cssparser::ParseError<'i, crate::error::ParserError<'i>>> {
+    let s = input.expect_string()?;
+    Ok(CSSString(s.into()))
+  }
+}
+
+impl<'i> ToCss for CSSString<'i> {
+  fn to_css<W>(&self, dest: &mut crate::printer::Printer<W>) -> Result<(), crate::error::PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    serialize_string(&self.0, dest)?;
+    Ok(())
+  }
+}
+
+impl<'i> cssparser::ToCss for CSSString<'i> {
+  fn to_css<W>(&self, dest: &mut W) -> fmt::Result
+  where
+    W: fmt::Write,
+  {
+    serialize_string(&self.0, dest)
+  }
+}
+
+macro_rules! impl_string_type {
+  ($t: ident) => {
+    impl<'i> From<CowRcStr<'i>> for $t<'i> {
+      fn from(s: CowRcStr<'i>) -> Self {
+        $t(s.into())
+      }
+    }
+
+    impl<'a> From<&CowRcStr<'a>> for $t<'a> {
+      fn from(s: &CowRcStr<'a>) -> Self {
+        $t(s.into())
+      }
+    }
+
+    impl<'i> From<String> for $t<'i> {
+      fn from(s: String) -> Self {
+        $t(s.into())
+      }
+    }
+
+    impl<'i> From<&'i str> for $t<'i> {
+      fn from(s: &'i str) -> Self {
+        $t(s.into())
+      }
+    }
+
+    impl<'a> Deref for $t<'a> {
+      type Target = str;
+
+      #[inline]
+      fn deref(&self) -> &str {
+        self.0.deref()
+      }
+    }
+
+    impl<'a> AsRef<str> for $t<'a> {
+      #[inline]
+      fn as_ref(&self) -> &str {
+        self
+      }
+    }
+
+    impl<'a> Borrow<str> for $t<'a> {
+      #[inline]
+      fn borrow(&self) -> &str {
+        self
+      }
+    }
+
+    impl<'a> std::fmt::Display for $t<'a> {
+      #[inline]
+      fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        str::fmt(self, formatter)
+      }
+    }
+
+    impl<'a, T: AsRef<str>> PartialEq<T> for $t<'a> {
+      #[inline]
+      fn eq(&self, other: &T) -> bool {
+        str::eq(self, other.as_ref())
+      }
+    }
+
+    impl<'a, T: AsRef<str>> PartialOrd<T> for $t<'a> {
+      #[inline]
+      fn partial_cmp(&self, other: &T) -> Option<std::cmp::Ordering> {
+        str::partial_cmp(self, other.as_ref())
+      }
+    }
+  };
+}
+
+impl_string_type!(CSSString);
+
+pub(crate) use impl_string_type;

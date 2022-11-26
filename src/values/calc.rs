@@ -6,6 +6,7 @@ use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::traits::private::AddInternal;
 use crate::traits::{Parse, Sign, ToCss, TryMap, TryOp, TrySign};
+use crate::visitor::Visit;
 use cssparser::*;
 
 use super::angle::Angle;
@@ -18,7 +19,7 @@ use super::time::Time;
 ///
 /// Math functions may be used in most properties and values that accept numeric
 /// values, including lengths, percentages, angles, times, etc.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -199,7 +200,7 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
 ///
 /// This type supports generic value types. Values such as [Length](super::length::Length), [Percentage](super::percentage::Percentage),
 /// [Time](super::time::Time), and [Angle](super::angle::Angle) support `calc()` expressions.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -211,10 +212,13 @@ pub enum Calc<V> {
   /// A literal number.
   Number(CSSNumber),
   /// A sum of two calc expressions.
+  #[skip_type]
   Sum(Box<Calc<V>>, Box<Calc<V>>),
   /// A product of a number and another calc expression.
+  #[skip_type]
   Product(CSSNumber, Box<Calc<V>>),
   /// A math function, such as `calc()`, `min()`, or `max()`.
+  #[skip_type]
   Function(Box<MathFunction<V>>),
 }
 

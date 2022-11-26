@@ -6,11 +6,12 @@ use crate::targets::Browsers;
 use crate::traits::{FallbackValues, Parse, ToCss, Zero};
 use crate::values::color::ColorFallbackKind;
 use crate::values::{angle::Angle, color::CssColor, length::Length, percentage::NumberOrPercentage, url::Url};
+use crate::visitor::Visit;
 use cssparser::*;
 use smallvec::SmallVec;
 
 /// A [filter](https://drafts.fxtf.org/filter-effects-1/#filter-functions) function.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -205,7 +206,7 @@ impl<'i> Filter<'i> {
 }
 
 /// A [`drop-shadow()`](https://drafts.fxtf.org/filter-effects-1/#funcdef-filter-drop-shadow) filter function.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DropShadow {
   /// The color of the drop shadow.
@@ -292,7 +293,7 @@ impl DropShadow {
 
 /// A value for the [filter](https://drafts.fxtf.org/filter-effects-1/#FilterProperty) and
 /// [backdrop-filter](https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty) properties.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

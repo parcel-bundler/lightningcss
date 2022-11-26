@@ -11,6 +11,7 @@ use crate::traits::{
   private::{AddInternal, TryAdd},
   Map, Op, Parse, Sign, ToCss, Zero,
 };
+use crate::visitor::Visit;
 use cssparser::*;
 use std::f32::consts::PI;
 
@@ -18,7 +19,8 @@ use std::f32::consts::PI;
 ///
 /// Angles may be explicit or computed by `calc()`, but are always stored and serialized
 /// as their computed value.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Visit)]
+#[visit(visit_angle, ANGLES)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -74,6 +76,23 @@ impl Angle {
       }
       Token::Number { value, .. } if value == 0.0 && allow_unitless_zero => Ok(Angle::zero()),
       ref token => return Err(location.new_unexpected_token_error(token.clone())),
+    }
+  }
+}
+
+impl<'i> TryFrom<&Token<'i>> for Angle {
+  type Error = ();
+
+  fn try_from(token: &Token) -> Result<Self, Self::Error> {
+    match token {
+      Token::Dimension { value, ref unit, .. } => match_ignore_ascii_case! { unit,
+        "deg" => Ok(Angle::Deg(*value)),
+        "grad" => Ok(Angle::Grad(*value)),
+        "turn" => Ok(Angle::Turn(*value)),
+        "rad" => Ok(Angle::Rad(*value)),
+        _ => Err(()),
+      },
+      _ => Err(()),
     }
   }
 }

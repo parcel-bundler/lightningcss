@@ -27,18 +27,18 @@ pub trait Parse<'i>: Sized {
   }
 }
 
-pub(crate) trait ParseWithOptions<'i>: Sized {
+pub(crate) trait ParseWithOptions<'i, T>: Sized {
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions,
+    options: &ParserOptions<T>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>>;
 }
 
-impl<'i, T: Parse<'i>> ParseWithOptions<'i> for T {
+impl<'i, T: Parse<'i>, U> ParseWithOptions<'i, U> for T {
   #[inline]
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    _options: &ParserOptions,
+    _options: &ParserOptions<U>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     T::parse(input)
   }

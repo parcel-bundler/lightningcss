@@ -284,6 +284,7 @@ pub extern "C" fn lightningcss_stylesheet_parse(
     error_recovery: options.error_recovery,
     source_index: 0,
     warnings: Some(warnings.clone()),
+    at_rule_parser: None
   };
 
   let stylesheet = unwrap!(StyleSheet::parse(code, opts), error, std::ptr::null_mut());
@@ -329,7 +330,11 @@ pub extern "C" fn lightningcss_stylesheet_to_css(
     } else {
       None
     },
-    analyze_dependencies: options.analyze_dependencies,
+    analyze_dependencies: if options.analyze_dependencies {
+      Some(Default::default())
+    } else {
+      None
+    },
     pseudo_classes: if options.pseudo_classes != PseudoClasses::default() {
       Some(options.pseudo_classes.into())
     } else {

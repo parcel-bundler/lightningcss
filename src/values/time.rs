@@ -7,6 +7,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::private::AddInternal;
 use crate::traits::{impl_op, Map, Op, Parse, Sign, ToCss, Zero};
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A CSS [`<time>`](https://www.w3.org/TR/css-values-4/#time) value, in either
@@ -14,7 +15,8 @@ use cssparser::*;
 ///
 /// Time values may be explicit or computed by `calc()`, but are always stored and serialized
 /// as their computed value.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
+#[visit(visit_time, TIMES)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -69,6 +71,21 @@ impl<'i> Parse<'i> for Time {
         }
       }
       ref t => Err(location.new_unexpected_token_error(t.clone())),
+    }
+  }
+}
+
+impl<'i> TryFrom<&Token<'i>> for Time {
+  type Error = ();
+
+  fn try_from(token: &Token) -> Result<Self, Self::Error> {
+    match token {
+      Token::Dimension { value, ref unit, .. } => match_ignore_ascii_case! { unit,
+        "s" => Ok(Time::Seconds(*value)),
+        "ms" => Ok(Time::Milliseconds(*value)),
+        _ => Err(()),
+      },
+      _ => Err(()),
     }
   }
 }

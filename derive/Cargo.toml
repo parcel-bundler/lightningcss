@@ -1,0 +1,14 @@
+[package]
+authors = ["Devon Govett <devongovett@gmail.com>"]
+name = "lightningcss-derive"
+version = "1.0.0-alpha.35"
+license = "MPL-2.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "1.0"
+quote = "1.0"
+proc-macro2 = "1.0"

@@ -11,6 +11,7 @@ use crate::traits::{
   private::{AddInternal, TryAdd},
   Map, Parse, Sign, ToCss, TryMap, TryOp, Zero,
 };
+use crate::visitor::Visit;
 use const_str;
 use cssparser::*;
 
@@ -36,7 +37,7 @@ impl LengthPercentage {
 }
 
 /// Either a [`<length-percentage>`](https://www.w3.org/TR/css-values-4/#typedef-length-percentage), or the `auto` keyword.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -92,7 +93,8 @@ macro_rules! define_length_units {
   ) => {
     /// A CSS [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) value,
     /// without support for `calc()`. See also: [Length](Length).
-    #[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Clone, PartialEq, Visit)]
+    #[visit(visit_length, LENGTHS)]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(tag = "unit", content = "value", rename_all = "kebab-case"))]
     pub enum LengthValue {
       $(
@@ -119,6 +121,24 @@ macro_rules! define_length_units {
             Ok(LengthValue::Px(value))
           }
           ref token => return Err(location.new_unexpected_token_error(token.clone())),
+        }
+      }
+    }
+
+    impl<'i> TryFrom<&Token<'i>> for LengthValue {
+      type Error = ();
+
+      fn try_from(token: &Token) -> Result<Self, Self::Error> {
+        match token {
+          Token::Dimension { value, ref unit, .. } => {
+            Ok(match unit {
+              $(
+                s if s.eq_ignore_ascii_case(stringify!($name)) => LengthValue::$name(*value),
+              )+
+              _ => return Err(()),
+            })
+          },
+          _ => Err(())
         }
       }
     }
@@ -454,7 +474,7 @@ impl LengthValue {
 }
 
 /// A CSS [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) value, with support for `calc()`.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -464,6 +484,7 @@ pub enum Length {
   /// An explicitly specified length value.
   Value(LengthValue),
   /// A computed length value using `calc()`.
+  #[skip_type]
   Calc(Box<Calc<Length>>),
 }
 
@@ -715,7 +736,7 @@ impl TrySign for Length {
 impl_try_from_angle!(Length);
 
 /// Either a [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) or a [`<number>`](https://www.w3.org/TR/css-values-4/#numbers).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
