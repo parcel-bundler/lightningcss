@@ -9,23 +9,28 @@ use crate::{
     ident::DashedIdent,
     syntax::{ParsedComponent, SyntaxString},
   },
+  visitor::Visit,
 };
 use cssparser::*;
 
 /// A [@property](https://drafts.css-houdini.org/css-properties-values-api/#at-property-rule) rule.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PropertyRule<'i> {
   /// The name of the custom property to declare.
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: DashedIdent<'i>,
   /// A syntax string to specify the grammar for the custom property.
+  #[skip_visit]
   pub syntax: SyntaxString,
   /// Whether the custom property is inherited.
+  #[skip_visit]
   pub inherits: bool,
   /// An optional initial value for the custom property.
+  #[skip_visit]
   pub initial_value: Option<ParsedComponent<'i>>,
   /// The location of the rule in the source file.
+  #[skip_visit]
   pub loc: Location,
 }
 

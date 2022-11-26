@@ -9,6 +9,7 @@ use crate::macros::{define_shorthand, enum_property};
 use crate::printer::Printer;
 use crate::targets::Browsers;
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
+use crate::visitor::Visit;
 use cssparser::*;
 
 enum_property! {

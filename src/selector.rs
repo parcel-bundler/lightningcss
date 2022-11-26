@@ -1,82 +1,51 @@
+//! Selectors.
+
+#![allow(missing_docs)]
+
 use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
+use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
 use crate::properties::custom::TokenList;
 use crate::rules::{StyleContext, ToCssWithContext};
 use crate::stylesheet::{ParserOptions, PrinterOptions};
 use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
+use crate::values::ident::Ident;
+use crate::values::string::CSSString;
 use crate::vendor_prefix::VendorPrefix;
+use crate::visitor::{Visit, VisitTypes, Visitor};
 use crate::{macros::enum_property, values::string::CowArcStr};
 use cssparser::*;
 use parcel_selectors::parser::SelectorParseErrorKind;
 use parcel_selectors::{
   attr::{AttrSelectorOperator, ParsedAttrSelectorOperation, ParsedCaseSensitivity},
-  parser::{Combinator, Component, Selector, SelectorImpl},
-  SelectorList,
+  parser::SelectorImpl,
 };
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
-use std::fmt::Write;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Selectors;
-
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct SelectorString<'a>(pub CowArcStr<'a>);
-
-impl<'a> std::convert::From<CowRcStr<'a>> for SelectorString<'a> {
-  fn from(s: CowRcStr<'a>) -> SelectorString<'a> {
-    SelectorString(s.into())
-  }
+mod private {
+  #[derive(Debug, Clone, PartialEq, Eq)]
+  pub struct Selectors;
 }
 
-impl<'a> cssparser::ToCss for SelectorString<'a> {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
-  where
-    W: std::fmt::Write,
-  {
-    write!(CssStringWriter::new(dest), "{}", &self.0)
-  }
-}
+use private::Selectors;
 
-impl<'a> SelectorString<'a> {
-  pub fn write_identifier<W>(&self, dest: &mut W) -> Result<(), PrinterError>
-  where
-    W: fmt::Write,
-  {
-    serialize_identifier(&self.0, dest)?;
-    Ok(())
-  }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
-pub struct SelectorIdent<'i>(pub CowArcStr<'i>);
-
-impl<'a> std::convert::From<CowRcStr<'a>> for SelectorIdent<'a> {
-  fn from(s: CowRcStr<'a>) -> SelectorIdent {
-    SelectorIdent(s.into())
-  }
-}
-
-impl<'i> cssparser::ToCss for SelectorIdent<'i> {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
-  where
-    W: std::fmt::Write,
-  {
-    serialize_identifier(&self.0, dest)
-  }
-}
+pub type SelectorList<'i> = parcel_selectors::SelectorList<'i, Selectors>;
+pub type Selector<'i> = parcel_selectors::parser::Selector<'i, Selectors>;
+pub type Component<'i> = parcel_selectors::parser::Component<'i, Selectors>;
+pub use parcel_selectors::parser::Combinator;
 
 impl<'i> SelectorImpl<'i> for Selectors {
-  type AttrValue = SelectorString<'i>;
-  type Identifier = SelectorIdent<'i>;
-  type LocalName = SelectorIdent<'i>;
-  type NamespacePrefix = SelectorIdent<'i>;
-  type NamespaceUrl = SelectorIdent<'i>;
-  type BorrowedNamespaceUrl = SelectorIdent<'i>;
-  type BorrowedLocalName = SelectorIdent<'i>;
+  type AttrValue = CSSString<'i>;
+  type Identifier = Ident<'i>;
+  type LocalName = Ident<'i>;
+  type NamespacePrefix = Ident<'i>;
+  type NamespaceUrl = CowArcStr<'i>;
+  type BorrowedNamespaceUrl = CowArcStr<'i>;
+  type BorrowedLocalName = Ident<'i>;
 
   type NonTSPseudoClass = PseudoClass<'i>;
   type PseudoElement = PseudoElement<'i>;
@@ -84,20 +53,21 @@ impl<'i> SelectorImpl<'i> for Selectors {
 
   type ExtraMatchingData = ();
 
-  fn to_css<W: fmt::Write>(selectors: &SelectorList<'i, Self>, dest: &mut W) -> std::fmt::Result {
+  fn to_css<W: fmt::Write>(selectors: &SelectorList<'i>, dest: &mut W) -> std::fmt::Result {
     let mut printer = Printer::new(dest, PrinterOptions::default());
-    serialize_selector_list(selectors.0.iter(), &mut printer, None, false).map_err(|_| std::fmt::Error)
+    serialize_selector_list::<_, _, DefaultAtRule>(selectors.0.iter(), &mut printer, None, false)
+      .map_err(|_| std::fmt::Error)
   }
 }
 
-pub struct SelectorParser<'a, 'o, 'i> {
+pub(crate) struct SelectorParser<'a, 'o, 'i, T> {
   pub default_namespace: &'a Option<CowArcStr<'i>>,
   pub namespace_prefixes: &'a HashMap<CowArcStr<'i>, CowArcStr<'i>>,
   pub is_nesting_allowed: bool,
-  pub options: &'a ParserOptions<'o, 'i>,
+  pub options: &'a ParserOptions<'o, 'i, T>,
 }
 
-impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o, 'i> {
+impl<'a, 'o, 'i, T> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o, 'i, T> {
   type Impl = Selectors;
   type Error = ParserError<'i>;
 
@@ -216,8 +186,8 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
         Lang(langs)
       },
       "dir" => Dir(Direction::parse(parser)?),
-      "local" if self.options.css_modules.is_some() => Local(Box::new(parcel_selectors::parser::Selector::parse(self, parser)?)),
-      "global" if self.options.css_modules.is_some() => Global(Box::new(parcel_selectors::parser::Selector::parse(self, parser)?)),
+      "local" if self.options.css_modules.is_some() => Local(Box::new(Selector::parse(self, parser)?)),
+      "global" if self.options.css_modules.is_some() => Global(Box::new(Selector::parse(self, parser)?)),
       _ => {
         if !name.starts_with('-') {
           self.options.warn(parser.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
@@ -322,12 +292,12 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
     true
   }
 
-  fn default_namespace(&self) -> Option<SelectorIdent<'i>> {
-    self.default_namespace.clone().map(SelectorIdent)
+  fn default_namespace(&self) -> Option<CowArcStr<'i>> {
+    self.default_namespace.clone()
   }
 
-  fn namespace_for_prefix(&self, prefix: &SelectorIdent<'i>) -> Option<SelectorIdent<'i>> {
-    self.namespace_prefixes.get(&prefix.0).cloned().map(SelectorIdent)
+  fn namespace_for_prefix(&self, prefix: &Ident<'i>) -> Option<CowArcStr<'i>> {
+    self.namespace_prefixes.get(&prefix.0).cloned()
   }
 
   #[inline]
@@ -409,8 +379,8 @@ pub enum PseudoClass<'i> {
   Autofill(VendorPrefix),
 
   // CSS modules
-  Local(Box<parcel_selectors::parser::Selector<'i, Selectors>>),
-  Global(Box<parcel_selectors::parser::Selector<'i, Selectors>>),
+  Local(Box<Selector<'i>>),
+  Global(Box<Selector<'i>>),
 
   // https://webkit.org/blog/363/styling-scrollbars/
   WebKitScrollbar(WebKitScrollbarPseudoClass),
@@ -479,11 +449,11 @@ impl<'i> cssparser::ToCss for PseudoClass<'i> {
   }
 }
 
-impl<'a, 'i> ToCssWithContext<'a, 'i> for PseudoClass<'i> {
+impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for PseudoClass<'i> {
   fn to_css_with_context<W>(
     &self,
     dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i>>,
+    context: Option<&StyleContext<'a, 'i, T>>,
   ) -> Result<(), PrinterError>
   where
     W: fmt::Write,
@@ -656,7 +626,7 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for PseudoClass<'i> {
 }
 
 impl<'i> PseudoClass<'i> {
-  pub fn is_equivalent(&self, other: &PseudoClass<'i>) -> bool {
+  pub(crate) fn is_equivalent(&self, other: &PseudoClass<'i>) -> bool {
     use PseudoClass::*;
     match (self, other) {
       (Fullscreen(_), Fullscreen(_))
@@ -669,7 +639,7 @@ impl<'i> PseudoClass<'i> {
     }
   }
 
-  pub fn get_prefix(&self) -> VendorPrefix {
+  pub(crate) fn get_prefix(&self) -> VendorPrefix {
     use PseudoClass::*;
     match self {
       Fullscreen(p) | AnyLink(p) | ReadOnly(p) | ReadWrite(p) | PlaceholderShown(p) | Autofill(p) => *p,
@@ -677,7 +647,7 @@ impl<'i> PseudoClass<'i> {
     }
   }
 
-  pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+  pub(crate) fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
     use crate::prefixes::Feature;
     use PseudoClass::*;
     let feature = match self {
@@ -708,8 +678,8 @@ pub enum PseudoElement<'i> {
   WebKitScrollbar(WebKitScrollbarPseudoElement),
   Cue,
   CueRegion,
-  CueFunction(Box<Selector<'i, Selectors>>),
-  CueRegionFunction(Box<Selector<'i, Selectors>>),
+  CueFunction(Box<Selector<'i>>),
+  CueRegionFunction(Box<Selector<'i>>),
   Custom(CowArcStr<'i>),
   CustomFunction(CowArcStr<'i>, TokenList<'i>),
 }
@@ -783,12 +753,12 @@ impl<'i> ToCss for PseudoElement<'i> {
       CueRegion => dest.write_str("::cue-region"),
       CueFunction(selector) => {
         dest.write_str("::cue(")?;
-        selector.to_css_with_context(dest, None)?;
+        serialize_selector::<_, DefaultAtRule>(selector, dest, None, false)?;
         dest.write_char(')')
       }
       CueRegionFunction(selector) => {
         dest.write_str("::cue-region(")?;
-        selector.to_css_with_context(dest, None)?;
+        serialize_selector::<_, DefaultAtRule>(selector, dest, None, false)?;
         dest.write_char(')')
       }
       Placeholder(prefix) => {
@@ -865,7 +835,7 @@ impl<'i> parcel_selectors::parser::PseudoElement<'i> for PseudoElement<'i> {
 }
 
 impl<'i> PseudoElement<'i> {
-  pub fn is_equivalent(&self, other: &PseudoElement<'i>) -> bool {
+  pub(crate) fn is_equivalent(&self, other: &PseudoElement<'i>) -> bool {
     use PseudoElement::*;
     match (self, other) {
       (Selection(_), Selection(_))
@@ -876,7 +846,7 @@ impl<'i> PseudoElement<'i> {
     }
   }
 
-  pub fn get_prefix(&self) -> VendorPrefix {
+  pub(crate) fn get_prefix(&self) -> VendorPrefix {
     use PseudoElement::*;
     match self {
       Selection(p) | Placeholder(p) | Backdrop(p) | FileSelectorButton(p) => *p,
@@ -884,7 +854,7 @@ impl<'i> PseudoElement<'i> {
     }
   }
 
-  pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+  pub(crate) fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
     use crate::prefixes::Feature;
     use PseudoElement::*;
     let feature = match self {
@@ -899,16 +869,25 @@ impl<'i> PseudoElement<'i> {
   }
 }
 
-impl<'a, 'i> ToCssWithContext<'a, 'i> for SelectorList<'i, Selectors> {
+impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for SelectorList<'i> {
   fn to_css_with_context<W>(
     &self,
     dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i>>,
+    context: Option<&StyleContext<'a, 'i, T>>,
   ) -> Result<(), PrinterError>
   where
     W: fmt::Write,
   {
     serialize_selector_list(self.0.iter(), dest, context, false)
+  }
+}
+
+impl<'i> ToCss for SelectorList<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    serialize_selector_list::<_, _, DefaultAtRule>(self.0.iter(), dest, None, false)
   }
 }
 
@@ -928,11 +907,11 @@ impl ToCss for Combinator {
 }
 
 // Copied from the selectors crate and modified to override to_css implementation.
-impl<'a, 'i> ToCssWithContext<'a, 'i> for parcel_selectors::parser::Selector<'i, Selectors> {
+impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for Selector<'i> {
   fn to_css_with_context<W>(
     &self,
     dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i>>,
+    context: Option<&StyleContext<'a, 'i, T>>,
   ) -> Result<(), PrinterError>
   where
     W: fmt::Write,
@@ -941,10 +920,10 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for parcel_selectors::parser::Selector<'i,
   }
 }
 
-fn serialize_selector<'a, 'i, W>(
-  selector: &parcel_selectors::parser::Selector<'i, Selectors>,
+fn serialize_selector<'a, 'i, W, T>(
+  selector: &Selector<'i>,
   dest: &mut Printer<W>,
-  context: Option<&StyleContext<'a, 'i>>,
+  context: Option<&StyleContext<'a, 'i, T>>,
   mut is_relative: bool,
 ) -> Result<(), PrinterError>
 where
@@ -1108,49 +1087,42 @@ where
   Ok(())
 }
 
-impl<'a, 'i> ToCssWithContext<'a, 'i> for Component<'i, Selectors> {
+impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for Component<'i> {
   fn to_css_with_context<W>(
     &self,
     dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i>>,
+    context: Option<&StyleContext<'a, 'i, T>>,
   ) -> Result<(), PrinterError>
   where
     W: fmt::Write,
   {
-    use Component::*;
     match &self {
-      Combinator(ref c) => c.to_css(dest),
-      AttributeInNoNamespace {
+      Component::Combinator(ref c) => c.to_css(dest),
+      Component::AttributeInNoNamespace {
         ref local_name,
         operator,
         ref value,
         case_sensitivity,
         ..
       } => {
-        use cssparser::ToCss;
         dest.write_char('[')?;
-        local_name.to_css(dest)?;
+        cssparser::ToCss::to_css(local_name, dest)?;
         cssparser::ToCss::to_css(operator, dest)?;
 
         if dest.minify {
           // Serialize as both an identifier and a string and choose the shorter one.
           let mut id = String::new();
-          value.write_identifier(&mut id)?;
+          serialize_identifier(&value, &mut id)?;
 
-          let mut s = String::new();
-          value.to_css(&mut s)?;
+          let s = value.to_css_string(Default::default())?;
 
-          if id.len() > 0 && id.len() < s.len() + 2 {
+          if id.len() > 0 && id.len() < s.len() {
             dest.write_str(&id)?;
           } else {
-            dest.write_char('"')?;
             dest.write_str(&s)?;
-            dest.write_char('"')?;
           }
         } else {
-          dest.write_char('"')?;
           value.to_css(dest)?;
-          dest.write_char('"')?;
         }
 
         match case_sensitivity {
@@ -1161,10 +1133,13 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for Component<'i, Selectors> {
         }
         dest.write_char(']')
       }
-      Is(ref list) | Where(ref list) | Negation(ref list) | Any(_, ref list) => {
+      Component::Is(ref list)
+      | Component::Where(ref list)
+      | Component::Negation(ref list)
+      | Component::Any(_, ref list) => {
         match *self {
-          Where(..) => dest.write_str(":where(")?,
-          Is(ref selectors) => {
+          Component::Where(..) => dest.write_str(":where(")?,
+          Component::Is(ref selectors) => {
             // If there's only one simple selector, serialize it directly.
             if selectors.len() == 1 {
               let first = selectors.first().unwrap();
@@ -1183,8 +1158,8 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for Component<'i, Selectors> {
               dest.write_str(":is(")?;
             }
           }
-          Negation(..) => return serialize_negation(list.iter(), dest, context),
-          Any(ref prefix, ..) => {
+          Component::Negation(..) => return serialize_negation(list.iter(), dest, context),
+          Component::Any(ref prefix, ..) => {
             dest.write_char(':')?;
             prefix.to_css(dest)?;
             dest.write_str("any(")?;
@@ -1194,19 +1169,19 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for Component<'i, Selectors> {
         serialize_selector_list(list.iter(), dest, context, false)?;
         dest.write_str(")")
       }
-      Has(ref list) => {
+      Component::Has(ref list) => {
         dest.write_str(":has(")?;
         serialize_selector_list(list.iter(), dest, context, true)?;
         dest.write_str(")")
       }
-      NonTSPseudoClass(pseudo) => pseudo.to_css_with_context(dest, context),
-      PseudoElement(pseudo) => pseudo.to_css(dest),
-      Nesting => serialize_nesting(dest, context, false),
-      Class(ref class) => {
+      Component::NonTSPseudoClass(pseudo) => pseudo.to_css_with_context(dest, context),
+      Component::PseudoElement(pseudo) => pseudo.to_css(dest),
+      Component::Nesting => serialize_nesting(dest, context, false),
+      Component::Class(ref class) => {
         dest.write_char('.')?;
         dest.write_ident(&class.0)
       }
-      ID(ref id) => {
+      Component::ID(ref id) => {
         dest.write_char('#')?;
         dest.write_ident(&id.0)
       }
@@ -1218,9 +1193,9 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for Component<'i, Selectors> {
   }
 }
 
-fn serialize_nesting<W>(
+fn serialize_nesting<W, T>(
   dest: &mut Printer<W>,
-  context: Option<&StyleContext>,
+  context: Option<&StyleContext<T>>,
   first: bool,
 ) -> Result<(), PrinterError>
 where
@@ -1246,7 +1221,7 @@ where
 }
 
 #[inline]
-fn has_type_selector(selector: &parcel_selectors::parser::Selector<Selectors>) -> bool {
+fn has_type_selector(selector: &Selector) -> bool {
   let mut iter = selector.iter_raw_parse_order_from(0);
   let first = iter.next();
   if is_namespace(first) {
@@ -1257,12 +1232,12 @@ fn has_type_selector(selector: &parcel_selectors::parser::Selector<Selectors>) -
 }
 
 #[inline]
-fn is_simple(selector: &parcel_selectors::parser::Selector<Selectors>) -> bool {
+fn is_simple(selector: &Selector) -> bool {
   !selector.iter_raw_match_order().any(|component| component.is_combinator())
 }
 
 #[inline]
-fn is_type_selector(component: Option<&Component<Selectors>>) -> bool {
+fn is_type_selector(component: Option<&Component>) -> bool {
   matches!(
     component,
     Some(Component::LocalName(_)) | Some(Component::ExplicitUniversalType)
@@ -1270,7 +1245,7 @@ fn is_type_selector(component: Option<&Component<Selectors>>) -> bool {
 }
 
 #[inline]
-fn is_namespace(component: Option<&Component<Selectors>>) -> bool {
+fn is_namespace(component: Option<&Component>) -> bool {
   matches!(
     component,
     Some(Component::ExplicitAnyNamespace)
@@ -1280,14 +1255,14 @@ fn is_namespace(component: Option<&Component<Selectors>>) -> bool {
   )
 }
 
-fn serialize_selector_list<'a, 'i: 'a, I, W>(
+fn serialize_selector_list<'a, 'i: 'a, I, W, T>(
   iter: I,
   dest: &mut Printer<W>,
-  context: Option<&StyleContext<'_, 'i>>,
+  context: Option<&StyleContext<'_, 'i, T>>,
   is_relative: bool,
 ) -> Result<(), PrinterError>
 where
-  I: Iterator<Item = &'a Selector<'i, Selectors>>,
+  I: Iterator<Item = &'a Selector<'i>>,
   W: fmt::Write,
 {
   let mut first = true;
@@ -1301,13 +1276,13 @@ where
   Ok(())
 }
 
-fn serialize_negation<'a, 'i: 'a, I, W>(
+fn serialize_negation<'a, 'i: 'a, I, W, T>(
   iter: I,
   dest: &mut Printer<W>,
-  context: Option<&StyleContext<'_, 'i>>,
+  context: Option<&StyleContext<'_, 'i, T>>,
 ) -> Result<(), PrinterError>
 where
-  I: Iterator<Item = &'a Selector<'i, Selectors>>,
+  I: Iterator<Item = &'a Selector<'i>>,
   W: fmt::Write,
 {
   // Downlevel :not(.a, .b) -> :not(.a):not(.b) if not list is unsupported.
@@ -1332,7 +1307,7 @@ where
   Ok(())
 }
 
-pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browsers>) -> bool {
+pub(crate) fn is_compatible(selectors: &SelectorList, targets: Option<Browsers>) -> bool {
   for selector in &selectors.0 {
     let iter = selector.iter();
     for component in iter {
@@ -1503,7 +1478,7 @@ pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browse
 }
 
 /// Returns whether two selector lists are equivalent, i.e. the same minus any vendor prefix differences.
-pub fn is_equivalent<'i>(selectors: &SelectorList<'i, Selectors>, other: &SelectorList<'i, Selectors>) -> bool {
+pub(crate) fn is_equivalent<'i>(selectors: &SelectorList<'i>, other: &SelectorList<'i>) -> bool {
   if selectors.0.len() != other.0.len() {
     return false;
   }
@@ -1532,7 +1507,7 @@ pub fn is_equivalent<'i>(selectors: &SelectorList<'i, Selectors>, other: &Select
 
 /// Returns the vendor prefix (if any) used in the given selector list.
 /// If multiple vendor prefixes are seen, this is invalid, and an empty result is returned.
-pub fn get_prefix(selectors: &SelectorList<Selectors>) -> VendorPrefix {
+pub(crate) fn get_prefix(selectors: &SelectorList) -> VendorPrefix {
   let mut prefix = VendorPrefix::empty();
   for selector in &selectors.0 {
     for component in selector.iter() {
@@ -1566,7 +1541,7 @@ const RTL_LANGS: &[&str] = &[
 
 /// Downlevels the given selectors to be compatible with the given browser targets.
 /// Returns the necessary vendor prefixes.
-pub fn downlevel_selectors(selectors: &mut SelectorList<Selectors>, targets: Browsers) -> VendorPrefix {
+pub(crate) fn downlevel_selectors(selectors: &mut SelectorList, targets: Browsers) -> VendorPrefix {
   let mut necessary_prefixes = VendorPrefix::empty();
   for selector in &mut selectors.0 {
     for component in selector.iter_mut_raw_match_order() {
@@ -1577,7 +1552,7 @@ pub fn downlevel_selectors(selectors: &mut SelectorList<Selectors>, targets: Bro
   necessary_prefixes
 }
 
-fn downlevel_component<'i>(component: &mut Component<'i, Selectors>, targets: Browsers) -> VendorPrefix {
+fn downlevel_component<'i>(component: &mut Component<'i>, targets: Browsers) -> VendorPrefix {
   match component {
     Component::NonTSPseudoClass(pc) => {
       match pc {
@@ -1618,22 +1593,22 @@ fn downlevel_component<'i>(component: &mut Component<'i, Selectors>, targets: Br
   }
 }
 
-fn lang_list_to_selectors<'i>(langs: &Vec<CowArcStr<'i>>) -> Box<[Selector<'i, Selectors>]> {
+fn lang_list_to_selectors<'i>(langs: &Vec<CowArcStr<'i>>) -> Box<[Selector<'i>]> {
   langs
     .iter()
-    .map(|lang| Selector::from_vec2(vec![Component::NonTSPseudoClass(PseudoClass::Lang(vec![lang.clone()]))]))
-    .collect::<Vec<Selector<Selectors>>>()
+    .map(|lang| Selector::from(Component::NonTSPseudoClass(PseudoClass::Lang(vec![lang.clone()]))))
+    .collect::<Vec<Selector>>()
     .into_boxed_slice()
 }
 
-fn downlevel_dir<'i>(dir: Direction, targets: Browsers) -> Component<'i, Selectors> {
+fn downlevel_dir<'i>(dir: Direction, targets: Browsers) -> Component<'i> {
   // Convert :dir to :lang. If supported, use a list of languages in a single :lang,
   // otherwise, use :is/:not, which may be further downleveled to e.g. :-webkit-any.
   let langs = RTL_LANGS.iter().map(|lang| (*lang).into()).collect();
   if Feature::LangList.is_compatible(targets) {
     let c = Component::NonTSPseudoClass(PseudoClass::Lang(langs));
     if dir == Direction::Ltr {
-      Component::Negation(vec![Selector::from_vec2(vec![c])].into_boxed_slice())
+      Component::Negation(vec![Selector::from(c)].into_boxed_slice())
     } else {
       c
     }
@@ -1648,8 +1623,8 @@ fn downlevel_dir<'i>(dir: Direction, targets: Browsers) -> Component<'i, Selecto
 
 /// Determines whether a selector list contains only unused selectors.
 /// A selector is considered unused if it contains a class or id component that exists in the set of unused symbols.
-pub fn is_unused(
-  selectors: &mut std::slice::Iter<Selector<Selectors>>,
+pub(crate) fn is_unused(
+  selectors: &mut std::slice::Iter<Selector>,
   unused_symbols: &HashSet<String>,
   parent_is_unused: bool,
 ) -> bool {
@@ -1684,7 +1659,7 @@ pub fn is_unused(
 }
 
 #[cfg(feature = "serde")]
-pub fn serialize_selectors<S>(selectors: &SelectorList<Selectors>, s: S) -> Result<S::Ok, S::Error>
+pub(crate) fn serialize_selectors<S>(selectors: &SelectorList, s: S) -> Result<S::Ok, S::Error>
 where
   S: serde::Serializer,
 {
@@ -1695,7 +1670,7 @@ where
     .map(|selector| {
       let mut dest = String::new();
       let mut printer = Printer::new(&mut dest, PrinterOptions::default());
-      serialize_selector(selector, &mut printer, None, false).unwrap();
+      serialize_selector::<_, DefaultAtRule>(selector, &mut printer, None, false).unwrap();
       dest
     })
     .collect::<Vec<String>>()
@@ -1703,7 +1678,7 @@ where
 }
 
 #[cfg(feature = "serde")]
-pub fn deserialize_selectors<'i, 'de: 'i, D>(deserializer: D) -> Result<SelectorList<'i, Selectors>, D::Error>
+pub(crate) fn deserialize_selectors<'i, 'de: 'i, D>(deserializer: D) -> Result<SelectorList<'i>, D::Error>
 where
   D: serde::Deserializer<'de>,
 {
@@ -1724,5 +1699,25 @@ where
       Selector::parse(&selector_parser, &mut parser).unwrap()
     })
     .collect();
-  Ok(SelectorList(selectors))
+  Ok(SelectorList::new(selectors))
+}
+
+impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for SelectorList<'i> {
+  const CHILD_TYPES: VisitTypes = VisitTypes::SELECTORS;
+
+  fn visit_children(&mut self, visitor: &mut V) {
+    for selector in self.0.iter_mut() {
+      Visit::visit(selector, visitor)
+    }
+  }
+}
+
+impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for Selector<'i> {
+  const CHILD_TYPES: VisitTypes = VisitTypes::SELECTORS;
+
+  fn visit(&mut self, visitor: &mut V) {
+    visitor.visit_selector(self)
+  }
+
+  fn visit_children(&mut self, _visitor: &mut V) {}
 }

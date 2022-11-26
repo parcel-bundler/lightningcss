@@ -15,7 +15,7 @@ use cssparser::{BasicParseError, BasicParseErrorKind, ParseError, ParseErrorKind
 use cssparser::{CowRcStr, Delimiter, SourceLocation};
 use cssparser::{Parser as CssParser, ToCss, Token};
 use precomputed_hash::PrecomputedHash;
-use smallvec::SmallVec;
+use smallvec::{smallvec, SmallVec};
 use std::borrow::Borrow;
 use std::fmt::{self, Debug};
 use std::iter::Rev;
@@ -465,9 +465,26 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
     }
   }
 
+  /// Creates a new SelectorList.
+  pub fn new(v: SmallVec<[Selector<'i, Impl>; 1]>) -> Self {
+    SelectorList(v)
+  }
+
   /// Creates a SelectorList from a Vec of selectors. Used in tests.
   pub fn from_vec(v: Vec<Selector<'i, Impl>>) -> Self {
     SelectorList(SmallVec::from_vec(v))
+  }
+}
+
+impl<'i, Impl: SelectorImpl<'i>> From<Selector<'i, Impl>> for SelectorList<'i, Impl> {
+  fn from(selector: Selector<'i, Impl>) -> Self {
+    SelectorList(smallvec![selector])
+  }
+}
+
+impl<'i, Impl: SelectorImpl<'i>> From<Component<'i, Impl>> for SelectorList<'i, Impl> {
+  fn from(component: Component<'i, Impl>) -> Self {
+    SelectorList::from(Selector::from(component))
   }
 }
 
@@ -814,19 +831,6 @@ impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
     Selector(spec, components)
   }
 
-  pub fn from_vec2(vec: Vec<Component<'i, Impl>>) -> Self {
-    let mut builder = SelectorBuilder::default();
-    for component in vec.into_iter() {
-      if let Some(combinator) = component.as_combinator() {
-        builder.push_combinator(combinator);
-      } else {
-        builder.push_simple_selector(component);
-      }
-    }
-    let (spec, components) = builder.build(false, false, false);
-    Selector(spec, components)
-  }
-
   /// Returns count of simple selectors and combinators in the Selector.
   #[inline]
   pub fn len(&self) -> usize {
@@ -875,6 +879,34 @@ impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
     }
 
     true
+  }
+}
+
+impl<'i, Impl: SelectorImpl<'i>> From<Component<'i, Impl>> for Selector<'i, Impl> {
+  fn from(component: Component<'i, Impl>) -> Self {
+    let mut builder = SelectorBuilder::default();
+    if let Some(combinator) = component.as_combinator() {
+      builder.push_combinator(combinator);
+    } else {
+      builder.push_simple_selector(component);
+    }
+    let (spec, components) = builder.build(false, false, false);
+    Selector(spec, components)
+  }
+}
+
+impl<'i, Impl: SelectorImpl<'i>> From<Vec<Component<'i, Impl>>> for Selector<'i, Impl> {
+  fn from(vec: Vec<Component<'i, Impl>>) -> Self {
+    let mut builder = SelectorBuilder::default();
+    for component in vec.into_iter() {
+      if let Some(combinator) = component.as_combinator() {
+        builder.push_combinator(combinator);
+      } else {
+        builder.push_simple_selector(component);
+      }
+    }
+    let (spec, components) = builder.build(false, false, false);
+    Selector(spec, components)
   }
 }
 
@@ -1107,7 +1139,7 @@ pub enum Component<'i, Impl: SelectorImpl<'i>> {
   Scope,
   NthChild(i32, i32),
   NthLastChild(i32, i32),
-  NthCol(i32, i32), // https://www.w3.org/TR/selectors-4/#the-nth-col-pseudo
+  NthCol(i32, i32),     // https://www.w3.org/TR/selectors-4/#the-nth-col-pseudo
   NthLastCol(i32, i32), // https://www.w3.org/TR/selectors-4/#the-nth-last-col-pseudo
   NthOfType(i32, i32),
   NthLastOfType(i32, i32),
@@ -1574,9 +1606,7 @@ impl<'i, Impl: SelectorImpl<'i>> ToCss for Component<'i, Impl> {
         dest.write_char('[')?;
         local_name.to_css(dest)?;
         operator.to_css(dest)?;
-        dest.write_char('"')?;
         value.to_css(dest)?;
-        dest.write_char('"')?;
         match case_sensitivity {
           ParsedCaseSensitivity::CaseSensitive
           | ParsedCaseSensitivity::AsciiCaseInsensitiveIfInHtmlElementInHtmlDocument => {}
@@ -1606,7 +1636,12 @@ impl<'i, Impl: SelectorImpl<'i>> ToCss for Component<'i, Impl> {
       FirstOfType => dest.write_str(":first-of-type"),
       LastOfType => dest.write_str(":last-of-type"),
       OnlyOfType => dest.write_str(":only-of-type"),
-      NthChild(a, b) | NthLastChild(a, b) | NthOfType(a, b) | NthLastOfType(a, b) | NthCol(a, b) | NthLastCol(a, b) => {
+      NthChild(a, b)
+      | NthLastChild(a, b)
+      | NthOfType(a, b)
+      | NthLastOfType(a, b)
+      | NthCol(a, b)
+      | NthLastCol(a, b) => {
         match *self {
           NthChild(_, _) => dest.write_str(":nth-child(")?,
           NthLastChild(_, _) => dest.write_str(":nth-last-child(")?,
@@ -1664,9 +1699,7 @@ impl<'i, Impl: SelectorImpl<'i>> ToCss for AttrSelectorWithOptionalNamespace<'i,
         ref expected_value,
       } => {
         operator.to_css(dest)?;
-        dest.write_char('"')?;
         expected_value.to_css(dest)?;
-        dest.write_char('"')?;
         match case_sensitivity {
           ParsedCaseSensitivity::CaseSensitive
           | ParsedCaseSensitivity::AsciiCaseInsensitiveIfInHtmlElementInHtmlDocument => {}
@@ -2620,7 +2653,7 @@ pub mod tests {
   use super::*;
   use crate::builder::SelectorFlags;
   use crate::parser;
-  use cssparser::{serialize_identifier, Parser as CssParser, ParserInput, ToCss};
+  use cssparser::{serialize_identifier, Parser as CssParser, ParserInput, ToCss, serialize_string};
   use std::collections::HashMap;
   use std::fmt;
 
@@ -2732,9 +2765,7 @@ pub mod tests {
     where
       W: fmt::Write,
     {
-      use std::fmt::Write;
-
-      write!(cssparser::CssStringWriter::new(dest), "{}", &self.0)
+      serialize_string(&self.0, dest)
     }
   }
 

@@ -9,22 +9,26 @@ use crate::media_query::MediaList;
 use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::values::string::CowArcStr;
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A [@import](https://drafts.csswg.org/css-cascade/#at-import) rule.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ImportRule<'i> {
   /// The url to import.
   #[cfg_attr(feature = "serde", serde(borrow))]
+  #[skip_visit]
   pub url: CowArcStr<'i>,
   /// An optional cascade layer name, or `None` for an anonymous layer.
+  #[skip_visit]
   pub layer: Option<Option<LayerName<'i>>>,
   /// An optional `supports()` condition.
   pub supports: Option<SupportsCondition<'i>>,
   /// A media query.
   pub media: MediaList<'i>,
   /// The location of the rule in the source file.
+  #[skip_visit]
   pub loc: Location,
 }
 

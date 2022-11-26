@@ -6,10 +6,12 @@ use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A CSS [`<resolution>`](https://www.w3.org/TR/css-values-4/#resolution) value.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
+#[visit(visit_resolution, RESOLUTIONS)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -38,6 +40,22 @@ impl<'i> Parse<'i> for Resolution {
         }
       }
       ref t => Err(location.new_unexpected_token_error(t.clone())),
+    }
+  }
+}
+
+impl<'i> TryFrom<&Token<'i>> for Resolution {
+  type Error = ();
+
+  fn try_from(token: &Token) -> Result<Self, Self::Error> {
+    match token {
+      Token::Dimension { value, ref unit, .. } => match_ignore_ascii_case! { unit,
+        "dpi" => Ok(Resolution::Dpi(*value)),
+        "dpcm" => Ok(Resolution::Dpcm(*value)),
+        "dppx" | "x" => Ok(Resolution::Dppx(*value)),
+        _ => Err(()),
+      },
+      _ => Err(()),
     }
   }
 }

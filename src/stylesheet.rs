@@ -9,12 +9,13 @@ use crate::css_modules::{CssModule, CssModuleExports, CssModuleReferences};
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::dependencies::Dependency;
 use crate::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterError, PrinterErrorKind};
-use crate::parser::TopLevelRuleParser;
+use crate::parser::{DefaultAtRuleParser, TopLevelRuleParser};
 use crate::printer::Printer;
 use crate::rules::{CssRule, CssRuleList, MinifyContext};
 use crate::targets::Browsers;
 use crate::traits::ToCss;
-use cssparser::{Parser, ParserInput, RuleListParser};
+use crate::visitor::{Visit, VisitTypes, Visitor};
+use cssparser::{AtRuleParser, Parser, ParserInput, RuleListParser};
 use parcel_sourcemap::SourceMap;
 use std::collections::{HashMap, HashSet};
 
@@ -58,10 +59,19 @@ pub use crate::printer::PseudoClasses;
 /// ```
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct StyleSheet<'i, 'o> {
+pub struct StyleSheet<'i, 'o, T: AtRuleParser<'i> = DefaultAtRuleParser> {
   /// A list of top-level rules within the style sheet.
-  #[cfg_attr(feature = "serde", serde(borrow))]
-  pub rules: CssRuleList<'i>,
+  #[cfg_attr(
+    feature = "serde",
+    serde(
+      borrow,
+      bound(
+        serialize = "T::AtRule: serde::Serialize",
+        deserialize = "T::AtRule: serde::Deserialize<'de>"
+      )
+    )
+  )]
+  pub rules: CssRuleList<'i, T::AtRule>,
   /// A list of file names for all source files included within the style sheet.
   /// Sources are referenced by index in the `loc` property of each rule.
   pub sources: Vec<String>,
@@ -69,7 +79,7 @@ pub struct StyleSheet<'i, 'o> {
   pub(crate) source_map_urls: Vec<Option<String>>,
   #[cfg_attr(feature = "serde", serde(skip))]
   /// The options the style sheet was originally parsed with.
-  options: ParserOptions<'o, 'i>,
+  options: ParserOptions<'o, 'i, T>,
 }
 
 /// Options for the `minify` function of a [StyleSheet](StyleSheet)
@@ -100,9 +110,16 @@ pub struct ToCssResult {
   pub dependencies: Option<Vec<Dependency>>,
 }
 
-impl<'i, 'o> StyleSheet<'i, 'o> {
+impl<'i, 'o, T: AtRuleParser<'i>> StyleSheet<'i, 'o, T>
+where
+  T::AtRule: ToCss,
+{
   /// Creates a new style sheet with the given source filenames and rules.
-  pub fn new(sources: Vec<String>, rules: CssRuleList<'i>, options: ParserOptions<'o, 'i>) -> StyleSheet<'i, 'o> {
+  pub fn new(
+    sources: Vec<String>,
+    rules: CssRuleList<'i, T::AtRule>,
+    options: ParserOptions<'o, 'i, T>,
+  ) -> StyleSheet<'i, 'o, T> {
     StyleSheet {
       sources,
       source_map_urls: Vec::new(),
@@ -112,17 +129,19 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
   }
 
   /// Parse a style sheet from a string.
-  pub fn parse(code: &'i str, options: ParserOptions<'o, 'i>) -> Result<Self, Error<ParserError<'i>>> {
+  pub fn parse(code: &'i str, mut options: ParserOptions<'o, 'i, T>) -> Result<Self, Error<ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
-    let rule_list_parser = RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(&options));
+    let mut rule_list_parser =
+      RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(&mut options));
 
     let mut rules = vec![];
-    for rule in rule_list_parser {
+    while let Some(rule) = rule_list_parser.next() {
       let rule = match rule {
         Ok((_, CssRule::Ignored)) => continue,
         Ok((_, rule)) => rule,
         Err((e, _)) => {
+          let options = &mut rule_list_parser.parser.options;
           if options.error_recovery {
             options.warn(e);
             continue;
@@ -237,6 +256,19 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
   }
 }
 
+impl<'i, 'o, T, V> Visit<'i, T::AtRule, V> for StyleSheet<'i, 'o, T>
+where
+  T: AtRuleParser<'i>,
+  T::AtRule: Visit<'i, T::AtRule, V>,
+  V: Visitor<'i, T::AtRule>,
+{
+  const CHILD_TYPES: VisitTypes = VisitTypes::all();
+
+  fn visit_children(&mut self, visitor: &mut V) {
+    self.rules.visit(visitor)
+  }
+}
+
 /// An inline style attribute, as in HTML or SVG.
 ///
 /// Style attributes can be parsed from a string, minified and transformed
@@ -262,17 +294,19 @@ impl<'i, 'o> StyleSheet<'i, 'o> {
 /// let res = style.to_css(PrinterOptions::default()).unwrap();
 /// assert_eq!(res.code, "color: #ff0; font-family: Helvetica");
 /// ```
+#[derive(Visit)]
 pub struct StyleAttribute<'i> {
   /// The declarations in the style attribute.
   pub declarations: DeclarationBlock<'i>,
+  #[skip_visit]
   sources: Vec<String>,
 }
 
 impl<'i> StyleAttribute<'i> {
   /// Parses a style attribute from a string.
-  pub fn parse(
+  pub fn parse<T>(
     code: &'i str,
-    options: ParserOptions<'_, 'i>,
+    options: ParserOptions<'_, 'i, T>,
   ) -> Result<StyleAttribute<'i>, Error<ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);

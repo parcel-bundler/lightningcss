@@ -69,7 +69,7 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
     self.rtl.push(rtl);
   }
 
-  pub fn get_logical_rules(&mut self, style_rule: &StyleRule<'i>) -> Vec<CssRule<'i>> {
+  pub fn get_logical_rules<T>(&mut self, style_rule: &StyleRule<'i, T>) -> Vec<CssRule<'i, T>> {
     // TODO: :dir/:lang raises the specificity of the selector. Use :where to lower it?
     let mut dest = Vec::new();
 
@@ -152,7 +152,7 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
     }
   }
 
-  pub fn get_supports_rules(&mut self, style_rule: &StyleRule<'i>) -> Vec<CssRule<'i>> {
+  pub fn get_supports_rules<T>(&mut self, style_rule: &StyleRule<'i, T>) -> Vec<CssRule<'i, T>> {
     if self.supports.is_empty() {
       return Vec::new();
     }

@@ -6,9 +6,10 @@ use crate::error::PrinterError;
 use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::values::ident::CustomIdent;
+use crate::visitor::Visit;
 
 /// A [@counter-style](https://drafts.csswg.org/css-counter-styles/#the-counter-style-rule) rule.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CounterStyleRule<'i> {
   /// The name of the counter style to declare.
@@ -18,6 +19,7 @@ pub struct CounterStyleRule<'i> {
   /// Declarations in the `@counter-style` rule.
   pub declarations: DeclarationBlock<'i>,
   /// The location of the rule in the source file.
+  #[skip_visit]
   pub loc: Location,
 }
 

@@ -4,11 +4,13 @@ use super::number::CSSNumber;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A CSS [`<ratio>`](https://www.w3.org/TR/css-values-4/#ratios) value,
 /// representing the ratio of two numeric values.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
+#[visit(visit_ratio, RATIOS)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Ratio(pub CSSNumber, pub CSSNumber);
 

@@ -12,12 +12,13 @@ use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::number::CSSNumber;
 use crate::values::string::CowArcStr;
 use crate::values::{easing::EasingFunction, ident::CustomIdent, time::Time};
+use crate::visitor::Visit;
 use cssparser::*;
 use itertools::izip;
 use smallvec::SmallVec;
 
 /// A value for the [animation-name](https://drafts.csswg.org/css-animations/#animation-name) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -86,7 +87,7 @@ impl<'i> ToCss for AnimationName<'i> {
 pub type AnimationNameList<'i> = SmallVec<[AnimationName<'i>; 1]>;
 
 /// A value for the [animation-iteration-count](https://drafts.csswg.org/css-animations/#animation-iteration-count) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

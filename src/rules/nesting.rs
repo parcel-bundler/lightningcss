@@ -4,21 +4,24 @@ use super::style::StyleRule;
 use super::Location;
 use super::MinifyContext;
 use crate::error::{MinifyError, PrinterError};
+use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
 use crate::rules::{StyleContext, ToCssWithContext};
-
+use crate::traits::ToCss;
+use crate::visitor::Visit;
 /// A [@nest](https://www.w3.org/TR/css-nesting-1/#at-nest) rule.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct NestingRule<'i> {
+pub struct NestingRule<'i, R = DefaultAtRule> {
   /// The style rule that defines the selector and declarations for the `@nest` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  pub style: StyleRule<'i>,
+  pub style: StyleRule<'i, R>,
   /// The location of the rule in the source file.
+  #[skip_visit]
   pub loc: Location,
 }
 
-impl<'i> NestingRule<'i> {
+impl<'i, T> NestingRule<'i, T> {
   pub(crate) fn minify(
     &mut self,
     context: &mut MinifyContext<'_, 'i>,
@@ -28,11 +31,11 @@ impl<'i> NestingRule<'i> {
   }
 }
 
-impl<'a, 'i> ToCssWithContext<'a, 'i> for NestingRule<'i> {
+impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for NestingRule<'i, T> {
   fn to_css_with_context<W>(
     &self,
     dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i>>,
+    context: Option<&StyleContext<'a, 'i, T>>,
   ) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,

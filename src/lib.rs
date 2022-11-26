@@ -31,12 +31,13 @@ mod prefixes;
 pub mod printer;
 pub mod properties;
 pub mod rules;
-mod selector;
+pub mod selector;
 pub mod stylesheet;
 pub mod targets;
 pub mod traits;
 pub mod values;
 pub mod vendor_prefix;
+pub mod visitor;
 
 #[cfg(test)]
 mod tests {
@@ -8681,9 +8682,9 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        -webkit-animation: 200ms var(--ease) bar;
-        -moz-animation: 200ms var(--ease) bar;
-        animation: 200ms var(--ease) bar;
+        -webkit-animation: .2s var(--ease) bar;
+        -moz-animation: .2s var(--ease) bar;
+        animation: .2s var(--ease) bar;
       }
     "#},
       Browsers {

@@ -10,10 +10,11 @@ use crate::targets::Browsers;
 use crate::traits::{Parse, PropertyHandler, ToCss};
 use crate::values::number::CSSInteger;
 use crate::vendor_prefix::VendorPrefix;
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A value for the [position](https://www.w3.org/TR/css-position-3/#position-property) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -69,7 +70,7 @@ impl ToCss for Position {
 }
 
 /// A value for the [z-index](https://drafts.csswg.org/css2/#z-index) property.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
