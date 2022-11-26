@@ -2,6 +2,7 @@
 
 use super::{CssRuleList, Location, MinifyContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
+use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
@@ -106,7 +107,7 @@ impl<'i> ToCss for LayerStatementRule<'i> {
 /// A [@layer block](https://drafts.csswg.org/css-cascade-5/#layer-block) rule.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct LayerBlockRule<'i, R> {
+pub struct LayerBlockRule<'i, R = DefaultAtRule> {
   /// The name of the layer to declare, or `None` to declare an anonymous layer.
   #[cfg_attr(feature = "serde", serde(borrow))]
   #[skip_visit]

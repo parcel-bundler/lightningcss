@@ -62,7 +62,7 @@ use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationHandler;
 use crate::dependencies::{Dependency, ImportDependency};
 use crate::error::{MinifyError, ParserError, PrinterError, PrinterErrorKind};
-use crate::parser::TopLevelRuleParser;
+use crate::parser::{DefaultAtRule, TopLevelRuleParser};
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::rules::keyframes::KeyframesName;
@@ -128,7 +128,7 @@ pub struct Location {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
-pub enum CssRule<'i, R> {
+pub enum CssRule<'i, R = DefaultAtRule> {
   /// A `@media` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
   Media(MediaRule<'i, R>),
@@ -245,7 +245,9 @@ impl<'i, T: ToCss> ToCss for CssRule<'i, T> {
 /// A list of CSS rules.
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct CssRuleList<'i, R>(#[cfg_attr(feature = "serde", serde(borrow))] pub Vec<CssRule<'i, R>>);
+pub struct CssRuleList<'i, R = DefaultAtRule>(
+  #[cfg_attr(feature = "serde", serde(borrow))] pub Vec<CssRule<'i, R>>,
+);
 
 // Manually implemented to avoid circular child types.
 impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for CssRuleList<'i, T> {
