@@ -207,14 +207,7 @@ impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
     rule.visit_children(self)
   }
 
-  // fn visit_property(&mut self, property: &mut lightningcss::properties::Property<'i>) {
-  //   println!("VISIT PROPERTY {:?}", property);
-  //   property.visit_children(self)
-  // }
-
   fn visit_url(&mut self, url: &mut lightningcss::values::url::Url<'i>) {
-    println!("VISIT URL {:?}", url);
-
     url.url = format!("https://mywebsite.com/{}", url.url).into()
   }
 
