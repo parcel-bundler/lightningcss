@@ -207,8 +207,6 @@ fn minify_option() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-// nesting doesn't do anything with the default targets. until cli supports more targets, this option is a noop
-#[ignore]
 fn nesting_option() -> Result<(), Box<dyn std::error::Error>> {
   let infile = assert_fs::NamedTempFile::new("test.css")?;
   infile.write_str(
@@ -222,6 +220,7 @@ fn nesting_option() -> Result<(), Box<dyn std::error::Error>> {
 
   let mut cmd = Command::cargo_bin("lightningcss")?;
   cmd.arg(infile.path());
+  cmd.arg("--targets=defaults");
   cmd.arg("--nesting");
   cmd.assert().success().stdout(predicate::str::contains(indoc! {r#"
         .foo {

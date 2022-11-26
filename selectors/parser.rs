@@ -354,6 +354,7 @@ pub enum NestingRequirement {
   None,
   Prefixed,
   Contained,
+  Implicit,
 }
 
 impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
@@ -422,12 +423,30 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
     }
   }
 
+  pub fn parse_relative<'t, P>(
+    parser: &P,
+    input: &mut CssParser<'i, 't>,
+    nesting_requirement: NestingRequirement,
+  ) -> Result<Self, ParseError<'i, P::Error>>
+  where
+    P: Parser<'i, Impl = Impl>,
+  {
+    Self::parse_relative_with_state(
+      parser,
+      input,
+      &mut SelectorParsingState::empty(),
+      ParseErrorRecovery::DiscardList,
+      nesting_requirement,
+    )
+  }
+
   #[inline]
-  fn parse_relative<'t, P>(
+  fn parse_relative_with_state<'t, P>(
     parser: &P,
     input: &mut CssParser<'i, 't>,
     state: &mut SelectorParsingState,
     recovery: ParseErrorRecovery,
+    nesting_requirement: NestingRequirement,
   ) -> Result<Self, ParseError<'i, P::Error>>
   where
     P: Parser<'i, Impl = Impl>,
@@ -437,7 +456,7 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
     loop {
       let selector = input.parse_until_before(Delimiter::Comma, |input| {
         let mut selector_state = original_state;
-        let result = parse_relative_selector(parser, input, &mut selector_state);
+        let result = parse_relative_selector(parser, input, &mut selector_state, nesting_requirement);
         if selector_state.contains(SelectorParsingState::AFTER_NESTING) {
           state.insert(SelectorParsingState::AFTER_NESTING)
         }
@@ -1743,6 +1762,18 @@ where
     input.reset(&state);
   }
 
+  // In the implicit nesting mode, selectors may not start with an ident or function token.
+  if nesting_requirement == NestingRequirement::Implicit {
+    let state = input.state();
+    match input.next()? {
+      Token::Ident(..) | Token::Function(..) => {
+        return Err(input.new_custom_error(SelectorParseErrorKind::MissingNestingPrefix));
+      }
+      _ => {}
+    }
+    input.reset(&state);
+  }
+
   let mut builder = SelectorBuilder::default();
 
   let mut has_pseudo_element = false;
@@ -1806,8 +1837,16 @@ where
     builder.push_combinator(combinator);
   }
 
-  if nesting_requirement == NestingRequirement::Contained && !state.contains(SelectorParsingState::AFTER_NESTING) {
-    return Err(input.new_custom_error(SelectorParseErrorKind::MissingNestingSelector));
+  if !state.contains(SelectorParsingState::AFTER_NESTING) {
+    match nesting_requirement {
+      NestingRequirement::Implicit => {
+        builder.add_nesting_prefix();
+      }
+      NestingRequirement::Contained | NestingRequirement::Prefixed => {
+        return Err(input.new_custom_error(SelectorParseErrorKind::MissingNestingSelector));
+      }
+      _ => {}
+    }
   }
 
   let (spec, components) = builder.build(has_pseudo_element, slotted, part);
@@ -1834,6 +1873,7 @@ fn parse_relative_selector<'i, 't, P, Impl>(
   parser: &P,
   input: &mut CssParser<'i, 't>,
   state: &mut SelectorParsingState,
+  mut nesting_requirement: NestingRequirement,
 ) -> Result<Selector<'i, Impl>, ParseError<'i, P::Error>>
 where
   P: Parser<'i, Impl = Impl>,
@@ -1851,11 +1891,21 @@ where
     }
   };
 
-  let mut selector = parse_selector(parser, input, state, NestingRequirement::None)?;
+  let scope = if nesting_requirement == NestingRequirement::Implicit {
+    Component::Nesting
+  } else {
+    Component::Scope
+  };
+
+  if combinator.is_some() {
+    nesting_requirement = NestingRequirement::None;
+  }
+
+  let mut selector = parse_selector(parser, input, state, nesting_requirement)?;
   if let Some(combinator) = combinator {
     // https://www.w3.org/TR/selectors/#absolutizing
     selector.1.push(Component::Combinator(combinator));
-    selector.1.push(Component::Scope);
+    selector.1.push(scope);
   }
 
   Ok(selector)
@@ -2399,7 +2449,13 @@ where
   Impl: SelectorImpl<'i>,
 {
   let mut child_state = *state;
-  let inner = SelectorList::parse_relative(parser, input, &mut child_state, parser.is_and_where_error_recovery())?;
+  let inner = SelectorList::parse_relative_with_state(
+    parser,
+    input,
+    &mut child_state,
+    parser.is_and_where_error_recovery(),
+    NestingRequirement::None,
+  )?;
   if child_state.contains(SelectorParsingState::AFTER_NESTING) {
     state.insert(SelectorParsingState::AFTER_NESTING)
   }

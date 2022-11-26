@@ -90,6 +90,11 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorBuilder<'i, Impl> {
     !self.combinators.is_empty()
   }
 
+  pub fn add_nesting_prefix(&mut self) {
+    self.combinators.insert(0, (Combinator::Descendant, 1));
+    self.simple_selectors.insert(0, Component::Nesting);
+  }
+
   /// Consumes the builder, producing a Selector.
   #[inline(always)]
   pub fn build(
