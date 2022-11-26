@@ -52,7 +52,7 @@ mod tests {
   use crate::targets::Browsers;
   use crate::traits::{Parse, ToCss};
   use crate::values::color::CssColor;
-  use cssparser::{AtRuleParser, SourceLocation};
+  use cssparser::SourceLocation;
   use indoc::indoc;
   use std::collections::HashMap;
 
@@ -60,13 +60,7 @@ mod tests {
     test_with_options(source, expected, ParserOptions::default())
   }
 
-  fn test_with_options<'i, 'o, T: AtRuleParser<'i>>(
-    source: &'i str,
-    expected: &'i str,
-    options: ParserOptions<'o, 'i, T>,
-  ) where
-    T::AtRule: ToCss,
-  {
+  fn test_with_options<'i, 'o>(source: &'i str, expected: &'i str, options: ParserOptions<'o, 'i>) {
     let mut stylesheet = StyleSheet::parse(&source, options).unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();

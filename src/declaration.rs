@@ -133,7 +133,8 @@ impl<'i> ToCss for DeclarationBlock<'i> {
 }
 
 impl<'i> DeclarationBlock<'i> {
-  pub(crate) fn to_css_block<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  /// Writes the declarations to a CSS block, including starting and ending braces.
+  pub fn to_css_block<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
   {
