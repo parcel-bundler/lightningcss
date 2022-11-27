@@ -6,6 +6,7 @@ use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::rules::custom_media::CustomMediaRule;
 use crate::rules::Location;
+use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
 use crate::values::ident::Ident;
 use crate::values::number::CSSNumber;
@@ -290,17 +291,8 @@ impl<'i> MediaQuery<'i> {
     if let Some(cond) = &b.condition {
       self.condition = if let Some(condition) = &self.condition {
         if condition != cond {
-          macro_rules! parenthesize {
-            ($condition: ident) => {
-              if matches!($condition, MediaCondition::Operation(_, Operator::Or)) {
-                MediaCondition::InParens(Box::new($condition.clone()))
-              } else {
-                $condition.clone()
-              }
-            };
-          }
           Some(MediaCondition::Operation(
-            vec![parenthesize!(condition), parenthesize!(cond)],
+            vec![condition.clone(), cond.clone()],
             Operator::And,
           ))
         } else {
@@ -346,11 +338,14 @@ impl<'i> ToCss for MediaQuery<'i> {
       None => return Ok(()),
     };
 
-    if self.media_type != MediaType::All || self.qualifier.is_some() {
+    let needs_parens = if self.media_type != MediaType::All || self.qualifier.is_some() {
       dest.write_str(" and ")?;
-    }
+      matches!(condition, MediaCondition::Operation(_, op) if *op != Operator::And)
+    } else {
+      false
+    };
 
-    condition.to_css(dest)
+    condition.to_css_with_parens_if_needed(dest, needs_parens)
   }
 }
 
@@ -381,9 +376,6 @@ pub enum MediaCondition<'i> {
   /// A set of joint operations.
   #[skip_type]
   Operation(Vec<MediaCondition<'i>>, Operator),
-  /// A condition wrapped in parenthesis.
-  #[skip_type]
-  InParens(Box<MediaCondition<'i>>),
 }
 
 impl<'i> MediaCondition<'i> {
@@ -439,12 +431,39 @@ impl<'i> MediaCondition<'i> {
   fn parse_paren_block<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.parse_nested_block(|input| {
       if let Ok(inner) = input.try_parse(|i| Self::parse(i, true)) {
-        return Ok(MediaCondition::InParens(Box::new(inner)));
+        return Ok(inner);
       }
 
       let feature = MediaFeature::parse(input)?;
       Ok(MediaCondition::Feature(feature))
     })
+  }
+
+  fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Option<Browsers>) -> bool {
+    match self {
+      MediaCondition::Not(_) => true,
+      MediaCondition::Operation(_, op) => Some(*op) != parent_operator,
+      MediaCondition::Feature(f) => {
+        parent_operator != Some(Operator::And)
+          && targets.is_some()
+          && matches!(f, MediaFeature::Interval { .. })
+          && !Feature::MediaIntervalSyntax.is_compatible(targets.unwrap())
+      }
+    }
+  }
+
+  fn to_css_with_parens_if_needed<W>(&self, dest: &mut Printer<W>, needs_parens: bool) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    if needs_parens {
+      dest.write_char('(')?;
+    }
+    self.to_css(dest)?;
+    if needs_parens {
+      dest.write_char(')')?;
+    }
+    Ok(())
   }
 }
 
@@ -457,21 +476,17 @@ impl<'i> ToCss for MediaCondition<'i> {
       MediaCondition::Feature(ref f) => f.to_css(dest),
       MediaCondition::Not(ref c) => {
         dest.write_str("not ")?;
-        c.to_css(dest)
-      }
-      MediaCondition::InParens(ref c) => {
-        dest.write_char('(')?;
-        c.to_css(dest)?;
-        dest.write_char(')')
+        c.to_css_with_parens_if_needed(dest, c.needs_parens(None, &dest.targets))
       }
       MediaCondition::Operation(ref list, op) => {
         let mut iter = list.iter();
-        iter.next().unwrap().to_css(dest)?;
+        let first = iter.next().unwrap();
+        first.to_css_with_parens_if_needed(dest, first.needs_parens(Some(op), &dest.targets))?;
         for item in iter {
           dest.write_char(' ')?;
           op.to_css(dest)?;
           dest.write_char(' ')?;
-          item.to_css(dest)?;
+          item.to_css_with_parens_if_needed(dest, item.needs_parens(Some(op), &dest.targets))?;
         }
         Ok(())
       }
@@ -879,20 +894,8 @@ fn process_condition<'i>(
         MediaCondition::Not(cond) => {
           *condition = (**cond).clone();
         }
-        MediaCondition::InParens(parens) => {
-          if let MediaCondition::Not(cond) = &**parens {
-            *condition = (**cond).clone();
-          }
-        }
         _ => {}
       }
-    }
-    MediaCondition::InParens(cond) => {
-      let res = process_condition(loc, custom_media, media_type, qualifier, &mut *cond, seen);
-      if let MediaCondition::InParens(cond) = &**cond {
-        *condition = (**cond).clone();
-      }
-      return res;
     }
     MediaCondition::Operation(conditions, _) => {
       let mut res = Ok(true);
@@ -963,8 +966,8 @@ fn process_condition<'i>(
             }
             // Parentheses are required around the condition unless there is a single media feature.
             match condition {
-              MediaCondition::Feature(..) | MediaCondition::InParens(..) => Some(condition),
-              _ => Some(MediaCondition::InParens(Box::new(condition))),
+              MediaCondition::Feature(..) => Some(condition),
+              _ => Some(condition),
             }
           } else {
             None
@@ -985,7 +988,7 @@ fn process_condition<'i>(
       if conditions.len() == 1 {
         *condition = conditions.pop().unwrap();
       } else {
-        *condition = MediaCondition::InParens(Box::new(MediaCondition::Operation(conditions, Operator::Or)));
+        *condition = MediaCondition::Operation(conditions, Operator::Or);
       }
     }
     _ => {}
@@ -997,7 +1000,7 @@ fn process_condition<'i>(
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::stylesheet::PrinterOptions;
+  use crate::{stylesheet::PrinterOptions, targets::Browsers};
 
   fn parse(s: &str) -> MediaQuery {
     let mut input = ParserInput::new(&s);
@@ -1043,5 +1046,21 @@ mod tests {
     assert_eq!(and("all", "only screen"), "only screen");
     assert_eq!(and("only screen", "all"), "only screen");
     assert_eq!(and("print", "print"), "print");
+  }
+
+  #[test]
+  fn test_negated_interval_parens() {
+    let media_query = parse("screen and not (200px <= width < 500px)");
+    let printer_options = PrinterOptions {
+      targets: Some(Browsers {
+        chrome: Some(95 << 16),
+        ..Default::default()
+      }),
+      ..Default::default()
+    };
+    assert_eq!(
+      media_query.to_css_string(printer_options).unwrap(),
+      "screen and not ((min-width: 200px) and (max-width: 499.999px))"
+    );
   }
 }
