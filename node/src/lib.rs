@@ -13,7 +13,6 @@ use lightningcss::targets::Browsers;
 use parcel_sourcemap::SourceMap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::ffi::c_void;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex, RwLock};
@@ -125,7 +124,7 @@ fn transform_style_attribute(ctx: CallContext) -> napi::Result<JsUnknown> {
 mod bundle {
   use super::*;
   use crossbeam_channel::{self, Receiver, Sender};
-  use napi::{Env, JsFunction, JsString, NapiRaw, NapiValue};
+  use napi::{Env, JsFunction, JsString, NapiRaw};
   use threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode};
 
   #[js_function(1)]
@@ -306,7 +305,7 @@ mod bundle {
 
   #[cfg(not(target_arch = "wasm32"))]
   #[js_function(1)]
-  pub fn bundle_async(ctx: CallContext) -> napi::Result<JsUnknown> {
+  pub fn bundle_async(ctx: CallContext) -> napi::Result<JsObject> {
     let opts = ctx.get::<JsObject>(0)?;
     let config: BundleConfig = ctx.env.from_js_value(&opts)?;
 
@@ -348,9 +347,6 @@ mod bundle {
     }
   }
 
-  struct TSFNValue(napi::sys::napi_threadsafe_function);
-  unsafe impl Send for TSFNValue {}
-
   // Runs bundling on a background thread managed by rayon. This is similar to AsyncTask from napi-rs, however,
   // because we call back into the JS thread, which might call other tasks in the node threadpool (e.g. fs.readFile),
   // we may end up deadlocking if the number of rayon threads exceeds node's threadpool size. Therefore, we must
@@ -359,85 +355,18 @@ mod bundle {
     provider: P,
     config: BundleConfig,
     env: Env,
-  ) -> napi::Result<JsUnknown> {
-    // Create a promise.
-    let mut raw_promise = std::ptr::null_mut();
-    let mut deferred = std::ptr::null_mut();
-    let status = unsafe { napi::sys::napi_create_promise(env.raw(), &mut deferred, &mut raw_promise) };
-    assert_eq!(napi::Status::from(status), napi::Status::Ok);
-
-    // Create a threadsafe function so we can call back into the JS thread when we are done.
-    let async_resource_name = env.create_string("run_bundle_task").unwrap();
-    let mut tsfn = std::ptr::null_mut();
-    napi::check_status! {unsafe {
-      napi::sys::napi_create_threadsafe_function(
-        env.raw(),
-        std::ptr::null_mut(),
-        std::ptr::null_mut(),
-        async_resource_name.raw(),
-        0,
-        1,
-        std::ptr::null_mut(),
-        None,
-        deferred as *mut c_void,
-        Some(bundle_task_cb),
-        &mut tsfn,
-      )
-    }}?;
-
-    // Wrap raw pointer so it is Send compatible.
-    let tsfn_value = TSFNValue(tsfn);
+  ) -> napi::Result<JsObject> {
+    let (deferred, promise) = env.create_deferred()?;
 
     // Run bundling task in rayon threadpool.
     rayon::spawn(move || {
-      let provider = provider;
-      let result = compile_bundle(unsafe { std::mem::transmute::<&'_ P, &'static P>(&provider) }, &config)
-        .map_err(|e| e.into());
-      resolve_task(result, tsfn_value);
+      match compile_bundle(unsafe { std::mem::transmute::<&'_ P, &'static P>(&provider) }, &config) {
+        Ok(v) => deferred.resolve(|env| v.into_js(env)),
+        Err(err) => deferred.reject(err.into()),
+      }
     });
 
-    Ok(unsafe { JsUnknown::from_raw_unchecked(env.raw(), raw_promise) })
-  }
-
-  fn resolve_task(result: napi::Result<TransformResult<'static>>, tsfn_value: TSFNValue) {
-    // Call back into the JS thread via a threadsafe function. This results in bundle_task_cb being called.
-    let status = unsafe {
-      napi::sys::napi_call_threadsafe_function(
-        tsfn_value.0,
-        Box::into_raw(Box::from(result)) as *mut c_void,
-        napi::sys::ThreadsafeFunctionCallMode::nonblocking,
-      )
-    };
-    assert_eq!(napi::Status::from(status), napi::Status::Ok);
-
-    let status = unsafe {
-      napi::sys::napi_release_threadsafe_function(tsfn_value.0, napi::sys::ThreadsafeFunctionReleaseMode::release)
-    };
-    assert_eq!(napi::Status::from(status), napi::Status::Ok);
-  }
-
-  extern "C" fn bundle_task_cb(
-    env: napi::sys::napi_env,
-    _js_callback: napi::sys::napi_value,
-    context: *mut c_void,
-    data: *mut c_void,
-  ) {
-    let deferred = context as napi::sys::napi_deferred;
-    let value = unsafe { Box::from_raw(data as *mut napi::Result<TransformResult<'static>>) };
-    let value = value.and_then(|res| res.into_js(unsafe { Env::from_raw(env) }));
-
-    // Resolve or reject the promise based on the result.
-    match value {
-      Ok(res) => {
-        let status = unsafe { napi::sys::napi_resolve_deferred(env, deferred, res.raw()) };
-        assert_eq!(napi::Status::from(status), napi::Status::Ok);
-      }
-      Err(e) => {
-        let status =
-          unsafe { napi::sys::napi_reject_deferred(env, deferred, napi::JsError::from(e).into_value(env)) };
-        assert_eq!(napi::Status::from(status), napi::Status::Ok);
-      }
-    }
+    Ok(promise)
   }
 }
 
@@ -588,7 +517,7 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult<'i>, Co
         source_index: 0,
         error_recovery: config.error_recovery.unwrap_or_default(),
         warnings: warnings.clone(),
-        at_rule_parser: ParserOptions::default_at_rule_parser()
+        at_rule_parser: ParserOptions::default_at_rule_parser(),
       },
     )?;
     stylesheet.minify(MinifyOptions {

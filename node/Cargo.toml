@@ -19,7 +19,7 @@ parcel_sourcemap = { version = "2.1.1", features = ["json"] }
 jemallocator = { version = "0.3.2", features = ["disable_initial_exec_tls"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-napi = {version = "2.2.0", default-features = false, features = ["napi4", "napi5", "compat-mode", "serde-json"]}
+napi = {version = "2.10.0", default-features = false, features = ["napi4", "napi5", "compat-mode", "serde-json"]}
 napi-derive = "2"
 crossbeam-channel = "0.5.6"
 rayon = "1.5.1"
