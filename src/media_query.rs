@@ -1049,7 +1049,10 @@ mod tests {
   fn test_negated_interval_parens() {
     let media_query = parse("screen and not (200px <= width < 500px)");
     let printer_options = PrinterOptions {
-      targets: Browsers::from_browserslist(["chrome 95"]).unwrap(),
+      targets: Some(Browsers {
+        chrome: Some(95 << 16),
+        ..Default::default()
+      }),
       ..Default::default()
     };
     assert_eq!(media_query.to_css_string(printer_options).unwrap(), "screen and not ((min-width: 200px) and (max-width: 499.999px))");
