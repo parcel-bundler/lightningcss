@@ -6717,6 +6717,8 @@ mod tests {
     );
     minify_test("@media { .foo { color: chartreuse }}", ".foo{color:#7fff00}");
     minify_test("@media all { .foo { color: chartreuse }}", ".foo{color:#7fff00}");
+    minify_test("@media not (((color) or (hover))) { .foo { color: chartreuse }}", "@media not ((color) or (hover)){.foo{color:#7fff00}}");
+    minify_test("@media (hover) and ((color) and (test)) { .foo { color: chartreuse }}", "@media (hover) and (color) and (test){.foo{color:#7fff00}}");
 
     prefix_test(
       r#"
@@ -22586,7 +22588,7 @@ mod tests {
         }
       }
     "#,
-      "@container my-layout (not (width>500px)){.foo{color:red}}",
+      "@container my-layout not (width>500px){.foo{color:red}}",
     );
 
     minify_test(
@@ -22619,7 +22621,7 @@ mod tests {
         }
       }
     "#,
-      "@container my-layout ((width:100px) and (not (height:100px))){.foo{color:red}}",
+      "@container my-layout (width:100px) and (not (height:100px)){.foo{color:red}}",
     );
 
     minify_test(
