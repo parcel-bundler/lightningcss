@@ -113,11 +113,11 @@ jobs:
             setup: npm install --global yarn@1
           - target: aarch64-unknown-linux-gnu
             strip: aarch64-linux-gnu-strip
-            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian@sha256:4e170e00b4e33251a775bcadc34380a6a5a86611df132590885257e453646fdc
             setup: apt install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
           - target: armv7-unknown-linux-gnueabihf
             strip: arm-linux-gnueabihf-strip
-            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian@sha256:4e170e00b4e33251a775bcadc34380a6a5a86611df132590885257e453646fdc
             setup: apt install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf -y
           - target: aarch64-unknown-linux-musl
             image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
