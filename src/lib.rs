@@ -6869,6 +6869,69 @@ mod tests {
 
     prefix_test(
       r#"
+        @media not (100px <= width <= 200px) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media not ((min-width: 100px) and (max-width: 200px)) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(85 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+        @media (hover) and (100px <= width <= 200px) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (hover) and (min-width: 100px) and (max-width: 200px) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(85 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+        @media (hover) or (100px <= width <= 200px) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (hover) or ((min-width: 100px) and (max-width: 200px)) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(85 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
         @media (100px < width < 200px) {
           .foo {
             color: chartreuse;

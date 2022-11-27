@@ -6,6 +6,7 @@ use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::rules::custom_media::CustomMediaRule;
 use crate::rules::Location;
+use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
 use crate::values::ident::Ident;
 use crate::values::number::CSSNumber;
@@ -438,11 +439,16 @@ impl<'i> MediaCondition<'i> {
     })
   }
 
-  fn needs_parens(&self, parent_operator: Operator) -> bool {
+  fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Option<Browsers>) -> bool {
     match self {
       MediaCondition::Not(_) => true,
-      MediaCondition::Operation(_, op) => *op != parent_operator,
-      _ => false
+      MediaCondition::Operation(_, op) => Some(*op) != parent_operator,
+      MediaCondition::Feature(f) => {
+        parent_operator != Some(Operator::And)
+          && targets.is_some()
+          && matches!(f, MediaFeature::Interval { .. })
+          && !Feature::MediaIntervalSyntax.is_compatible(targets.unwrap())
+      }
     }
   }
 
@@ -470,23 +476,17 @@ impl<'i> ToCss for MediaCondition<'i> {
       MediaCondition::Feature(ref f) => f.to_css(dest),
       MediaCondition::Not(ref c) => {
         dest.write_str("not ")?;
-
-        let needs_parens = matches!(&**c, MediaCondition::Operation(..))
-          || (dest.targets.is_some()
-            && matches!(&**c, MediaCondition::Feature(f) if matches!(f, MediaFeature::Interval { .. }))
-            && !Feature::MediaIntervalSyntax.is_compatible(dest.targets.unwrap()));
-
-        c.to_css_with_parens_if_needed(dest, needs_parens)
+        c.to_css_with_parens_if_needed(dest, c.needs_parens(None, &dest.targets))
       }
       MediaCondition::Operation(ref list, op) => {
         let mut iter = list.iter();
         let first = iter.next().unwrap();
-        first.to_css_with_parens_if_needed(dest, first.needs_parens(op))?;
+        first.to_css_with_parens_if_needed(dest, first.needs_parens(Some(op), &dest.targets))?;
         for item in iter {
           dest.write_char(' ')?;
           op.to_css(dest)?;
           dest.write_char(' ')?;
-          item.to_css_with_parens_if_needed(dest, item.needs_parens(op))?;
+          item.to_css_with_parens_if_needed(dest, item.needs_parens(Some(op), &dest.targets))?;
         }
         Ok(())
       }
