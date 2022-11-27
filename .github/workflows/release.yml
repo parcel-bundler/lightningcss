@@ -1,7 +1,6 @@
 name: release
 on:
   workflow_dispatch:
-  push:
 
 jobs:
   build:
@@ -134,8 +133,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Debug
-        run: ldd --version
       - name: Install Node.JS
         uses: actions/setup-node@v2
         with:
@@ -174,76 +171,76 @@ jobs:
             *.node
             lightningcss
 
-  # build-wasm:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #     - name: Install Node.JS
-  #       uses: actions/setup-node@v2
-  #       with:
-  #         node-version: 14
-  #     - name: Install wasm-pack
-  #       run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-  #     - name: Build wasm
-  #       run: yarn wasm-browser:build-release
-  #     - name: Upload artifacts
-  #       uses: actions/upload-artifact@v2
-  #       with:
-  #         name: wasm
-  #         path: node/pkg
+  build-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Node.JS
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Build wasm
+        run: yarn wasm-browser:build-release
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: wasm
+          path: node/pkg
 
-  # release:
-  #   runs-on: ubuntu-latest
-  #   name: Build and release
-  #   needs:
-  #     - build
-  #     - build-linux
-  #     - build-apple-silicon
-  #     - build-wasm
-  #   steps:
-  #     - uses: actions/checkout@v1
-  #     - uses: bahmutov/npm-install@v1.1.0
-  #     - name: Download artifacts
-  #       uses: actions/download-artifact@v2
-  #       with:
-  #         path: artifacts
-  #     - name: Build npm packages
-  #       run: |
-  #         node scripts/build-npm.js
-  #         node scripts/build-wasm.js
-  #     - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > ~/.npmrc
-  #       env:
-  #         NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-  #     - name: Publish to npm
-  #       run: |
-  #         for pkg in npm/*; do
-  #           echo "Publishing $pkg..."
-  #           cd $pkg;
-  #           npm publish;
-  #           cd ../..;
-  #         done
-  #         cd cli
-  #         echo "Publishing lightningcss-cli...";
-  #         npm publish
-  #         cd ..
-  #         echo "Publishing lightningcss...";
-  #         npm publish
+  release:
+    runs-on: ubuntu-latest
+    name: Build and release
+    needs:
+      - build
+      - build-linux
+      - build-apple-silicon
+      - build-wasm
+    steps:
+      - uses: actions/checkout@v1
+      - uses: bahmutov/npm-install@v1.1.0
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: artifacts
+      - name: Build npm packages
+        run: |
+          node scripts/build-npm.js
+          node scripts/build-wasm.js
+      - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > ~/.npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish to npm
+        run: |
+          for pkg in npm/*; do
+            echo "Publishing $pkg..."
+            cd $pkg;
+            npm publish;
+            cd ../..;
+          done
+          cd cli
+          echo "Publishing lightningcss-cli...";
+          npm publish
+          cd ..
+          echo "Publishing lightningcss...";
+          npm publish
 
-  # release-crates:
-  #   runs-on: ubuntu-latest
-  #   name: Release Rust crate
-  #   steps:
-  #     - uses: actions/checkout@v1
-  #     - uses: bahmutov/npm-install@v1.1.0
-  #     - name: Install Rust
-  #       uses: actions-rs/toolchain@v1
-  #       with:
-  #         toolchain: stable
-  #         profile: minimal
-  #         override: true
-  #     - run: cargo login ${CRATES_IO_TOKEN}
-  #       env:
-  #         CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
-  #     - run: |
-  #         cargo install cargo-workspaces
-  #         cargo workspaces publish --from-git -y
+  release-crates:
+    runs-on: ubuntu-latest
+    name: Release Rust crate
+    steps:
+      - uses: actions/checkout@v1
+      - uses: bahmutov/npm-install@v1.1.0
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - run: cargo login ${CRATES_IO_TOKEN}
+        env:
+          CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+      - run: |
+          cargo install cargo-workspaces
+          cargo workspaces publish --from-git -y
