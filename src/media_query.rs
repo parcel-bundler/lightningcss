@@ -457,7 +457,22 @@ impl<'i> ToCss for MediaCondition<'i> {
       MediaCondition::Feature(ref f) => f.to_css(dest),
       MediaCondition::Not(ref c) => {
         dest.write_str("not ")?;
-        c.to_css(dest)
+
+        let needs_parens = dest.targets.is_some() && 
+          matches!(&**c, MediaCondition::Feature(f) if matches!(f, MediaFeature::Interval { .. })) && 
+          !Feature::MediaIntervalSyntax.is_compatible(dest.targets.unwrap());
+        
+        if needs_parens {
+          dest.write_char('(')?;
+        }
+
+        c.to_css(dest)?;
+
+        if needs_parens {
+          dest.write_char(')')?;
+        }
+
+        Ok(())
       }
       MediaCondition::InParens(ref c) => {
         dest.write_char('(')?;
