@@ -616,11 +616,10 @@ impl<'a, 'o, 'b, 'i, T: AtRuleParser<'i>> AtRuleParser<'i> for NestedRuleParser<
           loc,
         }))
       }
-      AtRulePrelude::Page(selectors) => Ok(CssRule::Page(PageRule {
-        selectors,
-        declarations: DeclarationBlock::parse(input, self.options)?,
-        loc,
-      })),
+      AtRulePrelude::Page(selectors) => {
+        let rule = PageRule::parse(selectors, input, loc, self.options)?;
+        Ok(CssRule::Page(rule))
+      }
       AtRulePrelude::MozDocument => Ok(CssRule::MozDocument(MozDocumentRule {
         rules: self.parse_nested_rules(input)?,
         loc,

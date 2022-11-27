@@ -1,10 +1,11 @@
 //! The `@page` rule.
 
 use super::Location;
-use crate::declaration::DeclarationBlock;
+use crate::declaration::{parse_declaration, DeclarationBlock};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::printer::Printer;
+use crate::stylesheet::ParserOptions;
 use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
 use crate::visitor::Visit;
@@ -69,6 +70,74 @@ impl<'i> Parse<'i> for PageSelector<'i> {
   }
 }
 
+enum_property! {
+  /// A [page margin box](https://www.w3.org/TR/css-page-3/#margin-boxes).
+  pub enum PageMarginBox {
+    /// A fixed-size box defined by the intersection of the top and left margins of the page box.
+    "top-left-corner": TopLeftCorner,
+    /// A variable-width box filling the top page margin between the top-left-corner and top-center page-margin boxes.
+    "top-left": TopLeft,
+    /// A variable-width box centered horizontally between the page’s left and right border edges and filling the
+    /// page top margin between the top-left and top-right page-margin boxes.
+    "top-center": TopCenter,
+    /// A variable-width box filling the top page margin between the top-center and top-right-corner page-margin boxes.
+    "top-right": TopRight,
+    /// A fixed-size box defined by the intersection of the top and right margins of the page box.
+    "top-right-corner": TopRightCorner,
+    /// A variable-height box filling the left page margin between the top-left-corner and left-middle page-margin boxes.
+    "left-top": LeftTop,
+    /// A variable-height box centered vertically between the page’s top and bottom border edges and filling the
+    /// left page margin between the left-top and left-bottom page-margin boxes.
+    "left-middle": LeftMiddle,
+    /// A variable-height box filling the left page margin between the left-middle and bottom-left-corner page-margin boxes.
+    "left-bottom": LeftBottom,
+    /// A variable-height box filling the right page margin between the top-right-corner and right-middle page-margin boxes.
+    "right-top": RightTop,
+    /// A variable-height box centered vertically between the page’s top and bottom border edges and filling the right
+    /// page margin between the right-top and right-bottom page-margin boxes.
+    "right-middle": RightMiddle,
+    /// A variable-height box filling the right page margin between the right-middle and bottom-right-corner page-margin boxes.
+    "right-bottom": RightBottom,
+    /// A fixed-size box defined by the intersection of the bottom and left margins of the page box.
+    "bottom-left-corner": BottomLeftCorner,
+    /// A variable-width box filling the bottom page margin between the bottom-left-corner and bottom-center page-margin boxes.
+    "bottom-left": BottomLeft,
+    /// A variable-width box centered horizontally between the page’s left and right border edges and filling the bottom
+    /// page margin between the bottom-left and bottom-right page-margin boxes.
+    "bottom-center": BottomCenter,
+    /// A variable-width box filling the bottom page margin between the bottom-center and bottom-right-corner page-margin boxes.
+    "bottom-right": BottomRight,
+    /// A fixed-size box defined by the intersection of the bottom and right margins of the page box.
+    "bottom-right-corner": BottomRightCorner,
+  }
+}
+
+/// A [page margin rule](https://www.w3.org/TR/css-page-3/#margin-at-rules) rule.
+#[derive(Debug, PartialEq, Clone, Visit)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct PageMarginRule<'i> {
+  /// The margin box identifier for this rule.
+  pub margin_box: PageMarginBox,
+  /// The declarations within the rule.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  pub declarations: DeclarationBlock<'i>,
+  /// The location of the rule in the source file.
+  #[skip_visit]
+  pub loc: Location,
+}
+
+impl<'i> ToCss for PageMarginRule<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    dest.add_mapping(self.loc);
+    dest.write_char('@')?;
+    self.margin_box.to_css(dest)?;
+    self.declarations.to_css_block(dest)
+  }
+}
+
 /// A [@page](https://www.w3.org/TR/css-page-3/#at-page-rule) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -79,9 +148,48 @@ pub struct PageRule<'i> {
   pub selectors: Vec<PageSelector<'i>>,
   /// The declarations within the `@page` rule.
   pub declarations: DeclarationBlock<'i>,
+  /// The nested margin rules.
+  pub rules: Vec<PageMarginRule<'i>>,
   /// The location of the rule in the source file.
   #[skip_visit]
   pub loc: Location,
+}
+
+impl<'i> PageRule<'i> {
+  pub(crate) fn parse<'t, 'o, T>(
+    selectors: Vec<PageSelector<'i>>,
+    input: &mut Parser<'i, 't>,
+    loc: Location,
+    options: &ParserOptions<'o, 'i, T>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let mut declarations = DeclarationBlock::new();
+    let mut rules = Vec::new();
+    let mut parser = DeclarationListParser::new(
+      input,
+      PageRuleParser {
+        declarations: &mut declarations,
+        rules: &mut rules,
+        options: &options,
+      },
+    );
+
+    while let Some(decl) = parser.next() {
+      if let Err((err, _)) = decl {
+        if parser.parser.options.error_recovery {
+          parser.parser.options.warn(err);
+          continue;
+        }
+        return Err(err);
+      }
+    }
+
+    Ok(PageRule {
+      selectors,
+      declarations,
+      rules,
+      loc,
+    })
+  }
 }
 
 impl<'i> ToCss for PageRule<'i> {
@@ -106,7 +214,53 @@ impl<'i> ToCss for PageRule<'i> {
         selector.to_css(dest)?;
       }
     }
-    self.declarations.to_css_block(dest)
+
+    dest.whitespace()?;
+    dest.write_char('{')?;
+    dest.indent();
+
+    let mut i = 0;
+    let len = self.declarations.len() + self.rules.len();
+
+    macro_rules! write {
+      ($decls: expr, $important: literal) => {
+        for decl in &$decls {
+          dest.newline()?;
+          decl.to_css(dest, $important)?;
+          if i != len - 1 || !dest.minify {
+            dest.write_char(';')?;
+          }
+          i += 1;
+        }
+      };
+    }
+
+    write!(self.declarations.declarations, false);
+    write!(self.declarations.important_declarations, true);
+
+    if !self.rules.is_empty() {
+      if !dest.minify && self.declarations.len() > 0 {
+        dest.write_char('\n')?;
+      }
+      dest.newline()?;
+
+      let mut first = true;
+      for rule in &self.rules {
+        if first {
+          first = false;
+        } else {
+          if !dest.minify {
+            dest.write_char('\n')?;
+          }
+          dest.newline()?;
+        }
+        rule.to_css(dest)?;
+      }
+    }
+
+    dest.dedent();
+    dest.newline()?;
+    dest.write_char('}')
   }
 }
 
@@ -124,6 +278,67 @@ impl<'i> ToCss for PageSelector<'i> {
       pseudo.to_css(dest)?;
     }
 
+    Ok(())
+  }
+}
+
+struct PageRuleParser<'a, 'o, 'i, T> {
+  declarations: &'a mut DeclarationBlock<'i>,
+  rules: &'a mut Vec<PageMarginRule<'i>>,
+  options: &'a ParserOptions<'o, 'i, T>,
+}
+
+impl<'a, 'o, 'i, T> cssparser::DeclarationParser<'i> for PageRuleParser<'a, 'o, 'i, T> {
+  type Declaration = ();
+  type Error = ParserError<'i>;
+
+  fn parse_value<'t>(
+    &mut self,
+    name: CowRcStr<'i>,
+    input: &mut cssparser::Parser<'i, 't>,
+  ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
+    parse_declaration(
+      name,
+      input,
+      &mut self.declarations.declarations,
+      &mut self.declarations.important_declarations,
+      &self.options,
+    )
+  }
+}
+
+impl<'a, 'o, 'i, T> AtRuleParser<'i> for PageRuleParser<'a, 'o, 'i, T> {
+  type Prelude = PageMarginBox;
+  type AtRule = ();
+  type Error = ParserError<'i>;
+
+  fn parse_prelude<'t>(
+    &mut self,
+    name: CowRcStr<'i>,
+    input: &mut Parser<'i, 't>,
+  ) -> Result<Self::Prelude, ParseError<'i, Self::Error>> {
+    let loc = input.current_source_location();
+    PageMarginBox::parse_string(&name)
+      .map_err(|_| loc.new_custom_error(ParserError::AtRuleInvalid(name.clone().into())))
+  }
+
+  fn parse_block<'t>(
+    &mut self,
+    prelude: Self::Prelude,
+    start: &ParserState,
+    input: &mut Parser<'i, 't>,
+  ) -> Result<Self::AtRule, ParseError<'i, Self::Error>> {
+    let loc = start.source_location();
+    let declarations = DeclarationBlock::parse(input, self.options)?;
+    self.rules.push(PageMarginRule {
+      margin_box: prelude,
+      declarations,
+      loc: Location {
+        source_index: self.options.source_index,
+        line: loc.line,
+        column: loc.column,
+      },
+    });
     Ok(())
   }
 }

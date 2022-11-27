@@ -103,6 +103,11 @@ impl<'i> DeclarationBlock<'i> {
       important_declarations: vec![],
     }
   }
+
+  /// Returns the total number of declarations in the block.
+  pub fn len(&self) -> usize {
+    self.declarations.len() + self.important_declarations.len()
+  }
 }
 
 impl<'i> ToCss for DeclarationBlock<'i> {
@@ -143,7 +148,7 @@ impl<'i> DeclarationBlock<'i> {
     dest.indent();
 
     let mut i = 0;
-    let len = self.declarations.len() + self.important_declarations.len();
+    let len = self.len();
 
     macro_rules! write {
       ($decls: expr, $important: literal) => {

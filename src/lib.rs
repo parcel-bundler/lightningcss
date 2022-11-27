@@ -10048,6 +10048,93 @@ mod tests {
     minify_test("@page:first {margin: 0.5cm}", "@page:first{margin:.5cm}");
     minify_test("@page :blank:first {margin: 0.5cm}", "@page:blank:first{margin:.5cm}");
     minify_test("@page toc, index {margin: 0.5cm}", "@page toc,index{margin:.5cm}");
+    minify_test(
+      r#"
+    @page :right {
+      @bottom-left {
+        margin: 10pt;
+      }
+    }
+    "#,
+      "@page:right{@bottom-left{margin:10pt}}",
+    );
+    minify_test(
+      r#"
+    @page :right {
+      margin: 1in;
+
+      @bottom-left {
+        margin: 10pt;
+      }
+    }
+    "#,
+      "@page:right{margin:1in;@bottom-left{margin:10pt}}",
+    );
+
+    test(
+      r#"
+    @page :right {
+      @bottom-left {
+        margin: 10pt;
+      }
+    }
+    "#,
+      indoc! {r#"
+      @page :right {
+        @bottom-left {
+          margin: 10pt;
+        }
+      }
+      "#},
+    );
+
+    test(
+      r#"
+    @page :right {
+      margin: 1in;
+
+      @bottom-left-corner { content: "Foo"; }
+      @bottom-right-corner { content: "Bar"; }
+    }
+    "#,
+      indoc! {r#"
+      @page :right {
+        margin: 1in;
+
+        @bottom-left-corner {
+          content: "Foo";
+        }
+      
+        @bottom-right-corner {
+          content: "Bar";
+        }
+      }
+      "#},
+    );
+
+    error_test(
+      r#"
+      @page {
+        @foo {
+          margin: 1in;
+        }
+      }
+      "#,
+      ParserError::AtRuleInvalid("foo".into()),
+    );
+
+    error_test(
+      r#"
+      @page {
+        @top-left-corner {
+          @bottom-left {
+            margin: 1in;
+          }
+        }
+      }
+      "#,
+      ParserError::AtRuleInvalid("bottom-left".into()),
+    );
   }
 
   #[test]
