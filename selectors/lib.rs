@@ -16,6 +16,8 @@ extern crate fxhash;
 extern crate log;
 extern crate phf;
 extern crate precomputed_hash;
+#[cfg(feature = "serde")]
+extern crate serde;
 extern crate smallvec;
 
 pub mod attr;
@@ -28,6 +30,9 @@ pub mod parser;
 pub mod sink;
 mod tree;
 pub mod visitor;
+
+// #[cfg(feature = "serde")]
+// mod serde;
 
 pub use crate::nth_index_cache::NthIndexCache;
 pub use crate::parser::{Parser, SelectorImpl, SelectorList};

@@ -15,7 +15,7 @@ use cssparser::*;
 /// Percentages may be explicit or computed by `calc()`, but are always stored and serialized
 /// as their computed value.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 pub struct Percentage(pub CSSNumber);
 
 impl<'i> Parse<'i> for Percentage {

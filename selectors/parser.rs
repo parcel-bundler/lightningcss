@@ -221,7 +221,7 @@ macro_rules! with_all_bounds {
             /// non tree-structural pseudo-classes
             /// (see: https://drafts.csswg.org/selectors/#structural-pseudos)
             type NonTSPseudoClass: $($CommonBounds)* + NonTSPseudoClass<'i, Impl = Self>;
-            type VendorPrefix: Sized + Eq + Clone + ToCss;
+            type VendorPrefix: Sized + Eq + $($CommonBounds)* + ToCss;
 
             /// pseudo-elements
             type PseudoElement: $($CommonBounds)* + PseudoElement<'i, Impl = Self>;
@@ -243,6 +243,13 @@ macro_rules! with_bounds {
     }
 }
 
+#[cfg(feature = "serde")]
+with_bounds! {
+    [Clone + PartialEq + serde::Serialize + serde::Deserialize<'i>]
+    [From<CowRcStr<'i>> + AsRef<str>]
+}
+
+#[cfg(not(feature = "serde"))]
 with_bounds! {
     [Clone + PartialEq]
     [From<CowRcStr<'i>>]
@@ -336,6 +343,14 @@ pub trait Parser<'i> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  // serde(bound(
+  //   serialize = "Selector<'i, Impl>: serde::Serialize",
+  //   deserialize = "Selector<'i, Impl>: serde::Deserialize<'de>"
+  // ))
+)]
 pub struct SelectorList<'i, Impl: SelectorImpl<'i>>(pub SmallVec<[Selector<'i, Impl>; 1]>);
 
 /// How to treat invalid selectors in a selector list.
@@ -652,6 +667,14 @@ pub fn namespace_empty_string<'i, Impl: SelectorImpl<'i>>() -> Impl::NamespaceUr
 /// This reordering doesn't change the semantics of selector matching, and we
 /// handle it in to_css to make it invisible to serialization.
 #[derive(Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  // serde(bound(
+  //   serialize = "Component<'i, Impl>: serde::Serialize",
+  //   deserialize = "Component<'i, Impl>: serde::Deserialize<'de>"
+  // ))
+)]
 pub struct Selector<'i, Impl: SelectorImpl<'i>>(SpecificityAndFlags, Vec<Component<'i, Impl>>);
 
 impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
@@ -929,6 +952,66 @@ impl<'i, Impl: SelectorImpl<'i>> From<Vec<Component<'i, Impl>>> for Selector<'i,
   }
 }
 
+// #[cfg(feature = "serde")]
+// impl<'i, Impl: SelectorImpl<'i>> serde::Serialize for Selector<'i, Impl> {
+//   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//   where
+//     S: serde::Serializer,
+//   {
+//     use serde::ser::SerializeSeq;
+//     let mut seq = serializer.serialize_seq(Some(self.len()))?;
+//     for component in self.iter_raw_parse_order_from(0) {
+//       seq.serialize_element(component)?;
+//     }
+//     seq.end()
+//   }
+// }
+
+// #[cfg(feature = "serde")]
+// impl<'de: 'i, 'i: 'de, Impl: SelectorImpl<'i>> serde::Deserialize<'de> for Selector<'i, Impl> {
+//   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+//   where
+//     D: serde::Deserializer<'de>,
+//   {
+//     // let mut builder = SelectorBuilder::default();
+
+//     deserializer.deserialize_seq(SelectorDVisitor {
+//       marker: std::marker::PhantomData,
+//     })
+//   }
+// }
+
+// #[cfg(feature = "serde")]
+// struct SelectorDVisitor<'de, Impl: SelectorImpl<'de>> {
+//   marker: std::marker::PhantomData<Selector<'de, Impl>>,
+// }
+
+// #[cfg(feature = "serde")]
+// impl<'de, Impl: SelectorImpl<'de>> serde::de::Visitor<'de> for SelectorDVisitor<'de, Impl> {
+//   type Value = Selector<'de, Impl>;
+
+//   fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+//     formatter.write_str("a list of components")
+//   }
+
+//   fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+//   where
+//     A: serde::de::SeqAccess<'de>,
+//   {
+//     let mut builder = SelectorBuilder::default();
+//     while let Some(component) = seq.next_element::<Component<'de, Impl>>()? {
+//       if let Some(combinator) = component.as_combinator() {
+//         builder.push_combinator(combinator);
+//       } else {
+//         builder.push_simple_selector(component);
+//       }
+//     }
+
+//     let (spec, components) = builder.build(false, false, false);
+//     Ok(Selector(spec, components))
+//   }
+// }
+
 #[derive(Clone)]
 pub struct SelectorIter<'a, 'i, Impl: 'a + SelectorImpl<'i>> {
   iter: slice::Iter<'a, Component<'i, Impl>>,
@@ -1063,6 +1146,7 @@ impl<'a, 'i, Impl: SelectorImpl<'i>> Iterator for AncestorIter<'a, 'i, Impl> {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Combinator {
   Child,        //  >
   Descendant,   // space
@@ -1119,6 +1203,15 @@ impl Combinator {
 ///
 /// [1] https://bugzilla.mozilla.org/show_bug.cgi?id=1357973
 #[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  // serde(bound(
+  //   serialize = "Impl::NamespaceUrl: serde::Serialize",
+  //   deserialize = "Impl::NamespaceUrl: serde::Deserialize<'de>, Impl::NamespacePrefix: serde::Deserialize<'de>, Impl::Identifier: serde::Deserialize<'de>, Impl::LocalName: serde::Deserialize<'de>, Impl::AttrValue: serde::Deserialize<'de>, LocalName<'i, Impl>: serde::Deserialize<'de>, Impl::NonTSPseudoClass: serde::Deserialize<'de>, Impl::VendorPrefix: serde::Deserialize<'de>, Impl::PseudoElement: serde::Deserialize<'de>, Selector<'i, Impl>: serde::Deserialize<'de>, AttrSelectorWithOptionalNamespace<'i, Impl>: serde::Deserialize<'de>"
+  // ))
+  // serde(bound(deserialize = "'de: 'i"))
+)]
 pub enum Component<'i, Impl: SelectorImpl<'i>> {
   Combinator(Combinator),
 
@@ -1128,6 +1221,10 @@ pub enum Component<'i, Impl: SelectorImpl<'i>> {
   Namespace(Impl::NamespacePrefix, Impl::NamespaceUrl),
 
   ExplicitUniversalType,
+  // #[cfg_attr(
+  //   feature = "serde",
+  //   serde(bound(deserialize = "LocalName<'i, Impl>: serde::Deserialize<'de>"))
+  // )]
   LocalName(LocalName<'i, Impl>),
 
   ID(Impl::Identifier),
@@ -1146,6 +1243,10 @@ pub enum Component<'i, Impl: SelectorImpl<'i>> {
     never_matches: bool,
   },
   // Use a Box in the less common cases with more data to keep size_of::<Component>() small.
+  // #[cfg_attr(
+  //   feature = "serde",
+  //   serde(bound(deserialize = "AttrSelectorWithOptionalNamespace<'i, Impl>: serde::Deserialize<'de>"))
+  // )]
   AttributeOther(Box<AttrSelectorWithOptionalNamespace<'i, Impl>>),
 
   /// Pseudo-classes
@@ -1382,6 +1483,31 @@ impl<'i, Impl: SelectorImpl<'i>> Debug for AttrSelectorWithOptionalNamespace<'i,
 impl<'i, Impl: SelectorImpl<'i>> Debug for LocalName<'i, Impl> {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     self.to_css(f)
+  }
+}
+
+#[cfg(feature = "serde")]
+impl<'i, Impl: SelectorImpl<'i>> serde::Serialize for LocalName<'i, Impl> {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    self.name.serialize(serializer)
+  }
+}
+
+#[cfg(feature = "serde")]
+impl<'i, 'de: 'i, Impl: SelectorImpl<'i>> serde::Deserialize<'de> for LocalName<'i, Impl>
+where
+  Impl::LocalName: serde::Deserialize<'de>,
+{
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let name = Impl::LocalName::deserialize(deserializer)?;
+    let lower_name = to_ascii_lowercase(name.as_ref().to_string().into()).into();
+    Ok(LocalName { name, lower_name })
   }
 }
 
@@ -2709,7 +2835,7 @@ pub mod tests {
   use super::*;
   use crate::builder::SelectorFlags;
   use crate::parser;
-  use cssparser::{serialize_identifier, Parser as CssParser, ParserInput, ToCss, serialize_string};
+  use cssparser::{serialize_identifier, serialize_string, Parser as CssParser, ParserInput, ToCss};
   use std::collections::HashMap;
   use std::fmt;
 

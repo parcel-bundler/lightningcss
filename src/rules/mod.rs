@@ -244,7 +244,7 @@ impl<'i, T: ToCss> ToCss for CssRule<'i, T> {
 
 /// A list of CSS rules.
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 pub struct CssRuleList<'i, R = DefaultAtRule>(
   #[cfg_attr(feature = "serde", serde(borrow))] pub Vec<CssRule<'i, R>>,
 );

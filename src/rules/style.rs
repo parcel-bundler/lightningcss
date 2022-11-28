@@ -27,14 +27,6 @@ use crate::selector::{deserialize_selectors, serialize_selectors};
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StyleRule<'i, R = DefaultAtRule> {
   /// The selectors for the style rule.
-  #[cfg_attr(
-    feature = "serde",
-    serde(
-      serialize_with = "serialize_selectors",
-      deserialize_with = "deserialize_selectors",
-      borrow
-    )
-  )]
   pub selectors: SelectorList<'i>,
   /// A vendor prefix override, used during selector printing.
   #[cfg_attr(feature = "serde", serde(skip, default = "VendorPrefix::empty"))]

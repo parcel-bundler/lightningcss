@@ -61,7 +61,7 @@ default = ["grid"]
 browserslist = ["browserslist-rs"]
 cli = ["clap", "serde_json", "pathdiff", "browserslist", "jemallocator"]
 grid = []
-serde = ["smallvec/serde", "cssparser/serde"]
+serde = ["smallvec/serde", "cssparser/serde", "parcel_selectors/serde"]
 
 [[test]]
 name = "cli_integration_tests"

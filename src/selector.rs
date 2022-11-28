@@ -316,6 +316,11 @@ enum_property! {
 
 /// https://drafts.csswg.org/selectors-4/#structural-pseudos
 #[derive(Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(bound(deserialize = "Selector<'i>: serde::Deserialize<'de>"))
+)]
 pub enum PseudoClass<'i> {
   // https://drafts.csswg.org/selectors-4/#linguistic-pseudos
   Lang(Vec<CowArcStr<'i>>),
@@ -391,6 +396,7 @@ pub enum PseudoClass<'i> {
 
 /// https://webkit.org/blog/363/styling-scrollbars/
 #[derive(Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum WebKitScrollbarPseudoClass {
   Horizontal,
   Vertical,
@@ -665,6 +671,11 @@ impl<'i> PseudoClass<'i> {
 }
 
 #[derive(PartialEq, Clone, Debug)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(bound(deserialize = "Selector<'i>: serde::Deserialize<'de>"))
+)]
 pub enum PseudoElement<'i> {
   After,
   Before,
@@ -685,6 +696,7 @@ pub enum PseudoElement<'i> {
 }
 
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum WebKitScrollbarPseudoElement {
   /// ::-webkit-scrollbar
   Scrollbar,
@@ -1659,21 +1671,84 @@ pub(crate) fn is_unused(
 }
 
 #[cfg(feature = "serde")]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type", content = "value", rename_all = "kebab-case")]
+enum SerializedComponent<'i> {
+  #[serde(with = "SerializedCombinator")]
+  Combinator(Combinator),
+  Universal,
+  #[serde(borrow)]
+  Type(Ident<'i>),
+  ID(Ident<'i>),
+  Class(Ident<'i>),
+}
+
+#[cfg(feature = "serde")]
+impl<'i> From<&Component<'i>> for SerializedComponent<'i> {
+  fn from(component: &Component<'i>) -> Self {
+    match component {
+      Component::Combinator(c) => SerializedComponent::Combinator(c.clone()),
+      Component::ExplicitUniversalType => SerializedComponent::Universal,
+      Component::LocalName(name) => SerializedComponent::Type(name.name.clone()),
+      Component::ID(name) => SerializedComponent::ID(name.clone()),
+      Component::Class(name) => SerializedComponent::Class(name.clone()),
+      _ => todo!(),
+    }
+  }
+}
+
+#[cfg(feature = "serde")]
+impl<'i> Into<Component<'i>> for SerializedComponent<'i> {
+  fn into(self) -> Component<'i> {
+    match self {
+      SerializedComponent::Combinator(c) => Component::Combinator(c),
+      SerializedComponent::Universal => Component::ExplicitUniversalType,
+      SerializedComponent::Type(name) => Component::LocalName(parcel_selectors::parser::LocalName {
+        name: name.clone().into(),
+        lower_name: name.into(),
+      }),
+      SerializedComponent::ID(name) => Component::ID(name),
+      SerializedComponent::Class(name) => Component::Class(name),
+    }
+  }
+}
+
+#[cfg(feature = "serde")]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(remote = "Combinator")]
+pub enum SerializedCombinator {
+  Child,
+  Descendant,
+  NextSibling,
+  LaterSibling,
+  PseudoElement,
+  SlotAssignment,
+  Part,
+}
+
+#[cfg(feature = "serde")]
 pub(crate) fn serialize_selectors<S>(selectors: &SelectorList, s: S) -> Result<S::Ok, S::Error>
 where
   S: serde::Serializer,
 {
-  use serde::Serialize;
+  use serde::{ser::SerializeSeq, Serialize};
   selectors
     .0
     .iter()
     .map(|selector| {
-      let mut dest = String::new();
-      let mut printer = Printer::new(&mut dest, PrinterOptions::default());
-      serialize_selector::<_, DefaultAtRule>(selector, &mut printer, None, false).unwrap();
-      dest
+      // let mut dest = String::new();
+      // let mut printer = Printer::new(&mut dest, PrinterOptions::default());
+      // serialize_selector::<_, DefaultAtRule>(selector, &mut printer, None, false).unwrap();
+      // dest
+      let mut components: Vec<SerializedComponent> = Vec::new();
+      for component in selector.iter_raw_match_order().rev() {
+        match component {
+          _ => components.push(component.into()),
+        }
+      }
+      components
     })
-    .collect::<Vec<String>>()
+    .collect::<Vec<Vec<SerializedComponent>>>()
     .serialize(s)
 }
 
@@ -1691,12 +1766,18 @@ where
     options: &ParserOptions::default(),
   };
 
-  let selectors = Vec::<&'i str>::deserialize(deserializer)?
+  let selectors = Vec::<Vec<SerializedComponent>>::deserialize(deserializer)?
     .into_iter()
     .map(|selector| {
-      let mut input = ParserInput::new(selector);
-      let mut parser = Parser::new(&mut input);
-      Selector::parse(&selector_parser, &mut parser).unwrap()
+      // let mut input = ParserInput::new(selector);
+      // let mut parser = Parser::new(&mut input);
+      // Selector::parse(&selector_parser, &mut parser).unwrap()
+      Selector::from(
+        selector
+          .into_iter()
+          .map(|component| component.into())
+          .collect::<Vec<Component>>(),
+      )
     })
     .collect();
   Ok(SelectorList::new(selectors))

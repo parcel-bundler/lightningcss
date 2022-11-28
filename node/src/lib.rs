@@ -10,8 +10,10 @@ use lightningcss::stylesheet::{
   MinifyOptions, ParserOptions, PrinterOptions, PseudoClasses, StyleAttribute, StyleSheet,
 };
 use lightningcss::targets::Browsers;
+use lightningcss::visitor::Visit;
 use parcel_sourcemap::SourceMap;
 use serde::{Deserialize, Serialize};
+use transformer::JsVisitor;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -19,6 +21,7 @@ use std::sync::{Arc, Mutex, RwLock};
 
 #[cfg(not(target_arch = "wasm32"))]
 mod threadsafe_function;
+mod transformer;
 
 // ---------------------------------------------
 
@@ -95,10 +98,24 @@ impl<'i> TransformResult<'i> {
 #[cfg(not(target_arch = "wasm32"))]
 #[js_function(1)]
 fn transform(ctx: CallContext) -> napi::Result<JsUnknown> {
+    use transformer::JsVisitor;
+
   let opts = ctx.get::<JsObject>(0)?;
+  let mut visitor = if let Ok(visitor) = opts.get_named_property::<JsObject>("visitor") {
+    Some(JsVisitor::new(*ctx.env, visitor))
+  } else {
+    None
+  };
+
   let config: Config = ctx.env.from_js_value(opts)?;
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
-  let res = compile(code, &config);
+  let res = compile(code, &config, &mut visitor);
+
+  if let Some(visitor) = &visitor {
+    if let Some(err) = visitor.errors.first() {
+      return Err(err.clone())
+    }
+  }
 
   match res {
     Ok(res) => res.into_js(*ctx.env),
@@ -474,7 +491,7 @@ struct Drafts {
   custom_media: bool,
 }
 
-fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult<'i>, CompileError<'i, std::io::Error>> {
+fn compile<'i>(code: &'i str, config: &Config, visitor: &mut Option<JsVisitor>) -> Result<TransformResult<'i>, CompileError<'i, std::io::Error>> {
   let drafts = config.drafts.as_ref();
   let warnings = Some(Arc::new(RwLock::new(Vec::new())));
 
@@ -520,6 +537,11 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult<'i>, Co
         at_rule_parser: ParserOptions::default_at_rule_parser(),
       },
     )?;
+
+    if let Some(visitor) = visitor.as_mut() {
+      stylesheet.visit(visitor);
+    }
+
     stylesheet.minify(MinifyOptions {
       targets: config.targets,
       unused_symbols: config.unused_symbols.clone().unwrap_or_default(),

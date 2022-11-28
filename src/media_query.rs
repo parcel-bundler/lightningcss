@@ -148,7 +148,7 @@ enum_property! {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(rename_all = "kebab-case")
 )]
 pub enum MediaType<'i> {
   /// Matches all devices.

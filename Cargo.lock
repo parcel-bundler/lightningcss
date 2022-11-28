@@ -724,6 +724,7 @@ dependencies = [
  "parcel_sourcemap",
  "rayon",
  "serde",
+ "serde-detach",
  "serde-wasm-bindgen",
  "serde_bytes",
  "wasm-bindgen",
@@ -913,6 +914,7 @@ dependencies = [
  "phf",
  "phf_codegen",
  "precomputed-hash",
+ "serde",
  "smallvec",
 ]
 
@@ -1360,6 +1362,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-detach"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c621150da442b6a854bb63c431347bcd4de19219a3e1f06fd744208ded057288"
+dependencies = [
+ "serde",
+ "wyz",
+]
+
+[[package]]
 name = "serde-wasm-bindgen"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1737,3 +1749,9 @@ name = "windows_x86_64_msvc"
 version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "504a2476202769977a040c6364301a3f65d0cc9e3fb08600b2bda150a0488316"
+
+[[package]]
+name = "wyz"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85e60b0d1b5f99db2556934e21937020776a5d31520bf169e851ac44e6420214"

@@ -5,6 +5,7 @@
 use crate::error::PrinterError;
 use crate::printer::Printer;
 use crate::traits::ToCss;
+use crate::values::string::CowArcStr;
 use crate::visitor::{Visit, VisitTypes, Visitor};
 use bitflags::bitflags;
 
@@ -108,13 +109,13 @@ impl<'de> serde::Deserialize<'de> for VendorPrefix {
   where
     D: serde::Deserializer<'de>,
   {
-    let values = Vec::<&str>::deserialize(deserializer)?;
+    let values = Vec::<CowArcStr<'de>>::deserialize(deserializer)?;
     if values.is_empty() {
       return Ok(VendorPrefix::None);
     }
     let mut res = VendorPrefix::empty();
     for value in values {
-      res |= match value {
+      res |= match value.as_ref() {
         "none" => VendorPrefix::None,
         "webkit" => VendorPrefix::WebKit,
         "moz" => VendorPrefix::Moz,

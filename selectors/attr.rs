@@ -7,6 +7,11 @@ use cssparser::ToCss;
 use std::fmt;
 
 #[derive(Clone, Eq, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(bound(deserialize = "Impl::NamespacePrefix: serde::Deserialize<'de>, Impl::NamespaceUrl: serde::Deserialize<'de>, Impl::LocalName: serde::Deserialize<'de>, Impl::AttrValue: serde::Deserialize<'de>"))
+)]
 pub struct AttrSelectorWithOptionalNamespace<'i, Impl: SelectorImpl<'i>> {
   pub namespace: Option<NamespaceConstraint<(Impl::NamespacePrefix, Impl::NamespaceUrl)>>,
   pub local_name: Impl::LocalName,
@@ -25,6 +30,7 @@ impl<'i, Impl: SelectorImpl<'i>> AttrSelectorWithOptionalNamespace<'i, Impl> {
 }
 
 #[derive(Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum NamespaceConstraint<NamespaceUrl> {
   Any,
 
@@ -33,6 +39,7 @@ pub enum NamespaceConstraint<NamespaceUrl> {
 }
 
 #[derive(Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ParsedAttrSelectorOperation<AttrValue> {
   Exists,
   WithValue {
@@ -43,6 +50,7 @@ pub enum ParsedAttrSelectorOperation<AttrValue> {
 }
 
 #[derive(Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum AttrSelectorOperation<AttrValue> {
   Exists,
   WithValue {
@@ -69,6 +77,7 @@ impl<AttrValue> AttrSelectorOperation<AttrValue> {
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum AttrSelectorOperator {
   Equal,
   Includes,
@@ -125,6 +134,7 @@ impl AttrSelectorOperator {
 pub static SELECTOR_WHITESPACE: &[char] = &[' ', '\t', '\n', '\r', '\x0C'];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ParsedCaseSensitivity {
   // 's' was specified.
   ExplicitCaseSensitive,
@@ -154,6 +164,7 @@ impl ParsedCaseSensitivity {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum CaseSensitivity {
   CaseSensitive,
   AsciiCaseInsensitive,
