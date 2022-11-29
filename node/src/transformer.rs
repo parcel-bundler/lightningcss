@@ -143,7 +143,7 @@ impl<'i> Visitor<'i> for JsVisitor {
     function.visit_children(self)
   }
 
-  fn visit_selector(&mut self, _selector: &mut lightningcss::selector::Selector<'i>) {
+  fn visit_selector(&mut self, selector: &mut lightningcss::selector::Selector<'i>) {
     visit(&self.env, selector, &self.visit_selector, &mut self.errors)
   }
 

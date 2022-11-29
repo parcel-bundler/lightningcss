@@ -6,7 +6,7 @@ use cssparser::{serialize_string, CowRcStr};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer};
 use serde::{Serialize, Serializer};
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cmp;
 use std::fmt;
 use std::hash;
@@ -90,6 +90,16 @@ impl<'a> From<String> for CowArcStr<'a> {
   #[inline]
   fn from(s: String) -> Self {
     CowArcStr::from_arc(Arc::new(s))
+  }
+}
+
+impl<'a> From<Cow<'a, str>> for CowArcStr<'a> {
+  #[inline]
+  fn from(s: Cow<'a, str>) -> Self {
+    match s {
+      Cow::Borrowed(s) => s.into(),
+      Cow::Owned(s) => s.into(),
+    }
   }
 }
 
@@ -329,6 +339,16 @@ macro_rules! impl_string_type {
     impl<'i> From<&'i str> for $t<'i> {
       fn from(s: &'i str) -> Self {
         $t(s.into())
+      }
+    }
+
+    impl<'a> From<std::borrow::Cow<'a, str>> for $t<'a> {
+      #[inline]
+      fn from(s: std::borrow::Cow<'a, str>) -> Self {
+        match s {
+          std::borrow::Cow::Borrowed(s) => s.into(),
+          std::borrow::Cow::Owned(s) => s.into(),
+        }
       }
     }
 

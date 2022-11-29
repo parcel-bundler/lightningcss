@@ -31,8 +31,8 @@ pub mod sink;
 mod tree;
 pub mod visitor;
 
-// #[cfg(feature = "serde")]
-// mod serde;
+#[cfg(feature = "serde")]
+mod serialization;
 
 pub use crate::nth_index_cache::NthIndexCache;
 pub use crate::parser::{Parser, SelectorImpl, SelectorList};

@@ -323,6 +323,7 @@ enum_property! {
 )]
 pub enum PseudoClass<'i> {
   // https://drafts.csswg.org/selectors-4/#linguistic-pseudos
+  #[cfg_attr(feature = "serde", serde(borrow))]
   Lang(Vec<CowArcStr<'i>>),
   Dir(Direction),
 
@@ -691,6 +692,7 @@ pub enum PseudoElement<'i> {
   CueRegion,
   CueFunction(Box<Selector<'i>>),
   CueRegionFunction(Box<Selector<'i>>),
+  #[cfg_attr(feature = "serde", serde(borrow))]
   Custom(CowArcStr<'i>),
   CustomFunction(CowArcStr<'i>, TokenList<'i>),
 }

@@ -37,7 +37,7 @@ let res = css.transform({
   //   opera: 10 << 16 | 5 << 8
   // },
   code: Buffer.from(`
-  .selector .nested {
+  .selector .nested[data-foo=bar]:hover {
     width: 32px;
     --foo: var(--bar, 30px);
     background: linear-gradient(red, green);
@@ -117,6 +117,8 @@ let res = css.transform({
       for (let component of selector) {
         if (component.type === 'class') {
           component.value = 'tw-' + component.value;
+        } else if (component.type === 'attribute') {
+          component.value.operation.operator = 'includes';
         }
       }
       return selector;
