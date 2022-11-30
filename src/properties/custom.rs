@@ -360,7 +360,9 @@ impl<'i> TokenList<'i> {
           self.write_whitespace_if_needed(i, dest)?
         }
         TokenOrValue::Length(v) => {
-          v.to_css(dest)?;
+          // Do not serialize unitless zero lengths in custom properties as it may break calc().
+          let (value, unit) = v.to_unit_value();
+          serialize_dimension(value, unit, dest)?;
           false
         }
         TokenOrValue::Angle(v) => {

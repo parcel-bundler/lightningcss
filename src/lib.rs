@@ -6717,8 +6717,14 @@ mod tests {
     );
     minify_test("@media { .foo { color: chartreuse }}", ".foo{color:#7fff00}");
     minify_test("@media all { .foo { color: chartreuse }}", ".foo{color:#7fff00}");
-    minify_test("@media not (((color) or (hover))) { .foo { color: chartreuse }}", "@media not ((color) or (hover)){.foo{color:#7fff00}}");
-    minify_test("@media (hover) and ((color) and (test)) { .foo { color: chartreuse }}", "@media (hover) and (color) and (test){.foo{color:#7fff00}}");
+    minify_test(
+      "@media not (((color) or (hover))) { .foo { color: chartreuse }}",
+      "@media not ((color) or (hover)){.foo{color:#7fff00}}",
+    );
+    minify_test(
+      "@media (hover) and ((color) and (test)) { .foo { color: chartreuse }}",
+      "@media (hover) and (color) and (test){.foo{color:#7fff00}}",
+    );
 
     prefix_test(
       r#"
@@ -17835,6 +17841,7 @@ mod tests {
     );
     minify_test(".foo { --test: .5s; }", ".foo{--test:.5s}");
     minify_test(".foo { --theme-sizes-1\\/12: 2 }", ".foo{--theme-sizes-1\\/12:2}");
+    minify_test(".foo { --test: 0px; }", ".foo{--test:0px}");
 
     prefix_test(
       r#"
