@@ -12,7 +12,10 @@ use cssparser::*;
 /// When serialized, as few components as possible are written when
 /// there are duplicate values.
 #[derive(Clone, Debug, PartialEq, Eq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub struct Rect<T>(
   /// The top component.
   pub T,

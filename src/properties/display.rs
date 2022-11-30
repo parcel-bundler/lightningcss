@@ -28,7 +28,7 @@ enum_property! {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   serde(rename_all = "kebab-case")
 )]
 #[allow(missing_docs)]
@@ -107,7 +107,10 @@ impl DisplayInside {
 ///
 /// See [Display](Display).
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub struct DisplayPair {
   /// The outside display value.
   pub outside: DisplayOutside,
@@ -322,7 +325,7 @@ enum_property! {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum Display {

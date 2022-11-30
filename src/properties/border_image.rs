@@ -38,7 +38,10 @@ enum_property! {
 
 /// A value for the [border-image-repeat](https://www.w3.org/TR/css-backgrounds-3/#border-image-repeat) property.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub struct BorderImageRepeat {
   /// The horizontal repeat value.
   pub horizontal: BorderImageRepeatKeyword,
@@ -84,7 +87,7 @@ impl ToCss for BorderImageRepeat {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum BorderImageSideWidth {
@@ -136,7 +139,10 @@ impl ToCss for BorderImageSideWidth {
 
 /// A value for the [border-image-slice](https://www.w3.org/TR/css-backgrounds-3/#border-image-slice) property.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub struct BorderImageSlice {
   /// The offsets from the edges of the image.
   pub offsets: Rect<NumberOrPercentage>,

@@ -10,7 +10,10 @@ use crate::visitor::Visit;
 
 /// A [@namespace](https://drafts.csswg.org/css-namespaces/#declaration) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub struct NamespaceRule<'i> {
   /// An optional namespace prefix to declare, or `None` to declare the default namespace.
   #[cfg_attr(feature = "serde", serde(borrow))]

@@ -132,3 +132,17 @@ impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for VendorPrefix
   const CHILD_TYPES: VisitTypes = VisitTypes::empty();
   fn visit_children(&mut self, _: &mut V) {}
 }
+
+impl schemars::JsonSchema for VendorPrefix {
+  fn is_referenceable() -> bool {
+    true
+  }
+
+  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    Vec::<String>::json_schema(gen)
+  }
+
+  fn schema_name() -> String {
+    "VendorPrefix".into()
+  }
+}

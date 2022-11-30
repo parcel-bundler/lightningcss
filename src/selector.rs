@@ -27,7 +27,7 @@ use std::collections::HashSet;
 use std::fmt;
 
 mod private {
-  #[derive(Debug, Clone, PartialEq, Eq)]
+  #[derive(Debug, Clone, PartialEq, Eq, schemars::JsonSchema)]
   pub struct Selectors;
 }
 
@@ -318,7 +318,7 @@ enum_property! {
 #[derive(Clone, PartialEq)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   serde(rename_all = "kebab-case")
   // serde(bound(deserialize = "Selector<'i>: serde::Deserialize<'de>"))
 )]
@@ -398,7 +398,10 @@ pub enum PseudoClass<'i> {
 
 /// https://webkit.org/blog/363/styling-scrollbars/
 #[derive(Clone, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub enum WebKitScrollbarPseudoClass {
   Horizontal,
   Vertical,
@@ -675,7 +678,7 @@ impl<'i> PseudoClass<'i> {
 #[derive(PartialEq, Clone, Debug)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   serde(rename_all = "kebab-case")
 )]
 pub enum PseudoElement<'i> {
@@ -699,7 +702,10 @@ pub enum PseudoElement<'i> {
 }
 
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub enum WebKitScrollbarPseudoElement {
   /// ::-webkit-scrollbar
   Scrollbar,
@@ -1674,7 +1680,7 @@ pub(crate) fn is_unused(
 }
 
 #[cfg(feature = "serde")]
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "type", content = "value", rename_all = "kebab-case")]
 enum SerializedComponent<'i> {
   #[serde(with = "SerializedCombinator")]
@@ -1717,7 +1723,7 @@ impl<'i> Into<Component<'i>> for SerializedComponent<'i> {
 }
 
 #[cfg(feature = "serde")]
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(remote = "Combinator")]
 pub enum SerializedCombinator {
   Child,

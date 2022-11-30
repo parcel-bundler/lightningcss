@@ -40,7 +40,7 @@ impl LengthPercentage {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum LengthPercentageOrAuto {
@@ -95,7 +95,7 @@ macro_rules! define_length_units {
     /// without support for `calc()`. See also: [Length](Length).
     #[derive(Debug, Clone, PartialEq, Visit)]
     #[visit(visit_length, LENGTHS)]
-    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(tag = "unit", content = "value", rename_all = "kebab-case"))]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema), serde(tag = "unit", content = "value", rename_all = "kebab-case"))]
     pub enum LengthValue {
       $(
         $(#[$meta])*
@@ -477,7 +477,7 @@ impl LengthValue {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum Length {
@@ -739,7 +739,7 @@ impl_try_from_angle!(Length);
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum LengthOrNumber {

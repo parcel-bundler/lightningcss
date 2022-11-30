@@ -176,7 +176,7 @@ macro_rules! define_properties {
   ) => {
     /// A CSS property id.
     #[derive(Debug, Clone, PartialEq, Visit)]
-    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema))]
     pub enum PropertyId<'i> {
       $(
         #[doc=concat!("The `", $name, "` property.")]
@@ -526,7 +526,7 @@ macro_rules! define_properties {
     /// A CSS property.
     #[derive(Debug, Clone, PartialEq, Visit)]
     #[visit(visit_property, PROPERTIES)]
-    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema))]
     #[cfg_attr(feature = "serde", serde(tag = "property", content = "value"))]
     pub enum Property<'i> {
       $(

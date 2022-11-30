@@ -22,7 +22,7 @@ use cssparser::*;
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum Gradient {
@@ -200,7 +200,10 @@ impl ToCss for Gradient {
 
 /// A CSS [`linear-gradient()`](https://www.w3.org/TR/css-images-3/#linear-gradients) or `repeating-linear-gradient()`.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub struct LinearGradient {
   /// The direction of the gradient.
   pub direction: LineDirection,
@@ -297,7 +300,10 @@ impl LinearGradient {
 
 /// A CSS [`radial-gradient()`](https://www.w3.org/TR/css-images-3/#radial-gradients) or `repeating-radial-gradient()`.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub struct RadialGradient {
   /// The shape of the gradient.
   pub shape: EndingShape,
@@ -370,7 +376,7 @@ impl RadialGradient {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum LineDirection {
@@ -463,7 +469,7 @@ impl LineDirection {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum EndingShape {
@@ -512,7 +518,7 @@ impl ToCss for EndingShape {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum Circle {
@@ -579,7 +585,7 @@ impl ToCss for Circle {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum Ellipse {
@@ -661,7 +667,10 @@ enum_property! {
 
 /// A CSS [`conic-gradient()`](https://www.w3.org/TR/css-images-4/#conic-gradients) or `repeating-conic-gradient()`.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub struct ConicGradient {
   /// The angle of the gradient.
   pub angle: Angle,
@@ -739,7 +748,10 @@ impl ConicGradient {
 /// This type is generic, and may be either a [LengthPercentage](super::length::LengthPercentage)
 /// or [Angle](super::angle::Angle) depending on what type of gradient it is within.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub struct ColorStop<D> {
   /// The color of the color stop.
   pub color: CssColor,
@@ -776,7 +788,7 @@ impl<D: ToCss> ToCss for ColorStop<D> {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum GradientItem<D> {
@@ -920,7 +932,7 @@ where
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum WebKitGradient {
@@ -1062,7 +1074,10 @@ impl WebKitGradient {
 
 /// A color stop within a legacy `-webkit-gradient()`.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub struct WebKitColorStop {
   /// The color of the color stop.
   pub color: CssColor,
@@ -1123,7 +1138,10 @@ impl WebKitColorStop {
 
 /// An x/y position within a legacy `-webkit-gradient()`.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub struct WebKitGradientPoint {
   /// The x-position.
   pub x: WebKitGradientPointComponent<HorizontalPositionKeyword>,
@@ -1154,7 +1172,7 @@ impl ToCss for WebKitGradientPoint {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum WebKitGradientPointComponent<S> {

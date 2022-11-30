@@ -12,7 +12,11 @@ use cssparser::*;
 ///
 /// Parses either a `<number>` or `<percentage>`, but is always stored and serialized as a number.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  serde(transparent)
+)]
 pub struct AlphaValue(pub f32);
 
 impl<'i> Parse<'i> for AlphaValue {

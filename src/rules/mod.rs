@@ -109,7 +109,7 @@ pub(crate) struct StyleContext<'a, 'i, T> {
 
 /// A source location.
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, schemars::JsonSchema))]
 pub struct Location {
   /// The index of the source file within the source map.
   pub source_index: u32,
@@ -125,7 +125,7 @@ pub struct Location {
 #[visit(visit_rule, RULES)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum CssRule<'i, R = DefaultAtRule> {
@@ -244,7 +244,11 @@ impl<'i, T: ToCss> ToCss for CssRule<'i, T> {
 
 /// A list of CSS rules.
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  serde(transparent)
+)]
 pub struct CssRuleList<'i, R = DefaultAtRule>(
   #[cfg_attr(feature = "serde", serde(borrow))] pub Vec<CssRule<'i, R>>,
 );

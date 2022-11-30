@@ -245,6 +245,20 @@ impl<'a, 'de: 'a> Deserialize<'de> for CowArcStr<'a> {
   }
 }
 
+impl<'a> schemars::JsonSchema for CowArcStr<'a> {
+  fn is_referenceable() -> bool {
+    true
+  }
+
+  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    String::json_schema(gen)
+  }
+
+  fn schema_name() -> String {
+    "String".into()
+  }
+}
+
 #[cfg(feature = "serde")]
 struct CowArcStrVisitor;
 
@@ -285,7 +299,11 @@ impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for CowArcStr<'i
 
 /// A quoted CSS string.
 #[derive(Clone, Eq, Ord, Hash, Debug, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  serde(transparent)
+)]
 pub struct CSSString<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CowArcStr<'i>);
 
 impl<'i> Parse<'i> for CSSString<'i> {

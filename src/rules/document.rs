@@ -13,7 +13,10 @@ use crate::visitor::Visit;
 /// Note that only the `url-prefix()` function with no arguments is supported, and only the `-moz` prefix
 /// is allowed since Firefox was the only browser that ever implemented this rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub struct MozDocumentRule<'i, R = DefaultAtRule> {
   /// Nested rules within the `@-moz-document` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]

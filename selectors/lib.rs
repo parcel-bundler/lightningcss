@@ -17,6 +17,8 @@ extern crate log;
 extern crate phf;
 extern crate precomputed_hash;
 #[cfg(feature = "serde")]
+extern crate schemars;
+#[cfg(feature = "serde")]
 extern crate serde;
 extern crate smallvec;
 

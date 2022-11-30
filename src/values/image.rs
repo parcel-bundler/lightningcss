@@ -22,7 +22,7 @@ use smallvec::SmallVec;
 #[visit(visit_image, IMAGES)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum Image<'i> {
@@ -342,7 +342,10 @@ impl<'i> ToCss for Image<'i> {
 /// `image-set()` allows the user agent to choose between multiple versions of an image to
 /// display the most appropriate resolution or file type that it supports.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub struct ImageSet<'i> {
   /// The image options to choose from.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -414,7 +417,10 @@ impl<'i> ToCss for ImageSet<'i> {
 
 /// An image option within the `image-set()` function. See [ImageSet](ImageSet).
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub struct ImageSetOption<'i> {
   /// The image for this option.
   #[skip_type]

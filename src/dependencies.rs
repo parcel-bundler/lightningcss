@@ -123,7 +123,7 @@ pub struct SourceRange {
 
 /// A line and column position within a source file.
 #[derive(Serialize, Debug, Clone, Copy, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, schemars::JsonSchema))]
 pub struct Location {
   /// The line number, starting from 1.
   pub line: u32,

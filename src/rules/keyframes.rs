@@ -22,7 +22,10 @@ use cssparser::*;
 
 /// A [@keyframes](https://drafts.csswg.org/css-animations/#keyframes) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub struct KeyframesRule<'i> {
   /// The animation name.
   /// <keyframes-name> = <custom-ident> | <string>
@@ -40,7 +43,10 @@ pub struct KeyframesRule<'i> {
 
 /// KeyframesName
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub enum KeyframesName<'i> {
   /// `<custom-ident>` of a `@keyframes` name.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -251,7 +257,7 @@ impl<'i> ToCss for KeyframesRule<'i> {
 #[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum KeyframeSelector {
@@ -310,7 +316,10 @@ impl ToCss for KeyframeSelector {
 ///
 /// See [KeyframesRule](KeyframesRule).
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub struct Keyframe<'i> {
   /// A list of keyframe selectors to associate with the declarations in this keyframe.
   pub selectors: Vec<KeyframeSelector>,

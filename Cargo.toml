@@ -45,6 +45,7 @@ rayon = "1.5.1"
 dashmap = "5.0.0"
 serde_json = { version = "1.0.78", optional = true }
 lightningcss-derive = { version = "1.0.0-alpha.35", path = "./derive" }
+schemars = { version = "*", features = ["smallvec"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 jemallocator = { version = "0.3.2", features = ["disable_initial_exec_tls"], optional = true }

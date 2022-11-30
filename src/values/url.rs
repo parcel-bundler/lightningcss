@@ -11,7 +11,10 @@ use cssparser::*;
 /// A CSS [url()](https://www.w3.org/TR/css-values-4/#urls) value and its source location.
 #[derive(Debug, Clone, Visit)]
 #[visit(visit_url, URLS)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub struct Url<'i> {
   /// The url string.
   #[cfg_attr(feature = "serde", serde(borrow))]

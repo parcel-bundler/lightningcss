@@ -90,7 +90,7 @@ impl<'o, 'i> ParserOptions<'o, 'i, DefaultAtRuleParser> {
   }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, schemars::JsonSchema)]
 pub struct DefaultAtRuleParser;
 impl<'i> AtRuleParser<'i> for DefaultAtRuleParser {
   type AtRule = DefaultAtRule;
@@ -99,7 +99,10 @@ impl<'i> AtRuleParser<'i> for DefaultAtRuleParser {
 }
 
 #[derive(PartialEq, Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub struct DefaultAtRule;
 impl crate::traits::ToCss for DefaultAtRule {
   fn to_css<W: std::fmt::Write>(&self, _: &mut Printer<W>) -> Result<(), PrinterError> {

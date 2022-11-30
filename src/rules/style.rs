@@ -24,7 +24,10 @@ use crate::selector::{deserialize_selectors, serialize_selectors};
 
 /// A CSS [style rule](https://drafts.csswg.org/css-syntax/#style-rules).
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
+)]
 pub struct StyleRule<'i, R = DefaultAtRule> {
   /// The selectors for the style rule.
   #[cfg_attr(feature = "serde", serde(borrow))]

@@ -345,7 +345,7 @@ pub trait Parser<'i> {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   // serde(bound(
   //   serialize = "Selector<'i, Impl>: serde::Serialize",
   //   deserialize = "Selector<'i, Impl>: serde::Deserialize<'de>"
@@ -357,8 +357,8 @@ pub trait Parser<'i> {
     serde(bound(
     serialize = "Impl::NonTSPseudoClass: serde::Serialize, Impl::PseudoElement: serde::Serialize, Impl::VendorPrefix: serde::Serialize",
     deserialize = "Impl::NonTSPseudoClass: serde::Deserialize<'de>, Impl::PseudoElement: serde::Deserialize<'de>, Impl::VendorPrefix: serde::Deserialize<'de>"
-  ))
-
+  )),
+  schemars(bound = "Impl: schemars::JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema")
 )]
 pub struct SelectorList<'i, Impl: SelectorImpl<'i>>(
   #[cfg_attr(feature = "serde", serde(borrow))] pub SmallVec<[Selector<'i, Impl>; 1]>,
@@ -680,7 +680,7 @@ pub fn namespace_empty_string<'i, Impl: SelectorImpl<'i>>() -> Impl::NamespaceUr
 #[derive(Clone, PartialEq)]
 // #[cfg_attr(
 //   feature = "serde",
-//   derive(serde::Serialize, serde::Deserialize),
+//   derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
 //   // serde(bound(
 //   //   serialize = "Component<'i, Impl>: serde::Serialize",
 //   //   deserialize = "Component<'i, Impl>: serde::Deserialize<'de>"
@@ -1109,7 +1109,7 @@ impl<'a, 'i, Impl: SelectorImpl<'i>> Iterator for AncestorIter<'a, 'i, Impl> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
   serde(rename_all = "kebab-case")
 )]
 pub enum Combinator {
@@ -1168,7 +1168,7 @@ impl Combinator {
 ///
 /// [1] https://bugzilla.mozilla.org/show_bug.cgi?id=1357973
 #[derive(Clone, PartialEq)]
-// #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+// #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema))]
 #[cfg_attr(
   feature = "serde",
   // serde(bound(
