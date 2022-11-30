@@ -664,7 +664,7 @@ dependencies = [
 
 [[package]]
 name = "lightningcss"
-version = "1.0.0-alpha.37"
+version = "1.0.0-alpha.38"
 dependencies = [
  "assert_cmd",
  "assert_fs",
