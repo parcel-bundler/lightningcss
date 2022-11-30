@@ -37,10 +37,17 @@ let res = css.transform({
   //   opera: 10 << 16 | 5 << 8
   // },
   code: Buffer.from(`
-  .selector .nested[data-foo=bar]:hover {
+  @namespace "http://foo.com";
+  @namespace svg "http://bar.com";
+
+  .selector > .nested[data-foo=bar]:not(.foo):hover::part(tab active) {
     width: 32px;
     --foo: var(--bar, 30px);
     background: linear-gradient(red, green);
+  }
+
+  svg|foo {
+    test: foo;
   }
 
   @media (hover) and (width > 50px) {
@@ -118,7 +125,8 @@ let res = css.transform({
         if (component.type === 'class') {
           component.value = 'tw-' + component.value;
         } else if (component.type === 'attribute') {
-          component.value.operation.operator = 'includes';
+          component.name = 'tw-' + component.name;
+          component.operation.operator = 'includes';
         }
       }
       return selector;

@@ -319,7 +319,8 @@ enum_property! {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(bound(deserialize = "Selector<'i>: serde::Deserialize<'de>"))
+  serde(rename_all = "kebab-case")
+  // serde(bound(deserialize = "Selector<'i>: serde::Deserialize<'de>"))
 )]
 pub enum PseudoClass<'i> {
   // https://drafts.csswg.org/selectors-4/#linguistic-pseudos
@@ -675,7 +676,7 @@ impl<'i> PseudoClass<'i> {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(bound(deserialize = "Selector<'i>: serde::Deserialize<'de>"))
+  serde(rename_all = "kebab-case")
 )]
 pub enum PseudoElement<'i> {
   After,
