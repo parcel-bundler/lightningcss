@@ -1,5 +1,3 @@
-use schemars::JsonSchema;
-
 use crate::{
   attr::{
     AttrSelectorOperator, AttrSelectorWithOptionalNamespace, NamespaceConstraint, ParsedAttrSelectorOperation,
@@ -11,10 +9,17 @@ use crate::{
 };
 use std::borrow::Cow;
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[cfg(feature = "jsonschema")]
+use schemars::JsonSchema;
+
+#[derive(serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "kebab-case")]
-#[schemars(
-  bound = "Impl: JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema, PseudoClass: schemars::JsonSchema, PseudoElement: schemars::JsonSchema, VendorPrefix: schemars::JsonSchema"
+#[cfg_attr(
+  feature = "jsonschema",
+  derive(schemars::JsonSchema),
+  schemars(
+    bound = "Impl: JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema, PseudoClass: schemars::JsonSchema, PseudoElement: schemars::JsonSchema, VendorPrefix: schemars::JsonSchema"
+  )
 )]
 enum SerializedComponent<'i, 's, Impl: SelectorImpl<'s>, PseudoClass, PseudoElement, VendorPrefix> {
   Combinator {
@@ -56,7 +61,8 @@ enum SerializedComponent<'i, 's, Impl: SelectorImpl<'s>, PseudoClass, PseudoElem
   Nesting,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[serde(tag = "value", rename_all = "kebab-case")]
 enum Namespace<'i> {
   None,
@@ -65,10 +71,14 @@ enum Namespace<'i> {
   Some { prefix: Cow<'i, str>, url: Cow<'i, str> },
 }
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(serde::Serialize, serde::Deserialize)]
 #[serde(tag = "value", rename_all = "kebab-case")]
-#[schemars(
-  bound = "Impl: JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema, VendorPrefix: schemars::JsonSchema"
+#[cfg_attr(
+  feature = "jsonschema",
+  derive(schemars::JsonSchema),
+  schemars(
+    bound = "Impl: JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema, VendorPrefix: schemars::JsonSchema"
+  )
 )]
 enum TSPseudoClass<'s, Impl: SelectorImpl<'s>, VendorPrefix> {
   Not {
@@ -167,10 +177,14 @@ enum TSPseudoClass<'s, Impl: SelectorImpl<'s>, VendorPrefix> {
   },
 }
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(serde::Serialize, serde::Deserialize)]
 #[serde(untagged, rename_all = "kebab-case")]
-#[schemars(
-  bound = "Impl: JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema, PseudoClass: schemars::JsonSchema, VendorPrefix: schemars::JsonSchema"
+#[cfg_attr(
+  feature = "jsonschema",
+  derive(schemars::JsonSchema),
+  schemars(
+    bound = "Impl: JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema, PseudoClass: schemars::JsonSchema, VendorPrefix: schemars::JsonSchema"
+  )
 )]
 enum SerializedPseudoClass<'s, Impl: SelectorImpl<'s>, PseudoClass, VendorPrefix> {
   #[serde(
@@ -184,10 +198,14 @@ enum SerializedPseudoClass<'s, Impl: SelectorImpl<'s>, PseudoClass, VendorPrefix
   NonTS(PseudoClass),
 }
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(serde::Serialize, serde::Deserialize)]
 #[serde(tag = "value", rename_all = "kebab-case")]
-#[schemars(
-  bound = "Impl: JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema"
+#[cfg_attr(
+  feature = "jsonschema",
+  derive(schemars::JsonSchema),
+  schemars(
+    bound = "Impl: JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema"
+  )
 )]
 enum BuiltinPseudoElement<'i, 's, Impl: SelectorImpl<'s>> {
   Slotted {
@@ -205,10 +223,14 @@ enum BuiltinPseudoElement<'i, 's, Impl: SelectorImpl<'s>> {
   },
 }
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(serde::Serialize, serde::Deserialize)]
 #[serde(untagged, rename_all = "kebab-case")]
-#[schemars(
-  bound = "Impl: JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema, PseudoElement: schemars::JsonSchema"
+#[cfg_attr(
+  feature = "jsonschema",
+  derive(schemars::JsonSchema),
+  schemars(
+    bound = "Impl: JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema, PseudoElement: schemars::JsonSchema"
+  )
 )]
 enum SerializedPseudoElement<'i, 's, Impl: SelectorImpl<'s>, PseudoElement> {
   #[serde(
@@ -222,7 +244,8 @@ enum SerializedPseudoElement<'i, 's, Impl: SelectorImpl<'s>, PseudoElement> {
   Custom(PseudoElement),
 }
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct AttrSelector<'i> {
   #[serde(borrow)]
   namespace: Option<NamespaceConstraint<(Cow<'i, str>, Cow<'i, str>)>>,
@@ -230,7 +253,8 @@ pub struct AttrSelector<'i> {
   operation: Option<AttrOperation<'i>>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 struct AttrOperation<'i> {
   operator: AttrSelectorOperator,
   case_sensitivity: ParsedCaseSensitivity,
@@ -641,12 +665,13 @@ where
   }
 }
 
-impl<'i, Impl: SelectorImpl<'i>> JsonSchema for Selector<'i, Impl>
+#[cfg(feature = "jsonschema")]
+impl<'i, Impl: SelectorImpl<'i>> schemars::JsonSchema for Selector<'i, Impl>
 where
-  Impl: JsonSchema,
-  Impl::NonTSPseudoClass: JsonSchema,
-  Impl::PseudoElement: JsonSchema,
-  Impl::VendorPrefix: JsonSchema,
+  Impl: schemars::JsonSchema,
+  Impl::NonTSPseudoClass: schemars::JsonSchema,
+  Impl::PseudoElement: schemars::JsonSchema,
+  Impl::VendorPrefix: schemars::JsonSchema,
 {
   fn is_referenceable() -> bool {
     true

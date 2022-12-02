@@ -11,10 +11,8 @@ use crate::traits::ToCss;
 use crate::visitor::Visit;
 /// A [@nest](https://www.w3.org/TR/css-nesting-1/#at-nest) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct NestingRule<'i, R = DefaultAtRule> {
   /// The style rule that defines the selector and declarations for the `@nest` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]

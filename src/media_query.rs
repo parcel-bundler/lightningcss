@@ -18,10 +18,8 @@ use std::collections::{HashMap, HashSet};
 
 /// A [media query list](https://drafts.csswg.org/mediaqueries/#mq-list).
 #[derive(Clone, Debug, PartialEq, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct MediaList<'i> {
   /// The list of media queries.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -150,9 +148,10 @@ enum_property! {
 #[derive(Clone, Debug, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum MediaType<'i> {
   /// Matches all devices.
   All,
@@ -181,10 +180,8 @@ impl<'i> Parse<'i> for MediaType<'i> {
 /// A [media query](https://drafts.csswg.org/mediaqueries/#media).
 #[derive(Clone, Debug, PartialEq, Visit)]
 #[visit(visit_media_query, MEDIA_QUERIES)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct MediaQuery<'i> {
   /// The qualifier for this query.
   pub qualifier: Option<Qualifier>,
@@ -369,9 +366,10 @@ enum_property! {
 #[derive(Clone, Debug, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum MediaCondition<'i> {
   /// A media feature, implicitly parenthesized.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -504,9 +502,10 @@ impl<'i> ToCss for MediaCondition<'i> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum MediaFeatureComparison {
   /// `=`
   Equal,
@@ -560,9 +559,10 @@ impl MediaFeatureComparison {
 #[derive(Clone, Debug, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum MediaFeature<'i> {
   /// A plain media feature, e.g. `(min-width: 240px)`.
   Plain {
@@ -762,9 +762,10 @@ where
 #[derive(Clone, Debug, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum MediaFeatureValue<'i> {
   /// A length value.
   Length(Length),

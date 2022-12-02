@@ -20,9 +20,10 @@ use cssparser::*;
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontWeight {
   /// An absolute font weight.
   Absolute(AbsoluteFontWeight),
@@ -77,9 +78,10 @@ impl ToCss for FontWeight {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum AbsoluteFontWeight {
   /// An explicit weight.
   Weight(CSSNumber),
@@ -160,9 +162,10 @@ enum_property! {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontSize {
   /// An explicit size.
   Length(LengthPercentage),
@@ -256,9 +259,10 @@ impl Into<Percentage> for &FontStretchKeyword {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontStretch {
   /// A font stretch keyword.
   Keyword(FontStretchKeyword),
@@ -352,9 +356,10 @@ enum_property! {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontFamily<'i> {
   /// A custom family name.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -433,9 +438,10 @@ impl<'i> ToCss for FontFamily<'i> {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontStyle {
   /// Normal font style.
   Normal,
@@ -533,9 +539,10 @@ impl FontVariantCaps {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum LineHeight {
   /// The UA sets the line height based on the font.
   Normal,
@@ -605,9 +612,10 @@ enum_property! {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum VerticalAlign {
   /// A vertical align keyword.
   Keyword(VerticalAlignKeyword),

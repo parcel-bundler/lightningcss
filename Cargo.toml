@@ -45,7 +45,7 @@ rayon = "1.5.1"
 dashmap = "5.0.0"
 serde_json = { version = "1.0.78", optional = true }
 lightningcss-derive = { version = "1.0.0-alpha.35", path = "./derive" }
-schemars = { version = "*", features = ["smallvec"] }
+schemars = { version = "*", features = ["smallvec"], optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 jemallocator = { version = "0.3.2", features = ["disable_initial_exec_tls"], optional = true }
@@ -63,6 +63,7 @@ browserslist = ["browserslist-rs"]
 cli = ["clap", "serde_json", "pathdiff", "browserslist", "jemallocator"]
 grid = []
 serde = ["smallvec/serde", "cssparser/serde", "parcel_selectors/serde"]
+jsonschema = ["schemars", "serde", "parcel_selectors/jsonschema"]
 
 [[test]]
 name = "cli_integration_tests"

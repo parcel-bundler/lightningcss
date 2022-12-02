@@ -345,20 +345,18 @@ pub trait Parser<'i> {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
-  // serde(bound(
-  //   serialize = "Selector<'i, Impl>: serde::Serialize",
-  //   deserialize = "Selector<'i, Impl>: serde::Deserialize<'de>"
-  // ))
-  // serde(bound(
-  //   serialize = "Impl::NamespaceUrl: serde::Serialize, Impl::NamespacePrefix: serde::Serialize, Impl::Identifier: serde::Serialize, Impl::LocalName: serde::Serialize, Impl::AttrValue: serde::Serialize, Impl::LocalName: serde::Serialize, Impl::NonTSPseudoClass: serde::Serialize, Impl::VendorPrefix: serde::Serialize, Impl::PseudoElement: serde::Serialize",
-  //   deserialize = "Impl::NamespaceUrl: serde::Deserialize<'de>, Impl::NamespacePrefix: serde::Deserialize<'de>, Impl::Identifier: serde::Deserialize<'de>, Impl::LocalName: serde::Deserialize<'de>, Impl::AttrValue: serde::Deserialize<'de>, Impl::LocalName: serde::Deserialize<'de>, Impl::NonTSPseudoClass: serde::Deserialize<'de>, Impl::VendorPrefix: serde::Deserialize<'de>, Impl::PseudoElement: serde::Deserialize<'de>"
-  // ))
-    serde(bound(
+  derive(serde::Serialize, serde::Deserialize),
+  serde(bound(
     serialize = "Impl::NonTSPseudoClass: serde::Serialize, Impl::PseudoElement: serde::Serialize, Impl::VendorPrefix: serde::Serialize",
     deserialize = "Impl::NonTSPseudoClass: serde::Deserialize<'de>, Impl::PseudoElement: serde::Deserialize<'de>, Impl::VendorPrefix: serde::Deserialize<'de>"
-  )),
-  schemars(bound = "Impl: schemars::JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema")
+  ))
+)]
+#[cfg_attr(
+  feature = "jsonschema",
+  derive(schemars::JsonSchema),
+  schemars(
+    bound = "Impl: schemars::JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema"
+  )
 )]
 pub struct SelectorList<'i, Impl: SelectorImpl<'i>>(
   #[cfg_attr(feature = "serde", serde(borrow))] pub SmallVec<[Selector<'i, Impl>; 1]>,
@@ -678,19 +676,6 @@ pub fn namespace_empty_string<'i, Impl: SelectorImpl<'i>>() -> Impl::NamespaceUr
 /// This reordering doesn't change the semantics of selector matching, and we
 /// handle it in to_css to make it invisible to serialization.
 #[derive(Clone, PartialEq)]
-// #[cfg_attr(
-//   feature = "serde",
-//   derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
-//   // serde(bound(
-//   //   serialize = "Component<'i, Impl>: serde::Serialize",
-//   //   deserialize = "Component<'i, Impl>: serde::Deserialize<'de>"
-//   // ))
-//   // serde(bound(deserialize = "'de: 'i"))
-//   serde(bound(
-//     serialize = "Impl::NamespaceUrl: serde::Serialize, Impl::NamespacePrefix: serde::Serialize, Impl::Identifier: serde::Serialize, Impl::LocalName: serde::Serialize, Impl::AttrValue: serde::Serialize, Impl::LocalName: serde::Serialize, Impl::NonTSPseudoClass: serde::Serialize, Impl::VendorPrefix: serde::Serialize, Impl::PseudoElement: serde::Serialize",
-//     deserialize = "Impl::NamespaceUrl: serde::Deserialize<'de>, Impl::NamespacePrefix: serde::Deserialize<'de>, Impl::Identifier: serde::Deserialize<'de>, Impl::LocalName: serde::Deserialize<'de>, Impl::AttrValue: serde::Deserialize<'de>, Impl::LocalName: serde::Deserialize<'de>, Impl::NonTSPseudoClass: serde::Deserialize<'de>, Impl::VendorPrefix: serde::Deserialize<'de>, Impl::PseudoElement: serde::Deserialize<'de>"
-//   ))
-// )]
 pub struct Selector<'i, Impl: SelectorImpl<'i>>(SpecificityAndFlags, Vec<Component<'i, Impl>>);
 
 impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
@@ -1109,9 +1094,10 @@ impl<'a, 'i, Impl: SelectorImpl<'i>> Iterator for AncestorIter<'a, 'i, Impl> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Combinator {
   Child,        //  >
   Descendant,   // space
@@ -1168,15 +1154,6 @@ impl Combinator {
 ///
 /// [1] https://bugzilla.mozilla.org/show_bug.cgi?id=1357973
 #[derive(Clone, PartialEq)]
-// #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema))]
-#[cfg_attr(
-  feature = "serde",
-  // serde(bound(
-  //   serialize = "Impl::NamespaceUrl: serde::Serialize, Impl::NamespacePrefix: serde::Serialize, Impl::Identifier: serde::Serialize, Impl::LocalName: serde::Serialize, Impl::AttrValue: serde::Serialize, Impl::LocalName: serde::Serialize, Impl::NonTSPseudoClass: serde::Serialize, Impl::VendorPrefix: serde::Serialize, Impl::PseudoElement: serde::Serialize",
-  //   deserialize = "Impl::NamespaceUrl: serde::Deserialize<'de>, Impl::NamespacePrefix: serde::Deserialize<'de>, Impl::Identifier: serde::Deserialize<'de>, Impl::LocalName: serde::Deserialize<'de>, Impl::AttrValue: serde::Deserialize<'de>, Impl::LocalName: serde::Deserialize<'de>, Impl::NonTSPseudoClass: serde::Deserialize<'de>, Impl::VendorPrefix: serde::Deserialize<'de>, Impl::PseudoElement: serde::Deserialize<'de>"
-  // ))
-  // serde(bound(deserialize = "'de: 'i"))
-)]
 pub enum Component<'i, Impl: SelectorImpl<'i>> {
   Combinator(Combinator),
 

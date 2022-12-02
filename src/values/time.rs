@@ -19,9 +19,10 @@ use cssparser::*;
 #[visit(visit_time, TIMES)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Time {
   /// A time in seconds.
   Seconds(CSSNumber),

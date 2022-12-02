@@ -17,10 +17,8 @@ use std::fmt::Write;
 
 /// A [@font-face](https://drafts.csswg.org/css-fonts/#font-face-rule) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct FontFaceRule<'i> {
   /// Declarations in the `@font-face` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -36,9 +34,10 @@ pub struct FontFaceRule<'i> {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontFaceProperty<'i> {
   /// The `src` property.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -62,9 +61,10 @@ pub enum FontFaceProperty<'i> {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Source<'i> {
   /// A `url()` with optional format metadata.
   Url(UrlSource<'i>),
@@ -111,10 +111,8 @@ impl<'i> ToCss for Source<'i> {
 /// A `url()` value for the [src](https://drafts.csswg.org/css-fonts/#src-desc)
 /// property in an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct UrlSource<'i> {
   /// The URL.
   pub url: Url<'i>,
@@ -174,9 +172,10 @@ impl<'i> ToCss for UrlSource<'i> {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontFormat<'i> {
   /// [src](https://drafts.csswg.org/css-fonts/#font-format-definitions)
   /// A WOFF 1.0 font.
@@ -285,10 +284,8 @@ enum_property! {
 ///
 /// Cannot be empty. Can represent a single code point when start == end.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct UnicodeRange {
   /// Inclusive start of the range. In [0, end].
   pub start: u32,

@@ -15,9 +15,10 @@ use cssparser::*;
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum BasicShape {
   /// An inset rectangle.
   Inset(InsetRect),
@@ -31,10 +32,8 @@ pub enum BasicShape {
 
 /// An [`inset()`](https://www.w3.org/TR/css-shapes-1/#funcdef-inset) rectangle shape.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct InsetRect {
   /// The rectangle.
   pub rect: Rect<LengthPercentage>,
@@ -44,10 +43,8 @@ pub struct InsetRect {
 
 /// A [`circle()`](https://www.w3.org/TR/css-shapes-1/#funcdef-circle) shape.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Circle {
   /// The radius of the circle.
   pub radius: ShapeRadius,
@@ -60,9 +57,10 @@ pub struct Circle {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum ShapeRadius {
   /// An explicit length or percentage.
   LengthPercentage(LengthPercentage),
@@ -74,10 +72,8 @@ pub enum ShapeRadius {
 
 /// An [`ellipse()`](https://www.w3.org/TR/css-shapes-1/#funcdef-ellipse) shape.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Ellipse {
   /// The x-radius of the ellipse.
   pub radius_x: ShapeRadius,
@@ -89,10 +85,8 @@ pub struct Ellipse {
 
 /// A [`polygon()`](https://www.w3.org/TR/css-shapes-1/#funcdef-polygon) shape.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Polygon {
   /// The fill rule used to determine the interior of the polygon.
   pub fill_rule: FillRule,
@@ -104,10 +98,8 @@ pub struct Polygon {
 ///
 /// See [Polygon](Polygon).
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Point {
   /// The x position of the point.
   x: LengthPercentage,

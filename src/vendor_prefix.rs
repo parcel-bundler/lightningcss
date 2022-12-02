@@ -133,6 +133,7 @@ impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for VendorPrefix
   fn visit_children(&mut self, _: &mut V) {}
 }
 
+#[cfg(feature = "jsonschema")]
 impl schemars::JsonSchema for VendorPrefix {
   fn is_referenceable() -> bool {
     true

@@ -17,10 +17,8 @@ use cssparser::*;
 
 /// A [@font-palette-values](https://drafts.csswg.org/css-fonts-4/#font-palette-values) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct FontPaletteValuesRule<'i> {
   /// The name of the font palette.
   pub name: DashedIdent<'i>,
@@ -38,9 +36,10 @@ pub struct FontPaletteValuesRule<'i> {
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontPaletteValuesProperty<'i> {
   /// The `font-family` property.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -58,9 +57,10 @@ pub enum FontPaletteValuesProperty<'i> {
 #[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum BasePalette {
   /// A light color palette as defined within the font.
   Light,
@@ -73,10 +73,8 @@ pub enum BasePalette {
 /// A value for the [override-colors](https://drafts.csswg.org/css-fonts-4/#override-color)
 /// property in an `@font-palette-values` rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct OverrideColors {
   /// The index of the color within the palette to override.
   index: u16,

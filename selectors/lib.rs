@@ -16,7 +16,7 @@ extern crate fxhash;
 extern crate log;
 extern crate phf;
 extern crate precomputed_hash;
-#[cfg(feature = "serde")]
+#[cfg(feature = "jsonschema")]
 extern crate schemars;
 #[cfg(feature = "serde")]
 extern crate serde;
@@ -33,7 +33,7 @@ pub mod sink;
 mod tree;
 pub mod visitor;
 
-#[cfg(feature = "serde")]
+#[cfg(all(feature = "serde"))]
 mod serialization;
 
 pub use crate::nth_index_cache::NthIndexCache;

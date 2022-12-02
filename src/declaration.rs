@@ -43,10 +43,8 @@ use cssparser::*;
 /// and a list of normal declarations. This reduces memory usage compared
 /// with storing a boolean along with each property.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct DeclarationBlock<'i> {
   /// A list of `!important` declarations in the block.
   #[cfg_attr(feature = "serde", serde(borrow))]

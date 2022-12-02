@@ -10,10 +10,8 @@ use cssparser::*;
 ///
 /// When serialized, only a single component will be written if both are equal.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Size2D<T>(pub T, pub T);
 
 impl<'i, T> Parse<'i> for Size2D<T>

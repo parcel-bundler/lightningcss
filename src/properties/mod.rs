@@ -176,7 +176,8 @@ macro_rules! define_properties {
   ) => {
     /// A CSS property id.
     #[derive(Debug, Clone, PartialEq, Visit)]
-    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema))]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
     pub enum PropertyId<'i> {
       $(
         #[doc=concat!("The `", $name, "` property.")]
@@ -790,6 +791,7 @@ macro_rules! define_properties {
       where
         S: serde::Serializer,
       {
+        use serde::ser::SerializeStruct;
         use Property::*;
 
         let id = self.property_id();
@@ -916,6 +918,7 @@ macro_rules! define_properties {
       }
     }
 
+    #[cfg(feature = "jsonschema")]
     impl<'i> schemars::JsonSchema for Property<'i> {
       fn is_referenceable() -> bool {
         true

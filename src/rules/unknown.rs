@@ -10,10 +10,8 @@ use crate::visitor::Visit;
 
 /// An unknown at-rule, stored as raw tokens.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct UnknownAtRule<'i> {
   /// The name of the at-rule (without the @).
   #[cfg_attr(feature = "serde", serde(borrow))]

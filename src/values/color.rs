@@ -33,14 +33,15 @@ use std::fmt::Write;
 #[visit(visit_color, COLORS)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "lowercase")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum CssColor {
   /// The [`currentColor`](https://www.w3.org/TR/css-color-4/#currentcolor-color) keyword.
   CurrentColor,
   /// An value in the RGB color space, including values parsed as hex colors, or the `rgb()`, `hsl()`, and `hwb()` functions.
-  #[schemars(schema_with = "rgba_schema")]
+  #[cfg_attr(feature = "jsonschema", schemars(schema_with = "rgba_schema"))]
   RGBA(RGBA),
   /// A value in a LAB color space, including the `lab()`, `lch()`, `oklab()`, and `oklch()` functions.
   LAB(Box<LABColor>),
@@ -50,6 +51,7 @@ pub enum CssColor {
   Float(Box<FloatColor>),
 }
 
+#[cfg(feature = "jsonschema")]
 fn rgba_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
   // schemars::JsonSchema::json_schema
   use schemars::JsonSchema;
@@ -60,9 +62,10 @@ fn rgba_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Sc
 #[derive(Debug, Clone, Copy, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "lowercase")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum LABColor {
   /// A `lab()` color.
   LAB(LAB),
@@ -78,9 +81,10 @@ pub enum LABColor {
 #[derive(Debug, Clone, Copy, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum PredefinedColor {
   /// A color in the `srgb` color space.
   #[cfg_attr(feature = "serde", serde(rename = "srgb"))]
@@ -114,9 +118,10 @@ pub enum PredefinedColor {
 #[derive(Debug, Clone, Copy, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "lowercase")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FloatColor {
   /// An RGB color.
   RGB(SRGB),
@@ -1171,7 +1176,8 @@ macro_rules! define_colorspace {
   ) => {
     $(#[$outer])*
     #[derive(Debug, Clone, Copy, PartialEq, Visit)]
-    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema))]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
     pub struct $name {
       $(#[$a_meta])*
       pub $a: f32,

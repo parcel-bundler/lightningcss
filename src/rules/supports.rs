@@ -13,10 +13,8 @@ use cssparser::*;
 
 /// A [@supports](https://drafts.csswg.org/css-conditional-3/#at-supports) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct SupportsRule<'i, R = DefaultAtRule> {
   /// The supports condition.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -67,9 +65,10 @@ impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for SupportsRule<'i, T> {
 #[visit(visit_supports_condition, SUPPORTS_CONDITIONS)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum SupportsCondition<'i> {
   /// A `not` expression.
   #[skip_type]

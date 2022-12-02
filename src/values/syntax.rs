@@ -13,9 +13,10 @@ use cssparser::*;
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum SyntaxString {
   /// A list of syntax components.
   Components(Vec<SyntaxComponent>),
@@ -29,10 +30,8 @@ pub enum SyntaxString {
 /// A syntax component consists of a component kind an a multiplier, which indicates how the component
 /// may repeat during parsing.
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct SyntaxComponent {
   /// The kind of component.
   pub kind: SyntaxComponentKind,
@@ -44,9 +43,10 @@ pub struct SyntaxComponent {
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum SyntaxComponentKind {
   /// A `<length>` component.
   Length,
@@ -85,9 +85,10 @@ pub enum SyntaxComponentKind {
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Multiplier {
   /// The component may not be repeated.
   None,
@@ -101,9 +102,10 @@ pub enum Multiplier {
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum ParsedComponent<'i> {
   /// A `<length>` value.
   Length(values::length::Length),

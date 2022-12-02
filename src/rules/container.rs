@@ -15,10 +15,8 @@ use crate::visitor::Visit;
 
 /// A [@container](https://drafts.csswg.org/css-contain-3/#container-rule) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct ContainerRule<'i, R = DefaultAtRule> {
   /// The name of the container.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -34,11 +32,8 @@ pub struct ContainerRule<'i, R = DefaultAtRule> {
 
 /// A [`<container-name>`](https://drafts.csswg.org/css-contain-3/#typedef-container-name) in a `@container` rule.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
-  serde(transparent)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct ContainerName<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CustomIdent<'i>);
 
 impl<'i> Parse<'i> for ContainerName<'i> {

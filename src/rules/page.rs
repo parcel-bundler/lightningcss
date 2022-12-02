@@ -16,10 +16,8 @@ use cssparser::*;
 ///
 /// Either a name or at least one pseudo class is required.
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct PageSelector<'i> {
   /// An optional named page type.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -117,10 +115,8 @@ enum_property! {
 
 /// A [page margin rule](https://www.w3.org/TR/css-page-3/#margin-at-rules) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct PageMarginRule<'i> {
   /// The margin box identifier for this rule.
   pub margin_box: PageMarginBox,
@@ -146,10 +142,8 @@ impl<'i> ToCss for PageMarginRule<'i> {
 
 /// A [@page](https://www.w3.org/TR/css-page-3/#at-page-rule) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct PageRule<'i> {
   /// A list of page selectors.
   #[cfg_attr(feature = "serde", serde(borrow))]

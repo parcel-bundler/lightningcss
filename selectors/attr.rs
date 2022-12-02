@@ -9,11 +9,15 @@ use std::fmt;
 #[derive(Clone, Eq, PartialEq)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(bound(
     serialize = "Impl::NamespacePrefix: serde::Serialize, Impl::NamespaceUrl: serde::Serialize, Impl::LocalName: serde::Serialize, Impl::AttrValue: serde::Serialize",
     deserialize = "Impl::NamespacePrefix: serde::Deserialize<'de>, Impl::NamespaceUrl: serde::Deserialize<'de>, Impl::LocalName: serde::Deserialize<'de>, Impl::AttrValue: serde::Deserialize<'de>"
-  )),
+  ))
+)]
+#[cfg_attr(
+  feature = "jsonschema",
+  derive(schemars::JsonSchema),
   schemars(
     bound = "Impl: schemars::JsonSchema, Impl::NamespacePrefix: schemars::JsonSchema, Impl::NamespaceUrl: schemars::JsonSchema, Impl::LocalName: schemars::JsonSchema, Impl::AttrValue: schemars::JsonSchema"
   )
@@ -38,9 +42,10 @@ impl<'i, Impl: SelectorImpl<'i>> AttrSelectorWithOptionalNamespace<'i, Impl> {
 #[derive(Clone, Eq, PartialEq)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum NamespaceConstraint<NamespaceUrl> {
   Any,
 
@@ -51,9 +56,10 @@ pub enum NamespaceConstraint<NamespaceUrl> {
 #[derive(Clone, Eq, PartialEq)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum ParsedAttrSelectorOperation<AttrValue> {
   Exists,
   WithValue {
@@ -66,9 +72,10 @@ pub enum ParsedAttrSelectorOperation<AttrValue> {
 #[derive(Clone, Eq, PartialEq)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum AttrSelectorOperation<AttrValue> {
   Exists,
   WithValue {
@@ -97,9 +104,10 @@ impl<AttrValue> AttrSelectorOperation<AttrValue> {
 #[derive(Clone, Copy, Eq, PartialEq)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum AttrSelectorOperator {
   Equal,
   Includes,
@@ -156,10 +164,8 @@ impl AttrSelectorOperator {
 pub static SELECTOR_WHITESPACE: &[char] = &[' ', '\t', '\n', '\r', '\x0C'];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum ParsedCaseSensitivity {
   // 's' was specified.
   ExplicitCaseSensitive,
@@ -191,9 +197,10 @@ impl ParsedCaseSensitivity {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema),
+  derive(serde::Serialize, serde::Deserialize),
   serde(rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum CaseSensitivity {
   CaseSensitive,
   AsciiCaseInsensitive,
