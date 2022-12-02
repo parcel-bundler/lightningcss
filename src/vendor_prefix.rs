@@ -139,7 +139,17 @@ impl schemars::JsonSchema for VendorPrefix {
   }
 
   fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-    Vec::<String>::json_schema(gen)
+    #[derive(schemars::JsonSchema)]
+    #[schemars(rename_all = "lowercase")]
+    enum Prefix {
+      None,
+      WebKit,
+      Moz,
+      Ms,
+      O,
+    }
+
+    Vec::<Prefix>::json_schema(gen)
   }
 
   fn schema_name() -> String {
