@@ -267,7 +267,10 @@ impl<'i> TransitionHandler<'i> {
               };
 
               // Expand vendor prefixes into multiple transitions.
-              let prefix = property_id.prefix();
+              let mut prefix = property_id.prefix();
+              if prefix.is_empty() {
+                prefix = VendorPrefix::None;
+              }
               let mut b = 1 << (7 - prefix.bits().leading_zeros());
               while b != 0 {
                 let p = VendorPrefix::from_bits_truncate(b);

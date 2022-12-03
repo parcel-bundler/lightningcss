@@ -176,20 +176,15 @@ macro_rules! define_properties {
   ) => {
     /// A CSS property id.
     #[derive(Debug, Clone, PartialEq, Visit)]
-    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-    #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
     pub enum PropertyId<'i> {
       $(
         #[doc=concat!("The `", $name, "` property.")]
         $(#[$meta])*
-        #[cfg_attr(feature = "serde", serde(rename = $name))]
         $property$(($vp))?,
       )+
       /// The `all` property.
-      #[cfg_attr(feature = "serde", serde(rename = "all"))]
       All,
       /// An unknown or custom property name.
-      #[cfg_attr(feature = "serde", serde(borrow, rename = "custom"))]
       Custom(CowArcStr<'i>)
     }
 
@@ -217,38 +212,8 @@ macro_rules! define_properties {
           (VendorPrefix::None, name_ref)
         };
 
-        macro_rules! get_allowed_prefixes {
-          ($v: literal) => {
-            VendorPrefix::empty()
-          };
-          () => {
-            VendorPrefix::None
-          };
-        }
-
-        match_ignore_ascii_case! { name_ref,
-          $(
-            $(#[$meta])*
-            $name => {
-              macro_rules! get_propertyid {
-                ($v: ty) => {
-                  PropertyId::$property(prefix)
-                };
-                () => {
-                  PropertyId::$property
-                };
-              }
-
-              let allowed_prefixes = get_allowed_prefixes!($($unprefixed)?) $(| VendorPrefix::$prefix)*;
-              if allowed_prefixes.contains(prefix) {
-                return get_propertyid!($($vp)?)
-              }
-            },
-          )+
-          "all" => return PropertyId::All,
-          _ => {}
-        }
-        PropertyId::Custom(name)
+        Self::from_name_and_prefix(name_ref, prefix)
+          .unwrap_or_else(|_| PropertyId::Custom(name))
       }
     }
 
@@ -323,6 +288,11 @@ macro_rules! define_properties {
 
     impl<'i> PropertyId<'i> {
       fn new(name: CowArcStr<'i>, prefix: VendorPrefix) -> Self {
+        Self::from_name_and_prefix(name.as_ref(), prefix)
+          .unwrap_or_else(|_| PropertyId::Custom(name))
+      }
+
+      fn from_name_and_prefix(name: &str, prefix: VendorPrefix) -> Result<Self, ()> {
         macro_rules! get_allowed_prefixes {
           ($v: literal) => {
             VendorPrefix::empty()
@@ -347,15 +317,15 @@ macro_rules! define_properties {
 
               let allowed_prefixes = get_allowed_prefixes!($($unprefixed)?) $(| VendorPrefix::$prefix)*;
               if allowed_prefixes.contains(prefix) {
-                return get_propertyid!($($vp)?)
+                return Ok(get_propertyid!($($vp)?))
               }
             },
           )+
-          "all" => return PropertyId::All,
+          "all" => return Ok(PropertyId::All),
           _ => {}
         }
 
-        PropertyId::Custom(name)
+        Err(())
       }
 
       fn prefix(&self) -> VendorPrefix {
@@ -374,10 +344,10 @@ macro_rules! define_properties {
                 return_prefix!($vp);
               )?
               #[allow(unreachable_code)]
-              VendorPrefix::None
+              VendorPrefix::empty()
             },
           )+
-          _ => VendorPrefix::None
+          _ => VendorPrefix::empty()
         }
       }
 
@@ -560,6 +530,163 @@ macro_rules! define_properties {
       }
     }
 
+    #[cfg(feature = "serde")]
+    impl<'i> serde::Serialize for PropertyId<'i> {
+      fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+      where
+        S: serde::Serializer,
+      {
+        use serde::ser::SerializeStruct;
+
+        let name = self.name();
+        let prefix = self.prefix();
+
+        if prefix.is_empty() {
+          let mut s = serializer.serialize_struct("PropertyId", 1)?;
+          s.serialize_field("property", name)?;
+          s.end()
+        } else {
+          let mut s = serializer.serialize_struct("PropertyId", 2)?;
+          s.serialize_field("property", name)?;
+          s.serialize_field("vendor_prefix", &prefix)?;
+          s.end()
+        }
+      }
+    }
+
+    #[cfg(feature = "serde")]
+    impl<'i, 'de: 'i> serde::Deserialize<'de> for PropertyId<'i> {
+      fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+      where
+        D: serde::Deserializer<'de>,
+      {
+        #[derive(serde::Deserialize)]
+        #[serde(field_identifier, rename_all = "snake_case")]
+        enum Field {
+          Property,
+          VendorPrefix
+        }
+
+        struct PropertyIdVisitor;
+        impl<'de> serde::de::Visitor<'de> for PropertyIdVisitor {
+          type Value = PropertyId<'de>;
+
+          fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("a PropertyId")
+          }
+
+          fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+          where
+            A: serde::de::MapAccess<'de>,
+          {
+            let mut property = None;
+            let mut vendor_prefix = None;
+            while let Some(key) = map.next_key()? {
+              match key {
+                Field::Property => {
+                  property = Some(map.next_value()?);
+                }
+                Field::VendorPrefix => {
+                  vendor_prefix = Some(map.next_value()?);
+                }
+              }
+            }
+
+            let property = property.ok_or_else(|| serde::de::Error::missing_field("property"))?;
+            let vendor_prefix = vendor_prefix.unwrap_or(VendorPrefix::None);
+            let property_id = PropertyId::new(property, vendor_prefix);
+            Ok(property_id)
+          }
+        }
+
+        deserializer.deserialize_any(PropertyIdVisitor)
+      }
+    }
+
+    #[cfg(feature = "jsonschema")]
+    impl<'i> schemars::JsonSchema for PropertyId<'i> {
+      fn is_referenceable() -> bool {
+        true
+      }
+
+      fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        macro_rules! property {
+          ($n: literal) => {
+            fn property(_: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+              schemars::schema::Schema::Object(schemars::schema::SchemaObject {
+                instance_type: Some(schemars::schema::InstanceType::String.into()),
+                enum_values: Some(vec![$n.into()]),
+                ..Default::default()
+              })
+            }
+          }
+        }
+
+        schemars::schema::Schema::Object(schemars::schema::SchemaObject {
+          subschemas: Some(Box::new(schemars::schema::SubschemaValidation {
+            one_of: Some(vec![
+              $(
+                {
+                  property!($name);
+
+                  macro_rules! with_prefix {
+                    ($v: ty) => {{
+                      #[derive(schemars::JsonSchema)]
+                      struct T<'i> {
+                        #[schemars(rename = "property", schema_with = "property")]
+                        _property: &'i u8,
+                        #[schemars(rename = "vendorPrefix")]
+                        _vendor_prefix: VendorPrefix,
+                      }
+
+                      T::json_schema(gen)
+                    }};
+                    () => {{
+                      #[derive(schemars::JsonSchema)]
+                      struct T<'i> {
+                        #[schemars(rename = "property", schema_with = "property")]
+                        _property: &'i u8,
+                      }
+
+                      T::json_schema(gen)
+                    }};
+                  }
+
+                  with_prefix!($($vp)?)
+                },
+              )+
+              {
+                property!("all");
+
+                #[derive(schemars::JsonSchema)]
+                struct T<'i> {
+                  #[schemars(rename = "property", schema_with = "property")]
+                  _property: &'i u8,
+                }
+
+                T::json_schema(gen)
+              },
+              {
+                #[derive(schemars::JsonSchema)]
+                struct T {
+                  #[schemars(rename = "property")]
+                  _property: String,
+                }
+
+                T::json_schema(gen)
+              }
+            ]),
+            ..Default::default()
+          })),
+          ..Default::default()
+        })
+      }
+
+      fn schema_name() -> String {
+        "PropertyId".into()
+      }
+    }
+
     /// A CSS property.
     #[derive(Debug, Clone, PartialEq, Visit)]
     #[visit(visit_property, PROPERTIES)]
@@ -694,7 +821,13 @@ macro_rules! define_properties {
               ($name, get_prefix!($($vp)?))
             },
           )+
-          Unparsed(unparsed) => (unparsed.property_id.name(), unparsed.property_id.prefix()),
+          Unparsed(unparsed) => {
+            let mut prefix = unparsed.property_id.prefix();
+            if prefix.is_empty() {
+              prefix = VendorPrefix::None;
+            }
+            (unparsed.property_id.name(), prefix)
+          },
           Custom(custom) => {
             // Ensure custom property names are escaped.
             let name = custom.name.as_ref();
@@ -794,43 +927,48 @@ macro_rules! define_properties {
         use serde::ser::SerializeStruct;
         use Property::*;
 
-        let id = self.property_id();
         match self {
-          $(
-            $(#[$meta])*
-            $property(value, $(vp_name!($vp, prefix))?) => {
-              macro_rules! serialize_prefix {
-                ($v: ty) => {{
-                  let mut s = serializer.serialize_struct("Property", 3)?;
-                  s.serialize_field("property", id.name())?;
-                  s.serialize_field("vendor_prefix", prefix)?;
-                  s
-                }};
-                () => {{
-                  let mut s = serializer.serialize_struct("Property", 2)?;
-                  s.serialize_field("property", id.name())?;
-                  s
-                }};
-              }
-
-              let mut s = serialize_prefix!($($vp)?);
-              s.serialize_field("value", value)?;
-              s.end()
-            }
-          )+
           Unparsed(unparsed) => {
             let mut s = serializer.serialize_struct("Property", 2)?;
             s.serialize_field("property", "unparsed")?;
             s.serialize_field("value", unparsed)?;
-            s.end()
+            return s.end()
           }
           Custom(unparsed) => {
             let mut s = serializer.serialize_struct("Property", 2)?;
             s.serialize_field("property", "custom")?;
             s.serialize_field("value", unparsed)?;
-            s.end()
+            return s.end()
           }
+          _ => {}
         }
+
+        let id = self.property_id();
+        let name = id.name();
+        let prefix = id.prefix();
+
+        let mut s = if prefix.is_empty() {
+          let mut s = serializer.serialize_struct("Property", 2)?;
+          s.serialize_field("property", name)?;
+          s
+        } else {
+          let mut s = serializer.serialize_struct("Property", 3)?;
+          s.serialize_field("property", name)?;
+          s.serialize_field("vendor_prefix", &prefix)?;
+          s
+        };
+
+        match self {
+          $(
+            $(#[$meta])*
+            $property(value, $(vp_name!($vp, _p))?) => {
+              s.serialize_field("value", value)?;
+            }
+          )+
+          _ => unreachable!()
+        }
+
+        s.end()
       }
     }
 
@@ -903,17 +1041,17 @@ macro_rules! define_properties {
               let value = <$type>::deserialize(deserializer)?;
               Ok(Property::$property(value $(, vp_name!($vp, prefix))?))
             },
-            PropertyId::Custom(name) => {
-              if name == "unparsed" {
-                let value = UnparsedProperty::deserialize(deserializer)?;
-                Ok(Property::Unparsed(value))
-              } else {
-                let value = CustomProperty::deserialize(deserializer)?;
-                Ok(Property::Custom(value))
-              }
-            }
           )+
-          _ => todo!(),
+          PropertyId::Custom(name) => {
+            if name == "unparsed" {
+              let value = UnparsedProperty::deserialize(deserializer)?;
+              Ok(Property::Unparsed(value))
+            } else {
+              let value = CustomProperty::deserialize(deserializer)?;
+              Ok(Property::Custom(value))
+            }
+          }
+          PropertyId::All => unreachable!()
         }
       }
     }

@@ -81,7 +81,8 @@ impl<'i> UnparsedProperty<'i> {
 
   pub(crate) fn get_prefixed(&self, targets: Option<Browsers>, feature: Feature) -> UnparsedProperty<'i> {
     let mut clone = self.clone();
-    if self.property_id.prefix().contains(VendorPrefix::None) {
+    let prefix = self.property_id.prefix();
+    if prefix.is_empty() || prefix.contains(VendorPrefix::None) {
       if let Some(targets) = targets {
         clone.property_id = clone.property_id.with_prefix(feature.prefixes_for(targets))
       }

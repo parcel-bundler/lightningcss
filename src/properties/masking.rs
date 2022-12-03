@@ -690,7 +690,7 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
         // Add vendor prefixes and expand color fallbacks.
         let mut val = val.clone();
         let mut prefix = val.property_id.prefix();
-        if prefix.contains(VendorPrefix::None) {
+        if prefix.is_empty() || prefix.contains(VendorPrefix::None) {
           if let Some(targets) = context.targets {
             prefix = Feature::MaskBorder.prefixes_for(targets);
           }
