@@ -123,7 +123,7 @@ let res = css.transform({
       console.log(require('util').inspect(selector, { depth: 10 }));
       for (let component of selector) {
         if (component.type === 'class') {
-          component.value = 'tw-' + component.value;
+          component.name = 'tw-' + component.name;
         } else if (component.type === 'attribute') {
           component.name = 'tw-' + component.name;
           component.operation.operator = 'includes';

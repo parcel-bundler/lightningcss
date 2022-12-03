@@ -1,0 +1,26 @@
+diff --git a/node_modules/json-schema-to-typescript/dist/src/parser.js b/node_modules/json-schema-to-typescript/dist/src/parser.js
+index aec32ab..17234a1 100644
+--- a/node_modules/json-schema-to-typescript/dist/src/parser.js
++++ b/node_modules/json-schema-to-typescript/dist/src/parser.js
+@@ -148,11 +148,20 @@ function parseNonLiteral(schema, type, options, keyName, processed, usedNames) {
+                 type: 'OBJECT'
+             };
+         case 'ONE_OF':
++            let common = schema.properties ? parseSchema(schema, options, processed, usedNames, keyName) : null;
++            let commonKeys = common ? new Set(common.map(p => p.keyName)) : null;
++            
+             return {
+                 comment: schema.description,
+                 keyName: keyName,
+                 standaloneName: standaloneName(schema, keyNameFromDefinition, usedNames),
+-                params: schema.oneOf.map(function (_) { return parse(_, options, undefined, processed, usedNames); }),
++                params: schema.oneOf.map(function (_) {
++                    let item = parse(_, options, undefined, processed, usedNames);
++                    if (common && item.type === 'INTERFACE') {
++                        item.params = common.concat(item.params.filter(p => !commonKeys.has(p.keyName)));
++                    }
++                    return item;
++                }),
+                 type: 'UNION'
+             };
+         case 'REFERENCE':

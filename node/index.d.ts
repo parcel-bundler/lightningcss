@@ -1,3 +1,4 @@
+import { Angle, CssColor, CssRuleFor_DefaultAtRule, Function, Image, LengthValue, MediaQuery, Property, Ratio, Resolution, Selector, SupportsCondition, Time, TokenOrValue, Url, Variable } from './ast';
 import type { Targets } from './targets';
 
 export interface TransformOptions {
@@ -40,7 +41,29 @@ export interface TransformOptions {
    * When enabled, warnings are returned, and the invalid rule or declaration is
    * omitted from the output code.
    */
-  errorRecovery?: boolean
+  errorRecovery?: boolean,
+  visitor?: Visitor
+}
+
+export interface Visitor {
+  visitRule?(rule: CssRuleFor_DefaultAtRule): CssRuleFor_DefaultAtRule;
+  visitProperty?(property: Property): Property;
+  visitUrl?(url: Url): Url;
+  visitColor?(color: CssColor): CssColor;
+  visitImage?(image: Image): Image;
+  visitLength?(length: LengthValue): LengthValue;
+  visitAngle?(angle: Angle): Angle;
+  visitRatio?(ratio: Ratio): Ratio;
+  visitResolution?(resolution: Resolution): Resolution;
+  visitTime?(time: Time): Time;
+  visitCustomIdent?(ident: string): string;
+  visitDashedIdent?(ident: string): string;
+  visitVariable?(variable: Variable): Variable;
+  visitMediaQuery?(query: MediaQuery): MediaQuery;
+  visitSupportsCondition?(condition: SupportsCondition): SupportsCondition;
+  visitSelector?(selector: Selector): Selector;
+  visitFunction?(fn: Function): Function;
+  visitToken?(token: TokenOrValue): TokenOrValue;
 }
 
 export interface DependencyOptions {

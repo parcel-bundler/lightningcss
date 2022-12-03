@@ -544,12 +544,6 @@ where
 
 impl<'i, Impl: SelectorImpl<'i>> serde::Serialize for Selector<'i, Impl>
 where
-  // Impl::NamespaceUrl: serde::Serialize,
-  // Impl::NamespacePrefix: serde::Serialize,
-  // Impl::Identifier: serde::Serialize,
-  // Impl::LocalName: serde::Serialize,
-  // Impl::AttrValue: serde::Serialize,
-  // Impl::LocalName: serde::Serialize,
   Impl::NonTSPseudoClass: serde::Serialize,
   Impl::VendorPrefix: serde::Serialize,
   Impl::PseudoElement: serde::Serialize,
@@ -597,12 +591,6 @@ where
 
 impl<'de: 'i, 'i, Impl: SelectorImpl<'i>> serde::Deserialize<'de> for Selector<'i, Impl>
 where
-  // Impl::NamespaceUrl: serde::Deserialize<'de>,
-  // Impl::NamespacePrefix: serde::Deserialize<'de>,
-  // Impl::Identifier: serde::Deserialize<'de>,
-  // Impl::LocalName: serde::Deserialize<'de>,
-  // Impl::AttrValue: serde::Deserialize<'de>,
-  // Impl::LocalName: serde::Deserialize<'de>,
   Impl::NonTSPseudoClass: serde::Deserialize<'de>,
   Impl::VendorPrefix: serde::Deserialize<'de>,
   Impl::PseudoElement: serde::Deserialize<'de>,
@@ -619,12 +607,6 @@ where
     #[cfg(feature = "serde")]
     impl<'de: 'i, 'i, Impl: SelectorImpl<'i>> serde::de::Visitor<'de> for SelectorVisitor<'i, Impl>
     where
-      // Impl::NamespaceUrl: serde::Deserialize<'de>,
-      // Impl::NamespacePrefix: serde::Deserialize<'de>,
-      // Impl::Identifier: serde::Deserialize<'de>,
-      // Impl::LocalName: serde::Deserialize<'de>,
-      // Impl::AttrValue: serde::Deserialize<'de>,
-      // Impl::LocalName: serde::Deserialize<'de>,
       Impl::NonTSPseudoClass: serde::Deserialize<'de>,
       Impl::VendorPrefix: serde::Deserialize<'de>,
       Impl::PseudoElement: serde::Deserialize<'de>,
