@@ -1681,7 +1681,7 @@ impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for SelectorList
   const CHILD_TYPES: VisitTypes = VisitTypes::SELECTORS;
 
   fn visit(&mut self, visitor: &mut V) {
-    if V::TYPES.contains(VisitTypes::SELECTORS) {
+    if visitor.visit_types().contains(VisitTypes::SELECTORS) {
       visitor.visit_selector_list(self)
     } else {
       self.visit_children(visitor)

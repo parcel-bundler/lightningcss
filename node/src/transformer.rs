@@ -73,6 +73,10 @@ impl JsVisitor {
 impl<'i> Visitor<'i> for JsVisitor {
   const TYPES: lightningcss::visitor::VisitTypes = VisitTypes::all();
 
+  fn visit_types(&self) -> VisitTypes {
+    self.types
+  }
+
   fn visit_rule_list(&mut self, rules: &mut lightningcss::rules::CssRuleList<'i>) {
     // Similar to visit_list, but skips CssRule::Ignored rules.
     if let Some(visit) = &self.visit_rule {

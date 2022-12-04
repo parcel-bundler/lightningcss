@@ -137,6 +137,13 @@ pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule>: Sized {
   /// performance by skipping branches that do not have any values of the requested types.
   const TYPES: VisitTypes;
 
+  /// Returns the types of values that this visitor should visit. By default, it returns
+  /// `Self::TYPES`, but this can be overridden to change the value at runtime.
+  #[inline]
+  fn visit_types(&self) -> VisitTypes {
+    Self::TYPES
+  }
+
   /// Visits a rule list.
   #[inline]
   fn visit_rule_list(&mut self, rules: &mut CssRuleList<'i, T>) {

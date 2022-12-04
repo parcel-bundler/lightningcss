@@ -395,7 +395,7 @@ impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for CssRuleList<
   const CHILD_TYPES: VisitTypes = VisitTypes::all();
 
   fn visit(&mut self, visitor: &mut V) {
-    if V::TYPES.contains(VisitTypes::RULES) {
+    if visitor.visit_types().contains(VisitTypes::RULES) {
       visitor.visit_rule_list(self)
     } else {
       self.0.visit(visitor)
