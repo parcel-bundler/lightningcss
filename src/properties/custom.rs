@@ -109,6 +109,7 @@ pub struct TokenList<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub Vec<T
 /// A raw CSS token, or a parsed value.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[visit(visit_token, TOKENS)]
+#[visit_types(TOKENS | COLORS | URLS | VARIABLES | FUNCTIONS | LENGTHS | ANGLES | TIMES | RESOLUTIONS | DASHED_IDENTS)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -847,7 +848,6 @@ pub struct Variable<'i> {
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: DashedIdentReference<'i>,
   /// A fallback value in case the variable is not defined.
-  #[skip_type]
   pub fallback: Option<TokenList<'i>>,
 }
 
@@ -899,7 +899,6 @@ pub struct Function<'i> {
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: Ident<'i>,
   /// The function arguments.
-  #[skip_type]
   pub arguments: TokenList<'i>,
 }
 
@@ -944,7 +943,6 @@ pub enum UnresolvedColor<'i> {
     b: f32,
     /// The unresolved alpha component.
     #[cfg_attr(feature = "serde", serde(borrow))]
-    #[skip_type]
     alpha: TokenList<'i>,
   },
   /// An hsl() color.
@@ -957,7 +955,6 @@ pub enum UnresolvedColor<'i> {
     l: f32,
     /// The unresolved alpha component.
     #[cfg_attr(feature = "serde", serde(borrow))]
-    #[skip_type]
     alpha: TokenList<'i>,
   },
 }

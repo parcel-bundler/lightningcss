@@ -126,7 +126,7 @@ bitflags! {
 #[macro_export]
 macro_rules! visit_types {
   ($( $flag: ident )|+) => {
-    VisitTypes::from_bits_truncate(0 $(| VisitTypes::$flag.bits())+)
+    $crate::visitor::VisitTypes::from_bits_truncate(0 $(| $crate::visitor::VisitTypes::$flag.bits())+)
   }
 }
 

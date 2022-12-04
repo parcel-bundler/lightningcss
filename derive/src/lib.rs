@@ -8,7 +8,7 @@ use syn::{
   GenericParam, Ident, Member, Token, Type,
 };
 
-#[proc_macro_derive(Visit, attributes(visit, skip_visit, skip_type))]
+#[proc_macro_derive(Visit, attributes(visit, skip_visit, skip_type, visit_types))]
 pub fn derive_visit_children(input: TokenStream) -> TokenStream {
   let DeriveInput {
     ident,
@@ -52,6 +52,14 @@ pub fn derive_visit_children(input: TokenStream) -> TokenStream {
     None
   };
 
+  let visit_types = if let Some(attr) = attrs.iter().find(|attr| attr.path.is_ident("visit_types")) {
+    let types: VisitTypes = attr.parse_args().unwrap();
+    let types = types.types;
+    Some(quote! { crate::visit_types!(#(#types)|*) })
+  } else {
+    None
+  };
+
   let mut seen_types = HashSet::new();
   let mut child_types = Vec::new();
   let mut visit = Vec::new();
@@ -66,7 +74,7 @@ pub fn derive_visit_children(input: TokenStream) -> TokenStream {
           continue;
         }
 
-        if !seen_types.contains(ty) && !skip_type(attrs) {
+        if visit_types.is_none() && !seen_types.contains(ty) && !skip_type(attrs) {
           seen_types.insert(ty.clone());
           child_types.push(quote! {
             <#ty as Visit<#lifetime, #t, #v>>::CHILD_TYPES.bits()
@@ -97,7 +105,8 @@ pub fn derive_visit_children(input: TokenStream) -> TokenStream {
               continue;
             }
 
-            if !seen_types.contains(ty) && !skip_type(attrs) && !skip_type(&variant.attrs) {
+            if visit_types.is_none() && !seen_types.contains(ty) && !skip_type(attrs) && !skip_type(&variant.attrs)
+            {
               seen_types.insert(ty.clone());
               child_types.push(quote! {
                 <#ty as Visit<#lifetime, #t, #v>>::CHILD_TYPES.bits()
@@ -137,7 +146,7 @@ pub fn derive_visit_children(input: TokenStream) -> TokenStream {
     _ => {}
   }
 
-  if child_types.is_empty() {
+  if visit_types.is_none() && child_types.is_empty() {
     child_types.push(quote! { crate::visitor::VisitTypes::empty().bits() });
   }
 
@@ -146,7 +155,7 @@ pub fn derive_visit_children(input: TokenStream) -> TokenStream {
 
     quote! {
       fn visit(&mut self, visitor: &mut #v) {
-        if #v::TYPES.contains(crate::visitor::VisitTypes::#kind) {
+        if visitor.visit_types().contains(crate::visitor::VisitTypes::#kind) {
           visitor.#visit(self)
         } else {
           self.visit_children(visitor)
@@ -160,9 +169,11 @@ pub fn derive_visit_children(input: TokenStream) -> TokenStream {
   let (_, ty_generics, _) = generics.split_for_impl();
   let (impl_generics, _, where_clause) = impl_generics.split_for_impl();
 
-  let child_types = quote! {
-    unsafe { crate::visitor::VisitTypes::from_bits_unchecked(#(#child_types)|*) }
-  };
+  let child_types = visit_types.unwrap_or_else(|| {
+    quote! {
+      unsafe { crate::visitor::VisitTypes::from_bits_unchecked(#(#child_types)|*) }
+    }
+  });
 
   let output = quote! {
     impl #impl_generics Visit<#lifetime, #t, #v> for #ident #ty_generics #where_clause {
@@ -171,7 +182,7 @@ pub fn derive_visit_children(input: TokenStream) -> TokenStream {
       #self_visit
 
       fn visit_children(&mut self, visitor: &mut #v) {
-        if !<Self as Visit<#lifetime, #t, #v>>::CHILD_TYPES.intersects(#v::TYPES) {
+        if !<Self as Visit<#lifetime, #t, #v>>::CHILD_TYPES.intersects(visitor.visit_types()) {
           return
         }
 
@@ -198,5 +209,21 @@ impl Parse for VisitOptions {
     let _: Token![,] = input.parse()?;
     let kind: Ident = input.parse()?;
     Ok(Self { visit, kind })
+  }
+}
+
+struct VisitTypes {
+  types: Vec<Ident>,
+}
+
+impl Parse for VisitTypes {
+  fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    let first: Ident = input.parse()?;
+    let mut types = vec![first];
+    while input.parse::<Token![|]>().is_ok() {
+      let id: Ident = input.parse()?;
+      types.push(id);
+    }
+    Ok(Self { types })
   }
 }
