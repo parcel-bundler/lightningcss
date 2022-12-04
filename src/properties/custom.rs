@@ -13,7 +13,7 @@ use crate::values::angle::Angle;
 use crate::values::color::{
   parse_hsl_hwb_components, parse_rgb_components, ColorFallbackKind, ComponentParser, CssColor,
 };
-use crate::values::ident::{DashedIdentReference, Ident};
+use crate::values::ident::{DashedIdent, DashedIdentReference, Ident};
 use crate::values::length::{serialize_dimension, LengthValue};
 use crate::values::percentage::Percentage;
 use crate::values::resolution::Resolution;
@@ -101,6 +101,7 @@ impl<'i> UnparsedProperty<'i> {
 
 /// A raw list of CSS tokens, with embedded parsed values.
 #[derive(Debug, Clone, PartialEq, Visit)]
+#[visit(visit_token_list, TOKENS)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct TokenList<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub Vec<TokenOrValue<'i>>);
@@ -136,6 +137,8 @@ pub enum TokenOrValue<'i> {
   Time(Time),
   /// A resolution.
   Resolution(Resolution),
+  /// A dashed ident.
+  DashedIdent(DashedIdent<'i>),
 }
 
 impl<'i> From<Token<'i>> for TokenOrValue<'i> {
@@ -245,6 +248,11 @@ impl<'i> TokenList<'i> {
         Ok(&cssparser::Token::UnquotedUrl(_)) => {
           input.reset(&state);
           tokens.push(TokenOrValue::Url(Url::parse(input)?));
+          last_is_delim = false;
+          last_is_whitespace = false;
+        }
+        Ok(&cssparser::Token::Ident(ref name)) if name.starts_with("--") => {
+          tokens.push(TokenOrValue::DashedIdent(name.into()));
           last_is_delim = false;
           last_is_whitespace = false;
         }
@@ -377,6 +385,10 @@ impl<'i> TokenList<'i> {
           false
         }
         TokenOrValue::Resolution(v) => {
+          v.to_css(dest)?;
+          false
+        }
+        TokenOrValue::DashedIdent(v) => {
           v.to_css(dest)?;
           false
         }

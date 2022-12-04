@@ -5614,6 +5614,10 @@ export type TokenOrValue =
   | {
       type: "resolution";
       value: Resolution;
+    }
+  | {
+      type: "dashed-ident";
+      value: String;
     };
 /**
  * A raw CSS token.
