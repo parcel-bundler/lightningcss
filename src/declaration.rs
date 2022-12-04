@@ -43,6 +43,7 @@ use cssparser::*;
 /// and a list of normal declarations. This reduces memory usage compared
 /// with storing a boolean along with each property.
 #[derive(Debug, PartialEq, Clone, Visit)]
+#[visit(visit_declaration_block, PROPERTIES)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct DeclarationBlock<'i> {

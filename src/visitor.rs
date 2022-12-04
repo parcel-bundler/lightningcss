@@ -51,14 +51,15 @@
 //! ```
 
 use crate::{
-  media_query::MediaQuery,
+  declaration::DeclarationBlock,
+  media_query::{MediaList, MediaQuery},
   parser::DefaultAtRule,
   properties::{
-    custom::{Function, TokenOrValue, Variable},
+    custom::{Function, TokenList, TokenOrValue, Variable},
     Property,
   },
-  rules::{supports::SupportsCondition, CssRule},
-  selector::Selector,
+  rules::{supports::SupportsCondition, CssRule, CssRuleList},
+  selector::{Selector, SelectorList},
   values::{
     angle::Angle,
     color::CssColor,
@@ -136,10 +137,22 @@ pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule>: Sized {
   /// performance by skipping branches that do not have any values of the requested types.
   const TYPES: VisitTypes;
 
+  /// Visits a rule list.
+  #[inline]
+  fn visit_rule_list(&mut self, rules: &mut CssRuleList<'i, T>) {
+    rules.visit_children(self)
+  }
+
   /// Visits a rule.
   #[inline]
   fn visit_rule(&mut self, rule: &mut CssRule<'i, T>) {
     rule.visit_children(self)
+  }
+
+  /// Visits a declaration block.
+  #[inline]
+  fn visit_declaration_block(&mut self, decls: &mut DeclarationBlock<'i>) {
+    decls.visit_children(self)
   }
 
   /// Visits a property.
@@ -195,6 +208,12 @@ pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule>: Sized {
     var.visit_children(self)
   }
 
+  /// Visits a media query list.
+  #[inline]
+  fn visit_media_list(&mut self, media: &mut MediaList<'i>) {
+    media.visit_children(self)
+  }
+
   /// Visits a media query.
   #[inline]
   fn visit_media_query(&mut self, query: &mut MediaQuery<'i>) {
@@ -207,6 +226,12 @@ pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule>: Sized {
     condition.visit_children(self)
   }
 
+  /// Visits a selector list.
+  #[inline]
+  fn visit_selector_list(&mut self, selectors: &mut SelectorList<'i>) {
+    selectors.visit_children(self)
+  }
+
   /// Visits a selector.
   #[allow(unused_variables)]
   fn visit_selector(&mut self, selector: &mut Selector<'i>) {}
@@ -215,6 +240,12 @@ pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule>: Sized {
   #[inline]
   fn visit_function(&mut self, function: &mut Function<'i>) {
     function.visit_children(self)
+  }
+
+  /// Visits a token list.
+  #[inline]
+  fn visit_token_list(&mut self, tokens: &mut TokenList<'i>) {
+    tokens.visit_children(self)
   }
 
   /// Visits a token or value in an unparsed property.

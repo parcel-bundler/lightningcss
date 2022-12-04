@@ -1680,6 +1680,14 @@ pub(crate) fn is_unused(
 impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for SelectorList<'i> {
   const CHILD_TYPES: VisitTypes = VisitTypes::SELECTORS;
 
+  fn visit(&mut self, visitor: &mut V) {
+    if V::TYPES.contains(VisitTypes::SELECTORS) {
+      visitor.visit_selector_list(self)
+    } else {
+      self.visit_children(visitor)
+    }
+  }
+
   fn visit_children(&mut self, visitor: &mut V) {
     for selector in self.0.iter_mut() {
       Visit::visit(selector, visitor)

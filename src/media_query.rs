@@ -18,6 +18,7 @@ use std::collections::{HashMap, HashSet};
 
 /// A [media query list](https://drafts.csswg.org/mediaqueries/#mq-list).
 #[derive(Clone, Debug, PartialEq, Visit)]
+#[visit(visit_media_list, MEDIA_QUERIES)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct MediaList<'i> {

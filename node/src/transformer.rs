@@ -1,9 +1,10 @@
-use crate::threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use lightningcss::{
+  rules::CssRule,
+  selector::Selector,
   values::length::LengthValue,
   visitor::{Visit, VisitTypes, Visitor},
 };
-use napi::{Env, JsError, JsFunction, JsObject, JsString, NapiRaw};
+use napi::{Env, JsFunction, JsObject};
 use serde::{Deserialize, Serialize};
 
 pub struct JsVisitor {
@@ -72,14 +73,66 @@ impl JsVisitor {
 impl<'i> Visitor<'i> for JsVisitor {
   const TYPES: lightningcss::visitor::VisitTypes = VisitTypes::all();
 
-  fn visit_rule(&mut self, rule: &mut lightningcss::rules::CssRule<'i>) {
-    visit(&self.env, rule, &self.visit_rule, &mut self.errors);
-    rule.visit_children(self)
+  fn visit_rule_list(&mut self, rules: &mut lightningcss::rules::CssRuleList<'i>) {
+    // Similar to visit_list, but skips CssRule::Ignored rules.
+    if let Some(visit) = &self.visit_rule {
+      let mut i = 0;
+      while i < rules.0.len() {
+        let value = &rules.0[i];
+        if matches!(value, CssRule::Ignored) {
+          continue;
+        }
+
+        let js_value = self.env.to_js_value(value).unwrap();
+        let res = visit.call(None, &[js_value]).unwrap();
+        let new_value: napi::Result<Option<ValueOrVec<CssRule>>> =
+          self.env.from_js_value(res).map(serde_detach::detach);
+        match new_value {
+          Ok(new_value) => match new_value {
+            Some(ValueOrVec::Value(v)) => {
+              rules.0[i] = v;
+              i += 1;
+            }
+            Some(ValueOrVec::Vec(vec)) => {
+              if vec.is_empty() {
+                rules.0[i] = CssRule::Ignored;
+                i += 1;
+              } else {
+                let len = vec.len();
+                rules.0.splice(i..i + 1, vec);
+                i += len;
+              }
+            }
+            None => {
+              i += 1;
+            }
+          },
+          Err(err) => {
+            self.errors.push(err);
+            i += 1;
+          }
+        }
+      }
+    }
+
+    rules.0.visit_children(self)
   }
 
-  fn visit_property(&mut self, property: &mut lightningcss::properties::Property<'i>) {
-    visit(&self.env, property, &self.visit_property, &mut self.errors);
-    property.visit_children(self)
+  fn visit_declaration_block(&mut self, decls: &mut lightningcss::declaration::DeclarationBlock<'i>) {
+    visit_list(
+      &self.env,
+      &mut decls.important_declarations,
+      &self.visit_property,
+      &mut self.errors,
+    );
+    visit_list(
+      &self.env,
+      &mut decls.declarations,
+      &self.visit_property,
+      &mut self.errors,
+    );
+    decls.important_declarations.visit_children(self);
+    decls.declarations.visit_children(self);
   }
 
   fn visit_length(&mut self, length: &mut LengthValue) {
@@ -115,9 +168,14 @@ impl<'i> Visitor<'i> for JsVisitor {
     visit(&self.env, url, &self.visit_url, &mut self.errors)
   }
 
-  fn visit_media_query(&mut self, query: &mut lightningcss::media_query::MediaQuery<'i>) {
-    visit(&self.env, query, &self.visit_media_query, &mut self.errors);
-    query.visit_children(self)
+  fn visit_media_list(&mut self, media: &mut lightningcss::media_query::MediaList<'i>) {
+    visit_list(
+      &self.env,
+      &mut media.media_queries,
+      &self.visit_media_query,
+      &mut self.errors,
+    );
+    media.visit_children(self)
   }
 
   fn visit_supports_condition(&mut self, condition: &mut lightningcss::rules::supports::SupportsCondition<'i>) {
@@ -143,13 +201,51 @@ impl<'i> Visitor<'i> for JsVisitor {
     function.visit_children(self)
   }
 
-  fn visit_selector(&mut self, selector: &mut lightningcss::selector::Selector<'i>) {
-    visit(&self.env, selector, &self.visit_selector, &mut self.errors)
+  fn visit_selector_list(&mut self, selectors: &mut lightningcss::selector::SelectorList<'i>) {
+    if let Some(visit) = &self.visit_selector {
+      let mut i = 0;
+      while i < selectors.0.len() {
+        let value = &selectors.0[i];
+
+        let js_value = self.env.to_js_value(value).unwrap();
+        let res = visit.call(None, &[js_value]).unwrap();
+        let new_value: napi::Result<Option<ValueOrVec<Selector>>> =
+          self.env.from_js_value(res).map(serde_detach::detach);
+        match new_value {
+          Ok(new_value) => match new_value {
+            Some(ValueOrVec::Value(v)) => {
+              selectors.0[i] = v;
+              i += 1;
+            }
+            Some(ValueOrVec::Vec(vec)) => {
+              if vec.is_empty() {
+                selectors.0.remove(i);
+              } else {
+                let len = vec.len();
+                let mut iter = vec.into_iter();
+                selectors.0[i] = iter.next().unwrap();
+                if len > 1 {
+                  selectors.0.insert_many(i + 1, iter);
+                }
+                i += len;
+              }
+            }
+            None => {
+              i += 1;
+            }
+          },
+          Err(err) => {
+            self.errors.push(err);
+            i += 1;
+          }
+        }
+      }
+    }
   }
 
-  fn visit_token(&mut self, token: &mut lightningcss::properties::custom::TokenOrValue<'i>) {
-    visit(&self.env, token, &self.visit_token, &mut self.errors);
-    token.visit_children(self)
+  fn visit_token_list(&mut self, tokens: &mut lightningcss::properties::custom::TokenList<'i>) {
+    visit_list(&self.env, &mut tokens.0, &self.visit_token, &mut self.errors);
+    tokens.visit_children(self)
   }
 }
 
@@ -162,9 +258,59 @@ fn visit<V: Serialize + Deserialize<'static>>(
   if let Some(visit) = visit {
     let js_value = env.to_js_value(value).unwrap();
     let res = visit.call(None, &[js_value]).unwrap();
-    match env.from_js_value(res).map(serde_detach::detach) {
-      Ok(new_value) => *value = new_value,
+    let new_value: napi::Result<Option<V>> = env.from_js_value(res).map(serde_detach::detach);
+    match new_value {
+      Ok(Some(new_value)) => *value = new_value,
+      Ok(None) => {}
       Err(err) => errors.push(err),
     }
   }
+}
+
+fn visit_list<V: Serialize + Deserialize<'static>>(
+  env: &Env,
+  list: &mut Vec<V>,
+  visit: &Option<JsFunction>,
+  errors: &mut Vec<napi::Error>,
+) {
+  if let Some(visit) = visit {
+    let mut i = 0;
+    while i < list.len() {
+      let value = &list[i];
+      let js_value = env.to_js_value(value).unwrap();
+      let res = visit.call(None, &[js_value]).unwrap();
+      let new_value: napi::Result<Option<ValueOrVec<V>>> = env.from_js_value(res).map(serde_detach::detach);
+      match new_value {
+        Ok(new_value) => match new_value {
+          Some(ValueOrVec::Value(v)) => {
+            list[i] = v;
+            i += 1;
+          }
+          Some(ValueOrVec::Vec(vec)) => {
+            if vec.is_empty() {
+              list.remove(i);
+            } else {
+              let len = vec.len();
+              list.splice(i..i + 1, vec);
+              i += len;
+            }
+          }
+          None => {
+            i += 1;
+          }
+        },
+        Err(err) => {
+          errors.push(err);
+          i += 1;
+        }
+      }
+    }
+  }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+enum ValueOrVec<V> {
+  Value(V),
+  Vec(Vec<V>),
 }

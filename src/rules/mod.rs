@@ -394,6 +394,14 @@ pub struct CssRuleList<'i, R = DefaultAtRule>(
 impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for CssRuleList<'i, T> {
   const CHILD_TYPES: VisitTypes = VisitTypes::all();
 
+  fn visit(&mut self, visitor: &mut V) {
+    if V::TYPES.contains(VisitTypes::RULES) {
+      visitor.visit_rule_list(self)
+    } else {
+      self.0.visit(visitor)
+    }
+  }
+
   fn visit_children(&mut self, visitor: &mut V) {
     self.0.visit(visitor)
   }

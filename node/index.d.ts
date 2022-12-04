@@ -46,24 +46,24 @@ export interface TransformOptions {
 }
 
 export interface Visitor {
-  visitRule?(rule: CssRuleFor_DefaultAtRule): CssRuleFor_DefaultAtRule;
-  visitProperty?(property: Property): Property;
-  visitUrl?(url: Url): Url;
-  visitColor?(color: CssColor): CssColor;
-  visitImage?(image: Image): Image;
-  visitLength?(length: LengthValue): LengthValue;
-  visitAngle?(angle: Angle): Angle;
-  visitRatio?(ratio: Ratio): Ratio;
-  visitResolution?(resolution: Resolution): Resolution;
-  visitTime?(time: Time): Time;
-  visitCustomIdent?(ident: string): string;
-  visitDashedIdent?(ident: string): string;
-  visitVariable?(variable: Variable): Variable;
-  visitMediaQuery?(query: MediaQuery): MediaQuery;
+  visitRule?(rule: CssRuleFor_DefaultAtRule): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+  visitProperty?(property: Property): Property | Property[] | void;
+  visitUrl?(url: Url): Url | void;
+  visitColor?(color: CssColor): CssColor | void;
+  visitImage?(image: Image): Image | void;
+  visitLength?(length: LengthValue): LengthValue | void;
+  visitAngle?(angle: Angle): Angle | void;
+  visitRatio?(ratio: Ratio): Ratio | void;
+  visitResolution?(resolution: Resolution): Resolution | void;
+  visitTime?(time: Time): Time | void;
+  visitCustomIdent?(ident: string): string | void;
+  visitDashedIdent?(ident: string): string | void;
+  visitVariable?(variable: Variable): Variable | void;
+  visitMediaQuery?(query: MediaQuery): MediaQuery | MediaQuery[] | void;
   visitSupportsCondition?(condition: SupportsCondition): SupportsCondition;
-  visitSelector?(selector: Selector): Selector;
-  visitFunction?(fn: Function): Function;
-  visitToken?(token: TokenOrValue): TokenOrValue;
+  visitSelector?(selector: Selector): Selector | Selector[] | void;
+  visitFunction?(fn: Function): Function | void;
+  visitToken?(token: TokenOrValue): TokenOrValue | TokenOrValue[] | void;
 }
 
 export interface DependencyOptions {
