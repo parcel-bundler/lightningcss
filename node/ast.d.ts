@@ -6119,17 +6119,17 @@ export type Direction = "ltr" | "rtl";
  * https://webkit.org/blog/363/styling-scrollbars/
  */
 export type WebKitScrollbarPseudoClass =
-  | "Horizontal"
-  | "Vertical"
-  | "Decrement"
-  | "Increment"
-  | "Start"
-  | "End"
-  | "DoubleButton"
-  | "SingleButton"
-  | "NoButton"
-  | "CornerPresent"
-  | "WindowInactive";
+  | "horizontal"
+  | "vertical"
+  | "decrement"
+  | "increment"
+  | "start"
+  | "end"
+  | "double-button"
+  | "single-button"
+  | "no-button"
+  | "corner-present"
+  | "window-inactive";
 export type BuiltinPseudoElementFor_Selectors =
   | {
       selector: Selector;
@@ -6202,13 +6202,13 @@ export type PseudoElement =
       value: "custom-function";
     };
 export type WebKitScrollbarPseudoElement =
-  | "Scrollbar"
-  | "Button"
-  | "Track"
-  | "TrackPiece"
-  | "Thumb"
-  | "Corner"
-  | "Resizer";
+  | "scrollbar"
+  | "button"
+  | "track"
+  | "track-piece"
+  | "thumb"
+  | "corner"
+  | "resizer";
 export type Selector = SerializedComponentFor_SelectorsAnd_PseudoClassAnd_PseudoElementAnd_VendorPrefix[];
 export type SelectorListFor_Selectors = Selector[];
 /**

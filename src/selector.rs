@@ -399,7 +399,11 @@ pub enum PseudoClass<'i> {
 
 /// https://webkit.org/blog/363/styling-scrollbars/
 #[derive(Clone, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum WebKitScrollbarPseudoClass {
   Horizontal,
@@ -702,7 +706,11 @@ pub enum PseudoElement<'i> {
 }
 
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum WebKitScrollbarPseudoElement {
   /// ::-webkit-scrollbar
