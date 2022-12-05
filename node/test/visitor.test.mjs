@@ -234,7 +234,7 @@ test('apply', () => {
                 let r = defined.get(token.value);
                 let decls = rule.value.declarations;
                 decls.declarations.push(...r.declarations);
-                decls.important_declarations.push(...r.important_declarations);
+                decls.importantDeclarations.push(...r.importantDeclarations);
               }
             }
             return false;
@@ -271,7 +271,7 @@ test('property lookup', () => {
         for (let decl of rule.value.declarations.declarations) {
           let name = decl.property;
           if (decl.property === 'unparsed') {
-            name = decl.value.property_id.property;
+            name = decl.value.propertyId.property;
           }
           valuesByProperty.set(name, decl);
         }
@@ -283,7 +283,7 @@ test('property lookup', () => {
             if (token.type === 'token' && token.value.type === 'at-keyword' && valuesByProperty.has(token.value.value)) {
               let v = valuesByProperty.get(token.value.value);
               return {
-                property: decl.value.property_id.property,
+                property: decl.value.propertyId.property,
                 value: v.value
               };
             }
@@ -356,7 +356,7 @@ test('dark theme class', () => {
           return;
         }
 
-        let q = rule.value.query.media_queries[0];
+        let q = rule.value.query.mediaQueries[0];
         if (q.condition?.type === 'feature' && q.condition.value.type === 'plain' && q.condition.value.name === 'prefers-color-scheme' && q.condition.value.value.value === 'dark') {
           let clonedRules = [rule];
           for (let r of rule.value.rules) {
@@ -373,10 +373,10 @@ test('dark theme class', () => {
                   { type: 'type', name: 'html' },
                   {
                     type: 'pseudo-class',
-                      value: 'not',
-                      selectors: [
-                        [{ type: 'attribute', name: 'theme', operation: { operator: 'equal', value: 'light' } }]
-                      ]
+                    value: 'not',
+                    selectors: [
+                      [{ type: 'attribute', name: 'theme', operation: { operator: 'equal', value: 'light' } }]
+                    ]
                   },
                   { type: 'combinator', value: 'descendant' }
                 );

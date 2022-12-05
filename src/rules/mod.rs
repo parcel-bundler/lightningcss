@@ -110,7 +110,7 @@ pub(crate) struct StyleContext<'a, 'i, T> {
 
 /// A source location.
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Location {
   /// The index of the source file within the source map.

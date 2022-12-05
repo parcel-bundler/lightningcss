@@ -157,7 +157,7 @@ export type MediaFeature =
       /**
        * A comparator for the end value.
        */
-      end_operator: MediaFeatureComparison;
+      endOperator: MediaFeatureComparison;
       /**
        * The name of the feature.
        */
@@ -169,7 +169,7 @@ export type MediaFeature =
       /**
        * A comparator for the start value.
        */
-      start_operator: MediaFeatureComparison;
+      startOperator: MediaFeatureComparison;
       type: "interval";
     };
 export type String = string;
@@ -5943,7 +5943,7 @@ export type TSPseudoClassFor_SelectorsAnd_VendorPrefix =
   | {
       selectors: Selector[];
       value: "any";
-      vendor_prefix: VendorPrefix;
+      vendorPrefix: VendorPrefix;
     }
   | {
       selectors: Selector[];
@@ -6582,7 +6582,7 @@ export interface StyleSheetFor_DefaultAtRuleParser {
   /**
    * The source map URL extracted from the original style sheet.
    */
-  source_map_urls: (string | null)[];
+  sourceMapUrls: (string | null)[];
   /**
    * A list of file names for all source files included within the style sheet. Sources are referenced by index in the `loc` property of each rule.
    */
@@ -6620,7 +6620,7 @@ export interface Location {
   /**
    * The index of the source file within the source map.
    */
-  source_index: number;
+  sourceIndex: number;
 }
 /**
  * A [media query list](https://drafts.csswg.org/mediaqueries/#mq-list).
@@ -6629,7 +6629,7 @@ export interface MediaList {
   /**
    * The list of media queries.
    */
-  media_queries: MediaQuery[];
+  mediaQueries: MediaQuery[];
 }
 /**
  * A [media query](https://drafts.csswg.org/mediaqueries/#media).
@@ -6642,7 +6642,7 @@ export interface MediaQuery {
   /**
    * The media type for this query, that can be known, unknown, or "all".
    */
-  media_type: MediaType;
+  mediaType: MediaType;
   /**
    * The qualifier for this query.
    */
@@ -6707,7 +6707,7 @@ export interface DeclarationBlock {
   /**
    * A list of `!important` declarations in the block.
    */
-  important_declarations: Property[];
+  importantDeclarations: Property[];
 }
 /**
  * A color in the [CIE Lab](https://www.w3.org/TR/css-color-4/#cie-lab) color space.
@@ -7145,7 +7145,7 @@ export interface ImageSet {
   /**
    * The vendor prefix for the `image-set()` function.
    */
-  vendor_prefix: VendorPrefix;
+  vendorPrefix: VendorPrefix;
 }
 /**
  * An image option within the `image-set()` function. See [ImageSet](ImageSet).
@@ -7154,7 +7154,7 @@ export interface ImageSetOption {
   /**
    * The mime type of the image.
    */
-  file_type?: String | null;
+  fileType?: String | null;
   /**
    * The image for this option.
    */
@@ -7250,11 +7250,11 @@ export interface BoxShadow {
   /**
    * The x offset of the shadow.
    */
-  x_offset: Length;
+  xOffset: Length;
   /**
    * The y offset of the shadow.
    */
-  y_offset: Length;
+  yOffset: Length;
 }
 /**
  * A pair of inside and outside display values, as used in the `display` property.
@@ -7269,7 +7269,7 @@ export interface DisplayPair {
   /**
    * Whether this is a list item.
    */
-  is_list_item: boolean;
+  isListItem: boolean;
   /**
    * The outside display value.
    */
@@ -7295,11 +7295,11 @@ export interface InsetBlock {
   /**
    * The block end value.
    */
-  block_end: LengthPercentageOrAuto;
+  blockEnd: LengthPercentageOrAuto;
   /**
    * The block start value.
    */
-  block_start: LengthPercentageOrAuto;
+  blockStart: LengthPercentageOrAuto;
 }
 /**
  * A value for the [inset-inline](https://drafts.csswg.org/css-logical/#propdef-inset-inline) shorthand property.
@@ -7308,11 +7308,11 @@ export interface InsetInline {
   /**
    * The inline end value.
    */
-  inline_end: LengthPercentageOrAuto;
+  inlineEnd: LengthPercentageOrAuto;
   /**
    * The inline start value.
    */
-  inline_start: LengthPercentageOrAuto;
+  inlineStart: LengthPercentageOrAuto;
 }
 /**
  * A value for the [inset](https://drafts.csswg.org/css-logical/#propdef-inset) shorthand property.
@@ -7342,19 +7342,19 @@ export interface BorderRadius {
   /**
    * The x and y radius values for the bottom left corner.
    */
-  bottom_left: Size2DFor_DimensionPercentageFor_LengthValue;
+  bottomLeft: Size2DFor_DimensionPercentageFor_LengthValue;
   /**
    * The x and y radius values for the bottom right corner.
    */
-  bottom_right: Size2DFor_DimensionPercentageFor_LengthValue;
+  bottomRight: Size2DFor_DimensionPercentageFor_LengthValue;
   /**
    * The x and y radius values for the top left corner.
    */
-  top_left: Size2DFor_DimensionPercentageFor_LengthValue;
+  topLeft: Size2DFor_DimensionPercentageFor_LengthValue;
   /**
    * The x and y radius values for the top right corner.
    */
-  top_right: Size2DFor_DimensionPercentageFor_LengthValue;
+  topRight: Size2DFor_DimensionPercentageFor_LengthValue;
 }
 /**
  * A value for the [border-image-repeat](https://www.w3.org/TR/css-backgrounds-3/#border-image-repeat) property.
@@ -7677,7 +7677,7 @@ export interface TrackList {
   /**
    * A list of line names.
    */
-  line_names: String[][];
+  lineNames: String[][];
 }
 /**
  * A [`<track-repeat>`](https://drafts.csswg.org/css-grid-2/#typedef-track-repeat) value, representing the `repeat()` function in a track list.
@@ -7692,11 +7692,11 @@ export interface TrackRepeat {
   /**
    * The line names to repeat.
    */
-  line_names: String[][];
+  lineNames: String[][];
   /**
    * The track sizes to repeat.
    */
-  track_sizes: TrackSize[];
+  trackSizes: TrackSize[];
 }
 /**
  * A value for the [grid-auto-flow](https://drafts.csswg.org/css-grid-2/#grid-auto-flow-property) property.
@@ -7738,15 +7738,15 @@ export interface Grid {
   /**
    * The grid auto columns.
    */
-  auto_columns: TrackSize[];
+  autoColumns: TrackSize[];
   /**
    * The grid auto flow.
    */
-  auto_flow: GridAutoFlow;
+  autoFlow: GridAutoFlow;
   /**
    * The grid auto rows.
    */
-  auto_rows: TrackSize[];
+  autoRows: TrackSize[];
   /**
    * Explicit grid template columns.
    */
@@ -7789,19 +7789,19 @@ export interface GridArea {
   /**
    * The grid column end placement.
    */
-  column_end: GridLine;
+  columnEnd: GridLine;
   /**
    * The grid column start placement.
    */
-  column_start: GridLine;
+  columnStart: GridLine;
   /**
    * The grid row end placement.
    */
-  row_end: GridLine;
+  rowEnd: GridLine;
   /**
    * The grid row start placement.
    */
-  row_start: GridLine;
+  rowStart: GridLine;
 }
 /**
  * A value for the [margin-block](https://drafts.csswg.org/css-logical/#propdef-margin-block) shorthand property.
@@ -7810,11 +7810,11 @@ export interface MarginBlock {
   /**
    * The block end value.
    */
-  block_end: LengthPercentageOrAuto;
+  blockEnd: LengthPercentageOrAuto;
   /**
    * The block start value.
    */
-  block_start: LengthPercentageOrAuto;
+  blockStart: LengthPercentageOrAuto;
 }
 /**
  * A value for the [margin-inline](https://drafts.csswg.org/css-logical/#propdef-margin-inline) shorthand property.
@@ -7823,11 +7823,11 @@ export interface MarginInline {
   /**
    * The inline end value.
    */
-  inline_end: LengthPercentageOrAuto;
+  inlineEnd: LengthPercentageOrAuto;
   /**
    * The inline start value.
    */
-  inline_start: LengthPercentageOrAuto;
+  inlineStart: LengthPercentageOrAuto;
 }
 /**
  * A value for the [margin](https://drafts.csswg.org/css-box-4/#propdef-margin) shorthand property.
@@ -7857,11 +7857,11 @@ export interface PaddingBlock {
   /**
    * The block end value.
    */
-  block_end: LengthPercentageOrAuto;
+  blockEnd: LengthPercentageOrAuto;
   /**
    * The block start value.
    */
-  block_start: LengthPercentageOrAuto;
+  blockStart: LengthPercentageOrAuto;
 }
 /**
  * A value for the [padding-inline](https://drafts.csswg.org/css-logical/#propdef-padding-inline) shorthand property.
@@ -7870,11 +7870,11 @@ export interface PaddingInline {
   /**
    * The inline end value.
    */
-  inline_end: LengthPercentageOrAuto;
+  inlineEnd: LengthPercentageOrAuto;
   /**
    * The inline start value.
    */
-  inline_start: LengthPercentageOrAuto;
+  inlineStart: LengthPercentageOrAuto;
 }
 /**
  * A value for the [padding](https://drafts.csswg.org/css-box-4/#propdef-padding) shorthand property.
@@ -7904,11 +7904,11 @@ export interface ScrollMarginBlock {
   /**
    * The block end value.
    */
-  block_end: LengthPercentageOrAuto;
+  blockEnd: LengthPercentageOrAuto;
   /**
    * The block start value.
    */
-  block_start: LengthPercentageOrAuto;
+  blockStart: LengthPercentageOrAuto;
 }
 /**
  * A value for the [scroll-margin-inline](https://drafts.csswg.org/css-scroll-snap/#propdef-scroll-margin-inline) shorthand property.
@@ -7917,11 +7917,11 @@ export interface ScrollMarginInline {
   /**
    * The inline end value.
    */
-  inline_end: LengthPercentageOrAuto;
+  inlineEnd: LengthPercentageOrAuto;
   /**
    * The inline start value.
    */
-  inline_start: LengthPercentageOrAuto;
+  inlineStart: LengthPercentageOrAuto;
 }
 /**
  * A value for the [scroll-margin](https://drafts.csswg.org/css-scroll-snap/#scroll-margin) shorthand property.
@@ -7951,11 +7951,11 @@ export interface ScrollPaddingBlock {
   /**
    * The block end value.
    */
-  block_end: LengthPercentageOrAuto;
+  blockEnd: LengthPercentageOrAuto;
   /**
    * The block start value.
    */
-  block_start: LengthPercentageOrAuto;
+  blockStart: LengthPercentageOrAuto;
 }
 /**
  * A value for the [scroll-padding-inline](https://drafts.csswg.org/css-scroll-snap/#propdef-scroll-padding-inline) shorthand property.
@@ -7964,11 +7964,11 @@ export interface ScrollPaddingInline {
   /**
    * The inline end value.
    */
-  inline_end: LengthPercentageOrAuto;
+  inlineEnd: LengthPercentageOrAuto;
   /**
    * The inline start value.
    */
-  inline_start: LengthPercentageOrAuto;
+  inlineStart: LengthPercentageOrAuto;
 }
 /**
  * A value for the [scroll-padding](https://drafts.csswg.org/css-scroll-snap/#scroll-padding) shorthand property.
@@ -8002,7 +8002,7 @@ export interface Font {
   /**
    * The line height.
    */
-  line_height: LineHeight;
+  lineHeight: LineHeight;
   /**
    * The font size.
    */
@@ -8018,7 +8018,7 @@ export interface Font {
   /**
    * How the text should be capitalized. Only CSS 2.1 values are supported.
    */
-  variant_caps: FontVariantCaps;
+  variantCaps: FontVariantCaps;
   /**
    * The font weight.
    */
@@ -8060,7 +8060,7 @@ export interface Transition {
   /**
    * The easing function for the transition.
    */
-  timing_function: EasingFunction;
+  timingFunction: EasingFunction;
 }
 /**
  * A value for the [animation](https://drafts.csswg.org/css-animations/#animation) shorthand property.
@@ -8081,11 +8081,11 @@ export interface Animation {
   /**
    * The animation fill mode.
    */
-  fill_mode: AnimationFillMode;
+  fillMode: AnimationFillMode;
   /**
    * The number of times the animation will run.
    */
-  iteration_count: AnimationIterationCount;
+  iterationCount: AnimationIterationCount;
   /**
    * The animation name.
    */
@@ -8093,11 +8093,11 @@ export interface Animation {
   /**
    * The current play state of the animation.
    */
-  play_state: AnimationPlayState;
+  playState: AnimationPlayState;
   /**
    * The easing function for the animation.
    */
-  timing_function: EasingFunction;
+  timingFunction: EasingFunction;
 }
 /**
  * A 2D matrix.
@@ -8214,7 +8214,7 @@ export interface TextIndent {
   /**
    * Affects the first line after each hard break.
    */
-  each_line: boolean;
+  eachLine: boolean;
   /**
    * Inverts which lines are affected.
    */
@@ -8298,11 +8298,11 @@ export interface TextShadow {
   /**
    * The x offset of the text shadow.
    */
-  x_offset: Length;
+  xOffset: Length;
   /**
    * The y offset of the text shadow.
    */
-  y_offset: Length;
+  yOffset: Length;
 }
 /**
  * A value for the [cursor](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#cursor) property.
@@ -8359,7 +8359,7 @@ export interface ListStyle {
   /**
    * The list style type.
    */
-  list_style_type: ListStyleType;
+  listStyleType: ListStyleType;
   /**
    * The position of the list marker.
    */
@@ -8402,7 +8402,7 @@ export interface Polygon {
   /**
    * The fill rule used to determine the interior of the polygon.
    */
-  fill_rule: FillRule;
+  fillRule: FillRule;
   /**
    * The points of each vertex of the polygon.
    */
@@ -8504,11 +8504,11 @@ export interface DropShadow {
   /**
    * The x offset of the drop shadow.
    */
-  x_offset: Length;
+  xOffset: Length;
   /**
    * The y offset of the drop shadow.
    */
-  y_offset: Length;
+  yOffset: Length;
 }
 /**
  * A value for the [container-type](https://drafts.csswg.org/css-contain-3/#container-type) property. Establishes the element as a query container for the purpose of container queries.
@@ -8525,7 +8525,7 @@ export interface Container {
   /**
    * The container type.
    */
-  container_type: ContainerType;
+  containerType: ContainerType;
   /**
    * The container name.
    */
@@ -8540,7 +8540,7 @@ export interface UnparsedProperty {
   /**
    * The id of the property.
    */
-  property_id: PropertyId;
+  propertyId: PropertyId;
   /**
    * The property value, stored as a raw token list.
    */
@@ -8609,7 +8609,7 @@ export interface KeyframesRule {
   /**
    * A vendor prefix for the rule, e.g. `@-webkit-keyframes`.
    */
-  vendor_prefix: VendorPrefix;
+  vendorPrefix: VendorPrefix;
 }
 /**
  * An individual keyframe within an `@keyframes` rule.
@@ -8737,7 +8737,7 @@ export interface PageMarginRule {
   /**
    * The margin box identifier for this rule.
    */
-  margin_box: PageMarginBox;
+  marginBox: PageMarginBox;
 }
 /**
  * A [page selector](https://www.w3.org/TR/css-page-3/#typedef-page-selector) within a `@page` rule.
@@ -8752,7 +8752,7 @@ export interface PageSelector {
   /**
    * A list of page pseudo classes.
    */
-  pseudo_classes: PagePseudoClass[];
+  pseudoClasses: PagePseudoClass[];
 }
 /**
  * A [@supports](https://drafts.csswg.org/css-conditional-3/#at-supports) rule.
@@ -8848,7 +8848,7 @@ export interface ViewportRule {
   /**
    * The vendor prefix for this rule, e.g. `@-ms-viewport`.
    */
-  vendor_prefix: VendorPrefix;
+  vendorPrefix: VendorPrefix;
 }
 /**
  * A [@custom-media](https://drafts.csswg.org/mediaqueries-5/#custom-mq) rule.
@@ -8910,7 +8910,7 @@ export interface PropertyRule {
   /**
    * An optional initial value for the custom property.
    */
-  initial_value?: ParsedComponent | null;
+  initialValue?: ParsedComponent | null;
   /**
    * The location of the rule in the source file.
    */

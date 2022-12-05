@@ -16,7 +16,11 @@ use cssparser::*;
 ///
 /// Either a name or at least one pseudo class is required.
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct PageSelector<'i> {
   /// An optional named page type.
@@ -115,7 +119,11 @@ enum_property! {
 
 /// A [page margin rule](https://www.w3.org/TR/css-page-3/#margin-at-rules) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct PageMarginRule<'i> {
   /// The margin box identifier for this rule.

@@ -56,7 +56,11 @@ impl<'i> CustomProperty<'i> {
 /// be parsed, e.g. in the case css `var()` references are encountered.
 /// In this case, the raw tokens are stored instead.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct UnparsedProperty<'i> {
   /// The id of the property.

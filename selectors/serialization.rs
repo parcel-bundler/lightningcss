@@ -150,6 +150,7 @@ enum TSPseudoClass<'s, Impl: SelectorImpl<'s>, VendorPrefix> {
     )]
     selectors: Box<[Selector<'s, Impl>]>,
   },
+  #[serde(rename_all = "camelCase")]
   Any {
     vendor_prefix: VendorPrefix,
     #[serde(

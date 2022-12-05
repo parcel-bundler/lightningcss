@@ -22,7 +22,11 @@ use cssparser::*;
 
 /// A [@keyframes](https://drafts.csswg.org/css-animations/#keyframes) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct KeyframesRule<'i> {
   /// The animation name.

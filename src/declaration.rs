@@ -44,7 +44,11 @@ use cssparser::*;
 /// with storing a boolean along with each property.
 #[derive(Debug, PartialEq, Clone, Visit)]
 #[visit(visit_declaration_block, PROPERTIES)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct DeclarationBlock<'i> {
   /// A list of `!important` declarations in the block.

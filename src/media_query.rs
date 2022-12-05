@@ -19,7 +19,11 @@ use std::collections::{HashMap, HashSet};
 /// A [media query list](https://drafts.csswg.org/mediaqueries/#mq-list).
 #[derive(Clone, Debug, PartialEq, Visit)]
 #[visit(visit_media_list, MEDIA_QUERIES)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct MediaList<'i> {
   /// The list of media queries.
@@ -181,7 +185,11 @@ impl<'i> Parse<'i> for MediaType<'i> {
 /// A [media query](https://drafts.csswg.org/mediaqueries/#media).
 #[derive(Clone, Debug, PartialEq, Visit)]
 #[visit(visit_media_query, MEDIA_QUERIES)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct MediaQuery<'i> {
   /// The qualifier for this query.
@@ -588,6 +596,7 @@ pub enum MediaFeature<'i> {
     value: MediaFeatureValue<'i>,
   },
   /// An interval, e.g. `(120px < width < 240px)`.
+  #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
   Interval {
     /// The name of the feature.
     name: Ident<'i>,

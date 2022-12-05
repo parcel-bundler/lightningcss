@@ -40,7 +40,11 @@ pub enum TrackSizing<'i> {
 ///
 /// See [TrackSizing](TrackSizing).
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct TrackList<'i> {
   /// A list of line names.
@@ -129,7 +133,11 @@ pub enum TrackBreadth {
 ///
 /// See [TrackListItem](TrackListItem).
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct TrackRepeat<'i> {
   /// The repeat count.
@@ -1048,7 +1056,11 @@ impl ToCss for GridAutoFlow {
 ///
 /// Explicit and implicit values may not be combined.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Grid<'i> {
   /// Explicit grid template rows.

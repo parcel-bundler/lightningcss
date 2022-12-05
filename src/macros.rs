@@ -342,7 +342,7 @@ macro_rules! define_shorthand {
   ) => {
     $(#[$outer])*
     #[derive(Debug, Clone, PartialEq, Visit)]
-    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "camelCase"))]
     #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
     pub struct $name$(<$l>)? {
       $(
@@ -557,7 +557,7 @@ macro_rules! define_list_shorthand {
   ) => {
     $(#[$outer])*
     #[derive(Debug, Clone, PartialEq, Visit)]
-    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "camelCase"))]
     #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
     pub struct $name$(<$l>)? {
       $(
