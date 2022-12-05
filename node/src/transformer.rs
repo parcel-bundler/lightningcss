@@ -4,31 +4,66 @@ use lightningcss::{
   values::length::LengthValue,
   visitor::{Visit, VisitTypes, Visitor},
 };
-use napi::{Env, JsFunction, JsObject};
+use napi::{Env, JsFunction, JsObject, Ref};
 use serde::{Deserialize, Serialize};
 
 pub struct JsVisitor {
   env: Env,
-  visit_rule: Option<JsFunction>,
-  visit_property: Option<JsFunction>,
-  visit_length: Option<JsFunction>,
-  visit_angle: Option<JsFunction>,
-  visit_ratio: Option<JsFunction>,
-  visit_resolution: Option<JsFunction>,
-  visit_time: Option<JsFunction>,
-  visit_color: Option<JsFunction>,
-  visit_image: Option<JsFunction>,
-  visit_url: Option<JsFunction>,
-  visit_media_query: Option<JsFunction>,
-  visit_supports_condition: Option<JsFunction>,
-  visit_variable: Option<JsFunction>,
-  visit_custom_ident: Option<JsFunction>,
-  visit_dashed_ident: Option<JsFunction>,
-  visit_function: Option<JsFunction>,
-  visit_selector: Option<JsFunction>,
-  visit_token: Option<JsFunction>,
+  visit_rule: Option<Ref<()>>,
+  visit_property: Option<Ref<()>>,
+  visit_length: Option<Ref<()>>,
+  visit_angle: Option<Ref<()>>,
+  visit_ratio: Option<Ref<()>>,
+  visit_resolution: Option<Ref<()>>,
+  visit_time: Option<Ref<()>>,
+  visit_color: Option<Ref<()>>,
+  visit_image: Option<Ref<()>>,
+  visit_url: Option<Ref<()>>,
+  visit_media_query: Option<Ref<()>>,
+  visit_supports_condition: Option<Ref<()>>,
+  visit_variable: Option<Ref<()>>,
+  visit_custom_ident: Option<Ref<()>>,
+  visit_dashed_ident: Option<Ref<()>>,
+  visit_function: Option<Ref<()>>,
+  visit_selector: Option<Ref<()>>,
+  visit_token: Option<Ref<()>>,
   types: VisitTypes,
   pub errors: Vec<napi::Error>,
+}
+
+// This is so that the visitor can work with bundleAsync.
+// We ensure that we only call JsVisitor from the main JS thread.
+unsafe impl Send for JsVisitor {}
+
+impl Drop for JsVisitor {
+  fn drop(&mut self) {
+    macro_rules! drop {
+      ($id: ident) => {
+        if let Some(v) = &mut self.$id {
+          drop(v.unref(self.env));
+        }
+      };
+    }
+
+    drop!(visit_rule);
+    drop!(visit_property);
+    drop!(visit_length);
+    drop!(visit_angle);
+    drop!(visit_ratio);
+    drop!(visit_resolution);
+    drop!(visit_time);
+    drop!(visit_color);
+    drop!(visit_image);
+    drop!(visit_url);
+    drop!(visit_media_query);
+    drop!(visit_supports_condition);
+    drop!(visit_variable);
+    drop!(visit_custom_ident);
+    drop!(visit_dashed_ident);
+    drop!(visit_function);
+    drop!(visit_selector);
+    drop!(visit_token);
+  }
 }
 
 impl JsVisitor {
@@ -36,11 +71,14 @@ impl JsVisitor {
     let mut types = VisitTypes::empty();
     macro_rules! get {
       ($name: literal, $t: ident) => {{
-        let res = visitor.get_named_property($name).ok();
+        let res: Option<JsFunction> = visitor.get_named_property($name).ok();
         if res.is_some() {
           types |= VisitTypes::$t;
         }
-        res
+
+        // We must create a reference so that the garbage collector doesn't destroy
+        // the function before we try to call it (in the async bundle case).
+        res.and_then(|res| env.create_reference(res).ok())
       }};
     }
 
@@ -88,6 +126,7 @@ impl<'i> Visitor<'i> for JsVisitor {
         }
 
         let js_value = self.env.to_js_value(value).unwrap();
+        let visit: JsFunction = self.env.get_reference_value_unchecked(visit).unwrap();
         let res = visit.call(None, &[js_value]).unwrap();
         let new_value: napi::Result<Option<ValueOrVec<CssRule>>> =
           self.env.from_js_value(res).map(serde_detach::detach);
@@ -212,6 +251,7 @@ impl<'i> Visitor<'i> for JsVisitor {
         let value = &selectors.0[i];
 
         let js_value = self.env.to_js_value(value).unwrap();
+        let visit: JsFunction = self.env.get_reference_value_unchecked(visit).unwrap();
         let res = visit.call(None, &[js_value]).unwrap();
         let new_value: napi::Result<Option<ValueOrVec<Selector>>> =
           self.env.from_js_value(res).map(serde_detach::detach);
@@ -256,11 +296,12 @@ impl<'i> Visitor<'i> for JsVisitor {
 fn visit<V: Serialize + Deserialize<'static>>(
   env: &Env,
   value: &mut V,
-  visit: &Option<JsFunction>,
+  visit: &Option<Ref<()>>,
   errors: &mut Vec<napi::Error>,
 ) {
   if let Some(visit) = visit {
     let js_value = env.to_js_value(value).unwrap();
+    let visit: JsFunction = env.get_reference_value_unchecked(visit).unwrap();
     let res = visit.call(None, &[js_value]).unwrap();
     let new_value: napi::Result<Option<V>> = env.from_js_value(res).map(serde_detach::detach);
     match new_value {
@@ -274,7 +315,7 @@ fn visit<V: Serialize + Deserialize<'static>>(
 fn visit_list<V: Serialize + Deserialize<'static>>(
   env: &Env,
   list: &mut Vec<V>,
-  visit: &Option<JsFunction>,
+  visit: &Option<Ref<()>>,
   errors: &mut Vec<napi::Error>,
 ) {
   if let Some(visit) = visit {
@@ -282,6 +323,7 @@ fn visit_list<V: Serialize + Deserialize<'static>>(
     while i < list.len() {
       let value = &list[i];
       let js_value = env.to_js_value(value).unwrap();
+      let visit: JsFunction = env.get_reference_value_unchecked(visit).unwrap();
       let res = visit.call(None, &[js_value]).unwrap();
       let new_value: napi::Result<Option<ValueOrVec<V>>> = env.from_js_value(res).map(serde_detach::detach);
       match new_value {

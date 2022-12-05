@@ -1,6 +1,7 @@
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
-import { transform } from '../index.mjs';
+import { bundle, bundleAsync, transform, transformStyleAttribute } from '../index.mjs';
+import path from 'path';
 
 test('px to rem', () => {
   // Similar to https://github.com/cuth/postcss-pxtorem
@@ -396,6 +397,64 @@ test('dark theme class', () => {
   });
 
   assert.equal(res.code.toString(), '@media (prefers-color-scheme:dark){html:not([theme=light]) body{background:#000}}html[theme=dark] body{background:#000}');
+});
+
+test('works with style attributes', () => {
+  let res = transformStyleAttribute({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from('height: calc(100vh - 64px)'),
+    visitor: {
+      visitLength(length) {
+        if (length.unit === 'px') {
+          return {
+            unit: 'rem',
+            value: length.value / 16
+          };
+        }
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), 'height:calc(100vh - 4rem)');
+});
+
+test('works with bundler', () => {
+  let res = bundle({
+    filename: 'tests/testdata/a.css',
+    minify: true,
+    visitor: {
+      visitLength(length) {
+        if (length.unit === 'px') {
+          return {
+            unit: 'rem',
+            value: length.value / 16
+          };
+        }
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '.b{height:calc(100vh - 4rem)}.a{width:2rem}');
+});
+
+test('works with async bundler', async () => {
+  let res = await bundleAsync({
+    filename: 'tests/testdata/a.css',
+    minify: true,
+    visitor: {
+      visitLength(length) {
+        if (length.unit === 'px') {
+          return {
+            unit: 'rem',
+            value: length.value / 16
+          };
+        }
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '.b{height:calc(100vh - 4rem)}.a{width:2rem}');
 });
 
 test.run();

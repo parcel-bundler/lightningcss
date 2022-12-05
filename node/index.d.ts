@@ -245,7 +245,8 @@ export interface TransformAttributeOptions {
    * When enabled, warnings are returned, and the invalid rule or declaration is
    * omitted from the output code.
    */
-  errorRecovery?: boolean
+  errorRecovery?: boolean,
+  visitor?: Visitor
 }
 
 export interface TransformAttributeResult {

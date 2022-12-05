@@ -19,7 +19,7 @@ use napi::{JsError, JsFunction, NapiValue};
 pub struct ThreadSafeCallContext<T: 'static> {
   pub env: Env,
   pub value: T,
-  pub callback: JsFunction,
+  pub callback: Option<JsFunction>,
 }
 
 #[repr(u8)]
@@ -215,7 +215,7 @@ unsafe extern "C" fn call_js_cb<T: 'static, R>(
   R: 'static + Send + FnMut(ThreadSafeCallContext<T>) -> Result<()>,
 {
   // env and/or callback can be null when shutting down
-  if raw_env.is_null() || js_callback.is_null() {
+  if raw_env.is_null() {
     return;
   }
 
@@ -229,7 +229,11 @@ unsafe extern "C" fn call_js_cb<T: 'static, R>(
     (ctx)(ThreadSafeCallContext {
       env: Env::from_raw(raw_env),
       value: v,
-      callback: JsFunction::from_raw(raw_env, js_callback).unwrap(), // TODO: unwrap
+      callback: if js_callback.is_null() {
+        None
+      } else {
+        Some(JsFunction::from_raw(raw_env, js_callback).unwrap()) // TODO: unwrap
+      },
     })
   });
 
