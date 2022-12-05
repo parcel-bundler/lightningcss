@@ -43,7 +43,7 @@ test('custom units', () => {
     `),
     visitor: {
       visitToken(token) {
-        if (token.type === 'token' && token.value.type === 'dimension' && token.value.value.unit.startsWith('--')) {
+        if (token.type === 'token' && token.value.type === 'dimension' && token.value.unit.startsWith('--')) {
           return {
             type: 'function',
             value: {
@@ -53,10 +53,7 @@ test('custom units', () => {
                   type: 'token',
                   value: {
                     type: 'number',
-                    value: {
-                      value: token.value.value.value,
-                      has_sign: false
-                    }
+                    value: token.value.value
                   }
                 },
                 {
@@ -70,7 +67,7 @@ test('custom units', () => {
                   type: 'var',
                   value: {
                     name: {
-                      ident: token.value.value.unit
+                      ident: token.value.unit
                     }
                   }
                 }

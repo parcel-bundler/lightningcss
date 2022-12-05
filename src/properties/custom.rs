@@ -459,40 +459,51 @@ impl<'i> TokenList<'i> {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Token<'a> {
   /// A [`<ident-token>`](https://drafts.csswg.org/css-syntax/#ident-token-diagram)
+  // #[cfg_attr(
+  //   feature = "serde",
+  //   serde(serialize_with = "serialize_value", deserialize_with = "deserialize_value")
+  // )]
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   Ident(#[cfg_attr(feature = "serde", serde(borrow))] CowArcStr<'a>),
 
   /// A [`<at-keyword-token>`](https://drafts.csswg.org/css-syntax/#at-keyword-token-diagram)
   ///
   /// The value does not include the `@` marker.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   AtKeyword(CowArcStr<'a>),
 
   /// A [`<hash-token>`](https://drafts.csswg.org/css-syntax/#hash-token-diagram) with the type flag set to "unrestricted"
   ///
   /// The value does not include the `#` marker.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   Hash(CowArcStr<'a>),
 
   /// A [`<hash-token>`](https://drafts.csswg.org/css-syntax/#hash-token-diagram) with the type flag set to "id"
   ///
   /// The value does not include the `#` marker.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   IDHash(CowArcStr<'a>), // Hash that is a valid ID selector.
 
   /// A [`<string-token>`](https://drafts.csswg.org/css-syntax/#string-token-diagram)
   ///
   /// The value does not include the quotes.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   String(CowArcStr<'a>),
 
   /// A [`<url-token>`](https://drafts.csswg.org/css-syntax/#url-token-diagram)
   ///
   /// The value does not include the `url(` `)` markers.  Note that `url( <string-token> )` is represented by a
   /// `Function` token.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   UnquotedUrl(CowArcStr<'a>),
 
   /// A `<delim-token>`
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<char>"))]
   Delim(char),
 
   /// A [`<number-token>`](https://drafts.csswg.org/css-syntax/#number-token-diagram)
@@ -500,25 +511,30 @@ pub enum Token<'a> {
     /// Whether the number had a `+` or `-` sign.
     ///
     /// This is used is some cases like the <An+B> micro syntax. (See the `parse_nth` function.)
+    #[cfg_attr(feature = "serde", serde(skip))]
     has_sign: bool,
 
     /// The value as a float
     value: f32,
 
     /// If the origin source did not include a fractional part, the value as an integer.
+    #[cfg_attr(feature = "serde", serde(skip))]
     int_value: Option<i32>,
   },
 
   /// A [`<percentage-token>`](https://drafts.csswg.org/css-syntax/#percentage-token-diagram)
   Percentage {
     /// Whether the number had a `+` or `-` sign.
+    #[cfg_attr(feature = "serde", serde(skip))]
     has_sign: bool,
 
     /// The value as a float, divided by 100 so that the nominal range is 0.0 to 1.0.
+    #[cfg_attr(feature = "serde", serde(rename = "value"))]
     unit_value: f32,
 
     /// If the origin source did not include a fractional part, the value as an integer.
     /// It is **not** divided by 100.
+    #[cfg_attr(feature = "serde", serde(skip))]
     int_value: Option<i32>,
   },
 
@@ -527,12 +543,14 @@ pub enum Token<'a> {
     /// Whether the number had a `+` or `-` sign.
     ///
     /// This is used is some cases like the <An+B> micro syntax. (See the `parse_nth` function.)
+    #[cfg_attr(feature = "serde", serde(skip))]
     has_sign: bool,
 
     /// The value as a float
     value: f32,
 
     /// If the origin source did not include a fractional part, the value as an integer.
+    #[cfg_attr(feature = "serde", serde(skip))]
     int_value: Option<i32>,
 
     /// The unit, e.g. "px" in `12px`
@@ -540,6 +558,7 @@ pub enum Token<'a> {
   },
 
   /// A [`<whitespace-token>`](https://drafts.csswg.org/css-syntax/#whitespace-token-diagram)
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<&str>"))]
   WhiteSpace(&'a str),
 
   /// A comment.
@@ -548,6 +567,7 @@ pub enum Token<'a> {
   /// But we do, because we can (borrowed &str makes it cheap).
   ///
   /// The value does not include the `/*` `*/` markers.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<&str>"))]
   Comment(&'a str),
 
   /// A `:` `<colon-token>`
@@ -575,14 +595,17 @@ pub enum Token<'a> {
   SubstringMatch,
 
   /// A `<!--` [`<CDO-token>`](https://drafts.csswg.org/css-syntax/#CDO-token-diagram)
+  #[cfg_attr(feature = "serde", serde(rename = "cdo"))]
   CDO,
 
   /// A `-->` [`<CDC-token>`](https://drafts.csswg.org/css-syntax/#CDC-token-diagram)
+  #[cfg_attr(feature = "serde", serde(rename = "cdc"))]
   CDC,
 
   /// A [`<function-token>`](https://drafts.csswg.org/css-syntax/#function-token-diagram)
   ///
   /// The value (name) does not include the `(` marker.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   Function(CowArcStr<'a>),
 
   /// A `<(-token>`
@@ -597,11 +620,13 @@ pub enum Token<'a> {
   /// A `<bad-url-token>`
   ///
   /// This token always indicates a parse error.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   BadUrl(CowArcStr<'a>),
 
   /// A `<bad-string-token>`
   ///
   /// This token always indicates a parse error.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   BadString(CowArcStr<'a>),
 
   /// A `<)-token>`
@@ -621,6 +646,33 @@ pub enum Token<'a> {
   /// When obtained from one of the `Parser::next*` methods,
   /// this token is always unmatched and indicates a parse error.
   CloseCurlyBracket,
+}
+
+#[cfg(feature = "serde")]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+struct ValueWrapper<T> {
+  value: T,
+}
+
+#[cfg(feature = "serde")]
+impl<'de, T: serde::Serialize + serde::Deserialize<'de>> ValueWrapper<T> {
+  fn serialize<S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    let wrapper = ValueWrapper { value };
+    serde::Serialize::serialize(&wrapper, serializer)
+  }
+
+  #[cfg(feature = "serde")]
+  fn deserialize<D>(deserializer: D) -> Result<T, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let v: ValueWrapper<T> = serde::Deserialize::deserialize(deserializer)?;
+    Ok(v.value)
+  }
 }
 
 impl<'a> From<&cssparser::Token<'a>> for Token<'a> {

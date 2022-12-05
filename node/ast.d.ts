@@ -5653,62 +5653,28 @@ export type Token =
     }
   | {
       type: "number";
-      value: {
-        /**
-         * Whether the number had a `+` or `-` sign.
-         *
-         * This is used is some cases like the <An+B> micro syntax. (See the `parse_nth` function.)
-         */
-        has_sign: boolean;
-        /**
-         * If the origin source did not include a fractional part, the value as an integer.
-         */
-        int_value?: number | null;
-        /**
-         * The value as a float
-         */
-        value: number;
-      };
+      /**
+       * The value as a float
+       */
+      value: number;
     }
   | {
       type: "percentage";
-      value: {
-        /**
-         * Whether the number had a `+` or `-` sign.
-         */
-        has_sign: boolean;
-        /**
-         * If the origin source did not include a fractional part, the value as an integer. It is **not** divided by 100.
-         */
-        int_value?: number | null;
-        /**
-         * The value as a float, divided by 100 so that the nominal range is 0.0 to 1.0.
-         */
-        unit_value: number;
-      };
+      /**
+       * The value as a float, divided by 100 so that the nominal range is 0.0 to 1.0.
+       */
+      value: number;
     }
   | {
       type: "dimension";
-      value: {
-        /**
-         * Whether the number had a `+` or `-` sign.
-         *
-         * This is used is some cases like the <An+B> micro syntax. (See the `parse_nth` function.)
-         */
-        has_sign: boolean;
-        /**
-         * If the origin source did not include a fractional part, the value as an integer.
-         */
-        int_value?: number | null;
-        /**
-         * The unit, e.g. "px" in `12px`
-         */
-        unit: String;
-        /**
-         * The value as a float
-         */
-        value: number;
-      };
+      /**
+       * The unit, e.g. "px" in `12px`
+       */
+      unit: String;
+      /**
+       * The value as a float
+       */
+      value: number;
     }
   | {
       type: "white-space";
@@ -5743,10 +5709,10 @@ export type Token =
       type: "substring-match";
     }
   | {
-      type: "c-d-o";
+      type: "cdo";
     }
   | {
-      type: "c-d-c";
+      type: "cdc";
     }
   | {
       type: "function";
