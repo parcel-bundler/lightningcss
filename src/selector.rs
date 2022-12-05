@@ -320,7 +320,7 @@ enum_property! {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(rename_all = "kebab-case")
+  serde(tag = "value", content = "args", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum PseudoClass<'i> {
@@ -678,7 +678,7 @@ impl<'i> PseudoClass<'i> {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(rename_all = "kebab-case")
+  serde(tag = "value", content = "args", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum PseudoElement<'i> {

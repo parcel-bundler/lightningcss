@@ -5834,14 +5834,12 @@ export type SerializedComponentFor_SelectorsAnd_PseudoClassAnd_PseudoElementAnd_
       operation?: AttrOperation | null;
       type: "attribute";
     }
-  | {
+  | ({
       type: "pseudo-class";
-      value: SerializedPseudoClassFor_SelectorsAnd_PseudoClassAnd_VendorPrefix;
-    }
-  | {
+    } & (TSPseudoClassFor_SelectorsAnd_VendorPrefix | PseudoClass))
+  | ({
       type: "pseudo-element";
-      value: SerializedPseudoElementFor_SelectorsAnd_PseudoElement;
-    }
+    } & (BuiltinPseudoElementFor_Selectors | PseudoElement))
   | {
       type: "nesting";
     };
@@ -5863,14 +5861,11 @@ export type NamespaceConstraintFor_TupleOf_StringAnd_String =
       value: [string, string];
     };
 export type ParsedCaseSensitivity =
-  | "ExplicitCaseSensitive"
-  | "AsciiCaseInsensitive"
-  | "CaseSensitive"
-  | "AsciiCaseInsensitiveIfInHtmlElementInHtmlDocument";
+  | "explicit-case-sensitive"
+  | "ascii-case-insensitive"
+  | "case-sensitive"
+  | "ascii-case-insensitive-if-in-html-element-in-html-document";
 export type AttrSelectorOperator = "equal" | "includes" | "dash-match" | "prefix" | "substring" | "suffix";
-export type SerializedPseudoClassFor_SelectorsAnd_PseudoClassAnd_VendorPrefix =
-  | TSPseudoClassFor_SelectorsAnd_VendorPrefix
-  | PseudoClass;
 export type TSPseudoClassFor_SelectorsAnd_VendorPrefix =
   | {
       selectors: Selector[];
@@ -5958,85 +5953,166 @@ export type TSPseudoClassFor_SelectorsAnd_VendorPrefix =
  * https://drafts.csswg.org/selectors-4/#structural-pseudos
  */
 export type PseudoClass =
-  | (
-      | "hover"
-      | "active"
-      | "focus"
-      | "focus-visible"
-      | "focus-within"
-      | "current"
-      | "past"
-      | "future"
-      | "playing"
-      | "paused"
-      | "seeking"
-      | "buffering"
-      | "stalled"
-      | "muted"
-      | "volume-locked"
-      | "defined"
-      | "link"
-      | "local-link"
-      | "target"
-      | "target-within"
-      | "visited"
-      | "enabled"
-      | "disabled"
-      | "default"
-      | "checked"
-      | "indeterminate"
-      | "blank"
-      | "valid"
-      | "invalid"
-      | "in-range"
-      | "out-of-range"
-      | "required"
-      | "optional"
-      | "user-valid"
-      | "user-invalid"
-    )
   | {
-      lang: String[];
+      args: String[];
+      value: "lang";
     }
   | {
-      dir: Direction;
+      args: Direction;
+      value: "dir";
     }
   | {
-      fullscreen: VendorPrefix;
+      value: "hover";
     }
   | {
-      "any-link": VendorPrefix;
+      value: "active";
     }
   | {
-      "read-only": VendorPrefix;
+      value: "focus";
     }
   | {
-      "read-write": VendorPrefix;
+      value: "focus-visible";
     }
   | {
-      "placeholder-shown": VendorPrefix;
+      value: "focus-within";
     }
   | {
-      autofill: VendorPrefix;
+      value: "current";
     }
   | {
-      local: Selector;
+      value: "past";
     }
   | {
-      global: Selector;
+      value: "future";
     }
   | {
-      "web-kit-scrollbar": WebKitScrollbarPseudoClass;
+      value: "playing";
     }
   | {
-      custom: String;
+      value: "paused";
+    }
+  | {
+      value: "seeking";
+    }
+  | {
+      value: "buffering";
+    }
+  | {
+      value: "stalled";
+    }
+  | {
+      value: "muted";
+    }
+  | {
+      value: "volume-locked";
+    }
+  | {
+      args: VendorPrefix;
+      value: "fullscreen";
+    }
+  | {
+      value: "defined";
+    }
+  | {
+      args: VendorPrefix;
+      value: "any-link";
+    }
+  | {
+      value: "link";
+    }
+  | {
+      value: "local-link";
+    }
+  | {
+      value: "target";
+    }
+  | {
+      value: "target-within";
+    }
+  | {
+      value: "visited";
+    }
+  | {
+      value: "enabled";
+    }
+  | {
+      value: "disabled";
+    }
+  | {
+      args: VendorPrefix;
+      value: "read-only";
+    }
+  | {
+      args: VendorPrefix;
+      value: "read-write";
+    }
+  | {
+      args: VendorPrefix;
+      value: "placeholder-shown";
+    }
+  | {
+      value: "default";
+    }
+  | {
+      value: "checked";
+    }
+  | {
+      value: "indeterminate";
+    }
+  | {
+      value: "blank";
+    }
+  | {
+      value: "valid";
+    }
+  | {
+      value: "invalid";
+    }
+  | {
+      value: "in-range";
+    }
+  | {
+      value: "out-of-range";
+    }
+  | {
+      value: "required";
+    }
+  | {
+      value: "optional";
+    }
+  | {
+      value: "user-valid";
+    }
+  | {
+      value: "user-invalid";
+    }
+  | {
+      args: VendorPrefix;
+      value: "autofill";
+    }
+  | {
+      args: Selector;
+      value: "local";
+    }
+  | {
+      args: Selector;
+      value: "global";
+    }
+  | {
+      args: WebKitScrollbarPseudoClass;
+      value: "web-kit-scrollbar";
+    }
+  | {
+      args: String;
+      value: "custom";
     }
   | {
       /**
        * @minItems 2
        * @maxItems 2
        */
-      "custom-function": [String, TokenOrValue[]];
+      args: [String, TokenOrValue[]];
+      value: "custom-function";
     };
 export type Direction = "ltr" | "rtl";
 /**
@@ -6054,7 +6130,6 @@ export type WebKitScrollbarPseudoClass =
   | "NoButton"
   | "CornerPresent"
   | "WindowInactive";
-export type SerializedPseudoElementFor_SelectorsAnd_PseudoElement = BuiltinPseudoElementFor_Selectors | PseudoElement;
 export type BuiltinPseudoElementFor_Selectors =
   | {
       selector: Selector;
@@ -6065,37 +6140,66 @@ export type BuiltinPseudoElementFor_Selectors =
       value: "part";
     };
 export type PseudoElement =
-  | ("after" | "before" | "first-line" | "first-letter" | "marker" | "cue" | "cue-region")
   | {
-      selection: VendorPrefix;
+      value: "after";
     }
   | {
-      placeholder: VendorPrefix;
+      value: "before";
     }
   | {
-      backdrop: VendorPrefix;
+      value: "first-line";
     }
   | {
-      "file-selector-button": VendorPrefix;
+      value: "first-letter";
     }
   | {
-      "web-kit-scrollbar": WebKitScrollbarPseudoElement;
+      args: VendorPrefix;
+      value: "selection";
     }
   | {
-      "cue-function": Selector;
+      args: VendorPrefix;
+      value: "placeholder";
     }
   | {
-      "cue-region-function": Selector;
+      value: "marker";
     }
   | {
-      custom: String;
+      args: VendorPrefix;
+      value: "backdrop";
+    }
+  | {
+      args: VendorPrefix;
+      value: "file-selector-button";
+    }
+  | {
+      args: WebKitScrollbarPseudoElement;
+      value: "web-kit-scrollbar";
+    }
+  | {
+      value: "cue";
+    }
+  | {
+      value: "cue-region";
+    }
+  | {
+      args: Selector;
+      value: "cue-function";
+    }
+  | {
+      args: Selector;
+      value: "cue-region-function";
+    }
+  | {
+      args: String;
+      value: "custom";
     }
   | {
       /**
        * @minItems 2
        * @maxItems 2
        */
-      "custom-function": [String, TokenOrValue[]];
+      args: [String, TokenOrValue[]];
+      value: "custom-function";
     };
 export type WebKitScrollbarPseudoElement =
   | "Scrollbar"
@@ -8482,7 +8586,7 @@ export interface CustomProperty {
   value: TokenOrValue[];
 }
 export interface AttrOperation {
-  case_sensitivity: ParsedCaseSensitivity;
+  caseSensitivity?: ParsedCaseSensitivity & string;
   operator: AttrSelectorOperator;
   value: string;
 }

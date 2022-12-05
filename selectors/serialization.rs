@@ -38,26 +38,22 @@ enum SerializedComponent<'i, 's, Impl: SelectorImpl<'s>, PseudoClass, PseudoElem
     name: Cow<'i, str>,
   },
   Attribute(AttrSelector<'i>),
-  PseudoClass {
-    #[serde(
-      borrow,
-      bound(
-        serialize = "PseudoClass: serde::Serialize, Impl::NonTSPseudoClass: serde::Serialize, Impl::PseudoElement: serde::Serialize, Impl::VendorPrefix: serde::Serialize, VendorPrefix: serde::Serialize",
-        deserialize = "PseudoClass: serde::Deserialize<'de>, Impl::NonTSPseudoClass: serde::Deserialize<'de>, Impl::PseudoElement: serde::Deserialize<'de>, Impl::VendorPrefix: serde::Deserialize<'de>, VendorPrefix: serde::Deserialize<'de>"
-      )
-    )]
-    value: SerializedPseudoClass<'s, Impl, PseudoClass, VendorPrefix>,
-  },
-  PseudoElement {
-    #[serde(
-      borrow,
-      bound(
-        serialize = "PseudoElement: serde::Serialize",
-        deserialize = "PseudoElement: serde::Deserialize<'de>"
-      )
-    )]
-    value: SerializedPseudoElement<'i, 's, Impl, PseudoElement>,
-  },
+  #[serde(
+    borrow,
+    bound(
+      serialize = "PseudoClass: serde::Serialize, Impl::NonTSPseudoClass: serde::Serialize, Impl::PseudoElement: serde::Serialize, Impl::VendorPrefix: serde::Serialize, VendorPrefix: serde::Serialize",
+      deserialize = "PseudoClass: serde::Deserialize<'de>, Impl::NonTSPseudoClass: serde::Deserialize<'de>, Impl::PseudoElement: serde::Deserialize<'de>, Impl::VendorPrefix: serde::Deserialize<'de>, VendorPrefix: serde::Deserialize<'de>"
+    )
+  )]
+  PseudoClass(SerializedPseudoClass<'s, Impl, PseudoClass, VendorPrefix>),
+  #[serde(
+    borrow,
+    bound(
+      serialize = "PseudoElement: serde::Serialize",
+      deserialize = "PseudoElement: serde::Deserialize<'de>"
+    )
+  )]
+  PseudoElement(SerializedPseudoElement<'i, 's, Impl, PseudoElement>),
   Nesting,
 }
 
@@ -254,11 +250,13 @@ pub struct AttrSelector<'i> {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 struct AttrOperation<'i> {
   operator: AttrSelectorOperator,
-  case_sensitivity: ParsedCaseSensitivity,
   value: Cow<'i, str>,
+  #[serde(default)]
+  case_sensitivity: ParsedCaseSensitivity,
 }
 
 impl<'i, Impl: SelectorImpl<'i>> serde::Serialize for Component<'i, Impl>
@@ -333,86 +331,76 @@ where
           }),
         },
       }),
-      Component::NonTSPseudoClass(c) => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::NonTS(c),
-      },
-      Component::Negation(s) => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::Not { selectors: s.clone() }),
-      },
-      Component::FirstChild => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::FirstChild),
-      },
-      Component::LastChild => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::LastChild),
-      },
-      Component::OnlyChild => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::OnlyChild),
-      },
-      Component::Root => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::Root),
-      },
-      Component::Empty => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::Empty),
-      },
-      Component::Scope => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::Scope),
-      },
-      Component::FirstOfType => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::FirstOfType),
-      },
-      Component::LastOfType => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::LastOfType),
-      },
-      Component::OnlyOfType => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::OnlyOfType),
-      },
-      Component::NthChild(a, b) => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::NthChild { a: *a, b: *b }),
-      },
-      Component::NthLastChild(a, b) => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::NthLastChild { a: *a, b: *b }),
-      },
-      Component::NthCol(a, b) => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::NthCol { a: *a, b: *b }),
-      },
-      Component::NthLastCol(a, b) => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::NthLastCol { a: *a, b: *b }),
-      },
-      Component::NthOfType(a, b) => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::NthOfType { a: *a, b: *b }),
-      },
-      Component::NthLastOfType(a, b) => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::NthLastOfType { a: *a, b: *b }),
-      },
-      Component::Host(s) => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::Host { selectors: s.clone() }),
-      },
-      Component::Where(s) => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::Where { selectors: s.clone() }),
-      },
-      Component::Is(s) => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::Is { selectors: s.clone() }),
-      },
-      Component::Any(v, s) => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::Any {
-          vendor_prefix: v.clone(),
-          selectors: s.clone(),
-        }),
-      },
-      Component::Has(s) => SerializedComponent::PseudoClass {
-        value: SerializedPseudoClass::TS(TSPseudoClass::Has { selectors: s.clone() }),
-      },
-      Component::PseudoElement(e) => SerializedComponent::PseudoElement {
-        value: SerializedPseudoElement::Custom(e),
-      },
-      Component::Slotted(s) => SerializedComponent::PseudoElement {
-        value: SerializedPseudoElement::Builtin(BuiltinPseudoElement::Slotted { selector: s.clone() }),
-      },
-      Component::Part(p) => SerializedComponent::PseudoElement {
-        value: SerializedPseudoElement::Builtin(BuiltinPseudoElement::Part {
+      Component::NonTSPseudoClass(c) => SerializedComponent::PseudoClass(SerializedPseudoClass::NonTS(c)),
+      Component::Negation(s) => {
+        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::Not { selectors: s.clone() }))
+      }
+      Component::FirstChild => {
+        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::FirstChild))
+      }
+      Component::LastChild => {
+        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::LastChild))
+      }
+      Component::OnlyChild => {
+        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::OnlyChild))
+      }
+      Component::Root => SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::Root)),
+      Component::Empty => SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::Empty)),
+      Component::Scope => SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::Scope)),
+      Component::FirstOfType => {
+        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::FirstOfType))
+      }
+      Component::LastOfType => {
+        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::LastOfType))
+      }
+      Component::OnlyOfType => {
+        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::OnlyOfType))
+      }
+      Component::NthChild(a, b) => {
+        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::NthChild { a: *a, b: *b }))
+      }
+      Component::NthLastChild(a, b) => {
+        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::NthLastChild { a: *a, b: *b }))
+      }
+      Component::NthCol(a, b) => {
+        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::NthCol { a: *a, b: *b }))
+      }
+      Component::NthLastCol(a, b) => {
+        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::NthLastCol { a: *a, b: *b }))
+      }
+      Component::NthOfType(a, b) => {
+        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::NthOfType { a: *a, b: *b }))
+      }
+      Component::NthLastOfType(a, b) => {
+        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::NthLastOfType { a: *a, b: *b }))
+      }
+      Component::Host(s) => {
+        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::Host { selectors: s.clone() }))
+      }
+      Component::Where(s) => {
+        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::Where { selectors: s.clone() }))
+      }
+      Component::Is(s) => {
+        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::Is { selectors: s.clone() }))
+      }
+      Component::Any(v, s) => SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::Any {
+        vendor_prefix: v.clone(),
+        selectors: s.clone(),
+      })),
+      Component::Has(s) => {
+        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::Has { selectors: s.clone() }))
+      }
+      Component::PseudoElement(e) => SerializedComponent::PseudoElement(SerializedPseudoElement::Custom(e)),
+      Component::Slotted(s) => {
+        SerializedComponent::PseudoElement(SerializedPseudoElement::Builtin(BuiltinPseudoElement::Slotted {
+          selector: s.clone(),
+        }))
+      }
+      Component::Part(p) => {
+        SerializedComponent::PseudoElement(SerializedPseudoElement::Builtin(BuiltinPseudoElement::Part {
           names: p.iter().map(|name| name.as_ref().into()).collect(),
-        }),
-      },
+        }))
+      }
       Component::Nesting => SerializedComponent::Nesting,
     };
 
@@ -501,7 +489,7 @@ where
           }
         }
       }
-      SerializedComponent::PseudoClass { value: c } => match c {
+      SerializedComponent::PseudoClass(c) => match c {
         SerializedPseudoClass::NonTS(c) => Component::NonTSPseudoClass(c),
         SerializedPseudoClass::TS(TSPseudoClass::Not { selectors }) => Component::Negation(selectors),
         SerializedPseudoClass::TS(TSPseudoClass::FirstChild) => Component::FirstChild,
@@ -528,7 +516,7 @@ where
         }) => Component::Any(vendor_prefix, selectors),
         SerializedPseudoClass::TS(TSPseudoClass::Has { selectors }) => Component::Has(selectors),
       },
-      SerializedComponent::PseudoElement { value } => match value {
+      SerializedComponent::PseudoElement(value) => match value {
         SerializedPseudoElement::Custom(e) => Component::PseudoElement(e),
         SerializedPseudoElement::Builtin(BuiltinPseudoElement::Part { names }) => {
           Component::Part(names.into_iter().map(|name| name.into()).collect())

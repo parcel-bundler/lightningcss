@@ -365,19 +365,18 @@ test('dark theme class', () => {
               for (let selector of r.value.selectors) {
                 clonedSelectors.push([
                   { type: 'type', name: 'html' },
-                  { type: 'attribute', name: 'theme', operation: { operator: 'equal', value: 'dark', case_sensitivity: 'CaseSensitive' } },
+                  { type: 'attribute', name: 'theme', operation: { operator: 'equal', value: 'dark' } },
                   { type: 'combinator', value: 'descendant' },
                   ...selector
                 ]);
                 selector.unshift(
                   { type: 'type', name: 'html' },
                   {
-                    type: 'pseudo-class', value: {
+                    type: 'pseudo-class',
                       value: 'not',
                       selectors: [
-                        [{ type: 'attribute', name: 'theme', operation: { operator: 'equal', value: 'light', case_sensitivity: 'CaseSensitive' } }]
+                        [{ type: 'attribute', name: 'theme', operation: { operator: 'equal', value: 'light' } }]
                       ]
-                    }
                   },
                   { type: 'combinator', value: 'descendant' }
                 );
