@@ -561,7 +561,7 @@ impl MediaFeatureComparison {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum MediaFeature<'i> {
@@ -574,7 +574,10 @@ pub enum MediaFeature<'i> {
     value: MediaFeatureValue<'i>,
   },
   /// A boolean feature, e.g. `(hover)`.
-  Boolean(Ident<'i>),
+  Boolean {
+    /// The name of the feature.
+    name: Ident<'i>,
+  },
   /// A range, e.g. `(width > 240px)`.
   Range {
     /// The name of the feature.
@@ -615,7 +618,7 @@ impl<'i> MediaFeature<'i> {
 
     let operator = input.try_parse(|input| consume_operation_or_colon(input, true));
     let operator = match operator {
-      Err(..) => return Ok(MediaFeature::Boolean(name)),
+      Err(..) => return Ok(MediaFeature::Boolean { name }),
       Ok(operator) => operator,
     };
 
@@ -671,7 +674,7 @@ impl<'i> ToCss for MediaFeature<'i> {
     dest.write_char('(')?;
 
     match self {
-      MediaFeature::Boolean(name) => {
+      MediaFeature::Boolean { name } => {
         name.to_css(dest)?;
       }
       MediaFeature::Plain { name, value } => {
@@ -918,7 +921,7 @@ fn process_condition<'i>(
       });
       return res;
     }
-    MediaCondition::Feature(MediaFeature::Boolean(name)) => {
+    MediaCondition::Feature(MediaFeature::Boolean { name }) => {
       if !name.starts_with("--") {
         return Ok(true);
       }

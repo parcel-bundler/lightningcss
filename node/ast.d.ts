@@ -117,63 +117,60 @@ export type MediaCondition =
  */
 export type MediaFeature =
   | {
+      /**
+       * The name of the feature.
+       */
+      name: String;
       type: "plain";
-      value: {
-        /**
-         * The name of the feature.
-         */
-        name: String;
-        /**
-         * The feature value.
-         */
-        value: MediaFeatureValue;
-      };
+      /**
+       * The feature value.
+       */
+      value: MediaFeatureValue;
     }
   | {
+      /**
+       * The name of the feature.
+       */
+      name: String;
       type: "boolean";
-      value: String;
     }
   | {
+      /**
+       * The name of the feature.
+       */
+      name: String;
+      /**
+       * A comparator.
+       */
+      operator: MediaFeatureComparison;
       type: "range";
-      value: {
-        /**
-         * The name of the feature.
-         */
-        name: String;
-        /**
-         * A comparator.
-         */
-        operator: MediaFeatureComparison;
-        /**
-         * The feature value.
-         */
-        value: MediaFeatureValue;
-      };
+      /**
+       * The feature value.
+       */
+      value: MediaFeatureValue;
     }
   | {
+      /**
+       * The end value.
+       */
+      end: MediaFeatureValue;
+      /**
+       * A comparator for the end value.
+       */
+      end_operator: MediaFeatureComparison;
+      /**
+       * The name of the feature.
+       */
+      name: String;
+      /**
+       * A start value.
+       */
+      start: MediaFeatureValue;
+      /**
+       * A comparator for the start value.
+       */
+      start_operator: MediaFeatureComparison;
       type: "interval";
-      value: {
-        /**
-         * The end value.
-         */
-        end: MediaFeatureValue;
-        /**
-         * A comparator for the end value.
-         */
-        end_operator: MediaFeatureComparison;
-        /**
-         * The name of the feature.
-         */
-        name: String;
-        /**
-         * A start value.
-         */
-        start: MediaFeatureValue;
-        /**
-         * A comparator for the start value.
-         */
-        start_operator: MediaFeatureComparison;
-      };
     };
 export type String = string;
 /**
