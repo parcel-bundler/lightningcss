@@ -24,6 +24,9 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::visitor::Visit;
 use cssparser::*;
 
+#[cfg(feature = "serde")]
+use crate::serialization::ValueWrapper;
+
 /// A CSS custom property, representing any unknown property.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -650,33 +653,6 @@ pub enum Token<'a> {
   /// When obtained from one of the `Parser::next*` methods,
   /// this token is always unmatched and indicates a parse error.
   CloseCurlyBracket,
-}
-
-#[cfg(feature = "serde")]
-#[derive(serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
-struct ValueWrapper<T> {
-  value: T,
-}
-
-#[cfg(feature = "serde")]
-impl<'de, T: serde::Serialize + serde::Deserialize<'de>> ValueWrapper<T> {
-  fn serialize<S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: serde::Serializer,
-  {
-    let wrapper = ValueWrapper { value };
-    serde::Serialize::serialize(&wrapper, serializer)
-  }
-
-  #[cfg(feature = "serde")]
-  fn deserialize<D>(deserializer: D) -> Result<T, D::Error>
-  where
-    D: serde::Deserializer<'de>,
-  {
-    let v: ValueWrapper<T> = serde::Deserialize::deserialize(deserializer)?;
-    Ok(v.value)
-  }
 }
 
 impl<'a> From<&cssparser::Token<'a>> for Token<'a> {

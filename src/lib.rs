@@ -39,6 +39,9 @@ pub mod values;
 pub mod vendor_prefix;
 pub mod visitor;
 
+#[cfg(feature = "serde")]
+mod serialization;
+
 #[cfg(test)]
 mod tests {
   use crate::css_modules::{CssModuleExport, CssModuleExports, CssModuleReference, CssModuleReferences};
@@ -6717,8 +6720,14 @@ mod tests {
     );
     minify_test("@media { .foo { color: chartreuse }}", ".foo{color:#7fff00}");
     minify_test("@media all { .foo { color: chartreuse }}", ".foo{color:#7fff00}");
-    minify_test("@media not (((color) or (hover))) { .foo { color: chartreuse }}", "@media not ((color) or (hover)){.foo{color:#7fff00}}");
-    minify_test("@media (hover) and ((color) and (test)) { .foo { color: chartreuse }}", "@media (hover) and (color) and (test){.foo{color:#7fff00}}");
+    minify_test(
+      "@media not (((color) or (hover))) { .foo { color: chartreuse }}",
+      "@media not ((color) or (hover)){.foo{color:#7fff00}}",
+    );
+    minify_test(
+      "@media (hover) and ((color) and (test)) { .foo { color: chartreuse }}",
+      "@media (hover) and (color) and (test){.foo{color:#7fff00}}",
+    );
 
     prefix_test(
       r#"

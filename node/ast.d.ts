@@ -105,12 +105,15 @@ export type MediaCondition =
       value: MediaCondition;
     }
   | {
-      type: "operation";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * The conditions for the operator.
        */
-      value: [MediaCondition[], Operator];
+      conditions: MediaCondition[];
+      /**
+       * The operator for the conditions.
+       */
+      operator: Operator;
+      type: "operation";
     };
 /**
  * A [media feature](https://drafts.csswg.org/mediaqueries/#typedef-media-feature)
@@ -537,36 +540,12 @@ export type Ratio = [number, number];
 /**
  * A [comparator](https://drafts.csswg.org/mediaqueries/#typedef-mf-comparison) within a media query.
  */
-export type MediaFeatureComparison =
-  | {
-      type: "equal";
-    }
-  | {
-      type: "greater-than";
-    }
-  | {
-      type: "greater-than-equal";
-    }
-  | {
-      type: "less-than";
-    }
-  | {
-      type: "less-than-equal";
-    };
+export type MediaFeatureComparison = "equal" | "greater-than" | "greater-than-equal" | "less-than" | "less-than-equal";
 /**
  * A binary `and` or `or` operator.
  */
 export type Operator = "and" | "or";
-/**
- * A [media type](https://drafts.csswg.org/mediaqueries/#media-types) within a media query.
- */
-export type MediaType =
-  | "all"
-  | "print"
-  | "screen"
-  | {
-      custom: String;
-    };
+export type MediaType = string;
 /**
  * A [media query qualifier](https://drafts.csswg.org/mediaqueries/#mq-prefix).
  */
