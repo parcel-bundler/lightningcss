@@ -2366,49 +2366,145 @@ export type Image =
  */
 export type Gradient =
   | {
+      /**
+       * The direction of the gradient.
+       */
+      direction: LineDirection;
+      /**
+       * The color stops and transition hints for the gradient.
+       */
+      items: GradientItemFor_DimensionPercentageFor_LengthValue[];
       type: "linear";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * The vendor prefixes for the gradient.
        */
-      value: [LinearGradient, VendorPrefix];
+      vendorPrefix: VendorPrefix;
     }
   | {
+      /**
+       * The direction of the gradient.
+       */
+      direction: LineDirection;
+      /**
+       * The color stops and transition hints for the gradient.
+       */
+      items: GradientItemFor_DimensionPercentageFor_LengthValue[];
       type: "repeating-linear";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * The vendor prefixes for the gradient.
        */
-      value: [LinearGradient, VendorPrefix];
+      vendorPrefix: VendorPrefix;
     }
   | {
+      /**
+       * The color stops and transition hints for the gradient.
+       */
+      items: GradientItemFor_DimensionPercentageFor_LengthValue[];
+      /**
+       * The position of the gradient.
+       */
+      position: Position;
+      /**
+       * The shape of the gradient.
+       */
+      shape: EndingShape;
       type: "radial";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * The vendor prefixes for the gradient.
        */
-      value: [RadialGradient, VendorPrefix];
+      vendorPrefix: VendorPrefix;
     }
   | {
+      /**
+       * The color stops and transition hints for the gradient.
+       */
+      items: GradientItemFor_DimensionPercentageFor_LengthValue[];
+      /**
+       * The position of the gradient.
+       */
+      position: Position;
+      /**
+       * The shape of the gradient.
+       */
+      shape: EndingShape;
       type: "repeating-radial";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * The vendor prefixes for the gradient.
        */
-      value: [RadialGradient, VendorPrefix];
+      vendorPrefix: VendorPrefix;
     }
   | {
+      /**
+       * The angle of the gradient.
+       */
+      angle: Angle;
+      /**
+       * The color stops and transition hints for the gradient.
+       */
+      items: GradientItemFor_DimensionPercentageFor_Angle[];
+      /**
+       * The position of the gradient.
+       */
+      position: Position;
       type: "conic";
-      value: ConicGradient;
     }
   | {
+      /**
+       * The angle of the gradient.
+       */
+      angle: Angle;
+      /**
+       * The color stops and transition hints for the gradient.
+       */
+      items: GradientItemFor_DimensionPercentageFor_Angle[];
+      /**
+       * The position of the gradient.
+       */
+      position: Position;
       type: "repeating-conic";
-      value: ConicGradient;
     }
-  | {
-      type: "web-kit-gradient";
-      value: WebKitGradient;
-    };
+  | (
+      | {
+          type: "webkit-gradient";
+          /**
+           * The starting point of the gradient.
+           */
+          from: WebKitGradientPoint;
+          kind: "linear";
+          /**
+           * The color stops in the gradient.
+           */
+          stops: WebKitColorStop[];
+          /**
+           * The ending point of the gradient.
+           */
+          to: WebKitGradientPoint;
+        }
+      | {
+          type: "webkit-gradient";
+          /**
+           * The starting point of the gradient.
+           */
+          from: WebKitGradientPoint;
+          kind: "radial";
+          /**
+           * The starting radius of the gradient.
+           */
+          r0: number;
+          /**
+           * The ending radius of the gradient.
+           */
+          r1: number;
+          /**
+           * The color stops in the gradient.
+           */
+          stops: WebKitColorStop[];
+          /**
+           * The ending point of the gradient.
+           */
+          to: WebKitGradientPoint;
+        }
+    );
 /**
  * The direction of a CSS `linear-gradient()`.
  *
@@ -2428,12 +2524,15 @@ export type LineDirection =
       value: VerticalPositionKeyword;
     }
   | {
+      /**
+       * A horizontal position keyword, e.g. `left` or `right.
+       */
+      horizontal: HorizontalPositionKeyword;
       type: "corner";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * A vertical posision keyword, e.g. `top` or `bottom`.
        */
-      value: [HorizontalPositionKeyword, VerticalPositionKeyword];
+      vertical: VerticalPositionKeyword;
     };
 /**
  * A CSS [`<angle>`](https://www.w3.org/TR/css-values-4/#angles) value.
@@ -2472,8 +2571,15 @@ export type VerticalPositionKeyword = "top" | "bottom";
  */
 export type GradientItemFor_DimensionPercentageFor_LengthValue =
   | {
+      /**
+       * The color of the color stop.
+       */
+      color: CssColor;
+      /**
+       * The position of the color stop.
+       */
+      position?: DimensionPercentageFor_LengthValue | null;
       type: "color-stop";
-      value: ColorStopFor_DimensionPercentageFor_LengthValue;
     }
   | {
       type: "hint";
@@ -2700,8 +2806,15 @@ export type Ellipse =
  */
 export type GradientItemFor_DimensionPercentageFor_Angle =
   | {
+      /**
+       * The color of the color stop.
+       */
+      color: CssColor;
+      /**
+       * The position of the color stop.
+       */
+      position?: DimensionPercentageFor_Angle | null;
       type: "color-stop";
-      value: ColorStopFor_DimensionPercentageFor_Angle;
     }
   | {
       type: "hint";
@@ -2824,52 +2937,6 @@ export type MathFunctionFor_DimensionPercentageFor_Angle =
   | {
       type: "hypot";
       value: CalcFor_DimensionPercentageFor_Angle[];
-    };
-/**
- * A legacy `-webkit-gradient()`.
- */
-export type WebKitGradient =
-  | {
-      type: "linear";
-      value: {
-        /**
-         * The starting point of the gradient.
-         */
-        from: WebKitGradientPoint;
-        /**
-         * The color stops in the gradient.
-         */
-        stops: WebKitColorStop[];
-        /**
-         * The ending point of the gradient.
-         */
-        to: WebKitGradientPoint;
-      };
-    }
-  | {
-      type: "radial";
-      value: {
-        /**
-         * The starting point of the gradient.
-         */
-        from: WebKitGradientPoint;
-        /**
-         * The starting radius of the gradient.
-         */
-        r0: number;
-        /**
-         * The ending radius of the gradient.
-         */
-        r1: number;
-        /**
-         * The color stops in the gradient.
-         */
-        stops: WebKitColorStop[];
-        /**
-         * The ending point of the gradient.
-         */
-        to: WebKitGradientPoint;
-      };
     };
 /**
  * A keyword or number within a [WebKitGradientPoint](WebKitGradientPoint).
@@ -6928,51 +6995,6 @@ export interface Url {
   url: String;
 }
 /**
- * A CSS [`linear-gradient()`](https://www.w3.org/TR/css-images-3/#linear-gradients) or `repeating-linear-gradient()`.
- */
-export interface LinearGradient {
-  /**
-   * The direction of the gradient.
-   */
-  direction: LineDirection;
-  /**
-   * The color stops and transition hints for the gradient.
-   */
-  items: GradientItemFor_DimensionPercentageFor_LengthValue[];
-}
-/**
- * A [`<color-stop>`](https://www.w3.org/TR/css-images-4/#color-stop-syntax) within a gradient.
- *
- * This type is generic, and may be either a [LengthPercentage](super::length::LengthPercentage) or [Angle](super::angle::Angle) depending on what type of gradient it is within.
- */
-export interface ColorStopFor_DimensionPercentageFor_LengthValue {
-  /**
-   * The color of the color stop.
-   */
-  color: CssColor;
-  /**
-   * The position of the color stop.
-   */
-  position?: DimensionPercentageFor_LengthValue | null;
-}
-/**
- * A CSS [`radial-gradient()`](https://www.w3.org/TR/css-images-3/#radial-gradients) or `repeating-radial-gradient()`.
- */
-export interface RadialGradient {
-  /**
-   * The color stops and transition hints for the gradient.
-   */
-  items: GradientItemFor_DimensionPercentageFor_LengthValue[];
-  /**
-   * The position of the gradient.
-   */
-  position: Position;
-  /**
-   * The shape of the gradient.
-   */
-  shape: EndingShape;
-}
-/**
  * A CSS [`<position>`](https://www.w3.org/TR/css3-values/#position) value, as used in the `background-position` property, gradients, masks, etc.
  */
 export interface Position {
@@ -6984,38 +7006,6 @@ export interface Position {
    * The y-position.
    */
   y: PositionComponentFor_VerticalPositionKeyword;
-}
-/**
- * A CSS [`conic-gradient()`](https://www.w3.org/TR/css-images-4/#conic-gradients) or `repeating-conic-gradient()`.
- */
-export interface ConicGradient {
-  /**
-   * The angle of the gradient.
-   */
-  angle: Angle;
-  /**
-   * The color stops and transition hints for the gradient.
-   */
-  items: GradientItemFor_DimensionPercentageFor_Angle[];
-  /**
-   * The position of the gradient.
-   */
-  position: Position;
-}
-/**
- * A [`<color-stop>`](https://www.w3.org/TR/css-images-4/#color-stop-syntax) within a gradient.
- *
- * This type is generic, and may be either a [LengthPercentage](super::length::LengthPercentage) or [Angle](super::angle::Angle) depending on what type of gradient it is within.
- */
-export interface ColorStopFor_DimensionPercentageFor_Angle {
-  /**
-   * The color of the color stop.
-   */
-  color: CssColor;
-  /**
-   * The position of the color stop.
-   */
-  position?: DimensionPercentageFor_Angle | null;
 }
 /**
  * An x/y position within a legacy `-webkit-gradient()`.

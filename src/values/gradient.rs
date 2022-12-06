@@ -18,28 +18,32 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::visitor::Visit;
 use cssparser::*;
 
+#[cfg(feature = "serde")]
+use crate::serialization::ValueWrapper;
+
 /// A CSS [`<gradient>`](https://www.w3.org/TR/css-images-3/#gradients) value.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Gradient {
   /// A `linear-gradient()`, and its vendor prefix.
-  Linear(LinearGradient, VendorPrefix),
+  Linear(LinearGradient),
   /// A `repeating-linear-gradient()`, and its vendor prefix.
-  RepeatingLinear(LinearGradient, VendorPrefix),
+  RepeatingLinear(LinearGradient),
   /// A `radial-gradient()`, and its vendor prefix.
-  Radial(RadialGradient, VendorPrefix),
+  Radial(RadialGradient),
   /// A `repeating-radial-gradient`, and its vendor prefix.
-  RepeatingRadial(RadialGradient, VendorPrefix),
+  RepeatingRadial(RadialGradient),
   /// A `conic-gradient()`.
   Conic(ConicGradient),
   /// A `repeating-conic-gradient()`.
   RepeatingConic(ConicGradient),
   /// A legacy `-webkit-gradient()`.
+  #[cfg_attr(feature = "serde", serde(rename = "webkit-gradient"))]
   WebKitGradient(WebKitGradient),
 }
 
@@ -47,10 +51,10 @@ impl Gradient {
   /// Returns the vendor prefix of the gradient.
   pub fn get_vendor_prefix(&self) -> VendorPrefix {
     match self {
-      Gradient::Linear(_, prefix)
-      | Gradient::RepeatingLinear(_, prefix)
-      | Gradient::Radial(_, prefix)
-      | Gradient::RepeatingRadial(_, prefix) => *prefix,
+      Gradient::Linear(LinearGradient { vendor_prefix, .. })
+      | Gradient::RepeatingLinear(LinearGradient { vendor_prefix, .. })
+      | Gradient::Radial(RadialGradient { vendor_prefix, .. })
+      | Gradient::RepeatingRadial(RadialGradient { vendor_prefix, .. }) => *vendor_prefix,
       Gradient::WebKitGradient(_) => VendorPrefix::WebKit,
       _ => VendorPrefix::None,
     }
@@ -59,20 +63,20 @@ impl Gradient {
   /// Returns the vendor prefixes needed for the given browser targets.
   pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
     macro_rules! get_prefixes {
-      ($feature: ident, $prefix: ident) => {
-        if *$prefix == VendorPrefix::None {
+      ($feature: ident, $prefix: expr) => {
+        if $prefix == VendorPrefix::None {
           Feature::$feature.prefixes_for(targets)
         } else {
-          *$prefix
+          $prefix
         }
       };
     }
 
     match self {
-      Gradient::Linear(_, prefix) => get_prefixes!(LinearGradient, prefix),
-      Gradient::RepeatingLinear(_, prefix) => get_prefixes!(RepeatingLinearGradient, prefix),
-      Gradient::Radial(_, prefix) => get_prefixes!(RadialGradient, prefix),
-      Gradient::RepeatingRadial(_, prefix) => get_prefixes!(RepeatingRadialGradient, prefix),
+      Gradient::Linear(linear) => get_prefixes!(LinearGradient, linear.vendor_prefix),
+      Gradient::RepeatingLinear(linear) => get_prefixes!(RepeatingLinearGradient, linear.vendor_prefix),
+      Gradient::Radial(radial) => get_prefixes!(RadialGradient, radial.vendor_prefix),
+      Gradient::RepeatingRadial(radial) => get_prefixes!(RepeatingRadialGradient, radial.vendor_prefix),
       _ => VendorPrefix::None,
     }
   }
@@ -80,10 +84,22 @@ impl Gradient {
   /// Returns a copy of the gradient with the given vendor prefix.
   pub fn get_prefixed(&self, prefix: VendorPrefix) -> Gradient {
     match self {
-      Gradient::Linear(linear, _) => Gradient::Linear(linear.clone(), prefix),
-      Gradient::RepeatingLinear(linear, _) => Gradient::RepeatingLinear(linear.clone(), prefix),
-      Gradient::Radial(radial, _) => Gradient::Radial(radial.clone(), prefix),
-      Gradient::RepeatingRadial(radial, _) => Gradient::RepeatingRadial(radial.clone(), prefix),
+      Gradient::Linear(linear) => Gradient::Linear(LinearGradient {
+        vendor_prefix: prefix,
+        ..linear.clone()
+      }),
+      Gradient::RepeatingLinear(linear) => Gradient::RepeatingLinear(LinearGradient {
+        vendor_prefix: prefix,
+        ..linear.clone()
+      }),
+      Gradient::Radial(radial) => Gradient::Radial(RadialGradient {
+        vendor_prefix: prefix,
+        ..radial.clone()
+      }),
+      Gradient::RepeatingRadial(radial) => Gradient::RepeatingRadial(RadialGradient {
+        vendor_prefix: prefix,
+        ..radial.clone()
+      }),
       _ => self.clone(),
     }
   }
@@ -98,10 +114,10 @@ impl Gradient {
   /// Returns the color fallback types needed for the given browser targets.
   pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
     match self {
-      Gradient::Linear(LinearGradient { items, .. }, _)
-      | Gradient::Radial(RadialGradient { items, .. }, _)
-      | Gradient::RepeatingLinear(LinearGradient { items, .. }, _)
-      | Gradient::RepeatingRadial(RadialGradient { items, .. }, _) => {
+      Gradient::Linear(LinearGradient { items, .. })
+      | Gradient::Radial(RadialGradient { items, .. })
+      | Gradient::RepeatingLinear(LinearGradient { items, .. })
+      | Gradient::RepeatingRadial(RadialGradient { items, .. }) => {
         let mut fallbacks = ColorFallbackKind::empty();
         for item in items {
           fallbacks |= item.get_necessary_fallbacks(targets)
@@ -122,13 +138,12 @@ impl Gradient {
   /// Returns a fallback gradient for the given color fallback type.
   pub fn get_fallback(&self, kind: ColorFallbackKind) -> Gradient {
     match self {
-      Gradient::Linear(g, prefixes) | Gradient::RepeatingLinear(g, prefixes) => {
-        Gradient::Linear(g.get_fallback(kind), *prefixes)
-      }
-      Gradient::Radial(g, prefixes) | Gradient::RepeatingRadial(g, prefixes) => {
-        Gradient::Radial(g.get_fallback(kind), *prefixes)
-      }
-      Gradient::Conic(g) | Gradient::RepeatingConic(g) => Gradient::Conic(g.get_fallback(kind)),
+      Gradient::Linear(g) => Gradient::Linear(g.get_fallback(kind)),
+      Gradient::RepeatingLinear(g) => Gradient::RepeatingLinear(g.get_fallback(kind)),
+      Gradient::Radial(g) => Gradient::Radial(g.get_fallback(kind)),
+      Gradient::RepeatingRadial(g) => Gradient::RepeatingRadial(g.get_fallback(kind)),
+      Gradient::Conic(g) => Gradient::Conic(g.get_fallback(kind)),
+      Gradient::RepeatingConic(g) => Gradient::RepeatingConic(g.get_fallback(kind)),
       Gradient::WebKitGradient(g) => Gradient::WebKitGradient(g.get_fallback(kind)),
     }
   }
@@ -140,24 +155,24 @@ impl<'i> Parse<'i> for Gradient {
     let func = input.expect_function()?.clone();
     input.parse_nested_block(|input| {
       match_ignore_ascii_case! { &func,
-        "linear-gradient" => Ok(Gradient::Linear(LinearGradient::parse(input, false)?, VendorPrefix::None)),
-        "repeating-linear-gradient" => Ok(Gradient::RepeatingLinear(LinearGradient::parse(input, false)?, VendorPrefix::None)),
-        "radial-gradient" => Ok(Gradient::Radial(RadialGradient::parse(input)?, VendorPrefix::None)),
-        "repeating-radial-gradient" => Ok(Gradient::RepeatingRadial(RadialGradient::parse(input)?, VendorPrefix::None)),
+        "linear-gradient" => Ok(Gradient::Linear(LinearGradient::parse(input, VendorPrefix::None)?)),
+        "repeating-linear-gradient" => Ok(Gradient::RepeatingLinear(LinearGradient::parse(input, VendorPrefix::None)?)),
+        "radial-gradient" => Ok(Gradient::Radial(RadialGradient::parse(input, VendorPrefix::None)?)),
+        "repeating-radial-gradient" => Ok(Gradient::RepeatingRadial(RadialGradient::parse(input, VendorPrefix::None)?)),
         "conic-gradient" => Ok(Gradient::Conic(ConicGradient::parse(input)?)),
         "repeating-conic-gradient" => Ok(Gradient::RepeatingConic(ConicGradient::parse(input)?)),
-        "-webkit-linear-gradient" => Ok(Gradient::Linear(LinearGradient::parse(input, true)?, VendorPrefix::WebKit)),
-        "-webkit-repeating-linear-gradient" => Ok(Gradient::RepeatingLinear(LinearGradient::parse(input, true)?, VendorPrefix::WebKit)),
-        "-webkit-radial-gradient" => Ok(Gradient::Radial(RadialGradient::parse(input)?, VendorPrefix::WebKit)),
-        "-webkit-repeating-radial-gradient" => Ok(Gradient::RepeatingRadial(RadialGradient::parse(input)?, VendorPrefix::WebKit)),
-        "-moz-linear-gradient" => Ok(Gradient::Linear(LinearGradient::parse(input, true)?, VendorPrefix::Moz)),
-        "-moz-repeating-linear-gradient" => Ok(Gradient::RepeatingLinear(LinearGradient::parse(input, true)?, VendorPrefix::Moz)),
-        "-moz-radial-gradient" => Ok(Gradient::Radial(RadialGradient::parse(input)?, VendorPrefix::Moz)),
-        "-moz-repeating-radial-gradient" => Ok(Gradient::RepeatingRadial(RadialGradient::parse(input)?, VendorPrefix::Moz)),
-        "-o-linear-gradient" => Ok(Gradient::Linear(LinearGradient::parse(input, true)?, VendorPrefix::O)),
-        "-o-repeating-linear-gradient" => Ok(Gradient::RepeatingLinear(LinearGradient::parse(input, true)?, VendorPrefix::O)),
-        "-o-radial-gradient" => Ok(Gradient::Radial(RadialGradient::parse(input)?, VendorPrefix::O)),
-        "-o-repeating-radial-gradient" => Ok(Gradient::RepeatingRadial(RadialGradient::parse(input)?, VendorPrefix::O)),
+        "-webkit-linear-gradient" => Ok(Gradient::Linear(LinearGradient::parse(input, VendorPrefix::WebKit)?)),
+        "-webkit-repeating-linear-gradient" => Ok(Gradient::RepeatingLinear(LinearGradient::parse(input, VendorPrefix::WebKit)?)),
+        "-webkit-radial-gradient" => Ok(Gradient::Radial(RadialGradient::parse(input, VendorPrefix::WebKit)?)),
+        "-webkit-repeating-radial-gradient" => Ok(Gradient::RepeatingRadial(RadialGradient::parse(input, VendorPrefix::WebKit)?)),
+        "-moz-linear-gradient" => Ok(Gradient::Linear(LinearGradient::parse(input, VendorPrefix::Moz)?)),
+        "-moz-repeating-linear-gradient" => Ok(Gradient::RepeatingLinear(LinearGradient::parse(input, VendorPrefix::Moz)?)),
+        "-moz-radial-gradient" => Ok(Gradient::Radial(RadialGradient::parse(input, VendorPrefix::Moz)?)),
+        "-moz-repeating-radial-gradient" => Ok(Gradient::RepeatingRadial(RadialGradient::parse(input, VendorPrefix::Moz)?)),
+        "-o-linear-gradient" => Ok(Gradient::Linear(LinearGradient::parse(input, VendorPrefix::O)?)),
+        "-o-repeating-linear-gradient" => Ok(Gradient::RepeatingLinear(LinearGradient::parse(input, VendorPrefix::O)?)),
+        "-o-radial-gradient" => Ok(Gradient::Radial(RadialGradient::parse(input, VendorPrefix::O)?)),
+        "-o-repeating-radial-gradient" => Ok(Gradient::RepeatingRadial(RadialGradient::parse(input, VendorPrefix::O)?)),
         "-webkit-gradient" => Ok(Gradient::WebKitGradient(WebKitGradient::parse(input)?)),
         _ => Err(location.new_unexpected_token_error(cssparser::Token::Ident(func.clone())))
       }
@@ -171,10 +186,10 @@ impl ToCss for Gradient {
     W: std::fmt::Write,
   {
     let (f, prefix) = match self {
-      Gradient::Linear(_, prefix) => ("linear-gradient(", Some(prefix)),
-      Gradient::RepeatingLinear(_, prefix) => ("repeating-linear-gradient(", Some(prefix)),
-      Gradient::Radial(_, prefix) => ("radial-gradient(", Some(prefix)),
-      Gradient::RepeatingRadial(_, prefix) => ("repeating-radial-gradient(", Some(prefix)),
+      Gradient::Linear(g) => ("linear-gradient(", Some(g.vendor_prefix)),
+      Gradient::RepeatingLinear(g) => ("repeating-linear-gradient(", Some(g.vendor_prefix)),
+      Gradient::Radial(g) => ("radial-gradient(", Some(g.vendor_prefix)),
+      Gradient::RepeatingRadial(g) => ("repeating-radial-gradient(", Some(g.vendor_prefix)),
       Gradient::Conic(_) => ("conic-gradient(", None),
       Gradient::RepeatingConic(_) => ("repeating-conic-gradient(", None),
       Gradient::WebKitGradient(_) => ("-webkit-gradient(", None),
@@ -187,10 +202,10 @@ impl ToCss for Gradient {
     dest.write_str(f)?;
 
     match self {
-      Gradient::Linear(linear, prefix) | Gradient::RepeatingLinear(linear, prefix) => {
-        linear.to_css(dest, *prefix != VendorPrefix::None)?
+      Gradient::Linear(linear) | Gradient::RepeatingLinear(linear) => {
+        linear.to_css(dest, linear.vendor_prefix != VendorPrefix::None)?
       }
-      Gradient::Radial(radial, _) | Gradient::RepeatingRadial(radial, _) => radial.to_css(dest)?,
+      Gradient::Radial(radial) | Gradient::RepeatingRadial(radial) => radial.to_css(dest)?,
       Gradient::Conic(conic) | Gradient::RepeatingConic(conic) => conic.to_css(dest)?,
       Gradient::WebKitGradient(g) => g.to_css(dest)?,
     }
@@ -201,9 +216,15 @@ impl ToCss for Gradient {
 
 /// A CSS [`linear-gradient()`](https://www.w3.org/TR/css-images-3/#linear-gradients) or `repeating-linear-gradient()`.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct LinearGradient {
+  /// The vendor prefixes for the gradient.
+  pub vendor_prefix: VendorPrefix,
   /// The direction of the gradient.
   pub direction: LineDirection,
   /// The color stops and transition hints for the gradient.
@@ -213,16 +234,22 @@ pub struct LinearGradient {
 impl LinearGradient {
   fn parse<'i, 't>(
     input: &mut Parser<'i, 't>,
-    is_prefixed: bool,
+    vendor_prefix: VendorPrefix,
   ) -> Result<LinearGradient, ParseError<'i, ParserError<'i>>> {
-    let direction = if let Ok(direction) = input.try_parse(|input| LineDirection::parse(input, is_prefixed)) {
+    let direction = if let Ok(direction) =
+      input.try_parse(|input| LineDirection::parse(input, vendor_prefix != VendorPrefix::None))
+    {
       input.expect_comma()?;
       direction
     } else {
       LineDirection::Vertical(VerticalPositionKeyword::Bottom)
     };
     let items = parse_items(input)?;
-    Ok(LinearGradient { direction, items })
+    Ok(LinearGradient {
+      direction,
+      items,
+      vendor_prefix,
+    })
   }
 
   fn to_css<W>(&self, dest: &mut Printer<W>, is_prefixed: bool) -> Result<(), PrinterError>
@@ -293,15 +320,22 @@ impl LinearGradient {
     LinearGradient {
       direction: self.direction.clone(),
       items: self.items.iter().map(|item| item.get_fallback(kind)).collect(),
+      vendor_prefix: self.vendor_prefix,
     }
   }
 }
 
 /// A CSS [`radial-gradient()`](https://www.w3.org/TR/css-images-3/#radial-gradients) or `repeating-radial-gradient()`.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct RadialGradient {
+  /// The vendor prefixes for the gradient.
+  pub vendor_prefix: VendorPrefix,
   /// The shape of the gradient.
   pub shape: EndingShape,
   /// The position of the gradient.
@@ -310,8 +344,11 @@ pub struct RadialGradient {
   pub items: Vec<GradientItem<LengthPercentage>>,
 }
 
-impl<'i> Parse<'i> for RadialGradient {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<RadialGradient, ParseError<'i, ParserError<'i>>> {
+impl<'i> RadialGradient {
+  fn parse<'t>(
+    input: &mut Parser<'i, 't>,
+    vendor_prefix: VendorPrefix,
+  ) -> Result<RadialGradient, ParseError<'i, ParserError<'i>>> {
     let shape = input.try_parse(EndingShape::parse).ok();
     let position = input
       .try_parse(|input| {
@@ -329,6 +366,7 @@ impl<'i> Parse<'i> for RadialGradient {
       shape: shape.unwrap_or_default(),
       position: position.unwrap_or(Position::center()),
       items,
+      vendor_prefix,
     })
   }
 }
@@ -363,6 +401,7 @@ impl RadialGradient {
       shape: self.shape.clone(),
       position: self.position.clone(),
       items: self.items.iter().map(|item| item.get_fallback(kind)).collect(),
+      vendor_prefix: self.vendor_prefix,
     }
   }
 }
@@ -374,18 +413,26 @@ impl RadialGradient {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum LineDirection {
   /// An angle.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Angle>"))]
   Angle(Angle),
   /// A horizontal position keyword, e.g. `left` or `right.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<HorizontalPositionKeyword>"))]
   Horizontal(HorizontalPositionKeyword),
   /// A vertical posision keyword, e.g. `top` or `bottom`.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<VerticalPositionKeyword>"))]
   Vertical(VerticalPositionKeyword),
   /// A corner, e.g. `bottom left` or `top right`.
-  Corner(HorizontalPositionKeyword, VerticalPositionKeyword),
+  Corner {
+    /// A horizontal position keyword, e.g. `left` or `right.
+    horizontal: HorizontalPositionKeyword,
+    /// A vertical posision keyword, e.g. `top` or `bottom`.
+    vertical: VerticalPositionKeyword,
+  },
 }
 
 impl LineDirection {
@@ -405,14 +452,20 @@ impl LineDirection {
 
     if let Ok(x) = input.try_parse(HorizontalPositionKeyword::parse) {
       if let Ok(y) = input.try_parse(VerticalPositionKeyword::parse) {
-        return Ok(LineDirection::Corner(x, y));
+        return Ok(LineDirection::Corner {
+          horizontal: x,
+          vertical: y,
+        });
       }
       return Ok(LineDirection::Horizontal(x));
     }
 
     let y = VerticalPositionKeyword::parse(input)?;
     if let Ok(x) = input.try_parse(HorizontalPositionKeyword::parse) {
-      return Ok(LineDirection::Corner(x, y));
+      return Ok(LineDirection::Corner {
+        horizontal: x,
+        vertical: y,
+      });
     }
     Ok(LineDirection::Vertical(y))
   }
@@ -449,13 +502,13 @@ impl LineDirection {
           k.to_css(dest)
         }
       }
-      LineDirection::Corner(x, y) => {
+      LineDirection::Corner { horizontal, vertical } => {
         if !is_prefixed {
           dest.write_str("to ")?;
         }
-        y.to_css(dest)?;
+        vertical.to_css(dest)?;
         dest.write_char(' ')?;
-        x.to_css(dest)
+        horizontal.to_css(dest)
       }
     }
   }
@@ -786,13 +839,20 @@ impl<D: ToCss> ToCss for ColorStop<D> {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum GradientItem<D> {
   /// A color stop.
   ColorStop(ColorStop<D>),
   /// A color interpolation hint.
+  #[cfg_attr(
+    feature = "serde",
+    serde(
+      bound(serialize = "D: serde::Serialize", deserialize = "D: serde::Deserialize<'de>"),
+      with = "ValueWrapper::<D>"
+    )
+  )]
   Hint(D),
 }
 
@@ -931,7 +991,7 @@ where
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "kind", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum WebKitGradient {
@@ -1262,7 +1322,7 @@ impl WebKitGradient {
   /// Attempts to convert a standard gradient to a legacy -webkit-gradient()
   pub fn from_standard(gradient: &Gradient) -> Result<WebKitGradient, ()> {
     match gradient {
-      Gradient::Linear(linear, _) => {
+      Gradient::Linear(linear) => {
         // Convert from line direction to a from and to point, if possible.
         let (from, to) = match &linear.direction {
           LineDirection::Horizontal(horizontal) => match horizontal {
@@ -1273,7 +1333,7 @@ impl WebKitGradient {
             VerticalPositionKeyword::Top => ((0.0, 1.0), (0.0, 0.0)),
             VerticalPositionKeyword::Bottom => ((0.0, 0.0), (0.0, 1.0)),
           },
-          LineDirection::Corner(horizontal, vertical) => match (horizontal, vertical) {
+          LineDirection::Corner { horizontal, vertical } => match (horizontal, vertical) {
             (HorizontalPositionKeyword::Left, VerticalPositionKeyword::Top) => ((1.0, 1.0), (0.0, 0.0)),
             (HorizontalPositionKeyword::Left, VerticalPositionKeyword::Bottom) => ((1.0, 0.0), (0.0, 1.0)),
             (HorizontalPositionKeyword::Right, VerticalPositionKeyword::Top) => ((0.0, 1.0), (1.0, 0.0)),
@@ -1307,7 +1367,7 @@ impl WebKitGradient {
           stops: convert_stops_to_webkit(&linear.items)?,
         })
       }
-      Gradient::Radial(radial, _) => {
+      Gradient::Radial(radial) => {
         // Webkit radial gradients are always circles, not ellipses, and must be specified in pixels.
         let radius = match &radial.shape {
           EndingShape::Circle(Circle::Radius(radius)) => {
