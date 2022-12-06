@@ -2024,97 +2024,323 @@ export type Property =
  *
  * Each color space is represented as a struct that implements the `From` and `Into` traits for all other color spaces, so it is possible to convert between color spaces easily. In addition, colors support [interpolation](#method.interpolate) as in the `color-mix()` function.
  */
-export type CssColor =
-  | {
-      type: "currentcolor";
-    }
-  | {
-      type: "rgba";
-      value: number[];
-    }
-  | {
-      type: "lab";
-      value: LABColor;
-    }
-  | {
-      type: "predefined";
-      value: PredefinedColor;
-    }
-  | {
-      type: "float";
-      value: FloatColor;
-    };
+export type CssColor = CurrentColor | RGBColor | LABColor | PredefinedColor | FloatColor;
+export type CurrentColor = "currentcolor";
+export type RGBColor = {
+  /**
+   * The alpha component.
+   */
+  alpha: number;
+  /**
+   * The blue component.
+   */
+  b: number;
+  /**
+   * The green component.
+   */
+  g: number;
+  /**
+   * The red component.
+   */
+  r: number;
+  type: "rgb";
+};
 /**
  * A color in a LAB color space, including the `lab()`, `lch()`, `oklab()`, and `oklch()` functions.
  */
 export type LABColor =
   | {
+      /**
+       * The a component.
+       */
+      a: number;
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The b component.
+       */
+      b: number;
+      /**
+       * The lightness component.
+       */
+      l: number;
       type: "lab";
-      value: LAB;
     }
   | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The chroma component.
+       */
+      c: number;
+      /**
+       * The hue component.
+       */
+      h: number;
+      /**
+       * The lightness component.
+       */
+      l: number;
       type: "lch";
-      value: LCH;
     }
   | {
+      /**
+       * The a component.
+       */
+      a: number;
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The b component.
+       */
+      b: number;
+      /**
+       * The lightness component.
+       */
+      l: number;
       type: "oklab";
-      value: OKLAB;
     }
   | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The chroma component.
+       */
+      c: number;
+      /**
+       * The hue component.
+       */
+      h: number;
+      /**
+       * The lightness component.
+       */
+      l: number;
       type: "oklch";
-      value: OKLCH;
     };
 /**
  * A color in a predefined color space, e.g. `display-p3`.
  */
 export type PredefinedColor =
   | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The blue component.
+       */
+      b: number;
+      /**
+       * The green component.
+       */
+      g: number;
+      /**
+       * The red component.
+       */
+      r: number;
       type: "srgb";
-      value: SRGB;
     }
   | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The blue component.
+       */
+      b: number;
+      /**
+       * The green component.
+       */
+      g: number;
+      /**
+       * The red component.
+       */
+      r: number;
       type: "srgb-linear";
-      value: SRGBLinear;
     }
   | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The blue component.
+       */
+      b: number;
+      /**
+       * The green component.
+       */
+      g: number;
+      /**
+       * The red component.
+       */
+      r: number;
       type: "display-p3";
-      value: P3;
     }
   | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The blue component.
+       */
+      b: number;
+      /**
+       * The green component.
+       */
+      g: number;
+      /**
+       * The red component.
+       */
+      r: number;
       type: "a98-rgb";
-      value: A98;
     }
   | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The blue component.
+       */
+      b: number;
+      /**
+       * The green component.
+       */
+      g: number;
+      /**
+       * The red component.
+       */
+      r: number;
       type: "prophoto-rgb";
-      value: ProPhoto;
     }
   | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The blue component.
+       */
+      b: number;
+      /**
+       * The green component.
+       */
+      g: number;
+      /**
+       * The red component.
+       */
+      r: number;
       type: "rec2020";
-      value: Rec2020;
     }
   | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
       type: "xyz-d50";
-      value: XYZd50;
+      /**
+       * The x component.
+       */
+      x: number;
+      /**
+       * The y component.
+       */
+      y: number;
+      /**
+       * The z component.
+       */
+      z: number;
     }
   | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
       type: "xyz-d65";
-      value: XYZd65;
+      /**
+       * The x component.
+       */
+      x: number;
+      /**
+       * The y component.
+       */
+      y: number;
+      /**
+       * The z component.
+       */
+      z: number;
     };
 /**
  * A floating point representation of color types that are usually stored as RGBA. These are used when there are any `none` components, which are represented as NaN.
  */
 export type FloatColor =
   | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The blue component.
+       */
+      b: number;
+      /**
+       * The green component.
+       */
+      g: number;
+      /**
+       * The red component.
+       */
+      r: number;
       type: "rgb";
-      value: SRGB;
     }
   | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The hue component.
+       */
+      h: number;
+      /**
+       * The lightness component.
+       */
+      l: number;
+      /**
+       * The saturation component.
+       */
+      s: number;
       type: "hsl";
-      value: HSL;
     }
   | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The blackness component.
+       */
+      b: number;
+      /**
+       * The hue component.
+       */
+      h: number;
       type: "hwb";
-      value: HWB;
+      /**
+       * The whiteness component.
+       */
+      w: number;
     };
 /**
  * A CSS [`<image>`](https://www.w3.org/TR/css-images-3/#image-values) value.
@@ -6687,300 +6913,6 @@ export interface DeclarationBlock {
    * A list of `!important` declarations in the block.
    */
   importantDeclarations: Property[];
-}
-/**
- * A color in the [CIE Lab](https://www.w3.org/TR/css-color-4/#cie-lab) color space.
- */
-export interface LAB {
-  /**
-   * The a component.
-   */
-  a: number;
-  /**
-   * The alpha component.
-   */
-  alpha: number;
-  /**
-   * The b component.
-   */
-  b: number;
-  /**
-   * The lightness component.
-   */
-  l: number;
-}
-/**
- * A color in the [CIE LCH](https://www.w3.org/TR/css-color-4/#cie-lab) color space.
- */
-export interface LCH {
-  /**
-   * The alpha component.
-   */
-  alpha: number;
-  /**
-   * The chroma component.
-   */
-  c: number;
-  /**
-   * The hue component.
-   */
-  h: number;
-  /**
-   * The lightness component.
-   */
-  l: number;
-}
-/**
- * A color in the [OKLab](https://www.w3.org/TR/css-color-4/#ok-lab) color space.
- */
-export interface OKLAB {
-  /**
-   * The a component.
-   */
-  a: number;
-  /**
-   * The alpha component.
-   */
-  alpha: number;
-  /**
-   * The b component.
-   */
-  b: number;
-  /**
-   * The lightness component.
-   */
-  l: number;
-}
-/**
- * A color in the [OKLCH](https://www.w3.org/TR/css-color-4/#ok-lab) color space.
- */
-export interface OKLCH {
-  /**
-   * The alpha component.
-   */
-  alpha: number;
-  /**
-   * The chroma component.
-   */
-  c: number;
-  /**
-   * The hue component.
-   */
-  h: number;
-  /**
-   * The lightness component.
-   */
-  l: number;
-}
-/**
- * A color in the [`sRGB`](https://www.w3.org/TR/css-color-4/#predefined-sRGB) color space.
- */
-export interface SRGB {
-  /**
-   * The alpha component.
-   */
-  alpha: number;
-  /**
-   * The blue component.
-   */
-  b: number;
-  /**
-   * The green component.
-   */
-  g: number;
-  /**
-   * The red component.
-   */
-  r: number;
-}
-/**
- * A color in the [`sRGB-linear`](https://www.w3.org/TR/css-color-4/#predefined-sRGB-linear) color space.
- */
-export interface SRGBLinear {
-  /**
-   * The alpha component.
-   */
-  alpha: number;
-  /**
-   * The blue component.
-   */
-  b: number;
-  /**
-   * The green component.
-   */
-  g: number;
-  /**
-   * The red component.
-   */
-  r: number;
-}
-/**
- * A color in the [`display-p3`](https://www.w3.org/TR/css-color-4/#predefined-display-p3) color space.
- */
-export interface P3 {
-  /**
-   * The alpha component.
-   */
-  alpha: number;
-  /**
-   * The blue component.
-   */
-  b: number;
-  /**
-   * The green component.
-   */
-  g: number;
-  /**
-   * The red component.
-   */
-  r: number;
-}
-/**
- * A color in the [`a98-rgb`](https://www.w3.org/TR/css-color-4/#predefined-a98-rgb) color space.
- */
-export interface A98 {
-  /**
-   * The alpha component.
-   */
-  alpha: number;
-  /**
-   * The blue component.
-   */
-  b: number;
-  /**
-   * The green component.
-   */
-  g: number;
-  /**
-   * The red component.
-   */
-  r: number;
-}
-/**
- * A color in the [`prophoto-rgb`](https://www.w3.org/TR/css-color-4/#predefined-prophoto-rgb) color space.
- */
-export interface ProPhoto {
-  /**
-   * The alpha component.
-   */
-  alpha: number;
-  /**
-   * The blue component.
-   */
-  b: number;
-  /**
-   * The green component.
-   */
-  g: number;
-  /**
-   * The red component.
-   */
-  r: number;
-}
-/**
- * A color in the [`rec2020`](https://www.w3.org/TR/css-color-4/#predefined-rec2020) color space.
- */
-export interface Rec2020 {
-  /**
-   * The alpha component.
-   */
-  alpha: number;
-  /**
-   * The blue component.
-   */
-  b: number;
-  /**
-   * The green component.
-   */
-  g: number;
-  /**
-   * The red component.
-   */
-  r: number;
-}
-/**
- * A color in the [`xyz-d50`](https://www.w3.org/TR/css-color-4/#predefined-xyz) color space.
- */
-export interface XYZd50 {
-  /**
-   * The alpha component.
-   */
-  alpha: number;
-  /**
-   * The x component.
-   */
-  x: number;
-  /**
-   * The y component.
-   */
-  y: number;
-  /**
-   * The z component.
-   */
-  z: number;
-}
-/**
- * A color in the [`xyz-d65`](https://www.w3.org/TR/css-color-4/#predefined-xyz) color space.
- */
-export interface XYZd65 {
-  /**
-   * The alpha component.
-   */
-  alpha: number;
-  /**
-   * The x component.
-   */
-  x: number;
-  /**
-   * The y component.
-   */
-  y: number;
-  /**
-   * The z component.
-   */
-  z: number;
-}
-/**
- * A color in the [`hsl`](https://www.w3.org/TR/css-color-4/#the-hsl-notation) color space.
- */
-export interface HSL {
-  /**
-   * The alpha component.
-   */
-  alpha: number;
-  /**
-   * The hue component.
-   */
-  h: number;
-  /**
-   * The lightness component.
-   */
-  l: number;
-  /**
-   * The saturation component.
-   */
-  s: number;
-}
-/**
- * A color in the [`hwb`](https://www.w3.org/TR/css-color-4/#the-hwb-notation) color space.
- */
-export interface HWB {
-  /**
-   * The alpha component.
-   */
-  alpha: number;
-  /**
-   * The blackness component.
-   */
-  b: number;
-  /**
-   * The hue component.
-   */
-  h: number;
-  /**
-   * The whiteness component.
-   */
-  w: number;
 }
 /**
  * A CSS [url()](https://www.w3.org/TR/css-values-4/#urls) value and its source location.
