@@ -173,7 +173,7 @@ impl<'i> ToCss for UrlSource<'i> {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", content = "value", rename_all = "lowercase")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontFormat<'i> {
@@ -187,6 +187,7 @@ pub enum FontFormat<'i> {
   /// An OpenType font.
   OpenType,
   /// An Embedded OpenType (.eot) font.
+  #[cfg_attr(feature = "serde", serde(rename = "embedded-opentype"))]
   EmbeddedOpenType,
   /// OpenType Collection.
   Collection,

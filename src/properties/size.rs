@@ -13,6 +13,9 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::visitor::Visit;
 use cssparser::*;
 
+#[cfg(feature = "serde")]
+use crate::serialization::*;
+
 // https://drafts.csswg.org/css-sizing-3/#specifying-sizes
 // https://www.w3.org/TR/css-sizing-4/#sizing-values
 
@@ -22,23 +25,29 @@ use cssparser::*;
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Size {
   /// The `auto` keyword.
   Auto,
   /// An explicit length or percentage.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<LengthPercentage>"))]
   LengthPercentage(LengthPercentage),
   /// The `min-content` keyword.
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   MinContent(VendorPrefix),
   /// The `max-content` keyword.
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   MaxContent(VendorPrefix),
   /// The `fit-content` keyword.
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   FitContent(VendorPrefix),
   /// The `fit-content()` function.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<LengthPercentage>"))]
   FitContentFunction(LengthPercentage),
   /// The `stretch` keyword, or the `-webkit-fill-available` or `-moz-available` prefixed keywords.
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Stretch(VendorPrefix),
   /// The `contain` keyword.
   Contain,
@@ -124,23 +133,29 @@ impl ToCss for Size {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum MaxSize {
   /// The `none` keyword.
   None,
   /// An explicit length or percentage.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<LengthPercentage>"))]
   LengthPercentage(LengthPercentage),
   /// The `min-content` keyword.
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   MinContent(VendorPrefix),
   /// The `max-content` keyword.
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   MaxContent(VendorPrefix),
   /// The `fit-content` keyword.
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   FitContent(VendorPrefix),
   /// The `fit-content()` function.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<LengthPercentage>"))]
   FitContentFunction(LengthPercentage),
   /// The `stretch` keyword, or the `-webkit-fill-available` or `-moz-available` prefixed keywords.
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Stretch(VendorPrefix),
   /// The `contain` keyword.
   Contain,

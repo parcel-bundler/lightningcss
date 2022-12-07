@@ -31,6 +31,7 @@ enum SerializedComponent<'i, 's, Impl: SelectorImpl<'s>, PseudoClass, PseudoElem
   Type {
     name: Cow<'i, str>,
   },
+  #[serde(rename = "id")]
   ID {
     name: Cow<'i, str>,
   },
@@ -68,7 +69,7 @@ enum Namespace<'i> {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-#[serde(tag = "value", rename_all = "kebab-case")]
+#[serde(tag = "kind", rename_all = "kebab-case")]
 #[cfg_attr(
   feature = "jsonschema",
   derive(schemars::JsonSchema),
@@ -196,7 +197,7 @@ enum SerializedPseudoClass<'s, Impl: SelectorImpl<'s>, PseudoClass, VendorPrefix
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-#[serde(tag = "value", rename_all = "kebab-case")]
+#[serde(tag = "kind", rename_all = "kebab-case")]
 #[cfg_attr(
   feature = "jsonschema",
   derive(schemars::JsonSchema),
@@ -243,11 +244,18 @@ enum SerializedPseudoElement<'i, 's, Impl: SelectorImpl<'s>, PseudoElement> {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
-pub struct AttrSelector<'i> {
+struct AttrSelector<'i> {
   #[serde(borrow)]
-  namespace: Option<NamespaceConstraint<(Cow<'i, str>, Cow<'i, str>)>>,
+  namespace: Option<NamespaceConstraint<NamespaceValue<'i>>>,
   name: Cow<'i, str>,
   operation: Option<AttrOperation<'i>>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+struct NamespaceValue<'i> {
+  prefix: Cow<'i, str>,
+  url: Cow<'i, str>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -314,9 +322,10 @@ where
       Component::AttributeOther(other) => SerializedComponent::Attribute(AttrSelector {
         namespace: other.namespace.as_ref().map(|namespace| match namespace {
           NamespaceConstraint::Any => NamespaceConstraint::Any,
-          NamespaceConstraint::Specific(s) => {
-            NamespaceConstraint::Specific((s.0.as_ref().into(), s.1.as_ref().into()))
-          }
+          NamespaceConstraint::Specific(s) => NamespaceConstraint::Specific(NamespaceValue {
+            prefix: s.0.as_ref().into(),
+            url: s.1.as_ref().into(),
+          }),
         }),
         name: other.local_name.as_ref().into(),
         operation: match &other.operation {
@@ -452,7 +461,7 @@ where
           Component::AttributeOther(Box::new(AttrSelectorWithOptionalNamespace {
             namespace: Some(match namespace {
               NamespaceConstraint::Any => NamespaceConstraint::Any,
-              NamespaceConstraint::Specific(c) => NamespaceConstraint::Specific((c.0.into(), c.1.into())),
+              NamespaceConstraint::Specific(c) => NamespaceConstraint::Specific((c.prefix.into(), c.url.into())),
             }),
             local_name: attr.name.into(),
             local_name_lower: local_name_lower_cow.into(),

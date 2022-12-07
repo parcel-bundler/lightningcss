@@ -13,7 +13,7 @@ use std::fmt::Write;
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum EasingFunction {
@@ -28,14 +28,38 @@ pub enum EasingFunction {
   /// Equivalent to `cubic-bezier(0.42, 0, 0.58, 1)`.
   EaseInOut,
   /// A custom cubic Bézier easing function.
-  ///
-  /// The four numbers specify points P1 and P2 of the curve as (x1, y1, x2, y2).
-  CubicBezier(CSSNumber, CSSNumber, CSSNumber, CSSNumber),
+  CubicBezier {
+    /// The x-position of the first point in the curve.
+    x1: CSSNumber,
+    /// The y-position of the first point in the curve.
+    y1: CSSNumber,
+    /// The x-position of the second point in the curve.
+    x2: CSSNumber,
+    /// The y-position of the second point in the curve.
+    y2: CSSNumber,
+  },
   /// A step easing function.
-  ///
-  /// The first parameter specifies the number of intervals in the function.
-  /// The second parameter specifies the step position.
-  Steps(CSSInteger, StepPosition),
+  Steps {
+    /// The number of intervals in the function.
+    count: CSSInteger,
+    /// The step position.
+    #[cfg_attr(feature = "serde", serde(default))]
+    position: StepPosition,
+  },
+}
+
+impl EasingFunction {
+  /// Returns whether the easing function is equivalent to the `ease` keyword.
+  pub fn is_ease(&self) -> bool {
+    *self == EasingFunction::Ease
+      || *self
+        == EasingFunction::CubicBezier {
+          x1: 0.25,
+          y1: 0.1,
+          x2: 0.25,
+          y2: 1.0,
+        }
+  }
 }
 
 impl<'i> Parse<'i> for EasingFunction {
@@ -48,8 +72,8 @@ impl<'i> Parse<'i> for EasingFunction {
         "ease-in" => EasingFunction::EaseIn,
         "ease-out" => EasingFunction::EaseOut,
         "ease-in-out" => EasingFunction::EaseInOut,
-        "step-start" => EasingFunction::Steps(1, StepPosition::Start),
-        "step-end" => EasingFunction::Steps(1, StepPosition::End),
+        "step-start" => EasingFunction::Steps { count: 1, position: StepPosition::Start },
+        "step-end" => EasingFunction::Steps { count: 1, position: StepPosition::End },
         _ => return Err(location.new_unexpected_token_error(Token::Ident(ident.clone())))
       };
       return Ok(keyword);
@@ -66,15 +90,15 @@ impl<'i> Parse<'i> for EasingFunction {
           let x2 = CSSNumber::parse(input)?;
           input.expect_comma()?;
           let y2 = CSSNumber::parse(input)?;
-          Ok(EasingFunction::CubicBezier(x1, y1, x2, y2))
+          Ok(EasingFunction::CubicBezier { x1, y1, x2, y2 })
         },
         "steps" => {
-          let steps = CSSInteger::parse(input)?;
+          let count = CSSInteger::parse(input)?;
           let position = input.try_parse(|input| {
             input.expect_comma()?;
             StepPosition::parse(input)
-          }).unwrap_or(StepPosition::End);
-          Ok(EasingFunction::Steps(steps, position))
+          }).unwrap_or_default();
+          Ok(EasingFunction::Steps { count, position })
         },
         _ => return Err(location.new_unexpected_token_error(Token::Ident(function.clone())))
       }
@@ -93,11 +117,38 @@ impl ToCss for EasingFunction {
       EasingFunction::EaseIn => dest.write_str("ease-in"),
       EasingFunction::EaseOut => dest.write_str("ease-out"),
       EasingFunction::EaseInOut => dest.write_str("ease-in-out"),
-      x if *x == EasingFunction::CubicBezier(0.25, 0.1, 0.25, 1.0) => dest.write_str("ease"),
-      x if *x == EasingFunction::CubicBezier(0.42, 0.0, 1.0, 1.0) => dest.write_str("ease-in"),
-      x if *x == EasingFunction::CubicBezier(0.0, 0.0, 0.58, 1.0) => dest.write_str("ease-out"),
-      x if *x == EasingFunction::CubicBezier(0.42, 0.0, 0.58, 1.0) => dest.write_str("ease-in-out"),
-      EasingFunction::CubicBezier(x1, y1, x2, y2) => {
+      _ if self.is_ease() => dest.write_str("ease"),
+      x if *x
+        == EasingFunction::CubicBezier {
+          x1: 0.42,
+          y1: 0.0,
+          x2: 1.0,
+          y2: 1.0,
+        } =>
+      {
+        dest.write_str("ease-in")
+      }
+      x if *x
+        == EasingFunction::CubicBezier {
+          x1: 0.0,
+          y1: 0.0,
+          x2: 0.58,
+          y2: 1.0,
+        } =>
+      {
+        dest.write_str("ease-out")
+      }
+      x if *x
+        == EasingFunction::CubicBezier {
+          x1: 0.42,
+          y1: 0.0,
+          x2: 0.58,
+          y2: 1.0,
+        } =>
+      {
+        dest.write_str("ease-in-out")
+      }
+      EasingFunction::CubicBezier { x1, y1, x2, y2 } => {
         dest.write_str("cubic-bezier(")?;
         x1.to_css(dest)?;
         dest.delim(',', false)?;
@@ -108,11 +159,17 @@ impl ToCss for EasingFunction {
         y2.to_css(dest)?;
         dest.write_char(')')
       }
-      EasingFunction::Steps(1, StepPosition::Start) => dest.write_str("step-start"),
-      EasingFunction::Steps(1, StepPosition::End) => dest.write_str("step-end"),
-      EasingFunction::Steps(steps, position) => {
+      EasingFunction::Steps {
+        count: 1,
+        position: StepPosition::Start,
+      } => dest.write_str("step-start"),
+      EasingFunction::Steps {
+        count: 1,
+        position: StepPosition::End,
+      } => dest.write_str("step-end"),
+      EasingFunction::Steps { count, position } => {
         dest.write_str("steps(")?;
-        write!(dest, "{}", steps)?;
+        write!(dest, "{}", count)?;
         dest.delim(',', false)?;
         position.to_css(dest)?;
         dest.write_char(')')
@@ -148,6 +205,12 @@ pub enum StepPosition {
   JumpNone,
   /// The first rise occurs at input progress value of 0 and the last rise occurs at input progress value of 1.
   JumpBoth,
+}
+
+impl Default for StepPosition {
+  fn default() -> Self {
+    StepPosition::End
+  }
 }
 
 impl<'i> Parse<'i> for StepPosition {

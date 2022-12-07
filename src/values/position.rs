@@ -9,6 +9,9 @@ use crate::traits::{Parse, ToCss, Zero};
 use crate::visitor::Visit;
 use cssparser::*;
 
+#[cfg(feature = "serde")]
+use crate::serialization::ValueWrapper;
+
 /// A CSS [`<position>`](https://www.w3.org/TR/css3-values/#position) value,
 /// as used in the `background-position` property, gradients, masks, etc.
 #[derive(Debug, Clone, PartialEq, Visit)]
@@ -72,7 +75,10 @@ impl<'i> Parse<'i> for Position {
         // If we got a length as the first component, then the second must
         // be a keyword or length (not a side offset).
         if let Ok(y_keyword) = input.try_parse(VerticalPositionKeyword::parse) {
-          let y = VerticalPosition::Side(y_keyword, None);
+          let y = VerticalPosition::Side {
+            side: y_keyword,
+            offset: None,
+          };
           return Ok(Position { x, y });
         }
         if let Ok(y_lp) = input.try_parse(LengthPercentage::parse) {
@@ -83,11 +89,17 @@ impl<'i> Parse<'i> for Position {
         let _ = input.try_parse(|i| i.expect_ident_matching("center"));
         return Ok(Position { x, y });
       }
-      Ok(HorizontalPosition::Side(x_keyword, lp)) => {
+      Ok(HorizontalPosition::Side {
+        side: x_keyword,
+        offset: lp,
+      }) => {
         // If we got a horizontal side keyword (and optional offset), expect another for the vertical side.
         // e.g. `left center` or `left 20px center`
         if input.try_parse(|i| i.expect_ident_matching("center")).is_ok() {
-          let x = HorizontalPosition::Side(x_keyword, lp);
+          let x = HorizontalPosition::Side {
+            side: x_keyword,
+            offset: lp,
+          };
           let y = VerticalPosition::Center;
           return Ok(Position { x, y });
         }
@@ -95,13 +107,22 @@ impl<'i> Parse<'i> for Position {
         // e.g. `left top`, `left top 20px`, `left 20px top`, or `left 20px top 20px`
         if let Ok(y_keyword) = input.try_parse(VerticalPositionKeyword::parse) {
           let y_lp = input.try_parse(LengthPercentage::parse).ok();
-          let x = HorizontalPosition::Side(x_keyword, lp);
-          let y = VerticalPosition::Side(y_keyword, y_lp);
+          let x = HorizontalPosition::Side {
+            side: x_keyword,
+            offset: lp,
+          };
+          let y = VerticalPosition::Side {
+            side: y_keyword,
+            offset: y_lp,
+          };
           return Ok(Position { x, y });
         }
 
         // If we didn't get a vertical side keyword (e.g. `left 20px`), then apply the offset to the vertical side.
-        let x = HorizontalPosition::Side(x_keyword, None);
+        let x = HorizontalPosition::Side {
+          side: x_keyword,
+          offset: None,
+        };
         let y = lp.map_or(VerticalPosition::Center, VerticalPosition::Length);
         return Ok(Position { x, y });
       }
@@ -114,7 +135,10 @@ impl<'i> Parse<'i> for Position {
       let y_lp = i.try_parse(LengthPercentage::parse).ok();
       if let Ok(x_keyword) = i.try_parse(HorizontalPositionKeyword::parse) {
         let x_lp = i.try_parse(LengthPercentage::parse).ok();
-        let x_pos = HorizontalPosition::Side(x_keyword, x_lp);
+        let x_pos = HorizontalPosition::Side {
+          side: x_keyword,
+          offset: x_lp,
+        };
         return Ok((y_lp, x_pos));
       }
       i.expect_ident_matching("center")?;
@@ -123,12 +147,18 @@ impl<'i> Parse<'i> for Position {
     });
 
     if let Ok((y_lp, x)) = lp_and_x_pos {
-      let y = VerticalPosition::Side(y_keyword, y_lp);
+      let y = VerticalPosition::Side {
+        side: y_keyword,
+        offset: y_lp,
+      };
       return Ok(Position { x, y });
     }
 
     let x = HorizontalPosition::Center;
-    let y = VerticalPosition::Side(y_keyword, None);
+    let y = VerticalPosition::Side {
+      side: y_keyword,
+      offset: None,
+    };
     Ok(Position { x, y })
   }
 }
@@ -139,21 +169,21 @@ impl ToCss for Position {
     W: std::fmt::Write,
   {
     match (&self.x, &self.y) {
-      (x_pos @ &HorizontalPosition::Side(side, Some(_)), &VerticalPosition::Length(ref y_lp))
+      (x_pos @ &HorizontalPosition::Side { side, offset: Some(_) }, &VerticalPosition::Length(ref y_lp))
         if side != HorizontalPositionKeyword::Left =>
       {
         x_pos.to_css(dest)?;
         dest.write_str(" top ")?;
         y_lp.to_css(dest)
       }
-      (x_pos @ &HorizontalPosition::Side(side, Some(_)), y)
+      (x_pos @ &HorizontalPosition::Side { side, offset: Some(_) }, y)
         if side != HorizontalPositionKeyword::Left && y.is_center() =>
       {
         // If there is a side keyword with an offset, "center" must be a keyword not a percentage.
         x_pos.to_css(dest)?;
         dest.write_str(" center")
       }
-      (&HorizontalPosition::Length(ref x_lp), y_pos @ &VerticalPosition::Side(side, Some(_)))
+      (&HorizontalPosition::Length(ref x_lp), y_pos @ &VerticalPosition::Side { side, offset: Some(_) })
         if side != VerticalPositionKeyword::Top =>
       {
         dest.write_str("left ")?;
@@ -169,12 +199,12 @@ impl ToCss for Position {
         // `center` is assumed if omitted.
         x_lp.to_css(dest)
       }
-      (&HorizontalPosition::Side(side, None), y) if y.is_center() => {
+      (&HorizontalPosition::Side { side, offset: None }, y) if y.is_center() => {
         let p: LengthPercentage = side.into();
         p.to_css(dest)
       }
-      (x, y_pos @ &VerticalPosition::Side(_, None)) if x.is_center() => y_pos.to_css(dest),
-      (&HorizontalPosition::Side(x, None), &VerticalPosition::Side(y, None)) => {
+      (x, y_pos @ &VerticalPosition::Side { offset: None, .. }) if x.is_center() => y_pos.to_css(dest),
+      (&HorizontalPosition::Side { side: x, offset: None }, &VerticalPosition::Side { side: y, offset: None }) => {
         let x: LengthPercentage = x.into();
         let y: LengthPercentage = y.into();
         x.to_css(dest)?;
@@ -185,8 +215,11 @@ impl ToCss for Position {
         let zero = LengthPercentage::zero();
         let fifty = LengthPercentage::Percentage(Percentage(0.5));
         let x_len = match &x_pos {
-          HorizontalPosition::Side(HorizontalPositionKeyword::Left, len) => {
-            if let Some(len) = len {
+          HorizontalPosition::Side {
+            side: HorizontalPositionKeyword::Left,
+            offset,
+          } => {
+            if let Some(len) = offset {
               if len.is_zero() {
                 Some(&zero)
               } else {
@@ -203,8 +236,11 @@ impl ToCss for Position {
         };
 
         let y_len = match &y_pos {
-          VerticalPosition::Side(VerticalPositionKeyword::Top, len) => {
-            if let Some(len) = len {
+          VerticalPosition::Side {
+            side: VerticalPositionKeyword::Top,
+            offset,
+          } => {
+            if let Some(len) = offset {
               if len.is_zero() {
                 Some(&zero)
               } else {
@@ -242,16 +278,22 @@ impl ToCss for Position {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum PositionComponent<S> {
   /// The `center` keyword.
   Center,
   /// A length or percentage from the top-left corner of the box.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<LengthPercentage>"))]
   Length(LengthPercentage),
-  /// A side side keyword with an optional offset.
-  Side(S, Option<LengthPercentage>),
+  /// A side keyword with an optional offset.
+  Side {
+    /// A side keyword.
+    side: S,
+    /// Offset from the side.
+    offset: Option<LengthPercentage>,
+  },
 }
 
 impl<S> PositionComponent<S> {
@@ -278,9 +320,9 @@ impl<'i, S: Parse<'i>> Parse<'i> for PositionComponent<S> {
       return Ok(PositionComponent::Length(lp));
     }
 
-    let keyword = S::parse(input)?;
-    let lp = input.try_parse(|input| LengthPercentage::parse(input)).ok();
-    Ok(PositionComponent::Side(keyword, lp))
+    let side = S::parse(input)?;
+    let offset = input.try_parse(|input| LengthPercentage::parse(input)).ok();
+    Ok(PositionComponent::Side { side, offset })
   }
 }
 
@@ -299,9 +341,9 @@ impl<S: ToCss> ToCss for PositionComponent<S> {
         }
       }
       Length(lp) => lp.to_css(dest),
-      Side(s, lp) => {
-        s.to_css(dest)?;
-        if let Some(lp) = lp {
+      Side { side, offset } => {
+        side.to_css(dest)?;
+        if let Some(lp) = offset {
           dest.write_str(" ")?;
           lp.to_css(dest)?;
         }

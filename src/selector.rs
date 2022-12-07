@@ -26,6 +26,9 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
 
+#[cfg(feature = "serde")]
+use crate::serialization::*;
+
 mod private {
   #[derive(Debug, Clone, PartialEq, Eq)]
   #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
@@ -164,7 +167,7 @@ impl<'a, 'o, 'i, T> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 
         if !name.starts_with('-') {
           self.options.warn(loc.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
         }
-        Custom(name.into())
+        Custom { name: name.into() }
       }
     };
 
@@ -179,21 +182,24 @@ impl<'a, 'o, 'i, T> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 
     use PseudoClass::*;
     let pseudo_class = match_ignore_ascii_case! { &name,
       "lang" => {
-        let langs = parser.parse_comma_separated(|parser| {
+        let languages = parser.parse_comma_separated(|parser| {
           parser.expect_ident_or_string()
             .map(|s| s.into())
             .map_err(|e| e.into())
         })?;
-        Lang(langs)
+        Lang { languages }
       },
-      "dir" => Dir(Direction::parse(parser)?),
-      "local" if self.options.css_modules.is_some() => Local(Box::new(Selector::parse(self, parser)?)),
-      "global" if self.options.css_modules.is_some() => Global(Box::new(Selector::parse(self, parser)?)),
+      "dir" => Dir { direction: Direction::parse(parser)? },
+      "local" if self.options.css_modules.is_some() => Local { selector: Box::new(Selector::parse(self, parser)?) },
+      "global" if self.options.css_modules.is_some() => Global { selector: Box::new(Selector::parse(self, parser)?) },
       _ => {
         if !name.starts_with('-') {
           self.options.warn(parser.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
         }
-        CustomFunction(name.into(), TokenList::parse(parser, &self.options, 0)?)
+        CustomFunction {
+          name: name.into(),
+          arguments: TokenList::parse(parser, &self.options, 0)?
+        }
       },
     };
 
@@ -246,7 +252,7 @@ impl<'a, 'o, 'i, T> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 
         if !name.starts_with('-') {
           self.options.warn(loc.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
         }
-        Custom(name.into())
+        Custom { name: name.into() }
       }
     };
 
@@ -260,13 +266,13 @@ impl<'a, 'o, 'i, T> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 
   ) -> Result<<Self::Impl as SelectorImpl<'i>>::PseudoElement, ParseError<'i, Self::Error>> {
     use PseudoElement::*;
     let pseudo_element = match_ignore_ascii_case! { &name,
-      "cue" => CueFunction(Box::new(Selector::parse(self, arguments)?)),
+      "cue" => CueFunction { selector: Box::new(Selector::parse(self, arguments)?) },
       "cue-region" => CueRegionFunction(Box::new(Selector::parse(self, arguments)?)),
       _ => {
         if !name.starts_with('-') {
           self.options.warn(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
         }
-        CustomFunction(name.into(), TokenList::parse(arguments, &self.options, 0)?)
+        CustomFunction { name: name.into(), arguments: TokenList::parse(arguments, &self.options, 0)? }
       }
     };
 
@@ -320,14 +326,18 @@ enum_property! {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "value", content = "args", rename_all = "kebab-case")
+  serde(tag = "kind", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum PseudoClass<'i> {
   // https://drafts.csswg.org/selectors-4/#linguistic-pseudos
-  #[cfg_attr(feature = "serde", serde(borrow))]
-  Lang(Vec<CowArcStr<'i>>),
-  Dir(Direction),
+  Lang {
+    #[cfg_attr(feature = "serde", serde(borrow))]
+    languages: Vec<CowArcStr<'i>>,
+  },
+  Dir {
+    direction: Direction,
+  },
 
   // https://drafts.csswg.org/selectors-4/#useraction-pseudos
   Hover,
@@ -351,12 +361,14 @@ pub enum PseudoClass<'i> {
   VolumeLocked,
 
   // https://fullscreen.spec.whatwg.org/#:fullscreen-pseudo-class
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Fullscreen(VendorPrefix),
 
   // https://drafts.csswg.org/selectors-4/#the-defined-pseudo
   Defined,
 
   // https://drafts.csswg.org/selectors-4/#location
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   AnyLink(VendorPrefix),
   Link,
   LocalLink,
@@ -367,8 +379,11 @@ pub enum PseudoClass<'i> {
   // https://drafts.csswg.org/selectors-4/#input-pseudos
   Enabled,
   Disabled,
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   ReadOnly(VendorPrefix),
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   ReadWrite(VendorPrefix),
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   PlaceholderShown(VendorPrefix),
   Default,
   Checked,
@@ -384,17 +399,31 @@ pub enum PseudoClass<'i> {
   UserInvalid,
 
   // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Autofill(VendorPrefix),
 
   // CSS modules
-  Local(Box<Selector<'i>>),
-  Global(Box<Selector<'i>>),
+  Local {
+    selector: Box<Selector<'i>>,
+  },
+  Global {
+    selector: Box<Selector<'i>>,
+  },
 
   // https://webkit.org/blog/363/styling-scrollbars/
+  #[cfg_attr(
+    feature = "serde",
+    serde(rename = "webkit-scrollbar", with = "ValueWrapper::<WebKitScrollbarPseudoClass>")
+  )]
   WebKitScrollbar(WebKitScrollbarPseudoClass),
 
-  Custom(CowArcStr<'i>),
-  CustomFunction(CowArcStr<'i>, TokenList<'i>),
+  Custom {
+    name: CowArcStr<'i>,
+  },
+  CustomFunction {
+    name: CowArcStr<'i>,
+    arguments: TokenList<'i>,
+  },
 }
 
 /// https://webkit.org/blog/363/styling-scrollbars/
@@ -474,7 +503,7 @@ impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for PseudoClass<'i> {
   {
     use PseudoClass::*;
     match &self {
-      Lang(lang) => {
+      Lang { languages: lang } => {
         dest.write_str(":lang(")?;
         let mut first = true;
         for lang in lang {
@@ -487,7 +516,7 @@ impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for PseudoClass<'i> {
         }
         return dest.write_str(")");
       }
-      Dir(dir) => {
+      Dir { direction: dir } => {
         dest.write_str(":dir(")?;
         dir.to_css(dest)?;
         return dest.write_str(")");
@@ -597,8 +626,8 @@ impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for PseudoClass<'i> {
       // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
       Autofill(prefix) => write_prefixed!(prefix, "autofill"),
 
-      Local(selector) => selector.to_css_with_context(dest, context),
-      Global(selector) => {
+      Local { selector } => selector.to_css_with_context(dest, context),
+      Global { selector } => {
         let css_module = std::mem::take(&mut dest.css_module);
         selector.to_css_with_context(dest, context)?;
         dest.css_module = css_module;
@@ -623,12 +652,12 @@ impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for PseudoClass<'i> {
         })
       }
 
-      Lang(_) | Dir(_) => unreachable!(),
-      Custom(val) => {
+      Lang { languages: _ } | Dir { direction: _ } => unreachable!(),
+      Custom { name } => {
         dest.write_char(':')?;
-        return dest.write_str(&val);
+        return dest.write_str(&name);
       }
-      CustomFunction(name, args) => {
+      CustomFunction { name, arguments: args } => {
         dest.write_char(':')?;
         dest.write_str(name)?;
         dest.write_char('(')?;
@@ -682,7 +711,7 @@ impl<'i> PseudoClass<'i> {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "value", content = "args", rename_all = "kebab-case")
+  serde(tag = "kind", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum PseudoElement<'i> {
@@ -690,19 +719,34 @@ pub enum PseudoElement<'i> {
   Before,
   FirstLine,
   FirstLetter,
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Selection(VendorPrefix),
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Placeholder(VendorPrefix),
   Marker,
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Backdrop(VendorPrefix),
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   FileSelectorButton(VendorPrefix),
+  #[cfg_attr(
+    feature = "serde",
+    serde(rename = "webkit-scrollbar", with = "ValueWrapper::<WebKitScrollbarPseudoElement>")
+  )]
   WebKitScrollbar(WebKitScrollbarPseudoElement),
   Cue,
   CueRegion,
-  CueFunction(Box<Selector<'i>>),
+  CueFunction {
+    selector: Box<Selector<'i>>,
+  },
   CueRegionFunction(Box<Selector<'i>>),
-  #[cfg_attr(feature = "serde", serde(borrow))]
-  Custom(CowArcStr<'i>),
-  CustomFunction(CowArcStr<'i>, TokenList<'i>),
+  Custom {
+    #[cfg_attr(feature = "serde", serde(borrow))]
+    name: CowArcStr<'i>,
+  },
+  CustomFunction {
+    name: CowArcStr<'i>,
+    arguments: TokenList<'i>,
+  },
 }
 
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
@@ -778,7 +822,7 @@ impl<'i> ToCss for PseudoElement<'i> {
       Selection(prefix) => write_prefixed!(prefix, "selection"),
       Cue => dest.write_str("::cue"),
       CueRegion => dest.write_str("::cue-region"),
-      CueFunction(selector) => {
+      CueFunction { selector } => {
         dest.write_str("::cue(")?;
         serialize_selector::<_, DefaultAtRule>(selector, dest, None, false)?;
         dest.write_char(')')
@@ -819,11 +863,11 @@ impl<'i> ToCss for PseudoElement<'i> {
           Resizer => "::-webkit-resizer",
         })
       }
-      Custom(val) => {
+      Custom { name: val } => {
         dest.write_str("::")?;
         return dest.write_str(val);
       }
-      CustomFunction(name, args) => {
+      CustomFunction { name, arguments: args } => {
         dest.write_str("::")?;
         dest.write_str(name)?;
         dest.write_char('(')?;
@@ -1421,7 +1465,7 @@ pub(crate) fn is_compatible(selectors: &SelectorList, targets: Option<Browsers>)
             | PseudoClass::Active
             | PseudoClass::Hover
             | PseudoClass::Focus
-            | PseudoClass::Lang(_) => Feature::CssSel2,
+            | PseudoClass::Lang { languages: _ } => Feature::CssSel2,
 
             PseudoClass::Checked | PseudoClass::Disabled | PseudoClass::Enabled | PseudoClass::Target => {
               Feature::CssSel3
@@ -1435,7 +1479,7 @@ pub(crate) fn is_compatible(selectors: &SelectorList, targets: Option<Browsers>)
             PseudoClass::FocusVisible => Feature::CssFocusVisible,
             PseudoClass::FocusWithin => Feature::CssFocusWithin,
             PseudoClass::Default => Feature::CssDefaultPseudo,
-            PseudoClass::Dir(_) => Feature::CssDirPseudo,
+            PseudoClass::Dir { direction: _ } => Feature::CssDirPseudo,
             PseudoClass::Optional => Feature::CssOptionalPseudo,
             PseudoClass::PlaceholderShown(prefix) if *prefix == VendorPrefix::None => Feature::CssPlaceholderShown,
 
@@ -1467,7 +1511,7 @@ pub(crate) fn is_compatible(selectors: &SelectorList, targets: Option<Browsers>)
             | PseudoClass::UserValid
             | PseudoClass::Defined => return false,
 
-            PseudoClass::Custom(_) | _ => return false,
+            PseudoClass::Custom { .. } | _ => return false,
           }
         }
 
@@ -1480,8 +1524,8 @@ pub(crate) fn is_compatible(selectors: &SelectorList, targets: Option<Browsers>)
           PseudoElement::Marker => Feature::CssMarkerPseudo,
           PseudoElement::Backdrop(prefix) if *prefix == VendorPrefix::None => Feature::Dialog,
           PseudoElement::Cue => Feature::Cue,
-          PseudoElement::CueFunction(_) => Feature::CueFunction,
-          PseudoElement::Custom(_) | _ => return false,
+          PseudoElement::CueFunction { selector: _ } => Feature::CueFunction,
+          PseudoElement::Custom { name: _ } | _ => return false,
         },
 
         Component::Combinator(combinator) => match combinator {
@@ -1540,8 +1584,8 @@ pub(crate) fn get_prefix(selectors: &SelectorList) -> VendorPrefix {
     for component in selector.iter() {
       let p = match component {
         // Return none rather than empty for these so that we call downlevel_selectors.
-        Component::NonTSPseudoClass(PseudoClass::Lang(..))
-        | Component::NonTSPseudoClass(PseudoClass::Dir(..))
+        Component::NonTSPseudoClass(PseudoClass::Lang { .. })
+        | Component::NonTSPseudoClass(PseudoClass::Dir { .. })
         | Component::Is(..) => VendorPrefix::None,
         Component::NonTSPseudoClass(pc) => pc.get_prefix(),
         Component::PseudoElement(pe) => pe.get_prefix(),
@@ -1583,7 +1627,7 @@ fn downlevel_component<'i>(component: &mut Component<'i>, targets: Browsers) -> 
   match component {
     Component::NonTSPseudoClass(pc) => {
       match pc {
-        PseudoClass::Dir(dir) => {
+        PseudoClass::Dir { direction: dir } => {
           if !Feature::CssDirPseudo.is_compatible(targets) {
             *component = downlevel_dir(*dir, targets);
             downlevel_component(component, targets)
@@ -1591,7 +1635,7 @@ fn downlevel_component<'i>(component: &mut Component<'i>, targets: Browsers) -> 
             VendorPrefix::empty()
           }
         }
-        PseudoClass::Lang(langs) => {
+        PseudoClass::Lang { languages: langs } => {
           // :lang() with multiple languages is not supported everywhere.
           // compile this to :is(:lang(a), :lang(b)) etc.
           if langs.len() > 1 && !Feature::LangList.is_compatible(targets) {
@@ -1623,7 +1667,11 @@ fn downlevel_component<'i>(component: &mut Component<'i>, targets: Browsers) -> 
 fn lang_list_to_selectors<'i>(langs: &Vec<CowArcStr<'i>>) -> Box<[Selector<'i>]> {
   langs
     .iter()
-    .map(|lang| Selector::from(Component::NonTSPseudoClass(PseudoClass::Lang(vec![lang.clone()]))))
+    .map(|lang| {
+      Selector::from(Component::NonTSPseudoClass(PseudoClass::Lang {
+        languages: vec![lang.clone()],
+      }))
+    })
     .collect::<Vec<Selector>>()
     .into_boxed_slice()
 }
@@ -1633,7 +1681,7 @@ fn downlevel_dir<'i>(dir: Direction, targets: Browsers) -> Component<'i> {
   // otherwise, use :is/:not, which may be further downleveled to e.g. :-webkit-any.
   let langs = RTL_LANGS.iter().map(|lang| (*lang).into()).collect();
   if Feature::LangList.is_compatible(targets) {
-    let c = Component::NonTSPseudoClass(PseudoClass::Lang(langs));
+    let c = Component::NonTSPseudoClass(PseudoClass::Lang { languages: langs });
     if dir == Direction::Ltr {
       Component::Negation(vec![Selector::from(c)].into_boxed_slice())
     } else {

@@ -639,13 +639,19 @@ impl ToCss for Circle {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Ellipse {
   /// An ellipse with a specified horizontal and vertical radius.
-  Size(LengthPercentage, LengthPercentage),
+  Size {
+    /// The x-radius of the ellipse.
+    x: LengthPercentage,
+    /// The y-radius of the ellipse.
+    y: LengthPercentage,
+  },
   /// A shape extent keyword.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<ShapeExtent>"))]
   Extent(ShapeExtent),
 }
 
@@ -665,7 +671,7 @@ impl<'i> Parse<'i> for Ellipse {
       let y = LengthPercentage::parse(input)?;
       // The `ellipse` keyword is optional if there are two lengths.
       let _ = input.try_parse(|input| input.expect_ident_matching("ellipse"));
-      return Ok(Ellipse::Size(x, y));
+      return Ok(Ellipse::Size { x, y });
     }
 
     if input.try_parse(|input| input.expect_ident_matching("ellipse")).is_ok() {
@@ -675,7 +681,7 @@ impl<'i> Parse<'i> for Ellipse {
 
       if let Ok(x) = input.try_parse(LengthPercentage::parse) {
         let y = LengthPercentage::parse(input)?;
-        return Ok(Ellipse::Size(x, y));
+        return Ok(Ellipse::Size { x, y });
       }
 
       // Assume `farthest-corner` if only the `ellipse` keyword is present.
@@ -693,7 +699,7 @@ impl ToCss for Ellipse {
   {
     // The `ellipse` keyword is optional, so we don't emit it.
     match self {
-      Ellipse::Size(x, y) => {
+      Ellipse::Size { x, y } => {
         x.to_css(dest)?;
         dest.write_char(' ')?;
         y.to_css(dest)
@@ -1308,11 +1314,11 @@ impl<S: Clone> WebKitGradientPointComponent<S> {
           _ => return Err(()),
         }))
       }
-      PositionComponent::Side(s, o) => {
-        if o.is_some() {
+      PositionComponent::Side { side, offset } => {
+        if offset.is_some() {
           return Err(());
         }
-        Ok(WebKitGradientPointComponent::Side(s.clone()))
+        Ok(WebKitGradientPointComponent::Side(side.clone()))
       }
     }
   }

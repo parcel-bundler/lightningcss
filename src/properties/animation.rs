@@ -270,7 +270,7 @@ impl<'i> ToCss for Animation<'i> {
           dest.write_char(' ')?;
         }
 
-        if !self.is_default_easing() || EasingFunction::is_ident(&name) {
+        if !self.timing_function.is_ease() || EasingFunction::is_ident(&name) {
           self.timing_function.to_css(dest)?;
           dest.write_char(' ')?;
         }
@@ -309,13 +309,6 @@ impl<'i> ToCss for Animation<'i> {
     self.name.to_css(dest)?;
 
     Ok(())
-  }
-}
-
-impl<'i> Animation<'i> {
-  fn is_default_easing(&self) -> bool {
-    self.timing_function == EasingFunction::Ease
-      || self.timing_function == EasingFunction::CubicBezier(0.25, 0.1, 0.25, 1.0)
   }
 }
 

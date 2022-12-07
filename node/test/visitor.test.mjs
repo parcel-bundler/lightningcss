@@ -88,8 +88,11 @@ test('design tokens', () => {
     'color.background.primary': {
       type: 'color',
       value: {
-        type: 'rgba',
-        value: [255, 0, 0, 255]
+        type: 'rgb',
+        r: 255,
+        g: 0,
+        b: 0,
+        alpha: 1
       }
     },
     'size.spacing.small': {
@@ -120,6 +123,48 @@ test('design tokens', () => {
   });
 
   assert.equal(res.code.toString(), '.foo{color:red;padding:16px}');
+});
+
+test.skip('env function', () => {
+  // https://www.npmjs.com/package/postcss-env-function
+  let tokens = {
+    '--branding-small': {
+      type: 'length',
+      value: {
+        unit: 'px',
+        value: 600
+      }
+    },
+    '--branding-padding': {
+      type: 'length',
+      value: {
+        unit: 'px',
+        value: 20
+      }
+    }
+  };
+
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    errorRecovery: true,
+    code: Buffer.from(`
+      @media (max-width: env(--branding-small)) {
+        body {
+          padding: env(--branding-padding);
+        }
+      }
+    `),
+    visitor: {
+      visitToken(token) {
+        if (token.type === 'function' && token.value.name === 'env' && token.value.arguments.length === 1 && token.value.arguments[0].type === 'dashed-ident') {
+          return tokens[token.value.arguments[0].value];
+        }
+      }
+    }
+  });
+
+  console.log(res.code.toString())
 });
 
 test('url', () => {
@@ -318,7 +363,7 @@ test('focus visible', () => {
         let clone = null;
         for (let selector of rule.value.selectors) {
           for (let [i, component] of selector.entries()) {
-            if (component.type === 'pseudo-class' && component.value === 'focus-visible') {
+            if (component.type === 'pseudo-class' && component.kind === 'focus-visible') {
               if (clone == null) {
                 clone = [...rule.value.selectors.map(s => [...s])];
               }
@@ -373,7 +418,7 @@ test('dark theme class', () => {
                   { type: 'type', name: 'html' },
                   {
                     type: 'pseudo-class',
-                    value: 'not',
+                    kind: 'not',
                     selectors: [
                       [{ type: 'attribute', name: 'theme', operation: { operator: 'equal', value: 'light' } }]
                     ]

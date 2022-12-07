@@ -493,7 +493,7 @@ pub enum Token<'a> {
   /// A [`<hash-token>`](https://drafts.csswg.org/css-syntax/#hash-token-diagram) with the type flag set to "id"
   ///
   /// The value does not include the `#` marker.
-  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
+  #[cfg_attr(feature = "serde", serde(rename = "id-hash", with = "ValueWrapper::<CowArcStr>"))]
   IDHash(CowArcStr<'a>), // Hash that is a valid ID selector.
 
   /// A [`<string-token>`](https://drafts.csswg.org/css-syntax/#string-token-diagram)
@@ -961,7 +961,7 @@ impl<'i> Function<'i> {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "lowercase")
+  serde(tag = "type", rename_all = "lowercase")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum UnresolvedColor<'i> {

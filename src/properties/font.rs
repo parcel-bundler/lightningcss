@@ -354,18 +354,14 @@ enum_property! {
 
 /// A value for the [font-family](https://www.w3.org/TR/css-fonts-4/#font-family-prop) property.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Visit)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(untagged))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontFamily<'i> {
+  /// A generic family name.
+  Generic(GenericFontFamily),
   /// A custom family name.
   #[cfg_attr(feature = "serde", serde(borrow))]
   FamilyName(CowArcStr<'i>),
-  /// A generic family name.
-  Generic(GenericFontFamily),
 }
 
 impl<'i> Parse<'i> for FontFamily<'i> {
@@ -448,13 +444,18 @@ pub enum FontStyle {
   /// Italic font style.
   Italic,
   /// Oblique font style, with a custom angle.
-  Oblique(Angle),
+  Oblique(#[cfg_attr(feature = "serde", serde(default = "default_oblique_angle"))] Angle),
 }
 
 impl Default for FontStyle {
   fn default() -> FontStyle {
     FontStyle::Normal
   }
+}
+
+#[inline]
+fn default_oblique_angle() -> Angle {
+  Angle::Deg(14.0)
 }
 
 impl<'i> Parse<'i> for FontStyle {
@@ -465,7 +466,7 @@ impl<'i> Parse<'i> for FontStyle {
       "normal" => Ok(FontStyle::Normal),
       "italic" => Ok(FontStyle::Italic),
       "oblique" => {
-        let angle = input.try_parse(Angle::parse).unwrap_or(Angle::Deg(14.0));
+        let angle = input.try_parse(Angle::parse).unwrap_or(default_oblique_angle());
         Ok(FontStyle::Oblique(angle))
       },
       _ => Err(location.new_unexpected_token_error(

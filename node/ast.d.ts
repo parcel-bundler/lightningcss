@@ -2719,12 +2719,15 @@ export type PositionComponentFor_HorizontalPositionKeyword =
       value: DimensionPercentageFor_LengthValue;
     }
   | {
-      type: "side";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * Offset from the side.
        */
-      value: [HorizontalPositionKeyword, DimensionPercentageFor_LengthValue | null];
+      offset?: DimensionPercentageFor_LengthValue | null;
+      /**
+       * A side keyword.
+       */
+      side: HorizontalPositionKeyword;
+      type: "side";
     };
 /**
  * A component within a [Position](Position) value, representing a position along either the horizontal or vertical axis of a box.
@@ -2740,12 +2743,15 @@ export type PositionComponentFor_VerticalPositionKeyword =
       value: DimensionPercentageFor_LengthValue;
     }
   | {
-      type: "side";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * Offset from the side.
        */
-      value: [VerticalPositionKeyword, DimensionPercentageFor_LengthValue | null];
+      offset?: DimensionPercentageFor_LengthValue | null;
+      /**
+       * A side keyword.
+       */
+      side: VerticalPositionKeyword;
+      type: "side";
     };
 /**
  * A `radial-gradient()` [ending shape](https://www.w3.org/TR/css-images-3/#valdef-radial-gradient-ending-shape).
@@ -2790,10 +2796,13 @@ export type Ellipse =
   | {
       type: "size";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * The x-radius of the ellipse.
        */
-      value: [DimensionPercentageFor_LengthValue, DimensionPercentageFor_LengthValue];
+      x: DimensionPercentageFor_LengthValue;
+      /**
+       * The y-radius of the ellipse.
+       */
+      y: DimensionPercentageFor_LengthValue;
     }
   | {
       type: "extent";
@@ -2985,17 +2994,15 @@ export type WebKitGradientPointComponentFor_VerticalPositionKeyword =
  */
 export type BackgroundSize =
   | {
+      /**
+       * The height of the background.
+       */
+      height: LengthPercentageOrAuto;
       type: "explicit";
-      value: {
-        /**
-         * The height of the background.
-         */
-        height: LengthPercentageOrAuto;
-        /**
-         * The width of the background.
-         */
-        width: LengthPercentageOrAuto;
-      };
+      /**
+       * The width of the background.
+       */
+      width: LengthPercentageOrAuto;
     }
   | {
       type: "cover";
@@ -3041,8 +3048,19 @@ export type Display =
       value: DisplayKeyword;
     }
   | {
+      /**
+       * The inside display value.
+       */
+      inside: DisplayInside;
+      /**
+       * Whether this is a list item.
+       */
+      isListItem: boolean;
+      /**
+       * The outside display value.
+       */
+      outside: DisplayOutside;
       type: "pair";
-      value: DisplayPair;
     };
 /**
  * A `display` keyword.
@@ -3068,12 +3086,28 @@ export type DisplayKeyword =
  * A [`<display-inside>`](https://drafts.csswg.org/css-display-3/#typedef-display-inside) value.
  */
 export type DisplayInside =
-  | ("flow" | "flow-root" | "table" | "grid" | "ruby")
   | {
-      flex: VendorPrefix;
+      type: "flow";
     }
   | {
-      box: VendorPrefix;
+      type: "flow-root";
+    }
+  | {
+      type: "table";
+    }
+  | {
+      type: "flex";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      type: "box";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      type: "grid";
+    }
+  | {
+      type: "ruby";
     };
 /**
  * A [`<display-outside>`](https://drafts.csswg.org/css-display-3/#typedef-display-outside) value.
@@ -3096,15 +3130,15 @@ export type Size =
     }
   | {
       type: "min-content";
-      value: VendorPrefix;
+      vendorPrefix: VendorPrefix;
     }
   | {
       type: "max-content";
-      value: VendorPrefix;
+      vendorPrefix: VendorPrefix;
     }
   | {
       type: "fit-content";
-      value: VendorPrefix;
+      vendorPrefix: VendorPrefix;
     }
   | {
       type: "fit-content-function";
@@ -3112,7 +3146,7 @@ export type Size =
     }
   | {
       type: "stretch";
-      value: VendorPrefix;
+      vendorPrefix: VendorPrefix;
     }
   | {
       type: "contain";
@@ -3130,15 +3164,15 @@ export type MaxSize =
     }
   | {
       type: "min-content";
-      value: VendorPrefix;
+      vendorPrefix: VendorPrefix;
     }
   | {
       type: "max-content";
-      value: VendorPrefix;
+      vendorPrefix: VendorPrefix;
     }
   | {
       type: "fit-content";
-      value: VendorPrefix;
+      vendorPrefix: VendorPrefix;
     }
   | {
       type: "fit-content-function";
@@ -3146,7 +3180,7 @@ export type MaxSize =
     }
   | {
       type: "stretch";
-      value: VendorPrefix;
+      vendorPrefix: VendorPrefix;
     }
   | {
       type: "contain";
@@ -3318,23 +3352,20 @@ export type AlignContent =
       value: ContentDistribution;
     }
   | {
+      /**
+       * An overflow alignment mode.
+       */
+      overflow?: OverflowPosition | null;
       type: "content-position";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * A content position keyword.
        */
-      value: [OverflowPosition | null, ContentPosition];
+      value: ContentPosition;
     };
 /**
  * A [`<baseline-position>`](https://www.w3.org/TR/css-align-3/#typedef-baseline-position) value, as used in the alignment properties.
  */
-export type BaselinePosition =
-  | {
-      type: "first";
-    }
-  | {
-      type: "last";
-    };
+export type BaselinePosition = "first" | "last";
 /**
  * A [`<content-distribution>`](https://www.w3.org/TR/css-align-3/#typedef-content-distribution) value.
  */
@@ -3359,20 +3390,29 @@ export type JustifyContent =
       value: ContentDistribution;
     }
   | {
+      /**
+       * An overflow alignment mode.
+       */
+      overflow?: OverflowPosition | null;
       type: "content-position";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * A content position keyword.
        */
-      value: [OverflowPosition | null, ContentPosition];
+      value: ContentPosition;
     }
   | {
+      /**
+       * An overflow alignment mode.
+       */
+      overflow?: OverflowPosition | null;
       type: "left";
-      value: OverflowPosition | null;
     }
   | {
+      /**
+       * An overflow alignment mode.
+       */
+      overflow?: OverflowPosition | null;
       type: "right";
-      value: OverflowPosition | null;
     };
 /**
  * A value for the [align-self](https://www.w3.org/TR/css-align-3/#align-self-property) property.
@@ -3392,12 +3432,15 @@ export type AlignSelf =
       value: BaselinePosition;
     }
   | {
+      /**
+       * An overflow alignment mode.
+       */
+      overflow?: OverflowPosition | null;
       type: "self-position";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * A self position keyword.
        */
-      value: [OverflowPosition | null, SelfPosition];
+      value: SelfPosition;
     };
 /**
  * A [`<self-position>`](https://www.w3.org/TR/css-align-3/#typedef-self-position) value.
@@ -3421,20 +3464,29 @@ export type JustifySelf =
       value: BaselinePosition;
     }
   | {
+      /**
+       * An overflow alignment mode.
+       */
+      overflow?: OverflowPosition | null;
       type: "self-position";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * A self position keyword.
        */
-      value: [OverflowPosition | null, SelfPosition];
+      value: SelfPosition;
     }
   | {
+      /**
+       * An overflow alignment mode.
+       */
+      overflow?: OverflowPosition | null;
       type: "left";
-      value: OverflowPosition | null;
     }
   | {
+      /**
+       * An overflow alignment mode.
+       */
+      overflow?: OverflowPosition | null;
       type: "right";
-      value: OverflowPosition | null;
     };
 /**
  * A value for the [align-items](https://www.w3.org/TR/css-align-3/#align-items-property) property.
@@ -3451,12 +3503,15 @@ export type AlignItems =
       value: BaselinePosition;
     }
   | {
+      /**
+       * An overflow alignment mode.
+       */
+      overflow?: OverflowPosition | null;
       type: "self-position";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * A self position keyword.
        */
-      value: [OverflowPosition | null, SelfPosition];
+      value: SelfPosition;
     };
 /**
  * A value for the [justify-items](https://www.w3.org/TR/css-align-3/#justify-items-property) property.
@@ -3473,20 +3528,29 @@ export type JustifyItems =
       value: BaselinePosition;
     }
   | {
+      /**
+       * An overflow alignment mode.
+       */
+      overflow?: OverflowPosition | null;
       type: "self-position";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * A self position keyword.
        */
-      value: [OverflowPosition | null, SelfPosition];
+      value: SelfPosition;
     }
   | {
+      /**
+       * An overflow alignment mode.
+       */
+      overflow?: OverflowPosition | null;
       type: "left";
-      value: OverflowPosition | null;
     }
   | {
+      /**
+       * An overflow alignment mode.
+       */
+      overflow?: OverflowPosition | null;
       type: "right";
-      value: OverflowPosition | null;
     }
   | {
       type: "legacy";
@@ -3495,16 +3559,7 @@ export type JustifyItems =
 /**
  * A legacy justification keyword, as used in the `justify-items` property.
  */
-export type LegacyJustify =
-  | {
-      type: "left";
-    }
-  | {
-      type: "right";
-    }
-  | {
-      type: "center";
-    };
+export type LegacyJustify = "left" | "right" | "center";
 /**
  * A [gap](https://www.w3.org/TR/css-align-3/#column-row-gap) value, as used in the `column-gap` and `row-gap` properties.
  */
@@ -3556,8 +3611,15 @@ export type TrackSizing =
       type: "none";
     }
   | {
+      /**
+       * A list of grid track items.
+       */
+      items: TrackListItem[];
+      /**
+       * A list of line names.
+       */
+      lineNames: String[][];
       type: "track-list";
-      value: TrackList;
     };
 /**
  * Either a track size or `repeat()` function.
@@ -3584,12 +3646,15 @@ export type TrackSize =
       value: TrackBreadth;
     }
   | {
-      type: "min-max";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * The maximum value.
        */
-      value: [TrackBreadth, TrackBreadth];
+      max: TrackBreadth;
+      /**
+       * The minimum value.
+       */
+      min: TrackBreadth;
+      type: "min-max";
     }
   | {
       type: "fit-content";
@@ -3642,17 +3707,15 @@ export type GridTemplateAreas =
       type: "none";
     }
   | {
+      /**
+       * A flattened list of grid area names. Unnamed areas specified by the `.` token are represented as `None`.
+       */
+      areas: (string | null)[];
+      /**
+       * The number of columns in the grid.
+       */
+      columns: number;
       type: "areas";
-      value: {
-        /**
-         * A flattened list of grid area names. Unnamed areas specified by the `.` token are represented as `None`.
-         */
-        areas: (string | null)[];
-        /**
-         * The number of columns in the grid.
-         */
-        columns: number;
-      };
     };
 /**
  * A [`<grid-line>`](https://drafts.csswg.org/css-grid-2/#typedef-grid-row-start-grid-line) value, used in the `grid-row-start`, `grid-row-end`, `grid-column-start`, and `grid-column-end` properties.
@@ -3662,24 +3725,33 @@ export type GridLine =
       type: "auto";
     }
   | {
-      type: "ident";
-      value: String;
+      /**
+       * A grid area name.
+       */
+      name: String;
+      type: "area";
     }
   | {
+      /**
+       * A line number.
+       */
+      index: number;
+      /**
+       * A line name to filter by.
+       */
+      name?: String | null;
       type: "line";
-      /**
-       * @minItems 2
-       * @maxItems 2
-       */
-      value: [number, String | null];
     }
   | {
-      type: "span";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * A line number.
        */
-      value: [number, String | null];
+      index: number;
+      /**
+       * A line name to filter by.
+       */
+      name?: String | null;
+      type: "span";
     };
 /**
  * A value for the [font-weight](https://www.w3.org/TR/css-fonts-4/#font-weight-prop) property.
@@ -3769,15 +3841,7 @@ export type FontStretchKeyword =
 /**
  * A value for the [font-family](https://www.w3.org/TR/css-fonts-4/#font-family-prop) property.
  */
-export type FontFamily =
-  | {
-      type: "family-name";
-      value: String;
-    }
-  | {
-      type: "generic";
-      value: GenericFontFamily;
-    };
+export type FontFamily = GenericFontFamily | String;
 /**
  * A [generic font family](https://www.w3.org/TR/css-fonts-4/#generic-font-families) name, as used in the `font-family` property.
  *
@@ -5019,18 +5083,32 @@ export type EasingFunction =
   | {
       type: "cubic-bezier";
       /**
-       * @minItems 4
-       * @maxItems 4
+       * The x-position of the first point in the curve.
        */
-      value: [number, number, number, number];
+      x1: number;
+      /**
+       * The x-position of the second point in the curve.
+       */
+      x2: number;
+      /**
+       * The y-position of the first point in the curve.
+       */
+      y1: number;
+      /**
+       * The y-position of the second point in the curve.
+       */
+      y2: number;
     }
   | {
-      type: "steps";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * The number of intervals in the function.
        */
-      value: [number, StepPosition];
+      count: number;
+      /**
+       * The step position.
+       */
+      position?: StepPosition;
+      type: "steps";
     };
 /**
  * A [step position](https://www.w3.org/TR/css-easing-1/#step-position), used within the `steps()` function.
@@ -5298,17 +5376,15 @@ export type TextEmphasisStyle =
       type: "none";
     }
   | {
+      /**
+       * The fill mode for the marks.
+       */
+      fill: TextEmphasisFillMode;
+      /**
+       * The shape of the marks.
+       */
+      shape?: TextEmphasisShape | null;
       type: "keyword";
-      value: {
-        /**
-         * The fill mode for the marks.
-         */
-        fill: TextEmphasisFillMode;
-        /**
-         * The shape of the marks.
-         */
-        shape?: TextEmphasisShape | null;
-      };
     }
   | {
       type: "string";
@@ -5407,31 +5483,7 @@ export type CaretShape = "auto" | "bar" | "block" | "underscore";
  * A value for the [user-select](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#content-selection) property.
  */
 export type UserSelect = "auto" | "text" | "none" | "contain" | "all";
-/**
- * A value for the [appearance](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#appearance-switching) property.
- */
-export type Appearance =
-  | (
-      | "none"
-      | "auto"
-      | "textfield"
-      | "menulist-button"
-      | "button"
-      | "checkbox"
-      | "listbox"
-      | "menulist"
-      | "meter"
-      | "progress-bar"
-      | "push-button"
-      | "radio"
-      | "searchfield"
-      | "slider-horizontal"
-      | "square-button"
-      | "textarea"
-    )
-  | {
-      "non-standard": String;
-    };
+export type Appearance = string;
 /**
  * A value for the [list-style-type](https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#text-markers) property.
  */
@@ -5460,12 +5512,15 @@ export type CounterStyle =
       value: String;
     }
   | {
-      type: "symbols";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * The symbols.
        */
-      value: [SymbolsType, Symbol[]];
+      symbols: Symbol[];
+      /**
+       * The counter system.
+       */
+      system?: SymbolsType & string;
+      type: "symbols";
     };
 /**
  * A [predefined counter](https://www.w3.org/TR/css-counter-styles-3/#predefined-counters) style.
@@ -5526,12 +5581,6 @@ export type PredefinedCounterStyle =
   | "trad-chinese-formal"
   | "ethiopic-numeric";
 /**
- * A [`<symbols-type>`](https://www.w3.org/TR/css-counter-styles-3/#typedef-symbols-type) value, as used in the `symbols()` function.
- *
- * See [CounterStyle](CounterStyle).
- */
-export type SymbolsType = "cyclic" | "numeric" | "alphabetic" | "symbolic" | "fixed";
-/**
  * A single [symbol](https://www.w3.org/TR/css-counter-styles-3/#funcdef-symbols) as used in the `symbols()` function.
  *
  * See [CounterStyle](CounterStyle).
@@ -5545,6 +5594,12 @@ export type Symbol =
       type: "image";
       value: Image;
     };
+/**
+ * A [`<symbols-type>`](https://www.w3.org/TR/css-counter-styles-3/#typedef-symbols-type) value, as used in the `symbols()` function.
+ *
+ * See [CounterStyle](CounterStyle).
+ */
+export type SymbolsType = "cyclic" | "numeric" | "alphabetic" | "symbolic" | "fixed";
 /**
  * A value for the [list-style-position](https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#list-style-position-property) property.
  */
@@ -5561,12 +5616,15 @@ export type SVGPaint =
       type: "none";
     }
   | {
+      /**
+       * A fallback to be used used in case the paint server cannot be resolved.
+       */
+      fallback?: SVGPaintFallback | null;
       type: "url";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * The url of the paint server.
        */
-      value: [Url, SVGPaintFallback | null];
+      url: Url;
     }
   | {
       type: "color";
@@ -5659,17 +5717,31 @@ export type ClipPath =
       value: Url;
     }
   | {
-      type: "shape";
       /**
-       * @minItems 2
-       * @maxItems 2
+       * A reference box that the shape is positioned according to.
        */
-      value: [BasicShape, GeometryBox];
+      referenceBox: GeometryBox;
+      /**
+       * A basic shape.
+       */
+      shape: BasicShape;
+      type: "shape";
     }
   | {
       type: "box";
       value: GeometryBox;
     };
+/**
+ * A [`<geometry-box>`](https://www.w3.org/TR/css-masking-1/#typedef-geometry-box) value as used in the `mask-clip` and `clip-path` properties.
+ */
+export type GeometryBox =
+  | "border-box"
+  | "padding-box"
+  | "content-box"
+  | "margin-box"
+  | "fill-box"
+  | "stroke-box"
+  | "view-box";
 /**
  * A CSS [`<basic-shape>`](https://www.w3.org/TR/css-shapes-1/#basic-shape-functions) value.
  */
@@ -5704,17 +5776,6 @@ export type RectFor_DimensionPercentageFor_LengthValue = [
   DimensionPercentageFor_LengthValue,
   DimensionPercentageFor_LengthValue
 ];
-/**
- * A [`<geometry-box>`](https://www.w3.org/TR/css-masking-1/#typedef-geometry-box) value as used in the `mask-clip` and `clip-path` properties.
- */
-export type GeometryBox =
-  | "border-box"
-  | "padding-box"
-  | "content-box"
-  | "margin-box"
-  | "fill-box"
-  | "stroke-box"
-  | "view-box";
 /**
  * A value for the [mask-mode](https://www.w3.org/TR/css-masking-1/#the-mask-mode) property.
  */
@@ -5905,7 +5966,7 @@ export type Token =
       value: String;
     }
   | {
-      type: "i-d-hash";
+      type: "id-hash";
       value: String;
     }
   | {
@@ -6018,46 +6079,42 @@ export type Token =
  */
 export type UnresolvedColor =
   | {
+      /**
+       * The unresolved alpha component.
+       */
+      alpha: TokenOrValue[];
+      /**
+       * The blue component.
+       */
+      b: number;
+      /**
+       * The green component.
+       */
+      g: number;
+      /**
+       * The red component.
+       */
+      r: number;
       type: "rgb";
-      value: {
-        /**
-         * The unresolved alpha component.
-         */
-        alpha: TokenOrValue[];
-        /**
-         * The blue component.
-         */
-        b: number;
-        /**
-         * The green component.
-         */
-        g: number;
-        /**
-         * The red component.
-         */
-        r: number;
-      };
     }
   | {
+      /**
+       * The unresolved alpha component.
+       */
+      alpha: TokenOrValue[];
+      /**
+       * The hue component.
+       */
+      h: number;
+      /**
+       * The lightness component.
+       */
+      l: number;
+      /**
+       * The saturation component.
+       */
+      s: number;
       type: "hsl";
-      value: {
-        /**
-         * The unresolved alpha component.
-         */
-        alpha: TokenOrValue[];
-        /**
-         * The hue component.
-         */
-        h: number;
-        /**
-         * The lightness component.
-         */
-        l: number;
-        /**
-         * The saturation component.
-         */
-        s: number;
-      };
     };
 export type SerializedComponentFor_SelectorsAnd_PseudoClassAnd_PseudoElementAnd_VendorPrefix =
   | {
@@ -6094,7 +6151,7 @@ export type SerializedComponentFor_SelectorsAnd_PseudoClassAnd_PseudoElementAnd_
     }
   | {
       name: string;
-      type: "i-d";
+      type: "id";
     }
   | {
       name: string;
@@ -6102,7 +6159,7 @@ export type SerializedComponentFor_SelectorsAnd_PseudoClassAnd_PseudoElementAnd_
     }
   | {
       name: string;
-      namespace?: NamespaceConstraintFor_TupleOf_StringAnd_String | null;
+      namespace?: NamespaceConstraintFor_NamespaceValue | null;
       operation?: AttrOperation | null;
       type: "attribute";
     }
@@ -6120,17 +6177,14 @@ export type Combinator =
   | "pseudo-element"
   | "slot-assignment"
   | "part";
-export type NamespaceConstraintFor_TupleOf_StringAnd_String =
+export type NamespaceConstraintFor_NamespaceValue =
   | {
       type: "any";
     }
   | {
+      prefix: string;
       type: "specific";
-      /**
-       * @minItems 2
-       * @maxItems 2
-       */
-      value: [string, string];
+      url: string;
     };
 export type ParsedCaseSensitivity =
   | "explicit-case-sensitive"
@@ -6140,251 +6194,248 @@ export type ParsedCaseSensitivity =
 export type AttrSelectorOperator = "equal" | "includes" | "dash-match" | "prefix" | "substring" | "suffix";
 export type TSPseudoClassFor_SelectorsAnd_VendorPrefix =
   | {
+      kind: "not";
       selectors: Selector[];
-      value: "not";
     }
   | {
-      value: "first-child";
+      kind: "first-child";
     }
   | {
-      value: "last-child";
+      kind: "last-child";
     }
   | {
-      value: "only-child";
+      kind: "only-child";
     }
   | {
-      value: "root";
+      kind: "root";
     }
   | {
-      value: "empty";
+      kind: "empty";
     }
   | {
-      value: "scope";
-    }
-  | {
-      a: number;
-      b: number;
-      value: "nth-child";
+      kind: "scope";
     }
   | {
       a: number;
       b: number;
-      value: "nth-last-child";
+      kind: "nth-child";
     }
   | {
       a: number;
       b: number;
-      value: "nth-col";
+      kind: "nth-last-child";
     }
   | {
       a: number;
       b: number;
-      value: "nth-last-col";
+      kind: "nth-col";
     }
   | {
       a: number;
       b: number;
-      value: "nth-of-type";
+      kind: "nth-last-col";
     }
   | {
       a: number;
       b: number;
-      value: "nth-last-of-type";
+      kind: "nth-of-type";
     }
   | {
-      value: "first-of-type";
+      a: number;
+      b: number;
+      kind: "nth-last-of-type";
     }
   | {
-      value: "last-of-type";
+      kind: "first-of-type";
     }
   | {
-      value: "only-of-type";
+      kind: "last-of-type";
     }
   | {
+      kind: "only-of-type";
+    }
+  | {
+      kind: "host";
       selectors?: Selector | null;
-      value: "host";
     }
   | {
+      kind: "where";
       selectors: Selector[];
-      value: "where";
     }
   | {
+      kind: "is";
       selectors: Selector[];
-      value: "is";
     }
   | {
+      kind: "any";
       selectors: Selector[];
-      value: "any";
       vendorPrefix: VendorPrefix;
     }
   | {
+      kind: "has";
       selectors: Selector[];
-      value: "has";
     };
 /**
  * https://drafts.csswg.org/selectors-4/#structural-pseudos
  */
 export type PseudoClass =
   | {
-      args: String[];
-      value: "lang";
+      kind: "lang";
+      languages: String[];
     }
   | {
-      args: Direction;
-      value: "dir";
+      direction: Direction;
+      kind: "dir";
     }
   | {
-      value: "hover";
+      kind: "hover";
     }
   | {
-      value: "active";
+      kind: "active";
     }
   | {
-      value: "focus";
+      kind: "focus";
     }
   | {
-      value: "focus-visible";
+      kind: "focus-visible";
     }
   | {
-      value: "focus-within";
+      kind: "focus-within";
     }
   | {
-      value: "current";
+      kind: "current";
     }
   | {
-      value: "past";
+      kind: "past";
     }
   | {
-      value: "future";
+      kind: "future";
     }
   | {
-      value: "playing";
+      kind: "playing";
     }
   | {
-      value: "paused";
+      kind: "paused";
     }
   | {
-      value: "seeking";
+      kind: "seeking";
     }
   | {
-      value: "buffering";
+      kind: "buffering";
     }
   | {
-      value: "stalled";
+      kind: "stalled";
     }
   | {
-      value: "muted";
+      kind: "muted";
     }
   | {
-      value: "volume-locked";
+      kind: "volume-locked";
     }
   | {
-      args: VendorPrefix;
-      value: "fullscreen";
+      kind: "fullscreen";
+      vendorPrefix: VendorPrefix;
     }
   | {
-      value: "defined";
+      kind: "defined";
     }
   | {
-      args: VendorPrefix;
-      value: "any-link";
+      kind: "any-link";
+      vendorPrefix: VendorPrefix;
     }
   | {
-      value: "link";
+      kind: "link";
     }
   | {
-      value: "local-link";
+      kind: "local-link";
     }
   | {
-      value: "target";
+      kind: "target";
     }
   | {
-      value: "target-within";
+      kind: "target-within";
     }
   | {
-      value: "visited";
+      kind: "visited";
     }
   | {
-      value: "enabled";
+      kind: "enabled";
     }
   | {
-      value: "disabled";
+      kind: "disabled";
     }
   | {
-      args: VendorPrefix;
-      value: "read-only";
+      kind: "read-only";
+      vendorPrefix: VendorPrefix;
     }
   | {
-      args: VendorPrefix;
-      value: "read-write";
+      kind: "read-write";
+      vendorPrefix: VendorPrefix;
     }
   | {
-      args: VendorPrefix;
-      value: "placeholder-shown";
+      kind: "placeholder-shown";
+      vendorPrefix: VendorPrefix;
     }
   | {
-      value: "default";
+      kind: "default";
     }
   | {
-      value: "checked";
+      kind: "checked";
     }
   | {
-      value: "indeterminate";
+      kind: "indeterminate";
     }
   | {
-      value: "blank";
+      kind: "blank";
     }
   | {
-      value: "valid";
+      kind: "valid";
     }
   | {
-      value: "invalid";
+      kind: "invalid";
     }
   | {
-      value: "in-range";
+      kind: "in-range";
     }
   | {
-      value: "out-of-range";
+      kind: "out-of-range";
     }
   | {
-      value: "required";
+      kind: "required";
     }
   | {
-      value: "optional";
+      kind: "optional";
     }
   | {
-      value: "user-valid";
+      kind: "user-valid";
     }
   | {
-      value: "user-invalid";
+      kind: "user-invalid";
     }
   | {
-      args: VendorPrefix;
-      value: "autofill";
+      kind: "autofill";
+      vendorPrefix: VendorPrefix;
     }
   | {
-      args: Selector;
-      value: "local";
+      kind: "local";
+      selector: Selector;
     }
   | {
-      args: Selector;
-      value: "global";
+      kind: "global";
+      selector: Selector;
     }
   | {
-      args: WebKitScrollbarPseudoClass;
-      value: "web-kit-scrollbar";
+      kind: "webkit-scrollbar";
+      value: WebKitScrollbarPseudoClass;
     }
   | {
-      args: String;
-      value: "custom";
+      kind: "custom";
+      name: String;
     }
   | {
-      /**
-       * @minItems 2
-       * @maxItems 2
-       */
-      args: [String, TokenOrValue[]];
-      value: "custom-function";
+      arguments: TokenOrValue[];
+      kind: "custom-function";
+      name: String;
     };
 export type Direction = "ltr" | "rtl";
 /**
@@ -6404,74 +6455,73 @@ export type WebKitScrollbarPseudoClass =
   | "window-inactive";
 export type BuiltinPseudoElementFor_Selectors =
   | {
+      kind: "slotted";
       selector: Selector;
-      value: "slotted";
     }
   | {
+      kind: "part";
       names: string[];
-      value: "part";
     };
 export type PseudoElement =
   | {
-      value: "after";
+      kind: "after";
     }
   | {
-      value: "before";
+      kind: "before";
     }
   | {
-      value: "first-line";
+      kind: "first-line";
     }
   | {
-      value: "first-letter";
+      kind: "first-letter";
     }
   | {
-      args: VendorPrefix;
-      value: "selection";
+      kind: "selection";
+      vendorPrefix: VendorPrefix;
     }
   | {
-      args: VendorPrefix;
-      value: "placeholder";
+      kind: "placeholder";
+      vendorPrefix: VendorPrefix;
     }
   | {
-      value: "marker";
+      kind: "marker";
     }
   | {
-      args: VendorPrefix;
-      value: "backdrop";
+      kind: "backdrop";
+      vendorPrefix: VendorPrefix;
     }
   | {
-      args: VendorPrefix;
-      value: "file-selector-button";
+      kind: "file-selector-button";
+      vendorPrefix: VendorPrefix;
     }
   | {
-      args: WebKitScrollbarPseudoElement;
-      value: "web-kit-scrollbar";
+      kind: "webkit-scrollbar";
+      value: WebKitScrollbarPseudoElement;
     }
   | {
-      value: "cue";
+      kind: "cue";
     }
   | {
-      value: "cue-region";
+      kind: "cue-region";
     }
   | {
-      args: Selector;
-      value: "cue-function";
+      kind: "cue-function";
+      selector: Selector;
+    }
+  | (
+      | {
+          kind: "cue-region-function";
+        }
+      | SerializedComponentFor_SelectorsAnd_PseudoClassAnd_PseudoElementAnd_VendorPrefix[]
+    )
+  | {
+      kind: "custom";
+      name: String;
     }
   | {
-      args: Selector;
-      value: "cue-region-function";
-    }
-  | {
-      args: String;
-      value: "custom";
-    }
-  | {
-      /**
-       * @minItems 2
-       * @maxItems 2
-       */
-      args: [String, TokenOrValue[]];
-      value: "custom-function";
+      arguments: TokenOrValue[];
+      kind: "custom-function";
+      name: String;
     };
 export type WebKitScrollbarPseudoElement =
   | "scrollbar"
@@ -6502,10 +6552,12 @@ export type KeyframeSelector =
  */
 export type KeyframesName =
   | {
-      Ident: String;
+      type: "ident";
+      value: String;
     }
   | {
-      Custom: String;
+      type: "custom";
+      value: String;
     };
 /**
  * A property within an `@font-face` rule.
@@ -6558,25 +6610,25 @@ export type Source =
  */
 export type FontFormat =
   | {
-      type: "w-o-f-f";
+      type: "woff";
     }
   | {
-      type: "w-o-f-f2";
+      type: "woff2";
     }
   | {
-      type: "true-type";
+      type: "truetype";
     }
   | {
-      type: "open-type";
+      type: "opentype";
     }
   | {
-      type: "embedded-open-type";
+      type: "embedded-opentype";
     }
   | {
       type: "collection";
     }
   | {
-      type: "s-v-g";
+      type: "svg";
     }
   | {
       type: "string";
@@ -6743,11 +6795,16 @@ export type ParsedComponent =
     }
   | {
       type: "repeated";
-      /**
-       * @minItems 2
-       * @maxItems 2
-       */
-      value: [ParsedComponent[], Multiplier];
+      value: {
+        /**
+         * The components to repeat.
+         */
+        components: ParsedComponent[];
+        /**
+         * A multiplier describing how the components repeat.
+         */
+        multiplier: Multiplier;
+      };
     }
   | {
       type: "token";
@@ -6892,7 +6949,7 @@ export interface Location {
   /**
    * The index of the source file within the source map.
    */
-  sourceIndex: number;
+  source_index: number;
 }
 /**
  * A [media query list](https://drafts.csswg.org/mediaqueries/#mq-list).
@@ -7156,25 +7213,6 @@ export interface BoxShadow {
    * The y offset of the shadow.
    */
   yOffset: Length;
-}
-/**
- * A pair of inside and outside display values, as used in the `display` property.
- *
- * See [Display](Display).
- */
-export interface DisplayPair {
-  /**
-   * The inside display value.
-   */
-  inside: DisplayInside;
-  /**
-   * Whether this is a list item.
-   */
-  isListItem: boolean;
-  /**
-   * The outside display value.
-   */
-  outside: DisplayOutside;
 }
 /**
  * A value for the [overflow](https://www.w3.org/TR/css-overflow-3/#overflow-properties) shorthand property.
@@ -7564,21 +7602,6 @@ export interface Gap {
    * The row gap.
    */
   row: GapValue;
-}
-/**
- * A [`<track-list>`](https://drafts.csswg.org/css-grid-2/#typedef-track-list) value, as used in the `grid-template-rows` and `grid-template-columns` properties.
- *
- * See [TrackSizing](TrackSizing).
- */
-export interface TrackList {
-  /**
-   * A list of grid track items.
-   */
-  items: TrackListItem[];
-  /**
-   * A list of line names.
-   */
-  lineNames: String[][];
 }
 /**
  * A [`<track-repeat>`](https://drafts.csswg.org/css-grid-2/#typedef-track-repeat) value, representing the `repeat()` function in a track list.
