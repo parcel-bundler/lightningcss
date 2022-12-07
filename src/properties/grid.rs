@@ -968,8 +968,7 @@ bitflags! {
   /// The `Row` or `Column` flags may be combined with the `Dense` flag, but the `Row` and `Column` flags may
   /// not be combined.
   #[derive(Visit)]
-  #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+  #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(from = "SerializedGridAutoFlow", into = "SerializedGridAutoFlow"))]
   pub struct GridAutoFlow: u8 {
     /// The auto-placement algorithm places items by filling each row, adding new rows as necessary.
     const Row    = 0b00;
@@ -977,6 +976,68 @@ bitflags! {
     const Column = 0b01;
     /// If specified, a dense packing algorithm is used, which fills in holes in the grid.
     const Dense  = 0b10;
+  }
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+struct SerializedGridAutoFlow {
+  /// The direction of the auto flow.
+  direction: AutoFlowDirection,
+  /// If specified, a dense packing algorithm is used, which fills in holes in the grid.
+  dense: bool,
+}
+
+impl From<GridAutoFlow> for SerializedGridAutoFlow {
+  fn from(flow: GridAutoFlow) -> Self {
+    Self {
+      direction: if flow.contains(GridAutoFlow::Row) {
+        AutoFlowDirection::Row
+      } else {
+        AutoFlowDirection::Column
+      },
+      dense: flow.contains(GridAutoFlow::Dense),
+    }
+  }
+}
+
+impl From<SerializedGridAutoFlow> for GridAutoFlow {
+  fn from(s: SerializedGridAutoFlow) -> GridAutoFlow {
+    let mut flow = match s.direction {
+      AutoFlowDirection::Row => GridAutoFlow::Row,
+      AutoFlowDirection::Column => GridAutoFlow::Column,
+    };
+    if s.dense {
+      flow |= GridAutoFlow::Dense
+    }
+
+    flow
+  }
+}
+
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "lowercase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+enum AutoFlowDirection {
+  Row,
+  Column,
+}
+
+#[cfg(feature = "jsonschema")]
+impl<'a> schemars::JsonSchema for GridAutoFlow {
+  fn is_referenceable() -> bool {
+    true
+  }
+
+  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    SerializedGridAutoFlow::json_schema(gen)
+  }
+
+  fn schema_name() -> String {
+    "GridAutoFlow".into()
   }
 }
 

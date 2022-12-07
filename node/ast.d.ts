@@ -3699,6 +3699,7 @@ export type RepeatCount =
   | {
       type: "auto-fit";
     };
+export type AutoFlowDirection = "row" | "column";
 /**
  * A value for the [grid-template-areas](https://drafts.csswg.org/css-grid-2/#grid-template-areas-property) property.
  */
@@ -7622,13 +7623,15 @@ export interface TrackRepeat {
    */
   trackSizes: TrackSize[];
 }
-/**
- * A value for the [grid-auto-flow](https://drafts.csswg.org/css-grid-2/#grid-auto-flow-property) property.
- *
- * The `Row` or `Column` flags may be combined with the `Dense` flag, but the `Row` and `Column` flags may not be combined.
- */
 export interface GridAutoFlow {
-  bits: number;
+  /**
+   * If specified, a dense packing algorithm is used, which fills in holes in the grid.
+   */
+  dense: boolean;
+  /**
+   * The direction of the auto flow.
+   */
+  direction: AutoFlowDirection;
 }
 /**
  * A value for the [grid-template](https://drafts.csswg.org/css-grid-2/#explicit-grid-shorthand) shorthand property.
