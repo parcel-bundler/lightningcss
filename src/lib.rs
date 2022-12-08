@@ -22779,7 +22779,7 @@ mod tests {
       r#"
     .foo {
       container-name: foo bar;
-      container-type: size inline-size;
+      container-type: size;
     }
     "#,
       ".foo{container:foo bar/size}",

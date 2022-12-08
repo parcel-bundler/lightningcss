@@ -5347,6 +5347,9 @@ export type Spacing =
       type: "length";
       value: Length;
     };
+export type TextDecorationLine = ExclusiveTextDecorationLine | OtherTextDecorationLine[];
+export type ExclusiveTextDecorationLine = "none" | "spelling-error" | "grammar-error";
+export type OtherTextDecorationLine = "underline" | "overline" | "line-through" | "blink";
 /**
  * A value for the [text-decoration-style](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-style-property) property.
  */
@@ -5891,6 +5894,10 @@ export type ZIndex =
       type: "integer";
       value: number;
     };
+/**
+ * A value for the [container-type](https://drafts.csswg.org/css-contain-3/#container-type) property. Establishes the element as a query container for the purpose of container queries.
+ */
+export type ContainerType = "normal" | "inline-size" | "size";
 /**
  * A value for the [container-name](https://drafts.csswg.org/css-contain-3/#container-name) property.
  */
@@ -8122,17 +8129,13 @@ export interface TextTransform {
    */
   case: TextTransformCase;
   /**
-   * How ideographic characters should be transformed.
+   * Converts all small Kana characters to the equivalent full-size Kana.
    */
-  other: TextTransformOther;
-}
-/**
- * Defines how ideographic characters should be transformed in the [text-transform](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-transform-property) property.
- *
- * All combinations of flags is supported.
- */
-export interface TextTransformOther {
-  bits: number;
+  fullSizeKana: boolean;
+  /**
+   * Puts all typographic character units in full-width form.
+   */
+  fullWidth: boolean;
 }
 /**
  * A value for the [text-indent](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-indent-property) property.
@@ -8150,14 +8153,6 @@ export interface TextIndent {
    * The amount to indent.
    */
   value: DimensionPercentageFor_LengthValue;
-}
-/**
- * A value for the [text-decoration-line](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-line-property) property.
- *
- * Multiple lines may be specified by combining the flags.
- */
-export interface TextDecorationLine {
-  bits: number;
 }
 /**
  * A value for the [text-decoration](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-property) shorthand property.
@@ -8436,14 +8431,6 @@ export interface DropShadow {
    * The y offset of the drop shadow.
    */
   yOffset: Length;
-}
-/**
- * A value for the [container-type](https://drafts.csswg.org/css-contain-3/#container-type) property. Establishes the element as a query container for the purpose of container queries.
- *
- * `normal` is mutually exclusive, but other combinations of flags are allowed.
- */
-export interface ContainerType {
-  bits: number;
 }
 /**
  * A value for the [container](https://drafts.csswg.org/css-contain-3/#container-shorthand) shorthand property.
