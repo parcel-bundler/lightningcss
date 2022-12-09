@@ -1052,7 +1052,7 @@ fn parse_nested_at_rule<'a, 'o, 'i, 't, T: AtRuleParser<'i>>(
   let (declarations, mut rules) =
     parse_declarations_and_nested_rules(input, default_namespace, namespace_prefixes, options)?;
 
-  if declarations.declarations.len() > 0 {
+  if declarations.len() > 0 {
     rules.0.insert(
       0,
       CssRule::Style(StyleRule {

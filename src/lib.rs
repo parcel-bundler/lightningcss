@@ -18676,6 +18676,23 @@ mod tests {
     nesting_test(
       r#"
         .foo {
+          @media (min-width: 640px) {
+            color: red !important;
+          }
+        }
+      "#,
+      indoc! {r#"
+        @media (min-width: 640px) {
+          .foo {
+            color: red !important;
+          }
+        }
+      "#},
+    );
+
+    nesting_test(
+      r#"
+        .foo {
           display: grid;
 
           @supports (foo: bar) {
