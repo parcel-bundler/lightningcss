@@ -199,7 +199,7 @@ impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for CssRule<'i, T> {
       CssRule::Viewport(viewport) => viewport.to_css(dest),
       CssRule::CustomMedia(custom_media) => custom_media.to_css(dest),
       CssRule::LayerStatement(layer) => layer.to_css(dest),
-      CssRule::LayerBlock(layer) => layer.to_css(dest),
+      CssRule::LayerBlock(layer) => layer.to_css_with_context(dest, context),
       CssRule::Property(property) => property.to_css(dest),
       CssRule::Container(container) => container.to_css_with_context(dest, context),
       CssRule::Unknown(unknown) => unknown.to_css(dest),

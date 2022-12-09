@@ -18698,6 +18698,75 @@ mod tests {
 
     nesting_test(
       r#"
+        .foo {
+          display: grid;
+
+          @container (min-width: 100px) {
+            grid-auto-flow: column;
+          }
+        }
+      "#,
+      indoc! {r#"
+        .foo {
+          display: grid;
+        }
+
+        @container (min-width: 100px) {
+          .foo {
+            grid-auto-flow: column;
+          }
+        }
+      "#},
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          display: grid;
+
+          @layer test {
+            grid-auto-flow: column;
+          }
+        }
+      "#,
+      indoc! {r#"
+        .foo {
+          display: grid;
+        }
+
+        @layer test {
+          .foo {
+            grid-auto-flow: column;
+          }
+        }
+      "#},
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          display: grid;
+
+          @layer {
+            grid-auto-flow: column;
+          }
+        }
+      "#,
+      indoc! {r#"
+        .foo {
+          display: grid;
+        }
+
+        @layer {
+          .foo {
+            grid-auto-flow: column;
+          }
+        }
+      "#},
+    );
+
+    nesting_test(
+      r#"
         @namespace "http://example.com/foo";
         @namespace toto "http://toto.example.org";
 
