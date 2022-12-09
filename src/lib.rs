@@ -20224,6 +20224,45 @@ mod tests {
         ..Default::default()
       },
     );
+
+    // Stable hashes between project roots.
+    fn test_project_root(project_root: &str, filename: &str, hash: &str) {
+      let stylesheet = StyleSheet::parse(
+        r#"
+        .foo {
+          background: red;
+        }
+        "#,
+        ParserOptions {
+          filename: filename.into(),
+          css_modules: Some(Default::default()),
+          ..ParserOptions::default()
+        },
+      )
+      .unwrap();
+      let res = stylesheet
+        .to_css(PrinterOptions {
+          project_root: Some(project_root),
+          ..PrinterOptions::default()
+        })
+        .unwrap();
+      assert_eq!(
+        res.code,
+        format!(
+          indoc! {r#"
+      .{}_foo {{
+        background: red;
+      }}
+      "#},
+          hash
+        )
+      );
+    }
+
+    test_project_root("/foo/bar", "/foo/bar/test.css", "EgL3uq");
+    test_project_root("/foo", "/foo/test.css", "EgL3uq");
+    test_project_root("/foo/bar", "/foo/bar/baz/test.css", "xLEkNW");
+    test_project_root("/foo", "/foo/baz/test.css", "xLEkNW");
   }
 
   #[test]

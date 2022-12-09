@@ -34,7 +34,8 @@ use crate::{
     layer::{LayerBlockRule, LayerName},
     Location,
   },
-  values::ident::DashedIdentReference, traits::ToCss,
+  traits::ToCss,
+  values::ident::DashedIdentReference,
 };
 use crate::{
   error::{Error, ParserError},
@@ -189,7 +190,7 @@ impl<'i, T: std::error::Error> BundleErrorKind<'i, T> {
 
 impl<'a, 'o, 's, P: SourceProvider, T: AtRuleParser<'a> + Clone + Sync + Send> Bundler<'a, 'o, 's, P, T>
 where
-   T::AtRule: Sync + Send + ToCss
+  T::AtRule: Sync + Send + ToCss,
 {
   /// Creates a new Bundler using the given source provider.
   /// If a source map is given, the content of each source file included in the bundle will
@@ -547,7 +548,11 @@ where
   fn order(&mut self) {
     process(self.stylesheets.get_mut().unwrap(), 0, &mut HashSet::new());
 
-    fn process<'i, T: AtRuleParser<'i>>(stylesheets: &mut Vec<BundleStyleSheet<'i, '_, T>>, source_index: u32, visited: &mut HashSet<u32>) {
+    fn process<'i, T: AtRuleParser<'i>>(
+      stylesheets: &mut Vec<BundleStyleSheet<'i, '_, T>>,
+      source_index: u32,
+      visited: &mut HashSet<u32>,
+    ) {
       if visited.contains(&source_index) {
         return;
       }
@@ -722,6 +727,7 @@ mod tests {
   use indoc::indoc;
   use std::collections::HashMap;
 
+  #[derive(Clone)]
   struct TestProvider {
     map: HashMap<PathBuf, String>,
   }
@@ -789,7 +795,11 @@ mod tests {
     stylesheet.to_css(PrinterOptions::default()).unwrap().code
   }
 
-  fn bundle_css_module<P: SourceProvider>(fs: P, entry: &str) -> (String, CssModuleExports) {
+  fn bundle_css_module<P: SourceProvider>(
+    fs: P,
+    entry: &str,
+    project_root: Option<&str>,
+  ) -> (String, CssModuleExports) {
     let mut bundler = Bundler::new(
       &fs,
       None,
@@ -803,7 +813,12 @@ mod tests {
     );
     let mut stylesheet = bundler.bundle(Path::new(entry)).unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
-    let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
+    let res = stylesheet
+      .to_css(PrinterOptions {
+        project_root,
+        ..PrinterOptions::default()
+      })
+      .unwrap();
     (res.code, res.exports.unwrap())
   }
 
@@ -1688,6 +1703,7 @@ mod tests {
         },
       },
       "/a.css",
+      None,
     );
     assert_eq!(
       code,
@@ -1722,6 +1738,7 @@ mod tests {
         },
       },
       "/a.css",
+      None,
     );
     assert_eq!(
       code,
@@ -1763,6 +1780,7 @@ mod tests {
         },
       },
       "/a.css",
+      None,
     );
     assert_eq!(
       code,
@@ -1802,6 +1820,7 @@ mod tests {
         },
       },
       "/a.css",
+      None,
     );
     assert_eq!(
       code,
@@ -1824,6 +1843,59 @@ mod tests {
         "a" => "_6lixEq_a"
       }
     );
+
+    // Hashes are stable between project roots.
+    let expected = indoc! { r#"
+    .dyGcAa_b {
+      background: #ff0;
+    }
+
+    .CK9avG_a {
+      background: #fff;
+    }
+  "#};
+
+    let (code, _) = bundle_css_module(
+      TestProvider {
+        map: fs! {
+          "/foo/bar/a.css": r#"
+        @import "b.css";
+        .a {
+          background: white;
+        }
+      "#,
+          "/foo/bar/b.css": r#"
+        .b {
+          background: yellow;
+        }
+      "#
+        },
+      },
+      "/foo/bar/a.css",
+      Some("/foo/bar"),
+    );
+    assert_eq!(code, expected);
+
+    let (code, _) = bundle_css_module(
+      TestProvider {
+        map: fs! {
+          "/x/y/z/a.css": r#"
+      @import "b.css";
+      .a {
+        background: white;
+      }
+    "#,
+          "/x/y/z/b.css": r#"
+      .b {
+        background: yellow;
+      }
+    "#
+        },
+      },
+      "/x/y/z/a.css",
+      Some("/x/y/z"),
+    );
+    assert_eq!(code, expected);
   }
 
   #[test]

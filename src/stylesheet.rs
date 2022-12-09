@@ -220,6 +220,7 @@ where
   pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, Error<PrinterErrorKind>> {
     // Make sure we always have capacity > 0: https://github.com/napi-rs/napi-rs/issues/1124.
     let mut dest = String::with_capacity(1);
+    let project_root = options.project_root.clone();
     let mut printer = Printer::new(&mut dest, options);
 
     printer.sources = Some(&self.sources);
@@ -229,7 +230,7 @@ where
 
     if let Some(config) = &self.options.css_modules {
       let mut references = HashMap::new();
-      printer.css_module = Some(CssModule::new(config, &self.sources, &mut references));
+      printer.css_module = Some(CssModule::new(config, &self.sources, project_root, &mut references));
 
       self.rules.to_css(&mut printer)?;
       printer.newline()?;

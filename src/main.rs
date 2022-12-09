@@ -69,8 +69,9 @@ pub fn main() -> Result<(), std::io::Error> {
   let cli_args = CliArgs::parse();
   let source = fs::read_to_string(&cli_args.input_file)?;
 
+  let project_root = std::env::current_dir()?;
   let absolute_path = fs::canonicalize(&cli_args.input_file)?;
-  let filename = pathdiff::diff_paths(absolute_path, std::env::current_dir()?).unwrap();
+  let filename = pathdiff::diff_paths(absolute_path, &project_root).unwrap();
   let filename = filename.to_str().unwrap();
 
   let css_modules = if let Some(_) = cli_args.css_modules {
@@ -103,7 +104,7 @@ pub fn main() -> Result<(), std::io::Error> {
   };
 
   let mut source_map = if cli_args.sourcemap {
-    Some(SourceMap::new("/"))
+    Some(SourceMap::new(&project_root.to_string_lossy()))
   } else {
     None
   };
@@ -149,6 +150,7 @@ pub fn main() -> Result<(), std::io::Error> {
       .to_css(PrinterOptions {
         minify: cli_args.minify,
         source_map: source_map.as_mut(),
+        project_root: Some(&project_root.to_string_lossy()),
         targets,
         ..PrinterOptions::default()
       })

@@ -387,6 +387,7 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
 #[serde(rename_all = "camelCase")]
 struct Config {
   pub filename: Option<String>,
+  pub project_root: Option<String>,
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
   pub targets: Option<Browsers>,
@@ -432,6 +433,7 @@ struct CssModulesConfig {
 #[serde(rename_all = "camelCase")]
 struct BundleConfig {
   pub filename: String,
+  pub project_root: Option<String>,
   pub targets: Option<Browsers>,
   pub minify: Option<bool>,
   pub source_map: Option<bool>,
@@ -479,8 +481,9 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult<'i>, Co
   let warnings = Some(Arc::new(RwLock::new(Vec::new())));
 
   let filename = config.filename.clone().unwrap_or_default();
+  let project_root = config.project_root.as_ref().map(|p| p.as_ref());
   let mut source_map = if config.source_map.unwrap_or_default() {
-    let mut sm = SourceMap::new("/");
+    let mut sm = SourceMap::new(project_root.unwrap_or("/"));
     sm.add_source(&filename);
     sm.set_source_content(0, code)?;
     Some(sm)
@@ -528,6 +531,7 @@ fn compile<'i>(code: &'i str, config: &Config) -> Result<TransformResult<'i>, Co
     stylesheet.to_css(PrinterOptions {
       minify: config.minify.unwrap_or_default(),
       source_map: source_map.as_mut(),
+      project_root,
       targets: config.targets,
       analyze_dependencies: if let Some(d) = &config.analyze_dependencies {
         match d {
@@ -578,8 +582,9 @@ fn compile_bundle<'i, P: SourceProvider>(
   fs: &'i P,
   config: &BundleConfig,
 ) -> Result<TransformResult<'i>, CompileError<'i, P::Error>> {
+  let project_root = config.project_root.as_ref().map(|p| p.as_ref());
   let mut source_map = if config.source_map.unwrap_or_default() {
-    Some(SourceMap::new("/"))
+    Some(SourceMap::new(project_root.unwrap_or("/")))
   } else {
     None
   };
@@ -624,6 +629,7 @@ fn compile_bundle<'i, P: SourceProvider>(
     stylesheet.to_css(PrinterOptions {
       minify: config.minify.unwrap_or_default(),
       source_map: source_map.as_mut(),
+      project_root,
       targets: config.targets,
       analyze_dependencies: if let Some(d) = &config.analyze_dependencies {
         match d {
@@ -729,6 +735,7 @@ fn compile_attr<'i>(
     attr.to_css(PrinterOptions {
       minify: config.minify,
       source_map: None,
+      project_root: None,
       targets: config.targets,
       analyze_dependencies: if config.analyze_dependencies {
         Some(DependencyOptions::default())

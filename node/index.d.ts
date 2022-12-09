@@ -11,6 +11,11 @@ export interface TransformOptions {
   sourceMap?: boolean,
   /** An input source map to extend. */
   inputSourceMap?: string,
+  /** 
+   * An optional project root path, used as the source root in the output source map.
+   * Also used to generate relative paths for sources used in CSS module hashes.
+   */
+  projectRoot?: string,
   /** The browser targets for the generated code. */
   targets?: Targets,
   /** Whether to enable various draft syntax. */

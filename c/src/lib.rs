@@ -195,6 +195,7 @@ pub struct ToCssOptions {
   source_map: bool,
   input_source_map: *const c_char,
   input_source_map_len: usize,
+  project_root: *const c_char,
   targets: Targets,
   analyze_dependencies: bool,
   pseudo_classes: PseudoClasses,
@@ -284,7 +285,7 @@ pub extern "C" fn lightningcss_stylesheet_parse(
     error_recovery: options.error_recovery,
     source_index: 0,
     warnings: Some(warnings.clone()),
-    at_rule_parser: None
+    at_rule_parser: None,
   };
 
   let stylesheet = unwrap!(StyleSheet::parse(code, opts), error, std::ptr::null_mut());
@@ -324,6 +325,11 @@ pub extern "C" fn lightningcss_stylesheet_to_css(
 
   let opts = PrinterOptions {
     minify: options.minify,
+    project_root: if options.project_root.is_null() {
+      None
+    } else {
+      Some(unsafe { std::str::from_utf8_unchecked(CStr::from_ptr(options.project_root).to_bytes()) })
+    },
     source_map: source_map.as_mut(),
     targets: if options.targets != Targets::default() {
       Some(options.targets.into())
