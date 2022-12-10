@@ -545,6 +545,43 @@ test('logical transforms', () => {
   assert.equal(res.code.toString(), '.foo{transform:translate(50px)}.foo:dir(rtl){transform:translate(-50px)}.bar{transform:translate(20%)}.bar:dir(rtl){transform:translate(-20%)}.baz{transform:translate(calc(100vw - 20px))}.baz:dir(rtl){transform:translate(-1*calc(100vw - 20px))}');
 });
 
+test('hover media query', () => {
+  // Similar to https://github.com/twbs/mq4-hover-shim
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      @media (hover) {
+        .foo {
+          color: red;
+        }
+      }
+    `),
+    visitor: {
+      MediaRule(media) {
+        let mediaQueries = media.value.query.mediaQueries;
+        if (
+          mediaQueries.length === 1 &&
+          mediaQueries[0].condition.type === 'feature' &&
+          mediaQueries[0].condition.value.type === 'boolean' &&
+          mediaQueries[0].condition.value.name === 'hover'
+        ) {
+          for (let rule of media.value.rules) {
+            if (rule.type === 'style') {
+              for (let selector of rule.value.selectors) {
+                selector.unshift({ type: 'class', name: 'hoverable' }, { type: 'combinator', value: 'descendant' });
+              }
+            }
+          }
+          return media.value.rules
+        }
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '.hoverable .foo{color:red}');
+});
+
 test('works with style attributes', () => {
   let res = transformStyleAttribute({
     filename: 'test.css',
