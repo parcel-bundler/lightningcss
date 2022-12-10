@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use lightningcss::{
+  properties::{Property, PropertyId},
   rules::CssRule,
   selector::Selector,
-  values::length::LengthValue,
+  values::{length::LengthValue, string::CowArcStr},
   visitor::{Visit, VisitTypes, Visitor},
 };
 use napi::{Env, JsFunction, JsObject, Ref};
@@ -23,6 +26,7 @@ pub struct JsVisitor {
   visit_custom_media_rule: Option<Ref<()>>,
   visit_layer_rule: Option<Ref<()>>,
   visit_property_rule: Option<Ref<()>>,
+  property_map: Option<Ref<()>>,
   visit_container_rule: Option<Ref<()>>,
   visit_property: Option<Ref<()>>,
   visit_length: Option<Ref<()>>,
@@ -75,6 +79,7 @@ impl Drop for JsVisitor {
     drop!(visit_property_rule);
     drop!(visit_container_rule);
     drop!(visit_property);
+    drop!(property_map);
     drop!(visit_length);
     drop!(visit_angle);
     drop!(visit_ratio);
@@ -110,6 +115,13 @@ impl JsVisitor {
       }};
     }
 
+    let property_map = if let Ok(obj) = visitor.get_named_property::<JsObject>("Property") {
+      types |= VisitTypes::PROPERTIES;
+      env.create_reference(obj).ok()
+    } else {
+      None
+    };
+
     Self {
       env,
       visit_rule: get!("Rule", RULES),
@@ -128,6 +140,7 @@ impl JsVisitor {
       visit_property_rule: get!("PropertyRule", RULES),
       visit_container_rule: get!("ContainerRule", RULES),
       visit_property: get!("Property", PROPERTIES),
+      property_map,
       visit_length: get!("Length", LENGTHS),
       visit_angle: get!("Angle", ANGLES),
       visit_ratio: get!("Ratio", RATIOS),
@@ -249,18 +262,22 @@ impl<'i> Visitor<'i> for JsVisitor {
   }
 
   fn visit_declaration_block(&mut self, decls: &mut lightningcss::declaration::DeclarationBlock<'i>) {
-    visit_list(
-      &self.env,
-      &mut decls.important_declarations,
-      &self.visit_property,
-      &mut self.errors,
-    );
-    visit_list(
-      &self.env,
-      &mut decls.declarations,
-      &self.visit_property,
-      &mut self.errors,
-    );
+    if self.property_map.is_some() || self.visit_property.is_some() {
+      visit_property_list(
+        &self.env,
+        &mut decls.important_declarations,
+        self.visit_property.as_ref(),
+        self.property_map.as_ref(),
+        &mut self.errors,
+      );
+      visit_property_list(
+        &self.env,
+        &mut decls.declarations,
+        self.visit_property.as_ref(),
+        self.property_map.as_ref(),
+        &mut self.errors,
+      );
+    }
     decls.important_declarations.visit_children(self);
     decls.declarations.visit_children(self);
   }
@@ -413,6 +430,56 @@ fn visit_list<V: Serialize + Deserialize<'static>>(
       let visit: JsFunction = unwrap!(env.get_reference_value_unchecked(visit), errors);
       let res = unwrap!(visit.call(None, &[js_value]), errors);
       let new_value: napi::Result<Option<ValueOrVec<V>>> = env.from_js_value(res).map(serde_detach::detach);
+      match new_value {
+        Ok(new_value) => match new_value {
+          Some(ValueOrVec::Value(v)) => {
+            list[i] = v;
+            i += 1;
+          }
+          Some(ValueOrVec::Vec(vec)) => {
+            if vec.is_empty() {
+              list.remove(i);
+            } else {
+              let len = vec.len();
+              list.splice(i..i + 1, vec);
+              i += len;
+            }
+          }
+          None => {
+            i += 1;
+          }
+        },
+        Err(err) => {
+          errors.push(err);
+          i += 1;
+        }
+      }
+    }
+  }
+}
+
+fn visit_property_list<'i>(
+  env: &Env,
+  list: &mut Vec<Property<'i>>,
+  visit_property: Option<&Ref<()>>,
+  property_map: Option<&Ref<()>>,
+  errors: &mut Vec<napi::Error>,
+) {
+  let property_map: Option<JsObject> = property_map.and_then(|p| env.get_reference_value_unchecked(&p).ok());
+  let visit_property: Option<JsFunction> =
+    visit_property.and_then(|visit| env.get_reference_value_unchecked::<JsFunction>(visit).ok());
+
+  let mut i = 0;
+  while i < list.len() {
+    let value = &list[i];
+    let js_value = unwrap!(env.to_js_value(value), errors);
+    // Use a specific property visitor if available, or fall back to Property visitor.
+    let visit = property_map
+      .as_ref()
+      .and_then(|m| m.get_named_property::<JsFunction>(value.property_id().name()).ok());
+    if let Some(visit) = visit.as_ref().or(visit_property.as_ref()) {
+      let res = unwrap!(visit.call(None, &[js_value]), errors);
+      let new_value: napi::Result<Option<ValueOrVec<Property>>> = env.from_js_value(res).map(serde_detach::detach);
       match new_value {
         Ok(new_value) => match new_value {
           Some(ValueOrVec::Value(v)) => {

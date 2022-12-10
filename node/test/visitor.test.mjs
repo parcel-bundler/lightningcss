@@ -584,6 +584,20 @@ test('hover media query', () => {
 
 test('momentum scrolling', () => {
   // Similar to https://github.com/yunusga/postcss-momentum-scrolling
+  let visitOverflow = property => [property, {
+    property: 'custom',
+    value: {
+      name: '-webkit-overflow-scrolling',
+      value: [{
+        type: 'token',
+        value: {
+          type: 'ident',
+          value: 'touch'
+        }
+      }]
+    }
+  }];
+
   let res = transform({
     filename: 'test.css',
     minify: true,
@@ -593,25 +607,10 @@ test('momentum scrolling', () => {
       }
     `),
     visitor: {
-      Property(property) {
-        switch (property.property) {
-          case 'overflow':
-          case 'overflow-x':
-          case 'overflow-y':
-            return [property, {
-              property: 'custom',
-              value: {
-                name: '-webkit-overflow-scrolling',
-                value: [{
-                  type: 'token',
-                  value: {
-                    type: 'ident',
-                    value: 'touch'
-                  }
-                }]
-              }
-            }]
-        }
+      Property: {
+        overflow: visitOverflow,
+        'overflow-x': visitOverflow,
+        'overflow-y': visitOverflow
       }
     }
   });
@@ -630,13 +629,15 @@ test('size', () => {
       }
     `),
     visitor: {
-      Property(property) {
-        if (property.property === 'custom' && property.value.name === 'size' && property.value.value[0].type === 'length') {
-          let value = { type: 'length-percentage', value: { type: 'dimension', value: property.value.value[0].value } };
-          return [
-            { property: 'width', value },
-            { property: 'height', value }
-          ];
+      Property: {
+        size(property) {
+          if (property.value.value[0].type === 'length') {
+            let value = { type: 'length-percentage', value: { type: 'dimension', value: property.value.value[0].value } };
+            return [
+              { property: 'width', value },
+              { property: 'height', value }
+            ];
+          }
         }
       }
     }
