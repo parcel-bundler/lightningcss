@@ -742,3 +742,17 @@ impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for CssRuleList<'i, T> {
     Ok(())
   }
 }
+
+impl<'i, T> std::ops::Index<usize> for CssRuleList<'i, T> {
+  type Output = CssRule<'i, T>;
+
+  fn index(&self, index: usize) -> &Self::Output {
+    &self.0[index]
+  }
+}
+
+impl<'i, T> std::ops::IndexMut<usize> for CssRuleList<'i, T> {
+  fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+    &mut self.0[index]
+  }
+}

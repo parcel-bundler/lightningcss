@@ -15,6 +15,7 @@ cssparser = "0.29.1"
 lightningcss = { path = "../", features = ["serde"] }
 parcel_sourcemap = { version = "2.1.1", features = ["json"] }
 serde-detach = "*"
+smallvec = { version = "1.7.0", features = ["union"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 jemallocator = { version = "0.3.2", features = ["disable_initial_exec_tls"] }

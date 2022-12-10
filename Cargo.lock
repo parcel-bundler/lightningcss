@@ -734,6 +734,7 @@ dependencies = [
  "serde-detach",
  "serde-wasm-bindgen",
  "serde_bytes",
+ "smallvec",
  "wasm-bindgen",
 ]
 

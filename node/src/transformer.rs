@@ -1,14 +1,14 @@
-use std::collections::HashMap;
+use std::ops::{Index, IndexMut};
 
 use lightningcss::{
-  properties::{Property, PropertyId},
-  rules::CssRule,
-  selector::Selector,
-  values::{length::LengthValue, string::CowArcStr},
+  properties::Property,
+  rules::{CssRule, CssRuleList},
+  values::length::LengthValue,
   visitor::{Visit, VisitTypes, Visitor},
 };
 use napi::{Env, JsFunction, JsObject, Ref};
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 
 pub struct JsVisitor {
   env: Env,
@@ -185,77 +185,51 @@ impl<'i> Visitor<'i> for JsVisitor {
   fn visit_rule_list(&mut self, rules: &mut lightningcss::rules::CssRuleList<'i>) {
     // Similar to visit_list, but skips CssRule::Ignored rules.
     if self.types.contains(VisitTypes::RULES) {
-      let mut i = 0;
-      while i < rules.0.len() {
-        let value = &rules.0[i];
-        if matches!(value, CssRule::Ignored) {
-          continue;
-        }
-
-        let js_value = unwrap!(self.env.to_js_value(value), self.errors);
-
-        // Use a more specific visitor function if available, but fall back to visit_rule.
-        let visit = match value {
-          CssRule::Media(..) => self.visit_media_rule.as_ref(),
-          CssRule::Import(..) => self.visit_import_rule.as_ref(),
-          CssRule::Style(..) => self.visit_style_rule.as_ref(),
-          CssRule::Keyframes(..) => self.visit_keyframes_rule.as_ref(),
-          CssRule::FontFace(..) => self.visit_font_face_rule.as_ref(),
-          CssRule::FontPaletteValues(..) => self.visit_font_palette_values_rule.as_ref(),
-          CssRule::Page(..) => self.visit_page_rule.as_ref(),
-          CssRule::Supports(..) => self.visit_supports_rule.as_ref(),
-          CssRule::CounterStyle(..) => self.visit_counter_style_rule.as_ref(),
-          CssRule::Namespace(..) => self.visit_namespace_rule.as_ref(),
-          CssRule::CustomMedia(..) => self.visit_custom_media_rule.as_ref(),
-          CssRule::LayerBlock(..) | CssRule::LayerStatement(..) => self.visit_layer_rule.as_ref(),
-          CssRule::Property(..) => self.visit_property_rule.as_ref(),
-          CssRule::Container(..) => self.visit_container_rule.as_ref(),
-          // Deprecated or custom rules don't have separate methods.
-          // Can use general Rule visitor for them.
-          CssRule::MozDocument(..)
-          | CssRule::Nesting(..)
-          | CssRule::Viewport(..)
-          | CssRule::Ignored
-          | CssRule::Unknown(..)
-          | CssRule::Custom(..) => None,
-        }
-        .or(self.visit_rule.as_ref());
-
-        if visit.is_none() {
-          i += 1;
-          continue;
-        }
-
-        let visit: JsFunction = unwrap!(self.env.get_reference_value_unchecked(&visit.unwrap()), self.errors);
-        let res = unwrap!(visit.call(None, &[js_value]), self.errors);
-        let new_value: napi::Result<Option<ValueOrVec<CssRule>>> =
-          self.env.from_js_value(res).map(serde_detach::detach);
-        match new_value {
-          Ok(new_value) => match new_value {
-            Some(ValueOrVec::Value(v)) => {
-              rules.0[i] = v;
-              i += 1;
-            }
-            Some(ValueOrVec::Vec(vec)) => {
-              if vec.is_empty() {
-                rules.0[i] = CssRule::Ignored;
-                i += 1;
-              } else {
-                let len = vec.len();
-                rules.0.splice(i..i + 1, vec);
-                i += len;
-              }
-            }
-            None => {
-              i += 1;
-            }
-          },
-          Err(err) => {
-            self.errors.push(err);
-            i += 1;
+      unwrap!(
+        map(rules, |value| {
+          if matches!(value, CssRule::Ignored) {
+            return Ok(None);
           }
-        }
-      }
+
+          let js_value = self.env.to_js_value(value)?;
+
+          // Use a more specific visitor function if available, but fall back to visit_rule.
+          let visit = match value {
+            CssRule::Media(..) => self.visit_media_rule.as_ref(),
+            CssRule::Import(..) => self.visit_import_rule.as_ref(),
+            CssRule::Style(..) => self.visit_style_rule.as_ref(),
+            CssRule::Keyframes(..) => self.visit_keyframes_rule.as_ref(),
+            CssRule::FontFace(..) => self.visit_font_face_rule.as_ref(),
+            CssRule::FontPaletteValues(..) => self.visit_font_palette_values_rule.as_ref(),
+            CssRule::Page(..) => self.visit_page_rule.as_ref(),
+            CssRule::Supports(..) => self.visit_supports_rule.as_ref(),
+            CssRule::CounterStyle(..) => self.visit_counter_style_rule.as_ref(),
+            CssRule::Namespace(..) => self.visit_namespace_rule.as_ref(),
+            CssRule::CustomMedia(..) => self.visit_custom_media_rule.as_ref(),
+            CssRule::LayerBlock(..) | CssRule::LayerStatement(..) => self.visit_layer_rule.as_ref(),
+            CssRule::Property(..) => self.visit_property_rule.as_ref(),
+            CssRule::Container(..) => self.visit_container_rule.as_ref(),
+            // Deprecated or custom rules don't have separate methods.
+            // Can use general Rule visitor for them.
+            CssRule::MozDocument(..)
+            | CssRule::Nesting(..)
+            | CssRule::Viewport(..)
+            | CssRule::Ignored
+            | CssRule::Unknown(..)
+            | CssRule::Custom(..) => None,
+          }
+          .or(self.visit_rule.as_ref());
+
+          if let Some(visit) = visit {
+            let visit: JsFunction = self.env.get_reference_value_unchecked(visit)?;
+            let res = visit.call(None, &[js_value])?;
+            self.env.from_js_value(res).map(serde_detach::detach)
+          } else {
+            Ok(None)
+          }
+        }),
+        &mut self.errors
+      )
     }
 
     rules.0.visit_children(self)
@@ -349,46 +323,7 @@ impl<'i> Visitor<'i> for JsVisitor {
   }
 
   fn visit_selector_list(&mut self, selectors: &mut lightningcss::selector::SelectorList<'i>) {
-    if let Some(visit) = &self.visit_selector {
-      let mut i = 0;
-      while i < selectors.0.len() {
-        let value = &selectors.0[i];
-
-        let js_value = unwrap!(self.env.to_js_value(value), self.errors);
-        let visit: JsFunction = unwrap!(self.env.get_reference_value_unchecked(visit), self.errors);
-        let res = unwrap!(visit.call(None, &[js_value]), self.errors);
-        let new_value: napi::Result<Option<ValueOrVec<Selector>>> =
-          self.env.from_js_value(res).map(serde_detach::detach);
-        match new_value {
-          Ok(new_value) => match new_value {
-            Some(ValueOrVec::Value(v)) => {
-              selectors.0[i] = v;
-              i += 1;
-            }
-            Some(ValueOrVec::Vec(vec)) => {
-              if vec.is_empty() {
-                selectors.0.remove(i);
-              } else {
-                let len = vec.len();
-                let mut iter = vec.into_iter();
-                selectors.0[i] = iter.next().unwrap();
-                if len > 1 {
-                  selectors.0.insert_many(i + 1, iter);
-                }
-                i += len;
-              }
-            }
-            None => {
-              i += 1;
-            }
-          },
-          Err(err) => {
-            self.errors.push(err);
-            i += 1;
-          }
-        }
-      }
-    }
+    visit_list(&self.env, &mut selectors.0, &self.visit_selector, &mut self.errors);
   }
 
   fn visit_token_list(&mut self, tokens: &mut lightningcss::properties::custom::TokenList<'i>) {
@@ -416,45 +351,22 @@ fn visit<V: Serialize + Deserialize<'static>>(
   }
 }
 
-fn visit_list<V: Serialize + Deserialize<'static>>(
+fn visit_list<V: Serialize + Deserialize<'static>, L: List<V>>(
   env: &Env,
-  list: &mut Vec<V>,
+  list: &mut L,
   visit: &Option<Ref<()>>,
   errors: &mut Vec<napi::Error>,
 ) {
   if let Some(visit) = visit {
-    let mut i = 0;
-    while i < list.len() {
-      let value = &list[i];
-      let js_value = unwrap!(env.to_js_value(value), errors);
-      let visit: JsFunction = unwrap!(env.get_reference_value_unchecked(visit), errors);
-      let res = unwrap!(visit.call(None, &[js_value]), errors);
-      let new_value: napi::Result<Option<ValueOrVec<V>>> = env.from_js_value(res).map(serde_detach::detach);
-      match new_value {
-        Ok(new_value) => match new_value {
-          Some(ValueOrVec::Value(v)) => {
-            list[i] = v;
-            i += 1;
-          }
-          Some(ValueOrVec::Vec(vec)) => {
-            if vec.is_empty() {
-              list.remove(i);
-            } else {
-              let len = vec.len();
-              list.splice(i..i + 1, vec);
-              i += len;
-            }
-          }
-          None => {
-            i += 1;
-          }
-        },
-        Err(err) => {
-          errors.push(err);
-          i += 1;
-        }
-      }
-    }
+    unwrap!(
+      map(list, |value| {
+        let js_value = env.to_js_value(value)?;
+        let visit: JsFunction = env.get_reference_value_unchecked(visit)?;
+        let res = visit.call(None, &[js_value])?;
+        env.from_js_value(res).map(serde_detach::detach)
+      }),
+      errors
+    )
   }
 }
 
@@ -469,43 +381,49 @@ fn visit_property_list<'i>(
   let visit_property: Option<JsFunction> =
     visit_property.and_then(|visit| env.get_reference_value_unchecked::<JsFunction>(visit).ok());
 
+  unwrap!(
+    map(list, |value| {
+      let js_value = env.to_js_value(value)?;
+      // Use a specific property visitor if available, or fall back to Property visitor.
+      let visit = property_map
+        .as_ref()
+        .and_then(|m| m.get_named_property::<JsFunction>(value.property_id().name()).ok());
+      if let Some(visit) = visit.as_ref().or(visit_property.as_ref()) {
+        let res = visit.call(None, &[js_value])?;
+        env.from_js_value(res).map(serde_detach::detach)
+      } else {
+        Ok(None)
+      }
+    }),
+    errors
+  )
+}
+
+fn map<V, L: List<V>, F: Fn(&V) -> napi::Result<Option<ValueOrVec<V>>>>(list: &mut L, f: F) -> napi::Result<()> {
   let mut i = 0;
   while i < list.len() {
     let value = &list[i];
-    let js_value = unwrap!(env.to_js_value(value), errors);
-    // Use a specific property visitor if available, or fall back to Property visitor.
-    let visit = property_map
-      .as_ref()
-      .and_then(|m| m.get_named_property::<JsFunction>(value.property_id().name()).ok());
-    if let Some(visit) = visit.as_ref().or(visit_property.as_ref()) {
-      let res = unwrap!(visit.call(None, &[js_value]), errors);
-      let new_value: napi::Result<Option<ValueOrVec<Property>>> = env.from_js_value(res).map(serde_detach::detach);
-      match new_value {
-        Ok(new_value) => match new_value {
-          Some(ValueOrVec::Value(v)) => {
-            list[i] = v;
-            i += 1;
-          }
-          Some(ValueOrVec::Vec(vec)) => {
-            if vec.is_empty() {
-              list.remove(i);
-            } else {
-              let len = vec.len();
-              list.splice(i..i + 1, vec);
-              i += len;
-            }
-          }
-          None => {
-            i += 1;
-          }
-        },
-        Err(err) => {
-          errors.push(err);
-          i += 1;
+    let new_value = f(value)?;
+    match new_value {
+      Some(ValueOrVec::Value(v)) => {
+        list[i] = v;
+        i += 1;
+      }
+      Some(ValueOrVec::Vec(vec)) => {
+        if vec.is_empty() {
+          list.remove(i);
+        } else {
+          let len = vec.len();
+          list.replace(i, vec);
+          i += len;
         }
+      }
+      None => {
+        i += 1;
       }
     }
   }
+  Ok(())
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -513,4 +431,57 @@ fn visit_property_list<'i>(
 enum ValueOrVec<V> {
   Value(V),
   Vec(Vec<V>),
+}
+
+trait List<V>: Index<usize, Output = V> + IndexMut<usize, Output = V> {
+  fn len(&self) -> usize;
+  fn remove(&mut self, i: usize);
+  fn replace(&mut self, i: usize, items: Vec<V>);
+}
+
+impl<V> List<V> for Vec<V> {
+  fn len(&self) -> usize {
+    Vec::len(self)
+  }
+
+  fn remove(&mut self, i: usize) {
+    Vec::remove(self, i);
+  }
+
+  fn replace(&mut self, i: usize, items: Vec<V>) {
+    self.splice(i..i + 1, items);
+  }
+}
+
+impl<V, T: smallvec::Array<Item = V>> List<V> for SmallVec<T> {
+  fn len(&self) -> usize {
+    SmallVec::len(self)
+  }
+
+  fn remove(&mut self, i: usize) {
+    SmallVec::remove(self, i);
+  }
+
+  fn replace(&mut self, i: usize, items: Vec<V>) {
+    let len = items.len();
+    let mut iter = items.into_iter();
+    self[i] = iter.next().unwrap();
+    if len > 1 {
+      self.insert_many(i + 1, iter);
+    }
+  }
+}
+
+impl<'i, R> List<CssRule<'i, R>> for CssRuleList<'i, R> {
+  fn len(&self) -> usize {
+    self.0.len()
+  }
+
+  fn remove(&mut self, i: usize) {
+    self[i] = CssRule::Ignored;
+  }
+
+  fn replace(&mut self, i: usize, items: Vec<CssRule<'i, R>>) {
+    self.0.replace(i, items)
+  }
 }
