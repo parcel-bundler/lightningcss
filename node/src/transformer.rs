@@ -150,6 +150,18 @@ impl JsVisitor {
   }
 }
 
+macro_rules! unwrap {
+  ($result: expr, $errors: expr) => {
+    match $result {
+      Ok(r) => r,
+      Err(err) => {
+        $errors.push(err);
+        return;
+      }
+    }
+  };
+}
+
 impl<'i> Visitor<'i> for JsVisitor {
   const TYPES: lightningcss::visitor::VisitTypes = VisitTypes::all();
 
@@ -167,7 +179,7 @@ impl<'i> Visitor<'i> for JsVisitor {
           continue;
         }
 
-        let js_value = self.env.to_js_value(value).unwrap();
+        let js_value = unwrap!(self.env.to_js_value(value), self.errors);
 
         // Use a more specific visitor function if available, but fall back to visit_rule.
         let visit = match value {
@@ -201,8 +213,8 @@ impl<'i> Visitor<'i> for JsVisitor {
           continue;
         }
 
-        let visit: JsFunction = self.env.get_reference_value_unchecked(&visit.unwrap()).unwrap();
-        let res = visit.call(None, &[js_value]).unwrap();
+        let visit: JsFunction = unwrap!(self.env.get_reference_value_unchecked(&visit.unwrap()), self.errors);
+        let res = unwrap!(visit.call(None, &[js_value]), self.errors);
         let new_value: napi::Result<Option<ValueOrVec<CssRule>>> =
           self.env.from_js_value(res).map(serde_detach::detach);
         match new_value {
@@ -325,9 +337,9 @@ impl<'i> Visitor<'i> for JsVisitor {
       while i < selectors.0.len() {
         let value = &selectors.0[i];
 
-        let js_value = self.env.to_js_value(value).unwrap();
-        let visit: JsFunction = self.env.get_reference_value_unchecked(visit).unwrap();
-        let res = visit.call(None, &[js_value]).unwrap();
+        let js_value = unwrap!(self.env.to_js_value(value), self.errors);
+        let visit: JsFunction = unwrap!(self.env.get_reference_value_unchecked(visit), self.errors);
+        let res = unwrap!(visit.call(None, &[js_value]), self.errors);
         let new_value: napi::Result<Option<ValueOrVec<Selector>>> =
           self.env.from_js_value(res).map(serde_detach::detach);
         match new_value {
@@ -375,9 +387,9 @@ fn visit<V: Serialize + Deserialize<'static>>(
   errors: &mut Vec<napi::Error>,
 ) {
   if let Some(visit) = visit {
-    let js_value = env.to_js_value(value).unwrap();
-    let visit: JsFunction = env.get_reference_value_unchecked(visit).unwrap();
-    let res = visit.call(None, &[js_value]).unwrap();
+    let js_value = unwrap!(env.to_js_value(value), errors);
+    let visit: JsFunction = unwrap!(env.get_reference_value_unchecked(visit), errors);
+    let res = unwrap!(visit.call(None, &[js_value]), errors);
     let new_value: napi::Result<Option<V>> = env.from_js_value(res).map(serde_detach::detach);
     match new_value {
       Ok(Some(new_value)) => *value = new_value,
@@ -397,9 +409,9 @@ fn visit_list<V: Serialize + Deserialize<'static>>(
     let mut i = 0;
     while i < list.len() {
       let value = &list[i];
-      let js_value = env.to_js_value(value).unwrap();
-      let visit: JsFunction = env.get_reference_value_unchecked(visit).unwrap();
-      let res = visit.call(None, &[js_value]).unwrap();
+      let js_value = unwrap!(env.to_js_value(value), errors);
+      let visit: JsFunction = unwrap!(env.get_reference_value_unchecked(visit), errors);
+      let res = unwrap!(visit.call(None, &[js_value]), errors);
       let new_value: napi::Result<Option<ValueOrVec<V>>> = env.from_js_value(res).map(serde_detach::detach);
       match new_value {
         Ok(new_value) => match new_value {
