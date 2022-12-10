@@ -175,7 +175,7 @@ macro_rules! define_properties {
     )+
   ) => {
     /// A CSS property id.
-    #[derive(Debug, Clone, PartialEq, Visit)]
+    #[derive(Debug, Clone, PartialEq, Visit, Eq, Hash)]
     pub enum PropertyId<'i> {
       $(
         #[doc=concat!("The `", $name, "` property.")]

@@ -630,13 +630,15 @@ test('size', () => {
       }
     `),
     visitor: {
-      Property(property) {
-        if (property.property === 'custom' && property.value.name === 'size' && property.value.value[0].type === 'length') {
-          let value = { type: 'length-percentage', value: { type: 'dimension', value: property.value.value[0].value } };
-          return [
-            { property: 'width', value },
-            { property: 'height', value }
-          ];
+      Property: {
+        size(property) {
+          if (property.value.value[0].type === 'length') {
+            let value = { type: 'length-percentage', value: { type: 'dimension', value: property.value.value[0].value } };
+            return [
+              { property: 'width', value },
+              { property: 'height', value }
+            ];
+          }
         }
       }
     }
