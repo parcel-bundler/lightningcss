@@ -260,6 +260,10 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
         let rule = PageRule::deserialize(deserializer)?;
         Ok(CssRule::Page(rule))
       }
+      "supports" => {
+        let rule = SupportsRule::deserialize(deserializer)?;
+        Ok(CssRule::Supports(rule))
+      }
       "counter-style" => {
         let rule = CounterStyleRule::deserialize(deserializer)?;
         Ok(CssRule::CounterStyle(rule))

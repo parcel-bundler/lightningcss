@@ -423,6 +423,56 @@ test('dark theme class', () => {
   assert.equal(res.code.toString(), '@media (prefers-color-scheme:dark){html:not([theme=light]) body{background:#000}}html[theme=dark] body{background:#000}');
 });
 
+test('100vh fix', () => {
+  // Similar to https://github.com/postcss/postcss-100vh-fix
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      .foo {
+        color: red;
+        height: 100vh;
+      }
+    `),
+    visitor: {
+      StyleRule(style) {
+        let cloned;
+        for (let property of style.value.declarations.declarations) {
+          if (property.property === 'height' && property.value.type === 'length-percentage' && property.value.value.value.unit === 'vh' && property.value.value.value.value === 100) {
+            if (!cloned) {
+              cloned = structuredClone(style);
+              cloned.value.declarations.declarations = [];
+            }
+            cloned.value.declarations.declarations.push({
+              ...property,
+              value: {
+                type: 'stretch',
+                vendorPrefix: ['webkit']
+              }
+            });
+          }
+        }
+
+        if (cloned) {
+          return [style, {
+            type: 'supports',
+            value: {
+              condition: {
+                type: 'declaration',
+                value: '-webkit-touch-callout: none'
+              },
+              loc: style.value.loc,
+              rules: [cloned]
+            }
+          }];
+        }
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '.foo{color:red;height:100vh}@supports (-webkit-touch-callout: none){.foo{height:-webkit-fill-available}}')
+});
+
 test('works with style attributes', () => {
   let res = transformStyleAttribute({
     filename: 'test.css',
