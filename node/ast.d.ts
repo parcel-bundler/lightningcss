@@ -5178,15 +5178,15 @@ export type Transform =
       value: [DimensionPercentageFor_LengthValue, DimensionPercentageFor_LengthValue];
     }
   | {
-      type: "translate-x";
+      type: "translateX";
       value: DimensionPercentageFor_LengthValue;
     }
   | {
-      type: "translate-y";
+      type: "translateY";
       value: DimensionPercentageFor_LengthValue;
     }
   | {
-      type: "translate-z";
+      type: "translateZ";
       value: Length;
     }
   | {
@@ -5206,15 +5206,15 @@ export type Transform =
       value: [NumberOrPercentage, NumberOrPercentage];
     }
   | {
-      type: "scale-x";
+      type: "scaleX";
       value: NumberOrPercentage;
     }
   | {
-      type: "scale-y";
+      type: "scaleY";
       value: NumberOrPercentage;
     }
   | {
-      type: "scale-z";
+      type: "scaleZ";
       value: NumberOrPercentage;
     }
   | {
@@ -5230,15 +5230,15 @@ export type Transform =
       value: Angle;
     }
   | {
-      type: "rotate-x";
+      type: "rotateX";
       value: Angle;
     }
   | {
-      type: "rotate-y";
+      type: "rotateY";
       value: Angle;
     }
   | {
-      type: "rotate-z";
+      type: "rotateZ";
       value: Angle;
     }
   | {
@@ -5258,11 +5258,11 @@ export type Transform =
       value: [Angle, Angle];
     }
   | {
-      type: "skew-x";
+      type: "skewX";
       value: Angle;
     }
   | {
-      type: "skew-y";
+      type: "skewY";
       value: Angle;
     }
   | {

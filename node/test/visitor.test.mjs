@@ -473,6 +473,78 @@ test('100vh fix', () => {
   assert.equal(res.code.toString(), '.foo{color:red;height:100vh}@supports (-webkit-touch-callout: none){.foo{height:-webkit-fill-available}}')
 });
 
+test('logical transforms', () => {
+  // Similar to https://github.com/MohammadYounes/rtlcss
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      .foo {
+        transform: translateX(50px);
+      }
+
+      .bar {
+        transform: translateX(20%);
+      }
+
+      .baz {
+        transform: translateX(calc(100vw - 20px));
+      }
+    `),
+    visitor: {
+      StyleRule(style) {
+        let cloned;
+        for (let property of style.value.declarations.declarations) {
+          if (property.property === 'transform') {
+            let clonedTransforms = property.value.map(transform => {
+              if (transform.type !== 'translateX') {
+                return transform;
+              }
+
+              if (!cloned) {
+                cloned = structuredClone(style);
+                cloned.value.declarations.declarations = [];
+              }
+
+              let value;
+              switch (transform.value.type) {
+                case 'dimension':
+                  value = { type: 'dimension', value: { unit: transform.value.value.unit, value: -transform.value.value.value } };
+                  break;
+                case 'percentage':
+                  value = { type: 'percentage', value: -transform.value.value };
+                  break;
+                case 'calc':
+                  value = { type: 'calc', value: { type: 'product', value: [-1, transform.value.value] } };
+                  break;
+              }
+
+              return {
+                type: 'translateX',
+                value
+              }
+            });
+
+            if (cloned) {
+              cloned.value.selectors.at(-1).push({ type: 'pseudo-class', kind: 'dir', direction: 'rtl' });
+              cloned.value.declarations.declarations.push({
+                ...property,
+                value: clonedTransforms
+              });
+            }
+          }
+        }
+
+        if (cloned) {
+          return [style, cloned];
+        }
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '.foo{transform:translate(50px)}.foo:dir(rtl){transform:translate(-50px)}.bar{transform:translate(20%)}.bar:dir(rtl){transform:translate(-20%)}.baz{transform:translate(calc(100vw - 20px))}.baz:dir(rtl){transform:translate(-1*calc(100vw - 20px))}');
+});
+
 test('works with style attributes', () => {
   let res = transformStyleAttribute({
     filename: 'test.css',
