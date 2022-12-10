@@ -1,4 +1,4 @@
-import { Angle, CssColor, CssRuleFor_DefaultAtRule, Function, Image, LengthValue, MediaQuery, Property, Ratio, Resolution, Selector, SupportsCondition, Time, TokenOrValue, Url, Variable } from './ast';
+import { Angle, ContainerRuleFor_DefaultAtRule, CounterStyleRule, CssColor, CssRuleFor_DefaultAtRule, CustomMediaRule, FontFaceRule, FontPaletteValuesRule, Function, Image, ImportRule, KeyframesRule, LayerBlockRuleFor_DefaultAtRule, LayerStatementRule, LengthValue, MediaQuery, MediaRuleFor_DefaultAtRule, NamespaceRule, PageRule, Property, PropertyRule, Ratio, Resolution, Selector, StyleRuleFor_DefaultAtRule, SupportsCondition, SupportsRuleFor_DefaultAtRule, Time, TokenOrValue, Url, Variable } from './ast';
 import type { Targets } from './targets';
 
 export interface TransformOptions {
@@ -46,24 +46,38 @@ export interface TransformOptions {
 }
 
 export interface Visitor {
-  visitRule?(rule: CssRuleFor_DefaultAtRule): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
-  visitProperty?(property: Property): Property | Property[] | void;
-  visitUrl?(url: Url): Url | void;
-  visitColor?(color: CssColor): CssColor | void;
-  visitImage?(image: Image): Image | void;
-  visitLength?(length: LengthValue): LengthValue | void;
-  visitAngle?(angle: Angle): Angle | void;
-  visitRatio?(ratio: Ratio): Ratio | void;
-  visitResolution?(resolution: Resolution): Resolution | void;
-  visitTime?(time: Time): Time | void;
-  visitCustomIdent?(ident: string): string | void;
-  visitDashedIdent?(ident: string): string | void;
-  visitVariable?(variable: Variable): Variable | void;
-  visitMediaQuery?(query: MediaQuery): MediaQuery | MediaQuery[] | void;
-  visitSupportsCondition?(condition: SupportsCondition): SupportsCondition;
-  visitSelector?(selector: Selector): Selector | Selector[] | void;
-  visitFunction?(fn: Function): Function | void;
-  visitToken?(token: TokenOrValue): TokenOrValue | TokenOrValue[] | void;
+  Rule?(rule: CssRuleFor_DefaultAtRule): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+  MediaRule?(rule: { type: 'media', value: MediaRuleFor_DefaultAtRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+  ImportRule?(rule: { type: 'import', value: ImportRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+  StyleRule?(rule: { type: 'style', value: StyleRuleFor_DefaultAtRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+  KeyframesRule?(rule: { type: 'keyframes', value: KeyframesRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+  FontFaceRule?(rule: { type: 'font-face', value: FontFaceRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+  FontPaletteValuesRule?(rule: { type: 'font-palette-values', value: FontPaletteValuesRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+  PageRule?(rule: { type: 'page', value: PageRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+  SupportsRule?(rule: { type: 'supports', value: SupportsRuleFor_DefaultAtRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+  CounterStyleRule?(rule: { type: 'counter-style', value: CounterStyleRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+  NamespaceRule?(rule: { type: 'namespace', value: NamespaceRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+  CustomMediaRule?(rule: { type: 'custom-media', value: CustomMediaRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+  LayerRule?(rule: { type: 'layer-block', value: LayerBlockRuleFor_DefaultAtRule } | { type: 'layer-statement', value: LayerStatementRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+  PropertyRule?(rule: { type: 'property', value: PropertyRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+  ContainerRule?(rule: { type: 'container', value: ContainerRuleFor_DefaultAtRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+  Property?(property: Property): Property | Property[] | void;
+  Url?(url: Url): Url | void;
+  Color?(color: CssColor): CssColor | void;
+  Image?(image: Image): Image | void;
+  Length?(length: LengthValue): LengthValue | void;
+  Angle?(angle: Angle): Angle | void;
+  Ratio?(ratio: Ratio): Ratio | void;
+  Resolution?(resolution: Resolution): Resolution | void;
+  Time?(time: Time): Time | void;
+  CustomIdent?(ident: string): string | void;
+  DashedIdent?(ident: string): string | void;
+  Variable?(variable: Variable): Variable | void;
+  MediaQuery?(query: MediaQuery): MediaQuery | MediaQuery[] | void;
+  SupportsCondition?(condition: SupportsCondition): SupportsCondition;
+  Selector?(selector: Selector): Selector | Selector[] | void;
+  Function?(fn: Function): Function | void;
+  Token?(token: TokenOrValue): TokenOrValue | TokenOrValue[] | void;
 }
 
 export interface DependencyOptions {

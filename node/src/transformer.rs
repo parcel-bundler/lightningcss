@@ -10,6 +10,20 @@ use serde::{Deserialize, Serialize};
 pub struct JsVisitor {
   env: Env,
   visit_rule: Option<Ref<()>>,
+  visit_media_rule: Option<Ref<()>>,
+  visit_import_rule: Option<Ref<()>>,
+  visit_style_rule: Option<Ref<()>>,
+  visit_keyframes_rule: Option<Ref<()>>,
+  visit_font_face_rule: Option<Ref<()>>,
+  visit_font_palette_values_rule: Option<Ref<()>>,
+  visit_page_rule: Option<Ref<()>>,
+  visit_supports_rule: Option<Ref<()>>,
+  visit_counter_style_rule: Option<Ref<()>>,
+  visit_namespace_rule: Option<Ref<()>>,
+  visit_custom_media_rule: Option<Ref<()>>,
+  visit_layer_rule: Option<Ref<()>>,
+  visit_property_rule: Option<Ref<()>>,
+  visit_container_rule: Option<Ref<()>>,
   visit_property: Option<Ref<()>>,
   visit_length: Option<Ref<()>>,
   visit_angle: Option<Ref<()>>,
@@ -46,6 +60,20 @@ impl Drop for JsVisitor {
     }
 
     drop!(visit_rule);
+    drop!(visit_media_rule);
+    drop!(visit_import_rule);
+    drop!(visit_style_rule);
+    drop!(visit_keyframes_rule);
+    drop!(visit_font_face_rule);
+    drop!(visit_font_palette_values_rule);
+    drop!(visit_page_rule);
+    drop!(visit_supports_rule);
+    drop!(visit_counter_style_rule);
+    drop!(visit_namespace_rule);
+    drop!(visit_custom_media_rule);
+    drop!(visit_layer_rule);
+    drop!(visit_property_rule);
+    drop!(visit_container_rule);
     drop!(visit_property);
     drop!(visit_length);
     drop!(visit_angle);
@@ -84,24 +112,38 @@ impl JsVisitor {
 
     Self {
       env,
-      visit_rule: get!("visitRule", RULES),
-      visit_property: get!("visitProperty", PROPERTIES),
-      visit_length: get!("visitLength", LENGTHS),
-      visit_angle: get!("visitAngle", ANGLES),
-      visit_ratio: get!("visitRatio", RATIOS),
-      visit_resolution: get!("visitResolution", RESOLUTIONS),
-      visit_time: get!("visitTime", TIMES),
-      visit_color: get!("visitColor", COLORS),
-      visit_image: get!("visitImage", IMAGES),
-      visit_url: get!("visitUrl", URLS),
-      visit_media_query: get!("visitMediaQuery", MEDIA_QUERIES),
-      visit_supports_condition: get!("visitSupportsCondition", SUPPORTS_CONDITIONS),
-      visit_variable: get!("visitVariable", VARIABLES),
-      visit_custom_ident: get!("visitCustomIdent", CUSTOM_IDENTS),
-      visit_dashed_ident: get!("visitDashedIdent", DASHED_IDENTS),
-      visit_function: get!("visitFunction", FUNCTIONS),
-      visit_selector: get!("visitSelector", SELECTORS),
-      visit_token: get!("visitToken", TOKENS),
+      visit_rule: get!("Rule", RULES),
+      visit_media_rule: get!("MediaRule", RULES),
+      visit_import_rule: get!("ImportRule", RULES),
+      visit_style_rule: get!("StyleRule", RULES),
+      visit_keyframes_rule: get!("KeyframesRule", RULES),
+      visit_font_face_rule: get!("FontFaceRule", RULES),
+      visit_font_palette_values_rule: get!("FontPaletteValuesRule", RULES),
+      visit_page_rule: get!("PageRule", RULES),
+      visit_supports_rule: get!("SupportsRule", RULES),
+      visit_counter_style_rule: get!("CounterStyleRule", RULES),
+      visit_namespace_rule: get!("NamespaceRule", RULES),
+      visit_custom_media_rule: get!("CustomMediaRule", RULES),
+      visit_layer_rule: get!("LayerRule", RULES),
+      visit_property_rule: get!("PropertyRule", RULES),
+      visit_container_rule: get!("ContainerRule", RULES),
+      visit_property: get!("Property", PROPERTIES),
+      visit_length: get!("Length", LENGTHS),
+      visit_angle: get!("Angle", ANGLES),
+      visit_ratio: get!("Ratio", RATIOS),
+      visit_resolution: get!("Resolution", RESOLUTIONS),
+      visit_time: get!("Time", TIMES),
+      visit_color: get!("Color", COLORS),
+      visit_image: get!("Image", IMAGES),
+      visit_url: get!("Url", URLS),
+      visit_media_query: get!("MediaQuery", MEDIA_QUERIES),
+      visit_supports_condition: get!("SupportsCondition", SUPPORTS_CONDITIONS),
+      visit_variable: get!("Variable", VARIABLES),
+      visit_custom_ident: get!("CustomIdent", CUSTOM_IDENTS),
+      visit_dashed_ident: get!("DashedIdent", DASHED_IDENTS),
+      visit_function: get!("Function", FUNCTIONS),
+      visit_selector: get!("Selector", SELECTORS),
+      visit_token: get!("Token", TOKENS),
       types,
       errors: vec![],
     }
@@ -117,7 +159,7 @@ impl<'i> Visitor<'i> for JsVisitor {
 
   fn visit_rule_list(&mut self, rules: &mut lightningcss::rules::CssRuleList<'i>) {
     // Similar to visit_list, but skips CssRule::Ignored rules.
-    if let Some(visit) = &self.visit_rule {
+    if self.types.contains(VisitTypes::RULES) {
       let mut i = 0;
       while i < rules.0.len() {
         let value = &rules.0[i];
@@ -126,7 +168,40 @@ impl<'i> Visitor<'i> for JsVisitor {
         }
 
         let js_value = self.env.to_js_value(value).unwrap();
-        let visit: JsFunction = self.env.get_reference_value_unchecked(visit).unwrap();
+
+        // Use a more specific visitor function if available, but fall back to visit_rule.
+        let visit = match value {
+          CssRule::Media(..) => self.visit_media_rule.as_ref(),
+          CssRule::Import(..) => self.visit_import_rule.as_ref(),
+          CssRule::Style(..) => self.visit_style_rule.as_ref(),
+          CssRule::Keyframes(..) => self.visit_keyframes_rule.as_ref(),
+          CssRule::FontFace(..) => self.visit_font_face_rule.as_ref(),
+          CssRule::FontPaletteValues(..) => self.visit_font_palette_values_rule.as_ref(),
+          CssRule::Page(..) => self.visit_page_rule.as_ref(),
+          CssRule::Supports(..) => self.visit_supports_rule.as_ref(),
+          CssRule::CounterStyle(..) => self.visit_counter_style_rule.as_ref(),
+          CssRule::Namespace(..) => self.visit_namespace_rule.as_ref(),
+          CssRule::CustomMedia(..) => self.visit_custom_media_rule.as_ref(),
+          CssRule::LayerBlock(..) | CssRule::LayerStatement(..) => self.visit_layer_rule.as_ref(),
+          CssRule::Property(..) => self.visit_property_rule.as_ref(),
+          CssRule::Container(..) => self.visit_container_rule.as_ref(),
+          // Deprecated or custom rules don't have separate methods.
+          // Can use general Rule visitor for them.
+          CssRule::MozDocument(..)
+          | CssRule::Nesting(..)
+          | CssRule::Viewport(..)
+          | CssRule::Ignored
+          | CssRule::Unknown(..)
+          | CssRule::Custom(..) => None,
+        }
+        .or(self.visit_rule.as_ref());
+
+        if visit.is_none() {
+          i += 1;
+          continue;
+        }
+
+        let visit: JsFunction = self.env.get_reference_value_unchecked(&visit.unwrap()).unwrap();
         let res = visit.call(None, &[js_value]).unwrap();
         let new_value: napi::Result<Option<ValueOrVec<CssRule>>> =
           self.env.from_js_value(res).map(serde_detach::detach);

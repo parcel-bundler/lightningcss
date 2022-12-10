@@ -16,7 +16,7 @@ test('px to rem', () => {
       }
     `),
     visitor: {
-      visitLength(length) {
+      Length(length) {
         if (length.unit === 'px') {
           return {
             unit: 'rem',
@@ -42,7 +42,7 @@ test('custom units', () => {
       }
     `),
     visitor: {
-      visitToken(token) {
+      Token(token) {
         if (token.type === 'token' && token.value.type === 'dimension' && token.value.unit.startsWith('--')) {
           return {
             type: 'function',
@@ -114,7 +114,7 @@ test('design tokens', () => {
       }
     `),
     visitor: {
-      visitToken(token) {
+      Token(token) {
         if (token.type === 'function' && token.value.name === 'design-token' && token.value.arguments.length === 1 && token.value.arguments[0].value.type === 'string') {
           return tokens[token.value.arguments[0].value.value];
         }
@@ -156,7 +156,7 @@ test.skip('env function', () => {
       }
     `),
     visitor: {
-      visitToken(token) {
+      Token(token) {
         if (token.type === 'function' && token.value.name === 'env' && token.value.arguments.length === 1 && token.value.arguments[0].type === 'dashed-ident') {
           return tokens[token.value.arguments[0].value];
         }
@@ -178,7 +178,7 @@ test('url', () => {
       }
     `),
     visitor: {
-      visitUrl(url) {
+      Url(url) {
         url.url = 'https://mywebsite.com/' + url.url;
         return url;
       }
@@ -202,16 +202,15 @@ test('static vars', () => {
       }
     `),
     visitor: {
-      visitRule(rule) {
+      Rule(rule) {
         if (rule.type === 'unknown') {
           declared.set(rule.value.name, rule.value.prelude);
           return [];
         }
       },
-      visitToken(token) {
+      Token(token) {
         if (token.type === 'token' && token.value.type === 'at-keyword' && declared.has(token.value.value)) {
-          // TODO: a way to return multiple tokens?
-          return declared.get(token.value.value)[0];
+          return declared.get(token.value.value);
         }
       }
     }
@@ -231,7 +230,7 @@ test('selector prefix', () => {
       }
     `),
     visitor: {
-      visitSelector(selector) {
+      Selector(selector) {
         return [{ type: 'class', name: 'prefix' }, { type: 'combinator', value: 'descendant' }, ...selector];
       }
     }
@@ -260,11 +259,7 @@ test('apply', () => {
       }
     `),
     visitor: {
-      visitRule(rule) {
-        if (rule.type !== 'style') {
-          return;
-        }
-
+      StyleRule(rule) {
         for (let selector of rule.value.selectors) {
           if (selector.length === 1 && selector[0].type === 'type' && selector[0].name.startsWith('--')) {
             defined.set(selector[0].name, rule.value.declarations);
@@ -307,11 +302,7 @@ test('property lookup', () => {
      }
     `),
     visitor: {
-      visitRule(rule) {
-        if (rule.type !== 'style') {
-          return;
-        }
-
+      StyleRule(rule) {
         let valuesByProperty = new Map();
         for (let decl of rule.value.declarations.declarations) {
           let name = decl.property;
@@ -355,11 +346,7 @@ test('focus visible', () => {
       }
     `),
     visitor: {
-      visitRule(rule) {
-        if (rule.type !== 'style') {
-          return;
-        }
-
+      StyleRule(rule) {
         let clone = null;
         for (let selector of rule.value.selectors) {
           for (let [i, component] of selector.entries()) {
@@ -396,11 +383,7 @@ test('dark theme class', () => {
       }
     `),
     visitor: {
-      visitRule(rule) {
-        if (rule.type !== 'media') {
-          return;
-        }
-
+      MediaRule(rule) {
         let q = rule.value.query.mediaQueries[0];
         if (q.condition?.type === 'feature' && q.condition.value.type === 'plain' && q.condition.value.name === 'prefers-color-scheme' && q.condition.value.value.value === 'dark') {
           let clonedRules = [rule];
@@ -446,7 +429,7 @@ test('works with style attributes', () => {
     minify: true,
     code: Buffer.from('height: calc(100vh - 64px)'),
     visitor: {
-      visitLength(length) {
+      Length(length) {
         if (length.unit === 'px') {
           return {
             unit: 'rem',
@@ -465,7 +448,7 @@ test('works with bundler', () => {
     filename: 'tests/testdata/a.css',
     minify: true,
     visitor: {
-      visitLength(length) {
+      Length(length) {
         if (length.unit === 'px') {
           return {
             unit: 'rem',
@@ -484,7 +467,7 @@ test('works with async bundler', async () => {
     filename: 'tests/testdata/a.css',
     minify: true,
     visitor: {
-      visitLength(length) {
+      Length(length) {
         if (length.unit === 'px') {
           return {
             unit: 'rem',
