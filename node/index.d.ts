@@ -45,6 +45,15 @@ export interface TransformOptions {
   visitor?: Visitor
 }
 
+type FindByType<Union, Name> = Union extends { property: Name } ? Union : never;
+type MappedPropertyVisitors = {
+  [Name in Property['property']]: (property: FindByType<Property, Name>) => Property | Property[] | void;
+}
+
+type PropertyVisitors = MappedPropertyVisitors & {
+  [name: string]: (property: FindByType<Property, 'custom'>) => Property | Property[] | void;
+}
+
 export interface Visitor {
   Rule?(rule: CssRuleFor_DefaultAtRule): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
   MediaRule?(rule: { type: 'media', value: MediaRuleFor_DefaultAtRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
@@ -61,7 +70,7 @@ export interface Visitor {
   LayerRule?(rule: { type: 'layer-block', value: LayerBlockRuleFor_DefaultAtRule } | { type: 'layer-statement', value: LayerStatementRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
   PropertyRule?(rule: { type: 'property', value: PropertyRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
   ContainerRule?(rule: { type: 'container', value: ContainerRuleFor_DefaultAtRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
-  Property?(property: Property): Property | Property[] | void;
+  Property?: ((property: Property) => Property | Property[] | void) | PropertyVisitors;
   Url?(url: Url): Url | void;
   Color?(color: CssColor): CssColor | void;
   Image?(image: Image): Image | void;

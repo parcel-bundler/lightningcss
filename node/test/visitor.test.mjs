@@ -584,6 +584,20 @@ test('hover media query', () => {
 
 test('momentum scrolling', () => {
   // Similar to https://github.com/yunusga/postcss-momentum-scrolling
+  let visitOverflow = property => [property, {
+    property: 'custom',
+    value: {
+      name: '-webkit-overflow-scrolling',
+      value: [{
+        type: 'token',
+        value: {
+          type: 'ident',
+          value: 'touch'
+        }
+      }]
+    }
+  }];
+
   let res = transform({
     filename: 'test.css',
     minify: true,
@@ -593,25 +607,10 @@ test('momentum scrolling', () => {
       }
     `),
     visitor: {
-      Property(property) {
-        switch (property.property) {
-          case 'overflow':
-          case 'overflow-x':
-          case 'overflow-y':
-            return [property, {
-              property: 'custom',
-              value: {
-                name: '-webkit-overflow-scrolling',
-                value: [{
-                  type: 'token',
-                  value: {
-                    type: 'ident',
-                    value: 'touch'
-                  }
-                }]
-              }
-            }]
-        }
+      Property: {
+        overflow: visitOverflow,
+        'overflow-x': visitOverflow,
+        'overflow-y': visitOverflow
       }
     }
   });
