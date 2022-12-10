@@ -582,6 +582,69 @@ test('hover media query', () => {
   assert.equal(res.code.toString(), '.hoverable .foo{color:red}');
 });
 
+test('momentum scrolling', () => {
+  // Similar to https://github.com/yunusga/postcss-momentum-scrolling
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      .foo {
+        overflow: auto;
+      }
+    `),
+    visitor: {
+      Property(property) {
+        switch (property.property) {
+          case 'overflow':
+          case 'overflow-x':
+          case 'overflow-y':
+            return [property, {
+              property: 'custom',
+              value: {
+                name: '-webkit-overflow-scrolling',
+                value: [{
+                  type: 'token',
+                  value: {
+                    type: 'ident',
+                    value: 'touch'
+                  }
+                }]
+              }
+            }]
+        }
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '.foo{-webkit-overflow-scrolling:touch;overflow:auto}');
+});
+
+test('size', () => {
+  // Similar to https://github.com/postcss/postcss-size
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      .foo {
+        size: 12px;
+      }
+    `),
+    visitor: {
+      Property(property) {
+        if (property.property === 'custom' && property.value.name === 'size' && property.value.value[0].type === 'length') {
+          let value = { type: 'length-percentage', value: { type: 'dimension', value: property.value.value[0].value } };
+          return [
+            { property: 'width', value },
+            { property: 'height', value }
+          ];
+        }
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '.foo{width:12px;height:12px}');
+});
+
 test('works with style attributes', () => {
   let res = transformStyleAttribute({
     filename: 'test.css',
