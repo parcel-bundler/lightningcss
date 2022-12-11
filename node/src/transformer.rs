@@ -298,6 +298,8 @@ impl<'i> Visitor<'i> for JsVisitor {
   }
 
   fn visit_token_list(&mut self, tokens: &mut lightningcss::properties::custom::TokenList<'i>) {
+    tokens.visit_children(self);
+
     if self.types.contains(VisitTypes::TOKENS) {
       macro_rules! get {
         ($name: ident) => {
@@ -353,8 +355,6 @@ impl<'i> Visitor<'i> for JsVisitor {
         &mut self.errors
       );
     }
-
-    tokens.visit_children(self)
   }
 }
 
