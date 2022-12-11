@@ -1,6 +1,4 @@
-//! Selectors.
-
-#![allow(missing_docs)]
+//! CSS selectors.
 
 use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
@@ -37,9 +35,13 @@ mod private {
 
 use private::Selectors;
 
+/// A list of selectors.
 pub type SelectorList<'i> = parcel_selectors::SelectorList<'i, Selectors>;
+/// A CSS selector, including a list of components.
 pub type Selector<'i> = parcel_selectors::parser::Selector<'i, Selectors>;
+/// An individual component within a selector.
 pub type Component<'i> = parcel_selectors::parser::Component<'i, Selectors>;
+/// A combinator.
 pub use parcel_selectors::parser::Combinator;
 
 impl<'i> SelectorImpl<'i> for Selectors {
@@ -314,14 +316,17 @@ impl<'a, 'o, 'i, T> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 
 }
 
 enum_property! {
+  /// The [:dir()](https://drafts.csswg.org/selectors-4/#the-dir-pseudo) pseudo class.
   #[derive(Eq)]
   pub enum Direction {
+    /// Left to right
     Ltr,
+    /// Right to left
     Rtl,
   }
 }
 
-/// https://drafts.csswg.org/selectors-4/#structural-pseudos
+/// A pseudo class.
 #[derive(Clone, PartialEq)]
 #[cfg_attr(
   feature = "serde",
@@ -331,102 +336,153 @@ enum_property! {
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum PseudoClass<'i> {
   // https://drafts.csswg.org/selectors-4/#linguistic-pseudos
+  /// The [:lang()](https://drafts.csswg.org/selectors-4/#the-lang-pseudo) pseudo class.
   Lang {
+    /// A list of language codes.
     #[cfg_attr(feature = "serde", serde(borrow))]
     languages: Vec<CowArcStr<'i>>,
   },
+  /// The [:dir()](https://drafts.csswg.org/selectors-4/#the-dir-pseudo) pseudo class.
   Dir {
+    /// A direction.
     direction: Direction,
   },
 
   // https://drafts.csswg.org/selectors-4/#useraction-pseudos
+  /// The [:hover](https://drafts.csswg.org/selectors-4/#the-hover-pseudo) pseudo class.
   Hover,
+  /// The [:active](https://drafts.csswg.org/selectors-4/#the-active-pseudo) pseudo class.
   Active,
+  /// The [:focus](https://drafts.csswg.org/selectors-4/#the-focus-pseudo) pseudo class.
   Focus,
+  /// The [:focus-visible](https://drafts.csswg.org/selectors-4/#the-focus-visible-pseudo) pseudo class.
   FocusVisible,
+  /// The [:focus-within](https://drafts.csswg.org/selectors-4/#the-focus-within-pseudo) pseudo class.
   FocusWithin,
 
   // https://drafts.csswg.org/selectors-4/#time-pseudos
+  /// The [:current](https://drafts.csswg.org/selectors-4/#the-current-pseudo) pseudo class.
   Current,
+  /// The [:past](https://drafts.csswg.org/selectors-4/#the-past-pseudo) pseudo class.
   Past,
+  /// The [:future](https://drafts.csswg.org/selectors-4/#the-future-pseudo) pseudo class.
   Future,
 
   // https://drafts.csswg.org/selectors-4/#resource-pseudos
+  /// The [:playing](https://drafts.csswg.org/selectors-4/#selectordef-playing) pseudo class.
   Playing,
+  /// The [:paused](https://drafts.csswg.org/selectors-4/#selectordef-paused) pseudo class.
   Paused,
+  /// The [:seeking](https://drafts.csswg.org/selectors-4/#selectordef-seeking) pseudo class.
   Seeking,
+  /// The [:buffering](https://drafts.csswg.org/selectors-4/#selectordef-buffering) pseudo class.
   Buffering,
+  /// The [:stalled](https://drafts.csswg.org/selectors-4/#selectordef-stalled) pseudo class.
   Stalled,
+  /// The [:muted](https://drafts.csswg.org/selectors-4/#selectordef-muted) pseudo class.
   Muted,
+  /// The [:volume-locked](https://drafts.csswg.org/selectors-4/#selectordef-volume-locked) pseudo class.
   VolumeLocked,
 
-  // https://fullscreen.spec.whatwg.org/#:fullscreen-pseudo-class
+  /// The [:fullscreen](https://fullscreen.spec.whatwg.org/#:fullscreen-pseudo-class) pseudo class.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Fullscreen(VendorPrefix),
 
-  // https://drafts.csswg.org/selectors-4/#the-defined-pseudo
+  /// The [:defined](https://drafts.csswg.org/selectors-4/#the-defined-pseudo) pseudo class.
   Defined,
 
   // https://drafts.csswg.org/selectors-4/#location
+  /// The [:any-link](https://drafts.csswg.org/selectors-4/#the-any-link-pseudo) pseudo class.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   AnyLink(VendorPrefix),
+  /// The [:link](https://drafts.csswg.org/selectors-4/#link-pseudo) pseudo class.
   Link,
+  /// The [:local-link](https://drafts.csswg.org/selectors-4/#the-local-link-pseudo) pseudo class.
   LocalLink,
+  /// The [:target](https://drafts.csswg.org/selectors-4/#the-target-pseudo) pseudo class.
   Target,
+  /// The [:target-within](https://drafts.csswg.org/selectors-4/#the-target-within-pseudo) pseudo class.
   TargetWithin,
+  /// The [:visited](https://drafts.csswg.org/selectors-4/#visited-pseudo) pseudo class.
   Visited,
 
   // https://drafts.csswg.org/selectors-4/#input-pseudos
+  /// The [:enabled](https://drafts.csswg.org/selectors-4/#enabled-pseudo) pseudo class.
   Enabled,
+  /// The [:disabled](https://drafts.csswg.org/selectors-4/#disabled-pseudo) pseudo class.
   Disabled,
+  /// The [:read-only](https://drafts.csswg.org/selectors-4/#read-only-pseudo) pseudo class.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   ReadOnly(VendorPrefix),
+  /// The [:read-write](https://drafts.csswg.org/selectors-4/#read-write-pseudo) pseudo class.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   ReadWrite(VendorPrefix),
+  /// The [:placeholder-shown](https://drafts.csswg.org/selectors-4/#placeholder) pseudo class.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   PlaceholderShown(VendorPrefix),
+  /// The [:default](https://drafts.csswg.org/selectors-4/#the-default-pseudo) pseudo class.
   Default,
+  /// The [:checked](https://drafts.csswg.org/selectors-4/#checked) pseudo class.
   Checked,
+  /// The [:indeterminate](https://drafts.csswg.org/selectors-4/#indeterminate) pseudo class.
   Indeterminate,
+  /// The [:blank](https://drafts.csswg.org/selectors-4/#blank) pseudo class.
   Blank,
+  /// The [:valid](https://drafts.csswg.org/selectors-4/#valid-pseudo) pseudo class.
   Valid,
+  /// The [:invalid](https://drafts.csswg.org/selectors-4/#invalid-pseudo) pseudo class.
   Invalid,
+  /// The [:in-range](https://drafts.csswg.org/selectors-4/#in-range-pseudo) pseudo class.
   InRange,
+  /// The [:out-of-range](https://drafts.csswg.org/selectors-4/#out-of-range-pseudo) pseudo class.
   OutOfRange,
+  /// The [:required](https://drafts.csswg.org/selectors-4/#required-pseudo) pseudo class.
   Required,
+  /// The [:optional](https://drafts.csswg.org/selectors-4/#optional-pseudo) pseudo class.
   Optional,
+  /// The [:user-valid](https://drafts.csswg.org/selectors-4/#user-valid-pseudo) pseudo class.
   UserValid,
+  /// The [:used-invalid](https://drafts.csswg.org/selectors-4/#user-invalid-pseudo) pseudo class.
   UserInvalid,
 
-  // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
+  /// The [:autofill](https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill) pseudo class.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Autofill(VendorPrefix),
 
   // CSS modules
+  /// The CSS modules :local() pseudo class.
   Local {
+    /// A local selector.
     selector: Box<Selector<'i>>,
   },
+  /// The CSS modules :global() pseudo class.
   Global {
+    /// A global selector.
     selector: Box<Selector<'i>>,
   },
 
+  /// A [webkit scrollbar](https://webkit.org/blog/363/styling-scrollbars/) pseudo class.
   // https://webkit.org/blog/363/styling-scrollbars/
   #[cfg_attr(
     feature = "serde",
     serde(rename = "webkit-scrollbar", with = "ValueWrapper::<WebKitScrollbarPseudoClass>")
   )]
   WebKitScrollbar(WebKitScrollbarPseudoClass),
-
+  /// An unknown pseudo class.
   Custom {
+    /// The pseudo class name.
     name: CowArcStr<'i>,
   },
+  /// An unknown functional pseudo class.
   CustomFunction {
+    /// The pseudo class name.
     name: CowArcStr<'i>,
+    /// The arguments of the pseudo class function.
     arguments: TokenList<'i>,
   },
 }
 
-/// https://webkit.org/blog/363/styling-scrollbars/
+/// A [webkit scrollbar](https://webkit.org/blog/363/styling-scrollbars/) pseudo class.
 #[derive(Clone, Eq, PartialEq)]
 #[cfg_attr(
   feature = "serde",
@@ -435,16 +491,27 @@ pub enum PseudoClass<'i> {
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum WebKitScrollbarPseudoClass {
+  /// :horizontal
   Horizontal,
+  /// :vertical
   Vertical,
+  /// :decrement
   Decrement,
+  /// :increment
   Increment,
+  /// :start
   Start,
+  /// :end
   End,
+  /// :double-button
   DoubleButton,
+  /// :single-button
   SingleButton,
+  /// :no-button
   NoButton,
+  /// :corner-present
   CornerPresent,
+  /// :window-inactive
   WindowInactive,
 }
 
@@ -707,6 +774,7 @@ impl<'i> PseudoClass<'i> {
   }
 }
 
+/// A pseudo element.
 #[derive(PartialEq, Clone, Debug)]
 #[cfg_attr(
   feature = "serde",
@@ -715,40 +783,61 @@ impl<'i> PseudoClass<'i> {
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum PseudoElement<'i> {
+  /// The [::after](https://drafts.csswg.org/css-pseudo-4/#selectordef-after) pseudo element.
   After,
+  /// The [::before](https://drafts.csswg.org/css-pseudo-4/#selectordef-before) pseudo element.
   Before,
+  /// The [::first-line](https://drafts.csswg.org/css-pseudo-4/#first-line-pseudo) pseudo element.
   FirstLine,
+  /// The [::first-letter](https://drafts.csswg.org/css-pseudo-4/#first-letter-pseudo) pseudo element.
   FirstLetter,
+  /// The [::selection](https://drafts.csswg.org/css-pseudo-4/#selectordef-selection) pseudo element.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Selection(VendorPrefix),
+  /// The [::placeholder](https://drafts.csswg.org/css-pseudo-4/#placeholder-pseudo) pseudo element.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Placeholder(VendorPrefix),
+  ///  The [::marker](https://drafts.csswg.org/css-pseudo-4/#marker-pseudo) pseudo element.
   Marker,
+  /// The [::backdrop](https://fullscreen.spec.whatwg.org/#::backdrop-pseudo-element) pseudo element.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Backdrop(VendorPrefix),
+  /// The [::file-selector-button](https://drafts.csswg.org/css-pseudo-4/#file-selector-button-pseudo) pseudo element.
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   FileSelectorButton(VendorPrefix),
+  /// A [webkit scrollbar](https://webkit.org/blog/363/styling-scrollbars/) pseudo element.
   #[cfg_attr(
     feature = "serde",
     serde(rename = "webkit-scrollbar", with = "ValueWrapper::<WebKitScrollbarPseudoElement>")
   )]
   WebKitScrollbar(WebKitScrollbarPseudoElement),
+  /// The [::cue](https://w3c.github.io/webvtt/#the-cue-pseudo-element) pseudo element.
   Cue,
+  /// The [::cue-region](https://w3c.github.io/webvtt/#the-cue-region-pseudo-element) pseudo element.
   CueRegion,
+  /// The [::cue()](https://w3c.github.io/webvtt/#cue-selector) functional pseudo element.
   CueFunction {
+    /// The selector argument.
     selector: Box<Selector<'i>>,
   },
+  /// The [::cue-region()](https://w3c.github.io/webvtt/#cue-region-selector) functional pseudo element.
   CueRegionFunction(Box<Selector<'i>>),
+  /// An unknown pseudo element.
   Custom {
+    /// The name of the pseudo element.
     #[cfg_attr(feature = "serde", serde(borrow))]
     name: CowArcStr<'i>,
   },
+  /// An unknown functional pseudo element.
   CustomFunction {
+    ///The name of the pseudo element.
     name: CowArcStr<'i>,
+    /// The arguments of the pseudo element function.
     arguments: TokenList<'i>,
   },
 }
 
+/// A [webkit scrollbar](https://webkit.org/blog/363/styling-scrollbars/) pseudo element.
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
 #[cfg_attr(
   feature = "serde",

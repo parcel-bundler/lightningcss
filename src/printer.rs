@@ -16,6 +16,8 @@ pub struct PrinterOptions<'a> {
   pub minify: bool,
   /// An optional reference to a source map to write mappings into.
   pub source_map: Option<&'a mut SourceMap>,
+  /// An optional project root path, used to generate relative paths for sources used in CSS module hashes.
+  pub project_root: Option<&'a str>,
   /// Browser targets to output the CSS for.
   pub targets: Option<Browsers>,
   /// Whether to analyze dependencies (i.e. `@import` and `url()`).

@@ -17844,6 +17844,7 @@ mod tests {
     );
     minify_test(".foo { --test: .5s; }", ".foo{--test:.5s}");
     minify_test(".foo { --theme-sizes-1\\/12: 2 }", ".foo{--theme-sizes-1\\/12:2}");
+    minify_test(".foo { --test: 0px; }", ".foo{--test:0px}");
 
     prefix_test(
       r#"
@@ -18678,6 +18679,23 @@ mod tests {
     nesting_test(
       r#"
         .foo {
+          @media (min-width: 640px) {
+            color: red !important;
+          }
+        }
+      "#,
+      indoc! {r#"
+        @media (min-width: 640px) {
+          .foo {
+            color: red !important;
+          }
+        }
+      "#},
+    );
+
+    nesting_test(
+      r#"
+        .foo {
           display: grid;
 
           @supports (foo: bar) {
@@ -18691,6 +18709,75 @@ mod tests {
         }
 
         @supports (foo: bar) {
+          .foo {
+            grid-auto-flow: column;
+          }
+        }
+      "#},
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          display: grid;
+
+          @container (min-width: 100px) {
+            grid-auto-flow: column;
+          }
+        }
+      "#,
+      indoc! {r#"
+        .foo {
+          display: grid;
+        }
+
+        @container (min-width: 100px) {
+          .foo {
+            grid-auto-flow: column;
+          }
+        }
+      "#},
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          display: grid;
+
+          @layer test {
+            grid-auto-flow: column;
+          }
+        }
+      "#,
+      indoc! {r#"
+        .foo {
+          display: grid;
+        }
+
+        @layer test {
+          .foo {
+            grid-auto-flow: column;
+          }
+        }
+      "#},
+    );
+
+    nesting_test(
+      r#"
+        .foo {
+          display: grid;
+
+          @layer {
+            grid-auto-flow: column;
+          }
+        }
+      "#,
+      indoc! {r#"
+        .foo {
+          display: grid;
+        }
+
+        @layer {
           .foo {
             grid-auto-flow: column;
           }
@@ -20140,6 +20227,45 @@ mod tests {
         ..Default::default()
       },
     );
+
+    // Stable hashes between project roots.
+    fn test_project_root(project_root: &str, filename: &str, hash: &str) {
+      let stylesheet = StyleSheet::parse(
+        r#"
+        .foo {
+          background: red;
+        }
+        "#,
+        ParserOptions {
+          filename: filename.into(),
+          css_modules: Some(Default::default()),
+          ..ParserOptions::default()
+        },
+      )
+      .unwrap();
+      let res = stylesheet
+        .to_css(PrinterOptions {
+          project_root: Some(project_root),
+          ..PrinterOptions::default()
+        })
+        .unwrap();
+      assert_eq!(
+        res.code,
+        format!(
+          indoc! {r#"
+      .{}_foo {{
+        background: red;
+      }}
+      "#},
+          hash
+        )
+      );
+    }
+
+    test_project_root("/foo/bar", "/foo/bar/test.css", "EgL3uq");
+    test_project_root("/foo", "/foo/test.css", "EgL3uq");
+    test_project_root("/foo/bar", "/foo/bar/baz/test.css", "xLEkNW");
+    test_project_root("/foo", "/foo/baz/test.css", "xLEkNW");
   }
 
   #[test]

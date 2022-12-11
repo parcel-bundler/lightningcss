@@ -194,6 +194,8 @@ pub enum AtRulePrelude<'i, T> {
   Nest(SelectorList<'i>),
   /// An @layer prelude.
   Layer(Vec<LayerName<'i>>),
+  /// A @layer block prelude.
+  LayerBlock(Option<LayerName<'i>>),
   /// An @property prelude.
   Property(DashedIdent<'i>),
   /// A @container prelude.
@@ -641,6 +643,7 @@ impl<'a, 'o, 'b, 'i, T: AtRuleParser<'i>> AtRuleParser<'i> for NestedRuleParser<
           loc,
         }))
       }
+      AtRulePrelude::LayerBlock(..) => unreachable!(), // only used in nested style rules.
       AtRulePrelude::Property(name) => Ok(CssRule::Property(PropertyRule::parse(name, input, loc)?)),
       AtRulePrelude::Import(..)
       | AtRulePrelude::Namespace(..)
@@ -852,6 +855,16 @@ impl<'a, 'o, 'i, T: AtRuleParser<'i>> AtRuleParser<'i> for StyleRuleParser<'a, '
         let cond = SupportsCondition::parse(input)?;
         Ok(AtRulePrelude::Supports(cond))
       },
+      "container" => {
+        let name = input.try_parse(ContainerName::parse).ok();
+        let condition = MediaCondition::parse(input, true)?;
+        Ok(AtRulePrelude::Container(name, condition))
+      },
+      "layer" => {
+        // Only layer block rules are supported within style rules.
+        let name = input.try_parse(LayerName::parse).ok();
+        Ok(AtRulePrelude::LayerBlock(name))
+      },
       "nest" => {
         self.options.warn(input.new_custom_error(ParserError::DeprecatedNestRule));
         let selector_parser = SelectorParser {
@@ -919,6 +932,35 @@ impl<'a, 'o, 'i, T: AtRuleParser<'i>> AtRuleParser<'i> for StyleRuleParser<'a, '
         }));
         Ok(())
       }
+      AtRulePrelude::Container(name, condition) => {
+        self.rules.0.push(CssRule::Container(ContainerRule {
+          name,
+          condition,
+          rules: parse_nested_at_rule(
+            input,
+            self.options.source_index,
+            self.default_namespace,
+            self.namespace_prefixes,
+            self.options,
+          )?,
+          loc,
+        }));
+        Ok(())
+      }
+      AtRulePrelude::LayerBlock(name) => {
+        self.rules.0.push(CssRule::LayerBlock(LayerBlockRule {
+          name,
+          rules: parse_nested_at_rule(
+            input,
+            self.options.source_index,
+            self.default_namespace,
+            self.namespace_prefixes,
+            self.options,
+          )?,
+          loc,
+        }));
+        Ok(())
+      }
       AtRulePrelude::Nest(selectors) => {
         let (declarations, rules) = parse_declarations_and_nested_rules(
           input,
@@ -958,9 +1000,7 @@ impl<'a, 'o, 'i, T: AtRuleParser<'i>> AtRuleParser<'i> for StyleRuleParser<'a, '
           Err(input.new_error(BasicParseErrorKind::AtRuleBodyInvalid))
         }
       }
-      _ => {
-        unreachable!()
-      }
+      _ => Err(input.new_error(BasicParseErrorKind::AtRuleBodyInvalid)),
     }
   }
 
@@ -989,7 +1029,7 @@ impl<'a, 'o, 'i, T: AtRuleParser<'i>> AtRuleParser<'i> for StyleRuleParser<'a, '
           Err(())
         }
       }
-      _ => unreachable!(),
+      _ => Err(()),
     }
   }
 }
@@ -1014,7 +1054,7 @@ fn parse_nested_at_rule<'a, 'o, 'i, 't, T: AtRuleParser<'i>>(
   let (declarations, mut rules) =
     parse_declarations_and_nested_rules(input, default_namespace, namespace_prefixes, options)?;
 
-  if declarations.declarations.len() > 0 {
+  if declarations.len() > 0 {
     rules.0.insert(
       0,
       CssRule::Style(StyleRule {
