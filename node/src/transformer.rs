@@ -16,21 +16,8 @@ use smallvec::SmallVec;
 pub struct JsVisitor {
   env: Env,
   visit_rule: Option<Ref<()>>,
-  visit_media_rule: Option<Ref<()>>,
-  visit_import_rule: Option<Ref<()>>,
-  visit_style_rule: Option<Ref<()>>,
-  visit_keyframes_rule: Option<Ref<()>>,
-  visit_font_face_rule: Option<Ref<()>>,
-  visit_font_palette_values_rule: Option<Ref<()>>,
-  visit_page_rule: Option<Ref<()>>,
-  visit_supports_rule: Option<Ref<()>>,
-  visit_counter_style_rule: Option<Ref<()>>,
-  visit_namespace_rule: Option<Ref<()>>,
-  visit_custom_media_rule: Option<Ref<()>>,
-  visit_layer_rule: Option<Ref<()>>,
-  visit_property_rule: Option<Ref<()>>,
+  rule_map: Option<Ref<()>>,
   property_map: Option<Ref<()>>,
-  visit_container_rule: Option<Ref<()>>,
   visit_property: Option<Ref<()>>,
   visit_length: Option<Ref<()>>,
   visit_angle: Option<Ref<()>>,
@@ -69,20 +56,7 @@ impl Drop for JsVisitor {
     }
 
     drop!(visit_rule);
-    drop!(visit_media_rule);
-    drop!(visit_import_rule);
-    drop!(visit_style_rule);
-    drop!(visit_keyframes_rule);
-    drop!(visit_font_face_rule);
-    drop!(visit_font_palette_values_rule);
-    drop!(visit_page_rule);
-    drop!(visit_supports_rule);
-    drop!(visit_counter_style_rule);
-    drop!(visit_namespace_rule);
-    drop!(visit_custom_media_rule);
-    drop!(visit_layer_rule);
-    drop!(visit_property_rule);
-    drop!(visit_container_rule);
+    drop!(rule_map);
     drop!(visit_property);
     drop!(property_map);
     drop!(visit_length);
@@ -136,20 +110,7 @@ impl JsVisitor {
     Self {
       env,
       visit_rule: get!("Rule", RULES),
-      visit_media_rule: get!("MediaRule", RULES),
-      visit_import_rule: get!("ImportRule", RULES),
-      visit_style_rule: get!("StyleRule", RULES),
-      visit_keyframes_rule: get!("KeyframesRule", RULES),
-      visit_font_face_rule: get!("FontFaceRule", RULES),
-      visit_font_palette_values_rule: get!("FontPaletteValuesRule", RULES),
-      visit_page_rule: get!("PageRule", RULES),
-      visit_supports_rule: get!("SupportsRule", RULES),
-      visit_counter_style_rule: get!("CounterStyleRule", RULES),
-      visit_namespace_rule: get!("NamespaceRule", RULES),
-      visit_custom_media_rule: get!("CustomMediaRule", RULES),
-      visit_layer_rule: get!("LayerRule", RULES),
-      visit_property_rule: get!("PropertyRule", RULES),
-      visit_container_rule: get!("ContainerRule", RULES),
+      rule_map: map!("Rule", RULES),
       visit_property: get!("Property", PROPERTIES),
       property_map: map!("Property", PROPERTIES),
       visit_length: get!("Length", LENGTHS),
@@ -200,41 +161,42 @@ impl<'i> Visitor<'i> for JsVisitor {
     if self.types.contains(VisitTypes::RULES) {
       unwrap!(
         map(rules, |value| {
-          if matches!(value, CssRule::Ignored) {
-            return Ok(None);
-          }
-
-          let js_value = self.env.to_js_value(value)?;
-
           // Use a more specific visitor function if available, but fall back to visit_rule.
-          let visit = match value {
-            CssRule::Media(..) => self.visit_media_rule.as_ref(),
-            CssRule::Import(..) => self.visit_import_rule.as_ref(),
-            CssRule::Style(..) => self.visit_style_rule.as_ref(),
-            CssRule::Keyframes(..) => self.visit_keyframes_rule.as_ref(),
-            CssRule::FontFace(..) => self.visit_font_face_rule.as_ref(),
-            CssRule::FontPaletteValues(..) => self.visit_font_palette_values_rule.as_ref(),
-            CssRule::Page(..) => self.visit_page_rule.as_ref(),
-            CssRule::Supports(..) => self.visit_supports_rule.as_ref(),
-            CssRule::CounterStyle(..) => self.visit_counter_style_rule.as_ref(),
-            CssRule::Namespace(..) => self.visit_namespace_rule.as_ref(),
-            CssRule::CustomMedia(..) => self.visit_custom_media_rule.as_ref(),
-            CssRule::LayerBlock(..) | CssRule::LayerStatement(..) => self.visit_layer_rule.as_ref(),
-            CssRule::Property(..) => self.visit_property_rule.as_ref(),
-            CssRule::Container(..) => self.visit_container_rule.as_ref(),
-            // Deprecated or custom rules don't have separate methods.
-            // Can use general Rule visitor for them.
-            CssRule::MozDocument(..)
-            | CssRule::Nesting(..)
-            | CssRule::Viewport(..)
-            | CssRule::Ignored
-            | CssRule::Unknown(..)
-            | CssRule::Custom(..) => None,
-          }
-          .or(self.visit_rule.as_ref());
+          let name = match value {
+            CssRule::Media(..) => "media",
+            CssRule::Import(..) => "import",
+            CssRule::Style(..) => "style",
+            CssRule::Keyframes(..) => "keyframes",
+            CssRule::FontFace(..) => "font-face",
+            CssRule::FontPaletteValues(..) => "font-palette-values",
+            CssRule::Page(..) => "page",
+            CssRule::Supports(..) => "supports",
+            CssRule::CounterStyle(..) => "counter-style",
+            CssRule::Namespace(..) => "namespace",
+            CssRule::CustomMedia(..) => "custom-media",
+            CssRule::LayerBlock(..) => "layer-block",
+            CssRule::LayerStatement(..) => "layer-statement",
+            CssRule::Property(..) => "property",
+            CssRule::Container(..) => "container",
+            CssRule::MozDocument(..) => "moz-document",
+            CssRule::Nesting(..) => "nesting",
+            CssRule::Viewport(..) => "viewport",
+            CssRule::Unknown(v) => v.name.as_ref(),
+            CssRule::Ignored | CssRule::Custom(..) => return Ok(None),
+          };
 
-          if let Some(visit) = visit {
-            let visit: JsFunction = self.env.get_reference_value_unchecked(visit)?;
+          let rule_map: Option<JsObject> = self
+            .rule_map
+            .as_ref()
+            .and_then(|p| self.env.get_reference_value_unchecked(&p).ok());
+          let visit_rule: Option<JsFunction> = self
+            .visit_rule
+            .as_ref()
+            .and_then(|visit| self.env.get_reference_value_unchecked::<JsFunction>(&visit).ok());
+
+          let visit = rule_map.as_ref().and_then(|m| m.get_named_property::<JsFunction>(name).ok());
+          if let Some(visit) = visit.as_ref().or(visit_rule.as_ref()) {
+            let js_value = self.env.to_js_value(value)?;
             let res = visit.call(None, &[js_value])?;
             self.env.from_js_value(res).map(serde_detach::detach)
           } else {

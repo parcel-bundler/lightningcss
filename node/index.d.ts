@@ -1,4 +1,4 @@
-import { Angle, ContainerRuleFor_DefaultAtRule, CounterStyleRule, CssColor, CssRuleFor_DefaultAtRule, CustomMediaRule, FontFaceRule, FontPaletteValuesRule, Function, Image, ImportRule, KeyframesRule, LayerBlockRuleFor_DefaultAtRule, LayerStatementRule, LengthValue, MediaQuery, MediaRuleFor_DefaultAtRule, NamespaceRule, PageRule, Property, PropertyRule, Ratio, Resolution, Selector, StyleRuleFor_DefaultAtRule, SupportsCondition, SupportsRuleFor_DefaultAtRule, Time, Token, TokenOrValue, Url, Variable } from './ast';
+import { Angle, CssColor, CssRuleFor_DefaultAtRule, Function, Image, LengthValue, MediaQuery, Property, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable } from './ast';
 import type { Targets } from './targets';
 
 export interface TransformOptions {
@@ -45,6 +45,15 @@ export interface TransformOptions {
   visitor?: Visitor
 }
 
+type FindByType<Union, Name> = Union extends { type: Name } ? Union : never;
+type MappedRuleVisitors = {
+  [Name in CssRuleFor_DefaultAtRule['type']]: (rule: FindByType<CssRuleFor_DefaultAtRule, Name>) => CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+}
+
+type RuleVisitors = MappedRuleVisitors & {
+  [name: string]: (rule: UnknownAtRule) => CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+};
+
 type FindProperty<Union, Name> = Union extends { property: Name } ? Union : never;
 type MappedPropertyVisitors = {
   [Name in Property['property']]: (property: FindProperty<Property, Name>) => Property | Property[] | void;
@@ -54,7 +63,6 @@ type PropertyVisitors = MappedPropertyVisitors & {
   [name: string]: (property: FindProperty<Property, 'custom'>) => Property | Property[] | void;
 }
 
-type FindByType<Union, Name> = Union extends { type: Name } ? Union : never;
 type TokenVisitor = (token: Token) => TokenOrValue | TokenOrValue[] | void;
 type VisitableTokenTypes = 'ident' | 'at-keyword' | 'hash' | 'id-hash' | 'string' | 'number' | 'percentage' | 'dimension';
 type TokenVisitors = {
@@ -64,21 +72,7 @@ type TokenVisitors = {
 type FunctionVisitor = (fn: Function) => TokenOrValue | TokenOrValue[] | void;
 
 export interface Visitor {
-  Rule?(rule: CssRuleFor_DefaultAtRule): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
-  MediaRule?(rule: { type: 'media', value: MediaRuleFor_DefaultAtRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
-  ImportRule?(rule: { type: 'import', value: ImportRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
-  StyleRule?(rule: { type: 'style', value: StyleRuleFor_DefaultAtRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
-  KeyframesRule?(rule: { type: 'keyframes', value: KeyframesRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
-  FontFaceRule?(rule: { type: 'font-face', value: FontFaceRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
-  FontPaletteValuesRule?(rule: { type: 'font-palette-values', value: FontPaletteValuesRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
-  PageRule?(rule: { type: 'page', value: PageRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
-  SupportsRule?(rule: { type: 'supports', value: SupportsRuleFor_DefaultAtRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
-  CounterStyleRule?(rule: { type: 'counter-style', value: CounterStyleRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
-  NamespaceRule?(rule: { type: 'namespace', value: NamespaceRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
-  CustomMediaRule?(rule: { type: 'custom-media', value: CustomMediaRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
-  LayerRule?(rule: { type: 'layer-block', value: LayerBlockRuleFor_DefaultAtRule } | { type: 'layer-statement', value: LayerStatementRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
-  PropertyRule?(rule: { type: 'property', value: PropertyRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
-  ContainerRule?(rule: { type: 'container', value: ContainerRuleFor_DefaultAtRule }): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+  Rule?: ((rule: CssRuleFor_DefaultAtRule) => CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void) | RuleVisitors;
   Property?: ((property: Property) => Property | Property[] | void) | PropertyVisitors;
   Url?(url: Url): Url | void;
   Color?(color: CssColor): CssColor | void;

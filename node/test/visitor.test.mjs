@@ -267,30 +267,32 @@ test('apply', () => {
       }
     `),
     visitor: {
-      StyleRule(rule) {
-        for (let selector of rule.value.selectors) {
-          if (selector.length === 1 && selector[0].type === 'type' && selector[0].name.startsWith('--')) {
-            defined.set(selector[0].name, rule.value.declarations);
-            return { type: 'ignored', value: null };
-          }
-        }
-
-        rule.value.rules = rule.value.rules.filter(child => {
-          if (child.type === 'unknown' && child.value.name === 'apply') {
-            for (let token of child.value.prelude) {
-              if (token.type === 'dashed-ident' && defined.has(token.value)) {
-                let r = defined.get(token.value);
-                let decls = rule.value.declarations;
-                decls.declarations.push(...r.declarations);
-                decls.importantDeclarations.push(...r.importantDeclarations);
-              }
+      Rule: {
+        style(rule) {
+          for (let selector of rule.value.selectors) {
+            if (selector.length === 1 && selector[0].type === 'type' && selector[0].name.startsWith('--')) {
+              defined.set(selector[0].name, rule.value.declarations);
+              return { type: 'ignored', value: null };
             }
-            return false;
           }
-          return true;
-        });
 
-        return rule;
+          rule.value.rules = rule.value.rules.filter(child => {
+            if (child.type === 'unknown' && child.value.name === 'apply') {
+              for (let token of child.value.prelude) {
+                if (token.type === 'dashed-ident' && defined.has(token.value)) {
+                  let r = defined.get(token.value);
+                  let decls = rule.value.declarations;
+                  decls.declarations.push(...r.declarations);
+                  decls.importantDeclarations.push(...r.importantDeclarations);
+                }
+              }
+              return false;
+            }
+            return true;
+          });
+
+          return rule;
+        }
       }
     }
   });
@@ -310,32 +312,34 @@ test('property lookup', () => {
      }
     `),
     visitor: {
-      StyleRule(rule) {
-        let valuesByProperty = new Map();
-        for (let decl of rule.value.declarations.declarations) {
-          let name = decl.property;
-          if (decl.property === 'unparsed') {
-            name = decl.value.propertyId.property;
-          }
-          valuesByProperty.set(name, decl);
-        }
-
-        rule.value.declarations.declarations = rule.value.declarations.declarations.map(decl => {
-          // Only single value supported. Would need a way to convert parsed values to unparsed tokens otherwise.
-          if (decl.property === 'unparsed' && decl.value.value.length === 1) {
-            let token = decl.value.value[0];
-            if (token.type === 'token' && token.value.type === 'at-keyword' && valuesByProperty.has(token.value.value)) {
-              let v = valuesByProperty.get(token.value.value);
-              return {
-                property: decl.value.propertyId.property,
-                value: v.value
-              };
+      Rule: {
+        style(rule) {
+          let valuesByProperty = new Map();
+          for (let decl of rule.value.declarations.declarations) {
+            let name = decl.property;
+            if (decl.property === 'unparsed') {
+              name = decl.value.propertyId.property;
             }
+            valuesByProperty.set(name, decl);
           }
-          return decl;
-        });
 
-        return rule;
+          rule.value.declarations.declarations = rule.value.declarations.declarations.map(decl => {
+            // Only single value supported. Would need a way to convert parsed values to unparsed tokens otherwise.
+            if (decl.property === 'unparsed' && decl.value.value.length === 1) {
+              let token = decl.value.value[0];
+              if (token.type === 'token' && token.value.type === 'at-keyword' && valuesByProperty.has(token.value.value)) {
+                let v = valuesByProperty.get(token.value.value);
+                return {
+                  property: decl.value.propertyId.property,
+                  value: v.value
+                };
+              }
+            }
+            return decl;
+          });
+
+          return rule;
+        }
       }
     }
   });
@@ -354,22 +358,24 @@ test('focus visible', () => {
       }
     `),
     visitor: {
-      StyleRule(rule) {
-        let clone = null;
-        for (let selector of rule.value.selectors) {
-          for (let [i, component] of selector.entries()) {
-            if (component.type === 'pseudo-class' && component.kind === 'focus-visible') {
-              if (clone == null) {
-                clone = [...rule.value.selectors.map(s => [...s])];
-              }
+      Rule: {
+        style(rule) {
+          let clone = null;
+          for (let selector of rule.value.selectors) {
+            for (let [i, component] of selector.entries()) {
+              if (component.type === 'pseudo-class' && component.kind === 'focus-visible') {
+                if (clone == null) {
+                  clone = [...rule.value.selectors.map(s => [...s])];
+                }
 
-              selector[i] = { type: 'class', name: 'focus-visible' };
+                selector[i] = { type: 'class', name: 'focus-visible' };
+              }
             }
           }
-        }
 
-        if (clone) {
-          return [rule, { type: 'style', value: { ...rule.value, selectors: clone } }];
+          if (clone) {
+            return [rule, { type: 'style', value: { ...rule.value, selectors: clone } }];
+          }
         }
       }
     }
@@ -391,38 +397,40 @@ test('dark theme class', () => {
       }
     `),
     visitor: {
-      MediaRule(rule) {
-        let q = rule.value.query.mediaQueries[0];
-        if (q.condition?.type === 'feature' && q.condition.value.type === 'plain' && q.condition.value.name === 'prefers-color-scheme' && q.condition.value.value.value === 'dark') {
-          let clonedRules = [rule];
-          for (let r of rule.value.rules) {
-            if (r.type === 'style') {
-              let clonedSelectors = [];
-              for (let selector of r.value.selectors) {
-                clonedSelectors.push([
-                  { type: 'type', name: 'html' },
-                  { type: 'attribute', name: 'theme', operation: { operator: 'equal', value: 'dark' } },
-                  { type: 'combinator', value: 'descendant' },
-                  ...selector
-                ]);
-                selector.unshift(
-                  { type: 'type', name: 'html' },
-                  {
-                    type: 'pseudo-class',
-                    kind: 'not',
-                    selectors: [
-                      [{ type: 'attribute', name: 'theme', operation: { operator: 'equal', value: 'light' } }]
-                    ]
-                  },
-                  { type: 'combinator', value: 'descendant' }
-                );
+      Rule: {
+        media(rule) {
+          let q = rule.value.query.mediaQueries[0];
+          if (q.condition?.type === 'feature' && q.condition.value.type === 'plain' && q.condition.value.name === 'prefers-color-scheme' && q.condition.value.value.value === 'dark') {
+            let clonedRules = [rule];
+            for (let r of rule.value.rules) {
+              if (r.type === 'style') {
+                let clonedSelectors = [];
+                for (let selector of r.value.selectors) {
+                  clonedSelectors.push([
+                    { type: 'type', name: 'html' },
+                    { type: 'attribute', name: 'theme', operation: { operator: 'equal', value: 'dark' } },
+                    { type: 'combinator', value: 'descendant' },
+                    ...selector
+                  ]);
+                  selector.unshift(
+                    { type: 'type', name: 'html' },
+                    {
+                      type: 'pseudo-class',
+                      kind: 'not',
+                      selectors: [
+                        [{ type: 'attribute', name: 'theme', operation: { operator: 'equal', value: 'light' } }]
+                      ]
+                    },
+                    { type: 'combinator', value: 'descendant' }
+                  );
+                }
+
+                clonedRules.push({ type: 'style', value: { ...r.value, selectors: clonedSelectors } });
               }
-
-              clonedRules.push({ type: 'style', value: { ...r.value, selectors: clonedSelectors } });
             }
-          }
 
-          return clonedRules;
+            return clonedRules;
+          }
         }
       }
     }
@@ -443,36 +451,38 @@ test('100vh fix', () => {
       }
     `),
     visitor: {
-      StyleRule(style) {
-        let cloned;
-        for (let property of style.value.declarations.declarations) {
-          if (property.property === 'height' && property.value.type === 'length-percentage' && property.value.value.value.unit === 'vh' && property.value.value.value.value === 100) {
-            if (!cloned) {
-              cloned = structuredClone(style);
-              cloned.value.declarations.declarations = [];
-            }
-            cloned.value.declarations.declarations.push({
-              ...property,
-              value: {
-                type: 'stretch',
-                vendorPrefix: ['webkit']
+      Rule: {
+        style(style) {
+          let cloned;
+          for (let property of style.value.declarations.declarations) {
+            if (property.property === 'height' && property.value.type === 'length-percentage' && property.value.value.value.unit === 'vh' && property.value.value.value.value === 100) {
+              if (!cloned) {
+                cloned = structuredClone(style);
+                cloned.value.declarations.declarations = [];
               }
-            });
-          }
-        }
-
-        if (cloned) {
-          return [style, {
-            type: 'supports',
-            value: {
-              condition: {
-                type: 'declaration',
-                value: '-webkit-touch-callout: none'
-              },
-              loc: style.value.loc,
-              rules: [cloned]
+              cloned.value.declarations.declarations.push({
+                ...property,
+                value: {
+                  type: 'stretch',
+                  vendorPrefix: ['webkit']
+                }
+              });
             }
-          }];
+          }
+
+          if (cloned) {
+            return [style, {
+              type: 'supports',
+              value: {
+                condition: {
+                  type: 'declaration',
+                  value: '-webkit-touch-callout: none'
+                },
+                loc: style.value.loc,
+                rules: [cloned]
+              }
+            }];
+          }
         }
       }
     }
@@ -500,51 +510,53 @@ test('logical transforms', () => {
       }
     `),
     visitor: {
-      StyleRule(style) {
-        let cloned;
-        for (let property of style.value.declarations.declarations) {
-          if (property.property === 'transform') {
-            let clonedTransforms = property.value.map(transform => {
-              if (transform.type !== 'translateX') {
-                return transform;
-              }
+      Rule: {
+        style(style) {
+          let cloned;
+          for (let property of style.value.declarations.declarations) {
+            if (property.property === 'transform') {
+              let clonedTransforms = property.value.map(transform => {
+                if (transform.type !== 'translateX') {
+                  return transform;
+                }
 
-              if (!cloned) {
-                cloned = structuredClone(style);
-                cloned.value.declarations.declarations = [];
-              }
+                if (!cloned) {
+                  cloned = structuredClone(style);
+                  cloned.value.declarations.declarations = [];
+                }
 
-              let value;
-              switch (transform.value.type) {
-                case 'dimension':
-                  value = { type: 'dimension', value: { unit: transform.value.value.unit, value: -transform.value.value.value } };
-                  break;
-                case 'percentage':
-                  value = { type: 'percentage', value: -transform.value.value };
-                  break;
-                case 'calc':
-                  value = { type: 'calc', value: { type: 'product', value: [-1, transform.value.value] } };
-                  break;
-              }
+                let value;
+                switch (transform.value.type) {
+                  case 'dimension':
+                    value = { type: 'dimension', value: { unit: transform.value.value.unit, value: -transform.value.value.value } };
+                    break;
+                  case 'percentage':
+                    value = { type: 'percentage', value: -transform.value.value };
+                    break;
+                  case 'calc':
+                    value = { type: 'calc', value: { type: 'product', value: [-1, transform.value.value] } };
+                    break;
+                }
 
-              return {
-                type: 'translateX',
-                value
-              }
-            });
-
-            if (cloned) {
-              cloned.value.selectors.at(-1).push({ type: 'pseudo-class', kind: 'dir', direction: 'rtl' });
-              cloned.value.declarations.declarations.push({
-                ...property,
-                value: clonedTransforms
+                return {
+                  type: 'translateX',
+                  value
+                }
               });
+
+              if (cloned) {
+                cloned.value.selectors.at(-1).push({ type: 'pseudo-class', kind: 'dir', direction: 'rtl' });
+                cloned.value.declarations.declarations.push({
+                  ...property,
+                  value: clonedTransforms
+                });
+              }
             }
           }
-        }
 
-        if (cloned) {
-          return [style, cloned];
+          if (cloned) {
+            return [style, cloned];
+          }
         }
       }
     }
@@ -566,22 +578,24 @@ test('hover media query', () => {
       }
     `),
     visitor: {
-      MediaRule(media) {
-        let mediaQueries = media.value.query.mediaQueries;
-        if (
-          mediaQueries.length === 1 &&
-          mediaQueries[0].condition.type === 'feature' &&
-          mediaQueries[0].condition.value.type === 'boolean' &&
-          mediaQueries[0].condition.value.name === 'hover'
-        ) {
-          for (let rule of media.value.rules) {
-            if (rule.type === 'style') {
-              for (let selector of rule.value.selectors) {
-                selector.unshift({ type: 'class', name: 'hoverable' }, { type: 'combinator', value: 'descendant' });
+      Rule: {
+        media(media) {
+          let mediaQueries = media.value.query.mediaQueries;
+          if (
+            mediaQueries.length === 1 &&
+            mediaQueries[0].condition.type === 'feature' &&
+            mediaQueries[0].condition.value.type === 'boolean' &&
+            mediaQueries[0].condition.value.name === 'hover'
+          ) {
+            for (let rule of media.value.rules) {
+              if (rule.type === 'style') {
+                for (let selector of rule.value.selectors) {
+                  selector.unshift({ type: 'class', name: 'hoverable' }, { type: 'combinator', value: 'descendant' });
+                }
               }
             }
+            return media.value.rules
           }
-          return media.value.rules
         }
       }
     }
