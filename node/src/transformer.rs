@@ -1,7 +1,10 @@
 use std::ops::{Index, IndexMut};
 
 use lightningcss::{
-  properties::Property,
+  properties::{
+    custom::{Token, TokenOrValue},
+    Property,
+  },
   rules::{CssRule, CssRuleList},
   values::length::LengthValue,
   visitor::{Visit, VisitTypes, Visitor},
@@ -43,8 +46,10 @@ pub struct JsVisitor {
   visit_custom_ident: Option<Ref<()>>,
   visit_dashed_ident: Option<Ref<()>>,
   visit_function: Option<Ref<()>>,
+  function_map: Option<Ref<()>>,
   visit_selector: Option<Ref<()>>,
   visit_token: Option<Ref<()>>,
+  token_map: Option<Ref<()>>,
   types: VisitTypes,
   pub errors: Vec<napi::Error>,
 }
@@ -94,8 +99,10 @@ impl Drop for JsVisitor {
     drop!(visit_custom_ident);
     drop!(visit_dashed_ident);
     drop!(visit_function);
+    drop!(function_map);
     drop!(visit_selector);
     drop!(visit_token);
+    drop!(token_map);
   }
 }
 
@@ -115,12 +122,16 @@ impl JsVisitor {
       }};
     }
 
-    let property_map = if let Ok(obj) = visitor.get_named_property::<JsObject>("Property") {
-      types |= VisitTypes::PROPERTIES;
-      env.create_reference(obj).ok()
-    } else {
-      None
-    };
+    macro_rules! map {
+      ($name: literal, $t: ident) => {{
+        if let Ok(obj) = visitor.get_named_property::<JsObject>($name) {
+          types |= VisitTypes::$t;
+          env.create_reference(obj).ok()
+        } else {
+          None
+        }
+      }};
+    }
 
     Self {
       env,
@@ -140,7 +151,7 @@ impl JsVisitor {
       visit_property_rule: get!("PropertyRule", RULES),
       visit_container_rule: get!("ContainerRule", RULES),
       visit_property: get!("Property", PROPERTIES),
-      property_map,
+      property_map: map!("Property", PROPERTIES),
       visit_length: get!("Length", LENGTHS),
       visit_angle: get!("Angle", ANGLES),
       visit_ratio: get!("Ratio", RATIOS),
@@ -151,12 +162,14 @@ impl JsVisitor {
       visit_url: get!("Url", URLS),
       visit_media_query: get!("MediaQuery", MEDIA_QUERIES),
       visit_supports_condition: get!("SupportsCondition", SUPPORTS_CONDITIONS),
-      visit_variable: get!("Variable", VARIABLES),
+      visit_variable: get!("Variable", TOKENS),
       visit_custom_ident: get!("CustomIdent", CUSTOM_IDENTS),
       visit_dashed_ident: get!("DashedIdent", DASHED_IDENTS),
-      visit_function: get!("Function", FUNCTIONS),
+      visit_function: get!("Function", TOKENS),
+      function_map: map!("Function", TOKENS),
       visit_selector: get!("Selector", SELECTORS),
       visit_token: get!("Token", TOKENS),
+      token_map: map!("Token", TOKENS),
       types,
       errors: vec![],
     }
@@ -236,7 +249,7 @@ impl<'i> Visitor<'i> for JsVisitor {
   }
 
   fn visit_declaration_block(&mut self, decls: &mut lightningcss::declaration::DeclarationBlock<'i>) {
-    if self.property_map.is_some() || self.visit_property.is_some() {
+    if self.types.contains(VisitTypes::PROPERTIES) {
       visit_property_list(
         &self.env,
         &mut decls.important_declarations,
@@ -304,11 +317,6 @@ impl<'i> Visitor<'i> for JsVisitor {
     condition.visit_children(self)
   }
 
-  fn visit_variable(&mut self, var: &mut lightningcss::properties::custom::Variable<'i>) {
-    visit(&self.env, var, &self.visit_variable, &mut self.errors);
-    var.visit_children(self)
-  }
-
   fn visit_custom_ident(&mut self, ident: &mut lightningcss::values::ident::CustomIdent) {
     visit(&self.env, ident, &self.visit_custom_ident, &mut self.errors);
   }
@@ -317,17 +325,67 @@ impl<'i> Visitor<'i> for JsVisitor {
     visit(&self.env, ident, &self.visit_dashed_ident, &mut self.errors);
   }
 
-  fn visit_function(&mut self, function: &mut lightningcss::properties::custom::Function<'i>) {
-    visit(&self.env, function, &self.visit_function, &mut self.errors);
-    function.visit_children(self)
-  }
-
   fn visit_selector_list(&mut self, selectors: &mut lightningcss::selector::SelectorList<'i>) {
     visit_list(&self.env, &mut selectors.0, &self.visit_selector, &mut self.errors);
   }
 
   fn visit_token_list(&mut self, tokens: &mut lightningcss::properties::custom::TokenList<'i>) {
-    visit_list(&self.env, &mut tokens.0, &self.visit_token, &mut self.errors);
+    if self.types.contains(VisitTypes::TOKENS) {
+      macro_rules! get {
+        ($name: ident) => {
+          self.$name.as_ref().and_then(|p| self.env.get_reference_value_unchecked(p).ok())
+        };
+      }
+
+      let visit_token: Option<JsFunction> = get!(visit_token);
+      let token_map: Option<JsObject> = get!(token_map);
+      let visit_function: Option<JsFunction> = get!(visit_function);
+      let function_map: Option<JsObject> = get!(function_map);
+      let visit_variable: Option<JsFunction> = get!(visit_variable);
+
+      unwrap!(
+        map(&mut tokens.0, |value| {
+          let (visit_type, visit, js_value) = match value {
+            TokenOrValue::Function(f) => {
+              let visit = function_map
+                .as_ref()
+                .and_then(|m| m.get_named_property::<JsFunction>(f.name.0.as_ref()).ok());
+              (visit, visit_function.as_ref(), self.env.to_js_value(f)?)
+            }
+            TokenOrValue::Var(v) => (None, visit_variable.as_ref(), self.env.to_js_value(v)?),
+            TokenOrValue::Token(t) => {
+              let name = match t {
+                Token::Ident(_) => Some("ident"),
+                Token::AtKeyword(_) => Some("at-keyword"),
+                Token::Hash(_) => Some("hash"),
+                Token::IDHash(_) => Some("id-hash"),
+                Token::String(_) => Some("string"),
+                Token::Number { .. } => Some("number"),
+                Token::Percentage { .. } => Some("percentage"),
+                Token::Dimension { .. } => Some("dimension"),
+                _ => None,
+              };
+              let visit = if let Some(name) = name {
+                token_map.as_ref().and_then(|m| m.get_named_property::<JsFunction>(name).ok())
+              } else {
+                None
+              };
+              (visit, visit_token.as_ref(), self.env.to_js_value(t)?)
+            }
+            _ => return Ok(None),
+          };
+
+          if let Some(visit) = visit_type.as_ref().or(visit) {
+            let res = visit.call(None, &[js_value])?;
+            self.env.from_js_value(res).map(serde_detach::detach)
+          } else {
+            Ok(None)
+          }
+        }),
+        &mut self.errors
+      );
+    }
+
     tokens.visit_children(self)
   }
 }

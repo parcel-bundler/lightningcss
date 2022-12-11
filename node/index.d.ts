@@ -1,4 +1,4 @@
-import { Angle, ContainerRuleFor_DefaultAtRule, CounterStyleRule, CssColor, CssRuleFor_DefaultAtRule, CustomMediaRule, FontFaceRule, FontPaletteValuesRule, Function, Image, ImportRule, KeyframesRule, LayerBlockRuleFor_DefaultAtRule, LayerStatementRule, LengthValue, MediaQuery, MediaRuleFor_DefaultAtRule, NamespaceRule, PageRule, Property, PropertyRule, Ratio, Resolution, Selector, StyleRuleFor_DefaultAtRule, SupportsCondition, SupportsRuleFor_DefaultAtRule, Time, TokenOrValue, Url, Variable } from './ast';
+import { Angle, ContainerRuleFor_DefaultAtRule, CounterStyleRule, CssColor, CssRuleFor_DefaultAtRule, CustomMediaRule, FontFaceRule, FontPaletteValuesRule, Function, Image, ImportRule, KeyframesRule, LayerBlockRuleFor_DefaultAtRule, LayerStatementRule, LengthValue, MediaQuery, MediaRuleFor_DefaultAtRule, NamespaceRule, PageRule, Property, PropertyRule, Ratio, Resolution, Selector, StyleRuleFor_DefaultAtRule, SupportsCondition, SupportsRuleFor_DefaultAtRule, Time, Token, TokenOrValue, Url, Variable } from './ast';
 import type { Targets } from './targets';
 
 export interface TransformOptions {
@@ -45,14 +45,23 @@ export interface TransformOptions {
   visitor?: Visitor
 }
 
-type FindByType<Union, Name> = Union extends { property: Name } ? Union : never;
+type FindProperty<Union, Name> = Union extends { property: Name } ? Union : never;
 type MappedPropertyVisitors = {
-  [Name in Property['property']]: (property: FindByType<Property, Name>) => Property | Property[] | void;
+  [Name in Property['property']]: (property: FindProperty<Property, Name>) => Property | Property[] | void;
 }
 
 type PropertyVisitors = MappedPropertyVisitors & {
-  [name: string]: (property: FindByType<Property, 'custom'>) => Property | Property[] | void;
+  [name: string]: (property: FindProperty<Property, 'custom'>) => Property | Property[] | void;
 }
+
+type FindByType<Union, Name> = Union extends { type: Name } ? Union : never;
+type TokenVisitor = (token: Token) => TokenOrValue | TokenOrValue[] | void;
+type VisitableTokenTypes = 'ident' | 'at-keyword' | 'hash' | 'id-hash' | 'string' | 'number' | 'percentage' | 'dimension';
+type TokenVisitors = {
+  [Name in VisitableTokenTypes]: (token: FindByType<Token, Name>) => TokenOrValue | TokenOrValue[] | void;
+}
+
+type FunctionVisitor = (fn: Function) => TokenOrValue | TokenOrValue[] | void;
 
 export interface Visitor {
   Rule?(rule: CssRuleFor_DefaultAtRule): CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
@@ -81,12 +90,12 @@ export interface Visitor {
   Time?(time: Time): Time | void;
   CustomIdent?(ident: string): string | void;
   DashedIdent?(ident: string): string | void;
-  Variable?(variable: Variable): Variable | void;
   MediaQuery?(query: MediaQuery): MediaQuery | MediaQuery[] | void;
   SupportsCondition?(condition: SupportsCondition): SupportsCondition;
   Selector?(selector: Selector): Selector | Selector[] | void;
-  Function?(fn: Function): Function | void;
-  Token?(token: TokenOrValue): TokenOrValue | TokenOrValue[] | void;
+  Token?: TokenVisitor | TokenVisitors;
+  Function?: FunctionVisitor | { [name: string]: FunctionVisitor };
+  Variable?(variable: Variable): TokenOrValue | TokenOrValue[] | void;
 }
 
 export interface DependencyOptions {

@@ -471,10 +471,6 @@ impl<'i> TokenList<'i> {
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Token<'a> {
   /// A [`<ident-token>`](https://drafts.csswg.org/css-syntax/#ident-token-diagram)
-  // #[cfg_attr(
-  //   feature = "serde",
-  //   serde(serialize_with = "serialize_value", deserialize_with = "deserialize_value")
-  // )]
   #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   Ident(#[cfg_attr(feature = "serde", serde(borrow))] CowArcStr<'a>),
 

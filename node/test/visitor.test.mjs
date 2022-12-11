@@ -42,36 +42,38 @@ test('custom units', () => {
       }
     `),
     visitor: {
-      Token(token) {
-        if (token.type === 'token' && token.value.type === 'dimension' && token.value.unit.startsWith('--')) {
-          return {
-            type: 'function',
-            value: {
-              name: 'calc',
-              arguments: [
-                {
-                  type: 'token',
-                  value: {
-                    type: 'number',
-                    value: token.value.value
-                  }
-                },
-                {
-                  type: 'token',
-                  value: {
-                    type: 'delim',
-                    value: '*'
-                  }
-                },
-                {
-                  type: 'var',
-                  value: {
-                    name: {
-                      ident: token.value.unit
+      Token: {
+        dimension(token) {
+          if (token.unit.startsWith('--')) {
+            return {
+              type: 'function',
+              value: {
+                name: 'calc',
+                arguments: [
+                  {
+                    type: 'token',
+                    value: {
+                      type: 'number',
+                      value: token.value
+                    }
+                  },
+                  {
+                    type: 'token',
+                    value: {
+                      type: 'delim',
+                      value: '*'
+                    }
+                  },
+                  {
+                    type: 'var',
+                    value: {
+                      name: {
+                        ident: token.unit
+                      }
                     }
                   }
-                }
-              ]
+                ]
+              }
             }
           }
         }
@@ -114,9 +116,11 @@ test('design tokens', () => {
       }
     `),
     visitor: {
-      Token(token) {
-        if (token.type === 'function' && token.value.name === 'design-token' && token.value.arguments.length === 1 && token.value.arguments[0].value.type === 'string') {
-          return tokens[token.value.arguments[0].value.value];
+      Function: {
+        'design-token'(fn) {
+          if (fn.arguments.length === 1 && fn.arguments[0].value.type === 'string') {
+            return tokens[fn.arguments[0].value.value];
+          }
         }
       }
     }
@@ -156,9 +160,11 @@ test.skip('env function', () => {
       }
     `),
     visitor: {
-      Token(token) {
-        if (token.type === 'function' && token.value.name === 'env' && token.value.arguments.length === 1 && token.value.arguments[0].type === 'dashed-ident') {
-          return tokens[token.value.arguments[0].value];
+      Function: {
+        env(fn) {
+          if (fn.arguments.length === 1 && fn.arguments[0].type === 'dashed-ident') {
+            return tokens[fn.arguments[0].value];
+          }
         }
       }
     }
@@ -208,9 +214,11 @@ test('static vars', () => {
           return [];
         }
       },
-      Token(token) {
-        if (token.type === 'token' && token.value.type === 'at-keyword' && declared.has(token.value.value)) {
-          return declared.get(token.value.value);
+      Token: {
+        'at-keyword'(token) {
+          if (declared.has(token.value)) {
+            return declared.get(token.value);
+          }
         }
       }
     }
