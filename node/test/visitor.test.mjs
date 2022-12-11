@@ -208,8 +208,8 @@ test('static vars', () => {
       }
     `),
     visitor: {
-      Rule(rule) {
-        if (rule.type === 'unknown') {
+      Rule: {
+        unknown(rule) {
           declared.set(rule.value.name, rule.value.prelude);
           return [];
         }

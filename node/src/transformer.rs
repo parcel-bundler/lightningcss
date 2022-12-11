@@ -161,6 +161,15 @@ impl<'i> Visitor<'i> for JsVisitor {
     if self.types.contains(VisitTypes::RULES) {
       unwrap!(
         map(rules, |value| {
+          let rule_map: Option<JsObject> = self
+            .rule_map
+            .as_ref()
+            .and_then(|p| self.env.get_reference_value_unchecked(&p).ok());
+          let visit_rule: Option<JsFunction> = self
+            .visit_rule
+            .as_ref()
+            .and_then(|visit| self.env.get_reference_value_unchecked::<JsFunction>(&visit).ok());
+
           // Use a more specific visitor function if available, but fall back to visit_rule.
           let name = match value {
             CssRule::Media(..) => "media",
@@ -181,18 +190,15 @@ impl<'i> Visitor<'i> for JsVisitor {
             CssRule::MozDocument(..) => "moz-document",
             CssRule::Nesting(..) => "nesting",
             CssRule::Viewport(..) => "viewport",
-            CssRule::Unknown(v) => v.name.as_ref(),
+            CssRule::Unknown(v) => {
+              let name = v.name.as_ref();
+              match &rule_map {
+                Some(m) if m.has_named_property(name).unwrap_or(false) => name,
+                _ => "unknown",
+              }
+            }
             CssRule::Ignored | CssRule::Custom(..) => return Ok(None),
           };
-
-          let rule_map: Option<JsObject> = self
-            .rule_map
-            .as_ref()
-            .and_then(|p| self.env.get_reference_value_unchecked(&p).ok());
-          let visit_rule: Option<JsFunction> = self
-            .visit_rule
-            .as_ref()
-            .and_then(|visit| self.env.get_reference_value_unchecked::<JsFunction>(&visit).ok());
 
           let visit = rule_map.as_ref().and_then(|m| m.get_named_property::<JsFunction>(name).ok());
           if let Some(visit) = visit.as_ref().or(visit_rule.as_ref()) {
