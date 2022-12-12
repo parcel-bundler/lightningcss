@@ -25,11 +25,9 @@ function composeVisitors(visitors) {
   composeArrayFunctions(res, visitors, 'MediaQuery');
   composeSimpleFunctions(res, visitors, 'SupportsCondition');
   composeArrayFunctions(res, visitors, 'Selector');
-  composeTokenVisitors(res, 'Token', 'token', 'type', extractObjectsOrFunctions(visitors, 'Token'));
-  composeTokenVisitors(res, 'Function', 'function', 'name', extractObjectsOrFunctions(visitors, 'Function'));
-  composeTokenVisitors(res, 'Variable', 'var', null, [extractFunctions(visitors, 'Variable'), true]);
-  // res.Token = createTokenVisitor(visitors, 'Token', 'type');
-  // res.Function = createTokenVisitor(visitors, 'Function', 'name');
+  composeTokenVisitors(res, visitors, 'Token', 'token');
+  composeTokenVisitors(res, visitors, 'Function', 'function');
+  composeTokenVisitors(res, visitors, 'Variable', 'var');
   return res;
 }
 
@@ -90,55 +88,8 @@ function composeObjects(res, visitors, key, typeKey) {
   }
 }
 
-// function createTokenVisitor(visitors, type, typeKey) {
-//   return arg => {
-//     let arr = [{ type, value: arg }];
-//     let mutated = false;
-//     for (let visitor of visitors) {
-//       for (let i = 0; i < arr.length;) {
-//         let item = arr[i];
-//         let f = visitor[item.type];
-//         if (typeof f === 'object') {
-//           f = f[item.value[typeKey]];
-//         }
-//         if (!f) {
-//           i++;
-//           continue;
-//         }
-//         let res = f(item.value);
-//         if (Array.isArray(res)) {
-//           if (res.length === 0) {
-//             res.splice(i, 1);
-//           } else if (res.length === 1) {
-//             arr[i++] = res[0];
-//           } else {
-//             arr.splice(i, 1, ...res);
-//             i += res.length;
-//           }
-//           mutated = true;
-//         } else if (res) {
-//           arr[i++] = res;
-//           mutated = true;
-//         } else {
-//           i++;
-//         }
-//       }
-//     }
-
-//     if (!mutated) {
-//       return;
-//     }
-
-//     return arr.length === 1 ? arr[0] : arr;
-//   };
-// }
-
-function composeTokenVisitors(res, key, type, typeKey, [values, hasFunction, allKeys]) {
-  // let [tokenValues, tokenHasFunction, tokenKeys] = extractObjectsOrFunctions(visitors, 'Token');
-  // let [functionValues, functionHasFunction, functionKeys] = extractObjectsOrFunctions(visitors, 'Function');
-  // let variableValues = extractFunctions(visitors, 'Variable');
-  console.log(values)
-
+function composeTokenVisitors(res, visitors, key, type) {
+  let [values, hasFunction, allKeys] = extractObjectsOrFunctions(visitors, key);
   if (values.length === 0) {
     return;
   }
@@ -148,40 +99,119 @@ function composeTokenVisitors(res, key, type, typeKey, [values, hasFunction, all
     return;
   }
 
-  let wrap = value => ({ type, value });
   if (hasFunction) {
-    let functions = values.map(value => {
-      if (typeof value === 'function') {
-        return arg => {
-          if (arg.type === type) {
-            return value(arg.value);
-          }
-        };
-      } else {
-        return arg => {
-          if (arg.type !== type) {
-            return;
-          }
-
-          let f = value[arg.value[typeKey]];
-          if (f) {
-            return f(arg.value);
-          }
-        };
-      }
-    });
-
-    res[key] = composeResolvedArrayFunctions(functions, wrap);
+    res[key] = createTokenVisitor(visitors, type);
   } else {
     let v = {};
     for (let key of allKeys) {
-      composeArrayFunctions(v, values, key, wrap);
+      v[key] = createTokenVisitor(visitors, type);
     }
     res[key] = v;
   }
 }
 
-function composeSimpleFunctions(res, visitors, key) {
+/**
+ * 
+ * @param {import('./index').Visitor[]} visitors 
+ * @param {string} type 
+ */
+function createTokenVisitor(visitors, type) {
+  return arg => {
+    let arr = [{ type, value: arg }];
+    let mutated = false;
+    for (let visitor of visitors) {
+      for (let i = 0; i < arr.length;) {
+        let item = arr[i];
+        let f;
+        switch (item.type) {
+          case 'token':
+            f = visitor.Token;
+            if (typeof f === 'object') {
+              f = f[item.value.type];
+            }
+            break;
+          case 'function':
+            f = visitor.Function;
+            if (typeof f === 'object') {
+              f = f[item.value.name];
+            }
+            break;
+          case 'variable':
+            f = visitor.Variable;
+            break;
+          case 'color':
+            f = visitor.Color;
+            break;
+          case 'url':
+            f = visitor.Url;
+            break;
+          case 'length':
+            f = visitor.Length;
+            break;
+          case 'angle':
+            f = visitor.Angle;
+            break;
+          case 'time':
+            f = visitor.Time;
+            break;
+          case 'resolution':
+            f = visitor.Resolution;
+            break;
+          case 'dashed-ident':
+            f = visitor.DashedIdent;
+            break;
+        }
+
+        if (typeof f !== 'function') {
+          i++;
+          continue;
+        }
+
+        let res = f(item.value);
+        switch (item.type) {
+          case 'color':
+          case 'url':
+          case 'length':
+          case 'angle':
+          case 'time':
+          case 'resolution':
+          case 'dashed-ident':
+            if (Array.isArray(res)) {
+              res = res.map(value => ({ type: item.type, value }))
+            } else if (res) {
+              res = { type: item.type, value: res };
+            }
+            break;
+        }
+
+        if (Array.isArray(res)) {
+          if (res.length === 0) {
+            res.splice(i, 1);
+          } else if (res.length === 1) {
+            arr[i++] = res[0];
+          } else {
+            arr.splice(i, 1, ...res);
+            i += res.length;
+          }
+          mutated = true;
+        } else if (res) {
+          arr[i++] = res;
+          mutated = true;
+        } else {
+          i++;
+        }
+      }
+    }
+
+    if (!mutated) {
+      return;
+    }
+
+    return arr.length === 1 ? arr[0] : arr;
+  };
+}
+
+function extractFunctions(visitors, key) {
   let functions = [];
   for (let visitor of visitors) {
     let f = visitor[key];
@@ -189,7 +219,11 @@ function composeSimpleFunctions(res, visitors, key) {
       functions.push(f);
     }
   }
+  return functions;
+}
 
+function composeSimpleFunctions(res, visitors, key) {
+  let functions = extractFunctions(visitors, key);
   if (functions.length === 0) {
     return;
   }
@@ -213,18 +247,7 @@ function composeSimpleFunctions(res, visitors, key) {
   };
 }
 
-function extractFunctions(visitors, key) {
-  let functions = [];
-  for (let visitor of visitors) {
-    let f = visitor[key];
-    if (f) {
-      functions.push(f);
-    }
-  }
-  return functions;
-}
-
-function composeArrayFunctions(res, visitors, key, wrap) {
+function composeArrayFunctions(res, visitors, key) {
   let functions = extractFunctions(visitors, key);
   if (functions.length === 0) {
     return;
@@ -235,12 +258,12 @@ function composeArrayFunctions(res, visitors, key, wrap) {
     return;
   }
 
-  res[key] = composeResolvedArrayFunctions(functions, wrap);
+  res[key] = composeResolvedArrayFunctions(functions);
 }
 
-function composeResolvedArrayFunctions(functions, wrap) {
+function composeResolvedArrayFunctions(functions) {
   return arg => {
-    let arr = [wrap ? wrap(arg) : arg];
+    let arr = [arg];
     let mutated = false;
     for (let f of functions) {
       for (let i = 0; i < arr.length;) {
