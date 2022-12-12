@@ -115,43 +115,42 @@ test('different properties', () => {
 });
 
 test('composed properties', () => {
-  let res = transform({
-    filename: 'test.css',
-    minify: true,
-    code: Buffer.from(`
-      .foo {
-        size: 16px;
+  let visitors = [
+    {
+      Property: {
+        size(v) {
+          return [
+            { property: 'width', value: { type: 'length-percentage', value: { type: 'dimension', value: v.value.value[0].value } } },
+            { property: 'height', value: { type: 'length-percentage', value: { type: 'dimension', value: v.value.value[0].value } } },
+          ];
+        }
       }
-    `),
-    visitor: composeVisitors([
-      {
-        Property: {
-          width(v) {
-            return [];
-          }
+    },
+    {
+      Property: {
+        width(v) {
+          return [];
         }
-      },
-      {
-        Property: {
-          size(v) {
-            return [
-              { property: 'width', value: { type: 'length-percentage', value: { type: 'dimension', value: v.value.value[0].value } } },
-              { property: 'height', value: { type: 'length-percentage', value: { type: 'dimension', value: v.value.value[0].value } } },
-            ];
-          }
-        }
-      },
-      // {
-      //   Property: {
-      //     width(v) {
-      //       return [];
-      //     }
-      //   }
-      // }
-    ])
-  });
+      }
+    }
+  ];
 
-  assert.equal(res.code.toString(), '.foo{height:16px}');
+  // Check that it works in any order.
+  for (let i = 0; i < 2; i++) {
+    let res = transform({
+      filename: 'test.css',
+      minify: true,
+      code: Buffer.from(`
+        .foo {
+          size: 16px;
+        }
+      `),
+      visitor: composeVisitors(visitors)
+    });
+
+    assert.equal(res.code.toString(), '.foo{height:16px}');
+    visitors.reverse();
+  }
 });
 
 test('same properties', () => {

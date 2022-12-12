@@ -77,15 +77,26 @@ function composeObjects(res, visitors, key, getType) {
 }
 
 function createObjectVisitor(visitors, key, getType) {
+  let seen = new Bitset(visitors.length);
   return arg => {
     let arr = [arg];
     let mutated = false;
-    for (let visitor of visitors) {
-      for (let i = 0; i < arr.length;) {
+    seen.clear();
+    for (let i = 0; i < arr.length; i++) {
+      // For each value, call all visitors. If a visitor returns a new value,
+      // we start over, but skip the visitor that generated the value or saw
+      // it before (to avoid cycles). This way, visitors can be composed in any order. 
+      for (let v = 0; v < visitors.length;) {
+        if (seen.get(v)) {
+          v++;
+          continue;
+        }
+
         let item = arr[i];
+        let visitor = visitors[v];
         let f = visitor[key]?.[getType(item)];
         if (!f) {
-          i++;
+          v++;
           continue;
         }
 
@@ -94,17 +105,20 @@ function createObjectVisitor(visitors, key, getType) {
           if (res.length === 0) {
             arr.splice(i, 1);
           } else if (res.length === 1) {
-            arr[i++] = res[0];
+            arr[i] = res[0];
           } else {
             arr.splice(i, 1, ...res);
-            i += res.length;
           }
           mutated = true;
+          seen.set(v);
+          v = 0;
         } else if (res) {
-          arr[i++] = res;
+          arr[i] = res;
           mutated = true;
+          seen.set(v);
+          v = 0;
         } else {
-          i++;
+          v++;
         }
       }
     }
@@ -323,4 +337,38 @@ function composeResolvedArrayFunctions(functions) {
 
     return arr.length === 1 ? arr[0] : arr;
   };
+}
+
+class Bitset {
+  constructor(maxBits = 32) {
+    this.bits = 0;
+    this.more = maxBits > 32 ? new Uint32Array(Math.ceil((maxBits - 32) / 32)) : null;
+  }
+
+  get(bit) {
+    if (bit >= 32) {
+      let i = Math.floor((bit - 32) / 32);
+      let b = bit % 32;
+      return Boolean(this.more[i] & (1 << b));
+    } else {
+      return Boolean(this.bits & (1 << bit));
+    }
+  }
+
+  set(bit) {
+    if (bit >= 32) {
+      let i = Math.floor((bit - 32) / 32);
+      let b = bit % 32;
+      this.more[i] |= 1 << b;
+    } else {
+      this.bits |= 1 << bit;
+    }
+  }
+
+  clear() {
+    this.bits = 0;
+    if (this.more) {
+      this.more.fill(0);
+    }
+  }
 }
