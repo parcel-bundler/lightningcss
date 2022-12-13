@@ -85,6 +85,7 @@ use media::MediaRule;
 use namespace::NamespaceRule;
 use nesting::NestingRule;
 use page::PageRule;
+#[cfg(feature = "serde")]
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use style::StyleRule;
@@ -108,8 +109,8 @@ pub(crate) struct StyleContext<'a, 'i, T> {
 }
 
 /// A source location.
-#[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Location {
   /// The index of the source file within the source map.
   pub source_index: u32,

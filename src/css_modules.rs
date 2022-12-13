@@ -14,6 +14,7 @@ use crate::selector::SelectorList;
 use data_encoding::{Encoding, Specification};
 use lazy_static::lazy_static;
 use pathdiff::diff_paths;
+#[cfg(feature = "serde")]
 use serde::Serialize;
 use smallvec::{smallvec, SmallVec};
 use std::borrow::Cow;
@@ -164,8 +165,9 @@ pub enum Segment<'i> {
 /// A referenced name within a CSS module, e.g. via the `composes` property.
 ///
 /// See [CssModuleExport](CssModuleExport).
-#[derive(PartialEq, Debug, Clone, Serialize)]
-#[serde(tag = "type", rename_all = "lowercase")]
+#[derive(PartialEq, Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", serde(tag = "type", rename_all = "lowercase"))]
 pub enum CssModuleReference {
   /// A local reference.
   Local {
@@ -187,8 +189,9 @@ pub enum CssModuleReference {
 }
 
 /// An exported value from a CSS module.
-#[derive(PartialEq, Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(PartialEq, Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct CssModuleExport {
   /// The local (compiled) name for this export.
   pub name: String,
