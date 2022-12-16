@@ -195,18 +195,54 @@ test('same properties', () => {
   assert.equal(res.code.toString(), '.foo{color:#00ff0080}');
 });
 
+test('properties plus values', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      .foo {
+        size: test;
+      }
+    `),
+    visitor: composeVisitors([
+      {
+        Property: {
+          size(v) {
+            return [
+              { property: 'width', value: { type: 'length-percentage', value: { type: 'dimension', value: { unit: 'px', value: 32 } } } },
+              { property: 'height', value: { type: 'length-percentage', value: { type: 'dimension', value: { unit: 'px', value: 32 } } } },
+            ];
+          }
+        }
+      },
+      {
+        Length(l) {
+          if (l.unit === 'px') {
+            return {
+              unit: 'rem',
+              value: l.value / 16
+            }
+          }
+        }
+      }
+    ])
+  });
+
+  assert.equal(res.code.toString(), '.foo{width:2rem;height:2rem}');
+});
+
 test('tokens and functions', () => {
   let res = transform({
     filename: 'test.css',
     minify: true,
     code: Buffer.from(`
       .foo {
-        width: f1(f2(f1(test)));
+        width: f3(f2(f1(test)));
       }
     `),
     visitor: composeVisitors([
       {
-        Function: {
+        FunctionExit: {
           f1(f) {
             if (f.arguments.length === 1 && f.arguments[0].value.type === 'ident') {
               return {
@@ -221,7 +257,7 @@ test('tokens and functions', () => {
         }
       },
       {
-        Function(f) {
+        FunctionExit(f) {
           return f.arguments[0];
         }
       },

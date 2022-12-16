@@ -10,24 +10,14 @@ function composeVisitors(visitors) {
 
   /** @type import('./index').Visitor */
   let res = {};
-  composeObjectVisitors(res, visitors, 'Rule', (visitor, item) => {
-    let f = visitor.Rule;
-    if (typeof f === 'object') {
-      f = f[item.type];
-    }
-    return f?.(item);
-  });
-  composeObjectVisitors(res, visitors, 'Property', (visitor, item) => {
-    let f = visitor.Property;
-    if (typeof f === 'object') {
-      let name = item.property === 'custom' ? item.value.name : item.property;
-      f = f[name];
-    }
-    return f?.(item);
-  });
+  composeObjectVisitors(res, visitors, 'Rule', ruleVisitor);
+  composeObjectVisitors(res, visitors, 'RuleExit', ruleVisitor);
+  composeObjectVisitors(res, visitors, 'Property', propertyVisitor);
+  composeObjectVisitors(res, visitors, 'PropertyExit', propertyVisitor);
   composeSimpleVisitors(res, visitors, 'Url');
   composeSimpleVisitors(res, visitors, 'Color');
   composeSimpleVisitors(res, visitors, 'Image');
+  composeSimpleVisitors(res, visitors, 'ImageExit');
   composeSimpleVisitors(res, visitors, 'Length');
   composeSimpleVisitors(res, visitors, 'Angle');
   composeSimpleVisitors(res, visitors, 'Ratio');
@@ -36,15 +26,36 @@ function composeVisitors(visitors) {
   composeSimpleVisitors(res, visitors, 'CustomIdent');
   composeSimpleVisitors(res, visitors, 'DashedIdent');
   composeArrayFunctions(res, visitors, 'MediaQuery');
+  composeArrayFunctions(res, visitors, 'MediaQueryExit');
   composeSimpleVisitors(res, visitors, 'SupportsCondition');
+  composeSimpleVisitors(res, visitors, 'SupportsConditionExit');
   composeArrayFunctions(res, visitors, 'Selector');
   composeTokenVisitors(res, visitors, 'Token', 'token');
   composeTokenVisitors(res, visitors, 'Function', 'function');
+  composeTokenVisitors(res, visitors, 'FunctionExit', 'function', true);
   composeTokenVisitors(res, visitors, 'Variable', 'var');
+  composeTokenVisitors(res, visitors, 'VariableExit', 'var', true);
   return res;
 }
 
 module.exports = composeVisitors;
+
+function ruleVisitor(visitor, item) {
+  let f = visitor.Rule;
+  if (typeof f === 'object') {
+    f = f[item.type];
+  }
+  return f?.(item);
+}
+
+function propertyVisitor(visitor, item) {
+  let f = visitor.Property;
+  if (typeof f === 'object') {
+    let name = item.property === 'custom' ? item.value.name : item.property;
+    f = f[name];
+  }
+  return f?.(item);
+}
 
 function extractObjectsOrFunctions(visitors, key) {
   let values = [];
@@ -89,7 +100,7 @@ function composeObjectVisitors(res, visitors, key, getType) {
   }
 }
 
-function composeTokenVisitors(res, visitors, key, type) {
+function composeTokenVisitors(res, visitors, key, type, isExit) {
   let [values, hasFunction, allKeys] = extractObjectsOrFunctions(visitors, key);
   if (values.length === 0) {
     return;
@@ -100,7 +111,7 @@ function composeTokenVisitors(res, visitors, key, type) {
     return;
   }
 
-  let f = createTokenVisitor(visitors, type);
+  let f = createTokenVisitor(visitors, type, isExit);
   if (hasFunction) {
     res[key] = f;
   } else {
@@ -116,7 +127,7 @@ function composeTokenVisitors(res, visitors, key, type) {
  * @param {import('./index').Visitor[]} visitors 
  * @param {string} type 
  */
-function createTokenVisitor(visitors, type) {
+function createTokenVisitor(visitors, type, isExit) {
   let v = createArrayVisitor(visitors, (visitor, item) => {
     let f;
     switch (item.type) {
@@ -127,13 +138,13 @@ function createTokenVisitor(visitors, type) {
         }
         break;
       case 'function':
-        f = visitor.Function;
+        f = isExit ? visitor.FunctionExit : visitor.Function;
         if (typeof f === 'object') {
           f = f[item.value.name];
         }
         break;
       case 'variable':
-        f = visitor.Variable;
+        f = isExit ? visitor.Variable : visitor.VariableExit;
         break;
       case 'color':
         f = visitor.Color;

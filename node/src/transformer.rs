@@ -15,28 +15,28 @@ use smallvec::SmallVec;
 
 pub struct JsVisitor {
   env: Env,
-  visit_rule: Option<Ref<()>>,
-  rule_map: Option<Ref<()>>,
-  property_map: Option<Ref<()>>,
-  visit_property: Option<Ref<()>>,
+  visit_rule: VisitorsRef,
+  rule_map: VisitorsRef,
+  property_map: VisitorsRef,
+  visit_property: VisitorsRef,
   visit_length: Option<Ref<()>>,
   visit_angle: Option<Ref<()>>,
   visit_ratio: Option<Ref<()>>,
   visit_resolution: Option<Ref<()>>,
   visit_time: Option<Ref<()>>,
   visit_color: Option<Ref<()>>,
-  visit_image: Option<Ref<()>>,
+  visit_image: VisitorsRef,
   visit_url: Option<Ref<()>>,
-  visit_media_query: Option<Ref<()>>,
-  visit_supports_condition: Option<Ref<()>>,
-  visit_variable: Option<Ref<()>>,
+  visit_media_query: VisitorsRef,
+  visit_supports_condition: VisitorsRef,
   visit_custom_ident: Option<Ref<()>>,
   visit_dashed_ident: Option<Ref<()>>,
-  visit_function: Option<Ref<()>>,
-  function_map: Option<Ref<()>>,
   visit_selector: Option<Ref<()>>,
-  visit_token: Option<Ref<()>>,
-  token_map: Option<Ref<()>>,
+  visit_token: VisitorsRef,
+  token_map: VisitorsRef,
+  visit_function: VisitorsRef,
+  function_map: VisitorsRef,
+  visit_variable: VisitorsRef,
   types: VisitTypes,
   pub errors: Vec<napi::Error>,
 }
@@ -44,6 +44,49 @@ pub struct JsVisitor {
 // This is so that the visitor can work with bundleAsync.
 // We ensure that we only call JsVisitor from the main JS thread.
 unsafe impl Send for JsVisitor {}
+
+#[derive(PartialEq, Eq, Clone, Copy)]
+enum VisitStage {
+  Enter,
+  Exit,
+}
+
+type VisitorsRef = Visitors<Ref<()>>;
+
+struct Visitors<T> {
+  enter: Option<T>,
+  exit: Option<T>,
+}
+
+impl<T> Visitors<T> {
+  fn new(enter: Option<T>, exit: Option<T>) -> Self {
+    Self { enter, exit }
+  }
+
+  fn for_stage(&self, stage: VisitStage) -> Option<&T> {
+    match stage {
+      VisitStage::Enter => self.enter.as_ref(),
+      VisitStage::Exit => self.exit.as_ref(),
+    }
+  }
+}
+
+impl Visitors<Ref<()>> {
+  fn get<U: napi::NapiValue>(&self, env: &Env) -> Visitors<U> {
+    Visitors {
+      enter: self.enter.as_ref().and_then(|p| env.get_reference_value_unchecked(p).ok()),
+      exit: self.exit.as_ref().and_then(|p| env.get_reference_value_unchecked(p).ok()),
+    }
+  }
+}
+
+impl Visitors<JsObject> {
+  fn named(&self, stage: VisitStage, name: &str) -> Option<JsFunction> {
+    self
+      .for_stage(stage)
+      .and_then(|m| m.get_named_property::<JsFunction>(name).ok())
+  }
+}
 
 impl Drop for JsVisitor {
   fn drop(&mut self) {
@@ -55,28 +98,39 @@ impl Drop for JsVisitor {
       };
     }
 
-    drop!(visit_rule);
-    drop!(rule_map);
-    drop!(visit_property);
-    drop!(property_map);
+    macro_rules! drop_tuple {
+      ($id: ident) => {
+        if let Some(v) = &mut self.$id.enter {
+          drop(v.unref(self.env));
+        }
+        if let Some(v) = &mut self.$id.exit {
+          drop(v.unref(self.env));
+        }
+      };
+    }
+
+    drop_tuple!(visit_rule);
+    drop_tuple!(rule_map);
+    drop_tuple!(visit_property);
+    drop_tuple!(property_map);
     drop!(visit_length);
     drop!(visit_angle);
     drop!(visit_ratio);
     drop!(visit_resolution);
     drop!(visit_time);
     drop!(visit_color);
-    drop!(visit_image);
+    drop_tuple!(visit_image);
     drop!(visit_url);
-    drop!(visit_media_query);
-    drop!(visit_supports_condition);
-    drop!(visit_variable);
+    drop_tuple!(visit_media_query);
+    drop_tuple!(visit_supports_condition);
+    drop_tuple!(visit_variable);
     drop!(visit_custom_ident);
     drop!(visit_dashed_ident);
-    drop!(visit_function);
-    drop!(function_map);
+    drop_tuple!(visit_function);
+    drop_tuple!(function_map);
     drop!(visit_selector);
-    drop!(visit_token);
-    drop!(token_map);
+    drop_tuple!(visit_token);
+    drop_tuple!(token_map);
   }
 }
 
@@ -109,28 +163,34 @@ impl JsVisitor {
 
     Self {
       env,
-      visit_rule: get!("Rule", RULES),
-      rule_map: map!("Rule", RULES),
-      visit_property: get!("Property", PROPERTIES),
-      property_map: map!("Property", PROPERTIES),
+      visit_rule: VisitorsRef::new(get!("Rule", RULES), get!("RuleExit", RULES)),
+      rule_map: VisitorsRef::new(map!("Rule", RULES), get!("RuleExit", RULES)),
+      visit_property: VisitorsRef::new(get!("Property", PROPERTIES), get!("PropertyExit", PROPERTIES)),
+      property_map: VisitorsRef::new(map!("Property", PROPERTIES), map!("PropertyExit", PROPERTIES)),
       visit_length: get!("Length", LENGTHS),
       visit_angle: get!("Angle", ANGLES),
       visit_ratio: get!("Ratio", RATIOS),
       visit_resolution: get!("Resolution", RESOLUTIONS),
       visit_time: get!("Time", TIMES),
       visit_color: get!("Color", COLORS),
-      visit_image: get!("Image", IMAGES),
+      visit_image: VisitorsRef::new(get!("Image", IMAGES), get!("ImageExit", IMAGES)),
       visit_url: get!("Url", URLS),
-      visit_media_query: get!("MediaQuery", MEDIA_QUERIES),
-      visit_supports_condition: get!("SupportsCondition", SUPPORTS_CONDITIONS),
-      visit_variable: get!("Variable", TOKENS),
+      visit_media_query: VisitorsRef::new(
+        get!("MediaQuery", MEDIA_QUERIES),
+        get!("MediaQueryExit", MEDIA_QUERIES),
+      ),
+      visit_supports_condition: VisitorsRef::new(
+        get!("SupportsCondition", SUPPORTS_CONDITIONS),
+        get!("SupportsConditionExit", SUPPORTS_CONDITIONS),
+      ),
+      visit_variable: VisitorsRef::new(get!("variable", TOKENS), get!("VariableExit", TOKENS)),
       visit_custom_ident: get!("CustomIdent", CUSTOM_IDENTS),
       visit_dashed_ident: get!("DashedIdent", DASHED_IDENTS),
-      visit_function: get!("Function", TOKENS),
-      function_map: map!("Function", TOKENS),
+      visit_function: VisitorsRef::new(get!("Function", TOKENS), get!("FunctionExit", TOKENS)),
+      function_map: VisitorsRef::new(map!("Function", TOKENS), map!("FunctionExit", TOKENS)),
       visit_selector: get!("Selector", SELECTORS),
-      visit_token: get!("Token", TOKENS),
-      token_map: map!("Token", TOKENS),
+      visit_token: VisitorsRef::new(get!("Token", TOKENS), None),
+      token_map: VisitorsRef::new(map!("Token", TOKENS), None),
       types,
       errors: vec![],
     }
@@ -159,82 +219,89 @@ impl<'i> Visitor<'i> for JsVisitor {
   fn visit_rule_list(&mut self, rules: &mut lightningcss::rules::CssRuleList<'i>) {
     // Similar to visit_list, but skips CssRule::Ignored rules.
     if self.types.contains(VisitTypes::RULES) {
+      let env = self.env;
+      let rule_map = self.rule_map.get::<JsObject>(&env);
+      let visit_rule = self.visit_rule.get::<JsFunction>(&env);
+
       unwrap!(
-        map(rules, |value| {
-          let rule_map: Option<JsObject> = self
-            .rule_map
-            .as_ref()
-            .and_then(|p| self.env.get_reference_value_unchecked(&p).ok());
-          let visit_rule: Option<JsFunction> = self
-            .visit_rule
-            .as_ref()
-            .and_then(|visit| self.env.get_reference_value_unchecked::<JsFunction>(&visit).ok());
-
-          // Use a more specific visitor function if available, but fall back to visit_rule.
-          let name = match value {
-            CssRule::Media(..) => "media",
-            CssRule::Import(..) => "import",
-            CssRule::Style(..) => "style",
-            CssRule::Keyframes(..) => "keyframes",
-            CssRule::FontFace(..) => "font-face",
-            CssRule::FontPaletteValues(..) => "font-palette-values",
-            CssRule::Page(..) => "page",
-            CssRule::Supports(..) => "supports",
-            CssRule::CounterStyle(..) => "counter-style",
-            CssRule::Namespace(..) => "namespace",
-            CssRule::CustomMedia(..) => "custom-media",
-            CssRule::LayerBlock(..) => "layer-block",
-            CssRule::LayerStatement(..) => "layer-statement",
-            CssRule::Property(..) => "property",
-            CssRule::Container(..) => "container",
-            CssRule::MozDocument(..) => "moz-document",
-            CssRule::Nesting(..) => "nesting",
-            CssRule::Viewport(..) => "viewport",
-            CssRule::Unknown(v) => {
-              let name = v.name.as_ref();
-              match &rule_map {
-                Some(m) if m.has_named_property(name).unwrap_or(false) => name,
-                _ => "unknown",
+        visit_list(
+          rules,
+          |value, stage| {
+            // Use a more specific visitor function if available, but fall back to visit_rule.
+            let name = match value {
+              CssRule::Media(..) => "media",
+              CssRule::Import(..) => "import",
+              CssRule::Style(..) => "style",
+              CssRule::Keyframes(..) => "keyframes",
+              CssRule::FontFace(..) => "font-face",
+              CssRule::FontPaletteValues(..) => "font-palette-values",
+              CssRule::Page(..) => "page",
+              CssRule::Supports(..) => "supports",
+              CssRule::CounterStyle(..) => "counter-style",
+              CssRule::Namespace(..) => "namespace",
+              CssRule::CustomMedia(..) => "custom-media",
+              CssRule::LayerBlock(..) => "layer-block",
+              CssRule::LayerStatement(..) => "layer-statement",
+              CssRule::Property(..) => "property",
+              CssRule::Container(..) => "container",
+              CssRule::MozDocument(..) => "moz-document",
+              CssRule::Nesting(..) => "nesting",
+              CssRule::Viewport(..) => "viewport",
+              CssRule::Unknown(v) => {
+                let name = v.name.as_ref();
+                match rule_map.for_stage(stage) {
+                  Some(m) if m.has_named_property(name).unwrap_or(false) => name,
+                  _ => "unknown",
+                }
               }
-            }
-            CssRule::Ignored | CssRule::Custom(..) => return Ok(None),
-          };
+              CssRule::Ignored | CssRule::Custom(..) => return Ok(None),
+            };
 
-          let visit = rule_map.as_ref().and_then(|m| m.get_named_property::<JsFunction>(name).ok());
-          if let Some(visit) = visit.as_ref().or(visit_rule.as_ref()) {
-            let js_value = self.env.to_js_value(value)?;
-            let res = visit.call(None, &[js_value])?;
-            self.env.from_js_value(res).map(serde_detach::detach)
-          } else {
-            Ok(None)
-          }
-        }),
+            if let Some(visit) = rule_map.named(stage, name).as_ref().or(visit_rule.for_stage(stage)) {
+              let js_value = env.to_js_value(value)?;
+              let res = visit.call(None, &[js_value])?;
+              env.from_js_value(res).map(serde_detach::detach)
+            } else {
+              Ok(None)
+            }
+          },
+          |rule| rule.visit_children(self)
+        ),
         &mut self.errors
       )
+    } else {
+      rules.visit_children(self)
     }
-
-    rules.0.visit_children(self)
   }
 
   fn visit_declaration_block(&mut self, decls: &mut lightningcss::declaration::DeclarationBlock<'i>) {
     if self.types.contains(VisitTypes::PROPERTIES) {
-      visit_property_list(
-        &self.env,
-        &mut decls.important_declarations,
-        self.visit_property.as_ref(),
-        self.property_map.as_ref(),
-        &mut self.errors,
+      let env = self.env;
+      let property_map = self.property_map.get::<JsObject>(&env);
+      let visit_property = self.visit_property.get::<JsFunction>(&env);
+      unwrap!(
+        visit_property_list(
+          &env,
+          &mut decls.important_declarations,
+          &visit_property,
+          &property_map,
+          |property| property.visit_children(self),
+        ),
+        self.errors
       );
-      visit_property_list(
-        &self.env,
-        &mut decls.declarations,
-        self.visit_property.as_ref(),
-        self.property_map.as_ref(),
-        &mut self.errors,
+      unwrap!(
+        visit_property_list(
+          &env,
+          &mut decls.declarations,
+          &visit_property,
+          &property_map,
+          |property| property.visit_children(self),
+        ),
+        self.errors
       );
+    } else {
+      decls.visit_children(self)
     }
-    decls.important_declarations.visit_children(self);
-    decls.declarations.visit_children(self);
   }
 
   fn visit_length(&mut self, length: &mut LengthValue) {
@@ -262,8 +329,9 @@ impl<'i> Visitor<'i> for JsVisitor {
   }
 
   fn visit_image(&mut self, image: &mut lightningcss::values::image::Image<'i>) {
-    visit(&self.env, image, &self.visit_image, &mut self.errors);
-    image.visit_children(self)
+    visit(&self.env, image, &self.visit_image.enter, &mut self.errors);
+    image.visit_children(self);
+    visit(&self.env, image, &self.visit_image.exit, &mut self.errors);
   }
 
   fn visit_url(&mut self, url: &mut lightningcss::values::url::Url<'i>) {
@@ -271,18 +339,44 @@ impl<'i> Visitor<'i> for JsVisitor {
   }
 
   fn visit_media_list(&mut self, media: &mut lightningcss::media_query::MediaList<'i>) {
-    visit_list(
-      &self.env,
-      &mut media.media_queries,
-      &self.visit_media_query,
-      &mut self.errors,
-    );
-    media.visit_children(self)
+    if self.types.contains(VisitTypes::MEDIA_QUERIES) {
+      let env = self.env;
+      let visit_media_query = self.visit_media_query.get::<JsFunction>(&env);
+      unwrap!(
+        visit_list(
+          &mut media.media_queries,
+          |value, stage| {
+            if let Some(visit) = visit_media_query.for_stage(stage) {
+              let js_value = env.to_js_value(value)?;
+              let res = visit.call(None, &[js_value])?;
+              env.from_js_value(res).map(serde_detach::detach)
+            } else {
+              Ok(None)
+            }
+          },
+          |q| q.visit_children(self)
+        ),
+        self.errors
+      )
+    } else {
+      media.visit_children(self)
+    }
   }
 
   fn visit_supports_condition(&mut self, condition: &mut lightningcss::rules::supports::SupportsCondition<'i>) {
-    visit(&self.env, condition, &self.visit_supports_condition, &mut self.errors);
-    condition.visit_children(self)
+    visit(
+      &self.env,
+      condition,
+      &self.visit_supports_condition.enter,
+      &mut self.errors,
+    );
+    condition.visit_children(self);
+    visit(
+      &self.env,
+      condition,
+      &self.visit_supports_condition.exit,
+      &mut self.errors,
+    );
   }
 
   fn visit_custom_ident(&mut self, ident: &mut lightningcss::values::ident::CustomIdent) {
@@ -294,66 +388,83 @@ impl<'i> Visitor<'i> for JsVisitor {
   }
 
   fn visit_selector_list(&mut self, selectors: &mut lightningcss::selector::SelectorList<'i>) {
-    visit_list(&self.env, &mut selectors.0, &self.visit_selector, &mut self.errors);
+    if let Some(visit) = self
+      .visit_selector
+      .as_ref()
+      .and_then(|v| self.env.get_reference_value_unchecked::<JsFunction>(v).ok())
+    {
+      unwrap!(
+        map(&mut selectors.0, |value| {
+          let js_value = self.env.to_js_value(value)?;
+          let res = visit.call(None, &[js_value])?;
+          self.env.from_js_value(res).map(serde_detach::detach)
+        }),
+        self.errors
+      )
+    }
   }
 
   fn visit_token_list(&mut self, tokens: &mut lightningcss::properties::custom::TokenList<'i>) {
-    tokens.visit_children(self);
-
     if self.types.contains(VisitTypes::TOKENS) {
-      macro_rules! get {
-        ($name: ident) => {
-          self.$name.as_ref().and_then(|p| self.env.get_reference_value_unchecked(p).ok())
-        };
-      }
-
-      let visit_token: Option<JsFunction> = get!(visit_token);
-      let token_map: Option<JsObject> = get!(token_map);
-      let visit_function: Option<JsFunction> = get!(visit_function);
-      let function_map: Option<JsObject> = get!(function_map);
-      let visit_variable: Option<JsFunction> = get!(visit_variable);
+      let env = self.env;
+      let visit_token = self.visit_token.get::<JsFunction>(&env);
+      let token_map = self.token_map.get::<JsObject>(&env);
+      let visit_function = self.visit_function.get::<JsFunction>(&env);
+      let function_map = self.function_map.get::<JsObject>(&env);
+      let visit_variable = self.visit_variable.get::<JsFunction>(&env);
 
       unwrap!(
-        map(&mut tokens.0, |value| {
-          let (visit_type, visit, js_value) = match value {
-            TokenOrValue::Function(f) => {
-              let visit = function_map
-                .as_ref()
-                .and_then(|m| m.get_named_property::<JsFunction>(f.name.0.as_ref()).ok());
-              (visit, visit_function.as_ref(), self.env.to_js_value(f)?)
-            }
-            TokenOrValue::Var(v) => (None, visit_variable.as_ref(), self.env.to_js_value(v)?),
-            TokenOrValue::Token(t) => {
-              let name = match t {
-                Token::Ident(_) => Some("ident"),
-                Token::AtKeyword(_) => Some("at-keyword"),
-                Token::Hash(_) => Some("hash"),
-                Token::IDHash(_) => Some("id-hash"),
-                Token::String(_) => Some("string"),
-                Token::Number { .. } => Some("number"),
-                Token::Percentage { .. } => Some("percentage"),
-                Token::Dimension { .. } => Some("dimension"),
-                _ => None,
-              };
-              let visit = if let Some(name) = name {
-                token_map.as_ref().and_then(|m| m.get_named_property::<JsFunction>(name).ok())
-              } else {
-                None
-              };
-              (visit, visit_token.as_ref(), self.env.to_js_value(t)?)
-            }
-            _ => return Ok(None),
-          };
+        visit_list(
+          &mut tokens.0,
+          |value, stage| {
+            let (visit_type, visit) = match value {
+              TokenOrValue::Function(f) => (
+                function_map.named(stage, f.name.0.as_ref()),
+                visit_function.for_stage(stage),
+              ),
+              TokenOrValue::Var(_) => (None, visit_variable.for_stage(stage)),
+              TokenOrValue::Token(t) => {
+                let name = match t {
+                  Token::Ident(_) => Some("ident"),
+                  Token::AtKeyword(_) => Some("at-keyword"),
+                  Token::Hash(_) => Some("hash"),
+                  Token::IDHash(_) => Some("id-hash"),
+                  Token::String(_) => Some("string"),
+                  Token::Number { .. } => Some("number"),
+                  Token::Percentage { .. } => Some("percentage"),
+                  Token::Dimension { .. } => Some("dimension"),
+                  _ => None,
+                };
+                let visit = if let Some(name) = name {
+                  token_map.named(stage, name)
+                } else {
+                  None
+                };
+                (visit, visit_token.for_stage(stage))
+              }
+              _ => return Ok(None),
+            };
 
-          if let Some(visit) = visit_type.as_ref().or(visit) {
-            let res = visit.call(None, &[js_value])?;
-            self.env.from_js_value(res).map(serde_detach::detach)
-          } else {
-            Ok(None)
-          }
-        }),
+            if let Some(visit) = visit_type.as_ref().or(visit) {
+              let js_value = match value {
+                TokenOrValue::Function(f) => env.to_js_value(f)?,
+                TokenOrValue::Var(v) => env.to_js_value(v)?,
+                TokenOrValue::Token(t) => env.to_js_value(t)?,
+                _ => unreachable!(),
+              };
+
+              let res = visit.call(None, &[js_value])?;
+              env.from_js_value(res).map(serde_detach::detach)
+            } else {
+              Ok(None)
+            }
+          },
+          |value| value.visit_children(self)
+        ),
         &mut self.errors
       );
+    } else {
+      tokens.visit_children(self)
     }
   }
 }
@@ -364,9 +475,11 @@ fn visit<V: Serialize + Deserialize<'static>>(
   visit: &Option<Ref<()>>,
   errors: &mut Vec<napi::Error>,
 ) {
-  if let Some(visit) = visit {
+  if let Some(visit) = visit
+    .as_ref()
+    .and_then(|v| env.get_reference_value_unchecked::<JsFunction>(v).ok())
+  {
     let js_value = unwrap!(env.to_js_value(value), errors);
-    let visit: JsFunction = unwrap!(env.get_reference_value_unchecked(visit), errors);
     let res = unwrap!(visit.call(None, &[js_value]), errors);
     let new_value: napi::Result<Option<V>> = env.from_js_value(res).map(serde_detach::detach);
     match new_value {
@@ -377,58 +490,76 @@ fn visit<V: Serialize + Deserialize<'static>>(
   }
 }
 
-fn visit_list<V: Serialize + Deserialize<'static>, L: List<V>>(
-  env: &Env,
-  list: &mut L,
-  visit: &Option<Ref<()>>,
-  errors: &mut Vec<napi::Error>,
-) {
-  if let Some(visit) = visit {
-    unwrap!(
-      map(list, |value| {
-        let js_value = env.to_js_value(value)?;
-        let visit: JsFunction = env.get_reference_value_unchecked(visit)?;
-        let res = visit.call(None, &[js_value])?;
-        env.from_js_value(res).map(serde_detach::detach)
-      }),
-      errors
-    )
-  }
-}
-
-fn visit_property_list<'i>(
+fn visit_property_list<'i, C: FnMut(&mut Property<'i>)>(
   env: &Env,
   list: &mut Vec<Property<'i>>,
-  visit_property: Option<&Ref<()>>,
-  property_map: Option<&Ref<()>>,
-  errors: &mut Vec<napi::Error>,
-) {
-  let property_map: Option<JsObject> = property_map.and_then(|p| env.get_reference_value_unchecked(&p).ok());
-  let visit_property: Option<JsFunction> =
-    visit_property.and_then(|visit| env.get_reference_value_unchecked::<JsFunction>(visit).ok());
-
-  unwrap!(
-    map(list, |value| {
+  visit_property: &Visitors<JsFunction>,
+  property_map: &Visitors<JsObject>,
+  visit_children: C,
+) -> napi::Result<()> {
+  visit_list(
+    list,
+    |value, stage| {
       let js_value = env.to_js_value(value)?;
       // Use a specific property visitor if available, or fall back to Property visitor.
-      let visit = property_map
-        .as_ref()
-        .and_then(|m| m.get_named_property::<JsFunction>(value.property_id().name()).ok());
-      if let Some(visit) = visit.as_ref().or(visit_property.as_ref()) {
+      let visit = property_map.named(stage, value.property_id().name());
+      if let Some(visit) = visit.as_ref().or(visit_property.for_stage(stage)) {
         let res = visit.call(None, &[js_value])?;
         env.from_js_value(res).map(serde_detach::detach)
       } else {
         Ok(None)
       }
-    }),
-    errors
+    },
+    visit_children,
   )
 }
 
-fn map<V, L: List<V>, F: Fn(&V) -> napi::Result<Option<ValueOrVec<V>>>>(list: &mut L, f: F) -> napi::Result<()> {
+fn visit_list<
+  V,
+  L: List<V>,
+  F: Fn(&mut V, VisitStage) -> napi::Result<Option<ValueOrVec<V>>>,
+  C: FnMut(&mut V),
+>(
+  list: &mut L,
+  visit: F,
+  mut visit_children: C,
+) -> napi::Result<()> {
+  map(list, |value| {
+    let mut new_value: Option<ValueOrVec<V>> = visit(value, VisitStage::Enter)?;
+
+    match &mut new_value {
+      Some(ValueOrVec::Value(v)) => {
+        visit_children(v);
+
+        if let Some(val) = visit(v, VisitStage::Exit)? {
+          new_value = Some(val);
+        }
+      }
+      Some(ValueOrVec::Vec(v)) => {
+        map(v, |value| {
+          visit_children(value);
+          visit(value, VisitStage::Exit)
+        })?;
+      }
+      None => {
+        visit_children(value);
+        if let Some(val) = visit(value, VisitStage::Exit)? {
+          new_value = Some(val);
+        }
+      }
+    }
+
+    Ok(new_value)
+  })
+}
+
+fn map<V, L: List<V>, F: FnMut(&mut V) -> napi::Result<Option<ValueOrVec<V>>>>(
+  list: &mut L,
+  mut f: F,
+) -> napi::Result<()> {
   let mut i = 0;
   while i < list.len() {
-    let value = &list[i];
+    let value = &mut list[i];
     let new_value = f(value)?;
     match new_value {
       Some(ValueOrVec::Value(v)) => {

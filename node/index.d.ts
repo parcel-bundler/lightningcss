@@ -51,21 +51,23 @@ export interface TransformOptions {
 }
 
 type FindByType<Union, Name> = Union extends { type: Name } ? Union : never;
+type RuleVisitor<R = CssRuleFor_DefaultAtRule> = ((rule: R) => CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void);
 type MappedRuleVisitors = {
-  [Name in CssRuleFor_DefaultAtRule['type']]: (rule: FindByType<CssRuleFor_DefaultAtRule, Name>) => CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+  [Name in CssRuleFor_DefaultAtRule['type']]: RuleVisitor<FindByType<CssRuleFor_DefaultAtRule, Name>>;
 }
 
 type RuleVisitors = MappedRuleVisitors & {
-  [name: string]: (rule: UnknownAtRule) => CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void;
+  [name: string]: RuleVisitor<UnknownAtRule>;
 };
 
 type FindProperty<Union, Name> = Union extends { property: Name } ? Union : never;
+type PropertyVisitor<P = Property> = ((property: P) => Property | Property[] | void);
 type MappedPropertyVisitors = {
-  [Name in Property['property']]: (property: FindProperty<Property, Name>) => Property | Property[] | void;
+  [Name in Property['property']]: PropertyVisitor<FindProperty<Property, Name>>;
 }
 
 type PropertyVisitors = MappedPropertyVisitors & {
-  [name: string]: (property: FindProperty<Property, 'custom'>) => Property | Property[] | void;
+  [name: string]: PropertyVisitor<FindProperty<Property, 'custom'>>;
 }
 
 type TokenVisitor = (token: Token) => TokenOrValue | TokenOrValue[] | void;
@@ -77,11 +79,14 @@ type TokenVisitors = {
 type FunctionVisitor = (fn: Function) => TokenOrValue | TokenOrValue[] | void;
 
 export interface Visitor {
-  Rule?: ((rule: CssRuleFor_DefaultAtRule) => CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void) | RuleVisitors;
-  Property?: ((property: Property) => Property | Property[] | void) | PropertyVisitors;
+  Rule?: RuleVisitor | RuleVisitors;
+  RuleExit?: RuleVisitor | RuleVisitors;
+  Property?: PropertyVisitor | PropertyVisitors;
+  PropertyExit?: PropertyVisitor | PropertyVisitors;
   Url?(url: Url): Url | void;
   Color?(color: CssColor): CssColor | void;
   Image?(image: Image): Image | void;
+  ImageExit?(image: Image): Image | void;
   Length?(length: LengthValue): LengthValue | void;
   Angle?(angle: Angle): Angle | void;
   Ratio?(ratio: Ratio): Ratio | void;
@@ -90,11 +95,15 @@ export interface Visitor {
   CustomIdent?(ident: string): string | void;
   DashedIdent?(ident: string): string | void;
   MediaQuery?(query: MediaQuery): MediaQuery | MediaQuery[] | void;
+  MediaQueryExit?(query: MediaQuery): MediaQuery | MediaQuery[] | void;
   SupportsCondition?(condition: SupportsCondition): SupportsCondition;
+  SupportsConditionExit?(condition: SupportsCondition): SupportsCondition;
   Selector?(selector: Selector): Selector | Selector[] | void;
   Token?: TokenVisitor | TokenVisitors;
   Function?: FunctionVisitor | { [name: string]: FunctionVisitor };
+  FunctionExit?: FunctionVisitor | { [name: string]: FunctionVisitor };
   Variable?(variable: Variable): TokenOrValue | TokenOrValue[] | void;
+  VariableExit?(variable: Variable): TokenOrValue | TokenOrValue[] | void;
 }
 
 export interface DependencyOptions {
