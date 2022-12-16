@@ -342,7 +342,7 @@ pub type PrinterError = Error<PrinterErrorKind>;
 
 /// A printer error type.
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "serde", Serialize)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[cfg_attr(feature = "serde", serde(tag = "type"))]
 pub enum PrinterErrorKind {
   /// An ambiguous relative `url()` was encountered in a custom property declaration.

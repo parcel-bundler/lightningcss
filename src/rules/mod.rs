@@ -85,8 +85,6 @@ use media::MediaRule;
 use namespace::NamespaceRule;
 use nesting::NestingRule;
 use page::PageRule;
-#[cfg(feature = "serde")]
-use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use style::StyleRule;
 use supports::SupportsRule;
