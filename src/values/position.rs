@@ -12,7 +12,7 @@ use cssparser::*;
 /// A CSS [`<position>`](https://www.w3.org/TR/css3-values/#position) value,
 /// as used in the `background-position` property, gradients, masks, etc.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Position {
   /// The x-position.
   pub x: HorizontalPosition,
@@ -239,7 +239,7 @@ impl ToCss for Position {
 /// This type is generic over side keywords.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]

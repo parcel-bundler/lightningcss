@@ -17,10 +17,10 @@ use std::fmt::Write;
 
 /// A [@font-face](https://drafts.csswg.org/css-fonts/#font-face-rule) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FontFaceRule<'i> {
   /// Declarations in the `@font-face` rule.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "with-serde", serde(borrow))]
   pub properties: Vec<FontFaceProperty<'i>>,
   /// The location of the rule in the source file.
   #[skip_visit]
@@ -32,13 +32,13 @@ pub struct FontFaceRule<'i> {
 /// See [FontFaceRule](FontFaceRule).
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum FontFaceProperty<'i> {
   /// The `src` property.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "with-serde", serde(borrow))]
   Source(Vec<Source<'i>>),
   /// The `font-family` property.
   FontFamily(FontFamily<'i>),
@@ -58,7 +58,7 @@ pub enum FontFaceProperty<'i> {
 /// property in an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -66,7 +66,7 @@ pub enum Source<'i> {
   /// A `url()` with optional format metadata.
   Url(UrlSource<'i>),
   /// The `local()` function.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "with-serde", serde(borrow))]
   Local(FontFamily<'i>),
 }
 
@@ -108,12 +108,12 @@ impl<'i> ToCss for Source<'i> {
 /// A `url()` value for the [src](https://drafts.csswg.org/css-fonts/#src-desc)
 /// property in an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UrlSource<'i> {
   /// The URL.
   pub url: Url<'i>,
   /// Optional `format()` function.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "with-serde", serde(borrow))]
   pub format: Option<FontFormat<'i>>,
   /// Optional `tech()` function.
   pub tech: Vec<FontTechnology>,
@@ -167,7 +167,7 @@ impl<'i> ToCss for UrlSource<'i> {
 /// property of an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -188,7 +188,7 @@ pub enum FontFormat<'i> {
   /// An SVG font.
   SVG,
   /// An unknown format.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "with-serde", serde(borrow))]
   String(CowArcStr<'i>),
 }
 
@@ -279,7 +279,7 @@ enum_property! {
 ///
 /// Cannot be empty. Can represent a single code point when start == end.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UnicodeRange {
   /// Inclusive start of the range. In [0, end].
   pub start: u32,

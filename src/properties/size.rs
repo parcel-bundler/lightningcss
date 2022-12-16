@@ -20,7 +20,7 @@ use cssparser::*;
 /// i.e. `width` and `height.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -121,7 +121,7 @@ impl ToCss for Size {
 /// e.g. `min-width` and `max-height`.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]

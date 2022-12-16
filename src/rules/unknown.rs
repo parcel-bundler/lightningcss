@@ -10,10 +10,10 @@ use crate::visitor::Visit;
 
 /// An unknown at-rule, stored as raw tokens.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UnknownAtRule<'i> {
   /// The name of the at-rule (without the @).
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "with-serde", serde(borrow))]
   #[skip_visit]
   pub name: CowArcStr<'i>,
   /// The prelude of the rule.

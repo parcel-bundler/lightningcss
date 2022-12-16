@@ -685,6 +685,7 @@ dependencies = [
  "pathdiff",
  "predicates",
  "rayon",
+ "serde",
  "serde_json",
  "smallvec",
 ]
@@ -695,6 +696,7 @@ version = "1.0.0-alpha.35"
 dependencies = [
  "proc-macro2",
  "quote",
+ "syn",
 ]
 
 [[package]]

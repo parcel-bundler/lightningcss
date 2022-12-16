@@ -105,7 +105,7 @@ impl Default for GeometryBox {
 /// A value for the [mask-clip](https://www.w3.org/TR/css-masking-1/#the-mask-clip) property.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -205,7 +205,7 @@ define_list_shorthand! {
   /// A value for the [mask](https://www.w3.org/TR/css-masking-1/#the-mask) shorthand property.
   pub struct Mask<'i>(VendorPrefix) {
     /// The mask image.
-    #[cfg_attr(feature = "serde", serde(borrow))]
+    #[cfg_attr(feature = "with-serde", serde(borrow))]
     image: MaskImage(Image<'i>, VendorPrefix),
     /// The position of the mask.
     position: MaskPosition(Position, VendorPrefix),
@@ -375,7 +375,7 @@ impl<'i> ImageFallback<'i> for Mask<'i> {
 /// A value for the [clip-path](https://www.w3.org/TR/css-masking-1/#the-clip-path) property.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -383,7 +383,7 @@ pub enum ClipPath<'i> {
   /// No clip path.
   None,
   /// A url reference to an SVG path element.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "with-serde", serde(borrow))]
   Url(Url<'i>),
   /// A basic shape, positioned according to the reference box.
   Shape(Box<BasicShape>, GeometryBox),
@@ -456,7 +456,7 @@ define_shorthand! {
   #[derive(Default)]
   pub struct MaskBorder<'i> {
     /// The mask image.
-    #[cfg_attr(feature = "serde", serde(borrow))]
+    #[cfg_attr(feature = "with-serde", serde(borrow))]
     source: MaskBorderSource(Image<'i>),
     /// The offsets that define where the image is sliced.
     slice: MaskBorderSlice(BorderImageSlice),

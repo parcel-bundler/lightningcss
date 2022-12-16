@@ -99,7 +99,7 @@ impl<'i> AtRuleParser<'i> for DefaultAtRuleParser {
 }
 
 #[derive(PartialEq, Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DefaultAtRule;
 impl crate::traits::ToCss for DefaultAtRule {
   fn to_css<W: std::fmt::Write>(&self, _: &mut Printer<W>) -> Result<(), PrinterError> {

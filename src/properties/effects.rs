@@ -13,7 +13,7 @@ use smallvec::SmallVec;
 /// A [filter](https://drafts.fxtf.org/filter-effects-1/#filter-functions) function.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -39,7 +39,7 @@ pub enum Filter<'i> {
   /// A `drop-shadow()` filter.
   DropShadow(DropShadow),
   /// A `url()` reference to an SVG filter.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "with-serde", serde(borrow))]
   Url(Url<'i>),
 }
 
@@ -207,7 +207,7 @@ impl<'i> Filter<'i> {
 
 /// A [`drop-shadow()`](https://drafts.fxtf.org/filter-effects-1/#funcdef-filter-drop-shadow) filter function.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DropShadow {
   /// The color of the drop shadow.
   pub color: CssColor,
@@ -295,7 +295,7 @@ impl DropShadow {
 /// [backdrop-filter](https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty) properties.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -303,7 +303,7 @@ pub enum FilterList<'i> {
   /// The `none` keyword.
   None,
   /// A list of filter functions.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "with-serde", serde(borrow))]
   Filters(SmallVec<[Filter<'i>; 1]>),
 }
 

@@ -15,8 +15,8 @@ use smallvec::SmallVec;
 ///
 /// Nested layers are represented using a list of identifiers. In CSS syntax, these are dot-separated.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct LayerName<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub SmallVec<[CowArcStr<'i>; 1]>);
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct LayerName<'i>(#[cfg_attr(feature = "with-serde", serde(borrow))] pub SmallVec<[CowArcStr<'i>; 1]>);
 
 macro_rules! expect_non_whitespace {
   ($parser: ident, $($branches: tt)+) => {{
@@ -81,10 +81,10 @@ impl<'i> ToCss for LayerName<'i> {
 ///
 /// See also [LayerBlockRule](LayerBlockRule).
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LayerStatementRule<'i> {
   /// The layer names to declare.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "with-serde", serde(borrow))]
   #[skip_visit]
   pub names: Vec<LayerName<'i>>,
   /// The location of the rule in the source file.
@@ -106,10 +106,10 @@ impl<'i> ToCss for LayerStatementRule<'i> {
 
 /// A [@layer block](https://drafts.csswg.org/css-cascade-5/#layer-block) rule.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LayerBlockRule<'i, R = DefaultAtRule> {
   /// The name of the layer to declare, or `None` to declare an anonymous layer.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "with-serde", serde(borrow))]
   #[skip_visit]
   pub name: Option<LayerName<'i>>,
   /// The rules within the `@layer` rule.

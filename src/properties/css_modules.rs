@@ -12,10 +12,10 @@ use smallvec::SmallVec;
 
 /// A value for the [composes](https://github.com/css-modules/css-modules/#dependencies) property from CSS modules.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Composes<'i> {
   /// A list of class names to compose.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "with-serde", serde(borrow))]
   pub names: CustomIdentList<'i>,
   /// Where the class names are composed from.
   pub from: Option<Specifier<'i>>,
@@ -28,7 +28,7 @@ pub struct Composes<'i> {
 /// See [Composes](Composes).
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -36,7 +36,7 @@ pub enum Specifier<'i> {
   /// The referenced name is global.
   Global,
   /// The referenced name comes from the specified file.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "with-serde", serde(borrow))]
   File(CowArcStr<'i>),
   /// The referenced name comes from a source index (used during bundling).
   SourceIndex(u32),

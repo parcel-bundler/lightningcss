@@ -38,7 +38,7 @@ enum_property! {
 
 /// A value for the [border-image-repeat](https://www.w3.org/TR/css-backgrounds-3/#border-image-repeat) property.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BorderImageRepeat {
   /// The horizontal repeat value.
   pub horizontal: BorderImageRepeatKeyword,
@@ -83,7 +83,7 @@ impl ToCss for BorderImageRepeat {
 /// A value for the [border-image-width](https://www.w3.org/TR/css-backgrounds-3/#border-image-width) property.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -136,7 +136,7 @@ impl ToCss for BorderImageSideWidth {
 
 /// A value for the [border-image-slice](https://www.w3.org/TR/css-backgrounds-3/#border-image-slice) property.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BorderImageSlice {
   /// The offsets from the edges of the image.
   pub offsets: Rect<NumberOrPercentage>,
@@ -182,7 +182,7 @@ define_shorthand! {
   #[derive(Default)]
   pub struct BorderImage<'i>(VendorPrefix) {
     /// The border image.
-    #[cfg_attr(feature = "serde", serde(borrow))]
+    #[cfg_attr(feature = "with-serde", serde(borrow))]
     source: BorderImageSource(Image<'i>),
     /// The offsets that define where the image is sliced.
     slice: BorderImageSlice(BorderImageSlice),

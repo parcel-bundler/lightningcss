@@ -58,11 +58,11 @@ pub use crate::printer::PseudoClasses;
 /// assert_eq!(res.code, ".foo, .bar {\n  color: red;\n}\n");
 /// ```
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StyleSheet<'i, 'o, T: AtRuleParser<'i> = DefaultAtRuleParser> {
   /// A list of top-level rules within the style sheet.
   #[cfg_attr(
-    feature = "serde",
+    feature = "with-serde",
     serde(
       borrow,
       bound(
@@ -77,7 +77,7 @@ pub struct StyleSheet<'i, 'o, T: AtRuleParser<'i> = DefaultAtRuleParser> {
   pub sources: Vec<String>,
   /// The source map URL extracted from the original style sheet.
   pub(crate) source_map_urls: Vec<Option<String>>,
-  #[cfg_attr(feature = "serde", serde(skip))]
+  #[cfg_attr(feature = "with-serde", serde(skip))]
   /// The options the style sheet was originally parsed with.
   options: ParserOptions<'o, 'i, T>,
 }

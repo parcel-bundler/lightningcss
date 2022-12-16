@@ -15,10 +15,10 @@ use crate::visitor::Visit;
 
 /// A [@container](https://drafts.csswg.org/css-contain-3/#container-rule) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContainerRule<'i, R = DefaultAtRule> {
   /// The name of the container.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "with-serde", serde(borrow))]
   pub name: Option<ContainerName<'i>>,
   /// The container condition.
   pub condition: MediaCondition<'i>,
@@ -31,8 +31,8 @@ pub struct ContainerRule<'i, R = DefaultAtRule> {
 
 /// A [`<container-name>`](https://drafts.csswg.org/css-contain-3/#typedef-container-name) in a `@container` rule.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct ContainerName<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CustomIdent<'i>);
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ContainerName<'i>(#[cfg_attr(feature = "with-serde", serde(borrow))] pub CustomIdent<'i>);
 
 impl<'i> Parse<'i> for ContainerName<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {

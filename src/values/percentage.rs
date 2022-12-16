@@ -15,7 +15,7 @@ use cssparser::*;
 /// Percentages may be explicit or computed by `calc()`, but are always stored and serialized
 /// as their computed value.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Percentage(pub CSSNumber);
 
 impl<'i> Parse<'i> for Percentage {
@@ -142,7 +142,7 @@ impl_try_from_angle!(Percentage);
 /// Either a `<number>` or `<percentage>`.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -194,7 +194,7 @@ impl std::convert::Into<CSSNumber> for &NumberOrPercentage {
 /// <https://drafts.csswg.org/css-values-4/#mixed-percentages>
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]

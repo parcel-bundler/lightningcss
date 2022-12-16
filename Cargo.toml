@@ -27,11 +27,12 @@ path = "src/lib.rs"
 crate-type = ["rlib"]
 
 [features]
-default = ["bundler", "grid"]
+default = ["bundler", "grid", "nodejs"]
 browserslist = ["browserslist-rs"]
 bundler = ["dashmap", "rayon"]
 cli = ["clap", "serde_json", "browserslist", "jemallocator"]
 grid = []
+nodejs = ["serde"]
 with-serde = ["serde", "smallvec/serde", "cssparser/serde"]
 
 [dependencies]

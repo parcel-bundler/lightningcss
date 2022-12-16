@@ -27,7 +27,7 @@ enum_property! {
 /// A [`<display-inside>`](https://drafts.csswg.org/css-display-3/#typedef-display-inside) value.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(rename_all = "kebab-case")
 )]
@@ -107,7 +107,7 @@ impl DisplayInside {
 ///
 /// See [Display](Display).
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DisplayPair {
   /// The outside display value.
   pub outside: DisplayOutside,
@@ -321,7 +321,7 @@ enum_property! {
 /// A value for the [display](https://drafts.csswg.org/css-display-3/#the-display-properties) property.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]

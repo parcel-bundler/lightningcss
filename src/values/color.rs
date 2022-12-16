@@ -33,7 +33,7 @@ use std::fmt::Write;
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[visit(visit_color, COLORS)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "lowercase")
 )]
@@ -53,7 +53,7 @@ pub enum CssColor {
 /// A color in a LAB color space, including the `lab()`, `lch()`, `oklab()`, and `oklch()` functions.
 #[derive(Debug, Clone, Copy, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "lowercase")
 )]
@@ -71,34 +71,34 @@ pub enum LABColor {
 /// A color in a predefined color space, e.g. `display-p3`.
 #[derive(Debug, Clone, Copy, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value")
 )]
 pub enum PredefinedColor {
   /// A color in the `srgb` color space.
-  #[cfg_attr(feature = "serde", serde(rename = "srgb"))]
+  #[cfg_attr(feature = "with-serde", serde(rename = "srgb"))]
   SRGB(SRGB),
   /// A color in the `srgb-linear` color space.
-  #[cfg_attr(feature = "serde", serde(rename = "srgb-linear"))]
+  #[cfg_attr(feature = "with-serde", serde(rename = "srgb-linear"))]
   SRGBLinear(SRGBLinear),
   /// A color in the `display-p3` color space.
-  #[cfg_attr(feature = "serde", serde(rename = "display-p3"))]
+  #[cfg_attr(feature = "with-serde", serde(rename = "display-p3"))]
   DisplayP3(P3),
   /// A color in the `a98-rgb` color space.
-  #[cfg_attr(feature = "serde", serde(rename = "a98-rgb"))]
+  #[cfg_attr(feature = "with-serde", serde(rename = "a98-rgb"))]
   A98(A98),
   /// A color in the `prophoto-rgb` color space.
-  #[cfg_attr(feature = "serde", serde(rename = "prophoto-rgb"))]
+  #[cfg_attr(feature = "with-serde", serde(rename = "prophoto-rgb"))]
   ProPhoto(ProPhoto),
   /// A color in the `rec2020` color space.
-  #[cfg_attr(feature = "serde", serde(rename = "rec2020"))]
+  #[cfg_attr(feature = "with-serde", serde(rename = "rec2020"))]
   Rec2020(Rec2020),
   /// A color in the `xyz-d50` color space.
-  #[cfg_attr(feature = "serde", serde(rename = "xyz-d50"))]
+  #[cfg_attr(feature = "with-serde", serde(rename = "xyz-d50"))]
   XYZd50(XYZd50),
   /// A color in the `xyz-d65` color space.
-  #[cfg_attr(feature = "serde", serde(rename = "xyz-d65"))]
+  #[cfg_attr(feature = "with-serde", serde(rename = "xyz-d65"))]
   XYZd65(XYZd65),
 }
 
@@ -107,7 +107,7 @@ pub enum PredefinedColor {
 /// are any `none` components, which are represented as NaN.
 #[derive(Debug, Clone, Copy, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "lowercase")
 )]
@@ -1168,7 +1168,7 @@ macro_rules! define_colorspace {
   ) => {
     $(#[$outer])*
     #[derive(Debug, Clone, Copy, PartialEq, Visit)]
-    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     pub struct $name {
       $(#[$a_meta])*
       pub $a: f32,

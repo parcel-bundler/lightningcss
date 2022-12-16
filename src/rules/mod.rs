@@ -108,7 +108,8 @@ pub(crate) struct StyleContext<'a, 'i, T> {
 
 /// A source location.
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), derive(serde::Serialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Deserialize))]
 pub struct Location {
   /// The index of the source file within the source map.
   pub source_index: u32,
@@ -123,13 +124,13 @@ pub struct Location {
 #[derive(Debug, PartialEq, Clone, Visit)]
 #[visit(visit_rule, RULES)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum CssRule<'i, R = DefaultAtRule> {
   /// A `@media` rule.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "with-serde", serde(borrow))]
   Media(MediaRule<'i, R>),
   /// An `@import` rule.
   Import(ImportRule<'i>),
@@ -243,9 +244,9 @@ impl<'i, T: ToCss> ToCss for CssRule<'i, T> {
 
 /// A list of CSS rules.
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CssRuleList<'i, R = DefaultAtRule>(
-  #[cfg_attr(feature = "serde", serde(borrow))] pub Vec<CssRule<'i, R>>,
+  #[cfg_attr(feature = "with-serde", serde(borrow))] pub Vec<CssRule<'i, R>>,
 );
 
 // Manually implemented to avoid circular child types.

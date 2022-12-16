@@ -10,10 +10,10 @@ use crate::visitor::Visit;
 
 /// A [@custom-media](https://drafts.csswg.org/mediaqueries-5/#custom-mq) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CustomMediaRule<'i> {
   /// The name of the declared media query.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "with-serde", serde(borrow))]
   pub name: DashedIdent<'i>,
   /// The media query to declare.
   pub query: MediaList<'i>,

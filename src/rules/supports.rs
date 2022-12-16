@@ -16,10 +16,10 @@ use cssparser::*;
 
 /// A [@supports](https://drafts.csswg.org/css-conditional-3/#at-supports) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SupportsRule<'i, R = DefaultAtRule> {
   /// The supports condition.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "with-serde", serde(borrow))]
   pub condition: SupportsCondition<'i>,
   /// The rules within the `@supports` rule.
   pub rules: CssRuleList<'i, R>,
@@ -70,7 +70,7 @@ impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for SupportsRule<'i, T> {
 #[derive(Debug, PartialEq, Clone, Visit)]
 #[visit(visit_supports_condition, SUPPORTS_CONDITIONS)]
 #[cfg_attr(
-  feature = "serde",
+  feature = "with-serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -87,7 +87,7 @@ pub enum SupportsCondition<'i> {
   /// A declaration to evaluate.
   Declaration {
     /// The property id for the declaration.
-    #[cfg_attr(feature = "serde", serde(borrow))]
+    #[cfg_attr(feature = "with-serde", serde(borrow))]
     property_id: PropertyId<'i>,
     /// The raw value of the declaration.
     value: CowArcStr<'i>,

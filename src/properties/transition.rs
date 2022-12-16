@@ -22,7 +22,7 @@ define_list_shorthand! {
   /// A value for the [transition](https://www.w3.org/TR/2018/WD-css-transitions-1-20181011/#transition-shorthand-property) property.
   pub struct Transition<'i>(VendorPrefix) {
     /// The property to transition.
-    #[cfg_attr(feature = "serde", serde(borrow))]
+    #[cfg_attr(feature = "with-serde", serde(borrow))]
     property: TransitionProperty(PropertyId<'i>, VendorPrefix),
     /// The duration of the transition.
     duration: TransitionDuration(Time, VendorPrefix),

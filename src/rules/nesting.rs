@@ -11,10 +11,10 @@ use crate::traits::ToCss;
 use crate::visitor::Visit;
 /// A [@nest](https://www.w3.org/TR/css-nesting-1/#at-nest) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NestingRule<'i, R = DefaultAtRule> {
   /// The style rule that defines the selector and declarations for the `@nest` rule.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "with-serde", serde(borrow))]
   pub style: StyleRule<'i, R>,
   /// The location of the rule in the source file.
   #[skip_visit]

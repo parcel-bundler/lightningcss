@@ -5,13 +5,14 @@ use crate::rules::Location;
 use crate::values::string::CowArcStr;
 use cssparser::{BasicParseErrorKind, ParseError, ParseErrorKind};
 use parcel_selectors::parser::SelectorParseErrorKind;
-#[cfg(feature = "serde")]
+#[cfg(any(feature = "with-serde", feature = "nodejs"))]
 use serde::Serialize;
 use std::fmt;
 
 /// An error with a source location.
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), derive(serde::Serialize))]
+#[cfg_attr(any(feature = "with-serde"), derive(serde::Deserialize))]
 pub struct Error<T> {
   /// The type of error that occurred.
   pub kind: T,
@@ -33,7 +34,8 @@ impl<T: fmt::Display + fmt::Debug> std::error::Error for Error<T> {}
 
 /// A line and column location within a source file.
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), derive(serde::Serialize))]
+#[cfg_attr(any(feature = "with-serde"), derive(serde::Deserialize))]
 pub struct ErrorLocation {
   /// The filename in which the error occurred.
   pub filename: String,
@@ -62,8 +64,8 @@ impl fmt::Display for ErrorLocation {
 
 /// A parser error.
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(tag = "type", content = "value"))]
+#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), derive(Serialize))]
+#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), serde(tag = "type", content = "value"))]
 pub enum ParserError<'i> {
   /// An at rule body was invalid.
   AtRuleBodyInvalid,
@@ -92,7 +94,7 @@ pub enum ParserError<'i> {
   /// A `@namespace` rule was encountered after any rules besides `@charset`, `@import`, or `@layer`.
   UnexpectedNamespaceRule,
   /// An unexpected token was encountered.
-  UnexpectedToken(#[cfg_attr(feature = "serde", serde(skip))] Token<'i>),
+  UnexpectedToken(#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), serde(skip))] Token<'i>),
   /// Maximum nesting depth was reached.
   MaximumNestingDepth,
 }
@@ -167,23 +169,23 @@ impl<'i> ParserError<'i> {
 
 /// A selector parsing error.
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(tag = "type", content = "value"))]
+#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), derive(Serialize))]
+#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), serde(tag = "type", content = "value"))]
 pub enum SelectorError<'i> {
   /// An unexpected token was found in an attribute selector.
-  BadValueInAttr(#[cfg_attr(feature = "serde", serde(skip))] Token<'i>),
+  BadValueInAttr(#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), serde(skip))] Token<'i>),
   /// An unexpected token was found in a class selector.
-  ClassNeedsIdent(#[cfg_attr(feature = "serde", serde(skip))] Token<'i>),
+  ClassNeedsIdent(#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), serde(skip))] Token<'i>),
   /// A dangling combinator was found.
   DanglingCombinator,
   /// An empty selector.
   EmptySelector,
   /// A `|` was expected in an attribute selector.
-  ExpectedBarInAttr(#[cfg_attr(feature = "serde", serde(skip))] Token<'i>),
+  ExpectedBarInAttr(#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), serde(skip))] Token<'i>),
   /// A namespace was expected.
   ExpectedNamespace(CowArcStr<'i>),
   /// An unexpected token was encountered in a namespace.
-  ExplicitNamespaceUnexpectedToken(#[cfg_attr(feature = "serde", serde(skip))] Token<'i>),
+  ExplicitNamespaceUnexpectedToken(#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), serde(skip))] Token<'i>),
   /// An invalid pseudo class was encountered after a pseudo element.
   InvalidPseudoClassAfterPseudoElement,
   /// An invalid pseudo class was encountered after a `-webkit-scrollbar` pseudo element.
@@ -191,7 +193,7 @@ pub enum SelectorError<'i> {
   /// A `-webkit-scrollbar` state was encountered before a `-webkit-scrollbar` pseudo element.
   InvalidPseudoClassBeforeWebKitScrollbar,
   /// Invalid qualified name in attribute selector.
-  InvalidQualNameInAttr(#[cfg_attr(feature = "serde", serde(skip))] Token<'i>),
+  InvalidQualNameInAttr(#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), serde(skip))] Token<'i>),
   /// The current token is not allowed in this state.
   InvalidState,
   /// The selector is required to have the `&` nesting selector at the start.
@@ -199,13 +201,13 @@ pub enum SelectorError<'i> {
   /// The selector is missing a `&` nesting selector.
   MissingNestingSelector,
   /// No qualified name in attribute selector.
-  NoQualifiedNameInAttributeSelector(#[cfg_attr(feature = "serde", serde(skip))] Token<'i>),
+  NoQualifiedNameInAttributeSelector(#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), serde(skip))] Token<'i>),
   /// An Invalid token was encountered in a pseudo element.
-  PseudoElementExpectedIdent(#[cfg_attr(feature = "serde", serde(skip))] Token<'i>),
+  PseudoElementExpectedIdent(#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), serde(skip))] Token<'i>),
   /// An unexpected identifier was encountered.
   UnexpectedIdent(CowArcStr<'i>),
   /// An unexpected token was encountered inside an attribute selector.
-  UnexpectedTokenInAttributeSelector(#[cfg_attr(feature = "serde", serde(skip))] Token<'i>),
+  UnexpectedTokenInAttributeSelector(#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), serde(skip))] Token<'i>),
   /// An unsupported pseudo class or pseudo element was encountered.
   UnsupportedPseudoClassOrElement(CowArcStr<'i>),
 }
@@ -295,8 +297,8 @@ pub(crate) type MinifyError = ErrorWithLocation<MinifyErrorKind>;
 
 /// A transformation error.
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(tag = "type"))]
+#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), derive(Serialize))]
+#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), serde(tag = "type"))]
 pub enum MinifyErrorKind {
   /// A circular `@custom-media` rule was detected.
   CircularCustomMedia {
@@ -342,8 +344,8 @@ pub type PrinterError = Error<PrinterErrorKind>;
 
 /// A printer error type.
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(tag = "type"))]
+#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), derive(Serialize))]
+#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), serde(tag = "type"))]
 pub enum PrinterErrorKind {
   /// An ambiguous relative `url()` was encountered in a custom property declaration.
   AmbiguousUrlInCustomProperty {
