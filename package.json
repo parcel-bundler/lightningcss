@@ -71,6 +71,7 @@
     "wasm-browser:build-release": "wasm-pack build node --target web --release",
     "website:start": "parcel website/index.html website/playground/index.html",
     "website:build": "yarn wasm-browser:build-release && parcel build website/index.html website/playground/index.html",
-    "build-ast": "cargo run --example schema --features jsonschema && node scripts/build-ast.js"
+    "build-ast": "cargo run --example schema --features jsonschema && node scripts/build-ast.js",
+    "test": "uvu node/test"
   }
 }
