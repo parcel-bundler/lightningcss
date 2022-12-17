@@ -286,6 +286,7 @@ macro_rules! define_length_units {
       fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
         #[derive(schemars::JsonSchema)]
         #[schemars(rename_all = "lowercase")]
+        #[allow(dead_code)]
         enum LengthUnit {
           $(
             $(#[$meta])*
@@ -294,6 +295,7 @@ macro_rules! define_length_units {
         }
 
         #[derive(schemars::JsonSchema)]
+        #[allow(dead_code)]
         struct LengthValue {
           /// The length unit.
           unit: LengthUnit,
