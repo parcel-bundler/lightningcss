@@ -65,7 +65,6 @@ use crate::error::{MinifyError, ParserError, PrinterError, PrinterErrorKind};
 use crate::parser::{DefaultAtRule, TopLevelRuleParser};
 use crate::prefixes::Feature;
 use crate::printer::Printer;
-use crate::properties::contain::Container;
 use crate::rules::keyframes::KeyframesName;
 use crate::selector::{downlevel_selectors, get_prefix, is_equivalent};
 use crate::stylesheet::ParserOptions;

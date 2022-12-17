@@ -304,7 +304,7 @@ where
         operator,
         value,
         case_sensitivity,
-        never_matches,
+        ..
       } => SerializedComponent::Attribute(AttrSelector {
         namespace: None,
         name: local_name.as_ref().into(),
@@ -457,12 +457,15 @@ where
             (attr.name.clone(), true)
           };
 
-        if let Some(namespace) = attr.namespace {
+        if attr.namespace.is_some() || (!local_name_is_ascii_lowercase && attr.operation.is_some()) {
           Component::AttributeOther(Box::new(AttrSelectorWithOptionalNamespace {
-            namespace: Some(match namespace {
-              NamespaceConstraint::Any => NamespaceConstraint::Any,
-              NamespaceConstraint::Specific(c) => NamespaceConstraint::Specific((c.prefix.into(), c.url.into())),
-            }),
+            namespace: match attr.namespace {
+              Some(NamespaceConstraint::Any) => Some(NamespaceConstraint::Any),
+              Some(NamespaceConstraint::Specific(c)) => {
+                Some(NamespaceConstraint::Specific((c.prefix.into(), c.url.into())))
+              }
+              None => None,
+            },
             local_name: attr.name.into(),
             local_name_lower: local_name_lower_cow.into(),
             operation: match attr.operation {

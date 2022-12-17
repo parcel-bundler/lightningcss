@@ -1,7 +1,7 @@
 //! CSS properties related to box alignment.
 
 use super::flex::{BoxAlign, BoxPack, FlexAlign, FlexItemAlign, FlexLinePack, FlexPack};
-use super::{overflow, Property, PropertyId};
+use super::{Property, PropertyId};
 use crate::compat;
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};

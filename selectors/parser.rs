@@ -2897,9 +2897,21 @@ pub mod tests {
     }
   }
 
+  impl AsRef<str> for DummyAttrValue {
+    fn as_ref(&self) -> &str {
+      self.0.as_ref()
+    }
+  }
+
   impl<'a> From<&'a str> for DummyAttrValue {
     fn from(string: &'a str) -> Self {
       Self(string.into())
+    }
+  }
+
+  impl<'a> From<std::borrow::Cow<'a, str>> for DummyAttrValue {
+    fn from(string: std::borrow::Cow<'a, str>) -> Self {
+      Self(string.to_string())
     }
   }
 
@@ -2936,6 +2948,18 @@ pub mod tests {
   impl<'a> From<CowRcStr<'a>> for DummyAtom {
     fn from(string: CowRcStr<'a>) -> Self {
       DummyAtom(string.to_string())
+    }
+  }
+
+  impl AsRef<str> for DummyAtom {
+    fn as_ref(&self) -> &str {
+      self.0.as_ref()
+    }
+  }
+
+  impl<'a> From<std::borrow::Cow<'a, str>> for DummyAtom {
+    fn from(string: std::borrow::Cow<'a, str>) -> Self {
+      Self(string.to_string())
     }
   }
 

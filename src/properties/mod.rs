@@ -287,11 +287,6 @@ macro_rules! define_properties {
     }
 
     impl<'i> PropertyId<'i> {
-      fn new(name: CowArcStr<'i>, prefix: VendorPrefix) -> Self {
-        Self::from_name_and_prefix(name.as_ref(), prefix)
-          .unwrap_or_else(|_| PropertyId::Custom(name))
-      }
-
       fn from_name_and_prefix(name: &str, prefix: VendorPrefix) -> Result<Self, ()> {
         macro_rules! get_allowed_prefixes {
           ($v: literal) => {
@@ -579,7 +574,7 @@ macro_rules! define_properties {
           where
             A: serde::de::MapAccess<'de>,
           {
-            let mut property = None;
+            let mut property: Option<CowArcStr> = None;
             let mut vendor_prefix = None;
             while let Some(key) = map.next_key()? {
               match key {
@@ -594,7 +589,8 @@ macro_rules! define_properties {
 
             let property = property.ok_or_else(|| serde::de::Error::missing_field("property"))?;
             let vendor_prefix = vendor_prefix.unwrap_or(VendorPrefix::None);
-            let property_id = PropertyId::new(property, vendor_prefix);
+            let property_id = PropertyId::from_name_and_prefix(property.as_ref(), vendor_prefix)
+              .unwrap_or_else(|_| PropertyId::Custom(property));
             Ok(property_id)
           }
         }
@@ -1003,7 +999,7 @@ macro_rules! define_properties {
           where
             A: serde::de::MapAccess<'de>,
           {
-            let mut property = None;
+            let mut property: Option<CowArcStr> = None;
             let mut vendor_prefix = None;
             let mut value: Option<serde::__private::de::Content> = None;
             while let Some(key) = map.next_key()? {
@@ -1023,7 +1019,8 @@ macro_rules! define_properties {
             let property = property.ok_or_else(|| serde::de::Error::missing_field("property"))?;
             let vendor_prefix = vendor_prefix.unwrap_or(VendorPrefix::None);
             let value = value.ok_or_else(|| serde::de::Error::missing_field("value"))?;
-            let property_id = PropertyId::new(property, vendor_prefix);
+            let property_id = PropertyId::from_name_and_prefix(property.as_ref(), vendor_prefix)
+              .unwrap_or_else(|_| PropertyId::Custom(property));
             Ok(PartialProperty {
               property_id,
               content: value,
