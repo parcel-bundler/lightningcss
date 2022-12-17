@@ -14,6 +14,7 @@ use crate::properties::PropertyId;
 use crate::rules::supports::SupportsCondition;
 use crate::targets::Browsers;
 use crate::traits::{FallbackValues, Parse, ToCss};
+#[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
 use bitflags::bitflags;
 use cssparser::*;
@@ -30,8 +31,9 @@ use std::fmt::Write;
 /// Each color space is represented as a struct that implements the `From` and `Into` traits
 /// for all other color spaces, so it is possible to convert between color spaces easily.
 /// In addition, colors support [interpolation](#method.interpolate) as in the `color-mix()` function.
-#[derive(Debug, Clone, PartialEq, Visit)]
-#[visit(visit_color, COLORS)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "visitor", visit(visit_color, COLORS))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -51,7 +53,8 @@ pub enum CssColor {
 }
 
 /// A color in a LAB color space, including the `lab()`, `lch()`, `oklab()`, and `oklch()` functions.
-#[derive(Debug, Clone, Copy, PartialEq, Visit)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -69,7 +72,8 @@ pub enum LABColor {
 }
 
 /// A color in a predefined color space, e.g. `display-p3`.
-#[derive(Debug, Clone, Copy, PartialEq, Visit)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -105,7 +109,8 @@ pub enum PredefinedColor {
 /// A floating point representation of color types that
 /// are usually stored as RGBA. These are used when there
 /// are any `none` components, which are represented as NaN.
-#[derive(Debug, Clone, Copy, PartialEq, Visit)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -1167,7 +1172,7 @@ macro_rules! define_colorspace {
     }
   ) => {
     $(#[$outer])*
-    #[derive(Debug, Clone, Copy, PartialEq, Visit)]
+    #[derive(Debug, Clone, Copy, PartialEq)] #[cfg_attr(feature = "visitor", derive(Visit))]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     pub struct $name {
       $(#[$a_meta])*
@@ -3122,6 +3127,7 @@ impl HueInterpolationMethod {
   }
 }
 
+#[cfg(feature = "visitor")]
 impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for RGBA {
   const CHILD_TYPES: VisitTypes = VisitTypes::empty();
   fn visit_children(&mut self, _: &mut V) {}

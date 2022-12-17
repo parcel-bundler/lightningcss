@@ -254,6 +254,7 @@ impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
   }
 }
 
+#[cfg(feature = "visitor")]
 impl<'i, V: Visitor<'i, AtRule>> Visit<'i, AtRule, V> for AtRule {
   const CHILD_TYPES: VisitTypes = VisitTypes::empty();
 

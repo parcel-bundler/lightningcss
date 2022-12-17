@@ -4,12 +4,14 @@ use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use crate::values::number::{CSSInteger, CSSNumber};
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 use std::fmt::Write;
 
 /// A CSS [easing function](https://www.w3.org/TR/css-easing-1/#easing-functions).
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -131,7 +133,8 @@ impl EasingFunction {
 }
 
 /// A [step position](https://www.w3.org/TR/css-easing-1/#step-position), used within the `steps()` function.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

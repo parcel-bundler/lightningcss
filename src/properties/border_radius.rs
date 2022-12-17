@@ -14,6 +14,7 @@ use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::length::*;
 use crate::values::rect::Rect;
 use crate::values::size::Size2D;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 

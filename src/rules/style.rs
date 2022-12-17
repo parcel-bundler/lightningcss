@@ -16,6 +16,7 @@ use crate::selector::{is_compatible, is_unused, SelectorList};
 use crate::targets::Browsers;
 use crate::traits::ToCss;
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 
@@ -23,7 +24,8 @@ use cssparser::*;
 use crate::selector::{deserialize_selectors, serialize_selectors};
 
 /// A CSS [style rule](https://drafts.csswg.org/css-syntax/#style-rules).
-#[derive(Debug, PartialEq, Clone, Visit)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StyleRule<'i, R = DefaultAtRule> {
   /// The selectors for the style rule.
@@ -38,14 +40,14 @@ pub struct StyleRule<'i, R = DefaultAtRule> {
   pub selectors: SelectorList<'i>,
   /// A vendor prefix override, used during selector printing.
   #[cfg_attr(feature = "serde", serde(skip, default = "VendorPrefix::empty"))]
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub vendor_prefix: VendorPrefix,
   /// The declarations within the style rule.
   pub declarations: DeclarationBlock<'i>,
   /// Nested rules within the style rule.
   pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 

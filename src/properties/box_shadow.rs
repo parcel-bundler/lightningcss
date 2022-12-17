@@ -12,12 +12,14 @@ use crate::traits::{Parse, PropertyHandler, ToCss, Zero};
 use crate::values::color::{ColorFallbackKind, CssColor};
 use crate::values::length::Length;
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 use smallvec::SmallVec;
 
 /// A value for the [box-shadow](https://drafts.csswg.org/css-backgrounds/#box-shadow) property.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BoxShadow {
   /// The color of the box shadow.

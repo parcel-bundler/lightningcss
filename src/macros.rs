@@ -9,7 +9,8 @@ macro_rules! enum_property {
     }
   ) => {
     $(#[$outer])*
-    #[derive(Debug, Clone, Copy, PartialEq, Visit)]
+    #[derive(Debug, Clone, Copy, PartialEq)]
+    #[cfg_attr(feature = "visitor", derive(Visit))]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "lowercase"))]
     $vis enum $name {
       $(
@@ -66,7 +67,7 @@ macro_rules! enum_property {
     }
   ) => {
     $(#[$outer])*
-    #[derive(Debug, Clone, Copy, PartialEq, Visit)]
+    #[derive(Debug, Clone, Copy, PartialEq)] #[cfg_attr(feature = "visitor", derive(Visit))]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     $vis enum $name {
       $(
@@ -339,7 +340,8 @@ macro_rules! define_shorthand {
     }
   ) => {
     $(#[$outer])*
-    #[derive(Debug, Clone, PartialEq, Visit)]
+    #[derive(Debug, Clone, PartialEq)]
+    #[cfg_attr(feature = "visitor", derive(Visit))]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     pub struct $name$(<$l>)? {
       $(
@@ -553,7 +555,8 @@ macro_rules! define_list_shorthand {
     }
   ) => {
     $(#[$outer])*
-    #[derive(Debug, Clone, PartialEq, Visit)]
+    #[derive(Debug, Clone, PartialEq)]
+    #[cfg_attr(feature = "visitor", derive(Visit))]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     pub struct $name$(<$l>)? {
       $(

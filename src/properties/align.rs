@@ -13,12 +13,14 @@ use crate::targets::Browsers;
 use crate::traits::{FromStandard, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::length::LengthPercentage;
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 
 /// A [`<baseline-position>`](https://www.w3.org/TR/css-align-3/#typedef-baseline-position) value,
 /// as used in the alignment properties.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -107,7 +109,8 @@ enum_property! {
 }
 
 /// A value for the [align-content](https://www.w3.org/TR/css-align-3/#propdef-align-content) property.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -166,7 +169,8 @@ impl ToCss for AlignContent {
 }
 
 /// A value for the [justify-content](https://www.w3.org/TR/css-align-3/#propdef-justify-content) property.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -327,7 +331,8 @@ enum_property! {
 }
 
 /// A value for the [align-self](https://www.w3.org/TR/css-align-3/#align-self-property) property.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -393,7 +398,8 @@ impl ToCss for AlignSelf {
 }
 
 /// A value for the [justify-self](https://www.w3.org/TR/css-align-3/#justify-self-property) property.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -549,7 +555,8 @@ impl ToCss for PlaceSelf {
 }
 
 /// A value for the [align-items](https://www.w3.org/TR/css-align-3/#align-items-property) property.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -608,7 +615,8 @@ impl ToCss for AlignItems {
 }
 
 /// A legacy justification keyword, as used in the `justify-items` property.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -674,7 +682,8 @@ impl ToCss for LegacyJustify {
 }
 
 /// A value for the [justify-items](https://www.w3.org/TR/css-align-3/#justify-items-property) property.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -829,7 +838,8 @@ impl ToCss for PlaceItems {
 
 /// A [gap](https://www.w3.org/TR/css-align-3/#column-row-gap) value, as used in the
 /// `column-gap` and `row-gap` properties.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

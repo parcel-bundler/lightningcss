@@ -6,22 +6,24 @@ use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::values::ident::Ident;
 use crate::values::string::CSSString;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 
 /// A [@namespace](https://drafts.csswg.org/css-namespaces/#declaration) rule.
-#[derive(Debug, PartialEq, Clone, Visit)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NamespaceRule<'i> {
   /// An optional namespace prefix to declare, or `None` to declare the default namespace.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub prefix: Option<Ident<'i>>,
   /// The url of the namespace.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub url: CSSString<'i>,
   /// The location of the rule in the source file.
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 

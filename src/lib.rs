@@ -38,6 +38,7 @@ pub mod targets;
 pub mod traits;
 pub mod values;
 pub mod vendor_prefix;
+#[cfg(feature = "visitor")]
 pub mod visitor;
 
 #[cfg(test)]

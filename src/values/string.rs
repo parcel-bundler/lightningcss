@@ -1,6 +1,7 @@
 //! Types used to represent strings.
 
 use crate::traits::{Parse, ToCss};
+#[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
 use cssparser::{serialize_string, CowRcStr};
 #[cfg(feature = "serde")]
@@ -268,13 +269,15 @@ impl<'de> serde::de::Visitor<'de> for CowArcStrVisitor {
   }
 }
 
+#[cfg(feature = "visitor")]
 impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for CowArcStr<'i> {
   const CHILD_TYPES: VisitTypes = VisitTypes::empty();
   fn visit_children(&mut self, _: &mut V) {}
 }
 
 /// A quoted CSS string.
-#[derive(Clone, Eq, Ord, Hash, Debug, Visit)]
+#[derive(Clone, Eq, Ord, Hash, Debug)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CSSString<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CowArcStr<'i>);
 

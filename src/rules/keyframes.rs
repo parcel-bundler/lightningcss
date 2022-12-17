@@ -17,11 +17,13 @@ use crate::values::ident::CustomIdent;
 use crate::values::percentage::Percentage;
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 
 /// A [@keyframes](https://drafts.csswg.org/css-animations/#keyframes) rule.
-#[derive(Debug, PartialEq, Clone, Visit)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct KeyframesRule<'i> {
   /// The animation name.
@@ -31,15 +33,16 @@ pub struct KeyframesRule<'i> {
   /// A list of keyframes in the animation.
   pub keyframes: Vec<Keyframe<'i>>,
   /// A vendor prefix for the rule, e.g. `@-webkit-keyframes`.
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub vendor_prefix: VendorPrefix,
   /// The location of the rule in the source file.
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 
 /// KeyframesName
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Visit)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum KeyframesName<'i> {
   /// `<custom-ident>` of a `@keyframes` name.
@@ -248,7 +251,8 @@ impl<'i> ToCss for KeyframesRule<'i> {
 
 /// A [keyframe selector](https://drafts.csswg.org/css-animations/#typedef-keyframe-selector)
 /// within an `@keyframes` rule.
-#[derive(Debug, PartialEq, Clone, Visit)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -309,7 +313,8 @@ impl ToCss for KeyframeSelector {
 /// An individual keyframe within an `@keyframes` rule.
 ///
 /// See [KeyframesRule](KeyframesRule).
-#[derive(Debug, PartialEq, Clone, Visit)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Keyframe<'i> {
   /// A list of keyframe selectors to associate with the declarations in this keyframe.

@@ -3,6 +3,7 @@
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 
@@ -11,7 +12,8 @@ use cssparser::*;
 ///
 /// When serialized, as few components as possible are written when
 /// there are duplicate values.
-#[derive(Clone, Debug, PartialEq, Eq, Visit)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Rect<T>(
   /// The top component.

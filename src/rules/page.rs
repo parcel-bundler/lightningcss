@@ -8,6 +8,7 @@ use crate::printer::Printer;
 use crate::stylesheet::ParserOptions;
 use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 
@@ -113,7 +114,8 @@ enum_property! {
 }
 
 /// A [page margin rule](https://www.w3.org/TR/css-page-3/#margin-at-rules) rule.
-#[derive(Debug, PartialEq, Clone, Visit)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PageMarginRule<'i> {
   /// The margin box identifier for this rule.
@@ -122,7 +124,7 @@ pub struct PageMarginRule<'i> {
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub declarations: DeclarationBlock<'i>,
   /// The location of the rule in the source file.
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 
@@ -139,19 +141,20 @@ impl<'i> ToCss for PageMarginRule<'i> {
 }
 
 /// A [@page](https://www.w3.org/TR/css-page-3/#at-page-rule) rule.
-#[derive(Debug, PartialEq, Clone, Visit)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PageRule<'i> {
   /// A list of page selectors.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub selectors: Vec<PageSelector<'i>>,
   /// The declarations within the `@page` rule.
   pub declarations: DeclarationBlock<'i>,
   /// The nested margin rules.
   pub rules: Vec<PageMarginRule<'i>>,
   /// The location of the rule in the source file.
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 
