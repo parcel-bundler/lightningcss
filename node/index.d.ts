@@ -53,7 +53,7 @@ export interface TransformOptions {
 type FindByType<Union, Name> = Union extends { type: Name } ? Union : never;
 type RuleVisitor<R = CssRuleFor_DefaultAtRule> = ((rule: R) => CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void);
 type MappedRuleVisitors = {
-  [Name in Exclude<CssRuleFor_DefaultAtRule['type'], 'unknown'>]?: RuleVisitor<FindByType<CssRuleFor_DefaultAtRule, Name>>;
+  [Name in Exclude<CssRuleFor_DefaultAtRule['type'], 'unknown' | 'custom'>]?: RuleVisitor<FindByType<CssRuleFor_DefaultAtRule, Name>>;
 }
 
 type UnknownVisitors = {
@@ -67,7 +67,7 @@ type RuleVisitors = MappedRuleVisitors & {
 type FindProperty<Union, Name> = Union extends { property: Name } ? Union : never;
 type PropertyVisitor<P = Property> = ((property: P) => Property | Property[] | void);
 type MappedPropertyVisitors = {
-  [Name in Exclude<Property['property'], 'custom'>]?: PropertyVisitor<FindProperty<Property, Name> | FindProperty<Property, 'unparsed'>>;
+  [Name in Exclude<Property['property'], 'unparsed' | 'custom'>]?: PropertyVisitor<FindProperty<Property, Name> | FindProperty<Property, 'unparsed'>>;
 }
 
 type CustomPropertyVisitors = {

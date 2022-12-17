@@ -392,7 +392,7 @@ test('tokens and functions', () => {
   assert.equal(res.code.toString(), '.foo{width:2rem}');
 });
 
-test.only('unknown rules', () => {
+test('unknown rules', () => {
   let declared = new Map();
   let res = transform({
     filename: 'test.css',

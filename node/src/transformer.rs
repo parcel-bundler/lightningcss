@@ -522,14 +522,22 @@ fn visit_property_list<'i, C: FnMut(&mut Property<'i>)>(
   visit_list(
     list,
     |value, stage| {
-      let js_value = env.to_js_value(value)?;
       // Use a specific property visitor if available, or fall back to Property visitor.
       let visit = match value {
-        Property::Custom(v) => property_map.custom(stage, "custom", &v.name),
+        Property::Custom(v) => {
+          if let Some(visit) = property_map.custom(stage, "custom", &v.name) {
+            let js_value = env.to_js_value(v)?;
+            let res = visit.call(None, &[js_value])?;
+            return env.from_js_value(res).map(serde_detach::detach);
+          } else {
+            None
+          }
+        }
         _ => property_map.named(stage, value.property_id().name()),
       };
 
       if let Some(visit) = visit.as_ref().or(visit_property.for_stage(stage)) {
+        let js_value = env.to_js_value(value)?;
         let res = visit.call(None, &[js_value])?;
         env.from_js_value(res).map(serde_detach::detach)
       } else {

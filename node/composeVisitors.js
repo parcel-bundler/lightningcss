@@ -13,10 +13,10 @@ function composeVisitors(visitors) {
 
   /** @type Visitor */
   let res = {};
-  composeObjectVisitors(res, visitors, 'Rule', ruleVisitor);
-  composeObjectVisitors(res, visitors, 'RuleExit', ruleVisitor);
-  composeObjectVisitors(res, visitors, 'Property', propertyVisitor);
-  composeObjectVisitors(res, visitors, 'PropertyExit', propertyVisitor);
+  composeObjectVisitors(res, visitors, 'Rule', ruleVisitor, wrapUnknownAtRule);
+  composeObjectVisitors(res, visitors, 'RuleExit', ruleVisitor, wrapUnknownAtRule);
+  composeObjectVisitors(res, visitors, 'Property', propertyVisitor, wrapCustomProperty);
+  composeObjectVisitors(res, visitors, 'PropertyExit', propertyVisitor, wrapCustomProperty);
   composeSimpleVisitors(res, visitors, 'Url');
   composeSimpleVisitors(res, visitors, 'Color');
   composeSimpleVisitors(res, visitors, 'Image');
@@ -43,13 +43,20 @@ function composeVisitors(visitors) {
 
 module.exports = composeVisitors;
 
+function wrapUnknownAtRule(k, f) {
+  return k === 'unknown' ? (value => f({ type: 'unknown', value })) : f;
+}
+
+function wrapCustomProperty(k, f) {
+  return k === 'custom' ? (value => f({ property: 'custom', value })) : f;
+}
+
 /**
  * @param {Visitor} visitor 
  * @param {import('./ast').CssRuleFor_DefaultAtRule} item 
  */
 function ruleVisitor(visitor, item) {
   let f = visitor.Rule;
-  console.log(item)
   if (typeof f === 'object') {
     if (item.type === 'unknown') {
       let v = f.unknown;
@@ -112,7 +119,7 @@ function extractObjectsOrFunctions(visitors, key) {
   return [values, hasFunction, allKeys];
 }
 
-function composeObjectVisitors(res, visitors, key, getType) {
+function composeObjectVisitors(res, visitors, key, getType, wrapKey) {
   let [values, hasFunction, allKeys] = extractObjectsOrFunctions(visitors, key);
   if (values.length === 0) {
     return;
@@ -129,7 +136,7 @@ function composeObjectVisitors(res, visitors, key, getType) {
   } else {
     let v = {};
     for (let k of allKeys) {
-      v[k] = f;
+      v[k] = wrapKey(k, f);
     }
     res[key] = v;
   }
