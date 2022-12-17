@@ -19,3 +19,7 @@ jobs:
       - uses: Swatinem/rust-cache@v1
       - run: cargo fmt
       - run: cargo test --all-features
+  test-js:
+    - uses: actions/setup-node@v2
+    - uses: bahmutov/npm-install@v1.1.0
+    - run: yarn test
