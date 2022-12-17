@@ -2,9 +2,8 @@
 
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
-import { bundle, bundleAsync, transform, transformStyleAttribute } from '../index.mjs';
+import { transform } from '../index.mjs';
 import composeVisitors from '../composeVisitors.js';
-import path from 'path';
 
 test('different types', () => {
   let res = transform({

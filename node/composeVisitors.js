@@ -65,7 +65,7 @@ function ruleVisitor(visitor, item) {
       }
       return v?.(item.value);
     }
-    f = f[item.type];
+    return f[item.type]?.(item);
   }
   return f?.(item);
 }
@@ -88,7 +88,7 @@ function propertyVisitor(visitor, item) {
       }
       return v?.(item.value);
     }
-    f = f[name];
+    return f[name]?.(item);
   }
   return f?.(item);
 }

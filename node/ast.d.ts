@@ -214,206 +214,56 @@ export type Length =
       type: "calc";
       value: CalcFor_Length;
     };
-/**
- * A CSS [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) value, without support for `calc()`. See also: [Length](Length).
- */
-export type LengthValue =
-  | {
-      unit: "px";
-      value: number;
-    }
-  | {
-      unit: "in";
-      value: number;
-    }
-  | {
-      unit: "cm";
-      value: number;
-    }
-  | {
-      unit: "mm";
-      value: number;
-    }
-  | {
-      unit: "q";
-      value: number;
-    }
-  | {
-      unit: "pt";
-      value: number;
-    }
-  | {
-      unit: "pc";
-      value: number;
-    }
-  | {
-      unit: "em";
-      value: number;
-    }
-  | {
-      unit: "rem";
-      value: number;
-    }
-  | {
-      unit: "ex";
-      value: number;
-    }
-  | {
-      unit: "rex";
-      value: number;
-    }
-  | {
-      unit: "ch";
-      value: number;
-    }
-  | {
-      unit: "rch";
-      value: number;
-    }
-  | {
-      unit: "cap";
-      value: number;
-    }
-  | {
-      unit: "rcap";
-      value: number;
-    }
-  | {
-      unit: "ic";
-      value: number;
-    }
-  | {
-      unit: "ric";
-      value: number;
-    }
-  | {
-      unit: "lh";
-      value: number;
-    }
-  | {
-      unit: "rlh";
-      value: number;
-    }
-  | {
-      unit: "vw";
-      value: number;
-    }
-  | {
-      unit: "lvw";
-      value: number;
-    }
-  | {
-      unit: "svw";
-      value: number;
-    }
-  | {
-      unit: "dvw";
-      value: number;
-    }
-  | {
-      unit: "cqw";
-      value: number;
-    }
-  | {
-      unit: "vh";
-      value: number;
-    }
-  | {
-      unit: "lvh";
-      value: number;
-    }
-  | {
-      unit: "svh";
-      value: number;
-    }
-  | {
-      unit: "dvh";
-      value: number;
-    }
-  | {
-      unit: "cqh";
-      value: number;
-    }
-  | {
-      unit: "vi";
-      value: number;
-    }
-  | {
-      unit: "svi";
-      value: number;
-    }
-  | {
-      unit: "lvi";
-      value: number;
-    }
-  | {
-      unit: "dvi";
-      value: number;
-    }
-  | {
-      unit: "cqi";
-      value: number;
-    }
-  | {
-      unit: "vb";
-      value: number;
-    }
-  | {
-      unit: "svb";
-      value: number;
-    }
-  | {
-      unit: "lvb";
-      value: number;
-    }
-  | {
-      unit: "dvb";
-      value: number;
-    }
-  | {
-      unit: "cqb";
-      value: number;
-    }
-  | {
-      unit: "vmin";
-      value: number;
-    }
-  | {
-      unit: "svmin";
-      value: number;
-    }
-  | {
-      unit: "lvmin";
-      value: number;
-    }
-  | {
-      unit: "dvmin";
-      value: number;
-    }
-  | {
-      unit: "cqmin";
-      value: number;
-    }
-  | {
-      unit: "vmax";
-      value: number;
-    }
-  | {
-      unit: "svmax";
-      value: number;
-    }
-  | {
-      unit: "lvmax";
-      value: number;
-    }
-  | {
-      unit: "dvmax";
-      value: number;
-    }
-  | {
-      unit: "cqmax";
-      value: number;
-    };
+export type LengthUnit =
+  | "px"
+  | "in"
+  | "cm"
+  | "mm"
+  | "q"
+  | "pt"
+  | "pc"
+  | "em"
+  | "rem"
+  | "ex"
+  | "rex"
+  | "ch"
+  | "rch"
+  | "cap"
+  | "rcap"
+  | "ic"
+  | "ric"
+  | "lh"
+  | "rlh"
+  | "vw"
+  | "lvw"
+  | "svw"
+  | "dvw"
+  | "cqw"
+  | "vh"
+  | "lvh"
+  | "svh"
+  | "dvh"
+  | "cqh"
+  | "vi"
+  | "svi"
+  | "lvi"
+  | "dvi"
+  | "cqi"
+  | "vb"
+  | "svb"
+  | "lvb"
+  | "dvb"
+  | "cqb"
+  | "vmin"
+  | "svmin"
+  | "lvmin"
+  | "dvmin"
+  | "cqmin"
+  | "vmax"
+  | "svmax"
+  | "lvmax"
+  | "dvmax"
+  | "cqmax";
 /**
  * A mathematical expression used within the [`calc()`](https://www.w3.org/TR/css-values-4/#calc-func) function.
  *
@@ -7028,6 +6878,16 @@ export interface MediaQuery {
    * The qualifier for this query.
    */
   qualifier?: Qualifier | null;
+}
+export interface LengthValue {
+  /**
+   * The length unit.
+   */
+  unit: LengthUnit;
+  /**
+   * The length value.
+   */
+  value: number;
 }
 /**
  * A [@import](https://drafts.csswg.org/css-cascade/#at-import) rule.

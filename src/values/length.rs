@@ -97,7 +97,6 @@ macro_rules! define_length_units {
     #[derive(Debug, Clone, PartialEq, Visit)]
     #[visit(visit_length, LENGTHS)]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(tag = "unit", content = "value", rename_all = "kebab-case"))]
-    #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
     pub enum LengthValue {
       $(
         $(#[$meta])*
@@ -277,6 +276,38 @@ macro_rules! define_length_units {
     }
 
     impl_try_from_angle!(LengthValue);
+
+    #[cfg(feature = "jsonschema")]
+    impl schemars::JsonSchema for LengthValue {
+      fn is_referenceable() -> bool {
+        true
+      }
+
+      fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        #[derive(schemars::JsonSchema)]
+        #[schemars(rename_all = "lowercase")]
+        enum LengthUnit {
+          $(
+            $(#[$meta])*
+            $name,
+          )+
+        }
+
+        #[derive(schemars::JsonSchema)]
+        struct LengthValue {
+          /// The length unit.
+          unit: LengthUnit,
+          /// The length value.
+          value: CSSNumber
+        }
+
+        LengthValue::json_schema(gen)
+      }
+
+      fn schema_name() -> String {
+        "LengthValue".into()
+      }
+    }
   };
 }
 
