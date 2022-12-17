@@ -2,8 +2,7 @@
 
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
-import { transform } from '../index.mjs';
-import composeVisitors from '../composeVisitors.js';
+import { transform, composeVisitors } from '../index.mjs';
 
 test('different types', () => {
   let res = transform({

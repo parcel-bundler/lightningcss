@@ -1,4 +1,4 @@
-import { Angle, CssColor, CssRuleFor_DefaultAtRule, CustomProperty, Function, Image, LengthValue, MediaQuery, Property, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, UnparsedProperty, Url, Variable } from './ast';
+import { Angle, CssColor, CssRuleFor_DefaultAtRule, CustomProperty, Function, Image, LengthValue, MediaQuery, Property, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable } from './ast';
 import type { Targets } from './targets';
 
 export interface TransformOptions {
@@ -47,6 +47,12 @@ export interface TransformOptions {
    * omitted from the output code.
    */
   errorRecovery?: boolean,
+  /**
+   * An AST visitor object. This allows custom transforms or analysis to be implemented in JavaScript.
+   * Multiple visitors can be composed into one using the `composeVisitors` function.
+   * For optimal performance, visitors should be as specific as possible about what types of values
+   * they care about so that JavaScript has to be called as little as possible.
+   */
   visitor?: Visitor
 }
 
@@ -326,3 +332,8 @@ export declare function bundle(options: BundleOptions): TransformResult;
  * Bundles a CSS file and its dependencies asynchronously, inlining @import rules.
  */
 export declare function bundleAsync(options: BundleAsyncOptions): Promise<TransformResult>;
+
+/**
+ * Composes multiple visitor objects into a single one.
+ */
+export declare function composeVisitors(visitors: Visitor[]): Visitor;
