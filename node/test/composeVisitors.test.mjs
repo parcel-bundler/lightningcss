@@ -345,6 +345,37 @@ test('returning unparsed properties', () => {
   assert.equal(res.code.toString(), '.foo{width:calc(var(--test))}');
 });
 
+test('all property handlers', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      .foo {
+        width: test;
+        height: test;
+      }
+    `),
+    visitor: composeVisitors([
+      {
+        Property(property) {
+          if (property.property === 'unparsed' && property.value.propertyId.property === 'width') {
+            return { property: 'width', value: { type: 'length-percentage', value: { type: 'dimension', value: { unit: 'px', value: 32 } } } };
+          }
+        }
+      },
+      {
+        Property(property) {
+          if (property.property === 'unparsed' && property.value.propertyId.property === 'height') {
+            return { property: 'height', value: { type: 'length-percentage', value: { type: 'dimension', value: { unit: 'px', value: 32 } } } };
+          }
+        }
+      }
+    ])
+  });
+
+  assert.equal(res.code.toString(), '.foo{width:32px;height:32px}');
+});
+
 test('tokens and functions', () => {
   let res = transform({
     filename: 'test.css',
@@ -436,6 +467,79 @@ test('unknown rules', () => {
   });
 
   assert.equal(res.code.toString(), '.menu_link{background:#056ef0}');
+});
+
+test('known rules', () => {
+  let declared = new Map();
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      .test:focus-visible {
+        margin-left: 20px;
+        margin-right: @margin-left;
+      }
+    `),
+    visitor: composeVisitors([
+      {
+        Rule: {
+          style(rule) {
+            let valuesByProperty = new Map();
+            for (let decl of rule.value.declarations.declarations) {
+              /** @type string */
+              let name = decl.property;
+              if (decl.property === 'unparsed') {
+                name = decl.value.propertyId.property;
+              }
+              valuesByProperty.set(name, decl);
+            }
+
+            rule.value.declarations.declarations = rule.value.declarations.declarations.map(decl => {
+              // Only single value supported. Would need a way to convert parsed values to unparsed tokens otherwise.
+              if (decl.property === 'unparsed' && decl.value.value.length === 1) {
+                let token = decl.value.value[0];
+                if (token.type === 'token' && token.value.type === 'at-keyword' && valuesByProperty.has(token.value.value)) {
+                  let v = valuesByProperty.get(token.value.value);
+                  return {
+                    /** @type any */
+                    property: decl.value.propertyId.property,
+                    value: v.value
+                  };
+                }
+              }
+              return decl;
+            });
+
+            return rule;
+          }
+        }
+      },
+      {
+        Rule: {
+          style(rule) {
+            let clone = null;
+            for (let selector of rule.value.selectors) {
+              for (let [i, component] of selector.entries()) {
+                if (component.type === 'pseudo-class' && component.kind === 'focus-visible') {
+                  if (clone == null) {
+                    clone = [...rule.value.selectors.map(s => [...s])];
+                  }
+
+                  selector[i] = { type: 'class', name: 'focus-visible' };
+                }
+              }
+            }
+
+            if (clone) {
+              return [rule, { type: 'style', value: { ...rule.value, selectors: clone } }];
+            }
+          }
+        }
+      }
+    ])
+  });
+
+  assert.equal(res.code.toString(), '.test.focus-visible{margin-left:20px;margin-right:20px}.test:focus-visible{margin-left:20px;margin-right:20px}');
 });
 
 test.run();

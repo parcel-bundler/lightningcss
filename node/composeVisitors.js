@@ -146,7 +146,7 @@ function composeObjectVisitors(res, visitors, key, getType, wrapKey) {
  * @param {Visitor} res 
  * @param {Visitor[]} visitors 
  * @param {string} key 
- * @param {string} type 
+ * @param {import('./ast').TokenOrValue['type']} type 
  * @param {boolean} isExit 
  */
 function composeTokenVisitors(res, visitors, key, type, isExit) {
@@ -174,7 +174,7 @@ function composeTokenVisitors(res, visitors, key, type, isExit) {
 
 /**
  * @param {Visitor[]} visitors 
- * @param {string} type 
+ * @param {import('./ast').TokenOrValue['type']} type 
  */
 function createTokenVisitor(visitors, type, isExit) {
   let v = createArrayVisitor(visitors, (visitor, /** @type {import('./ast').TokenOrValue} */ item) => {
@@ -313,7 +313,7 @@ function composeArrayFunctions(res, visitors, key) {
  * @template T
  * @template V
  * @param {T[]} visitors 
- * @param {(visitor: T, V) => V | V[] | void} apply 
+ * @param {(visitor: T, item: V) => V | V[] | void} apply 
  * @returns {(item: V) => V | V[] | void}
  */
 function createArrayVisitor(visitors, apply) {

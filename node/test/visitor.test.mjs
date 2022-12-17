@@ -3,7 +3,6 @@
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
 import { bundle, bundleAsync, transform, transformStyleAttribute } from '../index.mjs';
-import path from 'path';
 
 test('px to rem', () => {
   // Similar to https://github.com/cuth/postcss-pxtorem
