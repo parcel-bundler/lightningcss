@@ -3,6 +3,6 @@ fn main() {
   {
     let schema = schemars::schema_for!(lightningcss::stylesheet::StyleSheet);
     let output = serde_json::to_string_pretty(&schema).unwrap();
-    std::fs::write("node/ast.json", output);
+    let _ = std::fs::write("node/ast.json", output);
   }
 }
