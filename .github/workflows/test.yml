@@ -24,4 +24,6 @@ jobs:
     steps:
       - uses: actions/setup-node@v2
       - uses: bahmutov/npm-install@v1.1.0
+        with:
+          node-version: 18
       - run: yarn test
