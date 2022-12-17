@@ -874,6 +874,7 @@ impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
     Selector(spec, components)
   }
 
+  #[cfg(feature = "serde")]
   #[inline]
   pub(crate) fn new(spec: SpecificityAndFlags, components: Vec<Component<'i, Impl>>) -> Self {
     Selector(spec, components)

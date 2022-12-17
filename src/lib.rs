@@ -16,6 +16,7 @@
 
 #![deny(missing_docs)]
 
+#[cfg(feature = "bundler")]
 pub mod bundler;
 mod compat;
 mod context;
