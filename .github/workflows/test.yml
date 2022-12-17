@@ -27,5 +27,7 @@ jobs:
         with:
           node-version: 18
       - uses: bahmutov/npm-install@v1.1.0
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v1
       - run: yarn build
       - run: yarn test
