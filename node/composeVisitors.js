@@ -1,14 +1,17 @@
+// @ts-check
+/** @typedef {import('./index').Visitor} Visitor */
+
 /**
  * Composes multiple visitor objects into a single one.
- * @param {import('./index').Visitor[]} visitors 
- * @return {import('./index').Visitor}
+ * @param {Visitor[]} visitors 
+ * @return {Visitor}
  */
 function composeVisitors(visitors) {
   if (visitors.length === 1) {
     return visitors[0];
   }
 
-  /** @type import('./index').Visitor */
+  /** @type Visitor */
   let res = {};
   composeObjectVisitors(res, visitors, 'Rule', ruleVisitor);
   composeObjectVisitors(res, visitors, 'RuleExit', ruleVisitor);
@@ -30,33 +33,65 @@ function composeVisitors(visitors) {
   composeSimpleVisitors(res, visitors, 'SupportsCondition');
   composeSimpleVisitors(res, visitors, 'SupportsConditionExit');
   composeArrayFunctions(res, visitors, 'Selector');
-  composeTokenVisitors(res, visitors, 'Token', 'token');
-  composeTokenVisitors(res, visitors, 'Function', 'function');
+  composeTokenVisitors(res, visitors, 'Token', 'token', false);
+  composeTokenVisitors(res, visitors, 'Function', 'function', false);
   composeTokenVisitors(res, visitors, 'FunctionExit', 'function', true);
-  composeTokenVisitors(res, visitors, 'Variable', 'var');
+  composeTokenVisitors(res, visitors, 'Variable', 'var', false);
   composeTokenVisitors(res, visitors, 'VariableExit', 'var', true);
   return res;
 }
 
 module.exports = composeVisitors;
 
+/**
+ * @param {Visitor} visitor 
+ * @param {import('./ast').CssRuleFor_DefaultAtRule} item 
+ */
 function ruleVisitor(visitor, item) {
   let f = visitor.Rule;
+  console.log(item)
   if (typeof f === 'object') {
+    if (item.type === 'unknown') {
+      let v = f.unknown;
+      if (typeof v === 'object') {
+        v = v[item.value.name];
+      }
+      return v?.(item.value);
+    }
     f = f[item.type];
   }
   return f?.(item);
 }
 
+/**
+ * @param {Visitor} visitor 
+ * @param {import('./ast').Property} item 
+ */
 function propertyVisitor(visitor, item) {
   let f = visitor.Property;
   if (typeof f === 'object') {
-    let name = item.property === 'custom' ? item.value.name : item.property;
+    /** @type {string} */
+    let name = item.property;
+    if (item.property === 'unparsed') {
+      name = item.value.propertyId.property;
+    } else if (item.property === 'custom') {
+      let v = f.custom;
+      if (typeof v === 'object') {
+        v = v[item.value.name];
+      }
+      return v?.(item.value);
+    }
     f = f[name];
   }
   return f?.(item);
 }
 
+/**
+ * 
+ * @param {Visitor[]} visitors 
+ * @param {string} key 
+ * @returns {[any[], boolean, Set<string>]}
+ */
 function extractObjectsOrFunctions(visitors, key) {
   let values = [];
   let hasFunction = false;
@@ -100,6 +135,13 @@ function composeObjectVisitors(res, visitors, key, getType) {
   }
 }
 
+/**
+ * @param {Visitor} res 
+ * @param {Visitor[]} visitors 
+ * @param {string} key 
+ * @param {string} type 
+ * @param {boolean} isExit 
+ */
 function composeTokenVisitors(res, visitors, key, type, isExit) {
   let [values, hasFunction, allKeys] = extractObjectsOrFunctions(visitors, key);
   if (values.length === 0) {
@@ -124,11 +166,11 @@ function composeTokenVisitors(res, visitors, key, type, isExit) {
 }
 
 /**
- * @param {import('./index').Visitor[]} visitors 
+ * @param {Visitor[]} visitors 
  * @param {string} type 
  */
 function createTokenVisitor(visitors, type, isExit) {
-  let v = createArrayVisitor(visitors, (visitor, item) => {
+  let v = createArrayVisitor(visitors, (visitor, /** @type {import('./ast').TokenOrValue} */ item) => {
     let f;
     switch (item.type) {
       case 'token':
@@ -143,7 +185,7 @@ function createTokenVisitor(visitors, type, isExit) {
           f = f[item.value.name];
         }
         break;
-      case 'variable':
+      case 'var':
         f = isExit ? visitor.Variable : visitor.VariableExit;
         break;
       case 'color':
@@ -196,6 +238,10 @@ function createTokenVisitor(visitors, type, isExit) {
   return value => v({ type, value });
 }
 
+/**
+ * @param {Visitor[]} visitors 
+ * @param {string} key 
+ */
 function extractFunctions(visitors, key) {
   let functions = [];
   for (let visitor of visitors) {
@@ -207,6 +253,11 @@ function extractFunctions(visitors, key) {
   return functions;
 }
 
+/**
+ * @param {Visitor} res 
+ * @param {Visitor[]} visitors 
+ * @param {string} key 
+ */
 function composeSimpleVisitors(res, visitors, key) {
   let functions = extractFunctions(visitors, key);
   if (functions.length === 0) {
@@ -232,6 +283,11 @@ function composeSimpleVisitors(res, visitors, key) {
   };
 }
 
+/**
+ * @param {Visitor} res 
+ * @param {Visitor[]} visitors 
+ * @param {string} key 
+ */
 function composeArrayFunctions(res, visitors, key) {
   let functions = extractFunctions(visitors, key);
   if (functions.length === 0) {
@@ -246,6 +302,13 @@ function composeArrayFunctions(res, visitors, key) {
   res[key] = createArrayVisitor(functions, (f, item) => f(item));
 }
 
+/**
+ * @template T
+ * @template V
+ * @param {T[]} visitors 
+ * @param {(visitor: T, V) => V | V[] | void} apply 
+ * @returns {(item: V) => V | V[] | void}
+ */
 function createArrayVisitor(visitors, apply) {
   let seen = new Bitset(visitors.length);
   return arg => {
@@ -301,8 +364,9 @@ class Bitset {
     this.more = maxBits > 32 ? new Uint32Array(Math.ceil((maxBits - 32) / 32)) : null;
   }
 
+  /** @param {number} bit */
   get(bit) {
-    if (bit >= 32) {
+    if (bit >= 32 && this.more) {
       let i = Math.floor((bit - 32) / 32);
       let b = bit % 32;
       return Boolean(this.more[i] & (1 << b));
@@ -311,8 +375,9 @@ class Bitset {
     }
   }
 
+  /** @param {number} bit */
   set(bit) {
-    if (bit >= 32) {
+    if (bit >= 32 && this.more) {
       let i = Math.floor((bit - 32) / 32);
       let b = bit % 32;
       this.more[i] |= 1 << b;

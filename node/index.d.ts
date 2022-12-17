@@ -1,4 +1,4 @@
-import { Angle, CssColor, CssRuleFor_DefaultAtRule, Function, Image, LengthValue, MediaQuery, Property, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable } from './ast';
+import { Angle, CssColor, CssRuleFor_DefaultAtRule, CustomProperty, Function, Image, LengthValue, MediaQuery, Property, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, UnparsedProperty, Url, Variable } from './ast';
 import type { Targets } from './targets';
 
 export interface TransformOptions {
@@ -53,27 +53,35 @@ export interface TransformOptions {
 type FindByType<Union, Name> = Union extends { type: Name } ? Union : never;
 type RuleVisitor<R = CssRuleFor_DefaultAtRule> = ((rule: R) => CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void);
 type MappedRuleVisitors = {
-  [Name in CssRuleFor_DefaultAtRule['type']]: RuleVisitor<FindByType<CssRuleFor_DefaultAtRule, Name>>;
+  [Name in Exclude<CssRuleFor_DefaultAtRule['type'], 'unknown'>]?: RuleVisitor<FindByType<CssRuleFor_DefaultAtRule, Name>>;
+}
+
+type UnknownVisitors = {
+  [name: string]: RuleVisitor<UnknownAtRule>
 }
 
 type RuleVisitors = MappedRuleVisitors & {
-  [name: string]: RuleVisitor<UnknownAtRule>;
+  unknown?: UnknownVisitors | RuleVisitor<UnknownAtRule>
 };
 
 type FindProperty<Union, Name> = Union extends { property: Name } ? Union : never;
 type PropertyVisitor<P = Property> = ((property: P) => Property | Property[] | void);
 type MappedPropertyVisitors = {
-  [Name in Property['property']]: PropertyVisitor<FindProperty<Property, Name>>;
+  [Name in Exclude<Property['property'], 'custom'>]?: PropertyVisitor<FindProperty<Property, Name> | FindProperty<Property, 'unparsed'>>;
+}
+
+type CustomPropertyVisitors = {
+  [name: string]: PropertyVisitor<CustomProperty>
 }
 
 type PropertyVisitors = MappedPropertyVisitors & {
-  [name: string]: PropertyVisitor<FindProperty<Property, 'custom'>>;
+  custom?: CustomPropertyVisitors | PropertyVisitor<CustomProperty>
 }
 
 type TokenVisitor = (token: Token) => TokenOrValue | TokenOrValue[] | void;
 type VisitableTokenTypes = 'ident' | 'at-keyword' | 'hash' | 'id-hash' | 'string' | 'number' | 'percentage' | 'dimension';
 type TokenVisitors = {
-  [Name in VisitableTokenTypes]: (token: FindByType<Token, Name>) => TokenOrValue | TokenOrValue[] | void;
+  [Name in VisitableTokenTypes]?: (token: FindByType<Token, Name>) => TokenOrValue | TokenOrValue[] | void;
 }
 
 type FunctionVisitor = (fn: Function) => TokenOrValue | TokenOrValue[] | void;

@@ -2025,7 +2025,9 @@ export type Property =
  * Each color space is represented as a struct that implements the `From` and `Into` traits for all other color spaces, so it is possible to convert between color spaces easily. In addition, colors support [interpolation](#method.interpolate) as in the `color-mix()` function.
  */
 export type CssColor = CurrentColor | RGBColor | LABColor | PredefinedColor | FloatColor;
-export type CurrentColor = "currentcolor";
+export type CurrentColor = {
+  type: "currentcolor";
+};
 export type RGBColor = {
   /**
    * The alpha component.
@@ -6284,14 +6286,20 @@ export type TSPseudoClassFor_SelectorsAnd_VendorPrefix =
       selectors: Selector[];
     };
 /**
- * https://drafts.csswg.org/selectors-4/#structural-pseudos
+ * A pseudo class.
  */
 export type PseudoClass =
   | {
       kind: "lang";
+      /**
+       * A list of language codes.
+       */
       languages: String[];
     }
   | {
+      /**
+       * A direction.
+       */
       direction: Direction;
       kind: "dir";
     }
@@ -6426,10 +6434,16 @@ export type PseudoClass =
     }
   | {
       kind: "local";
+      /**
+       * A local selector.
+       */
       selector: Selector;
     }
   | {
       kind: "global";
+      /**
+       * A global selector.
+       */
       selector: Selector;
     }
   | {
@@ -6438,16 +6452,28 @@ export type PseudoClass =
     }
   | {
       kind: "custom";
+      /**
+       * The pseudo class name.
+       */
       name: String;
     }
   | {
+      /**
+       * The arguments of the pseudo class function.
+       */
       arguments: TokenOrValue[];
       kind: "custom-function";
+      /**
+       * The pseudo class name.
+       */
       name: String;
     };
+/**
+ * The [:dir()](https://drafts.csswg.org/selectors-4/#the-dir-pseudo) pseudo class.
+ */
 export type Direction = "ltr" | "rtl";
 /**
- * https://webkit.org/blog/363/styling-scrollbars/
+ * A [webkit scrollbar](https://webkit.org/blog/363/styling-scrollbars/) pseudo class.
  */
 export type WebKitScrollbarPseudoClass =
   | "horizontal"
@@ -6470,6 +6496,9 @@ export type BuiltinPseudoElementFor_Selectors =
       kind: "part";
       names: string[];
     };
+/**
+ * A pseudo element.
+ */
 export type PseudoElement =
   | {
       kind: "after";
@@ -6514,6 +6543,9 @@ export type PseudoElement =
     }
   | {
       kind: "cue-function";
+      /**
+       * The selector argument.
+       */
       selector: Selector;
     }
   | (
@@ -6524,13 +6556,25 @@ export type PseudoElement =
     )
   | {
       kind: "custom";
+      /**
+       * The name of the pseudo element.
+       */
       name: String;
     }
   | {
+      /**
+       * The arguments of the pseudo element function.
+       */
       arguments: TokenOrValue[];
       kind: "custom-function";
+      /**
+       * The name of the pseudo element.
+       */
       name: String;
     };
+/**
+ * A [webkit scrollbar](https://webkit.org/blog/363/styling-scrollbars/) pseudo element.
+ */
 export type WebKitScrollbarPseudoElement =
   | "scrollbar"
   | "button"

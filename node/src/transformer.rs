@@ -9,7 +9,7 @@ use lightningcss::{
   values::length::LengthValue,
   visitor::{Visit, VisitTypes, Visitor},
 };
-use napi::{Env, JsFunction, JsObject, Ref};
+use napi::{Env, JsFunction, JsObject, JsUnknown, Ref, ValueType};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
@@ -85,6 +85,26 @@ impl Visitors<JsObject> {
     self
       .for_stage(stage)
       .and_then(|m| m.get_named_property::<JsFunction>(name).ok())
+  }
+
+  fn custom(&self, stage: VisitStage, obj: &str, name: &str) -> Option<JsFunction> {
+    self
+      .for_stage(stage)
+      .and_then(|m| m.get_named_property::<JsUnknown>(obj).ok())
+      .and_then(|v| {
+        match v.get_type() {
+          Ok(ValueType::Function) => return v.try_into().ok(),
+          Ok(ValueType::Object) => {
+            let o: napi::Result<JsObject> = v.try_into();
+            if let Ok(o) = o {
+              return o.get_named_property::<JsFunction>(name).ok();
+            }
+          }
+          _ => {}
+        }
+
+        None
+      })
   }
 }
 
@@ -217,7 +237,6 @@ impl<'i> Visitor<'i> for JsVisitor {
   }
 
   fn visit_rule_list(&mut self, rules: &mut lightningcss::rules::CssRuleList<'i>) {
-    // Similar to visit_list, but skips CssRule::Ignored rules.
     if self.types.contains(VisitTypes::RULES) {
       let env = self.env;
       let rule_map = self.rule_map.get::<JsObject>(&env);
@@ -249,9 +268,12 @@ impl<'i> Visitor<'i> for JsVisitor {
               CssRule::Viewport(..) => "viewport",
               CssRule::Unknown(v) => {
                 let name = v.name.as_ref();
-                match rule_map.for_stage(stage) {
-                  Some(m) if m.has_named_property(name).unwrap_or(false) => name,
-                  _ => "unknown",
+                if let Some(visit) = rule_map.custom(stage, "unknown", name) {
+                  let js_value = env.to_js_value(v)?;
+                  let res = visit.call(None, &[js_value])?;
+                  return env.from_js_value(res).map(serde_detach::detach);
+                } else {
+                  "unknown"
                 }
               }
               CssRule::Ignored | CssRule::Custom(..) => return Ok(None),
@@ -502,7 +524,11 @@ fn visit_property_list<'i, C: FnMut(&mut Property<'i>)>(
     |value, stage| {
       let js_value = env.to_js_value(value)?;
       // Use a specific property visitor if available, or fall back to Property visitor.
-      let visit = property_map.named(stage, value.property_id().name());
+      let visit = match value {
+        Property::Custom(v) => property_map.custom(stage, "custom", &v.name),
+        _ => property_map.named(stage, value.property_id().name()),
+      };
+
       if let Some(visit) = visit.as_ref().or(visit_property.for_stage(stage)) {
         let res = visit.call(None, &[js_value])?;
         env.from_js_value(res).map(serde_detach::detach)

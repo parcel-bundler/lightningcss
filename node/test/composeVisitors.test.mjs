@@ -1,3 +1,5 @@
+// @ts-check
+
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
 import { bundle, bundleAsync, transform, transformStyleAttribute } from '../index.mjs';
@@ -91,19 +93,23 @@ test('different properties', () => {
     visitor: composeVisitors([
       {
         Property: {
-          size(v) {
-            return [
-              { property: 'unparsed', value: { propertyId: { property: 'width' }, value: v.value.value } },
-              { property: 'unparsed', value: { propertyId: { property: 'height' }, value: v.value.value } }
-            ];
+          custom: {
+            size(v) {
+              return [
+                { property: 'unparsed', value: { propertyId: { property: 'width' }, value: v.value } },
+                { property: 'unparsed', value: { propertyId: { property: 'height' }, value: v.value } }
+              ];
+            }
           }
         }
       },
       {
         Property: {
-          bg(v) {
-            if (v.value.value[0].type === 'color') {
-              return { property: 'background-color', value: v.value.value[0].value };
+          custom: {
+            bg(v) {
+              if (v.value[0].type === 'color') {
+                return { property: 'background-color', value: v.value[0].value };
+              }
             }
           }
         }
@@ -115,20 +121,25 @@ test('different properties', () => {
 });
 
 test('composed properties', () => {
+  /** @type {import('../index').Visitor[]} */
   let visitors = [
     {
       Property: {
-        size(v) {
-          return [
-            { property: 'width', value: { type: 'length-percentage', value: { type: 'dimension', value: v.value.value[0].value } } },
-            { property: 'height', value: { type: 'length-percentage', value: { type: 'dimension', value: v.value.value[0].value } } },
-          ];
+        custom: {
+          size(v) {
+            if (v.value[0].type === 'length') {
+              return [
+                { property: 'width', value: { type: 'length-percentage', value: { type: 'dimension', value: v.value[0].value } } },
+                { property: 'height', value: { type: 'length-percentage', value: { type: 'dimension', value: v.value[0].value } } },
+              ];
+            }
+          }
         }
       }
     },
     {
       Property: {
-        width(v) {
+        width() {
           return [];
         }
       }
@@ -166,23 +177,25 @@ test('same properties', () => {
       {
         Property: {
           color(v) {
-            return {
-              property: 'color',
-              value: {
-                type: 'rgb',
-                r: v.value.g,
-                g: v.value.r,
-                b: v.value.b,
-                alpha: v.value.alpha
-              }
-            };
+            if (v.property === 'color' && v.value.type === 'rgb') {
+              return {
+                property: 'color',
+                value: {
+                  type: 'rgb',
+                  r: v.value.g,
+                  g: v.value.r,
+                  b: v.value.b,
+                  alpha: v.value.alpha
+                }
+              };
+            }
           }
         }
       },
       {
         Property: {
           color(v) {
-            if (v.value.g > 0) {
+            if (v.property === 'color' && v.value.type === 'rgb' && v.value.g > 0) {
               v.value.alpha /= 2;
             }
             return v;
@@ -207,11 +220,13 @@ test('properties plus values', () => {
     visitor: composeVisitors([
       {
         Property: {
-          size(v) {
-            return [
-              { property: 'width', value: { type: 'length-percentage', value: { type: 'dimension', value: { unit: 'px', value: 32 } } } },
-              { property: 'height', value: { type: 'length-percentage', value: { type: 'dimension', value: { unit: 'px', value: 32 } } } },
-            ];
+          custom: {
+            size() {
+              return [
+                { property: 'width', value: { type: 'length-percentage', value: { type: 'dimension', value: { unit: 'px', value: 32 } } } },
+                { property: 'height', value: { type: 'length-percentage', value: { type: 'dimension', value: { unit: 'px', value: 32 } } } },
+              ];
+            }
           }
         }
       },
@@ -231,6 +246,106 @@ test('properties plus values', () => {
   assert.equal(res.code.toString(), '.foo{width:2rem;height:2rem}');
 });
 
+test('unparsed properties', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      .foo {
+        width: test;
+      }
+      .bar {
+        width: 16px;
+      }
+    `),
+    visitor: composeVisitors([
+      {
+        Property: {
+          width(v) {
+            if (v.property === 'unparsed') {
+              return [
+                { property: 'width', value: { type: 'length-percentage', value: { type: 'dimension', value: { unit: 'px', value: 32 } } } },
+                { property: 'height', value: { type: 'length-percentage', value: { type: 'dimension', value: { unit: 'px', value: 32 } } } },
+              ];
+            }
+          }
+        }
+      },
+      {
+        Length(l) {
+          if (l.unit === 'px') {
+            return {
+              unit: 'rem',
+              value: l.value / 16
+            }
+          }
+        }
+      }
+    ])
+  });
+
+  assert.equal(res.code.toString(), '.foo{width:2rem;height:2rem}.bar{width:1rem}');
+});
+
+test('returning unparsed properties', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      .foo {
+        width: test;
+      }
+    `),
+    visitor: composeVisitors([
+      {
+        Property: {
+          width(v) {
+            if (v.property === 'unparsed' && v.value.value[0].type === 'token' && v.value.value[0].value.type === 'ident') {
+              return {
+                property: 'unparsed',
+                value: {
+                  propertyId: { property: 'width' },
+                  value: [{
+                    type: 'var',
+                    value: {
+                      name: {
+                        ident: '--' + v.value.value[0].value.value
+                      }
+                    }
+                  }]
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        Property: {
+          width(v) {
+            if (v.property === 'unparsed') {
+              return {
+                property: 'unparsed',
+                value: {
+                  propertyId: { property: 'width' },
+                  value: [{
+                    type: 'function',
+                    value: {
+                      name: 'calc',
+                      arguments: v.value.value
+                    }
+                  }]
+                }
+              }
+            }
+          }
+        }
+      }
+    ])
+  });
+
+  assert.equal(res.code.toString(), '.foo{width:calc(var(--test))}');
+});
+
 test('tokens and functions', () => {
   let res = transform({
     filename: 'test.css',
@@ -244,7 +359,7 @@ test('tokens and functions', () => {
       {
         FunctionExit: {
           f1(f) {
-            if (f.arguments.length === 1 && f.arguments[0].value.type === 'ident') {
+            if (f.arguments.length === 1 && f.arguments[0].type === 'token' && f.arguments[0].value.type === 'ident') {
               return {
                 type: 'length',
                 value: {
@@ -275,6 +390,53 @@ test('tokens and functions', () => {
   });
 
   assert.equal(res.code.toString(), '.foo{width:2rem}');
+});
+
+test.only('unknown rules', () => {
+  let declared = new Map();
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      @test #056ef0;
+
+      .menu_link {
+        background: @blue;
+      }
+    `),
+    visitor: composeVisitors([
+      {
+        Rule: {
+          unknown: {
+            test(rule) {
+              rule.name = 'blue';
+              return {
+                type: 'unknown',
+                value: rule
+              };
+            }
+          }
+        }
+      },
+      {
+        Rule: {
+          unknown(rule) {
+            declared.set(rule.name, rule.prelude);
+            return [];
+          }
+        },
+        Token: {
+          'at-keyword'(token) {
+            if (declared.has(token.value)) {
+              return declared.get(token.value);
+            }
+          }
+        }
+      }
+    ])
+  });
+
+  assert.equal(res.code.toString(), '.menu_link{background:#056ef0}');
 });
 
 test.run();

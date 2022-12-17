@@ -1,3 +1,5 @@
+// @ts-check
+
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
 import { bundle, bundleAsync, transform, transformStyleAttribute } from '../index.mjs';
@@ -118,7 +120,7 @@ test('design tokens', () => {
     visitor: {
       Function: {
         'design-token'(fn) {
-          if (fn.arguments.length === 1 && fn.arguments[0].value.type === 'string') {
+          if (fn.arguments.length === 1 && fn.arguments[0].type === 'token' && fn.arguments[0].value.type === 'string') {
             return tokens[fn.arguments[0].value.value];
           }
         }
@@ -210,7 +212,7 @@ test('static vars', () => {
     visitor: {
       Rule: {
         unknown(rule) {
-          declared.set(rule.value.name, rule.value.prelude);
+          declared.set(rule.name, rule.prelude);
           return [];
         }
       },
@@ -316,6 +318,7 @@ test('property lookup', () => {
         style(rule) {
           let valuesByProperty = new Map();
           for (let decl of rule.value.declarations.declarations) {
+            /** @type string */
             let name = decl.property;
             if (decl.property === 'unparsed') {
               name = decl.value.propertyId.property;
@@ -330,6 +333,7 @@ test('property lookup', () => {
               if (token.type === 'token' && token.value.type === 'at-keyword' && valuesByProperty.has(token.value.value)) {
                 let v = valuesByProperty.get(token.value.value);
                 return {
+                  /** @type any */
                   property: decl.value.propertyId.property,
                   value: v.value
                 };
@@ -401,9 +405,11 @@ test('dark theme class', () => {
         media(rule) {
           let q = rule.value.query.mediaQueries[0];
           if (q.condition?.type === 'feature' && q.condition.value.type === 'plain' && q.condition.value.name === 'prefers-color-scheme' && q.condition.value.value.value === 'dark') {
+            /** @type {import('../ast').CssRuleFor_DefaultAtRule[]} */
             let clonedRules = [rule];
             for (let r of rule.value.rules) {
               if (r.type === 'style') {
+                /** @type {import('../ast').Selector[]} */
                 let clonedSelectors = [];
                 for (let selector of r.value.selectors) {
                   clonedSelectors.push([
@@ -455,7 +461,7 @@ test('100vh fix', () => {
         style(style) {
           let cloned;
           for (let property of style.value.declarations.declarations) {
-            if (property.property === 'height' && property.value.type === 'length-percentage' && property.value.value.value.unit === 'vh' && property.value.value.value.value === 100) {
+            if (property.property === 'height' && property.value.type === 'length-percentage' && property.value.value.type === 'dimension' && property.value.value.value.unit === 'vh' && property.value.value.value.value === 100) {
               if (!cloned) {
                 cloned = structuredClone(style);
                 cloned.value.declarations.declarations = [];
@@ -512,6 +518,7 @@ test('logical transforms', () => {
     visitor: {
       Rule: {
         style(style) {
+          /** @type any */
           let cloned;
           for (let property of style.value.declarations.declarations) {
             if (property.property === 'transform') {
@@ -583,6 +590,7 @@ test('hover media query', () => {
           let mediaQueries = media.value.query.mediaQueries;
           if (
             mediaQueries.length === 1 &&
+            mediaQueries[0].condition &&
             mediaQueries[0].condition.type === 'feature' &&
             mediaQueries[0].condition.value.type === 'boolean' &&
             mediaQueries[0].condition.value.name === 'hover'
@@ -652,13 +660,16 @@ test('size', () => {
     `),
     visitor: {
       Property: {
-        size(property) {
-          if (property.value.value[0].type === 'length') {
-            let value = { type: 'length-percentage', value: { type: 'dimension', value: property.value.value[0].value } };
-            return [
-              { property: 'width', value },
-              { property: 'height', value }
-            ];
+        custom: {
+          size(property) {
+            if (property.value[0].type === 'length') {
+              /** @type {import('../ast').Size} */
+              let value = { type: 'length-percentage', value: { type: 'dimension', value: property.value[0].value } };
+              return [
+                { property: 'width', value },
+                { property: 'height', value }
+              ];
+            }
           }
         }
       }

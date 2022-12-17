@@ -58,7 +58,7 @@ pub enum CssColor {
 
 #[cfg(feature = "serde")]
 #[derive(serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(tag = "type", rename_all = "lowercase")]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 enum CurrentColor {
   CurrentColor,
