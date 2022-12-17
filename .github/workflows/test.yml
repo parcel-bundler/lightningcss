@@ -20,6 +20,8 @@ jobs:
       - run: cargo fmt
       - run: cargo test --all-features
   test-js:
-    - uses: actions/setup-node@v2
-    - uses: bahmutov/npm-install@v1.1.0
-    - run: yarn test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v2
+      - uses: bahmutov/npm-install@v1.1.0
+      - run: yarn test
