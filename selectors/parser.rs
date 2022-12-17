@@ -1163,11 +1163,6 @@ pub enum Component<'i, Impl: SelectorImpl<'i>> {
   Namespace(Impl::NamespacePrefix, Impl::NamespaceUrl),
 
   ExplicitUniversalType,
-  // #[cfg_attr(
-  //   feature = "serde",
-  //   serde(bound(deserialize = "LocalName<'i, Impl>: serde::Deserialize<'de>"))
-  // )]
-  // #[cfg_attr(feature = "serde", serde(borrow))]
   LocalName(LocalName<'i, Impl>),
 
   ID(Impl::Identifier),
@@ -1186,10 +1181,6 @@ pub enum Component<'i, Impl: SelectorImpl<'i>> {
     never_matches: bool,
   },
   // Use a Box in the less common cases with more data to keep size_of::<Component>() small.
-  // #[cfg_attr(
-  //   feature = "serde",
-  //   serde(bound(deserialize = "AttrSelectorWithOptionalNamespace<'i, Impl>: serde::Deserialize<'de>"))
-  // )]
   AttributeOther(Box<AttrSelectorWithOptionalNamespace<'i, Impl>>),
 
   /// Pseudo-classes
