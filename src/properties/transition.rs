@@ -267,16 +267,10 @@ impl<'i> TransitionHandler<'i> {
               };
 
               // Expand vendor prefixes into multiple transitions.
-              let prefix = property_id.prefix();
-              let mut b = 1 << (7 - prefix.bits().leading_zeros());
-              while b != 0 {
-                let p = VendorPrefix::from_bits_truncate(b);
-                if prefix.contains(p) {
-                  let mut t = transition.clone();
-                  t.property = property_id.with_prefix(p);
-                  transitions.push(t);
-                }
-                b >>= 1;
+              for p in property_id.prefix().or_none() {
+                let mut t = transition.clone();
+                t.property = property_id.with_prefix(p);
+                transitions.push(t);
               }
             }
             transitions
@@ -398,7 +392,9 @@ fn expand_properties<'i>(
       }
       _ => {
         // Expand vendor prefixes for targets.
-        properties[i].set_prefixes_for_targets(targets);
+        if let Some(targets) = targets {
+          properties[i].set_prefixes_for_targets(targets);
+        }
 
         // Expand mask properties, which use different vendor-prefixed names.
         if let (Some(targets), Some(property_id)) = (targets, get_webkit_mask_property(&properties[i])) {
@@ -409,7 +405,9 @@ fn expand_properties<'i>(
         }
 
         if let Some(rtl_properties) = &mut rtl_properties {
-          rtl_properties[i].set_prefixes_for_targets(targets);
+          if let Some(targets) = targets {
+            rtl_properties[i].set_prefixes_for_targets(targets);
+          }
 
           if let (Some(targets), Some(property_id)) = (targets, get_webkit_mask_property(&rtl_properties[i])) {
             if Feature::MaskBorder.prefixes_for(targets).contains(VendorPrefix::WebKit) {

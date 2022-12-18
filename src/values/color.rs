@@ -10,6 +10,7 @@ use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::printer::Printer;
+use crate::properties::PropertyId;
 use crate::rules::supports::SupportsCondition;
 use crate::targets::Browsers;
 use crate::traits::{FallbackValues, Parse, ToCss};
@@ -194,12 +195,15 @@ impl ColorFallbackKind {
 
   pub(crate) fn supports_condition<'i>(&self) -> SupportsCondition<'i> {
     let s = match *self {
-      ColorFallbackKind::P3 => "color: color(display-p3 0 0 0)",
-      ColorFallbackKind::LAB => "color: lab(0% 0 0)",
+      ColorFallbackKind::P3 => "color(display-p3 0 0 0)",
+      ColorFallbackKind::LAB => "lab(0% 0 0)",
       _ => unreachable!(),
     };
 
-    SupportsCondition::Declaration(s.into())
+    SupportsCondition::Declaration {
+      property_id: PropertyId::Color,
+      value: s.into(),
+    }
   }
 }
 

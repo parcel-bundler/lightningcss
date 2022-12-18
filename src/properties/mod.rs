@@ -267,28 +267,6 @@ macro_rules! define_properties {
 
     impl<'i> ToCss for PropertyId<'i> {
       fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
-        use PropertyId::*;
-
-        let (name, prefix) = match self {
-          $(
-            $(#[$meta])*
-            $property$((vp_name!($vp, prefix)))? => {
-              macro_rules! get_prefix {
-                ($v: ty) => {
-                  *prefix
-                };
-                () => {
-                  VendorPrefix::None
-                };
-              }
-
-              ($name, get_prefix!($($vp)?))
-            },
-          )+
-          All => ("all", VendorPrefix::None),
-          Custom(name) => (name.as_ref(), VendorPrefix::None),
-        };
-
         let mut first = true;
         macro_rules! delim {
           () => {
@@ -301,27 +279,20 @@ macro_rules! define_properties {
           };
         }
 
-        macro_rules! write {
-          ($p: expr) => {
-            if prefix.contains($p) {
-              delim!();
-              $p.to_css(dest)?;
-              dest.write_str(name)?;
-            }
-          };
+        let name = self.name();
+        for p in self.prefix().or_none() {
+          delim!();
+          p.to_css(dest)?;
+          dest.write_str(name)?;
         }
 
-        write!(VendorPrefix::WebKit);
-        write!(VendorPrefix::Moz);
-        write!(VendorPrefix::Ms);
-        write!(VendorPrefix::O);
-        write!(VendorPrefix::None);
         Ok(())
       }
     }
 
     impl<'i> PropertyId<'i> {
-      fn prefix(&self) -> VendorPrefix {
+      /// Returns the vendor prefix for this property id.
+      pub fn prefix(&self) -> VendorPrefix {
         use PropertyId::*;
         match self {
           $(
@@ -366,7 +337,7 @@ macro_rules! define_properties {
         }
       }
 
-      fn set_prefixes_for_targets(&mut self, targets: Option<Browsers>) {
+      pub(crate) fn set_prefixes_for_targets(&mut self, targets: Browsers) {
         match self {
           $(
             $(#[$meta])*
@@ -376,9 +347,7 @@ macro_rules! define_properties {
                 ($v: ty, $u: literal) => {};
                 ($v: ty) => {{
                   if prefix.contains(VendorPrefix::None) {
-                    if let Some(targets) = targets {
-                      *prefix = Feature::$property.prefixes_for(targets);
-                    }
+                    *prefix = Feature::$property.prefixes_for(targets);
                   };
                 }};
                 () => {};
@@ -677,25 +646,14 @@ macro_rules! define_properties {
             return Ok(())
           }
         };
-
-        macro_rules! write {
-          ($p: expr) => {
-            if prefix.contains($p) {
-              start!();
-              $p.to_css(dest)?;
-              dest.write_str(name)?;
-              dest.delim(':', false)?;
-              self.value_to_css(dest)?;
-              write_important!();
-            }
-          }
+        for p in prefix {
+          start!();
+          p.to_css(dest)?;
+          dest.write_str(name)?;
+          dest.delim(':', false)?;
+          self.value_to_css(dest)?;
+          write_important!();
         }
-
-        write!(VendorPrefix::WebKit);
-        write!(VendorPrefix::Moz);
-        write!(VendorPrefix::Ms);
-        write!(VendorPrefix::O);
-        write!(VendorPrefix::None);
         Ok(())
       }
 

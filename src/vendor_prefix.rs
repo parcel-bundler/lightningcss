@@ -47,6 +47,59 @@ impl VendorPrefix {
       _ => unreachable!(),
     }
   }
+
+  /// Returns VendorPrefix::None if empty.
+  #[inline]
+  pub fn or_none(self) -> Self {
+    if self.is_empty() {
+      VendorPrefix::None
+    } else {
+      self
+    }
+  }
+}
+
+impl std::iter::IntoIterator for VendorPrefix {
+  type Item = VendorPrefix;
+  type IntoIter = VendorPrefixIter;
+
+  fn into_iter(self) -> Self::IntoIter {
+    VendorPrefixIter { bits: self.bits() }
+  }
+}
+
+/// Iterator for VendorPrefix.
+pub struct VendorPrefixIter {
+  bits: u8,
+}
+
+impl std::iter::Iterator for VendorPrefixIter {
+  type Item = VendorPrefix;
+
+  #[inline]
+  fn next(&mut self) -> Option<Self::Item> {
+    // Emit None last.
+    if self.bits == 1 {
+      self.bits = 0;
+      return Some(VendorPrefix::None);
+    }
+
+    let bits = self.bits & !1;
+    if bits != 0 {
+      let b = bits.trailing_zeros() as u8;
+      let p = VendorPrefix::from_bits_truncate(1 << b);
+      self.bits = (bits & bits.wrapping_sub(1)) | (self.bits & 1);
+      return Some(p);
+    }
+
+    None
+  }
+
+  #[inline]
+  fn size_hint(&self) -> (usize, Option<usize>) {
+    let c = self.bits.count_ones() as usize;
+    (c, Some(c))
+  }
 }
 
 impl ToCss for VendorPrefix {

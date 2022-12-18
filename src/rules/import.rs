@@ -68,7 +68,7 @@ impl<'i> ToCss for ImportRule<'i> {
       dest.write_str(" supports")?;
       if matches!(
         supports,
-        SupportsCondition::Declaration(_) | SupportsCondition::Parens(_)
+        SupportsCondition::Declaration { .. } | SupportsCondition::Parens(_)
       ) {
         supports.to_css(dest)?;
       } else {
