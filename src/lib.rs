@@ -10342,6 +10342,47 @@ mod tests {
       }
     "#},
     );
+    prefix_test(
+      r#"
+      @supports (backdrop-filter: blur(10px)) {
+        div {
+          backdrop-filter: blur(10px);
+        }
+      }
+    "#,
+      indoc! { r#"
+      @supports ((-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px))) {
+        div {
+          -webkit-backdrop-filter: blur(10px);
+          backdrop-filter: blur(10px);
+        }
+      }
+    "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Default::default()
+      },
+    );
+    minify_test(
+      r#"
+      @supports (width: calc(10px * 2)) {
+        .test {
+          width: calc(10px * 2);
+        }
+      }
+    "#,
+      "@supports (width:calc(10px * 2)){.test{width:20px}}",
+    );
+    minify_test(
+      r#"
+      @supports (color: hsl(0deg, 0%, 0%)) {
+        .test {
+          color: hsl(0deg, 0%, 0%);
+        }
+      }
+    "#,
+      "@supports (color:hsl(0deg, 0%, 0%)){.test{color:#000}}",
+    );
   }
 
   #[test]
@@ -10493,19 +10534,19 @@ mod tests {
     );
     minify_test(
       "@import url(foo.css) supports(display: flex);",
-      "@import \"foo.css\" supports(display: flex);",
+      "@import \"foo.css\" supports(display:flex);",
     );
     minify_test(
       "@import url(foo.css) supports(display: flex) print;",
-      "@import \"foo.css\" supports(display: flex) print;",
+      "@import \"foo.css\" supports(display:flex) print;",
     );
     minify_test(
       "@import url(foo.css) supports(not (display: flex));",
-      "@import \"foo.css\" supports(not (display: flex));",
+      "@import \"foo.css\" supports(not (display:flex));",
     );
     minify_test(
       "@import url(foo.css) supports((display: flex));",
-      "@import \"foo.css\" supports(display: flex);",
+      "@import \"foo.css\" supports(display:flex);",
     );
     minify_test("@charset \"UTF-8\"; @import url(foo.css);", "@import \"foo.css\";");
     minify_test("@layer foo; @import url(foo.css);", "@layer foo;@import \"foo.css\";");

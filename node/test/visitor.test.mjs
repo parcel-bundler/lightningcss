@@ -481,7 +481,10 @@ test('100vh fix', () => {
               value: {
                 condition: {
                   type: 'declaration',
-                  value: '-webkit-touch-callout: none'
+                  property_id: {
+                    property: '-webkit-touch-callout'
+                  },
+                  value: 'none'
                 },
                 loc: style.value.loc,
                 rules: [cloned]
@@ -493,7 +496,7 @@ test('100vh fix', () => {
     }
   });
 
-  assert.equal(res.code.toString(), '.foo{color:red;height:100vh}@supports (-webkit-touch-callout: none){.foo{height:-webkit-fill-available}}')
+  assert.equal(res.code.toString(), '.foo{color:red;height:100vh}@supports (-webkit-touch-callout:none){.foo{height:-webkit-fill-available}}')
 });
 
 test('logical transforms', () => {

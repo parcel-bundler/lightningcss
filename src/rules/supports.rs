@@ -5,11 +5,17 @@ use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
 use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
+use crate::properties::PropertyId;
 use crate::rules::{StyleContext, ToCssWithContext};
+use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
+use crate::vendor_prefix::VendorPrefix;
 use crate::visitor::Visit;
 use cssparser::*;
+
+#[cfg(feature = "serde")]
+use crate::serialization::ValueWrapper;
 
 /// A [@supports](https://drafts.csswg.org/css-conditional-3/#at-supports) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
@@ -32,6 +38,10 @@ impl<'i, T> SupportsRule<'i, T> {
     context: &mut MinifyContext<'_, 'i>,
     parent_is_unused: bool,
   ) -> Result<(), MinifyError> {
+    if let Some(targets) = context.targets {
+      self.condition.set_prefixes_for_targets(targets)
+    }
+
     self.rules.minify(context, parent_is_unused)
   }
 }
@@ -66,29 +76,40 @@ impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for SupportsRule<'i, T> {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum SupportsCondition<'i> {
   /// A `not` expression.
   #[skip_type]
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Box<SupportsCondition>>"))]
   Not(Box<SupportsCondition<'i>>),
   /// An `and` expression.
   #[skip_type]
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Vec<SupportsCondition>>"))]
   And(Vec<SupportsCondition<'i>>),
   /// An `or` expression.
   #[skip_type]
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Vec<SupportsCondition>>"))]
   Or(Vec<SupportsCondition<'i>>),
   /// A declaration to evaluate.
-  #[cfg_attr(feature = "serde", serde(borrow))]
-  Declaration(CowArcStr<'i>),
+  Declaration {
+    /// The property id for the declaration.
+    #[cfg_attr(feature = "serde", serde(borrow))]
+    property_id: PropertyId<'i>,
+    /// The raw value of the declaration.
+    value: CowArcStr<'i>,
+  },
   /// A selector to evaluate.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   Selector(CowArcStr<'i>),
   // FontTechnology()
   /// A parenthesized expression.
   #[skip_type]
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Box<SupportsCondition>>"))]
   Parens(Box<SupportsCondition<'i>>),
   /// An unknown condition.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   Unknown(CowArcStr<'i>),
 }
 
@@ -112,6 +133,24 @@ impl<'i> SupportsCondition<'i> {
       }
     } else if self != b {
       *self = SupportsCondition::Parens(Box::new(SupportsCondition::Or(vec![self.clone(), b.clone()])))
+    }
+  }
+
+  fn set_prefixes_for_targets(&mut self, targets: &Browsers) {
+    match self {
+      SupportsCondition::Not(cond) | SupportsCondition::Parens(cond) => cond.set_prefixes_for_targets(targets),
+      SupportsCondition::And(items) | SupportsCondition::Or(items) => {
+        for item in items {
+          item.set_prefixes_for_targets(targets);
+        }
+      }
+      SupportsCondition::Declaration { property_id, .. } => {
+        let prefix = property_id.prefix();
+        if prefix.is_empty() || prefix.contains(VendorPrefix::None) {
+          property_id.set_prefixes_for_targets(*targets);
+        }
+      }
+      _ => {}
     }
   }
 }
@@ -215,11 +254,15 @@ impl<'i> SupportsCondition<'i> {
   pub(crate) fn parse_declaration<'t>(
     input: &mut Parser<'i, 't>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let pos = input.position();
-    input.expect_ident()?;
+    let property_id = PropertyId::parse(input)?;
     input.expect_colon()?;
+    input.skip_whitespace();
+    let pos = input.position();
     input.expect_no_error_token()?;
-    Ok(SupportsCondition::Declaration(input.slice_from(pos).into()))
+    Ok(SupportsCondition::Declaration {
+      property_id,
+      value: input.slice_from(pos).into(),
+    })
   }
 }
 
@@ -262,9 +305,33 @@ impl<'i> ToCss for SupportsCondition<'i> {
         condition.to_css(dest)?;
         dest.write_char(')')
       }
-      SupportsCondition::Declaration(decl) => {
+      SupportsCondition::Declaration { property_id, value } => {
         dest.write_char('(')?;
-        dest.write_str(&decl)?;
+
+        let prefix = property_id.prefix().or_none();
+        if prefix != VendorPrefix::None {
+          dest.write_char('(')?;
+        }
+
+        let name = property_id.name();
+        let mut first = true;
+        for p in prefix {
+          if first {
+            first = false;
+          } else {
+            dest.write_str(") or (")?;
+          }
+
+          p.to_css(dest)?;
+          serialize_name(name, dest)?;
+          dest.delim(':', false)?;
+          dest.write_str(value)?;
+        }
+
+        if prefix != VendorPrefix::None {
+          dest.write_char(')')?;
+        }
+
         dest.write_char(')')
       }
       SupportsCondition::Selector(sel) => {

@@ -417,7 +417,14 @@ export type SupportsCondition =
       value: SupportsCondition[];
     }
   | {
+      /**
+       * The property id for the declaration.
+       */
+      property_id: PropertyId;
       type: "declaration";
+      /**
+       * The raw value of the declaration.
+       */
       value: String;
     }
   | {
@@ -432,6 +439,1107 @@ export type SupportsCondition =
       type: "unknown";
       value: String;
     };
+export type PropertyId =
+  | {
+      property: "background-color";
+    }
+  | {
+      property: "background-image";
+    }
+  | {
+      property: "background-position-x";
+    }
+  | {
+      property: "background-position-y";
+    }
+  | {
+      property: "background-position";
+    }
+  | {
+      property: "background-size";
+    }
+  | {
+      property: "background-repeat";
+    }
+  | {
+      property: "background-attachment";
+    }
+  | {
+      property: "background-clip";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "background-origin";
+    }
+  | {
+      property: "background";
+    }
+  | {
+      property: "box-shadow";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "opacity";
+    }
+  | {
+      property: "color";
+    }
+  | {
+      property: "display";
+    }
+  | {
+      property: "visibility";
+    }
+  | {
+      property: "width";
+    }
+  | {
+      property: "height";
+    }
+  | {
+      property: "min-width";
+    }
+  | {
+      property: "min-height";
+    }
+  | {
+      property: "max-width";
+    }
+  | {
+      property: "max-height";
+    }
+  | {
+      property: "block-size";
+    }
+  | {
+      property: "inline-size";
+    }
+  | {
+      property: "min-block-size";
+    }
+  | {
+      property: "min-inline-size";
+    }
+  | {
+      property: "max-block-size";
+    }
+  | {
+      property: "max-inline-size";
+    }
+  | {
+      property: "box-sizing";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "overflow";
+    }
+  | {
+      property: "overflow-x";
+    }
+  | {
+      property: "overflow-y";
+    }
+  | {
+      property: "text-overflow";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "position";
+    }
+  | {
+      property: "top";
+    }
+  | {
+      property: "bottom";
+    }
+  | {
+      property: "left";
+    }
+  | {
+      property: "right";
+    }
+  | {
+      property: "inset-block-start";
+    }
+  | {
+      property: "inset-block-end";
+    }
+  | {
+      property: "inset-inline-start";
+    }
+  | {
+      property: "inset-inline-end";
+    }
+  | {
+      property: "inset-block";
+    }
+  | {
+      property: "inset-inline";
+    }
+  | {
+      property: "inset";
+    }
+  | {
+      property: "border-spacing";
+    }
+  | {
+      property: "border-top-color";
+    }
+  | {
+      property: "border-bottom-color";
+    }
+  | {
+      property: "border-left-color";
+    }
+  | {
+      property: "border-right-color";
+    }
+  | {
+      property: "border-block-start-color";
+    }
+  | {
+      property: "border-block-end-color";
+    }
+  | {
+      property: "border-inline-start-color";
+    }
+  | {
+      property: "border-inline-end-color";
+    }
+  | {
+      property: "border-top-style";
+    }
+  | {
+      property: "border-bottom-style";
+    }
+  | {
+      property: "border-left-style";
+    }
+  | {
+      property: "border-right-style";
+    }
+  | {
+      property: "border-block-start-style";
+    }
+  | {
+      property: "border-block-end-style";
+    }
+  | {
+      property: "border-inline-start-style";
+    }
+  | {
+      property: "border-inline-end-style";
+    }
+  | {
+      property: "border-top-width";
+    }
+  | {
+      property: "border-bottom-width";
+    }
+  | {
+      property: "border-left-width";
+    }
+  | {
+      property: "border-right-width";
+    }
+  | {
+      property: "border-block-start-width";
+    }
+  | {
+      property: "border-block-end-width";
+    }
+  | {
+      property: "border-inline-start-width";
+    }
+  | {
+      property: "border-inline-end-width";
+    }
+  | {
+      property: "border-top-left-radius";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "border-top-right-radius";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "border-bottom-left-radius";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "border-bottom-right-radius";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "border-start-start-radius";
+    }
+  | {
+      property: "border-start-end-radius";
+    }
+  | {
+      property: "border-end-start-radius";
+    }
+  | {
+      property: "border-end-end-radius";
+    }
+  | {
+      property: "border-radius";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "border-image-source";
+    }
+  | {
+      property: "border-image-outset";
+    }
+  | {
+      property: "border-image-repeat";
+    }
+  | {
+      property: "border-image-width";
+    }
+  | {
+      property: "border-image-slice";
+    }
+  | {
+      property: "border-image";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "border-color";
+    }
+  | {
+      property: "border-style";
+    }
+  | {
+      property: "border-width";
+    }
+  | {
+      property: "border-block-color";
+    }
+  | {
+      property: "border-block-style";
+    }
+  | {
+      property: "border-block-width";
+    }
+  | {
+      property: "border-inline-color";
+    }
+  | {
+      property: "border-inline-style";
+    }
+  | {
+      property: "border-inline-width";
+    }
+  | {
+      property: "border";
+    }
+  | {
+      property: "border-top";
+    }
+  | {
+      property: "border-bottom";
+    }
+  | {
+      property: "border-left";
+    }
+  | {
+      property: "border-right";
+    }
+  | {
+      property: "border-block";
+    }
+  | {
+      property: "border-block-start";
+    }
+  | {
+      property: "border-block-end";
+    }
+  | {
+      property: "border-inline";
+    }
+  | {
+      property: "border-inline-start";
+    }
+  | {
+      property: "border-inline-end";
+    }
+  | {
+      property: "outline";
+    }
+  | {
+      property: "outline-color";
+    }
+  | {
+      property: "outline-style";
+    }
+  | {
+      property: "outline-width";
+    }
+  | {
+      property: "flex-direction";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "flex-wrap";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "flex-flow";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "flex-grow";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "flex-shrink";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "flex-basis";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "flex";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "order";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "align-content";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "justify-content";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "place-content";
+    }
+  | {
+      property: "align-self";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "justify-self";
+    }
+  | {
+      property: "place-self";
+    }
+  | {
+      property: "align-items";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "justify-items";
+    }
+  | {
+      property: "place-items";
+    }
+  | {
+      property: "row-gap";
+    }
+  | {
+      property: "column-gap";
+    }
+  | {
+      property: "gap";
+    }
+  | {
+      property: "box-orient";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "box-direction";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "box-ordinal-group";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "box-align";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "box-flex";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "box-flex-group";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "box-pack";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "box-lines";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "flex-pack";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "flex-order";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "flex-align";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "flex-item-align";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "flex-line-pack";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "flex-positive";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "flex-negative";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "flex-preferred-size";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "grid-template-columns";
+    }
+  | {
+      property: "grid-template-rows";
+    }
+  | {
+      property: "grid-auto-columns";
+    }
+  | {
+      property: "grid-auto-rows";
+    }
+  | {
+      property: "grid-auto-flow";
+    }
+  | {
+      property: "grid-template-areas";
+    }
+  | {
+      property: "grid-template";
+    }
+  | {
+      property: "grid";
+    }
+  | {
+      property: "grid-row-start";
+    }
+  | {
+      property: "grid-row-end";
+    }
+  | {
+      property: "grid-column-start";
+    }
+  | {
+      property: "grid-column-end";
+    }
+  | {
+      property: "grid-row";
+    }
+  | {
+      property: "grid-column";
+    }
+  | {
+      property: "grid-area";
+    }
+  | {
+      property: "margin-top";
+    }
+  | {
+      property: "margin-bottom";
+    }
+  | {
+      property: "margin-left";
+    }
+  | {
+      property: "margin-right";
+    }
+  | {
+      property: "margin-block-start";
+    }
+  | {
+      property: "margin-block-end";
+    }
+  | {
+      property: "margin-inline-start";
+    }
+  | {
+      property: "margin-inline-end";
+    }
+  | {
+      property: "margin-block";
+    }
+  | {
+      property: "margin-inline";
+    }
+  | {
+      property: "margin";
+    }
+  | {
+      property: "padding-top";
+    }
+  | {
+      property: "padding-bottom";
+    }
+  | {
+      property: "padding-left";
+    }
+  | {
+      property: "padding-right";
+    }
+  | {
+      property: "padding-block-start";
+    }
+  | {
+      property: "padding-block-end";
+    }
+  | {
+      property: "padding-inline-start";
+    }
+  | {
+      property: "padding-inline-end";
+    }
+  | {
+      property: "padding-block";
+    }
+  | {
+      property: "padding-inline";
+    }
+  | {
+      property: "padding";
+    }
+  | {
+      property: "scroll-margin-top";
+    }
+  | {
+      property: "scroll-margin-bottom";
+    }
+  | {
+      property: "scroll-margin-left";
+    }
+  | {
+      property: "scroll-margin-right";
+    }
+  | {
+      property: "scroll-margin-block-start";
+    }
+  | {
+      property: "scroll-margin-block-end";
+    }
+  | {
+      property: "scroll-margin-inline-start";
+    }
+  | {
+      property: "scroll-margin-inline-end";
+    }
+  | {
+      property: "scroll-margin-block";
+    }
+  | {
+      property: "scroll-margin-inline";
+    }
+  | {
+      property: "scroll-margin";
+    }
+  | {
+      property: "scroll-padding-top";
+    }
+  | {
+      property: "scroll-padding-bottom";
+    }
+  | {
+      property: "scroll-padding-left";
+    }
+  | {
+      property: "scroll-padding-right";
+    }
+  | {
+      property: "scroll-padding-block-start";
+    }
+  | {
+      property: "scroll-padding-block-end";
+    }
+  | {
+      property: "scroll-padding-inline-start";
+    }
+  | {
+      property: "scroll-padding-inline-end";
+    }
+  | {
+      property: "scroll-padding-block";
+    }
+  | {
+      property: "scroll-padding-inline";
+    }
+  | {
+      property: "scroll-padding";
+    }
+  | {
+      property: "font-weight";
+    }
+  | {
+      property: "font-size";
+    }
+  | {
+      property: "font-stretch";
+    }
+  | {
+      property: "font-family";
+    }
+  | {
+      property: "font-style";
+    }
+  | {
+      property: "font-variant-caps";
+    }
+  | {
+      property: "line-height";
+    }
+  | {
+      property: "font";
+    }
+  | {
+      property: "vertical-align";
+    }
+  | {
+      property: "font-palette";
+    }
+  | {
+      property: "transition-property";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "transition-duration";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "transition-delay";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "transition-timing-function";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "transition";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "animation-name";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "animation-duration";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "animation-timing-function";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "animation-iteration-count";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "animation-direction";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "animation-play-state";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "animation-delay";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "animation-fill-mode";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "animation";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "transform";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "transform-origin";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "transform-style";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "transform-box";
+    }
+  | {
+      property: "backface-visibility";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "perspective";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "perspective-origin";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "translate";
+    }
+  | {
+      property: "rotate";
+    }
+  | {
+      property: "scale";
+    }
+  | {
+      property: "text-transform";
+    }
+  | {
+      property: "white-space";
+    }
+  | {
+      property: "tab-size";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "word-break";
+    }
+  | {
+      property: "line-break";
+    }
+  | {
+      property: "hyphens";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "overflow-wrap";
+    }
+  | {
+      property: "word-wrap";
+    }
+  | {
+      property: "text-align";
+    }
+  | {
+      property: "text-align-last";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "text-justify";
+    }
+  | {
+      property: "word-spacing";
+    }
+  | {
+      property: "letter-spacing";
+    }
+  | {
+      property: "text-indent";
+    }
+  | {
+      property: "text-decoration-line";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "text-decoration-style";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "text-decoration-color";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "text-decoration-thickness";
+    }
+  | {
+      property: "text-decoration";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "text-decoration-skip-ink";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "text-emphasis-style";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "text-emphasis-color";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "text-emphasis";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "text-emphasis-position";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "text-shadow";
+    }
+  | {
+      property: "box-decoration-break";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "resize";
+    }
+  | {
+      property: "cursor";
+    }
+  | {
+      property: "caret-color";
+    }
+  | {
+      property: "caret-shape";
+    }
+  | {
+      property: "caret";
+    }
+  | {
+      property: "user-select";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "accent-color";
+    }
+  | {
+      property: "appearance";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "list-style-type";
+    }
+  | {
+      property: "list-style-image";
+    }
+  | {
+      property: "list-style-position";
+    }
+  | {
+      property: "list-style";
+    }
+  | {
+      property: "marker-side";
+    }
+  | {
+      property: "composes";
+    }
+  | {
+      property: "fill";
+    }
+  | {
+      property: "fill-rule";
+    }
+  | {
+      property: "fill-opacity";
+    }
+  | {
+      property: "stroke";
+    }
+  | {
+      property: "stroke-opacity";
+    }
+  | {
+      property: "stroke-width";
+    }
+  | {
+      property: "stroke-linecap";
+    }
+  | {
+      property: "stroke-linejoin";
+    }
+  | {
+      property: "stroke-miterlimit";
+    }
+  | {
+      property: "stroke-dasharray";
+    }
+  | {
+      property: "stroke-dashoffset";
+    }
+  | {
+      property: "marker-start";
+    }
+  | {
+      property: "marker-mid";
+    }
+  | {
+      property: "marker-end";
+    }
+  | {
+      property: "marker";
+    }
+  | {
+      property: "color-interpolation";
+    }
+  | {
+      property: "color-interpolation-filters";
+    }
+  | {
+      property: "color-rendering";
+    }
+  | {
+      property: "shape-rendering";
+    }
+  | {
+      property: "text-rendering";
+    }
+  | {
+      property: "image-rendering";
+    }
+  | {
+      property: "clip-path";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "clip-rule";
+    }
+  | {
+      property: "mask-image";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "mask-mode";
+    }
+  | {
+      property: "mask-repeat";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "mask-position-x";
+    }
+  | {
+      property: "mask-position-y";
+    }
+  | {
+      property: "mask-position";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "mask-clip";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "mask-origin";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "mask-size";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "mask-composite";
+    }
+  | {
+      property: "mask-type";
+    }
+  | {
+      property: "mask";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "mask-border-source";
+    }
+  | {
+      property: "mask-border-mode";
+    }
+  | {
+      property: "mask-border-slice";
+    }
+  | {
+      property: "mask-border-width";
+    }
+  | {
+      property: "mask-border-outset";
+    }
+  | {
+      property: "mask-border-repeat";
+    }
+  | {
+      property: "mask-border";
+    }
+  | {
+      property: "-webkit-mask-composite";
+    }
+  | {
+      property: "mask-source-type";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "mask-box-image";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "mask-box-image-source";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "mask-box-image-slice";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "mask-box-image-width";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "mask-box-image-outset";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "mask-box-image-repeat";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "filter";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "backdrop-filter";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "z-index";
+    }
+  | {
+      property: "container-type";
+    }
+  | {
+      property: "container-name";
+    }
+  | {
+      property: "container";
+    }
+  | {
+      property: "all";
+    }
+  | {
+      property: string;
+    };
+export type Prefix = "none" | "webkit" | "moz" | "ms" | "o";
+export type VendorPrefix = Prefix[];
 export type Property =
   | {
       property: "background-color";
@@ -2555,8 +3663,6 @@ export type MathFunctionFor_DimensionPercentageFor_LengthValue =
       type: "hypot";
       value: CalcFor_DimensionPercentageFor_LengthValue[];
     };
-export type Prefix = "none" | "webkit" | "moz" | "ms" | "o";
-export type VendorPrefix = Prefix[];
 /**
  * A component within a [Position](Position) value, representing a position along either the horizontal or vertical axis of a box.
  *
@@ -3800,1105 +4906,6 @@ export type Specifier =
   | {
       type: "source-index";
       value: number;
-    };
-export type PropertyId =
-  | {
-      property: "background-color";
-    }
-  | {
-      property: "background-image";
-    }
-  | {
-      property: "background-position-x";
-    }
-  | {
-      property: "background-position-y";
-    }
-  | {
-      property: "background-position";
-    }
-  | {
-      property: "background-size";
-    }
-  | {
-      property: "background-repeat";
-    }
-  | {
-      property: "background-attachment";
-    }
-  | {
-      property: "background-clip";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "background-origin";
-    }
-  | {
-      property: "background";
-    }
-  | {
-      property: "box-shadow";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "opacity";
-    }
-  | {
-      property: "color";
-    }
-  | {
-      property: "display";
-    }
-  | {
-      property: "visibility";
-    }
-  | {
-      property: "width";
-    }
-  | {
-      property: "height";
-    }
-  | {
-      property: "min-width";
-    }
-  | {
-      property: "min-height";
-    }
-  | {
-      property: "max-width";
-    }
-  | {
-      property: "max-height";
-    }
-  | {
-      property: "block-size";
-    }
-  | {
-      property: "inline-size";
-    }
-  | {
-      property: "min-block-size";
-    }
-  | {
-      property: "min-inline-size";
-    }
-  | {
-      property: "max-block-size";
-    }
-  | {
-      property: "max-inline-size";
-    }
-  | {
-      property: "box-sizing";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "overflow";
-    }
-  | {
-      property: "overflow-x";
-    }
-  | {
-      property: "overflow-y";
-    }
-  | {
-      property: "text-overflow";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "position";
-    }
-  | {
-      property: "top";
-    }
-  | {
-      property: "bottom";
-    }
-  | {
-      property: "left";
-    }
-  | {
-      property: "right";
-    }
-  | {
-      property: "inset-block-start";
-    }
-  | {
-      property: "inset-block-end";
-    }
-  | {
-      property: "inset-inline-start";
-    }
-  | {
-      property: "inset-inline-end";
-    }
-  | {
-      property: "inset-block";
-    }
-  | {
-      property: "inset-inline";
-    }
-  | {
-      property: "inset";
-    }
-  | {
-      property: "border-spacing";
-    }
-  | {
-      property: "border-top-color";
-    }
-  | {
-      property: "border-bottom-color";
-    }
-  | {
-      property: "border-left-color";
-    }
-  | {
-      property: "border-right-color";
-    }
-  | {
-      property: "border-block-start-color";
-    }
-  | {
-      property: "border-block-end-color";
-    }
-  | {
-      property: "border-inline-start-color";
-    }
-  | {
-      property: "border-inline-end-color";
-    }
-  | {
-      property: "border-top-style";
-    }
-  | {
-      property: "border-bottom-style";
-    }
-  | {
-      property: "border-left-style";
-    }
-  | {
-      property: "border-right-style";
-    }
-  | {
-      property: "border-block-start-style";
-    }
-  | {
-      property: "border-block-end-style";
-    }
-  | {
-      property: "border-inline-start-style";
-    }
-  | {
-      property: "border-inline-end-style";
-    }
-  | {
-      property: "border-top-width";
-    }
-  | {
-      property: "border-bottom-width";
-    }
-  | {
-      property: "border-left-width";
-    }
-  | {
-      property: "border-right-width";
-    }
-  | {
-      property: "border-block-start-width";
-    }
-  | {
-      property: "border-block-end-width";
-    }
-  | {
-      property: "border-inline-start-width";
-    }
-  | {
-      property: "border-inline-end-width";
-    }
-  | {
-      property: "border-top-left-radius";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "border-top-right-radius";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "border-bottom-left-radius";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "border-bottom-right-radius";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "border-start-start-radius";
-    }
-  | {
-      property: "border-start-end-radius";
-    }
-  | {
-      property: "border-end-start-radius";
-    }
-  | {
-      property: "border-end-end-radius";
-    }
-  | {
-      property: "border-radius";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "border-image-source";
-    }
-  | {
-      property: "border-image-outset";
-    }
-  | {
-      property: "border-image-repeat";
-    }
-  | {
-      property: "border-image-width";
-    }
-  | {
-      property: "border-image-slice";
-    }
-  | {
-      property: "border-image";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "border-color";
-    }
-  | {
-      property: "border-style";
-    }
-  | {
-      property: "border-width";
-    }
-  | {
-      property: "border-block-color";
-    }
-  | {
-      property: "border-block-style";
-    }
-  | {
-      property: "border-block-width";
-    }
-  | {
-      property: "border-inline-color";
-    }
-  | {
-      property: "border-inline-style";
-    }
-  | {
-      property: "border-inline-width";
-    }
-  | {
-      property: "border";
-    }
-  | {
-      property: "border-top";
-    }
-  | {
-      property: "border-bottom";
-    }
-  | {
-      property: "border-left";
-    }
-  | {
-      property: "border-right";
-    }
-  | {
-      property: "border-block";
-    }
-  | {
-      property: "border-block-start";
-    }
-  | {
-      property: "border-block-end";
-    }
-  | {
-      property: "border-inline";
-    }
-  | {
-      property: "border-inline-start";
-    }
-  | {
-      property: "border-inline-end";
-    }
-  | {
-      property: "outline";
-    }
-  | {
-      property: "outline-color";
-    }
-  | {
-      property: "outline-style";
-    }
-  | {
-      property: "outline-width";
-    }
-  | {
-      property: "flex-direction";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "flex-wrap";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "flex-flow";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "flex-grow";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "flex-shrink";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "flex-basis";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "flex";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "order";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "align-content";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "justify-content";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "place-content";
-    }
-  | {
-      property: "align-self";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "justify-self";
-    }
-  | {
-      property: "place-self";
-    }
-  | {
-      property: "align-items";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "justify-items";
-    }
-  | {
-      property: "place-items";
-    }
-  | {
-      property: "row-gap";
-    }
-  | {
-      property: "column-gap";
-    }
-  | {
-      property: "gap";
-    }
-  | {
-      property: "box-orient";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "box-direction";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "box-ordinal-group";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "box-align";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "box-flex";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "box-flex-group";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "box-pack";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "box-lines";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "flex-pack";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "flex-order";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "flex-align";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "flex-item-align";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "flex-line-pack";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "flex-positive";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "flex-negative";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "flex-preferred-size";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "grid-template-columns";
-    }
-  | {
-      property: "grid-template-rows";
-    }
-  | {
-      property: "grid-auto-columns";
-    }
-  | {
-      property: "grid-auto-rows";
-    }
-  | {
-      property: "grid-auto-flow";
-    }
-  | {
-      property: "grid-template-areas";
-    }
-  | {
-      property: "grid-template";
-    }
-  | {
-      property: "grid";
-    }
-  | {
-      property: "grid-row-start";
-    }
-  | {
-      property: "grid-row-end";
-    }
-  | {
-      property: "grid-column-start";
-    }
-  | {
-      property: "grid-column-end";
-    }
-  | {
-      property: "grid-row";
-    }
-  | {
-      property: "grid-column";
-    }
-  | {
-      property: "grid-area";
-    }
-  | {
-      property: "margin-top";
-    }
-  | {
-      property: "margin-bottom";
-    }
-  | {
-      property: "margin-left";
-    }
-  | {
-      property: "margin-right";
-    }
-  | {
-      property: "margin-block-start";
-    }
-  | {
-      property: "margin-block-end";
-    }
-  | {
-      property: "margin-inline-start";
-    }
-  | {
-      property: "margin-inline-end";
-    }
-  | {
-      property: "margin-block";
-    }
-  | {
-      property: "margin-inline";
-    }
-  | {
-      property: "margin";
-    }
-  | {
-      property: "padding-top";
-    }
-  | {
-      property: "padding-bottom";
-    }
-  | {
-      property: "padding-left";
-    }
-  | {
-      property: "padding-right";
-    }
-  | {
-      property: "padding-block-start";
-    }
-  | {
-      property: "padding-block-end";
-    }
-  | {
-      property: "padding-inline-start";
-    }
-  | {
-      property: "padding-inline-end";
-    }
-  | {
-      property: "padding-block";
-    }
-  | {
-      property: "padding-inline";
-    }
-  | {
-      property: "padding";
-    }
-  | {
-      property: "scroll-margin-top";
-    }
-  | {
-      property: "scroll-margin-bottom";
-    }
-  | {
-      property: "scroll-margin-left";
-    }
-  | {
-      property: "scroll-margin-right";
-    }
-  | {
-      property: "scroll-margin-block-start";
-    }
-  | {
-      property: "scroll-margin-block-end";
-    }
-  | {
-      property: "scroll-margin-inline-start";
-    }
-  | {
-      property: "scroll-margin-inline-end";
-    }
-  | {
-      property: "scroll-margin-block";
-    }
-  | {
-      property: "scroll-margin-inline";
-    }
-  | {
-      property: "scroll-margin";
-    }
-  | {
-      property: "scroll-padding-top";
-    }
-  | {
-      property: "scroll-padding-bottom";
-    }
-  | {
-      property: "scroll-padding-left";
-    }
-  | {
-      property: "scroll-padding-right";
-    }
-  | {
-      property: "scroll-padding-block-start";
-    }
-  | {
-      property: "scroll-padding-block-end";
-    }
-  | {
-      property: "scroll-padding-inline-start";
-    }
-  | {
-      property: "scroll-padding-inline-end";
-    }
-  | {
-      property: "scroll-padding-block";
-    }
-  | {
-      property: "scroll-padding-inline";
-    }
-  | {
-      property: "scroll-padding";
-    }
-  | {
-      property: "font-weight";
-    }
-  | {
-      property: "font-size";
-    }
-  | {
-      property: "font-stretch";
-    }
-  | {
-      property: "font-family";
-    }
-  | {
-      property: "font-style";
-    }
-  | {
-      property: "font-variant-caps";
-    }
-  | {
-      property: "line-height";
-    }
-  | {
-      property: "font";
-    }
-  | {
-      property: "vertical-align";
-    }
-  | {
-      property: "font-palette";
-    }
-  | {
-      property: "transition-property";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "transition-duration";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "transition-delay";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "transition-timing-function";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "transition";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "animation-name";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "animation-duration";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "animation-timing-function";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "animation-iteration-count";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "animation-direction";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "animation-play-state";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "animation-delay";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "animation-fill-mode";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "animation";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "transform";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "transform-origin";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "transform-style";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "transform-box";
-    }
-  | {
-      property: "backface-visibility";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "perspective";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "perspective-origin";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "translate";
-    }
-  | {
-      property: "rotate";
-    }
-  | {
-      property: "scale";
-    }
-  | {
-      property: "text-transform";
-    }
-  | {
-      property: "white-space";
-    }
-  | {
-      property: "tab-size";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "word-break";
-    }
-  | {
-      property: "line-break";
-    }
-  | {
-      property: "hyphens";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "overflow-wrap";
-    }
-  | {
-      property: "word-wrap";
-    }
-  | {
-      property: "text-align";
-    }
-  | {
-      property: "text-align-last";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "text-justify";
-    }
-  | {
-      property: "word-spacing";
-    }
-  | {
-      property: "letter-spacing";
-    }
-  | {
-      property: "text-indent";
-    }
-  | {
-      property: "text-decoration-line";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "text-decoration-style";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "text-decoration-color";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "text-decoration-thickness";
-    }
-  | {
-      property: "text-decoration";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "text-decoration-skip-ink";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "text-emphasis-style";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "text-emphasis-color";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "text-emphasis";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "text-emphasis-position";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "text-shadow";
-    }
-  | {
-      property: "box-decoration-break";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "resize";
-    }
-  | {
-      property: "cursor";
-    }
-  | {
-      property: "caret-color";
-    }
-  | {
-      property: "caret-shape";
-    }
-  | {
-      property: "caret";
-    }
-  | {
-      property: "user-select";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "accent-color";
-    }
-  | {
-      property: "appearance";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "list-style-type";
-    }
-  | {
-      property: "list-style-image";
-    }
-  | {
-      property: "list-style-position";
-    }
-  | {
-      property: "list-style";
-    }
-  | {
-      property: "marker-side";
-    }
-  | {
-      property: "composes";
-    }
-  | {
-      property: "fill";
-    }
-  | {
-      property: "fill-rule";
-    }
-  | {
-      property: "fill-opacity";
-    }
-  | {
-      property: "stroke";
-    }
-  | {
-      property: "stroke-opacity";
-    }
-  | {
-      property: "stroke-width";
-    }
-  | {
-      property: "stroke-linecap";
-    }
-  | {
-      property: "stroke-linejoin";
-    }
-  | {
-      property: "stroke-miterlimit";
-    }
-  | {
-      property: "stroke-dasharray";
-    }
-  | {
-      property: "stroke-dashoffset";
-    }
-  | {
-      property: "marker-start";
-    }
-  | {
-      property: "marker-mid";
-    }
-  | {
-      property: "marker-end";
-    }
-  | {
-      property: "marker";
-    }
-  | {
-      property: "color-interpolation";
-    }
-  | {
-      property: "color-interpolation-filters";
-    }
-  | {
-      property: "color-rendering";
-    }
-  | {
-      property: "shape-rendering";
-    }
-  | {
-      property: "text-rendering";
-    }
-  | {
-      property: "image-rendering";
-    }
-  | {
-      property: "clip-path";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "clip-rule";
-    }
-  | {
-      property: "mask-image";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "mask-mode";
-    }
-  | {
-      property: "mask-repeat";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "mask-position-x";
-    }
-  | {
-      property: "mask-position-y";
-    }
-  | {
-      property: "mask-position";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "mask-clip";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "mask-origin";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "mask-size";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "mask-composite";
-    }
-  | {
-      property: "mask-type";
-    }
-  | {
-      property: "mask";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "mask-border-source";
-    }
-  | {
-      property: "mask-border-mode";
-    }
-  | {
-      property: "mask-border-slice";
-    }
-  | {
-      property: "mask-border-width";
-    }
-  | {
-      property: "mask-border-outset";
-    }
-  | {
-      property: "mask-border-repeat";
-    }
-  | {
-      property: "mask-border";
-    }
-  | {
-      property: "-webkit-mask-composite";
-    }
-  | {
-      property: "mask-source-type";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "mask-box-image";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "mask-box-image-source";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "mask-box-image-slice";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "mask-box-image-width";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "mask-box-image-outset";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "mask-box-image-repeat";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "filter";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "backdrop-filter";
-      vendorPrefix: VendorPrefix;
-    }
-  | {
-      property: "z-index";
-    }
-  | {
-      property: "container-type";
-    }
-  | {
-      property: "container-name";
-    }
-  | {
-      property: "container";
-    }
-  | {
-      property: "all";
-    }
-  | {
-      property: string;
     };
 /**
  * A CSS [`<time>`](https://www.w3.org/TR/css-values-4/#time) value, in either seconds or milliseconds.
