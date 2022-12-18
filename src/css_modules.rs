@@ -357,7 +357,7 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
                   "--".into(),
                   &self.hashes[source_index as usize],
                   &self.sources[source_index as usize],
-                  name,
+                  &name[2..],
                 )
                 .unwrap(),
               composes: vec![],

@@ -55,7 +55,7 @@ use crate::{
   media_query::{MediaList, MediaQuery},
   parser::DefaultAtRule,
   properties::{
-    custom::{Function, TokenList, TokenOrValue, Variable},
+    custom::{EnvironmentVariable, Function, TokenList, TokenOrValue, Variable},
     Property,
   },
   rules::{supports::SupportsCondition, CssRule, CssRuleList},
@@ -109,16 +109,18 @@ bitflags! {
     const DASHED_IDENTS = 1 << 11;
     /// Visit variables.
     const VARIABLES = 1 << 12;
+    /// Visit environment variables.
+    const ENVIRONMENT_VARIABLES = 1 << 13;
     /// Visit media queries.
-    const MEDIA_QUERIES = 1 << 13;
+    const MEDIA_QUERIES = 1 << 14;
     /// Visit supports conditions.
-    const SUPPORTS_CONDITIONS = 1 << 14;
+    const SUPPORTS_CONDITIONS = 1 << 15;
     /// Visit selectors.
-    const SELECTORS = 1 << 15;
+    const SELECTORS = 1 << 16;
     /// Visit custom functions.
-    const FUNCTIONS = 1 << 16;
+    const FUNCTIONS = 1 << 17;
     /// Visit a token.
-    const TOKENS = 1 << 17;
+    const TOKENS = 1 << 18;
   }
 }
 
@@ -213,6 +215,12 @@ pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule>: Sized {
   #[inline]
   fn visit_variable(&mut self, var: &mut Variable<'i>) {
     var.visit_children(self)
+  }
+
+  /// Visits an environment variable reference.
+  #[inline]
+  fn visit_environment_variable(&mut self, env: &mut EnvironmentVariable<'i>) {
+    env.visit_children(self)
   }
 
   /// Visits a media query list.

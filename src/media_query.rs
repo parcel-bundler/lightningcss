@@ -4,8 +4,10 @@ use crate::compat::Feature;
 use crate::error::{ErrorWithLocation, MinifyError, MinifyErrorKind, ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::printer::Printer;
+use crate::properties::custom::EnvironmentVariable;
 use crate::rules::custom_media::CustomMediaRule;
 use crate::rules::Location;
+use crate::stylesheet::ParserOptions;
 use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
 use crate::values::ident::Ident;
@@ -834,6 +836,8 @@ pub enum MediaFeatureValue<'i> {
   /// An indentifier.
   #[cfg_attr(feature = "serde", serde(borrow))]
   Ident(Ident<'i>),
+  /// An environment variable reference.
+  Env(EnvironmentVariable<'i>),
 }
 
 impl<'i> Parse<'i> for MediaFeatureValue<'i> {
@@ -858,6 +862,10 @@ impl<'i> Parse<'i> for MediaFeatureValue<'i> {
       return Ok(MediaFeatureValue::Resolution(res));
     }
 
+    if let Ok(env) = input.try_parse(|input| EnvironmentVariable::parse(input, &ParserOptions::default(), 0)) {
+      return Ok(MediaFeatureValue::Env(env));
+    }
+
     let ident = Ident::parse(input)?;
     Ok(MediaFeatureValue::Ident(ident))
   }
@@ -877,6 +885,7 @@ impl<'i> ToCss for MediaFeatureValue<'i> {
         id.to_css(dest)?;
         Ok(())
       }
+      MediaFeatureValue::Env(env) => env.to_css(dest, false),
     }
   }
 }
@@ -891,6 +900,7 @@ impl<'i> std::ops::Add<f32> for MediaFeatureValue<'i> {
       MediaFeatureValue::Resolution(res) => MediaFeatureValue::Resolution(res + other),
       MediaFeatureValue::Ratio(ratio) => MediaFeatureValue::Ratio(ratio + other),
       MediaFeatureValue::Ident(id) => MediaFeatureValue::Ident(id),
+      MediaFeatureValue::Env(env) => MediaFeatureValue::Env(env),
     }
   }
 }

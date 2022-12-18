@@ -2,6 +2,7 @@
 
 use crate::compat;
 use crate::error::{ParserError, PrinterError, PrinterErrorKind};
+use crate::macros::enum_property;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::PropertyId;
@@ -13,8 +14,9 @@ use crate::values::angle::Angle;
 use crate::values::color::{
   parse_hsl_hwb_components, parse_rgb_components, ColorFallbackKind, ComponentParser, CssColor,
 };
-use crate::values::ident::{DashedIdent, DashedIdentReference, Ident};
+use crate::values::ident::{CustomIdent, DashedIdent, DashedIdentReference, Ident};
 use crate::values::length::{serialize_dimension, LengthValue};
+use crate::values::number::CSSInteger;
 use crate::values::percentage::Percentage;
 use crate::values::resolution::Resolution;
 use crate::values::string::CowArcStr;
@@ -135,6 +137,8 @@ pub enum TokenOrValue<'i> {
   Url(Url<'i>),
   /// A CSS variable reference.
   Var(Variable<'i>),
+  /// A CSS environment variable reference.
+  Env(EnvironmentVariable<'i>),
   /// A custom CSS function.
   Function(Function<'i>),
   /// A length.
@@ -232,6 +236,14 @@ impl<'i> TokenList<'i> {
               Ok(TokenOrValue::Var(var))
             })?;
             tokens.push(var);
+            last_is_delim = true;
+            last_is_whitespace = false;
+          } else if f == "env" {
+            let env = input.parse_nested_block(|input| {
+              let env = EnvironmentVariable::parse_nested(input, options, depth + 1)?;
+              Ok(TokenOrValue::Env(env))
+            })?;
+            tokens.push(env);
             last_is_delim = true;
             last_is_whitespace = false;
           } else {
@@ -374,6 +386,10 @@ impl<'i> TokenList<'i> {
         }
         TokenOrValue::Var(var) => {
           var.to_css(dest, is_custom_property)?;
+          self.write_whitespace_if_needed(i, dest)?
+        }
+        TokenOrValue::Env(env) => {
+          env.to_css(dest, is_custom_property)?;
           self.write_whitespace_if_needed(i, dest)?
         }
         TokenOrValue::Function(f) => {
@@ -808,6 +824,11 @@ impl<'i> TokenList<'i> {
             fallbacks |= fallback.get_necessary_fallbacks(targets);
           }
         }
+        TokenOrValue::Env(v) => {
+          if let Some(fallback) = &v.fallback {
+            fallbacks |= fallback.get_necessary_fallbacks(targets);
+          }
+        }
         _ => {}
       }
     }
@@ -823,6 +844,7 @@ impl<'i> TokenList<'i> {
         TokenOrValue::Color(color) => TokenOrValue::Color(color.get_fallback(kind)),
         TokenOrValue::Function(f) => TokenOrValue::Function(f.get_fallback(kind)),
         TokenOrValue::Var(v) => TokenOrValue::Var(v.get_fallback(kind)),
+        TokenOrValue::Env(e) => TokenOrValue::Env(e.get_fallback(kind)),
         _ => token.clone(),
       })
       .collect();
@@ -859,6 +881,7 @@ impl<'i> TokenList<'i> {
           }
           TokenOrValue::Function(f) => *f = f.get_fallback(lowest_fallback),
           TokenOrValue::Var(v) if v.fallback.is_some() => *v = v.get_fallback(lowest_fallback),
+          TokenOrValue::Env(v) if v.fallback.is_some() => *v = v.get_fallback(lowest_fallback),
           _ => {}
         }
       }
@@ -914,6 +937,170 @@ impl<'i> Variable<'i> {
   fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
     Variable {
       name: self.name.clone(),
+      fallback: self.fallback.as_ref().map(|fallback| fallback.get_fallback(kind)),
+    }
+  }
+}
+
+/// A CSS environment variable reference.
+#[derive(Debug, Clone, PartialEq, Visit)]
+#[visit(visit_environment_variable, ENVIRONMENT_VARIABLES)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub struct EnvironmentVariable<'i> {
+  /// The environment variable name.
+  #[cfg_attr(feature = "serde", serde(borrow, flatten))]
+  pub name: EnvironmentVariableName<'i>,
+  /// Optional indices into the dimensions of the environment variable.
+  #[cfg_attr(feature = "serde", serde(default))]
+  pub indices: Vec<CSSInteger>,
+  /// A fallback value in case the variable is not defined.
+  pub fallback: Option<TokenList<'i>>,
+}
+
+/// A CSS environment variable name.
+#[derive(Debug, Clone, PartialEq, Visit)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(untagged))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub enum EnvironmentVariableName<'i> {
+  /// A UA-defined environment variable.
+  #[cfg_attr(
+    feature = "serde",
+    serde(with = "crate::serialization::NameWrapper::<UAEnvironmentVariable>")
+  )]
+  UA(UAEnvironmentVariable),
+  /// A custom author-defined environment variable.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  Custom(DashedIdentReference<'i>),
+  /// An unknown environment variable.
+  #[cfg_attr(feature = "serde", serde(with = "crate::serialization::NameWrapper::<CustomIdent>"))]
+  Unknown(CustomIdent<'i>),
+}
+
+enum_property! {
+  /// A UA-defined environment variable name.
+  pub enum UAEnvironmentVariable {
+    /// The safe area inset from the top of the viewport.
+    "safe-area-inset-top": SafeAreaInsetTop,
+    /// The safe area inset from the right of the viewport.
+    "safe-area-inset-right": SafeAreaInsetRight,
+    /// The safe area inset from the bottom of the viewport.
+    "safe-area-inset-bottom": SafeAreaInsetBottom,
+    /// The safe area inset from the left of the viewport.
+    "safe-area-inset-left": SafeAreaInsetLeft,
+    /// The viewport segment width.
+    "viewport-segment-width": ViewportSegmentWidth,
+    /// The viewport segment height.
+    "viewport-segment-height": ViewportSegmentHeight,
+    /// The viewport segment top position.
+    "viewport-segment-top": ViewportSegmentTop,
+    /// The viewport segment left position.
+    "viewport-segment-left": ViewportSegmentLeft,
+    /// The viewport segment bottom position.
+    "viewport-segment-bottom": ViewportSegmentBottom,
+    /// The viewport segment right position.
+    "viewport-segment-right": ViewportSegmentRight,
+  }
+}
+
+impl<'i> EnvironmentVariableName<'i> {
+  /// Returns the name of the environment variable as a string.
+  pub fn name(&self) -> &str {
+    match self {
+      EnvironmentVariableName::UA(ua) => ua.as_str(),
+      EnvironmentVariableName::Custom(c) => c.ident.as_ref(),
+      EnvironmentVariableName::Unknown(u) => u.0.as_ref(),
+    }
+  }
+}
+
+impl<'i> Parse<'i> for EnvironmentVariableName<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if let Ok(ua) = input.try_parse(UAEnvironmentVariable::parse) {
+      return Ok(EnvironmentVariableName::UA(ua));
+    }
+
+    if let Ok(dashed) =
+      input.try_parse(|input| DashedIdentReference::parse_with_options(input, &ParserOptions::default()))
+    {
+      return Ok(EnvironmentVariableName::Custom(dashed));
+    }
+
+    let ident = CustomIdent::parse(input)?;
+    return Ok(EnvironmentVariableName::Unknown(ident));
+  }
+}
+
+impl<'i> ToCss for EnvironmentVariableName<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      EnvironmentVariableName::UA(ua) => ua.to_css(dest),
+      EnvironmentVariableName::Custom(custom) => custom.to_css(dest),
+      EnvironmentVariableName::Unknown(unknown) => unknown.to_css(dest),
+    }
+  }
+}
+
+impl<'i> EnvironmentVariable<'i> {
+  pub(crate) fn parse<'t, T>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<T>,
+    depth: usize,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    input.expect_function_matching("env")?;
+    input.parse_nested_block(|input| Self::parse_nested(input, options, depth))
+  }
+
+  pub(crate) fn parse_nested<'t, T>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<T>,
+    depth: usize,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let name = EnvironmentVariableName::parse(input)?;
+    let mut indices = Vec::new();
+    while let Ok(index) = input.try_parse(CSSInteger::parse) {
+      indices.push(index);
+    }
+
+    let fallback = if input.try_parse(|input| input.expect_comma()).is_ok() {
+      Some(TokenList::parse(input, options, depth + 1)?)
+    } else {
+      None
+    };
+
+    Ok(EnvironmentVariable {
+      name,
+      indices,
+      fallback,
+    })
+  }
+
+  pub(crate) fn to_css<W>(&self, dest: &mut Printer<W>, is_custom_property: bool) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    dest.write_str("env(")?;
+    self.name.to_css(dest)?;
+
+    for item in &self.indices {
+      dest.write_char(' ')?;
+      item.to_css(dest)?;
+    }
+
+    if let Some(fallback) = &self.fallback {
+      dest.delim(',', false)?;
+      fallback.to_css(dest, is_custom_property)?;
+    }
+    dest.write_char(')')
+  }
+
+  fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
+    EnvironmentVariable {
+      name: self.name.clone(),
+      indices: self.indices.clone(),
       fallback: self.fallback.as_ref().map(|fallback| fallback.get_fallback(kind)),
     }
   }

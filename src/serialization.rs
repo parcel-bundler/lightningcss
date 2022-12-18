@@ -31,4 +31,5 @@ macro_rules! wrapper {
 }
 
 wrapper!(ValueWrapper, value);
+wrapper!(NameWrapper, name);
 wrapper!(PrefixWrapper, vendorPrefix, crate::vendor_prefix::VendorPrefix);
