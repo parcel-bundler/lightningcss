@@ -1,4 +1,4 @@
-import { Angle, CssColor, CssRuleFor_DefaultAtRule, CustomProperty, Function, Image, LengthValue, MediaQuery, Property, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable } from './ast';
+import { Angle, CssColor, CssRuleFor_DefaultAtRule, CustomProperty, EnvironmentVariable, Function, Image, LengthValue, MediaQuery, Property, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable } from './ast';
 import type { Targets } from './targets';
 
 export interface TransformOptions {
@@ -118,6 +118,8 @@ export interface Visitor {
   FunctionExit?: FunctionVisitor | { [name: string]: FunctionVisitor };
   Variable?(variable: Variable): TokenOrValue | TokenOrValue[] | void;
   VariableExit?(variable: Variable): TokenOrValue | TokenOrValue[] | void;
+  EnvironmentVariable?(env: EnvironmentVariable): TokenOrValue | TokenOrValue[] | void;
+  EnvironmentVariableExit?(env: EnvironmentVariable): TokenOrValue | TokenOrValue[] | void;
 }
 
 export interface DependencyOptions {

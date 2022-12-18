@@ -37,6 +37,8 @@ pub struct JsVisitor {
   visit_function: VisitorsRef,
   function_map: VisitorsRef,
   visit_variable: VisitorsRef,
+  visit_env: VisitorsRef,
+  env_map: VisitorsRef,
   types: VisitTypes,
   pub errors: Vec<napi::Error>,
 }
@@ -144,6 +146,8 @@ impl Drop for JsVisitor {
     drop_tuple!(visit_media_query);
     drop_tuple!(visit_supports_condition);
     drop_tuple!(visit_variable);
+    drop_tuple!(visit_env);
+    drop_tuple!(env_map);
     drop!(visit_custom_ident);
     drop!(visit_dashed_ident);
     drop_tuple!(visit_function);
@@ -203,7 +207,15 @@ impl JsVisitor {
         get!("SupportsCondition", SUPPORTS_CONDITIONS),
         get!("SupportsConditionExit", SUPPORTS_CONDITIONS),
       ),
-      visit_variable: VisitorsRef::new(get!("variable", TOKENS), get!("VariableExit", TOKENS)),
+      visit_variable: VisitorsRef::new(get!("Variable", TOKENS), get!("VariableExit", TOKENS)),
+      visit_env: VisitorsRef::new(
+        get!("EnvironmentVariable", TOKENS),
+        get!("EnvironmentVariableExit", TOKENS),
+      ),
+      env_map: VisitorsRef::new(
+        map!("EnvironmentVariable", TOKENS),
+        map!("EnvironmentVariableExit", TOKENS),
+      ),
       visit_custom_ident: get!("CustomIdent", CUSTOM_IDENTS),
       visit_dashed_ident: get!("DashedIdent", DASHED_IDENTS),
       visit_function: VisitorsRef::new(get!("Function", TOKENS), get!("FunctionExit", TOKENS)),
@@ -434,6 +446,8 @@ impl<'i> Visitor<'i> for JsVisitor {
       let visit_function = self.visit_function.get::<JsFunction>(&env);
       let function_map = self.function_map.get::<JsObject>(&env);
       let visit_variable = self.visit_variable.get::<JsFunction>(&env);
+      let visit_env = self.visit_env.get::<JsFunction>(&env);
+      let env_map = self.env_map.get::<JsObject>(&env);
 
       unwrap!(
         visit_list(
@@ -445,6 +459,7 @@ impl<'i> Visitor<'i> for JsVisitor {
                 visit_function.for_stage(stage),
               ),
               TokenOrValue::Var(_) => (None, visit_variable.for_stage(stage)),
+              TokenOrValue::Env(e) => (env_map.named(stage, e.name.name()), visit_env.for_stage(stage)),
               TokenOrValue::Token(t) => {
                 let name = match t {
                   Token::Ident(_) => Some("ident"),
@@ -471,6 +486,7 @@ impl<'i> Visitor<'i> for JsVisitor {
               let js_value = match value {
                 TokenOrValue::Function(f) => env.to_js_value(f)?,
                 TokenOrValue::Var(v) => env.to_js_value(v)?,
+                TokenOrValue::Env(v) => env.to_js_value(v)?,
                 TokenOrValue::Token(t) => env.to_js_value(t)?,
                 _ => unreachable!(),
               };

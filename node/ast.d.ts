@@ -201,6 +201,10 @@ export type MediaFeatureValue =
   | {
       type: "ident";
       value: String;
+    }
+  | {
+      type: "env";
+      value: EnvironmentVariable;
     };
 /**
  * A CSS [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) value, with support for `calc()`.
@@ -387,6 +391,634 @@ export type Resolution =
  * @maxItems 2
  */
 export type Ratio = [number, number];
+/**
+ * A CSS environment variable reference.
+ */
+export type EnvironmentVariable = EnvironmentVariable1 & {
+  /**
+   * A fallback value in case the variable is not defined.
+   */
+  fallback?: TokenOrValue[] | null;
+  /**
+   * Optional indices into the dimensions of the environment variable.
+   */
+  indices?: number[];
+};
+export type EnvironmentVariable1 = EnvironmentVariable2 & EnvironmentVariable1;
+/**
+ * A raw CSS token, or a parsed value.
+ */
+export type TokenOrValue =
+  | {
+      type: "token";
+      value: Token;
+    }
+  | {
+      type: "color";
+      value: CssColor;
+    }
+  | {
+      type: "unresolved-color";
+      value: UnresolvedColor;
+    }
+  | {
+      type: "url";
+      value: Url;
+    }
+  | {
+      type: "var";
+      value: Variable;
+    }
+  | {
+      type: "env";
+      value: EnvironmentVariable1;
+    }
+  | {
+      type: "function";
+      value: Function;
+    }
+  | {
+      type: "length";
+      value: LengthValue;
+    }
+  | {
+      type: "angle";
+      value: Angle;
+    }
+  | {
+      type: "time";
+      value: Time;
+    }
+  | {
+      type: "resolution";
+      value: Resolution;
+    }
+  | {
+      type: "dashed-ident";
+      value: String;
+    };
+/**
+ * A raw CSS token.
+ */
+export type Token =
+  | {
+      type: "ident";
+      value: String;
+    }
+  | {
+      type: "at-keyword";
+      value: String;
+    }
+  | {
+      type: "hash";
+      value: String;
+    }
+  | {
+      type: "id-hash";
+      value: String;
+    }
+  | {
+      type: "string";
+      value: String;
+    }
+  | {
+      type: "unquoted-url";
+      value: String;
+    }
+  | {
+      type: "delim";
+      value: string;
+    }
+  | {
+      type: "number";
+      /**
+       * The value as a float
+       */
+      value: number;
+    }
+  | {
+      type: "percentage";
+      /**
+       * The value as a float, divided by 100 so that the nominal range is 0.0 to 1.0.
+       */
+      value: number;
+    }
+  | {
+      type: "dimension";
+      /**
+       * The unit, e.g. "px" in `12px`
+       */
+      unit: String;
+      /**
+       * The value as a float
+       */
+      value: number;
+    }
+  | {
+      type: "white-space";
+      value: string;
+    }
+  | {
+      type: "comment";
+      value: string;
+    }
+  | {
+      type: "colon";
+    }
+  | {
+      type: "semicolon";
+    }
+  | {
+      type: "comma";
+    }
+  | {
+      type: "include-match";
+    }
+  | {
+      type: "dash-match";
+    }
+  | {
+      type: "prefix-match";
+    }
+  | {
+      type: "suffix-match";
+    }
+  | {
+      type: "substring-match";
+    }
+  | {
+      type: "cdo";
+    }
+  | {
+      type: "cdc";
+    }
+  | {
+      type: "function";
+      value: String;
+    }
+  | {
+      type: "parenthesis-block";
+    }
+  | {
+      type: "square-bracket-block";
+    }
+  | {
+      type: "curly-bracket-block";
+    }
+  | {
+      type: "bad-url";
+      value: String;
+    }
+  | {
+      type: "bad-string";
+      value: String;
+    }
+  | {
+      type: "close-parenthesis";
+    }
+  | {
+      type: "close-square-bracket";
+    }
+  | {
+      type: "close-curly-bracket";
+    };
+/**
+ * A CSS [`<color>`](https://www.w3.org/TR/css-color-4/#color-type) value.
+ *
+ * CSS supports many different color spaces to represent colors. The most common values are stored as RGBA using a single byte per component. Less common values are stored using a `Box` to reduce the amount of memory used per color.
+ *
+ * Each color space is represented as a struct that implements the `From` and `Into` traits for all other color spaces, so it is possible to convert between color spaces easily. In addition, colors support [interpolation](#method.interpolate) as in the `color-mix()` function.
+ */
+export type CssColor = CurrentColor | RGBColor | LABColor | PredefinedColor | FloatColor;
+export type CurrentColor = {
+  type: "currentcolor";
+};
+export type RGBColor = {
+  /**
+   * The alpha component.
+   */
+  alpha: number;
+  /**
+   * The blue component.
+   */
+  b: number;
+  /**
+   * The green component.
+   */
+  g: number;
+  /**
+   * The red component.
+   */
+  r: number;
+  type: "rgb";
+};
+/**
+ * A color in a LAB color space, including the `lab()`, `lch()`, `oklab()`, and `oklch()` functions.
+ */
+export type LABColor =
+  | {
+      /**
+       * The a component.
+       */
+      a: number;
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The b component.
+       */
+      b: number;
+      /**
+       * The lightness component.
+       */
+      l: number;
+      type: "lab";
+    }
+  | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The chroma component.
+       */
+      c: number;
+      /**
+       * The hue component.
+       */
+      h: number;
+      /**
+       * The lightness component.
+       */
+      l: number;
+      type: "lch";
+    }
+  | {
+      /**
+       * The a component.
+       */
+      a: number;
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The b component.
+       */
+      b: number;
+      /**
+       * The lightness component.
+       */
+      l: number;
+      type: "oklab";
+    }
+  | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The chroma component.
+       */
+      c: number;
+      /**
+       * The hue component.
+       */
+      h: number;
+      /**
+       * The lightness component.
+       */
+      l: number;
+      type: "oklch";
+    };
+/**
+ * A color in a predefined color space, e.g. `display-p3`.
+ */
+export type PredefinedColor =
+  | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The blue component.
+       */
+      b: number;
+      /**
+       * The green component.
+       */
+      g: number;
+      /**
+       * The red component.
+       */
+      r: number;
+      type: "srgb";
+    }
+  | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The blue component.
+       */
+      b: number;
+      /**
+       * The green component.
+       */
+      g: number;
+      /**
+       * The red component.
+       */
+      r: number;
+      type: "srgb-linear";
+    }
+  | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The blue component.
+       */
+      b: number;
+      /**
+       * The green component.
+       */
+      g: number;
+      /**
+       * The red component.
+       */
+      r: number;
+      type: "display-p3";
+    }
+  | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The blue component.
+       */
+      b: number;
+      /**
+       * The green component.
+       */
+      g: number;
+      /**
+       * The red component.
+       */
+      r: number;
+      type: "a98-rgb";
+    }
+  | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The blue component.
+       */
+      b: number;
+      /**
+       * The green component.
+       */
+      g: number;
+      /**
+       * The red component.
+       */
+      r: number;
+      type: "prophoto-rgb";
+    }
+  | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The blue component.
+       */
+      b: number;
+      /**
+       * The green component.
+       */
+      g: number;
+      /**
+       * The red component.
+       */
+      r: number;
+      type: "rec2020";
+    }
+  | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      type: "xyz-d50";
+      /**
+       * The x component.
+       */
+      x: number;
+      /**
+       * The y component.
+       */
+      y: number;
+      /**
+       * The z component.
+       */
+      z: number;
+    }
+  | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      type: "xyz-d65";
+      /**
+       * The x component.
+       */
+      x: number;
+      /**
+       * The y component.
+       */
+      y: number;
+      /**
+       * The z component.
+       */
+      z: number;
+    };
+/**
+ * A floating point representation of color types that are usually stored as RGBA. These are used when there are any `none` components, which are represented as NaN.
+ */
+export type FloatColor =
+  | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The blue component.
+       */
+      b: number;
+      /**
+       * The green component.
+       */
+      g: number;
+      /**
+       * The red component.
+       */
+      r: number;
+      type: "rgb";
+    }
+  | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The hue component.
+       */
+      h: number;
+      /**
+       * The lightness component.
+       */
+      l: number;
+      /**
+       * The saturation component.
+       */
+      s: number;
+      type: "hsl";
+    }
+  | {
+      /**
+       * The alpha component.
+       */
+      alpha: number;
+      /**
+       * The blackness component.
+       */
+      b: number;
+      /**
+       * The hue component.
+       */
+      h: number;
+      type: "hwb";
+      /**
+       * The whiteness component.
+       */
+      w: number;
+    };
+/**
+ * A color value with an unresolved alpha value (e.g. a variable). These can be converted from the modern slash syntax to older comma syntax. This can only be done when the only unresolved component is the alpha since variables can resolve to multiple tokens.
+ */
+export type UnresolvedColor =
+  | {
+      /**
+       * The unresolved alpha component.
+       */
+      alpha: TokenOrValue[];
+      /**
+       * The blue component.
+       */
+      b: number;
+      /**
+       * The green component.
+       */
+      g: number;
+      /**
+       * The red component.
+       */
+      r: number;
+      type: "rgb";
+    }
+  | {
+      /**
+       * The unresolved alpha component.
+       */
+      alpha: TokenOrValue[];
+      /**
+       * The hue component.
+       */
+      h: number;
+      /**
+       * The lightness component.
+       */
+      l: number;
+      /**
+       * The saturation component.
+       */
+      s: number;
+      type: "hsl";
+    };
+/**
+ * Defines where the class names referenced in the `composes` property are located.
+ *
+ * See [Composes](Composes).
+ */
+export type Specifier =
+  | {
+      type: "global";
+    }
+  | {
+      type: "file";
+      value: String;
+    }
+  | {
+      type: "source-index";
+      value: number;
+    };
+/**
+ * A CSS [`<angle>`](https://www.w3.org/TR/css-values-4/#angles) value.
+ *
+ * Angles may be explicit or computed by `calc()`, but are always stored and serialized as their computed value.
+ */
+export type Angle =
+  | {
+      type: "deg";
+      value: number;
+    }
+  | {
+      type: "rad";
+      value: number;
+    }
+  | {
+      type: "grad";
+      value: number;
+    }
+  | {
+      type: "turn";
+      value: number;
+    };
+/**
+ * A CSS [`<time>`](https://www.w3.org/TR/css-values-4/#time) value, in either seconds or milliseconds.
+ *
+ * Time values may be explicit or computed by `calc()`, but are always stored and serialized as their computed value.
+ */
+export type Time =
+  | {
+      type: "seconds";
+      value: number;
+    }
+  | {
+      type: "milliseconds";
+      value: number;
+    };
+export type EnvironmentVariable1 = NameWrapperFor_UAEnvironmentVariable | DashedIdentReference | NameWrapperFor_String;
+/**
+ * A UA-defined environment variable name.
+ */
+export type UAEnvironmentVariable =
+  | "safe-area-inset-top"
+  | "safe-area-inset-right"
+  | "safe-area-inset-bottom"
+  | "safe-area-inset-left"
+  | "viewport-segment-width"
+  | "viewport-segment-height"
+  | "viewport-segment-top"
+  | "viewport-segment-left"
+  | "viewport-segment-bottom"
+  | "viewport-segment-right";
 /**
  * A [comparator](https://drafts.csswg.org/mediaqueries/#typedef-mf-comparison) within a media query.
  */
@@ -2976,333 +3608,6 @@ export type Property =
       value: CustomProperty;
     };
 /**
- * A CSS [`<color>`](https://www.w3.org/TR/css-color-4/#color-type) value.
- *
- * CSS supports many different color spaces to represent colors. The most common values are stored as RGBA using a single byte per component. Less common values are stored using a `Box` to reduce the amount of memory used per color.
- *
- * Each color space is represented as a struct that implements the `From` and `Into` traits for all other color spaces, so it is possible to convert between color spaces easily. In addition, colors support [interpolation](#method.interpolate) as in the `color-mix()` function.
- */
-export type CssColor = CurrentColor | RGBColor | LABColor | PredefinedColor | FloatColor;
-export type CurrentColor = {
-  type: "currentcolor";
-};
-export type RGBColor = {
-  /**
-   * The alpha component.
-   */
-  alpha: number;
-  /**
-   * The blue component.
-   */
-  b: number;
-  /**
-   * The green component.
-   */
-  g: number;
-  /**
-   * The red component.
-   */
-  r: number;
-  type: "rgb";
-};
-/**
- * A color in a LAB color space, including the `lab()`, `lch()`, `oklab()`, and `oklch()` functions.
- */
-export type LABColor =
-  | {
-      /**
-       * The a component.
-       */
-      a: number;
-      /**
-       * The alpha component.
-       */
-      alpha: number;
-      /**
-       * The b component.
-       */
-      b: number;
-      /**
-       * The lightness component.
-       */
-      l: number;
-      type: "lab";
-    }
-  | {
-      /**
-       * The alpha component.
-       */
-      alpha: number;
-      /**
-       * The chroma component.
-       */
-      c: number;
-      /**
-       * The hue component.
-       */
-      h: number;
-      /**
-       * The lightness component.
-       */
-      l: number;
-      type: "lch";
-    }
-  | {
-      /**
-       * The a component.
-       */
-      a: number;
-      /**
-       * The alpha component.
-       */
-      alpha: number;
-      /**
-       * The b component.
-       */
-      b: number;
-      /**
-       * The lightness component.
-       */
-      l: number;
-      type: "oklab";
-    }
-  | {
-      /**
-       * The alpha component.
-       */
-      alpha: number;
-      /**
-       * The chroma component.
-       */
-      c: number;
-      /**
-       * The hue component.
-       */
-      h: number;
-      /**
-       * The lightness component.
-       */
-      l: number;
-      type: "oklch";
-    };
-/**
- * A color in a predefined color space, e.g. `display-p3`.
- */
-export type PredefinedColor =
-  | {
-      /**
-       * The alpha component.
-       */
-      alpha: number;
-      /**
-       * The blue component.
-       */
-      b: number;
-      /**
-       * The green component.
-       */
-      g: number;
-      /**
-       * The red component.
-       */
-      r: number;
-      type: "srgb";
-    }
-  | {
-      /**
-       * The alpha component.
-       */
-      alpha: number;
-      /**
-       * The blue component.
-       */
-      b: number;
-      /**
-       * The green component.
-       */
-      g: number;
-      /**
-       * The red component.
-       */
-      r: number;
-      type: "srgb-linear";
-    }
-  | {
-      /**
-       * The alpha component.
-       */
-      alpha: number;
-      /**
-       * The blue component.
-       */
-      b: number;
-      /**
-       * The green component.
-       */
-      g: number;
-      /**
-       * The red component.
-       */
-      r: number;
-      type: "display-p3";
-    }
-  | {
-      /**
-       * The alpha component.
-       */
-      alpha: number;
-      /**
-       * The blue component.
-       */
-      b: number;
-      /**
-       * The green component.
-       */
-      g: number;
-      /**
-       * The red component.
-       */
-      r: number;
-      type: "a98-rgb";
-    }
-  | {
-      /**
-       * The alpha component.
-       */
-      alpha: number;
-      /**
-       * The blue component.
-       */
-      b: number;
-      /**
-       * The green component.
-       */
-      g: number;
-      /**
-       * The red component.
-       */
-      r: number;
-      type: "prophoto-rgb";
-    }
-  | {
-      /**
-       * The alpha component.
-       */
-      alpha: number;
-      /**
-       * The blue component.
-       */
-      b: number;
-      /**
-       * The green component.
-       */
-      g: number;
-      /**
-       * The red component.
-       */
-      r: number;
-      type: "rec2020";
-    }
-  | {
-      /**
-       * The alpha component.
-       */
-      alpha: number;
-      type: "xyz-d50";
-      /**
-       * The x component.
-       */
-      x: number;
-      /**
-       * The y component.
-       */
-      y: number;
-      /**
-       * The z component.
-       */
-      z: number;
-    }
-  | {
-      /**
-       * The alpha component.
-       */
-      alpha: number;
-      type: "xyz-d65";
-      /**
-       * The x component.
-       */
-      x: number;
-      /**
-       * The y component.
-       */
-      y: number;
-      /**
-       * The z component.
-       */
-      z: number;
-    };
-/**
- * A floating point representation of color types that are usually stored as RGBA. These are used when there are any `none` components, which are represented as NaN.
- */
-export type FloatColor =
-  | {
-      /**
-       * The alpha component.
-       */
-      alpha: number;
-      /**
-       * The blue component.
-       */
-      b: number;
-      /**
-       * The green component.
-       */
-      g: number;
-      /**
-       * The red component.
-       */
-      r: number;
-      type: "rgb";
-    }
-  | {
-      /**
-       * The alpha component.
-       */
-      alpha: number;
-      /**
-       * The hue component.
-       */
-      h: number;
-      /**
-       * The lightness component.
-       */
-      l: number;
-      /**
-       * The saturation component.
-       */
-      s: number;
-      type: "hsl";
-    }
-  | {
-      /**
-       * The alpha component.
-       */
-      alpha: number;
-      /**
-       * The blackness component.
-       */
-      b: number;
-      /**
-       * The hue component.
-       */
-      h: number;
-      type: "hwb";
-      /**
-       * The whiteness component.
-       */
-      w: number;
-    };
-/**
  * A CSS [`<image>`](https://www.w3.org/TR/css-images-3/#image-values) value.
  */
 export type Image =
@@ -3493,28 +3798,6 @@ export type LineDirection =
        * A vertical posision keyword, e.g. `top` or `bottom`.
        */
       vertical: VerticalPositionKeyword;
-    };
-/**
- * A CSS [`<angle>`](https://www.w3.org/TR/css-values-4/#angles) value.
- *
- * Angles may be explicit or computed by `calc()`, but are always stored and serialized as their computed value.
- */
-export type Angle =
-  | {
-      type: "deg";
-      value: number;
-    }
-  | {
-      type: "rad";
-      value: number;
-    }
-  | {
-      type: "grad";
-      value: number;
-    }
-  | {
-      type: "turn";
-      value: number;
     };
 /**
  * A horizontal position keyword.
@@ -4891,37 +5174,6 @@ export type VerticalAlignKeyword =
   | "bottom"
   | "text-bottom";
 /**
- * Defines where the class names referenced in the `composes` property are located.
- *
- * See [Composes](Composes).
- */
-export type Specifier =
-  | {
-      type: "global";
-    }
-  | {
-      type: "file";
-      value: String;
-    }
-  | {
-      type: "source-index";
-      value: number;
-    };
-/**
- * A CSS [`<time>`](https://www.w3.org/TR/css-values-4/#time) value, in either seconds or milliseconds.
- *
- * Time values may be explicit or computed by `calc()`, but are always stored and serialized as their computed value.
- */
-export type Time =
-  | {
-      type: "seconds";
-      value: number;
-    }
-  | {
-      type: "milliseconds";
-      value: number;
-    };
-/**
  * A CSS [easing function](https://www.w3.org/TR/css-easing-1/#easing-functions).
  */
 export type EasingFunction =
@@ -5767,221 +6019,6 @@ export type ContainerNameList =
   | {
       type: "names";
       value: String[];
-    };
-/**
- * A raw CSS token, or a parsed value.
- */
-export type TokenOrValue =
-  | {
-      type: "token";
-      value: Token;
-    }
-  | {
-      type: "color";
-      value: CssColor;
-    }
-  | {
-      type: "unresolved-color";
-      value: UnresolvedColor;
-    }
-  | {
-      type: "url";
-      value: Url;
-    }
-  | {
-      type: "var";
-      value: Variable;
-    }
-  | {
-      type: "function";
-      value: Function;
-    }
-  | {
-      type: "length";
-      value: LengthValue;
-    }
-  | {
-      type: "angle";
-      value: Angle;
-    }
-  | {
-      type: "time";
-      value: Time;
-    }
-  | {
-      type: "resolution";
-      value: Resolution;
-    }
-  | {
-      type: "dashed-ident";
-      value: String;
-    };
-/**
- * A raw CSS token.
- */
-export type Token =
-  | {
-      type: "ident";
-      value: String;
-    }
-  | {
-      type: "at-keyword";
-      value: String;
-    }
-  | {
-      type: "hash";
-      value: String;
-    }
-  | {
-      type: "id-hash";
-      value: String;
-    }
-  | {
-      type: "string";
-      value: String;
-    }
-  | {
-      type: "unquoted-url";
-      value: String;
-    }
-  | {
-      type: "delim";
-      value: string;
-    }
-  | {
-      type: "number";
-      /**
-       * The value as a float
-       */
-      value: number;
-    }
-  | {
-      type: "percentage";
-      /**
-       * The value as a float, divided by 100 so that the nominal range is 0.0 to 1.0.
-       */
-      value: number;
-    }
-  | {
-      type: "dimension";
-      /**
-       * The unit, e.g. "px" in `12px`
-       */
-      unit: String;
-      /**
-       * The value as a float
-       */
-      value: number;
-    }
-  | {
-      type: "white-space";
-      value: string;
-    }
-  | {
-      type: "comment";
-      value: string;
-    }
-  | {
-      type: "colon";
-    }
-  | {
-      type: "semicolon";
-    }
-  | {
-      type: "comma";
-    }
-  | {
-      type: "include-match";
-    }
-  | {
-      type: "dash-match";
-    }
-  | {
-      type: "prefix-match";
-    }
-  | {
-      type: "suffix-match";
-    }
-  | {
-      type: "substring-match";
-    }
-  | {
-      type: "cdo";
-    }
-  | {
-      type: "cdc";
-    }
-  | {
-      type: "function";
-      value: String;
-    }
-  | {
-      type: "parenthesis-block";
-    }
-  | {
-      type: "square-bracket-block";
-    }
-  | {
-      type: "curly-bracket-block";
-    }
-  | {
-      type: "bad-url";
-      value: String;
-    }
-  | {
-      type: "bad-string";
-      value: String;
-    }
-  | {
-      type: "close-parenthesis";
-    }
-  | {
-      type: "close-square-bracket";
-    }
-  | {
-      type: "close-curly-bracket";
-    };
-/**
- * A color value with an unresolved alpha value (e.g. a variable). These can be converted from the modern slash syntax to older comma syntax. This can only be done when the only unresolved component is the alpha since variables can resolve to multiple tokens.
- */
-export type UnresolvedColor =
-  | {
-      /**
-       * The unresolved alpha component.
-       */
-      alpha: TokenOrValue[];
-      /**
-       * The blue component.
-       */
-      b: number;
-      /**
-       * The green component.
-       */
-      g: number;
-      /**
-       * The red component.
-       */
-      r: number;
-      type: "rgb";
-    }
-  | {
-      /**
-       * The unresolved alpha component.
-       */
-      alpha: TokenOrValue[];
-      /**
-       * The hue component.
-       */
-      h: number;
-      /**
-       * The lightness component.
-       */
-      l: number;
-      /**
-       * The saturation component.
-       */
-      s: number;
-      type: "hsl";
     };
 export type SerializedComponentFor_SelectorsAnd_PseudoClassAnd_PseudoElementAnd_VendorPrefix =
   | {
@@ -6844,21 +6881,17 @@ export interface MediaRuleFor_DefaultAtRule {
   rules: CssRuleFor_DefaultAtRule[];
 }
 /**
- * A source location.
+ * A line and column position within a source file.
  */
 export interface Location {
   /**
-   * The column number within a line, starting at 1 for first the character of the line. Column numbers are counted in UTF-16 code units.
+   * The column number, starting from 1.
    */
   column: number;
   /**
-   * The line number, starting at 0.
+   * The line number, starting from 1.
    */
   line: number;
-  /**
-   * The index of the source file within the source map.
-   */
-  source_index: number;
 }
 /**
  * A [media query list](https://drafts.csswg.org/mediaqueries/#mq-list).
@@ -6895,6 +6928,78 @@ export interface LengthValue {
    * The length value.
    */
   value: number;
+}
+export interface EnvironmentVariable2 {
+  /**
+   * A fallback value in case the variable is not defined.
+   */
+  fallback?: TokenOrValue[] | null;
+  /**
+   * Optional indices into the dimensions of the environment variable.
+   */
+  indices?: number[];
+}
+/**
+ * A CSS [url()](https://www.w3.org/TR/css-values-4/#urls) value and its source location.
+ */
+export interface Url {
+  /**
+   * The location where the `url()` was seen in the CSS source file.
+   */
+  loc: Location;
+  /**
+   * The url string.
+   */
+  url: String;
+}
+/**
+ * A CSS variable reference.
+ */
+export interface Variable {
+  /**
+   * A fallback value in case the variable is not defined.
+   */
+  fallback?: TokenOrValue[] | null;
+  /**
+   * The variable name.
+   */
+  name: DashedIdentReference;
+}
+/**
+ * A CSS [`<dashed-ident>`](https://www.w3.org/TR/css-values-4/#dashed-idents) reference.
+ *
+ * Dashed idents are used in cases where an identifier can be either author defined _or_ CSS-defined. Author defined idents must start with two dash characters ("--") or parsing will fail.
+ *
+ * In CSS modules, when the `dashed_idents` option is enabled, the identifier may be followed by the `from` keyword and an argument indicating where the referenced identifier is declared (e.g. a filename).
+ */
+export interface DashedIdentReference {
+  /**
+   * CSS modules extension: the filename where the variable is defined. Only enabled when the CSS modules `dashed_idents` option is turned on.
+   */
+  from?: Specifier | null;
+  /**
+   * The referenced identifier.
+   */
+  ident: String;
+}
+/**
+ * A custom CSS function.
+ */
+export interface Function {
+  /**
+   * The function arguments.
+   */
+  arguments: TokenOrValue[];
+  /**
+   * The function name.
+   */
+  name: String;
+}
+export interface NameWrapperFor_UAEnvironmentVariable {
+  name: UAEnvironmentVariable;
+}
+export interface NameWrapperFor_String {
+  name: String;
 }
 /**
  * A [@import](https://drafts.csswg.org/css-cascade/#at-import) rule.
@@ -6956,19 +7061,6 @@ export interface DeclarationBlock {
    * A list of `!important` declarations in the block.
    */
   importantDeclarations: Property[];
-}
-/**
- * A CSS [url()](https://www.w3.org/TR/css-values-4/#urls) value and its source location.
- */
-export interface Url {
-  /**
-   * The location where the `url()` was seen in the CSS source file.
-   */
-  loc: Location;
-  /**
-   * The url string.
-   */
-  url: String;
 }
 /**
  * A CSS [`<position>`](https://www.w3.org/TR/css3-values/#position) value, as used in the `background-position` property, gradients, masks, etc.
@@ -7870,23 +7962,6 @@ export interface Font {
   weight: FontWeight;
 }
 /**
- * A CSS [`<dashed-ident>`](https://www.w3.org/TR/css-values-4/#dashed-idents) reference.
- *
- * Dashed idents are used in cases where an identifier can be either author defined _or_ CSS-defined. Author defined idents must start with two dash characters ("--") or parsing will fail.
- *
- * In CSS modules, when the `dashed_idents` option is enabled, the identifier may be followed by the `from` keyword and an argument indicating where the referenced identifier is declared (e.g. a filename).
- */
-export interface DashedIdentReference {
-  /**
-   * CSS modules extension: the filename where the variable is defined. Only enabled when the CSS modules `dashed_idents` option is turned on.
-   */
-  from?: Specifier | null;
-  /**
-   * The referenced identifier.
-   */
-  ident: String;
-}
-/**
  * A value for the [transition](https://www.w3.org/TR/2018/WD-css-transitions-1-20181011/#transition-shorthand-property) property.
  */
 export interface Transition {
@@ -8370,32 +8445,6 @@ export interface UnparsedProperty {
    * The property value, stored as a raw token list.
    */
   value: TokenOrValue[];
-}
-/**
- * A CSS variable reference.
- */
-export interface Variable {
-  /**
-   * A fallback value in case the variable is not defined.
-   */
-  fallback?: TokenOrValue[] | null;
-  /**
-   * The variable name.
-   */
-  name: DashedIdentReference;
-}
-/**
- * A custom CSS function.
- */
-export interface Function {
-  /**
-   * The function arguments.
-   */
-  arguments: TokenOrValue[];
-  /**
-   * The function name.
-   */
-  name: String;
 }
 /**
  * A CSS custom property, representing any unknown property.

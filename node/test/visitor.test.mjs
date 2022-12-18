@@ -130,7 +130,7 @@ test('design tokens', () => {
   assert.equal(res.code.toString(), '.foo{color:red;padding:16px}');
 });
 
-test.skip('env function', () => {
+test('env function', () => {
   // https://www.npmjs.com/package/postcss-env-function
   let tokens = {
     '--branding-small': {
@@ -161,12 +161,9 @@ test.skip('env function', () => {
       }
     `),
     visitor: {
-      Function: {
-        env(fn) {
-          if (fn.arguments.length === 1 && fn.arguments[0].type === 'dashed-ident') {
-            return tokens[fn.arguments[0].value];
-          }
-        }
+      EnvironmentVariable(env) {
+        console.log(env)
+        return tokens[env.name.ident];
       }
     }
   });
@@ -481,7 +478,7 @@ test('100vh fix', () => {
               value: {
                 condition: {
                   type: 'declaration',
-                  property_id: {
+                  propertyId: {
                     property: '-webkit-touch-callout'
                   },
                   value: 'none'
