@@ -95,7 +95,7 @@ pub enum SupportsCondition<'i> {
   /// A declaration to evaluate.
   Declaration {
     /// The property id for the declaration.
-    #[cfg_attr(feature = "serde", serde(borrow))]
+    #[cfg_attr(feature = "serde", serde(borrow, rename = "propertyId"))]
     property_id: PropertyId<'i>,
     /// The raw value of the declaration.
     value: CowArcStr<'i>,

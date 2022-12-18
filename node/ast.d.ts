@@ -420,7 +420,7 @@ export type SupportsCondition =
       /**
        * The property id for the declaration.
        */
-      property_id: PropertyId;
+      propertyId: PropertyId;
       type: "declaration";
       /**
        * The raw value of the declaration.
