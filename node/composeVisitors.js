@@ -38,6 +38,8 @@ function composeVisitors(visitors) {
   composeTokenVisitors(res, visitors, 'FunctionExit', 'function', true);
   composeTokenVisitors(res, visitors, 'Variable', 'var', false);
   composeTokenVisitors(res, visitors, 'VariableExit', 'var', true);
+  composeTokenVisitors(res, visitors, 'EnvironmentVariable', 'env', false);
+  composeTokenVisitors(res, visitors, 'EnvironmentVariableExit', 'env', true);
   return res;
 }
 
@@ -193,7 +195,23 @@ function createTokenVisitor(visitors, type, isExit) {
         }
         break;
       case 'var':
-        f = isExit ? visitor.Variable : visitor.VariableExit;
+        f = isExit ? visitor.VariableExit : visitor.Variable;
+        break;
+      case 'env':
+        f = isExit ? visitor.EnvironmentVariableExit : visitor.EnvironmentVariable;
+        if (typeof f === 'object') {
+          let name;
+          switch (item.value.name.type) {
+            case 'ua':
+            case 'unknown':
+              name = item.value.name.value;
+              break;
+            case 'custom':
+              name = item.value.name.ident;
+              break;
+          }
+          f = f[name];
+        }
         break;
       case 'color':
         f = visitor.Color;

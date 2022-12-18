@@ -173,6 +173,48 @@ test('env function', () => {
   assert.equal(res.code.toString(), '@media (max-width:600px){body{padding:20px}}');
 });
 
+test('specific environment variables', () => {
+  // https://www.npmjs.com/package/postcss-env-function
+  /** @type {Record<string, import('../ast').TokenOrValue>} */
+  let tokens = {
+    '--branding-small': {
+      type: 'length',
+      value: {
+        unit: 'px',
+        value: 600
+      }
+    },
+    '--branding-padding': {
+      type: 'length',
+      value: {
+        unit: 'px',
+        value: 20
+      }
+    }
+  };
+
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    errorRecovery: true,
+    code: Buffer.from(`
+      @media (max-width: env(--branding-small)) {
+        body {
+          padding: env(--branding-padding);
+        }
+      }
+    `),
+    visitor: {
+      EnvironmentVariable: {
+        '--branding-small': () => tokens['--branding-small'],
+        '--branding-padding': () => tokens['--branding-padding']
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '@media (max-width:600px){body{padding:20px}}');
+});
+
 test('url', () => {
   // https://www.npmjs.com/package/postcss-url
   let res = transform({

@@ -91,6 +91,10 @@ type TokenVisitors = {
 }
 
 type FunctionVisitor = (fn: Function) => TokenOrValue | TokenOrValue[] | void;
+type EnvironmentVariableVisitor = (env: EnvironmentVariable) => TokenOrValue | TokenOrValue[] | void;
+type EnvironmentVariableVisitors = {
+  [name: string]: EnvironmentVariableVisitor
+};
 
 export interface Visitor {
   Rule?: RuleVisitor | RuleVisitors;
@@ -118,8 +122,8 @@ export interface Visitor {
   FunctionExit?: FunctionVisitor | { [name: string]: FunctionVisitor };
   Variable?(variable: Variable): TokenOrValue | TokenOrValue[] | void;
   VariableExit?(variable: Variable): TokenOrValue | TokenOrValue[] | void;
-  EnvironmentVariable?(env: EnvironmentVariable): TokenOrValue | TokenOrValue[] | void;
-  EnvironmentVariableExit?(env: EnvironmentVariable): TokenOrValue | TokenOrValue[] | void;
+  EnvironmentVariable?: EnvironmentVariableVisitor | EnvironmentVariableVisitors;
+  EnvironmentVariableExit?: EnvironmentVariableVisitor | EnvironmentVariableVisitors;
 }
 
 export interface DependencyOptions {

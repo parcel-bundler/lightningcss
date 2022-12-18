@@ -541,4 +541,101 @@ test('known rules', () => {
   assert.equal(res.code.toString(), '.test.focus-visible{margin-left:20px;margin-right:20px}.test:focus-visible{margin-left:20px;margin-right:20px}');
 });
 
+test('environment variables', () => {
+  /** @type {Record<string, import('../ast').TokenOrValue>} */
+  let tokens = {
+    '--branding-small': {
+      type: 'length',
+      value: {
+        unit: 'px',
+        value: 600
+      }
+    },
+    '--branding-padding': {
+      type: 'length',
+      value: {
+        unit: 'px',
+        value: 20
+      }
+    }
+  };
+
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    errorRecovery: true,
+    code: Buffer.from(`
+      @media (max-width: env(--branding-small)) {
+        body {
+          padding: env(--branding-padding);
+        }
+      }
+    `),
+    visitor: composeVisitors([
+      {
+        EnvironmentVariable: {
+          '--branding-small': () => tokens['--branding-small']
+        }
+      },
+      {
+        EnvironmentVariable: {
+          '--branding-padding': () => tokens['--branding-padding']
+        }
+      }
+    ])
+  });
+
+  assert.equal(res.code.toString(), '@media (max-width:600px){body{padding:20px}}');
+});
+
+test('variables', () => {
+  /** @type {Record<string, import('../ast').TokenOrValue>} */
+  let tokens = {
+    '--branding-small': {
+      type: 'length',
+      value: {
+        unit: 'px',
+        value: 600
+      }
+    },
+    '--branding-padding': {
+      type: 'length',
+      value: {
+        unit: 'px',
+        value: 20
+      }
+    }
+  };
+
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    errorRecovery: true,
+    code: Buffer.from(`
+      body {
+        padding: var(--branding-padding);
+        width: var(--branding-small);
+      }
+    `),
+    visitor: composeVisitors([
+      {
+        Variable(v) {
+          if (v.name.ident === '--branding-small') {
+            return tokens['--branding-small'];
+          }
+        }
+      },
+      {
+        Variable(v) {
+          if (v.name.ident === '--branding-padding') {
+            return tokens['--branding-padding'];
+          }
+        }
+      }
+    ])
+  });
+
+  assert.equal(res.code.toString(), 'body{padding:20px;width:600px}');
+});
+
 test.run();
