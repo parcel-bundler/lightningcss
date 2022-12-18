@@ -1,12 +1,16 @@
 use std::ops::{Index, IndexMut};
 
 use lightningcss::{
+  media_query::MediaFeatureValue,
   properties::{
     custom::{Token, TokenOrValue},
     Property,
   },
   rules::{CssRule, CssRuleList},
-  values::length::LengthValue,
+  values::{
+    ident::Ident,
+    length::{Length, LengthValue},
+  },
   visitor::{Visit, VisitTypes, Visitor},
 };
 use napi::{Env, JsFunction, JsObject, JsUnknown, Ref, ValueType};
@@ -162,10 +166,10 @@ impl JsVisitor {
   pub fn new(env: Env, visitor: JsObject) -> Self {
     let mut types = VisitTypes::empty();
     macro_rules! get {
-      ($name: literal, $t: ident) => {{
+      ($name: literal, $( $t: ident )|+) => {{
         let res: Option<JsFunction> = visitor.get_named_property($name).ok();
         if res.is_some() {
-          types |= VisitTypes::$t;
+          types |= $( VisitTypes::$t )|+;
         }
 
         // We must create a reference so that the garbage collector doesn't destroy
@@ -175,9 +179,9 @@ impl JsVisitor {
     }
 
     macro_rules! map {
-      ($name: literal, $t: ident) => {{
+      ($name: literal, $( $t: ident )|+) => {{
         if let Ok(obj) = visitor.get_named_property::<JsObject>($name) {
-          types |= VisitTypes::$t;
+          types |= $( VisitTypes::$t )|+;
           env.create_reference(obj).ok()
         } else {
           None
@@ -209,12 +213,18 @@ impl JsVisitor {
       ),
       visit_variable: VisitorsRef::new(get!("Variable", TOKENS), get!("VariableExit", TOKENS)),
       visit_env: VisitorsRef::new(
-        get!("EnvironmentVariable", TOKENS),
-        get!("EnvironmentVariableExit", TOKENS),
+        get!("EnvironmentVariable", TOKENS | MEDIA_QUERIES | ENVIRONMENT_VARIABLES),
+        get!(
+          "EnvironmentVariableExit",
+          TOKENS | MEDIA_QUERIES | ENVIRONMENT_VARIABLES
+        ),
       ),
       env_map: VisitorsRef::new(
-        map!("EnvironmentVariable", TOKENS),
-        map!("EnvironmentVariableExit", TOKENS),
+        map!("EnvironmentVariable", TOKENS | MEDIA_QUERIES | ENVIRONMENT_VARIABLES),
+        map!(
+          "EnvironmentVariableExit",
+          TOKENS | MEDIA_QUERIES | ENVIRONMENT_VARIABLES
+        ),
       ),
       visit_custom_ident: get!("CustomIdent", CUSTOM_IDENTS),
       visit_dashed_ident: get!("DashedIdent", DASHED_IDENTS),
@@ -395,6 +405,53 @@ impl<'i> Visitor<'i> for JsVisitor {
     } else {
       media.visit_children(self)
     }
+  }
+
+  fn visit_media_feature_value(&mut self, value: &mut MediaFeatureValue<'i>) {
+    if self.types.contains(VisitTypes::ENVIRONMENT_VARIABLES) && matches!(value, MediaFeatureValue::Env(_)) {
+      let env_map = self.env_map.get::<JsObject>(&self.env);
+      let visit_env = self.visit_env.get::<JsFunction>(&self.env);
+      let call = |stage: VisitStage, value: &mut MediaFeatureValue, env: &Env| -> napi::Result<()> {
+        let env_var = if let MediaFeatureValue::Env(env) = value {
+          env
+        } else {
+          return Ok(());
+        };
+        let visit_type = env_map.named(stage, env_var.name.name());
+        let visit = visit_env.for_stage(stage);
+        let new_value: Option<TokenOrValue> = if let Some(visit) = visit_type.as_ref().or(visit) {
+          let js_value = env.to_js_value(env_var)?;
+          let res = visit.call(None, &[js_value])?;
+          env.from_js_value(res).map(serde_detach::detach)?
+        } else {
+          None
+        };
+
+        match new_value {
+          None => return Ok(()),
+          Some(TokenOrValue::Length(l)) => *value = MediaFeatureValue::Length(Length::Value(l)),
+          Some(TokenOrValue::Resolution(r)) => *value = MediaFeatureValue::Resolution(r),
+          Some(TokenOrValue::Token(Token::Number { value: n, .. })) => *value = MediaFeatureValue::Number(n),
+          Some(TokenOrValue::Token(Token::Ident(ident))) => *value = MediaFeatureValue::Ident(Ident(ident)),
+          // TODO: ratio
+          _ => {
+            return Err(napi::Error::new(
+              napi::Status::InvalidArg,
+              format!("invalid environment value in media query: {:?}", new_value),
+            ))
+          }
+        }
+
+        Ok(())
+      };
+
+      unwrap!(call(VisitStage::Enter, value, &self.env), self.errors);
+      value.visit_children(self);
+      unwrap!(call(VisitStage::Exit, value, &self.env), self.errors);
+      return;
+    }
+
+    value.visit_children(self)
   }
 
   fn visit_supports_condition(&mut self, condition: &mut lightningcss::rules::supports::SupportsCondition<'i>) {

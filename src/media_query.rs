@@ -611,6 +611,7 @@ impl MediaFeatureComparison {
 
 /// A [media feature](https://drafts.csswg.org/mediaqueries/#typedef-media-feature)
 #[derive(Clone, Debug, PartialEq, Visit)]
+#[visit(visit_media_feature, MEDIA_QUERIES)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -818,6 +819,7 @@ where
 ///
 /// See [MediaFeature](MediaFeature).
 #[derive(Clone, Debug, PartialEq, Visit)]
+#[visit(visit_media_feature_value, MEDIA_QUERIES)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

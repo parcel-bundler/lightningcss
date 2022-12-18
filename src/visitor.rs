@@ -52,7 +52,7 @@
 
 use crate::{
   declaration::DeclarationBlock,
-  media_query::{MediaList, MediaQuery},
+  media_query::{MediaFeature, MediaFeatureValue, MediaList, MediaQuery},
   parser::DefaultAtRule,
   properties::{
     custom::{EnvironmentVariable, Function, TokenList, TokenOrValue, Variable},
@@ -233,6 +233,18 @@ pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule>: Sized {
   #[inline]
   fn visit_media_query(&mut self, query: &mut MediaQuery<'i>) {
     query.visit_children(self)
+  }
+
+  /// Visits a media feature.
+  #[inline]
+  fn visit_media_feature(&mut self, feature: &mut MediaFeature<'i>) {
+    feature.visit_children(self)
+  }
+
+  /// Visits a media feature value.
+  #[inline]
+  fn visit_media_feature_value(&mut self, value: &mut MediaFeatureValue<'i>) {
+    value.visit_children(self)
   }
 
   /// Visits a supports condition.

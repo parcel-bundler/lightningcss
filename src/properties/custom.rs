@@ -949,7 +949,7 @@ impl<'i> Variable<'i> {
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct EnvironmentVariable<'i> {
   /// The environment variable name.
-  #[cfg_attr(feature = "serde", serde(borrow, flatten))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: EnvironmentVariableName<'i>,
   /// Optional indices into the dimensions of the environment variable.
   #[cfg_attr(feature = "serde", serde(default))]
@@ -960,20 +960,24 @@ pub struct EnvironmentVariable<'i> {
 
 /// A CSS environment variable name.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(untagged))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", rename_all = "lowercase")
+)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum EnvironmentVariableName<'i> {
   /// A UA-defined environment variable.
   #[cfg_attr(
     feature = "serde",
-    serde(with = "crate::serialization::NameWrapper::<UAEnvironmentVariable>")
+    serde(with = "crate::serialization::ValueWrapper::<UAEnvironmentVariable>")
   )]
   UA(UAEnvironmentVariable),
   /// A custom author-defined environment variable.
   #[cfg_attr(feature = "serde", serde(borrow))]
   Custom(DashedIdentReference<'i>),
   /// An unknown environment variable.
-  #[cfg_attr(feature = "serde", serde(with = "crate::serialization::NameWrapper::<CustomIdent>"))]
+  #[cfg_attr(feature = "serde", serde(with = "crate::serialization::ValueWrapper::<CustomIdent>"))]
   Unknown(CustomIdent<'i>),
 }
 

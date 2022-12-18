@@ -392,20 +392,6 @@ export type Resolution =
  */
 export type Ratio = [number, number];
 /**
- * A CSS environment variable reference.
- */
-export type EnvironmentVariable = EnvironmentVariable1 & {
-  /**
-   * A fallback value in case the variable is not defined.
-   */
-  fallback?: TokenOrValue[] | null;
-  /**
-   * Optional indices into the dimensions of the environment variable.
-   */
-  indices?: number[];
-};
-export type EnvironmentVariable1 = EnvironmentVariable2 & EnvironmentVariable1;
-/**
  * A raw CSS token, or a parsed value.
  */
 export type TokenOrValue =
@@ -431,7 +417,7 @@ export type TokenOrValue =
     }
   | {
       type: "env";
-      value: EnvironmentVariable1;
+      value: EnvironmentVariable;
     }
   | {
       type: "function";
@@ -1004,7 +990,29 @@ export type Time =
       type: "milliseconds";
       value: number;
     };
-export type EnvironmentVariable1 = NameWrapperFor_UAEnvironmentVariable | DashedIdentReference | NameWrapperFor_String;
+/**
+ * A CSS environment variable name.
+ */
+export type EnvironmentVariableName =
+  | {
+      type: "ua";
+      value: UAEnvironmentVariable;
+    }
+  | {
+      /**
+       * CSS modules extension: the filename where the variable is defined. Only enabled when the CSS modules `dashed_idents` option is turned on.
+       */
+      from?: Specifier | null;
+      /**
+       * The referenced identifier.
+       */
+      ident: String;
+      type: "custom";
+    }
+  | {
+      type: "unknown";
+      value: String;
+    };
 /**
  * A UA-defined environment variable name.
  */
@@ -6929,7 +6937,10 @@ export interface LengthValue {
    */
   value: number;
 }
-export interface EnvironmentVariable2 {
+/**
+ * A CSS environment variable reference.
+ */
+export interface EnvironmentVariable {
   /**
    * A fallback value in case the variable is not defined.
    */
@@ -6938,6 +6949,10 @@ export interface EnvironmentVariable2 {
    * Optional indices into the dimensions of the environment variable.
    */
   indices?: number[];
+  /**
+   * The environment variable name.
+   */
+  name: EnvironmentVariableName;
 }
 /**
  * A CSS [url()](https://www.w3.org/TR/css-values-4/#urls) value and its source location.
@@ -6993,12 +7008,6 @@ export interface Function {
   /**
    * The function name.
    */
-  name: String;
-}
-export interface NameWrapperFor_UAEnvironmentVariable {
-  name: UAEnvironmentVariable;
-}
-export interface NameWrapperFor_String {
   name: String;
 }
 /**

@@ -132,6 +132,7 @@ test('design tokens', () => {
 
 test('env function', () => {
   // https://www.npmjs.com/package/postcss-env-function
+  /** @type {Record<string, import('../ast').TokenOrValue>} */
   let tokens = {
     '--branding-small': {
       type: 'length',
@@ -162,13 +163,14 @@ test('env function', () => {
     `),
     visitor: {
       EnvironmentVariable(env) {
-        console.log(env)
-        return tokens[env.name.ident];
+        if (env.name.type === 'custom') {
+          return tokens[env.name.ident];
+        }
       }
     }
   });
 
-  console.log(res.code.toString())
+  assert.equal(res.code.toString(), '@media (max-width:600px){body{padding:20px}}');
 });
 
 test('url', () => {
