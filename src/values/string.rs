@@ -6,6 +6,7 @@ use crate::visitor::{Visit, VisitTypes, Visitor};
 use cssparser::{serialize_string, CowRcStr};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer};
+#[cfg(any(feature = "serde", feature = "nodejs"))]
 use serde::{Serialize, Serializer};
 use std::borrow::Borrow;
 use std::cmp;
@@ -220,6 +221,7 @@ impl<'a> fmt::Debug for CowArcStr<'a> {
   }
 }
 
+#[cfg(any(feature = "nodejs", feature = "serde"))]
 impl<'a> Serialize for CowArcStr<'a> {
   fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
     self.as_ref().serialize(serializer)

@@ -27,16 +27,17 @@ path = "src/lib.rs"
 crate-type = ["rlib"]
 
 [features]
-default = ["bundler", "grid"]
+default = ["bundler", "grid", "nodejs"]
 browserslist = ["browserslist-rs"]
 bundler = ["dashmap", "rayon"]
 cli = ["clap", "serde_json", "browserslist", "jemallocator"]
 grid = []
-serde = ["smallvec/serde", "cssparser/serde"]
+nodejs = ["dep:serde"]
+serde = ["dep:serde", "smallvec/serde", "cssparser/serde"]
 visitor = ["lightningcss-derive"]
 
 [dependencies]
-serde = { version = "1.0.123", features = ["derive"] }
+serde = { version = "1.0.123", features = ["derive"], optional = true }
 cssparser = "0.29.1"
 parcel_selectors = { version = "0.24.9", path = "./selectors" }
 itertools = "0.10.1"

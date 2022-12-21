@@ -16,6 +16,7 @@ use crate::values::url::Url;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::SourceLocation;
+#[cfg(any(feature = "serde", feature = "nodejs"))]
 use serde::Serialize;
 
 /// Options for `analyze_dependencies` in `PrinterOptions`.
@@ -26,8 +27,9 @@ pub struct DependencyOptions {
 }
 
 /// A dependency.
-#[derive(Serialize, Debug)]
-#[serde(tag = "type", rename_all = "lowercase")]
+#[derive(Debug)]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(Serialize))]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(tag = "type", rename_all = "lowercase"))]
 pub enum Dependency {
   /// An `@import` dependency.
   Import(ImportDependency),
@@ -36,7 +38,8 @@ pub enum Dependency {
 }
 
 /// An `@import` dependency.
-#[derive(Serialize, Debug)]
+#[derive(Debug)]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(Serialize))]
 pub struct ImportDependency {
   /// The url to import.
   pub url: String,
@@ -88,7 +91,8 @@ impl ImportDependency {
 }
 
 /// A `url()` dependency.
-#[derive(Serialize, Debug)]
+#[derive(Debug)]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(Serialize))]
 pub struct UrlDependency {
   /// The url of the dependency.
   pub url: String,
@@ -111,8 +115,9 @@ impl UrlDependency {
 }
 
 /// Represents the range of source code where a dependency was found.
-#[derive(Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug)]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(Serialize))]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(rename_all = "camelCase"))]
 pub struct SourceRange {
   /// The filename in which the dependency was found.
   pub file_path: String,
@@ -123,9 +128,10 @@ pub struct SourceRange {
 }
 
 /// A line and column position within a source file.
-#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(serde::Serialize))]
+#[cfg_attr(any(feature = "serde"), derive(serde::Deserialize))]
 pub struct Location {
   /// The line number, starting from 1.
   pub line: u32,
