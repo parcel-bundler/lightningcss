@@ -16,7 +16,7 @@ use cssparser::*;
 /// A value for the [list-style-type](https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#text-markers) property.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "with-serde",
+  feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -24,7 +24,7 @@ pub enum ListStyleType<'i> {
   /// No marker.
   None,
   /// An explicit marker string.
-  #[cfg_attr(feature = "with-serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   String(CSSString<'i>),
   /// A named counter style.
   CounterStyle(CounterStyle<'i>),
@@ -67,7 +67,7 @@ impl ToCss for ListStyleType<'_> {
 /// A [counter-style](https://www.w3.org/TR/css-counter-styles-3/#typedef-counter-style) name.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "with-serde",
+  feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -79,7 +79,7 @@ pub enum CounterStyle<'i> {
   /// An inline [`symbols()`](https://www.w3.org/TR/css-counter-styles-3/#symbols-function) definition.
   Symbols(
     SymbolsType,
-    #[cfg_attr(feature = "with-serde", serde(borrow))] Vec<Symbol<'i>>,
+    #[cfg_attr(feature = "serde", serde(borrow))] Vec<Symbol<'i>>,
   ),
 }
 
@@ -232,13 +232,13 @@ enum_property! {
 /// See [CounterStyle](CounterStyle).
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "with-serde",
+  feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 pub enum Symbol<'i> {
   /// A string.
-  #[cfg_attr(feature = "with-serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   String(CSSString<'i>),
   /// An image.
   Image(Image<'i>),
@@ -296,7 +296,7 @@ shorthand_property! {
   /// A value for the [list-style](https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#list-style-property) shorthand property.
   pub struct ListStyle<'i> {
     /// The list style type.
-    #[cfg_attr(feature = "with-serde", serde(borrow))]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     list_style_type: ListStyleType(ListStyleType<'i>),
     /// The list marker image.
     image: ListStyleImage(Image<'i>),

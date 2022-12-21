@@ -14,7 +14,7 @@ use cssparser::*;
 /// used in the `fill` and `stroke` properties.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "with-serde",
+  feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -24,7 +24,7 @@ pub enum SVGPaint<'i> {
   /// A URL reference to a paint server element, e.g. `linearGradient`, `radialGradient`, and `pattern`.
   /// The fallback is used in case the paint server cannot be resolved.
   Url(
-    #[cfg_attr(feature = "with-serde", serde(borrow))] Url<'i>,
+    #[cfg_attr(feature = "serde", serde(borrow))] Url<'i>,
     Option<SVGPaintFallback>,
   ),
   /// A solid color paint.
@@ -40,7 +40,7 @@ pub enum SVGPaint<'i> {
 /// See [SVGPaint](SVGPaint).
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "with-serde",
+  feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -168,7 +168,7 @@ enum_property! {
 /// A value for the [stroke-dasharray](https://www.w3.org/TR/SVG2/painting.html#StrokeDashing) property.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "with-serde",
+  feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -230,7 +230,7 @@ impl ToCss for StrokeDasharray {
 /// A value for the [marker](https://www.w3.org/TR/SVG2/painting.html#VertexMarkerProperties) properties.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "with-serde",
+  feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -238,7 +238,7 @@ pub enum Marker<'i> {
   /// No marker.
   None,
   /// A url reference to a `<marker>` element.
-  #[cfg_attr(feature = "with-serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   Url(Url<'i>),
 }
 

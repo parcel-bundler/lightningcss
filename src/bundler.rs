@@ -144,7 +144,7 @@ impl Drop for FileProvider {
 
 /// An error that could occur during bundling.
 #[derive(Debug)]
-#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), derive(serde::Serialize))]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(serde::Serialize))]
 pub enum BundleErrorKind<'i, T: std::error::Error> {
   /// A parser error occurred.
   ParserError(ParserError<'i>),
@@ -155,7 +155,7 @@ pub enum BundleErrorKind<'i, T: std::error::Error> {
   /// Unsupported media query boolean logic was encountered.
   UnsupportedMediaBooleanLogic,
   /// A custom resolver error.
-  ResolverError(#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), serde(skip))] T),
+  ResolverError(#[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] T),
 }
 
 impl<'i, T: std::error::Error> From<Error<ParserError<'i>>> for Error<BundleErrorKind<'i, T>> {

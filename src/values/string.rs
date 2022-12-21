@@ -3,9 +3,9 @@
 use crate::traits::{Parse, ToCss};
 use crate::visitor::{Visit, VisitTypes, Visitor};
 use cssparser::{serialize_string, CowRcStr};
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer};
-#[cfg(any(feature = "with-serde", feature = "nodejs"))]
+#[cfg(any(feature = "serde", feature = "nodejs"))]
 use serde::{Serialize, Serializer};
 use std::borrow::Borrow;
 use std::cmp;
@@ -220,14 +220,14 @@ impl<'a> fmt::Debug for CowArcStr<'a> {
   }
 }
 
-#[cfg(any(feature = "nodejs", feature = "with-serde"))]
+#[cfg(any(feature = "nodejs", feature = "serde"))]
 impl<'a> Serialize for CowArcStr<'a> {
   fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
     self.as_ref().serialize(serializer)
   }
 }
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 impl<'a, 'de: 'a> Deserialize<'de> for CowArcStr<'a> {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
@@ -237,10 +237,10 @@ impl<'a, 'de: 'a> Deserialize<'de> for CowArcStr<'a> {
   }
 }
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 struct CowArcStrVisitor;
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 impl<'de> serde::de::Visitor<'de> for CowArcStrVisitor {
   type Value = CowArcStr<'de>;
 
@@ -277,8 +277,8 @@ impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for CowArcStr<'i
 
 /// A quoted CSS string.
 #[derive(Clone, Eq, Ord, Hash, Debug, Visit)]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct CSSString<'i>(#[cfg_attr(feature = "with-serde", serde(borrow))] pub CowArcStr<'i>);
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CSSString<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CowArcStr<'i>);
 
 impl<'i> Parse<'i> for CSSString<'i> {
   fn parse<'t>(

@@ -18,7 +18,7 @@ use cssparser::*;
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[visit(visit_time, TIMES)]
 #[cfg_attr(
-  feature = "with-serde",
+  feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]

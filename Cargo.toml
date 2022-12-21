@@ -32,8 +32,8 @@ browserslist = ["browserslist-rs"]
 bundler = ["dashmap", "rayon"]
 cli = ["clap", "serde_json", "browserslist", "jemallocator"]
 grid = []
-nodejs = ["serde"]
-with-serde = ["serde", "smallvec/serde", "cssparser/serde"]
+nodejs = ["dep:serde"]
+serde = ["dep:serde", "smallvec/serde", "cssparser/serde"]
 
 [dependencies]
 serde = { version = "1.0.123", features = ["derive"], optional = true }

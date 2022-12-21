@@ -22,11 +22,11 @@ use cssparser::*;
 
 /// A [@keyframes](https://drafts.csswg.org/css-animations/#keyframes) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct KeyframesRule<'i> {
   /// The animation name.
   /// <keyframes-name> = <custom-ident> | <string>
-  #[cfg_attr(feature = "with-serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: KeyframesName<'i>,
   /// A list of keyframes in the animation.
   pub keyframes: Vec<Keyframe<'i>>,
@@ -40,14 +40,14 @@ pub struct KeyframesRule<'i> {
 
 /// KeyframesName
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Visit)]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum KeyframesName<'i> {
   /// `<custom-ident>` of a `@keyframes` name.
-  #[cfg_attr(feature = "with-serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   Ident(CustomIdent<'i>),
 
   /// `<string>` of a `@keyframes` name.
-  #[cfg_attr(feature = "with-serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   Custom(CowArcStr<'i>),
 }
 
@@ -250,7 +250,7 @@ impl<'i> ToCss for KeyframesRule<'i> {
 /// within an `@keyframes` rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
 #[cfg_attr(
-  feature = "with-serde",
+  feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -310,12 +310,12 @@ impl ToCss for KeyframeSelector {
 ///
 /// See [KeyframesRule](KeyframesRule).
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Keyframe<'i> {
   /// A list of keyframe selectors to associate with the declarations in this keyframe.
   pub selectors: Vec<KeyframeSelector>,
   /// The declarations for this keyframe.
-  #[cfg_attr(feature = "with-serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub declarations: DeclarationBlock<'i>,
 }
 

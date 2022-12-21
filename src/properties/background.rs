@@ -20,7 +20,7 @@ use smallvec::SmallVec;
 /// A value for the [background-size](https://www.w3.org/TR/css-backgrounds-3/#background-size) property.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "with-serde",
+  feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -110,7 +110,7 @@ enum_property! {
 
 /// A value for the [background-repeat](https://www.w3.org/TR/css-backgrounds-3/#background-repeat) property.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BackgroundRepeat {
   /// A repeat style for the x direction.
   pub x: BackgroundRepeatKeyword,
@@ -300,10 +300,10 @@ impl ToCss for BackgroundPosition {
 
 /// A value for the [background](https://www.w3.org/TR/css-backgrounds-3/#background) shorthand property.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Background<'i> {
   /// The background image.
-  #[cfg_attr(feature = "with-serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub image: Image<'i>,
   /// The background color.
   pub color: CssColor,

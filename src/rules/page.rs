@@ -16,10 +16,10 @@ use cssparser::*;
 ///
 /// Either a name or at least one pseudo class is required.
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PageSelector<'i> {
   /// An optional named page type.
-  #[cfg_attr(feature = "with-serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: Option<CowArcStr<'i>>,
   /// A list of page pseudo classes.
   pub pseudo_classes: Vec<PagePseudoClass>,
@@ -114,12 +114,12 @@ enum_property! {
 
 /// A [page margin rule](https://www.w3.org/TR/css-page-3/#margin-at-rules) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PageMarginRule<'i> {
   /// The margin box identifier for this rule.
   pub margin_box: PageMarginBox,
   /// The declarations within the rule.
-  #[cfg_attr(feature = "with-serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub declarations: DeclarationBlock<'i>,
   /// The location of the rule in the source file.
   #[skip_visit]
@@ -140,10 +140,10 @@ impl<'i> ToCss for PageMarginRule<'i> {
 
 /// A [@page](https://www.w3.org/TR/css-page-3/#at-page-rule) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PageRule<'i> {
   /// A list of page selectors.
-  #[cfg_attr(feature = "with-serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   #[skip_visit]
   pub selectors: Vec<PageSelector<'i>>,
   /// The declarations within the `@page` rule.

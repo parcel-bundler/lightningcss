@@ -11,7 +11,7 @@ use cssparser::*;
 /// representing the ratio of two numeric values.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[visit(visit_ratio, RATIOS)]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Ratio(pub CSSNumber, pub CSSNumber);
 
 impl<'i> Parse<'i> for Ratio {

@@ -10,13 +10,13 @@ use crate::visitor::Visit;
 
 /// A [@viewport](https://drafts.csswg.org/css-device-adapt/#atviewport-rule) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ViewportRule<'i> {
   /// The vendor prefix for this rule, e.g. `@-ms-viewport`.
   #[skip_visit]
   pub vendor_prefix: VendorPrefix,
   /// The declarations within the `@viewport` rule.
-  #[cfg_attr(feature = "with-serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub declarations: DeclarationBlock<'i>,
   /// The location of the rule in the source file.
   #[skip_visit]

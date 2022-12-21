@@ -1736,7 +1736,7 @@ pub(crate) fn is_unused(
   })
 }
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 pub(crate) fn serialize_selectors<S>(selectors: &SelectorList, s: S) -> Result<S::Ok, S::Error>
 where
   S: serde::Serializer,
@@ -1755,7 +1755,7 @@ where
     .serialize(s)
 }
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 pub(crate) fn deserialize_selectors<'i, 'de: 'i, D>(deserializer: D) -> Result<SelectorList<'i>, D::Error>
 where
   D: serde::Deserializer<'de>,

@@ -19,16 +19,16 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::visitor::Visit;
 use cssparser::*;
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 use crate::selector::{deserialize_selectors, serialize_selectors};
 
 /// A CSS [style rule](https://drafts.csswg.org/css-syntax/#style-rules).
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StyleRule<'i, R = DefaultAtRule> {
   /// The selectors for the style rule.
   #[cfg_attr(
-    feature = "with-serde",
+    feature = "serde",
     serde(
       serialize_with = "serialize_selectors",
       deserialize_with = "deserialize_selectors",
@@ -37,7 +37,7 @@ pub struct StyleRule<'i, R = DefaultAtRule> {
   )]
   pub selectors: SelectorList<'i>,
   /// A vendor prefix override, used during selector printing.
-  #[cfg_attr(feature = "with-serde", serde(skip, default = "VendorPrefix::empty"))]
+  #[cfg_attr(feature = "serde", serde(skip, default = "VendorPrefix::empty"))]
   #[skip_visit]
   pub vendor_prefix: VendorPrefix,
   /// The declarations within the style rule.

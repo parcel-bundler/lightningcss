@@ -21,7 +21,7 @@ use super::time::Time;
 /// values, including lengths, percentages, angles, times, etc.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "with-serde",
+  feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -202,7 +202,7 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
 /// [Time](super::time::Time), and [Angle](super::angle::Angle) support `calc()` expressions.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "with-serde",
+  feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]

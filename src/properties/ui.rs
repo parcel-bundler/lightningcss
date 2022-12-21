@@ -37,10 +37,10 @@ enum_property! {
 ///
 /// See [Cursor](Cursor).
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CursorImage<'i> {
   /// A url to the cursor image.
-  #[cfg_attr(feature = "with-serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub url: Url<'i>,
   /// The location in the image where the mouse pointer appears.
   pub hotspot: Option<(CSSNumber, CSSNumber)>,
@@ -125,10 +125,10 @@ enum_property! {
 
 /// A value for the [cursor](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#cursor) property.
 #[derive(Debug, Clone, PartialEq, Visit)]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Cursor<'i> {
   /// A list of cursor images.
-  #[cfg_attr(feature = "with-serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub images: SmallVec<[CursorImage<'i>; 1]>,
   /// A pre-defined cursor.
   pub keyword: CursorKeyword,
@@ -168,7 +168,7 @@ impl<'i> ToCss for Cursor<'i> {
 /// A value for the [caret-color](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret-color) property.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "with-serde",
+  feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -284,7 +284,7 @@ enum_property! {
 /// A value for the [appearance](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#appearance-switching) property.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "with-serde",
+  feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(rename_all = "kebab-case")
 )]
@@ -306,7 +306,7 @@ pub enum Appearance<'i> {
   SliderHorizontal,
   SquareButton,
   Textarea,
-  NonStandard(#[cfg_attr(feature = "with-serde", serde(borrow))] CowArcStr<'i>),
+  NonStandard(#[cfg_attr(feature = "serde", serde(borrow))] CowArcStr<'i>),
 }
 
 impl<'i> Parse<'i> for Appearance<'i> {

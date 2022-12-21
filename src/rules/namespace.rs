@@ -10,14 +10,14 @@ use crate::visitor::Visit;
 
 /// A [@namespace](https://drafts.csswg.org/css-namespaces/#declaration) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NamespaceRule<'i> {
   /// An optional namespace prefix to declare, or `None` to declare the default namespace.
-  #[cfg_attr(feature = "with-serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   #[skip_visit]
   pub prefix: Option<Ident<'i>>,
   /// The url of the namespace.
-  #[cfg_attr(feature = "with-serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   #[skip_visit]
   pub url: CSSString<'i>,
   /// The location of the rule in the source file.

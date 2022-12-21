@@ -15,7 +15,7 @@ use crate::traits::ToCss;
 use crate::values::url::Url;
 use crate::visitor::Visit;
 use cssparser::SourceLocation;
-#[cfg(any(feature = "with-serde", feature = "nodejs"))]
+#[cfg(any(feature = "serde", feature = "nodejs"))]
 use serde::Serialize;
 
 /// Options for `analyze_dependencies` in `PrinterOptions`.
@@ -27,8 +27,8 @@ pub struct DependencyOptions {
 
 /// A dependency.
 #[derive(Debug)]
-#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), derive(Serialize))]
-#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), serde(tag = "type", rename_all = "lowercase"))]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(Serialize))]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(tag = "type", rename_all = "lowercase"))]
 pub enum Dependency {
   /// An `@import` dependency.
   Import(ImportDependency),
@@ -38,7 +38,7 @@ pub enum Dependency {
 
 /// An `@import` dependency.
 #[derive(Debug)]
-#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), derive(Serialize))]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(Serialize))]
 pub struct ImportDependency {
   /// The url to import.
   pub url: String,
@@ -91,7 +91,7 @@ impl ImportDependency {
 
 /// A `url()` dependency.
 #[derive(Debug)]
-#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), derive(Serialize))]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(Serialize))]
 pub struct UrlDependency {
   /// The url of the dependency.
   pub url: String,
@@ -115,8 +115,8 @@ impl UrlDependency {
 
 /// Represents the range of source code where a dependency was found.
 #[derive(Debug)]
-#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), derive(Serialize))]
-#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), serde(rename_all = "camelCase"))]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(Serialize))]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(rename_all = "camelCase"))]
 pub struct SourceRange {
   /// The filename in which the dependency was found.
   pub file_path: String,
@@ -128,8 +128,8 @@ pub struct SourceRange {
 
 /// A line and column position within a source file.
 #[derive(Debug, Clone, Copy, PartialEq, Visit)]
-#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), derive(serde::Serialize))]
-#[cfg_attr(any(feature = "with-serde"), derive(serde::Deserialize))]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(serde::Serialize))]
+#[cfg_attr(any(feature = "serde"), derive(serde::Deserialize))]
 pub struct Location {
   /// The line number, starting from 1.
   pub line: u32,

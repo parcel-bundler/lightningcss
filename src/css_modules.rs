@@ -14,7 +14,7 @@ use crate::selector::SelectorList;
 use data_encoding::{Encoding, Specification};
 use lazy_static::lazy_static;
 use pathdiff::diff_paths;
-#[cfg(any(feature = "with-serde", feature = "nodejs"))]
+#[cfg(any(feature = "serde", feature = "nodejs"))]
 use serde::Serialize;
 use smallvec::{smallvec, SmallVec};
 use std::borrow::Cow;
@@ -166,8 +166,8 @@ pub enum Segment<'i> {
 ///
 /// See [CssModuleExport](CssModuleExport).
 #[derive(PartialEq, Debug, Clone)]
-#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), derive(Serialize))]
-#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), serde(tag = "type", rename_all = "lowercase"))]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(Serialize))]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(tag = "type", rename_all = "lowercase"))]
 pub enum CssModuleReference {
   /// A local reference.
   Local {
@@ -190,8 +190,8 @@ pub enum CssModuleReference {
 
 /// An exported value from a CSS module.
 #[derive(PartialEq, Debug, Clone)]
-#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), derive(Serialize))]
-#[cfg_attr(any(feature = "with-serde", feature = "nodejs"), serde(rename_all = "camelCase"))]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(Serialize))]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(rename_all = "camelCase"))]
 pub struct CssModuleExport {
   /// The local (compiled) name for this export.
   pub name: String,

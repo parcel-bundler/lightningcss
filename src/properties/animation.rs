@@ -20,7 +20,7 @@ use smallvec::SmallVec;
 /// A value for the [animation-name](https://drafts.csswg.org/css-animations/#animation-name) property.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "with-serde",
+  feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -28,10 +28,10 @@ pub enum AnimationName<'i> {
   /// The `none` keyword.
   None,
   /// An identifier of a `@keyframes` rule.
-  #[cfg_attr(feature = "with-serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   Ident(CustomIdent<'i>),
   /// A `<string>` name of a `@keyframes` rule.
-  #[cfg_attr(feature = "with-serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   String(CowArcStr<'i>),
 }
 
@@ -89,7 +89,7 @@ pub type AnimationNameList<'i> = SmallVec<[AnimationName<'i>; 1]>;
 /// A value for the [animation-iteration-count](https://drafts.csswg.org/css-animations/#animation-iteration-count) property.
 #[derive(Debug, Clone, PartialEq, Visit)]
 #[cfg_attr(
-  feature = "with-serde",
+  feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
@@ -189,7 +189,7 @@ define_list_shorthand! {
   /// A value for the [animation](https://drafts.csswg.org/css-animations/#animation) shorthand property.
   pub struct Animation<'i>(VendorPrefix) {
     /// The animation name.
-    #[cfg_attr(feature = "with-serde", serde(borrow))]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     name: AnimationName(AnimationName<'i>, VendorPrefix),
     /// The animation duration.
     duration: AnimationDuration(Time, VendorPrefix),

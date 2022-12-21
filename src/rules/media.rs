@@ -12,10 +12,10 @@ use crate::visitor::Visit;
 
 /// A [@media](https://drafts.csswg.org/css-conditional-3/#at-media) rule.
 #[derive(Debug, PartialEq, Clone, Visit)]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MediaRule<'i, R = DefaultAtRule> {
   /// The media query list.
-  #[cfg_attr(feature = "with-serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub query: MediaList<'i>,
   /// The rules within the `@media` rule.
   pub rules: CssRuleList<'i, R>,
