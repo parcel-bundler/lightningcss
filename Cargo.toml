@@ -71,6 +71,14 @@ name = "cli_integration_tests"
 path = "tests/cli_integration_tests.rs"
 required-features = ["cli"]
 
+[[example]]
+name = "custom_at_rule"
+required-features = ["visitor"]
+
+[[example]]
+name = "serialize"
+required-features = ["serde"]
+
 [profile.release]
 lto = true
 codegen-units = 1

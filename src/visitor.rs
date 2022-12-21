@@ -242,7 +242,6 @@ pub trait Visit<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> {
   fn visit_children(&mut self, visitor: &mut V);
 }
 
-#[cfg(feature = "visitor")]
 impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Option<U> {
   const CHILD_TYPES: VisitTypes = U::CHILD_TYPES;
 
@@ -259,7 +258,6 @@ impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T,
   }
 }
 
-#[cfg(feature = "visitor")]
 impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Box<U> {
   const CHILD_TYPES: VisitTypes = U::CHILD_TYPES;
 
@@ -272,7 +270,6 @@ impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T,
   }
 }
 
-#[cfg(feature = "visitor")]
 impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Vec<U> {
   const CHILD_TYPES: VisitTypes = U::CHILD_TYPES;
 
@@ -309,7 +306,6 @@ impl<'i, A: smallvec::Array<Item = U>, U: Visit<'i, T, V>, T: Visit<'i, T, V>, V
 
 macro_rules! impl_visit {
   ($t: ty) => {
-    #[cfg(feature = "visitor")]
     impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for $t {
       const CHILD_TYPES: VisitTypes = VisitTypes::empty();
       fn visit_children(&mut self, _: &mut V) {}
