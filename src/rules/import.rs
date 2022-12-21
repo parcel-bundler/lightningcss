@@ -69,10 +69,7 @@ impl<'i> ToCss for ImportRule<'i> {
 
     if let Some(supports) = &self.supports {
       dest.write_str(" supports")?;
-      if matches!(
-        supports,
-        SupportsCondition::Declaration { .. } | SupportsCondition::Parens(_)
-      ) {
+      if matches!(supports, SupportsCondition::Declaration { .. }) {
         supports.to_css(dest)?;
       } else {
         dest.write_char('(')?;

@@ -1051,7 +1051,7 @@ mod tests {
     assert_eq!(
       res,
       indoc! { r#"
-      @supports ((color: red) or (foo: bar)) {
+      @supports (color: red) or (foo: bar) {
         .b {
           color: green;
         }
