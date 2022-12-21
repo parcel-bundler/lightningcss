@@ -2709,7 +2709,7 @@ pub mod tests {
   use super::*;
   use crate::builder::SelectorFlags;
   use crate::parser;
-  use cssparser::{serialize_identifier, Parser as CssParser, ParserInput, ToCss, serialize_string};
+  use cssparser::{serialize_identifier, serialize_string, Parser as CssParser, ParserInput, ToCss};
   use std::collections::HashMap;
   use std::fmt;
 
