@@ -11,6 +11,7 @@ use crate::values::color::CssColor;
 use crate::values::number::CSSNumber;
 use crate::values::string::CowArcStr;
 use crate::values::url::Url;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 use smallvec::SmallVec;
@@ -36,7 +37,8 @@ enum_property! {
 /// A [cursor image](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#cursor) value, used in the `cursor` property.
 ///
 /// See [Cursor](Cursor).
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct CursorImage<'i> {
@@ -125,7 +127,8 @@ enum_property! {
 }
 
 /// A value for the [cursor](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#cursor) property.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Cursor<'i> {
@@ -168,7 +171,8 @@ impl<'i> ToCss for Cursor<'i> {
 }
 
 /// A value for the [caret-color](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret-color) property.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -285,7 +289,8 @@ enum_property! {
 }
 
 /// A value for the [appearance](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#appearance-switching) property.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[allow(missing_docs)]
 pub enum Appearance<'i> {
   None,

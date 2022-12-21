@@ -11,12 +11,14 @@ use crate::traits::{Parse, ToCss};
 use crate::values::size::Size2D;
 use crate::values::string::CowArcStr;
 use crate::values::url::Url;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 use std::fmt::Write;
 
 /// A [@font-face](https://drafts.csswg.org/css-fonts/#font-face-rule) rule.
-#[derive(Debug, PartialEq, Clone, Visit)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct FontFaceRule<'i> {
@@ -24,14 +26,15 @@ pub struct FontFaceRule<'i> {
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub properties: Vec<FontFaceProperty<'i>>,
   /// The location of the rule in the source file.
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 
 /// A property within an `@font-face` rule.
 ///
 /// See [FontFaceRule](FontFaceRule).
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -58,7 +61,8 @@ pub enum FontFaceProperty<'i> {
 
 /// A value for the [src](https://drafts.csswg.org/css-fonts/#src-desc)
 /// property in an `@font-face` rule.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -110,7 +114,8 @@ impl<'i> ToCss for Source<'i> {
 
 /// A `url()` value for the [src](https://drafts.csswg.org/css-fonts/#src-desc)
 /// property in an `@font-face` rule.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct UrlSource<'i> {
@@ -169,7 +174,8 @@ impl<'i> ToCss for UrlSource<'i> {
 /// A font format keyword in the `format()` function of the the
 /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
 /// property of an `@font-face` rule.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -284,7 +290,8 @@ enum_property! {
 /// A contiguous range of Unicode code points.
 ///
 /// Cannot be empty. Can represent a single code point when start == end.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct UnicodeRange {

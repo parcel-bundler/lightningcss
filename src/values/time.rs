@@ -7,6 +7,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::private::AddInternal;
 use crate::traits::{impl_op, Map, Op, Parse, Sign, ToCss, Zero};
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 
@@ -15,8 +16,9 @@ use cssparser::*;
 ///
 /// Time values may be explicit or computed by `calc()`, but are always stored and serialized
 /// as their computed value.
-#[derive(Debug, Clone, PartialEq, Visit)]
-#[visit(visit_time, TIMES)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "visitor", visit(visit_time, TIMES))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

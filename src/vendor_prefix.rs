@@ -5,6 +5,7 @@
 use crate::error::PrinterError;
 use crate::printer::Printer;
 use crate::traits::ToCss;
+#[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
 use bitflags::bitflags;
 
@@ -181,6 +182,7 @@ impl<'de> serde::Deserialize<'de> for VendorPrefix {
   }
 }
 
+#[cfg(feature = "visitor")]
 impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for VendorPrefix {
   const CHILD_TYPES: VisitTypes = VisitTypes::empty();
   fn visit_children(&mut self, _: &mut V) {}

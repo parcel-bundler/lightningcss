@@ -136,6 +136,7 @@ use crate::values::{
   rect::*, shape::FillRule, size::Size2D, time::Time,
 };
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use align::*;
 use animation::*;
@@ -175,7 +176,8 @@ macro_rules! define_properties {
     )+
   ) => {
     /// A CSS property id.
-    #[derive(Debug, Clone, PartialEq, Visit, Eq, Hash)]
+    #[derive(Debug, Clone, PartialEq)]
+    #[cfg_attr(feature = "visitor", derive(Visit))]
     pub enum PropertyId<'i> {
       $(
         #[doc=concat!("The `", $name, "` property.")]
@@ -653,8 +655,8 @@ macro_rules! define_properties {
     }
 
     /// A CSS property.
-    #[derive(Debug, Clone, PartialEq, Visit)]
-    #[visit(visit_property, PROPERTIES)]
+    #[derive(Debug, Clone, PartialEq)]
+    #[cfg_attr(feature = "visitor", derive(Visit), visit(visit_property, PROPERTIES))]
     pub enum Property<'i> {
       $(
         #[doc=concat!("The `", $name, "` property.")]

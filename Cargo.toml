@@ -27,16 +27,18 @@ path = "src/lib.rs"
 crate-type = ["rlib"]
 
 [features]
-default = ["bundler", "grid"]
+default = ["bundler", "grid", "nodejs"]
 browserslist = ["browserslist-rs"]
 bundler = ["dashmap", "rayon"]
 cli = ["clap", "serde_json", "browserslist", "jemallocator"]
 grid = []
-serde = ["smallvec/serde", "cssparser/serde", "parcel_selectors/serde"]
+nodejs = ["dep:serde"]
+serde = ["dep:serde", "smallvec/serde", "cssparser/serde", "parcel_selectors/serde"]
 jsonschema = ["schemars", "serde", "parcel_selectors/jsonschema"]
+visitor = ["lightningcss-derive"]
 
 [dependencies]
-serde = { version = "1.0.123", features = ["derive"] }
+serde = { version = "1.0.123", features = ["derive"], optional = true }
 cssparser = "0.29.1"
 parcel_selectors = { version = "0.24.9", path = "./selectors" }
 itertools = "0.10.1"
@@ -53,7 +55,7 @@ browserslist-rs = { version = "0.7.0", optional = true }
 rayon = { version = "1.5.1", optional = true }
 dashmap = { version = "5.0.0", optional = true }
 serde_json = { version = "1.0.78", optional = true }
-lightningcss-derive = { version = "1.0.0-alpha.35", path = "./derive" }
+lightningcss-derive = { version = "1.0.0-alpha.35", path = "./derive", optional = true }
 schemars = { version = "*", features = ["smallvec"], optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -70,6 +72,14 @@ serde_json = "1"
 name = "cli_integration_tests"
 path = "tests/cli_integration_tests.rs"
 required-features = ["cli"]
+
+[[example]]
+name = "custom_at_rule"
+required-features = ["visitor"]
+
+[[example]]
+name = "serialize"
+required-features = ["serde"]
 
 [profile.release]
 lto = true

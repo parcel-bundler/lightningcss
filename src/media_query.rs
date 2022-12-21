@@ -14,6 +14,7 @@ use crate::values::ident::Ident;
 use crate::values::number::CSSNumber;
 use crate::values::string::CowArcStr;
 use crate::values::{length::Length, ratio::Ratio, resolution::Resolution};
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 use std::collections::{HashMap, HashSet};
@@ -22,8 +23,8 @@ use std::collections::{HashMap, HashSet};
 use crate::serialization::ValueWrapper;
 
 /// A [media query list](https://drafts.csswg.org/mediaqueries/#mq-list).
-#[derive(Clone, Debug, PartialEq, Visit)]
-#[visit(visit_media_list, MEDIA_QUERIES)]
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit), visit(visit_media_list, MEDIA_QUERIES))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -155,7 +156,8 @@ enum_property! {
 }
 
 /// A [media type](https://drafts.csswg.org/mediaqueries/#media-types) within a media query.
-#[derive(Clone, Debug, PartialEq, Visit)]
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -219,8 +221,9 @@ impl<'a> schemars::JsonSchema for MediaType<'a> {
 }
 
 /// A [media query](https://drafts.csswg.org/mediaqueries/#media).
-#[derive(Clone, Debug, PartialEq, Visit)]
-#[visit(visit_media_query, MEDIA_QUERIES)]
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "visitor", visit(visit_media_query, MEDIA_QUERIES))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -408,7 +411,8 @@ enum_property! {
 }
 
 /// Represents a media condition.
-#[derive(Clone, Debug, PartialEq, Visit)]
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -420,11 +424,11 @@ pub enum MediaCondition<'i> {
   #[cfg_attr(feature = "serde", serde(borrow, with = "ValueWrapper::<MediaFeature>"))]
   Feature(MediaFeature<'i>),
   /// A negation of a condition.
-  #[skip_type]
+  #[cfg_attr(feature = "visitor", skip_type)]
   #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Box<MediaCondition>>"))]
   Not(Box<MediaCondition<'i>>),
   /// A set of joint operations.
-  #[skip_type]
+  #[cfg_attr(feature = "visitor", skip_type)]
   Operation {
     /// The operator for the conditions.
     operator: Operator,
@@ -553,7 +557,8 @@ impl<'i> ToCss for MediaCondition<'i> {
 }
 
 /// A [comparator](https://drafts.csswg.org/mediaqueries/#typedef-mf-comparison) within a media query.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Visit)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -610,8 +615,8 @@ impl MediaFeatureComparison {
 }
 
 /// A [media feature](https://drafts.csswg.org/mediaqueries/#typedef-media-feature)
-#[derive(Clone, Debug, PartialEq, Visit)]
-#[visit(visit_media_feature, MEDIA_QUERIES)]
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit), visit(visit_media_feature, MEDIA_QUERIES))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -818,8 +823,8 @@ where
 /// [media feature value](https://drafts.csswg.org/mediaqueries/#typedef-mf-value) within a media query.
 ///
 /// See [MediaFeature](MediaFeature).
-#[derive(Clone, Debug, PartialEq, Visit)]
-#[visit(visit_media_feature_value, MEDIA_QUERIES)]
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit), visit(visit_media_feature_value, MEDIA_QUERIES))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

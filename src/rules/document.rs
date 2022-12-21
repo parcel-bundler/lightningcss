@@ -6,13 +6,15 @@ use crate::error::{MinifyError, PrinterError};
 use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
 use crate::traits::ToCss;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 
 /// A [@-moz-document](https://www.w3.org/TR/2012/WD-css3-conditional-20120911/#at-document) rule.
 ///
 /// Note that only the `url-prefix()` function with no arguments is supported, and only the `-moz` prefix
 /// is allowed since Firefox was the only browser that ever implemented this rule.
-#[derive(Debug, PartialEq, Clone, Visit)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct MozDocumentRule<'i, R = DefaultAtRule> {
@@ -20,7 +22,7 @@ pub struct MozDocumentRule<'i, R = DefaultAtRule> {
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 

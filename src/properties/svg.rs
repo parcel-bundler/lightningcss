@@ -7,12 +7,14 @@ use crate::targets::Browsers;
 use crate::traits::{FallbackValues, Parse, ToCss};
 use crate::values::length::LengthPercentage;
 use crate::values::{color::CssColor, url::Url};
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 
 /// An SVG [`<paint>`](https://www.w3.org/TR/SVG2/painting.html#SpecifyingPaint) value
 /// used in the `fill` and `stroke` properties.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -42,7 +44,8 @@ pub enum SVGPaint<'i> {
 /// A fallback for an SVG paint in case a paint server `url()` cannot be resolved.
 ///
 /// See [SVGPaint](SVGPaint).
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -177,7 +180,8 @@ enum_property! {
 }
 
 /// A value for the [stroke-dasharray](https://www.w3.org/TR/SVG2/painting.html#StrokeDashing) property.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -240,7 +244,8 @@ impl ToCss for StrokeDasharray {
 }
 
 /// A value for the [marker](https://www.w3.org/TR/SVG2/painting.html#VertexMarkerProperties) properties.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

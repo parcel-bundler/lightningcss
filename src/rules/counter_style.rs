@@ -6,10 +6,12 @@ use crate::error::PrinterError;
 use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::values::ident::CustomIdent;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 
 /// A [@counter-style](https://drafts.csswg.org/css-counter-styles/#the-counter-style-rule) rule.
-#[derive(Debug, PartialEq, Clone, Visit)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct CounterStyleRule<'i> {
@@ -20,7 +22,7 @@ pub struct CounterStyleRule<'i> {
   /// Declarations in the `@counter-style` rule.
   pub declarations: DeclarationBlock<'i>,
   /// The location of the rule in the source file.
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 

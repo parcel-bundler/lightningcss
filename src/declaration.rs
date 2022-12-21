@@ -34,6 +34,7 @@ use crate::properties::{Property, PropertyId};
 use crate::targets::Browsers;
 use crate::traits::{PropertyHandler, ToCss};
 use crate::values::string::CowArcStr;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 
@@ -42,8 +43,8 @@ use cssparser::*;
 /// Properties are separated into a list of `!important` declararations,
 /// and a list of normal declarations. This reduces memory usage compared
 /// with storing a boolean along with each property.
-#[derive(Debug, PartialEq, Clone, Visit)]
-#[visit(visit_declaration_block, PROPERTIES)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit), visit(visit_declaration_block, PROPERTIES))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

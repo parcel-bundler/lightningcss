@@ -15,6 +15,7 @@ use crate::printer::Printer;
 use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss, TrySign, Zero};
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 
@@ -22,7 +23,8 @@ use cssparser::*;
 use crate::serialization::ValueWrapper;
 
 /// A CSS [`<gradient>`](https://www.w3.org/TR/css-images-3/#gradients) value.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -215,7 +217,8 @@ impl ToCss for Gradient {
 }
 
 /// A CSS [`linear-gradient()`](https://www.w3.org/TR/css-images-3/#linear-gradients) or `repeating-linear-gradient()`.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -326,7 +329,8 @@ impl LinearGradient {
 }
 
 /// A CSS [`radial-gradient()`](https://www.w3.org/TR/css-images-3/#radial-gradients) or `repeating-radial-gradient()`.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -409,7 +413,8 @@ impl RadialGradient {
 /// The direction of a CSS `linear-gradient()`.
 ///
 /// See [LinearGradient](LinearGradient).
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -517,7 +522,8 @@ impl LineDirection {
 /// A `radial-gradient()` [ending shape](https://www.w3.org/TR/css-images-3/#valdef-radial-gradient-ending-shape).
 ///
 /// See [RadialGradient](RadialGradient).
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -567,7 +573,8 @@ impl ToCss for EndingShape {
 /// A circle ending shape for a `radial-gradient()`.
 ///
 /// See [RadialGradient](RadialGradient).
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -635,7 +642,8 @@ impl ToCss for Circle {
 /// An ellipse ending shape for a `radial-gradient()`.
 ///
 /// See [RadialGradient](RadialGradient).
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -726,7 +734,8 @@ enum_property! {
 }
 
 /// A CSS [`conic-gradient()`](https://www.w3.org/TR/css-images-4/#conic-gradients) or `repeating-conic-gradient()`.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct ConicGradient {
@@ -805,7 +814,8 @@ impl ConicGradient {
 ///
 /// This type is generic, and may be either a [LengthPercentage](super::length::LengthPercentage)
 /// or [Angle](super::angle::Angle) depending on what type of gradient it is within.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct ColorStop<D> {
@@ -841,7 +851,8 @@ impl<D: ToCss> ToCss for ColorStop<D> {
 ///
 /// This type is generic, and items may be either a [LengthPercentage](super::length::LengthPercentage)
 /// or [Angle](super::angle::Angle) depending on what type of gradient it is within.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -993,7 +1004,8 @@ where
 }
 
 /// A legacy `-webkit-gradient()`.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -1138,7 +1150,8 @@ impl WebKitGradient {
 }
 
 /// A color stop within a legacy `-webkit-gradient()`.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct WebKitColorStop {
@@ -1200,7 +1213,8 @@ impl WebKitColorStop {
 }
 
 /// An x/y position within a legacy `-webkit-gradient()`.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct WebKitGradientPoint {
@@ -1230,7 +1244,8 @@ impl ToCss for WebKitGradientPoint {
 }
 
 /// A keyword or number within a [WebKitGradientPoint](WebKitGradientPoint).
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

@@ -8,9 +8,11 @@ use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
 use crate::rules::{StyleContext, ToCssWithContext};
 use crate::traits::ToCss;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 /// A [@nest](https://www.w3.org/TR/css-nesting-1/#at-nest) rule.
-#[derive(Debug, PartialEq, Clone, Visit)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct NestingRule<'i, R = DefaultAtRule> {
@@ -18,7 +20,7 @@ pub struct NestingRule<'i, R = DefaultAtRule> {
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub style: StyleRule<'i, R>,
   /// The location of the rule in the source file.
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 

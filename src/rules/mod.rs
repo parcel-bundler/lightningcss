@@ -72,6 +72,7 @@ use crate::targets::Browsers;
 use crate::traits::ToCss;
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
 use container::ContainerRule;
 use counter_style::CounterStyleRule;
@@ -85,7 +86,6 @@ use media::MediaRule;
 use namespace::NamespaceRule;
 use nesting::NestingRule;
 use page::PageRule;
-use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use style::StyleRule;
 use supports::SupportsRule;
@@ -108,7 +108,8 @@ pub(crate) struct StyleContext<'a, 'i, T> {
 }
 
 /// A source location.
-#[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(serde::Serialize))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Location {
@@ -122,8 +123,9 @@ pub struct Location {
 }
 
 /// A CSS rule.
-#[derive(Debug, PartialEq, Clone, Visit)]
-#[visit(visit_rule, RULES)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "visitor", visit(visit_rule, RULES))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize),
@@ -394,6 +396,7 @@ pub struct CssRuleList<'i, R = DefaultAtRule>(
 );
 
 // Manually implemented to avoid circular child types.
+#[cfg(feature = "visitor")]
 impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for CssRuleList<'i, T> {
   const CHILD_TYPES: VisitTypes = VisitTypes::all();
 

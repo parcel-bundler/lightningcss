@@ -12,6 +12,7 @@ use crate::traits::{Parse, ToCss};
 use crate::values::ident::Ident;
 use crate::values::string::CSSString;
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
 use crate::{macros::enum_property, values::string::CowArcStr};
 use cssparser::*;
@@ -1822,6 +1823,7 @@ pub(crate) fn is_unused(
   })
 }
 
+#[cfg(feature = "visitor")]
 impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for SelectorList<'i> {
   const CHILD_TYPES: VisitTypes = VisitTypes::SELECTORS;
 
@@ -1840,6 +1842,7 @@ impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for SelectorList
   }
 }
 
+#[cfg(feature = "visitor")]
 impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for Selector<'i> {
   const CHILD_TYPES: VisitTypes = VisitTypes::SELECTORS;
 

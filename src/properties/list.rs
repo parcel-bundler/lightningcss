@@ -10,11 +10,13 @@ use crate::targets::Browsers;
 use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::string::CSSString;
 use crate::values::{ident::CustomIdent, image::Image};
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 
 /// A value for the [list-style-type](https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#text-markers) property.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -66,7 +68,8 @@ impl ToCss for ListStyleType<'_> {
 }
 
 /// A [counter-style](https://www.w3.org/TR/css-counter-styles-3/#typedef-counter-style) name.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -249,7 +252,8 @@ impl Default for SymbolsType {
 /// `symbols()` function.
 ///
 /// See [CounterStyle](CounterStyle).
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

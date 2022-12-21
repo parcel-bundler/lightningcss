@@ -4,13 +4,15 @@ use super::number::CSSNumber;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 
 /// A CSS [`<ratio>`](https://www.w3.org/TR/css-values-4/#ratios) value,
 /// representing the ratio of two numeric values.
-#[derive(Debug, Clone, PartialEq, Visit)]
-#[visit(visit_ratio, RATIOS)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "visitor", visit(visit_ratio, RATIOS))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Ratio(pub CSSNumber, pub CSSNumber);

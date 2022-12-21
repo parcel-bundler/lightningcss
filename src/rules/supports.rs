@@ -11,6 +11,7 @@ use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 
@@ -18,7 +19,8 @@ use cssparser::*;
 use crate::serialization::ValueWrapper;
 
 /// A [@supports](https://drafts.csswg.org/css-conditional-3/#at-supports) rule.
-#[derive(Debug, PartialEq, Clone, Visit)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct SupportsRule<'i, R = DefaultAtRule> {
@@ -28,7 +30,7 @@ pub struct SupportsRule<'i, R = DefaultAtRule> {
   /// The rules within the `@supports` rule.
   pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 
@@ -71,8 +73,9 @@ impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for SupportsRule<'i, T> {
 
 /// A [`<supports-condition>`](https://drafts.csswg.org/css-conditional-3/#typedef-supports-condition),
 /// as used in the `@supports` and `@import` rules.
-#[derive(Debug, PartialEq, Clone, Visit)]
-#[visit(visit_supports_condition, SUPPORTS_CONDITIONS)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "visitor", visit(visit_supports_condition, SUPPORTS_CONDITIONS))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -81,15 +84,15 @@ impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for SupportsRule<'i, T> {
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum SupportsCondition<'i> {
   /// A `not` expression.
-  #[skip_type]
+  #[cfg_attr(feature = "visitor", skip_type)]
   #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Box<SupportsCondition>>"))]
   Not(Box<SupportsCondition<'i>>),
   /// An `and` expression.
-  #[skip_type]
+  #[cfg_attr(feature = "visitor", skip_type)]
   #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Vec<SupportsCondition>>"))]
   And(Vec<SupportsCondition<'i>>),
   /// An `or` expression.
-  #[skip_type]
+  #[cfg_attr(feature = "visitor", skip_type)]
   #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Vec<SupportsCondition>>"))]
   Or(Vec<SupportsCondition<'i>>),
   /// A declaration to evaluate.
@@ -105,7 +108,7 @@ pub enum SupportsCondition<'i> {
   Selector(CowArcStr<'i>),
   // FontTechnology()
   /// A parenthesized expression.
-  #[skip_type]
+  #[cfg_attr(feature = "visitor", skip_type)]
   #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Box<SupportsCondition>>"))]
   Parens(Box<SupportsCondition<'i>>),
   /// An unknown condition.

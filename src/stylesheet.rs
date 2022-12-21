@@ -14,6 +14,7 @@ use crate::printer::Printer;
 use crate::rules::{CssRule, CssRuleList, MinifyContext};
 use crate::targets::Browsers;
 use crate::traits::ToCss;
+#[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
 use cssparser::{AtRuleParser, Parser, ParserInput, RuleListParser};
 use parcel_sourcemap::SourceMap;
@@ -266,6 +267,7 @@ where
   }
 }
 
+#[cfg(feature = "visitor")]
 impl<'i, 'o, T, V> Visit<'i, T::AtRule, V> for StyleSheet<'i, 'o, T>
 where
   T: AtRuleParser<'i>,
@@ -304,11 +306,11 @@ where
 /// let res = style.to_css(PrinterOptions::default()).unwrap();
 /// assert_eq!(res.code, "color: #ff0; font-family: Helvetica");
 /// ```
-#[derive(Visit)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 pub struct StyleAttribute<'i> {
   /// The declarations in the style attribute.
   pub declarations: DeclarationBlock<'i>,
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   sources: Vec<String>,
 }
 

@@ -11,10 +11,12 @@ use crate::printer::Printer;
 use crate::rules::{StyleContext, ToCssWithContext};
 use crate::traits::{Parse, ToCss};
 use crate::values::ident::CustomIdent;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 
 /// A [@container](https://drafts.csswg.org/css-contain-3/#container-rule) rule.
-#[derive(Debug, PartialEq, Clone, Visit)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct ContainerRule<'i, R = DefaultAtRule> {
@@ -26,12 +28,13 @@ pub struct ContainerRule<'i, R = DefaultAtRule> {
   /// The rules within the `@container` rule.
   pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 
 /// A [`<container-name>`](https://drafts.csswg.org/css-contain-3/#typedef-container-name) in a `@container` rule.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct ContainerName<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CustomIdent<'i>);

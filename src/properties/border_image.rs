@@ -12,6 +12,7 @@ use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::image::Image;
 use crate::values::number::CSSNumber;
 use crate::values::rect::Rect;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use crate::{
   traits::FallbackValues,
@@ -37,7 +38,8 @@ enum_property! {
 }
 
 /// A value for the [border-image-repeat](https://www.w3.org/TR/css-backgrounds-3/#border-image-repeat) property.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct BorderImageRepeat {
@@ -82,7 +84,8 @@ impl ToCss for BorderImageRepeat {
 }
 
 /// A value for the [border-image-width](https://www.w3.org/TR/css-backgrounds-3/#border-image-width) property.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -137,7 +140,8 @@ impl ToCss for BorderImageSideWidth {
 }
 
 /// A value for the [border-image-slice](https://www.w3.org/TR/css-backgrounds-3/#border-image-slice) property.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct BorderImageSlice {

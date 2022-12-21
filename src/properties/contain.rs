@@ -5,6 +5,8 @@
 use cssparser::*;
 use smallvec::SmallVec;
 
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use crate::{
   context::PropertyHandlerContext,
   declaration::{DeclarationBlock, DeclarationList},
@@ -15,7 +17,6 @@ use crate::{
   rules::container::ContainerName as ContainerIdent,
   targets::Browsers,
   traits::{Parse, PropertyHandler, Shorthand, ToCss},
-  visitor::Visit,
 };
 
 enum_property! {
@@ -39,7 +40,8 @@ impl Default for ContainerType {
 }
 
 /// A value for the [container-name](https://drafts.csswg.org/css-contain-3/#container-name) property.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

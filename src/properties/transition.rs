@@ -13,6 +13,7 @@ use crate::targets::Browsers;
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::{easing::EasingFunction, time::Time};
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 use itertools::izip;

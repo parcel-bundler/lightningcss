@@ -13,6 +13,7 @@ use crate::values::ident::CustomIdent;
 use crate::values::length::serialize_dimension;
 use crate::values::number::{CSSInteger, CSSNumber};
 use crate::values::{ident::CustomIdentList, length::LengthPercentage};
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use bitflags::bitflags;
 use cssparser::*;
@@ -23,7 +24,8 @@ use crate::serialization::ValueWrapper;
 
 /// A [track sizing](https://drafts.csswg.org/css-grid-2/#track-sizing) value
 /// for the `grid-template-rows` and `grid-template-columns` properties.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -42,7 +44,8 @@ pub enum TrackSizing<'i> {
 /// as used in the `grid-template-rows` and `grid-template-columns` properties.
 ///
 /// See [TrackSizing](TrackSizing).
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -60,7 +63,8 @@ pub struct TrackList<'i> {
 /// Either a track size or `repeat()` function.
 ///
 /// See [TrackList](TrackList).
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -79,7 +83,8 @@ pub enum TrackListItem<'i> {
 /// as used in the `grid-template-rows` and `grid-template-columns` properties.
 ///
 /// See [TrackListItem](TrackListItem).
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -110,7 +115,8 @@ impl Default for TrackSize {
 
 /// A [track size list](https://drafts.csswg.org/css-grid-2/#auto-tracks), as used
 /// in the `grid-auto-rows` and `grid-auto-columns` properties.
-#[derive(Debug, Clone, PartialEq, Default, Visit)]
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct TrackSizeList(pub SmallVec<[TrackSize; 1]>);
@@ -118,7 +124,8 @@ pub struct TrackSizeList(pub SmallVec<[TrackSize; 1]>);
 /// A [`<track-breadth>`](https://drafts.csswg.org/css-grid-2/#typedef-track-breadth) value.
 ///
 /// See [TrackSize](TrackSize).
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -142,7 +149,8 @@ pub enum TrackBreadth {
 /// representing the `repeat()` function in a track list.
 ///
 /// See [TrackListItem](TrackListItem).
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -163,7 +171,8 @@ pub struct TrackRepeat<'i> {
 /// used in the `repeat()` function.
 ///
 /// See [TrackRepeat](TrackRepeat).
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -567,7 +576,8 @@ impl ToCss for TrackSizeList {
 }
 
 /// A value for the [grid-template-areas](https://drafts.csswg.org/css-grid-2/#grid-template-areas-property) property.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -737,7 +747,8 @@ impl GridTemplateAreas {
 /// A value for the [grid-template](https://drafts.csswg.org/css-grid-2/#explicit-grid-shorthand) shorthand property.
 ///
 /// If `areas` is not `None`, then `rows` must also not be `None`.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct GridTemplate<'i> {
@@ -967,7 +978,7 @@ bitflags! {
   ///
   /// The `Row` or `Column` flags may be combined with the `Dense` flag, but the `Row` and `Column` flags may
   /// not be combined.
-  #[derive(Visit)]
+  #[cfg_attr(feature = "visitor", derive(Visit))]
   #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(from = "SerializedGridAutoFlow", into = "SerializedGridAutoFlow"))]
   pub struct GridAutoFlow: u8 {
     /// The auto-placement algorithm places items by filling each row, adding new rows as necessary.
@@ -1129,7 +1140,8 @@ impl ToCss for GridAutoFlow {
 /// A value for the [grid](https://drafts.csswg.org/css-grid-2/#grid-shorthand) shorthand property.
 ///
 /// Explicit and implicit values may not be combined.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -1316,7 +1328,8 @@ impl_shorthand! {
 
 /// A [`<grid-line>`](https://drafts.csswg.org/css-grid-2/#typedef-grid-row-start-grid-line) value,
 /// used in the `grid-row-start`, `grid-row-end`, `grid-column-start`, and `grid-column-end` properties.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

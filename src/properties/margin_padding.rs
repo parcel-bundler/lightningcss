@@ -8,6 +8,7 @@ use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::{length::LengthPercentageOrAuto, rect::Rect, size::Size2D};
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 

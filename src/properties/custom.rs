@@ -23,6 +23,7 @@ use crate::values::string::CowArcStr;
 use crate::values::time::Time;
 use crate::values::url::Url;
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 
@@ -30,7 +31,8 @@ use cssparser::*;
 use crate::serialization::ValueWrapper;
 
 /// A CSS custom property, representing any unknown property.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct CustomProperty<'i> {
@@ -60,7 +62,8 @@ impl<'i> CustomProperty<'i> {
 /// This type is used when the value of a known property could not
 /// be parsed, e.g. in the case css `var()` references are encountered.
 /// In this case, the raw tokens are stored instead.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -109,16 +112,15 @@ impl<'i> UnparsedProperty<'i> {
 }
 
 /// A raw list of CSS tokens, with embedded parsed values.
-#[derive(Debug, Clone, PartialEq, Visit)]
-#[visit(visit_token_list, TOKENS)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit), visit(visit_token_list, TOKENS))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct TokenList<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub Vec<TokenOrValue<'i>>);
 
 /// A raw CSS token, or a parsed value.
-#[derive(Debug, Clone, PartialEq, Visit)]
-#[visit(visit_token, TOKENS)]
-#[visit_types(TOKENS | COLORS | URLS | VARIABLES | FUNCTIONS | LENGTHS | ANGLES | TIMES | RESOLUTIONS | DASHED_IDENTS)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit), visit(visit_token, TOKENS), visit_types(TOKENS | COLORS | URLS | VARIABLES | FUNCTIONS | LENGTHS | ANGLES | TIMES | RESOLUTIONS | DASHED_IDENTS))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -480,7 +482,8 @@ impl<'i> TokenList<'i> {
 
 /// A raw CSS token.
 // Copied from cssparser to change CowRcStr to CowArcStr
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -892,8 +895,9 @@ impl<'i> TokenList<'i> {
 }
 
 /// A CSS variable reference.
-#[derive(Debug, Clone, PartialEq, Visit)]
-#[visit(visit_variable, VARIABLES)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "visitor", visit(visit_variable, VARIABLES))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Variable<'i> {
@@ -943,8 +947,12 @@ impl<'i> Variable<'i> {
 }
 
 /// A CSS environment variable reference.
-#[derive(Debug, Clone, PartialEq, Visit)]
-#[visit(visit_environment_variable, ENVIRONMENT_VARIABLES)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "visitor",
+  derive(Visit),
+  visit(visit_environment_variable, ENVIRONMENT_VARIABLES)
+)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct EnvironmentVariable<'i> {
@@ -959,7 +967,8 @@ pub struct EnvironmentVariable<'i> {
 }
 
 /// A CSS environment variable name.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -1111,8 +1120,9 @@ impl<'i> EnvironmentVariable<'i> {
 }
 
 /// A custom CSS function.
-#[derive(Debug, Clone, PartialEq, Visit)]
-#[visit(visit_function, FUNCTIONS)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "visitor", visit(visit_function, FUNCTIONS))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Function<'i> {
@@ -1146,7 +1156,8 @@ impl<'i> Function<'i> {
 /// These can be converted from the modern slash syntax to older comma syntax.
 /// This can only be done when the only unresolved component is the alpha
 /// since variables can resolve to multiple tokens.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

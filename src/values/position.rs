@@ -6,6 +6,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss, Zero};
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 
@@ -14,7 +15,8 @@ use crate::serialization::ValueWrapper;
 
 /// A CSS [`<position>`](https://www.w3.org/TR/css3-values/#position) value,
 /// as used in the `background-position` property, gradients, masks, etc.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Position {
@@ -274,7 +276,8 @@ impl ToCss for Position {
 /// along either the horizontal or vertical axis of a box.
 ///
 /// This type is generic over side keywords.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
