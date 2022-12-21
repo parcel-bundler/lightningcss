@@ -1072,10 +1072,6 @@ export type SupportsCondition =
       value: String;
     }
   | {
-      type: "parens";
-      value: SupportsCondition;
-    }
-  | {
       type: "unknown";
       value: String;
     };
