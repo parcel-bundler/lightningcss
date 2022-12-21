@@ -6,6 +6,7 @@ use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 use smallvec::SmallVec;
@@ -80,15 +81,16 @@ impl<'i> ToCss for LayerName<'i> {
 /// A [@layer statement](https://drafts.csswg.org/css-cascade-5/#layer-empty) rule.
 ///
 /// See also [LayerBlockRule](LayerBlockRule).
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LayerStatementRule<'i> {
   /// The layer names to declare.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub names: Vec<LayerName<'i>>,
   /// The location of the rule in the source file.
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 
@@ -105,17 +107,18 @@ impl<'i> ToCss for LayerStatementRule<'i> {
 }
 
 /// A [@layer block](https://drafts.csswg.org/css-cascade-5/#layer-block) rule.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LayerBlockRule<'i, R = DefaultAtRule> {
   /// The name of the layer to declare, or `None` to declare an anonymous layer.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub name: Option<LayerName<'i>>,
   /// The rules within the `@layer` rule.
   pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 

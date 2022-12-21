@@ -16,15 +16,16 @@ use crate::{
   rules::container::ContainerName as ContainerIdent,
   targets::Browsers,
   traits::{Parse, PropertyHandler, Shorthand, ToCss},
-  visitor::Visit,
 };
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 
 bitflags! {
   /// A value for the [container-type](https://drafts.csswg.org/css-contain-3/#container-type) property.
   /// Establishes the element as a query container for the purpose of container queries.
   ///
   /// `normal` is mutually exclusive, but other combinations of flags are allowed.
-  #[derive(Visit)]
+  #[cfg_attr(feature = "visitor", derive(Visit))]
   #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
   pub struct ContainerType: u8 {
     /// The element is not a query container for any container size queries,
@@ -88,7 +89,8 @@ impl ToCss for ContainerType {
 }
 
 /// A value for the [container-name](https://drafts.csswg.org/css-contain-3/#container-name) property.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

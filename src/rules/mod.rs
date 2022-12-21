@@ -72,6 +72,7 @@ use crate::targets::Browsers;
 use crate::traits::ToCss;
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
 use container::ContainerRule;
 use counter_style::CounterStyleRule;
@@ -121,8 +122,9 @@ pub struct Location {
 }
 
 /// A CSS rule.
-#[derive(Debug, PartialEq, Clone, Visit)]
-#[visit(visit_rule, RULES)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "visitor", visit(visit_rule, RULES))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -250,6 +252,7 @@ pub struct CssRuleList<'i, R = DefaultAtRule>(
 );
 
 // Manually implemented to avoid circular child types.
+#[cfg(feature = "visitor")]
 impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for CssRuleList<'i, T> {
   const CHILD_TYPES: VisitTypes = VisitTypes::all();
 

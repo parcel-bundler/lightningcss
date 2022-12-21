@@ -6,12 +6,14 @@ use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use crate::values::ident::{CustomIdent, CustomIdentList};
 use crate::values::string::CowArcStr;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 use smallvec::SmallVec;
 
 /// A value for the [composes](https://github.com/css-modules/css-modules/#dependencies) property from CSS modules.
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Composes<'i> {
   /// A list of class names to compose.
@@ -26,7 +28,8 @@ pub struct Composes<'i> {
 /// Defines where the class names referenced in the `composes` property are located.
 ///
 /// See [Composes](Composes).
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

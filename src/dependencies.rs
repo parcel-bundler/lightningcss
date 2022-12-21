@@ -13,6 +13,7 @@ use crate::printer::PrinterOptions;
 use crate::rules::import::ImportRule;
 use crate::traits::ToCss;
 use crate::values::url::Url;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::SourceLocation;
 #[cfg(any(feature = "serde", feature = "nodejs"))]
@@ -127,7 +128,8 @@ pub struct SourceRange {
 }
 
 /// A line and column position within a source file.
-#[derive(Debug, Clone, Copy, PartialEq, Visit)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(serde::Serialize))]
 #[cfg_attr(any(feature = "serde"), derive(serde::Deserialize))]
 pub struct Location {

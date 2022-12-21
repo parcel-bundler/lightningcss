@@ -136,6 +136,7 @@ use crate::values::{
   rect::*, shape::FillRule, size::Size2D, time::Time,
 };
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use align::*;
 use animation::*;
@@ -175,7 +176,7 @@ macro_rules! define_properties {
     )+
   ) => {
     /// A CSS property id.
-    #[derive(Debug, Clone, PartialEq, Visit)]
+    #[derive(Debug, Clone, PartialEq)] #[cfg_attr(feature = "visitor", derive(Visit))]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     pub enum PropertyId<'i> {
       $(
@@ -493,8 +494,8 @@ macro_rules! define_properties {
     }
 
     /// A CSS property.
-    #[derive(Debug, Clone, PartialEq, Visit)]
-    #[visit(visit_property, PROPERTIES)]
+    #[derive(Debug, Clone, PartialEq)] #[cfg_attr(feature = "visitor", derive(Visit))]
+    #[cfg_attr(feature = "visitor", visit(visit_property, PROPERTIES))]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "serde", serde(tag = "property", content = "value"))]
     pub enum Property<'i> {

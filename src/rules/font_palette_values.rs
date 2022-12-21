@@ -12,11 +12,13 @@ use crate::traits::{Parse, ToCss};
 use crate::values::color::{ColorFallbackKind, CssColor};
 use crate::values::ident::DashedIdent;
 use crate::values::number::CSSInteger;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 
 /// A [@font-palette-values](https://drafts.csswg.org/css-fonts-4/#font-palette-values) rule.
-#[derive(Debug, PartialEq, Clone, Visit)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FontPaletteValuesRule<'i> {
   /// The name of the font palette.
@@ -25,14 +27,15 @@ pub struct FontPaletteValuesRule<'i> {
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub properties: Vec<FontPaletteValuesProperty<'i>>,
   /// The location of the rule in the source file.
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 
 /// A property within an `@font-palette-values` rule.
 ///
 ///  See [FontPaletteValuesRule](FontPaletteValuesRule).
-#[derive(Debug, Clone, PartialEq, Visit)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -52,7 +55,8 @@ pub enum FontPaletteValuesProperty<'i> {
 
 /// A value for the [base-palette](https://drafts.csswg.org/css-fonts-4/#base-palette-desc)
 /// property in an `@font-palette-values` rule.
-#[derive(Debug, PartialEq, Clone, Visit)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -69,7 +73,8 @@ pub enum BasePalette {
 
 /// A value for the [override-colors](https://drafts.csswg.org/css-fonts-4/#override-color)
 /// property in an `@font-palette-values` rule.
-#[derive(Debug, PartialEq, Clone, Visit)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct OverrideColors {
   /// The index of the color within the palette to override.

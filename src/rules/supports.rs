@@ -11,11 +11,13 @@ use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 
 /// A [@supports](https://drafts.csswg.org/css-conditional-3/#at-supports) rule.
-#[derive(Debug, PartialEq, Clone, Visit)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SupportsRule<'i, R = DefaultAtRule> {
   /// The supports condition.
@@ -24,7 +26,7 @@ pub struct SupportsRule<'i, R = DefaultAtRule> {
   /// The rules within the `@supports` rule.
   pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.
-  #[skip_visit]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 
@@ -67,8 +69,9 @@ impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for SupportsRule<'i, T> {
 
 /// A [`<supports-condition>`](https://drafts.csswg.org/css-conditional-3/#typedef-supports-condition),
 /// as used in the `@supports` and `@import` rules.
-#[derive(Debug, PartialEq, Clone, Visit)]
-#[visit(visit_supports_condition, SUPPORTS_CONDITIONS)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "visitor", visit(visit_supports_condition, SUPPORTS_CONDITIONS))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -76,13 +79,13 @@ impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for SupportsRule<'i, T> {
 )]
 pub enum SupportsCondition<'i> {
   /// A `not` expression.
-  #[skip_type]
+  #[cfg_attr(feature = "visitor", skip_type)]
   Not(Box<SupportsCondition<'i>>),
   /// An `and` expression.
-  #[skip_type]
+  #[cfg_attr(feature = "visitor", skip_type)]
   And(Vec<SupportsCondition<'i>>),
   /// An `or` expression.
-  #[skip_type]
+  #[cfg_attr(feature = "visitor", skip_type)]
   Or(Vec<SupportsCondition<'i>>),
   /// A declaration to evaluate.
   Declaration {
@@ -96,7 +99,7 @@ pub enum SupportsCondition<'i> {
   Selector(CowArcStr<'i>),
   // FontTechnology()
   /// A parenthesized expression.
-  #[skip_type]
+  #[cfg_attr(feature = "visitor", skip_type)]
   Parens(Box<SupportsCondition<'i>>),
   /// An unknown condition.
   Unknown(CowArcStr<'i>),

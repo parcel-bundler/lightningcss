@@ -18,6 +18,7 @@ use crate::values::{
   percentage::Percentage,
 };
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
 
