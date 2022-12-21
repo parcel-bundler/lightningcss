@@ -98,9 +98,6 @@ pub enum SupportsCondition<'i> {
   /// A selector to evaluate.
   Selector(CowArcStr<'i>),
   // FontTechnology()
-  /// A parenthesized expression.
-  #[cfg_attr(feature = "visitor", skip_type)]
-  Parens(Box<SupportsCondition<'i>>),
   /// An unknown condition.
   Unknown(CowArcStr<'i>),
 }
@@ -113,7 +110,7 @@ impl<'i> SupportsCondition<'i> {
         a.push(b.clone());
       }
     } else if self != b {
-      *self = SupportsCondition::Parens(Box::new(SupportsCondition::And(vec![self.clone(), b.clone()])))
+      *self = SupportsCondition::And(vec![self.clone(), b.clone()])
     }
   }
 
@@ -124,13 +121,13 @@ impl<'i> SupportsCondition<'i> {
         a.push(b.clone());
       }
     } else if self != b {
-      *self = SupportsCondition::Parens(Box::new(SupportsCondition::Or(vec![self.clone(), b.clone()])))
+      *self = SupportsCondition::Or(vec![self.clone(), b.clone()])
     }
   }
 
   fn set_prefixes_for_targets(&mut self, targets: &Browsers) {
     match self {
-      SupportsCondition::Not(cond) | SupportsCondition::Parens(cond) => cond.set_prefixes_for_targets(targets),
+      SupportsCondition::Not(cond) => cond.set_prefixes_for_targets(targets),
       SupportsCondition::And(items) | SupportsCondition::Or(items) => {
         for item in items {
           item.set_prefixes_for_targets(targets);
@@ -226,7 +223,7 @@ impl<'i> SupportsCondition<'i> {
         let res = input.try_parse(|input| {
           input.parse_nested_block(|input| {
             if let Ok(condition) = input.try_parse(SupportsCondition::parse) {
-              return Ok(SupportsCondition::Parens(Box::new(condition)));
+              return Ok(condition);
             }
 
             Self::parse_declaration(input)
@@ -256,6 +253,29 @@ impl<'i> SupportsCondition<'i> {
       value: input.slice_from(pos).into(),
     })
   }
+
+  fn needs_parens(&self, parent: &SupportsCondition) -> bool {
+    match self {
+      SupportsCondition::Not(_) => true,
+      SupportsCondition::And(_) => !matches!(parent, SupportsCondition::And(_)),
+      SupportsCondition::Or(_) => !matches!(parent, SupportsCondition::Or(_)),
+      _ => false,
+    }
+  }
+
+  fn to_css_with_parens_if_needed<W>(&self, dest: &mut Printer<W>, needs_parens: bool) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    if needs_parens {
+      dest.write_char('(')?;
+    }
+    self.to_css(dest)?;
+    if needs_parens {
+      dest.write_char(')')?;
+    }
+    Ok(())
+  }
 }
 
 impl<'i> ToCss for SupportsCondition<'i> {
@@ -266,7 +286,7 @@ impl<'i> ToCss for SupportsCondition<'i> {
     match self {
       SupportsCondition::Not(condition) => {
         dest.write_str("not ")?;
-        condition.to_css(dest)
+        condition.to_css_with_parens_if_needed(dest, condition.needs_parens(self))
       }
       SupportsCondition::And(conditions) => {
         let mut first = true;
@@ -276,7 +296,7 @@ impl<'i> ToCss for SupportsCondition<'i> {
           } else {
             dest.write_str(" and ")?;
           }
-          condition.to_css(dest)?;
+          condition.to_css_with_parens_if_needed(dest, condition.needs_parens(self))?;
         }
         Ok(())
       }
@@ -288,14 +308,9 @@ impl<'i> ToCss for SupportsCondition<'i> {
           } else {
             dest.write_str(" or ")?;
           }
-          condition.to_css(dest)?;
+          condition.to_css_with_parens_if_needed(dest, condition.needs_parens(self))?;
         }
         Ok(())
-      }
-      SupportsCondition::Parens(condition) => {
-        dest.write_char('(')?;
-        condition.to_css(dest)?;
-        dest.write_char(')')
       }
       SupportsCondition::Declaration { property_id, value } => {
         dest.write_char('(')?;

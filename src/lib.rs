@@ -10262,6 +10262,22 @@ mod tests {
     );
     test(
       r#"
+      @supports (((foo: bar) or (bar: baz))) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#,
+      indoc! { r#"
+      @supports (foo: bar) or (bar: baz) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#},
+    );
+    test(
+      r#"
       @supports (foo: bar) and (bar: baz) {
         .test {
           foo: bar;
@@ -10270,6 +10286,54 @@ mod tests {
     "#,
       indoc! { r#"
       @supports (foo: bar) and (bar: baz) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#},
+    );
+    test(
+      r#"
+      @supports (((foo: bar) and (bar: baz))) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#,
+      indoc! { r#"
+      @supports (foo: bar) and (bar: baz) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#},
+    );
+    test(
+      r#"
+      @supports (foo: bar) and (((bar: baz) or (test: foo))) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#,
+      indoc! { r#"
+      @supports (foo: bar) and ((bar: baz) or (test: foo)) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#},
+    );
+    test(
+      r#"
+      @supports not (((foo: bar) and (bar: baz))) {
+        .test {
+          foo: bar;
+        }
+      }
+    "#,
+      indoc! { r#"
+      @supports not ((foo: bar) and (bar: baz)) {
         .test {
           foo: bar;
         }
