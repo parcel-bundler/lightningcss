@@ -97,6 +97,7 @@ pub mod border;
 pub mod border_image;
 pub mod border_radius;
 pub mod box_shadow;
+pub mod columns;
 pub mod contain;
 pub mod css_modules;
 pub mod custom;
@@ -145,6 +146,7 @@ use border::*;
 use border_image::*;
 use border_radius::*;
 use box_shadow::*;
+use columns::*;
 use contain::*;
 use css_modules::*;
 use cssparser::*;
@@ -750,6 +752,11 @@ define_properties! {
   "overflow": Overflow(Overflow) shorthand: true,
   "overflow-x": OverflowX(OverflowKeyword),
   "overflow-y": OverflowY(OverflowKeyword),
+
+  "columns": Columns(Columns) shorthand: true, // columns = <'column-width'> || <'column-count'>
+  "column-width": ColumnWidth(LengthOrAuto), // auto | <length [0,∞]>
+  "column-count": ColumnCount(IntegerOrAuto), // auto | <integer [1,∞]>
+
   "text-overflow": TextOverflow(TextOverflow, VendorPrefix) / O,
 
   // https://www.w3.org/TR/2020/WD-css-position-3-20200519

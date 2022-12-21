@@ -2,7 +2,7 @@
 
 use super::angle::impl_try_from_angle;
 use super::calc::{Calc, MathFunction};
-use super::number::CSSNumber;
+use super::number::{CSSInteger, CSSNumber};
 use super::percentage::DimensionPercentage;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
@@ -33,6 +33,100 @@ impl LengthPercentage {
     match self {
       DimensionPercentage::Dimension(d) => d.to_css_unitless(dest),
       _ => self.to_css(dest),
+    }
+  }
+}
+
+/// Either a [`<integer>`](https://www.w3.org/TR/css-values-4/#integers), or the `auto` keyword.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
+pub enum IntegerOrAuto {
+  /// The `auto` keyword.
+  Auto,
+  /// A `<integer>` value.
+  Integer(CSSInteger),
+}
+
+impl Default for IntegerOrAuto {
+  fn default() -> Self {
+    IntegerOrAuto::Auto
+  }
+}
+
+impl<'i> Parse<'i> for IntegerOrAuto {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if input.try_parse(|i| i.expect_ident_matching("auto")).is_ok() {
+      return Ok(IntegerOrAuto::Auto);
+    }
+
+    if let Ok(integer) = input.try_parse(CSSInteger::parse) {
+      return Ok(IntegerOrAuto::Integer(integer));
+    }
+
+    Err(input.new_error_for_next_token())
+  }
+}
+
+impl ToCss for IntegerOrAuto {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    use IntegerOrAuto::*;
+    match self {
+      Auto => dest.write_str("auto"),
+      Integer(integer) => integer.to_css(dest),
+    }
+  }
+}
+
+/// Either a [`<length>`](https://www.w3.org/TR/css-values-4/#lengths), or the `auto` keyword.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
+pub enum LengthOrAuto {
+  /// The `auto` keyword.
+  Auto,
+  /// A [`<length>`](https://www.w3.org/TR/css-values-4/#typedef-length-percentage) value.
+  Length(Length),
+}
+
+impl Default for LengthOrAuto {
+  fn default() -> Self {
+    LengthOrAuto::Auto
+  }
+}
+
+impl<'i> Parse<'i> for LengthOrAuto {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if input.try_parse(|i| i.expect_ident_matching("auto")).is_ok() {
+      return Ok(LengthOrAuto::Auto);
+    }
+
+    if let Ok(percent) = input.try_parse(|input| Length::parse(input)) {
+      return Ok(LengthOrAuto::Length(percent));
+    }
+
+    Err(input.new_error_for_next_token())
+  }
+}
+
+impl ToCss for LengthOrAuto {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    use LengthOrAuto::*;
+    match self {
+      Auto => dest.write_str("auto"),
+      Length(l) => l.to_css(dest),
     }
   }
 }
@@ -104,6 +198,10 @@ macro_rules! define_length_units {
         $(#[$meta])*
         $name(CSSNumber),
       )+
+
+      /// A [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) value
+      /// without a unit specified.
+      Unitless(CSSNumber),
     }
 
     impl<'i> Parse<'i> for LengthValue {
@@ -121,7 +219,7 @@ macro_rules! define_length_units {
           },
           Token::Number { value, .. } => {
             // TODO: quirks mode only?
-            Ok(LengthValue::Px(value))
+            Ok(LengthValue::Unitless(value))
           }
           ref token => return Err(location.new_unexpected_token_error(token.clone())),
         }
@@ -153,6 +251,9 @@ macro_rules! define_length_units {
           $(
             LengthValue::$name(value) => (*value, const_str::convert_ascii_case!(lower, stringify!($name))),
           )+
+
+          // TODO: only works in quirks mode?
+          LengthValue::Unitless(value) => (*value, "px"),
         }
       }
     }
@@ -184,6 +285,8 @@ macro_rules! define_length_units {
           $(
             $name(value) => $name(value * other),
           )+
+
+          Unitless(value) => Unitless(value * other),
         }
       }
     }
@@ -247,6 +350,8 @@ macro_rules! define_length_units {
           $(
             $name(value) => $name(op(*value)),
           )+
+
+          Unitless(value) => Unitless(op(*value)),
         }
       }
     }
@@ -258,6 +363,8 @@ macro_rules! define_length_units {
           $(
             $name(value) => value.sign(),
           )+
+
+          Unitless(value) => value.sign(),
         }
       }
     }
@@ -273,6 +380,8 @@ macro_rules! define_length_units {
           $(
             $name(value) => value.is_zero(),
           )+
+
+          Unitless(value) => value.is_zero(),
         }
       }
     }
@@ -420,12 +529,15 @@ impl ToCss for LengthValue {
 }
 
 impl LengthValue {
+  // TODO(CGQAQ): This should be removed eventually.
+  //              cause we already have IntegerValue
   pub(crate) fn to_css_unitless<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
   {
     match self {
       LengthValue::Px(value) => value.to_css(dest),
+      LengthValue::Unitless(value) => value.to_css(dest),
       _ => self.to_css(dest),
     }
   }
