@@ -306,6 +306,12 @@ export interface TransformAttributeOptions {
    * omitted from the output code.
    */
   errorRecovery?: boolean,
+  /**
+   * An AST visitor object. This allows custom transforms or analysis to be implemented in JavaScript.
+   * Multiple visitors can be composed into one using the `composeVisitors` function.
+   * For optimal performance, visitors should be as specific as possible about what types of values
+   * they care about so that JavaScript has to be called as little as possible.
+   */
   visitor?: Visitor
 }
 
