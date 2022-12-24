@@ -90,7 +90,7 @@ test('different properties', () => {
     `),
     visitor: composeVisitors([
       {
-        Property: {
+        Declaration: {
           custom: {
             size(v) {
               return [
@@ -102,7 +102,7 @@ test('different properties', () => {
         }
       },
       {
-        Property: {
+        Declaration: {
           custom: {
             bg(v) {
               if (v.value[0].type === 'color') {
@@ -122,7 +122,7 @@ test('composed properties', () => {
   /** @type {import('../index').Visitor[]} */
   let visitors = [
     {
-      Property: {
+      Declaration: {
         custom: {
           size(v) {
             if (v.value[0].type === 'length') {
@@ -136,7 +136,7 @@ test('composed properties', () => {
       }
     },
     {
-      Property: {
+      Declaration: {
         width() {
           return [];
         }
@@ -173,7 +173,7 @@ test('same properties', () => {
     `),
     visitor: composeVisitors([
       {
-        Property: {
+        Declaration: {
           color(v) {
             if (v.property === 'color' && v.value.type === 'rgb') {
               return {
@@ -191,7 +191,7 @@ test('same properties', () => {
         }
       },
       {
-        Property: {
+        Declaration: {
           color(v) {
             if (v.property === 'color' && v.value.type === 'rgb' && v.value.g > 0) {
               v.value.alpha /= 2;
@@ -217,7 +217,7 @@ test('properties plus values', () => {
     `),
     visitor: composeVisitors([
       {
-        Property: {
+        Declaration: {
           custom: {
             size() {
               return [
@@ -258,7 +258,7 @@ test('unparsed properties', () => {
     `),
     visitor: composeVisitors([
       {
-        Property: {
+        Declaration: {
           width(v) {
             if (v.property === 'unparsed') {
               return [
@@ -296,7 +296,7 @@ test('returning unparsed properties', () => {
     `),
     visitor: composeVisitors([
       {
-        Property: {
+        Declaration: {
           width(v) {
             if (v.property === 'unparsed' && v.value.value[0].type === 'token' && v.value.value[0].value.type === 'ident') {
               return {
@@ -318,7 +318,7 @@ test('returning unparsed properties', () => {
         }
       },
       {
-        Property: {
+        Declaration: {
           width(v) {
             if (v.property === 'unparsed') {
               return {
@@ -356,15 +356,46 @@ test('all property handlers', () => {
     `),
     visitor: composeVisitors([
       {
-        Property(property) {
-          if (property.property === 'unparsed' && property.value.propertyId.property === 'width') {
+        Declaration(decl) {
+          if (decl.property === 'unparsed' && decl.value.propertyId.property === 'width') {
             return { property: 'width', value: { type: 'length-percentage', value: { type: 'dimension', value: { unit: 'px', value: 32 } } } };
           }
         }
       },
       {
-        Property(property) {
-          if (property.property === 'unparsed' && property.value.propertyId.property === 'height') {
+        Declaration(decl) {
+          if (decl.property === 'unparsed' && decl.value.propertyId.property === 'height') {
+            return { property: 'height', value: { type: 'length-percentage', value: { type: 'dimension', value: { unit: 'px', value: 32 } } } };
+          }
+        }
+      }
+    ])
+  });
+
+  assert.equal(res.code.toString(), '.foo{width:32px;height:32px}');
+});
+
+test('all property handlers (exit)', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      .foo {
+        width: test;
+        height: test;
+      }
+    `),
+    visitor: composeVisitors([
+      {
+        DeclarationExit(decl) {
+          if (decl.property === 'unparsed' && decl.value.propertyId.property === 'width') {
+            return { property: 'width', value: { type: 'length-percentage', value: { type: 'dimension', value: { unit: 'px', value: 32 } } } };
+          }
+        }
+      },
+      {
+        DeclarationExit(decl) {
+          if (decl.property === 'unparsed' && decl.value.propertyId.property === 'height') {
             return { property: 'height', value: { type: 'length-percentage', value: { type: 'dimension', value: { unit: 'px', value: 32 } } } };
           }
         }

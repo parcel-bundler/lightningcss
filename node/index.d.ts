@@ -1,4 +1,4 @@
-import { Angle, CssColor, CssRuleFor_DefaultAtRule, CustomProperty, EnvironmentVariable, Function, Image, LengthValue, MediaQuery, Property, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable } from './ast';
+import { Angle, CssColor, CssRuleFor_DefaultAtRule, CustomProperty, EnvironmentVariable, Function, Image, LengthValue, MediaQuery, Declaration, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable } from './ast';
 import type { Targets } from './targets';
 
 export interface TransformOptions {
@@ -71,17 +71,17 @@ type RuleVisitors = MappedRuleVisitors & {
 };
 
 type FindProperty<Union, Name> = Union extends { property: Name } ? Union : never;
-type PropertyVisitor<P = Property> = ((property: P) => Property | Property[] | void);
-type MappedPropertyVisitors = {
-  [Name in Exclude<Property['property'], 'unparsed' | 'custom'>]?: PropertyVisitor<FindProperty<Property, Name> | FindProperty<Property, 'unparsed'>>;
+type DeclarationVisitor<P = Declaration> = ((property: P) => Declaration | Declaration[] | void);
+type MappedDeclarationVisitors = {
+  [Name in Exclude<Declaration['property'], 'unparsed' | 'custom'>]?: DeclarationVisitor<FindProperty<Declaration, Name> | FindProperty<Declaration, 'unparsed'>>;
 }
 
 type CustomPropertyVisitors = {
-  [name: string]: PropertyVisitor<CustomProperty>
+  [name: string]: DeclarationVisitor<CustomProperty>
 }
 
-type PropertyVisitors = MappedPropertyVisitors & {
-  custom?: CustomPropertyVisitors | PropertyVisitor<CustomProperty>
+type DeclarationVisitors = MappedDeclarationVisitors & {
+  custom?: CustomPropertyVisitors | DeclarationVisitor<CustomProperty>
 }
 
 type TokenVisitor = (token: Token) => TokenOrValue | TokenOrValue[] | void;
@@ -99,8 +99,8 @@ type EnvironmentVariableVisitors = {
 export interface Visitor {
   Rule?: RuleVisitor | RuleVisitors;
   RuleExit?: RuleVisitor | RuleVisitors;
-  Property?: PropertyVisitor | PropertyVisitors;
-  PropertyExit?: PropertyVisitor | PropertyVisitors;
+  Declaration?: DeclarationVisitor | DeclarationVisitors;
+  DeclarationExit?: DeclarationVisitor | DeclarationVisitors;
   Url?(url: Url): Url | void;
   Color?(color: CssColor): CssColor | void;
   Image?(image: Image): Image | void;

@@ -22,7 +22,7 @@ pub struct JsVisitor {
   visit_rule: VisitorsRef,
   rule_map: VisitorsRef,
   property_map: VisitorsRef,
-  visit_property: VisitorsRef,
+  visit_declaration: VisitorsRef,
   visit_length: Option<Ref<()>>,
   visit_angle: Option<Ref<()>>,
   visit_ratio: Option<Ref<()>>,
@@ -137,7 +137,7 @@ impl Drop for JsVisitor {
 
     drop_tuple!(visit_rule);
     drop_tuple!(rule_map);
-    drop_tuple!(visit_property);
+    drop_tuple!(visit_declaration);
     drop_tuple!(property_map);
     drop!(visit_length);
     drop!(visit_angle);
@@ -193,8 +193,8 @@ impl JsVisitor {
       env,
       visit_rule: VisitorsRef::new(get!("Rule", RULES), get!("RuleExit", RULES)),
       rule_map: VisitorsRef::new(map!("Rule", RULES), get!("RuleExit", RULES)),
-      visit_property: VisitorsRef::new(get!("Property", PROPERTIES), get!("PropertyExit", PROPERTIES)),
-      property_map: VisitorsRef::new(map!("Property", PROPERTIES), map!("PropertyExit", PROPERTIES)),
+      visit_declaration: VisitorsRef::new(get!("Declaration", PROPERTIES), get!("DeclarationExit", PROPERTIES)),
+      property_map: VisitorsRef::new(map!("Declaration", PROPERTIES), map!("DeclarationExit", PROPERTIES)),
       visit_length: get!("Length", LENGTHS),
       visit_angle: get!("Angle", ANGLES),
       visit_ratio: get!("Ratio", RATIOS),
@@ -322,22 +322,22 @@ impl<'i> Visitor<'i> for JsVisitor {
     if self.types.contains(VisitTypes::PROPERTIES) {
       let env = self.env;
       let property_map = self.property_map.get::<JsObject>(&env);
-      let visit_property = self.visit_property.get::<JsFunction>(&env);
+      let visit_declaration = self.visit_declaration.get::<JsFunction>(&env);
       unwrap!(
-        visit_property_list(
+        visit_declaration_list(
           &env,
           &mut decls.important_declarations,
-          &visit_property,
+          &visit_declaration,
           &property_map,
           |property| property.visit_children(self),
         ),
         self.errors
       );
       unwrap!(
-        visit_property_list(
+        visit_declaration_list(
           &env,
           &mut decls.declarations,
-          &visit_property,
+          &visit_declaration,
           &property_map,
           |property| property.visit_children(self),
         ),
@@ -585,10 +585,10 @@ fn visit<V: Serialize + Deserialize<'static>>(
   }
 }
 
-fn visit_property_list<'i, C: FnMut(&mut Property<'i>)>(
+fn visit_declaration_list<'i, C: FnMut(&mut Property<'i>)>(
   env: &Env,
   list: &mut Vec<Property<'i>>,
-  visit_property: &Visitors<JsFunction>,
+  visit_declaration: &Visitors<JsFunction>,
   property_map: &Visitors<JsObject>,
   visit_children: C,
 ) -> napi::Result<()> {
@@ -609,7 +609,7 @@ fn visit_property_list<'i, C: FnMut(&mut Property<'i>)>(
         _ => property_map.named(stage, value.property_id().name()),
       };
 
-      if let Some(visit) = visit.as_ref().or(visit_property.for_stage(stage)) {
+      if let Some(visit) = visit.as_ref().or(visit_declaration.for_stage(stage)) {
         let js_value = env.to_js_value(value)?;
         let res = visit.call(None, &[js_value])?;
         env.from_js_value(res).map(serde_detach::detach)

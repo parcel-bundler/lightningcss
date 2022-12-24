@@ -15,8 +15,8 @@ function composeVisitors(visitors) {
   let res = {};
   composeObjectVisitors(res, visitors, 'Rule', ruleVisitor, wrapUnknownAtRule);
   composeObjectVisitors(res, visitors, 'RuleExit', ruleVisitor, wrapUnknownAtRule);
-  composeObjectVisitors(res, visitors, 'Property', propertyVisitor, wrapCustomProperty);
-  composeObjectVisitors(res, visitors, 'PropertyExit', propertyVisitor, wrapCustomProperty);
+  composeObjectVisitors(res, visitors, 'Declaration', declarationVisitor, wrapCustomProperty);
+  composeObjectVisitors(res, visitors, 'DeclarationExit', declarationVisitor, wrapCustomProperty);
   composeSimpleVisitors(res, visitors, 'Url');
   composeSimpleVisitors(res, visitors, 'Color');
   composeSimpleVisitors(res, visitors, 'Image');
@@ -54,11 +54,10 @@ function wrapCustomProperty(k, f) {
 }
 
 /**
- * @param {Visitor} visitor 
+ * @param {import('./index').Visitor['Rule']} f 
  * @param {import('./ast').CssRuleFor_DefaultAtRule} item 
  */
-function ruleVisitor(visitor, item) {
-  let f = visitor.Rule;
+function ruleVisitor(f, item) {
   if (typeof f === 'object') {
     if (item.type === 'unknown') {
       let v = f.unknown;
@@ -73,11 +72,10 @@ function ruleVisitor(visitor, item) {
 }
 
 /**
- * @param {Visitor} visitor 
- * @param {import('./ast').Property} item 
+ * @param {import('./index').Visitor['Declaration']} f 
+ * @param {import('./ast').Declaration} item 
  */
-function propertyVisitor(visitor, item) {
-  let f = visitor.Property;
+function declarationVisitor(f, item) {
   if (typeof f === 'object') {
     /** @type {string} */
     let name = item.property;
@@ -121,7 +119,15 @@ function extractObjectsOrFunctions(visitors, key) {
   return [values, hasFunction, allKeys];
 }
 
-function composeObjectVisitors(res, visitors, key, getType, wrapKey) {
+/**
+ * @template {keyof Visitor} K
+ * @param {Visitor} res
+ * @param {Visitor[]} visitors
+ * @param {K} key
+ * @param {(visitor: Visitor[K], item: any) => any | any[] | void} apply 
+ * @param {(k: string, f: any) => any} wrapKey 
+ */
+function composeObjectVisitors(res, visitors, key, apply, wrapKey) {
   let [values, hasFunction, allKeys] = extractObjectsOrFunctions(visitors, key);
   if (values.length === 0) {
     return;
@@ -132,10 +138,11 @@ function composeObjectVisitors(res, visitors, key, getType, wrapKey) {
     return;
   }
 
-  let f = createArrayVisitor(visitors, getType);
+  let f = createArrayVisitor(visitors, (visitor, item) => apply(visitor[key], item));
   if (hasFunction) {
     res[key] = f;
   } else {
+    /** @type {any} */
     let v = {};
     for (let k of allKeys) {
       v[k] = wrapKey(k, f);

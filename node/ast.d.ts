@@ -2176,7 +2176,7 @@ export type PropertyId =
     };
 export type Prefix = "none" | "webkit" | "moz" | "ms" | "o";
 export type VendorPrefix = Prefix[];
-export type Property =
+export type Declaration =
   | {
       property: "background-color";
       value: CssColor;
@@ -7061,11 +7061,11 @@ export interface DeclarationBlock {
   /**
    * A list of normal declarations in the block.
    */
-  declarations: Property[];
+  declarations: Declaration[];
   /**
    * A list of `!important` declarations in the block.
    */
-  importantDeclarations: Property[];
+  importantDeclarations: Declaration[];
 }
 /**
  * A CSS [`<position>`](https://www.w3.org/TR/css3-values/#position) value, as used in the `background-position` property, gradients, masks, etc.

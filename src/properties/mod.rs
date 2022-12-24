@@ -1103,7 +1103,7 @@ macro_rules! define_properties {
       }
 
       fn schema_name() -> String {
-        "Property".into()
+        "Declaration".into()
       }
     }
   };

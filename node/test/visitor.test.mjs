@@ -657,7 +657,7 @@ test('hover media query', () => {
 
 test('momentum scrolling', () => {
   // Similar to https://github.com/yunusga/postcss-momentum-scrolling
-  let visitOverflow = property => [property, {
+  let visitOverflow = decl => [decl, {
     property: 'custom',
     value: {
       name: '-webkit-overflow-scrolling',
@@ -680,7 +680,7 @@ test('momentum scrolling', () => {
       }
     `),
     visitor: {
-      Property: {
+      Declaration: {
         overflow: visitOverflow,
         'overflow-x': visitOverflow,
         'overflow-y': visitOverflow
@@ -702,7 +702,7 @@ test('size', () => {
       }
     `),
     visitor: {
-      Property: {
+      Declaration: {
         custom: {
           size(property) {
             if (property.value[0].type === 'length') {
