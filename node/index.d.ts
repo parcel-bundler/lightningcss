@@ -1,4 +1,4 @@
-import type { Angle, CssColor, CssRuleFor_DefaultAtRule, CustomProperty, EnvironmentVariable, Function, Image, LengthValue, MediaQuery, Declaration, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable } from './ast';
+import type { Angle, CssColor, CssRule, CustomProperty, EnvironmentVariable, Function, Image, LengthValue, MediaQuery, Declaration, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable } from './ast';
 import type { Targets } from './targets';
 
 export interface TransformOptions {
@@ -57,9 +57,9 @@ export interface TransformOptions {
 }
 
 type FindByType<Union, Name> = Union extends { type: Name } ? Union : never;
-type RuleVisitor<R = CssRuleFor_DefaultAtRule> = ((rule: R) => CssRuleFor_DefaultAtRule | CssRuleFor_DefaultAtRule[] | void);
+type RuleVisitor<R = CssRule> = ((rule: R) => CssRule | CssRule[] | void);
 type MappedRuleVisitors = {
-  [Name in Exclude<CssRuleFor_DefaultAtRule['type'], 'unknown' | 'custom'>]?: RuleVisitor<FindByType<CssRuleFor_DefaultAtRule, Name>>;
+  [Name in Exclude<CssRule['type'], 'unknown' | 'custom'>]?: RuleVisitor<FindByType<CssRule, Name>>;
 }
 
 type UnknownVisitors = {

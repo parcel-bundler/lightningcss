@@ -18,6 +18,7 @@ use schemars::JsonSchema;
   feature = "jsonschema",
   derive(schemars::JsonSchema),
   schemars(
+    rename = "SelectorComponent",
     bound = "Impl: JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema, PseudoClass: schemars::JsonSchema, PseudoElement: schemars::JsonSchema, VendorPrefix: schemars::JsonSchema"
   )
 )]
@@ -74,6 +75,7 @@ enum Namespace<'i> {
   feature = "jsonschema",
   derive(schemars::JsonSchema),
   schemars(
+    rename = "TSPseudoClass",
     bound = "Impl: JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema, VendorPrefix: schemars::JsonSchema"
   )
 )]
@@ -181,6 +183,7 @@ enum TSPseudoClass<'s, Impl: SelectorImpl<'s>, VendorPrefix> {
   feature = "jsonschema",
   derive(schemars::JsonSchema),
   schemars(
+    rename = "PseudoClass",
     bound = "Impl: JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema, PseudoClass: schemars::JsonSchema, VendorPrefix: schemars::JsonSchema"
   )
 )]
@@ -202,6 +205,7 @@ enum SerializedPseudoClass<'s, Impl: SelectorImpl<'s>, PseudoClass, VendorPrefix
   feature = "jsonschema",
   derive(schemars::JsonSchema),
   schemars(
+    rename = "BuiltinPseudoElement",
     bound = "Impl: JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema"
   )
 )]
@@ -227,6 +231,7 @@ enum BuiltinPseudoElement<'i, 's, Impl: SelectorImpl<'s>> {
   feature = "jsonschema",
   derive(schemars::JsonSchema),
   schemars(
+    rename = "PseudoElement",
     bound = "Impl: JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema, PseudoElement: schemars::JsonSchema"
   )
 )]

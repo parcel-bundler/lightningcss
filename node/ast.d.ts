@@ -8,10 +8,10 @@
 /**
  * A CSS rule.
  */
-export type CssRuleFor_DefaultAtRule =
+export type CssRule =
   | {
       type: "media";
-      value: MediaRuleFor_DefaultAtRule;
+      value: MediaRule;
     }
   | {
       type: "import";
@@ -19,7 +19,7 @@ export type CssRuleFor_DefaultAtRule =
     }
   | {
       type: "style";
-      value: StyleRuleFor_DefaultAtRule;
+      value: StyleRule;
     }
   | {
       type: "keyframes";
@@ -39,7 +39,7 @@ export type CssRuleFor_DefaultAtRule =
     }
   | {
       type: "supports";
-      value: SupportsRuleFor_DefaultAtRule;
+      value: SupportsRule;
     }
   | {
       type: "counter-style";
@@ -51,11 +51,11 @@ export type CssRuleFor_DefaultAtRule =
     }
   | {
       type: "moz-document";
-      value: MozDocumentRuleFor_DefaultAtRule;
+      value: MozDocumentRule;
     }
   | {
       type: "nesting";
-      value: NestingRuleFor_DefaultAtRule;
+      value: NestingRule;
     }
   | {
       type: "viewport";
@@ -71,7 +71,7 @@ export type CssRuleFor_DefaultAtRule =
     }
   | {
       type: "layer-block";
-      value: LayerBlockRuleFor_DefaultAtRule;
+      value: LayerBlockRule;
     }
   | {
       type: "property";
@@ -79,7 +79,7 @@ export type CssRuleFor_DefaultAtRule =
     }
   | {
       type: "container";
-      value: ContainerRuleFor_DefaultAtRule;
+      value: ContainerRule;
     }
   | {
       type: "ignored";
@@ -6028,7 +6028,7 @@ export type ContainerNameList =
  * A CSS custom property name.
  */
 export type CustomPropertyName = String | String;
-export type SerializedComponentFor_SelectorsAnd_PseudoClassAnd_PseudoElementAnd_VendorPrefix =
+export type SelectorComponent =
   | {
       type: "combinator";
       value: Combinator;
@@ -6071,16 +6071,16 @@ export type SerializedComponentFor_SelectorsAnd_PseudoClassAnd_PseudoElementAnd_
     }
   | {
       name: string;
-      namespace?: NamespaceConstraintFor_NamespaceValue | null;
+      namespace?: NamespaceConstraint | null;
       operation?: AttrOperation | null;
       type: "attribute";
     }
   | ({
       type: "pseudo-class";
-    } & (TSPseudoClassFor_SelectorsAnd_VendorPrefix | PseudoClass))
+    } & (TSPseudoClass | PseudoClass))
   | ({
       type: "pseudo-element";
-    } & (BuiltinPseudoElementFor_Selectors | PseudoElement))
+    } & (BuiltinPseudoElement | PseudoElement))
   | {
       type: "nesting";
     };
@@ -6089,7 +6089,7 @@ export type Combinator =
   | "pseudo-element"
   | "slot-assignment"
   | "part";
-export type NamespaceConstraintFor_NamespaceValue =
+export type NamespaceConstraint =
   | {
       type: "any";
     }
@@ -6104,7 +6104,7 @@ export type ParsedCaseSensitivity =
   | "case-sensitive"
   | "ascii-case-insensitive-if-in-html-element-in-html-document";
 export type AttrSelectorOperator = "equal" | "includes" | "dash-match" | "prefix" | "substring" | "suffix";
-export type TSPseudoClassFor_SelectorsAnd_VendorPrefix =
+export type TSPseudoClass =
   | {
       kind: "not";
       selectors: Selector[];
@@ -6389,7 +6389,7 @@ export type WebKitScrollbarPseudoClass =
   | "no-button"
   | "corner-present"
   | "window-inactive";
-export type BuiltinPseudoElementFor_Selectors =
+export type BuiltinPseudoElement =
   | {
       kind: "slotted";
       selector: Selector;
@@ -6454,7 +6454,7 @@ export type PseudoElement =
       | {
           kind: "cue-region-function";
         }
-      | SerializedComponentFor_SelectorsAnd_PseudoClassAnd_PseudoElementAnd_VendorPrefix[]
+      | SelectorComponent[]
     )
   | {
       kind: "custom";
@@ -6485,8 +6485,8 @@ export type WebKitScrollbarPseudoElement =
   | "thumb"
   | "corner"
   | "resizer";
-export type Selector = SerializedComponentFor_SelectorsAnd_PseudoClassAnd_PseudoElementAnd_VendorPrefix[];
-export type SelectorListFor_Selectors = Selector[];
+export type Selector = SelectorComponent[];
+export type SelectorList = Selector[];
 /**
  * A [keyframe selector](https://drafts.csswg.org/css-animations/#typedef-keyframe-selector) within an `@keyframes` rule.
  */
@@ -6857,11 +6857,11 @@ export type DefaultAtRule = null;
  *
  * // Serialize it to a string. let res = stylesheet.to_css(PrinterOptions::default()).unwrap(); assert_eq!(res.code, ".foo, .bar {\n  color: red;\n}\n"); ```
  */
-export interface StyleSheetFor_DefaultAtRuleParser {
+export interface StyleSheetParser {
   /**
    * A list of top-level rules within the style sheet.
    */
-  rules: CssRuleFor_DefaultAtRule[];
+  rules: CssRule[];
   /**
    * The source map URL extracted from the original style sheet.
    */
@@ -6874,7 +6874,7 @@ export interface StyleSheetFor_DefaultAtRuleParser {
 /**
  * A [@media](https://drafts.csswg.org/css-conditional-3/#at-media) rule.
  */
-export interface MediaRuleFor_DefaultAtRule {
+export interface MediaRule {
   /**
    * The location of the rule in the source file.
    */
@@ -6886,7 +6886,7 @@ export interface MediaRuleFor_DefaultAtRule {
   /**
    * The rules within the `@media` rule.
    */
-  rules: CssRuleFor_DefaultAtRule[];
+  rules: CssRule[];
 }
 /**
  * A line and column position within a source file.
@@ -7038,7 +7038,7 @@ export interface ImportRule {
 /**
  * A CSS [style rule](https://drafts.csswg.org/css-syntax/#style-rules).
  */
-export interface StyleRuleFor_DefaultAtRule {
+export interface StyleRule {
   /**
    * The declarations within the style rule.
    */
@@ -7050,11 +7050,11 @@ export interface StyleRuleFor_DefaultAtRule {
   /**
    * Nested rules within the style rule.
    */
-  rules: CssRuleFor_DefaultAtRule[];
+  rules: CssRule[];
   /**
    * The selectors for the style rule.
    */
-  selectors: SelectorListFor_Selectors;
+  selectors: SelectorList;
 }
 /**
  * A CSS declaration block.
@@ -8640,7 +8640,7 @@ export interface PageSelector {
 /**
  * A [@supports](https://drafts.csswg.org/css-conditional-3/#at-supports) rule.
  */
-export interface SupportsRuleFor_DefaultAtRule {
+export interface SupportsRule {
   /**
    * The supports condition.
    */
@@ -8652,7 +8652,7 @@ export interface SupportsRuleFor_DefaultAtRule {
   /**
    * The rules within the `@supports` rule.
    */
-  rules: CssRuleFor_DefaultAtRule[];
+  rules: CssRule[];
 }
 /**
  * A [@counter-style](https://drafts.csswg.org/css-counter-styles/#the-counter-style-rule) rule.
@@ -8693,7 +8693,7 @@ export interface NamespaceRule {
  *
  * Note that only the `url-prefix()` function with no arguments is supported, and only the `-moz` prefix is allowed since Firefox was the only browser that ever implemented this rule.
  */
-export interface MozDocumentRuleFor_DefaultAtRule {
+export interface MozDocumentRule {
   /**
    * The location of the rule in the source file.
    */
@@ -8701,12 +8701,12 @@ export interface MozDocumentRuleFor_DefaultAtRule {
   /**
    * Nested rules within the `@-moz-document` rule.
    */
-  rules: CssRuleFor_DefaultAtRule[];
+  rules: CssRule[];
 }
 /**
  * A [@nest](https://www.w3.org/TR/css-nesting-1/#at-nest) rule.
  */
-export interface NestingRuleFor_DefaultAtRule {
+export interface NestingRule {
   /**
    * The location of the rule in the source file.
    */
@@ -8714,7 +8714,7 @@ export interface NestingRuleFor_DefaultAtRule {
   /**
    * The style rule that defines the selector and declarations for the `@nest` rule.
    */
-  style: StyleRuleFor_DefaultAtRule;
+  style: StyleRule;
 }
 /**
  * A [@viewport](https://drafts.csswg.org/css-device-adapt/#atviewport-rule) rule.
@@ -8768,7 +8768,7 @@ export interface LayerStatementRule {
 /**
  * A [@layer block](https://drafts.csswg.org/css-cascade-5/#layer-block) rule.
  */
-export interface LayerBlockRuleFor_DefaultAtRule {
+export interface LayerBlockRule {
   /**
    * The location of the rule in the source file.
    */
@@ -8780,7 +8780,7 @@ export interface LayerBlockRuleFor_DefaultAtRule {
   /**
    * The rules within the `@layer` rule.
    */
-  rules: CssRuleFor_DefaultAtRule[];
+  rules: CssRule[];
 }
 /**
  * A [@property](https://drafts.css-houdini.org/css-properties-values-api/#at-property-rule) rule.
@@ -8825,7 +8825,7 @@ export interface SyntaxComponent {
 /**
  * A [@container](https://drafts.csswg.org/css-contain-3/#container-rule) rule.
  */
-export interface ContainerRuleFor_DefaultAtRule {
+export interface ContainerRule {
   /**
    * The container condition.
    */
@@ -8841,7 +8841,7 @@ export interface ContainerRuleFor_DefaultAtRule {
   /**
    * The rules within the `@container` rule.
    */
-  rules: CssRuleFor_DefaultAtRule[];
+  rules: CssRule[];
 }
 /**
  * An unknown at-rule, stored as raw tokens.

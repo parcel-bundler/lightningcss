@@ -30,7 +30,11 @@ impl<'i, Impl: SelectorImpl<'i>> AttrSelectorWithOptionalNamespace<'i, Impl> {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", rename_all = "kebab-case")
 )]
-#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(
+  feature = "jsonschema",
+  derive(schemars::JsonSchema),
+  schemars(rename = "NamespaceConstraint")
+)]
 pub enum NamespaceConstraint<NamespaceUrl> {
   Any,
 

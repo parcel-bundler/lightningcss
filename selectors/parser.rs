@@ -355,6 +355,7 @@ pub trait Parser<'i> {
   feature = "jsonschema",
   derive(schemars::JsonSchema),
   schemars(
+    rename = "SelectorList",
     bound = "Impl: schemars::JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema"
   )
 )]

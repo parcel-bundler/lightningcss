@@ -55,7 +55,7 @@ function wrapCustomProperty(k, f) {
 
 /**
  * @param {import('./index').Visitor['Rule']} f 
- * @param {import('./ast').CssRuleFor_DefaultAtRule} item 
+ * @param {import('./ast').CssRule} item 
  */
 function ruleVisitor(f, item) {
   if (typeof f === 'object') {
