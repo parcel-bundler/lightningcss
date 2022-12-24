@@ -305,7 +305,6 @@ mod bundle {
 
   struct VisitMessage {
     stylesheet: &'static mut StyleSheet<'static, 'static>,
-    // visitor: &'static mut JsVisitor,
     tx: Sender<napi::Result<String>>,
   }
 

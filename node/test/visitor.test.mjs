@@ -800,4 +800,27 @@ test('dashed idents', () => {
   assert.equal(res.code.toString(), '.foo{--prefix-foo:#ff0;color:var(--prefix-foo)}');
 });
 
+test('custom idents', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      @keyframes test {
+        from { color: red }
+        to { color: green }
+      }
+      .foo {
+        animation: test;
+      }
+    `),
+    visitor: {
+      CustomIdent(ident) {
+        return `prefix-${ident}`;
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '@keyframes prefix-test{0%{color:red}to{color:green}}.foo{animation:prefix-test}');
+});
+
 test.run();
