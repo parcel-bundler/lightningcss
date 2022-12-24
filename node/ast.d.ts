@@ -8,7 +8,7 @@
 /**
  * A CSS rule.
  */
-export type CssRule =
+export type Rule =
   | {
       type: "media";
       value: MediaRule;
@@ -6861,7 +6861,7 @@ export interface StyleSheetParser {
   /**
    * A list of top-level rules within the style sheet.
    */
-  rules: CssRule[];
+  rules: Rule[];
   /**
    * The source map URL extracted from the original style sheet.
    */
@@ -6886,7 +6886,7 @@ export interface MediaRule {
   /**
    * The rules within the `@media` rule.
    */
-  rules: CssRule[];
+  rules: Rule[];
 }
 /**
  * A line and column position within a source file.
@@ -7050,7 +7050,7 @@ export interface StyleRule {
   /**
    * Nested rules within the style rule.
    */
-  rules: CssRule[];
+  rules: Rule[];
   /**
    * The selectors for the style rule.
    */
@@ -8652,7 +8652,7 @@ export interface SupportsRule {
   /**
    * The rules within the `@supports` rule.
    */
-  rules: CssRule[];
+  rules: Rule[];
 }
 /**
  * A [@counter-style](https://drafts.csswg.org/css-counter-styles/#the-counter-style-rule) rule.
@@ -8701,7 +8701,7 @@ export interface MozDocumentRule {
   /**
    * Nested rules within the `@-moz-document` rule.
    */
-  rules: CssRule[];
+  rules: Rule[];
 }
 /**
  * A [@nest](https://www.w3.org/TR/css-nesting-1/#at-nest) rule.
@@ -8780,7 +8780,7 @@ export interface LayerBlockRule {
   /**
    * The rules within the `@layer` rule.
    */
-  rules: CssRule[];
+  rules: Rule[];
 }
 /**
  * A [@property](https://drafts.css-houdini.org/css-properties-values-api/#at-property-rule) rule.
@@ -8841,7 +8841,7 @@ export interface ContainerRule {
   /**
    * The rules within the `@container` rule.
    */
-  rules: CssRule[];
+  rules: Rule[];
 }
 /**
  * An unknown at-rule, stored as raw tokens.

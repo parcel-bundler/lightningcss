@@ -445,7 +445,7 @@ test('dark theme class', () => {
         media(rule) {
           let q = rule.value.query.mediaQueries[0];
           if (q.condition?.type === 'feature' && q.condition.value.type === 'plain' && q.condition.value.name === 'prefers-color-scheme' && q.condition.value.value.value === 'dark') {
-            /** @type {import('../ast').CssRule[]} */
+            /** @type {import('../ast').Rule[]} */
             let clonedRules = [rule];
             for (let r of rule.value.rules) {
               if (r.type === 'style') {

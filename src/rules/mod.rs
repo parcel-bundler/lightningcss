@@ -131,7 +131,7 @@ pub struct Location {
   derive(serde::Serialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
-#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema), schemars(rename = "Rule"))]
 pub enum CssRule<'i, R = DefaultAtRule> {
   /// A `@media` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
