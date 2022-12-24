@@ -598,7 +598,7 @@ fn visit_declaration_list<'i, C: FnMut(&mut Property<'i>)>(
       // Use a specific property visitor if available, or fall back to Property visitor.
       let visit = match value {
         Property::Custom(v) => {
-          if let Some(visit) = property_map.custom(stage, "custom", &v.name) {
+          if let Some(visit) = property_map.custom(stage, "custom", v.name.as_ref()) {
             let js_value = env.to_js_value(v)?;
             let res = visit.call(None, &[js_value])?;
             return env.from_js_value(res).map(serde_detach::detach);

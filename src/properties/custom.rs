@@ -38,7 +38,7 @@ use crate::serialization::ValueWrapper;
 pub struct CustomProperty<'i> {
   /// The name of the property.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  pub name: CowArcStr<'i>,
+  pub name: CustomPropertyName<'i>,
   /// The property value, stored as a raw token list.
   pub value: TokenList<'i>,
 }
@@ -46,7 +46,7 @@ pub struct CustomProperty<'i> {
 impl<'i> CustomProperty<'i> {
   /// Parses a custom property with the given name.
   pub fn parse<'t, T>(
-    name: CowArcStr<'i>,
+    name: CustomPropertyName<'i>,
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<T>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
@@ -54,6 +54,68 @@ impl<'i> CustomProperty<'i> {
       TokenList::parse(input, options, 0)
     })?;
     Ok(CustomProperty { name, value })
+  }
+}
+
+/// A CSS custom property name.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize), serde(untagged))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub enum CustomPropertyName<'i> {
+  /// An author-defined CSS custom property.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  Custom(DashedIdent<'i>),
+  /// An unknown CSS property.
+  Unknown(Ident<'i>),
+}
+
+impl<'i> From<CowArcStr<'i>> for CustomPropertyName<'i> {
+  fn from(name: CowArcStr<'i>) -> Self {
+    if name.starts_with("--") {
+      CustomPropertyName::Custom(DashedIdent(name))
+    } else {
+      CustomPropertyName::Unknown(Ident(name))
+    }
+  }
+}
+
+impl<'i> From<CowRcStr<'i>> for CustomPropertyName<'i> {
+  fn from(name: CowRcStr<'i>) -> Self {
+    CustomPropertyName::from(CowArcStr::from(name))
+  }
+}
+
+impl<'i> AsRef<str> for CustomPropertyName<'i> {
+  #[inline]
+  fn as_ref(&self) -> &str {
+    match self {
+      CustomPropertyName::Custom(c) => c.as_ref(),
+      CustomPropertyName::Unknown(u) => u.as_ref(),
+    }
+  }
+}
+
+impl<'i> ToCss for CustomPropertyName<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      CustomPropertyName::Custom(c) => c.to_css(dest),
+      CustomPropertyName::Unknown(u) => u.to_css(dest),
+    }
+  }
+}
+
+#[cfg(feature = "serde")]
+impl<'i, 'de: 'i> serde::Deserialize<'de> for CustomPropertyName<'i> {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let name = CowArcStr::deserialize(deserializer)?;
+    Ok(name.into())
   }
 }
 

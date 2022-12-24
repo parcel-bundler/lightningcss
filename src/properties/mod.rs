@@ -187,7 +187,7 @@ macro_rules! define_properties {
       /// The `all` property.
       All,
       /// An unknown or custom property name.
-      Custom(CowArcStr<'i>)
+      Custom(CustomPropertyName<'i>)
     }
 
     macro_rules! vp_name {
@@ -215,7 +215,7 @@ macro_rules! define_properties {
         };
 
         Self::from_name_and_prefix(name_ref, prefix)
-          .unwrap_or_else(|_| PropertyId::Custom(name))
+          .unwrap_or_else(|_| PropertyId::Custom(name.into()))
       }
     }
 
@@ -374,7 +374,7 @@ macro_rules! define_properties {
             $property$((vp_name!($vp, _p)))? => $name,
           )+
           All => "all",
-          Custom(name) => &name
+          Custom(name) => name.as_ref()
         }
       }
 
@@ -561,7 +561,7 @@ macro_rules! define_properties {
             let property = property.ok_or_else(|| serde::de::Error::missing_field("property"))?;
             let vendor_prefix = vendor_prefix.unwrap_or(VendorPrefix::None);
             let property_id = PropertyId::from_name_and_prefix(property.as_ref(), vendor_prefix)
-              .unwrap_or_else(|_| PropertyId::Custom(property));
+              .unwrap_or_else(|_| PropertyId::Custom(property.into()));
             Ok(property_id)
           }
         }
@@ -733,7 +733,7 @@ macro_rules! define_properties {
             unparsed.value.to_css(dest, false)
           }
           Custom(custom) => {
-            custom.value.to_css(dest, custom.name.starts_with("--"))
+            custom.value.to_css(dest, matches!(custom.name, CustomPropertyName::Custom(..)))
           }
         }
       }
@@ -796,13 +796,7 @@ macro_rules! define_properties {
             (unparsed.property_id.name(), prefix)
           },
           Custom(custom) => {
-            // Ensure custom property names are escaped.
-            let name = custom.name.as_ref();
-            if name.starts_with("--") {
-              dest.write_dashed_ident(&name, true)?;
-            } else {
-              serialize_name(&name, dest)?;
-            }
+            custom.name.to_css(dest)?;
             dest.delim(':', false)?;
             self.value_to_css(dest)?;
             write_important!();
@@ -980,7 +974,7 @@ macro_rules! define_properties {
             let vendor_prefix = vendor_prefix.unwrap_or(VendorPrefix::None);
             let value = value.ok_or_else(|| serde::de::Error::missing_field("value"))?;
             let property_id = PropertyId::from_name_and_prefix(property.as_ref(), vendor_prefix)
-              .unwrap_or_else(|_| PropertyId::Custom(property));
+              .unwrap_or_else(|_| PropertyId::Custom(property.into()));
             Ok(PartialProperty {
               property_id,
               content: value,
@@ -1000,7 +994,7 @@ macro_rules! define_properties {
             },
           )+
           PropertyId::Custom(name) => {
-            if name == "unparsed" {
+            if name.as_ref() == "unparsed" {
               let value = UnparsedProperty::deserialize(deserializer)?;
               Ok(Property::Unparsed(value))
             } else {

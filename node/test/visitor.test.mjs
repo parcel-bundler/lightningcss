@@ -780,4 +780,24 @@ test('works with async bundler', async () => {
   assert.equal(res.code.toString(), '.b{height:calc(100vh - 4rem)}.a{width:2rem}');
 });
 
+test('dashed idents', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      .foo {
+        --foo: #ff0;
+        color: var(--foo);
+      }
+    `),
+    visitor: {
+      DashedIdent(ident) {
+        return `--prefix-${ident.slice(2)}`;
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '.foo{--prefix-foo:#ff0;color:var(--prefix-foo)}');
+});
+
 test.run();

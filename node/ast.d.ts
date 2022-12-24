@@ -6024,6 +6024,10 @@ export type ContainerNameList =
       type: "names";
       value: String[];
     };
+/**
+ * A CSS custom property name.
+ */
+export type CustomPropertyName = String | String;
 export type SerializedComponentFor_SelectorsAnd_PseudoClassAnd_PseudoElementAnd_VendorPrefix =
   | {
       type: "combinator";
@@ -8458,7 +8462,7 @@ export interface CustomProperty {
   /**
    * The name of the property.
    */
-  name: String;
+  name: CustomPropertyName;
   /**
    * The property value, stored as a raw token list.
    */
