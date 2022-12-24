@@ -1,6 +1,8 @@
 import type { Angle, CssColor, CssRule, CustomProperty, EnvironmentVariable, Function, Image, LengthValue, MediaQuery, Declaration, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable } from './ast';
 import type { Targets } from './targets';
 
+export * from './ast';
+
 export interface TransformOptions {
   /** The filename being transformed. Used for error messages and source maps. */
   filename: string,
