@@ -186,6 +186,8 @@ main > aside {
   margin-left: 40px;
   border-left: 1px solid lch(90% 50.34 80.104 / .1);
   padding-left: 20px;
+  overflow: auto;
+  max-height: calc(100vh - 80px);
 }
 
 .table-of-contents ul,
