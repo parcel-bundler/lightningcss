@@ -57,6 +57,7 @@ An extremely fast CSS parser, transformer, and minifier written in Rust. Use it 
   - Opt-in support for locally scoped CSS variables and other dashed identifiers.
   - `:local()` and `:global()` selectors
   - The `composes` property
+- **Custom transforms** – The Lightning CSS visitor API can be used to implement custom transform plugins.
 
 ## Documentation
 

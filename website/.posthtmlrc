@@ -1,0 +1,26 @@
+{
+  "plugins": {
+    "posthtml-markdownit": {
+      "markdownit": {
+        "html": true
+      },
+      "plugins": [
+        {
+          "plugin": "markdown-it-anchor"
+        },
+        {
+          "plugin": "markdown-it-table-of-contents",
+          "options": {
+            "includeLevel": [
+              2,
+              3
+            ]
+          }
+        },
+        {
+          "plugin": "markdown-it-prism"
+        }
+      ]
+    }
+  }
+}
