@@ -53,7 +53,7 @@
     "markdown-it-prism": "^2.3.0",
     "markdown-it-table-of-contents": "^0.6.0",
     "node-fetch": "^3.1.0",
-    "parcel": "^2.7.0",
+    "parcel": "^2.8.2",
     "patch-package": "^6.5.0",
     "path-browserify": "^1.0.1",
     "postcss": "^8.3.11",
@@ -61,7 +61,7 @@
     "posthtml-prism": "^1.0.4",
     "process": "^0.11.10",
     "puppeteer": "^12.0.1",
-    "sharp": "^0.29.1",
+    "sharp": "^0.31.1",
     "util": "^0.12.4",
     "uvu": "^0.5.6"
   },

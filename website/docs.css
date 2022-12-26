@@ -215,6 +215,8 @@ nav li {
 nav a {
   color: lch(90% 50.34 80.104);
   text-decoration: none;
+  font-family: urbane-rounded;
+  font-size: 14px;
 }
 
 .table-of-contents a:hover,
@@ -222,7 +224,10 @@ nav a {
 nav a:hover,
 nav a[aria-current] {
   color: var(--gold-text);
-  text-shadow: 0 0 5px var(--gold-text);
+}
+
+a[aria-current] {
+  text-decoration: underline;
 }
 
 @media (width < 1040px) {
