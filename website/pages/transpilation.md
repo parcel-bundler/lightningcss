@@ -108,31 +108,316 @@ becomes:
 
 Lightning CSS automatically compiles many modern CSS syntax features to more compatible output that is supported in your target browsers.
 
-The following features are supported:
+### Color mix
 
-* [Color Level 5](https://drafts.csswg.org/css-color-5/)
-  - [`color-mix()`](https://drafts.csswg.org/css-color-5/#color-mix) function
-  - Relative color syntax, e.g. `lab(from purple calc(l * .8) a b)`
-* [Color Level 4](https://drafts.csswg.org/css-color-4/)
-  - [`lab()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/lab()), [`lch()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/lch()), `oklab()`, and `oklch()` colors
-  - [`color()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/color()) function supporting predefined color spaces such as `display-p3` and `xyz`
-  - [`hwb()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/hwb()) function
-  - Space separated components in `rgb()` and `hsl()` functions
-  - Hex colors with alpha, e.g. `#rgba` and `#rrggbbaa`
-* [Logical properties](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Logical_Properties), e.g. `margin-inline-start`
-* [Media query range syntax](https://developer.mozilla.org/en-US/docs/Web/CSS/Media_Queries/Using_media_queries#syntax_improvements_in_level_4), e.g. `@media (width <= 100px)` or `@media (100px < width < 500px)`
-* Selectors
-  - `:not` and `:lang` with multiple arguments
-  - `:dir`
-  - `:is`
-* `clamp()`, `round()`, `rem()`, `mod()`, `abs()`, and `sign()` [math functions](https://w3c.github.io/csswg-drafts/css-values/#math)
-* `sin()`, `cos()`, `tan()`, `asin()`, `acos()`, `atan()`, and `atan2()` [trigonometric functions](https://w3c.github.io/csswg-drafts/css-values/#trig-funcs)
-* `pow()`, `log()`, `sqrt()`, `exp()`, and `hypot()` [exponential functions](https://w3c.github.io/csswg-drafts/css-values/#exponent-funcs)
-* [Double position gradient stops](https://css-tricks.com/while-you-werent-looking-css-gradients-got-better/) (e.g. `red 40% 80%`)
-* Two-value [`overflow`](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow) shorthand
-* Multi-value [`display`](https://developer.mozilla.org/en-US/docs/Web/CSS/display) property (e.g. `inline flex`)
-* Alignment shorthands, e.g. [`place-items`](https://developer.mozilla.org/en-US/docs/Web/CSS/place-items) and [`place-content`](https://developer.mozilla.org/en-US/docs/Web/CSS/place-content)
-* `system-ui` font family fallbacks
+The [`color-mix()`](https://drafts.csswg.org/css-color-5/#color-mix) function allows you to mix two colors by the specified amount in a certain color space. Lightning CSS will evaluate this function statically when all components are known (i.e. not variables).
+
+```css
+.foo {
+  color: color-mix(in hsl, hsl(120deg 10% 20%) 25%, hsl(30deg 30% 40%));
+}
+```
+
+compiles to:
+
+```css
+.foo {
+  color: #706a43;
+}
+```
+
+### Relative colors
+
+Relative colors allow you to modify the components of a color using math functions. In addition, you can convert colors between color spaces. Lightning CSS performs these calculations statically when all components are known (i.e. not variables).
+
+This example lightens `slateblue` by 10% in the LCH color space.
+
+```css
+.foo {
+  color: lch(from slateblue calc(l + 10%) c h);
+}
+```
+
+compiles to:
+
+```css
+.foo {
+  color: lch(54.5711% 65.7776 296.794);
+}
+```
+
+### LAB colors
+
+Lightning CSS will convert [`lab()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/lab()), [`lch()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/lch()), [`oklab()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/oklab), and [`oklch()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/oklch) colors to fallback values for unsupported browsers when needed. These functions allow you to define colors in higher gamut color spaces, making it possible to use colors that cannot be represented by RGB.
+
+```css
+.foo {
+  color: lab(40% 56.6 39);
+}
+```
+
+compiles to:
+
+```css
+.foo {
+  color: #b32323;
+  color: color(display-p3 .643308 .192455 .167712);
+  color: lab(40% 56.6 39);
+}
+```
+
+As shown above, a `display-p3` fallback is included in addition to RGB when a target browser supports the P3 color space. This preserves high color gamut colors when possible.
+
+### Color function
+
+Lightning CSS converts the [`color()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/color()) function to RGB when needed for compatibility with older browsers. This allows you to use predefined color spaces such as `display-p3`, `xyz`, and `a98-rgb`.
+
+```css
+.foo {
+  color: color(a98-rgb 0.44091 0.49971 0.37408);
+}
+```
+
+compiles to:
+
+```css
+.foo {
+  background-color: #6a805d;
+  background-color: color(a98-rgb .44091 .49971 .37408);
+}
+```
+
+### HWB colors
+
+Lightning CSS converts [`hwb()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/hwb) colors to RGB.
+
+```css
+.foo {
+  color: hwb(194 0% 0%);
+}
+```
+
+compiles to:
+
+```css
+.foo {
+  color: #00c4ff;
+}
+```
+
+### Color notation
+
+Space separated color notation is converted to hex when needed. Hex colors with alpha are also converted to `rgba()` when unsupported by all targets.
+
+```css
+.foo {
+  color: #7bffff80;
+  background: rgb(123 255 255);
+}
+```
+
+compiles to:
+
+```css
+.foo {
+  color: rgba(123, 255, 255, .5);
+  background: #7bffff;
+}
+```
+
+### Logical properties
+
+CSS [logical properties](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Logical_Properties) allow you to define values in terms of writing direction, so that UIs mirror in right-to-left languages. Lightning CSS will compile these to use the `:dir()` selector when unsupported. If the `:dir()` selector is unsupported, it is compiled as described [below](#%3Adir()-selector).
+
+```css
+.foo {
+  border-start-start-radius: 20px
+}
+```
+
+compiles to:
+
+```css
+.foo:dir(ltr) {
+  border-top-left-radius: 20px;
+}
+
+.foo:dir(rtl) {
+  border-top-right-radius: 20px;
+}
+```
+
+
+### :dir() selector
+
+The [`:dir()`](https://developer.mozilla.org/en-US/docs/Web/CSS/:dir) selector matches elements based on the writing direction. Lightning CSS compiles this to use the `:lang()` selector when unsupported, which approximates this behavior as closely as possible.
+
+```css
+a:dir(rtl) {
+  color:red
+}
+```
+
+compiles to:
+
+```css
+a:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi) {
+  color: red;
+}
+```
+
+If multiple arguments to `:lang()` are unsupported, it is compiled as described [below](#%3Alang()-selector).
+
+### :lang() selector
+
+The [`:lang()`](https://developer.mozilla.org/en-US/docs/Web/CSS/:lang) selector matches elements based on their language. Some browsers do not support multiple arguments to this function, so Lightning CSS compiles them to use `:is()` when needed.
+
+```css
+a:lang(en, fr) {
+  color:red
+}
+```
+
+compiles to:
+
+```css
+a:is(:lang(en), :lang(fr)) {
+  color: red;
+}
+```
+
+When the `:is()` selector is unsupported, it is compiled as described [below](#%3Ais()-selector).
+
+### :is() selector
+
+The [`:is()`](https://developer.mozilla.org/en-US/docs/Web/CSS/:is) matches when one of its arguments matches. Lightning CSS falls back to the `:-webkit-any` and `:-moz-any` prefixed selectors.
+
+```css
+p:is(:first-child, .lead) {
+  margin-top: 0;
+}
+```
+
+compiles to:
+
+```css
+p:-webkit-any(:first-child, .lead) {
+  margin-top: 0;
+}
+
+p:-moz-any(:first-child, .lead) {
+  margin-top: 0;
+}
+
+p:is(:first-child, .lead) {
+  margin-top: 0;
+}
+```
+
+<div class="warning">
+
+**Note**: The prefixed versions of these selectors do not support complex selectors (e.g. selectors with combinators). Lightning CSS will only output prefixes if the arguments are simple selectors. Complex selectors in `:is()` are not currently compiled.
+
+</div>
+
+### :not() selector
+
+The [`:not()`](https://developer.mozilla.org/en-US/docs/Web/CSS/:not) selector can accept multiple arguments, and matches if none of the arguments match. Some older browsers only support a single argument, so Lightning CSS compiles this when needed.
+
+```css
+p:not(:first-child, .lead) {
+  margin-top: 1em;
+}
+```
+
+compiles to:
+
+```css
+p:not(:first-child):not(.lead) {
+  margin-top: 1em;
+}
+```
+
+### Math functions
+
+Lightning CSS simplifies [math functions](https://w3c.github.io/csswg-drafts/css-values/#math) including `clamp()`, `round()`, `rem()`, `mod()`, `abs()`, and `sign()`, [trigonometric functions](https://w3c.github.io/csswg-drafts/css-values/#trig-funcs) including `sin()`, `cos()`, `tan()`, `asin()`, `acos()`, `atan()`, and `atan2()`, and [exponential functions](https://w3c.github.io/csswg-drafts/css-values/#exponent-funcs) including `pow()`, `log()`, `sqrt()`, `exp()`, and `hypot()` when all arguments are known (i.e. not variables). In addition, the numeric constants `e`, `pi`, `infinity`, `-infinity`, and `NaN` are supported in all calculations.
+
+```css
+.foo {
+  width: round(calc(100px * sin(pi / 4)), 5px);
+}
+```
+
+compiles to:
+
+```css
+.foo {
+  width: 70px;
+}
+```
+
+### Media query ranges
+
+[Media query range syntax](https://developer.mozilla.org/en-US/docs/Web/CSS/Media_Queries/Using_media_queries#syntax_improvements_in_level_4) allows defining media queries using comparison operators to create ranges and intervals. Lightning CSS compiles this to the corresponding `min` and `max` media features when needed.
+
+```css
+@media (480px <= width <= 768px) {
+  .foo { color: red }
+}
+```
+
+compiles to:
+
+```css
+@media (min-width: 480px) and (max-width: 768px) {
+  .foo { color: red }
+}
+```
+
+### Shorthands
+
+Lightning CSS compiles the following shorthands to corresponding longhands when the shorthand is not supported in all target browsers:
+
+* Alignment shorthands: [place-items](https://developer.mozilla.org/en-US/docs/Web/CSS/place-items), [place-content](https://developer.mozilla.org/en-US/docs/Web/CSS/place-content), [place-self](https://developer.mozilla.org/en-US/docs/Web/CSS/place-self)
+* [Overflow shorthand](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow) with multiple values (e.g. `overflow: hidden auto`)
+* [text-decoration](https://developer.mozilla.org/en-US/docs/Web/CSS/text-decoration) with thickness, style, color, etc.
+* Two value [display](https://developer.mozilla.org/en-US/docs/Web/CSS/display) syntax (e.g. `display: inline flex`)
+
+### Double position gradients
+
+CSS gradients support using two positions in a color stop to repeat the color at two subsequent positions. When unsupported, Lightning CSS compiles it.
+
+```css
+.foo {
+  background: linear-gradient(green, red 30% 40%, pink);
+}
+```
+
+compiles to:
+
+```css
+.foo {
+  background: linear-gradient(green, red 30%, red 40%, pink);
+}
+```
+
+### system-ui font
+
+The `system-ui` font allows you to use the operating system default font. When unsupported, Lightning CSS compiles it to a font stack that works across major platforms.
+
+```css
+.foo {
+  font-family: system-ui;
+}
+```
+
+compiles to:
+
+```css
+.foo {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue;
+}
+```
 
 ## Draft syntax
 
