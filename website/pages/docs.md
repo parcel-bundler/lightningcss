@@ -6,13 +6,17 @@
 
 # Getting Started
 
-Lightning CSS can be used from [Parcel](https://parceljs.org), as a standalone library from JavaScript or Rust, using a standalone CLI, or wrapped as a plugin within any other tool.
+Lightning CSS can be used as a library from JavaScript or Rust, or from a standalone CLI. It can also be wrapped as a plugin in other build tools, and it is the built into [Parcel](https://parceljs.org) out of the box.
 
 ## From Node
 
-See the [TypeScript definitions](https://github.com/parcel-bundler/lightningcss/blob/master/node/index.d.ts) for full API docs.
+First, install Lightning CSS using a package manager such as npm or Yarn.
 
-Here is a simple example that compiles the input CSS for Safari 13.2, and minifies the output.
+```shell
+npm install --save-dev lightningcss
+```
+
+Once installed, import the module and call one of the Lightning CSS APIs. The `transform` function compiles a CSS stylesheet from a [Node Buffer](https://nodejs.org/api/buffer.html). This example minifies the input CSS, and outputs the compiled code and a source map.
 
 ```js
 import { transform } from 'lightningcss';
@@ -21,51 +25,15 @@ let { code, map } = transform({
   filename: 'style.css',
   code: Buffer.from('.foo { color: red }'),
   minify: true,
-  sourceMap: true,
-  targets: {
-    // Semver versions are represented using a single 24-bit number, with one component per byte.
-    // e.g. to represent 13.2.0, the following could be used.
-    safari: (13 << 16) | (2 << 8)
-  }
+  sourceMap: true
 });
 ```
 
-You can also convert the results of running `browserslist` into targets which can be passed to Lightning CSS:
+See [Transpilation](transpilation.html) for details about syntax lowering and vendor prefixing CSS for your browser targets, and the draft syntax support in Lightning CSS.
 
-```js
-import browserslist from 'browserslist';
-import { browserslistToTargets } from 'lightningcss';
+You can also use the `bundle` API to process `@import` rules and inline them. See [Bundling](bundling.html) for details.
 
-let targets = browserslistToTargets(browserslist('>= 0.25%'));
-```
-
-Bundling is also possible by using the `bundle` API. This processes `@import` rules and inlines them. This API requires filesystem access, so it does not accept `code` directly via the API.
-
-```js
-let {code, map} = css.bundle({
-  filename: 'style.css',
-  minify: true
-});
-```
-
-The `bundleAsync` API is an asynchronous version of `bundle`, which also accepts a custom `resolver` object. This allows you to provide custom JavaScript functions for resolving `@import` specifiers to file paths, and reading files from the file system (or another source). The `read` and `resolve` functions are both optional, and may either return a string synchronously, or a Promise for asynchronous resolution.
-
-```js
-let {code, map} = await css.bundleAsync({
-  filename: 'style.css',
-  minify: true,
-  resolver: {
-    read(filePath) {
-      return fs.readFileSync(filePath, 'utf8');
-    },
-    resolve(specifier, from) {
-      return path.resolve(path.dirname(from), specifier);
-    }
-  }
-});
-```
-
-Note that using a custom resolver can slow down bundling significantly, especially when reading files asynchronously. Use `readFileSync` rather than `readFile` if possible for better performance, or omit either of the methods if you don't need to override the default behavior.
+The [TypeScript definitions](https://github.com/parcel-bundler/lightningcss/blob/master/node/index.d.ts) also include documentation for all API options.
 
 ## From Rust
 
@@ -77,7 +45,7 @@ Parcel includes Lightning CSS as the default CSS transformer. You should also ad
 
 While Lightning CSS handles the most commonly used PostCSS plugins like `autoprefixer`, `postcss-preset-env`, and CSS modules, you may still need PostCSS for more custom plugins like TailwindCSS. If that's the case, your PostCSS config will be picked up automatically. You can remove the plugins listed above from your PostCSS config, and they'll be handled by Lightning CSS.
 
-You can also configure Lightning CSS in the `package.json` in the root of your project. Currently, three options are supported: `drafts`, which can be used to enable CSS nesting and custom media queries, `pseudoClasses`, which allows replacing some pseudo classes like `:focus-visible` with normal classes that can be applied via JavaScript (e.g. polyfills), and `cssModules`, which enables CSS modules globally rather than only for files ending in `.module.css`, or accepts an options object.
+You can also configure Lightning CSS in the `package.json` in the root of your project. Currently, three options are supported: [drafts](transpilation.html#draft-syntax), which can be used to enable CSS nesting and custom media queries, [pseudoClasses](transpilation.html#pseudo-class-replacement), which allows replacing some pseudo classes like `:focus-visible` with normal classes that can be applied via JavaScript (e.g. polyfills), and `cssModules`, which enables CSS modules globally rather than only for files ending in `.module.css`, or accepts an options object.
 
 ```json
 {
@@ -101,7 +69,7 @@ See the [Parcel docs](https://parceljs.org/languages/css) for more details.
 The `lightningcss-wasm` package can be used in Deno or directly in browsers. This uses a WebAssembly build of Lightning CSS. Use `TextEncoder` and `TextDecoder` convert code from a string to a typed array and back.
 
 ```js
-import init, {transform} from 'https://unpkg.com/lightningcss-wasm';
+import init, { transform } from 'https://unpkg.com/lightningcss-wasm';
 
 await init();
 
@@ -116,7 +84,61 @@ console.log(new TextDecoder().decode(code));
 
 ## With webpack
 
-css-minimizer-webpack-plugin has builtin support for Lightning CSS. Install Lightning CSS in your project, and configure the plugin as documented [in its README](https://github.com/webpack-contrib/css-minimizer-webpack-plugin#using-custom-minifier-lightningcss-previously-parcelcss).
+[css-minimizer-webpack-plugin](https://webpack.js.org/plugins/css-minimizer-webpack-plugin/) has built in support for Lightning CSS. To use it, first install Lightning CSS in your project with a package manager like npm or Yarn:
+
+```shell
+npm install --save-dev lightningcss css-minimizer-webpack-plugin browserslist
+```
+
+Next, configure `css-minifier-webpack-plugin` to use Lightning CSS as the minifier. You can provide options using the `minimizerOptions` object. See [Transpilation](transpilation.html) for details.
+
+```js
+// webpack.config.js
+const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
+const lightningcss = require('lightningcss');
+const browserslist = require('browserslist');
+
+module.exports = {
+  optimization: {
+    minimize: true,
+    minimizer: [
+      new CssMinimizerPlugin({
+        minify: CssMinimizerPlugin.lightningCssMinify,
+        minimizerOptions: {
+          targets: lightningcss.browserslistToTargets(browserslist('>= 0.25%'))
+        },
+      }),
+    ],
+  },
+};
+```
+
+## With Vite
+
+[vite-plugin-lightningcss](https://github.com/lawrencecchen/vite-plugin-lightningcss) provides support for [transpilation](transpilation.html) using Lightning CSS in Vite.
+
+First, install it into your project:
+
+```shell
+npm install --save-dev vite-plugin-lightningcss
+```
+
+Then, add it to your Vite config. You can pass options to the `lightningcss` plugin, including a `browserslist` config and other options documented in [Transpilation](transpilation.html).
+
+```js
+// vite.config.ts
+import lightningcss from 'vite-plugin-lightningcss';
+
+export default {
+  plugins: [
+    lightningcss({
+      browserslist: '>= 0.25%',
+    }),
+  ],
+};
+```
+
+Note that Vite uses PostCSS and esbuild internally for processing and minifying CSS even with this plugin, but it can still be a good alterntive to PostCSS plugins like autoprefixer and postcss-preset-env.
 
 ## From the CLI
 
@@ -125,7 +147,7 @@ Lightning CSS includes a standalone CLI that can be used to compile, minify, and
 To use the CLI, install the `lightningcss-cli` package with an npm compatible package manager:
 
 ```shell
-npm install lightningcss-cli
+npm install --save-dev lightningcss-cli
 ```
 
 Then, you can run the `lightningcss` command via `npx`, `yarn`, or by setting up a script in your package.json.
@@ -143,3 +165,7 @@ To see all of the available options, use the `--help` argument:
 ```shell
 npx lightningcss --help
 ```
+
+## Error recovery
+
+By default, Lightning CSS is strict, and will error when parsing an invalid rule or declaration. However, sometimes you may encounter a third party library that you can't easily modify, which unintentionally contains invalid syntax, or IE-specific hacks. In these cases, you can enable the `errorRecovery` option (or `--error-recovery` CLI flag). This will skip over invalid rules and declarations, omitting them in the output, and producing a warning instead of an error. You should also open an issue or PR to fix the issue in the library if possible.

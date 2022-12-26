@@ -38,6 +38,35 @@ let targets = {
 };
 ```
 
+### CLI
+
+When using the CLI, targets can be provided by passing a [browserslist](https://browserslist.dev) query to the `--targets` option. Alternatively, if the `--browserslist` option is provided, then `lightningcss` finds browserslist configuration, selects queries by environment and loads the resulting queries as targets.
+
+Configuration discovery and targets resolution is modeled after the original `browserslist` Node package. The configuration is resolved in the following order:
+
+- If a `BROWSERSLIST` environment variable is present, then load targets from its value.
+- If a `BROWSERSLIST_CONFIG` environment variable is present, then load the browserslist configuration from the file at the provided path.
+- If none of the above apply, then find, parse and use targets from the first `browserslist`, `.browserslistrc`, or `package.json` configuration file in any parent directory.
+
+Browserslist configuration files may contain sections denoted by square brackets. Use these to specify different targets for different environments. Targets which are not placed in a section are added to `defaults` and used if no section matches the environment.
+
+```ini
+# Defaults, applied when no other section matches the provided environment.
+firefox ESR
+
+# Targets applied only to the staging environment.
+[staging]
+samsung >= 4
+```
+
+When using parsed configuration from `browserslist`, `.browserslistrc`, or `package.json` configuration files, the environment is determined by:
+
+- the `BROWSERSLIST_ENV` environment variable if present
+- the `NODE_ENV` environment variable if present
+- otherwise `"production"` is used.
+
+If no targets are found for the resulting environment, then the `defaults` configuration section is used.
+
 ## Vendor prefixing
 
 Based on your configured browser targets, Lightning CSS automatically adds vendor prefixed fallbacks for many CSS features. For example, when using the [`image-set()`](https://developer.mozilla.org/en-US/docs/Web/CSS/image/image-set()) function, Lightning CSS will output a fallback `-webkit-image-set()` value as well, since Chrome does not yet support the unprefixed value.
