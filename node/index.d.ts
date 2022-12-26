@@ -1,4 +1,7 @@
+import type { Angle, CssColor, Rule, CustomProperty, EnvironmentVariable, Function, Image, LengthValue, MediaQuery, Declaration, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable } from './ast';
 import type { Targets } from './targets';
+
+export * from './ast';
 
 export interface TransformOptions {
   /** The filename being transformed. Used for error messages and source maps. */
@@ -45,7 +48,84 @@ export interface TransformOptions {
    * When enabled, warnings are returned, and the invalid rule or declaration is
    * omitted from the output code.
    */
-  errorRecovery?: boolean
+  errorRecovery?: boolean,
+  /**
+   * An AST visitor object. This allows custom transforms or analysis to be implemented in JavaScript.
+   * Multiple visitors can be composed into one using the `composeVisitors` function.
+   * For optimal performance, visitors should be as specific as possible about what types of values
+   * they care about so that JavaScript has to be called as little as possible.
+   */
+  visitor?: Visitor
+}
+
+type FindByType<Union, Name> = Union extends { type: Name } ? Union : never;
+type RuleVisitor<R = Rule> = ((rule: R) => Rule | Rule[] | void);
+type MappedRuleVisitors = {
+  [Name in Exclude<Rule['type'], 'unknown' | 'custom'>]?: RuleVisitor<FindByType<Rule, Name>>;
+}
+
+type UnknownVisitors = {
+  [name: string]: RuleVisitor<UnknownAtRule>
+}
+
+type RuleVisitors = MappedRuleVisitors & {
+  unknown?: UnknownVisitors | RuleVisitor<UnknownAtRule>
+};
+
+type FindProperty<Union, Name> = Union extends { property: Name } ? Union : never;
+type DeclarationVisitor<P = Declaration> = ((property: P) => Declaration | Declaration[] | void);
+type MappedDeclarationVisitors = {
+  [Name in Exclude<Declaration['property'], 'unparsed' | 'custom'>]?: DeclarationVisitor<FindProperty<Declaration, Name> | FindProperty<Declaration, 'unparsed'>>;
+}
+
+type CustomPropertyVisitors = {
+  [name: string]: DeclarationVisitor<CustomProperty>
+}
+
+type DeclarationVisitors = MappedDeclarationVisitors & {
+  custom?: CustomPropertyVisitors | DeclarationVisitor<CustomProperty>
+}
+
+type TokenVisitor = (token: Token) => TokenOrValue | TokenOrValue[] | void;
+type VisitableTokenTypes = 'ident' | 'at-keyword' | 'hash' | 'id-hash' | 'string' | 'number' | 'percentage' | 'dimension';
+type TokenVisitors = {
+  [Name in VisitableTokenTypes]?: (token: FindByType<Token, Name>) => TokenOrValue | TokenOrValue[] | void;
+}
+
+type FunctionVisitor = (fn: Function) => TokenOrValue | TokenOrValue[] | void;
+type EnvironmentVariableVisitor = (env: EnvironmentVariable) => TokenOrValue | TokenOrValue[] | void;
+type EnvironmentVariableVisitors = {
+  [name: string]: EnvironmentVariableVisitor
+};
+
+export interface Visitor {
+  Rule?: RuleVisitor | RuleVisitors;
+  RuleExit?: RuleVisitor | RuleVisitors;
+  Declaration?: DeclarationVisitor | DeclarationVisitors;
+  DeclarationExit?: DeclarationVisitor | DeclarationVisitors;
+  Url?(url: Url): Url | void;
+  Color?(color: CssColor): CssColor | void;
+  Image?(image: Image): Image | void;
+  ImageExit?(image: Image): Image | void;
+  Length?(length: LengthValue): LengthValue | void;
+  Angle?(angle: Angle): Angle | void;
+  Ratio?(ratio: Ratio): Ratio | void;
+  Resolution?(resolution: Resolution): Resolution | void;
+  Time?(time: Time): Time | void;
+  CustomIdent?(ident: string): string | void;
+  DashedIdent?(ident: string): string | void;
+  MediaQuery?(query: MediaQuery): MediaQuery | MediaQuery[] | void;
+  MediaQueryExit?(query: MediaQuery): MediaQuery | MediaQuery[] | void;
+  SupportsCondition?(condition: SupportsCondition): SupportsCondition;
+  SupportsConditionExit?(condition: SupportsCondition): SupportsCondition;
+  Selector?(selector: Selector): Selector | Selector[] | void;
+  Token?: TokenVisitor | TokenVisitors;
+  Function?: FunctionVisitor | { [name: string]: FunctionVisitor };
+  FunctionExit?: FunctionVisitor | { [name: string]: FunctionVisitor };
+  Variable?(variable: Variable): TokenOrValue | TokenOrValue[] | void;
+  VariableExit?(variable: Variable): TokenOrValue | TokenOrValue[] | void;
+  EnvironmentVariable?: EnvironmentVariableVisitor | EnvironmentVariableVisitors;
+  EnvironmentVariableExit?: EnvironmentVariableVisitor | EnvironmentVariableVisitors;
 }
 
 export interface DependencyOptions {
@@ -227,7 +307,14 @@ export interface TransformAttributeOptions {
    * When enabled, warnings are returned, and the invalid rule or declaration is
    * omitted from the output code.
    */
-  errorRecovery?: boolean
+  errorRecovery?: boolean,
+  /**
+   * An AST visitor object. This allows custom transforms or analysis to be implemented in JavaScript.
+   * Multiple visitors can be composed into one using the `composeVisitors` function.
+   * For optimal performance, visitors should be as specific as possible about what types of values
+   * they care about so that JavaScript has to be called as little as possible.
+   */
+  visitor?: Visitor
 }
 
 export interface TransformAttributeResult {
@@ -259,3 +346,8 @@ export declare function bundle(options: BundleOptions): TransformResult;
  * Bundles a CSS file and its dependencies asynchronously, inlining @import rules.
  */
 export declare function bundleAsync(options: BundleAsyncOptions): Promise<TransformResult>;
+
+/**
+ * Composes multiple visitor objects into a single one.
+ */
+export declare function composeVisitors(visitors: Visitor[]): Visitor;

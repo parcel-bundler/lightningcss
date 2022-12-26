@@ -25,6 +25,7 @@ use cssparser::*;
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontWeight {
   /// An absolute font weight.
   Absolute(AbsoluteFontWeight),
@@ -83,6 +84,7 @@ impl ToCss for FontWeight {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum AbsoluteFontWeight {
   /// An explicit weight.
   Weight(CSSNumber),
@@ -167,6 +169,7 @@ enum_property! {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontSize {
   /// An explicit size.
   Length(LengthPercentage),
@@ -264,6 +267,7 @@ impl Into<Percentage> for &FontStretchKeyword {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontStretch {
   /// A font stretch keyword.
   Keyword(FontStretchKeyword),
@@ -356,17 +360,14 @@ enum_property! {
 /// A value for the [font-family](https://www.w3.org/TR/css-fonts-4/#font-family-prop) property.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(untagged))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontFamily<'i> {
+  /// A generic family name.
+  Generic(GenericFontFamily),
   /// A custom family name.
   #[cfg_attr(feature = "serde", serde(borrow))]
   FamilyName(CowArcStr<'i>),
-  /// A generic family name.
-  Generic(GenericFontFamily),
 }
 
 impl<'i> Parse<'i> for FontFamily<'i> {
@@ -443,19 +444,25 @@ impl<'i> ToCss for FontFamily<'i> {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontStyle {
   /// Normal font style.
   Normal,
   /// Italic font style.
   Italic,
   /// Oblique font style, with a custom angle.
-  Oblique(Angle),
+  Oblique(#[cfg_attr(feature = "serde", serde(default = "default_oblique_angle"))] Angle),
 }
 
 impl Default for FontStyle {
   fn default() -> FontStyle {
     FontStyle::Normal
   }
+}
+
+#[inline]
+fn default_oblique_angle() -> Angle {
+  Angle::Deg(14.0)
 }
 
 impl<'i> Parse<'i> for FontStyle {
@@ -466,7 +473,7 @@ impl<'i> Parse<'i> for FontStyle {
       "normal" => Ok(FontStyle::Normal),
       "italic" => Ok(FontStyle::Italic),
       "oblique" => {
-        let angle = input.try_parse(Angle::parse).unwrap_or(Angle::Deg(14.0));
+        let angle = input.try_parse(Angle::parse).unwrap_or(default_oblique_angle());
         Ok(FontStyle::Oblique(angle))
       },
       _ => Err(location.new_unexpected_token_error(
@@ -544,6 +551,7 @@ impl FontVariantCaps {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum LineHeight {
   /// The UA sets the line height based on the font.
   Normal,
@@ -617,6 +625,7 @@ enum_property! {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum VerticalAlign {
   /// A vertical align keyword.
   Keyword(VerticalAlignKeyword),

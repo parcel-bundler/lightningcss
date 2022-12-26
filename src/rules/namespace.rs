@@ -13,6 +13,7 @@ use crate::visitor::Visit;
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct NamespaceRule<'i> {
   /// An optional namespace prefix to declare, or `None` to declare the default namespace.
   #[cfg_attr(feature = "serde", serde(borrow))]

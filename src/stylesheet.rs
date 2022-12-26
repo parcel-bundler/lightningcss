@@ -59,7 +59,16 @@ pub use crate::printer::PseudoClasses;
 /// assert_eq!(res.code, ".foo, .bar {\n  color: red;\n}\n");
 /// ```
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(
+  feature = "jsonschema",
+  derive(schemars::JsonSchema),
+  schemars(bound = "T: schemars::JsonSchema, T::AtRule: schemars::JsonSchema")
+)]
 pub struct StyleSheet<'i, 'o, T: AtRuleParser<'i> = DefaultAtRuleParser> {
   /// A list of top-level rules within the style sheet.
   #[cfg_attr(

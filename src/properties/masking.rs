@@ -111,6 +111,7 @@ impl Default for GeometryBox {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum MaskClip {
   /// A geometry box.
   GeometryBox(GeometryBox),
@@ -380,17 +381,25 @@ impl<'i> ImageFallback<'i> for Mask<'i> {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum ClipPath<'i> {
   /// No clip path.
   None,
   /// A url reference to an SVG path element.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow, with = "crate::serialization::ValueWrapper::<Url>"))]
   Url(Url<'i>),
   /// A basic shape, positioned according to the reference box.
-  Shape(Box<BasicShape>, GeometryBox),
+  #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+  Shape {
+    /// A basic shape.
+    shape: Box<BasicShape>,
+    /// A reference box that the shape is positioned according to.
+    reference_box: GeometryBox,
+  },
   /// A reference box.
+  #[cfg_attr(feature = "serde", serde(with = "crate::serialization::ValueWrapper::<GeometryBox>"))]
   Box(GeometryBox),
 }
 
@@ -402,12 +411,18 @@ impl<'i> Parse<'i> for ClipPath<'i> {
 
     if let Ok(shape) = input.try_parse(BasicShape::parse) {
       let b = input.try_parse(GeometryBox::parse).unwrap_or_default();
-      return Ok(ClipPath::Shape(Box::new(shape), b));
+      return Ok(ClipPath::Shape {
+        shape: Box::new(shape),
+        reference_box: b,
+      });
     }
 
     if let Ok(b) = input.try_parse(GeometryBox::parse) {
       if let Ok(shape) = input.try_parse(BasicShape::parse) {
-        return Ok(ClipPath::Shape(Box::new(shape), b));
+        return Ok(ClipPath::Shape {
+          shape: Box::new(shape),
+          reference_box: b,
+        });
       }
       return Ok(ClipPath::Box(b));
     }
@@ -425,7 +440,10 @@ impl<'i> ToCss for ClipPath<'i> {
     match self {
       ClipPath::None => dest.write_str("none"),
       ClipPath::Url(url) => url.to_css(dest),
-      ClipPath::Shape(shape, b) => {
+      ClipPath::Shape {
+        shape,
+        reference_box: b,
+      } => {
         shape.to_css(dest)?;
         if *b != GeometryBox::default() {
           dest.write_char(' ')?;
@@ -691,7 +709,7 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
         // Add vendor prefixes and expand color fallbacks.
         let mut val = val.clone();
         let mut prefix = val.property_id.prefix();
-        if prefix.contains(VendorPrefix::None) {
+        if prefix.is_empty() || prefix.contains(VendorPrefix::None) {
           if let Some(targets) = context.targets {
             prefix = Feature::MaskBorder.prefixes_for(targets);
           }

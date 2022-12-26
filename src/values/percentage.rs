@@ -17,7 +17,8 @@ use cssparser::*;
 /// as their computed value.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Percentage(pub CSSNumber);
 
 impl<'i> Parse<'i> for Percentage {
@@ -149,6 +150,7 @@ impl_try_from_angle!(Percentage);
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum NumberOrPercentage {
   /// A percentage.
   Percentage(Percentage),
@@ -202,6 +204,7 @@ impl std::convert::Into<CSSNumber> for &NumberOrPercentage {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum DimensionPercentage<D> {
   /// An explicit dimension value.
   Dimension(D),

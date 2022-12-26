@@ -47,17 +47,22 @@
     "caniuse-lite": "^1.0.30001373",
     "cssnano": "^5.0.8",
     "esbuild": "^0.13.10",
+    "flowgen": "^1.21.0",
     "jest-diff": "^27.4.2",
+    "json-schema-to-typescript": "^11.0.2",
     "node-fetch": "^3.1.0",
     "parcel": "^2.7.0",
+    "patch-package": "^6.5.0",
     "path-browserify": "^1.0.1",
     "postcss": "^8.3.11",
     "process": "^0.11.10",
     "puppeteer": "^12.0.1",
     "sharp": "^0.29.1",
-    "util": "^0.12.4"
+    "util": "^0.12.4",
+    "uvu": "^0.5.6"
   },
   "scripts": {
+    "prepare": "patch-package",
     "build": "node scripts/build.js && node scripts/build-flow.js",
     "build-release": "node scripts/build.js --release && node scripts/build-flow.js",
     "prepublishOnly": "node scripts/build-flow.js",
@@ -66,6 +71,8 @@
     "wasm-browser:build": "wasm-pack build node --target web",
     "wasm-browser:build-release": "wasm-pack build node --target web --release",
     "website:start": "parcel website/index.html website/playground/index.html",
-    "website:build": "yarn wasm-browser:build-release && parcel build website/index.html website/playground/index.html"
+    "website:build": "yarn wasm-browser:build-release && parcel build website/index.html website/playground/index.html",
+    "build-ast": "cargo run --example schema --features jsonschema && node scripts/build-ast.js",
+    "test": "uvu node/test"
   }
 }

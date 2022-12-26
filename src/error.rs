@@ -13,6 +13,7 @@ use std::fmt;
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(serde::Serialize))]
 #[cfg_attr(any(feature = "serde"), derive(serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Error<T> {
   /// The type of error that occurred.
   pub kind: T,
@@ -36,6 +37,7 @@ impl<T: fmt::Display + fmt::Debug> std::error::Error for Error<T> {}
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(serde::Serialize))]
 #[cfg_attr(any(feature = "serde"), derive(serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct ErrorLocation {
   /// The filename in which the error occurred.
   pub filename: String,
@@ -201,13 +203,17 @@ pub enum SelectorError<'i> {
   /// The selector is missing a `&` nesting selector.
   MissingNestingSelector,
   /// No qualified name in attribute selector.
-  NoQualifiedNameInAttributeSelector(#[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>),
+  NoQualifiedNameInAttributeSelector(
+    #[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>,
+  ),
   /// An Invalid token was encountered in a pseudo element.
   PseudoElementExpectedIdent(#[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>),
   /// An unexpected identifier was encountered.
   UnexpectedIdent(CowArcStr<'i>),
   /// An unexpected token was encountered inside an attribute selector.
-  UnexpectedTokenInAttributeSelector(#[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>),
+  UnexpectedTokenInAttributeSelector(
+    #[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(skip))] Token<'i>,
+  ),
   /// An unsupported pseudo class or pseudo element was encountered.
   UnsupportedPseudoClassOrElement(CowArcStr<'i>),
 }

@@ -4,8 +4,10 @@ use crate::compat::Feature;
 use crate::error::{ErrorWithLocation, MinifyError, MinifyErrorKind, ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::printer::Printer;
+use crate::properties::custom::EnvironmentVariable;
 use crate::rules::custom_media::CustomMediaRule;
 use crate::rules::Location;
+use crate::stylesheet::ParserOptions;
 use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
 use crate::values::ident::Ident;
@@ -17,10 +19,18 @@ use crate::visitor::Visit;
 use cssparser::*;
 use std::collections::{HashMap, HashSet};
 
+#[cfg(feature = "serde")]
+use crate::serialization::ValueWrapper;
+
 /// A [media query list](https://drafts.csswg.org/mediaqueries/#mq-list).
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "visitor", derive(Visit), visit(visit_media_list, MEDIA_QUERIES))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct MediaList<'i> {
   /// The list of media queries.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -151,7 +161,7 @@ enum_property! {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(rename_all = "kebab-case", into = "CowArcStr", from = "CowArcStr")
 )]
 pub enum MediaType<'i> {
   /// Matches all devices.
@@ -166,15 +176,47 @@ pub enum MediaType<'i> {
   Custom(CowArcStr<'i>),
 }
 
+impl<'i> From<CowArcStr<'i>> for MediaType<'i> {
+  fn from(name: CowArcStr<'i>) -> Self {
+    match_ignore_ascii_case! { &*name,
+      "all" => MediaType::All,
+      "print" => MediaType::Print,
+      "screen" => MediaType::Screen,
+      _ => MediaType::Custom(name)
+    }
+  }
+}
+
+impl<'i> Into<CowArcStr<'i>> for MediaType<'i> {
+  fn into(self) -> CowArcStr<'i> {
+    match self {
+      MediaType::All => "all".into(),
+      MediaType::Print => "print".into(),
+      MediaType::Screen => "screen".into(),
+      MediaType::Custom(desc) => desc,
+    }
+  }
+}
+
 impl<'i> Parse<'i> for MediaType<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let name = input.expect_ident()?;
-    match_ignore_ascii_case! { &*name,
-      "all" => Ok(MediaType::All),
-      "print" => Ok(MediaType::Print),
-      "screen" => Ok(MediaType::Screen),
-      _ => Ok(MediaType::Custom(name.into()))
-    }
+    let name: CowArcStr = input.expect_ident()?.into();
+    Ok(Self::from(name))
+  }
+}
+
+#[cfg(feature = "jsonschema")]
+impl<'a> schemars::JsonSchema for MediaType<'a> {
+  fn is_referenceable() -> bool {
+    true
+  }
+
+  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    str::json_schema(gen)
+  }
+
+  fn schema_name() -> String {
+    "MediaType".into()
   }
 }
 
@@ -182,7 +224,12 @@ impl<'i> Parse<'i> for MediaType<'i> {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "visitor", visit(visit_media_query, MEDIA_QUERIES))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct MediaQuery<'i> {
   /// The qualifier for this query.
   pub qualifier: Option<Qualifier>,
@@ -295,10 +342,10 @@ impl<'i> MediaQuery<'i> {
     if let Some(cond) = &b.condition {
       self.condition = if let Some(condition) = &self.condition {
         if condition != cond {
-          Some(MediaCondition::Operation(
-            vec![condition.clone(), cond.clone()],
-            Operator::And,
-          ))
+          Some(MediaCondition::Operation {
+            conditions: vec![condition.clone(), cond.clone()],
+            operator: Operator::And,
+          })
         } else {
           Some(condition.clone())
         }
@@ -344,7 +391,7 @@ impl<'i> ToCss for MediaQuery<'i> {
 
     let needs_parens = if self.media_type != MediaType::All || self.qualifier.is_some() {
       dest.write_str(" and ")?;
-      matches!(condition, MediaCondition::Operation(_, op) if *op != Operator::And)
+      matches!(condition, MediaCondition::Operation { operator, .. } if *operator != Operator::And)
     } else {
       false
     };
@@ -369,18 +416,25 @@ enum_property! {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum MediaCondition<'i> {
   /// A media feature, implicitly parenthesized.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow, with = "ValueWrapper::<MediaFeature>"))]
   Feature(MediaFeature<'i>),
   /// A negation of a condition.
   #[cfg_attr(feature = "visitor", skip_type)]
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Box<MediaCondition>>"))]
   Not(Box<MediaCondition<'i>>),
   /// A set of joint operations.
   #[cfg_attr(feature = "visitor", skip_type)]
-  Operation(Vec<MediaCondition<'i>>, Operator),
+  Operation {
+    /// The operator for the conditions.
+    operator: Operator,
+    /// The conditions for the operator.
+    conditions: Vec<MediaCondition<'i>>,
+  },
 }
 
 impl<'i> MediaCondition<'i> {
@@ -420,7 +474,7 @@ impl<'i> MediaCondition<'i> {
 
     loop {
       if input.try_parse(|i| i.expect_ident_matching(delim)).is_err() {
-        return Ok(MediaCondition::Operation(conditions, operator));
+        return Ok(MediaCondition::Operation { conditions, operator });
       }
 
       conditions.push(Self::parse_in_parens(input)?);
@@ -447,7 +501,7 @@ impl<'i> MediaCondition<'i> {
   fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Option<Browsers>) -> bool {
     match self {
       MediaCondition::Not(_) => true,
-      MediaCondition::Operation(_, op) => Some(*op) != parent_operator,
+      MediaCondition::Operation { operator, .. } => Some(*operator) != parent_operator,
       MediaCondition::Feature(f) => {
         parent_operator != Some(Operator::And)
           && targets.is_some()
@@ -483,15 +537,18 @@ impl<'i> ToCss for MediaCondition<'i> {
         dest.write_str("not ")?;
         c.to_css_with_parens_if_needed(dest, c.needs_parens(None, &dest.targets))
       }
-      MediaCondition::Operation(ref list, op) => {
-        let mut iter = list.iter();
+      MediaCondition::Operation {
+        ref conditions,
+        operator,
+      } => {
+        let mut iter = conditions.iter();
         let first = iter.next().unwrap();
-        first.to_css_with_parens_if_needed(dest, first.needs_parens(Some(op), &dest.targets))?;
+        first.to_css_with_parens_if_needed(dest, first.needs_parens(Some(operator), &dest.targets))?;
         for item in iter {
           dest.write_char(' ')?;
-          op.to_css(dest)?;
+          operator.to_css(dest)?;
           dest.write_char(' ')?;
-          item.to_css_with_parens_if_needed(dest, item.needs_parens(Some(op), &dest.targets))?;
+          item.to_css_with_parens_if_needed(dest, item.needs_parens(Some(operator), &dest.targets))?;
         }
         Ok(())
       }
@@ -505,8 +562,9 @@ impl<'i> ToCss for MediaCondition<'i> {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum MediaFeatureComparison {
   /// `=`
   Equal,
@@ -558,12 +616,13 @@ impl MediaFeatureComparison {
 
 /// A [media feature](https://drafts.csswg.org/mediaqueries/#typedef-media-feature)
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "visitor", derive(Visit), visit(visit_media_feature, MEDIA_QUERIES))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum MediaFeature<'i> {
   /// A plain media feature, e.g. `(min-width: 240px)`.
   Plain {
@@ -574,7 +633,10 @@ pub enum MediaFeature<'i> {
     value: MediaFeatureValue<'i>,
   },
   /// A boolean feature, e.g. `(hover)`.
-  Boolean(Ident<'i>),
+  Boolean {
+    /// The name of the feature.
+    name: Ident<'i>,
+  },
   /// A range, e.g. `(width > 240px)`.
   Range {
     /// The name of the feature.
@@ -585,6 +647,7 @@ pub enum MediaFeature<'i> {
     value: MediaFeatureValue<'i>,
   },
   /// An interval, e.g. `(120px < width < 240px)`.
+  #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
   Interval {
     /// The name of the feature.
     name: Ident<'i>,
@@ -615,7 +678,7 @@ impl<'i> MediaFeature<'i> {
 
     let operator = input.try_parse(|input| consume_operation_or_colon(input, true));
     let operator = match operator {
-      Err(..) => return Ok(MediaFeature::Boolean(name)),
+      Err(..) => return Ok(MediaFeature::Boolean { name }),
       Ok(operator) => operator,
     };
 
@@ -671,7 +734,7 @@ impl<'i> ToCss for MediaFeature<'i> {
     dest.write_char('(')?;
 
     match self {
-      MediaFeature::Boolean(name) => {
+      MediaFeature::Boolean { name } => {
         name.to_css(dest)?;
       }
       MediaFeature::Plain { name, value } => {
@@ -761,12 +824,13 @@ where
 ///
 /// See [MediaFeature](MediaFeature).
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "visitor", derive(Visit), visit(visit_media_feature_value, MEDIA_QUERIES))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum MediaFeatureValue<'i> {
   /// A length value.
   Length(Length),
@@ -779,6 +843,8 @@ pub enum MediaFeatureValue<'i> {
   /// An indentifier.
   #[cfg_attr(feature = "serde", serde(borrow))]
   Ident(Ident<'i>),
+  /// An environment variable reference.
+  Env(EnvironmentVariable<'i>),
 }
 
 impl<'i> Parse<'i> for MediaFeatureValue<'i> {
@@ -803,6 +869,10 @@ impl<'i> Parse<'i> for MediaFeatureValue<'i> {
       return Ok(MediaFeatureValue::Resolution(res));
     }
 
+    if let Ok(env) = input.try_parse(|input| EnvironmentVariable::parse(input, &ParserOptions::default(), 0)) {
+      return Ok(MediaFeatureValue::Env(env));
+    }
+
     let ident = Ident::parse(input)?;
     Ok(MediaFeatureValue::Ident(ident))
   }
@@ -822,6 +892,7 @@ impl<'i> ToCss for MediaFeatureValue<'i> {
         id.to_css(dest)?;
         Ok(())
       }
+      MediaFeatureValue::Env(env) => env.to_css(dest, false),
     }
   }
 }
@@ -836,6 +907,7 @@ impl<'i> std::ops::Add<f32> for MediaFeatureValue<'i> {
       MediaFeatureValue::Resolution(res) => MediaFeatureValue::Resolution(res + other),
       MediaFeatureValue::Ratio(ratio) => MediaFeatureValue::Ratio(ratio + other),
       MediaFeatureValue::Ident(id) => MediaFeatureValue::Ident(id),
+      MediaFeatureValue::Env(env) => MediaFeatureValue::Env(env),
     }
   }
 }
@@ -905,7 +977,7 @@ fn process_condition<'i>(
         _ => {}
       }
     }
-    MediaCondition::Operation(conditions, _) => {
+    MediaCondition::Operation { conditions, .. } => {
       let mut res = Ok(true);
       conditions.retain_mut(|condition| {
         let r = process_condition(loc, custom_media, media_type, qualifier, condition, seen);
@@ -918,7 +990,7 @@ fn process_condition<'i>(
       });
       return res;
     }
-    MediaCondition::Feature(MediaFeature::Boolean(name)) => {
+    MediaCondition::Feature(MediaFeature::Boolean { name }) => {
       if !name.starts_with("--") {
         return Ok(true);
       }
@@ -996,7 +1068,10 @@ fn process_condition<'i>(
       if conditions.len() == 1 {
         *condition = conditions.pop().unwrap();
       } else {
-        *condition = MediaCondition::Operation(conditions, Operator::Or);
+        *condition = MediaCondition::Operation {
+          conditions,
+          operator: Operator::Or,
+        };
       }
     }
     _ => {}

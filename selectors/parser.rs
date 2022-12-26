@@ -213,7 +213,7 @@ macro_rules! with_all_bounds {
             type AttrValue: $($InSelector)*;
             type Identifier: $($InSelector)*;
             type LocalName: $($InSelector)* + Borrow<Self::BorrowedLocalName>;
-            type NamespaceUrl: $($CommonBounds)* + Default + Borrow<Self::BorrowedNamespaceUrl>;
+            type NamespaceUrl: $($CommonBounds)* + $($FromStr)* + Default + Borrow<Self::BorrowedNamespaceUrl>;
             type NamespacePrefix: $($InSelector)* + Default;
             type BorrowedNamespaceUrl: ?Sized + Eq;
             type BorrowedLocalName: ?Sized + Eq;
@@ -221,7 +221,7 @@ macro_rules! with_all_bounds {
             /// non tree-structural pseudo-classes
             /// (see: https://drafts.csswg.org/selectors/#structural-pseudos)
             type NonTSPseudoClass: $($CommonBounds)* + NonTSPseudoClass<'i, Impl = Self>;
-            type VendorPrefix: Sized + Eq + Clone + ToCss;
+            type VendorPrefix: Sized + Eq + $($CommonBounds)* + ToCss;
 
             /// pseudo-elements
             type PseudoElement: $($CommonBounds)* + PseudoElement<'i, Impl = Self>;
@@ -243,6 +243,13 @@ macro_rules! with_bounds {
     }
 }
 
+#[cfg(feature = "serde")]
+with_bounds! {
+    [Clone + PartialEq]
+    [From<CowRcStr<'i>> + From<std::borrow::Cow<'i, str>> + AsRef<str>]
+}
+
+#[cfg(not(feature = "serde"))]
 with_bounds! {
     [Clone + PartialEq]
     [From<CowRcStr<'i>>]
@@ -336,7 +343,25 @@ pub trait Parser<'i> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct SelectorList<'i, Impl: SelectorImpl<'i>>(pub SmallVec<[Selector<'i, Impl>; 1]>);
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(bound(
+    serialize = "Impl::NonTSPseudoClass: serde::Serialize, Impl::PseudoElement: serde::Serialize, Impl::VendorPrefix: serde::Serialize",
+    deserialize = "Impl::NonTSPseudoClass: serde::Deserialize<'de>, Impl::PseudoElement: serde::Deserialize<'de>, Impl::VendorPrefix: serde::Deserialize<'de>"
+  ))
+)]
+#[cfg_attr(
+  feature = "jsonschema",
+  derive(schemars::JsonSchema),
+  schemars(
+    rename = "SelectorList",
+    bound = "Impl: schemars::JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema"
+  )
+)]
+pub struct SelectorList<'i, Impl: SelectorImpl<'i>>(
+  #[cfg_attr(feature = "serde", serde(borrow))] pub SmallVec<[Selector<'i, Impl>; 1]>,
+);
 
 /// How to treat invalid selectors in a selector list.
 pub enum ParseErrorRecovery {
@@ -850,6 +875,12 @@ impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
     Selector(spec, components)
   }
 
+  #[cfg(feature = "serde")]
+  #[inline]
+  pub(crate) fn new(spec: SpecificityAndFlags, components: Vec<Component<'i, Impl>>) -> Self {
+    Selector(spec, components)
+  }
+
   /// Returns count of simple selectors and combinators in the Selector.
   #[inline]
   pub fn len(&self) -> usize {
@@ -1063,6 +1094,12 @@ impl<'a, 'i, Impl: SelectorImpl<'i>> Iterator for AncestorIter<'a, 'i, Impl> {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Combinator {
   Child,        //  >
   Descendant,   // space
@@ -1382,6 +1419,34 @@ impl<'i, Impl: SelectorImpl<'i>> Debug for AttrSelectorWithOptionalNamespace<'i,
 impl<'i, Impl: SelectorImpl<'i>> Debug for LocalName<'i, Impl> {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     self.to_css(f)
+  }
+}
+
+#[cfg(feature = "serde")]
+impl<'i, Impl: SelectorImpl<'i>> serde::Serialize for LocalName<'i, Impl>
+where
+  Impl::LocalName: serde::Serialize,
+{
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    self.name.serialize(serializer)
+  }
+}
+
+#[cfg(feature = "serde")]
+impl<'i, 'de: 'i, Impl: SelectorImpl<'i>> serde::Deserialize<'de> for LocalName<'i, Impl>
+where
+  Impl::LocalName: serde::Deserialize<'de>,
+{
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let name = Impl::LocalName::deserialize(deserializer)?;
+    let lower_name = to_ascii_lowercase(name.as_ref().to_string().into()).into();
+    Ok(LocalName { name, lower_name })
   }
 }
 
@@ -2825,9 +2890,21 @@ pub mod tests {
     }
   }
 
+  impl AsRef<str> for DummyAttrValue {
+    fn as_ref(&self) -> &str {
+      self.0.as_ref()
+    }
+  }
+
   impl<'a> From<&'a str> for DummyAttrValue {
     fn from(string: &'a str) -> Self {
       Self(string.into())
+    }
+  }
+
+  impl<'a> From<std::borrow::Cow<'a, str>> for DummyAttrValue {
+    fn from(string: std::borrow::Cow<'a, str>) -> Self {
+      Self(string.to_string())
     }
   }
 
@@ -2864,6 +2941,18 @@ pub mod tests {
   impl<'a> From<CowRcStr<'a>> for DummyAtom {
     fn from(string: CowRcStr<'a>) -> Self {
       DummyAtom(string.to_string())
+    }
+  }
+
+  impl AsRef<str> for DummyAtom {
+    fn as_ref(&self) -> &str {
+      self.0.as_ref()
+    }
+  }
+
+  impl<'a> From<std::borrow::Cow<'a, str>> for DummyAtom {
+    fn from(string: std::borrow::Cow<'a, str>) -> Self {
+      Self(string.to_string())
     }
   }
 

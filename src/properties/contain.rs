@@ -2,89 +2,40 @@
 
 #![allow(non_upper_case_globals)]
 
-use bitflags::bitflags;
 use cssparser::*;
 use smallvec::SmallVec;
 
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use crate::{
   context::PropertyHandlerContext,
   declaration::{DeclarationBlock, DeclarationList},
   error::{ParserError, PrinterError},
-  macros::{define_shorthand, shorthand_handler},
+  macros::{define_shorthand, enum_property, shorthand_handler},
   printer::Printer,
   properties::{Property, PropertyId},
   rules::container::ContainerName as ContainerIdent,
   targets::Browsers,
   traits::{Parse, PropertyHandler, Shorthand, ToCss},
 };
-#[cfg(feature = "visitor")]
-use crate::visitor::Visit;
 
-bitflags! {
+enum_property! {
   /// A value for the [container-type](https://drafts.csswg.org/css-contain-3/#container-type) property.
   /// Establishes the element as a query container for the purpose of container queries.
-  ///
-  /// `normal` is mutually exclusive, but other combinations of flags are allowed.
-  #[cfg_attr(feature = "visitor", derive(Visit))]
-  #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-  pub struct ContainerType: u8 {
+  pub enum ContainerType {
     /// The element is not a query container for any container size queries,
     /// but remains a query container for container style queries.
-    const Normal    = 0b00000001;
+    "normal": Normal,
     /// Establishes a query container for container size queries on the container’s own inline axis.
-    const InlineSize = 0b00000010;
+    "inline-size": InlineSize,
     /// Establishes a query container for container size queries on both the inline and block axis.
-    const Size = 0b00000100;
+    "size": Size,
   }
 }
 
 impl Default for ContainerType {
   fn default() -> Self {
     ContainerType::Normal
-  }
-}
-
-impl<'i> Parse<'i> for ContainerType {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let mut flags = ContainerType::empty();
-    while let Ok(ident) = input.try_parse(|input| input.expect_ident_cloned()) {
-      let location = input.current_source_location();
-      let flag = match_ignore_ascii_case! { &ident,
-        "normal" if flags.is_empty() => return Ok(ContainerType::Normal), // mutually exclusive
-        "size" => ContainerType::Size,
-        "inline-size" => ContainerType::InlineSize,
-        _ => return Err(location.new_unexpected_token_error(
-          cssparser::Token::Ident(ident.clone())
-        ))
-      };
-      if flags.contains(flag) {
-        return Err(location.new_unexpected_token_error(cssparser::Token::Ident(ident.clone())));
-      }
-      flags |= flag;
-    }
-
-    if flags.is_empty() {
-      return Err(input.new_error_for_next_token());
-    } else {
-      return Ok(flags);
-    }
-  }
-}
-
-impl ToCss for ContainerType {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    if self.contains(ContainerType::Normal) {
-      dest.write_str("normal")?;
-    } else if self.contains(ContainerType::Size) {
-      dest.write_str("size")?;
-    } else if self.contains(ContainerType::InlineSize) {
-      dest.write_str("inline-size")?;
-    }
-
-    Ok(())
   }
 }
 
@@ -96,6 +47,7 @@ impl ToCss for ContainerType {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum ContainerNameList<'i> {
   /// The `none` keyword.
   None,

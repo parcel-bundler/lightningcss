@@ -286,7 +286,7 @@ enum_property! {
 impl FromStandard<AlignItems> for BoxAlign {
   fn from_standard(align: &AlignItems) -> Option<BoxAlign> {
     match align {
-      AlignItems::SelfPosition(None, sp) => match sp {
+      AlignItems::SelfPosition { overflow: None, value } => match value {
         SelfPosition::Start | SelfPosition::FlexStart => Some(BoxAlign::Start),
         SelfPosition::End | SelfPosition::FlexEnd => Some(BoxAlign::End),
         SelfPosition::Center => Some(BoxAlign::Center),
@@ -320,7 +320,7 @@ impl FromStandard<JustifyContent> for BoxPack {
         ContentDistribution::SpaceBetween => Some(BoxPack::Justify),
         _ => None,
       },
-      JustifyContent::ContentPosition(None, pos) => match pos {
+      JustifyContent::ContentPosition { overflow: None, value } => match value {
         ContentPosition::Start | ContentPosition::FlexStart => Some(BoxPack::Start),
         ContentPosition::End | ContentPosition::FlexEnd => Some(BoxPack::End),
         ContentPosition::Center => Some(BoxPack::Center),
@@ -385,7 +385,7 @@ impl FromStandard<JustifyContent> for FlexPack {
         ContentDistribution::SpaceAround => Some(FlexPack::Distribute),
         _ => None,
       },
-      JustifyContent::ContentPosition(None, pos) => match pos {
+      JustifyContent::ContentPosition { overflow: None, value } => match value {
         ContentPosition::Start | ContentPosition::FlexStart => Some(FlexPack::Start),
         ContentPosition::End | ContentPosition::FlexEnd => Some(FlexPack::End),
         ContentPosition::Center => Some(FlexPack::Center),
@@ -422,7 +422,7 @@ impl FromStandard<AlignSelf> for FlexItemAlign {
     match justify {
       AlignSelf::Auto => Some(FlexItemAlign::Auto),
       AlignSelf::Stretch => Some(FlexItemAlign::Stretch),
-      AlignSelf::SelfPosition(None, pos) => match pos {
+      AlignSelf::SelfPosition { overflow: None, value } => match value {
         SelfPosition::Start | SelfPosition::FlexStart => Some(FlexItemAlign::Start),
         SelfPosition::End | SelfPosition::FlexEnd => Some(FlexItemAlign::End),
         SelfPosition::Center => Some(FlexItemAlign::Center),
@@ -461,7 +461,7 @@ impl FromStandard<AlignContent> for FlexLinePack {
         ContentDistribution::Stretch => Some(FlexLinePack::Stretch),
         _ => None,
       },
-      AlignContent::ContentPosition(None, pos) => match pos {
+      AlignContent::ContentPosition { overflow: None, value } => match value {
         ContentPosition::Start | ContentPosition::FlexStart => Some(FlexLinePack::Start),
         ContentPosition::End | ContentPosition::FlexEnd => Some(FlexLinePack::End),
         ContentPosition::Center => Some(FlexLinePack::Center),

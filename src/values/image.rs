@@ -27,6 +27,7 @@ use smallvec::SmallVec;
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Image<'i> {
   /// The `none` keyword.
   None,
@@ -345,7 +346,12 @@ impl<'i> ToCss for Image<'i> {
 /// display the most appropriate resolution or file type that it supports.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct ImageSet<'i> {
   /// The image options to choose from.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -418,7 +424,12 @@ impl<'i> ToCss for ImageSet<'i> {
 /// An image option within the `image-set()` function. See [ImageSet](ImageSet).
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct ImageSetOption<'i> {
   /// The image for this option.
   #[cfg_attr(feature = "visitor", skip_type)]

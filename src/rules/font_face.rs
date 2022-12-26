@@ -20,6 +20,7 @@ use std::fmt::Write;
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct FontFaceRule<'i> {
   /// Declarations in the `@font-face` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -39,6 +40,7 @@ pub struct FontFaceRule<'i> {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontFaceProperty<'i> {
   /// The `src` property.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -66,6 +68,7 @@ pub enum FontFaceProperty<'i> {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Source<'i> {
   /// A `url()` with optional format metadata.
   Url(UrlSource<'i>),
@@ -114,6 +117,7 @@ impl<'i> ToCss for Source<'i> {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct UrlSource<'i> {
   /// The URL.
   pub url: Url<'i>,
@@ -175,8 +179,9 @@ impl<'i> ToCss for UrlSource<'i> {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", content = "value", rename_all = "lowercase")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontFormat<'i> {
   /// [src](https://drafts.csswg.org/css-fonts/#font-format-definitions)
   /// A WOFF 1.0 font.
@@ -188,6 +193,7 @@ pub enum FontFormat<'i> {
   /// An OpenType font.
   OpenType,
   /// An Embedded OpenType (.eot) font.
+  #[cfg_attr(feature = "serde", serde(rename = "embedded-opentype"))]
   EmbeddedOpenType,
   /// OpenType Collection.
   Collection,
@@ -287,6 +293,7 @@ enum_property! {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct UnicodeRange {
   /// Inclusive start of the range. In [0, end].
   pub start: u32,

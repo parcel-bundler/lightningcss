@@ -12,6 +12,7 @@ macro_rules! enum_property {
     #[derive(Debug, Clone, Copy, PartialEq)]
     #[cfg_attr(feature = "visitor", derive(Visit))]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "lowercase"))]
+    #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
     $vis enum $name {
       $(
         $(#[$meta])*
@@ -46,14 +47,21 @@ macro_rules! enum_property {
       }
     }
 
-    impl ToCss for $name {
-      fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+    impl $name {
+      /// Returns a string representation of the value.
+      pub fn as_str(&self) -> &str {
         use $name::*;
         match self {
           $(
-            $x => dest.write_str(&stringify!($x).to_lowercase()),
+            $x => const_str::convert_ascii_case!(lower, stringify!($x)),
           )+
         }
+      }
+    }
+
+    impl ToCss for $name {
+      fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+        dest.write_str(self.as_str())
       }
     }
   };
@@ -69,6 +77,7 @@ macro_rules! enum_property {
     $(#[$outer])*
     #[derive(Debug, Clone, Copy, PartialEq)] #[cfg_attr(feature = "visitor", derive(Visit))]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
     $vis enum $name {
       $(
         $(#[$meta])*
@@ -104,14 +113,21 @@ macro_rules! enum_property {
       }
     }
 
-    impl ToCss for $name {
-      fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+    impl $name {
+      /// Returns a string representation of the value.
+      pub fn as_str(&self) -> &str {
         use $name::*;
         match self {
           $(
-            $id => dest.write_str($str),
+            $id => $str,
           )+
         }
+      }
+    }
+
+    impl ToCss for $name {
+      fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
+        dest.write_str(self.as_str())
       }
     }
   };
@@ -342,7 +358,8 @@ macro_rules! define_shorthand {
     $(#[$outer])*
     #[derive(Debug, Clone, PartialEq)]
     #[cfg_attr(feature = "visitor", derive(Visit))]
-    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "camelCase"))]
+    #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
     pub struct $name$(<$l>)? {
       $(
         $(#[$meta])*
@@ -557,7 +574,8 @@ macro_rules! define_list_shorthand {
     $(#[$outer])*
     #[derive(Debug, Clone, PartialEq)]
     #[cfg_attr(feature = "visitor", derive(Visit))]
-    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "camelCase"))]
+    #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
     pub struct $name$(<$l>)? {
       $(
         $(#[$meta])*

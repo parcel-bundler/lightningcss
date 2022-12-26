@@ -8,7 +8,7 @@ use cssparser::{serialize_string, CowRcStr};
 use serde::{Deserialize, Deserializer};
 #[cfg(any(feature = "serde", feature = "nodejs"))]
 use serde::{Serialize, Serializer};
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cmp;
 use std::fmt;
 use std::hash;
@@ -92,6 +92,16 @@ impl<'a> From<String> for CowArcStr<'a> {
   #[inline]
   fn from(s: String) -> Self {
     CowArcStr::from_arc(Arc::new(s))
+  }
+}
+
+impl<'a> From<Cow<'a, str>> for CowArcStr<'a> {
+  #[inline]
+  fn from(s: Cow<'a, str>) -> Self {
+    match s {
+      Cow::Borrowed(s) => s.into(),
+      Cow::Owned(s) => s.into(),
+    }
   }
 }
 
@@ -238,6 +248,21 @@ impl<'a, 'de: 'a> Deserialize<'de> for CowArcStr<'a> {
   }
 }
 
+#[cfg(feature = "jsonschema")]
+impl<'a> schemars::JsonSchema for CowArcStr<'a> {
+  fn is_referenceable() -> bool {
+    true
+  }
+
+  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    String::json_schema(gen)
+  }
+
+  fn schema_name() -> String {
+    "String".into()
+  }
+}
+
 #[cfg(feature = "serde")]
 struct CowArcStrVisitor;
 
@@ -280,7 +305,8 @@ impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for CowArcStr<'i
 /// A quoted CSS string.
 #[derive(Clone, Eq, Ord, Hash, Debug)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct CSSString<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CowArcStr<'i>);
 
 impl<'i> Parse<'i> for CSSString<'i> {
@@ -334,6 +360,16 @@ macro_rules! impl_string_type {
     impl<'i> From<&'i str> for $t<'i> {
       fn from(s: &'i str) -> Self {
         $t(s.into())
+      }
+    }
+
+    impl<'a> From<std::borrow::Cow<'a, str>> for $t<'a> {
+      #[inline]
+      fn from(s: std::borrow::Cow<'a, str>) -> Self {
+        match s {
+          std::borrow::Cow::Borrowed(s) => s.into(),
+          std::borrow::Cow::Owned(s) => s.into(),
+        }
       }
     }
 

@@ -19,6 +19,7 @@ use smallvec::SmallVec;
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Filter<'i> {
   /// A `blur()` filter.
   Blur(Length),
@@ -210,7 +211,12 @@ impl<'i> Filter<'i> {
 /// A [`drop-shadow()`](https://drafts.fxtf.org/filter-effects-1/#funcdef-filter-drop-shadow) filter function.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct DropShadow {
   /// The color of the drop shadow.
   pub color: CssColor,
@@ -303,6 +309,7 @@ impl DropShadow {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FilterList<'i> {
   /// The `none` keyword.
   None,

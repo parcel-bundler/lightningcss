@@ -24,6 +24,7 @@ use cssparser::*;
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Time {
   /// A time in seconds.
   Seconds(CSSNumber),

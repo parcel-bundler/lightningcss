@@ -28,6 +28,7 @@ use std::f32::consts::PI;
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Angle {
   /// An angle in degrees. There are 360 degrees in a full circle.
   Deg(CSSNumber),

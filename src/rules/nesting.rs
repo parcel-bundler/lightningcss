@@ -14,6 +14,7 @@ use crate::visitor::Visit;
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct NestingRule<'i, R = DefaultAtRule> {
   /// The style rule that defines the selector and declarations for the `@nest` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]

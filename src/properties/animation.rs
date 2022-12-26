@@ -26,6 +26,7 @@ use smallvec::SmallVec;
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum AnimationName<'i> {
   /// The `none` keyword.
   None,
@@ -96,6 +97,7 @@ pub type AnimationNameList<'i> = SmallVec<[AnimationName<'i>; 1]>;
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum AnimationIterationCount {
   /// The animation will repeat the specified number of times.
   Number(CSSNumber),
@@ -271,7 +273,7 @@ impl<'i> ToCss for Animation<'i> {
           dest.write_char(' ')?;
         }
 
-        if !self.is_default_easing() || EasingFunction::is_ident(&name) {
+        if !self.timing_function.is_ease() || EasingFunction::is_ident(&name) {
           self.timing_function.to_css(dest)?;
           dest.write_char(' ')?;
         }
@@ -310,13 +312,6 @@ impl<'i> ToCss for Animation<'i> {
     self.name.to_css(dest)?;
 
     Ok(())
-  }
-}
-
-impl<'i> Animation<'i> {
-  fn is_default_easing(&self) -> bool {
-    self.timing_function == EasingFunction::Ease
-      || self.timing_function == EasingFunction::CubicBezier(0.25, 0.1, 0.25, 1.0)
   }
 }
 

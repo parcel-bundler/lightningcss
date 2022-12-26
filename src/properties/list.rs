@@ -22,6 +22,7 @@ use cssparser::*;
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum ListStyleType<'i> {
   /// No marker.
   None,
@@ -72,18 +73,30 @@ impl ToCss for ListStyleType<'_> {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum CounterStyle<'i> {
   /// A predefined counter style name.
+  #[cfg_attr(
+    feature = "serde",
+    serde(with = "crate::serialization::ValueWrapper::<PredefinedCounterStyle>")
+  )]
   Predefined(PredefinedCounterStyle),
   /// A custom counter style name.
+  #[cfg_attr(
+    feature = "serde",
+    serde(borrow, with = "crate::serialization::ValueWrapper::<CustomIdent>")
+  )]
   Name(CustomIdent<'i>),
   /// An inline [`symbols()`](https://www.w3.org/TR/css-counter-styles-3/#symbols-function) definition.
-  Symbols(
-    SymbolsType,
-    #[cfg_attr(feature = "serde", serde(borrow))] Vec<Symbol<'i>>,
-  ),
+  Symbols {
+    /// The counter system.
+    #[cfg_attr(feature = "serde", serde(default))]
+    system: SymbolsType,
+    /// The symbols.
+    symbols: Vec<Symbol<'i>>,
+  },
 }
 
 enum_property! {
@@ -164,14 +177,14 @@ impl<'i> Parse<'i> for CounterStyle<'i> {
 
     if input.try_parse(|input| input.expect_function_matching("symbols")).is_ok() {
       return input.parse_nested_block(|input| {
-        let t = input.try_parse(SymbolsType::parse).unwrap_or(SymbolsType::Symbolic);
+        let t = input.try_parse(SymbolsType::parse).unwrap_or_default();
 
         let mut symbols = Vec::new();
         while let Ok(s) = input.try_parse(Symbol::parse) {
           symbols.push(s);
         }
 
-        Ok(CounterStyle::Symbols(t, symbols))
+        Ok(CounterStyle::Symbols { system: t, symbols })
       });
     }
 
@@ -193,7 +206,7 @@ impl ToCss for CounterStyle<'_> {
         }
         name.to_css(dest)
       }
-      CounterStyle::Symbols(t, symbols) => {
+      CounterStyle::Symbols { system: t, symbols } => {
         dest.write_str("symbols(")?;
         let mut needs_space = false;
         if *t != SymbolsType::Symbolic {
@@ -229,6 +242,12 @@ enum_property! {
   }
 }
 
+impl Default for SymbolsType {
+  fn default() -> Self {
+    SymbolsType::Symbolic
+  }
+}
+
 /// A single [symbol](https://www.w3.org/TR/css-counter-styles-3/#funcdef-symbols) as used in the
 /// `symbols()` function.
 ///
@@ -240,6 +259,7 @@ enum_property! {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Symbol<'i> {
   /// A string.
   #[cfg_attr(feature = "serde", serde(borrow))]

@@ -29,7 +29,10 @@ pub struct DependencyOptions {
 /// A dependency.
 #[derive(Debug)]
 #[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(Serialize))]
-#[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(tag = "type", rename_all = "lowercase"))]
+#[cfg_attr(
+  any(feature = "serde", feature = "nodejs"),
+  serde(tag = "type", rename_all = "lowercase")
+)]
 pub enum Dependency {
   /// An `@import` dependency.
   Import(ImportDependency),
@@ -132,6 +135,7 @@ pub struct SourceRange {
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(serde::Serialize))]
 #[cfg_attr(any(feature = "serde"), derive(serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Location {
   /// The line number, starting from 1.
   pub line: u32,

@@ -31,8 +31,9 @@ enum_property! {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(rename_all = "kebab-case")
+  serde(tag = "type", content = "vendorPrefix", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[allow(missing_docs)]
 pub enum DisplayInside {
   Flow,
@@ -110,7 +111,12 @@ impl DisplayInside {
 /// See [Display](Display).
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct DisplayPair {
   /// The outside display value.
   pub outside: DisplayOutside,
@@ -327,10 +333,15 @@ enum_property! {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Display {
   /// A display keyword.
+  #[cfg_attr(
+    feature = "serde",
+    serde(with = "crate::serialization::ValueWrapper::<DisplayKeyword>")
+  )]
   Keyword(DisplayKeyword),
   /// The inside and outside display values.
   Pair(DisplayPair),

@@ -77,7 +77,9 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
       ($dir: ident, $decls: ident) => {
         let mut selectors = style_rule.selectors.clone();
         for selector in &mut selectors.0 {
-          selector.append(Component::NonTSPseudoClass(PseudoClass::Dir(Direction::$dir)));
+          selector.append(Component::NonTSPseudoClass(PseudoClass::Dir {
+            direction: Direction::$dir,
+          }));
         }
 
         let rule = StyleRule {

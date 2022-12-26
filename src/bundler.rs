@@ -27,7 +27,9 @@ use crate::{
   error::ErrorLocation,
   properties::{
     css_modules::Specifier,
-    custom::{CustomProperty, TokenList, TokenOrValue, UnparsedProperty, UnresolvedColor},
+    custom::{
+      CustomProperty, EnvironmentVariableName, TokenList, TokenOrValue, UnparsedProperty, UnresolvedColor,
+    },
     Property,
   },
   rules::{
@@ -699,6 +701,14 @@ fn visit_vars<'a, 'b>(
             stack.push(fallback.0.iter_mut());
           }
           return Some(&mut var.name);
+        }
+        Some(TokenOrValue::Env(env)) => {
+          if let Some(fallback) = &mut env.fallback {
+            stack.push(fallback.0.iter_mut());
+          }
+          if let EnvironmentVariableName::Custom(name) = &mut env.name {
+            return Some(name);
+          }
         }
         Some(TokenOrValue::UnresolvedColor(color)) => match color {
           UnresolvedColor::RGB { alpha, .. } | UnresolvedColor::HSL { alpha, .. } => {
@@ -1808,6 +1818,7 @@ mod tests {
           .a {
             background: var(--bg from "./b.css", var(--fallback from "./b.css"));
             color: rgb(255 255 255 / var(--opacity from "./b.css"));
+            width: env(--env, var(--env-fallback from "./env.css"));
           }
         "#,
           "/b.css": r#"
@@ -1815,6 +1826,11 @@ mod tests {
             --bg: red;
             --fallback: yellow;
             --opacity: 0.5;
+          }
+        "#,
+          "/env.css": r#"
+          .env {
+            --env-fallback: 20px;
           }
         "#
         },
@@ -1830,17 +1846,23 @@ mod tests {
         --_8Cs9ZG_fallback: yellow;
         --_8Cs9ZG_opacity: .5;
       }
+      
+      .GbJUva_env {
+        --GbJUva_env-fallback: 20px;
+      }
 
       ._6lixEq_a {
         background: var(--_8Cs9ZG_bg, var(--_8Cs9ZG_fallback));
         color: rgb(255 255 255 / var(--_8Cs9ZG_opacity));
+        width: env(--_6lixEq_env, var(--GbJUva_env-fallback));
       }
     "#}
     );
     assert_eq!(
       flatten_exports(exports),
       map! {
-        "a" => "_6lixEq_a"
+        "a" => "_6lixEq_a",
+        "--env" => "--_6lixEq_env"
       }
     );
 

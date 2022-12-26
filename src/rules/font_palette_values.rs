@@ -20,6 +20,7 @@ use cssparser::*;
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct FontPaletteValuesRule<'i> {
   /// The name of the font palette.
   pub name: DashedIdent<'i>,
@@ -41,6 +42,7 @@ pub struct FontPaletteValuesRule<'i> {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontPaletteValuesProperty<'i> {
   /// The `font-family` property.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -62,6 +64,7 @@ pub enum FontPaletteValuesProperty<'i> {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum BasePalette {
   /// A light color palette as defined within the font.
   Light,
@@ -76,6 +79,7 @@ pub enum BasePalette {
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct OverrideColors {
   /// The index of the color within the palette to override.
   index: u16,

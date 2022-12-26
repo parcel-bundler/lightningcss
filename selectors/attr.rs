@@ -25,6 +25,16 @@ impl<'i, Impl: SelectorImpl<'i>> AttrSelectorWithOptionalNamespace<'i, Impl> {
 }
 
 #[derive(Clone, Eq, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", rename_all = "kebab-case")
+)]
+#[cfg_attr(
+  feature = "jsonschema",
+  derive(schemars::JsonSchema),
+  schemars(rename = "NamespaceConstraint")
+)]
 pub enum NamespaceConstraint<NamespaceUrl> {
   Any,
 
@@ -42,7 +52,6 @@ pub enum ParsedAttrSelectorOperation<AttrValue> {
   },
 }
 
-#[derive(Clone, Eq, PartialEq)]
 pub enum AttrSelectorOperation<AttrValue> {
   Exists,
   WithValue {
@@ -69,6 +78,12 @@ impl<AttrValue> AttrSelectorOperation<AttrValue> {
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum AttrSelectorOperator {
   Equal,
   Includes,
@@ -125,6 +140,12 @@ impl AttrSelectorOperator {
 pub static SELECTOR_WHITESPACE: &[char] = &[' ', '\t', '\n', '\r', '\x0C'];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum ParsedCaseSensitivity {
   // 's' was specified.
   ExplicitCaseSensitive,
@@ -134,6 +155,12 @@ pub enum ParsedCaseSensitivity {
   CaseSensitive,
   // No flags were specified and HTML says this is a case-insensitive attribute.
   AsciiCaseInsensitiveIfInHtmlElementInHtmlDocument,
+}
+
+impl Default for ParsedCaseSensitivity {
+  fn default() -> Self {
+    ParsedCaseSensitivity::CaseSensitive
+  }
 }
 
 impl ParsedCaseSensitivity {

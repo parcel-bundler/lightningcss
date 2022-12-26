@@ -16,6 +16,7 @@ use crate::visitor::Visit;
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct MozDocumentRule<'i, R = DefaultAtRule> {
   /// Nested rules within the `@-moz-document` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]

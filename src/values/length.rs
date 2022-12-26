@@ -45,6 +45,7 @@ impl LengthPercentage {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum LengthPercentageOrAuto {
   /// The `auto` keyword.
   Auto,
@@ -278,6 +279,40 @@ macro_rules! define_length_units {
     }
 
     impl_try_from_angle!(LengthValue);
+
+    #[cfg(feature = "jsonschema")]
+    impl schemars::JsonSchema for LengthValue {
+      fn is_referenceable() -> bool {
+        true
+      }
+
+      fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        #[derive(schemars::JsonSchema)]
+        #[schemars(rename_all = "lowercase")]
+        #[allow(dead_code)]
+        enum LengthUnit {
+          $(
+            $(#[$meta])*
+            $name,
+          )+
+        }
+
+        #[derive(schemars::JsonSchema)]
+        #[allow(dead_code)]
+        struct LengthValue {
+          /// The length unit.
+          unit: LengthUnit,
+          /// The length value.
+          value: CSSNumber
+        }
+
+        LengthValue::json_schema(gen)
+      }
+
+      fn schema_name() -> String {
+        "LengthValue".into()
+      }
+    }
   };
 }
 
@@ -484,6 +519,7 @@ impl LengthValue {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Length {
   /// An explicitly specified length value.
   Value(LengthValue),
@@ -747,6 +783,7 @@ impl_try_from_angle!(Length);
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum LengthOrNumber {
   /// A length.
   Length(Length),

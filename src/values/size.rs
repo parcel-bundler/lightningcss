@@ -13,6 +13,7 @@ use cssparser::*;
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Size2D<T>(pub T, pub T);
 
 impl<'i, T> Parse<'i> for Size2D<T>

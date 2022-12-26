@@ -1,6 +1,8 @@
 //! The `@property` rule.
 
 use super::Location;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use crate::{
   error::{ParserError, PrinterError},
   printer::Printer,
@@ -11,13 +13,16 @@ use crate::{
   },
 };
 use cssparser::*;
-#[cfg(feature = "visitor")]
-use crate::visitor::Visit;
 
 /// A [@property](https://drafts.css-houdini.org/css-properties-values-api/#at-property-rule) rule.
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct PropertyRule<'i> {
   /// The name of the custom property to declare.
   #[cfg_attr(feature = "serde", serde(borrow))]

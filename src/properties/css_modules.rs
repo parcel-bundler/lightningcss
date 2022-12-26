@@ -15,6 +15,7 @@ use smallvec::SmallVec;
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Composes<'i> {
   /// A list of class names to compose.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -35,6 +36,7 @@ pub struct Composes<'i> {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Specifier<'i> {
   /// The referenced name is global.
   Global,

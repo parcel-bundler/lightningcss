@@ -2,6 +2,7 @@
 
 use crate::compat;
 use crate::error::{ParserError, PrinterError, PrinterErrorKind};
+use crate::macros::enum_property;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::PropertyId;
@@ -13,8 +14,9 @@ use crate::values::angle::Angle;
 use crate::values::color::{
   parse_hsl_hwb_components, parse_rgb_components, ColorFallbackKind, ComponentParser, CssColor,
 };
-use crate::values::ident::{DashedIdentReference, Ident};
+use crate::values::ident::{CustomIdent, DashedIdent, DashedIdentReference, Ident};
 use crate::values::length::{serialize_dimension, LengthValue};
+use crate::values::number::CSSInteger;
 use crate::values::percentage::Percentage;
 use crate::values::resolution::Resolution;
 use crate::values::string::CowArcStr;
@@ -25,14 +27,18 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::visitor::Visit;
 use cssparser::*;
 
+#[cfg(feature = "serde")]
+use crate::serialization::ValueWrapper;
+
 /// A CSS custom property, representing any unknown property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct CustomProperty<'i> {
   /// The name of the property.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  pub name: CowArcStr<'i>,
+  pub name: CustomPropertyName<'i>,
   /// The property value, stored as a raw token list.
   pub value: TokenList<'i>,
 }
@@ -40,7 +46,7 @@ pub struct CustomProperty<'i> {
 impl<'i> CustomProperty<'i> {
   /// Parses a custom property with the given name.
   pub fn parse<'t, T>(
-    name: CowArcStr<'i>,
+    name: CustomPropertyName<'i>,
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<T>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
@@ -51,6 +57,68 @@ impl<'i> CustomProperty<'i> {
   }
 }
 
+/// A CSS custom property name.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize), serde(untagged))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub enum CustomPropertyName<'i> {
+  /// An author-defined CSS custom property.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  Custom(DashedIdent<'i>),
+  /// An unknown CSS property.
+  Unknown(Ident<'i>),
+}
+
+impl<'i> From<CowArcStr<'i>> for CustomPropertyName<'i> {
+  fn from(name: CowArcStr<'i>) -> Self {
+    if name.starts_with("--") {
+      CustomPropertyName::Custom(DashedIdent(name))
+    } else {
+      CustomPropertyName::Unknown(Ident(name))
+    }
+  }
+}
+
+impl<'i> From<CowRcStr<'i>> for CustomPropertyName<'i> {
+  fn from(name: CowRcStr<'i>) -> Self {
+    CustomPropertyName::from(CowArcStr::from(name))
+  }
+}
+
+impl<'i> AsRef<str> for CustomPropertyName<'i> {
+  #[inline]
+  fn as_ref(&self) -> &str {
+    match self {
+      CustomPropertyName::Custom(c) => c.as_ref(),
+      CustomPropertyName::Unknown(u) => u.as_ref(),
+    }
+  }
+}
+
+impl<'i> ToCss for CustomPropertyName<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      CustomPropertyName::Custom(c) => c.to_css(dest),
+      CustomPropertyName::Unknown(u) => u.to_css(dest),
+    }
+  }
+}
+
+#[cfg(feature = "serde")]
+impl<'i, 'de: 'i> serde::Deserialize<'de> for CustomPropertyName<'i> {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let name = CowArcStr::deserialize(deserializer)?;
+    Ok(name.into())
+  }
+}
+
 /// A known property with an unparsed value.
 ///
 /// This type is used when the value of a known property could not
@@ -58,7 +126,12 @@ impl<'i> CustomProperty<'i> {
 /// In this case, the raw tokens are stored instead.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct UnparsedProperty<'i> {
   /// The id of the property.
   pub property_id: PropertyId<'i>,
@@ -82,7 +155,8 @@ impl<'i> UnparsedProperty<'i> {
 
   pub(crate) fn get_prefixed(&self, targets: Option<Browsers>, feature: Feature) -> UnparsedProperty<'i> {
     let mut clone = self.clone();
-    if self.property_id.prefix().contains(VendorPrefix::None) {
+    let prefix = self.property_id.prefix();
+    if prefix.is_empty() || prefix.contains(VendorPrefix::None) {
       if let Some(targets) = targets {
         clone.property_id = clone.property_id.with_prefix(feature.prefixes_for(targets))
       }
@@ -101,19 +175,20 @@ impl<'i> UnparsedProperty<'i> {
 
 /// A raw list of CSS tokens, with embedded parsed values.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "visitor", derive(Visit), visit(visit_token_list, TOKENS))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct TokenList<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub Vec<TokenOrValue<'i>>);
 
 /// A raw CSS token, or a parsed value.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "visitor", visit(visit_token, TOKENS))]
+#[cfg_attr(feature = "visitor", derive(Visit), visit(visit_token, TOKENS), visit_types(TOKENS | COLORS | URLS | VARIABLES | ENVIRONMENT_VARIABLES | FUNCTIONS | LENGTHS | ANGLES | TIMES | RESOLUTIONS | DASHED_IDENTS))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum TokenOrValue<'i> {
   /// A token.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -126,6 +201,8 @@ pub enum TokenOrValue<'i> {
   Url(Url<'i>),
   /// A CSS variable reference.
   Var(Variable<'i>),
+  /// A CSS environment variable reference.
+  Env(EnvironmentVariable<'i>),
   /// A custom CSS function.
   Function(Function<'i>),
   /// A length.
@@ -136,6 +213,8 @@ pub enum TokenOrValue<'i> {
   Time(Time),
   /// A resolution.
   Resolution(Resolution),
+  /// A dashed ident.
+  DashedIdent(DashedIdent<'i>),
 }
 
 impl<'i> From<Token<'i>> for TokenOrValue<'i> {
@@ -223,6 +302,14 @@ impl<'i> TokenList<'i> {
             tokens.push(var);
             last_is_delim = true;
             last_is_whitespace = false;
+          } else if f == "env" {
+            let env = input.parse_nested_block(|input| {
+              let env = EnvironmentVariable::parse_nested(input, options, depth + 1)?;
+              Ok(TokenOrValue::Env(env))
+            })?;
+            tokens.push(env);
+            last_is_delim = true;
+            last_is_whitespace = false;
           } else {
             let arguments = input.parse_nested_block(|input| TokenList::parse(input, options, depth + 1))?;
             tokens.push(TokenOrValue::Function(Function {
@@ -245,6 +332,11 @@ impl<'i> TokenList<'i> {
         Ok(&cssparser::Token::UnquotedUrl(_)) => {
           input.reset(&state);
           tokens.push(TokenOrValue::Url(Url::parse(input)?));
+          last_is_delim = false;
+          last_is_whitespace = false;
+        }
+        Ok(&cssparser::Token::Ident(ref name)) if name.starts_with("--") => {
+          tokens.push(TokenOrValue::DashedIdent(name.into()));
           last_is_delim = false;
           last_is_whitespace = false;
         }
@@ -360,6 +452,10 @@ impl<'i> TokenList<'i> {
           var.to_css(dest, is_custom_property)?;
           self.write_whitespace_if_needed(i, dest)?
         }
+        TokenOrValue::Env(env) => {
+          env.to_css(dest, is_custom_property)?;
+          self.write_whitespace_if_needed(i, dest)?
+        }
         TokenOrValue::Function(f) => {
           f.to_css(dest, is_custom_property)?;
           self.write_whitespace_if_needed(i, dest)?
@@ -379,6 +475,10 @@ impl<'i> TokenList<'i> {
           false
         }
         TokenOrValue::Resolution(v) => {
+          v.to_css(dest)?;
+          false
+        }
+        TokenOrValue::DashedIdent(v) => {
           v.to_css(dest)?;
           false
         }
@@ -449,39 +549,47 @@ impl<'i> TokenList<'i> {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Token<'a> {
   /// A [`<ident-token>`](https://drafts.csswg.org/css-syntax/#ident-token-diagram)
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   Ident(#[cfg_attr(feature = "serde", serde(borrow))] CowArcStr<'a>),
 
   /// A [`<at-keyword-token>`](https://drafts.csswg.org/css-syntax/#at-keyword-token-diagram)
   ///
   /// The value does not include the `@` marker.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   AtKeyword(CowArcStr<'a>),
 
   /// A [`<hash-token>`](https://drafts.csswg.org/css-syntax/#hash-token-diagram) with the type flag set to "unrestricted"
   ///
   /// The value does not include the `#` marker.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   Hash(CowArcStr<'a>),
 
   /// A [`<hash-token>`](https://drafts.csswg.org/css-syntax/#hash-token-diagram) with the type flag set to "id"
   ///
   /// The value does not include the `#` marker.
+  #[cfg_attr(feature = "serde", serde(rename = "id-hash", with = "ValueWrapper::<CowArcStr>"))]
   IDHash(CowArcStr<'a>), // Hash that is a valid ID selector.
 
   /// A [`<string-token>`](https://drafts.csswg.org/css-syntax/#string-token-diagram)
   ///
   /// The value does not include the quotes.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   String(CowArcStr<'a>),
 
   /// A [`<url-token>`](https://drafts.csswg.org/css-syntax/#url-token-diagram)
   ///
   /// The value does not include the `url(` `)` markers.  Note that `url( <string-token> )` is represented by a
   /// `Function` token.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   UnquotedUrl(CowArcStr<'a>),
 
   /// A `<delim-token>`
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<char>"))]
   Delim(char),
 
   /// A [`<number-token>`](https://drafts.csswg.org/css-syntax/#number-token-diagram)
@@ -489,25 +597,30 @@ pub enum Token<'a> {
     /// Whether the number had a `+` or `-` sign.
     ///
     /// This is used is some cases like the <An+B> micro syntax. (See the `parse_nth` function.)
+    #[cfg_attr(feature = "serde", serde(skip))]
     has_sign: bool,
 
     /// The value as a float
     value: f32,
 
     /// If the origin source did not include a fractional part, the value as an integer.
+    #[cfg_attr(feature = "serde", serde(skip))]
     int_value: Option<i32>,
   },
 
   /// A [`<percentage-token>`](https://drafts.csswg.org/css-syntax/#percentage-token-diagram)
   Percentage {
     /// Whether the number had a `+` or `-` sign.
+    #[cfg_attr(feature = "serde", serde(skip))]
     has_sign: bool,
 
     /// The value as a float, divided by 100 so that the nominal range is 0.0 to 1.0.
+    #[cfg_attr(feature = "serde", serde(rename = "value"))]
     unit_value: f32,
 
     /// If the origin source did not include a fractional part, the value as an integer.
     /// It is **not** divided by 100.
+    #[cfg_attr(feature = "serde", serde(skip))]
     int_value: Option<i32>,
   },
 
@@ -516,12 +629,14 @@ pub enum Token<'a> {
     /// Whether the number had a `+` or `-` sign.
     ///
     /// This is used is some cases like the <An+B> micro syntax. (See the `parse_nth` function.)
+    #[cfg_attr(feature = "serde", serde(skip))]
     has_sign: bool,
 
     /// The value as a float
     value: f32,
 
     /// If the origin source did not include a fractional part, the value as an integer.
+    #[cfg_attr(feature = "serde", serde(skip))]
     int_value: Option<i32>,
 
     /// The unit, e.g. "px" in `12px`
@@ -529,6 +644,7 @@ pub enum Token<'a> {
   },
 
   /// A [`<whitespace-token>`](https://drafts.csswg.org/css-syntax/#whitespace-token-diagram)
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<&str>"))]
   WhiteSpace(&'a str),
 
   /// A comment.
@@ -537,6 +653,7 @@ pub enum Token<'a> {
   /// But we do, because we can (borrowed &str makes it cheap).
   ///
   /// The value does not include the `/*` `*/` markers.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<&str>"))]
   Comment(&'a str),
 
   /// A `:` `<colon-token>`
@@ -564,14 +681,17 @@ pub enum Token<'a> {
   SubstringMatch,
 
   /// A `<!--` [`<CDO-token>`](https://drafts.csswg.org/css-syntax/#CDO-token-diagram)
+  #[cfg_attr(feature = "serde", serde(rename = "cdo"))]
   CDO,
 
   /// A `-->` [`<CDC-token>`](https://drafts.csswg.org/css-syntax/#CDC-token-diagram)
+  #[cfg_attr(feature = "serde", serde(rename = "cdc"))]
   CDC,
 
   /// A [`<function-token>`](https://drafts.csswg.org/css-syntax/#function-token-diagram)
   ///
   /// The value (name) does not include the `(` marker.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   Function(CowArcStr<'a>),
 
   /// A `<(-token>`
@@ -586,11 +706,13 @@ pub enum Token<'a> {
   /// A `<bad-url-token>`
   ///
   /// This token always indicates a parse error.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   BadUrl(CowArcStr<'a>),
 
   /// A `<bad-string-token>`
   ///
   /// This token always indicates a parse error.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   BadString(CowArcStr<'a>),
 
   /// A `<)-token>`
@@ -767,6 +889,11 @@ impl<'i> TokenList<'i> {
             fallbacks |= fallback.get_necessary_fallbacks(targets);
           }
         }
+        TokenOrValue::Env(v) => {
+          if let Some(fallback) = &v.fallback {
+            fallbacks |= fallback.get_necessary_fallbacks(targets);
+          }
+        }
         _ => {}
       }
     }
@@ -782,6 +909,7 @@ impl<'i> TokenList<'i> {
         TokenOrValue::Color(color) => TokenOrValue::Color(color.get_fallback(kind)),
         TokenOrValue::Function(f) => TokenOrValue::Function(f.get_fallback(kind)),
         TokenOrValue::Var(v) => TokenOrValue::Var(v.get_fallback(kind)),
+        TokenOrValue::Env(e) => TokenOrValue::Env(e.get_fallback(kind)),
         _ => token.clone(),
       })
       .collect();
@@ -818,6 +946,7 @@ impl<'i> TokenList<'i> {
           }
           TokenOrValue::Function(f) => *f = f.get_fallback(lowest_fallback),
           TokenOrValue::Var(v) if v.fallback.is_some() => *v = v.get_fallback(lowest_fallback),
+          TokenOrValue::Env(v) if v.fallback.is_some() => *v = v.get_fallback(lowest_fallback),
           _ => {}
         }
       }
@@ -832,12 +961,12 @@ impl<'i> TokenList<'i> {
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "visitor", visit(visit_variable, VARIABLES))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Variable<'i> {
   /// The variable name.
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: DashedIdentReference<'i>,
   /// A fallback value in case the variable is not defined.
-  #[cfg_attr(feature = "visitor", skip_type)]
   pub fallback: Option<TokenList<'i>>,
 }
 
@@ -879,17 +1008,190 @@ impl<'i> Variable<'i> {
   }
 }
 
+/// A CSS environment variable reference.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "visitor",
+  derive(Visit),
+  visit(visit_environment_variable, ENVIRONMENT_VARIABLES)
+)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub struct EnvironmentVariable<'i> {
+  /// The environment variable name.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  pub name: EnvironmentVariableName<'i>,
+  /// Optional indices into the dimensions of the environment variable.
+  #[cfg_attr(feature = "serde", serde(default))]
+  pub indices: Vec<CSSInteger>,
+  /// A fallback value in case the variable is not defined.
+  pub fallback: Option<TokenList<'i>>,
+}
+
+/// A CSS environment variable name.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", rename_all = "lowercase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub enum EnvironmentVariableName<'i> {
+  /// A UA-defined environment variable.
+  #[cfg_attr(
+    feature = "serde",
+    serde(with = "crate::serialization::ValueWrapper::<UAEnvironmentVariable>")
+  )]
+  UA(UAEnvironmentVariable),
+  /// A custom author-defined environment variable.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  Custom(DashedIdentReference<'i>),
+  /// An unknown environment variable.
+  #[cfg_attr(feature = "serde", serde(with = "crate::serialization::ValueWrapper::<CustomIdent>"))]
+  Unknown(CustomIdent<'i>),
+}
+
+enum_property! {
+  /// A UA-defined environment variable name.
+  pub enum UAEnvironmentVariable {
+    /// The safe area inset from the top of the viewport.
+    "safe-area-inset-top": SafeAreaInsetTop,
+    /// The safe area inset from the right of the viewport.
+    "safe-area-inset-right": SafeAreaInsetRight,
+    /// The safe area inset from the bottom of the viewport.
+    "safe-area-inset-bottom": SafeAreaInsetBottom,
+    /// The safe area inset from the left of the viewport.
+    "safe-area-inset-left": SafeAreaInsetLeft,
+    /// The viewport segment width.
+    "viewport-segment-width": ViewportSegmentWidth,
+    /// The viewport segment height.
+    "viewport-segment-height": ViewportSegmentHeight,
+    /// The viewport segment top position.
+    "viewport-segment-top": ViewportSegmentTop,
+    /// The viewport segment left position.
+    "viewport-segment-left": ViewportSegmentLeft,
+    /// The viewport segment bottom position.
+    "viewport-segment-bottom": ViewportSegmentBottom,
+    /// The viewport segment right position.
+    "viewport-segment-right": ViewportSegmentRight,
+  }
+}
+
+impl<'i> EnvironmentVariableName<'i> {
+  /// Returns the name of the environment variable as a string.
+  pub fn name(&self) -> &str {
+    match self {
+      EnvironmentVariableName::UA(ua) => ua.as_str(),
+      EnvironmentVariableName::Custom(c) => c.ident.as_ref(),
+      EnvironmentVariableName::Unknown(u) => u.0.as_ref(),
+    }
+  }
+}
+
+impl<'i> Parse<'i> for EnvironmentVariableName<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if let Ok(ua) = input.try_parse(UAEnvironmentVariable::parse) {
+      return Ok(EnvironmentVariableName::UA(ua));
+    }
+
+    if let Ok(dashed) =
+      input.try_parse(|input| DashedIdentReference::parse_with_options(input, &ParserOptions::default()))
+    {
+      return Ok(EnvironmentVariableName::Custom(dashed));
+    }
+
+    let ident = CustomIdent::parse(input)?;
+    return Ok(EnvironmentVariableName::Unknown(ident));
+  }
+}
+
+impl<'i> ToCss for EnvironmentVariableName<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      EnvironmentVariableName::UA(ua) => ua.to_css(dest),
+      EnvironmentVariableName::Custom(custom) => custom.to_css(dest),
+      EnvironmentVariableName::Unknown(unknown) => unknown.to_css(dest),
+    }
+  }
+}
+
+impl<'i> EnvironmentVariable<'i> {
+  pub(crate) fn parse<'t, T>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<T>,
+    depth: usize,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    input.expect_function_matching("env")?;
+    input.parse_nested_block(|input| Self::parse_nested(input, options, depth))
+  }
+
+  pub(crate) fn parse_nested<'t, T>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<T>,
+    depth: usize,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let name = EnvironmentVariableName::parse(input)?;
+    let mut indices = Vec::new();
+    while let Ok(index) = input.try_parse(CSSInteger::parse) {
+      indices.push(index);
+    }
+
+    let fallback = if input.try_parse(|input| input.expect_comma()).is_ok() {
+      Some(TokenList::parse(input, options, depth + 1)?)
+    } else {
+      None
+    };
+
+    Ok(EnvironmentVariable {
+      name,
+      indices,
+      fallback,
+    })
+  }
+
+  pub(crate) fn to_css<W>(&self, dest: &mut Printer<W>, is_custom_property: bool) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    dest.write_str("env(")?;
+    self.name.to_css(dest)?;
+
+    for item in &self.indices {
+      dest.write_char(' ')?;
+      item.to_css(dest)?;
+    }
+
+    if let Some(fallback) = &self.fallback {
+      dest.delim(',', false)?;
+      fallback.to_css(dest, is_custom_property)?;
+    }
+    dest.write_char(')')
+  }
+
+  fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
+    EnvironmentVariable {
+      name: self.name.clone(),
+      indices: self.indices.clone(),
+      fallback: self.fallback.as_ref().map(|fallback| fallback.get_fallback(kind)),
+    }
+  }
+}
+
 /// A custom CSS function.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "visitor", visit(visit_function, FUNCTIONS))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Function<'i> {
   /// The function name.
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: Ident<'i>,
   /// The function arguments.
-  #[cfg_attr(feature = "visitor", skip_type)]
   pub arguments: TokenList<'i>,
 }
 
@@ -921,8 +1223,9 @@ impl<'i> Function<'i> {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "lowercase")
+  serde(tag = "type", rename_all = "lowercase")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum UnresolvedColor<'i> {
   /// An rgb() color.
   RGB {
@@ -934,7 +1237,6 @@ pub enum UnresolvedColor<'i> {
     b: f32,
     /// The unresolved alpha component.
     #[cfg_attr(feature = "serde", serde(borrow))]
-    #[cfg_attr(feature = "visitor", skip_type)]
     alpha: TokenList<'i>,
   },
   /// An hsl() color.
@@ -947,7 +1249,6 @@ pub enum UnresolvedColor<'i> {
     l: f32,
     /// The unresolved alpha component.
     #[cfg_attr(feature = "serde", serde(borrow))]
-    #[cfg_attr(feature = "visitor", skip_type)]
     alpha: TokenList<'i>,
   },
 }

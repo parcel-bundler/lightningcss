@@ -22,7 +22,8 @@ use super::string::impl_string_type;
 #[derive(Debug, Clone, Eq, Hash)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "visitor", visit(visit_custom_ident, CUSTOM_IDENTS))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct CustomIdent<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CowArcStr<'i>);
 
 impl<'i> Parse<'i> for CustomIdent<'i> {
@@ -61,7 +62,8 @@ pub type CustomIdentList<'i> = SmallVec<[CustomIdent<'i>; 1]>;
 #[derive(Debug, Clone, Eq, Hash)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "visitor", visit(visit_dashed_ident, DASHED_IDENTS))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct DashedIdent<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CowArcStr<'i>);
 
 impl<'i> Parse<'i> for DashedIdent<'i> {
@@ -95,6 +97,7 @@ impl<'i> ToCss for DashedIdent<'i> {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct DashedIdentReference<'i> {
   /// The referenced identifier.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -149,7 +152,8 @@ impl<'i> ToCss for DashedIdentReference<'i> {
 /// A CSS [`<ident>`](https://www.w3.org/TR/css-values-4/#css-css-identifier).
 #[derive(Debug, Clone, Eq, Hash, Default)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Ident<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CowArcStr<'i>);
 
 impl<'i> Parse<'i> for Ident<'i> {

@@ -93,9 +93,7 @@ impl<'i> ToCss for Transition<'i> {
       self.duration.to_css(dest)?;
     }
 
-    if self.timing_function != EasingFunction::Ease
-      && self.timing_function != EasingFunction::CubicBezier(0.25, 0.1, 0.25, 1.0)
-    {
+    if !self.timing_function.is_ease() {
       dest.write_char(' ')?;
       self.timing_function.to_css(dest)?;
     }

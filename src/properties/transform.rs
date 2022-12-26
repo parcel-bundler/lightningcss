@@ -24,7 +24,8 @@ use std::f32::consts::PI;
 /// A value for the [transform](https://www.w3.org/TR/2019/CR-css-transforms-1-20190214/#propdef-transform) property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct TransformList(pub Vec<Transform>);
 
 impl<'i> Parse<'i> for TransformList {
@@ -150,8 +151,9 @@ impl TransformList {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", content = "value", rename_all = "camelCase")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Transform {
   /// A 2D translation.
   Translate(LengthPercentage, LengthPercentage),
@@ -201,6 +203,7 @@ pub enum Transform {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[allow(missing_docs)]
 pub struct Matrix<T> {
   pub a: T,
@@ -239,6 +242,7 @@ impl Matrix<f32> {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[allow(missing_docs)]
 pub struct Matrix3d<T> {
   pub m11: T,
@@ -1398,6 +1402,7 @@ enum_property! {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Perspective {
   /// No perspective transform is applied.
   None,
@@ -1431,6 +1436,7 @@ impl ToCss for Perspective {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Translate {
   /// The x translation.
   pub x: LengthPercentage,
@@ -1495,6 +1501,7 @@ impl Translate {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Rotate {
   /// Rotation around the x axis.
   pub x: f32,
@@ -1580,6 +1587,7 @@ impl Rotate {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Scale {
   /// Scale on the x axis.
   pub x: NumberOrPercentage,

@@ -15,6 +15,7 @@ use cssparser::*;
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Rect<T>(
   /// The top component.
   pub T,

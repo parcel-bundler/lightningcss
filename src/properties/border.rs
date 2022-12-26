@@ -29,6 +29,7 @@ use cssparser::*;
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum BorderSideWidth {
   /// A UA defined `thin` value.
   Thin,
@@ -113,6 +114,7 @@ impl Default for LineStyle {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct GenericBorder<S, const P: u8> {
   /// The width of the border.
   pub width: BorderSideWidth,

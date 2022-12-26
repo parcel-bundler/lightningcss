@@ -14,6 +14,7 @@ use cssparser::*;
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "visitor", visit(visit_ratio, RATIOS))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Ratio(pub CSSNumber, pub CSSNumber);
 
 impl<'i> Parse<'i> for Ratio {

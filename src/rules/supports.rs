@@ -15,10 +15,14 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::visitor::Visit;
 use cssparser::*;
 
+#[cfg(feature = "serde")]
+use crate::serialization::ValueWrapper;
+
 /// A [@supports](https://drafts.csswg.org/css-conditional-3/#at-supports) rule.
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct SupportsRule<'i, R = DefaultAtRule> {
   /// The supports condition.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -75,30 +79,36 @@ impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for SupportsRule<'i, T> {
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum SupportsCondition<'i> {
   /// A `not` expression.
   #[cfg_attr(feature = "visitor", skip_type)]
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Box<SupportsCondition>>"))]
   Not(Box<SupportsCondition<'i>>),
   /// An `and` expression.
   #[cfg_attr(feature = "visitor", skip_type)]
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Vec<SupportsCondition>>"))]
   And(Vec<SupportsCondition<'i>>),
   /// An `or` expression.
   #[cfg_attr(feature = "visitor", skip_type)]
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Vec<SupportsCondition>>"))]
   Or(Vec<SupportsCondition<'i>>),
   /// A declaration to evaluate.
   Declaration {
     /// The property id for the declaration.
-    #[cfg_attr(feature = "serde", serde(borrow))]
+    #[cfg_attr(feature = "serde", serde(borrow, rename = "propertyId"))]
     property_id: PropertyId<'i>,
     /// The raw value of the declaration.
     value: CowArcStr<'i>,
   },
   /// A selector to evaluate.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   Selector(CowArcStr<'i>),
   // FontTechnology()
   /// An unknown condition.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   Unknown(CowArcStr<'i>),
 }
 

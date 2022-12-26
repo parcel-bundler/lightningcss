@@ -51,14 +51,15 @@
 //! ```
 
 use crate::{
-  media_query::MediaQuery,
+  declaration::DeclarationBlock,
+  media_query::{MediaFeature, MediaFeatureValue, MediaList, MediaQuery},
   parser::DefaultAtRule,
   properties::{
-    custom::{Function, TokenOrValue, Variable},
+    custom::{EnvironmentVariable, Function, TokenList, TokenOrValue, Variable},
     Property,
   },
-  rules::{supports::SupportsCondition, CssRule},
-  selector::Selector,
+  rules::{supports::SupportsCondition, CssRule, CssRuleList},
+  selector::{Selector, SelectorList},
   values::{
     angle::Angle,
     color::CssColor,
@@ -108,16 +109,18 @@ bitflags! {
     const DASHED_IDENTS = 1 << 11;
     /// Visit variables.
     const VARIABLES = 1 << 12;
+    /// Visit environment variables.
+    const ENVIRONMENT_VARIABLES = 1 << 13;
     /// Visit media queries.
-    const MEDIA_QUERIES = 1 << 13;
+    const MEDIA_QUERIES = 1 << 14;
     /// Visit supports conditions.
-    const SUPPORTS_CONDITIONS = 1 << 14;
+    const SUPPORTS_CONDITIONS = 1 << 15;
     /// Visit selectors.
-    const SELECTORS = 1 << 15;
+    const SELECTORS = 1 << 16;
     /// Visit custom functions.
-    const FUNCTIONS = 1 << 16;
+    const FUNCTIONS = 1 << 17;
     /// Visit a token.
-    const TOKENS = 1 << 17;
+    const TOKENS = 1 << 18;
   }
 }
 
@@ -125,7 +128,7 @@ bitflags! {
 #[macro_export]
 macro_rules! visit_types {
   ($( $flag: ident )|+) => {
-    VisitTypes::from_bits_truncate(0 $(| VisitTypes::$flag.bits())+)
+    $crate::visitor::VisitTypes::from_bits_truncate(0 $(| $crate::visitor::VisitTypes::$flag.bits())+)
   }
 }
 
@@ -136,10 +139,29 @@ pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule>: Sized {
   /// performance by skipping branches that do not have any values of the requested types.
   const TYPES: VisitTypes;
 
+  /// Returns the types of values that this visitor should visit. By default, it returns
+  /// `Self::TYPES`, but this can be overridden to change the value at runtime.
+  #[inline]
+  fn visit_types(&self) -> VisitTypes {
+    Self::TYPES
+  }
+
+  /// Visits a rule list.
+  #[inline]
+  fn visit_rule_list(&mut self, rules: &mut CssRuleList<'i, T>) {
+    rules.visit_children(self)
+  }
+
   /// Visits a rule.
   #[inline]
   fn visit_rule(&mut self, rule: &mut CssRule<'i, T>) {
     rule.visit_children(self)
+  }
+
+  /// Visits a declaration block.
+  #[inline]
+  fn visit_declaration_block(&mut self, decls: &mut DeclarationBlock<'i>) {
+    decls.visit_children(self)
   }
 
   /// Visits a property.
@@ -195,16 +217,46 @@ pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule>: Sized {
     var.visit_children(self)
   }
 
+  /// Visits an environment variable reference.
+  #[inline]
+  fn visit_environment_variable(&mut self, env: &mut EnvironmentVariable<'i>) {
+    env.visit_children(self)
+  }
+
+  /// Visits a media query list.
+  #[inline]
+  fn visit_media_list(&mut self, media: &mut MediaList<'i>) {
+    media.visit_children(self)
+  }
+
   /// Visits a media query.
   #[inline]
   fn visit_media_query(&mut self, query: &mut MediaQuery<'i>) {
     query.visit_children(self)
   }
 
+  /// Visits a media feature.
+  #[inline]
+  fn visit_media_feature(&mut self, feature: &mut MediaFeature<'i>) {
+    feature.visit_children(self)
+  }
+
+  /// Visits a media feature value.
+  #[inline]
+  fn visit_media_feature_value(&mut self, value: &mut MediaFeatureValue<'i>) {
+    value.visit_children(self)
+  }
+
   /// Visits a supports condition.
   #[inline]
   fn visit_supports_condition(&mut self, condition: &mut SupportsCondition<'i>) {
     condition.visit_children(self)
+  }
+
+  /// Visits a selector list.
+  #[inline]
+  fn visit_selector_list(&mut self, selectors: &mut SelectorList<'i>) {
+    selectors.visit_children(self)
   }
 
   /// Visits a selector.
@@ -215,6 +267,12 @@ pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule>: Sized {
   #[inline]
   fn visit_function(&mut self, function: &mut Function<'i>) {
     function.visit_children(self)
+  }
+
+  /// Visits a token list.
+  #[inline]
+  fn visit_token_list(&mut self, tokens: &mut TokenList<'i>) {
+    tokens.visit_children(self)
   }
 
   /// Visits a token or value in an unparsed property.

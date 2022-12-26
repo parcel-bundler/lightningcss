@@ -41,6 +41,9 @@ pub mod vendor_prefix;
 #[cfg(feature = "visitor")]
 pub mod visitor;
 
+#[cfg(feature = "serde")]
+mod serialization;
+
 #[cfg(test)]
 mod tests {
   use crate::css_modules::{CssModuleExport, CssModuleExports, CssModuleReference, CssModuleReferences};
@@ -23009,7 +23012,7 @@ mod tests {
       r#"
     .foo {
       container-name: foo bar;
-      container-type: size inline-size;
+      container-type: size;
     }
     "#,
       ".foo{container:foo bar/size}",
@@ -23207,6 +23210,115 @@ mod tests {
       Browsers {
         chrome: Some(95 << 16),
         ..Browsers::default()
+      },
+    );
+  }
+
+  #[test]
+  fn test_environment() {
+    minify_test(
+      r#"
+      @media (max-width: env(--branding-small)) {
+        body {
+          padding: env(--branding-padding);
+        }
+      }
+    "#,
+      "@media (max-width:env(--branding-small)){body{padding:env(--branding-padding)}}",
+    );
+
+    minify_test(
+      r#"
+      @media (max-width: env(--branding-small 1)) {
+        body {
+          padding: env(--branding-padding 2);
+        }
+      }
+    "#,
+      "@media (max-width:env(--branding-small 1)){body{padding:env(--branding-padding 2)}}",
+    );
+
+    minify_test(
+      r#"
+      @media (max-width: env(--branding-small 1, 20px)) {
+        body {
+          padding: env(--branding-padding 2, 20px);
+        }
+      }
+    "#,
+      "@media (max-width:env(--branding-small 1,20px)){body{padding:env(--branding-padding 2,20px)}}",
+    );
+
+    minify_test(
+      r#"
+      @media (max-width: env(safe-area-inset-top)) {
+        body {
+          padding: env(safe-area-inset-top);
+        }
+      }
+    "#,
+      "@media (max-width:env(safe-area-inset-top)){body{padding:env(safe-area-inset-top)}}",
+    );
+
+    minify_test(
+      r#"
+      @media (max-width: env(unknown)) {
+        body {
+          padding: env(unknown);
+        }
+      }
+    "#,
+      "@media (max-width:env(unknown)){body{padding:env(unknown)}}",
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        color: env(--brand-color, color(display-p3 0 1 0));
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        color: env(--brand-color, #00f942);
+      }
+
+      @supports (color: color(display-p3 0 0 0)) {
+        .foo {
+          color: env(--brand-color, color(display-p3 0 1 0));
+        }
+      }
+    "#},
+      Browsers {
+        safari: Some(15 << 16),
+        chrome: Some(90 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    css_modules_test(
+      r#"
+      @media (max-width: env(--branding-small)) {
+        .foo {
+          color: env(--brand-color);
+        }
+      }
+    "#,
+      indoc! {r#"
+      @media (max-width: env(--EgL3uq_branding-small)) {
+        .EgL3uq_foo {
+          color: env(--EgL3uq_brand-color);
+        }
+      }
+    "#},
+      map! {
+        "foo" => "EgL3uq_foo",
+        "--brand-color" => "--EgL3uq_brand-color" referenced: true,
+        "--branding-small" => "--EgL3uq_branding-small" referenced: true
+      },
+      HashMap::new(),
+      crate::css_modules::Config {
+        dashed_idents: true,
+        ..Default::default()
       },
     );
   }

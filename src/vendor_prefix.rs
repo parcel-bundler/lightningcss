@@ -162,13 +162,14 @@ impl<'de> serde::Deserialize<'de> for VendorPrefix {
   where
     D: serde::Deserializer<'de>,
   {
-    let values = Vec::<&str>::deserialize(deserializer)?;
+    use crate::values::string::CowArcStr;
+    let values = Vec::<CowArcStr<'de>>::deserialize(deserializer)?;
     if values.is_empty() {
       return Ok(VendorPrefix::None);
     }
     let mut res = VendorPrefix::empty();
     for value in values {
-      res |= match value {
+      res |= match value.as_ref() {
         "none" => VendorPrefix::None,
         "webkit" => VendorPrefix::WebKit,
         "moz" => VendorPrefix::Moz,
@@ -185,4 +186,30 @@ impl<'de> serde::Deserialize<'de> for VendorPrefix {
 impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for VendorPrefix {
   const CHILD_TYPES: VisitTypes = VisitTypes::empty();
   fn visit_children(&mut self, _: &mut V) {}
+}
+
+#[cfg(feature = "jsonschema")]
+impl schemars::JsonSchema for VendorPrefix {
+  fn is_referenceable() -> bool {
+    true
+  }
+
+  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    #[derive(schemars::JsonSchema)]
+    #[schemars(rename_all = "lowercase")]
+    #[allow(dead_code)]
+    enum Prefix {
+      None,
+      WebKit,
+      Moz,
+      Ms,
+      O,
+    }
+
+    Vec::<Prefix>::json_schema(gen)
+  }
+
+  fn schema_name() -> String {
+    "VendorPrefix".into()
+  }
 }

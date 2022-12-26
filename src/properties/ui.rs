@@ -40,6 +40,7 @@ enum_property! {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct CursorImage<'i> {
   /// A url to the cursor image.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -129,6 +130,7 @@ enum_property! {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Cursor<'i> {
   /// A list of cursor images.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -176,6 +178,7 @@ impl<'i> ToCss for Cursor<'i> {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum ColorOrAuto {
   /// The `currentColor`, adjusted by the UA to ensure contrast against the background.
   Auto,
@@ -288,11 +291,6 @@ enum_property! {
 /// A value for the [appearance](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#appearance-switching) property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
-  serde(rename_all = "kebab-case")
-)]
 #[allow(missing_docs)]
 pub enum Appearance<'i> {
   None,
@@ -311,31 +309,59 @@ pub enum Appearance<'i> {
   SliderHorizontal,
   SquareButton,
   Textarea,
-  NonStandard(#[cfg_attr(feature = "serde", serde(borrow))] CowArcStr<'i>),
+  NonStandard(CowArcStr<'i>),
+}
+
+impl<'i> Appearance<'i> {
+  fn from_str(name: &str) -> Option<Self> {
+    Some(match_ignore_ascii_case! { &name,
+      "none" => Appearance::None,
+      "auto" => Appearance::Auto,
+      "textfield" => Appearance::Textfield,
+      "menulist-button" => Appearance::MenulistButton,
+      "button" => Appearance::Button,
+      "checkbox" => Appearance::Checkbox,
+      "listbox" => Appearance::Listbox,
+      "menulist" => Appearance::Menulist,
+      "meter" => Appearance::Meter,
+      "progress-bar" => Appearance::ProgressBar,
+      "push-button" => Appearance::PushButton,
+      "radio" => Appearance::Radio,
+      "searchfield" => Appearance::Searchfield,
+      "slider-horizontal" => Appearance::SliderHorizontal,
+      "square-button" => Appearance::SquareButton,
+      "textarea" => Appearance::Textarea,
+      _ => return None
+    })
+  }
+
+  fn to_str(&self) -> &str {
+    match self {
+      Appearance::None => "none",
+      Appearance::Auto => "auto",
+      Appearance::Textfield => "textfield",
+      Appearance::MenulistButton => "menulist-button",
+      Appearance::Button => "button",
+      Appearance::Checkbox => "checkbox",
+      Appearance::Listbox => "listbox",
+      Appearance::Menulist => "menulist",
+      Appearance::Meter => "meter",
+      Appearance::ProgressBar => "progress-bar",
+      Appearance::PushButton => "push-button",
+      Appearance::Radio => "radio",
+      Appearance::Searchfield => "searchfield",
+      Appearance::SliderHorizontal => "slider-horizontal",
+      Appearance::SquareButton => "square-button",
+      Appearance::Textarea => "textarea",
+      Appearance::NonStandard(s) => s.as_ref(),
+    }
+  }
 }
 
 impl<'i> Parse<'i> for Appearance<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let ident = input.expect_ident()?;
-    match_ignore_ascii_case! { &*ident,
-      "none" => Ok(Appearance::None),
-      "auto" => Ok(Appearance::Auto),
-      "textfield" => Ok(Appearance::Textfield),
-      "menulist-button" => Ok(Appearance::MenulistButton),
-      "button" => Ok(Appearance::Button),
-      "checkbox" => Ok(Appearance::Checkbox),
-      "listbox" => Ok(Appearance::Listbox),
-      "menulist" => Ok(Appearance::Menulist),
-      "meter" => Ok(Appearance::Meter),
-      "progress-bar" => Ok(Appearance::ProgressBar),
-      "push-button" => Ok(Appearance::PushButton),
-      "radio" => Ok(Appearance::Radio),
-      "searchfield" => Ok(Appearance::Searchfield),
-      "slider-horizontal" => Ok(Appearance::SliderHorizontal),
-      "square-button" => Ok(Appearance::SquareButton),
-      "textarea" => Ok(Appearance::Textarea),
-      _ => Ok(Appearance::NonStandard(ident.into()))
-    }
+    Ok(Self::from_str(ident.as_ref()).unwrap_or_else(|| Appearance::NonStandard(ident.into())))
   }
 }
 
@@ -344,24 +370,42 @@ impl<'i> ToCss for Appearance<'i> {
   where
     W: std::fmt::Write,
   {
-    match self {
-      Appearance::None => dest.write_str("none"),
-      Appearance::Auto => dest.write_str("auto"),
-      Appearance::Textfield => dest.write_str("textfield"),
-      Appearance::MenulistButton => dest.write_str("menulist-button"),
-      Appearance::Button => dest.write_str("button"),
-      Appearance::Checkbox => dest.write_str("checkbox"),
-      Appearance::Listbox => dest.write_str("listbox"),
-      Appearance::Menulist => dest.write_str("menulist"),
-      Appearance::Meter => dest.write_str("meter"),
-      Appearance::ProgressBar => dest.write_str("progress-bar"),
-      Appearance::PushButton => dest.write_str("push-button"),
-      Appearance::Radio => dest.write_str("radio"),
-      Appearance::Searchfield => dest.write_str("searchfield"),
-      Appearance::SliderHorizontal => dest.write_str("slider-horizontal"),
-      Appearance::SquareButton => dest.write_str("square-button"),
-      Appearance::Textarea => dest.write_str("textarea"),
-      Appearance::NonStandard(s) => dest.write_str(&s),
-    }
+    dest.write_str(self.to_str())
+  }
+}
+
+#[cfg(feature = "serde")]
+impl<'i> serde::Serialize for Appearance<'i> {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    serializer.serialize_str(self.to_str())
+  }
+}
+
+#[cfg(feature = "serde")]
+impl<'i, 'de: 'i> serde::Deserialize<'de> for Appearance<'i> {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let s = CowArcStr::deserialize(deserializer)?;
+    Ok(Self::from_str(s.as_ref()).unwrap_or_else(|| Appearance::NonStandard(s)))
+  }
+}
+
+#[cfg(feature = "jsonschema")]
+impl<'a> schemars::JsonSchema for Appearance<'a> {
+  fn is_referenceable() -> bool {
+    true
+  }
+
+  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    str::json_schema(gen)
+  }
+
+  fn schema_name() -> String {
+    "Appearance".into()
   }
 }

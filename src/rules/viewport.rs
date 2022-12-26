@@ -12,7 +12,12 @@ use crate::visitor::Visit;
 /// A [@viewport](https://drafts.csswg.org/css-device-adapt/#atviewport-rule) rule.
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct ViewportRule<'i> {
   /// The vendor prefix for this rule, e.g. `@-ms-viewport`.
   #[cfg_attr(feature = "visitor", skip_visit)]

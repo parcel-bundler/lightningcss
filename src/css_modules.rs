@@ -167,7 +167,10 @@ pub enum Segment<'i> {
 /// See [CssModuleExport](CssModuleExport).
 #[derive(PartialEq, Debug, Clone)]
 #[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(Serialize))]
-#[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(tag = "type", rename_all = "lowercase"))]
+#[cfg_attr(
+  any(feature = "serde", feature = "nodejs"),
+  serde(tag = "type", rename_all = "lowercase")
+)]
 pub enum CssModuleReference {
   /// A local reference.
   Local {
@@ -360,7 +363,7 @@ impl<'a, 'b, 'c> CssModule<'a, 'b, 'c> {
                   "--".into(),
                   &self.hashes[source_index as usize],
                   &self.sources[source_index as usize],
-                  name,
+                  &name[2..],
                 )
                 .unwrap(),
               composes: vec![],

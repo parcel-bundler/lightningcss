@@ -16,6 +16,7 @@ path = "lib.rs"
 
 [features]
 bench = []
+jsonschema = ["serde", "schemars"]
 
 [dependencies]
 bitflags = "1.0"
@@ -26,6 +27,8 @@ log = "0.4"
 phf = "0.8"
 precomputed-hash = "0.1"
 smallvec = "1.0"
+serde = { version = "1.0.123", features = ["derive"], optional = true }
+schemars = { version = "*", features = ["smallvec"], optional = true }
 
 [build-dependencies]
 phf_codegen = "0.8"

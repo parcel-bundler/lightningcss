@@ -15,6 +15,7 @@ use crate::visitor::Visit;
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct MediaRule<'i, R = DefaultAtRule> {
   /// The media query list.
   #[cfg_attr(feature = "serde", serde(borrow))]

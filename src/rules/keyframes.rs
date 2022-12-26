@@ -24,7 +24,12 @@ use cssparser::*;
 /// A [@keyframes](https://drafts.csswg.org/css-animations/#keyframes) rule.
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct KeyframesRule<'i> {
   /// The animation name.
   /// <keyframes-name> = <custom-ident> | <string>
@@ -43,7 +48,12 @@ pub struct KeyframesRule<'i> {
 /// KeyframesName
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", content = "value", rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum KeyframesName<'i> {
   /// `<custom-ident>` of a `@keyframes` name.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -258,6 +268,7 @@ impl<'i> ToCss for KeyframesRule<'i> {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum KeyframeSelector {
   /// An explicit percentage.
   Percentage(Percentage),
@@ -316,6 +327,7 @@ impl ToCss for KeyframeSelector {
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Keyframe<'i> {
   /// A list of keyframe selectors to associate with the declarations in this keyframe.
   pub selectors: Vec<KeyframeSelector>,

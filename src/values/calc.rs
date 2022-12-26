@@ -27,6 +27,7 @@ use super::time::Time;
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum MathFunction<V> {
   /// The [`calc()`](https://www.w3.org/TR/css-values-4/#calc-func) function.
   Calc(Calc<V>),
@@ -209,6 +210,7 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Calc<V> {
   /// A literal value.
   Value(Box<V>),
