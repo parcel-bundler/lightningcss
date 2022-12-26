@@ -23,12 +23,14 @@ html {
 
 header {
   max-width: 800px;
+  width: 100%;
   margin: 0 auto;
   padding: 50px 0;
   font-size: 16px;
   background: radial-gradient(closest-side, lch(80% 82.34 80.104 / .25), transparent);
   display: grid;
   column-gap: 30px;
+  grid-area: header;
   grid-template-areas: "logo header"
                         "logo subheader"
                         ". links";
@@ -68,6 +70,10 @@ h1, h2, h3 {
   color: lch(65% 85 35);
   margin: 2em 0 .5em 0;
   letter-spacing: -0.02em;
+}
+
+h1 {
+  margin-top: 0;
 }
 
 header p {
@@ -125,28 +131,61 @@ header a:hover {
 body {
   --body-padding: 20px;
   padding: 0 var(--body-padding);
-  margin: 0;
+  margin: 0 auto;
+  width: fit-content;
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 40px;
+  grid-template-areas: "header header"
+                       "nav    main"
+                       "footer footer";
 }
 
 main {
   max-width: 800px;
-  padding: 0 220px;
-  padding-right: min(calc((100vw - var(--body-padding) * 2 - 800px) / 2), 220px);
-  margin: 0 auto;
+  padding-right: 240px;
+  grid-area: main;
+  position: relative;
 }
 
 p, li {
   line-height: 1.5em;
 }
 
+p:empty {
+  display: none;
+}
+
 a {
   color: lch(85% 58 205);
 }
 
-nav, .table-of-contents {
+nav {
+  grid-area: nav;
+  text-align: end;
+  padding-right: 20px;
+  border-right: 1px solid lch(90% 50.34 80.104 / .1);
+  height: fit-content;
   position: sticky;
   top: 40px;
-  width: 100%;
+}
+
+nav h3,
+.table-of-contents h3 {
+  margin-top: 0;
+}
+
+main > aside {
+  position: sticky;
+  top: 40px;
+}
+
+.table-of-contents {
+  position: absolute;
+  left: 100%;
+  margin-left: 40px;
+  border-left: 1px solid lch(90% 50.34 80.104 / .1);
+  padding-left: 20px;
 }
 
 .table-of-contents ul,
@@ -158,20 +197,12 @@ nav ul {
 .table-of-contents > ul {
   margin: 0;
   padding: 0;
-  position: absolute;
-  right: -240px;
   width: 180px;
-  border-left: 1px solid lch(90% 50.34 80.104 / .1);
-  padding-left: 20px;
 }
 
 nav > ul {
   margin: 0;
   padding: 0;
-  position: absolute;
-  transform: translateX(calc(-100% - 40px));
-  border-right: 1px solid lch(90% 50.34 80.104 / .1);
-  padding-right: 20px;
 }
 
 .table-of-contents li,
@@ -194,13 +225,28 @@ nav a[aria-current] {
   text-shadow: 0 0 5px var(--gold-text);
 }
 
-@media (width < 800px) {
+@media (width < 1040px) {
   .table-of-contents {
     display: none;
   }
 
   main {
     padding-right: 0;
+  }
+}
+
+@media (width < 600px) {
+  body {
+    grid-template-areas: "header" "nav" "main" "footer";
+    grid-template-columns: 1fr;
+  }
+
+  nav {
+    text-align: start;
+    border-right: none;
+    border-bottom: 1px solid lch(90% 50.34 80.104 / .1);
+    padding-bottom: 20px;
+    position: static;
   }
 }
 
@@ -232,5 +278,6 @@ footer {
   font-size: 12px;
   color: #666;
   text-align: center;
-  padding: 40px 0 20px 0;
+  padding-bottom: 20px;
+  grid-area: footer;
 }

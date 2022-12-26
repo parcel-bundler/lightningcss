@@ -11,6 +11,7 @@
         {
           "plugin": "markdown-it-table-of-contents",
           "options": {
+            "containerHeaderHtml": "<h3>On this page</h3>",
             "includeLevel": [
               2,
               3
