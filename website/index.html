@@ -35,6 +35,7 @@
         <h3>Light speed</h3>
         <p><strong>Lightning CSS is over 100x faster than comparable JavaScript-based tools.</strong> It can minify over 2.7 million lines of code per second on a single thread.</p>
         <p style="font-size: 0.85em">Lightning CSS is written in Rust, a native systems programming language. It was built with performance in mind from the start, designed to make efficient use of memory, and limit AST passes.</p>
+        <p><a href="docs.html">Get started →</a></p>
         <figure>
           <div class="chart" role="img" aria-label="Build time chart. CSSNano – 544ms, ESBuild – 17.2ms, Lightning CSS – 4.16ms" style="max-width: 800px; margin-top: 40px; position: relative; padding-bottom: 110px; white-space: nowrap">
             <div style="text-align: center; font-weight: bold; font-size: 15px; margin-left: 90px; margin-bottom: 12px">Build time</div>
@@ -86,6 +87,7 @@
           <div class="description">
             <p><strong>Lightning CSS lets you use modern CSS features and future syntax today.</strong> Features such as CSS nesting, custom media queries, high gamut color spaces, logical properties, and new selector features are automatically converted to more compatible syntax based on your browser targets.</p>
             <p>Lightning CSS also automatically adds vendor prefixes for your browser targets, so you can keep your source code clean and repetition free.</p>
+            <p><a href="transpilation.html">Learn more →</a></p>
           </div>
           <div class="example">
             <div class="targets"><h4>Target Browsers</h4><code>last 2 versions</code></div>
@@ -107,6 +109,7 @@
         <h3>Crush it!</h3>
         <p style="font-weight: bold;">Lightning CSS is not only fast when it comes to build time. It produces smaller output, so your website loads faster too.</p>
         <p style="font-size: 0.85em">The Lightning CSS minifier combines longhand properties into shorthands, removes unnecessary vendor prefixes, merges compatible adjacent rules, removes unnecessary default values, reduces <code>calc()</code> expressions, shortens colors, minifies gradients, and much more.</p>
+        <p><a href="minification.html">Details →</a></p>
         <figure>
           <div class="chart" role="img" aria-label="Output size chart. CSSNano – 155.89 KB, ESBuild – 156.57 KB, Lightning CSS – 139.74 KB" style="max-width: 800px; margin-top: 40px; position: relative; padding-bottom: 110px; white-space: nowrap">
             <div style="text-align: center; font-weight: bold; font-size: 15px; margin-left: 90px; margin-bottom: 12px">Output size</div>
@@ -144,6 +147,7 @@
           <h3>CSS modules</h3>
           <p><strong>Lightning CSS supports CSS modules, which locally scope classes, ids, <code>@keyframes</code>, CSS variables, and more.</strong> This ensures that there are no unintended name clashes between different CSS files.</p>
           <p style="font-size: 0.8em">Lightning CSS generates a mapping of the original names to scoped names, which can be used from your JavaScript. This also enables unused classes and variables to be tree-shaken.</p>
+          <p><a href="css-modules.html">Documentation →</a></p>
         </div>
         <pre class="compartment input"><code>.heading {
   composes: typography from './typography.css';
@@ -168,6 +172,7 @@
           <h3>Browser grade</h3>
           <p><strong>Lightning CSS is written in Rust, using the <a href="https://github.com/servo/rust-cssparser" target="_blank">cssparser</a> and <a href="https://github.com/servo/servo/tree/master/components/selectors" target="_blank">selectors</a> crates created by Mozilla and used by Firefox.</strong> These provide a solid CSS-parsing foundation on top of which Lightning CSS implements support for all specific CSS rules and properties.</p>
           <p style="font-size: 0.85em">Lightning CSS fully parses every CSS rule, property, and value just as a browser would. This reduces duplicate work for transformers, leading to improved performance and minification.</p>
+          <p><a href="transforms.html">Custom transforms →</a></p>
         </div>
         <pre><code><span class="ident">Background</span>([<span class="ident">Background</span> {
   image: <span class="ident">Url</span>(<span class="ident">Url</span> { url: <span class="string">"img.png"</span> }),
@@ -380,6 +385,17 @@
         line-height: 1.4em;
       }
 
+      main p a {
+        font-weight: bold;
+        font-size: 0.9em;
+        color: inherit;
+        text-decoration: none;
+      }
+
+      main p a:hover {
+        text-decoration: underline;
+      }
+
       figure {
         max-width: 800px;
         margin: 0;
@@ -426,6 +442,11 @@
         color: #aaa;
       }
 
+      .warp p a {
+        color: var(--gold-text);
+        text-shadow: 0 0 7px var(--gold-shadow);
+      }
+
       .crush {
         background-image: url(crush.svg), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='rgb(0 0 0 / .2)' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'%3E%3C/path%3E%3C/svg%3E"), linear-gradient(to bottom right, lch(75% 82.34 80.104), lch(68% 82.34 80.104));
         background-size: 600px auto, auto, auto;
@@ -448,6 +469,10 @@
 
       .crush figcaption {
         color: #222;
+      }
+
+      .crush p a {
+        color: lch(30% 73.588 34.159);
       }
 
       @media (width < 1200px) {
@@ -616,6 +641,11 @@
         font-size: 15px;
       }
 
+      .future a {
+        color: lch(85% 58 205);
+        text-shadow: 0 0 10px lch(85% 58 205 / .6);
+      }
+
       @media (width < 1200px) {
         .future .inner {
           flex-direction: column;
@@ -729,6 +759,10 @@
 
       .parser a {
         color: black;
+      }
+
+      .parser p:last-of-type a {
+        font-size: 0.8em;
       }
 
       @media (width < 1200px) {
