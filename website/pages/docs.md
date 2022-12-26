@@ -82,6 +82,8 @@ let {code, map} = transform({
 console.log(new TextDecoder().decode(code));
 ```
 
+Note that the `bundle` and visitor APIs are not currently available in the WASM build.
+
 ## With webpack
 
 [css-minimizer-webpack-plugin](https://webpack.js.org/plugins/css-minimizer-webpack-plugin/) has built in support for Lightning CSS. To use it, first install Lightning CSS in your project with a package manager like npm or Yarn:
@@ -155,7 +157,7 @@ Then, you can run the `lightningcss` command via `npx`, `yarn`, or by setting up
 ```json
 {
   "scripts": {
-    "build": "lightningcss --minify --nesting --bundle --targets '>= 0.25%' --sourcemap input.css -o output.css"
+    "build": "lightningcss --minify --bundle --targets '>= 0.25%' input.css -o output.css"
   }
 }
 ```
