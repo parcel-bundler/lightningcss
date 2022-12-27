@@ -130,6 +130,29 @@ compiles to:
 
 When `@import` rules are processed in browsers, if the same file appears more than once, the _last_ instance applies. This is the opposite from behavior in other languages like JavaScript. Lightning CSS folllows this behavior when bundling so that the output behaves the same as if it were not bundled.
 
+```css
+/* index.css */
+@import "a.css";
+@import "b.css";
+@import "a.css";
+```
+
+```css
+/* a.css */
+body { background: green }
+```
+
+```css
+/* b.css */
+body { background: red }
+```
+
+compiles to:
+
+```css
+body { background: green }
+```
+
 ## Custom resolvers
 
 The `bundleAsync` API is an asynchronous version of `bundle`, which also accepts a custom `resolver` object. This allows you to provide custom JavaScript functions for resolving `@import` specifiers to file paths, and reading files from the file system (or another source). The `read` and `resolve` functions are both optional, and may either return a string synchronously, or a Promise for asynchronous resolution.

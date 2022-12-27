@@ -109,14 +109,14 @@ pre[class*="language-"] {
 .token.char,
 .token.attr-value,
 .token.regex,
-.token.variable {
+.token.variable,
+.token.url {
   color: lch(85% 82.34 80.104);
   text-shadow: 0 0 10px lch(85% 82.34 80.104 / .5);
 }
 
 .token.operator,
-.token.entity,
-.token.url {
+.token.entity {
   color: #67cdcc;
 }
 

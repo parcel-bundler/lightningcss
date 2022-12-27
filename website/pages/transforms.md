@@ -235,6 +235,10 @@ assert.equal(res.code.toString(), '.foo{padding:40px}');
 
 Each visitor object has the opportunity to visit every value once. If a visitor returns a new value, that value is visited by the other visitor objects but not again by the original visitor that created it. If other visitors subsequently modify the value, the previous visitors will not revisit the value. This is to avoid infinite loops.
 
+## Examples
+
+For examples of visitors that perform a variety of real world tasks, see the Lightning CSS [visitor tests](https://github.com/parcel-bundler/lightningcss/blob/master/node/test/visitor.test.mjs).
+
 ## Publishing a plugin
 
 Visitor plugins can be published to npm in order to share them with others. Plugin packages simply consist of an exported visitor object, which users can compose with other plugins via the `composeVisitors` function as described above.

@@ -29,23 +29,21 @@ let { code, map } = transform({
 });
 ```
 
-See [Transpilation](transpilation.html) for details about syntax lowering and vendor prefixing CSS for your browser targets, and the draft syntax support in Lightning CSS.
-
-You can also use the `bundle` API to process `@import` rules and inline them. See [Bundling](bundling.html) for details.
+See [Transpilation](transpilation.html) for details about syntax lowering and vendor prefixing CSS for your browser targets, and the draft syntax support in Lightning CSS. You can also use the `bundle` API to process `@import` rules and inline them – see [Bundling](bundling.html) for details.
 
 The [TypeScript definitions](https://github.com/parcel-bundler/lightningcss/blob/master/node/index.d.ts) also include documentation for all API options.
 
 ## From Rust
 
-See the Rust API docs on [docs.rs](https://docs.rs/lightningcss).
+Lightning CSS can also be used as a Rust library to parse, transform, and minify CSS. See the Rust API docs on [docs.rs](https://docs.rs/lightningcss).
 
 ## With Parcel
 
-Parcel includes Lightning CSS as the default CSS transformer. You should also add a `browserslist` property to your `package.json`, which defines the target browsers that your CSS will be compiled for.
+[Parcel](https://parceljs.org) includes Lightning CSS as the default CSS transformer. You should also add a `browserslist` property to your `package.json`, which defines the target browsers that your CSS will be compiled for.
 
 While Lightning CSS handles the most commonly used PostCSS plugins like `autoprefixer`, `postcss-preset-env`, and CSS modules, you may still need PostCSS for more custom plugins like TailwindCSS. If that's the case, your PostCSS config will be picked up automatically. You can remove the plugins listed above from your PostCSS config, and they'll be handled by Lightning CSS.
 
-You can also configure Lightning CSS in the `package.json` in the root of your project. Currently, three options are supported: [drafts](transpilation.html#draft-syntax), which can be used to enable CSS nesting and custom media queries, [pseudoClasses](transpilation.html#pseudo-class-replacement), which allows replacing some pseudo classes like `:focus-visible` with normal classes that can be applied via JavaScript (e.g. polyfills), and `cssModules`, which enables CSS modules globally rather than only for files ending in `.module.css`, or accepts an options object.
+You can also configure Lightning CSS in the `package.json` in the root of your project. Currently, three options are supported: [drafts](transpilation.html#draft-syntax), which can be used to enable CSS nesting and custom media queries, [pseudoClasses](transpilation.html#pseudo-class-replacement), which allows replacing some pseudo classes like `:focus-visible` with normal classes that can be applied via JavaScript (e.g. polyfills), and [cssModules](css-modules.html), which enables CSS modules globally rather than only for files ending in `.module.css`, or accepts an options object.
 
 ```json
 {
