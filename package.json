@@ -66,6 +66,9 @@
     "util": "^0.12.4",
     "uvu": "^0.5.6"
   },
+  "resolutions": {
+    "lightningcss": "link:."
+  },
   "scripts": {
     "prepare": "patch-package",
     "build": "node scripts/build.js && node scripts/build-flow.js",
