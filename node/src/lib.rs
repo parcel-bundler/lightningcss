@@ -18,54 +18,54 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex, RwLock};
 
-#[cfg(not(target_arch = "wasm32"))]
+// #[cfg(not(target_arch = "wasm32"))]
 use transformer::JsVisitor;
 
-#[cfg(not(target_arch = "wasm32"))]
+// #[cfg(not(target_arch = "wasm32"))]
 mod threadsafe_function;
-#[cfg(not(target_arch = "wasm32"))]
+// #[cfg(not(target_arch = "wasm32"))]
 mod transformer;
 
 // ---------------------------------------------
 
-#[cfg(target_arch = "wasm32")]
-use serde_wasm_bindgen::{from_value, Serializer};
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
+// #[cfg(target_arch = "wasm32")]
+// use serde_wasm_bindgen::{from_value, Serializer};
+// #[cfg(target_arch = "wasm32")]
+// use wasm_bindgen::prelude::*;
 
-#[cfg(target_arch = "wasm32")]
-struct JsVisitor;
+// #[cfg(target_arch = "wasm32")]
+// struct JsVisitor;
 
-#[cfg(target_arch = "wasm32")]
-impl<'i> lightningcss::visitor::Visitor<'i> for JsVisitor {
-  const TYPES: lightningcss::visitor::VisitTypes = lightningcss::visitor::VisitTypes::empty();
-}
+// #[cfg(target_arch = "wasm32")]
+// impl<'i> lightningcss::visitor::Visitor<'i> for JsVisitor {
+//   const TYPES: lightningcss::visitor::VisitTypes = lightningcss::visitor::VisitTypes::empty();
+// }
 
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen]
-pub fn transform(config_val: JsValue) -> Result<JsValue, JsValue> {
-  let config: Config = from_value(config_val).map_err(JsValue::from)?;
-  let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
-  let res = compile(code, &config, &mut None)?;
-  let serializer = Serializer::new().serialize_maps_as_objects(true);
-  res.serialize(&serializer).map_err(JsValue::from)
-}
+// #[cfg(target_arch = "wasm32")]
+// #[wasm_bindgen]
+// pub fn transform(config_val: JsValue) -> Result<JsValue, JsValue> {
+//   let config: Config = from_value(config_val).map_err(JsValue::from)?;
+//   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
+//   let res = compile(code, &config, &mut None)?;
+//   let serializer = Serializer::new().serialize_maps_as_objects(true);
+//   res.serialize(&serializer).map_err(JsValue::from)
+// }
 
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen(js_name = "transformStyleAttribute")]
-pub fn transform_style_attribute(config_val: JsValue) -> Result<JsValue, JsValue> {
-  let config: AttrConfig = from_value(config_val).map_err(JsValue::from)?;
-  let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
-  let res = compile_attr(code, &config, &mut None)?;
-  let serializer = Serializer::new().serialize_maps_as_objects(true);
-  res.serialize(&serializer).map_err(JsValue::from)
-}
+// #[cfg(target_arch = "wasm32")]
+// #[wasm_bindgen(js_name = "transformStyleAttribute")]
+// pub fn transform_style_attribute(config_val: JsValue) -> Result<JsValue, JsValue> {
+//   let config: AttrConfig = from_value(config_val).map_err(JsValue::from)?;
+//   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
+//   let res = compile_attr(code, &config, &mut None)?;
+//   let serializer = Serializer::new().serialize_maps_as_objects(true);
+//   res.serialize(&serializer).map_err(JsValue::from)
+// }
 
 // ---------------------------------------------
 
-#[cfg(not(target_arch = "wasm32"))]
+// #[cfg(not(target_arch = "wasm32"))]
 use napi::{CallContext, Env, JsObject, JsUnknown};
-#[cfg(not(target_arch = "wasm32"))]
+// #[cfg(not(target_arch = "wasm32"))]
 use napi_derive::{js_function, module_exports};
 
 #[derive(Serialize)]
@@ -81,7 +81,7 @@ struct TransformResult<'i> {
   warnings: Vec<Warning<'i>>,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+// #[cfg(not(target_arch = "wasm32"))]
 impl<'i> TransformResult<'i> {
   fn into_js(self, env: Env) -> napi::Result<JsUnknown> {
     // Manually construct buffers so we avoid a copy and work around
@@ -106,7 +106,13 @@ impl<'i> TransformResult<'i> {
   }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+extern "C" {
+  // fn print(ptr: *const c_char);
+  // fn eprint(ptr: *const c_char);
+  fn trace(ptr: *const u8);
+}
+
+// #[cfg(not(target_arch = "wasm32"))]
 #[js_function(1)]
 fn transform(ctx: CallContext) -> napi::Result<JsUnknown> {
   use transformer::JsVisitor;
@@ -134,7 +140,7 @@ fn transform(ctx: CallContext) -> napi::Result<JsUnknown> {
   }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+// #[cfg(not(target_arch = "wasm32"))]
 #[js_function(1)]
 fn transform_style_attribute(ctx: CallContext) -> napi::Result<JsUnknown> {
   use transformer::JsVisitor;
@@ -370,7 +376,7 @@ mod bundle {
     handle_error(tx, read_on_js_thread(ctx))
   }
 
-  #[cfg(not(target_arch = "wasm32"))]
+  // #[cfg(not(target_arch = "wasm32"))]
   #[js_function(1)]
   pub fn bundle_async(ctx: CallContext) -> napi::Result<JsObject> {
     use transformer::JsVisitor;
@@ -488,15 +494,52 @@ mod bundle {
   }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[module_exports]
+// #[cfg(not(target_arch = "wasm32"))]
+#[cfg_attr(not(target_arch = "wasm32"), module_exports)]
 fn init(mut exports: JsObject) -> napi::Result<()> {
   exports.create_named_method("transform", transform)?;
   exports.create_named_method("transformStyleAttribute", transform_style_attribute)?;
-  exports.create_named_method("bundle", bundle::bundle)?;
-  exports.create_named_method("bundleAsync", bundle::bundle_async)?;
+
+  #[cfg(not(target_arch = "wasm32"))]
+  {
+    exports.create_named_method("bundle", bundle::bundle)?;
+    exports.create_named_method("bundleAsync", bundle::bundle_async)?;
+  }
 
   Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+#[no_mangle]
+pub unsafe fn init_wasm(raw_env: napi::sys::napi_env, raw_exports: napi::sys::napi_value) {
+  use napi::{Env, JsObject, NapiValue};
+
+  let env = Env::from_raw(raw_env);
+  let exports = JsObject::from_raw_unchecked(raw_env, raw_exports);
+  init(exports);
+}
+
+#[no_mangle]
+pub extern "C" fn wasm_malloc(size: usize) -> *mut u8 {
+  use std::alloc::{alloc, Layout};
+  use std::mem;
+
+  let align = mem::align_of::<usize>();
+  if let Ok(layout) = Layout::from_size_align(size, align) {
+    unsafe {
+      if layout.size() > 0 {
+        let ptr = alloc(layout);
+        if !ptr.is_null() {
+          return ptr;
+        }
+      } else {
+        return align as *mut u8;
+      }
+    }
+  }
+
+  // malloc_failure();
+  std::process::abort();
 }
 
 // ---------------------------------------------
@@ -705,7 +748,7 @@ fn compile<'i>(
   })
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+// #[cfg(not(target_arch = "wasm32"))]
 fn compile_bundle<'i, 'o, P: SourceProvider, F: FnOnce(&mut StyleSheet<'i, 'o>) -> napi::Result<()>>(
   fs: &'i P,
   config: &'o BundleConfig,
@@ -827,7 +870,7 @@ struct AttrResult<'i> {
   warnings: Vec<Warning<'i>>,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+// #[cfg(not(target_arch = "wasm32"))]
 impl<'i> AttrResult<'i> {
   fn into_js(self, ctx: CallContext) -> napi::Result<JsUnknown> {
     // Manually construct buffers so we avoid a copy and work around
@@ -906,7 +949,7 @@ enum CompileError<'i, E: std::error::Error> {
   SourceMapError(parcel_sourcemap::SourceMapError),
   BundleError(Error<BundleErrorKind<'i, E>>),
   PatternError(PatternParseError),
-  #[cfg(not(target_arch = "wasm32"))]
+  // #[cfg(not(target_arch = "wasm32"))]
   JsError(napi::Error),
 }
 
@@ -919,14 +962,14 @@ impl<'i, E: std::error::Error> std::fmt::Display for CompileError<'i, E> {
       CompileError::BundleError(err) => err.kind.fmt(f),
       CompileError::PatternError(err) => err.fmt(f),
       CompileError::SourceMapError(err) => write!(f, "{}", err.to_string()), // TODO: switch to `fmt::Display` once parcel_sourcemap supports this
-      #[cfg(not(target_arch = "wasm32"))]
+      // #[cfg(not(target_arch = "wasm32"))]
       CompileError::JsError(err) => std::fmt::Debug::fmt(&err, f),
     }
   }
 }
 
 impl<'i, E: std::error::Error> CompileError<'i, E> {
-  #[cfg(not(target_arch = "wasm32"))]
+  // #[cfg(not(target_arch = "wasm32"))]
   fn throw(self, env: Env, code: Option<&str>) -> napi::Result<JsUnknown> {
     let reason = self.to_string();
     let data = match &self {
@@ -999,7 +1042,7 @@ impl<'i, E: std::error::Error> From<Error<BundleErrorKind<'i, E>>> for CompileEr
   }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+// #[cfg(not(target_arch = "wasm32"))]
 impl<'i, E: std::error::Error> From<CompileError<'i, E>> for napi::Error {
   fn from(e: CompileError<'i, E>) -> napi::Error {
     match e {
@@ -1011,16 +1054,16 @@ impl<'i, E: std::error::Error> From<CompileError<'i, E>> for napi::Error {
   }
 }
 
-#[cfg(target_arch = "wasm32")]
-impl<'i, E: std::error::Error> From<CompileError<'i, E>> for wasm_bindgen::JsValue {
-  fn from(e: CompileError<'i, E>) -> wasm_bindgen::JsValue {
-    match e {
-      CompileError::SourceMapError(e) => js_sys::Error::new(&e.to_string()).into(),
-      CompileError::PatternError(e) => js_sys::Error::new(&e.to_string()).into(),
-      _ => js_sys::Error::new(&e.to_string()).into(),
-    }
-  }
-}
+// #[cfg(target_arch = "wasm32")]
+// impl<'i, E: std::error::Error> From<CompileError<'i, E>> for wasm_bindgen::JsValue {
+//   fn from(e: CompileError<'i, E>) -> wasm_bindgen::JsValue {
+//     match e {
+//       CompileError::SourceMapError(e) => js_sys::Error::new(&e.to_string()).into(),
+//       CompileError::PatternError(e) => js_sys::Error::new(&e.to_string()).into(),
+//       _ => js_sys::Error::new(&e.to_string()).into(),
+//     }
+//   }
+// }
 
 #[derive(Serialize)]
 struct Warning<'i> {
