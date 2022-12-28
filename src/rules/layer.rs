@@ -101,6 +101,7 @@ impl<'i> ToCss for LayerStatementRule<'i> {
   where
     W: std::fmt::Write,
   {
+    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@layer ")?;
     self.names.to_css(dest)?;
@@ -146,6 +147,7 @@ impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for LayerBlockRule<'i, T> {
   where
     W: std::fmt::Write,
   {
+    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@layer")?;
     if let Some(name) = &self.name {

@@ -78,6 +78,7 @@ impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for ContainerRule<'i, T> {
   where
     W: std::fmt::Write,
   {
+    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@container ")?;
     if let Some(name) = &self.name {

@@ -420,6 +420,7 @@ impl<'i> ToCss for FontFaceRule<'i> {
   where
     W: std::fmt::Write,
   {
+    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@font-face")?;
     dest.whitespace()?;

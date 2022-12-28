@@ -37,6 +37,7 @@ impl<'i, T: ToCss> ToCss for MozDocumentRule<'i, T> {
   where
     W: std::fmt::Write,
   {
+    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@-moz-document url-prefix()")?;
     dest.whitespace()?;

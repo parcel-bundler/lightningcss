@@ -31,6 +31,7 @@ impl<'i> ToCss for CounterStyleRule<'i> {
   where
     W: std::fmt::Write,
   {
+    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@counter-style ")?;
     self.name.to_css(dest)?;
