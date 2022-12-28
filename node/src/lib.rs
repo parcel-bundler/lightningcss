@@ -21,7 +21,7 @@ use std::sync::{Arc, Mutex, RwLock};
 // #[cfg(not(target_arch = "wasm32"))]
 use transformer::JsVisitor;
 
-// #[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(target_arch = "wasm32"))]
 mod threadsafe_function;
 // #[cfg(not(target_arch = "wasm32"))]
 mod transformer;
@@ -104,12 +104,6 @@ impl<'i> TransformResult<'i> {
     obj.set_named_property("warnings", env.to_js_value(&self.warnings)?)?;
     Ok(obj.into_unknown())
   }
-}
-
-extern "C" {
-  // fn print(ptr: *const c_char);
-  // fn eprint(ptr: *const c_char);
-  fn trace(ptr: *const u8);
 }
 
 // #[cfg(not(target_arch = "wasm32"))]
@@ -511,7 +505,7 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
 
 #[cfg(target_arch = "wasm32")]
 #[no_mangle]
-pub unsafe fn init_wasm(raw_env: napi::sys::napi_env, raw_exports: napi::sys::napi_value) {
+pub unsafe fn napi_register_wasm_v1(raw_env: napi::sys::napi_env, raw_exports: napi::sys::napi_value) {
   use napi::{Env, JsObject, NapiValue};
 
   let env = Env::from_raw(raw_env);
@@ -519,6 +513,7 @@ pub unsafe fn init_wasm(raw_env: napi::sys::napi_env, raw_exports: napi::sys::na
   init(exports);
 }
 
+#[cfg(target_arch = "wasm32")]
 #[no_mangle]
 pub extern "C" fn wasm_malloc(size: usize) -> *mut u8 {
   use std::alloc::{alloc, Layout};
@@ -538,7 +533,6 @@ pub extern "C" fn wasm_malloc(size: usize) -> *mut u8 {
     }
   }
 
-  // malloc_failure();
   std::process::abort();
 }
 

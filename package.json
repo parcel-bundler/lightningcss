@@ -66,7 +66,7 @@
     "build": "node scripts/build.js && node scripts/build-flow.js",
     "build-release": "node scripts/build.js --release && node scripts/build-flow.js",
     "prepublishOnly": "node scripts/build-flow.js",
-    "wasm:build": "wasm-pack build node --target nodejs",
+    "wasm:build": "wasm-pack build node --target nodejs --dev",
     "wasm:build-release": "wasm-pack build node --target nodejs --release",
     "wasm-browser:build": "wasm-pack build node --target web",
     "wasm-browser:build-release": "wasm-pack build node --target web --release",
