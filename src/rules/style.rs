@@ -210,6 +210,7 @@ impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
     let has_declarations = supports_nesting || len > 0 || self.rules.0.is_empty();
 
     if has_declarations {
+      #[cfg(feature = "sourcemap")]
       dest.add_mapping(self.loc);
       self.selectors.to_css_with_context(dest, context)?;
       dest.whitespace()?;

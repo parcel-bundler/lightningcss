@@ -8,3 +8,6 @@ linker = "arm-linux-gnueabihf-gcc"
 [target.aarch64-unknown-linux-musl]
 linker = "aarch64-linux-musl-gcc"
 rustflags = ["-C", "target-feature=-crt-static"]
+
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "link-arg=--export-table"]

@@ -179,15 +179,28 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: 14
-      - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+          target: wasm32-unknown-unknown
+      - name: Install wasm-opt
+        run: |
+          curl -L -O https://github.com/WebAssembly/binaryen/releases/download/version_111/binaryen-version_111-x86_64-linux.tar.gz
+          tar -xf binaryen-version_111-x86_64-linux.tar.gz
       - name: Build wasm
-        run: yarn wasm-browser:build-release
+        run: yarn wasm:build-release
+      - name: Optimize wasm
+        run: |
+          ./binaryen-version_111/bin/wasm-opt wasm/lightningcss_node.wasm -Oz -o wasm/lightningcss_node.opt.wasm
+          mv wasm/lightningcss_node.opt.wasm wasm/lightningcss_node.wasm
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: wasm
-          path: node/pkg
+          path: wasm/lightningcss_node.wasm
 
   release:
     runs-on: ubuntu-latest
@@ -207,6 +220,7 @@ jobs:
       - name: Build npm packages
         run: |
           node scripts/build-npm.js
+          cp artifacts/wasm/* wasm/.
           node scripts/build-wasm.js
       - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > ~/.npmrc
         env:
@@ -219,6 +233,10 @@ jobs:
             npm publish;
             cd ../..;
           done
+          cd wasm
+          echo "Publishing lightningcss-wasm...";
+          npm publish
+          cd ..
           cd cli
           echo "Publishing lightningcss-cli...";
           npm publish

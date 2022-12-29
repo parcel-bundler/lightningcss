@@ -3,6 +3,12 @@
   <head>
     <title>⚡️ Lightning CSS Playground</title>
     <style>
+      @font-face {
+        font-family:"urbane-rounded";
+        src:url("https://use.typekit.net/af/916187/00000000000000007735bfa0/30/l?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3") format("woff2"),url("https://use.typekit.net/af/916187/00000000000000007735bfa0/30/d?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3") format("woff"),url("https://use.typekit.net/af/916187/00000000000000007735bfa0/30/a?primer=81a69539b194230396845be9681d114557adfb35f4cccc679c164afb4aa47365&fvd=n6&v=3") format("opentype");
+        font-display:auto;font-style:normal;font-weight:600;font-stretch:normal;
+      }
+
       html, body {
         margin: 0;
         height: 100%;
@@ -46,7 +52,7 @@
       }
 
       header h1 {
-        font-family: ui-rounded, system-ui;
+        font-family: urbane-rounded, ui-rounded, system-ui;
         font-size: 35px;
         letter-spacing: -0.02em;
         color: var(--gold);
@@ -70,13 +76,63 @@
       }
 
       main {
-        display: flex;
-        flex: 1
+        display: grid;
+        grid-template-areas: "sidebar source compiled         compiled"
+                             "sidebar visitor compiledModules compiledDependencies";
+        grid-template-columns: auto 2fr 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        flex: 1;
+        gap: 10px;
+        overflow: hidden;
       }
 
-      textarea {
-        flex: 1;
-        font: 14px monospace;
+      #sidebar {
+        grid-area: sidebar;
+        overflow: auto;
+      }
+
+      #visitor {
+        grid-area: visitor;
+        overflow: hidden;
+      }
+
+      #source {
+        grid-area: source;
+        overflow: hidden;
+      }
+
+      #source[data-expanded=true] {
+        grid-row: source-start / visitor-end;
+      }
+
+      #compiled {
+        grid-area: compiled;
+        overflow: hidden;
+      }
+
+      #compiled[data-expanded=true] {
+        grid-row: compiled-start / compiledDependencies-end;
+        grid-column: compiled-start / compiledDependencies-end;
+      }
+
+      #compiledModules {
+        grid-area: compiledModules;
+        overflow: hidden;
+      }
+      
+      #compiledDependencies {
+        grid-area: compiledDependencies;
+        overflow: hidden;
+      }
+
+      #compiledModules[data-expanded=true],
+      #compiledDependencies[data-expanded=true] {
+        grid-row: compiledModules-start;
+        grid-column: compiledModules-start / compiledDependencies-end;
+      }
+
+      .cm-editor {
+        height: 100%;
       }
 
       label {
@@ -103,11 +159,12 @@
       </a>
     </header>
     <main>
-      <div>
+      <div id="sidebar">
         <h3>Options</h3>
         <label><input id="minify" type="checkbox" checked> Minify</label>
         <label><input id="cssModules" type="checkbox"> CSS modules</label>
         <label><input id="analyzeDependencies" type="checkbox"> Analyze dependencies</label>
+        <label><input id="visitorEnabled" type="checkbox"> Visitor</label>
         <h3>Draft syntax</h3>
         <label><input id="nesting" type="checkbox" checked> Nesting</label>
         <label><input id="customMedia" type="checkbox" checked> Custom media queries</label>
@@ -132,33 +189,11 @@
           <select id="version"><option value="local">local</option></select>
         </label>
       </div>
-      <textarea id="source">
-@custom-media --modern (color), (hover);
-
-.foo {
-  background: yellow;
-
-  -webkit-border-radius: 2px;
-  -moz-border-radius: 2px;
-  border-radius: 2px;
-  
-  -webkit-transition: background 200ms;
-  -moz-transition: background 200ms;
-  transition: background 200ms;
-
-  &.bar {
-    color: green;
-  }
-}
-
-@media (--modern) and (width > 1024px) {
-  .a {
-    color: green;
-  }
-}</textarea>
-      <textarea id="compiled"></textarea>
-      <textarea id="compiledModules" hidden></textarea>
-      <textarea id="compiledDependencies" hidden></textarea>
+      <div id="source"></div>
+      <div id="visitor" data-expanded="true"></div>
+      <div id="compiled" data-expanded="true"></div>
+      <div id="compiledModules" hidden></div>
+      <div id="compiledDependencies" hidden></div>
     </main>
     <script type="module" src="playground.js"></script>
   </body>

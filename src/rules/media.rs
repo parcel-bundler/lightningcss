@@ -58,6 +58,7 @@ impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for MediaRule<'i, T> {
       return Ok(());
     }
 
+    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@media ")?;
     self.query.to_css(dest)?;

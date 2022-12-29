@@ -101,6 +101,7 @@ impl<'i> ToCss for PropertyRule<'i> {
   where
     W: std::fmt::Write,
   {
+    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@property ")?;
     self.name.to_css(dest)?;
