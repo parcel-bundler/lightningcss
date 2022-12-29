@@ -24,10 +24,5 @@ rayon = "1.5.1"
 [target.'cfg(target_os = "macos")'.dependencies]
 jemallocator = { version = "0.3.2", features = ["disable_initial_exec_tls"] }
 
-# [target.'cfg(target_arch = "wasm32")'.dependencies]
-# js-sys = "0.3"
-# serde-wasm-bindgen = "0.3.0"
-# wasm-bindgen = "0.2"
-
 [target.'cfg(not(target_arch = "wasm32"))'.build-dependencies]
 napi-build = "1"

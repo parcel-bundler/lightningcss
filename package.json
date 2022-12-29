@@ -66,12 +66,10 @@
     "build": "node scripts/build.js && node scripts/build-flow.js",
     "build-release": "node scripts/build.js --release && node scripts/build-flow.js",
     "prepublishOnly": "node scripts/build-flow.js",
-    "wasm:build": "wasm-pack build node --target nodejs --dev",
-    "wasm:build-release": "wasm-pack build node --target nodejs --release",
-    "wasm-browser:build": "wasm-pack build node --target web",
-    "wasm-browser:build-release": "wasm-pack build node --target web --release",
+    "wasm:build": "cargo build --target wasm32-unknown-unknown -p lightningcss_node",
+    "wasm:build-release": "cargo build --target wasm32-unknown-unknown -p lightningcss_node --release",
     "website:start": "parcel website/index.html website/playground/index.html",
-    "website:build": "yarn wasm-browser:build-release && parcel build website/index.html website/playground/index.html",
+    "website:build": "yarn wasm:build-release && parcel build website/index.html website/playground/index.html",
     "build-ast": "cargo run --example schema --features jsonschema && node scripts/build-ast.js",
     "test": "uvu node/test"
   }

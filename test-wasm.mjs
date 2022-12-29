@@ -11,12 +11,14 @@ const { instance } = await WebAssembly.instantiateStreaming(fetch(url), {
 let env = new Environment(instance);
 console.log(env.instance.exports)
 let encoder = new TextEncoder();
-let code = env.createBuffer(encoder.encode('.foo { color: yellow }'));
+let decoder = new TextDecoder();
+let code = encoder.encode('.foo { color: yellow }');
 
 let res = env.exports.transform({
   filename: 'test.js',
   code,
   minify: true,
+  cssModules: true,
   // sourceMap: true,
   // targets: {
   //   chrome: 95 << 16
@@ -30,4 +32,4 @@ let res = env.exports.transform({
   }
 });
 
-console.log(res, res.code.toString())
+console.log(res, decoder.decode(res.code))
