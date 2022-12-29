@@ -180,6 +180,13 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: 14
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+          target: wasm32-unknown-unknown
       - name: Install wasm-opt
         run: |
           curl -L -O https://github.com/WebAssembly/binaryen/releases/download/version_111/binaryen-version_111-x86_64-linux.tar.gz
