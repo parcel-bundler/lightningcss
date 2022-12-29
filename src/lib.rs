@@ -22754,6 +22754,7 @@ mod tests {
   }
 
   #[test]
+  #[cfg(feature = "sourcemap")]
   fn test_input_source_map() {
     let source = r#".imported {
       content: "yay, file support!";

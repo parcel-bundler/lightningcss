@@ -17,6 +17,7 @@ use crate::traits::ToCss;
 #[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
 use cssparser::{AtRuleParser, Parser, ParserInput, RuleListParser};
+#[cfg(feature = "sourcemap")]
 use parcel_sourcemap::SourceMap;
 use std::collections::{HashMap, HashSet};
 
@@ -178,6 +179,7 @@ where
   }
 
   /// Returns the inline source map associated with the source at the given index.
+  #[cfg(feature = "sourcemap")]
   pub fn source_map(&self, source_index: usize) -> Option<SourceMap> {
     SourceMap::from_data_url("/", self.source_map_url(source_index)?).ok()
   }
@@ -233,7 +235,12 @@ where
     let project_root = options.project_root.clone();
     let mut printer = Printer::new(&mut dest, options);
 
-    printer.sources = Some(&self.sources);
+    #[cfg(feature = "sourcemap")]
+    {
+      printer.sources = Some(&self.sources);
+    }
+
+    #[cfg(feature = "sourcemap")]
     if printer.source_map.is_some() {
       printer.source_maps = self.sources.iter().enumerate().map(|(i, _)| self.source_map(i)).collect();
     }
@@ -339,6 +346,7 @@ impl<'i> StyleAttribute<'i> {
 
   /// Serializes the style attribute to a CSS string.
   pub fn to_css(&self, options: PrinterOptions) -> Result<ToCssResult, PrinterError> {
+    #[cfg(feature = "sourcemap")]
     assert!(
       options.source_map.is_none(),
       "Source maps are not supported for style attributes"

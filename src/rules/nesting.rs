@@ -43,6 +43,7 @@ impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for NestingRule<'i, T> {
   where
     W: std::fmt::Write,
   {
+    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     if context.is_none() {
       dest.write_str("@nest ")?;

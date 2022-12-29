@@ -30,6 +30,7 @@ impl<'i> ToCss for CustomMediaRule<'i> {
   where
     W: std::fmt::Write,
   {
+    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@custom-media ")?;
     self.name.to_css(dest)?;
