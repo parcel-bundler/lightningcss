@@ -1,20 +1,12 @@
-// @ts-check
+import init, { transform } from './wasm/index.mjs';
 
-import { Environment, napi } from './node_modules/napi-wasm/index.mjs';
+await init();
 
-const url = new URL('target/wasm32-unknown-unknown/debug/lightningcss_node.wasm', import.meta.url);
-
-const { instance } = await WebAssembly.instantiateStreaming(fetch(url), {
-  env: napi
-});
-
-let env = new Environment(instance);
-console.log(env.instance.exports)
 let encoder = new TextEncoder();
 let decoder = new TextDecoder();
 let code = encoder.encode('.foo { color: yellow }');
 
-let res = env.exports.transform({
+let res = transform({
   filename: 'test.js',
   code,
   minify: true,
