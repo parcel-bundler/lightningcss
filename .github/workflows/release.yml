@@ -219,7 +219,7 @@ jobs:
           path: artifacts
       - name: Build npm packages
         run: |
-          # node scripts/build-npm.js
+          node scripts/build-npm.js
           cp artifacts/wasm/* wasm/.
           node scripts/build-wasm.js
       - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > ~/.npmrc
