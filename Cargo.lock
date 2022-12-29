@@ -723,7 +723,6 @@ dependencies = [
  "crossbeam-channel",
  "cssparser",
  "jemallocator",
- "js-sys",
  "lightningcss",
  "napi",
  "napi-build",
@@ -732,10 +731,8 @@ dependencies = [
  "rayon",
  "serde",
  "serde-detach",
- "serde-wasm-bindgen",
  "serde_bytes",
  "smallvec",
- "wasm-bindgen",
 ]
 
 [[package]]
