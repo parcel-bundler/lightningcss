@@ -1,4 +1,4 @@
-import { Environment, napi } from '../node_modules/napi-wasm/index.mjs';
+import { Environment, napi } from 'napi-wasm';
 
 const url = new URL('lightningcss_node.wasm', import.meta.url);
 let wasm;

@@ -29,11 +29,13 @@ wasmPkg.main = 'index.mjs';
 wasmPkg.module = 'index.mjs';
 wasmPkg.types = 'index.d.ts';
 wasmPkg.sideEffects = false;
-wasmPkg.files = [...pkg.files, '*.wasm'];
+wasmPkg.files = ['*.js', '*.mjs', '*.d.ts', '*.flow', '*.wasm'];
+wasmPkg.dependencies = {
+  'napi-wasm': pkg.devDependencies['napi-wasm']
+};
 delete wasmPkg.exports;
 delete wasmPkg.napi;
 delete wasmPkg.devDependencies;
-delete wasmPkg.dependencies;
 delete wasmPkg.optionalDependencies;
 delete wasmPkg.targets;
 delete wasmPkg.scripts;
