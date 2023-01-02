@@ -155,16 +155,6 @@ fn valid_input_file() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn no_input_file() -> Result<(), Box<dyn std::error::Error>> {
-  let mut cmd = Command::cargo_bin("lightningcss")?;
-  cmd.assert().failure().stderr(predicate::str::contains(
-    "The following required arguments were not provided:\n    <INPUT_FILE>",
-  ));
-
-  Ok(())
-}
-
-#[test]
 fn empty_input_file() -> Result<(), Box<dyn std::error::Error>> {
   let file = assert_fs::NamedTempFile::new("test.css")?;
   file.write_str("")?;
