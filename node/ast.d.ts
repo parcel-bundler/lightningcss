@@ -6857,7 +6857,7 @@ export type DefaultAtRule = null;
  *
  * // Serialize it to a string. let res = stylesheet.to_css(PrinterOptions::default()).unwrap(); assert_eq!(res.code, ".foo, .bar {\n  color: red;\n}\n"); ```
  */
-export interface StyleSheetParser {
+export interface StyleSheet {
   /**
    * A list of top-level rules within the style sheet.
    */
