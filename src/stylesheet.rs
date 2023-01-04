@@ -68,7 +68,10 @@ pub use crate::printer::PseudoClasses;
 #[cfg_attr(
   feature = "jsonschema",
   derive(schemars::JsonSchema),
-  schemars(bound = "T: schemars::JsonSchema, T::AtRule: schemars::JsonSchema")
+  schemars(
+    rename = "StyleSheet",
+    bound = "T: schemars::JsonSchema, T::AtRule: schemars::JsonSchema"
+  )
 )]
 pub struct StyleSheet<'i, 'o, T: AtRuleParser<'i> = DefaultAtRuleParser> {
   /// A list of top-level rules within the style sheet.

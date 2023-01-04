@@ -1,0 +1,28 @@
+{
+  "plugins": {
+    "posthtml-include": {},
+    "posthtml-markdownit": {
+      "markdownit": {
+        "html": true
+      },
+      "plugins": [
+        {
+          "plugin": "markdown-it-anchor"
+        },
+        {
+          "plugin": "markdown-it-table-of-contents",
+          "options": {
+            "containerHeaderHtml": "<h3>On this page</h3>",
+            "includeLevel": [
+              2,
+              3
+            ]
+          }
+        },
+        {
+          "plugin": "markdown-it-prism"
+        }
+      ]
+    }
+  }
+}

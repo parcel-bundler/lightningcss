@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{{ title }} – Lightning CSS</title>
+    <link rel="icon" href="favicon.svg">
+    <link rel="mask-icon" href="favicon.svg" color="#f9bb03">
+    <meta name="description" content="An extremely fast CSS parser, transformer, bundler, and minifier.">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="og.jpeg">
+    <meta name="twitter:site" content="@lightningcss">
+    <meta name="twitter:creator" content="@lightningcss">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:url" content="https://lightningcss.dev/{{ url }}">
+    <meta property="og:title" content="{{ title }} – Lightning CSS">
+    <meta property="og:description" content="An extremely fast CSS parser, transformer, bundler, and minifier.">
+    <meta property="og:image" content="og.jpeg">
+    <link rel="stylesheet" href="docs.css">
+  </head>
+  <body>
+    <header>
+      <svg viewBox="495 168 360 654">
+        <path class="outer" d="M594.41,805c-.71,0-1.43-.15-2.11-.47-2.2-1.03-3.34-3.48-2.72-5.83l67.98-253.71h-140.45c-1.86,0-3.57-1.04-4.44-2.69-.86-1.65-.73-3.65,.34-5.18l26.85-38.35q25.56-36.51,104.91-149.83l106.31-151.82c1.39-1.99,4.01-2.69,6.21-1.66,2.2,1.03,3.34,3.48,2.72,5.83l-67.98,253.71h140.45c1.86,0,3.57,1.04,4.43,2.69,.86,1.65,.73,3.65-.34,5.18l-238.07,340c-.96,1.37-2.51,2.13-4.1,2.13Zm-67.69-270h137.37c1.55,0,3.02,.72,3.97,1.96,.95,1.23,1.27,2.84,.86,4.34l-62.33,232.61,216.29-308.9h-137.36c-1.55,0-3.02-.72-3.97-1.96-.95-1.23-1.27-2.84-.86-4.34l62.33-232.61-90.04,128.59q-79.35,113.32-104.91,149.83l-21.34,30.48Z"/>
+        <path class="inner" d="M594.41,805c-.71,0-1.43-.15-2.11-.47-2.2-1.03-3.34-3.48-2.72-5.83l67.98-253.71h-140.45c-1.86,0-3.57-1.04-4.44-2.69-.86-1.65-.73-3.65,.34-5.18l26.85-38.35q25.56-36.51,104.91-149.83l106.31-151.82c1.39-1.99,4.01-2.69,6.21-1.66,2.2,1.03,3.34,3.48,2.72,5.83l-67.98,253.71h140.45c1.86,0,3.57,1.04,4.43,2.69,.86,1.65,.73,3.65-.34,5.18l-238.07,340c-.96,1.37-2.51,2.13-4.1,2.13Zm-67.69-270h137.37c1.55,0,3.02,.72,3.97,1.96,.95,1.23,1.27,2.84,.86,4.34l-62.33,232.61,216.29-308.9h-137.36c-1.55,0-3.02-.72-3.97-1.96-.95-1.23-1.27-2.84-.86-4.34l62.33-232.61-90.04,128.59q-79.35,113.32-104.91,149.83l-21.34,30.48Z"/>
+      </svg>
+      <a href="/" class="title">Lightning CSS</a>
+      <p><a href="./playground/index.html">Playground</a> • <a href="docs.html">Docs</a> • <a href="https://docs.rs/lightningcss" target="_blank">Rust docs</a> • <a href="https://npmjs.com/lightningcss" target="_blank">npm</a>  • <a href="https://github.com/parcel-bundler/lightningcss" target="_blank">GitHub</a></p>
+    </header>
+    <nav>
+      <h3>Docs</h3>
+      <ul>
+        <li><a href="docs.html">Getting started</a></li>
+        <li><a href="transpilation.html">Transpilation</a></li>
+        <li><a href="css-modules.html">CSS Modules</a></li>
+        <li><a href="bundling.html">Bundling</a></li>
+        <li><a href="minification.html">Minification</a></li>
+        <li><a href="transforms.html">Custom transforms</a></li>
+        <script>document.querySelector(`nav a[href="${location.pathname}"]`).setAttribute('aria-current', 'page')</script>
+      </ul>
+    </nav>
+    <main>
+      <markdown src="{{ page }}"></markdown>
+    </main>
+    <footer>
+      Copyright © 2022 Devon Govett and Parcel Contributors.
+    </footer>
+    <script async src="docs.js"></script>
+  </body>
+</html>
