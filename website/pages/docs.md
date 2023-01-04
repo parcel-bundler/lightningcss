@@ -6,7 +6,7 @@
 
 # Getting Started
 
-Lightning CSS can be used as a library from JavaScript or Rust, or from a standalone CLI. It can also be wrapped as a plugin in other build tools, and it is the built into [Parcel](https://parceljs.org) out of the box.
+Lightning CSS can be used as a library from JavaScript or Rust, or from a standalone CLI. It can also be wrapped as a plugin in other build tools, and it is built into [Parcel](https://parceljs.org) out of the box.
 
 ## From Node
 

@@ -244,8 +244,8 @@ a[aria-current] {
 
 @media (width < 600px) {
   body {
-    grid-template-areas: "header" "nav" "main" "footer";
-    grid-template-columns: 1fr;
+    display: block;
+    width: auto;
   }
 
   nav {
