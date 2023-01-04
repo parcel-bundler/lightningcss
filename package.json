@@ -46,7 +46,7 @@
     "@codemirror/lint": "^6.1.0",
     "@codemirror/theme-one-dark": "^6.1.0",
     "@mdn/browser-compat-data": "^5.1.6",
-    "@napi-rs/cli": "^2.6.2",
+    "@napi-rs/cli": "^2.14.0",
     "autoprefixer": "^10.4.8",
     "codemirror": "^6.0.1",
     "cssnano": "^5.0.8",

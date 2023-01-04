@@ -21,9 +21,9 @@ jobs:
     name: build-${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Install Node.JS
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: 14
       - name: Install Rust
@@ -49,7 +49,7 @@ jobs:
         if: ${{ matrix.strip }}
         run: ${{ matrix.strip }} *.node ${{ matrix.binary }}
       - name: Upload artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: bindings-${{ matrix.target }}
           path: |
@@ -60,9 +60,9 @@ jobs:
     name: build-apple-silicon
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Install Node.JS
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: 14
       - name: Install Rust
@@ -95,7 +95,7 @@ jobs:
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: strip -x *.node lightningcss
       - name: Upload artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: bindings-aarch64-apple-darwin
           path: |
@@ -109,16 +109,14 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             strip: strip
-            image: docker.io/centos/nodejs-12-centos7
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
             setup: npm install --global yarn@1
           - target: aarch64-unknown-linux-gnu
-            strip: aarch64-linux-gnu-strip
-            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian@sha256:4e170e00b4e33251a775bcadc34380a6a5a86611df132590885257e453646fdc
-            setup: apt install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
+            strip: llvm-strip
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
           - target: armv7-unknown-linux-gnueabihf
-            strip: arm-linux-gnueabihf-strip
-            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian@sha256:4e170e00b4e33251a775bcadc34380a6a5a86611df132590885257e453646fdc
-            setup: apt install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf -y
+            strip: llvm-strip
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-zig
           - target: aarch64-unknown-linux-musl
             image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             strip: aarch64-linux-musl-strip
@@ -132,9 +130,9 @@ jobs:
       image: ${{ matrix.image }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Install Node.JS
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: 14
       - name: Install Rust
@@ -158,13 +156,13 @@ jobs:
           RUST_TARGET: ${{ matrix.target }}
       - name: Build CLI
         run: |
-          cargo build --release --features cli --target ${{ matrix.target }}
+          yarn napi build --bin lightningcss --release --features cli --target ${{ matrix.target }}
           mv target/${{ matrix.target }}/release/lightningcss lightningcss
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         if: ${{ matrix.strip }}
         run: ${{ matrix.strip }} *.node lightningcss
       - name: Upload artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: bindings-${{ matrix.target }}
           path: |
@@ -174,9 +172,9 @@ jobs:
   build-wasm:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Install Node.JS
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: 14
       - name: Install Rust
@@ -197,7 +195,7 @@ jobs:
           ./binaryen-version_111/bin/wasm-opt wasm/lightningcss_node.wasm -Oz -o wasm/lightningcss_node.opt.wasm
           mv wasm/lightningcss_node.opt.wasm wasm/lightningcss_node.wasm
       - name: Upload artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: wasm
           path: wasm/lightningcss_node.wasm
@@ -211,10 +209,10 @@ jobs:
       - build-apple-silicon
       - build-wasm
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v3
       - uses: bahmutov/npm-install@v1.1.0
       - name: Download artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           path: artifacts
       - name: Build npm packages
