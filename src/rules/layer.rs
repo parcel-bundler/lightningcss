@@ -72,7 +72,7 @@ impl<'i> ToCss for LayerName<'i> {
         dest.write_char('.')?;
       }
 
-      dest.write_str(name)?;
+      serialize_identifier(name, dest)?;
     }
 
     Ok(())
