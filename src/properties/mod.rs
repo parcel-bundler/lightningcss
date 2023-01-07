@@ -178,6 +178,7 @@ macro_rules! define_properties {
     /// A CSS property id.
     #[derive(Debug, Clone, PartialEq)]
     #[cfg_attr(feature = "visitor", derive(Visit))]
+    #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
     pub enum PropertyId<'i> {
       $(
         #[doc=concat!("The `", $name, "` property.")]
@@ -657,6 +658,7 @@ macro_rules! define_properties {
     /// A CSS property.
     #[derive(Debug, Clone, PartialEq)]
     #[cfg_attr(feature = "visitor", derive(Visit), visit(visit_property, PROPERTIES))]
+    #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
     pub enum Property<'i> {
       $(
         #[doc=concat!("The `", $name, "` property.")]
@@ -904,7 +906,7 @@ macro_rules! define_properties {
         } else {
           let mut s = serializer.serialize_struct("Property", 3)?;
           s.serialize_field("property", name)?;
-          s.serialize_field("vendor_prefix", &prefix)?;
+          s.serialize_field("vendorPrefix", &prefix)?;
           s
         };
 
@@ -928,17 +930,23 @@ macro_rules! define_properties {
       where
         D: serde::Deserializer<'de>,
       {
+        enum ContentOrRaw<'de> {
+          Content(serde::__private::de::Content<'de>),
+          Raw(CowArcStr<'de>)
+        }
+
         struct PartialProperty<'de> {
           property_id: PropertyId<'de>,
-          content: serde::__private::de::Content<'de>,
+          value: ContentOrRaw<'de>,
         }
 
         #[derive(serde::Deserialize)]
-        #[serde(field_identifier, rename_all = "snake_case")]
+        #[serde(field_identifier, rename_all = "camelCase")]
         enum Field {
           Property,
           VendorPrefix,
-          Value
+          Value,
+          Raw
         }
 
         struct PropertyIdVisitor;
@@ -955,7 +963,7 @@ macro_rules! define_properties {
           {
             let mut property: Option<CowArcStr> = None;
             let mut vendor_prefix = None;
-            let mut value: Option<serde::__private::de::Content> = None;
+            let mut value: Option<ContentOrRaw<'de>> = None;
             while let Some(key) = map.next_key()? {
               match key {
                 Field::Property => {
@@ -965,7 +973,10 @@ macro_rules! define_properties {
                   vendor_prefix = Some(map.next_value()?);
                 }
                 Field::Value => {
-                  value = Some(map.next_value()?);
+                  value = Some(ContentOrRaw::Content(map.next_value()?));
+                }
+                Field::Raw => {
+                  value = Some(ContentOrRaw::Raw(map.next_value()?));
                 }
               }
             }
@@ -974,17 +985,26 @@ macro_rules! define_properties {
             let vendor_prefix = vendor_prefix.unwrap_or(VendorPrefix::None);
             let value = value.ok_or_else(|| serde::de::Error::missing_field("value"))?;
             let property_id = PropertyId::from_name_and_prefix(property.as_ref(), vendor_prefix)
-              .unwrap_or_else(|_| PropertyId::Custom(property.into()));
+              .unwrap_or_else(|_| PropertyId::from(property));
             Ok(PartialProperty {
               property_id,
-              content: value,
+              value,
             })
           }
         }
 
         let partial = deserializer.deserialize_any(PropertyIdVisitor)?;
-        let deserializer = serde::__private::de::ContentDeserializer::new(partial.content);
 
+        let content = match partial.value {
+          ContentOrRaw::Raw(raw) => {
+            let res = Property::parse_string(partial.property_id, raw.as_ref(), ParserOptions::default())
+              .map_err(|_| serde::de::Error::custom("Could not parse value"))?;
+            return Ok(res.into_owned())
+          }
+          ContentOrRaw::Content(content) => content
+        };
+
+        let deserializer = serde::__private::de::ContentDeserializer::new(content);
         match partial.property_id {
           $(
             $(#[$meta])*

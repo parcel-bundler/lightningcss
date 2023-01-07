@@ -187,6 +187,7 @@ impl ToCss for BorderImageSlice {
 define_shorthand! {
   /// A value for the [border-image](https://www.w3.org/TR/css-backgrounds-3/#border-image) shorthand property.
   #[derive(Default)]
+  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   pub struct BorderImage<'i>(VendorPrefix) {
     /// The border image.
     #[cfg_attr(feature = "serde", serde(borrow))]

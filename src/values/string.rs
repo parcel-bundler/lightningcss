@@ -129,6 +129,15 @@ impl<'a> CowArcStr<'a> {
       }
     }
   }
+
+  /// Consumes the value and returns an owned clone.
+  pub fn into_owned<'x>(self) -> CowArcStr<'x> {
+    if self.borrowed_len_or_max != usize::MAX {
+      CowArcStr::from(self.as_ref().to_owned())
+    } else {
+      unsafe { std::mem::transmute(self) }
+    }
+  }
 }
 
 impl<'a> Clone for CowArcStr<'a> {
@@ -305,6 +314,7 @@ impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for CowArcStr<'i
 /// A quoted CSS string.
 #[derive(Clone, Eq, Ord, Hash, Debug)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct CSSString<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CowArcStr<'i>);

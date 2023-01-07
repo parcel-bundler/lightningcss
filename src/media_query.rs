@@ -25,6 +25,7 @@ use crate::serialization::ValueWrapper;
 /// A [media query list](https://drafts.csswg.org/mediaqueries/#mq-list).
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit), visit(visit_media_list, MEDIA_QUERIES))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -158,6 +159,7 @@ enum_property! {
 /// A [media type](https://drafts.csswg.org/mediaqueries/#media-types) within a media query.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -223,6 +225,7 @@ impl<'a> schemars::JsonSchema for MediaType<'a> {
 /// A [media query](https://drafts.csswg.org/mediaqueries/#media).
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(feature = "visitor", visit(visit_media_query, MEDIA_QUERIES))]
 #[cfg_attr(
   feature = "serde",
@@ -413,6 +416,7 @@ enum_property! {
 /// Represents a media condition.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -617,6 +621,7 @@ impl MediaFeatureComparison {
 /// A [media feature](https://drafts.csswg.org/mediaqueries/#typedef-media-feature)
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit), visit(visit_media_feature, MEDIA_QUERIES))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -825,6 +830,7 @@ where
 /// See [MediaFeature](MediaFeature).
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit), visit(visit_media_feature_value, MEDIA_QUERIES))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

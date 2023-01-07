@@ -8,10 +8,10 @@
 /**
  * A CSS rule.
  */
-export type Rule =
+export type Rule<D = Declaration> =
   | {
       type: "media";
-      value: MediaRule;
+      value: MediaRule<D>;
     }
   | {
       type: "import";
@@ -19,11 +19,11 @@ export type Rule =
     }
   | {
       type: "style";
-      value: StyleRule;
+      value: StyleRule<D>;
     }
   | {
       type: "keyframes";
-      value: KeyframesRule;
+      value: KeyframesRule<D>;
     }
   | {
       type: "font-face";
@@ -35,15 +35,15 @@ export type Rule =
     }
   | {
       type: "page";
-      value: PageRule;
+      value: PageRule<D>;
     }
   | {
       type: "supports";
-      value: SupportsRule;
+      value: SupportsRule<D>;
     }
   | {
       type: "counter-style";
-      value: CounterStyleRule;
+      value: CounterStyleRule<D>;
     }
   | {
       type: "namespace";
@@ -51,15 +51,15 @@ export type Rule =
     }
   | {
       type: "moz-document";
-      value: MozDocumentRule;
+      value: MozDocumentRule<D>;
     }
   | {
       type: "nesting";
-      value: NestingRule;
+      value: NestingRule<D>;
     }
   | {
       type: "viewport";
-      value: ViewportRule;
+      value: ViewportRule<D>;
     }
   | {
       type: "custom-media";
@@ -71,7 +71,7 @@ export type Rule =
     }
   | {
       type: "layer-block";
-      value: LayerBlockRule;
+      value: LayerBlockRule<D>;
     }
   | {
       type: "property";
@@ -79,7 +79,7 @@ export type Rule =
     }
   | {
       type: "container";
-      value: ContainerRule;
+      value: ContainerRule<D>;
     }
   | {
       type: "ignored";
@@ -502,11 +502,11 @@ export type Token =
     }
   | {
       type: "white-space";
-      value: string;
+      value: String;
     }
   | {
       type: "comment";
-      value: string;
+      value: String;
     }
   | {
       type: "colon";
@@ -6857,11 +6857,11 @@ export type DefaultAtRule = null;
  *
  * // Serialize it to a string. let res = stylesheet.to_css(PrinterOptions::default()).unwrap(); assert_eq!(res.code, ".foo, .bar {\n  color: red;\n}\n"); ```
  */
-export interface StyleSheet {
+export interface StyleSheet<D = Declaration> {
   /**
    * A list of top-level rules within the style sheet.
    */
-  rules: Rule[];
+  rules: Rule<D>[];
   /**
    * The source map URL extracted from the original style sheet.
    */
@@ -6874,7 +6874,7 @@ export interface StyleSheet {
 /**
  * A [@media](https://drafts.csswg.org/css-conditional-3/#at-media) rule.
  */
-export interface MediaRule {
+export interface MediaRule<D = Declaration> {
   /**
    * The location of the rule in the source file.
    */
@@ -6886,7 +6886,7 @@ export interface MediaRule {
   /**
    * The rules within the `@media` rule.
    */
-  rules: Rule[];
+  rules: Rule<D>[];
 }
 /**
  * A line and column position within a source file.
@@ -7038,11 +7038,11 @@ export interface ImportRule {
 /**
  * A CSS [style rule](https://drafts.csswg.org/css-syntax/#style-rules).
  */
-export interface StyleRule {
+export interface StyleRule<D = Declaration> {
   /**
    * The declarations within the style rule.
    */
-  declarations: DeclarationBlock;
+  declarations: DeclarationBlock<D>;
   /**
    * The location of the rule in the source file.
    */
@@ -7050,7 +7050,7 @@ export interface StyleRule {
   /**
    * Nested rules within the style rule.
    */
-  rules: Rule[];
+  rules: Rule<D>[];
   /**
    * The selectors for the style rule.
    */
@@ -7061,15 +7061,15 @@ export interface StyleRule {
  *
  * Properties are separated into a list of `!important` declararations, and a list of normal declarations. This reduces memory usage compared with storing a boolean along with each property.
  */
-export interface DeclarationBlock {
+export interface DeclarationBlock<D = Declaration> {
   /**
    * A list of normal declarations in the block.
    */
-  declarations: Declaration[];
+  declarations: D[];
   /**
    * A list of `!important` declarations in the block.
    */
-  importantDeclarations: Declaration[];
+  importantDeclarations: D[];
 }
 /**
  * A CSS [`<position>`](https://www.w3.org/TR/css3-values/#position) value, as used in the `background-position` property, gradients, masks, etc.
@@ -8476,11 +8476,11 @@ export interface AttrOperation {
 /**
  * A [@keyframes](https://drafts.csswg.org/css-animations/#keyframes) rule.
  */
-export interface KeyframesRule {
+export interface KeyframesRule<D = Declaration> {
   /**
    * A list of keyframes in the animation.
    */
-  keyframes: Keyframe[];
+  keyframes: Keyframe<D>[];
   /**
    * The location of the rule in the source file.
    */
@@ -8497,13 +8497,13 @@ export interface KeyframesRule {
 /**
  * An individual keyframe within an `@keyframes` rule.
  *
- * See [KeyframesRule](KeyframesRule).
+ * See [KeyframesRule<D>](KeyframesRule<D>).
  */
-export interface Keyframe {
+export interface Keyframe<D> {
   /**
    * The declarations for this keyframe.
    */
-  declarations: DeclarationBlock;
+  declarations: DeclarationBlock<D>;
   /**
    * A list of keyframe selectors to associate with the declarations in this keyframe.
    */
@@ -8587,11 +8587,11 @@ export interface OverrideColors {
 /**
  * A [@page](https://www.w3.org/TR/css-page-3/#at-page-rule) rule.
  */
-export interface PageRule {
+export interface PageRule<D = Declaration> {
   /**
    * The declarations within the `@page` rule.
    */
-  declarations: DeclarationBlock;
+  declarations: DeclarationBlock<D>;
   /**
    * The location of the rule in the source file.
    */
@@ -8599,7 +8599,7 @@ export interface PageRule {
   /**
    * The nested margin rules.
    */
-  rules: PageMarginRule[];
+  rules: PageMarginRule<D>[];
   /**
    * A list of page selectors.
    */
@@ -8608,11 +8608,11 @@ export interface PageRule {
 /**
  * A [page margin rule](https://www.w3.org/TR/css-page-3/#margin-at-rules) rule.
  */
-export interface PageMarginRule {
+export interface PageMarginRule<D = Declaration> {
   /**
    * The declarations within the rule.
    */
-  declarations: DeclarationBlock;
+  declarations: DeclarationBlock<D>;
   /**
    * The location of the rule in the source file.
    */
@@ -8640,7 +8640,7 @@ export interface PageSelector {
 /**
  * A [@supports](https://drafts.csswg.org/css-conditional-3/#at-supports) rule.
  */
-export interface SupportsRule {
+export interface SupportsRule<D = Declaration> {
   /**
    * The supports condition.
    */
@@ -8652,16 +8652,16 @@ export interface SupportsRule {
   /**
    * The rules within the `@supports` rule.
    */
-  rules: Rule[];
+  rules: Rule<D>[];
 }
 /**
  * A [@counter-style](https://drafts.csswg.org/css-counter-styles/#the-counter-style-rule) rule.
  */
-export interface CounterStyleRule {
+export interface CounterStyleRule<D = Declaration> {
   /**
    * Declarations in the `@counter-style` rule.
    */
-  declarations: DeclarationBlock;
+  declarations: DeclarationBlock<D>;
   /**
    * The location of the rule in the source file.
    */
@@ -8693,7 +8693,7 @@ export interface NamespaceRule {
  *
  * Note that only the `url-prefix()` function with no arguments is supported, and only the `-moz` prefix is allowed since Firefox was the only browser that ever implemented this rule.
  */
-export interface MozDocumentRule {
+export interface MozDocumentRule<D = Declaration> {
   /**
    * The location of the rule in the source file.
    */
@@ -8701,12 +8701,12 @@ export interface MozDocumentRule {
   /**
    * Nested rules within the `@-moz-document` rule.
    */
-  rules: Rule[];
+  rules: Rule<D>[];
 }
 /**
  * A [@nest](https://www.w3.org/TR/css-nesting-1/#at-nest) rule.
  */
-export interface NestingRule {
+export interface NestingRule<D = Declaration> {
   /**
    * The location of the rule in the source file.
    */
@@ -8714,16 +8714,16 @@ export interface NestingRule {
   /**
    * The style rule that defines the selector and declarations for the `@nest` rule.
    */
-  style: StyleRule;
+  style: StyleRule<D>;
 }
 /**
  * A [@viewport](https://drafts.csswg.org/css-device-adapt/#atviewport-rule) rule.
  */
-export interface ViewportRule {
+export interface ViewportRule<D = Declaration> {
   /**
    * The declarations within the `@viewport` rule.
    */
-  declarations: DeclarationBlock;
+  declarations: DeclarationBlock<D>;
   /**
    * The location of the rule in the source file.
    */
@@ -8768,7 +8768,7 @@ export interface LayerStatementRule {
 /**
  * A [@layer block](https://drafts.csswg.org/css-cascade-5/#layer-block) rule.
  */
-export interface LayerBlockRule {
+export interface LayerBlockRule<D = Declaration> {
   /**
    * The location of the rule in the source file.
    */
@@ -8780,7 +8780,7 @@ export interface LayerBlockRule {
   /**
    * The rules within the `@layer` rule.
    */
-  rules: Rule[];
+  rules: Rule<D>[];
 }
 /**
  * A [@property](https://drafts.css-houdini.org/css-properties-values-api/#at-property-rule) rule.
@@ -8825,7 +8825,7 @@ export interface SyntaxComponent {
 /**
  * A [@container](https://drafts.csswg.org/css-contain-3/#container-rule) rule.
  */
-export interface ContainerRule {
+export interface ContainerRule<D = Declaration> {
   /**
    * The container condition.
    */
@@ -8841,7 +8841,7 @@ export interface ContainerRule {
   /**
    * The rules within the `@container` rule.
    */
-  rules: Rule[];
+  rules: Rule<D>[];
 }
 /**
  * An unknown at-rule, stored as raw tokens.

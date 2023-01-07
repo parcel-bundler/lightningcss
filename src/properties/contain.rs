@@ -42,6 +42,7 @@ impl Default for ContainerType {
 /// A value for the [container-name](https://drafts.csswg.org/css-contain-3/#container-name) property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -106,6 +107,7 @@ impl<'i> ToCss for ContainerNameList<'i> {
 
 define_shorthand! {
   /// A value for the [container](https://drafts.csswg.org/css-contain-3/#container-shorthand) shorthand property.
+  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   pub struct Container<'i> {
     /// The container name.
     #[cfg_attr(feature = "serde", serde(borrow))]

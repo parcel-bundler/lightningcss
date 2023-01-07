@@ -360,6 +360,7 @@ enum_property! {
 /// A value for the [font-family](https://www.w3.org/TR/css-fonts-4/#font-family-prop) property.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(untagged))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontFamily<'i> {
@@ -658,6 +659,7 @@ impl ToCss for VerticalAlign {
 
 define_shorthand! {
   /// A value for the [font](https://www.w3.org/TR/css-fonts-4/#font-prop) shorthand property.
+  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   pub struct Font<'i> {
     /// The font family.
     #[cfg_attr(feature = "serde", serde(borrow))]

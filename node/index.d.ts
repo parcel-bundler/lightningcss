@@ -58,8 +58,18 @@ export interface TransformOptions {
   visitor?: Visitor
 }
 
+// This is a hack to make TS still provide autocomplete for `property` vs. just making it `string`.
+type PropertyStart = '-' | '_' | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm' | 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z';
+type ReturnedDeclaration = Declaration | {
+  /** The property name. */
+  property: `${PropertyStart}${string}`,
+  /** The raw string value for the declaration. */
+  raw: string
+};
+
 type FindByType<Union, Name> = Union extends { type: Name } ? Union : never;
-type RuleVisitor<R = Rule> = ((rule: R) => Rule | Rule[] | void);
+type ReturnedRule = Rule<ReturnedDeclaration>;
+type RuleVisitor<R = Rule> = ((rule: R) => ReturnedRule | ReturnedRule[] | void);
 type MappedRuleVisitors = {
   [Name in Exclude<Rule['type'], 'unknown' | 'custom'>]?: RuleVisitor<FindByType<Rule, Name>>;
 }
@@ -73,7 +83,7 @@ type RuleVisitors = MappedRuleVisitors & {
 };
 
 type FindProperty<Union, Name> = Union extends { property: Name } ? Union : never;
-type DeclarationVisitor<P = Declaration> = ((property: P) => Declaration | Declaration[] | void);
+type DeclarationVisitor<P = Declaration> = ((property: P) => ReturnedDeclaration | ReturnedDeclaration[] | void);
 type MappedDeclarationVisitors = {
   [Name in Exclude<Declaration['property'], 'unparsed' | 'custom'>]?: DeclarationVisitor<FindProperty<Declaration, Name> | FindProperty<Declaration, 'unparsed'>>;
 }

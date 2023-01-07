@@ -2,7 +2,8 @@ const fs = require('fs');
 const { compiler, beautify } = require('flowgen');
 
 let dir = `${__dirname}/../`;
-let index = beautify(compiler.compileDefinitionFile(dir + '/node/index.d.ts', { inexact: false, interfaceRecords: true }));
+let contents = fs.readFileSync(dir + '/node/index.d.ts', 'utf8').replace('`${PropertyStart}${string}`', 'string');
+let index = beautify(compiler.compileDefinitionString(contents, { inexact: false, interfaceRecords: true }));
 index = index.replace('{ code: any }', '{| code: any |}');
 index = index.replace(/from "(.*?)";/g, 'from "$1.js.flow";');
 // This Exclude type isn't right at all, but idk how to get it working for real...

@@ -34,9 +34,10 @@ cli = ["atty", "clap", "serde_json", "browserslist", "jemallocator"]
 grid = []
 jsonschema = ["schemars", "serde", "parcel_selectors/jsonschema"]
 nodejs = ["dep:serde"]
-serde = ["dep:serde", "smallvec/serde", "cssparser/serde", "parcel_selectors/serde"]
+serde = ["dep:serde", "smallvec/serde", "cssparser/serde", "parcel_selectors/serde", "into_owned"]
 sourcemap = ["parcel_sourcemap"]
 visitor = ["lightningcss-derive"]
+into_owned = ["lightningcss-derive"]
 
 [dependencies]
 serde = { version = "1.0.123", features = ["derive"], optional = true }

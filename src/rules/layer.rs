@@ -16,6 +16,7 @@ use smallvec::SmallVec;
 ///
 /// Nested layers are represented using a list of identifiers. In CSS syntax, these are dot-separated.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct LayerName<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub SmallVec<[CowArcStr<'i>; 1]>);
@@ -84,6 +85,7 @@ impl<'i> ToCss for LayerName<'i> {
 /// See also [LayerBlockRule](LayerBlockRule).
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct LayerStatementRule<'i> {
