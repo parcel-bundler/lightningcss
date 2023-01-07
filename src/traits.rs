@@ -27,11 +27,23 @@ pub trait Parse<'i>: Sized {
   }
 }
 
-pub(crate) trait ParseWithOptions<'i, T>: Sized {
+/// Trait for things that can be parsed from CSS syntax and require ParserOptions.
+pub trait ParseWithOptions<'i, T>: Sized {
+  /// Parse a value of this type with the given options.
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<T>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>>;
+
+  /// Parse a value from a string with the given options.
+  fn parse_string_with_options(
+    input: &'i str,
+    options: ParserOptions<T>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let mut input = ParserInput::new(input);
+    let mut parser = Parser::new(&mut input);
+    Self::parse_with_options(&mut parser, &options)
+  }
 }
 
 impl<'i, T: Parse<'i>, U> ParseWithOptions<'i, U> for T {

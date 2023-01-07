@@ -22436,6 +22436,52 @@ mod tests {
     }
   }
 
+  #[cfg(feature = "substitute_variables")]
+  #[test]
+  fn test_substitute_vars() {
+    use crate::properties::custom::TokenList;
+    use crate::traits::ParseWithOptions;
+
+    fn test(property: Property, vars: HashMap<&str, &str>, expected: &str) {
+      if let Property::Unparsed(unparsed) = property {
+        let vars = vars
+          .into_iter()
+          .map(|(k, v)| {
+            (
+              k,
+              TokenList::parse_string_with_options(v, ParserOptions::default()).unwrap(),
+            )
+          })
+          .collect();
+        let substituted = unparsed.substitute_variables(&vars).unwrap();
+        assert_eq!(
+          substituted.to_css_string(false, PrinterOptions::default()).unwrap(),
+          expected
+        );
+      } else {
+        panic!("Not an unparsed property");
+      }
+    }
+
+    let property = Property::parse_string("color".into(), "var(--test)", ParserOptions::default()).unwrap();
+    test(property, HashMap::from([("--test", "yellow")]), "color: #ff0");
+
+    let property =
+      Property::parse_string("color".into(), "var(--test, var(--foo))", ParserOptions::default()).unwrap();
+    test(property, HashMap::from([("--foo", "yellow")]), "color: #ff0");
+    let property = Property::parse_string(
+      "color".into(),
+      "var(--test, var(--foo, yellow))",
+      ParserOptions::default(),
+    )
+    .unwrap();
+    test(property, HashMap::new(), "color: #ff0");
+
+    let property =
+      Property::parse_string("width".into(), "calc(var(--a) + var(--b))", ParserOptions::default()).unwrap();
+    test(property, HashMap::from([("--a", "2px"), ("--b", "4px")]), "width: 6px");
+  }
+
   #[test]
   fn test_layer() {
     minify_test("@layer foo;", "@layer foo;");

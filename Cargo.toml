@@ -38,6 +38,7 @@ serde = ["dep:serde", "smallvec/serde", "cssparser/serde", "parcel_selectors/ser
 sourcemap = ["parcel_sourcemap"]
 visitor = ["lightningcss-derive"]
 into_owned = ["lightningcss-derive"]
+substitute_variables = ["visitor", "into_owned"]
 
 [dependencies]
 serde = { version = "1.0.123", features = ["derive"], optional = true }

@@ -1,8 +1,5 @@
 //! CSS custom properties and unparsed token values.
 
-use std::collections::HashMap;
-
-use super::Property;
 use crate::compat;
 use crate::error::{ParserError, PrinterError, PrinterErrorKind};
 use crate::macros::enum_property;
@@ -10,7 +7,7 @@ use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::PropertyId;
 use crate::rules::supports::SupportsCondition;
-use crate::stylesheet::{ParserOptions, PrinterOptions};
+use crate::stylesheet::ParserOptions;
 use crate::targets::Browsers;
 use crate::traits::{Parse, ParseWithOptions, ToCss};
 use crate::values::angle::Angle;
@@ -179,16 +176,25 @@ impl<'i> UnparsedProperty<'i> {
   }
 
   /// Substitutes variables and re-parses the property.
-  pub fn substitute_variables(
-    &self,
-    vars: &HashMap<String, TokenList<'i>>,
-  ) -> Result<Property<'i>, ParseError<'i, ParserError<'i>>> {
-    let tokens = self.value.substitute_variables(vars);
+  #[cfg(feature = "substitute_variables")]
+  pub fn substitute_variables<'x>(
+    mut self,
+    vars: &std::collections::HashMap<&str, TokenList<'i>>,
+  ) -> Result<super::Property<'x>, ()> {
+    use super::Property;
+    use crate::stylesheet::PrinterOptions;
+
+    // Substitute variables in the token list.
+    self.value.substitute_variables(vars);
+
+    // Now stringify and re-parse the property to its fully parsed form.
+    // Ideally we'd be able to reuse the tokens rather than printing, but cssparser doesn't provide a way to do that.
     let mut css = String::new();
     let mut dest = Printer::new(&mut css, PrinterOptions::default());
-    tokens.to_css(&mut dest, false).unwrap();
-    // TOOD: store `css` somewhere
-    Property::parse_string(self.property_id.clone(), &css, ParserOptions::default())
+    self.value.to_css(&mut dest, false).unwrap();
+    let property =
+      Property::parse_string(self.property_id.clone(), &css, ParserOptions::default()).map_err(|_| ())?;
+    Ok(property.into_owned())
   }
 }
 
@@ -248,6 +254,15 @@ impl<'i> TokenOrValue<'i> {
   /// Returns whether the token is whitespace.
   pub fn is_whitespace(&self) -> bool {
     matches!(self, TokenOrValue::Token(Token::WhiteSpace(_)))
+  }
+}
+
+impl<'i, T> ParseWithOptions<'i, T> for TokenList<'i> {
+  fn parse_with_options<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<T>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    TokenList::parse(input, options, 0)
   }
 }
 
@@ -977,26 +992,39 @@ impl<'i> TokenList<'i> {
     res
   }
 
-  fn substitute_variables(&self, vars: &HashMap<String, TokenList<'i>>) -> TokenList<'i> {
-    TokenList(
-      self
-        .0
-        .iter()
-        .flat_map(|token| {
-          if let TokenOrValue::Var(var) = token {
-            if let Some(value) = vars.get(var.name.ident.0.as_ref()) {
-              return itertools::Either::Left(itertools::Either::Left(value.0.iter().cloned()));
-            } else if let Some(fallback) = &var.fallback {
-              return itertools::Either::Left(itertools::Either::Right(
-                fallback.substitute_variables(vars).0.into_iter(),
-              ));
-            }
-          }
+  /// Substitutes variables with the provided values.
+  #[cfg(feature = "substitute_variables")]
+  pub fn substitute_variables(&mut self, vars: &std::collections::HashMap<&str, TokenList<'i>>) {
+    self.visit(&mut VarInliner { vars })
+  }
+}
 
-          itertools::Either::Right(std::iter::once(token.clone()))
-        })
-        .collect(),
-    )
+#[cfg(feature = "substitute_variables")]
+struct VarInliner<'a, 'i> {
+  vars: &'a std::collections::HashMap<&'a str, TokenList<'i>>,
+}
+
+#[cfg(feature = "substitute_variables")]
+impl<'a, 'i> crate::visitor::Visitor<'i> for VarInliner<'a, 'i> {
+  const TYPES: crate::visitor::VisitTypes = crate::visit_types!(TOKENS | VARIABLES);
+
+  fn visit_token_list(&mut self, tokens: &mut TokenList<'i>) {
+    let mut i = 0;
+    while i < tokens.0.len() {
+      let token = &mut tokens.0[i];
+      token.visit(self);
+      if let TokenOrValue::Var(var) = token {
+        if let Some(value) = self.vars.get(var.name.ident.0.as_ref()) {
+          i += tokens.0.splice(i..i + 1, value.0.iter().cloned()).count();
+          continue;
+        } else if let Some(fallback) = &var.fallback {
+          let fallback = fallback.0.clone();
+          i += tokens.0.splice(i..i + 1, fallback.into_iter()).count();
+          continue;
+        }
+      }
+      i += 1;
+    }
   }
 }
 
