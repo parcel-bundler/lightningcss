@@ -22480,6 +22480,20 @@ mod tests {
     let property =
       Property::parse_string("width".into(), "calc(var(--a) + var(--b))", ParserOptions::default()).unwrap();
     test(property, HashMap::from([("--a", "2px"), ("--b", "4px")]), "width: 6px");
+
+    let property = Property::parse_string("color".into(), "var(--a)", ParserOptions::default()).unwrap();
+    test(
+      property,
+      HashMap::from([("--a", "var(--b)"), ("--b", "yellow")]),
+      "color: #ff0",
+    );
+
+    let property = Property::parse_string("color".into(), "var(--a)", ParserOptions::default()).unwrap();
+    test(
+      property,
+      HashMap::from([("--a", "var(--b)"), ("--b", "var(--c)"), ("--c", "var(--a)")]),
+      "color: var(--a)",
+    );
   }
 
   #[test]

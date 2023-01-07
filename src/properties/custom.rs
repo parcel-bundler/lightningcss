@@ -1010,19 +1010,27 @@ impl<'a, 'i> crate::visitor::Visitor<'i> for VarInliner<'a, 'i> {
 
   fn visit_token_list(&mut self, tokens: &mut TokenList<'i>) {
     let mut i = 0;
+    let mut seen = std::collections::HashSet::new();
     while i < tokens.0.len() {
       let token = &mut tokens.0[i];
       token.visit(self);
       if let TokenOrValue::Var(var) = token {
         if let Some(value) = self.vars.get(var.name.ident.0.as_ref()) {
-          i += tokens.0.splice(i..i + 1, value.0.iter().cloned()).count();
-          continue;
+          // Ignore circular references.
+          if seen.insert(var.name.ident.0.clone()) {
+            tokens.0.splice(i..i + 1, value.0.iter().cloned());
+            // Don't advance. We need to replace any variables in the value.
+            continue;
+          }
         } else if let Some(fallback) = &var.fallback {
           let fallback = fallback.0.clone();
-          i += tokens.0.splice(i..i + 1, fallback.into_iter()).count();
-          continue;
+          if seen.insert(var.name.ident.0.clone()) {
+            tokens.0.splice(i..i + 1, fallback.into_iter());
+            continue;
+          }
         }
       }
+      seen.clear();
       i += 1;
     }
   }
