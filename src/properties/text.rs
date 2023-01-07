@@ -884,7 +884,7 @@ enum_property! {
 /// A value for the [text-emphasis-style](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-style-property) property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -969,6 +969,7 @@ impl<'i> ToCss for TextEmphasisStyle<'i> {
 
 define_shorthand! {
   /// A value for the [text-emphasis](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-property) shorthand property.
+  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   pub struct TextEmphasis<'i>(VendorPrefix) {
     /// The text emphasis style.
     #[cfg_attr(feature = "serde", serde(borrow))]

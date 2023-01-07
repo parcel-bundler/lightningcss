@@ -15,7 +15,7 @@ use cssparser::*;
 /// used in the `fill` and `stroke` properties.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -247,7 +247,7 @@ impl ToCss for StrokeDasharray {
 /// A value for the [marker](https://www.w3.org/TR/SVG2/painting.html#VertexMarkerProperties) properties.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

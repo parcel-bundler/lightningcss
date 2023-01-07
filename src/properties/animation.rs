@@ -21,7 +21,7 @@ use smallvec::SmallVec;
 /// A value for the [animation-name](https://drafts.csswg.org/css-animations/#animation-name) property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -193,6 +193,7 @@ impl Default for AnimationFillMode {
 
 define_list_shorthand! {
   /// A value for the [animation](https://drafts.csswg.org/css-animations/#animation) shorthand property.
+  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   pub struct Animation<'i>(VendorPrefix) {
     /// The animation name.
     #[cfg_attr(feature = "serde", serde(borrow))]

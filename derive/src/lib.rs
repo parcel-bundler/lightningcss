@@ -8,11 +8,11 @@ use syn::{
   GenericParam, Ident, Member, Token, Type,
 };
 
-mod to_static;
+mod into_owned;
 
-#[proc_macro_derive(ToStatic)]
-pub fn derive_to_static(input: TokenStream) -> TokenStream {
-  to_static::derive_to_static(input)
+#[proc_macro_derive(IntoOwned)]
+pub fn derive_into_owned(input: TokenStream) -> TokenStream {
+  into_owned::derive_into_owned(input)
 }
 
 #[proc_macro_derive(Visit, attributes(visit, skip_visit, skip_type, visit_types))]

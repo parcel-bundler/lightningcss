@@ -306,7 +306,7 @@ impl ToCss for BackgroundPosition {
 /// A value for the [background](https://www.w3.org/TR/css-backgrounds-3/#background) shorthand property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Background<'i> {

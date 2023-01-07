@@ -206,6 +206,7 @@ impl From<MaskComposite> for WebKitMaskComposite {
 
 define_list_shorthand! {
   /// A value for the [mask](https://www.w3.org/TR/css-masking-1/#the-mask) shorthand property.
+  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   pub struct Mask<'i>(VendorPrefix) {
     /// The mask image.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -378,7 +379,7 @@ impl<'i> ImageFallback<'i> for Mask<'i> {
 /// A value for the [clip-path](https://www.w3.org/TR/css-masking-1/#the-clip-path) property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -476,6 +477,7 @@ impl Default for MaskBorderMode {
 define_shorthand! {
   /// A value for the [mask-border](https://www.w3.org/TR/css-masking-1/#the-mask-border) shorthand property.
   #[derive(Default)]
+  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   pub struct MaskBorder<'i> {
     /// The mask image.
     #[cfg_attr(feature = "serde", serde(borrow))]
