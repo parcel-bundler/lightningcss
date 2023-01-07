@@ -941,7 +941,7 @@ macro_rules! define_properties {
         }
 
         #[derive(serde::Deserialize)]
-        #[serde(field_identifier, rename_all = "snake_case")]
+        #[serde(field_identifier, rename_all = "camelCase")]
         enum Field {
           Property,
           VendorPrefix,
@@ -985,7 +985,7 @@ macro_rules! define_properties {
             let vendor_prefix = vendor_prefix.unwrap_or(VendorPrefix::None);
             let value = value.ok_or_else(|| serde::de::Error::missing_field("value"))?;
             let property_id = PropertyId::from_name_and_prefix(property.as_ref(), vendor_prefix)
-              .unwrap_or_else(|_| PropertyId::Custom(property.into()));
+              .unwrap_or_else(|_| PropertyId::from(property));
             Ok(PartialProperty {
               property_id,
               value,

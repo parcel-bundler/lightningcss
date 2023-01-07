@@ -823,7 +823,7 @@ test('custom idents', () => {
   assert.equal(res.code.toString(), '@keyframes prefix-test{0%{color:red}to{color:green}}.foo{animation:prefix-test}');
 });
 
-test('returning string values', () => {
+test.only('returning string values', () => {
   let res = transform({
     filename: 'test.css',
     minify: true,
@@ -850,6 +850,19 @@ test('returning string values', () => {
                   {
                     property: 'background',
                     raw: 'yellow'
+                  },
+                  {
+                    property: '--custom',
+                    raw: 'hi'
+                  },
+                  {
+                    property: 'transition',
+                    vendorPrefix: ['moz'],
+                    raw: '200ms test'
+                  },
+                  {
+                    property: '-webkit-animation',
+                    raw: '3s cubic-bezier(0.25, 0.1, 0.25, 1) foo'
                   }
                 ],
                 importantDeclarations: [],
@@ -861,7 +874,7 @@ test('returning string values', () => {
     }
   });
 
-  assert.equal(res.code.toString(), '*{visibility:hidden;background:#ff0}');
+  assert.equal(res.code.toString(), '*{visibility:hidden;--custom:hi;background:#ff0;-moz-transition:test .2s;-webkit-animation:3s foo}');
 });
 
 test.run();
