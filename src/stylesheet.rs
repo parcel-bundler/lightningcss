@@ -317,6 +317,7 @@ where
 /// assert_eq!(res.code, "color: #ff0; font-family: Helvetica");
 /// ```
 #[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
 pub struct StyleAttribute<'i> {
   /// The declarations in the style attribute.
   pub declarations: DeclarationBlock<'i>,

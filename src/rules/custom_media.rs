@@ -12,6 +12,7 @@ use crate::visitor::Visit;
 /// A [@custom-media](https://drafts.csswg.org/mediaqueries-5/#custom-mq) rule.
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct CustomMediaRule<'i> {

@@ -42,6 +42,7 @@ impl Default for ContainerType {
 /// A value for the [container-name](https://drafts.csswg.org/css-contain-3/#container-name) property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

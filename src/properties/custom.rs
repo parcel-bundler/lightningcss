@@ -9,7 +9,7 @@ use crate::properties::PropertyId;
 use crate::rules::supports::SupportsCondition;
 use crate::stylesheet::ParserOptions;
 use crate::targets::Browsers;
-use crate::traits::{Parse, ParseWithOptions, ToCss};
+use crate::traits::{Parse, ParseWithOptions, ToCss, ToStatic};
 use crate::values::angle::Angle;
 use crate::values::color::{
   parse_hsl_hwb_components, parse_rgb_components, ColorFallbackKind, ComponentParser, CssColor,
@@ -33,6 +33,7 @@ use crate::serialization::ValueWrapper;
 /// A CSS custom property, representing any unknown property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct CustomProperty<'i> {
@@ -60,6 +61,7 @@ impl<'i> CustomProperty<'i> {
 /// A CSS custom property name.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize), serde(untagged))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum CustomPropertyName<'i> {
@@ -126,6 +128,7 @@ impl<'i, 'de: 'i> serde::Deserialize<'de> for CustomPropertyName<'i> {
 /// In this case, the raw tokens are stored instead.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -176,6 +179,7 @@ impl<'i> UnparsedProperty<'i> {
 /// A raw list of CSS tokens, with embedded parsed values.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit), visit(visit_token_list, TOKENS))]
+#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct TokenList<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub Vec<TokenOrValue<'i>>);
@@ -183,6 +187,7 @@ pub struct TokenList<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub Vec<T
 /// A raw CSS token, or a parsed value.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit), visit(visit_token, TOKENS), visit_types(TOKENS | COLORS | URLS | VARIABLES | ENVIRONMENT_VARIABLES | FUNCTIONS | LENGTHS | ANGLES | TIMES | RESOLUTIONS | DASHED_IDENTS))]
+#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -274,7 +279,7 @@ impl<'i> TokenList<'i> {
           // Skip whitespace if the last token was a delimeter.
           // Otherwise, replace all whitespace and comments with a single space character.
           if !last_is_delim {
-            tokens.push(Token::WhiteSpace(" ").into());
+            tokens.push(Token::WhiteSpace(" ".into()).into());
             last_is_whitespace = true;
           }
         }
@@ -546,6 +551,7 @@ impl<'i> TokenList<'i> {
 // Copied from cssparser to change CowRcStr to CowArcStr
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -644,8 +650,8 @@ pub enum Token<'a> {
   },
 
   /// A [`<whitespace-token>`](https://drafts.csswg.org/css-syntax/#whitespace-token-diagram)
-  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<&str>"))]
-  WhiteSpace(&'a str),
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
+  WhiteSpace(CowArcStr<'a>),
 
   /// A comment.
   ///
@@ -653,8 +659,8 @@ pub enum Token<'a> {
   /// But we do, because we can (borrowed &str makes it cheap).
   ///
   /// The value does not include the `/*` `*/` markers.
-  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<&str>"))]
-  Comment(&'a str),
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
+  Comment(CowArcStr<'a>),
 
   /// A `:` `<colon-token>`
   Colon, // :
@@ -777,8 +783,8 @@ impl<'a> From<&cssparser::Token<'a>> for Token<'a> {
         unit_value: *unit_value,
         int_value: *int_value,
       },
-      cssparser::Token::WhiteSpace(w) => Token::WhiteSpace(w),
-      cssparser::Token::Comment(c) => Token::Comment(c),
+      cssparser::Token::WhiteSpace(w) => Token::WhiteSpace((*w).into()),
+      cssparser::Token::Comment(c) => Token::Comment((*c).into()),
       cssparser::Token::Colon => Token::Colon,
       cssparser::Token::Semicolon => Token::Semicolon,
       cssparser::Token::Comma => Token::Comma,
@@ -959,6 +965,7 @@ impl<'i> TokenList<'i> {
 /// A CSS variable reference.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
 #[cfg_attr(feature = "visitor", visit(visit_variable, VARIABLES))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
@@ -1015,6 +1022,7 @@ impl<'i> Variable<'i> {
   derive(Visit),
   visit(visit_environment_variable, ENVIRONMENT_VARIABLES)
 )]
+#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct EnvironmentVariable<'i> {
@@ -1031,6 +1039,7 @@ pub struct EnvironmentVariable<'i> {
 /// A CSS environment variable name.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -1184,6 +1193,7 @@ impl<'i> EnvironmentVariable<'i> {
 /// A custom CSS function.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
 #[cfg_attr(feature = "visitor", visit(visit_function, FUNCTIONS))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
@@ -1220,6 +1230,7 @@ impl<'i> Function<'i> {
 /// since variables can resolve to multiple tokens.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

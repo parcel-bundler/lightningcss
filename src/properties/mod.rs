@@ -178,6 +178,7 @@ macro_rules! define_properties {
     /// A CSS property id.
     #[derive(Debug, Clone, PartialEq)]
     #[cfg_attr(feature = "visitor", derive(Visit))]
+    #[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
     pub enum PropertyId<'i> {
       $(
         #[doc=concat!("The `", $name, "` property.")]
@@ -657,6 +658,7 @@ macro_rules! define_properties {
     /// A CSS property.
     #[derive(Debug, Clone, PartialEq)]
     #[cfg_attr(feature = "visitor", derive(Visit), visit(visit_property, PROPERTIES))]
+    #[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
     pub enum Property<'i> {
       $(
         #[doc=concat!("The `", $name, "` property.")]
@@ -928,6 +930,8 @@ macro_rules! define_properties {
       where
         D: serde::Deserializer<'de>,
       {
+        use serde::Deserialize;
+
         struct PartialProperty<'de> {
           property_id: PropertyId<'de>,
           content: serde::__private::de::Content<'de>,
@@ -983,8 +987,18 @@ macro_rules! define_properties {
         }
 
         let partial = deserializer.deserialize_any(PropertyIdVisitor)?;
-        let deserializer = serde::__private::de::ContentDeserializer::new(partial.content);
+        let deserializer = serde::__private::de::ContentRefDeserializer::<D::Error>::new(&partial.content);
 
+        let s: Result<CowArcStr<'de>, _> = Deserialize::deserialize(deserializer);
+        if let Ok(s) = s {
+          let res = Property::parse_string(partial.property_id, s.as_ref(), ParserOptions::default())
+            .map_err(|_| serde::de::Error::custom("Could not parse value"))?;
+          // This converts borrowed values to owned.
+          let r = serde_value::to_value(res).map_err(|_| serde::de::Error::custom("Could not serialize value"))?;
+          return r.deserialize_into().map_err(|_| serde::de::Error::custom("Could not deserialize value"));
+        }
+
+        let deserializer = serde::__private::de::ContentDeserializer::new(partial.content);
         match partial.property_id {
           $(
             $(#[$meta])*

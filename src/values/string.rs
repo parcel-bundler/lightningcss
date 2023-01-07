@@ -129,7 +129,21 @@ impl<'a> CowArcStr<'a> {
       }
     }
   }
+
+  pub(crate) fn to_static(self) -> CowArcStr<'static> {
+    if self.borrowed_len_or_max != usize::MAX {
+      CowArcStr::from(self.as_ref().to_owned())
+    } else {
+      unsafe { std::mem::transmute(self) }
+    }
+  }
 }
+
+// #[test]
+// fn test() {
+//   let s = String::from("hi");
+//   let x = CowArcStr::from(&s);
+// }
 
 impl<'a> Clone for CowArcStr<'a> {
   #[inline]
@@ -305,6 +319,7 @@ impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for CowArcStr<'i
 /// A quoted CSS string.
 #[derive(Clone, Eq, Ord, Hash, Debug)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "to_static", derive(lightningcss_derive::ToStatic))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct CSSString<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CowArcStr<'i>);

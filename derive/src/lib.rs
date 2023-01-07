@@ -8,6 +8,13 @@ use syn::{
   GenericParam, Ident, Member, Token, Type,
 };
 
+mod to_static;
+
+#[proc_macro_derive(ToStatic)]
+pub fn derive_to_static(input: TokenStream) -> TokenStream {
+  to_static::derive_to_static(input)
+}
+
 #[proc_macro_derive(Visit, attributes(visit, skip_visit, skip_type, visit_types))]
 pub fn derive_visit_children(input: TokenStream) -> TokenStream {
   let DeriveInput {

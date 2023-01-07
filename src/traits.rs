@@ -139,6 +139,7 @@ macro_rules! impl_op {
 }
 
 pub(crate) use impl_op;
+use smallvec::SmallVec;
 
 /// A trait for values that potentially support a binary operation (e.g. if they have the same unit).
 pub trait TryOp: Sized {
@@ -221,4 +222,36 @@ pub trait Zero {
 
   /// Returns whether the value is zero.
   fn is_zero(&self) -> bool;
+}
+
+/// A trait for converting values to static.
+pub trait ToStatic {
+  fn to_static(self) -> Self;
+}
+
+impl<T: ToStatic> ToStatic for Option<T> {
+  fn to_static(self) -> Self {
+    match self {
+      None => None,
+      Some(v) => Some(v.to_static()),
+    }
+  }
+}
+
+impl<T: ToStatic> ToStatic for Box<T> {
+  fn to_static(self) -> Self {
+    Box::new((*self).to_static())
+  }
+}
+
+impl<T: ToStatic> ToStatic for Vec<T> {
+  fn to_static(self) -> Self {
+    self.into_iter().map(|item| item.to_static()).collect()
+  }
+}
+
+impl<T: ToStatic, A: smallvec::Array<Item = T>> ToStatic for SmallVec<A> {
+  fn to_static(self) -> Self {
+    self.into_iter().map(|item| item.to_static()).collect()
+  }
 }
