@@ -823,7 +823,7 @@ test('custom idents', () => {
   assert.equal(res.code.toString(), '@keyframes prefix-test{0%{color:red}to{color:green}}.foo{animation:prefix-test}');
 });
 
-test.only('returning string values', () => {
+test('returning string values', () => {
   let res = transform({
     filename: 'test.css',
     minify: true,

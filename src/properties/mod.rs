@@ -906,7 +906,7 @@ macro_rules! define_properties {
         } else {
           let mut s = serializer.serialize_struct("Property", 3)?;
           s.serialize_field("property", name)?;
-          s.serialize_field("vendor_prefix", &prefix)?;
+          s.serialize_field("vendorPrefix", &prefix)?;
           s
         };
 
