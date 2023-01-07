@@ -5,7 +5,7 @@ let wasm;
 
 export default async function init(input = url) {
   if (typeof input === 'string' || (typeof Request === 'function' && input instanceof Request) || (typeof URL === 'function' && input instanceof URL)) {
-    input = fetch(input);
+    input = fetchOrReadFromFs(input);
   }
 
   const { instance } = await load(await input, {
@@ -51,3 +51,12 @@ async function load(module, imports) {
     }
   }
 }
+
+const fetchOrReadFromFs = async (inputPath) => {
+  try {
+    const fs = await import('node:fs');
+    return fs.readFileSync(inputPath);
+  } catch {
+    return fetch(inputPath);
+  }
+};
