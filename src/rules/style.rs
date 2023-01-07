@@ -36,10 +36,15 @@ pub struct StyleRule<'i, R = DefaultAtRule> {
   /// The declarations within the style rule.
   pub declarations: DeclarationBlock<'i>,
   /// Nested rules within the style rule.
+  #[cfg_attr(feature = "serde", serde(default = "default_rule_list::<R>"))]
   pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.
   #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
+}
+
+fn default_rule_list<'i, R>() -> CssRuleList<'i, R> {
+  CssRuleList(Vec::new())
 }
 
 impl<'i, T> StyleRule<'i, T> {

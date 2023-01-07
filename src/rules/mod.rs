@@ -388,7 +388,7 @@ impl<'i, T: ToCss> ToCss for CssRule<'i, T> {
 }
 
 /// A list of CSS rules.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct CssRuleList<'i, R = DefaultAtRule>(

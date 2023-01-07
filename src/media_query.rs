@@ -23,7 +23,7 @@ use std::collections::{HashMap, HashSet};
 use crate::serialization::ValueWrapper;
 
 /// A [media query list](https://drafts.csswg.org/mediaqueries/#mq-list).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 #[cfg_attr(feature = "visitor", derive(Visit), visit(visit_media_list, MEDIA_QUERIES))]
 #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(

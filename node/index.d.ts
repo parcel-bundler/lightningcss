@@ -1,4 +1,4 @@
-import type { Angle, CssColor, Rule, CustomProperty, EnvironmentVariable, Function, Image, LengthValue, MediaQuery, Declaration, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable } from './ast';
+import type { Angle, CssColor, Rule, CustomProperty, EnvironmentVariable, Function, Image, LengthValue, MediaQuery, Declaration, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable, StyleRule, DeclarationBlock } from './ast';
 import type { Targets } from './targets';
 
 export * from './ast';
@@ -69,9 +69,14 @@ type ReturnedDeclaration = Declaration | {
 
 type FindByType<Union, Name> = Union extends { type: Name } ? Union : never;
 type ReturnedRule = Rule<ReturnedDeclaration>;
-type RuleVisitor<R = Rule> = ((rule: R) => ReturnedRule | ReturnedRule[] | void);
+type RequiredValue<Rule> = Rule extends { value: object }
+  ? Rule['value'] extends StyleRule
+  ? Rule & { value: Required<StyleRule> & { declarations: Required<DeclarationBlock> } }
+  : Rule & { value: Required<Rule['value']> }
+  : Rule;
+type RuleVisitor<R = RequiredValue<Rule>> = ((rule: R) => ReturnedRule | ReturnedRule[] | void);
 type MappedRuleVisitors = {
-  [Name in Exclude<Rule['type'], 'unknown' | 'custom'>]?: RuleVisitor<FindByType<Rule, Name>>;
+  [Name in Exclude<Rule['type'], 'unknown' | 'custom'>]?: RuleVisitor<RequiredValue<FindByType<Rule, Name>>>;
 }
 
 type UnknownVisitors = {

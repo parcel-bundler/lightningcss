@@ -658,17 +658,8 @@ test('hover media query', () => {
 test('momentum scrolling', () => {
   // Similar to https://github.com/yunusga/postcss-momentum-scrolling
   let visitOverflow = decl => [decl, {
-    property: 'custom',
-    value: {
-      name: '-webkit-overflow-scrolling',
-      value: [{
-        type: 'token',
-        value: {
-          type: 'ident',
-          value: 'touch'
-        }
-      }]
-    }
+    property: '-webkit-overflow-scrolling',
+    raw: 'touch'
   }];
 
   let res = transform({
@@ -836,7 +827,6 @@ test('returning string values', () => {
           return {
             type: 'style',
             value: {
-              rules: [],
               loc: rule.loc,
               selectors: [
                 [{ type: 'universal' }]
@@ -864,8 +854,7 @@ test('returning string values', () => {
                     property: '-webkit-animation',
                     raw: '3s cubic-bezier(0.25, 0.1, 0.25, 1) foo'
                   }
-                ],
-                importantDeclarations: [],
+                ]
               }
             }
           }

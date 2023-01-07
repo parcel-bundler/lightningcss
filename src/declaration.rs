@@ -54,9 +54,10 @@ use cssparser::*;
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct DeclarationBlock<'i> {
   /// A list of `!important` declarations in the block.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow, default))]
   pub important_declarations: Vec<Property<'i>>,
   /// A list of normal declarations in the block.
+  #[cfg_attr(feature = "serde", serde(default))]
   pub declarations: Vec<Property<'i>>,
 }
 

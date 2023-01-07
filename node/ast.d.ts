@@ -7025,7 +7025,7 @@ export interface ImportRule {
   /**
    * A media query.
    */
-  media: MediaList;
+  media?: MediaList;
   /**
    * An optional `supports()` condition.
    */
@@ -7050,7 +7050,7 @@ export interface StyleRule<D = Declaration> {
   /**
    * Nested rules within the style rule.
    */
-  rules: Rule<D>[];
+  rules?: Rule<D>[];
   /**
    * The selectors for the style rule.
    */
@@ -7065,11 +7065,11 @@ export interface DeclarationBlock<D = Declaration> {
   /**
    * A list of normal declarations in the block.
    */
-  declarations: D[];
+  declarations?: D[];
   /**
    * A list of `!important` declarations in the block.
    */
-  importantDeclarations: D[];
+  importantDeclarations?: D[];
 }
 /**
  * A CSS [`<position>`](https://www.w3.org/TR/css3-values/#position) value, as used in the `background-position` property, gradients, masks, etc.

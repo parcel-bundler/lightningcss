@@ -30,6 +30,7 @@ pub struct ImportRule<'i> {
   /// An optional `supports()` condition.
   pub supports: Option<SupportsCondition<'i>>,
   /// A media query.
+  #[cfg_attr(feature = "serde", serde(default))]
   pub media: MediaList<'i>,
   /// The location of the rule in the source file.
   #[cfg_attr(feature = "visitor", skip_visit)]
