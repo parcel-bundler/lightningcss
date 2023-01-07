@@ -930,11 +930,14 @@ macro_rules! define_properties {
       where
         D: serde::Deserializer<'de>,
       {
-        use serde::Deserialize;
+        enum ContentOrRaw<'de> {
+          Content(serde::__private::de::Content<'de>),
+          Raw(CowArcStr<'de>)
+        }
 
         struct PartialProperty<'de> {
           property_id: PropertyId<'de>,
-          content: serde::__private::de::Content<'de>,
+          value: ContentOrRaw<'de>,
         }
 
         #[derive(serde::Deserialize)]
@@ -942,7 +945,8 @@ macro_rules! define_properties {
         enum Field {
           Property,
           VendorPrefix,
-          Value
+          Value,
+          Raw
         }
 
         struct PropertyIdVisitor;
@@ -959,7 +963,7 @@ macro_rules! define_properties {
           {
             let mut property: Option<CowArcStr> = None;
             let mut vendor_prefix = None;
-            let mut value: Option<serde::__private::de::Content> = None;
+            let mut value: Option<ContentOrRaw<'de>> = None;
             while let Some(key) = map.next_key()? {
               match key {
                 Field::Property => {
@@ -969,7 +973,10 @@ macro_rules! define_properties {
                   vendor_prefix = Some(map.next_value()?);
                 }
                 Field::Value => {
-                  value = Some(map.next_value()?);
+                  value = Some(ContentOrRaw::Content(map.next_value()?));
+                }
+                Field::Raw => {
+                  value = Some(ContentOrRaw::Raw(map.next_value()?));
                 }
               }
             }
@@ -981,22 +988,23 @@ macro_rules! define_properties {
               .unwrap_or_else(|_| PropertyId::Custom(property.into()));
             Ok(PartialProperty {
               property_id,
-              content: value,
+              value,
             })
           }
         }
 
         let partial = deserializer.deserialize_any(PropertyIdVisitor)?;
-        let deserializer = serde::__private::de::ContentRefDeserializer::<D::Error>::new(&partial.content);
 
-        let s: Result<CowArcStr<'de>, _> = Deserialize::deserialize(deserializer);
-        if let Ok(s) = s {
-          let res = Property::parse_string(partial.property_id, s.as_ref(), ParserOptions::default())
-            .map_err(|_| serde::de::Error::custom("Could not parse value"))?;
-          return Ok(res.into_owned())
-        }
+        let content = match partial.value {
+          ContentOrRaw::Raw(raw) => {
+            let res = Property::parse_string(partial.property_id, raw.as_ref(), ParserOptions::default())
+              .map_err(|_| serde::de::Error::custom("Could not parse value"))?;
+            return Ok(res.into_owned())
+          }
+          ContentOrRaw::Content(content) => content
+        };
 
-        let deserializer = serde::__private::de::ContentDeserializer::new(partial.content);
+        let deserializer = serde::__private::de::ContentDeserializer::new(content);
         match partial.property_id {
           $(
             $(#[$meta])*

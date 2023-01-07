@@ -823,4 +823,45 @@ test('custom idents', () => {
   assert.equal(res.code.toString(), '@keyframes prefix-test{0%{color:red}to{color:green}}.foo{animation:prefix-test}');
 });
 
+test('returning string values', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      @tailwind base;
+    `),
+    visitor: {
+      Rule: {
+        unknown(rule) {
+          return {
+            type: 'style',
+            value: {
+              rules: [],
+              loc: rule.loc,
+              selectors: [
+                [{ type: 'universal' }]
+              ],
+              declarations: {
+                declarations: [
+                  {
+                    property: 'visibility',
+                    raw: 'hi\\64 den' // escapes work for raw but not value
+                  },
+                  {
+                    property: 'background',
+                    raw: 'yellow'
+                  }
+                ],
+                importantDeclarations: [],
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '*{visibility:hidden;background:#ff0}');
+});
+
 test.run();
