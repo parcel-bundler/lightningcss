@@ -15,7 +15,7 @@ use cssparser::{BasicParseError, BasicParseErrorKind, ParseError, ParseErrorKind
 use cssparser::{CowRcStr, Delimiter, SourceLocation};
 use cssparser::{Parser as CssParser, ToCss, Token};
 use precomputed_hash::PrecomputedHash;
-use smallvec::SmallVec;
+use smallvec::{smallvec, SmallVec};
 use std::borrow::Borrow;
 use std::fmt::{self, Debug};
 use std::iter::Rev;
@@ -213,7 +213,7 @@ macro_rules! with_all_bounds {
             type AttrValue: $($InSelector)*;
             type Identifier: $($InSelector)*;
             type LocalName: $($InSelector)* + Borrow<Self::BorrowedLocalName>;
-            type NamespaceUrl: $($CommonBounds)* + Default + Borrow<Self::BorrowedNamespaceUrl>;
+            type NamespaceUrl: $($CommonBounds)* + $($FromStr)* + Default + Borrow<Self::BorrowedNamespaceUrl>;
             type NamespacePrefix: $($InSelector)* + Default;
             type BorrowedNamespaceUrl: ?Sized + Eq;
             type BorrowedLocalName: ?Sized + Eq;
@@ -221,7 +221,7 @@ macro_rules! with_all_bounds {
             /// non tree-structural pseudo-classes
             /// (see: https://drafts.csswg.org/selectors/#structural-pseudos)
             type NonTSPseudoClass: $($CommonBounds)* + NonTSPseudoClass<'i, Impl = Self>;
-            type VendorPrefix: Sized + Eq + Clone + ToCss;
+            type VendorPrefix: Sized + Eq + $($CommonBounds)* + ToCss;
 
             /// pseudo-elements
             type PseudoElement: $($CommonBounds)* + PseudoElement<'i, Impl = Self>;
@@ -243,6 +243,13 @@ macro_rules! with_bounds {
     }
 }
 
+#[cfg(feature = "serde")]
+with_bounds! {
+    [Clone + PartialEq]
+    [From<CowRcStr<'i>> + From<std::borrow::Cow<'i, str>> + AsRef<str>]
+}
+
+#[cfg(not(feature = "serde"))]
 with_bounds! {
     [Clone + PartialEq]
     [From<CowRcStr<'i>>]
@@ -336,7 +343,25 @@ pub trait Parser<'i> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct SelectorList<'i, Impl: SelectorImpl<'i>>(pub SmallVec<[Selector<'i, Impl>; 1]>);
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(bound(
+    serialize = "Impl::NonTSPseudoClass: serde::Serialize, Impl::PseudoElement: serde::Serialize, Impl::VendorPrefix: serde::Serialize",
+    deserialize = "Impl::NonTSPseudoClass: serde::Deserialize<'de>, Impl::PseudoElement: serde::Deserialize<'de>, Impl::VendorPrefix: serde::Deserialize<'de>"
+  ))
+)]
+#[cfg_attr(
+  feature = "jsonschema",
+  derive(schemars::JsonSchema),
+  schemars(
+    rename = "SelectorList",
+    bound = "Impl: schemars::JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema"
+  )
+)]
+pub struct SelectorList<'i, Impl: SelectorImpl<'i>>(
+  #[cfg_attr(feature = "serde", serde(borrow))] pub SmallVec<[Selector<'i, Impl>; 1]>,
+);
 
 /// How to treat invalid selectors in a selector list.
 pub enum ParseErrorRecovery {
@@ -354,6 +379,7 @@ pub enum NestingRequirement {
   None,
   Prefixed,
   Contained,
+  Implicit,
 }
 
 impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
@@ -422,12 +448,30 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
     }
   }
 
+  pub fn parse_relative<'t, P>(
+    parser: &P,
+    input: &mut CssParser<'i, 't>,
+    nesting_requirement: NestingRequirement,
+  ) -> Result<Self, ParseError<'i, P::Error>>
+  where
+    P: Parser<'i, Impl = Impl>,
+  {
+    Self::parse_relative_with_state(
+      parser,
+      input,
+      &mut SelectorParsingState::empty(),
+      ParseErrorRecovery::DiscardList,
+      nesting_requirement,
+    )
+  }
+
   #[inline]
-  fn parse_relative<'t, P>(
+  fn parse_relative_with_state<'t, P>(
     parser: &P,
     input: &mut CssParser<'i, 't>,
     state: &mut SelectorParsingState,
     recovery: ParseErrorRecovery,
+    nesting_requirement: NestingRequirement,
   ) -> Result<Self, ParseError<'i, P::Error>>
   where
     P: Parser<'i, Impl = Impl>,
@@ -437,7 +481,7 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
     loop {
       let selector = input.parse_until_before(Delimiter::Comma, |input| {
         let mut selector_state = original_state;
-        let result = parse_relative_selector(parser, input, &mut selector_state);
+        let result = parse_relative_selector(parser, input, &mut selector_state, nesting_requirement);
         if selector_state.contains(SelectorParsingState::AFTER_NESTING) {
           state.insert(SelectorParsingState::AFTER_NESTING)
         }
@@ -465,9 +509,26 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
     }
   }
 
+  /// Creates a new SelectorList.
+  pub fn new(v: SmallVec<[Selector<'i, Impl>; 1]>) -> Self {
+    SelectorList(v)
+  }
+
   /// Creates a SelectorList from a Vec of selectors. Used in tests.
   pub fn from_vec(v: Vec<Selector<'i, Impl>>) -> Self {
     SelectorList(SmallVec::from_vec(v))
+  }
+}
+
+impl<'i, Impl: SelectorImpl<'i>> From<Selector<'i, Impl>> for SelectorList<'i, Impl> {
+  fn from(selector: Selector<'i, Impl>) -> Self {
+    SelectorList(smallvec![selector])
+  }
+}
+
+impl<'i, Impl: SelectorImpl<'i>> From<Component<'i, Impl>> for SelectorList<'i, Impl> {
+  fn from(component: Component<'i, Impl>) -> Self {
+    SelectorList::from(Selector::from(component))
   }
 }
 
@@ -814,16 +875,9 @@ impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
     Selector(spec, components)
   }
 
-  pub fn from_vec2(vec: Vec<Component<'i, Impl>>) -> Self {
-    let mut builder = SelectorBuilder::default();
-    for component in vec.into_iter() {
-      if let Some(combinator) = component.as_combinator() {
-        builder.push_combinator(combinator);
-      } else {
-        builder.push_simple_selector(component);
-      }
-    }
-    let (spec, components) = builder.build(false, false, false);
+  #[cfg(feature = "serde")]
+  #[inline]
+  pub(crate) fn new(spec: SpecificityAndFlags, components: Vec<Component<'i, Impl>>) -> Self {
     Selector(spec, components)
   }
 
@@ -875,6 +929,34 @@ impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
     }
 
     true
+  }
+}
+
+impl<'i, Impl: SelectorImpl<'i>> From<Component<'i, Impl>> for Selector<'i, Impl> {
+  fn from(component: Component<'i, Impl>) -> Self {
+    let mut builder = SelectorBuilder::default();
+    if let Some(combinator) = component.as_combinator() {
+      builder.push_combinator(combinator);
+    } else {
+      builder.push_simple_selector(component);
+    }
+    let (spec, components) = builder.build(false, false, false);
+    Selector(spec, components)
+  }
+}
+
+impl<'i, Impl: SelectorImpl<'i>> From<Vec<Component<'i, Impl>>> for Selector<'i, Impl> {
+  fn from(vec: Vec<Component<'i, Impl>>) -> Self {
+    let mut builder = SelectorBuilder::default();
+    for component in vec.into_iter() {
+      if let Some(combinator) = component.as_combinator() {
+        builder.push_combinator(combinator);
+      } else {
+        builder.push_simple_selector(component);
+      }
+    }
+    let (spec, components) = builder.build(false, false, false);
+    Selector(spec, components)
   }
 }
 
@@ -1012,6 +1094,12 @@ impl<'a, 'i, Impl: SelectorImpl<'i>> Iterator for AncestorIter<'a, 'i, Impl> {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Combinator {
   Child,        //  >
   Descendant,   // space
@@ -1107,7 +1195,7 @@ pub enum Component<'i, Impl: SelectorImpl<'i>> {
   Scope,
   NthChild(i32, i32),
   NthLastChild(i32, i32),
-  NthCol(i32, i32), // https://www.w3.org/TR/selectors-4/#the-nth-col-pseudo
+  NthCol(i32, i32),     // https://www.w3.org/TR/selectors-4/#the-nth-col-pseudo
   NthLastCol(i32, i32), // https://www.w3.org/TR/selectors-4/#the-nth-last-col-pseudo
   NthOfType(i32, i32),
   NthLastOfType(i32, i32),
@@ -1331,6 +1419,34 @@ impl<'i, Impl: SelectorImpl<'i>> Debug for AttrSelectorWithOptionalNamespace<'i,
 impl<'i, Impl: SelectorImpl<'i>> Debug for LocalName<'i, Impl> {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     self.to_css(f)
+  }
+}
+
+#[cfg(feature = "serde")]
+impl<'i, Impl: SelectorImpl<'i>> serde::Serialize for LocalName<'i, Impl>
+where
+  Impl::LocalName: serde::Serialize,
+{
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    self.name.serialize(serializer)
+  }
+}
+
+#[cfg(feature = "serde")]
+impl<'i, 'de: 'i, Impl: SelectorImpl<'i>> serde::Deserialize<'de> for LocalName<'i, Impl>
+where
+  Impl::LocalName: serde::Deserialize<'de>,
+{
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let name = Impl::LocalName::deserialize(deserializer)?;
+    let lower_name = to_ascii_lowercase(name.as_ref().to_string().into()).into();
+    Ok(LocalName { name, lower_name })
   }
 }
 
@@ -1574,9 +1690,7 @@ impl<'i, Impl: SelectorImpl<'i>> ToCss for Component<'i, Impl> {
         dest.write_char('[')?;
         local_name.to_css(dest)?;
         operator.to_css(dest)?;
-        dest.write_char('"')?;
         value.to_css(dest)?;
-        dest.write_char('"')?;
         match case_sensitivity {
           ParsedCaseSensitivity::CaseSensitive
           | ParsedCaseSensitivity::AsciiCaseInsensitiveIfInHtmlElementInHtmlDocument => {}
@@ -1606,7 +1720,12 @@ impl<'i, Impl: SelectorImpl<'i>> ToCss for Component<'i, Impl> {
       FirstOfType => dest.write_str(":first-of-type"),
       LastOfType => dest.write_str(":last-of-type"),
       OnlyOfType => dest.write_str(":only-of-type"),
-      NthChild(a, b) | NthLastChild(a, b) | NthOfType(a, b) | NthLastOfType(a, b) | NthCol(a, b) | NthLastCol(a, b) => {
+      NthChild(a, b)
+      | NthLastChild(a, b)
+      | NthOfType(a, b)
+      | NthLastOfType(a, b)
+      | NthCol(a, b)
+      | NthLastCol(a, b) => {
         match *self {
           NthChild(_, _) => dest.write_str(":nth-child(")?,
           NthLastChild(_, _) => dest.write_str(":nth-last-child(")?,
@@ -1664,9 +1783,7 @@ impl<'i, Impl: SelectorImpl<'i>> ToCss for AttrSelectorWithOptionalNamespace<'i,
         ref expected_value,
       } => {
         operator.to_css(dest)?;
-        dest.write_char('"')?;
         expected_value.to_css(dest)?;
-        dest.write_char('"')?;
         match case_sensitivity {
           ParsedCaseSensitivity::CaseSensitive
           | ParsedCaseSensitivity::AsciiCaseInsensitiveIfInHtmlElementInHtmlDocument => {}
@@ -1706,6 +1823,18 @@ where
     let state = input.state();
     if !input.expect_delim('&').is_ok() {
       return Err(input.new_custom_error(SelectorParseErrorKind::MissingNestingPrefix));
+    }
+    input.reset(&state);
+  }
+
+  // In the implicit nesting mode, selectors may not start with an ident or function token.
+  if nesting_requirement == NestingRequirement::Implicit {
+    let state = input.state();
+    match input.next()? {
+      Token::Ident(..) | Token::Function(..) => {
+        return Err(input.new_custom_error(SelectorParseErrorKind::MissingNestingPrefix));
+      }
+      _ => {}
     }
     input.reset(&state);
   }
@@ -1773,8 +1902,16 @@ where
     builder.push_combinator(combinator);
   }
 
-  if nesting_requirement == NestingRequirement::Contained && !state.contains(SelectorParsingState::AFTER_NESTING) {
-    return Err(input.new_custom_error(SelectorParseErrorKind::MissingNestingSelector));
+  if !state.contains(SelectorParsingState::AFTER_NESTING) {
+    match nesting_requirement {
+      NestingRequirement::Implicit => {
+        builder.add_nesting_prefix();
+      }
+      NestingRequirement::Contained | NestingRequirement::Prefixed => {
+        return Err(input.new_custom_error(SelectorParseErrorKind::MissingNestingSelector));
+      }
+      _ => {}
+    }
   }
 
   let (spec, components) = builder.build(has_pseudo_element, slotted, part);
@@ -1801,6 +1938,7 @@ fn parse_relative_selector<'i, 't, P, Impl>(
   parser: &P,
   input: &mut CssParser<'i, 't>,
   state: &mut SelectorParsingState,
+  mut nesting_requirement: NestingRequirement,
 ) -> Result<Selector<'i, Impl>, ParseError<'i, P::Error>>
 where
   P: Parser<'i, Impl = Impl>,
@@ -1818,11 +1956,21 @@ where
     }
   };
 
-  let mut selector = parse_selector(parser, input, state, NestingRequirement::None)?;
+  let scope = if nesting_requirement == NestingRequirement::Implicit {
+    Component::Nesting
+  } else {
+    Component::Scope
+  };
+
+  if combinator.is_some() {
+    nesting_requirement = NestingRequirement::None;
+  }
+
+  let mut selector = parse_selector(parser, input, state, nesting_requirement)?;
   if let Some(combinator) = combinator {
     // https://www.w3.org/TR/selectors/#absolutizing
     selector.1.push(Component::Combinator(combinator));
-    selector.1.push(Component::Scope);
+    selector.1.push(scope);
   }
 
   Ok(selector)
@@ -2366,7 +2514,13 @@ where
   Impl: SelectorImpl<'i>,
 {
   let mut child_state = *state;
-  let inner = SelectorList::parse_relative(parser, input, &mut child_state, parser.is_and_where_error_recovery())?;
+  let inner = SelectorList::parse_relative_with_state(
+    parser,
+    input,
+    &mut child_state,
+    parser.is_and_where_error_recovery(),
+    NestingRequirement::None,
+  )?;
   if child_state.contains(SelectorParsingState::AFTER_NESTING) {
     state.insert(SelectorParsingState::AFTER_NESTING)
   }
@@ -2620,7 +2774,7 @@ pub mod tests {
   use super::*;
   use crate::builder::SelectorFlags;
   use crate::parser;
-  use cssparser::{serialize_identifier, Parser as CssParser, ParserInput, ToCss};
+  use cssparser::{serialize_identifier, serialize_string, Parser as CssParser, ParserInput, ToCss};
   use std::collections::HashMap;
   use std::fmt;
 
@@ -2732,15 +2886,25 @@ pub mod tests {
     where
       W: fmt::Write,
     {
-      use std::fmt::Write;
+      serialize_string(&self.0, dest)
+    }
+  }
 
-      write!(cssparser::CssStringWriter::new(dest), "{}", &self.0)
+  impl AsRef<str> for DummyAttrValue {
+    fn as_ref(&self) -> &str {
+      self.0.as_ref()
     }
   }
 
   impl<'a> From<&'a str> for DummyAttrValue {
     fn from(string: &'a str) -> Self {
       Self(string.into())
+    }
+  }
+
+  impl<'a> From<std::borrow::Cow<'a, str>> for DummyAttrValue {
+    fn from(string: std::borrow::Cow<'a, str>) -> Self {
+      Self(string.to_string())
     }
   }
 
@@ -2777,6 +2941,18 @@ pub mod tests {
   impl<'a> From<CowRcStr<'a>> for DummyAtom {
     fn from(string: CowRcStr<'a>) -> Self {
       DummyAtom(string.to_string())
+    }
+  }
+
+  impl AsRef<str> for DummyAtom {
+    fn as_ref(&self) -> &str {
+      self.0.as_ref()
+    }
+  }
+
+  impl<'a> From<std::borrow::Cow<'a, str>> for DummyAtom {
+    fn from(string: std::borrow::Cow<'a, str>) -> Self {
+      Self(string.to_string())
     }
   }
 

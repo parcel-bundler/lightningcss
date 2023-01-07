@@ -136,6 +136,8 @@ use crate::values::{
   rect::*, shape::FillRule, size::Size2D, time::Time,
 };
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use align::*;
 use animation::*;
 use background::*;
@@ -175,20 +177,18 @@ macro_rules! define_properties {
   ) => {
     /// A CSS property id.
     #[derive(Debug, Clone, PartialEq)]
-    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "visitor", derive(Visit))]
+    #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
     pub enum PropertyId<'i> {
       $(
         #[doc=concat!("The `", $name, "` property.")]
         $(#[$meta])*
-        #[cfg_attr(feature = "serde", serde(rename = $name))]
         $property$(($vp))?,
       )+
       /// The `all` property.
-      #[cfg_attr(feature = "serde", serde(rename = "all"))]
       All,
       /// An unknown or custom property name.
-      #[cfg_attr(feature = "serde", serde(borrow, rename = "custom"))]
-      Custom(CowArcStr<'i>)
+      Custom(CustomPropertyName<'i>)
     }
 
     macro_rules! vp_name {
@@ -215,38 +215,8 @@ macro_rules! define_properties {
           (VendorPrefix::None, name_ref)
         };
 
-        macro_rules! get_allowed_prefixes {
-          ($v: literal) => {
-            VendorPrefix::empty()
-          };
-          () => {
-            VendorPrefix::None
-          };
-        }
-
-        match_ignore_ascii_case! { name_ref,
-          $(
-            $(#[$meta])*
-            $name => {
-              macro_rules! get_propertyid {
-                ($v: ty) => {
-                  PropertyId::$property(prefix)
-                };
-                () => {
-                  PropertyId::$property
-                };
-              }
-
-              let allowed_prefixes = get_allowed_prefixes!($($unprefixed)?) $(| VendorPrefix::$prefix)*;
-              if allowed_prefixes.contains(prefix) {
-                return get_propertyid!($($vp)?)
-              }
-            },
-          )+
-          "all" => return PropertyId::All,
-          _ => {}
-        }
-        PropertyId::Custom(name)
+        Self::from_name_and_prefix(name_ref, prefix)
+          .unwrap_or_else(|_| PropertyId::Custom(name.into()))
       }
     }
 
@@ -266,28 +236,6 @@ macro_rules! define_properties {
 
     impl<'i> ToCss for PropertyId<'i> {
       fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError> where W: std::fmt::Write {
-        use PropertyId::*;
-
-        let (name, prefix) = match self {
-          $(
-            $(#[$meta])*
-            $property$((vp_name!($vp, prefix)))? => {
-              macro_rules! get_prefix {
-                ($v: ty) => {
-                  *prefix
-                };
-                () => {
-                  VendorPrefix::None
-                };
-              }
-
-              ($name, get_prefix!($($vp)?))
-            },
-          )+
-          All => ("all", VendorPrefix::None),
-          Custom(name) => (name.as_ref(), VendorPrefix::None),
-        };
-
         let mut first = true;
         macro_rules! delim {
           () => {
@@ -300,27 +248,56 @@ macro_rules! define_properties {
           };
         }
 
-        macro_rules! write {
-          ($p: expr) => {
-            if prefix.contains($p) {
-              delim!();
-              $p.to_css(dest)?;
-              dest.write_str(name)?;
-            }
-          };
+        let name = self.name();
+        for p in self.prefix().or_none() {
+          delim!();
+          p.to_css(dest)?;
+          dest.write_str(name)?;
         }
 
-        write!(VendorPrefix::WebKit);
-        write!(VendorPrefix::Moz);
-        write!(VendorPrefix::Ms);
-        write!(VendorPrefix::O);
-        write!(VendorPrefix::None);
         Ok(())
       }
     }
 
     impl<'i> PropertyId<'i> {
-      fn prefix(&self) -> VendorPrefix {
+      fn from_name_and_prefix(name: &str, prefix: VendorPrefix) -> Result<Self, ()> {
+        macro_rules! get_allowed_prefixes {
+          ($v: literal) => {
+            VendorPrefix::empty()
+          };
+          () => {
+            VendorPrefix::None
+          };
+        }
+
+        match_ignore_ascii_case! { name.as_ref(),
+          $(
+            $(#[$meta])*
+            $name => {
+              macro_rules! get_propertyid {
+                ($v: ty) => {
+                  PropertyId::$property(prefix)
+                };
+                () => {
+                  PropertyId::$property
+                };
+              }
+
+              let allowed_prefixes = get_allowed_prefixes!($($unprefixed)?) $(| VendorPrefix::$prefix)*;
+              if allowed_prefixes.contains(prefix) {
+                return Ok(get_propertyid!($($vp)?))
+              }
+            },
+          )+
+          "all" => return Ok(PropertyId::All),
+          _ => {}
+        }
+
+        Err(())
+      }
+
+      /// Returns the vendor prefix for this property id.
+      pub fn prefix(&self) -> VendorPrefix {
         use PropertyId::*;
         match self {
           $(
@@ -336,10 +313,10 @@ macro_rules! define_properties {
                 return_prefix!($vp);
               )?
               #[allow(unreachable_code)]
-              VendorPrefix::None
+              VendorPrefix::empty()
             },
           )+
-          _ => VendorPrefix::None
+          _ => VendorPrefix::empty()
         }
       }
 
@@ -365,7 +342,7 @@ macro_rules! define_properties {
         }
       }
 
-      fn set_prefixes_for_targets(&mut self, targets: Option<Browsers>) {
+      pub(crate) fn set_prefixes_for_targets(&mut self, targets: Browsers) {
         match self {
           $(
             $(#[$meta])*
@@ -375,9 +352,7 @@ macro_rules! define_properties {
                 ($v: ty, $u: literal) => {};
                 ($v: ty) => {{
                   if prefix.contains(VendorPrefix::None) {
-                    if let Some(targets) = targets {
-                      *prefix = Feature::$property.prefixes_for(targets);
-                    }
+                    *prefix = Feature::$property.prefixes_for(targets);
                   };
                 }};
                 () => {};
@@ -400,7 +375,7 @@ macro_rules! define_properties {
             $property$((vp_name!($vp, _p)))? => $name,
           )+
           All => "all",
-          Custom(name) => &name
+          Custom(name) => name.as_ref()
         }
       }
 
@@ -522,28 +497,183 @@ macro_rules! define_properties {
       }
     }
 
+    #[cfg(feature = "serde")]
+    impl<'i> serde::Serialize for PropertyId<'i> {
+      fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+      where
+        S: serde::Serializer,
+      {
+        use serde::ser::SerializeStruct;
+
+        let name = self.name();
+        let prefix = self.prefix();
+
+        if prefix.is_empty() {
+          let mut s = serializer.serialize_struct("PropertyId", 1)?;
+          s.serialize_field("property", name)?;
+          s.end()
+        } else {
+          let mut s = serializer.serialize_struct("PropertyId", 2)?;
+          s.serialize_field("property", name)?;
+          s.serialize_field("vendor_prefix", &prefix)?;
+          s.end()
+        }
+      }
+    }
+
+    #[cfg(feature = "serde")]
+    impl<'i, 'de: 'i> serde::Deserialize<'de> for PropertyId<'i> {
+      fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+      where
+        D: serde::Deserializer<'de>,
+      {
+        #[derive(serde::Deserialize)]
+        #[serde(field_identifier, rename_all = "snake_case")]
+        enum Field {
+          Property,
+          VendorPrefix
+        }
+
+        struct PropertyIdVisitor;
+        impl<'de> serde::de::Visitor<'de> for PropertyIdVisitor {
+          type Value = PropertyId<'de>;
+
+          fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("a PropertyId")
+          }
+
+          fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+          where
+            A: serde::de::MapAccess<'de>,
+          {
+            let mut property: Option<CowArcStr> = None;
+            let mut vendor_prefix = None;
+            while let Some(key) = map.next_key()? {
+              match key {
+                Field::Property => {
+                  property = Some(map.next_value()?);
+                }
+                Field::VendorPrefix => {
+                  vendor_prefix = Some(map.next_value()?);
+                }
+              }
+            }
+
+            let property = property.ok_or_else(|| serde::de::Error::missing_field("property"))?;
+            let vendor_prefix = vendor_prefix.unwrap_or(VendorPrefix::None);
+            let property_id = PropertyId::from_name_and_prefix(property.as_ref(), vendor_prefix)
+              .unwrap_or_else(|_| PropertyId::Custom(property.into()));
+            Ok(property_id)
+          }
+        }
+
+        deserializer.deserialize_any(PropertyIdVisitor)
+      }
+    }
+
+    #[cfg(feature = "jsonschema")]
+    impl<'i> schemars::JsonSchema for PropertyId<'i> {
+      fn is_referenceable() -> bool {
+        true
+      }
+
+      fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        macro_rules! property {
+          ($n: literal) => {
+            fn property(_: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+              schemars::schema::Schema::Object(schemars::schema::SchemaObject {
+                instance_type: Some(schemars::schema::InstanceType::String.into()),
+                enum_values: Some(vec![$n.into()]),
+                ..Default::default()
+              })
+            }
+          }
+        }
+
+        schemars::schema::Schema::Object(schemars::schema::SchemaObject {
+          subschemas: Some(Box::new(schemars::schema::SubschemaValidation {
+            one_of: Some(vec![
+              $(
+                {
+                  property!($name);
+
+                  macro_rules! with_prefix {
+                    ($v: ty) => {{
+                      #[derive(schemars::JsonSchema)]
+                      struct T<'i> {
+                        #[schemars(rename = "property", schema_with = "property")]
+                        _property: &'i u8,
+                        #[schemars(rename = "vendorPrefix")]
+                        _vendor_prefix: VendorPrefix,
+                      }
+
+                      T::json_schema(gen)
+                    }};
+                    () => {{
+                      #[derive(schemars::JsonSchema)]
+                      struct T<'i> {
+                        #[schemars(rename = "property", schema_with = "property")]
+                        _property: &'i u8,
+                      }
+
+                      T::json_schema(gen)
+                    }};
+                  }
+
+                  with_prefix!($($vp)?)
+                },
+              )+
+              {
+                property!("all");
+
+                #[derive(schemars::JsonSchema)]
+                struct T<'i> {
+                  #[schemars(rename = "property", schema_with = "property")]
+                  _property: &'i u8,
+                }
+
+                T::json_schema(gen)
+              },
+              {
+                #[derive(schemars::JsonSchema)]
+                struct T {
+                  #[schemars(rename = "property")]
+                  _property: String,
+                }
+
+                T::json_schema(gen)
+              }
+            ]),
+            ..Default::default()
+          })),
+          ..Default::default()
+        })
+      }
+
+      fn schema_name() -> String {
+        "PropertyId".into()
+      }
+    }
+
     /// A CSS property.
     #[derive(Debug, Clone, PartialEq)]
-    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-    #[cfg_attr(feature = "serde", serde(tag = "property", content = "value"))]
+    #[cfg_attr(feature = "visitor", derive(Visit), visit(visit_property, PROPERTIES))]
+    #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
     pub enum Property<'i> {
       $(
         #[doc=concat!("The `", $name, "` property.")]
         $(#[$meta])*
-        #[cfg_attr(feature = "serde", serde(rename = $name))]
         $property($type, $($vp)?),
       )+
       /// An unparsed property.
-      #[cfg_attr(feature = "serde", serde(borrow, rename = "unparsed"))]
       Unparsed(UnparsedProperty<'i>),
       /// A custom or unknown property.
-      #[cfg_attr(feature = "serde", serde(borrow, rename = "custom"))]
       Custom(CustomProperty<'i>),
     }
 
     impl<'i> Property<'i> {
       /// Parses a CSS property by name.
-      pub fn parse<'t>(property_id: PropertyId<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions) -> Result<Property<'i>, ParseError<'i, ParserError<'i>>> {
+      pub fn parse<'t, T>(property_id: PropertyId<'i>, input: &mut Parser<'i, 't>, options: &ParserOptions<T>) -> Result<Property<'i>, ParseError<'i, ParserError<'i>>> {
         let state = input.state();
 
         match property_id {
@@ -584,7 +714,7 @@ macro_rules! define_properties {
       }
 
       /// Parses a CSS property from a string.
-      pub fn parse_string(property_id: PropertyId<'i>, input: &'i str, options: ParserOptions) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+      pub fn parse_string<T>(property_id: PropertyId<'i>, input: &'i str, options: ParserOptions<T>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let mut input = ParserInput::new(input);
         let mut parser = Parser::new(&mut input);
         Self::parse(property_id, &mut parser, &options)
@@ -605,7 +735,7 @@ macro_rules! define_properties {
             unparsed.value.to_css(dest, false)
           }
           Custom(custom) => {
-            custom.value.to_css(dest, custom.name.starts_with("--"))
+            custom.value.to_css(dest, matches!(custom.name, CustomPropertyName::Custom(..)))
           }
         }
       }
@@ -660,40 +790,29 @@ macro_rules! define_properties {
               ($name, get_prefix!($($vp)?))
             },
           )+
-          Unparsed(unparsed) => (unparsed.property_id.name(), unparsed.property_id.prefix()),
-          Custom(custom) => {
-            // Ensure custom property names are escaped.
-            let name = custom.name.as_ref();
-            if name.starts_with("--") {
-              dest.write_dashed_ident(&name, true)?;
-            } else {
-              serialize_name(&name, dest)?;
+          Unparsed(unparsed) => {
+            let mut prefix = unparsed.property_id.prefix();
+            if prefix.is_empty() {
+              prefix = VendorPrefix::None;
             }
+            (unparsed.property_id.name(), prefix)
+          },
+          Custom(custom) => {
+            custom.name.to_css(dest)?;
             dest.delim(':', false)?;
             self.value_to_css(dest)?;
             write_important!();
             return Ok(())
           }
         };
-
-        macro_rules! write {
-          ($p: expr) => {
-            if prefix.contains($p) {
-              start!();
-              $p.to_css(dest)?;
-              dest.write_str(name)?;
-              dest.delim(':', false)?;
-              self.value_to_css(dest)?;
-              write_important!();
-            }
-          }
+        for p in prefix {
+          start!();
+          p.to_css(dest)?;
+          dest.write_str(name)?;
+          dest.delim(':', false)?;
+          self.value_to_css(dest)?;
+          write_important!();
         }
-
-        write!(VendorPrefix::WebKit);
-        write!(VendorPrefix::Moz);
-        write!(VendorPrefix::Ms);
-        write!(VendorPrefix::O);
-        write!(VendorPrefix::None);
         Ok(())
       }
 
@@ -748,6 +867,257 @@ macro_rules! define_properties {
           shorthand!($($shorthand)?);
         )+
         Err(())
+      }
+    }
+
+    #[cfg(feature = "serde")]
+    impl<'i> serde::Serialize for Property<'i> {
+      fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+      where
+        S: serde::Serializer,
+      {
+        use serde::ser::SerializeStruct;
+        use Property::*;
+
+        match self {
+          Unparsed(unparsed) => {
+            let mut s = serializer.serialize_struct("Property", 2)?;
+            s.serialize_field("property", "unparsed")?;
+            s.serialize_field("value", unparsed)?;
+            return s.end()
+          }
+          Custom(unparsed) => {
+            let mut s = serializer.serialize_struct("Property", 2)?;
+            s.serialize_field("property", "custom")?;
+            s.serialize_field("value", unparsed)?;
+            return s.end()
+          }
+          _ => {}
+        }
+
+        let id = self.property_id();
+        let name = id.name();
+        let prefix = id.prefix();
+
+        let mut s = if prefix.is_empty() {
+          let mut s = serializer.serialize_struct("Property", 2)?;
+          s.serialize_field("property", name)?;
+          s
+        } else {
+          let mut s = serializer.serialize_struct("Property", 3)?;
+          s.serialize_field("property", name)?;
+          s.serialize_field("vendorPrefix", &prefix)?;
+          s
+        };
+
+        match self {
+          $(
+            $(#[$meta])*
+            $property(value, $(vp_name!($vp, _p))?) => {
+              s.serialize_field("value", value)?;
+            }
+          )+
+          _ => unreachable!()
+        }
+
+        s.end()
+      }
+    }
+
+    #[cfg(feature = "serde")]
+    impl<'i, 'de: 'i> serde::Deserialize<'de> for Property<'i> {
+      fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+      where
+        D: serde::Deserializer<'de>,
+      {
+        enum ContentOrRaw<'de> {
+          Content(serde::__private::de::Content<'de>),
+          Raw(CowArcStr<'de>)
+        }
+
+        struct PartialProperty<'de> {
+          property_id: PropertyId<'de>,
+          value: ContentOrRaw<'de>,
+        }
+
+        #[derive(serde::Deserialize)]
+        #[serde(field_identifier, rename_all = "camelCase")]
+        enum Field {
+          Property,
+          VendorPrefix,
+          Value,
+          Raw
+        }
+
+        struct PropertyIdVisitor;
+        impl<'de> serde::de::Visitor<'de> for PropertyIdVisitor {
+          type Value = PartialProperty<'de>;
+
+          fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("a Property")
+          }
+
+          fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+          where
+            A: serde::de::MapAccess<'de>,
+          {
+            let mut property: Option<CowArcStr> = None;
+            let mut vendor_prefix = None;
+            let mut value: Option<ContentOrRaw<'de>> = None;
+            while let Some(key) = map.next_key()? {
+              match key {
+                Field::Property => {
+                  property = Some(map.next_value()?);
+                }
+                Field::VendorPrefix => {
+                  vendor_prefix = Some(map.next_value()?);
+                }
+                Field::Value => {
+                  value = Some(ContentOrRaw::Content(map.next_value()?));
+                }
+                Field::Raw => {
+                  value = Some(ContentOrRaw::Raw(map.next_value()?));
+                }
+              }
+            }
+
+            let property = property.ok_or_else(|| serde::de::Error::missing_field("property"))?;
+            let vendor_prefix = vendor_prefix.unwrap_or(VendorPrefix::None);
+            let value = value.ok_or_else(|| serde::de::Error::missing_field("value"))?;
+            let property_id = PropertyId::from_name_and_prefix(property.as_ref(), vendor_prefix)
+              .unwrap_or_else(|_| PropertyId::from(property));
+            Ok(PartialProperty {
+              property_id,
+              value,
+            })
+          }
+        }
+
+        let partial = deserializer.deserialize_any(PropertyIdVisitor)?;
+
+        let content = match partial.value {
+          ContentOrRaw::Raw(raw) => {
+            let res = Property::parse_string(partial.property_id, raw.as_ref(), ParserOptions::default())
+              .map_err(|_| serde::de::Error::custom("Could not parse value"))?;
+            return Ok(res.into_owned())
+          }
+          ContentOrRaw::Content(content) => content
+        };
+
+        let deserializer = serde::__private::de::ContentDeserializer::new(content);
+        match partial.property_id {
+          $(
+            $(#[$meta])*
+            PropertyId::$property$((vp_name!($vp, prefix)))? => {
+              let value = <$type>::deserialize(deserializer)?;
+              Ok(Property::$property(value $(, vp_name!($vp, prefix))?))
+            },
+          )+
+          PropertyId::Custom(name) => {
+            if name.as_ref() == "unparsed" {
+              let value = UnparsedProperty::deserialize(deserializer)?;
+              Ok(Property::Unparsed(value))
+            } else {
+              let value = CustomProperty::deserialize(deserializer)?;
+              Ok(Property::Custom(value))
+            }
+          }
+          PropertyId::All => unreachable!()
+        }
+      }
+    }
+
+    #[cfg(feature = "jsonschema")]
+    impl<'i> schemars::JsonSchema for Property<'i> {
+      fn is_referenceable() -> bool {
+        true
+      }
+
+      fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        macro_rules! property {
+          ($n: literal) => {
+            fn property(_: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+              schemars::schema::Schema::Object(schemars::schema::SchemaObject {
+                instance_type: Some(schemars::schema::InstanceType::String.into()),
+                enum_values: Some(vec![$n.into()]),
+                ..Default::default()
+              })
+            }
+          }
+        }
+
+        schemars::schema::Schema::Object(schemars::schema::SchemaObject {
+          subschemas: Some(Box::new(schemars::schema::SubschemaValidation {
+            one_of: Some(vec![
+              $(
+                {
+                  property!($name);
+
+                  macro_rules! with_prefix {
+                    ($v: ty) => {{
+                      #[derive(schemars::JsonSchema)]
+                      struct T<'i> {
+                        #[schemars(rename = "property", schema_with = "property")]
+                        _property: &'i u8,
+                        #[schemars(rename = "vendorPrefix")]
+                        _vendor_prefix: VendorPrefix,
+                        #[schemars(rename = "value")]
+                        _value: $type,
+                      }
+
+                      T::json_schema(gen)
+                    }};
+                    () => {{
+                      #[derive(schemars::JsonSchema)]
+                      struct T<'i> {
+                        #[schemars(rename = "property", schema_with = "property")]
+                        _property: &'i u8,
+                        #[schemars(rename = "value")]
+                        _value: $type,
+                      }
+
+                      T::json_schema(gen)
+                    }};
+                  }
+
+                  with_prefix!($($vp)?)
+                },
+              )+
+              {
+                property!("unparsed");
+
+                #[derive(schemars::JsonSchema)]
+                struct T<'i> {
+                  #[schemars(rename = "property", schema_with = "property")]
+                  _property: &'i u8,
+                  #[schemars(rename = "value")]
+                  _value: UnparsedProperty<'i>,
+                }
+
+                T::json_schema(gen)
+              },
+              {
+                property!("custom");
+
+                #[derive(schemars::JsonSchema)]
+                struct T<'i> {
+                  #[schemars(rename = "property", schema_with = "property")]
+                  _property: &'i u8,
+                  #[schemars(rename = "value")]
+                  _value: CustomProperty<'i>,
+                }
+
+                T::json_schema(gen)
+              }
+            ]),
+            ..Default::default()
+          })),
+          ..Default::default()
+        })
+      }
+
+      fn schema_name() -> String {
+        "Declaration".into()
       }
     }
   };

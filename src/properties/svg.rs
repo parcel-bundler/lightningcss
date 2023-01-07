@@ -7,26 +7,34 @@ use crate::targets::Browsers;
 use crate::traits::{FallbackValues, Parse, ToCss};
 use crate::values::length::LengthPercentage;
 use crate::values::{color::CssColor, url::Url};
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// An SVG [`<paint>`](https://www.w3.org/TR/SVG2/painting.html#SpecifyingPaint) value
 /// used in the `fill` and `stroke` properties.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum SVGPaint<'i> {
   /// No paint.
   None,
   /// A URL reference to a paint server element, e.g. `linearGradient`, `radialGradient`, and `pattern`.
-  /// The fallback is used in case the paint server cannot be resolved.
-  Url(
-    #[cfg_attr(feature = "serde", serde(borrow))] Url<'i>,
-    Option<SVGPaintFallback>,
-  ),
+  Url {
+    #[cfg_attr(feature = "serde", serde(borrow))]
+    /// The url of the paint server.
+    url: Url<'i>,
+    /// A fallback to be used used in case the paint server cannot be resolved.
+    fallback: Option<SVGPaintFallback>,
+  },
   /// A solid color paint.
+  #[cfg_attr(feature = "serde", serde(with = "crate::serialization::ValueWrapper::<CssColor>"))]
   Color(CssColor),
   /// Use the paint value of fill from a context element.
   ContextFill,
@@ -38,11 +46,13 @@ pub enum SVGPaint<'i> {
 ///
 /// See [SVGPaint](SVGPaint).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum SVGPaintFallback {
   /// No fallback.
   None,
@@ -54,7 +64,7 @@ impl<'i> Parse<'i> for SVGPaint<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     if let Ok(url) = input.try_parse(Url::parse) {
       let fallback = input.try_parse(SVGPaintFallback::parse).ok();
-      return Ok(SVGPaint::Url(url, fallback));
+      return Ok(SVGPaint::Url { url, fallback });
     }
 
     if let Ok(color) = input.try_parse(CssColor::parse) {
@@ -81,7 +91,7 @@ impl<'i> ToCss for SVGPaint<'i> {
   {
     match self {
       SVGPaint::None => dest.write_str("none"),
-      SVGPaint::Url(url, fallback) => {
+      SVGPaint::Url { url, fallback } => {
         url.to_css(dest)?;
         if let Some(fallback) = fallback {
           dest.write_char(' ')?;
@@ -126,10 +136,16 @@ impl<'i> FallbackValues for SVGPaint<'i> {
         .into_iter()
         .map(|color| SVGPaint::Color(color))
         .collect(),
-      SVGPaint::Url(url, Some(SVGPaintFallback::Color(color))) => color
+      SVGPaint::Url {
+        url,
+        fallback: Some(SVGPaintFallback::Color(color)),
+      } => color
         .get_fallbacks(targets)
         .into_iter()
-        .map(|color| SVGPaint::Url(url.clone(), Some(SVGPaintFallback::Color(color))))
+        .map(|color| SVGPaint::Url {
+          url: url.clone(),
+          fallback: Some(SVGPaintFallback::Color(color)),
+        })
         .collect(),
       _ => Vec::new(),
     }
@@ -166,11 +182,13 @@ enum_property! {
 
 /// A value for the [stroke-dasharray](https://www.w3.org/TR/SVG2/painting.html#StrokeDashing) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum StrokeDasharray {
   /// No dashing is used.
   None,
@@ -228,11 +246,14 @@ impl ToCss for StrokeDasharray {
 
 /// A value for the [marker](https://www.w3.org/TR/SVG2/painting.html#VertexMarkerProperties) properties.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Marker<'i> {
   /// No marker.
   None,

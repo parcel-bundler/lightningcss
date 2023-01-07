@@ -1,0 +1,109 @@
+diff --git a/node_modules/json-schema-to-typescript/dist/src/parser.js b/node_modules/json-schema-to-typescript/dist/src/parser.js
+index aec32ab..aafd1b5 100644
+--- a/node_modules/json-schema-to-typescript/dist/src/parser.js
++++ b/node_modules/json-schema-to-typescript/dist/src/parser.js
+@@ -1,6 +1,6 @@
+ "use strict";
+ var __assign = (this && this.__assign) || function () {
+-    __assign = Object.assign || function(t) {
++    __assign = Object.assign || function (t) {
+         for (var s, i = 1, n = arguments.length; i < n; i++) {
+             s = arguments[i];
+             for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+@@ -90,14 +90,27 @@ function parseNonLiteral(schema, type, options, keyName, processed, usedNames) {
+             };
+         case 'ANY':
+             return __assign(__assign({}, (options.unknownAny ? AST_1.T_UNKNOWN : AST_1.T_ANY)), { comment: schema.description, keyName: keyName, standaloneName: standaloneName(schema, keyNameFromDefinition, usedNames) });
+-        case 'ANY_OF':
+-            return {
++        case 'ANY_OF': {
++            let union = {
+                 comment: schema.description,
+                 keyName: keyName,
+                 standaloneName: standaloneName(schema, keyNameFromDefinition, usedNames),
+                 params: schema.anyOf.map(function (_) { return parse(_, options, undefined, processed, usedNames); }),
+                 type: 'UNION'
+             };
++
++            if (schema.properties) {
++                let common = newInterface(schema, options, processed, usedNames, keyName, keyNameFromDefinition);
++                return {
++                    comment: schema.description,
++                    keyName,
++                    standaloneName: union.standaloneName,
++                    params: [common, union],
++                    type: 'INTERSECTION'
++                };
++            }
++            return union;
++        }
+         case 'BOOLEAN':
+             return {
+                 comment: schema.description,
+@@ -118,10 +131,12 @@ function parseNonLiteral(schema, type, options, keyName, processed, usedNames) {
+                 comment: schema.description,
+                 keyName: keyName,
+                 standaloneName: standaloneName(schema, keyNameFromDefinition !== null && keyNameFromDefinition !== void 0 ? keyNameFromDefinition : keyName, usedNames),
+-                params: schema.enum.map(function (_, n) { return ({
+-                    ast: parse(_, options, undefined, processed, usedNames),
+-                    keyName: schema.tsEnumNames[n]
+-                }); }),
++                params: schema.enum.map(function (_, n) {
++                    return ({
++                        ast: parse(_, options, undefined, processed, usedNames),
++                        keyName: schema.tsEnumNames[n]
++                    });
++                }),
+                 type: 'ENUM'
+             };
+         case 'NAMED_SCHEMA':
+@@ -147,14 +162,24 @@ function parseNonLiteral(schema, type, options, keyName, processed, usedNames) {
+                 standaloneName: standaloneName(schema, keyNameFromDefinition, usedNames),
+                 type: 'OBJECT'
+             };
+-        case 'ONE_OF':
++        case 'ONE_OF': {
++            let common = schema.properties ? parseSchema(schema, options, processed, usedNames, keyName) : null;
++            let commonKeys = common ? new Set(common.map(p => p.keyName)) : null;
++
+             return {
+                 comment: schema.description,
+                 keyName: keyName,
+                 standaloneName: standaloneName(schema, keyNameFromDefinition, usedNames),
+-                params: schema.oneOf.map(function (_) { return parse(_, options, undefined, processed, usedNames); }),
++                params: schema.oneOf.map(function (_) {
++                    let item = parse(_, options, undefined, processed, usedNames);
++                    if (common && item.type === 'INTERFACE') {
++                        item.params = common.concat(item.params.filter(p => !commonKeys.has(p.keyName)));
++                    }
++                    return item;
++                }),
+                 type: 'UNION'
+             };
++        }
+         case 'REFERENCE':
+             throw Error((0, util_1.format)('Refs should have been resolved by the resolver!', schema));
+         case 'STRING':
+@@ -277,13 +302,15 @@ function parseSuperTypes(schema, options, processed, usedNames) {
+  * Helper to parse schema properties into params on the parent schema's type
+  */
+ function parseSchema(schema, options, processed, usedNames, parentSchemaName) {
+-    var asts = (0, lodash_1.map)(schema.properties, function (value, key) { return ({
+-        ast: parse(value, options, key, processed, usedNames),
+-        isPatternProperty: false,
+-        isRequired: (0, lodash_1.includes)(schema.required || [], key),
+-        isUnreachableDefinition: false,
+-        keyName: key
+-    }); });
++    var asts = (0, lodash_1.map)(schema.properties, function (value, key) {
++        return ({
++            ast: parse(value, options, key, processed, usedNames),
++            isPatternProperty: false,
++            isRequired: (0, lodash_1.includes)(schema.required || [], key),
++            isUnreachableDefinition: false,
++            keyName: key
++        });
++    });
+     var singlePatternProperty = false;
+     if (schema.patternProperties) {
+         // partially support patternProperties. in the case that

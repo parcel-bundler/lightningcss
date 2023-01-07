@@ -1,6 +1,6 @@
 [package]
 name = "parcel_selectors"
-version = "0.24.7"
+version = "0.25.0"
 authors = ["The Servo Project Developers"]
 documentation = "https://docs.rs/selectors/"
 description = "CSS Selectors matching for Rust - forked for lightningcss"
@@ -16,16 +16,18 @@ path = "lib.rs"
 
 [features]
 bench = []
+jsonschema = ["serde", "schemars"]
 
 [dependencies]
 bitflags = "1.0"
 cssparser = "0.29"
-derive_more = "0.99"
 fxhash = "0.2"
 log = "0.4"
 phf = "0.8"
 precomputed-hash = "0.1"
 smallvec = "1.0"
+serde = { version = "1.0.123", features = ["derive"], optional = true }
+schemars = { version = "0.8.11", features = ["smallvec"], optional = true }
 
 [build-dependencies]
 phf_codegen = "0.8"

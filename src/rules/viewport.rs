@@ -6,17 +6,28 @@ use crate::error::PrinterError;
 use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 
 /// A [@viewport](https://drafts.csswg.org/css-device-adapt/#atviewport-rule) rule.
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct ViewportRule<'i> {
   /// The vendor prefix for this rule, e.g. `@-ms-viewport`.
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub vendor_prefix: VendorPrefix,
   /// The declarations within the `@viewport` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub declarations: DeclarationBlock<'i>,
   /// The location of the rule in the source file.
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 
@@ -25,6 +36,7 @@ impl<'i> ToCss for ViewportRule<'i> {
   where
     W: std::fmt::Write,
   {
+    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_char('@')?;
     self.vendor_prefix.to_css(dest)?;

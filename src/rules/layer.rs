@@ -1,10 +1,13 @@
 //! The `@layer` rule.
 
-use super::{CssRuleList, Location, MinifyContext};
+use super::{CssRuleList, Location, MinifyContext, StyleContext, ToCssWithContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
+use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
 use smallvec::SmallVec;
 
@@ -13,7 +16,9 @@ use smallvec::SmallVec;
 ///
 /// Nested layers are represented using a list of identifiers. In CSS syntax, these are dot-separated.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct LayerName<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub SmallVec<[CowArcStr<'i>; 1]>);
 
 macro_rules! expect_non_whitespace {
@@ -68,7 +73,7 @@ impl<'i> ToCss for LayerName<'i> {
         dest.write_char('.')?;
       }
 
-      dest.write_str(name)?;
+      serialize_identifier(name, dest)?;
     }
 
     Ok(())
@@ -79,12 +84,17 @@ impl<'i> ToCss for LayerName<'i> {
 ///
 /// See also [LayerBlockRule](LayerBlockRule).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct LayerStatementRule<'i> {
   /// The layer names to declare.
   #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub names: Vec<LayerName<'i>>,
   /// The location of the rule in the source file.
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 
@@ -93,6 +103,7 @@ impl<'i> ToCss for LayerStatementRule<'i> {
   where
     W: std::fmt::Write,
   {
+    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@layer ")?;
     self.names.to_css(dest)?;
@@ -102,18 +113,22 @@ impl<'i> ToCss for LayerStatementRule<'i> {
 
 /// A [@layer block](https://drafts.csswg.org/css-cascade-5/#layer-block) rule.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct LayerBlockRule<'i> {
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub struct LayerBlockRule<'i, R = DefaultAtRule> {
   /// The name of the layer to declare, or `None` to declare an anonymous layer.
   #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub name: Option<LayerName<'i>>,
   /// The rules within the `@layer` rule.
-  pub rules: CssRuleList<'i>,
+  pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 
-impl<'i> LayerBlockRule<'i> {
+impl<'i, T> LayerBlockRule<'i, T> {
   pub(crate) fn minify(
     &mut self,
     context: &mut MinifyContext<'_, 'i>,
@@ -125,11 +140,16 @@ impl<'i> LayerBlockRule<'i> {
   }
 }
 
-impl<'i> ToCss for LayerBlockRule<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for LayerBlockRule<'i, T> {
+  fn to_css_with_context<W>(
+    &self,
+    dest: &mut Printer<W>,
+    context: Option<&StyleContext<'a, 'i, T>>,
+  ) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
   {
+    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@layer")?;
     if let Some(name) = &self.name {
@@ -141,7 +161,7 @@ impl<'i> ToCss for LayerBlockRule<'i> {
     dest.write_char('{')?;
     dest.indent();
     dest.newline()?;
-    self.rules.to_css(dest)?;
+    self.rules.to_css_with_context(dest, context)?;
     dest.dedent();
     dest.newline()?;
     dest.write_char('}')

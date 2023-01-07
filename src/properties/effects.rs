@@ -6,16 +6,21 @@ use crate::targets::Browsers;
 use crate::traits::{FallbackValues, Parse, ToCss, Zero};
 use crate::values::color::ColorFallbackKind;
 use crate::values::{angle::Angle, color::CssColor, length::Length, percentage::NumberOrPercentage, url::Url};
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
 use smallvec::SmallVec;
 
 /// A [filter](https://drafts.fxtf.org/filter-effects-1/#filter-functions) function.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Filter<'i> {
   /// A `blur()` filter.
   Blur(Length),
@@ -206,7 +211,13 @@ impl<'i> Filter<'i> {
 
 /// A [`drop-shadow()`](https://drafts.fxtf.org/filter-effects-1/#funcdef-filter-drop-shadow) filter function.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct DropShadow {
   /// The color of the drop shadow.
   pub color: CssColor,
@@ -293,11 +304,14 @@ impl DropShadow {
 /// A value for the [filter](https://drafts.fxtf.org/filter-effects-1/#FilterProperty) and
 /// [backdrop-filter](https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty) properties.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FilterList<'i> {
   /// The `none` keyword.
   None,

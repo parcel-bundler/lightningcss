@@ -15,8 +15,10 @@ use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss, Ze
 use crate::values::calc::{Calc, MathFunction};
 use crate::values::color::{ColorFallbackKind, CssColor};
 use crate::values::length::{Length, LengthPercentage, LengthValue};
-use crate::values::string::CowArcStr;
+use crate::values::string::CSSString;
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use bitflags::bitflags;
 use cssparser::*;
 use smallvec::SmallVec;
@@ -47,7 +49,8 @@ bitflags! {
   /// [text-transform](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-transform-property) property.
   ///
   /// All combinations of flags is supported.
-  #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+  #[cfg_attr(feature = "visitor", derive(Visit))]
+  #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(from = "SerializedTextTransformOther", into = "SerializedTextTransformOther"))]
   pub struct TextTransformOther: u8 {
     /// Puts all typographic character units in full-width form.
     const FullWidth    = 0b00000001;
@@ -92,13 +95,66 @@ impl ToCss for TextTransformOther {
   }
 }
 
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+struct SerializedTextTransformOther {
+  /// Puts all typographic character units in full-width form.
+  full_width: bool,
+  /// Converts all small Kana characters to the equivalent full-size Kana.
+  full_size_kana: bool,
+}
+
+impl From<TextTransformOther> for SerializedTextTransformOther {
+  fn from(t: TextTransformOther) -> Self {
+    Self {
+      full_width: t.contains(TextTransformOther::FullWidth),
+      full_size_kana: t.contains(TextTransformOther::FullSizeKana),
+    }
+  }
+}
+
+impl From<SerializedTextTransformOther> for TextTransformOther {
+  fn from(t: SerializedTextTransformOther) -> Self {
+    let mut res = TextTransformOther::empty();
+    if t.full_width {
+      res |= TextTransformOther::FullWidth;
+    }
+    if t.full_size_kana {
+      res |= TextTransformOther::FullSizeKana;
+    }
+    res
+  }
+}
+
+#[cfg(feature = "jsonschema")]
+impl<'a> schemars::JsonSchema for TextTransformOther {
+  fn is_referenceable() -> bool {
+    true
+  }
+
+  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    SerializedTextTransformOther::json_schema(gen)
+  }
+
+  fn schema_name() -> String {
+    "TextTransformOther".into()
+  }
+}
+
 /// A value for the [text-transform](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-transform-property) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct TextTransform {
   /// How case should be transformed.
   pub case: TextTransformCase,
   /// How ideographic characters should be transformed.
+  #[cfg_attr(feature = "serde", serde(flatten))]
   pub other: TextTransformOther,
 }
 
@@ -288,11 +344,13 @@ enum_property! {
 /// A value for the [word-spacing](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#word-spacing-property)
 /// and [letter-spacing](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#letter-spacing-property) properties.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Spacing {
   /// No additional spacing is applied.
   Normal,
@@ -325,7 +383,13 @@ impl ToCss for Spacing {
 
 /// A value for the [text-indent](https://www.w3.org/TR/2021/CRD-css-text-3-20210422/#text-indent-property) property.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct TextIndent {
   /// The amount to indent.
   pub value: LengthPercentage,
@@ -398,7 +462,8 @@ bitflags! {
   /// A value for the [text-decoration-line](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-line-property) property.
   ///
   /// Multiple lines may be specified by combining the flags.
-  #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+  #[cfg_attr(feature = "visitor", derive(Visit))]
+  #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(from = "SerializedTextDecorationLine", into = "SerializedTextDecorationLine"))]
   pub struct TextDecorationLine: u8 {
     /// Each line of text is underlined.
     const Underline     = 0b00000001;
@@ -499,6 +564,111 @@ impl ToCss for TextDecorationLine {
   }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(untagged))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+enum SerializedTextDecorationLine {
+  Exclusive(ExclusiveTextDecorationLine),
+  Other(Vec<OtherTextDecorationLine>),
+}
+
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+enum ExclusiveTextDecorationLine {
+  None,
+  SpellingError,
+  GrammarError,
+}
+
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+enum OtherTextDecorationLine {
+  Underline,
+  Overline,
+  LineThrough,
+  Blink,
+}
+
+impl From<TextDecorationLine> for SerializedTextDecorationLine {
+  fn from(l: TextDecorationLine) -> Self {
+    if l.is_empty() {
+      return Self::Exclusive(ExclusiveTextDecorationLine::None);
+    }
+
+    macro_rules! exclusive {
+      ($t: ident) => {
+        if l.contains(TextDecorationLine::$t) {
+          return Self::Exclusive(ExclusiveTextDecorationLine::$t);
+        }
+      };
+    }
+
+    exclusive!(SpellingError);
+    exclusive!(GrammarError);
+
+    let mut v = Vec::new();
+    macro_rules! other {
+      ($t: ident) => {
+        if l.contains(TextDecorationLine::$t) {
+          v.push(OtherTextDecorationLine::$t)
+        }
+      };
+    }
+
+    other!(Underline);
+    other!(Overline);
+    other!(LineThrough);
+    other!(Blink);
+    Self::Other(v)
+  }
+}
+
+impl From<SerializedTextDecorationLine> for TextDecorationLine {
+  fn from(l: SerializedTextDecorationLine) -> Self {
+    match l {
+      SerializedTextDecorationLine::Exclusive(v) => match v {
+        ExclusiveTextDecorationLine::None => TextDecorationLine::empty(),
+        ExclusiveTextDecorationLine::SpellingError => TextDecorationLine::SpellingError,
+        ExclusiveTextDecorationLine::GrammarError => TextDecorationLine::GrammarError,
+      },
+      SerializedTextDecorationLine::Other(v) => {
+        let mut res = TextDecorationLine::empty();
+        for val in v {
+          res |= match val {
+            OtherTextDecorationLine::Underline => TextDecorationLine::Underline,
+            OtherTextDecorationLine::Overline => TextDecorationLine::Overline,
+            OtherTextDecorationLine::LineThrough => TextDecorationLine::LineThrough,
+            OtherTextDecorationLine::Blink => TextDecorationLine::Blink,
+          }
+        }
+        res
+      }
+    }
+  }
+}
+
+#[cfg(feature = "jsonschema")]
+impl<'a> schemars::JsonSchema for TextDecorationLine {
+  fn is_referenceable() -> bool {
+    true
+  }
+
+  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    SerializedTextDecorationLine::json_schema(gen)
+  }
+
+  fn schema_name() -> String {
+    "TextDecorationLine".into()
+  }
+}
+
 enum_property! {
   /// A value for the [text-decoration-style](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-style-property) property.
   pub enum TextDecorationStyle {
@@ -523,11 +693,13 @@ impl Default for TextDecorationStyle {
 
 /// A value for the [text-decoration-thickness](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-decoration-width-property) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum TextDecorationThickness {
   /// The UA chooses an appropriate thickness for text decoration lines.
   Auto,
@@ -711,11 +883,14 @@ enum_property! {
 
 /// A value for the [text-emphasis-style](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-style-property) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum TextEmphasisStyle<'i> {
   /// No emphasis.
   None,
@@ -727,8 +902,11 @@ pub enum TextEmphasisStyle<'i> {
     shape: Option<TextEmphasisShape>,
   },
   /// Display the given string as marks.
-  #[cfg_attr(feature = "serde", serde(borrow))]
-  String(CowArcStr<'i>),
+  #[cfg_attr(
+    feature = "serde",
+    serde(borrow, with = "crate::serialization::ValueWrapper::<CSSString>")
+  )]
+  String(CSSString<'i>),
 }
 
 impl<'i> Default for TextEmphasisStyle<'i> {
@@ -743,8 +921,8 @@ impl<'i> Parse<'i> for TextEmphasisStyle<'i> {
       return Ok(TextEmphasisStyle::None);
     }
 
-    if let Ok(s) = input.try_parse(|input| input.expect_string_cloned()) {
-      return Ok(TextEmphasisStyle::String(s.into()));
+    if let Ok(s) = input.try_parse(CSSString::parse) {
+      return Ok(TextEmphasisStyle::String(s));
     }
 
     let mut shape = input.try_parse(TextEmphasisShape::parse).ok();
@@ -769,10 +947,7 @@ impl<'i> ToCss for TextEmphasisStyle<'i> {
   {
     match self {
       TextEmphasisStyle::None => dest.write_str("none"),
-      TextEmphasisStyle::String(s) => {
-        serialize_string(&s, dest)?;
-        Ok(())
-      }
+      TextEmphasisStyle::String(s) => s.to_css(dest),
       TextEmphasisStyle::Keyword { fill, shape } => {
         let mut needs_space = false;
         if *fill != TextEmphasisFillMode::Filled || shape.is_none() {
@@ -794,6 +969,7 @@ impl<'i> ToCss for TextEmphasisStyle<'i> {
 
 define_shorthand! {
   /// A value for the [text-emphasis](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-property) shorthand property.
+  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   pub struct TextEmphasis<'i>(VendorPrefix) {
     /// The text emphasis style.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -886,7 +1062,9 @@ enum_property! {
 
 /// A value for the [text-emphasis-position](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-emphasis-position-property) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct TextEmphasisPosition {
   /// The vertical position.
   pub vertical: TextEmphasisPositionVertical,
@@ -1235,7 +1413,13 @@ impl<'i> PropertyHandler<'i> for TextDecorationHandler<'i> {
 
 /// A value for the [text-shadow](https://www.w3.org/TR/2020/WD-css-text-decor-4-20200506/#text-shadow-property) property.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct TextShadow {
   /// The color of the text shadow.
   pub color: CssColor,

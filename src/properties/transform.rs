@@ -16,12 +16,16 @@ use crate::values::{
   percentage::NumberOrPercentage,
 };
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
 use std::f32::consts::PI;
 
 /// A value for the [transform](https://www.w3.org/TR/2019/CR-css-transforms-1-20190214/#propdef-transform) property.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct TransformList(pub Vec<Transform>);
 
 impl<'i> Parse<'i> for TransformList {
@@ -143,11 +147,13 @@ impl TransformList {
 
 /// An individual [transform function](https://www.w3.org/TR/2019/CR-css-transforms-1-20190214/#two-d-transform-functions).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", content = "value", rename_all = "camelCase")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Transform {
   /// A 2D translation.
   Translate(LengthPercentage, LengthPercentage),
@@ -195,7 +201,9 @@ pub enum Transform {
 
 /// A 2D matrix.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[allow(missing_docs)]
 pub struct Matrix<T> {
   pub a: T,
@@ -232,7 +240,9 @@ impl Matrix<f32> {
 
 /// A 3D matrix.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[allow(missing_docs)]
 pub struct Matrix3d<T> {
   pub m11: T,
@@ -1386,11 +1396,13 @@ enum_property! {
 
 /// A value for the [perspective](https://drafts.csswg.org/css-transforms-2/#perspective-property) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Perspective {
   /// No perspective transform is applied.
   None,
@@ -1422,7 +1434,9 @@ impl ToCss for Perspective {
 
 /// A value for the [translate](https://drafts.csswg.org/css-transforms-2/#propdef-translate) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Translate {
   /// The x translation.
   pub x: LengthPercentage,
@@ -1485,7 +1499,9 @@ impl Translate {
 
 /// A value for the [rotate](https://drafts.csswg.org/css-transforms-2/#propdef-rotate) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Rotate {
   /// Rotation around the x axis.
   pub x: f32,
@@ -1569,7 +1585,9 @@ impl Rotate {
 
 /// A value for the [scale](https://drafts.csswg.org/css-transforms-2/#propdef-scale) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Scale {
   /// Scale on the x axis.
   pub x: NumberOrPercentage,

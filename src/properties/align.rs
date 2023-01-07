@@ -13,16 +13,23 @@ use crate::targets::Browsers;
 use crate::traits::{FromStandard, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::length::LengthPercentage;
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
+
+#[cfg(feature = "serde")]
+use crate::serialization::ValueWrapper;
 
 /// A [`<baseline-position>`](https://www.w3.org/TR/css-align-3/#typedef-baseline-position) value,
 /// as used in the alignment properties.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum BaselinePosition {
   /// The first baseline.
   First,
@@ -107,20 +114,29 @@ enum_property! {
 
 /// A value for the [align-content](https://www.w3.org/TR/css-align-3/#propdef-align-content) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum AlignContent {
   /// Default alignment.
   Normal,
   /// A baseline position.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<BaselinePosition>"))]
   BaselinePosition(BaselinePosition),
   /// A content distribution keyword.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<ContentDistribution>"))]
   ContentDistribution(ContentDistribution),
-  /// A content position keyword, with optional overflow position.
-  ContentPosition(Option<OverflowPosition>, ContentPosition),
+  /// A content position keyword.
+  ContentPosition {
+    /// A content position keyword.
+    value: ContentPosition,
+    /// An overflow alignment mode.
+    overflow: Option<OverflowPosition>,
+  },
 }
 
 impl<'i> Parse<'i> for AlignContent {
@@ -137,9 +153,9 @@ impl<'i> Parse<'i> for AlignContent {
       return Ok(AlignContent::ContentDistribution(val));
     }
 
-    let overflow_position = input.try_parse(OverflowPosition::parse).ok();
-    let content_position = ContentPosition::parse(input)?;
-    Ok(AlignContent::ContentPosition(overflow_position, content_position))
+    let overflow = input.try_parse(OverflowPosition::parse).ok();
+    let value = ContentPosition::parse(input)?;
+    Ok(AlignContent::ContentPosition { overflow, value })
   }
 }
 
@@ -152,13 +168,13 @@ impl ToCss for AlignContent {
       AlignContent::Normal => dest.write_str("normal"),
       AlignContent::BaselinePosition(val) => val.to_css(dest),
       AlignContent::ContentDistribution(val) => val.to_css(dest),
-      AlignContent::ContentPosition(overflow, pos) => {
+      AlignContent::ContentPosition { overflow, value } => {
         if let Some(overflow) = overflow {
           overflow.to_css(dest)?;
           dest.write_str(" ")?;
         }
 
-        pos.to_css(dest)
+        value.to_css(dest)
       }
     }
   }
@@ -166,22 +182,36 @@ impl ToCss for AlignContent {
 
 /// A value for the [justify-content](https://www.w3.org/TR/css-align-3/#propdef-justify-content) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum JustifyContent {
   /// Default justification.
   Normal,
   /// A content distribution keyword.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<ContentDistribution>"))]
   ContentDistribution(ContentDistribution),
-  /// A content position keyword, with optional overflow position.
-  ContentPosition(Option<OverflowPosition>, ContentPosition),
-  /// Justify to the left, with an optional overflow position.
-  Left(Option<OverflowPosition>),
-  /// Justify to the right, with an optional overflow position.
-  Right(Option<OverflowPosition>),
+  /// A content position keyword.
+  ContentPosition {
+    /// A content position keyword.
+    value: ContentPosition,
+    /// An overflow alignment mode.
+    overflow: Option<OverflowPosition>,
+  },
+  /// Justify to the left.
+  Left {
+    /// An overflow alignment mode.
+    overflow: Option<OverflowPosition>,
+  },
+  /// Justify to the right.
+  Right {
+    /// An overflow alignment mode.
+    overflow: Option<OverflowPosition>,
+  },
 }
 
 impl<'i> Parse<'i> for JustifyContent {
@@ -194,16 +224,19 @@ impl<'i> Parse<'i> for JustifyContent {
       return Ok(JustifyContent::ContentDistribution(val));
     }
 
-    let overflow_position = input.try_parse(OverflowPosition::parse).ok();
+    let overflow = input.try_parse(OverflowPosition::parse).ok();
     if let Ok(content_position) = input.try_parse(ContentPosition::parse) {
-      return Ok(JustifyContent::ContentPosition(overflow_position, content_position));
+      return Ok(JustifyContent::ContentPosition {
+        overflow,
+        value: content_position,
+      });
     }
 
     let location = input.current_source_location();
     let ident = input.expect_ident()?;
     match_ignore_ascii_case! { &*ident,
-      "left" => Ok(JustifyContent::Left(overflow_position)),
-      "right" => Ok(JustifyContent::Right(overflow_position)),
+      "left" => Ok(JustifyContent::Left { overflow }),
+      "right" => Ok(JustifyContent::Right { overflow }),
       _ => Err(location.new_unexpected_token_error(
         cssparser::Token::Ident(ident.clone())
       ))
@@ -218,16 +251,16 @@ impl ToCss for JustifyContent {
   {
     match self {
       JustifyContent::Normal => dest.write_str("normal"),
-      JustifyContent::ContentDistribution(val) => val.to_css(dest),
-      JustifyContent::ContentPosition(overflow, pos) => {
+      JustifyContent::ContentDistribution(value) => value.to_css(dest),
+      JustifyContent::ContentPosition { overflow, value } => {
         if let Some(overflow) = overflow {
           overflow.to_css(dest)?;
           dest.write_str(" ")?;
         }
 
-        pos.to_css(dest)
+        value.to_css(dest)
       }
-      JustifyContent::Left(overflow) => {
+      JustifyContent::Left { overflow } => {
         if let Some(overflow) = overflow {
           overflow.to_css(dest)?;
           dest.write_str(" ")?;
@@ -235,7 +268,7 @@ impl ToCss for JustifyContent {
 
         dest.write_str("left")
       }
-      JustifyContent::Right(overflow) => {
+      JustifyContent::Right { overflow } => {
         if let Some(overflow) = overflow {
           overflow.to_css(dest)?;
           dest.write_str(" ")?;
@@ -267,10 +300,16 @@ impl<'i> Parse<'i> for PlaceContent {
         // from the first value, unless that value is a <baseline-position> in which
         // case it is defaulted to start.
         match align {
-          AlignContent::BaselinePosition(_) => JustifyContent::ContentPosition(None, ContentPosition::Start),
+          AlignContent::BaselinePosition(_) => JustifyContent::ContentPosition {
+            overflow: None,
+            value: ContentPosition::Start,
+          },
           AlignContent::Normal => JustifyContent::Normal,
-          AlignContent::ContentDistribution(c) => JustifyContent::ContentDistribution(c.clone()),
-          AlignContent::ContentPosition(o, c) => JustifyContent::ContentPosition(o.clone(), c.clone()),
+          AlignContent::ContentDistribution(value) => JustifyContent::ContentDistribution(value.clone()),
+          AlignContent::ContentPosition { overflow, value } => JustifyContent::ContentPosition {
+            overflow: overflow.clone(),
+            value: value.clone(),
+          },
         }
       }
     };
@@ -290,7 +329,7 @@ impl ToCss for PlaceContent {
       JustifyContent::ContentDistribution(d) if matches!(self.align, AlignContent::ContentDistribution(d2) if d == d2) => {
         true
       }
-      JustifyContent::ContentPosition(o, c) if matches!(self.align, AlignContent::ContentPosition(o2, c2) if o == o2 && c == c2) => {
+      JustifyContent::ContentPosition { overflow: o, value: c } if matches!(self.align, AlignContent::ContentPosition { overflow: o2, value: c2 } if o == o2 && c == c2) => {
         true
       }
       _ => false,
@@ -327,11 +366,13 @@ enum_property! {
 
 /// A value for the [align-self](https://www.w3.org/TR/css-align-3/#align-self-property) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum AlignSelf {
   /// Automatic alignment.
   Auto,
@@ -340,9 +381,15 @@ pub enum AlignSelf {
   /// Item is stretched.
   Stretch,
   /// A baseline position keyword.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<BaselinePosition>"))]
   BaselinePosition(BaselinePosition),
-  /// A self position keyword, with optional overflow position.
-  SelfPosition(Option<OverflowPosition>, SelfPosition),
+  /// A self position keyword.
+  SelfPosition {
+    /// A self position keyword.
+    value: SelfPosition,
+    /// An overflow alignment mode.
+    overflow: Option<OverflowPosition>,
+  },
 }
 
 impl<'i> Parse<'i> for AlignSelf {
@@ -363,9 +410,9 @@ impl<'i> Parse<'i> for AlignSelf {
       return Ok(AlignSelf::BaselinePosition(val));
     }
 
-    let overflow_position = input.try_parse(OverflowPosition::parse).ok();
-    let self_position = SelfPosition::parse(input)?;
-    Ok(AlignSelf::SelfPosition(overflow_position, self_position))
+    let overflow = input.try_parse(OverflowPosition::parse).ok();
+    let value = SelfPosition::parse(input)?;
+    Ok(AlignSelf::SelfPosition { overflow, value })
   }
 }
 
@@ -379,13 +426,13 @@ impl ToCss for AlignSelf {
       AlignSelf::Normal => dest.write_str("normal"),
       AlignSelf::Stretch => dest.write_str("stretch"),
       AlignSelf::BaselinePosition(val) => val.to_css(dest),
-      AlignSelf::SelfPosition(overflow, pos) => {
+      AlignSelf::SelfPosition { overflow, value } => {
         if let Some(overflow) = overflow {
           overflow.to_css(dest)?;
           dest.write_str(" ")?;
         }
 
-        pos.to_css(dest)
+        value.to_css(dest)
       }
     }
   }
@@ -393,11 +440,13 @@ impl ToCss for AlignSelf {
 
 /// A value for the [justify-self](https://www.w3.org/TR/css-align-3/#justify-self-property) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum JustifySelf {
   /// Automatic justification.
   Auto,
@@ -406,13 +455,25 @@ pub enum JustifySelf {
   /// Item is stretched.
   Stretch,
   /// A baseline position keyword.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<BaselinePosition>"))]
   BaselinePosition(BaselinePosition),
-  /// A self position keyword, with optional overflow position.
-  SelfPosition(Option<OverflowPosition>, SelfPosition),
-  /// Item is justified to the left, with an optional overflow position.
-  Left(Option<OverflowPosition>),
-  /// Item is justified to the right, with an optional overflow position.
-  Right(Option<OverflowPosition>),
+  /// A self position keyword.
+  SelfPosition {
+    /// A self position keyword.
+    value: SelfPosition,
+    /// An overflow alignment mode.
+    overflow: Option<OverflowPosition>,
+  },
+  /// Item is justified to the left.
+  Left {
+    /// An overflow alignment mode.
+    overflow: Option<OverflowPosition>,
+  },
+  /// Item is justified to the right.
+  Right {
+    /// An overflow alignment mode.
+    overflow: Option<OverflowPosition>,
+  },
 }
 
 impl<'i> Parse<'i> for JustifySelf {
@@ -433,16 +494,16 @@ impl<'i> Parse<'i> for JustifySelf {
       return Ok(JustifySelf::BaselinePosition(val));
     }
 
-    let overflow_position = input.try_parse(OverflowPosition::parse).ok();
-    if let Ok(self_position) = input.try_parse(SelfPosition::parse) {
-      return Ok(JustifySelf::SelfPosition(overflow_position, self_position));
+    let overflow = input.try_parse(OverflowPosition::parse).ok();
+    if let Ok(value) = input.try_parse(SelfPosition::parse) {
+      return Ok(JustifySelf::SelfPosition { overflow, value });
     }
 
     let location = input.current_source_location();
     let ident = input.expect_ident()?;
     match_ignore_ascii_case! { &*ident,
-      "left" => Ok(JustifySelf::Left(overflow_position)),
-      "right" => Ok(JustifySelf::Right(overflow_position)),
+      "left" => Ok(JustifySelf::Left { overflow }),
+      "right" => Ok(JustifySelf::Right { overflow }),
       _ => Err(location.new_unexpected_token_error(
         cssparser::Token::Ident(ident.clone())
       ))
@@ -460,15 +521,15 @@ impl ToCss for JustifySelf {
       JustifySelf::Normal => dest.write_str("normal"),
       JustifySelf::Stretch => dest.write_str("stretch"),
       JustifySelf::BaselinePosition(val) => val.to_css(dest),
-      JustifySelf::SelfPosition(overflow, pos) => {
+      JustifySelf::SelfPosition { overflow, value } => {
         if let Some(overflow) = overflow {
           overflow.to_css(dest)?;
           dest.write_str(" ")?;
         }
 
-        pos.to_css(dest)
+        value.to_css(dest)
       }
-      JustifySelf::Left(overflow) => {
+      JustifySelf::Left { overflow } => {
         if let Some(overflow) = overflow {
           overflow.to_css(dest)?;
           dest.write_str(" ")?;
@@ -476,7 +537,7 @@ impl ToCss for JustifySelf {
 
         dest.write_str("left")
       }
-      JustifySelf::Right(overflow) => {
+      JustifySelf::Right { overflow } => {
         if let Some(overflow) = overflow {
           overflow.to_css(dest)?;
           dest.write_str(" ")?;
@@ -510,7 +571,10 @@ impl<'i> Parse<'i> for PlaceSelf {
           AlignSelf::Normal => JustifySelf::Normal,
           AlignSelf::Stretch => JustifySelf::Stretch,
           AlignSelf::BaselinePosition(p) => JustifySelf::BaselinePosition(p.clone()),
-          AlignSelf::SelfPosition(o, c) => JustifySelf::SelfPosition(o.clone(), c.clone()),
+          AlignSelf::SelfPosition { overflow, value } => JustifySelf::SelfPosition {
+            overflow: overflow.clone(),
+            value: value.clone(),
+          },
         }
       }
     };
@@ -532,7 +596,7 @@ impl ToCss for PlaceSelf {
       JustifySelf::BaselinePosition(p) if matches!(&self.align, AlignSelf::BaselinePosition(p2) if p == p2) => {
         true
       }
-      JustifySelf::SelfPosition(o, c) if matches!(&self.align, AlignSelf::SelfPosition(o2, c2) if o == o2 && c == c2) => {
+      JustifySelf::SelfPosition { overflow: o, value: c } if matches!(&self.align, AlignSelf::SelfPosition  { overflow: o2, value: c2 } if o == o2 && c == c2) => {
         true
       }
       _ => false,
@@ -549,20 +613,28 @@ impl ToCss for PlaceSelf {
 
 /// A value for the [align-items](https://www.w3.org/TR/css-align-3/#align-items-property) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum AlignItems {
   /// Default alignment.
   Normal,
   /// Items are stretched.
   Stretch,
   /// A baseline position keyword.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<BaselinePosition>"))]
   BaselinePosition(BaselinePosition),
-  /// A self position keyword, with an optional overflow position.
-  SelfPosition(Option<OverflowPosition>, SelfPosition),
+  /// A self position keyword.
+  SelfPosition {
+    /// A self position keyword.
+    value: SelfPosition,
+    /// An overflow alignment mode.
+    overflow: Option<OverflowPosition>,
+  },
 }
 
 impl<'i> Parse<'i> for AlignItems {
@@ -579,9 +651,9 @@ impl<'i> Parse<'i> for AlignItems {
       return Ok(AlignItems::BaselinePosition(val));
     }
 
-    let overflow_position = input.try_parse(OverflowPosition::parse).ok();
-    let self_position = SelfPosition::parse(input)?;
-    Ok(AlignItems::SelfPosition(overflow_position, self_position))
+    let overflow = input.try_parse(OverflowPosition::parse).ok();
+    let value = SelfPosition::parse(input)?;
+    Ok(AlignItems::SelfPosition { overflow, value })
   }
 }
 
@@ -594,13 +666,13 @@ impl ToCss for AlignItems {
       AlignItems::Normal => dest.write_str("normal"),
       AlignItems::Stretch => dest.write_str("stretch"),
       AlignItems::BaselinePosition(val) => val.to_css(dest),
-      AlignItems::SelfPosition(overflow, pos) => {
+      AlignItems::SelfPosition { overflow, value } => {
         if let Some(overflow) = overflow {
           overflow.to_css(dest)?;
           dest.write_str(" ")?;
         }
 
-        pos.to_css(dest)
+        value.to_css(dest)
       }
     }
   }
@@ -608,11 +680,13 @@ impl ToCss for AlignItems {
 
 /// A legacy justification keyword, as used in the `justify-items` property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum LegacyJustify {
   /// Left justify.
   Left,
@@ -674,25 +748,40 @@ impl ToCss for LegacyJustify {
 
 /// A value for the [justify-items](https://www.w3.org/TR/css-align-3/#justify-items-property) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum JustifyItems {
   /// Default justification.
   Normal,
   /// Items are stretched.
   Stretch,
   /// A baseline position keyword.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<BaselinePosition>"))]
   BaselinePosition(BaselinePosition),
   /// A self position keyword, with optional overflow position.
-  SelfPosition(Option<OverflowPosition>, SelfPosition),
+  SelfPosition {
+    /// A self position keyword.
+    value: SelfPosition,
+    /// An overflow alignment mode.
+    overflow: Option<OverflowPosition>,
+  },
   /// Items are justified to the left, with an optional overflow position.
-  Left(Option<OverflowPosition>),
+  Left {
+    /// An overflow alignment mode.
+    overflow: Option<OverflowPosition>,
+  },
   /// Items are justified to the right, with an optional overflow position.
-  Right(Option<OverflowPosition>),
+  Right {
+    /// An overflow alignment mode.
+    overflow: Option<OverflowPosition>,
+  },
   /// A legacy justification keyword.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<LegacyJustify>"))]
   Legacy(LegacyJustify),
 }
 
@@ -714,16 +803,16 @@ impl<'i> Parse<'i> for JustifyItems {
       return Ok(JustifyItems::Legacy(val));
     }
 
-    let overflow_position = input.try_parse(OverflowPosition::parse).ok();
-    if let Ok(self_position) = input.try_parse(SelfPosition::parse) {
-      return Ok(JustifyItems::SelfPosition(overflow_position, self_position));
+    let overflow = input.try_parse(OverflowPosition::parse).ok();
+    if let Ok(value) = input.try_parse(SelfPosition::parse) {
+      return Ok(JustifyItems::SelfPosition { overflow, value });
     }
 
     let location = input.current_source_location();
     let ident = input.expect_ident()?;
     match_ignore_ascii_case! { &*ident,
-      "left" => Ok(JustifyItems::Left(overflow_position)),
-      "right" => Ok(JustifyItems::Right(overflow_position)),
+      "left" => Ok(JustifyItems::Left { overflow }),
+      "right" => Ok(JustifyItems::Right { overflow }),
       _ => Err(location.new_unexpected_token_error(
         cssparser::Token::Ident(ident.clone())
       ))
@@ -741,15 +830,15 @@ impl ToCss for JustifyItems {
       JustifyItems::Stretch => dest.write_str("stretch"),
       JustifyItems::BaselinePosition(val) => val.to_css(dest),
       JustifyItems::Legacy(val) => val.to_css(dest),
-      JustifyItems::SelfPosition(overflow, pos) => {
+      JustifyItems::SelfPosition { overflow, value } => {
         if let Some(overflow) = overflow {
           overflow.to_css(dest)?;
           dest.write_str(" ")?;
         }
 
-        pos.to_css(dest)
+        value.to_css(dest)
       }
-      JustifyItems::Left(overflow) => {
+      JustifyItems::Left { overflow } => {
         if let Some(overflow) = overflow {
           overflow.to_css(dest)?;
           dest.write_str(" ")?;
@@ -757,7 +846,7 @@ impl ToCss for JustifyItems {
 
         dest.write_str("left")
       }
-      JustifyItems::Right(overflow) => {
+      JustifyItems::Right { overflow } => {
         if let Some(overflow) = overflow {
           overflow.to_css(dest)?;
           dest.write_str(" ")?;
@@ -790,7 +879,10 @@ impl<'i> Parse<'i> for PlaceItems {
           AlignItems::Normal => JustifyItems::Normal,
           AlignItems::Stretch => JustifyItems::Stretch,
           AlignItems::BaselinePosition(p) => JustifyItems::BaselinePosition(p.clone()),
-          AlignItems::SelfPosition(o, c) => JustifyItems::SelfPosition(o.clone(), c.clone()),
+          AlignItems::SelfPosition { overflow, value } => JustifyItems::SelfPosition {
+            overflow: overflow.clone(),
+            value: value.clone(),
+          },
         }
       }
     };
@@ -811,7 +903,7 @@ impl ToCss for PlaceItems {
       JustifyItems::BaselinePosition(p) if matches!(&self.align, AlignItems::BaselinePosition(p2) if p == p2) => {
         true
       }
-      JustifyItems::SelfPosition(o, c) if matches!(&self.align, AlignItems::SelfPosition(o2, c2) if o == o2 && c == c2) => {
+      JustifyItems::SelfPosition { overflow: o, value: c } if matches!(&self.align, AlignItems::SelfPosition { overflow: o2, value: c2 } if o == o2 && c == c2) => {
         true
       }
       _ => false,
@@ -829,11 +921,13 @@ impl ToCss for PlaceItems {
 /// A [gap](https://www.w3.org/TR/css-align-3/#column-row-gap) value, as used in the
 /// `column-gap` and `row-gap` properties.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum GapValue {
   /// Equal to `1em` for multi-column containers, and zero otherwise.
   Normal,

@@ -8,3 +8,4 @@ dist/
 node/*.flow
 artifacts
 npm
+node/ast.json

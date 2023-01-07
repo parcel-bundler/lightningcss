@@ -6,21 +6,28 @@ use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::properties::custom::CustomProperty;
 use crate::properties::font::{FontFamily, FontStretch, FontStyle, FontWeight};
+use crate::stylesheet::ParserOptions;
 use crate::traits::{Parse, ToCss};
 use crate::values::size::Size2D;
 use crate::values::string::CowArcStr;
 use crate::values::url::Url;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
 use std::fmt::Write;
 
 /// A [@font-face](https://drafts.csswg.org/css-fonts/#font-face-rule) rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct FontFaceRule<'i> {
   /// Declarations in the `@font-face` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub properties: Vec<FontFaceProperty<'i>>,
   /// The location of the rule in the source file.
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 
@@ -28,11 +35,14 @@ pub struct FontFaceRule<'i> {
 ///
 /// See [FontFaceRule](FontFaceRule).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontFaceProperty<'i> {
   /// The `src` property.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -54,11 +64,14 @@ pub enum FontFaceProperty<'i> {
 /// A value for the [src](https://drafts.csswg.org/css-fonts/#src-desc)
 /// property in an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Source<'i> {
   /// A `url()` with optional format metadata.
   Url(UrlSource<'i>),
@@ -105,7 +118,10 @@ impl<'i> ToCss for Source<'i> {
 /// A `url()` value for the [src](https://drafts.csswg.org/css-fonts/#src-desc)
 /// property in an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct UrlSource<'i> {
   /// The URL.
   pub url: Url<'i>,
@@ -163,11 +179,14 @@ impl<'i> ToCss for UrlSource<'i> {
 /// [src](https://drafts.csswg.org/css-fonts/#src-desc)
 /// property of an `@font-face` rule.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", content = "value", rename_all = "lowercase")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontFormat<'i> {
   /// [src](https://drafts.csswg.org/css-fonts/#font-format-definitions)
   /// A WOFF 1.0 font.
@@ -179,6 +198,7 @@ pub enum FontFormat<'i> {
   /// An OpenType font.
   OpenType,
   /// An Embedded OpenType (.eot) font.
+  #[cfg_attr(feature = "serde", serde(rename = "embedded-opentype"))]
   EmbeddedOpenType,
   /// OpenType Collection.
   Collection,
@@ -276,7 +296,9 @@ enum_property! {
 ///
 /// Cannot be empty. Can represent a single code point when start == end.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct UnicodeRange {
   /// Inclusive start of the range. In [0, end].
   pub start: u32,
@@ -386,7 +408,7 @@ impl<'i> cssparser::DeclarationParser<'i> for FontFaceDeclarationParser {
     return Ok(FontFaceProperty::Custom(CustomProperty::parse(
       name.into(),
       input,
-      &Default::default(),
+      &ParserOptions::default(),
     )?));
   }
 }
@@ -403,6 +425,7 @@ impl<'i> ToCss for FontFaceRule<'i> {
   where
     W: std::fmt::Write,
   {
+    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@font-face")?;
     dest.whitespace()?;

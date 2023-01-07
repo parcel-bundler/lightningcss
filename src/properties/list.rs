@@ -8,23 +8,28 @@ use crate::macros::{define_shorthand, enum_property, shorthand_handler, shorthan
 use crate::printer::Printer;
 use crate::targets::Browsers;
 use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss};
-use crate::values::string::CowArcStr;
+use crate::values::string::CSSString;
 use crate::values::{ident::CustomIdent, image::Image};
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A value for the [list-style-type](https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#text-markers) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum ListStyleType<'i> {
   /// No marker.
   None,
   /// An explicit marker string.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  String(CowArcStr<'i>),
+  String(CSSString<'i>),
   /// A named counter style.
   CounterStyle(CounterStyle<'i>),
 }
@@ -45,8 +50,8 @@ impl<'i> Parse<'i> for ListStyleType<'i> {
       return Ok(ListStyleType::CounterStyle(val));
     }
 
-    let s = input.expect_string_cloned()?;
-    Ok(ListStyleType::String(s.into()))
+    let s = CSSString::parse(input)?;
+    Ok(ListStyleType::String(s))
   }
 }
 
@@ -58,31 +63,42 @@ impl ToCss for ListStyleType<'_> {
     match self {
       ListStyleType::None => dest.write_str("none"),
       ListStyleType::CounterStyle(style) => style.to_css(dest),
-      ListStyleType::String(s) => {
-        serialize_string(&s, dest)?;
-        Ok(())
-      }
+      ListStyleType::String(s) => s.to_css(dest),
     }
   }
 }
 
 /// A [counter-style](https://www.w3.org/TR/css-counter-styles-3/#typedef-counter-style) name.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum CounterStyle<'i> {
   /// A predefined counter style name.
+  #[cfg_attr(
+    feature = "serde",
+    serde(with = "crate::serialization::ValueWrapper::<PredefinedCounterStyle>")
+  )]
   Predefined(PredefinedCounterStyle),
   /// A custom counter style name.
+  #[cfg_attr(
+    feature = "serde",
+    serde(borrow, with = "crate::serialization::ValueWrapper::<CustomIdent>")
+  )]
   Name(CustomIdent<'i>),
   /// An inline [`symbols()`](https://www.w3.org/TR/css-counter-styles-3/#symbols-function) definition.
-  Symbols(
-    SymbolsType,
-    #[cfg_attr(feature = "serde", serde(borrow))] Vec<Symbol<'i>>,
-  ),
+  Symbols {
+    /// The counter system.
+    #[cfg_attr(feature = "serde", serde(default))]
+    system: SymbolsType,
+    /// The symbols.
+    symbols: Vec<Symbol<'i>>,
+  },
 }
 
 enum_property! {
@@ -163,14 +179,14 @@ impl<'i> Parse<'i> for CounterStyle<'i> {
 
     if input.try_parse(|input| input.expect_function_matching("symbols")).is_ok() {
       return input.parse_nested_block(|input| {
-        let t = input.try_parse(SymbolsType::parse).unwrap_or(SymbolsType::Symbolic);
+        let t = input.try_parse(SymbolsType::parse).unwrap_or_default();
 
         let mut symbols = Vec::new();
         while let Ok(s) = input.try_parse(Symbol::parse) {
           symbols.push(s);
         }
 
-        Ok(CounterStyle::Symbols(t, symbols))
+        Ok(CounterStyle::Symbols { system: t, symbols })
       });
     }
 
@@ -192,7 +208,7 @@ impl ToCss for CounterStyle<'_> {
         }
         name.to_css(dest)
       }
-      CounterStyle::Symbols(t, symbols) => {
+      CounterStyle::Symbols { system: t, symbols } => {
         dest.write_str("symbols(")?;
         let mut needs_space = false;
         if *t != SymbolsType::Symbolic {
@@ -228,20 +244,29 @@ enum_property! {
   }
 }
 
+impl Default for SymbolsType {
+  fn default() -> Self {
+    SymbolsType::Symbolic
+  }
+}
+
 /// A single [symbol](https://www.w3.org/TR/css-counter-styles-3/#funcdef-symbols) as used in the
 /// `symbols()` function.
 ///
 /// See [CounterStyle](CounterStyle).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Symbol<'i> {
   /// A string.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  String(CowArcStr<'i>),
+  String(CSSString<'i>),
   /// An image.
   Image(Image<'i>),
 }
@@ -252,7 +277,7 @@ impl<'i> Parse<'i> for Symbol<'i> {
       return Ok(Symbol::Image(img));
     }
 
-    let s = input.expect_string_cloned()?;
+    let s = CSSString::parse(input)?;
     Ok(Symbol::String(s.into()))
   }
 }
@@ -263,10 +288,7 @@ impl<'i> ToCss for Symbol<'i> {
     W: std::fmt::Write,
   {
     match self {
-      Symbol::String(s) => {
-        serialize_string(&s, dest)?;
-        Ok(())
-      }
+      Symbol::String(s) => s.to_css(dest),
       Symbol::Image(img) => img.to_css(dest),
     }
   }
@@ -299,6 +321,7 @@ enum_property! {
 
 shorthand_property! {
   /// A value for the [list-style](https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#list-style-property) shorthand property.
+  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   pub struct ListStyle<'i> {
     /// The list style type.
     #[cfg_attr(feature = "serde", serde(borrow))]

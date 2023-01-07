@@ -1,14 +1,16 @@
 const fs = require('fs');
+const { compiler, beautify } = require('flowgen');
 
 let dir = `${__dirname}/../`;
-let index = fs.readFileSync(dir + '/node/index.d.ts', 'utf8');
-index = '// @flow\n' + index;
-index = index.replace(/export interface (.*?)(?: extends (.+?))? \{((?:.|\n)*?)\}/g, (_, name, ext, contents) => `export type ${name} =${ext ? ` ${ext} &` : ''} {|${contents}|};`);
-index = index.replace(/export declare function/g, 'declare export function');
-index = index.replace("Omit<TransformOptions, 'code'>", "$Rest<TransformOptions, {|code: TransformOptions['code']|}>");
+let contents = fs.readFileSync(dir + '/node/index.d.ts', 'utf8').replace('`${PropertyStart}${string}`', 'string');
+let index = beautify(compiler.compileDefinitionString(contents, { inexact: false, interfaceRecords: true }));
+index = index.replace('{ code: any }', '{| code: any |}');
+index = index.replace(/from "(.*?)";/g, 'from "$1.js.flow";');
+// This Exclude type isn't right at all, but idk how to get it working for real...
+fs.writeFileSync(dir + '/node/index.js.flow', '// @flow\n\ntype Exclude<A, B> = A;\n' + index)
 
-let targets = fs.readFileSync(dir + '/node/targets.d.ts', 'utf8');
-targets = targets.replace(/export interface (.*?) \{((?:.|\n)*?)\}/g, 'export type $1 = {|$2|};');
-index = index.replace(/import type \{\s*Targets\s*\} from '.\/targets';/, targets);
+let ast = beautify(compiler.compileDefinitionFile(dir + '/node/ast.d.ts', { inexact: false }));
+fs.writeFileSync(dir + '/node/ast.js.flow', '// @flow\n\n' + ast)
 
-fs.writeFileSync(dir + '/node/index.js.flow', index);
+let targets = beautify(compiler.compileDefinitionFile(dir + '/node/targets.d.ts', { inexact: false }));
+fs.writeFileSync(dir + '/node/targets.js.flow', '// @flow\n\n' + targets)

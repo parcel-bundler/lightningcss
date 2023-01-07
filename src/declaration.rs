@@ -34,6 +34,8 @@ use crate::properties::{Property, PropertyId};
 use crate::targets::Browsers;
 use crate::traits::{PropertyHandler, ToCss};
 use crate::values::string::CowArcStr;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A CSS declaration block.
@@ -42,20 +44,28 @@ use cssparser::*;
 /// and a list of normal declarations. This reduces memory usage compared
 /// with storing a boolean along with each property.
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "visitor", derive(Visit), visit(visit_declaration_block, PROPERTIES))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct DeclarationBlock<'i> {
   /// A list of `!important` declarations in the block.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow, default))]
   pub important_declarations: Vec<Property<'i>>,
   /// A list of normal declarations in the block.
+  #[cfg_attr(feature = "serde", serde(default))]
   pub declarations: Vec<Property<'i>>,
 }
 
 impl<'i> DeclarationBlock<'i> {
   /// Parses a declaration block from CSS syntax.
-  pub fn parse<'a, 'o, 't>(
+  pub fn parse<'a, 'o, 't, T>(
     input: &mut Parser<'i, 't>,
-    options: &'a ParserOptions<'o, 'i>,
+    options: &'a ParserOptions<'o, 'i, T>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut important_declarations = DeclarationList::new();
     let mut declarations = DeclarationList::new();
@@ -84,15 +94,28 @@ impl<'i> DeclarationBlock<'i> {
   }
 
   /// Parses a declaration block from a string.
-  pub fn parse_string<'o>(
+  pub fn parse_string<'o, T>(
     input: &'i str,
-    options: ParserOptions<'o, 'i>,
+    options: ParserOptions<'o, 'i, T>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(input);
     let mut parser = Parser::new(&mut input);
     let result = Self::parse(&mut parser, &options)?;
     parser.expect_exhausted()?;
     Ok(result)
+  }
+
+  /// Returns an empty declaration block.
+  pub fn new() -> Self {
+    Self {
+      declarations: vec![],
+      important_declarations: vec![],
+    }
+  }
+
+  /// Returns the total number of declarations in the block.
+  pub fn len(&self) -> usize {
+    self.declarations.len() + self.important_declarations.len()
   }
 }
 
@@ -124,7 +147,8 @@ impl<'i> ToCss for DeclarationBlock<'i> {
 }
 
 impl<'i> DeclarationBlock<'i> {
-  pub(crate) fn to_css_block<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  /// Writes the declarations to a CSS block, including starting and ending braces.
+  pub fn to_css_block<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
   {
@@ -133,7 +157,7 @@ impl<'i> DeclarationBlock<'i> {
     dest.indent();
 
     let mut i = 0;
-    let len = self.declarations.len() + self.important_declarations.len();
+    let len = self.len();
 
     macro_rules! write {
       ($decls: expr, $important: literal) => {
@@ -379,14 +403,14 @@ impl<'i> DeclarationBlock<'i> {
   }
 }
 
-struct PropertyDeclarationParser<'a, 'o, 'i> {
+struct PropertyDeclarationParser<'a, 'o, 'i, T> {
   important_declarations: &'a mut Vec<Property<'i>>,
   declarations: &'a mut Vec<Property<'i>>,
-  options: &'a ParserOptions<'o, 'i>,
+  options: &'a ParserOptions<'o, 'i, T>,
 }
 
 /// Parse a declaration within {} block: `color: blue`
-impl<'a, 'o, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a, 'o, 'i> {
+impl<'a, 'o, 'i, T> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<'a, 'o, 'i, T> {
   type Declaration = ();
   type Error = ParserError<'i>;
 
@@ -406,18 +430,18 @@ impl<'a, 'o, 'i> cssparser::DeclarationParser<'i> for PropertyDeclarationParser<
 }
 
 /// Default methods reject all at rules.
-impl<'a, 'o, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a, 'o, 'i> {
+impl<'a, 'o, 'i, T> AtRuleParser<'i> for PropertyDeclarationParser<'a, 'o, 'i, T> {
   type Prelude = ();
   type AtRule = ();
   type Error = ParserError<'i>;
 }
 
-pub(crate) fn parse_declaration<'i, 't>(
+pub(crate) fn parse_declaration<'i, 't, T>(
   name: CowRcStr<'i>,
   input: &mut cssparser::Parser<'i, 't>,
   declarations: &mut DeclarationList<'i>,
   important_declarations: &mut DeclarationList<'i>,
-  options: &ParserOptions,
+  options: &ParserOptions<T>,
 ) -> Result<(), cssparser::ParseError<'i, ParserError<'i>>> {
   let property = input.parse_until_before(Delimiter::Bang, |input| {
     Property::parse(PropertyId::from(CowArcStr::from(name)), input, options)

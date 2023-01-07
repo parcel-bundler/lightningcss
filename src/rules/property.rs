@@ -1,6 +1,8 @@
 //! The `@property` rule.
 
 use super::Location;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use crate::{
   error::{ParserError, PrinterError},
   printer::Printer,
@@ -14,18 +16,29 @@ use cssparser::*;
 
 /// A [@property](https://drafts.css-houdini.org/css-properties-values-api/#at-property-rule) rule.
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct PropertyRule<'i> {
   /// The name of the custom property to declare.
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: DashedIdent<'i>,
   /// A syntax string to specify the grammar for the custom property.
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub syntax: SyntaxString,
   /// Whether the custom property is inherited.
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub inherits: bool,
   /// An optional initial value for the custom property.
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub initial_value: Option<ParsedComponent<'i>>,
   /// The location of the rule in the source file.
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 
@@ -89,6 +102,7 @@ impl<'i> ToCss for PropertyRule<'i> {
   where
     W: std::fmt::Write,
   {
+    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@property ")?;
     self.name.to_css(dest)?;

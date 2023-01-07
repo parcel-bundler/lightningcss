@@ -13,15 +13,19 @@ use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::number::CSSNumber;
 use crate::values::string::CowArcStr;
 use crate::values::{angle::Angle, length::LengthPercentage, percentage::Percentage};
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A value for the [font-weight](https://www.w3.org/TR/css-fonts-4/#font-weight-prop) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontWeight {
   /// An absolute font weight.
   Absolute(AbsoluteFontWeight),
@@ -74,11 +78,13 @@ impl ToCss for FontWeight {
 ///
 /// See [FontWeight](FontWeight).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum AbsoluteFontWeight {
   /// An explicit weight.
   Weight(CSSNumber),
@@ -157,11 +163,13 @@ enum_property! {
 
 /// A value for the [font-size](https://www.w3.org/TR/css-fonts-4/#font-size-prop) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontSize {
   /// An explicit size.
   Length(LengthPercentage),
@@ -253,11 +261,13 @@ impl Into<Percentage> for &FontStretchKeyword {
 
 /// A value for the [font-stretch](https://www.w3.org/TR/css-fonts-4/#font-stretch-prop) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontStretch {
   /// A font stretch keyword.
   Keyword(FontStretchKeyword),
@@ -349,17 +359,16 @@ enum_property! {
 
 /// A value for the [font-family](https://www.w3.org/TR/css-fonts-4/#font-family-prop) property.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
-)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(untagged))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontFamily<'i> {
+  /// A generic family name.
+  Generic(GenericFontFamily),
   /// A custom family name.
   #[cfg_attr(feature = "serde", serde(borrow))]
   FamilyName(CowArcStr<'i>),
-  /// A generic family name.
-  Generic(GenericFontFamily),
 }
 
 impl<'i> Parse<'i> for FontFamily<'i> {
@@ -430,24 +439,31 @@ impl<'i> ToCss for FontFamily<'i> {
 
 /// A value for the [font-style](https://www.w3.org/TR/css-fonts-4/#font-style-prop) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontStyle {
   /// Normal font style.
   Normal,
   /// Italic font style.
   Italic,
   /// Oblique font style, with a custom angle.
-  Oblique(Angle),
+  Oblique(#[cfg_attr(feature = "serde", serde(default = "default_oblique_angle"))] Angle),
 }
 
 impl Default for FontStyle {
   fn default() -> FontStyle {
     FontStyle::Normal
   }
+}
+
+#[inline]
+fn default_oblique_angle() -> Angle {
+  Angle::Deg(14.0)
 }
 
 impl<'i> Parse<'i> for FontStyle {
@@ -458,7 +474,7 @@ impl<'i> Parse<'i> for FontStyle {
       "normal" => Ok(FontStyle::Normal),
       "italic" => Ok(FontStyle::Italic),
       "oblique" => {
-        let angle = input.try_parse(Angle::parse).unwrap_or(Angle::Deg(14.0));
+        let angle = input.try_parse(Angle::parse).unwrap_or(default_oblique_angle());
         Ok(FontStyle::Oblique(angle))
       },
       _ => Err(location.new_unexpected_token_error(
@@ -530,11 +546,13 @@ impl FontVariantCaps {
 
 /// A value for the [line-height](https://www.w3.org/TR/2020/WD-css-inline-3-20200827/#propdef-line-height) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum LineHeight {
   /// The UA sets the line height based on the font.
   Normal,
@@ -602,11 +620,13 @@ enum_property! {
 /// A value for the [vertical align](https://drafts.csswg.org/css2/#propdef-vertical-align) property.
 // TODO: there is a more extensive spec in CSS3 but it doesn't seem any browser implements it? https://www.w3.org/TR/css-inline-3/#transverse-alignment
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum VerticalAlign {
   /// A vertical align keyword.
   Keyword(VerticalAlignKeyword),
@@ -639,6 +659,7 @@ impl ToCss for VerticalAlign {
 
 define_shorthand! {
   /// A value for the [font](https://www.w3.org/TR/css-fonts-4/#font-prop) shorthand property.
+  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   pub struct Font<'i> {
     /// The font family.
     #[cfg_attr(feature = "serde", serde(borrow))]

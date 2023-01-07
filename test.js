@@ -30,44 +30,108 @@ if (process.argv[process.argv.length - 1] !== __filename) {
 
 let res = css.transform({
   filename: __filename,
-  minify: true,
-  sourceMap: true,
-  targets: {
-    safari: 4 << 16,
-    firefox: 3 << 16 | 5 << 8,
-    opera: 10 << 16 | 5 << 8
-  },
-  code: Buffer.from(`.imported {
-    content: "yay, file support!";
+  // minify: true,
+  // targets: {
+  //   safari: 4 << 16,
+  //   firefox: 3 << 16 | 5 << 8,
+  //   opera: 10 << 16 | 5 << 8
+  // },
+  code: Buffer.from(`
+  @namespace "http://foo.com";
+  @namespace svg "http://bar.com";
+
+  .selector > .nested[data-foo=bar]:not(.foo):hover::part(tab active) {
+    width: 32px;
+    --foo: var(--bar, 30px);
+    background: linear-gradient(red, green);
   }
-  
-  .selector {
-    margin: 1em;
-    background-color: #f60;
+
+  svg|foo {
+    test: foo;
   }
-  
-  .selector .nested {
-    margin: 0.5em;
+
+  @media (hover) and (width > 50px) {
+    .foo {
+      color: red;
+      background: inline('.gitignore');
+    }
   }
 `),
-  inputSourceMap: JSON.stringify({
-    "version": 3,
-    "sourceRoot": "root",
-    "file": "stdout",
-    "sources": [
-      "stdin",
-      "sass/_variables.scss",
-      "sass/_demo.scss"
-    ],
-    "sourcesContent": [
-      "@import \"_variables\";\n@import \"_demo\";\n\n.selector {\n  margin: $size;\n  background-color: $brandColor;\n\n  .nested {\n    margin: $size / 2;\n  }\n}",
-      "$brandColor: #f60;\n$size: 1em;",
-      ".imported {\n  content: \"yay, file support!\";\n}"
-    ],
-    "mappings": "AEAA,SAAS,CAAC;EACR,OAAO,EAAE,oBAAqB;CAC/B;;AFCD,SAAS,CAAC;EACR,MAAM,ECHD,GAAG;EDIR,gBAAgB,ECLL,IAAI;CDUhB;;AAPD,SAAS,CAIP,OAAO,CAAC;EACN,MAAM,ECPH,KAAG;CDQP",
-    "names": []
-  }),
+  visitor: {
+    visitLength(length) {
+      if (length.unit === 'px') {
+        return {
+          unit: 'rem',
+          value: length.value / 16
+        }
+      }
+      return length;
+    },
+    visitColor(color) {
+      console.log(color);
+      return color;
+    },
+    visitImage(image) {
+      // console.log(image.value.value);
+      image.value.value[1].push('moz');
+      return image;
+    },
+    visitProperty(property) {
+      // console.log(require('util').inspect(property, {depth: 50}))
+      if (property.property === 'background') {
+        property.value[0].repeat.x = 'no-repeat';
+        property.value[0].repeat.y = 'no-repeat';
+      }
+
+      return property;
+    },
+    // visitRule(rule) {
+    //   console.log(require('util').inspect(rule, {depth: 10}));
+    //   if (rule.type === 'style') {
+    //     for (let selector of rule.value.selectors) {
+    //       for (let component of selector) {
+    //         if (component.type === 'class') {
+    //           component.value = 'tw-' + component.value;
+    //         }
+    //       }
+    //     }
+    //   }
+    //   return rule;
+    // },
+    visitMediaQuery(query) {
+      // console.log(query);
+      query.media_type = 'print';
+      return query;
+    },
+    visitFunction(fn) {
+      // console.log(require('util').inspect(fn, {depth: 50}));
+      if (fn.name === 'inline') {
+        return {
+          name: 'url',
+          arguments: [{
+            type: 'token',
+            value: {
+              type: 'string',
+              value: fs.readFileSync(fn.arguments[0].value.value).toString('base64'),
+            }
+          }]
+        }
+      }
+      return fn;
+    },
+    visitSelector(selector) {
+      console.log(require('util').inspect(selector, { depth: 10 }));
+      for (let component of selector) {
+        if (component.type === 'class') {
+          component.name = 'tw-' + component.name;
+        } else if (component.type === 'attribute') {
+          component.name = 'tw-' + component.name;
+          component.operation.operator = 'includes';
+        }
+      }
+      return selector;
+    }
+  },
 });
 
 console.log(res.code.toString());
-console.log(res.map.toString())

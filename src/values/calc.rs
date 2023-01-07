@@ -6,6 +6,8 @@ use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::traits::private::AddInternal;
 use crate::traits::{Parse, Sign, ToCss, TryMap, TryOp, TrySign};
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
 
 use super::angle::Angle;
@@ -19,11 +21,13 @@ use super::time::Time;
 /// Math functions may be used in most properties and values that accept numeric
 /// values, including lengths, percentages, angles, times, etc.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum MathFunction<V> {
   /// The [`calc()`](https://www.w3.org/TR/css-values-4/#calc-func) function.
   Calc(Calc<V>),
@@ -200,21 +204,26 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
 /// This type supports generic value types. Values such as [Length](super::length::Length), [Percentage](super::percentage::Percentage),
 /// [Time](super::time::Time), and [Angle](super::angle::Angle) support `calc()` expressions.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Calc<V> {
   /// A literal value.
   Value(Box<V>),
   /// A literal number.
   Number(CSSNumber),
   /// A sum of two calc expressions.
+  #[cfg_attr(feature = "visitor", skip_type)]
   Sum(Box<Calc<V>>, Box<Calc<V>>),
   /// A product of a number and another calc expression.
+  #[cfg_attr(feature = "visitor", skip_type)]
   Product(CSSNumber, Box<Calc<V>>),
   /// A math function, such as `calc()`, `min()`, or `max()`.
+  #[cfg_attr(feature = "visitor", skip_type)]
   Function(Box<MathFunction<V>>),
 }
 

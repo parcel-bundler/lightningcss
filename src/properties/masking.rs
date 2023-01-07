@@ -17,6 +17,8 @@ use crate::values::length::LengthOrNumber;
 use crate::values::rect::Rect;
 use crate::values::{image::Image, position::Position, shape::BasicShape, url::Url};
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
 use itertools::izip;
 use smallvec::SmallVec;
@@ -103,11 +105,13 @@ impl Default for GeometryBox {
 
 /// A value for the [mask-clip](https://www.w3.org/TR/css-masking-1/#the-mask-clip) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum MaskClip {
   /// A geometry box.
   GeometryBox(GeometryBox),
@@ -202,6 +206,7 @@ impl From<MaskComposite> for WebKitMaskComposite {
 
 define_list_shorthand! {
   /// A value for the [mask](https://www.w3.org/TR/css-masking-1/#the-mask) shorthand property.
+  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   pub struct Mask<'i>(VendorPrefix) {
     /// The mask image.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -373,20 +378,30 @@ impl<'i> ImageFallback<'i> for Mask<'i> {
 
 /// A value for the [clip-path](https://www.w3.org/TR/css-masking-1/#the-clip-path) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum ClipPath<'i> {
   /// No clip path.
   None,
   /// A url reference to an SVG path element.
-  #[cfg_attr(feature = "serde", serde(borrow))]
+  #[cfg_attr(feature = "serde", serde(borrow, with = "crate::serialization::ValueWrapper::<Url>"))]
   Url(Url<'i>),
   /// A basic shape, positioned according to the reference box.
-  Shape(Box<BasicShape>, GeometryBox),
+  #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+  Shape {
+    /// A basic shape.
+    shape: Box<BasicShape>,
+    /// A reference box that the shape is positioned according to.
+    reference_box: GeometryBox,
+  },
   /// A reference box.
+  #[cfg_attr(feature = "serde", serde(with = "crate::serialization::ValueWrapper::<GeometryBox>"))]
   Box(GeometryBox),
 }
 
@@ -398,12 +413,18 @@ impl<'i> Parse<'i> for ClipPath<'i> {
 
     if let Ok(shape) = input.try_parse(BasicShape::parse) {
       let b = input.try_parse(GeometryBox::parse).unwrap_or_default();
-      return Ok(ClipPath::Shape(Box::new(shape), b));
+      return Ok(ClipPath::Shape {
+        shape: Box::new(shape),
+        reference_box: b,
+      });
     }
 
     if let Ok(b) = input.try_parse(GeometryBox::parse) {
       if let Ok(shape) = input.try_parse(BasicShape::parse) {
-        return Ok(ClipPath::Shape(Box::new(shape), b));
+        return Ok(ClipPath::Shape {
+          shape: Box::new(shape),
+          reference_box: b,
+        });
       }
       return Ok(ClipPath::Box(b));
     }
@@ -421,7 +442,10 @@ impl<'i> ToCss for ClipPath<'i> {
     match self {
       ClipPath::None => dest.write_str("none"),
       ClipPath::Url(url) => url.to_css(dest),
-      ClipPath::Shape(shape, b) => {
+      ClipPath::Shape {
+        shape,
+        reference_box: b,
+      } => {
         shape.to_css(dest)?;
         if *b != GeometryBox::default() {
           dest.write_char(' ')?;
@@ -453,6 +477,7 @@ impl Default for MaskBorderMode {
 define_shorthand! {
   /// A value for the [mask-border](https://www.w3.org/TR/css-masking-1/#the-mask-border) shorthand property.
   #[derive(Default)]
+  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   pub struct MaskBorder<'i> {
     /// The mask image.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -687,7 +712,7 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
         // Add vendor prefixes and expand color fallbacks.
         let mut val = val.clone();
         let mut prefix = val.property_id.prefix();
-        if prefix.contains(VendorPrefix::None) {
+        if prefix.is_empty() || prefix.contains(VendorPrefix::None) {
           if let Some(targets) = context.targets {
             prefix = Feature::MaskBorder.prefixes_for(targets);
           }

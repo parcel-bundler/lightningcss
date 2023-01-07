@@ -1,82 +1,58 @@
+//! CSS selectors.
+
 use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
+use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
 use crate::properties::custom::TokenList;
 use crate::rules::{StyleContext, ToCssWithContext};
 use crate::stylesheet::{ParserOptions, PrinterOptions};
 use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
+use crate::values::ident::Ident;
+use crate::values::string::CSSString;
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
+use crate::visitor::{Visit, VisitTypes, Visitor};
 use crate::{macros::enum_property, values::string::CowArcStr};
 use cssparser::*;
 use parcel_selectors::parser::SelectorParseErrorKind;
 use parcel_selectors::{
   attr::{AttrSelectorOperator, ParsedAttrSelectorOperation, ParsedCaseSensitivity},
-  parser::{Combinator, Component, Selector, SelectorImpl},
-  SelectorList,
+  parser::SelectorImpl,
 };
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
-use std::fmt::Write;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Selectors;
+#[cfg(feature = "serde")]
+use crate::serialization::*;
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct SelectorString<'a>(pub CowArcStr<'a>);
-
-impl<'a> std::convert::From<CowRcStr<'a>> for SelectorString<'a> {
-  fn from(s: CowRcStr<'a>) -> SelectorString<'a> {
-    SelectorString(s.into())
-  }
+mod private {
+  #[derive(Debug, Clone, PartialEq, Eq)]
+  #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+  pub struct Selectors;
 }
 
-impl<'a> cssparser::ToCss for SelectorString<'a> {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
-  where
-    W: std::fmt::Write,
-  {
-    write!(CssStringWriter::new(dest), "{}", &self.0)
-  }
-}
+use private::Selectors;
 
-impl<'a> SelectorString<'a> {
-  pub fn write_identifier<W>(&self, dest: &mut W) -> Result<(), PrinterError>
-  where
-    W: fmt::Write,
-  {
-    serialize_identifier(&self.0, dest)?;
-    Ok(())
-  }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
-pub struct SelectorIdent<'i>(pub CowArcStr<'i>);
-
-impl<'a> std::convert::From<CowRcStr<'a>> for SelectorIdent<'a> {
-  fn from(s: CowRcStr<'a>) -> SelectorIdent {
-    SelectorIdent(s.into())
-  }
-}
-
-impl<'i> cssparser::ToCss for SelectorIdent<'i> {
-  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
-  where
-    W: std::fmt::Write,
-  {
-    serialize_identifier(&self.0, dest)
-  }
-}
+/// A list of selectors.
+pub type SelectorList<'i> = parcel_selectors::SelectorList<'i, Selectors>;
+/// A CSS selector, including a list of components.
+pub type Selector<'i> = parcel_selectors::parser::Selector<'i, Selectors>;
+/// An individual component within a selector.
+pub type Component<'i> = parcel_selectors::parser::Component<'i, Selectors>;
+/// A combinator.
+pub use parcel_selectors::parser::Combinator;
 
 impl<'i> SelectorImpl<'i> for Selectors {
-  type AttrValue = SelectorString<'i>;
-  type Identifier = SelectorIdent<'i>;
-  type LocalName = SelectorIdent<'i>;
-  type NamespacePrefix = SelectorIdent<'i>;
-  type NamespaceUrl = SelectorIdent<'i>;
-  type BorrowedNamespaceUrl = SelectorIdent<'i>;
-  type BorrowedLocalName = SelectorIdent<'i>;
+  type AttrValue = CSSString<'i>;
+  type Identifier = Ident<'i>;
+  type LocalName = Ident<'i>;
+  type NamespacePrefix = Ident<'i>;
+  type NamespaceUrl = CowArcStr<'i>;
+  type BorrowedNamespaceUrl = CowArcStr<'i>;
+  type BorrowedLocalName = Ident<'i>;
 
   type NonTSPseudoClass = PseudoClass<'i>;
   type PseudoElement = PseudoElement<'i>;
@@ -84,20 +60,21 @@ impl<'i> SelectorImpl<'i> for Selectors {
 
   type ExtraMatchingData = ();
 
-  fn to_css<W: fmt::Write>(selectors: &SelectorList<'i, Self>, dest: &mut W) -> std::fmt::Result {
+  fn to_css<W: fmt::Write>(selectors: &SelectorList<'i>, dest: &mut W) -> std::fmt::Result {
     let mut printer = Printer::new(dest, PrinterOptions::default());
-    serialize_selector_list(selectors.0.iter(), &mut printer, None, false).map_err(|_| std::fmt::Error)
+    serialize_selector_list::<_, _, DefaultAtRule>(selectors.0.iter(), &mut printer, None, false)
+      .map_err(|_| std::fmt::Error)
   }
 }
 
-pub struct SelectorParser<'a, 'o, 'i> {
+pub(crate) struct SelectorParser<'a, 'o, 'i, T> {
   pub default_namespace: &'a Option<CowArcStr<'i>>,
   pub namespace_prefixes: &'a HashMap<CowArcStr<'i>, CowArcStr<'i>>,
   pub is_nesting_allowed: bool,
-  pub options: &'a ParserOptions<'o, 'i>,
+  pub options: &'a ParserOptions<'o, 'i, T>,
 }
 
-impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o, 'i> {
+impl<'a, 'o, 'i, T> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o, 'i, T> {
   type Impl = Selectors;
   type Error = ParserError<'i>;
 
@@ -193,7 +170,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
         if !name.starts_with('-') {
           self.options.warn(loc.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
         }
-        Custom(name.into())
+        Custom { name: name.into() }
       }
     };
 
@@ -208,21 +185,24 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
     use PseudoClass::*;
     let pseudo_class = match_ignore_ascii_case! { &name,
       "lang" => {
-        let langs = parser.parse_comma_separated(|parser| {
+        let languages = parser.parse_comma_separated(|parser| {
           parser.expect_ident_or_string()
             .map(|s| s.into())
             .map_err(|e| e.into())
         })?;
-        Lang(langs)
+        Lang { languages }
       },
-      "dir" => Dir(Direction::parse(parser)?),
-      "local" if self.options.css_modules.is_some() => Local(Box::new(parcel_selectors::parser::Selector::parse(self, parser)?)),
-      "global" if self.options.css_modules.is_some() => Global(Box::new(parcel_selectors::parser::Selector::parse(self, parser)?)),
+      "dir" => Dir { direction: Direction::parse(parser)? },
+      "local" if self.options.css_modules.is_some() => Local { selector: Box::new(Selector::parse(self, parser)?) },
+      "global" if self.options.css_modules.is_some() => Global { selector: Box::new(Selector::parse(self, parser)?) },
       _ => {
         if !name.starts_with('-') {
           self.options.warn(parser.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
         }
-        CustomFunction(name.into(), TokenList::parse(parser, &self.options, 0)?)
+        CustomFunction {
+          name: name.into(),
+          arguments: TokenList::parse(parser, &self.options, 0)?
+        }
       },
     };
 
@@ -275,7 +255,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
         if !name.starts_with('-') {
           self.options.warn(loc.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
         }
-        Custom(name.into())
+        Custom { name: name.into() }
       }
     };
 
@@ -289,13 +269,13 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
   ) -> Result<<Self::Impl as SelectorImpl<'i>>::PseudoElement, ParseError<'i, Self::Error>> {
     use PseudoElement::*;
     let pseudo_element = match_ignore_ascii_case! { &name,
-      "cue" => CueFunction(Box::new(Selector::parse(self, arguments)?)),
+      "cue" => CueFunction { selector: Box::new(Selector::parse(self, arguments)?) },
       "cue-region" => CueRegionFunction(Box::new(Selector::parse(self, arguments)?)),
       _ => {
         if !name.starts_with('-') {
           self.options.warn(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
         }
-        CustomFunction(name.into(), TokenList::parse(arguments, &self.options, 0)?)
+        CustomFunction { name: name.into(), arguments: TokenList::parse(arguments, &self.options, 0)? }
       }
     };
 
@@ -322,12 +302,12 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
     true
   }
 
-  fn default_namespace(&self) -> Option<SelectorIdent<'i>> {
-    self.default_namespace.clone().map(SelectorIdent)
+  fn default_namespace(&self) -> Option<CowArcStr<'i>> {
+    self.default_namespace.clone()
   }
 
-  fn namespace_for_prefix(&self, prefix: &SelectorIdent<'i>) -> Option<SelectorIdent<'i>> {
-    self.namespace_prefixes.get(&prefix.0).cloned().map(SelectorIdent)
+  fn namespace_for_prefix(&self, prefix: &Ident<'i>) -> Option<CowArcStr<'i>> {
+    self.namespace_prefixes.get(&prefix.0).cloned()
   }
 
   #[inline]
@@ -337,101 +317,202 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
 }
 
 enum_property! {
+  /// The [:dir()](https://drafts.csswg.org/selectors-4/#the-dir-pseudo) pseudo class.
   #[derive(Eq)]
   pub enum Direction {
+    /// Left to right
     Ltr,
+    /// Right to left
     Rtl,
   }
 }
 
-/// https://drafts.csswg.org/selectors-4/#structural-pseudos
+/// A pseudo class.
 #[derive(Clone, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "kind", rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum PseudoClass<'i> {
   // https://drafts.csswg.org/selectors-4/#linguistic-pseudos
-  Lang(Vec<CowArcStr<'i>>),
-  Dir(Direction),
+  /// The [:lang()](https://drafts.csswg.org/selectors-4/#the-lang-pseudo) pseudo class.
+  Lang {
+    /// A list of language codes.
+    #[cfg_attr(feature = "serde", serde(borrow))]
+    languages: Vec<CowArcStr<'i>>,
+  },
+  /// The [:dir()](https://drafts.csswg.org/selectors-4/#the-dir-pseudo) pseudo class.
+  Dir {
+    /// A direction.
+    direction: Direction,
+  },
 
   // https://drafts.csswg.org/selectors-4/#useraction-pseudos
+  /// The [:hover](https://drafts.csswg.org/selectors-4/#the-hover-pseudo) pseudo class.
   Hover,
+  /// The [:active](https://drafts.csswg.org/selectors-4/#the-active-pseudo) pseudo class.
   Active,
+  /// The [:focus](https://drafts.csswg.org/selectors-4/#the-focus-pseudo) pseudo class.
   Focus,
+  /// The [:focus-visible](https://drafts.csswg.org/selectors-4/#the-focus-visible-pseudo) pseudo class.
   FocusVisible,
+  /// The [:focus-within](https://drafts.csswg.org/selectors-4/#the-focus-within-pseudo) pseudo class.
   FocusWithin,
 
   // https://drafts.csswg.org/selectors-4/#time-pseudos
+  /// The [:current](https://drafts.csswg.org/selectors-4/#the-current-pseudo) pseudo class.
   Current,
+  /// The [:past](https://drafts.csswg.org/selectors-4/#the-past-pseudo) pseudo class.
   Past,
+  /// The [:future](https://drafts.csswg.org/selectors-4/#the-future-pseudo) pseudo class.
   Future,
 
   // https://drafts.csswg.org/selectors-4/#resource-pseudos
+  /// The [:playing](https://drafts.csswg.org/selectors-4/#selectordef-playing) pseudo class.
   Playing,
+  /// The [:paused](https://drafts.csswg.org/selectors-4/#selectordef-paused) pseudo class.
   Paused,
+  /// The [:seeking](https://drafts.csswg.org/selectors-4/#selectordef-seeking) pseudo class.
   Seeking,
+  /// The [:buffering](https://drafts.csswg.org/selectors-4/#selectordef-buffering) pseudo class.
   Buffering,
+  /// The [:stalled](https://drafts.csswg.org/selectors-4/#selectordef-stalled) pseudo class.
   Stalled,
+  /// The [:muted](https://drafts.csswg.org/selectors-4/#selectordef-muted) pseudo class.
   Muted,
+  /// The [:volume-locked](https://drafts.csswg.org/selectors-4/#selectordef-volume-locked) pseudo class.
   VolumeLocked,
 
-  // https://fullscreen.spec.whatwg.org/#:fullscreen-pseudo-class
+  /// The [:fullscreen](https://fullscreen.spec.whatwg.org/#:fullscreen-pseudo-class) pseudo class.
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Fullscreen(VendorPrefix),
 
-  // https://drafts.csswg.org/selectors-4/#the-defined-pseudo
+  /// The [:defined](https://drafts.csswg.org/selectors-4/#the-defined-pseudo) pseudo class.
   Defined,
 
   // https://drafts.csswg.org/selectors-4/#location
+  /// The [:any-link](https://drafts.csswg.org/selectors-4/#the-any-link-pseudo) pseudo class.
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   AnyLink(VendorPrefix),
+  /// The [:link](https://drafts.csswg.org/selectors-4/#link-pseudo) pseudo class.
   Link,
+  /// The [:local-link](https://drafts.csswg.org/selectors-4/#the-local-link-pseudo) pseudo class.
   LocalLink,
+  /// The [:target](https://drafts.csswg.org/selectors-4/#the-target-pseudo) pseudo class.
   Target,
+  /// The [:target-within](https://drafts.csswg.org/selectors-4/#the-target-within-pseudo) pseudo class.
   TargetWithin,
+  /// The [:visited](https://drafts.csswg.org/selectors-4/#visited-pseudo) pseudo class.
   Visited,
 
   // https://drafts.csswg.org/selectors-4/#input-pseudos
+  /// The [:enabled](https://drafts.csswg.org/selectors-4/#enabled-pseudo) pseudo class.
   Enabled,
+  /// The [:disabled](https://drafts.csswg.org/selectors-4/#disabled-pseudo) pseudo class.
   Disabled,
+  /// The [:read-only](https://drafts.csswg.org/selectors-4/#read-only-pseudo) pseudo class.
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   ReadOnly(VendorPrefix),
+  /// The [:read-write](https://drafts.csswg.org/selectors-4/#read-write-pseudo) pseudo class.
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   ReadWrite(VendorPrefix),
+  /// The [:placeholder-shown](https://drafts.csswg.org/selectors-4/#placeholder) pseudo class.
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   PlaceholderShown(VendorPrefix),
+  /// The [:default](https://drafts.csswg.org/selectors-4/#the-default-pseudo) pseudo class.
   Default,
+  /// The [:checked](https://drafts.csswg.org/selectors-4/#checked) pseudo class.
   Checked,
+  /// The [:indeterminate](https://drafts.csswg.org/selectors-4/#indeterminate) pseudo class.
   Indeterminate,
+  /// The [:blank](https://drafts.csswg.org/selectors-4/#blank) pseudo class.
   Blank,
+  /// The [:valid](https://drafts.csswg.org/selectors-4/#valid-pseudo) pseudo class.
   Valid,
+  /// The [:invalid](https://drafts.csswg.org/selectors-4/#invalid-pseudo) pseudo class.
   Invalid,
+  /// The [:in-range](https://drafts.csswg.org/selectors-4/#in-range-pseudo) pseudo class.
   InRange,
+  /// The [:out-of-range](https://drafts.csswg.org/selectors-4/#out-of-range-pseudo) pseudo class.
   OutOfRange,
+  /// The [:required](https://drafts.csswg.org/selectors-4/#required-pseudo) pseudo class.
   Required,
+  /// The [:optional](https://drafts.csswg.org/selectors-4/#optional-pseudo) pseudo class.
   Optional,
+  /// The [:user-valid](https://drafts.csswg.org/selectors-4/#user-valid-pseudo) pseudo class.
   UserValid,
+  /// The [:used-invalid](https://drafts.csswg.org/selectors-4/#user-invalid-pseudo) pseudo class.
   UserInvalid,
 
-  // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
+  /// The [:autofill](https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill) pseudo class.
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Autofill(VendorPrefix),
 
   // CSS modules
-  Local(Box<parcel_selectors::parser::Selector<'i, Selectors>>),
-  Global(Box<parcel_selectors::parser::Selector<'i, Selectors>>),
+  /// The CSS modules :local() pseudo class.
+  Local {
+    /// A local selector.
+    selector: Box<Selector<'i>>,
+  },
+  /// The CSS modules :global() pseudo class.
+  Global {
+    /// A global selector.
+    selector: Box<Selector<'i>>,
+  },
 
+  /// A [webkit scrollbar](https://webkit.org/blog/363/styling-scrollbars/) pseudo class.
   // https://webkit.org/blog/363/styling-scrollbars/
+  #[cfg_attr(
+    feature = "serde",
+    serde(rename = "webkit-scrollbar", with = "ValueWrapper::<WebKitScrollbarPseudoClass>")
+  )]
   WebKitScrollbar(WebKitScrollbarPseudoClass),
-
-  Custom(CowArcStr<'i>),
-  CustomFunction(CowArcStr<'i>, TokenList<'i>),
+  /// An unknown pseudo class.
+  Custom {
+    /// The pseudo class name.
+    name: CowArcStr<'i>,
+  },
+  /// An unknown functional pseudo class.
+  CustomFunction {
+    /// The pseudo class name.
+    name: CowArcStr<'i>,
+    /// The arguments of the pseudo class function.
+    arguments: TokenList<'i>,
+  },
 }
 
-/// https://webkit.org/blog/363/styling-scrollbars/
+/// A [webkit scrollbar](https://webkit.org/blog/363/styling-scrollbars/) pseudo class.
 #[derive(Clone, Eq, PartialEq)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum WebKitScrollbarPseudoClass {
+  /// :horizontal
   Horizontal,
+  /// :vertical
   Vertical,
+  /// :decrement
   Decrement,
+  /// :increment
   Increment,
+  /// :start
   Start,
+  /// :end
   End,
+  /// :double-button
   DoubleButton,
+  /// :single-button
   SingleButton,
+  /// :no-button
   NoButton,
+  /// :corner-present
   CornerPresent,
+  /// :window-inactive
   WindowInactive,
 }
 
@@ -479,18 +560,18 @@ impl<'i> cssparser::ToCss for PseudoClass<'i> {
   }
 }
 
-impl<'a, 'i> ToCssWithContext<'a, 'i> for PseudoClass<'i> {
+impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for PseudoClass<'i> {
   fn to_css_with_context<W>(
     &self,
     dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i>>,
+    context: Option<&StyleContext<'a, 'i, T>>,
   ) -> Result<(), PrinterError>
   where
     W: fmt::Write,
   {
     use PseudoClass::*;
     match &self {
-      Lang(lang) => {
+      Lang { languages: lang } => {
         dest.write_str(":lang(")?;
         let mut first = true;
         for lang in lang {
@@ -503,7 +584,7 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for PseudoClass<'i> {
         }
         return dest.write_str(")");
       }
-      Dir(dir) => {
+      Dir { direction: dir } => {
         dest.write_str(":dir(")?;
         dir.to_css(dest)?;
         return dest.write_str(")");
@@ -613,8 +694,8 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for PseudoClass<'i> {
       // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
       Autofill(prefix) => write_prefixed!(prefix, "autofill"),
 
-      Local(selector) => selector.to_css_with_context(dest, context),
-      Global(selector) => {
+      Local { selector } => selector.to_css_with_context(dest, context),
+      Global { selector } => {
         let css_module = std::mem::take(&mut dest.css_module);
         selector.to_css_with_context(dest, context)?;
         dest.css_module = css_module;
@@ -639,12 +720,12 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for PseudoClass<'i> {
         })
       }
 
-      Lang(_) | Dir(_) => unreachable!(),
-      Custom(val) => {
+      Lang { languages: _ } | Dir { direction: _ } => unreachable!(),
+      Custom { name } => {
         dest.write_char(':')?;
-        return dest.write_str(&val);
+        return dest.write_str(&name);
       }
-      CustomFunction(name, args) => {
+      CustomFunction { name, arguments: args } => {
         dest.write_char(':')?;
         dest.write_str(name)?;
         dest.write_char('(')?;
@@ -656,7 +737,7 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for PseudoClass<'i> {
 }
 
 impl<'i> PseudoClass<'i> {
-  pub fn is_equivalent(&self, other: &PseudoClass<'i>) -> bool {
+  pub(crate) fn is_equivalent(&self, other: &PseudoClass<'i>) -> bool {
     use PseudoClass::*;
     match (self, other) {
       (Fullscreen(_), Fullscreen(_))
@@ -669,7 +750,7 @@ impl<'i> PseudoClass<'i> {
     }
   }
 
-  pub fn get_prefix(&self) -> VendorPrefix {
+  pub(crate) fn get_prefix(&self) -> VendorPrefix {
     use PseudoClass::*;
     match self {
       Fullscreen(p) | AnyLink(p) | ReadOnly(p) | ReadWrite(p) | PlaceholderShown(p) | Autofill(p) => *p,
@@ -677,7 +758,7 @@ impl<'i> PseudoClass<'i> {
     }
   }
 
-  pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+  pub(crate) fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
     use crate::prefixes::Feature;
     use PseudoClass::*;
     let feature = match self {
@@ -694,27 +775,77 @@ impl<'i> PseudoClass<'i> {
   }
 }
 
+/// A pseudo element.
 #[derive(PartialEq, Clone, Debug)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "kind", rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum PseudoElement<'i> {
+  /// The [::after](https://drafts.csswg.org/css-pseudo-4/#selectordef-after) pseudo element.
   After,
+  /// The [::before](https://drafts.csswg.org/css-pseudo-4/#selectordef-before) pseudo element.
   Before,
+  /// The [::first-line](https://drafts.csswg.org/css-pseudo-4/#first-line-pseudo) pseudo element.
   FirstLine,
+  /// The [::first-letter](https://drafts.csswg.org/css-pseudo-4/#first-letter-pseudo) pseudo element.
   FirstLetter,
+  /// The [::selection](https://drafts.csswg.org/css-pseudo-4/#selectordef-selection) pseudo element.
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Selection(VendorPrefix),
+  /// The [::placeholder](https://drafts.csswg.org/css-pseudo-4/#placeholder-pseudo) pseudo element.
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Placeholder(VendorPrefix),
+  ///  The [::marker](https://drafts.csswg.org/css-pseudo-4/#marker-pseudo) pseudo element.
   Marker,
+  /// The [::backdrop](https://fullscreen.spec.whatwg.org/#::backdrop-pseudo-element) pseudo element.
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Backdrop(VendorPrefix),
+  /// The [::file-selector-button](https://drafts.csswg.org/css-pseudo-4/#file-selector-button-pseudo) pseudo element.
+  #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   FileSelectorButton(VendorPrefix),
+  /// A [webkit scrollbar](https://webkit.org/blog/363/styling-scrollbars/) pseudo element.
+  #[cfg_attr(
+    feature = "serde",
+    serde(rename = "webkit-scrollbar", with = "ValueWrapper::<WebKitScrollbarPseudoElement>")
+  )]
   WebKitScrollbar(WebKitScrollbarPseudoElement),
+  /// The [::cue](https://w3c.github.io/webvtt/#the-cue-pseudo-element) pseudo element.
   Cue,
+  /// The [::cue-region](https://w3c.github.io/webvtt/#the-cue-region-pseudo-element) pseudo element.
   CueRegion,
-  CueFunction(Box<Selector<'i, Selectors>>),
-  CueRegionFunction(Box<Selector<'i, Selectors>>),
-  Custom(CowArcStr<'i>),
-  CustomFunction(CowArcStr<'i>, TokenList<'i>),
+  /// The [::cue()](https://w3c.github.io/webvtt/#cue-selector) functional pseudo element.
+  CueFunction {
+    /// The selector argument.
+    selector: Box<Selector<'i>>,
+  },
+  /// The [::cue-region()](https://w3c.github.io/webvtt/#cue-region-selector) functional pseudo element.
+  CueRegionFunction(Box<Selector<'i>>),
+  /// An unknown pseudo element.
+  Custom {
+    /// The name of the pseudo element.
+    #[cfg_attr(feature = "serde", serde(borrow))]
+    name: CowArcStr<'i>,
+  },
+  /// An unknown functional pseudo element.
+  CustomFunction {
+    ///The name of the pseudo element.
+    name: CowArcStr<'i>,
+    /// The arguments of the pseudo element function.
+    arguments: TokenList<'i>,
+  },
 }
 
+/// A [webkit scrollbar](https://webkit.org/blog/363/styling-scrollbars/) pseudo element.
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum WebKitScrollbarPseudoElement {
   /// ::-webkit-scrollbar
   Scrollbar,
@@ -781,14 +912,14 @@ impl<'i> ToCss for PseudoElement<'i> {
       Selection(prefix) => write_prefixed!(prefix, "selection"),
       Cue => dest.write_str("::cue"),
       CueRegion => dest.write_str("::cue-region"),
-      CueFunction(selector) => {
+      CueFunction { selector } => {
         dest.write_str("::cue(")?;
-        selector.to_css_with_context(dest, None)?;
+        serialize_selector::<_, DefaultAtRule>(selector, dest, None, false)?;
         dest.write_char(')')
       }
       CueRegionFunction(selector) => {
         dest.write_str("::cue-region(")?;
-        selector.to_css_with_context(dest, None)?;
+        serialize_selector::<_, DefaultAtRule>(selector, dest, None, false)?;
         dest.write_char(')')
       }
       Placeholder(prefix) => {
@@ -822,11 +953,11 @@ impl<'i> ToCss for PseudoElement<'i> {
           Resizer => "::-webkit-resizer",
         })
       }
-      Custom(val) => {
+      Custom { name: val } => {
         dest.write_str("::")?;
         return dest.write_str(val);
       }
-      CustomFunction(name, args) => {
+      CustomFunction { name, arguments: args } => {
         dest.write_str("::")?;
         dest.write_str(name)?;
         dest.write_char('(')?;
@@ -865,7 +996,7 @@ impl<'i> parcel_selectors::parser::PseudoElement<'i> for PseudoElement<'i> {
 }
 
 impl<'i> PseudoElement<'i> {
-  pub fn is_equivalent(&self, other: &PseudoElement<'i>) -> bool {
+  pub(crate) fn is_equivalent(&self, other: &PseudoElement<'i>) -> bool {
     use PseudoElement::*;
     match (self, other) {
       (Selection(_), Selection(_))
@@ -876,7 +1007,7 @@ impl<'i> PseudoElement<'i> {
     }
   }
 
-  pub fn get_prefix(&self) -> VendorPrefix {
+  pub(crate) fn get_prefix(&self) -> VendorPrefix {
     use PseudoElement::*;
     match self {
       Selection(p) | Placeholder(p) | Backdrop(p) | FileSelectorButton(p) => *p,
@@ -884,7 +1015,7 @@ impl<'i> PseudoElement<'i> {
     }
   }
 
-  pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+  pub(crate) fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
     use crate::prefixes::Feature;
     use PseudoElement::*;
     let feature = match self {
@@ -899,16 +1030,25 @@ impl<'i> PseudoElement<'i> {
   }
 }
 
-impl<'a, 'i> ToCssWithContext<'a, 'i> for SelectorList<'i, Selectors> {
+impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for SelectorList<'i> {
   fn to_css_with_context<W>(
     &self,
     dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i>>,
+    context: Option<&StyleContext<'a, 'i, T>>,
   ) -> Result<(), PrinterError>
   where
     W: fmt::Write,
   {
     serialize_selector_list(self.0.iter(), dest, context, false)
+  }
+}
+
+impl<'i> ToCss for SelectorList<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    serialize_selector_list::<_, _, DefaultAtRule>(self.0.iter(), dest, None, false)
   }
 }
 
@@ -928,11 +1068,11 @@ impl ToCss for Combinator {
 }
 
 // Copied from the selectors crate and modified to override to_css implementation.
-impl<'a, 'i> ToCssWithContext<'a, 'i> for parcel_selectors::parser::Selector<'i, Selectors> {
+impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for Selector<'i> {
   fn to_css_with_context<W>(
     &self,
     dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i>>,
+    context: Option<&StyleContext<'a, 'i, T>>,
   ) -> Result<(), PrinterError>
   where
     W: fmt::Write,
@@ -941,10 +1081,10 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for parcel_selectors::parser::Selector<'i,
   }
 }
 
-fn serialize_selector<'a, 'i, W>(
-  selector: &parcel_selectors::parser::Selector<'i, Selectors>,
+fn serialize_selector<'a, 'i, W, T>(
+  selector: &Selector<'i>,
   dest: &mut Printer<W>,
-  context: Option<&StyleContext<'a, 'i>>,
+  context: Option<&StyleContext<'a, 'i, T>>,
   mut is_relative: bool,
 ) -> Result<(), PrinterError>
 where
@@ -1108,49 +1248,42 @@ where
   Ok(())
 }
 
-impl<'a, 'i> ToCssWithContext<'a, 'i> for Component<'i, Selectors> {
+impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for Component<'i> {
   fn to_css_with_context<W>(
     &self,
     dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i>>,
+    context: Option<&StyleContext<'a, 'i, T>>,
   ) -> Result<(), PrinterError>
   where
     W: fmt::Write,
   {
-    use Component::*;
     match &self {
-      Combinator(ref c) => c.to_css(dest),
-      AttributeInNoNamespace {
+      Component::Combinator(ref c) => c.to_css(dest),
+      Component::AttributeInNoNamespace {
         ref local_name,
         operator,
         ref value,
         case_sensitivity,
         ..
       } => {
-        use cssparser::ToCss;
         dest.write_char('[')?;
-        local_name.to_css(dest)?;
+        cssparser::ToCss::to_css(local_name, dest)?;
         cssparser::ToCss::to_css(operator, dest)?;
 
         if dest.minify {
           // Serialize as both an identifier and a string and choose the shorter one.
           let mut id = String::new();
-          value.write_identifier(&mut id)?;
+          serialize_identifier(&value, &mut id)?;
 
-          let mut s = String::new();
-          value.to_css(&mut s)?;
+          let s = value.to_css_string(Default::default())?;
 
-          if id.len() > 0 && id.len() < s.len() + 2 {
+          if id.len() > 0 && id.len() < s.len() {
             dest.write_str(&id)?;
           } else {
-            dest.write_char('"')?;
             dest.write_str(&s)?;
-            dest.write_char('"')?;
           }
         } else {
-          dest.write_char('"')?;
           value.to_css(dest)?;
-          dest.write_char('"')?;
         }
 
         match case_sensitivity {
@@ -1161,10 +1294,22 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for Component<'i, Selectors> {
         }
         dest.write_char(']')
       }
-      Is(ref list) | Where(ref list) | Negation(ref list) | Any(_, ref list) => {
+      Component::Is(ref list)
+      | Component::Where(ref list)
+      | Component::Negation(ref list)
+      | Component::Any(_, ref list) => {
         match *self {
-          Where(..) => dest.write_str(":where(")?,
-          Is(..) => {
+          Component::Where(..) => dest.write_str(":where(")?,
+          Component::Is(ref selectors) => {
+            // If there's only one simple selector, serialize it directly.
+            if selectors.len() == 1 {
+              let first = selectors.first().unwrap();
+              if !has_type_selector(first) && is_simple(first) {
+                serialize_selector(first, dest, context, false)?;
+                return Ok(());
+              }
+            }
+
             let vp = dest.vendor_prefix;
             if vp.intersects(VendorPrefix::WebKit | VendorPrefix::Moz) {
               dest.write_char(':')?;
@@ -1174,8 +1319,8 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for Component<'i, Selectors> {
               dest.write_str(":is(")?;
             }
           }
-          Negation(..) => return serialize_negation(list.iter(), dest, context),
-          Any(ref prefix, ..) => {
+          Component::Negation(..) => return serialize_negation(list.iter(), dest, context),
+          Component::Any(ref prefix, ..) => {
             dest.write_char(':')?;
             prefix.to_css(dest)?;
             dest.write_str("any(")?;
@@ -1185,19 +1330,19 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for Component<'i, Selectors> {
         serialize_selector_list(list.iter(), dest, context, false)?;
         dest.write_str(")")
       }
-      Has(ref list) => {
+      Component::Has(ref list) => {
         dest.write_str(":has(")?;
         serialize_selector_list(list.iter(), dest, context, true)?;
         dest.write_str(")")
       }
-      NonTSPseudoClass(pseudo) => pseudo.to_css_with_context(dest, context),
-      PseudoElement(pseudo) => pseudo.to_css(dest),
-      Nesting => serialize_nesting(dest, context, false),
-      Class(ref class) => {
+      Component::NonTSPseudoClass(pseudo) => pseudo.to_css_with_context(dest, context),
+      Component::PseudoElement(pseudo) => pseudo.to_css(dest),
+      Component::Nesting => serialize_nesting(dest, context, false),
+      Component::Class(ref class) => {
         dest.write_char('.')?;
         dest.write_ident(&class.0)
       }
-      ID(ref id) => {
+      Component::ID(ref id) => {
         dest.write_char('#')?;
         dest.write_ident(&id.0)
       }
@@ -1209,9 +1354,9 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for Component<'i, Selectors> {
   }
 }
 
-fn serialize_nesting<W>(
+fn serialize_nesting<W, T>(
   dest: &mut Printer<W>,
-  context: Option<&StyleContext>,
+  context: Option<&StyleContext<T>>,
   first: bool,
 ) -> Result<(), PrinterError>
 where
@@ -1237,7 +1382,7 @@ where
 }
 
 #[inline]
-fn has_type_selector(selector: &parcel_selectors::parser::Selector<Selectors>) -> bool {
+fn has_type_selector(selector: &Selector) -> bool {
   let mut iter = selector.iter_raw_parse_order_from(0);
   let first = iter.next();
   if is_namespace(first) {
@@ -1248,12 +1393,12 @@ fn has_type_selector(selector: &parcel_selectors::parser::Selector<Selectors>) -
 }
 
 #[inline]
-fn is_simple(selector: &parcel_selectors::parser::Selector<Selectors>) -> bool {
+fn is_simple(selector: &Selector) -> bool {
   !selector.iter_raw_match_order().any(|component| component.is_combinator())
 }
 
 #[inline]
-fn is_type_selector(component: Option<&Component<Selectors>>) -> bool {
+fn is_type_selector(component: Option<&Component>) -> bool {
   matches!(
     component,
     Some(Component::LocalName(_)) | Some(Component::ExplicitUniversalType)
@@ -1261,7 +1406,7 @@ fn is_type_selector(component: Option<&Component<Selectors>>) -> bool {
 }
 
 #[inline]
-fn is_namespace(component: Option<&Component<Selectors>>) -> bool {
+fn is_namespace(component: Option<&Component>) -> bool {
   matches!(
     component,
     Some(Component::ExplicitAnyNamespace)
@@ -1271,14 +1416,14 @@ fn is_namespace(component: Option<&Component<Selectors>>) -> bool {
   )
 }
 
-fn serialize_selector_list<'a, 'i: 'a, I, W>(
+fn serialize_selector_list<'a, 'i: 'a, I, W, T>(
   iter: I,
   dest: &mut Printer<W>,
-  context: Option<&StyleContext<'_, 'i>>,
+  context: Option<&StyleContext<'_, 'i, T>>,
   is_relative: bool,
 ) -> Result<(), PrinterError>
 where
-  I: Iterator<Item = &'a Selector<'i, Selectors>>,
+  I: Iterator<Item = &'a Selector<'i>>,
   W: fmt::Write,
 {
   let mut first = true;
@@ -1292,13 +1437,13 @@ where
   Ok(())
 }
 
-fn serialize_negation<'a, 'i: 'a, I, W>(
+fn serialize_negation<'a, 'i: 'a, I, W, T>(
   iter: I,
   dest: &mut Printer<W>,
-  context: Option<&StyleContext<'_, 'i>>,
+  context: Option<&StyleContext<'_, 'i, T>>,
 ) -> Result<(), PrinterError>
 where
-  I: Iterator<Item = &'a Selector<'i, Selectors>>,
+  I: Iterator<Item = &'a Selector<'i>>,
   W: fmt::Write,
 {
   // Downlevel :not(.a, .b) -> :not(.a):not(.b) if not list is unsupported.
@@ -1323,7 +1468,7 @@ where
   Ok(())
 }
 
-pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browsers>) -> bool {
+pub(crate) fn is_compatible(selectors: &SelectorList, targets: Option<Browsers>) -> bool {
   for selector in &selectors.0 {
     let iter = selector.iter();
     for component in iter {
@@ -1410,7 +1555,7 @@ pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browse
             | PseudoClass::Active
             | PseudoClass::Hover
             | PseudoClass::Focus
-            | PseudoClass::Lang(_) => Feature::CssSel2,
+            | PseudoClass::Lang { languages: _ } => Feature::CssSel2,
 
             PseudoClass::Checked | PseudoClass::Disabled | PseudoClass::Enabled | PseudoClass::Target => {
               Feature::CssSel3
@@ -1424,7 +1569,7 @@ pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browse
             PseudoClass::FocusVisible => Feature::CssFocusVisible,
             PseudoClass::FocusWithin => Feature::CssFocusWithin,
             PseudoClass::Default => Feature::CssDefaultPseudo,
-            PseudoClass::Dir(_) => Feature::CssDirPseudo,
+            PseudoClass::Dir { direction: _ } => Feature::CssDirPseudo,
             PseudoClass::Optional => Feature::CssOptionalPseudo,
             PseudoClass::PlaceholderShown(prefix) if *prefix == VendorPrefix::None => Feature::CssPlaceholderShown,
 
@@ -1456,7 +1601,7 @@ pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browse
             | PseudoClass::UserValid
             | PseudoClass::Defined => return false,
 
-            PseudoClass::Custom(_) | _ => return false,
+            PseudoClass::Custom { .. } | _ => return false,
           }
         }
 
@@ -1469,8 +1614,8 @@ pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browse
           PseudoElement::Marker => Feature::CssMarkerPseudo,
           PseudoElement::Backdrop(prefix) if *prefix == VendorPrefix::None => Feature::Dialog,
           PseudoElement::Cue => Feature::Cue,
-          PseudoElement::CueFunction(_) => Feature::CueFunction,
-          PseudoElement::Custom(_) | _ => return false,
+          PseudoElement::CueFunction { selector: _ } => Feature::CueFunction,
+          PseudoElement::Custom { name: _ } | _ => return false,
         },
 
         Component::Combinator(combinator) => match combinator {
@@ -1494,7 +1639,7 @@ pub fn is_compatible(selectors: &SelectorList<Selectors>, targets: Option<Browse
 }
 
 /// Returns whether two selector lists are equivalent, i.e. the same minus any vendor prefix differences.
-pub fn is_equivalent<'i>(selectors: &SelectorList<'i, Selectors>, other: &SelectorList<'i, Selectors>) -> bool {
+pub(crate) fn is_equivalent<'i>(selectors: &SelectorList<'i>, other: &SelectorList<'i>) -> bool {
   if selectors.0.len() != other.0.len() {
     return false;
   }
@@ -1523,14 +1668,14 @@ pub fn is_equivalent<'i>(selectors: &SelectorList<'i, Selectors>, other: &Select
 
 /// Returns the vendor prefix (if any) used in the given selector list.
 /// If multiple vendor prefixes are seen, this is invalid, and an empty result is returned.
-pub fn get_prefix(selectors: &SelectorList<Selectors>) -> VendorPrefix {
+pub(crate) fn get_prefix(selectors: &SelectorList) -> VendorPrefix {
   let mut prefix = VendorPrefix::empty();
   for selector in &selectors.0 {
     for component in selector.iter() {
       let p = match component {
         // Return none rather than empty for these so that we call downlevel_selectors.
-        Component::NonTSPseudoClass(PseudoClass::Lang(..))
-        | Component::NonTSPseudoClass(PseudoClass::Dir(..))
+        Component::NonTSPseudoClass(PseudoClass::Lang { .. })
+        | Component::NonTSPseudoClass(PseudoClass::Dir { .. })
         | Component::Is(..) => VendorPrefix::None,
         Component::NonTSPseudoClass(pc) => pc.get_prefix(),
         Component::PseudoElement(pe) => pe.get_prefix(),
@@ -1557,7 +1702,7 @@ const RTL_LANGS: &[&str] = &[
 
 /// Downlevels the given selectors to be compatible with the given browser targets.
 /// Returns the necessary vendor prefixes.
-pub fn downlevel_selectors(selectors: &mut SelectorList<Selectors>, targets: Browsers) -> VendorPrefix {
+pub(crate) fn downlevel_selectors(selectors: &mut SelectorList, targets: Browsers) -> VendorPrefix {
   let mut necessary_prefixes = VendorPrefix::empty();
   for selector in &mut selectors.0 {
     for component in selector.iter_mut_raw_match_order() {
@@ -1568,11 +1713,11 @@ pub fn downlevel_selectors(selectors: &mut SelectorList<Selectors>, targets: Bro
   necessary_prefixes
 }
 
-fn downlevel_component<'i>(component: &mut Component<'i, Selectors>, targets: Browsers) -> VendorPrefix {
+fn downlevel_component<'i>(component: &mut Component<'i>, targets: Browsers) -> VendorPrefix {
   match component {
     Component::NonTSPseudoClass(pc) => {
       match pc {
-        PseudoClass::Dir(dir) => {
+        PseudoClass::Dir { direction: dir } => {
           if !Feature::CssDirPseudo.is_compatible(targets) {
             *component = downlevel_dir(*dir, targets);
             downlevel_component(component, targets)
@@ -1580,7 +1725,7 @@ fn downlevel_component<'i>(component: &mut Component<'i, Selectors>, targets: Br
             VendorPrefix::empty()
           }
         }
-        PseudoClass::Lang(langs) => {
+        PseudoClass::Lang { languages: langs } => {
           // :lang() with multiple languages is not supported everywhere.
           // compile this to :is(:lang(a), :lang(b)) etc.
           if langs.len() > 1 && !Feature::LangList.is_compatible(targets) {
@@ -1609,22 +1754,26 @@ fn downlevel_component<'i>(component: &mut Component<'i, Selectors>, targets: Br
   }
 }
 
-fn lang_list_to_selectors<'i>(langs: &Vec<CowArcStr<'i>>) -> Box<[Selector<'i, Selectors>]> {
+fn lang_list_to_selectors<'i>(langs: &Vec<CowArcStr<'i>>) -> Box<[Selector<'i>]> {
   langs
     .iter()
-    .map(|lang| Selector::from_vec2(vec![Component::NonTSPseudoClass(PseudoClass::Lang(vec![lang.clone()]))]))
-    .collect::<Vec<Selector<Selectors>>>()
+    .map(|lang| {
+      Selector::from(Component::NonTSPseudoClass(PseudoClass::Lang {
+        languages: vec![lang.clone()],
+      }))
+    })
+    .collect::<Vec<Selector>>()
     .into_boxed_slice()
 }
 
-fn downlevel_dir<'i>(dir: Direction, targets: Browsers) -> Component<'i, Selectors> {
+fn downlevel_dir<'i>(dir: Direction, targets: Browsers) -> Component<'i> {
   // Convert :dir to :lang. If supported, use a list of languages in a single :lang,
   // otherwise, use :is/:not, which may be further downleveled to e.g. :-webkit-any.
   let langs = RTL_LANGS.iter().map(|lang| (*lang).into()).collect();
   if Feature::LangList.is_compatible(targets) {
-    let c = Component::NonTSPseudoClass(PseudoClass::Lang(langs));
+    let c = Component::NonTSPseudoClass(PseudoClass::Lang { languages: langs });
     if dir == Direction::Ltr {
-      Component::Negation(vec![Selector::from_vec2(vec![c])].into_boxed_slice())
+      Component::Negation(vec![Selector::from(c)].into_boxed_slice())
     } else {
       c
     }
@@ -1639,8 +1788,8 @@ fn downlevel_dir<'i>(dir: Direction, targets: Browsers) -> Component<'i, Selecto
 
 /// Determines whether a selector list contains only unused selectors.
 /// A selector is considered unused if it contains a class or id component that exists in the set of unused symbols.
-pub fn is_unused(
-  selectors: &mut std::slice::Iter<Selector<Selectors>>,
+pub(crate) fn is_unused(
+  selectors: &mut std::slice::Iter<Selector>,
   unused_symbols: &HashSet<String>,
   parent_is_unused: bool,
 ) -> bool {
@@ -1674,46 +1823,32 @@ pub fn is_unused(
   })
 }
 
-#[cfg(feature = "serde")]
-pub fn serialize_selectors<S>(selectors: &SelectorList<Selectors>, s: S) -> Result<S::Ok, S::Error>
-where
-  S: serde::Serializer,
-{
-  use serde::Serialize;
-  selectors
-    .0
-    .iter()
-    .map(|selector| {
-      let mut dest = String::new();
-      let mut printer = Printer::new(&mut dest, PrinterOptions::default());
-      serialize_selector(selector, &mut printer, None, false).unwrap();
-      dest
-    })
-    .collect::<Vec<String>>()
-    .serialize(s)
+#[cfg(feature = "visitor")]
+impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for SelectorList<'i> {
+  const CHILD_TYPES: VisitTypes = VisitTypes::SELECTORS;
+
+  fn visit(&mut self, visitor: &mut V) {
+    if visitor.visit_types().contains(VisitTypes::SELECTORS) {
+      visitor.visit_selector_list(self)
+    } else {
+      self.visit_children(visitor)
+    }
+  }
+
+  fn visit_children(&mut self, visitor: &mut V) {
+    for selector in self.0.iter_mut() {
+      Visit::visit(selector, visitor)
+    }
+  }
 }
 
-#[cfg(feature = "serde")]
-pub fn deserialize_selectors<'i, 'de: 'i, D>(deserializer: D) -> Result<SelectorList<'i, Selectors>, D::Error>
-where
-  D: serde::Deserializer<'de>,
-{
-  use serde::Deserialize;
+#[cfg(feature = "visitor")]
+impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for Selector<'i> {
+  const CHILD_TYPES: VisitTypes = VisitTypes::SELECTORS;
 
-  let selector_parser = SelectorParser {
-    default_namespace: &None,
-    namespace_prefixes: &HashMap::new(),
-    is_nesting_allowed: false,
-    options: &ParserOptions::default(),
-  };
+  fn visit(&mut self, visitor: &mut V) {
+    visitor.visit_selector(self)
+  }
 
-  let selectors = Vec::<&'i str>::deserialize(deserializer)?
-    .into_iter()
-    .map(|selector| {
-      let mut input = ParserInput::new(selector);
-      let mut parser = Parser::new(&mut input);
-      Selector::parse(&selector_parser, &mut parser).unwrap()
-    })
-    .collect();
-  Ok(SelectorList(selectors))
+  fn visit_children(&mut self, _visitor: &mut V) {}
 }

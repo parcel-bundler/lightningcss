@@ -61,8 +61,8 @@ use self::property::PropertyRule;
 use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationHandler;
 use crate::dependencies::{Dependency, ImportDependency};
-use crate::error::{MinifyError, ParserError, PrinterError};
-use crate::parser::TopLevelRuleParser;
+use crate::error::{MinifyError, ParserError, PrinterError, PrinterErrorKind};
+use crate::parser::{DefaultAtRule, TopLevelRuleParser};
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::rules::keyframes::KeyframesName;
@@ -72,9 +72,11 @@ use crate::targets::Browsers;
 use crate::traits::ToCss;
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
+use crate::visitor::{Visit, VisitTypes, Visitor};
 use container::ContainerRule;
 use counter_style::CounterStyleRule;
-use cssparser::{parse_one_rule, ParseError, Parser, ParserInput};
+use cssparser::{parse_one_rule, AtRuleParser, ParseError, Parser, ParserInput};
 use custom_media::CustomMediaRule;
 use document::MozDocumentRule;
 use font_face::FontFaceRule;
@@ -84,31 +86,32 @@ use media::MediaRule;
 use namespace::NamespaceRule;
 use nesting::NestingRule;
 use page::PageRule;
-use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use style::StyleRule;
 use supports::SupportsRule;
 use unknown::UnknownAtRule;
 use viewport::ViewportRule;
 
-pub(crate) trait ToCssWithContext<'a, 'i> {
+pub(crate) trait ToCssWithContext<'a, 'i, T> {
   fn to_css_with_context<W>(
     &self,
     dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i>>,
+    context: Option<&StyleContext<'a, 'i, T>>,
   ) -> Result<(), PrinterError>
   where
     W: std::fmt::Write;
 }
 
-pub(crate) struct StyleContext<'a, 'i> {
-  pub rule: &'a StyleRule<'i>,
-  pub parent: Option<&'a StyleContext<'a, 'i>>,
+pub(crate) struct StyleContext<'a, 'i, T> {
+  pub rule: &'a StyleRule<'i, T>,
+  pub parent: Option<&'a StyleContext<'a, 'i, T>>,
 }
 
 /// A source location.
-#[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(serde::Serialize))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Location {
   /// The index of the source file within the source map.
   pub source_index: u32,
@@ -121,19 +124,22 @@ pub struct Location {
 
 /// A CSS rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "visitor", visit(visit_rule, RULES))]
 #[cfg_attr(
   feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
+  derive(serde::Serialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
-pub enum CssRule<'i> {
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema), schemars(rename = "Rule"))]
+pub enum CssRule<'i, R = DefaultAtRule> {
   /// A `@media` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  Media(MediaRule<'i>),
+  Media(MediaRule<'i, R>),
   /// An `@import` rule.
   Import(ImportRule<'i>),
   /// A style rule.
-  Style(StyleRule<'i>),
+  Style(StyleRule<'i, R>),
   /// A `@keyframes` rule.
   Keyframes(KeyframesRule<'i>),
   /// A `@font-face` rule.
@@ -143,15 +149,15 @@ pub enum CssRule<'i> {
   /// A `@page` rule.
   Page(PageRule<'i>),
   /// A `@supports` rule.
-  Supports(SupportsRule<'i>),
+  Supports(SupportsRule<'i, R>),
   /// A `@counter-style` rule.
   CounterStyle(CounterStyleRule<'i>),
   /// A `@namespace` rule.
   Namespace(NamespaceRule<'i>),
   /// A `@-moz-document` rule.
-  MozDocument(MozDocumentRule<'i>),
+  MozDocument(MozDocumentRule<'i, R>),
   /// A `@nest` rule.
-  Nesting(NestingRule<'i>),
+  Nesting(NestingRule<'i, R>),
   /// A `@viewport` rule.
   Viewport(ViewportRule<'i>),
   /// A `@custom-media` rule.
@@ -159,22 +165,165 @@ pub enum CssRule<'i> {
   /// A `@layer` statement rule.
   LayerStatement(LayerStatementRule<'i>),
   /// A `@layer` block rule.
-  LayerBlock(LayerBlockRule<'i>),
+  LayerBlock(LayerBlockRule<'i, R>),
   /// A `@property` rule.
   Property(PropertyRule<'i>),
   /// A `@container` rule.
-  Container(ContainerRule<'i>),
+  Container(ContainerRule<'i, R>),
   /// A placeholder for a rule that was removed.
   Ignored,
   /// An unknown at-rule.
   Unknown(UnknownAtRule<'i>),
+  /// A custom at-rule.
+  Custom(R),
 }
 
-impl<'a, 'i> ToCssWithContext<'a, 'i> for CssRule<'i> {
+// Manually implemented deserialize to reduce binary size.
+#[cfg(feature = "serde")]
+impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRule<'i, R> {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    #[derive(serde::Deserialize)]
+    #[serde(field_identifier, rename_all = "snake_case")]
+    enum Field {
+      Type,
+      Value,
+    }
+
+    struct PartialRule<'de> {
+      rule_type: CowArcStr<'de>,
+      content: serde::__private::de::Content<'de>,
+    }
+
+    struct CssRuleVisitor;
+
+    impl<'de> serde::de::Visitor<'de> for CssRuleVisitor {
+      type Value = PartialRule<'de>;
+
+      fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a CssRule")
+      }
+
+      fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+      where
+        A: serde::de::MapAccess<'de>,
+      {
+        let mut rule_type: Option<CowArcStr<'de>> = None;
+        let mut value: Option<serde::__private::de::Content> = None;
+        while let Some(key) = map.next_key()? {
+          match key {
+            Field::Type => {
+              rule_type = Some(map.next_value()?);
+            }
+            Field::Value => {
+              value = Some(map.next_value()?);
+            }
+          }
+        }
+
+        let rule_type = rule_type.ok_or_else(|| serde::de::Error::missing_field("type"))?;
+        let content = value.ok_or_else(|| serde::de::Error::missing_field("value"))?;
+        Ok(PartialRule { rule_type, content })
+      }
+    }
+
+    let partial = deserializer.deserialize_map(CssRuleVisitor)?;
+    let deserializer = serde::__private::de::ContentDeserializer::new(partial.content);
+
+    match partial.rule_type.as_ref() {
+      "media" => {
+        let rule = MediaRule::deserialize(deserializer)?;
+        Ok(CssRule::Media(rule))
+      }
+      "import" => {
+        let rule = ImportRule::deserialize(deserializer)?;
+        Ok(CssRule::Import(rule))
+      }
+      "style" => {
+        let rule = StyleRule::deserialize(deserializer)?;
+        Ok(CssRule::Style(rule))
+      }
+      "keyframes" => {
+        let rule = KeyframesRule::deserialize(deserializer)?;
+        Ok(CssRule::Keyframes(rule))
+      }
+      "font-face" => {
+        let rule = FontFaceRule::deserialize(deserializer)?;
+        Ok(CssRule::FontFace(rule))
+      }
+      "font-palette-values" => {
+        let rule = FontPaletteValuesRule::deserialize(deserializer)?;
+        Ok(CssRule::FontPaletteValues(rule))
+      }
+      "page" => {
+        let rule = PageRule::deserialize(deserializer)?;
+        Ok(CssRule::Page(rule))
+      }
+      "supports" => {
+        let rule = SupportsRule::deserialize(deserializer)?;
+        Ok(CssRule::Supports(rule))
+      }
+      "counter-style" => {
+        let rule = CounterStyleRule::deserialize(deserializer)?;
+        Ok(CssRule::CounterStyle(rule))
+      }
+      "namespace" => {
+        let rule = NamespaceRule::deserialize(deserializer)?;
+        Ok(CssRule::Namespace(rule))
+      }
+      "moz-document" => {
+        let rule = MozDocumentRule::deserialize(deserializer)?;
+        Ok(CssRule::MozDocument(rule))
+      }
+      "nesting" => {
+        let rule = NestingRule::deserialize(deserializer)?;
+        Ok(CssRule::Nesting(rule))
+      }
+      "viewport" => {
+        let rule = ViewportRule::deserialize(deserializer)?;
+        Ok(CssRule::Viewport(rule))
+      }
+      "custom-media" => {
+        let rule = CustomMediaRule::deserialize(deserializer)?;
+        Ok(CssRule::CustomMedia(rule))
+      }
+      "layer-statement" => {
+        let rule = LayerStatementRule::deserialize(deserializer)?;
+        Ok(CssRule::LayerStatement(rule))
+      }
+      "layer-block" => {
+        let rule = LayerBlockRule::deserialize(deserializer)?;
+        Ok(CssRule::LayerBlock(rule))
+      }
+      "property" => {
+        let rule = PropertyRule::deserialize(deserializer)?;
+        Ok(CssRule::Property(rule))
+      }
+      "container" => {
+        let rule = ContainerRule::deserialize(deserializer)?;
+        Ok(CssRule::Container(rule))
+      }
+      "ignored" => Ok(CssRule::Ignored),
+      "unknown" => {
+        let rule = UnknownAtRule::deserialize(deserializer)?;
+        Ok(CssRule::Unknown(rule))
+      }
+      "custom" => {
+        let rule = R::deserialize(deserializer)?;
+        Ok(CssRule::Custom(rule))
+      }
+      t => Err(serde::de::Error::unknown_variant(t, &[])),
+    }
+  }
+}
+
+impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for CssRule<'i, T> {
   fn to_css_with_context<W>(
     &self,
     dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i>>,
+    context: Option<&StyleContext<'a, 'i, T>>,
   ) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
@@ -195,37 +344,41 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for CssRule<'i> {
       CssRule::Viewport(viewport) => viewport.to_css(dest),
       CssRule::CustomMedia(custom_media) => custom_media.to_css(dest),
       CssRule::LayerStatement(layer) => layer.to_css(dest),
-      CssRule::LayerBlock(layer) => layer.to_css(dest),
+      CssRule::LayerBlock(layer) => layer.to_css_with_context(dest, context),
       CssRule::Property(property) => property.to_css(dest),
       CssRule::Container(container) => container.to_css_with_context(dest, context),
       CssRule::Unknown(unknown) => unknown.to_css(dest),
+      CssRule::Custom(rule) => rule.to_css(dest).map_err(|_| PrinterError {
+        kind: PrinterErrorKind::FmtError,
+        loc: None,
+      }),
       CssRule::Ignored => Ok(()),
     }
   }
 }
 
-impl<'i> CssRule<'i> {
+impl<'i, T> CssRule<'i, T> {
   /// Parse a single rule.
-  pub fn parse<'t>(
+  pub fn parse<'t, P: AtRuleParser<'i, AtRule = T>>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i>,
+    options: &mut ParserOptions<'_, 'i, P>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let (_, rule) = parse_one_rule(input, &mut TopLevelRuleParser::new(&options))?;
+    let (_, rule) = parse_one_rule(input, &mut TopLevelRuleParser::new(options))?;
     Ok(rule)
   }
 
   /// Parse a single rule from a string.
-  pub fn parse_string(
+  pub fn parse_string<P: AtRuleParser<'i, AtRule = T>>(
     input: &'i str,
-    options: ParserOptions<'_, 'i>,
+    mut options: ParserOptions<'_, 'i, P>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(input);
     let mut parser = Parser::new(&mut input);
-    Self::parse(&mut parser, &options)
+    Self::parse(&mut parser, &mut options)
   }
 }
 
-impl<'i> ToCss for CssRule<'i> {
+impl<'i, T: ToCss> ToCss for CssRule<'i, T> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
@@ -235,9 +388,30 @@ impl<'i> ToCss for CssRule<'i> {
 }
 
 /// A list of CSS rules.
-#[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct CssRuleList<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub Vec<CssRule<'i>>);
+#[derive(Debug, PartialEq, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub struct CssRuleList<'i, R = DefaultAtRule>(
+  #[cfg_attr(feature = "serde", serde(borrow))] pub Vec<CssRule<'i, R>>,
+);
+
+// Manually implemented to avoid circular child types.
+#[cfg(feature = "visitor")]
+impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for CssRuleList<'i, T> {
+  const CHILD_TYPES: VisitTypes = VisitTypes::all();
+
+  fn visit(&mut self, visitor: &mut V) {
+    if visitor.visit_types().contains(VisitTypes::RULES) {
+      visitor.visit_rule_list(self)
+    } else {
+      self.0.visit(visitor)
+    }
+  }
+
+  fn visit_children(&mut self, visitor: &mut V) {
+    self.0.visit(visitor)
+  }
+}
 
 pub(crate) struct MinifyContext<'a, 'i> {
   pub targets: &'a Option<Browsers>,
@@ -249,7 +423,7 @@ pub(crate) struct MinifyContext<'a, 'i> {
   pub css_modules: bool,
 }
 
-impl<'i> CssRuleList<'i> {
+impl<'i, T> CssRuleList<'i, T> {
   pub(crate) fn minify(
     &mut self,
     context: &mut MinifyContext<'_, 'i>,
@@ -449,9 +623,9 @@ impl<'i> CssRuleList<'i> {
   }
 }
 
-fn merge_style_rules<'i>(
-  style: &mut StyleRule<'i>,
-  last_style_rule: &mut StyleRule<'i>,
+fn merge_style_rules<'i, T>(
+  style: &mut StyleRule<'i, T>,
+  last_style_rule: &mut StyleRule<'i, T>,
   context: &mut MinifyContext<'_, 'i>,
 ) -> bool {
   // Merge declarations if the selectors are equivalent, and both are compatible with all targets.
@@ -504,7 +678,7 @@ fn merge_style_rules<'i>(
   false
 }
 
-impl<'i> ToCss for CssRuleList<'i> {
+impl<'i, T: ToCss> ToCss for CssRuleList<'i, T> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
@@ -513,11 +687,11 @@ impl<'i> ToCss for CssRuleList<'i> {
   }
 }
 
-impl<'a, 'i> ToCssWithContext<'a, 'i> for CssRuleList<'i> {
+impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for CssRuleList<'i, T> {
   fn to_css_with_context<W>(
     &self,
     dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i>>,
+    context: Option<&StyleContext<'a, 'i, T>>,
   ) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
@@ -568,5 +742,19 @@ impl<'a, 'i> ToCssWithContext<'a, 'i> for CssRuleList<'i> {
     }
 
     Ok(())
+  }
+}
+
+impl<'i, T> std::ops::Index<usize> for CssRuleList<'i, T> {
+  type Output = CssRule<'i, T>;
+
+  fn index(&self, index: usize) -> &Self::Output {
+    &self.0[index]
+  }
+}
+
+impl<'i, T> std::ops::IndexMut<usize> for CssRuleList<'i, T> {
+  fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+    &mut self.0[index]
   }
 }

@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use super::Property;
 use crate::compat;
 use crate::error::{ParserError, PrinterError, PrinterErrorKind};
+use crate::macros::enum_property;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::PropertyId;
@@ -12,39 +13,114 @@ use crate::rules::supports::SupportsCondition;
 use crate::stylesheet::{ParserOptions, PrinterOptions};
 use crate::targets::Browsers;
 use crate::traits::{Parse, ParseWithOptions, ToCss};
+use crate::values::angle::Angle;
 use crate::values::color::{
   parse_hsl_hwb_components, parse_rgb_components, ColorFallbackKind, ComponentParser, CssColor,
 };
-use crate::values::ident::DashedIdentReference;
-use crate::values::length::serialize_dimension;
+use crate::values::ident::{CustomIdent, DashedIdent, DashedIdentReference, Ident};
+use crate::values::length::{serialize_dimension, LengthValue};
+use crate::values::number::CSSInteger;
 use crate::values::percentage::Percentage;
+use crate::values::resolution::Resolution;
 use crate::values::string::CowArcStr;
+use crate::values::time::Time;
 use crate::values::url::Url;
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
+
+#[cfg(feature = "serde")]
+use crate::serialization::ValueWrapper;
 
 /// A CSS custom property, representing any unknown property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct CustomProperty<'i> {
   /// The name of the property.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  pub name: CowArcStr<'i>,
+  pub name: CustomPropertyName<'i>,
   /// The property value, stored as a raw token list.
   pub value: TokenList<'i>,
 }
 
 impl<'i> CustomProperty<'i> {
   /// Parses a custom property with the given name.
-  pub fn parse<'t>(
-    name: CowArcStr<'i>,
+  pub fn parse<'t, T>(
+    name: CustomPropertyName<'i>,
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions,
+    options: &ParserOptions<T>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let value = input.parse_until_before(Delimiter::Bang | Delimiter::Semicolon, |input| {
       TokenList::parse(input, options, 0)
     })?;
     Ok(CustomProperty { name, value })
+  }
+}
+
+/// A CSS custom property name.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize), serde(untagged))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub enum CustomPropertyName<'i> {
+  /// An author-defined CSS custom property.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  Custom(DashedIdent<'i>),
+  /// An unknown CSS property.
+  Unknown(Ident<'i>),
+}
+
+impl<'i> From<CowArcStr<'i>> for CustomPropertyName<'i> {
+  fn from(name: CowArcStr<'i>) -> Self {
+    if name.starts_with("--") {
+      CustomPropertyName::Custom(DashedIdent(name))
+    } else {
+      CustomPropertyName::Unknown(Ident(name))
+    }
+  }
+}
+
+impl<'i> From<CowRcStr<'i>> for CustomPropertyName<'i> {
+  fn from(name: CowRcStr<'i>) -> Self {
+    CustomPropertyName::from(CowArcStr::from(name))
+  }
+}
+
+impl<'i> AsRef<str> for CustomPropertyName<'i> {
+  #[inline]
+  fn as_ref(&self) -> &str {
+    match self {
+      CustomPropertyName::Custom(c) => c.as_ref(),
+      CustomPropertyName::Unknown(u) => u.as_ref(),
+    }
+  }
+}
+
+impl<'i> ToCss for CustomPropertyName<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      CustomPropertyName::Custom(c) => c.to_css(dest),
+      CustomPropertyName::Unknown(u) => u.to_css(dest),
+    }
+  }
+}
+
+#[cfg(feature = "serde")]
+impl<'i, 'de: 'i> serde::Deserialize<'de> for CustomPropertyName<'i> {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let name = CowArcStr::deserialize(deserializer)?;
+    Ok(name.into())
   }
 }
 
@@ -54,7 +130,14 @@ impl<'i> CustomProperty<'i> {
 /// be parsed, e.g. in the case css `var()` references are encountered.
 /// In this case, the raw tokens are stored instead.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct UnparsedProperty<'i> {
   /// The id of the property.
   pub property_id: PropertyId<'i>,
@@ -65,10 +148,10 @@ pub struct UnparsedProperty<'i> {
 
 impl<'i> UnparsedProperty<'i> {
   /// Parses a property with the given id as a token list.
-  pub fn parse<'t>(
+  pub fn parse<'t, T>(
     property_id: PropertyId<'i>,
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions,
+    options: &ParserOptions<T>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let value = input.parse_until_before(Delimiter::Bang | Delimiter::Semicolon, |input| {
       TokenList::parse(input, options, 0)
@@ -78,7 +161,8 @@ impl<'i> UnparsedProperty<'i> {
 
   pub(crate) fn get_prefixed(&self, targets: Option<Browsers>, feature: Feature) -> UnparsedProperty<'i> {
     let mut clone = self.clone();
-    if self.property_id.prefix().contains(VendorPrefix::None) {
+    let prefix = self.property_id.prefix();
+    if prefix.is_empty() || prefix.contains(VendorPrefix::None) {
       if let Some(targets) = targets {
         clone.property_id = clone.property_id.with_prefix(feature.prefixes_for(targets))
       }
@@ -110,16 +194,22 @@ impl<'i> UnparsedProperty<'i> {
 
 /// A raw list of CSS tokens, with embedded parsed values.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "visitor", derive(Visit), visit(visit_token_list, TOKENS))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct TokenList<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub Vec<TokenOrValue<'i>>);
 
 /// A raw CSS token, or a parsed value.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit), visit(visit_token, TOKENS), visit_types(TOKENS | COLORS | URLS | VARIABLES | ENVIRONMENT_VARIABLES | FUNCTIONS | LENGTHS | ANGLES | TIMES | RESOLUTIONS | DASHED_IDENTS))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum TokenOrValue<'i> {
   /// A token.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -132,6 +222,20 @@ pub enum TokenOrValue<'i> {
   Url(Url<'i>),
   /// A CSS variable reference.
   Var(Variable<'i>),
+  /// A CSS environment variable reference.
+  Env(EnvironmentVariable<'i>),
+  /// A custom CSS function.
+  Function(Function<'i>),
+  /// A length.
+  Length(LengthValue),
+  /// An angle.
+  Angle(Angle),
+  /// A time.
+  Time(Time),
+  /// A resolution.
+  Resolution(Resolution),
+  /// A dashed ident.
+  DashedIdent(DashedIdent<'i>),
 }
 
 impl<'i> From<Token<'i>> for TokenOrValue<'i> {
@@ -148,9 +252,9 @@ impl<'i> TokenOrValue<'i> {
 }
 
 impl<'i> TokenList<'i> {
-  pub(crate) fn parse<'t>(
+  pub(crate) fn parse<'t, T>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions,
+    options: &ParserOptions<T>,
     depth: usize,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut tokens = vec![];
@@ -172,10 +276,10 @@ impl<'i> TokenList<'i> {
     return Ok(TokenList(tokens));
   }
 
-  fn parse_into<'t>(
+  fn parse_into<'t, T>(
     input: &mut Parser<'i, 't>,
     tokens: &mut Vec<TokenOrValue<'i>>,
-    options: &ParserOptions,
+    options: &ParserOptions<T>,
     depth: usize,
   ) -> Result<(), ParseError<'i, ParserError<'i>>> {
     if depth > 500 {
@@ -191,7 +295,7 @@ impl<'i> TokenList<'i> {
           // Skip whitespace if the last token was a delimeter.
           // Otherwise, replace all whitespace and comments with a single space character.
           if !last_is_delim {
-            tokens.push(Token::WhiteSpace(" ").into());
+            tokens.push(Token::WhiteSpace(" ".into()).into());
             last_is_whitespace = true;
           }
         }
@@ -219,10 +323,20 @@ impl<'i> TokenList<'i> {
             tokens.push(var);
             last_is_delim = true;
             last_is_whitespace = false;
+          } else if f == "env" {
+            let env = input.parse_nested_block(|input| {
+              let env = EnvironmentVariable::parse_nested(input, options, depth + 1)?;
+              Ok(TokenOrValue::Env(env))
+            })?;
+            tokens.push(env);
+            last_is_delim = true;
+            last_is_whitespace = false;
           } else {
-            tokens.push(Token::Function(f).into());
-            input.parse_nested_block(|input| TokenList::parse_into(input, tokens, options, depth + 1))?;
-            tokens.push(Token::CloseParenthesis.into());
+            let arguments = input.parse_nested_block(|input| TokenList::parse(input, options, depth + 1))?;
+            tokens.push(TokenOrValue::Function(Function {
+              name: Ident(f),
+              arguments,
+            }));
             last_is_delim = true; // Whitespace is not required after any of these chars.
             last_is_whitespace = false;
           }
@@ -242,6 +356,11 @@ impl<'i> TokenList<'i> {
           last_is_delim = false;
           last_is_whitespace = false;
         }
+        Ok(&cssparser::Token::Ident(ref name)) if name.starts_with("--") => {
+          tokens.push(TokenOrValue::DashedIdent(name.into()));
+          last_is_delim = false;
+          last_is_whitespace = false;
+        }
         Ok(token @ &cssparser::Token::ParenthesisBlock)
         | Ok(token @ &cssparser::Token::SquareBracketBlock)
         | Ok(token @ &cssparser::Token::CurlyBracketBlock) => {
@@ -257,6 +376,22 @@ impl<'i> TokenList<'i> {
 
           tokens.push(closing_delimiter.into());
           last_is_delim = true; // Whitespace is not required after any of these chars.
+          last_is_whitespace = false;
+        }
+        Ok(token @ cssparser::Token::Dimension { .. }) => {
+          let value = if let Ok(length) = LengthValue::try_from(token) {
+            TokenOrValue::Length(length)
+          } else if let Ok(angle) = Angle::try_from(token) {
+            TokenOrValue::Angle(angle)
+          } else if let Ok(time) = Time::try_from(token) {
+            TokenOrValue::Time(time)
+          } else if let Ok(resolution) = Resolution::try_from(token) {
+            TokenOrValue::Resolution(resolution)
+          } else {
+            TokenOrValue::Token(token.into())
+          };
+          tokens.push(value);
+          last_is_delim = false;
           last_is_whitespace = false;
         }
         Ok(token) => {
@@ -336,110 +471,147 @@ impl<'i> TokenList<'i> {
         }
         TokenOrValue::Var(var) => {
           var.to_css(dest, is_custom_property)?;
-          if !dest.minify
-            && i != self.0.len() - 1
-            && !matches!(
-              self.0[i + 1],
-              TokenOrValue::Token(Token::Comma) | TokenOrValue::Token(Token::CloseParenthesis)
-            )
-          {
-            // Whitespace is removed during parsing, so add it back if we aren't minifying.
-            dest.write_char(' ')?;
+          self.write_whitespace_if_needed(i, dest)?
+        }
+        TokenOrValue::Env(env) => {
+          env.to_css(dest, is_custom_property)?;
+          self.write_whitespace_if_needed(i, dest)?
+        }
+        TokenOrValue::Function(f) => {
+          f.to_css(dest, is_custom_property)?;
+          self.write_whitespace_if_needed(i, dest)?
+        }
+        TokenOrValue::Length(v) => {
+          // Do not serialize unitless zero lengths in custom properties as it may break calc().
+          let (value, unit) = v.to_unit_value();
+          serialize_dimension(value, unit, dest)?;
+          false
+        }
+        TokenOrValue::Angle(v) => {
+          v.to_css(dest)?;
+          false
+        }
+        TokenOrValue::Time(v) => {
+          v.to_css(dest)?;
+          false
+        }
+        TokenOrValue::Resolution(v) => {
+          v.to_css(dest)?;
+          false
+        }
+        TokenOrValue::DashedIdent(v) => {
+          v.to_css(dest)?;
+          false
+        }
+        TokenOrValue::Token(token) => match token {
+          Token::Delim(d) => {
+            if *d == '+' || *d == '-' {
+              dest.write_char(' ')?;
+              dest.write_char(*d)?;
+              dest.write_char(' ')?;
+            } else {
+              let ws_before = !has_whitespace && (*d == '/' || *d == '*');
+              dest.delim(*d, ws_before)?;
+            }
             true
-          } else {
+          }
+          Token::Comma => {
+            dest.delim(',', false)?;
+            true
+          }
+          Token::CloseParenthesis | Token::CloseSquareBracket | Token::CloseCurlyBracket => {
+            token.to_css(dest)?;
+            self.write_whitespace_if_needed(i, dest)?
+          }
+          Token::Dimension { value, unit, .. } => {
+            serialize_dimension(*value, unit, dest)?;
             false
           }
-        }
-        TokenOrValue::Token(token) => {
-          match token {
-            Token::Delim(d) => {
-              if *d == '+' || *d == '-' {
-                dest.write_char(' ')?;
-                dest.write_char(*d)?;
-                dest.write_char(' ')?;
-              } else {
-                let ws_before = !has_whitespace && (*d == '/' || *d == '*');
-                dest.delim(*d, ws_before)?;
-              }
-              true
-            }
-            Token::Comma => {
-              dest.delim(',', false)?;
-              true
-            }
-            Token::CloseParenthesis | Token::CloseSquareBracket | Token::CloseCurlyBracket => {
-              token.to_css(dest)?;
-              if !dest.minify
-                && i != self.0.len() - 1
-                && !matches!(self.0[i + 1], TokenOrValue::Token(Token::Comma))
-              {
-                // Whitespace is removed during parsing, so add it back if we aren't minifying.
-                dest.write_char(' ')?;
-                true
-              } else {
-                false
-              }
-            }
-            Token::Dimension { value, unit, .. } => {
-              serialize_dimension(*value, unit, dest)?;
-              false
-            }
-            Token::Number { value, .. } => {
-              value.to_css(dest)?;
-              false
-            }
-            _ => {
-              token.to_css(dest)?;
-              matches!(token, Token::WhiteSpace(..))
-            }
+          Token::Number { value, .. } => {
+            value.to_css(dest)?;
+            false
           }
-        }
+          _ => {
+            token.to_css(dest)?;
+            matches!(token, Token::WhiteSpace(..))
+          }
+        },
       };
     }
 
     Ok(())
+  }
+
+  #[inline]
+  fn write_whitespace_if_needed<W>(&self, i: usize, dest: &mut Printer<W>) -> Result<bool, PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    if !dest.minify
+      && i != self.0.len() - 1
+      && !matches!(
+        self.0[i + 1],
+        TokenOrValue::Token(Token::Comma) | TokenOrValue::Token(Token::CloseParenthesis)
+      )
+    {
+      // Whitespace is removed during parsing, so add it back if we aren't minifying.
+      dest.write_char(' ')?;
+      Ok(true)
+    } else {
+      Ok(false)
+    }
   }
 }
 
 /// A raw CSS token.
 // Copied from cssparser to change CowRcStr to CowArcStr
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Token<'a> {
   /// A [`<ident-token>`](https://drafts.csswg.org/css-syntax/#ident-token-diagram)
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   Ident(#[cfg_attr(feature = "serde", serde(borrow))] CowArcStr<'a>),
 
   /// A [`<at-keyword-token>`](https://drafts.csswg.org/css-syntax/#at-keyword-token-diagram)
   ///
   /// The value does not include the `@` marker.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   AtKeyword(CowArcStr<'a>),
 
   /// A [`<hash-token>`](https://drafts.csswg.org/css-syntax/#hash-token-diagram) with the type flag set to "unrestricted"
   ///
   /// The value does not include the `#` marker.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   Hash(CowArcStr<'a>),
 
   /// A [`<hash-token>`](https://drafts.csswg.org/css-syntax/#hash-token-diagram) with the type flag set to "id"
   ///
   /// The value does not include the `#` marker.
+  #[cfg_attr(feature = "serde", serde(rename = "id-hash", with = "ValueWrapper::<CowArcStr>"))]
   IDHash(CowArcStr<'a>), // Hash that is a valid ID selector.
 
   /// A [`<string-token>`](https://drafts.csswg.org/css-syntax/#string-token-diagram)
   ///
   /// The value does not include the quotes.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   String(CowArcStr<'a>),
 
   /// A [`<url-token>`](https://drafts.csswg.org/css-syntax/#url-token-diagram)
   ///
   /// The value does not include the `url(` `)` markers.  Note that `url( <string-token> )` is represented by a
   /// `Function` token.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   UnquotedUrl(CowArcStr<'a>),
 
   /// A `<delim-token>`
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<char>"))]
   Delim(char),
 
   /// A [`<number-token>`](https://drafts.csswg.org/css-syntax/#number-token-diagram)
@@ -447,25 +619,30 @@ pub enum Token<'a> {
     /// Whether the number had a `+` or `-` sign.
     ///
     /// This is used is some cases like the <An+B> micro syntax. (See the `parse_nth` function.)
+    #[cfg_attr(feature = "serde", serde(skip))]
     has_sign: bool,
 
     /// The value as a float
     value: f32,
 
     /// If the origin source did not include a fractional part, the value as an integer.
+    #[cfg_attr(feature = "serde", serde(skip))]
     int_value: Option<i32>,
   },
 
   /// A [`<percentage-token>`](https://drafts.csswg.org/css-syntax/#percentage-token-diagram)
   Percentage {
     /// Whether the number had a `+` or `-` sign.
+    #[cfg_attr(feature = "serde", serde(skip))]
     has_sign: bool,
 
     /// The value as a float, divided by 100 so that the nominal range is 0.0 to 1.0.
+    #[cfg_attr(feature = "serde", serde(rename = "value"))]
     unit_value: f32,
 
     /// If the origin source did not include a fractional part, the value as an integer.
     /// It is **not** divided by 100.
+    #[cfg_attr(feature = "serde", serde(skip))]
     int_value: Option<i32>,
   },
 
@@ -474,12 +651,14 @@ pub enum Token<'a> {
     /// Whether the number had a `+` or `-` sign.
     ///
     /// This is used is some cases like the <An+B> micro syntax. (See the `parse_nth` function.)
+    #[cfg_attr(feature = "serde", serde(skip))]
     has_sign: bool,
 
     /// The value as a float
     value: f32,
 
     /// If the origin source did not include a fractional part, the value as an integer.
+    #[cfg_attr(feature = "serde", serde(skip))]
     int_value: Option<i32>,
 
     /// The unit, e.g. "px" in `12px`
@@ -487,7 +666,8 @@ pub enum Token<'a> {
   },
 
   /// A [`<whitespace-token>`](https://drafts.csswg.org/css-syntax/#whitespace-token-diagram)
-  WhiteSpace(&'a str),
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
+  WhiteSpace(CowArcStr<'a>),
 
   /// A comment.
   ///
@@ -495,7 +675,8 @@ pub enum Token<'a> {
   /// But we do, because we can (borrowed &str makes it cheap).
   ///
   /// The value does not include the `/*` `*/` markers.
-  Comment(&'a str),
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
+  Comment(CowArcStr<'a>),
 
   /// A `:` `<colon-token>`
   Colon, // :
@@ -522,14 +703,17 @@ pub enum Token<'a> {
   SubstringMatch,
 
   /// A `<!--` [`<CDO-token>`](https://drafts.csswg.org/css-syntax/#CDO-token-diagram)
+  #[cfg_attr(feature = "serde", serde(rename = "cdo"))]
   CDO,
 
   /// A `-->` [`<CDC-token>`](https://drafts.csswg.org/css-syntax/#CDC-token-diagram)
+  #[cfg_attr(feature = "serde", serde(rename = "cdc"))]
   CDC,
 
   /// A [`<function-token>`](https://drafts.csswg.org/css-syntax/#function-token-diagram)
   ///
   /// The value (name) does not include the `(` marker.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   Function(CowArcStr<'a>),
 
   /// A `<(-token>`
@@ -544,11 +728,13 @@ pub enum Token<'a> {
   /// A `<bad-url-token>`
   ///
   /// This token always indicates a parse error.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   BadUrl(CowArcStr<'a>),
 
   /// A `<bad-string-token>`
   ///
   /// This token always indicates a parse error.
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<CowArcStr>"))]
   BadString(CowArcStr<'a>),
 
   /// A `<)-token>`
@@ -613,8 +799,8 @@ impl<'a> From<&cssparser::Token<'a>> for Token<'a> {
         unit_value: *unit_value,
         int_value: *int_value,
       },
-      cssparser::Token::WhiteSpace(w) => Token::WhiteSpace(w),
-      cssparser::Token::Comment(c) => Token::Comment(c),
+      cssparser::Token::WhiteSpace(w) => Token::WhiteSpace((*w).into()),
+      cssparser::Token::Comment(c) => Token::Comment((*c).into()),
       cssparser::Token::Colon => Token::Colon,
       cssparser::Token::Semicolon => Token::Semicolon,
       cssparser::Token::Comma => Token::Comma,
@@ -713,8 +899,24 @@ impl<'i> TokenList<'i> {
   pub(crate) fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
     let mut fallbacks = ColorFallbackKind::empty();
     for token in &self.0 {
-      if let TokenOrValue::Color(color) = token {
-        fallbacks |= color.get_possible_fallbacks(targets);
+      match token {
+        TokenOrValue::Color(color) => {
+          fallbacks |= color.get_possible_fallbacks(targets);
+        }
+        TokenOrValue::Function(f) => {
+          fallbacks |= f.arguments.get_necessary_fallbacks(targets);
+        }
+        TokenOrValue::Var(v) => {
+          if let Some(fallback) = &v.fallback {
+            fallbacks |= fallback.get_necessary_fallbacks(targets);
+          }
+        }
+        TokenOrValue::Env(v) => {
+          if let Some(fallback) = &v.fallback {
+            fallbacks |= fallback.get_necessary_fallbacks(targets);
+          }
+        }
+        _ => {}
       }
     }
 
@@ -727,6 +929,9 @@ impl<'i> TokenList<'i> {
       .iter()
       .map(|token| match token {
         TokenOrValue::Color(color) => TokenOrValue::Color(color.get_fallback(kind)),
+        TokenOrValue::Function(f) => TokenOrValue::Function(f.get_fallback(kind)),
+        TokenOrValue::Var(v) => TokenOrValue::Var(v.get_fallback(kind)),
+        TokenOrValue::Env(e) => TokenOrValue::Env(e.get_fallback(kind)),
         _ => token.clone(),
       })
       .collect();
@@ -757,8 +962,14 @@ impl<'i> TokenList<'i> {
 
     if !lowest_fallback.is_empty() {
       for token in self.0.iter_mut() {
-        if let TokenOrValue::Color(color) = token {
-          *color = color.get_fallback(lowest_fallback);
+        match token {
+          TokenOrValue::Color(color) => {
+            *color = color.get_fallback(lowest_fallback);
+          }
+          TokenOrValue::Function(f) => *f = f.get_fallback(lowest_fallback),
+          TokenOrValue::Var(v) if v.fallback.is_some() => *v = v.get_fallback(lowest_fallback),
+          TokenOrValue::Env(v) if v.fallback.is_some() => *v = v.get_fallback(lowest_fallback),
+          _ => {}
         }
       }
     }
@@ -791,7 +1002,11 @@ impl<'i> TokenList<'i> {
 
 /// A CSS variable reference.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "visitor", visit(visit_variable, VARIABLES))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Variable<'i> {
   /// The variable name.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -801,9 +1016,9 @@ pub struct Variable<'i> {
 }
 
 impl<'i> Variable<'i> {
-  fn parse<'t>(
+  fn parse<'t, T>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions,
+    options: &ParserOptions<T>,
     depth: usize,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let name = DashedIdentReference::parse_with_options(input, options)?;
@@ -829,6 +1044,222 @@ impl<'i> Variable<'i> {
     }
     dest.write_char(')')
   }
+
+  fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
+    Variable {
+      name: self.name.clone(),
+      fallback: self.fallback.as_ref().map(|fallback| fallback.get_fallback(kind)),
+    }
+  }
+}
+
+/// A CSS environment variable reference.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+  feature = "visitor",
+  derive(Visit),
+  visit(visit_environment_variable, ENVIRONMENT_VARIABLES)
+)]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub struct EnvironmentVariable<'i> {
+  /// The environment variable name.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  pub name: EnvironmentVariableName<'i>,
+  /// Optional indices into the dimensions of the environment variable.
+  #[cfg_attr(feature = "serde", serde(default))]
+  pub indices: Vec<CSSInteger>,
+  /// A fallback value in case the variable is not defined.
+  pub fallback: Option<TokenList<'i>>,
+}
+
+/// A CSS environment variable name.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", rename_all = "lowercase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub enum EnvironmentVariableName<'i> {
+  /// A UA-defined environment variable.
+  #[cfg_attr(
+    feature = "serde",
+    serde(with = "crate::serialization::ValueWrapper::<UAEnvironmentVariable>")
+  )]
+  UA(UAEnvironmentVariable),
+  /// A custom author-defined environment variable.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  Custom(DashedIdentReference<'i>),
+  /// An unknown environment variable.
+  #[cfg_attr(feature = "serde", serde(with = "crate::serialization::ValueWrapper::<CustomIdent>"))]
+  Unknown(CustomIdent<'i>),
+}
+
+enum_property! {
+  /// A UA-defined environment variable name.
+  pub enum UAEnvironmentVariable {
+    /// The safe area inset from the top of the viewport.
+    "safe-area-inset-top": SafeAreaInsetTop,
+    /// The safe area inset from the right of the viewport.
+    "safe-area-inset-right": SafeAreaInsetRight,
+    /// The safe area inset from the bottom of the viewport.
+    "safe-area-inset-bottom": SafeAreaInsetBottom,
+    /// The safe area inset from the left of the viewport.
+    "safe-area-inset-left": SafeAreaInsetLeft,
+    /// The viewport segment width.
+    "viewport-segment-width": ViewportSegmentWidth,
+    /// The viewport segment height.
+    "viewport-segment-height": ViewportSegmentHeight,
+    /// The viewport segment top position.
+    "viewport-segment-top": ViewportSegmentTop,
+    /// The viewport segment left position.
+    "viewport-segment-left": ViewportSegmentLeft,
+    /// The viewport segment bottom position.
+    "viewport-segment-bottom": ViewportSegmentBottom,
+    /// The viewport segment right position.
+    "viewport-segment-right": ViewportSegmentRight,
+  }
+}
+
+impl<'i> EnvironmentVariableName<'i> {
+  /// Returns the name of the environment variable as a string.
+  pub fn name(&self) -> &str {
+    match self {
+      EnvironmentVariableName::UA(ua) => ua.as_str(),
+      EnvironmentVariableName::Custom(c) => c.ident.as_ref(),
+      EnvironmentVariableName::Unknown(u) => u.0.as_ref(),
+    }
+  }
+}
+
+impl<'i> Parse<'i> for EnvironmentVariableName<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if let Ok(ua) = input.try_parse(UAEnvironmentVariable::parse) {
+      return Ok(EnvironmentVariableName::UA(ua));
+    }
+
+    if let Ok(dashed) =
+      input.try_parse(|input| DashedIdentReference::parse_with_options(input, &ParserOptions::default()))
+    {
+      return Ok(EnvironmentVariableName::Custom(dashed));
+    }
+
+    let ident = CustomIdent::parse(input)?;
+    return Ok(EnvironmentVariableName::Unknown(ident));
+  }
+}
+
+impl<'i> ToCss for EnvironmentVariableName<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      EnvironmentVariableName::UA(ua) => ua.to_css(dest),
+      EnvironmentVariableName::Custom(custom) => custom.to_css(dest),
+      EnvironmentVariableName::Unknown(unknown) => unknown.to_css(dest),
+    }
+  }
+}
+
+impl<'i> EnvironmentVariable<'i> {
+  pub(crate) fn parse<'t, T>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<T>,
+    depth: usize,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    input.expect_function_matching("env")?;
+    input.parse_nested_block(|input| Self::parse_nested(input, options, depth))
+  }
+
+  pub(crate) fn parse_nested<'t, T>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<T>,
+    depth: usize,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let name = EnvironmentVariableName::parse(input)?;
+    let mut indices = Vec::new();
+    while let Ok(index) = input.try_parse(CSSInteger::parse) {
+      indices.push(index);
+    }
+
+    let fallback = if input.try_parse(|input| input.expect_comma()).is_ok() {
+      Some(TokenList::parse(input, options, depth + 1)?)
+    } else {
+      None
+    };
+
+    Ok(EnvironmentVariable {
+      name,
+      indices,
+      fallback,
+    })
+  }
+
+  pub(crate) fn to_css<W>(&self, dest: &mut Printer<W>, is_custom_property: bool) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    dest.write_str("env(")?;
+    self.name.to_css(dest)?;
+
+    for item in &self.indices {
+      dest.write_char(' ')?;
+      item.to_css(dest)?;
+    }
+
+    if let Some(fallback) = &self.fallback {
+      dest.delim(',', false)?;
+      fallback.to_css(dest, is_custom_property)?;
+    }
+    dest.write_char(')')
+  }
+
+  fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
+    EnvironmentVariable {
+      name: self.name.clone(),
+      indices: self.indices.clone(),
+      fallback: self.fallback.as_ref().map(|fallback| fallback.get_fallback(kind)),
+    }
+  }
+}
+
+/// A custom CSS function.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "visitor", visit(visit_function, FUNCTIONS))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub struct Function<'i> {
+  /// The function name.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  pub name: Ident<'i>,
+  /// The function arguments.
+  pub arguments: TokenList<'i>,
+}
+
+impl<'i> Function<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>, is_custom_property: bool) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    self.name.to_css(dest)?;
+    dest.write_char('(')?;
+    self.arguments.to_css(dest, is_custom_property)?;
+    dest.write_char(')')
+  }
+
+  fn get_fallback(&self, kind: ColorFallbackKind) -> Self {
+    Function {
+      name: self.name.clone(),
+      arguments: self.arguments.get_fallback(kind),
+    }
+  }
 }
 
 /// A color value with an unresolved alpha value (e.g. a variable).
@@ -836,11 +1267,14 @@ impl<'i> Variable<'i> {
 /// This can only be done when the only unresolved component is the alpha
 /// since variables can resolve to multiple tokens.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "lowercase")
+  serde(tag = "type", rename_all = "lowercase")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum UnresolvedColor<'i> {
   /// An rgb() color.
   RGB {
@@ -869,10 +1303,10 @@ pub enum UnresolvedColor<'i> {
 }
 
 impl<'i> UnresolvedColor<'i> {
-  fn parse<'t>(
+  fn parse<'t, T>(
     f: &CowArcStr<'i>,
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions,
+    options: &ParserOptions<T>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let parser = ComponentParser::new(false);
     match_ignore_ascii_case! { &*f,

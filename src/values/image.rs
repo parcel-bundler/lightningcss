@@ -13,16 +13,22 @@ use crate::traits::{FallbackValues, Parse, ToCss};
 use crate::values::string::CowArcStr;
 use crate::values::url::Url;
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
 use smallvec::SmallVec;
 
 /// A CSS [`<image>`](https://www.w3.org/TR/css-images-3/#image-values) value.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "visitor", visit(visit_image, IMAGES))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Image<'i> {
   /// The `none` keyword.
   None,
@@ -340,7 +346,14 @@ impl<'i> ToCss for Image<'i> {
 /// `image-set()` allows the user agent to choose between multiple versions of an image to
 /// display the most appropriate resolution or file type that it supports.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct ImageSet<'i> {
   /// The image options to choose from.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -412,9 +425,17 @@ impl<'i> ToCss for ImageSet<'i> {
 
 /// An image option within the `image-set()` function. See [ImageSet](ImageSet).
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct ImageSetOption<'i> {
   /// The image for this option.
+  #[cfg_attr(feature = "visitor", skip_type)]
   pub image: Image<'i>,
   /// The resolution of the image.
   pub resolution: Resolution,

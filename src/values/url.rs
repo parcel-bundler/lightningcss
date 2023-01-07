@@ -5,11 +5,17 @@ use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A CSS [url()](https://www.w3.org/TR/css-values-4/#urls) value and its source location.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "visitor", visit(visit_url, URLS))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Url<'i> {
   /// The url string.
   #[cfg_attr(feature = "serde", serde(borrow))]

@@ -1,8 +1,10 @@
 import path from 'path';
 import fs from 'fs';
-import css from './node/index.js';
+import { bundleAsync } from '../index.mjs';
+import { test } from 'uvu';
+import * as assert from 'uvu/assert';
 
-await (async function testResolver() {
+test('resolver', async () => {
   const inMemoryFs = new Map(Object.entries({
     'foo.css': `
  @import 'root:bar.css';
@@ -21,7 +23,7 @@ await (async function testResolver() {
          `.trim(),
   }));
 
-  const { code: buffer } = await css.bundleAsync({
+  const { code: buffer } = await bundleAsync({
     filename: 'foo.css',
     resolver: {
       read(file) {
@@ -51,9 +53,9 @@ await (async function testResolver() {
 }
      `.trim();
   if (code !== expected) throw new Error(`\`testResolver()\` failed. Expected:\n${expected}\n\nGot:\n${code}`);
-})();
+});
 
-await (async function testOnlyCustomRead() {
+test('only custom read', async () => {
   const inMemoryFs = new Map(Object.entries({
     'foo.css': `
  @import 'hello/world.css';
@@ -72,7 +74,7 @@ await (async function testOnlyCustomRead() {
          `.trim(),
   }));
 
-  const { code: buffer } = await css.bundleAsync({
+  const { code: buffer } = await bundleAsync({
     filename: 'foo.css',
     resolver: {
       read(file) {
@@ -98,11 +100,11 @@ await (async function testOnlyCustomRead() {
 }
      `.trim();
   if (code !== expected) throw new Error(`\`testOnlyCustomRead()\` failed. Expected:\n${expected}\n\nGot:\n${code}`);
-})();
+});
 
-await (async function testOnlyCustomResolve() {
+test('only custom resolve', async () => {
   const root = path.join('tests', 'testdata');
-  const { code: buffer } = await css.bundleAsync({
+  const { code: buffer } = await bundleAsync({
     filename: path.join(root, 'foo.css'),
     resolver: {
       resolve(specifier) {
@@ -128,11 +130,11 @@ await (async function testOnlyCustomResolve() {
 }
      `.trim();
   if (code !== expected) throw new Error(`\`testOnlyCustomResolve()\` failed. Expected:\n${expected}\n\nGot:\n${code}`);
-})();
+});
 
-await (async function testAsyncRead() {
+test('async read', async () => {
   const root = path.join('tests', 'testdata');
-  const { code: buffer } = await css.bundleAsync({
+  const { code: buffer } = await bundleAsync({
     filename: path.join(root, 'foo.css'),
     resolver: {
       async read(file) {
@@ -161,12 +163,12 @@ await (async function testAsyncRead() {
 }
      `.trim();
   if (code !== expected) throw new Error(`\`testAsyncRead()\` failed. Expected:\n${expected}\n\nGot:\n${code}`);
-})();
+});
 
-(async function testReadThrow() {
+test('read throw', async () => {
   let error = undefined;
   try {
-    await css.bundleAsync({
+    await bundleAsync({
       filename: 'foo.css',
       resolver: {
         read(file) {
@@ -183,12 +185,12 @@ await (async function testAsyncRead() {
   // if (!error.message.includes(`\`read()\` threw error:`) || !error.message.includes(`Oh noes! Failed to read \`foo.css\`.`)) {
   //   throw new Error(`\`testReadThrow()\` failed. Expected \`bundleAsync()\` to throw a specific error message, but it threw a different error:\n${error.message}`);
   // }
-})();
+});
 
-(async function testAsyncReadThrow() {
+test('async read throw', async () => {
   let error = undefined;
   try {
-    await css.bundleAsync({
+    await bundleAsync({
       filename: 'foo.css',
       resolver: {
         async read(file) {
@@ -205,12 +207,12 @@ await (async function testAsyncRead() {
   // if (!error.message.includes(`\`read()\` threw error:`) || !error.message.includes(`Oh noes! Failed to read \`foo.css\`.`)) {
   //   throw new Error(`\`testReadThrow()\` failed. Expected \`bundleAsync()\` to throw a specific error message, but it threw a different error:\n${error.message}`);
   // }
-})();
+});
 
-await (async function testResolveThrow() {
+test('resolve throw', async () => {
   let error = undefined;
   try {
-    await css.bundleAsync({
+    await bundleAsync({
       filename: 'tests/testdata/foo.css',
       resolver: {
         resolve(specifier, originatingFile) {
@@ -227,12 +229,12 @@ await (async function testResolveThrow() {
   // if (!error.message.includes(`\`resolve()\` threw error:`) || !error.message.includes(`Oh noes! Failed to resolve \`root:hello/world.css\` from \`tests/testdata/css/foo.css\`.`)) {
   //   throw new Error(`\`testResolveThrow()\` failed. Expected \`bundleAsync()\` to throw a specific error message, but it threw a different error:\n${error.message}`);
   // }
-})();
+});
 
-await (async function testAsyncResolveThrow() {
+test('async resolve throw', async () => {
   let error = undefined;
   try {
-    await css.bundleAsync({
+    await bundleAsync({
       filename: 'tests/testdata/foo.css',
       resolver: {
         async resolve(specifier, originatingFile) {
@@ -249,12 +251,12 @@ await (async function testAsyncResolveThrow() {
   // if (!error.message.includes(`\`resolve()\` threw error:`) || !error.message.includes(`Oh noes! Failed to resolve \`root:hello/world.css\` from \`tests/testdata/css/foo.css\`.`)) {
   //   throw new Error(`\`testResolveThrow()\` failed. Expected \`bundleAsync()\` to throw a specific error message, but it threw a different error:\n${error.message}`);
   // }
-})();
+});
 
-await (async function testReadReturnNonString() {
+test('read return non-string', async () => {
   let error = undefined;
   try {
-    await css.bundleAsync({
+    await bundleAsync({
       filename: 'foo.css',
       resolver: {
         read() {
@@ -270,12 +272,12 @@ await (async function testReadReturnNonString() {
   if (!error.message.includes(`InvalidArg, expect String, got: Number`)) {
     throw new Error(`\`testReadReturnNonString()\` failed. Expected \`bundleAsync()\` to throw a specific error message, but it threw a different error:\n${error.message}`);
   }
-})();
+});
 
-await (async function testResolveReturnNonString() {
+test('resolve return non-string', async () => {
   let error = undefined;
   try {
-    await css.bundleAsync({
+    await bundleAsync({
       filename: 'tests/testdata/foo.css',
       resolver: {
         resolve() {
@@ -291,6 +293,6 @@ await (async function testResolveReturnNonString() {
   if (!error.message.includes(`InvalidArg, expect String, got: Number`)) {
     throw new Error(`\`testResolveReturnNonString()\` failed. Expected \`bundleAsync()\` to throw a specific error message, but it threw a different error:\n${error.message}`);
   }
-})();
+});
 
-console.log('PASSED!');
+test.run();

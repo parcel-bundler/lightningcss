@@ -69,7 +69,7 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
     self.rtl.push(rtl);
   }
 
-  pub fn get_logical_rules(&mut self, style_rule: &StyleRule<'i>) -> Vec<CssRule<'i>> {
+  pub fn get_logical_rules<T>(&mut self, style_rule: &StyleRule<'i, T>) -> Vec<CssRule<'i, T>> {
     // TODO: :dir/:lang raises the specificity of the selector. Use :where to lower it?
     let mut dest = Vec::new();
 
@@ -77,7 +77,9 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
       ($dir: ident, $decls: ident) => {
         let mut selectors = style_rule.selectors.clone();
         for selector in &mut selectors.0 {
-          selector.append(Component::NonTSPseudoClass(PseudoClass::Dir(Direction::$dir)));
+          selector.append(Component::NonTSPseudoClass(PseudoClass::Dir {
+            direction: Direction::$dir,
+          }));
         }
 
         let rule = StyleRule {
@@ -152,7 +154,7 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
     }
   }
 
-  pub fn get_supports_rules(&mut self, style_rule: &StyleRule<'i>) -> Vec<CssRule<'i>> {
+  pub fn get_supports_rules<T>(&mut self, style_rule: &StyleRule<'i, T>) -> Vec<CssRule<'i, T>> {
     if self.supports.is_empty() {
       return Vec::new();
     }

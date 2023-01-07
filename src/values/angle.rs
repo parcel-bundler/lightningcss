@@ -11,6 +11,8 @@ use crate::traits::{
   private::{AddInternal, TryAdd},
   Map, Op, Parse, Sign, ToCss, Zero,
 };
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
 use std::f32::consts::PI;
 
@@ -19,11 +21,14 @@ use std::f32::consts::PI;
 /// Angles may be explicit or computed by `calc()`, but are always stored and serialized
 /// as their computed value.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "visitor", visit(visit_angle, ANGLES))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Angle {
   /// An angle in degrees. There are 360 degrees in a full circle.
   Deg(CSSNumber),
@@ -74,6 +79,23 @@ impl Angle {
       }
       Token::Number { value, .. } if value == 0.0 && allow_unitless_zero => Ok(Angle::zero()),
       ref token => return Err(location.new_unexpected_token_error(token.clone())),
+    }
+  }
+}
+
+impl<'i> TryFrom<&Token<'i>> for Angle {
+  type Error = ();
+
+  fn try_from(token: &Token) -> Result<Self, Self::Error> {
+    match token {
+      Token::Dimension { value, ref unit, .. } => match_ignore_ascii_case! { unit,
+        "deg" => Ok(Angle::Deg(*value)),
+        "grad" => Ok(Angle::Grad(*value)),
+        "turn" => Ok(Angle::Turn(*value)),
+        "rad" => Ok(Angle::Rad(*value)),
+        _ => Err(()),
+      },
+      _ => Err(()),
     }
   }
 }

@@ -1,3 +1,4 @@
+use atty::Stream;
 use clap::{ArgGroup, Parser};
 use lightningcss::bundler::{Bundler, FileProvider};
 use lightningcss::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
@@ -18,9 +19,9 @@ static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
       .args(&["targets", "browserslist"]),
 ))]
 struct CliArgs {
-  /// Target CSS file
+  /// Target CSS file (default: stdin)
   #[clap(value_parser)]
-  input_file: String,
+  input_file: Option<String>,
   /// Destination file for the output
   #[clap(short, long, group = "output_file", value_parser)]
   output_file: Option<String>,
@@ -67,12 +68,36 @@ struct SourceMapJson<'a> {
 
 pub fn main() -> Result<(), std::io::Error> {
   let cli_args = CliArgs::parse();
-  let source = fs::read_to_string(&cli_args.input_file)?;
+  let project_root = std::env::current_dir()?;
 
-  let absolute_path = fs::canonicalize(&cli_args.input_file)?;
-  let filename = pathdiff::diff_paths(absolute_path, std::env::current_dir()?).unwrap();
-  let filename = filename.to_str().unwrap();
-
+  // If we're given an input file, read from it and adjust its name.
+  //
+  // If we're not given an input file and stdin was redirected, read
+  // from it and create a fake name. Return an error if stdin was not
+  // redirected (otherwise the program will hang waiting for input).
+  //
+  let (filename, source) = match &cli_args.input_file {
+    Some(f) => {
+      let absolute_path = fs::canonicalize(f)?;
+      let filename = pathdiff::diff_paths(absolute_path, &project_root).unwrap();
+      let filename = filename.to_string_lossy().into_owned();
+      let contents = fs::read_to_string(f)?;
+      (filename, contents)
+    }
+    None => {
+      // Don't silently wait for input if stdin was not redirected.
+      if atty::is(Stream::Stdin) {
+        return Err(io::Error::new(
+          io::ErrorKind::Other,
+          "Not reading from stdin as it was not redirected",
+        ));
+      }
+      let filename = format!("stdin-{}", std::process::id());
+      let contents = io::read_to_string(io::stdin())?;
+      (filename, contents)
+    }
+  };
+    
   let css_modules = if let Some(_) = cli_args.css_modules {
     let pattern = if let Some(pattern) = cli_args.css_modules_pattern.as_ref() {
       match lightningcss::css_modules::Pattern::parse(pattern) {
@@ -103,7 +128,7 @@ pub fn main() -> Result<(), std::io::Error> {
   };
 
   let mut source_map = if cli_args.sourcemap {
-    Some(SourceMap::new("/"))
+    Some(SourceMap::new(&project_root.to_string_lossy()))
   } else {
     None
   };
@@ -120,13 +145,13 @@ pub fn main() -> Result<(), std::io::Error> {
 
     let mut stylesheet = if cli_args.bundle {
       let mut bundler = Bundler::new(&fs, source_map.as_mut(), options);
-      bundler.bundle(Path::new(&cli_args.input_file)).unwrap()
+      bundler.bundle(Path::new(&filename)).unwrap()
     } else {
       if let Some(sm) = &mut source_map {
         sm.add_source(&filename);
         let _ = sm.set_source_content(0, &source);
       }
-      options.filename = filename.to_owned();
+      options.filename = filename;
       StyleSheet::parse(&source, options).unwrap()
     };
 
@@ -149,6 +174,7 @@ pub fn main() -> Result<(), std::io::Error> {
       .to_css(PrinterOptions {
         minify: cli_args.minify,
         source_map: source_map.as_mut(),
+        project_root: Some(&project_root.to_string_lossy()),
         targets,
         ..PrinterOptions::default()
       })

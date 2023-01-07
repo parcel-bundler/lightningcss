@@ -13,12 +13,15 @@ use crate::targets::Browsers;
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::{easing::EasingFunction, time::Time};
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
 use itertools::izip;
 use smallvec::SmallVec;
 
 define_list_shorthand! {
   /// A value for the [transition](https://www.w3.org/TR/2018/WD-css-transitions-1-20181011/#transition-shorthand-property) property.
+  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   pub struct Transition<'i>(VendorPrefix) {
     /// The property to transition.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -91,9 +94,7 @@ impl<'i> ToCss for Transition<'i> {
       self.duration.to_css(dest)?;
     }
 
-    if self.timing_function != EasingFunction::Ease
-      && self.timing_function != EasingFunction::CubicBezier(0.25, 0.1, 0.25, 1.0)
-    {
+    if !self.timing_function.is_ease() {
       dest.write_char(' ')?;
       self.timing_function.to_css(dest)?;
     }
@@ -266,16 +267,10 @@ impl<'i> TransitionHandler<'i> {
               };
 
               // Expand vendor prefixes into multiple transitions.
-              let prefix = property_id.prefix();
-              let mut b = 1 << (7 - prefix.bits().leading_zeros());
-              while b != 0 {
-                let p = VendorPrefix::from_bits_truncate(b);
-                if prefix.contains(p) {
-                  let mut t = transition.clone();
-                  t.property = property_id.with_prefix(p);
-                  transitions.push(t);
-                }
-                b >>= 1;
+              for p in property_id.prefix().or_none() {
+                let mut t = transition.clone();
+                t.property = property_id.with_prefix(p);
+                transitions.push(t);
               }
             }
             transitions
@@ -397,7 +392,9 @@ fn expand_properties<'i>(
       }
       _ => {
         // Expand vendor prefixes for targets.
-        properties[i].set_prefixes_for_targets(targets);
+        if let Some(targets) = targets {
+          properties[i].set_prefixes_for_targets(targets);
+        }
 
         // Expand mask properties, which use different vendor-prefixed names.
         if let (Some(targets), Some(property_id)) = (targets, get_webkit_mask_property(&properties[i])) {
@@ -408,7 +405,9 @@ fn expand_properties<'i>(
         }
 
         if let Some(rtl_properties) = &mut rtl_properties {
-          rtl_properties[i].set_prefixes_for_targets(targets);
+          if let Some(targets) = targets {
+            rtl_properties[i].set_prefixes_for_targets(targets);
+          }
 
           if let (Some(targets), Some(property_id)) = (targets, get_webkit_mask_property(&rtl_properties[i])) {
             if Feature::MaskBorder.prefixes_for(targets).contains(VendorPrefix::WebKit) {

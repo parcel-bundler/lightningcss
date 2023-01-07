@@ -6,16 +6,22 @@ use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::properties::custom::CustomProperty;
 use crate::properties::font::FontFamily;
+use crate::stylesheet::ParserOptions;
 use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
 use crate::values::color::{ColorFallbackKind, CssColor};
 use crate::values::ident::DashedIdent;
 use crate::values::number::CSSInteger;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A [@font-palette-values](https://drafts.csswg.org/css-fonts-4/#font-palette-values) rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct FontPaletteValuesRule<'i> {
   /// The name of the font palette.
   pub name: DashedIdent<'i>,
@@ -23,6 +29,7 @@ pub struct FontPaletteValuesRule<'i> {
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub properties: Vec<FontPaletteValuesProperty<'i>>,
   /// The location of the rule in the source file.
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 
@@ -30,11 +37,14 @@ pub struct FontPaletteValuesRule<'i> {
 ///
 ///  See [FontPaletteValuesRule](FontPaletteValuesRule).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum FontPaletteValuesProperty<'i> {
   /// The `font-family` property.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -50,11 +60,13 @@ pub enum FontPaletteValuesProperty<'i> {
 /// A value for the [base-palette](https://drafts.csswg.org/css-fonts-4/#base-palette-desc)
 /// property in an `@font-palette-values` rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum BasePalette {
   /// A light color palette as defined within the font.
   Light,
@@ -67,7 +79,9 @@ pub enum BasePalette {
 /// A value for the [override-colors](https://drafts.csswg.org/css-fonts-4/#override-color)
 /// property in an `@font-palette-values` rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct OverrideColors {
   /// The index of the color within the palette to override.
   index: u16,
@@ -116,7 +130,7 @@ impl<'i> cssparser::DeclarationParser<'i> for FontPaletteValuesDeclarationParser
     return Ok(FontPaletteValuesProperty::Custom(CustomProperty::parse(
       name.into(),
       input,
-      &Default::default(),
+      &ParserOptions::default(),
     )?));
   }
 }
@@ -260,7 +274,7 @@ impl<'i> FontPaletteValuesRule<'i> {
     self.properties = properties;
   }
 
-  pub(crate) fn get_fallbacks(&mut self, targets: Browsers) -> Vec<CssRule<'i>> {
+  pub(crate) fn get_fallbacks<T>(&mut self, targets: Browsers) -> Vec<CssRule<'i, T>> {
     // Get fallbacks for unparsed properties. These will generate @supports rules
     // containing duplicate @font-palette-values rules.
     let mut fallbacks = ColorFallbackKind::empty();
@@ -301,7 +315,7 @@ impl<'i> FontPaletteValuesRule<'i> {
     res
   }
 
-  fn get_fallback(&self, kind: ColorFallbackKind) -> CssRule<'i> {
+  fn get_fallback<T>(&self, kind: ColorFallbackKind) -> CssRule<'i, T> {
     let properties = self
       .properties
       .iter()
@@ -330,6 +344,7 @@ impl<'i> ToCss for FontPaletteValuesRule<'i> {
   where
     W: std::fmt::Write,
   {
+    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@font-palette-values ")?;
     self.name.to_css(dest)?;

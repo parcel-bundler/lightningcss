@@ -12,17 +12,21 @@ use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::color::ColorFallbackKind;
 use crate::values::image::ImageFallback;
 use crate::values::{color::CssColor, image::Image, length::LengthPercentageOrAuto, position::*};
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
 use itertools::izip;
 use smallvec::SmallVec;
 
 /// A value for the [background-size](https://www.w3.org/TR/css-backgrounds-3/#background-size) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
-  serde(tag = "type", content = "value", rename_all = "kebab-case")
+  serde(tag = "type", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum BackgroundSize {
   /// An explicit background size.
   Explicit {
@@ -109,7 +113,9 @@ enum_property! {
 
 /// A value for the [background-repeat](https://www.w3.org/TR/css-backgrounds-3/#background-repeat) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct BackgroundRepeat {
   /// A repeat style for the x direction.
   pub x: BackgroundRepeatKeyword,
@@ -299,7 +305,10 @@ impl ToCss for BackgroundPosition {
 
 /// A value for the [background](https://www.w3.org/TR/css-backgrounds-3/#background) shorthand property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct Background<'i> {
   /// The background image.
   #[cfg_attr(feature = "serde", serde(borrow))]

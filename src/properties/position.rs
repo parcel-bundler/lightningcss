@@ -10,15 +10,19 @@ use crate::targets::Browsers;
 use crate::traits::{Parse, PropertyHandler, ToCss};
 use crate::values::number::CSSInteger;
 use crate::vendor_prefix::VendorPrefix;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A value for the [position](https://www.w3.org/TR/css-position-3/#position-property) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Position {
   /// The box is laid in the document flow.
   Static,
@@ -70,11 +74,13 @@ impl ToCss for Position {
 
 /// A value for the [z-index](https://drafts.csswg.org/css2/#z-index) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum ZIndex {
   /// The `auto` keyword.
   Auto,

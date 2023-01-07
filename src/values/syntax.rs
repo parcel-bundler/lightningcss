@@ -1,7 +1,7 @@
 //! CSS syntax strings
 
+use super::ident::Ident;
 use super::number::{CSSInteger, CSSNumber};
-use super::string::CowArcStr;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
@@ -16,6 +16,7 @@ use cssparser::*;
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum SyntaxString {
   /// A list of syntax components.
   Components(Vec<SyntaxComponent>),
@@ -30,6 +31,7 @@ pub enum SyntaxString {
 /// may repeat during parsing.
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct SyntaxComponent {
   /// The kind of component.
   pub kind: SyntaxComponentKind,
@@ -44,6 +46,7 @@ pub struct SyntaxComponent {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum SyntaxComponentKind {
   /// A `<length>` component.
   Length,
@@ -85,6 +88,7 @@ pub enum SyntaxComponentKind {
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Multiplier {
   /// The component may not be repeated.
   None,
@@ -96,11 +100,13 @@ pub enum Multiplier {
 
 /// A parsed value for a [SyntaxComponent](SyntaxComponent).
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum ParsedComponent<'i> {
   /// A `<length>` value.
   Length(values::length::Length),
@@ -132,9 +138,14 @@ pub enum ParsedComponent<'i> {
   /// A `<custom-ident>` value.
   CustomIdent(values::ident::CustomIdent<'i>),
   /// A literal value.
-  Literal(CowArcStr<'i>),
+  Literal(Ident<'i>),
   /// A repeated component value.
-  Repeated(Vec<ParsedComponent<'i>>, Multiplier),
+  Repeated {
+    /// The components to repeat.
+    components: Vec<ParsedComponent<'i>>,
+    /// A multiplier describing how the components repeat.
+    multiplier: Multiplier,
+  },
   /// A raw token.
   Token(crate::properties::custom::Token<'i>),
 }
@@ -233,13 +244,21 @@ impl<'i> SyntaxString {
                 Multiplier::Space => {
                   parsed.push(value);
                   if input.is_exhausted() {
-                    return Ok(ParsedComponent::Repeated(parsed, component.multiplier.clone()));
+                    return Ok(ParsedComponent::Repeated {
+                      components: parsed,
+                      multiplier: component.multiplier.clone(),
+                    });
                   }
                 }
                 Multiplier::Comma => {
                   parsed.push(value);
                   match input.next() {
-                    Err(_) => return Ok(ParsedComponent::Repeated(parsed, component.multiplier.clone())),
+                    Err(_) => {
+                      return Ok(ParsedComponent::Repeated {
+                        components: parsed,
+                        multiplier: component.multiplier.clone(),
+                      })
+                    }
                     Ok(&Token::Comma) => continue,
                     Ok(_) => break,
                   }
@@ -445,11 +464,8 @@ impl<'i> ToCss for ParsedComponent<'i> {
       TransformFunction(v) => v.to_css(dest),
       TransformList(v) => v.to_css(dest),
       CustomIdent(v) => v.to_css(dest),
-      Literal(v) => {
-        serialize_identifier(&v, dest)?;
-        Ok(())
-      }
-      Repeated(components, multiplier) => {
+      Literal(v) => v.to_css(dest),
+      Repeated { components, multiplier } => {
         let mut first = true;
         for component in components {
           if first {
@@ -518,22 +534,22 @@ mod tests {
     test(
       "foo | <color>+ | <integer>",
       "red",
-      ParsedComponent::Repeated(
-        vec![ParsedComponent::Color(values::color::CssColor::RGBA(RGBA {
+      ParsedComponent::Repeated {
+        components: vec![ParsedComponent::Color(values::color::CssColor::RGBA(RGBA {
           red: 255,
           green: 0,
           blue: 0,
           alpha: 255,
         }))],
-        Multiplier::Space,
-      ),
+        multiplier: Multiplier::Space,
+      },
     );
 
     test(
       "foo | <color>+ | <integer>",
       "red blue",
-      ParsedComponent::Repeated(
-        vec![
+      ParsedComponent::Repeated {
+        components: vec![
           ParsedComponent::Color(values::color::CssColor::RGBA(RGBA {
             red: 255,
             green: 0,
@@ -547,8 +563,8 @@ mod tests {
             alpha: 255,
           })),
         ],
-        Multiplier::Space,
-      ),
+        multiplier: Multiplier::Space,
+      },
     );
 
     error_test("foo | <color>+ | <integer>", "2.5");
@@ -560,8 +576,8 @@ mod tests {
     test(
       "foo | <color># | <integer>",
       "red, blue",
-      ParsedComponent::Repeated(
-        vec![
+      ParsedComponent::Repeated {
+        components: vec![
           ParsedComponent::Color(values::color::CssColor::RGBA(RGBA {
             red: 255,
             green: 0,
@@ -575,8 +591,8 @@ mod tests {
             alpha: 255,
           })),
         ],
-        Multiplier::Comma,
-      ),
+        multiplier: Multiplier::Comma,
+      },
     );
 
     error_test("foo | <color># | <integer>", "red green");

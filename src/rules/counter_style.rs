@@ -6,10 +6,15 @@ use crate::error::PrinterError;
 use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::values::ident::CustomIdent;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 
 /// A [@counter-style](https://drafts.csswg.org/css-counter-styles/#the-counter-style-rule) rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct CounterStyleRule<'i> {
   /// The name of the counter style to declare.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -18,6 +23,7 @@ pub struct CounterStyleRule<'i> {
   /// Declarations in the `@counter-style` rule.
   pub declarations: DeclarationBlock<'i>,
   /// The location of the rule in the source file.
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 
@@ -26,6 +32,7 @@ impl<'i> ToCss for CounterStyleRule<'i> {
   where
     W: std::fmt::Write,
   {
+    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@counter-style ")?;
     self.name.to_css(dest)?;

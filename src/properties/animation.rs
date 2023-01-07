@@ -12,17 +12,22 @@ use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::number::CSSNumber;
 use crate::values::string::CowArcStr;
 use crate::values::{easing::EasingFunction, ident::CustomIdent, time::Time};
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
 use itertools::izip;
 use smallvec::SmallVec;
 
 /// A value for the [animation-name](https://drafts.csswg.org/css-animations/#animation-name) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum AnimationName<'i> {
   /// The `none` keyword.
   None,
@@ -87,11 +92,13 @@ pub type AnimationNameList<'i> = SmallVec<[AnimationName<'i>; 1]>;
 
 /// A value for the [animation-iteration-count](https://drafts.csswg.org/css-animations/#animation-iteration-count) property.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum AnimationIterationCount {
   /// The animation will repeat the specified number of times.
   Number(CSSNumber),
@@ -186,6 +193,7 @@ impl Default for AnimationFillMode {
 
 define_list_shorthand! {
   /// A value for the [animation](https://drafts.csswg.org/css-animations/#animation) shorthand property.
+  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   pub struct Animation<'i>(VendorPrefix) {
     /// The animation name.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -267,7 +275,7 @@ impl<'i> ToCss for Animation<'i> {
           dest.write_char(' ')?;
         }
 
-        if !self.is_default_easing() || EasingFunction::is_ident(&name) {
+        if !self.timing_function.is_ease() || EasingFunction::is_ident(&name) {
           self.timing_function.to_css(dest)?;
           dest.write_char(' ')?;
         }
@@ -306,13 +314,6 @@ impl<'i> ToCss for Animation<'i> {
     self.name.to_css(dest)?;
 
     Ok(())
-  }
-}
-
-impl<'i> Animation<'i> {
-  fn is_default_easing(&self) -> bool {
-    self.timing_function == EasingFunction::Ease
-      || self.timing_function == EasingFunction::CubicBezier(0.25, 0.1, 0.25, 1.0)
   }
 }
 

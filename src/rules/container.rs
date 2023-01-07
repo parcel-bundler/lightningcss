@@ -6,29 +6,38 @@ use super::Location;
 use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
 use crate::media_query::MediaCondition;
+use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
 use crate::rules::{StyleContext, ToCssWithContext};
 use crate::traits::{Parse, ToCss};
 use crate::values::ident::CustomIdent;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 
 /// A [@container](https://drafts.csswg.org/css-contain-3/#container-rule) rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct ContainerRule<'i> {
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub struct ContainerRule<'i, R = DefaultAtRule> {
   /// The name of the container.
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: Option<ContainerName<'i>>,
   /// The container condition.
   pub condition: MediaCondition<'i>,
   /// The rules within the `@container` rule.
-  pub rules: CssRuleList<'i>,
+  pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 
 /// A [`<container-name>`](https://drafts.csswg.org/css-contain-3/#typedef-container-name) in a `@container` rule.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct ContainerName<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CustomIdent<'i>);
 
 impl<'i> Parse<'i> for ContainerName<'i> {
@@ -50,7 +59,7 @@ impl<'i> ToCss for ContainerName<'i> {
   }
 }
 
-impl<'i> ContainerRule<'i> {
+impl<'i, T> ContainerRule<'i, T> {
   pub(crate) fn minify(
     &mut self,
     context: &mut MinifyContext<'_, 'i>,
@@ -61,15 +70,16 @@ impl<'i> ContainerRule<'i> {
   }
 }
 
-impl<'a, 'i> ToCssWithContext<'a, 'i> for ContainerRule<'i> {
+impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for ContainerRule<'i, T> {
   fn to_css_with_context<W>(
     &self,
     dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i>>,
+    context: Option<&StyleContext<'a, 'i, T>>,
   ) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
   {
+    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@container ")?;
     if let Some(name) = &self.name {

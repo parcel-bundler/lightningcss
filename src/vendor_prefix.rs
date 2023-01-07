@@ -5,6 +5,8 @@
 use crate::error::PrinterError;
 use crate::printer::Printer;
 use crate::traits::ToCss;
+#[cfg(feature = "visitor")]
+use crate::visitor::{Visit, VisitTypes, Visitor};
 use bitflags::bitflags;
 
 bitflags! {
@@ -45,6 +47,59 @@ impl VendorPrefix {
       "o" => VendorPrefix::O,
       _ => unreachable!(),
     }
+  }
+
+  /// Returns VendorPrefix::None if empty.
+  #[inline]
+  pub fn or_none(self) -> Self {
+    if self.is_empty() {
+      VendorPrefix::None
+    } else {
+      self
+    }
+  }
+}
+
+impl std::iter::IntoIterator for VendorPrefix {
+  type Item = VendorPrefix;
+  type IntoIter = VendorPrefixIter;
+
+  fn into_iter(self) -> Self::IntoIter {
+    VendorPrefixIter { bits: self.bits() }
+  }
+}
+
+/// Iterator for VendorPrefix.
+pub struct VendorPrefixIter {
+  bits: u8,
+}
+
+impl std::iter::Iterator for VendorPrefixIter {
+  type Item = VendorPrefix;
+
+  #[inline]
+  fn next(&mut self) -> Option<Self::Item> {
+    // Emit None last.
+    if self.bits == 1 {
+      self.bits = 0;
+      return Some(VendorPrefix::None);
+    }
+
+    let bits = self.bits & !1;
+    if bits != 0 {
+      let b = bits.trailing_zeros() as u8;
+      let p = VendorPrefix::from_bits_truncate(1 << b);
+      self.bits = (bits & bits.wrapping_sub(1)) | (self.bits & 1);
+      return Some(p);
+    }
+
+    None
+  }
+
+  #[inline]
+  fn size_hint(&self) -> (usize, Option<usize>) {
+    let c = self.bits.count_ones() as usize;
+    (c, Some(c))
   }
 }
 
@@ -107,13 +162,14 @@ impl<'de> serde::Deserialize<'de> for VendorPrefix {
   where
     D: serde::Deserializer<'de>,
   {
-    let values = Vec::<&str>::deserialize(deserializer)?;
+    use crate::values::string::CowArcStr;
+    let values = Vec::<CowArcStr<'de>>::deserialize(deserializer)?;
     if values.is_empty() {
       return Ok(VendorPrefix::None);
     }
     let mut res = VendorPrefix::empty();
     for value in values {
-      res |= match value {
+      res |= match value.as_ref() {
         "none" => VendorPrefix::None,
         "webkit" => VendorPrefix::WebKit,
         "moz" => VendorPrefix::Moz,
@@ -123,5 +179,37 @@ impl<'de> serde::Deserialize<'de> for VendorPrefix {
       };
     }
     Ok(res)
+  }
+}
+
+#[cfg(feature = "visitor")]
+impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for VendorPrefix {
+  const CHILD_TYPES: VisitTypes = VisitTypes::empty();
+  fn visit_children(&mut self, _: &mut V) {}
+}
+
+#[cfg(feature = "jsonschema")]
+impl schemars::JsonSchema for VendorPrefix {
+  fn is_referenceable() -> bool {
+    true
+  }
+
+  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    #[derive(schemars::JsonSchema)]
+    #[schemars(rename_all = "lowercase")]
+    #[allow(dead_code)]
+    enum Prefix {
+      None,
+      WebKit,
+      Moz,
+      Ms,
+      O,
+    }
+
+    Vec::<Prefix>::json_schema(gen)
+  }
+
+  fn schema_name() -> String {
+    "VendorPrefix".into()
   }
 }

@@ -155,16 +155,6 @@ fn valid_input_file() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn no_input_file() -> Result<(), Box<dyn std::error::Error>> {
-  let mut cmd = Command::cargo_bin("lightningcss")?;
-  cmd.assert().failure().stderr(predicate::str::contains(
-    "The following required arguments were not provided:\n    <INPUT_FILE>",
-  ));
-
-  Ok(())
-}
-
-#[test]
 fn empty_input_file() -> Result<(), Box<dyn std::error::Error>> {
   let file = assert_fs::NamedTempFile::new("test.css")?;
   file.write_str("")?;
@@ -207,8 +197,6 @@ fn minify_option() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-// nesting doesn't do anything with the default targets. until cli supports more targets, this option is a noop
-#[ignore]
 fn nesting_option() -> Result<(), Box<dyn std::error::Error>> {
   let infile = assert_fs::NamedTempFile::new("test.css")?;
   infile.write_str(
@@ -222,6 +210,7 @@ fn nesting_option() -> Result<(), Box<dyn std::error::Error>> {
 
   let mut cmd = Command::cargo_bin("lightningcss")?;
   cmd.arg(infile.path());
+  cmd.arg("--targets=defaults");
   cmd.arg("--nesting");
   cmd.assert().success().stdout(predicate::str::contains(indoc! {r#"
         .foo {

@@ -1,10 +1,14 @@
 //! Types used to represent strings.
 
-use cssparser::CowRcStr;
+use crate::traits::{Parse, ToCss};
+#[cfg(feature = "visitor")]
+use crate::visitor::{Visit, VisitTypes, Visitor};
+use cssparser::{serialize_string, CowRcStr};
 #[cfg(feature = "serde")]
-use serde::{de::Visitor, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer};
+#[cfg(any(feature = "serde", feature = "nodejs"))]
 use serde::{Serialize, Serializer};
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cmp;
 use std::fmt;
 use std::hash;
@@ -91,6 +95,16 @@ impl<'a> From<String> for CowArcStr<'a> {
   }
 }
 
+impl<'a> From<Cow<'a, str>> for CowArcStr<'a> {
+  #[inline]
+  fn from(s: Cow<'a, str>) -> Self {
+    match s {
+      Cow::Borrowed(s) => s.into(),
+      Cow::Owned(s) => s.into(),
+    }
+  }
+}
+
 impl<'a> CowArcStr<'a> {
   #[inline]
   fn from_arc(s: Arc<String>) -> Self {
@@ -113,6 +127,15 @@ impl<'a> CowArcStr<'a> {
           self.borrowed_len_or_max,
         )))
       }
+    }
+  }
+
+  /// Consumes the value and returns an owned clone.
+  pub fn into_owned<'x>(self) -> CowArcStr<'x> {
+    if self.borrowed_len_or_max != usize::MAX {
+      CowArcStr::from(self.as_ref().to_owned())
+    } else {
+      unsafe { std::mem::transmute(self) }
     }
   }
 }
@@ -217,6 +240,7 @@ impl<'a> fmt::Debug for CowArcStr<'a> {
   }
 }
 
+#[cfg(any(feature = "nodejs", feature = "serde"))]
 impl<'a> Serialize for CowArcStr<'a> {
   fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
     self.as_ref().serialize(serializer)
@@ -233,11 +257,26 @@ impl<'a, 'de: 'a> Deserialize<'de> for CowArcStr<'a> {
   }
 }
 
+#[cfg(feature = "jsonschema")]
+impl<'a> schemars::JsonSchema for CowArcStr<'a> {
+  fn is_referenceable() -> bool {
+    true
+  }
+
+  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    String::json_schema(gen)
+  }
+
+  fn schema_name() -> String {
+    "String".into()
+  }
+}
+
 #[cfg(feature = "serde")]
 struct CowArcStrVisitor;
 
 #[cfg(feature = "serde")]
-impl<'de> Visitor<'de> for CowArcStrVisitor {
+impl<'de> serde::de::Visitor<'de> for CowArcStrVisitor {
   type Value = CowArcStr<'de>;
 
   fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -265,3 +304,131 @@ impl<'de> Visitor<'de> for CowArcStrVisitor {
     Ok(v.into())
   }
 }
+
+#[cfg(feature = "visitor")]
+impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for CowArcStr<'i> {
+  const CHILD_TYPES: VisitTypes = VisitTypes::empty();
+  fn visit_children(&mut self, _: &mut V) {}
+}
+
+/// A quoted CSS string.
+#[derive(Clone, Eq, Ord, Hash, Debug)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub struct CSSString<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CowArcStr<'i>);
+
+impl<'i> Parse<'i> for CSSString<'i> {
+  fn parse<'t>(
+    input: &mut cssparser::Parser<'i, 't>,
+  ) -> Result<Self, cssparser::ParseError<'i, crate::error::ParserError<'i>>> {
+    let s = input.expect_string()?;
+    Ok(CSSString(s.into()))
+  }
+}
+
+impl<'i> ToCss for CSSString<'i> {
+  fn to_css<W>(&self, dest: &mut crate::printer::Printer<W>) -> Result<(), crate::error::PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    serialize_string(&self.0, dest)?;
+    Ok(())
+  }
+}
+
+impl<'i> cssparser::ToCss for CSSString<'i> {
+  fn to_css<W>(&self, dest: &mut W) -> fmt::Result
+  where
+    W: fmt::Write,
+  {
+    serialize_string(&self.0, dest)
+  }
+}
+
+macro_rules! impl_string_type {
+  ($t: ident) => {
+    impl<'i> From<CowRcStr<'i>> for $t<'i> {
+      fn from(s: CowRcStr<'i>) -> Self {
+        $t(s.into())
+      }
+    }
+
+    impl<'a> From<&CowRcStr<'a>> for $t<'a> {
+      fn from(s: &CowRcStr<'a>) -> Self {
+        $t(s.into())
+      }
+    }
+
+    impl<'i> From<String> for $t<'i> {
+      fn from(s: String) -> Self {
+        $t(s.into())
+      }
+    }
+
+    impl<'i> From<&'i str> for $t<'i> {
+      fn from(s: &'i str) -> Self {
+        $t(s.into())
+      }
+    }
+
+    impl<'a> From<std::borrow::Cow<'a, str>> for $t<'a> {
+      #[inline]
+      fn from(s: std::borrow::Cow<'a, str>) -> Self {
+        match s {
+          std::borrow::Cow::Borrowed(s) => s.into(),
+          std::borrow::Cow::Owned(s) => s.into(),
+        }
+      }
+    }
+
+    impl<'a> Deref for $t<'a> {
+      type Target = str;
+
+      #[inline]
+      fn deref(&self) -> &str {
+        self.0.deref()
+      }
+    }
+
+    impl<'a> AsRef<str> for $t<'a> {
+      #[inline]
+      fn as_ref(&self) -> &str {
+        self
+      }
+    }
+
+    impl<'a> Borrow<str> for $t<'a> {
+      #[inline]
+      fn borrow(&self) -> &str {
+        self
+      }
+    }
+
+    impl<'a> std::fmt::Display for $t<'a> {
+      #[inline]
+      fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        str::fmt(self, formatter)
+      }
+    }
+
+    impl<'a, T: AsRef<str>> PartialEq<T> for $t<'a> {
+      #[inline]
+      fn eq(&self, other: &T) -> bool {
+        str::eq(self, other.as_ref())
+      }
+    }
+
+    impl<'a, T: AsRef<str>> PartialOrd<T> for $t<'a> {
+      #[inline]
+      fn partial_cmp(&self, other: &T) -> Option<std::cmp::Ordering> {
+        str::partial_cmp(self, other.as_ref())
+      }
+    }
+  };
+}
+
+impl_string_type!(CSSString);
+
+pub(crate) use impl_string_type;

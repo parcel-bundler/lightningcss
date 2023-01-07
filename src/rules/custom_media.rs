@@ -6,10 +6,15 @@ use crate::media_query::MediaList;
 use crate::printer::Printer;
 use crate::traits::ToCss;
 use crate::values::ident::DashedIdent;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 
 /// A [@custom-media](https://drafts.csswg.org/mediaqueries-5/#custom-mq) rule.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct CustomMediaRule<'i> {
   /// The name of the declared media query.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -17,6 +22,7 @@ pub struct CustomMediaRule<'i> {
   /// The media query to declare.
   pub query: MediaList<'i>,
   /// The location of the rule in the source file.
+  #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
 }
 
@@ -25,6 +31,7 @@ impl<'i> ToCss for CustomMediaRule<'i> {
   where
     W: std::fmt::Write,
   {
+    #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
     dest.write_str("@custom-media ")?;
     self.name.to_css(dest)?;
