@@ -43,6 +43,7 @@ pub struct StyleRule<'i, R = DefaultAtRule> {
   pub loc: Location,
 }
 
+#[cfg(feature = "serde")]
 fn default_rule_list<'i, R>() -> CssRuleList<'i, R> {
   CssRuleList(Vec::new())
 }

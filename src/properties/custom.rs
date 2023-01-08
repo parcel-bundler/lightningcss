@@ -174,6 +174,28 @@ impl<'i> UnparsedProperty<'i> {
       value: self.value.clone(),
     }
   }
+
+  /// Substitutes variables and re-parses the property.
+  #[cfg(feature = "substitute_variables")]
+  pub fn substitute_variables<'x>(
+    mut self,
+    vars: &std::collections::HashMap<&str, TokenList<'i>>,
+  ) -> Result<super::Property<'x>, ()> {
+    use super::Property;
+    use crate::stylesheet::PrinterOptions;
+
+    // Substitute variables in the token list.
+    self.value.substitute_variables(vars);
+
+    // Now stringify and re-parse the property to its fully parsed form.
+    // Ideally we'd be able to reuse the tokens rather than printing, but cssparser doesn't provide a way to do that.
+    let mut css = String::new();
+    let mut dest = Printer::new(&mut css, PrinterOptions::default());
+    self.value.to_css(&mut dest, false).unwrap();
+    let property =
+      Property::parse_string(self.property_id.clone(), &css, ParserOptions::default()).map_err(|_| ())?;
+    Ok(property.into_owned())
+  }
 }
 
 /// A raw list of CSS tokens, with embedded parsed values.
@@ -232,6 +254,15 @@ impl<'i> TokenOrValue<'i> {
   /// Returns whether the token is whitespace.
   pub fn is_whitespace(&self) -> bool {
     matches!(self, TokenOrValue::Token(Token::WhiteSpace(_)))
+  }
+}
+
+impl<'i, T> ParseWithOptions<'i, T> for TokenList<'i> {
+  fn parse_with_options<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<T>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    TokenList::parse(input, options, 0)
   }
 }
 
@@ -959,6 +990,49 @@ impl<'i> TokenList<'i> {
     }
 
     res
+  }
+
+  /// Substitutes variables with the provided values.
+  #[cfg(feature = "substitute_variables")]
+  pub fn substitute_variables(&mut self, vars: &std::collections::HashMap<&str, TokenList<'i>>) {
+    self.visit(&mut VarInliner { vars })
+  }
+}
+
+#[cfg(feature = "substitute_variables")]
+struct VarInliner<'a, 'i> {
+  vars: &'a std::collections::HashMap<&'a str, TokenList<'i>>,
+}
+
+#[cfg(feature = "substitute_variables")]
+impl<'a, 'i> crate::visitor::Visitor<'i> for VarInliner<'a, 'i> {
+  const TYPES: crate::visitor::VisitTypes = crate::visit_types!(TOKENS | VARIABLES);
+
+  fn visit_token_list(&mut self, tokens: &mut TokenList<'i>) {
+    let mut i = 0;
+    let mut seen = std::collections::HashSet::new();
+    while i < tokens.0.len() {
+      let token = &mut tokens.0[i];
+      token.visit(self);
+      if let TokenOrValue::Var(var) = token {
+        if let Some(value) = self.vars.get(var.name.ident.0.as_ref()) {
+          // Ignore circular references.
+          if seen.insert(var.name.ident.0.clone()) {
+            tokens.0.splice(i..i + 1, value.0.iter().cloned());
+            // Don't advance. We need to replace any variables in the value.
+            continue;
+          }
+        } else if let Some(fallback) = &var.fallback {
+          let fallback = fallback.0.clone();
+          if seen.insert(var.name.ident.0.clone()) {
+            tokens.0.splice(i..i + 1, fallback.into_iter());
+            continue;
+          }
+        }
+      }
+      seen.clear();
+      i += 1;
+    }
   }
 }
 
