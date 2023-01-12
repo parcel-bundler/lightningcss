@@ -17,6 +17,8 @@ use napi::{Env, JsFunction, JsObject, JsUnknown, Ref, ValueType};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
+use crate::at_rule_parser::AtRule;
+
 pub struct JsVisitor {
   env: Env,
   visit_rule: VisitorsRef,
@@ -237,7 +239,7 @@ impl JsVisitor {
   }
 }
 
-impl<'i> Visitor<'i> for JsVisitor {
+impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
   type Error = napi::Error;
 
   const TYPES: lightningcss::visitor::VisitTypes = VisitTypes::all();
@@ -246,7 +248,7 @@ impl<'i> Visitor<'i> for JsVisitor {
     self.types
   }
 
-  fn visit_rule_list(&mut self, rules: &mut lightningcss::rules::CssRuleList<'i>) -> Result<(), Self::Error> {
+  fn visit_rule_list(&mut self, rules: &mut lightningcss::rules::CssRuleList<'i, AtRule<'i>>) -> Result<(), Self::Error> {
     if self.types.contains(VisitTypes::RULES) {
       let env = self.env;
       let rule_map = self.rule_map.get::<JsObject>(&env);
@@ -284,6 +286,25 @@ impl<'i> Visitor<'i> for JsVisitor {
               } else {
                 "unknown"
               }
+              CssRule::Custom(c) => {
+                let name = c.name.as_ref();
+                if let Some(visit) = rule_map.custom(stage, "custom", name) {
+                  let js_value = env.to_js_value(c)?;
+                  let res = visit.call(None, &[js_value])?;
+                  return env.from_js_value(res).map(serde_detach::detach);
+                } else {
+                  "custom"
+                }
+              }
+              CssRule::Ignored => return Ok(None),
+            };
+
+            if let Some(visit) = rule_map.named(stage, name).as_ref().or(visit_rule.for_stage(stage)) {
+              let js_value = env.to_js_value(value)?;
+              let res = visit.call(None, &[js_value])?;
+              env.from_js_value(res).map(serde_detach::detach)
+            } else {
+              Ok(None)
             }
             CssRule::Ignored | CssRule::Custom(..) => return Ok(None),
           };

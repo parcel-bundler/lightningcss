@@ -6,6 +6,8 @@ use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};
 use crate::values;
+#[cfg(feature = "visitor")]
+use crate::visitor::Visit;
 use cssparser::*;
 
 /// A CSS [syntax string](https://drafts.css-houdini.org/css-properties-values-api/#syntax-strings)
@@ -83,6 +85,7 @@ pub enum SyntaxComponentKind {
 /// A [multiplier](https://drafts.css-houdini.org/css-properties-values-api/#multipliers) for a
 /// [SyntaxComponent](SyntaxComponent). Indicates whether and how the component may be repeated.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -100,6 +103,7 @@ pub enum Multiplier {
 
 /// A parsed value for a [SyntaxComponent](SyntaxComponent).
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
@@ -142,6 +146,7 @@ pub enum ParsedComponent<'i> {
   /// A repeated component value.
   Repeated {
     /// The components to repeat.
+    #[cfg_attr(feature = "visitor", skip_type)]
     components: Vec<ParsedComponent<'i>>,
     /// A multiplier describing how the components repeat.
     multiplier: Multiplier,

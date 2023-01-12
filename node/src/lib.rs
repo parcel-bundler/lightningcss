@@ -2,6 +2,7 @@
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
+use at_rule_parser::{CustomAtRuleConfig, CustomAtRuleParser};
 use lightningcss::bundler::{BundleErrorKind, Bundler, FileProvider, SourceProvider};
 use lightningcss::css_modules::{CssModuleExports, CssModuleReferences, PatternParseError};
 use lightningcss::dependencies::{Dependency, DependencyOptions};
@@ -13,13 +14,14 @@ use lightningcss::targets::Browsers;
 use lightningcss::visitor::Visit;
 use parcel_sourcemap::SourceMap;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex, RwLock};
 
 use transformer::JsVisitor;
 
+mod at_rule_parser;
 #[cfg(not(target_arch = "wasm32"))]
 mod threadsafe_function;
 mod transformer;
@@ -242,7 +244,7 @@ mod bundle {
   }
 
   struct VisitMessage {
-    stylesheet: &'static mut StyleSheet<'static, 'static>,
+    stylesheet: &'static mut StyleSheet<'static, 'static, CustomAtRuleParser>,
     tx: Sender<napi::Result<String>>,
   }
 
@@ -396,15 +398,16 @@ mod bundle {
         unsafe { std::mem::transmute::<&'_ P, &'static P>(&provider) },
         &config,
         tsfn.map(move |tsfn| {
-          move |stylesheet: &mut StyleSheet| {
+          move |stylesheet: &mut StyleSheet<CustomAtRuleParser>| {
             CHANNEL.with(|channel| {
               let message = VisitMessage {
                 // SAFETY: we immediately lock the thread until we get a response,
                 // so stylesheet cannot be dropped in that time.
                 stylesheet: unsafe {
-                  std::mem::transmute::<&'_ mut StyleSheet<'_, '_>, &'static mut StyleSheet<'static, 'static>>(
-                    stylesheet,
-                  )
+                  std::mem::transmute::<
+                    &'_ mut StyleSheet<'_, '_, CustomAtRuleParser>,
+                    &'static mut StyleSheet<'static, 'static, CustomAtRuleParser>,
+                  >(stylesheet)
                 },
                 tx: channel.0.clone(),
               };
@@ -490,6 +493,7 @@ struct Config {
   pub pseudo_classes: Option<OwnedPseudoClasses>,
   pub unused_symbols: Option<HashSet<String>>,
   pub error_recovery: Option<bool>,
+  pub custom_at_rules: Option<HashMap<String, CustomAtRuleConfig>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -614,7 +618,13 @@ fn compile<'i>(
         source_index: 0,
         error_recovery: config.error_recovery.unwrap_or_default(),
         warnings: warnings.clone(),
-        at_rule_parser: ParserOptions::default_at_rule_parser(),
+        at_rule_parser: if let Some(custom_at_rules) = &config.custom_at_rules {
+          Some(Arc::new(RwLock::new(CustomAtRuleParser {
+            configs: custom_at_rules.clone(),
+          })))
+        } else {
+          None
+        },
       },
     )?;
 
@@ -677,7 +687,12 @@ fn compile<'i>(
   })
 }
 
-fn compile_bundle<'i, 'o, P: SourceProvider, F: FnOnce(&mut StyleSheet<'i, 'o>) -> napi::Result<()>>(
+fn compile_bundle<
+  'i,
+  'o,
+  P: SourceProvider,
+  F: FnOnce(&mut StyleSheet<'i, 'o, CustomAtRuleParser>) -> napi::Result<()>,
+>(
   fs: &'i P,
   config: &'o BundleConfig,
   visit: Option<F>,
@@ -715,7 +730,9 @@ fn compile_bundle<'i, 'o, P: SourceProvider, F: FnOnce(&mut StyleSheet<'i, 'o>) 
       },
       error_recovery: config.error_recovery.unwrap_or_default(),
       warnings: warnings.clone(),
-      ..ParserOptions::default()
+      at_rule_parser: None,
+      filename: String::new(),
+      source_index: 0,
     };
 
     let mut bundler = Bundler::new(fs, source_map.as_mut(), parser_options);
