@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+  collections::HashMap,
+  sync::{Arc, RwLock},
+};
 
 use cssparser::*;
 use lightningcss::{
@@ -10,7 +13,7 @@ use lightningcss::{
   selector::{Component, Selector},
   stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
   targets::Browsers,
-  traits::ToCss,
+  traits::{AtRuleParser, ToCss},
   values::{color::CssColor, length::LengthValue},
   vendor_prefix::VendorPrefix,
   visit_types,
@@ -21,7 +24,7 @@ fn main() {
   let args: Vec<String> = std::env::args().collect();
   let source = std::fs::read_to_string(&args[1]).unwrap();
   let opts = ParserOptions {
-    at_rule_parser: Some(TailwindAtRuleParser),
+    at_rule_parser: Some(Arc::new(RwLock::new(TailwindAtRuleParser))),
     filename: args[1].clone(),
     nesting: true,
     custom_media: false,
@@ -101,6 +104,7 @@ impl<'i> AtRuleParser<'i> for TailwindAtRuleParser {
     &mut self,
     name: CowRcStr<'i>,
     input: &mut Parser<'i, 't>,
+    _options: &ParserOptions<'_, 'i, Self>,
   ) -> Result<Self::Prelude, ParseError<'i, Self::Error>> {
     match_ignore_ascii_case! {&*name,
       "tailwind" => {
@@ -133,7 +137,12 @@ impl<'i> AtRuleParser<'i> for TailwindAtRuleParser {
     }
   }
 
-  fn rule_without_block(&mut self, prelude: Self::Prelude, start: &ParserState) -> Result<Self::AtRule, ()> {
+  fn rule_without_block(
+    &mut self,
+    prelude: Self::Prelude,
+    start: &ParserState,
+    _options: &ParserOptions<'_, 'i, Self>,
+  ) -> Result<Self::AtRule, ()> {
     let loc = start.source_location();
     match prelude {
       Prelude::Tailwind(directive) => Ok(AtRule::Tailwind(TailwindRule { directive, loc })),

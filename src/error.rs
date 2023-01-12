@@ -71,6 +71,8 @@ impl fmt::Display for ErrorLocation {
 pub enum ParserError<'i> {
   /// An at rule body was invalid.
   AtRuleBodyInvalid,
+  /// An at rule prelude was invalid
+  AtRulePreludeInvalid,
   /// An unknown or unsupported at rule was encountered.
   AtRuleInvalid(CowArcStr<'i>),
   /// Unexpectedly encountered the end of input data.
@@ -106,6 +108,7 @@ impl<'i> fmt::Display for ParserError<'i> {
     use ParserError::*;
     match self {
       AtRuleBodyInvalid => write!(f, "Invalid @ rule body"),
+      AtRulePreludeInvalid => write!(f, "Invalid @ rule prelude"),
       AtRuleInvalid(name) => write!(f, "Unknown at rule: @{}", name),
       EndOfInput => write!(f, "Unexpected end of input"),
       InvalidDeclaration => write!(f, "Invalid declaration"),
