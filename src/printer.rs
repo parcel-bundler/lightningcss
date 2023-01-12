@@ -3,7 +3,8 @@
 use crate::css_modules::CssModule;
 use crate::dependencies::{Dependency, DependencyOptions};
 use crate::error::{Error, ErrorLocation, PrinterError, PrinterErrorKind};
-use crate::rules::Location;
+use crate::rules::{Location, StyleContext};
+use crate::selector::SelectorList;
 use crate::targets::Browsers;
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::{serialize_identifier, serialize_name};
@@ -85,6 +86,7 @@ pub struct Printer<'a, 'b, 'c, W> {
   pub(crate) dependencies: Option<Vec<Dependency>>,
   pub(crate) remove_imports: bool,
   pub(crate) pseudo_classes: Option<PseudoClasses<'a>>,
+  context: Option<&'a StyleContext<'a, 'b>>,
 }
 
 impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
@@ -117,6 +119,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
       },
       remove_imports: matches!(&options.analyze_dependencies, Some(d) if d.remove_imports),
       pseudo_classes: options.pseudo_classes,
+      context: None,
     }
   }
 
@@ -329,6 +332,29 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
         column: loc.column,
       }),
     }
+  }
+
+  pub(crate) fn with_context<T, U, F: FnOnce(&mut Printer<'a, 'b, 'c, W>) -> Result<T, U>>(
+    &mut self,
+    selectors: &SelectorList,
+    f: F,
+  ) -> Result<T, U> {
+    let parent = std::mem::take(&mut self.context);
+    let ctx = StyleContext {
+      selectors: unsafe { std::mem::transmute(selectors) },
+      parent,
+    };
+
+    // I can't figure out what lifetime to use here to convince the compiler that
+    // the reference doesn't live beyond the function call.
+    self.context = Some(unsafe { std::mem::transmute(&ctx) });
+    let res = f(self);
+    self.context = parent;
+    res
+  }
+
+  pub(crate) fn context(&self) -> Option<&'a StyleContext<'a, 'b>> {
+    self.context.clone()
   }
 }
 

@@ -1085,8 +1085,6 @@ impl<'a, 'o, 'b, 'i, T: AtRuleParser<'i>> QualifiedRuleParser<'i> for StyleRuleP
     input: &mut Parser<'i, 't>,
   ) -> Result<Self::Prelude, ParseError<'i, Self::Error>> {
     let selector_parser = SelectorParser {
-      default_namespace: self.default_namespace,
-      namespace_prefixes: self.namespace_prefixes,
       is_nesting_allowed: true,
       options: &self.options,
     };

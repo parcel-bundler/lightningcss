@@ -5644,7 +5644,7 @@ mod tests {
     minify_test("a:is(.foo) { color: yellow }", "a.foo{color:#ff0}");
     minify_test("a:is([data-test]) { color: yellow }", "a[data-test]{color:#ff0}");
     minify_test(".foo:is(a) { color: yellow }", ".foo:is(a){color:#ff0}");
-    minify_test(".foo:is(*|a) { color: yellow }", ".foo:is(a){color:#ff0}");
+    minify_test(".foo:is(*|a) { color: yellow }", ".foo:is(*|a){color:#ff0}");
     minify_test(".foo:is(*) { color: yellow }", ".foo:is(*){color:#ff0}");
     minify_test(
       "@namespace svg url(http://www.w3.org/2000/svg); .foo:is(svg|a) { color: yellow }",

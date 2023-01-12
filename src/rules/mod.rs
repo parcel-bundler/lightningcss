@@ -62,21 +62,21 @@ use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationHandler;
 use crate::dependencies::{Dependency, ImportDependency};
 use crate::error::{MinifyError, ParserError, PrinterError, PrinterErrorKind};
-use crate::parser::{DefaultAtRule, TopLevelRuleParser};
+use crate::parser::{parse_nested_at_rule, DefaultAtRule, NestedRuleParser, TopLevelRuleParser};
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::rules::keyframes::KeyframesName;
-use crate::selector::{downlevel_selectors, get_prefix, is_equivalent};
+use crate::selector::{downlevel_selectors, get_prefix, is_equivalent, SelectorList};
 use crate::stylesheet::ParserOptions;
 use crate::targets::Browsers;
-use crate::traits::ToCss;
+use crate::traits::{AtRuleParser, ToCss};
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
 use container::ContainerRule;
 use counter_style::CounterStyleRule;
-use cssparser::{parse_one_rule, AtRuleParser, ParseError, Parser, ParserInput};
+use cssparser::{parse_one_rule, ParseError, Parser, ParserInput};
 use custom_media::CustomMediaRule;
 use document::MozDocumentRule;
 use font_face::FontFaceRule;
@@ -92,19 +92,10 @@ use supports::SupportsRule;
 use unknown::UnknownAtRule;
 use viewport::ViewportRule;
 
-pub(crate) trait ToCssWithContext<'a, 'i, T> {
-  fn to_css_with_context<W>(
-    &self,
-    dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i, T>>,
-  ) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write;
-}
-
-pub(crate) struct StyleContext<'a, 'i, T> {
-  pub rule: &'a StyleRule<'i, T>,
-  pub parent: Option<&'a StyleContext<'a, 'i, T>>,
+#[derive(Clone)]
+pub(crate) struct StyleContext<'a, 'i> {
+  pub selectors: &'a SelectorList<'i>,
+  pub parent: Option<&'a StyleContext<'a, 'i>>,
 }
 
 /// A source location.
@@ -320,34 +311,30 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
   }
 }
 
-impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for CssRule<'i, T> {
-  fn to_css_with_context<W>(
-    &self,
-    dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i, T>>,
-  ) -> Result<(), PrinterError>
+impl<'a, 'i, T: ToCss> ToCss for CssRule<'i, T> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
   {
     match self {
-      CssRule::Media(media) => media.to_css_with_context(dest, context),
+      CssRule::Media(media) => media.to_css(dest),
       CssRule::Import(import) => import.to_css(dest),
-      CssRule::Style(style) => style.to_css_with_context(dest, context),
+      CssRule::Style(style) => style.to_css(dest),
       CssRule::Keyframes(keyframes) => keyframes.to_css(dest),
       CssRule::FontFace(font_face) => font_face.to_css(dest),
       CssRule::FontPaletteValues(f) => f.to_css(dest),
       CssRule::Page(font_face) => font_face.to_css(dest),
-      CssRule::Supports(supports) => supports.to_css_with_context(dest, context),
+      CssRule::Supports(supports) => supports.to_css(dest),
       CssRule::CounterStyle(counter_style) => counter_style.to_css(dest),
       CssRule::Namespace(namespace) => namespace.to_css(dest),
       CssRule::MozDocument(document) => document.to_css(dest),
-      CssRule::Nesting(nesting) => nesting.to_css_with_context(dest, context),
+      CssRule::Nesting(nesting) => nesting.to_css(dest),
       CssRule::Viewport(viewport) => viewport.to_css(dest),
       CssRule::CustomMedia(custom_media) => custom_media.to_css(dest),
       CssRule::LayerStatement(layer) => layer.to_css(dest),
-      CssRule::LayerBlock(layer) => layer.to_css_with_context(dest, context),
+      CssRule::LayerBlock(layer) => layer.to_css(dest),
       CssRule::Property(property) => property.to_css(dest),
-      CssRule::Container(container) => container.to_css_with_context(dest, context),
+      CssRule::Container(container) => container.to_css(dest),
       CssRule::Unknown(unknown) => unknown.to_css(dest),
       CssRule::Custom(rule) => rule.to_css(dest).map_err(|_| PrinterError {
         kind: PrinterErrorKind::FmtError,
@@ -362,7 +349,7 @@ impl<'i, T> CssRule<'i, T> {
   /// Parse a single rule.
   pub fn parse<'t, P: AtRuleParser<'i, AtRule = T>>(
     input: &mut Parser<'i, 't>,
-    options: &mut ParserOptions<'_, 'i, P>,
+    options: &ParserOptions<'_, 'i, P>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let (_, rule) = parse_one_rule(input, &mut TopLevelRuleParser::new(options))?;
     Ok(rule)
@@ -371,20 +358,11 @@ impl<'i, T> CssRule<'i, T> {
   /// Parse a single rule from a string.
   pub fn parse_string<P: AtRuleParser<'i, AtRule = T>>(
     input: &'i str,
-    mut options: ParserOptions<'_, 'i, P>,
+    options: ParserOptions<'_, 'i, P>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(input);
     let mut parser = Parser::new(&mut input);
-    Self::parse(&mut parser, &mut options)
-  }
-}
-
-impl<'i, T: ToCss> ToCss for CssRule<'i, T> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    self.to_css_with_context(dest, None)
+    Self::parse(&mut parser, &options)
   }
 }
 
@@ -395,6 +373,26 @@ impl<'i, T: ToCss> ToCss for CssRule<'i, T> {
 pub struct CssRuleList<'i, R = DefaultAtRule>(
   #[cfg_attr(feature = "serde", serde(borrow))] pub Vec<CssRule<'i, R>>,
 );
+
+impl<'i, T> CssRuleList<'i, T> {
+  /// Parse a rule list.
+  pub fn parse<'t, P: AtRuleParser<'i, AtRule = T>>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i, P>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let mut nested_parser = NestedRuleParser { options };
+    nested_parser.parse_nested_rules(input)
+  }
+
+  /// Parse a style block, with both declarations and rules.
+  /// Resulting declarations are returned in a nested style rule.
+  pub fn parse_style_block<'t, P: AtRuleParser<'i, AtRule = T>>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i, P>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    parse_nested_at_rule(input, options)
+  }
+}
 
 // Manually implemented to avoid circular child types.
 #[cfg(feature = "visitor")]
@@ -687,21 +685,8 @@ fn merge_style_rules<'i, T>(
   false
 }
 
-impl<'i, T: ToCss> ToCss for CssRuleList<'i, T> {
+impl<'a, 'i, T: ToCss> ToCss for CssRuleList<'i, T> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    self.to_css_with_context(dest, None)
-  }
-}
-
-impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for CssRuleList<'i, T> {
-  fn to_css_with_context<W>(
-    &self,
-    dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i, T>>,
-  ) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
   {
@@ -743,7 +728,7 @@ impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for CssRuleList<'i, T> {
         }
         dest.newline()?;
       }
-      rule.to_css_with_context(dest, context)?;
+      rule.to_css(dest)?;
       last_without_block = matches!(
         rule,
         CssRule::Import(..) | CssRule::Namespace(..) | CssRule::LayerStatement(..)

@@ -9,6 +9,7 @@ use crate::{
 };
 use std::borrow::Cow;
 
+use cssparser::CowRcStr;
 #[cfg(feature = "jsonschema")]
 use schemars::JsonSchema;
 
@@ -61,12 +62,11 @@ enum SerializedComponent<'i, 's, Impl: SelectorImpl<'s>, PseudoClass, PseudoElem
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
-#[serde(tag = "value", rename_all = "kebab-case")]
+#[serde(tag = "kind", rename_all = "kebab-case")]
 enum Namespace<'i> {
   None,
   Any,
-  Default { url: Cow<'i, str> },
-  Some { prefix: Cow<'i, str>, url: Cow<'i, str> },
+  Named { prefix: Cow<'i, str> },
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -288,12 +288,10 @@ where
       Component::ExplicitUniversalType => SerializedComponent::Universal,
       Component::ExplicitAnyNamespace => SerializedComponent::Namespace(Namespace::Any),
       Component::ExplicitNoNamespace => SerializedComponent::Namespace(Namespace::None),
-      Component::DefaultNamespace(url) => SerializedComponent::Namespace(Namespace::Default {
-        url: url.as_ref().into(),
-      }),
-      Component::Namespace(prefix, url) => SerializedComponent::Namespace(Namespace::Some {
+      // can't actually happen anymore.
+      Component::DefaultNamespace(_url) => SerializedComponent::Namespace(Namespace::Any),
+      Component::Namespace(prefix, _url) => SerializedComponent::Namespace(Namespace::Named {
         prefix: prefix.as_ref().into(),
-        url: url.as_ref().into(),
       }),
       Component::LocalName(name) => SerializedComponent::Type {
         name: name.name.as_ref().into(),
@@ -440,8 +438,7 @@ where
       SerializedComponent::Namespace(n) => match n {
         Namespace::Any => Component::ExplicitAnyNamespace,
         Namespace::None => Component::ExplicitNoNamespace,
-        Namespace::Default { url } => Component::DefaultNamespace(url.into()),
-        Namespace::Some { prefix, url } => Component::Namespace(prefix.into(), url.into()),
+        Namespace::Named { prefix } => Component::Namespace(prefix.into(), CowRcStr::from("").into()),
       },
       SerializedComponent::Type { name } => {
         let name: Impl::LocalName = name.into();

@@ -2009,21 +2009,19 @@ where
         }),
         QNamePrefix::ExplicitNoNamespace => sink.push(Component::ExplicitNoNamespace),
         QNamePrefix::ExplicitAnyNamespace => {
-          match parser.default_namespace() {
-            // Element type selectors that have no namespace
-            // component (no namespace separator) represent elements
-            // without regard to the element's namespace (equivalent
-            // to "*|") unless a default namespace has been declared
-            // for namespaced selectors (e.g. in CSS, in the style
-            // sheet). If a default namespace has been declared,
-            // such selectors will represent only elements in the
-            // default namespace.
-            // -- Selectors § 6.1.1
-            // So we'll have this act the same as the
-            // QNamePrefix::ImplicitAnyNamespace case.
-            None => {}
-            Some(_) => sink.push(Component::ExplicitAnyNamespace),
-          }
+          // Element type selectors that have no namespace
+          // component (no namespace separator) represent elements
+          // without regard to the element's namespace (equivalent
+          // to "*|") unless a default namespace has been declared
+          // for namespaced selectors (e.g. in CSS, in the style
+          // sheet). If a default namespace has been declared,
+          // such selectors will represent only elements in the
+          // default namespace.
+          // -- Selectors § 6.1.1
+          // So we'll have this act the same as the
+          // QNamePrefix::ImplicitAnyNamespace case.
+          // For lightning css this logic was removed, should be handled when matching.
+          sink.push(Component::ExplicitAnyNamespace)
         }
         QNamePrefix::ImplicitNoNamespace => {
           unreachable!() // Not returned with in_attr_selector = false
@@ -3117,38 +3115,38 @@ pub mod tests {
     );
     // When the default namespace is not set, *| should be elided.
     // https://github.com/servo/servo/pull/17537
-    assert_eq!(
-      parse_expected("*|e", Some("e")),
-      Ok(SelectorList::from_vec(vec![Selector::from_vec(
-        vec![Component::LocalName(LocalName {
-          name: DummyAtom::from("e"),
-          lower_name: DummyAtom::from("e"),
-        })],
-        specificity(0, 0, 1),
-        Default::default(),
-      )]))
-    );
+    // assert_eq!(
+    //   parse_expected("*|e", Some("e")),
+    //   Ok(SelectorList::from_vec(vec![Selector::from_vec(
+    //     vec![Component::LocalName(LocalName {
+    //       name: DummyAtom::from("e"),
+    //       lower_name: DummyAtom::from("e"),
+    //     })],
+    //     specificity(0, 0, 1),
+    //     Default::default(),
+    //   )]))
+    // );
     // When the default namespace is set, *| should _not_ be elided (as foo
     // is no longer equivalent to *|foo--the former is only for foo in the
     // default namespace).
     // https://github.com/servo/servo/issues/16020
-    assert_eq!(
-      parse_ns(
-        "*|e",
-        &DummyParser::default_with_namespace(DummyAtom::from("https://mozilla.org"))
-      ),
-      Ok(SelectorList::from_vec(vec![Selector::from_vec(
-        vec![
-          Component::ExplicitAnyNamespace,
-          Component::LocalName(LocalName {
-            name: DummyAtom::from("e"),
-            lower_name: DummyAtom::from("e"),
-          }),
-        ],
-        specificity(0, 0, 1),
-        Default::default(),
-      )]))
-    );
+    // assert_eq!(
+    //   parse_ns(
+    //     "*|e",
+    //     &DummyParser::default_with_namespace(DummyAtom::from("https://mozilla.org"))
+    //   ),
+    //   Ok(SelectorList::from_vec(vec![Selector::from_vec(
+    //     vec![
+    //       Component::ExplicitAnyNamespace,
+    //       Component::LocalName(LocalName {
+    //         name: DummyAtom::from("e"),
+    //         lower_name: DummyAtom::from("e"),
+    //       }),
+    //     ],
+    //     specificity(0, 0, 1),
+    //     Default::default(),
+    //   )]))
+    // );
     assert_eq!(
       parse("*"),
       Ok(SelectorList::from_vec(vec![Selector::from_vec(
@@ -3165,14 +3163,14 @@ pub mod tests {
         Default::default(),
       )]))
     );
-    assert_eq!(
-      parse_expected("*|*", Some("*")),
-      Ok(SelectorList::from_vec(vec![Selector::from_vec(
-        vec![Component::ExplicitUniversalType],
-        specificity(0, 0, 0),
-        Default::default(),
-      )]))
-    );
+    // assert_eq!(
+    //   parse_expected("*|*", Some("*")),
+    //   Ok(SelectorList::from_vec(vec![Selector::from_vec(
+    //     vec![Component::ExplicitUniversalType],
+    //     specificity(0, 0, 0),
+    //     Default::default(),
+    //   )]))
+    // );
     assert_eq!(
       parse_ns(
         "*|*",
@@ -3517,21 +3515,21 @@ pub mod tests {
     );
     // *| should be elided if there is no default namespace.
     // https://github.com/servo/servo/pull/17537
-    assert_eq!(
-      parse_ns_expected(":not(*|*)", &parser, Some(":not(*)")),
-      Ok(SelectorList::from_vec(vec![Selector::from_vec(
-        vec![Component::Negation(
-          vec![Selector::from_vec(
-            vec![Component::ExplicitUniversalType],
-            specificity(0, 0, 0),
-            Default::default()
-          )]
-          .into_boxed_slice()
-        )],
-        specificity(0, 0, 0),
-        Default::default(),
-      )]))
-    );
+    // assert_eq!(
+    //   parse_ns_expected(":not(*|*)", &parser, Some(":not(*)")),
+    //   Ok(SelectorList::from_vec(vec![Selector::from_vec(
+    //     vec![Component::Negation(
+    //       vec![Selector::from_vec(
+    //         vec![Component::ExplicitUniversalType],
+    //         specificity(0, 0, 0),
+    //         Default::default()
+    //       )]
+    //       .into_boxed_slice()
+    //     )],
+    //     specificity(0, 0, 0),
+    //     Default::default(),
+    //   )]))
+    // );
 
     assert!(parse("::slotted()").is_err());
     assert!(parse("::slotted(div)").is_ok());
