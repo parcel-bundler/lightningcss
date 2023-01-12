@@ -36,7 +36,7 @@ use crate::{
     layer::{LayerBlockRule, LayerName},
     Location,
   },
-  traits::ToCss,
+  traits::{AtRuleParser, ToCss},
   values::ident::DashedIdentReference,
 };
 use crate::{
@@ -50,7 +50,6 @@ use crate::{
   },
   stylesheet::{ParserOptions, StyleSheet},
 };
-use cssparser::AtRuleParser;
 use dashmap::DashMap;
 use parcel_sourcemap::SourceMap;
 use rayon::prelude::*;

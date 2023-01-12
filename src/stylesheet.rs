@@ -13,10 +13,10 @@ use crate::parser::{DefaultAtRuleParser, TopLevelRuleParser};
 use crate::printer::Printer;
 use crate::rules::{CssRule, CssRuleList, MinifyContext};
 use crate::targets::Browsers;
-use crate::traits::ToCss;
+use crate::traits::{AtRuleParser, ToCss};
 #[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
-use cssparser::{AtRuleParser, Parser, ParserInput, RuleListParser};
+use cssparser::{Parser, ParserInput, RuleListParser};
 #[cfg(feature = "sourcemap")]
 use parcel_sourcemap::SourceMap;
 use std::collections::{HashMap, HashSet};
