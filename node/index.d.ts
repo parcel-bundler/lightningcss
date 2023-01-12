@@ -1,4 +1,4 @@
-import type { Angle, CssColor, Rule, CustomProperty, EnvironmentVariable, Function, Image, LengthValue, MediaQuery, Declaration, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable, StyleRule, DeclarationBlock } from './ast';
+import type { Angle, CssColor, Rule, CustomProperty, EnvironmentVariable, Function, Image, LengthValue, MediaQuery, Declaration, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable, StyleRule, DeclarationBlock, ParsedComponent } from './ast';
 import type { Targets } from './targets';
 
 export * from './ast';
@@ -55,7 +55,14 @@ export interface TransformOptions {
    * For optimal performance, visitors should be as specific as possible about what types of values
    * they care about so that JavaScript has to be called as little as possible.
    */
-  visitor?: Visitor
+  visitor?: Visitor,
+  /**
+   * Defines how to parse custom CSS at-rules. Each at-rule can have a prelude, defined using a CSS
+   * [syntax string](https://drafts.css-houdini.org/css-properties-values-api/#syntax-strings), and
+   * a block body. The body can be a declaration list, rule list, or style block as defined in the
+   * [css spec](https://drafts.csswg.org/css-syntax/#declaration-rule-list).
+   */
+  customAtRules?: CustomAtRules
 }
 
 // This is a hack to make TS still provide autocomplete for `property` vs. just making it `string`.
@@ -79,12 +86,27 @@ type MappedRuleVisitors = {
   [Name in Exclude<Rule['type'], 'unknown' | 'custom'>]?: RuleVisitor<RequiredValue<FindByType<Rule, Name>>>;
 }
 
-type UnknownVisitors = {
-  [name: string]: RuleVisitor<UnknownAtRule>
+type UnknownVisitors<T> = {
+  [name: string]: RuleVisitor<T>
 }
 
 type RuleVisitors = MappedRuleVisitors & {
-  unknown?: UnknownVisitors | RuleVisitor<UnknownAtRule>
+  unknown?: UnknownVisitors<UnknownAtRule> | RuleVisitor<UnknownAtRule>,
+  custom?: UnknownVisitors<CustomAtRule> | RuleVisitor<CustomAtRule>
+};
+
+interface CustomAtRule {
+  name: string,
+  prelude: ParsedComponent | null,
+  body: CustomAtRuleBody
+}
+
+type CustomAtRuleBody = {
+  type: 'declaration-list',
+  value: DeclarationBlock
+} | {
+  type: 'rule-list',
+  value: Rule[]
 };
 
 type FindProperty<Union, Name> = Union extends { property: Name } ? Union : never;
@@ -141,6 +163,30 @@ export interface Visitor {
   VariableExit?(variable: Variable): TokenOrValue | TokenOrValue[] | void;
   EnvironmentVariable?: EnvironmentVariableVisitor | EnvironmentVariableVisitors;
   EnvironmentVariableExit?: EnvironmentVariableVisitor | EnvironmentVariableVisitors;
+}
+
+export interface CustomAtRules {
+  [name: string]: CustomAtRule
+}
+
+export interface CustomAtRule {
+  /**
+   * Defines the syntax for a custom at-rule prelude. The value should be a
+   * CSS [syntax string](https://drafts.css-houdini.org/css-properties-values-api/#syntax-strings)
+   * representing the types of values that are accepted. This property may be omitted or
+   * set to null to indicate that no prelude is accepted.
+   */
+  prelude?: string | null,
+  /**
+   * Defines the type of body contained within the at-rule block.
+   *   - declaration-list: A CSS declaration list, as in a style rule.
+   *   - rule-list: A list of CSS rules, as supported within a non-nested
+   *       at-rule such as `@media` or `@supports`.
+   *   - style-block: Both a declaration list and rule list, as accepted within
+   *       a nested at-rule within a style rule (e.g. `@media` inside a style rule
+   *       with directly nested declarations).
+   */
+  body?: 'declaration-list' | 'rule-list' | 'style-block' | null
 }
 
 export interface DependencyOptions {
