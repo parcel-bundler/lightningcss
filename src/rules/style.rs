@@ -11,7 +11,7 @@ use crate::error::ParserError;
 use crate::error::{MinifyError, PrinterError, PrinterErrorKind};
 use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
-use crate::rules::{CssRuleList, StyleContext, ToCssWithContext};
+use crate::rules::CssRuleList;
 use crate::selector::{is_compatible, is_unused, SelectorList};
 use crate::targets::Browsers;
 use crate::traits::ToCss;
@@ -156,17 +156,13 @@ where
   }
 }
 
-impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for StyleRule<'i, T> {
-  fn to_css_with_context<W>(
-    &self,
-    dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i, T>>,
-  ) -> Result<(), PrinterError>
+impl<'a, 'i, T: ToCss> ToCss for StyleRule<'i, T> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
   {
     if self.vendor_prefix.is_empty() {
-      self.to_css_base(dest, context)
+      self.to_css_base(dest)
     } else {
       let mut first_rule = true;
       macro_rules! prefix {
@@ -182,7 +178,7 @@ impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for StyleRule<'i, T> {
               dest.newline()?;
             }
             dest.vendor_prefix = VendorPrefix::$prefix;
-            self.to_css_base(dest, context)?;
+            self.to_css_base(dest)?;
           }
         };
       }
@@ -200,11 +196,7 @@ impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for StyleRule<'i, T> {
 }
 
 impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
-  fn to_css_base<W>(
-    &self,
-    dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i, T>>,
-  ) -> Result<(), PrinterError>
+  fn to_css_base<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
   {
@@ -218,7 +210,7 @@ impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
     if has_declarations {
       #[cfg(feature = "sourcemap")]
       dest.add_mapping(self.loc);
-      self.selectors.to_css_with_context(dest, context)?;
+      self.selectors.to_css(dest)?;
       dest.whitespace()?;
       dest.write_char('{')?;
       dest.indent();
@@ -286,13 +278,7 @@ impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
     } else {
       end!();
       newline!();
-      self.rules.to_css_with_context(
-        dest,
-        Some(&StyleContext {
-          rule: self,
-          parent: context,
-        }),
-      )?;
+      dest.with_context(&self.selectors, |dest| self.rules.to_css(dest))?;
     }
 
     Ok(())

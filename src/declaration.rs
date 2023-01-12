@@ -441,7 +441,7 @@ pub(crate) fn parse_declaration<'i, 't, T>(
   input: &mut cssparser::Parser<'i, 't>,
   declarations: &mut DeclarationList<'i>,
   important_declarations: &mut DeclarationList<'i>,
-  options: &ParserOptions<T>,
+  options: &ParserOptions<'_, 'i, T>,
 ) -> Result<(), cssparser::ParseError<'i, ParserError<'i>>> {
   let property = input.parse_until_before(Delimiter::Bang, |input| {
     Property::parse(PropertyId::from(CowArcStr::from(name)), input, options)

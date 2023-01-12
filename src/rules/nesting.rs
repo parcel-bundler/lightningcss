@@ -6,7 +6,6 @@ use super::MinifyContext;
 use crate::error::{MinifyError, PrinterError};
 use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
-use crate::rules::{StyleContext, ToCssWithContext};
 use crate::traits::ToCss;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -34,20 +33,16 @@ impl<'i, T> NestingRule<'i, T> {
   }
 }
 
-impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for NestingRule<'i, T> {
-  fn to_css_with_context<W>(
-    &self,
-    dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i, T>>,
-  ) -> Result<(), PrinterError>
+impl<'a, 'i, T: ToCss> ToCss for NestingRule<'i, T> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
   {
     #[cfg(feature = "sourcemap")]
     dest.add_mapping(self.loc);
-    if context.is_none() {
+    if dest.context().is_none() {
       dest.write_str("@nest ")?;
     }
-    self.style.to_css_with_context(dest, context)
+    self.style.to_css(dest)
   }
 }

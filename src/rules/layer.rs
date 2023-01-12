@@ -1,6 +1,6 @@
 //! The `@layer` rule.
 
-use super::{CssRuleList, Location, MinifyContext, StyleContext, ToCssWithContext};
+use super::{CssRuleList, Location, MinifyContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
 use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
@@ -140,12 +140,8 @@ impl<'i, T> LayerBlockRule<'i, T> {
   }
 }
 
-impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for LayerBlockRule<'i, T> {
-  fn to_css_with_context<W>(
-    &self,
-    dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i, T>>,
-  ) -> Result<(), PrinterError>
+impl<'a, 'i, T: ToCss> ToCss for LayerBlockRule<'i, T> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
   {
@@ -161,7 +157,7 @@ impl<'a, 'i, T: ToCss> ToCssWithContext<'a, 'i, T> for LayerBlockRule<'i, T> {
     dest.write_char('{')?;
     dest.indent();
     dest.newline()?;
-    self.rules.to_css_with_context(dest, context)?;
+    self.rules.to_css(dest)?;
     dest.dedent();
     dest.newline()?;
     dest.write_char('}')

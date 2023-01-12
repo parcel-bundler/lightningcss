@@ -2,13 +2,12 @@
 
 use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
-use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
 use crate::properties::custom::TokenList;
-use crate::rules::{StyleContext, ToCssWithContext};
+use crate::rules::StyleContext;
 use crate::stylesheet::{ParserOptions, PrinterOptions};
 use crate::targets::Browsers;
-use crate::traits::{Parse, ToCss};
+use crate::traits::{Parse, ParseWithOptions, ToCss};
 use crate::values::ident::Ident;
 use crate::values::string::CSSString;
 use crate::vendor_prefix::VendorPrefix;
@@ -21,7 +20,6 @@ use parcel_selectors::{
   attr::{AttrSelectorOperator, ParsedAttrSelectorOperation, ParsedCaseSensitivity},
   parser::SelectorImpl,
 };
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
 
@@ -62,14 +60,11 @@ impl<'i> SelectorImpl<'i> for Selectors {
 
   fn to_css<W: fmt::Write>(selectors: &SelectorList<'i>, dest: &mut W) -> std::fmt::Result {
     let mut printer = Printer::new(dest, PrinterOptions::default());
-    serialize_selector_list::<_, _, DefaultAtRule>(selectors.0.iter(), &mut printer, None, false)
-      .map_err(|_| std::fmt::Error)
+    serialize_selector_list(selectors.0.iter(), &mut printer, None, false).map_err(|_| std::fmt::Error)
   }
 }
 
 pub(crate) struct SelectorParser<'a, 'o, 'i, T> {
-  pub default_namespace: &'a Option<CowArcStr<'i>>,
-  pub namespace_prefixes: &'a HashMap<CowArcStr<'i>, CowArcStr<'i>>,
   pub is_nesting_allowed: bool,
   pub options: &'a ParserOptions<'o, 'i, T>,
 }
@@ -303,11 +298,11 @@ impl<'a, 'o, 'i, T> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 
   }
 
   fn default_namespace(&self) -> Option<CowArcStr<'i>> {
-    self.default_namespace.clone()
+    None
   }
 
   fn namespace_for_prefix(&self, prefix: &Ident<'i>) -> Option<CowArcStr<'i>> {
-    self.namespace_prefixes.get(&prefix.0).cloned()
+    Some(prefix.0.clone())
   }
 
   #[inline]
@@ -560,178 +555,176 @@ impl<'i> cssparser::ToCss for PseudoClass<'i> {
   }
 }
 
-impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for PseudoClass<'i> {
-  fn to_css_with_context<W>(
-    &self,
-    dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i, T>>,
-  ) -> Result<(), PrinterError>
-  where
-    W: fmt::Write,
-  {
-    use PseudoClass::*;
-    match &self {
-      Lang { languages: lang } => {
-        dest.write_str(":lang(")?;
-        let mut first = true;
-        for lang in lang {
-          if first {
-            first = false;
-          } else {
-            dest.delim(',', false)?;
-          }
-          serialize_identifier(lang, dest)?;
+fn serialize_pseudo_class<'a, 'i, W>(
+  pseudo_class: &PseudoClass<'i>,
+  dest: &mut Printer<W>,
+  context: Option<&StyleContext>,
+) -> Result<(), PrinterError>
+where
+  W: fmt::Write,
+{
+  use PseudoClass::*;
+  match pseudo_class {
+    Lang { languages: lang } => {
+      dest.write_str(":lang(")?;
+      let mut first = true;
+      for lang in lang {
+        if first {
+          first = false;
+        } else {
+          dest.delim(',', false)?;
         }
-        return dest.write_str(")");
+        serialize_identifier(lang, dest)?;
       }
-      Dir { direction: dir } => {
-        dest.write_str(":dir(")?;
-        dir.to_css(dest)?;
-        return dest.write_str(")");
+      return dest.write_str(")");
+    }
+    Dir { direction: dir } => {
+      dest.write_str(":dir(")?;
+      dir.to_css(dest)?;
+      return dest.write_str(")");
+    }
+    _ => {}
+  }
+
+  macro_rules! write_prefixed {
+    ($prefix: ident, $val: expr) => {{
+      dest.write_char(':')?;
+      // If the printer has a vendor prefix override, use that.
+      let vp = if !dest.vendor_prefix.is_empty() {
+        dest.vendor_prefix
+      } else {
+        *$prefix
+      };
+      vp.to_css(dest)?;
+      dest.write_str($val)
+    }};
+  }
+
+  macro_rules! pseudo {
+    ($key: ident, $s: literal) => {{
+      let class = if let Some(pseudo_classes) = &dest.pseudo_classes {
+        pseudo_classes.$key
+      } else {
+        None
+      };
+
+      if let Some(class) = class {
+        dest.write_char('.')?;
+        dest.write_ident(class)
+      } else {
+        dest.write_str($s)
       }
-      _ => {}
+    }};
+  }
+
+  match pseudo_class {
+    // https://drafts.csswg.org/selectors-4/#useraction-pseudos
+    Hover => pseudo!(hover, ":hover"),
+    Active => pseudo!(active, ":active"),
+    Focus => pseudo!(focus, ":focus"),
+    FocusVisible => pseudo!(focus_visible, ":focus-visible"),
+    FocusWithin => pseudo!(focus_within, ":focus-within"),
+
+    // https://drafts.csswg.org/selectors-4/#time-pseudos
+    Current => dest.write_str(":current"),
+    Past => dest.write_str(":past"),
+    Future => dest.write_str(":future"),
+
+    // https://drafts.csswg.org/selectors-4/#resource-pseudos
+    Playing => dest.write_str(":playing"),
+    Paused => dest.write_str(":paused"),
+    Seeking => dest.write_str(":seeking"),
+    Buffering => dest.write_str(":buffering"),
+    Stalled => dest.write_str(":stalled"),
+    Muted => dest.write_str(":muted"),
+    VolumeLocked => dest.write_str(":volume-locked"),
+
+    // https://fullscreen.spec.whatwg.org/#:fullscreen-pseudo-class
+    Fullscreen(prefix) => {
+      dest.write_char(':')?;
+      let vp = if !dest.vendor_prefix.is_empty() {
+        dest.vendor_prefix
+      } else {
+        *prefix
+      };
+      vp.to_css(dest)?;
+      if vp == VendorPrefix::WebKit || vp == VendorPrefix::Moz {
+        dest.write_str("full-screen")
+      } else {
+        dest.write_str("fullscreen")
+      }
     }
 
-    macro_rules! write_prefixed {
-      ($prefix: ident, $val: expr) => {{
-        dest.write_char(':')?;
-        // If the printer has a vendor prefix override, use that.
-        let vp = if !dest.vendor_prefix.is_empty() {
-          dest.vendor_prefix
-        } else {
-          *$prefix
-        };
-        vp.to_css(dest)?;
-        dest.write_str($val)
-      }};
+    // https://drafts.csswg.org/selectors-4/#the-defined-pseudo
+    Defined => dest.write_str(":defined"),
+
+    // https://drafts.csswg.org/selectors-4/#location
+    AnyLink(prefix) => write_prefixed!(prefix, "any-link"),
+    Link => dest.write_str(":link"),
+    LocalLink => dest.write_str(":local-link"),
+    Target => dest.write_str(":target"),
+    TargetWithin => dest.write_str(":target-within"),
+    Visited => dest.write_str(":visited"),
+
+    // https://drafts.csswg.org/selectors-4/#input-pseudos
+    Enabled => dest.write_str(":enabled"),
+    Disabled => dest.write_str(":disabled"),
+    ReadOnly(prefix) => write_prefixed!(prefix, "read-only"),
+    ReadWrite(prefix) => write_prefixed!(prefix, "read-write"),
+    PlaceholderShown(prefix) => write_prefixed!(prefix, "placeholder-shown"),
+    Default => dest.write_str(":default"),
+    Checked => dest.write_str(":checked"),
+    Indeterminate => dest.write_str(":indeterminate"),
+    Blank => dest.write_str(":blank"),
+    Valid => dest.write_str(":valid"),
+    Invalid => dest.write_str(":invalid"),
+    InRange => dest.write_str(":in-range"),
+    OutOfRange => dest.write_str(":out-of-range"),
+    Required => dest.write_str(":required"),
+    Optional => dest.write_str(":optional"),
+    UserValid => dest.write_str(":user-valid"),
+    UserInvalid => dest.write_str(":user-invalid"),
+
+    // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
+    Autofill(prefix) => write_prefixed!(prefix, "autofill"),
+
+    Local { selector } => serialize_selector(selector, dest, context, false),
+    Global { selector } => {
+      let css_module = std::mem::take(&mut dest.css_module);
+      serialize_selector(selector, dest, context, false)?;
+      dest.css_module = css_module;
+      Ok(())
     }
 
-    macro_rules! pseudo {
-      ($key: ident, $s: literal) => {{
-        let class = if let Some(pseudo_classes) = &dest.pseudo_classes {
-          pseudo_classes.$key
-        } else {
-          None
-        };
-
-        if let Some(class) = class {
-          dest.write_char('.')?;
-          dest.write_ident(class)
-        } else {
-          dest.write_str($s)
-        }
-      }};
+    // https://webkit.org/blog/363/styling-scrollbars/
+    WebKitScrollbar(s) => {
+      use WebKitScrollbarPseudoClass::*;
+      dest.write_str(match s {
+        Horizontal => ":horizontal",
+        Vertical => ":vertical",
+        Decrement => ":decrement",
+        Increment => ":increment",
+        Start => ":start",
+        End => ":end",
+        DoubleButton => ":double-button",
+        SingleButton => ":single-button",
+        NoButton => ":no-button",
+        CornerPresent => ":corner-present",
+        WindowInactive => ":window-inactive",
+      })
     }
 
-    match &self {
-      // https://drafts.csswg.org/selectors-4/#useraction-pseudos
-      Hover => pseudo!(hover, ":hover"),
-      Active => pseudo!(active, ":active"),
-      Focus => pseudo!(focus, ":focus"),
-      FocusVisible => pseudo!(focus_visible, ":focus-visible"),
-      FocusWithin => pseudo!(focus_within, ":focus-within"),
-
-      // https://drafts.csswg.org/selectors-4/#time-pseudos
-      Current => dest.write_str(":current"),
-      Past => dest.write_str(":past"),
-      Future => dest.write_str(":future"),
-
-      // https://drafts.csswg.org/selectors-4/#resource-pseudos
-      Playing => dest.write_str(":playing"),
-      Paused => dest.write_str(":paused"),
-      Seeking => dest.write_str(":seeking"),
-      Buffering => dest.write_str(":buffering"),
-      Stalled => dest.write_str(":stalled"),
-      Muted => dest.write_str(":muted"),
-      VolumeLocked => dest.write_str(":volume-locked"),
-
-      // https://fullscreen.spec.whatwg.org/#:fullscreen-pseudo-class
-      Fullscreen(prefix) => {
-        dest.write_char(':')?;
-        let vp = if !dest.vendor_prefix.is_empty() {
-          dest.vendor_prefix
-        } else {
-          *prefix
-        };
-        vp.to_css(dest)?;
-        if vp == VendorPrefix::WebKit || vp == VendorPrefix::Moz {
-          dest.write_str("full-screen")
-        } else {
-          dest.write_str("fullscreen")
-        }
-      }
-
-      // https://drafts.csswg.org/selectors-4/#the-defined-pseudo
-      Defined => dest.write_str(":defined"),
-
-      // https://drafts.csswg.org/selectors-4/#location
-      AnyLink(prefix) => write_prefixed!(prefix, "any-link"),
-      Link => dest.write_str(":link"),
-      LocalLink => dest.write_str(":local-link"),
-      Target => dest.write_str(":target"),
-      TargetWithin => dest.write_str(":target-within"),
-      Visited => dest.write_str(":visited"),
-
-      // https://drafts.csswg.org/selectors-4/#input-pseudos
-      Enabled => dest.write_str(":enabled"),
-      Disabled => dest.write_str(":disabled"),
-      ReadOnly(prefix) => write_prefixed!(prefix, "read-only"),
-      ReadWrite(prefix) => write_prefixed!(prefix, "read-write"),
-      PlaceholderShown(prefix) => write_prefixed!(prefix, "placeholder-shown"),
-      Default => dest.write_str(":default"),
-      Checked => dest.write_str(":checked"),
-      Indeterminate => dest.write_str(":indeterminate"),
-      Blank => dest.write_str(":blank"),
-      Valid => dest.write_str(":valid"),
-      Invalid => dest.write_str(":invalid"),
-      InRange => dest.write_str(":in-range"),
-      OutOfRange => dest.write_str(":out-of-range"),
-      Required => dest.write_str(":required"),
-      Optional => dest.write_str(":optional"),
-      UserValid => dest.write_str(":user-valid"),
-      UserInvalid => dest.write_str(":user-invalid"),
-
-      // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
-      Autofill(prefix) => write_prefixed!(prefix, "autofill"),
-
-      Local { selector } => selector.to_css_with_context(dest, context),
-      Global { selector } => {
-        let css_module = std::mem::take(&mut dest.css_module);
-        selector.to_css_with_context(dest, context)?;
-        dest.css_module = css_module;
-        Ok(())
-      }
-
-      // https://webkit.org/blog/363/styling-scrollbars/
-      WebKitScrollbar(s) => {
-        use WebKitScrollbarPseudoClass::*;
-        dest.write_str(match s {
-          Horizontal => ":horizontal",
-          Vertical => ":vertical",
-          Decrement => ":decrement",
-          Increment => ":increment",
-          Start => ":start",
-          End => ":end",
-          DoubleButton => ":double-button",
-          SingleButton => ":single-button",
-          NoButton => ":no-button",
-          CornerPresent => ":corner-present",
-          WindowInactive => ":window-inactive",
-        })
-      }
-
-      Lang { languages: _ } | Dir { direction: _ } => unreachable!(),
-      Custom { name } => {
-        dest.write_char(':')?;
-        return dest.write_str(&name);
-      }
-      CustomFunction { name, arguments: args } => {
-        dest.write_char(':')?;
-        dest.write_str(name)?;
-        dest.write_char('(')?;
-        args.to_css(dest, false)?;
-        dest.write_char(')')
-      }
+    Lang { languages: _ } | Dir { direction: _ } => unreachable!(),
+    Custom { name } => {
+      dest.write_char(':')?;
+      return dest.write_str(&name);
+    }
+    CustomFunction { name, arguments: args } => {
+      dest.write_char(':')?;
+      dest.write_str(name)?;
+      dest.write_char('(')?;
+      args.to_css(dest, false)?;
+      dest.write_char(')')
     }
   }
 }
@@ -872,98 +865,100 @@ impl<'i> cssparser::ToCss for PseudoElement<'i> {
   }
 }
 
-impl<'i> ToCss for PseudoElement<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: fmt::Write,
-  {
-    use PseudoElement::*;
+fn serialize_pseudo_element<'a, 'i, W>(
+  pseudo_element: &PseudoElement,
+  dest: &mut Printer<W>,
+  context: Option<&StyleContext>,
+) -> Result<(), PrinterError>
+where
+  W: fmt::Write,
+{
+  use PseudoElement::*;
 
-    macro_rules! write_prefix {
-      ($prefix: ident) => {{
-        dest.write_str("::")?;
-        // If the printer has a vendor prefix override, use that.
-        let vp = if !dest.vendor_prefix.is_empty() {
-          dest.vendor_prefix
-        } else {
-          *$prefix
-        };
-        vp.to_css(dest)?;
-        vp
-      }};
+  macro_rules! write_prefix {
+    ($prefix: ident) => {{
+      dest.write_str("::")?;
+      // If the printer has a vendor prefix override, use that.
+      let vp = if !dest.vendor_prefix.is_empty() {
+        dest.vendor_prefix
+      } else {
+        *$prefix
+      };
+      vp.to_css(dest)?;
+      vp
+    }};
+  }
+
+  macro_rules! write_prefixed {
+    ($prefix: ident, $val: expr) => {{
+      write_prefix!($prefix);
+      dest.write_str($val)
+    }};
+  }
+
+  match pseudo_element {
+    // CSS2 pseudo elements support a single colon syntax in addition
+    // to the more correct double colon for other pseudo elements.
+    // We use that here because it's supported everywhere and is shorter.
+    After => dest.write_str(":after"),
+    Before => dest.write_str(":before"),
+    FirstLine => dest.write_str(":first-line"),
+    FirstLetter => dest.write_str(":first-letter"),
+    Marker => dest.write_str("::marker"),
+    Selection(prefix) => write_prefixed!(prefix, "selection"),
+    Cue => dest.write_str("::cue"),
+    CueRegion => dest.write_str("::cue-region"),
+    CueFunction { selector } => {
+      dest.write_str("::cue(")?;
+      serialize_selector(selector, dest, context, false)?;
+      dest.write_char(')')
     }
-
-    macro_rules! write_prefixed {
-      ($prefix: ident, $val: expr) => {{
-        write_prefix!($prefix);
-        dest.write_str($val)
-      }};
+    CueRegionFunction(selector) => {
+      dest.write_str("::cue-region(")?;
+      serialize_selector(selector, dest, context, false)?;
+      dest.write_char(')')
     }
-
-    match &self {
-      // CSS2 pseudo elements support a single colon syntax in addition
-      // to the more correct double colon for other pseudo elements.
-      // We use that here because it's supported everywhere and is shorter.
-      After => dest.write_str(":after"),
-      Before => dest.write_str(":before"),
-      FirstLine => dest.write_str(":first-line"),
-      FirstLetter => dest.write_str(":first-letter"),
-      Marker => dest.write_str("::marker"),
-      Selection(prefix) => write_prefixed!(prefix, "selection"),
-      Cue => dest.write_str("::cue"),
-      CueRegion => dest.write_str("::cue-region"),
-      CueFunction { selector } => {
-        dest.write_str("::cue(")?;
-        serialize_selector::<_, DefaultAtRule>(selector, dest, None, false)?;
-        dest.write_char(')')
+    Placeholder(prefix) => {
+      let vp = write_prefix!(prefix);
+      if vp == VendorPrefix::WebKit || vp == VendorPrefix::Ms {
+        dest.write_str("input-placeholder")
+      } else {
+        dest.write_str("placeholder")
       }
-      CueRegionFunction(selector) => {
-        dest.write_str("::cue-region(")?;
-        serialize_selector::<_, DefaultAtRule>(selector, dest, None, false)?;
-        dest.write_char(')')
+    }
+    Backdrop(prefix) => write_prefixed!(prefix, "backdrop"),
+    FileSelectorButton(prefix) => {
+      let vp = write_prefix!(prefix);
+      if vp == VendorPrefix::WebKit {
+        dest.write_str("file-upload-button")
+      } else if vp == VendorPrefix::Ms {
+        dest.write_str("browse")
+      } else {
+        dest.write_str("file-selector-button")
       }
-      Placeholder(prefix) => {
-        let vp = write_prefix!(prefix);
-        if vp == VendorPrefix::WebKit || vp == VendorPrefix::Ms {
-          dest.write_str("input-placeholder")
-        } else {
-          dest.write_str("placeholder")
-        }
-      }
-      Backdrop(prefix) => write_prefixed!(prefix, "backdrop"),
-      FileSelectorButton(prefix) => {
-        let vp = write_prefix!(prefix);
-        if vp == VendorPrefix::WebKit {
-          dest.write_str("file-upload-button")
-        } else if vp == VendorPrefix::Ms {
-          dest.write_str("browse")
-        } else {
-          dest.write_str("file-selector-button")
-        }
-      }
-      WebKitScrollbar(s) => {
-        use WebKitScrollbarPseudoElement::*;
-        dest.write_str(match s {
-          Scrollbar => "::-webkit-scrollbar",
-          Button => "::-webkit-scrollbar-button",
-          Track => "::-webkit-scrollbar-track",
-          TrackPiece => "::-webkit-scrollbar-track-piece",
-          Thumb => "::-webkit-scrollbar-thumb",
-          Corner => "::-webkit-scrollbar-corner",
-          Resizer => "::-webkit-resizer",
-        })
-      }
-      Custom { name: val } => {
-        dest.write_str("::")?;
-        return dest.write_str(val);
-      }
-      CustomFunction { name, arguments: args } => {
-        dest.write_str("::")?;
-        dest.write_str(name)?;
-        dest.write_char('(')?;
-        args.to_css(dest, false)?;
-        dest.write_char(')')
-      }
+    }
+    WebKitScrollbar(s) => {
+      use WebKitScrollbarPseudoElement::*;
+      dest.write_str(match s {
+        Scrollbar => "::-webkit-scrollbar",
+        Button => "::-webkit-scrollbar-button",
+        Track => "::-webkit-scrollbar-track",
+        TrackPiece => "::-webkit-scrollbar-track-piece",
+        Thumb => "::-webkit-scrollbar-thumb",
+        Corner => "::-webkit-scrollbar-corner",
+        Resizer => "::-webkit-resizer",
+      })
+    }
+    Custom { name: val } => {
+      dest.write_str("::")?;
+      return dest.write_str(val);
+    }
+    CustomFunction { name, arguments: args } => {
+      dest.write_str("::")?;
+      dest.write_str(name)?;
+      dest.write_char('(')?;
+      args.to_css(dest, false)?;
+      dest.write_char(')')
     }
   }
 }
@@ -1030,25 +1025,12 @@ impl<'i> PseudoElement<'i> {
   }
 }
 
-impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for SelectorList<'i> {
-  fn to_css_with_context<W>(
-    &self,
-    dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i, T>>,
-  ) -> Result<(), PrinterError>
+impl<'a, 'i> ToCss for SelectorList<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: fmt::Write,
   {
-    serialize_selector_list(self.0.iter(), dest, context, false)
-  }
-}
-
-impl<'i> ToCss for SelectorList<'i> {
-  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    serialize_selector_list::<_, _, DefaultAtRule>(self.0.iter(), dest, None, false)
+    serialize_selector_list(self.0.iter(), dest, dest.context(), false)
   }
 }
 
@@ -1068,23 +1050,19 @@ impl ToCss for Combinator {
 }
 
 // Copied from the selectors crate and modified to override to_css implementation.
-impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for Selector<'i> {
-  fn to_css_with_context<W>(
-    &self,
-    dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i, T>>,
-  ) -> Result<(), PrinterError>
+impl<'a, 'i> ToCss for Selector<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: fmt::Write,
   {
-    serialize_selector(self, dest, context, false)
+    serialize_selector(self, dest, dest.context(), false)
   }
 }
 
-fn serialize_selector<'a, 'i, W, T>(
+fn serialize_selector<'a, 'i, W>(
   selector: &Selector<'i>,
   dest: &mut Printer<W>,
-  context: Option<&StyleContext<'a, 'i, T>>,
+  context: Option<&StyleContext>,
   mut is_relative: bool,
 ) -> Result<(), PrinterError>
 where
@@ -1169,7 +1147,7 @@ where
           }
 
           for simple in iter {
-            simple.to_css_with_context(dest, context)?;
+            serialize_component(simple, dest, context)?;
           }
 
           if swap_nesting {
@@ -1199,15 +1177,15 @@ where
         // This ensures that the compiled selector is valid. e.g. (div.foo is valid, .foodiv is not).
         let nesting = iter.next().unwrap();
         let local = iter.next().unwrap();
-        local.to_css_with_context(dest, context)?;
+        serialize_component(local, dest, context)?;
 
         // Also check the next item in case of namespaces.
         if first_non_namespace > first_index {
           let local = iter.next().unwrap();
-          local.to_css_with_context(dest, context)?;
+          serialize_component(local, dest, context)?;
         }
 
-        nesting.to_css_with_context(dest, context)?;
+        serialize_component(nesting, dest, context)?;
       } else if has_leading_nesting && context.is_some() {
         // Nesting selector may serialize differently if it is leading, due to type selectors.
         iter.next();
@@ -1224,7 +1202,7 @@ where
             continue;
           }
         }
-        simple.to_css_with_context(dest, context)?;
+        serialize_component(simple, dest, context)?;
       }
     }
 
@@ -1248,115 +1226,113 @@ where
   Ok(())
 }
 
-impl<'a, 'i, T> ToCssWithContext<'a, 'i, T> for Component<'i> {
-  fn to_css_with_context<W>(
-    &self,
-    dest: &mut Printer<W>,
-    context: Option<&StyleContext<'a, 'i, T>>,
-  ) -> Result<(), PrinterError>
-  where
-    W: fmt::Write,
-  {
-    match &self {
-      Component::Combinator(ref c) => c.to_css(dest),
-      Component::AttributeInNoNamespace {
-        ref local_name,
-        operator,
-        ref value,
-        case_sensitivity,
-        ..
-      } => {
-        dest.write_char('[')?;
-        cssparser::ToCss::to_css(local_name, dest)?;
-        cssparser::ToCss::to_css(operator, dest)?;
+fn serialize_component<'a, 'i, W>(
+  component: &Component,
+  dest: &mut Printer<W>,
+  context: Option<&StyleContext>,
+) -> Result<(), PrinterError>
+where
+  W: fmt::Write,
+{
+  match component {
+    Component::Combinator(ref c) => c.to_css(dest),
+    Component::AttributeInNoNamespace {
+      ref local_name,
+      operator,
+      ref value,
+      case_sensitivity,
+      ..
+    } => {
+      dest.write_char('[')?;
+      cssparser::ToCss::to_css(local_name, dest)?;
+      cssparser::ToCss::to_css(operator, dest)?;
 
-        if dest.minify {
-          // Serialize as both an identifier and a string and choose the shorter one.
-          let mut id = String::new();
-          serialize_identifier(&value, &mut id)?;
+      if dest.minify {
+        // Serialize as both an identifier and a string and choose the shorter one.
+        let mut id = String::new();
+        serialize_identifier(&value, &mut id)?;
 
-          let s = value.to_css_string(Default::default())?;
+        let s = value.to_css_string(Default::default())?;
 
-          if id.len() > 0 && id.len() < s.len() {
-            dest.write_str(&id)?;
-          } else {
-            dest.write_str(&s)?;
-          }
+        if id.len() > 0 && id.len() < s.len() {
+          dest.write_str(&id)?;
         } else {
-          value.to_css(dest)?;
+          dest.write_str(&s)?;
         }
-
-        match case_sensitivity {
-          parcel_selectors::attr::ParsedCaseSensitivity::CaseSensitive
-          | parcel_selectors::attr::ParsedCaseSensitivity::AsciiCaseInsensitiveIfInHtmlElementInHtmlDocument => {}
-          parcel_selectors::attr::ParsedCaseSensitivity::AsciiCaseInsensitive => dest.write_str(" i")?,
-          parcel_selectors::attr::ParsedCaseSensitivity::ExplicitCaseSensitive => dest.write_str(" s")?,
-        }
-        dest.write_char(']')
+      } else {
+        value.to_css(dest)?;
       }
-      Component::Is(ref list)
-      | Component::Where(ref list)
-      | Component::Negation(ref list)
-      | Component::Any(_, ref list) => {
-        match *self {
-          Component::Where(..) => dest.write_str(":where(")?,
-          Component::Is(ref selectors) => {
-            // If there's only one simple selector, serialize it directly.
-            if selectors.len() == 1 {
-              let first = selectors.first().unwrap();
-              if !has_type_selector(first) && is_simple(first) {
-                serialize_selector(first, dest, context, false)?;
-                return Ok(());
-              }
-            }
 
-            let vp = dest.vendor_prefix;
-            if vp.intersects(VendorPrefix::WebKit | VendorPrefix::Moz) {
-              dest.write_char(':')?;
-              vp.to_css(dest)?;
-              dest.write_str("any(")?;
-            } else {
-              dest.write_str(":is(")?;
+      match case_sensitivity {
+        parcel_selectors::attr::ParsedCaseSensitivity::CaseSensitive
+        | parcel_selectors::attr::ParsedCaseSensitivity::AsciiCaseInsensitiveIfInHtmlElementInHtmlDocument => {}
+        parcel_selectors::attr::ParsedCaseSensitivity::AsciiCaseInsensitive => dest.write_str(" i")?,
+        parcel_selectors::attr::ParsedCaseSensitivity::ExplicitCaseSensitive => dest.write_str(" s")?,
+      }
+      dest.write_char(']')
+    }
+    Component::Is(ref list)
+    | Component::Where(ref list)
+    | Component::Negation(ref list)
+    | Component::Any(_, ref list) => {
+      match *component {
+        Component::Where(..) => dest.write_str(":where(")?,
+        Component::Is(ref selectors) => {
+          // If there's only one simple selector, serialize it directly.
+          if selectors.len() == 1 {
+            let first = selectors.first().unwrap();
+            if !has_type_selector(first) && is_simple(first) {
+              serialize_selector(first, dest, context, false)?;
+              return Ok(());
             }
           }
-          Component::Negation(..) => return serialize_negation(list.iter(), dest, context),
-          Component::Any(ref prefix, ..) => {
+
+          let vp = dest.vendor_prefix;
+          if vp.intersects(VendorPrefix::WebKit | VendorPrefix::Moz) {
             dest.write_char(':')?;
-            prefix.to_css(dest)?;
+            vp.to_css(dest)?;
             dest.write_str("any(")?;
+          } else {
+            dest.write_str(":is(")?;
           }
-          _ => unreachable!(),
         }
-        serialize_selector_list(list.iter(), dest, context, false)?;
-        dest.write_str(")")
+        Component::Negation(..) => return serialize_negation(list.iter(), dest, context),
+        Component::Any(ref prefix, ..) => {
+          dest.write_char(':')?;
+          prefix.to_css(dest)?;
+          dest.write_str("any(")?;
+        }
+        _ => unreachable!(),
       }
-      Component::Has(ref list) => {
-        dest.write_str(":has(")?;
-        serialize_selector_list(list.iter(), dest, context, true)?;
-        dest.write_str(")")
-      }
-      Component::NonTSPseudoClass(pseudo) => pseudo.to_css_with_context(dest, context),
-      Component::PseudoElement(pseudo) => pseudo.to_css(dest),
-      Component::Nesting => serialize_nesting(dest, context, false),
-      Component::Class(ref class) => {
-        dest.write_char('.')?;
-        dest.write_ident(&class.0)
-      }
-      Component::ID(ref id) => {
-        dest.write_char('#')?;
-        dest.write_ident(&id.0)
-      }
-      _ => {
-        cssparser::ToCss::to_css(self, dest)?;
-        Ok(())
-      }
+      serialize_selector_list(list.iter(), dest, context, false)?;
+      dest.write_str(")")
+    }
+    Component::Has(ref list) => {
+      dest.write_str(":has(")?;
+      serialize_selector_list(list.iter(), dest, context, true)?;
+      dest.write_str(")")
+    }
+    Component::NonTSPseudoClass(pseudo) => serialize_pseudo_class(pseudo, dest, context),
+    Component::PseudoElement(pseudo) => serialize_pseudo_element(pseudo, dest, context),
+    Component::Nesting => serialize_nesting(dest, context, false),
+    Component::Class(ref class) => {
+      dest.write_char('.')?;
+      dest.write_ident(&class.0)
+    }
+    Component::ID(ref id) => {
+      dest.write_char('#')?;
+      dest.write_ident(&id.0)
+    }
+    _ => {
+      cssparser::ToCss::to_css(component, dest)?;
+      Ok(())
     }
   }
 }
 
-fn serialize_nesting<W, T>(
+fn serialize_nesting<W>(
   dest: &mut Printer<W>,
-  context: Option<&StyleContext<T>>,
+  context: Option<&StyleContext>,
   first: bool,
 ) -> Result<(), PrinterError>
 where
@@ -1367,13 +1343,13 @@ where
     // Otherwise, use an :is() pseudo class.
     // Type selectors are only allowed at the start of a compound selector,
     // so use :is() if that is not the case.
-    if ctx.rule.selectors.0.len() == 1
-      && (first || (!has_type_selector(&ctx.rule.selectors.0[0]) && is_simple(&ctx.rule.selectors.0[0])))
+    if ctx.selectors.0.len() == 1
+      && (first || (!has_type_selector(&ctx.selectors.0[0]) && is_simple(&ctx.selectors.0[0])))
     {
-      ctx.rule.selectors.0.first().unwrap().to_css_with_context(dest, ctx.parent)
+      serialize_selector(ctx.selectors.0.first().unwrap(), dest, ctx.parent, false)
     } else {
       dest.write_str(":is(")?;
-      serialize_selector_list(ctx.rule.selectors.0.iter(), dest, ctx.parent, false)?;
+      serialize_selector_list(ctx.selectors.0.iter(), dest, ctx.parent, false)?;
       dest.write_char(')')
     }
   } else {
@@ -1416,10 +1392,10 @@ fn is_namespace(component: Option<&Component>) -> bool {
   )
 }
 
-fn serialize_selector_list<'a, 'i: 'a, I, W, T>(
+fn serialize_selector_list<'a, 'i: 'a, I, W>(
   iter: I,
   dest: &mut Printer<W>,
-  context: Option<&StyleContext<'_, 'i, T>>,
+  context: Option<&StyleContext>,
   is_relative: bool,
 ) -> Result<(), PrinterError>
 where
@@ -1437,10 +1413,10 @@ where
   Ok(())
 }
 
-fn serialize_negation<'a, 'i: 'a, I, W, T>(
+fn serialize_negation<'a, 'i: 'a, I, W>(
   iter: I,
   dest: &mut Printer<W>,
-  context: Option<&StyleContext<'_, 'i, T>>,
+  context: Option<&StyleContext>,
 ) -> Result<(), PrinterError>
 where
   I: Iterator<Item = &'a Selector<'i>>,
@@ -1460,7 +1436,7 @@ where
   } else {
     for selector in iter {
       dest.write_str(":not(")?;
-      selector.to_css_with_context(dest, context)?;
+      serialize_selector(selector, dest, context, false)?;
       dest.write_char(')')?;
     }
   }
@@ -1851,4 +1827,35 @@ impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for Selector<'i>
   }
 
   fn visit_children(&mut self, _visitor: &mut V) {}
+}
+
+impl<'i, T> ParseWithOptions<'i, T> for Selector<'i> {
+  fn parse_with_options<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i, T>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Selector::parse(
+      &SelectorParser {
+        is_nesting_allowed: options.nesting,
+        options: &options,
+      },
+      input,
+    )
+  }
+}
+
+impl<'i, T> ParseWithOptions<'i, T> for SelectorList<'i> {
+  fn parse_with_options<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i, T>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    SelectorList::parse(
+      &SelectorParser {
+        is_nesting_allowed: options.nesting,
+        options: &options,
+      },
+      input,
+      parcel_selectors::parser::NestingRequirement::None,
+    )
+  }
 }
