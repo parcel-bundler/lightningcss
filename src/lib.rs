@@ -57,6 +57,7 @@ mod tests {
   use crate::targets::Browsers;
   use crate::traits::{Parse, ToCss};
   use crate::values::color::CssColor;
+  use crate::vendor_prefix::VendorPrefix;
   use cssparser::SourceLocation;
   use indoc::indoc;
   use std::collections::HashMap;
@@ -22434,6 +22435,33 @@ mod tests {
         );
       }
     }
+
+    let mut property = Property::Transform(Default::default(), VendorPrefix::WebKit);
+    property.set_prefix(VendorPrefix::None);
+    assert_eq!(property, Property::Transform(Default::default(), VendorPrefix::None));
+    property.set_prefix(VendorPrefix::Moz);
+    assert_eq!(property, Property::Transform(Default::default(), VendorPrefix::Moz));
+    property.set_prefix(VendorPrefix::WebKit | VendorPrefix::Moz);
+    assert_eq!(
+      property,
+      Property::Transform(Default::default(), VendorPrefix::WebKit | VendorPrefix::Moz)
+    );
+
+    let mut property = Property::TextDecorationLine(Default::default(), VendorPrefix::None);
+    property.set_prefix(VendorPrefix::Ms);
+    assert_eq!(
+      property,
+      Property::TextDecorationLine(Default::default(), VendorPrefix::None)
+    );
+    property.set_prefix(VendorPrefix::WebKit | VendorPrefix::Moz | VendorPrefix::Ms);
+    assert_eq!(
+      property,
+      Property::TextDecorationLine(Default::default(), VendorPrefix::WebKit | VendorPrefix::Moz)
+    );
+
+    let mut property = Property::AccentColor(Default::default());
+    property.set_prefix(VendorPrefix::WebKit);
+    assert_eq!(property, Property::AccentColor(Default::default()));
   }
 
   #[cfg(feature = "substitute_variables")]

@@ -200,6 +200,15 @@ macro_rules! define_properties {
       };
     }
 
+    macro_rules! get_allowed_prefixes {
+      ($v: literal) => {
+        VendorPrefix::empty()
+      };
+      () => {
+        VendorPrefix::None
+      };
+    }
+
     impl<'i> From<CowArcStr<'i>> for PropertyId<'i> {
       fn from(name: CowArcStr<'i>) -> PropertyId<'i> {
         let name_ref = name.as_ref();
@@ -261,15 +270,6 @@ macro_rules! define_properties {
 
     impl<'i> PropertyId<'i> {
       fn from_name_and_prefix(name: &str, prefix: VendorPrefix) -> Result<Self, ()> {
-        macro_rules! get_allowed_prefixes {
-          ($v: literal) => {
-            VendorPrefix::empty()
-          };
-          () => {
-            VendorPrefix::None
-          };
-        }
-
         match_ignore_ascii_case! { name.as_ref(),
           $(
             $(#[$meta])*
@@ -718,6 +718,31 @@ macro_rules! define_properties {
         let mut input = ParserInput::new(input);
         let mut parser = Parser::new(&mut input);
         Self::parse(property_id, &mut parser, &options)
+      }
+
+      /// Sets the vendor prefixes for this property.
+      ///
+      /// If the property doesn't support vendor prefixes, this function does nothing.
+      /// If vendor prefixes are set which do not exist for the property, they are ignored
+      /// and only the valid prefixes are set.
+      pub fn set_prefix(&mut self, prefix: VendorPrefix) {
+        use Property::*;
+        match self {
+          $(
+            $(#[$meta])*
+            $property(_, $(vp_name!($vp, p))?) => {
+              macro_rules! set {
+                ($v: ty) => {
+                  *p = (prefix & (get_allowed_prefixes!($($unprefixed)?) $(| VendorPrefix::$prefix)*)).or(*p);
+                };
+                () => {};
+              }
+
+              set!($($vp)?);
+            },
+          )+
+          _ => {}
+        }
       }
 
       /// Serializes the value of a CSS property without its name or `!important` flag.
