@@ -52,8 +52,14 @@ impl VendorPrefix {
   /// Returns VendorPrefix::None if empty.
   #[inline]
   pub fn or_none(self) -> Self {
+    self.or(VendorPrefix::None)
+  }
+
+  /// Returns `other` if `self` is empty
+  #[inline]
+  pub fn or(self, other: Self) -> Self {
     if self.is_empty() {
-      VendorPrefix::None
+      other
     } else {
       self
     }

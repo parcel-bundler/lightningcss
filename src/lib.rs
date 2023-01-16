@@ -57,6 +57,7 @@ mod tests {
   use crate::targets::Browsers;
   use crate::traits::{Parse, ToCss};
   use crate::values::color::CssColor;
+  use crate::vendor_prefix::VendorPrefix;
   use cssparser::SourceLocation;
   use indoc::indoc;
   use std::collections::HashMap;
@@ -22434,6 +22435,93 @@ mod tests {
         );
       }
     }
+
+    let mut property = Property::Transform(Default::default(), VendorPrefix::WebKit);
+    property.set_prefix(VendorPrefix::None);
+    assert_eq!(property, Property::Transform(Default::default(), VendorPrefix::None));
+    property.set_prefix(VendorPrefix::Moz);
+    assert_eq!(property, Property::Transform(Default::default(), VendorPrefix::Moz));
+    property.set_prefix(VendorPrefix::WebKit | VendorPrefix::Moz);
+    assert_eq!(
+      property,
+      Property::Transform(Default::default(), VendorPrefix::WebKit | VendorPrefix::Moz)
+    );
+
+    let mut property = Property::TextDecorationLine(Default::default(), VendorPrefix::None);
+    property.set_prefix(VendorPrefix::Ms);
+    assert_eq!(
+      property,
+      Property::TextDecorationLine(Default::default(), VendorPrefix::None)
+    );
+    property.set_prefix(VendorPrefix::WebKit | VendorPrefix::Moz | VendorPrefix::Ms);
+    assert_eq!(
+      property,
+      Property::TextDecorationLine(Default::default(), VendorPrefix::WebKit | VendorPrefix::Moz)
+    );
+
+    let mut property = Property::AccentColor(Default::default());
+    property.set_prefix(VendorPrefix::WebKit);
+    assert_eq!(property, Property::AccentColor(Default::default()));
+  }
+
+  #[cfg(feature = "substitute_variables")]
+  #[test]
+  fn test_substitute_vars() {
+    use crate::properties::custom::TokenList;
+    use crate::traits::ParseWithOptions;
+
+    fn test(property: Property, vars: HashMap<&str, &str>, expected: &str) {
+      if let Property::Unparsed(unparsed) = property {
+        let vars = vars
+          .into_iter()
+          .map(|(k, v)| {
+            (
+              k,
+              TokenList::parse_string_with_options(v, ParserOptions::default()).unwrap(),
+            )
+          })
+          .collect();
+        let substituted = unparsed.substitute_variables(&vars).unwrap();
+        assert_eq!(
+          substituted.to_css_string(false, PrinterOptions::default()).unwrap(),
+          expected
+        );
+      } else {
+        panic!("Not an unparsed property");
+      }
+    }
+
+    let property = Property::parse_string("color".into(), "var(--test)", ParserOptions::default()).unwrap();
+    test(property, HashMap::from([("--test", "yellow")]), "color: #ff0");
+
+    let property =
+      Property::parse_string("color".into(), "var(--test, var(--foo))", ParserOptions::default()).unwrap();
+    test(property, HashMap::from([("--foo", "yellow")]), "color: #ff0");
+    let property = Property::parse_string(
+      "color".into(),
+      "var(--test, var(--foo, yellow))",
+      ParserOptions::default(),
+    )
+    .unwrap();
+    test(property, HashMap::new(), "color: #ff0");
+
+    let property =
+      Property::parse_string("width".into(), "calc(var(--a) + var(--b))", ParserOptions::default()).unwrap();
+    test(property, HashMap::from([("--a", "2px"), ("--b", "4px")]), "width: 6px");
+
+    let property = Property::parse_string("color".into(), "var(--a)", ParserOptions::default()).unwrap();
+    test(
+      property,
+      HashMap::from([("--a", "var(--b)"), ("--b", "yellow")]),
+      "color: #ff0",
+    );
+
+    let property = Property::parse_string("color".into(), "var(--a)", ParserOptions::default()).unwrap();
+    test(
+      property,
+      HashMap::from([("--a", "var(--b)"), ("--b", "var(--c)"), ("--c", "var(--a)")]),
+      "color: var(--a)",
+    );
   }
 
   #[test]
