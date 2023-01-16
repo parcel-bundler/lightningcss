@@ -16,7 +16,7 @@ Clone the forked repository locally and install the dependencies:
 
 ```sh
 git clone https://github.com/USERNAME/lightningcss.git
-cd parcel
+cd lightningcss
 yarn install
 ```
 
