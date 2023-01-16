@@ -52,9 +52,9 @@ async function load(module, imports) {
   }
 }
 
-const fetchOrReadFromFs = async (inputPath) => {
+async function fetchOrReadFromFs(inputPath) {
   try {
-    const fs = await import('node:fs');
+    const fs = await import('fs');
     return fs.readFileSync(inputPath);
   } catch {
     return fetch(inputPath);
