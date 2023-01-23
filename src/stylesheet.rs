@@ -286,7 +286,7 @@ where
 {
   const CHILD_TYPES: VisitTypes = VisitTypes::all();
 
-  fn visit_children(&mut self, visitor: &mut V) {
+  fn visit_children(&mut self, visitor: &mut V) -> Result<(), V::Error> {
     self.rules.visit(visitor)
   }
 }

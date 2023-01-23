@@ -97,7 +97,7 @@ pub fn main() -> Result<(), std::io::Error> {
       (filename, contents)
     }
   };
-    
+
   let css_modules = if let Some(_) = cli_args.css_modules {
     let pattern = if let Some(pattern) = cli_args.css_modules_pattern.as_ref() {
       match lightningcss::css_modules::Pattern::parse(pattern) {

@@ -143,7 +143,7 @@ mod bundle {
       &config,
       visitor.as_mut().map(|visitor| {
         |stylesheet: &mut StyleSheet| {
-          stylesheet.visit(visitor);
+          stylesheet.visit(visitor).unwrap();
           if let Some(err) = visitor.errors.first() {
             return Err(err.clone());
           }
@@ -396,7 +396,7 @@ mod bundle {
         std::ptr::null_mut(),
         0,
         move |ctx: ThreadSafeCallContext<VisitMessage>| {
-          ctx.value.stylesheet.visit(&mut visitor);
+          ctx.value.stylesheet.visit(&mut visitor).unwrap();
           if let Some(err) = visitor.errors.first() {
             ctx.value.tx.send(Err(err.clone())).expect("send error");
             return Ok(());
@@ -638,7 +638,7 @@ fn compile<'i>(
     )?;
 
     if let Some(visitor) = visitor.as_mut() {
-      stylesheet.visit(visitor);
+      stylesheet.visit(visitor).unwrap();
     }
 
     stylesheet.minify(MinifyOptions {
@@ -853,7 +853,7 @@ fn compile_attr<'i>(
     )?;
 
     if let Some(visitor) = visitor.as_mut() {
-      attr.visit(visitor);
+      attr.visit(visitor).unwrap();
     }
 
     attr.minify(MinifyOptions {
