@@ -281,6 +281,7 @@ macro_rules! define_length_units {
     impl_try_from_angle!(LengthValue);
 
     #[cfg(feature = "jsonschema")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "jsonschema")))]
     impl schemars::JsonSchema for LengthValue {
       fn is_referenceable() -> bool {
         true

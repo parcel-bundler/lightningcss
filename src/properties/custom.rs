@@ -111,6 +111,7 @@ impl<'i> ToCss for CustomPropertyName<'i> {
 }
 
 #[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl<'i, 'de: 'i> serde::Deserialize<'de> for CustomPropertyName<'i> {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
@@ -177,6 +178,7 @@ impl<'i> UnparsedProperty<'i> {
 
   /// Substitutes variables and re-parses the property.
   #[cfg(feature = "substitute_variables")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "substitute_variables")))]
   pub fn substitute_variables<'x>(
     mut self,
     vars: &std::collections::HashMap<&str, TokenList<'i>>,
@@ -994,6 +996,7 @@ impl<'i> TokenList<'i> {
 
   /// Substitutes variables with the provided values.
   #[cfg(feature = "substitute_variables")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "substitute_variables")))]
   pub fn substitute_variables(&mut self, vars: &std::collections::HashMap<&str, TokenList<'i>>) {
     self.visit(&mut VarInliner { vars })
   }

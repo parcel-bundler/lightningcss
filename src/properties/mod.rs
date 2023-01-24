@@ -498,6 +498,7 @@ macro_rules! define_properties {
     }
 
     #[cfg(feature = "serde")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
     impl<'i> serde::Serialize for PropertyId<'i> {
       fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
       where
@@ -522,6 +523,7 @@ macro_rules! define_properties {
     }
 
     #[cfg(feature = "serde")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
     impl<'i, 'de: 'i> serde::Deserialize<'de> for PropertyId<'i> {
       fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
       where
@@ -572,6 +574,7 @@ macro_rules! define_properties {
     }
 
     #[cfg(feature = "jsonschema")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "jsonschema")))]
     impl<'i> schemars::JsonSchema for PropertyId<'i> {
       fn is_referenceable() -> bool {
         true
@@ -896,6 +899,7 @@ macro_rules! define_properties {
     }
 
     #[cfg(feature = "serde")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
     impl<'i> serde::Serialize for Property<'i> {
       fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
       where
@@ -950,6 +954,7 @@ macro_rules! define_properties {
     }
 
     #[cfg(feature = "serde")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
     impl<'i, 'de: 'i> serde::Deserialize<'de> for Property<'i> {
       fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
       where
@@ -1053,6 +1058,7 @@ macro_rules! define_properties {
     }
 
     #[cfg(feature = "jsonschema")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "jsonschema")))]
     impl<'i> schemars::JsonSchema for Property<'i> {
       fn is_referenceable() -> bool {
         true
@@ -1322,34 +1328,49 @@ define_properties! {
   "flex-preferred-size": FlexPreferredSize(LengthPercentageOrAuto, VendorPrefix) / Ms unprefixed: false,
 
   #[cfg(feature = "grid")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-template-columns": GridTemplateColumns(TrackSizing<'i>),
   #[cfg(feature = "grid")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-template-rows": GridTemplateRows(TrackSizing<'i>),
   #[cfg(feature = "grid")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-auto-columns": GridAutoColumns(TrackSizeList),
   #[cfg(feature = "grid")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-auto-rows": GridAutoRows(TrackSizeList),
   #[cfg(feature = "grid")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-auto-flow": GridAutoFlow(GridAutoFlow),
   #[cfg(feature = "grid")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-template-areas": GridTemplateAreas(GridTemplateAreas),
   #[cfg(feature = "grid")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-template": GridTemplate(GridTemplate<'i>) shorthand: true,
   #[cfg(feature = "grid")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid": Grid(Grid<'i>) shorthand: true,
   #[cfg(feature = "grid")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-row-start": GridRowStart(GridLine<'i>),
   #[cfg(feature = "grid")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-row-end": GridRowEnd(GridLine<'i>),
   #[cfg(feature = "grid")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-column-start": GridColumnStart(GridLine<'i>),
   #[cfg(feature = "grid")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-column-end": GridColumnEnd(GridLine<'i>),
   #[cfg(feature = "grid")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-row": GridRow(GridRow<'i>) shorthand: true,
   #[cfg(feature = "grid")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-column": GridColumn(GridColumn<'i>) shorthand: true,
   #[cfg(feature = "grid")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "grid")))]
   "grid-area": GridArea(GridArea<'i>) shorthand: true,
 
   "margin-top": MarginTop(LengthPercentageOrAuto) [logical_group: Margin, category: Physical],
