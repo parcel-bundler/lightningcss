@@ -31,7 +31,8 @@ yarn build
 Then you can run the tests:
 
 ```sh
-yarn test
+yarn test # js tests
+cargo test # rust tests
 ```
 
 ## Building
