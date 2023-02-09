@@ -603,7 +603,7 @@ fn visit<V: Serialize + Deserialize<'static>>(
   value: &mut V,
   visit: &Option<Ref<()>>,
   errors: &mut Vec<napi::Error>,
-) -> Result<(), ()> {
+) -> Result<(), Infallible> {
   if let Some(visit) = visit
     .as_ref()
     .and_then(|v| env.get_reference_value_unchecked::<JsFunction>(v).ok())
