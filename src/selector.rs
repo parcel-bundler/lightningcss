@@ -1827,7 +1827,7 @@ pub(crate) fn is_unused(
 impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for SelectorList<'i> {
   const CHILD_TYPES: VisitTypes = VisitTypes::SELECTORS;
 
-  fn visit(&mut self, visitor: &mut V) {
+  fn visit(&mut self, visitor: &mut V) -> Result<(), V::Error> {
     if visitor.visit_types().contains(VisitTypes::SELECTORS) {
       visitor.visit_selector_list(self)
     } else {
@@ -1835,10 +1835,8 @@ impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for SelectorList
     }
   }
 
-  fn visit_children(&mut self, visitor: &mut V) {
-    for selector in self.0.iter_mut() {
-      Visit::visit(selector, visitor)
-    }
+  fn visit_children(&mut self, visitor: &mut V) -> Result<(), V::Error> {
+    self.0.iter_mut().try_for_each(|selector| Visit::visit(selector, visitor))
   }
 }
 
@@ -1846,9 +1844,11 @@ impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for SelectorList
 impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for Selector<'i> {
   const CHILD_TYPES: VisitTypes = VisitTypes::SELECTORS;
 
-  fn visit(&mut self, visitor: &mut V) {
+  fn visit(&mut self, visitor: &mut V) -> Result<(), V::Error> {
     visitor.visit_selector(self)
   }
 
-  fn visit_children(&mut self, _visitor: &mut V) {}
+  fn visit_children(&mut self, _visitor: &mut V) -> Result<(), V::Error> {
+    Ok(())
+  }
 }
