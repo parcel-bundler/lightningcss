@@ -26,8 +26,6 @@ use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
-#[cfg(feature = "visitor")]
-use std::convert::Infallible;
 
 #[cfg(feature = "serde")]
 use crate::serialization::ValueWrapper;
@@ -1008,7 +1006,7 @@ struct VarInliner<'a, 'i> {
 
 #[cfg(feature = "substitute_variables")]
 impl<'a, 'i> crate::visitor::Visitor<'i> for VarInliner<'a, 'i> {
-  type Error = Infallible;
+  type Error = std::convert::Infallible;
 
   const TYPES: crate::visitor::VisitTypes = crate::visit_types!(TOKENS | VARIABLES);
 

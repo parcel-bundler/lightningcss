@@ -79,12 +79,6 @@ fn transform(ctx: CallContext) -> napi::Result<JsUnknown> {
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
   let res = compile(code, &config, &mut visitor);
 
-  if let Some(visitor) = &visitor {
-    if let Some(err) = visitor.errors.first() {
-      return Err(err.clone());
-    }
-  }
-
   match res {
     Ok(res) => res.into_js(*ctx.env),
     Err(err) => err.throw(*ctx.env, Some(code)),
@@ -105,12 +99,6 @@ fn transform_style_attribute(ctx: CallContext) -> napi::Result<JsUnknown> {
   let config: AttrConfig = ctx.env.from_js_value(opts)?;
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
   let res = compile_attr(code, &config, &mut visitor);
-
-  if let Some(visitor) = &visitor {
-    if let Some(err) = visitor.errors.first() {
-      return Err(err.clone());
-    }
-  }
 
   match res {
     Ok(res) => res.into_js(ctx),
@@ -141,15 +129,9 @@ mod bundle {
     let res = compile_bundle(
       &fs,
       &config,
-      visitor.as_mut().map(|visitor| {
-        |stylesheet: &mut StyleSheet| {
-          stylesheet.visit(visitor).unwrap();
-          if let Some(err) = visitor.errors.first() {
-            return Err(err.clone());
-          }
-          Ok(())
-        }
-      }),
+      visitor
+        .as_mut()
+        .map(|visitor| |stylesheet: &mut StyleSheet| stylesheet.visit(visitor)),
     );
 
     match res {
@@ -396,8 +378,7 @@ mod bundle {
         std::ptr::null_mut(),
         0,
         move |ctx: ThreadSafeCallContext<VisitMessage>| {
-          ctx.value.stylesheet.visit(&mut visitor).unwrap();
-          if let Some(err) = visitor.errors.first() {
+          if let Err(err) = ctx.value.stylesheet.visit(&mut visitor) {
             ctx.value.tx.send(Err(err.clone())).expect("send error");
             return Ok(());
           }
@@ -638,7 +619,7 @@ fn compile<'i>(
     )?;
 
     if let Some(visitor) = visitor.as_mut() {
-      stylesheet.visit(visitor).unwrap();
+      stylesheet.visit(visitor).map_err(CompileError::JsError)?;
     }
 
     stylesheet.minify(MinifyOptions {
