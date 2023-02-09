@@ -22609,6 +22609,32 @@ mod tests {
       "@import 'test.css' layer(foo, bar) {};",
       ParserError::UnexpectedToken(Token::Comma),
     );
+    minify_test(
+      r#"
+      @layer one {
+        body {
+          background: red;
+        }
+      }
+
+      body {
+        background: red;
+      }
+      
+      @layer two {
+        body {
+          background: green;
+        }
+      }
+      
+      @layer one {
+        body {
+          background: yellow;
+        }
+      }
+      "#,
+      "@layer one{body{background:#ff0}}body{background:red}@layer two{body{background:green}}",
+    );
   }
 
   #[test]

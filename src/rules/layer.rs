@@ -15,7 +15,7 @@ use smallvec::SmallVec;
 /// a `@layer` or `@import` rule.
 ///
 /// Nested layers are represented using a list of identifiers. In CSS syntax, these are dot-separated.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
