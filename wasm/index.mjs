@@ -5,7 +5,7 @@ let wasm;
 export default async function init(input) {
   input = input ?? new URL('lightningcss_node.wasm', import.meta.url);
   if (typeof input === 'string' || (typeof Request === 'function' && input instanceof Request) || (typeof URL === 'function' && input instanceof URL)) {
-    input = fetch(input);
+    input = fetchOrReadFromFs(input);
   }
 
   const { instance } = await load(await input, {
@@ -51,3 +51,12 @@ async function load(module, imports) {
     }
   }
 }
+
+async function fetchOrReadFromFs(inputPath) {
+  try {
+    const fs = await import('fs');
+    return fs.readFileSync(inputPath);
+  } catch {
+    return fetch(inputPath);
+  }
+};
