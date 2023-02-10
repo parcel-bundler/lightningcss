@@ -4,7 +4,7 @@ use cssparser::*;
 use lightningcss::{
   declaration::DeclarationBlock,
   error::ParserError,
-  rules::CssRuleList,
+  rules::{CssRuleList, Location},
   stylesheet::ParserOptions,
   traits::{AtRuleParser, ToCss},
   values::{
@@ -55,6 +55,7 @@ pub struct AtRule<'i> {
   pub name: CowArcStr<'i>,
   pub prelude: Option<ParsedComponent<'i>>,
   pub body: Option<AtRuleBody<'i>>,
+  pub loc: Location,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -99,7 +100,7 @@ impl<'i> AtRuleParser<'i> for CustomAtRuleParser {
   fn parse_block<'t>(
     &mut self,
     prelude: Self::Prelude,
-    _start: &ParserState,
+    start: &ParserState,
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<'_, 'i, Self>,
   ) -> Result<Self::AtRule, ParseError<'i, Self::Error>> {
@@ -118,28 +119,40 @@ impl<'i> AtRuleParser<'i> for CustomAtRuleParser {
       None
     };
 
+    let loc = start.source_location();
     Ok(AtRule {
       name: prelude.name,
       prelude: prelude.prelude,
       body,
+      loc: Location {
+        source_index: options.source_index,
+        line: loc.line,
+        column: loc.column,
+      },
     })
   }
 
   fn rule_without_block(
     &mut self,
     prelude: Self::Prelude,
-    _start: &ParserState,
-    _options: &ParserOptions<'_, 'i, Self>,
+    start: &ParserState,
+    options: &ParserOptions<'_, 'i, Self>,
   ) -> Result<Self::AtRule, ()> {
     let config = self.configs.get(prelude.name.as_ref()).unwrap();
     if config.body.is_some() {
       return Err(());
     }
 
+    let loc = start.source_location();
     Ok(AtRule {
       name: prelude.name,
       prelude: prelude.prelude,
       body: None,
+      loc: Location {
+        source_index: options.source_index,
+        line: loc.line,
+        column: loc.column,
+      },
     })
   }
 }
@@ -184,12 +197,12 @@ impl<'i> ToCss for AtRule<'i> {
 impl<'i, V: Visitor<'i, AtRule<'i>>> Visit<'i, AtRule<'i>, V> for AtRule<'i> {
   const CHILD_TYPES: VisitTypes = VisitTypes::empty();
 
-  fn visit_children(&mut self, visitor: &mut V) {
-    self.prelude.visit(visitor);
+  fn visit_children(&mut self, visitor: &mut V) -> Result<(), V::Error> {
+    self.prelude.visit(visitor)?;
     match &mut self.body {
       Some(AtRuleBody::DeclarationList(decls)) => decls.visit(visitor),
       Some(AtRuleBody::RuleList(rules)) => rules.visit(visitor),
-      None => {}
+      None => Ok(()),
     }
   }
 }

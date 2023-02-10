@@ -133,7 +133,7 @@ mod bundle {
       &config,
       visitor
         .as_mut()
-        .map(|visitor| |stylesheet: &mut StyleSheet| stylesheet.visit(visitor)),
+        .map(|visitor| |stylesheet: &mut StyleSheet<CustomAtRuleParser>| stylesheet.visit(visitor)),
     );
 
     match res {
