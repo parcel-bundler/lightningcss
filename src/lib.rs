@@ -15,8 +15,10 @@
 //! style sheet. See the individual module documentation for more details and examples.
 
 #![deny(missing_docs)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(feature = "bundler")]
+#[cfg_attr(docsrs, doc(cfg(feature = "bundler")))]
 pub mod bundler;
 mod compat;
 mod context;
@@ -39,6 +41,7 @@ pub mod traits;
 pub mod values;
 pub mod vendor_prefix;
 #[cfg(feature = "visitor")]
+#[cfg_attr(docsrs, doc(cfg(feature = "visitor")))]
 pub mod visitor;
 
 #[cfg(feature = "serde")]
@@ -10181,7 +10184,7 @@ mod tests {
         @bottom-left-corner {
           content: "Foo";
         }
-      
+
         @bottom-right-corner {
           content: "Bar";
         }
@@ -19670,7 +19673,7 @@ mod tests {
           color: green;
           & { color: blue; }
           color: red;
-        }      
+        }
       "#,
       indoc! {r#"
         article {

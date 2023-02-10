@@ -16,6 +16,10 @@ edition = "2021"
 keywords = [ "CSS", "minifier", "Parcel" ]
 repository = "https://github.com/parcel-bundler/lightningcss"
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [[bin]]
 name = "lightningcss"
 path = "src/main.rs"

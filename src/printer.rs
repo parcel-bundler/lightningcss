@@ -17,6 +17,7 @@ pub struct PrinterOptions<'a> {
   pub minify: bool,
   /// An optional reference to a source map to write mappings into.
   #[cfg(feature = "sourcemap")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "sourcemap")))]
   pub source_map: Option<&'a mut SourceMap>,
   /// An optional project root path, used to generate relative paths for sources used in CSS module hashes.
   pub project_root: Option<&'a str>,
@@ -65,8 +66,10 @@ pub struct Printer<'a, 'b, 'c, W> {
   pub(crate) sources: Option<&'c Vec<String>>,
   dest: &'a mut W,
   #[cfg(feature = "sourcemap")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "sourcemap")))]
   pub(crate) source_map: Option<&'a mut SourceMap>,
   #[cfg(feature = "sourcemap")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "sourcemap")))]
   pub(crate) source_maps: Vec<Option<SourceMap>>,
   pub(crate) loc: Location,
   indent: u8,
@@ -216,6 +219,7 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
 
   /// Adds a mapping to the source map, if any.
   #[cfg(feature = "sourcemap")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "sourcemap")))]
   pub fn add_mapping(&mut self, loc: Location) {
     self.loc = loc;
 

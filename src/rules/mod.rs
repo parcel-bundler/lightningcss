@@ -180,6 +180,7 @@ pub enum CssRule<'i, R = DefaultAtRule> {
 
 // Manually implemented deserialize to reduce binary size.
 #[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRule<'i, R> {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
@@ -397,6 +398,7 @@ pub struct CssRuleList<'i, R = DefaultAtRule>(
 
 // Manually implemented to avoid circular child types.
 #[cfg(feature = "visitor")]
+#[cfg_attr(docsrs, doc(cfg(feature = "visitor")))]
 impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for CssRuleList<'i, T> {
   const CHILD_TYPES: VisitTypes = VisitTypes::all();
 

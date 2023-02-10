@@ -131,6 +131,7 @@ impl From<SerializedTextTransformOther> for TextTransformOther {
 }
 
 #[cfg(feature = "jsonschema")]
+#[cfg_attr(docsrs, doc(cfg(feature = "jsonschema")))]
 impl<'a> schemars::JsonSchema for TextTransformOther {
   fn is_referenceable() -> bool {
     true
@@ -655,6 +656,7 @@ impl From<SerializedTextDecorationLine> for TextDecorationLine {
 }
 
 #[cfg(feature = "jsonschema")]
+#[cfg_attr(docsrs, doc(cfg(feature = "jsonschema")))]
 impl<'a> schemars::JsonSchema for TextDecorationLine {
   fn is_referenceable() -> bool {
     true
