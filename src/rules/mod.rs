@@ -180,6 +180,7 @@ pub enum CssRule<'i, R = DefaultAtRule> {
 
 // Manually implemented deserialize to reduce binary size.
 #[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRule<'i, R> {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
@@ -397,10 +398,11 @@ pub struct CssRuleList<'i, R = DefaultAtRule>(
 
 // Manually implemented to avoid circular child types.
 #[cfg(feature = "visitor")]
+#[cfg_attr(docsrs, doc(cfg(feature = "visitor")))]
 impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for CssRuleList<'i, T> {
   const CHILD_TYPES: VisitTypes = VisitTypes::all();
 
-  fn visit(&mut self, visitor: &mut V) {
+  fn visit(&mut self, visitor: &mut V) -> Result<(), V::Error> {
     if visitor.visit_types().contains(VisitTypes::RULES) {
       visitor.visit_rule_list(self)
     } else {
@@ -408,7 +410,7 @@ impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for CssRuleList<
     }
   }
 
-  fn visit_children(&mut self, visitor: &mut V) {
+  fn visit_children(&mut self, visitor: &mut V) -> Result<(), V::Error> {
     self.0.visit(visitor)
   }
 }
@@ -430,6 +432,7 @@ impl<'i, T> CssRuleList<'i, T> {
     parent_is_unused: bool,
   ) -> Result<(), MinifyError> {
     let mut keyframe_rules = HashMap::new();
+    let mut layer_rules = HashMap::new();
     let mut rules = Vec::new();
     for mut rule in self.0.drain(..) {
       match &mut rule {
@@ -520,12 +523,18 @@ impl<'i, T> CssRuleList<'i, T> {
           }
         }
         CssRule::LayerBlock(layer) => {
-          if let Some(CssRule::LayerBlock(last_rule)) = rules.last_mut() {
-            if last_rule.name == layer.name {
-              last_rule.rules.0.extend(layer.rules.0.drain(..));
-              last_rule.minify(context, parent_is_unused)?;
-              continue;
+          // Merging non-adjacent layer rules is safe because they are applied
+          // in the order they are first defined.
+          if let Some(name) = &layer.name {
+            if let Some(idx) = layer_rules.get(name) {
+              if let Some(CssRule::LayerBlock(last_rule)) = rules.get_mut(*idx) {
+                last_rule.rules.0.extend(layer.rules.0.drain(..));
+                last_rule.minify(context, parent_is_unused)?;
+                continue;
+              }
             }
+
+            layer_rules.insert(name.clone(), rules.len());
           }
           if layer.minify(context, parent_is_unused)? {
             continue;

@@ -1043,6 +1043,7 @@ enum AutoFlowDirection {
 }
 
 #[cfg(feature = "jsonschema")]
+#[cfg_attr(docsrs, doc(cfg(feature = "jsonschema")))]
 impl<'a> schemars::JsonSchema for GridAutoFlow {
   fn is_referenceable() -> bool {
     true

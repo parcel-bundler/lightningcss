@@ -91,7 +91,7 @@ pub fn derive_visit_children(input: TokenStream) -> TokenStream {
         let name = ident
           .as_ref()
           .map_or_else(|| Member::Unnamed(index.into()), |ident| Member::Named(ident.clone()));
-        visit.push(quote! { self.#name.visit(visitor); })
+        visit.push(quote! { self.#name.visit(visitor)?; })
       }
     }
     Data::Enum(DataEnum { variants, .. }) => {
@@ -120,7 +120,7 @@ pub fn derive_visit_children(input: TokenStream) -> TokenStream {
               });
             }
 
-            visit_fields.push(quote! { #name.visit(visitor); })
+            visit_fields.push(quote! { #name.visit(visitor)?; })
           }
 
           match variant.fields {
@@ -161,7 +161,7 @@ pub fn derive_visit_children(input: TokenStream) -> TokenStream {
     child_types.push(quote! { crate::visitor::VisitTypes::#kind.bits() });
 
     quote! {
-      fn visit(&mut self, visitor: &mut #v) {
+      fn visit(&mut self, visitor: &mut #v) -> Result<(), #v::Error> {
         if visitor.visit_types().contains(crate::visitor::VisitTypes::#kind) {
           visitor.#visit(self)
         } else {
@@ -188,12 +188,14 @@ pub fn derive_visit_children(input: TokenStream) -> TokenStream {
 
       #self_visit
 
-      fn visit_children(&mut self, visitor: &mut #v) {
+      fn visit_children(&mut self, visitor: &mut #v) -> Result<(), #v::Error> {
         if !<Self as Visit<#lifetime, #t, #v>>::CHILD_TYPES.intersects(visitor.visit_types()) {
-          return
+          return Ok(())
         }
 
         #(#visit)*
+
+        Ok(())
       }
     }
   };

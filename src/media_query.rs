@@ -208,6 +208,7 @@ impl<'i> Parse<'i> for MediaType<'i> {
 }
 
 #[cfg(feature = "jsonschema")]
+#[cfg_attr(docsrs, doc(cfg(feature = "jsonschema")))]
 impl<'a> schemars::JsonSchema for MediaType<'a> {
   fn is_referenceable() -> bool {
     true

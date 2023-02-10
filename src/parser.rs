@@ -114,9 +114,12 @@ impl crate::traits::ToCss for DefaultAtRule {
 }
 
 #[cfg(feature = "visitor")]
+#[cfg_attr(docsrs, doc(cfg(feature = "visitor")))]
 impl<'i, V: Visitor<'i, DefaultAtRule>> Visit<'i, DefaultAtRule, V> for DefaultAtRule {
   const CHILD_TYPES: VisitTypes = VisitTypes::empty();
-  fn visit_children(&mut self, _: &mut V) {}
+  fn visit_children(&mut self, _: &mut V) -> Result<(), V::Error> {
+    Ok(())
+  }
 }
 
 #[derive(PartialEq, PartialOrd)]

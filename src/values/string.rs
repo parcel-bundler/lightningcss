@@ -248,6 +248,7 @@ impl<'a> Serialize for CowArcStr<'a> {
 }
 
 #[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl<'a, 'de: 'a> Deserialize<'de> for CowArcStr<'a> {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
@@ -258,6 +259,7 @@ impl<'a, 'de: 'a> Deserialize<'de> for CowArcStr<'a> {
 }
 
 #[cfg(feature = "jsonschema")]
+#[cfg_attr(docsrs, doc(cfg(feature = "jsonschema")))]
 impl<'a> schemars::JsonSchema for CowArcStr<'a> {
   fn is_referenceable() -> bool {
     true
@@ -308,7 +310,9 @@ impl<'de> serde::de::Visitor<'de> for CowArcStrVisitor {
 #[cfg(feature = "visitor")]
 impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for CowArcStr<'i> {
   const CHILD_TYPES: VisitTypes = VisitTypes::empty();
-  fn visit_children(&mut self, _: &mut V) {}
+  fn visit_children(&mut self, _: &mut V) -> Result<(), V::Error> {
+    Ok(())
+  }
 }
 
 /// A quoted CSS string.

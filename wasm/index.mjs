@@ -1,9 +1,9 @@
 import { Environment, napi } from 'napi-wasm';
 
-const url = new URL('lightningcss_node.wasm', import.meta.url);
 let wasm;
 
-export default async function init(input = url) {
+export default async function init(input) {
+  input = input ?? new URL('lightningcss_node.wasm', import.meta.url);
   if (typeof input === 'string' || (typeof Request === 'function' && input instanceof Request) || (typeof URL === 'function' && input instanceof URL)) {
     input = fetchOrReadFromFs(input);
   }

@@ -378,6 +378,7 @@ impl<'i> ToCss for Appearance<'i> {
 }
 
 #[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl<'i> serde::Serialize for Appearance<'i> {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
@@ -388,6 +389,7 @@ impl<'i> serde::Serialize for Appearance<'i> {
 }
 
 #[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl<'i, 'de: 'i> serde::Deserialize<'de> for Appearance<'i> {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
@@ -399,6 +401,7 @@ impl<'i, 'de: 'i> serde::Deserialize<'de> for Appearance<'i> {
 }
 
 #[cfg(feature = "jsonschema")]
+#[cfg_attr(docsrs, doc(cfg(feature = "jsonschema")))]
 impl<'a> schemars::JsonSchema for Appearance<'a> {
   fn is_referenceable() -> bool {
     true

@@ -37,6 +37,7 @@ pub struct Browsers {
 }
 
 #[cfg(feature = "browserslist")]
+#[cfg_attr(docsrs, doc(cfg(feature = "browserslist")))]
 impl Browsers {
   /// Parses a list of browserslist queries into Lightning CSS targets.
   pub fn from_browserslist<S: AsRef<str>, I: IntoIterator<Item = S>>(

@@ -183,6 +183,7 @@ where
 
   /// Returns the inline source map associated with the source at the given index.
   #[cfg(feature = "sourcemap")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "sourcemap")))]
   pub fn source_map(&self, source_index: usize) -> Option<SourceMap> {
     SourceMap::from_data_url("/", self.source_map_url(source_index)?).ok()
   }
@@ -278,6 +279,7 @@ where
 }
 
 #[cfg(feature = "visitor")]
+#[cfg_attr(docsrs, doc(cfg(feature = "visitor")))]
 impl<'i, 'o, T, V> Visit<'i, T::AtRule, V> for StyleSheet<'i, 'o, T>
 where
   T: AtRuleParser<'i>,
@@ -286,7 +288,7 @@ where
 {
   const CHILD_TYPES: VisitTypes = VisitTypes::all();
 
-  fn visit_children(&mut self, visitor: &mut V) {
+  fn visit_children(&mut self, visitor: &mut V) -> Result<(), V::Error> {
     self.rules.visit(visitor)
   }
 }

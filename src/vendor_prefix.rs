@@ -135,6 +135,7 @@ impl cssparser::ToCss for VendorPrefix {
 }
 
 #[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl serde::Serialize for VendorPrefix {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
@@ -163,6 +164,7 @@ impl serde::Serialize for VendorPrefix {
 }
 
 #[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl<'de> serde::Deserialize<'de> for VendorPrefix {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
@@ -189,12 +191,16 @@ impl<'de> serde::Deserialize<'de> for VendorPrefix {
 }
 
 #[cfg(feature = "visitor")]
+#[cfg_attr(docsrs, doc(cfg(feature = "visitor")))]
 impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for VendorPrefix {
   const CHILD_TYPES: VisitTypes = VisitTypes::empty();
-  fn visit_children(&mut self, _: &mut V) {}
+  fn visit_children(&mut self, _: &mut V) -> Result<(), V::Error> {
+    Ok(())
+  }
 }
 
 #[cfg(feature = "jsonschema")]
+#[cfg_attr(docsrs, doc(cfg(feature = "jsonschema")))]
 impl schemars::JsonSchema for VendorPrefix {
   fn is_referenceable() -> bool {
     true

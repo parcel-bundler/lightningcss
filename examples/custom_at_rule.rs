@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, convert::Infallible};
 
 use cssparser::*;
 use lightningcss::{
@@ -36,11 +36,13 @@ fn main() {
   println!("{:?}", stylesheet);
 
   let mut style_rules = HashMap::new();
-  stylesheet.visit(&mut StyleRuleCollector {
-    rules: &mut style_rules,
-  });
+  stylesheet
+    .visit(&mut StyleRuleCollector {
+      rules: &mut style_rules,
+    })
+    .unwrap();
   println!("{:?}", style_rules);
-  stylesheet.visit(&mut ApplyVisitor { rules: &style_rules });
+  stylesheet.visit(&mut ApplyVisitor { rules: &style_rules }).unwrap();
 
   let result = stylesheet
     .to_css(PrinterOptions {
@@ -94,7 +96,7 @@ enum AtRule {
 struct TailwindAtRuleParser;
 impl<'i> AtRuleParser<'i> for TailwindAtRuleParser {
   type Prelude = Prelude;
-  type Error = ();
+  type Error = Infallible;
   type AtRule = AtRule;
 
   fn parse_prelude<'t>(
@@ -147,9 +149,11 @@ struct StyleRuleCollector<'i, 'a> {
 }
 
 impl<'i, 'a> Visitor<'i, AtRule> for StyleRuleCollector<'i, 'a> {
+  type Error = Infallible;
+
   const TYPES: VisitTypes = VisitTypes::RULES;
 
-  fn visit_rule(&mut self, rule: &mut lightningcss::rules::CssRule<'i, AtRule>) {
+  fn visit_rule(&mut self, rule: &mut lightningcss::rules::CssRule<'i, AtRule>) -> Result<(), Self::Error> {
     match rule {
       CssRule::Style(rule) => {
         for selector in rule.selectors.0.iter() {
@@ -178,9 +182,11 @@ struct ApplyVisitor<'a, 'i> {
 }
 
 impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
+  type Error = Infallible;
+
   const TYPES: VisitTypes = visit_types!(RULES | COLORS | LENGTHS | DASHED_IDENTS | SELECTORS | TOKENS);
 
-  fn visit_rule(&mut self, rule: &mut CssRule<'i, AtRule>) {
+  fn visit_rule(&mut self, rule: &mut CssRule<'i, AtRule>) -> Result<(), Self::Error> {
     // Replace @apply rule with nested style rule.
     if let CssRule::Custom(AtRule::Apply(apply)) = rule {
       let mut declarations = DeclarationBlock::new();
@@ -207,26 +213,34 @@ impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
     rule.visit_children(self)
   }
 
-  fn visit_url(&mut self, url: &mut lightningcss::values::url::Url<'i>) {
-    url.url = format!("https://mywebsite.com/{}", url.url).into()
+  fn visit_url(&mut self, url: &mut lightningcss::values::url::Url<'i>) -> Result<(), Self::Error> {
+    url.url = format!("https://mywebsite.com/{}", url.url).into();
+    Ok(())
   }
 
-  fn visit_color(&mut self, color: &mut lightningcss::values::color::CssColor) {
-    *color = color.to_lab()
+  fn visit_color(&mut self, color: &mut lightningcss::values::color::CssColor) -> Result<(), Self::Error> {
+    *color = color.to_lab();
+    Ok(())
   }
 
-  fn visit_length(&mut self, length: &mut lightningcss::values::length::LengthValue) {
+  fn visit_length(&mut self, length: &mut lightningcss::values::length::LengthValue) -> Result<(), Self::Error> {
     match length {
       LengthValue::Px(px) => *length = LengthValue::Rem(*px / 16.0),
       _ => {}
     }
+
+    Ok(())
   }
 
-  fn visit_dashed_ident(&mut self, ident: &mut lightningcss::values::ident::DashedIdent) {
-    ident.0 = format!("--tw-{}", &ident.0[2..]).into()
+  fn visit_dashed_ident(
+    &mut self,
+    ident: &mut lightningcss::values::ident::DashedIdent,
+  ) -> Result<(), Self::Error> {
+    ident.0 = format!("--tw-{}", &ident.0[2..]).into();
+    Ok(())
   }
 
-  fn visit_selector(&mut self, selector: &mut Selector<'i>) {
+  fn visit_selector(&mut self, selector: &mut Selector<'i>) -> Result<(), Self::Error> {
     for c in selector.iter_mut_raw_match_order() {
       match c {
         Component::Class(c) => {
@@ -235,9 +249,11 @@ impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
         _ => {}
       }
     }
+
+    Ok(())
   }
 
-  fn visit_token(&mut self, token: &mut TokenOrValue<'i>) {
+  fn visit_token(&mut self, token: &mut TokenOrValue<'i>) -> Result<(), Self::Error> {
     match token {
       TokenOrValue::Function(f) if f.name == "theme" => match f.arguments.0.first() {
         Some(TokenOrValue::Token(Token::String(s))) => match s.as_ref() {
@@ -258,7 +274,9 @@ impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
 impl<'i, V: Visitor<'i, AtRule>> Visit<'i, AtRule, V> for AtRule {
   const CHILD_TYPES: VisitTypes = VisitTypes::empty();
 
-  fn visit_children(&mut self, _: &mut V) {}
+  fn visit_children(&mut self, _: &mut V) -> Result<(), V::Error> {
+    Ok(())
+  }
 }
 
 impl ToCss for AtRule {

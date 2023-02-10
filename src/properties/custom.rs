@@ -111,6 +111,7 @@ impl<'i> ToCss for CustomPropertyName<'i> {
 }
 
 #[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl<'i, 'de: 'i> serde::Deserialize<'de> for CustomPropertyName<'i> {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
@@ -177,6 +178,7 @@ impl<'i> UnparsedProperty<'i> {
 
   /// Substitutes variables and re-parses the property.
   #[cfg(feature = "substitute_variables")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "substitute_variables")))]
   pub fn substitute_variables<'x>(
     mut self,
     vars: &std::collections::HashMap<&str, TokenList<'i>>,
@@ -994,8 +996,9 @@ impl<'i> TokenList<'i> {
 
   /// Substitutes variables with the provided values.
   #[cfg(feature = "substitute_variables")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "substitute_variables")))]
   pub fn substitute_variables(&mut self, vars: &std::collections::HashMap<&str, TokenList<'i>>) {
-    self.visit(&mut VarInliner { vars })
+    self.visit(&mut VarInliner { vars }).unwrap()
   }
 }
 
@@ -1006,14 +1009,16 @@ struct VarInliner<'a, 'i> {
 
 #[cfg(feature = "substitute_variables")]
 impl<'a, 'i> crate::visitor::Visitor<'i> for VarInliner<'a, 'i> {
+  type Error = std::convert::Infallible;
+
   const TYPES: crate::visitor::VisitTypes = crate::visit_types!(TOKENS | VARIABLES);
 
-  fn visit_token_list(&mut self, tokens: &mut TokenList<'i>) {
+  fn visit_token_list(&mut self, tokens: &mut TokenList<'i>) -> Result<(), Self::Error> {
     let mut i = 0;
     let mut seen = std::collections::HashSet::new();
     while i < tokens.0.len() {
       let token = &mut tokens.0[i];
-      token.visit(self);
+      token.visit(self).unwrap();
       if let TokenOrValue::Var(var) = token {
         if let Some(value) = self.vars.get(var.name.ident.0.as_ref()) {
           // Ignore circular references.
@@ -1033,6 +1038,7 @@ impl<'a, 'i> crate::visitor::Visitor<'i> for VarInliner<'a, 'i> {
       seen.clear();
       i += 1;
     }
+    Ok(())
   }
 }
 
