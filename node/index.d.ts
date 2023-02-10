@@ -1,9 +1,9 @@
-import type { Angle, CssColor, Rule, CustomProperty, EnvironmentVariable, Function, Image, LengthValue, MediaQuery, Declaration, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable, StyleRule, DeclarationBlock, ParsedComponent } from './ast';
+import type { Angle, CssColor, Rule, CustomProperty, EnvironmentVariable, Function, Image, LengthValue, MediaQuery, Declaration, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable, StyleRule, DeclarationBlock, ParsedComponent, Multiplier } from './ast';
 import type { Targets } from './targets';
 
 export * from './ast';
 
-export interface TransformOptions {
+export interface TransformOptions<C extends CustomAtRules> {
   /** The filename being transformed. Used for error messages and source maps. */
   filename: string,
   /** The source code to transform. */
@@ -55,14 +55,14 @@ export interface TransformOptions {
    * For optimal performance, visitors should be as specific as possible about what types of values
    * they care about so that JavaScript has to be called as little as possible.
    */
-  visitor?: Visitor,
+  visitor?: Visitor<C>,
   /**
    * Defines how to parse custom CSS at-rules. Each at-rule can have a prelude, defined using a CSS
    * [syntax string](https://drafts.css-houdini.org/css-properties-values-api/#syntax-strings), and
    * a block body. The body can be a declaration list, rule list, or style block as defined in the
    * [css spec](https://drafts.csswg.org/css-syntax/#declaration-rule-list).
    */
-  customAtRules?: CustomAtRules
+  customAtRules?: C
 }
 
 // This is a hack to make TS still provide autocomplete for `property` vs. just making it `string`.
@@ -90,15 +90,42 @@ type UnknownVisitors<T> = {
   [name: string]: RuleVisitor<T>
 }
 
-type RuleVisitors = MappedRuleVisitors & {
-  unknown?: UnknownVisitors<UnknownAtRule> | RuleVisitor<UnknownAtRule>,
-  custom?: UnknownVisitors<CustomAtRule> | RuleVisitor<CustomAtRule>
+type CustomVisitors<T extends CustomAtRules> = {
+  [Name in keyof T]?: RuleVisitor<CustomAtRule<Name, T[Name]>>
 };
 
-interface CustomAtRule {
-  name: string,
-  prelude: ParsedComponent | null,
-  body: CustomAtRuleBody
+type AnyCustomAtRule<C extends CustomAtRules> = {
+  [Key in keyof C]: CustomAtRule<Key, C[Key]>
+}[keyof C];
+
+type RuleVisitors<C extends CustomAtRules> = MappedRuleVisitors & {
+  unknown?: UnknownVisitors<UnknownAtRule> | RuleVisitor<UnknownAtRule>,
+  custom?: CustomVisitors<C> | RuleVisitor<AnyCustomAtRule<C>>
+};
+
+type PreludeTypes = Exclude<ParsedComponent['type'], 'literal' | 'repeated' | 'token'>;
+type SyntaxString = `<${PreludeTypes}>` | `<${PreludeTypes}>+` | `<${PreludeTypes}>#` | (string & {});
+type ComponentTypes = {
+  [Key in PreludeTypes as `<${Key}>`]: FindByType<ParsedComponent, Key>
+};
+
+type Repetitions = {
+  [Key in PreludeTypes as `<${Key}>+` | `<${Key}>#`]: {
+    type: "repeated",
+    value: {
+      components: FindByType<ParsedComponent, Key>[],
+      multiplier: Multiplier
+    }
+  }
+};
+
+type MappedPrelude = ComponentTypes & Repetitions;
+type MappedBody<P extends CustomAtRuleDefinition['body']> = P extends 'style-block' ? 'rule-list' : P;
+interface CustomAtRule<N, R extends CustomAtRuleDefinition> {
+  name: N,
+  prelude: R['prelude'] extends keyof MappedPrelude ? MappedPrelude[R['prelude']] : ParsedComponent,
+  body: FindByType<CustomAtRuleBody, MappedBody<R['body']>>,
+  loc: Location
 }
 
 type CustomAtRuleBody = {
@@ -135,9 +162,9 @@ type EnvironmentVariableVisitors = {
   [name: string]: EnvironmentVariableVisitor
 };
 
-export interface Visitor {
-  Rule?: RuleVisitor | RuleVisitors;
-  RuleExit?: RuleVisitor | RuleVisitors;
+export interface Visitor<C extends CustomAtRules> {
+  Rule?: RuleVisitor | RuleVisitors<C>;
+  RuleExit?: RuleVisitor | RuleVisitors<C>;
   Declaration?: DeclarationVisitor | DeclarationVisitors;
   DeclarationExit?: DeclarationVisitor | DeclarationVisitors;
   Url?(url: Url): Url | void;
@@ -166,17 +193,17 @@ export interface Visitor {
 }
 
 export interface CustomAtRules {
-  [name: string]: CustomAtRule
+  [name: string]: CustomAtRuleDefinition
 }
 
-export interface CustomAtRule {
+export interface CustomAtRuleDefinition {
   /**
    * Defines the syntax for a custom at-rule prelude. The value should be a
    * CSS [syntax string](https://drafts.css-houdini.org/css-properties-values-api/#syntax-strings)
    * representing the types of values that are accepted. This property may be omitted or
    * set to null to indicate that no prelude is accepted.
    */
-  prelude?: string | null,
+  prelude?: SyntaxString | null,
   /**
    * Defines the type of body contained within the at-rule block.
    *   - declaration-list: A CSS declaration list, as in a style rule.
@@ -194,9 +221,9 @@ export interface DependencyOptions {
   preserveImports?: boolean
 }
 
-export type BundleOptions = Omit<TransformOptions, 'code'>;
+export type BundleOptions<C extends CustomAtRules> = Omit<TransformOptions<C>, 'code'>;
 
-export interface BundleAsyncOptions extends BundleOptions {
+export interface BundleAsyncOptions<C extends CustomAtRules> extends BundleOptions<C> {
   resolver?: Resolver;
 }
 
@@ -345,7 +372,7 @@ export interface ErrorLocation extends Location {
  * Compiles a CSS file, including optionally minifying and lowering syntax to the given
  * targets. A source map may also be generated, but this is not enabled by default.
  */
-export declare function transform(options: TransformOptions): TransformResult;
+export declare function transform<C extends CustomAtRules>(options: TransformOptions<C>): TransformResult;
 
 export interface TransformAttributeOptions {
   /** The filename in which the style attribute appeared. Used for error messages and dependencies. */
@@ -375,7 +402,7 @@ export interface TransformAttributeOptions {
    * For optimal performance, visitors should be as specific as possible about what types of values
    * they care about so that JavaScript has to be called as little as possible.
    */
-  visitor?: Visitor
+  visitor?: Visitor<never>
 }
 
 export interface TransformAttributeResult {
@@ -401,14 +428,14 @@ export declare function browserslistToTargets(browserslist: string[]): Targets;
 /**
  * Bundles a CSS file and its dependencies, inlining @import rules.
  */
-export declare function bundle(options: BundleOptions): TransformResult;
+export declare function bundle<C extends CustomAtRules>(options: BundleOptions<C>): TransformResult;
 
 /**
  * Bundles a CSS file and its dependencies asynchronously, inlining @import rules.
  */
-export declare function bundleAsync(options: BundleAsyncOptions): Promise<TransformResult>;
+export declare function bundleAsync<C extends CustomAtRules>(options: BundleAsyncOptions<C>): Promise<TransformResult>;
 
 /**
  * Composes multiple visitor objects into a single one.
  */
-export declare function composeVisitors(visitors: Visitor[]): Visitor;
+export declare function composeVisitors<C extends CustomAtRules>(visitors: Visitor<C>[]): Visitor<C>;
