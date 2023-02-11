@@ -9,7 +9,7 @@ use crate::css_modules::{CssModule, CssModuleExports, CssModuleReferences};
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::dependencies::Dependency;
 use crate::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterError, PrinterErrorKind};
-use crate::parser::{DefaultAtRuleParser, TopLevelRuleParser};
+use crate::parser::{DefaultAtRule, DefaultAtRuleParser, TopLevelRuleParser};
 use crate::printer::Printer;
 use crate::rules::{CssRule, CssRuleList, MinifyContext};
 use crate::targets::Browsers;
@@ -68,24 +68,12 @@ pub use crate::printer::PseudoClasses;
 #[cfg_attr(
   feature = "jsonschema",
   derive(schemars::JsonSchema),
-  schemars(
-    rename = "StyleSheet",
-    bound = "T: schemars::JsonSchema, T::AtRule: schemars::JsonSchema"
-  )
+  schemars(rename = "StyleSheet", bound = "T: schemars::JsonSchema")
 )]
-pub struct StyleSheet<'i, 'o, T: AtRuleParser<'i> = DefaultAtRuleParser> {
+pub struct StyleSheet<'i, 'o, T = DefaultAtRule> {
   /// A list of top-level rules within the style sheet.
-  #[cfg_attr(
-    feature = "serde",
-    serde(
-      borrow,
-      bound(
-        serialize = "T::AtRule: serde::Serialize",
-        deserialize = "T::AtRule: serde::Deserialize<'de>"
-      )
-    )
-  )]
-  pub rules: CssRuleList<'i, T::AtRule>,
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  pub rules: CssRuleList<'i, T>,
   /// A list of file names for all source files included within the style sheet.
   /// Sources are referenced by index in the `loc` property of each rule.
   pub sources: Vec<String>,
@@ -93,7 +81,7 @@ pub struct StyleSheet<'i, 'o, T: AtRuleParser<'i> = DefaultAtRuleParser> {
   pub(crate) source_map_urls: Vec<Option<String>>,
   #[cfg_attr(feature = "serde", serde(skip))]
   /// The options the style sheet was originally parsed with.
-  options: ParserOptions<'o, 'i, T>,
+  options: ParserOptions<'o, 'i>,
 }
 
 /// Options for the `minify` function of a [StyleSheet](StyleSheet)
@@ -124,15 +112,22 @@ pub struct ToCssResult {
   pub dependencies: Option<Vec<Dependency>>,
 }
 
-impl<'i, 'o, T: AtRuleParser<'i>> StyleSheet<'i, 'o, T>
+impl<'i, 'o> StyleSheet<'i, 'o, DefaultAtRule> {
+  /// Parse a style sheet from a string.
+  pub fn parse(code: &'i str, options: ParserOptions<'o, 'i>) -> Result<Self, Error<ParserError<'i>>> {
+    Self::parse_with(code, options, &mut DefaultAtRuleParser)
+  }
+}
+
+impl<'i, 'o, T> StyleSheet<'i, 'o, T>
 where
-  T::AtRule: ToCss,
+  T: ToCss,
 {
   /// Creates a new style sheet with the given source filenames and rules.
   pub fn new(
     sources: Vec<String>,
-    rules: CssRuleList<'i, T::AtRule>,
-    options: ParserOptions<'o, 'i, T>,
+    rules: CssRuleList<'i, T>,
+    options: ParserOptions<'o, 'i>,
   ) -> StyleSheet<'i, 'o, T> {
     StyleSheet {
       sources,
@@ -143,11 +138,15 @@ where
   }
 
   /// Parse a style sheet from a string.
-  pub fn parse(code: &'i str, mut options: ParserOptions<'o, 'i, T>) -> Result<Self, Error<ParserError<'i>>> {
+  pub fn parse_with<P: AtRuleParser<'i, AtRule = T>>(
+    code: &'i str,
+    mut options: ParserOptions<'o, 'i>,
+    at_rule_parser: &mut P,
+  ) -> Result<Self, Error<ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
     let mut rule_list_parser =
-      RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(&mut options));
+      RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(&mut options, at_rule_parser));
 
     let mut rules = vec![];
     while let Some(rule) = rule_list_parser.next() {
@@ -280,11 +279,10 @@ where
 
 #[cfg(feature = "visitor")]
 #[cfg_attr(docsrs, doc(cfg(feature = "visitor")))]
-impl<'i, 'o, T, V> Visit<'i, T::AtRule, V> for StyleSheet<'i, 'o, T>
+impl<'i, 'o, T, V> Visit<'i, T, V> for StyleSheet<'i, 'o, T>
 where
-  T: AtRuleParser<'i>,
-  T::AtRule: Visit<'i, T::AtRule, V>,
-  V: Visitor<'i, T::AtRule>,
+  T: Visit<'i, T, V>,
+  V: Visitor<'i, T>,
 {
   const CHILD_TYPES: VisitTypes = VisitTypes::all();
 
@@ -329,9 +327,9 @@ pub struct StyleAttribute<'i> {
 
 impl<'i> StyleAttribute<'i> {
   /// Parses a style attribute from a string.
-  pub fn parse<T>(
+  pub fn parse(
     code: &'i str,
-    options: ParserOptions<'_, 'i, T>,
+    options: ParserOptions<'_, 'i>,
   ) -> Result<StyleAttribute<'i>, Error<ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);

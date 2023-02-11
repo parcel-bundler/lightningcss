@@ -28,17 +28,17 @@ pub trait Parse<'i>: Sized {
 }
 
 /// Trait for things that can be parsed from CSS syntax and require ParserOptions.
-pub trait ParseWithOptions<'i, T>: Sized {
+pub trait ParseWithOptions<'i>: Sized {
   /// Parse a value of this type with the given options.
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i, T>,
+    options: &ParserOptions<'_, 'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>>;
 
   /// Parse a value from a string with the given options.
   fn parse_string_with_options(
     input: &'i str,
-    options: ParserOptions<'_, 'i, T>,
+    options: ParserOptions<'_, 'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(input);
     let mut parser = Parser::new(&mut input);
@@ -46,11 +46,11 @@ pub trait ParseWithOptions<'i, T>: Sized {
   }
 }
 
-impl<'i, T: Parse<'i>, U> ParseWithOptions<'i, U> for T {
+impl<'i, T: Parse<'i>> ParseWithOptions<'i> for T {
   #[inline]
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    _options: &ParserOptions<U>,
+    _options: &ParserOptions,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     T::parse(input)
   }
@@ -275,7 +275,7 @@ pub trait AtRuleParser<'i>: Sized {
     &mut self,
     name: CowRcStr<'i>,
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i, Self>,
+    options: &ParserOptions<'_, 'i>,
   ) -> Result<Self::Prelude, ParseError<'i, Self::Error>> {
     let _ = name;
     let _ = input;
@@ -294,7 +294,7 @@ pub trait AtRuleParser<'i>: Sized {
     &mut self,
     prelude: Self::Prelude,
     start: &ParserState,
-    options: &ParserOptions<'_, 'i, Self>,
+    options: &ParserOptions<'_, 'i>,
   ) -> Result<Self::AtRule, ()> {
     let _ = prelude;
     let _ = start;
@@ -316,7 +316,7 @@ pub trait AtRuleParser<'i>: Sized {
     prelude: Self::Prelude,
     start: &ParserState,
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i, Self>,
+    options: &ParserOptions<'_, 'i>,
   ) -> Result<Self::AtRule, ParseError<'i, Self::Error>> {
     let _ = prelude;
     let _ = start;

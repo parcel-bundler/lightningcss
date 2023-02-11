@@ -174,11 +174,11 @@ pub struct PageRule<'i> {
 }
 
 impl<'i> PageRule<'i> {
-  pub(crate) fn parse<'t, 'o, T>(
+  pub(crate) fn parse<'t, 'o>(
     selectors: Vec<PageSelector<'i>>,
     input: &mut Parser<'i, 't>,
     loc: Location,
-    options: &ParserOptions<'o, 'i, T>,
+    options: &ParserOptions<'o, 'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut declarations = DeclarationBlock::new();
     let mut rules = Vec::new();
@@ -301,13 +301,13 @@ impl<'i> ToCss for PageSelector<'i> {
   }
 }
 
-struct PageRuleParser<'a, 'o, 'i, T> {
+struct PageRuleParser<'a, 'o, 'i> {
   declarations: &'a mut DeclarationBlock<'i>,
   rules: &'a mut Vec<PageMarginRule<'i>>,
-  options: &'a ParserOptions<'o, 'i, T>,
+  options: &'a ParserOptions<'o, 'i>,
 }
 
-impl<'a, 'o, 'i, T> cssparser::DeclarationParser<'i> for PageRuleParser<'a, 'o, 'i, T> {
+impl<'a, 'o, 'i> cssparser::DeclarationParser<'i> for PageRuleParser<'a, 'o, 'i> {
   type Declaration = ();
   type Error = ParserError<'i>;
 
@@ -326,7 +326,7 @@ impl<'a, 'o, 'i, T> cssparser::DeclarationParser<'i> for PageRuleParser<'a, 'o, 
   }
 }
 
-impl<'a, 'o, 'i, T> AtRuleParser<'i> for PageRuleParser<'a, 'o, 'i, T> {
+impl<'a, 'o, 'i> AtRuleParser<'i> for PageRuleParser<'a, 'o, 'i> {
   type Prelude = PageMarginBox;
   type AtRule = ();
   type Error = ParserError<'i>;

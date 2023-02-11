@@ -129,3 +129,57 @@ test('style block', () => {
 
   assert.equal(res.code.toString(), '@media (width<=1024px){.foo{color:#ff0}.foo.bar{color:red}}');
 });
+
+test('multiple', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      @breakpoint 1024px {
+        @theme spacing {
+          foo: 16px;
+          bar: 32px;
+        }
+      }
+    `),
+    customAtRules: {
+      breakpoint: {
+        prelude: '<length>',
+        body: 'rule-list'
+      },
+      theme: {
+        prelude: '<custom-ident>',
+        body: 'declaration-list'
+      }
+    },
+    visitor: {
+      Rule: {
+        custom(rule) {
+          if (rule.name === 'breakpoint') {
+            return {
+              type: 'media',
+              value: {
+                query: {
+                  mediaQueries: [{ mediaType: 'all', condition: { type: 'feature', value: { type: 'range', name: 'width', operator: 'less-than-equal', value: rule.prelude } } }]
+                },
+                rules: rule.body.value,
+                loc: rule.loc
+              }
+            }
+          } else {
+            return {
+              type: 'style',
+              value: {
+                selectors: [[{ type: 'pseudo-class', kind: 'root' }]],
+                declarations: rule.body.value,
+                loc: rule.loc
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '@media (width<=1024px){:root{foo:16px;bar:32px}}');
+});

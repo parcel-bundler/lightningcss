@@ -25,6 +25,7 @@
 
 use crate::{
   error::ErrorLocation,
+  parser::DefaultAtRuleParser,
   properties::{
     css_modules::Specifier,
     custom::{
@@ -66,11 +67,17 @@ pub struct Bundler<'a, 'o, 's, P, T: AtRuleParser<'a>> {
   source_map: Option<Mutex<&'s mut SourceMap>>,
   fs: &'a P,
   source_indexes: DashMap<PathBuf, u32>,
-  stylesheets: Mutex<Vec<BundleStyleSheet<'a, 'o, T>>>,
-  options: ParserOptions<'o, 'a, T>,
+  stylesheets: Mutex<Vec<BundleStyleSheet<'a, 'o, T::AtRule>>>,
+  options: ParserOptions<'o, 'a>,
+  at_rule_parser: Mutex<AtRuleParserValue<'s, T>>,
 }
 
-struct BundleStyleSheet<'i, 'o, T: AtRuleParser<'i>> {
+enum AtRuleParserValue<'a, T> {
+  Owned(T),
+  Borrowed(&'a mut T),
+}
+
+struct BundleStyleSheet<'i, 'o, T> {
   stylesheet: Option<StyleSheet<'i, 'o, T>>,
   dependencies: Vec<u32>,
   css_modules_deps: Vec<u32>,
@@ -189,6 +196,26 @@ impl<'i, T: std::error::Error> BundleErrorKind<'i, T> {
   }
 }
 
+impl<'a, 'o, 's, P: SourceProvider> Bundler<'a, 'o, 's, P, DefaultAtRuleParser> {
+  /// Creates a new Bundler using the given source provider.
+  /// If a source map is given, the content of each source file included in the bundle will
+  /// be added accordingly.
+  pub fn new(
+    fs: &'a P,
+    source_map: Option<&'s mut SourceMap>,
+    options: ParserOptions<'o, 'a>,
+  ) -> Bundler<'a, 'o, 's, P, DefaultAtRuleParser> {
+    Bundler {
+      source_map: source_map.map(Mutex::new),
+      fs,
+      source_indexes: DashMap::new(),
+      stylesheets: Mutex::new(Vec::new()),
+      options,
+      at_rule_parser: Mutex::new(AtRuleParserValue::Owned(DefaultAtRuleParser)),
+    }
+  }
+}
+
 impl<'a, 'o, 's, P: SourceProvider, T: AtRuleParser<'a> + Clone + Sync + Send> Bundler<'a, 'o, 's, P, T>
 where
   T::AtRule: Sync + Send + ToCss,
@@ -196,13 +223,19 @@ where
   /// Creates a new Bundler using the given source provider.
   /// If a source map is given, the content of each source file included in the bundle will
   /// be added accordingly.
-  pub fn new(fs: &'a P, source_map: Option<&'s mut SourceMap>, options: ParserOptions<'o, 'a, T>) -> Self {
+  pub fn new_with_at_rule_parser(
+    fs: &'a P,
+    source_map: Option<&'s mut SourceMap>,
+    options: ParserOptions<'o, 'a>,
+    at_rule_parser: &'s mut T,
+  ) -> Self {
     Bundler {
       source_map: source_map.map(Mutex::new),
       fs,
       source_indexes: DashMap::new(),
       stylesheets: Mutex::new(Vec::new()),
       options,
+      at_rule_parser: Mutex::new(AtRuleParserValue::Borrowed(at_rule_parser)),
     }
   }
 
@@ -210,7 +243,7 @@ where
   pub fn bundle<'e>(
     &mut self,
     entry: &'e Path,
-  ) -> Result<StyleSheet<'a, 'o, T>, Error<BundleErrorKind<'a, P::Error>>> {
+  ) -> Result<StyleSheet<'a, 'o, T::AtRule>, Error<BundleErrorKind<'a, P::Error>>> {
     // Phase 1: load and parse all files. This is done in parallel.
     self.load_file(
       &entry,
@@ -344,7 +377,15 @@ where
     opts.filename = filename.to_owned();
     opts.source_index = source_index;
 
-    let mut stylesheet = StyleSheet::parse(code, opts)?;
+    let mut stylesheet = {
+      let mut at_rule_parser = self.at_rule_parser.lock().unwrap();
+      let at_rule_parser = match &mut *at_rule_parser {
+        AtRuleParserValue::Owned(owned) => owned,
+        AtRuleParserValue::Borrowed(borrowed) => *borrowed,
+      };
+
+      StyleSheet::<T::AtRule>::parse_with(code, opts, at_rule_parser)?
+    };
 
     if let Some(source_map) = &self.source_map {
       // Only add source if we don't have an input source map.
@@ -549,7 +590,7 @@ where
   fn order(&mut self) {
     process(self.stylesheets.get_mut().unwrap(), 0, &mut HashSet::new());
 
-    fn process<'i, T: AtRuleParser<'i>>(
+    fn process<'i, T>(
       stylesheets: &mut Vec<BundleStyleSheet<'i, '_, T>>,
       source_index: u32,
       visited: &mut HashSet<u32>,
@@ -592,10 +633,10 @@ where
   fn inline(&mut self, dest: &mut Vec<CssRule<'a, T::AtRule>>) {
     process(self.stylesheets.get_mut().unwrap(), 0, dest);
 
-    fn process<'a, T: AtRuleParser<'a>>(
+    fn process<'a, T>(
       stylesheets: &mut Vec<BundleStyleSheet<'a, '_, T>>,
       source_index: u32,
-      dest: &mut Vec<CssRule<'a, T::AtRule>>,
+      dest: &mut Vec<CssRule<'a, T>>,
     ) {
       let stylesheet = &mut stylesheets[source_index as usize];
       let mut rules = std::mem::take(&mut stylesheet.stylesheet.as_mut().unwrap().rules.0);

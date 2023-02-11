@@ -62,7 +62,9 @@ use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationHandler;
 use crate::dependencies::{Dependency, ImportDependency};
 use crate::error::{MinifyError, ParserError, PrinterError, PrinterErrorKind};
-use crate::parser::{parse_nested_at_rule, DefaultAtRule, NestedRuleParser, TopLevelRuleParser};
+use crate::parser::{
+  parse_nested_at_rule, DefaultAtRule, DefaultAtRuleParser, NestedRuleParser, TopLevelRuleParser,
+};
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::rules::keyframes::KeyframesName;
@@ -345,24 +347,44 @@ impl<'a, 'i, T: ToCss> ToCss for CssRule<'i, T> {
   }
 }
 
+impl<'i> CssRule<'i, DefaultAtRule> {
+  /// Parse a single rule.
+  pub fn parse<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Self::parse_with(input, options, &mut DefaultAtRuleParser)
+  }
+
+  /// Parse a single rule from a string.
+  pub fn parse_string(
+    input: &'i str,
+    options: ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Self::parse_string_with(input, options, &mut DefaultAtRuleParser)
+  }
+}
+
 impl<'i, T> CssRule<'i, T> {
   /// Parse a single rule.
-  pub fn parse<'t, P: AtRuleParser<'i, AtRule = T>>(
+  pub fn parse_with<'t, P: AtRuleParser<'i, AtRule = T>>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i, P>,
+    options: &ParserOptions<'_, 'i>,
+    at_rule_parser: &mut P,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let (_, rule) = parse_one_rule(input, &mut TopLevelRuleParser::new(options))?;
+    let (_, rule) = parse_one_rule(input, &mut TopLevelRuleParser::new(options, at_rule_parser))?;
     Ok(rule)
   }
 
   /// Parse a single rule from a string.
-  pub fn parse_string<P: AtRuleParser<'i, AtRule = T>>(
+  pub fn parse_string_with<P: AtRuleParser<'i, AtRule = T>>(
     input: &'i str,
-    options: ParserOptions<'_, 'i, P>,
+    options: ParserOptions<'_, 'i>,
+    at_rule_parser: &mut P,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut input = ParserInput::new(input);
     let mut parser = Parser::new(&mut input);
-    Self::parse(&mut parser, &options)
+    Self::parse_with(&mut parser, &options, at_rule_parser)
   }
 }
 
@@ -374,23 +396,47 @@ pub struct CssRuleList<'i, R = DefaultAtRule>(
   #[cfg_attr(feature = "serde", serde(borrow))] pub Vec<CssRule<'i, R>>,
 );
 
-impl<'i, T> CssRuleList<'i, T> {
+impl<'i> CssRuleList<'i, DefaultAtRule> {
   /// Parse a rule list.
-  pub fn parse<'t, P: AtRuleParser<'i, AtRule = T>>(
+  pub fn parse<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i, P>,
+    options: &ParserOptions<'_, 'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let mut nested_parser = NestedRuleParser { options };
+    Self::parse_with(input, options, &mut DefaultAtRuleParser)
+  }
+
+  /// Parse a style block, with both declarations and rules.
+  /// Resulting declarations are returned in a nested style rule.
+  pub fn parse_style_block<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Self::parse_style_block_with(input, options, &mut DefaultAtRuleParser)
+  }
+}
+
+impl<'i, T> CssRuleList<'i, T> {
+  /// Parse a rule list with a custom at rule parser.
+  pub fn parse_with<'t, P: AtRuleParser<'i, AtRule = T>>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+    at_rule_parser: &mut P,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let mut nested_parser = NestedRuleParser {
+      options,
+      at_rule_parser,
+    };
     nested_parser.parse_nested_rules(input)
   }
 
   /// Parse a style block, with both declarations and rules.
   /// Resulting declarations are returned in a nested style rule.
-  pub fn parse_style_block<'t, P: AtRuleParser<'i, AtRule = T>>(
+  pub fn parse_style_block_with<'t, P: AtRuleParser<'i, AtRule = T>>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i, P>,
+    options: &ParserOptions<'_, 'i>,
+    at_rule_parser: &mut P,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    parse_nested_at_rule(input, options)
+    parse_nested_at_rule(input, options, at_rule_parser)
   }
 }
 

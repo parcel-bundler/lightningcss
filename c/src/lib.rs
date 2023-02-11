@@ -285,7 +285,6 @@ pub extern "C" fn lightningcss_stylesheet_parse(
     error_recovery: options.error_recovery,
     source_index: 0,
     warnings: Some(warnings.clone()),
-    at_rule_parser: None,
   };
 
   let stylesheet = unwrap!(StyleSheet::parse(code, opts), error, std::ptr::null_mut());

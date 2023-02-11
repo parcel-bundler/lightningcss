@@ -46,10 +46,10 @@ pub struct CustomProperty<'i> {
 
 impl<'i> CustomProperty<'i> {
   /// Parses a custom property with the given name.
-  pub fn parse<'t, T>(
+  pub fn parse<'t>(
     name: CustomPropertyName<'i>,
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i, T>,
+    options: &ParserOptions<'_, 'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let value = input.parse_until_before(Delimiter::Bang | Delimiter::Semicolon, |input| {
       TokenList::parse(input, options, 0)
@@ -146,10 +146,10 @@ pub struct UnparsedProperty<'i> {
 
 impl<'i> UnparsedProperty<'i> {
   /// Parses a property with the given id as a token list.
-  pub fn parse<'t, T>(
+  pub fn parse<'t>(
     property_id: PropertyId<'i>,
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i, T>,
+    options: &ParserOptions<'_, 'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let value = input.parse_until_before(Delimiter::Bang | Delimiter::Semicolon, |input| {
       TokenList::parse(input, options, 0)
@@ -259,19 +259,19 @@ impl<'i> TokenOrValue<'i> {
   }
 }
 
-impl<'i, T> ParseWithOptions<'i, T> for TokenList<'i> {
+impl<'i> ParseWithOptions<'i> for TokenList<'i> {
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i, T>,
+    options: &ParserOptions<'_, 'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     TokenList::parse(input, options, 0)
   }
 }
 
 impl<'i> TokenList<'i> {
-  pub(crate) fn parse<'t, T>(
+  pub(crate) fn parse<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i, T>,
+    options: &ParserOptions<'_, 'i>,
     depth: usize,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut tokens = vec![];
@@ -293,10 +293,10 @@ impl<'i> TokenList<'i> {
     return Ok(TokenList(tokens));
   }
 
-  fn parse_into<'t, T>(
+  fn parse_into<'t>(
     input: &mut Parser<'i, 't>,
     tokens: &mut Vec<TokenOrValue<'i>>,
-    options: &ParserOptions<'_, 'i, T>,
+    options: &ParserOptions<'_, 'i>,
     depth: usize,
   ) -> Result<(), ParseError<'i, ParserError<'i>>> {
     if depth > 500 {
@@ -1058,9 +1058,9 @@ pub struct Variable<'i> {
 }
 
 impl<'i> Variable<'i> {
-  fn parse<'t, T>(
+  fn parse<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i, T>,
+    options: &ParserOptions<'_, 'i>,
     depth: usize,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let name = DashedIdentReference::parse_with_options(input, options)?;
@@ -1209,18 +1209,18 @@ impl<'i> ToCss for EnvironmentVariableName<'i> {
 }
 
 impl<'i> EnvironmentVariable<'i> {
-  pub(crate) fn parse<'t, T>(
+  pub(crate) fn parse<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i, T>,
+    options: &ParserOptions<'_, 'i>,
     depth: usize,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     input.expect_function_matching("env")?;
     input.parse_nested_block(|input| Self::parse_nested(input, options, depth))
   }
 
-  pub(crate) fn parse_nested<'t, T>(
+  pub(crate) fn parse_nested<'t>(
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i, T>,
+    options: &ParserOptions<'_, 'i>,
     depth: usize,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let name = EnvironmentVariableName::parse(input)?;
@@ -1345,10 +1345,10 @@ pub enum UnresolvedColor<'i> {
 }
 
 impl<'i> UnresolvedColor<'i> {
-  fn parse<'t, T>(
+  fn parse<'t>(
     f: &CowArcStr<'i>,
     input: &mut Parser<'i, 't>,
-    options: &ParserOptions<'_, 'i, T>,
+    options: &ParserOptions<'_, 'i>,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let parser = ComponentParser::new(false);
     match_ignore_ascii_case! { &*f,
