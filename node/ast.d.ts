@@ -7036,7 +7036,7 @@ export interface StyleRule<D = Declaration> {
   /**
    * The declarations within the style rule.
    */
-  declarations: DeclarationBlock<D>;
+  declarations?: DeclarationBlock<D>;
   /**
    * The location of the rule in the source file.
    */
