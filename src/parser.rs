@@ -667,7 +667,7 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> QualifiedRuleParser<'i>
     input: &mut Parser<'i, 't>,
   ) -> Result<Self::Prelude, ParseError<'i, Self::Error>> {
     let selector_parser = SelectorParser {
-      is_nesting_allowed: false,
+      is_nesting_allowed: self.options.nesting,
       options: &self.options,
     };
     SelectorList::parse(&selector_parser, input, NestingRequirement::None)

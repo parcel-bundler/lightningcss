@@ -1083,6 +1083,7 @@ where
 
   let mut combinators = selector.iter_raw_match_order().rev().filter_map(|x| x.as_combinator());
   let compound_selectors = selector.iter_raw_match_order().as_slice().split(|x| x.is_combinator()).rev();
+  let supports_nesting = dest.targets.is_none() || Feature::CssNesting.is_compatible(dest.targets.unwrap());
 
   let mut first = true;
   let mut combinators_exhausted = false;
@@ -1140,7 +1141,7 @@ where
           // Iterate over everything so we serialize the namespace
           // too.
           let mut iter = compound.iter();
-          let swap_nesting = has_leading_nesting && context.is_some();
+          let swap_nesting = has_leading_nesting && !supports_nesting;
           if swap_nesting {
             // Swap nesting and type selector (e.g. &div -> div&).
             iter.next();
@@ -1172,7 +1173,7 @@ where
     // following code tries to match.
     if perform_step_2 {
       let mut iter = compound.iter();
-      if has_leading_nesting && context.is_some() && is_type_selector(compound.get(first_non_namespace)) {
+      if has_leading_nesting && !supports_nesting && is_type_selector(compound.get(first_non_namespace)) {
         // Swap nesting and type selector (e.g. &div -> div&).
         // This ensures that the compiled selector is valid. e.g. (div.foo is valid, .foodiv is not).
         let nesting = iter.next().unwrap();
@@ -1186,7 +1187,7 @@ where
         }
 
         serialize_component(nesting, dest, context)?;
-      } else if has_leading_nesting && context.is_some() {
+      } else if has_leading_nesting && !supports_nesting {
         // Nesting selector may serialize differently if it is leading, due to type selectors.
         iter.next();
         serialize_nesting(dest, context, true)?;
@@ -1353,7 +1354,14 @@ where
       dest.write_char(')')
     }
   } else {
-    dest.write_char('&')
+    // If there is no context, we are at the root if nesting is supported. This is equivalent to :scope.
+    // Otherwise, if nesting is supported, serialize the nesting selector directly.
+    let supports_nesting = dest.targets.is_none() || Feature::CssNesting.is_compatible(dest.targets.unwrap());
+    if supports_nesting {
+      dest.write_char('&')
+    } else {
+      dest.write_str(":scope")
+    }
   }
 }
 

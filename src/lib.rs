@@ -19687,6 +19687,58 @@ mod tests {
       "#},
     );
 
+    nesting_test(
+      r#"
+        & .foo {
+          color: red;
+        }
+      "#,
+      indoc! {r#"
+        :scope .foo {
+          color: red;
+        }
+      "#},
+    );
+
+    nesting_test(
+      r#"
+        &.foo {
+          color: red;
+        }
+      "#,
+      indoc! {r#"
+        :scope.foo {
+          color: red;
+        }
+      "#},
+    );
+
+    nesting_test(
+      r#"
+        .foo& {
+          color: red;
+        }
+      "#,
+      indoc! {r#"
+        .foo:scope {
+          color: red;
+        }
+      "#},
+    );
+
+    nesting_test(
+      r#"
+        &html {
+          color: red;
+        }
+      "#,
+      indoc! {r#"
+        html:scope {
+          color: red;
+        }
+      "#},
+    );
+
     nesting_test_no_targets(
       r#"
         .foo {
