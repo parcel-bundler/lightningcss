@@ -30,108 +30,49 @@ if (process.argv[process.argv.length - 1] !== __filename) {
 
 let res = css.transform({
   filename: __filename,
-  // minify: true,
-  // targets: {
-  //   safari: 4 << 16,
-  //   firefox: 3 << 16 | 5 << 8,
-  //   opera: 10 << 16 | 5 << 8
-  // },
   code: Buffer.from(`
-  @namespace "http://foo.com";
-  @namespace svg "http://bar.com";
-
-  .selector > .nested[data-foo=bar]:not(.foo):hover::part(tab active) {
-    width: 32px;
-    --foo: var(--bar, 30px);
-    background: linear-gradient(red, green);
+  @breakpoints {
+    .foo { color: yellow; }
   }
 
-  svg|foo {
-    test: foo;
-  }
-
-  @media (hover) and (width > 50px) {
-    .foo {
-      color: red;
-      background: inline('.gitignore');
+  .foo {
+    color: red;
+    @bar {
+      width: 25px;
     }
   }
 `),
-  visitor: {
-    visitLength(length) {
-      if (length.unit === 'px') {
-        return {
-          unit: 'rem',
-          value: length.value / 16
-        }
-      }
-      return length;
+  drafts: {
+    nesting: true
+  },
+  targets: {
+    safari: 16 << 16
+  },
+  customAtRules: {
+    breakpoints: {
+      // Syntax string defining the at rule prelude.
+      // https://drafts.css-houdini.org/css-properties-values-api/#syntax-strings
+      prelude: null,
+      // Type of the at rule block.
+      // Can be declaration-list, rule-list, or style-block.
+      // https://www.w3.org/TR/css-syntax-3/#declaration-rule-list
+      body: 'rule-list'
     },
-    visitColor(color) {
-      console.log(color);
-      return color;
-    },
-    visitImage(image) {
-      // console.log(image.value.value);
-      image.value.value[1].push('moz');
-      return image;
-    },
-    visitProperty(property) {
-      // console.log(require('util').inspect(property, {depth: 50}))
-      if (property.property === 'background') {
-        property.value[0].repeat.x = 'no-repeat';
-        property.value[0].repeat.y = 'no-repeat';
-      }
-
-      return property;
-    },
-    // visitRule(rule) {
-    //   console.log(require('util').inspect(rule, {depth: 10}));
-    //   if (rule.type === 'style') {
-    //     for (let selector of rule.value.selectors) {
-    //       for (let component of selector) {
-    //         if (component.type === 'class') {
-    //           component.value = 'tw-' + component.value;
-    //         }
-    //       }
-    //     }
-    //   }
-    //   return rule;
-    // },
-    visitMediaQuery(query) {
-      // console.log(query);
-      query.media_type = 'print';
-      return query;
-    },
-    visitFunction(fn) {
-      // console.log(require('util').inspect(fn, {depth: 50}));
-      if (fn.name === 'inline') {
-        return {
-          name: 'url',
-          arguments: [{
-            type: 'token',
-            value: {
-              type: 'string',
-              value: fs.readFileSync(fn.arguments[0].value.value).toString('base64'),
-            }
-          }]
-        }
-      }
-      return fn;
-    },
-    visitSelector(selector) {
-      console.log(require('util').inspect(selector, { depth: 10 }));
-      for (let component of selector) {
-        if (component.type === 'class') {
-          component.name = 'tw-' + component.name;
-        } else if (component.type === 'attribute') {
-          component.name = 'tw-' + component.name;
-          component.operation.operator = 'includes';
-        }
-      }
-      return selector;
+    bar: {
+      body: 'style-block'
     }
   },
+  visitor: {
+    Rule: {
+      custom(rule) {
+        console.log(rule.body);
+      }
+    },
+    Length(length) {
+      length.value *= 2;
+      return length;
+    }
+  }
 });
 
 console.log(res.code.toString());

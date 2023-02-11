@@ -4,19 +4,12 @@ use lightningcss::{
   error::{ParserError, PrinterError},
   printer::Printer,
   stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
-  traits::{Parse, ToCss},
+  traits::{AtRuleParser, Parse, ToCss},
   values::ident::Ident,
 };
 
 fn minify_test(source: &str, expected: &str) {
-  let mut stylesheet = StyleSheet::parse(
-    &source,
-    ParserOptions {
-      at_rule_parser: Some(TestAtRuleParser),
-      ..Default::default()
-    },
-  )
-  .unwrap();
+  let mut stylesheet = StyleSheet::parse_with(&source, ParserOptions::default(), &mut TestAtRuleParser).unwrap();
   stylesheet.minify(Default::default()).unwrap();
   let res = stylesheet
     .to_css(PrinterOptions {
@@ -85,6 +78,7 @@ impl<'i> AtRuleParser<'i> for TestAtRuleParser {
     &mut self,
     name: CowRcStr<'i>,
     input: &mut Parser<'i, 't>,
+    _options: &ParserOptions<'_, 'i>,
   ) -> Result<Self::Prelude, ParseError<'i, Self::Error>> {
     let location = input.current_source_location();
     match_ignore_ascii_case! {&*name,
@@ -102,7 +96,12 @@ impl<'i> AtRuleParser<'i> for TestAtRuleParser {
     }
   }
 
-  fn rule_without_block(&mut self, prelude: Self::Prelude, _start: &ParserState) -> Result<Self::AtRule, ()> {
+  fn rule_without_block(
+    &mut self,
+    prelude: Self::Prelude,
+    _start: &ParserState,
+    _options: &ParserOptions<'_, 'i>,
+  ) -> Result<Self::AtRule, ()> {
     match prelude {
       Prelude::Inline(name) => Ok(AtRule::Inline(InlineRule { name })),
       _ => unreachable!(),
@@ -114,6 +113,7 @@ impl<'i> AtRuleParser<'i> for TestAtRuleParser {
     prelude: Self::Prelude,
     _start: &ParserState,
     input: &mut Parser<'i, 't>,
+    _options: &ParserOptions<'_, 'i>,
   ) -> Result<Self::AtRule, ParseError<'i, Self::Error>> {
     match prelude {
       Prelude::Block(name) => Ok(AtRule::Block(BlockRule {

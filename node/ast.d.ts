@@ -6039,22 +6039,16 @@ export type SelectorComponent =
   | (
       | {
           type: "namespace";
-          value: "none";
+          kind: "none";
         }
       | {
           type: "namespace";
-          value: "any";
+          kind: "any";
         }
       | {
           type: "namespace";
-          url: string;
-          value: "default";
-        }
-      | {
-          type: "namespace";
+          kind: "named";
           prefix: string;
-          url: string;
-          value: "some";
         }
     )
   | {
@@ -7042,7 +7036,7 @@ export interface StyleRule<D = Declaration> {
   /**
    * The declarations within the style rule.
    */
-  declarations: DeclarationBlock<D>;
+  declarations?: DeclarationBlock<D>;
   /**
    * The location of the rule in the source file.
    */

@@ -110,10 +110,10 @@ pub struct DashedIdentReference<'i> {
   pub from: Option<Specifier<'i>>,
 }
 
-impl<'i, T> ParseWithOptions<'i, T> for DashedIdentReference<'i> {
+impl<'i> ParseWithOptions<'i> for DashedIdentReference<'i> {
   fn parse_with_options<'t>(
     input: &mut Parser<'i, 't>,
-    options: &crate::stylesheet::ParserOptions<T>,
+    options: &crate::stylesheet::ParserOptions,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let ident = DashedIdent::parse(input)?;
 

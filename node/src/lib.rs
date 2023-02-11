@@ -2,6 +2,7 @@
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
+use at_rule_parser::{AtRule, CustomAtRuleConfig, CustomAtRuleParser};
 use lightningcss::bundler::{BundleErrorKind, Bundler, FileProvider, SourceProvider};
 use lightningcss::css_modules::{CssModuleExports, CssModuleReferences, PatternParseError};
 use lightningcss::dependencies::{Dependency, DependencyOptions};
@@ -13,13 +14,14 @@ use lightningcss::targets::Browsers;
 use lightningcss::visitor::Visit;
 use parcel_sourcemap::SourceMap;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex, RwLock};
 
 use transformer::JsVisitor;
 
+mod at_rule_parser;
 #[cfg(not(target_arch = "wasm32"))]
 mod threadsafe_function;
 mod transformer;
@@ -126,12 +128,20 @@ mod bundle {
 
     let config: BundleConfig = ctx.env.from_js_value(opts)?;
     let fs = FileProvider::new();
+
+    // This is pretty silly, but works around a rust limitation that you cannot
+    // explicitly annotate lifetime bounds on closures.
+    fn annotate<'i, 'o, F>(f: F) -> F
+    where
+      F: FnOnce(&mut StyleSheet<'i, 'o, AtRule<'i>>) -> napi::Result<()>,
+    {
+      f
+    }
+
     let res = compile_bundle(
       &fs,
       &config,
-      visitor
-        .as_mut()
-        .map(|visitor| |stylesheet: &mut StyleSheet| stylesheet.visit(visitor)),
+      visitor.as_mut().map(|visitor| annotate(|stylesheet| stylesheet.visit(visitor))),
     );
 
     match res {
@@ -242,7 +252,7 @@ mod bundle {
   }
 
   struct VisitMessage {
-    stylesheet: &'static mut StyleSheet<'static, 'static>,
+    stylesheet: &'static mut StyleSheet<'static, 'static, AtRule<'static>>,
     tx: Sender<napi::Result<String>>,
   }
 
@@ -396,15 +406,16 @@ mod bundle {
         unsafe { std::mem::transmute::<&'_ P, &'static P>(&provider) },
         &config,
         tsfn.map(move |tsfn| {
-          move |stylesheet: &mut StyleSheet| {
+          move |stylesheet: &mut StyleSheet<AtRule>| {
             CHANNEL.with(|channel| {
               let message = VisitMessage {
                 // SAFETY: we immediately lock the thread until we get a response,
                 // so stylesheet cannot be dropped in that time.
                 stylesheet: unsafe {
-                  std::mem::transmute::<&'_ mut StyleSheet<'_, '_>, &'static mut StyleSheet<'static, 'static>>(
-                    stylesheet,
-                  )
+                  std::mem::transmute::<
+                    &'_ mut StyleSheet<'_, '_, AtRule>,
+                    &'static mut StyleSheet<'static, 'static, AtRule>,
+                  >(stylesheet)
                 },
                 tx: channel.0.clone(),
               };
@@ -490,6 +501,7 @@ struct Config {
   pub pseudo_classes: Option<OwnedPseudoClasses>,
   pub unused_symbols: Option<HashSet<String>>,
   pub error_recovery: Option<bool>,
+  pub custom_at_rules: Option<HashMap<String, CustomAtRuleConfig>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -533,6 +545,7 @@ struct BundleConfig {
   pub pseudo_classes: Option<OwnedPseudoClasses>,
   pub unused_symbols: Option<HashSet<String>>,
   pub error_recovery: Option<bool>,
+  pub custom_at_rules: Option<HashMap<String, CustomAtRuleConfig>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -586,7 +599,7 @@ fn compile<'i>(
   };
 
   let res = {
-    let mut stylesheet = StyleSheet::parse(
+    let mut stylesheet = StyleSheet::parse_with(
       &code,
       ParserOptions {
         filename: filename.clone(),
@@ -614,7 +627,9 @@ fn compile<'i>(
         source_index: 0,
         error_recovery: config.error_recovery.unwrap_or_default(),
         warnings: warnings.clone(),
-        at_rule_parser: ParserOptions::default_at_rule_parser(),
+      },
+      &mut CustomAtRuleParser {
+        configs: config.custom_at_rules.clone().unwrap_or_default(),
       },
     )?;
 
@@ -677,7 +692,12 @@ fn compile<'i>(
   })
 }
 
-fn compile_bundle<'i, 'o, P: SourceProvider, F: FnOnce(&mut StyleSheet<'i, 'o>) -> napi::Result<()>>(
+fn compile_bundle<
+  'i,
+  'o,
+  P: SourceProvider,
+  F: FnOnce(&mut StyleSheet<'i, 'o, AtRule<'i>>) -> napi::Result<()>,
+>(
   fs: &'i P,
   config: &'o BundleConfig,
   visit: Option<F>,
@@ -715,10 +735,16 @@ fn compile_bundle<'i, 'o, P: SourceProvider, F: FnOnce(&mut StyleSheet<'i, 'o>) 
       },
       error_recovery: config.error_recovery.unwrap_or_default(),
       warnings: warnings.clone(),
-      ..ParserOptions::default()
+      filename: String::new(),
+      source_index: 0,
     };
 
-    let mut bundler = Bundler::new(fs, source_map.as_mut(), parser_options);
+    let mut at_rule_parser = CustomAtRuleParser {
+      configs: config.custom_at_rules.clone().unwrap_or_default(),
+    };
+
+    let mut bundler =
+      Bundler::new_with_at_rule_parser(fs, source_map.as_mut(), parser_options, &mut at_rule_parser);
     let mut stylesheet = bundler.bundle(Path::new(&config.filename))?;
 
     if let Some(visit) = visit {
