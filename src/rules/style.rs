@@ -34,6 +34,7 @@ pub struct StyleRule<'i, R = DefaultAtRule> {
   #[cfg_attr(feature = "visitor", skip_visit)]
   pub vendor_prefix: VendorPrefix,
   /// The declarations within the style rule.
+  #[cfg_attr(feature = "serde", serde(default))]
   pub declarations: DeclarationBlock<'i>,
   /// Nested rules within the style rule.
   #[cfg_attr(feature = "serde", serde(default = "default_rule_list::<R>"))]

@@ -1,8 +1,4 @@
-use std::{
-  collections::HashMap,
-  convert::Infallible,
-  sync::{Arc, RwLock},
-};
+use std::{collections::HashMap, convert::Infallible};
 
 use cssparser::*;
 use lightningcss::{

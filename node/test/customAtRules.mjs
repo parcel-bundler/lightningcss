@@ -2,9 +2,10 @@
 
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
-import { transform } from '../index.mjs';
+import { bundle, transform } from '../index.mjs';
 
 test('declaration list', () => {
+  let definitions = new Map();
   let res = transform({
     filename: 'test.css',
     minify: true,
@@ -12,6 +13,10 @@ test('declaration list', () => {
       @theme spacing {
         foo: 16px;
         bar: 32px;
+      }
+
+      .foo {
+        width: theme('spacing.foo');
       }
     `),
     customAtRules: {
@@ -24,21 +29,73 @@ test('declaration list', () => {
       Rule: {
         custom: {
           theme(rule) {
-            return {
-              type: 'style',
-              value: {
-                selectors: [[{ type: 'pseudo-class', kind: 'root' }]],
-                declarations: rule.body.value,
-                loc: rule.loc
+            for (let decl of rule.body.value.declarations) {
+              if (decl.property === 'custom') {
+                definitions.set(rule.prelude.value + '.' + decl.value.name, decl.value.value);
               }
             }
+            return [];
+          }
+        }
+      },
+      Function: {
+        theme(f) {
+          if (f.arguments[0].type === 'token' && f.arguments[0].value.type === 'string') {
+            return definitions.get(f.arguments[0].value.value);
           }
         }
       }
     }
   });
 
-  assert.equal(res.code.toString(), ':root{foo:16px;bar:32px}');
+  assert.equal(res.code.toString(), '.foo{width:16px}');
+});
+
+test('mixin', () => {
+  let mixins = new Map();
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      @mixin color {
+        color: red;
+  
+        &.bar {
+          color: yellow;
+        }
+      }
+  
+      .foo {
+        @apply color;
+      }
+    `),
+    drafts: { nesting: true },
+    targets: { chrome: 100 << 16 },
+    customAtRules: {
+      mixin: {
+        prelude: '<custom-ident>',
+        body: 'style-block'
+      },
+      apply: {
+        prelude: '<custom-ident>'
+      }
+    },
+    visitor: {
+      Rule: {
+        custom: {
+          mixin(rule) {
+            mixins.set(rule.prelude.value, rule.body.value);
+            return [];
+          },
+          apply(rule) {
+            return mixins.get(rule.prelude.value);
+          }
+        }
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '.foo{color:red}.foo.bar{color:#ff0}');
 });
 
 test('rule list', () => {
@@ -182,4 +239,38 @@ test('multiple', () => {
   });
 
   assert.equal(res.code.toString(), '@media (width<=1024px){:root{foo:16px;bar:32px}}');
+});
+
+test('bundler', () => {
+  let mixins = new Map();
+  let res = bundle({
+    filename: 'tests/testdata/apply.css',
+    minify: true,
+    drafts: { nesting: true },
+    targets: { chrome: 100 << 16 },
+    customAtRules: {
+      mixin: {
+        prelude: '<custom-ident>',
+        body: 'style-block'
+      },
+      apply: {
+        prelude: '<custom-ident>'
+      }
+    },
+    visitor: {
+      Rule: {
+        custom: {
+          mixin(rule) {
+            mixins.set(rule.prelude.value, rule.body.value);
+            return [];
+          },
+          apply(rule) {
+            return mixins.get(rule.prelude.value);
+          }
+        }
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '.foo{color:red}.foo.bar{color:#ff0}');
 });

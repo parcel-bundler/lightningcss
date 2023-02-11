@@ -99,8 +99,8 @@ type AnyCustomAtRule<C extends CustomAtRules> = {
 }[keyof C];
 
 type RuleVisitors<C extends CustomAtRules> = MappedRuleVisitors & {
-  unknown?: UnknownVisitors<UnknownAtRule> | RuleVisitor<UnknownAtRule>,
-  custom?: CustomVisitors<C> | RuleVisitor<AnyCustomAtRule<C>>
+  unknown?: UnknownVisitors<UnknownAtRule> | Omit<RuleVisitor<UnknownAtRule>, keyof CallableFunction>,
+  custom?: CustomVisitors<C> | Omit<RuleVisitor<AnyCustomAtRule<C>>, keyof CallableFunction>
 };
 
 type PreludeTypes = Exclude<ParsedComponent['type'], 'literal' | 'repeated' | 'token'>;
@@ -130,10 +130,10 @@ interface CustomAtRule<N, R extends CustomAtRuleDefinition> {
 
 type CustomAtRuleBody = {
   type: 'declaration-list',
-  value: DeclarationBlock
+  value: Required<DeclarationBlock>
 } | {
   type: 'rule-list',
-  value: Rule[]
+  value: RequiredValue<Rule>[]
 };
 
 type FindProperty<Union, Name> = Union extends { property: Name } ? Union : never;

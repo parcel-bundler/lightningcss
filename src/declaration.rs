@@ -43,7 +43,7 @@ use cssparser::*;
 /// Properties are separated into a list of `!important` declararations,
 /// and a list of normal declarations. This reduces memory usage compared
 /// with storing a boolean along with each property.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 #[cfg_attr(feature = "visitor", derive(Visit), visit(visit_declaration_block, PROPERTIES))]
 #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(

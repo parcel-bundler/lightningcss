@@ -235,6 +235,99 @@ assert.equal(res.code.toString(), '.foo{padding:40px}');
 
 Each visitor object has the opportunity to visit every value once. If a visitor returns a new value, that value is visited by the other visitor objects but not again by the original visitor that created it. If other visitors subsequently modify the value, the previous visitors will not revisit the value. This is to avoid infinite loops.
 
+## Unknown at-rules
+
+By default, unknown at-rules are stored in the AST as raw tokens. This allows you to interpret them however you like by writing a custom visitor. The following example allows declaring static variables using named at-rules, and inlines them when an `at-keyword` token is seen:
+
+```js
+let declared = new Map();
+let res = transform({
+  filename: 'test.css',
+  minify: true,
+  code: Buffer.from(`
+    @blue #056ef0;
+
+    .menu_link {
+      background: @blue;
+    }
+  `),
+  visitor: {
+    Rule: {
+      unknown(rule) {
+        declared.set(rule.name, rule.prelude);
+        return [];
+      }
+    },
+    Token: {
+      'at-keyword'(token) {
+        return declared.get(token.value);
+      }
+    }
+  }
+});
+
+assert.equal(res.code.toString(), '.menu_link{background:#056ef0}');
+```
+
+## Custom at-rules
+
+Raw tokens as stored in unknown at-rules are fine for simple cases, but in more complex cases, you may wish to interpret a custom at-rule body as a standard CSS declaration list or rule list. However, by default, Lightning CSS does not know how unknown rules should be parsed. You can define their syntax using the `customAtRules` option.
+
+The syntax of the at-rule prelude can be defined with a [CSS syntax string](https://drafts.css-houdini.org/css-properties-values-api/#syntax-strings), which Lightning CSS will interpret and use to validate the input CSS. This uses the same syntax as the [@property](https://developer.mozilla.org/en-US/docs/Web/CSS/@property) rule. The body syntax is defined using one of the following options:
+
+* `"declaration-list"` – A list of CSS declarations (property value pairs), as in a style rule or other at-rules like `@font-face`.
+* `"rule-list"` – A list of nested CSS rules, including style rules and at rules. Directly nested declarations with CSS nesting are not allowed. This matches how rules like `@keyframes` are parsed.
+* `"style-block"` – A list of CSS declarations and/or nested rules. This matches the behavior of rules like `@media` and `@supports` which support directly nested declarations when inside a style rule. Note that the [nesting](transpilation.html#nesting) and [targets](transpilation.html#browser-targets) options must be defined for nesting to be compiled.
+
+This example defines two custom at-rules. `@mixin` defines a reusable style block, supporting both directly nested declarations and nested rules. A visitor function registers the mixin in a map and removes the custom rule. `@apply` looks up the requested mixin in the map and returns the nested rules, which are inlined into the parent.
+
+```js
+let mixins = new Map();
+let res = transform({
+  filename: 'test.css',
+  minify: true,
+  drafts: { nesting: true },
+  targets: { chrome: 100 << 16 },
+  code: Buffer.from(`
+    @mixin color {
+      color: red;
+
+      &.bar {
+        color: yellow;
+      }
+    }
+
+    .foo {
+      @apply color;
+    }
+  `),
+  customAtRules: {
+    mixin: {
+      prelude: '<custom-ident>',
+      body: 'style-block'
+    },
+    apply: {
+      prelude: '<custom-ident>'
+    }
+  },
+  visitor: {
+    Rule: {
+      custom: {
+        mixin(rule) {
+          mixins.set(rule.prelude.value, rule.body.value);
+          return [];
+        },
+        apply(rule) {
+          return mixins.get(rule.prelude.value);
+        }
+      }
+    }
+  }
+});
+
+assert.equal(res.code.toString(), '.foo{color:red}.foo.bar{color:#ff0}');
+```
+
 ## Examples
 
 For examples of visitors that perform a variety of real world tasks, see the Lightning CSS [visitor tests](https://github.com/parcel-bundler/lightningcss/blob/master/node/test/visitor.test.mjs).

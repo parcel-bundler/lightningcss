@@ -118,7 +118,7 @@ impl<'i> AtRuleParser<'i> for CustomAtRuleParser {
         )?)),
       }
     } else {
-      None
+      return Err(input.new_error(BasicParseErrorKind::AtRuleBodyInvalid));
     };
 
     let loc = start.source_location();
