@@ -452,7 +452,7 @@ pub enum FontStyle {
   /// Italic font style.
   Italic,
   /// Oblique font style, with a custom angle.
-  Oblique(#[cfg_attr(feature = "serde", serde(default = "default_oblique_angle"))] Angle),
+  Oblique(#[cfg_attr(feature = "serde", serde(default = "FontStyle::default_oblique_angle"))] Angle),
 }
 
 impl Default for FontStyle {
@@ -461,9 +461,11 @@ impl Default for FontStyle {
   }
 }
 
-#[inline]
-fn default_oblique_angle() -> Angle {
-  Angle::Deg(14.0)
+impl FontStyle {
+  #[inline]
+  pub(crate) fn default_oblique_angle() -> Angle {
+    Angle::Deg(14.0)
+  }
 }
 
 impl<'i> Parse<'i> for FontStyle {
@@ -474,7 +476,7 @@ impl<'i> Parse<'i> for FontStyle {
       "normal" => Ok(FontStyle::Normal),
       "italic" => Ok(FontStyle::Italic),
       "oblique" => {
-        let angle = input.try_parse(Angle::parse).unwrap_or(default_oblique_angle());
+        let angle = input.try_parse(Angle::parse).unwrap_or(FontStyle::default_oblique_angle());
         Ok(FontStyle::Oblique(angle))
       },
       _ => Err(location.new_unexpected_token_error(
@@ -494,7 +496,7 @@ impl ToCss for FontStyle {
       FontStyle::Italic => dest.write_str("italic"),
       FontStyle::Oblique(angle) => {
         dest.write_str("oblique")?;
-        if *angle != Angle::Deg(14.0) {
+        if *angle != FontStyle::default_oblique_angle() {
           dest.write_char(' ')?;
           angle.to_css(dest)?;
         }

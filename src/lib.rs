@@ -10041,6 +10041,24 @@ mod tests {
       "@font-face {unicode-range: u+????, U+1????, U+10????;}",
       "@font-face{unicode-range:U+????,U+1????,U+10????}",
     );
+    minify_test(r#"
+      @font-face {
+        font-family: Inter;
+        font-style: oblique 0deg 10deg;
+        font-weight: 100 900;
+        src: url("../fonts/Inter.var.woff2?v=3.19") format("woff2");
+        font-display: swap;
+      }
+    "#, "@font-face{font-family:Inter;font-style:oblique 0deg 10deg;font-weight:100 900;src:url(../fonts/Inter.var.woff2?v=3.19)format(\"woff2\");font-display:swap}");
+    minify_test(r#"
+    @font-face {
+      font-family: Inter;
+      font-style: oblique 14deg 14deg;
+      font-weight: 100 900;
+      src: url("../fonts/Inter.var.woff2?v=3.19") format("woff2");
+      font-display: swap;
+    }
+  "#, "@font-face{font-family:Inter;font-style:oblique;font-weight:100 900;src:url(../fonts/Inter.var.woff2?v=3.19)format(\"woff2\");font-display:swap}");
   }
 
   #[test]
