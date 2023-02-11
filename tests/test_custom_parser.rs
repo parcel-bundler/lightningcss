@@ -1,5 +1,3 @@
-use std::sync::{Arc, RwLock};
-
 use cssparser::*;
 use lightningcss::{
   declaration::DeclarationBlock,
