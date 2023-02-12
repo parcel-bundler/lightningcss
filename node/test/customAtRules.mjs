@@ -274,3 +274,5 @@ test('bundler', () => {
 
   assert.equal(res.code.toString(), '.foo{color:red}.foo.bar{color:#ff0}');
 });
+
+test.run();

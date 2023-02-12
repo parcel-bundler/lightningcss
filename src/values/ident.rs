@@ -64,7 +64,7 @@ pub type CustomIdentList<'i> = SmallVec<[CustomIdent<'i>; 1]>;
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(feature = "visitor", visit(visit_dashed_ident, DASHED_IDENTS))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct DashedIdent<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CowArcStr<'i>);
 
@@ -86,6 +86,21 @@ impl<'i> ToCss for DashedIdent<'i> {
     W: std::fmt::Write,
   {
     dest.write_dashed_ident(&self.0, true)
+  }
+}
+
+#[cfg(feature = "serde")]
+impl<'i, 'de: 'i> serde::Deserialize<'de> for DashedIdent<'i> {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let ident = CowArcStr::deserialize(deserializer)?;
+    if !ident.starts_with("--") {
+      return Err(serde::de::Error::custom("Dashed idents must start with --"));
+    }
+
+    Ok(DashedIdent(ident))
   }
 }
 

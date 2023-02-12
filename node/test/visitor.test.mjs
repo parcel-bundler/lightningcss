@@ -866,4 +866,37 @@ test('returning string values', () => {
   assert.equal(res.code.toString(), '*{visibility:hidden;--custom:hi;background:#ff0;-moz-transition:test .2s;-webkit-animation:3s foo}');
 });
 
+test('errors on invalid dashed idents', () => {
+  assert.throws(() => {
+    transform({
+      filename: 'test.css',
+      minify: true,
+      code: Buffer.from(`
+        .foo {
+          background: opacity(abcdef);
+        }
+      `),
+      visitor: {
+        Function(fn) {
+          if (fn.arguments[0].type === 'token' && fn.arguments[0].value.type === 'ident') {
+            fn.arguments = [
+              {
+                type: 'var',
+                value: {
+                  name: { ident: fn.arguments[0].value.value }
+                }
+              }
+            ];
+          }
+
+          return {
+            type: 'function',
+            value: fn
+          }
+        }
+      }
+    })
+  }, 'Dashed idents must start with --');
+});
+
 test.run();

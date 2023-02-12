@@ -1,4 +1,7 @@
-use std::ops::{Index, IndexMut};
+use std::{
+  marker::PhantomData,
+  ops::{Index, IndexMut},
+};
 
 use lightningcss::{
   media_query::MediaFeatureValue,
@@ -487,7 +490,7 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
       .as_ref()
       .and_then(|v| self.env.get_reference_value_unchecked::<JsFunction>(v).ok())
     {
-      map(&mut selectors.0, |value| {
+      map::<_, _, _, true>(&mut selectors.0, |value| {
         let js_value = self.env.to_js_value(value)?;
         let res = visit.call(None, &[js_value])?;
         self.env.from_js_value(res).map(serde_detach::detach)
@@ -664,7 +667,7 @@ fn visit_list<
   })
 }
 
-fn map<V, L: List<V>, F: FnMut(&mut V) -> napi::Result<Option<ValueOrVec<V>>>>(
+fn map<V, L: List<V>, F: FnMut(&mut V) -> napi::Result<Option<ValueOrVec<V, IS_VEC>>>, const IS_VEC: bool>(
   list: &mut L,
   mut f: F,
 ) -> napi::Result<()> {
@@ -694,11 +697,68 @@ fn map<V, L: List<V>, F: FnMut(&mut V) -> napi::Result<Option<ValueOrVec<V>>>>(
   Ok(())
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize)]
 #[serde(untagged)]
-enum ValueOrVec<V> {
+enum ValueOrVec<V, const IS_VEC: bool = false> {
   Value(V),
   Vec(Vec<V>),
+}
+
+// Manually implemented deserialize for better error messages.
+// https://github.com/serde-rs/serde/issues/773
+impl<'de, V: serde::Deserialize<'de>, const IS_VEC: bool> serde::Deserialize<'de> for ValueOrVec<V, IS_VEC> {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    use serde::Deserializer;
+    let content = serde::__private::de::Content::deserialize(deserializer)?;
+    let de: serde::__private::de::ContentRefDeserializer<D::Error> =
+      serde::__private::de::ContentRefDeserializer::new(&content);
+
+    // Try to deserialize as a sequence first.
+    let mut was_seq = false;
+    let res = de.deserialize_seq(SeqVisitor {
+      was_seq: &mut was_seq,
+      phantom: PhantomData,
+    });
+
+    if was_seq {
+      // Allow fallback if we know the value is also a list (e.g. selector).
+      if res.is_ok() || !IS_VEC {
+        return res.map(ValueOrVec::Vec);
+      }
+    }
+
+    // If it wasn't a sequence, try a value.
+    let de = serde::__private::de::ContentRefDeserializer::new(&content);
+    return V::deserialize(de).map(ValueOrVec::Value);
+
+    struct SeqVisitor<'a, V> {
+      was_seq: &'a mut bool,
+      phantom: PhantomData<V>,
+    }
+
+    impl<'a, 'de, V: serde::Deserialize<'de>> serde::de::Visitor<'de> for SeqVisitor<'a, V> {
+      type Value = Vec<V>;
+
+      fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a sequence")
+      }
+
+      fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+      where
+        A: serde::de::SeqAccess<'de>,
+      {
+        *self.was_seq = true;
+        let mut vec = Vec::with_capacity(seq.size_hint().unwrap_or(1));
+        while let Some(v) = seq.next_element()? {
+          vec.push(v);
+        }
+        Ok(vec)
+      }
+    }
+  }
 }
 
 trait List<V>: Index<usize, Output = V> + IndexMut<usize, Output = V> {
