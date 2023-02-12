@@ -788,7 +788,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 262144 {
+          if version >= 262144 && version <= 7143424 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -806,6 +806,9 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.opera {
+          if version == 4784128 {
+            prefixes |= VendorPrefix::O;
+          }
           if version >= 983040 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -1100,18 +1103,18 @@ impl Feature {
         }
       }
       Feature::PseudoClassAutofill => {
-        if let Some(version) = browsers.android {
-          if version >= 263168 && version <= 263171 {
+        if let Some(version) = browsers.chrome {
+          if version >= 262144 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
-        if let Some(version) = browsers.chrome {
-          if version >= 262144 && version <= 6225920 {
+        if let Some(version) = browsers.android {
+          if version >= 263168 && version <= 7143424 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.edge {
-          if version >= 5177344 && version <= 6225920 {
+          if version >= 5177344 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1121,7 +1124,10 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.opera {
-          if version >= 983040 && version <= 5308416 {
+          if version == 4784128 {
+            prefixes |= VendorPrefix::O;
+          }
+          if version >= 983040 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1192,7 +1198,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 {
+          if version >= 263168 && version <= 7143424 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1212,6 +1218,9 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.opera {
+          if version == 4784128 {
+            prefixes |= VendorPrefix::O;
+          }
           if version >= 983040 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -1276,7 +1285,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 {
+          if version >= 263168 && version <= 7143424 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1291,6 +1300,9 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.opera {
+          if version == 4784128 {
+            prefixes |= VendorPrefix::O;
+          }
           if version >= 983040 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -1369,36 +1381,6 @@ impl Feature {
           }
         }
       }
-      Feature::TextDecorationStyle
-      | Feature::TextDecorationColor
-      | Feature::TextDecorationLine
-      | Feature::TextDecoration => {
-        if let Some(version) = browsers.chrome {
-          if version >= 1703936 && version <= 3670016 {
-            prefixes |= VendorPrefix::WebKit;
-          }
-        }
-        if let Some(version) = browsers.firefox {
-          if version >= 393216 && version <= 2293760 {
-            prefixes |= VendorPrefix::Moz;
-          }
-        }
-        if let Some(version) = browsers.ios_saf {
-          if version >= 524288 {
-            prefixes |= VendorPrefix::WebKit;
-          }
-        }
-        if let Some(version) = browsers.opera {
-          if version >= 2293760 && version <= 2818048 {
-            prefixes |= VendorPrefix::WebKit;
-          }
-        }
-        if let Some(version) = browsers.safari {
-          if version >= 459008 && version <= 786432 {
-            prefixes |= VendorPrefix::WebKit;
-          }
-        }
-      }
       Feature::TextDecorationSkip | Feature::TextDecorationSkipInk => {
         if let Some(version) = browsers.ios_saf {
           if version >= 524288 {
@@ -1411,9 +1393,38 @@ impl Feature {
           }
         }
       }
+      Feature::TextDecoration => {
+        if let Some(version) = browsers.ios_saf {
+          if version >= 524288 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version >= 524288 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
+      }
+      Feature::TextDecorationColor | Feature::TextDecorationLine | Feature::TextDecorationStyle => {
+        if let Some(version) = browsers.firefox {
+          if version >= 393216 && version <= 2293760 {
+            prefixes |= VendorPrefix::Moz;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version >= 524288 && version <= 786432 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version >= 524288 && version <= 786432 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
+      }
       Feature::TextSizeAdjust => {
         if let Some(version) = browsers.firefox {
-          if version == 6619136 {
+          if version >= 7143424 {
             prefixes |= VendorPrefix::Moz;
           }
         }
@@ -1453,7 +1464,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 131328 {
+          if version >= 131328 && version <= 7143424 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1468,6 +1479,9 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.opera {
+          if version == 4784128 {
+            prefixes |= VendorPrefix::O;
+          }
           if version >= 983040 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -1522,7 +1536,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 {
+          if version >= 263168 && version <= 7143424 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1537,6 +1551,9 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.opera {
+          if version == 4784128 {
+            prefixes |= VendorPrefix::O;
+          }
           if version >= 983040 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -1612,7 +1629,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 262144 && version <= 984320 {
+          if version >= 262144 && version <= 984576 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1636,7 +1653,7 @@ impl Feature {
       }
       Feature::Pixelated => {
         if let Some(version) = browsers.firefox {
-          if version >= 198144 && version <= 6619136 {
+          if version >= 198144 && version <= 4194304 {
             prefixes |= VendorPrefix::Moz;
           }
         }
@@ -1847,12 +1864,12 @@ impl Feature {
       }
       Feature::ImageSet => {
         if let Some(version) = browsers.chrome {
-          if version >= 1376256 {
+          if version >= 1376256 && version <= 7143424 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 {
+          if version >= 263168 && version <= 7143424 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1867,6 +1884,9 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.opera {
+          if version == 4784128 {
+            prefixes |= VendorPrefix::O;
+          }
           if version >= 983040 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -1926,7 +1946,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 {
+          if version >= 263168 && version <= 7143424 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -1941,6 +1961,9 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.opera {
+          if version == 4784128 {
+            prefixes |= VendorPrefix::O;
+          }
           if version >= 983040 {
             prefixes |= VendorPrefix::WebKit;
           }
@@ -1993,7 +2016,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.samsung {
-          if version >= 262144 {
+          if version >= 262144 && version <= 1114112 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -2076,7 +2099,7 @@ impl Feature {
       }
       Feature::Isolate => {
         if let Some(version) = browsers.chrome {
-          if version >= 1114112 && version <= 3080192 {
+          if version >= 1048576 && version <= 3080192 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -2086,12 +2109,17 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.ios_saf {
-          if version >= 589824 {
+          if version >= 393216 && version <= 656128 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version >= 983040 && version <= 2228224 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
         if let Some(version) = browsers.safari {
-          if version >= 589824 {
+          if version >= 393216 && version <= 655616 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -2102,11 +2130,31 @@ impl Feature {
             prefixes |= VendorPrefix::Moz;
           }
         }
+        if let Some(version) = browsers.ios_saf {
+          if version >= 393216 && version <= 656128 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version >= 393216 && version <= 655616 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
       }
       Feature::IsolateOverride => {
         if let Some(version) = browsers.firefox {
           if version >= 1114112 && version <= 3211264 {
             prefixes |= VendorPrefix::Moz;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version >= 458752 && version <= 656128 {
+            prefixes |= VendorPrefix::WebKit;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version >= 458752 && version <= 655616 {
+            prefixes |= VendorPrefix::WebKit;
           }
         }
       }
@@ -2136,7 +2184,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.android {
-          if version >= 263168 {
+          if version >= 263168 && version <= 7143424 {
             prefixes |= VendorPrefix::WebKit;
           }
         }
@@ -2156,6 +2204,9 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.opera {
+          if version == 4784128 {
+            prefixes |= VendorPrefix::O;
+          }
           if version >= 983040 {
             prefixes |= VendorPrefix::WebKit;
           }

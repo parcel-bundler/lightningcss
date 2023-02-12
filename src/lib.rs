@@ -11449,7 +11449,6 @@ mod tests {
       indoc! {r#"
       .foo {
         -webkit-text-decoration: underline dotted;
-        -moz-text-decoration: underline dotted;
         text-decoration: underline dotted;
       }
     "#},
@@ -11542,12 +11541,12 @@ mod tests {
       r#"
       .foo {
         -webkit-text-decoration: underline dotted;
-        -moz-text-decoration: underline dotted;
         text-decoration: underline dotted;
       }
     "#,
       indoc! {r#"
       .foo {
+        -webkit-text-decoration: underline dotted;
         text-decoration: underline dotted;
       }
     "#},
@@ -11561,13 +11560,68 @@ mod tests {
     prefix_test(
       r#"
       .foo {
+        text-decoration: double underline;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        -webkit-text-decoration: underline double;
+        text-decoration: underline double;
+      }
+    "#},
+      Browsers {
+        safari: Some(16 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        text-decoration: underline;
+        text-decoration-style: double;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        -webkit-text-decoration: underline double;
+        text-decoration: underline double;
+      }
+    "#},
+      Browsers {
+        safari: Some(16 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        text-decoration: underline;
+        text-decoration-color: red;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        -webkit-text-decoration: underline red;
+        text-decoration: underline red;
+      }
+    "#},
+      Browsers {
+        safari: Some(16 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
         text-decoration: var(--test);
       }
     "#,
       indoc! {r#"
       .foo {
         -webkit-text-decoration: var(--test);
-        -moz-text-decoration: var(--test);
         text-decoration: var(--test);
       }
     "#},
@@ -11596,10 +11650,8 @@ mod tests {
       indoc! {r#"
       .foo {
         -webkit-text-decoration: underline #ee00be;
-        -moz-text-decoration: underline #ee00be;
         text-decoration: underline #ee00be;
         -webkit-text-decoration: underline lch(50.998% 135.363 338);
-        -moz-text-decoration: underline lch(50.998% 135.363 338);
         text-decoration: underline lch(50.998% 135.363 338);
       }
     "#},
