@@ -73,7 +73,7 @@ impl CurrentColor {
   where
     S: serde::Serializer,
   {
-    serializer.serialize_str("currentcolor")
+    serde::Serialize::serialize(&CurrentColor::CurrentColor, serializer)
   }
 
   fn deserialize<'de, D>(deserializer: D) -> Result<(), D::Error>

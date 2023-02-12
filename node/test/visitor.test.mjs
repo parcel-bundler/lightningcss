@@ -944,4 +944,23 @@ test('supports returning raw values as variables', () => {
   assert.equal(res.code.toString(), '.EgL3uq_foo{color:var(--EgL3uq_foo)}');
 });
 
+test('works with currentColor', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      .foo {
+        color: currentColor;
+      }
+    `),
+    visitor: {
+      Rule(rule) {
+        return rule;
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '.foo{color:currentColor}');
+});
+
 test.run();
