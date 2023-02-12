@@ -67,7 +67,7 @@ See the [Parcel docs](https://parceljs.org/languages/css) for more details.
 The `lightningcss-wasm` package can be used in Deno or directly in browsers. This uses a WebAssembly build of Lightning CSS. Use `TextEncoder` and `TextDecoder` convert code from a string to a typed array and back.
 
 ```js
-import init, { transform } from 'https://unpkg.com/lightningcss-wasm';
+import init, { transform } from 'https://unpkg.com/lightningcss-wasm?module';
 
 await init();
 
