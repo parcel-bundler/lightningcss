@@ -21824,6 +21824,29 @@ mod tests {
   }
 
   #[test]
+  fn test_at_scope() {
+    minify_test(
+      r#"
+      @scope {
+        .foo {
+          display: flex;
+        }
+      }"#,
+      "@scope{.foo{display:flex}}",
+    );
+    minify_test(
+      r#"
+      @scope {
+        :scope {
+          display: flex;
+          color: lightblue;
+        }
+      }"#,
+      "@scope{:scope{color:#add8e6;display:flex}}",
+    );
+  }
+
+  #[test]
   fn test_custom_media() {
     custom_media_test(
       r#"
