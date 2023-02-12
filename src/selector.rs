@@ -265,7 +265,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
     use PseudoElement::*;
     let pseudo_element = match_ignore_ascii_case! { &name,
       "cue" => CueFunction { selector: Box::new(Selector::parse(self, arguments)?) },
-      "cue-region" => CueRegionFunction(Box::new(Selector::parse(self, arguments)?)),
+      "cue-region" => CueRegionFunction { selector: Box::new(Selector::parse(self, arguments)?) },
       _ => {
         if !name.starts_with('-') {
           self.options.warn(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
@@ -815,7 +815,10 @@ pub enum PseudoElement<'i> {
     selector: Box<Selector<'i>>,
   },
   /// The [::cue-region()](https://w3c.github.io/webvtt/#cue-region-selector) functional pseudo element.
-  CueRegionFunction(Box<Selector<'i>>),
+  CueRegionFunction {
+    /// The selector argument.
+    selector: Box<Selector<'i>>,
+  },
   /// An unknown pseudo element.
   Custom {
     /// The name of the pseudo element.
@@ -913,7 +916,7 @@ where
       serialize_selector(selector, dest, context, false)?;
       dest.write_char(')')
     }
-    CueRegionFunction(selector) => {
+    CueRegionFunction { selector } => {
       dest.write_str("::cue-region(")?;
       serialize_selector(selector, dest, context, false)?;
       dest.write_char(')')

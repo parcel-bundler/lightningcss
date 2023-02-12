@@ -6444,12 +6444,13 @@ export type PseudoElement =
        */
       selector: Selector;
     }
-  | (
       | {
           kind: "cue-region-function";
+      /**
+       * The selector argument.
+       */
+      selector: Selector;
         }
-      | SelectorComponent[]
-    )
   | {
       kind: "custom";
       /**
