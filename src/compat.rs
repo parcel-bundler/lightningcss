@@ -1548,6 +1548,11 @@ impl Feature {
             return false;
           }
         }
+        if let Some(version) = browsers.opera {
+          if version < 4653056 {
+            return false;
+          }
+        }
         if let Some(version) = browsers.android {
           if version < 6815744 {
             return false;
@@ -1556,7 +1561,6 @@ impl Feature {
         if browsers.edge.is_some()
           || browsers.ie.is_some()
           || browsers.ios_saf.is_some()
-          || browsers.opera.is_some()
           || browsers.safari.is_some()
           || browsers.samsung.is_some()
         {
@@ -1878,7 +1882,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::LabColors | Feature::ColorFunction => {
+      Feature::LabColors => {
         if let Some(version) = browsers.safari {
           if version < 983040 {
             return false;
@@ -1897,6 +1901,41 @@ impl Feature {
           || browsers.opera.is_some()
           || browsers.samsung.is_some()
         {
+          return false;
+        }
+      }
+      Feature::ColorFunction => {
+        if let Some(version) = browsers.chrome {
+          if version < 7274496 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 7274496 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 6356992 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 983040 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 983040 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 7274496 {
+            return false;
+          }
+        }
+        if browsers.firefox.is_some() || browsers.ie.is_some() || browsers.samsung.is_some() {
           return false;
         }
       }
@@ -1975,7 +2014,7 @@ impl Feature {
           }
         }
         if let Some(version) = browsers.firefox {
-          if version < 4587520 {
+          if version < 5177344 {
             return false;
           }
         }
