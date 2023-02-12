@@ -1655,12 +1655,16 @@ pub(crate) fn is_equivalent<'i>(selectors: &SelectorList<'i>, other: &SelectorLi
 pub(crate) fn get_prefix(selectors: &SelectorList) -> VendorPrefix {
   let mut prefix = VendorPrefix::empty();
   for selector in &selectors.0 {
-    for component in selector.iter() {
+    for component in selector.iter_raw_match_order() {
       let p = match component {
         // Return none rather than empty for these so that we call downlevel_selectors.
         Component::NonTSPseudoClass(PseudoClass::Lang { .. })
         | Component::NonTSPseudoClass(PseudoClass::Dir { .. })
-        | Component::Is(..) => VendorPrefix::None,
+        | Component::Is(..)
+        | Component::Where(..)
+        | Component::Has(..)
+        | Component::Negation(..) => VendorPrefix::None,
+        Component::Any(prefix, _) => *prefix,
         Component::NonTSPseudoClass(pc) => pc.get_prefix(),
         Component::PseudoElement(pe) => pe.get_prefix(),
         _ => VendorPrefix::empty(),
@@ -1686,9 +1690,9 @@ const RTL_LANGS: &[&str] = &[
 
 /// Downlevels the given selectors to be compatible with the given browser targets.
 /// Returns the necessary vendor prefixes.
-pub(crate) fn downlevel_selectors(selectors: &mut SelectorList, targets: Browsers) -> VendorPrefix {
+pub(crate) fn downlevel_selectors(selectors: &mut [Selector], targets: Browsers) -> VendorPrefix {
   let mut necessary_prefixes = VendorPrefix::empty();
-  for selector in &mut selectors.0 {
+  for selector in selectors {
     for component in selector.iter_mut_raw_match_order() {
       necessary_prefixes |= downlevel_component(component, targets);
     }
@@ -1723,17 +1727,25 @@ fn downlevel_component<'i>(component: &mut Component<'i>, targets: Browsers) -> 
       }
     }
     Component::PseudoElement(pe) => pe.get_necessary_prefixes(targets),
-    Component::Is(ref selectors) => {
+    Component::Is(selectors) => {
+      let mut necessary_prefixes = downlevel_selectors(&mut **selectors, targets);
+
       // Convert :is to :-webkit-any/:-moz-any if needed.
       // All selectors must be simple, no combinators are supported.
       if !Feature::CssMatchesPseudo.is_compatible(targets)
         && selectors.iter().all(|selector| !selector.has_combinator())
       {
-        crate::prefixes::Feature::AnyPseudo.prefixes_for(targets)
+        necessary_prefixes |= crate::prefixes::Feature::AnyPseudo.prefixes_for(targets)
       } else {
-        VendorPrefix::empty()
+        necessary_prefixes |= VendorPrefix::empty()
       }
+
+      necessary_prefixes
     }
+    Component::Where(selectors)
+    | Component::Any(_, selectors)
+    | Component::Negation(selectors)
+    | Component::Has(selectors) => downlevel_selectors(&mut **selectors, targets),
     _ => VendorPrefix::empty(),
   }
 }

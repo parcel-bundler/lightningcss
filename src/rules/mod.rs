@@ -593,7 +593,7 @@ impl<'i, T> CssRuleList<'i, T> {
           if let Some(targets) = context.targets {
             style.vendor_prefix = get_prefix(&style.selectors);
             if style.vendor_prefix.contains(VendorPrefix::None) {
-              style.vendor_prefix = downlevel_selectors(&mut style.selectors, *targets);
+              style.vendor_prefix = downlevel_selectors(style.selectors.0.as_mut_slice(), *targets);
             }
           }
 

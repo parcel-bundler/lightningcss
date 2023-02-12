@@ -5627,6 +5627,84 @@ mod tests {
       },
     );
 
+    prefix_test(
+      "a:is(:dir(rtl)) {color:red}",
+      indoc! {r#"
+      a:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      "a:where(:dir(rtl)) {color:red}",
+      indoc! {r#"
+      a:where(:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi)) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      "a:has(:dir(rtl)) {color:red}",
+      indoc! {r#"
+      a:has(:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi)) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      "a:not(:dir(rtl)) {color:red}",
+      indoc! {r#"
+      a:not(:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi)) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      "a:dir(rtl)::after {color:red}",
+      indoc! {r#"
+      a:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi):after {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      "a:dir(rtl) div {color:red}",
+      indoc! {r#"
+      a:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi) div {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+
     minify_test(".foo::cue {color: red}", ".foo::cue{color:red}");
     minify_test(".foo::cue-region {color: red}", ".foo::cue-region{color:red}");
     minify_test(".foo::cue(b) {color: red}", ".foo::cue(b){color:red}");
