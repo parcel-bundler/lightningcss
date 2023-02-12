@@ -1324,6 +1324,20 @@ where
       dest.write_char('#')?;
       dest.write_ident(&id.0)
     }
+    Component::Host(selector) => {
+      dest.write_str(":host")?;
+      if let Some(ref selector) = *selector {
+        dest.write_char('(')?;
+        selector.to_css(dest)?;
+        dest.write_char(')')?;
+      }
+      Ok(())
+    }
+    Component::Slotted(ref selector) => {
+      dest.write_str("::slotted(")?;
+      selector.to_css(dest)?;
+      dest.write_char(')')
+    }
     _ => {
       cssparser::ToCss::to_css(component, dest)?;
       Ok(())

@@ -5734,6 +5734,8 @@ mod tests {
     minify_test("a:is(:first-child) { color: yellow }", "a:first-child{color:#ff0}");
     minify_test("a:is(:has(.foo)) { color: yellow }", "a:has(.foo){color:#ff0}");
     minify_test("a:is(:is(.foo)) { color: yellow }", "a.foo{color:#ff0}");
+    minify_test(":host(:hover) {color: red}", ":host(:hover){color:red}");
+    minify_test("::slotted(:hover) {color: red}", "::slotted(:hover){color:red}");
   }
 
   #[test]
