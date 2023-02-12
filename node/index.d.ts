@@ -150,14 +150,20 @@ type DeclarationVisitors = MappedDeclarationVisitors & {
   custom?: CustomPropertyVisitors | DeclarationVisitor<CustomProperty>
 }
 
-type TokenVisitor = (token: Token) => TokenOrValue | TokenOrValue[] | void;
-type VisitableTokenTypes = 'ident' | 'at-keyword' | 'hash' | 'id-hash' | 'string' | 'number' | 'percentage' | 'dimension';
-type TokenVisitors = {
-  [Name in VisitableTokenTypes]?: (token: FindByType<Token, Name>) => TokenOrValue | TokenOrValue[] | void;
+interface RawValue {
+  /** A raw string value which will be parsed like CSS. */
+  raw: string
 }
 
-type FunctionVisitor = (fn: Function) => TokenOrValue | TokenOrValue[] | void;
-type EnvironmentVariableVisitor = (env: EnvironmentVariable) => TokenOrValue | TokenOrValue[] | void;
+type TokenReturnValue = TokenOrValue | TokenOrValue[] | RawValue | void;
+type TokenVisitor = (token: Token) => TokenReturnValue;
+type VisitableTokenTypes = 'ident' | 'at-keyword' | 'hash' | 'id-hash' | 'string' | 'number' | 'percentage' | 'dimension';
+type TokenVisitors = {
+  [Name in VisitableTokenTypes]?: (token: FindByType<Token, Name>) => TokenReturnValue;
+}
+
+type FunctionVisitor = (fn: Function) => TokenReturnValue;
+type EnvironmentVariableVisitor = (env: EnvironmentVariable) => TokenReturnValue;
 type EnvironmentVariableVisitors = {
   [name: string]: EnvironmentVariableVisitor
 };
@@ -186,8 +192,8 @@ export interface Visitor<C extends CustomAtRules> {
   Token?: TokenVisitor | TokenVisitors;
   Function?: FunctionVisitor | { [name: string]: FunctionVisitor };
   FunctionExit?: FunctionVisitor | { [name: string]: FunctionVisitor };
-  Variable?(variable: Variable): TokenOrValue | TokenOrValue[] | void;
-  VariableExit?(variable: Variable): TokenOrValue | TokenOrValue[] | void;
+  Variable?(variable: Variable): TokenReturnValue;
+  VariableExit?(variable: Variable): TokenReturnValue;
   EnvironmentVariable?: EnvironmentVariableVisitor | EnvironmentVariableVisitors;
   EnvironmentVariableExit?: EnvironmentVariableVisitor | EnvironmentVariableVisitors;
 }
@@ -278,9 +284,9 @@ export interface Warning {
 
 export interface CSSModulesConfig {
   /** The pattern to use when renaming class names and other identifiers. Default is `[hash]_[local]`. */
-  pattern: string,
+  pattern?: string,
   /** Whether to rename dashed identifiers, e.g. custom properties. */
-  dashedIdents: boolean
+  dashedIdents?: boolean
 }
 
 export type CSSModuleExports = {

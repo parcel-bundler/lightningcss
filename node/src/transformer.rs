@@ -6,13 +6,16 @@ use std::{
 use lightningcss::{
   media_query::MediaFeatureValue,
   properties::{
-    custom::{Token, TokenOrValue},
+    custom::{Token, TokenList, TokenOrValue},
     Property,
   },
   rules::{CssRule, CssRuleList},
+  stylesheet::ParserOptions,
+  traits::ParseWithOptions,
   values::{
     ident::Ident,
     length::{Length, LengthValue},
+    string::CowArcStr,
   },
   visitor::{Visit, VisitTypes, Visitor},
 };
@@ -556,7 +559,8 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
             };
 
             let res = visit.call(None, &[js_value])?;
-            env.from_js_value(res).map(serde_detach::detach)
+            let res: Option<TokensOrRaw> = env.from_js_value(res).map(serde_detach::detach)?;
+            Ok(res.map(|r| r.0))
           } else {
             Ok(None)
           }
@@ -758,6 +762,35 @@ impl<'de, V: serde::Deserialize<'de>, const IS_VEC: bool> serde::Deserialize<'de
         Ok(vec)
       }
     }
+  }
+}
+
+struct TokensOrRaw<'i>(ValueOrVec<TokenOrValue<'i>>);
+
+impl<'i, 'de: 'i> serde::Deserialize<'de> for TokensOrRaw<'i> {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    use serde::__private::de::ContentRefDeserializer;
+
+    #[derive(serde::Deserialize)]
+    struct Raw<'i> {
+      #[serde(borrow)]
+      raw: CowArcStr<'i>,
+    }
+
+    let content = serde::__private::de::Content::deserialize(deserializer)?;
+    let de: ContentRefDeserializer<D::Error> = ContentRefDeserializer::new(&content);
+
+    if let Ok(res) = Raw::deserialize(de) {
+      let res = TokenList::parse_string_with_options(res.raw.as_ref(), ParserOptions::default())
+        .map_err(|_| serde::de::Error::custom("Could not parse value"))?;
+      return Ok(TokensOrRaw(ValueOrVec::Vec(res.into_owned().0)));
+    }
+
+    let de = ContentRefDeserializer::new(&content);
+    Ok(TokensOrRaw(ValueOrVec::deserialize(de)?))
   }
 }
 

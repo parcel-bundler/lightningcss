@@ -899,4 +899,49 @@ test('errors on invalid dashed idents', () => {
   }, 'Dashed idents must start with --');
 });
 
+test('supports returning raw values for tokens', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      .foo {
+        color: theme('red');
+      }
+    `),
+    visitor: {
+      Function: {
+        theme() {
+          return { raw: 'rgba(255, 0, 0)' };
+        }
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '.foo{color:red}');
+});
+
+test('supports returning raw values as variables', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    cssModules: {
+      dashedIdents: true
+    },
+    code: Buffer.from(`
+      .foo {
+        color: theme('foo');
+      }
+    `),
+    visitor: {
+      Function: {
+        theme() {
+          return { raw: 'var(--foo)' };
+        }
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '.EgL3uq_foo{color:var(--EgL3uq_foo)}');
+});
+
 test.run();
