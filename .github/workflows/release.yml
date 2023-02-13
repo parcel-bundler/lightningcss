@@ -25,7 +25,7 @@ jobs:
       - name: Install Node.JS
         uses: actions/setup-node@v3
         with:
-          node-version: 14
+          node-version: 18
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -64,7 +64,7 @@ jobs:
       - name: Install Node.JS
         uses: actions/setup-node@v3
         with:
-          node-version: 14
+          node-version: 18
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -134,7 +134,7 @@ jobs:
       - name: Install Node.JS
         uses: actions/setup-node@v3
         with:
-          node-version: 14
+          node-version: 18
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -176,7 +176,7 @@ jobs:
       - name: Install Node.JS
         uses: actions/setup-node@v3
         with:
-          node-version: 14
+          node-version: 18
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
