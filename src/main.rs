@@ -34,6 +34,9 @@ struct CliArgs {
   /// Enable parsing custom media queries
   #[clap(long, value_parser)]
   custom_media: bool,
+  /// Enable parsing @scope
+  #[clap(long, value_parser)]
+  scope: bool,
   /// Enable CSS modules in output.
   /// If no filename is provided, <output_file>.json will be used.
   /// If no --output-file is specified, code and exports will be printed to stdout as JSON.

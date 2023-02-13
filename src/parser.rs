@@ -47,6 +47,8 @@ pub struct ParserOptions<'o, 'i> {
   pub nesting: bool,
   /// Whether to enable the [custom media](https://drafts.csswg.org/mediaqueries-5/#custom-mq) draft syntax.
   pub custom_media: bool,
+  /// Whether to enable the [@scope](https://drafts.csswg.org/css-cascade-6/#scope-atrule) draft syntax.
+  pub scope: bool,
   /// Whether the enable [CSS modules](https://github.com/css-modules/css-modules).
   pub css_modules: Option<crate::css_modules::Config<'o>>,
   /// The source index to assign to all parsed rules. Impacts the source map when
@@ -429,7 +431,7 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
       "font-face" => {
         Ok(AtRulePrelude::FontFace)
       },
-      "scope" => {
+      "scope" if self.options.scope => {
         Ok(AtRulePrelude::Scope)
       },
       // "font-feature-values" => {
