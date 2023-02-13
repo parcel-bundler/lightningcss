@@ -138,6 +138,32 @@ let res = transform({
 assert.equal(res.code.toString(), '.foo{width:12px;height:12px}');
 ```
 
+## Raw values
+
+The Lightning CSS AST is very detailed, which is really useful when you need to transform it. However, it can be tedious to construct a full AST from scratch when returning entirely new values from a visitor. That's when raw values come in handy. You can return a `raw` property containing a string of CSS syntax from visitors that return declarations (i.e. properties) and tokens, and Lightning CSS will parse it for you and put it into the AST.
+
+This example implements a custom `color` function, which returns a raw CSS color value as a string, rather than constructing the whole AST.
+
+```js
+let res = transform({
+  minify: true,
+  code: Buffer.from(`
+    .foo {
+      color: color('red');
+    }
+  `),
+  visitor: {
+    Function: {
+      color() {
+        return { raw: 'rgb(255, 0, 0)' };
+      }
+    }
+  }
+});
+
+assert.equal(res.code.toString(), '.foo{color:red}');
+```
+
 ## Entry and exit visitors
 
 By default, visitors are called when traversing downward through the tree (a pre-order traversal). This means each node is visited before its children. Sometimes it is useful to process a node after its children instead (a post-order traversal). This can be done by using an `Exit` visitor function, such as `FunctionExit`.
