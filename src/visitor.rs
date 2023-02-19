@@ -65,7 +65,7 @@ use crate::{
     Property,
   },
   rules::{supports::SupportsCondition, CssRule, CssRuleList},
-  selector::{Selector, SelectorList},
+  selector::{Component, Selector, SelectorList},
   values::{
     angle::Angle,
     color::CssColor,
@@ -289,7 +289,13 @@ pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule>: Sized {
   /// Visits a selector.
   #[allow(unused_variables)]
   fn visit_selector(&mut self, selector: &mut Selector<'i>) -> Result<(), Self::Error> {
-    Ok(())
+    selector.visit_children(self)
+  }
+
+  /// Visits a selector component.
+  #[allow(unused_variables)]
+  fn visit_selector_component(&mut self, component: &mut Component<'i>) -> Result<(), Self::Error> {
+    component.visit_children(self)
   }
 
   /// Visits a custom function.

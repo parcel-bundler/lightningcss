@@ -1863,8 +1863,32 @@ impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for Selector<'i>
     visitor.visit_selector(self)
   }
 
-  fn visit_children(&mut self, _visitor: &mut V) -> Result<(), V::Error> {
-    Ok(())
+  fn visit_children(&mut self, visitor: &mut V) -> Result<(), V::Error> {
+    self.iter_mut_raw_match_order().try_for_each(|component| Visit::visit(component, visitor))
+  }
+}
+
+#[cfg(feature = "visitor")]
+#[cfg_attr(docsrs, doc(cfg(feature = "visitor")))]
+impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for Component<'i> {
+  const CHILD_TYPES: VisitTypes = VisitTypes::SELECTORS;
+
+  fn visit(&mut self, visitor: &mut V) -> Result<(), V::Error> {
+    visitor.visit_selector_component(self)
+  }
+
+  fn visit_children(&mut self, visitor: &mut V) -> Result<(), V::Error> {
+    match self {
+      Component::Slotted(selector) | Component::Host(Some(selector)) => Visit::visit(selector, visitor),
+
+      Component::Negation(selectors)
+      | Component::Where(selectors)
+      | Component::Is(selectors)
+      | Component::Any(_, selectors)
+      | Component::Has(selectors) => selectors.iter_mut().try_for_each(|selector| Visit::visit(selector, visitor)),
+
+      _ => Ok(()),
+    }
   }
 }
 
