@@ -217,6 +217,10 @@ pub fn main() -> Result<(), std::io::Error> {
       }
     }
 
+    let output_path = Path::new(output_file);
+    if let Some(p) = output_path.parent() {
+      fs::create_dir_all(p)?
+    };
     fs::write(output_file, code.as_bytes())?;
 
     if let Some(css_modules) = cli_args.css_modules {
