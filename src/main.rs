@@ -67,7 +67,6 @@ struct SourceMapJson<'a> {
   names: &'a Vec<String>,
 }
 
-#[derive(Debug)]
 struct InputFile {
   filename: String,
   source: String
@@ -81,8 +80,6 @@ pub fn main() -> Result<(), std::io::Error> {
 
   match &cli_args.input_file {
     Some(g) => {
-      let globs = glob(g);
-
       match glob(g) {
         Ok(file_paths) => {
           for file in file_paths {
@@ -113,12 +110,9 @@ pub fn main() -> Result<(), std::io::Error> {
       files.push(InputFile {filename, source: contents});
     }
   }
-
-  println!("{:#?}", &files);
   
   for file in files {
     let InputFile { filename, source } = file;
-    println!("{}, {}", &filename, &source);
 
     let css_modules = if let Some(_) = cli_args.css_modules {
       let pattern = if let Some(pattern) = cli_args.css_modules_pattern.as_ref() {
