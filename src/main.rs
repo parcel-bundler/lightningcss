@@ -247,7 +247,7 @@ pub fn main() -> Result<(), std::io::Error> {
   
       if let Some(css_modules) = &cli_args.css_modules {
         let css_modules_filename = if let Some(name) = css_modules {
-          name
+          name.to_string()
         } else {
           infer_css_modules_filename(&output_file)?
         };
