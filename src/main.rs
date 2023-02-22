@@ -1,3 +1,4 @@
+use glob::glob;
 use atty::Stream;
 use clap::{ArgGroup, Parser};
 use lightningcss::bundler::{Bundler, FileProvider};
@@ -66,26 +67,41 @@ struct SourceMapJson<'a> {
   names: &'a Vec<String>,
 }
 
+#[derive(Debug)]
+struct InputFile {
+  filename: String,
+  source: String
+}
+
 pub fn main() -> Result<(), std::io::Error> {
   let cli_args = CliArgs::parse();
   let project_root = std::env::current_dir()?;
+  
+  let mut files: Vec<InputFile> = Vec::new();
 
-  // If we're given an input file, read from it and adjust its name.
-  //
-  // If we're not given an input file and stdin was redirected, read
-  // from it and create a fake name. Return an error if stdin was not
-  // redirected (otherwise the program will hang waiting for input).
-  //
-  let (filename, source) = match &cli_args.input_file {
-    Some(f) => {
-      let absolute_path = fs::canonicalize(f)?;
-      let filename = pathdiff::diff_paths(absolute_path, &project_root).unwrap();
-      let filename = filename.to_string_lossy().into_owned();
-      let contents = fs::read_to_string(f)?;
-      (filename, contents)
-    }
+  match &cli_args.input_file {
+    Some(g) => {
+      let globs = glob(g);
+
+      match glob(g) {
+        Ok(file_paths) => {
+          for file in file_paths {
+            if let Ok(f) = file {
+              let absolute_path = fs::canonicalize(&f)?;
+              let filename = pathdiff::diff_paths(absolute_path, &project_root).unwrap();
+              let filename = filename.to_string_lossy().into_owned();
+              let contents = fs::read_to_string(&f)?;
+              files.push(InputFile { filename, source: contents });
+            }
+          }
+        },
+        Err(e) => {
+          eprintln!("{}", e);
+          std::process::exit(1);
+        }
+      }
+    },
     None => {
-      // Don't silently wait for input if stdin was not redirected.
       if atty::is(Stream::Stdin) {
         return Err(io::Error::new(
           io::ErrorKind::Other,
@@ -94,157 +110,164 @@ pub fn main() -> Result<(), std::io::Error> {
       }
       let filename = format!("stdin-{}", std::process::id());
       let contents = io::read_to_string(io::stdin())?;
-      (filename, contents)
-    }
-  };
-
-  let css_modules = if let Some(_) = cli_args.css_modules {
-    let pattern = if let Some(pattern) = cli_args.css_modules_pattern.as_ref() {
-      match lightningcss::css_modules::Pattern::parse(pattern) {
-        Ok(p) => p,
-        Err(e) => {
-          eprintln!("{}", e);
-          std::process::exit(1);
-        }
-      }
-    } else {
-      Default::default()
-    };
-
-    Some(lightningcss::css_modules::Config {
-      pattern,
-      dashed_idents: cli_args.css_modules_dashed_idents,
-      ..Default::default()
-    })
-  } else {
-    cli_args.css_modules.as_ref().map(|_| Default::default())
-  };
-
-  let fs = FileProvider::new();
-  let warnings = if cli_args.error_recovery {
-    Some(Arc::new(RwLock::new(Vec::new())))
-  } else {
-    None
-  };
-
-  let mut source_map = if cli_args.sourcemap {
-    Some(SourceMap::new(&project_root.to_string_lossy()))
-  } else {
-    None
-  };
-
-  let res = {
-    let mut options = ParserOptions {
-      nesting: cli_args.nesting,
-      css_modules,
-      custom_media: cli_args.custom_media,
-      error_recovery: cli_args.error_recovery,
-      warnings: warnings.clone(),
-      ..ParserOptions::default()
-    };
-
-    let mut stylesheet = if cli_args.bundle {
-      let mut bundler = Bundler::new(&fs, source_map.as_mut(), options);
-      bundler.bundle(Path::new(&filename)).unwrap()
-    } else {
-      if let Some(sm) = &mut source_map {
-        sm.add_source(&filename);
-        let _ = sm.set_source_content(0, &source);
-      }
-      options.filename = filename;
-      StyleSheet::parse(&source, options).unwrap()
-    };
-
-    let targets = if !cli_args.targets.is_empty() {
-      Browsers::from_browserslist(cli_args.targets).unwrap()
-    } else if cli_args.browserslist {
-      Browsers::load_browserslist().unwrap()
-    } else {
-      None
-    };
-
-    stylesheet
-      .minify(MinifyOptions {
-        targets,
-        ..MinifyOptions::default()
-      })
-      .unwrap();
-
-    stylesheet
-      .to_css(PrinterOptions {
-        minify: cli_args.minify,
-        source_map: source_map.as_mut(),
-        project_root: Some(&project_root.to_string_lossy()),
-        targets,
-        ..PrinterOptions::default()
-      })
-      .unwrap()
-  };
-
-  let map = if let Some(ref mut source_map) = source_map {
-    let mut vlq_output: Vec<u8> = Vec::new();
-    source_map
-      .write_vlq(&mut vlq_output)
-      .map_err(|_| io::Error::new(io::ErrorKind::Other, "Error writing sourcemap vlq"))?;
-
-    let sm = SourceMapJson {
-      version: 3,
-      mappings: unsafe { String::from_utf8_unchecked(vlq_output) },
-      sources: source_map.get_sources(),
-      sources_content: source_map.get_sources_content(),
-      names: source_map.get_names(),
-    };
-
-    serde_json::to_vec(&sm).ok()
-  } else {
-    None
-  };
-
-  if let Some(warnings) = warnings {
-    let warnings = Arc::try_unwrap(warnings).unwrap().into_inner().unwrap();
-    for warning in warnings {
-      eprintln!("{}", warning);
+      files.push(InputFile {filename, source: contents});
     }
   }
 
-  if let Some(output_file) = &cli_args.output_file {
-    let mut code = res.code;
-    if cli_args.sourcemap {
-      if let Some(map_buf) = map {
-        let map_filename: String = output_file.to_owned() + ".map";
-        code += &format!("\n/*# sourceMappingURL={} */\n", map_filename);
-        fs::write(map_filename, map_buf)?;
-      }
-    }
+  println!("{:#?}", &files);
+  
+  for file in files {
+    let InputFile { filename, source } = file;
+    println!("{}, {}", &filename, &source);
 
-    let output_path = Path::new(output_file);
-    if let Some(p) = output_path.parent() {
-      fs::create_dir_all(p)?
-    };
-    fs::write(output_file, code.as_bytes())?;
-
-    if let Some(css_modules) = cli_args.css_modules {
-      let css_modules_filename = if let Some(name) = css_modules {
-        name
+    let css_modules = if let Some(_) = cli_args.css_modules {
+      let pattern = if let Some(pattern) = cli_args.css_modules_pattern.as_ref() {
+        match lightningcss::css_modules::Pattern::parse(pattern) {
+          Ok(p) => p,
+          Err(e) => {
+            eprintln!("{}", e);
+            std::process::exit(1);
+          }
+        }
       } else {
-        infer_css_modules_filename(&output_file)?
+        Default::default()
       };
-      if let Some(exports) = res.exports {
-        let css_modules_json = serde_json::to_string(&exports)?;
-        fs::write(css_modules_filename, css_modules_json)?;
+  
+      Some(lightningcss::css_modules::Config {
+        pattern,
+        dashed_idents: cli_args.css_modules_dashed_idents,
+        ..Default::default()
+      })
+    } else {
+      cli_args.css_modules.as_ref().map(|_| Default::default())
+    };
+  
+    let fs = FileProvider::new();
+    let warnings = if cli_args.error_recovery {
+      Some(Arc::new(RwLock::new(Vec::new())))
+    } else {
+      None
+    };
+  
+    let mut source_map = if cli_args.sourcemap {
+      Some(SourceMap::new(&project_root.to_string_lossy()))
+    } else {
+      None
+    };
+  
+    let res = {
+      let mut options = ParserOptions {
+        nesting: cli_args.nesting,
+        css_modules,
+        custom_media: cli_args.custom_media,
+        error_recovery: cli_args.error_recovery,
+        warnings: warnings.clone(),
+        ..ParserOptions::default()
+      };
+  
+      let mut stylesheet = if cli_args.bundle {
+        let mut bundler = Bundler::new(&fs, source_map.as_mut(), options);
+        bundler.bundle(Path::new(&filename)).unwrap()
+      } else {
+        if let Some(sm) = &mut source_map {
+          sm.add_source(&filename);
+          let _ = sm.set_source_content(0, &source);
+        }
+        options.filename = filename;
+        StyleSheet::parse(&source, options).unwrap()
+      };
+  
+      let targets = if !cli_args.targets.is_empty() {
+        Browsers::from_browserslist(&cli_args.targets).unwrap()
+      } else if cli_args.browserslist {
+        Browsers::load_browserslist().unwrap()
+      } else {
+        None
+      };
+  
+      stylesheet
+        .minify(MinifyOptions {
+          targets,
+          ..MinifyOptions::default()
+        })
+        .unwrap();
+  
+      stylesheet
+        .to_css(PrinterOptions {
+          minify: cli_args.minify,
+          source_map: source_map.as_mut(),
+          project_root: Some(&project_root.to_string_lossy()),
+          targets,
+          ..PrinterOptions::default()
+        })
+        .unwrap()
+    };
+  
+    let map = if let Some(ref mut source_map) = source_map {
+      let mut vlq_output: Vec<u8> = Vec::new();
+      source_map
+        .write_vlq(&mut vlq_output)
+        .map_err(|_| io::Error::new(io::ErrorKind::Other, "Error writing sourcemap vlq"))?;
+  
+      let sm = SourceMapJson {
+        version: 3,
+        mappings: unsafe { String::from_utf8_unchecked(vlq_output) },
+        sources: source_map.get_sources(),
+        sources_content: source_map.get_sources_content(),
+        names: source_map.get_names(),
+      };
+  
+      serde_json::to_vec(&sm).ok()
+    } else {
+      None
+    };
+  
+    if let Some(warnings) = warnings {
+      let warnings = Arc::try_unwrap(warnings).unwrap().into_inner().unwrap();
+      for warning in warnings {
+        eprintln!("{}", warning);
       }
     }
-  } else {
-    if let Some(exports) = res.exports {
-      println!(
-        "{}",
-        serde_json::json!({
-          "code": res.code,
-          "exports": exports
-        })
-      );
+  
+    if let Some(output_file) = &cli_args.output_file {
+      let mut code = res.code;
+      if cli_args.sourcemap {
+        if let Some(map_buf) = map {
+          let map_filename: String = output_file.to_owned() + ".map";
+          code += &format!("\n/*# sourceMappingURL={} */\n", map_filename);
+          fs::write(map_filename, map_buf)?;
+        }
+      }
+  
+      let output_path = Path::new(output_file);
+      if let Some(p) = output_path.parent() {
+        fs::create_dir_all(p)?
+      };
+      fs::write(output_file, code.as_bytes())?;
+  
+      if let Some(css_modules) = &cli_args.css_modules {
+        let css_modules_filename = if let Some(name) = css_modules {
+          name
+        } else {
+          infer_css_modules_filename(&output_file)?
+        };
+        if let Some(exports) = res.exports {
+          let css_modules_json = serde_json::to_string(&exports)?;
+          fs::write(css_modules_filename, css_modules_json)?;
+        }
+      }
     } else {
-      println!("{}", res.code);
+      if let Some(exports) = res.exports {
+        println!(
+          "{}",
+          serde_json::json!({
+            "code": res.code,
+            "exports": exports
+          })
+        );
+      } else {
+        println!("{}", res.code);
+      }
     }
   }
 
