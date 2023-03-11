@@ -2,9 +2,9 @@
 name = "parcel_selectors"
 version = "0.25.2"
 authors = ["The Servo Project Developers"]
-documentation = "https://docs.rs/selectors/"
+documentation = "https://docs.rs/parcel_selectors/"
 description = "CSS Selectors matching for Rust - forked for lightningcss"
-repository = "https://github.com/servo/servo"
+repository = "https://github.com/parcel-bundler/lightningcss"
 readme = "README.md"
 keywords = ["css", "selectors"]
 license = "MPL-2.0"
