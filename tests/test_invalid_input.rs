@@ -1,5 +1,6 @@
 use lightningcss::{
-  error::{Error, ParserError},
+  error::{Error, ErrorLocation, ParserError},
+  rules::Location,
   stylesheet::{ParserOptions, StyleSheet},
 };
 
@@ -15,7 +16,14 @@ fn invalid_hsla_value() {
 
   let expected = Error {
     kind: ParserError::InvalidValue,
-    loc: None
+    loc: Some(ErrorLocation::new(
+      Location {
+        line: 0,
+        column: 23,
+        source_index: 0,
+      },
+      "".to_string(),
+    )),
   };
 
   assert_eq!(parsed.to_string(), expected.to_string());
