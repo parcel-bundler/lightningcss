@@ -5,7 +5,7 @@ use lightningcss::{
 };
 
 #[test]
-fn invalid_hsla_value() {
+fn value_missing_closing_brace() {
   let input = r#"
     .corrupt {
       color: hsla(120, 62.32%;
