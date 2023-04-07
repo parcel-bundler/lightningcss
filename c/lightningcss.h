@@ -124,6 +124,7 @@ typedef struct ToCssOptions {
   bool source_map;
   const char *input_source_map;
   uintptr_t input_source_map_len;
+  const char *project_root;
   struct Targets targets;
   bool analyze_dependencies;
   struct PseudoClasses pseudo_classes;
