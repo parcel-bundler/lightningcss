@@ -64,6 +64,11 @@ header .title {
   text-decoration: none;
 }
 
+header .title::selection {
+  -webkit-text-stroke-color: #fffddd;
+  background-color: var(--gold-text);
+}
+
 h1, h2, h3 {
   font-family: urbane-rounded, ui-rounded;
   font-weight: 600;

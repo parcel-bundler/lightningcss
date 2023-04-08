@@ -6,6 +6,7 @@
   "main": "node/index.js",
   "types": "node/index.d.ts",
   "exports": {
+    "types": "./node/index.d.ts",
     "import": "./node/index.mjs",
     "require": "./node/index.js"
   },

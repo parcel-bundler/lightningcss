@@ -1,7 +1,7 @@
 language = "C"
 
 [parse]
-parse_deps = true
+parse_deps = false
 include = ["lightningcss"]
 
 [export.rename]
