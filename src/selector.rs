@@ -15,7 +15,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::visitor::{Visit, VisitTypes, Visitor};
 use crate::{macros::enum_property, values::string::CowArcStr};
 use cssparser::*;
-use parcel_selectors::parser::SelectorParseErrorKind;
+use parcel_selectors::parser::{NthType, SelectorParseErrorKind};
 use parcel_selectors::{
   attr::{AttrSelectorOperator, ParsedAttrSelectorOperation, ParsedCaseSensitivity},
   parser::SelectorImpl,
@@ -1524,22 +1524,14 @@ pub(crate) fn is_compatible(selectors: &SelectorList, targets: Option<Browsers>)
           }
         },
 
-        Component::FirstChild => Feature::CssSel2,
+        Component::Empty | Component::Negation(_) | Component::Root => Feature::CssSel3,
 
-        Component::Empty
-        | Component::FirstOfType
-        | Component::LastChild
-        | Component::LastOfType
-        | Component::Negation(_)
-        | Component::NthChild(_, _)
-        | Component::NthLastChild(_, _)
-        | Component::NthCol(_, _)
-        | Component::NthLastCol(_, _)
-        | Component::NthLastOfType(_, _)
-        | Component::NthOfType(_, _)
-        | Component::OnlyChild
-        | Component::OnlyOfType
-        | Component::Root => Feature::CssSel3,
+        Component::Nth(data) => match data.ty {
+          NthType::Child if data.a == 0 && data.b == 1 => Feature::CssSel2,
+          NthType::Col | NthType::LastCol => return false,
+          _ => Feature::CssSel3,
+        },
+        Component::NthOf(..) => Feature::NthChildOf,
 
         Component::Is(_) | Component::Nesting => Feature::CssMatchesPseudo,
         Component::Any(..) => Feature::AnyPseudo,

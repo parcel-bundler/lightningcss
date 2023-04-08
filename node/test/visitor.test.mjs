@@ -963,4 +963,29 @@ test('works with currentColor', () => {
   assert.equal(res.code.toString(), '.foo{color:currentColor}');
 });
 
+test('nth of S to nth-of-type', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      a:nth-child(even of a) {
+        color: red;
+      }
+    `),
+    visitor: {
+      Selector(selector) {
+        for (let component of selector) {
+          if (component.type === 'pseudo-class' && component.kind === 'nth-child' && component.of) {
+            delete component.of;
+            component.kind = 'nth-of-type';
+          }
+        }
+        return selector;
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), 'a:nth-of-type(2n){color:red}');
+});
+
 test.run();

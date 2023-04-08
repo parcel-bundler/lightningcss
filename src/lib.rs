@@ -5290,12 +5290,40 @@ mod tests {
     minify_test(":nth-col(10n-1) {width: 20px}", ":nth-col(10n-1){width:20px}");
     minify_test(":nth-col(-n+2) {width: 20px}", ":nth-col(-n+2){width:20px}");
     minify_test(":nth-col(even) {width: 20px}", ":nth-col(2n){width:20px}");
-    minify_test(":nth-col(odd) {width: 20px}", ":nth-col(2n+1){width:20px}");
+    minify_test(":nth-col(odd) {width: 20px}", ":nth-col(odd){width:20px}");
     minify_test(":nth-last-col(2n) {width: 20px}", ":nth-last-col(2n){width:20px}");
     minify_test(":nth-last-col(10n-1) {width: 20px}", ":nth-last-col(10n-1){width:20px}");
     minify_test(":nth-last-col(-n+2) {width: 20px}", ":nth-last-col(-n+2){width:20px}");
     minify_test(":nth-last-col(even) {width: 20px}", ":nth-last-col(2n){width:20px}");
-    minify_test(":nth-last-col(odd) {width: 20px}", ":nth-last-col(2n+1){width:20px}");
+    minify_test(":nth-last-col(odd) {width: 20px}", ":nth-last-col(odd){width:20px}");
+    minify_test(":nth-child(odd) {width: 20px}", ":nth-child(odd){width:20px}");
+    minify_test(":nth-child(2n) {width: 20px}", ":nth-child(2n){width:20px}");
+    minify_test(":nth-child(2n+1) {width: 20px}", ":nth-child(odd){width:20px}");
+    minify_test(":first-child {width: 20px}", ":first-child{width:20px}");
+    minify_test(":nth-child(1) {width: 20px}", ":first-child{width:20px}");
+    minify_test(":nth-last-child(1) {width: 20px}", ":last-child{width:20px}");
+    minify_test(":nth-of-type(1) {width: 20px}", ":first-of-type{width:20px}");
+    minify_test(":nth-last-of-type(1) {width: 20px}", ":last-of-type{width:20px}");
+    minify_test(
+      ":nth-child(even of li.important) {width: 20px}",
+      ":nth-child(2n of li.important){width:20px}",
+    );
+    minify_test(
+      ":nth-child(1 of li.important) {width: 20px}",
+      ":nth-child(1 of li.important){width:20px}",
+    );
+    minify_test(
+      ":nth-last-child(even of li.important) {width: 20px}",
+      ":nth-last-child(2n of li.important){width:20px}",
+    );
+    minify_test(
+      ":nth-last-child(1 of li.important) {width: 20px}",
+      ":nth-last-child(1 of li.important){width:20px}",
+    );
+    minify_test(
+      ":nth-last-child(1 of.important) {width: 20px}",
+      ":nth-last-child(1 of .important){width:20px}",
+    );
 
     minify_test("[foo=\"baz\"] {color:red}", "[foo=baz]{color:red}");
     minify_test("[foo=\"foo bar\"] {color:red}", "[foo=foo\\ bar]{color:red}");
@@ -22825,13 +22853,13 @@ mod tests {
       body {
         background: red;
       }
-      
+
       @layer two {
         body {
           background: green;
         }
       }
-      
+
       @layer one {
         body {
           background: yellow;

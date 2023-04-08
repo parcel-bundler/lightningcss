@@ -321,23 +321,26 @@ where
       | Component::AttributeInNoNamespace { .. }
       | Component::AttributeInNoNamespaceExists { .. }
       | Component::AttributeOther(..)
-      | Component::FirstChild
-      | Component::LastChild
-      | Component::OnlyChild
       | Component::Root
       | Component::Empty
       | Component::Scope
-      | Component::NthChild(..)
-      | Component::NthLastChild(..)
-      | Component::NthCol(..)
-      | Component::NthLastCol(..)
-      | Component::NthOfType(..)
-      | Component::NthLastOfType(..)
-      | Component::FirstOfType
-      | Component::LastOfType
-      | Component::OnlyOfType
+      | Component::Nth(..)
       | Component::NonTSPseudoClass(..) => {
         specificity.class_like_selectors += 1;
+      }
+      Component::NthOf(ref nth_of_data) => {
+        // https://drafts.csswg.org/selectors/#specificity-rules:
+        //
+        //     The specificity of the :nth-last-child() pseudo-class,
+        //     like the :nth-child() pseudo-class, combines the
+        //     specificity of a regular pseudo-class with that of its
+        //     selector argument S.
+        specificity.class_like_selectors += 1;
+        let mut max = 0;
+        for selector in nth_of_data.selectors() {
+          max = std::cmp::max(selector.specificity(), max);
+        }
+        *specificity += Specificity::from(max);
       }
       Component::Negation(ref list) | Component::Is(ref list) | Component::Any(_, ref list) => {
         // https://drafts.csswg.org/selectors/#specificity-rules:

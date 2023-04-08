@@ -5,7 +5,7 @@
 use crate::attr::{AttrSelectorOperation, NamespaceConstraint, ParsedAttrSelectorOperation};
 use crate::bloom::{BloomFilter, BLOOM_HASH_MASK};
 use crate::nth_index_cache::NthIndexCacheInner;
-use crate::parser::{AncestorHashes, Combinator, Component, LocalName};
+use crate::parser::{AncestorHashes, Combinator, Component, LocalName, NthType};
 use crate::parser::{NonTSPseudoClass, Selector, SelectorImpl, SelectorIter, SelectorList};
 use crate::tree::Element;
 use smallvec::SmallVec;
@@ -366,19 +366,9 @@ fn matches_hover_and_active_quirk<'i, Impl: SelectorImpl<'i>>(
     | Component::Class(_)
     | Component::PseudoElement(_)
     | Component::Negation(_)
-    | Component::FirstChild
-    | Component::LastChild
-    | Component::OnlyChild
-    | Component::Empty
-    | Component::NthChild(_, _)
-    | Component::NthLastChild(_, _)
-    | Component::NthCol(_, _)
-    | Component::NthLastCol(_, _)
-    | Component::NthOfType(_, _)
-    | Component::NthLastOfType(_, _)
-    | Component::FirstOfType
-    | Component::LastOfType
-    | Component::OnlyOfType => false,
+    | Component::Nth(_)
+    | Component::NthOf(..)
+    | Component::Empty => false,
     Component::NonTSPseudoClass(ref pseudo_class) => pseudo_class.is_active_or_hover(),
     _ => true,
   });
@@ -765,11 +755,6 @@ where
 
       element.match_non_ts_pseudo_class(pc, &mut context.shared, flags_setter)
     }
-    Component::FirstChild => matches_first_child(element, flags_setter),
-    Component::LastChild => matches_last_child(element, flags_setter),
-    Component::OnlyChild => {
-      matches_first_child(element, flags_setter) && matches_last_child(element, flags_setter)
-    }
     Component::Root => element.is_root(),
     Component::Empty => {
       flags_setter(element, ElementSelectorFlags::HAS_EMPTY_SELECTOR);
@@ -787,18 +772,27 @@ where
       Some(ref scope_element) => element.opaque() == *scope_element,
       None => element.is_root(),
     },
-    Component::NthChild(a, b) => matches_generic_nth_child(element, context, a, b, false, false, flags_setter),
-    Component::NthLastChild(a, b) => matches_generic_nth_child(element, context, a, b, false, true, flags_setter),
-    Component::NthCol(a, b) => matches_generic_nth_child(element, context, a, b, false, false, flags_setter),
-    Component::NthLastCol(a, b) => matches_generic_nth_child(element, context, a, b, false, true, flags_setter),
-    Component::NthOfType(a, b) => matches_generic_nth_child(element, context, a, b, true, false, flags_setter),
-    Component::NthLastOfType(a, b) => matches_generic_nth_child(element, context, a, b, true, true, flags_setter),
-    Component::FirstOfType => matches_generic_nth_child(element, context, 0, 1, true, false, flags_setter),
-    Component::LastOfType => matches_generic_nth_child(element, context, 0, 1, true, true, flags_setter),
-    Component::OnlyOfType => {
-      matches_generic_nth_child(element, context, 0, 1, true, false, flags_setter)
-        && matches_generic_nth_child(element, context, 0, 1, true, true, flags_setter)
-    }
+    Component::Nth(data) => match data.ty {
+      NthType::Child => match (data.a, data.b) {
+        (0, 1) => matches_first_child(element, flags_setter),
+        (a, b) => matches_generic_nth_child(element, context, a, b, false, false, flags_setter),
+      },
+      NthType::LastChild => match (data.a, data.b) {
+        (0, 1) => matches_last_child(element, flags_setter),
+        (a, b) => matches_generic_nth_child(element, context, a, b, false, true, flags_setter),
+      },
+      NthType::OnlyChild => {
+        matches_first_child(element, flags_setter) && matches_last_child(element, flags_setter)
+      }
+      NthType::OfType => matches_generic_nth_child(element, context, data.a, data.b, true, false, flags_setter),
+      NthType::LastOfType => matches_generic_nth_child(element, context, data.a, data.b, true, true, flags_setter),
+      NthType::OnlyOfType => {
+        matches_generic_nth_child(element, context, 0, 1, true, false, flags_setter)
+          && matches_generic_nth_child(element, context, 0, 1, true, true, flags_setter)
+      }
+      _ => todo!(),
+    },
+    Component::NthOf(..) => todo!(),
     Component::Is(ref list) | Component::Where(ref list) | Component::Any(_, ref list) => {
       context.shared.nest(|context| {
         for selector in &**list {

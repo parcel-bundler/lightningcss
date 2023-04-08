@@ -4,7 +4,7 @@ use crate::{
     ParsedCaseSensitivity,
   },
   builder::SelectorBuilder,
-  parser::{Combinator, Component, LocalName, Selector},
+  parser::{Combinator, Component, LocalName, NthOfSelectorData, NthSelectorData, NthType, Selector},
   SelectorImpl,
 };
 use std::borrow::Cow;
@@ -99,10 +99,26 @@ enum TSPseudoClass<'s, Impl: SelectorImpl<'s>, VendorPrefix> {
   NthChild {
     a: i32,
     b: i32,
+    #[serde(
+      borrow,
+      bound(
+        serialize = "Impl::NonTSPseudoClass: serde::Serialize, Impl::PseudoElement: serde::Serialize, Impl::VendorPrefix: serde::Serialize",
+        deserialize = "Impl::NonTSPseudoClass: serde::Deserialize<'de>, Impl::PseudoElement: serde::Deserialize<'de>, Impl::VendorPrefix: serde::Deserialize<'de>"
+      )
+    )]
+    of: Option<Box<[Selector<'s, Impl>]>>,
   },
   NthLastChild {
     a: i32,
     b: i32,
+    #[serde(
+      borrow,
+      bound(
+        serialize = "Impl::NonTSPseudoClass: serde::Serialize, Impl::PseudoElement: serde::Serialize, Impl::VendorPrefix: serde::Serialize",
+        deserialize = "Impl::NonTSPseudoClass: serde::Deserialize<'de>, Impl::PseudoElement: serde::Deserialize<'de>, Impl::VendorPrefix: serde::Deserialize<'de>"
+      )
+    )]
+    of: Option<Box<[Selector<'s, Impl>]>>,
   },
   NthCol {
     a: i32,
@@ -348,45 +364,11 @@ where
       Component::Negation(s) => {
         SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::Not { selectors: s.clone() }))
       }
-      Component::FirstChild => {
-        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::FirstChild))
-      }
-      Component::LastChild => {
-        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::LastChild))
-      }
-      Component::OnlyChild => {
-        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::OnlyChild))
-      }
       Component::Root => SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::Root)),
       Component::Empty => SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::Empty)),
       Component::Scope => SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::Scope)),
-      Component::FirstOfType => {
-        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::FirstOfType))
-      }
-      Component::LastOfType => {
-        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::LastOfType))
-      }
-      Component::OnlyOfType => {
-        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::OnlyOfType))
-      }
-      Component::NthChild(a, b) => {
-        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::NthChild { a: *a, b: *b }))
-      }
-      Component::NthLastChild(a, b) => {
-        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::NthLastChild { a: *a, b: *b }))
-      }
-      Component::NthCol(a, b) => {
-        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::NthCol { a: *a, b: *b }))
-      }
-      Component::NthLastCol(a, b) => {
-        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::NthLastCol { a: *a, b: *b }))
-      }
-      Component::NthOfType(a, b) => {
-        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::NthOfType { a: *a, b: *b }))
-      }
-      Component::NthLastOfType(a, b) => {
-        SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::NthLastOfType { a: *a, b: *b }))
-      }
+      Component::Nth(nth) => serialize_nth(nth, None),
+      Component::NthOf(nth) => serialize_nth(nth.nth_data(), Some(nth.clone_selectors())),
       Component::Host(s) => {
         SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::Host { selectors: s.clone() }))
       }
@@ -418,6 +400,53 @@ where
     };
 
     c.serialize(serializer)
+  }
+}
+
+fn serialize_nth<'i, 's, Impl: SelectorImpl<'s>>(
+  nth: &NthSelectorData,
+  of: Option<Box<[Selector<'s, Impl>]>>,
+) -> SerializedComponent<'i, 's, Impl, &'s Impl::NonTSPseudoClass, &'s Impl::PseudoElement, Impl::VendorPrefix> {
+  match nth.ty {
+    NthType::Child if nth.is_function => {
+      SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::NthChild {
+        a: nth.a,
+        b: nth.b,
+        of,
+      }))
+    }
+    NthType::Child => SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::FirstChild)),
+    NthType::LastChild if nth.is_function => {
+      SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::NthLastChild {
+        a: nth.a,
+        b: nth.b,
+        of,
+      }))
+    }
+    NthType::LastChild => SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::LastChild)),
+    NthType::OfType if nth.is_function => {
+      SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::NthOfType {
+        a: nth.a,
+        b: nth.b,
+      }))
+    }
+    NthType::OfType => SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::FirstOfType)),
+    NthType::LastOfType if nth.is_function => {
+      SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::NthLastOfType {
+        a: nth.a,
+        b: nth.b,
+      }))
+    }
+    NthType::LastOfType => SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::LastOfType)),
+    NthType::OnlyChild => SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::OnlyChild)),
+    NthType::OnlyOfType => SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::OnlyOfType)),
+    NthType::Col => {
+      SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::NthCol { a: nth.a, b: nth.b }))
+    }
+    NthType::LastCol => SerializedComponent::PseudoClass(SerializedPseudoClass::TS(TSPseudoClass::NthLastCol {
+      a: nth.a,
+      b: nth.b,
+    })),
   }
 }
 
@@ -507,21 +536,50 @@ where
       SerializedComponent::PseudoClass(c) => match c {
         SerializedPseudoClass::NonTS(c) => Component::NonTSPseudoClass(c),
         SerializedPseudoClass::TS(TSPseudoClass::Not { selectors }) => Component::Negation(selectors),
-        SerializedPseudoClass::TS(TSPseudoClass::FirstChild) => Component::FirstChild,
-        SerializedPseudoClass::TS(TSPseudoClass::LastChild) => Component::LastChild,
-        SerializedPseudoClass::TS(TSPseudoClass::OnlyChild) => Component::OnlyChild,
+        SerializedPseudoClass::TS(TSPseudoClass::FirstChild) => Component::Nth(NthSelectorData::first(false)),
+        SerializedPseudoClass::TS(TSPseudoClass::LastChild) => Component::Nth(NthSelectorData::last(false)),
+        SerializedPseudoClass::TS(TSPseudoClass::OnlyChild) => Component::Nth(NthSelectorData::only(false)),
         SerializedPseudoClass::TS(TSPseudoClass::Root) => Component::Root,
         SerializedPseudoClass::TS(TSPseudoClass::Empty) => Component::Empty,
         SerializedPseudoClass::TS(TSPseudoClass::Scope) => Component::Scope,
-        SerializedPseudoClass::TS(TSPseudoClass::FirstOfType) => Component::FirstOfType,
-        SerializedPseudoClass::TS(TSPseudoClass::LastOfType) => Component::LastOfType,
-        SerializedPseudoClass::TS(TSPseudoClass::OnlyOfType) => Component::OnlyOfType,
-        SerializedPseudoClass::TS(TSPseudoClass::NthChild { a, b }) => Component::NthChild(a, b),
-        SerializedPseudoClass::TS(TSPseudoClass::NthLastChild { a, b }) => Component::NthLastChild(a, b),
-        SerializedPseudoClass::TS(TSPseudoClass::NthCol { a, b }) => Component::NthCol(a, b),
-        SerializedPseudoClass::TS(TSPseudoClass::NthLastCol { a, b }) => Component::NthLastCol(a, b),
-        SerializedPseudoClass::TS(TSPseudoClass::NthOfType { a, b }) => Component::NthOfType(a, b),
-        SerializedPseudoClass::TS(TSPseudoClass::NthLastOfType { a, b }) => Component::NthLastOfType(a, b),
+        SerializedPseudoClass::TS(TSPseudoClass::FirstOfType) => Component::Nth(NthSelectorData::first(true)),
+        SerializedPseudoClass::TS(TSPseudoClass::LastOfType) => Component::Nth(NthSelectorData::last(true)),
+        SerializedPseudoClass::TS(TSPseudoClass::OnlyOfType) => Component::Nth(NthSelectorData::only(true)),
+        SerializedPseudoClass::TS(
+          ref c @ TSPseudoClass::NthChild { a, b, ref of } | ref c @ TSPseudoClass::NthLastChild { a, b, ref of },
+        ) => {
+          let data = NthSelectorData {
+            ty: match c {
+              TSPseudoClass::NthChild { .. } => NthType::Child,
+              TSPseudoClass::NthLastChild { .. } => NthType::LastChild,
+              _ => unreachable!(),
+            },
+            is_function: true,
+            a,
+            b,
+          };
+          match of {
+            Some(of) => Component::NthOf(NthOfSelectorData::new(data, of.clone())),
+            None => Component::Nth(data),
+          }
+        }
+        SerializedPseudoClass::TS(
+          ref c @ TSPseudoClass::NthCol { a, b }
+          | ref c @ TSPseudoClass::NthLastCol { a, b }
+          | ref c @ TSPseudoClass::NthOfType { a, b }
+          | ref c @ TSPseudoClass::NthLastOfType { a, b },
+        ) => Component::Nth(NthSelectorData {
+          ty: match c {
+            TSPseudoClass::NthCol { .. } => NthType::Col,
+            TSPseudoClass::NthLastCol { .. } => NthType::LastCol,
+            TSPseudoClass::NthOfType { .. } => NthType::OfType,
+            TSPseudoClass::NthLastOfType { .. } => NthType::LastOfType,
+            _ => unreachable!(),
+          },
+          is_function: true,
+          a,
+          b,
+        }),
         SerializedPseudoClass::TS(TSPseudoClass::Host { selectors }) => Component::Host(selectors),
         SerializedPseudoClass::TS(TSPseudoClass::Where { selectors }) => Component::Where(selectors),
         SerializedPseudoClass::TS(TSPseudoClass::Is { selectors }) => Component::Is(selectors),

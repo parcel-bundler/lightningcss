@@ -31,10 +31,10 @@ const MDN_BROWSER_MAPPING = {
 };
 
 const latestBrowserVersions = {};
-for(let b in browsers) {
+for (let b in browsers) {
   let versions = browsers[b].versions.slice(10);
-  for(let i = versions.length - 1; i >= 0; i--) {
-    if(versions[i] != null && versions[i] != "all" && versions[i] != "TP") {
+  for (let i = versions.length - 1; i >= 0; i--) {
+    if (versions[i] != null && versions[i] != "all" && versions[i] != "TP") {
       latestBrowserVersions[b] = versions[i];
       break;
     }
@@ -251,18 +251,19 @@ let mdnFeatures = {
         if (Array.isArray(value)) {
           value = value
             .filter(v => v.alternative_name?.includes('-any'))
-            .map(({alternative_name, ...other}) => other);
+            .map(({ alternative_name, ...other }) => other);
         }
 
         if (value && value.length) {
           return [key, value];
         } else {
-          return [key, {version_added: false}];
+          return [key, { version_added: false }];
         }
       })
   ),
   imageSet: mdn.css.types.image['image-set'].__compat.support,
-  xResolutionUnit: mdn.css.types.resolution.x.__compat.support
+  xResolutionUnit: mdn.css.types.resolution.x.__compat.support,
+  nthChildOf: mdn.css.selectors['nth-child'].of_syntax.__compat.support,
 };
 
 for (let feature in mdnFeatures) {
@@ -275,7 +276,7 @@ for (let feature in mdnFeatures) {
     let feat = mdnFeatures[feature][name];
     let version;
     if (Array.isArray(feat)) {
-      version = feat.find(x => x.version_added && !x.alternative_name).version_added;
+      version = feat.filter(x => x.version_added && !x.alternative_name).sort((a, b) => parseVersion(a.version_added) < parseVersion(b.version_added) ? -1 : 1)[0].version_added;
     } else {
       version = feat.version_added;
     }
@@ -350,30 +351,30 @@ impl Feature {
     let mut prefixes = VendorPrefix::None;
     match self {
       ${[...p].map(([features, versions]) => {
-        return `${features.map(name => `Feature::${enumify(name)}`).join(' |\n      ')} => {
+  return `${features.map(name => `Feature::${enumify(name)}`).join(' |\n      ')} => {
         ${Object.entries(versions).map(([name, prefixes]) => {
-          return `if let Some(version) = browsers.${name} {
+    return `if let Some(version) = browsers.${name} {
           ${Object.entries(prefixes).map(([prefix, [min, max]]) => {
-            if (!prefixMapping[prefix]) {
-              throw new Error('Missing prefix ' + prefix);
-            }
-            let condition;
-            if (max == null) {
-              condition = `version >= ${min}`; 
-            } else if (min == max) {
-              condition = `version == ${min}`;
-            } else {
-              condition = `version >= ${min} && version <= ${max}`;
-            }
+      if (!prefixMapping[prefix]) {
+        throw new Error('Missing prefix ' + prefix);
+      }
+      let condition;
+      if (max == null) {
+        condition = `version >= ${min}`;
+      } else if (min == max) {
+        condition = `version == ${min}`;
+      } else {
+        condition = `version >= ${min} && version <= ${max}`;
+      }
 
-              return `if ${condition} {
+      return `if ${condition} {
             prefixes |= VendorPrefix::${prefixMapping[prefix]};
           }`
-          }).join('\n          ')}
+    }).join('\n          ')}
         }`;
-        }).join('\n        ')}
+  }).join('\n        ')}
       }`
-      }).join(',\n      ')}
+}).join(',\n      ')}
     }
     prefixes
   }
@@ -381,23 +382,23 @@ impl Feature {
 
 pub fn is_flex_2009(browsers: Browsers) -> bool {
   ${Object.entries(flexSpec).map(([name, [min, max]]) => {
-    return `if let Some(version) = browsers.${name} {
+  return `if let Some(version) = browsers.${name} {
     if version >= ${min} && version <= ${max} {
       return true;
     }
   }`;
-  }).join('\n  ')}
+}).join('\n  ')}
   false
 }
 
 pub fn is_webkit_gradient(browsers: Browsers) -> bool {
   ${Object.entries(oldGradient).map(([name, [min, max]]) => {
-    return `if let Some(version) = browsers.${name} {
+  return `if let Some(version) = browsers.${name} {
     if version >= ${min} && version <= ${max} {
       return true;
     }
   }`;
-  }).join('\n  ')}
+}).join('\n  ')}
   false
 }
 `;
@@ -418,9 +419,9 @@ impl Feature {
   pub fn is_compatible(&self, browsers: Browsers) -> bool {
     match self {
       ${[...compat].map(([features, supportedBrowsers]) =>
-        `${features.map(name => `Feature::${enumify(name)}`).join(' |\n      ')} => {` + (Object.entries(supportedBrowsers).length === 0 ? '\n        return false\n      }' : `
+  `${features.map(name => `Feature::${enumify(name)}`).join(' |\n      ')} => {` + (Object.entries(supportedBrowsers).length === 0 ? '\n        return false\n      }' : `
         ${Object.entries(supportedBrowsers).map(([browser, min]) =>
-            `if let Some(version) = browsers.${browser} {
+    `if let Some(version) = browsers.${browser} {
           if version < ${min} {
             return false
           }
@@ -428,7 +429,7 @@ impl Feature {
           return false
         }`}
       }`
-      )).join('\n      ')}
+  )).join('\n      ')}
     }
     true
   }

@@ -6125,11 +6125,13 @@ export type TSPseudoClass =
       a: number;
       b: number;
       kind: "nth-child";
+      of?: Selector[] | null;
     }
   | {
       a: number;
       b: number;
       kind: "nth-last-child";
+      of?: Selector[] | null;
     }
   | {
       a: number;
@@ -6444,13 +6446,13 @@ export type PseudoElement =
        */
       selector: Selector;
     }
-      | {
-          kind: "cue-region-function";
+  | {
+      kind: "cue-region-function";
       /**
        * The selector argument.
        */
       selector: Selector;
-        }
+    }
   | {
       kind: "custom";
       /**

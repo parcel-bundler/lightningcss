@@ -45,7 +45,7 @@
     "@codemirror/lang-javascript": "^6.1.2",
     "@codemirror/lint": "^6.1.0",
     "@codemirror/theme-one-dark": "^6.1.0",
-    "@mdn/browser-compat-data": "^5.2.35",
+    "@mdn/browser-compat-data": "^5.2.49",
     "@napi-rs/cli": "^2.14.0",
     "autoprefixer": "^10.4.13",
     "codemirror": "^6.0.1",
