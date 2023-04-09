@@ -2787,7 +2787,7 @@ where
   let mut min = 0.0;
   let mut max = current.c;
 
-  while min < max {
+  while (max - min) > EPSILON {
     let chroma = (min + max) / 2.0;
     current.c = chroma;
 

@@ -15916,6 +15916,23 @@ mod tests {
       ".foo { --color: color-mix(in lch, teal 65%, olive); }",
       ".foo{--color:lch(49.4431% 40.4806 162.546)}",
     );
+    minify_test(
+      ".foo { color: color-mix(in xyz, transparent, green 65%); }",
+      ".foo{color:color(xyz .0771883 .154377 .0257295/.65)}",
+    );
+    prefix_test(
+      ".foo { color: color-mix(in xyz, transparent, green 65%); }",
+      indoc! { r#"
+      .foo {
+        color: #008000a6;
+        color: color(xyz .0771883 .154377 .0257295 / .65);
+      }
+      "# },
+      Browsers {
+        chrome: Some(95 << 16),
+        ..Default::default()
+      },
+    );
 
     // regex for converting web platform tests:
     // test_computed_value\(.*?, `(.*?)`, `(.*?)`\);
