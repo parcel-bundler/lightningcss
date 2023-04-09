@@ -3,6 +3,8 @@ import type { Targets } from './targets';
 
 export * from './ast';
 
+export { Targets };
+
 export interface TransformOptions<C extends CustomAtRules> {
   /** The filename being transformed. Used for error messages and source maps. */
   filename: string,
