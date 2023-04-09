@@ -1,5 +1,6 @@
 //! Style rules.
 
+use std::hash::{Hash, Hasher};
 use std::ops::Range;
 
 use super::Location;
@@ -83,7 +84,9 @@ impl<'i, T> StyleRule<'i, T> {
 
     Ok(false)
   }
+}
 
+impl<'i, T> StyleRule<'i, T> {
   /// Returns whether the rule is empty.
   pub fn is_empty(&self) -> bool {
     self.declarations.is_empty() && self.rules.0.is_empty()
@@ -122,6 +125,31 @@ impl<'i, T> StyleRule<'i, T> {
         loc
       })
     })
+  }
+
+  /// Returns a hash of this rule for use when deduplicating.
+  /// Includes the selectors and properties.
+  #[inline]
+  pub(crate) fn hash_key(&self) -> u64 {
+    let mut hasher = ahash::AHasher::default();
+    self.selectors.hash(&mut hasher);
+    for (property, _) in self.declarations.iter() {
+      property.property_id().hash(&mut hasher);
+    }
+    hasher.finish()
+  }
+
+  /// Returns whether this rule is a duplicate of another rule.
+  /// This means it has the same selectors and properties.
+  #[inline]
+  pub(crate) fn is_duplicate(&self, other_rule: &StyleRule<'i, T>) -> bool {
+    self.declarations.len() == other_rule.declarations.len()
+      && self.selectors == other_rule.selectors
+      && self
+        .declarations
+        .iter()
+        .zip(other_rule.declarations.iter())
+        .all(|((a, _), (b, _))| a.property_id() == b.property_id())
   }
 }
 

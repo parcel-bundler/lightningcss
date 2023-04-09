@@ -245,13 +245,13 @@ macro_rules! with_bounds {
 
 #[cfg(feature = "serde")]
 with_bounds! {
-    [Clone + PartialEq]
+    [Clone + PartialEq + Eq + std::hash::Hash]
     [From<CowRcStr<'i>> + From<std::borrow::Cow<'i, str>> + AsRef<str>]
 }
 
 #[cfg(not(feature = "serde"))]
 with_bounds! {
-    [Clone + PartialEq]
+    [Clone + PartialEq + Eq + std::hash::Hash]
     [From<CowRcStr<'i>>]
 }
 
@@ -342,7 +342,7 @@ pub trait Parser<'i> {
   }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -676,7 +676,7 @@ pub fn namespace_empty_string<'i, Impl: SelectorImpl<'i>>() -> Impl::NamespaceUr
 ///
 /// This reordering doesn't change the semantics of selector matching, and we
 /// handle it in to_css to make it invisible to serialization.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Selector<'i, Impl: SelectorImpl<'i>>(SpecificityAndFlags, Vec<Component<'i, Impl>>);
 
 impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
@@ -1093,7 +1093,7 @@ impl<'a, 'i, Impl: SelectorImpl<'i>> Iterator for AncestorIter<'a, 'i, Impl> {
   }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -1152,7 +1152,7 @@ impl Combinator {
 }
 
 /// An enum for the different types of :nth- pseudoclasses
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub enum NthType {
   Child,
   LastChild,
@@ -1185,7 +1185,7 @@ impl NthType {
 /// The properties that comprise an :nth- pseudoclass as of Selectors 3 (e.g.,
 /// nth-child(An+B)).
 /// https://www.w3.org/TR/selectors-3/#nth-child-pseudo
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub struct NthSelectorData {
   pub ty: NthType,
   pub is_function: bool,
@@ -1283,7 +1283,7 @@ impl NthSelectorData {
 /// The properties that comprise an :nth- pseudoclass as of Selectors 4 (e.g.,
 /// nth-child(An+B [of S]?)).
 /// https://www.w3.org/TR/selectors-4/#nth-child-pseudo
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct NthOfSelectorData<'i, Impl: SelectorImpl<'i>>(NthSelectorData, Box<[Selector<'i, Impl>]>);
 
 impl<'i, Impl: SelectorImpl<'i>> NthOfSelectorData<'i, Impl> {
@@ -1314,7 +1314,7 @@ impl<'i, Impl: SelectorImpl<'i>> NthOfSelectorData<'i, Impl> {
 /// optimal packing and cache performance, see [1].
 ///
 /// [1] https://bugzilla.mozilla.org/show_bug.cgi?id=1357973
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Component<'i, Impl: SelectorImpl<'i>> {
   Combinator(Combinator),
 
@@ -1546,7 +1546,7 @@ impl<'i, Impl: SelectorImpl<'i>> Component<'i, Impl> {
   }
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 pub struct LocalName<'i, Impl: SelectorImpl<'i>> {
   pub name: Impl::LocalName,
   pub lower_name: Impl::LocalName,
@@ -2941,14 +2941,14 @@ pub mod tests {
   use std::collections::HashMap;
   use std::fmt;
 
-  #[derive(Clone, Debug, Eq, PartialEq)]
+  #[derive(Clone, Debug, Eq, PartialEq, Hash)]
   pub enum PseudoClass {
     Hover,
     Active,
     Lang(String),
   }
 
-  #[derive(Clone, Debug, Eq, PartialEq)]
+  #[derive(Clone, Debug, Eq, PartialEq, Hash)]
   pub enum PseudoElement {
     Before,
     After,

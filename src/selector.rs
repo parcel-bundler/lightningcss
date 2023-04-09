@@ -27,7 +27,7 @@ use std::fmt;
 use crate::serialization::*;
 
 mod private {
-  #[derive(Debug, Clone, PartialEq, Eq)]
+  #[derive(Debug, Clone, PartialEq, Eq, Hash)]
   #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
   pub struct Selectors;
 }
@@ -313,7 +313,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
 
 enum_property! {
   /// The [:dir()](https://drafts.csswg.org/selectors-4/#the-dir-pseudo) pseudo class.
-  #[derive(Eq)]
+  #[derive(Eq, Hash)]
   pub enum Direction {
     /// Left to right
     Ltr,
@@ -323,7 +323,7 @@ enum_property! {
 }
 
 /// A pseudo class.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -479,7 +479,7 @@ pub enum PseudoClass<'i> {
 }
 
 /// A [webkit scrollbar](https://webkit.org/blog/363/styling-scrollbars/) pseudo class.
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -769,7 +769,7 @@ impl<'i> PseudoClass<'i> {
 }
 
 /// A pseudo element.
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),

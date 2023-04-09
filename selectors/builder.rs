@@ -196,7 +196,7 @@ bitflags! {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub struct SpecificityAndFlags {
   /// There are two free bits here, since we use ten bits for each specificity
   /// kind (id, class, element).

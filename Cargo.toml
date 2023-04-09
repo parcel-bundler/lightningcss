@@ -56,6 +56,7 @@ data-encoding = "2.3.2"
 lazy_static = "1.4.0"
 const-str = "0.3.1"
 pathdiff = "0.2.1"
+ahash = "0.7.6"
 # CLI deps
 atty = { version = "0.2", optional = true }
 clap = { version = "3.0.6", features = ["derive"], optional = true }

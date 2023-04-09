@@ -59,7 +59,7 @@ impl<'i> CustomProperty<'i> {
 }
 
 /// A CSS custom property name.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize), serde(untagged))]
@@ -201,7 +201,7 @@ impl<'i> UnparsedProperty<'i> {
 }
 
 /// A raw list of CSS tokens, with embedded parsed values.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "visitor", derive(Visit), visit(visit_token_list, TOKENS))]
 #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
@@ -256,6 +256,25 @@ impl<'i> TokenOrValue<'i> {
   /// Returns whether the token is whitespace.
   pub fn is_whitespace(&self) -> bool {
     matches!(self, TokenOrValue::Token(Token::WhiteSpace(_)))
+  }
+}
+
+impl<'a> Eq for TokenOrValue<'a> {}
+
+impl<'a> std::hash::Hash for TokenOrValue<'a> {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    let tag = std::mem::discriminant(self);
+    tag.hash(state);
+    match self {
+      TokenOrValue::Token(t) => t.hash(state),
+      _ => {
+        // This function is primarily used to deduplicate selectors.
+        // Values inside selectors should be exceedingly rare and implementing
+        // Hash for them is somewhat complex due to floating point values.
+        // For now, we just ignore them, which only means there are more
+        // hash collisions. For such a rare case this is probably fine.
+      }
+    }
   }
 }
 
@@ -910,6 +929,90 @@ impl<'a> ToCss for Token<'a> {
 
     Ok(())
   }
+}
+
+impl<'a> Eq for Token<'a> {}
+
+impl<'a> std::hash::Hash for Token<'a> {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    let tag = std::mem::discriminant(self);
+    tag.hash(state);
+    match self {
+      Token::Ident(x) => x.hash(state),
+      Token::AtKeyword(x) => x.hash(state),
+      Token::Hash(x) => x.hash(state),
+      Token::IDHash(x) => x.hash(state),
+      Token::String(x) => x.hash(state),
+      Token::UnquotedUrl(x) => x.hash(state),
+      Token::Function(x) => x.hash(state),
+      Token::BadUrl(x) => x.hash(state),
+      Token::BadString(x) => x.hash(state),
+      Token::Delim(x) => x.hash(state),
+      Token::Number {
+        has_sign,
+        value,
+        int_value,
+      } => {
+        has_sign.hash(state);
+        integer_decode(*value).hash(state);
+        int_value.hash(state);
+      }
+      Token::Dimension {
+        has_sign,
+        value,
+        int_value,
+        unit,
+      } => {
+        has_sign.hash(state);
+        integer_decode(*value).hash(state);
+        int_value.hash(state);
+        unit.hash(state);
+      }
+      Token::Percentage {
+        has_sign,
+        unit_value,
+        int_value,
+      } => {
+        has_sign.hash(state);
+        integer_decode(*unit_value).hash(state);
+        int_value.hash(state);
+      }
+      Token::WhiteSpace(w) => w.hash(state),
+      Token::Comment(c) => c.hash(state),
+      Token::Colon
+      | Token::Semicolon
+      | Token::Comma
+      | Token::IncludeMatch
+      | Token::DashMatch
+      | Token::PrefixMatch
+      | Token::SuffixMatch
+      | Token::SubstringMatch
+      | Token::CDO
+      | Token::CDC
+      | Token::ParenthesisBlock
+      | Token::SquareBracketBlock
+      | Token::CurlyBracketBlock
+      | Token::CloseParenthesis
+      | Token::CloseSquareBracket
+      | Token::CloseCurlyBracket => {}
+    }
+  }
+}
+
+/// Converts a floating point value into its mantissa, exponent,
+/// and sign components so that it can be hashed.
+fn integer_decode(v: f32) -> (u32, i16, i8) {
+  let bits: u32 = unsafe { std::mem::transmute(v) };
+  let sign: i8 = if bits >> 31 == 0 { 1 } else { -1 };
+  let mut exponent: i16 = ((bits >> 23) & 0xff) as i16;
+  let mantissa = if exponent == 0 {
+    (bits & 0x7fffff) << 1
+  } else {
+    (bits & 0x7fffff) | 0x800000
+  };
+  // Exponent bias + mantissa shift
+  exponent -= 127 + 23;
+  (mantissa, exponent, sign)
 }
 
 impl<'i> TokenList<'i> {

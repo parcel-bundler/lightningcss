@@ -176,7 +176,7 @@ macro_rules! define_properties {
     )+
   ) => {
     /// A CSS property id.
-    #[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Clone, PartialEq, Eq, Hash)]
     #[cfg_attr(feature = "visitor", derive(Visit))]
     #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
     pub enum PropertyId<'i> {

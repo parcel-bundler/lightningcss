@@ -780,6 +780,7 @@ dependencies = [
 name = "lightningcss"
 version = "1.0.0-alpha.40"
 dependencies = [
+ "ahash",
  "assert_cmd",
  "assert_fs",
  "atty",

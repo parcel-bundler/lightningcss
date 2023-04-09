@@ -89,6 +89,7 @@ use namespace::NamespaceRule;
 use nesting::NestingRule;
 use page::PageRule;
 use std::collections::{HashMap, HashSet};
+use std::hash::{BuildHasherDefault, Hasher};
 use style::StyleRule;
 use supports::SupportsRule;
 use unknown::UnknownAtRule;
@@ -477,6 +478,8 @@ impl<'i, T> CssRuleList<'i, T> {
   ) -> Result<(), MinifyError> {
     let mut keyframe_rules = HashMap::new();
     let mut layer_rules = HashMap::new();
+    let mut style_rules =
+      HashMap::with_capacity_and_hasher(self.0.len(), BuildHasherDefault::<PrecomputedHasher>::default());
     let mut rules = Vec::new();
     for mut rule in self.0.drain(..) {
       match &mut rule {
@@ -624,7 +627,31 @@ impl<'i, T> CssRuleList<'i, T> {
           let supports = context.handler_context.get_supports_rules(&style);
           let logical = context.handler_context.get_logical_rules(&style);
           if !merged && !style.is_empty() {
+            let source_index = style.loc.source_index;
+            let has_no_rules = style.rules.0.is_empty();
+            let idx = rules.len();
             rules.push(rule);
+
+            // Check if this rule is a duplicate of an earlier rule, meaning it has
+            // the same selectors and defines the same properties. If so, remove the
+            // earlier rule because this one completely overrides it.
+            if has_no_rules {
+              // SAFETY: StyleRuleKeys never live beyond this method.
+              let key = StyleRuleKey::new(unsafe { &*(&rules as *const _) }, idx);
+              if idx > 0 {
+                if let Some(i) = style_rules.remove(&key) {
+                  if let CssRule::Style(other) = &rules[0] {
+                    // Don't remove the rule if this is a CSS module and the other rule came from a different file.
+                    if !context.css_modules || source_index == other.loc.source_index {
+                      // Only mark the rule as ignored so we don't need to change all of the indices.
+                      rules[i] = CssRule::Ignored;
+                    }
+                  }
+                }
+              }
+
+              style_rules.insert(key, idx);
+            }
           }
 
           if !logical.is_empty() {
@@ -796,5 +823,78 @@ impl<'i, T> std::ops::Index<usize> for CssRuleList<'i, T> {
 impl<'i, T> std::ops::IndexMut<usize> for CssRuleList<'i, T> {
   fn index_mut(&mut self, index: usize) -> &mut Self::Output {
     &mut self.0[index]
+  }
+}
+
+/// A hasher that expects to be called with a single u64, which is already a hash.
+#[derive(Default)]
+struct PrecomputedHasher {
+  hash: Option<u64>,
+}
+
+impl Hasher for PrecomputedHasher {
+  #[inline]
+  fn write(&mut self, _: &[u8]) {
+    unreachable!()
+  }
+
+  #[inline]
+  fn write_u64(&mut self, i: u64) {
+    debug_assert!(self.hash.is_none());
+    self.hash = Some(i);
+  }
+
+  #[inline]
+  fn finish(&self) -> u64 {
+    self.hash.unwrap()
+  }
+}
+
+/// A key to a StyleRule meant for use in a HashMap for quickly detecting duplicates.
+/// It stores a reference to a list and an index so it can access items without cloning
+/// even when the list is reallocated. A hash is also pre-computed for fast lookups.
+#[derive(Clone)]
+pub(crate) struct StyleRuleKey<'a, 'i, R> {
+  list: &'a Vec<CssRule<'i, R>>,
+  index: usize,
+  hash: u64,
+}
+
+impl<'a, 'i, R> StyleRuleKey<'a, 'i, R> {
+  fn new(list: &'a Vec<CssRule<'i, R>>, index: usize) -> Self {
+    let rule = match &list[index] {
+      CssRule::Style(style) => style,
+      _ => unreachable!(),
+    };
+
+    Self {
+      list,
+      index,
+      hash: rule.hash_key(),
+    }
+  }
+}
+
+impl<'a, 'i, R> PartialEq for StyleRuleKey<'a, 'i, R> {
+  fn eq(&self, other: &Self) -> bool {
+    let rule = match self.list.get(self.index) {
+      Some(CssRule::Style(style)) => style,
+      _ => return false,
+    };
+
+    let other_rule = match other.list.get(other.index) {
+      Some(CssRule::Style(style)) => style,
+      _ => return false,
+    };
+
+    rule.is_duplicate(other_rule)
+  }
+}
+
+impl<'a, 'i, R> Eq for StyleRuleKey<'a, 'i, R> {}
+
+impl<'a, 'i, R> std::hash::Hash for StyleRuleKey<'a, 'i, R> {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    state.write_u64(self.hash);
   }
 }
