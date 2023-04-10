@@ -226,7 +226,19 @@ let mdnFeatures = {
   placeItems: mdn.css.properties['place-items'].__compat.support,
   overflowShorthand: mdn.css.properties['overflow'].multiple_keywords.__compat.support,
   mediaRangeSyntax: mdn.css['at-rules'].media.range_syntax.__compat.support,
-  mediaIntervalSyntax: {}, // currently no browsers
+  mediaIntervalSyntax: Object.fromEntries(
+    Object.entries(mdn.css['at-rules'].media.range_syntax.__compat.support)
+      .map(([browser, value]) => {
+        // Firefox supported only ranges and not intervals for a while.
+        if (Array.isArray(value)) {
+          value = value.filter(v => !v.partial_implementation)
+        } else if (value.partial_implementation) {
+          value = undefined;
+        }
+
+        return [browser, value];
+      })
+  ),
   logicalBorders: mdn.css.properties['border-inline-start'].__compat.support,
   logicalBorderShorthand: mdn.css.properties['border-inline'].__compat.support,
   logicalBorderRadius: mdn.css.properties['border-start-start-radius'].__compat.support,
@@ -238,7 +250,7 @@ let mdnFeatures = {
   logicalSize: mdn.css.properties['inline-size'].__compat.support,
   logicalTextAlign: mdn.css.properties['text-align']['flow_relative_values_start_and_end'].__compat.support,
   labColors: mdn.css.types.color.lab.__compat.support,
-  oklabColors: {},
+  oklabColors: mdn.css.types.color.oklab.__compat.support,
   colorFunction: mdn.css.types.color.color.__compat.support,
   spaceSeparatedColorFunction: mdn.css.types.color.rgb.space_separated_parameters.__compat.support,
   textDecorationThicknessPercent: mdn.css.properties['text-decoration-thickness'].percentage.__compat.support,
@@ -276,8 +288,8 @@ for (let feature in mdnFeatures) {
     let feat = mdnFeatures[feature][name];
     let version;
     if (Array.isArray(feat)) {
-      version = feat.filter(x => x.version_added && !x.alternative_name).sort((a, b) => parseVersion(a.version_added) < parseVersion(b.version_added) ? -1 : 1)[0].version_added;
-    } else {
+      version = feat.filter(x => x.version_added && !x.alternative_name && !x.flags).sort((a, b) => parseVersion(a.version_added) < parseVersion(b.version_added) ? -1 : 1)[0].version_added;
+    } else if (!feat.alternative_name && !feat.flags) {
       version = feat.version_added;
     }
 

@@ -48,7 +48,7 @@
     "@codemirror/theme-one-dark": "^6.1.0",
     "@mdn/browser-compat-data": "^5.2.49",
     "@napi-rs/cli": "^2.14.0",
-    "autoprefixer": "^10.4.13",
+    "autoprefixer": "^10.4.14",
     "codemirror": "^6.0.1",
     "cssnano": "^5.0.8",
     "esbuild": "^0.13.10",
