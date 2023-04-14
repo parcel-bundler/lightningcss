@@ -639,7 +639,7 @@ impl Length {
     }
 
     match (a, b) {
-      (Length::Calc(a), Length::Calc(b)) => return Length::Calc(Box::new(a.add(*b))),
+      (Length::Calc(a), Length::Calc(b)) => return Length::Calc(Box::new(a.add(*b).unwrap())),
       (Length::Calc(calc), b) => {
         if let Calc::Value(a) = *calc {
           a.add(b)

@@ -14312,7 +14312,7 @@ mod tests {
     }
 
     test("lab(from indianred calc(l * .8) a b)", "lab(43.1402% 45.7516 23.1557)");
-    test("lch(from indianred calc(l + 10%) c h)", "lch(63.9252% 51.2776 26.8448)");
+    test("lch(from indianred calc(l + 10) c h)", "lch(63.9252% 51.2776 26.8448)");
     test("lch(from indianred l calc(c - 50) h)", "lch(53.9252% 1.27763 26.8448)");
     test(
       "lch(from indianred l c calc(h + 180deg))",
@@ -14328,12 +14328,23 @@ mod tests {
       "rgba(205, 92, 92, .7)",
     );
     test(
-      "rgb(from rgba(205, 92, 92, .5) r g b / calc(alpha + 20%))",
+      "rgb(from rgba(205, 92, 92, .5) r g b / calc(alpha + .2))",
       "rgba(205, 92, 92, .7)",
     );
     test("lch(from indianred l sin(c) h)", "lch(53.9252% .84797 26.8448)");
     test("lch(from indianred l sqrt(c) h)", "lch(53.9252% 7.16084 26.8448)");
-    test("lch(from indianred l c sin(h))", "lch(53.9252% 51.2776 .990043)");
+    test("lch(from indianred l c sin(h))", "lch(53.9252% 51.2776 .451575)");
+    test("lch(from indianred calc(10% + 20%) c h)", "lch(30% 51.2776 26.8448)");
+    test("lch(from indianred calc(10 + 20) c h)", "lch(30% 51.2776 26.8448)");
+    test("lch(from indianred l c calc(10 + 20))", "lch(53.9252% 51.2776 30)");
+    test(
+      "lch(from indianred l c calc(10deg + 20deg))",
+      "lch(53.9252% 51.2776 30)",
+    );
+    test(
+      "lch(from indianred l c calc(10deg + 0.35rad))",
+      "lch(53.9252% 51.2776 30.0535)",
+    );
 
     // The following tests were converted from WPT: https://github.com/web-platform-tests/wpt/blob/master/css/css-color/parsing/relative-color-valid.html
     // Find: test_valid_value\(`color`, `(.*?)`,\s*`(.*?)`\)
@@ -14443,21 +14454,15 @@ mod tests {
 
     // Testing permutation.
     test("rgb(from rebeccapurple g b r)", "rgb(51, 153, 102)");
-    test("rgb(from rebeccapurple b alpha r / g)", "rgba(153, 255, 102, 0.2)");
-    test("rgb(from rebeccapurple r r r / r)", "rgba(102, 102, 102, 0.4)");
-    test(
-      "rgb(from rebeccapurple alpha alpha alpha / alpha)",
-      "rgb(255, 255, 255)",
-    );
+    test("rgb(from rebeccapurple b alpha r / g)", "rgba(153, 1, 102, 1)");
+    test("rgb(from rebeccapurple r r r / r)", "rgba(102, 102, 102, 1)");
+    test("rgb(from rebeccapurple alpha alpha alpha / alpha)", "rgb(1, 1, 1)");
     test("rgb(from rgb(20%, 40%, 60%, 80%) g b r)", "rgb(102, 153, 51)");
-    test(
-      "rgb(from rgb(20%, 40%, 60%, 80%) b alpha r / g)",
-      "rgba(153, 204, 51, 0.4)",
-    );
-    test("rgb(from rgb(20%, 40%, 60%, 80%) r r r / r)", "rgba(51, 51, 51, 0.2)");
+    test("rgb(from rgb(20%, 40%, 60%, 80%) b alpha r / g)", "rgba(153, 1, 51, 1)");
+    test("rgb(from rgb(20%, 40%, 60%, 80%) r r r / r)", "rgba(51, 51, 51, 1)");
     test(
       "rgb(from rgb(20%, 40%, 60%, 80%) alpha alpha alpha / alpha)",
-      "rgba(204, 204, 204, 0.8)",
+      "rgba(1, 1, 1, 0.8)",
     );
 
     // Testing mixes of number and percentage. (These would not be allowed in the non-relative syntax).
@@ -15182,7 +15187,11 @@ mod tests {
       // NOTE: 'c' is a vaild hue, as hue is <angle>|<number>.
       test(
         &format!("{}(from {}(70% 45 30) alpha c h / l)", color_space, color_space),
-        &format!("{}(100% 45 30 / 0.7)", color_space),
+        &format!(
+          "{}(1 45 30 / {})",
+          color_space,
+          if *color_space == "lch" { "1" } else { ".7" }
+        ),
       );
       test(
         &format!("{}(from {}(70% 45 30) l c c / alpha)", color_space, color_space),
@@ -15190,15 +15199,19 @@ mod tests {
       );
       test(
         &format!("{}(from {}(70% 45 30) alpha c h / alpha)", color_space, color_space),
-        &format!("{}(100% 45 30)", color_space),
+        &format!("{}(1 45 30)", color_space),
       );
       test(
         &format!("{}(from {}(70% 45 30) alpha c c / alpha)", color_space, color_space),
-        &format!("{}(100% 45 45)", color_space),
+        &format!("{}(1 45 45)", color_space),
       );
       test(
         &format!("{}(from {}(70% 45 30 / 40%) alpha c h / l)", color_space, color_space),
-        &format!("{}(40% 45 30 / 0.7)", color_space),
+        &format!(
+          "{}(.4 45 30 / {})",
+          color_space,
+          if *color_space == "lch" { "1" } else { ".7" }
+        ),
       );
       test(
         &format!("{}(from {}(70% 45 30 / 40%) l c c / alpha)", color_space, color_space),
@@ -15209,14 +15222,14 @@ mod tests {
           "{}(from {}(70% 45 30 / 40%) alpha c h / alpha)",
           color_space, color_space
         ),
-        &format!("{}(40% 45 30 / 0.4)", color_space),
+        &format!("{}(.4 45 30 / 0.4)", color_space),
       );
       test(
         &format!(
           "{}(from {}(70% 45 30 / 40%) alpha c c / alpha)",
           color_space, color_space
         ),
-        &format!("{}(40% 45 45 / 0.4)", color_space),
+        &format!("{}(.4 45 45 / 0.4)", color_space),
       );
 
       // Testing with calc().
@@ -16084,7 +16097,7 @@ mod tests {
       );
       minify_test(
         ".foo{color:hsl(from rebeccapurple alpha alpha alpha / alpha)}",
-        ".foo{color:hsl(from rebeccapurple alpha alpha alpha/alpha)}",
+        ".foo{color:#fff}",
       );
     }
   }
