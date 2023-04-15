@@ -123,7 +123,7 @@ export type MediaFeature =
       /**
        * The name of the feature.
        */
-      name: String;
+      name: MediaFeatureName;
       type: "plain";
       /**
        * The feature value.
@@ -134,14 +134,14 @@ export type MediaFeature =
       /**
        * The name of the feature.
        */
-      name: String;
+      name: MediaFeatureName;
       type: "boolean";
     }
   | {
       /**
        * The name of the feature.
        */
-      name: String;
+      name: MediaFeatureName;
       /**
        * A comparator.
        */
@@ -164,7 +164,7 @@ export type MediaFeature =
       /**
        * The name of the feature.
        */
-      name: String;
+      name: MediaFeatureName;
       /**
        * A start value.
        */
@@ -175,6 +175,51 @@ export type MediaFeature =
       startOperator: MediaFeatureComparison;
       type: "interval";
     };
+/**
+ * A media feature name.
+ */
+export type MediaFeatureName = MediaFeatureId | String | String;
+/**
+ * A media query feature identifier.
+ */
+export type MediaFeatureId =
+  | "width"
+  | "height"
+  | "aspect-ratio"
+  | "orientation"
+  | "overflow-block"
+  | "overflow-inline"
+  | "horizontal-viewport-segments"
+  | "vertical-viewport-segments"
+  | "display-mode"
+  | "resolution"
+  | "scan"
+  | "grid"
+  | "update"
+  | "environment-blending"
+  | "color"
+  | "color-index"
+  | "monochrome"
+  | "color-gamut"
+  | "dynamic-range"
+  | "inverted-colors"
+  | "pointer"
+  | "hover"
+  | "any-pointer"
+  | "any-hover"
+  | "nav-controls"
+  | "video-color-gamut"
+  | "video-dynamic-range"
+  | "scripting"
+  | "prefers-reduced-motion"
+  | "prefers-reduced-transparency"
+  | "prefers-contrast"
+  | "forced-colors"
+  | "prefers-color-scheme"
+  | "prefers-reduced-data"
+  | "device-width"
+  | "device-height"
+  | "device-aspect-ratio";
 export type String = string;
 /**
  * [media feature value](https://drafts.csswg.org/mediaqueries/#typedef-mf-value) within a media query.
@@ -189,6 +234,14 @@ export type MediaFeatureValue =
   | {
       type: "number";
       value: number;
+    }
+  | {
+      type: "integer";
+      value: number;
+    }
+  | {
+      type: "boolean";
+      value: boolean;
     }
   | {
       type: "resolution";

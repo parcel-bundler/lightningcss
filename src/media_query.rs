@@ -3,6 +3,7 @@
 use crate::compat::Feature;
 use crate::error::{ErrorWithLocation, MinifyError, MinifyErrorKind, ParserError, PrinterError};
 use crate::macros::enum_property;
+use crate::parser::starts_with_ignore_ascii_case;
 use crate::printer::Printer;
 use crate::properties::custom::EnvironmentVariable;
 use crate::rules::custom_media::CustomMediaRule;
@@ -10,8 +11,8 @@ use crate::rules::Location;
 use crate::stylesheet::ParserOptions;
 use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
-use crate::values::ident::Ident;
-use crate::values::number::CSSNumber;
+use crate::values::ident::{DashedIdent, Ident};
+use crate::values::number::{CSSInteger, CSSNumber};
 use crate::values::string::CowArcStr;
 use crate::values::{length::Length, ratio::Ratio, resolution::Resolution};
 #[cfg(feature = "visitor")]
@@ -543,7 +544,7 @@ pub(crate) fn parse_query_condition<'t, 'i, P: QueryCondition<'i>>(
   };
 
   if !flags.contains(QueryConditionFlags::ALLOW_OR) && operator == Operator::Or {
-    return Err(location.new_custom_error(ParserError::InvalidMediaQuery));
+    return Err(location.new_unexpected_token_error(Token::Ident("or".into())));
   }
 
   let mut conditions = vec![];
@@ -725,19 +726,19 @@ pub enum MediaFeature<'i> {
   Plain {
     /// The name of the feature.
     #[cfg_attr(feature = "serde", serde(borrow))]
-    name: Ident<'i>,
+    name: MediaFeatureName<'i>,
     /// The feature value.
     value: MediaFeatureValue<'i>,
   },
   /// A boolean feature, e.g. `(hover)`.
   Boolean {
     /// The name of the feature.
-    name: Ident<'i>,
+    name: MediaFeatureName<'i>,
   },
   /// A range, e.g. `(width > 240px)`.
   Range {
     /// The name of the feature.
-    name: Ident<'i>,
+    name: MediaFeatureName<'i>,
     /// A comparator.
     operator: MediaFeatureComparison,
     /// The feature value.
@@ -747,7 +748,7 @@ pub enum MediaFeature<'i> {
   #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
   Interval {
     /// The name of the feature.
-    name: Ident<'i>,
+    name: MediaFeatureName<'i>,
     /// A start value.
     start: MediaFeatureValue<'i>,
     /// A comparator for the start value.
@@ -761,17 +762,22 @@ pub enum MediaFeature<'i> {
 
 impl<'i> Parse<'i> for MediaFeature<'i> {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    if let Ok(res) = input.try_parse(Self::parse_name_first) {
-      return Ok(res);
+    match input.try_parse(Self::parse_name_first) {
+      Ok(res) => Ok(res),
+      Err(
+        err @ ParseError {
+          kind: ParseErrorKind::Custom(ParserError::InvalidMediaQuery),
+          ..
+        },
+      ) => Err(err),
+      _ => Self::parse_value_first(input),
     }
-
-    Self::parse_value_first(input)
   }
 }
 
 impl<'i> MediaFeature<'i> {
   fn parse_name_first<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let name = Ident::parse(input)?;
+    let (name, legacy_op) = MediaFeatureName::parse(input)?;
 
     let operator = input.try_parse(|input| consume_operation_or_colon(input, true));
     let operator = match operator {
@@ -779,9 +785,20 @@ impl<'i> MediaFeature<'i> {
       Ok(operator) => operator,
     };
 
-    let value = MediaFeatureValue::parse(input)?;
+    if operator.is_some() && legacy_op.is_some() {
+      return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
+    }
 
-    if let Some(operator) = operator {
+    let value = MediaFeatureValue::parse(input, name.value_type())?;
+    if !value.check_type(name.value_type()) {
+      return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
+    }
+
+    if let Some(operator) = operator.or(legacy_op) {
+      if !name.value_type().allows_ranges() {
+        return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
+      }
+
       Ok(MediaFeature::Range { name, operator, value })
     } else {
       Ok(MediaFeature::Plain { name, value })
@@ -789,9 +806,35 @@ impl<'i> MediaFeature<'i> {
   }
 
   fn parse_value_first<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let value = MediaFeatureValue::parse(input)?;
+    // We need to find the feature name first so we know the type.
+    let start = input.state();
+    let name = loop {
+      if let Ok((name, legacy_op)) = MediaFeatureName::parse(input) {
+        if legacy_op.is_some() {
+          return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
+        }
+        break name;
+      }
+      if input.is_exhausted() {
+        return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
+      }
+    };
+
+    input.reset(&start);
+
+    // Now we can parse the first value.
+    let value = MediaFeatureValue::parse(input, name.value_type())?;
     let operator = consume_operation_or_colon(input, false)?;
-    let name = Ident::parse(input)?;
+
+    // Skip over the feature name again.
+    {
+      let (feature_name, _) = MediaFeatureName::parse(input)?;
+      debug_assert_eq!(name, feature_name);
+    }
+
+    if !name.value_type().allows_ranges() || !value.check_type(name.value_type()) {
+      return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
+    }
 
     if let Ok(end_operator) = input.try_parse(|input| consume_operation_or_colon(input, false)) {
       let start_operator = operator.unwrap();
@@ -808,7 +851,12 @@ impl<'i> MediaFeature<'i> {
         | (MediaFeatureComparison::LessThanEqual, MediaFeatureComparison::LessThan) => {}
         _ => return Err(input.new_custom_error(ParserError::InvalidMediaQuery)),
       };
-      let end_value = MediaFeatureValue::parse(input)?;
+
+      let end_value = MediaFeatureValue::parse(input, name.value_type())?;
+      if !end_value.check_type(name.value_type()) {
+        return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
+      }
+
       Ok(MediaFeature::Interval {
         name,
         start: value,
@@ -885,10 +933,232 @@ impl<'i> ToCss for MediaFeature<'i> {
   }
 }
 
+/// A media feature name.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(untagged))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub enum MediaFeatureName<'i> {
+  /// A standard media query feature identifier.
+  Standard(MediaFeatureId),
+  /// A custom author-defined environment variable.
+  #[cfg_attr(feature = "serde", serde(borrow))]
+  Custom(DashedIdent<'i>),
+  /// An unknown environment variable.
+  Unknown(Ident<'i>),
+}
+
+impl<'i> MediaFeatureName<'i> {
+  /// Parses a media feature name.
+  pub fn parse<'t>(
+    input: &mut Parser<'i, 't>,
+  ) -> Result<(Self, Option<MediaFeatureComparison>), ParseError<'i, ParserError<'i>>> {
+    let ident = input.expect_ident()?;
+
+    if ident.starts_with("--") {
+      return Ok((MediaFeatureName::Custom(DashedIdent(ident.into())), None));
+    }
+
+    let mut name = ident.as_ref();
+    let comparator = if starts_with_ignore_ascii_case(&name, "min-") {
+      name = &name[4..];
+      Some(MediaFeatureComparison::GreaterThanEqual)
+    } else if starts_with_ignore_ascii_case(&name, "max-") {
+      name = &name[4..];
+      Some(MediaFeatureComparison::LessThanEqual)
+    } else {
+      None
+    };
+
+    if let Ok(standard) = MediaFeatureId::parse_string(&name) {
+      return Ok((MediaFeatureName::Standard(standard), comparator));
+    }
+
+    Ok((MediaFeatureName::Unknown(Ident(ident.into())), None))
+  }
+
+  fn value_type(&self) -> MediaFeatureType {
+    match self {
+      Self::Standard(standard) => standard.value_type(),
+      _ => MediaFeatureType::Unknown,
+    }
+  }
+}
+
+impl<'i> ToCss for MediaFeatureName<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      Self::Standard(v) => v.to_css(dest),
+      Self::Custom(v) => v.to_css(dest),
+      Self::Unknown(v) => v.to_css(dest),
+    }
+  }
+}
+
+/// The type of a media feature.
+#[derive(PartialEq)]
+pub enum MediaFeatureType {
+  /// A length value.
+  Length,
+  /// A number value.
+  Number,
+  /// An integer value.
+  Integer,
+  /// A boolean value, either 0 or 1.
+  Boolean,
+  /// A resolution.
+  Resolution,
+  /// A ratio.
+  Ratio,
+  /// An indentifier.
+  Ident,
+  /// An unknown type.
+  Unknown,
+}
+
+impl MediaFeatureType {
+  fn allows_ranges(&self) -> bool {
+    use MediaFeatureType::*;
+    match self {
+      Length => true,
+      Number => true,
+      Integer => true,
+      Boolean => false,
+      Resolution => true,
+      Ratio => true,
+      Ident => false,
+      Unknown => true,
+    }
+  }
+}
+
+macro_rules! define_media_features {
+  (
+    $(#[$outer:meta])*
+    $vis:vis enum $name:ident {
+      $(
+        $(#[$meta: meta])*
+        $str: literal: $id: ident = $ty: ident,
+      )+
+    }
+  ) => {
+    enum_property! {
+      $(#[$outer])*
+      $vis enum $name {
+        $(
+          $(#[$meta])*
+          $str: $id,
+        )+
+      }
+    }
+
+    impl $name {
+      /// Returns the expected value type for this media feature.
+      pub fn value_type(&self) -> MediaFeatureType {
+        match self {
+          $(
+            Self::$id => MediaFeatureType::$ty,
+          )+
+        }
+      }
+    }
+  }
+}
+
+define_media_features! {
+  /// A media query feature identifier.
+  pub enum MediaFeatureId {
+    /// The [width](https://w3c.github.io/csswg-drafts/mediaqueries-5/#width) media feature.
+    "width": Width = Length,
+    /// The [height](https://w3c.github.io/csswg-drafts/mediaqueries-5/#height) media feature.
+    "height": Height = Length,
+    /// The [aspect-ratio](https://w3c.github.io/csswg-drafts/mediaqueries-5/#aspect-ratio) media feature.
+    "aspect-ratio": AspectRatio = Ratio,
+    /// The [orientation](https://w3c.github.io/csswg-drafts/mediaqueries-5/#orientation) media feature.
+    "orientation": Orientation = Ident,
+    /// The [overflow-block](https://w3c.github.io/csswg-drafts/mediaqueries-5/#overflow-block) media feature.
+    "overflow-block": OverflowBlock = Ident,
+    /// The [overflow-inline](https://w3c.github.io/csswg-drafts/mediaqueries-5/#overflow-inline) media feature.
+    "overflow-inline": OverflowInline = Ident,
+    /// The [horizontal-viewport-segments](https://w3c.github.io/csswg-drafts/mediaqueries-5/#horizontal-viewport-segments) media feature.
+    "horizontal-viewport-segments": HorizontalViewportSegments = Integer,
+    /// The [vertical-viewport-segments](https://w3c.github.io/csswg-drafts/mediaqueries-5/#vertical-viewport-segments) media feature.
+    "vertical-viewport-segments": VertialViewportSegments = Integer,
+    /// The [display-mode](https://w3c.github.io/csswg-drafts/mediaqueries-5/#display-mode) media feature.
+    "display-mode": DisplayMode = Ident,
+    /// The [resolution](https://w3c.github.io/csswg-drafts/mediaqueries-5/#resolution) media feature.
+    "resolution": Resolution = Resolution, // | infinite??
+    /// The [scan](https://w3c.github.io/csswg-drafts/mediaqueries-5/#scan) media feature.
+    "scan": Scan = Ident,
+    /// The [grid](https://w3c.github.io/csswg-drafts/mediaqueries-5/#grid) media feature.
+    "grid": Grid = Boolean,
+    /// The [update](https://w3c.github.io/csswg-drafts/mediaqueries-5/#update) media feature.
+    "update": Update = Ident,
+    /// The [environment-blending](https://w3c.github.io/csswg-drafts/mediaqueries-5/#environment-blending) media feature.
+    "environment-blending": EnvironmentBlending = Ident,
+    /// The [color](https://w3c.github.io/csswg-drafts/mediaqueries-5/#color) media feature.
+    "color": Color = Integer,
+    /// The [color-index](https://w3c.github.io/csswg-drafts/mediaqueries-5/#color-index) media feature.
+    "color-index": ColorIndex = Integer,
+    /// The [monochrome](https://w3c.github.io/csswg-drafts/mediaqueries-5/#monochrome) media feature.
+    "monochrome": Monochrome = Integer,
+    /// The [color-gamut](https://w3c.github.io/csswg-drafts/mediaqueries-5/#color-gamut) media feature.
+    "color-gamut": ColorGamut = Ident,
+    /// The [dynamic-range](https://w3c.github.io/csswg-drafts/mediaqueries-5/#dynamic-range) media feature.
+    "dynamic-range": DynamicRange = Ident,
+    /// The [inverted-colors](https://w3c.github.io/csswg-drafts/mediaqueries-5/#inverted-colors) media feature.
+    "inverted-colors": InvertedColors = Ident,
+    /// The [pointer](https://w3c.github.io/csswg-drafts/mediaqueries-5/#pointer) media feature.
+    "pointer": Pointer = Ident,
+    /// The [hover](https://w3c.github.io/csswg-drafts/mediaqueries-5/#hover) media feature.
+    "hover": Hover = Ident,
+    /// The [any-pointer](https://w3c.github.io/csswg-drafts/mediaqueries-5/#any-pointer) media feature.
+    "any-pointer": AnyPointer = Ident,
+    /// The [any-hover](https://w3c.github.io/csswg-drafts/mediaqueries-5/#any-hover) media feature.
+    "any-hover": AnyHover = Ident,
+    /// The [nav-controls](https://w3c.github.io/csswg-drafts/mediaqueries-5/#nav-controls) media feature.
+    "nav-controls": NavControls = Ident,
+    /// The [video-color-gamut](https://w3c.github.io/csswg-drafts/mediaqueries-5/#video-color-gamut) media feature.
+    "video-color-gamut": VideoColorGamut = Ident,
+    /// The [video-dynamic-range](https://w3c.github.io/csswg-drafts/mediaqueries-5/#video-dynamic-range) media feature.
+    "video-dynamic-range": VideoDynamicRange = Ident,
+    /// The [scripting](https://w3c.github.io/csswg-drafts/mediaqueries-5/#scripting) media feature.
+    "scripting": Scripting = Ident,
+    /// The [prefers-reduced-motion](https://w3c.github.io/csswg-drafts/mediaqueries-5/#prefers-reduced-motion) media feature.
+    "prefers-reduced-motion": PrefersReducedMotion = Ident,
+    /// The [prefers-reduced-transparency](https://w3c.github.io/csswg-drafts/mediaqueries-5/#prefers-reduced-transparency) media feature.
+    "prefers-reduced-transparency": PrefersReducedTransparency = Ident,
+    /// The [prefers-contrast](https://w3c.github.io/csswg-drafts/mediaqueries-5/#prefers-contrast) media feature.
+    "prefers-contrast": PrefersContrast = Ident,
+    /// The [forced-colors](https://w3c.github.io/csswg-drafts/mediaqueries-5/#forced-colors) media feature.
+    "forced-colors": ForcedColors = Ident,
+    /// The [prefers-color-scheme](https://w3c.github.io/csswg-drafts/mediaqueries-5/#prefers-color-scheme) media feature.
+    "prefers-color-scheme": PrefersColorScheme = Ident,
+    /// The [prefers-reduced-data](https://w3c.github.io/csswg-drafts/mediaqueries-5/#prefers-reduced-data) media feature.
+    "prefers-reduced-data": PrefersReducedData = Ident,
+    /// The [device-width](https://w3c.github.io/csswg-drafts/mediaqueries-5/#device-width) media feature.
+    "device-width": DeviceWidth = Length,
+    /// The [device-height](https://w3c.github.io/csswg-drafts/mediaqueries-5/#device-height) media feature.
+    "device-height": DeviceHeight = Length,
+    /// The [device-aspect-ratio](https://w3c.github.io/csswg-drafts/mediaqueries-5/#device-aspect-ratio) media feature.
+    "device-aspect-ratio": DeviceAspectRatio = Ratio,
+
+    // TODO: parse non-standard media queries?
+    // -moz-device-orientation
+    // -webkit-device-pixel-ratio
+    // -moz-device-pixel-ratio
+    // -webkit-transform-3d
+  }
+}
+
 #[inline]
 fn write_min_max<W>(
   operator: &MediaFeatureComparison,
-  name: &Ident,
+  name: &MediaFeatureName,
   value: &MediaFeatureValue,
   dest: &mut Printer<W>,
 ) -> Result<(), PrinterError>
@@ -941,6 +1211,10 @@ pub enum MediaFeatureValue<'i> {
   Length(Length),
   /// A number value.
   Number(CSSNumber),
+  /// An integer value.
+  Integer(CSSInteger),
+  /// A boolean value.
+  Boolean(bool),
   /// A resolution.
   Resolution(Resolution),
   /// A ratio.
@@ -952,8 +1226,66 @@ pub enum MediaFeatureValue<'i> {
   Env(EnvironmentVariable<'i>),
 }
 
-impl<'i> Parse<'i> for MediaFeatureValue<'i> {
-  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> MediaFeatureValue<'i> {
+  fn value_type(&self) -> MediaFeatureType {
+    use MediaFeatureValue::*;
+    match self {
+      Length(..) => MediaFeatureType::Length,
+      Number(..) => MediaFeatureType::Number,
+      Integer(..) => MediaFeatureType::Integer,
+      Boolean(..) => MediaFeatureType::Boolean,
+      Resolution(..) => MediaFeatureType::Resolution,
+      Ratio(..) => MediaFeatureType::Ratio,
+      Ident(..) => MediaFeatureType::Ident,
+      Env(..) => MediaFeatureType::Unknown,
+    }
+  }
+
+  fn check_type(&self, expected_type: MediaFeatureType) -> bool {
+    match (expected_type, self.value_type()) {
+      (_, MediaFeatureType::Unknown) | (MediaFeatureType::Unknown, _) => true,
+      (a, b) => a == b,
+    }
+  }
+}
+
+impl<'i> MediaFeatureValue<'i> {
+  /// Parses a single media query feature value, with an expected type.
+  /// If the type is unknown, pass MediaFeatureType::Unknown instead.
+  pub fn parse<'t>(
+    input: &mut Parser<'i, 't>,
+    expected_type: MediaFeatureType,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if let Ok(value) = input.try_parse(|input| Self::parse_known(input, expected_type)) {
+      return Ok(value);
+    }
+
+    Self::parse_unknown(input)
+  }
+
+  fn parse_known<'t>(
+    input: &mut Parser<'i, 't>,
+    expected_type: MediaFeatureType,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    match expected_type {
+      MediaFeatureType::Boolean => {
+        let value = CSSInteger::parse(input)?;
+        if value != 0 && value != 1 {
+          return Err(input.new_custom_error(ParserError::InvalidValue));
+        }
+        Ok(MediaFeatureValue::Boolean(value == 1))
+      }
+      MediaFeatureType::Number => Ok(MediaFeatureValue::Number(CSSNumber::parse(input)?)),
+      MediaFeatureType::Integer => Ok(MediaFeatureValue::Integer(CSSInteger::parse(input)?)),
+      MediaFeatureType::Length => Ok(MediaFeatureValue::Length(Length::parse(input)?)),
+      MediaFeatureType::Resolution => Ok(MediaFeatureValue::Resolution(Resolution::parse(input)?)),
+      MediaFeatureType::Ratio => Ok(MediaFeatureValue::Ratio(Ratio::parse(input)?)),
+      MediaFeatureType::Ident => Ok(MediaFeatureValue::Ident(Ident::parse(input)?)),
+      MediaFeatureType::Unknown => Err(input.new_custom_error(ParserError::InvalidValue)),
+    }
+  }
+
+  fn parse_unknown<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     // Ratios are ambigous with numbers because the second param is optional (e.g. 2/1 == 2).
     // We require the / delimeter when parsing ratios so that 2/1 ends up as a ratio and 2 is
     // parsed as a number.
@@ -991,6 +1323,14 @@ impl<'i> ToCss for MediaFeatureValue<'i> {
     match self {
       MediaFeatureValue::Length(len) => len.to_css(dest),
       MediaFeatureValue::Number(num) => num.to_css(dest),
+      MediaFeatureValue::Integer(num) => num.to_css(dest),
+      MediaFeatureValue::Boolean(b) => {
+        if *b {
+          dest.write_char('1')
+        } else {
+          dest.write_char('0')
+        }
+      }
       MediaFeatureValue::Resolution(res) => res.to_css(dest),
       MediaFeatureValue::Ratio(ratio) => ratio.to_css(dest),
       MediaFeatureValue::Ident(id) => {
@@ -1009,10 +1349,14 @@ impl<'i> std::ops::Add<f32> for MediaFeatureValue<'i> {
     match self {
       MediaFeatureValue::Length(len) => MediaFeatureValue::Length(len + Length::px(other)),
       MediaFeatureValue::Number(num) => MediaFeatureValue::Number(num + other),
+      MediaFeatureValue::Integer(num) => {
+        MediaFeatureValue::Integer(num + if other.is_sign_positive() { 1 } else { -1 })
+      }
+      MediaFeatureValue::Boolean(v) => MediaFeatureValue::Boolean(v),
       MediaFeatureValue::Resolution(res) => MediaFeatureValue::Resolution(res + other),
       MediaFeatureValue::Ratio(ratio) => MediaFeatureValue::Ratio(ratio + other),
       MediaFeatureValue::Ident(id) => MediaFeatureValue::Ident(id),
-      MediaFeatureValue::Env(env) => MediaFeatureValue::Env(env),
+      MediaFeatureValue::Env(env) => MediaFeatureValue::Env(env), // TODO: calc support
     }
   }
 }
@@ -1058,7 +1402,7 @@ fn process_condition<'i>(
   media_type: &mut MediaType<'i>,
   qualifier: &mut Option<Qualifier>,
   condition: &mut MediaCondition<'i>,
-  seen: &mut HashSet<Ident<'i>>,
+  seen: &mut HashSet<DashedIdent<'i>>,
 ) -> Result<bool, MinifyError> {
   match condition {
     MediaCondition::Not(cond) => {
@@ -1096,9 +1440,10 @@ fn process_condition<'i>(
       return res;
     }
     MediaCondition::Feature(MediaFeature::Boolean { name }) => {
-      if !name.starts_with("--") {
-        return Ok(true);
-      }
+      let name = match name {
+        MediaFeatureName::Custom(name) => name,
+        _ => return Ok(true),
+      };
 
       if seen.contains(name) {
         return Err(ErrorWithLocation {
@@ -1205,14 +1550,14 @@ mod tests {
 
   #[test]
   fn test_and() {
-    assert_eq!(and("(min-width: 250px)", "(color)"), "(min-width: 250px) and (color)");
+    assert_eq!(and("(min-width: 250px)", "(color)"), "(width >= 250px) and (color)");
     assert_eq!(
       and("(min-width: 250px) or (color)", "(orientation: landscape)"),
-      "((min-width: 250px) or (color)) and (orientation: landscape)"
+      "((width >= 250px) or (color)) and (orientation: landscape)"
     );
     assert_eq!(
       and("(min-width: 250px) and (color)", "(orientation: landscape)"),
-      "(min-width: 250px) and (color) and (orientation: landscape)"
+      "(width >= 250px) and (color) and (orientation: landscape)"
     );
     assert_eq!(and("all", "print"), "print");
     assert_eq!(and("print", "all"), "print");
@@ -1225,11 +1570,11 @@ mod tests {
     assert_eq!(and("print", "not screen"), "print");
     assert_eq!(and("not screen", "print"), "print");
     assert_eq!(and("not screen", "not all"), "not all");
-    assert_eq!(and("print", "(min-width: 250px)"), "print and (min-width: 250px)");
-    assert_eq!(and("(min-width: 250px)", "print"), "print and (min-width: 250px)");
+    assert_eq!(and("print", "(min-width: 250px)"), "print and (width >= 250px)");
+    assert_eq!(and("(min-width: 250px)", "print"), "print and (width >= 250px)");
     assert_eq!(
       and("print and (min-width: 250px)", "(color)"),
-      "print and (min-width: 250px) and (color)"
+      "print and (width >= 250px) and (color)"
     );
     assert_eq!(and("all", "only screen"), "only screen");
     assert_eq!(and("only screen", "all"), "only screen");

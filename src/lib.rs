@@ -6722,7 +6722,7 @@ mod tests {
   fn test_media() {
     minify_test(
       "@media (min-width: 240px) { .foo { color: chartreuse }}",
-      "@media (min-width:240px){.foo{color:#7fff00}}",
+      "@media (width>=240px){.foo{color:#7fff00}}",
     );
     minify_test(
       "@media (width < 240px) { .foo { color: chartreuse }}",
@@ -6766,7 +6766,7 @@ mod tests {
     );
     minify_test(
       "@media (min-width: 30em) and (max-width: 50em) { .foo { color: chartreuse }}",
-      "@media (min-width:30em) and (max-width:50em){.foo{color:#7fff00}}",
+      "@media (width>=30em) and (width<=50em){.foo{color:#7fff00}}",
     );
     minify_test(
       "@media screen, print { .foo { color: chartreuse }}",
@@ -6826,11 +6826,11 @@ mod tests {
     );
     minify_test(
       "@media (min-width: calc(200px + 40px)) { .foo { color: chartreuse }}",
-      "@media (min-width:240px){.foo{color:#7fff00}}",
+      "@media (width>=240px){.foo{color:#7fff00}}",
     );
     minify_test(
       "@media (min-width: calc(1em + 5px)) { .foo { color: chartreuse }}",
-      "@media (min-width:calc(1em + 5px)){.foo{color:#7fff00}}",
+      "@media (width>=calc(1em + 5px)){.foo{color:#7fff00}}",
     );
     minify_test("@media { .foo { color: chartreuse }}", ".foo{color:#7fff00}");
     minify_test("@media all { .foo { color: chartreuse }}", ".foo{color:#7fff00}");
@@ -6841,6 +6841,14 @@ mod tests {
     minify_test(
       "@media (hover) and ((color) and (test)) { .foo { color: chartreuse }}",
       "@media (hover) and (color) and (test){.foo{color:#7fff00}}",
+    );
+    minify_test(
+      "@media (grid: 1) { .foo { color: chartreuse }}",
+      "@media (grid:1){.foo{color:#7fff00}}",
+    );
+    minify_test(
+      "@media (width >= calc(2px + 4px)) { .foo { color: chartreuse }}",
+      "@media (width>=6px){.foo{color:#7fff00}}",
     );
 
     prefix_test(
@@ -6881,6 +6889,48 @@ mod tests {
       "#},
       Browsers {
         firefox: Some(64 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+        @media (color > 2) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (min-color: 3) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(60 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+        @media (color < 2) {
+          .foo {
+            color: chartreuse;
+          }
+        }
+      "#,
+      indoc! { r#"
+        @media (max-color: 1) {
+          .foo {
+            color: #7fff00;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(60 << 16),
         ..Browsers::default()
       },
     );
@@ -7141,6 +7191,51 @@ mod tests {
         chrome: Some(85 << 16),
         ..Browsers::default()
       },
+    );
+
+    error_test(
+      "@media (min-width: hi) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
+    error_test(
+      "@media (width >= hi) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
+    error_test(
+      "@media (width >= 2/1) { .foo { color: chartreuse }}",
+      ParserError::UnexpectedToken(Token::Delim('/')),
+    );
+    error_test(
+      "@media (600px <= min-height) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
+    error_test(
+      "@media (scan >= 1) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
+    error_test(
+      "@media (min-scan: interlace) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
+    error_test(
+      "@media (1px <= width <= bar) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
+    error_test(
+      "@media (1px <= min-width <= 2px) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
+    error_test(
+      "@media (1px <= scan <= 2px) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
+    error_test(
+      "@media (grid: 10) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
+    );
+    error_test(
+      "@media (prefers-color-scheme = dark) { .foo { color: chartreuse }}",
+      ParserError::InvalidMediaQuery,
     );
   }
 
@@ -7981,7 +8076,7 @@ mod tests {
         }
       }
 
-      @media (min-width: 250px) {
+      @media (width >= 250px) {
         .foo {
           background: #fff;
         }
@@ -19257,7 +19352,7 @@ mod tests {
           display: grid;
         }
 
-        @container (min-width: 100px) {
+        @container (width >= 100px) {
           .foo {
             grid-auto-flow: column;
           }
@@ -22448,7 +22543,7 @@ mod tests {
       }
       "#,
       indoc! {r#"
-      @media screen and ((prefers-color-scheme: dark) or (not (min-width: 300px))) {
+      @media screen and ((prefers-color-scheme: dark) or (not (width >= 300px))) {
         .foo {
           order: 6;
         }
@@ -23677,7 +23772,7 @@ mod tests {
       }
       "#,
       indoc! { r#"
-        @container (min-width: 100px) {
+        @container (width >= 100px) {
           .foo {
             padding: 5px;
           }
@@ -23937,7 +24032,7 @@ mod tests {
         }
       }
     "#,
-      "@media (max-width:env(--branding-small)){body{padding:env(--branding-padding)}}",
+      "@media (width<=env(--branding-small)){body{padding:env(--branding-padding)}}",
     );
 
     minify_test(
@@ -23948,7 +24043,7 @@ mod tests {
         }
       }
     "#,
-      "@media (max-width:env(--branding-small 1)){body{padding:env(--branding-padding 2)}}",
+      "@media (width<=env(--branding-small 1)){body{padding:env(--branding-padding 2)}}",
     );
 
     minify_test(
@@ -23959,7 +24054,7 @@ mod tests {
         }
       }
     "#,
-      "@media (max-width:env(--branding-small 1,20px)){body{padding:env(--branding-padding 2,20px)}}",
+      "@media (width<=env(--branding-small 1,20px)){body{padding:env(--branding-padding 2,20px)}}",
     );
 
     minify_test(
@@ -23970,7 +24065,7 @@ mod tests {
         }
       }
     "#,
-      "@media (max-width:env(safe-area-inset-top)){body{padding:env(safe-area-inset-top)}}",
+      "@media (width<=env(safe-area-inset-top)){body{padding:env(safe-area-inset-top)}}",
     );
 
     minify_test(
@@ -23981,7 +24076,7 @@ mod tests {
         }
       }
     "#,
-      "@media (max-width:env(unknown)){body{padding:env(unknown)}}",
+      "@media (width<=env(unknown)){body{padding:env(unknown)}}",
     );
 
     prefix_test(
@@ -24017,7 +24112,7 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      @media (max-width: env(--EgL3uq_branding-small)) {
+      @media (width <= env(--EgL3uq_branding-small)) {
         .EgL3uq_foo {
           color: env(--EgL3uq_brand-color);
         }

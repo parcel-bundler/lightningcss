@@ -616,7 +616,7 @@ test('environment variables', () => {
     ])
   });
 
-  assert.equal(res.code.toString(), '@media (max-width:600px){body{padding:20px}}');
+  assert.equal(res.code.toString(), '@media (width<=600px){body{padding:20px}}');
 });
 
 test('variables', () => {
