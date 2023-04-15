@@ -487,8 +487,8 @@ impl ToCss for CssColor {
         Ok(())
       }
       CssColor::LAB(lab) => match &**lab {
-        LABColor::LAB(lab) => write_components("lab", lab.l / 100.0, lab.a, lab.b, lab.alpha, dest),
-        LABColor::LCH(lch) => write_components("lch", lch.l / 100.0, lch.c, lch.h, lch.alpha, dest),
+        LABColor::LAB(lab) => write_components("lab", lab.l, lab.a, lab.b, lab.alpha, dest),
+        LABColor::LCH(lch) => write_components("lch", lch.l, lch.c, lch.h, lch.alpha, dest),
         LABColor::OKLAB(lab) => write_components("oklab", lab.l, lab.a, lab.b, lab.alpha, dest),
         LABColor::OKLCH(lch) => write_components("oklch", lch.l, lch.c, lch.h, lch.alpha, dest),
       },
@@ -826,22 +826,22 @@ fn parse_color_function<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, 
 
   match_ignore_ascii_case! {&*function,
     "lab" => {
-      let (l, a, b, alpha) = parse_lab::<LAB>(input, &mut parser, 100.0, 125.0)?;
+      let (l, a, b, alpha) = parse_lab::<LAB>(input, &mut parser)?;
       let lab = LABColor::LAB(LAB { l, a, b, alpha });
       Ok(CssColor::LAB(Box::new(lab)))
     },
     "oklab" => {
-      let (l, a, b, alpha) = parse_lab::<OKLAB>(input, &mut parser, 1.0, 0.4)?;
+      let (l, a, b, alpha) = parse_lab::<OKLAB>(input, &mut parser)?;
       let lab = LABColor::OKLAB(OKLAB { l, a, b, alpha });
       Ok(CssColor::LAB(Box::new(lab)))
     },
     "lch" => {
-      let (l, c, h, alpha) = parse_lch::<LCH>(input, &mut parser, 100.0, 150.0)?;
+      let (l, c, h, alpha) = parse_lch::<LCH>(input, &mut parser)?;
       let lab = LABColor::LCH(LCH { l, c, h, alpha });
       Ok(CssColor::LAB(Box::new(lab)))
     },
     "oklch" => {
-      let (l, c, h, alpha) = parse_lch::<OKLCH>(input, &mut parser, 1.0, 0.4)?;
+      let (l, c, h, alpha) = parse_lch::<OKLCH>(input, &mut parser)?;
       let lab = LABColor::OKLCH(OKLCH { l, c, h, alpha });
       Ok(CssColor::LAB(Box::new(lab)))
     },
@@ -875,17 +875,15 @@ fn parse_color_function<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, 
 fn parse_lab<'i, 't, T: From<CssColor> + ColorSpace>(
   input: &mut Parser<'i, 't>,
   parser: &mut ComponentParser,
-  l_basis: f32,
-  ab_basis: f32,
 ) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
   // https://www.w3.org/TR/css-color-4/#funcdef-lab
   let res = input.parse_nested_block(|input| {
     parser.parse_relative::<T>(input)?;
 
     // f32::max() does not propagate NaN, so use clamp for now until f32::maximum() is stable.
-    let l = parse_number_or_percentage(input, parser, l_basis)?.clamp(0.0, f32::MAX);
-    let a = parse_number_or_percentage(input, parser, ab_basis)?;
-    let b = parse_number_or_percentage(input, parser, ab_basis)?;
+    let l = parser.parse_percentage(input)?.clamp(0.0, f32::MAX);
+    let a = parser.parse_number(input)?;
+    let b = parser.parse_number(input)?;
     let alpha = parse_alpha(input, parser)?;
 
     Ok((l, a, b, alpha))
@@ -899,8 +897,6 @@ fn parse_lab<'i, 't, T: From<CssColor> + ColorSpace>(
 fn parse_lch<'i, 't, T: From<CssColor> + ColorSpace>(
   input: &mut Parser<'i, 't>,
   parser: &mut ComponentParser,
-  l_basis: f32,
-  c_basis: f32,
 ) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
   // https://www.w3.org/TR/css-color-4/#funcdef-lch
   let res = input.parse_nested_block(|input| {
@@ -914,8 +910,8 @@ fn parse_lch<'i, 't, T: From<CssColor> + ColorSpace>(
       }
     }
 
-    let l = parse_number_or_percentage(input, parser, l_basis)?.clamp(0.0, f32::MAX);
-    let c = parse_number_or_percentage(input, parser, c_basis)?.clamp(0.0, f32::MAX);
+    let l = parser.parse_percentage(input)?.clamp(0.0, f32::MAX);
+    let c = parser.parse_number(input)?.clamp(0.0, f32::MAX);
     let h = parse_angle_or_number(input, parser)?;
     let alpha = parse_alpha(input, parser)?;
 
@@ -960,13 +956,13 @@ fn parse_predefined<'i, 't>(
     // Out of gamut values should not be clamped, i.e. values < 0 or > 1 should be preserved.
     // The browser will gamut-map the color for the target device that it is rendered on.
     let a = input
-      .try_parse(|input| parse_number_or_percentage(input, parser, 1.0))
+      .try_parse(|input| parse_number_or_percentage(input, parser))
       .unwrap_or(0.0);
     let b = input
-      .try_parse(|input| parse_number_or_percentage(input, parser, 1.0))
+      .try_parse(|input| parse_number_or_percentage(input, parser))
       .unwrap_or(0.0);
     let c = input
-      .try_parse(|input| parse_number_or_percentage(input, parser, 1.0))
+      .try_parse(|input| parse_number_or_percentage(input, parser))
       .unwrap_or(0.0);
     let alpha = parse_alpha(input, parser)?;
 
@@ -1092,11 +1088,10 @@ fn parse_angle_or_number<'i, 't>(
 fn parse_number_or_percentage<'i, 't>(
   input: &mut Parser<'i, 't>,
   parser: &ComponentParser,
-  percent_basis: f32,
 ) -> Result<f32, ParseError<'i, ParserError<'i>>> {
   Ok(match parser.parse_number_or_percentage(input)? {
     NumberOrPercentage::Number { value } => value,
-    NumberOrPercentage::Percentage { unit_value } => unit_value * percent_basis,
+    NumberOrPercentage::Percentage { unit_value } => unit_value,
   })
 }
 
@@ -1106,7 +1101,7 @@ fn parse_alpha<'i, 't>(
   parser: &ComponentParser,
 ) -> Result<f32, ParseError<'i, ParserError<'i>>> {
   let res = if input.try_parse(|input| input.expect_delim('/')).is_ok() {
-    parse_number_or_percentage(input, parser, 1.0)?.clamp(0.0, 1.0)
+    parse_number_or_percentage(input, parser)?.clamp(0.0, 1.0)
   } else {
     1.0
   };
@@ -1130,7 +1125,6 @@ where
   if a.is_nan() {
     dest.write_str("none")?;
   } else {
-    // Safari 15 only supports percentages.
     Percentage(a).to_css(dest)?;
   }
   dest.write_char(' ')?;
@@ -1585,7 +1579,7 @@ impl From<LAB> for XYZd50 {
     const E: f32 = 216.0 / 24389.0; // 6^3/29^3
 
     let lab = lab.resolve_missing();
-    let l = lab.l;
+    let l = lab.l * 100.0;
     let a = lab.a;
     let b = lab.b;
 
@@ -1844,7 +1838,7 @@ impl From<XYZd50> for LAB {
 
     let f2 = if z > E { z.cbrt() } else { (K * z + 16.0) / 116.0 };
 
-    let l = (116.0 * f1) - 16.0;
+    let l = ((116.0 * f1) - 16.0) / 100.0;
     let a = 500.0 * (f0 - f1);
     let b = 200.0 * (f1 - f2);
     LAB {
