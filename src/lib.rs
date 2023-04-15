@@ -23689,6 +23689,107 @@ mod tests {
       },
     );
 
+    minify_test(
+      r#"
+      @container style(--responsive: true) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container style(--responsive:true){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container style(--responsive: true) and style(color: yellow) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container style(--responsive:true) and style(color:#ff0){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container not style(--responsive: true) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container not style(--responsive:true){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container (inline-size > 45em) and style(--responsive: true) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container (inline-size>45em) and style(--responsive:true){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container style((accent-color: yellow) or (--bar: 10px)) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container style((accent-color:#ff0) or (--bar:10px)){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container style(not ((width: calc(10px + 20px)) and ((--bar: url(x))))) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container style(not ((width:30px) and (--bar:url(x)))){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container style(color: yellow !important) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container style(color:yellow){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container style(--foo:) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container style(--foo:){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container style(--foo: ) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container style(--foo:){.foo{color:red}}",
+    );
+    minify_test(
+      r#"
+      @container style(--my-prop: foo - bar ()) {
+        .foo {
+          color: red;
+        }
+      }
+    "#,
+      "@container style(--my-prop:foo - bar ()){.foo{color:red}}",
+    );
+
     // Disallow 'none', 'not', 'and', 'or' as a `<container-name>`
     // https://github.com/w3c/csswg-drafts/issues/7203#issuecomment-1144257312
     // https://chromium-review.googlesource.com/c/chromium/src/+/3698402
@@ -23723,6 +23824,12 @@ mod tests {
     error_test(
       "@container foo bar (width < 100vw) {}",
       ParserError::UnexpectedToken(crate::properties::custom::Token::Ident("bar".into())),
+    );
+
+    error_test("@container style(width) {}", ParserError::EndOfInput);
+    error_test(
+      "@container style(style(--foo: bar)) {}",
+      ParserError::UnexpectedToken(crate::properties::custom::Token::Function("style".into())),
     );
   }
 

@@ -16,6 +16,7 @@ use crate::values::string::CowArcStr;
 use crate::values::{length::Length, ratio::Ratio, resolution::Resolution};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
+use bitflags::bitflags;
 use cssparser::*;
 use std::collections::{HashMap, HashSet};
 
@@ -259,9 +260,9 @@ impl<'i> MediaQuery<'i> {
       .unwrap_or_default();
 
     let condition = if explicit_media_type.is_none() {
-      Some(MediaCondition::parse(input, true)?)
+      Some(MediaCondition::parse_with_flags(input, QueryConditionFlags::ALLOW_OR)?)
     } else if input.try_parse(|i| i.expect_ident_matching("and")).is_ok() {
-      Some(MediaCondition::parse(input, false)?)
+      Some(MediaCondition::parse_with_flags(input, QueryConditionFlags::empty())?)
     } else {
       None
     };
@@ -400,7 +401,7 @@ impl<'i> ToCss for MediaQuery<'i> {
       false
     };
 
-    condition.to_css_with_parens_if_needed(dest, needs_parens)
+    to_css_with_parens_if_needed(condition, dest, needs_parens)
   }
 }
 
@@ -442,93 +443,194 @@ pub enum MediaCondition<'i> {
   },
 }
 
-impl<'i> MediaCondition<'i> {
-  /// Parse a single media condition.
-  pub fn parse<'t>(input: &mut Parser<'i, 't>, allow_or: bool) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let location = input.current_source_location();
-    let is_negation = match *input.next()? {
-      Token::ParenthesisBlock => false,
-      Token::Ident(ref ident) if ident.eq_ignore_ascii_case("not") => true,
-      ref t => return Err(location.new_unexpected_token_error(t.clone())),
-    };
-
-    if is_negation {
-      let inner_condition = Self::parse_in_parens(input)?;
-      return Ok(MediaCondition::Not(Box::new(inner_condition)));
-    }
-
-    // ParenthesisBlock.
-    let first_condition = Self::parse_paren_block(input)?;
-    let operator = match input.try_parse(Operator::parse) {
-      Ok(op) => op,
-      Err(..) => return Ok(first_condition),
-    };
-
-    if !allow_or && operator == Operator::Or {
-      return Err(location.new_custom_error(ParserError::InvalidMediaQuery));
-    }
-
-    let mut conditions = vec![];
-    conditions.push(first_condition);
-    conditions.push(Self::parse_in_parens(input)?);
-
-    let delim = match operator {
-      Operator::And => "and",
-      Operator::Or => "or",
-    };
-
-    loop {
-      if input.try_parse(|i| i.expect_ident_matching(delim)).is_err() {
-        return Ok(MediaCondition::Operation { conditions, operator });
-      }
-
-      conditions.push(Self::parse_in_parens(input)?);
-    }
+/// A trait for conditions such as media queries and container queries.
+pub(crate) trait QueryCondition<'i>: Sized {
+  fn parse_feature<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>>;
+  fn create_negation(condition: Box<Self>) -> Self;
+  fn create_operation(operator: Operator, conditions: Vec<Self>) -> Self;
+  fn parse_style_query<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Err(input.new_error_for_next_token())
   }
 
-  /// Parse a media condition in parentheses.
-  pub fn parse_in_parens<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    input.expect_parenthesis_block()?;
-    Self::parse_paren_block(input)
+  fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Option<Browsers>) -> bool;
+}
+
+impl<'i> QueryCondition<'i> for MediaCondition<'i> {
+  #[inline]
+  fn parse_feature<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let feature = MediaFeature::parse(input)?;
+    Ok(Self::Feature(feature))
   }
 
-  fn parse_paren_block<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    input.parse_nested_block(|input| {
-      if let Ok(inner) = input.try_parse(|i| Self::parse(i, true)) {
-        return Ok(inner);
-      }
+  #[inline]
+  fn create_negation(condition: Box<MediaCondition<'i>>) -> Self {
+    Self::Not(condition)
+  }
 
-      let feature = MediaFeature::parse(input)?;
-      Ok(MediaCondition::Feature(feature))
-    })
+  #[inline]
+  fn create_operation(operator: Operator, conditions: Vec<MediaCondition<'i>>) -> Self {
+    Self::Operation { operator, conditions }
   }
 
   fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Option<Browsers>) -> bool {
     match self {
       MediaCondition::Not(_) => true,
       MediaCondition::Operation { operator, .. } => Some(*operator) != parent_operator,
-      MediaCondition::Feature(f) => {
-        parent_operator != Some(Operator::And)
-          && targets.is_some()
-          && matches!(f, MediaFeature::Interval { .. })
-          && !Feature::MediaIntervalSyntax.is_compatible(targets.unwrap())
-      }
+      MediaCondition::Feature(f) => f.needs_parens(parent_operator, targets),
     }
+  }
+}
+
+bitflags! {
+  /// Flags for `parse_query_condition`.
+  pub(crate) struct QueryConditionFlags: u8 {
+    /// Whether to allow top-level "or" boolean logic.
+    const ALLOW_OR = 1 << 0;
+    /// Whether to allow style container queries.
+    const ALLOW_STYLE = 1 << 1;
+  }
+}
+
+impl<'i> MediaCondition<'i> {
+  /// Parse a single media condition.
+  fn parse_with_flags<'t>(
+    input: &mut Parser<'i, 't>,
+    flags: QueryConditionFlags,
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    parse_query_condition(input, flags)
+  }
+}
+
+impl<'i> Parse<'i> for MediaCondition<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    Self::parse_with_flags(input, QueryConditionFlags::ALLOW_OR)
+  }
+}
+
+/// Parse a single query condition.
+pub(crate) fn parse_query_condition<'t, 'i, P: QueryCondition<'i>>(
+  input: &mut Parser<'i, 't>,
+  flags: QueryConditionFlags,
+) -> Result<P, ParseError<'i, ParserError<'i>>> {
+  let location = input.current_source_location();
+  let (is_negation, is_style) = match *input.next()? {
+    Token::ParenthesisBlock => (false, false),
+    Token::Ident(ref ident) if ident.eq_ignore_ascii_case("not") => (true, false),
+    Token::Function(ref f)
+      if flags.contains(QueryConditionFlags::ALLOW_STYLE) && f.eq_ignore_ascii_case("style") =>
+    {
+      (false, true)
+    }
+    ref t => return Err(location.new_unexpected_token_error(t.clone())),
+  };
+
+  let first_condition = match (is_negation, is_style) {
+    (true, false) => {
+      let inner_condition = parse_parens_or_function(input, flags)?;
+      return Ok(P::create_negation(Box::new(inner_condition)));
+    }
+    (true, true) => {
+      let inner_condition = P::parse_style_query(input)?;
+      return Ok(P::create_negation(Box::new(inner_condition)));
+    }
+    (false, false) => parse_paren_block(input, flags)?,
+    (false, true) => P::parse_style_query(input)?,
+  };
+
+  let operator = match input.try_parse(Operator::parse) {
+    Ok(op) => op,
+    Err(..) => return Ok(first_condition),
+  };
+
+  if !flags.contains(QueryConditionFlags::ALLOW_OR) && operator == Operator::Or {
+    return Err(location.new_custom_error(ParserError::InvalidMediaQuery));
   }
 
-  fn to_css_with_parens_if_needed<W>(&self, dest: &mut Printer<W>, needs_parens: bool) -> Result<(), PrinterError>
-  where
-    W: std::fmt::Write,
-  {
-    if needs_parens {
-      dest.write_char('(')?;
+  let mut conditions = vec![];
+  conditions.push(first_condition);
+  conditions.push(parse_parens_or_function(input, flags)?);
+
+  let delim = match operator {
+    Operator::And => "and",
+    Operator::Or => "or",
+  };
+
+  loop {
+    if input.try_parse(|i| i.expect_ident_matching(delim)).is_err() {
+      return Ok(P::create_operation(operator, conditions));
     }
-    self.to_css(dest)?;
-    if needs_parens {
-      dest.write_char(')')?;
-    }
-    Ok(())
+
+    conditions.push(parse_parens_or_function(input, flags)?);
   }
+}
+
+/// Parse a media condition in parentheses, or a style() function.
+fn parse_parens_or_function<'t, 'i, P: QueryCondition<'i>>(
+  input: &mut Parser<'i, 't>,
+  flags: QueryConditionFlags,
+) -> Result<P, ParseError<'i, ParserError<'i>>> {
+  let location = input.current_source_location();
+  match *input.next()? {
+    Token::ParenthesisBlock => parse_paren_block(input, flags),
+    Token::Function(ref f)
+      if flags.contains(QueryConditionFlags::ALLOW_STYLE) && f.eq_ignore_ascii_case("style") =>
+    {
+      P::parse_style_query(input)
+    }
+    ref t => return Err(location.new_unexpected_token_error(t.clone())),
+  }
+}
+
+fn parse_paren_block<'t, 'i, P: QueryCondition<'i>>(
+  input: &mut Parser<'i, 't>,
+  flags: QueryConditionFlags,
+) -> Result<P, ParseError<'i, ParserError<'i>>> {
+  input.parse_nested_block(|input| {
+    if let Ok(inner) = input.try_parse(|i| parse_query_condition(i, flags | QueryConditionFlags::ALLOW_OR)) {
+      return Ok(inner);
+    }
+
+    P::parse_feature(input)
+  })
+}
+
+pub(crate) fn to_css_with_parens_if_needed<V: ToCss, W>(
+  value: V,
+  dest: &mut Printer<W>,
+  needs_parens: bool,
+) -> Result<(), PrinterError>
+where
+  W: std::fmt::Write,
+{
+  if needs_parens {
+    dest.write_char('(')?;
+  }
+  value.to_css(dest)?;
+  if needs_parens {
+    dest.write_char(')')?;
+  }
+  Ok(())
+}
+
+pub(crate) fn operation_to_css<'i, V: ToCss + QueryCondition<'i>, W>(
+  operator: Operator,
+  conditions: &Vec<V>,
+  dest: &mut Printer<W>,
+) -> Result<(), PrinterError>
+where
+  W: std::fmt::Write,
+{
+  let mut iter = conditions.iter();
+  let first = iter.next().unwrap();
+  to_css_with_parens_if_needed(first, dest, first.needs_parens(Some(operator), &dest.targets))?;
+  for item in iter {
+    dest.write_char(' ')?;
+    operator.to_css(dest)?;
+    dest.write_char(' ')?;
+    to_css_with_parens_if_needed(item, dest, item.needs_parens(Some(operator), &dest.targets))?;
+  }
+
+  Ok(())
 }
 
 impl<'i> ToCss for MediaCondition<'i> {
@@ -540,23 +642,12 @@ impl<'i> ToCss for MediaCondition<'i> {
       MediaCondition::Feature(ref f) => f.to_css(dest),
       MediaCondition::Not(ref c) => {
         dest.write_str("not ")?;
-        c.to_css_with_parens_if_needed(dest, c.needs_parens(None, &dest.targets))
+        to_css_with_parens_if_needed(&**c, dest, c.needs_parens(None, &dest.targets))
       }
       MediaCondition::Operation {
         ref conditions,
         operator,
-      } => {
-        let mut iter = conditions.iter();
-        let first = iter.next().unwrap();
-        first.to_css_with_parens_if_needed(dest, first.needs_parens(Some(operator), &dest.targets))?;
-        for item in iter {
-          dest.write_char(' ')?;
-          operator.to_css(dest)?;
-          dest.write_char(' ')?;
-          item.to_css_with_parens_if_needed(dest, item.needs_parens(Some(operator), &dest.targets))?;
-        }
-        Ok(())
-      }
+      } => operation_to_css(operator, conditions, dest),
     }
   }
 }
@@ -729,6 +820,13 @@ impl<'i> MediaFeature<'i> {
       let operator = operator.unwrap().opposite();
       Ok(MediaFeature::Range { name, operator, value })
     }
+  }
+
+  pub(crate) fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Option<Browsers>) -> bool {
+    parent_operator != Some(Operator::And)
+      && targets.is_some()
+      && matches!(self, MediaFeature::Interval { .. })
+      && !Feature::MediaIntervalSyntax.is_compatible(targets.unwrap())
   }
 }
 
