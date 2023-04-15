@@ -3,7 +3,7 @@ use crate::error::{Error, ParserError, PrinterError};
 use crate::media_query::*;
 use crate::printer::Printer;
 use crate::properties::custom::TokenList;
-use crate::rules::container::{ContainerName, ContainerRule};
+use crate::rules::container::{ContainerCondition, ContainerName, ContainerRule};
 use crate::rules::font_palette_values::FontPaletteValuesRule;
 use crate::rules::layer::{LayerBlockRule, LayerStatementRule};
 use crate::rules::property::PropertyRule;
@@ -177,7 +177,7 @@ pub enum AtRulePrelude<'i, T> {
   /// An @property prelude.
   Property(DashedIdent<'i>),
   /// A @container prelude.
-  Container(Option<ContainerName<'i>>, MediaCondition<'i>),
+  Container(Option<ContainerName<'i>>, ContainerCondition<'i>),
   /// An unknown prelude.
   Unknown(CowArcStr<'i>, TokenList<'i>),
   /// A custom prelude.
@@ -497,7 +497,7 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
       },
       "container" => {
         let name = input.try_parse(ContainerName::parse).ok();
-        let condition = MediaCondition::parse(input, true)?;
+        let condition = ContainerCondition::parse(input)?;
         Ok(AtRulePrelude::Container(name, condition))
       },
       _ => parse_custom_at_rule_prelude(&name, input, self.options, self.at_rule_parser)
@@ -863,7 +863,7 @@ impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for StyleR
       },
       "container" => {
         let name = input.try_parse(ContainerName::parse).ok();
-        let condition = MediaCondition::parse(input, true)?;
+        let condition = ContainerCondition::parse(input)?;
         Ok(AtRulePrelude::Container(name, condition))
       },
       "layer" => {

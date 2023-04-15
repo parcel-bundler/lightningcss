@@ -6835,6 +6835,56 @@ export type SyntaxComponentKind =
       type: "literal";
       value: string;
     };
+/**
+ * Represents a container condition.
+ */
+export type ContainerCondition =
+  | {
+      type: "feature";
+      value: MediaFeature;
+    }
+  | {
+      type: "not";
+      value: ContainerCondition;
+    }
+  | {
+      /**
+       * The conditions for the operator.
+       */
+      conditions: ContainerCondition[];
+      /**
+       * The operator for the conditions.
+       */
+      operator: Operator;
+      type: "operation";
+    }
+  | {
+      type: "style";
+      value: StyleQuery;
+    };
+/**
+ * Represents a style query within a container condition.
+ */
+export type StyleQuery =
+  | {
+      type: "feature";
+      value: Declaration;
+    }
+  | {
+      type: "not";
+      value: StyleQuery;
+    }
+  | {
+      /**
+       * The conditions for the operator.
+       */
+      conditions: StyleQuery[];
+      /**
+       * The operator for the conditions.
+       */
+      operator: Operator;
+      type: "operation";
+    };
 export type DefaultAtRule = null;
 
 /**
@@ -8826,7 +8876,7 @@ export interface ContainerRule<D = Declaration> {
   /**
    * The container condition.
    */
-  condition: MediaCondition;
+  condition: ContainerCondition;
   /**
    * The location of the rule in the source file.
    */

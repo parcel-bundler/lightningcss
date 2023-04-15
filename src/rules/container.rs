@@ -5,9 +5,16 @@ use cssparser::*;
 use super::Location;
 use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
-use crate::media_query::MediaCondition;
+use crate::media_query::{
+  operation_to_css, parse_query_condition, to_css_with_parens_if_needed, MediaFeature, Operator, QueryCondition,
+  QueryConditionFlags,
+};
 use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
+use crate::properties::{Property, PropertyId};
+#[cfg(feature = "serde")]
+use crate::serialization::ValueWrapper;
+use crate::targets::Browsers;
 use crate::traits::{Parse, ToCss};
 use crate::values::ident::CustomIdent;
 #[cfg(feature = "visitor")]
@@ -23,12 +30,187 @@ pub struct ContainerRule<'i, R = DefaultAtRule> {
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub name: Option<ContainerName<'i>>,
   /// The container condition.
-  pub condition: MediaCondition<'i>,
+  pub condition: ContainerCondition<'i>,
   /// The rules within the `@container` rule.
   pub rules: CssRuleList<'i, R>,
   /// The location of the rule in the source file.
   #[cfg_attr(feature = "visitor", skip_visit)]
   pub loc: Location,
+}
+
+/// Represents a container condition.
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub enum ContainerCondition<'i> {
+  /// A size container feature, implicitly parenthesized.
+  #[cfg_attr(feature = "serde", serde(borrow, with = "ValueWrapper::<MediaFeature>"))]
+  Feature(MediaFeature<'i>),
+  /// A negation of a condition.
+  #[cfg_attr(feature = "visitor", skip_type)]
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Box<ContainerCondition>>"))]
+  Not(Box<ContainerCondition<'i>>),
+  /// A set of joint operations.
+  #[cfg_attr(feature = "visitor", skip_type)]
+  Operation {
+    /// The operator for the conditions.
+    operator: Operator,
+    /// The conditions for the operator.
+    conditions: Vec<ContainerCondition<'i>>,
+  },
+  /// A style query.
+  #[cfg_attr(feature = "serde", serde(borrow, with = "ValueWrapper::<StyleQuery>"))]
+  Style(StyleQuery<'i>),
+}
+
+/// Represents a style query within a container condition.
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub enum StyleQuery<'i> {
+  /// A style feature, implicitly parenthesized.
+  #[cfg_attr(feature = "serde", serde(borrow, with = "ValueWrapper::<Property>"))]
+  Feature(Property<'i>),
+  /// A negation of a condition.
+  #[cfg_attr(feature = "visitor", skip_type)]
+  #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Box<StyleQuery>>"))]
+  Not(Box<StyleQuery<'i>>),
+  /// A set of joint operations.
+  #[cfg_attr(feature = "visitor", skip_type)]
+  Operation {
+    /// The operator for the conditions.
+    operator: Operator,
+    /// The conditions for the operator.
+    conditions: Vec<StyleQuery<'i>>,
+  },
+}
+
+impl<'i> QueryCondition<'i> for ContainerCondition<'i> {
+  #[inline]
+  fn parse_feature<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let feature = MediaFeature::parse(input)?;
+    Ok(Self::Feature(feature))
+  }
+
+  #[inline]
+  fn create_negation(condition: Box<ContainerCondition<'i>>) -> Self {
+    Self::Not(condition)
+  }
+
+  #[inline]
+  fn create_operation(operator: Operator, conditions: Vec<Self>) -> Self {
+    Self::Operation { operator, conditions }
+  }
+
+  fn parse_style_query<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    input.parse_nested_block(|input| {
+      if let Ok(res) = input.try_parse(|input| parse_query_condition(input, QueryConditionFlags::ALLOW_OR)) {
+        return Ok(Self::Style(res));
+      }
+
+      Ok(Self::Style(StyleQuery::parse_feature(input)?))
+    })
+  }
+
+  fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Option<Browsers>) -> bool {
+    match self {
+      ContainerCondition::Not(_) => true,
+      ContainerCondition::Operation { operator, .. } => Some(*operator) != parent_operator,
+      ContainerCondition::Feature(f) => f.needs_parens(parent_operator, targets),
+      ContainerCondition::Style(_) => false,
+    }
+  }
+}
+
+impl<'i> QueryCondition<'i> for StyleQuery<'i> {
+  #[inline]
+  fn parse_feature<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let property_id = PropertyId::parse(input)?;
+    input.expect_colon()?;
+    input.skip_whitespace();
+    let feature = Self::Feature(Property::parse(property_id, input, &Default::default())?);
+    let _ = input.try_parse(|input| parse_important(input));
+    Ok(feature)
+  }
+
+  #[inline]
+  fn create_negation(condition: Box<Self>) -> Self {
+    Self::Not(condition)
+  }
+
+  #[inline]
+  fn create_operation(operator: Operator, conditions: Vec<Self>) -> Self {
+    Self::Operation { operator, conditions }
+  }
+
+  fn needs_parens(&self, parent_operator: Option<Operator>, _targets: &Option<Browsers>) -> bool {
+    match self {
+      StyleQuery::Not(_) => true,
+      StyleQuery::Operation { operator, .. } => Some(*operator) != parent_operator,
+      StyleQuery::Feature(_) => true,
+    }
+  }
+}
+
+impl<'i> Parse<'i> for ContainerCondition<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    parse_query_condition(input, QueryConditionFlags::ALLOW_OR | QueryConditionFlags::ALLOW_STYLE)
+  }
+}
+
+impl<'i> ToCss for ContainerCondition<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match *self {
+      ContainerCondition::Feature(ref f) => f.to_css(dest),
+      ContainerCondition::Not(ref c) => {
+        dest.write_str("not ")?;
+        to_css_with_parens_if_needed(&**c, dest, c.needs_parens(None, &dest.targets))
+      }
+      ContainerCondition::Operation {
+        ref conditions,
+        operator,
+      } => operation_to_css(operator, conditions, dest),
+      ContainerCondition::Style(ref query) => {
+        dest.write_str("style(")?;
+        query.to_css(dest)?;
+        dest.write_char(')')
+      }
+    }
+  }
+}
+
+impl<'i> ToCss for StyleQuery<'i> {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match *self {
+      StyleQuery::Feature(ref f) => f.to_css(dest, false),
+      StyleQuery::Not(ref c) => {
+        dest.write_str("not ")?;
+        to_css_with_parens_if_needed(&**c, dest, c.needs_parens(None, &dest.targets))
+      }
+      StyleQuery::Operation {
+        ref conditions,
+        operator,
+      } => operation_to_css(operator, conditions, dest),
+    }
+  }
 }
 
 /// A [`<container-name>`](https://drafts.csswg.org/css-contain-3/#typedef-container-name) in a `@container` rule.
