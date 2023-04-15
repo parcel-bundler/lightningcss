@@ -13535,6 +13535,14 @@ mod tests {
       ".foo{color:lab(29.2345% 39.3825 20.0664)}",
     );
     minify_test(
+      ".foo { color: lab(29.2345 39.3825 20.0664); }",
+      ".foo{color:lab(29.2345% 39.3825 20.0664)}",
+    );
+    minify_test(
+      ".foo { color: lab(29.2345% 39.3825% 20.0664%); }",
+      ".foo{color:lab(29.2345% 49.2281 25.083)}",
+    );
+    minify_test(
       ".foo { color: lab(29.2345% 39.3825 20.0664 / 100%); }",
       ".foo{color:lab(29.2345% 39.3825 20.0664)}",
     );
@@ -13545,6 +13553,14 @@ mod tests {
     minify_test(
       ".foo { color: lch(29.2345% 44.2 27); }",
       ".foo{color:lch(29.2345% 44.2 27)}",
+    );
+    minify_test(
+      ".foo { color: lch(29.2345 44.2 27); }",
+      ".foo{color:lch(29.2345% 44.2 27)}",
+    );
+    minify_test(
+      ".foo { color: lch(29.2345% 44.2% 27deg); }",
+      ".foo{color:lch(29.2345% 66.3 27)}",
     );
     minify_test(
       ".foo { color: lch(29.2345% 44.2 45deg); }",
@@ -13567,8 +13583,24 @@ mod tests {
       ".foo{color:oklab(40.101% .1147 .0453)}",
     );
     minify_test(
+      ".foo { color: oklab(.40101 0.1147 0.0453); }",
+      ".foo{color:oklab(40.101% .1147 .0453)}",
+    );
+    minify_test(
+      ".foo { color: oklab(40.101% 0.1147% 0.0453%); }",
+      ".foo{color:oklab(40.101% .0004588 .0001812)}",
+    );
+    minify_test(
       ".foo { color: oklch(40.101% 0.12332 21.555); }",
       ".foo{color:oklch(40.101% .12332 21.555)}",
+    );
+    minify_test(
+      ".foo { color: oklch(.40101 0.12332 21.555); }",
+      ".foo{color:oklch(40.101% .12332 21.555)}",
+    );
+    minify_test(
+      ".foo { color: oklch(40.101% 0.12332% 21.555); }",
+      ".foo{color:oklch(40.101% .00049328 21.555)}",
     );
     minify_test(
       ".foo { color: oklch(40.101% 0.12332 .5turn); }",
