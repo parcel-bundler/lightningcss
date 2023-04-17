@@ -7192,6 +7192,24 @@ mod tests {
         ..Browsers::default()
       },
     );
+    prefix_test(
+      r#"
+      @media (width > 0) {
+        .foo { color: yellow; }
+      }
+      "#,
+      indoc! { r#"
+        @media (min-width: .001px) {
+          .foo {
+            color: #ff0;
+          }
+        }
+      "#},
+      Browsers {
+        chrome: Some(85 << 16),
+        ..Browsers::default()
+      },
+    );
 
     error_test(
       "@media (min-width: hi) { .foo { color: chartreuse }}",
