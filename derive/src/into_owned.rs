@@ -96,7 +96,7 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
       quote! {
         match self {
           #variants
-          _ => unsafe { std::mem::transmute(self) }
+          _ => unsafe { std::mem::transmute_copy(&self) }
         }
       }
     }
@@ -110,10 +110,11 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
   let into_owned = if generics.lifetimes().next().is_none() {
     panic!("can't derive IntoOwned on a type without any lifetimes")
   } else {
+    let params = generics.type_params();
     quote! {
       impl #impl_generics #self_name #ty_generics #where_clause {
         /// Consumes the value and returns an owned clone.
-        pub fn into_owned<'x>(self) -> #self_name<'x> {
+        pub fn into_owned<'x>(self) -> #self_name<'x, #(#params),*> {
           #res
         }
       }

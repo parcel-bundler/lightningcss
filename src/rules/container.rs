@@ -6,8 +6,8 @@ use super::Location;
 use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
 use crate::media_query::{
-  operation_to_css, parse_query_condition, to_css_with_parens_if_needed, MediaFeature, Operator, QueryCondition,
-  QueryConditionFlags,
+  define_query_features, operation_to_css, parse_query_condition, to_css_with_parens_if_needed, MediaFeatureType,
+  Operator, QueryCondition, QueryConditionFlags, QueryFeature, ValueType,
 };
 use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
@@ -50,8 +50,8 @@ pub struct ContainerRule<'i, R = DefaultAtRule> {
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum ContainerCondition<'i> {
   /// A size container feature, implicitly parenthesized.
-  #[cfg_attr(feature = "serde", serde(borrow, with = "ValueWrapper::<MediaFeature>"))]
-  Feature(MediaFeature<'i>),
+  #[cfg_attr(feature = "serde", serde(borrow, with = "ValueWrapper::<ContainerSizeFeature>"))]
+  Feature(ContainerSizeFeature<'i>),
   /// A negation of a condition.
   #[cfg_attr(feature = "visitor", skip_type)]
   #[cfg_attr(feature = "serde", serde(with = "ValueWrapper::<Box<ContainerCondition>>"))]
@@ -67,6 +67,27 @@ pub enum ContainerCondition<'i> {
   /// A style query.
   #[cfg_attr(feature = "serde", serde(borrow, with = "ValueWrapper::<StyleQuery>"))]
   Style(StyleQuery<'i>),
+}
+
+/// A container query size feature.
+pub type ContainerSizeFeature<'i> = QueryFeature<'i, ContainerSizeFeatureId>;
+
+define_query_features! {
+  /// A container query size feature identifier.
+  pub enum ContainerSizeFeatureId {
+    /// The [width](https://w3c.github.io/csswg-drafts/css-contain-3/#width) size container feature.
+    "width": Width = Length,
+    /// The [height](https://w3c.github.io/csswg-drafts/css-contain-3/#height) size container feature.
+    "height": Height = Length,
+    /// The [inline-size](https://w3c.github.io/csswg-drafts/css-contain-3/#inline-size) size container feature.
+    "inline-size": InlineSize = Length,
+    /// The [block-size](https://w3c.github.io/csswg-drafts/css-contain-3/#block-size) size container feature.
+    "block-size": BlockSize = Length,
+    /// The [aspect-ratio](https://w3c.github.io/csswg-drafts/css-contain-3/#aspect-ratio) size container feature.
+    "aspect-ratio": AspectRatio = Ratio,
+    /// The [orientation](https://w3c.github.io/csswg-drafts/css-contain-3/#orientation) size container feature.
+    "orientation": Orientation = Ident,
+  }
 }
 
 /// Represents a style query within a container condition.
@@ -100,7 +121,7 @@ pub enum StyleQuery<'i> {
 impl<'i> QueryCondition<'i> for ContainerCondition<'i> {
   #[inline]
   fn parse_feature<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let feature = MediaFeature::parse(input)?;
+    let feature = QueryFeature::parse(input)?;
     Ok(Self::Feature(feature))
   }
 

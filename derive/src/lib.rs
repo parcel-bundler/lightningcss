@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
 use proc_macro::{self, TokenStream};
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{
   parse::Parse, parse_macro_input, parse_quote, Attribute, Data, DataEnum, DeriveInput, Field, Fields,
-  GenericParam, Ident, Member, Token, Type,
+  GenericParam, Generics, Ident, Member, Token, Type,
 };
 
 mod into_owned;
@@ -25,7 +25,60 @@ pub fn derive_visit_children(input: TokenStream) -> TokenStream {
     ..
   } = parse_macro_input!(input);
 
+  let options: Vec<VisitOptions> = attrs
+    .iter()
+    .filter_map(|attr| {
+      if attr.path.is_ident("visit") {
+        let opts: VisitOptions = attr.parse_args().unwrap();
+        Some(opts)
+      } else {
+        None
+      }
+    })
+    .collect();
+
+  let visit_types = if let Some(attr) = attrs.iter().find(|attr| attr.path.is_ident("visit_types")) {
+    let types: VisitTypes = attr.parse_args().unwrap();
+    let types = types.types;
+    Some(quote! { crate::visit_types!(#(#types)|*) })
+  } else {
+    None
+  };
+
+  if options.is_empty() {
+    derive(&ident, &data, &generics, None, visit_types)
+  } else {
+    options
+      .into_iter()
+      .map(|options| derive(&ident, &data, &generics, Some(options), visit_types.clone()))
+      .collect()
+  }
+}
+
+fn derive(
+  ident: &Ident,
+  data: &Data,
+  generics: &Generics,
+  options: Option<VisitOptions>,
+  visit_types: Option<TokenStream2>,
+) -> TokenStream {
   let mut impl_generics = generics.clone();
+  let mut type_defs = quote! {};
+  let generics = if let Some(VisitOptions {
+    generic: Some(generic), ..
+  }) = &options
+  {
+    let mappings = generics
+      .type_params()
+      .zip(generic.type_params())
+      .map(|(a, b)| quote! { type #a = #b; });
+    type_defs = quote! { #(#mappings)* };
+    impl_generics.params.clear();
+    generic
+  } else {
+    &generics
+  };
+
   if impl_generics.lifetimes().next().is_none() {
     impl_generics.params.insert(0, parse_quote! { 'i })
   }
@@ -37,7 +90,9 @@ pub fn derive_visit_children(input: TokenStream) -> TokenStream {
     GenericParam::Type(t.ident.clone().into())
   } else {
     let t: GenericParam = parse_quote! { __T };
-    impl_generics.params.push(parse_quote! { #t: Visit<#lifetime, __T, #v> });
+    impl_generics
+      .params
+      .push(parse_quote! { #t: crate::visitor::Visit<#lifetime, __T, #v> });
     t
   };
 
@@ -51,21 +106,6 @@ pub fn derive_visit_children(input: TokenStream) -> TokenStream {
       #name: Visit<#lifetime, #t, #v>
     })
   }
-
-  let options = if let Some(attr) = attrs.iter().find(|attr| attr.path.is_ident("visit")) {
-    let opts: VisitOptions = attr.parse_args().unwrap();
-    Some(opts)
-  } else {
-    None
-  };
-
-  let visit_types = if let Some(attr) = attrs.iter().find(|attr| attr.path.is_ident("visit_types")) {
-    let types: VisitTypes = attr.parse_args().unwrap();
-    let types = types.types;
-    Some(quote! { crate::visit_types!(#(#types)|*) })
-  } else {
-    None
-  };
 
   let mut seen_types = HashSet::new();
   let mut child_types = Vec::new();
@@ -157,7 +197,15 @@ pub fn derive_visit_children(input: TokenStream) -> TokenStream {
     child_types.push(quote! { crate::visitor::VisitTypes::empty().bits() });
   }
 
-  let self_visit = if let Some(VisitOptions { visit, kind }) = options {
+  let (_, ty_generics, _) = generics.split_for_impl();
+  let (impl_generics, _, where_clause) = impl_generics.split_for_impl();
+
+  let self_visit = if let Some(VisitOptions {
+    visit: Some(visit),
+    kind: Some(kind),
+    ..
+  }) = &options
+  {
     child_types.push(quote! { crate::visitor::VisitTypes::#kind.bits() });
 
     quote! {
@@ -173,12 +221,9 @@ pub fn derive_visit_children(input: TokenStream) -> TokenStream {
     quote! {}
   };
 
-  let (_, ty_generics, _) = generics.split_for_impl();
-  let (impl_generics, _, where_clause) = impl_generics.split_for_impl();
-
   let child_types = visit_types.unwrap_or_else(|| {
     quote! {
-      unsafe { crate::visitor::VisitTypes::from_bits_unchecked(#(#child_types)|*) }
+      unsafe { #type_defs crate::visitor::VisitTypes::from_bits_unchecked(#(#child_types)|*) }
     }
   });
 
@@ -208,16 +253,24 @@ fn skip_type(attrs: &Vec<Attribute>) -> bool {
 }
 
 struct VisitOptions {
-  visit: Ident,
-  kind: Ident,
+  visit: Option<Ident>,
+  kind: Option<Ident>,
+  generic: Option<Generics>,
 }
 
 impl Parse for VisitOptions {
   fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-    let visit: Ident = input.parse()?;
-    let _: Token![,] = input.parse()?;
-    let kind: Ident = input.parse()?;
-    Ok(Self { visit, kind })
+    let (visit, kind, comma) = if input.peek(Ident) {
+      let visit: Ident = input.parse()?;
+      let _: Token![,] = input.parse()?;
+      let kind: Ident = input.parse()?;
+      let comma: Result<Token![,], _> = input.parse();
+      (Some(visit), Some(kind), comma.is_ok())
+    } else {
+      (None, None, true)
+    };
+    let generic: Option<Generics> = if comma { Some(input.parse()?) } else { None };
+    Ok(Self { visit, kind, generic })
   }
 }
 

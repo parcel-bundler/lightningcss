@@ -6,6 +6,8 @@ use crate::macros::enum_property;
 use crate::parser::starts_with_ignore_ascii_case;
 use crate::printer::Printer;
 use crate::properties::custom::EnvironmentVariable;
+#[cfg(feature = "visitor")]
+use crate::rules::container::ContainerSizeFeatureId;
 use crate::rules::custom_media::CustomMediaRule;
 use crate::rules::Location;
 use crate::stylesheet::ParserOptions;
@@ -711,9 +713,14 @@ impl MediaFeatureComparison {
   }
 }
 
-/// A [media feature](https://drafts.csswg.org/mediaqueries/#typedef-media-feature)
+/// A generic media feature or container feature.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "visitor", derive(Visit), visit(visit_media_feature, MEDIA_QUERIES))]
+#[cfg_attr(
+  feature = "visitor",
+  derive(Visit),
+  visit(visit_media_feature, MEDIA_QUERIES, <'i, MediaFeatureId>),
+  visit(<'i, ContainerSizeFeatureId>)
+)]
 #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
@@ -721,24 +728,24 @@ impl MediaFeatureComparison {
   serde(tag = "type", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
-pub enum MediaFeature<'i> {
+pub enum QueryFeature<'i, FeatureId> {
   /// A plain media feature, e.g. `(min-width: 240px)`.
   Plain {
     /// The name of the feature.
     #[cfg_attr(feature = "serde", serde(borrow))]
-    name: MediaFeatureName<'i>,
+    name: MediaFeatureName<'i, FeatureId>,
     /// The feature value.
     value: MediaFeatureValue<'i>,
   },
   /// A boolean feature, e.g. `(hover)`.
   Boolean {
     /// The name of the feature.
-    name: MediaFeatureName<'i>,
+    name: MediaFeatureName<'i, FeatureId>,
   },
   /// A range, e.g. `(width > 240px)`.
   Range {
     /// The name of the feature.
-    name: MediaFeatureName<'i>,
+    name: MediaFeatureName<'i, FeatureId>,
     /// A comparator.
     operator: MediaFeatureComparison,
     /// The feature value.
@@ -748,7 +755,7 @@ pub enum MediaFeature<'i> {
   #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
   Interval {
     /// The name of the feature.
-    name: MediaFeatureName<'i>,
+    name: MediaFeatureName<'i, FeatureId>,
     /// A start value.
     start: MediaFeatureValue<'i>,
     /// A comparator for the start value.
@@ -760,7 +767,13 @@ pub enum MediaFeature<'i> {
   },
 }
 
-impl<'i> Parse<'i> for MediaFeature<'i> {
+/// A [media feature](https://drafts.csswg.org/mediaqueries/#typedef-media-feature)
+pub type MediaFeature<'i> = QueryFeature<'i, MediaFeatureId>;
+
+impl<'i, FeatureId> Parse<'i> for QueryFeature<'i, FeatureId>
+where
+  FeatureId: for<'x> Parse<'x> + std::fmt::Debug + PartialEq + ValueType,
+{
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     match input.try_parse(Self::parse_name_first) {
       Ok(res) => Ok(res),
@@ -775,13 +788,16 @@ impl<'i> Parse<'i> for MediaFeature<'i> {
   }
 }
 
-impl<'i> MediaFeature<'i> {
+impl<'i, FeatureId> QueryFeature<'i, FeatureId>
+where
+  FeatureId: for<'x> Parse<'x> + std::fmt::Debug + PartialEq + ValueType,
+{
   fn parse_name_first<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let (name, legacy_op) = MediaFeatureName::parse(input)?;
 
     let operator = input.try_parse(|input| consume_operation_or_colon(input, true));
     let operator = match operator {
-      Err(..) => return Ok(MediaFeature::Boolean { name }),
+      Err(..) => return Ok(QueryFeature::Boolean { name }),
       Ok(operator) => operator,
     };
 
@@ -799,9 +815,9 @@ impl<'i> MediaFeature<'i> {
         return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
       }
 
-      Ok(MediaFeature::Range { name, operator, value })
+      Ok(QueryFeature::Range { name, operator, value })
     } else {
-      Ok(MediaFeature::Plain { name, value })
+      Ok(QueryFeature::Plain { name, value })
     }
   }
 
@@ -857,7 +873,7 @@ impl<'i> MediaFeature<'i> {
         return Err(input.new_custom_error(ParserError::InvalidMediaQuery));
       }
 
-      Ok(MediaFeature::Interval {
+      Ok(QueryFeature::Interval {
         name,
         start: value,
         start_operator,
@@ -866,19 +882,19 @@ impl<'i> MediaFeature<'i> {
       })
     } else {
       let operator = operator.unwrap().opposite();
-      Ok(MediaFeature::Range { name, operator, value })
+      Ok(QueryFeature::Range { name, operator, value })
     }
   }
 
   pub(crate) fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Option<Browsers>) -> bool {
     parent_operator != Some(Operator::And)
       && targets.is_some()
-      && matches!(self, MediaFeature::Interval { .. })
+      && matches!(self, QueryFeature::Interval { .. })
       && !Feature::MediaIntervalSyntax.is_compatible(targets.unwrap())
   }
 }
 
-impl<'i> ToCss for MediaFeature<'i> {
+impl<'i, FeatureId: ToCss> ToCss for QueryFeature<'i, FeatureId> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
@@ -886,15 +902,15 @@ impl<'i> ToCss for MediaFeature<'i> {
     dest.write_char('(')?;
 
     match self {
-      MediaFeature::Boolean { name } => {
+      QueryFeature::Boolean { name } => {
         name.to_css(dest)?;
       }
-      MediaFeature::Plain { name, value } => {
+      QueryFeature::Plain { name, value } => {
         name.to_css(dest)?;
         dest.delim(':', false)?;
         value.to_css(dest)?;
       }
-      MediaFeature::Range { name, operator, value } => {
+      QueryFeature::Range { name, operator, value } => {
         // If range syntax is unsupported, use min/max prefix if possible.
         if let Some(targets) = dest.targets {
           if !Feature::MediaRangeSyntax.is_compatible(targets) {
@@ -906,7 +922,7 @@ impl<'i> ToCss for MediaFeature<'i> {
         operator.to_css(dest)?;
         value.to_css(dest)?;
       }
-      MediaFeature::Interval {
+      QueryFeature::Interval {
         name,
         start,
         start_operator,
@@ -939,9 +955,9 @@ impl<'i> ToCss for MediaFeature<'i> {
 #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(untagged))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
-pub enum MediaFeatureName<'i> {
+pub enum MediaFeatureName<'i, FeatureId> {
   /// A standard media query feature identifier.
-  Standard(MediaFeatureId),
+  Standard(FeatureId),
   /// A custom author-defined environment variable.
   #[cfg_attr(feature = "serde", serde(borrow))]
   Custom(DashedIdent<'i>),
@@ -949,7 +965,7 @@ pub enum MediaFeatureName<'i> {
   Unknown(Ident<'i>),
 }
 
-impl<'i> MediaFeatureName<'i> {
+impl<'i, FeatureId: for<'x> Parse<'x>> MediaFeatureName<'i, FeatureId> {
   /// Parses a media feature name.
   pub fn parse<'t>(
     input: &mut Parser<'i, 't>,
@@ -971,13 +987,27 @@ impl<'i> MediaFeatureName<'i> {
       None
     };
 
-    if let Ok(standard) = MediaFeatureId::parse_string(&name) {
+    if let Ok(standard) = FeatureId::parse_string(&name) {
       return Ok((MediaFeatureName::Standard(standard), comparator));
     }
 
     Ok((MediaFeatureName::Unknown(Ident(ident.into())), None))
   }
+}
 
+mod private {
+  use super::*;
+
+  /// A trait for feature ids which can get a value type.
+  pub trait ValueType {
+    /// Returns the value type for this feature id.
+    fn value_type(&self) -> MediaFeatureType;
+  }
+}
+
+pub(crate) use private::ValueType;
+
+impl<'i, FeatureId: ValueType> ValueType for MediaFeatureName<'i, FeatureId> {
   fn value_type(&self) -> MediaFeatureType {
     match self {
       Self::Standard(standard) => standard.value_type(),
@@ -986,7 +1016,7 @@ impl<'i> MediaFeatureName<'i> {
   }
 }
 
-impl<'i> ToCss for MediaFeatureName<'i> {
+impl<'i, FeatureId: ToCss> ToCss for MediaFeatureName<'i, FeatureId> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
@@ -1036,7 +1066,7 @@ impl MediaFeatureType {
   }
 }
 
-macro_rules! define_media_features {
+macro_rules! define_query_features {
   (
     $(#[$outer:meta])*
     $vis:vis enum $name:ident {
@@ -1046,7 +1076,7 @@ macro_rules! define_media_features {
       )+
     }
   ) => {
-    enum_property! {
+    crate::macros::enum_property! {
       $(#[$outer])*
       $vis enum $name {
         $(
@@ -1056,9 +1086,8 @@ macro_rules! define_media_features {
       }
     }
 
-    impl $name {
-      /// Returns the expected value type for this media feature.
-      pub fn value_type(&self) -> MediaFeatureType {
+    impl ValueType for $name {
+      fn value_type(&self) -> MediaFeatureType {
         match self {
           $(
             Self::$id => MediaFeatureType::$ty,
@@ -1069,7 +1098,9 @@ macro_rules! define_media_features {
   }
 }
 
-define_media_features! {
+pub(crate) use define_query_features;
+
+define_query_features! {
   /// A media query feature identifier.
   pub enum MediaFeatureId {
     /// The [width](https://w3c.github.io/csswg-drafts/mediaqueries-5/#width) media feature.
@@ -1156,9 +1187,9 @@ define_media_features! {
 }
 
 #[inline]
-fn write_min_max<W>(
+fn write_min_max<W, FeatureId: ToCss>(
   operator: &MediaFeatureComparison,
-  name: &MediaFeatureName,
+  name: &MediaFeatureName<FeatureId>,
   value: &MediaFeatureValue,
   dest: &mut Printer<W>,
 ) -> Result<(), PrinterError>
@@ -1439,7 +1470,7 @@ fn process_condition<'i>(
       });
       return res;
     }
-    MediaCondition::Feature(MediaFeature::Boolean { name }) => {
+    MediaCondition::Feature(QueryFeature::Boolean { name }) => {
       let name = match name {
         MediaFeatureName::Custom(name) => name,
         _ => return Ok(true),

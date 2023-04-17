@@ -23921,6 +23921,9 @@ mod tests {
       ParserError::UnexpectedToken(crate::properties::custom::Token::Ident("bar".into())),
     );
 
+    error_test("@container (inline-size <= foo) {}", ParserError::InvalidMediaQuery);
+    error_test("@container (orientation <= 10px) {}", ParserError::InvalidMediaQuery);
+
     error_test("@container style(width) {}", ParserError::EndOfInput);
     error_test(
       "@container style(style(--foo: bar)) {}",

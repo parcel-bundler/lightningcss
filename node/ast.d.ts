@@ -98,7 +98,7 @@ export type Rule<D = Declaration> =
 export type MediaCondition =
   | {
       type: "feature";
-      value: MediaFeature;
+      value: QueryFeatureFor_MediaFeatureId;
     }
   | {
       type: "not";
@@ -116,14 +116,14 @@ export type MediaCondition =
       type: "operation";
     };
 /**
- * A [media feature](https://drafts.csswg.org/mediaqueries/#typedef-media-feature)
+ * A generic media feature or container feature.
  */
-export type MediaFeature =
+export type QueryFeatureFor_MediaFeatureId =
   | {
       /**
        * The name of the feature.
        */
-      name: MediaFeatureName;
+      name: MediaFeatureNameFor_MediaFeatureId;
       type: "plain";
       /**
        * The feature value.
@@ -134,14 +134,14 @@ export type MediaFeature =
       /**
        * The name of the feature.
        */
-      name: MediaFeatureName;
+      name: MediaFeatureNameFor_MediaFeatureId;
       type: "boolean";
     }
   | {
       /**
        * The name of the feature.
        */
-      name: MediaFeatureName;
+      name: MediaFeatureNameFor_MediaFeatureId;
       /**
        * A comparator.
        */
@@ -164,7 +164,7 @@ export type MediaFeature =
       /**
        * The name of the feature.
        */
-      name: MediaFeatureName;
+      name: MediaFeatureNameFor_MediaFeatureId;
       /**
        * A start value.
        */
@@ -178,7 +178,7 @@ export type MediaFeature =
 /**
  * A media feature name.
  */
-export type MediaFeatureName = MediaFeatureId | String | String;
+export type MediaFeatureNameFor_MediaFeatureId = MediaFeatureId | String | String;
 /**
  * A media query feature identifier.
  */
@@ -6894,7 +6894,7 @@ export type SyntaxComponentKind =
 export type ContainerCondition =
   | {
       type: "feature";
-      value: MediaFeature;
+      value: QueryFeatureFor_ContainerSizeFeatureId;
     }
   | {
       type: "not";
@@ -6915,6 +6915,74 @@ export type ContainerCondition =
       type: "style";
       value: StyleQuery;
     };
+/**
+ * A generic media feature or container feature.
+ */
+export type QueryFeatureFor_ContainerSizeFeatureId =
+  | {
+      /**
+       * The name of the feature.
+       */
+      name: MediaFeatureNameFor_ContainerSizeFeatureId;
+      type: "plain";
+      /**
+       * The feature value.
+       */
+      value: MediaFeatureValue;
+    }
+  | {
+      /**
+       * The name of the feature.
+       */
+      name: MediaFeatureNameFor_ContainerSizeFeatureId;
+      type: "boolean";
+    }
+  | {
+      /**
+       * The name of the feature.
+       */
+      name: MediaFeatureNameFor_ContainerSizeFeatureId;
+      /**
+       * A comparator.
+       */
+      operator: MediaFeatureComparison;
+      type: "range";
+      /**
+       * The feature value.
+       */
+      value: MediaFeatureValue;
+    }
+  | {
+      /**
+       * The end value.
+       */
+      end: MediaFeatureValue;
+      /**
+       * A comparator for the end value.
+       */
+      endOperator: MediaFeatureComparison;
+      /**
+       * The name of the feature.
+       */
+      name: MediaFeatureNameFor_ContainerSizeFeatureId;
+      /**
+       * A start value.
+       */
+      start: MediaFeatureValue;
+      /**
+       * A comparator for the start value.
+       */
+      startOperator: MediaFeatureComparison;
+      type: "interval";
+    };
+/**
+ * A media feature name.
+ */
+export type MediaFeatureNameFor_ContainerSizeFeatureId = ContainerSizeFeatureId | String | String;
+/**
+ * A container query size feature identifier.
+ */
+export type ContainerSizeFeatureId = "width" | "height" | "inline-size" | "block-size" | "aspect-ratio" | "orientation";
 /**
  * Represents a style query within a container condition.
  */
