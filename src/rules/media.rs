@@ -38,6 +38,10 @@ impl<'i, T> MediaRule<'i, T> {
       self.query.transform_custom_media(self.loc, custom_media)?;
     }
 
+    if let Some(targets) = context.targets {
+      self.query.transform_resolution(*targets);
+    }
+
     Ok(self.rules.0.is_empty() || self.query.never_matches())
   }
 }

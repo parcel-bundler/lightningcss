@@ -7210,6 +7210,154 @@ mod tests {
         ..Browsers::default()
       },
     );
+    prefix_test(
+      r#"
+      @media (min-resolution: 2dppx) {
+        .foo { color: yellow; }
+      }
+      "#,
+      indoc! { r#"
+        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 2dppx) {
+          .foo {
+            color: #ff0;
+          }
+        }
+      "#},
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      @media (min-resolution: 2dppx) {
+        .foo { color: yellow; }
+      }
+      "#,
+      indoc! { r#"
+        @media (min--moz-device-pixel-ratio: 2), (min-resolution: 2dppx) {
+          .foo {
+            color: #ff0;
+          }
+        }
+      "#},
+      Browsers {
+        firefox: Some(10 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      @media (resolution > 2dppx) {
+        .foo { color: yellow; }
+      }
+      "#,
+      indoc! { r#"
+        @media (-webkit-min-device-pixel-ratio: 2.001), (min-resolution: 2.001dppx) {
+          .foo {
+            color: #ff0;
+          }
+        }
+      "#},
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      @media (resolution >= 300dpi) {
+        .foo { color: yellow; }
+      }
+      "#,
+      indoc! { r#"
+        @media (-webkit-min-device-pixel-ratio: 3.125), (min-resolution: 300dpi) {
+          .foo {
+            color: #ff0;
+          }
+        }
+      "#},
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      @media (min-resolution: 113.38dpcm) {
+        .foo { color: yellow; }
+      }
+      "#,
+      indoc! { r#"
+        @media (-webkit-min-device-pixel-ratio: 2.99985), (min--moz-device-pixel-ratio: 2.99985), (min-resolution: 113.38dpcm) {
+          .foo {
+            color: #ff0;
+          }
+        }
+      "#},
+      Browsers {
+        safari: Some(15 << 16),
+        firefox: Some(10 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      @media (color) and (min-resolution: 2dppx) {
+        .foo { color: yellow; }
+      }
+      "#,
+      indoc! { r#"
+        @media (color) and (-webkit-min-device-pixel-ratio: 2), (color) and (min-resolution: 2dppx) {
+          .foo {
+            color: #ff0;
+          }
+        }
+      "#},
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      @media (min-resolution: 2dppx),
+             (min-resolution: 192dpi) {
+        .foo { color: yellow; }
+      }
+      "#,
+      indoc! { r#"
+        @media (-webkit-min-device-pixel-ratio: 2), (min--moz-device-pixel-ratio: 2), (min-resolution: 2dppx), (min-resolution: 192dpi) {
+          .foo {
+            color: #ff0;
+          }
+        }
+      "#},
+      Browsers {
+        safari: Some(15 << 16),
+        firefox: Some(10 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      @media only screen and (min-resolution: 124.8dpi) {
+        .foo { color: yellow; }
+      }
+      "#,
+      indoc! { r#"
+        @media only screen and (-webkit-min-device-pixel-ratio: 1.3), only screen and (min--moz-device-pixel-ratio: 1.3), only screen and (min-resolution: 124.8dpi) {
+          .foo {
+            color: #ff0;
+          }
+        }
+      "#},
+      Browsers {
+        safari: Some(15 << 16),
+        firefox: Some(10 << 16),
+        ..Browsers::default()
+      },
+    );
 
     error_test(
       "@media (min-width: hi) { .foo { color: chartreuse }}",

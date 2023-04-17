@@ -6,8 +6,8 @@ use super::Location;
 use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
 use crate::media_query::{
-  define_query_features, operation_to_css, parse_query_condition, to_css_with_parens_if_needed, MediaFeatureType,
-  Operator, QueryCondition, QueryConditionFlags, QueryFeature, ValueType,
+  define_query_features, operation_to_css, parse_query_condition, to_css_with_parens_if_needed, FeatureToCss,
+  MediaFeatureType, Operator, QueryCondition, QueryConditionFlags, QueryFeature, ValueType,
 };
 use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
@@ -87,6 +87,16 @@ define_query_features! {
     "aspect-ratio": AspectRatio = Ratio,
     /// The [orientation](https://w3c.github.io/csswg-drafts/css-contain-3/#orientation) size container feature.
     "orientation": Orientation = Ident,
+  }
+}
+
+impl FeatureToCss for ContainerSizeFeatureId {
+  fn to_css_with_prefix<W>(&self, prefix: &str, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    dest.write_str(prefix)?;
+    self.to_css(dest)
   }
 }
 

@@ -17,10 +17,12 @@ use crate::values::ident::{DashedIdent, Ident};
 use crate::values::number::{CSSInteger, CSSNumber};
 use crate::values::string::CowArcStr;
 use crate::values::{length::Length, ratio::Ratio, resolution::Resolution};
+use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use bitflags::bitflags;
 use cssparser::*;
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 
 #[cfg(feature = "serde")]
@@ -81,6 +83,28 @@ impl<'i> MediaList<'i> {
       query.transform_custom_media(loc, custom_media)?;
     }
     Ok(())
+  }
+
+  pub(crate) fn transform_resolution(&mut self, targets: Browsers) {
+    let mut i = 0;
+    while i < self.media_queries.len() {
+      let query = &self.media_queries[i];
+      let mut prefixes = query.get_necessary_prefixes(targets);
+      prefixes.remove(VendorPrefix::None);
+      if !prefixes.is_empty() {
+        let query = query.clone();
+        for prefix in prefixes {
+          let mut transformed = query.clone();
+          transformed.transform_resolution(prefix);
+          if !self.media_queries.contains(&transformed) {
+            self.media_queries.insert(i, transformed);
+          }
+          i += 1;
+        }
+      }
+
+      i += 1;
+    }
   }
 
   /// Returns whether the media query list always matches.
@@ -299,6 +323,20 @@ impl<'i> MediaQuery<'i> {
     Ok(())
   }
 
+  fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+    if let Some(condition) = &self.condition {
+      condition.get_necessary_prefixes(targets)
+    } else {
+      VendorPrefix::empty()
+    }
+  }
+
+  fn transform_resolution(&mut self, prefix: VendorPrefix) {
+    if let Some(condition) = &mut self.condition {
+      condition.transform_resolution(prefix)
+    }
+  }
+
   /// Returns whether the media query is guaranteed to always match.
   pub fn always_matches(&self) -> bool {
     self.qualifier == None && self.media_type == MediaType::All && self.condition == None
@@ -501,6 +539,58 @@ impl<'i> MediaCondition<'i> {
     flags: QueryConditionFlags,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     parse_query_condition(input, flags)
+  }
+
+  fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+    match self {
+      MediaCondition::Feature(MediaFeature::Range {
+        name: MediaFeatureName::Standard(MediaFeatureId::Resolution),
+        ..
+      }) => crate::prefixes::Feature::AtResolution.prefixes_for(targets),
+      MediaCondition::Not(not) => not.get_necessary_prefixes(targets),
+      MediaCondition::Operation { conditions, .. } => {
+        let mut prefixes = VendorPrefix::empty();
+        for condition in conditions {
+          prefixes |= condition.get_necessary_prefixes(targets);
+        }
+        prefixes
+      }
+      _ => VendorPrefix::empty(),
+    }
+  }
+
+  fn transform_resolution(&mut self, prefix: VendorPrefix) {
+    match self {
+      MediaCondition::Feature(MediaFeature::Range {
+        name: MediaFeatureName::Standard(MediaFeatureId::Resolution),
+        operator,
+        value: MediaFeatureValue::Resolution(value),
+      }) => match prefix {
+        VendorPrefix::WebKit | VendorPrefix::Moz => {
+          *self = MediaCondition::Feature(MediaFeature::Range {
+            name: MediaFeatureName::Standard(match prefix {
+              VendorPrefix::WebKit => MediaFeatureId::WebKitDevicePixelRatio,
+              VendorPrefix::Moz => MediaFeatureId::MozDevicePixelRatio,
+              _ => unreachable!(),
+            }),
+            operator: *operator,
+            value: MediaFeatureValue::Number(match value {
+              Resolution::Dpi(dpi) => *dpi / 96.0,
+              Resolution::Dpcm(dpcm) => *dpcm * 2.54 / 96.0,
+              Resolution::Dppx(dppx) => *dppx,
+            }),
+          });
+        }
+        _ => {}
+      },
+      MediaCondition::Not(not) => not.transform_resolution(prefix),
+      MediaCondition::Operation { conditions, .. } => {
+        for condition in conditions {
+          condition.transform_resolution(prefix);
+        }
+      }
+      _ => {}
+    }
   }
 }
 
@@ -894,7 +984,7 @@ where
   }
 }
 
-impl<'i, FeatureId: ToCss> ToCss for QueryFeature<'i, FeatureId> {
+impl<'i, FeatureId: FeatureToCss> ToCss for QueryFeature<'i, FeatureId> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
@@ -977,6 +1067,14 @@ impl<'i, FeatureId: for<'x> Parse<'x>> MediaFeatureName<'i, FeatureId> {
     }
 
     let mut name = ident.as_ref();
+
+    // Webkit places its prefixes before "min" and "max". Remove it first, and
+    // re-add after removing min/max.
+    let is_webkit = starts_with_ignore_ascii_case(&name, "-webkit-");
+    if is_webkit {
+      name = &name[8..];
+    }
+
     let comparator = if starts_with_ignore_ascii_case(&name, "min-") {
       name = &name[4..];
       Some(MediaFeatureComparison::GreaterThanEqual)
@@ -985,6 +1083,12 @@ impl<'i, FeatureId: for<'x> Parse<'x>> MediaFeatureName<'i, FeatureId> {
       Some(MediaFeatureComparison::LessThanEqual)
     } else {
       None
+    };
+
+    let name = if is_webkit {
+      Cow::Owned(format!("-webkit-{}", name))
+    } else {
+      Cow::Borrowed(name)
     };
 
     if let Ok(standard) = FeatureId::parse_string(&name) {
@@ -1016,7 +1120,7 @@ impl<'i, FeatureId: ValueType> ValueType for MediaFeatureName<'i, FeatureId> {
   }
 }
 
-impl<'i, FeatureId: ToCss> ToCss for MediaFeatureName<'i, FeatureId> {
+impl<'i, FeatureId: FeatureToCss> ToCss for MediaFeatureName<'i, FeatureId> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where
     W: std::fmt::Write,
@@ -1025,6 +1129,25 @@ impl<'i, FeatureId: ToCss> ToCss for MediaFeatureName<'i, FeatureId> {
       Self::Standard(v) => v.to_css(dest),
       Self::Custom(v) => v.to_css(dest),
       Self::Unknown(v) => v.to_css(dest),
+    }
+  }
+}
+
+impl<'i, FeatureId: FeatureToCss> FeatureToCss for MediaFeatureName<'i, FeatureId> {
+  fn to_css_with_prefix<W>(&self, prefix: &str, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      Self::Standard(v) => v.to_css_with_prefix(prefix, dest),
+      Self::Custom(v) => {
+        dest.write_str(prefix)?;
+        v.to_css(dest)
+      }
+      Self::Unknown(v) => {
+        dest.write_str(prefix)?;
+        v.to_css(dest)
+      }
     }
   }
 }
@@ -1178,16 +1301,44 @@ define_query_features! {
     /// The [device-aspect-ratio](https://w3c.github.io/csswg-drafts/mediaqueries-5/#device-aspect-ratio) media feature.
     "device-aspect-ratio": DeviceAspectRatio = Ratio,
 
+    /// The non-standard -webkit-device-pixel-ratio media feature.
+    "-webkit-device-pixel-ratio": WebKitDevicePixelRatio = Number,
+    /// The non-standard -moz-device-pixel-ratio media feature.
+    "-moz-device-pixel-ratio": MozDevicePixelRatio = Number,
+
     // TODO: parse non-standard media queries?
     // -moz-device-orientation
-    // -webkit-device-pixel-ratio
-    // -moz-device-pixel-ratio
     // -webkit-transform-3d
   }
 }
 
+pub(crate) trait FeatureToCss: ToCss {
+  fn to_css_with_prefix<W>(&self, prefix: &str, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write;
+}
+
+impl FeatureToCss for MediaFeatureId {
+  fn to_css_with_prefix<W>(&self, prefix: &str, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      MediaFeatureId::WebKitDevicePixelRatio => {
+        dest.write_str("-webkit-")?;
+        dest.write_str(prefix)?;
+        dest.write_str("device-pixel-ratio")
+      }
+      _ => {
+        dest.write_str(prefix)?;
+        self.to_css(dest)
+      }
+    }
+  }
+}
+
 #[inline]
-fn write_min_max<W, FeatureId: ToCss>(
+fn write_min_max<W, FeatureId: FeatureToCss>(
   operator: &MediaFeatureComparison,
   name: &MediaFeatureName<FeatureId>,
   value: &MediaFeatureValue,
@@ -1203,10 +1354,11 @@ where
   };
 
   if let Some(prefix) = prefix {
-    dest.write_str(prefix)?;
+    name.to_css_with_prefix(prefix, dest)?;
+  } else {
+    name.to_css(dest)?;
   }
 
-  name.to_css(dest)?;
   dest.delim(':', false)?;
 
   let adjusted = match operator {
