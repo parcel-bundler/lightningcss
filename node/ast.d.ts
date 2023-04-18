@@ -8,90 +8,89 @@
 /**
  * A CSS rule.
  */
-export type Rule<D = Declaration> =
-  | {
-      type: "media";
-      value: MediaRule<D>;
-    }
-  | {
-      type: "import";
-      value: ImportRule;
-    }
-  | {
-      type: "style";
-      value: StyleRule<D>;
-    }
-  | {
-      type: "keyframes";
-      value: KeyframesRule<D>;
-    }
-  | {
-      type: "font-face";
-      value: FontFaceRule;
-    }
-  | {
-      type: "font-palette-values";
-      value: FontPaletteValuesRule;
-    }
-  | {
-      type: "page";
-      value: PageRule<D>;
-    }
-  | {
-      type: "supports";
-      value: SupportsRule<D>;
-    }
-  | {
-      type: "counter-style";
-      value: CounterStyleRule<D>;
-    }
-  | {
-      type: "namespace";
-      value: NamespaceRule;
-    }
-  | {
-      type: "moz-document";
-      value: MozDocumentRule<D>;
-    }
-  | {
-      type: "nesting";
-      value: NestingRule<D>;
-    }
-  | {
-      type: "viewport";
-      value: ViewportRule<D>;
-    }
-  | {
-      type: "custom-media";
-      value: CustomMediaRule;
-    }
-  | {
-      type: "layer-statement";
-      value: LayerStatementRule;
-    }
-  | {
-      type: "layer-block";
-      value: LayerBlockRule<D>;
-    }
-  | {
-      type: "property";
-      value: PropertyRule;
-    }
-  | {
-      type: "container";
-      value: ContainerRule<D>;
-    }
-  | {
-      type: "ignored";
-    }
-  | {
-      type: "unknown";
-      value: UnknownAtRule;
-    }
-  | {
-      type: "custom";
-      value: DefaultAtRule;
-    };
+export type Rule<D = Declaration, M = MediaQuery> = | {
+    type: "media";
+    value: MediaRule<D, M>;
+  }
+| {
+    type: "import";
+    value: ImportRule<M>;
+  }
+| {
+    type: "style";
+    value: StyleRule<D, M>;
+  }
+| {
+    type: "keyframes";
+    value: KeyframesRule<D>;
+  }
+| {
+    type: "font-face";
+    value: FontFaceRule;
+  }
+| {
+    type: "font-palette-values";
+    value: FontPaletteValuesRule;
+  }
+| {
+    type: "page";
+    value: PageRule<D>;
+  }
+| {
+    type: "supports";
+    value: SupportsRule<D, M>;
+  }
+| {
+    type: "counter-style";
+    value: CounterStyleRule<D>;
+  }
+| {
+    type: "namespace";
+    value: NamespaceRule;
+  }
+| {
+    type: "moz-document";
+    value: MozDocumentRule<D, M>;
+  }
+| {
+    type: "nesting";
+    value: NestingRule<D, M>;
+  }
+| {
+    type: "viewport";
+    value: ViewportRule<D>;
+  }
+| {
+    type: "custom-media";
+    value: CustomMediaRule<M>;
+  }
+| {
+    type: "layer-statement";
+    value: LayerStatementRule;
+  }
+| {
+    type: "layer-block";
+    value: LayerBlockRule<D, M>;
+  }
+| {
+    type: "property";
+    value: PropertyRule;
+  }
+| {
+    type: "container";
+    value: ContainerRule<D, M>;
+  }
+| {
+    type: "ignored";
+  }
+| {
+    type: "unknown";
+    value: UnknownAtRule;
+  }
+| {
+    type: "custom";
+    value: DefaultAtRule;
+  };
 /**
  * Represents a media condition.
  */
@@ -219,7 +218,9 @@ export type MediaFeatureId =
   | "prefers-reduced-data"
   | "device-width"
   | "device-height"
-  | "device-aspect-ratio";
+  | "device-aspect-ratio"
+  | "-webkit-device-pixel-ratio"
+  | "-moz-device-pixel-ratio";
 export type String = string;
 /**
  * [media feature value](https://drafts.csswg.org/mediaqueries/#typedef-mf-value) within a media query.
@@ -6891,30 +6892,29 @@ export type SyntaxComponentKind =
 /**
  * Represents a container condition.
  */
-export type ContainerCondition =
-  | {
-      type: "feature";
-      value: QueryFeatureFor_ContainerSizeFeatureId;
-    }
-  | {
-      type: "not";
-      value: ContainerCondition;
-    }
-  | {
-      /**
-       * The conditions for the operator.
-       */
-      conditions: ContainerCondition[];
-      /**
-       * The operator for the conditions.
-       */
-      operator: Operator;
-      type: "operation";
-    }
-  | {
-      type: "style";
-      value: StyleQuery;
-    };
+export type ContainerCondition<D = Declaration> = | {
+    type: "feature";
+    value: QueryFeatureFor_ContainerSizeFeatureId;
+  }
+| {
+    type: "not";
+    value: ContainerCondition<D>;
+  }
+| {
+    /**
+     * The conditions for the operator.
+     */
+    conditions: ContainerCondition<D>[];
+    /**
+     * The operator for the conditions.
+     */
+    operator: Operator;
+    type: "operation";
+  }
+| {
+    type: "style";
+    value: StyleQuery<D>;
+  };
 /**
  * A generic media feature or container feature.
  */
@@ -6986,26 +6986,25 @@ export type ContainerSizeFeatureId = "width" | "height" | "inline-size" | "block
 /**
  * Represents a style query within a container condition.
  */
-export type StyleQuery =
-  | {
-      type: "feature";
-      value: Declaration;
-    }
-  | {
-      type: "not";
-      value: StyleQuery;
-    }
-  | {
-      /**
-       * The conditions for the operator.
-       */
-      conditions: StyleQuery[];
-      /**
-       * The operator for the conditions.
-       */
-      operator: Operator;
-      type: "operation";
-    };
+export type StyleQuery<D = Declaration> = | {
+    type: "feature";
+    value: D;
+  }
+| {
+    type: "not";
+    value: StyleQuery<D>;
+  }
+| {
+    /**
+     * The conditions for the operator.
+     */
+    conditions: StyleQuery<D>[];
+    /**
+     * The operator for the conditions.
+     */
+    operator: Operator;
+    type: "operation";
+  };
 export type DefaultAtRule = null;
 
 /**
@@ -7025,11 +7024,11 @@ export type DefaultAtRule = null;
  *
  * // Serialize it to a string. let res = stylesheet.to_css(PrinterOptions::default()).unwrap(); assert_eq!(res.code, ".foo, .bar {\n  color: red;\n}\n"); ```
  */
-export interface StyleSheet<D = Declaration> {
+export interface StyleSheet<D = Declaration, M = MediaQuery> {
   /**
    * A list of top-level rules within the style sheet.
    */
-  rules: Rule<D>[];
+  rules: Rule<D, M>[];
   /**
    * The source map URL extracted from the original style sheet.
    */
@@ -7042,7 +7041,7 @@ export interface StyleSheet<D = Declaration> {
 /**
  * A [@media](https://drafts.csswg.org/css-conditional-3/#at-media) rule.
  */
-export interface MediaRule<D = Declaration> {
+export interface MediaRule<D = Declaration, M = MediaQuery> {
   /**
    * The location of the rule in the source file.
    */
@@ -7050,11 +7049,11 @@ export interface MediaRule<D = Declaration> {
   /**
    * The media query list.
    */
-  query: MediaList;
+  query: MediaList<M>;
   /**
    * The rules within the `@media` rule.
    */
-  rules: Rule<D>[];
+  rules: Rule<D, M>[];
 }
 /**
  * A line and column position within a source file.
@@ -7072,11 +7071,11 @@ export interface Location {
 /**
  * A [media query list](https://drafts.csswg.org/mediaqueries/#mq-list).
  */
-export interface MediaList {
+export interface MediaList<M = MediaQuery> {
   /**
    * The list of media queries.
    */
-  mediaQueries: MediaQuery[];
+  mediaQueries: M[];
 }
 /**
  * A [media query](https://drafts.csswg.org/mediaqueries/#media).
@@ -7181,7 +7180,7 @@ export interface Function {
 /**
  * A [@import](https://drafts.csswg.org/css-cascade/#at-import) rule.
  */
-export interface ImportRule {
+export interface ImportRule<M = MediaQuery> {
   /**
    * An optional cascade layer name, or `None` for an anonymous layer.
    */
@@ -7193,7 +7192,7 @@ export interface ImportRule {
   /**
    * A media query.
    */
-  media?: MediaList;
+  media?: MediaList<M>;
   /**
    * An optional `supports()` condition.
    */
@@ -7206,7 +7205,7 @@ export interface ImportRule {
 /**
  * A CSS [style rule](https://drafts.csswg.org/css-syntax/#style-rules).
  */
-export interface StyleRule<D = Declaration> {
+export interface StyleRule<D = Declaration, M = MediaQuery> {
   /**
    * The declarations within the style rule.
    */
@@ -7218,7 +7217,7 @@ export interface StyleRule<D = Declaration> {
   /**
    * Nested rules within the style rule.
    */
-  rules?: Rule<D>[];
+  rules?: Rule<D, M>[];
   /**
    * The selectors for the style rule.
    */
@@ -8665,9 +8664,9 @@ export interface KeyframesRule<D = Declaration> {
 /**
  * An individual keyframe within an `@keyframes` rule.
  *
- * See [KeyframesRule<D>](KeyframesRule<D>).
+ * See [KeyframesRule](KeyframesRule).
  */
-export interface Keyframe<D> {
+export interface Keyframe<D = Declaration> {
   /**
    * The declarations for this keyframe.
    */
@@ -8808,7 +8807,7 @@ export interface PageSelector {
 /**
  * A [@supports](https://drafts.csswg.org/css-conditional-3/#at-supports) rule.
  */
-export interface SupportsRule<D = Declaration> {
+export interface SupportsRule<D = Declaration, M = MediaQuery> {
   /**
    * The supports condition.
    */
@@ -8820,7 +8819,7 @@ export interface SupportsRule<D = Declaration> {
   /**
    * The rules within the `@supports` rule.
    */
-  rules: Rule<D>[];
+  rules: Rule<D, M>[];
 }
 /**
  * A [@counter-style](https://drafts.csswg.org/css-counter-styles/#the-counter-style-rule) rule.
@@ -8861,7 +8860,7 @@ export interface NamespaceRule {
  *
  * Note that only the `url-prefix()` function with no arguments is supported, and only the `-moz` prefix is allowed since Firefox was the only browser that ever implemented this rule.
  */
-export interface MozDocumentRule<D = Declaration> {
+export interface MozDocumentRule<D = Declaration, M = MediaQuery> {
   /**
    * The location of the rule in the source file.
    */
@@ -8869,12 +8868,12 @@ export interface MozDocumentRule<D = Declaration> {
   /**
    * Nested rules within the `@-moz-document` rule.
    */
-  rules: Rule<D>[];
+  rules: Rule<D, M>[];
 }
 /**
  * A [@nest](https://www.w3.org/TR/css-nesting-1/#at-nest) rule.
  */
-export interface NestingRule<D = Declaration> {
+export interface NestingRule<D = Declaration, M = MediaQuery> {
   /**
    * The location of the rule in the source file.
    */
@@ -8882,7 +8881,7 @@ export interface NestingRule<D = Declaration> {
   /**
    * The style rule that defines the selector and declarations for the `@nest` rule.
    */
-  style: StyleRule<D>;
+  style: StyleRule<D, M>;
 }
 /**
  * A [@viewport](https://drafts.csswg.org/css-device-adapt/#atviewport-rule) rule.
@@ -8904,7 +8903,7 @@ export interface ViewportRule<D = Declaration> {
 /**
  * A [@custom-media](https://drafts.csswg.org/mediaqueries-5/#custom-mq) rule.
  */
-export interface CustomMediaRule {
+export interface CustomMediaRule<M = MediaQuery> {
   /**
    * The location of the rule in the source file.
    */
@@ -8916,7 +8915,7 @@ export interface CustomMediaRule {
   /**
    * The media query to declare.
    */
-  query: MediaList;
+  query: MediaList<M>;
 }
 /**
  * A [@layer statement](https://drafts.csswg.org/css-cascade-5/#layer-empty) rule.
@@ -8936,7 +8935,7 @@ export interface LayerStatementRule {
 /**
  * A [@layer block](https://drafts.csswg.org/css-cascade-5/#layer-block) rule.
  */
-export interface LayerBlockRule<D = Declaration> {
+export interface LayerBlockRule<D = Declaration, M = MediaQuery> {
   /**
    * The location of the rule in the source file.
    */
@@ -8948,7 +8947,7 @@ export interface LayerBlockRule<D = Declaration> {
   /**
    * The rules within the `@layer` rule.
    */
-  rules: Rule<D>[];
+  rules: Rule<D, M>[];
 }
 /**
  * A [@property](https://drafts.css-houdini.org/css-properties-values-api/#at-property-rule) rule.
@@ -8993,11 +8992,11 @@ export interface SyntaxComponent {
 /**
  * A [@container](https://drafts.csswg.org/css-contain-3/#container-rule) rule.
  */
-export interface ContainerRule<D = Declaration> {
+export interface ContainerRule<D = Declaration, M = MediaQuery> {
   /**
    * The container condition.
    */
-  condition: ContainerCondition;
+  condition: ContainerCondition<D>;
   /**
    * The location of the rule in the source file.
    */
@@ -9009,7 +9008,7 @@ export interface ContainerRule<D = Declaration> {
   /**
    * The rules within the `@container` rule.
    */
-  rules: Rule<D>[];
+  rules: Rule<D, M>[];
 }
 /**
  * An unknown at-rule, stored as raw tokens.

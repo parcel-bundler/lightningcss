@@ -256,11 +256,7 @@ impl<'a> schemars::JsonSchema for MediaType<'a> {
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(feature = "visitor", visit(visit_media_query, MEDIA_QUERIES))]
-#[cfg_attr(
-  feature = "serde",
-  derive(serde::Serialize, serde::Deserialize),
-  serde(rename_all = "camelCase")
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize), serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct MediaQuery<'i> {
   /// The qualifier for this query.
@@ -273,11 +269,8 @@ pub struct MediaQuery<'i> {
   pub condition: Option<MediaCondition<'i>>,
 }
 
-impl<'i> MediaQuery<'i> {
-  /// Parse a media query given css input.
-  ///
-  /// Returns an error if any of the expressions is unknown.
-  pub fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+impl<'i> Parse<'i> for MediaQuery<'i> {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let (qualifier, explicit_media_type) = input
       .try_parse(|input| -> Result<_, ParseError<'i, ParserError<'i>>> {
         let qualifier = input.try_parse(Qualifier::parse).ok();
@@ -301,7 +294,9 @@ impl<'i> MediaQuery<'i> {
       condition,
     })
   }
+}
 
+impl<'i> MediaQuery<'i> {
   fn transform_custom_media(
     &mut self,
     loc: Location,
@@ -443,6 +438,46 @@ impl<'i> ToCss for MediaQuery<'i> {
     };
 
     to_css_with_parens_if_needed(condition, dest, needs_parens)
+  }
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(untagged))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+enum MediaQueryOrRaw<'i> {
+  #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+  MediaQuery {
+    qualifier: Option<Qualifier>,
+    #[cfg_attr(feature = "serde", serde(borrow))]
+    media_type: MediaType<'i>,
+    condition: Option<MediaCondition<'i>>,
+  },
+  Raw {
+    raw: CowArcStr<'i>,
+  },
+}
+
+impl<'i, 'de: 'i> serde::Deserialize<'de> for MediaQuery<'i> {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let mq = MediaQueryOrRaw::deserialize(deserializer)?;
+    match mq {
+      MediaQueryOrRaw::MediaQuery {
+        qualifier,
+        media_type,
+        condition,
+      } => Ok(MediaQuery {
+        qualifier,
+        media_type,
+        condition,
+      }),
+      MediaQueryOrRaw::Raw { raw } => {
+        let res =
+          MediaQuery::parse_string(raw.as_ref()).map_err(|_| serde::de::Error::custom("Could not parse value"))?;
+        Ok(res.into_owned())
+      }
+    }
   }
 }
 

@@ -16,7 +16,7 @@ export interface TransformOptions<C extends CustomAtRules> {
   sourceMap?: boolean,
   /** An input source map to extend. */
   inputSourceMap?: string,
-  /** 
+  /**
    * An optional project root path, used as the source root in the output source map.
    * Also used to generate relative paths for sources used in CSS module hashes.
    */
@@ -34,7 +34,7 @@ export interface TransformOptions<C extends CustomAtRules> {
    * urls later (after bundling). Dependencies are returned as part of the result.
    */
   analyzeDependencies?: boolean | DependencyOptions,
-  /** 
+  /**
    * Replaces user action pseudo classes with class names that can be applied from JavaScript.
    * This is useful for polyfills, for example.
    */
@@ -69,15 +69,20 @@ export interface TransformOptions<C extends CustomAtRules> {
 
 // This is a hack to make TS still provide autocomplete for `property` vs. just making it `string`.
 type PropertyStart = '-' | '_' | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm' | 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z';
-type ReturnedDeclaration = Declaration | {
+export type ReturnedDeclaration = Declaration | {
   /** The property name. */
   property: `${PropertyStart}${string}`,
   /** The raw string value for the declaration. */
   raw: string
 };
 
+export type ReturnedMediaQuery = MediaQuery | {
+  /** The raw string value for the media query. */
+  raw: string
+};
+
 type FindByType<Union, Name> = Union extends { type: Name } ? Union : never;
-type ReturnedRule = Rule<ReturnedDeclaration>;
+export type ReturnedRule = Rule<ReturnedDeclaration, ReturnedMediaQuery>;
 type RequiredValue<Rule> = Rule extends { value: object }
   ? Rule['value'] extends StyleRule
   ? Rule & { value: Required<StyleRule> & { declarations: Required<DeclarationBlock> } }
@@ -186,8 +191,8 @@ export interface Visitor<C extends CustomAtRules> {
   Time?(time: Time): Time | void;
   CustomIdent?(ident: string): string | void;
   DashedIdent?(ident: string): string | void;
-  MediaQuery?(query: MediaQuery): MediaQuery | MediaQuery[] | void;
-  MediaQueryExit?(query: MediaQuery): MediaQuery | MediaQuery[] | void;
+  MediaQuery?(query: MediaQuery): ReturnedMediaQuery | ReturnedMediaQuery[] | void;
+  MediaQueryExit?(query: MediaQuery): ReturnedMediaQuery | ReturnedMediaQuery[] | void;
   SupportsCondition?(condition: SupportsCondition): SupportsCondition;
   SupportsConditionExit?(condition: SupportsCondition): SupportsCondition;
   Selector?(selector: Selector): Selector | Selector[] | void;
@@ -393,7 +398,7 @@ export interface TransformAttributeOptions {
   targets?: Targets,
   /**
    * Whether to analyze `url()` dependencies.
-   * When enabled, `url()` dependencies are replaced with hashed placeholders 
+   * When enabled, `url()` dependencies are replaced with hashed placeholders
    * that can be replaced with the final urls later (after bundling).
    * Dependencies are returned as part of the result.
    */
