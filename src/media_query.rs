@@ -441,7 +441,9 @@ impl<'i> ToCss for MediaQuery<'i> {
   }
 }
 
-#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(untagged))]
+#[cfg(feature = "serde")]
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 enum MediaQueryOrRaw<'i> {
   #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
@@ -456,6 +458,7 @@ enum MediaQueryOrRaw<'i> {
   },
 }
 
+#[cfg(feature = "serde")]
 impl<'i, 'de: 'i> serde::Deserialize<'de> for MediaQuery<'i> {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
