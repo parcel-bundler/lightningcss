@@ -5764,6 +5764,38 @@ mod tests {
     minify_test("a:is(:is(.foo)) { color: yellow }", "a.foo{color:#ff0}");
     minify_test(":host(:hover) {color: red}", ":host(:hover){color:red}");
     minify_test("::slotted(:hover) {color: red}", "::slotted(:hover){color:red}");
+
+    minify_test(
+      ":root::view-transition {position: fixed}",
+      ":root::view-transition{position:fixed}",
+    );
+    for name in &[
+      "view-transition-group",
+      "view-transition-image-pair",
+      "view-transition-new",
+      "view-transition-old",
+    ] {
+      minify_test(
+        &format!(":root::{}(*) {{position: fixed}}", name),
+        &format!(":root::{}(*){{position:fixed}}", name),
+      );
+      minify_test(
+        &format!(":root::{}(foo) {{position: fixed}}", name),
+        &format!(":root::{}(foo){{position:fixed}}", name),
+      );
+      minify_test(
+        &format!(":root::{}(foo):only-child {{position: fixed}}", name),
+        &format!(":root::{}(foo):only-child{{position:fixed}}", name),
+      );
+      error_test(
+        &format!(":root::{}(foo):first-child {{position: fixed}}", name),
+        ParserError::SelectorError(SelectorError::InvalidPseudoClassAfterPseudoElement),
+      );
+      error_test(
+        &format!(":root::{}(foo)::before {{position: fixed}}", name),
+        ParserError::SelectorError(SelectorError::InvalidState),
+      );
+    }
   }
 
   #[test]

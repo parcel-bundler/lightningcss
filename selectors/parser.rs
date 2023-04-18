@@ -40,6 +40,10 @@ pub trait PseudoElement<'i>: Sized + ToCss {
   fn is_webkit_scrollbar(&self) -> bool {
     false
   }
+
+  fn is_view_transition(&self) -> bool {
+    false
+  }
 }
 
 /// A trait that represents a pseudo-class.
@@ -126,6 +130,7 @@ bitflags! {
         const AFTER_NESTING = 1 << 7;
 
         const AFTER_WEBKIT_SCROLLBAR = 1 << 8;
+        const AFTER_VIEW_TRANSITION = 1 << 9;
     }
 }
 
@@ -2601,6 +2606,9 @@ where
         if p.is_webkit_scrollbar() {
           state.insert(SelectorParsingState::AFTER_WEBKIT_SCROLLBAR);
         }
+        if p.is_view_transition() {
+          state.insert(SelectorParsingState::AFTER_VIEW_TRANSITION);
+        }
         builder.push_combinator(Combinator::PseudoElement);
         builder.push_simple_selector(Component::PseudoElement(p));
       }
@@ -2913,6 +2921,15 @@ where
         "last-of-type" => return Ok(Component::Nth(NthSelectorData::last(/* of_type = */ true))),
         "only-of-type" => return Ok(Component::Nth(NthSelectorData::only(/* of_type = */ true))),
         _ => {},
+    }
+  }
+
+  // The view-transition pseudo elements accept the :only-child pseudo class.
+  // https://w3c.github.io/csswg-drafts/css-view-transitions-1/#pseudo-root
+  if state.intersects(SelectorParsingState::AFTER_VIEW_TRANSITION) {
+    match_ignore_ascii_case! { &name,
+        "only-child" => return Ok(Component::Nth(NthSelectorData::only(/* of_type = */ false))),
+        _ => {}
     }
   }
 

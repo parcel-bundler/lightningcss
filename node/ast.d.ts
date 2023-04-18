@@ -2223,6 +2223,9 @@ export type PropertyId =
       property: "container";
     }
   | {
+      property: "view-transition-name";
+    }
+  | {
       property: "all";
     }
   | {
@@ -3656,6 +3659,10 @@ export type Declaration =
   | {
       property: "container";
       value: Container;
+    }
+  | {
+      property: "view-transition-name";
+      value: String;
     }
   | {
       property: "unparsed";
@@ -6508,6 +6515,37 @@ export type PseudoElement =
       selector: Selector;
     }
   | {
+      kind: "view-transition";
+    }
+  | {
+      kind: "view-transition-group";
+      /**
+       * A part name selector.
+       */
+      partName: ViewTransitionPartName;
+    }
+  | {
+      kind: "view-transition-image-pair";
+      /**
+       * A part name selector.
+       */
+      partName: ViewTransitionPartName;
+    }
+  | {
+      kind: "view-transition-old";
+      /**
+       * A part name selector.
+       */
+      partName: ViewTransitionPartName;
+    }
+  | {
+      kind: "view-transition-new";
+      /**
+       * A part name selector.
+       */
+      partName: ViewTransitionPartName;
+    }
+  | {
       kind: "custom";
       /**
        * The name of the pseudo element.
@@ -6536,6 +6574,7 @@ export type WebKitScrollbarPseudoElement =
   | "thumb"
   | "corner"
   | "resizer";
+export type ViewTransitionPartName = string;
 export type Selector = SelectorComponent[];
 export type SelectorList = Selector[];
 /**

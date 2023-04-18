@@ -132,7 +132,7 @@ use crate::traits::{Parse, ParseWithOptions, Shorthand, ToCss};
 use crate::values::number::{CSSInteger, CSSNumber};
 use crate::values::string::CowArcStr;
 use crate::values::{
-  alpha::*, color::*, easing::EasingFunction, ident::DashedIdentReference, image::*, length::*, position::*,
+  alpha::*, color::*, easing::EasingFunction, ident::DashedIdentReference, ident::CustomIdent, image::*, length::*, position::*,
   rect::*, shape::FillRule, size::Size2D, time::Time,
 };
 use crate::vendor_prefix::VendorPrefix;
@@ -1579,6 +1579,9 @@ define_properties! {
   "container-type": ContainerType(ContainerType),
   "container-name": ContainerName(ContainerNameList<'i>),
   "container": Container(Container<'i>) shorthand: true,
+
+  // https://w3c.github.io/csswg-drafts/css-view-transitions-1/
+  "view-transition-name": ViewTransitionName(CustomIdent<'i>),
 }
 
 impl<'i, T: smallvec::Array<Item = V>, V: Parse<'i>> Parse<'i> for SmallVec<T> {
