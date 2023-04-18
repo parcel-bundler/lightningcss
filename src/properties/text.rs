@@ -15,6 +15,7 @@ use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss, Ze
 use crate::values::calc::{Calc, MathFunction};
 use crate::values::color::{ColorFallbackKind, CssColor};
 use crate::values::length::{Length, LengthPercentage, LengthValue};
+use crate::values::percentage::Percentage;
 use crate::values::string::CSSString;
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
@@ -456,6 +457,52 @@ impl ToCss for TextIndent {
       dest.write_str(" each-line")?;
     }
     Ok(())
+  }
+}
+
+/// A value for the [text-size-adjust](https://w3c.github.io/csswg-drafts/css-size-adjust/#adjustment-control) property.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize, serde::Deserialize),
+  serde(tag = "type", rename_all = "kebab-case")
+)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub enum TextSizeAdjust {
+  /// Use the default size adjustment when displaying on a small device.
+  Auto,
+  /// No size adjustment when displaying on a small device.
+  None,
+  /// When displaying on a small device, the font size is multiplied by this percentage.
+  Percentage(Percentage),
+}
+
+impl<'i> Parse<'i> for TextSizeAdjust {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    if let Ok(p) = input.try_parse(Percentage::parse) {
+      return Ok(TextSizeAdjust::Percentage(p));
+    }
+
+    let ident = input.expect_ident_cloned()?;
+    match_ignore_ascii_case! {&*ident,
+      "auto" => Ok(TextSizeAdjust::Auto),
+      "none" => Ok(TextSizeAdjust::None),
+      _ => Err(input.new_unexpected_token_error(Token::Ident(ident.clone())))
+    }
+  }
+}
+
+impl ToCss for TextSizeAdjust {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    match self {
+      TextSizeAdjust::Auto => dest.write_str("auto"),
+      TextSizeAdjust::None => dest.write_str("none"),
+      TextSizeAdjust::Percentage(p) => p.to_css(dest),
+    }
   }
 }
 

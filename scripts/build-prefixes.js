@@ -32,7 +32,7 @@ const MDN_BROWSER_MAPPING = {
 
 const latestBrowserVersions = {};
 for (let b in browsers) {
-  let versions = browsers[b].versions.slice(10);
+  let versions = browsers[b].versions.slice(-10);
   for (let i = versions.length - 1; i >= 0; i--) {
     if (versions[i] != null && versions[i] != "all" && versions[i] != "TP") {
       latestBrowserVersions[b] = versions[i];
@@ -87,8 +87,9 @@ for (let prop in prefixes) {
       prefix = 'webkit';
     }
 
-    name = BROWSER_MAPPING[name] || name;
+    let origName = name;
     let isCurrentVersion = version === latestBrowserVersions[name];
+    name = BROWSER_MAPPING[name] || name;
     let v = parseVersion(version);
     if (v == null) {
       console.log('BAD VERSION', prop, name, version);
@@ -96,13 +97,15 @@ for (let prop in prefixes) {
     }
     if (browserMap[name]?.[prefix] == null) {
       browserMap[name] = browserMap[name] || {};
-      browserMap[name][prefix] = isCurrentVersion ? [v, null] : [v, v];
+      browserMap[name][prefix] = prefixes[prop].browsers.filter(b => b.startsWith(origName) || b.startsWith(name)).length === 1
+        ? isCurrentVersion ? [null, null] : [null, v]
+        : isCurrentVersion ? [v, null] : [v, v];
     } else {
       if (v < browserMap[name][prefix][0]) {
         browserMap[name][prefix][0] = v;
       }
 
-      if (isCurrentVersion) {
+      if (isCurrentVersion && browserMap[name][prefix][0] != null) {
         browserMap[name][prefix][1] = null;
       } else if (v > browserMap[name][prefix][1] && browserMap[name][prefix][1] != null) {
         browserMap[name][prefix][1] = v;
@@ -137,6 +140,7 @@ for (let prop in prefixes) {
   }
   addValue(p, browserMap, prop);
 }
+
 
 function addValue(map, value, prop) {
   let s = JSON.stringify(value);
@@ -365,13 +369,19 @@ impl Feature {
       ${[...p].map(([features, versions]) => {
   return `${features.map(name => `Feature::${enumify(name)}`).join(' |\n      ')} => {
         ${Object.entries(versions).map(([name, prefixes]) => {
-    return `if let Some(version) = browsers.${name} {
+          let needsVersion = !Object.values(prefixes).every(([min, max]) => min == null && max == null);
+    return `if ${needsVersion ? `let Some(version) = browsers.${name}` : `browsers.${name}.is_some()`} {
           ${Object.entries(prefixes).map(([prefix, [min, max]]) => {
       if (!prefixMapping[prefix]) {
         throw new Error('Missing prefix ' + prefix);
       }
+      let addPrefix = `prefixes |= VendorPrefix::${prefixMapping[prefix]};`;
       let condition;
-      if (max == null) {
+      if (min == null && max == null) {
+        return addPrefix;
+      } else if (min == null) {
+        condition = `version <= ${max}`;
+      } else if (max == null) {
         condition = `version >= ${min}`;
       } else if (min == max) {
         condition = `version == ${min}`;
@@ -380,7 +390,7 @@ impl Feature {
       }
 
       return `if ${condition} {
-            prefixes |= VendorPrefix::${prefixMapping[prefix]};
+            ${addPrefix}
           }`
     }).join('\n          ')}
         }`;

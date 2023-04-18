@@ -97,6 +97,7 @@ define_prefixes! {
   Appearance,
   ClipPath,
   BoxDecorationBreak,
+  TextSizeAdjust,
 }
 
 macro_rules! define_fallbacks {

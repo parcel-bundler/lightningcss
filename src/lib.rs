@@ -11907,6 +11907,53 @@ mod tests {
   }
 
   #[test]
+  fn test_text_size_adjust() {
+    minify_test(".foo { text-size-adjust: none }", ".foo{text-size-adjust:none}");
+    minify_test(".foo { text-size-adjust: auto }", ".foo{text-size-adjust:auto}");
+    minify_test(".foo { text-size-adjust: 80% }", ".foo{text-size-adjust:80%}");
+    prefix_test(
+      r#"
+      .foo {
+        text-size-adjust: none;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        -webkit-text-size-adjust: none;
+        -moz-text-size-adjust: none;
+        -ms-text-size-adjust: none;
+        text-size-adjust: none;
+      }
+    "#},
+      Browsers {
+        ios_saf: Some(16 << 16),
+        edge: Some(15 << 16),
+        firefox: Some(20 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        -webkit-text-size-adjust: none;
+        -moz-text-size-adjust: none;
+        -ms-text-size-adjust: none;
+        text-size-adjust: none;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        text-size-adjust: none;
+      }
+    "#},
+      Browsers {
+        chrome: Some(110 << 16),
+        ..Browsers::default()
+      },
+    );
+  }
+
+  #[test]
   fn test_text_decoration() {
     minify_test(".foo { text-decoration-line: none }", ".foo{text-decoration-line:none}");
     minify_test(

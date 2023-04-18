@@ -132,8 +132,8 @@ use crate::traits::{Parse, ParseWithOptions, Shorthand, ToCss};
 use crate::values::number::{CSSInteger, CSSNumber};
 use crate::values::string::CowArcStr;
 use crate::values::{
-  alpha::*, color::*, easing::EasingFunction, ident::DashedIdentReference, ident::CustomIdent, image::*, length::*, position::*,
-  rect::*, shape::FillRule, size::Size2D, time::Time,
+  alpha::*, color::*, easing::EasingFunction, ident::CustomIdent, ident::DashedIdentReference, image::*,
+  length::*, position::*, rect::*, shape::FillRule, size::Size2D, time::Time,
 };
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
@@ -1488,6 +1488,9 @@ define_properties! {
   "text-emphasis": TextEmphasis(TextEmphasis<'i>, VendorPrefix) / WebKit shorthand: true,
   "text-emphasis-position": TextEmphasisPosition(TextEmphasisPosition, VendorPrefix) / WebKit,
   "text-shadow": TextShadow(SmallVec<[TextShadow; 1]>),
+
+  // https://w3c.github.io/csswg-drafts/css-size-adjust/
+  "text-size-adjust": TextSizeAdjust(TextSizeAdjust, VendorPrefix) / WebKit / Moz / Ms,
 
   // https://www.w3.org/TR/css-break-3/
   "box-decoration-break": BoxDecorationBreak(BoxDecorationBreak, VendorPrefix) / WebKit,
