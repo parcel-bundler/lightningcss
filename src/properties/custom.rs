@@ -430,6 +430,12 @@ impl<'i> TokenList<'i> {
           last_is_delim = false;
           last_is_whitespace = false;
         }
+        Ok(token) if token.is_parse_error() => {
+          return Err(ParseError {
+            kind: ParseErrorKind::Basic(BasicParseErrorKind::UnexpectedToken(token.clone())),
+            location: state.source_location(),
+          })
+        }
         Ok(token) => {
           last_is_delim = matches!(token, cssparser::Token::Delim(_) | cssparser::Token::Comma);
 

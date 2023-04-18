@@ -23771,6 +23771,18 @@ mod tests {
   }
 
   #[test]
+  fn test_invalid() {
+    error_test(
+      ".a{color: hsla(120, 62.32%;}",
+      ParserError::UnexpectedToken(Token::CloseCurlyBracket),
+    );
+    error_test(
+      ".a{--foo: url(foo\\) b\\)ar)}",
+      ParserError::UnexpectedToken(Token::BadUrl("foo\\) b\\)ar".into())),
+    );
+  }
+
+  #[test]
   fn test_container_queries() {
     // with name
     minify_test(
