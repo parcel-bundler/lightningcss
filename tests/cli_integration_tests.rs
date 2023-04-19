@@ -261,7 +261,6 @@ fn multiple_input_files_out_file() -> Result<(), Box<dyn std::error::Error>> {
 fn multiple_input_files_stdout() -> Result<(), Box<dyn std::error::Error>> {
   let infile = test_file()?;
   let infile2 = test_file2()?;
-  let outdir = assert_fs::TempDir::new()?;
   let mut cmd = Command::cargo_bin("lightningcss")?;
   cmd.arg(infile.path());
   cmd.arg(infile2.path());
