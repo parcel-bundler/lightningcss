@@ -174,6 +174,6 @@ By default, Lightning CSS is strict, and will error when parsing an invalid rule
 
 Lightning CSS supports generating source maps when compiling, minifying, and bundling your source code to make debugging easier. Use the `sourceMap` option to enable it when using the API, or the `--sourcemap` CLI flag.
 
-If the input CSS came from another compiler such as SASS or Less, you can also pass an input source map to Lightning CSS using the `inputSourceMap` API option. This will map compiled locations back to their location in the original source code.
+If the input CSS came from another compiler such as Sass or Less, you can also pass an input source map to Lightning CSS using the `inputSourceMap` API option. This will map compiled locations back to their location in the original source code.
 
 Finally, the `projectRoot` option can be used to make file paths in source maps relative to a root directory. This makes build stable between machines.
