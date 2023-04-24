@@ -66,6 +66,7 @@ impl fmt::Display for ErrorLocation {
 
 /// A parser error.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(Serialize))]
 #[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(tag = "type", content = "value"))]
 pub enum ParserError<'i> {
@@ -156,6 +157,14 @@ impl<'i> Error<ParserError<'i>> {
       }),
     }
   }
+
+  /// Consumes the value and returns an owned clone.
+  pub fn into_owned<'x>(self) -> Error<ParserError<'static>> {
+    Error {
+      kind: self.kind.into_owned(),
+      loc: self.loc,
+    }
+  }
 }
 
 impl<'i> From<SelectorParseErrorKind<'i>> for ParserError<'i> {
@@ -174,6 +183,7 @@ impl<'i> ParserError<'i> {
 
 /// A selector parsing error.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 #[cfg_attr(any(feature = "serde", feature = "nodejs"), derive(Serialize))]
 #[cfg_attr(any(feature = "serde", feature = "nodejs"), serde(tag = "type", content = "value"))]
 pub enum SelectorError<'i> {
