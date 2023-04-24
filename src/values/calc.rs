@@ -4,8 +4,9 @@ use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::printer::Printer;
+use crate::targets::Browsers;
 use crate::traits::private::AddInternal;
-use crate::traits::{Parse, Sign, ToCss, TryMap, TryOp, TrySign};
+use crate::traits::{IsCompatible, Parse, Sign, ToCss, TryMap, TryOp, TrySign};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
@@ -49,6 +50,40 @@ pub enum MathFunction<V> {
   Sign(Calc<V>),
   /// The [`hypot()`](https://drafts.csswg.org/css-values-4/#funcdef-hypot) function.
   Hypot(Vec<Calc<V>>),
+}
+
+impl<V: IsCompatible> IsCompatible for MathFunction<V> {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      MathFunction::Calc(v) => Feature::Calc.is_compatible(browsers) && v.is_compatible(browsers),
+      MathFunction::Min(v) => {
+        Feature::MinFunction.is_compatible(browsers) && v.iter().all(|v| v.is_compatible(browsers))
+      }
+      MathFunction::Max(v) => {
+        Feature::MaxFunction.is_compatible(browsers) && v.iter().all(|v| v.is_compatible(browsers))
+      }
+      MathFunction::Clamp(a, b, c) => {
+        Feature::Clamp.is_compatible(browsers)
+          && a.is_compatible(browsers)
+          && b.is_compatible(browsers)
+          && c.is_compatible(browsers)
+      }
+      MathFunction::Round(_, a, b) => {
+        Feature::RoundFunction.is_compatible(browsers) && a.is_compatible(browsers) && b.is_compatible(browsers)
+      }
+      MathFunction::Rem(a, b) => {
+        Feature::RemFunction.is_compatible(browsers) && a.is_compatible(browsers) && b.is_compatible(browsers)
+      }
+      MathFunction::Mod(a, b) => {
+        Feature::ModFunction.is_compatible(browsers) && a.is_compatible(browsers) && b.is_compatible(browsers)
+      }
+      MathFunction::Abs(v) => Feature::AbsFunction.is_compatible(browsers) && v.is_compatible(browsers),
+      MathFunction::Sign(v) => Feature::SignFunction.is_compatible(browsers) && v.is_compatible(browsers),
+      MathFunction::Hypot(v) => {
+        Feature::HypotFunction.is_compatible(browsers) && v.iter().all(|v| v.is_compatible(browsers))
+      }
+    }
+  }
 }
 
 enum_property! {
@@ -225,6 +260,18 @@ pub enum Calc<V> {
   /// A math function, such as `calc()`, `min()`, or `max()`.
   #[cfg_attr(feature = "visitor", skip_type)]
   Function(Box<MathFunction<V>>),
+}
+
+impl<V: IsCompatible> IsCompatible for Calc<V> {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      Calc::Sum(a, b) => a.is_compatible(browsers) && b.is_compatible(browsers),
+      Calc::Product(_, v) => v.is_compatible(browsers),
+      Calc::Function(f) => f.is_compatible(browsers),
+      Calc::Value(v) => v.is_compatible(browsers),
+      Calc::Number(..) => true,
+    }
+  }
 }
 
 enum_property! {

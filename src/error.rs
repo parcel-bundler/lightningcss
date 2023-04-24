@@ -159,6 +159,7 @@ impl<'i> Error<ParserError<'i>> {
   }
 
   /// Consumes the value and returns an owned clone.
+  #[cfg(feature = "into_owned")]
   pub fn into_owned<'x>(self) -> Error<ParserError<'static>> {
     Error {
       kind: self.kind.into_owned(),

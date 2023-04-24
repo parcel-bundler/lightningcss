@@ -2913,6 +2913,122 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    prefix_test(
+      r#"
+      .foo {
+        margin-right: 22px;
+        margin-right: max(4%, 22px);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-right: 22px;
+        margin-right: max(4%, 22px);
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(10 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        margin-right: 22px;
+        margin-right: max(4%, 22px);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-right: max(4%, 22px);
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        margin-right: 22px;
+        margin-right: max(2cqw, 22px);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-right: 22px;
+        margin-right: max(2cqw, 22px);
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        margin-right: 22px;
+        margin-right: max(2cqw, 22px);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-right: max(2cqw, 22px);
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(16 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        margin-inline-end: 22px;
+        margin-inline-end: max(2cqw, 22px);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-inline-end: 22px;
+        margin-inline-end: max(2cqw, 22px);
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        margin-inline-end: 22px;
+        margin-inline-end: max(var(--foo), 22px);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin-inline-end: 22px;
+        margin-inline-end: max(var(--foo), 22px);
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]

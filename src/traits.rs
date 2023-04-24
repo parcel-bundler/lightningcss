@@ -235,6 +235,12 @@ pub trait Zero {
   fn is_zero(&self) -> bool;
 }
 
+/// A trait for values that can check if they are compatible with browser targets.
+pub trait IsCompatible {
+  /// Returns whether the value is compatible with all of the given browser targets.
+  fn is_compatible(&self, browsers: Browsers) -> bool;
+}
+
 /// A trait to provide parsing of custom at-rules.
 ///
 /// For example, there could be different implementations for top-level at-rules

@@ -4,9 +4,14 @@ use crate::targets::Browsers;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Feature {
+  AbsFunction,
   AnyPseudo,
+  Calc,
+  CapUnit,
+  ChUnit,
   Clamp,
   ColorFunction,
+  ContainerQueryLengthUnits,
   CssAnyLink,
   CssAutofill,
   CssCaseInsensitive,
@@ -38,12 +43,16 @@ pub enum Feature {
   CustomMediaQueries,
   Dialog,
   DoublePositionGradients,
+  ExUnit,
   FontFamilySystemUi,
   FormValidation,
   Fullscreen,
+  HypotFunction,
+  IcUnit,
   ImageSet,
   LabColors,
   LangList,
+  LhUnit,
   LogicalBorderRadius,
   LogicalBorderShorthand,
   LogicalBorders,
@@ -54,8 +63,11 @@ pub enum Feature {
   LogicalPaddingShorthand,
   LogicalSize,
   LogicalTextAlign,
+  MaxFunction,
   MediaIntervalSyntax,
   MediaRangeSyntax,
+  MinFunction,
+  ModFunction,
   NthChildOf,
   OklabColors,
   OverflowShorthand,
@@ -63,10 +75,25 @@ pub enum Feature {
   PlaceContent,
   PlaceItems,
   PlaceSelf,
+  QUnit,
+  RemFunction,
+  RemUnit,
+  RlhUnit,
+  RoundFunction,
   Shadowdomv1,
+  SignFunction,
   SpaceSeparatedColorFunction,
   TextDecorationThicknessPercent,
   TextDecorationThicknessShorthand,
+  VbUnit,
+  VhUnit,
+  ViUnit,
+  ViewportPercentageUnitsDynamic,
+  ViewportPercentageUnitsLarge,
+  ViewportPercentageUnitsSmall,
+  VmaxUnit,
+  VminUnit,
+  VwUnit,
   XResolutionUnit,
 }
 
@@ -1368,7 +1395,52 @@ impl Feature {
           return false;
         }
       }
-      Feature::CustomMediaQueries => return false,
+      Feature::Calc => {
+        if let Some(version) = browsers.edge {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 1048576 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.chrome {
+          if version < 1703936 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 393472 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 983040 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 458752 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 7340032 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::CustomMediaQueries | Feature::RlhUnit => return false,
       Feature::DoublePositionGradients => {
         if let Some(version) = browsers.chrome {
           if version < 4653056 {
@@ -2435,6 +2507,575 @@ impl Feature {
         }
         if browsers.firefox.is_some() || browsers.ie.is_some() || browsers.samsung.is_some() {
           return false;
+        }
+      }
+      Feature::MinFunction | Feature::MaxFunction => {
+        if let Some(version) = browsers.chrome {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 3735552 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 721152 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 721664 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::RoundFunction
+      | Feature::RemFunction
+      | Feature::ModFunction
+      | Feature::AbsFunction
+      | Feature::SignFunction
+      | Feature::HypotFunction => {
+        if let Some(version) = browsers.safari {
+          if version < 984064 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 984064 {
+            return false;
+          }
+        }
+        if browsers.android.is_some()
+          || browsers.chrome.is_some()
+          || browsers.edge.is_some()
+          || browsers.firefox.is_some()
+          || browsers.ie.is_some()
+          || browsers.opera.is_some()
+          || browsers.samsung.is_some()
+        {
+          return false;
+        }
+      }
+      Feature::QUnit => {
+        if let Some(version) = browsers.chrome {
+          if version < 4128768 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 3211264 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 3014656 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 524288 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 4128768 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() || browsers.ios_saf.is_some() || browsers.safari.is_some() {
+          return false;
+        }
+      }
+      Feature::CapUnit => {
+        if let Some(version) = browsers.firefox {
+          if version < 6356992 {
+            return false;
+          }
+        }
+        if browsers.android.is_some()
+          || browsers.chrome.is_some()
+          || browsers.edge.is_some()
+          || browsers.ie.is_some()
+          || browsers.ios_saf.is_some()
+          || browsers.opera.is_some()
+          || browsers.safari.is_some()
+          || browsers.samsung.is_some()
+        {
+          return false;
+        }
+      }
+      Feature::ChUnit => {
+        if let Some(version) = browsers.chrome {
+          if version < 1769472 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ie {
+          if version < 589824 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 983040 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 458752 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 458752 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 66816 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 263168 {
+            return false;
+          }
+        }
+      }
+      Feature::ContainerQueryLengthUnits => {
+        if let Some(version) = browsers.chrome {
+          if version < 6881280 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 6881280 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 7208960 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 4718592 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 1048576 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 1048576 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 1310720 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 6881280 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::ExUnit => {
+        if let Some(version) = browsers.chrome {
+          if version < 1179648 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ie {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 655616 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 263168 {
+            return false;
+          }
+        }
+      }
+      Feature::IcUnit => {
+        if let Some(version) = browsers.chrome {
+          if version < 6946816 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 6946816 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 6356992 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 4718592 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 984064 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 984064 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 1310720 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 6946816 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::LhUnit => {
+        if let Some(version) = browsers.chrome {
+          if version < 7143424 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 7143424 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 4849664 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 7143424 {
+            return false;
+          }
+        }
+        if browsers.firefox.is_some()
+          || browsers.ie.is_some()
+          || browsers.ios_saf.is_some()
+          || browsers.safari.is_some()
+          || browsers.samsung.is_some()
+        {
+          return false;
+        }
+      }
+      Feature::RemUnit => {
+        if let Some(version) = browsers.chrome {
+          if version < 1179648 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ie {
+          if version < 589824 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 327680 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 131072 {
+            return false;
+          }
+        }
+      }
+      Feature::VbUnit
+      | Feature::ViUnit
+      | Feature::ViewportPercentageUnitsDynamic
+      | Feature::ViewportPercentageUnitsLarge
+      | Feature::ViewportPercentageUnitsSmall => {
+        if let Some(version) = browsers.chrome {
+          if version < 7077888 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 7077888 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 6619136 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 4784128 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 984064 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 984064 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 7077888 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() || browsers.samsung.is_some() {
+          return false;
+        }
+      }
+      Feature::VhUnit | Feature::VwUnit => {
+        if let Some(version) = browsers.chrome {
+          if version < 1638400 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 1245184 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ie {
+          if version < 589824 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 917504 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 393216 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 393216 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 66816 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 263168 {
+            return false;
+          }
+        }
+      }
+      Feature::VmaxUnit => {
+        if let Some(version) = browsers.chrome {
+          if version < 1703936 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 1048576 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 1245184 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 917504 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 458752 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 458752 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 66816 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 66816 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::VminUnit => {
+        if let Some(version) = browsers.chrome {
+          if version < 1703936 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 1245184 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ie {
+          if version < 655360 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 917504 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 458752 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 458752 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 66816 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 263168 {
+            return false;
+          }
         }
       }
       Feature::P3Colors | Feature::LangList => {

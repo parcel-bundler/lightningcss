@@ -6,11 +6,12 @@ use super::number::CSSNumber;
 use super::percentage::DimensionPercentage;
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
-use crate::traits::TrySign;
+use crate::targets::Browsers;
 use crate::traits::{
   private::{AddInternal, TryAdd},
   Map, Parse, Sign, ToCss, TryMap, TryOp, Zero,
 };
+use crate::traits::{IsCompatible, TrySign};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use const_str;
@@ -33,6 +34,16 @@ impl LengthPercentage {
     match self {
       DimensionPercentage::Dimension(d) => d.to_css_unitless(dest),
       _ => self.to_css(dest),
+    }
+  }
+}
+
+impl IsCompatible for LengthPercentage {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      LengthPercentage::Dimension(d) => d.is_compatible(browsers),
+      LengthPercentage::Calc(c) => c.is_compatible(browsers),
+      LengthPercentage::Percentage(..) => true,
     }
   }
 }
@@ -80,6 +91,15 @@ impl ToCss for LengthPercentageOrAuto {
   }
 }
 
+impl IsCompatible for LengthPercentageOrAuto {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      LengthPercentageOrAuto::LengthPercentage(p) => p.is_compatible(browsers),
+      _ => true,
+    }
+  }
+}
+
 const PX_PER_IN: f32 = 96.0;
 const PX_PER_CM: f32 = PX_PER_IN / 2.54;
 const PX_PER_MM: f32 = PX_PER_CM / 10.0;
@@ -91,7 +111,7 @@ macro_rules! define_length_units {
   (
     $(
       $(#[$meta: meta])*
-      $name: ident,
+      $name: ident $(/ $feature: ident)?,
     )+
   ) => {
     /// A CSS [`<length>`](https://www.w3.org/TR/css-values-4/#lengths) value,
@@ -153,6 +173,27 @@ macro_rules! define_length_units {
         match self {
           $(
             LengthValue::$name(value) => (*value, const_str::convert_ascii_case!(lower, stringify!($name))),
+          )+
+        }
+      }
+    }
+
+    impl IsCompatible for LengthValue {
+      fn is_compatible(&self, browsers: Browsers) -> bool {
+        macro_rules! is_compatible {
+          ($f: ident) => {
+            crate::compat::Feature::$f.is_compatible(browsers)
+          };
+          () => {
+            true
+          };
+        }
+
+        match self {
+          $(
+            LengthValue::$name(_) => {
+              is_compatible!($($feature)?)
+            }
           )+
         }
       }
@@ -328,7 +369,7 @@ define_length_units! {
   /// A length in millimeters. 1mm = 1/10th of 1cm.
   Mm,
   /// A length in quarter-millimeters. 1Q = 1/40th of 1cm.
-  Q,
+  Q / QUnit,
   /// A length in points. 1pt = 1/72nd of 1in.
   Pt,
   /// A length in picas. 1pc = 1/6th of 1in.
@@ -340,102 +381,102 @@ define_length_units! {
   Em,
   /// A length in the `rem` unit. A `rem` is equal to the computed value of the
   /// `em` unit on the root element.
-  Rem,
+  Rem / RemUnit,
   /// A length in `ex` unit. An `ex` is equal to the x-height of the font.
-  Ex,
+  Ex / ExUnit,
   /// A length in the `rex` unit. A `rex` is equal to the value of the `ex` unit on the root element.
   Rex,
   /// A length in the `ch` unit. A `ch` is equal to the width of the zero ("0") character in the current font.
-  Ch,
+  Ch / ChUnit,
   /// A length in the `rch` unit. An `rch` is equal to the value of the `ch` unit on the root element.
   Rch,
   /// A length in the `cap` unit. A `cap` is equal to the cap-height of the font.
-  Cap,
+  Cap / CapUnit,
   /// A length in the `rcap` unit. An `rcap` is equal to the value of the `cap` unit on the root element.
   Rcap,
   /// A length in the `ic` unit. An `ic` is equal to the width of the “水” (CJK water ideograph) character in the current font.
-  Ic,
+  Ic / IcUnit,
   /// A length in the `ric` unit. An `ric` is equal to the value of the `ic` unit on the root element.
   Ric,
   /// A length in the `lh` unit. An `lh` is equal to the computed value of the `line-height` property.
-  Lh,
+  Lh / LhUnit,
   /// A length in the `rlh` unit. An `rlh` is equal to the value of the `lh` unit on the root element.
-  Rlh,
+  Rlh / RlhUnit,
 
   // https://www.w3.org/TR/css-values-4/#viewport-relative-units
   /// A length in the `vw` unit. A `vw` is equal to 1% of the [viewport width](https://www.w3.org/TR/css-values-4/#ua-default-viewport-size).
-  Vw,
+  Vw / VwUnit,
   /// A length in the `lvw` unit. An `lvw` is equal to 1% of the [large viewport width](https://www.w3.org/TR/css-values-4/#large-viewport-size).
-  Lvw,
+  Lvw / ViewportPercentageUnitsLarge,
   /// A length in the `svw` unit. An `svw` is equal to 1% of the [small viewport width](https://www.w3.org/TR/css-values-4/#small-viewport-size).
-  Svw,
+  Svw / ViewportPercentageUnitsSmall,
   /// A length in the `dvw` unit. An `dvw` is equal to 1% of the [dynamic viewport width](https://www.w3.org/TR/css-values-4/#dynamic-viewport-size).
-  Dvw,
+  Dvw / ViewportPercentageUnitsDynamic,
   /// A length in the `cqw` unit. An `cqw` is equal to 1% of the [query container](https://drafts.csswg.org/css-contain-3/#query-container) width.
-  Cqw,
+  Cqw / ContainerQueryLengthUnits,
 
   /// A length in the `vh` unit. A `vh` is equal to 1% of the [viewport height](https://www.w3.org/TR/css-values-4/#ua-default-viewport-size).
-  Vh,
+  Vh / VhUnit,
   /// A length in the `lvh` unit. An `lvh` is equal to 1% of the [large viewport height](https://www.w3.org/TR/css-values-4/#large-viewport-size).
-  Lvh,
+  Lvh / ViewportPercentageUnitsLarge,
   /// A length in the `svh` unit. An `svh` is equal to 1% of the [small viewport height](https://www.w3.org/TR/css-values-4/#small-viewport-size).
-  Svh,
+  Svh / ViewportPercentageUnitsSmall,
   /// A length in the `dvh` unit. An `dvh` is equal to 1% of the [dynamic viewport height](https://www.w3.org/TR/css-values-4/#dynamic-viewport-size).
-  Dvh,
+  Dvh / ViewportPercentageUnitsDynamic,
   /// A length in the `cqh` unit. An `cqh` is equal to 1% of the [query container](https://drafts.csswg.org/css-contain-3/#query-container) height.
-  Cqh,
+  Cqh / ContainerQueryLengthUnits,
 
   /// A length in the `vi` unit. A `vi` is equal to 1% of the [viewport size](https://www.w3.org/TR/css-values-4/#ua-default-viewport-size)
   /// in the box's [inline axis](https://www.w3.org/TR/css-writing-modes-4/#inline-axis).
-  Vi,
+  Vi / ViUnit,
   /// A length in the `svi` unit. A `svi` is equal to 1% of the [small viewport size](https://www.w3.org/TR/css-values-4/#small-viewport-size)
   /// in the box's [inline axis](https://www.w3.org/TR/css-writing-modes-4/#inline-axis).
-  Svi,
+  Svi / ViewportPercentageUnitsSmall,
   /// A length in the `lvi` unit. A `lvi` is equal to 1% of the [large viewport size](https://www.w3.org/TR/css-values-4/#large-viewport-size)
   /// in the box's [inline axis](https://www.w3.org/TR/css-writing-modes-4/#inline-axis).
-  Lvi,
+  Lvi / ViewportPercentageUnitsLarge,
   /// A length in the `dvi` unit. A `dvi` is equal to 1% of the [dynamic viewport size](https://www.w3.org/TR/css-values-4/#dynamic-viewport-size)
   /// in the box's [inline axis](https://www.w3.org/TR/css-writing-modes-4/#inline-axis).
-  Dvi,
+  Dvi / ViewportPercentageUnitsDynamic,
   /// A length in the `cqi` unit. An `cqi` is equal to 1% of the [query container](https://drafts.csswg.org/css-contain-3/#query-container) inline size.
-  Cqi,
+  Cqi / ContainerQueryLengthUnits,
 
   /// A length in the `vb` unit. A `vb` is equal to 1% of the [viewport size](https://www.w3.org/TR/css-values-4/#ua-default-viewport-size)
   /// in the box's [block axis](https://www.w3.org/TR/css-writing-modes-4/#block-axis).
-  Vb,
+  Vb / VbUnit,
   /// A length in the `svb` unit. A `svb` is equal to 1% of the [small viewport size](https://www.w3.org/TR/css-values-4/#small-viewport-size)
   /// in the box's [block axis](https://www.w3.org/TR/css-writing-modes-4/#block-axis).
-  Svb,
+  Svb / ViewportPercentageUnitsSmall,
   /// A length in the `lvb` unit. A `lvb` is equal to 1% of the [large viewport size](https://www.w3.org/TR/css-values-4/#large-viewport-size)
   /// in the box's [block axis](https://www.w3.org/TR/css-writing-modes-4/#block-axis).
-  Lvb,
+  Lvb / ViewportPercentageUnitsLarge,
   /// A length in the `dvb` unit. A `dvb` is equal to 1% of the [dynamic viewport size](https://www.w3.org/TR/css-values-4/#dynamic-viewport-size)
   /// in the box's [block axis](https://www.w3.org/TR/css-writing-modes-4/#block-axis).
-  Dvb,
+  Dvb / ViewportPercentageUnitsDynamic,
   /// A length in the `cqb` unit. An `cqb` is equal to 1% of the [query container](https://drafts.csswg.org/css-contain-3/#query-container) block size.
-  Cqb,
+  Cqb / ContainerQueryLengthUnits,
 
   /// A length in the `vmin` unit. A `vmin` is equal to the smaller of `vw` and `vh`.
-  Vmin,
+  Vmin / VminUnit,
   /// A length in the `svmin` unit. An `svmin` is equal to the smaller of `svw` and `svh`.
-  Svmin,
+  Svmin / ViewportPercentageUnitsSmall,
   /// A length in the `lvmin` unit. An `lvmin` is equal to the smaller of `lvw` and `lvh`.
-  Lvmin,
+  Lvmin / ViewportPercentageUnitsLarge,
   /// A length in the `dvmin` unit. A `dvmin` is equal to the smaller of `dvw` and `dvh`.
-  Dvmin,
+  Dvmin / ViewportPercentageUnitsDynamic,
   /// A length in the `cqmin` unit. An `cqmin` is equal to the smaller of `cqi` and `cqb`.
-  Cqmin,
+  Cqmin / ContainerQueryLengthUnits,
 
   /// A length in the `vmax` unit. A `vmax` is equal to the larger of `vw` and `vh`.
-  Vmax,
+  Vmax / VmaxUnit,
   /// A length in the `svmax` unit. An `svmax` is equal to the larger of `svw` and `svh`.
-  Svmax,
+  Svmax / ViewportPercentageUnitsSmall,
   /// A length in the `lvmax` unit. An `lvmax` is equal to the larger of `lvw` and `lvh`.
-  Lvmax,
+  Lvmax / ViewportPercentageUnitsLarge,
   /// A length in the `dvmax` unit. An `dvmax` is equal to the larger of `dvw` and `dvh`.
-  Dvmax,
+  Dvmax / ViewportPercentageUnitsDynamic,
   /// A length in the `cqmax` unit. An `cqmin` is equal to the larger of `cqi` and `cqb`.
-  Cqmax,
+  Cqmax / ContainerQueryLengthUnits,
 }
 
 impl ToCss for LengthValue {
@@ -655,6 +696,15 @@ impl Length {
         }
       }
       (a, b) => Length::Calc(Box::new(Calc::Sum(Box::new(a.into()), Box::new(b.into())))),
+    }
+  }
+}
+
+impl IsCompatible for Length {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      Length::Value(v) => v.is_compatible(browsers),
+      Length::Calc(calc) => calc.is_compatible(browsers),
     }
   }
 }

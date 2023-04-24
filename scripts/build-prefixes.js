@@ -188,7 +188,8 @@ let cssFeatures = [
   'css-nesting',
   'css-not-sel-list',
   'css-has',
-  'font-family-system-ui'
+  'font-family-system-ui',
+  'calc'
 ];
 
 let compat = new Map();
@@ -280,7 +281,27 @@ let mdnFeatures = {
   imageSet: mdn.css.types.image['image-set'].__compat.support,
   xResolutionUnit: mdn.css.types.resolution.x.__compat.support,
   nthChildOf: mdn.css.selectors['nth-child'].of_syntax.__compat.support,
+  minFunction: mdn.css.types.min.__compat.support,
+  maxFunction: mdn.css.types.max.__compat.support,
+  roundFunction: mdn.css.types.round.__compat.support,
+  remFunction: mdn.css.types.rem.__compat.support,
+  modFunction: mdn.css.types.mod.__compat.support,
+  absFunction: mdn.css.types.abs.__compat.support,
+  signFunction: mdn.css.types.sign.__compat.support,
+  hypotFunction: mdn.css.types.hypot.__compat.support,
 };
+
+for (let key in mdn.css.types.length) {
+  if (key === '__compat') {
+    continue;
+  }
+
+  let feat = key.includes('_')
+    ? key.replace(/_([a-z])/g, (_, l) => l.toUpperCase())
+    : key + 'Unit';
+
+  mdnFeatures[feat] = mdn.css.types.length[key].__compat.support;
+}
 
 for (let feature in mdnFeatures) {
   let browserMap = {};

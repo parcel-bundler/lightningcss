@@ -6,7 +6,7 @@ use crate::logical::PropertyCategory;
 use crate::macros::{define_shorthand, rect_shorthand, size_shorthand};
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
-use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
+use crate::traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::{length::LengthPercentageOrAuto, rect::Rect, size::Size2D};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -182,11 +182,20 @@ macro_rules! side_handler {
       fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) -> bool {
         use Property::*;
 
-        macro_rules! property {
-          ($key: ident, $val: ident, $category: ident) => {{
-            if PropertyCategory::$category != self.category {
+        macro_rules! flush {
+          ($key: ident, $val: expr, $category: ident) => {{
+            // If the category changes betweet logical and physical,
+            // or if the value contains syntax that isn't supported across all targets,
+            // preserve the previous value as a fallback.
+            if PropertyCategory::$category != self.category || (self.$key.is_some() && matches!(context.targets, Some(targets) if !$val.is_compatible(targets))) {
               self.flush(dest, context);
             }
+          }}
+        }
+
+        macro_rules! property {
+          ($key: ident, $val: ident, $category: ident) => {{
+            flush!($key, $val, $category);
             self.$key = Some($val.clone());
             self.category = PropertyCategory::$category;
             self.has_any = true;
@@ -195,7 +204,8 @@ macro_rules! side_handler {
 
         macro_rules! logical_property {
           ($prop: ident, $val: expr) => {{
-            if self.category != PropertyCategory::Logical {
+            // Assume unparsed properties might contain unsupported syntax that we must preserve as a fallback.
+            if self.category != PropertyCategory::Logical || (self.$prop.is_some() && matches!($val, Property::Unparsed(_))) {
               self.flush(dest, context);
             }
 
@@ -210,20 +220,39 @@ macro_rules! side_handler {
           $bottom(val) => property!(bottom, val, Physical),
           $left(val) => property!(left, val, Physical),
           $right(val) => property!(right, val, Physical),
-          $block_start(_) => logical_property!(block_start, property.clone()),
-          $block_end(_) => logical_property!(block_end, property.clone()),
-          $inline_start(_) => logical_property!(inline_start, property.clone()),
-          $inline_end(_) => logical_property!(inline_end, property.clone()),
+          $block_start(val) => {
+            flush!(block_start, val, Logical);
+            logical_property!(block_start, property.clone());
+          },
+          $block_end(val) => {
+            flush!(block_end, val, Logical);
+            logical_property!(block_end, property.clone());
+          },
+          $inline_start(val) => {
+            flush!(inline_start, val, Logical);
+            logical_property!(inline_start, property.clone())
+          },
+          $inline_end(val) => {
+            flush!(inline_end, val, Logical);
+            logical_property!(inline_end, property.clone());
+          },
           $block_shorthand(val) => {
+            flush!(block_start, val.block_start, Logical);
+            flush!(block_end, val.block_end, Logical);
             logical_property!(block_start, Property::$block_start(val.block_start.clone()));
             logical_property!(block_end, Property::$block_end(val.block_end.clone()));
           },
           $inline_shorthand(val) => {
+            flush!(inline_start, val.inline_start, Logical);
+            flush!(inline_end, val.inline_end, Logical);
             logical_property!(inline_start, Property::$inline_start(val.inline_start.clone()));
             logical_property!(inline_end, Property::$inline_end(val.inline_end.clone()));
           },
           $shorthand(val) => {
-            // dest.clear();
+            flush!(top, val.top, Physical);
+            flush!(right, val.right, Physical);
+            flush!(bottom, val.bottom, Physical);
+            flush!(left, val.left, Physical);
             self.top = Some(val.top.clone());
             self.right = Some(val.right.clone());
             self.bottom = Some(val.bottom.clone());
