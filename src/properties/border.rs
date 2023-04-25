@@ -517,7 +517,42 @@ impl BorderShorthand {
   }
 }
 
-bitflags! {
+macro_rules! define_border_property {
+  (
+    $(#[$outer:meta])*
+    $vis:vis struct $BitFlags:ident: $T:ty {
+      $(
+        $(#[$inner:ident $($args:tt)*])*
+        const $Flag:ident = $value:expr;
+      )*
+    }
+  ) => {
+    bitflags! {
+      $(#[$outer])*
+      $vis struct $BitFlags: $T {
+        $(
+          $(#[$inner $($args)*])*
+          const $Flag = $value;
+        )*
+      }
+    }
+
+    impl<'i> TryFrom<&PropertyId<'i>> for $BitFlags {
+      type Error = ();
+
+      fn try_from(value: &PropertyId<'i>) -> Result<$BitFlags, Self::Error> {
+        match value {
+          $(
+            PropertyId::$Flag => Ok($BitFlags::$Flag),
+          )*
+          _ => Err(())
+        }
+      }
+    }
+  };
+}
+
+define_border_property! {
   struct BorderProperty: u32 {
     const BorderTopColor = 1 << 0;
     const BorderBottomColor = 1 << 1;
@@ -1343,6 +1378,9 @@ impl<'i> BorderHandler<'i> {
     if logical_supported {
       let mut unparsed = unparsed.clone();
       context.add_unparsed_fallbacks(&mut unparsed);
+      self
+        .flushed_properties
+        .insert(BorderProperty::try_from(&unparsed.property_id).unwrap());
       dest.push(Property::Unparsed(unparsed));
       return;
     }
@@ -1352,6 +1390,7 @@ impl<'i> BorderHandler<'i> {
         let mut unparsed = unparsed.with_property_id(PropertyId::$id);
         context.add_unparsed_fallbacks(&mut unparsed);
         dest.push(Property::Unparsed(unparsed));
+        self.flushed_properties.insert(BorderProperty::$id);
       }};
     }
 
@@ -1394,10 +1433,11 @@ impl<'i> BorderHandler<'i> {
       BorderBlockEndWidth => prop!(BorderBottomWidth),
       BorderBlockEndColor => prop!(BorderBottomColor),
       BorderBlockEndStyle => prop!(BorderBottomStyle),
-      _ => {
+      property_id => {
         let mut unparsed = unparsed.clone();
         context.add_unparsed_fallbacks(&mut unparsed);
         dest.push(Property::Unparsed(unparsed));
+        self.flushed_properties.insert(BorderProperty::try_from(property_id).unwrap());
       }
     }
   }

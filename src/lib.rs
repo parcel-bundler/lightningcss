@@ -1780,31 +1780,31 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
-        border: 1px solid #4263eb;
-        border-color: color(display-p3 0 .5 1);
-      }
-    "#
-      },
-      Browsers {
-        chrome: Some(99 << 16),
-        ..Browsers::default()
-      },
-    );
-    prefix_test(
-      r#"
-      .foo {
-        border: 1px solid #4263eb;
-        border-color: color(display-p3 0 .5 1);
-      }
-    "#,
-      indoc! {r#"
-      .foo {
         border: 1px solid color(display-p3 0 .5 1);
       }
     "#
       },
       Browsers {
         safari: Some(16 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        border-color: var(--fallback);
+        border-color: color(display-p3 0 .5 1);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-color: var(--fallback);
+        border-color: color(display-p3 0 .5 1);
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(99 << 16),
         ..Browsers::default()
       },
     );
