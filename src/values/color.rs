@@ -13,7 +13,7 @@ use crate::printer::Printer;
 use crate::properties::PropertyId;
 use crate::rules::supports::SupportsCondition;
 use crate::targets::Browsers;
-use crate::traits::{FallbackValues, Parse, ToCss};
+use crate::traits::{FallbackValues, IsCompatible, Parse, ToCss};
 #[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
 use bitflags::bitflags;
@@ -371,6 +371,22 @@ impl CssColor {
       ColorFallbackKind::P3 => self.to_p3(),
       ColorFallbackKind::LAB => self.to_lab(),
       _ => unreachable!(),
+    }
+  }
+}
+
+impl IsCompatible for CssColor {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      CssColor::CurrentColor | CssColor::RGBA(_) | CssColor::Float(..) => true,
+      CssColor::LAB(lab) => match &**lab {
+        LABColor::LAB(..) | LABColor::LCH(..) => Feature::LabColors.is_compatible(browsers),
+        LABColor::OKLAB(..) | LABColor::OKLCH(..) => Feature::OklabColors.is_compatible(browsers),
+      },
+      CssColor::Predefined(predefined) => match &**predefined {
+        PredefinedColor::DisplayP3(..) => Feature::P3Colors.is_compatible(browsers),
+        _ => Feature::ColorFunction.is_compatible(browsers),
+      },
     }
   }
 }

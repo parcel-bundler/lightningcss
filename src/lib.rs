@@ -1677,6 +1677,137 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    prefix_test(
+      r#"
+      .foo {
+        border-width: 22px;
+        border-width: max(2cqw, 22px);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-width: 22px;
+        border-width: max(2cqw, 22px);
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        border-width: 22px;
+        border-width: max(2cqw, 22px);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-width: max(2cqw, 22px);
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(16 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        border-color: #4263eb;
+        border-color: color(display-p3 0 .5 1);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-color: #4263eb;
+        border-color: color(display-p3 0 .5 1);
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(99 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        border-color: #4263eb;
+        border-color: color(display-p3 0 .5 1);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-color: color(display-p3 0 .5 1);
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(16 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        border: 1px solid #4263eb;
+        border-color: color(display-p3 0 .5 1);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border: 1px solid #4263eb;
+        border-color: color(display-p3 0 .5 1);
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(99 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        border: 1px solid #4263eb;
+        border-color: color(display-p3 0 .5 1);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border: 1px solid #4263eb;
+        border-color: color(display-p3 0 .5 1);
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(99 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        border: 1px solid #4263eb;
+        border-color: color(display-p3 0 .5 1);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border: 1px solid color(display-p3 0 .5 1);
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(16 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]
@@ -3021,6 +3152,25 @@ mod tests {
       .foo {
         margin-inline-end: 22px;
         margin-inline-end: max(var(--foo), 22px);
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        margin: 22px;
+        margin: max(2cqw, 22px);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        margin: 22px;
+        margin: max(2cqw, 22px);
       }
     "#
       },

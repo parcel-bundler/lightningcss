@@ -163,7 +163,7 @@ size_shorthand! {
 }
 
 macro_rules! side_handler {
-  ($name: ident, $top: ident, $bottom: ident, $left: ident, $right: ident, $block_start: ident, $block_end: ident, $inline_start: ident, $inline_end: ident, $shorthand: ident, $block_shorthand: ident, $inline_shorthand: ident, $logical_shorthand: literal $(, $feature: ident, $shorthand_feature: ident)?) => {
+  ($name: ident, $top: ident, $bottom: ident, $left: ident, $right: ident, $block_start: ident, $block_end: ident, $inline_start: ident, $inline_end: ident, $shorthand: ident, $block_shorthand: ident, $inline_shorthand: ident, $shorthand_category: ident $(, $feature: ident, $shorthand_feature: ident)?) => {
     #[derive(Debug, Default)]
     pub(crate) struct $name<'i> {
       top: Option<LengthPercentageOrAuto>,
@@ -249,10 +249,10 @@ macro_rules! side_handler {
             logical_property!(inline_end, Property::$inline_end(val.inline_end.clone()));
           },
           $shorthand(val) => {
-            flush!(top, val.top, Physical);
-            flush!(right, val.right, Physical);
-            flush!(bottom, val.bottom, Physical);
-            flush!(left, val.left, Physical);
+            flush!(top, val.top, $shorthand_category);
+            flush!(right, val.right, $shorthand_category);
+            flush!(bottom, val.bottom, $shorthand_category);
+            flush!(left, val.left, $shorthand_category);
             self.top = Some(val.top.clone());
             self.right = Some(val.right.clone());
             self.bottom = Some(val.bottom.clone());
@@ -302,7 +302,7 @@ macro_rules! side_handler {
         let right = std::mem::take(&mut self.right);
         let logical_supported = true $(&& context.is_supported(Feature::$feature))?;
 
-        if (!$logical_shorthand || logical_supported) && top.is_some() && bottom.is_some() && left.is_some() && right.is_some() {
+        if (PropertyCategory::$shorthand_category != PropertyCategory::Logical || logical_supported) && top.is_some() && bottom.is_some() && left.is_some() && right.is_some() {
           dest.push(Property::$shorthand($shorthand {
             top: top.unwrap(),
             right: right.unwrap(),
@@ -422,7 +422,7 @@ side_handler!(
   Margin,
   MarginBlock,
   MarginInline,
-  false,
+  Physical,
   LogicalMargin,
   LogicalMarginShorthand
 );
@@ -440,7 +440,7 @@ side_handler!(
   Padding,
   PaddingBlock,
   PaddingInline,
-  false,
+  Physical,
   LogicalPadding,
   LogicalPaddingShorthand
 );
@@ -458,7 +458,7 @@ side_handler!(
   ScrollMargin,
   ScrollMarginBlock,
   ScrollMarginInline,
-  false
+  Physical
 );
 
 side_handler!(
@@ -474,7 +474,7 @@ side_handler!(
   ScrollPadding,
   ScrollPaddingBlock,
   ScrollPaddingInline,
-  false
+  Physical
 );
 
 side_handler!(
@@ -490,7 +490,7 @@ side_handler!(
   Inset,
   InsetBlock,
   InsetInline,
-  true,
+  Logical,
   LogicalInset,
   LogicalInset
 );
