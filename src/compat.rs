@@ -11,6 +11,7 @@ pub enum Feature {
   ChUnit,
   Clamp,
   ColorFunction,
+  ConicGradient,
   ContainerQueryLengthUnits,
   CssAnyLink,
   CssAutofill,
@@ -47,12 +48,14 @@ pub enum Feature {
   FontFamilySystemUi,
   FormValidation,
   Fullscreen,
+  GradientInterpolationHints,
   HypotFunction,
   IcUnit,
   ImageSet,
   LabColors,
   LangList,
   LhUnit,
+  LinearGradient,
   LogicalBorderRadius,
   LogicalBorderShorthand,
   LogicalBorders,
@@ -76,8 +79,12 @@ pub enum Feature {
   PlaceItems,
   PlaceSelf,
   QUnit,
+  RadialGradient,
   RemFunction,
   RemUnit,
+  RepeatingConicGradient,
+  RepeatingLinearGradient,
+  RepeatingRadialGradient,
   RlhUnit,
   RoundFunction,
   Shadowdomv1,
@@ -3076,6 +3083,237 @@ impl Feature {
           if version < 263168 {
             return false;
           }
+        }
+      }
+      Feature::ConicGradient | Feature::RepeatingConicGradient => {
+        if let Some(version) = browsers.chrome {
+          if version < 4521984 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 5439488 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 3145728 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 786688 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 786944 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 655360 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 4521984 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::LinearGradient | Feature::RepeatingLinearGradient => {
+        if let Some(version) = browsers.chrome {
+          if version < 1179648 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ie {
+          if version < 655360 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 720896 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 327936 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 327680 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 2424832 {
+            return false;
+          }
+        }
+      }
+      Feature::RadialGradient => {
+        if let Some(version) = browsers.chrome {
+          if version < 1179648 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ie {
+          if version < 655360 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 327936 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 327680 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 2424832 {
+            return false;
+          }
+        }
+      }
+      Feature::RepeatingRadialGradient => {
+        if let Some(version) = browsers.chrome {
+          if version < 1179648 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 655360 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ie {
+          if version < 655360 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 327936 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 327680 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 263168 {
+            return false;
+          }
+        }
+      }
+      Feature::GradientInterpolationHints => {
+        if let Some(version) = browsers.chrome {
+          if version < 2621440 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 2359296 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 1769472 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 458752 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 458752 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 2621440 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
         }
       }
       Feature::P3Colors | Feature::LangList => {

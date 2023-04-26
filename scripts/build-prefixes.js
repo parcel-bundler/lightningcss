@@ -303,6 +303,17 @@ for (let key in mdn.css.types.length) {
   mdnFeatures[feat] = mdn.css.types.length[key].__compat.support;
 }
 
+for (let key in mdn.css.types.image.gradient) {
+  if (key === '__compat') {
+    continue;
+  }
+
+  let feat = key.replace(/-([a-z])/g, (_, l) => l.toUpperCase());
+  mdnFeatures[feat] = mdn.css.types.image.gradient[key].__compat.support;
+}
+
+mdnFeatures.gradientInterpolationHints = mdn.css.types.image.gradient['linear-gradient'].interpolation_hints.__compat.support;
+
 for (let feature in mdnFeatures) {
   let browserMap = {};
   for (let name in mdnFeatures[feature]) {

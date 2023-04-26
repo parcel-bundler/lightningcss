@@ -9,7 +9,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::prefixes::{is_webkit_gradient, Feature};
 use crate::printer::Printer;
 use crate::targets::Browsers;
-use crate::traits::{FallbackValues, Parse, ToCss};
+use crate::traits::{FallbackValues, IsCompatible, Parse, ToCss};
 use crate::values::string::CowArcStr;
 use crate::values::url::Url;
 use crate::vendor_prefix::VendorPrefix;
@@ -129,6 +129,40 @@ impl<'i> Image<'i> {
     }
 
     false
+  }
+}
+
+impl<'i> IsCompatible for Image<'i> {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      Image::Gradient(g) => match &**g {
+        Gradient::Linear(g) => {
+          compat::Feature::LinearGradient.is_compatible(browsers) && g.is_compatible(browsers)
+        }
+        Gradient::RepeatingLinear(g) => {
+          compat::Feature::RepeatingLinearGradient.is_compatible(browsers) && g.is_compatible(browsers)
+        }
+        Gradient::Radial(g) => {
+          compat::Feature::RadialGradient.is_compatible(browsers) && g.is_compatible(browsers)
+        }
+        Gradient::RepeatingRadial(g) => {
+          compat::Feature::RepeatingRadialGradient.is_compatible(browsers) && g.is_compatible(browsers)
+        }
+        Gradient::Conic(g) => compat::Feature::ConicGradient.is_compatible(browsers) && g.is_compatible(browsers),
+        Gradient::RepeatingConic(g) => {
+          compat::Feature::RepeatingConicGradient.is_compatible(browsers) && g.is_compatible(browsers)
+        }
+        Gradient::WebKitGradient(..) => is_webkit_gradient(browsers),
+      },
+      Image::ImageSet(i) => i.is_compatible(browsers),
+      Image::Url(..) | Image::None => true,
+    }
+  }
+}
+
+impl<T: IsCompatible> IsCompatible for SmallVec<[T; 1]> {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    self.iter().all(|v| v.is_compatible(browsers))
   }
 }
 
@@ -420,6 +454,13 @@ impl<'i> ToCss for ImageSet<'i> {
       option.to_css(dest, self.vendor_prefix != VendorPrefix::None)?;
     }
     dest.write_char(')')
+  }
+}
+
+impl<'i> IsCompatible for ImageSet<'i> {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    compat::Feature::ImageSet.is_compatible(browsers)
+      && self.options.iter().all(|opt| opt.image.is_compatible(browsers))
   }
 }
 

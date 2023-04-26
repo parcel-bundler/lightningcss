@@ -13,7 +13,7 @@ use crate::macros::enum_property;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::targets::Browsers;
-use crate::traits::{Parse, ToCss, TrySign, Zero};
+use crate::traits::{IsCompatible, Parse, ToCss, TrySign, Zero};
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -328,6 +328,12 @@ impl LinearGradient {
   }
 }
 
+impl IsCompatible for LinearGradient {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    self.items.iter().all(|item| item.is_compatible(browsers))
+  }
+}
+
 /// A CSS [`radial-gradient()`](https://www.w3.org/TR/css-images-3/#radial-gradients) or `repeating-radial-gradient()`.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
@@ -407,6 +413,12 @@ impl RadialGradient {
       items: self.items.iter().map(|item| item.get_fallback(kind)).collect(),
       vendor_prefix: self.vendor_prefix,
     }
+  }
+}
+
+impl IsCompatible for RadialGradient {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    self.items.iter().all(|item| item.is_compatible(browsers))
   }
 }
 
@@ -810,6 +822,12 @@ impl ConicGradient {
   }
 }
 
+impl IsCompatible for ConicGradient {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    self.items.iter().all(|item| item.is_compatible(browsers))
+  }
+}
+
 /// A [`<color-stop>`](https://www.w3.org/TR/css-images-4/#color-stop-syntax) within a gradient.
 ///
 /// This type is generic, and may be either a [LengthPercentage](super::length::LengthPercentage)
@@ -902,6 +920,15 @@ impl<D: Clone> GradientItem<D> {
         position: stop.position.clone(),
       }),
       GradientItem::Hint(..) => self.clone(),
+    }
+  }
+}
+
+impl<D> IsCompatible for GradientItem<D> {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      GradientItem::ColorStop(c) => c.color.is_compatible(browsers),
+      GradientItem::Hint(..) => compat::Feature::GradientInterpolationHints.is_compatible(browsers),
     }
   }
 }

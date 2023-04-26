@@ -4067,6 +4067,212 @@ mod tests {
       }
     "#},
     );
+
+    prefix_test(
+      r#"
+      .foo {
+        background-color: #4263eb;
+        background-color: color(display-p3 0 .5 1);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        background-color: #4263eb;
+        background-color: color(display-p3 0 .5 1);
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(99 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background-color: #4263eb;
+        background-color: color(display-p3 0 .5 1);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        background-color: color(display-p3 0 .5 1);
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(16 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background-image: linear-gradient(red, green);
+        background-image: linear-gradient(lch(50% 132 50), lch(50% 130 150));
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        background-image: linear-gradient(red, green);
+        background-image: linear-gradient(lch(50% 132 50), lch(50% 130 150));
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(99 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background-image: linear-gradient(red, green);
+        background-image: linear-gradient(lch(50% 132 50), lch(50% 130 150));
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        background-image: linear-gradient(lch(50% 132 50), lch(50% 130 150));
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(16 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background: #4263eb;
+        background: color(display-p3 0 .5 1);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        background: #4263eb;
+        background: color(display-p3 0 .5 1);
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(99 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background: #4263eb;
+        background: color(display-p3 0 .5 1);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        background: color(display-p3 0 .5 1);
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(16 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background: linear-gradient(red, green);
+        background: linear-gradient(lch(50% 132 50), lch(50% 130 150));
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        background: linear-gradient(red, green);
+        background: linear-gradient(lch(50% 132 50), lch(50% 130 150));
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(99 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background: red;
+        background: linear-gradient(lch(50% 132 50), lch(50% 130 150));
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        background: red;
+        background: linear-gradient(lch(50% 132 50), lch(50% 130 150));
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(99 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background: linear-gradient(red, green);
+        background: linear-gradient(lch(50% 132 50), lch(50% 130 150));
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        background: linear-gradient(lch(50% 132 50), lch(50% 130 150));
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(16 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background: var(--fallback);
+        background: linear-gradient(lch(50% 132 50), lch(50% 130 150));
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        background: var(--fallback);
+        background: linear-gradient(lch(50% 132 50), lch(50% 130 150));
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(99 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        background: red url(foo.png);
+        background: lch(50% 132 50) url(foo.png);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        background: red url("foo.png");
+        background: lch(50% 132 50) url("foo.png");
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(99 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]
@@ -14017,6 +14223,7 @@ mod tests {
     "#,
       indoc! {r#"
       .foo {
+        background: -webkit-image-set(url("foo.png") 2x, url("bar.png") 1x);
         background: image-set("foo.png" 2x, "bar.png" 1x);
       }
     "#},
@@ -14068,11 +14275,10 @@ mod tests {
           indoc! {r#"
         .foo {{
           {}: url("foo.png");
-          {}: -webkit-image-set(url("foo.png") 2x, url("bar.png") 1x);
           {}: image-set("foo.png" 2x, "bar.png" 1x);
         }}
       "#},
-          property, property, property
+          property, property
         ),
         Browsers {
           ie: Some(11 << 16),
