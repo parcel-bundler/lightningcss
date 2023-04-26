@@ -52,6 +52,7 @@ bitflags! {
   /// All combinations of flags is supported.
   #[cfg_attr(feature = "visitor", derive(Visit))]
   #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(from = "SerializedTextTransformOther", into = "SerializedTextTransformOther"))]
+  #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone, Copy)]
   pub struct TextTransformOther: u8 {
     /// Puts all typographic character units in full-width form.
     const FullWidth    = 0b00000001;
@@ -512,6 +513,7 @@ bitflags! {
   /// Multiple lines may be specified by combining the flags.
   #[cfg_attr(feature = "visitor", derive(Visit))]
   #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(from = "SerializedTextDecorationLine", into = "SerializedTextDecorationLine"))]
+  #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone, Copy)]
   pub struct TextDecorationLine: u8 {
     /// Each line of text is underlined.
     const Underline     = 0b00000001;

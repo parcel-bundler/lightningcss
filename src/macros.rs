@@ -406,10 +406,14 @@ macro_rules! impl_shorthand {
     impl<'i> Shorthand<'i> for $t {
       #[allow(unused_variables)]
       fn from_longhands(decls: &DeclarationBlock<'i>, vendor_prefix: crate::vendor_prefix::VendorPrefix) -> Option<(Self, bool)> {
+        use paste::paste;
+
         $(
           $(
-            #[allow(non_snake_case)]
-            let mut $prop = None;
+            paste! {
+              #[allow(non_snake_case)]
+              let mut [<$prop _value>] = None;
+            }
           )+
         )+
 
@@ -426,7 +430,9 @@ macro_rules! impl_shorthand {
                     }
                   )?
 
-                  $prop = Some(val.clone());
+                  paste! {
+                    [<$prop _value>] = Some(val.clone());
+                  }
                   count += 1;
                   if important {
                     important_count += 1;
@@ -443,7 +449,9 @@ macro_rules! impl_shorthand {
 
               $(
                 $(
-                  $prop = Some(val.$key.clone());
+                  paste! {
+                    [<$prop _value>] = Some(val.$key.clone());
+                  }
                   count += 1;
                   if important {
                     important_count += 1;
@@ -455,7 +463,9 @@ macro_rules! impl_shorthand {
               $(
                 $(
                   if let Some(Property::$prop(longhand $(, vp_name!($vp, _p))?)) = property.longhand(&PropertyId::$prop$((vp_name!($vp, vendor_prefix)))?) {
-                    $prop = Some(longhand);
+                    paste! {
+                      [<$prop _value>] = Some(longhand);
+                    }
                     count += 1;
                     if important {
                       important_count += 1;
@@ -472,14 +482,16 @@ macro_rules! impl_shorthand {
           return None
         }
 
-        if $($($prop.is_some() &&)+)+ true {
+        if $($(paste! { [<$prop _value>].is_some() } &&)+)+ true {
           // All properties in the group must have a matching value to produce a shorthand.
           $(
             let mut $key = None;
             $(
               if $key == None {
-                $key = $prop;
-              } else if $key != $prop {
+                paste! {
+                  $key = [<$prop _value>];
+                }
+              } else if paste! { $key != [<$prop _value>] } {
                 return None
               }
             )+
@@ -813,3 +825,40 @@ macro_rules! size_shorthand {
 }
 
 pub(crate) use size_shorthand;
+
+macro_rules! property_bitflags {
+  (
+    $(#[$outer:meta])*
+    $vis:vis struct $BitFlags:ident: $T:ty {
+      $(
+        $(#[$inner:ident $($args:tt)*])*
+        const $Flag:ident $(($vp:ident))? = $value:expr;
+      )*
+    }
+  ) => {
+    bitflags::bitflags! {
+      $(#[$outer])*
+      $vis struct $BitFlags: $T {
+        $(
+          $(#[$inner $($args)*])*
+            const $Flag = $value;
+        )*
+      }
+    }
+
+    impl<'i> TryFrom<&PropertyId<'i>> for $BitFlags {
+      type Error = ();
+
+      fn try_from(value: &PropertyId<'i>) -> Result<$BitFlags, Self::Error> {
+        match value {
+          $(
+            PropertyId::$Flag $(($vp))? => Ok($BitFlags::$Flag),
+          )*
+          _ => Err(())
+        }
+      }
+    }
+  };
+}
+
+pub(crate) use property_bitflags;

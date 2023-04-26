@@ -5,7 +5,7 @@ use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{
   parse::Parse, parse_macro_input, parse_quote, Attribute, Data, DataEnum, DeriveInput, Field, Fields,
-  GenericParam, Generics, Ident, Member, Token, Type,
+  GenericParam, Generics, Ident, Member, Token, Type, Visibility,
 };
 
 mod into_owned;
@@ -112,12 +112,18 @@ fn derive(
   let mut visit = Vec::new();
   match data {
     Data::Struct(s) => {
-      for (index, Field { ty, ident, attrs, .. }) in s.fields.iter().enumerate() {
+      for (
+        index,
+        Field {
+          vis, ty, ident, attrs, ..
+        },
+      ) in s.fields.iter().enumerate()
+      {
         if attrs.iter().any(|attr| attr.path.is_ident("skip_visit")) {
           continue;
         }
 
-        if matches!(ty, Type::Reference(_)) {
+        if matches!(ty, Type::Reference(_)) || !matches!(vis, Visibility::Public(..)) {
           continue;
         }
 
@@ -223,7 +229,7 @@ fn derive(
 
   let child_types = visit_types.unwrap_or_else(|| {
     quote! {
-      unsafe { #type_defs crate::visitor::VisitTypes::from_bits_unchecked(#(#child_types)|*) }
+      #type_defs crate::visitor::VisitTypes::from_bits_retain(#(#child_types)|*)
     }
   });
 

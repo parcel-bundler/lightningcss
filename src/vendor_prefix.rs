@@ -17,9 +17,8 @@ bitflags! {
   /// more than one prefix. During printing, the rule or property will
   /// be duplicated for each prefix flag that is enabled. This enables
   /// vendor prefixes to be added without increasing memory usage.
+  #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone, Copy)]
   pub struct VendorPrefix: u8 {
-    /// No vendor prefixes.
-    const None   = 0b00000001;
     /// The `-webkit` vendor prefix.
     const WebKit = 0b00000010;
     /// The `-moz` vendor prefix.
@@ -28,6 +27,8 @@ bitflags! {
     const Ms     = 0b00001000;
     /// The `-o` vendor prefix.
     const O      = 0b00010000;
+    /// No vendor prefixes.
+    const None   = 0b00000001;
   }
 }
 
@@ -63,49 +64,6 @@ impl VendorPrefix {
     } else {
       self
     }
-  }
-}
-
-impl std::iter::IntoIterator for VendorPrefix {
-  type Item = VendorPrefix;
-  type IntoIter = VendorPrefixIter;
-
-  fn into_iter(self) -> Self::IntoIter {
-    VendorPrefixIter { bits: self.bits() }
-  }
-}
-
-/// Iterator for VendorPrefix.
-pub struct VendorPrefixIter {
-  bits: u8,
-}
-
-impl std::iter::Iterator for VendorPrefixIter {
-  type Item = VendorPrefix;
-
-  #[inline]
-  fn next(&mut self) -> Option<Self::Item> {
-    // Emit None last.
-    if self.bits == 1 {
-      self.bits = 0;
-      return Some(VendorPrefix::None);
-    }
-
-    let bits = self.bits & !1;
-    if bits != 0 {
-      let b = bits.trailing_zeros() as u8;
-      let p = VendorPrefix::from_bits_truncate(1 << b);
-      self.bits = (bits & bits.wrapping_sub(1)) | (self.bits & 1);
-      return Some(p);
-    }
-
-    None
-  }
-
-  #[inline]
-  fn size_hint(&self) -> (usize, Option<usize>) {
-    let c = self.bits.count_ones() as usize;
-    (c, Some(c))
   }
 }
 

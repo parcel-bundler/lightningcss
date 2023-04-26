@@ -19,7 +19,7 @@ bench = []
 jsonschema = ["serde", "schemars"]
 
 [dependencies]
-bitflags = "1.0"
+bitflags = "2.2.1"
 cssparser = "0.29"
 fxhash = "0.2"
 log = "0.4"

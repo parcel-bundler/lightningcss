@@ -189,6 +189,7 @@ pub enum FloatColor {
 
 bitflags! {
   /// A color type that is used as a fallback when compiling colors for older browsers.
+  #[derive(PartialEq, Eq, Clone, Copy)]
   pub struct ColorFallbackKind: u8 {
     /// An RGB color fallback.
     const RGB    = 0b01;
@@ -1212,6 +1213,7 @@ where
 
 bitflags! {
   /// A channel type for a color space.
+  #[derive(PartialEq, Eq, Clone, Copy)]
   pub struct ChannelType: u8 {
     /// Channel represents a percentage.
     const Percentage = 0b001;

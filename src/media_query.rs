@@ -562,6 +562,7 @@ impl<'i> QueryCondition<'i> for MediaCondition<'i> {
 
 bitflags! {
   /// Flags for `parse_query_condition`.
+  #[derive(PartialEq, Eq, Clone, Copy)]
   pub(crate) struct QueryConditionFlags: u8 {
     /// Whether to allow top-level "or" boolean logic.
     const ALLOW_OR = 1 << 0;

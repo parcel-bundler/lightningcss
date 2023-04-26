@@ -1,7 +1,5 @@
 //! CSS properties related to borders.
 
-#![allow(non_upper_case_globals)]
-
 use super::border_image::*;
 use super::border_radius::*;
 use crate::compat::Feature;
@@ -21,7 +19,6 @@ use crate::values::rect::Rect;
 use crate::values::size::Size2D;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
-use bitflags::bitflags;
 use cssparser::*;
 
 /// A value for the [border-width](https://www.w3.org/TR/css-backgrounds-3/#border-width) property.
@@ -517,42 +514,8 @@ impl BorderShorthand {
   }
 }
 
-macro_rules! define_border_property {
-  (
-    $(#[$outer:meta])*
-    $vis:vis struct $BitFlags:ident: $T:ty {
-      $(
-        $(#[$inner:ident $($args:tt)*])*
-        const $Flag:ident = $value:expr;
-      )*
-    }
-  ) => {
-    bitflags! {
-      $(#[$outer])*
-      $vis struct $BitFlags: $T {
-        $(
-          $(#[$inner $($args)*])*
-          const $Flag = $value;
-        )*
-      }
-    }
-
-    impl<'i> TryFrom<&PropertyId<'i>> for $BitFlags {
-      type Error = ();
-
-      fn try_from(value: &PropertyId<'i>) -> Result<$BitFlags, Self::Error> {
-        match value {
-          $(
-            PropertyId::$Flag => Ok($BitFlags::$Flag),
-          )*
-          _ => Err(())
-        }
-      }
-    }
-  };
-}
-
-define_border_property! {
+property_bitflags! {
+  #[derive(Debug)]
   struct BorderProperty: u32 {
     const BorderTopColor = 1 << 0;
     const BorderBottomColor = 1 << 1;
@@ -560,44 +523,44 @@ define_border_property! {
     const BorderRightColor = 1 << 3;
     const BorderBlockStartColor = 1 << 4;
     const BorderBlockEndColor = 1 << 5;
-    const BorderBlockColor = Self::BorderBlockStartColor.bits | Self::BorderBlockEndColor.bits;
+    const BorderBlockColor = Self::BorderBlockStartColor.bits() | Self::BorderBlockEndColor.bits();
     const BorderInlineStartColor = 1 << 6;
     const BorderInlineEndColor = 1 << 7;
-    const BorderInlineColor = Self::BorderInlineStartColor.bits | Self::BorderInlineEndColor.bits;
+    const BorderInlineColor = Self::BorderInlineStartColor.bits() | Self::BorderInlineEndColor.bits();
     const BorderTopWidth = 1 << 8;
     const BorderBottomWidth = 1 << 9;
     const BorderLeftWidth = 1 << 10;
     const BorderRightWidth = 1 << 11;
     const BorderBlockStartWidth = 1 << 12;
     const BorderBlockEndWidth = 1 << 13;
-    const BorderBlockWidth = Self::BorderBlockStartWidth.bits | Self::BorderBlockEndWidth.bits;
+    const BorderBlockWidth = Self::BorderBlockStartWidth.bits() | Self::BorderBlockEndWidth.bits();
     const BorderInlineStartWidth = 1 << 14;
     const BorderInlineEndWidth = 1 << 15;
-    const BorderInlineWidth = Self::BorderInlineStartWidth.bits | Self::BorderInlineEndWidth.bits;
+    const BorderInlineWidth = Self::BorderInlineStartWidth.bits() | Self::BorderInlineEndWidth.bits();
     const BorderTopStyle = 1 << 16;
     const BorderBottomStyle = 1 << 17;
     const BorderLeftStyle = 1 << 18;
     const BorderRightStyle = 1 << 19;
     const BorderBlockStartStyle = 1 << 20;
     const BorderBlockEndStyle = 1 << 21;
-    const BorderBlockStyle = Self::BorderBlockStartStyle.bits | Self::BorderBlockEndStyle.bits;
+    const BorderBlockStyle = Self::BorderBlockStartStyle.bits() | Self::BorderBlockEndStyle.bits();
     const BorderInlineStartStyle = 1 << 22;
     const BorderInlineEndStyle = 1 << 23;
-    const BorderInlineStyle = Self::BorderInlineStartStyle.bits | Self::BorderInlineEndStyle.bits;
-    const BorderTop = Self::BorderTopColor.bits | Self::BorderTopWidth.bits | Self::BorderTopStyle.bits;
-    const BorderBottom = Self::BorderBottomColor.bits | Self::BorderBottomWidth.bits | Self::BorderBottomStyle.bits;
-    const BorderLeft = Self::BorderLeftColor.bits | Self::BorderLeftWidth.bits | Self::BorderLeftStyle.bits;
-    const BorderRight = Self::BorderRightColor.bits | Self::BorderRightWidth.bits | Self::BorderRightStyle.bits;
-    const BorderBlockStart = Self::BorderBlockStartColor.bits | Self::BorderBlockStartWidth.bits | Self::BorderBlockStartStyle.bits;
-    const BorderBlockEnd = Self::BorderBlockEndColor.bits | Self::BorderBlockEndWidth.bits | Self::BorderBlockEndStyle.bits;
-    const BorderInlineStart = Self::BorderInlineStartColor.bits | Self::BorderInlineStartWidth.bits | Self::BorderInlineStartStyle.bits;
-    const BorderInlineEnd = Self::BorderInlineEndColor.bits | Self::BorderInlineEndWidth.bits | Self::BorderInlineEndStyle.bits;
-    const BorderBlock = Self::BorderBlockStart.bits | Self::BorderBlockEnd.bits;
-    const BorderInline = Self::BorderInlineStart.bits | Self::BorderInlineEnd.bits;
-    const BorderWidth = Self::BorderLeftWidth.bits | Self::BorderRightWidth.bits | Self::BorderTopWidth.bits | Self::BorderBottomWidth.bits;
-    const BorderStyle = Self::BorderLeftStyle.bits | Self::BorderRightStyle.bits | Self::BorderTopStyle.bits | Self::BorderBottomStyle.bits;
-    const BorderColor = Self::BorderLeftColor.bits | Self::BorderRightColor.bits | Self::BorderTopColor.bits | Self::BorderBottomColor.bits;
-    const Border = Self::BorderWidth.bits | Self::BorderStyle.bits | Self::BorderColor.bits;
+    const BorderInlineStyle = Self::BorderInlineStartStyle.bits() | Self::BorderInlineEndStyle.bits();
+    const BorderTop = Self::BorderTopColor.bits() | Self::BorderTopWidth.bits() | Self::BorderTopStyle.bits();
+    const BorderBottom = Self::BorderBottomColor.bits() | Self::BorderBottomWidth.bits() | Self::BorderBottomStyle.bits();
+    const BorderLeft = Self::BorderLeftColor.bits() | Self::BorderLeftWidth.bits() | Self::BorderLeftStyle.bits();
+    const BorderRight = Self::BorderRightColor.bits() | Self::BorderRightWidth.bits() | Self::BorderRightStyle.bits();
+    const BorderBlockStart = Self::BorderBlockStartColor.bits() | Self::BorderBlockStartWidth.bits() | Self::BorderBlockStartStyle.bits();
+    const BorderBlockEnd = Self::BorderBlockEndColor.bits() | Self::BorderBlockEndWidth.bits() | Self::BorderBlockEndStyle.bits();
+    const BorderInlineStart = Self::BorderInlineStartColor.bits() | Self::BorderInlineStartWidth.bits() | Self::BorderInlineStartStyle.bits();
+    const BorderInlineEnd = Self::BorderInlineEndColor.bits() | Self::BorderInlineEndWidth.bits() | Self::BorderInlineEndStyle.bits();
+    const BorderBlock = Self::BorderBlockStart.bits() | Self::BorderBlockEnd.bits();
+    const BorderInline = Self::BorderInlineStart.bits() | Self::BorderInlineEnd.bits();
+    const BorderWidth = Self::BorderLeftWidth.bits() | Self::BorderRightWidth.bits() | Self::BorderTopWidth.bits() | Self::BorderBottomWidth.bits();
+    const BorderStyle = Self::BorderLeftStyle.bits() | Self::BorderRightStyle.bits() | Self::BorderTopStyle.bits() | Self::BorderBottomStyle.bits();
+    const BorderColor = Self::BorderLeftColor.bits() | Self::BorderRightColor.bits() | Self::BorderTopColor.bits() | Self::BorderBottomColor.bits();
+    const Border = Self::BorderWidth.bits() | Self::BorderStyle.bits() | Self::BorderColor.bits();
   }
 }
 
