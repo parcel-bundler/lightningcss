@@ -3,17 +3,17 @@
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
-use crate::macros::*;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::targets::Browsers;
-use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss};
+use crate::traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::image::Image;
 use crate::values::number::CSSNumber;
 use crate::values::rect::Rect;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
+use crate::{compat, macros::*};
 use crate::{
   traits::FallbackValues,
   values::{
@@ -34,6 +34,17 @@ enum_property! {
     Round,
     /// The image is repeated so that it fits, and then spaced apart evenly.
     Space,
+  }
+}
+
+impl IsCompatible for BorderImageRepeatKeyword {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    use BorderImageRepeatKeyword::*;
+    match self {
+      Round => compat::Feature::BorderImageRepeatRound.is_compatible(browsers),
+      Space => compat::Feature::BorderImageRepeatSpace.is_compatible(browsers),
+      Stretch | Repeat => true,
+    }
   }
 }
 
@@ -80,6 +91,12 @@ impl ToCss for BorderImageRepeat {
       self.vertical.to_css(dest)?;
     }
     Ok(())
+  }
+}
+
+impl IsCompatible for BorderImageRepeat {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    self.horizontal.is_compatible(browsers) && self.vertical.is_compatible(browsers)
   }
 }
 
@@ -139,6 +156,15 @@ impl ToCss for BorderImageSideWidth {
   }
 }
 
+impl IsCompatible for BorderImageSideWidth {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      BorderImageSideWidth::LengthPercentage(l) => l.is_compatible(browsers),
+      _ => true,
+    }
+  }
+}
+
 /// A value for the [border-image-slice](https://www.w3.org/TR/css-backgrounds-3/#border-image-slice) property.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
@@ -181,6 +207,12 @@ impl ToCss for BorderImageSlice {
       dest.write_str(" fill")?;
     }
     Ok(())
+  }
+}
+
+impl IsCompatible for BorderImageSlice {
+  fn is_compatible(&self, _browsers: Browsers) -> bool {
+    true
   }
 }
 
@@ -351,6 +383,18 @@ impl<'i> FallbackValues for BorderImage<'i> {
   }
 }
 
+property_bitflags! {
+  #[derive(Default, Debug)]
+  struct BorderImageProperty: u16 {
+    const BorderImageSource = 1 << 0;
+    const BorderImageSlice = 1 << 1;
+    const BorderImageWidth = 1 << 2;
+    const BorderImageOutset = 1 << 3;
+    const BorderImageRepeat = 1 << 4;
+    const BorderImage(_vp) = Self::BorderImageSource.bits() | Self::BorderImageSlice.bits() | Self::BorderImageWidth.bits() | Self::BorderImageOutset.bits() | Self::BorderImageRepeat.bits();
+  }
+}
+
 #[derive(Default, Debug)]
 pub(crate) struct BorderImageHandler<'i> {
   targets: Option<Browsers>,
@@ -360,6 +404,7 @@ pub(crate) struct BorderImageHandler<'i> {
   outset: Option<Rect<LengthOrNumber>>,
   repeat: Option<BorderImageRepeat>,
   vendor_prefix: VendorPrefix,
+  flushed_properties: BorderImageProperty,
   has_any: bool,
 }
 
@@ -386,30 +431,38 @@ impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
         if self.vendor_prefix != VendorPrefix::None {
           self.flush(dest);
         }
+        flush!($name, $val);
         self.vendor_prefix = VendorPrefix::None;
         self.$name = Some($val.clone());
         self.has_any = true;
       }};
     }
 
-    match property {
-      BorderImageSource(val) => {
-        if val.should_preserve_fallback(&self.source, self.targets) {
+    macro_rules! flush {
+      ($name: ident, $val: expr) => {{
+        if self.$name.is_some() && matches!(context.targets, Some(targets) if !$val.is_compatible(targets)) {
           self.flush(dest);
         }
+      }};
+    }
 
-        property!(source, val);
-      }
+    match property {
+      BorderImageSource(val) => property!(source, val),
       BorderImageSlice(val) => property!(slice, val),
       BorderImageWidth(val) => property!(width, val),
       BorderImageOutset(val) => property!(outset, val),
       BorderImageRepeat(val) => property!(repeat, val),
       BorderImage(val, vp) => {
-        if val.source.should_preserve_fallback(&self.source, self.targets) {
-          self.flush(dest);
-        }
-
-        self.set_border_image(val);
+        flush!(source, val.source);
+        flush!(slice, val.slice);
+        flush!(width, val.width);
+        flush!(outset, val.outset);
+        flush!(repeat, val.repeat);
+        self.source = Some(val.source.clone());
+        self.slice = Some(val.slice.clone());
+        self.width = Some(val.width.clone());
+        self.outset = Some(val.outset.clone());
+        self.repeat = Some(val.repeat.clone());
         self.vendor_prefix |= *vp;
         self.has_any = true;
       }
@@ -425,6 +478,9 @@ impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
         };
 
         context.add_unparsed_fallbacks(&mut unparsed);
+        self
+          .flushed_properties
+          .insert(BorderImageProperty::try_from(&unparsed.property_id).unwrap());
         dest.push(Property::Unparsed(unparsed));
       }
       _ => return false,
@@ -435,6 +491,7 @@ impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
 
   fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i, '_>) {
     self.flush(dest);
+    self.flushed_properties = BorderImageProperty::empty();
   }
 }
 
@@ -445,14 +502,6 @@ impl<'i> BorderImageHandler<'i> {
     self.width = None;
     self.outset = None;
     self.repeat = None;
-  }
-
-  pub fn set_border_image(&mut self, border_image: &BorderImage<'i>) {
-    self.source = Some(border_image.source.clone());
-    self.slice = Some(border_image.slice.clone());
-    self.width = Some(border_image.width.clone());
-    self.outset = Some(border_image.outset.clone());
-    self.repeat = Some(border_image.repeat.clone());
   }
 
   pub fn will_flush(&self, property: &Property<'i>) -> bool {
@@ -471,6 +520,13 @@ impl<'i> BorderImageHandler<'i> {
     }
 
     self.has_any = false;
+
+    macro_rules! push {
+      ($prop: ident, $val: expr) => {
+        dest.push(Property::$prop($val));
+        self.flushed_properties.insert(BorderImageProperty::$prop);
+      };
+    }
 
     let source = std::mem::take(&mut self.source);
     let slice = std::mem::take(&mut self.slice);
@@ -491,17 +547,18 @@ impl<'i> BorderImageHandler<'i> {
       if prefix.contains(VendorPrefix::None) && !border_image.slice.fill {
         if let Some(targets) = self.targets {
           prefix = Feature::BorderImage.prefixes_for(targets);
-
-          let fallbacks = border_image.get_fallbacks(targets);
-          for fallback in fallbacks {
-            // Match prefix of fallback. e.g. -webkit-linear-gradient
-            // can only be used in -webkit-border-image, not -moz-border-image.
-            // However, if border-image is unprefixed, gradients can still be.
-            let mut p = fallback.source.get_vendor_prefix() & prefix;
-            if p.is_empty() {
-              p = prefix;
+          if !self.flushed_properties.intersects(BorderImageProperty::BorderImage) {
+            let fallbacks = border_image.get_fallbacks(targets);
+            for fallback in fallbacks {
+              // Match prefix of fallback. e.g. -webkit-linear-gradient
+              // can only be used in -webkit-border-image, not -moz-border-image.
+              // However, if border-image is unprefixed, gradients can still be.
+              let mut p = fallback.source.get_vendor_prefix() & prefix;
+              if p.is_empty() {
+                p = prefix;
+              }
+              dest.push(Property::BorderImage(fallback, p));
             }
-            dest.push(Property::BorderImage(fallback, p));
           }
         }
       }
@@ -511,33 +568,36 @@ impl<'i> BorderImageHandler<'i> {
         prefix = p;
       }
 
-      dest.push(Property::BorderImage(border_image, prefix))
+      dest.push(Property::BorderImage(border_image, prefix));
+      self.flushed_properties.insert(BorderImageProperty::BorderImage);
     } else {
       if let Some(mut source) = source {
         if let Some(targets) = self.targets {
-          let fallbacks = source.get_fallbacks(targets);
-          for fallback in fallbacks {
-            dest.push(Property::BorderImageSource(fallback));
+          if !self.flushed_properties.contains(BorderImageProperty::BorderImageSource) {
+            let fallbacks = source.get_fallbacks(targets);
+            for fallback in fallbacks {
+              dest.push(Property::BorderImageSource(fallback));
+            }
           }
         }
 
-        dest.push(Property::BorderImageSource(source))
+        push!(BorderImageSource, source);
       }
 
       if let Some(slice) = slice {
-        dest.push(Property::BorderImageSlice(slice))
+        push!(BorderImageSlice, slice);
       }
 
       if let Some(width) = width {
-        dest.push(Property::BorderImageWidth(width))
+        push!(BorderImageWidth, width);
       }
 
       if let Some(outset) = outset {
-        dest.push(Property::BorderImageOutset(outset))
+        push!(BorderImageOutset, outset);
       }
 
       if let Some(repeat) = repeat {
-        dest.push(Property::BorderImageRepeat(repeat))
+        push!(BorderImageRepeat, repeat);
       }
     }
 

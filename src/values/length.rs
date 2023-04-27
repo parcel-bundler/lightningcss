@@ -887,3 +887,12 @@ impl ToCss for LengthOrNumber {
     }
   }
 }
+
+impl IsCompatible for LengthOrNumber {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      LengthOrNumber::Length(l) => l.is_compatible(browsers),
+      LengthOrNumber::Number(..) => true,
+    }
+  }
+}

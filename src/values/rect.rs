@@ -2,7 +2,7 @@
 
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
-use crate::traits::{Parse, ToCss};
+use crate::traits::{IsCompatible, Parse, ToCss};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
@@ -116,5 +116,14 @@ where
     }
     dest.write_str(" ")?;
     self.3.to_css(dest)
+  }
+}
+
+impl<T: IsCompatible> IsCompatible for Rect<T> {
+  fn is_compatible(&self, browsers: crate::targets::Browsers) -> bool {
+    self.0.is_compatible(browsers)
+      && self.1.is_compatible(browsers)
+      && self.2.is_compatible(browsers)
+      && self.3.is_compatible(browsers)
   }
 }

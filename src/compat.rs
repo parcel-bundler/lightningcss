@@ -6,6 +6,8 @@ use crate::targets::Browsers;
 pub enum Feature {
   AbsFunction,
   AnyPseudo,
+  BorderImageRepeatRound,
+  BorderImageRepeatSpace,
   Calc,
   CapUnit,
   ChUnit,
@@ -3314,6 +3316,100 @@ impl Feature {
         }
         if browsers.ie.is_some() {
           return false;
+        }
+      }
+      Feature::BorderImageRepeatRound => {
+        if let Some(version) = browsers.chrome {
+          if version < 1966080 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 983040 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ie {
+          if version < 720896 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 1179648 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 590080 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 590592 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 131072 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 2424832 {
+            return false;
+          }
+        }
+      }
+      Feature::BorderImageRepeatSpace => {
+        if let Some(version) = browsers.chrome {
+          if version < 3670016 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 3276800 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ie {
+          if version < 720896 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 2818048 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 590080 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 590592 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 393216 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 3670016 {
+            return false;
+          }
         }
       }
       Feature::P3Colors | Feature::LangList => {

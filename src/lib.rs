@@ -2165,6 +2165,124 @@ mod tests {
       },
     );
 
+    prefix_test(
+      r#"
+      .foo {
+        border-image-source: linear-gradient(red, green);
+        border-image-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-image-source: linear-gradient(red, green);
+        border-image-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(95 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        border-image-source: linear-gradient(red, green);
+        border-image-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-image-source: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(112 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        border-image: linear-gradient(red, green);
+        border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-image: linear-gradient(red, green);
+        border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(95 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        border-image: var(--fallback);
+        border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-image: var(--fallback);
+        border-image: linear-gradient(lch(56.208% 136.76 46.312), lch(51% 135.366 301.364));
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(95 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        border-image: url("fallback.png") 10 40 fill / 10px;
+        border-image: url("main.png") 10 40 fill / 10px space;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-image: url("fallback.png") 10 40 fill / 10px;
+        border-image: url("main.png") 10 40 fill / 10px space;
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(50 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        border-image: url("fallback.png") 10 40 fill / 10px;
+        border-image: url("main.png") 10 40 fill / 10px space;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        border-image: url("main.png") 10 40 fill / 10px space;
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(56 << 16),
+        ..Browsers::default()
+      },
+    );
+
     minify_test(".foo { border: none green }", ".foo{border:green}");
   }
 

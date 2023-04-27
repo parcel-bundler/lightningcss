@@ -313,6 +313,8 @@ for (let key in mdn.css.types.image.gradient) {
 }
 
 mdnFeatures.gradientInterpolationHints = mdn.css.types.image.gradient['linear-gradient'].interpolation_hints.__compat.support;
+mdnFeatures.borderImageRepeatRound = mdn.css.properties['border-image-repeat'].round.__compat.support;
+mdnFeatures.borderImageRepeatSpace = mdn.css.properties['border-image-repeat'].space.__compat.support;
 
 for (let feature in mdnFeatures) {
   let browserMap = {};
