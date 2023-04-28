@@ -229,7 +229,10 @@ fn derive(
 
   let child_types = visit_types.unwrap_or_else(|| {
     quote! {
-      #type_defs crate::visitor::VisitTypes::from_bits_retain(#(#child_types)|*)
+      {
+        #type_defs
+        crate::visitor::VisitTypes::from_bits_retain(#(#child_types)|*)
+      }
     }
   });
 

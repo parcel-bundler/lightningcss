@@ -88,6 +88,7 @@ bitflags! {
   ///
   /// Flags may be combined to visit multiple types. The [visit_types](visit_types) macro allows
   /// combining flags in a `const` expression.
+  #[derive(PartialEq, Eq, Clone, Copy)]
   pub struct VisitTypes: u32 {
     /// Visit rules.
     const RULES = 1 << 0;
