@@ -107,16 +107,6 @@ impl<'i> Image<'i> {
     }
   }
 
-  pub(crate) fn should_preserve_fallback(&self, fallback: &Option<Image>, targets: Option<Browsers>) -> bool {
-    if let (Some(fallback), Some(targets)) = (&fallback, targets) {
-      return !compat::Feature::ImageSet.is_compatible(targets)
-        && matches!(self, Image::ImageSet(..))
-        && !matches!(fallback, Image::ImageSet(..));
-    }
-
-    false
-  }
-
   pub(crate) fn should_preserve_fallbacks(
     images: &SmallVec<[Image; 1]>,
     fallback: Option<&SmallVec<[Image; 1]>>,

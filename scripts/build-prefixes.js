@@ -316,6 +316,29 @@ mdnFeatures.gradientInterpolationHints = mdn.css.types.image.gradient['linear-gr
 mdnFeatures.borderImageRepeatRound = mdn.css.properties['border-image-repeat'].round.__compat.support;
 mdnFeatures.borderImageRepeatSpace = mdn.css.properties['border-image-repeat'].space.__compat.support;
 
+const nonStandardListStyleType = new Set([
+  // https://developer.mozilla.org/en-US/docs/Web/CSS/list-style-type#non-standard_extensions
+  'ethiopic-halehame',
+  'ethiopic-halehame-am',
+  'ethiopic-halehame-ti-er',
+  'ethiopic-halehame-ti-et',
+  'hangul',
+  'hangul-consonant',
+  'urdu',
+  'cjk-ideographic',
+  // https://github.com/w3c/csswg-drafts/issues/135
+  'upper-greek'
+]);
+
+for (let key in mdn.css.properties['list-style-type']) {
+  if (key === '__compat' || nonStandardListStyleType.has(key) || mdn.css.properties['list-style-type'][key].__compat.support.chrome.version_removed) {
+    continue;
+  }
+
+  let feat = key[0].toUpperCase() + key.slice(1).replace(/-([a-z])/g, (_, l) => l.toUpperCase()) + 'ListStyleType';
+  mdnFeatures[feat] = mdn.css.properties['list-style-type'][key].__compat.support;
+}
+
 for (let feature in mdnFeatures) {
   let browserMap = {};
   for (let name in mdnFeatures[feature]) {

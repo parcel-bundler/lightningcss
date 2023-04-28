@@ -16,7 +16,7 @@ use crate::{
   properties::{Property, PropertyId},
   rules::container::ContainerName as ContainerIdent,
   targets::Browsers,
-  traits::{Parse, PropertyHandler, Shorthand, ToCss},
+  traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss},
 };
 
 enum_property! {
@@ -36,6 +36,12 @@ enum_property! {
 impl Default for ContainerType {
   fn default() -> Self {
     ContainerType::Normal
+  }
+}
+
+impl IsCompatible for ContainerType {
+  fn is_compatible(&self, _browsers: Browsers) -> bool {
+    true
   }
 }
 
@@ -102,6 +108,12 @@ impl<'i> ToCss for ContainerNameList<'i> {
         Ok(())
       }
     }
+  }
+}
+
+impl IsCompatible for ContainerNameList<'_> {
+  fn is_compatible(&self, _browsers: Browsers) -> bool {
+    true
   }
 }
 

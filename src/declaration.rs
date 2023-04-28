@@ -497,7 +497,7 @@ impl<'i> DeclarationHandler<'i> {
     DeclarationHandler {
       background: BackgroundHandler::new(targets),
       border: BorderHandler::new(targets),
-      outline: OutlineHandler::new(targets),
+      outline: OutlineHandler::default(),
       flex: FlexHandler::new(targets),
       grid: GridHandler::default(),
       align: AlignHandler::new(targets),
@@ -508,7 +508,7 @@ impl<'i> DeclarationHandler<'i> {
       scroll_padding: ScrollPaddingHandler::default(),
       font: FontHandler::default(),
       text: TextDecorationHandler::new(targets),
-      list: ListStyleHandler::new(targets),
+      list: ListStyleHandler::default(),
       transition: TransitionHandler::new(targets),
       animation: AnimationHandler::new(targets),
       display: DisplayHandler::new(targets),

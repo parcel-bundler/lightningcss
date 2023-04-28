@@ -6,11 +6,19 @@ use crate::targets::Browsers;
 pub enum Feature {
   AbsFunction,
   AnyPseudo,
+  ArabicIndicListStyleType,
+  ArmenianListStyleType,
+  BengaliListStyleType,
   BorderImageRepeatRound,
   BorderImageRepeatSpace,
   Calc,
+  CambodianListStyleType,
   CapUnit,
   ChUnit,
+  CircleListStyleType,
+  CjkDecimalListStyleType,
+  CjkEarthlyBranchListStyleType,
+  CjkHeavenlyStemListStyleType,
   Clamp,
   ColorFunction,
   ConicGradient,
@@ -44,18 +52,41 @@ pub enum Feature {
   Cue,
   CueFunction,
   CustomMediaQueries,
+  DecimalLeadingZeroListStyleType,
+  DecimalListStyleType,
+  DevanagariListStyleType,
   Dialog,
+  DiscListStyleType,
+  DisclosureClosedListStyleType,
+  DisclosureOpenListStyleType,
   DoublePositionGradients,
+  EthiopicNumericListStyleType,
   ExUnit,
   FontFamilySystemUi,
   FormValidation,
   Fullscreen,
+  GeorgianListStyleType,
   GradientInterpolationHints,
+  GujaratiListStyleType,
+  GurmukhiListStyleType,
+  HebrewListStyleType,
+  HiraganaIrohaListStyleType,
+  HiraganaListStyleType,
   HypotFunction,
   IcUnit,
   ImageSet,
+  JapaneseFormalListStyleType,
+  JapaneseInformalListStyleType,
+  KannadaListStyleType,
+  KatakanaIrohaListStyleType,
+  KatakanaListStyleType,
+  KhmerListStyleType,
+  KoreanHangulFormalListStyleType,
+  KoreanHanjaFormalListStyleType,
+  KoreanHanjaInformalListStyleType,
   LabColors,
   LangList,
+  LaoListStyleType,
   LhUnit,
   LinearGradient,
   LogicalBorderRadius,
@@ -68,15 +99,25 @@ pub enum Feature {
   LogicalPaddingShorthand,
   LogicalSize,
   LogicalTextAlign,
+  LowerAlphaListStyleType,
+  LowerArmenianListStyleType,
+  LowerGreekListStyleType,
+  LowerLatinListStyleType,
+  LowerRomanListStyleType,
+  MalayalamListStyleType,
   MaxFunction,
   MediaIntervalSyntax,
   MediaRangeSyntax,
   MinFunction,
   ModFunction,
+  MongolianListStyleType,
+  MyanmarListStyleType,
   NthChildOf,
   OklabColors,
+  OriyaListStyleType,
   OverflowShorthand,
   P3Colors,
+  PersianListStyleType,
   PlaceContent,
   PlaceItems,
   PlaceSelf,
@@ -91,9 +132,24 @@ pub enum Feature {
   RoundFunction,
   Shadowdomv1,
   SignFunction,
+  SimpChineseFormalListStyleType,
+  SimpChineseInformalListStyleType,
   SpaceSeparatedColorFunction,
+  SquareListStyleType,
+  StringListStyleType,
+  SymbolsListStyleType,
+  TamilListStyleType,
+  TeluguListStyleType,
   TextDecorationThicknessPercent,
   TextDecorationThicknessShorthand,
+  ThaiListStyleType,
+  TibetanListStyleType,
+  TradChineseFormalListStyleType,
+  TradChineseInformalListStyleType,
+  UpperAlphaListStyleType,
+  UpperArmenianListStyleType,
+  UpperLatinListStyleType,
+  UpperRomanListStyleType,
   VbUnit,
   VhUnit,
   ViUnit,
@@ -2735,7 +2791,11 @@ impl Feature {
           return false;
         }
       }
-      Feature::ExUnit => {
+      Feature::ExUnit
+      | Feature::CircleListStyleType
+      | Feature::DecimalListStyleType
+      | Feature::DiscListStyleType
+      | Feature::SquareListStyleType => {
         if let Some(version) = browsers.chrome {
           if version < 1179648 {
             return false;
@@ -3410,6 +3470,574 @@ impl Feature {
           if version < 3670016 {
             return false;
           }
+        }
+      }
+      Feature::ArabicIndicListStyleType
+      | Feature::BengaliListStyleType
+      | Feature::CjkEarthlyBranchListStyleType
+      | Feature::CjkHeavenlyStemListStyleType
+      | Feature::DevanagariListStyleType
+      | Feature::GujaratiListStyleType
+      | Feature::GurmukhiListStyleType
+      | Feature::KannadaListStyleType
+      | Feature::KhmerListStyleType
+      | Feature::LaoListStyleType
+      | Feature::MalayalamListStyleType
+      | Feature::MyanmarListStyleType
+      | Feature::OriyaListStyleType
+      | Feature::PersianListStyleType
+      | Feature::TeluguListStyleType
+      | Feature::ThaiListStyleType => {
+        if let Some(version) = browsers.chrome {
+          if version < 1179648 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 917504 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 327680 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 262656 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 263168 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::ArmenianListStyleType
+      | Feature::DecimalLeadingZeroListStyleType
+      | Feature::GeorgianListStyleType
+      | Feature::LowerAlphaListStyleType
+      | Feature::LowerGreekListStyleType
+      | Feature::LowerRomanListStyleType
+      | Feature::UpperAlphaListStyleType
+      | Feature::UpperLatinListStyleType
+      | Feature::UpperRomanListStyleType => {
+        if let Some(version) = browsers.chrome {
+          if version < 1179648 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ie {
+          if version < 524288 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 655616 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 263168 {
+            return false;
+          }
+        }
+      }
+      Feature::CambodianListStyleType | Feature::MongolianListStyleType | Feature::TibetanListStyleType => {
+        if let Some(version) = browsers.chrome {
+          if version < 1179648 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 2162688 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 917504 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 327680 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 262656 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 263168 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::CjkDecimalListStyleType => {
+        if let Some(version) = browsers.firefox {
+          if version < 1835008 {
+            return false;
+          }
+        }
+        if browsers.android.is_some()
+          || browsers.chrome.is_some()
+          || browsers.edge.is_some()
+          || browsers.ie.is_some()
+          || browsers.ios_saf.is_some()
+          || browsers.opera.is_some()
+          || browsers.safari.is_some()
+          || browsers.samsung.is_some()
+        {
+          return false;
+        }
+      }
+      Feature::DisclosureClosedListStyleType | Feature::DisclosureOpenListStyleType => {
+        if let Some(version) = browsers.chrome {
+          if version < 5832704 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5832704 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 2162688 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 4128768 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 983040 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 983040 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 983040 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 5832704 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::EthiopicNumericListStyleType
+      | Feature::JapaneseFormalListStyleType
+      | Feature::JapaneseInformalListStyleType => {
+        if let Some(version) = browsers.firefox {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 983040 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 983040 {
+            return false;
+          }
+        }
+        if browsers.android.is_some()
+          || browsers.chrome.is_some()
+          || browsers.edge.is_some()
+          || browsers.ie.is_some()
+          || browsers.opera.is_some()
+          || browsers.samsung.is_some()
+        {
+          return false;
+        }
+      }
+      Feature::HebrewListStyleType
+      | Feature::HiraganaListStyleType
+      | Feature::HiraganaIrohaListStyleType
+      | Feature::KatakanaListStyleType
+      | Feature::KatakanaIrohaListStyleType => {
+        if let Some(version) = browsers.chrome {
+          if version < 1179648 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 917504 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 263168 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::KoreanHangulFormalListStyleType
+      | Feature::KoreanHanjaFormalListStyleType
+      | Feature::KoreanHanjaInformalListStyleType => {
+        if let Some(version) = browsers.chrome {
+          if version < 2949120 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 1835008 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 2097152 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 983040 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 983040 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 327680 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 2949120 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::LowerArmenianListStyleType | Feature::UpperArmenianListStyleType => {
+        if let Some(version) = browsers.chrome {
+          if version < 1179648 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 2162688 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 917504 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 327936 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 327680 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 263168 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::LowerLatinListStyleType => {
+        if let Some(version) = browsers.chrome {
+          if version < 1179648 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ie {
+          if version < 524288 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 655616 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 65536 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 327680 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 263168 {
+            return false;
+          }
+        }
+      }
+      Feature::SimpChineseFormalListStyleType
+      | Feature::SimpChineseInformalListStyleType
+      | Feature::TradChineseFormalListStyleType
+      | Feature::TradChineseInformalListStyleType => {
+        if let Some(version) = browsers.chrome {
+          if version < 2949120 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 2097152 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 983040 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 983040 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 327680 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 2949120 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::StringListStyleType => {
+        if let Some(version) = browsers.chrome {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 2555904 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 4325376 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 917760 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 918784 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::SymbolsListStyleType => {
+        if let Some(version) = browsers.firefox {
+          if version < 2293760 {
+            return false;
+          }
+        }
+        if browsers.android.is_some()
+          || browsers.chrome.is_some()
+          || browsers.edge.is_some()
+          || browsers.ie.is_some()
+          || browsers.ios_saf.is_some()
+          || browsers.opera.is_some()
+          || browsers.safari.is_some()
+          || browsers.samsung.is_some()
+        {
+          return false;
+        }
+      }
+      Feature::TamilListStyleType => {
+        if let Some(version) = browsers.firefox {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if browsers.android.is_some()
+          || browsers.chrome.is_some()
+          || browsers.edge.is_some()
+          || browsers.ie.is_some()
+          || browsers.ios_saf.is_some()
+          || browsers.opera.is_some()
+          || browsers.safari.is_some()
+          || browsers.samsung.is_some()
+        {
+          return false;
         }
       }
       Feature::P3Colors | Feature::LangList => {

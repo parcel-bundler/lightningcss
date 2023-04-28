@@ -224,62 +224,78 @@ macro_rules! shorthand_property {
 
 pub(crate) use shorthand_property;
 
+macro_rules! shorthand_property_bitflags {
+  ($name:ident, $first:ident, $($rest:ident),*) => {
+    crate::macros::shorthand_property_bitflags!($name, [$first,$($rest),+] $($rest),+ ; 0; $first = 0);
+  };
+  ($name:ident, [$($all:ident),*] $cur:ident, $($rest:ident),* ; $last_index: expr ; $($var:ident = $index:expr)+) => {
+    crate::macros::shorthand_property_bitflags!($name, [$($all),*] $($rest),* ; $last_index + 1; $($var = $index)* $cur = $last_index + 1);
+  };
+  ($name:ident, [$($all:ident),*] $cur:ident; $last_index:expr ; $($var:ident = $index:expr)+) => {
+    paste::paste! {
+      crate::macros::property_bitflags! {
+        #[derive(Default, Debug)]
+        struct [<$name Property>]: u8 {
+          $(const $var = 1 << $index);*;
+          const $cur = 1 << ($last_index + 1);
+          const $name = $(Self::$all.bits())|*;
+        }
+      }
+    }
+  };
+}
+
+pub(crate) use shorthand_property_bitflags;
+
 macro_rules! shorthand_handler {
   (
     $name: ident -> $shorthand: ident$(<$l: lifetime>)? $(fallbacks: $shorthand_fallback: literal)?
     { $( $key: ident: $prop: ident($type: ty $(, fallback: $fallback: literal)? $(, image: $image: literal)?), )+ }
   ) => {
+    crate::macros::shorthand_property_bitflags!($shorthand, $($prop),*);
+
     #[derive(Default)]
     pub(crate) struct $name$(<$l>)? {
-      #[allow(dead_code)]
-      targets: Option<Browsers>,
       $(
         pub $key: Option<$type>,
       )*
+      flushed_properties: paste::paste!([<$shorthand Property>]),
       has_any: bool
-    }
-
-    impl$(<$l>)? $name$(<$l>)? {
-      #[allow(dead_code)]
-      pub fn new(targets: Option<Browsers>) -> Self {
-        Self {
-          targets,
-          ..Self::default()
-        }
-      }
     }
 
     impl<'i> PropertyHandler<'i> for $name$(<$l>)? {
       fn handle_property(&mut self, property: &Property<'i>, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) -> bool {
+        use crate::traits::IsCompatible;
+
         match property {
           $(
             Property::$prop(val) => {
-              $(
-                if $image && val.should_preserve_fallback(&self.$key, self.targets) {
-                  self.finalize(dest, context);
-                }
-              )?
+              if self.$key.is_some() && matches!(context.targets, Some(targets) if !val.is_compatible(targets)) {
+                self.flush(dest, context);
+              }
               self.$key = Some(val.clone());
               self.has_any = true;
             },
           )+
           Property::$shorthand(val) => {
             $(
-              $(
-                if $image && val.$key.should_preserve_fallback(&self.$key, self.targets) {
-                  self.finalize(dest, context);
-                }
-              )?
-
+              if self.$key.is_some() && matches!(context.targets, Some(targets) if !val.$key.is_compatible(targets)) {
+                self.flush(dest, context);
+              }
+            )+
+            $(
               self.$key = Some(val.$key.clone());
             )+
             self.has_any = true;
           }
           Property::Unparsed(val) if matches!(val.property_id, $( PropertyId::$prop | )+ PropertyId::$shorthand) => {
-            self.finalize(dest, context);
+            self.flush(dest, context);
 
             let mut unparsed = val.clone();
             context.add_unparsed_fallbacks(&mut unparsed);
+            paste::paste! {
+              self.flushed_properties.insert([<$shorthand Property>]::try_from(&unparsed.property_id).unwrap());
+            };
             dest.push(Property::Unparsed(unparsed));
           }
           _ => return false
@@ -288,7 +304,15 @@ macro_rules! shorthand_handler {
         true
       }
 
-      fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i, '_>) {
+      fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
+        self.flush(dest, context);
+        self.flushed_properties = paste::paste!([<$shorthand Property>]::empty());
+      }
+    }
+
+    impl<'i> $name$(<$l>)? {
+      #[allow(unused_variables)]
+      fn flush(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
         if !self.has_any {
           return
         }
@@ -308,8 +332,8 @@ macro_rules! shorthand_handler {
           };
 
           $(
-            if $shorthand_fallback {
-              if let Some(targets) = self.targets {
+            if $shorthand_fallback && !self.flushed_properties.intersects(paste::paste!([<$shorthand Property>]::$shorthand)) {
+              if let Some(targets) = context.targets {
                 let fallbacks = shorthand.get_fallbacks(targets);
                 for fallback in fallbacks {
                   dest.push(Property::$shorthand(fallback));
@@ -318,14 +342,17 @@ macro_rules! shorthand_handler {
             }
           )?
 
-          dest.push(Property::$shorthand(shorthand))
+          dest.push(Property::$shorthand(shorthand));
+          paste::paste! {
+            self.flushed_properties.insert([<$shorthand Property>]::$shorthand);
+          };
         } else {
           $(
             #[allow(unused_mut)]
             if let Some(mut val) = $key {
               $(
-                if $fallback {
-                  if let Some(targets) = self.targets {
+                if $fallback && !self.flushed_properties.intersects(paste::paste!([<$shorthand Property>]::$prop)) {
+                  if let Some(targets) = context.targets {
                     let fallbacks = val.get_fallbacks(targets);
                     for fallback in fallbacks {
                       dest.push(Property::$prop(fallback));
@@ -334,7 +361,10 @@ macro_rules! shorthand_handler {
                 }
               )?
 
-              dest.push(Property::$prop(val))
+              dest.push(Property::$prop(val));
+              paste::paste! {
+                self.flushed_properties.insert([<$shorthand Property>]::$prop);
+              };
             }
           )+
         }

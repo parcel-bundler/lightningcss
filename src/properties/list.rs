@@ -7,7 +7,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::macros::{define_shorthand, enum_property, shorthand_handler, shorthand_property};
 use crate::printer::Printer;
 use crate::targets::Browsers;
-use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss};
+use crate::traits::{FallbackValues, IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::string::CSSString;
 use crate::values::{ident::CustomIdent, image::Image};
 #[cfg(feature = "visitor")]
@@ -68,6 +68,16 @@ impl ToCss for ListStyleType<'_> {
   }
 }
 
+impl IsCompatible for ListStyleType<'_> {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      ListStyleType::CounterStyle(c) => c.is_compatible(browsers),
+      ListStyleType::String(..) => crate::compat::Feature::StringListStyleType.is_compatible(browsers),
+      ListStyleType::None => true,
+    }
+  }
+}
+
 /// A [counter-style](https://www.w3.org/TR/css-counter-styles-3/#typedef-counter-style) name.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
@@ -101,7 +111,42 @@ pub enum CounterStyle<'i> {
   },
 }
 
-enum_property! {
+macro_rules! counter_styles {
+  (
+    $(#[$outer:meta])*
+    $vis:vis enum $name:ident {
+      $(
+        $(#[$meta: meta])*
+        $str: literal: $id: ident,
+      )+
+    }
+  ) => {
+    enum_property! {
+      /// A [predefined counter](https://www.w3.org/TR/css-counter-styles-3/#predefined-counters) style.
+      #[allow(missing_docs)]
+      pub enum PredefinedCounterStyle {
+        $(
+           $(#[$meta])*
+           $str: $id,
+        )+
+      }
+    }
+
+    impl IsCompatible for PredefinedCounterStyle {
+      fn is_compatible(&self, browsers: Browsers) -> bool {
+        match self {
+          $(
+            PredefinedCounterStyle::$id => paste::paste! {
+              crate::compat::Feature::[<$id ListStyleType>].is_compatible(browsers)
+            },
+          )+
+        }
+      }
+    }
+  };
+}
+
+counter_styles! {
   /// A [predefined counter](https://www.w3.org/TR/css-counter-styles-3/#predefined-counters) style.
   #[allow(missing_docs)]
   pub enum PredefinedCounterStyle {
@@ -229,6 +274,16 @@ impl ToCss for CounterStyle<'_> {
   }
 }
 
+impl IsCompatible for CounterStyle<'_> {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      CounterStyle::Name(..) => true,
+      CounterStyle::Predefined(p) => p.is_compatible(browsers),
+      CounterStyle::Symbols { .. } => crate::compat::Feature::SymbolsListStyleType.is_compatible(browsers),
+    }
+  }
+}
+
 enum_property! {
   /// A [`<symbols-type>`](https://www.w3.org/TR/css-counter-styles-3/#typedef-symbols-type) value,
   /// as used in the `symbols()` function.
@@ -307,6 +362,12 @@ enum_property! {
 impl Default for ListStylePosition {
   fn default() -> ListStylePosition {
     ListStylePosition::Outside
+  }
+}
+
+impl IsCompatible for ListStylePosition {
+  fn is_compatible(&self, _browsers: Browsers) -> bool {
+    true
   }
 }
 

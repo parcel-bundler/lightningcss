@@ -8,7 +8,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::macros::{impl_shorthand, shorthand_handler};
 use crate::printer::Printer;
 use crate::targets::Browsers;
-use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss};
+use crate::traits::{FallbackValues, IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::color::CssColor;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -56,6 +56,12 @@ impl ToCss for OutlineStyle {
 impl Default for OutlineStyle {
   fn default() -> OutlineStyle {
     OutlineStyle::LineStyle(LineStyle::None)
+  }
+}
+
+impl IsCompatible for OutlineStyle {
+  fn is_compatible(&self, _browsers: Browsers) -> bool {
+    true
   }
 }
 
