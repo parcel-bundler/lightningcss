@@ -22,6 +22,7 @@ fn main() {
   let source = std::fs::read_to_string(&args[1]).unwrap();
   let opts = ParserOptions {
     filename: args[1].clone(),
+    nesting: true,
     ..Default::default()
   };
 
@@ -191,7 +192,9 @@ impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
     if let CssRule::Custom(AtRule::Apply(apply)) = rule {
       let mut declarations = DeclarationBlock::new();
       for name in &apply.names {
-        let applied = self.rules.get(name).unwrap();
+        let Some(applied) = self.rules.get(name) else {
+          continue;
+        };
         declarations
           .important_declarations
           .extend(applied.important_declarations.iter().cloned());
