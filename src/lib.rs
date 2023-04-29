@@ -3162,141 +3162,121 @@ mod tests {
         ..Browsers::default()
       },
     );
+  }
 
-    prefix_test(
-      r#"
-      .foo {
-        margin-right: 22px;
-        margin-right: max(4%, 22px);
-      }
-    "#,
-      indoc! {r#"
-      .foo {
-        margin-right: 22px;
-        margin-right: max(4%, 22px);
-      }
-    "#
-      },
-      Browsers {
-        safari: Some(10 << 16),
-        ..Browsers::default()
-      },
-    );
+  #[test]
+  fn test_length() {
+    for prop in &[
+      "margin-right",
+      "margin",
+      "padding-right",
+      "padding",
+      "width",
+      "height",
+      "min-height",
+      "max-height",
+    ] {
+      prefix_test(
+        &format!(
+          r#"
+        .foo {{
+          {}: 22px;
+          {}: max(4%, 22px);
+        }}
+      "#,
+          prop, prop
+        ),
+        &format!(
+          indoc! {r#"
+        .foo {{
+          {}: 22px;
+          {}: max(4%, 22px);
+        }}
+      "#
+          },
+          prop, prop
+        ),
+        Browsers {
+          safari: Some(10 << 16),
+          ..Browsers::default()
+        },
+      );
 
-    prefix_test(
-      r#"
-      .foo {
-        margin-right: 22px;
-        margin-right: max(4%, 22px);
-      }
-    "#,
-      indoc! {r#"
-      .foo {
-        margin-right: max(4%, 22px);
-      }
-    "#
-      },
-      Browsers {
-        safari: Some(14 << 16),
-        ..Browsers::default()
-      },
-    );
+      prefix_test(
+        &format!(
+          r#"
+        .foo {{
+          {}: 22px;
+          {}: max(4%, 22px);
+        }}
+      "#,
+          prop, prop
+        ),
+        &format!(
+          indoc! {r#"
+        .foo {{
+          {}: max(4%, 22px);
+        }}
+      "#
+          },
+          prop
+        ),
+        Browsers {
+          safari: Some(14 << 16),
+          ..Browsers::default()
+        },
+      );
 
-    prefix_test(
-      r#"
-      .foo {
-        margin-right: 22px;
-        margin-right: max(2cqw, 22px);
-      }
-    "#,
-      indoc! {r#"
-      .foo {
-        margin-right: 22px;
-        margin-right: max(2cqw, 22px);
-      }
-    "#
-      },
-      Browsers {
-        safari: Some(14 << 16),
-        ..Browsers::default()
-      },
-    );
-    prefix_test(
-      r#"
-      .foo {
-        margin-right: 22px;
-        margin-right: max(2cqw, 22px);
-      }
-    "#,
-      indoc! {r#"
-      .foo {
-        margin-right: max(2cqw, 22px);
-      }
-    "#
-      },
-      Browsers {
-        safari: Some(16 << 16),
-        ..Browsers::default()
-      },
-    );
-
-    prefix_test(
-      r#"
-      .foo {
-        margin-inline-end: 22px;
-        margin-inline-end: max(2cqw, 22px);
-      }
-    "#,
-      indoc! {r#"
-      .foo {
-        margin-inline-end: 22px;
-        margin-inline-end: max(2cqw, 22px);
-      }
-    "#
-      },
-      Browsers {
-        safari: Some(14 << 16),
-        ..Browsers::default()
-      },
-    );
-    prefix_test(
-      r#"
-      .foo {
-        margin-inline-end: 22px;
-        margin-inline-end: max(var(--foo), 22px);
-      }
-    "#,
-      indoc! {r#"
-      .foo {
-        margin-inline-end: 22px;
-        margin-inline-end: max(var(--foo), 22px);
-      }
-    "#
-      },
-      Browsers {
-        safari: Some(14 << 16),
-        ..Browsers::default()
-      },
-    );
-    prefix_test(
-      r#"
-      .foo {
-        margin: 22px;
-        margin: max(2cqw, 22px);
-      }
-    "#,
-      indoc! {r#"
-      .foo {
-        margin: 22px;
-        margin: max(2cqw, 22px);
-      }
-    "#
-      },
-      Browsers {
-        safari: Some(14 << 16),
-        ..Browsers::default()
-      },
-    );
+      prefix_test(
+        &format!(
+          r#"
+        .foo {{
+          {}: 22px;
+          {}: max(2cqw, 22px);
+        }}
+      "#,
+          prop, prop
+        ),
+        &format!(
+          indoc! {r#"
+        .foo {{
+          {}: 22px;
+          {}: max(2cqw, 22px);
+        }}
+      "#
+          },
+          prop, prop
+        ),
+        Browsers {
+          safari: Some(14 << 16),
+          ..Browsers::default()
+        },
+      );
+      prefix_test(
+        &format!(
+          r#"
+        .foo {{
+          {}: 22px;
+          {}: max(2cqw, 22px);
+        }}
+      "#,
+          prop, prop
+        ),
+        &format!(
+          indoc! {r#"
+        .foo {{
+          {}: max(2cqw, 22px);
+        }}
+      "#
+          },
+          prop
+        ),
+        Browsers {
+          safari: Some(16 << 16),
+          ..Browsers::default()
+        },
+      );
+    }
   }
 
   #[test]
@@ -3589,8 +3569,8 @@ mod tests {
       indoc! {r#"
       .foo {
         height: 25px;
-        width: 25px;
         min-height: 25px;
+        width: 25px;
         min-width: 25px;
       }
     "#},
@@ -3604,16 +3584,16 @@ mod tests {
       r#"
       .foo {
         block-size: 25px;
-        inline-size: 25px;
         min-block-size: 25px;
+        inline-size: 25px;
         min-inline-size: 25px;
       }
     "#,
       indoc! {r#"
       .foo {
         block-size: 25px;
-        inline-size: 25px;
         min-block-size: 25px;
+        inline-size: 25px;
         min-inline-size: 25px;
       }
     "#},
@@ -3627,16 +3607,16 @@ mod tests {
       r#"
       .foo {
         block-size: var(--size);
-        inline-size: var(--size);
         min-block-size: var(--size);
+        inline-size: var(--size);
         min-inline-size: var(--size);
       }
     "#,
       indoc! {r#"
       .foo {
         height: var(--size);
-        width: var(--size);
         min-height: var(--size);
+        width: var(--size);
         min-width: var(--size);
       }
     "#},
@@ -3804,6 +3784,58 @@ mod tests {
         }}
       "#},
           out_prop, out_prop, out_prop
+        ),
+        Browsers {
+          safari: Some(8 << 16),
+          firefox: Some(4 << 16),
+          ..Browsers::default()
+        },
+      );
+
+      prefix_test(
+        &format!(
+          r#"
+        .foo {{
+          {}: 100%;
+          {}: max-content;
+        }}
+      "#,
+          in_prop, in_prop
+        ),
+        &format!(
+          indoc! {r#"
+        .foo {{
+          {}: 100%;
+          {}: max-content;
+        }}
+      "#},
+          out_prop, out_prop
+        ),
+        Browsers {
+          safari: Some(8 << 16),
+          firefox: Some(4 << 16),
+          ..Browsers::default()
+        },
+      );
+
+      prefix_test(
+        &format!(
+          r#"
+        .foo {{
+          {}: var(--fallback);
+          {}: max-content;
+        }}
+      "#,
+          in_prop, in_prop
+        ),
+        &format!(
+          indoc! {r#"
+        .foo {{
+          {}: var(--fallback);
+          {}: max-content;
+        }}
+      "#},
+          out_prop, out_prop
         ),
         Browsers {
           safari: Some(8 << 16),

@@ -339,6 +339,15 @@ for (let key in mdn.css.properties['list-style-type']) {
   mdnFeatures[feat] = mdn.css.properties['list-style-type'][key].__compat.support;
 }
 
+for (let key in mdn.css.properties['width']) {
+  if (key === '__compat' || key === 'animatable') {
+    continue;
+  }
+
+  let feat = key[0].toUpperCase() + key.slice(1).replace(/[-_]([a-z])/g, (_, l) => l.toUpperCase()) + 'Size';
+  mdnFeatures[feat] = mdn.css.properties['width'][key].__compat.support;
+}
+
 for (let feature in mdnFeatures) {
   let browserMap = {};
   for (let name in mdnFeatures[feature]) {

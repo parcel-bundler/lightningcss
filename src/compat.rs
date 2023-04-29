@@ -62,6 +62,9 @@ pub enum Feature {
   DoublePositionGradients,
   EthiopicNumericListStyleType,
   ExUnit,
+  FillSize,
+  FitContentFunctionSize,
+  FitContentSize,
   FontFamilySystemUi,
   FormValidation,
   Fullscreen,
@@ -105,9 +108,11 @@ pub enum Feature {
   LowerLatinListStyleType,
   LowerRomanListStyleType,
   MalayalamListStyleType,
+  MaxContentSize,
   MaxFunction,
   MediaIntervalSyntax,
   MediaRangeSyntax,
+  MinContentSize,
   MinFunction,
   ModFunction,
   MongolianListStyleType,
@@ -136,6 +141,7 @@ pub enum Feature {
   SimpChineseInformalListStyleType,
   SpaceSeparatedColorFunction,
   SquareListStyleType,
+  StretchSize,
   StringListStyleType,
   SymbolsListStyleType,
   TamilListStyleType,
@@ -1505,7 +1511,9 @@ impl Feature {
           return false;
         }
       }
-      Feature::CustomMediaQueries | Feature::RlhUnit => return false,
+      Feature::CustomMediaQueries | Feature::RlhUnit | Feature::FitContentFunctionSize | Feature::StretchSize => {
+        return false
+      }
       Feature::DoublePositionGradients => {
         if let Some(version) = browsers.chrome {
           if version < 4653056 {
@@ -4037,6 +4045,181 @@ impl Feature {
           || browsers.safari.is_some()
           || browsers.samsung.is_some()
         {
+          return false;
+        }
+      }
+      Feature::FillSize => {
+        if let Some(version) = browsers.chrome {
+          if version < 3014656 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 2162688 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 327680 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 3014656 {
+            return false;
+          }
+        }
+        if browsers.firefox.is_some() || browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::FitContentSize => {
+        if let Some(version) = browsers.chrome {
+          if version < 1638400 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 917504 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 458752 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 458752 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 66816 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 263168 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::MaxContentSize => {
+        if let Some(version) = browsers.chrome {
+          if version < 3014656 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 2818048 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 720896 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 720896 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 327680 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 3014656 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::MinContentSize => {
+        if let Some(version) = browsers.chrome {
+          if version < 3014656 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 2162688 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 720896 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 720896 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 327680 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 3014656 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
           return false;
         }
       }

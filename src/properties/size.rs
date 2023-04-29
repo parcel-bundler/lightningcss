@@ -4,10 +4,11 @@ use crate::compat::Feature;
 use crate::context::PropertyHandlerContext;
 use crate::declaration::DeclarationList;
 use crate::error::{ParserError, PrinterError};
-use crate::macros::enum_property;
+use crate::logical::PropertyCategory;
+use crate::macros::{enum_property, property_bitflags};
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
-use crate::traits::{Parse, PropertyHandler, ToCss};
+use crate::traits::{IsCompatible, Parse, PropertyHandler, ToCss};
 use crate::values::length::LengthPercentage;
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
@@ -128,6 +129,25 @@ impl ToCss for Size {
   }
 }
 
+impl IsCompatible for Size {
+  fn is_compatible(&self, browsers: crate::targets::Browsers) -> bool {
+    use Size::*;
+    match self {
+      LengthPercentage(l) => l.is_compatible(browsers),
+      MinContent(..) => Feature::MinContentSize.is_compatible(browsers),
+      MaxContent(..) => Feature::MaxContentSize.is_compatible(browsers),
+      FitContent(..) => Feature::FitContentSize.is_compatible(browsers),
+      FitContentFunction(l) => {
+        Feature::FitContentFunctionSize.is_compatible(browsers) && l.is_compatible(browsers)
+      }
+      Stretch(vp) if *vp == VendorPrefix::None => Feature::StretchSize.is_compatible(browsers),
+      Stretch(..) => Feature::FillSize.is_compatible(browsers),
+      Contain => false, // ??? no data in mdn
+      Auto => true,
+    }
+  }
+}
+
 /// A value for the [minimum](https://drafts.csswg.org/css-sizing-3/#min-size-properties)
 /// and [maximum](https://drafts.csswg.org/css-sizing-3/#max-size-properties) size properties,
 /// e.g. `min-width` and `max-height`.
@@ -237,6 +257,25 @@ impl ToCss for MaxSize {
   }
 }
 
+impl IsCompatible for MaxSize {
+  fn is_compatible(&self, browsers: crate::targets::Browsers) -> bool {
+    use MaxSize::*;
+    match self {
+      LengthPercentage(l) => l.is_compatible(browsers),
+      MinContent(..) => Feature::MinContentSize.is_compatible(browsers),
+      MaxContent(..) => Feature::MaxContentSize.is_compatible(browsers),
+      FitContent(..) => Feature::FitContentSize.is_compatible(browsers),
+      FitContentFunction(l) => {
+        Feature::FitContentFunctionSize.is_compatible(browsers) && l.is_compatible(browsers)
+      }
+      Stretch(vp) if *vp == VendorPrefix::None => Feature::StretchSize.is_compatible(browsers),
+      Stretch(..) => Feature::FillSize.is_compatible(browsers),
+      Contain => false, // ??? no data in mdn
+      None => true,
+    }
+  }
+}
+
 fn parse_fit_content<'i, 't>(
   input: &mut Parser<'i, 't>,
 ) -> Result<LengthPercentage, ParseError<'i, ParserError<'i>>> {
@@ -254,8 +293,42 @@ enum_property! {
   }
 }
 
+property_bitflags! {
+  #[derive(Default)]
+  struct SizeProperty: u16 {
+    const Width = 1 << 0;
+    const Height = 1 << 1;
+    const MinWidth = 1 << 2;
+    const MinHeight = 1 << 3;
+    const MaxWidth = 1 << 4;
+    const MaxHeight = 1 << 5;
+    const BlockSize = 1 << 6;
+    const InlineSize = 1 << 7;
+    const MinBlockSize  = 1 << 8;
+    const MinInlineSize = 1 << 9;
+    const MaxBlockSize = 1 << 10;
+    const MaxInlineSize = 1 << 11;
+  }
+}
+
 #[derive(Default)]
-pub(crate) struct SizeHandler;
+pub(crate) struct SizeHandler {
+  width: Option<Size>,
+  height: Option<Size>,
+  min_width: Option<Size>,
+  min_height: Option<Size>,
+  max_width: Option<MaxSize>,
+  max_height: Option<MaxSize>,
+  block_size: Option<Size>,
+  inline_size: Option<Size>,
+  min_block_size: Option<Size>,
+  min_inline_size: Option<Size>,
+  max_block_size: Option<MaxSize>,
+  max_inline_size: Option<MaxSize>,
+  has_any: bool,
+  flushed_properties: SizeProperty,
+  category: PropertyCategory,
+}
 
 impl<'i> PropertyHandler<'i> for SizeHandler {
   fn handle_property(
@@ -266,65 +339,47 @@ impl<'i> PropertyHandler<'i> for SizeHandler {
   ) -> bool {
     let logical_supported = context.is_supported(Feature::LogicalSize);
 
-    macro_rules! prefix {
-      ($prop: ident, $size: ident, $feature: ident) => {
-        if let Some(targets) = context.targets {
-          let prefixes = crate::prefixes::Feature::$feature.prefixes_for(targets);
-          if prefixes.contains(VendorPrefix::WebKit) {
-            dest.push(Property::$prop($size::$feature(VendorPrefix::WebKit)));
-          }
-          if prefixes.contains(VendorPrefix::Moz) {
-            dest.push(Property::$prop($size::$feature(VendorPrefix::Moz)));
-          }
-        }
-      };
-    }
-
     macro_rules! property {
-      ($prop: ident, $val: ident, $size: ident) => {{
-        match $val {
-          $size::Stretch(VendorPrefix::None) => prefix!($prop, $size, Stretch),
-          $size::MinContent(VendorPrefix::None) => prefix!($prop, $size, MinContent),
-          $size::MaxContent(VendorPrefix::None) => prefix!($prop, $size, MaxContent),
-          $size::FitContent(VendorPrefix::None) => prefix!($prop, $size, FitContent),
-          _ => {}
+      ($prop: ident, $val: ident, $category: ident) => {{
+        // If the category changes betweet logical and physical,
+        // or if the value contains syntax that isn't supported across all targets,
+        // preserve the previous value as a fallback.
+        if PropertyCategory::$category != self.category || (self.$prop.is_some() && matches!(context.targets, Some(targets) if !$val.is_compatible(targets))) {
+          self.flush(dest, context);
         }
-        dest.push(Property::$prop($val.clone()));
+
+        self.$prop = Some($val.clone());
+        self.category = PropertyCategory::$category;
+        self.has_any = true;
       }};
     }
 
-    macro_rules! logical {
-      ($prop: ident, $val: ident, $physical: ident, $size: ident) => {
-        if logical_supported {
-          property!($prop, $val, $size);
-        } else {
-          property!($physical, $val, $size);
-        }
-      };
-    }
-
     match property {
-      Property::Width(v) => property!(Width, v, Size),
-      Property::Height(v) => property!(Height, v, Size),
-      Property::MinWidth(v) => property!(MinWidth, v, Size),
-      Property::MinHeight(v) => property!(MinHeight, v, Size),
-      Property::MaxWidth(v) => property!(MaxWidth, v, MaxSize),
-      Property::MaxHeight(v) => property!(MaxHeight, v, MaxSize),
-      Property::BlockSize(size) => logical!(BlockSize, size, Height, Size),
-      Property::MinBlockSize(size) => logical!(MinBlockSize, size, MinHeight, Size),
-      Property::MaxBlockSize(size) => logical!(MaxBlockSize, size, MaxHeight, MaxSize),
-      Property::InlineSize(size) => logical!(InlineSize, size, Width, Size),
-      Property::MinInlineSize(size) => logical!(MinInlineSize, size, MinWidth, Size),
-      Property::MaxInlineSize(size) => logical!(MaxInlineSize, size, MaxWidth, MaxSize),
+      Property::Width(v) => property!(width, v, Physical),
+      Property::Height(v) => property!(height, v, Physical),
+      Property::MinWidth(v) => property!(min_width, v, Physical),
+      Property::MinHeight(v) => property!(min_height, v, Physical),
+      Property::MaxWidth(v) => property!(max_width, v, Physical),
+      Property::MaxHeight(v) => property!(max_height, v, Physical),
+      Property::BlockSize(size) => property!(block_size, size, Logical),
+      Property::MinBlockSize(size) => property!(min_block_size, size, Logical),
+      Property::MaxBlockSize(size) => property!(max_block_size, size, Logical),
+      Property::InlineSize(size) => property!(inline_size, size, Logical),
+      Property::MinInlineSize(size) => property!(min_inline_size, size, Logical),
+      Property::MaxInlineSize(size) => property!(max_inline_size, size, Logical),
       Property::Unparsed(unparsed) => {
         macro_rules! logical_unparsed {
           ($physical: ident) => {
             if logical_supported {
+              self
+                .flushed_properties
+                .insert(SizeProperty::try_from(&unparsed.property_id).unwrap());
               dest.push(property.clone());
             } else {
               dest.push(Property::Unparsed(
                 unparsed.with_property_id(PropertyId::$physical),
               ));
+              self.flushed_properties.insert(SizeProperty::$physical);
             }
           };
         }
@@ -336,6 +391,9 @@ impl<'i> PropertyHandler<'i> for SizeHandler {
           | PropertyId::MaxWidth
           | PropertyId::MinHeight
           | PropertyId::MaxHeight => {
+            self
+              .flushed_properties
+              .insert(SizeProperty::try_from(&unparsed.property_id).unwrap());
             dest.push(property.clone());
           }
           PropertyId::BlockSize => logical_unparsed!(Height),
@@ -353,5 +411,71 @@ impl<'i> PropertyHandler<'i> for SizeHandler {
     true
   }
 
-  fn finalize(&mut self, _: &mut DeclarationList, _: &mut PropertyHandlerContext<'i, '_>) {}
+  fn finalize(&mut self, dest: &mut DeclarationList, context: &mut PropertyHandlerContext<'i, '_>) {
+    self.flush(dest, context);
+    self.flushed_properties = SizeProperty::empty();
+  }
+}
+
+impl SizeHandler {
+  fn flush<'i>(&mut self, dest: &mut DeclarationList, context: &mut PropertyHandlerContext<'i, '_>) {
+    if !self.has_any {
+      return;
+    }
+
+    self.has_any = false;
+    let logical_supported = context.is_supported(Feature::LogicalSize);
+
+    macro_rules! prefix {
+      ($prop: ident, $size: ident, $feature: ident) => {
+        if let Some(targets) = context.targets {
+          if !self.flushed_properties.contains(SizeProperty::$prop) {
+            let prefixes = crate::prefixes::Feature::$feature.prefixes_for(targets) - VendorPrefix::None;
+            for prefix in prefixes {
+              dest.push(Property::$prop($size::$feature(prefix)));
+            }
+          }
+        }
+      };
+    }
+
+    macro_rules! property {
+      ($prop: ident, $val: ident, $size: ident) => {{
+        if let Some(val) = std::mem::take(&mut self.$val) {
+          match val {
+            $size::Stretch(VendorPrefix::None) => prefix!($prop, $size, Stretch),
+            $size::MinContent(VendorPrefix::None) => prefix!($prop, $size, MinContent),
+            $size::MaxContent(VendorPrefix::None) => prefix!($prop, $size, MaxContent),
+            $size::FitContent(VendorPrefix::None) => prefix!($prop, $size, FitContent),
+            _ => {}
+          }
+          dest.push(Property::$prop(val.clone()));
+          self.flushed_properties.insert(SizeProperty::$prop);
+        }
+      }};
+    }
+
+    macro_rules! logical {
+      ($prop: ident, $val: ident, $physical: ident, $size: ident) => {
+        if logical_supported {
+          property!($prop, $val, $size);
+        } else {
+          property!($physical, $val, $size);
+        }
+      };
+    }
+
+    property!(Width, width, Size);
+    property!(MinWidth, min_width, Size);
+    property!(MaxWidth, max_width, MaxSize);
+    property!(Height, height, Size);
+    property!(MinHeight, min_height, Size);
+    property!(MaxHeight, max_height, MaxSize);
+    logical!(BlockSize, block_size, Height, Size);
+    logical!(MinBlockSize, min_block_size, MinHeight, Size);
+    logical!(MaxBlockSize, max_block_size, MaxHeight, MaxSize);
+    logical!(InlineSize, inline_size, Width, Size);
+    logical!(MinInlineSize, min_inline_size, MinWidth, Size);
+    logical!(MaxInlineSize, max_inline_size, MaxWidth, MaxSize);
+  }
 }
