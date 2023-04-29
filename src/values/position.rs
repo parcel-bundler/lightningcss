@@ -5,7 +5,8 @@ use super::percentage::Percentage;
 use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::printer::Printer;
-use crate::traits::{Parse, ToCss, Zero};
+use crate::targets::Browsers;
+use crate::traits::{IsCompatible, Parse, ToCss, Zero};
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
@@ -269,6 +270,12 @@ impl ToCss for Position {
         }
       }
     }
+  }
+}
+
+impl IsCompatible for Position {
+  fn is_compatible(&self, _browsers: Browsers) -> bool {
+    true
   }
 }
 

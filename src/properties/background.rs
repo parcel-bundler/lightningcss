@@ -93,6 +93,17 @@ impl ToCss for BackgroundSize {
   }
 }
 
+impl IsCompatible for BackgroundSize {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      BackgroundSize::Explicit { width, height } => {
+        width.is_compatible(browsers) && height.is_compatible(browsers)
+      }
+      BackgroundSize::Cover | BackgroundSize::Contain => true,
+    }
+  }
+}
+
 enum_property! {
   /// A [`<repeat-style>`](https://www.w3.org/TR/css-backgrounds-3/#typedef-repeat-style) value,
   /// used within the `background-repeat` property to represent how a background image is repeated
@@ -170,6 +181,12 @@ impl ToCss for BackgroundRepeat {
         Ok(())
       }
     }
+  }
+}
+
+impl IsCompatible for BackgroundRepeat {
+  fn is_compatible(&self, _browsers: Browsers) -> bool {
+    true
   }
 }
 

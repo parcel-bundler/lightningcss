@@ -106,20 +106,6 @@ impl<'i> Image<'i> {
       _ => self.clone(),
     }
   }
-
-  pub(crate) fn should_preserve_fallbacks(
-    images: &SmallVec<[Image; 1]>,
-    fallback: Option<&SmallVec<[Image; 1]>>,
-    targets: Option<Browsers>,
-  ) -> bool {
-    if let (Some(fallback), Some(targets)) = (&fallback, targets) {
-      return !compat::Feature::ImageSet.is_compatible(targets)
-        && images.iter().any(|x| matches!(x, Image::ImageSet(..)))
-        && !fallback.iter().any(|x| matches!(x, Image::ImageSet(..)));
-    }
-
-    false
-  }
 }
 
 impl<'i> IsCompatible for Image<'i> {
