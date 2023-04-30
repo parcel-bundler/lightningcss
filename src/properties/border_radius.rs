@@ -10,7 +10,7 @@ use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId, VendorPrefix};
 use crate::targets::Browsers;
-use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
+use crate::traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::length::*;
 use crate::values::rect::Rect;
 use crate::values::size::Size2D;
@@ -131,6 +131,10 @@ impl<'i> PropertyHandler<'i> for BorderRadiusHandler<'i> {
           if val != $val && !prefixes.contains(*$vp) {
             self.flush(dest, context);
           }
+        }
+
+        if self.$prop.is_some() && matches!(context.targets, Some(targets) if !$val.is_compatible(targets)) {
+          self.flush(dest, context);
         }
       }};
     }

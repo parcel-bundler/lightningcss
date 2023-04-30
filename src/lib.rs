@@ -3176,6 +3176,7 @@ mod tests {
       "min-height",
       "max-height",
       "line-height",
+      "border-radius",
     ] {
       prefix_test(
         &format!(
