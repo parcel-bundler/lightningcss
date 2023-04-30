@@ -151,6 +151,7 @@ macro_rules! impl_op {
 }
 
 pub(crate) use impl_op;
+use smallvec::SmallVec;
 
 /// A trait for values that potentially support a binary operation (e.g. if they have the same unit).
 pub trait TryOp: Sized {
@@ -239,6 +240,18 @@ pub trait Zero {
 pub trait IsCompatible {
   /// Returns whether the value is compatible with all of the given browser targets.
   fn is_compatible(&self, browsers: Browsers) -> bool;
+}
+
+impl<T: IsCompatible> IsCompatible for SmallVec<[T; 1]> {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    self.iter().all(|v| v.is_compatible(browsers))
+  }
+}
+
+impl<T: IsCompatible> IsCompatible for Vec<T> {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    self.iter().all(|v| v.is_compatible(browsers))
+  }
 }
 
 /// A trait to provide parsing of custom at-rules.

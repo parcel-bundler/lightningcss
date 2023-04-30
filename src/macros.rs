@@ -441,8 +441,7 @@ macro_rules! impl_shorthand {
         $(
           $(
             paste! {
-              #[allow(non_snake_case)]
-              let mut [<$prop _value>] = None;
+              let mut [<$prop:snake _value>] = None;
             }
           )+
         )+
@@ -461,7 +460,7 @@ macro_rules! impl_shorthand {
                   )?
 
                   paste! {
-                    [<$prop _value>] = Some(val.clone());
+                    [<$prop:snake _value>] = Some(val.clone());
                   }
                   count += 1;
                   if important {
@@ -480,7 +479,7 @@ macro_rules! impl_shorthand {
               $(
                 $(
                   paste! {
-                    [<$prop _value>] = Some(val.$key.clone());
+                    [<$prop:snake _value>] = Some(val.$key.clone());
                   }
                   count += 1;
                   if important {
@@ -494,7 +493,7 @@ macro_rules! impl_shorthand {
                 $(
                   if let Some(Property::$prop(longhand $(, vp_name!($vp, _p))?)) = property.longhand(&PropertyId::$prop$((vp_name!($vp, vendor_prefix)))?) {
                     paste! {
-                      [<$prop _value>] = Some(longhand);
+                      [<$prop:snake _value>] = Some(longhand);
                     }
                     count += 1;
                     if important {
@@ -512,16 +511,16 @@ macro_rules! impl_shorthand {
           return None
         }
 
-        if $($(paste! { [<$prop _value>].is_some() } &&)+)+ true {
+        if $($(paste! { [<$prop:snake _value>].is_some() } &&)+)+ true {
           // All properties in the group must have a matching value to produce a shorthand.
           $(
             let mut $key = None;
             $(
               if $key == None {
                 paste! {
-                  $key = [<$prop _value>];
+                  $key = [<$prop:snake _value>];
                 }
-              } else if paste! { $key != [<$prop _value>] } {
+              } else if paste! { $key != [<$prop:snake _value>] } {
                 return None
               }
             )+

@@ -136,12 +136,6 @@ impl<'i> IsCompatible for Image<'i> {
   }
 }
 
-impl<T: IsCompatible> IsCompatible for SmallVec<[T; 1]> {
-  fn is_compatible(&self, browsers: Browsers) -> bool {
-    self.iter().all(|v| v.is_compatible(browsers))
-  }
-}
-
 pub(crate) trait ImageFallback<'i>: Sized {
   fn get_image(&self) -> &Image<'i>;
   fn with_image(&self, image: Image<'i>) -> Self;

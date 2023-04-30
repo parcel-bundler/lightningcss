@@ -3175,6 +3175,7 @@ mod tests {
       "height",
       "min-height",
       "max-height",
+      "line-height",
     ] {
       prefix_test(
         &format!(
@@ -5895,6 +5896,254 @@ mod tests {
       },
       Browsers {
         firefox: Some(91 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        font-size: 22px;
+        font-size: max(2cqw, 22px);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        font-size: 22px;
+        font-size: max(2cqw, 22px);
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        font-size: 22px;
+        font-size: max(2cqw, 22px);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        font-size: max(2cqw, 22px);
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(16 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        font-size: 22px;
+        font-size: xxx-large;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        font-size: 22px;
+        font-size: xxx-large;
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(70 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        font-size: 22px;
+        font-size: xxx-large;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        font-size: xxx-large;
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(80 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        font-weight: 700;
+        font-weight: 789;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        font-weight: 700;
+        font-weight: 789;
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(60 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        font-weight: 700;
+        font-weight: 789;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        font-weight: 789;
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(80 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        font-family: Helvetica;
+        font-family: system-ui;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        font-family: Helvetica;
+        font-family: system-ui;
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(50 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        font-family: Helvetica;
+        font-family: system-ui;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        font-family: system-ui;
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(80 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        font-style: oblique;
+        font-style: oblique 40deg;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        font-style: oblique;
+        font-style: oblique 40deg;
+      }
+    "#
+      },
+      Browsers {
+        firefox: Some(50 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        font-style: oblique;
+        font-style: oblique 40deg;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        font-style: oblique 40deg;
+      }
+    "#
+      },
+      Browsers {
+        firefox: Some(80 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        font: 22px Helvetica;
+        font: xxx-large system-ui;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        font: 22px Helvetica;
+        font: xxx-large system-ui;
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(70 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        font: 22px Helvetica;
+        font: xxx-large system-ui;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        font: xxx-large system-ui;
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(80 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        font: var(--fallback);
+        font: xxx-large system-ui;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        font: var(--fallback);
+        font: xxx-large system-ui;
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(50 << 16),
         ..Browsers::default()
       },
     );

@@ -62,10 +62,16 @@ pub enum Feature {
   DoublePositionGradients,
   EthiopicNumericListStyleType,
   ExUnit,
+  ExtendedSystemFonts,
   FillSize,
   FitContentFunctionSize,
   FitContentSize,
   FontFamilySystemUi,
+  FontSizeRem,
+  FontSizeXXXLarge,
+  FontStretchPercentage,
+  FontStyleObliqueAngle,
+  FontWeightNumber,
   FormValidation,
   Fullscreen,
   GeorgianListStyleType,
@@ -1466,6 +1472,28 @@ impl Feature {
           return false;
         }
       }
+      Feature::ExtendedSystemFonts => {
+        if let Some(version) = browsers.safari {
+          if version < 852224 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 852992 {
+            return false;
+          }
+        }
+        if browsers.android.is_some()
+          || browsers.chrome.is_some()
+          || browsers.edge.is_some()
+          || browsers.firefox.is_some()
+          || browsers.ie.is_some()
+          || browsers.opera.is_some()
+          || browsers.samsung.is_some()
+        {
+          return false;
+        }
+      }
       Feature::Calc => {
         if let Some(version) = browsers.edge {
           if version < 786432 {
@@ -2654,6 +2682,340 @@ impl Feature {
           return false;
         }
       }
+      Feature::GradientInterpolationHints => {
+        if let Some(version) = browsers.chrome {
+          if version < 2621440 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 2359296 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 1769472 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 458752 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 458752 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 2621440 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::BorderImageRepeatRound => {
+        if let Some(version) = browsers.chrome {
+          if version < 1966080 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 983040 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ie {
+          if version < 720896 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 1179648 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 590080 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 590592 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 131072 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 2424832 {
+            return false;
+          }
+        }
+      }
+      Feature::BorderImageRepeatSpace => {
+        if let Some(version) = browsers.chrome {
+          if version < 3670016 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 3276800 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ie {
+          if version < 720896 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 2818048 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 590080 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 590592 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 393216 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 3670016 {
+            return false;
+          }
+        }
+      }
+      Feature::FontSizeRem => {
+        if let Some(version) = browsers.chrome {
+          if version < 2752512 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 2031616 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ie {
+          if version < 589824 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 1835008 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 458752 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 458752 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 262144 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 262144 {
+            return false;
+          }
+        }
+      }
+      Feature::FontSizeXXXLarge => {
+        if let Some(version) = browsers.chrome {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 4587520 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 1049600 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 1049600 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 786432 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() || browsers.opera.is_some() {
+          return false;
+        }
+      }
+      Feature::FontStyleObliqueAngle => {
+        if let Some(version) = browsers.firefox {
+          if version < 3997696 {
+            return false;
+          }
+        }
+        if browsers.android.is_some()
+          || browsers.chrome.is_some()
+          || browsers.edge.is_some()
+          || browsers.ie.is_some()
+          || browsers.ios_saf.is_some()
+          || browsers.opera.is_some()
+          || browsers.safari.is_some()
+          || browsers.samsung.is_some()
+        {
+          return false;
+        }
+      }
+      Feature::FontWeightNumber => {
+        if let Some(version) = browsers.chrome {
+          if version < 4063232 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 1114112 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 3997696 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 3014656 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 720896 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 720896 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 524288 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 4063232 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::FontStretchPercentage => {
+        if let Some(version) = browsers.chrome {
+          if version < 4063232 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 1179648 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 3997696 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 3014656 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 721152 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 721664 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 524288 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 4063232 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
       Feature::QUnit => {
         if let Some(version) = browsers.chrome {
           if version < 4128768 {
@@ -3337,145 +3699,6 @@ impl Feature {
         }
         if let Some(version) = browsers.android {
           if version < 263168 {
-            return false;
-          }
-        }
-      }
-      Feature::GradientInterpolationHints => {
-        if let Some(version) = browsers.chrome {
-          if version < 2621440 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.edge {
-          if version < 5177344 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.firefox {
-          if version < 2359296 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.opera {
-          if version < 1769472 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.safari {
-          if version < 458752 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.ios_saf {
-          if version < 458752 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.samsung {
-          if version < 262144 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.android {
-          if version < 2621440 {
-            return false;
-          }
-        }
-        if browsers.ie.is_some() {
-          return false;
-        }
-      }
-      Feature::BorderImageRepeatRound => {
-        if let Some(version) = browsers.chrome {
-          if version < 1966080 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.edge {
-          if version < 786432 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.firefox {
-          if version < 983040 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.ie {
-          if version < 720896 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.opera {
-          if version < 1179648 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.safari {
-          if version < 590080 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.ios_saf {
-          if version < 590592 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.samsung {
-          if version < 131072 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.android {
-          if version < 2424832 {
-            return false;
-          }
-        }
-      }
-      Feature::BorderImageRepeatSpace => {
-        if let Some(version) = browsers.chrome {
-          if version < 3670016 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.edge {
-          if version < 786432 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.firefox {
-          if version < 3276800 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.ie {
-          if version < 720896 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.opera {
-          if version < 2818048 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.safari {
-          if version < 590080 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.ios_saf {
-          if version < 590592 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.samsung {
-          if version < 393216 {
-            return false;
-          }
-        }
-        if let Some(version) = browsers.android {
-          if version < 3670016 {
             return false;
           }
         }

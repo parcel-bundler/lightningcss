@@ -189,6 +189,7 @@ let cssFeatures = [
   'css-not-sel-list',
   'css-has',
   'font-family-system-ui',
+  'extended-system-fonts',
   'calc'
 ];
 
@@ -289,6 +290,14 @@ let mdnFeatures = {
   absFunction: mdn.css.types.abs.__compat.support,
   signFunction: mdn.css.types.sign.__compat.support,
   hypotFunction: mdn.css.types.hypot.__compat.support,
+  gradientInterpolationHints: mdn.css.types.image.gradient['linear-gradient'].interpolation_hints.__compat.support,
+  borderImageRepeatRound: mdn.css.properties['border-image-repeat'].round.__compat.support,
+  borderImageRepeatSpace: mdn.css.properties['border-image-repeat'].space.__compat.support,
+  fontSizeRem: mdn.css.properties['font-size'].rem_values.__compat.support,
+  fontSizeXXXLarge: mdn.css.properties['font-size']['xxx-large'].__compat.support,
+  fontStyleObliqueAngle: mdn.css.properties['font-style']['oblique-angle'].__compat.support,
+  fontWeightNumber: mdn.css.properties['font-weight'].number.__compat.support,
+  fontStretchPercentage: mdn.css.properties['font-stretch'].percentage.__compat.support,
 };
 
 for (let key in mdn.css.types.length) {
@@ -311,10 +320,6 @@ for (let key in mdn.css.types.image.gradient) {
   let feat = key.replace(/-([a-z])/g, (_, l) => l.toUpperCase());
   mdnFeatures[feat] = mdn.css.types.image.gradient[key].__compat.support;
 }
-
-mdnFeatures.gradientInterpolationHints = mdn.css.types.image.gradient['linear-gradient'].interpolation_hints.__compat.support;
-mdnFeatures.borderImageRepeatRound = mdn.css.properties['border-image-repeat'].round.__compat.support;
-mdnFeatures.borderImageRepeatSpace = mdn.css.properties['border-image-repeat'].space.__compat.support;
 
 const nonStandardListStyleType = new Set([
   // https://developer.mozilla.org/en-US/docs/Web/CSS/list-style-type#non-standard_extensions
