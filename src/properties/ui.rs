@@ -6,7 +6,7 @@ use crate::macros::{define_shorthand, enum_property, shorthand_property};
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
 use crate::targets::Browsers;
-use crate::traits::{FallbackValues, Parse, Shorthand, ToCss};
+use crate::traits::{FallbackValues, IsCompatible, Parse, Shorthand, ToCss};
 use crate::values::color::CssColor;
 use crate::values::number::CSSNumber;
 use crate::values::string::CowArcStr;
@@ -230,6 +230,15 @@ impl FallbackValues for ColorOrAuto {
   }
 }
 
+impl IsCompatible for ColorOrAuto {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      ColorOrAuto::Color(color) => color.is_compatible(browsers),
+      ColorOrAuto::Auto => true,
+    }
+  }
+}
+
 enum_property! {
   /// A value for the [caret-shape](https://www.w3.org/TR/2021/WD-css-ui-4-20210316/#caret-shape) property.
   pub enum CaretShape {
@@ -271,6 +280,12 @@ impl FallbackValues for Caret {
         shape: self.shape.clone(),
       })
       .collect()
+  }
+}
+
+impl IsCompatible for Caret {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    self.color.is_compatible(browsers)
   }
 }
 

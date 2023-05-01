@@ -15420,6 +15420,108 @@ mod tests {
     prefix_test(
       r#"
       .foo {
+        color: red;
+        color: lab(40% 56.6 39);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        color: red;
+        color: lab(40% 56.6 39);
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        color: red;
+        color: lab(40% 56.6 39);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        color: lab(40% 56.6 39);
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(16 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        color: var(--fallback);
+        color: lab(40% 56.6 39);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        color: var(--fallback);
+        color: lab(40% 56.6 39);
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        color: var(--fallback);
+        color: lab(40% 56.6 39);
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        color: lab(40% 56.6 39);
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(16 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        color: red;
+        color: var(--foo, lab(40% 56.6 39));
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        color: var(--foo, color(display-p3 .643308 .192455 .167712));
+      }
+
+      @supports (color: lab(0% 0 0)) {
+        .foo {
+          color: var(--foo, lab(40% 56.6 39));
+        }
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
         --a: rgb(0 0 0 / var(--alpha));
         --b: rgb(50% 50% 50% / var(--alpha));
         --c: rgb(var(--x) 0 0);
@@ -21400,7 +21502,6 @@ mod tests {
       "#,
       indoc! {r#"
         article {
-          color: green;
           color: red;
         }
 

@@ -11,7 +11,7 @@ use crate::macros::{define_shorthand, enum_property};
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::targets::Browsers;
-use crate::traits::{FallbackValues, Parse, PropertyHandler, Shorthand, ToCss, Zero};
+use crate::traits::{FallbackValues, IsCompatible, Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::calc::{Calc, MathFunction};
 use crate::values::color::{ColorFallbackKind, CssColor};
 use crate::values::length::{Length, LengthPercentage, LengthValue};
@@ -1551,6 +1551,16 @@ impl ToCss for TextShadow {
     }
 
     Ok(())
+  }
+}
+
+impl IsCompatible for TextShadow {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    self.color.is_compatible(browsers)
+      && self.x_offset.is_compatible(browsers)
+      && self.y_offset.is_compatible(browsers)
+      && self.blur.is_compatible(browsers)
+      && self.spread.is_compatible(browsers)
   }
 }
 

@@ -519,8 +519,8 @@ impl<'i> DeclarationHandler<'i> {
       box_shadow: BoxShadowHandler::new(targets),
       mask: MaskHandler::default(),
       container: ContainerHandler::default(),
-      fallback: FallbackHandler::new(targets),
-      prefix: PrefixHandler::new(targets),
+      fallback: FallbackHandler::default(),
+      prefix: PrefixHandler::default(),
       decls: DeclarationList::new(),
     }
   }

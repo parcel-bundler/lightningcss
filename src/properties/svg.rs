@@ -4,7 +4,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::targets::Browsers;
-use crate::traits::{FallbackValues, Parse, ToCss};
+use crate::traits::{FallbackValues, IsCompatible, Parse, ToCss};
 use crate::values::length::LengthPercentage;
 use crate::values::{color::CssColor, url::Url};
 #[cfg(feature = "visitor")]
@@ -148,6 +148,19 @@ impl<'i> FallbackValues for SVGPaint<'i> {
         })
         .collect(),
       _ => Vec::new(),
+    }
+  }
+}
+
+impl IsCompatible for SVGPaint<'_> {
+  fn is_compatible(&self, browsers: Browsers) -> bool {
+    match self {
+      SVGPaint::Color(c)
+      | SVGPaint::Url {
+        fallback: Some(SVGPaintFallback::Color(c)),
+        ..
+      } => c.is_compatible(browsers),
+      SVGPaint::Url { .. } | SVGPaint::None | SVGPaint::ContextFill | SVGPaint::ContextStroke => true,
     }
   }
 }
