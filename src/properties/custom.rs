@@ -291,10 +291,10 @@ impl<'i> TokenList<'i> {
   pub(crate) fn parse<'t>(
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<'_, 'i>,
-    depth: usize,
+    depth: usize
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut tokens = vec![];
-    TokenList::parse_into(input, &mut tokens, options, depth)?;
+    TokenList::parse_into(input, &mut tokens, options, depth, false)?;
 
     // Slice off leading and trailing whitespace if there are at least two tokens.
     // If there is only one token, we must preserve it. e.g. `--foo: ;` is valid.
@@ -312,11 +312,23 @@ impl<'i> TokenList<'i> {
     return Ok(TokenList(tokens));
   }
 
+  pub(crate) fn parse_preserve_whitespace<'t>(
+    input: &mut Parser<'i, 't>,
+    options: &ParserOptions<'_, 'i>,
+    depth: usize
+  ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let mut tokens = vec![];
+    TokenList::parse_into(input, &mut tokens, options, depth, true)?;
+
+    return Ok(TokenList(tokens));
+  }
+
   fn parse_into<'t>(
     input: &mut Parser<'i, 't>,
     tokens: &mut Vec<TokenOrValue<'i>>,
     options: &ParserOptions<'_, 'i>,
     depth: usize,
+    preserve_whitespace: bool,
   ) -> Result<(), ParseError<'i, ParserError<'i>>> {
     if depth > 500 {
       return Err(input.new_custom_error(ParserError::MaximumNestingDepth));
@@ -408,7 +420,9 @@ impl<'i> TokenList<'i> {
             _ => unreachable!(),
           };
 
-          input.parse_nested_block(|input| TokenList::parse_into(input, tokens, options, depth + 1))?;
+          input.parse_nested_block(|input| {
+            TokenList::parse_into(input, tokens, options, depth + 1, preserve_whitespace)
+          })?;
 
           tokens.push(closing_delimiter.into());
           last_is_delim = true; // Whitespace is not required after any of these chars.
@@ -441,7 +455,7 @@ impl<'i> TokenList<'i> {
 
           // If this is a delimeter, and the last token was whitespace,
           // replace the whitespace with the delimeter since both are not required.
-          if last_is_delim && last_is_whitespace {
+          if !preserve_whitespace && last_is_delim && last_is_whitespace {
             let last = tokens.last_mut().unwrap();
             *last = Token::from(token).into();
           } else {

@@ -196,7 +196,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
         }
         CustomFunction {
           name: name.into(),
-          arguments: TokenList::parse(parser, &self.options, 0)?
+          arguments: TokenList::parse_preserve_whitespace(parser, &self.options, 0)?
         }
       },
     };
