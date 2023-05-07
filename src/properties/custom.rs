@@ -291,7 +291,7 @@ impl<'i> TokenList<'i> {
   pub(crate) fn parse<'t>(
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<'_, 'i>,
-    depth: usize
+    depth: usize,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut tokens = vec![];
     TokenList::parse_into(input, &mut tokens, options, depth, false)?;
@@ -315,7 +315,7 @@ impl<'i> TokenList<'i> {
   pub(crate) fn parse_preserve_whitespace<'t>(
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<'_, 'i>,
-    depth: usize
+    depth: usize,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut tokens = vec![];
     TokenList::parse_into(input, &mut tokens, options, depth, true)?;

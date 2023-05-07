@@ -6008,8 +6008,14 @@ mod tests {
       "::cue(v[voice=active]){color:#ff0}",
     );
     minify_test(":foo(bar) { color: yellow }", ":foo(bar){color:#ff0}");
+    minify_test(":foo(bar baz qux) { color: yellow }", ":foo(bar baz qux){color:#ff0}");
+    minify_test(":foo(.bar .baz .qux) { color: yellow }", ":foo(.bar .baz .qux){color:#ff0}");
+    minify_test(":foo(  .bar  .baz  .qux  ) { color: yellow }", ":foo( .bar .baz .qux ){color:#ff0}");
     minify_test("::foo(bar) { color: yellow }", "::foo(bar){color:#ff0}");
     minify_test("::foo(*) { color: yellow }", "::foo(*){color:#ff0}");
+    minify_test("::foo(bar baz qux) { color: yellow }", "::foo(bar baz qux){color:#ff0}");
+    minify_test("::foo(.bar .baz .qux) { color: yellow }", "::foo(.bar .baz .qux){color:#ff0}");
+    minify_test("::foo(  .bar  .baz  .qux  ) { color: yellow }", "::foo( .bar .baz .qux ){color:#ff0}");
 
     minify_test(":is(.foo) { color: yellow }", ".foo{color:#ff0}");
     minify_test(":is(#foo) { color: yellow }", "#foo{color:#ff0}");

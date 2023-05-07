@@ -735,14 +735,14 @@ impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
     let old_len = self.1.len();
     let mut old = std::mem::replace(&mut self.1, Vec::with_capacity(old_len + components.len()));
 
-    // Fast track: insert at index 0 is same as Vec::append
+    // Fast track: insert at index 0 is the same as Vec::append
     if index == 0 {
       self.1.append(&mut components);
       self.1.append(&mut old);
       return;
     }
 
-    // Manually move first `index` elements
+    // Manually move the first `index` elements
     let mut old_iter = old.into_iter();
     let i = 0;
     while let (Some(old_component), true) = (old_iter.next(), i < index) {
