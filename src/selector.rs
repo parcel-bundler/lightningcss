@@ -276,7 +276,7 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
         if !name.starts_with('-') {
           self.options.warn(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
         }
-        CustomFunction { name: name.into(), arguments: TokenList::parse(arguments, &self.options, 0)? }
+        CustomFunction { name: name.into(), arguments: TokenList::parse_preserve_whitespace(arguments, &self.options, 0)? }
       }
     };
 
