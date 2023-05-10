@@ -744,8 +744,11 @@ impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
 
     // Manually move the first `index` elements
     let mut old_iter = old.into_iter();
-    let i = 0;
-    while let (Some(old_component), true) = (old_iter.next(), i < index) {
+    for _ in 0..index {
+      let Some(old_component) = old_iter.next() else {
+        unreachable!("index is never greater than selector len")
+      };
+
       self.1.push(old_component)
     }
 
