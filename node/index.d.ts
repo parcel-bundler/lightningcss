@@ -348,7 +348,9 @@ export interface ImportDependency {
   /** The `supports()` query for the `@import` rule. */
   supports: string | null,
   /** The source location where the `@import` rule was found. */
-  loc: SourceLocation
+  loc: SourceLocation,
+  /** The placeholder that the import was replaced with. */
+  placeholder: string
 }
 
 export interface UrlDependency {
