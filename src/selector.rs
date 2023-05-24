@@ -316,6 +316,10 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
   fn is_nesting_allowed(&self) -> bool {
     self.is_nesting_allowed
   }
+
+  fn deep_combinator_enabled(&self) -> bool {
+    self.options.flags.contains(ParserFlags::DEEP_SELECTOR_COMBINATOR)
+  }
 }
 
 enum_property! {
@@ -1195,6 +1199,12 @@ impl ToCss for Combinator {
       Combinator::Descendant => dest.write_str(" "),
       Combinator::NextSibling => dest.delim('+', true),
       Combinator::LaterSibling => dest.delim('~', true),
+      Combinator::Deep => dest.write_str(" /deep/ "),
+      Combinator::DeepDescendant => {
+        dest.whitespace()?;
+        dest.write_str(">>>")?;
+        dest.whitespace()
+      }
       Combinator::PseudoElement | Combinator::Part | Combinator::SlotAssignment => Ok(()),
     }
   }

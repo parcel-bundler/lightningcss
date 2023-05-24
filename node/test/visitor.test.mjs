@@ -28,7 +28,7 @@ test('px to rem', () => {
     }
   });
 
-  assert.equal(res.code.toString(), '.foo{width:2rem;height:calc(100vh - 4rem);--custom:calc(var(--foo) + 2rem)}');
+  assert.equal(res.code.toString(), '.foo{--custom:calc(var(--foo) + 2rem);width:2rem;height:calc(100vh - 4rem)}');
 });
 
 test('custom units', () => {

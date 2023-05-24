@@ -350,6 +350,10 @@ pub trait Parser<'i> {
   fn is_nesting_allowed(&self) -> bool {
     false
   }
+
+  fn deep_combinator_enabled(&self) -> bool {
+    false
+  }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -1128,6 +1132,15 @@ pub enum Combinator {
   /// Another combinator used for `::part()`, which represents the jump from
   /// the part to the containing shadow host.
   Part,
+
+  /// Non-standard Vue >>> combinator.
+  /// https://vue-loader.vuejs.org/guide/scoped-css.html#deep-selectors
+  DeepDescendant,
+  /// Non-standard /deep/ combinator.
+  /// Appeared in early versions of the css-scoping-1 specification:
+  /// https://www.w3.org/TR/2014/WD-css-scoping-1-20140403/#deep-combinator
+  /// And still supported as an alias for >>> by Vue.
+  Deep,
 }
 
 impl Combinator {
@@ -1770,6 +1783,8 @@ impl ToCss for Combinator {
       Combinator::Descendant => dest.write_str(" "),
       Combinator::NextSibling => dest.write_str(" + "),
       Combinator::LaterSibling => dest.write_str(" ~ "),
+      Combinator::DeepDescendant => dest.write_str(" >>> "),
+      Combinator::Deep => dest.write_str(" /deep/ "),
       Combinator::PseudoElement | Combinator::Part | Combinator::SlotAssignment => Ok(()),
     }
   }
@@ -2020,7 +2035,18 @@ where
         Err(_e) => break 'outer_loop,
         Ok(&Token::WhiteSpace(_)) => any_whitespace = true,
         Ok(&Token::Delim('>')) => {
-          combinator = Combinator::Child;
+          if parser.deep_combinator_enabled()
+            && input
+              .try_parse(|input| {
+                input.expect_delim('>')?;
+                input.expect_delim('>')
+              })
+              .is_ok()
+          {
+            combinator = Combinator::DeepDescendant;
+          } else {
+            combinator = Combinator::Child;
+          }
           break;
         }
         Ok(&Token::Delim('+')) => {
@@ -2030,6 +2056,20 @@ where
         Ok(&Token::Delim('~')) => {
           combinator = Combinator::LaterSibling;
           break;
+        }
+        Ok(&Token::Delim('/')) if parser.deep_combinator_enabled() => {
+          if input
+            .try_parse(|input| {
+              input.expect_ident_matching("deep")?;
+              input.expect_delim('/')
+            })
+            .is_ok()
+          {
+            combinator = Combinator::Deep;
+            break;
+          } else {
+            break 'outer_loop;
+          }
         }
         Ok(_) => {
           input.reset(&before_this_token);
@@ -2605,7 +2645,7 @@ where
       }
       SimpleSelectorParseResult::PseudoElement(p) => {
         if !p.is_unknown() {
-        state.insert(SelectorParsingState::AFTER_PSEUDO_ELEMENT);
+          state.insert(SelectorParsingState::AFTER_PSEUDO_ELEMENT);
           builder.push_combinator(Combinator::PseudoElement);
         }
         if !p.accepts_state_pseudo_classes() {

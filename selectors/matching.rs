@@ -398,7 +398,7 @@ where
 {
   match combinator {
     Combinator::NextSibling | Combinator::LaterSibling => element.prev_sibling_element(),
-    Combinator::Child | Combinator::Descendant => {
+    Combinator::Child | Combinator::Descendant | Combinator::Deep | Combinator::DeepDescendant => {
       match element.parent_element() {
         Some(e) => return Some(e),
         None => {}
@@ -479,6 +479,8 @@ where
       SelectorMatchingResult::NotMatchedAndRestartFromClosestDescendant
     }
     Combinator::Child
+    | Combinator::Deep
+    | Combinator::DeepDescendant
     | Combinator::Descendant
     | Combinator::SlotAssignment
     | Combinator::Part

@@ -496,6 +496,7 @@ struct Config {
   pub source_map: Option<bool>,
   pub input_source_map: Option<String>,
   pub drafts: Option<Drafts>,
+  pub non_standard: Option<NonStandard>,
   pub css_modules: Option<CssModulesOption>,
   pub analyze_dependencies: Option<AnalyzeDependenciesOption>,
   pub pseudo_classes: Option<OwnedPseudoClasses>,
@@ -540,6 +541,7 @@ struct BundleConfig {
   pub minify: Option<bool>,
   pub source_map: Option<bool>,
   pub drafts: Option<Drafts>,
+  pub non_standard: Option<NonStandard>,
   pub css_modules: Option<CssModulesOption>,
   pub analyze_dependencies: Option<AnalyzeDependenciesOption>,
   pub pseudo_classes: Option<OwnedPseudoClasses>,
@@ -579,12 +581,20 @@ struct Drafts {
   custom_media: bool,
 }
 
+#[derive(Serialize, Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct NonStandard {
+  #[serde(default)]
+  deep_selector_combinator: bool,
+}
+
 fn compile<'i>(
   code: &'i str,
   config: &Config,
   visitor: &mut Option<JsVisitor>,
 ) -> Result<TransformResult<'i>, CompileError<'i, std::io::Error>> {
   let drafts = config.drafts.as_ref();
+  let non_standard = config.non_standard.as_ref();
   let warnings = Some(Arc::new(RwLock::new(Vec::new())));
 
   let filename = config.filename.clone().unwrap_or_default();
@@ -602,6 +612,11 @@ fn compile<'i>(
     let mut flags = ParserFlags::empty();
     flags.set(ParserFlags::NESTING, matches!(drafts, Some(d) if d.nesting));
     flags.set(ParserFlags::CUSTOM_MEDIA, matches!(drafts, Some(d) if d.custom_media));
+    flags.set(
+      ParserFlags::DEEP_SELECTOR_COMBINATOR,
+      matches!(non_standard, Some(v) if v.deep_selector_combinator),
+    );
+
     let mut stylesheet = StyleSheet::parse_with(
       &code,
       ParserOptions {
@@ -714,9 +729,15 @@ fn compile_bundle<
 
   let res = {
     let drafts = config.drafts.as_ref();
+    let non_standard = config.non_standard.as_ref();
     let mut flags = ParserFlags::empty();
     flags.set(ParserFlags::NESTING, matches!(drafts, Some(d) if d.nesting));
     flags.set(ParserFlags::CUSTOM_MEDIA, matches!(drafts, Some(d) if d.custom_media));
+    flags.set(
+      ParserFlags::DEEP_SELECTOR_COMBINATOR,
+      matches!(non_standard, Some(v) if v.deep_selector_combinator),
+    );
+
     let parser_options = ParserOptions {
       flags,
       css_modules: if let Some(css_modules) = &config.css_modules {

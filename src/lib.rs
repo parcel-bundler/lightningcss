@@ -78,7 +78,11 @@ mod tests {
   }
 
   fn minify_test(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
+    minify_test_with_options(source, expected, ParserOptions::default())
+  }
+
+  fn minify_test_with_options<'i, 'o>(source: &'i str, expected: &'i str, options: ParserOptions<'o, 'i>) {
+    let mut stylesheet = StyleSheet::parse(&source, options.clone()).unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet
       .to_css(PrinterOptions {
@@ -6681,6 +6685,30 @@ mod tests {
     minify_test(
       ".foo ::unknown:only-child {width: 20px}",
       ".foo ::unknown:only-child{width:20px}",
+    );
+
+    let deep_options = ParserOptions {
+      flags: ParserFlags::DEEP_SELECTOR_COMBINATOR,
+      ..ParserOptions::default()
+    };
+
+    error_test(
+      ".foo >>> .bar {width: 20px}",
+      ParserError::SelectorError(SelectorError::DanglingCombinator),
+    );
+    error_test(
+      ".foo /deep/ .bar {width: 20px}",
+      ParserError::SelectorError(SelectorError::DanglingCombinator),
+    );
+    minify_test_with_options(
+      ".foo >>> .bar {width: 20px}",
+      ".foo>>>.bar{width:20px}",
+      deep_options.clone(),
+    );
+    minify_test_with_options(
+      ".foo /deep/ .bar {width: 20px}",
+      ".foo /deep/ .bar{width:20px}",
+      deep_options.clone(),
     );
   }
 

@@ -45,6 +45,8 @@ bitflags! {
     const NESTING = 1 << 0;
     /// Whether to enable the [custom media](https://drafts.csswg.org/mediaqueries-5/#custom-mq) draft syntax.
     const CUSTOM_MEDIA = 1 << 1;
+    /// Whether to enable the non-standard >>> and /deep/ selector combinators used by Vue and Angular.
+    const DEEP_SELECTOR_COMBINATOR = 1 << 2;
   }
 }
 

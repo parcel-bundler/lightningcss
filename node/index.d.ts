@@ -25,6 +25,8 @@ export interface TransformOptions<C extends CustomAtRules> {
   targets?: Targets,
   /** Whether to enable various draft syntax. */
   drafts?: Drafts,
+  /** Whether to enable various non-standard syntax. */
+  nonStandard?: NonStandard,
   /** Whether to compile this file as a CSS module. */
   cssModules?: boolean | CSSModulesConfig,
   /**
@@ -257,6 +259,11 @@ export interface Drafts {
   nesting?: boolean,
   /** Whether to enable @custom-media rules. */
   customMedia?: boolean
+}
+
+export interface NonStandard {
+  /** Whether to enable the non-standard >>> and /deep/ selector combinators used by Angular and Vue. */
+  deepSelectorCombinator?: boolean
 }
 
 export interface PseudoClasses {
