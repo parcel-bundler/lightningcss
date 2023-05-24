@@ -44,6 +44,10 @@ pub trait PseudoElement<'i>: Sized + ToCss {
   fn is_view_transition(&self) -> bool {
     false
   }
+
+  fn is_unknown(&self) -> bool {
+    false
+  }
 }
 
 /// A trait that represents a pseudo-class.
@@ -2600,7 +2604,10 @@ where
         builder.push_simple_selector(Component::Slotted(selector));
       }
       SimpleSelectorParseResult::PseudoElement(p) => {
+        if !p.is_unknown() {
         state.insert(SelectorParsingState::AFTER_PSEUDO_ELEMENT);
+          builder.push_combinator(Combinator::PseudoElement);
+        }
         if !p.accepts_state_pseudo_classes() {
           state.insert(SelectorParsingState::AFTER_NON_STATEFUL_PSEUDO_ELEMENT);
         }
@@ -2610,7 +2617,6 @@ where
         if p.is_view_transition() {
           state.insert(SelectorParsingState::AFTER_VIEW_TRANSITION);
         }
-        builder.push_combinator(Combinator::PseudoElement);
         builder.push_simple_selector(Component::PseudoElement(p));
       }
     }

@@ -1131,6 +1131,13 @@ impl<'i> parcel_selectors::parser::PseudoElement<'i> for PseudoElement<'i> {
         | PseudoElement::ViewTransitionOld { .. }
     )
   }
+
+  fn is_unknown(&self) -> bool {
+    matches!(
+      *self,
+      PseudoElement::Custom { .. } | PseudoElement::CustomFunction { .. },
+    )
+  }
 }
 
 impl<'i> PseudoElement<'i> {

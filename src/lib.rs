@@ -6668,6 +6668,19 @@ mod tests {
         ParserError::SelectorError(SelectorError::InvalidState),
       );
     }
+
+    minify_test(".foo ::deep .bar {width: 20px}", ".foo ::deep .bar{width:20px}");
+    minify_test(".foo::deep .bar {width: 20px}", ".foo::deep .bar{width:20px}");
+    minify_test(".foo ::deep.bar {width: 20px}", ".foo ::deep.bar{width:20px}");
+    minify_test(".foo ::unknown .bar {width: 20px}", ".foo ::unknown .bar{width:20px}");
+    minify_test(
+      ".foo ::unknown(foo) .bar {width: 20px}",
+      ".foo ::unknown(foo) .bar{width:20px}",
+    );
+    minify_test(
+      ".foo ::unknown:only-child {width: 20px}",
+      ".foo ::unknown:only-child{width:20px}",
+    );
   }
 
   #[test]
