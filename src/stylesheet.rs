@@ -21,7 +21,7 @@ use cssparser::{Parser, ParserInput, RuleListParser};
 use parcel_sourcemap::SourceMap;
 use std::collections::{HashMap, HashSet};
 
-pub use crate::parser::ParserOptions;
+pub use crate::parser::{ParserFlags, ParserOptions};
 pub use crate::printer::PrinterOptions;
 pub use crate::printer::PseudoClasses;
 
@@ -195,7 +195,7 @@ where
 
     // @custom-media rules may be defined after they are referenced, but may only be defined at the top level
     // of a stylesheet. Do a pre-scan here and create a lookup table by name.
-    let custom_media = if self.options.custom_media
+    let custom_media = if self.options.flags.contains(ParserFlags::CUSTOM_MEDIA)
       && options.targets.is_some()
       && !Feature::CustomMediaQueries.is_compatible(options.targets.unwrap())
     {

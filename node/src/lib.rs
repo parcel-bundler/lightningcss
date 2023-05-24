@@ -8,7 +8,7 @@ use lightningcss::css_modules::{CssModuleExports, CssModuleReferences, PatternPa
 use lightningcss::dependencies::{Dependency, DependencyOptions};
 use lightningcss::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterErrorKind};
 use lightningcss::stylesheet::{
-  MinifyOptions, ParserOptions, PrinterOptions, PseudoClasses, StyleAttribute, StyleSheet,
+  MinifyOptions, ParserFlags, ParserOptions, PrinterOptions, PseudoClasses, StyleAttribute, StyleSheet,
 };
 use lightningcss::targets::Browsers;
 use lightningcss::visitor::Visit;
@@ -599,12 +599,14 @@ fn compile<'i>(
   };
 
   let res = {
+    let mut flags = ParserFlags::empty();
+    flags.set(ParserFlags::NESTING, matches!(drafts, Some(d) if d.nesting));
+    flags.set(ParserFlags::CUSTOM_MEDIA, matches!(drafts, Some(d) if d.custom_media));
     let mut stylesheet = StyleSheet::parse_with(
       &code,
       ParserOptions {
         filename: filename.clone(),
-        nesting: matches!(drafts, Some(d) if d.nesting),
-        custom_media: matches!(drafts, Some(d) if d.custom_media),
+        flags,
         css_modules: if let Some(css_modules) = &config.css_modules {
           match css_modules {
             CssModulesOption::Bool(true) => Some(lightningcss::css_modules::Config::default()),
@@ -709,11 +711,14 @@ fn compile_bundle<
     None
   };
   let warnings = Some(Arc::new(RwLock::new(Vec::new())));
+
   let res = {
     let drafts = config.drafts.as_ref();
+    let mut flags = ParserFlags::empty();
+    flags.set(ParserFlags::NESTING, matches!(drafts, Some(d) if d.nesting));
+    flags.set(ParserFlags::CUSTOM_MEDIA, matches!(drafts, Some(d) if d.custom_media));
     let parser_options = ParserOptions {
-      nesting: matches!(drafts, Some(d) if d.nesting),
-      custom_media: matches!(drafts, Some(d) if d.custom_media),
+      flags,
       css_modules: if let Some(css_modules) = &config.css_modules {
         match css_modules {
           CssModulesOption::Bool(true) => Some(lightningcss::css_modules::Config::default()),

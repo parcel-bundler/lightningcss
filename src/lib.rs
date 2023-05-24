@@ -52,6 +52,7 @@ mod tests {
   use crate::css_modules::{CssModuleExport, CssModuleExports, CssModuleReference, CssModuleReferences};
   use crate::dependencies::Dependency;
   use crate::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterErrorKind, SelectorError};
+  use crate::parser::ParserFlags;
   use crate::properties::custom::Token;
   use crate::properties::Property;
   use crate::rules::CssRule;
@@ -129,7 +130,7 @@ mod tests {
     let mut stylesheet = StyleSheet::parse(
       &source,
       ParserOptions {
-        nesting: true,
+        flags: ParserFlags::NESTING,
         ..ParserOptions::default()
       },
     )
@@ -153,7 +154,7 @@ mod tests {
     let mut stylesheet = StyleSheet::parse(
       &source,
       ParserOptions {
-        nesting: true,
+        flags: ParserFlags::NESTING,
         ..ParserOptions::default()
       },
     )
@@ -190,7 +191,7 @@ mod tests {
     let mut stylesheet = StyleSheet::parse(
       &source,
       ParserOptions {
-        custom_media: true,
+        flags: ParserFlags::CUSTOM_MEDIA,
         ..ParserOptions::default()
       },
     )
@@ -220,7 +221,7 @@ mod tests {
     let res = StyleSheet::parse(
       &source,
       ParserOptions {
-        nesting: true,
+        flags: ParserFlags::NESTING,
         ..ParserOptions::default()
       },
     );
@@ -22443,7 +22444,7 @@ mod tests {
     let mut stylesheet = StyleSheet::parse(
       &source,
       ParserOptions {
-        nesting: true,
+        flags: ParserFlags::NESTING,
         ..ParserOptions::default()
       },
     )
@@ -22496,7 +22497,7 @@ mod tests {
     let mut stylesheet = StyleSheet::parse(
       &source,
       ParserOptions {
-        nesting: true,
+        flags: ParserFlags::NESTING,
         ..ParserOptions::default()
       },
     )
@@ -22549,7 +22550,7 @@ mod tests {
     let mut stylesheet = StyleSheet::parse(
       &source,
       ParserOptions {
-        nesting: true,
+        flags: ParserFlags::NESTING,
         ..ParserOptions::default()
       },
     )
@@ -23883,7 +23884,7 @@ mod tests {
         &source,
         ParserOptions {
           filename: "test.css".into(),
-          custom_media: true,
+          flags: ParserFlags::CUSTOM_MEDIA,
           ..ParserOptions::default()
         },
       )

@@ -771,6 +771,7 @@ mod tests {
   use super::*;
   use crate::{
     css_modules::{self, CssModuleExports, CssModuleReference},
+    parser::ParserFlags,
     stylesheet::{MinifyOptions, PrinterOptions},
     targets::Browsers,
   };
@@ -877,7 +878,7 @@ mod tests {
       &fs,
       None,
       ParserOptions {
-        custom_media: true,
+        flags: ParserFlags::CUSTOM_MEDIA,
         ..ParserOptions::default()
       },
     );

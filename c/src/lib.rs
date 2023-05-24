@@ -6,7 +6,7 @@ use std::sync::{Arc, RwLock};
 
 use lightningcss::css_modules::PatternParseError;
 use lightningcss::error::{Error, MinifyErrorKind, ParserError, PrinterError};
-use lightningcss::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
+use lightningcss::stylesheet::{MinifyOptions, ParserFlags, ParserOptions, PrinterOptions, StyleSheet};
 use lightningcss::targets::Browsers;
 use parcel_sourcemap::SourceMap;
 
@@ -255,14 +255,16 @@ pub extern "C" fn lightningcss_stylesheet_parse(
   let slice = unsafe { std::slice::from_raw_parts(source as *const u8, len) };
   let code = unsafe { std::str::from_utf8_unchecked(slice) };
   let warnings = Arc::new(RwLock::new(Vec::new()));
+  let mut flags = ParserFlags::empty();
+  flags.set(ParserFlags::NESTING, options.nesting);
+  flags.set(ParserFlags::CUSTOM_MEDIA, options.custom_media);
   let opts = ParserOptions {
     filename: if options.filename.is_null() {
       String::new()
     } else {
       unsafe { std::str::from_utf8_unchecked(CStr::from_ptr(options.filename).to_bytes()).to_owned() }
     },
-    nesting: options.nesting,
-    custom_media: options.custom_media,
+    flags,
     css_modules: if options.css_modules {
       let pattern = if !options.css_modules_pattern.is_null() {
         let pattern =

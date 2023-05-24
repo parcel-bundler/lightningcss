@@ -2,6 +2,7 @@
 
 use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
+use crate::parser::ParserFlags;
 use crate::printer::Printer;
 use crate::properties::custom::TokenList;
 use crate::rules::StyleContext;
@@ -2014,7 +2015,7 @@ impl<'i> ParseWithOptions<'i> for Selector<'i> {
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Selector::parse(
       &SelectorParser {
-        is_nesting_allowed: options.nesting,
+        is_nesting_allowed: options.flags.contains(ParserFlags::NESTING),
         options: &options,
       },
       input,
@@ -2029,7 +2030,7 @@ impl<'i> ParseWithOptions<'i> for SelectorList<'i> {
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     SelectorList::parse(
       &SelectorParser {
-        is_nesting_allowed: options.nesting,
+        is_nesting_allowed: options.flags.contains(ParserFlags::NESTING),
         options: &options,
       },
       input,

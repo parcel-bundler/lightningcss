@@ -8,7 +8,7 @@ use lightningcss::{
   properties::custom::{Token, TokenOrValue},
   rules::{style::StyleRule, CssRule, CssRuleList, Location},
   selector::{Component, Selector},
-  stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
+  stylesheet::{ParserFlags, ParserOptions, PrinterOptions, StyleSheet},
   targets::Browsers,
   traits::{AtRuleParser, ToCss},
   values::{color::CssColor, length::LengthValue},
@@ -22,7 +22,7 @@ fn main() {
   let source = std::fs::read_to_string(&args[1]).unwrap();
   let opts = ParserOptions {
     filename: args[1].clone(),
-    nesting: true,
+    flags: ParserFlags::NESTING,
     ..Default::default()
   };
 
