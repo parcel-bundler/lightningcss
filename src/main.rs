@@ -1,7 +1,7 @@
 use atty::Stream;
 use clap::{ArgGroup, Parser};
 use lightningcss::bundler::{Bundler, FileProvider};
-use lightningcss::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
+use lightningcss::stylesheet::{MinifyOptions, ParserFlags, ParserOptions, PrinterOptions, StyleSheet};
 use lightningcss::targets::Browsers;
 use parcel_sourcemap::SourceMap;
 use serde::Serialize;
@@ -163,10 +163,13 @@ pub fn main() -> Result<(), std::io::Error> {
     };
 
     let res = {
+      let mut flags = ParserFlags::empty();
+      flags.set(ParserFlags::NESTING, cli_args.nesting);
+      flags.set(ParserFlags::CUSTOM_MEDIA, cli_args.custom_media);
+
       let mut options = ParserOptions {
-        nesting: cli_args.nesting,
+        flags,
         css_modules: css_modules.clone(),
-        custom_media: cli_args.custom_media,
         error_recovery: cli_args.error_recovery,
         warnings: warnings.clone(),
         ..ParserOptions::default()
