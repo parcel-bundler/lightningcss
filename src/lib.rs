@@ -6686,6 +6686,22 @@ mod tests {
       ".foo ::unknown:only-child {width: 20px}",
       ".foo ::unknown:only-child{width:20px}",
     );
+    minify_test(
+      ".foo ::unknown(.foo) .bar {width: 20px}",
+      ".foo ::unknown(.foo) .bar{width:20px}",
+    );
+    minify_test(
+      ".foo ::unknown(.foo .bar / .baz) .bar {width: 20px}",
+      ".foo ::unknown(.foo .bar / .baz) .bar{width:20px}",
+    );
+    minify_test(
+      ".foo ::unknown(something(foo)) .bar {width: 20px}",
+      ".foo ::unknown(something(foo)) .bar{width:20px}",
+    );
+    minify_test(
+      ".foo ::unknown([abc]) .bar {width: 20px}",
+      ".foo ::unknown([abc]) .bar{width:20px}",
+    );
 
     let deep_options = ParserOptions {
       flags: ParserFlags::DEEP_SELECTOR_COMBINATOR,

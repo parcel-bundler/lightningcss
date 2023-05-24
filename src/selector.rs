@@ -195,9 +195,11 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
         if !name.starts_with('-') {
           self.options.warn(parser.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
         }
+        let mut args = Vec::new();
+        TokenList::parse_raw(parser, &mut args, &self.options, 0)?;
         CustomFunction {
           name: name.into(),
-          arguments: TokenList::parse(parser, &self.options, 0)?
+          arguments: TokenList(args)
         }
       },
     };
@@ -277,7 +279,9 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
         if !name.starts_with('-') {
           self.options.warn(arguments.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name.clone())));
         }
-        CustomFunction { name: name.into(), arguments: TokenList::parse(arguments, &self.options, 0)? }
+        let mut args = Vec::new();
+        TokenList::parse_raw(arguments, &mut args, &self.options, 0)?;
+        CustomFunction { name: name.into(), arguments: TokenList(args) }
       }
     };
 
@@ -734,7 +738,7 @@ where
       dest.write_char(':')?;
       dest.write_str(name)?;
       dest.write_char('(')?;
-      args.to_css(dest, false)?;
+      args.to_css_raw(dest)?;
       dest.write_char(')')
     }
   }
@@ -1095,7 +1099,7 @@ where
       dest.write_str("::")?;
       dest.write_str(name)?;
       dest.write_char('(')?;
-      args.to_css(dest, false)?;
+      args.to_css_raw(dest)?;
       dest.write_char(')')
     }
   }

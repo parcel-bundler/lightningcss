@@ -312,6 +312,54 @@ impl<'i> TokenList<'i> {
     return Ok(TokenList(tokens));
   }
 
+  pub(crate) fn parse_raw<'t>(
+    input: &mut Parser<'i, 't>,
+    tokens: &mut Vec<TokenOrValue<'i>>,
+    options: &ParserOptions<'_, 'i>,
+    depth: usize,
+  ) -> Result<(), ParseError<'i, ParserError<'i>>> {
+    if depth > 500 {
+      return Err(input.new_custom_error(ParserError::MaximumNestingDepth));
+    }
+
+    loop {
+      let state = input.state();
+      match input.next_including_whitespace_and_comments() {
+        Ok(token @ &cssparser::Token::ParenthesisBlock)
+        | Ok(token @ &cssparser::Token::SquareBracketBlock)
+        | Ok(token @ &cssparser::Token::CurlyBracketBlock) => {
+          tokens.push(Token::from(token).into());
+          let closing_delimiter = match token {
+            cssparser::Token::ParenthesisBlock => Token::CloseParenthesis,
+            cssparser::Token::SquareBracketBlock => Token::CloseSquareBracket,
+            cssparser::Token::CurlyBracketBlock => Token::CloseCurlyBracket,
+            _ => unreachable!(),
+          };
+
+          input.parse_nested_block(|input| TokenList::parse_raw(input, tokens, options, depth + 1))?;
+          tokens.push(closing_delimiter.into());
+        }
+        Ok(token @ &cssparser::Token::Function(_)) => {
+          tokens.push(Token::from(token).into());
+          input.parse_nested_block(|input| TokenList::parse_raw(input, tokens, options, depth + 1))?;
+          tokens.push(Token::CloseParenthesis.into());
+        }
+        Ok(token) if token.is_parse_error() => {
+          return Err(ParseError {
+            kind: ParseErrorKind::Basic(BasicParseErrorKind::UnexpectedToken(token.clone())),
+            location: state.source_location(),
+          })
+        }
+        Ok(token) => {
+          tokens.push(Token::from(token).into());
+        }
+        Err(_) => break,
+      }
+    }
+
+    Ok(())
+  }
+
   fn parse_into<'t>(
     input: &mut Parser<'i, 't>,
     tokens: &mut Vec<TokenOrValue<'i>>,
@@ -579,6 +627,27 @@ impl<'i> TokenList<'i> {
           }
         },
       };
+    }
+
+    Ok(())
+  }
+
+  pub(crate) fn to_css_raw<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    for token_or_value in &self.0 {
+      match token_or_value {
+        TokenOrValue::Token(token) => {
+          token.to_css(dest)?;
+        }
+        _ => {
+          return Err(PrinterError {
+            kind: PrinterErrorKind::FmtError,
+            loc: None,
+          })
+        }
+      }
     }
 
     Ok(())
