@@ -1,6 +1,5 @@
 //! CSS custom properties and unparsed token values.
 
-use crate::compat;
 use crate::error::{ParserError, PrinterError, PrinterErrorKind};
 use crate::macros::enum_property;
 use crate::prefixes::Feature;
@@ -8,7 +7,7 @@ use crate::printer::Printer;
 use crate::properties::PropertyId;
 use crate::rules::supports::SupportsCondition;
 use crate::stylesheet::ParserOptions;
-use crate::targets::Browsers;
+use crate::targets::{should_compile, Targets};
 use crate::traits::{Parse, ParseWithOptions, ToCss};
 use crate::values::angle::Angle;
 use crate::values::color::{
@@ -22,7 +21,6 @@ use crate::values::resolution::Resolution;
 use crate::values::string::CowArcStr;
 use crate::values::time::Time;
 use crate::values::url::Url;
-use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
 use cssparser::*;
@@ -157,14 +155,10 @@ impl<'i> UnparsedProperty<'i> {
     Ok(UnparsedProperty { property_id, value })
   }
 
-  pub(crate) fn get_prefixed(&self, targets: Option<Browsers>, feature: Feature) -> UnparsedProperty<'i> {
+  pub(crate) fn get_prefixed(&self, targets: Targets, feature: Feature) -> UnparsedProperty<'i> {
     let mut clone = self.clone();
     let prefix = self.property_id.prefix();
-    if prefix.is_empty() || prefix.contains(VendorPrefix::None) {
-      if let Some(targets) = targets {
-        clone.property_id = clone.property_id.with_prefix(feature.prefixes_for(targets))
-      }
-    }
+    clone.property_id = clone.property_id.with_prefix(targets.prefixes(prefix.or_none(), feature));
     clone
   }
 
@@ -1091,7 +1085,7 @@ fn integer_decode(v: f32) -> (u32, i16, i8) {
 }
 
 impl<'i> TokenList<'i> {
-  pub(crate) fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+  pub(crate) fn get_necessary_fallbacks(&self, targets: Targets) -> ColorFallbackKind {
     let mut fallbacks = ColorFallbackKind::empty();
     for token in &self.0 {
       match token {
@@ -1133,7 +1127,7 @@ impl<'i> TokenList<'i> {
     TokenList(tokens)
   }
 
-  pub(crate) fn get_fallbacks(&mut self, targets: Browsers) -> Vec<(SupportsCondition<'i>, Self)> {
+  pub(crate) fn get_fallbacks(&mut self, targets: Targets) -> Vec<(SupportsCondition<'i>, Self)> {
     // Get the full list of possible fallbacks, and remove the lowest one, which will replace
     // the original declaration. The remaining fallbacks need to be added as @supports rules.
     let mut fallbacks = self.get_necessary_fallbacks(targets);
@@ -1561,19 +1555,17 @@ impl<'i> UnresolvedColor<'i> {
 
     match self {
       UnresolvedColor::RGB { r, g, b, alpha } => {
-        if let Some(targets) = dest.targets {
-          if !compat::Feature::SpaceSeparatedColorFunction.is_compatible(targets) {
-            dest.write_str("rgba(")?;
-            c(r).to_css(dest)?;
-            dest.delim(',', false)?;
-            c(g).to_css(dest)?;
-            dest.delim(',', false)?;
-            c(b).to_css(dest)?;
-            dest.delim(',', false)?;
-            alpha.to_css(dest, is_custom_property)?;
-            dest.write_char(')')?;
-            return Ok(());
-          }
+        if should_compile!(dest.targets, SpaceSeparatedColorNotation) {
+          dest.write_str("rgba(")?;
+          c(r).to_css(dest)?;
+          dest.delim(',', false)?;
+          c(g).to_css(dest)?;
+          dest.delim(',', false)?;
+          c(b).to_css(dest)?;
+          dest.delim(',', false)?;
+          alpha.to_css(dest, is_custom_property)?;
+          dest.write_char(')')?;
+          return Ok(());
         }
 
         dest.write_str("rgb(")?;
@@ -1587,19 +1579,17 @@ impl<'i> UnresolvedColor<'i> {
         dest.write_char(')')
       }
       UnresolvedColor::HSL { h, s, l, alpha } => {
-        if let Some(targets) = dest.targets {
-          if !compat::Feature::SpaceSeparatedColorFunction.is_compatible(targets) {
-            dest.write_str("hsla(")?;
-            h.to_css(dest)?;
-            dest.delim(',', false)?;
-            Percentage(*s).to_css(dest)?;
-            dest.delim(',', false)?;
-            Percentage(*l).to_css(dest)?;
-            dest.delim(',', false)?;
-            alpha.to_css(dest, is_custom_property)?;
-            dest.write_char(')')?;
-            return Ok(());
-          }
+        if should_compile!(dest.targets, SpaceSeparatedColorNotation) {
+          dest.write_str("hsla(")?;
+          h.to_css(dest)?;
+          dest.delim(',', false)?;
+          Percentage(*s).to_css(dest)?;
+          dest.delim(',', false)?;
+          Percentage(*l).to_css(dest)?;
+          dest.delim(',', false)?;
+          alpha.to_css(dest, is_custom_property)?;
+          dest.write_char(')')?;
+          return Ok(());
         }
 
         dest.write_str("hsl(")?;

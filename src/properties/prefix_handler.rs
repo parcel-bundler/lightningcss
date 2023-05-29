@@ -31,12 +31,7 @@ macro_rules! define_prefixes {
                     if val == cur || prefixes.contains(*prefix) {
                       *cur = val.clone();
                       *prefixes |= *prefix;
-                      if prefixes.contains(VendorPrefix::None) {
-                        if let Some(targets) = context.targets {
-                          *prefixes = Feature::$name.prefixes_for(targets);
-                        }
-                      }
-
+                      *prefixes = context.targets.prefixes(*prefixes, Feature::$name);
                       return true
                     }
                   }
@@ -44,15 +39,7 @@ macro_rules! define_prefixes {
               }
 
               // Update the prefixes based on the targets.
-              let prefixes = if prefix.contains(VendorPrefix::None) {
-                if let Some(targets) = context.targets {
-                  Feature::$name.prefixes_for(targets)
-                } else {
-                  *prefix
-                }
-              } else {
-                *prefix
-              };
+              let prefixes = context.targets.prefixes(*prefix, Feature::$name);
 
               // Store the index of the property, so we can update it later.
               self.$name = Some(dest.len());
@@ -108,14 +95,12 @@ macro_rules! define_fallbacks {
           $(
             Property::$name(val $(, mut $p)?) => {
               let mut val = val.clone();
-              if let (Some(targets), None) = (context.targets, paste::paste! { self.[<$name:snake>] }) {
+              if paste::paste! { self.[<$name:snake>] }.is_none() {
                 $(
-                  if $p.contains(VendorPrefix::None) {
-                    $p = Feature::$name.prefixes_for(targets);
-                  }
+                  $p = context.targets.prefixes($p, Feature::$name);
                 )?
 
-                let fallbacks = val.get_fallbacks(targets);
+                let fallbacks = val.get_fallbacks(context.targets);
                 #[allow(unused_variables)]
                 let has_fallbacks = !fallbacks.is_empty();
                 for fallback in fallbacks {
@@ -129,7 +114,7 @@ macro_rules! define_fallbacks {
                 )?
               }
 
-              if paste::paste! { self.[<$name:snake>] }.is_none() || matches!(context.targets, Some(targets) if !val.is_compatible(targets)) {
+              if paste::paste! { self.[<$name:snake>] }.is_none() || matches!(context.targets.browsers, Some(targets) if !val.is_compatible(targets)) {
                 paste::paste! { self.[<$name:snake>] = Some(dest.len()) };
                 dest.push(Property::$name(val $(, $p)?));
               } else if let Some(index) = paste::paste! { self.[<$name:snake>] } {
@@ -140,17 +125,15 @@ macro_rules! define_fallbacks {
           Property::Custom(custom) => {
             let mut custom = custom.clone();
             if context.context != DeclarationContext::Keyframes {
-              if let Some(targets) = context.targets {
-                let fallbacks = custom.value.get_fallbacks(targets);
-                for (condition, fallback) in fallbacks {
-                  context.add_conditional_property(
-                    condition,
-                    Property::Custom(CustomProperty {
-                      name: custom.name.clone(),
-                      value: fallback
-                    })
-                  );
-                }
+              let fallbacks = custom.value.get_fallbacks(context.targets);
+              for (condition, fallback) in fallbacks {
+                context.add_conditional_property(
+                  condition,
+                  Property::Custom(CustomProperty {
+                    name: custom.name.clone(),
+                    value: fallback
+                  })
+                );
               }
             }
 

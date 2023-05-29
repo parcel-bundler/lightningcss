@@ -2,7 +2,7 @@
 
 use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
-use crate::targets::Browsers;
+use crate::targets::{Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, ToCss, Zero};
 use crate::values::color::ColorFallbackKind;
 use crate::values::{angle::Angle, color::CssColor, length::Length, percentage::NumberOrPercentage, url::Url};
@@ -365,7 +365,7 @@ impl<'i> ToCss for FilterList<'i> {
 }
 
 impl<'i> FallbackValues for FilterList<'i> {
-  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+  fn get_fallbacks(&mut self, targets: Targets) -> Vec<Self> {
     let mut res = Vec::new();
     let mut fallbacks = ColorFallbackKind::empty();
     if let FilterList::Filters(filters) = self {

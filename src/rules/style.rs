@@ -5,7 +5,6 @@ use std::ops::Range;
 
 use super::Location;
 use super::MinifyContext;
-use crate::compat::Feature;
 use crate::context::DeclarationContext;
 use crate::declaration::DeclarationBlock;
 use crate::error::ParserError;
@@ -14,7 +13,7 @@ use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
 use crate::rules::CssRuleList;
 use crate::selector::{is_compatible, is_unused, SelectorList};
-use crate::targets::Browsers;
+use crate::targets::{should_compile, Browsers};
 use crate::traits::ToCss;
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
@@ -230,9 +229,7 @@ impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
     W: std::fmt::Write,
   {
     // If supported, or there are no targets, preserve nesting. Otherwise, write nested rules after parent.
-    let supports_nesting = self.rules.0.is_empty()
-      || dest.targets.is_none()
-      || Feature::CssNesting.is_compatible(dest.targets.unwrap());
+    let supports_nesting = self.rules.0.is_empty() || !should_compile!(dest.targets, Nesting);
     let len = self.declarations.declarations.len() + self.declarations.important_declarations.len();
     let has_declarations = supports_nesting || len > 0 || self.rules.0.is_empty();
 

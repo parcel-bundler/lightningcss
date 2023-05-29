@@ -12,6 +12,7 @@ use crate::printer::Printer;
 use crate::properties::custom::UnparsedProperty;
 use crate::properties::{Property, PropertyId};
 use crate::targets::Browsers;
+use crate::targets::Targets;
 use crate::traits::{FallbackValues, IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::color::{ColorFallbackKind, CssColor};
 use crate::values::length::*;
@@ -224,7 +225,7 @@ impl<S: ToCss + Default + PartialEq, const P: u8> ToCss for GenericBorder<S, P> 
 }
 
 impl<S: Clone, const P: u8> FallbackValues for GenericBorder<S, P> {
-  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+  fn get_fallbacks(&mut self, targets: Targets) -> Vec<Self> {
     self
       .color
       .get_fallbacks(targets)
@@ -442,7 +443,7 @@ rect_shorthand! {
 macro_rules! impl_fallbacks {
   ($t: ident $(, $name: ident)+) => {
     impl FallbackValues for $t {
-      fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+      fn get_fallbacks(&mut self, targets: Targets) -> Vec<Self> {
         let mut fallbacks = ColorFallbackKind::empty();
         $(
           fallbacks |= self.$name.get_necessary_fallbacks(targets);
@@ -515,7 +516,7 @@ impl BorderShorthand {
 }
 
 property_bitflags! {
-  #[derive(Debug)]
+  #[derive(Debug, Default)]
   struct BorderProperty: u32 {
     const BorderTopColor = 1 << 0;
     const BorderBottomColor = 1 << 1;
@@ -564,9 +565,8 @@ property_bitflags! {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct BorderHandler<'i> {
-  targets: Option<Browsers>,
   border_top: BorderShorthand,
   border_bottom: BorderShorthand,
   border_left: BorderShorthand,
@@ -580,27 +580,6 @@ pub(crate) struct BorderHandler<'i> {
   border_radius_handler: BorderRadiusHandler<'i>,
   flushed_properties: BorderProperty,
   has_any: bool,
-}
-
-impl<'i> BorderHandler<'i> {
-  pub fn new(targets: Option<Browsers>) -> Self {
-    BorderHandler {
-      targets,
-      border_top: BorderShorthand::default(),
-      border_bottom: BorderShorthand::default(),
-      border_left: BorderShorthand::default(),
-      border_right: BorderShorthand::default(),
-      border_block_start: BorderShorthand::default(),
-      border_block_end: BorderShorthand::default(),
-      border_inline_start: BorderShorthand::default(),
-      border_inline_end: BorderShorthand::default(),
-      category: PropertyCategory::default(),
-      border_image_handler: BorderImageHandler::new(targets),
-      border_radius_handler: BorderRadiusHandler::new(targets),
-      flushed_properties: BorderProperty::empty(),
-      has_any: false,
-    }
-  }
 }
 
 impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
@@ -618,7 +597,7 @@ impl<'i> PropertyHandler<'i> for BorderHandler<'i> {
           self.flush(dest, context);
         }
 
-        if self.$key.$prop.is_some() && matches!(context.targets, Some(targets) if !$val.is_compatible(targets)) {
+        if self.$key.$prop.is_some() && matches!(context.targets.browsers, Some(targets) if !$val.is_compatible(targets)) {
           self.flush(dest, context);
         }
       }};
@@ -790,8 +769,8 @@ impl<'i> BorderHandler<'i> {
 
     self.has_any = false;
 
-    let logical_supported = context.is_supported(Feature::LogicalBorders);
-    let logical_shorthand_supported = context.is_supported(Feature::LogicalBorderShorthand);
+    let logical_supported = !context.should_compile_logical(Feature::LogicalBorders);
+    let logical_shorthand_supported = !context.should_compile_logical(Feature::LogicalBorderShorthand);
     macro_rules! logical_prop {
       ($ltr: ident, $ltr_key: ident, $rtl: ident, $rtl_key: ident, $val: expr) => {{
         context.add_logical_rule(Property::$ltr($val.clone()), Property::$rtl($val.clone()));
@@ -808,12 +787,10 @@ impl<'i> BorderHandler<'i> {
     macro_rules! fallbacks {
       ($prop: ident => $val: expr) => {{
         let mut val = $val;
-        if let Some(targets) = self.targets {
-          if !self.flushed_properties.contains(BorderProperty::$prop) {
-            let fallbacks = val.get_fallbacks(targets);
-            for fallback in fallbacks {
-              dest.push(Property::$prop(fallback))
-            }
+        if !self.flushed_properties.contains(BorderProperty::$prop) {
+          let fallbacks = val.get_fallbacks(context.targets);
+          for fallback in fallbacks {
+            dest.push(Property::$prop(fallback))
           }
         }
         push!($prop, val);
@@ -1337,7 +1314,7 @@ impl<'i> BorderHandler<'i> {
     dest: &mut DeclarationList<'i>,
     context: &mut PropertyHandlerContext<'i, '_>,
   ) {
-    let logical_supported = context.is_supported(Feature::LogicalBorders);
+    let logical_supported = !context.should_compile_logical(Feature::LogicalBorders);
     if logical_supported {
       let mut unparsed = unparsed.clone();
       context.add_unparsed_fallbacks(&mut unparsed);

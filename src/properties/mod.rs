@@ -127,7 +127,7 @@ use crate::parser::starts_with_ignore_ascii_case;
 use crate::parser::ParserOptions;
 use crate::prefixes::Feature;
 use crate::printer::{Printer, PrinterOptions};
-use crate::targets::Browsers;
+use crate::targets::{Targets};
 use crate::traits::{Parse, ParseWithOptions, Shorthand, ToCss};
 use crate::values::number::{CSSInteger, CSSNumber};
 use crate::values::string::CowArcStr;
@@ -342,7 +342,7 @@ macro_rules! define_properties {
         }
       }
 
-      pub(crate) fn set_prefixes_for_targets(&mut self, targets: Browsers) {
+      pub(crate) fn set_prefixes_for_targets(&mut self, targets: Targets) {
         match self {
           $(
             $(#[$meta])*
@@ -351,9 +351,7 @@ macro_rules! define_properties {
               macro_rules! get_prefixed {
                 ($v: ty, $u: literal) => {};
                 ($v: ty) => {{
-                  if prefix.contains(VendorPrefix::None) {
-                    *prefix = Feature::$property.prefixes_for(targets);
-                  };
+                  *prefix = targets.prefixes(*prefix, Feature::$property);
                 }};
                 () => {};
               }

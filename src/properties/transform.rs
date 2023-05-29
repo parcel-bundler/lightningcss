@@ -8,7 +8,6 @@ use crate::macros::enum_property;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::stylesheet::PrinterOptions;
-use crate::targets::Browsers;
 use crate::traits::{Parse, PropertyHandler, ToCss, Zero};
 use crate::values::{
   angle::Angle,
@@ -1652,7 +1651,6 @@ impl Scale {
 
 #[derive(Default)]
 pub(crate) struct TransformHandler {
-  targets: Option<Browsers>,
   transform: Option<(TransformList, VendorPrefix)>,
   translate: Option<Translate>,
   rotate: Option<Rotate>,
@@ -1660,21 +1658,12 @@ pub(crate) struct TransformHandler {
   has_any: bool,
 }
 
-impl TransformHandler {
-  pub fn new(targets: Option<Browsers>) -> TransformHandler {
-    TransformHandler {
-      targets,
-      ..TransformHandler::default()
-    }
-  }
-}
-
 impl<'i> PropertyHandler<'i> for TransformHandler {
   fn handle_property(
     &mut self,
     property: &Property<'i>,
     dest: &mut DeclarationList<'i>,
-    _: &mut PropertyHandlerContext<'i, '_>,
+    context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
     use Property::*;
 
@@ -1695,7 +1684,7 @@ impl<'i> PropertyHandler<'i> for TransformHandler {
         // values, we need to flush what we have immediately to preserve order.
         if let Some((cur, prefixes)) = &self.transform {
           if cur != val && !prefixes.contains(*vp) {
-            self.flush(dest);
+            self.flush(dest, context);
           }
         }
 
@@ -1721,9 +1710,9 @@ impl<'i> PropertyHandler<'i> for TransformHandler {
           PropertyId::Transform(_) | PropertyId::Translate | PropertyId::Rotate | PropertyId::Scale
         ) =>
       {
-        self.flush(dest);
+        self.flush(dest, context);
         let prop = if matches!(val.property_id, PropertyId::Transform(_)) {
-          Property::Unparsed(val.get_prefixed(self.targets, Feature::Transform))
+          Property::Unparsed(val.get_prefixed(context.targets, Feature::Transform))
         } else {
           property.clone()
         };
@@ -1735,13 +1724,13 @@ impl<'i> PropertyHandler<'i> for TransformHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut PropertyHandlerContext<'i, '_>) {
-    self.flush(dest);
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
+    self.flush(dest, context);
   }
 }
 
 impl TransformHandler {
-  fn flush(&mut self, dest: &mut DeclarationList) {
+  fn flush<'i>(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
     if !self.has_any {
       return;
     }
@@ -1754,12 +1743,7 @@ impl TransformHandler {
     let scale = std::mem::take(&mut self.scale);
 
     if let Some((transform, prefix)) = transform {
-      let mut prefix = prefix;
-      if prefix.contains(VendorPrefix::None) {
-        if let Some(targets) = self.targets {
-          prefix = Feature::Transform.prefixes_for(targets)
-        }
-      }
+      let prefix = context.targets.prefixes(prefix, Feature::Transform);
       dest.push(Property::Transform(transform, prefix))
     }
 

@@ -3,7 +3,6 @@
 //! A [StyleSheet](StyleSheet) represents a `.css` file or `<style>` element in HTML.
 //! A [StyleAttribute](StyleAttribute) represents an inline `style` attribute in HTML.
 
-use crate::compat::Feature;
 use crate::context::{DeclarationContext, PropertyHandlerContext};
 use crate::css_modules::{CssModule, CssModuleExports, CssModuleReferences};
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
@@ -12,7 +11,7 @@ use crate::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterEr
 use crate::parser::{DefaultAtRule, DefaultAtRuleParser, TopLevelRuleParser};
 use crate::printer::Printer;
 use crate::rules::{CssRule, CssRuleList, MinifyContext};
-use crate::targets::Browsers;
+use crate::targets::{should_compile, Targets};
 use crate::traits::{AtRuleParser, ToCss};
 #[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
@@ -88,8 +87,8 @@ pub struct StyleSheet<'i, 'o, T = DefaultAtRule> {
 /// or [StyleAttribute](StyleAttribute).
 #[derive(Default)]
 pub struct MinifyOptions {
-  /// Browser targets to compile the CSS for.
-  pub targets: Option<Browsers>,
+  /// Targets to compile the CSS for.
+  pub targets: Targets,
   /// A list of known unused symbols, including CSS class names,
   /// ids, and `@keyframe` names. The declarations of these will be removed.
   pub unused_symbols: HashSet<String>,
@@ -190,14 +189,13 @@ where
   /// Minify and transform the style sheet for the provided browser targets.
   pub fn minify(&mut self, options: MinifyOptions) -> Result<(), Error<MinifyErrorKind>> {
     let mut context = PropertyHandlerContext::new(options.targets, &options.unused_symbols);
-    let mut handler = DeclarationHandler::new(options.targets);
-    let mut important_handler = DeclarationHandler::new(options.targets);
+    let mut handler = DeclarationHandler::default();
+    let mut important_handler = DeclarationHandler::default();
 
     // @custom-media rules may be defined after they are referenced, but may only be defined at the top level
     // of a stylesheet. Do a pre-scan here and create a lookup table by name.
     let custom_media = if self.options.flags.contains(ParserFlags::CUSTOM_MEDIA)
-      && options.targets.is_some()
-      && !Feature::CustomMediaQueries.is_compatible(options.targets.unwrap())
+      && should_compile!(options.targets, CustomMediaQueries)
     {
       let mut custom_media = HashMap::new();
       for rule in &self.rules.0 {
@@ -342,8 +340,8 @@ impl<'i> StyleAttribute<'i> {
   /// Minify and transform the style attribute for the provided browser targets.
   pub fn minify(&mut self, options: MinifyOptions) {
     let mut context = PropertyHandlerContext::new(options.targets, &options.unused_symbols);
-    let mut handler = DeclarationHandler::new(options.targets);
-    let mut important_handler = DeclarationHandler::new(options.targets);
+    let mut handler = DeclarationHandler::default();
+    let mut important_handler = DeclarationHandler::default();
     context.context = DeclarationContext::StyleAttribute;
     self.declarations.minify(&mut handler, &mut important_handler, &mut context);
   }

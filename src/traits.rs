@@ -6,7 +6,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
 use crate::stylesheet::{ParserOptions, PrinterOptions};
-use crate::targets::Browsers;
+use crate::targets::{Browsers, Targets};
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 
@@ -112,7 +112,7 @@ pub(crate) trait FromStandard<T>: Sized {
 }
 
 pub(crate) trait FallbackValues: Sized {
-  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self>;
+  fn get_fallbacks(&mut self, targets: Targets) -> Vec<Self>;
 }
 
 /// Trait for shorthand properties.

@@ -7,7 +7,7 @@ use crate::properties::Property;
 use crate::rules::supports::{SupportsCondition, SupportsRule};
 use crate::rules::{style::StyleRule, CssRule, CssRuleList};
 use crate::selector::{Direction, PseudoClass};
-use crate::targets::Browsers;
+use crate::targets::Targets;
 use crate::vendor_prefix::VendorPrefix;
 use parcel_selectors::parser::Component;
 
@@ -28,7 +28,7 @@ pub(crate) enum DeclarationContext {
 
 #[derive(Debug)]
 pub(crate) struct PropertyHandlerContext<'i, 'o> {
-  pub targets: Option<Browsers>,
+  pub targets: Targets,
   pub is_important: bool,
   supports: Vec<SupportsEntry<'i>>,
   ltr: Vec<Property<'i>>,
@@ -38,7 +38,7 @@ pub(crate) struct PropertyHandlerContext<'i, 'o> {
 }
 
 impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
-  pub fn new(targets: Option<Browsers>, unused_symbols: &'o HashSet<String>) -> Self {
+  pub fn new(targets: Targets, unused_symbols: &'o HashSet<String>) -> Self {
     PropertyHandlerContext {
       targets,
       is_important: false,
@@ -50,18 +50,14 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
     }
   }
 
-  pub fn is_supported(&self, feature: Feature) -> bool {
+  pub fn should_compile_logical(&self, feature: Feature) -> bool {
     // Don't convert logical properties in style attributes because
     // our fallbacks rely on extra rules to define --ltr and --rtl.
     if self.context == DeclarationContext::StyleAttribute {
-      return true;
+      return false;
     }
 
-    if let Some(targets) = self.targets {
-      feature.is_compatible(targets)
-    } else {
-      true
-    }
+    self.targets.should_compile_logical(feature)
   }
 
   pub fn add_logical_rule(&mut self, ltr: Property<'i>, rtl: Property<'i>) {
@@ -140,17 +136,15 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
       return;
     }
 
-    if let Some(targets) = self.targets {
-      let fallbacks = unparsed.value.get_fallbacks(targets);
-      for (condition, fallback) in fallbacks {
-        self.add_conditional_property(
-          condition,
-          Property::Unparsed(UnparsedProperty {
-            property_id: unparsed.property_id.clone(),
-            value: fallback,
-          }),
-        );
-      }
+    let fallbacks = unparsed.value.get_fallbacks(self.targets);
+    for (condition, fallback) in fallbacks {
+      self.add_conditional_property(
+        condition,
+        Property::Unparsed(UnparsedProperty {
+          property_id: unparsed.property_id.clone(),
+          value: fallback,
+        }),
+      );
     }
   }
 

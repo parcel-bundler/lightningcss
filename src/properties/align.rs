@@ -9,7 +9,6 @@ use crate::error::{ParserError, PrinterError};
 use crate::macros::*;
 use crate::prefixes::{is_flex_2009, Feature};
 use crate::printer::Printer;
-use crate::targets::Browsers;
 use crate::traits::{FromStandard, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::length::LengthPercentage;
 use crate::vendor_prefix::VendorPrefix;
@@ -992,7 +991,6 @@ impl ToCss for Gap {
 
 #[derive(Default, Debug)]
 pub(crate) struct AlignHandler {
-  targets: Option<Browsers>,
   align_content: Option<(AlignContent, VendorPrefix)>,
   flex_line_pack: Option<(FlexLinePack, VendorPrefix)>,
   justify_content: Option<(JustifyContent, VendorPrefix)>,
@@ -1010,21 +1008,12 @@ pub(crate) struct AlignHandler {
   has_any: bool,
 }
 
-impl AlignHandler {
-  pub fn new(targets: Option<Browsers>) -> AlignHandler {
-    AlignHandler {
-      targets,
-      ..AlignHandler::default()
-    }
-  }
-}
-
 impl<'i> PropertyHandler<'i> for AlignHandler {
   fn handle_property(
     &mut self,
     property: &Property<'i>,
     dest: &mut DeclarationList<'i>,
-    _: &mut PropertyHandlerContext<'i, '_>,
+    context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
     use Property::*;
 
@@ -1034,7 +1023,7 @@ impl<'i> PropertyHandler<'i> for AlignHandler {
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
           if val != $val && !prefixes.contains(*$vp) {
-            self.flush(dest);
+            self.flush(dest, context);
           }
         }
       }};
@@ -1122,7 +1111,7 @@ impl<'i> PropertyHandler<'i> for AlignHandler {
         self.has_any = true;
       }
       Unparsed(val) if is_align_property(&val.property_id) => {
-        self.flush(dest);
+        self.flush(dest, context);
         dest.push(property.clone()) // TODO: prefix?
       }
       _ => return false,
@@ -1131,13 +1120,13 @@ impl<'i> PropertyHandler<'i> for AlignHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut PropertyHandlerContext<'i, '_>) {
-    self.flush(dest);
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
+    self.flush(dest, context);
   }
 }
 
 impl AlignHandler {
-  fn flush(&mut self, dest: &mut DeclarationList) {
+  fn flush<'i>(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
     if !self.has_any {
       return;
     }
@@ -1162,13 +1151,10 @@ impl AlignHandler {
     // Gets prefixes for standard properties.
     macro_rules! prefixes {
       ($prop: ident) => {{
-        let mut prefix = VendorPrefix::None;
-        if let Some(targets) = self.targets {
-          prefix = Feature::$prop.prefixes_for(targets);
-          // Firefox only implemented the 2009 spec prefixed.
-          // Microsoft only implemented the 2012 spec prefixed.
-          prefix.remove(VendorPrefix::Moz | VendorPrefix::Ms);
-        }
+        let mut prefix = context.targets.prefixes(VendorPrefix::None, Feature::$prop);
+        // Firefox only implemented the 2009 spec prefixed.
+        // Microsoft only implemented the 2012 spec prefixed.
+        prefix.remove(VendorPrefix::Moz | VendorPrefix::Ms);
         prefix
       }};
     }
@@ -1191,13 +1177,12 @@ impl AlignHandler {
       ($prop: ident, $key: ident, $( $prop_2009: ident )?, $prop_2012: ident) => {
         if let Some((val, prefix)) = &$key {
           // If we have an unprefixed standard property, generate legacy prefixed versions.
-          let mut prefix = *prefix;
-          if prefix.contains(VendorPrefix::None) {
-            if let Some(targets) = self.targets {
-              prefix = Feature::$prop.prefixes_for(targets);
+          let mut prefix = context.targets.prefixes(*prefix, Feature::$prop);
 
+          if prefix.contains(VendorPrefix::None) {
+            $(
               // 2009 spec, implemented by webkit and firefox.
-              $(
+              if let Some(targets) = context.targets.browsers {
                 let mut prefixes_2009 = VendorPrefix::empty();
                 if is_flex_2009(targets) {
                   prefixes_2009 |= VendorPrefix::WebKit;
@@ -1210,19 +1195,19 @@ impl AlignHandler {
                     dest.push(Property::$prop_2009(v, prefixes_2009));
                   }
                 }
-              )?
-
-              // 2012 spec, implemented by microsoft.
-              if prefix.contains(VendorPrefix::Ms) {
-                if let Some(v) = $prop_2012::from_standard(&val) {
-                  dest.push(Property::$prop_2012(v, VendorPrefix::Ms));
-                }
               }
+            )?
+          }
 
-              // Remove Firefox and IE from standard prefixes.
-              prefix.remove(VendorPrefix::Moz | VendorPrefix::Ms);
+          // 2012 spec, implemented by microsoft.
+          if prefix.contains(VendorPrefix::Ms) {
+            if let Some(v) = $prop_2012::from_standard(&val) {
+              dest.push(Property::$prop_2012(v, VendorPrefix::Ms));
             }
           }
+
+          // Remove Firefox and IE from standard prefixes.
+          prefix.remove(VendorPrefix::Moz | VendorPrefix::Ms);
         }
       };
     }
@@ -1297,7 +1282,7 @@ impl AlignHandler {
 
     legacy_property!(AlignContent, align_content, , FlexLinePack);
     legacy_property!(JustifyContent, justify_content, BoxPack, FlexPack);
-    if self.targets.is_none() || compat::Feature::PlaceContent.is_compatible(self.targets.unwrap()) {
+    if context.targets.is_compatible(compat::Feature::PlaceContent) {
       shorthand!(
         PlaceContent,
         AlignContent,
@@ -1310,14 +1295,14 @@ impl AlignHandler {
     standard_property!(JustifyContent, justify_content);
 
     legacy_property!(AlignSelf, align_self, , FlexItemAlign);
-    if self.targets.is_none() || compat::Feature::PlaceSelf.is_compatible(self.targets.unwrap()) {
+    if context.targets.is_compatible(compat::Feature::PlaceSelf) {
       shorthand!(PlaceSelf, AlignSelf, align_self, justify_self);
     }
     standard_property!(AlignSelf, align_self);
     unprefixed_property!(JustifySelf, justify_self);
 
     legacy_property!(AlignItems, align_items, BoxAlign, FlexAlign);
-    if self.targets.is_none() || compat::Feature::PlaceItems.is_compatible(self.targets.unwrap()) {
+    if context.targets.is_compatible(compat::Feature::PlaceItems) {
       shorthand!(PlaceItems, AlignItems, align_items, justify_items);
     }
     standard_property!(AlignItems, align_items);

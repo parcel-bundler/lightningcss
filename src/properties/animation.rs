@@ -7,7 +7,6 @@ use crate::macros::*;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId, VendorPrefix};
-use crate::targets::Browsers;
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::number::CSSNumber;
 use crate::values::string::CowArcStr;
@@ -322,7 +321,6 @@ pub type AnimationList<'i> = SmallVec<[Animation<'i>; 1]>;
 
 #[derive(Default)]
 pub(crate) struct AnimationHandler<'i> {
-  targets: Option<Browsers>,
   names: Option<(SmallVec<[AnimationName<'i>; 1]>, VendorPrefix)>,
   durations: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   timing_functions: Option<(SmallVec<[EasingFunction; 1]>, VendorPrefix)>,
@@ -334,21 +332,12 @@ pub(crate) struct AnimationHandler<'i> {
   has_any: bool,
 }
 
-impl<'i> AnimationHandler<'i> {
-  pub fn new(targets: Option<Browsers>) -> Self {
-    AnimationHandler {
-      targets,
-      ..AnimationHandler::default()
-    }
-  }
-}
-
 impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
   fn handle_property(
     &mut self,
     property: &Property<'i>,
     dest: &mut DeclarationList<'i>,
-    _: &mut PropertyHandlerContext<'i, '_>,
+    context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
     use Property::*;
 
@@ -358,7 +347,7 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
           if val != $val && !prefixes.contains(*$vp) {
-            self.flush(dest);
+            self.flush(dest, context);
           }
         }
       }};
@@ -423,8 +412,10 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
         property!(fill_modes, &fill_modes, vp);
       }
       Unparsed(val) if is_animation_property(&val.property_id) => {
-        self.flush(dest);
-        dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::Animation)));
+        self.flush(dest, context);
+        dest.push(Property::Unparsed(
+          val.get_prefixed(context.targets, Feature::Animation),
+        ));
       }
       _ => return false,
     }
@@ -432,13 +423,13 @@ impl<'i> PropertyHandler<'i> for AnimationHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i, '_>) {
-    self.flush(dest);
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
+    self.flush(dest, context);
   }
 }
 
 impl<'i> AnimationHandler<'i> {
-  fn flush(&mut self, dest: &mut DeclarationList<'i>) {
+  fn flush(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
     if !self.has_any {
       return;
     }
@@ -517,12 +508,7 @@ impl<'i> AnimationHandler<'i> {
           },
         )
         .collect();
-        let mut prefix = intersection;
-        if prefix.contains(VendorPrefix::None) {
-          if let Some(targets) = self.targets {
-            prefix = Feature::Animation.prefixes_for(targets)
-          }
-        }
+        let prefix = context.targets.prefixes(intersection, Feature::Animation);
         dest.push(Property::Animation(animations, prefix));
         names_vp.remove(intersection);
         durations_vp.remove(intersection);
@@ -539,12 +525,7 @@ impl<'i> AnimationHandler<'i> {
       ($var: ident, $property: ident) => {
         if let Some((val, vp)) = $var {
           if !vp.is_empty() {
-            let mut prefix = vp;
-            if prefix.contains(VendorPrefix::None) {
-              if let Some(targets) = self.targets {
-                prefix = Feature::$property.prefixes_for(targets)
-              }
-            }
+            let prefix = context.targets.prefixes(vp, Feature::$property);
             dest.push(Property::$property(val, prefix))
           }
         }

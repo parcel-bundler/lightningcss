@@ -12,7 +12,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
-use crate::targets::Browsers;
+use crate::targets::{should_compile, Browsers, Targets};
 use crate::traits::{IsCompatible, Parse, ToCss, TrySign, Zero};
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
@@ -63,14 +63,10 @@ impl Gradient {
   }
 
   /// Returns the vendor prefixes needed for the given browser targets.
-  pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+  pub fn get_necessary_prefixes(&self, targets: Targets) -> VendorPrefix {
     macro_rules! get_prefixes {
       ($feature: ident, $prefix: expr) => {
-        if $prefix == VendorPrefix::None {
-          Feature::$feature.prefixes_for(targets)
-        } else {
-          $prefix
-        }
+        targets.prefixes($prefix, Feature::$feature)
       };
     }
 
@@ -114,7 +110,7 @@ impl Gradient {
   }
 
   /// Returns the color fallback types needed for the given browser targets.
-  pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+  pub fn get_necessary_fallbacks(&self, targets: Targets) -> ColorFallbackKind {
     match self {
       Gradient::Linear(LinearGradient { items, .. })
       | Gradient::Radial(RadialGradient { items, .. })
@@ -905,7 +901,7 @@ impl<D: ToCss> ToCss for GradientItem<D> {
 
 impl<D: Clone> GradientItem<D> {
   /// Returns the color fallback types needed for the given browser targets.
-  pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+  pub fn get_necessary_fallbacks(&self, targets: Targets) -> ColorFallbackKind {
     match self {
       GradientItem::ColorStop(stop) => stop.color.get_necessary_fallbacks(targets),
       GradientItem::Hint(..) => ColorFallbackKind::empty(),
@@ -997,7 +993,7 @@ where
 
     // Use double position stop if the last stop is the same color and all targets support it.
     if let Some(prev) = last {
-      if dest.targets.is_none() || compat::Feature::DoublePositionGradients.is_compatible(dest.targets.unwrap()) {
+      if !should_compile!(dest.targets, DoublePositionGradients) {
         match (prev, item) {
           (
             GradientItem::ColorStop(ColorStop {

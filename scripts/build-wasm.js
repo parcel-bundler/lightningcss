@@ -8,6 +8,10 @@ let b = fs.readFileSync(`${dir}/node/browserslistToTargets.js`, 'utf8');
 b = b.replace('module.exports = browserslistToTargets;', 'export {browserslistToTargets};');
 fs.writeFileSync(`${dir}/wasm/browserslistToTargets.js`, b);
 
+let flags = fs.readFileSync(`${dir}/node/flags.js`, 'utf8');
+flags = flags.replace('exports.Features =', 'export const Features =');
+fs.writeFileSync(`${dir}/wasm/flags.js`, flags);
+
 let dts = fs.readFileSync(`${dir}/node/index.d.ts`, 'utf8');
 dts = dts.replace(/: Buffer/g, ': Uint8Array');
 dts += `

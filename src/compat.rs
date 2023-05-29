@@ -5,57 +5,36 @@ use crate::targets::Browsers;
 #[derive(Clone, Copy, PartialEq)]
 pub enum Feature {
   AbsFunction,
+  AnyLink,
   AnyPseudo,
   ArabicIndicListStyleType,
   ArmenianListStyleType,
+  Autofill,
   BengaliListStyleType,
   BorderImageRepeatRound,
   BorderImageRepeatSpace,
-  Calc,
+  CalcFunction,
   CambodianListStyleType,
   CapUnit,
+  CaseInsensitive,
   ChUnit,
   CircleListStyleType,
   CjkDecimalListStyleType,
   CjkEarthlyBranchListStyleType,
   CjkHeavenlyStemListStyleType,
-  Clamp,
+  ClampFunction,
   ColorFunction,
   ConicGradient,
   ContainerQueryLengthUnits,
-  CssAnyLink,
-  CssAutofill,
-  CssCaseInsensitive,
-  CssDefaultPseudo,
-  CssDirPseudo,
-  CssFirstLetter,
-  CssFirstLine,
-  CssFocusVisible,
-  CssFocusWithin,
-  CssGencontent,
-  CssHas,
-  CssInOutOfRange,
-  CssIndeterminatePseudo,
-  CssMarkerPseudo,
-  CssMatchesPseudo,
-  CssNamespaces,
-  CssNesting,
-  CssNotSelList,
-  CssOptionalPseudo,
-  CssPlaceholder,
-  CssPlaceholderShown,
-  CssReadOnlyWrite,
-  CssRrggbbaa,
-  CssSel2,
-  CssSel3,
-  CssSelection,
   Cue,
   CueFunction,
   CustomMediaQueries,
   DecimalLeadingZeroListStyleType,
   DecimalListStyleType,
+  DefaultPseudo,
   DevanagariListStyleType,
   Dialog,
+  DirSelector,
   DiscListStyleType,
   DisclosureClosedListStyleType,
   DisclosureOpenListStyleType,
@@ -64,8 +43,12 @@ pub enum Feature {
   ExUnit,
   ExtendedSystemFonts,
   FillSize,
+  FirstLetter,
+  FirstLine,
   FitContentFunctionSize,
   FitContentSize,
+  FocusVisible,
+  FocusWithin,
   FontFamilySystemUi,
   FontSizeRem,
   FontSizeXXXLarge,
@@ -74,16 +57,22 @@ pub enum Feature {
   FontWeightNumber,
   FormValidation,
   Fullscreen,
+  Gencontent,
   GeorgianListStyleType,
   GradientInterpolationHints,
   GujaratiListStyleType,
   GurmukhiListStyleType,
+  HasSelector,
   HebrewListStyleType,
+  HexAlphaColors,
   HiraganaIrohaListStyleType,
   HiraganaListStyleType,
   HypotFunction,
   IcUnit,
   ImageSet,
+  InOutOfRange,
+  IndeterminatePseudo,
+  IsSelector,
   JapaneseFormalListStyleType,
   JapaneseInformalListStyleType,
   KannadaListStyleType,
@@ -94,7 +83,7 @@ pub enum Feature {
   KoreanHanjaFormalListStyleType,
   KoreanHanjaInformalListStyleType,
   LabColors,
-  LangList,
+  LangSelectorList,
   LaoListStyleType,
   LhUnit,
   LinearGradient,
@@ -114,6 +103,7 @@ pub enum Feature {
   LowerLatinListStyleType,
   LowerRomanListStyleType,
   MalayalamListStyleType,
+  MarkerPseudo,
   MaxContentSize,
   MaxFunction,
   MediaIntervalSyntax,
@@ -123,8 +113,12 @@ pub enum Feature {
   ModFunction,
   MongolianListStyleType,
   MyanmarListStyleType,
+  Namespaces,
+  Nesting,
+  NotSelectorList,
   NthChildOf,
   OklabColors,
+  OptionalPseudo,
   OriyaListStyleType,
   OverflowShorthand,
   P3Colors,
@@ -132,8 +126,11 @@ pub enum Feature {
   PlaceContent,
   PlaceItems,
   PlaceSelf,
+  Placeholder,
+  PlaceholderShown,
   QUnit,
   RadialGradient,
+  ReadOnlyWrite,
   RemFunction,
   RemUnit,
   RepeatingConicGradient,
@@ -141,11 +138,14 @@ pub enum Feature {
   RepeatingRadialGradient,
   RlhUnit,
   RoundFunction,
+  Selection,
+  Selectors2,
+  Selectors3,
   Shadowdomv1,
   SignFunction,
   SimpChineseFormalListStyleType,
   SimpChineseInformalListStyleType,
-  SpaceSeparatedColorFunction,
+  SpaceSeparatedColorNotation,
   SquareListStyleType,
   StretchSize,
   StringListStyleType,
@@ -177,7 +177,7 @@ pub enum Feature {
 impl Feature {
   pub fn is_compatible(&self, browsers: Browsers) -> bool {
     match self {
-      Feature::CssSel2 => {
+      Feature::Selectors2 => {
         if let Some(version) = browsers.ie {
           if version < 458752 {
             return false;
@@ -224,7 +224,7 @@ impl Feature {
           }
         }
       }
-      Feature::CssSel3 => {
+      Feature::Selectors3 => {
         if let Some(version) = browsers.ie {
           if version < 589824 {
             return false;
@@ -271,7 +271,7 @@ impl Feature {
           }
         }
       }
-      Feature::CssGencontent | Feature::CssFirstLine => {
+      Feature::Gencontent | Feature::FirstLine => {
         if let Some(version) = browsers.ie {
           if version < 589824 {
             return false;
@@ -318,7 +318,7 @@ impl Feature {
           }
         }
       }
-      Feature::CssFirstLetter => {
+      Feature::FirstLetter => {
         if let Some(version) = browsers.ie {
           if version < 589824 {
             return false;
@@ -365,7 +365,7 @@ impl Feature {
           }
         }
       }
-      Feature::CssInOutOfRange => {
+      Feature::InOutOfRange => {
         if let Some(version) = browsers.edge {
           if version < 5177344 {
             return false;
@@ -457,7 +457,7 @@ impl Feature {
           }
         }
       }
-      Feature::CssAnyLink => {
+      Feature::AnyLink => {
         if let Some(version) = browsers.edge {
           if version < 5177344 {
             return false;
@@ -502,7 +502,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::CssDefaultPseudo => {
+      Feature::DefaultPseudo => {
         if let Some(version) = browsers.edge {
           if version < 5177344 {
             return false;
@@ -547,7 +547,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::CssDirPseudo => {
+      Feature::DirSelector => {
         if let Some(version) = browsers.firefox {
           if version < 3211264 {
             return false;
@@ -573,7 +573,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::CssFocusWithin => {
+      Feature::FocusWithin => {
         if let Some(version) = browsers.edge {
           if version < 5177344 {
             return false;
@@ -618,7 +618,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::CssFocusVisible => {
+      Feature::FocusVisible => {
         if let Some(version) = browsers.edge {
           if version < 5636096 {
             return false;
@@ -663,7 +663,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::CssIndeterminatePseudo => {
+      Feature::IndeterminatePseudo => {
         if let Some(version) = browsers.edge {
           if version < 5177344 {
             return false;
@@ -708,7 +708,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::CssMatchesPseudo => {
+      Feature::IsSelector => {
         if let Some(version) = browsers.edge {
           if version < 5767168 {
             return false;
@@ -753,7 +753,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::CssOptionalPseudo => {
+      Feature::OptionalPseudo => {
         if let Some(version) = browsers.ie {
           if version < 655360 {
             return false;
@@ -800,7 +800,7 @@ impl Feature {
           }
         }
       }
-      Feature::CssPlaceholderShown => {
+      Feature::PlaceholderShown => {
         if let Some(version) = browsers.edge {
           if version < 5177344 {
             return false;
@@ -925,7 +925,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::CssMarkerPseudo => {
+      Feature::MarkerPseudo => {
         if let Some(version) = browsers.edge {
           if version < 5636096 {
             return false;
@@ -965,7 +965,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::CssPlaceholder => {
+      Feature::Placeholder => {
         if let Some(version) = browsers.edge {
           if version < 5177344 {
             return false;
@@ -1010,7 +1010,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::CssSelection => {
+      Feature::Selection => {
         if let Some(version) = browsers.ie {
           if version < 589824 {
             return false;
@@ -1055,7 +1055,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::CssCaseInsensitive => {
+      Feature::CaseInsensitive => {
         if let Some(version) = browsers.edge {
           if version < 5177344 {
             return false;
@@ -1100,7 +1100,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::CssReadOnlyWrite => {
+      Feature::ReadOnlyWrite => {
         if let Some(version) = browsers.edge {
           if version < 851968 {
             return false;
@@ -1145,7 +1145,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::CssAutofill => {
+      Feature::Autofill => {
         if let Some(version) = browsers.firefox {
           if version < 5636096 {
             return false;
@@ -1171,7 +1171,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::CssNamespaces => {
+      Feature::Namespaces => {
         if let Some(version) = browsers.ie {
           if version < 589824 {
             return false;
@@ -1263,7 +1263,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::CssRrggbbaa => {
+      Feature::HexAlphaColors => {
         if let Some(version) = browsers.edge {
           if version < 5177344 {
             return false;
@@ -1308,7 +1308,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::CssNesting => {
+      Feature::Nesting => {
         if let Some(version) = browsers.edge {
           if version < 7340032 {
             return false;
@@ -1342,7 +1342,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::CssNotSelList => {
+      Feature::NotSelectorList => {
         if let Some(version) = browsers.edge {
           if version < 5767168 {
             return false;
@@ -1387,7 +1387,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::CssHas => {
+      Feature::HasSelector => {
         if let Some(version) = browsers.edge {
           if version < 6881280 {
             return false;
@@ -1494,7 +1494,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::Calc => {
+      Feature::CalcFunction => {
         if let Some(version) = browsers.edge {
           if version < 786432 {
             return false;
@@ -1587,7 +1587,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::Clamp => {
+      Feature::ClampFunction => {
         if let Some(version) = browsers.chrome {
           if version < 5177344 {
             return false;
@@ -2267,7 +2267,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::SpaceSeparatedColorFunction => {
+      Feature::SpaceSeparatedColorNotation => {
         if let Some(version) = browsers.chrome {
           if version < 4259840 {
             return false;
@@ -4446,7 +4446,7 @@ impl Feature {
           return false;
         }
       }
-      Feature::P3Colors | Feature::LangList => {
+      Feature::P3Colors | Feature::LangSelectorList => {
         if let Some(version) = browsers.safari {
           if version < 655616 {
             return false;

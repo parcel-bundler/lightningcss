@@ -14,7 +14,7 @@ use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
 #[cfg(feature = "serde")]
 use crate::serialization::ValueWrapper;
-use crate::targets::Browsers;
+use crate::targets::{Features, Targets};
 use crate::traits::{Parse, ToCss};
 use crate::values::ident::CustomIdent;
 #[cfg(feature = "visitor")]
@@ -155,7 +155,7 @@ impl<'i> QueryCondition<'i> for ContainerCondition<'i> {
     })
   }
 
-  fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Option<Browsers>) -> bool {
+  fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Targets) -> bool {
     match self {
       ContainerCondition::Not(_) => true,
       ContainerCondition::Operation { operator, .. } => Some(*operator) != parent_operator,
@@ -186,7 +186,7 @@ impl<'i> QueryCondition<'i> for StyleQuery<'i> {
     Self::Operation { operator, conditions }
   }
 
-  fn needs_parens(&self, parent_operator: Option<Operator>, _targets: &Option<Browsers>) -> bool {
+  fn needs_parens(&self, parent_operator: Option<Operator>, _targets: &Targets) -> bool {
     match self {
       StyleQuery::Not(_) => true,
       StyleQuery::Operation { operator, .. } => Some(*operator) != parent_operator,
@@ -296,10 +296,10 @@ impl<'a, 'i, T: ToCss> ToCss for ContainerRule<'i, T> {
     }
 
     // Don't downlevel range syntax in container queries.
-    let mut targets = None;
-    std::mem::swap(&mut targets, &mut dest.targets);
+    let exclude = dest.targets.exclude;
+    dest.targets.exclude.insert(Features::MediaQueries);
     self.condition.to_css(dest)?;
-    std::mem::swap(&mut targets, &mut dest.targets);
+    dest.targets.exclude = exclude;
 
     dest.whitespace()?;
     dest.write_char('{')?;

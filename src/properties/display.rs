@@ -8,7 +8,6 @@ use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::prefixes::{is_flex_2009, Feature};
 use crate::printer::Printer;
-use crate::targets::Browsers;
 use crate::traits::{Parse, PropertyHandler, ToCss};
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
@@ -384,18 +383,8 @@ enum_property! {
 
 #[derive(Default)]
 pub(crate) struct DisplayHandler<'i> {
-  targets: Option<Browsers>,
   decls: Vec<Property<'i>>,
   display: Option<Display>,
-}
-
-impl<'i> DisplayHandler<'i> {
-  pub fn new(targets: Option<Browsers>) -> Self {
-    DisplayHandler {
-      targets,
-      ..DisplayHandler::default()
-    }
-  }
 }
 
 impl<'i> PropertyHandler<'i> for DisplayHandler<'i> {
@@ -418,9 +407,9 @@ impl<'i> PropertyHandler<'i> for DisplayHandler<'i> {
             // If we have targets, and there is no vendor prefix, clear the existing
             // declarations. The prefixes will be filled in later. Otherwise, if there
             // are no targets, or there is a vendor prefix, add a new declaration.
-            if self.targets.is_some() && new.inside == DisplayInside::Flex(VendorPrefix::None) {
+            if context.targets.browsers.is_some() && new.inside == DisplayInside::Flex(VendorPrefix::None) {
               self.decls.clear();
-            } else if self.targets.is_none() || cur.inside != DisplayInside::Flex(VendorPrefix::None) {
+            } else if context.targets.browsers.is_none() || cur.inside != DisplayInside::Flex(VendorPrefix::None) {
               self.decls.push(Property::Display(self.display.clone().unwrap()));
             }
           }
@@ -447,7 +436,7 @@ impl<'i> PropertyHandler<'i> for DisplayHandler<'i> {
     false
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i, '_>) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
     if self.display.is_none() {
       return;
     }
@@ -462,9 +451,9 @@ impl<'i> PropertyHandler<'i> for DisplayHandler<'i> {
         ..
       }) = display
       {
-        if let Some(targets) = self.targets {
-          let prefixes = Feature::DisplayFlex.prefixes_for(targets);
+        let prefixes = context.targets.prefixes(VendorPrefix::None, Feature::DisplayFlex);
 
+        if let Some(targets) = context.targets.browsers {
           // Handle legacy -webkit-box/-moz-box values if needed.
           if is_flex_2009(targets) {
             if prefixes.contains(VendorPrefix::WebKit) {
@@ -483,22 +472,22 @@ impl<'i> PropertyHandler<'i> for DisplayHandler<'i> {
               })));
             }
           }
+        }
 
-          if prefixes.contains(VendorPrefix::WebKit) {
-            dest.push(Property::Display(Display::Pair(DisplayPair {
-              inside: DisplayInside::Flex(VendorPrefix::WebKit),
-              outside: outside.clone(),
-              is_list_item: false,
-            })));
-          }
+        if prefixes.contains(VendorPrefix::WebKit) {
+          dest.push(Property::Display(Display::Pair(DisplayPair {
+            inside: DisplayInside::Flex(VendorPrefix::WebKit),
+            outside: outside.clone(),
+            is_list_item: false,
+          })));
+        }
 
-          if prefixes.contains(VendorPrefix::Ms) {
-            dest.push(Property::Display(Display::Pair(DisplayPair {
-              inside: DisplayInside::Flex(VendorPrefix::Ms),
-              outside: outside.clone(),
-              is_list_item: false,
-            })));
-          }
+        if prefixes.contains(VendorPrefix::Ms) {
+          dest.push(Property::Display(Display::Pair(DisplayPair {
+            inside: DisplayInside::Flex(VendorPrefix::Ms),
+            outside: outside.clone(),
+            is_list_item: false,
+          })));
         }
       }
 

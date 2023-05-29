@@ -58,7 +58,7 @@ mod tests {
   use crate::rules::CssRule;
   use crate::rules::Location;
   use crate::stylesheet::*;
-  use crate::targets::Browsers;
+  use crate::targets::{Browsers, Features, Targets};
   use crate::traits::{Parse, ToCss};
   use crate::values::color::CssColor;
   use crate::vendor_prefix::VendorPrefix;
@@ -97,13 +97,13 @@ mod tests {
     let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
     stylesheet
       .minify(MinifyOptions {
-        targets: Some(targets),
+        targets: targets.into(),
         ..MinifyOptions::default()
       })
       .unwrap();
     let res = stylesheet
       .to_css(PrinterOptions {
-        targets: Some(targets),
+        targets: targets.into(),
         ..PrinterOptions::default()
       })
       .unwrap();
@@ -113,12 +113,12 @@ mod tests {
   fn attr_test(source: &str, expected: &str, minify: bool, targets: Option<Browsers>) {
     let mut attr = StyleAttribute::parse(source, ParserOptions::default()).unwrap();
     attr.minify(MinifyOptions {
-      targets,
+      targets: targets.into(),
       ..MinifyOptions::default()
     });
     let res = attr
       .to_css(PrinterOptions {
-        targets,
+        targets: targets.into(),
         minify,
         ..PrinterOptions::default()
       })
@@ -127,10 +127,18 @@ mod tests {
   }
 
   fn nesting_test(source: &str, expected: &str) {
-    let targets = Some(Browsers {
-      chrome: Some(95 << 16),
-      ..Browsers::default()
-    });
+    nesting_test_with_targets(
+      source,
+      expected,
+      Browsers {
+        chrome: Some(95 << 16),
+        ..Browsers::default()
+      }
+      .into(),
+    );
+  }
+
+  fn nesting_test_with_targets(source: &str, expected: &str, targets: Targets) {
     let mut stylesheet = StyleSheet::parse(
       &source,
       ParserOptions {
@@ -202,10 +210,11 @@ mod tests {
     .unwrap();
     stylesheet
       .minify(MinifyOptions {
-        targets: Some(Browsers {
+        targets: Browsers {
           chrome: Some(95 << 16),
           ..Browsers::default()
-        }),
+        }
+        .into(),
         ..MinifyOptions::default()
       })
       .unwrap();
@@ -21690,6 +21699,57 @@ mod tests {
         }
       "#},
     );
+
+    nesting_test_with_targets(
+      r#"
+        .foo {
+          color: blue;
+          & > .bar { color: red; }
+        }
+      "#,
+      indoc! {r#"
+        .foo {
+          color: #00f;
+        }
+
+        .foo > .bar {
+          color: red;
+        }
+      "#},
+      Targets {
+        browsers: Some(Browsers {
+          chrome: Some(112 << 16),
+          ..Browsers::default()
+        }),
+        include: Features::Nesting,
+        exclude: Features::empty(),
+      },
+    );
+    nesting_test_with_targets(
+      r#"
+        .foo {
+          color: blue;
+          & > .bar { color: red; }
+        }
+      "#,
+      indoc! {r#"
+        .foo {
+          color: #00f;
+
+          & > .bar {
+            color: red;
+          }
+        }
+      "#},
+      Targets {
+        browsers: Some(Browsers {
+          chrome: Some(50 << 16),
+          ..Browsers::default()
+        }),
+        include: Features::empty(),
+        exclude: Features::Nesting,
+      },
+    );
   }
 
   #[test]
@@ -22554,10 +22614,11 @@ mod tests {
       .unwrap();
     let res = stylesheet
       .to_css(PrinterOptions {
-        targets: Some(Browsers {
+        targets: Browsers {
           chrome: Some(95 << 16),
           ..Browsers::default()
-        }),
+        }
+        .into(),
         ..PrinterOptions::default()
       })
       .unwrap();
@@ -23934,10 +23995,11 @@ mod tests {
       )
       .unwrap();
       let res = stylesheet.minify(MinifyOptions {
-        targets: Some(Browsers {
+        targets: Browsers {
           chrome: Some(95 << 16),
           ..Browsers::default()
-        }),
+        }
+        .into(),
         ..MinifyOptions::default()
       });
       assert_eq!(res, Err(err))

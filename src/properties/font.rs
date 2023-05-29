@@ -9,6 +9,7 @@ use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::*;
 use crate::printer::Printer;
+use crate::targets::should_compile;
 use crate::traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::length::LengthValue;
 use crate::values::number::CSSNumber;
@@ -942,7 +943,7 @@ impl<'i> PropertyHandler<'i> for FontHandler<'i> {
 
     macro_rules! flush {
       ($prop: ident, $val: expr) => {{
-        if self.$prop.is_some() && matches!(context.targets, Some(targets) if !$val.is_compatible(targets)) {
+        if self.$prop.is_some() && matches!(context.targets.browsers, Some(targets) if !$val.is_compatible(targets)) {
           self.flush(dest, context);
         }
       }};
@@ -1018,7 +1019,7 @@ impl<'i> FontHandler<'i> {
 
     let mut family = std::mem::take(&mut self.family);
     if !self.flushed_properties.contains(FontProperty::FontFamily) {
-      family = compatible_font_family(family, context.is_supported(Feature::FontFamilySystemUi));
+      family = compatible_font_family(family, !should_compile!(context.targets, FontFamilySystemUi));
     }
     let size = std::mem::take(&mut self.size);
     let style = std::mem::take(&mut self.style);

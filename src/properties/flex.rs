@@ -10,7 +10,6 @@ use crate::error::{ParserError, PrinterError};
 use crate::macros::*;
 use crate::prefixes::{is_flex_2009, Feature};
 use crate::printer::Printer;
-use crate::targets::Browsers;
 use crate::traits::{FromStandard, Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::number::{CSSInteger, CSSNumber};
 use crate::values::{
@@ -473,7 +472,6 @@ impl FromStandard<AlignContent> for FlexLinePack {
 
 #[derive(Default, Debug)]
 pub(crate) struct FlexHandler {
-  targets: Option<Browsers>,
   direction: Option<(FlexDirection, VendorPrefix)>,
   box_orient: Option<(BoxOrient, VendorPrefix)>,
   box_direction: Option<(BoxDirection, VendorPrefix)>,
@@ -492,21 +490,12 @@ pub(crate) struct FlexHandler {
   has_any: bool,
 }
 
-impl FlexHandler {
-  pub fn new(targets: Option<Browsers>) -> FlexHandler {
-    FlexHandler {
-      targets,
-      ..FlexHandler::default()
-    }
-  }
-}
-
 impl<'i> PropertyHandler<'i> for FlexHandler {
   fn handle_property(
     &mut self,
     property: &Property<'i>,
     dest: &mut DeclarationList<'i>,
-    _: &mut PropertyHandlerContext<'i, '_>,
+    context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
     use Property::*;
 
@@ -516,7 +505,7 @@ impl<'i> PropertyHandler<'i> for FlexHandler {
         // values, we need to flush what we have immediately to preserve order.
         if let Some((val, prefixes)) = &self.$prop {
           if val != $val && !prefixes.contains(*$vp) {
-            self.flush(dest);
+            self.flush(dest, context);
           }
         }
       }};
@@ -539,7 +528,7 @@ impl<'i> PropertyHandler<'i> for FlexHandler {
 
     match property {
       FlexDirection(val, vp) => {
-        if self.targets.is_some() {
+        if context.targets.browsers.is_some() {
           self.box_direction = None;
           self.box_orient = None;
         }
@@ -548,14 +537,14 @@ impl<'i> PropertyHandler<'i> for FlexHandler {
       BoxOrient(val, vp) => property!(box_orient, val, vp),
       BoxDirection(val, vp) => property!(box_direction, val, vp),
       FlexWrap(val, vp) => {
-        if self.targets.is_some() {
+        if context.targets.browsers.is_some() {
           self.box_lines = None;
         }
         property!(wrap, val, vp);
       }
       BoxLines(val, vp) => property!(box_lines, val, vp),
       FlexFlow(val, vp) => {
-        if self.targets.is_some() {
+        if context.targets.browsers.is_some() {
           self.box_direction = None;
           self.box_orient = None;
         }
@@ -563,7 +552,7 @@ impl<'i> PropertyHandler<'i> for FlexHandler {
         property!(wrap, &val.wrap, vp);
       }
       FlexGrow(val, vp) => {
-        if self.targets.is_some() {
+        if context.targets.browsers.is_some() {
           self.box_flex = None;
           self.flex_positive = None;
         }
@@ -572,21 +561,21 @@ impl<'i> PropertyHandler<'i> for FlexHandler {
       BoxFlex(val, vp) => property!(box_flex, val, vp),
       FlexPositive(val, vp) => property!(flex_positive, val, vp),
       FlexShrink(val, vp) => {
-        if self.targets.is_some() {
+        if context.targets.browsers.is_some() {
           self.flex_negative = None;
         }
         property!(shrink, val, vp);
       }
       FlexNegative(val, vp) => property!(flex_negative, val, vp),
       FlexBasis(val, vp) => {
-        if self.targets.is_some() {
+        if context.targets.browsers.is_some() {
           self.preferred_size = None;
         }
         property!(basis, val, vp);
       }
       FlexPreferredSize(val, vp) => property!(preferred_size, val, vp),
       Flex(val, vp) => {
-        if self.targets.is_some() {
+        if context.targets.browsers.is_some() {
           self.box_flex = None;
           self.flex_positive = None;
           self.flex_negative = None;
@@ -600,7 +589,7 @@ impl<'i> PropertyHandler<'i> for FlexHandler {
         property!(basis, &val.basis, vp);
       }
       Order(val, vp) => {
-        if self.targets.is_some() {
+        if context.targets.browsers.is_some() {
           self.box_ordinal_group = None;
           self.flex_order = None;
         }
@@ -609,7 +598,7 @@ impl<'i> PropertyHandler<'i> for FlexHandler {
       BoxOrdinalGroup(val, vp) => property!(box_ordinal_group, val, vp),
       FlexOrder(val, vp) => property!(flex_order, val, vp),
       Unparsed(val) if is_flex_property(&val.property_id) => {
-        self.flush(dest);
+        self.flush(dest, context);
         dest.push(property.clone()) // TODO: prefix?
       }
       _ => return false,
@@ -618,13 +607,13 @@ impl<'i> PropertyHandler<'i> for FlexHandler {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList, _: &mut PropertyHandlerContext<'i, '_>) {
-    self.flush(dest);
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
+    self.flush(dest, context);
   }
 }
 
 impl FlexHandler {
-  fn flush(&mut self, dest: &mut DeclarationList) {
+  fn flush<'i>(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
     if !self.has_any {
       return;
     }
@@ -651,13 +640,11 @@ impl FlexHandler {
       ($prop: ident, $key: ident $(, 2012: $prop_2012: ident )? $(, 2009: $prop_2009: ident )?) => {
         if let Some((val, prefix)) = $key {
           if !prefix.is_empty() {
-            let mut prefix = prefix;
+            let mut prefix = context.targets.prefixes(prefix, Feature::$prop);
             if prefix.contains(VendorPrefix::None) {
-              if let Some(targets) = self.targets {
-                prefix = Feature::$prop.prefixes_for(targets);
-
+              $(
                 // 2009 spec, implemented by webkit and firefox.
-                $(
+                if let Some(targets) = context.targets.browsers {
                   let mut prefixes_2009 = VendorPrefix::empty();
                   if is_flex_2009(targets) {
                     prefixes_2009 |= VendorPrefix::WebKit;
@@ -670,23 +657,23 @@ impl FlexHandler {
                       dest.push(Property::$prop_2009(v, prefixes_2009));
                     }
                   }
-                )?
-
-                $(
-                  let mut ms = true;
-                  if prefix.contains(VendorPrefix::Ms) {
-                    dest.push(Property::$prop_2012(val.clone(), VendorPrefix::Ms));
-                    ms = false;
-                  }
-                  if !ms {
-                    prefix.remove(VendorPrefix::Ms);
-                  }
-                )?
-
-                // Firefox only implemented the 2009 spec prefixed.
-                prefix.remove(VendorPrefix::Moz);
-              }
+                }
+              )?
             }
+
+            $(
+              let mut ms = true;
+              if prefix.contains(VendorPrefix::Ms) {
+                dest.push(Property::$prop_2012(val.clone(), VendorPrefix::Ms));
+                ms = false;
+              }
+              if !ms {
+                prefix.remove(VendorPrefix::Ms);
+              }
+            )?
+
+            // Firefox only implemented the 2009 spec prefixed.
+            prefix.remove(VendorPrefix::Moz);
             dest.push(Property::$prop(val, prefix))
           }
         }
@@ -715,8 +702,8 @@ impl FlexHandler {
     legacy_property!(FlexOrder, flex_order.clone());
 
     if let Some((direction, _)) = direction {
-      if let Some(targets) = self.targets {
-        let prefixes = Feature::FlexDirection.prefixes_for(targets);
+      if let Some(targets) = context.targets.browsers {
+        let prefixes = context.targets.prefixes(VendorPrefix::None, Feature::FlexDirection);
         let mut prefixes_2009 = VendorPrefix::empty();
         if is_flex_2009(targets) {
           prefixes_2009 |= VendorPrefix::WebKit;
@@ -735,14 +722,9 @@ impl FlexHandler {
     if let (Some((direction, dir_prefix)), Some((wrap, wrap_prefix))) = (&mut direction, &mut wrap) {
       let intersection = *dir_prefix & *wrap_prefix;
       if !intersection.is_empty() {
-        let mut prefix = intersection;
-        if prefix.contains(VendorPrefix::None) {
-          if let Some(targets) = self.targets {
-            prefix = Feature::FlexFlow.prefixes_for(targets);
-            // Firefox only implemented the 2009 spec prefixed.
-            prefix.remove(VendorPrefix::Moz);
-          }
-        }
+        let mut prefix = context.targets.prefixes(intersection, Feature::FlexFlow);
+        // Firefox only implemented the 2009 spec prefixed.
+        prefix.remove(VendorPrefix::Moz);
         dest.push(Property::FlexFlow(
           FlexFlow {
             direction: *direction,
@@ -758,9 +740,9 @@ impl FlexHandler {
     single_property!(FlexDirection, direction);
     single_property!(FlexWrap, wrap, 2009: BoxLines);
 
-    if let Some(targets) = self.targets {
+    if let Some(targets) = context.targets.browsers {
       if let Some((grow, _)) = grow {
-        let prefixes = Feature::FlexGrow.prefixes_for(targets);
+        let prefixes = context.targets.prefixes(VendorPrefix::None, Feature::FlexGrow);
         let mut prefixes_2009 = VendorPrefix::empty();
         if is_flex_2009(targets) {
           prefixes_2009 |= VendorPrefix::WebKit;
@@ -779,14 +761,9 @@ impl FlexHandler {
     {
       let intersection = *grow_prefix & *shrink_prefix & *basis_prefix;
       if !intersection.is_empty() {
-        let mut prefix = intersection;
-        if prefix.contains(VendorPrefix::None) {
-          if let Some(targets) = self.targets {
-            prefix = Feature::Flex.prefixes_for(targets);
-            // Firefox only implemented the 2009 spec prefixed.
-            prefix.remove(VendorPrefix::Moz);
-          }
-        }
+        let mut prefix = context.targets.prefixes(intersection, Feature::Flex);
+        // Firefox only implemented the 2009 spec prefixed.
+        prefix.remove(VendorPrefix::Moz);
         dest.push(Property::Flex(
           Flex {
             grow: *grow,

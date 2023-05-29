@@ -10,7 +10,7 @@ use crate::macros::{define_list_shorthand, define_shorthand, enum_property, prop
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::Property;
-use crate::targets::Browsers;
+use crate::targets::{Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::image::ImageFallback;
 use crate::values::length::LengthOrNumber;
@@ -554,7 +554,7 @@ impl<'i> ToCss for MaskBorder<'i> {
 }
 
 impl<'i> FallbackValues for MaskBorder<'i> {
-  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+  fn get_fallbacks(&mut self, targets: Targets) -> Vec<Self> {
     self
       .source
       .get_fallbacks(targets)
@@ -636,7 +636,7 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
           }
         }
 
-        if self.$prop.is_some() && matches!(context.targets, Some(targets) if !$val.is_compatible(targets)) {
+        if self.$prop.is_some() && matches!(context.targets.browsers, Some(targets) if !$val.is_compatible(targets)) {
           self.flush(dest, context);
         }
       }};
@@ -749,13 +749,9 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
       Property::Unparsed(val) if is_mask_border_property(&val.property_id) => {
         // Add vendor prefixes and expand color fallbacks.
         let mut val = val.clone();
-        let mut prefix = val.property_id.prefix();
-        if prefix.is_empty() || prefix.contains(VendorPrefix::None) {
-          if let Some(targets) = context.targets {
-            prefix = Feature::MaskBorder.prefixes_for(targets);
-          }
-        }
-
+        let prefix = context
+          .targets
+          .prefixes(val.property_id.prefix().or_none(), Feature::MaskBorder);
         if prefix.contains(VendorPrefix::WebKit) {
           if let Some(property_id) = get_webkit_mask_property(&val.property_id) {
             let mut clone = val.clone();
@@ -859,38 +855,30 @@ impl<'i> MaskHandler<'i> {
         })
         .collect();
 
-        let mut prefix = intersection;
-        if prefix.contains(VendorPrefix::None) {
-          if let Some(targets) = context.targets {
-            prefix = Feature::Mask.prefixes_for(targets)
-          }
-        }
-
-        if let Some(targets) = context.targets {
-          if !self.flushed_properties.intersects(MaskProperty::Mask) {
-            for fallback in masks.get_fallbacks(targets) {
-              // Match prefix of fallback. e.g. -webkit-linear-gradient
-              // can only be used in -webkit-mask-image.
-              // However, if mask-image is unprefixed, gradients can still be.
-              let mut p = fallback
-                .iter()
-                .fold(VendorPrefix::empty(), |p, mask| p | mask.image.get_vendor_prefix())
-                - VendorPrefix::None
-                & prefix;
-              if p.is_empty() {
-                p = prefix;
-              }
-              self.flush_mask_shorthand(fallback, p, dest);
-            }
-
-            let p = masks
+        let mut prefix = context.targets.prefixes(intersection, Feature::Mask);
+        if !self.flushed_properties.intersects(MaskProperty::Mask) {
+          for fallback in masks.get_fallbacks(context.targets) {
+            // Match prefix of fallback. e.g. -webkit-linear-gradient
+            // can only be used in -webkit-mask-image.
+            // However, if mask-image is unprefixed, gradients can still be.
+            let mut p = fallback
               .iter()
               .fold(VendorPrefix::empty(), |p, mask| p | mask.image.get_vendor_prefix())
               - VendorPrefix::None
               & prefix;
-            if !p.is_empty() {
-              prefix = p;
+            if p.is_empty() {
+              p = prefix;
             }
+            self.flush_mask_shorthand(fallback, p, dest);
+          }
+
+          let p = masks
+            .iter()
+            .fold(VendorPrefix::empty(), |p, mask| p | mask.image.get_vendor_prefix())
+            - VendorPrefix::None
+            & prefix;
+          if !p.is_empty() {
+            prefix = p;
           }
         }
 
@@ -912,12 +900,7 @@ impl<'i> MaskHandler<'i> {
       ($var: ident, $property: ident) => {
         if let Some((val, vp)) = $var {
           if !vp.is_empty() {
-            let mut prefix = vp;
-            if prefix.contains(VendorPrefix::None) {
-              if let Some(targets) = context.targets {
-                prefix = Feature::$property.prefixes_for(targets)
-              }
-            }
+            let prefix = context.targets.prefixes(vp, Feature::$property);
             dest.push(Property::$property(val, prefix));
             self.flushed_properties.insert(MaskProperty::$property);
           }
@@ -929,27 +912,20 @@ impl<'i> MaskHandler<'i> {
       if !vp.is_empty() {
         let mut prefix = vp;
         if !self.flushed_properties.contains(MaskProperty::MaskImage) {
-          if prefix.contains(VendorPrefix::None) {
-            if let Some(targets) = context.targets {
-              prefix = Feature::MaskImage.prefixes_for(targets)
+          prefix = context.targets.prefixes(prefix, Feature::MaskImage);
+          for fallback in images.get_fallbacks(context.targets) {
+            // Match prefix of fallback. e.g. -webkit-linear-gradient
+            // can only be used in -webkit-mask-image.
+            // However, if mask-image is unprefixed, gradients can still be.
+            let mut p = fallback
+              .iter()
+              .fold(VendorPrefix::empty(), |p, image| p | image.get_vendor_prefix())
+              - VendorPrefix::None
+              & prefix;
+            if p.is_empty() {
+              p = prefix;
             }
-          }
-
-          if let Some(targets) = context.targets {
-            for fallback in images.get_fallbacks(targets) {
-              // Match prefix of fallback. e.g. -webkit-linear-gradient
-              // can only be used in -webkit-mask-image.
-              // However, if mask-image is unprefixed, gradients can still be.
-              let mut p = fallback
-                .iter()
-                .fold(VendorPrefix::empty(), |p, image| p | image.get_vendor_prefix())
-                - VendorPrefix::None
-                & prefix;
-              if p.is_empty() {
-                p = prefix;
-              }
-              dest.push(Property::MaskImage(fallback, p))
-            }
+            dest.push(Property::MaskImage(fallback, p))
           }
 
           let p = images
@@ -974,12 +950,7 @@ impl<'i> MaskHandler<'i> {
     prop!(origins, MaskOrigin);
 
     if let Some(composites) = composites {
-      let prefix = if let Some(targets) = context.targets {
-        Feature::MaskComposite.prefixes_for(targets)
-      } else {
-        VendorPrefix::None
-      };
-
+      let prefix = context.targets.prefixes(VendorPrefix::None, Feature::MaskComposite);
       if prefix.contains(VendorPrefix::WebKit) {
         dest.push(Property::WebKitMaskComposite(
           composites.iter().map(|c| (*c).into()).collect(),
@@ -991,12 +962,7 @@ impl<'i> MaskHandler<'i> {
     }
 
     if let Some(modes) = modes {
-      let prefix = if let Some(targets) = context.targets {
-        Feature::Mask.prefixes_for(targets)
-      } else {
-        VendorPrefix::None
-      };
-
+      let prefix = context.targets.prefixes(VendorPrefix::None, Feature::Mask);
       if prefix.contains(VendorPrefix::WebKit) {
         dest.push(Property::WebKitMaskSourceType(
           modes.iter().map(|c| (*c).into()).collect(),
@@ -1086,33 +1052,25 @@ impl<'i> MaskHandler<'i> {
           mode: mode.unwrap_or_default(),
         };
 
-        let mut prefix = intersection;
-        if prefix.contains(VendorPrefix::None) {
-          if let Some(targets) = context.targets {
-            prefix = Feature::MaskBorder.prefixes_for(targets)
-          }
-        }
+        let mut prefix = context.targets.prefixes(intersection, Feature::MaskBorder);
+        if !self.flushed_properties.intersects(MaskProperty::MaskBorder) {
+          // Get vendor prefix and color fallbacks.
+          let fallbacks = mask_border.get_fallbacks(context.targets);
+          for fallback in fallbacks {
+            let mut p = fallback.source.get_vendor_prefix() - VendorPrefix::None & prefix;
+            if p.is_empty() {
+              p = prefix;
+            }
 
-        if let Some(targets) = context.targets {
-          if !self.flushed_properties.intersects(MaskProperty::MaskBorder) {
-            // Get vendor prefix and color fallbacks.
-            let fallbacks = mask_border.get_fallbacks(targets);
-            for fallback in fallbacks {
-              let mut p = fallback.source.get_vendor_prefix() - VendorPrefix::None & prefix;
-              if p.is_empty() {
-                p = prefix;
-              }
+            if p.contains(VendorPrefix::WebKit) {
+              dest.push(Property::WebKitMaskBoxImage(
+                fallback.clone().into(),
+                VendorPrefix::WebKit,
+              ));
+            }
 
-              if p.contains(VendorPrefix::WebKit) {
-                dest.push(Property::WebKitMaskBoxImage(
-                  fallback.clone().into(),
-                  VendorPrefix::WebKit,
-                ));
-              }
-
-              if p.contains(VendorPrefix::None) {
-                dest.push(Property::MaskBorder(fallback));
-              }
+            if p.contains(VendorPrefix::None) {
+              dest.push(Property::MaskBorder(fallback));
             }
           }
         }
@@ -1144,25 +1102,21 @@ impl<'i> MaskHandler<'i> {
     }
 
     if let Some((mut source, mut prefix)) = source {
-      if let Some(targets) = context.targets {
-        if prefix.contains(VendorPrefix::None) {
-          prefix = Feature::MaskBorderSource.prefixes_for(targets)
-        }
+      prefix = context.targets.prefixes(prefix, Feature::MaskBorderSource);
 
-        if !self.flushed_properties.contains(MaskProperty::MaskBorderSource) {
-          // Get vendor prefix and color fallbacks.
-          let fallbacks = source.get_fallbacks(targets);
-          for fallback in fallbacks {
-            if prefix.contains(VendorPrefix::WebKit) {
-              dest.push(Property::WebKitMaskBoxImageSource(
-                fallback.clone(),
-                VendorPrefix::WebKit,
-              ));
-            }
+      if !self.flushed_properties.contains(MaskProperty::MaskBorderSource) {
+        // Get vendor prefix and color fallbacks.
+        let fallbacks = source.get_fallbacks(context.targets);
+        for fallback in fallbacks {
+          if prefix.contains(VendorPrefix::WebKit) {
+            dest.push(Property::WebKitMaskBoxImageSource(
+              fallback.clone(),
+              VendorPrefix::WebKit,
+            ));
+          }
 
-            if prefix.contains(VendorPrefix::None) {
-              dest.push(Property::MaskBorderSource(fallback));
-            }
+          if prefix.contains(VendorPrefix::None) {
+            dest.push(Property::MaskBorderSource(fallback));
           }
         }
       }
@@ -1180,12 +1134,7 @@ impl<'i> MaskHandler<'i> {
     macro_rules! prop {
       ($val: expr, $prop: ident, $webkit: ident) => {
         if let Some((val, mut prefix)) = $val {
-          if let Some(targets) = context.targets {
-            if prefix.contains(VendorPrefix::None) {
-              prefix = Feature::$prop.prefixes_for(targets)
-            }
-          }
-
+          prefix = context.targets.prefixes(prefix, Feature::$prop);
           if prefix.contains(VendorPrefix::WebKit) {
             dest.push(Property::$webkit(val.clone(), VendorPrefix::WebKit));
           }

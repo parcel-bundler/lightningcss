@@ -3,3 +3,4 @@
 package.json
 README.md
 browserslistToTargets.js
+flags.js

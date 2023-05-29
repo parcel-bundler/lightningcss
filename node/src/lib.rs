@@ -10,7 +10,7 @@ use lightningcss::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, Pr
 use lightningcss::stylesheet::{
   MinifyOptions, ParserFlags, ParserOptions, PrinterOptions, PseudoClasses, StyleAttribute, StyleSheet,
 };
-use lightningcss::targets::Browsers;
+use lightningcss::targets::{Browsers, Features, Targets};
 use lightningcss::visitor::Visit;
 use parcel_sourcemap::SourceMap;
 use serde::{Deserialize, Serialize};
@@ -492,6 +492,10 @@ struct Config {
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
   pub targets: Option<Browsers>,
+  #[serde(default)]
+  pub include: u32,
+  #[serde(default)]
+  pub exclude: u32,
   pub minify: Option<bool>,
   pub source_map: Option<bool>,
   pub input_source_map: Option<String>,
@@ -538,6 +542,10 @@ struct BundleConfig {
   pub filename: String,
   pub project_root: Option<String>,
   pub targets: Option<Browsers>,
+  #[serde(default)]
+  pub include: u32,
+  #[serde(default)]
+  pub exclude: u32,
   pub minify: Option<bool>,
   pub source_map: Option<bool>,
   pub drafts: Option<Drafts>,
@@ -654,8 +662,14 @@ fn compile<'i>(
       stylesheet.visit(visitor).map_err(CompileError::JsError)?;
     }
 
+    let targets = Targets {
+      browsers: config.targets,
+      include: Features::from_bits_truncate(config.include),
+      exclude: Features::from_bits_truncate(config.exclude),
+    };
+
     stylesheet.minify(MinifyOptions {
-      targets: config.targets,
+      targets,
       unused_symbols: config.unused_symbols.clone().unwrap_or_default(),
     })?;
 
@@ -663,7 +677,7 @@ fn compile<'i>(
       minify: config.minify.unwrap_or_default(),
       source_map: source_map.as_mut(),
       project_root,
-      targets: config.targets,
+      targets,
       analyze_dependencies: if let Some(d) = &config.analyze_dependencies {
         match d {
           AnalyzeDependenciesOption::Bool(b) if *b => Some(DependencyOptions { remove_imports: true }),
@@ -777,8 +791,14 @@ fn compile_bundle<
       visit(&mut stylesheet).map_err(CompileError::JsError)?;
     }
 
+    let targets = Targets {
+      browsers: config.targets,
+      include: Features::from_bits_truncate(config.include),
+      exclude: Features::from_bits_truncate(config.exclude),
+    };
+
     stylesheet.minify(MinifyOptions {
-      targets: config.targets,
+      targets,
       unused_symbols: config.unused_symbols.clone().unwrap_or_default(),
     })?;
 
@@ -786,7 +806,7 @@ fn compile_bundle<
       minify: config.minify.unwrap_or_default(),
       source_map: source_map.as_mut(),
       project_root,
-      targets: config.targets,
+      targets,
       analyze_dependencies: if let Some(d) = &config.analyze_dependencies {
         match d {
           AnalyzeDependenciesOption::Bool(b) if *b => Some(DependencyOptions { remove_imports: true }),
@@ -833,6 +853,10 @@ struct AttrConfig {
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
   pub targets: Option<Browsers>,
+  #[serde(default)]
+  pub include: u32,
+  #[serde(default)]
+  pub exclude: u32,
   #[serde(default)]
   pub minify: bool,
   #[serde(default)]
@@ -889,15 +913,21 @@ fn compile_attr<'i>(
       attr.visit(visitor).unwrap();
     }
 
+    let targets = Targets {
+      browsers: config.targets,
+      include: Features::from_bits_truncate(config.include),
+      exclude: Features::from_bits_truncate(config.exclude),
+    };
+
     attr.minify(MinifyOptions {
-      targets: config.targets,
+      targets,
       ..MinifyOptions::default()
     });
     attr.to_css(PrinterOptions {
       minify: config.minify,
       source_map: None,
       project_root: None,
-      targets: config.targets,
+      targets,
       analyze_dependencies: if config.analyze_dependencies {
         Some(DependencyOptions::default())
       } else {

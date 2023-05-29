@@ -337,14 +337,14 @@ impl<'i> PropertyHandler<'i> for SizeHandler {
     dest: &mut DeclarationList<'i>,
     context: &mut PropertyHandlerContext<'i, '_>,
   ) -> bool {
-    let logical_supported = context.is_supported(Feature::LogicalSize);
+    let logical_supported = !context.should_compile_logical(Feature::LogicalSize);
 
     macro_rules! property {
       ($prop: ident, $val: ident, $category: ident) => {{
         // If the category changes betweet logical and physical,
         // or if the value contains syntax that isn't supported across all targets,
         // preserve the previous value as a fallback.
-        if PropertyCategory::$category != self.category || (self.$prop.is_some() && matches!(context.targets, Some(targets) if !$val.is_compatible(targets))) {
+        if PropertyCategory::$category != self.category || (self.$prop.is_some() && matches!(context.targets.browsers, Some(targets) if !$val.is_compatible(targets))) {
           self.flush(dest, context);
         }
 
@@ -424,16 +424,15 @@ impl SizeHandler {
     }
 
     self.has_any = false;
-    let logical_supported = context.is_supported(Feature::LogicalSize);
+    let logical_supported = !context.should_compile_logical(Feature::LogicalSize);
 
     macro_rules! prefix {
       ($prop: ident, $size: ident, $feature: ident) => {
-        if let Some(targets) = context.targets {
-          if !self.flushed_properties.contains(SizeProperty::$prop) {
-            let prefixes = crate::prefixes::Feature::$feature.prefixes_for(targets) - VendorPrefix::None;
-            for prefix in prefixes {
-              dest.push(Property::$prop($size::$feature(prefix)));
-            }
+        if !self.flushed_properties.contains(SizeProperty::$prop) {
+          let prefixes =
+            context.targets.prefixes(VendorPrefix::None, crate::prefixes::Feature::$feature) - VendorPrefix::None;
+          for prefix in prefixes {
+            dest.push(Property::$prop($size::$feature(prefix)));
           }
         }
       };

@@ -72,14 +72,10 @@ impl ToCss for Resolution {
       Resolution::Dpi(dpi) => (*dpi, "dpi"),
       Resolution::Dpcm(dpcm) => (*dpcm, "dpcm"),
       Resolution::Dppx(dppx) => {
-        if let Some(targets) = dest.targets {
-          if Feature::XResolutionUnit.is_compatible(targets) {
-            (*dppx, "x")
-          } else {
-            (*dppx, "dppx")
-          }
-        } else {
+        if dest.targets.is_compatible(Feature::XResolutionUnit) {
           (*dppx, "x")
+        } else {
+          (*dppx, "dppx")
         }
       }
     };

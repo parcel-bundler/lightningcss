@@ -270,7 +270,7 @@ macro_rules! shorthand_handler {
         match property {
           $(
             Property::$prop(val) => {
-              if self.$key.is_some() && matches!(context.targets, Some(targets) if !val.is_compatible(targets)) {
+              if self.$key.is_some() && matches!(context.targets.browsers, Some(targets) if !val.is_compatible(targets)) {
                 self.flush(dest, context);
               }
               self.$key = Some(val.clone());
@@ -279,7 +279,7 @@ macro_rules! shorthand_handler {
           )+
           Property::$shorthand(val) => {
             $(
-              if self.$key.is_some() && matches!(context.targets, Some(targets) if !val.$key.is_compatible(targets)) {
+              if self.$key.is_some() && matches!(context.targets.browsers, Some(targets) if !val.$key.is_compatible(targets)) {
                 self.flush(dest, context);
               }
             )+
@@ -333,11 +333,9 @@ macro_rules! shorthand_handler {
 
           $(
             if $shorthand_fallback && !self.flushed_properties.intersects(paste::paste!([<$shorthand Property>]::$shorthand)) {
-              if let Some(targets) = context.targets {
-                let fallbacks = shorthand.get_fallbacks(targets);
-                for fallback in fallbacks {
-                  dest.push(Property::$shorthand(fallback));
-                }
+              let fallbacks = shorthand.get_fallbacks(context.targets);
+              for fallback in fallbacks {
+                dest.push(Property::$shorthand(fallback));
               }
             }
           )?
@@ -352,11 +350,9 @@ macro_rules! shorthand_handler {
             if let Some(mut val) = $key {
               $(
                 if $fallback && !self.flushed_properties.intersects(paste::paste!([<$shorthand Property>]::$prop)) {
-                  if let Some(targets) = context.targets {
-                    let fallbacks = val.get_fallbacks(targets);
-                    for fallback in fallbacks {
-                      dest.push(Property::$prop(fallback));
-                    }
+                  let fallbacks = val.get_fallbacks(context.targets);
+                  for fallback in fallbacks {
+                    dest.push(Property::$prop(fallback));
                   }
                 }
               )?

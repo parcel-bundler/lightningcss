@@ -187,7 +187,7 @@ macro_rules! side_handler {
             // If the category changes betweet logical and physical,
             // or if the value contains syntax that isn't supported across all targets,
             // preserve the previous value as a fallback.
-            if PropertyCategory::$category != self.category || (self.$key.is_some() && matches!(context.targets, Some(targets) if !$val.is_compatible(targets))) {
+            if PropertyCategory::$category != self.category || (self.$key.is_some() && matches!(context.targets.browsers, Some(targets) if !$val.is_compatible(targets))) {
               self.flush(dest, context);
             }
           }}
@@ -300,7 +300,7 @@ macro_rules! side_handler {
         let bottom = std::mem::take(&mut self.bottom);
         let left = std::mem::take(&mut self.left);
         let right = std::mem::take(&mut self.right);
-        let logical_supported = true $(&& context.is_supported(Feature::$feature))?;
+        let logical_supported = true $(&& !context.should_compile_logical(Feature::$feature))?;
 
         if (PropertyCategory::$shorthand_category != PropertyCategory::Logical || logical_supported) && top.is_some() && bottom.is_some() && left.is_some() && right.is_some() {
           dest.push(Property::$shorthand($shorthand {
@@ -334,7 +334,7 @@ macro_rules! side_handler {
 
         macro_rules! logical_side {
           ($start: ident, $end: ident, $shorthand_prop: ident, $start_prop: ident, $end_prop: ident) => {
-            let shorthand_supported = logical_supported $(&& context.is_supported(Feature::$shorthand_feature))?;
+            let shorthand_supported = logical_supported $(&& !context.should_compile_logical(Feature::$shorthand_feature))?;
             if let (Some(Property::$start_prop(start)), Some(Property::$end_prop(end)), true) = (&$start, &$end, shorthand_supported) {
               dest.push(Property::$shorthand_prop($shorthand_prop {
                 $start: start.clone(),

@@ -193,7 +193,8 @@ pub fn main() -> Result<(), std::io::Error> {
         Browsers::load_browserslist().unwrap()
       } else {
         None
-      };
+      }
+      .into();
 
       stylesheet
         .minify(MinifyOptions {

@@ -10,7 +10,7 @@ use crate::parser::ParserOptions;
 use crate::printer::Printer;
 use crate::properties::custom::{CustomProperty, UnparsedProperty};
 use crate::properties::Property;
-use crate::targets::Browsers;
+use crate::targets::Targets;
 use crate::traits::{Parse, ToCss};
 use crate::values::color::ColorFallbackKind;
 use crate::values::ident::CustomIdent;
@@ -125,13 +125,13 @@ impl<'i> KeyframesRule<'i> {
     context.handler_context.context = DeclarationContext::None;
   }
 
-  pub(crate) fn get_fallbacks<T>(&mut self, targets: Browsers) -> Vec<CssRule<'i, T>> {
+  pub(crate) fn get_fallbacks<T>(&mut self, targets: &Targets) -> Vec<CssRule<'i, T>> {
     let mut fallbacks = ColorFallbackKind::empty();
     for keyframe in &self.keyframes {
       for property in &keyframe.declarations.declarations {
         match property {
           Property::Custom(CustomProperty { value, .. }) | Property::Unparsed(UnparsedProperty { value, .. }) => {
-            fallbacks |= value.get_necessary_fallbacks(targets);
+            fallbacks |= value.get_necessary_fallbacks(*targets);
           }
           _ => {}
         }

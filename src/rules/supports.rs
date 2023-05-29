@@ -6,7 +6,7 @@ use crate::error::{MinifyError, ParserError, PrinterError};
 use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
 use crate::properties::PropertyId;
-use crate::targets::Browsers;
+use crate::targets::Targets;
 use crate::traits::{Parse, ToCss};
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
@@ -39,10 +39,7 @@ impl<'i, T> SupportsRule<'i, T> {
     context: &mut MinifyContext<'_, 'i>,
     parent_is_unused: bool,
   ) -> Result<(), MinifyError> {
-    if let Some(targets) = context.targets {
-      self.condition.set_prefixes_for_targets(targets)
-    }
-
+    self.condition.set_prefixes_for_targets(&context.targets);
     self.rules.minify(context, parent_is_unused)
   }
 }
@@ -132,7 +129,7 @@ impl<'i> SupportsCondition<'i> {
     }
   }
 
-  fn set_prefixes_for_targets(&mut self, targets: &Browsers) {
+  fn set_prefixes_for_targets(&mut self, targets: &Targets) {
     match self {
       SupportsCondition::Not(cond) => cond.set_prefixes_for_targets(targets),
       SupportsCondition::And(items) | SupportsCondition::Or(items) => {

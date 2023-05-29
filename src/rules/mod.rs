@@ -70,7 +70,7 @@ use crate::printer::Printer;
 use crate::rules::keyframes::KeyframesName;
 use crate::selector::{downlevel_selectors, get_prefix, is_equivalent, SelectorList};
 use crate::stylesheet::ParserOptions;
-use crate::targets::Browsers;
+use crate::targets::Targets;
 use crate::traits::{AtRuleParser, ToCss};
 use crate::values::string::CowArcStr;
 use crate::vendor_prefix::VendorPrefix;
@@ -461,7 +461,7 @@ impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for CssRuleList<
 }
 
 pub(crate) struct MinifyContext<'a, 'i> {
-  pub targets: &'a Option<Browsers>,
+  pub targets: &'a Targets,
   pub handler: &'a mut DeclarationHandler<'i>,
   pub important_handler: &'a mut DeclarationHandler<'i>,
   pub handler_context: &'a mut PropertyHandlerContext<'i, 'a>,
@@ -494,11 +494,7 @@ impl<'i, T> CssRuleList<'i, T> {
 
           macro_rules! set_prefix {
             ($keyframes: ident) => {
-              if $keyframes.vendor_prefix.contains(VendorPrefix::None) {
-                if let Some(targets) = context.targets {
-                  $keyframes.vendor_prefix = Feature::AtKeyframes.prefixes_for(*targets)
-                }
-              }
+              $keyframes.vendor_prefix = context.targets.prefixes($keyframes.vendor_prefix, Feature::AtKeyframes);
             };
           }
 
@@ -517,12 +513,10 @@ impl<'i, T> CssRuleList<'i, T> {
           set_prefix!(keyframes);
           keyframe_rules.insert(keyframes.name.clone(), rules.len());
 
-          if let Some(targets) = context.targets {
-            let fallbacks = keyframes.get_fallbacks(*targets);
-            rules.push(rule);
-            rules.extend(fallbacks);
-            continue;
-          }
+          let fallbacks = keyframes.get_fallbacks(context.targets);
+          rules.push(rule);
+          rules.extend(fallbacks);
+          continue;
         }
         CssRule::CustomMedia(_) => {
           if context.custom_media.is_some() {
@@ -593,10 +587,10 @@ impl<'i, T> CssRuleList<'i, T> {
             continue;
           }
 
-          if let Some(targets) = context.targets {
+          if context.targets.should_compile_selectors() {
             style.vendor_prefix = get_prefix(&style.selectors);
             if style.vendor_prefix.contains(VendorPrefix::None) {
-              style.vendor_prefix = downlevel_selectors(style.selectors.0.as_mut_slice(), *targets);
+              style.vendor_prefix = downlevel_selectors(style.selectors.0.as_mut_slice(), *context.targets);
             }
           }
 
@@ -680,12 +674,10 @@ impl<'i, T> CssRuleList<'i, T> {
 
           f.minify(context, parent_is_unused);
 
-          if let Some(targets) = context.targets {
-            let fallbacks = f.get_fallbacks(*targets);
-            rules.push(rule);
-            rules.extend(fallbacks);
-            continue;
-          }
+          let fallbacks = f.get_fallbacks(*context.targets);
+          rules.push(rule);
+          rules.extend(fallbacks);
+          continue;
         }
         CssRule::Property(property) => {
           if context.unused_symbols.contains(property.name.0.as_ref()) {
@@ -710,8 +702,8 @@ fn merge_style_rules<'i, T>(
 ) -> bool {
   // Merge declarations if the selectors are equivalent, and both are compatible with all targets.
   if style.selectors == last_style_rule.selectors
-    && style.is_compatible(*context.targets)
-    && last_style_rule.is_compatible(*context.targets)
+    && style.is_compatible(context.targets.browsers)
+    && last_style_rule.is_compatible(context.targets.browsers)
     && style.rules.0.is_empty()
     && last_style_rule.rules.0.is_empty()
     && (!context.css_modules || style.loc.source_index == last_style_rule.loc.source_index)
@@ -733,7 +725,7 @@ fn merge_style_rules<'i, T>(
     && last_style_rule.rules.0.is_empty()
   {
     // Append the selectors to the last rule if the declarations are the same, and all selectors are compatible.
-    if style.is_compatible(*context.targets) && last_style_rule.is_compatible(*context.targets) {
+    if style.is_compatible(context.targets.browsers) && last_style_rule.is_compatible(context.targets.browsers) {
       last_style_rule.selectors.0.extend(style.selectors.0.drain(..));
       return true;
     }

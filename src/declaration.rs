@@ -31,7 +31,6 @@ use crate::properties::{
   transition::TransitionHandler,
 };
 use crate::properties::{Property, PropertyId};
-use crate::targets::Browsers;
 use crate::traits::{PropertyHandler, ToCss};
 use crate::values::string::CowArcStr;
 #[cfg(feature = "visitor")]
@@ -462,6 +461,7 @@ pub(crate) fn parse_declaration<'i, 't>(
 
 pub(crate) type DeclarationList<'i> = Vec<Property<'i>>;
 
+#[derive(Default)]
 pub(crate) struct DeclarationHandler<'i> {
   background: BackgroundHandler<'i>,
   border: BorderHandler<'i>,
@@ -493,38 +493,6 @@ pub(crate) struct DeclarationHandler<'i> {
 }
 
 impl<'i> DeclarationHandler<'i> {
-  pub fn new(targets: Option<Browsers>) -> Self {
-    DeclarationHandler {
-      background: BackgroundHandler::new(targets),
-      border: BorderHandler::new(targets),
-      outline: OutlineHandler::default(),
-      flex: FlexHandler::new(targets),
-      grid: GridHandler::default(),
-      align: AlignHandler::new(targets),
-      size: SizeHandler::default(),
-      margin: MarginHandler::default(),
-      padding: PaddingHandler::default(),
-      scroll_margin: ScrollMarginHandler::default(),
-      scroll_padding: ScrollPaddingHandler::default(),
-      font: FontHandler::default(),
-      text: TextDecorationHandler::new(targets),
-      list: ListStyleHandler::default(),
-      transition: TransitionHandler::new(targets),
-      animation: AnimationHandler::new(targets),
-      display: DisplayHandler::new(targets),
-      position: PositionHandler::new(targets),
-      inset: InsetHandler::default(),
-      overflow: OverflowHandler::new(targets),
-      transform: TransformHandler::new(targets),
-      box_shadow: BoxShadowHandler::new(targets),
-      mask: MaskHandler::default(),
-      container: ContainerHandler::default(),
-      fallback: FallbackHandler::default(),
-      prefix: PrefixHandler::default(),
-      decls: DeclarationList::new(),
-    }
-  }
-
   pub fn handle_property(
     &mut self,
     property: &Property<'i>,

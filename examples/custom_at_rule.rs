@@ -41,10 +41,11 @@ fn main() {
 
   let result = stylesheet
     .to_css(PrinterOptions {
-      targets: Some(Browsers {
+      targets: Browsers {
         chrome: Some(100 << 16),
         ..Browsers::default()
-      }),
+      }
+      .into(),
       ..PrinterOptions::default()
     })
     .unwrap();

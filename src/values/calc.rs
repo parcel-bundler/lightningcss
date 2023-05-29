@@ -4,7 +4,7 @@ use crate::compat::Feature;
 use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::printer::Printer;
-use crate::targets::Browsers;
+use crate::targets::{should_compile, Browsers};
 use crate::traits::private::AddInternal;
 use crate::traits::{IsCompatible, Parse, Sign, ToCss, TryMap, TryOp, TrySign};
 #[cfg(feature = "visitor")]
@@ -55,7 +55,7 @@ pub enum MathFunction<V> {
 impl<V: IsCompatible> IsCompatible for MathFunction<V> {
   fn is_compatible(&self, browsers: Browsers) -> bool {
     match self {
-      MathFunction::Calc(v) => Feature::Calc.is_compatible(browsers) && v.is_compatible(browsers),
+      MathFunction::Calc(v) => Feature::CalcFunction.is_compatible(browsers) && v.is_compatible(browsers),
       MathFunction::Min(v) => {
         Feature::MinFunction.is_compatible(browsers) && v.iter().all(|v| v.is_compatible(browsers))
       }
@@ -63,7 +63,7 @@ impl<V: IsCompatible> IsCompatible for MathFunction<V> {
         Feature::MaxFunction.is_compatible(browsers) && v.iter().all(|v| v.is_compatible(browsers))
       }
       MathFunction::Clamp(a, b, c) => {
-        Feature::Clamp.is_compatible(browsers)
+        Feature::ClampFunction.is_compatible(browsers)
           && a.is_compatible(browsers)
           && b.is_compatible(browsers)
           && c.is_compatible(browsers)
@@ -160,18 +160,16 @@ impl<V: ToCss + std::ops::Mul<f32, Output = V> + TrySign + Clone + std::fmt::Deb
       }
       MathFunction::Clamp(a, b, c) => {
         // If clamp() is unsupported by targets, output min()/max()
-        if let Some(targets) = dest.targets {
-          if !Feature::Clamp.is_compatible(targets) {
-            dest.write_str("max(")?;
-            a.to_css(dest)?;
-            dest.delim(',', false)?;
-            dest.write_str("min(")?;
-            b.to_css(dest)?;
-            dest.delim(',', false)?;
-            c.to_css(dest)?;
-            dest.write_str("))")?;
-            return Ok(());
-          }
+        if should_compile!(dest.targets, ClampFunction) {
+          dest.write_str("max(")?;
+          a.to_css(dest)?;
+          dest.delim(',', false)?;
+          dest.write_str("min(")?;
+          b.to_css(dest)?;
+          dest.delim(',', false)?;
+          c.to_css(dest)?;
+          dest.write_str("))")?;
+          return Ok(());
         }
 
         dest.write_str("clamp(")?;

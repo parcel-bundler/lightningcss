@@ -5,7 +5,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::macros::{define_shorthand, enum_property, shorthand_property};
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
-use crate::targets::Browsers;
+use crate::targets::{Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, Shorthand, ToCss};
 use crate::values::color::CssColor;
 use crate::values::number::CSSNumber;
@@ -218,7 +218,7 @@ impl ToCss for ColorOrAuto {
 }
 
 impl FallbackValues for ColorOrAuto {
-  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+  fn get_fallbacks(&mut self, targets: Targets) -> Vec<Self> {
     match self {
       ColorOrAuto::Color(color) => color
         .get_fallbacks(targets)
@@ -270,7 +270,7 @@ shorthand_property! {
 }
 
 impl FallbackValues for Caret {
-  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+  fn get_fallbacks(&mut self, targets: Targets) -> Vec<Self> {
     self
       .color
       .get_fallbacks(targets)

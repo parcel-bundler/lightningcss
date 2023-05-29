@@ -119,7 +119,7 @@
         grid-area: compiledModules;
         overflow: hidden;
       }
-      
+
       #compiledDependencies {
         grid-area: compiledDependencies;
         overflow: hidden;
@@ -146,6 +146,10 @@
       div > h3:first-child {
         margin-top: 0;
       }
+
+      summary {
+        font-weight: bold;
+      }
     </style>
   </head>
   <body>
@@ -159,7 +163,7 @@
       </a>
     </header>
     <main>
-      <div id="sidebar">
+      <form id="sidebar">
         <h3>Options</h3>
         <label><input id="minify" type="checkbox" checked> Minify</label>
         <label><input id="cssModules" type="checkbox"> CSS modules</label>
@@ -180,6 +184,15 @@
           <label><span>Android: </span><input id="android" type="number"></label>
           <label><span>Samsung: </span><input id="samsung" type="number"></label>
         </div>
+        <h3>Features</h3>
+        <details>
+          <summary>Include</summary>
+          <div id="include" />
+        </details>
+        <details>
+          <summary>Exclude</summary>
+          <div id="exclude" />
+        </details>
         <label>
           <h3>Unused symbols</h3>
           <textarea id="unusedSymbols" rows="4" placeholder="Separate items with newlines"></textarea>
@@ -188,7 +201,7 @@
           <h3>Version</h3>
           <select id="version"><option value="local">local</option></select>
         </label>
-      </div>
+      </form>
       <div id="source"></div>
       <div id="visitor" data-expanded="true"></div>
       <div id="compiled" data-expanded="true"></div>

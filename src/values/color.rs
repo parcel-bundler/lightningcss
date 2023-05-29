@@ -12,7 +12,7 @@ use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::properties::PropertyId;
 use crate::rules::supports::SupportsCondition;
-use crate::targets::Browsers;
+use crate::targets::{should_compile, Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, ToCss};
 #[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
@@ -301,38 +301,42 @@ impl CssColor {
     P3::from(self).into()
   }
 
-  pub(crate) fn get_possible_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+  pub(crate) fn get_possible_fallbacks(&self, targets: Targets) -> ColorFallbackKind {
     // Fallbacks occur in levels: Oklab -> Lab -> P3 -> RGB. We start with all levels
     // below and including the authored color space, and remove the ones that aren't
     // compatible with our browser targets.
     let mut fallbacks = match self {
       CssColor::CurrentColor | CssColor::RGBA(_) | CssColor::Float(..) => return ColorFallbackKind::empty(),
       CssColor::LAB(lab) => match &**lab {
-        LABColor::LAB(..) | LABColor::LCH(..) => ColorFallbackKind::LAB.and_below(),
-        LABColor::OKLAB(..) | LABColor::OKLCH(..) => ColorFallbackKind::OKLAB.and_below(),
-      },
-      CssColor::Predefined(predefined) => match &**predefined {
-        PredefinedColor::DisplayP3(..) => ColorFallbackKind::P3.and_below(),
-        _ => {
-          if Feature::ColorFunction.is_compatible(targets) {
-            return ColorFallbackKind::empty();
-          }
-
+        LABColor::LAB(..) | LABColor::LCH(..) if should_compile!(targets, LabColors) => {
           ColorFallbackKind::LAB.and_below()
         }
+        LABColor::OKLAB(..) | LABColor::OKLCH(..) if should_compile!(targets, OklabColors) => {
+          ColorFallbackKind::OKLAB.and_below()
+        }
+        _ => return ColorFallbackKind::empty(),
+      },
+      CssColor::Predefined(predefined) => match &**predefined {
+        PredefinedColor::DisplayP3(..) if should_compile!(targets, P3Colors) => ColorFallbackKind::P3.and_below(),
+        _ if should_compile!(targets, ColorFunction) => ColorFallbackKind::LAB.and_below(),
+        _ => return ColorFallbackKind::empty(),
       },
     };
 
     if fallbacks.contains(ColorFallbackKind::OKLAB) {
-      if Feature::OklabColors.is_compatible(targets) {
+      if !should_compile!(targets, OklabColors) {
         fallbacks.remove(ColorFallbackKind::LAB.and_below());
       }
     }
 
     if fallbacks.contains(ColorFallbackKind::LAB) {
-      if Feature::LabColors.is_compatible(targets) {
+      if !should_compile!(targets, LabColors) {
         fallbacks.remove(ColorFallbackKind::P3.and_below());
-      } else if Feature::LabColors.is_partially_compatible(targets) {
+      } else if targets
+        .browsers
+        .map(|targets| Feature::LabColors.is_partially_compatible(targets))
+        .unwrap_or(false)
+      {
         // We don't need P3 if Lab is supported by some of our targets.
         // No browser implements Lab but not P3.
         fallbacks.remove(ColorFallbackKind::P3);
@@ -340,9 +344,13 @@ impl CssColor {
     }
 
     if fallbacks.contains(ColorFallbackKind::P3) {
-      if Feature::P3Colors.is_compatible(targets) {
+      if !should_compile!(targets, P3Colors) {
         fallbacks.remove(ColorFallbackKind::RGB);
-      } else if fallbacks.highest() != ColorFallbackKind::P3 && !Feature::P3Colors.is_partially_compatible(targets)
+      } else if fallbacks.highest() != ColorFallbackKind::P3
+        && !targets
+          .browsers
+          .map(|targets| Feature::P3Colors.is_partially_compatible(targets))
+          .unwrap_or(false)
       {
         // Remove P3 if it isn't supported by any targets, and wasn't the
         // original authored color.
@@ -354,7 +362,7 @@ impl CssColor {
   }
 
   /// Returns the color fallback types needed for the given browser targets.
-  pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+  pub fn get_necessary_fallbacks(&self, targets: Targets) -> ColorFallbackKind {
     // Get the full set of possible fallbacks, and remove the highest one, which
     // will replace the original declaration. The remaining fallbacks need to be added.
     let fallbacks = self.get_possible_fallbacks(targets);
@@ -393,7 +401,7 @@ impl IsCompatible for CssColor {
 }
 
 impl FallbackValues for CssColor {
-  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<CssColor> {
+  fn get_fallbacks(&mut self, targets: Targets) -> Vec<CssColor> {
     let fallbacks = self.get_necessary_fallbacks(targets);
 
     let mut res = Vec::new();
@@ -461,32 +469,30 @@ impl ToCss for CssColor {
           }
         } else {
           // If the #rrggbbaa syntax is not supported by the browser targets, output rgba()
-          if let Some(targets) = dest.targets {
-            if !Feature::CssRrggbbaa.is_compatible(targets) {
-              // If the browser doesn't support `#rrggbbaa` color syntax, it is converted to `transparent` when compressed(minify = true).
-              // https://www.w3.org/TR/css-color-4/#transparent-black
-              if dest.minify && color.red == 0 && color.green == 0 && color.blue == 0 && color.alpha == 0 {
-                return dest.write_str("transparent");
-              } else {
-                dest.write_str("rgba(")?;
-                write!(dest, "{}", color.red)?;
-                dest.delim(',', false)?;
-                write!(dest, "{}", color.green)?;
-                dest.delim(',', false)?;
-                write!(dest, "{}", color.blue)?;
-                dest.delim(',', false)?;
+          if should_compile!(dest.targets, HexAlphaColors) {
+            // If the browser doesn't support `#rrggbbaa` color syntax, it is converted to `transparent` when compressed(minify = true).
+            // https://www.w3.org/TR/css-color-4/#transparent-black
+            if dest.minify && color.red == 0 && color.green == 0 && color.blue == 0 && color.alpha == 0 {
+              return dest.write_str("transparent");
+            } else {
+              dest.write_str("rgba(")?;
+              write!(dest, "{}", color.red)?;
+              dest.delim(',', false)?;
+              write!(dest, "{}", color.green)?;
+              dest.delim(',', false)?;
+              write!(dest, "{}", color.blue)?;
+              dest.delim(',', false)?;
 
-                // Try first with two decimal places, then with three.
-                let mut rounded_alpha = (color.alpha_f32() * 100.0).round() / 100.0;
-                let clamped = (rounded_alpha * 255.0).round().max(0.).min(255.0) as u8;
-                if clamped != color.alpha {
-                  rounded_alpha = (color.alpha_f32() * 1000.).round() / 1000.;
-                }
-
-                rounded_alpha.to_css(dest)?;
-                dest.write_char(')')?;
-                return Ok(());
+              // Try first with two decimal places, then with three.
+              let mut rounded_alpha = (color.alpha_f32() * 100.0).round() / 100.0;
+              let clamped = (rounded_alpha * 255.0).round().max(0.).min(255.0) as u8;
+              if clamped != color.alpha {
+                rounded_alpha = (color.alpha_f32() * 1000.).round() / 1000.;
               }
+
+              rounded_alpha.to_css(dest)?;
+              dest.write_char(')')?;
+              return Ok(());
             }
           }
 

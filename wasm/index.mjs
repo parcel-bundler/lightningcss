@@ -25,6 +25,7 @@ export function transformStyleAttribute(options) {
 }
 
 export { browserslistToTargets } from './browserslistToTargets.js'
+export { Features } from './flags.js'
 
 async function load(module, imports) {
   if (typeof Response === 'function' && module instanceof Response) {

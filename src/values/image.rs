@@ -8,7 +8,7 @@ use crate::dependencies::{Dependency, UrlDependency};
 use crate::error::{ParserError, PrinterError};
 use crate::prefixes::{is_webkit_gradient, Feature};
 use crate::printer::Printer;
-use crate::targets::Browsers;
+use crate::targets::{Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, ToCss};
 use crate::values::string::CowArcStr;
 use crate::values::url::Url;
@@ -64,7 +64,7 @@ impl<'i> Image<'i> {
   }
 
   /// Returns the vendor prefixes that are needed for the given browser targets.
-  pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+  pub fn get_necessary_prefixes(&self, targets: Targets) -> VendorPrefix {
     match self {
       Image::Gradient(grad) => grad.get_necessary_prefixes(targets),
       Image::ImageSet(image_set) => image_set.get_necessary_prefixes(targets),
@@ -92,7 +92,7 @@ impl<'i> Image<'i> {
   }
 
   /// Returns the color fallbacks that are needed for the given browser targets.
-  pub fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+  pub fn get_necessary_fallbacks(&self, targets: Targets) -> ColorFallbackKind {
     match self {
       Image::Gradient(grad) => grad.get_necessary_fallbacks(targets),
       _ => ColorFallbackKind::empty(),
@@ -141,7 +141,7 @@ pub(crate) trait ImageFallback<'i>: Sized {
   fn with_image(&self, image: Image<'i>) -> Self;
 
   #[inline]
-  fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+  fn get_necessary_fallbacks(&self, targets: Targets) -> ColorFallbackKind {
     self.get_image().get_necessary_fallbacks(targets)
   }
 
@@ -164,7 +164,7 @@ impl<'i> ImageFallback<'i> for Image<'i> {
 }
 
 impl<'i> FallbackValues for Image<'i> {
-  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+  fn get_fallbacks(&mut self, targets: Targets) -> Vec<Self> {
     // Determine which prefixes and color fallbacks are needed.
     let prefixes = self.get_necessary_prefixes(targets);
     let fallbacks = self.get_necessary_fallbacks(targets);
@@ -182,7 +182,7 @@ impl<'i> FallbackValues for Image<'i> {
 
     // Legacy -webkit-gradient()
     if prefixes.contains(VendorPrefix::WebKit)
-      && is_webkit_gradient(targets)
+      && targets.browsers.map(is_webkit_gradient).unwrap_or(false)
       && matches!(prefix_image, Image::Gradient(_))
     {
       if let Ok(legacy) = prefix_image.get_legacy_webkit() {
@@ -230,7 +230,7 @@ impl<'i> FallbackValues for Image<'i> {
 }
 
 impl<'i, T: ImageFallback<'i>> FallbackValues for SmallVec<[T; 1]> {
-  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+  fn get_fallbacks(&mut self, targets: Targets) -> Vec<Self> {
     // Determine what vendor prefixes and color fallbacks are needed.
     let mut prefixes = VendorPrefix::empty();
     let mut fallbacks = ColorFallbackKind::empty();
@@ -251,7 +251,7 @@ impl<'i, T: ImageFallback<'i>> FallbackValues for SmallVec<[T; 1]> {
     let prefix_images = rgb.as_ref().unwrap_or(&self);
 
     // Legacy -webkit-gradient()
-    if prefixes.contains(VendorPrefix::WebKit) && is_webkit_gradient(targets) {
+    if prefixes.contains(VendorPrefix::WebKit) && targets.browsers.map(is_webkit_gradient).unwrap_or(false) {
       let images: SmallVec<[T; 1]> = prefix_images
         .iter()
         .map(|item| item.get_image().get_legacy_webkit().map(|image| item.with_image(image)))
@@ -373,12 +373,8 @@ impl<'i> ImageSet<'i> {
   }
 
   /// Returns the vendor prefixes needed for the given browser targets.
-  pub fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
-    if self.vendor_prefix.contains(VendorPrefix::None) {
-      Feature::ImageSet.prefixes_for(targets)
-    } else {
-      self.vendor_prefix
-    }
+  pub fn get_necessary_prefixes(&self, targets: Targets) -> VendorPrefix {
+    targets.prefixes(self.vendor_prefix, Feature::ImageSet)
   }
 
   /// Returns the `image-set()` value with the given vendor prefix.

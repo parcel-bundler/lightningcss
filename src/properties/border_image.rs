@@ -6,7 +6,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId, VendorPrefix};
-use crate::targets::Browsers;
+use crate::targets::{Browsers, Targets};
 use crate::traits::{IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::image::Image;
 use crate::values::number::CSSNumber;
@@ -373,7 +373,7 @@ impl<'i> ToCss for BorderImage<'i> {
 }
 
 impl<'i> FallbackValues for BorderImage<'i> {
-  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+  fn get_fallbacks(&mut self, targets: Targets) -> Vec<Self> {
     self
       .source
       .get_fallbacks(targets)
@@ -395,9 +395,8 @@ property_bitflags! {
   }
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub(crate) struct BorderImageHandler<'i> {
-  targets: Option<Browsers>,
   source: Option<Image<'i>>,
   slice: Option<BorderImageSlice>,
   width: Option<Rect<BorderImageSideWidth>>,
@@ -408,12 +407,17 @@ pub(crate) struct BorderImageHandler<'i> {
   has_any: bool,
 }
 
-impl<'i> BorderImageHandler<'i> {
-  pub fn new(targets: Option<Browsers>) -> BorderImageHandler<'i> {
+impl<'i> Default for BorderImageHandler<'i> {
+  fn default() -> Self {
     BorderImageHandler {
-      targets,
       vendor_prefix: VendorPrefix::empty(),
-      ..BorderImageHandler::default()
+      source: None,
+      slice: None,
+      width: None,
+      outset: None,
+      repeat: None,
+      flushed_properties: BorderImageProperty::empty(),
+      has_any: false,
     }
   }
 }
@@ -429,7 +433,7 @@ impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
     macro_rules! property {
       ($name: ident, $val: ident) => {{
         if self.vendor_prefix != VendorPrefix::None {
-          self.flush(dest);
+          self.flush(dest, context);
         }
         flush!($name, $val);
         self.vendor_prefix = VendorPrefix::None;
@@ -440,8 +444,8 @@ impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
 
     macro_rules! flush {
       ($name: ident, $val: expr) => {{
-        if self.$name.is_some() && matches!(context.targets, Some(targets) if !$val.is_compatible(targets)) {
-          self.flush(dest);
+        if self.$name.is_some() && matches!(context.targets.browsers, Some(targets) if !$val.is_compatible(targets)) {
+          self.flush(dest, context);
         }
       }};
     }
@@ -467,12 +471,12 @@ impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
         self.has_any = true;
       }
       Unparsed(val) if is_border_image_property(&val.property_id) => {
-        self.flush(dest);
+        self.flush(dest, context);
 
         // Even if we weren't able to parse the value (e.g. due to var() references),
         // we can still add vendor prefixes to the property itself.
         let mut unparsed = if matches!(val.property_id, PropertyId::BorderImage(_)) {
-          val.get_prefixed(self.targets, Feature::BorderImage)
+          val.get_prefixed(context.targets, Feature::BorderImage)
         } else {
           val.clone()
         };
@@ -489,8 +493,8 @@ impl<'i> PropertyHandler<'i> for BorderImageHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i, '_>) {
-    self.flush(dest);
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
+    self.flush(dest, context);
     self.flushed_properties = BorderImageProperty::empty();
   }
 }
@@ -514,7 +518,7 @@ impl<'i> BorderImageHandler<'i> {
     }
   }
 
-  fn flush(&mut self, dest: &mut DeclarationList<'i>) {
+  fn flush(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
     if !self.has_any {
       return;
     }
@@ -545,20 +549,18 @@ impl<'i> BorderImageHandler<'i> {
 
       let mut prefix = self.vendor_prefix;
       if prefix.contains(VendorPrefix::None) && !border_image.slice.fill {
-        if let Some(targets) = self.targets {
-          prefix = Feature::BorderImage.prefixes_for(targets);
-          if !self.flushed_properties.intersects(BorderImageProperty::BorderImage) {
-            let fallbacks = border_image.get_fallbacks(targets);
-            for fallback in fallbacks {
-              // Match prefix of fallback. e.g. -webkit-linear-gradient
-              // can only be used in -webkit-border-image, not -moz-border-image.
-              // However, if border-image is unprefixed, gradients can still be.
-              let mut p = fallback.source.get_vendor_prefix() & prefix;
-              if p.is_empty() {
-                p = prefix;
-              }
-              dest.push(Property::BorderImage(fallback, p));
+        prefix = context.targets.prefixes(self.vendor_prefix, Feature::BorderImage);
+        if !self.flushed_properties.intersects(BorderImageProperty::BorderImage) {
+          let fallbacks = border_image.get_fallbacks(context.targets);
+          for fallback in fallbacks {
+            // Match prefix of fallback. e.g. -webkit-linear-gradient
+            // can only be used in -webkit-border-image, not -moz-border-image.
+            // However, if border-image is unprefixed, gradients can still be.
+            let mut p = fallback.source.get_vendor_prefix() & prefix;
+            if p.is_empty() {
+              p = prefix;
             }
+            dest.push(Property::BorderImage(fallback, p));
           }
         }
       }
@@ -572,12 +574,10 @@ impl<'i> BorderImageHandler<'i> {
       self.flushed_properties.insert(BorderImageProperty::BorderImage);
     } else {
       if let Some(mut source) = source {
-        if let Some(targets) = self.targets {
-          if !self.flushed_properties.contains(BorderImageProperty::BorderImageSource) {
-            let fallbacks = source.get_fallbacks(targets);
-            for fallback in fallbacks {
-              dest.push(Property::BorderImageSource(fallback));
-            }
+        if !self.flushed_properties.contains(BorderImageProperty::BorderImageSource) {
+          let fallbacks = source.get_fallbacks(context.targets);
+          for fallback in fallbacks {
+            dest.push(Property::BorderImageSource(fallback));
           }
         }
 

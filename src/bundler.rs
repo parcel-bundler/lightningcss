@@ -773,7 +773,7 @@ mod tests {
     css_modules::{self, CssModuleExports, CssModuleReference},
     parser::ParserFlags,
     stylesheet::{MinifyOptions, PrinterOptions},
-    targets::Browsers,
+    targets::{Browsers, Targets},
   };
   use indoc::indoc;
   use std::collections::HashMap;
@@ -883,10 +883,13 @@ mod tests {
       },
     );
     let mut stylesheet = bundler.bundle(Path::new(entry)).unwrap();
-    let targets = Some(Browsers {
-      safari: Some(13 << 16),
-      ..Browsers::default()
-    });
+    let targets = Targets {
+      browsers: Some(Browsers {
+        safari: Some(13 << 16),
+        ..Browsers::default()
+      }),
+      ..Default::default()
+    };
     stylesheet
       .minify(MinifyOptions {
         targets,

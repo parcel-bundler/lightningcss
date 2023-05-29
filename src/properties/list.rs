@@ -6,7 +6,7 @@ use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
 use crate::macros::{define_shorthand, enum_property, shorthand_handler, shorthand_property};
 use crate::printer::Printer;
-use crate::targets::Browsers;
+use crate::targets::{Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::string::CSSString;
 use crate::values::{ident::CustomIdent, image::Image};
@@ -395,7 +395,7 @@ shorthand_property! {
 }
 
 impl<'i> FallbackValues for ListStyle<'i> {
-  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+  fn get_fallbacks(&mut self, targets: Targets) -> Vec<Self> {
     self
       .image
       .get_fallbacks(targets)

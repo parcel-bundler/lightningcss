@@ -5,7 +5,7 @@ use crate::dependencies::{Dependency, DependencyOptions};
 use crate::error::{Error, ErrorLocation, PrinterError, PrinterErrorKind};
 use crate::rules::{Location, StyleContext};
 use crate::selector::SelectorList;
-use crate::targets::Browsers;
+use crate::targets::Targets;
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::{serialize_identifier, serialize_name};
 #[cfg(feature = "sourcemap")]
@@ -22,8 +22,8 @@ pub struct PrinterOptions<'a> {
   pub source_map: Option<&'a mut SourceMap>,
   /// An optional project root path, used to generate relative paths for sources used in CSS module hashes.
   pub project_root: Option<&'a str>,
-  /// Browser targets to output the CSS for.
-  pub targets: Option<Browsers>,
+  /// Targets to output the CSS for.
+  pub targets: Targets,
   /// Whether to analyze dependencies (i.e. `@import` and `url()`).
   /// If true, the dependencies are returned as part of the
   /// [ToCssResult](super::stylesheet::ToCssResult).
@@ -77,7 +77,7 @@ pub struct Printer<'a, 'b, 'c, W> {
   line: u32,
   col: u32,
   pub(crate) minify: bool,
-  pub(crate) targets: Option<Browsers>,
+  pub(crate) targets: Targets,
   /// Vendor prefix override. When non-empty, it overrides
   /// the vendor prefix of whatever is being printed.
   pub(crate) vendor_prefix: VendorPrefix,

@@ -49,6 +49,8 @@ function loadPlaygroundState() {
       nesting: nesting.checked,
       visitorEnabled: visitorEnabled.checked,
       targets: getTargets(),
+      include: 0,
+      exclude: 0,
       source: `@custom-media --modern (color), (hover);
 
 .foo {
@@ -57,7 +59,7 @@ function loadPlaygroundState() {
   -webkit-border-radius: 2px;
   -moz-border-radius: 2px;
   border-radius: 2px;
-  
+
   -webkit-transition: background 200ms;
   -moz-transition: background 200ms;
   transition: background 200ms;
@@ -120,6 +122,15 @@ function reflectPlaygroundState(playgroundState) {
     }
   }
 
+  updateFeatures(sidebar.elements.include, playgroundState.include);
+  updateFeatures(sidebar.elements.exclude, playgroundState.exclude);
+  if (playgroundState.include) {
+    include.parentElement.open = true;
+  }
+  if (playgroundState.exclude) {
+    exclude.parentElement.open = true;
+  }
+
   if (playgroundState.unusedSymbols) {
     unusedSymbols.value = playgroundState.unusedSymbols.join('\n');
   }
@@ -130,6 +141,7 @@ function reflectPlaygroundState(playgroundState) {
 }
 
 function savePlaygroundState() {
+  let data = new FormData(sidebar);
   const playgroundState = {
     minify: minify.checked,
     nesting: nesting.checked,
@@ -137,6 +149,8 @@ function savePlaygroundState() {
     cssModules: cssModules.checked,
     analyzeDependencies: analyzeDependencies.checked,
     targets: getTargets(),
+    include: getFeatures(data.getAll('include')),
+    exclude: getFeatures(data.getAll('exclude')),
     source: editor.state.doc.toString(),
     visitorEnabled: visitorEnabled.checked,
     visitor: visitorEditor.state.doc.toString(),
@@ -170,16 +184,37 @@ function getTargets() {
   return targets;
 }
 
+function getFeatures(vals) {
+  let features = 0;
+  for (let name of vals) {
+    features |= wasm.Features[name];
+  }
+  return features;
+}
+
+function updateFeatures(elements, include) {
+  for (let checkbox of elements) {
+    let feature = wasm.Features[checkbox.value];
+    checkbox.checked = (include & feature) === feature;
+    checkbox.indeterminate = !checkbox.checked && (include & feature);
+  }
+}
+
 function update() {
   const { transform } = wasm;
 
   const targets = getTargets();
+  let data = new FormData(sidebar);
+  let include = getFeatures(data.getAll('include'));
+  let exclude = getFeatures(data.getAll('exclude'));
   try {
     let res = transform({
       filename: 'test.css',
       code: enc.encode(editor.state.doc.toString()),
       minify: minify.checked,
       targets: Object.keys(targets).length === 0 ? null : targets,
+      include,
+      exclude,
       drafts: {
         nesting: nesting.checked,
         customMedia: customMedia.checked
@@ -311,8 +346,34 @@ function createVisitorLinter(lastError) {
   }, { delay: 0 });
 }
 
+function renderFeatures(parent, name) {
+  for (let feature in wasm.Features) {
+    let label = document.createElement('label');
+    let checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.name = name;
+    checkbox.value = feature;
+    checkbox.oninput = () => {
+      let data = new FormData(sidebar);
+      let flags = getFeatures(data.getAll(name));
+      let f = wasm.Features[feature];
+      if (checkbox.checked) {
+        flags |= f;
+      } else {
+        flags &= ~f;
+      }
+      updateFeatures(sidebar.elements[name], flags);
+    };
+    label.appendChild(checkbox);
+    label.appendChild(document.createTextNode(' ' + feature))
+    parent.appendChild(label);
+  }
+}
+
 async function main() {
   await loadWasm();
+  renderFeatures(include, 'include');
+  renderFeatures(exclude, 'exclude');
 
   let state = loadPlaygroundState();
   reflectPlaygroundState(state);
@@ -357,10 +418,7 @@ async function main() {
   });
 
   update();
-  unusedSymbols.oninput = update;
-  for (let input of document.querySelectorAll('input')) {
-    input.oninput = update;
-  }
+  sidebar.oninput = update;
 
   await loadVersions();
   version.onchange = async () => {

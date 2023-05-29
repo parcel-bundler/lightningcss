@@ -1,6 +1,5 @@
 //! Media queries.
 
-use crate::compat::Feature;
 use crate::error::{ErrorWithLocation, MinifyError, MinifyErrorKind, ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::parser::starts_with_ignore_ascii_case;
@@ -11,7 +10,7 @@ use crate::rules::container::ContainerSizeFeatureId;
 use crate::rules::custom_media::CustomMediaRule;
 use crate::rules::Location;
 use crate::stylesheet::ParserOptions;
-use crate::targets::Browsers;
+use crate::targets::{should_compile, Targets};
 use crate::traits::{Parse, ToCss};
 use crate::values::ident::{DashedIdent, Ident};
 use crate::values::number::{CSSInteger, CSSNumber};
@@ -85,7 +84,7 @@ impl<'i> MediaList<'i> {
     Ok(())
   }
 
-  pub(crate) fn transform_resolution(&mut self, targets: Browsers) {
+  pub(crate) fn transform_resolution(&mut self, targets: Targets) {
     let mut i = 0;
     while i < self.media_queries.len() {
       let query = &self.media_queries[i];
@@ -318,7 +317,7 @@ impl<'i> MediaQuery<'i> {
     Ok(())
   }
 
-  fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+  fn get_necessary_prefixes(&self, targets: Targets) -> VendorPrefix {
     if let Some(condition) = &self.condition {
       condition.get_necessary_prefixes(targets)
     } else {
@@ -531,7 +530,7 @@ pub(crate) trait QueryCondition<'i>: Sized {
     Err(input.new_error_for_next_token())
   }
 
-  fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Option<Browsers>) -> bool;
+  fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Targets) -> bool;
 }
 
 impl<'i> QueryCondition<'i> for MediaCondition<'i> {
@@ -551,7 +550,7 @@ impl<'i> QueryCondition<'i> for MediaCondition<'i> {
     Self::Operation { operator, conditions }
   }
 
-  fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Option<Browsers>) -> bool {
+  fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Targets) -> bool {
     match self {
       MediaCondition::Not(_) => true,
       MediaCondition::Operation { operator, .. } => Some(*operator) != parent_operator,
@@ -580,12 +579,12 @@ impl<'i> MediaCondition<'i> {
     parse_query_condition(input, flags)
   }
 
-  fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+  fn get_necessary_prefixes(&self, targets: Targets) -> VendorPrefix {
     match self {
       MediaCondition::Feature(MediaFeature::Range {
         name: MediaFeatureName::Standard(MediaFeatureId::Resolution),
         ..
-      }) => crate::prefixes::Feature::AtResolution.prefixes_for(targets),
+      }) => targets.prefixes(VendorPrefix::None, crate::prefixes::Feature::AtResolution),
       MediaCondition::Not(not) => not.get_necessary_prefixes(targets),
       MediaCondition::Operation { conditions, .. } => {
         let mut prefixes = VendorPrefix::empty();
@@ -1015,11 +1014,10 @@ where
     }
   }
 
-  pub(crate) fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Option<Browsers>) -> bool {
+  pub(crate) fn needs_parens(&self, parent_operator: Option<Operator>, targets: &Targets) -> bool {
     parent_operator != Some(Operator::And)
-      && targets.is_some()
       && matches!(self, QueryFeature::Interval { .. })
-      && !Feature::MediaIntervalSyntax.is_compatible(targets.unwrap())
+      && should_compile!(targets, MediaIntervalSyntax)
   }
 }
 
@@ -1041,10 +1039,8 @@ impl<'i, FeatureId: FeatureToCss> ToCss for QueryFeature<'i, FeatureId> {
       }
       QueryFeature::Range { name, operator, value } => {
         // If range syntax is unsupported, use min/max prefix if possible.
-        if let Some(targets) = dest.targets {
-          if !Feature::MediaRangeSyntax.is_compatible(targets) {
-            return write_min_max(operator, name, value, dest);
-          }
+        if should_compile!(dest.targets, MediaRangeSyntax) {
+          return write_min_max(operator, name, value, dest);
         }
 
         name.to_css(dest)?;
@@ -1058,12 +1054,10 @@ impl<'i, FeatureId: FeatureToCss> ToCss for QueryFeature<'i, FeatureId> {
         end,
         end_operator,
       } => {
-        if let Some(targets) = dest.targets {
-          if !Feature::MediaIntervalSyntax.is_compatible(targets) {
-            write_min_max(&start_operator.opposite(), name, start, dest)?;
-            dest.write_str(" and (")?;
-            return write_min_max(end_operator, name, end, dest);
-          }
+        if should_compile!(dest.targets, MediaIntervalSyntax) {
+          write_min_max(&start_operator.opposite(), name, start, dest)?;
+          dest.write_str(" and (")?;
+          return write_min_max(end_operator, name, end, dest);
         }
 
         start.to_css(dest)?;
@@ -1755,7 +1749,10 @@ fn process_condition<'i>(
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::{stylesheet::PrinterOptions, targets::Browsers};
+  use crate::{
+    stylesheet::PrinterOptions,
+    targets::{Browsers, Targets},
+  };
 
   fn parse(s: &str) -> MediaQuery {
     let mut input = ParserInput::new(&s);
@@ -1807,10 +1804,13 @@ mod tests {
   fn test_negated_interval_parens() {
     let media_query = parse("screen and not (200px <= width < 500px)");
     let printer_options = PrinterOptions {
-      targets: Some(Browsers {
-        chrome: Some(95 << 16),
+      targets: Targets {
+        browsers: Some(Browsers {
+          chrome: Some(95 << 16),
+          ..Default::default()
+        }),
         ..Default::default()
-      }),
+      },
       ..Default::default()
     };
     assert_eq!(

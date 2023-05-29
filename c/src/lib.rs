@@ -180,9 +180,9 @@ impl Into<MinifyOptions> for TransformOptions {
 
     MinifyOptions {
       targets: if self.targets != Targets::default() {
-        Some(self.targets.into())
+        Some(self.targets.into()).into()
       } else {
-        None
+        Default::default()
       },
       unused_symbols,
     }
@@ -333,9 +333,9 @@ pub extern "C" fn lightningcss_stylesheet_to_css(
     },
     source_map: source_map.as_mut(),
     targets: if options.targets != Targets::default() {
-      Some(options.targets.into())
+      Some(options.targets.into()).into()
     } else {
-      None
+      Default::default()
     },
     analyze_dependencies: if options.analyze_dependencies {
       Some(Default::default())

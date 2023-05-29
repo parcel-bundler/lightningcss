@@ -1,9 +1,9 @@
 import type { Angle, CssColor, Rule, CustomProperty, EnvironmentVariable, Function, Image, LengthValue, MediaQuery, Declaration, Ratio, Resolution, Selector, SupportsCondition, Time, Token, TokenOrValue, UnknownAtRule, Url, Variable, StyleRule, DeclarationBlock, ParsedComponent, Multiplier } from './ast';
-import type { Targets } from './targets';
+import { Targets, Features } from './targets';
 
 export * from './ast';
 
-export { Targets };
+export { Targets, Features };
 
 export interface TransformOptions<C extends CustomAtRules> {
   /** The filename being transformed. Used for error messages and source maps. */
@@ -23,7 +23,11 @@ export interface TransformOptions<C extends CustomAtRules> {
   projectRoot?: string,
   /** The browser targets for the generated code. */
   targets?: Targets,
-  /** Whether to enable various draft syntax. */
+  /** Features that should always be compiled, even when supported by targets. */
+  include?: Features,
+  /** Features that should never be compiled, even when unsupported by targets. */
+  exclude?: Features,
+  /** Whether to enable parsing various draft syntax. */
   drafts?: Drafts,
   /** Whether to enable various non-standard syntax. */
   nonStandard?: NonStandard,

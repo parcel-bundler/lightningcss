@@ -7,7 +7,7 @@ use crate::printer::Printer;
 use crate::properties::custom::TokenList;
 use crate::rules::StyleContext;
 use crate::stylesheet::{ParserOptions, PrinterOptions};
-use crate::targets::Browsers;
+use crate::targets::{should_compile, Browsers, Targets};
 use crate::traits::{Parse, ParseWithOptions, ToCss};
 use crate::values::ident::{CustomIdent, Ident};
 use crate::values::string::CSSString;
@@ -766,7 +766,7 @@ impl<'i> PseudoClass<'i> {
     }
   }
 
-  pub(crate) fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+  pub(crate) fn get_necessary_prefixes(&self, targets: Targets) -> VendorPrefix {
     use crate::prefixes::Feature;
     use PseudoClass::*;
     let feature = match self {
@@ -779,7 +779,7 @@ impl<'i> PseudoClass<'i> {
       _ => return VendorPrefix::empty(),
     };
 
-    feature.prefixes_for(targets)
+    targets.prefixes(VendorPrefix::None, feature)
   }
 }
 
@@ -1169,7 +1169,7 @@ impl<'i> PseudoElement<'i> {
     }
   }
 
-  pub(crate) fn get_necessary_prefixes(&self, targets: Browsers) -> VendorPrefix {
+  pub(crate) fn get_necessary_prefixes(&self, targets: Targets) -> VendorPrefix {
     use crate::prefixes::Feature;
     use PseudoElement::*;
     let feature = match self {
@@ -1180,7 +1180,7 @@ impl<'i> PseudoElement<'i> {
       _ => return VendorPrefix::empty(),
     };
 
-    feature.prefixes_for(targets)
+    targets.prefixes(VendorPrefix::None, feature)
   }
 }
 
@@ -1248,7 +1248,7 @@ where
 
   let mut combinators = selector.iter_raw_match_order().rev().filter_map(|x| x.as_combinator());
   let compound_selectors = selector.iter_raw_match_order().as_slice().split(|x| x.is_combinator()).rev();
-  let supports_nesting = dest.targets.is_none() || Feature::CssNesting.is_compatible(dest.targets.unwrap());
+  let should_compile_nesting = should_compile!(dest.targets, Nesting);
 
   let mut first = true;
   let mut combinators_exhausted = false;
@@ -1306,7 +1306,7 @@ where
           // Iterate over everything so we serialize the namespace
           // too.
           let mut iter = compound.iter();
-          let swap_nesting = has_leading_nesting && !supports_nesting;
+          let swap_nesting = has_leading_nesting && should_compile_nesting;
           if swap_nesting {
             // Swap nesting and type selector (e.g. &div -> div&).
             iter.next();
@@ -1338,7 +1338,7 @@ where
     // following code tries to match.
     if perform_step_2 {
       let mut iter = compound.iter();
-      if has_leading_nesting && !supports_nesting && is_type_selector(compound.get(first_non_namespace)) {
+      if has_leading_nesting && should_compile_nesting && is_type_selector(compound.get(first_non_namespace)) {
         // Swap nesting and type selector (e.g. &div -> div&).
         // This ensures that the compiled selector is valid. e.g. (div.foo is valid, .foodiv is not).
         let nesting = iter.next().unwrap();
@@ -1352,7 +1352,7 @@ where
         }
 
         serialize_component(nesting, dest, context)?;
-      } else if has_leading_nesting && !supports_nesting {
+      } else if has_leading_nesting && should_compile_nesting {
         // Nesting selector may serialize differently if it is leading, due to type selectors.
         iter.next();
         serialize_nesting(dest, context, true)?;
@@ -1535,11 +1535,10 @@ where
   } else {
     // If there is no context, we are at the root if nesting is supported. This is equivalent to :scope.
     // Otherwise, if nesting is supported, serialize the nesting selector directly.
-    let supports_nesting = dest.targets.is_none() || Feature::CssNesting.is_compatible(dest.targets.unwrap());
-    if supports_nesting {
-      dest.write_char('&')
-    } else {
+    if should_compile!(dest.targets, Nesting) {
       dest.write_str(":scope")
+    } else {
+      dest.write_char('&')
     }
   }
 }
@@ -1610,13 +1609,7 @@ where
   W: fmt::Write,
 {
   // Downlevel :not(.a, .b) -> :not(.a):not(.b) if not list is unsupported.
-  let is_supported = if let Some(targets) = dest.targets {
-    Feature::CssNotSelList.is_compatible(targets)
-  } else {
-    true
-  };
-
-  if is_supported {
+  if !should_compile!(dest.targets, NotSelectorList) {
     dest.write_str(":not(")?;
     serialize_selector_list(iter, dest, context, false)?;
     dest.write_char(')')?;
@@ -1641,63 +1634,63 @@ pub(crate) fn is_compatible(selectors: &SelectorList, targets: Option<Browsers>)
         Component::ExplicitAnyNamespace
         | Component::ExplicitNoNamespace
         | Component::DefaultNamespace(_)
-        | Component::Namespace(_, _) => Feature::CssNamespaces,
+        | Component::Namespace(_, _) => Feature::Namespaces,
 
-        Component::ExplicitUniversalType => Feature::CssSel2,
+        Component::ExplicitUniversalType => Feature::Selectors2,
 
-        Component::AttributeInNoNamespaceExists { .. } => Feature::CssSel2,
+        Component::AttributeInNoNamespaceExists { .. } => Feature::Selectors2,
         Component::AttributeInNoNamespace {
           operator,
           case_sensitivity,
           ..
         } => {
           if *case_sensitivity != ParsedCaseSensitivity::CaseSensitive {
-            Feature::CssCaseInsensitive
+            Feature::CaseInsensitive
           } else {
             match operator {
               AttrSelectorOperator::Equal | AttrSelectorOperator::Includes | AttrSelectorOperator::DashMatch => {
-                Feature::CssSel2
+                Feature::Selectors2
               }
               AttrSelectorOperator::Prefix | AttrSelectorOperator::Substring | AttrSelectorOperator::Suffix => {
-                Feature::CssSel3
+                Feature::Selectors3
               }
             }
           }
         }
         Component::AttributeOther(attr) => match attr.operation {
-          ParsedAttrSelectorOperation::Exists => Feature::CssSel2,
+          ParsedAttrSelectorOperation::Exists => Feature::Selectors2,
           ParsedAttrSelectorOperation::WithValue {
             operator,
             case_sensitivity,
             ..
           } => {
             if case_sensitivity != ParsedCaseSensitivity::CaseSensitive {
-              Feature::CssCaseInsensitive
+              Feature::CaseInsensitive
             } else {
               match operator {
                 AttrSelectorOperator::Equal | AttrSelectorOperator::Includes | AttrSelectorOperator::DashMatch => {
-                  Feature::CssSel2
+                  Feature::Selectors2
                 }
                 AttrSelectorOperator::Prefix | AttrSelectorOperator::Substring | AttrSelectorOperator::Suffix => {
-                  Feature::CssSel3
+                  Feature::Selectors3
                 }
               }
             }
           }
         },
 
-        Component::Empty | Component::Negation(_) | Component::Root => Feature::CssSel3,
+        Component::Empty | Component::Negation(_) | Component::Root => Feature::Selectors3,
 
         Component::Nth(data) => match data.ty {
-          NthType::Child if data.a == 0 && data.b == 1 => Feature::CssSel2,
+          NthType::Child if data.a == 0 && data.b == 1 => Feature::Selectors2,
           NthType::Col | NthType::LastCol => return false,
-          _ => Feature::CssSel3,
+          _ => Feature::Selectors3,
         },
         Component::NthOf(..) => Feature::NthChildOf,
 
-        Component::Is(_) | Component::Nesting => Feature::CssMatchesPseudo,
+        Component::Is(_) | Component::Nesting => Feature::IsSelector,
         Component::Any(..) => Feature::AnyPseudo,
-        Component::Has(_) => Feature::CssHas,
+        Component::Has(_) => Feature::HasSelector,
 
         Component::Scope | Component::Host(_) | Component::Slotted(_) => Feature::Shadowdomv1,
 
@@ -1710,33 +1703,33 @@ pub(crate) fn is_compatible(selectors: &SelectorList, targets: Option<Browsers>)
             | PseudoClass::Active
             | PseudoClass::Hover
             | PseudoClass::Focus
-            | PseudoClass::Lang { languages: _ } => Feature::CssSel2,
+            | PseudoClass::Lang { languages: _ } => Feature::Selectors2,
 
             PseudoClass::Checked | PseudoClass::Disabled | PseudoClass::Enabled | PseudoClass::Target => {
-              Feature::CssSel3
+              Feature::Selectors3
             }
 
-            PseudoClass::AnyLink(prefix) if *prefix == VendorPrefix::None => Feature::CssAnyLink,
-            PseudoClass::Indeterminate => Feature::CssIndeterminatePseudo,
+            PseudoClass::AnyLink(prefix) if *prefix == VendorPrefix::None => Feature::AnyLink,
+            PseudoClass::Indeterminate => Feature::IndeterminatePseudo,
 
             PseudoClass::Fullscreen(prefix) if *prefix == VendorPrefix::None => Feature::Fullscreen,
 
-            PseudoClass::FocusVisible => Feature::CssFocusVisible,
-            PseudoClass::FocusWithin => Feature::CssFocusWithin,
-            PseudoClass::Default => Feature::CssDefaultPseudo,
-            PseudoClass::Dir { direction: _ } => Feature::CssDirPseudo,
-            PseudoClass::Optional => Feature::CssOptionalPseudo,
-            PseudoClass::PlaceholderShown(prefix) if *prefix == VendorPrefix::None => Feature::CssPlaceholderShown,
+            PseudoClass::FocusVisible => Feature::FocusVisible,
+            PseudoClass::FocusWithin => Feature::FocusWithin,
+            PseudoClass::Default => Feature::DefaultPseudo,
+            PseudoClass::Dir { direction: _ } => Feature::DirSelector,
+            PseudoClass::Optional => Feature::OptionalPseudo,
+            PseudoClass::PlaceholderShown(prefix) if *prefix == VendorPrefix::None => Feature::PlaceholderShown,
 
             PseudoClass::ReadOnly(prefix) | PseudoClass::ReadWrite(prefix) if *prefix == VendorPrefix::None => {
-              Feature::CssReadOnlyWrite
+              Feature::ReadOnlyWrite
             }
 
             PseudoClass::Valid | PseudoClass::Invalid | PseudoClass::Required => Feature::FormValidation,
 
-            PseudoClass::InRange | PseudoClass::OutOfRange => Feature::CssInOutOfRange,
+            PseudoClass::InRange | PseudoClass::OutOfRange => Feature::InOutOfRange,
 
-            PseudoClass::Autofill(prefix) if *prefix == VendorPrefix::None => Feature::CssAutofill,
+            PseudoClass::Autofill(prefix) if *prefix == VendorPrefix::None => Feature::Autofill,
 
             // Experimental, no browser support.
             PseudoClass::Current
@@ -1761,12 +1754,12 @@ pub(crate) fn is_compatible(selectors: &SelectorList, targets: Option<Browsers>)
         }
 
         Component::PseudoElement(pseudo) => match pseudo {
-          PseudoElement::After | PseudoElement::Before => Feature::CssGencontent,
-          PseudoElement::FirstLine => Feature::CssFirstLine,
-          PseudoElement::FirstLetter => Feature::CssFirstLetter,
-          PseudoElement::Selection(prefix) if *prefix == VendorPrefix::None => Feature::CssSelection,
-          PseudoElement::Placeholder(prefix) if *prefix == VendorPrefix::None => Feature::CssPlaceholder,
-          PseudoElement::Marker => Feature::CssMarkerPseudo,
+          PseudoElement::After | PseudoElement::Before => Feature::Gencontent,
+          PseudoElement::FirstLine => Feature::FirstLine,
+          PseudoElement::FirstLetter => Feature::FirstLetter,
+          PseudoElement::Selection(prefix) if *prefix == VendorPrefix::None => Feature::Selection,
+          PseudoElement::Placeholder(prefix) if *prefix == VendorPrefix::None => Feature::Placeholder,
+          PseudoElement::Marker => Feature::MarkerPseudo,
           PseudoElement::Backdrop(prefix) if *prefix == VendorPrefix::None => Feature::Dialog,
           PseudoElement::Cue => Feature::Cue,
           PseudoElement::CueFunction { selector: _ } => Feature::CueFunction,
@@ -1774,8 +1767,8 @@ pub(crate) fn is_compatible(selectors: &SelectorList, targets: Option<Browsers>)
         },
 
         Component::Combinator(combinator) => match combinator {
-          Combinator::Child | Combinator::NextSibling => Feature::CssSel2,
-          Combinator::LaterSibling => Feature::CssSel3,
+          Combinator::Child | Combinator::NextSibling => Feature::Selectors2,
+          Combinator::LaterSibling => Feature::Selectors3,
           _ => continue,
         },
       };
@@ -1861,8 +1854,12 @@ const RTL_LANGS: &[&str] = &[
 
 /// Downlevels the given selectors to be compatible with the given browser targets.
 /// Returns the necessary vendor prefixes.
-pub(crate) fn downlevel_selectors(selectors: &mut [Selector], targets: Browsers) -> VendorPrefix {
+pub(crate) fn downlevel_selectors(selectors: &mut [Selector], targets: Targets) -> VendorPrefix {
   let mut necessary_prefixes = VendorPrefix::empty();
+  if !targets.should_compile_selectors() {
+    return necessary_prefixes;
+  }
+
   for selector in selectors {
     for component in selector.iter_mut_raw_match_order() {
       necessary_prefixes |= downlevel_component(component, targets);
@@ -1872,12 +1869,12 @@ pub(crate) fn downlevel_selectors(selectors: &mut [Selector], targets: Browsers)
   necessary_prefixes
 }
 
-fn downlevel_component<'i>(component: &mut Component<'i>, targets: Browsers) -> VendorPrefix {
+fn downlevel_component<'i>(component: &mut Component<'i>, targets: Targets) -> VendorPrefix {
   match component {
     Component::NonTSPseudoClass(pc) => {
       match pc {
         PseudoClass::Dir { direction: dir } => {
-          if !Feature::CssDirPseudo.is_compatible(targets) {
+          if should_compile!(targets, DirSelector) {
             *component = downlevel_dir(*dir, targets);
             downlevel_component(component, targets)
           } else {
@@ -1887,7 +1884,7 @@ fn downlevel_component<'i>(component: &mut Component<'i>, targets: Browsers) -> 
         PseudoClass::Lang { languages: langs } => {
           // :lang() with multiple languages is not supported everywhere.
           // compile this to :is(:lang(a), :lang(b)) etc.
-          if langs.len() > 1 && !Feature::LangList.is_compatible(targets) {
+          if langs.len() > 1 && should_compile!(targets, LangSelectorList) {
             *component = Component::Is(lang_list_to_selectors(&langs));
             downlevel_component(component, targets)
           } else {
@@ -1903,10 +1900,8 @@ fn downlevel_component<'i>(component: &mut Component<'i>, targets: Browsers) -> 
 
       // Convert :is to :-webkit-any/:-moz-any if needed.
       // All selectors must be simple, no combinators are supported.
-      if !Feature::CssMatchesPseudo.is_compatible(targets)
-        && selectors.iter().all(|selector| !selector.has_combinator())
-      {
-        necessary_prefixes |= crate::prefixes::Feature::AnyPseudo.prefixes_for(targets)
+      if should_compile!(targets, IsSelector) && selectors.iter().all(|selector| !selector.has_combinator()) {
+        necessary_prefixes |= targets.prefixes(VendorPrefix::None, crate::prefixes::Feature::AnyPseudo)
       } else {
         necessary_prefixes |= VendorPrefix::empty()
       }
@@ -1933,11 +1928,11 @@ fn lang_list_to_selectors<'i>(langs: &Vec<CowArcStr<'i>>) -> Box<[Selector<'i>]>
     .into_boxed_slice()
 }
 
-fn downlevel_dir<'i>(dir: Direction, targets: Browsers) -> Component<'i> {
+fn downlevel_dir<'i>(dir: Direction, targets: Targets) -> Component<'i> {
   // Convert :dir to :lang. If supported, use a list of languages in a single :lang,
   // otherwise, use :is/:not, which may be further downleveled to e.g. :-webkit-any.
   let langs = RTL_LANGS.iter().map(|lang| (*lang).into()).collect();
-  if Feature::LangList.is_compatible(targets) {
+  if !should_compile!(targets, LangSelectorList) {
     let c = Component::NonTSPseudoClass(PseudoClass::Lang { languages: langs });
     if dir == Direction::Ltr {
       Component::Negation(vec![Selector::from(c)].into_boxed_slice())

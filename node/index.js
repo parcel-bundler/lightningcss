@@ -24,3 +24,4 @@ if (process.env.CSS_TRANSFORMER_WASM) {
 
 module.exports.browserslistToTargets = require('./browserslistToTargets');
 module.exports.composeVisitors = require('./composeVisitors');
+module.exports.Features = require('./flags').Features;

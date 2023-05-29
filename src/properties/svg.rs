@@ -3,7 +3,7 @@
 use crate::error::{ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::printer::Printer;
-use crate::targets::Browsers;
+use crate::targets::{Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, ToCss};
 use crate::values::length::LengthPercentage;
 use crate::values::{color::CssColor, url::Url};
@@ -129,7 +129,7 @@ impl ToCss for SVGPaintFallback {
 }
 
 impl<'i> FallbackValues for SVGPaint<'i> {
-  fn get_fallbacks(&mut self, targets: Browsers) -> Vec<Self> {
+  fn get_fallbacks(&mut self, targets: Targets) -> Vec<Self> {
     match self {
       SVGPaint::Color(color) => color
         .get_fallbacks(targets)

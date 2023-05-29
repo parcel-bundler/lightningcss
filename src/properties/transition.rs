@@ -9,7 +9,6 @@ use crate::macros::define_list_shorthand;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::masking::get_webkit_mask_property;
-use crate::targets::Browsers;
 use crate::traits::{Parse, PropertyHandler, Shorthand, ToCss, Zero};
 use crate::values::{easing::EasingFunction, time::Time};
 use crate::vendor_prefix::VendorPrefix;
@@ -110,21 +109,11 @@ impl<'i> ToCss for Transition<'i> {
 
 #[derive(Default)]
 pub(crate) struct TransitionHandler<'i> {
-  targets: Option<Browsers>,
   properties: Option<(SmallVec<[PropertyId<'i>; 1]>, VendorPrefix)>,
   durations: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   delays: Option<(SmallVec<[Time; 1]>, VendorPrefix)>,
   timing_functions: Option<(SmallVec<[EasingFunction; 1]>, VendorPrefix)>,
   has_any: bool,
-}
-
-impl<'i> TransitionHandler<'i> {
-  pub fn new(targets: Option<Browsers>) -> Self {
-    TransitionHandler {
-      targets,
-      ..TransitionHandler::default()
-    }
-  }
 }
 
 impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
@@ -156,21 +145,9 @@ impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
         if let Some((val, prefixes)) = &mut self.$prop {
           *val = $val.clone();
           *prefixes |= *$vp;
-          if prefixes.contains(VendorPrefix::None) {
-            if let Some(targets) = self.targets {
-              *prefixes = Feature::$feature.prefixes_for(targets);
-            }
-          }
+          *prefixes = context.targets.prefixes(*prefixes, Feature::$feature);
         } else {
-          let prefixes = if $vp.contains(VendorPrefix::None) {
-            if let Some(targets) = self.targets {
-              Feature::$feature.prefixes_for(targets)
-            } else {
-              *$vp
-            }
-          } else {
-            *$vp
-          };
+          let prefixes = context.targets.prefixes(*$vp, Feature::$feature);
           self.$prop = Some(($val.clone(), prefixes));
           self.has_any = true;
         }
@@ -203,7 +180,9 @@ impl<'i> PropertyHandler<'i> for TransitionHandler<'i> {
       }
       Unparsed(val) if is_transition_property(&val.property_id) => {
         self.flush(dest, context);
-        dest.push(Property::Unparsed(val.get_prefixed(self.targets, Feature::Transition)));
+        dest.push(Property::Unparsed(
+          val.get_prefixed(context.targets, Feature::Transition),
+        ));
       }
       _ => return false,
     }
@@ -230,7 +209,7 @@ impl<'i> TransitionHandler<'i> {
     let mut timing_functions = std::mem::take(&mut self.timing_functions);
 
     let rtl_properties = if let Some((properties, _)) = &mut properties {
-      expand_properties(properties, self.targets, context)
+      expand_properties(properties, context)
     } else {
       None
     };
@@ -352,7 +331,6 @@ fn is_transition_property(property_id: &PropertyId) -> bool {
 
 fn expand_properties<'i>(
   properties: &mut SmallVec<[PropertyId<'i>; 1]>,
-  targets: Option<Browsers>,
   context: &mut PropertyHandlerContext,
 ) -> Option<SmallVec<[PropertyId<'i>; 1]>> {
   let mut rtl_properties: Option<SmallVec<[PropertyId; 1]>> = None;
@@ -370,14 +348,14 @@ fn expand_properties<'i>(
   // Expand logical properties in place.
   while i < properties.len() {
     match get_logical_properties(&properties[i]) {
-      LogicalPropertyId::Block(feature, props) if !context.is_supported(feature) => {
+      LogicalPropertyId::Block(feature, props) if context.should_compile_logical(feature) => {
         replace!(properties, props);
         if let Some(rtl_properties) = &mut rtl_properties {
           replace!(rtl_properties, props);
         }
         i += props.len();
       }
-      LogicalPropertyId::Inline(feature, ltr, rtl) if !context.is_supported(feature) => {
+      LogicalPropertyId::Inline(feature, ltr, rtl) if context.should_compile_logical(feature) => {
         // Clone properties to create RTL version only when needed.
         if rtl_properties.is_none() {
           rtl_properties = Some(properties.clone());
@@ -392,25 +370,27 @@ fn expand_properties<'i>(
       }
       _ => {
         // Expand vendor prefixes for targets.
-        if let Some(targets) = targets {
-          properties[i].set_prefixes_for_targets(targets);
-        }
+        properties[i].set_prefixes_for_targets(context.targets);
 
         // Expand mask properties, which use different vendor-prefixed names.
-        if let (Some(targets), Some(property_id)) = (targets, get_webkit_mask_property(&properties[i])) {
-          if Feature::MaskBorder.prefixes_for(targets).contains(VendorPrefix::WebKit) {
+        if let Some(property_id) = get_webkit_mask_property(&properties[i]) {
+          if context.targets
+            .prefixes(VendorPrefix::None, Feature::MaskBorder)
+            .contains(VendorPrefix::WebKit)
+          {
             properties.insert(i, property_id);
             i += 1;
           }
         }
 
         if let Some(rtl_properties) = &mut rtl_properties {
-          if let Some(targets) = targets {
-            rtl_properties[i].set_prefixes_for_targets(targets);
-          }
+          rtl_properties[i].set_prefixes_for_targets(context.targets);
 
-          if let (Some(targets), Some(property_id)) = (targets, get_webkit_mask_property(&rtl_properties[i])) {
-            if Feature::MaskBorder.prefixes_for(targets).contains(VendorPrefix::WebKit) {
+          if let Some(property_id) = get_webkit_mask_property(&rtl_properties[i]) {
+            if context.targets
+              .prefixes(VendorPrefix::None, Feature::MaskBorder)
+              .contains(VendorPrefix::WebKit)
+            {
               rtl_properties.insert(i, property_id);
             }
           }

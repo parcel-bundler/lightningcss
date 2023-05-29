@@ -7,7 +7,7 @@ use crate::macros::*;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId, VendorPrefix};
-use crate::targets::Browsers;
+use crate::targets::{Browsers, Targets};
 use crate::traits::{FallbackValues, IsCompatible, Parse, PropertyHandler, Shorthand, ToCss};
 use crate::values::color::ColorFallbackKind;
 use crate::values::image::ImageFallback;
@@ -537,7 +537,7 @@ impl<'i> ImageFallback<'i> for Background<'i> {
   }
 
   #[inline]
-  fn get_necessary_fallbacks(&self, targets: Browsers) -> ColorFallbackKind {
+  fn get_necessary_fallbacks(&self, targets: Targets) -> ColorFallbackKind {
     self.color.get_necessary_fallbacks(targets) | self.get_image().get_necessary_fallbacks(targets)
   }
 
@@ -790,7 +790,6 @@ property_bitflags! {
 
 #[derive(Default)]
 pub(crate) struct BackgroundHandler<'i> {
-  targets: Option<Browsers>,
   color: Option<CssColor>,
   images: Option<SmallVec<[Image<'i>; 1]>>,
   has_prefix: bool,
@@ -804,15 +803,6 @@ pub(crate) struct BackgroundHandler<'i> {
   decls: Vec<Property<'i>>,
   flushed_properties: BackgroundProperty,
   has_any: bool,
-}
-
-impl<'i> BackgroundHandler<'i> {
-  pub fn new(targets: Option<Browsers>) -> Self {
-    BackgroundHandler {
-      targets,
-      ..BackgroundHandler::default()
-    }
-  }
 }
 
 impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
@@ -831,7 +821,7 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
         self.has_prefix = $val.iter().any(|x| x.has_vendor_prefix());
         if self.has_prefix {
           self.decls.push(property.clone())
-        } else if self.targets.is_some() {
+        } else if context.targets.browsers.is_some() {
           self.decls.clear();
         }
       };
@@ -839,8 +829,8 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
 
     macro_rules! flush {
       ($key: ident, $val: expr) => {{
-        if self.$key.is_some() && matches!(context.targets, Some(targets) if !$val.is_compatible(targets)) {
-          self.flush(dest);
+        if self.$key.is_some() && matches!(context.targets.browsers, Some(targets) if !$val.is_compatible(targets)) {
+          self.flush(dest, context);
         }
       }};
     }
@@ -868,7 +858,7 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
         if *vendor_prefix == VendorPrefix::None {
           self.clips = Some(val.clone());
         } else {
-          self.flush(dest);
+          self.flush(dest, context);
           dest.push(property.clone())
         }
       }
@@ -888,7 +878,7 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
         self.clips = Some(val.iter().map(|b| b.clip.clone()).collect());
       }
       Property::Unparsed(val) if is_background_property(&val.property_id) => {
-        self.flush(dest);
+        self.flush(dest, context);
         let mut unparsed = val.clone();
         context.add_unparsed_fallbacks(&mut unparsed);
         self
@@ -903,7 +893,7 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
     true
   }
 
-  fn finalize(&mut self, dest: &mut DeclarationList<'i>, _: &mut PropertyHandlerContext<'i, '_>) {
+  fn finalize(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
     // If the last declaration is prefixed, pop the last value
     // so it isn't duplicated when we flush.
     if self.has_prefix {
@@ -911,13 +901,13 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
     }
 
     dest.extend(self.decls.drain(..));
-    self.flush(dest);
+    self.flush(dest, context);
     self.flushed_properties = BackgroundProperty::empty();
   }
 }
 
 impl<'i> BackgroundHandler<'i> {
-  fn flush(&mut self, dest: &mut DeclarationList<'i>) {
+  fn flush(&mut self, dest: &mut DeclarationList<'i>, context: &mut PropertyHandlerContext<'i, '_>) {
     if !self.has_any {
       return;
     }
@@ -972,12 +962,8 @@ impl<'i> BackgroundHandler<'i> {
         && origins.len() == len
         && clips.len() == len
       {
-        let clip_prefixes = if let Some(targets) = self.targets {
-          if clips.iter().any(|clip| *clip == BackgroundClip::Text) {
-            Feature::BackgroundClip.prefixes_for(targets)
-          } else {
-            VendorPrefix::None
-          }
+        let clip_prefixes = if clips.iter().any(|clip| *clip == BackgroundClip::Text) {
+          context.targets.prefixes(VendorPrefix::None, Feature::BackgroundClip)
         } else {
           VendorPrefix::None
         };
@@ -1024,11 +1010,9 @@ impl<'i> BackgroundHandler<'i> {
         )
         .collect();
 
-        if let Some(targets) = self.targets {
-          if !self.flushed_properties.intersects(BackgroundProperty::Background) {
-            for fallback in backgrounds.get_fallbacks(targets) {
-              push!(Background, fallback);
-            }
+        if !self.flushed_properties.intersects(BackgroundProperty::Background) {
+          for fallback in backgrounds.get_fallbacks(context.targets) {
+            push!(Background, fallback);
           }
         }
 
@@ -1045,11 +1029,9 @@ impl<'i> BackgroundHandler<'i> {
     }
 
     if let Some(mut color) = color {
-      if let Some(targets) = self.targets {
-        if !self.flushed_properties.contains(BackgroundProperty::BackgroundColor) {
-          for fallback in color.get_fallbacks(targets) {
-            push!(BackgroundColor, fallback);
-          }
+      if !self.flushed_properties.contains(BackgroundProperty::BackgroundColor) {
+        for fallback in color.get_fallbacks(context.targets) {
+          push!(BackgroundColor, fallback);
         }
       }
 
@@ -1057,11 +1039,9 @@ impl<'i> BackgroundHandler<'i> {
     }
 
     if let Some(mut images) = images {
-      if let Some(targets) = self.targets {
-        if !self.flushed_properties.contains(BackgroundProperty::BackgroundImage) {
-          for fallback in images.get_fallbacks(targets) {
-            push!(BackgroundImage, fallback);
-          }
+      if !self.flushed_properties.contains(BackgroundProperty::BackgroundImage) {
+        for fallback in images.get_fallbacks(context.targets) {
+          push!(BackgroundImage, fallback);
         }
       }
 
@@ -1103,12 +1083,8 @@ impl<'i> BackgroundHandler<'i> {
     }
 
     if let Some(clips) = clips {
-      let prefixes = if let Some(targets) = self.targets {
-        if clips.iter().any(|clip| *clip == BackgroundClip::Text) {
-          Feature::BackgroundClip.prefixes_for(targets)
-        } else {
-          VendorPrefix::None
-        }
+      let prefixes = if clips.iter().any(|clip| *clip == BackgroundClip::Text) {
+        context.targets.prefixes(VendorPrefix::None, Feature::BackgroundClip)
       } else {
         VendorPrefix::None
       };
