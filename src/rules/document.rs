@@ -26,7 +26,7 @@ pub struct MozDocumentRule<'i, R = DefaultAtRule> {
   pub loc: Location,
 }
 
-impl<'i, T> MozDocumentRule<'i, T> {
+impl<'i, T: Clone> MozDocumentRule<'i, T> {
   pub(crate) fn minify(&mut self, context: &mut MinifyContext<'_, 'i>) -> Result<(), MinifyError> {
     self.rules.minify(context, false)
   }

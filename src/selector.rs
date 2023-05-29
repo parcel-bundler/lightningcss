@@ -7,7 +7,7 @@ use crate::printer::Printer;
 use crate::properties::custom::TokenList;
 use crate::rules::StyleContext;
 use crate::stylesheet::{ParserOptions, PrinterOptions};
-use crate::targets::{should_compile, Browsers, Targets};
+use crate::targets::{should_compile, Targets};
 use crate::traits::{Parse, ParseWithOptions, ToCss};
 use crate::values::ident::{CustomIdent, Ident};
 use crate::values::string::CSSString;
@@ -1626,8 +1626,8 @@ where
   Ok(())
 }
 
-pub(crate) fn is_compatible(selectors: &SelectorList, targets: Option<Browsers>) -> bool {
-  for selector in &selectors.0 {
+pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
+  for selector in selectors {
     let iter = selector.iter();
     for component in iter {
       let feature = match component {
@@ -1681,22 +1681,40 @@ pub(crate) fn is_compatible(selectors: &SelectorList, targets: Option<Browsers>)
           }
         },
 
-        Component::Empty | Component::Negation(_) | Component::Root => Feature::Selectors3,
+        Component::Empty | Component::Root => Feature::Selectors3,
+        Component::Negation(selectors) => {
+          // :not() selector list is not forgiving.
+          if !targets.is_compatible(Feature::Selectors3) || !is_compatible(&*selectors, targets) {
+            return false;
+          }
+          continue;
+        }
 
         Component::Nth(data) => match data.ty {
           NthType::Child if data.a == 0 && data.b == 1 => Feature::Selectors2,
           NthType::Col | NthType::LastCol => return false,
           _ => Feature::Selectors3,
         },
-        Component::NthOf(..) => Feature::NthChildOf,
+        Component::NthOf(n) => {
+          if !targets.is_compatible(Feature::NthChildOf) || !is_compatible(n.selectors(), targets) {
+            return false;
+          }
+          continue;
+        }
 
-        Component::Is(_) | Component::Nesting => Feature::IsSelector,
+        // These support forgiving selector lists, so no need to check nested selectors.
+        Component::Is(_) | Component::Where(_) | Component::Nesting => Feature::IsSelector,
         Component::Any(..) => Feature::AnyPseudo,
-        Component::Has(_) => Feature::HasSelector,
+        Component::Has(selectors) => {
+          if !targets.is_compatible(Feature::HasSelector) || !is_compatible(&*selectors, targets) {
+            return false;
+          }
+          continue;
+        }
 
         Component::Scope | Component::Host(_) | Component::Slotted(_) => Feature::Shadowdomv1,
 
-        Component::Part(_) | Component::Where(_) => return false, // TODO: find this data in caniuse-lite
+        Component::Part(_) => return false, // TODO: find this data in caniuse-lite
 
         Component::NonTSPseudoClass(pseudo) => {
           match pseudo {
@@ -1775,11 +1793,7 @@ pub(crate) fn is_compatible(selectors: &SelectorList, targets: Option<Browsers>)
         },
       };
 
-      if let Some(targets) = targets {
-        if !feature.is_compatible(targets) {
-          return false;
-        }
-      } else {
+      if !targets.is_compatible(feature) {
         return false;
       }
     }

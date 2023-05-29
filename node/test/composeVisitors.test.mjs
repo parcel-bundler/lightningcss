@@ -510,6 +510,9 @@ test('known rules', () => {
         margin-right: @margin-left;
       }
     `),
+    targets: {
+      safari: 14 << 16
+    },
     visitor: composeVisitors([
       {
         Rule: {

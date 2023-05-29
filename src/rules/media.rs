@@ -26,7 +26,7 @@ pub struct MediaRule<'i, R = DefaultAtRule> {
   pub loc: Location,
 }
 
-impl<'i, T> MediaRule<'i, T> {
+impl<'i, T: Clone> MediaRule<'i, T> {
   pub(crate) fn minify(
     &mut self,
     context: &mut MinifyContext<'_, 'i>,

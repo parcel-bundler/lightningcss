@@ -120,7 +120,7 @@ impl<'i, 'o> StyleSheet<'i, 'o, DefaultAtRule> {
 
 impl<'i, 'o, T> StyleSheet<'i, 'o, T>
 where
-  T: ToCss,
+  T: ToCss + Clone,
 {
   /// Creates a new style sheet with the given source filenames and rules.
   pub fn new(

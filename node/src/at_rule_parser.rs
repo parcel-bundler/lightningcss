@@ -49,7 +49,7 @@ pub struct Prelude<'i> {
   prelude: Option<ParsedComponent<'i>>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct AtRule<'i> {
   #[serde(borrow)]
   pub name: CowArcStr<'i>,
@@ -58,7 +58,7 @@ pub struct AtRule<'i> {
   pub loc: Location,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "type", content = "value", rename_all = "kebab-case")]
 pub enum AtRuleBody<'i> {
   #[serde(borrow)]

@@ -23,7 +23,7 @@ pub struct NestingRule<'i, R = DefaultAtRule> {
   pub loc: Location,
 }
 
-impl<'i, T> NestingRule<'i, T> {
+impl<'i, T: Clone> NestingRule<'i, T> {
   pub(crate) fn minify(
     &mut self,
     context: &mut MinifyContext<'_, 'i>,

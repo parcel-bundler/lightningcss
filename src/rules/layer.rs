@@ -128,7 +128,7 @@ pub struct LayerBlockRule<'i, R = DefaultAtRule> {
   pub loc: Location,
 }
 
-impl<'i, T> LayerBlockRule<'i, T> {
+impl<'i, T: Clone> LayerBlockRule<'i, T> {
   pub(crate) fn minify(
     &mut self,
     context: &mut MinifyContext<'_, 'i>,

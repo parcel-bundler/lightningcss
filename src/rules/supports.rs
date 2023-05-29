@@ -33,7 +33,7 @@ pub struct SupportsRule<'i, R = DefaultAtRule> {
   pub loc: Location,
 }
 
-impl<'i, T> SupportsRule<'i, T> {
+impl<'i, T: Clone> SupportsRule<'i, T> {
   pub(crate) fn minify(
     &mut self,
     context: &mut MinifyContext<'_, 'i>,

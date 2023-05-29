@@ -401,6 +401,9 @@ test('focus visible', () => {
         color: red;
       }
     `),
+    targets: {
+      safari: 14 << 16
+    },
     visitor: {
       Rule: {
         style(rule) {

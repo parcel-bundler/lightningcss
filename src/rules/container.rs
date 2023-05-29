@@ -271,7 +271,7 @@ impl<'i> ToCss for ContainerName<'i> {
   }
 }
 
-impl<'i, T> ContainerRule<'i, T> {
+impl<'i, T: Clone> ContainerRule<'i, T> {
   pub(crate) fn minify(
     &mut self,
     context: &mut MinifyContext<'_, 'i>,

@@ -65,7 +65,7 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
     self.rtl.push(rtl);
   }
 
-  pub fn get_logical_rules<T>(&mut self, style_rule: &StyleRule<'i, T>) -> Vec<CssRule<'i, T>> {
+  pub fn get_logical_rules<T>(&self, style_rule: &StyleRule<'i, T>) -> Vec<CssRule<'i, T>> {
     // TODO: :dir/:lang raises the specificity of the selector. Use :where to lower it?
     let mut dest = Vec::new();
 
@@ -82,7 +82,7 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
           selectors,
           vendor_prefix: VendorPrefix::None,
           declarations: DeclarationBlock {
-            declarations: std::mem::take(&mut self.$decls),
+            declarations: self.$decls.clone(),
             important_declarations: vec![],
           },
           rules: CssRuleList(vec![]),
@@ -148,22 +148,21 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
     }
   }
 
-  pub fn get_supports_rules<T>(&mut self, style_rule: &StyleRule<'i, T>) -> Vec<CssRule<'i, T>> {
+  pub fn get_supports_rules<T>(&self, style_rule: &StyleRule<'i, T>) -> Vec<CssRule<'i, T>> {
     if self.supports.is_empty() {
       return Vec::new();
     }
 
     let mut dest = Vec::new();
-    let supports = std::mem::take(&mut self.supports);
-    for entry in supports {
+    for entry in &self.supports {
       dest.push(CssRule::Supports(SupportsRule {
-        condition: entry.condition,
+        condition: entry.condition.clone(),
         rules: CssRuleList(vec![CssRule::Style(StyleRule {
           selectors: style_rule.selectors.clone(),
           vendor_prefix: VendorPrefix::None,
           declarations: DeclarationBlock {
-            declarations: entry.declarations,
-            important_declarations: entry.important_declarations,
+            declarations: entry.declarations.clone(),
+            important_declarations: entry.important_declarations.clone(),
           },
           rules: CssRuleList(vec![]),
           loc: style_rule.loc.clone(),
@@ -173,5 +172,11 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
     }
 
     dest
+  }
+
+  pub fn reset(&mut self) {
+    self.supports.clear();
+    self.ltr.clear();
+    self.rtl.clear();
   }
 }

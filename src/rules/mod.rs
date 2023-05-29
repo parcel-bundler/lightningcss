@@ -68,7 +68,7 @@ use crate::parser::{
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::rules::keyframes::KeyframesName;
-use crate::selector::{downlevel_selectors, get_prefix, is_equivalent, SelectorList};
+use crate::selector::{is_compatible, is_equivalent, Component, Selector, SelectorList};
 use crate::stylesheet::ParserOptions;
 use crate::targets::Targets;
 use crate::traits::{AtRuleParser, ToCss};
@@ -88,6 +88,7 @@ use media::MediaRule;
 use namespace::NamespaceRule;
 use nesting::NestingRule;
 use page::PageRule;
+use smallvec::{smallvec, SmallVec};
 use std::collections::{HashMap, HashSet};
 use std::hash::{BuildHasherDefault, Hasher};
 use style::StyleRule;
@@ -470,7 +471,7 @@ pub(crate) struct MinifyContext<'a, 'i> {
   pub css_modules: bool,
 }
 
-impl<'i, T> CssRuleList<'i, T> {
+impl<'i, T: Clone> CssRuleList<'i, T> {
   pub(crate) fn minify(
     &mut self,
     context: &mut MinifyContext<'_, 'i>,
@@ -587,10 +588,37 @@ impl<'i, T> CssRuleList<'i, T> {
             continue;
           }
 
-          style.vendor_prefix = get_prefix(&style.selectors);
-          if style.vendor_prefix.contains(VendorPrefix::None) & context.targets.should_compile_selectors() {
-            style.vendor_prefix = downlevel_selectors(style.selectors.0.as_mut_slice(), *context.targets);
-          }
+          // If some of the selectors in this rule are not compatible with the targets,
+          // we need to either wrap in :is() or split them into multiple rules.
+          let incompatible = if style.selectors.0.len() > 1 && !style.is_compatible(*context.targets) {
+            // The :is() selector accepts a forgiving selector list, so use that if possible.
+            // Note that :is() does not allow pseudo elements, so we need to check for that.
+            if context.targets.is_compatible(crate::compat::Feature::IsSelector)
+              && !style.selectors.0.iter().any(|selector| selector.has_pseudo_element())
+            {
+              style.selectors =
+                SelectorList::new(smallvec![
+                  Component::Is(style.selectors.0.clone().into_boxed_slice()).into()
+                ]);
+              smallvec![]
+            } else {
+              // Otherwise, partition the selectors and keep the compatible ones in this rule.
+              // We will generate additional rules for incompatible selectors later.
+              let (compatible, incompatible) = style
+                .selectors
+                .0
+                .iter()
+                .cloned()
+                .partition::<SmallVec<[Selector; 1]>, _>(|selector| {
+                  let list = SelectorList::new(smallvec![selector.clone()]);
+                  is_compatible(&list.0, *context.targets)
+                });
+              style.selectors = SelectorList::new(compatible);
+              incompatible
+            }
+          } else {
+            smallvec![]
+          };
 
           // Attempt to merge the new rule with the last rule we added.
           let mut merged = false;
@@ -616,8 +644,26 @@ impl<'i, T> CssRuleList<'i, T> {
             }
           }
 
+          // Create additional rules for logical properties, @supports overrides, and incompatible selectors.
           let supports = context.handler_context.get_supports_rules(&style);
           let logical = context.handler_context.get_logical_rules(&style);
+
+          let incompatible_rules = incompatible
+            .into_iter()
+            .map(|selector| {
+              // Create a clone of the rule with only the one incompatible selector.
+              let list = SelectorList::new(smallvec![selector]);
+              let mut clone = style.clone();
+              clone.selectors = list;
+
+              // Also add rules for logical properties and @supports overrides.
+              let supports = context.handler_context.get_supports_rules(&clone);
+              let logical = context.handler_context.get_logical_rules(&clone);
+              (clone, logical, supports)
+            })
+            .collect::<Vec<_>>();
+
+          context.handler_context.reset();
           if !merged && !style.is_empty() {
             let source_index = style.loc.source_index;
             let has_no_rules = style.rules.0.is_empty();
@@ -653,6 +699,17 @@ impl<'i, T> CssRuleList<'i, T> {
           }
 
           rules.extend(supports);
+          for (rule, logical, supports) in incompatible_rules {
+            if !rule.is_empty() {
+              rules.push(CssRule::Style(rule));
+            }
+            if !logical.is_empty() {
+              let mut logical = CssRuleList(logical);
+              logical.minify(context, parent_is_unused)?;
+              rules.extend(logical.0)
+            }
+            rules.extend(supports);
+          }
           continue;
         }
         CssRule::CounterStyle(counter_style) => {
@@ -700,8 +757,8 @@ fn merge_style_rules<'i, T>(
 ) -> bool {
   // Merge declarations if the selectors are equivalent, and both are compatible with all targets.
   if style.selectors == last_style_rule.selectors
-    && style.is_compatible(context.targets.browsers)
-    && last_style_rule.is_compatible(context.targets.browsers)
+    && style.is_compatible(*context.targets)
+    && last_style_rule.is_compatible(*context.targets)
     && style.rules.0.is_empty()
     && last_style_rule.rules.0.is_empty()
     && (!context.css_modules || style.loc.source_index == last_style_rule.loc.source_index)
@@ -739,7 +796,7 @@ fn merge_style_rules<'i, T>(
     }
 
     // Append the selectors to the last rule if the declarations are the same, and all selectors are compatible.
-    if style.is_compatible(context.targets.browsers) && last_style_rule.is_compatible(context.targets.browsers) {
+    if style.is_compatible(*context.targets) && last_style_rule.is_compatible(*context.targets) {
       last_style_rule.selectors.0.extend(style.selectors.0.drain(..));
       last_style_rule.vendor_prefix |= style.vendor_prefix;
       return true;

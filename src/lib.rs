@@ -8691,11 +8691,7 @@ mod tests {
       }
     "#,
       indoc! {r#"
-      [foo="bar"] {
-        color: red;
-      }
-
-      .bar {
+      [foo="bar"], .bar {
         color: red;
       }
     "#},
@@ -9334,6 +9330,174 @@ mod tests {
         color: red;
       }
       "#},
+    );
+
+    prefix_test(
+      r#"
+      :hover, :focus-visible {
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+      :hover {
+        color: red;
+      }
+
+      :focus-visible {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(13 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        color: red;
+      }
+
+      :hover, :focus-visible {
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+      .foo, :hover {
+        color: red;
+      }
+
+      :focus-visible {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(13 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      :hover, :focus-visible {
+        margin-inline-start: 24px;
+      }
+      "#,
+      indoc! {r#"
+      :hover:not(:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi)) {
+        margin-left: 24px;
+      }
+
+      :hover:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi) {
+        margin-right: 24px;
+      }
+
+      :focus-visible:not(:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi)) {
+        margin-left: 24px;
+      }
+
+      :focus-visible:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi) {
+        margin-right: 24px;
+      }
+      "#},
+      Browsers {
+        safari: Some(11 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      :focus-within, :focus-visible {
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+      :focus-within {
+        color: red;
+      }
+
+      :focus-visible {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(9 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      :hover, :focus-visible {
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+      :is(:hover, :focus-visible) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      a::after:hover, a::after:focus-visible {
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+      a:after:hover {
+        color: red;
+      }
+
+      a:after:focus-visible {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      a:not(:hover), a:not(:focus-visible) {
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+      :is(a:not(:hover), a:not(:focus-visible)) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      a:has(:hover), a:has(:focus-visible) {
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+      :is(a:has(:hover), a:has(:focus-visible)) {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
     );
   }
 
