@@ -9250,6 +9250,91 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    prefix_test(
+      r#"
+      .foo:placeholder-shown .bar { color: red; }
+      .foo:autofill .baz { color: red; }
+      "#,
+      indoc! {r#"
+      .foo:placeholder-shown .bar, .foo:-webkit-autofill .baz {
+        color: red;
+      }
+
+      .foo:placeholder-shown .bar, .foo:autofill .baz {
+        color: red;
+      }
+      "#},
+      Browsers {
+        chrome: Some(103 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo:placeholder-shown .bar,.foo:autofill .baz{color:red}
+      "#,
+      indoc! {r#"
+      .foo:placeholder-shown .bar, .foo:-webkit-autofill .baz {
+        color: red;
+      }
+
+      .foo:placeholder-shown .bar, .foo:autofill .baz {
+        color: red;
+      }
+      "#},
+      Browsers {
+        chrome: Some(103 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo:placeholder-shown .bar, .foo:-webkit-autofill .baz {
+        color: red;
+      }
+
+      .foo:placeholder-shown .bar, .foo:autofill .baz {
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+      .foo:placeholder-shown .bar, .foo:-webkit-autofill .baz {
+        color: red;
+      }
+
+      .foo:placeholder-shown .bar, .foo:autofill .baz {
+        color: red;
+      }
+      "#},
+      Browsers {
+        chrome: Some(103 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    test(
+      r#"
+      .foo:placeholder-shown .bar, .foo:-webkit-autofill .baz {
+        color: red;
+      }
+
+      .foo:placeholder-shown .bar, .foo:autofill .baz {
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+      .foo:placeholder-shown .bar, .foo:-webkit-autofill .baz {
+        color: red;
+      }
+
+      .foo:placeholder-shown .bar, .foo:autofill .baz {
+        color: red;
+      }
+      "#},
+    );
   }
 
   #[test]

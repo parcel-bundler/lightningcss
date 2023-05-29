@@ -587,11 +587,9 @@ impl<'i, T> CssRuleList<'i, T> {
             continue;
           }
 
-          if context.targets.should_compile_selectors() {
-            style.vendor_prefix = get_prefix(&style.selectors);
-            if style.vendor_prefix.contains(VendorPrefix::None) {
-              style.vendor_prefix = downlevel_selectors(style.selectors.0.as_mut_slice(), *context.targets);
-            }
+          style.vendor_prefix = get_prefix(&style.selectors);
+          if style.vendor_prefix.contains(VendorPrefix::None) & context.targets.should_compile_selectors() {
+            style.vendor_prefix = downlevel_selectors(style.selectors.0.as_mut_slice(), *context.targets);
           }
 
           // Attempt to merge the new rule with the last rule we added.
@@ -724,26 +722,26 @@ fn merge_style_rules<'i, T>(
     && style.rules.0.is_empty()
     && last_style_rule.rules.0.is_empty()
   {
-    // Append the selectors to the last rule if the declarations are the same, and all selectors are compatible.
-    if style.is_compatible(context.targets.browsers) && last_style_rule.is_compatible(context.targets.browsers) {
-      last_style_rule.selectors.0.extend(style.selectors.0.drain(..));
-      return true;
-    }
-
     // If both selectors are potentially vendor prefixable, and they are
     // equivalent minus prefixes, add the prefix to the last rule.
     if !style.vendor_prefix.is_empty()
       && !last_style_rule.vendor_prefix.is_empty()
-      && !last_style_rule.vendor_prefix.contains(style.vendor_prefix)
       && is_equivalent(&style.selectors, &last_style_rule.selectors)
     {
       // If the new rule is unprefixed, replace the prefixes of the last rule.
       // Otherwise, add the new prefix.
-      if style.vendor_prefix.contains(VendorPrefix::None) {
+      if style.vendor_prefix.contains(VendorPrefix::None) && context.targets.should_compile_selectors() {
         last_style_rule.vendor_prefix = style.vendor_prefix;
       } else {
         last_style_rule.vendor_prefix |= style.vendor_prefix;
       }
+      return true;
+    }
+
+    // Append the selectors to the last rule if the declarations are the same, and all selectors are compatible.
+    if style.is_compatible(context.targets.browsers) && last_style_rule.is_compatible(context.targets.browsers) {
+      last_style_rule.selectors.0.extend(style.selectors.0.drain(..));
+      last_style_rule.vendor_prefix |= style.vendor_prefix;
       return true;
     }
   }

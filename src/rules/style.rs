@@ -193,29 +193,18 @@ impl<'a, 'i, T: ToCss> ToCss for StyleRule<'i, T> {
       self.to_css_base(dest)
     } else {
       let mut first_rule = true;
-      macro_rules! prefix {
-        ($prefix: ident) => {
-          if self.vendor_prefix.contains(VendorPrefix::$prefix) {
-            #[allow(unused_assignments)]
-            if first_rule {
-              first_rule = false;
-            } else {
-              if !dest.minify {
-                dest.write_char('\n')?; // no indent
-              }
-              dest.newline()?;
-            }
-            dest.vendor_prefix = VendorPrefix::$prefix;
-            self.to_css_base(dest)?;
+      for prefix in self.vendor_prefix {
+        if first_rule {
+          first_rule = false;
+        } else {
+          if !dest.minify {
+            dest.write_char('\n')?; // no indent
           }
-        };
+          dest.newline()?;
+        }
+        dest.vendor_prefix = prefix;
+        self.to_css_base(dest)?;
       }
-
-      prefix!(WebKit);
-      prefix!(Moz);
-      prefix!(Ms);
-      prefix!(O);
-      prefix!(None);
 
       dest.vendor_prefix = VendorPrefix::empty();
       Ok(())

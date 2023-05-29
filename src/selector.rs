@@ -606,7 +606,7 @@ where
       dest.write_char(':')?;
       // If the printer has a vendor prefix override, use that.
       let vp = if !dest.vendor_prefix.is_empty() {
-        dest.vendor_prefix
+        (dest.vendor_prefix & *$prefix).or_none()
       } else {
         *$prefix
       };
@@ -658,7 +658,7 @@ where
     Fullscreen(prefix) => {
       dest.write_char(':')?;
       let vp = if !dest.vendor_prefix.is_empty() {
-        dest.vendor_prefix
+        (dest.vendor_prefix & *prefix).or_none()
       } else {
         *prefix
       };
@@ -766,20 +766,21 @@ impl<'i> PseudoClass<'i> {
     }
   }
 
-  pub(crate) fn get_necessary_prefixes(&self, targets: Targets) -> VendorPrefix {
+  pub(crate) fn get_necessary_prefixes(&mut self, targets: Targets) -> VendorPrefix {
     use crate::prefixes::Feature;
     use PseudoClass::*;
-    let feature = match self {
-      Fullscreen(p) if *p == VendorPrefix::None => Feature::PseudoClassFullscreen,
-      AnyLink(p) if *p == VendorPrefix::None => Feature::PseudoClassAnyLink,
-      ReadOnly(p) if *p == VendorPrefix::None => Feature::PseudoClassReadOnly,
-      ReadWrite(p) if *p == VendorPrefix::None => Feature::PseudoClassReadWrite,
-      PlaceholderShown(p) if *p == VendorPrefix::None => Feature::PseudoClassPlaceholderShown,
-      Autofill(p) if *p == VendorPrefix::None => Feature::PseudoClassAutofill,
+    let (p, feature) = match self {
+      Fullscreen(p) => (p, Feature::PseudoClassFullscreen),
+      AnyLink(p) => (p, Feature::PseudoClassAnyLink),
+      ReadOnly(p) => (p, Feature::PseudoClassReadOnly),
+      ReadWrite(p) => (p, Feature::PseudoClassReadWrite),
+      PlaceholderShown(p) => (p, Feature::PseudoClassPlaceholderShown),
+      Autofill(p) => (p, Feature::PseudoClassAutofill),
       _ => return VendorPrefix::empty(),
     };
 
-    targets.prefixes(VendorPrefix::None, feature)
+    *p = targets.prefixes(*p, feature);
+    *p
   }
 }
 
@@ -1001,7 +1002,7 @@ where
       dest.write_str("::")?;
       // If the printer has a vendor prefix override, use that.
       let vp = if !dest.vendor_prefix.is_empty() {
-        dest.vendor_prefix
+        (dest.vendor_prefix & *$prefix).or_none()
       } else {
         *$prefix
       };
@@ -1169,18 +1170,19 @@ impl<'i> PseudoElement<'i> {
     }
   }
 
-  pub(crate) fn get_necessary_prefixes(&self, targets: Targets) -> VendorPrefix {
+  pub(crate) fn get_necessary_prefixes(&mut self, targets: Targets) -> VendorPrefix {
     use crate::prefixes::Feature;
     use PseudoElement::*;
-    let feature = match self {
-      Selection(p) if *p == VendorPrefix::None => Feature::PseudoElementSelection,
-      Placeholder(p) if *p == VendorPrefix::None => Feature::PseudoElementPlaceholder,
-      Backdrop(p) if *p == VendorPrefix::None => Feature::PseudoElementBackdrop,
-      FileSelectorButton(p) if *p == VendorPrefix::None => Feature::PseudoElementFileSelectorButton,
+    let (p, feature) = match self {
+      Selection(p) => (p, Feature::PseudoElementSelection),
+      Placeholder(p) => (p, Feature::PseudoElementPlaceholder),
+      Backdrop(p) => (p, Feature::PseudoElementBackdrop),
+      FileSelectorButton(p) => (p, Feature::PseudoElementFileSelectorButton),
       _ => return VendorPrefix::empty(),
     };
 
-    targets.prefixes(VendorPrefix::None, feature)
+    *p = targets.prefixes(*p, feature);
+    *p
   }
 }
 
@@ -1835,8 +1837,10 @@ pub(crate) fn get_prefix(selectors: &SelectorList) -> VendorPrefix {
       };
 
       if !p.is_empty() {
-        if prefix.is_empty() || prefix == p {
-          prefix = p;
+        // Allow none to be mixed with a prefix.
+        let prefix_without_none = prefix - VendorPrefix::None;
+        if prefix_without_none.is_empty() || prefix_without_none == p {
+          prefix |= p;
         } else {
           return VendorPrefix::empty();
         }
@@ -1856,10 +1860,6 @@ const RTL_LANGS: &[&str] = &[
 /// Returns the necessary vendor prefixes.
 pub(crate) fn downlevel_selectors(selectors: &mut [Selector], targets: Targets) -> VendorPrefix {
   let mut necessary_prefixes = VendorPrefix::empty();
-  if !targets.should_compile_selectors() {
-    return necessary_prefixes;
-  }
-
   for selector in selectors {
     for component in selector.iter_mut_raw_match_order() {
       necessary_prefixes |= downlevel_component(component, targets);
