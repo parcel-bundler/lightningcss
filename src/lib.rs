@@ -9499,6 +9499,27 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    prefix_test(
+      r#"
+      .foo.foo:hover, .bar:focus-visible {
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+      .foo.foo:hover {
+        color: red;
+      }
+
+      .bar:focus-visible {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]

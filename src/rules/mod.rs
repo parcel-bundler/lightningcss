@@ -83,6 +83,7 @@ use custom_media::CustomMediaRule;
 use document::MozDocumentRule;
 use font_face::FontFaceRule;
 use import::ImportRule;
+use itertools::Itertools;
 use keyframes::KeyframesRule;
 use media::MediaRule;
 use namespace::NamespaceRule;
@@ -593,8 +594,11 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
           let incompatible = if style.selectors.0.len() > 1 && !style.is_compatible(*context.targets) {
             // The :is() selector accepts a forgiving selector list, so use that if possible.
             // Note that :is() does not allow pseudo elements, so we need to check for that.
+            // In addition, :is() takes the highest specificity of its arguments, so if the selectors
+            // have different weights, we need to split them into separate rules as well.
             if context.targets.is_compatible(crate::compat::Feature::IsSelector)
               && !style.selectors.0.iter().any(|selector| selector.has_pseudo_element())
+              && style.selectors.0.iter().map(|selector| selector.specificity()).all_equal()
             {
               style.selectors =
                 SelectorList::new(smallvec![
