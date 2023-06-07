@@ -425,7 +425,7 @@ Lightning CSS can also be configured to compile several draft specs that are not
 
 ### Nesting
 
-The [CSS Nesting](https://drafts.csswg.org/css-nesting/) draft spec enables style rules to be nested, with the selectors of the child rules extending the parent selector in some way. This is very commonly supported by CSS pre-processors like SASS, but with this spec, it will eventually be supported natively in browsers. Lightning CSS compiles this syntax to un-nested style rules that are supported in all browsers today.
+The [CSS Nesting](https://drafts.csswg.org/css-nesting/) draft spec enables style rules to be nested, with the selectors of the child rules extending the parent selector in some way. This is very commonly supported by CSS pre-processors like Sass, but with this spec, it will eventually be supported natively in browsers. Lightning CSS compiles this syntax to un-nested style rules that are supported in all browsers today.
 
 Because nesting is a draft, it is not enabled by default. To use it, enable the `nesting` option under `drafts` when calling the Lightning CSS API. When using the CLI, enable the `--nesting` flag.
 
