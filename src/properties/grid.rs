@@ -163,12 +163,12 @@ pub enum TrackBreadth {
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct TrackRepeat<'i> {
   /// The repeat count.
-  count: RepeatCount,
+  pub count: RepeatCount,
   /// The line names to repeat.
   #[cfg_attr(feature = "serde", serde(borrow))]
-  line_names: Vec<CustomIdentList<'i>>,
+  pub line_names: Vec<CustomIdentList<'i>>,
   /// The track sizes to repeat.
-  track_sizes: Vec<TrackSize>,
+  pub track_sizes: Vec<TrackSize>,
 }
 
 /// A [`<repeat-count>`](https://drafts.csswg.org/css-grid-2/#typedef-track-repeat) value,

@@ -31,7 +31,7 @@ let res = transform({
     Length(length) {
       return {
         unit: length.unit,
-        value: length * 2
+        value: length.value * 2
       }
     }
   }
@@ -123,7 +123,7 @@ let res = transform({
               type: 'length-percentage',
               value: { type: 'dimension', value: property.value[0].value }
             };
-            
+
             return [
               { property: 'width', value },
               { property: 'height', value }
