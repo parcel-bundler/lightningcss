@@ -10,6 +10,7 @@ use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};
 use crate::traits::{IsCompatible, Parse, PropertyHandler, ToCss};
 use crate::values::length::LengthPercentage;
+use crate::values::ratio::Ratio;
 use crate::vendor_prefix::VendorPrefix;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -290,6 +291,57 @@ enum_property! {
     "content-box": ContentBox,
     /// Include the padding and border (but not the margin) in the width and height.
     "border-box": BorderBox,
+  }
+}
+
+/// A value for the [aspect-ratio](https://drafts.csswg.org/css-sizing-4/#aspect-ratio) property.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "visitor", derive(Visit))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+pub struct AspectRatio {
+  /// The `auto` keyword.
+  pub auto: bool,
+  /// A preferred aspect ratio for the box, specified as width / height.
+  pub ratio: Option<Ratio>,
+}
+
+impl<'i> Parse<'i> for AspectRatio {
+  fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
+    let location = input.current_source_location();
+    let mut auto = input.try_parse(|i| i.expect_ident_matching("auto"));
+    let ratio = input.try_parse(Ratio::parse);
+    if auto.is_err() {
+      auto = input.try_parse(|i| i.expect_ident_matching("auto"));
+    }
+    if auto.is_err() && ratio.is_err() {
+      return Err(location.new_custom_error(ParserError::InvalidValue));
+    }
+
+    Ok(AspectRatio {
+      auto: auto.is_ok(),
+      ratio: ratio.ok(),
+    })
+  }
+}
+
+impl ToCss for AspectRatio {
+  fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+  where
+    W: std::fmt::Write,
+  {
+    if self.auto {
+      dest.write_str("auto")?;
+    }
+
+    if let Some(ratio) = &self.ratio {
+      if self.auto {
+        dest.write_char(' ')?;
+      }
+      ratio.to_css(dest)?;
+    }
+
+    Ok(())
   }
 }
 

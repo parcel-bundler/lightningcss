@@ -127,7 +127,7 @@ use crate::parser::starts_with_ignore_ascii_case;
 use crate::parser::ParserOptions;
 use crate::prefixes::Feature;
 use crate::printer::{Printer, PrinterOptions};
-use crate::targets::{Targets};
+use crate::targets::Targets;
 use crate::traits::{Parse, ParseWithOptions, Shorthand, ToCss};
 use crate::values::number::{CSSInteger, CSSNumber};
 use crate::values::string::CowArcStr;
@@ -1184,6 +1184,7 @@ define_properties! {
   "max-block-size": MaxBlockSize(MaxSize) [logical_group: MaxSize, category: Logical],
   "max-inline-size": MaxInlineSize(MaxSize) [logical_group: MaxSize, category: Logical],
   "box-sizing": BoxSizing(BoxSizing, VendorPrefix) / WebKit / Moz,
+  "aspect-ratio": AspectRatio(AspectRatio),
 
   "overflow": Overflow(Overflow) shorthand: true,
   "overflow-x": OverflowX(OverflowKeyword),
