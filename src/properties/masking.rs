@@ -721,6 +721,7 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
         property!(origins, &origins, prefix);
       }
       Property::Unparsed(val) if is_mask_property(&val.property_id) => {
+        self.flush(dest, context);
         let mut unparsed = val.get_prefixed(context.targets, Feature::Mask);
         context.add_unparsed_fallbacks(&mut unparsed);
         self
@@ -747,6 +748,7 @@ impl<'i> PropertyHandler<'i> for MaskHandler<'i> {
         border_shorthand!(val, VendorPrefix::WebKit);
       }
       Property::Unparsed(val) if is_mask_border_property(&val.property_id) => {
+        self.flush(dest, context);
         // Add vendor prefixes and expand color fallbacks.
         let mut val = val.clone();
         let prefix = context

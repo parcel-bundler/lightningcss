@@ -23432,6 +23432,21 @@ mod tests {
       },
     );
 
+    test(
+      r#"
+        .foo {
+          mask: none center / 100% no-repeat;
+          mask-image: var(--svg);
+        }
+      "#,
+      indoc! { r#"
+        .foo {
+          mask: none center / 100% no-repeat;
+          mask-image: var(--svg);
+        }
+      "#},
+    );
+
     prefix_test(
       r#"
         .foo {
