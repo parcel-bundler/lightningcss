@@ -1689,8 +1689,8 @@ impl<'i> PropertyHandler<'i> for TransformHandler {
         }
 
         // Otherwise, update the value and add the prefix.
-        if let Some((val, prefixes)) = &mut self.transform {
-          *val = val.clone();
+        if let Some((transform, prefixes)) = &mut self.transform {
+          *transform = val.clone();
           *prefixes |= *vp;
         } else {
           self.transform = Some((val.clone(), *vp));

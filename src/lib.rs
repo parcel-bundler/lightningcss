@@ -10975,6 +10975,20 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    test(
+      r#"
+      .foo {
+        transform: translateX(-50%);
+        transform: translateX(20px);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        transform: translateX(20px);
+      }
+      "#},
+    );
   }
 
   #[test]
