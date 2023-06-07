@@ -108,6 +108,15 @@ impl<'a, 'o, 'i> parcel_selectors::parser::Parser<'i> for SelectorParser<'a, 'o,
       "-moz-full-screen" => Fullscreen(VendorPrefix::Moz),
       "-ms-fullscreen" => Fullscreen(VendorPrefix::Ms),
 
+      // https://drafts.csswg.org/selectors/#display-state-pseudos
+      "open" => Open,
+      "closed" => Closed,
+      "modal" => Modal,
+      "picture-in-picture" => PictureInPicture,
+
+      // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-popover-open
+      "popover-open" => PopoverOpen,
+
       // https://drafts.csswg.org/selectors-4/#the-defined-pseudo
       "defined" => Defined,
 
@@ -399,6 +408,20 @@ pub enum PseudoClass<'i> {
   #[cfg_attr(feature = "serde", serde(with = "PrefixWrapper"))]
   Fullscreen(VendorPrefix),
 
+  // https://drafts.csswg.org/selectors/#display-state-pseudos
+  /// The [:open](https://drafts.csswg.org/selectors/#selectordef-open) pseudo class.
+  Open,
+  /// The [:closed](https://drafts.csswg.org/selectors/#selectordef-closed) pseudo class.
+  Closed,
+  /// The [:modal](https://drafts.csswg.org/selectors/#modal-state) pseudo class.
+  Modal,
+  /// The [:picture-in-picture](https://drafts.csswg.org/selectors/#pip-state) pseudo class.
+  PictureInPicture,
+
+  // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-popover-open
+  /// The [:popover-open](https://html.spec.whatwg.org/multipage/semantics-other.html#selector-popover-open) pseudo class.
+  PopoverOpen,
+
   /// The [:defined](https://drafts.csswg.org/selectors-4/#the-defined-pseudo) pseudo class.
   Defined,
 
@@ -669,6 +692,15 @@ where
         dest.write_str("fullscreen")
       }
     }
+
+    // https://drafts.csswg.org/selectors/#display-state-pseudos
+    Open => dest.write_str(":open"),
+    Closed => dest.write_str(":closed"),
+    Modal => dest.write_str(":modal"),
+    PictureInPicture => dest.write_str(":picture-in-picture"),
+
+    // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-popover-open
+    PopoverOpen => dest.write_str(":popover-open"),
 
     // https://drafts.csswg.org/selectors-4/#the-defined-pseudo
     Defined => dest.write_str(":defined"),
