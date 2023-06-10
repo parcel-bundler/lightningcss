@@ -237,6 +237,10 @@ a[aria-current] {
   text-decoration: underline;
 }
 
+.features {
+  column-count: 2;
+}
+
 @media (width < 1040px) {
   .table-of-contents {
     display: none;
@@ -244,6 +248,10 @@ a[aria-current] {
 
   main {
     padding-right: 0;
+  }
+
+  .features {
+    column-count: 1;
   }
 }
 
