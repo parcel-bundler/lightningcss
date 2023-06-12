@@ -59,7 +59,7 @@ use self::font_palette_values::FontPaletteValuesRule;
 use self::layer::{LayerBlockRule, LayerStatementRule};
 use self::property::PropertyRule;
 use crate::context::PropertyHandlerContext;
-use crate::declaration::DeclarationHandler;
+use crate::declaration::{DeclarationHandler, DeclarationBlock};
 use crate::dependencies::{Dependency, ImportDependency};
 use crate::error::{MinifyError, ParserError, PrinterError, PrinterErrorKind};
 use crate::parser::{
@@ -466,7 +466,7 @@ pub(crate) struct MinifyContext<'a, 'i> {
   pub targets: &'a Targets,
   pub handler: &'a mut DeclarationHandler<'i>,
   pub important_handler: &'a mut DeclarationHandler<'i>,
-  pub handler_context: &'a mut PropertyHandlerContext<'i, 'a>,
+  pub handler_context: PropertyHandlerContext<'i, 'a>,
   pub unused_symbols: &'a HashSet<String>,
   pub custom_media: Option<HashMap<CowArcStr<'i>, CustomMediaRule<'i>>>,
   pub css_modules: bool,
@@ -668,6 +668,24 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
             .collect::<Vec<_>>();
 
           context.handler_context.reset();
+
+          // If the rule has nested rules, and we have extra rules to insert such as for logical properties,
+          // we need to split the rule in two so we can insert the extra rules in between the declarations from
+          // the main rule and the nested rules.
+          let nested_rule = if !style.rules.0.is_empty() && (!logical.is_empty() || !supports.is_empty() || !incompatible_rules.is_empty()) {
+            let mut rules =  CssRuleList(vec![]);
+            std::mem::swap(&mut style.rules, &mut rules);
+            Some(StyleRule {
+              selectors: style.selectors.clone(),
+              declarations: DeclarationBlock::default(),
+              rules,
+              vendor_prefix: style.vendor_prefix,
+              loc: style.loc
+            })
+          } else {
+            None
+          };
+
           if !merged && !style.is_empty() {
             let source_index = style.loc.source_index;
             let has_no_rules = style.rules.0.is_empty();
@@ -714,6 +732,11 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
             }
             rules.extend(supports);
           }
+
+          if let Some(nested_rule) = nested_rule {
+            rules.push(CssRule::Style(nested_rule));
+          }
+
           continue;
         }
         CssRule::CounterStyle(counter_style) => {
@@ -777,7 +800,7 @@ fn merge_style_rules<'i, T>(
       .extend(style.declarations.important_declarations.drain(..));
     last_style_rule
       .declarations
-      .minify(context.handler, context.important_handler, context.handler_context);
+      .minify(context.handler, context.important_handler, &mut context.handler_context);
     return true;
   } else if style.declarations == last_style_rule.declarations
     && style.rules.0.is_empty()

@@ -119,7 +119,7 @@ impl<'i> KeyframesRule<'i> {
     for keyframe in &mut self.keyframes {
       keyframe
         .declarations
-        .minify(context.handler, context.important_handler, context.handler_context)
+        .minify(context.handler, context.important_handler, &mut context.handler_context)
     }
 
     context.handler_context.context = DeclarationContext::None;

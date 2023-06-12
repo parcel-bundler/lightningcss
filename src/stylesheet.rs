@@ -188,7 +188,7 @@ where
 
   /// Minify and transform the style sheet for the provided browser targets.
   pub fn minify(&mut self, options: MinifyOptions) -> Result<(), Error<MinifyErrorKind>> {
-    let mut context = PropertyHandlerContext::new(options.targets, &options.unused_symbols);
+    let context = PropertyHandlerContext::new(options.targets, &options.unused_symbols);
     let mut handler = DeclarationHandler::default();
     let mut important_handler = DeclarationHandler::default();
 
@@ -212,7 +212,7 @@ where
       targets: &options.targets,
       handler: &mut handler,
       important_handler: &mut important_handler,
-      handler_context: &mut context,
+      handler_context: context,
       unused_symbols: &options.unused_symbols,
       custom_media,
       css_modules: self.options.css_modules.is_some(),

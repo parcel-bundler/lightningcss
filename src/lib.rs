@@ -9525,6 +9525,39 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    nesting_test_with_targets(
+      r#"
+      .foo {
+        padding-inline-start: 3px;
+
+        .bar {
+          padding-inline-start: 5px;
+        }
+      }
+      "#,
+      indoc! {r#"
+      .foo:not(:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi)) {
+        padding-left: 3px;
+      }
+
+      .foo:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi) {
+        padding-right: 3px;
+      }
+
+      .foo .bar:not(:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi)) {
+        padding-left: 5px;
+      }
+
+      .foo .bar:lang(ae, ar, arc, bcc, bqi, ckb, dv, fa, glk, he, ku, mzn, nqo, pnb, ps, sd, ug, ur, yi) {
+        padding-right: 5px;
+      }
+      "#},
+      Browsers {
+        safari: Some(12 << 16),
+        ..Browsers::default()
+      }.into(),
+    );
   }
 
   #[test]

@@ -71,11 +71,14 @@ impl<'i, T: Clone> StyleRule<'i, T> {
     context.handler_context.context = DeclarationContext::StyleRule;
     self
       .declarations
-      .minify(context.handler, context.important_handler, context.handler_context);
+      .minify(context.handler, context.important_handler, &mut context.handler_context);
     context.handler_context.context = DeclarationContext::None;
 
     if !self.rules.0.is_empty() {
+      let mut handler_context = context.handler_context.child(DeclarationContext::StyleRule);
+      std::mem::swap(&mut context.handler_context, &mut handler_context);
       self.rules.minify(context, unused)?;
+      context.handler_context = handler_context;
       if unused && self.rules.0.is_empty() {
         return Ok(true);
       }

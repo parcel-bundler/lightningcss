@@ -50,6 +50,18 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
     }
   }
 
+  pub fn child(&self, context: DeclarationContext) -> Self {
+    PropertyHandlerContext {
+      targets: self.targets,
+      is_important: false,
+      supports: Vec::new(),
+      ltr: Vec::new(),
+      rtl: Vec::new(),
+      context,
+      unused_symbols: self.unused_symbols
+    }
+  }
+
   pub fn should_compile_logical(&self, feature: Feature) -> bool {
     // Don't convert logical properties in style attributes because
     // our fallbacks rely on extra rules to define --ltr and --rtl.
