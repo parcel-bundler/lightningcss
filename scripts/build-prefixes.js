@@ -204,9 +204,22 @@ let cssFeatureMappings = {
   'calc': 'CalcFunction'
 };
 
+let cssFeatureOverrides = {
+  // Safari supports the ::marker pseudo element, but only supports styling some properties.
+  // However this does not break using the selector itself, so ignore for our purposes.
+  // https://bugs.webkit.org/show_bug.cgi?id=204163
+  // https://github.com/parcel-bundler/lightningcss/issues/508
+  'css-marker-pseudo': {
+    safari: {
+      'y #1': 'y'
+    }
+  }
+};
+
 let compat = new Map();
 for (let feature of cssFeatures) {
   let data = unpack(features[feature]);
+  let overrides = cssFeatureOverrides[feature];
   let browserMap = {};
   for (let name in data.stats) {
     if (BROWSER_MAPPING[name] === null) {
@@ -214,8 +227,11 @@ for (let feature of cssFeatures) {
     }
 
     name = BROWSER_MAPPING[name] || name;
+    let browserOverrides = overrides?.[name];
     for (let version in data.stats[name]) {
-      if (data.stats[name][version] === 'y') {
+      let value = data.stats[name][version];
+      value = browserOverrides?.[value] || value;
+      if (value === 'y') {
         let v = parseVersion(version);
         if (v == null) {
           console.log('BAD VERSION', feature, name, version);

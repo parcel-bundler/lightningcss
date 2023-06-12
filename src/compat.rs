@@ -941,6 +941,11 @@ impl Feature {
             return false;
           }
         }
+        if let Some(version) = browsers.safari {
+          if version < 721152 {
+            return false;
+          }
+        }
         if let Some(version) = browsers.opera {
           if version < 4718592 {
             return false;
@@ -961,7 +966,7 @@ impl Feature {
             return false;
           }
         }
-        if browsers.ie.is_some() || browsers.safari.is_some() {
+        if browsers.ie.is_some() {
           return false;
         }
       }
