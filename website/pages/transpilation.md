@@ -67,6 +67,57 @@ When using parsed configuration from `browserslist`, `.browserslistrc`, or `pack
 
 If no targets are found for the resulting environment, then the `defaults` configuration section is used.
 
+### Feature flags
+
+In most cases, setting the `targets` option and letting Lightning CSS automatically compile your CSS works great. However, in other cases you might need a little more control over exactly what features are compiled and which are not. That's where the `include` and `exclude` options come in.
+
+The `include` and `exclude` options allow you to explicitly turn on or off certain features. These override the defaults based on the provided browser targets. For example, you might want to only compile colors, and handle auto prefixing or other features with another tool. Or you may want to handle everything except vendor prefixing with Lightning CSS. These options make that possible.
+
+The `include` and `exclude` options are configured using the `Features` enum, which can be imported from `lightningcss`. You can bitwise OR multiple flags together to turn them on or off.
+
+```js
+import { transform, Features } from 'lightningcss';
+
+let { code, map } = transform({
+  // ...
+  targets,
+  // Always compile colors and CSS nesting, regardless of browser targets.
+  include: Features.Colors | Features.Nesting,
+  // Never add any vendor prefixes, regardless of targets.
+  exclude: Features.VendorPrefixes
+});
+```
+
+Here is a full list of available flags, described in the sections below:
+
+<div class="features">
+
+* `Nesting`
+* `NotSelectorList`
+* `DirSelector`
+* `LangSelectorList`
+* `IsSelector`
+* `TextDecorationThicknessPercent`
+* `MediaIntervalSyntax`
+* `MediaRangeSyntax`
+* `CustomMediaQueries`
+* `ClampFunction`
+* `ColorFunction`
+* `OklabColors`
+* `LabColors`
+* `P3Colors`
+* `HexAlphaColors`
+* `SpaceSeparatedColorNotation`
+* `FontFamilySystemUi`
+* `DoublePositionGradients`
+* `VendorPrefixes`
+* `LogicalProperties`
+* `Selectors` – shorthand for `Nesting | NotSelectorList | DirSelector | LangSelectorList | IsSelector`
+* `MediaQueries` – shorthand for `MediaIntervalSyntax | MediaRangeSyntax | CustomMediaQueries`
+* `Colors` – shorthand for `ColorFunction | OklabColors | LabColors | P3Colors | HexAlphaColors | SpaceSeparatedColorNotation`
+
+</div>
+
 ## Vendor prefixing
 
 Based on your configured browser targets, Lightning CSS automatically adds vendor prefixed fallbacks for many CSS features. For example, when using the [`image-set()`](https://developer.mozilla.org/en-US/docs/Web/CSS/image/image-set()) function, Lightning CSS will output a fallback `-webkit-image-set()` value as well, since Chrome does not yet support the unprefixed value.
@@ -567,3 +618,21 @@ The following pseudo classes may be configured as shown above:
 * `focus` – corresponds to the `:focus` pseudo class
 * `focusVisible` – corresponds to the `:focus-visible` pseudo class
 * `focusWithin` – corresponds to the `:focus-within` pseudo class
+
+## Non-standard syntax
+
+For compatibility with other tools, Lightning CSS supports parsing some non-standard CSS syntax. This must be enabled by turning on a flag under the `nonStandard` option.
+
+```js
+let { code, map } = transform({
+  // ...
+  nonStandard: {
+    deepSelectorCombinator: true
+  }
+});
+
+```
+
+Currently the following features are supported:
+
+* `deepSelectorCombinator` – enables parsing the Vue/Angular `>>>` and `/deep/` selector combinators.
