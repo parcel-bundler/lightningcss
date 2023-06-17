@@ -9631,6 +9631,34 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    prefix_test(
+      r#"
+      *,
+      ::before,
+      ::after,
+      ::backdrop {
+        padding: 5px;
+      }
+      "#,
+      indoc! {r#"
+        *, :before, :after {
+          padding: 5px;
+        }
+
+        ::-webkit-backdrop {
+          padding: 5px;
+        }
+
+        ::backdrop {
+          padding: 5px;
+        }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]

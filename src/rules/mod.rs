@@ -624,6 +624,8 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
             smallvec![]
           };
 
+          style.update_prefix(context);
+
           // Attempt to merge the new rule with the last rule we added.
           let mut merged = false;
           if let Some(CssRule::Style(last_style_rule)) = rules.last_mut() {
@@ -659,6 +661,7 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
               let list = SelectorList::new(smallvec![selector]);
               let mut clone = style.clone();
               clone.selectors = list;
+              clone.update_prefix(context);
 
               // Also add rules for logical properties and @supports overrides.
               let supports = context.handler_context.get_supports_rules(&clone);
