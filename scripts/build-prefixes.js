@@ -307,6 +307,7 @@ let mdnFeatures = {
         }
       })
   ),
+  partPseudo: mdn.css.selectors.part.__compat.support,
   imageSet: mdn.css.types.image['image-set'].__compat.support,
   xResolutionUnit: mdn.css.types.resolution.x.__compat.support,
   nthChildOf: mdn.css.selectors['nth-child'].of_syntax.__compat.support,

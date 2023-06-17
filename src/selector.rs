@@ -1746,7 +1746,7 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
 
         Component::Scope | Component::Host(_) | Component::Slotted(_) => Feature::Shadowdomv1,
 
-        Component::Part(_) => return false, // TODO: find this data in caniuse-lite
+        Component::Part(_) => Feature::PartPseudo,
 
         Component::NonTSPseudoClass(pseudo) => {
           match pseudo {

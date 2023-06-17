@@ -9556,7 +9556,25 @@ mod tests {
       Browsers {
         safari: Some(12 << 16),
         ..Browsers::default()
-      }.into(),
+      }
+      .into(),
+    );
+
+    prefix_test(
+      r#"
+      .foo::part(header), .foo::part(body) {
+        display: none
+      }
+      "#,
+      indoc! {r#"
+      .foo::part(header), .foo::part(body) {
+        display: none;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
     );
   }
 

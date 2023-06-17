@@ -122,6 +122,7 @@ pub enum Feature {
   OriyaListStyleType,
   OverflowShorthand,
   P3Colors,
+  PartPseudo,
   PersianListStyleType,
   PlaceContent,
   PlaceItems,
@@ -2493,6 +2494,51 @@ impl Feature {
         }
         if let Some(version) = browsers.android {
           if version < 2424832 {
+            return false;
+          }
+        }
+        if browsers.ie.is_some() {
+          return false;
+        }
+      }
+      Feature::PartPseudo => {
+        if let Some(version) = browsers.chrome {
+          if version < 4784128 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.edge {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.firefox {
+          if version < 5177344 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.opera {
+          if version < 3407872 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.safari {
+          if version < 852224 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.ios_saf {
+          if version < 852992 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.samsung {
+          if version < 720896 {
+            return false;
+          }
+        }
+        if let Some(version) = browsers.android {
+          if version < 4784128 {
             return false;
           }
         }
