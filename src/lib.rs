@@ -22173,6 +22173,30 @@ mod tests {
         exclude: Features::Nesting,
       },
     );
+
+    let mut stylesheet = StyleSheet::parse(
+      r#"
+      .foo {
+        color: blue;
+        .bar {
+          color: red;
+        }
+      }
+      "#,
+      ParserOptions {
+        flags: ParserFlags::NESTING,
+        ..ParserOptions::default()
+      },
+    )
+    .unwrap();
+    stylesheet.minify(MinifyOptions::default()).unwrap();
+    let res = stylesheet
+      .to_css(PrinterOptions {
+        minify: true,
+        ..PrinterOptions::default()
+      })
+      .unwrap();
+    assert_eq!(res.code, ".foo{color:#00f;& .bar{color:red}}");
   }
 
   #[test]

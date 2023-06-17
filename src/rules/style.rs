@@ -261,7 +261,7 @@ impl<'a, 'i, T: ToCss> StyleRule<'i, T> {
 
             dest.newline()?;
             decl.to_css(dest, $important)?;
-            if i != len - 1 || !dest.minify {
+            if i != len - 1 || !dest.minify || (supports_nesting && !self.rules.0.is_empty()) {
               dest.write_char(';')?;
             }
 
