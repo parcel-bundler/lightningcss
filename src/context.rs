@@ -58,7 +58,7 @@ impl<'i, 'o> PropertyHandlerContext<'i, 'o> {
       ltr: Vec::new(),
       rtl: Vec::new(),
       context,
-      unused_symbols: self.unused_symbols
+      unused_symbols: self.unused_symbols,
     }
   }
 

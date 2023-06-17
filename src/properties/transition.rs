@@ -374,7 +374,8 @@ fn expand_properties<'i>(
 
         // Expand mask properties, which use different vendor-prefixed names.
         if let Some(property_id) = get_webkit_mask_property(&properties[i]) {
-          if context.targets
+          if context
+            .targets
             .prefixes(VendorPrefix::None, Feature::MaskBorder)
             .contains(VendorPrefix::WebKit)
           {
@@ -387,7 +388,8 @@ fn expand_properties<'i>(
           rtl_properties[i].set_prefixes_for_targets(context.targets);
 
           if let Some(property_id) = get_webkit_mask_property(&rtl_properties[i]) {
-            if context.targets
+            if context
+              .targets
               .prefixes(VendorPrefix::None, Feature::MaskBorder)
               .contains(VendorPrefix::WebKit)
             {

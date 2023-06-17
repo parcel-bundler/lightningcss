@@ -1479,12 +1479,9 @@ where
         Component::Where(..) => dest.write_str(":where(")?,
         Component::Is(ref selectors) => {
           // If there's only one simple selector, serialize it directly.
-          if selectors.len() == 1 {
-            let first = selectors.first().unwrap();
-            if !has_type_selector(first) && is_simple(first) {
-              serialize_selector(first, dest, context, false)?;
-              return Ok(());
-            }
+          if should_unwrap_is(selectors) {
+            serialize_selector(selectors.first().unwrap(), dest, context, false)?;
+            return Ok(());
           }
 
           let vp = dest.vendor_prefix;
@@ -1542,6 +1539,17 @@ where
       Ok(())
     }
   }
+}
+
+fn should_unwrap_is<'i>(selectors: &Box<[Selector<'i>]>) -> bool {
+  if selectors.len() == 1 {
+    let first = selectors.first().unwrap();
+    if !has_type_selector(first) && is_simple(first) {
+      return true;
+    }
+  }
+
+  false
 }
 
 fn serialize_nesting<W>(
@@ -1735,7 +1743,15 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
         }
 
         // These support forgiving selector lists, so no need to check nested selectors.
-        Component::Is(_) | Component::Where(_) | Component::Nesting => Feature::IsSelector,
+        Component::Is(selectors) => {
+          // ... except if we are going to unwrap them.
+          if should_unwrap_is(selectors) && is_compatible(selectors, targets) {
+            continue;
+          }
+
+          Feature::IsSelector
+        }
+        Component::Where(_) | Component::Nesting => Feature::IsSelector,
         Component::Any(..) => Feature::AnyPseudo,
         Component::Has(selectors) => {
           if !targets.is_compatible(Feature::HasSelector) || !is_compatible(&*selectors, targets) {
@@ -1946,7 +1962,10 @@ fn downlevel_component<'i>(component: &mut Component<'i>, targets: Targets) -> V
 
       // Convert :is to :-webkit-any/:-moz-any if needed.
       // All selectors must be simple, no combinators are supported.
-      if should_compile!(targets, IsSelector) && selectors.iter().all(|selector| !selector.has_combinator()) {
+      if should_compile!(targets, IsSelector)
+        && !should_unwrap_is(selectors)
+        && selectors.iter().all(|selector| !selector.has_combinator())
+      {
         necessary_prefixes |= targets.prefixes(VendorPrefix::None, crate::prefixes::Feature::AnyPseudo)
       } else {
         necessary_prefixes |= VendorPrefix::empty()

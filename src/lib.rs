@@ -9576,6 +9576,61 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    prefix_test(
+      r#"
+      .foo :is(.bar) {
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+        .foo .bar {
+          color: red;
+        }
+      "#},
+      Browsers {
+        chrome: Some(87 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo :is(.bar), .bar :is(.baz) {
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+        .foo .bar, .bar .baz {
+          color: red;
+        }
+      "#},
+      Browsers {
+        chrome: Some(87 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo :is(.bar:focus-visible), .bar :is(.baz:hover) {
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+        .bar .baz:hover {
+          color: red;
+        }
+
+        .foo .bar:focus-visible {
+          color: red;
+        }
+      "#},
+      Browsers {
+        chrome: Some(85 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]

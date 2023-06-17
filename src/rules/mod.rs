@@ -59,7 +59,7 @@ use self::font_palette_values::FontPaletteValuesRule;
 use self::layer::{LayerBlockRule, LayerStatementRule};
 use self::property::PropertyRule;
 use crate::context::PropertyHandlerContext;
-use crate::declaration::{DeclarationHandler, DeclarationBlock};
+use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::dependencies::{Dependency, ImportDependency};
 use crate::error::{MinifyError, ParserError, PrinterError, PrinterErrorKind};
 use crate::parser::{
@@ -672,15 +672,17 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
           // If the rule has nested rules, and we have extra rules to insert such as for logical properties,
           // we need to split the rule in two so we can insert the extra rules in between the declarations from
           // the main rule and the nested rules.
-          let nested_rule = if !style.rules.0.is_empty() && (!logical.is_empty() || !supports.is_empty() || !incompatible_rules.is_empty()) {
-            let mut rules =  CssRuleList(vec![]);
+          let nested_rule = if !style.rules.0.is_empty()
+            && (!logical.is_empty() || !supports.is_empty() || !incompatible_rules.is_empty())
+          {
+            let mut rules = CssRuleList(vec![]);
             std::mem::swap(&mut style.rules, &mut rules);
             Some(StyleRule {
               selectors: style.selectors.clone(),
               declarations: DeclarationBlock::default(),
               rules,
               vendor_prefix: style.vendor_prefix,
-              loc: style.loc
+              loc: style.loc,
             })
           } else {
             None
