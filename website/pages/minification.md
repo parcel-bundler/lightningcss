@@ -166,7 +166,7 @@ minifies to:
 .foo{background:red}
 ```
 
-In addition to removing defaults, Lightning CSS also omits quotes, whitespace, and optional delimeters where possible. It also converts values to shorter equivalents where possible.
+In addition to removing defaults, Lightning CSS also omits quotes, whitespace, and optional delimiters where possible. It also converts values to shorter equivalents where possible.
 
 ```css
 .foo {

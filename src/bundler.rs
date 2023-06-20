@@ -137,7 +137,7 @@ impl SourceProvider for FileProvider {
   }
 
   fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Self::Error> {
-    // Assume the specifier is a releative file path and join it with current path.
+    // Assume the specifier is a relative file path and join it with current path.
     Ok(originating_file.with_file_name(specifier))
   }
 }

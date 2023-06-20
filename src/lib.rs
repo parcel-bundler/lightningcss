@@ -17047,7 +17047,7 @@ mod tests {
       );
 
       // Testing valid permutation (types match).
-      // NOTE: 'c' is a vaild hue, as hue is <angle>|<number>.
+      // NOTE: 'c' is a valid hue, as hue is <angle>|<number>.
       test(
         &format!("{}(from {}(70% 45 30) alpha c h / l)", color_space, color_space),
         &format!("{}(100% 45 30 / 0.7)", color_space),

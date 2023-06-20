@@ -370,7 +370,7 @@ impl<'i> TokenList<'i> {
       let state = input.state();
       match input.next_including_whitespace_and_comments() {
         Ok(&cssparser::Token::WhiteSpace(..)) | Ok(&cssparser::Token::Comment(..)) => {
-          // Skip whitespace if the last token was a delimeter.
+          // Skip whitespace if the last token was a delimiter.
           // Otherwise, replace all whitespace and comments with a single space character.
           if !last_is_delim {
             tokens.push(Token::WhiteSpace(" ".into()).into());
@@ -481,8 +481,8 @@ impl<'i> TokenList<'i> {
         Ok(token) => {
           last_is_delim = matches!(token, cssparser::Token::Delim(_) | cssparser::Token::Comma);
 
-          // If this is a delimeter, and the last token was whitespace,
-          // replace the whitespace with the delimeter since both are not required.
+          // If this is a delimiter, and the last token was whitespace,
+          // replace the whitespace with the delimiter since both are not required.
           if last_is_delim && last_is_whitespace {
             let last = tokens.last_mut().unwrap();
             *last = Token::from(token).into();

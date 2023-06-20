@@ -1200,7 +1200,7 @@ pub enum MediaFeatureType {
   Resolution,
   /// A ratio.
   Ratio,
-  /// An indentifier.
+  /// An identifier.
   Ident,
   /// An unknown type.
   Unknown,
@@ -1435,7 +1435,7 @@ pub enum MediaFeatureValue<'i> {
   Resolution(Resolution),
   /// A ratio.
   Ratio(Ratio),
-  /// An indentifier.
+  /// An identifier.
   #[cfg_attr(feature = "serde", serde(borrow))]
   Ident(Ident<'i>),
   /// An environment variable reference.
@@ -1502,8 +1502,8 @@ impl<'i> MediaFeatureValue<'i> {
   }
 
   fn parse_unknown<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    // Ratios are ambigous with numbers because the second param is optional (e.g. 2/1 == 2).
-    // We require the / delimeter when parsing ratios so that 2/1 ends up as a ratio and 2 is
+    // Ratios are ambiguous with numbers because the second param is optional (e.g. 2/1 == 2).
+    // We require the / delimiter when parsing ratios so that 2/1 ends up as a ratio and 2 is
     // parsed as a number.
     if let Ok(ratio) = input.try_parse(Ratio::parse_required) {
       return Ok(MediaFeatureValue::Ratio(ratio));
