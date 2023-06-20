@@ -27,16 +27,12 @@ jobs:
         with:
           node-version: 18
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Setup rust target
         run: rustup target add ${{ matrix.target }}
 
-      - uses: bahmutov/npm-install@v1.1.0
+      - uses: bahmutov/npm-install@v1.8.32
       - name: Build release
         run: yarn build-release
         env:
@@ -66,16 +62,12 @@ jobs:
         with:
           node-version: 18
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Setup rust target
         run: rustup target add aarch64-apple-darwin
 
-      - uses: bahmutov/npm-install@v1.1.0
+      - uses: bahmutov/npm-install@v1.8.32
       - name: Build release
         run: yarn build-release
         env:
@@ -136,11 +128,7 @@ jobs:
         with:
           node-version: 18
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Setup cross compile toolchain
         if: ${{ matrix.setup }}
@@ -149,7 +137,7 @@ jobs:
       - name: Setup rust target
         run: rustup target add ${{ matrix.target }}
 
-      - uses: bahmutov/npm-install@v1.1.0
+      - uses: bahmutov/npm-install@v1.8.32
       - name: Build release
         run: yarn build-release
         env:
@@ -178,12 +166,9 @@ jobs:
         with:
           node-version: 18
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          profile: minimal
-          override: true
-          target: wasm32-unknown-unknown
+          targets: wasm32-unknown-unknown
       - name: Install wasm-opt
         run: |
           curl -L -O https://github.com/WebAssembly/binaryen/releases/download/version_111/binaryen-version_111-x86_64-linux.tar.gz
@@ -210,7 +195,7 @@ jobs:
       - build-wasm
     steps:
       - uses: actions/checkout@v3
-      - uses: bahmutov/npm-install@v1.1.0
+      - uses: bahmutov/npm-install@v1.8.32
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
@@ -246,14 +231,10 @@ jobs:
     runs-on: ubuntu-latest
     name: Release Rust crate
     steps:
-      - uses: actions/checkout@v1
-      - uses: bahmutov/npm-install@v1.1.0
+      - uses: actions/checkout@v3
+      - uses: bahmutov/npm-install@v1.8.32
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
+        uses: dtolnay/rust-toolchain@stable
       - run: cargo login ${CRATES_IO_TOKEN}
         env:
           CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}

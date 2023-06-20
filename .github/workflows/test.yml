@@ -14,20 +14,20 @@ jobs:
       RUST_BACKTRACE: full
       RUSTFLAGS: -D warnings
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - run: cargo fmt
       - run: cargo test --all-features
   test-js:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
           node-version: 18
-      - uses: bahmutov/npm-install@v1.1.0
+      - uses: bahmutov/npm-install@v1.8.32
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - run: yarn build
       - run: yarn test
