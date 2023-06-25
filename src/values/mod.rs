@@ -18,7 +18,7 @@
 //! };
 //!
 //! let color = CssColor::parse_string("lch(50% 75 0)").unwrap();
-//! let rgb = color.to_rgb();
+//! let rgb = color.to_rgb().unwrap();
 //! assert_eq!(rgb.to_css_string(PrinterOptions::default()).unwrap(), "#e1157b");
 //! ```
 //!

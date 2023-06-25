@@ -16202,6 +16202,10 @@ mod tests {
     test("lch(from indianred l sin(c) h)", "lch(53.9252% .84797 26.8448)");
     test("lch(from indianred l sqrt(c) h)", "lch(53.9252% 7.16084 26.8448)");
     test("lch(from indianred l c sin(h))", "lch(53.9252% 51.2776 .990043)");
+    minify_test(
+      ".foo{color:lch(from currentColor l c sin(h))}",
+      ".foo{color:lch(from currentColor l c sin(h))}",
+    );
 
     // The following tests were converted from WPT: https://github.com/web-platform-tests/wpt/blob/master/css/css-color/parsing/relative-color-valid.html
     // Find: test_valid_value\(`color`, `(.*?)`,\s*`(.*?)`\)
@@ -18053,6 +18057,14 @@ mod tests {
         ..Default::default()
       },
     );
+    minify_test(
+      ".foo { color: color-mix(in srgb, currentColor, blue); }",
+      ".foo{color:color-mix(in srgb,currentColor,blue)}",
+    );
+    minify_test(
+      ".foo { color: color-mix(in srgb, blue, currentColor); }",
+      ".foo{color:color-mix(in srgb,blue,currentColor)}",
+    );
 
     // regex for converting web platform tests:
     // test_computed_value\(.*?, `(.*?)`, `(.*?)`\);
@@ -18140,7 +18152,7 @@ mod tests {
 
       let mut input = ParserInput::new(s);
       let mut parser = Parser::new(&mut input);
-      let v = CssColor::parse(&mut parser).unwrap().to_rgb();
+      let v = CssColor::parse(&mut parser).unwrap().to_rgb().unwrap();
       format!(".foo{{color:{}}}", v.to_css_string(PrinterOptions::default()).unwrap())
     }
 

@@ -223,7 +223,7 @@ impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
   }
 
   fn visit_color(&mut self, color: &mut lightningcss::values::color::CssColor) -> Result<(), Self::Error> {
-    *color = color.to_lab();
+    *color = color.to_lab().unwrap();
     Ok(())
   }
 

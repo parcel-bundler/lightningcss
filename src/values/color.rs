@@ -287,18 +287,18 @@ impl CssColor {
   }
 
   /// Converts the color to RGBA.
-  pub fn to_rgb(&self) -> CssColor {
-    RGBA::from(self).into()
+  pub fn to_rgb(&self) -> Result<CssColor, ()> {
+    Ok(RGBA::try_from(self)?.into())
   }
 
   /// Converts the color to the LAB color space.
-  pub fn to_lab(&self) -> CssColor {
-    LAB::from(self).into()
+  pub fn to_lab(&self) -> Result<CssColor, ()> {
+    Ok(LAB::try_from(self)?.into())
   }
 
   /// Converts the color to the P3 color space.
-  pub fn to_p3(&self) -> CssColor {
-    P3::from(self).into()
+  pub fn to_p3(&self) -> Result<CssColor, ()> {
+    Ok(P3::try_from(self)?.into())
   }
 
   pub(crate) fn get_possible_fallbacks(&self, targets: Targets) -> ColorFallbackKind {
@@ -376,9 +376,9 @@ impl CssColor {
     }
 
     match kind {
-      ColorFallbackKind::RGB => self.to_rgb(),
-      ColorFallbackKind::P3 => self.to_p3(),
-      ColorFallbackKind::LAB => self.to_lab(),
+      ColorFallbackKind::RGB => self.to_rgb().unwrap(),
+      ColorFallbackKind::P3 => self.to_p3().unwrap(),
+      ColorFallbackKind::LAB => self.to_lab().unwrap(),
       _ => unreachable!(),
     }
   }
@@ -406,15 +406,15 @@ impl FallbackValues for CssColor {
 
     let mut res = Vec::new();
     if fallbacks.contains(ColorFallbackKind::RGB) {
-      res.push(self.to_rgb());
+      res.push(self.to_rgb().unwrap());
     }
 
     if fallbacks.contains(ColorFallbackKind::P3) {
-      res.push(self.to_p3());
+      res.push(self.to_p3().unwrap());
     }
 
     if fallbacks.contains(ColorFallbackKind::LAB) {
-      *self = self.to_lab();
+      *self = self.to_lab().unwrap();
     }
 
     res
@@ -744,12 +744,14 @@ impl ComponentParser {
     Self { allow_none, from: None }
   }
 
-  fn parse_relative<'i, 't, T: From<CssColor> + ColorSpace>(
+  fn parse_relative<'i, 't, T: TryFrom<CssColor> + ColorSpace>(
     &mut self,
     input: &mut Parser<'i, 't>,
   ) -> Result<(), ParseError<'i, ParserError<'i>>> {
     if input.try_parse(|input| input.expect_ident_matching("from")).is_ok() {
-      let from = T::from(CssColor::parse(input)?).resolve();
+      let from = T::try_from(CssColor::parse(input)?)
+        .map_err(|_| input.new_custom_error(ParserError::InvalidValue))?
+        .resolve();
       self.from = Some(RelativeComponentParser::new(&from));
     }
 
@@ -895,7 +897,7 @@ fn parse_color_function<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, 
 
 /// Parses the lab() and oklab() functions.
 #[inline]
-fn parse_lab<'i, 't, T: From<CssColor> + ColorSpace>(
+fn parse_lab<'i, 't, T: TryFrom<CssColor> + ColorSpace>(
   input: &mut Parser<'i, 't>,
   parser: &mut ComponentParser,
 ) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
@@ -917,7 +919,7 @@ fn parse_lab<'i, 't, T: From<CssColor> + ColorSpace>(
 
 /// Parses the lch() and oklch() functions.
 #[inline]
-fn parse_lch<'i, 't, T: From<CssColor> + ColorSpace>(
+fn parse_lch<'i, 't, T: TryFrom<CssColor> + ColorSpace>(
   input: &mut Parser<'i, 't>,
   parser: &mut ComponentParser,
 ) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
@@ -961,15 +963,16 @@ fn parse_predefined<'i, 't>(
     let colorspace = input.expect_ident_cloned()?;
 
     if let Some(from) = &from {
+      let handle_error = |_| input.new_custom_error(ParserError::InvalidValue);
       parser.from = Some(match_ignore_ascii_case! { &*&colorspace,
-        "srgb" => RelativeComponentParser::new(&SRGB::from(from).resolve_missing()),
-        "srgb-linear" => RelativeComponentParser::new(&SRGBLinear::from(from).resolve_missing()),
-        "display-p3" => RelativeComponentParser::new(&P3::from(from).resolve_missing()),
-        "a98-rgb" => RelativeComponentParser::new(&A98::from(from).resolve_missing()),
-        "prophoto-rgb" => RelativeComponentParser::new(&ProPhoto::from(from).resolve_missing()),
-        "rec2020" => RelativeComponentParser::new(&Rec2020::from(from).resolve_missing()),
-        "xyz-d50" => RelativeComponentParser::new(&XYZd50::from(from).resolve_missing()),
-        "xyz" | "xyz-d65" => RelativeComponentParser::new(&XYZd65::from(from).resolve_missing()),
+        "srgb" => RelativeComponentParser::new(&SRGB::try_from(from).map_err(handle_error)?.resolve_missing()),
+        "srgb-linear" => RelativeComponentParser::new(&SRGBLinear::try_from(from).map_err(handle_error)?.resolve_missing()),
+        "display-p3" => RelativeComponentParser::new(&P3::try_from(from).map_err(handle_error)?.resolve_missing()),
+        "a98-rgb" => RelativeComponentParser::new(&A98::try_from(from).map_err(handle_error)?.resolve_missing()),
+        "prophoto-rgb" => RelativeComponentParser::new(&ProPhoto::try_from(from).map_err(handle_error)?.resolve_missing()),
+        "rec2020" => RelativeComponentParser::new(&Rec2020::try_from(from).map_err(handle_error)?.resolve_missing()),
+        "xyz-d50" => RelativeComponentParser::new(&XYZd50::try_from(from).map_err(handle_error)?.resolve_missing()),
+        "xyz" | "xyz-d65" => RelativeComponentParser::new(&XYZd65::try_from(from).map_err(handle_error)?.resolve_missing()),
         _ => return Err(location.new_unexpected_token_error(
           cssparser::Token::Ident(colorspace.clone())
         ))
@@ -1013,7 +1016,7 @@ fn parse_predefined<'i, 't>(
 /// Only the modern syntax with no commas is handled here, cssparser handles the legacy syntax.
 /// The results of this function are stored as floating point if there are any `none` components.
 #[inline]
-fn parse_hsl_hwb<'i, 't, T: From<CssColor> + ColorSpace>(
+fn parse_hsl_hwb<'i, 't, T: TryFrom<CssColor> + ColorSpace>(
   input: &mut Parser<'i, 't>,
   parser: &mut ComponentParser,
 ) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
@@ -2575,27 +2578,29 @@ macro_rules! color_space {
       }
     }
 
-    impl From<&CssColor> for $space {
-      fn from(color: &CssColor) -> $space {
-        match color {
+    impl TryFrom<&CssColor> for $space {
+      type Error = ();
+      fn try_from(color: &CssColor) -> Result<$space, ()> {
+        Ok(match color {
           CssColor::RGBA(rgba) => (*rgba).into(),
           CssColor::LAB(lab) => (**lab).into(),
           CssColor::Predefined(predefined) => (**predefined).into(),
           CssColor::Float(float) => (**float).into(),
-          CssColor::CurrentColor => unreachable!(),
-        }
+          CssColor::CurrentColor => return Err(()),
+        })
       }
     }
 
-    impl From<CssColor> for $space {
-      fn from(color: CssColor) -> $space {
-        match color {
+    impl TryFrom<CssColor> for $space {
+      type Error = ();
+      fn try_from(color: CssColor) -> Result<$space, ()> {
+        Ok(match color {
           CssColor::RGBA(rgba) => rgba.into(),
           CssColor::LAB(lab) => (*lab).into(),
           CssColor::Predefined(predefined) => (*predefined).into(),
           CssColor::Float(float) => (*float).into(),
-          CssColor::CurrentColor => unreachable!(),
-        }
+          CssColor::CurrentColor => return Err(()),
+        })
       }
     }
   };
@@ -2879,7 +2884,7 @@ fn parse_color_mix<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, Parse
     return Err(input.new_custom_error(ParserError::InvalidValue));
   }
 
-  Ok(match method {
+  match method {
     ColorSpaceName::SRGB => first_color.interpolate::<SRGB>(p1, &second_color, p2, hue_method),
     ColorSpaceName::SRGBLinear => first_color.interpolate::<SRGBLinear>(p1, &second_color, p2, hue_method),
     ColorSpaceName::Hsl => first_color.interpolate::<HSL>(p1, &second_color, p2, hue_method),
@@ -2892,7 +2897,8 @@ fn parse_color_mix<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, Parse
       first_color.interpolate::<XYZd65>(p1, &second_color, p2, hue_method)
     }
     ColorSpaceName::XYZd50 => first_color.interpolate::<XYZd50>(p1, &second_color, p2, hue_method),
-  })
+  }
+  .map_err(|_| input.new_custom_error(ParserError::InvalidValue))
 }
 
 impl CssColor {
@@ -2932,10 +2938,10 @@ impl CssColor {
     other: &'a CssColor,
     mut p2: f32,
     method: HueInterpolationMethod,
-  ) -> CssColor
+  ) -> Result<CssColor, ()>
   where
     T: 'static
-      + From<&'a CssColor>
+      + TryFrom<&'a CssColor>
       + Interpolate
       + Into<CssColor>
       + Into<OKLCH>
@@ -2944,13 +2950,17 @@ impl CssColor {
       + From<OKLCH>
       + Copy,
   {
+    if matches!(self, CssColor::CurrentColor) || matches!(other, CssColor::CurrentColor) {
+      return Err(());
+    }
+
     let type_id = TypeId::of::<T>();
     let converted_first = self.get_type_id() != type_id;
     let converted_second = other.get_type_id() != type_id;
 
     // https://drafts.csswg.org/css-color-5/#color-mix-result
-    let mut first_color = T::from(self);
-    let mut second_color = T::from(other);
+    let mut first_color = T::try_from(self).map_err(|_| ())?;
+    let mut second_color = T::try_from(other).map_err(|_| ())?;
 
     if converted_first && !first_color.in_gamut() {
       first_color = map_gamut(first_color);
@@ -2993,7 +3003,7 @@ impl CssColor {
     let mut result_color = first_color.interpolate(p1, &second_color, p2);
     result_color.unpremultiply(alpha_multiplier);
 
-    result_color.into()
+    Ok(result_color.into())
   }
 }
 
