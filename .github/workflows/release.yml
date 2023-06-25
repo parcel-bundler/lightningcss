@@ -259,4 +259,4 @@ jobs:
           CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
       - run: |
           cargo install cargo-workspaces
-          cargo workspaces publish --from-git -y
+          cargo workspaces publish --no-remove-dev-deps --from-git -y
