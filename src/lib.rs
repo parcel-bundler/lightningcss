@@ -26041,4 +26041,34 @@ mod tests {
       },
     );
   }
+
+  #[test]
+  fn test_license_comments() {
+    minify_test(
+      r#"
+      /*! Copyright 2023 Someone awesome */
+      /* Some other comment */
+      .foo {
+        color: red;
+      }
+    "#,
+      indoc! {r#"
+      /*! Copyright 2023 Someone awesome */
+      .foo{color:red}"#},
+    );
+
+    minify_test(
+      r#"
+      /*! Copyright 2023 Someone awesome */
+      /*! Copyright 2023 Someone else */
+      .foo {
+        color: red;
+      }
+    "#,
+      indoc! {r#"
+      /*! Copyright 2023 Someone awesome */
+      /*! Copyright 2023 Someone else */
+      .foo{color:red}"#},
+    );
+  }
 }

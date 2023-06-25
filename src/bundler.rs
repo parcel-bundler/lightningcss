@@ -285,6 +285,14 @@ where
       .flat_map(|s| s.stylesheet.as_ref().unwrap().source_map_urls.iter().cloned())
       .collect();
 
+    stylesheet.license_comments = self
+      .stylesheets
+      .get_mut()
+      .unwrap()
+      .iter()
+      .flat_map(|s| s.stylesheet.as_ref().unwrap().license_comments.iter().cloned())
+      .collect();
+
     Ok(stylesheet)
   }
 
@@ -2006,6 +2014,40 @@ mod tests {
     assert_eq!(
       map,
       r#"{"version":3,"sourceRoot":null,"mappings":"ACAA,uCCGA,2CAAA,8BFDQ","sources":["a.css","sass/_demo.scss","stdin"],"sourcesContent":["\n        @import \"/b.css\";\n        .a { color: red; }\n      ",".imported {\n  content: \"yay, file support!\";\n}","@import \"_variables\";\n@import \"_demo\";\n\n.selector {\n  margin: $size;\n  background-color: $brandColor;\n\n  .nested {\n    margin: $size / 2;\n  }\n}"],"names":[]}"#
+    );
+  }
+
+  #[test]
+  fn test_license_comments() {
+    let res = bundle(
+      TestProvider {
+        map: fs! {
+          "/a.css": r#"
+          /*! Copyright 2023 Someone awesome */
+          @import "b.css";
+          .a { color: red }
+        "#,
+          "/b.css": r#"
+          /*! Copyright 2023 Someone else */
+          .b { color: green }
+        "#
+        },
+      },
+      "/a.css",
+    );
+    assert_eq!(
+      res,
+      indoc! { r#"
+      /*! Copyright 2023 Someone awesome */
+      /*! Copyright 2023 Someone else */
+      .b {
+        color: green;
+      }
+
+      .a {
+        color: red;
+      }
+    "#}
     );
   }
 }

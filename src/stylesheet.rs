@@ -13,6 +13,7 @@ use crate::printer::Printer;
 use crate::rules::{CssRule, CssRuleList, MinifyContext};
 use crate::targets::{should_compile, Targets};
 use crate::traits::{AtRuleParser, ToCss};
+use crate::values::string::CowArcStr;
 #[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
 use cssparser::{Parser, ParserInput, RuleListParser};
@@ -78,6 +79,8 @@ pub struct StyleSheet<'i, 'o, T = DefaultAtRule> {
   pub sources: Vec<String>,
   /// The source map URL extracted from the original style sheet.
   pub(crate) source_map_urls: Vec<Option<String>>,
+  /// The license comments that appeared at the start of the file.
+  pub license_comments: Vec<CowArcStr<'i>>,
   #[cfg_attr(feature = "serde", serde(skip))]
   /// The options the style sheet was originally parsed with.
   options: ParserOptions<'o, 'i>,
@@ -131,6 +134,7 @@ where
     StyleSheet {
       sources,
       source_map_urls: Vec::new(),
+      license_comments: Vec::new(),
       rules,
       options,
     }
@@ -144,6 +148,21 @@ where
   ) -> Result<Self, Error<ParserError<'i>>> {
     let mut input = ParserInput::new(&code);
     let mut parser = Parser::new(&mut input);
+    let mut license_comments = Vec::new();
+
+    let mut state = parser.state();
+    while let Ok(token) = parser.next_including_whitespace_and_comments() {
+      match token {
+        cssparser::Token::WhiteSpace(..) => {}
+        cssparser::Token::Comment(comment) if comment.starts_with('!') => {
+          license_comments.push((*comment).into());
+        }
+        _ => break,
+      }
+      state = parser.state();
+    }
+    parser.reset(&state);
+
     let mut rule_list_parser =
       RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(&mut options, at_rule_parser));
 
@@ -170,6 +189,7 @@ where
       sources: vec![options.filename.clone()],
       source_map_urls: vec![parser.current_source_map_url().map(|s| s.to_owned())],
       rules: CssRuleList(rules),
+      license_comments,
       options,
     })
   }
@@ -244,6 +264,12 @@ where
     #[cfg(feature = "sourcemap")]
     if printer.source_map.is_some() {
       printer.source_maps = self.sources.iter().enumerate().map(|(i, _)| self.source_map(i)).collect();
+    }
+
+    for comment in &self.license_comments {
+      printer.write_str("/*")?;
+      printer.write_str(comment)?;
+      printer.write_str("*/\n")?;
     }
 
     if let Some(config) = &self.options.css_modules {
