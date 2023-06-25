@@ -128,7 +128,7 @@ compiles to:
 
 ## Bundling order
 
-When `@import` rules are processed in browsers, if the same file appears more than once, the _last_ instance applies. This is the opposite from behavior in other languages like JavaScript. Lightning CSS folllows this behavior when bundling so that the output behaves the same as if it were not bundled.
+When `@import` rules are processed in browsers, if the same file appears more than once, the _last_ instance applies. This is the opposite from behavior in other languages like JavaScript. Lightning CSS follows this behavior when bundling so that the output behaves the same as if it were not bundled.
 
 ```css
 /* index.css */

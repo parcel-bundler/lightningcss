@@ -223,7 +223,7 @@ impl<'i> TransitionHandler<'i> {
     {
       // Find the intersection of prefixes with the same value.
       // Remove that from the prefixes of each of the properties. The remaining
-      // prefixes will be handled by outputing individual properties below.
+      // prefixes will be handled by outputting individual properties below.
       let intersection = *property_prefixes & *duration_prefixes & *delay_prefixes & *timing_prefixes;
       if !intersection.is_empty() {
         macro_rules! get_transitions {

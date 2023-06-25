@@ -307,7 +307,7 @@ enum_property! {
     End,
     /// Items are centered.
     Center,
-    /// Items are justifed to the start and end.
+    /// Items are justified to the start and end.
     Justify,
   }
 }

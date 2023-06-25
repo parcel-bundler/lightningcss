@@ -170,8 +170,8 @@ impl<'a, 'b, 'c, W: std::fmt::Write + Sized> Printer<'a, 'b, 'c, W> {
     self.write_char(' ')
   }
 
-  /// Writes a delimeter character, followed by whitespace (depending on the `minify` option).
-  /// If `ws_before` is true, then whitespace is also written before the delimeter.
+  /// Writes a delimiter character, followed by whitespace (depending on the `minify` option).
+  /// If `ws_before` is true, then whitespace is also written before the delimiter.
   pub fn delim(&mut self, delim: char, ws_before: bool) -> Result<(), PrinterError> {
     if ws_before {
       self.whitespace()?;
