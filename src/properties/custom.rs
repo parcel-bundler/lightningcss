@@ -393,6 +393,20 @@ impl<'i> TokenList<'i> {
             tokens.push(TokenOrValue::Url(Url::parse(input)?));
             last_is_delim = false;
             last_is_whitespace = false;
+          } else if f == "calc" {
+            let arguments = input.parse_nested_block(|input| TokenList::parse(input, options, depth + 1))?;
+            if arguments.0.len() == 1 {
+              tokens.push(arguments.0.first().unwrap().clone());
+            } else {
+              //TODO simple calc with multiple values of the same unit (1px + 2px)
+              //TODO retain any var functions or other unknown expressions
+              tokens.push(TokenOrValue::Function(Function {
+                name: Ident(f),
+                arguments,
+              }));
+            }
+            last_is_delim = true; // Whitespace is not required after any of these chars.
+            last_is_whitespace = false;
           } else if f == "var" {
             let var = input.parse_nested_block(|input| {
               let var = Variable::parse(input, options, depth + 1)?;

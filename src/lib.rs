@@ -7462,6 +7462,11 @@ mod tests {
       ".foo{transform:rotateX(-40deg)rotateY(50deg)}",
     );
     minify_test(".foo { width: calc(10px * mod(18, 5)) }", ".foo{width:30px}");
+    minify_test(":root { --foo: calc(1px)}",":root{--foo:1px}");
+    //TODO implement
+    //minify_test(":root { --foo: calc(1px + 2px)}",":root{--foo:3px}");
+    //TODO implement
+    //minify_test(":root { --foo: calc(1px + 2px + var(--foo))}",":root{--foo:calc(3px + var(--foo))}");
   }
 
   #[test]
