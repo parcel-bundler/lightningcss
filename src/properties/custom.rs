@@ -398,11 +398,26 @@ impl<'i> TokenList<'i> {
             if arguments.0.len() == 1 {
               tokens.push(arguments.0.first().unwrap().clone());
             } else {
-              //TODO simple calc with multiple values of the same unit (1px + 2px)
-              //TODO retain any var functions or other unknown expressions
+              let mut new_arguments = vec![];
+              for argument in arguments.0.iter() {
+                match argument {
+                  TokenOrValue::Function(inner_f) => {
+                    if inner_f.name == "calc" {
+                      new_arguments.push(TokenOrValue::Token(Token::ParenthesisBlock));
+                      new_arguments.append(&mut inner_f.arguments.0.to_vec());
+                      new_arguments.push(TokenOrValue::Token(Token::CloseParenthesis));
+                    } else {
+                      new_arguments.push(argument.clone());
+                    }
+                  },
+                  _ => {
+                    new_arguments.push(argument.clone());
+                  }
+                }
+              }
               tokens.push(TokenOrValue::Function(Function {
                 name: Ident(f),
-                arguments,
+                arguments: TokenList(new_arguments)
               }));
             }
             last_is_delim = true; // Whitespace is not required after any of these chars.
