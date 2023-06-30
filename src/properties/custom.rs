@@ -395,12 +395,28 @@ impl<'i> TokenList<'i> {
             last_is_whitespace = false;
           } else if f == "calc" {
             let arguments = input.parse_nested_block(|input| TokenList::parse(input, options, depth + 1))?;
-            if arguments.0.len() == 1 {
+            if arguments.0.len() == 0 {
+              // this is invalid css
+              tokens.push(TokenOrValue::Function(Function {
+                name: Ident(f),
+                arguments
+              }));
+            } else if arguments.0.len() == 1 {
               tokens.push(arguments.0.first().unwrap().clone());
             } else {
               let mut new_arguments = vec![];
-              for argument in arguments.0.iter() {
+              let mut n = 0;
+              while n < arguments.0.len() {
+                let argument = &arguments.0[n];
                 match argument {
+                  TokenOrValue::Token(Token::ParenthesisBlock) => {
+                    if n + 2 < arguments.0.len() && arguments.0[n + 2] == TokenOrValue::Token(Token::CloseParenthesis) {
+                      new_arguments.push(arguments.0[n + 1].clone());
+                      n += 2;
+                    } else {
+                      new_arguments.push(argument.clone());
+                    }
+                  }
                   TokenOrValue::Function(inner_f) => {
                     if inner_f.name == "calc" {
                       new_arguments.push(TokenOrValue::Token(Token::ParenthesisBlock));
@@ -414,6 +430,7 @@ impl<'i> TokenList<'i> {
                     new_arguments.push(argument.clone());
                   }
                 }
+                n += 1;
               }
               tokens.push(TokenOrValue::Function(Function {
                 name: Ident(f),
