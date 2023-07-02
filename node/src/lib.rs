@@ -12,6 +12,7 @@ use lightningcss::stylesheet::{
 };
 use lightningcss::targets::{Browsers, Features, Targets};
 use lightningcss::visitor::Visit;
+use napi::bindgen_prelude::{FromNapiValue, ToNapiValue};
 use parcel_sourcemap::SourceMap;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -83,7 +84,7 @@ fn transform(ctx: CallContext) -> napi::Result<JsUnknown> {
 
   match res {
     Ok(res) => res.into_js(*ctx.env),
-    Err(err) => err.throw(*ctx.env, Some(code)),
+    Err(err) => Err(err.into_js_error(*ctx.env, Some(code))?),
   }
 }
 
@@ -104,7 +105,7 @@ fn transform_style_attribute(ctx: CallContext) -> napi::Result<JsUnknown> {
 
   match res {
     Ok(res) => res.into_js(ctx),
-    Err(err) => err.throw(*ctx.env, Some(code)),
+    Err(err) => Err(err.into_js_error(*ctx.env, Some(code))?),
   }
 }
 
@@ -146,28 +147,7 @@ mod bundle {
 
     match res {
       Ok(res) => res.into_js(*ctx.env),
-      Err(err) => {
-        let code = match &err {
-          CompileError::ParseError(Error {
-            loc: Some(ErrorLocation { filename, .. }),
-            ..
-          })
-          | CompileError::PrinterError(Error {
-            loc: Some(ErrorLocation { filename, .. }),
-            ..
-          })
-          | CompileError::MinifyError(Error {
-            loc: Some(ErrorLocation { filename, .. }),
-            ..
-          })
-          | CompileError::BundleError(Error {
-            loc: Some(ErrorLocation { filename, .. }),
-            ..
-          }) => Some(fs.read(Path::new(filename))?),
-          _ => None,
-        };
-        err.throw(*ctx.env, code)
-      }
+      Err(err) => Err(err.into_js_error(*ctx.env, None)?),
     }
   }
 
@@ -270,8 +250,8 @@ mod bundle {
         ctx.env.get_undefined()
       })?;
       let eb = env.create_function_from_closure("error_callback", move |ctx| {
-        // TODO: need a way to convert a JsUnknown to an Error
-        tx2.send(Err(napi::Error::from_reason("Promise rejected"))).unwrap();
+        let res = ctx.get::<JsUnknown>(0)?;
+        tx2.send(Err(napi::Error::from(res))).unwrap();
         ctx.env.get_undefined()
       })?;
       then.call(Some(&result), &[cb, eb])?;
@@ -379,7 +359,10 @@ mod bundle {
     config: BundleConfig,
     visitor: Option<JsVisitor>,
     env: Env,
-  ) -> napi::Result<JsObject> {
+  ) -> napi::Result<JsObject>
+  where
+    P::Error: IntoJsError,
+  {
     let (deferred, promise) = env.create_deferred()?;
 
     let tsfn = if let Some(mut visitor) = visitor {
@@ -402,7 +385,7 @@ mod bundle {
 
     // Run bundling task in rayon threadpool.
     rayon::spawn(move || {
-      match compile_bundle(
+      let res = compile_bundle(
         unsafe { std::mem::transmute::<&'_ P, &'static P>(&provider) },
         &config,
         tsfn.map(move |tsfn| {
@@ -425,10 +408,12 @@ mod bundle {
             })
           }
         }),
-      ) {
-        Ok(v) => deferred.resolve(|env| v.into_js(env)),
-        Err(err) => deferred.reject(err.into()),
-      }
+      );
+
+      deferred.resolve(move |env| match res {
+        Ok(v) => v.into_js(env),
+        Err(err) => Err(err.into_js_error(env, None)?),
+      });
     });
 
     Ok(promise)
@@ -600,7 +585,7 @@ fn compile<'i>(
   code: &'i str,
   config: &Config,
   visitor: &mut Option<JsVisitor>,
-) -> Result<TransformResult<'i>, CompileError<'i, std::io::Error>> {
+) -> Result<TransformResult<'i>, CompileError<'i, napi::Error>> {
   let drafts = config.drafts.as_ref();
   let non_standard = config.non_standard.as_ref();
   let warnings = Some(Arc::new(RwLock::new(Vec::new())));
@@ -891,7 +876,7 @@ fn compile_attr<'i>(
   code: &'i str,
   config: &AttrConfig,
   visitor: &mut Option<JsVisitor>,
-) -> Result<AttrResult<'i>, CompileError<'i, std::io::Error>> {
+) -> Result<AttrResult<'i>, CompileError<'i, napi::Error>> {
   let warnings = if config.error_recovery {
     Some(Arc::new(RwLock::new(Vec::new())))
   } else {
@@ -975,8 +960,8 @@ impl<'i, E: std::error::Error> std::fmt::Display for CompileError<'i, E> {
   }
 }
 
-impl<'i, E: std::error::Error> CompileError<'i, E> {
-  fn throw(self, env: Env, code: Option<&str>) -> napi::Result<JsUnknown> {
+impl<'i, E: IntoJsError + std::error::Error> CompileError<'i, E> {
+  fn into_js_error(self, env: Env, code: Option<&str>) -> napi::Result<napi::Error> {
     let reason = self.to_string();
     let data = match &self {
       CompileError::ParseError(Error { kind, .. }) => env.to_js_value(kind)?,
@@ -986,7 +971,14 @@ impl<'i, E: std::error::Error> CompileError<'i, E> {
       _ => env.get_null()?.into_unknown(),
     };
 
-    match self {
+    let (js_error, loc) = match self {
+      CompileError::BundleError(Error {
+        loc,
+        kind: BundleErrorKind::ResolverError(e),
+      }) => {
+        // Add location info to existing JS error if available.
+        (e.into_js_error(env)?, loc)
+      }
       CompileError::ParseError(Error { loc, .. })
       | CompileError::PrinterError(Error { loc, .. })
       | CompileError::MinifyError(Error { loc, .. })
@@ -994,27 +986,53 @@ impl<'i, E: std::error::Error> CompileError<'i, E> {
         // Generate an error with location information.
         let syntax_error = env.get_global()?.get_named_property::<napi::JsFunction>("SyntaxError")?;
         let reason = env.create_string_from_std(reason)?;
-        let mut obj = syntax_error.new_instance(&[reason])?;
-        if let Some(loc) = loc {
-          let line = env.create_int32((loc.line + 1) as i32)?;
-          let col = env.create_int32(loc.column as i32)?;
-          let filename = env.create_string_from_std(loc.filename)?;
-          obj.set_named_property("fileName", filename)?;
-          if let Some(code) = code {
-            let source = env.create_string(code)?;
-            obj.set_named_property("source", source)?;
-          }
-          let mut loc = env.create_object()?;
-          loc.set_named_property("line", line)?;
-          loc.set_named_property("column", col)?;
-          obj.set_named_property("loc", loc)?;
-        }
-        obj.set_named_property("data", data)?;
-        env.throw(obj)?;
-        Ok(env.get_undefined()?.into_unknown())
+        let obj = syntax_error.new_instance(&[reason])?;
+        (obj.into_unknown(), loc)
       }
-      _ => Err(self.into()),
+      _ => return Ok(self.into()),
+    };
+
+    if js_error.get_type()? == napi::ValueType::Object {
+      let mut obj: JsObject = unsafe { js_error.cast() };
+      if let Some(loc) = loc {
+        let line = env.create_int32((loc.line + 1) as i32)?;
+        let col = env.create_int32(loc.column as i32)?;
+        let filename = env.create_string_from_std(loc.filename)?;
+        obj.set_named_property("fileName", filename)?;
+        if let Some(code) = code {
+          let source = env.create_string(code)?;
+          obj.set_named_property("source", source)?;
+        }
+        let mut loc = env.create_object()?;
+        loc.set_named_property("line", line)?;
+        loc.set_named_property("column", col)?;
+        obj.set_named_property("loc", loc)?;
+      }
+      obj.set_named_property("data", data)?;
+      Ok(obj.into_unknown().into())
+    } else {
+      Ok(js_error.into())
     }
+  }
+}
+
+trait IntoJsError {
+  fn into_js_error(self, env: Env) -> napi::Result<JsUnknown>;
+}
+
+impl IntoJsError for std::io::Error {
+  fn into_js_error(self, env: Env) -> napi::Result<JsUnknown> {
+    let reason = self.to_string();
+    let syntax_error = env.get_global()?.get_named_property::<napi::JsFunction>("SyntaxError")?;
+    let reason = env.create_string_from_std(reason)?;
+    let obj = syntax_error.new_instance(&[reason])?;
+    Ok(obj.into_unknown())
+  }
+}
+
+impl IntoJsError for napi::Error {
+  fn into_js_error(self, env: Env) -> napi::Result<JsUnknown> {
+    unsafe { JsUnknown::from_napi_value(env.raw(), ToNapiValue::to_napi_value(env.raw(), self)?) }
   }
 }
 

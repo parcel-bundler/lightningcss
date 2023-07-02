@@ -255,7 +255,7 @@ where
         loc: Location {
           source_index: 0,
           line: 0,
-          column: 1,
+          column: 0,
         },
       },
     )?;
@@ -377,7 +377,11 @@ where
 
     let code = self.fs.read(file).map_err(|e| Error {
       kind: BundleErrorKind::ResolverError(e),
-      loc: Some(ErrorLocation::new(rule.loc, self.find_filename(rule.loc.source_index))),
+      loc: if rule.loc.column == 0 {
+        None
+      } else {
+        Some(ErrorLocation::new(rule.loc, self.find_filename(rule.loc.source_index)))
+      },
     })?;
 
     let mut opts = self.options.clone();
