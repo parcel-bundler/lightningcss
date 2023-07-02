@@ -705,7 +705,7 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
               let key = StyleRuleKey::new(unsafe { &*(&rules as *const _) }, idx);
               if idx > 0 {
                 if let Some(i) = style_rules.remove(&key) {
-                  if let CssRule::Style(other) = &rules[0] {
+                  if let CssRule::Style(other) = &rules[i] {
                     // Don't remove the rule if this is a CSS module and the other rule came from a different file.
                     if !context.css_modules || source_index == other.loc.source_index {
                       // Only mark the rule as ignored so we don't need to change all of the indices.

@@ -8921,6 +8921,31 @@ mod tests {
       }
     "#},
     );
+    test(
+      r#"
+      .a {
+        color: red;
+      }
+      .b {
+        color: green;
+      }
+      .a {
+        color: red;
+      }
+      .b {
+        color: green;
+      }
+    "#,
+      indoc! {r#"
+      .a {
+        color: red;
+      }
+
+      .b {
+        color: green;
+      }
+    "#},
+    );
 
     prefix_test(
       r#"
