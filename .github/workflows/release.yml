@@ -169,6 +169,8 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
+      - name: Setup rust target
+        run: rustup target add wasm32-unknown-unknown
       - name: Install wasm-opt
         run: |
           curl -L -O https://github.com/WebAssembly/binaryen/releases/download/version_111/binaryen-version_111-x86_64-linux.tar.gz
