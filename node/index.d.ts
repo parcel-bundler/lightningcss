@@ -240,7 +240,7 @@ export interface DependencyOptions {
   preserveImports?: boolean
 }
 
-export type BundleOptions<C extends CustomAtRules> = Omit<TransformOptions<C>, 'code' | 'analyzeDependencies'>;
+export type BundleOptions<C extends CustomAtRules> = Omit<TransformOptions<C>, 'code'>;
 
 export interface BundleAsyncOptions<C extends CustomAtRules> extends BundleOptions<C> {
   resolver?: Resolver;
