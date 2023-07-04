@@ -9,7 +9,7 @@ export interface TransformOptions<C extends CustomAtRules> {
   /** The filename being transformed. Used for error messages and source maps. */
   filename: string,
   /** The source code to transform. */
-  code: Buffer,
+  code: Uint8Array,
   /** Whether to enable minification. */
   minify?: boolean,
   /** Whether to output a source map. */
@@ -280,9 +280,9 @@ export interface PseudoClasses {
 
 export interface TransformResult {
   /** The transformed code. */
-  code: Buffer,
+  code: Uint8Array,
   /** The generated source map, if enabled. */
-  map: Buffer | void,
+  map: Uint8Array | void,
   /** CSS module exports, if enabled. */
   exports: CSSModuleExports | void,
   /** CSS module references, if `dashedIdents` is enabled. */
@@ -404,7 +404,7 @@ export interface TransformAttributeOptions {
   /** The filename in which the style attribute appeared. Used for error messages and dependencies. */
   filename?: string,
   /** The source code to transform. */
-  code: Buffer,
+  code: Uint8Array,
   /** Whether to enable minification. */
   minify?: boolean,
   /** The browser targets for the generated code. */
@@ -433,7 +433,7 @@ export interface TransformAttributeOptions {
 
 export interface TransformAttributeResult {
   /** The transformed code. */
-  code: Buffer,
+  code: Uint8Array,
   /** `@import` and `url()` dependencies, if enabled. */
   dependencies: Dependency[] | void,
   /** Warnings that occurred during compilation. */
