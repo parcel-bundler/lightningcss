@@ -373,4 +373,22 @@ test('should throw with location info on syntax errors', async () => {
   });
 });
 
+test('should support throwing in visitors', async () => {
+  let error = undefined;
+  try {
+    await bundleAsync({
+      filename: 'tests/testdata/a.css',
+      visitor: {
+        Rule() {
+          throw new Error('Some error')
+        }
+      }
+    });
+  } catch (err) {
+    error = err;
+  }
+
+  assert.equal(error.message, 'Some error');
+});
+
 test.run();

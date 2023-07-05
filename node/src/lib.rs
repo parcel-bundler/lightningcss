@@ -372,7 +372,7 @@ mod bundle {
         0,
         move |ctx: ThreadSafeCallContext<VisitMessage>| {
           if let Err(err) = ctx.value.stylesheet.visit(&mut visitor) {
-            ctx.value.tx.send(Err(err.clone())).expect("send error");
+            ctx.value.tx.send(Err(err)).expect("send error");
             return Ok(());
           }
           ctx.value.tx.send(Ok(Default::default())).expect("send error");
