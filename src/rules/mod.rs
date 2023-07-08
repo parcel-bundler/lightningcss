@@ -63,9 +63,7 @@ use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::dependencies::{Dependency, ImportDependency};
 use crate::error::{MinifyError, ParserError, PrinterError, PrinterErrorKind};
-use crate::parser::{
-  parse_nested_at_rule, DefaultAtRule, DefaultAtRuleParser, NestedRuleParser, TopLevelRuleParser,
-};
+use crate::parser::{parse_style_block, DefaultAtRule, DefaultAtRuleParser, NestedRuleParser, TopLevelRuleParser};
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::rules::keyframes::KeyframesName;
@@ -422,8 +420,9 @@ impl<'i> CssRuleList<'i, DefaultAtRule> {
   pub fn parse_style_block<'t>(
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<'_, 'i>,
+    is_nested: bool,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    Self::parse_style_block_with(input, options, &mut DefaultAtRuleParser)
+    Self::parse_style_block_with(input, options, &mut DefaultAtRuleParser, is_nested)
   }
 }
 
@@ -447,8 +446,9 @@ impl<'i, T> CssRuleList<'i, T> {
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<'_, 'i>,
     at_rule_parser: &mut P,
+    is_nested: bool,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    parse_nested_at_rule(input, options, at_rule_parser)
+    parse_style_block(input, options, at_rule_parser, is_nested)
   }
 }
 

@@ -643,7 +643,7 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
         loc,
       })),
       AtRulePrelude::Custom(prelude) => {
-        parse_custom_at_rule_body(prelude, input, start, self.options, self.at_rule_parser)
+        parse_custom_at_rule_body(prelude, input, start, self.options, self.at_rule_parser, false)
       }
     }
   }
@@ -670,7 +670,7 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
         loc,
       })),
       AtRulePrelude::Custom(prelude) => {
-        parse_custom_at_rule_without_block(prelude, start, self.options, self.at_rule_parser)
+        parse_custom_at_rule_without_block(prelude, start, self.options, self.at_rule_parser, false)
       }
       _ => Err(()),
     }
@@ -703,7 +703,7 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> QualifiedRuleParser<'i>
   ) -> Result<CssRule<'i, T::AtRule>, ParseError<'i, Self::Error>> {
     let loc = self.loc(start);
     let (declarations, rules) = if self.options.flags.contains(ParserFlags::NESTING) {
-      parse_declarations_and_nested_rules(input, self.options, self.at_rule_parser)?
+      parse_declarations_and_nested_rules(input, self.options, self.at_rule_parser, true)?
     } else {
       (DeclarationBlock::parse(input, self.options)?, CssRuleList(vec![]))
     };
@@ -752,9 +752,10 @@ fn parse_custom_at_rule_body<'i, 't, T: crate::traits::AtRuleParser<'i>>(
   start: &ParserState,
   options: &ParserOptions<'_, 'i>,
   at_rule_parser: &mut T,
+  is_nested: bool,
 ) -> Result<CssRule<'i, T::AtRule>, ParseError<'i, ParserError<'i>>> {
   at_rule_parser
-    .parse_block(prelude, start, input, options)
+    .parse_block(prelude, start, input, options, is_nested)
     .map(|prelude| CssRule::Custom(prelude))
     .map_err(|err| match &err.kind {
       ParseErrorKind::Basic(kind) => ParseError {
@@ -770,9 +771,10 @@ fn parse_custom_at_rule_without_block<'i, 't, T: crate::traits::AtRuleParser<'i>
   start: &ParserState,
   options: &ParserOptions<'_, 'i>,
   at_rule_parser: &mut T,
+  is_nested: bool,
 ) -> Result<CssRule<'i, T::AtRule>, ()> {
   at_rule_parser
-    .rule_without_block(prelude, start, options)
+    .rule_without_block(prelude, start, options, is_nested)
     .map(|prelude| CssRule::Custom(prelude))
 }
 
@@ -780,6 +782,7 @@ fn parse_declarations_and_nested_rules<'a, 'o, 'i, 't, T: crate::traits::AtRuleP
   input: &mut Parser<'i, 't>,
   options: &'a ParserOptions<'o, 'i>,
   at_rule_parser: &mut T,
+  is_nested: bool,
 ) -> Result<(DeclarationBlock<'i>, CssRuleList<'i, T::AtRule>), ParseError<'i, ParserError<'i>>> {
   let mut important_declarations = DeclarationList::new();
   let mut declarations = DeclarationList::new();
@@ -790,6 +793,7 @@ fn parse_declarations_and_nested_rules<'a, 'o, 'i, 't, T: crate::traits::AtRuleP
     important_declarations: &mut important_declarations,
     rules: &mut rules,
     at_rule_parser,
+    is_nested,
   };
 
   // In the v2 nesting spec, declarations and nested rules may be mixed.
@@ -840,6 +844,7 @@ pub struct StyleRuleParser<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> {
   important_declarations: &'a mut DeclarationList<'i>,
   rules: &'a mut CssRuleList<'i, T::AtRule>,
   at_rule_parser: &'a mut T,
+  is_nested: bool,
 }
 
 /// Parse a declaration within {} block: `color: blue`
@@ -925,7 +930,7 @@ impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for StyleR
       AtRulePrelude::Media(query) => {
         self.rules.0.push(CssRule::Media(MediaRule {
           query,
-          rules: parse_nested_at_rule(input, self.options, self.at_rule_parser)?,
+          rules: parse_style_block(input, self.options, self.at_rule_parser, true)?,
           loc,
         }));
         Ok(())
@@ -933,7 +938,7 @@ impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for StyleR
       AtRulePrelude::Supports(condition) => {
         self.rules.0.push(CssRule::Supports(SupportsRule {
           condition,
-          rules: parse_nested_at_rule(input, self.options, self.at_rule_parser)?,
+          rules: parse_style_block(input, self.options, self.at_rule_parser, true)?,
           loc,
         }));
         Ok(())
@@ -942,7 +947,7 @@ impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for StyleR
         self.rules.0.push(CssRule::Container(ContainerRule {
           name,
           condition,
-          rules: parse_nested_at_rule(input, self.options, self.at_rule_parser)?,
+          rules: parse_style_block(input, self.options, self.at_rule_parser, true)?,
           loc,
         }));
         Ok(())
@@ -950,20 +955,21 @@ impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for StyleR
       AtRulePrelude::LayerBlock(name) => {
         self.rules.0.push(CssRule::LayerBlock(LayerBlockRule {
           name,
-          rules: parse_nested_at_rule(input, self.options, self.at_rule_parser)?,
+          rules: parse_style_block(input, self.options, self.at_rule_parser, true)?,
           loc,
         }));
         Ok(())
       }
       AtRulePrelude::StartingStyle => {
         self.rules.0.push(CssRule::StartingStyle(StartingStyleRule {
-          rules: parse_nested_at_rule(input, self.options, self.at_rule_parser)?,
+          rules: parse_style_block(input, self.options, self.at_rule_parser, true)?,
           loc,
         }));
         Ok(())
       }
       AtRulePrelude::Nest(selectors) => {
-        let (declarations, rules) = parse_declarations_and_nested_rules(input, self.options, self.at_rule_parser)?;
+        let (declarations, rules) =
+          parse_declarations_and_nested_rules(input, self.options, self.at_rule_parser, true)?;
         self.rules.0.push(CssRule::Nesting(NestingRule {
           style: StyleRule {
             selectors,
@@ -992,6 +998,7 @@ impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for StyleR
           start,
           self.options,
           self.at_rule_parser,
+          true,
         )?);
         Ok(())
       }
@@ -1021,6 +1028,7 @@ impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for StyleR
           start,
           self.options,
           self.at_rule_parser,
+          true,
         )?);
         Ok(())
       }
@@ -1029,10 +1037,11 @@ impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for StyleR
   }
 }
 
-pub fn parse_nested_at_rule<'a, 'o, 'i, 't, T: crate::traits::AtRuleParser<'i>>(
+pub fn parse_style_block<'a, 'o, 'i, 't, T: crate::traits::AtRuleParser<'i>>(
   input: &mut Parser<'i, 't>,
   options: &'a ParserOptions<'o, 'i>,
   at_rule_parser: &mut T,
+  is_nested: bool,
 ) -> Result<CssRuleList<'i, T::AtRule>, ParseError<'i, ParserError<'i>>> {
   let loc = input.current_source_location();
   let loc = Location {
@@ -1043,7 +1052,7 @@ pub fn parse_nested_at_rule<'a, 'o, 'i, 't, T: crate::traits::AtRuleParser<'i>>(
 
   // Declarations can be immediately within @media and @supports blocks that are nested within a parent style rule.
   // These act the same way as if they were nested within a `& { ... }` block.
-  let (declarations, mut rules) = parse_declarations_and_nested_rules(input, options, at_rule_parser)?;
+  let (declarations, mut rules) = parse_declarations_and_nested_rules(input, options, at_rule_parser, is_nested)?;
 
   if declarations.len() > 0 {
     rules.0.insert(
@@ -1073,10 +1082,14 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> QualifiedRuleParser<'i>
     input: &mut Parser<'i, 't>,
   ) -> Result<Self::Prelude, ParseError<'i, Self::Error>> {
     let selector_parser = SelectorParser {
-      is_nesting_allowed: true,
+      is_nesting_allowed: self.options.flags.contains(ParserFlags::NESTING),
       options: &self.options,
     };
-    SelectorList::parse_relative(&selector_parser, input, NestingRequirement::Implicit)
+    if self.is_nested {
+      SelectorList::parse_relative(&selector_parser, input, NestingRequirement::Implicit)
+    } else {
+      SelectorList::parse(&selector_parser, input, NestingRequirement::None)
+    }
   }
 
   fn parse_block<'t>(
@@ -1086,7 +1099,8 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> QualifiedRuleParser<'i>
     input: &mut Parser<'i, 't>,
   ) -> Result<(), ParseError<'i, Self::Error>> {
     let loc = start.source_location();
-    let (declarations, rules) = parse_declarations_and_nested_rules(input, self.options, self.at_rule_parser)?;
+    let (declarations, rules) =
+      parse_declarations_and_nested_rules(input, self.options, self.at_rule_parser, true)?;
     self.rules.0.push(CssRule::Style(StyleRule {
       selectors,
       vendor_prefix: VendorPrefix::empty(),

@@ -137,6 +137,7 @@ impl<'i> AtRuleParser<'i> for TailwindAtRuleParser {
     prelude: Self::Prelude,
     start: &ParserState,
     _options: &ParserOptions<'_, 'i>,
+    _is_nested: bool,
   ) -> Result<Self::AtRule, ()> {
     let loc = start.source_location();
     match prelude {

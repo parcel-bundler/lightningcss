@@ -59,12 +59,12 @@ test('mixin', () => {
     code: Buffer.from(`
       @mixin color {
         color: red;
-  
+
         &.bar {
           color: yellow;
         }
       }
-  
+
       .foo {
         @apply color;
       }
@@ -185,6 +185,30 @@ test('style block', () => {
   });
 
   assert.equal(res.code.toString(), '@media (width<=1024px){.foo{color:#ff0}.foo.bar{color:red}}');
+});
+
+test('style block top level', () => {
+  let res = transform({
+    filename: 'test.css',
+    minify: true,
+    code: Buffer.from(`
+      @test {
+        .foo {
+          background: black;
+        }
+      }
+    `),
+    drafts: {
+      nesting: true
+    },
+    customAtRules: {
+      test: {
+        body: 'style-block'
+      }
+    }
+  });
+
+  assert.equal(res.code.toString(), '@test{.foo{background:#000}}');
 });
 
 test('multiple', () => {

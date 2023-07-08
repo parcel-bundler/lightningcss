@@ -306,6 +306,7 @@ pub trait AtRuleParser<'i>: Sized {
   /// representation of the at-rule.
   ///
   /// The location passed in is source location of the start of the prelude.
+  /// `is_nested` indicates whether the rule is nested inside a style rule.
   ///
   /// This is only called when either the `;` semicolon indeed follows the prelude,
   /// or parser is at the end of the input.
@@ -314,16 +315,19 @@ pub trait AtRuleParser<'i>: Sized {
     prelude: Self::Prelude,
     start: &ParserState,
     options: &ParserOptions<'_, 'i>,
+    is_nested: bool,
   ) -> Result<Self::AtRule, ()> {
     let _ = prelude;
     let _ = start;
     let _ = options;
+    let _ = is_nested;
     Err(())
   }
 
   /// Parse the content of a `{ /* ... */ }` block for the body of the at-rule.
   ///
   /// The location passed in is source location of the start of the prelude.
+  /// `is_nested` indicates whether the rule is nested inside a style rule.
   ///
   /// Return the finished representation of the at-rule
   /// as returned by `RuleListParser::next` or `DeclarationListParser::next`,
@@ -336,11 +340,13 @@ pub trait AtRuleParser<'i>: Sized {
     start: &ParserState,
     input: &mut Parser<'i, 't>,
     options: &ParserOptions<'_, 'i>,
+    is_nested: bool,
   ) -> Result<Self::AtRule, ParseError<'i, Self::Error>> {
     let _ = prelude;
     let _ = start;
     let _ = input;
     let _ = options;
+    let _ = is_nested;
     Err(input.new_error(BasicParseErrorKind::AtRuleBodyInvalid))
   }
 }
