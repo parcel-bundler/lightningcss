@@ -26108,4 +26108,41 @@ mod tests {
       .foo{color:red}"#},
     );
   }
+
+  #[test]
+  fn test_starting_style() {
+    minify_test(
+      r#"
+      @starting-style {
+        h1 {
+          background: yellow;
+        }
+      }
+      "#,
+      "@starting-style{h1{background:#ff0}}",
+    );
+    minify_test("@starting-style {}", "");
+
+    nesting_test(
+      r#"
+      h1 {
+        background: red;
+        @starting-style {
+          background: yellow;
+        }
+      }
+      "#,
+      indoc! {r#"
+      h1 {
+        background: red;
+      }
+
+      @starting-style {
+        h1 {
+          background: #ff0;
+        }
+      }
+      "#},
+    );
+  }
 }

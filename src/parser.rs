@@ -7,6 +7,7 @@ use crate::rules::container::{ContainerCondition, ContainerName, ContainerRule};
 use crate::rules::font_palette_values::FontPaletteValuesRule;
 use crate::rules::layer::{LayerBlockRule, LayerStatementRule};
 use crate::rules::property::PropertyRule;
+use crate::rules::starting_style::StartingStyleRule;
 use crate::rules::viewport::ViewportRule;
 use crate::rules::{
   counter_style::CounterStyleRule,
@@ -190,6 +191,8 @@ pub enum AtRulePrelude<'i, T> {
   Property(DashedIdent<'i>),
   /// A @container prelude.
   Container(Option<ContainerName<'i>>, ContainerCondition<'i>),
+  /// A @starting-style prelude.
+  StartingStyle,
   /// An unknown prelude.
   Unknown(CowArcStr<'i>, TokenList<'i>),
   /// A custom prelude.
@@ -512,6 +515,9 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
         let condition = ContainerCondition::parse(input)?;
         Ok(AtRulePrelude::Container(name, condition))
       },
+      "starting-style" => {
+        Ok(AtRulePrelude::StartingStyle)
+      },
       _ => parse_custom_at_rule_prelude(&name, input, self.options, self.at_rule_parser)
     }
   }
@@ -625,6 +631,10 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
         // These rules don't have blocks.
         Err(input.new_unexpected_token_error(Token::CurlyBracketBlock))
       }
+      AtRulePrelude::StartingStyle => Ok(CssRule::StartingStyle(StartingStyleRule {
+        rules: self.parse_nested_rules(input)?,
+        loc,
+      })),
       AtRulePrelude::FontFeatureValues | AtRulePrelude::Nest(..) => unreachable!(),
       AtRulePrelude::Unknown(name, prelude) => Ok(CssRule::Unknown(UnknownAtRule {
         name,
@@ -883,6 +893,9 @@ impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for StyleR
         let name = input.try_parse(LayerName::parse).ok();
         Ok(AtRulePrelude::LayerBlock(name))
       },
+      "starting-style" => {
+        Ok(AtRulePrelude::StartingStyle)
+      },
       "nest" => {
         self.options.warn(input.new_custom_error(ParserError::DeprecatedNestRule));
         let selector_parser = SelectorParser {
@@ -937,6 +950,13 @@ impl<'a, 'o, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for StyleR
       AtRulePrelude::LayerBlock(name) => {
         self.rules.0.push(CssRule::LayerBlock(LayerBlockRule {
           name,
+          rules: parse_nested_at_rule(input, self.options, self.at_rule_parser)?,
+          loc,
+        }));
+        Ok(())
+      }
+      AtRulePrelude::StartingStyle => {
+        self.rules.0.push(CssRule::StartingStyle(StartingStyleRule {
           rules: parse_nested_at_rule(input, self.options, self.at_rule_parser)?,
           loc,
         }));

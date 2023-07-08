@@ -5,6 +5,7 @@
  * and run json-schema-to-typescript to regenerate this file.
  */
 
+export type String = string;
 /**
  * A CSS rule.
  */
@@ -79,6 +80,10 @@ export type Rule<D = Declaration, M = MediaQuery> = | {
 | {
     type: "container";
     value: ContainerRule<D, M>;
+  }
+| {
+    type: "starting-style";
+    value: StartingStyleRule<D, M>;
   }
 | {
     type: "ignored";
@@ -221,7 +226,6 @@ export type MediaFeatureId =
   | "device-aspect-ratio"
   | "-webkit-device-pixel-ratio"
   | "-moz-device-pixel-ratio";
-export type String = string;
 /**
  * [media feature value](https://drafts.csswg.org/mediaqueries/#typedef-mf-value) within a media query.
  *
@@ -1221,6 +1225,9 @@ export type PropertyId =
       vendorPrefix: VendorPrefix;
     }
   | {
+      property: "aspect-ratio";
+    }
+  | {
       property: "overflow";
     }
   | {
@@ -1990,6 +1997,10 @@ export type PropertyId =
       property: "text-shadow";
     }
   | {
+      property: "text-size-adjust";
+      vendorPrefix: VendorPrefix;
+    }
+  | {
       property: "box-decoration-break";
       vendorPrefix: VendorPrefix;
     }
@@ -2352,6 +2363,10 @@ export type Declaration =
       property: "box-sizing";
       value: BoxSizing;
       vendorPrefix: VendorPrefix;
+    }
+  | {
+      property: "aspect-ratio";
+      value: AspectRatio;
     }
   | {
       property: "overflow";
@@ -3355,6 +3370,11 @@ export type Declaration =
   | {
       property: "text-shadow";
       value: TextShadow[];
+    }
+  | {
+      property: "text-size-adjust";
+      value: TextSizeAdjust;
+      vendorPrefix: VendorPrefix;
     }
   | {
       property: "box-decoration-break";
@@ -5111,7 +5131,15 @@ export type FontSize =
  *
  * See [FontSize](FontSize).
  */
-export type AbsoluteFontSize = "xx-small" | "x-small" | "small" | "medium" | "large" | "x-large" | "xx-large";
+export type AbsoluteFontSize =
+  | "xx-small"
+  | "x-small"
+  | "small"
+  | "medium"
+  | "large"
+  | "x-large"
+  | "xx-large"
+  | "xxx-large";
 /**
  * A [relative font size](https://www.w3.org/TR/css-fonts-3/#relative-size-value), as used in the `font-size` property.
  *
@@ -5594,6 +5622,22 @@ export type TextEmphasisPositionHorizontal = "left" | "right";
  * See [TextEmphasisPosition](TextEmphasisPosition).
  */
 export type TextEmphasisPositionVertical = "over" | "under";
+/**
+ * A value for the [text-size-adjust](https://w3c.github.io/csswg-drafts/css-size-adjust/#adjustment-control) property.
+ */
+export type TextSizeAdjust =
+  | {
+      type: "auto";
+    }
+  | {
+      type: "none";
+    }
+  | (
+      | {
+          type: "percentage";
+        }
+      | number
+    );
 /**
  * A value for the [box-decoration-break](https://www.w3.org/TR/css-break-3/#break-decoration) property.
  */
@@ -6143,7 +6187,9 @@ export type Combinator =
   | ("child" | "descendant" | "next-sibling" | "later-sibling")
   | "pseudo-element"
   | "slot-assignment"
-  | "part";
+  | "part"
+  | "deep-descendant"
+  | "deep";
 export type NamespaceConstraint =
   | {
       type: "any";
@@ -6310,6 +6356,21 @@ export type PseudoClass =
   | {
       kind: "fullscreen";
       vendorPrefix: VendorPrefix;
+    }
+  | {
+      kind: "open";
+    }
+  | {
+      kind: "closed";
+    }
+  | {
+      kind: "modal";
+    }
+  | {
+      kind: "picture-in-picture";
+    }
+  | {
+      kind: "popover-open";
     }
   | {
       kind: "defined";
@@ -7065,6 +7126,10 @@ export type DefaultAtRule = null;
  */
 export interface StyleSheet<D = Declaration, M = MediaQuery> {
   /**
+   * The license comments that appeared at the start of the file.
+   */
+  licenseComments: String[];
+  /**
    * A list of top-level rules within the style sheet.
    */
   rules: Rule<D, M>[];
@@ -7439,6 +7504,19 @@ export interface BoxShadow {
    * The y offset of the shadow.
    */
   yOffset: Length;
+}
+/**
+ * A value for the [aspect-ratio](https://drafts.csswg.org/css-sizing-4/#aspect-ratio) property.
+ */
+export interface AspectRatio {
+  /**
+   * The `auto` keyword.
+   */
+  auto: boolean;
+  /**
+   * A preferred aspect ratio for the box, specified as width / height.
+   */
+  ratio?: Ratio | null;
 }
 /**
  * A value for the [overflow](https://www.w3.org/TR/css-overflow-3/#overflow-properties) shorthand property.
@@ -9046,6 +9124,19 @@ export interface ContainerRule<D = Declaration, M = MediaQuery> {
   name?: String | null;
   /**
    * The rules within the `@container` rule.
+   */
+  rules: Rule<D, M>[];
+}
+/**
+ * A [@starting-style](https://drafts.csswg.org/css-transitions-2/#defining-before-change-style-the-starting-style-rule) rule.
+ */
+export interface StartingStyleRule<D = Declaration, M = MediaQuery> {
+  /**
+   * The location of the rule in the source file.
+   */
+  loc: Location;
+  /**
+   * Nested rules within the `@starting-style` rule.
    */
   rules: Rule<D, M>[];
 }

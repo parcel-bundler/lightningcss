@@ -286,6 +286,7 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
             CssRule::MozDocument(..) => "moz-document",
             CssRule::Nesting(..) => "nesting",
             CssRule::Viewport(..) => "viewport",
+            CssRule::StartingStyle(..) => "starting-style",
             CssRule::Unknown(v) => {
               let name = v.name.as_ref();
               if let Some(visit) = rule_map.custom(stage, "unknown", name) {
