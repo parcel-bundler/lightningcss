@@ -115,30 +115,24 @@ module.exports = {
 
 ## With Vite
 
-[vite-plugin-lightningcss](https://github.com/lawrencecchen/vite-plugin-lightningcss) provides support for [transpilation](transpilation.html) using Lightning CSS in Vite.
+Vite supports Lightning CSS out of the box.
 
-First, install it into your project:
+First, install Lightning CSS into your project:
 
 ```shell
-npm install --save-dev vite-plugin-lightningcss
+npm install --save-dev lightningcss
 ```
 
-Then, add it to your Vite config. You can pass options to the `lightningcss` plugin, including a `browserslist` config and other options documented in [Transpilation](transpilation.html).
+Then, set `'lightningcss'` as CSS transformer in your Vite config.
 
 ```js
 // vite.config.ts
-import lightningcss from 'vite-plugin-lightningcss';
-
 export default {
-  plugins: [
-    lightningcss({
-      browserslist: '>= 0.25%',
-    }),
-  ],
+  css: {
+    transformer: 'lightningcss',
+  }
 };
 ```
-
-Note that Vite uses PostCSS and esbuild internally for processing and minifying CSS even with this plugin, but it can still be a good alterntive to PostCSS plugins like autoprefixer and postcss-preset-env.
 
 ## From the CLI
 
