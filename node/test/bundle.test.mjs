@@ -27,7 +27,7 @@ test('resolver', async () => {
     filename: 'foo.css',
     resolver: {
       read(file) {
-        const result = inMemoryFs.get(path.normalize(file));
+        const result = inMemoryFs.get(path.normalize(file).replace(/\\/g, "/"));
         if (!result) throw new Error(`Could not find ${file} in ${Array.from(inMemoryFs.keys()).join(', ')}.`);
         return result;
       },
@@ -78,7 +78,7 @@ test('only custom read', async () => {
     filename: 'foo.css',
     resolver: {
       read(file) {
-        const result = inMemoryFs.get(path.normalize(file));
+        const result = inMemoryFs.get(path.normalize(file).replace(/\\/g, "/"));
         if (!result) throw new Error(`Could not find ${file} in ${Array.from(inMemoryFs.keys()).join(', ')}.`);
         return result;
       },
