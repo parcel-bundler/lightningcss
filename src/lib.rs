@@ -10503,6 +10503,24 @@ mod tests {
         ..Browsers::default()
       },
     );
+
+    prefix_test(
+      r#"
+      .foo {
+        transition-property: -webkit-backdrop-filter, backdrop-filter;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        transition-property: -webkit-backdrop-filter, backdrop-filter;
+      }
+    "#
+      },
+      Browsers {
+        safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
   }
 
   #[test]
