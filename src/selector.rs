@@ -1011,11 +1011,11 @@ impl<'i> ToCss for ViewTransitionPartName<'i> {
 }
 
 impl<'i> cssparser::ToCss for PseudoElement<'i> {
-  fn to_css<W>(&self, _: &mut W) -> std::fmt::Result
+  fn to_css<W>(&self, w: &mut W) -> std::fmt::Result
   where
     W: fmt::Write,
   {
-    unreachable!();
+    write!(w, "{:?}", self)
   }
 }
 
