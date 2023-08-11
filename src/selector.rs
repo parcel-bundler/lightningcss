@@ -347,7 +347,7 @@ enum_property! {
 }
 
 /// A pseudo class.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -585,7 +585,7 @@ impl<'i> parcel_selectors::parser::NonTSPseudoClass<'i> for PseudoClass<'i> {
 }
 
 impl<'i> cssparser::ToCss for PseudoClass<'i> {
-  fn to_css<W>(&self, _: &mut W) -> std::fmt::Result
+  fn to_css<W>(&self, w: &mut W) -> std::fmt::Result
   where
     W: fmt::Write,
   {
