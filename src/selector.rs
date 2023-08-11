@@ -589,7 +589,7 @@ impl<'i> cssparser::ToCss for PseudoClass<'i> {
   where
     W: fmt::Write,
   {
-    unreachable!()
+    write!(w, ":{:?}", self)
   }
 }
 
@@ -1015,7 +1015,7 @@ impl<'i> cssparser::ToCss for PseudoElement<'i> {
   where
     W: fmt::Write,
   {
-    write!(w, "{:?}", self)
+    write!(w, "::{:?}", self)
   }
 }
 
