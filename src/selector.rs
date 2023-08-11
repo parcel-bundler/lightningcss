@@ -517,7 +517,7 @@ pub enum PseudoClass<'i> {
 }
 
 /// A [webkit scrollbar](https://webkit.org/blog/363/styling-scrollbars/) pseudo class.
-#[derive(Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
