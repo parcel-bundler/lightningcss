@@ -724,7 +724,7 @@ impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
     self.1.insert(index, component);
   }
 
-    /// Inserts a [`Component`] to an arbitrary index in the internal components Vec.
+  /// Inserts a [`Component`] to an arbitrary index in the internal components Vec.
   ///
   /// An order in which components are stored is right-to-left (see [`Selector::iter_raw_match_order()`])
   #[inline]
