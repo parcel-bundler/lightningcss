@@ -1274,7 +1274,7 @@ define_query_features! {
     /// The [horizontal-viewport-segments](https://w3c.github.io/csswg-drafts/mediaqueries-5/#horizontal-viewport-segments) media feature.
     "horizontal-viewport-segments": HorizontalViewportSegments = Integer,
     /// The [vertical-viewport-segments](https://w3c.github.io/csswg-drafts/mediaqueries-5/#vertical-viewport-segments) media feature.
-    "vertical-viewport-segments": VertialViewportSegments = Integer,
+    "vertical-viewport-segments": VerticalViewportSegments = Integer,
     /// The [display-mode](https://w3c.github.io/csswg-drafts/mediaqueries-5/#display-mode) media feature.
     "display-mode": DisplayMode = Ident,
     /// The [resolution](https://w3c.github.io/csswg-drafts/mediaqueries-5/#resolution) media feature.
