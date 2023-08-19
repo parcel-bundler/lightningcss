@@ -24019,6 +24019,24 @@ mod tests {
         ..Browsers::default()
       },
     );
+    prefix_test(
+      r#"
+      .foo {
+        -webkit-backdrop-filter: blur(8px);
+        backdrop-filter: blur(8px);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        -webkit-backdrop-filter: blur(8px);
+        backdrop-filter: blur(8px);
+      }
+      "#},
+      Browsers {
+        safari: Some(16 << 16),
+        ..Browsers::default()
+      },
+    );
 
     prefix_test(
       ".foo { filter: var(--foo) }",
