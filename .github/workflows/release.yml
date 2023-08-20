@@ -162,17 +162,17 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Build FreeBSD
-        uses: vmactions/freebsd-vm@v0
+        uses: cross-platform-actions/action@v0.19.0
         env:
           DEBUG: napi:*
           RUSTUP_HOME: /usr/local/rustup
           CARGO_HOME: /usr/local/cargo
           RUSTUP_IO_THREADS: 1
         with:
-          envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS
-          usesh: true
-          mem: 8192
-          prepare: |
+          operating_system: freebsd
+          version: '13.2'
+          shell: bash
+          run: |
             pkg install -y -f curl node libnghttp2 npm yarn
             curl https://sh.rustup.rs -sSf --output rustup.sh
             sh rustup.sh -y --profile minimal --default-toolchain beta
@@ -183,8 +183,6 @@ jobs:
             node -v
             echo "~~~~ yarn --version ~~~~"
             yarn --version
-          run: |
-            export PATH="/usr/local/cargo/bin:$PATH"
             yarn install
             yarn build-release
             strip -x *.node
@@ -192,6 +190,9 @@ jobs:
             mv target/release/lightningcss lightningcss
             node -e "require('.')"
             ./lightningcss --help
+            rm -rf node_modules
+            rm -rf target
+            rm -rf .yarn/cache
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
