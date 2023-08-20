@@ -31,13 +31,17 @@ wasmPkg.name = 'lightningcss-wasm';
 wasmPkg.type = 'module';
 wasmPkg.main = 'index.mjs';
 wasmPkg.module = 'index.mjs';
+wasmPkg.exports = {
+  types: './index.d.ts',
+  node: './wasm-node.mjs',
+  default: './index.mjs'
+};
 wasmPkg.types = 'index.d.ts';
 wasmPkg.sideEffects = false;
 wasmPkg.files = ['*.js', '*.mjs', '*.d.ts', '*.flow', '*.wasm'];
 wasmPkg.dependencies = {
   'napi-wasm': pkg.devDependencies['napi-wasm']
 };
-delete wasmPkg.exports;
 delete wasmPkg.napi;
 delete wasmPkg.devDependencies;
 delete wasmPkg.optionalDependencies;
