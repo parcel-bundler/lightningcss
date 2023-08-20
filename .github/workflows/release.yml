@@ -173,17 +173,17 @@ jobs:
           version: '13.2'
           shell: bash
           run: |
-            pkg install -y -f curl node libnghttp2 npm yarn
+            sudo pkg install -y -f curl node libnghttp2 npm yarn
             curl https://sh.rustup.rs -sSf --output rustup.sh
             sh rustup.sh -y --profile minimal --default-toolchain beta
-            export PATH="/usr/local/cargo/bin:$PATH"
+            source "$HOME/.cargo/env"
             echo "~~~~ rustc --version ~~~~"
             rustc --version
             echo "~~~~ node -v ~~~~"
             node -v
             echo "~~~~ yarn --version ~~~~"
             yarn --version
-            yarn install
+            yarn install || true
             yarn build-release
             strip -x *.node
             cargo build --release --features cli
@@ -210,6 +210,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 18
+      - uses: bahmutov/npm-install@v1.8.32
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
