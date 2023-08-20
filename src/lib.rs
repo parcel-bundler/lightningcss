@@ -9611,6 +9611,27 @@ mod tests {
       },
     );
 
+    prefix_test(
+      r#"
+      a::unknown-a, a::unknown-b {
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+      a::unknown-a {
+        color: red;
+      }
+
+      a::unknown-b {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+
     nesting_test_with_targets(
       r#"
       .foo {
