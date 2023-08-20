@@ -799,7 +799,7 @@ pub(crate) struct BackgroundHandler<'i> {
   sizes: Option<SmallVec<[BackgroundSize; 1]>>,
   attachments: Option<SmallVec<[BackgroundAttachment; 1]>>,
   origins: Option<SmallVec<[BackgroundOrigin; 1]>>,
-  clips: Option<SmallVec<[BackgroundClip; 1]>>,
+  clips: Option<(SmallVec<[BackgroundClip; 1]>, VendorPrefix)>,
   decls: Vec<Property<'i>>,
   flushed_properties: BackgroundProperty,
   has_any: bool,
@@ -855,11 +855,18 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
       Property::BackgroundAttachment(val) => self.attachments = Some(val.clone()),
       Property::BackgroundOrigin(val) => self.origins = Some(val.clone()),
       Property::BackgroundClip(val, vendor_prefix) => {
-        if *vendor_prefix == VendorPrefix::None {
-          self.clips = Some(val.clone());
+        if let Some((clips, vp)) = &mut self.clips {
+          if vendor_prefix != vp && val != clips {
+            self.flush(dest, context);
+            self.clips = Some((val.clone(), *vendor_prefix))
+          } else {
+            if val != clips {
+              *clips = val.clone();
+            }
+            *vp |= *vendor_prefix;
+          }
         } else {
-          self.flush(dest, context);
-          dest.push(property.clone())
+          self.clips = Some((val.clone(), *vendor_prefix))
         }
       }
       Property::Background(val) => {
@@ -867,6 +874,15 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
         background_image!(images);
         let color = val.last().unwrap().color.clone();
         flush!(color, color);
+        let clips = val.iter().map(|b| b.clip.clone()).collect();
+        let mut clips_vp = VendorPrefix::None;
+        if let Some((cur_clips, cur_clips_vp)) = &mut self.clips {
+          if clips_vp != *cur_clips_vp && *cur_clips != clips {
+            self.flush(dest, context);
+          } else {
+            clips_vp |= *cur_clips_vp;
+          }
+        }
         self.color = Some(color);
         self.images = Some(images);
         self.x_positions = Some(val.iter().map(|b| b.position.x.clone()).collect());
@@ -875,7 +891,7 @@ impl<'i> PropertyHandler<'i> for BackgroundHandler<'i> {
         self.sizes = Some(val.iter().map(|b| b.size.clone()).collect());
         self.attachments = Some(val.iter().map(|b| b.attachment.clone()).collect());
         self.origins = Some(val.iter().map(|b| b.origin.clone()).collect());
-        self.clips = Some(val.iter().map(|b| b.clip.clone()).collect());
+        self.clips = Some((clips, clips_vp));
       }
       Property::Unparsed(val) if is_background_property(&val.property_id) => {
         self.flush(dest, context);
@@ -960,16 +976,16 @@ impl<'i> BackgroundHandler<'i> {
         && sizes.len() == len
         && attachments.len() == len
         && origins.len() == len
-        && clips.len() == len
+        && clips.0.len() == len
       {
-        let clip_prefixes = if clips.iter().any(|clip| *clip == BackgroundClip::Text) {
-          context.targets.prefixes(VendorPrefix::None, Feature::BackgroundClip)
+        let clip_prefixes = if clips.0.iter().any(|clip| *clip == BackgroundClip::Text) {
+          context.targets.prefixes(clips.1, Feature::BackgroundClip)
         } else {
-          VendorPrefix::None
+          clips.1
         };
 
         let clip_property = if clip_prefixes != VendorPrefix::None {
-          Some(Property::BackgroundClip(clips.clone(), clip_prefixes))
+          Some(Property::BackgroundClip(clips.0.clone(), clip_prefixes))
         } else {
           None
         };
@@ -982,7 +998,7 @@ impl<'i> BackgroundHandler<'i> {
           sizes.drain(..),
           attachments.drain(..),
           origins.drain(..),
-          clips.drain(..)
+          clips.0.drain(..)
         )
         .enumerate()
         .map(
@@ -1082,11 +1098,11 @@ impl<'i> BackgroundHandler<'i> {
       push!(BackgroundOrigin, origins);
     }
 
-    if let Some(clips) = clips {
+    if let Some((clips, vp)) = clips {
       let prefixes = if clips.iter().any(|clip| *clip == BackgroundClip::Text) {
-        context.targets.prefixes(VendorPrefix::None, Feature::BackgroundClip)
+        context.targets.prefixes(vp, Feature::BackgroundClip)
       } else {
-        VendorPrefix::None
+        vp
       };
       dest.push(Property::BackgroundClip(clips, prefixes));
       self.flushed_properties.insert(BackgroundProperty::BackgroundClip);

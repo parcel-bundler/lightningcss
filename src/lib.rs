@@ -4107,6 +4107,46 @@ mod tests {
     prefix_test(
       r#"
       .foo {
+        background: url(img.png) text;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        background: url("img.png");
+        -webkit-background-clip: text;
+        background-clip: text;
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(45 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        background: url(img.png);
+        -webkit-background-clip: text;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        background: url("img.png");
+        -webkit-background-clip: text;
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(45 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
         background: url(img.png);
         background-clip: text;
       }
@@ -4143,6 +4183,26 @@ mod tests {
       },
       Browsers {
         safari: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        -webkit-background-clip: text;
+        background-clip: text;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        -webkit-background-clip: text;
+        background-clip: text;
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(45 << 16),
         ..Browsers::default()
       },
     );
