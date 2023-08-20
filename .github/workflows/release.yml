@@ -171,6 +171,7 @@ jobs:
         with:
           envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS
           usesh: true
+          mem: 8192
           prepare: |
             pkg install -y -f curl node libnghttp2 npm yarn
             curl https://sh.rustup.rs -sSf --output rustup.sh
@@ -188,7 +189,7 @@ jobs:
             yarn build-release
             strip -x *.node
             cargo build --release --features cli
-            mv target/x86_64-unknown-freebsd/release/lightningcss lightningcss
+            mv target/release/lightningcss lightningcss
             node -e "require('.')"
             ./lightningcss --help
 
