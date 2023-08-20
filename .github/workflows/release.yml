@@ -157,6 +157,49 @@ jobs:
             *.node
             lightningcss
 
+  build-freebsd:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build FreeBSD
+        uses: vmactions/freebsd-vm@v0
+        env:
+          DEBUG: napi:*
+          RUSTUP_HOME: /usr/local/rustup
+          CARGO_HOME: /usr/local/cargo
+          RUSTUP_IO_THREADS: 1
+        with:
+          envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS
+          usesh: true
+          prepare: |
+            pkg install -y -f curl node libnghttp2 npm yarn
+            curl https://sh.rustup.rs -sSf --output rustup.sh
+            sh rustup.sh -y --profile minimal --default-toolchain beta
+            export PATH="/usr/local/cargo/bin:$PATH"
+            echo "~~~~ rustc --version ~~~~"
+            rustc --version
+            echo "~~~~ node -v ~~~~"
+            node -v
+            echo "~~~~ yarn --version ~~~~"
+            yarn --version
+          run: |
+            export PATH="/usr/local/cargo/bin:$PATH"
+            yarn install
+            yarn build-release
+            strip -x *.node
+            cargo build --release --features cli
+            mv target/x86_64-unknown-freebsd/release/lightningcss lightningcss
+            node -e "require('.')"
+            ./lightningcss --help
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: bindings-x86_64-unknown-freebsd
+          path: |
+            *.node
+            lightningcss
+
   build-wasm:
     runs-on: ubuntu-latest
     steps:
@@ -194,6 +237,7 @@ jobs:
       - build
       - build-linux
       - build-apple-silicon
+      - build-freebsd
       - build-wasm
     steps:
       - uses: actions/checkout@v3

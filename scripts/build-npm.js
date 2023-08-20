@@ -33,6 +33,9 @@ const triples = [
     name: 'x86_64-unknown-linux-musl',
     libc: 'musl',
   },
+  {
+    name: 'x86_64-unknown-freebsd'
+  }
 ];
 const cpuToNodeArch = {
   x86_64: 'x64',
