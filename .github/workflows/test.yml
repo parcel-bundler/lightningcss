@@ -31,3 +31,4 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: yarn build
       - run: yarn test
+      - run: yarn tsc
