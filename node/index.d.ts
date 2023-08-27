@@ -24,9 +24,9 @@ export interface TransformOptions<C extends CustomAtRules> {
   /** The browser targets for the generated code. */
   targets?: Targets,
   /** Features that should always be compiled, even when supported by targets. */
-  include?: Features,
+  include?: number,
   /** Features that should never be compiled, even when unsupported by targets. */
-  exclude?: Features,
+  exclude?: number,
   /** Whether to enable parsing various draft syntax. */
   drafts?: Drafts,
   /** Whether to enable various non-standard syntax. */
