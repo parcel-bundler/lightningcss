@@ -98,7 +98,7 @@ fn derive(
 
   impl_generics
     .params
-    .push(parse_quote! { #v: crate::visitor::Visitor<#lifetime, #t> });
+    .push(parse_quote! { #v: ?Sized + crate::visitor::Visitor<#lifetime, #t> });
 
   for ty in generics.type_params() {
     let name = &ty.ident;
