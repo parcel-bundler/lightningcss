@@ -330,7 +330,7 @@ pub trait Visit<'i, T: Visit<'i, T, V>, V: ?Sized + Visitor<'i, T>> {
   fn visit_children(&mut self, visitor: &mut V) -> Result<(), V::Error>;
 }
 
-impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Option<U> {
+impl<'i, T: Visit<'i, T, V>, V: ?Sized + Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Option<U> {
   const CHILD_TYPES: VisitTypes = U::CHILD_TYPES;
 
   fn visit(&mut self, visitor: &mut V) -> Result<(), V::Error> {
@@ -350,7 +350,7 @@ impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T,
   }
 }
 
-impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Box<U> {
+impl<'i, T: Visit<'i, T, V>, V: ?Sized + Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Box<U> {
   const CHILD_TYPES: VisitTypes = U::CHILD_TYPES;
 
   fn visit(&mut self, visitor: &mut V) -> Result<(), V::Error> {
@@ -362,7 +362,7 @@ impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T,
   }
 }
 
-impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Vec<U> {
+impl<'i, T: Visit<'i, T, V>, V: ?Sized + Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Vec<U> {
   const CHILD_TYPES: VisitTypes = U::CHILD_TYPES;
 
   fn visit(&mut self, visitor: &mut V) -> Result<(), V::Error> {
@@ -374,8 +374,8 @@ impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T,
   }
 }
 
-impl<'i, A: smallvec::Array<Item = U>, U: Visit<'i, T, V>, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V>
-  for SmallVec<A>
+impl<'i, A: smallvec::Array<Item = U>, U: Visit<'i, T, V>, T: Visit<'i, T, V>, V: ?Sized + Visitor<'i, T>>
+  Visit<'i, T, V> for SmallVec<A>
 {
   const CHILD_TYPES: VisitTypes = U::CHILD_TYPES;
 
@@ -390,7 +390,7 @@ impl<'i, A: smallvec::Array<Item = U>, U: Visit<'i, T, V>, T: Visit<'i, T, V>, V
 
 macro_rules! impl_visit {
   ($t: ty) => {
-    impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for $t {
+    impl<'i, V: ?Sized + Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for $t {
       const CHILD_TYPES: VisitTypes = VisitTypes::empty();
 
       fn visit_children(&mut self, _: &mut V) -> Result<(), V::Error> {
