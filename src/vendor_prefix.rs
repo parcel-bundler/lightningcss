@@ -150,7 +150,7 @@ impl<'de> serde::Deserialize<'de> for VendorPrefix {
 
 #[cfg(feature = "visitor")]
 #[cfg_attr(docsrs, doc(cfg(feature = "visitor")))]
-impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for VendorPrefix {
+impl<'i, V: ?Sized + Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for VendorPrefix {
   const CHILD_TYPES: VisitTypes = VisitTypes::empty();
   fn visit_children(&mut self, _: &mut V) -> Result<(), V::Error> {
     Ok(())
