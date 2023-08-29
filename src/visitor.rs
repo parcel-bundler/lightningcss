@@ -140,7 +140,7 @@ macro_rules! visit_types {
 }
 
 /// A trait for visiting or transforming rules, properties, and values in a StyleSheet.
-pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule>: Sized {
+pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule> {
   /// The `Err` value for `Result`s returned by `visit_*` methods.
   type Error;
 
@@ -313,7 +313,7 @@ pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule>: Sized {
 }
 
 /// A trait for values that can be visited by a [Visitor](Visitor).
-pub trait Visit<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> {
+pub trait Visit<'i, T: Visit<'i, T, V>, V: ?Sized + Visitor<'i, T>> {
   /// The types of values contained within this value and its children.
   /// This is used to skip branches that don't have any values requested
   /// by the Visitor.
