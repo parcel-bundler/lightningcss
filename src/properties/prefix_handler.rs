@@ -95,11 +95,10 @@ macro_rules! define_fallbacks {
           $(
             Property::$name(val $(, mut $p)?) => {
               let mut val = val.clone();
+              $(
+                $p = context.targets.prefixes($p, Feature::$name);
+              )?
               if paste::paste! { self.[<$name:snake>] }.is_none() {
-                $(
-                  $p = context.targets.prefixes($p, Feature::$name);
-                )?
-
                 let fallbacks = val.get_fallbacks(context.targets);
                 #[allow(unused_variables)]
                 let has_fallbacks = !fallbacks.is_empty();

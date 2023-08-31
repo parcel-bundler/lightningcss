@@ -486,15 +486,15 @@ export interface Targets {
   ${allBrowsers.join('?: number,\n  ')}?: number
 }
 
-export declare const enum Features {
+export const Features: {
   ${flags.map((flag, i) => {
     if (Array.isArray(flag)) {
-      return `${flag[0]} = ${flag[1].reduce((p, f) => p | (1 << flags.indexOf(f)), 0)},`
+      return `${flag[0]}: ${flag[1].reduce((p, f) => p | (1 << flags.indexOf(f)), 0)},`
     } else {
-      return `${flag} = ${1 << i},`;
+      return `${flag}: ${1 << i},`;
     }
   }).join('\n  ')}
-}
+};
 `;
 
 fs.writeFileSync('node/targets.d.ts', targets_dts);

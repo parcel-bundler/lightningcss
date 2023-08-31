@@ -136,6 +136,7 @@ bitflags! {
 
         const AFTER_WEBKIT_SCROLLBAR = 1 << 8;
         const AFTER_VIEW_TRANSITION = 1 << 9;
+        const AFTER_UNKNOWN_PSEUDO_ELEMENT = 1 << 10;
     }
 }
 
@@ -2004,9 +2005,6 @@ where
 
   let mut builder = SelectorBuilder::default();
 
-  let mut has_pseudo_element = false;
-  let mut slotted = false;
-  let mut part = false;
   'outer_loop: loop {
     // Parse a sequence of simple selectors.
     let empty = parse_compound_selector(parser, state, input, &mut builder)?;
@@ -2019,10 +2017,6 @@ where
     }
 
     if state.intersects(SelectorParsingState::AFTER_PSEUDO) {
-      has_pseudo_element = state.intersects(SelectorParsingState::AFTER_PSEUDO_ELEMENT);
-      slotted = state.intersects(SelectorParsingState::AFTER_SLOTTED);
-      part = state.intersects(SelectorParsingState::AFTER_PART);
-      debug_assert!(has_pseudo_element || slotted || part);
       break;
     }
 
@@ -2102,6 +2096,10 @@ where
     }
   }
 
+  let has_pseudo_element = state
+    .intersects(SelectorParsingState::AFTER_PSEUDO_ELEMENT | SelectorParsingState::AFTER_UNKNOWN_PSEUDO_ELEMENT);
+  let slotted = state.intersects(SelectorParsingState::AFTER_SLOTTED);
+  let part = state.intersects(SelectorParsingState::AFTER_PART);
   let (spec, components) = builder.build(has_pseudo_element, slotted, part);
   Ok(Selector(spec, components))
 }
@@ -2647,6 +2645,8 @@ where
         if !p.is_unknown() {
           state.insert(SelectorParsingState::AFTER_PSEUDO_ELEMENT);
           builder.push_combinator(Combinator::PseudoElement);
+        } else {
+          state.insert(SelectorParsingState::AFTER_UNKNOWN_PSEUDO_ELEMENT);
         }
         if !p.accepts_state_pseudo_classes() {
           state.insert(SelectorParsingState::AFTER_NON_STATEFUL_PSEUDO_ELEMENT);

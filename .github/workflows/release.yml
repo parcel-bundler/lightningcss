@@ -157,6 +157,51 @@ jobs:
             *.node
             lightningcss
 
+  build-freebsd:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build FreeBSD
+        uses: cross-platform-actions/action@v0.19.0
+        env:
+          DEBUG: napi:*
+          RUSTUP_HOME: /usr/local/rustup
+          CARGO_HOME: /usr/local/cargo
+          RUSTUP_IO_THREADS: 1
+        with:
+          operating_system: freebsd
+          version: '13.2'
+          shell: bash
+          run: |
+            sudo pkg install -y -f curl node libnghttp2 npm yarn
+            curl https://sh.rustup.rs -sSf --output rustup.sh
+            sh rustup.sh -y --profile minimal --default-toolchain beta
+            source "$HOME/.cargo/env"
+            echo "~~~~ rustc --version ~~~~"
+            rustc --version
+            echo "~~~~ node -v ~~~~"
+            node -v
+            echo "~~~~ yarn --version ~~~~"
+            yarn --version
+            yarn install || true
+            yarn build-release
+            strip -x *.node
+            cargo build --release --features cli
+            mv target/release/lightningcss lightningcss
+            node -e "require('.')"
+            ./lightningcss --help
+            rm -rf node_modules
+            rm -rf target
+            rm -rf .yarn/cache
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: bindings-x86_64-unknown-freebsd
+          path: |
+            *.node
+            lightningcss
+
   build-wasm:
     runs-on: ubuntu-latest
     steps:
@@ -165,6 +210,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 18
+      - uses: bahmutov/npm-install@v1.8.32
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -194,6 +240,7 @@ jobs:
       - build
       - build-linux
       - build-apple-silicon
+      - build-freebsd
       - build-wasm
     steps:
       - uses: actions/checkout@v3

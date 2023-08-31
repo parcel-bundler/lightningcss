@@ -5632,12 +5632,10 @@ export type TextSizeAdjust =
   | {
       type: "none";
     }
-  | (
-      | {
-          type: "percentage";
-        }
-      | number
-    );
+  | {
+      type: "percentage";
+      value: number;
+    };
 /**
  * A value for the [box-decoration-break](https://www.w3.org/TR/css-break-3/#break-decoration) property.
  */

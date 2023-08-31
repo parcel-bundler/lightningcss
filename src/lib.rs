@@ -4107,6 +4107,46 @@ mod tests {
     prefix_test(
       r#"
       .foo {
+        background: url(img.png) text;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        background: url("img.png");
+        -webkit-background-clip: text;
+        background-clip: text;
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(45 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        background: url(img.png);
+        -webkit-background-clip: text;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        background: url("img.png");
+        -webkit-background-clip: text;
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(45 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
         background: url(img.png);
         background-clip: text;
       }
@@ -4143,6 +4183,26 @@ mod tests {
       },
       Browsers {
         safari: Some(8 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo {
+        -webkit-background-clip: text;
+        background-clip: text;
+      }
+    "#,
+      indoc! {r#"
+      .foo {
+        -webkit-background-clip: text;
+        background-clip: text;
+      }
+    "#
+      },
+      Browsers {
+        chrome: Some(45 << 16),
         ..Browsers::default()
       },
     );
@@ -9542,6 +9602,27 @@ mod tests {
       }
 
       .bar:focus-visible {
+        color: red;
+      }
+      "#},
+      Browsers {
+        safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      a::unknown-a, a::unknown-b {
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+      a::unknown-a {
+        color: red;
+      }
+
+      a::unknown-b {
         color: red;
       }
       "#},
@@ -24016,6 +24097,24 @@ mod tests {
       "#},
       Browsers {
         safari: Some(15 << 16),
+        ..Browsers::default()
+      },
+    );
+    prefix_test(
+      r#"
+      .foo {
+        -webkit-backdrop-filter: blur(8px);
+        backdrop-filter: blur(8px);
+      }
+      "#,
+      indoc! {r#"
+      .foo {
+        -webkit-backdrop-filter: blur(8px);
+        backdrop-filter: blur(8px);
+      }
+      "#},
+      Browsers {
+        safari: Some(16 << 16),
         ..Browsers::default()
       },
     );

@@ -1,0 +1,10 @@
+{
+  "include": ["*.d.ts"],
+  "compilerOptions": {
+    "lib": ["ES2020"],
+    "moduleResolution": "node",
+    "isolatedModules": true,
+    "noEmit": true,
+    "strict": true
+  }
+}

@@ -21,6 +21,7 @@ export default function init(input?: string | URL | Request): Promise<void>;
 fs.writeFileSync(`${dir}/wasm/index.d.ts`, dts);
 fs.copyFileSync(`${dir}/node/targets.d.ts`, `${dir}/wasm/targets.d.ts`);
 fs.copyFileSync(`${dir}/node/ast.d.ts`, `${dir}/wasm/ast.d.ts`);
+fs.cpSync(`${dir}/node_modules/napi-wasm`, `${dir}/wasm/node_modules/napi-wasm`, {recursive: true});
 
 let readme = fs.readFileSync(`${dir}/README.md`, 'utf8');
 readme = readme.replace('# ⚡️ Lightning CSS', '# ⚡️ lightningcss-wasm');
@@ -31,13 +32,18 @@ wasmPkg.name = 'lightningcss-wasm';
 wasmPkg.type = 'module';
 wasmPkg.main = 'index.mjs';
 wasmPkg.module = 'index.mjs';
+wasmPkg.exports = {
+  types: './index.d.ts',
+  node: './wasm-node.mjs',
+  default: './index.mjs'
+};
 wasmPkg.types = 'index.d.ts';
 wasmPkg.sideEffects = false;
 wasmPkg.files = ['*.js', '*.mjs', '*.d.ts', '*.flow', '*.wasm'];
 wasmPkg.dependencies = {
   'napi-wasm': pkg.devDependencies['napi-wasm']
 };
-delete wasmPkg.exports;
+wasmPkg.bundledDependencies = ['napi-wasm']; // for stackblitz
 delete wasmPkg.napi;
 delete wasmPkg.devDependencies;
 delete wasmPkg.optionalDependencies;
