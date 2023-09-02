@@ -144,17 +144,9 @@ pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule> {
   /// The `Err` value for `Result`s returned by `visit_*` methods.
   type Error;
 
-  /// The types of values that this visitor should visit. May be constructed using
-  /// the [visit_types](visit_types) macro. Accurately setting these flags improves
-  /// performance by skipping branches that do not have any values of the requested types.
-  const TYPES: VisitTypes;
-
   /// Returns the types of values that this visitor should visit. By default, it returns
   /// `Self::TYPES`, but this can be overridden to change the value at runtime.
-  #[inline]
-  fn visit_types(&self) -> VisitTypes {
-    Self::TYPES
-  }
+  fn visit_types(&self) -> VisitTypes;
 
   /// Visits a rule list.
   #[inline]
