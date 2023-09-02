@@ -154,7 +154,9 @@ struct StyleRuleCollector<'i, 'a> {
 impl<'i, 'a> Visitor<'i, AtRule> for StyleRuleCollector<'i, 'a> {
   type Error = Infallible;
 
-  const TYPES: VisitTypes = VisitTypes::RULES;
+  fn visit_types(&self) -> VisitTypes {
+    VisitTypes::RULES
+  }
 
   fn visit_rule(&mut self, rule: &mut lightningcss::rules::CssRule<'i, AtRule>) -> Result<(), Self::Error> {
     match rule {
@@ -187,7 +189,9 @@ struct ApplyVisitor<'a, 'i> {
 impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
   type Error = Infallible;
 
-  const TYPES: VisitTypes = visit_types!(RULES | COLORS | LENGTHS | DASHED_IDENTS | SELECTORS | TOKENS);
+  fn visit_types(&self) -> VisitTypes {
+    visit_types!(RULES | COLORS | LENGTHS | DASHED_IDENTS | SELECTORS | TOKENS)
+  }
 
   fn visit_rule(&mut self, rule: &mut CssRule<'i, AtRule>) -> Result<(), Self::Error> {
     // Replace @apply rule with nested style rule.
