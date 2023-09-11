@@ -1,8 +1,27 @@
 import path from 'path';
 import fs from 'fs';
-import { bundleAsync } from '../index.mjs';
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
+
+let bundleAsync;
+if (process.env.TEST_WASM === 'node') {
+  bundleAsync = (await import('../../wasm/wasm-node.mjs')).bundleAsync;
+} else if (process.env.TEST_WASM === 'browser') {
+  let wasm = await import('../../wasm/index.mjs');
+  await wasm.default();
+  bundleAsync = function (options) {
+    if (!options.resolver?.read) {
+      options.resolver = {
+        ...options.resolver,
+        read: (filePath) => fs.readFileSync(filePath, 'utf8')
+      };
+    }
+
+    return wasm.bundleAsync(options);
+  }
+} else {
+  bundleAsync = (await import('../index.mjs')).bundleAsync;
+}
 
 test('resolver', async () => {
   const inMemoryFs = new Map(Object.entries({

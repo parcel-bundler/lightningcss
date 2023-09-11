@@ -2,7 +2,37 @@
 
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
-import { bundle, bundleAsync, transform, transformStyleAttribute } from '../index.mjs';
+import fs from 'fs';
+
+let bundle, bundleAsync, transform, transformStyleAttribute;
+if (process.env.TEST_WASM === 'node') {
+  ({ bundle, bundleAsync, transform, transformStyleAttribute } = await import('../../wasm/wasm-node.mjs'));
+} else if (process.env.TEST_WASM === 'browser') {
+  let wasm = await import('../../wasm/index.mjs');
+  await wasm.default();
+  ({ transform, transformStyleAttribute } = wasm);
+  bundle = function(options) {
+    return wasm.bundle({
+      ...options,
+      resolver: {
+        read: (filePath) => fs.readFileSync(filePath, 'utf8')
+      }
+    });
+  }
+
+  bundleAsync = function (options) {
+    if (!options.resolver?.read) {
+      options.resolver = {
+        ...options.resolver,
+        read: (filePath) => fs.readFileSync(filePath, 'utf8')
+      };
+    }
+
+    return wasm.bundleAsync(options);
+  }
+} else {
+  ({ bundle, bundleAsync, transform, transformStyleAttribute } = await import('../index.mjs'));
+}
 
 test('px to rem', () => {
   // Similar to https://github.com/cuth/postcss-pxtorem

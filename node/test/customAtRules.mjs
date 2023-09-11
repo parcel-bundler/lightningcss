@@ -2,7 +2,26 @@
 
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
-import { bundle, transform } from '../index.mjs';
+import fs from 'fs';
+
+let bundle, transform;
+if (process.env.TEST_WASM === 'node') {
+  ({ bundle, transform } = await import('../../wasm/wasm-node.mjs'));
+} else if (process.env.TEST_WASM === 'browser') {
+  let wasm = await import('../../wasm/index.mjs');
+  await wasm.default();
+  transform = wasm.transform;
+  bundle = function(options) {
+    return wasm.bundle({
+      ...options,
+      resolver: {
+        read: (filePath) => fs.readFileSync(filePath, 'utf8')
+      }
+    });
+  }
+} else {
+  ({bundle, transform} = await import('../index.mjs'));
+}
 
 test('declaration list', () => {
   let definitions = new Map();
