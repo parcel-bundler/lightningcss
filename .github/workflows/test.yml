@@ -43,6 +43,10 @@ jobs:
           node-version: 18
       - uses: bahmutov/npm-install@v1.8.32
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Setup rust target
+        run: rustup target add wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
       - name: Install wasm-opt
         run: |
