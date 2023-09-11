@@ -37,8 +37,9 @@ export function bundleAsync(options) {
   return bundleAsyncInternal(options);
 }
 
-export { browserslistToTargets } from './browserslistToTargets.js'
-export { Features } from './flags.js'
+export { browserslistToTargets } from './browserslistToTargets.js';
+export { Features } from './flags.js';
+export { composeVisitors } from './composeVisitors.js';
 
 async function load(module, imports) {
   if (typeof Response === 'function' && module instanceof Response) {

@@ -12,6 +12,10 @@ let flags = fs.readFileSync(`${dir}/node/flags.js`, 'utf8');
 flags = flags.replace('exports.Features =', 'export const Features =');
 fs.writeFileSync(`${dir}/wasm/flags.js`, flags);
 
+let composeVisitors = fs.readFileSync(`${dir}/node/composeVisitors.js`, 'utf8');
+composeVisitors = composeVisitors.replace('module.exports = composeVisitors', 'export { composeVisitors }');
+fs.writeFileSync(`${dir}/wasm/composeVisitors.js`, composeVisitors);
+
 let dts = fs.readFileSync(`${dir}/node/index.d.ts`, 'utf8');
 dts = dts.replace(/: Buffer/g, ': Uint8Array');
 dts += `

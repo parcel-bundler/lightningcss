@@ -1,10 +1,9 @@
 import path from 'path';
 import fs from 'fs';
-import { bundleAsync as bundleAsyncNative } from '../index.mjs';
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
 
-let bundleAsync = bundleAsyncNative;
+let bundleAsync;
 if (process.env.TEST_WASM === 'node') {
   bundleAsync = (await import('../../wasm/wasm-node.mjs')).bundleAsync;
 } else if (process.env.TEST_WASM === 'browser') {
@@ -20,6 +19,8 @@ if (process.env.TEST_WASM === 'node') {
 
     return wasm.bundleAsync(options);
   }
+} else {
+  bundleAsync = (await import('../index.mjs')).bundleAsync;
 }
 
 test('resolver', async () => {

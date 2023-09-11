@@ -1,14 +1,15 @@
-import { transform as transformNative, Features } from 'lightningcss';
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
 
-let transform = transformNative;
+let transform, Features;
 if (process.env.TEST_WASM === 'node') {
-  transform = (await import('../../wasm/wasm-node.mjs')).transform;
+  ({transform, Features} = await import('../../wasm/wasm-node.mjs'));
 } else if (process.env.TEST_WASM === 'browser') {
   let wasm = await import('../../wasm/index.mjs');
   await wasm.default();
-  transform = wasm.transform;
+  ({transform, Features} = wasm);
+} else {
+  ({transform, Features} = await import('../index.mjs'));
 }
 
 test('can enable non-standard syntax', () => {

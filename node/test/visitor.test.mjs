@@ -2,10 +2,9 @@
 
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
-import * as native from '../index.mjs';
 import fs from 'fs';
 
-let { bundle, bundleAsync, transform, transformStyleAttribute } = native;
+let bundle, bundleAsync, transform, transformStyleAttribute;
 if (process.env.TEST_WASM === 'node') {
   ({ bundle, bundleAsync, transform, transformStyleAttribute } = await import('../../wasm/wasm-node.mjs'));
 } else if (process.env.TEST_WASM === 'browser') {
@@ -31,6 +30,8 @@ if (process.env.TEST_WASM === 'node') {
 
     return wasm.bundleAsync(options);
   }
+} else {
+  ({ bundle, bundleAsync, transform, transformStyleAttribute } = await import('../index.mjs'));
 }
 
 test('px to rem', () => {

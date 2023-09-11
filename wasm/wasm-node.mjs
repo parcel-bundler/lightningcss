@@ -48,3 +48,4 @@ export async function bundleAsync(options) {
 
 export { browserslistToTargets } from './browserslistToTargets.js'
 export { Features } from './flags.js'
+export { composeVisitors } from './composeVisitors.js';

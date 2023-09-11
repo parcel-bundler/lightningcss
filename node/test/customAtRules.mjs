@@ -2,10 +2,9 @@
 
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
-import * as native from '../index.mjs';
 import fs from 'fs';
 
-let { bundle, transform } = native;
+let bundle, transform;
 if (process.env.TEST_WASM === 'node') {
   ({ bundle, transform } = await import('../../wasm/wasm-node.mjs'));
 } else if (process.env.TEST_WASM === 'browser') {
@@ -20,6 +19,8 @@ if (process.env.TEST_WASM === 'node') {
       }
     });
   }
+} else {
+  ({bundle, transform} = await import('../index.mjs'));
 }
 
 test('declaration list', () => {
