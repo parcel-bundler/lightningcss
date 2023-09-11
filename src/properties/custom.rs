@@ -1183,7 +1183,9 @@ struct VarInliner<'a, 'i> {
 impl<'a, 'i> crate::visitor::Visitor<'i> for VarInliner<'a, 'i> {
   type Error = std::convert::Infallible;
 
-  const TYPES: crate::visitor::VisitTypes = crate::visit_types!(TOKENS | VARIABLES);
+  fn visit_types(&self) -> crate::visitor::VisitTypes {
+    crate::visit_types!(TOKENS | VARIABLES)
+  }
 
   fn visit_token_list(&mut self, tokens: &mut TokenList<'i>) -> Result<(), Self::Error> {
     let mut i = 0;

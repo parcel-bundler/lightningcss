@@ -33,7 +33,9 @@
 //! impl<'i> Visitor<'i> for MyVisitor {
 //!   type Error = Infallible;
 //!
-//!   const TYPES: VisitTypes = visit_types!(URLS | LENGTHS);
+//!   fn visit_types(&self) -> VisitTypes {
+//!     visit_types!(URLS | LENGTHS)
+//!   }
 //!
 //!   fn visit_url(&mut self, url: &mut Url<'i>) -> Result<(), Self::Error> {
 //!     url.url = format!("https://mywebsite.com/{}", url.url).into();
