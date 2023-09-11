@@ -55,6 +55,6 @@ jobs:
       - name: Build wasm
         run: |
           export PATH="$PATH:./binaryen-version_111/bin"
-          yarn wasm:build
+          yarn wasm:build-release
       - run: TEST_WASM=node yarn test
       - run: TEST_WASM=browser yarn test
