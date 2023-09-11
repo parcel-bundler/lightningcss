@@ -1,6 +1,7 @@
 import { Environment, napi } from 'napi-wasm';
+import { await_promise_sync, createBundleAsync } from './async.mjs';
 
-let wasm;
+let wasm, bundleAsyncInternal;
 
 export default async function init(input) {
   input = input ?? new URL('lightningcss_node.wasm', import.meta.url);
@@ -9,11 +10,15 @@ export default async function init(input) {
   }
 
   const { instance } = await load(await input, {
-    env: napi
+    env: {
+      ...napi,
+      await_promise_sync
+    }
   });
 
   let env = new Environment(instance);
   wasm = env.exports;
+  bundleAsyncInternal = createBundleAsync(env);
 }
 
 export function transform(options) {
@@ -22,6 +27,14 @@ export function transform(options) {
 
 export function transformStyleAttribute(options) {
   return wasm.transformStyleAttribute(options);
+}
+
+export function bundle(options) {
+  return wasm.bundle(options);
+}
+
+export function bundleAsync(options) {
+  return bundleAsyncInternal(options);
 }
 
 export { browserslistToTargets } from './browserslistToTargets.js'

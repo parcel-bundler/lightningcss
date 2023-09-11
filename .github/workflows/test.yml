@@ -19,6 +19,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt
       - run: cargo test --all-features
+
   test-js:
     runs-on: ubuntu-latest
     steps:
@@ -32,3 +33,24 @@ jobs:
       - run: yarn build
       - run: yarn test
       - run: yarn tsc
+
+  test-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - uses: bahmutov/npm-install@v1.8.32
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install wasm-opt
+        run: |
+          curl -L -O https://github.com/WebAssembly/binaryen/releases/download/version_111/binaryen-version_111-x86_64-linux.tar.gz
+          tar -xf binaryen-version_111-x86_64-linux.tar.gz
+      - name: Build wasm
+        run: |
+          export PATH="$PATH:./binaryen-version_111/bin"
+          yarn wasm:build
+      - run: TEST_WASM=node yarn test
+      - run: TEST_WASM=browser yarn test

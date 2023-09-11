@@ -420,14 +420,151 @@ mod bundle {
   }
 }
 
+#[cfg(target_arch = "wasm32")]
+mod bundle {
+  use super::*;
+  use napi::{Env, JsFunction, JsString, NapiRaw, NapiValue, Ref};
+  use std::cell::UnsafeCell;
+
+  #[js_function(1)]
+  pub fn bundle(ctx: CallContext) -> napi::Result<JsUnknown> {
+    use transformer::JsVisitor;
+
+    let opts = ctx.get::<JsObject>(0)?;
+    let mut visitor = if let Ok(visitor) = opts.get_named_property::<JsObject>("visitor") {
+      Some(JsVisitor::new(*ctx.env, visitor))
+    } else {
+      None
+    };
+
+    let resolver = opts.get_named_property::<JsObject>("resolver")?;
+    let read = resolver.get_named_property::<JsFunction>("read")?;
+    let resolve = if resolver.has_named_property("resolve")? {
+      let resolve = resolver.get_named_property::<JsFunction>("resolve")?;
+      Some(ctx.env.create_reference(resolve)?)
+    } else {
+      None
+    };
+    let config: BundleConfig = ctx.env.from_js_value(opts)?;
+
+    let provider = JsSourceProvider {
+      env: ctx.env.clone(),
+      resolve,
+      read: ctx.env.create_reference(read)?,
+      inputs: UnsafeCell::new(Vec::new()),
+    };
+
+    // This is pretty silly, but works around a rust limitation that you cannot
+    // explicitly annotate lifetime bounds on closures.
+    fn annotate<'i, 'o, F>(f: F) -> F
+    where
+      F: FnOnce(&mut StyleSheet<'i, 'o, AtRule<'i>>) -> napi::Result<()>,
+    {
+      f
+    }
+
+    let res = compile_bundle(
+      &provider,
+      &config,
+      visitor.as_mut().map(|visitor| annotate(|stylesheet| stylesheet.visit(visitor))),
+    );
+
+    match res {
+      Ok(res) => res.into_js(*ctx.env),
+      Err(err) => Err(err.into_js_error(*ctx.env, None)?),
+    }
+  }
+
+  struct JsSourceProvider {
+    env: Env,
+    resolve: Option<Ref<()>>,
+    read: Ref<()>,
+    inputs: UnsafeCell<Vec<*mut String>>,
+  }
+
+  impl Drop for JsSourceProvider {
+    fn drop(&mut self) {
+      if let Some(resolve) = &mut self.resolve {
+        drop(resolve.unref(self.env));
+      }
+      drop(self.read.unref(self.env));
+    }
+  }
+
+  unsafe impl Sync for JsSourceProvider {}
+  unsafe impl Send for JsSourceProvider {}
+
+  // This relies on Binaryen's Asyncify transform to allow Rust to call async JS functions from sync code.
+  // See the comments in async.mjs for more details about how this works.
+  extern "C" {
+    fn await_promise_sync(
+      promise: napi::sys::napi_value,
+      result: *mut napi::sys::napi_value,
+      error: *mut napi::sys::napi_value,
+    );
+  }
+
+  fn get_result(env: Env, mut value: JsUnknown) -> napi::Result<JsString> {
+    if value.is_promise()? {
+      let mut result = std::ptr::null_mut();
+      let mut error = std::ptr::null_mut();
+      unsafe { await_promise_sync(value.raw(), &mut result, &mut error) };
+      if !error.is_null() {
+        let error = unsafe { JsUnknown::from_raw(env.raw(), error)? };
+        return Err(napi::Error::from(error));
+      }
+      if result.is_null() {
+        return Err(napi::Error::new(napi::Status::GenericFailure, "No result".into()));
+      }
+
+      value = unsafe { JsUnknown::from_raw(env.raw(), result)? };
+    }
+
+    value.try_into()
+  }
+
+  impl SourceProvider for JsSourceProvider {
+    type Error = napi::Error;
+
+    fn read<'a>(&'a self, file: &Path) -> Result<&'a str, Self::Error> {
+      let read: JsFunction = self.env.get_reference_value_unchecked(&self.read)?;
+      let file = self.env.create_string(file.to_str().unwrap())?;
+      let mut source: JsUnknown = read.call(None, &[file])?;
+      let source = get_result(self.env, source)?.into_utf8()?.into_owned()?;
+
+      // cache the result
+      let ptr = Box::into_raw(Box::new(source));
+      let inputs = unsafe { &mut *self.inputs.get() };
+      inputs.push(ptr);
+      // SAFETY: this is safe because the pointer is not dropped
+      // until the JsSourceProvider is, and we never remove from the
+      // list of pointers stored in the vector.
+      Ok(unsafe { &*ptr })
+    }
+
+    fn resolve(&self, specifier: &str, originating_file: &Path) -> Result<PathBuf, Self::Error> {
+      if let Some(resolve) = &self.resolve {
+        let resolve: JsFunction = self.env.get_reference_value_unchecked(resolve)?;
+        let specifier = self.env.create_string(specifier)?;
+        let originating_file = self.env.create_string(originating_file.to_str().unwrap())?;
+        let result: JsUnknown = resolve.call(None, &[specifier, originating_file])?;
+        let result = get_result(self.env, result)?.into_utf8()?;
+        Ok(PathBuf::from_str(result.as_str()?).unwrap())
+      } else {
+        Ok(originating_file.with_file_name(specifier))
+      }
+    }
+  }
+}
+
 #[cfg_attr(not(target_arch = "wasm32"), module_exports)]
 fn init(mut exports: JsObject) -> napi::Result<()> {
   exports.create_named_method("transform", transform)?;
   exports.create_named_method("transformStyleAttribute", transform_style_attribute)?;
+  exports.create_named_method("bundle", bundle::bundle)?;
 
   #[cfg(not(target_arch = "wasm32"))]
   {
-    exports.create_named_method("bundle", bundle::bundle)?;
     exports.create_named_method("bundleAsync", bundle::bundle_async)?;
   }
 

@@ -2,7 +2,16 @@
 
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
-import { transform, composeVisitors } from '../index.mjs';
+import { transform as transformNative, composeVisitors } from '../index.mjs';
+
+let transform = transformNative;
+if (process.env.TEST_WASM === 'node') {
+  transform = (await import('../../wasm/wasm-node.mjs')).transform;
+} else if (process.env.TEST_WASM === 'browser') {
+  let wasm = await import('../../wasm/index.mjs');
+  await wasm.default();
+  transform = wasm.transform;
+}
 
 test('different types', () => {
   let res = transform({

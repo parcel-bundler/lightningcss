@@ -222,11 +222,9 @@ jobs:
           curl -L -O https://github.com/WebAssembly/binaryen/releases/download/version_111/binaryen-version_111-x86_64-linux.tar.gz
           tar -xf binaryen-version_111-x86_64-linux.tar.gz
       - name: Build wasm
-        run: yarn wasm:build-release
-      - name: Optimize wasm
         run: |
-          ./binaryen-version_111/bin/wasm-opt wasm/lightningcss_node.wasm -Oz -o wasm/lightningcss_node.opt.wasm
-          mv wasm/lightningcss_node.opt.wasm wasm/lightningcss_node.wasm
+          export PATH="$PATH:./binaryen-version_111/bin"
+          yarn wasm:build-release
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:

@@ -1,6 +1,15 @@
-import { transform, Features } from 'lightningcss';
+import { transform as transformNative, Features } from 'lightningcss';
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
+
+let transform = transformNative;
+if (process.env.TEST_WASM === 'node') {
+  transform = (await import('../../wasm/wasm-node.mjs')).transform;
+} else if (process.env.TEST_WASM === 'browser') {
+  let wasm = await import('../../wasm/index.mjs');
+  await wasm.default();
+  transform = wasm.transform;
+}
 
 test('can enable non-standard syntax', () => {
   let res = transform({
@@ -56,3 +65,5 @@ test('can disable prefixing', () => {
 
   assert.equal(res.code.toString(), '.foo{user-select:none}');
 });
+
+test.run();
