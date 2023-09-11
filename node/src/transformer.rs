@@ -248,8 +248,6 @@ impl JsVisitor {
 impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
   type Error = napi::Error;
 
-  const TYPES: lightningcss::visitor::VisitTypes = VisitTypes::all();
-
   fn visit_types(&self) -> VisitTypes {
     self.types
   }

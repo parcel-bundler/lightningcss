@@ -455,7 +455,7 @@ impl<'i, T> CssRuleList<'i, T> {
 // Manually implemented to avoid circular child types.
 #[cfg(feature = "visitor")]
 #[cfg_attr(docsrs, doc(cfg(feature = "visitor")))]
-impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V> for CssRuleList<'i, T> {
+impl<'i, T: Visit<'i, T, V>, V: ?Sized + Visitor<'i, T>> Visit<'i, T, V> for CssRuleList<'i, T> {
   const CHILD_TYPES: VisitTypes = VisitTypes::all();
 
   fn visit(&mut self, visitor: &mut V) -> Result<(), V::Error> {

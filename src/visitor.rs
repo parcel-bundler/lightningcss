@@ -33,7 +33,9 @@
 //! impl<'i> Visitor<'i> for MyVisitor {
 //!   type Error = Infallible;
 //!
-//!   const TYPES: VisitTypes = visit_types!(URLS | LENGTHS);
+//!   fn visit_types(&self) -> VisitTypes {
+//!     visit_types!(URLS | LENGTHS)
+//!   }
 //!
 //!   fn visit_url(&mut self, url: &mut Url<'i>) -> Result<(), Self::Error> {
 //!     url.url = format!("https://mywebsite.com/{}", url.url).into();
@@ -140,21 +142,13 @@ macro_rules! visit_types {
 }
 
 /// A trait for visiting or transforming rules, properties, and values in a StyleSheet.
-pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule>: Sized {
+pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule> {
   /// The `Err` value for `Result`s returned by `visit_*` methods.
   type Error;
 
-  /// The types of values that this visitor should visit. May be constructed using
-  /// the [visit_types](visit_types) macro. Accurately setting these flags improves
-  /// performance by skipping branches that do not have any values of the requested types.
-  const TYPES: VisitTypes;
-
   /// Returns the types of values that this visitor should visit. By default, it returns
   /// `Self::TYPES`, but this can be overridden to change the value at runtime.
-  #[inline]
-  fn visit_types(&self) -> VisitTypes {
-    Self::TYPES
-  }
+  fn visit_types(&self) -> VisitTypes;
 
   /// Visits a rule list.
   #[inline]
@@ -313,7 +307,7 @@ pub trait Visitor<'i, T: Visit<'i, T, Self> = DefaultAtRule>: Sized {
 }
 
 /// A trait for values that can be visited by a [Visitor](Visitor).
-pub trait Visit<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> {
+pub trait Visit<'i, T: Visit<'i, T, V>, V: ?Sized + Visitor<'i, T>> {
   /// The types of values contained within this value and its children.
   /// This is used to skip branches that don't have any values requested
   /// by the Visitor.
@@ -330,7 +324,7 @@ pub trait Visit<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>> {
   fn visit_children(&mut self, visitor: &mut V) -> Result<(), V::Error>;
 }
 
-impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Option<U> {
+impl<'i, T: Visit<'i, T, V>, V: ?Sized + Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Option<U> {
   const CHILD_TYPES: VisitTypes = U::CHILD_TYPES;
 
   fn visit(&mut self, visitor: &mut V) -> Result<(), V::Error> {
@@ -350,7 +344,7 @@ impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T,
   }
 }
 
-impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Box<U> {
+impl<'i, T: Visit<'i, T, V>, V: ?Sized + Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Box<U> {
   const CHILD_TYPES: VisitTypes = U::CHILD_TYPES;
 
   fn visit(&mut self, visitor: &mut V) -> Result<(), V::Error> {
@@ -362,7 +356,7 @@ impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T,
   }
 }
 
-impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Vec<U> {
+impl<'i, T: Visit<'i, T, V>, V: ?Sized + Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T, V> for Vec<U> {
   const CHILD_TYPES: VisitTypes = U::CHILD_TYPES;
 
   fn visit(&mut self, visitor: &mut V) -> Result<(), V::Error> {
@@ -374,8 +368,8 @@ impl<'i, T: Visit<'i, T, V>, V: Visitor<'i, T>, U: Visit<'i, T, V>> Visit<'i, T,
   }
 }
 
-impl<'i, A: smallvec::Array<Item = U>, U: Visit<'i, T, V>, T: Visit<'i, T, V>, V: Visitor<'i, T>> Visit<'i, T, V>
-  for SmallVec<A>
+impl<'i, A: smallvec::Array<Item = U>, U: Visit<'i, T, V>, T: Visit<'i, T, V>, V: ?Sized + Visitor<'i, T>>
+  Visit<'i, T, V> for SmallVec<A>
 {
   const CHILD_TYPES: VisitTypes = U::CHILD_TYPES;
 
@@ -390,7 +384,7 @@ impl<'i, A: smallvec::Array<Item = U>, U: Visit<'i, T, V>, T: Visit<'i, T, V>, V
 
 macro_rules! impl_visit {
   ($t: ty) => {
-    impl<'i, V: Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for $t {
+    impl<'i, V: ?Sized + Visitor<'i, T>, T: Visit<'i, T, V>> Visit<'i, T, V> for $t {
       const CHILD_TYPES: VisitTypes = VisitTypes::empty();
 
       fn visit_children(&mut self, _: &mut V) -> Result<(), V::Error> {
