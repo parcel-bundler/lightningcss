@@ -34,7 +34,7 @@ async function loadWasm() {
   if (version.value === 'local') {
     wasm = localWasm;
   } else {
-    wasm = await new Function('version', 'return import(`https://cdn.jsdelivr.net/npm/lightningcss-wasm@${version}/lightningcss_node.js`)')(version.value);
+    wasm = await new Function('version', 'return import(`https://esm.sh/lightningcss-wasm@${version}?bundle`)')(version.value);
   }
   await wasm.default();
 }
