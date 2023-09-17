@@ -8,6 +8,7 @@ use crate::error::{ParserError, PrinterError};
 use crate::parser::ParserOptions;
 use crate::printer::Printer;
 use crate::properties::box_shadow::BoxShadowHandler;
+use crate::properties::custom::CustomPropertyName;
 use crate::properties::masking::MaskHandler;
 use crate::properties::{
   align::AlignHandler,
@@ -456,15 +457,22 @@ pub(crate) fn parse_declaration<'i, 't>(
   important_declarations: &mut DeclarationList<'i>,
   options: &ParserOptions<'_, 'i>,
 ) -> Result<(), cssparser::ParseError<'i, ParserError<'i>>> {
-  let property = input.parse_until_before(Delimiter::Bang, |input| {
-    Property::parse(PropertyId::from(CowArcStr::from(name)), input, options)
-  })?;
+  // Stop if we hit a `{` token in a non-custom property to
+  // avoid ambiguity between nested rules and declarations.
+  // https://github.com/w3c/csswg-drafts/issues/9317
+  let property_id = PropertyId::from(CowArcStr::from(name));
+  let mut delimiters = Delimiter::Bang;
+  if !matches!(property_id, PropertyId::Custom(CustomPropertyName::Custom(..))) {
+    delimiters = delimiters | Delimiter::CurlyBracketBlock;
+  }
+  let property = input.parse_until_before(delimiters, |input| Property::parse(property_id, input, options))?;
   let important = input
     .try_parse(|input| {
       input.expect_delim('!')?;
       input.expect_ident_matching("important")
     })
     .is_ok();
+  input.expect_exhausted()?;
   if important {
     important_declarations.push(property);
   } else {

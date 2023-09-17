@@ -22428,6 +22428,44 @@ mod tests {
       "#},
     );
 
+    nesting_test(
+      r#"
+        div {
+          color: blue;
+
+          button:focus {
+            color: red;
+          }
+        }
+      "#,
+      indoc! {r#"
+        div {
+          color: #00f;
+        }
+
+        div button:focus {
+          color: red;
+        }
+      "#},
+    );
+    nesting_test(
+      r#"
+        div {
+          color: blue;
+
+          --button:focus {
+            color: red;
+          }
+        }
+      "#,
+      indoc! {r#"
+        div {
+          color: #00f;
+          --button: focus { color: red; };
+        }
+      "#},
+    );
+
     nesting_test_no_targets(
       r#"
         .foo {
