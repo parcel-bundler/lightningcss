@@ -436,7 +436,7 @@ p:not(:first-child, .lead) {
 compiles to:
 
 ```css
-p:not(:is(:first-child, (.lead)) {
+p:not(:is(:first-child, .lead)) {
   margin-top: 1em;
 }
 ```

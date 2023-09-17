@@ -46,7 +46,6 @@ function loadPlaygroundState() {
   } catch {
     return {
       minify: minify.checked,
-      nesting: nesting.checked,
       visitorEnabled: visitorEnabled.checked,
       targets: getTargets(),
       include: 0,
@@ -102,10 +101,6 @@ function reflectPlaygroundState(playgroundState) {
     compiledDependencies.hidden = !playgroundState.analyzeDependencies;
   }
 
-  if (typeof playgroundState.nesting !== 'undefined') {
-    nesting.checked = playgroundState.nesting;
-  }
-
   if (typeof playgroundState.customMedia !== 'undefined') {
     customMedia.checked = playgroundState.customMedia;
   }
@@ -144,7 +139,6 @@ function savePlaygroundState() {
   let data = new FormData(sidebar);
   const playgroundState = {
     minify: minify.checked,
-    nesting: nesting.checked,
     customMedia: customMedia.checked,
     cssModules: cssModules.checked,
     analyzeDependencies: analyzeDependencies.checked,
@@ -216,7 +210,6 @@ function update() {
       include,
       exclude,
       drafts: {
-        nesting: nesting.checked,
         customMedia: customMedia.checked
       },
       cssModules: cssModules.checked,

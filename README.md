@@ -25,7 +25,7 @@ An extremely fast CSS parser, transformer, and minifier written in Rust. Use it 
 - **Vendor prefixing** – Lightning CSS accepts a list of browser targets, and automatically adds (and removes) vendor prefixes.
 - **Browserslist configuration** – Lightning CSS supports opt-in browserslist configuration discovery to resolve browser targets and integrate with your existing tools and config setup.
 - **Syntax lowering** – Lightning CSS parses modern CSS syntax, and generates more compatible output where needed, based on browser targets.
-  - CSS Nesting (draft spec)
+  - CSS Nesting
   - Custom media queries (draft spec)
   - Logical properties
   * [Color Level 5](https://drafts.csswg.org/css-color-5/)
