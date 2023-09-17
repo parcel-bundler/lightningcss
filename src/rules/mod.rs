@@ -50,6 +50,7 @@ pub mod namespace;
 pub mod nesting;
 pub mod page;
 pub mod property;
+pub mod scope;
 pub mod starting_style;
 pub mod style;
 pub mod supports;
@@ -88,6 +89,7 @@ use media::MediaRule;
 use namespace::NamespaceRule;
 use nesting::NestingRule;
 use page::PageRule;
+use scope::ScopeRule;
 use smallvec::{smallvec, SmallVec};
 use starting_style::StartingStyleRule;
 use std::collections::{HashMap, HashSet};
@@ -166,6 +168,8 @@ pub enum CssRule<'i, R = DefaultAtRule> {
   Property(PropertyRule<'i>),
   /// A `@container` rule.
   Container(ContainerRule<'i, R>),
+  /// A `@scope` rule.
+  Scope(ScopeRule<'i, R>),
   /// A `@starting-style` rule.
   StartingStyle(StartingStyleRule<'i, R>),
   /// A placeholder for a rule that was removed.
@@ -304,6 +308,10 @@ impl<'i, 'de: 'i, R: serde::Deserialize<'de>> serde::Deserialize<'de> for CssRul
         let rule = ContainerRule::deserialize(deserializer)?;
         Ok(CssRule::Container(rule))
       }
+      "scope" => {
+        let rule = ScopeRule::deserialize(deserializer)?;
+        Ok(CssRule::Scope(rule))
+      }
       "starting-style" => {
         let rule = StartingStyleRule::deserialize(deserializer)?;
         Ok(CssRule::StartingStyle(rule))
@@ -347,6 +355,7 @@ impl<'a, 'i, T: ToCss> ToCss for CssRule<'i, T> {
       CssRule::Property(property) => property.to_css(dest),
       CssRule::StartingStyle(rule) => rule.to_css(dest),
       CssRule::Container(container) => container.to_css(dest),
+      CssRule::Scope(scope) => scope.to_css(dest),
       CssRule::Unknown(unknown) => unknown.to_css(dest),
       CssRule::Custom(rule) => rule.to_css(dest).map_err(|_| PrinterError {
         kind: PrinterErrorKind::FmtError,
@@ -758,6 +767,7 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
             continue;
           }
         }
+        CssRule::Scope(scope) => scope.minify(context)?,
         CssRule::Nesting(nesting) => {
           if nesting.minify(context, parent_is_unused)? {
             continue;

@@ -7,8 +7,10 @@ use crate::rules::container::{ContainerCondition, ContainerName, ContainerRule};
 use crate::rules::font_palette_values::FontPaletteValuesRule;
 use crate::rules::layer::{LayerBlockRule, LayerStatementRule};
 use crate::rules::property::PropertyRule;
+use crate::rules::scope::ScopeRule;
 use crate::rules::starting_style::StartingStyleRule;
 use crate::rules::viewport::ViewportRule;
+
 use crate::rules::{
   counter_style::CounterStyleRule,
   custom_media::CustomMediaRule,
@@ -202,6 +204,8 @@ pub enum AtRulePrelude<'i, T> {
   Container(Option<ContainerName<'i>>, ContainerCondition<'i>),
   /// A @starting-style prelude.
   StartingStyle,
+  /// A @scope rule prelude.
+  Scope,
   /// An unknown prelude.
   Unknown(CowArcStr<'i>, TokenList<'i>),
   /// A custom prelude.
@@ -236,7 +240,8 @@ impl<'i, T> AtRulePrelude<'i, T> {
       | Self::Import(..)
       | Self::CustomMedia(..)
       | Self::Viewport(..)
-      | Self::Charset => false,
+      | Self::Charset
+      | Self::Scope => false,
     }
   }
 }
@@ -629,6 +634,9 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
       "starting-style" => {
         AtRulePrelude::StartingStyle
       },
+      "scope" => {
+        AtRulePrelude::Scope
+      },
       "nest" if self.is_in_style_rule => {
         self.options.warn(input.new_custom_error(ParserError::DeprecatedNestRule));
         let selector_parser = SelectorParser {
@@ -715,6 +723,11 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
           rules,
           loc,
         }));
+        Ok(())
+      }
+      AtRulePrelude::Scope => {
+        let rules = self.parse_style_block(input)?;
+        self.rules.0.push(CssRule::Scope(ScopeRule { rules, loc }));
         Ok(())
       }
       AtRulePrelude::Viewport(vendor_prefix) => {
