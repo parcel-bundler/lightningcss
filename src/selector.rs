@@ -585,11 +585,14 @@ impl<'i> parcel_selectors::parser::NonTSPseudoClass<'i> for PseudoClass<'i> {
 }
 
 impl<'i> cssparser::ToCss for PseudoClass<'i> {
-  fn to_css<W>(&self, _: &mut W) -> std::fmt::Result
+  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
   where
     W: fmt::Write,
   {
-    unreachable!()
+    let mut s = String::new();
+    serialize_pseudo_class(self, &mut Printer::new(&mut s, Default::default()), None)
+      .map_err(|_| std::fmt::Error)?;
+    write!(dest, "{}", s)
   }
 }
 
@@ -1011,11 +1014,14 @@ impl<'i> ToCss for ViewTransitionPartName<'i> {
 }
 
 impl<'i> cssparser::ToCss for PseudoElement<'i> {
-  fn to_css<W>(&self, _: &mut W) -> std::fmt::Result
+  fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
   where
     W: fmt::Write,
   {
-    unreachable!();
+    let mut s = String::new();
+    serialize_pseudo_element(self, &mut Printer::new(&mut s, Default::default()), None)
+      .map_err(|_| std::fmt::Error)?;
+    write!(dest, "{}", s)
   }
 }
 
@@ -1494,10 +1500,15 @@ where
           }
         }
         Component::Negation(..) => return serialize_negation(list.iter(), dest, context),
-        Component::Any(ref prefix, ..) => {
-          dest.write_char(':')?;
-          prefix.to_css(dest)?;
-          dest.write_str("any(")?;
+        Component::Any(prefix, ..) => {
+          let vp = dest.vendor_prefix.or(prefix);
+          if vp.intersects(VendorPrefix::WebKit | VendorPrefix::Moz) {
+            dest.write_char(':')?;
+            vp.to_css(dest)?;
+            dest.write_str("any(")?;
+          } else {
+            dest.write_str(":is(")?;
+          }
         }
         _ => unreachable!(),
       }
@@ -1668,7 +1679,7 @@ where
 
 pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
   for selector in selectors {
-    let iter = selector.iter();
+    let iter = selector.iter_raw_match_order();
     for component in iter {
       let feature = match component {
         Component::ID(_) | Component::Class(_) | Component::LocalName(_) => continue,
@@ -1752,7 +1763,7 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
           Feature::IsSelector
         }
         Component::Where(_) | Component::Nesting => Feature::IsSelector,
-        Component::Any(..) => Feature::AnyPseudo,
+        Component::Any(..) => return false,
         Component::Has(selectors) => {
           if !targets.is_compatible(Feature::HasSelector) || !is_compatible(&*selectors, targets) {
             return false;
@@ -1851,21 +1862,25 @@ pub(crate) fn is_compatible(selectors: &[Selector], targets: Targets) -> bool {
 }
 
 /// Returns whether two selector lists are equivalent, i.e. the same minus any vendor prefix differences.
-pub(crate) fn is_equivalent<'i>(selectors: &SelectorList<'i>, other: &SelectorList<'i>) -> bool {
-  if selectors.0.len() != other.0.len() {
+pub(crate) fn is_equivalent<'i>(selectors: &[Selector<'i>], other: &[Selector<'i>]) -> bool {
+  if selectors.len() != other.len() {
     return false;
   }
 
-  for (i, a) in selectors.0.iter().enumerate() {
-    let b = &other.0[i];
+  for (i, a) in selectors.iter().enumerate() {
+    let b = &other[i];
     if a.len() != b.len() {
       return false;
     }
 
-    for (a, b) in a.iter().zip(b.iter()) {
+    for (a, b) in a.iter_raw_match_order().zip(b.iter_raw_match_order()) {
       let is_equivalent = match (a, b) {
         (Component::NonTSPseudoClass(a_ps), Component::NonTSPseudoClass(b_ps)) => a_ps.is_equivalent(b_ps),
         (Component::PseudoElement(a_pe), Component::PseudoElement(b_pe)) => a_pe.is_equivalent(b_pe),
+        (Component::Any(_, a), Component::Is(b))
+        | (Component::Is(a), Component::Any(_, b))
+        | (Component::Any(_, a), Component::Any(_, b))
+        | (Component::Is(a), Component::Is(b)) => is_equivalent(&*a, &*b),
         (a, b) => a == b,
       };
 
@@ -1968,7 +1983,7 @@ fn downlevel_component<'i>(component: &mut Component<'i>, targets: Targets) -> V
       {
         necessary_prefixes |= targets.prefixes(VendorPrefix::None, crate::prefixes::Feature::AnyPseudo)
       } else {
-        necessary_prefixes |= VendorPrefix::empty()
+        necessary_prefixes |= VendorPrefix::None
       }
 
       necessary_prefixes

@@ -9343,11 +9343,15 @@ mod tests {
       .foo:autofill .baz { color: red; }
       "#,
       indoc! {r#"
-      .foo:placeholder-shown .bar, .foo:-webkit-autofill .baz {
+      .foo:placeholder-shown .bar {
         color: red;
       }
 
-      .foo:placeholder-shown .bar, .foo:autofill .baz {
+      .foo:-webkit-autofill .baz {
+        color: red;
+      }
+
+      .foo:autofill .baz {
         color: red;
       }
       "#},
@@ -9362,11 +9366,11 @@ mod tests {
       .foo:placeholder-shown .bar,.foo:autofill .baz{color:red}
       "#,
       indoc! {r#"
-      .foo:placeholder-shown .bar, .foo:-webkit-autofill .baz {
+      :-webkit-any(.foo:placeholder-shown .bar, .foo:-webkit-autofill .baz) {
         color: red;
       }
 
-      .foo:placeholder-shown .bar, .foo:autofill .baz {
+      :is(.foo:placeholder-shown .bar, .foo:autofill .baz) {
         color: red;
       }
       "#},
@@ -9387,11 +9391,11 @@ mod tests {
       }
       "#,
       indoc! {r#"
-      .foo:placeholder-shown .bar, .foo:-webkit-autofill .baz {
+      :-webkit-any(.foo:placeholder-shown .bar, .foo:-webkit-autofill .baz) {
         color: red;
       }
 
-      .foo:placeholder-shown .bar, .foo:autofill .baz {
+      :is(.foo:placeholder-shown .bar, .foo:autofill .baz) {
         color: red;
       }
       "#},
@@ -9762,6 +9766,149 @@ mod tests {
       "#},
       Browsers {
         safari: Some(14 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    test(
+      r#"
+      .foo:-webkit-any(.bar, .baz):after {
+        color: red;
+      }
+
+      .foo:is(.bar, .baz):after {
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+        .foo:-webkit-any(.bar, .baz):after {
+          color: red;
+        }
+
+        .foo:is(.bar, .baz):after {
+          color: red;
+        }
+      "#},
+    );
+
+    prefix_test(
+      r#"
+      .foo:-webkit-any(.bar, .baz):after {
+        color: red;
+      }
+
+      .foo:is(.bar, .baz):after {
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+        .foo:is(.bar, .baz):after {
+          color: red;
+        }
+      "#},
+      Browsers {
+        safari: Some(16 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo:-webkit-any(.bar):after {
+        color: red;
+      }
+
+      .foo:is(.bar, .baz):after {
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+        .foo:-webkit-any(.bar):after {
+          color: red;
+        }
+
+        .foo:is(.bar, .baz):after {
+          color: red;
+        }
+      "#},
+      Browsers {
+        safari: Some(16 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo:-webkit-any(.bar, .baz):after {
+        color: red;
+      }
+
+      .foo:is(.bar, .baz):after {
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+        .foo:-webkit-any(.bar, .baz):after {
+          color: red;
+        }
+
+        .foo:is(.bar, .baz):after {
+          color: red;
+        }
+      "#},
+      Browsers {
+        safari: Some(12 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .foo:-webkit-any(.bar, .baz):after {
+        color: red;
+      }
+
+      .foo:-moz-any(.bar, .baz):after {
+        color: red;
+      }
+      "#,
+      indoc! {r#"
+        .foo:-webkit-any(.bar, .baz):after {
+          color: red;
+        }
+
+        .foo:-moz-any(.bar, .baz):after {
+          color: red;
+        }
+      "#},
+      Browsers {
+        safari: Some(12 << 16),
+        firefox: Some(67 << 16),
+        ..Browsers::default()
+      },
+    );
+
+    prefix_test(
+      r#"
+      .a {
+        padding-inline: var(--foo);
+      }
+
+      .a:-webkit-any(.b, .c) {
+        padding-inline: var(--foo);
+      }
+      "#,
+      indoc! {r#"
+        .a {
+          padding-inline: var(--foo);
+        }
+
+        .a:-webkit-any(.b, .c) {
+          padding-inline: var(--foo);
+        }
+      "#},
+      Browsers {
+        safari: Some(12 << 16),
         ..Browsers::default()
       },
     );

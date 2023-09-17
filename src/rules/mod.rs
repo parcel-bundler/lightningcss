@@ -600,7 +600,10 @@ impl<'i, T: Clone> CssRuleList<'i, T> {
 
           // If some of the selectors in this rule are not compatible with the targets,
           // we need to either wrap in :is() or split them into multiple rules.
-          let incompatible = if style.selectors.0.len() > 1 && !style.is_compatible(*context.targets) {
+          let incompatible = if style.selectors.0.len() > 1
+            && context.targets.should_compile_selectors()
+            && !style.is_compatible(*context.targets)
+          {
             // The :is() selector accepts a forgiving selector list, so use that if possible.
             // Note that :is() does not allow pseudo elements, so we need to check for that.
             // In addition, :is() takes the highest specificity of its arguments, so if the selectors
@@ -829,7 +832,7 @@ fn merge_style_rules<'i, T>(
     // equivalent minus prefixes, add the prefix to the last rule.
     if !style.vendor_prefix.is_empty()
       && !last_style_rule.vendor_prefix.is_empty()
-      && is_equivalent(&style.selectors, &last_style_rule.selectors)
+      && is_equivalent(&style.selectors.0, &last_style_rule.selectors.0)
     {
       // If the new rule is unprefixed, replace the prefixes of the last rule.
       // Otherwise, add the new prefix.
@@ -844,7 +847,11 @@ fn merge_style_rules<'i, T>(
     // Append the selectors to the last rule if the declarations are the same, and all selectors are compatible.
     if style.is_compatible(*context.targets) && last_style_rule.is_compatible(*context.targets) {
       last_style_rule.selectors.0.extend(style.selectors.0.drain(..));
-      last_style_rule.vendor_prefix |= style.vendor_prefix;
+      if style.vendor_prefix.contains(VendorPrefix::None) && context.targets.should_compile_selectors() {
+        last_style_rule.vendor_prefix = style.vendor_prefix;
+      } else {
+        last_style_rule.vendor_prefix |= style.vendor_prefix;
+      }
       return true;
     }
   }
