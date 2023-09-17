@@ -82,6 +82,10 @@ export type Rule<D = Declaration, M = MediaQuery> = | {
     value: ContainerRule<D, M>;
   }
 | {
+    type: "scope";
+    value: ScopeRule<D, M>;
+  }
+| {
     type: "starting-style";
     value: StartingStyleRule<D, M>;
   }
@@ -9124,6 +9128,29 @@ export interface ContainerRule<D = Declaration, M = MediaQuery> {
    * The rules within the `@container` rule.
    */
   rules: Rule<D, M>[];
+}
+/**
+ * A [@scope](https://drafts.csswg.org/css-cascade-6/#scope-atrule) rule.
+ *
+ * @scope (<scope-start>) [to (<scope-end>)]? { <stylesheet> }
+ */
+export interface ScopeRule<D = Declaration, M = MediaQuery> {
+  /**
+   * The location of the rule in the source file.
+   */
+  loc: Location;
+  /**
+   * Nested rules within the `@scope` rule.
+   */
+  rules: Rule<D, M>[];
+  /**
+   * A selector list used to identify any scoping limits.
+   */
+  scopeEnd?: SelectorList | null;
+  /**
+   * A selector list used to identify the scoping root(s).
+   */
+  scopeStart?: SelectorList | null;
 }
 /**
  * A [@starting-style](https://drafts.csswg.org/css-transitions-2/#defining-before-change-style-the-starting-style-rule) rule.

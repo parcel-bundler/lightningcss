@@ -259,8 +259,6 @@ export interface Resolver {
 }
 
 export interface Drafts {
-  /** Whether to enable CSS nesting. */
-  nesting?: boolean,
   /** Whether to enable @custom-media rules. */
   customMedia?: boolean
 }
