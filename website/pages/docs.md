@@ -115,21 +115,27 @@ module.exports = {
 
 ## With Vite
 
-Vite supports Lightning CSS out of the box.
-
-First, install Lightning CSS into your project:
+Vite supports Lightning CSS out of the box. First, install Lightning CSS into your project:
 
 ```shell
 npm install --save-dev lightningcss
 ```
 
-Then, set `'lightningcss'` as CSS transformer in your Vite config.
+Then, set `'lightningcss'` as CSS [transformer](https://vitejs.dev/config/shared-options.html#css-transformer) and [minifier](https://vitejs.dev/config/build-options.html#build-cssminify) in your Vite config. You can also configure Lightning CSS options such as targets and css modules via the [css.lightningcss](https://vitejs.dev/config/shared-options.html#css-lightningcss) option in your Vite config.
 
 ```js
 // vite.config.ts
+import {browserslistToTargets} from 'lightningcss';
+
 export default {
   css: {
     transformer: 'lightningcss',
+    lightningcss: {
+      targets: browserslistToTargets(browserslist('>= 0.25%'))
+    }
+  },
+  build: {
+    cssMinify: 'lightningcss'
   }
 };
 ```
