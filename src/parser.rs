@@ -7,8 +7,10 @@ use crate::rules::container::{ContainerCondition, ContainerName, ContainerRule};
 use crate::rules::font_palette_values::FontPaletteValuesRule;
 use crate::rules::layer::{LayerBlockRule, LayerStatementRule};
 use crate::rules::property::PropertyRule;
+use crate::rules::scope::ScopeRule;
 use crate::rules::starting_style::StartingStyleRule;
 use crate::rules::viewport::ViewportRule;
+
 use crate::rules::{
   counter_style::CounterStyleRule,
   custom_media::CustomMediaRule,
@@ -35,7 +37,7 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::visitor::{Visit, VisitTypes, Visitor};
 use bitflags::bitflags;
 use cssparser::*;
-use parcel_selectors::parser::NestingRequirement;
+use parcel_selectors::parser::{NestingRequirement, ParseErrorRecovery};
 use std::sync::{Arc, RwLock};
 
 bitflags! {
@@ -202,6 +204,8 @@ pub enum AtRulePrelude<'i, T> {
   Container(Option<ContainerName<'i>>, ContainerCondition<'i>),
   /// A @starting-style prelude.
   StartingStyle,
+  /// A @scope rule prelude.
+  Scope(Option<SelectorList<'i>>, Option<SelectorList<'i>>),
   /// An unknown prelude.
   Unknown(CowArcStr<'i>, TokenList<'i>),
   /// A custom prelude.
@@ -221,6 +225,7 @@ impl<'i, T> AtRulePrelude<'i, T> {
       | Self::MozDocument
       | Self::Layer(..)
       | Self::StartingStyle
+      | Self::Scope(..)
       | Self::Nest(..)
       | Self::Unknown(..)
       | Self::Custom(..) => true,
@@ -629,13 +634,40 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
       "starting-style" => {
         AtRulePrelude::StartingStyle
       },
+      "scope" => {
+        let selector_parser = SelectorParser {
+          is_nesting_allowed: true,
+          options: &self.options,
+        };
+
+        let scope_start = if input.try_parse(|input| input.expect_parenthesis_block()).is_ok() {
+          Some(input.parse_nested_block(|input| {
+            // https://drafts.csswg.org/css-cascade-6/#scoped-rules
+            // TODO: disallow pseudo elements?
+            SelectorList::parse_relative(&selector_parser, input, ParseErrorRecovery::IgnoreInvalidSelector, NestingRequirement::None)
+          })?)
+        } else {
+          None
+        };
+
+        let scope_end = if input.try_parse(|input| input.expect_ident_matching("to")).is_ok() {
+          input.expect_parenthesis_block()?;
+          Some(input.parse_nested_block(|input| {
+            SelectorList::parse_relative(&selector_parser, input, ParseErrorRecovery::IgnoreInvalidSelector, NestingRequirement::None)
+          })?)
+        } else {
+          None
+        };
+
+        AtRulePrelude::Scope(scope_start, scope_end)
+      },
       "nest" if self.is_in_style_rule => {
         self.options.warn(input.new_custom_error(ParserError::DeprecatedNestRule));
         let selector_parser = SelectorParser {
           is_nesting_allowed: true,
           options: &self.options,
         };
-        let selectors = SelectorList::parse(&selector_parser, input, NestingRequirement::Contained)?;
+        let selectors = SelectorList::parse(&selector_parser, input, ParseErrorRecovery::DiscardList, NestingRequirement::Contained)?;
         AtRulePrelude::Nest(selectors)
       },
       _ => parse_custom_at_rule_prelude(&name, input, self.options, self.at_rule_parser)?
@@ -712,6 +744,16 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> AtRuleParser<'i> for Ne
         self.rules.0.push(CssRule::Container(ContainerRule {
           name,
           condition,
+          rules,
+          loc,
+        }));
+        Ok(())
+      }
+      AtRulePrelude::Scope(scope_start, scope_end) => {
+        let rules = self.parse_style_block(input)?;
+        self.rules.0.push(CssRule::Scope(ScopeRule {
+          scope_start,
+          scope_end,
           rules,
           loc,
         }));
@@ -871,9 +913,19 @@ impl<'a, 'o, 'b, 'i, T: crate::traits::AtRuleParser<'i>> QualifiedRuleParser<'i>
       options: &self.options,
     };
     if self.is_in_style_rule {
-      SelectorList::parse_relative(&selector_parser, input, NestingRequirement::Implicit)
+      SelectorList::parse_relative(
+        &selector_parser,
+        input,
+        ParseErrorRecovery::DiscardList,
+        NestingRequirement::Implicit,
+      )
     } else {
-      SelectorList::parse(&selector_parser, input, NestingRequirement::None)
+      SelectorList::parse(
+        &selector_parser,
+        input,
+        ParseErrorRecovery::DiscardList,
+        NestingRequirement::None,
+      )
     }
   }
 

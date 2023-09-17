@@ -405,6 +405,7 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
   pub fn parse<'t, P>(
     parser: &P,
     input: &mut CssParser<'i, 't>,
+    error_recovery: ParseErrorRecovery,
     nesting_requirement: NestingRequirement,
   ) -> Result<Self, ParseError<'i, P::Error>>
   where
@@ -414,7 +415,7 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
       parser,
       input,
       &mut SelectorParsingState::empty(),
-      ParseErrorRecovery::DiscardList,
+      error_recovery,
       nesting_requirement,
     )
   }
@@ -466,6 +467,7 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
   pub fn parse_relative<'t, P>(
     parser: &P,
     input: &mut CssParser<'i, 't>,
+    error_recovery: ParseErrorRecovery,
     nesting_requirement: NestingRequirement,
   ) -> Result<Self, ParseError<'i, P::Error>>
   where
@@ -475,7 +477,7 @@ impl<'i, Impl: SelectorImpl<'i>> SelectorList<'i, Impl> {
       parser,
       input,
       &mut SelectorParsingState::empty(),
-      ParseErrorRecovery::DiscardList,
+      error_recovery,
       nesting_requirement,
     )
   }
@@ -3265,7 +3267,12 @@ pub mod tests {
     expected: Option<&'a str>,
   ) -> Result<SelectorList<'i, DummySelectorImpl>, SelectorParseError<'i>> {
     let mut parser_input = ParserInput::new(input);
-    let result = SelectorList::parse(parser, &mut CssParser::new(&mut parser_input), NestingRequirement::None);
+    let result = SelectorList::parse(
+      parser,
+      &mut CssParser::new(&mut parser_input),
+      ParseErrorRecovery::DiscardList,
+      NestingRequirement::None,
+    );
     if let Ok(ref selectors) = result {
       assert_eq!(selectors.0.len(), 1);
       // We can't assume that the serialized parsed selector will equal
@@ -3292,6 +3299,7 @@ pub mod tests {
     let list = SelectorList::parse(
       &DummyParser::default(),
       &mut CssParser::new(&mut input),
+      ParseErrorRecovery::DiscardList,
       NestingRequirement::None,
     );
     assert!(list.is_ok());
