@@ -373,7 +373,7 @@ p:is(:first-child, .lead) {
 
 ### :not() selector
 
-The [`:not()`](https://developer.mozilla.org/en-US/docs/Web/CSS/:not) selector can accept multiple arguments, and matches if none of the arguments match. Some older browsers only support a single argument, so Lightning CSS compiles this when needed.
+The [`:not()`](https://developer.mozilla.org/en-US/docs/Web/CSS/:not) selector can accept multiple arguments, and matches if none of the arguments match. Some older browsers only support a single argument, so Lightning CSS compiles this when needed. The `:is` selector is used to ensure the specificity remains the same, with fallback to `-webkit-any` and `-moz-any` as needed (described above).
 
 ```css
 p:not(:first-child, .lead) {
@@ -384,7 +384,7 @@ p:not(:first-child, .lead) {
 compiles to:
 
 ```css
-p:not(:first-child):not(.lead) {
+p:not(:is(:first-child, (.lead)) {
   margin-top: 1em;
 }
 ```

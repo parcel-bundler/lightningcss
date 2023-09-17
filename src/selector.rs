@@ -1499,7 +1499,9 @@ where
             dest.write_str(":is(")?;
           }
         }
-        Component::Negation(..) => return serialize_negation(list.iter(), dest, context),
+        Component::Negation(_) => {
+          dest.write_str(":not(")?;
+        }
         Component::Any(prefix, ..) => {
           let vp = dest.vendor_prefix.or(prefix);
           if vp.intersects(VendorPrefix::WebKit | VendorPrefix::Moz) {
@@ -1649,31 +1651,6 @@ where
     first = false;
     serialize_selector(selector, dest, context, is_relative)?;
   }
-  Ok(())
-}
-
-fn serialize_negation<'a, 'i: 'a, I, W>(
-  iter: I,
-  dest: &mut Printer<W>,
-  context: Option<&StyleContext>,
-) -> Result<(), PrinterError>
-where
-  I: Iterator<Item = &'a Selector<'i>>,
-  W: fmt::Write,
-{
-  // Downlevel :not(.a, .b) -> :not(.a):not(.b) if not list is unsupported.
-  if !should_compile!(dest.targets, NotSelectorList) {
-    dest.write_str(":not(")?;
-    serialize_selector_list(iter, dest, context, false)?;
-    dest.write_char(')')?;
-  } else {
-    for selector in iter {
-      dest.write_str(":not(")?;
-      serialize_selector(selector, dest, context, false)?;
-      dest.write_char(')')?;
-    }
-  }
-
   Ok(())
 }
 
@@ -1988,10 +1965,28 @@ fn downlevel_component<'i>(component: &mut Component<'i>, targets: Targets) -> V
 
       necessary_prefixes
     }
-    Component::Where(selectors)
-    | Component::Any(_, selectors)
-    | Component::Negation(selectors)
-    | Component::Has(selectors) => downlevel_selectors(&mut **selectors, targets),
+    Component::Negation(selectors) => {
+      let mut necessary_prefixes = downlevel_selectors(&mut **selectors, targets);
+
+      // Downlevel :not(.a, .b) -> :not(:is(.a, .b)) if not list is unsupported.
+      // We need to use :is() / :-webkit-any() rather than :not(.a):not(.b) to ensure the specificity is equivalent.
+      // https://drafts.csswg.org/selectors/#specificity-rules
+      if selectors.len() > 1 && should_compile!(targets, NotSelectorList) {
+        *component =
+          Component::Negation(vec![Selector::from(Component::Is(selectors.clone()))].into_boxed_slice());
+
+        if should_compile!(targets, IsSelector) {
+          necessary_prefixes |= targets.prefixes(VendorPrefix::None, crate::prefixes::Feature::AnyPseudo)
+        } else {
+          necessary_prefixes |= VendorPrefix::None
+        }
+      }
+
+      necessary_prefixes
+    }
+    Component::Where(selectors) | Component::Any(_, selectors) | Component::Has(selectors) => {
+      downlevel_selectors(&mut **selectors, targets)
+    }
     _ => VendorPrefix::empty(),
   }
 }

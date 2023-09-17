@@ -2,6 +2,7 @@
 
 use crate::targets::Browsers;
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum Feature {
   AbsFunction,
