@@ -142,13 +142,32 @@ impl<'i> AtRuleParser<'i> for FontPaletteValuesDeclarationParser {
   type Error = ParserError<'i>;
 }
 
+impl<'i> QualifiedRuleParser<'i> for FontPaletteValuesDeclarationParser {
+  type Prelude = ();
+  type QualifiedRule = FontPaletteValuesProperty<'i>;
+  type Error = ParserError<'i>;
+}
+
+impl<'i> RuleBodyItemParser<'i, FontPaletteValuesProperty<'i>, ParserError<'i>>
+  for FontPaletteValuesDeclarationParser
+{
+  fn parse_qualified(&self) -> bool {
+    false
+  }
+
+  fn parse_declarations(&self) -> bool {
+    true
+  }
+}
+
 impl<'i> FontPaletteValuesRule<'i> {
   pub(crate) fn parse<'t>(
     name: DashedIdent<'i>,
     input: &mut Parser<'i, 't>,
     loc: Location,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let mut parser = DeclarationListParser::new(input, FontPaletteValuesDeclarationParser);
+    let mut decl_parser = FontPaletteValuesDeclarationParser;
+    let mut parser = RuleBodyParser::new(input, &mut decl_parser);
     let mut properties = vec![];
     while let Some(decl) = parser.next() {
       if let Ok(decl) = decl {

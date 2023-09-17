@@ -30,9 +30,6 @@ test('can enable features without targets', () => {
     filename: 'test.css',
     code: Buffer.from('.foo { .bar { color: red }}'),
     minify: true,
-    drafts: {
-      nesting: true
-    },
     include: Features.Nesting
   });
 

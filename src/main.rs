@@ -33,7 +33,8 @@ struct CliArgs {
   #[clap(short, long, value_parser)]
   minify: bool,
   /// Enable parsing CSS nesting
-  #[clap(long, value_parser)]
+  // Now on by default, but left for backward compatibility.
+  #[clap(long, value_parser, hide = true)]
   nesting: bool,
   /// Enable parsing custom media queries
   #[clap(long, value_parser)]
@@ -164,7 +165,6 @@ pub fn main() -> Result<(), std::io::Error> {
 
     let res = {
       let mut flags = ParserFlags::empty();
-      flags.set(ParserFlags::NESTING, cli_args.nesting);
       flags.set(ParserFlags::CUSTOM_MEDIA, cli_args.custom_media);
 
       let mut options = ParserOptions {

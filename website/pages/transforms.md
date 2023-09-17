@@ -312,7 +312,6 @@ let mixins = new Map();
 let res = transform({
   filename: 'test.css',
   minify: true,
-  drafts: { nesting: true },
   targets: { chrome: 100 << 16 },
   code: Buffer.from(`
     @mixin color {

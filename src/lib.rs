@@ -139,14 +139,7 @@ mod tests {
   }
 
   fn nesting_test_with_targets(source: &str, expected: &str, targets: Targets) {
-    let mut stylesheet = StyleSheet::parse(
-      &source,
-      ParserOptions {
-        flags: ParserFlags::NESTING,
-        ..ParserOptions::default()
-      },
-    )
-    .unwrap();
+    let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
     stylesheet
       .minify(MinifyOptions {
         targets,
@@ -163,14 +156,7 @@ mod tests {
   }
 
   fn nesting_test_no_targets(source: &str, expected: &str) {
-    let mut stylesheet = StyleSheet::parse(
-      &source,
-      ParserOptions {
-        flags: ParserFlags::NESTING,
-        ..ParserOptions::default()
-      },
-    )
-    .unwrap();
+    let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
     let res = stylesheet.to_css(PrinterOptions::default()).unwrap();
     assert_eq!(res.code, expected);
@@ -224,20 +210,6 @@ mod tests {
 
   fn error_test(source: &str, error: ParserError) {
     let res = StyleSheet::parse(&source, ParserOptions::default());
-    match res {
-      Ok(_) => unreachable!(),
-      Err(e) => assert_eq!(e.kind, error),
-    }
-  }
-
-  fn nesting_error_test(source: &str, error: ParserError) {
-    let res = StyleSheet::parse(
-      &source,
-      ParserOptions {
-        flags: ParserFlags::NESTING,
-        ..ParserOptions::default()
-      },
-    );
     match res {
       Ok(_) => unreachable!(),
       Err(e) => assert_eq!(e.kind, error),
@@ -16808,18 +16780,18 @@ mod tests {
     test("hsl(from rgb(20%, 40%, 60%, 80%) h s l / 0)", "rgba(51, 102, 153, 0)");
 
     // Testing replacement with a constant.
-    test("hsl(from rebeccapurple 25 s l / alpha)", "rgb(153, 93, 51)");
-    test("hsl(from rebeccapurple 25deg s l / alpha)", "rgb(153, 93, 51)");
+    test("hsl(from rebeccapurple 25 s l / alpha)", "rgb(153, 94, 51)");
+    test("hsl(from rebeccapurple 25deg s l / alpha)", "rgb(153, 94, 51)");
     test("hsl(from rebeccapurple h 20% l / alpha)", "rgb(102, 82, 122)");
     test("hsl(from rebeccapurple h s 20% / alpha)", "rgb(51, 25, 77)");
     test("hsl(from rebeccapurple h s l / .25)", "rgba(102, 51, 153, 0.25)");
     test(
       "hsl(from rgb(20%, 40%, 60%, 80%) 25 s l / alpha)",
-      "rgba(153, 93, 51, 0.8)",
+      "rgba(153, 94, 51, 0.8)",
     );
     test(
       "hsl(from rgb(20%, 40%, 60%, 80%) 25deg s l / alpha)",
-      "rgba(153, 93, 51, 0.8)",
+      "rgba(153, 94, 51, 0.8)",
     );
     test(
       "hsl(from rgb(20%, 40%, 60%, 80%) h 20% l / alpha)",
@@ -16946,18 +16918,18 @@ mod tests {
     test("hwb(from rgb(20%, 40%, 60%, 80%) h w b / 0)", "rgba(51, 102, 153, 0)");
 
     // Testing replacement with a constant.
-    test("hwb(from rebeccapurple 25 w b / alpha)", "rgb(153, 93, 51)");
-    test("hwb(from rebeccapurple 25deg w b / alpha)", "rgb(153, 93, 51)");
+    test("hwb(from rebeccapurple 25 w b / alpha)", "rgb(153, 94, 51)");
+    test("hwb(from rebeccapurple 25deg w b / alpha)", "rgb(153, 94, 51)");
     test("hwb(from rebeccapurple h 20% b / alpha)", "rgb(102, 51, 153)");
     test("hwb(from rebeccapurple h w 20% / alpha)", "rgb(128, 51, 204)");
     test("hwb(from rebeccapurple h w b / .2)", "rgba(102, 51, 153, 0.2)");
     test(
       "hwb(from rgb(20%, 40%, 60%, 80%) 25 w b / alpha)",
-      "rgba(153, 93, 51, 0.8)",
+      "rgba(153, 94, 51, 0.8)",
     );
     test(
       "hwb(from rgb(20%, 40%, 60%, 80%) 25deg w b / alpha)",
-      "rgba(153, 93, 51, 0.8)",
+      "rgba(153, 94, 51, 0.8)",
     );
     test(
       "hwb(from rgb(20%, 40%, 60%, 80%) h 20% b / alpha)",
@@ -22111,18 +22083,6 @@ mod tests {
       "#},
     );
 
-    nesting_error_test(
-      r#"
-    .foo {
-      color: blue;
-      div {
-        color: red;
-      }
-    }
-    "#,
-      ParserError::UnexpectedToken(crate::properties::custom::Token::CurlyBracketBlock),
-    );
-
     nesting_test(
       r#"
         .foo {
@@ -22448,6 +22408,26 @@ mod tests {
       "#},
     );
 
+    nesting_test(
+      r#"
+        .foo {
+          color: blue;
+          div {
+            color: red;
+          }
+        }
+      "#,
+      indoc! {r#"
+        .foo {
+          color: #00f;
+        }
+
+        .foo div {
+          color: red;
+        }
+      "#},
+    );
+
     nesting_test_no_targets(
       r#"
         .foo {
@@ -22578,10 +22558,7 @@ mod tests {
         }
       }
       "#,
-      ParserOptions {
-        flags: ParserFlags::NESTING,
-        ..ParserOptions::default()
-      },
+      ParserOptions::default(),
     )
     .unwrap();
     stylesheet.minify(MinifyOptions::default()).unwrap();
@@ -23387,14 +23364,7 @@ mod tests {
       }
     "#};
 
-    let mut stylesheet = StyleSheet::parse(
-      &source,
-      ParserOptions {
-        flags: ParserFlags::NESTING,
-        ..ParserOptions::default()
-      },
-    )
-    .unwrap();
+    let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
     stylesheet
       .minify(MinifyOptions {
         unused_symbols: vec!["bar"].iter().map(|s| String::from(*s)).collect(),
@@ -23440,14 +23410,7 @@ mod tests {
       }
     "#};
 
-    let mut stylesheet = StyleSheet::parse(
-      &source,
-      ParserOptions {
-        flags: ParserFlags::NESTING,
-        ..ParserOptions::default()
-      },
-    )
-    .unwrap();
+    let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
     stylesheet
       .minify(MinifyOptions {
         unused_symbols: vec!["foo", "x"].iter().map(|s| String::from(*s)).collect(),
@@ -23494,14 +23457,7 @@ mod tests {
       }
     "#};
 
-    let mut stylesheet = StyleSheet::parse(
-      &source,
-      ParserOptions {
-        flags: ParserFlags::NESTING,
-        ..ParserOptions::default()
-      },
-    )
-    .unwrap();
+    let mut stylesheet = StyleSheet::parse(&source, ParserOptions::default()).unwrap();
     stylesheet
       .minify(MinifyOptions {
         unused_symbols: vec!["--EgL3uq_foo", "--EgL3uq_Cooler"]
@@ -25862,11 +25818,11 @@ mod tests {
           })
         },
         Error {
-          kind: ParserError::UnexpectedToken(Token::Delim('*')),
+          kind: ParserError::UnexpectedToken(Token::Semicolon),
           loc: Some(ErrorLocation {
             filename: "test.css".into(),
             line: 10,
-            column: 9
+            column: 17
           })
         },
         Error {

@@ -88,7 +88,6 @@ test('mixin', () => {
         @apply color;
       }
     `),
-    drafts: { nesting: true },
     targets: { chrome: 100 << 16 },
     customAtRules: {
       mixin: {
@@ -171,9 +170,6 @@ test('style block', () => {
         }
       }
     `),
-    drafts: {
-      nesting: true
-    },
     targets: {
       chrome: 105 << 16
     },
@@ -217,9 +213,6 @@ test('style block top level', () => {
         }
       }
     `),
-    drafts: {
-      nesting: true
-    },
     customAtRules: {
       test: {
         body: 'style-block'
@@ -289,7 +282,6 @@ test('bundler', () => {
   let res = bundle({
     filename: 'tests/testdata/apply.css',
     minify: true,
-    drafts: { nesting: true },
     targets: { chrome: 100 << 16 },
     customAtRules: {
       mixin: {

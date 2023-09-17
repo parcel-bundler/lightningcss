@@ -159,6 +159,58 @@ becomes:
 
 Lightning CSS automatically compiles many modern CSS syntax features to more compatible output that is supported in your target browsers.
 
+### Nesting
+
+The [CSS Nesting](https://drafts.csswg.org/css-nesting/) spec enables style rules to be nested, with the selectors of the child rules extending the parent selector in some way. This is very commonly supported by CSS pre-processors like Sass, but with this spec, it will eventually be supported natively in browsers. Lightning CSS compiles this syntax to un-nested style rules that are supported in all browsers today.
+
+```css
+.foo {
+  color: blue;
+
+  .bar {
+    color: red;
+  }
+}
+```
+
+is equivalent to:
+
+```css
+.foo {
+  color: blue;
+}
+
+.foo .bar {
+  color: red;
+}
+```
+
+[Conditional rules](https://drafts.csswg.org/css-nesting/#conditionals) such as `@media` may also be nested within a style rule, without repeating the selector. For example:
+
+```css
+.foo {
+  display: grid;
+
+  @media (orientation: landscape) {
+    grid-auto-flow: column;
+  }
+}
+```
+
+is equivalent to:
+
+```css
+.foo {
+  display: grid;
+}
+
+@media (orientation: landscape) {
+  .foo {
+    grid-auto-flow: column;
+  }
+}
+```
+
 ### Color mix
 
 The [`color-mix()`](https://drafts.csswg.org/css-color-5/#color-mix) function allows you to mix two colors by the specified amount in a certain color space. Lightning CSS will evaluate this function statically when all components are known (i.e. not variables).
@@ -473,95 +525,6 @@ compiles to:
 ## Draft syntax
 
 Lightning CSS can also be configured to compile several draft specs that are not yet available natively in any browser. Because these are drafts and the syntax can still change, they must be enabled manually in your project.
-
-### Nesting
-
-The [CSS Nesting](https://drafts.csswg.org/css-nesting/) draft spec enables style rules to be nested, with the selectors of the child rules extending the parent selector in some way. This is very commonly supported by CSS pre-processors like Sass, but with this spec, it will eventually be supported natively in browsers. Lightning CSS compiles this syntax to un-nested style rules that are supported in all browsers today.
-
-Because nesting is a draft, it is not enabled by default. To use it, enable the `nesting` option under `drafts` when calling the Lightning CSS API. When using the CLI, enable the `--nesting` flag.
-
-```js
-let { code, map } = transform({
-  // ...
-  drafts: {
-    nesting: true
-  }
-});
-```
-
-Once enabled, any CSS file in your project can use nested style rules.
-
-```css
-.foo {
-  color: blue;
-
-  .bar {
-    color: red;
-  }
-}
-```
-
-is equivalent to:
-
-```css
-.foo {
-  color: blue;
-}
-
-.foo .bar {
-  color: red;
-}
-```
-
-[Conditional rules](https://drafts.csswg.org/css-nesting/#conditionals) such as `@media` may also be nested within a style rule, without repeating the selector. For example:
-
-```css
-.foo {
-  display: grid;
-
-  @media (orientation: landscape) {
-    grid-auto-flow: column;
-  }
-}
-```
-
-is equivalent to:
-
-```css
-.foo {
-  display: grid;
-}
-
-@media (orientation: landscape) {
-  .foo {
-    grid-auto-flow: column;
-  }
-}
-```
-
-When a nested rule starts with an element selector, it may be ambiguous with a property. In these cases, the spec requires the selector be prefixed with a [nesting selector](https://drafts.csswg.org/css-nesting/#nest-selector) (`&`).
-
-```css
-.foo {
-  color: red;
-
-  & ul {
-    color: blue;
-  }
-}
-```
-
-is equivalent to:
-
-```css
-.foo {
-  color: red;
-}
-
-.foo ul {
-  color: blue;
-}
-```
 
 ### Custom media queries
 

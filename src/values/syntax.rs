@@ -494,6 +494,8 @@ impl<'i> ToCss for ParsedComponent<'i> {
 
 #[cfg(test)]
 mod tests {
+  use crate::values::color::RGBA;
+
   use super::*;
 
   fn test(source: &str, test: &str, expected: ParsedComponent) {

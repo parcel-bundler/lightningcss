@@ -20,7 +20,7 @@ jsonschema = ["serde", "schemars"]
 
 [dependencies]
 bitflags = "2.2.1"
-cssparser = "0.29"
+cssparser = "0.33.0"
 fxhash = "0.2"
 log = "0.4"
 phf = "0.10"

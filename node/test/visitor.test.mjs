@@ -325,9 +325,6 @@ test('apply', () => {
   let res = transform({
     filename: 'test.css',
     minify: true,
-    drafts: {
-      nesting: true
-    },
     code: Buffer.from(`
       --toolbar-theme {
         color: white;

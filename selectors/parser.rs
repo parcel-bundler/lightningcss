@@ -1991,18 +1991,6 @@ where
     input.reset(&state);
   }
 
-  // In the implicit nesting mode, selectors may not start with an ident or function token.
-  if nesting_requirement == NestingRequirement::Implicit {
-    let state = input.state();
-    match input.next()? {
-      Token::Ident(..) | Token::Function(..) => {
-        return Err(input.new_custom_error(SelectorParseErrorKind::MissingNestingPrefix));
-      }
-      _ => {}
-    }
-    input.reset(&state);
-  }
-
   let mut builder = SelectorBuilder::default();
 
   'outer_loop: loop {

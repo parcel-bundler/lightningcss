@@ -68,14 +68,12 @@ impl<'i> DeclarationBlock<'i> {
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut important_declarations = DeclarationList::new();
     let mut declarations = DeclarationList::new();
-    let mut parser = DeclarationListParser::new(
-      input,
-      PropertyDeclarationParser {
-        important_declarations: &mut important_declarations,
-        declarations: &mut declarations,
-        options,
-      },
-    );
+    let mut decl_parser = PropertyDeclarationParser {
+      important_declarations: &mut important_declarations,
+      declarations: &mut declarations,
+      options,
+    };
+    let mut parser = RuleBodyParser::new(input, &mut decl_parser);
     while let Some(res) = parser.next() {
       if let Err((err, _)) = res {
         if options.error_recovery {
@@ -433,6 +431,22 @@ impl<'a, 'o, 'i> AtRuleParser<'i> for PropertyDeclarationParser<'a, 'o, 'i> {
   type Prelude = ();
   type AtRule = ();
   type Error = ParserError<'i>;
+}
+
+impl<'a, 'o, 'i> QualifiedRuleParser<'i> for PropertyDeclarationParser<'a, 'o, 'i> {
+  type Prelude = ();
+  type QualifiedRule = ();
+  type Error = ParserError<'i>;
+}
+
+impl<'a, 'o, 'i> RuleBodyItemParser<'i, (), ParserError<'i>> for PropertyDeclarationParser<'a, 'o, 'i> {
+  fn parse_qualified(&self) -> bool {
+    false
+  }
+
+  fn parse_declarations(&self) -> bool {
+    true
+  }
 }
 
 pub(crate) fn parse_declaration<'i, 't>(

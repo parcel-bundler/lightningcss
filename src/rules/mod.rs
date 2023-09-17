@@ -63,7 +63,7 @@ use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::dependencies::{Dependency, ImportDependency};
 use crate::error::{MinifyError, ParserError, PrinterError, PrinterErrorKind};
-use crate::parser::{parse_style_block, DefaultAtRule, DefaultAtRuleParser, NestedRuleParser, TopLevelRuleParser};
+use crate::parser::{parse_rule_list, parse_style_block, DefaultAtRule, DefaultAtRuleParser, TopLevelRuleParser};
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::rules::keyframes::KeyframesName;
@@ -382,8 +382,9 @@ impl<'i, T> CssRule<'i, T> {
     options: &ParserOptions<'_, 'i>,
     at_rule_parser: &mut P,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let (_, rule) = parse_one_rule(input, &mut TopLevelRuleParser::new(options, at_rule_parser))?;
-    Ok(rule)
+    let mut rules = CssRuleList(Vec::new());
+    parse_one_rule(input, &mut TopLevelRuleParser::new(options, at_rule_parser, &mut rules))?;
+    Ok(rules.0.pop().unwrap())
   }
 
   /// Parse a single rule from a string.
@@ -433,11 +434,7 @@ impl<'i, T> CssRuleList<'i, T> {
     options: &ParserOptions<'_, 'i>,
     at_rule_parser: &mut P,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let mut nested_parser = NestedRuleParser {
-      options,
-      at_rule_parser,
-    };
-    nested_parser.parse_nested_rules(input)
+    parse_rule_list(input, options, at_rule_parser)
   }
 
   /// Parse a style block, with both declarations and rules.

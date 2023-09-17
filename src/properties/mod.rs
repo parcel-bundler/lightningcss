@@ -27,7 +27,7 @@
 //! use smallvec::smallvec;
 //! use lightningcss::{
 //!   properties::{Property, PropertyId, background::*},
-//!   values::{url::Url, image::Image, color::CssColor, position::*, length::*},
+//!   values::{url::Url, image::Image, color::{CssColor, RGBA}, position::*, length::*},
 //!   stylesheet::{ParserOptions, PrinterOptions},
 //!   dependencies::Location,
 //! };
@@ -45,7 +45,7 @@
 //!       url: "img.png".into(),
 //!       loc: Location { line: 1, column: 1 }
 //!     }),
-//!     color: CssColor::RGBA(cssparser::RGBA {
+//!     color: CssColor::RGBA(RGBA {
 //!       red: 0,
 //!       green: 0,
 //!       blue: 0,

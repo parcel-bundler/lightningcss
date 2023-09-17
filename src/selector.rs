@@ -2099,7 +2099,7 @@ impl<'i> ParseWithOptions<'i> for Selector<'i> {
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     Selector::parse(
       &SelectorParser {
-        is_nesting_allowed: options.flags.contains(ParserFlags::NESTING),
+        is_nesting_allowed: true,
         options: &options,
       },
       input,
@@ -2114,7 +2114,7 @@ impl<'i> ParseWithOptions<'i> for SelectorList<'i> {
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     SelectorList::parse(
       &SelectorParser {
-        is_nesting_allowed: options.flags.contains(ParserFlags::NESTING),
+        is_nesting_allowed: true,
         options: &options,
       },
       input,

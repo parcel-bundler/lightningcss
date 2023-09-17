@@ -182,14 +182,12 @@ impl<'i> PageRule<'i> {
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
     let mut declarations = DeclarationBlock::new();
     let mut rules = Vec::new();
-    let mut parser = DeclarationListParser::new(
-      input,
-      PageRuleParser {
-        declarations: &mut declarations,
-        rules: &mut rules,
-        options: &options,
-      },
-    );
+    let mut rule_parser = PageRuleParser {
+      declarations: &mut declarations,
+      rules: &mut rules,
+      options: &options,
+    };
+    let mut parser = RuleBodyParser::new(input, &mut rule_parser);
 
     while let Some(decl) = parser.next() {
       if let Err((err, _)) = decl {
@@ -359,5 +357,21 @@ impl<'a, 'o, 'i> AtRuleParser<'i> for PageRuleParser<'a, 'o, 'i> {
       },
     });
     Ok(())
+  }
+}
+
+impl<'a, 'o, 'i> QualifiedRuleParser<'i> for PageRuleParser<'a, 'o, 'i> {
+  type Prelude = ();
+  type QualifiedRule = ();
+  type Error = ParserError<'i>;
+}
+
+impl<'a, 'o, 'i> RuleBodyItemParser<'i, (), ParserError<'i>> for PageRuleParser<'a, 'o, 'i> {
+  fn parse_qualified(&self) -> bool {
+    false
+  }
+
+  fn parse_declarations(&self) -> bool {
+    true
   }
 }

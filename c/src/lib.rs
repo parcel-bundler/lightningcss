@@ -256,7 +256,6 @@ pub extern "C" fn lightningcss_stylesheet_parse(
   let code = unsafe { std::str::from_utf8_unchecked(slice) };
   let warnings = Arc::new(RwLock::new(Vec::new()));
   let mut flags = ParserFlags::empty();
-  flags.set(ParserFlags::NESTING, options.nesting);
   flags.set(ParserFlags::CUSTOM_MEDIA, options.custom_media);
   let opts = ParserOptions {
     filename: if options.filename.is_null() {

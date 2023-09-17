@@ -11,7 +11,7 @@ use crate::targets::{should_compile, Targets};
 use crate::traits::{Parse, ParseWithOptions, ToCss};
 use crate::values::angle::Angle;
 use crate::values::color::{
-  parse_hsl_hwb_components, parse_rgb_components, ColorFallbackKind, ComponentParser, CssColor,
+  parse_hsl_hwb_components, parse_rgb_components, ColorFallbackKind, ComponentParser, CssColor, RGBA,
 };
 use crate::values::ident::{CustomIdent, DashedIdent, DashedIdentReference, Ident};
 use crate::values::length::{serialize_dimension, LengthValue};
@@ -23,6 +23,7 @@ use crate::values::time::Time;
 use crate::values::url::Url;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
+use cssparser::color::parse_hash_color;
 use cssparser::*;
 
 #[cfg(feature = "serde")]
@@ -420,8 +421,8 @@ impl<'i> TokenList<'i> {
           }
         }
         Ok(&cssparser::Token::Hash(ref h)) | Ok(&cssparser::Token::IDHash(ref h)) => {
-          if let Ok(color) = Color::parse_hash(h.as_bytes()) {
-            tokens.push(TokenOrValue::Color(color.into()));
+          if let Ok((r, g, b, a)) = parse_hash_color(h.as_bytes()) {
+            tokens.push(TokenOrValue::Color(CssColor::RGBA(RGBA::new(r, g, b, a))));
           } else {
             tokens.push(Token::Hash(h.into()).into());
           }
@@ -1528,7 +1529,10 @@ impl<'i> UnresolvedColor<'i> {
     match_ignore_ascii_case! { &*f,
       "rgb" => {
         input.parse_nested_block(|input| {
-          let (r, g, b) = parse_rgb_components(input, &parser)?;
+          let (r, g, b, is_legacy) = parse_rgb_components(input, &parser)?;
+          if is_legacy {
+            return Err(input.new_custom_error(ParserError::InvalidValue))
+          }
           input.expect_delim('/')?;
           let alpha = TokenList::parse(input, options, 0)?;
           Ok(UnresolvedColor::RGB { r, g, b, alpha })
@@ -1536,7 +1540,10 @@ impl<'i> UnresolvedColor<'i> {
       },
       "hsl" => {
         input.parse_nested_block(|input| {
-          let (h, s, l) = parse_hsl_hwb_components(input, &parser)?;
+          let (h, s, l, is_legacy) = parse_hsl_hwb_components(input, &parser, false)?;
+          if is_legacy {
+            return Err(input.new_custom_error(ParserError::InvalidValue))
+          }
           input.expect_delim('/')?;
           let alpha = TokenList::parse(input, options, 0)?;
           Ok(UnresolvedColor::HSL { h, s, l, alpha })

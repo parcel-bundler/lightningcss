@@ -490,6 +490,22 @@ impl<'i> AtRuleParser<'i> for FontFaceDeclarationParser {
   type Error = ParserError<'i>;
 }
 
+impl<'i> QualifiedRuleParser<'i> for FontFaceDeclarationParser {
+  type Prelude = ();
+  type QualifiedRule = FontFaceProperty<'i>;
+  type Error = ParserError<'i>;
+}
+
+impl<'i> RuleBodyItemParser<'i, FontFaceProperty<'i>, ParserError<'i>> for FontFaceDeclarationParser {
+  fn parse_qualified(&self) -> bool {
+    false
+  }
+
+  fn parse_declarations(&self) -> bool {
+    true
+  }
+}
+
 impl<'i> ToCss for FontFaceRule<'i> {
   fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
   where

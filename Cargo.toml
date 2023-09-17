@@ -46,7 +46,8 @@ substitute_variables = ["visitor", "into_owned"]
 
 [dependencies]
 serde = { version = "1.0.123", features = ["derive"], optional = true }
-cssparser = "0.29.1"
+cssparser = "0.33.0"
+cssparser-color = "0.1.0"
 parcel_selectors = { version = "0.26.1", path = "./selectors" }
 itertools = "0.10.1"
 smallvec = { version = "1.7.0", features = ["union"] }

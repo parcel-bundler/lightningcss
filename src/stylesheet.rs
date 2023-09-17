@@ -16,7 +16,7 @@ use crate::traits::{AtRuleParser, ToCss};
 use crate::values::string::CowArcStr;
 #[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
-use cssparser::{Parser, ParserInput, RuleListParser};
+use cssparser::{Parser, ParserInput, StyleSheetParser};
 #[cfg(feature = "sourcemap")]
 use parcel_sourcemap::SourceMap;
 use std::collections::{HashMap, HashSet};
@@ -163,14 +163,13 @@ where
     }
     parser.reset(&state);
 
-    let mut rule_list_parser =
-      RuleListParser::new_for_stylesheet(&mut parser, TopLevelRuleParser::new(&mut options, at_rule_parser));
+    let mut rules = CssRuleList(vec![]);
+    let mut rule_parser = TopLevelRuleParser::new(&mut options, at_rule_parser, &mut rules);
+    let mut rule_list_parser = StyleSheetParser::new(&mut parser, &mut rule_parser);
 
-    let mut rules = vec![];
     while let Some(rule) = rule_list_parser.next() {
-      let rule = match rule {
-        Ok((_, CssRule::Ignored)) => continue,
-        Ok((_, rule)) => rule,
+      match rule {
+        Ok(()) => {}
         Err((e, _)) => {
           let options = &mut rule_list_parser.parser.options;
           if options.error_recovery {
@@ -180,15 +179,13 @@ where
 
           return Err(Error::from(e, options.filename.clone()));
         }
-      };
-
-      rules.push(rule)
+      }
     }
 
     Ok(StyleSheet {
       sources: vec![options.filename.clone()],
       source_map_urls: vec![parser.current_source_map_url().map(|s| s.to_owned())],
-      rules: CssRuleList(rules),
+      rules,
       license_comments,
       options,
     })

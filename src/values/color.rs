@@ -17,7 +17,9 @@ use crate::traits::{FallbackValues, IsCompatible, Parse, ToCss};
 #[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
 use bitflags::bitflags;
+use cssparser::color::{parse_hash_color, parse_named_color};
 use cssparser::*;
+use cssparser_color::{hsl_to_rgb, AngleOrNumber, ColorParser, NumberOrPercentage};
 use std::any::TypeId;
 use std::f32::consts::PI;
 use std::fmt::Write;
@@ -427,23 +429,25 @@ impl Default for CssColor {
   }
 }
 
-impl From<Color> for CssColor {
-  fn from(color: Color) -> Self {
-    match color {
-      Color::CurrentColor => CssColor::CurrentColor,
-      Color::RGBA(rgba) => CssColor::RGBA(rgba),
-    }
-  }
-}
-
 impl<'i> Parse<'i> for CssColor {
   fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let parser = ComponentParser::new(false);
-    if let Ok(color) = input.try_parse(|input| Color::parse_with(&parser, input)) {
-      return Ok(color.into());
+    let location = input.current_source_location();
+    let token = input.next()?;
+    match *token {
+      Token::Hash(ref value) | Token::IDHash(ref value) => parse_hash_color(value.as_bytes())
+        .map(|(r, g, b, a)| CssColor::RGBA(RGBA::new(r, g, b, a)))
+        .map_err(|_| location.new_unexpected_token_error(token.clone())),
+      Token::Ident(ref value) => Ok(match_ignore_ascii_case! { value,
+        "currentcolor" => CssColor::CurrentColor,
+        "transparent" => CssColor::RGBA(RGBA::transparent()),
+        _ => {
+          let (r, g, b) = parse_named_color(value).map_err(|_| location.new_unexpected_token_error(token.clone()))?;
+          CssColor::RGBA(RGBA { red: r, green: g, blue: b, alpha: 255 })
+        }
+      }),
+      Token::Function(ref name) => parse_color_function(location, name.clone(), input),
+      _ => Err(location.new_unexpected_token_error(token.clone())),
     }
-
-    parse_color_function(input)
   }
 }
 
@@ -635,7 +639,8 @@ impl RelativeComponentParser {
   }
 }
 
-impl<'i> ColorComponentParser<'i> for RelativeComponentParser {
+impl<'i> ColorParser<'i> for RelativeComponentParser {
+  type Output = cssparser_color::Color;
   type Error = ParserError<'i>;
 
   fn parse_angle_or_number<'t>(
@@ -759,7 +764,8 @@ impl ComponentParser {
   }
 }
 
-impl<'i> ColorComponentParser<'i> for ComponentParser {
+impl<'i> ColorParser<'i> for ComponentParser {
+  type Output = cssparser_color::Color;
   type Error = ParserError<'i>;
 
   fn parse_angle_or_number<'t>(
@@ -844,9 +850,11 @@ impl<'i> ColorComponentParser<'i> for ComponentParser {
 }
 
 // https://www.w3.org/TR/css-color-4/#lab-colors
-fn parse_color_function<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
-  let location = input.current_source_location();
-  let function = input.expect_function()?;
+fn parse_color_function<'i, 't>(
+  location: SourceLocation,
+  function: CowRcStr<'i>,
+  input: &mut Parser<'i, 't>,
+) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
   let mut parser = ComponentParser::new(true);
 
   match_ignore_ascii_case! {&*function,
@@ -874,17 +882,26 @@ fn parse_color_function<'i, 't>(input: &mut Parser<'i, 't>) -> Result<CssColor, 
       let predefined = parse_predefined(input, &mut parser)?;
       Ok(CssColor::Predefined(Box::new(predefined)))
     },
-    "hsl" => {
-      let (h, s, l, a) = parse_hsl_hwb::<HSL>(input, &mut parser)?;
-      Ok(CssColor::Float(Box::new(FloatColor::HSL(HSL { h, s, l, alpha: a }))))
+    "hsl" | "hsla" => {
+      let (h, s, l, a) = parse_hsl_hwb::<HSL>(input, &mut parser, true)?;
+      let hsl = HSL { h, s, l, alpha: a };
+      if !h.is_nan() && !s.is_nan() && !l.is_nan() && !a.is_nan() {
+        Ok(CssColor::RGBA(hsl.into()))
+      } else {
+        Ok(CssColor::Float(Box::new(FloatColor::HSL(hsl))))
+      }
     },
     "hwb" => {
-      let (h, w, b, a) = parse_hsl_hwb::<HWB>(input, &mut parser)?;
-      Ok(CssColor::Float(Box::new(FloatColor::HWB(HWB { h, w, b, alpha: a }))))
+      let (h, w, b, a) = parse_hsl_hwb::<HWB>(input, &mut parser, false)?;
+      let hwb = HWB { h, w, b, alpha: a };
+      if !h.is_nan() && !w.is_nan() && !b.is_nan() && !a.is_nan() {
+        Ok(CssColor::RGBA(hwb.into()))
+      } else {
+        Ok(CssColor::Float(Box::new(FloatColor::HWB(hwb))))
+      }
     },
-    "rgb" => {
-      let (r, g, b, a) = parse_rgb(input, &mut parser)?;
-      Ok(CssColor::Float(Box::new(FloatColor::RGB(SRGB { r, g, b, alpha: a }))))
+    "rgb" | "rgba" => {
+       parse_rgb(input, &mut parser)
     },
     "color-mix" => {
       input.parse_nested_block(parse_color_mix)
@@ -1013,18 +1030,22 @@ fn parse_predefined<'i, 't>(
 }
 
 /// Parses the hsl() and hwb() functions.
-/// Only the modern syntax with no commas is handled here, cssparser handles the legacy syntax.
 /// The results of this function are stored as floating point if there are any `none` components.
 #[inline]
 fn parse_hsl_hwb<'i, 't, T: TryFrom<CssColor> + ColorSpace>(
   input: &mut Parser<'i, 't>,
   parser: &mut ComponentParser,
+  allows_legacy: bool,
 ) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
   // https://drafts.csswg.org/css-color-4/#the-hsl-notation
   let res = input.parse_nested_block(|input| {
     parser.parse_relative::<T>(input)?;
-    let (h, a, b) = parse_hsl_hwb_components(input, parser)?;
-    let alpha = parse_alpha(input, parser)?;
+    let (h, a, b, is_legacy) = parse_hsl_hwb_components(input, parser, allows_legacy)?;
+    let alpha = if is_legacy {
+      parse_legacy_alpha(input, parser)?
+    } else {
+      parse_alpha(input, parser)?
+    };
 
     Ok((h, a, b, alpha))
   })?;
@@ -1036,24 +1057,46 @@ fn parse_hsl_hwb<'i, 't, T: TryFrom<CssColor> + ColorSpace>(
 pub(crate) fn parse_hsl_hwb_components<'i, 't>(
   input: &mut Parser<'i, 't>,
   parser: &ComponentParser,
-) -> Result<(f32, f32, f32), ParseError<'i, ParserError<'i>>> {
+  allows_legacy: bool,
+) -> Result<(f32, f32, f32, bool), ParseError<'i, ParserError<'i>>> {
   let h = parse_angle_or_number(input, parser)?;
+  let is_legacy_syntax =
+    allows_legacy && parser.from.is_none() && !h.is_nan() && input.try_parse(|p| p.expect_comma()).is_ok();
   let a = parser.parse_percentage(input)?.clamp(0.0, 1.0);
+  if is_legacy_syntax {
+    input.expect_comma()?;
+  }
   let b = parser.parse_percentage(input)?.clamp(0.0, 1.0);
-  Ok((h, a, b))
+  if is_legacy_syntax && (a.is_nan() || b.is_nan()) {
+    return Err(input.new_custom_error(ParserError::InvalidValue));
+  }
+  Ok((h, a, b, is_legacy_syntax))
 }
 
 #[inline]
 fn parse_rgb<'i, 't>(
   input: &mut Parser<'i, 't>,
   parser: &mut ComponentParser,
-) -> Result<(f32, f32, f32, f32), ParseError<'i, ParserError<'i>>> {
+) -> Result<CssColor, ParseError<'i, ParserError<'i>>> {
   // https://drafts.csswg.org/css-color-4/#rgb-functions
   let res = input.parse_nested_block(|input| {
     parser.parse_relative::<SRGB>(input)?;
-    let (r, g, b) = parse_rgb_components(input, parser)?;
-    let alpha = parse_alpha(input, parser)?;
-    Ok((r, g, b, alpha))
+    let (r, g, b, is_legacy) = parse_rgb_components(input, parser)?;
+    let alpha = if is_legacy {
+      parse_legacy_alpha(input, parser)?
+    } else {
+      parse_alpha(input, parser)?
+    };
+
+    if !r.is_nan() && !g.is_nan() && !b.is_nan() && !alpha.is_nan() {
+      if is_legacy {
+        Ok(CssColor::RGBA(RGBA::new(r as u8, g as u8, b as u8, alpha)))
+      } else {
+        Ok(CssColor::RGBA(RGBA::from_floats(r, g, b, alpha)))
+      }
+    } else {
+      Ok(CssColor::Float(Box::new(FloatColor::RGB(SRGB { r, g, b, alpha }))))
+    }
   })?;
 
   Ok(res)
@@ -1063,40 +1106,47 @@ fn parse_rgb<'i, 't>(
 pub(crate) fn parse_rgb_components<'i, 't>(
   input: &mut Parser<'i, 't>,
   parser: &ComponentParser,
-) -> Result<(f32, f32, f32), ParseError<'i, ParserError<'i>>> {
-  // percentages and numbers cannot be mixed, but we might not know
-  // what kind of components to expect until later if there are `none` values.
-  #[derive(PartialEq)]
-  enum Kind {
-    Unknown,
-    Number,
-    Percentage,
-  }
-
-  #[inline]
-  fn parse_component<'i, 't>(
-    input: &mut Parser<'i, 't>,
-    parser: &ComponentParser,
-    kind: Kind,
-  ) -> Result<(f32, Kind), ParseError<'i, ParserError<'i>>> {
-    // Relative color function does allow mixing percentages and numbers.
-    // https://www.w3.org/TR/css-color-5/#relative-RGB
-    Ok(match parser.parse_number_or_percentage(input)? {
-      NumberOrPercentage::Number { value } if value.is_nan() => (value, kind),
-      NumberOrPercentage::Number { value } if parser.from.is_some() || kind != Kind::Percentage => {
-        (value.round().clamp(0.0, 255.0) / 255.0, Kind::Number)
+) -> Result<(f32, f32, f32, bool), ParseError<'i, ParserError<'i>>> {
+  let red = parser.parse_number_or_percentage(input)?;
+  let is_legacy_syntax =
+    parser.from.is_none() && !red.unit_value().is_nan() && input.try_parse(|p| p.expect_comma()).is_ok();
+  let (r, g, b) = if is_legacy_syntax {
+    match red {
+      NumberOrPercentage::Number { value } => {
+        let r = value.round().clamp(0.0, 255.0);
+        let g = parser.parse_number(input)?.round().clamp(0.0, 255.0);
+        input.expect_comma()?;
+        let b = parser.parse_number(input)?.round().clamp(0.0, 255.0);
+        (r, g, b)
       }
-      NumberOrPercentage::Percentage { unit_value } if parser.from.is_some() || kind != Kind::Number => {
-        (unit_value.clamp(0.0, 1.0), Kind::Percentage)
+      NumberOrPercentage::Percentage { unit_value } => {
+        let r = (unit_value * 255.0).round().clamp(0.0, 255.0);
+        let g = (parser.parse_percentage(input)? * 255.0).round().clamp(0.0, 255.0);
+        input.expect_comma()?;
+        let b = (parser.parse_percentage(input)? * 255.0).round().clamp(0.0, 255.0);
+        (r, g, b)
       }
-      _ => return Err(input.new_custom_error(ParserError::InvalidValue)),
-    })
-  }
+    }
+  } else {
+    #[inline]
+    fn get_component<'i, 't>(value: NumberOrPercentage) -> f32 {
+      match value {
+        NumberOrPercentage::Number { value } if value.is_nan() => value,
+        NumberOrPercentage::Number { value } => value.round().clamp(0.0, 255.0) / 255.0,
+        NumberOrPercentage::Percentage { unit_value } => unit_value.clamp(0.0, 1.0),
+      }
+    }
 
-  let (r, kind) = parse_component(input, parser, Kind::Unknown)?;
-  let (g, kind) = parse_component(input, parser, kind)?;
-  let (b, _) = parse_component(input, parser, kind)?;
-  Ok((r, g, b))
+    let r = get_component(red);
+    let g = get_component(parser.parse_number_or_percentage(input)?);
+    let b = get_component(parser.parse_number_or_percentage(input)?);
+    (r, g, b)
+  };
+
+  if is_legacy_syntax && (g.is_nan() || b.is_nan()) {
+    return Err(input.new_custom_error(ParserError::InvalidValue));
+  }
+  Ok((r, g, b, is_legacy_syntax))
 }
 
 #[inline]
@@ -1132,6 +1182,19 @@ fn parse_alpha<'i, 't>(
     1.0
   };
   Ok(res)
+}
+
+#[inline]
+fn parse_legacy_alpha<'i, 't>(
+  input: &mut Parser<'i, 't>,
+  parser: &ComponentParser,
+) -> Result<f32, ParseError<'i, ParserError<'i>>> {
+  Ok(if !input.is_exhausted() {
+    input.expect_comma()?;
+    parse_number_or_percentage(input, parser)?.clamp(0.0, 1.0)
+  } else {
+    1.0
+  })
 }
 
 #[inline]
@@ -1347,6 +1410,93 @@ where
 {
   let v: f32 = serde::Deserialize::deserialize(deserializer)?;
   Ok(v / 255.0)
+}
+
+// Copied from an older version of cssparser.
+/// A color with red, green, blue, and alpha components, in a byte each.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct RGBA {
+  /// The red component.
+  pub red: u8,
+  /// The green component.
+  pub green: u8,
+  /// The blue component.
+  pub blue: u8,
+  /// The alpha component.
+  pub alpha: u8,
+}
+
+impl RGBA {
+  /// Constructs a new RGBA value from float components. It expects the red,
+  /// green, blue and alpha channels in that order, and all values will be
+  /// clamped to the 0.0 ... 1.0 range.
+  #[inline]
+  pub fn from_floats(red: f32, green: f32, blue: f32, alpha: f32) -> Self {
+    Self::new(clamp_unit_f32(red), clamp_unit_f32(green), clamp_unit_f32(blue), alpha)
+  }
+
+  /// Returns a transparent color.
+  #[inline]
+  pub fn transparent() -> Self {
+    Self::new(0, 0, 0, 0.0)
+  }
+
+  /// Same thing, but with `u8` values instead of floats in the 0 to 1 range.
+  #[inline]
+  pub fn new(red: u8, green: u8, blue: u8, alpha: f32) -> Self {
+    RGBA {
+      red,
+      green,
+      blue,
+      alpha: clamp_unit_f32(alpha),
+    }
+  }
+
+  /// Returns the red channel in a floating point number form, from 0 to 1.
+  #[inline]
+  pub fn red_f32(&self) -> f32 {
+    self.red as f32 / 255.0
+  }
+
+  /// Returns the green channel in a floating point number form, from 0 to 1.
+  #[inline]
+  pub fn green_f32(&self) -> f32 {
+    self.green as f32 / 255.0
+  }
+
+  /// Returns the blue channel in a floating point number form, from 0 to 1.
+  #[inline]
+  pub fn blue_f32(&self) -> f32 {
+    self.blue as f32 / 255.0
+  }
+
+  /// Returns the alpha channel in a floating point number form, from 0 to 1.
+  #[inline]
+  pub fn alpha_f32(&self) -> f32 {
+    self.alpha as f32 / 255.0
+  }
+}
+
+fn clamp_unit_f32(val: f32) -> u8 {
+  // Whilst scaling by 256 and flooring would provide
+  // an equal distribution of integers to percentage inputs,
+  // this is not what Gecko does so we instead multiply by 255
+  // and round (adding 0.5 and flooring is equivalent to rounding)
+  //
+  // Chrome does something similar for the alpha value, but not
+  // the rgb values.
+  //
+  // See https://bugzilla.mozilla.org/show_bug.cgi?id=1340484
+  //
+  // Clamping to 256 and rounding after would let 1.0 map to 256, and
+  // `256.0_f32 as u8` is undefined behavior:
+  //
+  // https://github.com/rust-lang/rust/issues/10184
+  clamp_floor_256_f32(val * 255.)
+}
+
+fn clamp_floor_256_f32(val: f32) -> u8 {
+  val.round().max(0.).min(255.) as u8
 }
 
 define_colorspace! {
@@ -2329,21 +2479,8 @@ impl From<HSL> for SRGB {
   fn from(hsl: HSL) -> SRGB {
     // https://drafts.csswg.org/css-color/#hsl-to-rgb
     let hsl = hsl.resolve_missing();
-    let mut h = hsl.h % 360.0;
-    if h < 0.0 {
-      h += 360.0;
-    }
-
-    #[inline]
-    fn hue_to_rgb(n: f32, h: f32, s: f32, l: f32) -> f32 {
-      let k = (n + h / 30.0) % 12.0;
-      let a = s * l.min(1.0 - l);
-      l - a * (k - 3.0).min(9.0 - k).clamp(-1.0, 1.0)
-    }
-
-    let r = hue_to_rgb(0.0, h, hsl.s, hsl.l);
-    let g = hue_to_rgb(8.0, h, hsl.s, hsl.l);
-    let b = hue_to_rgb(4.0, h, hsl.s, hsl.l);
+    let h = (hsl.h - 360.0 * (hsl.h / 360.0).floor()) / 360.0;
+    let (r, g, b) = hsl_to_rgb(h, hsl.s, hsl.l);
     SRGB {
       r,
       g,

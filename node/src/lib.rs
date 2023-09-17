@@ -706,8 +706,6 @@ impl<'a> Into<PseudoClasses<'a>> for &'a OwnedPseudoClasses {
 #[serde(rename_all = "camelCase")]
 struct Drafts {
   #[serde(default)]
-  nesting: bool,
-  #[serde(default)]
   custom_media: bool,
 }
 
@@ -740,7 +738,6 @@ fn compile<'i>(
 
   let res = {
     let mut flags = ParserFlags::empty();
-    flags.set(ParserFlags::NESTING, matches!(drafts, Some(d) if d.nesting));
     flags.set(ParserFlags::CUSTOM_MEDIA, matches!(drafts, Some(d) if d.custom_media));
     flags.set(
       ParserFlags::DEEP_SELECTOR_COMBINATOR,
@@ -867,7 +864,6 @@ fn compile_bundle<
     let drafts = config.drafts.as_ref();
     let non_standard = config.non_standard.as_ref();
     let mut flags = ParserFlags::empty();
-    flags.set(ParserFlags::NESTING, matches!(drafts, Some(d) if d.nesting));
     flags.set(ParserFlags::CUSTOM_MEDIA, matches!(drafts, Some(d) if d.custom_media));
     flags.set(
       ParserFlags::DEEP_SELECTOR_COMBINATOR,

@@ -392,3 +392,18 @@ impl<'a, 'i> QualifiedRuleParser<'i> for KeyframeListParser {
     })
   }
 }
+
+impl<'i> DeclarationParser<'i> for KeyframeListParser {
+  type Declaration = Keyframe<'i>;
+  type Error = ParserError<'i>;
+}
+
+impl<'i> RuleBodyItemParser<'i, Keyframe<'i>, ParserError<'i>> for KeyframeListParser {
+  fn parse_qualified(&self) -> bool {
+    true
+  }
+
+  fn parse_declarations(&self) -> bool {
+    false
+  }
+}

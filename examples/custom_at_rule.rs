@@ -8,10 +8,13 @@ use lightningcss::{
   properties::custom::{Token, TokenOrValue},
   rules::{style::StyleRule, CssRule, CssRuleList, Location},
   selector::{Component, Selector},
-  stylesheet::{ParserFlags, ParserOptions, PrinterOptions, StyleSheet},
+  stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
   targets::Browsers,
   traits::{AtRuleParser, ToCss},
-  values::{color::CssColor, length::LengthValue},
+  values::{
+    color::{CssColor, RGBA},
+    length::LengthValue,
+  },
   vendor_prefix::VendorPrefix,
   visit_types,
   visitor::{Visit, VisitTypes, Visitor},
@@ -22,7 +25,6 @@ fn main() {
   let source = std::fs::read_to_string(&args[1]).unwrap();
   let opts = ParserOptions {
     filename: args[1].clone(),
-    flags: ParserFlags::NESTING,
     ..Default::default()
   };
 
@@ -266,8 +268,8 @@ impl<'a, 'i> Visitor<'i, AtRule> for ApplyVisitor<'a, 'i> {
     match token {
       TokenOrValue::Function(f) if f.name == "theme" => match f.arguments.0.first() {
         Some(TokenOrValue::Token(Token::String(s))) => match s.as_ref() {
-          "blue-500" => *token = TokenOrValue::Color(CssColor::RGBA(RGBA::new(0, 0, 255, 255))),
-          "red-500" => *token = TokenOrValue::Color(CssColor::RGBA(RGBA::new(255, 0, 0, 255))),
+          "blue-500" => *token = TokenOrValue::Color(CssColor::RGBA(RGBA::new(0, 0, 255, 1.0))),
+          "red-500" => *token = TokenOrValue::Color(CssColor::RGBA(RGBA::new(255, 0, 0, 1.0))),
           _ => {}
         },
         _ => {}

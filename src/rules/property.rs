@@ -48,13 +48,13 @@ impl<'i> PropertyRule<'i> {
     input: &mut Parser<'i, 't>,
     loc: Location,
   ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
-    let parser = PropertyRuleDeclarationParser {
+    let mut parser = PropertyRuleDeclarationParser {
       syntax: None,
       inherits: None,
       initial_value: None,
     };
 
-    let mut decl_parser = DeclarationListParser::new(input, parser);
+    let mut decl_parser = RuleBodyParser::new(input, &mut parser);
     while let Some(decl) = decl_parser.next() {
       match decl {
         Ok(()) => {}
@@ -64,8 +64,14 @@ impl<'i> PropertyRule<'i> {
 
     // `syntax` and `inherits` are always required.
     let parser = decl_parser.parser;
-    let syntax = parser.syntax.ok_or(input.new_custom_error(ParserError::AtRuleBodyInvalid))?;
-    let inherits = parser.inherits.ok_or(input.new_custom_error(ParserError::AtRuleBodyInvalid))?;
+    let syntax = parser
+      .syntax
+      .clone()
+      .ok_or(decl_parser.input.new_custom_error(ParserError::AtRuleBodyInvalid))?;
+    let inherits = parser
+      .inherits
+      .clone()
+      .ok_or(decl_parser.input.new_custom_error(ParserError::AtRuleBodyInvalid))?;
 
     // `initial-value` is required unless the syntax is a universal definition.
     let initial_value = match syntax {
@@ -193,4 +199,20 @@ impl<'i> AtRuleParser<'i> for PropertyRuleDeclarationParser<'i> {
   type Prelude = ();
   type AtRule = ();
   type Error = ParserError<'i>;
+}
+
+impl<'i> QualifiedRuleParser<'i> for PropertyRuleDeclarationParser<'i> {
+  type Prelude = ();
+  type QualifiedRule = ();
+  type Error = ParserError<'i>;
+}
+
+impl<'i> RuleBodyItemParser<'i, (), ParserError<'i>> for PropertyRuleDeclarationParser<'i> {
+  fn parse_qualified(&self) -> bool {
+    false
+  }
+
+  fn parse_declarations(&self) -> bool {
+    true
+  }
 }
