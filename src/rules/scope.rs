@@ -5,6 +5,7 @@ use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, PrinterError};
 use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
+use crate::selector::SelectorList;
 use crate::traits::ToCss;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;
@@ -19,7 +20,10 @@ use crate::visitor::Visit;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct ScopeRule<'i, R = DefaultAtRule> {
-  // TODO: support (<scope-start>) [to (<scope-end>)]?
+  /// A selector list used to identify the scoping root(s).
+  pub scope_start: Option<SelectorList<'i>>,
+  /// A selector list used to identify any scoping limits.
+  pub scope_end: Option<SelectorList<'i>>,
   /// Nested rules within the `@scope` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
   pub rules: CssRuleList<'i, R>,
@@ -43,10 +47,34 @@ impl<'i, T: ToCss> ToCss for ScopeRule<'i, T> {
     dest.add_mapping(self.loc);
     dest.write_str("@scope")?;
     dest.whitespace()?;
+    if let Some(scope_start) = &self.scope_start {
+      dest.write_char('(')?;
+      scope_start.to_css(dest)?;
+      dest.write_char(')')?;
+      dest.whitespace()?;
+    }
+    if let Some(scope_end) = &self.scope_end {
+      if dest.minify {
+        dest.write_char(' ')?;
+      }
+      dest.write_str("to (")?;
+      // <scope-start> is treated as an ancestor of scope end.
+      // https://drafts.csswg.org/css-nesting/#nesting-at-scope
+      if let Some(scope_start) = &self.scope_start {
+        dest.with_context(scope_start, |dest| scope_end.to_css(dest))?;
+      } else {
+        scope_end.to_css(dest)?;
+      }
+      dest.write_char(')')?;
+      dest.whitespace()?;
+    }
     dest.write_char('{')?;
     dest.indent();
     dest.newline()?;
-    self.rules.to_css(dest)?;
+    // Nested style rules within @scope are implicitly relative to the <scope-start>
+    // so clear our style context while printing them to avoid replacing & ourselves.
+    // https://drafts.csswg.org/css-cascade-6/#scoped-rules
+    dest.with_cleared_context(|dest| self.rules.to_css(dest))?;
     dest.dedent();
     dest.newline()?;
     dest.write_char('}')

@@ -2118,6 +2118,7 @@ impl<'i> ParseWithOptions<'i> for SelectorList<'i> {
         options: &options,
       },
       input,
+      parcel_selectors::parser::ParseErrorRecovery::DiscardList,
       parcel_selectors::parser::NestingRequirement::None,
     )
   }

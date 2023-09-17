@@ -24507,6 +24507,98 @@ mod tests {
       }"#,
       "@scope{:scope{color:#add8e6;display:flex}}",
     );
+    minify_test(
+      r#"
+      @scope (.light-scheme) {
+        a { color: yellow; }
+      }
+      "#,
+      "@scope(.light-scheme){a{color:#ff0}}",
+    );
+    minify_test(
+      r#"
+      @scope (.media-object) to (.content > *) {
+        a { color: yellow; }
+      }
+      "#,
+      "@scope(.media-object) to (.content>*){a{color:#ff0}}",
+    );
+    minify_test(
+      r#"
+      @scope to (.content > *) {
+        a { color: yellow; }
+      }
+      "#,
+      "@scope to (.content>*){a{color:#ff0}}",
+    );
+    minify_test(
+      r#"
+      @scope (#my-component) {
+        & { color: yellow; }
+      }
+      "#,
+      "@scope(#my-component){&{color:#ff0}}",
+    );
+    minify_test(
+      r#"
+      @scope (.parent-scope) {
+        @scope (:scope > .child-scope) to (:scope .limit) {
+          .content { color: yellow; }
+        }
+      }
+      "#,
+      "@scope(.parent-scope){@scope(:scope>.child-scope) to (:scope .limit){.content{color:#ff0}}}",
+    );
+    minify_test(
+      r#"
+      .foo {
+        @scope (.bar) {
+          color: yellow;
+        }
+      }
+      "#,
+      ".foo{@scope(.bar){&{color:#ff0}}}",
+    );
+    nesting_test(
+      r#"
+      .foo {
+        @scope (.bar) {
+          color: yellow;
+        }
+      }
+      "#,
+      indoc! {r#"
+        @scope (.bar) {
+          :scope {
+            color: #ff0;
+          }
+        }
+      "#},
+    );
+    nesting_test(
+      r#"
+      .parent {
+        color: blue;
+
+        @scope (& > .scope) to (& .limit) {
+          & .content {
+            color: yellow;
+          }
+        }
+      }
+      "#,
+      indoc! {r#"
+        .parent {
+          color: #00f;
+        }
+
+        @scope (.parent > .scope) to (.parent > .scope .limit) {
+          :scope .content {
+            color: #ff0;
+          }
+        }
+      "#},
+    );
   }
 
   #[test]
