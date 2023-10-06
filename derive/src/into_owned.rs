@@ -116,6 +116,8 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
         type Owned = #self_name<'static, #(#params),*>;
         /// Consumes the value and returns an owned clone.
         fn into_owned(self) -> Self::Owned {
+          use lightningcss::traits::IntoOwned;
+
           #res
         }
       }
