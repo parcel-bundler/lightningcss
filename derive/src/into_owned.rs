@@ -2,8 +2,8 @@ use proc_macro::{self, TokenStream};
 use proc_macro2::Span;
 use quote::quote;
 use syn::{
-  parse_macro_input, parse_quote, Data, DataEnum, DeriveInput, Field, Fields, GenericArgument, Ident, Member,
-  PathArguments, Type,
+  parse_macro_input, parse_quote, Data, DataEnum, DeriveInput, Field, Fields, GenericArgument, Generics, Ident,
+  Member, PathArguments, Type,
 };
 
 pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
@@ -118,11 +118,25 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
     })
   }
 
+  // Prepend `'any` to generics
+  generics.params.insert(
+    0,
+    syn::GenericParam::Lifetime(syn::LifetimeDef {
+      attrs: Default::default(),
+      lifetime: syn::Lifetime {
+        apostrophe: Span::call_site(),
+        ident: Ident::new("any", Span::call_site()),
+      },
+      colon_token: None,
+      bounds: Default::default(),
+    }),
+  );
+
   let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
   let into_owned = if generics.lifetimes().next().is_none() {
     quote! {
-      impl #impl_generics lightningcss::traits::IntoOwned for #self_name #ty_generics #where_clause {
+      impl #impl_generics lightningcss::traits::IntoOwned<'any> for #self_name #ty_generics #where_clause {
         type Owned = Self;
 
         #[inline]
@@ -134,8 +148,8 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
   } else {
     let params = generics.type_params();
     quote! {
-      impl #impl_generics lightningcss::traits::IntoOwned for #self_name #ty_generics #where_clause {
-        type Owned = #self_name<'static, #(#params),*>;
+      impl #impl_generics lightningcss::traits::IntoOwned<'any> for #self_name #ty_generics #where_clause {
+        type Owned = #self_name<'any, #(#params),*>;
         /// Consumes the value and returns an owned clone.
         fn into_owned(self) -> Self::Owned {
           use lightningcss::traits::IntoOwned;
