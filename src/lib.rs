@@ -46,6 +46,10 @@ pub mod visitor;
 
 #[cfg(feature = "serde")]
 mod serialization;
+/// hack for derive
+mod lightningcss {
+  pub use crate::traits;
+}
 
 #[cfg(test)]
 mod tests {
