@@ -135,16 +135,12 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
     colon_token: None,
     bounds: Default::default(),
   });
-  if !has_lifetime {
-    generics.params.insert(0, any.clone());
-  } else {
-    generics.params[0] = any;
-  }
+  generics.params.insert(0, any.clone());
 
-  let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+  let (impl_generics, _, where_clause) = generics.split_for_impl();
+  let (_, ty_generics, _) = orig_generics.split_for_impl();
 
   let into_owned = if !has_lifetime {
-    let (_, ty_generics, _) = orig_generics.split_for_impl();
     quote! {
       impl #impl_generics lightningcss::traits::IntoOwned<'any> for #self_name #ty_generics #where_clause {
         type Owned = Self;

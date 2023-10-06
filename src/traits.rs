@@ -15,6 +15,7 @@ use cssparser::*;
 /// `'any` lifeitme means the output should have `'static` lifetime.
 #[cfg(feature = "into_owned")]
 pub trait IntoOwned<'any> {
+  /// A variant of `Self` with a new lifetime.
   type Owned: 'any;
 
   /// Make lifetime of `self` `'static`.
