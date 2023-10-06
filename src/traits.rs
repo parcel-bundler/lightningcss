@@ -22,7 +22,7 @@ pub trait IntoOwned {
 #[cfg(feature = "into_owned")]
 macro_rules! impl_into_owned {
   ($t: ty) => {
-    impl<'i> IntoOwned for $t {
+    impl IntoOwned for $t {
       type Owned = Self;
 
       #[inline]
