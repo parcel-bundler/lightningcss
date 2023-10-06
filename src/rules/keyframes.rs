@@ -6,6 +6,7 @@ use super::{CssRule, CssRuleList, Location};
 use crate::context::DeclarationContext;
 use crate::declaration::DeclarationBlock;
 use crate::error::{ParserError, PrinterError};
+#[cfg(not(doctest))]
 use crate::lightningcss;
 use crate::parser::ParserOptions;
 use crate::printer::Printer;

@@ -8,6 +8,7 @@ use crate::css_modules::{CssModule, CssModuleExports, CssModuleReferences};
 use crate::declaration::{DeclarationBlock, DeclarationHandler};
 use crate::dependencies::Dependency;
 use crate::error::{Error, ErrorLocation, MinifyErrorKind, ParserError, PrinterError, PrinterErrorKind};
+#[cfg(not(doctest))]
 use crate::lightningcss;
 use crate::parser::{DefaultAtRule, DefaultAtRuleParser, TopLevelRuleParser};
 use crate::printer::Printer;

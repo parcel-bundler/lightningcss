@@ -1,5 +1,6 @@
 //! Types used to represent strings.
 
+#[cfg(not(doctest))]
 use crate::lightningcss;
 use crate::traits::{IntoOwned, Parse, ToCss};
 #[cfg(feature = "visitor")]

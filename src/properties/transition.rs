@@ -5,6 +5,7 @@ use crate::compat;
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
+#[cfg(not(doctest))]
 use crate::lightningcss;
 use crate::macros::define_list_shorthand;
 use crate::prefixes::Feature;

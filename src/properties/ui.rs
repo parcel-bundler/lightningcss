@@ -2,6 +2,7 @@
 
 use crate::declaration::DeclarationBlock;
 use crate::error::{ParserError, PrinterError};
+#[cfg(not(doctest))]
 use crate::lightningcss;
 use crate::macros::{define_shorthand, enum_property, shorthand_property};
 use crate::printer::Printer;

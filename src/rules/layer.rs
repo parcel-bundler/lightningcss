@@ -2,6 +2,7 @@
 
 use super::{CssRuleList, Location, MinifyContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
+#[cfg(not(doctest))]
 use crate::lightningcss;
 use crate::parser::DefaultAtRule;
 use crate::printer::Printer;

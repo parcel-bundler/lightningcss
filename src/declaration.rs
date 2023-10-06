@@ -5,6 +5,7 @@ use std::ops::Range;
 
 use crate::context::PropertyHandlerContext;
 use crate::error::{ParserError, PrinterError};
+#[cfg(not(doctest))]
 use crate::lightningcss;
 use crate::parser::ParserOptions;
 use crate::printer::Printer;

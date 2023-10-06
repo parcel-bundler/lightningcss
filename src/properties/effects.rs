@@ -1,6 +1,7 @@
 //! CSS properties related to filters and effects.
 
 use crate::error::{ParserError, PrinterError};
+#[cfg(not(doctest))]
 use crate::lightningcss;
 use crate::printer::Printer;
 use crate::targets::{Browsers, Targets};

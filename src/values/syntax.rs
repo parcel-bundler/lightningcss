@@ -3,6 +3,7 @@
 use super::ident::Ident;
 use super::number::{CSSInteger, CSSNumber};
 use crate::error::{ParserError, PrinterError};
+#[cfg(not(doctest))]
 use crate::lightningcss;
 use crate::printer::Printer;
 use crate::traits::{Parse, ToCss};

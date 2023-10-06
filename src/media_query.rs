@@ -1,6 +1,7 @@
 //! Media queries.
 use crate::error::{ErrorWithLocation, MinifyError, MinifyErrorKind, ParserError, PrinterError};
 #[cfg(feature = "into_owned")]
+#[cfg(not(doctest))]
 use crate::lightningcss;
 use crate::macros::enum_property;
 use crate::parser::starts_with_ignore_ascii_case;

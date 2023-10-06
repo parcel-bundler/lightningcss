@@ -6,6 +6,7 @@ use super::resolution::Resolution;
 use crate::compat;
 use crate::dependencies::{Dependency, UrlDependency};
 use crate::error::{ParserError, PrinterError};
+#[cfg(not(doctest))]
 use crate::lightningcss;
 use crate::prefixes::{is_webkit_gradient, Feature};
 use crate::printer::Printer;

@@ -1,6 +1,7 @@
 //! The `@property` rule.
 
 use super::Location;
+#[cfg(not(doctest))]
 use crate::lightningcss;
 #[cfg(feature = "visitor")]
 use crate::visitor::Visit;

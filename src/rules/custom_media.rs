@@ -2,6 +2,7 @@
 
 use super::Location;
 use crate::error::PrinterError;
+#[cfg(not(doctest))]
 use crate::lightningcss;
 use crate::media_query::MediaList;
 use crate::printer::Printer;
