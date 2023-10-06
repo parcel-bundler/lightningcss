@@ -118,6 +118,11 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
     })
   }
 
+  let has_lifetime = generics
+    .params
+    .first()
+    .map_or(false, |v| matches!(v, syn::GenericParam::Lifetime(..)));
+
   // Prepend `'any` to generics
   let any = syn::GenericParam::Lifetime(syn::LifetimeDef {
     attrs: Default::default(),
@@ -128,11 +133,7 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
     colon_token: None,
     bounds: Default::default(),
   });
-  if generics
-    .params
-    .first()
-    .map_or(true, |v| !matches!(v, syn::GenericParam::Lifetime(..)))
-  {
+  if !has_lifetime {
     generics.params.insert(0, any.clone());
   } else {
     generics.params[0] = any;
@@ -140,9 +141,9 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
 
   let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-  let into_owned = if generics.lifetimes().next().is_none() {
+  let into_owned = if !has_lifetime {
     quote! {
-      impl #impl_generics lightningcss::traits::IntoOwned<'any> for #self_name #ty_generics #where_clause {
+      impl #impl_generics lightningcss::traits::IntoOwned<'any> for #self_name #where_clause {
         type Owned = Self;
 
         #[inline]

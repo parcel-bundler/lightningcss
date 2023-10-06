@@ -132,8 +132,8 @@ impl<'a> CowArcStr<'a> {
   }
 }
 
-impl IntoOwned for CowArcStr<'_> {
-  type Owned = CowArcStr<'static>;
+impl<'any> IntoOwned<'any> for CowArcStr<'_> {
+  type Owned = CowArcStr<'any>;
 
   /// Consumes the value and returns an owned clone.
   fn into_owned(self) -> Self::Owned {
