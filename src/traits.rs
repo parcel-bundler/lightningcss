@@ -10,6 +10,12 @@ use crate::targets::{Browsers, Targets};
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 
+/// A trait for things that can be cloned with a new lifetime.
+pub trait IntoOwned {
+  /// Make lifetime of `self` `'static`.
+  fn into_owned(self) -> Self;
+}
+
 /// Trait for things that can be parsed from CSS syntax.
 pub trait Parse<'i>: Sized {
   /// Parse a value of this type using an existing parser.
