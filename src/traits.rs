@@ -12,8 +12,10 @@ use cssparser::*;
 
 /// A trait for things that can be cloned with a new lifetime.
 pub trait IntoOwned {
+  type Owned: 'static;
+
   /// Make lifetime of `self` `'static`.
-  fn into_owned(self) -> Self;
+  fn into_owned(self) -> Self::Owned;
 }
 
 macro_rules! impl_into_owned {
