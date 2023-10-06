@@ -3,6 +3,7 @@ use std::{
   ops::{Index, IndexMut},
 };
 
+use lightningcss::traits::IntoOwned;
 use lightningcss::{
   media_query::MediaFeatureValue,
   properties::{
