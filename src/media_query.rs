@@ -1,6 +1,6 @@
 //! Media queries.
-
 use crate::error::{ErrorWithLocation, MinifyError, MinifyErrorKind, ParserError, PrinterError};
+use crate::lightningcss;
 use crate::macros::enum_property;
 use crate::parser::starts_with_ignore_ascii_case;
 use crate::printer::Printer;

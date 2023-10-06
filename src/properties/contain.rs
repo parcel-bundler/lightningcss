@@ -2,6 +2,7 @@
 
 #![allow(non_upper_case_globals)]
 
+use crate::lightningcss;
 use cssparser::*;
 use smallvec::SmallVec;
 

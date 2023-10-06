@@ -2,6 +2,7 @@
 
 use super::Location;
 use crate::error::{ParserError, PrinterError};
+use crate::lightningcss;
 use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::properties::custom::CustomProperty;

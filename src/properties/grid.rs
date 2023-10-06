@@ -5,6 +5,7 @@
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{Error, ErrorLocation, ParserError, PrinterError, PrinterErrorKind};
+use crate::lightningcss;
 use crate::macros::{define_shorthand, impl_shorthand};
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId};

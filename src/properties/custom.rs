@@ -1,6 +1,7 @@
 //! CSS custom properties and unparsed token values.
 
 use crate::error::{ParserError, PrinterError, PrinterErrorKind};
+use crate::lightningcss;
 use crate::macros::enum_property;
 use crate::prefixes::Feature;
 use crate::printer::Printer;

@@ -4,6 +4,7 @@ use super::{Property, PropertyId};
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
+use crate::lightningcss;
 use crate::macros::{define_shorthand, enum_property, shorthand_handler, shorthand_property};
 use crate::printer::Printer;
 use crate::targets::{Browsers, Targets};

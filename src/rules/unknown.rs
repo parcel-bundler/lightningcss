@@ -2,6 +2,7 @@
 
 use super::Location;
 use crate::error::PrinterError;
+use crate::lightningcss;
 use crate::printer::Printer;
 use crate::properties::custom::TokenList;
 use crate::traits::ToCss;

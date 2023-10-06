@@ -122,6 +122,7 @@ pub mod ui;
 
 use crate::declaration::DeclarationBlock;
 use crate::error::{ParserError, PrinterError};
+use crate::lightningcss;
 use crate::logical::{LogicalGroup, PropertyCategory};
 use crate::parser::starts_with_ignore_ascii_case;
 use crate::parser::ParserOptions;

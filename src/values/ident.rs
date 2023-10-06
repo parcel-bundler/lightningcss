@@ -1,6 +1,7 @@
 //! CSS identifiers.
 
 use crate::error::{ParserError, PrinterError};
+use crate::lightningcss;
 use crate::printer::Printer;
 use crate::properties::css_modules::Specifier;
 use crate::traits::{Parse, ParseWithOptions, ToCss};

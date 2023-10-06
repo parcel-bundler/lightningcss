@@ -1,5 +1,6 @@
 //! Types used to represent strings.
 
+use crate::lightningcss;
 use crate::traits::{Parse, ToCss};
 #[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};

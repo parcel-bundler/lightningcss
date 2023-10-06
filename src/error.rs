@@ -1,5 +1,6 @@
 //! Error types.
 
+use crate::lightningcss;
 use crate::properties::custom::Token;
 use crate::rules::Location;
 use crate::values::string::CowArcStr;

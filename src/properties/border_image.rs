@@ -3,6 +3,7 @@
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
+use crate::lightningcss;
 use crate::prefixes::Feature;
 use crate::printer::Printer;
 use crate::properties::{Property, PropertyId, VendorPrefix};

@@ -3,6 +3,7 @@
 use super::Location;
 use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
+use crate::lightningcss;
 use crate::parser::DefaultAtRule;
 use crate::printer::Printer;
 use crate::properties::PropertyId;
