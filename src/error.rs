@@ -3,6 +3,8 @@
 use crate::lightningcss;
 use crate::properties::custom::Token;
 use crate::rules::Location;
+#[cfg(feature = "into_owned")]
+use crate::traits::IntoOwned;
 use crate::values::string::CowArcStr;
 use cssparser::{BasicParseErrorKind, ParseError, ParseErrorKind};
 use parcel_selectors::parser::SelectorParseErrorKind;
