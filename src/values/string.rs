@@ -1,7 +1,7 @@
 //! Types used to represent strings.
 
 use crate::lightningcss;
-use crate::traits::{Parse, ToCss};
+use crate::traits::{IntoOwned, Parse, ToCss};
 #[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
 use cssparser::{serialize_string, CowRcStr};
@@ -130,9 +130,13 @@ impl<'a> CowArcStr<'a> {
       }
     }
   }
+}
+
+impl IntoOwned for CowArcStr<'_> {
+  type Owned = CowArcStr<'static>;
 
   /// Consumes the value and returns an owned clone.
-  pub fn into_owned<'x>(self) -> CowArcStr<'x> {
+  fn into_owned(self) -> Self::Owned {
     if self.borrowed_len_or_max != usize::MAX {
       CowArcStr::from(self.as_ref().to_owned())
     } else {
