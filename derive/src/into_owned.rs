@@ -121,7 +121,16 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
   let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
   let into_owned = if generics.lifetimes().next().is_none() {
-    panic!("can't derive IntoOwned on a type without any lifetimes")
+    quote! {
+      impl #impl_generics lightningcss::traits::IntoOwned for #self_name #ty_generics #where_clause {
+        type Owned = Self;
+
+        #[inline]
+        fn into_owned(self) -> Self {
+          self
+        }
+      }
+    }
   } else {
     let params = generics.type_params();
     quote! {
