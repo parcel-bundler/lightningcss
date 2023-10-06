@@ -16,6 +16,22 @@ pub trait IntoOwned {
   fn into_owned(self) -> Self;
 }
 
+macro_rules! impl_into_owned {
+  ($t: ty) => {
+    impl<'i> IntoOwned for $t {
+      #[inline]
+      fn into_owned(self) -> Self {
+        self
+      }
+    }
+  };
+  ($($t:ty),*) => {
+    $(impl_into_owned!($t);)*
+  };
+}
+
+impl_into_owned!(bool, f32, f64, u8, u16, u32, u64, u128, i8, i16, i32, i64, i128, usize, isize);
+
 /// Trait for things that can be parsed from CSS syntax.
 pub trait Parse<'i>: Sized {
   /// Parse a value of this type using an existing parser.
