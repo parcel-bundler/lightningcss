@@ -19,9 +19,12 @@ pub trait IntoOwned {
   fn into_owned(self) -> Self::Owned;
 }
 
+#[cfg(feature = "into_owned")]
 macro_rules! impl_into_owned {
   ($t: ty) => {
     impl<'i> IntoOwned for $t {
+      type Owned = Self;
+
       #[inline]
       fn into_owned(self) -> Self {
         self
@@ -33,6 +36,7 @@ macro_rules! impl_into_owned {
   };
 }
 
+#[cfg(feature = "into_owned")]
 impl_into_owned!(bool, f32, f64, u8, u16, u32, u64, u128, i8, i16, i32, i64, i128, usize, isize);
 
 /// Trait for things that can be parsed from CSS syntax.

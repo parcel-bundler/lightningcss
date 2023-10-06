@@ -1,5 +1,6 @@
 //! Media queries.
 use crate::error::{ErrorWithLocation, MinifyError, MinifyErrorKind, ParserError, PrinterError};
+#[cfg(feature = "into_owned")]
 use crate::lightningcss;
 use crate::macros::enum_property;
 use crate::parser::starts_with_ignore_ascii_case;
@@ -11,6 +12,8 @@ use crate::rules::custom_media::CustomMediaRule;
 use crate::rules::Location;
 use crate::stylesheet::ParserOptions;
 use crate::targets::{should_compile, Targets};
+#[cfg(feature = "into_owned")]
+use crate::traits::IntoOwned;
 use crate::traits::{Parse, ToCss};
 use crate::values::ident::{DashedIdent, Ident};
 use crate::values::number::{CSSInteger, CSSNumber};
