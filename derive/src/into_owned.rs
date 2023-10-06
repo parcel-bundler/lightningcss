@@ -105,6 +105,8 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
     }
   };
 
+  let orig_generics = generics.clone();
+
   // Add generic bounds for all type parameters.
   let mut type_param_names = vec![];
 
@@ -142,8 +144,9 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
   let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
   let into_owned = if !has_lifetime {
+    let (_, ty_generics, _) = orig_generics.split_for_impl();
     quote! {
-      impl #impl_generics lightningcss::traits::IntoOwned<'any> for #self_name #where_clause {
+      impl #impl_generics lightningcss::traits::IntoOwned<'any> for #self_name #ty_generics #where_clause {
         type Owned = Self;
 
         #[inline]
