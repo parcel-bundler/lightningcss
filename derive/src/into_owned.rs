@@ -1,11 +1,9 @@
-use std::f32::consts::E;
-
 use proc_macro::{self, TokenStream};
 use proc_macro2::Span;
 use quote::quote;
 use syn::{
-  parse_macro_input, parse_quote, Data, DataEnum, DeriveInput, Field, Fields, GenericArgument, Generics, Ident,
-  Member, PathArguments, Type,
+  parse_macro_input, parse_quote, Data, DataEnum, DeriveInput, Field, Fields, GenericArgument, Ident, Member,
+  PathArguments, Type,
 };
 
 pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
@@ -116,7 +114,7 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
 
   for type_param in type_param_names {
     generics.make_where_clause().predicates.push_value(parse_quote! {
-      #type_param: 'static + lightningcss::traits::IntoOwned
+      #type_param: 'static + for<'aa> lightningcss::traits::IntoOwned<'aa>
     })
   }
 
