@@ -1,3 +1,5 @@
+use std::f32::consts::E;
+
 use proc_macro::{self, TokenStream};
 use proc_macro2::Span;
 use quote::quote;
@@ -119,18 +121,24 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
   }
 
   // Prepend `'any` to generics
-  generics.params.insert(
-    0,
-    syn::GenericParam::Lifetime(syn::LifetimeDef {
-      attrs: Default::default(),
-      lifetime: syn::Lifetime {
-        apostrophe: Span::call_site(),
-        ident: Ident::new("any", Span::call_site()),
-      },
-      colon_token: None,
-      bounds: Default::default(),
-    }),
-  );
+  let any = syn::GenericParam::Lifetime(syn::LifetimeDef {
+    attrs: Default::default(),
+    lifetime: syn::Lifetime {
+      apostrophe: Span::call_site(),
+      ident: Ident::new("any", Span::call_site()),
+    },
+    colon_token: None,
+    bounds: Default::default(),
+  });
+  if generics
+    .params
+    .first()
+    .map_or(true, |v| !matches!(v, syn::GenericParam::Lifetime(..)))
+  {
+    generics.params.insert(0, any.clone());
+  } else {
+    generics.params[0] = any;
+  }
 
   let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 

@@ -11,9 +11,11 @@ use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 
 /// A trait for things that can be cloned with a new lifetime.
+///
+/// `'any` lifeitme means the output should have `'static` lifetime.
 #[cfg(feature = "into_owned")]
-pub trait IntoOwned {
-  type Owned: 'static;
+pub trait IntoOwned<'any> {
+  type Owned: 'any;
 
   /// Make lifetime of `self` `'static`.
   fn into_owned(self) -> Self::Owned;
@@ -22,7 +24,7 @@ pub trait IntoOwned {
 #[cfg(feature = "into_owned")]
 macro_rules! impl_into_owned {
   ($t: ty) => {
-    impl IntoOwned for $t {
+    impl<'a> IntoOwned<'a> for $t {
       type Owned = Self;
 
       #[inline]
