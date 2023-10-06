@@ -112,9 +112,10 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
   } else {
     let params = generics.type_params();
     quote! {
-      impl #impl_generics #self_name #ty_generics #where_clause {
+      impl #impl_generics lightningcss::traits::IntoOwned for #self_name #ty_generics #where_clause {
+        type Owned = #self_name<'staitc, #(#params),*>;
         /// Consumes the value and returns an owned clone.
-        pub fn into_owned<'x>(self) -> #self_name<'x, #(#params),*> {
+        fn into_owned(self) -> Self::Owned {
           #res
         }
       }
