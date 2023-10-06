@@ -11,6 +11,7 @@ use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 
 /// A trait for things that can be cloned with a new lifetime.
+#[cfg(feature = "into_owned")]
 pub trait IntoOwned {
   type Owned: 'static;
 
