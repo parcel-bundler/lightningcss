@@ -789,7 +789,7 @@ dependencies = [
 
 [[package]]
 name = "lightningcss"
-version = "1.0.0-alpha.47"
+version = "1.0.0-alpha.48"
 dependencies = [
  "ahash",
  "assert_cmd",
@@ -822,7 +822,7 @@ dependencies = [
 
 [[package]]
 name = "lightningcss-derive"
-version = "1.0.0-alpha.40"
+version = "1.0.0-alpha.41"
 dependencies = [
  "proc-macro2",
  "quote",
