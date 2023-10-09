@@ -180,6 +180,7 @@ impl<'i> UnparsedProperty<'i> {
   ) -> Result<super::Property<'x>, ()> {
     use super::Property;
     use crate::stylesheet::PrinterOptions;
+    use crate::traits::IntoOwned;
 
     // Substitute variables in the token list.
     self.value.substitute_variables(vars);

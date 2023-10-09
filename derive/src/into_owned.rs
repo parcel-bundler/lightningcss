@@ -2,15 +2,15 @@ use proc_macro::{self, TokenStream};
 use proc_macro2::Span;
 use quote::quote;
 use syn::{
-  parse_macro_input, Data, DataEnum, DeriveInput, Field, Fields, GenericArgument, Ident, Member, PathArguments,
-  Type,
+  parse_macro_input, parse_quote, Data, DataEnum, DeriveInput, Field, Fields, GenericArgument, Ident, Member,
+  PathArguments, Type,
 };
 
 pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
   let DeriveInput {
     ident: self_name,
     data,
-    generics,
+    mut generics,
     ..
   } = parse_macro_input!(input);
 
@@ -105,16 +105,61 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
     }
   };
 
-  let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+  let orig_generics = generics.clone();
 
-  let into_owned = if generics.lifetimes().next().is_none() {
-    panic!("can't derive IntoOwned on a type without any lifetimes")
+  // Add generic bounds for all type parameters.
+  let mut type_param_names = vec![];
+
+  for ty in generics.type_params() {
+    type_param_names.push(ty.ident.clone());
+  }
+
+  for type_param in type_param_names {
+    generics.make_where_clause().predicates.push_value(parse_quote! {
+      #type_param: 'static + for<'aa> crate::traits::IntoOwned<'aa>
+    })
+  }
+
+  let has_lifetime = generics
+    .params
+    .first()
+    .map_or(false, |v| matches!(v, syn::GenericParam::Lifetime(..)));
+
+  // Prepend `'any` to generics
+  let any = syn::GenericParam::Lifetime(syn::LifetimeDef {
+    attrs: Default::default(),
+    lifetime: syn::Lifetime {
+      apostrophe: Span::call_site(),
+      ident: Ident::new("any", Span::call_site()),
+    },
+    colon_token: None,
+    bounds: Default::default(),
+  });
+  generics.params.insert(0, any.clone());
+
+  let (impl_generics, _, where_clause) = generics.split_for_impl();
+  let (_, ty_generics, _) = orig_generics.split_for_impl();
+
+  let into_owned = if !has_lifetime {
+    quote! {
+      impl #impl_generics crate::traits::IntoOwned<'any> for #self_name #ty_generics #where_clause {
+        type Owned = Self;
+
+        #[inline]
+        fn into_owned(self) -> Self {
+          self
+        }
+      }
+    }
   } else {
     let params = generics.type_params();
     quote! {
-      impl #impl_generics #self_name #ty_generics #where_clause {
+      impl #impl_generics crate::traits::IntoOwned<'any> for #self_name #ty_generics #where_clause {
+        type Owned = #self_name<'any, #(#params),*>;
         /// Consumes the value and returns an owned clone.
-        pub fn into_owned<'x>(self) -> #self_name<'x, #(#params),*> {
+        fn into_owned(self) -> Self::Owned {
+          use crate::traits::IntoOwned;
+
           #res
         }
       }

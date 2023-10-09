@@ -129,9 +129,14 @@ impl<'a> CowArcStr<'a> {
       }
     }
   }
+}
+
+#[cfg(feature = "into_owned")]
+impl<'any> crate::traits::IntoOwned<'any> for CowArcStr<'_> {
+  type Owned = CowArcStr<'any>;
 
   /// Consumes the value and returns an owned clone.
-  pub fn into_owned<'x>(self) -> CowArcStr<'x> {
+  fn into_owned(self) -> Self::Owned {
     if self.borrowed_len_or_max != usize::MAX {
       CowArcStr::from(self.as_ref().to_owned())
     } else {

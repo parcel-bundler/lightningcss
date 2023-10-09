@@ -10,6 +10,38 @@ use crate::targets::{Browsers, Targets};
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
 
+/// A trait for things that can be cloned with a new lifetime.
+///
+/// `'any` lifeitme means the output should have `'static` lifetime.
+#[cfg(feature = "into_owned")]
+pub trait IntoOwned<'any> {
+  /// A variant of `Self` with a new lifetime.
+  type Owned: 'any;
+
+  /// Make lifetime of `self` `'static`.
+  fn into_owned(self) -> Self::Owned;
+}
+
+#[cfg(feature = "into_owned")]
+macro_rules! impl_into_owned {
+  ($t: ty) => {
+    impl<'a> IntoOwned<'a> for $t {
+      type Owned = Self;
+
+      #[inline]
+      fn into_owned(self) -> Self {
+        self
+      }
+    }
+  };
+  ($($t:ty),*) => {
+    $(impl_into_owned!($t);)*
+  };
+}
+
+#[cfg(feature = "into_owned")]
+impl_into_owned!(bool, f32, f64, u8, u16, u32, u64, u128, i8, i16, i32, i64, i128, usize, isize);
+
 /// Trait for things that can be parsed from CSS syntax.
 pub trait Parse<'i>: Sized {
   /// Parse a value of this type using an existing parser.

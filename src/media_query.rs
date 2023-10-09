@@ -1,5 +1,4 @@
 //! Media queries.
-
 use crate::error::{ErrorWithLocation, MinifyError, MinifyErrorKind, ParserError, PrinterError};
 use crate::macros::enum_property;
 use crate::parser::starts_with_ignore_ascii_case;
@@ -11,6 +10,8 @@ use crate::rules::custom_media::CustomMediaRule;
 use crate::rules::Location;
 use crate::stylesheet::ParserOptions;
 use crate::targets::{should_compile, Targets};
+#[cfg(feature = "into_owned")]
+use crate::traits::IntoOwned;
 use crate::traits::{Parse, ToCss};
 use crate::values::ident::{DashedIdent, Ident};
 use crate::values::number::{CSSInteger, CSSNumber};
@@ -1257,6 +1258,7 @@ macro_rules! define_query_features {
 pub(crate) use define_query_features;
 
 define_query_features! {
+  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
   /// A media query feature identifier.
   pub enum MediaFeatureId {
     /// The [width](https://w3c.github.io/csswg-drafts/mediaqueries-5/#width) media feature.
