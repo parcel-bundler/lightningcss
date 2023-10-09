@@ -1,8 +1,6 @@
 //! Types used to represent strings.
 
-#[cfg(not(doctest))]
-use crate::lightningcss;
-use crate::traits::{IntoOwned, Parse, ToCss};
+use crate::traits::{Parse, ToCss};
 #[cfg(feature = "visitor")]
 use crate::visitor::{Visit, VisitTypes, Visitor};
 use cssparser::{serialize_string, CowRcStr};
@@ -133,7 +131,8 @@ impl<'a> CowArcStr<'a> {
   }
 }
 
-impl<'any> IntoOwned<'any> for CowArcStr<'_> {
+#[cfg(feature = "into_owned")]
+impl<'any> crate::traits::IntoOwned<'any> for CowArcStr<'_> {
   type Owned = CowArcStr<'any>;
 
   /// Consumes the value and returns an owned clone.

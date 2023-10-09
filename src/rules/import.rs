@@ -5,8 +5,6 @@ use super::supports::SupportsCondition;
 use super::Location;
 use crate::dependencies::{Dependency, ImportDependency};
 use crate::error::PrinterError;
-#[cfg(not(doctest))]
-use crate::lightningcss;
 use crate::media_query::MediaList;
 use crate::printer::Printer;
 use crate::traits::ToCss;

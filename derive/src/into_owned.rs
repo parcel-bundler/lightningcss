@@ -116,7 +116,7 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
 
   for type_param in type_param_names {
     generics.make_where_clause().predicates.push_value(parse_quote! {
-      #type_param: 'static + for<'aa> lightningcss::traits::IntoOwned<'aa>
+      #type_param: 'static + for<'aa> crate::traits::IntoOwned<'aa>
     })
   }
 
@@ -142,7 +142,7 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
 
   let into_owned = if !has_lifetime {
     quote! {
-      impl #impl_generics lightningcss::traits::IntoOwned<'any> for #self_name #ty_generics #where_clause {
+      impl #impl_generics crate::traits::IntoOwned<'any> for #self_name #ty_generics #where_clause {
         type Owned = Self;
 
         #[inline]
@@ -154,11 +154,11 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
   } else {
     let params = generics.type_params();
     quote! {
-      impl #impl_generics lightningcss::traits::IntoOwned<'any> for #self_name #ty_generics #where_clause {
+      impl #impl_generics crate::traits::IntoOwned<'any> for #self_name #ty_generics #where_clause {
         type Owned = #self_name<'any, #(#params),*>;
         /// Consumes the value and returns an owned clone.
         fn into_owned(self) -> Self::Owned {
-          use lightningcss::traits::IntoOwned;
+          use crate::traits::IntoOwned;
 
           #res
         }

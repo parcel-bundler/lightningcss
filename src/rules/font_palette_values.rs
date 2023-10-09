@@ -3,8 +3,6 @@
 use super::supports::SupportsRule;
 use super::{CssRule, CssRuleList, Location, MinifyContext};
 use crate::error::{ParserError, PrinterError};
-#[cfg(not(doctest))]
-use crate::lightningcss;
 use crate::printer::Printer;
 use crate::properties::custom::CustomProperty;
 use crate::properties::font::FontFamily;

@@ -6,8 +6,6 @@ use super::PropertyId;
 use crate::context::PropertyHandlerContext;
 use crate::declaration::{DeclarationBlock, DeclarationList};
 use crate::error::{ParserError, PrinterError};
-#[cfg(not(doctest))]
-use crate::lightningcss;
 use crate::macros::{define_list_shorthand, define_shorthand, enum_property, property_bitflags};
 use crate::prefixes::Feature;
 use crate::printer::Printer;

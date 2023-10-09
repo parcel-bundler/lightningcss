@@ -1,8 +1,6 @@
 //! CSS properties used in SVG.
 
 use crate::error::{ParserError, PrinterError};
-#[cfg(not(doctest))]
-use crate::lightningcss;
 use crate::macros::enum_property;
 use crate::printer::Printer;
 use crate::targets::{Browsers, Targets};

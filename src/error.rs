@@ -1,7 +1,5 @@
 //! Error types.
 
-#[cfg(not(doctest))]
-use crate::lightningcss;
 use crate::properties::custom::Token;
 use crate::rules::Location;
 #[cfg(feature = "into_owned")]

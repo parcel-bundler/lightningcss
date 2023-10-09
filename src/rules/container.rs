@@ -5,8 +5,6 @@ use cssparser::*;
 use super::Location;
 use super::{CssRuleList, MinifyContext};
 use crate::error::{MinifyError, ParserError, PrinterError};
-#[cfg(not(doctest))]
-use crate::lightningcss;
 use crate::media_query::{
   define_query_features, operation_to_css, parse_query_condition, to_css_with_parens_if_needed, FeatureToCss,
   MediaFeatureType, Operator, QueryCondition, QueryConditionFlags, QueryFeature, ValueType,
