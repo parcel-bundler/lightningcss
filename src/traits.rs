@@ -42,6 +42,30 @@ macro_rules! impl_into_owned {
 #[cfg(feature = "into_owned")]
 impl_into_owned!(bool, f32, f64, u8, u16, u32, u64, u128, i8, i16, i32, i64, i128, usize, isize);
 
+#[cfg(feature = "into_owned")]
+impl<'any, T> IntoOwned<'any> for Vec<T>
+where
+  T: for<'aa> IntoOwned<'aa>,
+{
+  type Owned = Vec<<T as IntoOwned<'any>>::Owned>;
+
+  fn into_owned(self) -> Self::Owned {
+    self.into_iter().map(|v| v.into_owned()).collect()
+  }
+}
+
+#[cfg(feature = "into_owned")]
+impl<'any, T> IntoOwned<'any> for SmallVec<T>
+where
+  T: for<'aa> IntoOwned<'aa>,
+{
+  type Owned = Vec<<T as IntoOwned<'any>>::Owned>;
+
+  fn into_owned(self) -> Self::Owned {
+    self.into_iter().map(|v| v.into_owned()).collect()
+  }
+}
+
 /// Trait for things that can be parsed from CSS syntax.
 pub trait Parse<'i>: Sized {
   /// Parse a value of this type using an existing parser.

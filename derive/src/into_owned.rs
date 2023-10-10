@@ -184,9 +184,7 @@ fn into_owned(ty: &Type, name: proc_macro2::TokenStream) -> proc_macro2::TokenSt
             _ => quote! { #v.into_owned() },
           };
           quote! { #name.map(|#v| #into_owned) }
-        } else if last.ident == "Vec"
-          || last.ident == "SmallVec"
-          || last.ident == "CustomIdentList"
+        } else if last.ident == "CustomIdentList"
           || last.ident == "AnimationList"
           || last.ident == "AnimationNameList"
         {
