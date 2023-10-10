@@ -23,6 +23,7 @@ use crate::visitor::Visit;
   serde(rename_all = "camelCase")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 pub struct ScopeRule<'i, R = DefaultAtRule> {
   /// A selector list used to identify the scoping root(s).
   pub scope_start: Option<SelectorList<'i>>,

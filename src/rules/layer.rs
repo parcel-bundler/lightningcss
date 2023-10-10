@@ -116,6 +116,7 @@ impl<'i> ToCss for LayerStatementRule<'i> {
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
 pub struct LayerBlockRule<'i, R = DefaultAtRule> {
   /// The name of the layer to declare, or `None` to declare an anonymous layer.
   #[cfg_attr(feature = "serde", serde(borrow))]
