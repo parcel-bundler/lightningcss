@@ -152,7 +152,15 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
       }
     }
   } else {
-    let params = generics.type_params();
+    let mut generics_without_default = generics.clone();
+
+    for p in generics_without_default.params.iter_mut() {
+      if let syn::GenericParam::Type(ty) = p {
+        ty.default = None;
+      }
+    }
+
+    let params = generics_without_default.type_params();
     quote! {
       impl #impl_generics crate::traits::IntoOwned<'any> for #self_name #ty_generics #where_clause {
         type Owned = #self_name<'any, #(#params),*>;
