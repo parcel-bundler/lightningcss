@@ -717,7 +717,9 @@ where
 {
   type Owned = Selector<'any, <Impl as static_self::IntoOwned<'any>>::Owned>;
 
-  fn into_owned(self) -> Self::Owned {}
+  fn into_owned(self) -> Self::Owned {
+    Selector(self.0, self.1.into_owned())
+  }
 }
 
 impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
@@ -1141,6 +1143,7 @@ impl<'a, 'i, Impl: SelectorImpl<'i>> Iterator for AncestorIter<'a, 'i, Impl> {
   serde(rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum Combinator {
   Child,        //  >
   Descendant,   // space
@@ -1453,6 +1456,57 @@ pub enum Component<'i, Impl: SelectorImpl<'i>> {
   ///
   /// NOTE: This is a lightningcss addition.
   Nesting,
+}
+
+#[cfg(feature = "into_owned")]
+impl<'any, 'i, Impl: SelectorImpl<'i>> static_self::IntoOwned<'any> for Component<'i, Impl>
+where
+  Impl: static_self::IntoOwned<'any>,
+  <Impl as static_self::IntoOwned<'any>>::Owned: SelectorImpl<'any>,
+{
+  type Owned = Component<'any, <Impl as static_self::IntoOwned<'any>>::Owned>;
+
+  fn into_owned(self) -> Self::Owned {
+    match self {
+      Component::Combinator(c) => Component::Combinator(c.into_owned()),
+      Component::ExplicitAnyNamespace => Component::ExplicitAnyNamespace,
+      Component::ExplicitNoNamespace => Component::ExplicitNoNamespace,
+      Component::DefaultNamespace(c) => c.into_owned(),
+      Component::Namespace(a, b) => {}
+      Component::ExplicitUniversalType => {}
+      Component::LocalName(c) => c.into_owned(),
+      Component::ID(c) => c.into_owned(),
+      Component::Class(c) => c.into_owned(),
+      Component::AttributeInNoNamespaceExists {
+        local_name,
+        local_name_lower,
+      } => {}
+      Component::AttributeInNoNamespace {
+        local_name,
+        operator,
+        value,
+        case_sensitivity,
+        never_matches,
+      } => {}
+      Component::AttributeOther(c) => c.into_owned(),
+      Component::Negation(c) => c.into_owned(),
+      Component::Root => {}
+      Component::Empty => {}
+      Component::Scope => {}
+      Component::Nth(c) => c.into_owned(),
+      Component::NthOf(c) => c.into_owned(),
+      Component::NonTSPseudoClass(c) => c.into_owned(),
+      Component::Slotted(c) => c.into_owned(),
+      Component::Part(c) => c.into_owned(),
+      Component::Host(c) => c.into_owned(),
+      Component::Where(c) => c.into_owned(),
+      Component::Is(c) => c.into_owned(),
+      Component::Any(_, _) => {}
+      Component::Has(c) => c.into_owned(),
+      Component::PseudoElement(c) => c.into_owned(),
+      Component::Nesting => {}
+    }
+  }
 }
 
 impl<'i, Impl: SelectorImpl<'i>> Component<'i, Impl> {
