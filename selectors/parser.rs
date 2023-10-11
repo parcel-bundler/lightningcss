@@ -385,7 +385,7 @@ impl<'any, 'i, Impl: SelectorImpl<'i>, NewSel> static_self::IntoOwned<'any> for 
 where
   Impl: static_self::IntoOwned<'any, Owned = NewSel>,
   NewSel: SelectorImpl<'any>,
-  Selector<'i, Impl>: static_self::IntoOwned<'any, Owned = Selector<'any, NewSel>>,
+  Vec<Component<'i, Impl>>: static_self::IntoOwned<'any, Owned = Vec<Component<'any, NewSel>>>,
 {
   type Owned = SelectorList<'any, NewSel>;
 
