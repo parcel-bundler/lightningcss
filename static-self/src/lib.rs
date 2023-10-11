@@ -73,3 +73,19 @@ where
     self.into_iter().map(|v| v.into_owned()).collect()
   }
 }
+
+impl<'any, T, const N: usize> IntoOwned<'any> for [T; N]
+where
+  T: for<'aa> IntoOwned<'aa>,
+{
+  type Owned = [<T as IntoOwned<'any>>::Owned; N];
+
+  fn into_owned(self) -> Self::Owned {
+    self
+      .into_iter()
+      .map(|v| v.into_owned())
+      .collect::<Vec<_>>()
+      .try_into()
+      .unwrap_or_else(|_| unreachable!("Vec<T> with N elements should be able to be converted to [T; N]"))
+  }
+}
