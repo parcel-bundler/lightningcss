@@ -24,6 +24,7 @@ where
   Impl::LocalName: static_self::IntoOwned<'any, Owned = NewSel::LocalName>,
   Impl::NamespacePrefix: static_self::IntoOwned<'any, Owned = NewSel::NamespacePrefix>,
   Impl::NamespaceUrl: static_self::IntoOwned<'any, Owned = NewSel::NamespaceUrl>,
+  Impl::AttrValue: static_self::IntoOwned<'any, Owned = NewSel::AttrValue>,
 {
   type Owned = AttrSelectorWithOptionalNamespace<'any, NewSel>;
 
