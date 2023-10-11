@@ -1676,6 +1676,23 @@ pub struct LocalName<'i, Impl: SelectorImpl<'i>> {
   pub lower_name: Impl::LocalName,
 }
 
+#[cfg(feature = "into_owned")]
+impl<'any, 'i, Impl: SelectorImpl<'i>, NewSel> static_self::IntoOwned<'any> for LocalName<'i, Impl>
+where
+  Impl: static_self::IntoOwned<'any, Owned = NewSel>,
+  NewSel: SelectorImpl<'any>,
+  Impl::LocalName: static_self::IntoOwned<'any, Owned = NewSel::LocalName>,
+{
+  type Owned = LocalName<'any, NewSel>;
+
+  fn into_owned(self) -> Self::Owned {
+    LocalName {
+      name: self.name.into_owned(),
+      lower_name: self.lower_name.into_owned(),
+    }
+  }
+}
+
 impl<'i, Impl: SelectorImpl<'i>> Debug for Selector<'i, Impl> {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     f.write_str("Selector(")?;
