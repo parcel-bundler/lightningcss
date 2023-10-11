@@ -1060,6 +1060,7 @@ dependencies = [
  "schemars",
  "serde",
  "smallvec",
+ "static-self",
 ]
 
 [[package]]
