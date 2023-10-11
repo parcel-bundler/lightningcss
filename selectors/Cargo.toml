@@ -28,6 +28,7 @@ precomputed-hash = "0.1"
 smallvec = "1.0"
 serde = { version = "1.0.123", features = ["derive"], optional = true }
 schemars = { version = "0.8.11", features = ["smallvec"], optional = true }
+static-self = { version = "0.1.0", path = "../static-self" }
 
 [build-dependencies]
 phf_codegen = "0.10"
