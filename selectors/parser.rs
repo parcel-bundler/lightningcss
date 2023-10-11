@@ -1488,6 +1488,7 @@ where
   Impl::Identifier: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::Identifier>,
   Impl::LocalName: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::LocalName>,
   Impl::AttrValue: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::AttrValue>,
+  Impl::NonTSPseudoClass: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::NonTSPseudoClass>,
   Impl::PseudoElement: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::PseudoElement>,
   Impl::VendorPrefix: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::VendorPrefix>,
 {
