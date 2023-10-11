@@ -41,7 +41,7 @@ nodejs = ["dep:serde"]
 serde = ["dep:serde", "smallvec/serde", "cssparser/serde", "parcel_selectors/serde", "into_owned"]
 sourcemap = ["parcel_sourcemap"]
 visitor = ["lightningcss-derive"]
-into_owned = ["static-self"]
+into_owned = ["static-self", "static-self/smallvec"]
 substitute_variables = ["visitor", "into_owned"]
 
 [dependencies]
