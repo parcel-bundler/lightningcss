@@ -29,6 +29,42 @@ macro_rules! impl_into_owned {
 
 impl_into_owned!(bool, f32, f64, u8, u16, u32, u64, u128, i8, i16, i32, i64, i128, usize, isize);
 
+macro_rules! impl_tuple {
+  (
+    $($name:ident),*
+  ) =>{
+    #[allow(non_snake_case)]
+    impl<'any, $($name,)*> IntoOwned<'any> for ($($name,)*)
+    where
+        $($name: IntoOwned<'any>),*
+    {
+      type Owned = ($(<$name as IntoOwned<'any>>::Owned,)*);
+
+      #[inline]
+      fn into_owned(self) -> Self::Owned {
+        let ($($name,)*) = self;
+        ($($name.into_owned(),)*)
+      }
+    }
+  };
+}
+
+macro_rules! call_impl_tuple {
+  () => {};
+  ($first:ident) => {
+    impl_tuple!($first);
+  };
+  (
+    $first:ident,
+    $($name:ident),*
+  ) => {
+    call_impl_tuple!($($name),*);
+    impl_tuple!($first, $($name),*);
+  };
+}
+
+call_impl_tuple!(A, B, C, D, E, F, G, H, I, J, K, L);
+
 impl<'any, T> IntoOwned<'any> for Vec<T>
 where
   T: IntoOwned<'any>,
