@@ -63,7 +63,7 @@ where
 #[cfg(feature = "smallvec")]
 impl<'any, T, const N: usize> IntoOwned<'any> for smallvec::SmallVec<[T; N]>
 where
-  T: for<'aa> IntoOwned<'aa>,
+  T: IntoOwned<'any>,
   [T; N]: smallvec::Array<Item = T>,
   [<T as IntoOwned<'any>>::Owned; N]: smallvec::Array<Item = <T as IntoOwned<'any>>::Owned>,
 {
@@ -76,7 +76,7 @@ where
 
 impl<'any, T, const N: usize> IntoOwned<'any> for [T; N]
 where
-  T: for<'aa> IntoOwned<'aa>,
+  T: IntoOwned<'any>,
 {
   type Owned = [<T as IntoOwned<'any>>::Owned; N];
 
