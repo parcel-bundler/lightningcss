@@ -37,6 +37,26 @@ where
     self.into_iter().map(|v| v.into_owned()).collect()
   }
 }
+impl<'any, T> IntoOwned<'any> for Option<T>
+where
+  T: for<'aa> IntoOwned<'aa>,
+{
+  type Owned = Option<<T as IntoOwned<'any>>::Owned>;
+
+  fn into_owned(self) -> Self::Owned {
+    self.map(|v| v.into_owned())
+  }
+}
+impl<'any, T> IntoOwned<'any> for Box<T>
+where
+  T: for<'aa> IntoOwned<'aa>,
+{
+  type Owned = Box<<T as IntoOwned<'any>>::Owned>;
+
+  fn into_owned(self) -> Self::Owned {
+    Box::new((*self).into_owned())
+  }
+}
 
 #[cfg(feature = "smallvec")]
 impl<'any, T, const N: usize> IntoOwned<'any> for SmallVec<[T; N]>
