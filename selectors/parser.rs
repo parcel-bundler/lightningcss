@@ -1465,7 +1465,8 @@ impl<'any, 'i, Impl: SelectorImpl<'i>, Sel> static_self::IntoOwned<'any> for Com
 where
   Impl: static_self::IntoOwned<'any, Owned = Sel>,
   Sel: SelectorImpl<'any>,
-  Sel::NamespaceUrl: for<'aa> static_self::IntoOwned<'aa>,
+  Impl::NamespaceUrl: for<'aa> static_self::IntoOwned<'aa, Owned = Sel::NamespaceUrl>,
+  Impl::NamespacePrefix: for<'aa> static_self::IntoOwned<'aa, Owned = Sel::NamespacePrefix>,
 {
   type Owned = Component<'any, Sel>;
 
