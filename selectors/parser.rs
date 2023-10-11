@@ -1350,7 +1350,7 @@ impl<'any, 'i, Impl: SelectorImpl<'i>, NewSel> static_self::IntoOwned<'any> for 
 where
   Impl: static_self::IntoOwned<'any, Owned = NewSel>,
   NewSel: SelectorImpl<'any>,
-  Impl::LocalName: static_self::IntoOwned<'any, Owned = NewSel::LocalName>,
+  Component<'i, Impl>: static_self::IntoOwned<'any, Owned = Component<'any, NewSel>>,
 {
   type Owned = NthOfSelectorData<'any, NewSel>;
 
