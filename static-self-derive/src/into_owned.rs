@@ -116,7 +116,7 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
 
   for type_param in type_param_names {
     generics.make_where_clause().predicates.push_value(parse_quote! {
-      #type_param: 'static + for<'aa> ::static_self::IntoOwned<'aa>
+      #type_param: 'static + ::static_self::IntoOwned<'any>
     })
   }
 
