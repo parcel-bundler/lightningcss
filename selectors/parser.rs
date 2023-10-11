@@ -381,12 +381,13 @@ pub struct SelectorList<'i, Impl: SelectorImpl<'i>>(
 );
 
 #[cfg(feature = "into_owned")]
-impl<'any, 'i, Impl: SelectorImpl<'i>> static_self::IntoOwned<'any> for SelectorList<'i, Impl>
+impl<'any, 'i, Impl: SelectorImpl<'i>, NewSel> static_self::IntoOwned<'any> for SelectorList<'i, Impl>
 where
-  Impl: static_self::IntoOwned<'any>,
-  <Impl as static_self::IntoOwned<'any>>::Owned: SelectorImpl<'any>,
+  Impl: static_self::IntoOwned<'any, Owned = NewSel>,
+  NewSel: SelectorImpl<'any>,
+  Selector<'i, Impl>: static_self::IntoOwned<'any, Owned = Selector<'any, NewSel>>,
 {
-  type Owned = SelectorList<'any, <Impl as static_self::IntoOwned<'any>>::Owned>;
+  type Owned = SelectorList<'any, NewSel>;
 
   fn into_owned(self) -> Self::Owned {
     SelectorList(self.0.into_iter().map(|s| s.into_owned()).collect())
@@ -712,12 +713,13 @@ pub fn namespace_empty_string<'i, Impl: SelectorImpl<'i>>() -> Impl::NamespaceUr
 pub struct Selector<'i, Impl: SelectorImpl<'i>>(SpecificityAndFlags, Vec<Component<'i, Impl>>);
 
 #[cfg(feature = "into_owned")]
-impl<'any, 'i, Impl: SelectorImpl<'i>> static_self::IntoOwned<'any> for Selector<'i, Impl>
+impl<'any, 'i, Impl: SelectorImpl<'i>, NewSel> static_self::IntoOwned<'any> for Selector<'i, Impl>
 where
-  Impl: static_self::IntoOwned<'any>,
-  <Impl as static_self::IntoOwned<'any>>::Owned: SelectorImpl<'any>,
+  Impl: static_self::IntoOwned<'any, Owned = NewSel>,
+  NewSel: SelectorImpl<'any>,
+  Vec<Component<'i, Impl>>: static_self::IntoOwned<'any, Owned = Vec<Component<'any, NewSel>>>,
 {
-  type Owned = Selector<'any, <Impl as static_self::IntoOwned<'any>>::Owned>;
+  type Owned = Selector<'any, NewSel>;
 
   fn into_owned(self) -> Self::Owned {
     Selector(self.0, self.1.into_owned())
