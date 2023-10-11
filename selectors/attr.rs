@@ -15,6 +15,27 @@ pub struct AttrSelectorWithOptionalNamespace<'i, Impl: SelectorImpl<'i>> {
   pub never_matches: bool,
 }
 
+#[cfg(feature = "into_owned")]
+impl<'any, 'i, Impl: SelectorImpl<'i>, NewSel> static_self::IntoOwned<'any>
+  for AttrSelectorWithOptionalNamespace<'i, Impl>
+where
+  Impl: static_self::IntoOwned<'any, Owned = NewSel>,
+  NewSel: SelectorImpl<'any>,
+  Impl::LocalName: static_self::IntoOwned<'any, Owned = NewSel::LocalName>,
+{
+  type Owned = AttrSelectorWithOptionalNamespace<'any, NewSel>;
+
+  fn into_owned(self) -> Self::Owned {
+    AttrSelectorWithOptionalNamespace {
+      namespace: self.namespace.into_owned(),
+      local_name: self.local_name.into_owned(),
+      local_name_lower: self.local_name_lower.into_owned(),
+      operation: self.operation,
+      never_matches: self.never_matches,
+    }
+  }
+}
+
 impl<'i, Impl: SelectorImpl<'i>> AttrSelectorWithOptionalNamespace<'i, Impl> {
   pub fn namespace(&self) -> Option<NamespaceConstraint<&Impl::NamespaceUrl>> {
     self.namespace.as_ref().map(|ns| match ns {

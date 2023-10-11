@@ -1471,6 +1471,7 @@ where
   Impl::NamespacePrefix: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::NamespacePrefix>,
   Impl::Identifier: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::Identifier>,
   Impl::LocalName: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::LocalName>,
+  Impl::AttrValue: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::AttrValue>,
 {
   type Owned = Component<'any, NewSel>;
 
