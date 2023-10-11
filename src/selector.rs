@@ -47,7 +47,7 @@ fn _assert_into_owned() {
   // Ensure that we provide into_owned
 
   use static_self::IntoOwned;
-  fn _assert<T: IntoOwned>() {}
+  fn _assert<'any, T: IntoOwned<'any>>() {}
 
   _assert::<SelectorList>();
 }
@@ -959,6 +959,7 @@ pub enum WebKitScrollbarPseudoElement {
 
 /// A [view transition part name](https://w3c.github.io/csswg-drafts/css-view-transitions-1/#typedef-pt-name-selector).
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum ViewTransitionPartName<'i> {
   /// *
   All,
