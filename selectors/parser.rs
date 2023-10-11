@@ -385,12 +385,12 @@ impl<'any, 'i, Impl: SelectorImpl<'i>, NewSel> static_self::IntoOwned<'any> for 
 where
   Impl: static_self::IntoOwned<'any, Owned = NewSel>,
   NewSel: SelectorImpl<'any>,
-  Vec<Component<'i, Impl>>: static_self::IntoOwned<'any, Owned = Vec<Component<'any, NewSel>>>,
+  Component<'i, Impl>: static_self::IntoOwned<'any, Owned = Component<'any, NewSel>>,
 {
   type Owned = SelectorList<'any, NewSel>;
 
   fn into_owned(self) -> Self::Owned {
-    SelectorList(self.0.into_iter().map(|s| s.into_owned()).collect())
+    SelectorList(self.0.into_owned())
   }
 }
 
@@ -717,7 +717,7 @@ impl<'any, 'i, Impl: SelectorImpl<'i>, NewSel> static_self::IntoOwned<'any> for 
 where
   Impl: static_self::IntoOwned<'any, Owned = NewSel>,
   NewSel: SelectorImpl<'any>,
-  Vec<Component<'i, Impl>>: static_self::IntoOwned<'any, Owned = Vec<Component<'any, NewSel>>>,
+  Component<'i, Impl>: static_self::IntoOwned<'any, Owned = Component<'any, NewSel>>,
 {
   type Owned = Selector<'any, NewSel>;
 
