@@ -18,6 +18,7 @@ path = "lib.rs"
 bench = []
 jsonschema = ["serde", "schemars"]
 into_owned = ["static-self"]
+smallvec = ["into_owned"]
 
 [dependencies]
 bitflags = "2.2.1"
