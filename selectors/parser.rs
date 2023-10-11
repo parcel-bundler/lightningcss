@@ -16,6 +16,7 @@ use cssparser::{CowRcStr, Delimiter, SourceLocation};
 use cssparser::{Parser as CssParser, ToCss, Token};
 use precomputed_hash::PrecomputedHash;
 use smallvec::{smallvec, SmallVec};
+use static_self::IntoOwned;
 use std::borrow::Borrow;
 use std::fmt::{self, Debug};
 use std::iter::Rev;
@@ -1463,6 +1464,7 @@ impl<'any, 'i, Impl: SelectorImpl<'i>, Sel> static_self::IntoOwned<'any> for Com
 where
   Impl: static_self::IntoOwned<'any, Owned = Sel>,
   Sel: SelectorImpl<'any>,
+  Sel::NamespaceUrl: for<'aa> IntoOwned<'aa>,
 {
   type Owned = Component<'any, Sel>;
 
@@ -1472,39 +1474,51 @@ where
       Component::ExplicitAnyNamespace => Component::ExplicitAnyNamespace,
       Component::ExplicitNoNamespace => Component::ExplicitNoNamespace,
       Component::DefaultNamespace(c) => Component::DefaultNamespace(c.into_owned()),
-      Component::Namespace(a, b) => {}
-      Component::ExplicitUniversalType => {}
-      Component::LocalName(c) => c.into_owned(),
-      Component::ID(c) => c.into_owned(),
-      Component::Class(c) => c.into_owned(),
+      Component::Namespace(a, b) => Component::Namespace(a.into_owned(), b.into_owned()),
+      Component::ExplicitUniversalType => Component::ExplicitUniversalType,
+      Component::LocalName(c) => Component::LocalName(c.into_owned()),
+      Component::ID(c) => Component::ID(c.into_owned()),
+      Component::Class(c) => Component::Class(c.into_owned()),
       Component::AttributeInNoNamespaceExists {
         local_name,
         local_name_lower,
-      } => {}
+      } => Component::AttributeInNoNamespaceExists {
+        local_name: local_name.into_owned(),
+        local_name_lower: local_name_lower.into_owned(),
+      },
       Component::AttributeInNoNamespace {
         local_name,
         operator,
         value,
         case_sensitivity,
         never_matches,
-      } => {}
-      Component::AttributeOther(c) => c.into_owned(),
-      Component::Negation(c) => c.into_owned(),
-      Component::Root => {}
-      Component::Empty => {}
-      Component::Scope => {}
-      Component::Nth(c) => c.into_owned(),
-      Component::NthOf(c) => c.into_owned(),
-      Component::NonTSPseudoClass(c) => c.into_owned(),
-      Component::Slotted(c) => c.into_owned(),
-      Component::Part(c) => c.into_owned(),
-      Component::Host(c) => c.into_owned(),
-      Component::Where(c) => c.into_owned(),
-      Component::Is(c) => c.into_owned(),
-      Component::Any(_, _) => {}
-      Component::Has(c) => c.into_owned(),
-      Component::PseudoElement(c) => c.into_owned(),
-      Component::Nesting => {}
+      } => {
+        let value = value.into_owned();
+        Component::AttributeInNoNamespace {
+          local_name: local_name.into_owned(),
+          operator,
+          value,
+          case_sensitivity,
+          never_matches,
+        }
+      }
+      Component::AttributeOther(c) => Component::AttributeOther(c.into_owned()),
+      Component::Negation(c) => Component::Negation(c.into_owned()),
+      Component::Root => Component::Root,
+      Component::Empty => Component::Empty,
+      Component::Scope => Component::Scope,
+      Component::Nth(c) => Component::Nth(c.into_owned()),
+      Component::NthOf(c) => Component::NthOf(c.into_owned()),
+      Component::NonTSPseudoClass(c) => Component::NonTSPseudoClass(c.into_owned()),
+      Component::Slotted(c) => Component::Slotted(c.into_owned()),
+      Component::Part(c) => Component::Part(c.into_owned()),
+      Component::Host(c) => Component::Host(c.into_owned()),
+      Component::Where(c) => Component::Where(c.into_owned()),
+      Component::Is(c) => Component::Is(c.into_owned()),
+      Component::Any(a, b) => Component::Any(a.into_owned(), b.into_owned()),
+      Component::Has(c) => Component::Has(c.into_owned()),
+      Component::PseudoElement(c) => Component::PseudoElement(c.into_owned()),
+      Component::Nesting => Component::Nesting,
     }
   }
 }
