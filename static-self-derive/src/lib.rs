@@ -1,14 +1,8 @@
-pub fn add(left: usize, right: usize) -> usize {
-  left + right
-}
+use proc_macro::TokenStream;
 
-#[cfg(test)]
-mod tests {
-  use super::*;
+mod into_owned;
 
-  #[test]
-  fn it_works() {
-    let result = add(2, 2);
-    assert_eq!(result, 4);
-  }
+#[proc_macro_derive(IntoOwned)]
+pub fn derive_into_owned(input: TokenStream) -> TokenStream {
+  into_owned::derive_into_owned(input)
 }

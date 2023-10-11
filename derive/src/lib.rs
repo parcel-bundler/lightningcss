@@ -8,13 +8,6 @@ use syn::{
   GenericParam, Generics, Ident, Member, Token, Type, Visibility,
 };
 
-mod into_owned;
-
-#[proc_macro_derive(IntoOwned)]
-pub fn derive_into_owned(input: TokenStream) -> TokenStream {
-  into_owned::derive_into_owned(input)
-}
-
 #[proc_macro_derive(Visit, attributes(visit, skip_visit, skip_type, visit_types))]
 pub fn derive_visit_children(input: TokenStream) -> TokenStream {
   let DeriveInput {
