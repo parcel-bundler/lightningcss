@@ -1489,6 +1489,7 @@ where
   Impl::LocalName: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::LocalName>,
   Impl::AttrValue: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::AttrValue>,
   Impl::PseudoElement: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::PseudoElement>,
+  Impl::VendorPrefix: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::VendorPrefix>,
 {
   type Owned = Component<'any, NewSel>;
 
