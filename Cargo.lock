@@ -818,6 +818,7 @@ dependencies = [
  "serde",
  "serde_json",
  "smallvec",
+ "static-self",
 ]
 
 [[package]]
@@ -1586,6 +1587,10 @@ checksum = "a507befe795404456341dfab10cef66ead4c041f62b8b11bbb92bffe5d0953e0"
 dependencies = [
  "serde",
 ]
+
+[[package]]
+name = "static-self"
+version = "0.1.0"
 
 [[package]]
 name = "string_cache"
