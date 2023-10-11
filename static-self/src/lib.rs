@@ -61,13 +61,13 @@ where
 }
 
 #[cfg(feature = "smallvec")]
-impl<'any, T, const N: usize> IntoOwned<'any> for SmallVec<[T; N]>
+impl<'any, T, const N: usize> IntoOwned<'any> for smallvec::SmallVec<[T; N]>
 where
   T: for<'aa> IntoOwned<'aa>,
   [T; N]: smallvec::Array<Item = T>,
   [<T as IntoOwned<'any>>::Owned; N]: smallvec::Array<Item = <T as IntoOwned<'any>>::Owned>,
 {
-  type Owned = SmallVec<[<T as IntoOwned<'any>>::Owned; N]>;
+  type Owned = smallvec::SmallVec<[<T as IntoOwned<'any>>::Owned; N]>;
 
   fn into_owned(self) -> Self::Owned {
     self.into_iter().map(|v| v.into_owned()).collect()
