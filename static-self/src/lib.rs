@@ -31,7 +31,7 @@ impl_into_owned!(bool, f32, f64, u8, u16, u32, u64, u128, i8, i16, i32, i64, i12
 
 impl<'any, T> IntoOwned<'any> for Vec<T>
 where
-  T: for<'aa> IntoOwned<'aa>,
+  T: IntoOwned<'any>,
 {
   type Owned = Vec<<T as IntoOwned<'any>>::Owned>;
 
@@ -41,7 +41,7 @@ where
 }
 impl<'any, T> IntoOwned<'any> for Option<T>
 where
-  T: for<'aa> IntoOwned<'aa>,
+  T: IntoOwned<'any>,
 {
   type Owned = Option<<T as IntoOwned<'any>>::Owned>;
 
