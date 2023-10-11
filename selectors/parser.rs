@@ -16,6 +16,7 @@ use cssparser::{CowRcStr, Delimiter, SourceLocation};
 use cssparser::{Parser as CssParser, ToCss, Token};
 use precomputed_hash::PrecomputedHash;
 use smallvec::{smallvec, SmallVec};
+#[cfg(feature = "into_owned")]
 use static_self::IntoOwned;
 use std::borrow::Borrow;
 use std::fmt::{self, Debug};
@@ -1464,7 +1465,7 @@ impl<'any, 'i, Impl: SelectorImpl<'i>, Sel> static_self::IntoOwned<'any> for Com
 where
   Impl: static_self::IntoOwned<'any, Owned = Sel>,
   Sel: SelectorImpl<'any>,
-  Sel::NamespaceUrl: for<'aa> IntoOwned<'aa>,
+  Sel::NamespaceUrl: for<'aa> static_self::IntoOwned<'aa>,
 {
   type Owned = Component<'any, Sel>;
 
