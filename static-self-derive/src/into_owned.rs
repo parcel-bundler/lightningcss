@@ -155,13 +155,15 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
   } else {
     let mut generics_without_default = generics.clone();
 
+    let mut params = Vec::new();
+
     for p in generics_without_default.params.iter_mut() {
       if let syn::GenericParam::Type(ty) = p {
         ty.default = None;
+
+        params.push(quote!(<#ty as static_self::IntoOwned<'any>>::Owned));
       }
     }
-
-    let params = generics_without_default.type_params();
 
     if has_lifetime {
       quote! {
