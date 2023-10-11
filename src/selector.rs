@@ -31,6 +31,15 @@ mod private {
   #[derive(Debug, Clone, PartialEq, Eq, Hash)]
   #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
   pub struct Selectors;
+
+  #[cfg(feature = "into_owned")]
+  impl<'any> ::static_self::IntoOwned<'any> for Selectors {
+    type Owned = Self;
+
+    fn into_owned(self) -> Self::Owned {
+      self
+    }
+  }
 }
 
 use private::Selectors;
