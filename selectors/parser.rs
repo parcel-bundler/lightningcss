@@ -1345,6 +1345,20 @@ impl NthSelectorData {
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct NthOfSelectorData<'i, Impl: SelectorImpl<'i>>(NthSelectorData, Box<[Selector<'i, Impl>]>);
 
+#[cfg(feature = "into_owned")]
+impl<'any, 'i, Impl: SelectorImpl<'i>, NewSel> static_self::IntoOwned<'any> for NthOfSelectorData<'i, Impl>
+where
+  Impl: static_self::IntoOwned<'any, Owned = NewSel>,
+  NewSel: SelectorImpl<'any>,
+  Impl::LocalName: static_self::IntoOwned<'any, Owned = NewSel::LocalName>,
+{
+  type Owned = NthOfSelectorData<'any, NewSel>;
+
+  fn into_owned(self) -> Self::Owned {
+    NthOfSelectorData(self.0, self.1.into_owned())
+  }
+}
+
 impl<'i, Impl: SelectorImpl<'i>> NthOfSelectorData<'i, Impl> {
   /// Returns selector data for :nth-{,last-}{child,of-type}(An+B [of S])
   #[inline]
@@ -1474,6 +1488,7 @@ where
   Impl::Identifier: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::Identifier>,
   Impl::LocalName: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::LocalName>,
   Impl::AttrValue: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::AttrValue>,
+  Impl::PseudoElement: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::PseudoElement>,
 {
   type Owned = Component<'any, NewSel>;
 
