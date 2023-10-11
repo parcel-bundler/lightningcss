@@ -42,6 +42,16 @@ mod private {
   }
 }
 
+#[cfg(feature = "into_owned")]
+fn _assert_into_owned() {
+  // Ensure that we provide into_owned
+
+  use static_self::IntoOwned;
+  fn _assert<T: IntoOwned>() {}
+
+  _assert::<SelectorList>();
+}
+
 use private::Selectors;
 
 /// A list of selectors.
@@ -836,6 +846,7 @@ impl<'i> PseudoClass<'i> {
   serde(tag = "kind", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum PseudoElement<'i> {
   /// The [::after](https://drafts.csswg.org/css-pseudo-4/#selectordef-after) pseudo element.
   After,
