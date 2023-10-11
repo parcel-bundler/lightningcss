@@ -1591,6 +1591,13 @@ dependencies = [
 [[package]]
 name = "static-self"
 version = "0.1.0"
+dependencies = [
+ "static-self-derive",
+]
+
+[[package]]
+name = "static-self-derive"
+version = "0.1.0"
 
 [[package]]
 name = "string_cache"
