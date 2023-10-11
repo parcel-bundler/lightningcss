@@ -49,14 +49,26 @@ where
     self.map(|v| v.into_owned())
   }
 }
+
 impl<'any, T> IntoOwned<'any> for Box<T>
 where
-  T: for<'aa> IntoOwned<'aa>,
+  T: IntoOwned<'any>,
 {
   type Owned = Box<<T as IntoOwned<'any>>::Owned>;
 
   fn into_owned(self) -> Self::Owned {
     Box::new((*self).into_owned())
+  }
+}
+
+impl<'any, T> IntoOwned<'any> for Box<[T]>
+where
+  T: IntoOwned<'any>,
+{
+  type Owned = Box<[<T as IntoOwned<'any>>::Owned]>;
+
+  fn into_owned(self) -> Self::Owned {
+    self.into_vec().into_owned().into_boxed_slice()
   }
 }
 
