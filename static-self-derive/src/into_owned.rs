@@ -180,36 +180,8 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
 fn into_owned(ty: &Type, name: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
   if has_lifetime(ty) {
     match ty {
-      Type::Path(path) => {
-        let last = path.path.segments.last().unwrap();
-        if last.ident == "Option" {
-          let v = quote! { v };
-          let into_owned = match &last.arguments {
-            PathArguments::AngleBracketed(args) => match args.args.first().unwrap() {
-              GenericArgument::Type(ty) => into_owned(ty, v.clone()),
-              _ => quote! { #v.into_owned() },
-            },
-            _ => quote! { #v.into_owned() },
-          };
-          quote! { #name.map(|#v| #into_owned) }
-        } else if last.ident == "CustomIdentList"
-          || last.ident == "AnimationList"
-          || last.ident == "AnimationNameList"
-        {
-          let v = quote! { v };
-          let into_owned = match &last.arguments {
-            PathArguments::AngleBracketed(args) => match args.args.first().unwrap() {
-              GenericArgument::Type(ty) => into_owned(ty, v.clone()),
-              _ => quote! { #v.into_owned() },
-            },
-            _ => quote! { #v.into_owned() },
-          };
-          quote! { #name.into_iter().map(|#v| #into_owned).collect() }
-        } else if last.ident == "Box" {
-          quote! { Box::new(#name.into_owned()) }
-        } else {
-          quote! { #name.into_owned() }
-        }
+      Type::Path(..) => {
+        quote! { #name.into_owned() }
       }
       Type::Reference(_) => panic!("can't derive IntoOwned on a type with references"),
       _ => quote! { #name.into_owned() },
