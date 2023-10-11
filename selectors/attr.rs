@@ -30,7 +30,7 @@ where
       namespace: self.namespace.into_owned(),
       local_name: self.local_name.into_owned(),
       local_name_lower: self.local_name_lower.into_owned(),
-      operation: self.operation,
+      operation: self.operation.into_owned(),
       never_matches: self.never_matches,
     }
   }
@@ -56,6 +56,7 @@ impl<'i, Impl: SelectorImpl<'i>> AttrSelectorWithOptionalNamespace<'i, Impl> {
   derive(schemars::JsonSchema),
   schemars(rename = "NamespaceConstraint")
 )]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum NamespaceConstraint<NamespaceUrl> {
   Any,
 
@@ -64,6 +65,7 @@ pub enum NamespaceConstraint<NamespaceUrl> {
 }
 
 #[derive(Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum ParsedAttrSelectorOperation<AttrValue> {
   Exists,
   WithValue {
