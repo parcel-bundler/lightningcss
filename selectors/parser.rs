@@ -1459,19 +1459,19 @@ pub enum Component<'i, Impl: SelectorImpl<'i>> {
 }
 
 #[cfg(feature = "into_owned")]
-impl<'any, 'i, Impl: SelectorImpl<'i>> static_self::IntoOwned<'any> for Component<'i, Impl>
+impl<'any, 'i, Impl: SelectorImpl<'i>, Sel> static_self::IntoOwned<'any> for Component<'i, Impl>
 where
-  Impl: static_self::IntoOwned<'any>,
-  <Impl as static_self::IntoOwned<'any>>::Owned: SelectorImpl<'any>,
+  Impl: static_self::IntoOwned<'any, Owned = Sel>,
+  Sel: SelectorImpl<'any>,
 {
-  type Owned = Component<'any, <Impl as static_self::IntoOwned<'any>>::Owned>;
+  type Owned = Component<'any, Sel>;
 
   fn into_owned(self) -> Self::Owned {
     match self {
       Component::Combinator(c) => Component::Combinator(c.into_owned()),
       Component::ExplicitAnyNamespace => Component::ExplicitAnyNamespace,
       Component::ExplicitNoNamespace => Component::ExplicitNoNamespace,
-      Component::DefaultNamespace(c) => c.into_owned(),
+      Component::DefaultNamespace(c) => Component::DefaultNamespace(c.into_owned()),
       Component::Namespace(a, b) => {}
       Component::ExplicitUniversalType => {}
       Component::LocalName(c) => c.into_owned(),
