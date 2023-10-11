@@ -1481,14 +1481,14 @@ impl<'any, 'i, Impl: SelectorImpl<'i>, NewSel> static_self::IntoOwned<'any> for 
 where
   Impl: static_self::IntoOwned<'any, Owned = NewSel>,
   NewSel: SelectorImpl<'any>,
-  Impl::NamespaceUrl: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::NamespaceUrl>,
-  Impl::NamespacePrefix: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::NamespacePrefix>,
-  Impl::Identifier: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::Identifier>,
-  Impl::LocalName: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::LocalName>,
-  Impl::AttrValue: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::AttrValue>,
-  Impl::NonTSPseudoClass: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::NonTSPseudoClass>,
-  Impl::PseudoElement: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::PseudoElement>,
-  Impl::VendorPrefix: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::VendorPrefix>,
+  Impl::NamespaceUrl: static_self::IntoOwned<'any, Owned = NewSel::NamespaceUrl>,
+  Impl::NamespacePrefix: static_self::IntoOwned<'any, Owned = NewSel::NamespacePrefix>,
+  Impl::Identifier: static_self::IntoOwned<'any, Owned = NewSel::Identifier>,
+  Impl::LocalName: static_self::IntoOwned<'any, Owned = NewSel::LocalName>,
+  Impl::AttrValue: static_self::IntoOwned<'any, Owned = NewSel::AttrValue>,
+  Impl::NonTSPseudoClass: static_self::IntoOwned<'any, Owned = NewSel::NonTSPseudoClass>,
+  Impl::PseudoElement: static_self::IntoOwned<'any, Owned = NewSel::PseudoElement>,
+  Impl::VendorPrefix: static_self::IntoOwned<'any, Owned = NewSel::VendorPrefix>,
 {
   type Owned = Component<'any, NewSel>;
 
