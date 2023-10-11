@@ -41,7 +41,7 @@ nodejs = ["dep:serde"]
 serde = ["dep:serde", "smallvec/serde", "cssparser/serde", "parcel_selectors/serde", "into_owned"]
 sourcemap = ["parcel_sourcemap"]
 visitor = ["lightningcss-derive"]
-into_owned = ["lightningcss-derive"]
+into_owned = ["static-self"]
 substitute_variables = ["visitor", "into_owned"]
 
 [dependencies]
@@ -68,7 +68,7 @@ dashmap = { version = "5.0.0", optional = true }
 serde_json = { version = "1.0.78", optional = true }
 lightningcss-derive = { version = "=1.0.0-alpha.41", path = "./derive", optional = true }
 schemars = { version = "0.8.11", features = ["smallvec"], optional = true }
-static-self = { version = "0.1.0", path = "static-self" }
+static-self = { version = "0.1.0", path = "static-self", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 jemallocator = { version = "0.3.2", features = ["disable_initial_exec_tls"], optional = true }
