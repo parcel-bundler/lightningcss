@@ -1461,14 +1461,16 @@ pub enum Component<'i, Impl: SelectorImpl<'i>> {
 }
 
 #[cfg(feature = "into_owned")]
-impl<'any, 'i, Impl: SelectorImpl<'i>, Sel> static_self::IntoOwned<'any> for Component<'i, Impl>
+impl<'any, 'i, Impl: SelectorImpl<'i>, NewSel> static_self::IntoOwned<'any> for Component<'i, Impl>
 where
-  Impl: static_self::IntoOwned<'any, Owned = Sel>,
-  Sel: SelectorImpl<'any>,
-  Impl::NamespaceUrl: for<'aa> static_self::IntoOwned<'aa, Owned = Sel::NamespaceUrl>,
-  Impl::NamespacePrefix: for<'aa> static_self::IntoOwned<'aa, Owned = Sel::NamespacePrefix>,
+  Impl: static_self::IntoOwned<'any, Owned = NewSel>,
+  NewSel: SelectorImpl<'any>,
+  Impl::NamespaceUrl: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::NamespaceUrl>,
+  Impl::NamespacePrefix: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::NamespacePrefix>,
+  Impl::Identifier: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::Identifier>,
+  Impl::LocalName: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::LocalName>,
 {
-  type Owned = Component<'any, Sel>;
+  type Owned = Component<'any, NewSel>;
 
   fn into_owned(self) -> Self::Owned {
     match self {
