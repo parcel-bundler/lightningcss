@@ -16,8 +16,6 @@ use cssparser::{CowRcStr, Delimiter, SourceLocation};
 use cssparser::{Parser as CssParser, ToCss, Token};
 use precomputed_hash::PrecomputedHash;
 use smallvec::{smallvec, SmallVec};
-#[cfg(feature = "into_owned")]
-use static_self::IntoOwned;
 use std::borrow::Borrow;
 use std::fmt::{self, Debug};
 use std::iter::Rev;
