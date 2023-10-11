@@ -124,6 +124,7 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
     .params
     .first()
     .map_or(false, |v| matches!(v, syn::GenericParam::Lifetime(..)));
+  let has_generic = !generics.params.is_empty();
 
   // Prepend `'any` to generics
   let any = syn::GenericParam::Lifetime(syn::LifetimeDef {
@@ -140,7 +141,7 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
   let (impl_generics, _, where_clause) = generics.split_for_impl();
   let (_, ty_generics, _) = orig_generics.split_for_impl();
 
-  let into_owned = if !has_lifetime {
+  let into_owned = if !has_generic {
     quote! {
       impl #impl_generics ::static_self::IntoOwned<'any> for #self_name #ty_generics #where_clause {
         type Owned = Self;
@@ -161,14 +162,29 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
     }
 
     let params = generics_without_default.type_params();
-    quote! {
-      impl #impl_generics ::static_self::IntoOwned<'any> for #self_name #ty_generics #where_clause {
-        type Owned = #self_name<'any, #(#params),*>;
-        /// Consumes the value and returns an owned clone.
-        fn into_owned(self) -> Self::Owned {
-          use ::static_self::IntoOwned;
 
-          #res
+    if has_lifetime {
+      quote! {
+        impl #impl_generics ::static_self::IntoOwned<'any> for #self_name #ty_generics #where_clause {
+          type Owned = #self_name<'any, #(#params),*>;
+          /// Consumes the value and returns an owned clone.
+          fn into_owned(self) -> Self::Owned {
+            use ::static_self::IntoOwned;
+
+            #res
+          }
+        }
+      }
+    } else {
+      quote! {
+        impl #impl_generics ::static_self::IntoOwned<'any> for #self_name #ty_generics #where_clause {
+          type Owned = #self_name<#(#params),*>;
+          /// Consumes the value and returns an owned clone.
+          fn into_owned(self) -> Self::Owned {
+            use ::static_self::IntoOwned;
+
+            #res
+          }
         }
       }
     }
