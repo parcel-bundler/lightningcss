@@ -10,8 +10,6 @@ use crate::rules::custom_media::CustomMediaRule;
 use crate::rules::Location;
 use crate::stylesheet::ParserOptions;
 use crate::targets::{should_compile, Targets};
-#[cfg(feature = "into_owned")]
-use crate::traits::IntoOwned;
 use crate::traits::{Parse, ToCss};
 use crate::values::ident::{DashedIdent, Ident};
 use crate::values::number::{CSSInteger, CSSNumber};
@@ -22,6 +20,8 @@ use crate::vendor_prefix::VendorPrefix;
 use crate::visitor::Visit;
 use bitflags::bitflags;
 use cssparser::*;
+#[cfg(feature = "into_owned")]
+use static_self::IntoOwned;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 

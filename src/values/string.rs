@@ -132,7 +132,7 @@ impl<'a> CowArcStr<'a> {
 }
 
 #[cfg(feature = "into_owned")]
-impl<'any> crate::traits::IntoOwned<'any> for CowArcStr<'_> {
+impl<'any> static_self::IntoOwned<'any> for CowArcStr<'_> {
   type Owned = CowArcStr<'any>;
 
   /// Consumes the value and returns an owned clone.
