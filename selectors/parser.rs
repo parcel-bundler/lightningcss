@@ -1489,10 +1489,6 @@ where
   Impl::NonTSPseudoClass: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::NonTSPseudoClass>,
   Impl::PseudoElement: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::PseudoElement>,
   Impl::VendorPrefix: for<'aa> static_self::IntoOwned<'aa, Owned = NewSel::VendorPrefix>,
-  NamespaceConstraint<(Impl::NamespacePrefix, Impl::NamespaceUrl)>:
-    static_self::IntoOwned<'any, Owned = NamespaceConstraint<(NewSel::NamespacePrefix, NewSel::NamespaceUrl)>>,
-  ParsedAttrSelectorOperation<Impl::AttrValue>:
-    static_self::IntoOwned<'any, Owned = ParsedAttrSelectorOperation<NewSel::AttrValue>>,
 {
   type Owned = Component<'any, NewSel>;
 
