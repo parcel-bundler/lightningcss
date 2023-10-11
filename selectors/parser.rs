@@ -374,10 +374,22 @@ pub trait Parser<'i> {
     bound = "Impl: schemars::JsonSchema, Impl::NonTSPseudoClass: schemars::JsonSchema, Impl::PseudoElement: schemars::JsonSchema, Impl::VendorPrefix: schemars::JsonSchema"
   )
 )]
-#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct SelectorList<'i, Impl: SelectorImpl<'i>>(
   #[cfg_attr(feature = "serde", serde(borrow))] pub SmallVec<[Selector<'i, Impl>; 1]>,
 );
+
+#[cfg(feature = "into_owned")]
+impl<'any, 'i, Impl: SelectorImpl<'i>> static_self::IntoOwned<'any> for SelectorList<'i, Impl>
+where
+  Impl: static_self::IntoOwned<'any>,
+  <Impl as static_self::IntoOwned<'any>>::Owned: SelectorImpl<'any>,
+{
+  type Owned = SelectorList<'any, <Impl as static_self::IntoOwned<'any>>::Owned>;
+
+  fn into_owned(self) -> Self::Owned {
+    SelectorList(self.0.into_iter().map(|s| s.into_owned()).collect())
+  }
+}
 
 /// How to treat invalid selectors in a selector list.
 pub enum ParseErrorRecovery {
@@ -695,8 +707,18 @@ pub fn namespace_empty_string<'i, Impl: SelectorImpl<'i>>() -> Impl::NamespaceUr
 /// This reordering doesn't change the semantics of selector matching, and we
 /// handle it in to_css to make it invisible to serialization.
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct Selector<'i, Impl: SelectorImpl<'i>>(SpecificityAndFlags, Vec<Component<'i, Impl>>);
+
+#[cfg(feature = "into_owned")]
+impl<'any, 'i, Impl: SelectorImpl<'i>> static_self::IntoOwned<'any> for Selector<'i, Impl>
+where
+  Impl: static_self::IntoOwned<'any>,
+  <Impl as static_self::IntoOwned<'any>>::Owned: SelectorImpl<'any>,
+{
+  type Owned = Selector<'any, <Impl as static_self::IntoOwned<'any>>::Owned>;
+
+  fn into_owned(self) -> Self::Owned {}
+}
 
 impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
   #[inline]
