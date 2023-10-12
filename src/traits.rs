@@ -9,6 +9,8 @@ use crate::stylesheet::{ParserOptions, PrinterOptions};
 use crate::targets::{Browsers, Targets};
 use crate::vendor_prefix::VendorPrefix;
 use cssparser::*;
+
+#[cfg(feature = "into_owned")]
 pub use static_self::IntoOwned;
 
 /// Trait for things that can be parsed from CSS syntax.
