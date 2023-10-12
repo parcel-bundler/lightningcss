@@ -1,6 +1,6 @@
 [package]
 name = "parcel_selectors"
-version = "0.26.2"
+version = "0.26.3"
 authors = ["The Servo Project Developers"]
 documentation = "https://docs.rs/parcel_selectors/"
 description = "CSS Selectors matching for Rust - forked for lightningcss"
