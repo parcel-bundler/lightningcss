@@ -19,6 +19,8 @@ extern crate schemars;
 #[cfg(feature = "serde")]
 extern crate serde;
 extern crate smallvec;
+#[cfg(feature = "into_owned")]
+extern crate static_self;
 
 pub mod attr;
 pub mod bloom;

@@ -378,6 +378,20 @@ pub struct SelectorList<'i, Impl: SelectorImpl<'i>>(
   #[cfg_attr(feature = "serde", serde(borrow))] pub SmallVec<[Selector<'i, Impl>; 1]>,
 );
 
+#[cfg(feature = "into_owned")]
+impl<'any, 'i, Impl: SelectorImpl<'i>, NewSel> static_self::IntoOwned<'any> for SelectorList<'i, Impl>
+where
+  Impl: static_self::IntoOwned<'any, Owned = NewSel>,
+  NewSel: SelectorImpl<'any>,
+  Component<'i, Impl>: static_self::IntoOwned<'any, Owned = Component<'any, NewSel>>,
+{
+  type Owned = SelectorList<'any, NewSel>;
+
+  fn into_owned(self) -> Self::Owned {
+    SelectorList(self.0.into_owned())
+  }
+}
+
 /// How to treat invalid selectors in a selector list.
 pub enum ParseErrorRecovery {
   /// Discard the entire selector list, this is the default behavior for
@@ -695,6 +709,20 @@ pub fn namespace_empty_string<'i, Impl: SelectorImpl<'i>>() -> Impl::NamespaceUr
 /// handle it in to_css to make it invisible to serialization.
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Selector<'i, Impl: SelectorImpl<'i>>(SpecificityAndFlags, Vec<Component<'i, Impl>>);
+
+#[cfg(feature = "into_owned")]
+impl<'any, 'i, Impl: SelectorImpl<'i>, NewSel> static_self::IntoOwned<'any> for Selector<'i, Impl>
+where
+  Impl: static_self::IntoOwned<'any, Owned = NewSel>,
+  NewSel: SelectorImpl<'any>,
+  Component<'i, Impl>: static_self::IntoOwned<'any, Owned = Component<'any, NewSel>>,
+{
+  type Owned = Selector<'any, NewSel>;
+
+  fn into_owned(self) -> Self::Owned {
+    Selector(self.0, self.1.into_owned())
+  }
+}
 
 impl<'i, Impl: SelectorImpl<'i>> Selector<'i, Impl> {
   #[inline]
@@ -1117,6 +1145,7 @@ impl<'a, 'i, Impl: SelectorImpl<'i>> Iterator for AncestorIter<'a, 'i, Impl> {
   serde(rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum Combinator {
   Child,        //  >
   Descendant,   // space
@@ -1179,6 +1208,7 @@ impl Combinator {
 
 /// An enum for the different types of :nth- pseudoclasses
 #[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum NthType {
   Child,
   LastChild,
@@ -1212,6 +1242,7 @@ impl NthType {
 /// nth-child(An+B)).
 /// https://www.w3.org/TR/selectors-3/#nth-child-pseudo
 #[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct NthSelectorData {
   pub ty: NthType,
   pub is_function: bool,
@@ -1311,6 +1342,20 @@ impl NthSelectorData {
 /// https://www.w3.org/TR/selectors-4/#nth-child-pseudo
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct NthOfSelectorData<'i, Impl: SelectorImpl<'i>>(NthSelectorData, Box<[Selector<'i, Impl>]>);
+
+#[cfg(feature = "into_owned")]
+impl<'any, 'i, Impl: SelectorImpl<'i>, NewSel> static_self::IntoOwned<'any> for NthOfSelectorData<'i, Impl>
+where
+  Impl: static_self::IntoOwned<'any, Owned = NewSel>,
+  NewSel: SelectorImpl<'any>,
+  Component<'i, Impl>: static_self::IntoOwned<'any, Owned = Component<'any, NewSel>>,
+{
+  type Owned = NthOfSelectorData<'any, NewSel>;
+
+  fn into_owned(self) -> Self::Owned {
+    NthOfSelectorData(self.0, self.1.into_owned())
+  }
+}
 
 impl<'i, Impl: SelectorImpl<'i>> NthOfSelectorData<'i, Impl> {
   /// Returns selector data for :nth-{,last-}{child,of-type}(An+B [of S])
@@ -1429,6 +1474,77 @@ pub enum Component<'i, Impl: SelectorImpl<'i>> {
   ///
   /// NOTE: This is a lightningcss addition.
   Nesting,
+}
+
+#[cfg(feature = "into_owned")]
+impl<'any, 'i, Impl: SelectorImpl<'i>, NewSel> static_self::IntoOwned<'any> for Component<'i, Impl>
+where
+  Impl: static_self::IntoOwned<'any, Owned = NewSel>,
+  NewSel: SelectorImpl<'any>,
+  Impl::NamespaceUrl: static_self::IntoOwned<'any, Owned = NewSel::NamespaceUrl>,
+  Impl::NamespacePrefix: static_self::IntoOwned<'any, Owned = NewSel::NamespacePrefix>,
+  Impl::Identifier: static_self::IntoOwned<'any, Owned = NewSel::Identifier>,
+  Impl::LocalName: static_self::IntoOwned<'any, Owned = NewSel::LocalName>,
+  Impl::AttrValue: static_self::IntoOwned<'any, Owned = NewSel::AttrValue>,
+  Impl::NonTSPseudoClass: static_self::IntoOwned<'any, Owned = NewSel::NonTSPseudoClass>,
+  Impl::PseudoElement: static_self::IntoOwned<'any, Owned = NewSel::PseudoElement>,
+  Impl::VendorPrefix: static_self::IntoOwned<'any, Owned = NewSel::VendorPrefix>,
+{
+  type Owned = Component<'any, NewSel>;
+
+  fn into_owned(self) -> Self::Owned {
+    match self {
+      Component::Combinator(c) => Component::Combinator(c.into_owned()),
+      Component::ExplicitAnyNamespace => Component::ExplicitAnyNamespace,
+      Component::ExplicitNoNamespace => Component::ExplicitNoNamespace,
+      Component::DefaultNamespace(c) => Component::DefaultNamespace(c.into_owned()),
+      Component::Namespace(a, b) => Component::Namespace(a.into_owned(), b.into_owned()),
+      Component::ExplicitUniversalType => Component::ExplicitUniversalType,
+      Component::LocalName(c) => Component::LocalName(c.into_owned()),
+      Component::ID(c) => Component::ID(c.into_owned()),
+      Component::Class(c) => Component::Class(c.into_owned()),
+      Component::AttributeInNoNamespaceExists {
+        local_name,
+        local_name_lower,
+      } => Component::AttributeInNoNamespaceExists {
+        local_name: local_name.into_owned(),
+        local_name_lower: local_name_lower.into_owned(),
+      },
+      Component::AttributeInNoNamespace {
+        local_name,
+        operator,
+        value,
+        case_sensitivity,
+        never_matches,
+      } => {
+        let value = value.into_owned();
+        Component::AttributeInNoNamespace {
+          local_name: local_name.into_owned(),
+          operator,
+          value,
+          case_sensitivity,
+          never_matches,
+        }
+      }
+      Component::AttributeOther(c) => Component::AttributeOther(c.into_owned()),
+      Component::Negation(c) => Component::Negation(c.into_owned()),
+      Component::Root => Component::Root,
+      Component::Empty => Component::Empty,
+      Component::Scope => Component::Scope,
+      Component::Nth(c) => Component::Nth(c.into_owned()),
+      Component::NthOf(c) => Component::NthOf(c.into_owned()),
+      Component::NonTSPseudoClass(c) => Component::NonTSPseudoClass(c.into_owned()),
+      Component::Slotted(c) => Component::Slotted(c.into_owned()),
+      Component::Part(c) => Component::Part(c.into_owned()),
+      Component::Host(c) => Component::Host(c.into_owned()),
+      Component::Where(c) => Component::Where(c.into_owned()),
+      Component::Is(c) => Component::Is(c.into_owned()),
+      Component::Any(a, b) => Component::Any(a.into_owned(), b.into_owned()),
+      Component::Has(c) => Component::Has(c.into_owned()),
+      Component::PseudoElement(c) => Component::PseudoElement(c.into_owned()),
+      Component::Nesting => Component::Nesting,
+    }
+  }
 }
 
 impl<'i, Impl: SelectorImpl<'i>> Component<'i, Impl> {
@@ -1576,6 +1692,23 @@ impl<'i, Impl: SelectorImpl<'i>> Component<'i, Impl> {
 pub struct LocalName<'i, Impl: SelectorImpl<'i>> {
   pub name: Impl::LocalName,
   pub lower_name: Impl::LocalName,
+}
+
+#[cfg(feature = "into_owned")]
+impl<'any, 'i, Impl: SelectorImpl<'i>, NewSel> static_self::IntoOwned<'any> for LocalName<'i, Impl>
+where
+  Impl: static_self::IntoOwned<'any, Owned = NewSel>,
+  NewSel: SelectorImpl<'any>,
+  Impl::LocalName: static_self::IntoOwned<'any, Owned = NewSel::LocalName>,
+{
+  type Owned = LocalName<'any, NewSel>;
+
+  fn into_owned(self) -> Self::Owned {
+    LocalName {
+      name: self.name.into_owned(),
+      lower_name: self.lower_name.into_owned(),
+    }
+  }
 }
 
 impl<'i, Impl: SelectorImpl<'i>> Debug for Selector<'i, Impl> {

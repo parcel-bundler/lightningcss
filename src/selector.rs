@@ -31,6 +31,25 @@ mod private {
   #[derive(Debug, Clone, PartialEq, Eq, Hash)]
   #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
   pub struct Selectors;
+
+  #[cfg(feature = "into_owned")]
+  impl<'any> ::static_self::IntoOwned<'any> for Selectors {
+    type Owned = Self;
+
+    fn into_owned(self) -> Self::Owned {
+      self
+    }
+  }
+}
+
+#[cfg(feature = "into_owned")]
+fn _assert_into_owned() {
+  // Ensure that we provide into_owned
+
+  use static_self::IntoOwned;
+  fn _assert<'any, T: IntoOwned<'any>>() {}
+
+  _assert::<SelectorList>();
 }
 
 use private::Selectors;
@@ -354,6 +373,7 @@ enum_property! {
   serde(tag = "kind", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum PseudoClass<'i> {
   // https://drafts.csswg.org/selectors-4/#linguistic-pseudos
   /// The [:lang()](https://drafts.csswg.org/selectors-4/#the-lang-pseudo) pseudo class.
@@ -827,6 +847,7 @@ impl<'i> PseudoClass<'i> {
   serde(tag = "kind", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum PseudoElement<'i> {
   /// The [::after](https://drafts.csswg.org/css-pseudo-4/#selectordef-after) pseudo element.
   After,
@@ -938,6 +959,7 @@ pub enum WebKitScrollbarPseudoElement {
 
 /// A [view transition part name](https://w3c.github.io/csswg-drafts/css-view-transitions-1/#typedef-pt-name-selector).
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum ViewTransitionPartName<'i> {
   /// *
   All,

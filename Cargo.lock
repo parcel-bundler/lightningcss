@@ -818,6 +818,7 @@ dependencies = [
  "serde",
  "serde_json",
  "smallvec",
+ "static-self",
 ]
 
 [[package]]
@@ -1059,6 +1060,7 @@ dependencies = [
  "schemars",
  "serde",
  "smallvec",
+ "static-self",
 ]
 
 [[package]]
@@ -1580,11 +1582,28 @@ checksum = "7bd3e3206899af3f8b12af284fafc038cc1dc2b41d1b89dd17297221c5d225de"
 
 [[package]]
 name = "smallvec"
-version = "1.10.0"
+version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a507befe795404456341dfab10cef66ead4c041f62b8b11bbb92bffe5d0953e0"
+checksum = "942b4a808e05215192e39f4ab80813e599068285906cc91aa64f923db842bd5a"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "static-self"
+version = "0.1.0"
+dependencies = [
+ "smallvec",
+ "static-self-derive",
+]
+
+[[package]]
+name = "static-self-derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]

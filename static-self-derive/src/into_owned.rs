@@ -116,7 +116,7 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
 
   for type_param in type_param_names {
     generics.make_where_clause().predicates.push_value(parse_quote! {
-      #type_param: 'static + for<'aa> crate::traits::IntoOwned<'aa>
+      #type_param: ::static_self::IntoOwned<'any>
     })
   }
 
@@ -124,6 +124,7 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
     .params
     .first()
     .map_or(false, |v| matches!(v, syn::GenericParam::Lifetime(..)));
+  let has_generic = !generics.params.is_empty();
 
   // Prepend `'any` to generics
   let any = syn::GenericParam::Lifetime(syn::LifetimeDef {
@@ -140,9 +141,9 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
   let (impl_generics, _, where_clause) = generics.split_for_impl();
   let (_, ty_generics, _) = orig_generics.split_for_impl();
 
-  let into_owned = if !has_lifetime {
+  let into_owned = if !has_generic {
     quote! {
-      impl #impl_generics crate::traits::IntoOwned<'any> for #self_name #ty_generics #where_clause {
+      impl #impl_generics ::static_self::IntoOwned<'any> for #self_name #ty_generics #where_clause {
         type Owned = Self;
 
         #[inline]
@@ -152,15 +153,40 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
       }
     }
   } else {
-    let params = generics.type_params();
-    quote! {
-      impl #impl_generics crate::traits::IntoOwned<'any> for #self_name #ty_generics #where_clause {
-        type Owned = #self_name<'any, #(#params),*>;
-        /// Consumes the value and returns an owned clone.
-        fn into_owned(self) -> Self::Owned {
-          use crate::traits::IntoOwned;
+    let mut generics_without_default = generics.clone();
 
-          #res
+    let mut params = Vec::new();
+
+    for p in generics_without_default.params.iter_mut() {
+      if let syn::GenericParam::Type(ty) = p {
+        ty.default = None;
+
+        params.push(quote!(<#ty as static_self::IntoOwned<'any>>::Owned));
+      }
+    }
+
+    if has_lifetime {
+      quote! {
+        impl #impl_generics ::static_self::IntoOwned<'any> for #self_name #ty_generics #where_clause {
+          type Owned = #self_name<'any, #(#params),*>;
+          /// Consumes the value and returns an owned clone.
+          fn into_owned(self) -> Self::Owned {
+            use ::static_self::IntoOwned;
+
+            #res
+          }
+        }
+      }
+    } else {
+      quote! {
+        impl #impl_generics ::static_self::IntoOwned<'any> for #self_name #ty_generics #where_clause {
+          type Owned = #self_name<#(#params),*>;
+          /// Consumes the value and returns an owned clone.
+          fn into_owned(self) -> Self::Owned {
+            use ::static_self::IntoOwned;
+
+            #res
+          }
         }
       }
     }
@@ -172,38 +198,8 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
 fn into_owned(ty: &Type, name: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
   if has_lifetime(ty) {
     match ty {
-      Type::Path(path) => {
-        let last = path.path.segments.last().unwrap();
-        if last.ident == "Option" {
-          let v = quote! { v };
-          let into_owned = match &last.arguments {
-            PathArguments::AngleBracketed(args) => match args.args.first().unwrap() {
-              GenericArgument::Type(ty) => into_owned(ty, v.clone()),
-              _ => quote! { #v.into_owned() },
-            },
-            _ => quote! { #v.into_owned() },
-          };
-          quote! { #name.map(|#v| #into_owned) }
-        } else if last.ident == "Vec"
-          || last.ident == "SmallVec"
-          || last.ident == "CustomIdentList"
-          || last.ident == "AnimationList"
-          || last.ident == "AnimationNameList"
-        {
-          let v = quote! { v };
-          let into_owned = match &last.arguments {
-            PathArguments::AngleBracketed(args) => match args.args.first().unwrap() {
-              GenericArgument::Type(ty) => into_owned(ty, v.clone()),
-              _ => quote! { #v.into_owned() },
-            },
-            _ => quote! { #v.into_owned() },
-          };
-          quote! { #name.into_iter().map(|#v| #into_owned).collect() }
-        } else if last.ident == "Box" {
-          quote! { Box::new(#name.into_owned()) }
-        } else {
-          quote! { #name.into_owned() }
-        }
+      Type::Path(..) => {
+        quote! { #name.into_owned() }
       }
       Type::Reference(_) => panic!("can't derive IntoOwned on a type with references"),
       _ => quote! { #name.into_owned() },

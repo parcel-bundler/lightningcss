@@ -130,6 +130,7 @@ pub struct Location {
   serde(tag = "type", content = "value", rename_all = "kebab-case")
 )]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema), schemars(rename = "Rule"))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum CssRule<'i, R = DefaultAtRule> {
   /// A `@media` rule.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -412,6 +413,7 @@ impl<'i, T> CssRule<'i, T> {
 #[derive(Debug, PartialEq, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct CssRuleList<'i, R = DefaultAtRule>(
   #[cfg_attr(feature = "serde", serde(borrow))] pub Vec<CssRule<'i, R>>,
 );

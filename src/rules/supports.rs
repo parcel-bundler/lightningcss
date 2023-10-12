@@ -22,6 +22,7 @@ use crate::serialization::ValueWrapper;
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct SupportsRule<'i, R = DefaultAtRule> {
   /// The supports condition.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -68,7 +69,7 @@ impl<'a, 'i, T: ToCss> ToCss for SupportsRule<'i, T> {
 /// as used in the `@supports` and `@import` rules.
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "visitor", visit(visit_supports_condition, SUPPORTS_CONDITIONS))]
 #[cfg_attr(
   feature = "serde",

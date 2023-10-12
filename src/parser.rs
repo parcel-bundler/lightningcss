@@ -104,6 +104,14 @@ impl crate::traits::ToCss for DefaultAtRule {
   }
 }
 
+#[cfg(feature = "into_owned")]
+impl<'any> static_self::IntoOwned<'any> for DefaultAtRule {
+  type Owned = Self;
+  fn into_owned(self) -> Self {
+    self
+  }
+}
+
 #[cfg(feature = "visitor")]
 #[cfg_attr(docsrs, doc(cfg(feature = "visitor")))]
 impl<'i, V: Visitor<'i, DefaultAtRule>> Visit<'i, DefaultAtRule, V> for DefaultAtRule {

@@ -128,8 +128,6 @@ use crate::parser::ParserOptions;
 use crate::prefixes::Feature;
 use crate::printer::{Printer, PrinterOptions};
 use crate::targets::Targets;
-#[cfg(feature = "into_owned")]
-use crate::traits::IntoOwned;
 use crate::traits::{Parse, ParseWithOptions, Shorthand, ToCss};
 use crate::values::number::{CSSInteger, CSSNumber};
 use crate::values::string::CowArcStr;
@@ -164,6 +162,8 @@ use outline::*;
 use overflow::*;
 use size::*;
 use smallvec::{smallvec, SmallVec};
+#[cfg(feature = "into_owned")]
+use static_self::IntoOwned;
 use svg::*;
 use text::*;
 use transform::*;
@@ -180,7 +180,7 @@ macro_rules! define_properties {
     /// A CSS property id.
     #[derive(Debug, Clone, PartialEq, Eq, Hash)]
     #[cfg_attr(feature = "visitor", derive(Visit))]
-    #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+    #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
     pub enum PropertyId<'i> {
       $(
         #[doc=concat!("The `", $name, "` property.")]
@@ -661,7 +661,7 @@ macro_rules! define_properties {
     /// A CSS property.
     #[derive(Debug, Clone, PartialEq)]
     #[cfg_attr(feature = "visitor", derive(Visit), visit(visit_property, PROPERTIES))]
-    #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+    #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
     pub enum Property<'i> {
       $(
         #[doc=concat!("The `", $name, "` property.")]

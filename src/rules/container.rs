@@ -25,6 +25,7 @@ use crate::visitor::Visit;
 #[cfg_attr(feature = "visitor", derive(Visit))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub struct ContainerRule<'i, R = DefaultAtRule> {
   /// The name of the container.
   #[cfg_attr(feature = "serde", serde(borrow))]
@@ -41,7 +42,7 @@ pub struct ContainerRule<'i, R = DefaultAtRule> {
 /// Represents a container condition.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -74,7 +75,7 @@ pub type ContainerSizeFeature<'i> = QueryFeature<'i, ContainerSizeFeatureId>;
 
 define_query_features! {
   /// A container query size feature identifier.
-  #[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
   pub enum ContainerSizeFeatureId {
     /// The [width](https://w3c.github.io/csswg-drafts/css-contain-3/#width) size container feature.
     "width": Width = Length,
@@ -104,7 +105,7 @@ impl FeatureToCss for ContainerSizeFeatureId {
 /// Represents a style query within a container condition.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(
   feature = "serde",
   derive(serde::Serialize, serde::Deserialize),
@@ -248,7 +249,7 @@ impl<'i> ToCss for StyleQuery<'i> {
 /// A [`<container-name>`](https://drafts.csswg.org/css-contain-3/#typedef-container-name) in a `@container` rule.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "visitor", derive(Visit))]
-#[cfg_attr(feature = "into_owned", derive(lightningcss_derive::IntoOwned))]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub struct ContainerName<'i>(#[cfg_attr(feature = "serde", serde(borrow))] pub CustomIdent<'i>);

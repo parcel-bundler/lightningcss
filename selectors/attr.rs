@@ -15,6 +15,30 @@ pub struct AttrSelectorWithOptionalNamespace<'i, Impl: SelectorImpl<'i>> {
   pub never_matches: bool,
 }
 
+#[cfg(feature = "into_owned")]
+impl<'any, 'i, Impl: SelectorImpl<'i>, NewSel> static_self::IntoOwned<'any>
+  for AttrSelectorWithOptionalNamespace<'i, Impl>
+where
+  Impl: static_self::IntoOwned<'any, Owned = NewSel>,
+  NewSel: SelectorImpl<'any>,
+  Impl::LocalName: static_self::IntoOwned<'any, Owned = NewSel::LocalName>,
+  Impl::NamespacePrefix: static_self::IntoOwned<'any, Owned = NewSel::NamespacePrefix>,
+  Impl::NamespaceUrl: static_self::IntoOwned<'any, Owned = NewSel::NamespaceUrl>,
+  Impl::AttrValue: static_self::IntoOwned<'any, Owned = NewSel::AttrValue>,
+{
+  type Owned = AttrSelectorWithOptionalNamespace<'any, NewSel>;
+
+  fn into_owned(self) -> Self::Owned {
+    AttrSelectorWithOptionalNamespace {
+      namespace: self.namespace.into_owned(),
+      local_name: self.local_name.into_owned(),
+      local_name_lower: self.local_name_lower.into_owned(),
+      operation: self.operation.into_owned(),
+      never_matches: self.never_matches,
+    }
+  }
+}
+
 impl<'i, Impl: SelectorImpl<'i>> AttrSelectorWithOptionalNamespace<'i, Impl> {
   pub fn namespace(&self) -> Option<NamespaceConstraint<&Impl::NamespaceUrl>> {
     self.namespace.as_ref().map(|ns| match ns {
@@ -35,6 +59,7 @@ impl<'i, Impl: SelectorImpl<'i>> AttrSelectorWithOptionalNamespace<'i, Impl> {
   derive(schemars::JsonSchema),
   schemars(rename = "NamespaceConstraint")
 )]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum NamespaceConstraint<NamespaceUrl> {
   Any,
 
@@ -43,6 +68,7 @@ pub enum NamespaceConstraint<NamespaceUrl> {
 }
 
 #[derive(Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
 pub enum ParsedAttrSelectorOperation<AttrValue> {
   Exists,
   WithValue {
