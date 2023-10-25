@@ -96,7 +96,6 @@ pub(crate) fn derive_into_owned(input: TokenStream) -> TokenStream {
       quote! {
         match self {
           #variants
-          _ => unsafe { std::mem::transmute_copy(&self) }
         }
       }
     }
