@@ -382,7 +382,6 @@ enum_property! {
 
 shorthand_property! {
   /// A value for the [list-style](https://www.w3.org/TR/2020/WD-css-lists-3-20201117/#list-style-property) shorthand property.
-  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
   pub struct ListStyle<'i> {
     /// The list style type.
     #[cfg_attr(feature = "serde", serde(borrow))]

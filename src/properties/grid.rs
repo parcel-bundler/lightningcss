@@ -1506,7 +1506,6 @@ macro_rules! impl_grid_placement {
 
 define_shorthand! {
   /// A value for the [grid-row](https://drafts.csswg.org/css-grid-2/#propdef-grid-row) shorthand property.
-  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
   pub struct GridRow<'i> {
     /// The starting line.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -1518,7 +1517,6 @@ define_shorthand! {
 
 define_shorthand! {
   /// A value for the [grid-row](https://drafts.csswg.org/css-grid-2/#propdef-grid-column) shorthand property.
-  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
   pub struct GridColumn<'i> {
     /// The starting line.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -1533,7 +1531,6 @@ impl_grid_placement!(GridColumn);
 
 define_shorthand! {
   /// A value for the [grid-area](https://drafts.csswg.org/css-grid-2/#propdef-grid-area) shorthand property.
-  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
   pub struct GridArea<'i> {
     /// The grid row start placement.
     #[cfg_attr(feature = "serde", serde(borrow))]

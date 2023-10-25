@@ -492,7 +492,6 @@ impl Default for MaskBorderMode {
 define_shorthand! {
   /// A value for the [mask-border](https://www.w3.org/TR/css-masking-1/#the-mask-border) shorthand property.
   #[derive(Default)]
-  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
   pub struct MaskBorder<'i> {
     /// The mask image.
     #[cfg_attr(feature = "serde", serde(borrow))]

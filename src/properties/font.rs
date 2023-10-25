@@ -763,7 +763,6 @@ impl ToCss for VerticalAlign {
 
 define_shorthand! {
   /// A value for the [font](https://www.w3.org/TR/css-fonts-4/#font-prop) shorthand property.
-  #[cfg_attr(feature = "into_owned", derive(static_self::IntoOwned))]
   pub struct Font<'i> {
     /// The font family.
     #[cfg_attr(feature = "serde", serde(borrow))]
